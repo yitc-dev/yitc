@@ -1,0 +1,257 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0189
+title: Review-proposed restoration of a born-permissive default
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: true # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # (AC5) — the spec no longer lands anchorless (SPEC-0151 warns
+                               # on exactly that). These are the three surfaces the activating card
+                               # ships; the PER-SURFACE DETECTORS are deliberately NOT here — each is
+                               # inseparable from its own default-flip and rides its own later card,
+                               # which cites this spec rather than redefining these anchors.
+  - bin/lib/views.py#growth_window_days # §Parameters — the window is READ, not restated
+  - bin/lib/views.py#project_growth # rule 3 — the shared per-project growth fold
+  - bin/lib/init.py#born_permissive_concerns # rule 8 — the one reader of born STANCE
+  - bin/lib/init.py#born_permissive_detector_violations # rules 1 + 7/8 — the DECLARATION-point
+                                                        # admission guard. Rule 1: the nameless-
+                                                        # permissive REFUSAL (the pair is the unit
+                                                        # of admission). Rules 7+8 : a
+                                                        # concern whose born fragment is LIVE while
+                                                        # the CHARTER amendment authorizing a born
+                                                        # relaxation has NOT landed is refused too
+                                                        # (`concern-permissive-born-unauthorized-by-
+                                                        # charter`) — the ordering edge enforced at
+                                                        # the admission point rather than in the
+                                                        # per-birth write path, which answers rule
+                                                        # 8's different question. A COMMENTED
+                                                        # fragment declares nothing and is never
+                                                        # refused.
+  # — the PROPOSAL RENDERING path (rules 3 + 4), ADDED beside the four above, never in place
+  # of them: this card registers into the surfaces defined and redefines none. Anchored here
+  # because SPEC-0189 is the rule home this code cites (an anchorless rule claim is what SPEC-0151
+  # warns on, and the audit-post read it as a coverage gap).
+  - bin/lib/debt.py#restoration_proposals # rules 3+4 — assemble; a count alone is malformed
+  - bin/lib/views.py#_render_growth_relevance # rule 3 — growth as RELEVANCE, never evidence
+  - bin/lib/cli.py#_born_permissive_concerns_for_echo # rule 3 — the roster a report-only surface reads
+  # — the rule-8 BIRTH-RATIFICATION WRITE PATH, ADDED beside the anchors above and redefining
+  # none of them: the concern-blind mechanism the three wave-3 surface cards register into by declaring
+  # `born_stance: permissive` on their OWN concern block. Anchored here so the rule that governs this
+  # code names it (SPEC-0151 — an anchorless rule claim is what that spec warns on).
+  - bin/lib/init.py#born_permissive_gate # rule 8 — write-only-against-a-confirmation
+  - bin/lib/init.py#record_born_permissive_ratifications # rule 8 — the ratification provenance
+body: |
+  ## Scenario
+
+  A project is born with a verification gate declined, so it does not pay for protection it does not
+  yet need. As it grows, the periodic review watches for a signal that the absence has started to cost
+  something, and — when one fires — NAMES the project, the surface and the observed signal, and
+  proposes turning that gate back on. It never turns it on itself. On a project where no signal has
+  fired, the review says nothing at all.
+
+  ## Internal
+
+  ### Rule 1 — No born-permissive default without a named detector
+  A default may be born permissive ONLY if a detector for its absence is named in the same corpus. The
+  pair is the unit: a permissive birth without a detector is not admitted. This binds at authoring
+  time, not at review time.
+
+  ### Rule 2 — Detection rests on signals emitted without a judgement call
+  A qualifying signal is one the system emits as a by-product of ordinary work. A signal that requires
+  someone to CLASSIFY something — at triage, at closure, or anywhere else — does NOT qualify, because
+  an optional classification is an unmade one. Interpreting note, not deliberation: the nearest analog
+  in this corpus, the automatic restoration of the audit-post exemption, is stated in CHARTER as
+  INOPERATIVE wherever the defect judgement is not made, and that judgement has never been made across
+  three consumers' entire history. A detector built on the same input would be inert on arrival.
+
+  ### Rule 3 — Growth gates RELEVANCE; it never supplies EVIDENCE
+  A growth reading (corpus size, land volume, or any other count) MAY decide whether a proposal is
+  worth making now. It MUST NOT, alone, be the evidence that the absence is costing anything. Only the
+  surface's own rule-2 signal carries that. A proposal whose sole support is a count is malformed.
+
+  ### Rule 4 — Propose, never apply
+  The review PROPOSES. Restoration is always an explicit project act, performed by the project in its
+  own contract. No review path, and no automation reachable from one, may write a project's
+  declaration. A proposal states: the project, the surface, the observed signal, and the specific
+  tightening — never a bare "consider reviewing this".
+
+  ### Rule 5 — The detector is named code, never a rule expressed in metadata
+  Detection logic is CODE. This spec fixes only that boundary — a detector may never be expressed as a
+  rule inside a declaration, because a declaration block is a finite table and carries no language for
+  one. HOW a detector is named from, and resolved through, the concern registry — the naming
+  convention and the refusal when a concern declares a permissive born value without one — is registry
+  mechanics and is homed in SPEC-0128, not restated here (one home, SPEC-0005 rule 8).
+
+  ### Rule 6 — A detector is adopted only once it has spoken on real data
+  Adoption requires EITHER that the detector has fired with a named proposal on a real project corpus,
+  OR that it is demonstrated silent for a stated reason on a corpus that WOULD have tripped a naive
+  detector. For a report-only signal the differential is INDISTINGUISHABILITY, not presence: a test
+  asserting only that a line printed does not discharge this rule. A detector that has never spoken on
+  any real corpus is not adopted, and is not tuned until it speaks.
+
+  ### Rule 7 — Flipping a born default never flips absence
+  Changing what `init` WRITES into a new project's contract MUST NOT change what an ABSENT declaration
+  reads. The two are separate questions and separate code paths. A change that moves both silently
+  re-declares every existing project that never opted in.
+
+  ### Rule 8 — A born declaration that RELAXES a control carries ratification provenance
+  A born-written declaration that turns a control OFF, widens an exemption, or otherwise relaxes a
+  gate is written ONLY against an explicit human confirmation recorded as that declaration's
+  ratification provenance. A safe born default owes no such provenance and may be clean. Where the
+  confirmation is unavailable — any noninteractive birth — the declaration is NOT written and the
+  section stays absent, which reads fail-closed. Consequence, stated so it is not re-derived: there is
+  no state in which a relaxation exists un-ratified, so no debt view is asked to carry one and no
+  shared machinery is exempted to tolerate one. The axis is the VALUE'S DIRECTION, not the concern's
+  identity: this rule is blind to WHICH gate is being relaxed.
+
+  ## Parameters
+
+  | parameter | value | consumed | owner |
+  |---|---|---|---|
+  | `growth_window_days` | 30 | yes — read by the shared growth fold | THIS spec |
+
+  **THE VALUE, as a machine-readable token the fold READS.** `consumed: true` means code
+  reads a governing scalar FROM this spec, so the parameter needs a value HERE and not a constant in
+  `bin/`. The table above is prose for a human; this token is what the reader parses — the same
+  carrier/idiom `views.py#_rotation_rereview_bound_mb` and `worktree.py#journal_live_window_days`
+  already use on their own governing specs. One carrier, one idiom, no second config path.
+
+      GROWTH_WINDOW_DAYS: 30 # the trailing window the shared growth fold counts
+                               # land_completed(status=ok) rows over, per project. Changing it is a
+                               # governed spec edit, and it changes the fold's answer by construction —
+                               # which is exactly the differential that proves the value is READ rather
+                               # than restated in code.
+
+  FAIL-CLOSED, with NO default: a carrier or token that cannot be read yields no value and the fold does
+  not run. It never falls back to a number, because a fallback would BE the local literal this parameter
+  exists to forbid — a fold quietly answering on a guessed window is worse than one answering nothing,
+  since the guess is invisible in the answer.
+
+  The growth window is a GOVERNING scalar and is homed here, not in the code that reads it: the fold
+  consumes this value, it does not define it. It is deliberately NOT per-surface — a surface's own
+  governing spec owns ONLY its signal threshold and its permissive value, and no surface spec restates
+  this window. Everything else about a surface's numbers stays with that surface.
+
+  ## Rationale
+
+  Born-permissive defaults are cheap to grant and hard to revisit: the failure they permit is silent
+  by construction, so nothing surfaces it on its own. The restoring review is therefore the whole of
+  the safety argument, and a restoring review that cannot fire is worse than none — it is believed in.
+  Rules 2 and 6 exist to keep that from happening again on a second generation of defaults.
+
+  ## Verification
+
+  - R1: a concern declaring a permissive born value with no named detector fails the check that pairs
+    them (probe: `graph conformance` over a fixture declaring one without the other).
+  - R2: a proposed detector whose input is a classification field is rejected at review of the
+    concern entry (probe: the fixture names an optional `kind`-style field and is refused).
+  - R3: a proposal assembled from a growth count alone is malformed (probe: assemble one; the renderer
+    refuses to emit it).
+  - R4: no review code path writes a consumer `yitc-ops.yaml` (probe: a mechanical diff-scan over the
+    review/debt surfaces proves no write to a consumer contract, and FAILS on a planted write).
+  - R5: a detector expressed as a rule inside a declaration is refused (probe: plant one in a fixture
+    concern block; the build refuses it). The naming/resolution probes belong to SPEC-0128.
+  - R6: for each shipped detector, either a recorded firing on a real corpus, or a recorded silence
+    plus the named corpus that would have tripped a naive detector (probe: the recorded review run).
+  - R7: differential — flip the born value written by `init`, and assert the ABSENT-declaration read is
+    byte-identical before and after (probe: a fixture reading an empty contract on both sides).
+  - R8: a noninteractive birth writes NO relaxing declaration and the section reads fail-closed
+    (probe: run birth with no confirmation available; assert the section is absent and the resolved
+    value is the protective one). Negative control: the SAME birth WITH a confirmation writes the
+    declaration AND its ratification provenance — the two runs must be distinguishable.
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - SPEC-0178
+  - SPEC-0186
+  - SPEC-0128
+  - SPEC-0119
+  - SPEC-0057
+  - SPEC-0132
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: born-permissive-project-defaults-with-review-propo
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding:
+  - code-enforced # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/cli.py#_born_permissive_concerns_for_echo: 2d855ae353ce76983491c61136626faddf966d89769e1adbe950fa4cd467d121
+  bin/lib/debt.py#restoration_proposals: 97bfb16ae927a057e038e007bc63960ac5f449af840af241788f7360b4a68941
+  bin/lib/init.py#born_permissive_concerns: 7588f47896fde75001a64d97f0bbba3531db166e775e6dc123267d2a563d125e
+  bin/lib/init.py#born_permissive_detector_violations: 32ee49c7e5680e995be65741f4915e00cdd3cd7eab80c258f811cfb55baded73
+  bin/lib/init.py#born_permissive_gate: 16dda58eea7ef5c96b5988f205de595a7595919afca3d49410a9abdeada0619b
+  bin/lib/init.py#record_born_permissive_ratifications: cc663c078b089f97971ba7feed13e442891ab2eafe5d7373699fb33d9b1ca9d0
+  bin/lib/views.py#_render_growth_relevance: c309bc3b04e330e068c3c1992e5b28f9d4e0b641b06828d195bd896955e22f82
+  bin/lib/views.py#growth_window_days: c4e93f98b05db0cde278340f9008105963a61bc644067b5fc1deba5f39c57780
+  bin/lib/views.py#project_growth: 08bf332e2525ae0c10d49d812d0ecc32d0589d9d13dc8818a6a876e0aed58330

@@ -1,0 +1,19 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: plans-pending-finalization
+description: Accepted plans with zero open citing-tasks — finalization-not-forgotten safety net (the weekly Review pull, never a gate).
+lens:
+  kind: plans-pending-finalization # pure f over committed artifacts: accepted plans (index["plans"],
+                                     # kind:plan) whose open citing-task set is empty (_plan_open_citing_tasks —
+                                     # the SAME helper the PUSH layer uses, P5 no-drift). Recomputed fresh.
+why: >-
+   PULL layer (the safety net behind the PUSH WARN at `task close`). Root cause: `decision
+  finalize` had no auto-trigger and relied on AI memory, so Part F was forgotten while `accepted`.
+  The PUSH WARN fires at the moment the last open citing task closes — but it can be missed (a plan
+  accepted BEFORE this trigger, or whose one-time hint scrolled past). This view is the
+  standing backlog: run it in the WEEKLY Review scan (QUEUE §Re-review) to catch any accepted plan
+  whose realization work is done but which was never finalized. Running `yitc-v2 graph query
+  plans-pending-finalization` IS the Review-path read — it emits a `cli_invoked` observability event
+, so the consumption is durable evidence (AC4 live-trigger), not merely a runnable query.
+  Report-not-block (CHARTER §P1 / non-goal #2); reuses the graph index + the canonical cites:<plan>
+  read — no new store, no new command family, no new event type.

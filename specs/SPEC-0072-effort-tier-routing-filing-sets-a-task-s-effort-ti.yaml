@@ -1,0 +1,163 @@
+id: SPEC-0072
+title: 'Effort-tier routing — filing sets a task''s effort tier; dispatch maps tier to model/effort via config'
+
+status: active
+
+created_at:
+
+consumed: false # the tier→model MAP is read by dispatch FROM A CONFIG file, not a scalar
+                               # FROM this spec; and the tier is a TASK FIELD. Stays false at active too.
+
+implements: # WIRED by (the activation owner) — code that REALISES this routing.
+  - bin/effort-routing-config.yaml # the tier->(model,effort) map — the SOLE source (no hardcode).
+  - bin/lib/vocab.py#EFFORT_TIERS # the tier enum (normal|critical) — stable VALUE drift anchor.
+  - bin/lib/cli.py#_resolve_effort_routing # the config-read helper (pure tier->map lookup).
+  - bin/lib/dispatch.py#cmd_dispatch # the routing application: preflight resolve + override + event ( relocation).
+  - bin/lib/task.py#cmd_task_file # the effort_tier filing field + --critical/--effort-tier flags.
+  - bin/lib/task.py#cmd_task_update # : the POST-filing writer realising rules 1 + 6 (--effort-tier).
+
+body: |
+  ## Scenario
+
+  When a task is FILED, its author records an effort TIER — the one judgment they already make while
+  sizing the change: is it irreversible / wide-blast-radius / critical? When that task is later
+  DISPATCHED to a background worker, `dispatch` reads the tier and AUTO-selects the worker's
+  model + effort from a config map — no human chooses a model at launch. Default tier (`normal`) →
+  the cheap disciplined model; `critical` → the thorough model. The dispatcher may still override per
+  run. INTERACTIVE sessions are out of scope of the auto-map: the owner picks the model directly there.
+
+  ## Internal
+
+  1. **The tier is a TASK FIELD written at filing by the FILING AUTHOR — normally the AI authoring the
+     card** (the owner when the owner files it): `effort_tier: normal | critical` (default `normal`).
+     It is ONE MORE authoring field alongside `class` / `expected_touch`, written as part of the
+     change-sizing the author ALREADY does at Filing/Analysis (SPEC-0046 blast-radius + the
+     `expected_touch` forecast): the AI assesses reversibility + blast-radius + criticality of the
+     change it is describing and records the tier, exactly as it records the class and the touch
+     forecast. Captured as TRANSPARENT, owner-reviewable, OVERRIDABLE data on the card.
+     **This is AUTHORING JUDGMENT, NOT the banned standing runtime auto-classifier (CHARTER non-goal
+     #7):** the field is set ONCE at card creation and is NEVER re-inferred at dispatch — `dispatch`
+     does a deterministic config LOOKUP of the already-written field, no inference, no detector. The
+     owner can change the field on the card at any time — via `task update --effort-tier <tier>`, the governed
+   post-filing writer, whose CLOSED vocabulary is the one this spec's `Parameters` table
+   names. "At any time" is bounded by the card's NON-TERMINAL life: a `done` / `wont-do` card is
+   frozen history and its tier is INERT there, because rule 2 resolves a tier only for a card
+   `dispatch` is about to launch and a terminal card is never launched. `critical` when the change is irreversible /
+     wide-blast / critical — knowable in advance because it is a property of the change being described,
+     not discovered mid-work.
+
+  2. **`dispatch` maps tier → (model, effort) deterministically, at launch, with NO human in the loop.**
+     The map is a lookup, not inference. Default map: `normal → opus-low`, `critical → opus-high`. An
+     explicit `--model` / `--effort` passed to `dispatch` OVERRIDES the map (the escape hatch). The
+     resolved (model, effort) + the tier it came from are recorded on the dispatch event (probeable).
+
+  3. **The tier→model/effort map is CONFIG, not hardcode** (a small `bin/effort-routing-config.yaml`,
+     the existing `*-config.yaml` pattern — `pricing-config` / `audit-config`). So the default model can
+     change, and a MULTI-PROVIDER future is a config edit, not a field/verb change. The FIELD is
+     provider-neutral by construction — it names a TIER, never a model id (CHARTER §P4b).
+
+  4. **Routing is by STAKES (the tier), NOT by difficulty/class.** The bench (v4 / v5 / real-pilot-1)
+     found subjective quality a TIE across all difficulty types (panel within judge-noise; objective
+     floor uniform). So a difficulty→effort matrix buys no quality and is rejected (anti-complexity).
+     `critical → high` buys TAIL-RISK insurance (marginal thoroughness) on irreversible/wide changes,
+     where paying ~+40% cost is justified; `normal → low` is the value default for everything else.
+
+  5. **Scope = the autonomous launcher only.** The auto-map governs `dispatch` (the control chokepoint). Interactive model choice stays the owner's (`/model`); the tier is guidance there, not a
+     gate. No new routing verb, no classifier — the verb that is "before running a worker" is EXTENDED.
+
+  6. **Analysis-stage escalation — asymmetric, UPWARD only.** A dispatched worker that, during
+     Analysis (Stage 1 — where the true blast-radius actually surfaces, SPEC-0046), judges its task
+     UNDER-tiered (assigned `normal` but the change is in fact irreversible / wide-blast / critical)
+     does NOT build on the wrong model. It: (a) bumps `effort_tier: critical` on the card — the governed
+   route is `bin/yitc-v2 task update <task> --effort-tier critical`, never a hand-edit or a
+   `--old/--new` text replace of the key, both of which the verb now refuses — (b) emits
+     an escalation HALT — **REUSE `bg_dispatch_halted` with `reason: tier-escalation`** (no new event),
+     and STOPS. The **CONTROLLER** then re-dispatches on the new tier (→ opus-high); the worker NEVER
+     self-redispatches (subagent-role: a build worker is one-shot — more build work is a fresh
+     controller-launched session, per the dispatch preamble). This is the worker's own judgment while
+     analyzing the task it is about to build, mediated by an explicit controller-acted halt — NOT a
+     standing runtime classifier (rule 1's non-goal-#7 boundary holds).
+     **DE-escalation is NOT done mid-flight:** a worker already on `critical`/opus-high that finds the
+     task trivial simply FINISHES it — aborting a running worker + re-dispatching is queue churn with
+     no safety gain. An over-tier is corrected on the CARD for future similar tasks (recalibration via
+     the discipline lens), never by a mid-flight abort. The asymmetry is deliberate: escalate only on
+     the safety-relevant direction. **Best-effort, not a guarantee:** a weaker model may not recognise
+     it is out of depth (Dunning-Kruger), so the filing-time tier (rule 1) stays the PRIMARY signal and
+     this escalation is the second-layer net that catches part of the under-estimates.
+
+  ## Parameters
+
+  | param | home | values | consumed |
+  |---|---|---|---|
+  | `effort_tier` | task YAML (set at `task file`, changed after filing by `task update --effort-tier`) | `normal` (default) \| `critical` | n/a — task field |
+  | tier→(model,effort) map | `bin/effort-routing-config.yaml` (NEW) | `normal→opus-low` · `critical→opus-high` | false (read by dispatch from config) |
+
+  ## Config-file contract (bin/effort-routing-config.yaml)
+
+  - **Schema:** `tiers: { <tier>: { model: <id>, effort: <level> } }` — one entry per effort tier
+    (`normal`, `critical`). Owner-editable DATA; the SOLE tier→(model,effort) source (no model id is
+    hardcoded in the dispatch routing path — AC2).
+  - **Precedence:** an explicit `dispatch --model/--effort` override WINS PER-FIELD over the map (the
+    escape hatch); the map supplies any field the override leaves unset.
+  - **Failure mode (FAIL-CLOSED):** `dispatch` resolves every task's routing in a PREFLIGHT before any
+    spawn (all-or-nothing). A KNOWN tier that does not resolve to BOTH a model and an effort (config
+    missing/incomplete and no override), or a card carrying a non-whitelisted `effort_tier` value,
+    REFUSES the launch (`_die`) rather than silently downgrade a critical task to the provider default.
+    An ABSENT `effort_tier` reads as `normal` (legacy-safe; no backfill).
+
+  ## Rationale
+
+  Bench real-pilot-1 (v4/v5): quality is a tie across difficulty → route by STAKES, not difficulty;
+  and `dispatch` was confirmed UNABLE to vary model/effort (`--task`/`--brief` only) — the bench had to
+  bypass it with raw `the AI provider -p --model --effort` (a documented sanctioned exception, §6a). This spec
+  closes that gap. The stakes judgment is knowable at filing because it = the blast-radius sizing
+  Filing/Analysis already does. Owner directive 2026-06-12 ("if filing determines it, dispatch should
+  decide automatically without a human; default opus-low, opus-high for critical"). The deliberation
+  (why opus-low default rather than the cheaper sonnet-high; the low-vs-high tie evidence) lives in
+  plan ai-bench-operation-accumulating-tables-and-model-r (content-boundary: not restated here).
+
+  **Removed alongside (anti-complexity F3):** the bench raw-`the AI provider -p` sanctioned exception (dispatch
+  now varies model/effort itself); and the per-LAUNCH human routing judgment for background workers
+  (the decision now travels from filing). **Not added:** no difficulty→effort matrix, no routing verb,
+  no stakes auto-classifier.
+
+  ## Verification
+
+  - Probe: a task filed `effort_tier: critical` → `dispatch --task` launches its worker on opus-high; a
+    `normal` (or unset) task → opus-low; with NO human model choice at launch. The dispatch event records
+    the resolved model+effort AND the source tier.
+  - Probe (rule 6 escalation): a `normal`-dispatched worker that escalates at Analysis flips the card to
+    `effort_tier: critical` + emits `bg_dispatch_halted reason=tier-escalation` + stops (no self-redispatch);
+    the controller re-dispatch lands the task on opus-high. State-check: card tier flipped + the
+    escalation halt event + the re-dispatch resolved on the new tier. (No DE-escalation path exists.)
+  - Probe: an explicit `dispatch --task T --effort high` overrides the map (escape hatch honoured).
+  - Probe (rules 1 + 6 reachability): `task update <task> --effort-tier critical` on an
+    EXISTING non-terminal card flips the field and emits `task_amended(field_edit, field:
+    effort_tier)` carrying from/to; an out-of-vocabulary value is REFUSED with the card unchanged;
+    `--effort-tier normal` REMOVES the key (omit-when-default); a `--old/--new` text replace of the
+    key is refused and routed to the flag. State-check: field + journal row + the refusal exits.
+  - State-check: `bin/effort-routing-config.yaml` exists and is the sole tier→model source (no hardcode).
+  - The bench raw-`the AI provider -p` exception is retired from the bench harness / §6a (dispatch varies model).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-4
+  -
+  -
+  - SPEC-0046
+  - SPEC-0060
+  - ai-bench-operation-accumulating-tables-and-model-r
+  - ai-configuration-benchmarking-same-task-different-
+
+requires: []
+supersedes: ~
+activation_owner_task: # implements + ACTIVATES this spec on close (work-first).
+proposed_by: # work-first authoring (the implementing task births the proposed spec).
+binding: [code-enforced] # code-enforced residency : routing enforced in cmd_dispatch/cmd_task_file + the config reader; not verb-fetched / stage-delivered.
+implements_signature:
+  bin/effort-routing-config.yaml: 93b612f519c788c4ebbd4110d0da7744f50350b0cf2421f20818f527e487643d
+  bin/lib/cli.py#_resolve_effort_routing: 3e00a47eef8924a4d47d17bdb4e7ebd14b95cef99c6b8b5429661905977eee07
+  bin/lib/dispatch.py#cmd_dispatch: 8f6f28c12c7c47f8e702137215cc2b48d2c949f9e7d184d5ef268e8add4b39e7
+  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/task.py#cmd_task_update: 563c27c87f96147ded8f48a07b2986525b7da1a3bab2baf50ce4ea41b4836a5b
+  bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

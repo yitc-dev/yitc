@@ -1,0 +1,383 @@
+id: SPEC-0039
+title: 'Project MEMORY.md buffer — entry kinds incl. bounded temporary instructions, audience/lifetime axes, and the three-layer GC'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # — activation_owner_task below). `active` is the ONLY
+                               # normative status; proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # process/governance spec — no code reads a scalar param from it.
+                               # Stays false at `active` too: enforcement is distributed
+                               # reader/author discipline, not a code-read param.
+
+implements: # PARTIALLY code-enforced. The buffer rule stays a documentary /
+  - bin/lib/memory.py#audience_matches # the §5(a) self-filter predicate (audience leg)
+  - bin/lib/memory.py#parse_pointer # the §3 marking line / SPEC-0147 §3 pointer shape
+  - bin/lib/memory.py#write_pointer # the §4 ×N-reader idempotence norm
+  - bin/lib/memory.py#delete_pointer # the §5(b) consume-once deletion
+                               # cross-cutting PROCESS spec whose drain + authorship discipline is
+                               # DISTRIBUTED-ENFORCEMENT (SPEC-0005 rule 7a) reader/author obligation —
+                               # no code can enforce "delete the entry you consumed". But the §5(a)
+                               # self-filter's AUDIENCE-MATCH leg is now machine-checked by this one code
+                               # site (`audience_matches` + the §3 pointer helpers), so the spec is no
+                               # longer empty-mode: it names the anchor it governs. The empty-mode note
+                               # is RETIRED here rather than left standing beside a non-empty
+                               # `implements:` (P7 — a stale comment beside a changed field is exactly
+                               # the contradiction the dissonance principle forbids).
+
+binding: [floor] # mandatory tier — the buffer is part of the always-loaded startup
+                               # surface (auto-read at session start, SPEC-0007 §5/§6 model); its
+                               # operative reader rules are materialized always-loaded in AGENTS
+                               # §At-session-start (the MEMORY paragraph). Same residency rationale
+                               # as SPEC-0007 itself: the rule that governs a startup read cannot be
+                               # retrieved-only. Excluded from verb inversion + dangling check.
+
+activation_owner_task: # work-first activation owner (SPEC-0005 §5) — `task close`
+                               # is the SOLE writer that flips this spec proposed→active.
+
+proposed_by: # PROVENANCE — work-first : birthed by the authoring task,
+                               # not plan-born (the orchestrate-posture plan is PARKED behind this
+                               # task and only CONSUMES the rule once it lands).
+
+amends: # canonical surfaces this spec DELIBERATELY changes (named per P7).
+  - SPEC-0007 §6: the MEMORY-buffer rule is SPLIT OUT of the omnibus always-loaded-organization
+      spec into this spec (SPEC-0005 rule-6 split-by-surface — the buffer is a distinct surface
+      from "always-loaded files org"); SPEC-0007 §6 is reduced to a one-line pointer here. The
+      base contract carries over unchanged; the temp-instruction extension is NEW.
+  - AGENTS.md §At-session-start (the auto-read MEMORY paragraph): reflects the two entry kinds,
+      the read-only reader self-filter, and the pointer to this spec.
+  - §3 audience axis (pulled by SPEC-0147 §4): ADDITIVELY EXTENDED with the `user(<name>)`
+      recipient selector — a +1 value on the existing axis, mirroring `session(<ref>)`. Every
+      already-covered audience keeps its exact prior compliance, so this is an IN-PLACE amend of an
+      active spec, not a supersede (SPEC-0005 rule 7 — the additive-extension fork; same shape as the
+       role-value extension). §5(a) is widened so "not self" spans the user axis too, and the
+      audience-match leg gains its code anchor (`implements:`). The consumer is SPEC-0147's
+      person-onboarding pointer set, scoped to ONE person and never surfaced to another.
+  - §5(b) onboarding-pointer consume EXCEPTION (X-0274): the immediate-consume-once deletion
+      gains ONE narrow direct-to-main self-commit carve-out for the SPEC-0147 `[onboarding:<id>]`
+      pointer, whose only juncture is a MAIN-checkout seam with no worktree batch. The base
+      "delete-in-a-`work/`-worktree-and-land" discipline is UNCHANGED for every other buffer entry; this
+      only names the onboarding pointer's already-forced main-checkout drain and points it at a scoped
+      governed commit (posture-matched to the sanctioned `-C init` / task-terminal self-commit
+      precedents) instead of a stranded dirty write that wedged land (the X-0274 incident). Code home is
+      `bin/yitc-v2` cmd_memory_consume (the `_memory_consume_selfcommit*` helpers); the write-flow
+      exception is co-homed in AGENTS §Writes-happen-in-a-worktree EXCEPTION.
+  - SPEC-0091 coherence : RETIRES the "passive lead (default kind) — no action obligation,
+      drained later via a full-Analysis task" entry kind + its unbounded-scratch / drain-into-corpus
+      framing, re-homing a note-that-must-persist to SPEC-0091's route-by-purpose lanes (P5/P7 dedup —
+      the short / read-by-all / consume-once, deleted-after-use MEMORY-line model is already active in
+      SPEC-0091 Rule 2/3, which cites this spec as the transient carrier). The surviving unmarked entry
+      is a SHORT read-by-all consume-once to-do-NOW line; the bounded [instruction] kind is KEPT, its
+      lifetime wording aligned to "deleted after execution / when until fires". Realigns the §0 base
+      contract + §5 GC to an explicit immediate-deletion discipline, and the echoing MEMORY.md header +
+      AGENTS §At-session-start paragraph + patterns/doc-conventions.md MEMORY row.
+
+body: |
+  ## Scenario
+
+  A session opens, auto-reads the project-local `MEMORY.md` buffer, and sees SHORT, READ-BY-ALL,
+  CONSUME-ONCE entries — each a to-do-NOW deleted after use, never long-lived. Two kinds: an
+  unmarked short to-do-NOW line (a near-term note any session may consume) and an explicitly-marked
+  BOUNDED TEMPORARY INSTRUCTION — a provisional operating note it may act on (e.g. a trial-pointer:
+  "orchestrate posture in TRIAL, owner-invoked — read the pattern; the handbook rule is NOT yet
+  amended"). Only the marked instruction is audience-filtered; it names who it is for and how long
+  it lives, and nothing broadcasts to every session forever by default. Anything that must PERSIST
+  is not a MEMORY entry — it routes by purpose to its durable home (SPEC-0091). The buffer stays
+  short because foreign/expired entries are ignored at read time and every entry is deleted by the
+  session that consumes it.
+
+  ## Internal
+
+  The ONE home (P5) of the project-MEMORY.md buffer rule — split out of SPEC-0007 §6 (rule-6
+  split-by-surface; SPEC-0007 §6 is now a pointer here). Base contract + the temporary-instruction
+  extension stated as FOUR BOUNDS + the three-layer GC.
+
+  ### 0. Base contract (carried over from SPEC-0007 §6; drain framing realigned to immediate-deletion)
+  - A project keeps its OWN project-local `MEMORY.md` (repo root, project territory): the familiar
+    surface the AI's memory reflex is fluent in, so the reflex lands in GOVERNED territory instead
+    of an ungoverned global one (work WITH the learned convention).
+  - It is a **non-authoritative drainable BUFFER**: nothing final lives only here. Truth = the
+    corpus (specs / plans / tasks) + the journal (durable history).
+  - **Auto-read at startup** (cross-session continuity), kept SHORT because every entry is
+    **consume-once — deleted after use** (§1/§5). **Worker exemption :** a DISPATCHED WORKER
+    (audience `background`, `session start --type build`) does NOT auto-read this buffer at all — its
+    startup read-set is the mandatory handbook seed + the active stage bundle only. The buffer's
+    cross-session-continuity content is controller-oriented and, being irrelevant to a task-bounded
+    worker, is a CONFABULATION source (real incident 2026-07-01: a worker read a migration seed and
+    confabulated a FOREIGN-scenario land-halt). This is an ADDITIVE audience-scoped carve-out from the
+    blanket auto-read — every other session (Controller / interactive / auto) still auto-reads,
+    unchanged. A MEMORY entry is a short to-do-NOW, NEVER a
+    persistence home: a note that must outlive its use was never a MEMORY destiny — it ROUTES by
+    purpose to its durable home the moment it is recognized (SPEC-0091 route-by-purpose lanes —
+    pointer, not restated here). The immediate-deletion discipline is the survival piece — an
+    undeleted memory surface bloats. **Coherence (SPEC-0114):** the owner-refresh / «обновим сессию»
+    continuation hand-off is likewise NOT a buffer entry — it is a copy-paste CHAT block PRINTED to the
+    owner (consumed in-window, pasted into a fresh session), never written here; MEMORY stays near-empty.
+    (Distinct from the §3 pre-/compact note case, which IS a legitimate `session(<ref>)` consume-once
+    buffer entry — that survives a /compact within the SAME session and stays as-is.)
+  - **Distinct lanes** (do not conflate; route-by-purpose home = SPEC-0091): `ideas/` = forward
+    plan seeds · the journal = append-only history (never drained) · `deviation_captured` =
+    nonconformity capture · this buffer = short consume-once to-do-NOW lines + bounded temporary
+    instructions (this spec).
+  - **Provider stance (P4):** a neutral SUBSTRATE (a plain in-repo file — survives a tool swap) +
+    a familiar NAME as an adoption affordance. P4 forbids a provider MECHANISM carrying
+    load-bearing state, NOT a governed in-repo file named `MEMORY.md`.
+
+  ### 1. Bound 1 — the to-do-vs-instruction line (two entry kinds, BOTH consume-once)
+  Every entry is SHORT and **consume-once — deleted after use**. The "passive lead — orientation
+  scratch with NO action obligation, drained LATER via a full-Analysis task migration into the
+  corpus" default kind is **RETIRED** : a note that must persist is not a MEMORY entry — it
+  routes by purpose to its durable home (SPEC-0091, pointer). The two kinds:
+  - **Short to-do-NOW line** (the default, unmarked): a SHORT, READ-BY-ALL near-term note — a
+    "remember to check X", a hand-off cue — that any session may consume. It is NOT audience-filtered
+    (audience marking is the instruction form below) and is deleted by the session that consumes it.
+  - **Temporary instruction**: a provisional operating note a session ACTS ON at startup. ONLY an
+    EXPLICITLY MARKED entry (bound 3) is an instruction; an unmarked note is a plain read-by-all
+    to-do-NOW line, NOT an instruction. **Fail-closed:** nothing acts on unmarked text AS A
+    DIRECTIVE — an unmarked note carries no audience/lifetime machinery and CANNOT grant a
+    standing-action mandate (that needs the §4 marked form); ambiguity degrades to a plain to-do,
+    never escalates to instruction.
+
+  ### 2. Bound 2 — provisional-only, auto-drain tied to a governing artifact
+  A temporary instruction exists ONLY while a NAMED governed provisional is open: a plan-in-trial,
+  an in-flight task, OR an explicit expiry (consume-once / a date). It carries its drain condition
+  AT WRITE TIME — an instruction with no governing artifact and no expiry is INVALID and treated
+  as a plain read-by-all to-do-NOW line, not an instruction (fail-closed, bound 1). When the
+  governing artifact resolves, the entry is removed as part of that resolution (GC layer (b)).
+
+  ### 3. Bound 3 — marking + lifetime (the two axes on every instruction)
+  Marking — one bracketed line opening the entry:
+  `[instruction] [audience: all | interactive | background | auto | session(<ref>) | user(<name>)] [until: <artifact-id> | <ISO-date> | consume-once]`
+    - **AUDIENCE** (who reads/acts): `all` sessions · a session
+      ROLE (`interactive` = any owner-dialogue session, >1 concurrent is normal · `background` = a
+      dispatched worker session · `auto` = a cron-auto-session — ONE term, aligned to the
+      cron-auto-sessions naming) · a specific session/context (`session(<ref>)` — e.g. the
+      post-/compact continuation of a named task) · a specific PERSON (`user(<name>)` — see below).
+      A session knows its OWN role by SELF-DECLARATION
+      from launch context (owner dialogue = interactive; a dispatch prompt naming a background/auto
+      worker = that role) — NO new journal field is added (P1 F1; `session_config` /
+      `session start --type` already carry all journaled session identity).
+    - **`user(<name>)` — the RECIPIENT selector.** A parameterized selector on this SAME
+      audience axis, mirroring the existing `session(<ref>)` form: it scopes an entry to ONE PERSON
+      rather than to one session or role. A session matches `user(<name>)` iff `<name>` equals its
+      OWN provisioned user identity — SELF-DECLARED from launch context (the OS user the session runs
+      as), whose vocabulary is the host registry's `users.<name>` keys. An entry tagged for one user
+      is NEVER surfaced to another. Like the role values, this adds NO new journal field and NO new
+      identity store (P1 F1) — the provisioned identity already exists on the host. The audience axes
+      are INDEPENDENT: `user(<name>)` says WHO the person is, not which role their session runs in;
+      an entry needing both bounds names the narrower one it actually depends on. **Fail-closed:** an
+      audience value the reader does not RECOGNIZE (a malformed or unknown selector) matches NOTHING
+      and surfaces to no one — the §1 "ambiguity never escalates" bound, applied to the audience axis.
+    - **LIFETIME**: **standing** — until the NAMED governing artifact resolves (`until:
+      <artifact-id>`, link MANDATORY) · **transient** — `consume-once` (DELETED after execution by
+      its consuming session) or an explicit `until: <ISO-date>` TTL (deleted when the date passes).
+  **Default = transient + consume-once.** `standing + audience: all` is the explicit, justified
+  EXCEPTION and requires the artifact link. This inverts the incident failure mode: nothing
+  broadcasts-forever by default. (The pre-/compact note case = `[audience: session(<ref>)]
+  [until: consume-once]` — the intended reader consumes it, then drains it; it never broadcasts
+  to other sessions, never persists.)
+
+  ### 4. Bound 4 — authority ceiling (pointer-only, never a rule-home)
+  - **Non-authoritative**: NEVER cited for closure / governance / a commit `from:` — unchanged
+    from the base contract.
+  - **The handbook + specs WIN on any conflict (P7):** an instruction contradicting a handbook or
+    spec rule is VOID — do not follow it; queue it for drain (and capture the contradiction as a
+    deviation if it recurs).
+  - **A temporary instruction is ONLY EVER a POINTER to a properly-governed provisional** — a
+    plan-in-trial / an in-flight task / an explicitly-expiring note — NEVER a free-standing rule.
+    Rule CONTENT lives in the governed artifact the entry points at; the buffer entry carries only
+    the pointer + the bounds. THIS is what keeps MEMORY from becoming a parallel rule-home (P5).
+  - **Authorship norm (the ×N-reader safety rule):** MEMORY is auto-read by EVERY session, so a
+    `[instruction]` with a SIDE EFFECT runs ×N (once per reader). Therefore a side-effecting
+    instruction MUST be **idempotent** (safe to run ×N — e.g. an `rsync` mirror) **OR
+    audience-narrow** (scoped by §3 so only one role/session acts). And a **MANDATE-granting entry**
+    (one that would license a session to take a standing action) is **pointer-only +
+    owner-invoked-only**: acted on ONLY by an `interactive` session on an explicit owner directive,
+    and NEVER executed by a `background` or `auto` reader. **The "explicit owner directive" here means a LIVE owner cue in the CURRENT session** — a MEMORY entry that CLAIMS its own past/standing authorization (e.g. a stored "owner-authorized <date>" mandate) does NOT satisfy it; continuation of a plan/task (or any other standing action) BEGINS only on that live cue, and the session never self-selects which seed thread to act on. This is the structural form of the
+    pointer-only bound above — it replaces per-entry bespoke self-locking prose with the audience
+    value + this norm.
+
+  ### 5. Three-layer GC (explicit immediate-deletion discipline — who deletes, when — the anti-bloat answer)
+    - **(a) Reader self-filter at startup — READ-ONLY.** Ignore entries whose audience is not self
+      or whose TTL/boundary has passed. "Not self" spans EVERY value of the §3 audience axis — a
+      foreign session ROLE, a foreign `session(<ref>)`, and a foreign `user(<name>)` (an entry
+      addressed to another PERSON is filtered out exactly as a foreign role is; an UNRECOGNIZED
+      audience is filtered out too — fail-closed, §3). The startup read NEVER writes the buffer (the
+      worktree-only
+      write rule holds; a Review session's startup path stays read-only). A DISPATCHED WORKER
+      (audience `background`) skips the buffer read ENTIRELY (§0 worker exemption) — there is
+      no entry to self-filter because the worker does not auto-read the buffer at all.
+      The machine-checked form of this predicate is `bin/lib/memory.py:audience_matches`;
+      the reader discipline stated here stays the normative rule the code serves.
+    - **(b) Immediate consume-once deletion — the NORMATIVE lifetime (WHO + WHEN explicit).** The
+      session that ACTS ON / CONSUMES an entry OWNS its deletion and performs it AS a governed write
+      at the moment of consumption — immediately after the to-do is used / the instruction executed /
+      its `until` fires. The deletion IS the governed write: if the consuming session has no other
+      same-session write, it opens a `work/<slug>` worktree to delete the line and `land`s it (an
+      append-only journal / cross append is NOT a buffer write, so it does not substitute). Deletion
+      is NEVER deferred to "some later unrelated write." **EXCEPTION — the onboarding-pointer consume
+      (X-0274):** the SPEC-0147 `[onboarding:<id>]` pointer is voiced+consumed on the MAIN
+      checkout at a session-start / mid-session seam, where there is no worktree batch to carry the
+      write — and a dirty MEMORY.md sits in land's non-bookkeeping set and wedges EVERY later land. So
+      `memory consume` SELF-COMMITS its deletion directly to `main`, a NARROW sanctioned direct-to-main
+      exception (posture-matched to the `-C init` bootstrap commit and the terminal task
+      pause/wont-do/park self-commits //; the write-flow home is AGENTS
+      §Writes-happen-in-a-worktree EXCEPTION). Kept narrow by construction: it stages MEMORY.md + the ONE
+      journal receipt ONLY (never a blanket `git add`), REFUSING when MEMORY.md carries preexisting dirt
+      vs HEAD, when the journal's uncommitted delta is NOT a VALID APPEND, or when a merge is in
+      progress — so the scoped commit never rewrites the journal and never leaves a corrupt or
+      half-merged state on main.
+      **THE JOURNAL-DIRT BOUNDARY IS APPEND-ONLY VALIDITY, NOT SUBSTANTIVENESS (X-0361 —
+      supersedes both the original SUBSTANTIVE-line refusal and the pure-telemetry carve-out
+      (X-0288) that narrowed it).** An uncommitted `events.jsonl` delta that is purely
+      APPENDED, parseable JSON event lines is SAFE to sweep into the scoped commit — regardless of the
+      events' type or which session wrote them — and does NOT refuse. Grounds (external consult,
+      recommendation G — `decisions/x0361-consume-dirt-audit-adhoc.yaml`): the journal IS the SoT,
+      every event carries its own type/session provenance, and `land` already folds identical shared
+      journal dirt (append-only + union-merge), so a valid append is not a line the commit can
+      "capture" from anyone. The refuse-on-SUBSTANTIVE rule was stricter than the bound it served: the
+      session's OWN `session_started` line — appended by `session start` at the very seam where a
+      SPEC-0147 station is voiced — made `memory consume --station` refuse at its own session-start
+      seam, twice forcing a hand `git commit` of `events.jsonl` (X-0361, 2026-07-13), i.e. the exact
+      hand-work the verb-execution discipline exists to prevent. The predecessor telemetry carve-out is
+      SUBSUMED (a `cli_invoked` fleet-watcher poll is simply one valid appended event line), so the
+      X-0288 livelock stays fixed with one predicate instead of two (CHARTER §P1 filter 3 — the
+      event-TYPE special case is REMOVED, not extended). The REAL fail-closed boundary is
+      STRAND/CORRUPTION prevention, and it is unchanged: a non-append delta (a committed line modified
+      or removed), a blank / unparseable / non-object added line, an unobtainable diff, an in-progress
+      merge, or artifact-file dirt outside the verb's scope ALL still REFUSE. Deterministic commit
+      message; idempotent on repeat — RECEIPT-GATED: an already-absent target is a no-op only when a
+      matching `onboarding_station_consumed` receipt exists, else it fails closed (the entry is missing
+      for an unknown reason, not a safe repeat). In a real writing worktree the consume instead rides
+      that batch, unchanged. Merely READING an entry without acting on it
+      is NOT consumption — a session that only sees it is not the consumer and deletes nothing (the
+      startup self-filter (a) stays read-only). A standing entry (`until: <artifact-id>`) is removed
+      as part of its governing artifact's resolution — put it on that artifact's closure checklist
+      when writing the entry.
+    - **(c) Periodic backstop — STALE-LEFTOVER cleanup ONLY, never a normative lifetime.** The
+      weekly Review sweep clears only true leftovers a consumer failed to delete: governing artifact
+      resolved but the entry lingers / orphan with no owner / expired TTL. It is a safety net for
+      missed (b) deletions, NOT a sanctioned "drain-later" path — the retired drain-later model does
+      not survive here. (Discoverability pointer in QUEUE §Re-review triggers — follow-up.)
+
+  ## Parameters
+
+  None consumed. No TTL constant is fixed here — the lifetime is per-entry, named at write time.
+
+  ## Rationale
+
+  Real incident (anti-cx F4): a pre-/compact note persisted in the buffer and broadcast to EVERY
+  session indefinitely — MEMORY is auto-read by all sessions, so any entry was global + permanent
+  until hand-drained. The rule extension makes the bounded case first-class and the unbounded case
+  impossible-by-default. Consumer pull: the orchestrate-posture plan
+  [[orchestrate-posture-for-the-main-session-6-amendme]] is PARKED behind this rule — its trial
+  needs MEMORY as a GOVERNED load-bearing startup channel for a trial-pointer. Anti-complexity:
+  EXTENDS the existing SPEC-0007 §6 rule (F1 — no new store/file/parser); a refinement with a
+  MINIMAL 3-value audience taxonomy (F2); REMOVES the broadcast-forever failure mode and bounds
+  bloat structurally — default-transient + 3-layer GC (F3). The extension adds session-ROLE
+  audience values + the ×N-reader authorship norm by EXTENDING the existing audience axis + §4 ceiling
+  (F1 — no new store/field; role is SELF-DECLARED from launch context, P1 F1) so «main-session-only»
+  stops being fail-open prose. The alignment RETIRES the passive-lead-as-unbounded-scratch
+  default + the drain-via-a-full-Analysis-task framing (F3 — removes a kind, adds none): the owner's
+  sharper model («MEMORY = short, deleted after execution; all long-lived rules → documentation») was
+  already active in SPEC-0091 Rule 2/3, so this is a P5/P7 coherence dedup — SPEC-0039 stops carrying
+  a contradictory duplicate and points to SPEC-0091's route-by-purpose lanes for any note that must
+  persist (one home, P5). The surviving model: every MEMORY entry is short, read-by-all, consume-once,
+  deleted by its consuming session immediately after use (§5(b)).
+
+  ## Verification
+
+  Probe CONTRACTS (not one-time results — SPEC-0005 rule 8):
+  - **VP1 (four bounds present — AC1):** grep this body — the scratch-vs-instruction line
+    (§1), provisional-only + auto-drain (§2), marking + lifetime axes (§3), authority ceiling (§4)
+    all stated; spec `active` in the graph.
+  - **VP2 (AGENTS reflects — AC2):** grep `AGENTS.md` §At-session-start MEMORY paragraph
+    for SPEC-0039 + the read-only self-filter + the two entry kinds.
+  - **VP3 (one home, P5):** SPEC-0007 §6 is a POINTER to SPEC-0039, not a restated rule (grep
+    SPEC-0007 body for `SPEC-0039`); no parallel rule-home ( AC3 — audit-confirmed).
+  - **VP4 (read-only startup):** this body states the startup self-filter is READ-ONLY with all
+    drains at governed write points (grep `READ-ONLY`) — the audit-pre pass-2 F1 resolution.
+  - **VP5 (admission, self):** cross-task, durable, analysis-shaping process rule (SPEC-0005
+    rule-2 criteria 1, 3, 4, 5, 7); delete-test: removing it reverts the buffer to an ungoverned
+    broadcast surface — materially worse change analysis for every startup read.
+  - **VP6 (role vocabulary + authorship norm present —):** grep this body — §3 carries the
+    `interactive | background | auto` audience values + the SELF-DECLARED-from-launch-context note,
+    and §4 carries the authorship norm (a side-effecting instruction is idempotent OR audience-narrow;
+    a mandate-granting entry is pointer-only + owner-invoked-only, never acted on by background/auto).
+  - **VP7 (consume-once read-by-all model + retirement coherent —):** grep this body — §1
+    states every entry is short / read-by-all / consume-once / deleted-after-use and EXPLICITLY
+    RETIRES the passive-lead / drain-via-full-Analysis-task default kind, re-homing a must-persist
+    note to SPEC-0091's route-by-purpose lanes (pointer, not restated); §5(b) carries the explicit
+    who-deletes / when immediate-deletion discipline + §5(c) scopes the weekly sweep to stale
+    leftovers only; and the MEMORY.md header + AGENTS §At-session-start paragraph +
+    patterns/doc-conventions.md MEMORY row carry ZERO description of the retired kind (no P7
+    contradiction across the four surfaces).
+  - **VP8 (worker exemption present + reflected —):** grep this body — §0 carries the
+    dispatched-worker (`background`, `--type build`) exemption from the auto-read + §5(a) notes the
+    worker skips the buffer read entirely; and the reflecting surfaces carry it — AGENTS.md
+    "Also auto-read MEMORY.md" paragraph states the worker exemption, and `bin/lib/session.py`
+    cmd_session_start gates the consumer MEMORY read-nudge behind `_sess_type != "build"` (the
+    hermetic test tests/test_t9757_worker_no_memory_read.py is the in-diff probe).
+  - **VP9 (recipient-scoped `user(<name>)` audience present + machine-checked —):** grep this
+    body — §3 carries `user(<name>)` in the audience enum line AND its RECIPIENT-selector clause
+    (matched against the session's own provisioned user identity; never surfaced to another user;
+    unrecognized audience = fail-closed), and §5(a) names it among the values the read-only startup
+    self-filter honors. The predicate is machine-checked by `bin/lib/memory.py:audience_matches`
+    (`implements:`), whose hermetic test tests/test_t10263_user_audience_selector.py is the in-diff
+    probe: an entry tagged `user(A)` surfaces to a user-A session and is filtered out for user-B,
+    the pre-existing audience values match exactly as before (no-regression), and an unknown
+    audience matches nothing.
+
+  - **VP10 (onboarding-pointer consume self-commits on main — / X-0274):** grep this body —
+    §5(b) carries the onboarding-pointer EXCEPTION (a main-checkout `memory consume` SELF-COMMITS its
+    deletion directly to `main`, staging MEMORY.md + the one journal receipt only, fail-closed when MEMORY.md carries preexisting
+    dirt, when the journal's uncommitted delta is NOT a VALID APPEND, or on an in-progress merge
+    (the journal boundary is APPEND-ONLY VALIDITY, not substantiveness — / X-0361, see VP11),
+    receipt-gated idempotence on repeat),
+    naming it a narrow sanctioned
+    direct-to-main exception beside the `-C init` + task-terminal
+    self-commit precedents; and `amends:` names the carve-out. The behavior is the in-diff probe
+    tests/test_t10307_memory_consume_selfcommit.py (a real tmp git repo: a main-checkout consume leaves
+    main clean with the scoped commit shape; unrelated MEMORY.md dirt refuses; a receipt-gated repeat is
+    a no-op with no duplicate commit while an absent target with no receipt fails closed; a seeded
+    unrelated file is never staged, while a VALID journal APPEND is SWEPT and only a non-append
+    journal delta refuses — the append-only VALIDITY boundary / X-0361 / VP11). The write-flow exception is
+    co-documented in AGENTS §Writes-happen-in-a-worktree EXCEPTION.
+
+  - **VP11 (the journal-dirt boundary is APPEND-ONLY VALIDITY — / X-0361; supersedes the
+     pure-telemetry carve-out and the SUBSTANTIVE-line refusal it narrowed):** grep this
+    body — §5(b) carries the boundary (an `events.jsonl` delta of purely APPENDED, parseable JSON event
+    lines does NOT refuse, whatever the events' type or authoring session; the fail-closed branch is
+    STRAND/CORRUPTION — non-append, blank/unparseable/non-object, unobtainable-diff, in-progress-merge,
+    artifact-dirt). The behavior is the DIFFERENTIAL in-diff probe
+    tests/test_t10494_append_only_journal_boundary.py (a real tmp git repo: the X-0361 repro — an
+    uncommitted SUBSTANTIVE append-only delta (`session_started` + `deviation_captured`) -> the consume
+    SUCCEEDS, its scoped commit is exactly {MEMORY.md, events.jsonl}, the swept lines are byte-identical
+    appends and every previously-committed line survives unmodified; the differential inputs — a NON-append
+    delta (a committed line modified) and an unparseable added line — each still REFUSE, so an over-wide
+    narrowing FAILS the probe; merge-in-progress + artifact-dirt refusals unchanged). The code carrier is
+    `bin/yitc-v2#_journal_dirt_is_valid_append` (the `_TELEMETRY_EVENT_TYPES` event-type set is REMOVED,
+    not extended — CHARTER §P1 filter 3; the X-0288 fleet-watcher livelock stays fixed because a
+    `cli_invoked` poll line is simply one valid appended event line).
+
+cites:
+  - CHARTER.md#principle-4
+  - CHARTER.md#principle-5
+  - CHARTER.md#principle-7
+  - SPEC-0007
+  - SPEC-0005
+  - SPEC-0147 # the consumer that pulled the `user(<name>)` audience
+  - SPEC-0114 # coherence: the owner-refresh continuation hand-off is chat-printed, not a buffer entry
+  - orchestrate-posture-for-the-main-session-6-amendme
+
+requires: [] # extends SPEC-0007 §6 by split-out; ordering carried by `amends:` +
+                               # the activation flow, not a blocking edge (SPEC-0007 stays active).
+supersedes: ~ # NOT a supersession of SPEC-0007 — only §6 moves; SPEC-0007 remains
+                               # the active always-loaded-organization spec (its §6 points here).
+implements_signature:
+  bin/lib/memory.py#audience_matches: b95615b9d908a2659114dc82b0b76787543d89b7eb7d35f1bbc16a115c8adc05
+  bin/lib/memory.py#delete_pointer: 03c3b8c0d7a81d452cd0d3fbaf0ad933acb8b09aa16a4672944b23f4e5d65c98
+  bin/lib/memory.py#parse_pointer: d8e6281ac25655c66f3c50325e6f398c806ef6be3d6d3967f86567b580954bd8
+  bin/lib/memory.py#write_pointer: aa683adf52bc1d6128e025047b1222e7760173d8e6d7bf165b157e0896129d18

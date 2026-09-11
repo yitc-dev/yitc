@@ -1,0 +1,14 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: consumer-dimension-bundle
+description: The kernel↔consumer project-dimension doctrine — the specs that govern placement/realm, travel/local, and project-ops before deciding an artifact's kernel|v2-self|project dimension.
+lens:
+  kind: binding-bundle # pure f(graph): the specs carrying one binding token
+  binding_token: before-project-dimension-judgement # the floor trigger — SAME carrier the floor-map reads
+why: >-
+  The before-project-dimension-judgement floor fires the doctrine bundle BEFORE an action
+  (judging an artifact's kernel|v2-self|project dimension). This view is the REF_AVAILABLE
+  discovery SURFACE over the SAME obligation set — "what governs the project dimension?" answered on
+  demand. Single source, two surfaces: membership is DERIVED from index["verb_to_specs"][token] — the
+  exact list the floor_trigger_map is built from (graph.py _build_binding_views) — so a spec
+  added/removed from the bundle reflects in BOTH without a second list. No new store, no new node/edge.

@@ -1,0 +1,470 @@
+id: SPEC-0046
+title: 'Task + plan decomposition discipline + plan-check structural pre-pass + the verifier-after-settled requires rule'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # adoption gate: on `task close ` this head flips proposed->active
+                               # and atomically flips its supersedes: target SPEC-0040 -> superseded.
+
+created_at:
+
+consumed: false # unchanged from SPEC-0040 — enforced by the `plan check` verb + the
+                               # decomposition reviewer, not a spec-read param.
+
+implements: # carried forward from SPEC-0040 (same enforcing anchors).
+  - bin/lib/plan.py#cmd_plan_check
+  - bin/lib/cli.py#_plan_structural_findings
+  - bin/lib/task.py#cmd_task_file # : §A persist-at-cut report-only advisory (report-not-block)
+
+binding: # decomposition discipline delivered at BOTH faces : the
+                               # task-Analysis face (stage-entry) AND the plan-cut face (plan-stage-entry).
+  - stage-entry:Analysis # task-cut face — delivered when a task is claimed (Analysis stage-entry).
+  - plan-stage-entry:decomposition # plan-cut face — delivered at the gated `decomposition` plan-FSM
+                               # stage where a plan is sliced into cards (SPEC-0070 §9.5). The two axes
+                               # are orthogonal delivery moments (one-source-each) per SPEC-0033 — legal
+                               # co-presence since removed the over-broad two-stage-axes flag.
+
+body: |
+  ## Scenario
+
+  Before a plan is accepted (and as the AI cuts a large concern into task-sized units), two failure
+  modes recur: (1) a deferral ("deferred to Part N" / "doctrinal-only-until-X" / "until tooling")
+  written as PROSE silently drops the deferred half — prose is invisible to the picker; (2) a unit is
+  cut by SIZE (lines / files / time) and bundles more than one provable claim, so audit-pre keeps
+  RED-flagging it. A third recurs one altitude UP: (3) ONE plan bundles parts with different
+  convergence regimes / independently rejectable fates, so its single accept/realize verdict cannot
+  honestly cover them — the split analysis existed only as owner judgement until this head codified
+  it (§A2). This spec is the SINGLE normative home for the discipline that prevents all three: the
+  owner/AI runs `bin/yitc-v2 plan check <slug>`, and beyond the external-auditor verdict the check now
+  runs a deterministic STRUCTURAL pre-pass that records — in the verdict itself, so it cannot be
+  skipped like a manual memo — every unresolved reference and every prose-only deferral. The decision
+  to ACT on those findings stays human/auditor judgement (report-not-block). A FOURTH discipline, on
+  the ORDERING axis, joins here (§A3): a VERIFIER unit (one that checks a SETTLED subject) must run
+  only AFTER its subject landed, and its `requires:` must NAME every writer of that subject — the
+  ordering carried machine-readably, never in prose / operator memory.
+
+  ## Internal
+
+  This spec ABSORBS and RETIRES `patterns/task-decomposition.md` — that doctrine now lives HERE as the
+  single source (the pattern file is a tombstone pointer). It also homes the deferral-must-be-tracked
+  rule (formerly `patterns/big-plan-checklist.md` Probe 7, the manual memo). `big-plan-checklist`
+  keeps only LINKS + judgement-only items; `plan-lifecycle` keeps only a POINTER here (single-SoT, P5).
+
+  ### A. Decomposition discipline — ONE provable claim per accept-unit (absorbed from task-decomposition)
+
+  The decomposition unit = ONE provable claim / invariant per ACCEPT-UNIT, defined against the gate it
+  faces (audit-pre).
+
+  - An **accept-unit** is whatever the gate evaluates as one verdict — a task (audit-pre/post) or a
+    decision (`decision accept`/`finalize`). "One claim per accept-unit", not "per task" in the
+    abstract: one task may implement one claim across several files; a plan decomposes into several
+    task-level proofs. Frame the cut against the gate the unit will actually face.
+  - **Cut by claim/invariant, not by line count.** Size is a proxy/secondary symptom, never the
+    criterion: a large unit is risky because it tends to hide multiple claims, not because it is long.
+    A single coherent artifact may legitimately be long (cf. LIFECYCLE §Stage 3 — the ~30-line plan
+    guideline is a WARN, not a gate). When a unit feels too big, ask "how many claims is it proving?"
+    — split only if the answer is >1.
+
+  **audit-pre RED red-flag catalog** — a unit is mis-cut (expect audit-pre RED/strong-YELLOW) when:
+  - **(a) >1 claim in one unit** — two independent invariants/contracts bundled.
+  - **(b) contradiction / dissonance with an already-accepted artifact** (CHARTER §Principle 7).
+  - **(c) under-specified mechanism** — the claim is stated but how it holds is hand-waved. This INCLUDES an AC/probe written as an IDEAL not calibrated to the system's OBSERVED behaviour, an un-enumerated input state-space, or an unbacked purity/invariant claim (the **E-0016 planning-quality root**: when the plan/AC is under-specified against observed behaviour, the external audit surfaces the design's latent defects ONE FACET PER PASS and the controller absorbs them leaf-by-leaf — the ceiling cost). Calibrate probes to observed behaviour, enumerate the state-space, and back purity/invariant claims AT PLAN TIME; and when the auditor hits the SAME plan area >=2x, ROOT-CAUSE-REWRITE that section rather than absorb leaves serially (extend the existing red-flag, P1 F1; pointer home: patterns/big-plan-checklist.md Probe 7).
+  - **(d) self-referential / bootstrap ordering** — the unit mutates the rules or infrastructure
+    governing its OWN gated execution (commit / audit / close) before the replacement is active/live.
+    A task cannot safely remove the rules it must itself pass under, before its replacement governs.
+    (This is distinct from (a): it is not just "two claims", it is an ordering DEPENDENCY where bundling
+    the add and the remove creates a self-referential governance gap.)
+  - **(e) self-invalidating temporal anchor** — a pre-change/differential probe anchored to a MOVING
+    ref (`merge-base(HEAD, main)`, "the current last-green", "latest") that the unit's OWN landing
+    shifts: the assertion is true only until the change lands, then permanently false for every later
+    branch — a repo-wide land freeze, not a real regression (real incident 2026-07-12:
+    merge-base-anchored pre-change arm, fp merge-base-anchored-prechange-differential-breaks-after-own-land,
+    emergency-fixed via). Pin the pre-change arm to a FIXED blob/fixture, or make it
+    self-retiring (an explicit skip/early-return once the anchor world is gone); a differential's
+    proof moment is its subject's OWN land, never a standing repo-wide assertion.
+
+  **Ordering rule — add-new before remove-old.** When a unit RELOCATES or REPLACES an active rule or
+  infrastructure (a demote, a migration, a supersession), cut it into **ESTABLISH** (author + activate
+  the replacement — must CLOSE first) **then REMOVE** (strip / retire the old), encoding the order as a
+  blocking `requires:` dep between the two tasks. A single unit must NEVER both add-the-replacement and
+  remove-the-original it depends on for its own stages (red-flag (d)). This is claim-based, not
+  size-based — the split is forced by the ordering dependency, not by length. Prior-art: the
+  legacy-migration Pipeline→Mirror→Switch shape, applied at task granularity.
+
+  **Sizing rule — enumerate the full ref-set before sizing a relocation / rename / migration.** A unit
+  that RELOCATES, RENAMES, or MIGRATES an identifier / path / constant / format (a `git mv`, a
+  symbol/const rename, a dir move, a format switch) is dominated by its BLAST-RADIUS — the cardinality
+  of references that must change ATOMICALLY — NOT by the conceptual simplicity of the change. SIZE the
+  unit by `rg`-ENUMERATING the full ref-set BEFORE committing to it: every reference to the renamed
+  symbol / const / path, ACROSS ALL files INCLUDING THE TEST SUITE (a const rename AttributeErrors
+  every test that reads it). A framed estimate ("~38 code + ~29 doc refs") is NOT a sizing — run the
+  search and size against the count it returns, never against the change's "cosmetic" / "trivial"
+  framing. Under-counting the blast-radius produces either a unit REJECTED at pre-flight once the true
+  cost surfaces, or an UN-SPLITTABLE atomic bomb (a dangling reference reds the suite, so the dir-move
+  cannot be split from the ref-sweep without going red between landings). This is the §A "decompose
+  against shipped reality" discipline applied to the SCOPE-CARDINALITY axis — cut / keep the unit
+  against the ENUMERATED ref-set, peer to red-flag (c)'s calibrate-mechanism-to-observed-behaviour.
+
+  **Persist the enumerated blast-radius at the cut — do NOT reason-then-discard it.** The
+  ref-set the Sizing rule (and the cutter more broadly) ALREADY enumerates to size a cut is the SAME
+  forecast the dispatch-selection surface wants (SPEC-0028 `expected_touch`). When cutting a plan into
+  cards, PERSIST that enumerated blast-radius INTO each cut card's `expected_touch` at the cut —
+  `task file --decomposed-from <plan> --expected-touch <path> …` (the `--expected-touch` flag already
+  exists; this is pure RE-USE, no new field/verb/gate). Reasoning out the blast-radius to decide
+  split-vs-keep and then THROWING IT AWAY forces the same set to be re-derived (or silently omitted)
+  when the cards are filed — the discard the persist rule closes. **Scope: plan-cut cards ONLY** (a
+  card carrying `decomposed_from`, whose touch the cutter already knows). A **standalone ad-hoc task**
+  stays OPTIONAL here — its true touch is unknown pre-Analysis, so `expected_touch` is a best-effort
+  forecast, not a cut obligation. **Advisory, never a gate (CHARTER non-goal #2):** an empty
+  `expected_touch` on a decomposed card MAY surface a report-only cut-time reminder (a PROMPT), but the
+  filing ALWAYS proceeds — this rule adds NO blocking check. Prior-art: this very spec's own amendment
+  plan filled `expected_touch` on its cut cards (78/79).
+
+  **Bidirectional cut — split-vs-merge is chosen by the FAILURE-MODE the bundling creates, never by
+  size (refinement 2026-06-04/05, N=3).** The SAME criterion ("one provable claim per accept-unit")
+  legitimately forces OPPOSITE moves: SPLIT when bundling creates red-flag (d) (a self-referential
+  bootstrap gap); KEEP ATOMIC when splitting would create a CONTRADICTORY INTERIM state (red-flag (b)
+  between the halves — e.g. a handbook+spec migration whose halves disagree while apart, or a verb
+  shipped without the FSM values it writes). **Coherence-atomicity is a first-class reason to keep a
+  unit whole, peer to the claim-count reason to split.**
+
+  **A plan STAGE is INPUT — the task graph is RE-DERIVED at decompose (refinement, N=2).** A plan's
+  stage/part list is a starting proposal, never the final task graph: the decomposer re-applies this
+  spec PER STAGE (one stage → two tasks; a stage absorbed elsewhere; an order re-derived from the
+  gate, e.g. verb-first when the spec's activation probe needs the live verb). Do not treat the
+  plan's own sketch (its §Next / stage boundaries) as a cutting commitment.
+  **Two delivery faces :** this cut discipline reaches the AI at BOTH the task-Analysis face
+  (`stage-entry:Analysis` — when a task is claimed) AND the plan-cut face (`plan-stage-entry:decomposition`
+  — at the gated `decomposition` plan-FSM stage where a plan is sliced into cards, SPEC-0070 §9.5). Same
+  single rule, two orthogonal delivery moments for two consumers (task author vs plan decomposer).
+
+  **A cross-cutting obligation has no owner across a producer/consumer split — assign it to the
+  PRODUCER (refinement, N=2).** When task A BIRTHS a shared primitive (a token / format / axis /
+  schema field) and task B is its first real consumer, any cross-cutting half (the validator, the
+  conformance check, the test for the primitive itself) silently falls in the SEAM — neither A nor B
+  owns it (incident: the `plan-stage-entry:` token shipped without its conformance-validator half;
+  the consuming task RED'd at land). A "births a new shared primitive" claim MUST enumerate ALL the
+  doors the primitive touches (deliver + validate + test) and keep them in A; never let the validator
+  half ride to B. (Distinct from red-flag (a): not two claims — ONE claim whose surface the naive
+  task boundary omits.)
+
+  **Execution-readiness rule (the auditor blind-spot fix).** "One claim" alone is not sufficient — a
+  claim-shaped unit is execution-ready ONLY when it ALSO (1) names the accepted artifact it aligns
+  with (the decision / active spec / handbook section), AND (2) names the concrete proof / acceptance
+  path — the probe (event emit / state check / measurable effect, CHARTER §Principle 3). If either is
+  missing, finish shaping it before claiming it. (This is the DECOMPOSITION-readiness cut, owned
+  here; the card-AUTHORING doctrine — how to FRONT-LOAD scope + acceptance-with-probe when writing
+  the card — is homed in SPEC-0060, which POINTS here for the cutting rule. Fold pointer added.)
+
+  **Territory-aware decomposition — a card must be cut in the TERRITORY that can LAND it.**
+  Before cutting a work-item into a kernel task card, resolve its REALM: which repo/territory actually
+  OWNS the change. A cut card runs the 9-stage lifecycle and lands via `bin/yitc-v2 land` INTO the
+  kernel repo — so an item whose deliverable lives in EXTERNAL territory (a `[host]` `<host-home>/…`
+  script, another project's repo, any path outside `realpath <v2-root>/**` — AGENTS-SESSIONS
+  §Scope-boundary) CANNOT be a kernel card: a Worker dispatched on it hits the pre-mutate path
+  gate and correctly REFUSES (SPEC-0103 STOP+escalate), so the card is unbuildable-by-construction and
+  wastes a dispatch. At the cut, for each card ASK "in which territory does this land?" — if the answer
+  is not kernel territory, do NOT cut it as a kernel card: ROUTE it to its owning context instead (a
+  `cross request` to the owning project; an owner-authorized host edit riding the host auto-committer
+  for a `[host]` item; a followup naming the external trigger). A mixed item is SPLIT on the territory
+  seam — the kernel-landable slice (e.g. a runbook/doc fold) stays a card, the external slice routes
+  out. This is a peer of red-flag (d) (self-referential ordering) and the producer-owns-the-seam rule:
+  a CONTENT discipline on the cut, enforced by the decomposition reviewer + the fidelity gate, NOT a
+  new machinery (the scope-boundary path-gate that catches it at dispatch already exists — this rule
+  moves the catch EARLIER, to the cut, so the mis-cut never dispatches). **Real incident (Filter 4):**
+  W1 of the `correct-verify` plan cut the `[host]` `create-project.sh` rewrite as kernel card;
+  its deliverable is `<host-home>/bin/create-project.sh` + `<host-home>/registry.yaml`, both host territory.
+  The dispatched Worker correctly refused (deviation `t10195-host-territory-edit-dispatched-as-kernel-worker`);
+  the card went `wont-do` and the work was done host-side out-of-territory (owner-authorized). Cutting
+  it kernel-side was the mis-cut this rule prevents.
+
+  ### A2. Plan-level split — one convergence regime / one fate per plan (SPEC-0040 head's delta)
+
+  The PLAN-altitude mirror of §A's one-provable-claim rule: a PLAN is cut by **convergence regime /
+  fate**, never by topic affinity or authoring convenience. One plan = parts that converge under ONE
+  validation regime and share ONE fate (the plan's single accept / realize / reject verdict honestly
+  covers all of them). **Split signals — any YES recommends splitting:**
+
+  - **(1) Different validation horizons** — one part is provable NOW (text-audit / immediate state
+    check), the other needs ACCUMULATED REAL DATA (a soak window, N real runs, observation period).
+  - **(2) Independently rejectable fates** — one half could honestly be `rejected`/`cancelled` while
+    the other ships `realized`; a single plan verdict would falsify one of them.
+  - **(3) Producer/consumer over real data** — one part CONSUMES the real-data output of the other
+    (the consumer cannot even be designed-converged until the producer's data exists).
+
+  **Split shape:** SEPARATE plans with INFORMATIONAL cross-refs (tracked ids in body / `cites` —
+  resolvable per §C(i)); **NO `requires:` between plans** — plans carry no blocking-dep semantics
+  (ordering lives in each plan's own entry-gates and the consumer plan's stated input). Prior-art:
+  the 2026-06-05 soak-pair split — `task-burn-in-soak-period-post-closure-observation-` /
+  `post-verification-action-policy-graduation-settled` (the policy half consumes the soak half's
+  accumulated real-data output and has its own rejectable fate).
+
+  **Trial-FSM carve-out (proven trial-run-1).** For a trial-ELIGIBLE plan, its own design-convergence
+  (`trial`) phase followed by implementation (`executing`) is ONE sequential regime — that built-in
+  trial→executing sequence is NOT a split signal. Apply the split signals only to parts whose fates
+  stay independently rejectable AFTER accept.
+
+  **Where the net fires — EXISTING surfaces only, nothing new.** No new verb / field / gate.
+  The question is asked where splitting is still cheap (pre task-cut): the plan-draft shaping
+  template (P1) CITES this rule as its home (never duplicates it — P5); the matching JUDGEMENT item
+  in `patterns/big-plan-checklist.md` Probe 7 (delegated to the external auditor like the other
+  judgement items) surfaces it for big plans at the executing-gate `plan check --full` and in
+  plan-level audit prompts. The §C structural pre-pass does NOT mechanize this — it is judgement,
+  peer to enumerate-halves / probe-quality / one-route.
+
+  ### A3. The verifier-after-settled requires rule (THIS head's delta — owner-ratified 2026-06-06)
+
+  A **VERIFIER** unit is a task whose essence is **CHECKING a SETTLED subject** — a spec self-test, a
+  coherence check, a conformance run, an aspect-audit over already-shipped material. It produces a
+  verdict about a subject; it does NOT itself author that subject. The rule has two inseparable halves:
+
+  - **Runs only AFTER the subject LANDED.** A verifier whose subject is not yet on `main` checks
+    nothing real — it produces low-fidelity probes against an absent or half-written target, then
+    needs rework once the subject actually exists (the §A E3/§A's "decompose contract-CONSUMERS
+    against shipped reality" fidelity lesson, at the verifier altitude). So at decomposition a
+    verifier is ordered AFTER every task that WRITES its subject.
+
+  - **`requires:` MUST name every writer of its subject — machine-readable, never prose / operator
+    memory.** The ordering is encoded as blocking `requires:` edges (one per writer task), exactly the
+    edge QUEUE §Picker-logic already gates on (`ready` ∩ every `requires:` target `done`). A verifier
+    whose order lives only in a plan sentence or the dispatcher's head WILL RACE its writers under
+    parallel / background dispatch — the picker cannot see prose. Naming the writers in `requires:` is
+    what makes the ordering survive a fresh session, a re-dispatch, and concurrency.
+
+  **No new mechanism (anti-complexity F1/F3).** `requires:` already orders dispatch and is already the
+  picker's eligibility gate; this rule fixes WHAT goes into a verifier's `requires:` edge-set (every
+  writer of the settled subject), not HOW ordering works. It is a §A-class CONTENT discipline on the
+  decomposition cut — the verifier-specialization of the general "decompose consumers against shipped
+  reality" + "encode a real claim-dependency as a machine-readable `requires:` edge" rules. The
+  CONSUMING side (a dispatch picker reading `requires:` for eligibility) is homed with the
+  parallel-dispatch selection rule (SPEC-0044 §2 explicitly defers this content discipline back HERE);
+  this spec owns only the decomposition-side content of the edge (single home, P5).
+
+  ### B. The deferral-must-be-tracked rule (E-0005 applied at plan-carve / spec-authoring time)
+
+  Every named deliverable of a plan MUST map to a tracked artifact, and **any deferral MUST be a
+  tracked task — never prose**:
+
+  1. **Zero prose-only deferrals.** Every "doctrinal-only-until-X" / "deferred to Part N" / "until
+     tooling exists" line — inside a plan part OR a spec body — MUST be carried by a tracked task
+     (parked or blocked, with a `return_trigger`), not prose. Prose is invisible to the picker, so a
+     prose-only deferral silently drops the deferred half. (This is E-0005 — absorb-by-narrowing must
+     leave an owned artifact — applied at carve/authoring time.)
+  2. **Every named deliverable maps to a tracked artifact** (task / spec / parked-task — the id must
+     resolve). "We'll do it later" with no id = a hole.
+  3. **Every part / phase has an adoption probe** (event / state / measurable). A part with no
+     adoption probe lets "done" be inferred from the wrong signal.
+  4. **Deferral-home TRANSFER (the placeholder lifecycle).** A rule-1 PLACEHOLDER task (created when
+     the real home was not yet filed) is a TEMPORARY carrier: when the real home appears, the
+     placeholder MUST transfer its tracking (the real artifact takes over) and RETIRE, and any stale
+     plan-`cites:` pointing at it MUST be dropped — otherwise aggregate finalization
+     (`audit post --plan`) flags it as unresolved corpus (observed as a real close-gate RED,
+     2026-06-04, fixed by de-scoping the cite). On absorption: move the tracking, clean the corpus
+     membership.
+
+  ### C. The structural pre-pass — what `plan check` enforces deterministically (report-not-block)
+
+  `plan check` computes `_plan_structural_findings(slug, body)` (regardless of the auditor outcome,
+  so it is ALWAYS recorded) and stores it under `structural_findings:` in `decisions/<slug>-audit.yaml`.
+  Every finding is WARN-level (`severity: low`, `source: structural`) and is recorded in the verdict
+  but **NEVER flips the auditor verdict** (report-not-block, mirroring the resolve-not-block
+  anchor resolver). Two HONESTLY-DISTINCT halves:
+
+  - **(i) REUSE — id/path resolution ( resolve-not-block).** Each referenced `T-`/`SPEC-`/`D-XXXX`
+    id resolves via the EXISTING finders (`_find_task_yaml` / `_find_spec_path` / `_find_decision_yaml`),
+    and each "Depends on" code-path resolves via `_resolve_implements_anchor` (the same resolver
+    used by `graph build`). No parallel resolver.
+  - **(ii) NEW NARROW prose-deferral validator (declared new machinery — see §New machinery scope).**
+
+  The **accept-gate path CONSUMES** the structural verdict: `plan accept` reads the recorded
+  `structural_findings` and records `structural_findings_consumed` in the `plan_accepted` event (a
+  consumer-read signal), so the pre-pass is not merely printable at check time. (Last-touch
+  verified accurate vs anchor 94bd194bd: the two cmd_plan_check region changes since —
+   `_plan_missing_checklist_pass_finding` `accept_freshness_hash` — both home in
+  SPEC-0034, the co-anchor of this verb, NOT here; §C's two halves (id/path resolve + the prose-
+  deferral validator over `_plan_structural_findings`) are intact. A collateral co-anchor false
+  positive, the class.)
+
+  ### New machinery scope (anti-complexity Filter 2 — the ONE genuinely new validator)
+
+  Filter 1 (existing analog) covers the id/path half: it REUSES the resolver. The prose-deferral
+  half has **no analog** — it is the ONE new validator this spec introduces, and it is bounded so it
+  never becomes a general markdown-semantics engine:
+
+  - **Fixed, small phrase set** — exactly `{"deferred to part", "doctrinal-only-until", "until tooling"}`
+    (case-insensitive). Not an open NLP classifier.
+  - **Tight carrier (HIGH-2).** A deferral is satisfied ONLY by a tracked id in the SAME bullet/
+    paragraph OR inside a `deliverables_mapping` fenced block. A tracked id in a DIFFERENT bullet does
+    NOT satisfy it. ("Carrier unit" = one bullet item + its wrapped lines, OR a non-bullet paragraph.)
+  - **NARROW existence-proof (MED-4).** ONLY inside a `deliverables_mapping` fenced block, an
+    `artifact:` value that is neither a tracked id nor a resolvable path AND has no co-located
+    `graph_query:` proof → finding. Bounded to the structured block so it is NOT citation-theater on
+    free prose. Extends Stage-1 "cite the proof" to the F/3 lesson the id-resolve cannot catch
+    (a NAMED but nonexistent target has no id to resolve).
+  - **Lives INSIDE the existing `plan check` verb** — not a new verb, hook, store, or format
+    ( extend-the-verb; the standing answer to "add a hook for X" is "extend the verb before X").
+
+  The verifier-after-settled rule (§A3) adds NO machinery to this section — it is a JUDGEMENT-grade
+  decomposition-side content discipline (peer to the §A red-flags / the producer-owns-the-seam rule),
+  enforced by the decomposition reviewer + audit-pre + the `requires:` dep, NOT by the §C structural
+  pre-pass. (Same enforcement posture as red-flag (d) + the add-new-before-remove-old ordering rule.)
+
+  ## Rationale
+
+  Real incident (Filter 4): the deviation fingerprint
+  `carve-out-drops-base-layer-tooling-via-prose-only-deferral-no-task` (2026-06-01) — carving Part A of
+  the doc-model-rework collapsed it to "author the meta-spec"; the TOOLING half lived as PROSE inside a
+  spec body ("doctrinal-only-until-tooling") with no tracked task, invisible to the picker until a later
+  take-into-work surfaced it as a blocked dependency. promoted the rule into a MANUAL checklist
+  memo — but a manual memo is skippable, exactly the failure class (#2 premature closure / #19 summary-
+  instead-of-action) the structural pre-pass closes by recording the finding in the verdict itself.
+  The decomposition-by-claim doctrine (§A) is grounded in V2's own audit-pre churn (each needed a second pass), diagnosed as coherence/single-claim-driven, not
+  size-driven. Red-flag (d) + the add-new-before-remove-old ordering rule are grounded in a SECOND real
+  incident (Filter 4): the part-i-a demote (2026-06-02). The original bundled ESTABLISH (add the
+  retrieved-spec homes) + STRIP (remove the always-loaded handbook prose) into ONE task; a task cannot
+  strip the rules governing its own commit/audit/close before its replacement specs activate at its own
+  close — audit-pre flagged the self-referential governance gap TWICE. Re-cut into the ordering-aware
+  chain: ** establish** (add + activate the homes) → ** door** (the SPEC-0005 authoring
+  step, independent) → ** strip** (remove the prose, `requires: ` — the order encoded as a
+  blocking dep). The clean re-decomposition IS the proof the rule prevents the churn the bundle caused.
+  The **Sizing rule** (enumerate the full ref-set) is grounded in a THIRD real incident (Filter 4): the
+  deviation `rename-framed-size-omits-test-suite-const-references` (`events.jsonl#ts=`,
+  relates_to). The `decisions/`→`audits/` rename was framed — in BOTH the task scope and the cited
+  plan — at `git mv` + the `DECISIONS_DIR` const + ~38 code + ~29 doc refs (≈67 refs); a worker pre-flight
+  `rg` of the const rename alone surfaced 667 test refs across 99 files (209 via getattr/setattr) — ~10x
+  the framed size, none of the test churn in scope/`expected_touch`, and un-splittable (the suite reds
+  between landings). was rejected (owner 2026-06-07); the rule turns that one-off pre-flight catch
+  into a standing sizing discipline so the blast-radius is enumerated BEFORE a unit is committed, not
+  discovered at claim. Owner-ratified 2026-06-11 (codify into the doctrine, not a checklist prompt). Prior-art (analogy only, not imported as law): PEP / ADR one-decision-per-document;
+  INVEST (small + testable); vertical-slice decomposition; specification-by-example (run the rule on
+  real material). What gets removed (Filter 3): `patterns/task-decomposition.md` (absorbed here) + the
+  mechanized manual items of big-plan-checklist Probe 7.
+
+  **The four cutting refinements (the SPEC-0037 head's delta over the superseded SPEC-0012)** are grounded in
+  three real decomposition runs: **N=1** the `stage-declaration` plan decomposition (2026-06-04) — one
+  stage SPLIT on red-flag (d), a sibling kept ATOMIC against a contradictory interim, and a placeholder
+  cite caused a real `audit post --plan` close-gate RED until de-scoped; **N=2** the
+  `plan-lifecycle-redesign` decomposition into … (2026-06-05) — verb-first order re-derived
+  against the gate (stage-list-as-input), and the seam incident: birthed the `plan-stage-entry:`
+  token without its conformance-validator half → RED at land (fixed; the binding-doctrine
+  face folded into SPEC-0013 by — THIS spec carries only the decomposition face); **N=3** the
+  trial-plan decomposition … (2026-06-05) applied the refinements verbatim in its
+  implementation_plan. The practice preceded this codification (it never gated use); this head makes the
+  rules explicit. Full deliberation history: plan
+  `plan-decomposition-discipline-spec-0012-refinements`.
+
+  **The plan-split criterion (the SPEC-0040 head's delta over the superseded SPEC-0037)** is grounded in a real
+  incident (Filter 4): the deviation `plan-split-criterion-owner-only-no-codified-checkpoint`
+  (`events.jsonl#ts=`) — at the 2026-06-05 soak-pair authoring the AI composed the
+  two-phase order §H but the plan-level split (different convergence tempos / fates → separate plans)
+  existed ONLY as owner judgement; no codified checkpoint (plan check / big-plan checklist / audit
+  overlay) asked the question. The owner-performed split IS the prior-art the rule generalizes. The
+  trial-FSM carve-out + the split-signal wording were proven against real material in trial-run-1/2 of
+  plan `per-stage-external-audit-question-templates-for-th` (the P1 template asks the question and
+  CITES this rule as its single home — codified by, the fold recorded in that plan §).
+  Wire-nothing-new (Filters 1-3): the net reuses the existing P1 template + big-plan judgement list +
+  executing-gate; what gets removed is the un-codified owner-only judgement gap (the head replacement
+  itself retires SPEC-0037 per the FSM).
+
+  **The verifier-after-settled rule (§A3 — THIS head's delta over the superseded SPEC-0040)** is grounded
+  in a real incident (Filter 4) + an explicit owner ratification. Incident: the 7-task parallel batch
+  (2026-06-05) — the verifier task carried its order only in PROSE / operator memory and would
+  have RACED its subject's writers under bare parallel dispatch (the authoring plan
+  `parallel-work-preparation-carve-out-picker` §M1 "one hard edge encoded right; TWO real claim-deps
+  left implicit"). Owner ratification 2026-06-06 (`events.jsonl` owner_directive «proverka konechno
+  posle realizatsii» ("verification of course after implementation"), distilled from §E3/§M1 of that plan). SPEC-0044 (parallel-dispatch selection)
+  EXPLICITLY defers this content discipline back to "the SPEC-0040 side" (SPEC-0044 §2 + the authoring
+  plan §Layer-matrix) — so this head is the single home (P5) the deferral pointed at; nothing new is
+  wired (`requires:` already orders dispatch). Full deliberation: the authoring plan
+  `parallel-work-preparation-carve-out-picker` (§Verifier-after-settled, §M1, §E3).
+
+  ## Parameters
+
+  None consumed. Governing constants referenced live in their OWN specs/decisions — NOT duplicated here.
+
+  ## Verification
+
+  - **VP1 (structural findings recorded).** `plan check` on a fixture plan carrying (a) an unresolved
+    id and (b) a prose-only deferral records both under `structural_findings:` in the audit YAML and
+    emits `draft_checked` with `structural_findings_count > 0`
+    (`tests/test_plan_check_structural.py`). AC1.
+  - **VP2 (single normative home).** This spec is ACTIVE (work-first activation at `task close `;
+    lineage precedent: SPEC-0040 activated the same way at close),
+    `patterns/task-decomposition.md` is a tombstone pointer (no load-bearing doctrine), and
+    `patterns/big-plan-checklist.md` / `patterns/plan-lifecycle.md` carry only links/pointers here —
+    `grep -rl "ONE provable claim" specs patterns` resolves to this spec as the doctrine home. AC2/AC3.
+  - **VP3 (new-machinery scope declared).** The `### New machinery scope` subsection above states the
+    prose-validator bounds (fixed phrase set + tight carrier + verb-internal) AND states that §A3 adds
+    NO machinery (judgement-grade). AC2.
+  - **VP4 (live consumption).** `plan accept` records `structural_findings_consumed` in the
+    `plan_accepted` event (`tests/test_plan_check_structural.py`). AC4.
+  - **VP5 (activation — concrete, not unstated).** `proposed_by: ` /
+    `activation_owner_task: `; `task close ` flips THIS head `proposed → active` via
+    `_activate_task_proposed_specs` ( work-first, the SOLE writer of proposed→active),
+    atomically flips its `supersedes:` target SPEC-0040 → `superseded`, and emits
+    `task_closed.activated_specs` listing SPEC-0046. (Lineage history: SPEC-0040 activated the
+    same way at close; SPEC-0037 at close; SPEC-0012 at close.)
+  - **VP6 (graph-indexed).** `graph build` indexes this head; `graph query SPEC-0046` resolves
+    (the superseded SPEC-0040 / SPEC-0037 / SPEC-0012 stay indexed as non-normative history).
+  - **VP7 (self-referential ordering rule present, carried from SPEC-0040).** §A carries red-flag **(d)** +
+    the **add-new-before-remove-old** ordering rule; the §Rationale incident (part-i-a demote) cites the full
+    re-decomposition chain (establish) / (door) / (strip, `requires: `),
+    where the order is encoded as a blocking dep — not prose. Single-home (P5): the rule lives only here;
+    `patterns/plan-lifecycle.md` holds only a pointer.
+    `tests/test_decomposition_ordering_rule.py` asserts these durable artifacts, not just prose.
+  - **VP8 (refinements present — carried from SPEC-0037).** §A carries the bidirectional-cut/coherence-atomicity
+    rule, the stage-list-is-input rule, and the producer-owns-the-seam rule; §B carries item 4
+    (deferral-home transfer). `grep -c 'coherence-atomicity\|RE-DERIVED at decompose\|assign it to the\s*PRODUCER\|Deferral-home TRANSFER'` on this spec ≥ 4 (state check).
+  - **VP9 (plan-split criterion present — carried from SPEC-0040).** §A2 carries the one-convergence-regime /
+    one-fate rule + the three split signals (validation horizons / independently rejectable fates /
+    producer-consumer over real data) + the informational-cross-refs-no-requires split shape + the
+    trial-FSM carve-out; `patterns/big-plan-checklist.md` Probe 7 carries the matching JUDGEMENT item
+    citing the decomposition doctrine as the rule home (grep state check on both files).
+  - **VP10 (verifier-after-settled rule present — THIS head's delta).** §A3 carries BOTH halves: a
+    VERIFIER (checks a settled subject) runs only AFTER its subject LANDED, AND its `requires:` MUST
+    name every writer of its subject (machine-readable, never prose / operator memory). State check:
+    `grep -c 'verifier-after-settled\|names every writer\|after its subject\|VERIFIER' specs/SPEC-0046-*.yaml`
+    ≥ 2 resolves to this active head; SPEC-0044 §2 cites this head as the content-discipline home (the
+    consuming dispatch side defers here — single home, P5). Activation via `activation_owner_task:
+    ` close; the rule's Filter-4 incident proof (the near-race) + owner ratification
+    («proverka konechno posle realizatsii») are durable in the authoring plan + journal NOW.
+  - **VP11 (full-ref-set sizing rule present — additive extension).** §A carries the **Sizing
+    rule** (a relocation / rename / migration is sized by its enumerated BLAST-RADIUS — `rg` the full
+    ref-set incl. the TEST SUITE — never by its "cosmetic" framing) and §Rationale cites the
+    incident (`rename-framed-size-omits-test-suite-const-references`, ~10x mis-size). State check:
+    `grep -c 'full ref-set\|blast-radius\|Sizing rule' specs/SPEC-0046-*.yaml` ≥ 2. SPEC-0043 item 6
+    carries the matching POINTER (a refactor/rename SIZING claim is backed by this rule, not estimated)
+    — single home here, pointer there (P5). Added in-place per SPEC-0005 rule 7 (additive extension to
+    an active spec); owner-ratified 2026-06-11.
+  - **VP12 (territory-aware decomposition present — additive extension).** §A carries the
+    **Territory-aware decomposition** rule (an item whose realm is EXTERNAL territory must NOT be cut as
+    a kernel card — route it out; split a mixed item on the territory seam) and cites the W1/
+    `[host]` create-project.sh mis-cut incident. State check: `grep -c 'Territory-aware decomposition\|territory that can LAND\|territory seam' specs/SPEC-0046-*.yaml` ≥ 2. SPEC-0070 §5 carries the
+    matching POINTER (single home here, pointer there — P5). Added in-place per SPEC-0005 rule 7.
+
+cites:
+  -
+  - # scope-boundary / territory — the territory-aware decomposition rule
+  - SPEC-0103 # STOP+escalate on a scope-boundary block — the dispatch-time catch the cut moves earlier
+  -
+  -
+  -
+  - SPEC-0005
+  - SPEC-0008
+  - SPEC-0013
+  - SPEC-0044
+  - QUEUE.md#picker-logic
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-7
+  - plan-decomposition-discipline-spec-0012-refinements
+  - per-stage-external-audit-question-templates-for-th
+  - parallel-work-preparation-carve-out-picker
+
+requires: []
+supersedes: SPEC-0040
+activation_owner_task: # work-first : close flips this head active + SPEC-0040 superseded atomically.
+proposed_by:
+implements_signature:
+  bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
+  bin/lib/plan.py#cmd_plan_check: feb077f4fd1ec168b36ae31902cebdcd282282763aa91ddc6aee7f69af84d0e1
+  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93

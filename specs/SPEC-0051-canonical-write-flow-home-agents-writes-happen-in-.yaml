@@ -1,0 +1,90 @@
+# YITC v2 — Spec
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md / SPEC-0005.
+
+id: SPEC-0051
+title: Canonical write-flow home — AGENTS §Writes happen in a worktree
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # task close). proposed ⇒ consumed:false; non-authoritative until then.
+
+created_at:
+
+consumed: false # seed-delivery POINTER spec — no code reads a scalar param from it.
+                               # Stays false at active too (it carries a pointer, not a scalar param).
+
+implements: [] # POINTER-ONLY seed-delivery spec — it carries NO code-bound contract and
+                               # NO standing rule of its own; its job is to ROUTE the reader (via its
+                               # TITLE, rendered into the session-start seed line) to the ONE canonical
+                               # home of the write-flow, AGENTS §"Writes happen in a worktree".
+                               # Delivery is declared by binding:[seed] below (SPEC-0007 §5a seed class),
+                               # NOT by implements: — so empty here is intentional, not omission
+                               # (SPEC-0005 rule 7b: design/documentary empty-mode).
+
+binding: [seed] # SPEC-0007 §5a `seed` residency class : always-loaded SEED content
+                               # for STAGE-AGNOSTIC general verbs, generated SOLELY from this carrier into
+                               # the session-start seed how-to (`_seed_howto`). This is the binding:[seed]
+                               # carrier populates so the seed surfaces the write-flow pointer
+                               # instead of "(none bound yet)".
+
+activation_owner_task: # the single task whose `task close` flips this spec proposed→active
+                               # (SPEC-0005 §5). Set EXPLICITLY (never derived). Work-first activation.
+
+proposed_by: # provenance — the authoring task (work-first, SPEC-0005 §5).
+
+body: |
+  ## Scenario
+
+  At session start the AI sees a small generated "stage-agnostic general-verb seed" line. For the
+  write-flow — the worktree-isolated path every mutating action follows — that line is a POINTER to the
+  ONE canonical home, AGENTS §"Writes happen in a worktree", not a second copy of the verb
+  sequence. The reader is routed to the single home; the sequence itself is read there.
+
+  ## Internal
+
+  This is a POINTER-ONLY seed-delivery spec. It states NO standing rule and restates NO verb sequence
+  (Single-SoT — CHARTER §P5 / SPEC-0005 rule 8): the write-flow SEQUENCE lives in EXACTLY ONE
+  authoritative home — AGENTS §"Writes happen in a worktree". This spec's only job is delivery
+  routing: its `binding: [seed]` (SPEC-0007 §5a seed class) makes `_seed_howto` render this spec's
+  TITLE into the `session start` seed line, and the title is a navigational pointer to that home.
+
+  ### Why a pointer, not the sequence (Single-SoT)
+  A rule already canonically homed in handbook prose STAYS there and is NEVER duplicated into a spec
+  (SPEC-0005 rule 8 — one home). The write-flow is such a rule (AGENTS §Writes-happen-in-a-worktree).
+  So this seed carrier ROUTES to it; it does not re-encode it. The AGENTS §At-session-start reference
+  line and this spec's title are likewise pointer-only (SPEC-0005 rule 8 — a navigational pointer is
+  not a standing rule and needs no governing spec of its own).
+
+  ### Post-/compact compaction-survival (SPEC-0007 §5b, option (b))
+  SPEC-0007 §5b [MUST] requires that any change to what `session start` delivers either (a) wire the new
+  content into the post-`/compact` re-read path, OR (b) explicitly justify why it survives compaction.
+  This seed line takes **option (b)**: the seed line is emitted ONLY by `session start` (not re-run
+  after a `/compact`), BUT its CONTENT is a pointer to AGENTS §"Writes happen in a worktree", which IS
+  re-read in full as part of the post-`/compact` mandatory-handbook re-read (AGENTS.md is in the seed).
+  So the write-flow survives compaction via its handbook home — STRONGER than a seed that held the
+  sequence itself (a sequence-bearing seed would vanish post-/compact; a pointer to a re-read file does
+  not). is the named downstream consumer of §5b generalization (the coherence invariant
+  extended to ALL startup-delivered content).
+
+  ## Verification
+
+  - **VP1 (seed populated):** after activation, `bin/yitc-v2 session start` stdout shows the generated
+    seed line carrying SPEC-0051 + its title (the write-flow pointer), NOT "(none bound yet)".
+  - **VP2 (single-SoT, pointer-only):** the write-flow verb SEQUENCE appears in exactly ONE home
+    (AGENTS §Writes-happen-in-a-worktree); this spec body, the seed line, and the AGENTS
+    §At-session-start reference restate NO sequence (grep — SPEC-0005 rule 8).
+  - **VP3 (generated from the carrier):** `_seed_howto` derives the line SOLELY from binding:[seed]
+    (no hand list, P5); regenerating reproduces it (test_t0289 AC3).
+  - **VP4 (compaction-survival, §5b option b):** the pointer targets AGENTS §Writes-happen-in-a-worktree
+    which is in the post-`/compact` mandatory re-read — so no separate post-/compact wiring is needed.
+
+cites:
+  - CHARTER.md#principle-5
+  - SPEC-0005
+  - SPEC-0007
+  -
+  -
+
+requires: []
+supersedes: ~

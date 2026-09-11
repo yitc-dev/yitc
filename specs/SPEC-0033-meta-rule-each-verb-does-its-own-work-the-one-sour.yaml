@@ -1,0 +1,196 @@
+id: SPEC-0033
+title: 'Meta-rule: each verb does its own work; the one-source delivery invariant'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+consumed: false # a structural meta-rule; no code reads a governing scalar param FROM it.
+
+implements: # the PURE structural checks + their validating-surface wiring (
+                               # symbol anchors). Non-empty implements + a residency binding (code-enforced)
+                               # ⇒ a code-enforced spec: the rule IS the self-test, not a pointer-only read-rule.
+  - bin/lib/graph.py#_delivery_classes # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_one_source_delivery_check # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_relocated_gating_stages # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_stage_bundle_coverage_violations # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/cli.py#_routing_surface_vocab
+  - bin/lib/graph.py#_derived_routing_backing # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/cli.py#_handbook_routing_assertions
+  - bin/lib/graph.py#_handbook_routing_duplication # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_floor_map_drift # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/cli.py#_live_cli_verbs
+  - bin/lib/graph.py#_handbook_verb_drift # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_contiguous_blocks # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_mirror_lines # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_handbook_binding_mirror_underlist # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#_read_order_drift # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#cmd_graph_conformance # : moved to the graph engine module (host keeps a thin residue)
+
+body: |
+  ## Scenario
+
+  V2 delivers the right rule at the right moment by ONE mechanism: the binding-derived LENS
+  (`_build_binding_views` over each spec's single `binding:` field — SPEC-0013). The meta-rule the
+  owner/editor must hold: **each verb does its OWN work and emits THAT work's content** — a verb is a
+  self-check plus an optional post-hint, NOT a place that re-hosts the routing map. The what/when of
+  delivery is the LENS, never a per-verb payload and never a handbook section enumerating routing on the
+  side. The visible consequence: a stage-bound action has EXACTLY ONE delivery source, so an editor adding
+  a new spec/stage/verb cannot accidentally create a second, divergent delivery path that silently drifts.
+
+  ## Internal
+
+  The CORE one-source delivery invariant, enforced as a PURE structural self-test inside the dedicated
+  validating surface `cmd_graph_conformance` (the model — `graph build` stays non-validating;
+  GRAPH §What graph is NOT). The self-test is **report-at-land**, exercised by `tests/test_*.py` at the
+  land verify — DELIBERATELY NOT a spec/graph write-path or activation fail-closed gate (CHARTER non-goal
+  #7 "NOT a hook-laden enforcement platform" / GRAPH "NOT a validation layer"). Two altitudes:
+
+  - **Per-spec (runs ALWAYS — `_one_source_delivery_check`), over NON-RETIRED specs** ({draft, proposed,
+    active}, so a new spec's bad binding is caught BEFORE activation — the by-construction guarantee):
+    - `nonexistent-stage` — a `stage-entry:<bad>` token whose `<bad>` is not a canonical lifecycle stage.
+    - `second-delivery-source` — SCOPED to a spec that ALSO carries a stage-entry: the stage-entry
+      co-present with ≥1 verb surface (a stage-delivered spec must not ALSO be verb-before-X delivered),
+      OR with >1 residency token (a spec carries EXACTLY ONE residency marker). Residency is ORTHOGONAL
+      to stage routing — a lone stage-entry + ONE residency is NOT a violation.
+    - PLAN-AXIS MIRROR : the SAME check ranges over the `plan-stage-entry:<PLAN_STAGE>` axis
+      symmetrically — a bad plan-stage suffix is a `nonexistent-stage`, and a plan-stage-entry co-present
+      with a verb surface, or with >1 residency, is a `second-delivery-source`. The two stage axes are
+      recognized by the SAME `_delivery_classes`/door, one derivation (P5) — no parallel scan.
+    - AXES ARE ORTHOGONAL (corrects the over-mirror): the task `stage-entry:` and the
+      `plan-stage-entry:` axes are DIFFERENT delivery MOMENTS for DIFFERENT consumers (task Analysis vs
+      plan decomposition) — one-source-EACH, so their CO-PRESENCE on one spec is NOT a second source (the
+      same orthogonality as a lone stage-entry + ONE residency above). A spec that legitimately delivers
+      decomposition discipline at BOTH task-Analysis and plan-decomposition MAY carry both axes without
+      flag (the motivating case: SPEC-0046 is intended to gain `plan-stage-entry:decomposition` alongside
+      its `stage-entry:Analysis` per SPEC-0070 §9.5 — added by, NOT this task). mechanically
+      mirrored the axis onto itself ("two stage axes = two sources"); that flag was over-broad collateral
+      and is REMOVED.
+    This check OWNS the stage-routing one-source invariant only; a bare unknown/missing verb token stays
+    the existing conformance dangling/unknown door (one home per check — CHARTER §P5).
+
+  - **Corpus-level (CANONICAL-CORPUS + ENGINE-only — `_stage_bundle_coverage_violations`):** every relocated
+    lifecycle gating-verb stage (SURFACE_TO_STAGE minus legacy `before-analysis` — moved
+    SPEC-0014→Commit / SPEC-0015→Closure / SPEC-0016→Audit-pre+Audit-post onto the stage-entry axis) MUST
+    resolve ≥1 bound spec in `stage_to_specs`; a stage with none = `stage-no-bundle`. Guarded on
+    `SPECS_DIR == REPO_ROOT/specs` (both `__file__`-derived → holds for any real checkout, false only for a
+    test-sandbox SPECS_DIR monkeypatch) so a partial sandbox corpus never false-REDs.
+    **ENGINE-ONLY — the check no-ops under `-C` (X-0408 + X-0409, an ADDITIVE exemption per
+    SPEC-0005 rule 7: the engine's already-covered behaviour is UNCHANGED).** The relocated lifecycle
+    gating stages are a KERNEL-realm concern (SPEC-0073 §placement): a consumer's corpus is born empty
+    and authors its own PRODUCT specs, which carry no kernel stage-bindings — so on a consumer every
+    relocated + plan stage resolves an empty bundle and the check fires 12 rows (4 `stage-no-bundle` +
+    8 `plan-stage-no-bundle`) the consumer could only clear by FABRICATING kernel-shaped bindings onto
+    product specs. Unsatisfiable-by-construction ⇒ a false-RED blocking every consumer land, not a
+    finding. NOTE the canonical-corpus guard above does NOT cover this: under `-C` REPO_ROOT rebinds to
+    the consumer and SPECS_DIR derives from it, so that equality HOLDS on a consumer — it discriminates
+    a monkeypatched test sandbox, never a consumer. Hence the separate `_is_consumer_build`
+    early-return, the same exemption the siblings `_release_view_drift` / `_release_spec_slice_violations`
+    / `_audience_views_drift` already carry.
+    **PLAN-AXIS mirror :** the SAME check ALSO asserts every plan delivery gating-stage
+    (`_plan_delivery_gating_stages`, DERIVED from the authoritative FSM constant `PLAN_STAGE_SEQUENCE` — not
+    a hard-coded registry, P5) resolves ≥1 bound spec in `plan_stage_to_specs`; a plan stage with none =
+    `plan-stage-no-bundle` — the same empty-bundle seam on the plan axis (a stage entered via
+    `plan stage <NAME>` delivering an EMPTY `plan-stage-entry:<NAME>` bundle the read-gate silently no-ops on,
+    post-`/compact`). `decomposition` (SPEC-0070, the gated cut dwell-stage) is thereby asserted to carry a
+    bundle. Same canonical-corpus guard.
+
+  - **Corpus-level structural — CANONICAL-CORPUS only, REPORT-ONLY :**
+    - `handbook-routing-duplication` (`_handbook_routing_duplication`) — the 5 handbook files' routing
+      assertions checked AGAINST the binding-derived map (NOT a literal substring scan): per line, a
+      routing surface (`stage-entry:<STAGE>` or a floor-trigger surface) whose on-line SPEC ids include
+      NONE the map backs for that surface = a stale/divergent handbook routing (OVERLAP, not pairing —
+      multi-token/multi-spec safe, zero false-positive on the canonical corpus).
+    - `floor-map-drift` (`_floor_map_drift`) — the committed `graph/floor-trigger-map.md` MUST equal the
+      freshly regenerated map (`_render_floor_trigger_map` over the same binding-derived inputs `graph
+      build` renders from); a mismatch = the always-loaded artifact went stale vs the live bindings.
+    Both wired into `cmd_graph_conformance` (RED set), canonical-corpus-guarded like the bundle check.
+    - `handbook-verb-not-built` (`_handbook_verb_drift` over `_live_cli_verbs`) — every CLI verb NAMED in
+      handbook prose (`bin/yitc-v2 <group> [<sub>]`) MUST resolve to a LIVE `build_parser` surface OR be
+      explicitly `(deferred)`-marked; a named-but-unbuilt verb the parser hard-rejects = drift.
+    - `handbook-binding-mirror-underlist` (`_handbook_binding_mirror_underlist`) — a handbook BLOCK that
+      MIRRORS the binding map (has a line with ≥2 SPEC ids AND ≥2 stage surfaces — the multi-pair
+      enumeration shape, NOT the plan-FSM analog table) MUST list every spec the map backs for each stage
+      surface it names; an OMITTED backed spec = under-listing (the omission the OVERLAP dup-check above
+      cannot see — overlap flags wrong/extra specs, never omissions). The mirror SHAPE is a multi-pair
+      enumeration line (>=2 specs AND >=2 stage surfaces); a block of purely single-surface pointers is
+      deliberately NOT a mirror (the over-reach non-goal #7 declines — audit-post decline)..
+    - `read-order-drift` (`_read_order_drift`) — every `<!--GEN:read-order:STYLE-->…<!--/GEN:read-order-->`
+      managed region in `AGENTS.md` MUST equal `_render_read_order(STYLE)` from the single carrier
+      `HANDBOOK_READ_ORDER`; a mismatch (or no region) = the handbook read-order surface diverged from its
+      carrier. The home of the read-order RULE is SPEC-0007 §5b; this is only its handbook-prose-drift CHECK
+      in the family. **ENGINE-ONLY — the check no-ops under `-C` (X-0408 + X-0409, an ADDITIVE
+      exemption per SPEC-0005 rule 7: the engine's already-covered behaviour is UNCHANGED).**
+      `HANDBOOK_READ_ORDER` is the KERNEL's handbook carrier (a kernel-realm concern, SPEC-0073
+      §placement) and a consumer owns no handbook of its own — it reads the ENGINE's, resolved at the
+      engine install path (SPEC-0007 §5b). So under `-C` the caller's `handbook_docs` is EMPTY (it filters
+      on `(REPO_ROOT / n).exists` and a consumer has no `AGENTS.md`), and the no-region sentinel above
+      false-REDs every consumer land on a surface the consumer cannot own — hence the
+      `_is_consumer_build` early-return sits BEFORE that sentinel, matching the sibling drift checks
+      `_floor_map_drift` / `_audience_views_drift` / `_release_view_drift`. Regenerated by the EXPLICIT `graph build` (`_regen_handbook_read_order`), NOT in the
+      land/`_auto_rebuild_graph` path (AGENTS ∉ `_BOOKKEEPING_ALLOWLIST`) — the checker never rewrites prose;
+      the land-verify canonical-GREEN test is the non-divergence backstop.
+    **Report-at-land doctrine (RECORDED):** they widen DETECTION of the one-source invariant;
+    they are NOT a spec/graph write-path or activation fail-closed gate. The pass-3 push for
+    fail-closed / write-path wiring is REJECTED (CHARTER non-goal #7 "NOT a hook-laden enforcement
+    platform" + GRAPH "NOT a validation layer" report-not-block); owner-resolved as
+    report-at-land twice ( path A path B), now standing.
+
+  Coherence note (P7, not a contradiction): the self-test VALIDATES (stricter, fail-RED) while
+  `_build_binding_views` stays report-only-tolerant (floor-dominant). Distinct roles, one carrier.
+
+  ## Rationale
+
+  The recurring failure: routing knowledge duplicated across a verb payload + a handbook section + the
+  binding map, which then drift apart (the same accretion class that grew V1's hooks/ledgers).
+  consolidated lifecycle delivery onto the single stage-entry axis; this meta-rule LOCKS that one-source
+  shape structurally so a future spec/stage/verb cannot silently reintroduce a second delivery path.
+  The defensible CORE shipped first (path B, owner-chosen); then REALIZED the two corpus-level
+  structural checks (handbook-routing-duplication + floor-map-drift — see Internal) and RECORDED the
+  report-vs-enforce doctrine: the auditor pushed ( pass-3) for fail-closed write-path / activation
+  wiring; that is REJECTED — V2 doctrine is report-at-land, never a gate (non-goal #7 + GRAPH
+  not-a-validation-layer). Owner-resolved twice ( path A path B); now standing.
+
+  ## Verification
+
+  `bin/yitc-v2 graph conformance` exits 0 / GREEN on the canonical corpus (all non-retired specs satisfy
+  the one-source invariant; all 4 relocated gating stages carry a bundle; the handbook routing matches
+  the binding-derived map; the committed floor trigger-map is in sync). It exits 1 / RED on a synthetic
+  violation — a spec bound to `stage-entry:<nonexistent>`, a stage-entry co-present with a second delivery
+  source, a divergent handbook routing assertion, a drifted floor map, a handbook-named CLI verb the parser
+  rejects, or a binding-map mirror that under-lists a backed spec. RED-GREEN covered by
+  `tests/test_t0295_one_source_delivery.py` (the core) + `tests/test_t0300_corpus_delivery_checks.py`
+  (the two corpus-level checks) + `tests/test_t0530_handbook_prose_drift.py` (the two prose-drift
+  checks — pure helpers + the monkeypatched cmd_graph_conformance command path).
+
+cites:
+  - SPEC-0013
+  - SPEC-0005
+  - SPEC-0016
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # close flips proposed→active (work-first).
+proposed_by: # provenance: the authoring task (work-first).
+binding:
+  - code-enforced # residency: the rule IS the conformance self-test (code), not a verb-fetched
+                               # retrieved spec. Excluded from the verb→section inversion + the dangling check.
+implements_signature:
+  bin/lib/graph.py#_contiguous_blocks: a41cc31747b61c3447e78dde29ee22572b8ec35bc4330965110a48ee9018d375
+  bin/lib/graph.py#_delivery_classes: 3be1d6ce4b3065ad7e075ec59832fa81c2283d8f3f12abcaf0e2aa11c4f31699
+  bin/lib/graph.py#_derived_routing_backing: 055a840f59613a181bedbdf5bf8be640a702313ee453564f0256b09f7a6ad274
+  bin/lib/graph.py#_floor_map_drift: ad2db22ba4d5ed9064af7af09483f0899f53291f0a2157086b31a436221d6964
+  bin/lib/graph.py#_handbook_binding_mirror_underlist: f6ff21816f347241217c3e73d6208341ec64ce6a02ff2f86ff636972e0d36eb1
+  bin/lib/graph.py#_handbook_routing_duplication: ca475b87535fc677137976da420bdd21031d3acf175d9e215c22ece2b090e2b2
+  bin/lib/graph.py#_handbook_verb_drift: 89c0295f2b614eb59a4cc0100f22049081f8b3680a9ae3497c75ff62fcf9fb83
+  bin/lib/graph.py#_mirror_lines: 73100615aa1a5dfa3082ba9e7b58c105ba7274442ecffcc4e248ef3fc55fbc5f
+  bin/lib/graph.py#_one_source_delivery_check: 4c1c4b55b711c473a19ed8bc4a7aaa7f735361cbbc4aab9d588c7775994c1b7a
+  bin/lib/graph.py#_read_order_drift: a91cc1ef1d14924da8484fabcf2c90a7845236cdb349fa1016d8867036565622
+  bin/lib/graph.py#_relocated_gating_stages: f2945b0512a12bd4b72474cbff09f3aeff5f2ba9ac259b144f4a645932bd61e0
+  bin/lib/graph.py#_stage_bundle_coverage_violations: 359964b9fb8b9f6c9c0b2ea88cecea58c795ebac142e9a1c93d070341ff104ca
+  bin/lib/graph.py#cmd_graph_conformance: 49b20b5a163aeecf920139d65b913ce84ea6972db2e0c30f2efef92ae97a73d1
+  bin/lib/cli.py#_handbook_routing_assertions: 22c2b9d085408b0232deaac3cb6e265d16ac7a7ce4483f66b18ae28d21df98b7
+  bin/lib/cli.py#_live_cli_verbs: ab94b836bf9bb709d4435414829d051d441bbfade62019aa588bbfda8d089517
+  bin/lib/cli.py#_routing_surface_vocab: 1339702f11001cd95472117f231d3ad58c143832f3a80dc19363284d0f60fd67

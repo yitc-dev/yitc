@@ -1,0 +1,933 @@
+id: SPEC-0060
+title: Task-authoring doctrine — front-load checklist for a good task card, delivered at Filing
+
+status: active
+
+created_at:
+
+consumed: false
+
+implements: # durable anchors — wired by (activation owner): the code
+                               # that REALISES the SPEC-0059 Filing carve-out for this doctrine.
+  - bin/lib/task.py#cmd_task_file # the CHECK leg (_require_reads stage=Filing) + the `--skeleton` emitter
+  - bin/lib/session.py#cmd_session_start # the availability REFERENCE line (_filing_reference_howto). The
+                                    # SEPARATE read-order echo line in this function is carrier-derived
+                                    # (SPEC-0007 §5b) — out of THIS spec's filing-doctrine norm;
+                                    # the filing-reference line this anchor governs is unchanged.
+  - bin/lib/triage.py#cmd_triage_run # the triage/revizia-ENTRY delivery (X-0128): the scan
+                                    # whose expected output is filing (promote-to-fix-task) DELIVERS this
+                                    # doctrine at entry via an honest node_id-bearing delivery-receipt
+                                    # (verb "triage run", NOT "graph query") — see §Delivery wiring.
+
+body: |
+  ## Scenario
+
+  When the owner/AI files a TASK, the card is FRONT-LOADED rather than left a bare title: `task file`
+  seeds a skeleton whose sections prompt the same questions a good card answers UPFRONT — what changes,
+  the smallest concrete edit, and the acceptance criteria WITH probe evidence — and the session holds
+  the authoring doctrine that says what a good card carries. So a task is never a one-line stub someone
+  later reverse-engineers intent from. This is the TASK-axis analog of the plan-draft authoring doctrine
+  (SPEC-0043). It reaches the author the way SPEC-0059's Filing carve-out describes: a session-start
+  REFERENCE pointer (availability, no gate) + the `task file` work-verb checks it was read before
+  writing the card.
+
+  ## Internal
+
+  THE TASK-AUTHORING DOCTRINE — the retrieved home for WHAT a good task card front-loads. It is a
+  CHECKLIST, not a gate (no card-completeness validator — CHARTER non-goal #2/#7). It is POINTER-BASED:
+  every schema rule and every cutting rule stays normative in ITS OWN home (cited inline); this spec
+  NEVER restates them (SPEC-0005 rule 3 content-boundary / P5 one-home / rule 8
+  prompts-checklists-cue+pointer — a front-load checklist item carries a discipline CUE + a POINTER,
+  never a restated corpus rule).
+
+  ### The front-load checklist — authoring PROMPTS only (accept-gate F3, 2026-06-08)
+  Each item is the QUESTION to ask while writing the card — NOT a re-statement of the field's rule
+  (the schema rule lives in SPEC-0028, the cutting rule in SPEC-0046; this list only front-loads the
+  thinking and POINTS). The load-bearing authoring content this spec genuinely OWNS is items 3-4 (the
+  front-load thinking — scope + acceptance/probe); items 1/2/5/6 are one-line prompts that defer
+  entirely to their home:
+  1. **Title** — is it one imperative line that says what the card DOES? (convention → SPEC-0028.)
+  2. **Class** — picked from the catalog? (catalog + meaning → SPEC-0028.)
+  3. **Scope (front-load thinking — OWNED here)** — can you name what EXISTS, what CHANGES, and the
+     SMALLEST concrete edit, as your CURRENT understanding? Filing precedes this task's own Analysis
+     (entered later at the claim), so this is the filer's front-load, not a completed Analysis output;
+     the picked-up task re-confirms it at Analysis (procedure → SPEC-0032).
+     **Touch forecast — name the units you KNOW; the commit refreshes the rest.** The
+     card's `expected_touch` is an OPTIONAL forecast for dispatch/planning/claim (SPEC-0028), NOT a
+     completeness obligation: declare the units you can name at filing and stop there. Do NOT try to
+     forecast every file the change will touch, nor pair each with its governing spec — `task commit`
+     REFRESHES the field from the committed diff, so what the work actually touched reaches those
+     readers whatever the filer guessed. The under-citation cue at item 6(a) still reads whatever IS
+     declared, and is unchanged by this: it asks you to CITE the spec governing a surface you named,
+     never to name more surfaces. On the AUDIT side the completeness of this forecast is CONTEXT and
+     is never a finding (SPEC-0036 §Universal lens) — so an incomplete forecast costs a filer nothing,
+     which is exactly why over-forecasting to be safe is the wrong instinct here.
+     **Observation-vs-hypothesis cue (2026-08-12) —** does a scope line
+     state a CAUSE? Separate what you MEASURED from what you SUSPECT. A card may report measured
+     observations and may PROPOSE a suspected cause; but a causal claim made BEFORE this task's own
+     Analysis defaults to HYPOTHESIS, and becomes load-bearing only when the card carries the probe
+     evidence and its `from:` chain (evidence discipline → CHARTER §Principle 2 `from:` + §Principle 3
+     probe evidence; the Analysis re-confirmation is this item's own rule above → SPEC-0032). Labelling
+     a cause does not license it as the card's premise — write it as the hypothesis the work TESTS, so
+     the reader can tell which half is proven. The same separation applies to a MEASURED claim: name the
+     surface and scope you actually measured whenever that scope is narrower than the claim you draw
+     from it (four times in one session on 2026-08-13 a sound check was reported at a wider scope than
+     it covered — one repo's journal read as a fleet-wide absence, one key name as a project-wide
+     absence, one half of a two-step followup as the whole item, one aborted land as a repo-wide
+     freeze). The same holds for the INSTRUMENT and not only the scope (X-1012, three instances in
+     one kupiclub session on 2026-08-19): when you report a VISUAL or USER-FACING property, do not
+     claim more than you DIRECTLY OBSERVED — either back it with rendered evidence (a screenshot, a
+     rendered read, a gate re-run), OR scope the claim to the PROXY you actually checked. A cheap
+     DOM / selector / console / timing check is never forbidden and stays fully legitimate for
+     steering your own work; the cue binds the REPORT, not the check, so a proxy stays legitimate
+     whenever the report says what it actually observed — what it forbids is UPGRADING a proxy into
+     a claim about what a user saw (a node counted present in the DOM while it rendered at y=906
+     outside a 900px viewport, reported as "the menu opens"; a page measured healthy — rows present,
+     no console errors — while the red deploy gate was correctly catching a detached element and
+     real users were white-screening). Grounds: three cards in one queue in one day had their
+     premise contradicted by the worker who measured it — every observation sound, every stated cause
+     not, each costing a full analysis pass. An authoring PROMPT only: no card is refused for omitting it.
+     **Premise-verify cue — AT THE FILING SEAM (owner directive 2026-08-16, re-confirmed
+     2026-08-30) —** does this card rest on a PREMISE about the CURRENT code — a quoted line
+     number, a stated absence ("nothing does X"), a reported behaviour, a peer's or a report's
+     claim? Then CHECK IT against today's checkout BEFORE you cut the card. This is the cheapest
+     check in the lifecycle and the one nobody makes: the premise arrives with the request, so it
+     reads as given rather than as something to verify.
+     **Which seam this is, and why the existing ones do not reach it.** This cue fires BEFORE A
+     CARD EXISTS. The two premise disciplines already in the corpus are both DOWNSTREAM and stay
+     where they are (pointers, not restated here — SPEC-0005 rule 3): SPEC-0133 rule 2f owns the
+     PRE-CLAIM seam, where a dispatched worker that finds a ready card's premise false refuses it
+     via `task refuse` — by then the card was cut, queued and dispatched, and a whole worker
+     bootstrap is spent to discover it; SPEC-0166 owns a narrower earlier pass, but its predicate
+     is `imported_from:`, so it reaches imported migration backlog only and says nothing about a
+     card filed from a live request. Verifying at filing is what makes the wasted card never get
+     cut at all.
+     **The shape to watch — the fact holds, the LOCATOR rots.** scope quoted
+     `bin/lib/worktree.py` line 3889; then landed into that same function and the line
+     became 4064. Nothing about the observation was wrong — only its address had moved, which a
+     reader cannot tell from the card. So cite what does not rot (a symbol or `#anchor`, the form
+     `implements:` uses) or re-read the locator at filing; and treat any "as of today" claim the
+     same way (the expiring-premise arm of the evidence-availability cue in item 4 is this same
+     failure one stage later).
+     **Grounds (CHARTER §P1 F4), measured, not imagined:** the owner's own pass on 2026-08-16
+     cancelled SIX planned actions in a single day. The limit case was, whose premise was
+     a peer report — the "peer reporter" turned out to be OUR OWN test double writing into the
+     live store, so the whole card was an artefact of the instrumentation it was filed to
+     investigate.
+     An authoring PROMPT only: no card is refused for omitting it, and nothing validates it — this
+     item is a checklist by construction (no card-completeness validator — CHARTER non-goals), and
+     a filing suppressed here would cost more than the premise it screened.
+     **The ONE place this item's thinking is MECHANICALLY floored —** `task plan
+     --finalize` REFUSES a plan that never REFERENCES a canonical `ACn` id, naming the uncovered
+     ids. A NECESSARY condition only — the auditor still judges substance — so it floors the
+     scope↔plan relation this item asks you to think through; it does not check it.
+  4. **Acceptance WITH probe (front-load thinking — OWNED here, load-bearing)** — does each criterion
+     name a probe (event / state / measurable effect)? "code committed" is NOT "done" (done=adopted +
+     infra-adoption → CHARTER §P3/§P8). This IS the per-unit verification artifact SPEC-0059's
+     readiness gate checks before Tests/Closure.
+     **Give each criterion a leading `ACn` token —** that token is the criterion's
+     CANONICAL id, and `task plan --finalize` REFUSES a plan that never references one, naming the
+     uncovered ids (a necessary condition only). A tokenless entry still gets an id, assigned BY
+     POSITION — which moves when the list is reordered, so the explicit token is what makes the id
+     stable across the card's life. **Audit-post verifiability (additive)** —
+     each criterion must be VERIFIABLE AT AUDIT-POST from the shipped diff + the surfaced
+     journal-evidence sections; do NOT write a criterion that references the audit-pre verdict (or any
+     audit-record file) — those are EXCLUDED from the audit-post diff and structurally
+     unverifiable there (the recurring false-RED class). A residual surfaced at audit-pre is
+     discharged AT audit-pre (mode-b absorption → LIFECYCLE §Stage 4), never deferred to an
+     audit-post-checked closure criterion.
+     **Triggered-mechanism cue (X-0089) —** does the card ship a mechanism whose success depends on an
+     external trigger firing (scheduler/hook/event/periodic)? Then `class:infra` + a live-trigger/
+     synthetic-load probe, NOT a direct-call unit test (rule home → CHARTER §P8 + SPEC-0036 audit-post
+     overlay).
+     **Differential-probe cue (X-0246) —** would this criterion still pass if the thing under test were
+     BROKEN? If yes it is a smoke check, not a probe — name the input that must make it FAIL (rule home
+     → CHARTER §P3 done=adopted). An authoring PROMPT only: no card is refused for omitting it.
+     **Cohort-complement cue (X-0419) —** does this card REMEDIATE a cohort its fix SELECTS (a filter, a
+     fence, a WHERE clause, an id list)? Then probe the COMPLEMENT, not only the selected set: name what
+     the selector EXCLUDES and why that exclusion is right. A card that probes only its own selector is
+     green by construction — it cannot see the rows its own fence silently dropped (rule home → CHARTER
+     §P3 done=adopted: what is adopted is the OUTCOME, not the selector). An authoring PROMPT only: no
+     card is refused for omitting it.
+     **Cited-desired-exclusion cue (X-0419) —** does a criterion assert an exclusion is DESIRED (a
+     NEGATIVE probe — "these stay excluded" / "this stays absent")? Then CITE the artifact or
+     owner-decision that DECIDED that exclusion. An uncited negative probe encodes the AUTHOR'S
+     ASSUMPTION as an executable green guarantee — and the assumption outlives the author (rule home →
+     CHARTER §P3 + SPEC-0005 rule 3 content-boundary: a claim resolves to the home that decided it, or
+     it is not a decided claim yet). An authoring PROMPT only: no card is refused for omitting it.
+     **Test-or-waive cue —** does each criterion NAME the executable test that verifies it (a
+     test path or a pinned-suite test id) OR carry an explicit fail-closed waive `test-not-applicable:
+     <reason>` when the criterion is genuinely verified another way (a `graph query` state-check, an
+     event emit)? An AC that names NEITHER is a claim with no named verifier — "done" is asserted with
+     nothing that runs to prove it. The waive is a CONTRACT, not a silence: it MUST carry a REASON (a
+     bare `test-not-applicable:` with no reason still counts as unnamed, fail-closed — mirroring the
+     SPEC-0038 `post_verification: {none: <reason>}` waive discipline). `task file` surfaces the per-AC
+     status as the report-only `AC test/waive status (advisory — filing not blocked)` line (registry
+     row 9 below). Sole SDD element adopted from the truth-model consult
+     (`decisions/truth-model-sdd-replacement-audit-adhoc.yaml` finding 2; owner ruling 2026-07-18 —
+     ephemeral cards + audit-skip modes explicitly out of scope). An authoring PROMPT only: no card is
+     refused for omitting it (rule home → this item + CHARTER §P3 done=adopted).
+     **Born-armed-carrier cue —** does a criterion defer work to a FOLLOW-UP (a CHARTER §P8
+     adoption carrier, a staged dodelka) whose firing moment is a NAMEABLE artifact — a task or
+     coordination id whose closure IS that moment? Then capture it BORN ARMED, `followup add --trigger
+     '<the moment>' --awaits <T-NNNN|X-NNNN>`, never with the wait written as prose: a prose wait lands
+     in the actionable headline and reads as do-now for as long as it is open (measured on the kernel
+     2026-09-04: 246 actionable / 9 armed, well over a hundred of the 246 naming a waiting moment in
+     prose). Leave it ACTIONABLE only when nothing resolvable names the moment — an event class fires
+     on MEMBERSHIP, so a «next occurrence of <type>» wait has no artifact at all. `followup
+     add` surfaces this itself as a report-only advisory when the capture text names a still-open
+     reference. **First ask WHOSE journal the moment lands in (owner ruling 2026-09-04):** a
+     KERNEL-side moment takes the armed followup above, while a CONSUMER-side one — the next deploy,
+     run or reading in ANOTHER project — cannot be carried by a followup here at all and routes as a
+     `cross request --kind task --to <consumer>` asking that project to arm its own followup and
+     report the reading back, with at most ONE followup on this side armed on the resulting `X-NNNN`.
+     An authoring PROMPT only: no card is refused for omitting it (rule home → SPEC-0095 §Armed).
+     **How a named test is RECOGNIZED is not this item's rule —** a project that declares where its
+     test files live is read from that declaration, and the kernel's own filename pattern is only
+     the fail-open default for a project that declares none (rule home → SPEC-0185 half (c) + §2a;
+     the declarable carrier is `tests.classes[].globs`, shape owned by SPEC-0160 rule 10).
+     **The named verifier is NOT the P8 adoption-evidence payload —** the test this cue asks
+     you to NAME is the criterion's VERIFIER: what RUNS to prove the AC. That is a DIFFERENT slot from
+     the CHARTER §P8 adoption-evidence event a `class: infra` closure composes, whose payload has its
+     own admissibility contract — SPEC-0015 §"The EVENT carrier must resolve machine evidence + a
+     differential" owns it, and the test run's journal trace is not among what it admits (not restated
+     here — P5). So naming a test path in an AC is always legitimate, but do NOT write a criterion that
+     DEMANDS the P8 payload REFERENCE that test's run: it is unsatisfiable by construction, green
+     nowhere, and reads at audit-post as an unmet AC rather than an authoring defect ( burned 2
+     audit-post passes plus a convergence consult before its AC2 was amended). When a criterion needs
+     adoption evidence, point the payload at the MECHANISM's own production event; the named test stays
+     the verifier alongside it.
+     **Conforming-run satisfiability cue (X-1054) —** does a criterion constrain the SHAPE OF THE
+     DIFF ("the diff touches only `<file>`" / "any file outside `<path>` fails this")? Then ask
+     whether a CONFORMING 9-stage run could satisfy it AS WRITTEN. As a bare shape it cannot: the
+     shipped commit NECESSARILY also carries this card's own lifecycle fields (written by the
+     stage verbs), `events.jsonl` rows, and the audit YAML LIFECYCLE §Stage 8 explicitly instructs
+     be left dirty for `task close` — and `task commit` owns staging and exposes no path filter
+     (→ SPEC-0014), so the only literally-satisfying path is hand-rolled git around the governed
+     verbs, which AGENTS §Verb-execution discipline forbids. So scope the criterion to the PRODUCT
+     hunks and SAY SO, with the exclusion written as a CLOSED LIST that is PROVENANCE-BOUND, never
+     path-shaped: admit this task's card lifecycle fields, its `events.jsonl` entries, and its own
+     governed audit/decision artifacts — in each case ONLY where a REQUIRED STAGE VERB produced
+     them FOR THIS SAME TASK. An exclusion that admits a PATH regardless of WHO WROTE IT is the
+     soft edge to avoid: it lets a real product file ride in as bookkeeping. Keep the criterion
+     DIFFERENTIAL by naming what still FAILS it — any application / source / config / docs /
+     schema / test file, a hand-edited lifecycle artifact carrying product semantics, another
+     task's metadata, and any path that changes runtime behaviour, verification behaviour,
+     ownership declarations or review scope. Worked instance to reuse: kupiclub's landed
+     AC4. The generalisation of the paragraph above — same failure mode (an AC that is
+     unsatisfiable BY CONSTRUCTION reads at audit-post as an unmet AC, not as the authoring defect
+     it is), now on the diff-shape axis; measured cost: the same wording twice in one day by one
+     author, the second time with the fix in view, burning the audit-loop ceiling, two consults
+     reaching OPPOSITE conclusions, a halted worker and an owner reset. An authoring PROMPT only:
+     no card is refused for omitting it, and nothing validates it (rule home → this item).
+     **Deferred-proof ordering cue —** can this criterion's proof exist BEFORE
+     this card's OWN land? Ask it of every criterion whose evidence is a live reading, an adoption
+     trace, or anything a RUN produces. When the answer is NO — the proof is produced by a LATER
+     land, by production traffic, or by this card's own closure — the criterion is not a bare
+     deferred probe and must not be written as one: audit-post reads a structurally-impossible
+     absence as an UNMET AC rather than as the ordering fact it is, and the card burns passes that
+     no re-audit can convert ( ceilinged at passes=3 demanding evidence that could not exist
+     while its own change was still off main; burned 4 passes, 2 owner resets and a
+     convergence consult arguing about the same impossible forecast). Carry it instead as one of
+     the SPEC-0028 OPTIONAL deferred-proof DECLARATIONS — the family each of whose members is the
+     trust anchor of its own Stage-8 `audit post` carve-out, so the absence is told to the auditor
+     as the NORMAL ordering for that ship (rule home → SPEC-0028's field catalog for the forms,
+     SPEC-0036 for the matching overlays; nothing about them is restated here). Point at the
+     FAMILY and pick the member whose shape fits — and treat a shape NO member fits as the finding
+     to capture, never a declaration to improvise. An authoring PROMPT only: no card is refused for
+     omitting it.
+     **Evidence-availability cue —** at the moment someone READS this criterion,
+     will the record it names still NAME ITS SUBJECT? Two limbs, one question. Neither measured case
+     was carelessness: both criteria were written by capable authors and read as reasonable when
+     written — the record is chosen at AUTHORING time, and nobody asks what it will say at READING
+     time.
+     Limb (a), the record does not name it YET (ordering) — is the proof emitted by `land` at Stage 9
+     (a `land_completed` row, a `cross_done` row, a land-stamped field)? Then naming the right
+     ARTIFACT is not enough: the Stage-8 overlay admits the carve-out only for evidence the acceptance
+     ties to land IN WORDS, so WRITE THE TIE. Example phrasings the guard reads —
+     [ "land-emitted" | "emitted by `land`" | "at land" | "after this lands" | "once it lands" |
+     "when this landed" ] — any one of them, in the same acceptance entry that names the event token.
+      AC3 named the `land_completed` row (the RIGHT artifact) with no such tie, `audit post
+     --land-emitted-event` refused fail-closed, and clearing it cost a governed acceptance amendment
+     plus a further audit round-trip on a card already at its audit-loop ceiling. The fix is always
+     the wording, NEVER a request to widen the matcher to fit it: naming WHICH evidence is pending is
+     the whole reason the carve-out is not a blanket excuse (rule home → the guard and its phrase set
+     at `bin/lib/audit.py#land_emitted_named_evidence`, the overlay at SPEC-0036; neither is
+     restated here beyond the examples above).
+     AND THE TIE IS ONLY HALF — THE ENTRY MUST ALSO NAME THE EVENT TOKEN. The guard admits on TWO
+     things present in the SAME acceptance entry: a phrase from the set above, AND the snake_case
+     EVENT TOKEN that carries the proof. (One alternative shape, and only one: an `X-NNNN`
+     coordination id the acceptance names that the card ALSO carries in `resolves_cross` — that
+     link is what makes `land` emit the item's closing row, so it is a STRUCTURAL land-tie and
+     needs no phrase.) Name NEITHER shape and the guard returns nothing, `audit post
+     --land-emitted-event` refuses FAIL-CLOSED, and the base audit-post REDs on evidence that could
+     not exist yet. **So an acceptance criterion whose proof is LAND-EMITTED must NAME THE EVENT
+     TOKEN CARRYING IT.** The why is not decorative, and it is the reason this is an obligation
+     rather than a style note: the overlay that would rescue such a criterion can only match a
+     NAME, so a criterion it cannot match is UNSATISFIABLE BY CONSTRUCTION — the Stage-8 audit REDs
+     on the absent evidence, and that RED blocks the very land that would have produced it. No
+     execution order satisfies it and no re-audit converts it. AC3 named the right
+     ARTIFACT and no tie; AC4, written the same week, named the right ROUTE and no token
+     — two halves of one obligation, missed independently, which is why both are now stated and
+     not just the first.
+     **DO NOT read this as "do not write land-emitted criteria".** They are legitimate and in
+     routine use, and the whole deferred-proof declaration family exists to carry them. What is
+     forbidden is a land-emitted criterion that names NO carrier — the naming is precisely what
+     keeps the carve-out narrow instead of a blanket excuse, so a rule banning the pattern would
+     remove real coverage rather than fix the shape.
+     **Worked NEGATIVE example, beside the wording that would have passed** — AC4. The
+     FAILING wording:
+
+         AC4: the land that ships this clears the pinned last-green failure by the SANCTIONED
+         route. Probe: the land records a narrow per-assertion re-baseline naming this exact
+         assertion, authorized under SPEC-0077 A-prime — either an owner ack or the
+         dispatched-Worker self-clear with all five conditions met and the mechanical tie recorded
+         in the >=30-char reason. FAILS on --no-tests, on a forced land, or on a reason that does
+         not name the assertion and the change that obsoletes it.
+
+     It names the land, the sanctioned route, the authorization and two failure modes — and no
+     event token. The overlay refused fail-closed, the Stage-8 audit RED-ed on exactly one finding
+     ("AC4 not evidenced"), and clearing it cost a rung-2 adversarial consult plus a recorded
+     acceptance amendment (`events.jsonl#ts=`). The wording that PASSES carries
+     the tie AND the token in the same entry:
+
+         AC4: the land that ships this clears the pinned last-green failure by the SANCTIONED
+         route. THIS PROBE IS LAND-EMITTED and is therefore read AFTER the land, never at the
+         pre-land diff-only Stage 8 — run audit-post with --land-emitted-event [...]. Probe: the
+         `land_completed` event for this task carries `rebaselined` true with `rebaseline_kind`
+         broken and a `rebaseline_reason` that NAMES BOTH the exact assertion [...] AND the reader
+         change that obsoletes it [...]. FAILS on --no-tests, on a forced land, on an absent or
+         non-rebaseline `land_completed` payload after the land, or on a reason that does not name
+         both the assertion and the change.
+
+     Read the pair for what did NOT change: every prior demand survives verbatim, and the criterion
+     GAINED two (`rebaselined` true, `rebaseline_kind` broken) plus a new failure mode. Naming the
+     carrier made it STRICTER. That is the general property worth carrying away — the fix for an
+     unsatisfiable-by-construction criterion is a NAMING fix, and a naming fix cannot loosen what
+     the criterion demands, which is why there is never a reason to reach for a waiver instead.
+     An authoring PROMPT only: no card is refused for omitting it, and nothing validates it.
+     Limb (b), the record STOPS naming it ON SUCCESS — two questions to ask at the keyboard: does this
+     record DROP my subject once it improves? is this number DOMINATED by something my change cannot
+     move? Both shapes were measured on the same day. A TOP-N record loses the subject exactly when
+     the work works: AC1 named the per-file durations in the `land_completed` row, which
+     keeps only the SLOWEST TEN files plus percentiles, so the four files the card made fast dropped
+     out of it and the criterion became unsettleable PRECISELY BECAUSE the change succeeded (carried
+     unsettled at fu_09ac1c981060; the land itself was clean). An AGGREGATE measures terms the work
+     never touched: AC3 named `verify_wall_ms`, of which 210.7s of a 452.7s wall was
+     verify-admission QUEUE WAIT under a doubled verify — it settled FALSIFIED on a change that had in
+     fact succeeded on every other measure. Name instead a record that still HOLDS the subject at its
+     improved value — a per-subject reading, or the aggregate's own decomposed term — and where no
+     such record exists, say so and pick a different probe rather than a number that will read as a
+     verdict on work it does not measure (rule home → this item + CHARTER §P3 done=adopted; the
+     settle-honestly discharges stay SPEC-0036's, not restated here).
+     An authoring PROMPT only: no card is refused for omitting it, and nothing validates it.
+     **Durable-field cue —** NAME THE FIELD that will carry
+     this criterion's proof, and check it EXISTS on the side you need it. Not the artifact, not the
+     record — the FIELD, written out, at the keyboard, before the card is filed. This is the sibling
+     question to the two cues above, one level lower: they ask WHEN the proof arrives (ordering) and
+     whether the record will still NAME ITS SUBJECT once the work succeeds (eviction/dominance); this
+     one asks whether the named surface DURABLY EXISTS AT ALL. Measured across one drain session
+     (2026-08-27): eight criteria unreadable not because the work failed but because the surface named
+     was never there to read. Three arms, one question.
+     Arm 1, the BEFORE side is empty BY CONSTRUCTION — a before/after comparison against a metric key
+     THIS CHANGE INTRODUCES has zero rows on its before side the moment it is written. AC2
+     compared a firing rate against a pre-change baseline read via a glob key the same ship created
+     (`selection_full_suite_globs` 0 rows before / 197 after; sibling `selection_governed` 0 / 391); it
+     settled pass ONLY because the card's own post_verification restated it as a two-arm within-window
+     discrimination — a post-hoc rescue that belonged at authoring. AC2 used the same instrument
+     and fixed a NUMERIC THRESHOLD (">= 15 points over the pre-card level") against the absent side, so
+     it could not be rescued by re-reading at all. AC2 shows the archetype at its most deceptive:
+     it named `land_completed` deltas before/after — a durable, long-lived event, about as safe as a
+     field looks — and still settled UNREACHABLE (events.jsonl#ts=), because no run
+     under the pre-change tree ever took the before reading. So checking the field EXISTS is not enough;
+     check the BEFORE SIDE HAS ROWS TODAY, while taking the baseline is still free.
+     Arm 2, NO TRACE — the proof is a production observation whose surface is never journaled.
+     AC4 asks for an attempt record showing a fold that THE SUCCESS PATH DOES NOT WRITE
+     (`bin/lib/worktree.py`); the row it names is durable and its trigger genuinely self-firing, and the
+     sub-record it joins on is absent precisely on the runs that succeed. AC4 joins against a
+     pre-flight blocker set that `worktree_synced` does not carry and no sibling event records — on a
+     card whose criterion is otherwise exemplary, declaring itself pending and banking the half that IS
+     recorded. AC2 is the limit case: it asked for a token figure measured against a named
+     baseline session, and ZERO rows in the whole journal carry any token or context number, on any
+     event type, in any session — the reading is computed live and stored nowhere, so it was
+     unrecordable after the fact, not merely unrecorded (ts=). Note what fails
+     first here: naming the field fails IMMEDIATELY, because there is none to name — which is the whole
+     value of writing it out. Beware also a field that exists today and stops being emitted with no
+     signal (the `verify_cache` telemetry key several criteria are written against —
+     events.jsonl#ts=).
+     Arm 3, the PREMISE EXPIRES when someone touches the thing it names. A criterion asserting a report
+     is UNCHANGED — "exactly as today" — silently pins a moving artifact to an unstated moment.
+      AC2 asserted the `land_member_verdict` rows carry no attribution as today; four commits
+     have since touched the mechanism and DELIBERATELY SHIPPED the behaviour AC2 said would not
+     happen, so a reading now blames this card for three later cards' intended work. Settled
+     UNREACHABLE. Pin such a premise to a stated sha or window, or write the property so it survives
+     intended change — never as an unchanged-since assertion.
+     The remedy is always the same one sentence: name the field, and say what is on the before side.
+     Where no such field exists, that is the finding — pick a different probe, or make the one-line
+     change that creates the field, and say which. THE COST OF NOT ASKING IS PAID TWICE AND NEVER BY THE
+     AUTHOR: once by the drain session that must fold the whole journal to discover an ABSENCE, and once
+     by the corpus, which carries an obligation that can only ever go unreachable — and an unreachable
+     probe cannot satisfy CHARTER Principle 8, so an infra card writing this shape has guaranteed itself
+     no adoption proof at the moment of filing. Rule homes, none restated here: the ORDERING question
+     and its SPEC-0028 declaration family → the deferred-proof ordering cue above; the land-tie wording
+     and the on-success eviction → the evidence-availability cue above; done=adopted → CHARTER §P3/§P8.
+     An authoring PROMPT only: no card is refused for omitting it, and nothing validates it.
+     **Sibling-forbidden absolute cue —** does a criterion demand an ABSOLUTE (a
+     count "drops to zero", "no more X", "never again") that a SIBLING criterion on the SAME card
+     REQUIRES to keep happening? Read the card's own criteria against each other before filing: an
+     absolute is settleable only over the population its siblings leave free. AC1 demanded
+     merge-non-union-conflict aborts naming two ledger paths drop to zero while its own AC2 REQUIRES a
+     same-key collision to keep aborting; measured 19 pre / 15 post, it cannot reach zero without
+     falsifying AC2, so the card carries an unmeetable AC on work that. Write instead the
+     absolute SCOPED AWAY from the sibling's required residual — name the residual the sibling owns and
+     assert zero over the COMPLEMENT ("zero aborts other than the same-key collisions AC2 requires"),
+     which is also what makes the criterion differential (rule home → this item's differential-probe cue
+     + item 5 one-provable-claim, where a pair of criteria that cannot both hold is the split signal).
+     An authoring PROMPT only: no card is refused for omitting it.
+     **Subject-mismatched metric cue —** does the number a criterion names measure
+     the SUBJECT this change acts on, or a wider transaction that contains it? Ask it of every duration,
+     rate or aggregate. AC4 demanded the p50 duration of rebaseline-unauthorized aborts be
+     single-digit seconds; measured on the authorization arm alone it went UP (200.6s pre → 434.7s
+     post), while the shipped mechanism plainly WORKS — 20 of 21 post-land rows carry the
+     `abort_preflight` marker. `duration_ms` is dominated by the admission-queue wait UPSTREAM of the
+     refusal, so no preflight can move it: the criterion measured the queue, not the gate, and settled
+     against work that had succeeded. Write instead the metric NAMED AGAINST THE SUBJECT it measures —
+     the decomposed term the change actually moves, or the marker/state reading that shows the mechanism
+     firing — and where the record offers no such term, say so and pick a different probe. The
+     dominated-aggregate half of this is limb (b) of the evidence-availability cue above and is not
+     restated here; what THIS cue adds is the ARM-SELECTION question (measured on which population?)
+     that limb (b) does not ask. An authoring PROMPT only: no card is refused for omitting it.
+     **Observable-matches-mechanism cue (X-1277) —** is the OBSERVABLE this criterion
+     names one the shipped mechanism PRODUCES? Name the OUTPUT the mechanism WRITES — a
+     classification, a marker, a row, a field value — never a DOWNSTREAM EFFECT the mechanism does
+     not perform (a line VANISHING, a count DROPPING, a debt CLEARING) unless the card ALSO ships
+     what performs it. The sibling cues above ask whether the number measures the subject and whether
+     the record will still name it; this one asks, one step earlier, whether the thing the criterion
+     says will be SEEN is a thing this ship DOES. A criterion naming an effect the mechanism never
+     produces contradicts a WORKING ship: the consumer reading arrives as a contradiction («the line
+     is still there») instead of a confirmation, and the report-back cannot settle it. Measured: the
+     mechanism shipped CLASSIFIES a superseded identity (rewire vs mis-authored) and never
+     removes a real debt, while its AC3 named a vanishing (X-1277; the kupiclub re-run showed the line
+     PRESENT and correctly classified).
+     **Worked NEGATIVE example, beside the wording that would have passed** — AC3. The
+     FAILING wording:
+
+         AC3: kupiclub re-runs the fold and its frontend-unit admission-debt line is absent
+         (probe: consumer_read_evidence event carrying the consumer's run ref and the absent line).
+
+     The wording that PASSES names what the mechanism produces:
+
+         AC3: kupiclub re-runs the fold and its frontend-unit admission-debt line is PRESENT and
+         classified `rewire`, with the recorded prior identity named (probe: consumer_read_evidence
+         event carrying the consumer's run ref, the classified line and the prior identity it names).
+
+     Read the pair for what changed: the OBSERVABLE moved from an effect the ship does not perform to
+     the OUTPUT it writes, and the criterion became STRICTER (it now demands the classification AND
+     the prior identity) — the fix is a naming fix, never a loosening (rule home → CHARTER §P3
+     done=adopted: what is adopted is the mechanism's OUTPUT; the failing-input half is this item's
+     differential-probe cue above). An authoring PROMPT only: no card is refused for omitting it,
+     and nothing validates it.
+     **Reachable-population quantifier cue —** does a criterion conjoin an outcome
+     with a UNIVERSAL over a population ("… AND EVERY remaining one carries X")? Then ask which members
+     of that population THIS change actually reaches. A conjunction settles FALSE on its weakest limb,
+     so a universal over a partly-reached population converts a plainly-adopted mechanism into an unmet
+     AC. AC3 conjoined a fall in verify-timeout aborts (met with room: 20/day → 1.72/day) with
+     "AND EVERY remaining one carries evidence naming which case it was"; measured 22 of 27 — the
+     mechanism is adopted, the conjunction fails on a coverage gap. Write instead the quantifier BOUNDED
+     to the reachable population ("every abort emitted by the new path", "every row after <ts>"), with
+     the unreached remainder named and its coverage carried as its OWN criterion or its own card — so a
+     coverage gap reads as the separate claim it is (rule home → this item + item 5 one-provable-claim;
+     the cohort-complement cue above is the sibling question about what the selector EXCLUDES). An
+     authoring PROMPT only: no card is refused for omitting it.
+     **External-territory probe cue —** is the evidence a criterion names produced in a
+     repository this card may not write to (a consumer checkout — kupiclub / boomrocket / aiseller)?
+     Then it cannot be a probe from here, and saying "out-of-scope" in the criterion text does not
+     rescue it: 26 of the 207 deferred acceptance probes measured on 2026-08-26 name a consumer-side
+     outcome, several of them while declaring that outcome out of scope, and most carry no cross item.
+     Measured instances: AC3 makes aiseller's own cards the probe target while its OWN waive
+     says "the cards are that consumer's own"; AC7 probes the close of a kupiclub coordination
+     row while its OWN waive states those rows are "unreachable to --settle-evidence". In both, the
+     author SAW the boundary and wrote the probe anyway — so nothing can ever report back and the settle-evidence address space (this repo's journal, or a
+     coordination row NAMING this card) can never reach them. The prohibition is already decided:
+     AGENTS-SESSIONS §Scope-boundary holds that external territory is "NEVER edited or made an
+     acceptance probe target from any V2 write" — this cue only makes that visible at the authoring
+     moment and is not a second copy of it. Write instead the consumer-side outcome ROUTED TO A CROSS
+     ITEM that names this card, and keep THIS card's criterion on what this repo can observe (the cross
+     item's own completion row); where no cross exists yet, file it — a probe whose evidence has no
+     address is deferred forever. An authoring PROMPT only: no card is refused for omitting it.
+     **File-count criterion cue —** does a criterion COUNT FILES in the diff ("the
+     diff touches exactly N file(s)")? It is unsatisfiable for any task-flow card, whatever N: the
+     9-stage lifecycle itself writes this card's own fields, its `events.jsonl` rows and its audit YAML
+     into the same commit, so the shipped diff is always wider than the product edit by an amount the
+     author cannot predict at filing time. (Checked when this was filed: SPEC-0060 carries zero
+     occurrences of the word "exactly", and no card in `tasks/` currently uses the phrasing — this is a
+     cue against a shape, not a cleanup of live text.) Write instead a count of what the card CHANGED,
+     or — better — NAME THE PATHS that must appear, with the lifecycle bookkeeping excluded the way the
+     conforming-run satisfiability cue above requires: as a CLOSED, PROVENANCE-BOUND list, never a bare
+     path pattern. That cue owns the general diff-shape rule and is not restated here; what THIS one
+     adds is the COUNT form and its replacement, because a prohibition with no alternative is what lets
+     the shape recur. An authoring PROMPT only: no card is refused for omitting it.
+     **Measured-bound cue (2026-09-08).** A NUMBER in a criterion is a claim about a
+     measurement, so a numeric comparison (`<=`, `>=`, `at most`, `within`, `no more than`, …) is
+     admissible only when the criterion NAMES the measurement that produced it — a `yitc-v2 <verb>`
+     command, an `events.jsonl#` locator, a spec constant (`SPEC-NNNN rule N`), a pytest node, or
+     `baseline <value>` read at Analysis — or states a DIRECTION against a named baseline («below the
+     pre-change reading of `bin/yitc-v2 verify-durations`, baseline 131 s»). A threshold chosen before
+     any measurement is a hypothesis dressed as a criterion: it is discovered unreachable at Stage 6/8
+     and then amended by an owner decision ( «<= 90 s» «<= 130 s» «folds
+     <= 1.05» — twice — all on 2026-09-07/08; the external ad-hoc audit of 2026-09-08 ratified the
+     narrow form: forbid ONLY unmeasured thresholds, keep spec-sourced constants and precise bounds).
+     A bare «baseline» / «measured» word exempts nothing — the value or the command must be there,
+     and a marker that GESTURES at a measurement without naming one exempts nothing either: an empty
+     `(command:)`, a bare `events.jsonl#`, and an `events.jsonl#x` that names no locator key all read
+     as UNMEASURED (narrowed at its audit-pre). A journal locator exempts only in the form
+     `events.jsonl#ts=<value>` or `events.jsonl#source_ref=<value>`. The bound itself may be SIGNED or
+     decimal — «delta <= -1 s» is a bound like any other. The predicate fails CLOSED: over-narrowing
+     costs one advisory line on an unusual locator form, over-widening restores the very false
+     exemption the cue exists to close.
+     The status is surfaced as the report-only `AC measured-bound status` block at BOTH authoring
+     seams — `task file` (beside the test/waive block) and the governed `task update --old/--new`
+     field-edit that CHANGES a card's `acceptance` (the verb has no `--acceptance` flag; field-edit
+     mode is its only acceptance-writing route). One predicate, one printer, both seams
+     (`bin/lib/task.py#_ac_unmeasured_bounds` / `#_print_ac_measured_bound_status`). An authoring
+     PROMPT only: no card is refused for omitting it.
+  5. **One provable claim?** — would this card prove >1 claim (then it should have been SPLIT)? The
+     cut itself is an ANALYSIS decision (cut-by-one-claim / `requires:`-order / verifier-after-settled
+     → SPEC-0046); filing only RECORDS the already-decided cut, never re-opens it.
+  6. **Cites** — related ids noted as context? (`cites:` is informational; a blocking prerequisite is
+     `requires:` → QUEUE §Picker.)
+     **Under-citation cue (widened) — two halves, a MISSING cite AND a cite you never
+     opened.** (a) MISSING: does the card DECLARE (via `expected_touch`) a concrete surface an ACTIVE
+     spec governs, without citing that spec? Then cite it — the governing rule is the context the
+     picked-up Analysis needs. (b) PRESENT-BUT-UNREAD: where a scope line or a criterion RESTS on a rule
+     you DO cite, did you OPEN that rule and quote the clause verbatim — or write from what you remember
+     it says? Author from the clause, never from a paraphrase, INCLUDING our own handbook's paraphrase of
+     it: a citation you did not open reads as grounding while carrying your remembered version, which can
+     be the rule INVERTED ( filed a card asserting SPEC-0168 rule 2 PROMISES a fold of every
+     task-tied row, where rule 2 states the converse NECESSARY condition; refused pre-claim, retired
+     wont-do — the safety net held, at the cost of a whole dispatched-worker analysis). What the cited
+     rule actually says is never restated here — open its OWN home (`graph query <id>`), which is the
+     only text that cannot be stale. `task file` surfaces half (a) as a report-only UNDER-CITATION
+     advisory (see §Delivery wiring); that advisory detects a missing cite, NOT a contradiction, and it
+     is unchanged by this widening — half (b) has NO detector and is yours to run while authoring. An
+     authoring PROMPT only: no card is refused for either half, and a deliberate non-cite is legitimate
+     (ack it via `task update --note`).
+  7. **Effort tier (stakes)** — is this change irreversible / wide-blast / critical? Mark it
+     `--critical` (else the `normal` default). It is the one sizing judgment you already make, and it
+     routes the background-dispatch worker's model/effort by STAKES (rule → SPEC-0072; schema → SPEC-0028).
+     **One judgment, two names (the stakes↔effort vocabulary):** the stakes tier you set here
+     (`normal` / `critical`) IS what dispatch then shows as the worker's effort (`normal`→`low`,
+     `critical`→`high`) — so `effort=low (tier=normal)` in dispatch output is that 1:1 map, NOT a
+     third level. Choose by STAKES (irreversible / wide-blast → `critical`), NOT by how hard the work
+     looks (full mapping + the route-by-stakes-not-difficulty rule → SPEC-0072 §4; pointer, not
+     restated here — P5).
+  8. **Queue-jump mark (only when the card's own PURPOSE is to clear the congestion)** — is THIS card
+     the change that REMOVES a land-admission blockage? Then set the mark AT FILING, naming the
+     blockage: `task update --queue-jump <reason>` (field `queue_jump`; mechanism → SPEC-0184 rule 9,
+     not restated here — P5). Setting it later, once the card is already stuck behind the very queue it
+     fixes, is the failure this prompt exists to catch ( sat unmarked until raised by hand).
+     **The trigger is PURPOSE, never urgency — read yourself OUT of it if you are merely impatient.**
+     Ordinary work that merely happens to be stuck behind a queue is NOT this: it is the common case,
+     and X-1153 correctly DECLINED the mark for exactly that reason («using an EMERGENCY lane for
+     convenience is how an emergency lane stops meaning anything»). Ask what the card DOES, not how
+     long it has waited: it qualifies only if landing it is what un-congests the queue.
+     An authoring PROMPT only: no card is refused for omitting it, and nothing detects the trigger for
+     you — the mark stays opt-in and author-judged (an automatic «this card unblocks lands» detector
+     would be a behavioural detector, a CHARTER non-goal).
+
+  ### A post-land proof is DECLARED, never CLAIMED
+  When a criterion's proof lands AFTER the ship, the card must SAY SO where the machinery reads it —
+  an authoring PROMPT, not a gate. Name the declaration that carries the deferral:
+  - a multi-day production reading → `post_ship_observation: {observation, due_by}` (SPEC-0028).
+  **NAME THE CRITERION IN THE OBSERVATION TEXT** (`observation: "AC3: <the reading>"`): the
+  declaration is card-level, so the packet maps it to a criterion ONLY when the declaration says
+  which one — deterministically, never by guessing from prose. An unnamed declaration still renders
+  (as card-level, judged against the acceptance as a whole) and is never wrong; a NAMED one is what
+  makes the exemption criterion-exact. Name it when you declare it: the no-re-write bound
+  means a declaration cannot later be edited to add the name;
+  - an event `land` itself emits at Stage 9 → NAME the event token in the acceptance entry;
+  - a proof settled later by verb → say `--settle-probe` / `--settle-observation` in the criterion;
+  - a FIRST-REAL-USE-AFTER-LANDING observation → declare it AT FILING on `probe_moments:` (below).
+  Then CLOSE that criterion `--probe-deferred`, never `pass`: `task close` writes
+  `probe_passed: deferred` while any probe is undischarged, and the settle verb flips it to `true`
+  when the last one is discharged (SPEC-0015 §`probe_passed` is THREE-STATE).
+
+  WHY it is worth the sentence. A DECLARED deferral is rendered to the auditor as
+  `### DEFERRED BY DECLARATION` and its absence is then EXPECTED — never a finding, never a RED
+  (SPEC-0036). An UNDECLARED one is indistinguishable from missing evidence, and the auditor is right
+  to red it: burned two audit-pre passes, two audit-post passes and three consult holds on
+  post-land halves the packet could not see as deferred, and closed claiming
+  `probe_passed: true` over two deferred criteria and was caught post-close. The declaration is what
+  makes «not yet» legible as an ordering rather than a gap — and a deferral that names no reading, no
+  due date and no settle carrier is still a defect, so declaring is not a way to promise less.
+
+  ### A FIRST-REAL-USE-AFTER-LANDING criterion is a DEFERRED PROBE from the moment it is FILED
+  The section above says a post-land proof is declared. THIS says WHEN, for the one shape whose
+  proof is IMPOSSIBLE before the land by its own wording: an acceptance criterion whose probe is a
+  FIRST REAL USE AFTER LANDING — «the first real session start after landing prints the table»,
+  «the first real dispatch after landing carries a composed brief», «the first real `audit pre
+  --on-decisions` after landing invokes the auditor». Such a criterion **MUST be declared a
+  deferred probe AT FILING**, not at close:
+
+  - **WHERE — the EXISTING carrier, no new field:** `probe_moments: {ACn: {awaits: <moment>}}`
+    (schema home SPEC-0028, written until now only by `task close --probe-deferred`). The moment is
+    admitted by the ONE grammar the corpus already has — an ISO `due_by` date, or an `awaits:` ref
+    (`` / `X-0042` / `events.jsonl#type=<t>[@after=<ISO>]`) — so a moment the card declares is
+    one a reader can decide, by construction.
+  - **WHAT the criterion's own TEXT must say:** name the settling verb, `task close --settle-probe`.
+    A moment with no settle carrier is still a defect (§A post-land proof is DECLARED, above).
+  - **The key must be a criterion THIS CARD HAS.** A `probe_moments` key naming no acceptance
+    criterion of this card declares nothing and is read as absent — the same namespace admission
+    close-time probe keys already take. An orphan declaration must never widen an exemption.
+
+  **What the declaration BUYS, and its exact bound.** The packet renders declared deferred probes
+  under `### DEFERRED PROBES — settled after landing by the Controller` at BOTH task stage overlays,
+  and the RED parse floor REFUSES a RED whose ONLY findings are P8-adoption-class against a DECLARED
+  criterion — no pass spent, no record written (SPEC-0036, the reading home; the rule is not restated
+  here). It buys NOTHING ELSE: a RED carrying any other finding is recorded unchanged, a P8 finding
+  against an UNDECLARED criterion is judged exactly as today, and whether the declaration actually
+  corresponds to the criterion it defers stays the auditor's to judge. Declaring is not a way to
+  promise less.
+
+  **Why at FILING and not at close (F4 — measured, one day, this repo).** The engine already had the
+  whole deferred-probe vocabulary, but every bit of it is written at CLOSE — after both audits have
+  run. So on 2026-09-10 six cards whose acceptance named a first-real-use-after-landing criterion
+  were each RED-flagged on exactly that criterion: (audit-pre RED x2 → ceiling → accept
+  decision) (same) (audit-post RED → card-repair carrier) (same) (audit-post RED x2 → ceiling → carrier + accept) (warned). Each cost one or two
+  real auditor passes, and three cost a ceiling exit plus a Controller decision — for a finding that
+  is never a defect. Moving the declaration to filing costs one authoring line and is read by both
+  audits; leaving it at close is what made the auditor spend passes discovering the ordering.
+
+  **`task file` SURFACES it, and never gates it.** The skeleton carries the `probe_moments:` prompt
+  beside the acceptance block, and `task file` prints a REPORT-ONLY warning naming any acceptance
+  criterion whose text reads first-real-use-after-landing while no probe moment is declared for it.
+  Report-only means exactly that: no exit code moves, nothing is written, and a card files unchanged.
+  An author who judges the sniff wrong simply proceeds.
+
+  ### The fillable skeleton (what `task file` seeds)
+  `task file` seeds the card with comment-PROMPTS for the non-obvious fields — scope (the three
+  questions of item 3) and acceptance+probe (item 4) — mirroring SPEC-0043's plan skeleton. The
+  prompts are authoring aids, not gates; an experienced author overwrites them. The skeleton's base
+  field set is owned by `_template.yaml` + the SPEC-0028 schema — this spec only says WHICH prompts
+  front-load the thinking, not the field list.
+
+  ### Replacement map (what this spec owns vs what it must NOT duplicate — D2, P5 one-home)
+  - **OWNS:** the authoring DOCTRINE (what a good card front-loads) + the skeleton-prompt intent. The
+    role was previously SPLIT across SPEC-0028 (schema) + SPEC-0046 (shape) with no single
+    "how to write a good task" home; this spec is that home (the SPEC-0043 analog).
+  - **Does NOT own (pointers only):** SPEC-0028 stays the field-catalog/schema; SPEC-0046 stays
+    decomposition/cutting; CHARTER §P3/§P8 stays done=adopted + infra-adoption. Any overlapping
+    AUTHORING prose in those homes is deleted/pointerized into this one on activation.
+
+  ### Delivery wiring (WIRED by — the activation owner)
+  Per SPEC-0059's Filing carve-out: the doctrine is delivered as a session-start REFERENCE pointer
+  (availability — `bin/yitc-v2#_filing_reference_howto`, printed by `cmd_session_start`, generated
+  from the Filing stage bundle), and the `task file` work-verb CHECKS it was read before writing the
+  card (`cmd_task_file` calls `_require_reads("stage", {stage: Filing})`). `task file --skeleton`
+  emits the fillable skeleton (`_emit_task_skeleton`, reusing `tasks/_template.yaml`). `binding:`
+  (stage-entry:Filing) / `implements:` are finalized above. No new read verb is added (the existing
+  `_require_reads` lever, SPEC-0050). The check goes live when this task closes (active-only binding).
+
+  **The task-file advisory line REGISTRY — what `task file` prints, and who owns each line.**
+  A DELIVERY REGISTRY, not a rule family: it records WHICH advisory lines `cmd_task_file` prints and
+  WHERE each line's semantics are homed. It deliberately does NOT claim this spec owns all of them —
+  the ten lines answer different questions and keep different homes (external consult
+  `decisions/-audit-adhoc.yaml`, survivor C; the blanket reading "filing previews → SPEC-0044"
+  is contradicted by this split, as is any reading that SPEC-0060 owns the whole family).
+
+  | # | enumerated key (line prefix) | anchor (`bin/lib/task.py`) | shipped | semantics homed in |
+  |---|---|---|---|---|
+  | 1 | `preview (advisory — claim-moment screen re-checks): <SAFE\|WAIT\|CLASH\|CLAIMED>` | `_declared_surface_preview` | | **SPEC-0044 §2.2** (pointer — see below) |
+  | 2 | `sibling-task overlap (advisory — filing not blocked)` | `_print_sibling_task_overlap` | | this spec |
+  | 3 | `followup overlap (advisory — filing not blocked)` | `_print_followup_overlap` | | this spec |
+  | 4 | `deviation overlap (advisory — filing not blocked)` | `_print_capture_overlap` | | this spec |
+  | 5 | `cross-item overlap (advisory — filing not blocked)` | `_print_cross_overlap` | | this spec |
+  | 6 | `under-citation preview (advisory — filing not blocked)` | `_print_undercitation_preview` | | this spec (detailed below) |
+  | 7 | `in-flight intent overlap (advisory — not blocked)` | `_print_inflight_intent_overlap` | | this spec |
+  | 8 | `already-linked (advisory — filing not blocked)` | the `_auto_cross_pick_for_file` call-site | | **SPEC-0086** (the intake-hygiene rule — pointer) |
+  | 9 | `AC test/waive status (advisory — filing not blocked)` | `_print_ac_test_waive_status` | | this spec (item 4 — each AC names a test or an explicit waive) |
+  | 10 | `stranded-filing (advisory — filing NOT blocked)` | `_print_stranded_filing_advisory` | | **AGENTS-SESSIONS §Writes happen in a worktree** (pointer — the filing-is-not-executing hand-off) |
+  | 11 | `AC measured-bound status (advisory — filing not blocked)` | `_print_ac_measured_bound_status` — fired at BOTH authoring seams: `task file` (via `_print_ac_test_waive_status`) and the `task update --old/--new` field-edit that changes `acceptance` | | this spec (item 4 — the Measured-bound cue: a numeric bound names its measurement or states a direction) |
+
+  **Line 1 is a POINTER, never restated here (P5).** Its collision/lineage semantics — the spec-lineage
+  and code-surface altitudes, the SAFE/WAIT/CLASH/CLAIMED verdicts, the release predicate — are
+  **SPEC-0044 §2.2's** (parallel dispatch selection); `_declared_surface_preview` PROJECTS that rule at
+  filing time by injecting the not-yet-indexed card's declared surface into an index copy. This spec
+  records only that the line is DELIVERED at filing. To change what the verdict MEANS, edit SPEC-0044,
+  not this registry. Lines 2-7 and 9 are this spec's own concern (line 10 is a POINTER, like 1 and 8 — its hand-off rule is the handbook's): they answer "does this work already
+  exist somewhere?" (2-5, 7), "does the card cite the rules governing what it declares?" (6), and "does
+  each AC name a test or an explicit waive?" (9) — authoring questions, not dispatch-collision
+  questions. Within the related-input family, 2-5 read only LANDED /
+  index / journal state; **line 7 alone reads OTHER LIVE SESSIONS' un-landed worktree intents** — the
+  gap X-0430 exploited when two controllers built duplicates of one owner concern in a day.
+
+  **Line 2 reports TWO groups — live work AND recently-shipped work.** One emitter, one
+  registry row, ONE printed key, two blocks with different dispositions. The shipped block is a
+  SUB-BLOCK printed beneath line 2's own `sibling-task overlap (advisory — …)` key, and its sub-header
+  deliberately carries no `(advisory — ` phrase — so that group adds NO row of its own and the pinned
+  key-string assertion keeps passing on its own terms. Do NOT give this group its own key or
+  its own row: that is one concern printed in two parts, not a tenth advisory line. Line 2's header
+  names BOTH counts, so a shipped-only hit is never printed keyless:
+  - **live** — the NON-TERMINAL siblings (`_overlapping_sibling_tasks`, unchanged): a
+    `ready`/`in-progress`/`parked` card whose title OR expected_touch path already claims this work.
+    Disposition: merge, or `requires:`-order.
+  - **shipped** — terminal cards (`_overlapping_shipped_tasks`) that closed within
+    `SHIPPED_OVERLAP_WINDOW_DAYS` of the filing. Disposition: read the closed card first; if the work
+    already, re-scope to the genuine residual or drop the card.
+
+  WHY the second group exists: reporting only non-terminal tasks put an already-DONE duplicate OUTSIDE
+  the screen by construction — re-prescribed the cure had already shipped (commit
+  0c752455), and re-cut the already-done. Both duplicated a card that had closed ONE DAY
+  earlier.
+
+  **The shipped group's two bounds ARE the rule, and they are stated so a reader knows what the
+  silence means.** The done log grows with the work (~2000 terminal cards), so an unbounded widening
+  would flood every filing and train the reader to skim — manufacturing the readership failure the
+  record does not show. Measured against the live corpus, the bounds are:
+  - **RECENCY** — closed within the window. Unbounded title-only matching ran median 15 / max 43 hits
+    per card. Sizing the window needs the WORST case, not the average: by creation date the 25 newest
+    cards run median 0 / max 4 at any of 3/7/14 days, but the 25 highest-numbered cards — a dense
+    single-theme filing burst, where sibling cards share heavy vocabulary AND closed days apart — run
+    median 4 / max 16 at 14 days, median 2 / max 9 at 7, median 1 / max 7 at 3. Both incidents survive
+    all three (1-day gaps), so 7 was chosen: it halves the burst-case tail versus 14 while keeping a
+    duplicate filed a week after the original in view, which 3 would start to lose.
+  - **TITLE ONLY** — the PATH signal is deliberately NOT applied to shipped work (nor is the shipped
+    card's `expected_touch` folded into the match text), unlike the live group where it is sound over
+    a small pool. Against the done log the path signal alone returned up to 387 hits on one card: any
+    card touching a hot file matches hundreds of shipped ones. This is the decisive precision lever,
+    and it is why the quorum stays at `FOLLOWUP_OVERLAP_SHARED_MIN` — raising the quorum instead
+    would have silenced BOTH named incidents (2 shared tokens each).
+  So **work shipped longer ago than the window, or overlapping only on a file surface, is OUTSIDE this
+  line BY DESIGN** — the emitter prints that bound beneath the group rather than letting silence read
+  as "nothing like this has ever shipped". A terminal card carrying no parseable `closed_at` is
+  likewise out of the window (fail-quiet on the noise side, the registry's shared posture).
+
+  **This line detects, it never decides, and it never blocks** — the registry's shared character below
+  applies unchanged. NOT added alongside it: any rule obliging the reader to read these lines. The
+  record carries ZERO incidents of an advisory firing and being skimmed; all recorded duplicate-filing
+  incidents are cases where a screen could not SEE the case ( own sweep). A rule to re-read
+  what is already printed would remove nothing (CHARTER §P1 F3/F4).
+
+  **Shared character of every line in the registry (stated once).** Each is printed AFTER the id is
+  allocated and the YAML written, so **none can alter a filing**; each is report-not-block (CHARTER
+  non-goal #2/#7), fail-open inside its own `try` (an index/journal/cross-fold error suppresses the
+  advisory, never breaks a completed filing), emits **no event**, and leaves the exit code unchanged.
+  Together they add **no gate, no card-completeness validator, and no new store**, and they ride the
+  ONE grafted index the surface preview already builds (no second build). The registry is NOT a
+  second home for SPEC-0044's selection rule and NOT a filing gate.
+
+  **The registry table is PROSE by decision — do NOT "fix" the missing anchors.** The listed
+  helpers above are deliberately absent from every spec's `implements:` (this spec's and SPEC-0044's).
+  Read that as INTENDED, not as an oversight to tidy: region-drift on a helper is a poor proxy for what
+  this table records (each line's KEY), so it would fire on every internal refactor while the key is
+  untouched — the E-0019 broad-anchor false-positive class (SPEC-0006). **Re-open only on the named
+  return trigger:** an OBSERVED divergence between this table and what `cmd_task_file` actually prints —
+  EITHER a row's enumerated key no longer matching the printed string, OR a printed advisory line having
+  NO row here at all (the miss: line 7 shipped with and the table still said "six",
+  because the trigger as first written named only the key-mismatch half). Fix is a key-string assertion
+  in the pinned suite, not eight signature baselines. Full deliberation (the CHARTER §P1 filter-by-filter weighing, incl. the case
+  FOR anchoring) is recorded in `analysis:`, not restated here (SPEC-0005 rule 3).
+
+  **Under-citation filing preview — line 6, a report-only DELIVERY surface for item-6's cite
+  discipline.** `cmd_task_file`, after allocating the id and writing the card, prints a filing-preview
+  advisory (`_print_undercitation_preview`, one member of the registry above): for each CONCRETE
+  `expected_touch` anchor (an existing regular repo file,
+  never a broad directory or a generated/derived `graph/`·`release-view/` path — the noise bound), it
+  resolves via the graph's `code_to_specs` reverse index to the ACTIVE specs whose own `implements`
+  anchor GOVERNS that surface (symbol-aware, so a spec on an unrelated symbol in the same file is not
+  named) and names any such spec the card does NOT `cite`. It surfaces the unread-governing-rule gap at
+  FILING, one dispatch cycle before an Analysis/audit would. HONEST FRAMING (external consult
+  `decisions/t10556-recut-direction-audit-adhoc.yaml`): the WARN states it detects UNDER-CITATION, NOT a
+  contradiction, and does NOT prove the card conflicts with the named specs — citing a named spec
+  silences the line, and a deliberate non-cite is acked via `task update --note`. It carries the
+  registry's shared character stated above (report-not-block, fail-open, no event, exit unchanged —
+  CHARTER non-goal #2/#7; no gate, no card-completeness validator, no new store; it rides the ONE
+  grafted index the line-1 surface preview already builds, no second build). Additive extension of the
+  Filing delivery (SPEC-0005 rule 7); the cite discipline itself stays normative in item 6 above
+  (cue+pointer).
+
+  **Triage/revizia-entry delivery (X-0128) — a SECOND delivery surface for the SAME doctrine.**
+  A revizia/triage scan (`bin/lib/triage.py#cmd_triage_run`) is the moment whose expected OUTPUT is
+  filing (the promote-to-fix-task route), but it enters NO task Filing stage — so a `task file`
+  mid-batch would surprise-refuse on the `_require_reads(stage=Filing)` gate even after the handbook
+  seed was read. So the triage SCAN entry DELIVERS this doctrine, symmetric with the Filing
+  stage-entry, by emitting an HONEST node_id-bearing delivery-RECEIPT: a `cli_invoked` event carrying
+  `verb: "triage run"` (deliberately NOT `"graph query"`, so a journal consumer never mistakes it for
+  a real interactive fetch) + `node_id: SPEC-0060` + an explicit `delivery` marker. The read-gate's
+  credit path `_fetched_spec_ids` keys ONLY on `data.node_id` (verb-agnostic — bin/lib/gates.py), so
+  the receipt credits the gate through the EXISTING path with no reducer change, no new event type, no
+  new gate (CHARTER §P1; the same delivery-credit idiom the journal recovery-rescan already uses). The
+  doctrine itself is unchanged — this records an additional DELIVERY point, not a normative reshape.
+
+  ### Anti-complexity note (SPEC-0005 §7 / CHARTER §P1)
+  Reuses the existing `task file` verb + the `_template.yaml` skeleton + the `_require_reads` lever
+  (SPEC-0050) — no new gate, no new store, no card-completeness validator. Admitted because it fills a
+  real CONTENT gap (no single task-authoring home existed); the only retirement is the overlapping
+  authoring prose folded in from SPEC-0028/0046 on activation (replacement map above).
+
+  ## Parameters
+
+  None consumed.
+
+  ## Rationale
+
+  Symmetry confirms the home: plans already have SPEC-0043 (plan-draft authoring doctrine); a task had
+  no analog — its "how to write a good card" was split across the schema (SPEC-0028) and the shape
+  (SPEC-0046), so the front-load thinking was never homed. Real incident class: under-specified task
+  cards later reverse-engineered for intent. The pairing on both axes: authoring-doctrine
+  (SPEC-0043 ↔ this spec) + lifecycle (SPEC-0034 ↔ SPEC-0027). Full design provenance lives in the
+  proposing plan (cited), not here (rule 3).
+
+  ## Verification
+
+  Behavioral (primary):
+  - `task file` checks the task-authoring doctrine was read (current session) before writing the card,
+    and REFUSES when unread (the SPEC-0059 Filing CHECK leg; emits `read_gate_refused`);
+  - a card filed via `task file` carries the front-loaded fields (scope + acceptance-with-probe), seeded
+    by the skeleton prompts.
+  Structural (secondary): no schema rule or decomposition rule is restated here — each resolves to its
+  owner (SPEC-0028 / SPEC-0046) by pointer.
+
+  ## Drift review
+
+   (2026-09-04): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4 gains
+  the born-armed-carrier cue: a follow-up whose firing moment is a nameable artifact is captured BORN
+  ARMED, not with the wait in prose. Authoring PROMPT only, no card refused; every already-covered
+  case's required behaviour is unchanged, so this is an in-place amend and not a supersede. Rule home
+  stays SPEC-0095 §Armed — this item only asks the question at the authoring seam.
+
+   (2026-08-31): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4's
+  evidence-availability cue, limb (a), gains its OTHER HALF: the acceptance entry must NAME THE EVENT
+  TOKEN, not only carry the land-tie phrase. Limb (a) existed and was not enough, which is the finding:
+  it emphasised the TIE and stated the token requirement only in passing, and its worked case (
+  AC3) had failed on the missing TIE. AC4 failed on the token half the same week — it named the
+  land, the sanctioned route and the SPEC-0077 A-prime authorization and no snake_case token, so
+  `land_emitted_named_evidence` returned [], `audit post --land-emitted-event` refused fail-closed, the
+  Stage-8 audit RED-ed on one finding, and that RED blocked the land that would have emitted the evidence
+  (cleared by a rung-2 adversarial consult plus a recorded acceptance amendment,
+  `events.jsonl#ts=`). Second instance the same week: original AC4 demanded
+  a `cross_done` row before landing that only `land` emits (amended at commit 5b9a1737c0). The clause
+  DENIES BY SHAPE and explicitly does NOT ban land-emitted criteria — that family is legitimate and in
+  routine use, and the naming is what keeps the carve-out narrow. It carries a worked NEGATIVE example
+  ( AC4 before and after) beside the wording that would have passed, because a rule stated only
+  in the abstract is one its author can apply and nobody else can. AUTHORING PROMPT in the same shape as
+  every sibling cue (cue + trigger question + rule-home pointer; the guard and its phrase set stay homed
+  at `bin/lib/audit.py#land_emitted_named_evidence` and SPEC-0036 — cue+pointer, never a restated corpus
+  rule, SPEC-0005 rule 8). No card-completeness validator, no new gate/event/store (CHARTER non-goal
+  #2/#7); no already-covered criterion's compliance changes — a criterion that already named its token
+  was already compliant. Class A of the same week's pair (a check citing a journal row by ts while
+  reading only the live segment) is NOT written here: it is test-authoring doctrine and is homed once, in
+  SPEC-0165 item 11 (one home per rule, SPEC-0005 rule 8). In-place per the active-spec
+  additive-extension route; no supersession.
+
+   (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_file` (`_emit_task_skeleton`,
+  `_filing_reference_howto`). The `--skeleton` availability short-circuit, the `_require_writing_worktree`
+  guard, the `_require_reads("stage", {stage: Filing})` CHECK leg, and the `_template.yaml`-reuse skeleton
+  all match the spec as written. The graph last-touch flag was a region shift only ( added the
+  schema-owned `analysis:` field near the symbol — a SPEC-0028 concern, not this authoring-doctrine home).
+  No semantic drift; this re-touch clears the possibly-stale flag.
+
+   (2026-08-30): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4 gains
+  the durable-field cue: NAME THE FIELD that will carry a criterion's proof, and check it exists on the
+  side the criterion needs it. Measured across one deferred-probe drain session (2026-08-27): eight
+  criteria unreadable not because the work failed but because the surface named was never there. Three
+  arms. BEFORE-SIDE-EMPTY — AC2 and AC2 compared against metric keys their own ships
+  introduced (0 rows before / 197 and 391 after), the second fixing a numeric threshold against the
+  absent side; AC2 named the durable `land_completed` row and still settled UNREACHABLE
+  (ts=) because no pre-change run took the baseline. NO-TRACE — AC4 joins on
+  a fold record the success path never writes; AC4 on a blocker set `worktree_synced` does not
+  carry; AC2 on a token figure zero journal rows anywhere carry and that is unrecordable after
+  the fact (ts=). EXPIRING-PREMISE — AC2 asserted a report unchanged "as
+  today", and then deliberately shipped the behaviour it said would not happen. DISTINCT FROM
+  ITS TWO NEIGHBOURS, which is the whole reason it is a cue and not a restatement: the deferred-proof
+  ordering cue asks WHEN the proof can exist and the evidence-availability cue whether the record still
+  NAMES ITS SUBJECT on success — both presume the surface exists; this one asks whether it exists at
+  all. Both are POINTED AT, never re-derived (SPEC-0005 rule 8), as are SPEC-0028's declaration family
+  and CHARTER §P3/§P8. NO test ships with it, deliberately, and this is where the precedent
+  could mislead: that amendment carried
+  `tests/test_land_emitted_cue_examples_match_the_matcher.py` ONLY because its limb (a) quotes literal
+  phrasings a live matcher must keep accepting. This cue quotes no matcher-bound string, so there is
+  nothing that can rot silently in either direction and a test would assert prose against itself. No
+  card-completeness validator and no new gate/event/store (CHARTER non-goal #2/#7) — the card's own
+  scope fences that direction explicitly; delivery rides the EXISTING Filing read-gate + triage-entry
+  receipt, unchanged. No already-covered criterion's compliance changes. In-place per the active-spec
+  additive-extension route; no supersession.
+
+   (2026-08-28): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4 gains
+  the evidence-availability cue, one cue with TWO LIMBS around a single question (will the record a
+  criterion names still NAME ITS SUBJECT when someone reads it?). Limb (a) is the ordering case,
+  measured 2026-08-28: AC3 named the `land_completed` row without tying it to `land` in
+  words, so the fail-closed overlay guard refused `--land-emitted-event` and the criterion took a
+  governed amendment plus another audit round-trip at its ceiling. Limb (b) is its mirror, evidence
+  that stops existing ON SUCCESS: AC1 named per-file durations in a row that keeps only the
+  slowest ten, so the files it made fast dropped out and the AC became unsettleable because the work
+  worked; AC3 named `verify_wall_ms`, 210.7s of whose 452.7s wall was verify-admission queue
+  wait, and settled FALSIFIED on a change that had succeeded. AUTHOR-SIDE ONLY: `_LAND_EMITTED_PHRASE_RE`
+  and `land_emitted_named_evidence` are deliberately UNTOUCHED — names widening the phrase
+  scope as what turns the carve-out into a blanket excuse. Same shape as the sibling cues (cue +
+  trigger question + rule-home pointer; the guard and the overlay stay normative at
+  `bin/lib/audit.py#land_emitted_named_evidence` / SPEC-0036 — cue+pointer, never a restated rule,
+  SPEC-0005 rule 8). No card-completeness validator and no new gate/event/store (CHARTER non-goal
+  #2/#7); delivery rides the EXISTING Filing read-gate + triage-entry receipt, unchanged. No
+  already-covered criterion's compliance changes. In-place per the active-spec additive-extension
+  route; no supersession. The example phrasings limb (a) offers are the ONE thing here that can rot
+  silently in either direction, so `tests/test_land_emitted_cue_examples_match_the_matcher.py` asserts
+  each of them against the LIVE matcher — RED if an example is edited to a non-matching phrasing, RED
+  if the matcher is narrowed away from an example.
+
+   (2026-07-15): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4 gains
+  two more probe-quality CUES, from incident X-0419 (boomrocket, 2026-07-15: 5 remediation cards closed
+  green over 3 days while the product stayed broken; the gap was ALTITUDE, not rigor): the
+  cohort-complement cue (a remediation card probes what its selector EXCLUDES, not only what it selects
+  — probed its own selector while its fence silently dropped the 81 rows the owner then
+  re-reported, and 645 offers went untouched) and the cited-desired-exclusion cue (a NEGATIVE probe
+  asserting an exclusion is DESIRED must cite the deciding artifact/owner-decision —
+  `fence_null_appearance_dead` cited nothing, and no such decision existed until the owner gave it a day
+  later). Both are AUTHORING PROMPTS in the same shape as the existing X-0089/X-0246 cues (cue + trigger
+  question + rule-home pointer; the rules stay normative in CHARTER §P3 / SPEC-0005 rule 3 — cue+pointer,
+  never a restated corpus rule, SPEC-0005 rule 8). NO card-completeness validator and no new gate/event/
+  store (CHARTER non-goal #2/#7 — the enforceable surface is the reviewer/auditor naming the violated
+  rule); delivery rides the EXISTING Filing read-gate + triage-entry receipt, unchanged. No
+  already-covered criterion's compliance changes. In-place per the active-spec additive-extension route;
+  no supersession. Any audit-lens/prompt DELIVERY of these two rules is a separate downstream surface
+  (the → precedent), not this amendment.
+
+   (2026-06-17): ADDITIVE EXTENSION (SPEC-0005 rule 7 additive-extension bullet) — item 4 gains
+  an audit-post-verifiability sub-clause (an acceptance criterion must be verifiable at audit-post from
+  the shipped diff + surfaced journal-evidence; it must NOT reference the audit-pre verdict / audit-record
+  files, which are diff-excluded). Closes the recurring false-RED class (incident). No
+  already-covered criterion's compliance changes; delivery rides the EXISTING Filing read-gate + skeleton
+  prompt (no new gate/validator — CHARTER non-goal #2/#7). In-place per the active-spec additive-extension
+  route; no supersession.
+
+   (2026-06-16): re-verified after drifted `cmd_session_start`. edit changed the
+  carrier-derived FLOOR-MAP echo line (engine-ALWAYS resolution of `graph/floor-trigger-map.md` under
+  `-C`) — explicitly OUT of this spec's filing-doctrine scope per the `implements:` anchor note. The
+  filing-reference line this anchor governs (`_filing_reference_howto`, printed at `cmd_session_start`)
+  is UNCHANGED, and the `cmd_task_file` `_require_reads(stage=Filing)` CHECK leg + `--skeleton` emitter
+  match the spec. No semantic drift; baseline refreshed.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - SPEC-0036
+  - SPEC-0043
+  - SPEC-0028
+  - SPEC-0046
+  - SPEC-0032
+  - SPEC-0050
+  - SPEC-0059
+  - SPEC-0015
+  - lifecycle-path-and-verb-sequencing-coherence-who-a
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: lifecycle-path-and-verb-sequencing-coherence-who-a
+binding:
+  - stage-entry:Filing # delivers BOTH the `task file` read-check derivation AND the
+                               # session-start availability reference (the Filing stage bundle).
+implements_signature:
+  bin/lib/session.py#cmd_session_start: f3de662a4bc6577be4ef802ef78392bf4dbaf4f2a2bf77ef218adb6c9eb4d6c6
+  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/triage.py#cmd_triage_run: ee330cbfaf7694416e2b32d7925b57b92f8ef231bd5cfaeff02afc79ee96d3b7

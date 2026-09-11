@@ -1,0 +1,285 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0084
+title: 'Shared coordination log — authority, placement realm, and the CHARTER P5 one-journal amendment'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # DRAFT (plan-local, SPEC-0005 §4) — born by plan
+                               # shared-coordination-log-supersede-cross-tasks-per-; governs NOTHING until
+                               # `plan stage accepted` promotes it → proposed and its activation_owner_task
+                               # (set at decomposition) closes → active. `active` is the ONLY normative status.
+
+created_at:
+
+travels: ~ # kernel (class-default, UNMARKED) — re-pinned from draft v2-self at
+                               # decomposition (SPEC-0073 rule-8: a `proposed` kernel head is exempt
+                               # from the release-slice guard and stays unmarked; it travels on activation).
+                               # Catalog: SPEC-0030.
+
+consumed: false # DISTRIBUTED-ENFORCEMENT documentary mode (SPEC-0005 §7 mode (a)) — a
+                               # cross-cutting GOVERNANCE rule enforced everywhere (the territory carve-out
+                               # in AGENTS §Scope-boundary + the P5 amendment in CHARTER + the 4th realm in
+                               # SPEC-0073 + every `cross` write-point), not a code-read scalar param.
+
+implements: # MOSTLY documentary governance (SPEC-0005 §7 mode (a)) — the store's
+                               # authority still rides the handbook co-amendments + the `cross` verbs.
+                               # But rules 1/3 stopped being purely documentary at, which gave
+                               # them concrete code sites; anchoring them makes the code→spec reverse
+                               # lookup find this contract (it did not, which is how the per-HOME
+                               # default drifted from rule 1 unnoticed — X-0663).
+  - bin/lib/cross.py#resolve_log_path # rule 1/3: the ONE store location, resolved at ONE site
+  - bin/lib/cross.py#ensure_shared_store # rule 1: the WHOLE peer-set (several OS uids) may append
+  - bin/verify-backup.sh # rule 3: the required archival/backup + VP7 round-trip
+
+body: |
+  ## Scenario
+
+  The owner/AI sees ONE cross-project coordination surface — a single shared, append-only log that
+  every project (the kernel + each `-C` consumer) writes to and reads from, instead of N per-repo
+  `CROSS-TASKS.md` files whose combined status had to be DERIVED across the repo boundary. The store
+  lives OUTSIDE every project repo as **neutral, kernel-owned coordination infrastructure**, so a
+  session appending to it is NOT writing another project's territory. The owner can answer "who owns
+  this store, where does it live, is it backed up, is it a second journal?" deterministically — the
+  store is GOVERNED, not smuggled in as an implicit exception.
+
+  ## Internal
+
+  THE AUTHORITY CONTRACT for the shared coordination log — its identity, placement realm, owner,
+  canonical home, and its standing as ONE permitted instance of the journal mechanism. It is the
+  governance home the two design consults (head-to-head A-vs-B + the pre-specs audit) named as the
+  must-pin-FIRST surface. The log's PROTOCOL (event FSM, kind-shapes, write contract, retention) is a
+  SIBLING spec (supersedes SPEC-0079); the `cross` VERBS are a third sibling — this spec governs only
+  WHAT the store is and WHO/WHERE, never the data shape or the CLI. Five rules.
+
+  ### 1. Identity — kernel-owned shared coordination infrastructure
+  The coordination log is a **single shared append-only store** that is **kernel-OWNED coordination
+  infrastructure**: neutral cross-project plumbing, belonging to NO project repo. EVERY project in the
+  peer-set (the kernel + its registered `-C` consumers) APPENDS to the ONE shared instance and READS
+  the whole of it; nobody owns a private copy. It is the canonical SOURCE OF TRUTH for cross-project
+  coordination STATE (the status of a cross-project item = the fold of its events by id) — NOT a
+  disposable cache reconstructable from any one project's `events.jsonl` (honest-SoT: archival + backup
+  are therefore REQUIRED of it, not optional — rule 3).
+
+  ### 2. Placement realm — the 4th SPEC-0073 location class (the amendment SPEC-0073 carries)
+  SPEC-0073 cuts every artifact into three realms — `kernel` (methodology a consumer PINS; travels),
+  `v2-self` (this repo's dev history; transfers to no project), `project` (a consumer's own corpus;
+  born empty). The shared coordination STORE-INSTANCE fits none: it is not a per-repo source artifact
+  but a SHARED RUNTIME instance every realm writes. So SPEC-0073 gains a **4th realm — `coordination`**:
+  kernel-owned, shared, append-writable by the whole peer-set, single-instance, living at a canonical
+  kernel path. The realm-DEFINITION (the taxonomy row) is added IN SPEC-0073 (its home for the cut, per
+  SPEC-0005 §8 one-home / §7 additive-extension → in-place); this spec is the realm's authority home it
+  points to. DISTINCTION: the coordination CONTRACT (these specs) is `kernel`-realm methodology that
+  TRAVELS as a pin; the coordination FILE-INSTANCE is `coordination`-realm and travels to no one (a
+  consumer reaches the ONE shared instance, it does not get its own copy).
+
+  ### 3. Canonical home, owner, archival, backup
+    - **Canonical home:** a single shared file **per INSTALLATION** — ONE instance per MACHINE, at a
+      fixed kernel-owned path OUTSIDE every project repo, shared by that machine's whole peer-set. The
+      concrete path is owner-tunable infrastructure config, pinned at the
+      activation task (not a normative constant baked here — it is deployment placement, SPEC-0005 §1
+      exclusion).
+    - **Machine scope — the MECHANISM travels as a PER-INSTALLATION instance; the CONTENTS never
+      travel (the off-server release contract).** "The one server" above was written when
+      there was exactly one installation. It means, and has always meant, ONE INSTANCE PER MACHINE: an
+      engine installed on a second machine gets its OWN coordination store, anchored under THAT
+      machine's host home (`bin/lib/host_paths.py#host_home`), shared by THAT machine's peer-set and
+      empty of every other machine's rows. Rule 1's "the WHOLE peer-set appends to THE ONE instance"
+      is accordingly the peer-set OF ONE MACHINE — which is what it already enforced, since the X-0663
+      fix made the default one value per MACHINE rather than one per uid. **No two instances ever
+      connect, and no network transport is built for one:** a coordination transport across machines
+      would be a second journal mechanism over a network, which CHARTER §P5 forbids. So cross-machine
+      coordination is UNAVAILABLE by an explicit boundary, not by an unstated assumption.
+    - **The override bound — what `YITC_CROSS_LOG` may and may not point at.** The path
+      stays owner-tunable (the bullet above), but the machine scope must not be SILENTLY defeatable:
+      an override pointing OUTSIDE the machine — a remote URI, or a path on a network filesystem —
+      would quietly make two machines share one store, and the boundary would be nominal only. So the
+      SINGLE resolution site (`bin/lib/cross.py#resolve_log_path`) REFUSES such an override and NAMES
+      the target; where the target cannot be CLASSIFIED (the mount table is unreadable — a non-Linux
+      installation is the case this contract exists to enable) it is ACCEPTED with a LOUD report
+      naming the target, because bricking every verb on an undecidable reading is the worse failure.
+      A LOCAL path is accepted unchanged, and that is load-bearing: the MULTI-USER host — several OS
+      uids on ONE machine sharing ONE local store, which is exactly what rule 1 requires — is
+      untouched by this bound, having never been cross-machine.
+    - **Owner:** the KERNEL. The kernel governs the store's existence, schema, and rotation.
+    - **Archival:** the KERNEL ONLY rotates the store (a NON-append rewrite that moves terminal+old
+      entries to an archive sibling). A single archivist avoids the contention a concurrent rewrite
+      would cause; appends stay concurrent-safe for everyone. The rotation MECHANICS live in the
+      protocol sibling spec — this rule pins only WHO (kernel) and THAT archival is required.
+    - **Backup + recovery:** the store is canonical coordination state (rule 1), so it rides the existing
+      server backup the kernel repo rides — it is NOT disposable — AND a recovery path exists (a restore
+      round-trips the fold). Backup + recovery land WITH the cutover, not deferred: a store called
+      canonical without working backup/recovery is the governance debt the accept-gate (finding #3)
+      flagged. Probe at activation: a backup exists + a restore reproduces the fold.
+
+  ### 4. The CHARTER §P5 one-journal amendment — a permitted SECOND INSTANCE, not a parallel journal
+  CHARTER §P5 requires "one journal" — `events.jsonl`, append-only. The coordination log does NOT
+  introduce a NEW journal TYPE: it is the **SAME journal MECHANISM** — the `events.jsonl` line-format,
+  the one parser, the append + union-merge discipline, and the archival rotation (the model) —
+  instantiated as **ONE governed shared INSTANCE at cross-project scope**. P5's real invariant is one
+  FORMAT / PARSER / DISCIPLINE, not one physical FILE. So §P5 carries an **explicit additive amendment**
+  (owner-approved governance change, not a silent bypass): the shared coordination instance is a
+  PERMITTED second instance of the one journal mechanism; "one journal" means one mechanism, which MAY
+  have a per-project instance (`<repo>/events.jsonl`) AND the one shared coordination instance — never a
+  second FORMAT, parser, or discipline. The amendment TEXT is added in CHARTER §P5 (its home, SPEC-0005
+  §8); this spec is its authority home. A literal second journal FORMAT/parser would still violate P5.
+
+  **SPEC-0001 + SPEC-0002 reconciliation (the corpus-coherence amendment — accept-gate finding #1).**
+  CHARTER §P5 is NOT the only home of the one-journal invariant: **SPEC-0001** (floor — "the event log =
+  a single `events.jsonl`; adding a SECOND event log file alongside it" is the multi-storage-truth
+  failure it closed) and **SPEC-0002** (the `events.jsonl` entry schema) carry it too. So the SAME
+  additive amendment is pinned in BOTH (not just CHARTER): (a) SPEC-0001's "no second event log"
+  invariant is SCOPED to a repo's OPERATIONAL-STATE storage (the failure was a divergent PARALLEL store
+  + a second PARSER path); the ONE shared coordination instance is the SAME mechanism (SPEC-0002 schema,
+  one parser, union-merge), named a permitted explicitly-scoped instance — it adds NO second format or
+  parser path, so the storage-truth invariant SPEC-0001 protects stays intact. (b) SPEC-0002's schema
+  GOVERNS the coordination instance identically — the `cross_*` events EXTEND its OPEN catalog (same
+  envelope/provenance/ordering), so there is one schema, not two. Both are named in `amends:` — the
+  contradiction is resolved IN THE OPEN (P7), never left implicit.
+
+  **One-parser / one-query READ contract (accept-gate finding #2 — proving "same mechanism" operationally,
+  not just in amendment text).** "Same mechanism" must reach the READ side too, or in practice the store
+  reads as a parallel journal. So: the EXISTING journal-reading surfaces — `journal query`, the triage /
+  recurrence machinery (SPEC-0055/0056), and recovery — read the shared coordination instance through the
+  **SAME parser** the per-repo `events.jsonl` uses, selected by an explicit path/instance selector (NOT a
+  separate coordination-log reader). Any new read affordance MUST be declared **reuse of the existing
+  journal parser**, never a second parser implementation. Probe (at activation): a `journal query` over
+  the shared instance returns its `cross_*` events via the one parser, with no parallel reader path.
+
+  ### 5. Territory — appending to the shared store is IN-BOUNDS (the AGENTS §Scope-boundary carve-out)
+  AGENTS §Scope-boundary forbid a Build session writing outside its OWN repo (with the
+  read-only peer-`CROSS-TASKS.md` carve-out). The shared coordination store is **neutral kernel-owned
+  coordination infrastructure, belonging to no project repo** — so APPENDING to it (via the `cross`
+  verbs) is territory-IN-BOUNDS, NOT the cross-repo-write violation. This is a P7 dissonance
+  resolved IN THE OPEN, never a silent bypass: AGENTS §Scope-boundary gains an explicit carve-out — "a
+  governed append to the kernel-owned shared coordination store is in-bounds from any session" — pointed
+  at this spec. The carve-out is SCOPED: it permits appends to the ONE shared store ONLY; writing
+  another project's REPO stays forbidden (own-write/peer-read on per-repo artifacts is unchanged). The
+  carve-out TEXT is added in AGENTS §Scope-boundary (its always-loaded home, SPEC-0005 §8); this spec is
+  its authority home.
+
+  **Write-PATH regime — a journal-like append, NO worktree (accept-gate finding, the one
+  unambiguous mode).** A `cross *` append to the shared store is the SAME journal-mechanism append the
+  reuse framing (rule 4) asserts — so it follows the SAME write-flow as `event` / `deviation_captured`:
+  it is the ** append-only / union-merge EXCEPTION that needs NO worktree** (emit from anywhere,
+  incl. main; folded by the next `land`), NOT a worktree-bound source/artifact write. This is the ONE
+  regime — no ambiguity. Because the always-loaded write-flow home (AGENTS §Writes-happen-in-a-worktree)
+  enumerates that no-worktree EXCEPTION, this contract **co-amends THAT section too** (adds `cross *` to
+  the journal-append exception list), not only §Scope-boundary — so a session knows both that the append
+  is in-bounds (territory) AND that it rides the no-worktree journal path (write-flow). (Rationale: the
+  store is append-only + union-merged like `events.jsonl`; a worktree adds nothing and would break the
+  one-command coordination reflex — exactly the reasoning for `event`.)
+
+  **Write-posture discriminator — direct -C write vs the cross-log.** "Writing another
+  project's REPO stays forbidden" above is SHARPENED: a session may write a project's repo DIRECTLY
+  **only when it has adopted that project's `-C` Build WRITE-POSTURE** — a `bin/yitc-v2 -C <project>`
+  session with its session-start anchor, i.e. the consumer authoring its OWN corpus (the sanctioned
+  consumer-operation path — how a `-C` migration build files the project's CHARTER / specs / tasks).
+  A finding produced by a session NOT in that write-posture — a **read-only revizia, monitoring, or
+  any cross-project observation** — does NOT write the observed project's repo; it routes via the
+  **cross-log** (`cross request to:<project>`), and the project's OWN session picks it up and does the
+  `-C` fix. The discriminator is the **write-posture, NOT the verb**: assessor != fixer. This keeps the
+  cross-log the symmetric bidirectional peer channel (a consumer raises kernel gaps the same way — e.g.
+  ai-gateway -> kernel X-0079/X-0080). Real incident: a read-only B5 migration revizia filed a direct
+  `-C` task for a consumer coverage finding instead of a cross request (deviation
+  `kernel-readonly-revizia-finding-filed-direct-C-task-instead-of-crosslog`; re-routed as X-0082).
+
+  ## Parameters
+
+  None consumed. The canonical store path + the archival threshold are owner-tunable infrastructure
+  config (rule 3), pinned at the activation task — NOT code-read scalar params from this spec.
+
+  ## Rationale
+
+  Two external consults settled design B (one shared coordination journal) over A (per-repo + derive),
+  and a pre-specs audit ruled the draft must pin the authority contract FIRST — the design asserted a
+  shared store the corpus did not yet permit (a 4th placement realm + a write-territory exception + a
+  P5 second instance). Pinning them as explicit, named amendments (P7 — resolve a dissonance in the
+  open) is what makes the store GOVERNED rather than smuggled. Prior-art for the same-mechanism /
+  second-instance framing: (append-only + union-merge journal needs no worktree); for the
+  neutral-shared-store-is-not-cross-repo-write framing: the consult's own territory ruling. The full
+  deliberation (A-vs-B head-to-head, the gate-specs RED resolution D1-D5) lives in the plan, not here
+  (SPEC-0005 §3 content boundary).
+
+  ## Verification
+
+  - **VP1 (placement realm added):** SPEC-0073's realm taxonomy names a 4th `coordination` realm with
+    this spec as its authority home; `_resolve_placement` (or the manifest) recognises it. (state-check
+    at activation)
+  - **VP2 (P5 amendment present + honest):** CHARTER §P5 carries the explicit additive amendment naming
+    the shared coordination instance a permitted second INSTANCE of the one journal mechanism (same
+    format/parser/discipline), pointing here; a literal second FORMAT still RED-flags. (grep CHARTER §P5)
+  - **VP3 (territory carve-out present + scoped):** AGENTS §Scope-boundary carries the explicit carve-out
+    that a governed append to the shared coordination store is in-bounds, scoped to the ONE store (peer
+    REPO writes still forbidden), pointing here. (grep AGENTS §Scope-boundary)
+  - **VP4 (honest-SoT → archival/backup required):** this body states the store is canonical
+    coordination SoT (not a cache) and therefore requires archival + backup; the protocol sibling pins
+    the rotation mechanics + the kernel-only archivist. (grep this spec + the protocol spec)
+  - **VP6 (machine scope is real, not asserted —):** rule 3 states the per-INSTALLATION
+    instance + the no-transport boundary + the override bound, and `resolve_log_path` enforces it: a
+    remote URI / network-mount override is REFUSED naming the target (or, where unclassifiable,
+    accepted with a LOUD report naming it) while a LOCAL override is accepted unchanged, and a fresh
+    installation's default store resolves under ITS OWN host home holding none of this machine's rows.
+    (`tests/test_cross_log_machine_scope.py`, both arms differential)
+  - **VP5 (amendment honesty, P7):** the `amends:` block names every canonical surface this contract
+    changes (SPEC-0073 realm cut / CHARTER §P5 / AGENTS §Scope-boundary / AGENTS §Writes-happen-in-a-worktree
+    / SPEC-0001 / SPEC-0002) — none silently diverged.
+  - **VP6 (one-journal coherence, accept-gate finding #1):** the one-event-log invariant is reconciled
+    in ALL its homes — CHARTER §P5 AND SPEC-0001 AND SPEC-0002 — with the SAME additive amendment (the
+    coordination instance is the same mechanism/schema/parser, not a second store); no active spec is
+    left contradicting the supersede. (grep SPEC-0001 + SPEC-0002 at activation)
+  - **VP7 (one-parser/query + ops parity, accept-gate findings #2/#3):** `journal query` (triage /
+    recovery) reads the shared instance via the SAME parser, no parallel reader path (rule 4 read
+    contract); AND the canonical store has a working backup + a recovery that round-trips the fold,
+    landed WITH the cutover (rule 3). (probe at activation: a query over the shared instance + a
+    backup/restore round-trip)
+
+amends: # canonical surfaces this authority contract DELIBERATELY changes (named per
+                               # P7). Staged — takes effect only on activation (the activation task edits
+                               # each home in-place, SPEC-0005 §7 additive-extension → in-place).
+  - SPEC-0073: adds a 4th placement realm `coordination` (kernel-owned shared single-instance) to the
+      realm cut; the taxonomy row is added IN SPEC-0073, this spec is its authority home.
+  - CHARTER.md#principle-5: additive amendment — the shared coordination instance is a PERMITTED second
+      instance of the one journal mechanism (one format/parser/discipline, not one file); a literal
+      second format still violates P5.
+  - AGENTS.md (Scope-boundary discipline): additive carve-out — a governed append to the kernel-owned
+      shared coordination store is territory-in-bounds from any session, scoped to the ONE store (peer
+      REPO writes stay forbidden, own-write/peer-read unchanged).
+  - AGENTS.md (Writes-happen-in-a-worktree): additive — `cross *` appends join the no-worktree
+      journal-append EXCEPTION list (alongside `event`/`deviation_captured`); the shared-store append is
+      journal-like, not a worktree-bound source write. (rule 5 write-path regime)
+  - SPEC-0001: additive amendment — the "single events.jsonl / no second event log" invariant is SCOPED
+      to a repo's operational-state storage; the ONE shared coordination instance is the SAME mechanism
+      (no second format/parser path), a permitted explicitly-scoped instance. (rule 4 reconciliation)
+  - SPEC-0002: additive — its events.jsonl entry schema GOVERNS the coordination instance identically;
+      the `cross_*` events extend its OPEN catalog (one schema, not two). (rule 4 reconciliation)
+
+cites:
+  - CHARTER.md#principle-5 # the one-journal invariant this contract additively amends
+  - SPEC-0001 # the floor one-event-log invariant the rule-4 reconciliation scopes/amends
+  - SPEC-0002 # the events.jsonl entry schema the coordination instance reuses identically
+  - CHARTER.md#principle-1 # anti-complexity — reuse the journal mechanism, add no parallel store
+  - SPEC-0073 # the placement contract that gains the 4th `coordination` realm
+  - SPEC-0079 # the per-repo CROSS-TASKS log the protocol sibling supersedes
+  - # append-only + union-merge journal needs no worktree (the reuse prior-art)
+  - # territory: no cross-repo write — the rule the §5 carve-out scopes
+  - shared-coordination-log-supersede-cross-tasks-per- # the parent plan (deliberation home)
+
+requires: []
+supersedes: ~ # this spec adds NEW governance; the per-repo log is superseded by the
+                               # protocol sibling (which carries `supersedes: SPEC-0079`), not here.
+activation_owner_task: # set at decomposition (SPEC-0005 §5); closing flips proposed->active.
+proposed_by: shared-coordination-log-supersede-cross-tasks-per-
+binding: # PROVISIONAL (draft) — the territory + authority + P5 status is foundational
+  - floor # always-relevant governance that co-amends always-loaded handbook surfaces
+                               # (CHARTER §P5 + AGENTS §Scope-boundary); declared `floor` so the authority
+                               # home sits in the always-loaded tier. RE-EVALUATE at the accept-gate audit:
+                               # if it over-weights the seed, re-bind to the `cross` verb-group write-point
+                               # (the protocol/verb siblings) where the territory contract is operative.
+implements_signature:
+  bin/lib/cross.py#ensure_shared_store: f57e9a9489670c326ef6f0e40a180e584636260b0c565890f00cb9787ad21033
+  bin/lib/cross.py#resolve_log_path: f4a7a8431849656d862b54cc6d7489bf83ea8f760462cd9f950a9775380ffdc8
+  bin/verify-backup.sh: 5eb9cbda9ab60f55ec51d8778c9e03ebc5a8c4da9c6a85d4b6979290f4eaa19e

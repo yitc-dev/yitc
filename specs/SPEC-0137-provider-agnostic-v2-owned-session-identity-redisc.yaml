@@ -1,0 +1,329 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0137
+title: 'Provider-agnostic v2-owned session identity — rediscovered record, fail-closed resolution, hermetic verify'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # plan-local draft (SPEC-0005 §4). Re-pinned kernel + promoted proposed
+                               # at plan-accept; activated (proposed→active) by activation_owner_task close.
+
+created_at:
+
+travels: kernel
+                               # KERNEL (re-pinned at plan-accept, SPEC-0073 §3): the engine resolver in
+                               # bin/ (a kernel hard-class) runs for the engine AND every -C consumer
+                               # session, so this identity contract is pinned methodology that travels.
+
+consumed: false # a contract/design spec — no code reads a governing scalar param FROM it.
+                               # The resolution rules are enforced by the resolver code, not a spec-read.
+
+extension: ~
+
+implements: # durable anchors — the resolution + verify code this spec governs.
+  - bin/lib/cli.py#_resolve_session_ref
+  - bin/lib/cli.py#_resolve_session_ref_for_envelope
+  - bin/lib/cli.py#_resolve_session_ref_with_source
+  - bin/lib/cli.py#_try_resolve_session_ref
+  - bin/lib/cli.py#_append_event
+  - bin/lib/cli.py#SESSION_IDENTITY_REGISTRY
+  - bin/lib/cli.py#_run_verify_tests
+  - bin/lib/dispatch.py#_dispatch_worker_env
+
+body: |
+  ## Scenario
+
+  A v2 session — an interactive Controller OR a dispatched Worker, under ANY provider harness — gets a
+  stable, unique session id and every later `bin/yitc-v2` call (each its own short-lived OS subprocess)
+  resolves the SAME id **without v2 reading any PROVIDER-specific environment variable** at resolution
+  time (the interactive agent DOES carry v2's OWN `YITC_SESSION_REF` — harness-unavoidable under a headless
+  harness with no shared provider-neutral locus — but that is a v2-minted, v2-named uuid, NOT provider
+  coupling; option-A, external consult 2026-07-06). A `land` verify run never inherits the launching
+  session's identity. Concretely the owner sees: a dispatched worker resolves from its launcher-frozen id
+  with no provider var; a MISSED interactive carry no longer lands under a provider key (it degrades to the
+  record or fails closed — the retired X-0158 bug); a dispatched worker lands with no session-ref-leak
+  false-RED; and each of N parallel siblings carries its OWN id.
+
+  **Why it matters (discipline-control framing, owner-asked 2026-07-06):** this identity is the load-bearing primitive of V2 *discipline control* — one-claim-per-task (the worktree stamp), chain-of-custody (every governed event keyed on `session_ref`), the epoch-scoped read-gate/seed receipts, dispatch isolation, and verify honesty ALL key on it. That is WHY it must be v2-owned + provider-agnostic (CHARTER §4b) and cannot hang off a provider id scheme: swap the provider and the control must not collapse. Full narrative: plan `provider-agnostic-session-identity-v2-owned-launch` §Postcheck soak narrative.
+
+  **What this contract actually DELIVERS (the honest benefit framing —, after the Option-A amendment).** Four things, all shipped and probed: (1) **provider-neutrality** — no PROVIDER env-var name anywhere in the resolution path (Rule 4/8), so swapping the harness cannot break v2's discipline control; (2) **fail-closed safety** — a MISSED or unbacked carry degrades to the record or REFUSES, never landing a receipt under a foreign/provider key (Rule 2.1 bound + Rule 5; the X-0158 class retired); (3) **fan-out distinctness** — each dispatched sibling carries its OWN minted id, so the own/foreign stamp distinction survives concurrency (Rule 7; the collision repaired for workers); (4) **verify isolation** — a `land` verify box never inherits the launcher's identity (Rule 6; `fu_54c5905adf9f` closed).
+
+  **NOT delivered — and never claim it: "no manual carry".** An interactive session STILL carries `YITC_SESSION_REF` explicitly on every call: `environ(7)` forbids a child exporting into its parent, and under a headless harness there is no provider-neutral shared locus to rediscover from (external consult `session-identity-harness-locus-fork`, 2026-07-06). The carry is bounded and SAFE, not eliminated; the zero-carry goal is DEFERRED to the successor plan `interactive-session-identity-via-locus-snapshot-va` (Variant B). Any prose here or in the plan claiming manual carry is retired is an OVERCLAIM.
+
+  ## Internal
+
+  The identity of a v2 session is a **rediscoverable v2-OWNED RECORD**, never an env carrier read at
+  resolution and never an upward env push from a child process. The industry-universal shape (git
+  worktrees rediscover `cwd →.git/worktrees/<id>/`; systemd rediscovers `INVOCATION_ID` from a cgroup
+  xattr because env can be overwritten and the persisted store cannot) and an EXISTING v2 analog (the
+   per-worktree stamp) both point here — this GENERALIZES the stamp, it does not invent a new store.
+
+  ### Rule 1 — Source of truth = a v2-owned session record, found by REDISCOVERY
+  `bin/yitc-v2 session start` MINTS a random id (uuid4-class) and PERSISTS it to a v2-owned record; every
+  governed verb resolves its id by REDISCOVERING that record — NOT by reading an env carrier. Minting is
+  easy; **rediscovery is the crux** — the hard part is a later provider-blind process finding WHICH record
+  is its own (§Rule 2). Because a child cannot mutate its parent's environment (`environ(7)` — a law of
+  physics), identity MUST live in a record; the pre-SPEC-0137 mint-and-carry convention tried to work
+  around this with a manual re-export as the SOLE identity path — an UNBACKED carry with no record behind
+  it — and produced the X-0158 startup-refusal class. What this contract retires is that FRAGILITY, NOT the
+  carry itself: the agent STILL carries the v2-own `YITC_SESSION_REF` per call (bounded selector-1, Rule 2;
+  Rule 8a), and the record + fail-closed keyer make a MISSED carry safe instead of drifting. **Persistence is ATOMIC**
+  (temp + rename) so a concurrent reader never sees a half-written record, and the resolver TOLERATES a
+  corrupt/foreign file in the record dir by SKIPPING it (never wedged by one bad file — trial finding P11).
+  **CLOSED record schema (anti-creep, gate-trial F4 / plan-check F3):** a runtime record's ONLY permitted
+  fields are `session_id`, a `pid` (liveness/locus discriminator), `locus_key`, optional `provider_meta`
+  (forensic-only, Rule 2.5), and an optional `isolated_verify` marker (Rule 6). ANY other session state is
+  FORBIDDEN — this is an identity record, NOT a general session-state store, NOT a durable corpus, and adds
+  no journal expansion.
+  **Bootstrap exemption + fail-closed-without-a-record (session-start-skipped defense).** `session start`
+  is the SOLE bootstrap verb: it resolves-or-MINTS WITHOUT a pre-existing record (it is the record's
+  writer). EVERY OTHER governed verb REQUIRES the record — with no record for its locus it FAILS CLOSED
+  (Rule 5), AND the read-gate (SPEC-0050: the `session_started` anchor + the epoch seed-receipt, emitted
+  ONLY by `session start`) independently REFUSES. So a SKIPPED `session start` cannot proceed: there is NO
+  provider-carrier fallback to resolve an id under (the retired PROVIDER-carrier fallback, Rule 8), and the
+  verb refuses, pointing the user to run `session start`. NO chicken-and-egg: `session start` is exempt
+  precisely because it CREATES the record; a mid-session record loss (e.g. XDG cleared) fails the next
+  verb closed → re-run `session start` → the id re-mints. This is STRONGER than the pre-SPEC-0137 design,
+  whose provider fallback let a verb resolve an id with no `session start` and land the receipt under a
+  drifting key — the X-0158 cause.
+
+  ### Rule 2 — Rediscovery selector order (normative vs diagnostic) [gate-specs finding 1]
+  A resolving process locates its record by trying, IN ORDER, this ENUMERATED selector set. The record's
+  own-id match is the identity; the other selectors only NARROW which record:
+  1. **v2-own carried session ref — BOUNDED (NORMATIVE, highest; option-A amendment 2026-07-06)** — a
+     v2-MINTED, v2-NAMED ref the agent carries: a Worker's frozen `YITC_EXPECTED_SESSION_REF` (launcher-
+     assigned, self-checked —, unchanged) OR the interactive `YITC_SESSION_REF` self-ref. Carrying
+     v2's OWN uuid is provider-NEUTRAL — NOT the coupling Rule 4 removes — and it is the ONLY stable
+     provider-neutral session anchor under a HEADLESS harness (measured 2026-07-06: no controlling tty;
+     each CLI call is its own subprocess with its own sid; the sole stable shared ancestor is the provider
+     process, provider-specific to identify → pure locus-rediscovery is NOT provider-neutrally achievable
+     for the interactive phase; external consult `session-identity-harness-locus-fork`). **BOUND (consult
+     finding F4):** a carried ref is honored ONLY when BACKED by live v2-owned evidence — a live v2 record
+     for that id OR a current-epoch `session_started`/read-gate anchor for it; an UNBACKED carried ref
+     (stale/foreign/typo) does NOT silently win — it falls through to the record selectors and, absent a
+     match, FAILS CLOSED (Rule 5). This is why the carry is SAFE where the retired UNBACKED mint-and-carry (a carry with no record behind it — the fragility Rule 8a retires, NOT the carry itself) was not:
+     a miss no longer lands under a provider key (the X-0158 bug), it degrades to the record or fails closed.
+  2. **Worktree gitdir locus** (NORMATIVE) — inside a `task/T-XXXX` or `work/<slug>` worktree, the record
+     is the stamp in that worktree's private gitdir (`.git/worktrees/<name>/`). A per-instance
+     locus by construction; never keyed on cwd content.
+  3. **Runtime-record id in `XDG_RUNTIME_DIR/yitc/`** (NORMATIVE) — the pre-worktree interactive READ
+     phase on the shared main checkout; keyed by a per-session-id SUBKEY (the dir is per-USER, 0700,
+     local FS, auto-cleared on logout), with a recorded PID for liveness. NEVER keyed on cwd.
+  4. **Liveness prune — recorded PID (MANDATORY, intrinsic)** — every runtime record carries the
+     minting session's PID; the resolver prunes DEAD records (signal-0 liveness) BEFORE any ambiguity
+     is declared. This is not optional: a crashed/abandoned session leaves a stale record, and without
+     intrinsic pruning that stale record would wedge a new session in the same locus with a false
+     ambiguity (trial finding P9, 2026-07-05). The session-leader/tty is the locus_key (selector 3's
+     narrowing key), not a separate identity.
+  5. **Provider birth metadata — FORENSIC / recovery ONLY, OFF the resolution chain** — the provider id,
+     if present at birth, is folded into the record for recovery/forensics; it is NEVER consulted at
+     resolution. Using stored provider_meta as a LIVE disambiguator would require reading THIS process's
+     provider env var at resolution — the exact coupling Rule 4 bans — so it is deliberately off the
+     selector chain; its total absence changes nothing (trial finding P10, 2026-07-05).
+  Selector 1 (the BOUNDED v2-own carry) resolves first WHEN backed by live v2 evidence; else selectors 2–3
+  (records) + the mandatory liveness prune of 4; selector 5 is forensic-only. A backed carry, or exactly
+  one LIVE record, is the id. No backed carry AND zero/ambiguous record match → Rule 5 (fail-closed).
+
+  **Two-role scope — GOVERNANCE-KEYING resolution (fail-closed) vs EVENT-ENVELOPE stamping (best-effort)
+  [, external consult `t10149-emit-vs-keying-resolution-split` YELLOW].** The fail-closed rediscovery
+  contract of this Rule (and the Rule-4 provider-free grep-probe) governs **governance-KEYING** resolution
+  — `_resolve_session_ref`, whose result KEYS a governance decision: the read-gate anchor/seed-receipt
+  match (`_require_reads`), the worktree-stamp own-check (`_stamp_is_own` / `_write_worktree_stamp`),
+  aspect-audit. There "who am I, provably" MUST be bounded — an unbacked/ambiguous
+  identity fails closed, never guesses. It does NOT govern **event-envelope STAMPING**: `_append_event`
+  fills every journal line's `session_ref` provenance field, and an emit is append-only provenance that
+  MUST NEVER be lost or blocked. So `_append_event`'s DEFAULT resolves via a SEPARATE best-effort resolver
+  `_resolve_session_ref_for_envelope` that NEVER fails closed (frozen/expected → the raw v2-own self-ref
+  carry — the caller's DECLARED identity, honored for a stamp even when unbacked → the non-dying rediscovery
+  result for a carry-less process → an `unresolved` sentinel). This carry precedence DELIBERATELY differs
+  from the keyer: for KEYING an unbacked carry must NOT win (the X-0158 fix); for a PROVENANCE stamp the
+  carried self-ref IS the honest identity. The envelope resolver is
+  **provider-free** too (it never consults a provider carrier — no second provider-coupled surface), so a
+  stamped `session_ref` is at worst a v2-own best-effort value or `unresolved`, NEVER a provider id. A
+  best-effort stamp is **explicitly non-authoritative**: no governance consumer keys off a `session_ref`
+  read back FROM an event line — the keying consumers above resolve LIVE via `_resolve_session_ref`, so a
+  best-effort stamp cannot become a parallel identity path. The transcript AUTO-SYNC's current-session
+  resolve (`_journal_sync` on every verb) is likewise best-effort — it only LOCATES a transcript and
+  fail-safes to INERT when none is found, so it too resolves via the envelope resolver and never fails
+  closed a bootstrap/unbacked session (the explicit `journal sync --session-ref <id>` recovery path passes
+  its ref explicitly and keeps its own fail-closed-on-missing-log contract). **Gate-bearing emits are the exception that
+  proves the rule:** an emit that WRITES read-gate evidence (the `session_started` anchor, the seed-read /
+  `--help` fetch receipts) passes an EXPLICIT strict/bootstrap `session_ref` — never the best-effort
+  default — so the evidence the keyer later matches is written under the same authoritative id (Rule 1
+  bootstrap-exemption: `session start` is the record's writer and stamps its own anchor under the resolved
+  id). This split is why the fail-closed rewrite does not break the universal emit path.
+
+  ### Rule 3 — Identity-state precedence & sync (which record is authoritative per phase) [finding 2]
+  There is ONE logical identity per session, physically homed by lifecycle phase — NOT two competing
+  truths:
+  - **pre-worktree (interactive read phase)** — the `XDG_RUNTIME_DIR/yitc/<id>` runtime record is
+    authoritative. Created by `session start`.
+  - **write phase (in a worktree; Worker or self-executing Controller)** — the worktree stamp is
+    authoritative for that worktree; it is CREATED at `worktree new` and CARRIES the same id (the runtime
+    record's id, or the frozen `expected` for a dispatched worker). The worktree stamp is a PROJECTION of
+    the one identity into the write locus, not a second id.
+  - **sync + mismatch** — `worktree new` writes the stamp from the resolving session's id, so the stamp
+    and the runtime record agree by construction. If a resolver finds a worktree stamp whose id disagrees
+    with a frozen `expected` (Rule 2.1), that is the FOREIGN/un-stamped case the existing startup contract
+    already BLOCKS ("already held by session X") — it is surfaced, never silently reconciled or guessed.
+
+  ### Rule 4 — No PROVIDER var at resolution (the v2-own self-ref is KEPT); provider id = optional BIRTH metadata only; anti-regrowth
+  Ordinary verbs read only v2-OWNED state. The runtime precedence chain of **PROVIDER carriers**
+  (`<provider-session-env>` / `CODEX_THREAD_ID` in `SESSION_IDENTITY_REGISTRY['env']`) is REMOVED from
+  resolution — that was the coupling + the X-0158 drift. This is NOT env-purism: the **v2-OWN self-ref**
+  (`YITC_SESSION_REF`, a v2-minted v2-named uuid) is KEPT as the bounded selector-1 (Rule 2) — carrying
+  v2's own id is provider-neutral, and under a headless harness it is the only provider-neutral session
+  anchor (external consult `session-identity-harness-locus-fork`, 2026-07-06). At `session start`/reattach the
+  provider env id, IF present, is folded into the record ONLY as recovery/forensic metadata (Rule 2.5 —
+  NEVER a live resolution selector), and DEGRADES GRACEFULLY to a freshly-minted uuid when absent. **Anti-regrowth (bound):** any
+  provider-specific env NAME lives ONLY inside a removable, non-normative adapter that can be deleted
+  without changing resolution — it MUST NOT reappear in the resolution path, so this cannot regrow the
+  retired provider-precedence registry. (The SEPARATE transcript-join / context-epoch role of the
+  provider carriers — `PROVIDER_CARRIERS` → the `~/<provider-config>/.../<id>.jsonl` transcript path — is UNAFFECTED;
+  that is a diagnostic join key, never the identity, and this spec does not touch it.)
+
+  ### Rule 5 — Ambiguity / absence → FAIL-CLOSED [finding 1, the hard corner]
+  When rediscovery finds MULTIPLE live records for one locus and NO distinct selector (the genuinely-hard
+  corner — two provider-free, tty-less sessions in ONE cwd), the resolver REFUSES with a clear diagnostic
+  ("multiple live session records for this cwd — supply a selector / open a worktree") and NAMES the
+  enumerated selectors it tried. It NEVER guesses and NEVER cross-credits a read-gate receipt. This corner
+  is UNREACHABLE by any WRITE (writes are worktree-isolated → Rule 2.2 gives a per-instance locus) and is
+  confined to the headless/cron/orchestrator read-phase niche.
+
+  ### Rule 6 — Verify hermeticity: targeted identity-carrier SCRUB (NOT default-deny) [finding, C5]
+  **What SHIPPED is a targeted identity-carrier SCRUB — there is no default-deny `env=` allowlist anywhere
+  in this contract or in the code.** State it plainly up front, because the earlier default-deny phrasing
+  in this rule's neighbourhood was read as incoherent against the shipped scrub TWICE in one window
+  (`deviation_captured` × 2, fingerprint `spec0137-rule6-defaultdeny-vs-scrub-coherence`,
+   +; triage-promoted as `fu_3bf5ba9f4e0b`). This rule text is now
+  reconciled to the code; §Rationale's Bazel line is a SURVEYED prior-art citation, deliberately NOT the
+  adopted design (see there).
+
+  The `land` verify harness (`_run_verify_tests` → `_hermetic_child_env`, `bin/lib/worktree.py`) makes each
+  NON-real-store test box HERMETIC TO THE LAUNCHER'S IDENTITY:
+  - it SCRUBS the launcher's identity carriers from the box env — the DERIVED UNION `_SUBENV_SCRUB_CARRIERS`
+    (= `SESSION_IDENTITY_REGISTRY['env']` / `SESSION_REF_ENV_VARS` **plus** the provider transcript
+    carriers `PROVIDER_CARRIERS`) — and the frozen `YITC_EXPECTED_SESSION_REF` worker contract var. Scrubbing
+    the PROVIDER carriers too is what makes the box CURRENT-EPOCH anchored (no inherited provider transcript
+    ⇒ `_session_epoch` = 0, matching the box's own receipt); deriving the union from the registry keeps ONE
+    scrub SoT, so the Rule-8b registry collapse could not silently weaken it;
+  - it MINTS a fresh v2-owned `YITC_SESSION_REF` for the box and SEEDS the box journal under it
+    (`session_started` + a `cli:seed` receipt), so the fail-closed keyer resolves the box's OWN backed id
+    (Rule 2 selector 1), never the launcher's leaked one.
+  Resolution ALSO honors a v2-owned `isolated-verify` scenario ref (`YITC_ISOLATED_VERIFY`) the resolver
+  checks BEFORE probing any record (the runtime-record `isolated_verify` marker, Rule 1), so a
+  genuinely-NESTED verify with no driven ref of its own can still own its scenario identity. **Honest status
+  of that leg: it is a RESOLVER HOOK with no producer today** — nothing sets it per-box, deliberately (a
+  per-box setter would override a test that drives its own ref, since the hook resolves before record
+  probing), and its intended setter task was merged/wont-done. The hook is dormant, not;
+  hermeticity is delivered by the scrub + fresh backed mint above, which is what the probes verify.
+
+  **Why targeted and not default-deny (the proportionality call, CHARTER §Principle 1).** Default-denying
+  the execution env the ~493-test suite legitimately depends on (PATH/HOME/XDG/git/LANG/…) is
+  disproportionate blast radius. The strength tradeoff is stated honestly: a FUTURE leaking identity carrier
+  is covered ONLY by being added to the canonical carrier registry (the single scrubbed SoT — adding a
+  carrier there auto-flows into the scrub) + a regression test, NOT by a blanket allowlist. Note the box is
+  nonetheless hermetic on the OTHER axes by construction (SPEC-0131 Rule 1: a private HOME / TMPDIR / XDG_* /
+  git-config + a quarantined default journal per box) — the "no allowlist" statement is scoped to the
+  IDENTITY-carrier surface this rule owns. `_REAL_STORE_ALLOWLIST` boxes are the explicit exception (they
+  keep the launcher carriers + real journal to assert against the running session's ambient anchor). This is
+  STRONGER than the prior EXPECTED-only scrub (which left the identity CARRIERS intact, leaking the launcher
+  id once the keyer became carrier-precedence-first + fail-closed). CLOSES `fu_54c5905adf9f` (the systemic
+  verify identity leak) and ends the `test_t0860` / `test_t9755`→`test_t10116` false-RED class.
+
+  ### Rule 7 — Dispatch launch fast-path degrades to rediscovery
+  Where v2 OWNS launch (`dispatch.py` already sets the worker's frozen `expected` id), setting the v2 id at
+  launch is a legitimate OPTIMIZATION — but it is never the source of truth: it MUST degrade to rediscovery
+  (Rule 1) whenever launch control is absent (interactive provider harnesses, direct/IDE/CI invocation —
+  the common case: direnv no-ops in non-interactive shells, tmux panes go stale, system units start from a
+  clean env). The launch-set id is Rule 2.1's frozen `expected`; nothing new is stored.
+
+  ### Rule 8 — Retirement (what this contract REMOVES) [finding 4, build order]
+  On activation this contract RETIRES: (a) the **FRAGILITY** of mint-and-carry — NOT the v2-own carry
+  itself (option-A amendment 2026-07-06): the interactive agent STILL carries the v2-own `YITC_SESSION_REF`
+  (provider-neutral, Rule 2 selector-1), but a MISSED/unbacked carry is now SAFE — the record + fail-closed
+  (Rule 5) degrade it to rediscovery or refuse, never landing under a provider key (the retired X-0158
+  failure mode); (b) the **runtime precedence chain of PROVIDER carriers**
+  (`<provider-session-env>`/`CODEX_THREAD_ID`) in `SESSION_IDENTITY_REGISTRY['env']` — removed from
+  resolution; provider vars demoted to at-most Rule-4 birth metadata; (c) the **per-provider coupling**
+  (hardcoded provider env-var names + the present-and-stable assumption in the resolution path) — restoring
+  CHARTER §Principle 4b. Build order (the ordered task cut,
+  finding 4): identity-record contract → resolver/rediscovery + records → verify hermeticity → dispatch
+  fast-path → retire the mint-and-carry FRAGILITY + the provider precedence chain (the v2-own carry is KEPT — Rule 8a) → trial + postcheck.
+
+  ## Parameters
+
+  | param | value | consumed | note |
+  |---|---|---|---|
+  | runtime record home | `$XDG_RUNTIME_DIR/yitc/<session-id>` | false | 0700, local FS, auto-cleared on logout/reboot; per-session-id subkey + recorded PID |
+  | runtime record home (XDG unset) | `${TMPDIR:-/tmp}/yitc-<uid>/` (0700, per-uid) | false | fallback when `$XDG_RUNTIME_DIR` is unset (headless/cron/non-login); SAME closed schema + a staleness sweep prunes dead-PID records (no logout auto-clear there) |
+  | write-phase record | `.git/worktrees/<name>/yitc-session-stamp.json` | false | the projection of the one identity into the write locus |
+  | verify box identity scrub | the derived carrier UNION `_SUBENV_SCRUB_CARRIERS` (= `SESSION_IDENTITY_REGISTRY['env']` + the `PROVIDER_CARRIERS`) + `YITC_EXPECTED_SESSION_REF` | false | Rule 6; targeted identity-carrier SCRUB (there is NO default-deny env allowlist), applied per non-real-store box + a fresh backed `YITC_SESSION_REF` minted and journal-seeded; the carrier set is code-homed (the registry SoT), not a spec-read scalar |
+  | isolated-verify hook | `YITC_ISOLATED_VERIFY` | false | Rule 6; honored by the resolver BEFORE record probing — a dormant hook, no producer sets it today (by design) |
+
+  None are `consumed` — a runtime path / an env carrier-set are exactly the env/per-runtime/path class the
+   consumed-whitelist EXCLUDES. The resolver reads them as behavior, not as a governing scalar.
+
+  ## Rationale
+
+  Real incident chain 2026-07-05: (1) **X-0158** — a minted ref not carried on the first same-call `--help`
+  orphaned its fetch-receipt under the provider carrier → the first `worktree new` refused. (2) The
+  session-ref LEAK into `land` verify subprocesses false-RED'd `test_t0860` / `test_t9755`→`test_t10116` and
+  would block EVERY dispatched worker's land (`fu_54c5905adf9f`). (3) **Provider coupling** — the registry
+  hardcodes each provider's env-var name and bets v2 correctness on a specific harness's internals (vs
+  CHARTER §P4b). Owner concern: v2 must not depend on knowing/pinning any other provider's architecture, and
+  the carrier list must not grow into a provider-knowledge chain. Prior-art (industry sweep 2026-07-05):
+  provider-agnostic tools mint their OWN id + demote the provider id to per-call metadata (OTel
+  `gen_ai.conversation.id`; LiteLLM; Vercel AI SDK; OpenHands); robust "many short-lived processes = one
+  session" systems rediscover a persisted record (git worktrees, systemd `INVOCATION_ID`); cwd is not a
+  session key (the AI provider Code #24864, Hermes #46303 both converged on mint-id + record-PID); hermeticity is
+  default-deny + curated env (Bazel — SURVEYED prior-art, deliberately NOT the adopted design: Rule 6 ships a targeted identity-carrier SCRUB, since default-denying the whole execution env the ~493-test suite depends on is disproportionate blast radius, CHARTER §P1). Additional benefit: a v2-minted-per-launch id repairs the ****
+  sibling-collision (distinct `session_ref` per sibling → stamp-based own/foreign works for arbitrary
+  concurrency) — WITHOUT lifting the CHARTER §6 in-process-worker ban (that needs worktree-per-subagent + a
+  §6 revisit; out of scope here).
+
+  ## Verification
+
+  Probe targets (bounded — gate-specs finding 3, concrete minimums; failure-threshold = ANY recurrence):
+  - **unit** — `_resolve_session_ref` resolves from the v2-owned record with ALL provider vars ABSENT; two
+    concurrent runtime records → distinct ids; a forced two-provider-free-tty-less-in-one-cwd corner →
+    resolver REFUSES with the Rule-5 diagnostic (never guesses).
+  - **grep** — no runtime dependency on any provider env-var NAME in the `_resolve_session_ref` resolution
+    path (Rule 4); no PROVIDER-carrier precedence chain left in the resolution registry (Rule 8b), and the
+    seed/handbook states the BOUNDED v2-own carry rather than the retired unbacked mint-and-carry (Rule 8a).
+    *(This probe once read "no mint-and-carry prose left in the seed" — an Option-A overclaim: the carry
+    SURVIVES, only its fragility was retired. Corrected by.)*
+  - **live (real-data soak, min-runs)** — ≥ 5 real dispatched-worker `land`s AND ≥ 3 fresh-interactive
+    first-verb starts over ≥ 5 days, ALL with zero session-identity friction/leak events; plus a fan-out of
+    ≥ 4 parallel dispatched workers each carrying a DISTINCT `session_ref` (spot-check `bg_dispatch_launched`
+    expected-refs + `task_picked` stamps). Evidence-home: `events.jsonl` grep + `land_completed` metrics.
+
+cites:
+  - CHARTER.md#principle-4
+  -
+  - SPEC-0050
+  - SPEC-0025
+  -
+  -
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: provider-agnostic-session-identity-v2-owned-launch
+binding:
+  - code-enforced # code-enforced residency token (mirrors SPEC-0002/SPEC-0050): the resolver + verify
+                      # code named in implements: IS the delivery — no read-gate/floor/stage read surface.
+init_concern: ~
+implements_signature:
+  bin/lib/cli.py#SESSION_IDENTITY_REGISTRY: 6871954af3879a6536873edd89c735ba1db6d150511a5e2ec16ef7e4d89b90a0
+  bin/lib/cli.py#_append_event: ebd87612256adbebbdabe953540ceb55db39201cd2f815395ae7236606bc7f25
+  bin/lib/cli.py#_resolve_session_ref: a1ff02077dff58b2b28478d852fe4474acea893971edf5e460d62f55249d35e7
+  bin/lib/cli.py#_resolve_session_ref_for_envelope: 66160831484eeec9813b8ee54881d9dd7c150f300bf78e4730d5744ab2f1577b
+  bin/lib/cli.py#_resolve_session_ref_with_source: 5199e4cf40f4304c77772d2514aab04c7a11f776ca733cdb75696caa9b4aefdb
+  bin/lib/cli.py#_run_verify_tests: 75672a19fdb84e1b4318c40d1ac5507eec80a7af0ea94e9cb264f0e765318acf
+  bin/lib/cli.py#_try_resolve_session_ref: a0b0c89d7a03dca5d501962473340f43ba896452422ca24d58ea59887ee44277
+  bin/lib/dispatch.py#_dispatch_worker_env: cea5586d22914fdda73bf43726fd82993835704cab708e3a3f705a1c83015d12

@@ -1,0 +1,38 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: sandbox-family
+description: The sandbox question answered from ANY ONE of its three concern key names — `sandbox_entry` (WHERE a collaborator enters, opt-in, SPEC-0169), `spike_sandbox` (WHETHER a caged bridge exists + its pinned release, declare-or-waive, SPEC-0172) and `spike_data_safety` (WHAT the restored copy carries, mandatory, SPEC-0175). Per project - does it run a sandbox at all, and what has it answered. Navigation only; the three concerns stay distinct. Derived on read, no gate, no event.
+lens:
+  kind: sandbox-family
+  # The family MEMBERSHIP is the stored QUERY (the `node-list` lens.node_type precedent) — the ONE home
+  # of "which concerns are the sandbox family". Everything else per member (spec id, carrier_path,
+  # declare_key/type, presence_policy) is DERIVED from the kernel concern registry (SPEC-0128) at read
+  # time, so a member can never drift from its own contract. A member the live registry does not carry
+  # is dropped from the assessed set and reported in `notes` (fail-closed on membership).
+  members:
+    - concern: sandbox_entry # SPEC-0169 — opt-in
+      question: WHERE a collaborator enters — a location, never a credential
+    - concern: spike_sandbox # SPEC-0172 — declare-or-waive
+      question: WHETHER a caged bridge exists, its pinned release and its cage checks
+    - concern: spike_data_safety # SPEC-0175 — mandatory
+      question: WHAT the restored production copy carries, on all three strands
+why: >-
+  On 2026-08-13 a controller searched the fleet for the key name `spike_sandbox`, found none in kupiclub,
+  and concluded kupiclub had no sandbox. It has one — declared under `sandbox_entry`. The owner corrected
+  it from memory; a second correction followed for boomrocket, where the key was present but its VALUE
+  unread. A reader with full repo access navigated wrong twice in one sitting (X-0852). The three concerns
+  are CORRECT and must stay distinct — the controller once suggested reconciling two of them to a peer
+  project, then read the specs and retracted it in writing, and an external consult confirmed the schema
+  is not what failed: NAVIGATION is. So this is the consult's option (ii) — a derived GROUPING that makes
+  the family reachable from any one member, with the hop back (member -> family) carried as a one-line
+  cross-reference in each of SPEC-0169 / SPEC-0172 / SPEC-0175. It adds NO fourth concern, NO new store,
+  NO concern-to-concern dependency (the consult ranked that as justified only LATER, if presence/drift
+  semantics prove unable to carry the obligation), and nothing that turns the OPT-IN `sandbox_entry` into
+  an obligation for a project that genuinely has no sandbox: a project reading `sandbox: no` has an EMPTY
+  `open_questions` by construction, so a pure library with a coherent waiver never reads as a gap. That
+  scopes this lens's question without erasing debt — an unanswered mandatory concern stays fully visible
+  in the sibling `mandatory-concern-gaps` lens and in `bin/yitc-v2 debt`. Membership + stance are DERIVED
+  fresh on read: the kernel concern registry (SPEC-0128) for each member's contract, and the SAME
+  `_ops_carrier_violations` stance evaluator the init sweep fails closed on (CHARTER §P5 — one stance
+  home), over each project's own `yitc-ops.yaml`. Enumeration reuses the read-only `nightly._v2_projects`
+  registry scan; peer carriers are READ, never written. No cache, no gate, no event.

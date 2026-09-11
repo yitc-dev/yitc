@@ -1,0 +1,11 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: verb-map
+description: Per-verb governance — the CLI verb surface and the specs that govern it (file-level today).
+lens:
+  kind: verb-map # pure f(graph): verb universe from build_parser; governance from code_to_specs
+why: >-
+  CLI verbs are the control surface — each needs a discoverable home for its governing
+  specs/checks. verb-map assembles that ON DEMAND from existing graph data (no verbs/ store, no new
+  node/edge). The verb universe is derived from the real argparse surface so it can't drift; governance
+  is file-level until the symbol-level reverse index lands (output labels itself "file-level approximation").

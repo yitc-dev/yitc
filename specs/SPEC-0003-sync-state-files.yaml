@@ -1,0 +1,85 @@
+id: SPEC-0003
+title: Per-session sync checkpoint files — schema, atomic write, gitignored cache
+status: active
+created_at: '2026-05-28'
+consumed: false
+implements: # durable anchors — file#symbol, build-resolved
+  - bin/lib/cli.py#SYNC_STATE_DIR # per-session checkpoint dir (gitignored cache)
+  - bin/lib/journal.py#_checkpoint_path # checkpoint file path per session_ref
+binding:
+  - code-enforced # : explicit code-enforced residency token (implements: IS the delivery)
+
+body: |
+  ## Internal
+
+  Journal sync (parser/adapter materializing chat-class events from the provider
+  session log into events.jsonl —) tracks per-session progress in a checkpoint
+  file:
+
+      journal-sync-state/<session_ref_hash>.yaml
+
+  ONE writer per file: each session reads and writes ONLY its own checkpoint
+  (`<session_ref_hash>` derived from the resolved session_ref). No shared state, no
+  cross-session writes → no race condition by construction (CHARTER §Principle 5 —
+  single writer, not a lock).
+
+  Checkpoint fields (cursor for incremental sync; exact shape finalized by the
+  adapter, kept minimal):
+  - `session_ref` — the session this checkpoint belongs to
+  - `last_processed_uuid`— last source-log entry locator materialized (monotonic cursor)
+  - `updated_at` — ISO 8601 UTC of last successful sync batch
+
+  ### Atomic write contract
+
+  Checkpoint files are full-file rewrite targets (unlike append-only events.jsonl), so
+  they are written via `write_text_atomic` (tempfile + fsync + `os.replace`) per
+  patterns/atomic-state-file-writes.md. A partial write would corrupt the cursor for
+  the next sync; atomic rename guarantees the reader sees either the old or the new
+  checkpoint, never a torn one.
+
+  ### Gitignored cache semantics
+
+  `journal-sync-state/` is machine-local cache, NOT source of truth, and is gitignored.
+  Truth = events.jsonl (governance SoT after sync) + the source session logs. If the
+  cache is lost, recovery is: re-sync from the start + `source_ref` dedup against
+  events.jsonl skips already-materialized rows (no duplication, no loss).
+
+  This is the ONE exception to CHARTER §Principle 5 "derived artifacts are committed":
+  the checkpoint is a per-machine sync cursor, fully reconstructible, with no
+  cross-machine meaning — committing it would create spurious diffs and merge noise.
+
+  ### Violations
+
+  Any of:
+  - Committing `journal-sync-state/` to the repo (it is machine-local cache)
+  - Treating a checkpoint as source of truth (truth = events.jsonl + source logs)
+  - Sharing one checkpoint file across multiple sessions (breaks single-writer invariant)
+  - Non-atomic checkpoint writes (`open("w")` instead of `write_text_atomic`)
+
+  → anti-complexity filter applies; requires owner approval + a D-XXXX decision.
+
+  ## Rationale
+
+  Single-writer-per-file (each session owns only its `<session_ref_hash>` checkpoint)
+  eliminates the cross-session race by construction — no lock needed (CHARTER §Principle 5).
+  Atomic rewrite is required because a torn cursor write would corrupt the next sync; the
+  reader must see old-or-new, never partial. The cache is gitignored — the ONE exception to
+  «derived artifacts are committed» — because it is a per-machine sync cursor with no
+  cross-machine meaning, fully reconstructible by re-sync + source_ref dedup; committing it
+  would create spurious diffs and merge noise.
+
+  ## Verification
+
+  - `journal-sync-state/` is listed in `.gitignore` (probe: grep).
+  - Each checkpoint file parses as strict-valid YAML.
+  - Deleting the cache + re-running sync produces no duplicate rows in events.jsonl
+    (source_ref dedup — exercised by tests).
+
+cites:
+  - decisions/-own-journal-governance-sot.yaml
+  - SPEC-0002
+  - patterns/atomic-state-file-writes.md
+  - CHARTER.md#principle-5
+implements_signature:
+  bin/lib/journal.py#_checkpoint_path: 13cf3d093cb245ebb4749ac12f627a6462aafe08873e5fd8fd1ff6abcf641554
+  bin/lib/cli.py#SYNC_STATE_DIR: 1b57d0ef0f52534d4a6648f8088ee0fdeea5770c91dc76599de6bb0d602ef5ef

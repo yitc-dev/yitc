@@ -1,0 +1,446 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0169
+title: 'Collaborator grant contract — named separable rights, server-issued identity, owner-held write'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # RE-PINNED to the class default at activation. The
+                               # `v2-self` exclusion marker this spec carried while `proposed` was
+                               # the non-active exclusion, and holding it past activation would make
+                               # an ACTIVE kernel contract silently NOT travel to the consumers it
+                               # governs — a grant contract nobody downstream holds. Dropped at the
+                               # same moment the policy switched on; the two are one act.
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+                               # = Anchors. durable anchors : PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+implements: # DELIBERATE ( B5): design-phase spec. The template placeholder
+  - bin/lib/grants.py#policy_enabled # (build-order step 5, LAST) — THE POLICY SWITCH: the
+                               # ordering gate that refuses to report enabled while any evidence-path
+                               # capability is missing, and the anchor of the whole enforcement half
+                               # (grants.py also homes the reader, the provenance boundary, the
+                               # authorization decision, reach and the trail). This is the code that
+                               # makes the contract NORMATIVE, so it is the spec's primary anchor.
+  - bin/lib/init.py#_hook_sandbox_entry # (build-order step 4) — the sandbox_entry residual-shape
+                               # validator the GENERATED registry-driven sweep dispatches to. First real
+                               # anchor; steps 1-3/5 add theirs as they land.
+                               #
+                               # `<file>#<symbol>` was left here through draft and showed up as a
+                               # stale anchor at `graph build` once the spec went `proposed`; removed
+                               # at the `accepted` transition. Real anchors are set by the
+                               # implementing change-set at `executing` — the five build-order steps
+                               # in the proposing plan's `implementation_plan` — not guessed now.
+
+body: |
+  ## Scenario
+
+  The owner names WHO may do WHAT on WHICH project — for example, that both the owner and a
+  collaborator may deploy code, while only the owner may write production data. Each named person
+  then works under the identity they actually logged in with; nobody states who they are. An
+  operation attempted by someone not named, or under an identity the server did not issue, is
+  refused rather than performed. When a name is removed, the removal is demonstrably in force.
+
+  ## Internal
+
+  > **SANDBOX FAMILY — navigation, not a rule.** `sandbox_entry` is ONE of three separately
+  > named concerns that together answer a project's sandbox questions: `sandbox_entry` (this spec — WHERE
+  > a collaborator enters, OPT-IN), `spike_sandbox` (SPEC-0172 — WHETHER a caged bridge exists and its
+  > pinned release) and `spike_data_safety` (SPEC-0175 — WHAT the restored copy carries). They stay
+  > DISTINCT; a reader who knows only one of the names sees all three via
+  > `bin/yitc-v2 graph query sandbox-family`. Grounds: on 2026-08-13 a reader grepped `spike_sandbox`,
+  > found none in a project that declares its sandbox under THIS key, and concluded it had none (X-0852).
+  > A navigational pointer (SPEC-0005 rule 8) — it changes nothing here, and this concern stays OPT-IN.
+
+  ### 1. A grant is (person, project, rights) — never a role, never a convention
+  A GRANT is an explicit triple: a named PERSON, a named PROJECT, and one or more RIGHTS from the
+  closed set in rule 2. "The owner only" is NOT expressible as a rule and MUST NOT be assumed as a
+  default: the requirement this contract serves is that SEVERAL named people ship. A grant carrier
+  that can express only a single privileged identity does not satisfy this spec.
+
+  #### 1a. The PROJECT leg may be a NAMED project or the ALL-REGISTRY-PROJECTS SCOPE CLASS
+  A grant's PROJECT may be written either as one named project or as the single reserved scope
+  class **all projects present in the registry at authorization read time**. The scope class is a
+  DECLARATION, and its MEMBERSHIP is RESOLVED against the registry on EVERY authorization read. It
+  is NOT sugar that expands into a project list when the grant is written.
+
+  OWNER-AUTHORIZED MEANING (recorded 2026-08-08, and the reason this clause exists). "All projects"
+  means ALL PROJECTS IN THE REGISTRY, **INCLUDING PROJECTS REGISTERED LATER**. The alternative
+  reading — only the projects existing on the day the grant was written — needs no scope class at
+  all, just that many written rows. The owner settled this after being shown the distinction
+  explicitly; it is a value/authority decision, not a technical one, which is why it is recorded
+  HERE, where the rule lives, and not only in the task that implemented it.
+
+  WHY THIS DOES NOT BREACH RULE 8 (declared, never implied). What is DECLARED is the RULE; the list
+  is merely its resolution. Read-time registry resolution would breach rule 8 only if the carrier
+  left the reach to be INFERRED — a wildcard, an inheritance, an "unless listed" default. A carrier
+  that names the scope class states its reach exactly as explicitly as one that names a project.
+  Basis: the external FULL consult of 2026-08-08, verdict GREEN, recorded at
+  `decisions/grants-all-projects-carrier-audit-adhoc.yaml`, which adjudicated this as the only
+  surviving option — a drift detector over enumerations needs a declared all-intent marker and then
+  IS a weaker version of this with a second surface, and accepting the decay removes nothing.
+
+  WHY A CLASS AND NOT AN EXPANSION AT WRITE TIME. An enumeration written to MEAN all silently STOPS
+  meaning all the moment one more project is registered. Nothing flags it — the grant carrier and
+  the registry both stay well-formed — and the only symptom is a person REFUSED on a project the
+  owner believes they hold, surfacing as a complaint if at all. An implementation that expanded the
+  class on write would look correct on the headline behaviour on the day it shipped and would carry
+  that same decay from the next registration onward. So the STORED carrier must keep the
+  declaration, and a reader must not substitute an enumeration for it.
+
+  WHAT THE SCOPE CLASS DOES NOT DO — the boundary, which does not move. It widens WHICH PROJECTS a
+  KNOWN grant covers. It NEVER widens WHO is admitted: rules 3-4 stay fail-closed, and a missing,
+  unmapped or unissued identity is still a REFUSAL, exactly as it is for an enumerated grant. It
+  reaches no further than the registry either — a project the registry does not declare is not
+  covered, so the registry BOUNDS the class rather than the class escaping it. And it is written by
+  the OWNER like every other grant (rule 5): no path may let a non-owner set or widen this scope for
+  themselves, and a refusal of such an attempt must name the applicable route rather than strand the
+  refused party. Two carrier states grant NOTHING rather than resolving to a guess: a real project
+  bearing the reserved name (the declaration could mean two things, so it declares neither), and a
+  person holding the class while scoped to only some projects (a rule-1 contradiction).
+
+  ### 2. Four rights, separately grantable (closed set)
+  - `deploy-code` — build and replace the running application.
+  - `apply-prod-data` — turn a staged/sandbox change into writes against live production rows.
+  - `dry-run-readonly` — execute the same path with no writes and no production row touched.
+  - `decide-authority` — DECIDE a cause that is otherwise reserved to the owner, on the project the
+    grant names. It confers NO execution capability of its own.
+  They are SEPARATE because their blast radius differs: a person may hold `deploy-code` without
+  `apply-prod-data`. An implementation that collapses them into one privilege violates this rule
+  even if every individual grant happens to be correct today. Adding a fifth right is a spec change.
+
+  THE DECIDING AND THE DOING ARE DIFFERENT RIGHTS, and this is the separability rule applied to the
+  fourth member rather than a new principle. Holding `decide-authority` ALONE leaves `deploy-code`
+  and `apply-prod-data` REFUSED on that same project: their blast radius differs from a decision's,
+  which is precisely why this set is separately grantable. An implementation in which the decision
+  right carries an execution path — by gating a verb on it, or by making it exercisable — collapses
+  two privileges into one and violates this rule exactly as a merged execution right would.
+
+  WHAT THE FOURTH RIGHT DOES NOT DO — the boundary, which does not move. It widens WHICH CAUSES a
+  named person may decide on a named project. It NEVER widens WHO is admitted: rules 3-4 stay
+  fail-closed, so a missing, unmapped or unissued identity is still a REFUSAL. It grants no
+  execution. It is written by the OWNER like every other grant (rule 5) — no path may let a
+  non-owner grant or widen it for themselves. And WHICH causes it clears is settled by the doctrine
+  that reserves them, not by this rule: this rule establishes that the right EXISTS and is
+  separately grantable, nothing more.
+
+  ### 3. Identity is SERVER-ISSUED; caller-supplied actor input is REFUSED
+  For any operation gated by rule 2, the acting identity is derived EXCLUSIVELY from the
+  server-issued session / OS identity. A caller-supplied actor argument or environment fallback is
+  **refused**, not merely overridden or logged. This is the load-bearing clause: while any
+  caller-assertable source remains an ACCEPTED authority, the authenticated path is decoration and
+  an authorization check runs over an unverified name.
+
+  ### 4. Fail closed, in both directions
+  A missing, unmapped, or unissued identity is a REFUSAL. An empty or unreadable grant set is a
+  REFUSAL, never an open door. A misconfigured installation therefore denies work; it never grants it.
+
+  ### 5. Separation of duties — the gated component MUST NOT write its own grants
+  The component whose behaviour is gated by grants MUST NOT be able to create, widen, or restore
+  them. Grant WRITES are performed by the owner (or an authority outside the gated component); the
+  governed system's role is to VALIDATE, ENFORCE, and REPORT. This is a security boundary, not a
+  packaging convenience: any change that makes the gated component able to write grant state
+  invalidates this spec rather than extending it.
+
+  ### 6. What the governed system MUST be able to do (or the contract is advisory)
+  Rule 5 removes the write; it does not remove the obligation. The system MUST provide, in its own
+  code: schema and semantic VALIDATION of grant state · fail-closed AUTHORIZATION · IDENTITY BINDING
+  per rule 3 · REFUSAL on an unissued identity · fixture-based grant/revoke PROBES · READ-ONLY
+  inspection and reporting of live grant state. A contract whose only artifact is documentation
+  telling the owner to edit the carrier correctly does NOT satisfy this spec.
+
+  ### 7. Revocation is provable, not merely performed
+  Removing a name from a grant MUST be demonstrable: the same request that was permitted before the
+  removal is refused after it. A grant mechanism that can add but cannot prove removal is incomplete.
+
+  ### 8. REACH IS DECLARED, NEVER IMPLIED — enforcement where identity cannot be escalated
+  This contract's reach is bounded by a fact about the HOST, not by its own design: a grant list can
+  only refuse an actor who cannot ASSUME another identity. Where an actor CAN escalate — holding
+  unrestricted sudo, or container control equivalent to it — every refusal aimed at that actor is
+  bypassable by the actor it names, whatever rules 1-7 say. So an installation MUST classify each
+  actor, and the contract MUST state which reach applies:
+  ENFORCEMENT — for an actor who cannot escalate to another identity; a refusal genuinely refuses.
+  This is the reach for the scope-limited collaborator class.
+  ADVISORY + AUDIT — for an actor who can escalate (a trusted developer holding sudo). The grant
+  still expresses intent and still prevents ACCIDENT, but it is not a barrier, and this contract MUST
+  NOT be written or read as though it were.
+  The reach is PER-ACTOR, never per-class-by-assumption. Deriving it from a registry label (a role
+  name, a restrictions entry) rather than from the actor's ACTUAL escalation capability is a false
+  claim: the label states INTENT, the host states FACT, and only the fact bounds the reach. Where the
+  two disagree the fact wins, and the disagreement is itself reportable.
+  Interpretation note, what this does NOT weaken. The fail-closed defaults of rules 3-4 keep their
+  FULL value under BOTH reaches. They prevent the accident and the mistake — a wrong flag, an
+  unconfigured actor set, an unmapped identity — which is the larger part of the real risk surface.
+  Rule 8 settles only what those defaults may CLAIM: they do not stop a determined
+  escalation-capable actor, so no surface may present them as preventing one. A later reader must not
+  re-inflate the claim by deleting this note.
+
+  ### 9. Non-repudiable audit trail — the half that survives every reach
+  Every exercise of a right in rule 2 is RECORDED: which identity acted, which right, on which
+  project, when, and under which grant. The record is append-only; the acting component may append
+  its own entry but never rewrite the trail (rule 5 applies to the trail as to the grants).
+  This is NOT a fallback for the advisory case; it is unconditional. Under ENFORCEMENT reach it
+  explains a refusal; under ADVISORY reach it is the ONLY property that survives, and it is what
+  makes a trusted-developer lane ACCOUNTABLE rather than merely trusted. A contract satisfying rules
+  1-8 that recorded nothing would leave the escalation-capable actor entirely unobserved.
+  Interpretation note, what "NON-REPUDIABLE" does and does not claim (added at `accepted`, from the
+  trial cycle-2 exit convergence read). The property delivered is TAMPER-EVIDENCE against a named
+  threat model, plus an ANCHOR held outside the trail it anchors — a digest of the trail head
+  journalled with the observation. Non-repudiation holds SO LONG AS that external anchor is trusted.
+  It must NEVER be read as tamper-PROOFNESS against privileged host control: an actor able to rewrite
+  a record, recompute its digest and every following link — or simply to truncate — leaves a
+  consistent file, and nothing inside a single file closes that. This is rule 8's discipline applied
+  to a second axis: state what the mechanism may CLAIM, so no later surface can quietly inflate it.
+  The two notes fail the same way if deleted, and neither is decorative.
+
+  ### 10. The carrier is a PARAMETER; the rule is not carrier-specific
+  Rules 1-7 are independent of WHERE grant state lives. The carrier is an installation parameter
+  (§Parameters). Interpretation note: the carrier may sit outside the governed system's own write
+  territory — that is compatible with, and in this installation is the mechanism of, rule 5.
+
+  ## Parameters
+
+  | Parameter | Meaning | `consumed` |
+  |---|---|---|
+  | grant carrier | WHERE grant state lives for this installation. Read-only to the governed system per rule 5. | no — a path, never a consumed governance scalar |
+  | identity source | The server-issued session/OS identity rule 3 derives from. | no |
+
+  Neither is `consumed`: both are per-installation paths/handles, which the `consumed` whitelist
+  excludes by construction.
+
+  ## Rationale
+
+  The mechanism this contract governs already separates the two questions: an actor-authority port
+  answers only «IS this actor authorized», never «is this really them», and warns that a consumer
+  skipping the second half runs an authorization check over an unverified name. That consumer state
+  was real — an operation took its actor from a command-line flag defaulting to the local user, so
+  the person performing it supplied their own name — while a collaborator held production deploy
+  rights. Rule 3 exists to remove that input, not to supplement it.
+
+  Rule 1's insistence on NAMED people is likewise incident-grounded: an "owner-only" label travelled
+  three coordination carriers unchecked before anyone tested it against the requirement, and the
+  mechanism underneath it had contradicted that label in writing the whole time. A restated label is
+  not a checked claim.
+
+  Rule 5 is separation of duties. Rule 6 exists because rule 5, alone, is the failure mode a reviewer
+  should expect: a boundary that removes an ability and forgets to keep the obligation degrades into
+  a document.
+
+  ## Verification
+
+  Every probe is DIFFERENTIAL — it names the input that must make it FAIL. Probes run against
+  KERNEL-OWNED enforcement behaviour and FIXTURE grant sets; a change to live grant state is
+  owner-controlled operational evidence, NEVER a probe of this spec (rule 5).
+
+  - **V1 (rule 3) — forged identity refused.** An operation carrying an actor identity the server did
+    not issue is refused. Failing input: that same call succeeding.
+  - **V2 (rule 3) — caller input is REFUSED, not overridden.** A protected operation invoked WITH a
+    caller-supplied actor argument or env fallback is refused outright. Failing input: it proceeding
+    on the server-issued identity while silently ignoring the flag — that passes an
+    "identity is correct" check while leaving the accepted-authority surface alive.
+  - **V2-ENV (rule 3) — the DERIVATION itself does not follow the environment.** V2 above proves the
+    ENUMERATED actor channels are refused; this proves the identity the refusal exists to protect is
+    not movable by an environment value NOBODY enumerated. A protected operation run with
+    LOGNAME/USER/LNAME/USERNAME set to a different **provisioned** user derives the OS uid's passwd
+    name, not the environment value. Failing input: the derived identity following the environment.
+    Two bounds, both load-bearing, or this probe passes against the broken code:
+    (a) the forged name MUST be PROVISIONED — forging to garbage exercises rule 4's vocabulary check
+    instead of the derivation, and the vocabulary check was never the thing that was broken;
+    (b) the probe MUST run the SHIPPED call site end-to-end, not a test-injected identity seam —
+    V1/V2 inject theirs and therefore cannot see a real producer at all, which is precisely why this
+    contract read green for the whole period the channel was open.
+    Grounds : every shipped gate site bound `getpass.getuser`, which consults
+    LOGNAME/USER/LNAME/USERNAME before the passwd database. Measured with `USER=<collaborator> LOGNAME=<collaborator>`
+    against the real uid name `dev`, the gate derived `<collaborator>` — a provisioned user, so rule 4 admitted
+    it and the operation proceeded under a name its caller chose, while the rule-3 refusal correctly
+    reported nothing to refuse. The remedy is to REMOVE the channel (derive from
+    `pwd.getpwuid(os.getuid).pw_name`), never to add those four to the refused-variable list: every
+    login shell sets them, so refusing on their presence would refuse every legitimate invocation.
+  - **V2-CALLSITE (rule 3) — the property is checked where it lives.** Rule 3 is a property of the
+    COMPOSITION, not of any one function: the identity boundary reads no environment in its own body
+    yet derives from the callable each call site binds. So EVERY shipped `session_identity=` binding
+    must name a producer that reads no environment, verified by reading that producer's code — not
+    its name and not a docstring. Failing input: any call site bound to an environment-reading
+    producer. Without this leg the contract's central claim rests on prose that was, for its whole
+    life, true of a function body and false of every call site.
+  - **V3 (rule 4) — fail closed both ways.** An unmapped identity is refused; an empty/unreadable
+    grant set is refused. Failing input: either case permitting the operation.
+  - **V4 (rule 7) — revoke is provable.** Against a fixture grant set, removing a name flips the same
+    request from permitted to refused. Failing input: the post-removal request still permitted.
+  - **V5 (rule 1) — a granted NON-OWNER can act.** A named non-owner holding `deploy-code` is
+    PERMITTED to deploy. Failing input: that person refused. Without this probe the contract is green
+    by construction: an implementation refusing everyone passes V1-V4 perfectly and satisfies no
+    requirement.
+  - **V6 (rule 2) — rights are separable.** A person holding `deploy-code` but not `apply-prod-data`
+    is refused on a production-data apply while their deploy still succeeds. Failing input: the same
+    person permitted to apply production data.
+  - **V7 (rule 6) — read-only validation of live state exists.** The system reports whether live grant
+    state is well-formed against rules 1-2 WITHOUT writing it. Failing input: a malformed live grant
+    reading clean.
+  - **V8 (rule 5) — the gated component cannot write grants.** A write attempt against the grant
+    carrier from the governed system's own path fails. Failing input: any such write succeeding.
+  - **V9 (rule 8) — declared reach matches measured capability.** For each actor the installation
+    declares a reach, and the declaration matches that actor's ACTUAL escalation capability as
+    measured on the host. Failing input: an actor declared under ENFORCEMENT reach who in fact holds
+    unrestricted `sudo` or equivalent container control — the declaration must be reported wrong,
+    not quietly honoured. A registry label alone never satisfies this probe.
+  - **V10 (rule 9) — the trail is complete and attributable.** Every exercise of a right produces a
+    record naming identity, right, project, time and grant. Failing input: a successful exercise
+    that leaves no record, or a record that cannot distinguish WHICH identity acted — either makes
+    the trail non-probative exactly where the advisory reach depends on it.
+  - **V12 (rule 2) — the DECISION right confers no EXECUTION.** A person holding ONLY
+    `decide-authority` on a project is REFUSED there on `deploy-code` AND on `apply-prod-data`, while
+    a control person holding those two IS permitted on them — the control is what proves the refusal
+    is about the right rather than about a broken fixture. Failing input: either execution path
+    permitted off the decision right alone, which would collapse deciding and doing into one
+    privilege — the exact merge rule 2 forbids. Structural arm, because a single fixture cannot see
+    it: no gated operation maps to `decide-authority` and it is not the exercisable right, so the
+    separation is a property of the code and not only of today's grant set.
+  - **V11 (rule 1a) — the all-projects scope class is a CLASS, resolved at read time.** Against two
+    carrier states whose grant declarations are BYTE-IDENTICAL and whose registry differs by one
+    newly-registered project, a grant declaring the scope class authorizes that new project while an
+    ENUMERATED grant naming the same projects refuses it — the enumerated leg being the control that
+    proves the class is doing the work. The STORED carrier still carries the declaration, not an
+    expanded list, and the same declaration re-resolved against a different registry yields a
+    different covered set. Failing inputs, each of which this probe must catch: the class expanded
+    into an enumeration at write time (green on the first leg today, decayed at the next
+    registration); the class honoured as an unconditional yes, so a project the registry does not
+    declare is covered; or the class admitting a subject rules 3-4 refuse — a scope class widens
+    projects, never subjects.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-N # ( B2). Non-blocking, suppressed in default views.
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: collaborator-lane-server-side-apply-authority-gove
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # — the RESIDENCY token, declared at activation. This contract
+                               # is not FETCHED by a verb before acting: it is enforced IN CODE at the
+                               # pre-argparse provenance boundary (bin/yitc-v2#_gate_actor_provenance ->
+                               # bin/lib/grants.py#enforce_gated_operation), which decides every gated
+                               # operation and records it, with no reader in the loop. Same shape as the
+                               # code-enforced siblings SPEC-0163 / SPEC-0164 / SPEC-0111.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+concern: # SPEC-0128 rule 1 — the SINGLE authoritative declaration; every surface
+                               # (born template, declare-or-waive sweep, debt lens) is GENERATED from it.
+                               # Hosted here per rule 1 (one spec MAY host several concerns).
+  - section: sandbox_entry
+    born_order: 190
+    carrier_path: sandbox_entry
+    presence_policy: opt-in
+    update_policy: init re-seed
+    declare_key: entry
+    declare_type: string
+    waiver_policy: loose
+    shape_hook: sandbox_entry_shape
+                               # — the RESIDUAL shape check (SPEC-0128 Rule 2's registry-named
+                               # deep-shape hook). Load-bearing for an OPT-IN concern: the generic sweep
+                               # skips an absent section (correct — opt-in owes nothing) and checks a
+                               # PRESENT one ONLY through this hook, so without it ANY sandbox_entry
+                               # content reads clean and a hand-, undeclared entry stays invisible.
+                               # Kernel-owned validator: bin/lib/init.py#_hook_sandbox_entry (named by
+                               # EXACTLY this one concern block).
+    born: |2
+      sandbox_entry:
+        # SPEC-0169 — the collaborator sandbox ENTRY POINT, declared once instead of re-derived per
+        # project. OPT-IN: most projects have no collaborator sandbox and owe nothing here. Declare it
+        # when a person other than the owner is meant to enter a non-production stack of this project:
+        # entry: <the address or handle a collaborator enters through>
+        # A declared entry becomes conformance-checkable; a hand-wired one is invisible.
+        #
+        # WHY OPT-IN AND NOT DECLARE-OR-WAIVE: an UNDECLARED sandbox is not left unguarded by this
+        # choice — a collaborator can only be IN a sandbox by holding a grant (SPEC-0169 rule 1), and a
+        # grant names its project explicitly. Visibility is therefore carried by the grant contract;
+        # forcing every consumer to answer a sandbox question it does not have would be process for its
+        # own sake (CHARTER §Principle 1 filter 3 — nothing would be removed).
+        #
+        # The entry point is a LOCATION, never a credential: keys, tokens and passwords never appear
+        # here (SPEC-0100 §Security authoring-moment defaults, item 2 — no secret in runtime output or
+        # committed state). Read-only dry-run credentials are provisioned out of band.
+        #
+        # THE BORN STANCE IS A WAIVER, and it must be a real key rather than commentary. The
+        # section is EMITTED for every project, so it is PRESENT — and `_hook_sandbox_entry` holds a
+        # present block to a stance fail-closed, on the `live_revision` precedent that a present-but-
+        # empty block is malformed opt-in config and not absence. A comment-only block declares
+        # NOTHING, so every freshly-`init`ed project would fail its own born template the moment this
+        # spec went active. Replace the waiver with `entry:` when this project actually grows a
+        # collaborator sandbox; the waiver is what an opt-in concern with no sandbox honestly says.
+        waiver:
+          reason: >-
+            no collaborator sandbox yet — this project keeps no non-production stack, so it has no
+            entry point to declare. Replace this waiver with `entry: <address>` when one exists
+            (SPEC-0169 rule 1a; the grant contract, not this section, is what admits a person to a
+            project at all).
+
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

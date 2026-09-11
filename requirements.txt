@@ -1,0 +1,5 @@
+# Runtime dependencies for bin/yitc-v2.
+# PyYAML is the SOLE 3rd-party runtime dep — every other import in bin/yitc-v2 is Python stdlib.
+# A fresh checkout needs this to run `bin/yitc-v2 --help`; install with:
+# python3 -m pip install -r requirements.txt
+PyYAML==6.0.2

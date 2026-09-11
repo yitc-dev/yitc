@@ -1,0 +1,342 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md / SPEC-0005.
+
+id: SPEC-0057
+title: The inspection construct — periodic system-level methodology examination as an observation not a gate
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # via the proposed→active adoption gate (this spec's activation_owner_task).
+
+created_at:
+
+consumed: false # process/governance spec — no code reads a scalar param from it. Stays
+                               # false at active too: enforcement is distributed authoring/run discipline,
+                               # not a code-read scalar param (GRAPH `consumed:` whitelist).
+
+implements:
+- bin/lib/inspection.py#cmd_inspect_record # the §3 KERNEL-roster GUARD (the `THEMES` allow-set + the
+                               # `--theme` refusal) — the one CODE enforcement of the small/fixed/
+                               # owner-gated theme/tier KERNEL roster this spec governs (: also guards the --tier weekly subject). (: surfaced when the
+                               # roster grew T1→T9, then T10 at; the guard IS SPEC-0057 §3 in code.)
+                               # (plan K2): the guard is NO LONGER kernel-roster-EXCLUSIVE — a
+                               # `--theme` slug outside T1–T10 is accepted IFF declared in the CONSUMER's
+                               # yitc-ops.yaml inspection.themes[] (SPEC-0093 rule 12, the consumer-local
+                               # theme authority); an UNDECLARED, non-roster slug stays REFUSED fail-closed.
+                               # So this anchor enforces the KERNEL roster AND delegates consumer-declared
+                               # themes to SPEC-0093 rule 12 — the emit stays the existing inspection_completed
+                               # (SPEC-0057 §6 schema UNCHANGED); no new event kind / runner / sink.
+                               # Still a mostly-documentary / cross-cutting PROCESS spec — it governs the
+                               # inspection CONSTRUCT (what an inspection IS + its invariants). SPEC-0005
+                               # §7 note: the CONSTRUCT rules reach the AI as a RETRIEVED reference
+                               # (binding: query-only), fetched at Stage-1 when an inspection run is taken
+                               # into work; the `inspection_completed` EVENT schema stays homed in
+                               # SPEC-0025 (not here) — this anchor is the §3 roster-guard only.
+
+body: |
+  ## Scenario
+
+  The owner periodically wants a SYSTEM-LEVEL read on the methodology's own health over time — is
+  doc↔code drifting, is the handbook bloating, are shipped capabilities actually used. That read is an
+  **inspection**: a periodic examination distinct from the per-deliverable audit-pre/post
+  (a GATE) and the per-session aspect-audit. An inspection SCANS; it does not block. It is owner-invoked,
+  runs a fixed roster of themes by hand, and leaves its findings in the one nonconformity journal where
+  the triage pipeline routes them. This spec is the standing definition of that construct — what an
+  inspection IS and the invariants that keep it ONE small observation, not a scoring engine. (The
+  per-theme ROSTER CONTENT + checklists are LIVING and home in the plans — this spec POINTS to them; the
+  `inspection_completed` EVENT schema homes in SPEC-0025; the nonconformity SINK + triage routing home in
+  SPEC-0056 + AGENTS. This spec is the CONSTRUCT/identity half — it cites those homes, never restates them.)
+
+  ## Internal
+
+  Carried from §1-§9 (the live-rule half; is the historical decision that established it —
+  provenance, not the home). Ten construct rules + the boundary note.
+
+  ### 1. ONE EXAMINATION FAMILY
+  Inspection, the per-deliverable audits, and the per-session aspect-audit share ONE lens (the V2
+  evaluation lens — CHARTER principles), ONE sink (the nonconformity journal), and ONE root vocabulary
+  (the CHARTER 20 AI-failure-class list). They differ only in {trigger, subject, altitude, control-role}.
+  We unify the MODEL / VOCABULARY, NOT the code — the triggers stay legitimately separate. The aspect-audit
+  (per-session) is the sibling; inspection is its periodic, system-level form — same family, not a parallel
+  mechanism.
+
+  ### 2. AN OBSERVATION, NOT A GATE — manual-first
+  An inspection is an OBSERVATION: it scans, it does NOT block (a gate is CHARTER non-goal #7). It is
+  MANUAL-FIRST — no cron / verb / register-file is required to run one; cadence is owner-invoked, and the
+  manual run debugs the construct (that IS its adoption probe). Automation (a cron / auto-session wrapping
+  an inspection) is OUT until an explicit CHARTER §6/§7 change (Build+Review-only). A lens MAY
+  EXERCISE a gated/rarely-walked path in a NON-mutating dry-run (not only READ corpus artifacts) — a gate
+  that never fires rots unpassable INVISIBLY (X-0366) — and that is STILL an observation (dry-run,
+  owner-invoked, non-blocking), NOT a gate: homed as the exercise-the-gated-paths T6 lens in
+  `patterns/inspection-criteria-roster.md` (this spec POINTS, it does not restate — P5 / SPEC-0005 rule 8).
+
+  ### 3. THEME IS THE PRIMARY IDENTITY
+  An inspection is identified by its THEME; depth×cadence is each theme's SETTING, not the classifying
+  axis. Anti-proliferation is held by a SMALL FIXED roster + the 4 anti-complexity filters + owner approval
+  for any new theme (parity with the new-failure-class bar). Themes are CONTENT (a lens-checklist each),
+  NOT separate mechanisms — ONE construct, ONE event, ONE sink, ONE triage. **The roster (the fixed theme set, currently T1-T10, +
+  each theme's surfaces/probes/checklist) is LIVING content and is NOT restated here (P5): its normative
+  STABLE home is the non-FSM pattern `patterns/inspection-criteria-roster.md`** (it has no FSM, so it
+  can host living criteria indefinitely without ever becoming a terminal carrier — the drain-AT-realize
+  TARGET, SPEC-0034 §realized; resolved the P7 of homing living criteria in an FSM plan that can
+  reach realized/terminal — deviation `living-criteria-home-hosted-in-realized-terminal-plan`). The
+  roster content currently LIVES in the ACTIVE plan
+  `plans/inspection-list-refresh-2026-06-fresh-roster-lense.md` §Run-mode + base roster (legitimate
+  while that plan is ACTIVE) and DRAINS into the pattern home at that plan's realize (the named
+  relocate-to-patterns adoption). Read the roster at the active-plan source until drained; this spec
+  governs only that the roster is small, fixed, and owner-gated.
+
+  **Subject identity = THEME or TIER.** A run's subject is normally a THEME (T1-T10). A
+  TIER-level subject is ALSO recordable — currently `weekly` (the operational-hygiene sweep), emitted by
+  `bin/yitc-v2 inspect record --tier weekly` with a criteria_ref hashing the roster's Operational-hygiene
+  section (the tier analog of the per-theme checklist hash). This is additive: theme stays the primary,
+  fixed, owner-gated identity; a tier subject exists solely so a NON-theme periodic sweep (the weekly
+  hygiene tier) gains the SAME `inspection_completed` journal anchor a theme has, which the review-due
+  semaphore (SPEC-0119 / §9) reads. No new event kind, sink, or mechanism (ONE construct, §1).
+
+  ### 4. EVALUATION = THE FINDINGS, NOT A COLOR
+  An inspection's output IS its findings list — each tagged severity (HIGH/MED/LOW) + the surface it
+  touches. There is NO per-theme GREEN/YELLOW/RED verdict (a color floods RED at this altitude and pushes
+  toward bands/scoring — the exact complexity V2 forbids). The only per-theme signal is the trivially
+  derived binary `open HIGH? yes/no`; prioritize themes with an open HIGH on a load-bearing surface first.
+
+  ### 5. PROBE-ONLY
+  Each lens question MUST be event/state/measurable; drop any question with no probe — BUT record a
+  dropped-but-important question as a methodology gap (a `kind: improvement` / `relates_to: blind-spot`
+  capture, e.g. a value/time-saved axis with no v1 baseline). Per-theme lens-checklists + cadences are
+  filled EMPIRICALLY, run by run — not designed abstractly upfront.
+
+  ### 6. WHAT A RUN LEAVES DURABLE
+  (a) exactly ONE `inspection_completed` event even on zero findings (proof-of-performance), enriched
+  with the run's identifying + accounting fields — NO color verdict field. The FIELD SET itself is
+  enumerated single-SoT in **SPEC-0025**'s catalog and is NOT restated here (see the delegation two
+  sentences down): this section previously carried its own brace-list, which had already drifted — it
+  never gained the SPEC-0173 rule-1 `no_data` discriminator, and a second list that nobody updates for
+  the last field added is a drift source, not a convenience (CHARTER §P5 one home); (b)
+  findings AS nonconformity captures in the one journal (each triageable; many, not one); (c) only-as-
+  warranted downstream triage artifacts (most findings = event-only or linked); (d) the matured per-theme
+  checklist, hand-updated in the plan/criteria. **NO per-run report store**; the "register" of runs is a
+  VIEW / query over `inspection_completed` events. The event's payload SCHEMA is defined in SPEC-0025
+  (the events catalog) — not restated here. The event is emitted by the **`inspect record` verb**
+  (owner-invoked, manual-first — no cron) whose `criteria_ref` is a REAL **checklist-hash** over
+  the theme's living lens-checklist section, resolved across the roster's SERVED PARTS — the pattern
+  home `patterns/inspection-criteria-roster.md` and its declared continuation parts, which are ONE
+  living home split only for loadability (SPEC-0120 §3, SPLIT-never-delete)
+  (`<part>#<theme>@<sha256[:12]>`, naming the part the section ACTUALLY lives in — a ref that
+  named the parent while hashing a section relocated into a sibling would be a hollowed hash, so the
+  path and the hashed bytes always come from the same part), so editing the checklist changes the hash
+  and a stale theme run is
+  detectable. The thin emitter realises this §6 record; the construct spec stays documentary (SPEC-0005 §7).
+
+  ### 7. COUPLING TO THE SINK
+  An inspection finding IS a nonconformity → it rides the SAME pipeline: one journal, one
+  source-INDEPENDENT fingerprint (`captured_via: inspection` is provenance only, never identity), the
+  recurrence/reopen detector, the four routes. Metric split: `inspection_completed` counts RUNS; capture
+  events count FINDINGS — never summed. The journal-triage IS Theme T5 (meta) — the SAME scan as the
+  triage run, one activity, not duplicated. The sink + routing METHODOLOGY (route table, currency tokens,
+  reopen-FSM, four routes) homes in SPEC-0056 + AGENTS — this spec POINTS, does not restate it.
+
+  ### 8. FOUNDATIONS (turn the inspection on itself)
+  (F1) one examination family (§1). (F2) **"null ≠ clean"** — a no-cause result classifies no-problem vs
+  no-data (blind), per SPEC-0056 §3; a no-data result names the missing instrument. (F3) PREFER repo-native
+  artifacts (graph query / journal query / saved views / verbs) when they work — a manual grep is an
+  ALLOWED but DEFECT-MARKED fallback that must itself emit an observability-gap capture. SEQUENCING:
+  fix/adopt the artifacts FIRST, then mandate their use — do not impose "must use the verbs" over broken
+  tools.
+
+  ### 9. CONSUMER-LAYER + CADENCE MODEL (additive, manual-first)
+  The construct has THREE embeddings: (i) engine self-inspection over its own corpus; (ii) the
+  kernel→consumer `-C` inspection (owner inspects a consumer's methodology health — routing per
+  `evaluate-a-consumer-via-the-inspection-lenses-c-re`); (iii) a consumer's OWN project revizii — its
+  project-local themes DECLARED in the `inspection:` section of its `yitc-ops.yaml` (shape governed by
+  SPEC-0093; declare-or-waive, fail-closed). Relationship (iii) adds NO runner and NO new event KIND: a
+  consumer run is the SAME manual practice as (i)/(ii) — read the declared section, run each theme's probe
+  by hand via the launch/triage runbook, and emit one `inspection_completed` event PER THEME in the
+  consumer's own journal (the EXISTING §6 per-theme schema, theme-primary §3 — UNCHANGED; a consumer cycle
+  covering kernel + local themes leaves the SET of per-theme events, never one aggregate event).
+  **Finding-sink routing for (iii) — THE rule home:** a relationship-(iii) consumer run routes its findings
+  to TWO distinct sinks by KIND — a project-LOCAL-theme finding (the project's own domain health) → the
+  CONSUMER's OWN journal + triage (project territory); a methodology-ADHERENCE finding (the
+  consumer's conformance to kernel methodology) → the SHARED `cross` coordination log (the same channel
+  relationship (ii) uses — SPEC-0086). This §9 clause is the standing home of that split; the plan, the
+  runbook, and the verification probes only POINT here, they never re-state the routing rule (P5).
+  **Product-adaptation note (NON-NORMATIVE — an example/guidance; adds NO category, frame, runner,
+  event, or sink).** For its consumer-local inspection themes (iii), a project MAY ADAPT a kernel
+  T1–T10 lens APPROACH to the PROJECT realm — the METHOD travels, the engine themes do not: a
+  consumer's OWN project revizia inspects the project's own domain/docs, never the engine's own T1–T10
+  themes. Such a theme is still an ordinary declared `inspection.themes[]` entry (§3 theme-primary,
+  SPEC-0093 shape), NOT a new theme class. Relationship (ii) (the owner-driven `-C` methodology-
+  ADHERENCE check → shared `cross` log) is UNCHANGED by this note — it stays a separate owner-driven
+  diagnostic.
+  **Cadence model:** each roster row carries a cadence tier — continuous reflexes (always) · operational
+  hygiene (weekly) · system inspection T1–T10 (monthly, themes rotated) · anti-complexity apex (quarterly).
+  Cadence is a per-theme SETTING (§3), not a new axis; §2 manual-first is UNCHANGED (no cron/auto-session).
+  **Cadence VALUES home + the review-due semaphore.** The per-tier day-thresholds are a
+  machine-readable `<!--CADENCE-->` block in `patterns/inspection-criteria-roster.md` (the single
+  parseable home, `inspection.parse_cadence`; the CLI holds NO cadence literal). The **review-due
+  semaphore** (SPEC-0119, a report-only debt-echo view) reads that block + the `inspection_completed`
+  anchors and surfaces a subject (the weekly tier, a T1-T10 theme, or a relationship-(iii)
+  CONSUMER-DECLARED theme) as DUE iff it is past its cadence AND substantive work happened since its
+  last run — activity-gated (no work → no nag). It SURFACES due-ness, it never RUNS/schedules/selects
+  an inspection, so §2 manual-first is UNCHANGED (surfacing ≠ running — the external-auditor-confirmed
+  coherence, consult `review-due-semaphore-audit-adhoc`).
+  **Declared-theme subjects honor their OWN cadence.** A relationship-(iii) declared theme
+  (`yitc-ops.yaml inspection.themes[]`, shape per SPEC-0093 rule 12) is a review-due SUBJECT on the same
+  terms as a roster theme — anchored by the SAME `inspection_completed` event (§6 schema UNCHANGED), and
+  judged at the day-value of ITS OWN required `cadence:` tier (`weekly|monthly|quarterly`), resolved from
+  the SAME `<!--CADENCE-->` block above. A uniform monthly threshold across declared themes would be a
+  §3-violating flattening of a per-theme SETTING. Resolution is PER-SUBJECT and fail-safe: a declared
+  entry with no slug, no/unknown cadence tier, or no parseable `<tier>_days` value is SKIPPED, never
+  guessed (the never-nag-on-unknown discipline). This adds NO runner, NO cron, NO event kind, NO sink —
+  it is the EXISTING report-only semaphore widened to the subjects §9 already recognizes.
+  **Full = quick + T1–T10 (SUPERSET, not a fork):** a "full" revizia is a SUPERSET of a "quick" one —
+  it runs the complete weekly operational-hygiene sweep (the quick tier) as a FLOOR and layers the
+  T1–T10 system sweep ON TOP; it never trades away the cheap actionable hygiene checks
+  (parking/blocked/overdue-recheck/waiver-freshness). The two are not mutually-exclusive tiers. The
+  operational HOW (quick/full clarify-scope + the full-run checklist that carries the hygiene rows in
+  each theme's `inspection_completed` `criteria_ref`) homes in `patterns/inspection-criteria-roster.md`
+  §"On an «inspection» request" + §Run-mode — this spec states the superset invariant, it does not
+  restate the roster (P5).
+
+  ### 10. CURRENCY-VERIFICATION BEFORE SEVERITY (capture-sourced findings + blind track re-measures)
+  An inspection reads historical `deviation_captured` captures + the journal as INPUT. A finding sourced
+  from a historical capture describes a symptom observed in the PAST — it MUST be currency-verified BEFORE
+  it is given a severity grade, REUSING the existing triage currency classifier (the 5 tokens
+  {ALREADY-FIXED | OWNED-IN-FLIGHT | REGRESSED | TRULY-NEW | ALREADY-BUILT} + remedy-existence — SPEC-0063,
+  realised in `bin/lib/triage.py#_currency_status` / `_suggest_route`; carved from SPEC-0056 §1(5)+§5). This
+  is a reuse, NOT a new mechanism — no parallel classifier, no new verb, no new store. Concretely:
+  - **(a) reproduce-check gates the grade.** Grade a capture-sourced finding only after confirming the
+    symptom STILL reproduces (REGRESSED / TRULY-NEW). If the currency check resolves to ALREADY-FIXED, cite
+    the resolving task and do NOT grade it HIGH — the finding is closed/linked, not a live HIGH.
+  - **(b) unverified ⇒ `currency-unverified`, capped below confident-HIGH.** When the currency check cannot
+    be run or cannot be resolved, hold the finding as `currency-unverified` — a GRADING CAVEAT, NOT a 6th
+    classifier token — and never grade it a confident HIGH. (The 2026-06-23 monthly run's defect: T6
+    test-hermeticity graded 🔴 HIGH from historical captures although had fixed it the day before —
+     wont-do.)
+  - **(c) the blind-first external track RE-MEASURES independently.** A blind-first external track (§1
+    one-family; the dual-track run discipline in `patterns/inspection-triage-launch-runbook.md` STEP 2 +
+    the run-mode plan) must run its OWN reproduce / currency check on the symptom — it is NEVER handed the
+    primary track's pre-computed facts; otherwise "convergence" rests on stale shared inputs and the
+    independence the dual-track exists for is lost (the 2026-06-23 external convergence-on-stale-inputs
+    defect).
+  This is a MANUAL-RUN construct invariant (§2 manual-first) governing how the AI conducts a run — it adds
+  NO runtime code path and changes no GATE; the operational HOW lives in the runbook + run-mode (it POINTS,
+  P5).
+
+  ### Boundary note (the construct stays small)
+  An inspection adds NO new store — there is **no `inspections/<run>.yaml` namespace**; the run register is
+  a VIEW over `inspection_completed` events (§6). It adds no cron / pipeline (§2 manual-first; Build+Review-
+  only stays CHARTER §P6's rule, not restated). It does NOT change the audit-pre/post GATE semantics
+  (LIFECYCLE / SPEC-0036) nor the GRAPH node/edge schema (GRAPH.md) — inspection stays inside its own lane:
+  an observation feeding the existing sink. (These cross-cutting limits are sole-homed in CHARTER / GRAPH /
+  LIFECYCLE; named here only as the construct's boundary, not re-legislated — P5.)
+
+  ## Parameters
+
+  None consumed. The fixed roster size, the severity tags, the `open HIGH?` binary, and the
+  `inspection_completed` payload keys are owned by their homes (the living-roster plan / SPEC-0025);
+  this spec holds no scalar param.
+
+  ## Rationale
+
+  The design choices are all anti-complexity moves. THEME-primary (not a per-domain mechanism) keeps it
+  ONE construct with ONE event + ONE sink. EVALUATION = findings (no color) is a NET REMOVAL — it deletes a
+  per-theme color rubric in favour of the findings list + the derived `open HIGH?` binary. MANUAL-FIRST +
+  owner-invoked cadence avoids cron/pipeline creep (CHARTER §6/§7). PROBE-ONLY keeps it out of
+  business-judgement theatre while still recording un-probeable questions as blind-spots. Coupling findings
+  into the one sink (rather than a parallel inspection store) gives recurring-finding analysis AND one
+  pipeline. The construct is subject to its OWN T7/T4 lenses — when methodology-on-methodology work
+  outpaces product work, that is the signal to stop and ship. Prior-art: ISO management-system internal
+  audit; SRE production-readiness reviews. Provenance: (the decision that ratified the model) — the
+  deliberation, the rejected color-rubric, and the 2026-05-31 dual-track calibration story stay there as
+  history; this spec carries only the standing rule.
+
+  ## Verification
+
+  - **VP1 (observation, not a gate):** the spec states inspection SCANS and does not block, and that
+    automation needs a CHARTER §6/§7 change (grep §2). An inspection run mutates neither corpus nor code.
+  - **VP2 (one durable run-event + no store):** §6 fixes exactly ONE `inspection_completed` per run + NO
+    `inspections/<run>.yaml` namespace (register = a view); cross-checked against SPEC-0025's event schema.
+  - **VP3 (no color):** the spec carries the phrase "EVALUATION = THE FINDINGS, NOT A COLOR" and the
+    derived `open HIGH? yes/no` binary; no per-theme GREEN/YELLOW/RED rubric is defined.
+  - **VP4 (roster not duplicated, P5):** the roster CONTENT (currently T1-T10) is NOT in this body — §3 POINTS to the
+    living-roster plan as its home; a grep finds no per-theme checklist text here.
+  - **VP5 (one home, P5):** the inspection-construct rule text resolves in THIS spec and is ABSENT from the
+     body (which carries only forward pointers); `patterns/inspection-triage-launch-runbook.md` CITES
+    this spec as the inspection-construct normative home only as "established by".
+  - **VP6 (binding delivered, not dangling):** `binding: [query-only]` + `implements: []` ⇒ a RETRIEVED
+    reference; `graph build` excludes query-only from `dangling_specs` and from the verb-inversion (active
+    + unbound would flag — RED-GREEN: drop the binding → it reappears).
+  - **VP7 (currency-verification before severity + blind track re-measures, §10):** a grep of this body
+    finds (1) the reproduce-check-before-grade rule for capture-sourced findings, (2) the
+    `currency-unverified` cap (never a confident HIGH), and (3) the blind-track-re-measures-independently
+    clause; and §10 REFERENCES the existing SPEC-0063 currency classifier (the 5 tokens /
+    `_currency_status`), defining no new classifier / verb / store (reuse-not-reinvent, CHARTER §P1).
+
+cites:
+  -
+  - SPEC-0056
+  - SPEC-0063
+  - SPEC-0025
+  - SPEC-0005
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - inspection-list-refresh-2026-06-fresh-roster-lense
+  - finalize-decisions-to-specs-migration-inventory-cl
+
+requires: []
+supersedes: ~
+concern: # (SPEC-0128 Rule 1) — the inspection (revizia) concern-registry entry
+  section: inspection
+  born_order: 100
+  born: |2
+    inspection:
+      # SPEC-0093 rule 12 (the unify-revizia plan). DECLARE this project's LOCAL inspection ("revizia") themes
+      # once it grows observation lenses on top of the kernel's traveling T1–T10 themes
+      # (patterns/inspection-criteria-roster.md): replace this waiver with a `themes:` list, each entry
+      # { theme: <slug>, probe: <ONE KIND — see below>, cadence: weekly|monthly|quarterly }. PURE declared
+      # config — NO kernel runner/events; the RUN stays MANUAL via patterns/inspection-triage-launch-runbook.md
+      # (SPEC-0057 §2 manual-first). A `probe:` declares EXACTLY ONE KIND — `view:` XOR `sweep:` (SPEC-0093
+      # rule 12, as `_hook_inspection` enforces): `view:` is a `graph query <view>` lens name (a non-empty
+      # string, reusing the existing query surface); `sweep:` is a non-view product-realm sweep — a mapping
+      # with REQUIRED `surfaces:` (non-empty string) + `checks:` (non-empty list of non-empty strings) and an
+      # OPTIONAL `against:` (non-empty string). BOTH kinds together is a contradiction (ERROR); NEITHER is an
+      # ERROR (fail-closed). The inspection: waiver is LOOSE (rule 6): a bare `reason:` — a project that
+      # has no project-local inspection themes declared yet (for its own project revizii it MAY use the kernel T1–T10 lens APPROACHES as adaptation examples — the METHOD travels, the engine themes do not). `themes:`+`waiver:` together is a
+      # contradiction (ERROR) — EXCEPT beside the ONE kernel-owned entry below, which the waiver does not
+      # cover: a project `waiver:` is the project's stance on its OWN themes (SPEC-0093 rule 12).
+      themes:
+      # THE KERNEL-OWNED BASELINE ENTRY — seeded by `init` in every consumer, NOT the project's to remove
+      # (owner directive 2026-09-04). Absent / `owner: kernel` stripped / moved out of `themes[]` is a
+      # fail-closed init-sweep ERROR. You MAY narrow `surfaces:` to this project's own layout.
+      - theme: repeated-work
+        owner: kernel
+        probe:
+          sweep:
+            surfaces: "backend/**/* app/**/* frontend/src/**/* scripts/**/* workers/**/*"
+            checks:
+              - "n-plus-one-queries-in-loops"
+              - "same-file-config-or-row-re-read-per-request-or-iteration"
+              - "remote-resource-re-fetched-or-pagination-restarted"
+              - "unbounded-loops-retries-or-polls"
+              - "whole-table-or-whole-dir-scans-repeated-per-lookup"
+              - "frontend-refetch-and-effect-retrigger-loops"
+              - "worker-or-cron-reprocessing-without-a-watermark"
+            against: "patterns/repeated-work-lens.md"
+        cadence: monthly
+      waiver:
+        reason: "Initialized via `bin/yitc-v2 init` — no project-local inspection themes declared yet; for its own project revizii it MAY use the kernel T1–T10 lens APPROACHES as adaptation examples (the METHOD travels, the engine themes do not). Declare a `themes:` list (each {theme, probe, cadence}, where `probe` is EXACTLY ONE KIND — `view:` XOR `sweep:`, per SPEC-0093 rule 12) once this project grows local revizia lenses."
+  carrier_path: inspection
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: themes
+  declare_type: list
+  waiver_policy: loose
+  shape_hook: inspection_shape
+activation_owner_task: # close activates this spec (proposed → active).
+proposed_by: finalize-decisions-to-specs-migration-inventory-cl # plan-born provenance (corpus carrier).
+binding:
+  - query-only # — RETRIEVED reference, fetched on demand at Stage-1 when an
+                               # inspection run is taken into work; NOT a verb-gated fetch, NOT floor.
+implements_signature:
+  bin/lib/inspection.py#cmd_inspect_record: 2ef7a7c8786f6e2bb8276a487ac8460dd2f4c09160ab6f65ee8ed9d3a4e6315a

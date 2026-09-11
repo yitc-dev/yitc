@@ -1,0 +1,197 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0044
+title: Parallel dispatch selection — eligibility boundary + carve-out picker (read-only)
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+implements: # : wired to the carve-out selection verb (the read-only
+  - bin/lib/cli.py#_carve_out_selection # `graph query --carve-out` extension). The pure f(graph,queue,
+                               # worktree-list) selection function is the durable anchor; the CLI
+                               # wrapper rides the existing `graph query` cli_invoked marker (no new
+                               # event/sink). Activation owner = activation_owner_task.
+
+body: |
+  ## Scenario
+
+  A session dispatching parallel work (the controller) asks two questions: «which of the ready
+  tasks can be worked on safely at the same time?» and «what is already in flight, that we must
+  not touch?». The answer is COMPUTED, read-only, from existing state (the graph projection + the
+  task queue + the git worktree list) — never hand-screened from task prose under load. The output
+  is a dispatch-shaped selection: ordered chains, independent singletons, silent waits with their
+  release predicates, and a short clash report carrying ONLY genuine owner questions. The picker
+  SELECTS and FLAGS; the owner/controller decides and dispatches.
+
+  ## Internal
+
+  ### 1. Eligibility boundary (what is screenable at all)
+
+  - The spec-lineage screen operates on tasks with a KNOWN activating spec — typically
+    plan-decomposed tasks (the plan-accept gate is the discovery-before-dispatch boundary: it
+    forces the spec-footprint to be known up-front). A RAW ready task has no activating spec until
+    its Plan stage — there is nothing to lineage-screen; it parallelizes on the SAFETY FLOOR
+    (per-write worktree isolation + ff-only `land`).
+  - **STOP-rule (floor escape):** the moment a floor task's Analysis reveals it would reshape a
+    shared design surface OR birth/alter a coordinating spec, it MUST NOT continue in parallel on
+    the floor — it halts and folds into a plan path (re-check against the current projection;
+    escalate to a plan if it coordinates with others).
+  - Advisory routing line (NOT a gate — deliberately unenforced): work touching a shared /
+    coordinating spec surface is routed through a plan; independent work is not. Enforcement is
+    deferred; the boundary above is the conceptual ground the screen rests on.
+
+  ### 2. The selection rule (the dispatchable set)
+
+  At any moment the dispatchable set =
+
+  1. **Eligible:** `ready` ∩ every `requires:` target `done` on `main` — the QUEUE §Picker-logic
+     requires-edge gate (homed there; not restated). This rule CONSUMES the `requires:` edges as
+     decomposition set them; WHAT belongs in those edges (incl. the verifier-class content
+     discipline — a verifier's `requires:` names every writer of its settled subject) is
+     DECOMPOSITION-side doctrine homed with SPEC-0040, not here.
+  2. **∩ collision-free** vs the in-flight set AND each other, screened at TWO altitudes:
+     - **spec-lineage** (tasks with a known activating spec): shared lineage + ordered
+       (`requires:`/`supersedes:`) → a silent **WAIT** with the deterministic release predicate
+       `all(requires) done on main` — sequencing, not a question; shared lineage + UNORDERED
+       co-writers → a **P7 clash report** entry (owner question; detector = the
+       `multi-proposer-unordered` projection flag B6).
+     - **code-surface (floor tasks, no activating spec) — DUTY-grade, not screen-grade (crisp
+       boundary):** the NORMATIVE screen of this rule is the spec-lineage altitude above; for
+       floor tasks this rule names a JUDGEMENT DUTY of the dispatching session, no automated
+       screen: judge on the TOUCHED code surface — never on output-artifact names; same file /
+       different functions → parallel (`land` reconciles); same FUNCTION/region → serialize. The
+       judgement MAY consume the optional `expected_touch:` forecast (field semantics homed in
+       SPEC-0028) by plain list intersection. The AUTOMATED coarse screen is OUTSIDE this spec —
+       a deferred tracked task (return-trigger: pain-record N≥2); `land`'s ff-only reconcile is
+       the safety net either way.
+  3. **Substrate reads (each one mandatory):**
+     - the in-flight frontier is read from **`git worktree list`** — a claim is visible there
+       immediately; `status:` on `main` lags the claim by a whole `land` and is NEVER the
+       frontier source;
+     - the lineage screen reads the **projection itself** (`graph query --projected`,
+       SPEC-0031) — a hand-screen from task prose is never the substrate;
+     - the WHOLE computation is **recomputed after every `land`** — a selection is a snapshot,
+       not a standing assignment (the queue is a living system; lands shrink the frontier and
+       release waits);
+     - at release of a held task, **retarget** stale scope text onto the CURRENT spec head —
+       head-succession between filing and dispatch is normal under parallelism.
+
+  ### 3. Output shape
+
+  Not a flat antichain — the selection RETURNS the structure the dispatcher needs:
+  - `requires:`-ordered **chains** (necessarily-sequential spines, grouped);
+  - independent **singletons**;
+  - silent **waits** — ordered exclusions, each with its release predicate;
+  - the **clash report** — P7 questions ONLY (an ordered-pair exclusion is silent sequencing,
+    never a question; question-spam is a defect).
+  How the dispatcher RANKS and LAUNCHES the safe shapes (speed-vs-token policy, warm-session
+  front-loading, the chain cap) is operating practice homed in the background-session pattern —
+  deliberately OUTSIDE this rule.
+
+  ### 4. Read-only invariant (the make-or-break guard)
+
+  The picker is a pure read-only query — `f(graph, queue, worktree-list)`. It NEVER spawns,
+  dispatches, caps parallelism, holds stateful queue state, or decides without the owner.
+  **SELECTION ≠ RESERVATION:** the picker selecting a task does not prevent a concurrent claim —
+  race prevention (publish/claim discipline) is a SEPARATE, deliberately-unconverged concern
+  (tracked parked task; observation-held). If any extension of this rule wants scheduler
+  semantics — spawn, cap, stateful queue, auto-decide — STOP: that is the forbidden orchestrator
+  (CHARTER §6 + §What-V2-is-NOT).
+
+  ### 5. Scope — the honest claim
+
+  This rule closes the spec-conflict pre-check for accepted-plan decompositions whose activating
+  specs are known before execution — NOT for parallel work in general. Stays land-time (not
+  closed here): work-first spec birth mid-Execution (rare; the STOP-rule pushes discovery
+  up-front); code overlap between floor tasks (surfaces as an ordinary ff conflict at `land`;
+  the coarse pre-screen is the deferred tracked task).
+
+  ## Parameters
+
+  None consumed. The dispatch-side operating parameters (the warm-session front-load cap, the
+  speed-vs-token ranking) are deliberately NOT homed here — they live with the dispatcher's
+  operating practice (`patterns/background-session-operation.md` §Launch), outside this rule.
+
+  ## Rationale
+
+  Filter-4 pull: the dispatch/stale-main deviation cluster (~16 fingerprints, 2026-06-01..06) +
+  the live 2026-06-05 double-claim incident (a published `ready` task picked by a concurrent
+  dispatch while held in a worktree — the claim invisible on `main` until land). The selection
+  rule was exercised by hand across three real controller runs (2026-06-04/05/06): chains,
+  predicate-held releases (×3, one requiring retarget), and a same-function collision invisible
+  to an output-file screen all confirmed the rule's content empirically. Full evidence +
+  deliberation: the authoring plan (content boundary, SPEC-0005 rule 3 — only the rule lives here).
+  Reviewed coherent vs the current _carve_out_selection at 9cea9f27b : the symbol region
+  shifted when the per-task projection _task_safety_verdict landed nearby, but the SELECTION
+  RULE itself (§2-4) is unchanged — _task_safety_verdict PROJECTS this whole-graph carve onto one id,
+  it does not alter the rule — so no drift; this is an in-place currency re-touch, not a reshape.
+
+  ## Verification
+
+  - **VP1 (substrate honesty):** a selection computation demonstrably reads the projection +
+    `git worktree list` (query-observability evidence: the existing `cli_invoked` journal events
+    for the underlying reads), and the frontier is never derived from `status:` on `main`.
+  - **VP2 (screen correctness, synthetic):** a synthetic pair of ready tasks whose activating
+    specs share an UNORDERED lineage yields a clash-report entry; the same pair `requires:`-ordered
+    yields a silent wait with the `all(requires) done on main` predicate — no owner question.
+  - **VP3 (currency):** after a `land_completed`, a re-computation yields an updated selection
+    (released waits / shrunk frontier) — observable as two journaled selections around one land.
+  - **VP4 (read-only):** a selection run leaves task/spec/queue/source artifacts unchanged;
+    the routine append-only `cli_invoked` entry in `events.jsonl` is the allowed observability
+    trace and does not count as a read-only violation. ("Empty diff" means no mutation of
+    task/spec/queue/source artifacts — NARROW carve-out: only the standard append-only journal
+    trace identical to every other read verb is allowed; any other tracked mutation stays
+    forbidden.)
+  - **VP5 (shadow soak — the plan's postcheck form):** the first N selection waves run SHADOW —
+    computed, compared against the controller's hand-carve BEFORE dispatch, divergences journaled
+    and examined; promotion is an owner judgement over a bounded recent run with no unresolved
+    picker-loss divergence (N owner-set at decomposition).
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - QUEUE.md#picker-logic # the requires-edge eligibility gate is homed there (rule 8 — cited, not restated)
+  - SPEC-0040 # decomposition discipline — where requires:/verifier edges are SET
+  - SPEC-0028 # task schema — the expected_touch forecast field this rule consumes
+  - SPEC-0031 # graph query / projection — the lineage-screen substrate
+  - GRAPH.md#spec-lifecycle # one-active-lineage invariant + multi-proposer-unordered flag ( B6)
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-7
+  - parallel-work-preparation-carve-out-picker # the authoring plan (evidence + deliberation home)
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # set EXPLICITLY at decomposition (plan executing, 2026-06-06) — the
+                               # carve-out selection verb task; its close flips this spec
+                               # proposed→active (SPEC-0005 §5). Other implementing tasks cite only.
+proposed_by: parallel-work-preparation-carve-out-picker
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: # DECLARED ROUTE (SPEC-0005 rule 7 declare-the-binding): the carve-out
+  - query-only # selection VERB has now SHIPPED (`graph query --carve-out`,
+                               # anchored in `implements:`). The rule itself is reached on demand by
+                               # the dispatching session via `graph query SPEC-0044` — a query-only
+                               # reference (peer to SPEC-0031, the graph-query reference), NOT a floor
+                               # trigger or stage-entry. (Was `[]` by design until the verb;
+                               # now classified, so it is no longer dangling.)

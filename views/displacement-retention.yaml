@@ -1,0 +1,20 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: displacement-retention
+description: The FIRST inspection-launch step + weekly Review backstop — for each un-capped surface, MEASURE the value AND check its governing trigger (fired? acted?); a fired-but-unacted trigger is a flagged action, never a bare number. Run `graph query displacement-retention`.
+lens:
+  kind: displacement-retention # pure read over the corpus (tasks/, decisions/, handbook files) +
+                                 # the journal (events.jsonl) — measures each surface's value AND looks
+                                 # up its governing trigger ( 10MB / QUEUE 500 / CHARTER 2500-2000
+                                 # / SPEC-0052 audit-YAML drain), flagging fired?/acted?. Writes nothing.
+why: >-
+  SPEC-0052. The 2026-06-07 ревизия measured events.jsonl=13.1MB twice but never checked it
+  against the 10 MB rotation trigger, so no finding surfaced (the measure-but-not-check gap;
+  fingerprints inspection-size-count-probes-measure-but-dont-check-governing-threshold-fired-unacted +
+  journal-events-jsonl-past-d0030-10mb-rotate-trigger-unacted). This lens closes that gap: it does not
+  just MEASURE a surface, it resolves the surface's GOVERNING trigger and flags fired/acted, so a
+  fired-but-unacted trigger becomes a flagged action the inspection launcher must resolve. Anti-cx (P1):
+  it EXTENDS the saved-view family ( — same _run_view dispatch + views/ catalog as trend-report /
+  projection-currency), adds NO store, NO new command family, NO journal writer; the thresholds it
+  checks live in their OWN homes (QUEUE / CHARTER), referenced not duplicated. The companion
+  audit-YAML DRAIN (`triage sweep`) is the retention half; this lens is the fired-unacted CHECK half.

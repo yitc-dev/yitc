@@ -1,0 +1,174 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0140
+title: 'Self-applied carrier decision procedure — mechanically route a change to plan|task|followup|record from its own properties, no human adjudication'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # placement realm (the corpus-wide placement contract; catalog
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: [] # documentary / read-rule spec — the procedure is prose an AI applies,
+                               # no code anchor. Reachable via `graph query SPEC-0140` (query-only tier)
+                               # + the LIFECYCLE §Routing cue+pointer.
+
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  A change arises (from an owner cue, a cross-log intake, a mid-work realization). Before ANY
+  work the AI must pick its CARRIER — plan, one-or-a-few tasks, a staged followup, or a plain
+  record. LIFECYCLE §Routing describes the fork narratively, but the AI reads it as a JUDGEMENT
+  to adjudicate rather than a procedure to RUN — so it pauses and poses the fork to the owner
+  ("plan or task?"). That is a false ask: the answer is fully determined by the change's OWN
+  properties, which the AI can already. This spec makes the fork a MECHANICAL self-applied
+  sieve: the AI runs it and proceeds; it escalates to the owner only a genuine decision (an
+  ambiguous SCOPE, a real trade-off), NEVER the carrier choice itself.
+
+  ## Internal
+
+  THE CARRIER SIEVE — ordered, first-match-wins, LIGHTEST-first. Each branch's condition is
+  answerable from the change's own properties (no human input). Run top to bottom; take the
+  first branch whose condition holds.
+
+  - **S0 — Record-only?** Does the change only RECORD an already-true fact — a probe that already
+    passed, a journal state that already holds — authoring NOTHING new? → the carrier is a
+    **no-worktree capture** (`event` / `followup` / by-record evidence), **NOT a task at all**
+    (nothing authored ⇒ no audit applies). (The mis-routing: a "record the cron graded X"
+    task paid 2 audits + 9 stages for a pure record.)
+
+  - **S1 — Plan-warranted?** Does the change need AT LEAST ONE of these three (each self-checkable)?
+      (a) a **new or changed standing-rule SPEC corpus** (SPEC-0005) — not a one-off edit but a
+          rule others will read;
+      (b) a **coordinated multi-task cut** whose slicing must be fidelity-audited (SPEC-0070 /
+          SPEC-0034 / SPEC-0046) — several interdependent tasks that must land as one shaped set;
+      (c) **design-convergence on real data** — the answer is not yet known and must be found by
+          trialling against live data (the `trial` stage, SPEC-0035).
+    If YES → **PLAN** (it adds the heavy plan-only cascade — gate-specs, draft `plan check`,
+    decomposition-fidelity audit, aggregate `audit post --plan`). If a change proves ONE claim and
+    establishes no new spec corpus, S1 is NO — it is a task, never a plan. Never route a
+    tiny/presentational change through a plan (the X-0074 ~8-10-audit cascade).
+
+  - **S2 — Default → one, or a few, bare TASKS.** Everything else. A bare task carries 0 external
+    audits (hygiene fast-path) or 2 (substantive: audit-pre + audit-post). A few related changes →
+    a few tasks ordered by `requires:` (SPEC-0046). A mid-work dodelka not yet worth the full
+    lifecycle → `followup add` (SPEC-0095) as the **staging buffer**, drained later into a task —
+    a followup is a FORM of the task branch (a deferred task), NOT a fourth carrier.
+
+  - **Authored reference note realized mid-work (a `lesson` SPEC-0090, a `patterns/` note) —
+    capture cheap, author BATCHED.** An authored reference artifact is neither S0 record-only (it
+    authors new content) nor an S2 dodelka/task, so it has no lightweight sieve branch of its own —
+    and paying a full worktree->land cycle PER note at the moment of realization is the X-0148
+    ceremony-per-lesson pain. Instead: capture the insight IMMEDIATELY with `followup add`
+    (SPEC-0095 — no worktree, nothing lost), then DRAIN accumulated notes by authoring the files
+    together in ONE `work/<slug>` worktree and landing once (many notes, one land). ** is
+    UNCHANGED** — the authored FILE still rides a worktree (isolation protects a graph-indexed
+    durable artifact); only the AT-REALIZATION capture is worktree-free, exactly as a followup is.
+    This removes the ceremony-per-note cost WITHOUT a new no-worktree authoring verb or a
+    carve-out (the lightweight path is the composition of two existing rails, not a fourth carrier).
+
+  **Self-applied discipline (the point of this spec).** Running the sieve REPLACES the reflex
+  "when unsure, ask the owner plan-or-task". Uncertainty about the CARRIER is resolved by the
+  sieve, not by an ask. What IS escalated (P7 dissonance / AGENTS §when-to-ask) is a genuine owner
+  decision — an ambiguous or contested SCOPE, a real product trade-off — never which carrier a
+  well-specified change takes. When two branches seem to both fit, the ORDER decides: lightest
+  wins (S0 before S1 before S2), because a heavier carrier is not "safer", it only pays audits the
+  change does not need.
+
+  ## Rationale
+
+  Real incident (the self-case): **X-0213** — the plan-vs-task carrier choice kept being posed to
+  the owner instead of self-resolved. Live incident **2026-07-07**: during a cross-log intake the
+  Controller hesitated on plan-vs-task for **X-0216 / X-0217 / X-0218** and asked the owner rather
+  than running the fork — the owner identified this as X-0213's OWN motivating case. Prior-art: the
+  fork already lived as narrative in LIFECYCLE §Routing (SPEC-0046 decomposition, SPEC-0034 plan
+  lifecycle, SPEC-0072 effort-tier on a different axis) but was not framed as a mechanical
+  self-answerable procedure, so it read as an adjudication. This spec is the ONE home of the
+  procedure body; LIFECYCLE §Routing keeps only a cue+pointer (SPEC-0005 rule 8).
+
+  ## Verification
+
+  - State-probe: `bin/yitc-v2 graph query SPEC-0140` resolves this spec + body (query-only tier).
+  - State-probe: LIFECYCLE §Routing contains a cue+pointer naming SPEC-0140 (reachable at the
+    routing moment) — grep `SPEC-0140` in LIFECYCLE.md.
+  - Adoption (live-trigger): the next carrier choice runs the sieve and proceeds without posing
+    the fork to the owner (the X-0213 recurrence closes).
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-7
+  - LIFECYCLE.md#routing-which-carrier
+  - SPEC-0046
+  - SPEC-0034
+  - SPEC-0072
+  - SPEC-0035
+  - SPEC-0070
+  - SPEC-0095
+  - X-0213
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # work-first: THIS task's close activates proposed→active.
+proposed_by: # work-first provenance — the authoring task.
+binding: # query-only: retrieved on demand, NOT an always-loaded floor. The
+  - query-only # LIFECYCLE §Routing cue+pointer + `graph query SPEC-0140` reach it.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

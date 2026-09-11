@@ -1,0 +1,629 @@
+#!/usr/bin/env python3
+"""v2 security-audit evidence gate — kernel successor to social-parser's bin/v2-security-gate.sh.
+
+Deterministic, provider-independent, fail-closed. NO AI in the accept path (SPEC-0145 §2/§8): this
+script alone decides ACCEPT/REJECT over a security-audit evidence report, so retiring an AI role can
+never orphan the gate.
+
+Implements the evidence-VALIDATION contract of SPEC-0145 (§4 evidence-based freshness, §5 report/
+evidence schema + the ONE canonical `findings` key + the report content-hash, §8 fail-closed). SPEC-0145
+is `proposed` — this fills its evidence-validating-gate anchor at `executing`; the spec activates LAST at
+ after the consumer-proof (CHARTER §P8 build order). Cited, NOT activated here.
+
+Design LIFTED (read-only provenance, not edited) from social-parser `bin/v2-security-gate.sh`
+(SPEC-0108): report-date freshness within an SLA window, fail-closed on missing/unparseable,
+deterministic max-filename-date report selection, optional governed waivers file, severity-blocking on
+open critical/high. The prior-art read the findings list under `items` — the SPEC-0145 §5 retirement #4
+anti-pattern; this successor reads the ONE canonical key `findings` (single-sourced via FINDINGS_KEY).
+
+NEW over the lifted design (SPEC-0145 §4/§5), all fail-closed:
+  - TAMPER — the stored report content-hash must recompute over the report body → else REJECT.
+  - COMPLETE — every required evidence field present AND non-empty; an empty `findings` list is
+                INCOMPLETE (a fields-present-but-empty / date-fresh-but-thin report is REJECTED).
+  - SCOPE — the report's `scanned_paths` must COVER the required input scope → else REJECT.
+
+Required-input-scope derivation (SPEC-0145 §4, reservation #3 — PINNED, single precedence):
+  1. the explicit `SECURITY_REQUIRED_SCOPE` env (a colon- or comma-separated path list) — the deploy
+     gate / CI supplies it from the project's `security.audit` carrier config (SPEC-0093 rule 20); WHEN
+     SET it is authoritative;
+  2. else the report's OWN declared `required_scope:` field — itself covered by the report content-hash,
+     so shrinking it to fake coverage is a TAMPER (caught before the scope check);
+  3. neither present → fail-closed REJECT (coverage cannot be verified).
+Coverage = every required path is equal-to, or a descendant-of, some scanned path.
+
+Freshness SLA (SPEC-0145 §1/§6): the deploy gate consumes the window from the project's
+`security.audit.freshness_sla` carrier — the SAME `yitc-ops.yaml` the scheduler reads for `cadence`, one
+SLA single-sourced, no separate deploy-side threshold. FRESH_DAYS (env) is only an explicit override/test
+seam; DEFAULT_FRESH_DAYS is the documented contract default when the carrier declares none.
+
+Deploy-seam identity match (SPEC-0155 §4 — the structural kill of vintage ambiguity):
+  A fresh DATE proves the report is recent; it does NOT prove the report covers the code being deployed
+  (X-0328 / trend-finder : a cadence-vintage report kept listing 13 already-fixed npm HIGHs and
+  blocked two C1 deploys). At the DEPLOY-SEAM judgement the gate therefore PROVES coverage: the report's
+  `commit_identity` must equal the deploy candidate's commit, and every lockfile hash the report declares
+  must recompute equal over the deploy checkout — else REFUSE (`identity-mismatch`).
+  The BINDING is the candidate identity itself, supplied by the deploy verb as SECURITY_DEPLOY_COMMIT
+  (bin/lib/deploy.py#_run_security_audit_seam). PRESENT ⇒ enforce; ABSENT ⇒ the check does not run at all,
+  so CADENCE/CI acceptance is unchanged — an existing cadence report carrying no identity fields stays
+  acceptable for cadence purposes (identity is enforced ONLY where the binding exists; no fail-closing of
+  live consumers). The FIELD schema is homed in SPEC-0145 §5 (supplemental, gate-IGNORED for cadence
+  completeness — the fields are deliberately NOT in REQUIRED_FIELDS); this SEAM-judgement rule is homed in
+  SPEC-0155 §4. One field-home, one seam-rule-home, explicitly cross-delegated.
+
+Test seams (env): SECURITY_FINDINGS_FILE (report path), WAIVERS_FILE (waivers), FRESH_DAYS (SLA-window
+override — else the carrier), SECURITY_REQUIRED_SCOPE (required input scope), SECURITY_DEPLOY_COMMIT (the
+deploy candidate's commit — the seam identity binding above; supplied in production by the deploy verb,
+exactly as SECURITY_REQUIRED_SCOPE is). A NON-ZERO exit aborts a deploy (deploy-gate contract).
+"""
+from __future__ import annotations
+
+import datetime
+import hashlib
+import json
+import os
+import re
+import sys
+
+import yaml # reuse the kernel's YAML parser (no new parser path — CHARTER §P5)
+# The raw `yaml.safe_load` call-sites below are JUSTIFIED, not drift — do NOT route them through
+# `bin/lib/state.py` ( sweep tried exactly that and the suite REFUTED it). This gate must stay
+# STANDALONE-LOADABLE: its `__main__`-style test harnesses (test_deploy_seam_e2e_differentials.py,
+# test_v2_security_gate.py, test_t10192_runner_gate_interop.py, …) SourceFileLoader it directly under
+# `python3 tests/<f>.py`, where conftest.py never runs and `bin/` is NOT on sys.path — so a module-level
+# `from lib import state` raises ModuleNotFoundError and takes the whole deploy-gate suite down. Making
+# it import-safe would mean either sys.path-bootstrapping this deterministic gate or editing every such
+# harness — added coupling to satisfy a call-site count, i.e. the CHARTER §P1 anti-pattern. Same
+# self-containment contract as the `bin/security-audit` runner beside it (there: a byte-copied scaffold).
+
+# ── single-sourced constants (the grep-guard invariant: exactly one home each) ────────────────────
+FINDINGS_KEY = "findings" # the ONE canonical findings key — read here, never `items` (§5)
+DEFAULT_FRESH_DAYS = 7 # the freshness-SLA default window (days); the ONLY default literal
+
+# Blocking severities + statuses that clear a blocking finding (lifted from the prior-art gate).
+_BLOCKING_SEVERITIES = {"critical", "high", "высокий"}
+_CLEARED_STATUSES = {"resolved", "accepted_risk", "accepted-risk"}
+
+# Top-level evidence fields a valid report MUST carry, present AND non-empty (SPEC-0145 §5). The
+# report content-hash is validated separately (TAMPER) and so is not repeated here.
+REQUIRED_FIELDS = (
+    "date", # report date (freshness anchor)
+    "run_at", # run timestamp
+    "run_identity", # run/agent identity
+    "tool_versions", # command/tool versions
+    "checks", # per-check records (check-IDs + exit codes)
+    "scanned_paths", # the scanned input scope
+    "required_scope", # the required input scope the report declares (SPEC-0145 §5 pin):
+                                     # a pinned canonical field, so present-AND-non-empty is REQUIRED —
+                                     # else a thinned report dropping it passes when SECURITY_REQUIRED_SCOPE
+                                     # env supplies the scope ( audit-pre high finding)
+    "dependency_lockfile_hashes", # dependency-lockfile hash(es)
+    "prior_baseline", # prior-baseline reference
+    FINDINGS_KEY, # the findings list (non-empty)
+)
+# Each `checks` entry MUST carry these (check-ID + exit code — SPEC-0145 §5).
+_REQUIRED_CHECK_FIELDS = ("id", "exit_code")
+# Each finding MUST carry these (findings-fingerprint derivation + triage fields — SPEC-0145 §5).
+_REQUIRED_FINDING_FIELDS = ("severity", "status", "fingerprint", "what")
+
+_HASH_KEY = "report_hash"
+
+
+class Verdict:
+    """The gate outcome. `ok` True == ACCEPT; otherwise `reason` names the rejection class.
+
+    `blocking` carries the SEVERITY-step finding records ({fingerprint, severity, what}) — populated
+    ONLY on a `blocking` reject, empty everywhere else. The severity step already builds this list; it
+    used to collapse it to a count. Keeping the records is what lets the deploy-seam owner-override
+    journal WHAT it bypassed from the gate's OWN judgement instead of the operator's claim (SPEC-0155
+    rule 7 — the override must NAME every blocking finding, and the record must be true)."""
+
+    def __init__(self, ok: bool, reason: str = "", detail: str = "", blocking: "list | None" = None):
+        self.ok = ok
+        self.reason = reason
+        self.detail = detail
+        self.blocking = blocking or []
+
+    def __str__(self) -> str:
+        if self.ok:
+            return "ACCEPT"
+        return f"REJECT[{self.reason}] {self.detail}".rstrip
+
+
+def _accept(detail: str = "") -> Verdict:
+    return Verdict(True, "accept", detail)
+
+
+def _reject(reason: str, detail: str = "", blocking: "list | None" = None) -> Verdict:
+    return Verdict(False, reason, detail, blocking)
+
+
+def hash_input(text: str) -> str:
+    """The canonical body the report content-hash is computed over: the report text with every
+    top-level `report_hash:` line removed AND trailing newline(s) stripped (NO trailing newline is
+    re-added — that is the pinned contract). The producer (the runner) computes the hash over
+    THIS same canonicalization and appends `report_hash: <hash>`; the gate strips it back off and
+    recomputes. Order-stable (hashes TEXT, not a re-serialized mapping)."""
+    kept = [ln for ln in text.splitlines if not ln.lstrip.startswith(_HASH_KEY + ":")]
+    return "\n".join(kept).rstrip("\n")
+
+
+def canonical_hash(text: str) -> str:
+    """report_hash = sha256(hash_input(text))[:16] — the single pinned content-hash contract."""
+    return hashlib.sha256(hash_input(text).encode("utf-8")).hexdigest[:16]
+
+
+def _report_date(data: dict, path: str | None) -> "datetime.date | None":
+    d = data.get("date")
+    if d:
+        try:
+            return datetime.date.fromisoformat(str(d)[:10])
+        except ValueError:
+            pass
+    if path:
+        m = re.search(r"(\d{4}-\d{2}-\d{2})", os.path.basename(path))
+        if m:
+            try:
+                return datetime.date.fromisoformat(m.group(1))
+            except ValueError:
+                pass
+    return None
+
+
+def _nonempty(value) -> bool:
+    """A field is 'present AND non-empty' when it is not None and not an empty str/list/dict.
+    Numbers (incl. 0, e.g. an exit_code) count as present — only containers/strings can be empty."""
+    if value is None:
+        return False
+    if isinstance(value, (str, list, dict, tuple)):
+        return len(value) > 0
+    return True
+
+
+def _parse_required_scope(raw: str) -> list[str]:
+    return [p.strip for p in re.split(r"[:,]", raw) if p.strip]
+
+
+def _normalize(path: str) -> str:
+    return os.path.normpath(str(path)).strip("/")
+
+
+def _covered(required: str, scanned: list[str]) -> bool:
+    """A required path is covered when it equals, or is a descendant of, some scanned path."""
+    req = _normalize(required)
+    for s in scanned:
+        sc = _normalize(s)
+        if sc in ("", "."): # a scanned root covers everything
+            return True
+        if req == sc or req.startswith(sc + "/"):
+            return True
+    return False
+
+
+def required_input_scope(data: dict) -> "list[str] | None":
+    """Derive the required input scope (PINNED precedence — see module docstring §scope). Returns
+    None only when neither source is present (the caller fail-closes)."""
+    env = os.environ.get("SECURITY_REQUIRED_SCOPE", "").strip
+    if env:
+        return _parse_required_scope(env)
+    declared = data.get("required_scope")
+    if isinstance(declared, str) and declared.strip:
+        return _parse_required_scope(declared)
+    if isinstance(declared, (list, tuple)) and declared:
+        return [str(p).strip for p in declared if str(p).strip]
+    return None
+
+
+def _lockfile_hash16(path: str) -> "str | None":
+    """sha256(file)[:16] — the EXACT verifying twin of the producer's `sha256sum "$lf" | cut -c1-16`
+    (bin/security-audit CHECK 3, the `dependency_lockfile_hashes` inventory). Returns None when the file
+    is unreadable/absent (the caller fail-closes). Same verifier shape as `canonical_hash` above, which
+    recomputes the producer's report_hash: a checker must recompute to verify, and recomputing is not a
+    second schema authority — the FIELD home stays SPEC-0145 §5."""
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read).hexdigest[:16]
+    except OSError:
+        return None
+
+
+def identity_mismatch(data: dict, *, expected_commit: str, project_path: str) -> str:
+    """SPEC-0155 §4 — the DEPLOY-SEAM identity-match judgement. Returns "" when the report PROVABLY
+    covers the deploy candidate, else the reason it does not. Called ONLY when the seam supplied the
+    candidate identity (see the module docstring): at cadence there is no binding and this never runs.
+
+    Every branch fail-closed. An ABSENT `commit_identity` is a REFUSE *here* while staying legitimately
+    IGNORED at cadence — the absence verdict belongs to this use site, not to a shared predicate and not
+    to REQUIRED_FIELDS (putting the identity fields there would fail-close every live consumer's cadence
+    report; lessons/fail-closed-belongs-to-the-reader-not-the-parser.md).
+
+    BOUND (deliberate): this verifies every lockfile the REPORT declares; it does not re-enumerate the
+    candidate's lockfile set. That is sound, not a hole — the producer inventories lockfiles from the
+    TRACKED file list, so a lockfile tracked at the candidate commit IS in a report produced at that
+    commit; an extra TRACKED lockfile therefore implies a different commit, which the commit check below
+    already refuses. The only residue is an UNTRACKED working-tree lockfile — outside the producer's
+    declared scope in both runs (a SPEC-0145 scope question governed by the deploy dirt/build-source
+    guard, not an identity question), so no second inventory authority is added here."""
+    declared_commit = str(data.get("commit_identity") or "").strip
+    if not declared_commit:
+        return ("report declares no `commit_identity` — it cannot be proven to cover the deploy "
+                f"candidate {expected_commit[:12]} (SPEC-0145 §5 field / SPEC-0155 §4 seam rule); "
+                "re-run the security producer from the deploy candidate")
+    if declared_commit != expected_commit:
+        return (f"report covers commit {declared_commit[:12]}, but the deploy candidate is "
+                f"{expected_commit[:12]} — the report does not describe the code being deployed")
+
+    locks = data.get("dependency_lockfile_hashes")
+    if not isinstance(locks, dict):
+        return "'dependency_lockfile_hashes' is not a mapping — the report's code identity is malformed"
+    for rel, declared_hash in sorted(locks.items):
+        actual = _lockfile_hash16(os.path.join(project_path, str(rel)))
+        if actual is None:
+            return (f"lockfile '{rel}' is recorded in the report but is unreadable in the deploy "
+                    f"candidate — coverage cannot be proven")
+        if str(declared_hash).strip.lower != actual:
+            # Catches what the commit hash alone cannot see: a lockfile edited in the working tree after
+            # the report was produced leaves HEAD unchanged.
+            return (f"lockfile '{rel}' hashes {actual} in the deploy candidate but the report records "
+                    f"{str(declared_hash).strip} — the report predates the deployed dependencies")
+    return ""
+
+
+def _load_waivers(path: str) -> dict:
+    """{fingerprint: expiry_date} for UNEXPIRED, well-formed waivers only (fail-closed)."""
+    out: dict = {}
+    if not path or not os.path.isfile(path):
+        return out
+    try:
+        with open(path) as f:
+            wd = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return out # unreadable waivers => waive nothing
+    today = datetime.date.today
+    for w in (wd.get("waivers") or []):
+        if not isinstance(w, dict):
+            continue
+        fp = str(w.get("fingerprint", "")).lower
+        if not fp:
+            continue
+        try:
+            exp = datetime.date.fromisoformat(str(w.get("expiry"))[:10])
+        except (ValueError, TypeError):
+            continue # missing/malformed expiry => not a valid waiver (fail-closed)
+        if exp < today:
+            continue # expired => no longer waives
+        out[fp] = exp
+    return out
+
+
+def evaluate_report(
+    text: str,
+    *,
+    today: "datetime.date | None" = None,
+    fresh_days: int = DEFAULT_FRESH_DAYS,
+    path: "str | None" = None,
+    waivers: "dict | None" = None,
+    expected_commit: "str | None" = None,
+    project_path: "str | None" = None) -> Verdict:
+    """Validate one security-audit evidence report. Returns a Verdict (fail-closed: any parse
+    failure or missing evidence is a REJECT). Order: parse → TAMPER → COMPLETE → STALE → SCOPE →
+    IDENTITY → SEVERITY. First failure wins.
+
+    `expected_commit` (with `project_path`) is the DEPLOY-SEAM identity binding (SPEC-0155 §4): supplied
+    ⇒ the report must PROVE it covers that deploy candidate; ABSENT (the cadence/CI path) ⇒ the IDENTITY
+    step does not run and the verdict is exactly what it was before this binding existed."""
+    today = today or datetime.date.today
+    waivers = waivers if waivers is not None else {}
+
+    # parse — unparseable/non-mapping report never silently passes
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        return _reject("unparseable", str(e).splitlines[0] if str(e) else "")
+    if not isinstance(data, dict) or not data:
+        return _reject("unparseable", "report is not a non-empty mapping")
+
+    # TAMPER — the stored content-hash must recompute over the body (§4/§5)
+    stored = data.get(_HASH_KEY)
+    if not stored or not str(stored).strip:
+        return _reject("incomplete", f"missing {_HASH_KEY}")
+    if str(stored).strip != canonical_hash(text):
+        return _reject("tampered", "report content-hash mismatch")
+
+    # COMPLETE — every required evidence field present AND non-empty (§5)
+    for field in REQUIRED_FIELDS:
+        if not _nonempty(data.get(field)):
+            return _reject("incomplete", f"required field '{field}' missing or empty")
+    checks = data.get("checks")
+    if not isinstance(checks, list):
+        return _reject("incomplete", "'checks' is not a list")
+    for i, chk in enumerate(checks):
+        if not isinstance(chk, dict):
+            return _reject("incomplete", f"check[{i}] is not a mapping")
+        for cf in _REQUIRED_CHECK_FIELDS:
+            if cf not in chk or chk.get(cf) is None:
+                return _reject("incomplete", f"check[{i}] missing '{cf}'")
+    findings = data.get(FINDINGS_KEY)
+    if not isinstance(findings, list) or not findings:
+        return _reject("incomplete", f"'{FINDINGS_KEY}' missing or empty")
+    for i, fnd in enumerate(findings):
+        if not isinstance(fnd, dict):
+            return _reject("incomplete", f"finding[{i}] is not a mapping")
+        for ff in _REQUIRED_FINDING_FIELDS:
+            if not _nonempty(fnd.get(ff)):
+                return _reject("incomplete", f"finding[{i}] missing or empty '{ff}'")
+
+    # STALE — date beyond the freshness SLA (§4: date is necessary, never sufficient)
+    rd = _report_date(data, path)
+    if rd is None:
+        return _reject("stale", "no parseable report date")
+    age = (today - rd).days
+    if age > fresh_days:
+        return _reject("stale", f"{age}d old (SLA {fresh_days}d)")
+
+    # SCOPE — scanned_paths must cover the required input scope (§4, reservation #3)
+    required = required_input_scope(data)
+    if required is None:
+        return _reject("scope-mismatch", "no required input scope declared (env or report)")
+    scanned = data.get("scanned_paths") or []
+    if not isinstance(scanned, list):
+        return _reject("scope-mismatch", "'scanned_paths' is not a list")
+    uncovered = [r for r in required if not _covered(r, scanned)]
+    if uncovered:
+        return _reject("scope-mismatch", "uncovered required path(s): " + ", ".join(uncovered))
+
+    # IDENTITY — at the DEPLOY SEAM the report must PROVE it covers the deploy candidate (SPEC-0155 §4).
+    # Placed BEFORE severity on purpose: a report that does not describe the deployed code must not have
+    # its findings judged at all — neither to block (the already-fixed HIGHs) nor to pass. Runs
+    # ONLY when the seam armed the binding; at cadence `expected_commit` is None and this is a no-op.
+    if expected_commit:
+        mismatch = identity_mismatch(
+            data, expected_commit=str(expected_commit).strip,
+            project_path=project_path or os.getcwd)
+        if mismatch:
+            return _reject("identity-mismatch", mismatch)
+
+    # SEVERITY — a blocking finding not cleared/waived aborts the deploy (lifted prior-art). The finding
+    # RECORDS (not just their count) ride the verdict: the deploy-seam override is judged against them
+    # (SPEC-0155 rule 7), so the gate — never the operator — is the source of "what is being bypassed".
+    blocking = []
+    for fnd in findings:
+        if str(fnd.get("severity", "")).lower not in _BLOCKING_SEVERITIES:
+            continue
+        if str(fnd.get("status", "open")).lower in _CLEARED_STATUSES:
+            continue
+        if str(fnd.get("fingerprint", "")).lower in waivers:
+            continue
+        record = {
+            "fingerprint": str(fnd.get("fingerprint", "")).strip,
+            "severity": str(fnd.get("severity", "")).strip,
+            "what": f"{fnd.get('what', '?')}".strip[:200],
+        }
+        # Carry the finding's OWN advisory-id fields when the producer records them. They are the
+        # identity an override names a finding BY (SPEC-0155 rule 7), so dropping them here would make
+        # a structurally-identified finding un-nameable — leaving only the fingerprint, or an id that
+        # happens to appear in the free text. The deploy seam reads exactly these keys
+        # (`deploy.py#_advisory_tokens`); publishing them is what closes that loop.
+        for key in ("advisory", "id", "cve", "ghsa"):
+            val = str(fnd.get(key, "") or "").strip
+            if val:
+                record[key] = val
+        blocking.append(record)
+    if blocking:
+        return _reject("blocking", f"{len(blocking)} open critical/high finding(s)", blocking=blocking)
+
+    proven = f" identity=proven@{str(expected_commit).strip[:12]}" if expected_commit else ""
+    return _accept(f"date={rd.isoformat} age={age}d findings={len(findings)} "
+                   f"waivers={len(waivers)}{proven}")
+
+
+def _find_report(project_path: str) -> "str | None":
+    env = os.environ.get("SECURITY_FINDINGS_FILE", "").strip
+    if env:
+        return env
+    findings_dir = os.path.join(project_path, ".yitc", "findings")
+    if os.path.isdir(findings_dir):
+        candidates = sorted(
+            f for f in os.listdir(findings_dir) if f.endswith("-security.yaml")
+)
+        if candidates:
+            # deterministic: MAX filename date (lexical sort of YYYY-MM-DD names), NOT mtime
+            return os.path.join(findings_dir, candidates[-1])
+    return None
+
+
+# ── SPEC-0145 §9c — refuse to ACCEPT a generic-scaffold report over a foreign producer's ──────────────
+# The GENERIC kernel scaffold's self-declared identity. A report whose TOP-LEVEL `produced_by` differs
+# — ABSENT included — is FOREIGN (an unattributable report is never assumed to be the scaffold's own).
+SCAFFOLD_PRODUCER_ID = "bin/security-audit"
+
+
+def _producer_of(path: str) -> str:
+    """The report's top-level `produced_by`, or "" when absent/unreadable/unparseable (→ FOREIGN,
+    fail-closed). Reuses the already-imported YAML parser — no new parser path (CHARTER §P5)."""
+    try:
+        with open(path) as f:
+            rec = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError):
+        return ""
+    return str(rec.get("produced_by") or "") if isinstance(rec, dict) else ""
+
+
+def _foreign_producer_conflict(report_path: str) -> str:
+    """SPEC-0145 §9c. Operates at report SELECTION — BEFORE and OUTSIDE `evaluate_report`, so the §5
+    evidence schema (REQUIRED_FIELDS) and the §4 freshness window are untouched: reading provenance for a
+    selection decision adds no completeness-required field (§5's "the gate IGNORES supplemental fields"
+    scopes COMPLETENESS, per the §9 interpreting note).
+
+    Returns a REASON when the SELECTED report was written by the generic scaffold while ANOTHER report in
+    the same findings store carries a different producer — the X-0239 collision, where the scaffold wrote
+    over a consumer's real evidence and this gate accepted the generic report. DIRECTION-AWARE: when the
+    selected report is itself FOREIGN (foreign-only, or foreign-newest-over-scaffold) the project has taken
+    ownership — permitted, so return "". Surveys the SELECTED report's OWN directory, so the
+    `SECURITY_FINDINGS_FILE` env seam is not a bypass."""
+    if _producer_of(report_path) != SCAFFOLD_PRODUCER_ID:
+        return "" # foreign-selected → the project owns its producer; not this rule's business
+    findings_dir = os.path.dirname(os.path.abspath(report_path))
+    if not os.path.isdir(findings_dir):
+        return ""
+    for name in sorted(os.listdir(findings_dir)):
+        if not name.endswith("-security.yaml"):
+            continue
+        other = os.path.join(findings_dir, name)
+        if os.path.abspath(other) == os.path.abspath(report_path):
+            continue
+        producer = _producer_of(other)
+        if producer != SCAFFOLD_PRODUCER_ID:
+            return (f"selected report was written by the generic kernel scaffold "
+                    f"`{SCAFFOLD_PRODUCER_ID}`, but {name} is authored by `{producer or '<absent>'}` — "
+                    f"a foreign security producer owns this findings store")
+    return ""
+
+
+# ── the deploy-seam freshness SLA: SINGLE-SOURCED from the concern carrier (SPEC-0145 §1/§6) ──────────
+# The gate's freshness window is NOT a private deploy-side threshold (SPEC-0145 §1 retirement #3): it is
+# READ from the project's `security.audit.freshness_sla` carrier — the SAME `yitc-ops.yaml` the scheduler
+# reads for `cadence` (one SLA, one source; the deploy gate consumes the concern SLA, no separate copy).
+# FRESH_DAYS (main) is only an explicit OVERRIDE/test seam; DEFAULT_FRESH_DAYS is the documented contract
+# default (SPEC-0145 §Parameters) used ONLY when the carrier declares no SLA.
+_SLA_ISO_RE = re.compile(r"^P(?:(\d)W|(\d)D)$", re.IGNORECASE) # ISO-8601 window: P<n>W | P<n>D
+_SLA_BARE_RE = re.compile(r"^(\d)[dD]?$") # bare-int / `<n>d` tolerance
+
+
+class CarrierSLAError(ValueError):
+    """A `security.audit.freshness_sla` is DECLARED but cannot be parsed to a day window — a config error
+    the deploy-seam gate fails CLOSED on (§4/§8), never silently rubber-stamping at the default."""
+
+
+def _sla_to_days(sla) -> int:
+    """Parse a DECLARED freshness-SLA window to whole days: the ISO-8601 forms `P<n>D` / `P<n>W` (the
+    born-template shape, SPEC-0145 §6) plus a bare-integer or `<n>d` tolerance. Raise CarrierSLAError on
+    any other (declared-but-invalid) value — fail-closed, never a silent default."""
+    s = str(sla).strip
+    m = _SLA_ISO_RE.match(s)
+    if m:
+        weeks, days = m.group(1), m.group(2)
+        return int(weeks) * 7 if weeks else int(days)
+    m2 = _SLA_BARE_RE.match(s)
+    if m2:
+        return int(m2.group(1))
+    raise CarrierSLAError(f"unparseable freshness_sla {sla!r} (expected P<n>D / P<n>W)")
+
+
+def _carrier_freshness_days(project_path: str) -> "int | None":
+    """THE single source of the deploy-seam freshness window: the project's `security.audit.freshness_sla`
+    in <project>/yitc-ops.yaml (SPEC-0145 §1/§6). Returns the window in whole days when DECLARED; None when
+    it is ABSENT / waived / the carrier is missing-or-unreadable (checked-if-present backward-compat → the
+    caller uses DEFAULT_FRESH_DAYS). A PRESENT-but-unparseable value RAISES CarrierSLAError (fail-closed — a
+    declared-but-invalid SLA is a config error, not a silent default). Reuses the already-imported YAML
+    parser — no new parser path (CHARTER §P5)."""
+    ops_path = os.path.join(project_path, "yitc-ops.yaml")
+    if not os.path.isfile(ops_path):
+        return None
+    try:
+        with open(ops_path) as f:
+            ops = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError):
+        return None # unreadable carrier → default (the missing-report path stays the fail-closed floor)
+    if not isinstance(ops, dict):
+        return None
+    security = ops.get("security")
+    audit = security.get("audit") if isinstance(security, dict) else None
+    if not isinstance(audit, dict):
+        return None # no `security.audit` subsection (or a waived-only block) → default
+    sla = audit.get("freshness_sla")
+    if sla is None or (isinstance(sla, str) and not sla.strip):
+        return None # waived / declared-without-a-window → default
+    return _sla_to_days(sla) # DECLARED → parse (raises CarrierSLAError on an invalid value)
+
+
+# ── SPEC-0155 rule 7 — the machine-readable verdict seam (the deploy-seam override's evidence) ────────
+# The deploy verb may not act on a REJECT it cannot READ: an owner-override is admissible ONLY for the
+# SEVERITY-blocking class, and it must NAME every blocking finding (rule 7). Both facts live in the
+# verdict, so the gate publishes it as JSON when the caller supplies `SECURITY_GATE_VERDICT_FILE` — the
+# same env-seam idiom the gate already uses for SECURITY_FINDINGS_FILE / WAIVERS_FILE /
+# SECURITY_DEPLOY_COMMIT. PURELY ADDITIVE: env ABSENT ⇒ nothing is written and every exit code, message
+# and judgement is byte-identical (cadence/CI untouched — no caller changes meaning). Write failures are
+# SWALLOWED here on purpose: the reader (bin/lib/deploy.py) treats an absent/unparseable verdict as
+# "no override possible" and REFUSES, so a failed write can only ever make the deploy stricter, never
+# laxer — the fail-closed direction (lessons/fail-closed-belongs-to-the-reader-not-the-parser.md).
+def _publish_verdict(verdict: Verdict, report_path: "str | None" = None) -> None:
+    path = os.environ.get("SECURITY_GATE_VERDICT_FILE", "").strip
+    if not path:
+        return
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({
+                "ok": verdict.ok,
+                "reason": verdict.reason,
+                "detail": verdict.detail,
+                "blocking": verdict.blocking,
+                "report": report_path,
+            }, f)
+    except OSError:
+        pass
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    project_path = os.path.abspath(argv[0]) if argv else os.getcwd
+    # Freshness window precedence (SPEC-0145 §1/§6 — one SLA, one source): explicit FRESH_DAYS override
+    # (test/emergency seam) → the `security.audit.freshness_sla` carrier (THE single source) →
+    # DEFAULT_FRESH_DAYS (documented contract default). A DECLARED-but-invalid carrier SLA fails closed.
+    if "FRESH_DAYS" in os.environ:
+        fresh_days = int(os.environ["FRESH_DAYS"])
+    else:
+        try:
+            carrier_days = _carrier_freshness_days(project_path)
+        except CarrierSLAError as e:
+            print(f" FAIL[config]: security.audit.freshness_sla — {e} "
+                  "(fail-closed; fix the yitc-ops.yaml carrier)", file=sys.stderr)
+            _publish_verdict(_reject("config", str(e)))
+            return 1
+        fresh_days = carrier_days if carrier_days is not None else DEFAULT_FRESH_DAYS
+
+    report_path = _find_report(project_path)
+    name = os.path.basename(project_path)
+    print(f"=== v2 security gate: {name} ===")
+    if not report_path or not os.path.isfile(report_path):
+        print(" FAIL[missing]: no security evidence report "
+              "(.yitc/findings/*-security.yaml) — fail-closed", file=sys.stderr)
+        _publish_verdict(_reject("missing", "no security evidence report"))
+        return 1
+    # SPEC-0145 §9c — provenance check at SELECTION, before the §4/§5 evaluation. Fail-closed: a generic
+    # scaffold report never stands as evidence while a foreign producer owns the store (cross X-0239).
+    conflict = _foreign_producer_conflict(report_path)
+    if conflict:
+        print(f" FAIL[foreign-producer]: {os.path.basename(report_path)} — {conflict} "
+              "(fail-closed; run the project's own security producer, or retire it and declare "
+              "`security.audit.runner: bin/security-audit`)", file=sys.stderr)
+        _publish_verdict(_reject("foreign-producer", conflict), report_path)
+        return 1
+
+    try:
+        with open(report_path) as f:
+            text = f.read
+    except OSError as e:
+        print(f" FAIL[unreadable]: {report_path}: {e} — fail-closed", file=sys.stderr)
+        _publish_verdict(_reject("unreadable", str(e)), report_path)
+        return 1
+
+    waivers = _load_waivers(os.environ.get("WAIVERS_FILE", ""))
+    # The DEPLOY-SEAM identity binding (SPEC-0155 §4): the deploy verb supplies the candidate's commit.
+    # Its PRESENCE arms the identity match; absent (cadence/CI) the judgement is unchanged.
+    expected_commit = os.environ.get("SECURITY_DEPLOY_COMMIT", "").strip
+    if expected_commit:
+        print(f" deploy-seam identity binding: candidate commit {expected_commit[:12]} — the report "
+              f"must prove it covers this code (SPEC-0155 §4)")
+    verdict = evaluate_report(text, fresh_days=fresh_days, path=report_path, waivers=waivers,
+                              expected_commit=expected_commit or None, project_path=project_path)
+    _publish_verdict(verdict, report_path)
+    if verdict.ok:
+        print(f" PASS: {os.path.basename(report_path)} — {verdict.detail}")
+        return 0
+    print(f" FAIL[{verdict.reason}]: {os.path.basename(report_path)} — {verdict.detail} "
+          "(fail-closed; re-run the security audit)", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main)

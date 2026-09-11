@@ -1,0 +1,32 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: postcheck-plans-readiness
+description: Postcheck plans + their realize-readiness against the 2 CODED realize-exit gating clauses (finalization-ready / retire-on-proof-resolved) + captures-routed, postcheck-probe-block-declared, and dispositionless-infra-closures ADVISORIES ( demoted captures-routed to advisory; added the dispositionless-infra-closures backstop, SPEC-0053) — retires the manual grep, never a gate.
+lens:
+  kind: postcheck-plans-readiness # pure f over committed artifacts: plans (index["plans"], kind:plan)
+                                    # at status==postcheck, each scored against the 2 CODED realize-exit
+                                    # GATING clauses RE-DERIVED from the SAME canonical helpers the gates read
+                                    # (_plan_specs + the <slug>-audit-post.yaml verdict/signature/carrier
+                                    # = finalization_ready; _plan_retire_on_proof = retire_on_proof_resolved).
+                                    # captures-routed (_last_triage_watermark + _scan_captures) is REPORTED
+                                    # as an ADVISORY (the unrouted_captures count), NOT a gating clause —
+                                    # / Option B demoted the realize-EXIT gate to a WARN. Recomputed
+                                    # fresh, writes nothing. The view NEVER calls the gates — it
+                                    # re-derives the same booleans for a non-blocking report.
+why: >-
+   (triage promote, fingerprint no-view-postcheck-plans-exit-status-grep-fallback, N=2). Listing
+  postcheck plans + judging realize-readiness used to need a manual grep across each plan's probe block,
+  its cited tasks, and its aggregate `audit post --plan` verdict (the 2026-06-06 Review sweep did exactly
+  this by hand for all 7). This lens surfaces that at a glance: for every plan at `postcheck` it reports
+  the 2 CODED realize-exit GATING clauses the `plan stage realized` close-gate enforces (`_plan_close_core` →
+  `_require_plan_finalization_ready` / `_require_plan_retire_on_proof_resolved`) as non-blocking REPORT
+  booleans, plus the captures-routed ADVISORY (unrouted_captures count; demoted its realize-EXIT
+  gate `_require_captures_routed` to a WARN) and a clearly-labelled `postcheck_probe_block_declared` ADVISORY (a
+  presence heuristic over the plan body — NOT a content parser, and NOT a "soak min-runs met" boolean:
+  real-data ×N is owner-judged per plan, NEVER a coded count — SPEC-0034 §postcheck), plus the
+  `dispositionless_infra_closures` ADVISORY (infra cited tasks closed with NO propagation_disposition — a
+  read-only legacy/emergency-bypass backstop referencing SPEC-0053, never a gate). Run it in the WEEKLY
+  Review scan / before a `plan stage realized` — `yitc-v2 graph query postcheck-plans-readiness` emits a
+  cli_invoked observability event, so the consumption is durable evidence, not merely a runnable
+  query. Report-not-block (CHARTER §P1 / non-goal #2); reuses the graph index + the canonical plan-gate
+  helpers (P5, no drift) — no new store, no new command family, no new event type, no new readiness boolean.

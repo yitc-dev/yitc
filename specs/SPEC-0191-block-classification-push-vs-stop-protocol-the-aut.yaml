@@ -1,0 +1,465 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0191
+title: 'Block-classification + push-vs-stop protocol — the AUTHORITY class is decided by the owner OR a `decide-authority` right-holder for that project'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # placement realm (the corpus-wide placement contract; catalog
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # the LAYER-1 delivery surfaces (code-linked, SPEC-0005 rule 7 — so the
+                               # spec is NOT dangling). The rule is DELIVERED by these EXISTING
+                               # surfaces via an additive pointer; it adds no store / parser / gate.
+  - bin/lib/worktree.py#cmd_land # the land-refusal surface (carried from SPEC-0121)
+  - bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE # the worker surface (carried from SPEC-0121)
+  - bin/lib/grants.py#decide_authority_class_cause # §5a THE GATE itself
+  - bin/lib/grants.py#cmd_grants_authorize # the read-only surface that invokes it (`--cause`)
+  - bin/lib/grants.py#_authorization_refusal_message # §5a's refusal-remedy obligation
+  # NOT anchored: the argparse declaration of `--cause` lives inside `bin/lib/cli.py#build_parser`,
+  # the whole CLI's parser. An anchor there would claim a surface thousands of lines wide and
+  # re-drift on every unrelated flag — a signature that means nothing is worse than none (
+  # durable anchors). The thin residue delegates to `cmd_grants_authorize`, which IS anchored.
+
+body: |
+  ## Scenario
+
+  A session's verify gate BLOCKS — a failing or pinned test, an external audit RED, a
+  flaky/non-hermetic failure, or a deliberate guard/human-checkpoint fires. The blocked session
+  (most acutely a headless dispatched Worker under land pressure) must decide: push through, or
+  stop and escalate. This spec makes that decision DETERMINISTIC and FAIL-CLOSED. A block is never
+  cleared silently; it is cleared only WITH journaled evidence that it is stale or false; when that
+  evidence cannot be produced, the session STOPS. The owner/AI sees a stop-and-escalate as the
+  CORRECT outcome, never as failure — the failure mode this rule exists to prevent is the SILENT
+  push past a real signal, which ships an invisible defect (the V1 failure class V2 exists to end).
+
+  ## Internal
+
+  > **SUPERSEDES SPEC-0121.** ONE normative change, and an exact list of every place the
+  > predecessor's text moved with it — stated in full because "carried forward VERBATIM except §5"
+  > was this spec's own first wording and it was NOT true: four passages elsewhere still spoke the
+  > owner-only doctrine §5a had replaced, and the spec contradicted itself until the audit found it.
+  > THE NORMATIVE CHANGE: §5's judgment-vs-authority split now names THE AUTHORITY rather than the
+  > owner alone, and the NEW §5a says who may be one and bounds it.
+  > EVERY OTHER EDIT IS RECONCILIATION — no obligation moves, the wording simply stops contradicting
+  > §5a: §3's Owner rung and §5's rung-3 bullet gain a pointer to §5a; §5's intro and §WHAT NARROWS
+  > name the AUTHORITY where they said the owner, and §5's own no-new-mechanism claim is scoped to §5;
+  > the §Internal preamble above declares the one mechanism §5a ships (the predecessor added none);
+  > and §Verification names this spec's five anchors instead of the predecessor's two.
+  > §§1-4 and the §Scenario are otherwise character-for-character.
+  > Routed as a SUPERSEDE, not an in-place amend, because it changes
+  > what a consumer must DO in an ALREADY-COVERED case (SPEC-0005 rule 7's discriminating probe): a
+  > session facing an authority-class cause must stop at the owner today, and must not when the
+  > deciding identity holds `decide-authority` on that project.
+
+  THE BLOCK-CLASSIFICATION + PUSH-VS-STOP PROTOCOL. A process/governance rule (SPEC-0005 rule 1):
+  a standing, provider-neutral (CHARTER §P4b) decision procedure for any blocked verify gate. It
+  ADDS no new LEDGER, no new store, no new event type and no new VERB, and §§1-5 add no mechanism at
+  all — they REUSE the existing machinery. §5a is the ONE exception and is declared here rather than
+  left for a reader to discover: it ships a GATE FUNCTION, `bin/lib/grants.py`
+  #decide_authority_class_cause, plus one OPTIONAL flag (`--cause`) on the EXISTING `grants authorize`
+  verb. It had to: before it, the authority-class stop existed only as PROSE in the worker preamble
+  and the land refusal, so there was no gate to condition and a test could not tell a conditioned gate
+  from a deleted one. The CHARTER §P1 filters, applied and recorded: F1 EXISTING ANALOG — admission is
+  delegated WHOLE to the existing `authorize`, so SPEC-0169's identity and fail-closed rules govern
+  unchanged and no second authority mechanism exists; F2 VIEW OVER ENTITY — no new store, event type,
+  verb or gated operation (the emits reuse `authorization_decided` / `authorization_refused`, and
+  `GATED_OPERATIONS` is untouched, so the decision right stays non-executing); F3 WHAT IS REMOVED —
+  the DEAD END, an authority-class cause on a project someone holds the right for no longer has the
+  owner as its only exit; F4 REAL INCIDENT — the twice-refused aiseller card and the 2026-08-20
+  restriction record, both in §Rationale. The rest of this spec REUSES the existing machinery: the governed
+  rebaseline path and its recorded-reason gate (SPEC-0077 — the A-prime authority home for who may
+  authorize it: owner ack OR a qualifying-Worker self-clear); the audit-loop ceiling
+  (SPEC-0036); the dispatched-worker scope boundary + escalation channels (SPEC-0103 — blocked-on-land
+  / bg_dispatch_halted / graceful park); and the Worker→Controller→Owner ladder homed in
+  patterns/background-session-operation.md. The NAMED removal this rule replaces is the pair of wrong
+  defaults observed on the 2026-07-01 bench (one provider silently pushed past guards/flakes; the
+  other halted on essentially everything).
+
+  ### 1. CORE INVARIANT — never clear a block silently
+  A block is CLEARED only WITH journaled evidence that the check is stale or false; a block that
+  cannot be proven stale/false is NOT cleared — the session STOPS and escalates. The failure is the
+  SILENT push, NOT the push itself: a GOVERNED push — one that leaves durable, journaled
+  evidence of WHY the block was cleared — is legitimate. (The one governed self-clear path a Worker
+  may take is the stale-by-design rebaseline of §2.1. SPEC-0077 is the CANONICAL authority/flag home
+  for it — including the A-prime conditions under which a Worker MAY self-clear vs must escalate. This
+  spec only ROUTES there; the concrete flag/verb spelling + authorization conditions live in SPEC-0077
+  + the `land` code, not here.)
+
+  ### 2. BLOCK CLASSIFICATION — the blocked session applies this FIRST
+  Four classes; classify BEFORE acting. Any class you cannot confidently assign is (4) UNCERTAIN.
+
+    1. **STALE-BY-DESIGN** — the check asserts an OLD behaviour that THIS task's own declared scope
+       intentionally changes, AND the check is NOT a marked deliberate/human-checkpoint guard. The
+       Worker clears it via the GOVERNED rebaseline path with a RECORDED reason — but ONLY under
+       SPEC-0077's A-prime conditions (candidate verify GREEN + a FRESH GREEN audit-post + `--no-tests`
+       absent + a `>=30-char` recorded reason MECHANICALLY tied to the exact surfaced pinned failure(s)
+       AND the task/spec-declared behaviour/harness change that obsoletes them); free-form "looks stale"
+       judgement is NOT enough → reclassify as (4) UNCERTAIN and ESCALATE. SPEC-0077 is the authority
+       home for those conditions; this spec only ROUTES there. This is the ONLY block a Worker may
+       self-clear.
+    2. **TRUE SIGNAL** — the change is wrong / regressing / incomplete. FIX it, but ONLY within the
+       task's stated scope. If the fix would change scope or design, do NOT expand the task to make
+       verify green — reclassify as (4) UNCERTAIN and escalate.
+    3. **FLAKE / NON-HERMETIC** — classifiable as a flake ONLY with INDEPENDENT evidence: a
+       known/registered flake, a failure that reproduces on the UNCHANGED baseline, or host-state
+       OUTSIDE the touched surface. A Worker does NOT self-quarantine — quarantine is a Controller
+       decision or a named governed path; the Worker records the evidence and escalates. Without
+       independent evidence a nondeterministic failure may be a real intermittent bug in the changed
+       code → treat as (4) UNCERTAIN, never assumed-flake.
+    4. **DELIBERATE GUARD or UNCERTAIN** — a guard / allowlist / F5-class check / human-checkpoint,
+       OR any block you cannot confidently place in 1–3 → HALT and escalate to the Controller. Never
+       self-authorize past a deliberate guard.
+
+  **AUDIT-class blocks additionally obey the SPEC-0036 audit-loop ceiling:** a passable residual
+  (mode-b) needs no re-audit and burns no pass; a plan/diff-changing finding (mode-a) consumes a pass
+  and the ceiling bounds it to ≤2 passes; at the ceiling the decision goes to the Controller (the
+  ceiling-convergence triage), never a silent re-run of the same gate (CHARTER §P7 re-run-vs-resolve).
+
+  ### 3. THREE-TIER FAIL-CLOSED LADDER
+  The classification routes escalation up exactly one rung at a time.
+
+    - **Worker** — never clears a block silently; classifies per §2; governed-self-clears ONLY the
+      provable stale-by-design case (§2.1); fixes a true signal in-scope (§2.2); on a deliberate-guard
+      or uncertain block HALTS to the Controller (blocked-on-land, worktree intact per SPEC-0103) —
+      never self-authorizes past a deliberate guard, and never goes straight to the Owner.
+    - **Controller** — re-classifies with broader context the Worker lacks (the whole batch, the plan,
+      sibling tasks, the journal, the cross-log); resolves what it can (quarantine a known flake,
+      instruct an in-scope fix, re-dispatch); escalates to the Owner ONLY a genuine design/scope fork
+      (a CHARTER §P7 dissonance).
+    - **Owner** — decides only genuine forks and AUTHORITY-class causes. Before a block reaches the
+      owner it climbs the §5 RESOLUTION ladder (mechanical self-evidence → adversarial consult → owner):
+      the owner is the backstop, not a routing default. (For an AUTHORITY-class cause this rung is the
+      AUTHORITY's, and the owner is not its only occupant — §5a names who else may be one. The ROLE
+      ladder here is otherwise unchanged: a Worker still never goes straight to this rung.)
+
+  **DEFAULT UNDER UNCERTAINTY = STOP.** The cost is asymmetric: a silent wrong-push ships an invisible
+  defect (expensive, the V1 class); a wrong-stop is a cheap, visible round-trip. So when unsure, stop.
+
+  **GUARD PRECEDENCE.** A deliberate guard / allowlist / F5-class check / human-checkpoint, OR any
+  check OUTSIDE the task's declared scope, ESCALATES — UNLESS the task card already carries an
+  explicit owner decision covering it. A guard is not made stale merely because the task's scope
+  happens to touch its surface; only THIS task's intentional behaviour-change (§2.1) makes a
+  non-guard check stale.
+
+  ### 4. The pinned-vs-F5 fork — the NAMED specific instance
+  The narrow "pinned last-green verify vs F5 allowlist" fork is ONE instance of this general rule,
+  not a separate rule: correctly REBASELINED a pinned check that its own scope had superseded
+  (a §2.1 stale-by-design governed self-clear); correctly ESCALATED an F5 allowlist-add (a §2.4
+  deliberate-guard block a Worker must not self-clear). Both outcomes fall directly out of §2 + §3.
+
+  ### 5. THE THREE-RUNG RESOLUTION LADDER — how a stuck question is ANSWERED before it reaches the human
+  §3 is the AGENT ladder (which ROLE decides — Worker→Controller→Owner). This §5 is the orthogonal
+  RESOLUTION ladder (which KIND OF EVIDENCE answers a stuck worker/plan/task question) that a blocked
+  session climbs BEFORE the AUTHORITY is ever asked (the owner, or a `decide-authority` holder for that project — §5a). This LADDER (§5 itself, as distinct from §5a — see the §Internal preamble for the one mechanism §5a adds) ADDS NO new mechanism (SPEC-0005 rule 1): rung-1 is
+  the EXISTING §2.1 governed self-clear / diff inspection, rung-2 is the EXISTING SPEC-0124 adversarial
+  consult engine, rung-3 is the EXISTING escalation gate (blocked-on-land / `--ack-repeated-abort` /
+  `--owner-reset`) — an EXISTING gate, unchanged in code by this spec; §5a widens only WHO may answer
+  at that rung. It adds no VERB and no STORE of its own; what it does add is named in full in the
+  §Internal preamble above (one gate function, plus one optional `--cause` flag on the existing
+  `grants authorize`), with the four anti-complexity filters recorded there. Codified by (design auditor-vetted YELLOW×4, all absorbed —
+  decisions/three-rung-escalation-ladder-design-audit-adhoc.yaml). Live prior-art 2026-07-09:
+  three `blocked_on_land` all resolved by rung-1 diff/failing-assertion inspection (no consult needed);
+  a systemic-plan shape materially improved by a rung-2 consult; rode ceiling→rung-2
+  consult-reopen→ churn ledger-skip.
+
+    - **Rung 1 — MECHANICAL SELF-EVIDENCE (mandatory first; an auditor call costs minutes+tokens, and
+      3 of 3 cases on 2026-07-09 needed none).** Valid ONLY for a NO-NEW-DECISION case: the diff + the
+      named failing assertion + a PRE-EXISTING audited AUTHORIZING ARTIFACT (task card / accepted plan /
+      active spec) together re-derive the SAME conclusion. A behaviour change WITHOUT such an artifact is
+      NOT staleness — it is a rung-2 (or authority-class rung-3) question, never a rung-1 self-clear.
+      Every rung-1 act records a compact EVIDENCE TUPLE — never prose — carrying: (assertion id, old
+      pinned expectation, new intentional expectation, authorizing artifact, journal ref). This IS the
+      §2.1 governed self-clear made explicit; free-form "looks stale" remains a §2.4 UNCERTAIN → escalate.
+    - **Rung 2 — EXTERNAL-AUDITOR ADVERSARIAL CONSULT (only after rung-1 fails).** Submit >=2
+      framed OPTIONS and let the auditor NAME which survives — NEVER a "may I?" approval request
+      (else workers learn to phrase for approval — the false-consent failure). An auditor verdict is EVIDENCE, not
+      command: verify each finding MECHANICALLY before absorbing it; a contested finding under genuine
+      disagreement is itself a CHARTER §P7 dissonance that goes to the owner (proven both ways
+      2026-07-09 — a refutation consult overturned two controller calls; a cross_done false-WARN was
+      refuted by the log). DEGRADE-CLOSED: auditor unavailable / ABORT / no-survivor → rung-3 OWNER,
+      NEVER back to rung-1; a consumer with NO configured auditor collapses rung-2 → for anything
+      ambiguous the question goes straight rung-1→owner.
+      - **WHICH CONSULT.** For a BELOW-ceiling technical fork this rung is the on-demand
+        variant-pick `audit consult --on-demand --task <T-XXXX> --option... --option...`, which
+        SPEC-0204 rule 6 leaves unchanged. The AT-CEILING consult it used to name is RETIRED: past the
+        audit-loop ceiling a residual is not adjudicated by an auditor at all, it is settled by
+        **Controller typed decisions (SPEC-0204)** — one recorded `ceiling_decision` per residual
+        (`audit decide`, rule 2), then ONE bounded verifying pass (`audit pre|post --on-decisions`,
+        rule 3). A dispatched Worker never records one: it halts naming its residual fingerprints and
+        the Controller decides. So at the ceiling the ladder's rung 2 IS that decision route, and the
+        adversarial-consult shape above applies to the below-ceiling fork it still governs.
+    - **Rung 3 — THE AUTHORITY (the owner, or a `decide-authority` holder for that project — §5a).**
+      Reached only for a genuine dead-end (rung-2 non-convergence / degrade) OR an AUTHORITY-CLASS
+      cause (below). It is the backstop for AUTHORITY and true forks, not a routing default for every
+      block. A genuine dead-end that is NOT authority-class stays the OWNER's: the right admits the
+      authority class, and nothing beyond it.
+
+  **THE JUDGMENT-vs-AUTHORITY SPLIT — the hard boundary (CHARTER §P4a / §P7).** Rungs 1–2 adjudicate
+  TECHNICAL/JUDGMENT merit only. An AUTHORITY-class cause NEVER delegates past THE AUTHORITY — the
+  owner, OR a holder of the `decide-authority` right for that project (SPEC-0169 rule 2) — REGARDLESS
+  of any auditor verdict; the auditor has different blind spots, not responsibility. The
+  authority-class list, carried from the predecessor unchanged and kept on UNBROKEN lines so a grep
+  for any one cause still finds it: data deletion / destructive DB or FS mutation ·
+  production exposure · scope change · money · credentials/secrets ·
+  legal / compliance / privacy posture · irreversible EXTERNAL mutations ·
+  public / user-facing commitments. A rung-2 GREEN does NOT clear any of these; they hold
+  the rung-3 AUTHORITY gate unconditionally. WHO may be that authority is §5a; THAT one is required is
+  unchanged here, and no auditor verdict has ever been, or becomes, a substitute for one.
+
+  ### 5a. WHO MAY BE THE AUTHORITY — the gate is CONDITIONED, never REMOVED
+  Owner directive 2026-08-27. §5's rung-3 admits, alongside the owner, a holder of the SPEC-0169 rule-2
+  right `decide-authority` on THE PROJECT THE CAUSE BELONGS TO. This is the ONLY thing that changes in
+  this spec; every other clause of §1–§5 is carried forward unaltered, save the two pointers to
+  this section in §3's Owner rung and §5's rung-3 bullet.
+
+  **THE WHOLE CLASS, NARROWED BY THE GRANT ROW — not by a carved subset.** The right admits the ENTIRE
+  authority-class list of §5. There is deliberately NO delegable/reserved split of that list: an
+  earlier route that carved a named subset was CANCELLED as over-built, and the owner directed the
+  class. The narrowing that makes this safe is the GRANT — a (person, project, rights) triple written
+  by the owner — never a second classification of causes that would have to be kept in step with §5's
+  list forever.
+
+  **THE DIFFERENTIAL — three refusals that must survive, or the gate was REMOVED rather than
+  CONDITIONED.** All three fall out of SPEC-0169's EXISTING decision — the gate function delegates
+  admission to it whole and re-implements none of them:
+    1. **A person WITHOUT the right is STOPPED** on the same cause, on the same project. Admission is
+       a positive fact about a grant row, never an absence of objection.
+    2. **A right-holder is STOPPED on a project their grant does not name.** The right is
+       (person × project) by SPEC-0169 rule 1; holding it on project A says nothing about project B.
+       The rule-1a all-registry-projects SCOPE CLASS may make a grant cover every registered project,
+       but it is a DECLARATION resolved against the registry at read time, and it widens WHICH
+       PROJECTS only — never WHO is admitted.
+    3. **A missing, unreadable or empty grant set REFUSES.** SPEC-0169 rule 4 fails closed in BOTH
+       directions, and this clause inherits it unchanged: a misconfigured installation denies the
+       decision, it never opens it. Only a present, readable, matching row admits.
+  A surface that satisfies the admission without exhibiting all three has not implemented this rule; it
+  has deleted §5's gate and left a permissive path behind.
+
+  **DECIDING IS NOT DOING — and this is the rung a right-holder lands on NEXT.** `decide-authority`
+  confers NO execution capability (SPEC-0169 rule 2, probe V12). An admitted holder has become the
+  AUTHORITY for the cause; they have gained nothing else. Every execution gate still applies to them
+  exactly as before — `deploy-code` and `apply-prod-data` remain separately held or refused, and the
+  code gates this spec routes to (`land --rebaseline` authorization per SPEC-0077, `--no-tests`,
+  `--ack-repeated-abort`) are UNCHANGED and unreachable through this right. Naming that next rung is
+  part of the rule: an admission read as capability is the misreading this paragraph exists to prevent.
+
+  **THE REFUSAL MUST NAME ITS REMEDY (`lessons/a-refusal-remedy-must-name-which-locus-it-repairs`).**
+  A refusal a non-holder meets on an authority-class cause MUST state (a) that the cause is
+  AUTHORITY-class, (b) that `decide-authority` ON THAT NAMED PROJECT is the right that carries it, and
+  (c) that granting it is an OWNER act (SPEC-0169 rule 5 — the gated component may never create or
+  widen its own grants; that is a security boundary, not a convention). A refusal that omits this reads
+  as a bare "not authorized" and sends the reader off asking for a BROADER grant — which is precisely
+  the unbounded-permission shape the 2026-08-20 restriction record warns against. The message states
+  one composed diagnosis; it never prints a specific finding above a generic tail that contradicts it
+  (`lessons/carving-an-exception-into-a-fail-closed-gate` §2).
+
+  **WHAT DOES NOT MOVE (the P1 F3 honesty leg — named, so a reader cannot infer a wider change).**
+  Rungs 1–2 still adjudicate TECHNICAL/JUDGMENT merit ONLY. No auditor verdict clears an authority
+  cause — for a holder or a non-holder, a rung-2 GREEN is still evidence, never authority. An authority
+  cause still REQUIRES an authority: nothing here lets a session decide one for itself, and the
+  DEFAULT-UNDER-UNCERTAINTY = STOP of §3 is untouched. §§1–4 are carried forward
+  character-for-character apart from the single pointer clause added to §3's Owner rung.
+
+  **WHAT NARROWS (CHARTER §P1 F3 — the removal).** What narrows is the DEAD-END, not the code gate.
+  The `--ack-repeated-abort` verb gate is UNCHANGED — no consult-clear branch is added to the
+  repeated-abort backstop, and its pinning test still holds. NAME THE KIND, or this sentence reads
+  as contradicting SPEC-0077 §3a : what is forbidden here is a CONSULT-CLEAR branch — one
+  that would let a rung-2 auditor VERDICT stand in for the conscious continuation, which is the
+  delegation §5 refuses. The SPEC-0077 §3a re-baseline admission is NOT that kind and is
+  NOT excluded by this paragraph: it turns on no verdict at all, and its conditions are stated once,
+  at its own home — read them there (`graph query SPEC-0077` §3a), never from a copy here.
+  CORRECTED HERE, because the predecessor's wording was already false when this spec
+  inherited it: SPEC-0121 said that gate "stays OWNER-gated in code". It is NOT owner-gated, and the
+  land surfaces say so in as many words — established that the repeated-abort backstop
+  escalates to the CONTROLLER (SPEC-0103 §3), that `--ack-repeated-abort` demands no
+  `--owner-authorized` unlike `land --no-tests`, and that naming the owner there sent controllers to
+  escalate a decision the owner does not own. Carrying the sentence forward unexamined would have
+  left an ACTIVE spec contradicting the code it anchors — and, worse on this card of all cards,
+  overstating an owner gate in the very paragraph that narrows one. What is genuinely UNCHANGED is
+  the gate's shape: this spec adds no path through it, for anyone. The narrowing is UPSTREAM and by
+  DISCIPLINE: a JUDGMENT-class cause (a provable intentional-change pinned staleness backed by a
+  recorded rung-1 evidence tuple, or a converged rung-2 consult) now has a LADDER path — rung-1 resolves
+  the underlying cause (§2.1 governed self-clear, so the abort streak stops recurring before the backstop
+  is hit) or rung-2 adjudicates it — instead of dead-ending at the AUTHORITY as its ONLY exit. An
+  AUTHORITY-class cause has no such path: it keeps the rung-3 AUTHORITY gate unconditionally against
+  any auditor verdict. Read that clause with §5a, which is the ONLY thing this spec changed about it:
+  the gate is CONDITIONED on WHO may be the authority (the owner, or a `decide-authority` holder for
+  that project), never REMOVED, and a rung-1 or rung-2 result still clears NONE of it. The predecessor
+  read "the owner gate", full stop, because the owner was then the only possible authority; carrying
+  that wording forward unreconciled would have left this spec contradicting its own §5a. The land
+  repeated-abort backstop's disposition + the worker preamble now NAME this ladder (inspect first,
+  consult second, the authority third) so the worker-self-ack ambiguity — fingerprint
+  worker-self-acked-owner-gated-repeated-abort-flag-correct-outcome-ambiguous-mandate — is resolved in
+  TEXT, not left to per-worker judgement.
+
+  ## Parameters
+
+  None consumed (consumed: false — a process spec; no code reads a scalar param from it).
+
+  ## Rationale
+
+  Real incident: the 2026-07-01 provider bench, where the block-classification judgment DETERMINED
+  completion outcomes and the two providers held OPPOSITE wrong defaults (silent-push vs halt-on-
+  everything) — neither correct. The externally-validated design (YELLOW→absorbed,
+  decisions/-audit-adhoc.yaml) tightened three points now baked into §2: flake needs
+  independent evidence, quarantine is not a Worker self-clear, and deliberate guards take precedence.
+  Prior-art the rule reuses (not duplicates): SPEC-0103 (worker scope boundary + escalation), SPEC-0077
+  (pinned/last-green + governed rebaseline — the A-prime authority home: owner ack OR qualifying-Worker
+  self-clear), SPEC-0036 (audit-loop ceiling), CHARTER §P7.
+
+  WHY §5a EXISTS, and why the ONE mechanism it adds is the minimum that could work (CHARTER §P1; the
+  four filters are recorded in the §Internal preamble, and what it adds is named there). The measured cost was a card that could
+  not move: aiseller was dispatched twice, 2026-07-16 and 2026-08-26, and refused pre-claim both
+  times on the same cause — the question is whether an owner decision still stands, and nothing but an
+  owner decision unparks it. The person who filed it already held `deploy-code`, `apply-prod-data` and
+  `dry-run-readonly` there: he could EXECUTE the change and could not DECIDE it. So the gap was never
+  access, and building a second authority mechanism to close it would have been the parallel path
+  CHARTER §P5 forbids. Filter 1 (existing analog) resolves it: SPEC-0169 ALREADY models
+  (person, project, rights), already splits rights BY BLAST RADIUS, already fails closed in both
+  directions, and already forbids the gated component from writing its own grants — so the fourth right
+   is the carrier and this spec is only the doctrine admitting it. Filter 3 (what is removed):
+  the DEAD END is removed — an authority-class cause on a project someone holds the right for stops
+  being a question with no exit but the owner. Filter 4 (real incident): the twice-refused card above,
+  plus the 2026-08-20 restriction record — 67 test-bypass lands, 45 in a single day, whose recorded
+  cause was the FORM of a permission rather than the person. That record is why the admission here is
+  per-person, per-project, owner-written and attributable on every exercise, and why §5a's differential
+  is normative rather than advisory: an unbounded grant is the ONE shape this change may not produce.
+
+  ## Verification
+
+  - The land-refusal surface (bin/lib/worktree.py cmd_land — the rebaseline / repeated-abort aborts),
+    the worker surface (bin/lib/dispatch.py DISPATCH_WORKER_PREAMBLE) and the §5a authority gate
+    (bin/lib/grants.py decide_authority_class_cause, its `--cause` entry point cmd_grants_authorize,
+    and _authorization_refusal_message) each POINT at THIS spec (the `implements:` anchors;
+    graph-build resolves them, non-dangling). The two ladder surfaces were retargeted from SPEC-0121
+    to SPEC-0191 at : a read surface citing the SUPERSEDED head would route a blocked worker to
+    retired history, which is the second-drifting-home this supersession exists to remove. Pinned by
+    tests/test_t11684_authority_delegation.py AC6, which asserts BOTH that the superseded owner-only
+    wording is GONE from those surfaces and that the conditioned one is present — an absence check
+    alone is satisfiable by deleting the claim everywhere.
+  - Existing tests confirm the governed paths this rule routes to: test_t9307_pinned_rebaseline (the
+    governed rebaseline path RECORDS a reason / refuses without it); test_t9623_blocked_on_land_repeated_abort
+    + test_t9618_blocked_on_land (a deliberate-guard / uncertain / repeated-abort block ESCALATES via
+    blocked-on-land rather than self-clearing); test_t9306_no_tests_owner_gate (no silent gate self-clear).
+
+  - **V-AUTH-1 (§5a admission) — a right-holder IS admitted.** A session acting under an identity that
+    holds `decide-authority` on project P is ADMITTED as the authority for an authority-class cause on
+    P. Failing input: that same identity refused — without this leg the rule is green by construction,
+    since a surface that refuses everyone satisfies every negative probe below and delegates nothing.
+  - **V-AUTH-2 (§5a differential, and the card fails without it) — the gate is CONDITIONED, not
+    REMOVED.** Three refusals, against fixture grant state, the cause and the project held constant:
+    a person with NO `decide-authority` row is refused; the SAME right-holder is refused on a project
+    their grant does not name; and an absent / unreadable / empty grant set is refused. Failing input:
+    any of the three admitted — each of which is exactly what deleting §5's gate would look like from
+    V-AUTH-1 alone.
+  - **V-AUTH-3 (§5a, deciding is not doing) — the NEXT rung still refuses.** The admitted holder is
+    still refused `deploy-code` AND `apply-prod-data` on that same project. Failing input: either
+    permitted off the decision right, which would collapse deciding and doing into one privilege
+    (SPEC-0169 rule 2) and turn an authority admission into a capability grant.
+  - **V-AUTH-4 (§5 unchanged) — no auditor verdict clears an authority cause.** The judgment-vs-
+    authority boundary, the enumerated authority-class list, and "a rung-2 GREEN does NOT clear any of
+    these" are all still stated, and no consult/auditor verdict is an input to the admission decision.
+    Failing input: a GREEN consult admitting an authority-class cause for a non-holder.
+  - **V-AUTH-5 (§5a refusal remedy) — the refusal NAMES what would repair it.** A non-holder's refusal
+    states that the cause is AUTHORITY-class, names `decide-authority` on THAT project as the carrying
+    right, and names the owner as the only writer of it. Failing input, in BOTH directions: a refusal
+    that omits the locus (it sends the reader asking for a wider grant), or one that suggests seeking a
+    broader/different grant instead — the absence half, since a message asserting the right thing while
+    also asserting the wrong one is not a distinct diagnosis.
+  - **V-AUTH-6 (lineage) — exactly one active head.** This spec carries `supersedes: SPEC-0121`, and
+    exactly ONE of the pair is `active` at any time (this one `proposed` + SPEC-0121 `active` before
+    activation; the inverse after). Failing input: both active, or neither — either of which means the
+    atomic flip at the activating `task close` did not happen.
+
+cites:
+  - CHARTER.md#principle-7
+  - SPEC-0036
+  - SPEC-0077
+  - SPEC-0103
+  - SPEC-0121
+  - SPEC-0169
+  - background-session-operation
+  - a-refusal-remedy-must-name-which-locus-it-repairs
+  - carving-an-exception-into-a-fail-closed-gate
+  - escaping-one-rung-of-a-refuse-by-default-ladder-is-not-earning-the-outcome
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: SPEC-0121
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task:
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by:
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced]
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
+  bin/lib/grants.py#_authorization_refusal_message: 305e3098641c12e8cf38be3db6743b32903a9870ff9d5f99e722c9cb8cb2cd0f
+  bin/lib/grants.py#cmd_grants_authorize: 42f990ba0e44cffca0495aad22338ab4040a6236e1f0cb0d2bc95fad8872f44b
+  bin/lib/grants.py#decide_authority_class_cause: 16b58912c5b105188c8bd26157b6d4869ab2f233383f9dfe66efa66dbda4104b
+  bin/lib/worktree.py#cmd_land: 144d854f0c901d1d882cf6a06f329a56b108a012db7646e24fa0f1e404836c51

@@ -1,0 +1,178 @@
+id: SPEC-0024
+title: 'Decision lifecycle (frozen backlog) — PEP-inspired FSM, YAML header, status transitions, audit gates'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (the demote's authoritative retrieved home). `active` is the ONLY
+                               # normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # a governance-reference contract; no code reads a scalar param FROM it.
+
+implements: [] # documentary read-rule spec — the query-only retrieved home of the
+                               # decision lifecycle (SPEC-0007 §5a). Now that `decision new` is RETIRED
+                               # (new rules → `spec new`) AND the backlog ops accept/finalize/withdraw are
+                               # RETIRED too (frozen backlog fully terminal), this lifecycle is a
+                               # purely HISTORICAL reference describing how the terminal corpus was reached.
+                               # The verb-mediated transitions are gone from bin/yitc-v2; the FSM is kept
+                               # here as frozen-history documentation — so `implements: []` + this note.
+                               # Resolved by : `binding: [query-only]` marks it intentionally
+                               # pointer-delivered (no longer dangling).
+
+body: |
+  ## Scenario
+
+  V2 decisions are PEP-shaped governance artifacts with an explicit status lifecycle. As of the Phase-1
+  doc-model rework a NEW standing rule is authored as a SPEC, not a decision — so this lifecycle now
+  governs the FROZEN decision backlog only: the owner/AI consults it when accepting, finalizing, or
+  withdrawing an existing Accepted decision, and to know which PEP concepts V2 deliberately rejected
+  before proposing any future import. It is situational reference, pulled on demand; the CHARTER keeps a
+  pointer-stub and the lifecycle lives here.
+
+  ## Internal
+
+  THE DECISION LIFECYCLE (faithfully moved from CHARTER §"Decision lifecycle " by —
+  the handbook prose WAS the always-loaded copy until this query-only demote; this spec is the retrieved
+  home, reached via the CHARTER pointer-stub + `bin/yitc-v2 graph query SPEC-0024`).
+
+  V2 decisions follow PEP-inspired lifecycle for explicit status tracking, supersession discipline, and
+  uniform structure. Decision = durable governance artifact distinct from tasks (which carry execution
+  work) and specs (which describe schemas/contracts).
+
+  > **AMENDED — Phase-1 doc-model rework (2026-06-01, `plans/phase-1-narrow-spec-as-rule-proven-plus-cut-decisi`).**
+  > A **NEW** standing governance rule is now authored as a **SPEC** (the standing rule itself: **SPEC-0008**),
+  > not a new decision — `decision new` is RETIRED (run `bin/yitc-v2 spec new`). The existing decision corpus is **FROZEN history**: referenced
+  > by id, kept readable, with the `migrated_to` pointer preserving `from:`/`cites` edges. The lifecycle
+  > below + its verbs therefore govern the **frozen backlog ONLY**, verb-by-verb: **`decision new` →
+  > BLOCKED** (reroute to `spec new`); **`decision accept` / `finalize` / `withdraw` → RETIRED **
+  > (were BACKLOG-ONLY "until the backlog is resolved"; the 2026-06-08 drain met that condition — 0
+  > non-terminal decisions — so the three subcommands were removed; `new` (refuse) is now the sole one).
+  > Prior-art (the PEP-first evolution discipline at this section's end): PEP / ADR / Specification-by-
+  > Example converge that rule-text + deliberation UNIFY, not split (external prior-art); the internal
+  > analog SPEC-0005 proved a *process* rule lives in a spec without recreating a decision (Principle 1 F1).
+  >
+  > **Authority-flip — the plan is the standing successor of `decision finalize` for AGGREGATE
+  > finalization (Part B).** The aggregate-finalization role that `decision finalize` carried
+  > (an `Accepted → Final` audit-post grading the WHOLE realization across all implementing tasks) is
+  > inherited by the **PLAN**: `plan accept` births the change-corpus (its `draft` specs → `proposed`),
+  > and `plan close --resolution realized` is gated by an aggregate `audit post --plan` over the plan +
+  > its `proposed_by` specs (mirror of the retired decision-finalize gate). A NEW governance
+  > lifecycle therefore routes its aggregate finalization through the plan, **never** `decision finalize`
+  > — the latter is backlog-only (`decision new` is retired, so no new lifecycle can reach it). See
+  > `patterns/plan-lifecycle.md` + AGENTS §Planning-artifacts / §External-auditor-contract.
+
+  **Three lifecycle vocabularies — do not conflate:**
+  - **Decision lifecycle** (this section): `Draft → Accepted → Final / Superseded / Withdrawn`
+  - **Task lifecycle** (QUEUE.md §State transitions): `ready → in-progress → done / blocked / parked / wont-do`
+  - **Task execution stages** (LIFECYCLE.md): 9 internal stages of a Build session per task (Analysis → Closure)
+  - **Spec lifecycle** (GRAPH.md): `active → superseded → retired`
+
+  Different artifact classes carry different lifecycle vocabularies intentionally — decisions are
+  proposal-shaped (PEP-aligned), tasks are work-shaped, specs are versioning-shaped.
+
+  **External reference:** Python PEP process (https://peps.python.org/pep-0001) selected as
+  architectural base via after independent AI + external auditor (full-capability model)
+  convergent recommendation 2026-05-26. V2 adapts PEP's lifecycle shape and template structure — does NOT
+  import PEP corpus as operational dependency.
+
+  **Decision YAML uniform header fields:**
+
+  | Field | Required | Description |
+  |---|---|---|
+  | `id:` | yes | `D-XXXX` sequential |
+  | `title:` | yes | Short imperative |
+  | `type:` | yes | `Process` (methodology / governance) \| `Architectural` (schema / structure) \| `Informational` (record-only) |
+  | `status:` | yes | `Draft` → `Accepted` → `Final` happy path; OR terminal `Superseded` / `Withdrawn` |
+  | `created:` | yes | ISO date |
+  | `from:` | yes | Durable artifact citation per Principle 2 |
+  | `supersedes:` | optional | D-XXXX being replaced (atomic update on supersession commit) |
+  | `requires:` | optional | D-XXXX dependencies |
+  | `bootstrap_source:` | optional | When `from:` cites Bootstrap exception |
+  | `resolution:` | filled-at-Accepted | One-line decision outcome |
+  | `adoption_probe:` | required for Process / Architectural | Probe schema confirming adoption (Principle 3 + 8) |
+
+  **Status transitions** — **the `decision accept` / `finalize` / `withdraw` verbs that carried these are
+  RETIRED :** the frozen backlog was drained to terminal on 2026-06-08 (0 non-terminal decisions),
+  the "until that backlog is resolved" condition was met, and the three subcommands were removed. The
+  bullets below are now a **HISTORICAL description** of how the (now fully terminal) corpus reached its
+  states — no live verb performs them; a frozen status is not re-transitioned (a raw YAML edit is the
+  recovery escape hatch only). For a NEW governance lifecycle, aggregate finalization is **plan-owned**
+  (`plan close --resolution realized`), not `decision finalize`. (The "carried by `decision X`" notes in
+  the bullets describe the retired tooling, kept for historical fidelity.):
+
+  - `Draft` → `Accepted`: **owner ratification AND a GREEN/YELLOW `decisions/D-XXXX-audit-pre.yaml`** (mandatory audit-pre gate, — carried by `decision accept`; the design is forged in discussion, the pre-audit is the formal checkpoint confirming it BEFORE any task is built on the decision). `resolution:` filled in same transition.
+  - `Accepted` → `Final`: adoption probe passes **AND a GREEN/YELLOW `decisions/D-XXXX-audit-post.yaml`** (mandatory audit-post gate, — carried by `decision finalize`; mirrors the task `task close` precondition). `adoption_probe.status: passed` + supporting event or state check captured.
+  - `Final` → `Superseded`: HISTORICAL transition — a later decision carried `supersedes:` and the superseded decision's status was updated **in same commit** as the superseding one (atomic). Frozen now: no NEW decision is authored (`decision new` is RETIRED), so this leg no longer fires; a new standing rule supersedes via the spec FSM (GRAPH §Spec lifecycle).
+  - Any state → `Withdrawn`: decision abandoned or rejected (carried by `decision withdraw`). Preserves trace for future planning prior-art.
+
+  **Decision audit gates — tooling + grandfathering, HISTORICAL (verbs retired):** the two audit gates above WERE TOOLED + enforced by the lifecycle verbs `decision accept` / `decision finalize` / `decision withdraw` (the then-blessed path; raw `status:` hand-edits were FORBIDDEN, each verb-mediated transition emitting `decision_accepted` / `_finalized` / `_withdrawn`). Those verbs are now RETIRED (the backlog is fully terminal, nothing left to grade), so the gates no longer fire. The finalize-gate applied to a decision **IFF it carried a `decision_accepted` journal event** (the deterministic marker); legacy decisions with no such event were grandfather-EXEMPT — this is how the 2026-06-08 drain finalized the remaining Accepted backlog. Full contract: `decisions/`.
+
+  **Template:** `decisions/_template.yaml` — the FROZEN-history template the existing decision corpus was filed against (kept for reading legacy entries; `decision new` is RETIRED, so no new decision is created from it). Fields marked `~` or `""` were filled per status transitions or optional.
+
+  **Evolution discipline — PEP-first consultation (per owner directive 2026-05-26):** any future change to **any doc-workflow lifecycle** (decision lifecycle template fields / status semantics / transition rules — OR task lifecycle vocabulary in QUEUE.md — OR spec lifecycle states in GRAPH.md — OR broader patterns like drafts / supersession / content approval) MUST first consult PEP process (https://peps.python.org) for analog before V2-specific design. Sequence: internal grep V2 repo first (existing analog per Principle 1 F1) → PEP-grep second (external prior-art per Principle 1 F4) → V2-specific design only after both prior-art checks documented in the planning artifact. Anti-greenfield-drift guard: V2 doc workflow evolves slowly + with prior-art evidence, not by impulse design.
+
+  **Grandfathering:**.. predate this lifecycle. **Migrated atomically with ship** (same commit) — field renames (`class:` → `type:`, `date:` → `created:`, `status: active` → `status: Final`) + insertion of `from:` + `adoption_probe:` (retroactive `status: passed`). Type assignment per-decision: / / / / / = `type: Process` (methodology / governance); / = `type: Architectural` (schema / structure changes). No body rewrites. Decisions + were filed against the new template (historical — the corpus is now frozen; `decision new` is RETIRED).
+
+  **Body sections :** decisions may optionally include `rejected_ideas:` (alternatives considered and rejected, with rationale) + `backwards_compatibility:` (what breaks / preserves for existing artifacts). `backwards_compatibility:` REQUIRED for type: Architectural. Both serve PEP 1 body section role; suggested format = bulleted or short paragraph.
+
+  **Rejected PEP imports (external auditor verdict 2026-05-26):** the following PEP concepts examined and rejected as not-yet-needed for V2 — each will reopen only on concrete V2 incident trigger:
+
+  - `sponsor:` / `bdfl_delegate:` / `pep_editor:` fields — solo-owner collapse → dead-weight metadata
+  - `discussions_to:` / `post_history:` fields — `bootstrap_source:` already covers
+  - `topic:` / `reference_implementation:` fields — defer until categorization / cross-binding pull
+  - `Active` / `Provisional` / `Deferred` / `Rejected` statuses — existing `adoption_probe.status` + `Withdrawn` covers; redundant import would conflict with V2 augmentations
+  - Explicit role taxonomy — CHARTER non-goal «no multi-role»
+  - `abstract:` field — defer until decision files exceed quick-scan length
+
+  See `decisions/-rejected-ideas-and-backwards-compat.yaml § rejected_ideas` for full rationale and
+  external auditor reasoning. Future PEP-import proposals MUST cite a concrete V2 incident overcoming
+  these reasons.
+
+  ## Rationale
+
+  The lifecycle is PEP-derived governance shape, now BACKLOG-ONLY since `decision new` is retired
+  (the Phase-1 doc-model rework — new rules are specs). Because it is consulted only when operating on the
+  frozen Accepted backlog or vetting a future PEP-import, it is SITUATIONAL reference, not a rule needed to
+  act safely at all — so it belongs in the `retrieved` tier (SPEC-0007 §5a query-only default), NOT the
+  always-loaded mandatory floor. Demoting it keeps the lifecycle authoritative (this spec is `active`
+  post-close) while shrinking the always-loaded core to its bootstrap skeleton — the in-scope Part I-B
+  payoff. NOT floor-triggered: operating on the frozen backlog is not one of the four gated control-points
+  (commit / audit / closure / rule-change); a `before-decision` trigger would be obligation-set creep.
+
+  ## Verification
+
+  Probe CONTRACTS (RED-GREEN — observed failing before the fix is trusted Slip 4):
+  - **VP1 (fidelity, moved-not-lost):** the lifecycle's key phrases — "PEP-inspired lifecycle", "Three
+    lifecycle vocabularies", "Decision YAML uniform header fields", "Rejected PEP imports", "Evolution
+    discipline — PEP-first consultation" — resolve in THIS spec body and are ABSENT from CHARTER.md
+    (CHARTER keeps a pointer-stub only). Probe: `grep "PEP-inspired lifecycle" specs/SPEC-0024-*.yaml`
+    matches; `grep` of the same in CHARTER.md does not.
+  - **VP2 (delivery / ratification, query-only — SPEC-0007 §5a):** the rule reaches its moment-of-use via
+    (a) the surviving CHARTER pointer-stub naming `SPEC-0024` + the lookup path, AND (b)
+    `bin/yitc-v2 graph query SPEC-0024` resolving this node. BOTH named ⇒ delivered.
+  - **VP3 (query-only, no floor-trigger):** this spec's `binding:` is `[query-only]` — the reserved
+    residency token (NO verb token, NOT `floor`), query-only reference, not floor-triggered (operating on
+    the frozen decision backlog is not a gated control-point). Probe: `binding: [query-only]`; absent from
+    `graph/floor-trigger-map.md`; AND NOT in `binding_report.dangling_specs`.
+  - **VP4 (graph-indexed + active):** `graph build` indexes SPEC-0024 as a `spec` node; post--close
+    `status: active`. Probe: `graph query SPEC-0024` resolves; status active.
+
+cites:
+  - CHARTER.md#principle-2
+  - CHARTER.md#principle-5
+  - SPEC-0007
+  - SPEC-0008
+  -
+  -
+  -
+  - part-i-b-tier-split-carving-floor-wiring-first-the
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first — `task close ` flips this proposed→active.
+proposed_by: # provenance: born by the demote task (work-first).
+binding: [query-only] # QUERY-ONLY (SPEC-0007 §5a) — reserved residency token, no verb
+                               # token, not `floor`. Reached via the CHARTER pointer-stub + `graph query
+                               # SPEC-0024`. Excluded from the verb inversion AND the dangling check.

@@ -1,0 +1,161 @@
+id: SPEC-0066
+title: Conditional host-leak canary invocation — per-land canary gated on the inert-path classifier, with a weekly-Review backstop
+
+status: active
+
+created_at:
+
+consumed: false # behavioural/process contract on land + a Review cadence; no scalar
+                               # governing param is read FROM this body. The inert/observable boundary
+                               # is owned by SPEC-0064 (cited, not duplicated — P5).
+
+implements: [bin/lib/worktree.py#_land_integrate, bin/lib/worktree.py#_host_leak_land_verdict, bin/lib/worktree.py#_host_leak_surface_state] # ACTIVATED by : the per-land canary gate; the snapshot-diff helpers replace the full-suite re-run
+                               # — the per-land canary-invocation gate in bin/yitc-v2
+                               # (_land_integrate / _run_host_leak_canary) — is BORN by this plan's A′
+                               # implementing task and recorded on `implements:` at activation. The
+                               # weekly-backstop carrier is a QUEUE.md §Re-review-triggers line, not a
+                               # code anchor. Named in §Internal.
+
+body: |
+  ## Scenario
+
+  Land's per-land verification runs the host-leak canary (`_run_host_leak_canary`, `YITC_CANARY_RUN=1`)
+  — historically the full suite shape re-run a SECOND time on a clean checkout to detect host-leak
+  debris (~48s of the ~96s verify, 2026-06-09 telemetry). ** REPLACED that redundant re-run on
+  the per-land path:** the host-leak DETECTION now folds into a before/after snapshot around land's OWN
+  `_run_verify_tests` pass (`_host_leak_land_verdict` / `_host_leak_surface_state`) — the SAME
+  watched-path debris check (a `graph/index.json` rewrite shows as ` M` in `git status`, plus
+  `decisions/T-99*` debris + an orphan `graph/.index.json.*.tmp`; the git-status-only land
+  verdict, so a pure mtime-touch on a byte-clean tree is still not a leak) with NO second suite execution. The re-run
+  had grown to 454 files and, under concurrent-land CPU contention, tipped over the 300s per-file bound
+  → the `land-verify-timeout:test_t0402_host_leak_canary.py` recurrence (3× on 2026-06-28). The
+  standalone canary (`tests/test_t0402_host_leak_canary.py`) + the weekly `audit canary-backstop` keep
+  the active-run form for surfaces the suite is not otherwise run against. On a land whose final merged tree touches ONLY inert
+  paths, the canary's verdict is identical to its periodic verdict — a host-leak is introduced only by a
+  change to executable test/code, which is an OBSERVABLE land. So on the ~64% of ships classified inert
+  (measured — sibling trial run 2, 211/326; the early telemetry estimate was ~79%), the per-land canary
+  re-proves nothing. This rule makes the per-land canary
+  CONDITIONAL on the inert-path classifier (SPEC-0064), and adds a weekly-Review backstop that covers
+  the one residual a per-land skip leaves — a classifier misclassification.
+
+  ## Internal
+
+  CONDITIONAL HOST-LEAK CANARY INVOCATION. Two carriers, one rule: the per-land gate + the weekly
+  backstop. The canary itself (`tests/test_t0402_host_leak_canary.py`, the enforcement probe of
+  SPEC-0041 §3) is UNCHANGED — this rule governs only WHEN land invokes it.
+
+  ### 1. The per-land gate (when the canary runs)
+  At the canary-invocation point in land's verification, classify the **final merged tree about to
+  fast-forward `main`** with the inert-path classifier (SPEC-0064 — one authority; evaluated on the
+  final tree, never an initial branch diff):
+  - **final tree INERT → SKIP the per-land canary** for this land. An inert final tree cannot have
+    introduced a host-leak (a leak comes only from executable test/code, which the classifier marks
+    OBSERVABLE), so the just-run periodic/standing canary verdict still holds.
+  - **final tree OBSERVABLE (or classifier unavailable) → RUN the per-land host-leak CHECK** — the
+    cheap `_host_leak_land_verdict` snapshot-diff around land's own `_run_verify_tests` pass,
+    NOT a second suite execution. Fail-closed: anything not provably inert runs the check.
+  ONE skip-evidence carrier (no parallel signals): a canary-skip is recorded as a `canary_skipped`
+  field (bool + classifier reason) on the `land_completed` event — the SAME carrier shape lever B uses
+  for `reverify_skipped`, on the same event. A run is the existing behaviour. The skip is never silent
+  (Principle 8); `land_completed.canary_skipped` is the single home for the skip signal everywhere.
+
+  ### 2. Evaluation point — the FINAL merged tree
+  The gate is ALWAYS evaluated on the final merged tree about to ff (post last re-merge/retry), NOT the
+  initial branch diff. Under concurrency a re-merge can pull observable content into a tree whose branch
+  diff was inert; only the final-tree evaluation sees it. (Same final-tree rule SPEC-0064 §3 mandates —
+  consumed, not re-stated.)
+
+  ### 3. The weekly-Review backstop (the residual net)
+  A per-land skip removes the canary only from a land the classifier called inert. The single residual
+  is a classifier MISCLASSIFICATION (a leak-capable land wrongly classed inert) — improbable
+  (fail-closed allowlist, trial-proven) and bounded by a cadence. The backstop is therefore a
+  belt-and-suspenders net for that narrow residual, NOT a primary guard:
+  - **Carrier:** ONE line in QUEUE.md §Re-review triggers (the EXISTING weekly Review cadence — no new
+    operating lane, no cron, no new session type) that INVOKES A GOVERNED VERB — not a hand-run.
+  - **Action (governed, not prose):** the weekly trigger runs `bin/yitc-v2 audit canary-backstop`; that
+    verb runs `_run_host_leak_canary` once on `main`, confirms green, and EMITS the `canary_backstop_ran`
+    run-evidence event. The verb owns the run + the emit (AGENTS §Verb-execution discipline — the emit is
+    never a hand action); the weekly Review only invokes it. **Verb shape PINNED (no open accept-level
+    decision):** it is a NEW thin `canary-backstop` subcommand under the EXISTING `audit` verb group
+    (`audit pre` / `audit post` / `audit adhoc` → `audit canary-backstop`) — extending the established
+    verb family, not a parallel verb (anti-complexity F1 extend-not-create; built to
+    `patterns/verb-design.md`).
+  - **Failure-signal:** absence of `canary_backstop_ran` for more than one Review cycle is visible in
+    the journal — no new detector. The backstop rots only if Review itself lapses, which is acceptable
+    because the PRIMARY protection (the canary on every OBSERVABLE land, §1) never lapses.
+
+  ### 4. Relationship to SPEC-0041 (cites, not)
+  This rule CITES SPEC-0041 + SPEC-0064 and supersedes NEITHER. SPEC-0041 §3 EXPLICITLY disclaims the
+  invocation wiring ("Wiring it as a dedicated `land`/CI step is — out of this spec's scope; the
+  canary itself is the probe"), so the canary's invocation TIMING is a NEW concern, not a reshape of
+  SPEC-0041's host-isolation contract. SPEC-0041 still owns WHAT the canary checks and the
+  test-authoring isolation rules; this spec owns only WHEN land invokes it.
+
+  ### 5. One classifier authority (no re-encoding)
+  The inert/observable decision is computed by the SPEC-0064 classifier helper and nothing else. This
+  rule MUST NOT re-derive "inert" from its own path test — it consumes the same single authority lever
+  B consumes (SPEC-0064 §4). The A′ implementing task `requires:` the classifier task.
+
+  ## Parameters
+
+  None consumed. The proven-inert allowlist + the observability definition + the final-tree rule are
+  owned by SPEC-0064 (cited, not duplicated — P5). The backstop cadence (weekly) is the existing Review
+  cadence, not a new param.
+
+  ## Rationale
+
+  Land median ≈ 96s ≈ the whole land; ~48s of that is the host-leak canary; ~64% of real ship commits
+  classify inert (measured — sibling trial run 2, 211/326; ~79% was the early 2026-06-09 telemetry
+  estimate, refined down by the measured classification — plan
+  `conditional-per-land-host-leak-canary-gated-on-the`). Two FULL external ad-hoc consults established
+  the load-bearing safety conditions: moving the canary fully to periodic is unsound (its verdict
+  depends on branch code the suite executes), but a fail-closed conditional canary is acceptable when
+  narrowed to (i) a narrow proven-inert set, (ii) evaluation on the final merged tree, (iii) a backstop
+  for the misclassification residual. The deliberation + the rejected forms live in the plan (SPEC-0005
+  rule 3); this body carries only the resulting rule.
+
+  ## Verification
+
+  Behavioural probes (Principle 3 — observed behaviour):
+  - **Gating:** a land whose final merged tree touches only inert paths → canary SKIPPED (journal shows
+    the skip + the classifier reason); a land touching `bin/**`/`tests/**`/config/fixture → canary RUNS;
+    an unknown/new path → canary RUNS (fail-closed).
+  - **Final-tree:** a concurrency re-merge that pulls observable content into an otherwise-inert tree →
+    canary RUNS (the gate evaluated the final tree, not the branch diff).
+  - **Backstop self-evidence:** the governed `audit canary-backstop` verb (invoked by the weekly Review
+    trigger) emits `canary_backstop_ran` on cadence; running it IS the P8 consumer evidence (the
+    discipline-ratio-lens precedent). Absence for >1 Review cycle is journal-visible.
+  - **No false-skip:** a land that SHOULD run the canary (observable final tree) never skips.
+
+  ## Drift review
+
+   (2026-06-09): re-verified this body against `bin/lib/worktree.py#_land_integrate` (the per-land canary
+  gate) + `cmd_audit_canary_backstop` / `_run_host_leak_canary`. The conditional per-land canary —
+  classifying the FINAL merged tree via `_classify_inert_paths(_merged_tree_delta_paths(W, merged_base))`,
+  the `canary_skip_reason = "inert-final-tree"` skip vs the fail-closed RUN on observable/unavailable,
+  and the `audit canary-backstop` weekly verb emitting `canary_backstop_ran` — all match the spec as
+  written. The graph last-touch flag was a region shift only (later land-bookkeeping commits moved the
+  `_land_integrate` symbol). No semantic drift; this re-touch clears the possibly-stale flag. Re-verified again at : that change only tagged the 8 abort-path `_die` sites in `_land_integrate` with a structured `abort_class` (the repeated-abort backstop) — ORTHOGONAL to this spec's success-path conditional-canary logic; no semantic drift, this re-touch clears the possibly-stale flag.
+  Adoption (activation gate, CHARTER §P3/§P8 — infra-class): both the per-land skip on an inert final
+  tree and the canary run on an observable final tree are OBSERVED in a real concurrent soak, the
+  backstop event is present on cadence, and both consumers (this canary gate; lever-B re-verify skip)
+  call the SAME SPEC-0064 helper.
+
+cites:
+  - SPEC-0041
+  - SPEC-0064
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - CHARTER.md#principle-8
+  - conditional-per-land-host-leak-canary-gated-on-the
+
+requires:
+  - SPEC-0064
+supersedes: ~
+activation_owner_task:
+proposed_by: conditional-per-land-host-leak-canary-gated-on-the
+binding: [code-enforced]
+implements_signature:
+  bin/lib/worktree.py#_host_leak_land_verdict: 0ecda71dbca02afaa32d3a55a4df760f16847496ef928b122e28679640b024f3
+  bin/lib/worktree.py#_host_leak_surface_state: 948e5a1c879999c567814386142cf18bf10cbbf42fa3d62cd443597296abcbb1
+  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae

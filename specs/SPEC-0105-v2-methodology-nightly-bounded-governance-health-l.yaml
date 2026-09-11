@@ -1,0 +1,425 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0105
+title: v2 methodology-nightly — bounded governance/health/liveness automation for migrated v2 projects
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: kernel # RE-PINNED from draft v2-self to kernel by the activation_owner_task (SPEC-0073 §3): the bounded methodology-nightly runner is intended to TRAVEL to every v2 consumer
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # FILLED at activation by (the durable code anchor). The bounded
+                               # v2-nightly RUNNER's durable code anchor (the enumerator + governance
+                               # entrypoint) is filled by the implementing task at activation; the
+                               # kernel realm re-pin is the explicit plan-accept action (SPEC-0073 §3).
+  - bin/lib/nightly.py#cmd_nightly
+
+body: |
+  ## Scenario
+
+  A MIGRATED v2 project (one whose `registry.yaml` `methodology` is `yitc_v2`) is watched by a
+  BOUNDED, methodology-AWARE nightly — the v2 analog of the v1 night-cycle, but it runs v2 GOVERNANCE
+  checks, never a v1 auto-session. The owner sees ONE place where every v2 project's health is checked
+  on a schedule: queue freshness, corpus/graph integrity, backup-verify, and — delegated to the
+  freshness probe (SPEC-0110) — whether the project's regular work actually ran. Since it
+  also sees whether each project's MAIN IS GREEN, as ONE reported line, rather than learning it a
+  halted worker at a time. A v2 project is NEVER
+  left to fall between the v1 nightly (which would run the WRONG, v1 session on it — the X-0090
+  regression) and no nightly at all.
+
+  ## Internal
+
+  THE BOUNDED v2 METHODOLOGY-NIGHTLY (L1 — the seed layer). Rules:
+
+  ### 1. Methodology-partitioned — never a v1 auto-session on a v2 project
+  The v2 nightly acts ONLY on projects whose `registry.yaml` `methodology == yitc_v2`, running v2
+  GOVERNANCE/health checks on each (read-only health: queue freshness, graph/corpus integrity,
+  backup-verify, + the PROJECT-VERIFY HEALTH check of §1a ( — the project's own declared,
+  health-eligible verify layers run as a read of whether its main is green), + the liveness probe of
+  SPEC-0110, + the BORN-WAIVER FRESHNESS hygiene check (X-0130) — surfacing a `yitc-ops.yaml` (SPEC-0093) born waiver whose init PLACEHOLDER marker/expiry was
+  never replaced, so a fail-closed default never confirmed does not sit unnoticed indefinitely). It
+  NEVER invokes a v1 `auto-session` on a v2
+  project, and the v1 night-cycle MUST stop enumerating v2 projects — the two nightlies PARTITION the
+  registry by `methodology`. This partition is the closure of X-0090.
+
+  ### 1b. The per-project STAGE-PROFILE reading — what did each lifecycle stage cost here?
+  Beside the §1 health checks, which answer whether a project is WELL, the run takes one READING of
+  what that project's work COSTS: per lifecycle stage, over the tasks CLOSED in the window, the n /
+  median / p90 / sum of wall, with each stage's machine-time share. It is a read-only fold of that
+  project's own `events.jsonl` through the kernel `stage-profile` lens (SPEC-0031 §Saved views) — the
+  SAME function `graph query stage-profile` runs, so the nightly and an on-demand query cannot report
+  different numbers — and it emits NO event of its own: the reading rides the existing
+  `nightly_run_completed` report (a VIEW, not a new store — CHARTER §P1 F2).
+
+  **SUPPRESSED-WHEN-EMPTY, unlike the §1a health states.** A project that closed no task in the window
+  prints NO line. This is the opposite choice from the health axis's `none` state, and deliberately so:
+  `none` there means COVERAGE IS ABSENT and must never read as `ok`, whereas here an idle fortnight is
+  simply not a reading, and a row of nulls printed for it would be indistinguishable from a measured
+  quiet period while adding the line every reader learns to skip. A project whose journal cannot be
+  read says so (`alert` + the reason) rather than printing nothing — an unreadable journal and an idle
+  one are different facts.
+
+  **REPORT-ONLY, and inside the §2 fence.** No verdict moves, no exit code moves, no threshold is
+  compared and nothing is flagged: a rising stage cost is a signal to look at what changed upstream,
+  never a gate. It runs no command in the consumer's checkout and writes nothing there — it
+  reads a journal, which is what §1's other checks already do.
+
+  ### 1c. The per-project SEAM-READ reading — what did this project's verbs cost to RUN?
+  The sibling of §1b on the other cost axis: §1b reads what each lifecycle STAGE cost in wall-clock,
+  this reads what each VERB cost in physical corpus reads. One read-only fold of that project's own
+  `events.jsonl` through the kernel `debt.seam_read_amplification` fold — the SAME function the
+  SPEC-0119 rule-37 debt line renders, so the nightly and a project's own `debt` echo cannot report
+  different ratios for the same seam (one oracle, re-derived nowhere). It emits NO event of its own;
+  the reading rides the existing `nightly_run_completed` payload, as `results[].seam_reads` plus the
+  `seam_read_amplified` / `seam_read_uninstrumented` headline counters.
+
+  **THE SCOPE IS THE REGISTRY, AND EVERY `yitc_v2` PROJECT ANSWERS.** Coverage is not a function of
+  which projects happened to adopt something — there is nothing here to adopt, and the check runs in
+  the same loop as every other §1 check. That is what makes fleet-wide read cost readable at all: it
+  was previously visible only to whoever ran a verb in one checkout and noticed it was slow.
+
+  ### 1d. THE ROW HAS A READER ( — cross-reference, the rule body is NOT here)
+  Everything §1 records lands on ONE `nightly_run_completed` row per run. Until **nothing
+  read that row back** — `grep nightly_run_completed bin/lib/debt.py` returned zero hits — so this
+  spec's whole per-project report reached no seam a session opens, and the only fleet reading anyone
+  had was the `projects_flagged` headline, which had read 11/11 every night since 2026-08-31 because
+  two chronic conditions saturate it. **SPEC-0119 rule 38** is that reader: it folds the last TWO
+  rows and surfaces, on the existing debt echo's three seams, each project's per-check verdict
+  CHANGES vs the previous night, with the two chronic conditions (`corpus` stale / `born_waivers`
+  alert) excluded from the change line and given a dated line each naming a remedy. It is a READER
+  ONLY — report-only, zero stored state, no new event, no new store, no new verb, no new seam — so
+  nothing in THIS spec's emission contract moves: the row, its payload and its cadence are unchanged.
+  The rule body lives single-SoT in SPEC-0119 rule 38 (`bin/yitc-v2 graph query SPEC-0119`); this is
+  a navigational cross-reference, never a second copy (CHARTER §P5 / SPEC-0005 rule 8).
+
+  **«NO COUNTERS» IS ITS OWN ANSWER AND IS NEVER GREEN.** The verdict is decided on the fold's
+  `measured` field ALONE — how many seams carried usable `cli_invoked.reads` counters, counted BEFORE
+  the within-bound seams are dropped. `measured == 0` grades `skip` carrying `counters: false` and the
+  reason `no counters`; `measured > 0` with nothing over bound grades `ok` carrying `counters: true`.
+  Collapsing those two would let a project that has NEVER been measured render exactly like a project
+  measured clean, which is the CHARTER §P3 «presence ≠ absence» fault in the one place it would be
+  invisible — and reporting a ratio of 1.0 for an unmeasured project would fabricate a reading nobody
+  took. The run therefore reports the uninstrumented COUNT beside the amplified one: a fleet where
+  half emitted no counters and the rest were clean must never render as a clean fleet.
+
+  **REPORT-ONLY, and inside the §2 fence**, on identical terms to §1b. No verdict moves, no exit code
+  moves, nothing is gated and no remedy is applied — the remedy a reader is pointed at is the seam's
+  ONE request-scoped ReadScope at its wiring site or a narrower horizon (SPEC-0190 rule 10), never a
+  per-view cache. Deliberately NOT folded into `projects_flagged`: an amplified seam is a read-cost
+  reading, not a project in trouble, and folding it would make that flag mean two things. Each
+  project's OWN `reads.exemptions[]` is honoured, read from ITS carrier and never the kernel's — a
+  kernel-side default would silently hold every consumer to a bound its own contract had widened. It
+  runs no command in the consumer's checkout and writes nothing there.
+
+  ### 2. BOUNDED — health/check/monitor by default, NOT an autonomous session (the §6 fence)
+  The nightly CHECKS and REPORTS/alerts. It does NOT start an autonomous work session, self-fetch
+  tasks, or hold any stateful orchestration — the SAME fence as the orchestrate controller-selector
+  posture (CHARTER §6 named retirements: no auto-launch, no self-fetch, no stateful orchestrator, no
+  cap/queue-state machinery). Any «auto-run a bounded task» capability is opt-in PER PROJECT and rides
+  the deploy/work-autonomy declare-or-waive (SPEC-0097) — autonomy is an owner DECISION, never an
+  automation default.
+
+  ### 1a. The PROJECT-VERIFY HEALTH check — is the project's main actually green?
+  Every other §1 check is a FILE read: it can say the carrier is well-shaped and the graph is fresh,
+  but not whether the project BUILDS. The only executor of a consumer's declared `verify.layers` is
+  the land path, and it runs over a CANDIDATE branch at land time — so a red main is discovered by the
+  next worker that tries to land on it, and ONE red becomes N halted workers (the incident behind this
+  rule: 12 halts, 20 branches of unlanded work over roughly a day). The nightly therefore ALSO runs a
+  project's declared verify layers as a HEALTH read and reports the result.
+
+  **WHICH LAYERS RUN — per-project OPT-IN, never a kernel inference.** A health run executes exactly
+  the layers the project named in `verify.health.layers` (the SPEC-0152 rule-16 field), an opt-in that
+  SELECTS FROM the layers that project already declared. Running every layer nightly is not free — a
+  consumer's stack layer drives containers and takes minutes — and the two alternatives are rejected
+  for reasons that outlive this instance: a CHEAP-ONLY rule would have the kernel infer cost from
+  `timeout:`, which is a BUDGET and not a cost, i.e. GUESS which of another project's commands are
+  safe to run unattended in that project's checkout — the territory boundary this runner
+  already refuses to cross for `graph build`; and a WHOLE-PROJECT boolean forces the expensive choice
+  (accept the 600s container layer to get the 180s static one, or get nothing). The per-layer opt-in
+  holds the boundary BY CONSTRUCTION: nothing runs in a consumer's checkout that the consumer did not
+  name for this use.
+
+  **NO SILENT PASS — the four states are kept distinct.** `fail` = a layer exited non-zero: the main
+  is RED, and the failing layer is NAMED. `alert` = a BROKEN WATCH (an unreadable carrier, an opted-in
+  name no layer declares, a layer that could not be run) — we do NOT know whether main is green, which
+  is different news from knowing it is fine. `none` = the project opted no layer in — NOT coverage and
+  NEVER `ok`, counted in its own non-adopted total on the SPEC-0110 r2 precedent, so a fleet with zero
+  adopters cannot report zero failures and read as a clean bill of health. `ok` = every eligible layer
+  passed. A layer the selection rule EXCLUDES is NAMED as not-run with its reason; it is never counted
+  among the passing ones, because a layer that printed nothing would be indistinguishable from a layer
+  that passed.
+
+  **BOUNDED, and inside the §2 fence.** The check RUNS project-declared commands, so: skipped under
+  `--dry-run` (the backup/conformance parity), each command clamped to a kernel ceiling a consumer may
+  shorten but never raise, any runner fault reported rather than aborting the run, and a layer's
+  `prep:` (a dependency-tree WRITE) is NOT run — a layer that cannot pass without its prep must not be
+  declared health-eligible. It CHECKS and REPORTS: it never fixes, never opens a session, never writes
+  the consumer repo.
+
+  ### 2a. Bounded local-evidence side-effects (backup snapshot + transcript-archive) — per SPEC-0135
+  The §2 fence forbids an autonomous WORK session (no claim/fetch/orchestration), NOT bounded
+  hygiene WRITES: the runner already writes its `nightly_run_completed` event AND runs the
+  backup-verify that writes/rotates snapshot files. These are local-evidence side-effects, not
+  work sessions. The runner MAY therefore carry ONE further such side-effect — the
+  **transcript-archive mirror** : once per run it mirrors the provider's per-session
+  TRANSCRIPTS from `~/<provider-config>/projects/` into the kernel-local archive (idempotent `rsync -a`, no
+  source deletion/transform), so the RAW analytics source for a per-fork/per-session token-rollup
+  survives the provider's ~30-day expiry (home craft: `lessons/provider-transcript-archive.md`).
+  Fail-safe: a mirror fault is reported, never aborts the run; SKIPPED under `--dry-run` (read-only
+  parity with backup). **Two bounds on the copy, both host-axis, both fixed by :**
+  (i) SOURCE — the mirror carries the TRANSCRIPT content class ONLY (`*.jsonl`), as a rsync
+  WHITELIST, never a path blacklist. The provider dir also holds the owner's write-protected
+  `memory/` stores and per-session tool-output caches; `rsync -a` preserves modes, so copying one
+  turned the owner's protection into an OBSTRUCTION inside the repo — a mirrored subtree that could
+  not be removed (measured 2026-08-31: `worktree park` refused with Permission denied over a 556MB
+  tree). The remedy is to not carry it: the source protection is CORRECT and is never weakened (no
+  `chmod`, no `--no-perms`). Stated as a class rule so a sibling directory the provider adds later is
+  covered without another card. (ii) DESTINATION — ONE path per host, the engine's **MAIN checkout**
+  `.yitc/transcript-archive/`, resolved from the main-worktree answer rather than from the invoking
+  checkout. The duty is once-per-run and outside the project loop, so a per-checkout copy is
+  duplication, not isolation (measured: 9.1G on main plus two worktree copies).
+  **Archive semantics (the governing contract for the location):** repo-local under `.yitc/`
+  (gitignored, server-backed) — a server-specific craft, NOT travelling methodology (SPEC-0090
+  boundary). Retention/redaction stay LOCAL: the raw transcript text is local evidence and is
+  NEVER journaled and NEVER aggregated across projects. **Usage + cost are READ-TIME DERIVED ONLY**
+  (`token-rollup` × `pricing-config`, SPEC-0135 §3 Single-SoT fence) — the archive is the raw
+  source the derived view reads at read-time; the kernel aggregates only the DERIVED numbers, never
+  the raw text. This admits the archive side-effect WITHOUT weakening the §2 autonomy fence.
+
+  ### 2b. Bounded escalation side-effect (concern-drift → a governed cross request) — per SPEC-0143 Rule 4
+  The §2 fence forbids an autonomous WORK session, NOT a bounded, dedup-idempotent COORDINATION write.
+  The nightly's concern-drift reconcile (SPEC-0143 Rule 3, seam (b)) is REPORT-ONLY by default. For the
+  narrow case of a drift on a concern a PRE-EXISTING governed BLOCKING gate already blocks on (SPEC-0143
+  Rule 4 — the deploy Class-S security gate today), the runner MAY file ONE further bounded side-effect:
+  a governed `cross request` (kind=note, kernel → the drifting consumer) on the kernel-owned SHARED
+  coordination log (SPEC-0084 / SPEC-0086), via the SAME id-alloc-flock write path as the land-time
+  auto-file (`cross.auto_file_concern_drift_escalations`). This is a local-evidence COORDINATION emit,
+  NOT a work session and NOT a consumer-repo write: it starts no session, claims/fetches nothing, adds
+  NO new blocking gate and NO stored review-request entity, and NEVER mutates a consumer repo (the
+  SPEC-0143 Rule 5 / CHARTER §6 fence). It is DEDUP-idempotent (one item per consumer+concern+version),
+  so a re-run files nothing; SKIPPED under `--dry-run` (read-only parity with backup + archive). This
+  admits the escalation side-effect WITHOUT weakening the §2 autonomy fence.
+
+  ### 2c. The QUIET LANE for wall-clock timing instruments (SPEC-0077 §3b)
+  The KERNEL's own instruments are a fourth bounded once-per-run duty in the §2a family, on identical
+  terms to backup-verify and the transcript mirror: that leg runs OUTSIDE the project loop, its
+  subject is the engine's own repository, and it is a local-evidence side-effect, never a work
+  session. Its membership is the kernel constant `bin/lib/nightly.py#_TIMING_INSTRUMENTS`.
+
+  **AND A PER-PROJECT LEG FOR WHAT A CONSUMER DECLARES.** A registered `yitc_v2` consumer
+  MAY declare its own timing-sensitive tests — `tests.classes[].timing_lane`, SPEC-0160 rule 10 — and
+  that rule defers the question of what runs them to THIS section by name. So the same lane also runs
+  INSIDE the project loop, once per declaring project, over the instruments its declaration resolves
+  to. Everything below this paragraph — serialized, pool held, one row per instrument, the regression
+  reading — governs BOTH legs identically, because they are the same function
+  (`bin/lib/nightly.py#_run_quiet_lane`) called twice and not two lanes.
+
+  Three bounds keep the per-project leg honest, and each is the answer to a way it could go wrong:
+  the pool it holds is THAT PROJECT'S OWN (`_quiet_lane_pool_dir` is keyed on the repo), so a
+  consumer's readings are excluded by a verify in ITS repo and never serialize against the kernel's
+  admission slots; the reading rows are appended to the ENGINE's journal only, never a consumer's,
+  which preserves the runner's read-only territory rule AND keeps one oracle for the baseline fold;
+  and a project that declares NOTHING registers nothing, so the leg costs it one carrier read and
+  holds no slot. The engine's own registry entry is skipped by this leg — its instruments are the
+  kernel constant above, run once per run — so nothing is measured twice into one baseline.
+
+  **WHY THE MEMBERSHIP HAS TWO SOURCES, which is not a contradiction.** homed
+  `_TIMING_INSTRUMENTS` as "deliberately a KERNEL constant and not a per-project declaration...
+  nothing here for a consumer to adopt". That was true when written and stays true OF ITS SUBJECT:
+  the engine's instruments live in the engine's `tests/` and remain on the constant. What moved is
+  the premise its second clause rested on — there was then NO per-project declaration to adopt, and
+   created one. Two sources for two different subjects, not two registries for one.
+
+  **WHAT IT IS FOR.** A wall-clock timing instrument cannot be read honestly on the per-land pinned
+  path — the reading there is taken inside a parallel verify on a loaded shared host, so it measures
+  the host (SPEC-0077 §3b, the rule home; not restated). The question those instruments ask is still
+  worth asking. This lane is where it is asked: once a night, on a quiet host, with the answer
+  RECORDED rather than gated on.
+
+  **SERIALIZED, AND WITH NO CONCURRENT VERIFY.** Registered instruments run ONE AT A TIME — never
+  concurrently with each other, because two timing instruments sharing a host measure each other. And
+  the lane runs only while the repo's EXISTING SPEC-0132 verify-admission slot pool is FREE, holding
+  it for its duration, so no land verify can start beside it. That reuses the admission mechanism the
+  land path already owns; it introduces no second lock, no scheduler and no new state.
+
+  **AND WHEN THE POOL IS BUSY IT WAITS, WITHIN A BOUNDED WINDOW.** A busy pool at the
+  nightly's minute is evidence about that MINUTE, not about the night: the lane therefore re-tries
+  the same hold on a fixed interval for a bounded window (currently every 60 s for up to 45 min —
+  `bin/lib/nightly.py#_QUIET_LANE_RETRY_INTERVAL` / `#_QUIET_LANE_RETRY_WINDOW`) before giving up.
+  The retry is that ONE hold re-called, so the no-second-lock/no-scheduler/no-new-state sentence
+  above still holds unchanged; a first attempt that succeeds costs no wait at all.
+
+  THIS IS WHAT MAKES THE READINGS ACCRUE, which is why it is a rule and not a tuning preference. The
+  readings are a SERIES: the de-pin phase they exist for needs >= 7 CONSECUTIVE readings per
+  instrument, and against a serialized land queue that runs around the clock a single fixed attempt
+  per night can miss indefinitely. It did — the lane's first two rows ever (both registered instruments) were BOTH `skipped` on exactly this cause, so the count stood at zero
+  rather than accruing slowly.
+
+  WAITING IS NOT MEASURING, so the fail-safe is UNCHANGED. Nothing runs while another process holds
+  the pool. When the window CLOSES without a free pool the lane still does not run and still says so:
+  the same `skipped` verdict on every registered instrument, the same reason, and
+  `duration_ms: null`. Only WHEN the attempt happens moved. The wait itself is RECORDED on every
+  emitted row (`pool_wait_s`, on the `ok` rows as well as the skipped ones) and printed beside the
+  reading when it was non-zero — a reading taken after waiting out a land queue and one taken on an
+  immediately free host were taken under different conditions and must not read alike.
+
+  A SECOND CRON SLOT WAS THE ALTERNATIVE, AND IS REJECTED: it adds a scheduler surface, still takes
+  one fixed attempt per slot, and makes the quiet hour a guess about a queue that does not have one.
+  Waiting for the condition the lane actually needs is strictly smaller than guessing when it holds.
+
+  **HOW WIDE THE HOLD IS — the HOST-DERIVED width, exactly what a land would derive.** "The pool" is
+  not a number this spec sets: the lane holds the SPEC-0132 pool width computed from the SAME live
+  host measurement a land computes its own admission slots from (`_verify_worker_bound` and the
+  per-verify worker governor). The nightly runner receives that width as an INJECTED host callable,
+  because the runner is a leaf that never back-imports the module owning the derivation. Holding
+  exactly what a land would take is what makes "no verify starts beside the lane" a property rather
+  than a hope.
+
+  **AND IT PROBES PAST THE HOLD, AS A BELT.** The width is measured ONCE, at hold time, while the
+  host headroom that produced it keeps moving — so a later land may derive a WIDER pool and pack onto
+  the first slot past the hold. The lane therefore probes a bounded window beyond what it holds,
+  before and after each instrument, and a held slot there means a verify IS running beside it: that
+  reading is recorded `skipped` with the reason, never published as a number. Two callers get no
+  injected width — a direct (non-runner) caller and a host whose width cannot be measured — and they
+  hold a fixed fallback prefix instead; the probe is the same belt on both paths, which is why the
+  fallback is safe to be approximate and the injected width is not required to be eternally current.
+
+  **ONE READING ROW PER INSTRUMENT — SILENCE IS NEVER THE REPORT.** Each registered instrument
+  produces exactly one journal row of the SPEC-0025 `timing_instrument_reading` type, whatever
+  happened. A non-zero exit records a `failed` reading carrying its exit code; a timeout records a
+  `failed` reading naming the timeout; a lane that could not run at all records `skipped` carrying the
+  reason on every registered instrument. An instrument that produced no row is indistinguishable from
+  one nobody registered, which is the fault this rule exists to prevent — the same «absence is not
+  health» discipline §1c applies to its own `no counters` answer.
+
+  **THE REGRESSION SIGNAL IS A READING, NEVER A GATE.** A reading more than 10% above the TRIMMED
+  MEDIAN of that instrument's last 7 recorded readings is marked as a regression ON THE ROW and
+  surfaced report-only. Fewer than two prior readings means there is NO baseline, and the row says so
+  rather than declaring a regression against a number nobody measured. Nothing here moves a verdict,
+  an exit code or a land: a timing regression is a debt line for a reader, and the remedy is a
+  decision, not a refusal.
+
+  **INSIDE THE §2 FENCE.** It starts no session, claims and fetches nothing, holds no orchestration
+  state, and writes nothing in any consumer repo. It is SKIPPED under `--dry-run`, the
+  read-only parity every side-effect sibling holds.
+
+  ### 3. Declared on the project ops-contract, not a parallel store (P1/P5)
+  A project's participation + cadence is declared on its `yitc-ops.yaml` (a SPEC-0093 declare-or-waive
+  section), NOT a new automation registry. The kernel reads the EXISTING surface; it adds no parallel
+  ledger. A project may WAIVE the nightly with a forward-aware waiver (it records how/when to opt in
+  later — the forward-aware declare-or-waive affordance; the sibling plan
+  `extension-catalog-population-from-3-project-breadt` amends SPEC-0093's section shape/status vocabulary
+  for this). This is a `yitc-ops` SECTION, NOT a SPEC-0101 catalog «extension» (`init --adopt-extension`).
+
+  ### 4. SEED-then-grow boundary (what this spec does NOT own)
+  This is the SEED layer. It governs the bounded nightly RUNNER + the governance/health checks it runs
+  + the X-0090 partition. The product-cron governance (L2, SPEC-0106) and the freshness-probe contract
+  (L3, SPEC-0110) are SEPARATE specs the nightly INVOKES; each grows when a real project pulls it. L1
+  ALONE closes X-0090; it does not build L2/L3, and it is intended to TRAVEL to consumers (kernel realm
+  at activation — re-pinned from the draft `v2-self` at plan-accept).
+
+  ## Rationale
+
+  X-0090 (a live 2026-06-25 regression: a migrated v2 project landing on the v1 nightly, which runs a
+  v1 auto-session on it) + v2 having NO automation of its own. The full 3-project study + the
+  anti-complexity discharge live in the proposing plan (SPEC-0005 §3 content boundary — not restated).
+
+  ## Verification
+
+  Adoption probe (CHARTER §P3) on NAMED event/state surfaces (not prose):
+  - **nightly ran** — each v2-nightly run emits ONE per-run journal event (a `nightly_*`-class event);
+    ≥3 such events for the dogfood project (trend-finder once migrated; social-scraper re-onboarded).
+  - **v1-partition holds (STATE check)** — the v1 night-cycle's enumerated project set EXCLUDES every
+    `registry.yaml methodology: yitc_v2` project (assertable/greppable on the v1 enumerator) — the
+    measurable form of "the v1 nightly no longer touches a v2 project" (closes X-0090).
+  Exact event-type names are fixed by the implementing task against the SPEC-0025 catalog (named here as
+  SHAPES, not pre-invented types — anti-complexity). Probe home: the plan's §Postcheck probe block.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-6
+  - SPEC-0093
+  - SPEC-0094
+  - SPEC-0097
+  - SPEC-0106
+  - SPEC-0110
+  - X-0090
+  - X-0089
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: v2-project-automation-governance-methodology-night
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: # code-enforced residency (SPEC-0005 §7): this is a CODE-implementing capability spec (the bounded nightly RUNNER, implements bin/lib/nightly.py#cmd_nightly), enforced by the verb — NOT a verb-fetched retrieved spec, not floor.
+  - code-enforced
+# (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/nightly.py#cmd_nightly: 724a27dfa5541ee6fa505094b6ed328b603463944349bec43dcb0a2467196700

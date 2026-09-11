@@ -1,0 +1,224 @@
+id: SPEC-0041
+title: Test-authoring host-isolation contract — an engine self-tooling test sandboxes every host-mutable surface
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # `active` is the ONLY normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # process/authoring-discipline spec — no code reads a scalar param FROM it.
+
+implements: [] # DISTRIBUTED-ENFORCEMENT documentary mode (SPEC-0005 §7 mode (a)):
+                               # this is an AUTHORING-DISCIPLINE rule enforced by EVERY test author +
+                               # the post-suite leak canary (tests/test_t0402_host_leak_canary.py) +
+                               # the SPEC-0013 binding-delivery — NOT a single code site. Empty here is
+                               # the named distributed/documentary mode, NOT omission. Delivery is the
+                               # `binding:` below (stage-entry axis), so it is NOT dangling (a
+                               # stage-entry token is a non-empty, non-dangling binding, SPEC-0013).
+
+binding: # DELIVERED at the AUTHORING moment ( AC2): a worker WRITING a test
+  - stage-entry:Execution # sees the host-isolation contract when entering Execution AND Tests.
+  - stage-entry:Tests # Closes the gap: today NOTHING test-discipline is delivered at Execution,
+                               # and SPEC-0027 at Tests is run-mechanics ONLY (command + RED-GREEN), not
+                               # host-isolation. `stage Execution` / `stage Tests` deliver this spec from
+                               # the `stage_to_specs` view (SPEC-0013 lifecycle delivery axis).
+
+body: |
+  ## Scenario
+
+  A worker (the AI in a Build session) is at the Execution / Tests stage of a task that touches
+  the methodology engine (`bin/yitc-v2`) or any of its self-tooling code, and must WRITE or CHANGE a
+  test under `tests/`. Entering the stage, `stage Execution` / `stage Tests` delivers this contract, so
+  the worker knows — BEFORE writing the test — that an engine self-tooling test must run entirely
+  against a SANDBOX, never the live checkout it is running inside. The result: the test asserts on
+  isolated state and leaves the host checkout byte-clean; the post-suite leak canary stays GREEN;
+  `land`'s parallel verify is not poisoned by a sibling test rewriting shared state.
+
+  This contract is IDENTITY-AGNOSTIC kernel methodology (placement: kernel, the spec class-default —
+  unmarked): host-isolation is a portable test-authoring discipline that travels with the engine, so a
+  consumer authoring tests against the engine's CLI follows the same rule. The concrete enforcement
+  artifacts named below (the leak-canary file, the `YITC_*` env overrides) are THIS engine's instances
+  of the rule — dev-provenance the release-view strip rebases (SPEC-0073 §4), not a reason to scope the
+  discipline to one repo.
+
+  ## Internal
+
+  THE HOST-ISOLATION CONTRACT for ENGINE SELF-TOOLING TESTS (`tests/test_*.py` exercising `bin/yitc-v2`
+  / the engine's parser / audit / event / task / graph code). This is AUTHORING DISCIPLINE, not a new gate or
+  mechanism — it codifies the ALREADY-SHIPPED sandbox idiom so it is followed once, not rediscovered
+  per incident.
+
+  ### 1. The rule (the invariant)
+  The portable, identity-agnostic INVARIANT: **a self-tooling test MUST sandbox EVERY host-mutable
+  surface it reads or writes, and must NEVER commit, emit events, build the graph, or write any
+  artifact against the live checkout it runs in.** This is the normative rule and it travels unchanged
+  to any consumer of the engine; the surface TABLE below enumerates THIS engine's instances of the
+  rule's "host-mutable surface" set (a consumer pins the same engine, so it inherits the same surfaces).
+
+  **The surface set is a DERIVATION rule, not a closed list:** "host-mutable surface" = the checkout's
+  `git` state (working tree / index / HEAD) PLUS **every repo-rooted path global** in `bin/yitc-v2`
+  (each `<GLOBAL> = REPO_ROOT / …` assignment — the same set `YITC_REPO_ROOT` redirects, per the
+  `cmd_repo_root_override` invariant). So a NEW writable global added later is covered automatically;
+  do not enumerate-and-forget. The set at minimum includes:
+
+  | surface | what it is |
+  |---|---|
+  | `REPO_ROOT` | the checkout root; ALL other path globals derive from it |
+  | `TASKS_DIR` | `tasks/` — task YAMLs |
+  | `DECISIONS_DIR` | `decisions/` — decision + audit-verdict YAMLs |
+  | `SPECS_DIR` | `specs/` — spec YAMLs |
+  | `PLANS_DIR` / `IDEAS_DIR` / `ERRORS_DIR` | `plans/` `ideas/` `errors/` — planning + case-file artifacts |
+  | `PATTERNS_DIR` / `VIEWS_DIR` | `patterns/` `views/` — pattern docs + saved query-lenses |
+  | `EVENTS_PATH` | `events.jsonl` — the append-only journal |
+  | `GRAPH_PATH` | `graph/index.json` — the derived graph index |
+  | `FLOOR_MAP_PATH` | `graph/floor-trigger-map.md` — the derived always-loaded floor trigger-map |
+  | `ID_RESERVATION_DIR` + any future `REPO_ROOT /` global | id-reservation dir; the derivation rule covers later additions |
+  | `git` | the working tree / index / HEAD of the checkout (status, add, commit) |
+
+  "Sandbox EVERY surface" is not optional per-surface: a test that redirects `TASKS_DIR` but lets a
+  subprocess `graph build` rewrite the real `GRAPH_PATH` still leaks (the root). Redirect ALL
+  of them, or run the whole operation in a tmp repo.
+
+  ### 1b. Shared mutable state OBSERVED under concurrency (the cross-test contamination vector)
+  §1 forbids a test MUTATING the host. This is its mirror: an engine self-tooling test MUST NOT **assert on
+  shared mutable HOST state that CONCURRENT sessions legitimately mutate** — chiefly (a) the append-only
+  `events.jsonl`, and (b) the worktree's `git status` cleanliness. The two are distinct failure modes:
+  §1 is "THIS test pollutes the host"; §1b is "THIS test is CONTAMINATED by OTHER tests' sanctioned
+  activity". Under the EXPECTED concurrency (CHARTER §P6 / — `land`'s verify runs the suite
+  ≤8-way parallel, and parallel sessions land at once), a sibling test's PERMITTED in-REPO sandbox
+  (e.g. the convention-blessed `tempfile.TemporaryDirectory(dir=str(REPO_ROOT))`, used by ~80 tests)
+  appends to `events.jsonl` and shows as `new_dirty` in the shared worktree's `git status`. A test that
+  asserts on the LIVE shared surface is therefore **flaky-by-construction**: it false-FAILs the moment a
+  sibling runs concurrently, and in `land` that false-FAIL aborts the land (real incidents:
+  `test_cli_invoked.py` flaked 10/11 on the shared `events.jsonl`; `test_carve_selection.py`'s
+  worktree-cleanliness observers false-ABORTed N=4/7 fleet lands).
+
+  **Isolation (reuse §2's already-shipped vectors — no new mechanism):**
+  - **`events.jsonl`** — assert against a PRIVATE snapshot/temp fixture, OR sink the child's appends
+    with `YITC_EVENTS_SINK=os.devnull`; never assert on the live shared journal.
+  - **worktree `git status` cleanliness** — run the observation in an ISOLATED `/tmp` git repo bound via
+    `YITC_REPO_ROOT` and `git status` THAT repo, never the shared checkout the suite runs in.
+  - **General rule:** if an assertion's truth depends on state a concurrent sibling may touch, move the
+    observation into a private sandbox. The leak canary (§3) does not catch §1b (the test stays
+    host-clean — it READS, it does not write); the discipline is the guard.
+
+  ### 2. The two sanctioned isolation techniques (pick one; both already)
+  - **(a) In-process monkeypatch of the path globals.** For an in-process test, reassign the CLI module
+    globals to tmp paths BEFORE the code under test reads them — e.g. `yitc.TASKS_DIR`,
+    `yitc.DECISIONS_DIR`, `yitc.GRAPH_PATH`, `yitc.EVENTS_PATH` (prior-art:
+    `tests/test_graph_freshness.py`, `tests/test_audit_degeneration.py`). Restore them in a `finally`
+    if the same process runs other tests.
+  - **(b) Build / run in a tmp repo (subprocess via `YITC_REPO_ROOT`).** For anything that shells out
+    to the real CLI (`graph build`, `audit`, `task` verbs) use the **`YITC_REPO_ROOT`** opt-in env
+    override : it redirects ALL of the CLI's path globals to a temp copy, so a subprocess
+    targets tmp, never the host. Pair it with **`YITC_EVENTS_SINK=os.devnull`** to quarantine
+    the child's journal writes. The CANONICAL HELPER for the common case — building the derived graph
+    artifacts off a temp copy — is **`tests/_graph_build_sandbox.build_index_in_temp_copy(repo)`**
+    : it copytrees the build inputs into a fresh tmp dir, runs `graph build` there under
+    `YITC_REPO_ROOT` + `YITC_EVENTS_SINK`, caches per process, and returns the tmp root; read
+    `binding_report` / the index from the tmp build, never the live one.
+
+  ### 3. The enforcement probe (the leak canary)
+  The post-suite **host-leak canary** — `tests/test_t0402_host_leak_canary.py`, invoked
+  `YITC_CANARY_RUN=1 python3 tests/test_t0402_host_leak_canary.py` — is the standing regression guard:
+  it runs the full suite in `land`'s parallel per-file shape and FAILS if the host checkout is not
+  byte-clean afterward (no `graph/index.json` rewrite or mtime touch, no `decisions/T-99*` debris, no
+  orphan `graph/.index.json.*.tmp`), AND that the production journal `events.jsonl` took no leak
+. A test that violates §1 trips this canary. (Wiring it as a
+  dedicated `land`/CI step is — out of this spec's scope; the canary itself is the probe.)
+
+  The JOURNAL watch is DIFFERENTIAL, not a `git status` entry, and that shape is load-bearing :
+  the journal is append-only and ordinarily dirty on the host checkout, so listing it beside the three
+  paths above would make the canary's already-dirty ENTRY GUARD skip nearly every run — disabling the
+  guard instead of widening it. The canary therefore snapshots `events.jsonl` before the suite and
+  classifies what changed, where exactly two outcomes are leaks: (a) a NON-APPEND mutation (the pre-run
+  bytes are no longer the file's prefix, or it shrank), and (b) appended rows carrying a RESERVED
+  SYNTHETIC TEST ID — the 9000-series `T-9NNN` fixture range, NAMED rather than counted. An ordinary
+  append carrying no synthetic id is never flagged: concurrent sessions land while the suite runs
+, and a canary that tripped on ordinary journal growth would be worse than none. Grounds
+  (CHARTER §P1 F4, the strongest form): — engine tests leaked synthetic 9000-series rows into
+  the REAL `events.jsonl`, past this very canary, which watched every host path except the one that
+  leaked.
+
+  ### 4. NOT this — the adjacent-but-different concern
+  `patterns/test-isolation-strategies.md` is a DIFFERENT concern: it governs async-DB PRODUCT tests
+  (rollback / recreate / savepoint fixtures), v1-migrated. It is NOT this contract and is NOT
+  conflated here — this spec governs ENGINE SELF-TOOLING tests not touching the host checkout. Cited for
+  disambiguation, not as a dependency.
+
+  ### 5. Anti-complexity posture
+  No new node, edge, parser, verb, or gate. This codifies the ALREADY-shipped idiom (the two
+  techniques above + the canary, all live) and EXTENDS the existing SPEC-0013 stage-entry delivery
+  axis (`binding: [stage-entry:Execution, stage-entry:Tests]`) so the contract reaches the worker at
+  the authoring moment. What it RETIRES: the reactive whack-a-mole class — 5+ one-test-at-a-time
+  sandbox fixes (0251/0346/0357/0402) with no governing rule and nothing delivered when a test
+  is written. Codify once + deliver → the recurrence has a home and a delivery.
+
+  ## Parameters
+
+  None consumed. The host-mutable surfaces in §1 are the CLI path globals (`bin/yitc-v2` REPO_ROOT
+  block); the env overrides `YITC_REPO_ROOT` / `YITC_EVENTS_SINK` / `YITC_CANARY_RUN` are referenced,
+  not duplicated — they live in `bin/yitc-v2` + the canary, the single source.
+
+  ## Rationale
+
+  Real-incident evidence (CHARTER §Principle 1 Filter 4, OVERWHELMING): the sandbox-leak family —
+   (graph-build fixtures) (FLOOR_MAP_PATH / GRAPH_PATH) (tmp dirs committed into
+  the real git checkout) (events emitted into the host journal) (the suite rewriting
+  the live `graph/index.json` + leaving `decisions/` debris under parallel verify) — is 5+
+  reactive one-test-at-a-time fixes, ALL the SAME root: an engine self-tooling test touched the host
+  checkout. There was NO governing spec on how to write a test, and NOTHING test-discipline is
+  delivered when a worker WRITES one (SPEC-0027 at Tests is run-mechanics only — the test command +
+  RED-GREEN, not host-isolation). Filter 1 (existing analog): this codifies the ALREADY-shipped idiom,
+  it invents no behavior; Filter 2: a spec is the right home (SPEC-0005 rule 1/2 — a standing,
+  cross-task, analysis-shaping, probeable PROCESS rule), delivery reuses the existing stage-entry view;
+  Filter 3: it retires the whack-a-mole recurrence class. Prior-art: the `YITC_REPO_ROOT` temp-copy
+  override + the monkeypatch idiom are the, exercised techniques — this spec names them, it
+  does not design them. It is a DESIGN/teaching spec : it tells the AI what to inspect and how
+  to isolate before writing a self-tooling test.
+
+  ## Verification
+
+  Probe CONTRACTS (the rule's `## Verification` per SPEC-0005 §8 — contracts, not one-time results):
+  - **VP1 (body carries the contract):** this `## Internal` names ALL seven host-mutable surfaces
+    (REPO_ROOT / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH / FLOOR_MAP_PATH / git), BOTH
+    isolation techniques (monkeypatch the path globals OR a tmp repo), the canonical helper
+    (`tests/_graph_build_sandbox.build_index_in_temp_copy` + `YITC_REPO_ROOT` + `YITC_EVENTS_SINK`),
+    and the leak canary as the enforcement probe — `bin/yitc-v2 graph query SPEC-0041` returns them.
+    It ALSO carries the **§1b shared-mutable-state-under-concurrency rule** : a test MUST NOT
+    assert on shared mutable host state concurrent sessions mutate (the live `events.jsonl`; the worktree
+    `git status` cleanliness) — isolate via a private snapshot / `YITC_EVENTS_SINK` / a `/tmp` repo bound
+    by `YITC_REPO_ROOT`. (state-check on the spec body — AC1.)
+  - **VP2 (delivered at the authoring moment):** the binding-report state-check — `graph build`'s
+    `binding_report.stage_to_specs` lists active SPEC-0041 under BOTH `Execution` and `Tests`. The
+    live-trigger is a `stage Execution` / `stage Tests` delivery observed on ANY active task currently
+    at that stage (NOT a re-entry on the just-closed, which is no longer at those stages) — the
+    `stage_entered` event carries SPEC-0041 in `delivered`. (binding-report state-check + live-trigger
+    on a live stage entry — AC2.)
+  - **VP3 (non-dangling, honest):** active SPEC-0041 carries a `stage-entry:` routing binding ⇒
+    excluded from `binding_report.dangling_specs` and from `unknown_tokens`; `graph conformance` is
+    GREEN. (RED-GREEN: drop the binding → it reappears as dangling.)
+  - **VP4 (not conflated):** the body cross-references `patterns/test-isolation-strategies.md` as a
+    DIFFERENT concern (async-DB product tests), not as a dependency — §4.
+  - **VP5 (work-first activation):** `activation_owner_task: `; `task close ` flips this
+    spec proposed→active ( deterministic side-effect).
+
+cites:
+  - SPEC-0005
+  - SPEC-0013
+  - SPEC-0027
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - CHARTER.md#principle-8
+  -
+  -
+  -
+  -
+  -
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first — activates proposed→active at close.
+proposed_by: # PROVENANCE — this task births the spec (work-first).

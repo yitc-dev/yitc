@@ -1,0 +1,125 @@
+# YITC v2 — Decision template
+# Copy this file to decisions/D-XXXX-<slug>.yaml when creating a new decision.
+# See CHARTER.md §Decision lifecycle for field semantics + status transitions.
+# Reference: PEP process (https://peps.python.org/pep-0001) — V2 adapts PEP shape.
+
+# === Header (uniform across all decisions) ===
+
+id: D-XXXX # Sequential — next available from decisions/ directory
+title: <short imperative> # ≤72 chars
+
+type: Process # Process | Architectural | Informational
+                              # Process: methodology / governance / workflow change
+                              # Architectural: schema / structure / model change
+                              # Informational: record-only (rare — no implementation)
+
+status: Draft # Draft → Accepted → Final (terminal happy path)
+                              # OR terminal: Superseded | Withdrawn
+                              # Always starts at Draft
+
+created: YYYY-MM-DD # ISO date (UTC day acceptable)
+
+from: <durable-artifact-ref> # Per CHARTER §Principle 2.
+                              # Examples:
+                              # - CHARTER §Principle-N
+                              # - decisions/D-XXXX
+                              # - specs/SPEC-XXXX
+                              # - tasks/T-XXXX
+                              # - CHARTER §Bootstrap-exception (for inaugural)
+
+supersedes: ~ # Optional. D-XXXX being replaced.
+                              # Supersession is atomic: this decision's commit ALSO
+                              # updates superseded decision's status: Final → Superseded.
+
+requires: [] # Optional. List of D-XXXX decision IDs only — BLOCKING (target must be Accepted/Final).
+                              # Specs NOT allowed — use `cites:` for spec refs (specs = reference, не lifecycle-blocking).
+                              # All must be Accepted or Final before this can ship.
+
+cites: [] # Optional. INFORMATIONAL refs — task / decision / spec / handbook section refs
+                              # that informed this decision. Non-blocking.
+                              # Distinct от `requires:` (blocking deps).
+
+bootstrap_source: "" # Optional. When `from:` cites Bootstrap exception,
+                              # capture the actual chat / owner-directive origin here.
+                              # Required for inaugural decisions per Principle 2 F4.
+
+resolution: "" # Filled when transitioning Draft → Accepted.
+                              # One-line outcome statement summarizing what was decided.
+
+adoption_probe: # Required for type: Process | Architectural.
+                              # Schema confirming adoption per Principle 3 + 8.
+                              # Probe must pass before status: Accepted → Final.
+  description: "" # How adoption is verified (one sentence)
+  evidence_type: ~ # event_emit | state_check | consumer_read | live_trigger | synthetic_exercise
+  expected_signal: "" # Specific signal to look for
+  status: pending # pending | passed | deferred-to-T-XXXX
+
+# === Body ===
+
+decision: |
+  <multi-line decision text — what was decided. Imperative voice. Concrete.>
+
+context: |
+  <why this decision was needed — what problem it solves, what triggered it>
+
+rationale: |
+  <reasoning — why this approach vs alternatives considered>
+
+anti_complexity_check: # Required when decision adds mechanism / file / rule (Principle 1)
+                              # Each filter must be filled or explicitly marked n/a.
+  F1_analog: "" # Existing analog? Extend it or genuinely parallel?
+  F2_entity_vs_view: "" # New entity or new view of existing entity?
+  F3_what_removes: "" # What gets removed when this is added?
+  F4_real_evidence: "" # Real incident / prior-art / external analog?
+
+implementation_plan: # Optional for Informational; required for Process / Architectural.
+  - step_1: "" # Concrete steps, ordered.
+  - step_2: ""
+
+acceptance_criteria: # Probes that must pass for status: Accepted → Final.
+                              # Each AC must be observable (file exists / event emitted / state check).
+  AC1: ""
+
+# Optional body sections ( — add when materially relevant) ===
+
+rejected_ideas: "" # Optional. Alternatives considered и rejected с rationale.
+                              # Suggested when materially relevant (multi-option fork).
+                              # Format: bulleted либо short paragraph. No schema enforcement.
+
+backwards_compatibility: "" # Optional in general. REQUIRED для type: Architectural decisions.
+                              # What breaks / preserves для existing artifacts либо downstream consumers.
+                              # Format: bulleted либо short paragraph.
+
+teaching_path: "" # Optional. ONE line: WHERE/WHEN this rule enters the
+                              # AI's working context — name a injection category when one
+                              # fits (e.g. «MUST_READ_NOW in AGENTS §At-session-start», «template
+                              # comment, seen on copy», «patterns/<x>.md at Stage 1»). Fill for
+                              # substantive Process/Architectural decisions that change AI behaviour;
+                              # Informational/record-only are EXEMPT (leave blank). Documentary, NOT
+                              # a gate. Authoring-side complement to runtime injection log.
+                              # See patterns/doc-conventions.md §Teaching path.
+
+handbook_size_impact: # Optional but recommended when decision adds handbook content.
+  CHARTER.md: 0 # +N lines
+  AGENTS.md: 0
+  LIFECYCLE.md: 0
+  QUEUE.md: 0
+  GRAPH.md: 0
+  total_canonical: 0 # Sum — must stay under CHARTER §Principle 2 cap
+
+refs:
+  parent: ~ # Optional ancestor decision (D-XXXX)
+  related: [] # Optional related decisions — informational only, NEVER gate finalize
+  follow_ups: [] # AUTHORITATIVE implementing-task linkage : the `T-NNNN`
+                              # entries here are EXACTLY the set the Accepted→Final audit-post gate
+                              # (`decision finalize`) reads to confirm "every implementing task done".
+                              # Put informational / governance / later-hygiene refs in `related:` or
+                              # `cites:` — NON-task entries here are IGNORED by the gate (no deadlock).
+                              # No ad-hoc discovery from commit history / from:-parsing — this field is
+                              # the single source. Finalize-gate GRANDFATHER predicate : the
+                              # gate applies to this decision IFF it carries a `decision_accepted` journal
+                              # event (the deterministic marker emitted by `decision accept`); legacy
+                              # decisions with no such event are EXEMPT. No `accepted_at` field is added.
+
+audit_loop_ceiling: |
+  Max 2 absorption passes per CHARTER §audit-loop-ceiling. Pass 3 = escalate to owner.

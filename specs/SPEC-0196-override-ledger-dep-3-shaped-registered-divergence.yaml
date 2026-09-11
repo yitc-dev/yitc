@@ -1,0 +1,246 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0196
+title: 'Override ledger — DEP-3-shaped registered divergence from an upstream-owned file, drift check, delete-on-merge'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # KERNEL (class-default, unmarked) — re-pinned from the draft-only v2-self at
+                               # plan-accept (2026-09-04) per SPEC-0073 §3: this contract IS the released
+                               # methodology an adopter receives; a `proposed` kernel head is exempt from the
+                               # §8 active-only export guard and travels once active.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # wired at activation by, the activation_owner_task below.
+  - bin/lib/init.py#override_entry_errors # rule 1 — the SINGLE entry-shape judgement (the
+                                               # required field set + the CLOSED upstream_intent
+                                               # vocabulary), called by BOTH readers below
+  - bin/lib/init.py#_hook_override_ledger # rules 1-2 — the `overrides:` section read by the
+                                               # yitc-ops concern reader, dispatched through the
+                                               # SPEC-0128 registry's own `shape_hook` mechanism
+  - bin/lib/release.py#ledger_drift # rules 3-4 — THE report-only drift check: malformed
+                                               # / conflict / redundant / overdue. One implementation
+  - bin/lib/release.py#update # rule 3 — registered divergence PRESERVED and
+                                               # re-checked; unregistered = CONFLICT, unresolved
+  - bin/lib/nightly.py#_check_override_ledger # rule 3 — the report riding the EXISTING nightly
+                                               # sweep beside the SPEC-0122 R6 adoption report
+
+body: |
+  ## Scenario
+
+  A project pinned to a released methodology sometimes needs to DIVERGE locally from an
+  upstream-owned file — a fix it needs before upstream ships it, or a documented exception. Instead
+  of editing the file and silently drifting into a shadow methodology, the project REGISTERS the
+  divergence in a thin ledger: which path, why, what it intends upstream, when it is reviewed, and
+  that it is deleted the moment upstream carries it. The owner sees every local divergence in one
+  place, each with an expiry, and an update-pull tells them which entries are now redundant.
+
+  ## Internal
+
+  THE OVERRIDE LEDGER — the ONLY sanctioned form of local divergence from an upstream-owned file
+  (release contract rule 2). It is a divergence RECORD, not a second methodology. Five rules.
+
+  ### 1. One ledger, DEP-3-shaped entries
+  The project keeps ONE override ledger (a section of its ops contract carrier `yitc-ops.yaml`,
+  SPEC-0093 rule 1 — never a second file). Each entry carries EXACTLY: `path` (the upstream-owned
+  file diverged from); `rationale` (one plain sentence); `upstream_intent` — a CLOSED,
+  machine-readable status `temporary-patch | forwarded | accepted-exception | not-forwarded`;
+  `review_trigger` (an ISO date OR a named artifact whose close re-opens the entry); and the implicit
+  obligation of rule 4. No other fields; no free-form policy text.
+
+  ### 2. What an override may NOT be
+  An entry is a divergence of ONE existing upstream-owned file. It is NOT a place for new normative
+  text, a parallel rule, a local lifecycle stage, or a whole-directory exemption. A divergence that
+  cannot be expressed as one path with one rationale is not an override — it is either a proposal
+  upstream (the contribution policy) or a project-realm artifact of the project's own.
+
+  ### 3. Registered vs unregistered divergence
+  On update (release contract rule 8) a diverged upstream-owned file with a ledger entry is
+  PRESERVED and re-checked; one WITHOUT an entry is a CONFLICT, reported and never auto-resolved.
+  The drift check is REPORT-ONLY and rides EXISTING surfaces by symbol — the ledger section is read
+  by the yitc-ops concern reader (`bin/lib/init.py#_load_concern_registry` + the SPEC-0128
+  registry-driven `_sweep_ops_carrier` for shape and declare-or-waive), and its report rides the
+  update path's divergence report and the nightly/conformance sweep that already carries the
+  SPEC-0122 R6 adoption-completeness report (`bin/lib/nightly.py#_check_adoption_completeness`). A
+  standalone ledger parser or a second report path is FORBIDDEN (CHARTER §P1/§P5); it adds no land
+  gate. It names, per entry: the path, the entry's status, whether the pinned release now carries
+  the change, and whether the review trigger has fired.
+
+  ### 4. Delete-on-merge, expiry, forwarding
+  When the pinned release carries the divergence (the upstream fix landed and the project re-pinned),
+  the entry MUST be deleted and the local edit dropped — the drift check reports the entry as
+  REDUNDANT until it is. A `temporary-patch` entry MUST become `forwarded` (a proposal filed through
+  the contribution policy) or `accepted-exception` by its review trigger; `not-forwarded` is a
+  recorded decision with its own review trigger, never a default. An entry whose trigger fired and
+  was not re-reviewed is reported as OVERDUE.
+
+  ### 5. No shadow core — the ledger is visible, bounded, converging
+  The ledger's purpose is to keep local overrides SMALL, EXPLICIT, and VISIBLY diverging from the
+  pinned core so the pin stays a pin. It is never read by the kernel as methodology truth; it is a
+  consumer-owned record the update and drift checks read to report. Growth of the ledger is itself a
+  report-only signal at the project's review cadence.
+
+  ## Parameters
+
+  None consumed. The closed `upstream_intent` vocabulary is this spec's rule; review triggers are
+  per-entry values.
+
+  ## Rationale
+
+  The highest-leverage risk of a pin-based distribution is internal: a project quietly accumulates
+  its own quasi-methodology through untracked local edits and the "pin, not fork" claim breaks before
+  any outsider exists. The concept consult checked the ledger for scope creep and cleared it: update
+  conflict semantics need a durable consumer-owned record. Prior-art: Debian quilt + DEP-3
+  (`Forwarded` / `Applied-Upstream` machine-readable headers, delete-on-merge, the
+  `patch-not-forwarded-upstream` lint); Copier/Cruft `update` + skip-list for the merge shape.
+  Extends SPEC-0093 (one carrier, one section per concern) and SPEC-0122 R2 (fix upstream, then
+  re-pin) rather than adding a new store.
+
+  ## Verification
+
+  - **VP1 (entry shape):** an entry missing any required field, or carrying an `upstream_intent`
+    outside the closed vocabulary, is reported as MALFORMED by the drift check (state-check).
+  - **VP2 (registered survives, unregistered conflicts):** on an update N→N+1 a path with an entry is
+    preserved and re-checked; a diverged path without one is reported as a conflict and left
+    unresolved (differential — the same edit with and without its entry).
+  - **VP3 (delete-on-merge):** after re-pinning to a release that carries the divergence, the entry
+    is reported REDUNDANT until deleted; deleting it clears the report.
+  - **VP4 (review trigger):** an entry whose trigger date passed (or whose named artifact closed) is
+    reported OVERDUE; re-recording the trigger clears it.
+  - **VP5 (no new store/gate):** the ledger is a section of the existing ops carrier and the drift
+    check rides the existing report-only conformance surface — no new file, parser, or land gate
+    (grep + the SPEC-0128 concern registry row).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - SPEC-0195
+  - SPEC-0093
+  - SPEC-0122
+  - SPEC-0128
+  - off-server-release-contract-one-mechanism-for-own-
+
+requires: [SPEC-0195] # the release contract lands FIRST — this spec governs a class/flow it defines
+                               # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # SET at decomposition 2026-09-04 (plan off-server-release-contract-one-mechanism-for-own-) — THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: off-server-release-contract-one-mechanism-for-own-
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+concern: # SPEC-0128 rule 1 — the ONE authoritative declaration of THE OVERRIDE
+                               # LEDGER (rule 1 above). Rule 2 GENERATES the born yitc-ops.yaml stanza
+                               # + the registry row + the declare-or-waive sweep from THIS block at
+                               # `graph build`; there is deliberately no second registry, no standalone
+                               # ledger parser and no second report path (rule 3 / CHARTER §P1 F1+F2).
+  section: overrides
+  born_order: 230 # LAST top-level section, after verify_policy (220). Appended rather
+                               # than slotted: the born template's comment ATTRIBUTION is positional,
+                               # so inserting between existing sections re-parents their citations.
+  spec: SPEC-0196
+  declare_key: entries # the ledger IS the list of entries — the section's declaration
+  declare_type: list
+  presence_policy: opt-in # a project with no local divergence carries no section, and that is
+                               # the CORRECT and commonest state. Absence adopts nothing; only the
+                               # SHAPE of what IS present is checked (the `extensions` / `reads`
+                               # precedent). NOT declare-or-waive: there is nothing to waive when
+                               # the honest answer is "we diverge from nothing".
+  update_policy: init re-seed
+  waiver_policy: loose
+  shape_hook: override_ledger_shape # the KERNEL-OWNED per-entry validator carrying rule 1's
+                               # required field set AND the CLOSED `upstream_intent` vocabulary
+                               # (`bin/lib/init.py#_hook_override_ledger`). It is the SINGLE entry-shape
+                               # judgement: the report-only drift check (rule 3) calls the SAME
+                               # function for its MALFORMED finding, so the init sweep and the drift
+                               # report can never disagree about what a well-formed entry is.
+  born: |
+    overrides:
+      # SPEC-0196 — THE OVERRIDE LEDGER: the ONLY sanctioned form of local divergence from an
+      # upstream-owned file of the pinned release (SPEC-0195 rule 2). Born EMPTY, which is the
+      # honest default: a fresh project diverges from nothing. Add an entry ONLY when this project
+      # must run a local edit of an upstream-owned file before upstream carries it.
+      #
+      # Each entry carries EXACTLY these four fields (rule 1) — no others, no free-form policy text:
+      # path: the upstream-owned file diverged from
+      # rationale: one plain sentence — why this project needs the divergence now
+      # upstream_intent: temporary-patch | forwarded | accepted-exception | not-forwarded
+      # (a CLOSED vocabulary; `not-forwarded` is a recorded decision, never a default)
+      # review_trigger: an ISO date (YYYY-MM-DD) OR a named artifact whose close re-opens the entry
+      #
+      # DELETE-ON-MERGE (rule 4): the moment the pinned release carries the divergence, delete the
+      # entry AND drop the local edit — the drift check reports the entry REDUNDANT until you do.
+      # The check is REPORT-ONLY and adds no land gate; it rides `update`'s divergence report and the
+      # nightly sweep. An UNREGISTERED edit of an upstream-owned file is a CONFLICT on update and is
+      # never resolved silently in either direction (rule 3).
+      entries: []
+binding:
+  - code-enforced # residency: this rule is not fetched by a verb — it is
+                               # ENFORCED IN SHIPPED CODE (the init concern shape hook
+                               # `override_ledger_shape`, `release.update`s conflict report, and
+                               # the report-only nightly override-ledger axis).
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/init.py#_hook_override_ledger: 2537c56d5474de5b37c7933b727be8fed1ec852f6db7f84d6202a16894ab62ac
+  bin/lib/init.py#override_entry_errors: 30eb1a5a5222da33723203228acbf56079e2ec69230fa55c6bf5244a9ffb6372
+  bin/lib/nightly.py#_check_override_ledger: 0161f56cb0b47ec98c52ec17273622049a9099d79ae11b6ef317c86f153fe0b2
+  bin/lib/release.py#ledger_drift: 5c3ef6954d038ae9fdcbf14eae1468780de9d5343fb0bc4e559e945bf51850a1
+  bin/lib/release.py#update: 38468307998c361e18f8d9f4d11556fe7f8b05277c74bcfec55b260aa0cf5b61

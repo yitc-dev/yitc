@@ -1,0 +1,119 @@
+id: SPEC-0177
+title: 'Read-only conformance surfaces — the missing P8 evidence vocabulary, and why kernel closure prefers a scheduled run'
+
+status: active
+
+created_at:
+
+travels: ~
+
+consumed: false
+
+extension: ~
+
+implements:
+  - bin/lib/task.py#cmd_task_close
+  - bin/lib/task.py#_infra_adoption_seen
+  # — the SHIPPED anchors. Rule 1's vocabulary + rule 5's class bound:
+  - bin/lib/task.py#_READ_ONLY_CONFORMANCE_SURFACES
+  - bin/lib/task.py#_resolve_exit_status_evidence_ref
+  # Rule 3's preferred proof — the scheduled run, and the reading that prefers it:
+  - bin/lib/task.py#_resolve_scheduled_run_ref
+  - bin/lib/task.py#_p8_adoption_verdict
+  - bin/lib/nightly.py#_check_conformance_surfaces
+
+body: |
+  ## Scenario
+
+  Some mechanisms' production surface is a verb that only LOOKS: it reads current state, reports,
+  and by design writes nothing — no journal row, no stored state. That non-emission is what makes
+  such a verb a safe observer. But Principle 8 asks for adoption evidence that resolves to a
+  durable machine record, so these mechanisms had nothing to point at and could not close on the
+  kernel at all.
+
+  This spec gives them a vocabulary for what they CAN prove, and states plainly which proof
+  actually counts as adoption.
+
+  ## Internal
+
+  **Rule 1 — the missing vocabulary: read-only-production-surface exit/status evidence.** An
+  adoption-evidence payload MAY name the conformance verb's EXIT STATUS as its machine evidence,
+  provided it carries a DIFFERENTIAL: a seeded violation makes the verb exit non-zero, and a clean
+  tree makes it exit zero. Without the differential it is a smoke check, not a probe
+  (CHARTER §P3).
+
+  **Rule 2 — exit-status evidence is NOT, by itself, adoption.** It proves SURFACE FIDELITY: that
+  the production path is wired end to end — CLI dispatch, discovery, inputs, the read-only
+  observation path, failure reporting, exit semantics. That is strictly more than a test node
+  proves (selected code and fixtures behaving), and the difference is principled. But BOTH are run
+  by the author, at authoring time. Admitting exit status alone as closure evidence would be
+  "tests green = done" wearing a CLI-shaped wrapper — the precise failure Principle 8 exists to
+  refuse. External consult 2026-08-13
+  (`decisions/p8-read-only-conformance-evidence-audit-adhoc.yaml`), which corrected the
+  controller's original position on exactly this point.
+
+  **Rule 3 — for KERNEL closure, prefer SCHEDULED-RUN evidence.** The strongest available proof is
+  the bounded methodology-nightly (SPEC-0105) exercising the real verb: a DIFFERENT actor, at a
+  DIFFERENT time than the authoring session, resolving one durable `nightly_run_completed`. That
+  is what "adopted" means — behaviour exercised OUTSIDE the session that authored it. The closure
+  LATENCY this imposes (the card waits for a nightly) is NOT a defect to engineer around; it is
+  the price of proving adoption rather than intent.
+
+  **Rule 4 — the ranking, so a later reader does not re-derive it.** (1) scheduled-run evidence —
+  strongest, preferred for kernel closure; (2) exit-status evidence — the valid vocabulary for
+  these surfaces, supporting pre-land review and deferred-proof linkage, never REPLACING
+  independent adoption where it exists; (3) `test:<path>::<node>` — supporting evidence, acceptable
+  for narrow consumer-local mechanics, weak for kernel closure because it is a proxy for the
+  production surface; (4) making the read-only verb EMIT a journal row — REJECTED: it changes the
+  production invariant to satisfy the evidence contract, which is backwards (SPEC-0133 rule 1).
+
+  **Rule 5 — the BOUNDARY.** This applies ONLY to read-only observability/conformance verbs whose
+  production contract is non-emission with no stored state, and ONLY with a named differential
+  failing input. It must NEVER become general permission for ordinary infrastructure cards to
+  close on author-run tests, author-run commands, or prose assertions.
+
+  ## Rationale
+
+  Recorded bind, fingerprint `read-only-conformance-guard-cannot-satisfy-substantive-p8-on-kernel`
+  (from SPEC-0015): the `test:<path>::<node>` in-process spelling is
+  consumer-only, so a kernel mechanism whose surface emits nothing had no admissible evidence and
+  could not close. The asymmetry between consumer and kernel was itself put to the consult; the
+  answer is that the weaker proxy should NOT simply be widened, because widening the weaker
+  spelling everywhere is the cheapest answer and also the one that quietly lowers the bar.
+
+  ## Verification
+
+  - An exit-status evidence payload WITHOUT a named differential failing input is refused.
+  - A kernel infra card closing solely on author-run exit-status evidence, where a scheduled run
+    could have exercised the guard, is flagged — closure prefers the nightly record.
+  - The evidence vocabulary is unavailable to a card whose production surface DOES emit a journal
+    row (that card uses the ordinary contract; rule 5's class bound).
+  - A read-only conformance verb still emits nothing after this spec — no verb is taught to write
+    in order to satisfy the contract (rule 4, option 4 stays rejected).
+
+cites:
+  - CHARTER.md#principle-8
+  - SPEC-0015
+  - SPEC-0105
+  - SPEC-0133
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: ~
+binding:
+  - code-enforced # the `implements:` anchors ARE the delivery: the reader never has to fetch this
+                      # spec to be governed by it — `_p8_adoption_verdict` computes the verdict and the
+                      # close-time WARN names the rule when it bites. Deliberately NOT the `close`
+                      # verb surface: rule 5 keeps this a NARROW class, so delivering it before every
+                      # closure would tax every card for a rule that governs a handful.
+
+init_concern: ~
+implements_signature:
+  bin/lib/nightly.py#_check_conformance_surfaces: 15a564006c9c22eb3443ce90c200c9c8bd8d1218414477b7d13e21c9b7184893
+  bin/lib/task.py#_READ_ONLY_CONFORMANCE_SURFACES: c00e8b292d6d0c54739a030151785112b63b81d05ff99574a036e5178765cf1c
+  bin/lib/task.py#_infra_adoption_seen: 564b16622a36dfd9ebd3956549743a4610f057b9e87cc7b1eeb9b99e04b0af4e
+  bin/lib/task.py#_p8_adoption_verdict: 95796b5702a55e2527f80bdd5098cd63ab801462e2e4e0398c19a048b7e89754
+  bin/lib/task.py#_resolve_exit_status_evidence_ref: 479927d513753038ce8898a0f00ede032dd09e70ab02b85097434be8045ab29c
+  bin/lib/task.py#_resolve_scheduled_run_ref: 32a3bf809e9bea0b064e8758d61f7eceab96e21f774f289d5f87b3139c6f9cb1
+  bin/lib/task.py#cmd_task_close: 5b32310d96f0879475b45cd1c6fdb21a912b9d16b8a8b1bbce3c20b516cb9a22

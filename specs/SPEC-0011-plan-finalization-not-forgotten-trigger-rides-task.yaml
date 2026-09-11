@@ -1,0 +1,71 @@
+id: SPEC-0011
+title: Plan-finalization not-forgotten trigger rides task close (PUSH WARN) plus a saved-view safety net (PULL)
+
+status: active
+
+created_at:
+
+consumed: false # no code reads a scalar param from this spec; the contract is enforced
+                               # by the existing `task close` + `graph query` control-points, not a config read.
+
+implements: # durable anchors : the trigger code + the safety-net lens.
+  - bin/lib/task.py#_closing_task_pending_finalization_plans # PUSH trigger (AC3)
+  - bin/lib/views.py#_view_plans_pending_finalization # PULL safety-net lens
+
+binding:
+  - code-enforced # : explicit code-enforced residency token (implements: IS the delivery)
+
+body: |
+  ## Scenario
+  When the owner closes the last open task whose work realizes an accepted plan, they are reminded —
+  right there, in the close output — that the plan itself still needs finalizing (`plan close
+  --resolution realized`). They do not have to remember to look; the reminder rides the close. And if
+  a reminder is ever missed, a weekly Review query lists every accepted plan whose realization work is
+  done but which was never finalized — so a forgotten plan cannot sit unnoticed forever.
+
+  ## Internal
+  **Rule (invariant):** plan finalization rides a VERB, never AI memory ( extend-the-verb;
+  CHARTER non-goals — no cron/daemon/autopilot). Two layers, ONE shared citing-task computation
+  (`_plan_open_citing_tasks` — reuse, P5 no-drift):
+
+  - **PUSH (control-point = `task close`):** on close, for each plan the closing task `cites:` that is
+    `status: accepted`, if excluding THIS task leaves NO other open (ready|in-progress|blocked) citing
+    task, surface a NON-BLOCKING stderr HINT and record `plan_finalization_pending`
+    (`[{plan, citing_tasks}]`) on the EXISTING `task_closed` event — NO new event type. Computed with
+    `exclude_tid` so it is independent of write-ordering. Deduped ONCE per plan via prior `task_closed`
+    payloads (`_plans_hinted_already`) so a later close of a freshly-added citing task does not re-warn.
+
+  - **PULL (safety net = the `plans-pending-finalization` saved view):** accepted plans with zero open
+    citing tasks. Pure f over committed artifacts, recomputed fresh, no stored output. Plan
+    status from `index["plans"]`; citing side from the canonical `cites:<plan>` read (the graph index
+    carries no plan→task edge by design). Run in the WEEKLY Review scan (QUEUE §Re-review).
+
+  A plan-slug in `cites:` is discriminated by `PLAN_SLUG_RE` (lowercase kebab — T-/D-/SPEC-/E- ids
+  never match) plus an existing `plans/<slug>.md`. An editor changing `task close`, the view dispatch,
+  or these helpers MUST preserve: non-blocking (surface, never gate — non-goal #7); the shared
+  citing-task helper across both layers; once-per-plan dedup; no new event type / no new store.
+
+  ## Rationale
+  Real incident (the Part F root cause): `decision finalize` had no auto-trigger and relied on
+  AI discipline, so `plans/part-f-narrow-decision-retirement-single-authority` sat at `accepted` after
+  its work landed — finalization was simply forgotten. The fix is the same doctrine that fixed the
+  E-0005 adoption gap: a non-blocking VISIBILITY WARN on the verb that is "before X", recorded on the
+  verb's existing event carrier. Mirrors `task close`'s E-0005 infra-adoption WARN
+  (`adoption_evidence_seen`) and hygiene-excluded-surface WARN — same shape, same carrier.
+
+  ## Verification
+  Probe (observable): closing the last open task citing an accepted plan writes a HINT to stderr and a
+  `plan_finalization_pending` entry in the `task_closed` event, ONCE (a later citing-task close does
+  not re-warn) — `tests/test_plan_finalization_hint.py`. The saved view lists such plans via the real
+  CLI `yitc-v2 graph query plans-pending-finalization`, whose invocation emits a `cli_invoked`
+  observability event (the Review-path read = AC4 live-trigger) — `tests/test_plans_pending_finalization_view.py`.
+
+cites:
+  - tasks/-plan-finalization-must-not-be-forgotten-warn-on-ta.yaml
+  - errors/E-0005-infra-task-t-0168-closed-without-a-principle-8-ado.yaml
+  - CHARTER.md#principle-8
+  - decisions/-verb-design-doctrine-cli-verbs-as-the-ai-control-s.yaml
+
+requires: []
+supersedes: ~
+proposed_by:

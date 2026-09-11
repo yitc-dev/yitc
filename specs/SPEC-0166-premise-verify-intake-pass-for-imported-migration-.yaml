@@ -1,0 +1,214 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0166
+title: Premise-verify intake pass for imported migration cards (imported_from marker + premise field + dispatchability rule)
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: kernel
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # SPEC-0166 behavior sites (symbol-decomposed per SPEC-0088): classifier + pass + gate predicate + claim/dispatch wiring
+  - bin/lib/task.py#_premise_markers
+  - bin/lib/task.py#_premise_verify_card
+  - bin/lib/task.py#_premise_dispatch_block
+  - bin/lib/task.py#cmd_task_intake
+  - bin/lib/worktree_lifecycle.py#_claim_task
+  - bin/lib/worktree_lifecycle.py#cmd_worktree_new
+  - bin/lib/dispatch.py#_resolve_dispatch_routing
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+
+body: |
+  ## Scenario
+  A brownfield onboarding re-files an existing backlog into v2 task cards — from ANY source (YITC v1, a
+  different methodology like Jira/Linear/another framework, a vibe-coding TODO dump, or a hand-migrated
+  list). Each imported card carries `imported_from: <source-ref>` (source-agnostic; set at import time).
+  Before those cards can be dispatched, a
+  cheap intake pass re-checks each card's PREMISE against today's code (the Stage-1 anti-reinvention
+  grep, moved to the cheap intake moment) and marks it `premise: verified | already-done | stale`.
+  Only a `premise: verified` card (or a card with no `imported_from:`) is dispatchable; `already-done`
+  routes to `task update --status wont-do`, `stale` to `task update --status parked`, each carrying the
+  finding (a `ready` imported card, so the in-progress-only `task close` is not the route). The
+  owner sees: no imported card reaches a worker for a full 9-stage run on a premise that no longer holds.
+
+  **WIDENED — the same cheap check, over ANY ready card, premise-only.** The pass above was
+  admitted only for cards carrying `imported_from:`, so the check that is cheapest at intake was
+  reachable only by a migration import. MEASURED (kernel, 2026-08-18..09-02): 64 dispatched workers
+  refused pre-claim on a FALSE PREMISE — each a full worker bootstrap spent to learn what this
+  deterministic classifier reads for free. `task intake --task`/`--all` therefore accepts ANY `ready`
+  card and runs the SAME verifier writing the SAME `premise:` field. For a NON-imported card that is
+  ALL it does — see the premise-only guard in §Internal. Nothing about the imported-card scenario
+  above changes; this is an ADDITIVE case (SPEC-0005 rule 7 in-place amend), not a reshape.
+
+  ## Internal
+  - **Ownership split (single-source, gate-trial finding 4):** the FIELD SCHEMA
+    (`imported_from:` string legacy-backlog ref; `premise:` enum `verified|already-done|stale`, absent
+    on a non-imported card) is OWNED BY **SPEC-0028** (the task-schema spec, existing parser — no new
+    store). THIS spec (SPEC-0166) owns the BEHAVIOR that CONSUMES those fields: the intake pass + the
+    dispatchability rule below. It does not re-home the schema.
+  - **Enum semantics (trial run 1 fold):** `verified` = premise still holds, dispatchable. `already-done`
+    = the WHOLE card's outcome already exists in today's code. `stale` = the scope PARTIALLY matches /
+    references a moved-or-retired subject → the card needs re-scoping, not closing.
+  - **The pass is CODE-READ-ONLY but TASK-METADATA-MUTATING:** it reads product code without editing
+    it, and writes `premise:` via the EXISTING `task update` governed route (no new mutation path).
+    **Routes (trial run 1 fold — an imported card is `ready`, NOT in-progress, so `task close` (which
+    is in-progress-only) is not reachable):** `already-done` → **`task update --status wont-do`** (the
+    ready→terminal route aiseller actually used for the already-fixed); `stale` →
+    **`task update --status parked`** (re-scope later). All via the existing `task update` verb.
+  - **Dispatchability rule:** `dispatch` (and the picker) treat a card with `imported_from:` set AND
+    `premise:` != `verified` as NOT-ready — refuse with the exact next step (run the intake pass).
+    Derives ONLY from the two card fields (named carrier, existing parser, no gate ledger).
+  - **Second, orthogonal cause on the SAME predicate ( — rule home SPEC-0133, not here):**
+    `_premise_dispatch_block` also blocks a card carrying a PRE-CLAIM REFUSAL (`refused_at`, written
+    by `task refuse`), checked BEFORE the premise arm because it is the more specific fact and it
+    applies to EVERY card, not only imported ones. Extending this ONE predicate is deliberate: the
+    claim gate, the dispatch preflight and the picker all derive their refusal from it and nowhere
+    else, so a second cause reaches all three with no call site edited and cannot drift across them.
+    THIS SPEC'S OWN RULE IS UNCHANGED — the premise arm above still derives only from
+    `imported_from` / `premise`; the refusal arm's contract lives single-SoT in SPEC-0133 rule 2f.
+  - EXTENDS SPEC-0133 (reactive pre-claim refusal) to the proactive intake seam — same
+    anti-reinvention #5 discipline, one card-at-a-time analysis burn replaced by a cheap batch read.
+  - **WIDENED SCOPE + THE PREMISE-ONLY GUARD (ad-hoc consult `pre-land-friction-premises`
+    finding 2).** `task intake --task`/`--all` accepts ANY `ready` card, imported or not, and runs the
+    SAME verifier writing the SAME `premise:` field. `imported_from:` is no longer an ADMISSION test —
+    it selects the OUTCOME arm. For a card WITHOUT `imported_from:` the pass writes `premise:` and
+    **NOTHING ELSE**:
+      - **no imported-card transform and NO status write** — `PREMISE_STATUS_ROUTE` (already-done →
+        wont-do, stale → parked) is consulted ONLY for an imported card. A non-imported card with a
+        false premise is recorded `premise: stale` (or `already-done`) and **STAYS `ready`**. The
+        reason the routing does not travel: an import census is a bulk re-file nobody has re-read, so
+        a machine verdict disposing of those cards is the agreed design; a card someone filed by hand
+        is not that, and a classifier verdict is EVIDENCE about it, never a disposition of it.
+      - **no refusal and NO gate.** The dispatchability rule above is UNCHANGED: its premise arm stays
+        scoped to `imported_from`, so a non-imported card is ALWAYS dispatchable whatever is recorded
+        here — a recorded `premise:` on such a card can never block a claim, a dispatch or the picker.
+      - **`dispatch` only REPORTS.** Its preflight emits ONE report-only line naming the cards in the
+        wave that carry no `premise` record, **and still launches every one of them** — no `_die`, no
+        filtering, no exit code moved (CHARTER non-goal #7: filing and dispatch are never blocked).
+        The line is emitted AFTER the existing fail-closed refusals, so a genuine refusal is never
+        buried under advice, and **on STDERR**: dispatch's STDOUT is a contracted surface (the terminal
+        `DISPATCH: <VERDICT>` token, and the single-task output shape pinned as a full-output BYTE
+        EQUALITY whose atom is that the common path must not move), so an advisory belongs on the
+        diagnostic channel — the same split the land verify-heartbeat already uses. An advisory that
+        moved a machine-readable contract would be a second cost, not a saving.
+    **No new store, no new gate, no new FSM, and no enum change** — `premise` stays exactly
+    `verified|already-done|stale` (owned by SPEC-0028). The whole widening is a relaxed predicate
+    plus one guard, so the enumerated bounds above are what a reader must check when touching it.
+
+  ## Rationale
+  aiseller 2026-07-13: 85 imported cards in a day, 28/31 ready-queue citing v1 ids; (OTP oracle)
+  already fixed in April burned a full pre-claim analysis; cited a script retired hours earlier.
+  The pre-claim refusal (SPEC-0133) caught them REACTIVELY, expensively. Moving the check to intake is
+  the same discipline at a cheaper moment. Full design + prior-art: plan
+  `migration-import-safety-provenance-marker-premise-`. Origin cross X-0372.
+
+  ## Verification
+  Differential pinned test: a synthetic `imported_from:` card whose premise is stale is marked `stale`
+  and REFUSED by dispatch; a verified one passes; a non-imported card is unaffected. Real-data soak:
+  replay a slice of the aiseller import census; the pass flags the already-fixed class.
+
+  Widening + premise-only guard — `tests/test_task_intake_any_ready.py`, three differential
+  tripwires: (1) a NON-imported ready card takes `task intake --task` and the card is byte-identical
+  apart from the added `premise:` line — the differential failing input is the same card gaining any
+  status/stage/imported transform; (2) a non-imported card whose `premise-check:` names an absent site
+  is recorded `premise: stale` and its status is still `ready`, with no `bg_dispatch_halted` — the
+  failing input is intake mutating status; (3) `_resolve_dispatch_routing` over a wave holding one
+  premise-less card prints the report line naming it AND returns routing for every task — the failing
+  input is dispatch refusing or dropping a task on a missing premise.
+
+cites: # informational any→any refs ( B2)
+  - SPEC-0028 # the task-schema spec that OWNS the imported_from:/premise: fields
+  - SPEC-0133 # fleet-verdict / pre-claim-refusal (task refuse) territory — the reactive
+                                # discipline this proactive intake pass is the cheaper-moment sibling of
+  - SPEC-0086 # rule 7 — the receiver-side cross-item intake premise review (closest analog)
+  - SPEC-0032 # Stage-1 per-task premise re-verify (at claim — too late/expensive for a bulk import)
+  - SPEC-0073 # placement/realm (this spec travels kernel to consumer migrations)
+  - migration-import-safety-provenance-marker-premise- # the proposing plan
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: migration-import-safety-provenance-marker-premise-
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: # (Part I-A) — retrieval binding: which gating verb/stage
+  - code-enforced # /: implements: IS the delivery — the premise-verify gate
+                               # (_premise_dispatch_block at claim/dispatch/pick) + the intake pass are
+                               # enforced in code, not fetched before a verb.
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/dispatch.py#_resolve_dispatch_routing: cb9eca0732a38aa8accc875964cdece0305ceda0d8ae8a0ad2accf5907796c22
+  bin/lib/task.py#_premise_dispatch_block: bc89539c4c0df4432115de067b9924c393610e854a4a966734bdb16a47185ef5
+  bin/lib/task.py#_premise_markers: 4dafee6f579cf488990ba04180b5512e6b28e2d70cde834486a3047ba61e0721
+  bin/lib/task.py#_premise_verify_card: 0468ca7337b0fdd66474fbdcc37bf0e2f166296b65277e16ef33c77d739f168a
+  bin/lib/task.py#cmd_task_intake: f177d065a5f2287b5c51972d85e3126f0bf1e207b83a5107b13443054c8ff481
+  bin/lib/worktree_lifecycle.py#_claim_task: 5c17793db5f5f5525c63848b228351810ef066ec2d85b08d4785e797ef14ebd7
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 4c0776cf67c1f57a146cdd1324f6188634d69c52cb6623eabca4ac968ebcbc44

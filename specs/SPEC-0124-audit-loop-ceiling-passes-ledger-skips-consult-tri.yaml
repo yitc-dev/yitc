@@ -1,0 +1,732 @@
+id: SPEC-0124
+title: 'Audit-loop ceiling — passes, ledger-skips, consult triage & owner-reset continuation'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+travels: ~ # class-default kernel (methodology that travels to a consumer via -C).
+
+consumed: false # documentary read-rule spec; no code reads a scalar param FROM it.
+
+implements: # — the ceiling's ARITHMETIC has one code site and this spec
+  - bin/lib/audit.py#cmd_audit # governs it: `cmd_audit`'s `ledger_skip` disjunction, which THIS
+                               # spec's §Ledger-skip axes table is the rule for («Every axis extends
+                               # the ONE ledger-skip mechanism in-place (`cmd_audit` `ledger_skip`)»).
+                               # The former `implements: []` note («no single code site») contradicted
+                               # that body sentence — a CHARTER §P7 artifact contradiction, resolved
+                               # in the direction the body already stated. Four sibling specs
+                               # (SPEC-0027 / SPEC-0050 / SPEC-0094 / SPEC-0176) already anchor this
+                               # exact symbol, so the anchor is shared, not exclusive. What stays
+                               # TRUE from the old note: the ceiling is also an invariant HELD across
+                               # the audit verbs and the land path — the anchor names where its
+                               # arithmetic lives, not the whole of its reach.
+
+binding: # SPEC-0013 — delivered at BOTH task-audit stage-entries (same axis as
+  - stage-entry:Audit-pre # the parent SPEC-0036, so the ceiling stays delivered at audit time
+  - stage-entry:Audit-post # after the split — zero delivery regression).
+
+body: |
+  ## Scenario
+
+  When an audit RED/YELLOWs, the AI absorbs findings and re-audits. Without a bound this loops
+  forever — the auditor re-surveys from scratch, a passable cosmetic finding re-burns a pass, a
+  benign freshness re-pin looks like a fresh defect — so sound work never converges. The
+  audit-loop ceiling is the bound: a fixed max number of absorption passes per target per stage,
+  a family of ledger-SKIP exemptions for re-audits that are NOT real absorption loops, an external
+  CONSULT that adjudicates convergence before the owner is ever asked, and an owner-authorized
+  single-pass continuation. This spec is the ONE home for that machinery (re-homed from the audit
+  contract SPEC-0036 by — a stable-surface split, SPEC-0005 §7 / rule-6 anti-oversize);
+  SPEC-0036 keeps the invocation/verdict/lens/overlay contract and points here.
+
+  ## Internal
+
+  THE AUDIT-LOOP CEILING. Re-homed VERBATIM from the parent contract SPEC-0036 (its former audit-loop-ceiling section; stable-surface
+  split, SPEC-0005 §7). It governs TASK audit-pre/post AND the ceiling-bearing PLAN gates; the parent
+  contract (invocation, verdicts, lens, per-stage overlays, saved-result schema) stays in SPEC-0036
+  (`bin/yitc-v2 graph query SPEC-0036`).
+
+  ### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)
+  Post-ceiling adjudication is governed by SPEC-0200.
+
+  Maximum 2 absorption passes per target per audit stage. Pass 3 does NOT go straight to the owner —
+  it enters the CEILING-CONVERGENCE TRIAGE below; the owner is reached only on non-convergence or a
+  failed granted pass (never a silent loop). The ceiling counts RE-AUDIT passes — so HOW a finding is absorbed
+  decides whether it costs a pass (E-0008): a PASSABLE finding (YELLOW / cosmetic / evidence-only —
+  does NOT change the plan/diff) is absorbed via **mode-b** — recorded in this verdict's
+  `notes:`/`absorbed:` fields, NO re-plan, NO re-audit, burns NO pass. Only a finding that genuinely
+  changes the plan/diff uses **mode-a** — re-plan/re-implement → re-audit, which costs a pass.
+  Pushing a passable finding through mode-a is the E-0008 false-ceiling defect. (Fuller mode-a/b
+  treatment: LIFECYCLE §Stage 4.)
+
+  **Mode-b is VERB-ONLY, on both targets (X-0928).** A mode-b absorption is recorded ONLY
+  through the governed route — `audit pre --task T-XXXX --absorb "<text>"` for a task verdict
+, and `audit pre --plan <slug> --gate <id> --absorb "<text>"` for a ceiling-bearing PLAN
+  GATE's verdict (gate id per §Plan-target parity below — the SAME five tokens `audit consult --plan
+  --gate` takes). Both write `absorbed:`/`notes:` on the EXISTING verdict, run NO auditor, leave
+  `verdict:`/`passes:`/the recorded freshness signature untouched (so mode-b burns NO pass — an absorb
+  that generated a re-audit pass would be a ceiling loophole), refuse a non-YELLOW record NAMING the
+  verdict, and emit `audit_finding_absorbed` carrying the target identity. HAND-EDITING either verdict
+  YAML to record an absorption is FORBIDDEN (AGENTS §Verb-execution discipline): the hand edit skips
+  the deterministic emit, so the absorption is invisible to every later session — measured on the plan
+  side by X-0928, where 5 absorbed gate-specs findings left no journal record at all.
+
+  **Trend-aware grant — a bounded +1 on a clearly-converging trend.** When the recorded
+  per-pass finding-count trend is STRICTLY DECREASING across the passes AND the residual severity is
+  LOW (the work is clearly about to converge — e.g. 3->1, 2->1), the session earns ONE bounded extra
+  pass AUTONOMOUSLY (no owner ask). The grant is the SAME single +1 mechanic as --owner-reset (it
+  raises the EFFECTIVE ceiling by exactly +1, never +2 when both fire), so it is BOUNDED: a FLAT (e.g.
+  2->2) or GROWING trend, or a second still-decreasing step at the now-raised cap, is blocked/escalated
+  EXACTLY as before. Residual-severity gate: ZERO residual findings is the MOST-converged state and IS
+  eligible (the test is residual-severity-is-LOW, NOT non-empty-residual); a PRESENT residual finding
+  must be `low` — a medium/high/unknown residual blocks (FAIL-CLOSED). Journal-visible at the GRANT
+  MOMENT via an `audit_ceiling_trend_grant` event (emitted BEFORE the auditor runs) and durably in the
+  completed audit YAML + completion events (`trend_ceiling_grant: true`). Decided BEFORE the auditor
+  runs (pure f(prior record)) — the autonomous sibling of --owner-reset. Scope: TASK pre/post AND the
+  PLAN FINALIZATION gate (target_kind==plan, stage==post — the cmd_audit-reachable plan ceiling). The
+  predicate (is_trend_convergence_grant / finding_count_trend) is target-AGNOSTIC — it reads
+  passes_trail + findings, which the plan finalization post ALSO records — and the plan
+  corpus/lens/task-carrier freshness axes still pre-empt it (a stale re-pin is never read as a
+  converging trend). The EARLY plan gates (draft-specs/specs-trial/trial-accepted/
+  decomposition-executing) run in _run_plan_gate_audit (a separate ceiling path, NOT cmd_audit) —
+  their L2/L3 parity is the tracked deferral.
+
+  **DECISION — trend-vs-flat-count ceiling refinement: DEFER.** A fully trend-keyed ceiling
+  (keep granting passes as long as findings strictly decrease) is REJECTED; the flat 2-pass cap + the
+  bounded +1 trend-grant stay as-is. Full rationale (the unbounded-passes anti-spin objection, the
+  «wide change = decomposition signal, not ceiling signal» reframing, and the already-existing
+  owner/consult-governed escapes) + the future-revisit ADOPT-condition:.
+
+  **WHAT HAPPENS AT THE CEILING — homed in SPEC-0204, not here.** This spec keeps the ceiling
+  ITSELF: the pass arithmetic, the ledger-skip axes, the trend grant. What happens once the ceiling is
+  REACHED for a TASK audit-pre / audit-post is the SOLE subject of **SPEC-0204** — the Controller
+  records ONE typed `ceiling_decision` per residual of the ceiling row (`audit decide`, rule 2) and
+  exactly ONE further pass runs on those decisions (`audit pre|post --on-decisions`, rule 3), with a
+  RED there TERMINAL for that (task, stage). Read it: `bin/yitc-v2 graph query SPEC-0204`.
+
+  RETIRED by SPEC-0204 rule 6 and NOT described here any more: the consult EPISODES that adjudicated
+  the ceiling (frozen finding ids, retest rounds, the PROCEED/HOLD option pair, `--reopen`), the
+  `--owner-reset` continuation on `audit pre|post` and its consult-governed basis, the
+  dispatched-worker AUTO-CONSULT, the `WITHDRAWN`/`CUT` card markers, and the spent-budget commit
+  bypass. A DISPATCHED worker at the ceiling does not consult and does not self-grant: it HALTS with
+  the existing SPEC-0103 §3 `bg_dispatch_halted`, naming its residual FINGERPRINTS; the Controller
+  decides; the re-dispatched worker resumes with `--on-decisions`. Every retired flag REFUSES with a
+  pointer to that route.
+
+  NOT retired, and unchanged: `audit consult --on-demand` (the BELOW-ceiling technical-fork pick,
+  §On-demand technical-fork consult), the PLAN-gate consult and `plan stage --owner-reset` (§Plan-target
+  parity — a plan gate keeps its own consult-governed reset), and the trend grant above.
+
+  **The ENGINE drives the continuation, not the worker.** The at-ceiling block fires only when
+  `audit post` is invoked with prior_passes >= AUDIT_PASS_CEILING — i.e. a 3rd invocation. But a REAL
+  dispatched worker, after its 2nd audit-post RED (which RECORDS passes == cap), follows its SPEC-0103
+  preamble and HALTS — it never makes that 3rd call, so the path was STRUCTURALLY BYPASSED. So when
+  `cmd_audit` records the ceiling-REACHING audit-POST RED in a dispatched-worker context (verdict RED,
+  stage post, `prior_passes + 1 == AUDIT_PASS_CEILING`, `YITC_EXPECTED_SESSION_REF` set, and no
+  ledger-skip / trend-grant / carry-forward exemption), it fully persists that pass-2 RED (YAML + both
+  completion events) — so the on-disk trail equals a real 2nd invocation — then raises the
+  `WorkerCeilingContinuation` sentinel; the host wrapper catches it and RE-INVOKES `audit.cmd_audit`
+  ONCE in-process. The re-invoked call reads prior_passes == cap from disk and enters the at-ceiling
+  block. Structurally ONE-SHOT (the `prior_passes + 1 == cap` gate is False on the re-invoked
+  prior_passes == cap call). SCOPE: audit-POST only; audit-pre keeps its existing block.
+
+   did not weaken this — it made it MORE load-bearing. What the re-entry used to reach was the
+  auto-consult grant; what it reaches now is the ceiling refusal, which is where the halt naming the
+  card's residual FINGERPRINTS is emitted (SPEC-0204 rule 6). Without the continuation a worker's 2nd
+  RED would yield with no halt row at all, and the controller would read an orphan.
+
+  **SCOPE — the ceiling itself, not what follows it.** The paragraph that stood here
+  described the auto-consult's authority bounds, its detector and its journal carriers
+  (`audit_worker_auto_consult_granted`, `worker_auto_consult` / `owner_reset` / `owner_reset_basis` /
+  `consult_governed` on the completed record). All of it is RETIRED with the auto-consult (SPEC-0204
+  rule 6): no route sets those fields, so no new record carries them, and rows already on disk keep
+  theirs and stay readable. WHAT SURVIVES UNCHANGED, and belongs to this spec: the ceiling is not an
+  authority transfer, and a worker's dispatched context is read from the EXISTING signal
+  `YITC_EXPECTED_SESSION_REF` — never a new liveness / autonomy / state machine (CHARTER non-goals).
+  The EARLY plan gates keep their own ceiling path in `_run_plan_gate_audit` (§Plan-target parity),
+  which this retirement does not touch; their L3 parity remains the tracked deferral.
+
+  **Reject-as-wrong rationale.** Absorption (mode-a/mode-b) is for findings the session
+  ACCEPTS. A THIRD disposition is REJECTING a YELLOW finding as WRONG — the auditor was mistaken,
+  so the session declines to absorb it AND files no follow-up. A reject is neither mode-a nor mode-b
+  and burns no pass, but left silent it makes the decline UN-AUDITABLE (no trace of why a flagged
+  point was overruled). So when a session rejects a YELLOW finding as wrong it MUST record a
+  one-line rejection rationale in the verdict 'notes:' (e.g. "rejected finding N: <why the
+  auditor is wrong>"), making the override auditable. Guidance text only — no new mechanism (CHARTER
+  §P1 F4); surfaced to the worker via the audit prompt's absorption clause.
+
+  ### Ledger-skip axes — re-audits that are NOT absorption loops
+
+  The ceiling counts ABSORPTION passes. A re-audit that merely re-verifies an UNCHANGED or benignly-
+  drifted subject is not one, so it earns a LEDGER-SKIP. Each axis below is decided from the saved
+  record (plus, where the row names it, git history) — mostly BEFORE the auditor runs. The PREDICATE
+  and the FAIL-CLOSED clause in each row ARE the rule; the `marker` column is the additive-optional
+  field the run records (§Saved-result ledger-skip markers).
+
+  | Axis | Trigger predicate | Pre-block exempt? | Advances `passes`? | Marker | Scope |
+  |---|---|---|---|---|---|
+  | **Plan-freshness** | prior recorded verdict GREEN AND recorded `corpus_signature` DIFFERS from the current one (genuinely stale) | YES — allowed to RUN even at/past the pass cap | NO, when it comes back a clean GREEN with no findings | `freshness_reaudit: true` | `audit post --plan` only |
+  | **Plan lens-version** | the saved plan verdict's recorded `lens_version` (= `PLAN_FINALIZATION_LENS_VERSION`) DIFFERS from current. Fires REGARDLESS of the prior verdict, because a STALE LENS can produce a STALE RED | YES | NO, when it returns a clean GREEN | `freshness_reaudit: true` (the same ledger-skip as the corpus axis) | `audit post --plan` only |
+  | **Unchanged-fingerprint** | a TASK audit-pre re-run whose freshly-computed `plan_fingerprint` EQUALS the prior audit-pre record (the plan is UNCHANGED) | YES | NO — and the prior verdict + findings are CARRIED FORWARD VERBATIM with NO auditor re-invocation | `unchanged_fp_reaudit: true` | TASK `audit pre` only |
+  | **Concurrent-merge-churn** (E-0041) | a post-close `--reaudit-after-close` re-audit whose tree drifted ONLY by already-landed-and-audited SIBLING commits: the prior audit-post verdict GREEN/YELLOW with a recorded commit that is a proper ANCESTOR of HEAD, AND HEAD is exactly the clean RE-MERGE of the audited commit with current `main`, with no new observable worker contribution (`_concurrent_merge_churn_only`: re-derive `git merge-tree --write-tree <prior_commit> main` and check the paths where HEAD's tree DIFFERS from that re-merge are ALL inert bookkeeping) | YES — allowed to RUN even at/past the cap, else a passes:3 re-audit `_die`s before confirming the merged tree is still GREEN | NO — on ANY verdict. The CHARGE keys on the TRIGGER, never on the VERDICT: the pass exists because MAIN moved, not because the AUTHOR moved, so it is not this card's absorption loop to pay for. The auditor STILL RE-RUNS over HEAD — SAFETY rests on a REAL fresh verdict confirming the MERGED tree — and a non-GREEN one STILL STOPS the land and STILL BLOCKS closure: what is withheld is the ceiling CHARGE, never the refusal | `concurrent_merge_reaudit: true` | TASK `audit post --reaudit-after-close` only |
+  | **TASK lens-version** (X-0117) | a TASK pre/post verdict whose recorded `lens_version` DIFFERS from current `TASK_AUDIT_LENS_VERSION` (the TASK-audit LENS = the audit overlays PLUS the diff-invisible evidence surfacer `_ac_probe_evidence_events_for` the prompt is built from). INDEPENDENT of the prior verdict, because a STALE LENS can produce a STALE RED | YES | NO, when it comes back a clean GREEN. The auditor STILL RE-RUNS under the corrected lens (SAFETY rests on a real fresh verdict), so this takes PRECEDENCE over the unchanged-fingerprint carry-forward — a stale lens forces a real re-audit, never a verbatim carry of the stale verdict | `task_lens_reaudit: true` | TASK `audit pre` / `audit post` |
+  | **Passable-absorption** (E-0008 regression) | a TASK `audit post` RE-AUDIT (prior_passes >= 1) whose current verdict is YELLOW, carries NO high-severity finding, whose PRIOR audit-post verdict was ALSO YELLOW, AND whose audited COMMIT is UNCHANGED from the prior audit (current commit == prior recorded commit). The COMMIT-EQUALITY is the decisive diff-change signal: a true mode-b re-run re-audits the SAME commit, whereas a GENUINE mode-a rework — even one that stays YELLOW — re-commits via `task commit --absorb` → a DIFFERENT commit → NOT passable | NO — deliberately (anti-cx F3): the pre-block contract is UNCHANGED, so a prior-YELLOW audit-post AT the cap still `_die`s on a re-run | NO. `ledger_skip` preserves the verdict-note record (findings / notes / absorbed are written regardless — that IS the mode-b record); only the pass counter is withheld, and the verb WARNs that mode-b (record-and-proceed) was the right route | `passable_absorption_reaudit: true` | TASK `audit post` only |
+  | **Consult-governed carry** | the granted continuation is CONSULT-GOVERNED — `_consult_basis` verified a FRESH single-survivor GREEN/YELLOW consult bound to the CURRENT subject fingerprint, so the pass carries that consult's verdict VERBATIM and the auditor is NOT re-invoked (`consult_adjudication` is non-None; the carry) | n/a — the continuation was already granted (this axis decides the CHARGE, never the admission) | NO — UNCONDITIONALLY on the carried verdict (GREEN/YELLOW alike), because no auditor produced it: nothing was absorbed against one | `consult_governed: true` (the existing marker, now also the ledger-skip marker) | TASK `audit pre` / `audit post` + the plan finalization gate |
+  | **Plan task-carrier** | the plan's recorded `tasks:` carrier (`_plan_task_carrier`, the plan's cites-set recorded in the verdict's `tasks:`) DIFFERS from current — a cited task filed/removed OR a status change (e.g. in-progress→done). INDEPENDENT of the prior verdict (like the lens axis), because a stale carrier marks the verdict STALE (`_require_plan_finalization_ready` clause (d)) | YES | NO, when it returns a clean GREEN | `freshness_reaudit: true` (the same ledger-skip as the corpus/lens axes) | `audit post --plan` only |
+
+  **FAIL-CLOSED clauses (per axis — these bound every row above; when none matches, NORMAL pass
+  counting + the ceiling apply):**
+  - **Plan-freshness:** a prior-GREEN re-run with an UNCHANGED signature is NOT a freshness re-audit
+    (normal pass counting + ceiling — no blanket prior-GREEN exemption); a missing/blank signature on
+    either side falls through to normal counting; and a freshness re-audit that surfaces
+    YELLOW/RED/findings IS a real outcome — it advances `passes` +1 and the normal RED/YELLOW handling
+    + ceiling apply.
+  - **Plan lens-version:** a missing prior `lens_version` (pre- record) also counts as changed
+    (it predates the versioned lens); an EQUAL version is NOT exempt. It NEVER lowers `passes` or
+    forces a verdict — a lens re-audit can still RED on a genuine finding (then it counts a normal pass).
+  - **Unchanged-fingerprint:** the carry is UNCONDITIONAL on the carried verdict — GREEN / YELLOW / RED
+    alike — because the plan never changed, so the prior verdict for THIS exact fingerprint is
+    authoritative: a same-plan re-run can neither manufacture a fresh (spurious) RED nor flip a real
+    one. A carried RED still BLOCKS progression, but WITHOUT re-burning a pass or re-scoring — it is
+    NOT a bypass (the plan still does not pass). This is the INVERSE freshness predicate of the plan
+    axis (the plan axis exempts a CHANGED `corpus_signature`; this exempts an UNCHANGED
+    `plan_fingerprint`). A genuine plan-EDIT re-audit (mode-a) changes `plan_fingerprint` -> NOT exempt
+    -> a real counted pass; a missing/blank prior `plan_fingerprint` (pre-) or a non-canonical
+    prior verdict never matches -> normal counting + a real audit.
+  - **Concurrent-merge-churn:** the skip is UNCONDITIONAL on the verdict — a surfaced
+    YELLOW/RED/finding does NOT advance `passes`, because the CAUSE of the re-audit was main
+    moving, not the author moving, and the ceiling counts the CARD'S OWN absorption passes. The
+    RED still STOPS the land and still blocks closure (`task close` is GREEN-gated) — this axis
+    removes the CHARGE, never the refusal. INCIDENT (2026-09-05): the in-land re-audit
+    over the merged tree RED'd on a real defect the gate rightly caught, but the pass landed on
+    the card's own budget — passes reached 3, the ceiling-convergence consult HOLD'd for the owner
+    at 07:10:46Z, and the card lost ~3 hours to a consult/owner-reset dance over a diff that had
+    not changed since its GREEN. TWO BOUNDS make this ONE-SHOT rather than an open loop, and both
+    are properties of the trigger predicate, not added machinery: (i) the predicate requires the
+    PRIOR record's verdict to be GREEN/YELLOW, so an exempted RED becomes the next run's prior and
+    CLOSES its own exemption; (ii) it requires the prior audited commit to DIFFER from the current
+    one, so a re-audit at an UNMOVED HEAD is charged normally. An uncharged pass therefore costs
+    main genuinely advancing again — real external progress, never a self-spun loop — and
+    `_INLAND_REAUDIT_MAX_PER_LAND` bounds the in-land caller a second time per land. What is
+    UNCHANGED: a worker's OWN post-audit SOURCE edit leaves an observable
+    differing path -> NOT exempt -> a real counted re-audit, so the genuine-recovery case is
+    PRESERVED. A merge-tree CONFLICT is likewise NOT exempt -> EXCEPT when EVERY conflicting path is
+    INERT : a sync merge that regenerated a DERIVED artifact both sides rebuilt
+    (graph/index.json is the measured case) conflicts on a path whose content the audit never judged
+    and `land` rebuilds anyway, so the bare rc!=0 short-circuit read that as new observable content
+    and defeated an audited re-baseline forever (measured 2026-09-04 on task/ — ONE conflict,
+    in graph/index.json, after a GREEN owner-reset audit-post, with the re-audit route unreachable
+    because audit-post custody pins the subject to the ship commit; the livelock class, one
+    conflict-in-a-derived-file wider). The conflict paths are classified through the SAME
+    `_classify_inert_paths` authority the differing-path check uses (SPEC-0064 §4 — no second inert
+    encoding, no new flag): ALL-INERT falls through to that differing-path check, which still decides
+    (the conflicted blobs carry markers, so those paths reappear in the diff); ANY OBSERVABLE
+    conflict path -> NOT exempt, exactly as before. A NARROWING inside this axis's invariant «only
+    pure concurrent-merge churn is exempt», never a conflict waiver — additionally fail-closed on a
+    non-conflict rc, on rc==1 with no readable CONFLICT line, and on any conflict KIND other than
+    `CONFLICT (content)`.
+  - **TASK lens-version:** ONE-SHOT — a missing prior `lens_version` (pre- record) counts as
+    changed; an EQUAL version is NOT exempt (no blanket bypass); and the re-audit records the CURRENT
+    version, so a follow-up with an unchanged version re-applies the ceiling. A surfaced
+    YELLOW/RED/finding is a real outcome that advances `passes` normally.
+  - **Passable-absorption:** a prior RED/ABORT (a GENUINE blocker that forced this re-plan — mode-a
+    rework), ANY high-severity finding (genuinely changes the plan/diff), OR a CHANGED / missing
+    audited commit (a genuine re-committed rework) falls through to NORMAL pass counting; a first
+    audit-post (prior_passes==0) always counts. At the cap, mode-b is to RECORD the passable finding in
+    the already-recorded YELLOW verdict's notes and PROCEED to `task close` (the existing Stage-8
+    YELLOW close route), NOT to re-run `audit post`; `--owner-reset` stays the designed escape if a
+    genuine re-audit is ever needed. Because a passable absorption never advances `passes`, a sequence
+    of passable absorptions can NEVER push sound work to the ceiling — the E-0008 sub-cause-1 deadlock
+    is prevented at its source, not patched at the wall.
+  - **Plan task-carrier:** ONE-SHOT — the saved verdict re-pins the CURRENT carrier, so a follow-up
+    re-run with no further task change matches → the ceiling re-applies (no unlimited bypass). A missing
+    prior `tasks:` (pre- record) reads as [] → a non-empty current set differs → also a change. A
+    surfaced YELLOW/RED/finding is a real outcome that advances `passes` normally + the ceiling applies.
+
+  - **Consult-governed carry:** the OWNER GRANT IS UNCHANGED — this axis removes EXACTLY ONE of the two
+    costs a consult-carried verdict used to pay, never both. The continuation still requires a fresh
+    `--owner-reset` (or, for a dispatched worker, the auto-consult grant, which is the SAME
+    single +1 and is itself fail-closed on a clean single TECHNICAL survivor); what is removed is only
+    the CEILING-PASS charge. The argument is measurement validity, not relief: the ceiling counts
+    ABSORPTION passes against an AUDITOR, and a consult-governed pass invokes NONE — charging it makes
+    the counter measure something other than what it bounds. Fail-closed by construction: the axis
+    fires ONLY where `consult_adjudication` is non-None, which `_consult_basis` reaches only on a FRESH
+    single-survivor GREEN/YELLOW consult matching the current subject fingerprint; a `stale` / `multi` /
+    `owner-held` basis never reaches it (an `owner-held` basis deliberately runs a REAL fresh auditor
+    and therefore counts a NORMAL pass), and EVERY consult is itself a real auditor invocation,
+    so no auditor-free loop is reachable. A genuine re-audit that DOES invoke an auditor — including one
+    run under the same owner grant — advances `passes` exactly as before, and an authority-class decision
+    still reaches the AUTHORITY it requires — the owner, or a holder of `decide-authority` for
+    that project (SPEC-0191 §5a, superseding SPEC-0121) — kept unconditionally against any auditor
+    verdict. The claim THIS section makes is unchanged by that: a consult-governed pass never becomes an
+    authority decision, whoever the authority is. What is corrected is only the cross-reference naming
+    WHO that authority is, which SPEC-0191 reshaped and this sentence would otherwise still mis-state.
+    **Disclosed interaction with the §RE-OPEN anti-spin axis (stated, not hidden):** because a
+    consult-governed pass no longer advances `passes`, the POST re-open's freshness axis (the consult's
+    recorded `passes` >= prior_passes) no longer self-invalidates after such a pass, so a repeat
+    invocation can re-carry the SAME consult. That is harmless by construction and is NOT the spin the
+    axis guards: a re-carry is an IDEMPOTENT no-op — it re-records the SAME already-validated
+    GREEN/YELLOW verdict, invokes no auditor, and cannot manufacture a different outcome (spin only
+    matters where repetition can yield a better result). It also still costs an explicit grant every
+    time. This is the same shape the unchanged-fingerprint carry-forward already has, and for
+    the same reason: re-verifying a subject that did not change must cost nothing. What the anti-spin
+    axis actually bounds — reaching a NEW verdict — is untouched: that still requires a genuinely
+    re-resolved subject and a fresh FULL consult.
+    **The two live instances, in their own terms — and only ONE of them is governed by this axis:**
+    kupiclub **X-0965** at audit-**POST** is the GOVERNED case — of four audit-post passes, passes 1-2
+    ran a real auditor and returned RED (one a genuine catch), while passes 3-4 invoked NO auditor and
+    produced no finding: they existed only to legalise an adjudication the consult had already made, at
+    the cost of two owner interruptions. Those are the passes this axis stops charging. Kernel
+    **** at audit-**PRE**, the same day, is CORROBORATION, NOT a second governed case, and its
+    cost is deliberately NOT removed: its auto-consult RAN and HELD at RED — it declined to adjudicate
+    technical merit, so it carried NO verdict, `consult_adjudication` is None, the `owner-held` basis
+    routes it to a REAL fresh auditor and that pass is CHARGED as normal. What cost
+    was the OWNER GRANT, and the owner grant is exactly the cost this fork KEEPS: a consult that says
+    "the owner decides" is asking for the owner. Clearing a grant off a RED hold would be removing the
+    second cost too. earns its citation by showing the double charge is not one repo's quirk —
+    the same shape reached the kernel's own audit-PRE within a day. Two instances are enough to identify
+    a STRUCTURAL double-charge and no more: this axis therefore introduces NO threshold, NO number, and
+    NO claim about how often consults occur.
+
+  Every axis extends the ONE ledger-skip mechanism in-place (`cmd_audit` `ledger_skip`) — no parallel
+  counter, no new gate.
+
+  **Ceiling-convergence triage — RETIRED (SPEC-0204 rule 6).** The paragraph that stood here
+  described the pass-3 triage: at the ceiling the session formulated candidate resolution options and
+  took them STRAIGHT to the external auditor as a consult, whose structured single-survivor verdict
+  then governed a continuation. That whole route is retired. At the ceiling nothing is consulted,
+  re-surveyed or re-tested: the residuals ARE the findings of the last RED, each carrying an engine
+  fingerprint, and the CONTROLLER records ONE typed decision per residual before exactly ONE further
+  pass runs on them. Read the contract: `bin/yitc-v2 graph query SPEC-0204` (rules 1-3). The verb form
+  the triage used REFUSES with that pointer; the below-ceiling on-demand fork and the plan-gate consult
+  are NOT retired. (A bare `audit adhoc` consult remains the manual fallback when the CLI is
+  unavailable.)
+  - **Exactly ONE option survives AND the session agrees with it → proceed with it AUTONOMOUSLY** (no
+    owner ask). If realizing it needs a re-audit past the ceiling, that is ONE STANDING-AUTHORIZED
+    `--owner-reset` pass (below), citing the consult verdict YAML as the basis — the owner is NOT
+    asked for that single pass.
+  - **Escalate to the owner (Review session) ONLY when (exhaustive):** (a) >1 option survives the
+    consult; OR (b) the session DISAGREES with the external single surviving option (including a NEW
+    option the external introduced); OR (c) the consult verdict is ABORT; OR (d) the single granted
+    reset pass STILL ends not-GREEN / not-YELLOW-clear (session and external converged on the path,
+    but it did not help on the first try). Outside these four, never a premature owner ask and never
+    a silent loop.
+
+  **WITHDRAWN-TEMPORARILY (owner directive 2026-09-05) — the full-verdict HOLD rule
+   is NOT in force.** It made the consult output schema ask for a `findings:` defect list
+  plus a `findings_complete: true | false` declaration, read a HOLD-for-owner survivor resting on a
+  list not declared exhaustive as NON-CONVERGED BY CONSTRUCTION, and asked the auditor ONCE for the
+  remainder in the same pass. Measured over the day it ran, ordering a fresh whole-subject survey on
+  EVERY pass made the loop worse rather than shorter: audit-post RED share 16% -> 44%, post-audits
+  per task median 2 -> 3, max consult rounds per (task,stage) 1 -> 11. An external ad-hoc consult
+  confirmed the mechanism and ruled that a PROMPT-ONLY narrowing would be UNSAFE HERE SPECIFICALLY —
+  the convergence predicate would then read every later HOLD as non-converged, defeating the
+  owner-held survivor recognition and perpetuating the sticky hold — naming a
+  plain revert the safe temporary rollback.
+
+  So today: the consult schema asks for neither field, there is no completion re-prompt, and
+  `consult_hold_is_nonconverged` withholds convergence from nothing — a sole fixed-HOLD survivor is
+  admitted as a converged owner-held basis exactly as it was before. UNCHANGED by the
+  withdrawal, as they were by : the ceiling arithmetic (2 passes + reset), the consult FSM,
+  the fixed option texts, the survivors set (still the auditor's fail-closed subset of the submitted
+  options), the exact-text HOLD narrowness, and the sticky hold. The saved consult
+  record still carries `findings_complete` as OPTIONAL report-only metadata (SPEC-0036 §Saved audit
+  result) — kept because it is additive, harmless, and reused by the successor.
+
+  The NARROWED successor — ONE exhaustive survey at the baseline-establishing consult, later rounds
+  scoped to that baseline's closure plus fix-induced regressions — is being designed in plan
+  `frozen-defect-baseline-at-the-audit-loop-ceiling-d`; read the rule there, not here. The RED half
+  was withdrawn on the same terms in SPEC-0036 §Universal lens.
+
+  **On-demand technical-fork consult (lever #6) — a BELOW-ceiling consult ENTRY for a design
+  fork.** The ceiling-convergence triage above is the pass-3 step and REFUSES below the ceiling (the
+  chokepoint that keeps it honest). A SECOND, NARROW consult ENTRY is added for a session standing at a
+  TECHNICAL DESIGN FORK (a plan's specs, the decomposition cut, or a task's Analysis) BEFORE any audit
+  ceiling: `audit consult --on-demand --task T-XXXX --option … --option …` runs the SAME consult engine
+  (`_consult_adjudicate`) with the SAME strict survivors schema, but BYPASSES the ceiling-exhaust
+  precondition. It is a 1:1 copy of how the owner manually consults the external on a fork — the auditor
+  RATIFIES technical merit, the owner keeps a lightweight ratify/veto; it does NOT transfer value/draft
+  authority (the framing constraint #1 — reduce owner LOAD, not owner AUTHORITY).
+  - **SCOPED TO TECHNICAL FORKS.** The prompt asks the auditor FIRST to classify the fork: a
+    TECHNICAL-MERIT fork (the better variant is decidable on engineering merit — correctness, simplicity,
+    coherence, anti-complexity, reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY
+    fork (the choice turns on product value, owner preference, or scope authority) → return `verdict:
+    ABORT` with `survivors: []` and ESCALATE to the owner. The auditor judges technical merit ONLY — the
+    owner decides value/draft.
+  - **FAIL-CLOSED on single-survivor.** >=2 variants are required (a single variant REFUSES — the
+    existing >=2-options check). The ONLY auto-proceed outcome is a GREEN/YELLOW with EXACTLY ONE
+    surviving variant + a matching recommendation (the existing strict `_parse_consult_result` reading);
+    a disagreement, a multi-survivor, a value/draft escalation, or any ABORT does NOT auto-pick — it
+    escalates to the owner. The owner still ratifies/vetoes the single survivor (the lightweight gate).
+  - **DECOUPLED from the `--owner-reset` basis.** The on-demand consult saves to a DISTINCT key,
+    `decisions/<tid>-audit-consult-on-demand.yaml`, records `passes: 0`, and persists NO
+    `basis_fingerprint` — so `_consult_basis` (which reads `<tid>-audit-consult-{pre,post}.yaml`) NEVER
+    sees it and it can NEVER become a ceiling-continuation `--owner-reset` basis. The ceiling-driven
+    consult path above is structurally UNCHANGED — this is purely additive (the reason it depends on
+    : the shared consult continuation semantics must already be safe before this entry shares the
+    surface).
+  - **A single-survivor outcome records the owner ratify/veto evidence as an event** —
+    `audit_on_demand_consult` (carrying the survivor variant + recommendation + `owner_disposition:
+    ratify-veto` + `fork_scope: technical`), the durable STATE probe (CHARTER §P2/P3). The auto-run
+    consult ALSO emits its own `external_audit_completed` (target_kind: consult) via the shared engine.
+  - **Retirement named (P1 F3):** the consult's ceiling-exhaust-ONLY precondition is NARROWED — it no
+    longer fires for this below-ceiling technical-fork entry. Anti-complexity admission: extends the
+    EXISTING `audit consult` verb + `_consult_adjudicate` engine; ONE flag + ONE distinct consult key +
+    ONE event; the ceiling-driven path unchanged (SPEC-0005 §7 additive-extension — a new below-ceiling
+    consult CASE that leaves every already-covered case unchanged, the way / extended this
+    section). Scope: TASK only (a plan gate is a ceiling surface, not a design fork — `--on-demand`
+    REFUSES `--plan`/`--gate`).
+
+  **Owner-authorized ceiling continuation — `--owner-reset` (E-0008 sub-cause 3).** When the
+  ceiling is hit on findings that are ACTUALLY fixed, `audit pre|post --owner-reset` grants exactly
+  ONE continuation past the ceiling (pass-3 allowed, pass-4 not; a second `--owner-reset` at
+  prior_passes=3 still blocks). It is the SINGLE sanctioned ceiling-continuation path (no separate
+  continuation verb — anti-cx F1 / : extend the audit verb, not a parallel mechanism).
+
+  - **Authorization.** OWNER-GATED by default (the session passes the flag only on explicit owner
+    authorization) — EXCEPT the ONE pass the §Ceiling-convergence triage STANDING-AUTHORIZES when the
+    consult converges to a single agreed option: there the session passes `--owner-reset` WITHOUT a
+    fresh owner ask.
+  - **Basis resolution — WHICH consult outcomes are a valid basis (the verb VERIFIES the standing
+    converged-consult basis itself —, NO new flag). EXHAUSTIVE, and the survivor's KIND decides
+    the basis TYPE, not merely whether one exists :**
+    - a FRESH consult whose single survivor is the **TECHNICAL-PROCEED** option → proceed + record
+      `owner_reset_basis: consult:<file>`; the consult GOVERNS the granted pass (§Consult GOVERNS).
+    - a FRESH consult whose single survivor is the **HOLD-FOR-OWNER** option → **also a VALID basis** →
+      proceed + record `owner_reset_basis: owner-authorized:consult-hold-for-owner:<file>`. It CONVERGED
+      — on «the owner decides» — and `--owner-reset` IS the owner deciding, so the grant this section
+      vests in the owner must be REACHABLE here. **VERDICT-AGNOSTIC:** a HOLD is normally recorded RED
+      («do NOT proceed»), which is exactly why a GREEN/YELLOW-only reading misfiled it as non-converged.
+      It is **NOT consult-governed**: a HOLD declined to adjudicate technical merit, so it must not
+      stand in for a verdict — the granted pass runs a **REAL fresh auditor**, which can still RED.
+      Grounds: aiseller X-0718 (2026-07-14 — refused naming «escalate to the owner» as the exit
+      while the owner WAS the escalation target and HAD authorized; workaround: park + defer closure)
+      and the kernel-side wall (2026-08-10). Two independent sites.
+    - a consult that is **multi-survivor / ABORT / STALE / fingerprint-less** → REFUSE with
+      escalate-to-owner, UNCHANGED (the session may not claim convergence it lacks). An ABORT can never
+      present as converged — `_parse_consult_result` fail-closes it to EMPTY survivors.
+    - **EXCEPT where that same record shows the ceiling EPISODE has ENDED (SPEC-0200 rule 7's task
+      arm): a TASK target with a STATED REASON is then the owner-authorized PROCEED →
+      proceed + record `owner_reset_basis: owner-authorized:<TEXT>`.** No new basis kind — this is the
+       vocabulary above, reached from the one state that could not reach it. WHY IT IS AN
+      EXCEPTION AND NOT A WEAKENING: the refusal above tells the session to re-consult, and inside a
+      terminal episode no re-consult is admitted (SPEC-0200 rule 4 ENDS it), so on that state alone the
+      named exit is one the target cannot take — measured 2026-09-07 on and,
+      each a finished audited build that exited by park-mid-audit land instead. BOUNDED, and every
+      bound is the flag's existing one: ONLY on a terminal episode, ONLY where this list would
+      otherwise refuse (the converged and owner-held branches above are untouched), ONLY with a stated
+      grant, NEVER in a dispatched-worker context (whose route stays `blocked-on-land`, SPEC-0103 §3),
+      and for exactly ONE pass that runs a REAL fresh auditor and can still come back RED. The other
+      route out of a terminal episode is the owner-authorized RE-OPEN (SPEC-0200 rule 7), whose
+      converged PROCEED is then the ordinary consult-governed basis at the top of this list. **Plan-target parity
+      is UNCHANGED:** §Plan-target parity's consult-governed-only rule stands, and no bare
+      owner-authorized fallback is created for a plan gate.
+    - **NO consult** → the flag's standing explicit-owner-authorized meaning still applies, and the
+      grant is still REACHABLE — but it is now **CONDITIONAL ON A STATED REASON** : the verb
+      REFUSES unless `--reason <text>` accompanies `--owner-reset`, and records
+      `owner_reset_basis: owner-authorized:<text>`. **What changed is the RECORD, not the authority:**
+      the owner could always reopen a ceiling here without a consult and still can, at the same single
+      +1, with every other fail-closed refusal in this EXHAUSTIVE list untouched. What is removed is the
+      fabricated bare string `owner-authorized`, which recorded THAT a ceiling was reopened and nothing
+      about WHY — a basis field naming no basis, in the ONE branch where no consult file exists to name.
+      Every other branch already carries its reason (the consult it came from), which is why `--reason`
+      is required exactly here, and why it is no substitute for a consult where one is demanded. The
+      refusal sits UPSTREAM of the auditor invocation, so it spends no pass and re-invoking with the
+      reason costs nothing. **Adoption datum at the change (measured over this repo's `decisions/`, not
+      asserted):** 14 saved records carried a `consult:` basis against exactly 1 carrying the bare
+      `owner-authorized` — the requirement bites on a rare branch, which is the point: rarity is why it
+      went unrecorded, not a reason to leave it so. The SIBLING autonomous grant records its basis on
+      the same principle: a trend-ceiling grant is authorized by nobody, so its computed
+      strictly-decreasing finding-count trend IS its reason, now written to the saved audit YAML as
+      `trend_ceiling_grant_basis` beside the `trend_ceiling_grant` marker it explains (that data already
+      existed at the grant moment in `audit_ceiling_trend_grant`; only the durable record lacked it).
+    - **PLAN targets are UNCHANGED and stay CONSULT-GOVERNED ONLY** (§Plan-target parity): a HOLD
+      survivor is not `consult`, so a plan gate still REFUSES it — no bare owner-authorized fallback is
+      created for a plan gate by this rule.
+    - **The dispatched-worker AUTO-grant is UNCHANGED and still FAIL-CLOSED** (§Dispatched-worker
+      auto-consult): a HOLD survivor NEVER self-grants. A worker still halts `blocked-on-land` with
+      `bg_dispatch_halted(needs_owner_reset)`; this rule opens the OWNER's flag, not the worker's
+      autonomous grant. Likewise the §owner-reset RE-OPEN of a SPENT budget still requires a fresh
+      single-survivor GREEN/YELLOW convergence — a HOLD basis does not re-open an exhausted budget.
+  - **FRESHNESS is EXACT-MATCH (not mtime):** the consult persists a `basis_fingerprint` (pre = the
+    plan_fingerprint; post = the recorded commit SHA) and `--owner-reset` requires it to equal the
+    CURRENT one — a plan/diff change invalidates the consult.
+    - **SCOPED (kupiclub X-0848) — the consult record is not its own subject.** Committing
+      the consult's OWN verdict record does NOT invalidate that consult's basis. A post-stage basis
+      is pinned to the recorded commit SHA, and `task commit` stages `git add -A` — so committing a
+      dirty `decisions/<tid>-audit-consult-<stage>.yaml` moves the recorded commit past the SHA the
+      consult pinned ITSELF to, and the consult read `stale` because it was FILED (one wasted consult
+      + one wasted audit pass, escapable only by undocumented ordering knowledge no mechanism
+      enforced). So when the fingerprints differ but the tree delta between them consists of NOTHING
+      but that consult's own record (plus the derived bookkeeping every governed commit sweeps by
+      construction — the journal and the rebuilt graph index), the basis still GOVERNS.
+    - **The guarantee is SCOPED, never removed.** The relief opens only on POSITIVE evidence on every
+      axis (both fingerprints resolve to real commits, the delta is non-empty, it CONTAINS the
+      consult record, and every other path is derived bookkeeping); anything unanswerable refuses. A
+      delta touching ANY other path — above all the absorb-then-consult cycle's absorbed source,
+      where the subject genuinely postdates the consult and the re-consult is the sanctioned
+      exit — is STILL stale. Sibling carve-out in the same slot: the `adopted_fingerprint`
+      path, the other self-inflicted invalidation.
+  - **Journal carrier.** Recorded either way as `owner_reset: true` + `owner_reset_basis:` in the saved
+    audit YAML; mechanics are exactly ONE pass per granted authorization. The verb emits a
+    UNIFORM journaled carrier: when a continuation is GRANTED, the `audit_{stage}_completed` +
+    `external_audit_completed` events ALSO carry `owner_reset: true` (`owner_reset_basis`), the same
+    additive-optional fields as the saved YAML — so a sanctioned continuation is journal-observable and
+    `passes` is never hand-edited/hand-lowered. A non-reset / sub-ceiling run omits both
+    fields (absent, never false).
+  - **RE-OPEN ( pre post).** A FRESH converged consult re-pinned past the now-exhausted
+    budget re-opens ONE more `--owner-reset` — the absorb-then-consult cycle's escape. ONE rule, both
+    stages, same invariant: a re-open MUST re-earn a fresh single-survivor GREEN/YELLOW FULL
+    convergence each cycle — DOUBLE-LOCKED against spin by a per-stage freshness axis that differs only
+    because the failure modes differ. **PRE axis — a real plan change** (recorded plan_fingerprint !=
+    current): the absorb loop genuinely edits the plan. **POST axis — a consult re-RUN after the last
+    recorded pass** (the consult's recorded `passes` >= prior_passes), NOT a commit change: the
+    recurring post dead-end is a SOUND diff mis-categorized by a routine RED (a coherence/authoring
+    rule with no runtime consumer), which legitimately does NOT change — so requiring a commit change
+    would block the very case; re-running the FULL consult (the owner-proxy escalation) is the bound,
+    and it also covers the mode-a changed-commit cycle. Either axis NEVER lowers the passes counter or
+    forces a verdict (a re-opened pass is a real recorded pass that can still RED). So the «pass-4 not»
+    clause above means «not WITHOUT a fresh converged consult re-pinned on its per-stage freshness
+    axis». TASK pre AND post.
+  - **THE ESCAPE — when a converged consult does NOT re-open it (the budget stays hard-exhausted).**
+    The `--owner-reset` REFUSES → escalate-to-owner (never a silent pass-4) if ANY of these holds —
+    EXHAUSTIVE: (a) the re-run consult is MULTI-SURVIVOR; (b) it is ABORT (the auditor could not run);
+    (c) its `basis_fingerprint` is STALE (the commit/plan moved since the consult); OR (d) there is NO
+    fresh consult at all (nothing was re-resolved, so the prior consult's basis no longer matches / was
+    already consumed). In case (d) the explicit-owner-authorized fallback of §Basis resolution is NOT
+    available: that single grant is already spent, which is precisely what "hard-exhausted" means. A
+    hard-exhausted budget with no fresh single-survivor convergence is a genuine non-convergence — the
+    owner is the backstop (CHARTER §P6), exactly as the «pass-4 not» clause intends.
+
+  **Post-close rebaseline consult basis — RETIRED (SPEC-0204 rule 6).** This paragraph described a HEAD-pinned consult for a status:done task: the POST axis binds a consult basis to the recorded commit SHA, but a post-close `land --rebaseline` re-audits HEAD, which legitimately moves past that SHA — so the basis diverged and the converged consult could never re-open the reset (the dead-end). Retired with the basis and the reset it fed. The dead-end it closed is closed by a different route: SPEC-0204 rule 3's admission carries its own `--reaudit-after-close` arm and compares the CURRENT subject against the revision the decisions RECORD, so the two cannot diverge — there is only one recorded value, not two carriers to keep in step. See §Post-close reaudit exit above.
+
+  **Owner-facing escalation-summary honesty + overlay-before-owner-reset (X-).** When
+  the ceiling escalates — a DISPATCHED worker's `bg_dispatch_halted` marker OR the INTERACTIVE ceiling
+  `_die` / `--owner-reset` ask — the summary the owner reads MUST NAME each RESIDUAL finding's REAL
+  severity + governance class (e.g. `high, P8-adoption`), taken VERBATIM from the recorded finding's
+  `severity` (absent → `unknown`), NEVER softened. Incident: (fingerprint
+  `deferred-adoption-p8-false-red-owner-reset-and-mischaracterized-as-prose`, 2026-07-05) — the owner
+  was pulled into a ceiling `--owner-reset` on a HIGH-severity P8 `live_trigger` false-RED AND the
+  owner-facing summary softened that high residual to a trivial SPEC-0119 prose line, so a real
+  high-severity RED override read as a rubber-stamp nod. Rendered by `residual_findings_summary` /
+  `finding_class` over the prior audit record's `findings` (the escalation carries a
+  `residual_findings_summary` field on the `bg_dispatch_halted` marker) — a keyword-sniff class, no new
+  taxonomy store (anti-cx F1/F2). SECOND half — **prefer the deferred-adoption overlay flag BEFORE
+  `--owner-reset`:** for a GENUINE deferred-adoption RED (a residual classed `P8-adoption`), the
+  escalation POINTS at the purpose-built overlay flag (`--event-emit-only` / `--land-emitted-event` /
+  `--host-config` / `--serve-deploy`, the SPEC-0036 overlay family) as the non-owner path to try FIRST;
+  `--owner-reset` stays the fallback ( P8 false-RED had such an overlay path). Guidance only —
+  no new gate; the overlay flags and the `--owner-reset` mechanics above are unchanged. In-place
+  additive (`blocked_on_land_ceiling_disposition` + the interactive ceiling `_die`), no new verb/store/
+  event — the way / / extended this section.
+
+  ### Post-close reaudit exit — a done-but-UNLANDED task IS admitted (the circle)
+
+  **The canonical exit for a done-but-UNLANDED task that needs a pass past the ceiling is the
+  DECISION route, not park+redo (amended, SPEC-0204 rule 6).** A task on the sanctioned
+  `--reaudit-after-close` post-close rebaseline flow is `status: done` while its closure lives
+  only on the un-integrated branch. It is NOT stranded: SPEC-0204 rule 3's admission carries its own
+  `--reaudit-after-close` arm, so once every residual of the ceiling row carries a recorded
+  `ceiling_decision` the card takes its ONE bounded `--on-decisions` pass at HEAD. What USED to be the
+  exit — a HEAD-pinned consult on that target re-opening a spent `--owner-reset` —
+  is retired with both the consult basis and the reset. The dead-end below is what the exit exists to
+  prevent, and is why this section stays.
+
+  **What is NOT the exit: park + rebuild the task elsewhere.** On 2026-07-12/13 a converged
+   build was park+transplanted into a fresh card because the flagless consult's
+  refusal named no exit and read as an absolute wall — the reopen was available the whole time (fp
+  `consult-refuses-done-unlanded-task-circular-ceiling-deadend`). The capability existed; only its
+  DISCOVERABILITY was missing, so made the refusal self-delivering (it now names the flag,
+  `consult_status_refusal`) rather than adding any new admission. Treat a park+redo here as the
+  workaround it is, and capture the deviation if a governed reopen was reachable.
+
+  **Boundary — a LANDED `done` has no reopen at all.** This exit is scoped to the UNLANDED case
+  (closure on the branch, task still `ready` on main). A task whose `done` reached main is terminal:
+  file a NEW task (LIFECYCLE §Stage 9 "no clean reopen", QUEUE §Prematurely-closed). No flag, no
+  consult, and no `status:` hand-edit re-opens it.
+
+  ### Worked example — consult -> --owner-reset re-open sequence
+
+  A step-by-step worked example of the re-open invariant + THE ESCAPE above (POST stage; the
+  PRE stage is symmetric on a real plan change) is re-homed to
+  **`patterns/audit-ceiling-consult-reopen-worked-example.md`** — read it ON DEMAND at the moment a
+  ceiling is actually exhausted. It is a NON-NORMATIVE illustration: every rule it shows is stated
+  above (§Owner-authorized ceiling continuation — its RE-OPEN and THE ESCAPE bullets), which WINS on
+  any conflict.
+  **Consult GOVERNS the granted pass — no weaker-model relitigation.** The re-open
+  above secures the PASS; this secures the PASSS VERDICT. When a `--owner-reset` continuation is
+  CONSULT-GOVERNED — `owner_reset_basis` resolves to `consult:<file>`, i.e. `_consult_basis` already
+  verified a FRESH single-survivor GREEN/YELLOW consult matching the CURRENT subject (pre =
+  plan_fingerprint, post = commit SHA) — the granted pass does NOT re-invoke a routine (weaker)
+  auditor. The FULL ceiling-convergence consult IS the governing adjudication, so the granted pass
+  CARRIES the consults verdict VERBATIM as its recorded verdict (`consult_governed: true` +
+  `owner_reset_basis: consult:<file>`; the consult artifact path + verdict + recommendation are
+  kept in `notes` for a transparent adjudication trail. The structured `findings` field follows the
+  carried verdict: a consult-GREEN records `findings: []` (the consult RESOLVED everything), a
+  consult-YELLOW records exactly ONE structural residual entry — the surviving option carried from the
+  consult — so a carried residual is visible in the canonical field, not only in free-form `notes`).
+  This is DETERMINISTIC: a consult-GREEN single-survivor records GREEN and can NEVER be defeated by a
+  routine re-RED — so the manual hand-edit / verdict override is RETIRED, replaced by this sanctioned
+  verb path (the 2026-06-07 forced overrides 3x: post post hand-edit closures
+  pre verdict override, fingerprints `routine-owner-reset-relitigates-full-consult-resolved-findings-needs-governance-override`,
+  `ceiling-convergence-consult-green-cannot-override-recorded-routine-red-at-close-gate`,
+  `audit-post-owner-reset-flag-inert-refuses-pass4-no-post-side-escape`). SAFETY rests ENTIRELY on the
+  existing freshness/convergence guards already proven before this point — a stale / multi-survivor /
+  ABORT consult never reaches `owner_reset_basis: consult:<file>` (it REFUSES → escalate-to-owner,
+  unchanged), so consult-governs fires ONLY on a fresh single-survivor FULL convergence the session
+  agreed with. A NON-consult `--owner-reset` (explicit owner-authorized) re-invokes the auditor as
+  before — consult-governs is the consult-basis-only path. NB this is the consult-GOVERNS resolution
+  (Option b): the FULL-consult GREEN single-survivor is the governing verdict at the gate.
+  Anti-complexity admission (recorded at adoption): extends the single ceiling gate + the
+  escape-hatch pattern; one flag + one recorded field; removes the manual hand-run workaround;
+  real incident E-0008 sub-cause 3 (N≥3). Home of the ceiling rule: this section (P5).
+
+  **Adopted-plan axis (X-0111) — a consult whose recommendation is to CHANGE the plan GOVERNS
+  the FIRST re-audit of the changed plan.** A TASK PRE ceiling-convergence consult can converge to a
+  single survivor whose adoption IS a plan edit (the session sets `implementation_plan` to the
+  recommended option's text — the same self-staleness named). Adopting it re-fingerprints the
+  plan, so the consult's `basis_fingerprint` (pinned to the PRE-change plan) no longer matches and the
+  consult-governs carry re-stales — the SAME consult that adjudicated "change the plan as recommended"
+  could not govern the changed plan, forcing a redundant fresh ceiling pass / re-consult (
+  re-consult against the already-changed plan asks a now-moot question). RESOLUTION (no new mechanism —
+  one additional recorded field, reuses the consult_governed / owner-reset carry): at convergence a PRE
+  single-survivor consult ALSO records `adopted_fingerprint` = `_plan_content_hash(survivor text)` — the
+  fingerprint the plan WILL hash to once adopted. `_consult_basis` (pre) then treats the consult as
+  FRESH when the CURRENT plan_fingerprint matches EITHER `basis_fingerprint` (the normal pre-change
+  case) OR `adopted_fingerprint` (the post-change case); the consult-governs carry binds its recorded
+  basis to that adopted (changed) plan. The exact-match still PROVES the session adopted the
+  auditor-approved option VERBATIM — a paraphrase matches neither fingerprint and falls through to the
+   stale re-consult path (unchanged). FAIL-CLOSED + BOUND: fires ONCE per adopted plan (a further
+  edit away from the survivor text matches neither fingerprint → stale → re-consult), POST adjudicates a
+  commit SHA not a plan so it is PRE-only, and a multi-survivor / non-converged / plan-gate consult
+  records no `adopted_fingerprint` (the field is absent → the extra match is inert). Scope: TASK
+  `audit pre` consult-governs only (the X-0111 incident surface). Extends the consult-governs path
+  in-place, no parallel mechanism (anti-cx F1/F4 — the way / / extended this
+  section).
+
+  **Exhaustion-with-late-finding — the COMMIT-side owner-reset continuation (E-0030).** The
+  reopen + consult-governs paths above secure a re-audit PASS and its VERDICT once the late fix is
+  COMMITTED — but they presuppose a committed subject. A distinct failure mode (E-0030, DISTINCT from
+  E-0008's premature false-block): a LEGITIMATE, non-deferrable finding surfaces AFTER the audit-post
+  ceiling is exhausted (the owner-reset pass already spent on EARLIER findings) and its fix is NOT YET
+  committable — so every in-CLI exit is blocked AT ONCE: `task commit --absorb` REFUSES past the
+  ceiling (the carve-out interlock), a standalone `task commit` trips the chain-of-custody
+  guard, `task close` requires a non-RED audit-post, and the ceiling-convergence consult ABORTs because
+  the fix is not in the committed diff (it adjudicates a COMMITTED subject — pre=plan_fingerprint,
+  post=commit SHA — and an uncommitted fix has none). The only prior exit was a manual emergency
+  re-baseline (the incident, commit fe52664) — an out-of-CLI bypass, not a sanctioned path. The
+  sanctioned in-CLI exit is the COMMIT-side mirror of `audit --owner-reset`: an OWNER-AUTHORIZED
+  `task commit {tid} --absorb --owner-reset` grants an owner-authorized continuation that COMMITS the
+  late fix past the exhausted ceiling — its sole purpose is to MATERIALIZE a committed subject; it is
+  the BOOTSTRAP only, NOT a verdict continuation. It is structurally NON-STACKABLE (NOT a repeatable
+  ceiling bypass): the escape commit folds the dirty audit-post YAML in (now clean) AND shifts the
+  recorded commit, so the hazard the `--absorb` carve-out REQUIRES — a DIRTY audit-post pinned
+  to the recorded commit — is dissolved; a SECOND escape is REFUSED until `audit post --commit <new>
+  --owner-reset` re-pins custody, and that re-pin is itself CONSULT-GOVERNED (a fresh single-survivor
+  FULL convergence). So escapes are interleaved with consult-governed re-pins, NEVER stacked — the
+  escape inherits the audit-side single-continuation/reopen bound (PARITY, not a looser ceiling). Once
+  committed,
+  the EXISTING machinery completes the chain with no new mechanism: `audit consult` (the committed diff
+  now contains the fix) → consult-reopen (re-opens one `--owner-reset`) → consult-governs (carries the
+  fresh single-survivor verdict verbatim) → `audit post --commit <new> --owner-reset` RE-PINS custody
+  (verdict.commit == the new recorded commit). OWNER-GATED by default (the session passes the flag only
+  on explicit owner authorization — there is NO consult yet at commit time, by construction); it is
+  journal-observable (the `commit_landed` event carries `owner_reset: true`, the same additive-optional
+  carrier as the audit verb). FAIL-CLOSED: WITHOUT the flag the exhausted-ceiling `--absorb`
+  REFUSAL stands (the ceiling is never silently disabled), and the downstream re-audit pass remains
+  gated by the consult-reopen freshness axis (a fresh single-survivor FULL convergence each cycle), so
+  the ceiling's purpose — force owner involvement + external adjudication — is preserved. Anti-complexity
+  admission: ONE flag on the EXISTING `task commit` verb gating ONLY the existing exhausted-ceiling
+  refusal; no new verb / event type / store; reuses the owner-reset vocabulary + carrier; removes the
+  manual re-baseline as the only exit; real incident E-0030 (the emergency bypass). The
+  COMMIT-side refusal + its escape are co-homed in SPEC-0015 §"Audit-stage YAMLs committed BY task
+  close " (the guard's home) — kept in sync, not duplicated (P7). **The RED leg has the
+  SAME arm, on identical terms.** `task commit --fix-red --owner-reset` grants the same
+  one-pass-wide, owner-authorized, journal-observable continuation (marker `owner_reset_commit: true`
+  on `commit_landed`) when an IN-SCOPE fix for a RED audit-post is green but the ceiling — including
+  the owner-reset pass — is spent: without it the fix reaches no auditor at all, because the
+  ceiling-convergence consult judges the COMMITTED diff and so re-finds the very findings the fix
+  resolved (measured). It admits ONLY a commit carrying AUTHORED content
+  (so the `--card-repair` shape, whose custody is earned by an already-audited ship, is refused
+  there), it is exactly one pass wide (a second is refused with or without the flag), and — like its
+  mode-a sibling — it widens the COMMIT door ONLY: the AUDIT ceiling is untouched, so the follow-up
+  `audit post --commit <new> --owner-reset` stays gated by the unchanged consult-reopen freshness
+  axis.
+
+  **Plan-target parity (the ceiling-convergence triage extends to PLAN gates).** The triage
+  above is stated for a TASK (`--task … --stage pre|post`); it applies IDENTICALLY to the
+  ceiling-bearing PLAN gates — `draft-specs` (P2, mandatory-blocking), `specs-trial`
+  (P3), `trial-accepted` (P4), `decomposition-executing` (P5), `finalization` (the aggregate `audit
+  post --plan`): the gates this section already marks "ceiling applies", each `--gate` token reusing
+  its EXISTING gate identity (no new namespace). At a plan-gate ceiling the session formulates options
+  and runs `audit consult --plan <slug> --gate <id>` (FULL); it REFUSES below the ceiling
+  (`prior_passes >= 2`, read from the saved plan gate audit YAML) and returns `survivors:` + one
+  `recommendation:`, saved to `decisions/<slug>-audit-consult-<gate>.yaml` (the SAME consult artifact
+  schema as the task path — `target_kind: consult`, keyed by (slug, gate); no new schema). A single
+  agreed survivor proceeds AUTONOMOUSLY via the matching gate verb's `--owner-reset` (`plan stage
+  <NEXT> --owner-reset` for P2-P5, `audit post --plan --owner-reset` for finalization), consult-GOVERNED
+  VERBATIM — but a plan consult basis is keyed to BOTH its `--gate <id>` AND its `basis_fingerprint`,
+  where the fingerprint REUSES the gate audit's already-RECORDED signature (INV-2: `content_hash` for
+  the prose gates, `card_set_fingerprint` for decomposition-executing, `corpus_signature` for
+  finalization — no second scheme): `owner_reset_basis: consult:<file>` resolves ONLY on an exact
+  (gate id, recorded fingerprint) match; a consult from a DIFFERENT gate, or a stale fingerprint,
+  settles NOTHING (REFUSE → escalate-to-owner). UNLIKE the task path the plan `--owner-reset` is
+  CONSULT-GOVERNED ONLY — there is no bare owner-authorized single-pass fallback for a plan gate
+  (a plan owner-reset without a fresh converged consult REFUSES). The four non-convergence
+  owner-escalation conditions and the consult-governs verdict-carry are identical to the task path. No
+  new verb, no new event type — `audit consult` gains `--plan`/`--gate`, the existing `owner_reset`
+  carrier + `audit_*` / `external_audit_completed` events carry the plan case.
+
+  ### Saved-result ledger-skip markers (the ceiling's YAML side-effects)
+
+  Every marker named in the §Ledger-skip axes `marker` column is written on the saved audit-result
+  YAML (canonical schema home: SPEC-0036 §Saved audit result + AGENTS §Saved audit result schema) as
+  an ADDITIVE-OPTIONAL field: present ONLY on the run its axis describes, ABSENT on every other run
+  (never `false`). It signals that `passes` was NOT advanced for that verdict. This trail is what the
+  ceiling reads to enforce itself, and it enables post-hoc "which verdict governed which ship" + drift
+  detection. ONE further marker rides the identical additive-optional shape but is NOT a ledger-skip
+  axis: `tooling_absence_abort: true`, present ONLY on the transient no-read-tooling ABORT
+  (rule home: SPEC-0036 §Verdict handling ABORT exception). `consult_governed: true` is
+  present ONLY on a CONSULT-GOVERNED `--owner-reset` continuation pass (§Consult GOVERNS the granted
+  pass), where `notes` carries the consult artifact path + verdict + recommendation as the
+  adjudication-trail provenance — and since it is ALSO that axis's ledger-skip marker (the
+  §Ledger-skip axes Consult-governed-carry row): the pass it marks did not advance `passes`, because no
+  auditor was invoked. It was previously listed here as a non-ledger-skip marker; that is superseded.
+  RELATEDLY, every TASK audit (pre/post) verdict records `lens_version:
+  <TASK_AUDIT_LENS_VERSION>` (the lens version it was rendered under; drives the TASK lens-version
+  axis) — additive-optional, task audits only, the task analog of the plan `lens_version`.
+
+  **ONE marker also rides the JOURNAL, not the YAML alone.**
+  `concurrent_merge_reaudit: true` is ALSO spread into the run's EXISTING `audit_post_completed`
+  and `external_audit_completed` rows, in the same additive-optional shape as `owner_reset` /
+  `trend_ceiling_grant` / `custody_repin` — present ONLY on a merge-triggered pass, ABSENT (never
+  `false`) on every other run. NO new event type: the SPEC-0025 catalog is untouched and no new
+  emit path is added. WHY the journal and not the YAML alone — after this marker is the
+  discriminator for whether a pass was charged at all, and the saved YAML is OVERWRITTEN in place
+  by the next pass, so a reader asking «was this pass charged, and why not?» across a card's
+  history has only the journal to ask. The other markers in this section stay YAML-only; this one
+  is named because it is the one the ledger's own history is read from.
+
+  ## Verification
+
+  - `bin/yitc-v2 graph query SPEC-0124` resolves; `graph build` maps the Audit-pre + Audit-post
+    stage-entries to this spec once active (the binding axis), so the ceiling is delivered at both
+    audit stages exactly as before the split.
+  - `wc -l specs/SPEC-0036*.yaml` shows the remainder back in the 400-500 band; neither spec is
+    over-ceiling (SPEC-0120 §3 must-split resolved).
+  - No LIVE surface still cites the moved anchors at the old home: the stale-ref probe over live
+    docs/code/tests finds 0 hits for either moved anchor (the former ceiling + plan-target-parity refs).
+
+cites:
+  - SPEC-0036
+  - SPEC-0015
+  - CHARTER.md#principle-1
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: doc-governance-kernel-english-only-per-doc-size-ca
+init_concern: ~
+implements_signature:
+  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0

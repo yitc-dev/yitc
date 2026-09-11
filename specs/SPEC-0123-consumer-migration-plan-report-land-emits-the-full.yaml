@@ -1,0 +1,142 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0123
+title: 'Consumer migration-plan report — land emits the full ordered pending-migration plan up front (read-only, never auto-apply)'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # active (the accepted standing rule; GRAPH §Spec lifecycle). consumed:false.
+                               # authored + activated this rule (work-first close); implements the code.
+
+created_at:
+
+travels: ~ # UNMARKED = the spec class-default: KERNEL. This is kernel-engine
+                               # behaviour (the `land` verb) that TRAVELS to every `-C` consumer
+                               # (SPEC-0073 §1). Not a v2-self/project exception.
+
+consumed: false # no code reads a governing scalar param FROM this spec.
+
+extension: ~ # not a reusable consumer-installable extension (SPEC-0101).
+
+implements: # code-enforced — the land consumer-migration control-point.
+- bin/lib/worktree.py#_consumer_zero_probe_guard
+- bin/lib/worktree.py#_consumer_pending_migrations
+- bin/lib/worktree.py#_render_consumer_migration_plan
+# was (b) DESIGN-STAGE empty (SPEC-0005 rule 7): this is a code-enforced
+                               # contract not yet. (the implementation task) will populate `implements:` with
+                               # the land consumer-migration control-point — bin/lib/worktree.py
+                               # #_consumer_zero_probe_guard (and the cmd_land/_land_integrate seam
+                               # that prints it). Enforcement mode = `implements:` (code), NOT a read
+                               # binding — hence `binding: []`.
+
+body: |
+  ## Scenario
+
+  A consumer (a `-C <consumer>` repo pinning the kernel) that landed cleanly days ago suddenly cannot
+  `land` a routine record, because the kernel has moved and the consumer is now BEHIND on one or more
+  required migrations. Today it discovers them ONE AT A TIME: `land` aborts on the first blocker, the
+  consumer fixes it, re-lands, hits the second, fixes, re-lands, … — a version-skew tax paid
+  mid-incident. Under this rule the consumer instead sees, at the FIRST blocked `land`, the WHOLE
+  ordered path: every pending migration, in order, each with what changed and the concrete action to
+  adopt it. The consumer reads the full plan once and executes it BY ITS OWN ACTION, in order — `land`
+  never applies a migration for it.
+
+  ## Internal
+
+  THE RULE. When a consumer `land` detects the consumer is behind on one or more required kernel
+  migrations (a migration-skew block), it MUST:
+
+  1. **Enumerate + report the FULL ordered pending-migration plan UP FRONT**, in ONE run — not
+     abort-and-fall-silent on only the first blocker. The report is an ORDERED list; each item names
+     (a) what changed in the kernel, (b) the concrete consumer action to adopt it, (c) its
+     order/dependency relative to the others.
+  2. **Stay READ-ONLY. NEVER auto-apply.** `land` reports the plan; it does not mutate the consumer's
+     repo to migrate it. Each step is executed by the consumer's own governed action (e.g.
+     `bin/yitc-v2 -C <repo> init`, declaring `verify.layers`, …). This preserves consumer mutation
+     autonomy — a consumer controls every write to its own repo — and keeps `land` within the
+     cross-repo write boundary.
+  3. **Suppress-when-clean.** No pending migration ⇒ no report (the derived-report discipline of the
+     `debt` echo / `cross` folds — SPEC-0119 / SPEC-0086). The report is a derived VIEW over land's
+     existing skew detection, carrying no stored state.
+
+  The report is ADVISORY-then-blocking in the same sense land's verify already is: a migration-blocked
+  land still ABORTs (the block is real), but the ABORT now carries the whole ordered plan instead of a
+  single first-blocker message. Ordering: where a later migration is only DETECTABLE after an earlier
+  one is applied (a masked step), the report enumerates every independently-detectable pending
+  migration in dependency order and states plainly that further steps may surface after the named ones
+  — it never silently implies the list is exhaustive when masking prevents it.
+
+  IMPLEMENTATION NOTE (recommendation, not a locked sub-choice — decides). Prefer the LIGHTEST
+  path (CHARTER §P1): make the existing detector (`_consumer_zero_probe_guard`, bin/lib/worktree.py)
+  ENUMERATE all independently-detectable pending migrations rather than short-circuit on the first, and
+  render them as the ordered report. Add a declarative ordered migration MANIFEST (a new artifact) ONLY
+  if masking proves a real gap in practice (P1 F4 — defer until an incident pulls it); do not build one
+  pre-emptively.
+
+  ## Anti-complexity — the CHARTER §Principle 1 four filters (written in-spec per AGENTS §When-NOT-to-add-a-mechanism)
+
+  1. **Existing analog? YES — extend, don't create.** `land` ALREADY detects consumer migration
+     blockers and reports them (the `_consumer_zero_probe_guard` ABORT reason strings). This rule only
+     changes that surface from first-blocker-only to full-ordered-plan. The report-only, derived,
+     suppressed-when-clean SHAPE reuses the established `debt` echo (SPEC-0119) and `cross`
+     outbox/inbox fold (SPEC-0086) prior-art. No parallel mechanism.
+  2. **New entity or new view? A VIEW.** The plan is a derived report over land's existing skew
+     detection — no new store, journal, format, or graph node-type. (View preferred over new data
+     structure — P1 F2.)
+  3. **What gets removed?** The serial one-blocker-at-a-time discovery loop — the version-skew tax
+     (re-run `land` N times to discover N blockers). See §Retirements.
+  4. **Real incident?** YES — X-0147 / social-parser 2026-07-01: `yitc-verify.yaml` retired → land
+     block → `init` → adopt SPEC-0094 → re-land, one blocker at a time.
+
+  ## Retirements (named — replacement, not accretion, P1 F3)
+
+  - RETIRED: the serial "abort on the FIRST migration blocker, silent about the rest" land behaviour in
+    the consumer migration-skew context — replaced by the up-front full-ordered-plan report.
+  - FORBIDDEN (explicitly rejected): AUTO-APPLYING migrations. `land` never mutates the consumer's repo
+    to migrate it; the plan is read-only and executed by consumer action.
+
+  ## Rationale
+
+  Real incident (P1 F4): X-0147 — a social-parser consumer chased a migration CASCADE mid-incident,
+  paying re-land after re-land to uncover one blocker at a time. Origin design task: (this
+  spec's `proposed_by`); owner approval + external-consult verdict are recorded durably in the journal
+  and on (per rule 3, ratification chronology is NOT restated in this body).
+
+  REJECTED ALTERNATIVE (concise interpret-provenance — why the rule is a read-only REPORT, not
+  auto-apply): the alternative was ONE-SHOT / auto-applied migration (the kernel mutates the consumer
+  repo to migrate it automatically). Rejected because it removes consumer mutation autonomy (a consumer
+  must control writes to its own repo) and collides with the cross-repo write boundary. The
+  external consult (Decision 3) agreed the full ordered report "removes cascade pain while preserving
+  consumer mutation autonomy", and warned against the anti-complexity trap of turning consumer pain
+  into a new privileged bypass instead of a report/view — which this rule follows.
+
+  BEHAVIORAL-BASELINE ALIGNMENT (SPEC-0100): read-only-not-auto-apply honours the cross-project default
+  of never firing an autonomy-removing action automatically.
+
+  ## Verification
+
+  - (active — the accepted rule) `graph query SPEC-0123` resolves the active spec.
+  - (code adoption, owned by) after implementation + `task close`, `graph query SPEC-0123`
+    carries `implements:` naming the land control-point; and a synthetic multi-blocker
+    consumer `land` emits the FULL ordered migration list in ONE run, applying nothing (read-only).
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0073 # placement: kernel realm (land behaviour travels to consumers)
+  - SPEC-0093 # yitc-ops.yaml verify.layers — a migration home (the X-0147 blocker class)
+  - SPEC-0094 # deploy/adoption mechanism — the SPEC-0094 adoption step in the incident cascade
+  - SPEC-0119 # debt echo — derived report-only, suppressed-when-clean prior-art
+  - SPEC-0086 # cross outbox/inbox fold — derived report-only prior-art
+  - SPEC-0100 # behavioral-baseline defaults — read-only-not-auto-apply alignment
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first: this task authored + activated the rule (proposed→active on its close).
+proposed_by: # work-first provenance: the design task that births this spec.
+binding: [query-only] # reference/design rule reached on demand; wires `implements:` (then code-enforced). SPEC-0005 §7.
+init_concern: ~
+implements_signature:
+  bin/lib/worktree.py#_consumer_pending_migrations: 2b597c8dc26954b7b14b1b2d27f6981bb747b937ed9f4d8af90f0a726da532ff
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 2064b72fb104d34509b3d925f89d7e0161d0f5d4b403192fd7b8775bb5297351
+  bin/lib/worktree.py#_render_consumer_migration_plan: 5bcf0db938d0ff0adcd779b27a9cf19c15b8121146ae9926253c737f9929fbf4

@@ -1,0 +1,27 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: triage-state
+description: Per-capture routed-marker — which deviation_captures are ROUTED vs the genuinely-UNROUTED true backlog, derived from the SAFE window_through boundary, NOT from kind presence. Surfaces the exact-equal-second boundary-tie residual per-capture (SPEC-0055).
+lens:
+  kind: triage-state # pure f over the journal: every deviation_captured bucketed against the latest
+                       # `window_through` boundary (_last_triage_watermark) — ROUTED (ts<boundary) /
+                       # UNROUTED (ts>boundary = true backlog) / BOUNDARY-TIE (ts==boundary, residual
+                       # (a)). DERIVED verdict, NOT a persisted stamp/store/cursor (the prior consult
+                       # REJECTED persistence — Filter 2: a view over a derived verdict). Reuses
+                       # _scan_captures + _last_triage_watermark verbatim (P1 F1 — one scanner, one
+                       # boundary reader). Recomputed fresh, writes nothing.
+why: >-
+   (the 535/660 backlog over-read). `kind` is OPTIONAL at capture ( §2) and triage routing
+  NEVER backfills it into the append-only capture line, so a naive `kind:none == untriaged` read
+  overcounts the real backlog — the true backlog is the captures AFTER the routed boundary, not the
+  kind-absent ones. This lens is the corrective per-capture routed-marker: for every deviation_capture
+  it derives ROUTED / genuinely-UNROUTED / BOUNDARY-TIE purely from the now-SAFE `window_through`
+  boundary (hardened by / SPEC-0055), ignoring kind entirely. It inherits that safe boundary
+  rather than introducing a new store, a parallel cursor, or a mutation of the capture line (all
+  rejected by the prior ceiling-convergence consult). The BOUNDARY-TIE bucket SURFACES the two
+  SPEC-0055-deferred residuals at the per-capture level: (a) the irreducible exact-equal-second tie and
+  (b) the read->complete gap — so a same-second capture is never silently mis-bucketed. Run it before a
+  `triage run` (the UNROUTED set is the genuine backlog to route) — `yitc-v2 graph query triage-state`
+  emits a cli_invoked observability event, so the consumption is durable evidence, not merely
+  a runnable query. Report-not-block; reuses the existing journal readers (P5, no drift) — no new
+  store, no new command family, no new event type, no per-capture persistence.

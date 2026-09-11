@@ -1,0 +1,107 @@
+id: SPEC-0065
+title: Land inert-retry re-verify skip — an inert concurrency retry fast-forwards without re-running verify
+
+status: active
+
+created_at:
+
+consumed: false # behavioural contract on land; no scalar param read from this body.
+
+implements: [bin/lib/worktree.py#_land_integrate] # the retry loop's step-4a inert-retry re-verify skip
+                               # (the activation_owner_task — recorded on `implements:` at
+                               # activation B5).
+
+body: |
+  ## Scenario
+
+  Under concurrent sessions, land's optimistic-concurrency retry re-runs the FULL verify every time
+  `main` advanced during its verify window — even when the attempt is re-merging onto a `main` tip
+  that is itself already green, and its own change is non-executable. That repeated ~96s verify is
+  the worst-case 457s land. When the delta this attempt is about to fast-forward — the landing
+  branch's OWN change on top of the freshly merged `main` tip — is nothing the verification
+  environment observes, re-verifying proves nothing new. This rule lets such a retry fast-forward
+  without re-verifying — and ONLY such a retry.
+
+  ## Internal
+
+  LAND INERT-RETRY RE-VERIFY SKIP. On a land retry (the in-lock HEAD re-check found `main` advanced
+  past the merged base, so the attempt re-merges newer `main`):
+
+  - Classify **the delta this attempt's ff is about to apply** — `merged_base..HEAD`, the landing
+    branch's OWN delta on top of the `main` tip this attempt merged — with the inert-path classifier
+    (SPEC-0064 §3: one authority AND one evaluation point). It is never the initial branch diff, and
+    never the set of paths newer `main` brought in — that content cancels out of this diff, being
+    present in both `merged_base` and `HEAD`.
+  - **Delta INERT → MAY skip the full re-verify** for this retry and proceed to the ff. `main`
+    advances ONLY via a green land, so `merged_base` is itself already verified; an inert branch
+    delta on top of it changes nothing the suite or canary executes or observes, so the merged
+    result is verification-equivalent to that already-green base and its verdict still holds.
+  - **Delta OBSERVABLE (or classifier unavailable) → MUST re-run the full verify** before ff — exactly
+    today's behaviour. Fail-closed: anything not provably inert re-verifies.
+
+  ### Safety — "never ff an untested combination" is preserved, not weakened
+  The land safety contract is that `main` never fast-forwards to a combination whose verification was
+  not green. This rule does NOT relax it: it asserts that an INERT delta-about-to-ff yields the SAME
+  verification verdict as the already-green `merged_base` it sits on (between that base and the merged
+  tree the executed code / tests / config / fixtures are byte-identical; only unobserved
+  artifact/journal/derived content differs), so the combination is not "untested" — it is
+  verification-equivalent to a tree that already passed. The skip is therefore
+  an optimization that removes provably-redundant work, never a relaxation of the green-before-ff gate.
+
+  ### Bound
+  The decision is per-retry: a later retry whose delta is observable re-verifies regardless of earlier
+  inert retries. The skip never persists across an observable change.
+
+  **`reverify_skipped` has a SECOND producer (SPEC-0184 rule 8) — this rule is unchanged.**
+  A reader who took that field to imply "an inert concurrency retry" would now be reading a silent
+  contradiction, so it is named here rather than left to drift. SPEC-0184 rule 8 skips the verify for a
+  SUPERSEDED BATCH MEMBER — a land carrying nothing not already in `main` — on a strictly narrower
+  condition than lever B (no commits at all, not merely an inert tree), and it reuses this telemetry
+  carrier rather than adding a parallel one. The two are discriminated by `reverify_skip_reason`
+  (`inert-retry-delta` here, `superseded-nothing-to-integrate` there). Nothing about lever B's own
+  `attempt > 1` bound, its classification, or its fail-closed direction is altered by that rule.
+
+  ## Parameters
+
+  None. The inert/observable boundary is owned by SPEC-0064 (cited, not duplicated — P5).
+
+  ## Rationale
+
+  Worst-case land 457s = full re-verify on each concurrency retry; ~79% of ships (and thus most
+  concurrent retries) carry only inert deltas (2026-06-09 telemetry, plan
+  `speed-up-land-under-concurrency-inert-retry-re-ver`). The fail-closed observability framing is the
+  load-bearing safety condition (external audits cited in SPEC-0064 + the plan).
+
+  ## Verification
+
+  Behavioural probe (the load-bearing safety test): during a land's verify window, force the retry
+  branch with a concurrent sibling land (the sibling is what MAKES `main` advance; its own content is
+  held INERT throughout and is not the subject). What varies is the LANDING branch's OWN footprint —
+  the delta this rule classifies: (i) INERT → the retry SKIPS re-verify AND ff's correctly; (ii)
+  OBSERVABLE → the retry RE-RUNS the full verify before ff; (iii) classifier raises → fail-closed, full
+  re-verify. Telemetry: `land_completed`
+  carries `reverify_skipped` (bool) + reason, so every skip is journal-visible (Principle 8 — never
+  silent). Seam: the existing `_after_verify_hook` deterministically drives the retry branch.
+
+  ## Drift review
+
+   (2026-06-09): re-verified this body against `bin/lib/worktree.py#_land_integrate` step-4a. The
+  `attempt > 1` retry gate, the FINAL merged-tree classification via `_classify_inert_paths(
+  _merged_tree_delta_paths(W, merged_base))`, the `reverify_skipped` / `do_test_verify` gating of the
+  test suite + canary, and the fail-closed observable/classifier-raised → re-verify path all match the
+  spec as written. The graph last-touch flag was a region shift only (later land-bookkeeping commits
+  moved the `_land_integrate` symbol). No semantic drift; this re-touch clears the possibly-stale flag. Re-verified again at : that change only tagged the 8 abort-path `_die` sites in `_land_integrate` with a structured `abort_class` (the repeated-abort backstop) — ORTHOGONAL to this spec's success-path inert re-verify-skip logic; no semantic drift, this re-touch clears the possibly-stale flag.
+
+cites:
+  - SPEC-0064
+  - CHARTER.md#principle-3
+  - speed-up-land-under-concurrency-inert-retry-re-ver
+
+requires:
+  - SPEC-0064
+supersedes: ~
+activation_owner_task:
+proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
+binding: [code-enforced]
+implements_signature:
+  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae

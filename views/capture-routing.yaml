@@ -1,0 +1,20 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: capture-routing
+description: The situation→home routing table — at the MOMENT of a capture, WHERE does it go? Each row names the SITUATION, its HOME (artifact/node/store), and the OWNING SPEC where the rule lives (the view ROUTES, the specs GOVERN — SPEC-0005 rule 8). Includes the multi-error incident-narrative row (E-case body, SPEC-0056 §4a), the de-facto worker escalation-doc convention (decisions/<task>-escalation.md), and the environment-facts flavors (neighbor-contracts/glossary → lessons/; machine-read baselines → yitc-ops.yaml). View over existing homes, no new store. Run `bin/yitc-v2 graph query capture-routing`.
+lens:
+  kind: capture-routing # a pure filter over the index spec corpus (each row anchored to its owning
+                          # spec's live title/status, so a renamed/retired owning spec surfaces here),
+                          # recomputed fresh on read. Writes nothing.
+why: >-
+   / SPEC-0157 (X-0402 G3 + X-0403). The situation→home routing map lived ONLY scattered across
+  SPEC-0056/0090/0005/0076/0095/0140/0084-86/0039 — nobody could read it at the moment of writing, which
+  is how boomrocket's controller invented an unsanctioned docs/incidents/ class + an ad-hoc baseline
+  file. This is the REF_AVAILABLE discovery surface answering "where does this capture go?" on
+  demand. Anti-cx (CHARTER §P1): it EXTENDS the saved-view family (same _run_view dispatch + views/
+  catalog as journal-hygiene / consumer-dimension-bundle), adds NO store / node-type / edge / command
+  family; every row's rule text stays in its OWNING spec (SPEC-0005 rule 8 — one home), the view only
+  routes. The escalation-doc convention rides the EXISTING decisions/ store; the environment-facts
+  flavors route to the EXISTING lessons/ (SPEC-0090) and yitc-ops.yaml (SPEC-0093) homes. A terse
+  pointer to this view rides the session-start seed line via SPEC-0157's binding:[seed] title. Report-
+  only; `graph query capture-routing` emits a cli_invoked observability event so consumption is durable.

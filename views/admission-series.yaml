@@ -1,0 +1,57 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: admission-series
+description: The PER-DAY verify-admission queueing series over the SEVEN-day window SPEC-0132 Rule 4 governs — lands, queued lands (folded from the admission heartbeats, bucketed by the LAND's day), the 25 percent threshold comparison per day, the CONSECUTIVE-fired run-length, and the fired-versus-acted reading. Run `graph query admission-series [--since <date>]`.
+lens:
+  kind: admission-series # pure f over the journal, ONE pass: the DENOMINATOR is land_completed per UTC
+                           # day; the NUMERATOR is the waiting_for_verify_admission_slot heartbeats folded
+                           # by (session_ref, branch) to one queued land carrying its PEAK waited_s, JOINED
+                           # to that land's land_completed row and bucketed by the LAND's day — never the
+                           # heartbeat's, or a wait crossing UTC midnight is a false daily percent. A fold
+                           # with no matching land is reported under unmatched_queue_folds, never counted.
+                           # Reuses the line-by-line journal reader + the shared window predicate (P1).
+                           # Recomputed fresh, writes nothing. No lands in window -> no_data NAMING the
+                           # absent instrument, never a fabricated 0 percent.
+why: >-
+  SPEC-0132 Rule 4 defers Tier-C affected-test selection until, among other triggers, "verifier queueing
+  blocks > 25% of lands for 7 CONSECUTIVE days". That is a PER-DAY series with a run-length — and nothing
+  computed it. The 2026-08-13 revizia (T4) read admission queueing as ONE AGGREGATE, which cannot be
+  compared against a consecutive-day rule at all, so fired-versus-acted was unadjudicable. The finding
+  there was not that queueing was fine or that it was bad; it was that the INSTRUMENT WAS MISSING. This
+  lens is that instrument, and it is deliberately built so it can return either answer.
+
+  The single load-bearing choice is WHICH FIELD MEASURES THE QUEUE, because the wrong one has already
+  produced a published false figure. The primary instrument is the `waiting_for_verify_admission_slot`
+  heartbeat fold. `land_completed.data.admission_wait_ms` is NOT: established that it
+  under-reports (root-cause followup fu_ea1d38d32ef0) — the "median and p90 admission wait = 0.0s,
+  only 4/135 lands queueing" reading drawn from it was an artefact of the metric, and the pool it
+  declared uncontended was in fact severely contended. It is reported here as a labelled
+  `secondary_instrument` for exactly that reason: a reader who sees the two instruments diverge learns
+  something, while a reader given only one inherits its blind spot silently. (This is also why the lens
+  contradicts its own card's amend_note, which predates the correction and names the superseded
+  field — recorded as a deviation_captured under rather than resolved in silence.)
+
+  The second load-bearing rule is that the numerator and the denominator sit on the SAME day. The queue
+  fold is joined to its land and bucketed by the LAND's UTC day; a wait that begins before midnight and
+  lands after it would otherwise inflate one day and deflate the next, and a fold with no land at all
+  would count queued work that never landed. Such folds are surfaced under `unmatched_queue_folds`.
+
+  The governed SEVEN-DAY default is the CLI's, not the lens function's: `graph query admission-series`
+  substitutes it when the caller names no window (the rule's unit IS a seven-day run, and an all-time
+  reading cannot adjudicate it), while the lens called directly reads all-time like every other windowed
+  lens in the family. The default sits at the CLI seam deliberately — a lens that silently re-dated its
+  own window would hand every programmatic caller a different corpus than it passed.
+
+  Rule 4 is a RUN, never a count: seven fired days scattered across a month do not meet it, so the lens
+  reports the LONGEST CONSECUTIVE fired run and adjudicates on that. An UNMEASURED day (no lands) BREAKS
+  a run rather than continuing it — a day that cannot be proven to have fired has not fired. And no day
+  with zero lands reports 0% ( no-fabricated-zero): it reports `no_data` NAMING the instrument that
+  had nothing to read, because "counts are not outcomes" and an absent input is not a passing measurement.
+
+  Report-not-block : a MET crossover is a SIGNAL for the owner-judged Rule-1 ladder step, never an
+  automatic escalation — no code auto-escalates (CHARTER §6 fence). `graph query admission-series` emits a
+  cli_invoked observability event — a reviewer RUNNING the lens IS the durable P8 consumer-read
+  adoption evidence. No new store, no new command family, no new event type, no persistence, no metrics
+  daemon — it composes the existing journal readers (P5). The view MECHANISM (lens dispatch / views/*.yaml
+  format) is owned by SPEC-0031; SPEC-0132 Rule 4 owns the threshold and the seven-day window
+  this lens REPORTS AGAINST and never re-tunes. Sibling: `outcome-ratio` (the audit-cost side).

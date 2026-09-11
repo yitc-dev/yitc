@@ -1,0 +1,267 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0188
+title: 'Placement of a non-test land check — earliest governed point whose subject contains the facts, with the five-element future-author test'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # placement realm (the corpus-wide placement contract; catalog
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements:
+  - bin/lib/worktree.py#_corpus_integrity_verdict # the ONE implementation rule 4 requires (subject parameterised by `head`)
+  - bin/lib/batch_landing.py#_land_form_batch # POINT 1 — selection, the earliest eligible subject
+  - bin/lib/worktree.py#_land_integrate # POINT 2 — the assembled tree, before the admission slot and the suite
+
+body: |
+  ## Scenario
+
+  A land check that is NOT a test — a corpus-integrity guard, an authorization preflight, a
+  provenance check — has to run SOMEWHERE on the land path. Historically each one was appended to
+  the END, next to the check written before it, and the cost of that habit was paid by branches that
+  had done nothing wrong: on 2026-08-20 two batches ten minutes apart died on one member's off-path
+  spec edit, and three innocent branches paid a full merge, the full suite and a 15-30 minute queue
+  wait for someone else's diff. This spec says where a non-test land check belongs, and
+  gives the next author a five-answer test to apply before writing one.
+
+  ## Internal
+
+  ### Rule 1 — The placement rule
+  **Place each non-test land check at the EARLIEST GOVERNED POINT whose SUBJECT CONTAINS ALL FACTS
+  NEEDED TO ANSWER IT; do not place it later unless a LATER MUTATION CAN INVALIDATE the earlier
+  result.**
+
+  Two clauses, and both are load-bearing. The first forbids running a question later than the first
+  place it can be answered — later costs more and, on a shared land path, that cost falls on peers.
+  The second is the ONLY licence for a later placement, and it is a positive obligation: NAME the
+  mutation that invalidates the earlier answer. "Governed point" means a point on the land path the
+  system already owns — a formation walk, a merge seam, a verify boundary — never a new one invented
+  to host the check (CHARTER §P1 filter 3).
+
+  ### Rule 2 — The five-element future-author test
+  Before placing a non-test land check, ANSWER ALL FIVE. An unanswered element means the placement is
+  not yet decided; a placement that ships with one blank is incomplete whichever four are filled.
+
+  1. **(1) SUBJECT** — WHAT the check runs against: one branch alone, the assembled candidate tree,
+     the final tree after a retry. Naming the subject is what decides the placement, because a point
+     is eligible only if its subject holds the facts of element 2.
+  2. **(2) REQUIRED FACTS** — WHICH facts the check must read to answer at all. A point whose subject
+     lacks one of them cannot host the check, however cheap it is there.
+  3. **(3) LATER INVALIDATORS** — WHAT later mutation could make an earlier answer wrong. This is the
+     rule-1 second clause in question form: an empty answer means the check belongs at the earliest
+     eligible point and nowhere else; a non-empty one names, per mutation, which later point must
+     re-ask and why.
+  4. **(4) EXPECTED COST** — WHAT the check costs where you are placing it, and — the half that
+     matters on a shared path — WHO PAYS IT. The same sub-second check is nearly free before the
+     queue and expensive after it, because after it the price includes a merge, a suite and an
+     admission wait paid by every peer.
+  5. **(5) RECIPIENT OF FAILURE** — WHO IS TOLD when the check fails, ON THEIR OWN CHANNEL. This is a
+     REQUIREMENT, not presentation: a verdict that reaches only an aggregate process leaves the
+     branch that must act unable to diagnose itself. Measured : a batch rejection was
+     delivered to the batch HEAD's process while the violating member's own log read only "WAITING
+     for the land reservation", and the cause sat on its journal row undelivered — zero remedial
+     events in the following 20 minutes; all five members simply re-queued.
+
+  ### Rule 3 — Placement vocabulary: reuse the existing key, add no parallel one
+  A placement is named with the EXISTING row-shape key **`land_completed.abort_preflight`**
+  — "raised before the admission slot and the suite". Do NOT introduce a parallel placement enum,
+  constant, taxonomy or event type for the same distinction.
+
+  The key is a row SHAPE and deliberately not an abort CLASS, because a class is not a reliable proxy
+  for placement: `rebaseline-unauthorized` spans BOTH the cheap §3a authorization preflight (already
+  early — nothing to move) AND the waive-coverage refusal raised from the pinned run, which
+  CANNOT move, since deciding whether a failure is waivable requires knowing what failed. A new
+  vocabulary keyed on the class would re-open exactly that ambiguity.
+
+  ### Rule 4 — Anti-duplication: one implementation, thin wrappers
+  A check placed at more than one point has ONE implementation, reached from each point by placement
+  metadata or a thin per-point wrapper (typically a parameterised subject — the same body pointed at
+  a branch or at a merged tree). DUPLICATING CHECK LOGIC ACROSS POINTS IS PROHIBITED: hand-maintained
+  copies drift, and a future author edits one of them.
+
+  ### Rule 5 — No general final-tree placement point (a bucket is refused)
+  There is **no standing third placement point on the final tree.** A re-check after the assembled
+  batch is TRIGGER-SPECIFIC — today, `retry-main-advanced` re-merging `main` into the candidate — and
+  each such placement must PROVE that the retry changes THAT check's inputs (rule 2 element 3, filled
+  and named). "Anything re-derived after a retry" is a bucket, and buckets are refused: they
+  reintroduce append-to-the-END under a rule-shaped name.
+
+  ### Rule 6 — What this spec does NOT do
+  It relocates no check (that work is, landed), adds no gate, verb, event type or store, and
+  changes nothing about WHAT any guard considers a violation. It governs WHERE a check is asked, WHO
+  is removed, and WHO is told.
+
+  ## Worked example — the two placements made, in this rule's terms
+
+  The example a next author copies. Both entries fill all five elements; an entry with a blank
+  element is not a worked example of this rule (rule 2), and the element measured missing in
+  production is element 5.
+
+  **POINT 1 — SELECTION** (`bin/lib/batch_landing.py#_land_form_batch`, the per-candidate corpus-integrity
+  predicate consulted inside the existing formation walk):
+  - (1) SUBJECT — one candidate BRANCH ALONE, diffed against the current land base
+    (`base..<branch>`), before any batch exists and before anything queues behind it.
+  - (2) REQUIRED FACTS — that branch's own diff over the protected corpus paths, plus the new journal
+    events THAT BRANCH carries (its `spec_edited` / rationale receipts). Both are readable from the
+    branch alone; nothing about peers or about a merged tree is needed.
+  - (3) LATER INVALIDATORS — the land's journal union-merge can ADD a peer's receipt, so a branch
+    that violates ALONE may be clean on the merged tree. That is why per-branch checking is STRICTER
+    than merged checking and why point 2 is a DIFFERENT subject rather than the same check repeated.
+    `main` advancing moves the base.
+  - (4) EXPECTED COST — a few `git` reads per candidate, sub-second, paid by the forming land only:
+    no merge, no suite, no admission slot, and nothing paid by a peer.
+  - (5) RECIPIENT OF FAILURE — the candidate branch itself. The skip is recorded as its own
+    `queue_excluded` row, keyed to that branch, carrying the guard's own message as `cause`; NO row
+    is written for an innocent peer, so no peer is told it caused anything. A violating HEAD, which
+    cannot be skipped because it holds the land slot, instead DISENGAGES formation
+    (`head-corpus-violation`) and lands solo — it is then told by its own abort at point 2.
+
+  **POINT 2 — ASSEMBLED BATCH** (`bin/lib/worktree.py#_land_integrate`, on the merged candidate tree
+  BEFORE `_verify_under_admission`):
+  - (1) SUBJECT — the MERGED candidate tree: every admitted member's diff plus the union-merged
+    journal, judged as one corpus.
+  - (2) REQUIRED FACTS — the merged diff and the union-merged receipts. Only the assembled tree holds
+    them, so this question is UNANSWERABLE at point 1; and point 1 admits on `error` (an error is a
+    fact about the checker, never a verdict on a branch), so a member whose per-branch check could
+    not run genuinely arrives here.
+  - (3) LATER INVALIDATORS — `retry-main-advanced` re-merges `main` into the candidate AFTER this
+    point, so the retained post-suite run judges a tree this point never saw. That NAMED invalidator
+    is what licenses the later call under rule 1; it licenses no general third point (rule 5).
+  - (4) EXPECTED COST — one runner pass on an already-merged tree, sub-second, still ahead of the
+    verify admission slot and the full suite. Placed unconditionally at that seam, a SOLO land pays
+    the identical call and gets the identical early answer.
+  - (5) RECIPIENT OF FAILURE — every member record carries the cause (`corpus_violation`), the way
+     marks `red_assertions`, so each member's own row states what killed the batch. It claims
+    nothing about WHOSE change it was — attributing a merged tree's violation across members is
+    exactly the guess the failing-assertion attributor refuses to make. The abort carries the
+    existing `abort_preflight` row shape (rule 3).
+
+  ## Delivery
+
+  `binding: [code-enforced]` with non-empty `implements:` — the anchors ARE the delivery: an author
+  about to place a land check touches those sites, and the Stage-1 spec-coverage reverse lookup
+  (SPEC-0032 step 5, `graph query <file>`) hands them this spec before they edit. The token names the
+  DELIVERY CLASS and nothing more: NO code enforces this rule against a future author, and no floor
+  trigger is added — a new `before-*` surface would mean a new FLOOR_TRIGGERS row and surface
+  constant in the CLI, which is precisely the new gate this rule's own card refused to add.
+
+  ## Rationale
+
+  The rule is the external auditor's wording, from the third consult on
+  (`decisions/check-placement-rule-audit-adhoc.yaml`, YELLOW/2) — recorded here because it interprets
+  the rule, not to narrate the deliberation (SPEC-0005 rule 3). Two of its findings are rules 5 and 4
+  above. The incident that makes this worth a standing rule rather than one relocation is stated in
+  §Scenario: every non-test check on the land path had been appended to the END, and the measured
+  bill for that habit was three innocent branches per burst — one of them, task/, spending
+  735s + 1906s + 2495s across three lands, two of the aborts caused by other branches' off-path spec
+  edits.
+
+  ## Verification
+
+  - **VP1 (the rule is normative):** this spec resolves and is `active` — a `proposed` spec governs
+    nothing (SPEC-0005 §4), so the status is asserted independently of the body.
+    PROBE: `tests/test_t11367_check_placement_rule.py`.
+  - **VP2 (all five elements):** §Internal rule 2 carries all five named elements. PROBE: the same
+    file asserts each of the five INDEPENDENTLY and names which one is missing on failure — never one
+    aggregate match, because a four-element author is exactly the failure mode.
+  - **VP3 (vocabulary reuse):** the body names `land_completed.abort_preflight` and declares no
+    parallel placement enum or constant. PROBE: the same file asserts the key is named, that every
+    placement token this spec declares already resolves in the land implementation, and that no new
+    placement constant exists in `bin/lib/`.
+  - **VP4 (adoption — CHARTER §P8, infra-class):** the rule is CONSUMED — §Worked example
+    re-describes both placements with all five elements FILLED, and a `consumer_read_evidence`
+    event for names this spec, the placement and the five filled values. PROBE: the same file
+    checks the event, and its DIFFERENTIAL arm rejects the same evidence with the RECIPIENT OF FAILURE
+    value blanked.
+  - **VP5 (no third placement point):** rule 5 states the refusal and rule 2 element 3 carries the
+    obligation that licenses any later placement. PROBE: grep this body.
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0005
+  - SPEC-0032
+  - SPEC-0054
+  - SPEC-0132
+  - SPEC-0165
+  - SPEC-0184
+  -
+  -
+  -
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: # PROVENANCE / corpus carrier — who BIRTHED this proposed spec; NOT the
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
+  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae

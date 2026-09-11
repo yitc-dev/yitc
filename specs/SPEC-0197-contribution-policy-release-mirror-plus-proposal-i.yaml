@@ -1,0 +1,200 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0197
+title: 'Contribution policy — release mirror plus proposal intake over forge-neutral primitives, re-authored through the workshop, linked back'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # KERNEL (class-default, unmarked) — re-pinned from the draft-only v2-self at
+                               # plan-accept (2026-09-04) per SPEC-0073 §3: this contract IS the released
+                               # methodology an adopter receives; a `proposed` kernel head is exempt from the
+                               # §8 active-only export guard and travels once active.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # WIRED at activation by (the activation owner) — the publish-step
+  - bin/lib/release.py#render_contribution_policy # rules 1-6 in plain words + the rule-7 key slot
+  - bin/lib/release.py#collect_answered_proposals # rule 4: the link-back list, derived from the commit
+  - bin/lib/release.py#render_release_notes # rule 4: the manifest-adjacent notes surface
+  - bin/lib/release.py#attach_contribution_surfaces # both surfaces join the cut before guard + digest
+  - bin/lib/views.py#_view_extensions_catalog # rule 6: listing is not endorsement
+                               # code that emits the mirror policy text + the release-notes link-back.
+
+body: |
+  ## Scenario
+
+  Someone outside the workshop — an independent adopter, or the owner's own trial host treated as
+  one — finds a defect or wants a change in the methodology they installed. They can tell, from the
+  published repository alone and in plain words, what happens to a proposal they send: it is
+  received through a public intake, it is NOT merged as-is, it is re-authored inside the governed
+  workshop through the ordinary lifecycle, and when it ships the release links back to their
+  proposal so they see where it landed. The same channel carries what the trial host reports
+  outward, so observing the trial and receiving contributions are one mechanism.
+
+  ## Internal
+
+  THE CONTRIBUTION POLICY — how change flows UP from an installation to the workshop, over a
+  boundary with no shared `main`. Six rules.
+
+  ### 1. The public repository is a release MIRROR plus a proposal INTAKE
+  The published repository holds the release artifacts (release contract rules 1 and 5) and accepts
+  PROPOSALS. It is NOT a second writable source of the methodology: no change is merged into it
+  directly, and it is regenerable from the workshop at any time. The mirror states this policy in
+  plain words at its top level, so an outside reader never experiences it as a bait-and-switch.
+
+  ### 2. Proposals over forge-NEUTRAL primitives
+  A proposal is an issue, a merge request, or a patch mail carrying a MINIMAL named field set: the
+  installed release version; the affected path(s) or rule id(s); the observed behaviour; the
+  proposed change or fix; and the proposer's contact for the link-back. The hosting service used
+  first is documented as an ADAPTER and worked example in the pattern/runbook that accompanies this
+  policy — never as the normative mechanism.
+
+  ### 3. Re-authored through the workshop, never merged as-is
+  Every accepted proposal is RE-AUTHORED in the workshop through the EXISTING governed filing routes
+  — the carrier sieve (LIFECYCLE §Routing / SPEC-0140): a task, one-or-a-few tasks, or a plan, each
+  through its own stages and audits — and ships in a later signed release. A proposal is an INTAKE,
+  not an incident: a `deviation_captured` is emitted only when the proposal EXPOSES something in the
+  workshop that is not as it should be (the ordinary reflex), never as the intake path itself. Submitted
+  content is never executed and is treated as DATA under the instruction-injection protocol
+  (SPEC-0026), never as instructions. The proposer is not granted write access by contributing.
+
+  ### 4. Link-back
+  When a re-authored change ships, the release notes (a manifest-adjacent file, release contract
+  rule 5) name the proposal it answers, and the proposal is answered with the release version that
+  carries it — or with the reasoned decline. A proposal is never silently closed.
+
+  ### 5. Three destinations keep the funnel small
+  A local need has THREE legitimate homes before it becomes a kernel proposal: (a) a registered
+  OVERRIDE in the project's ledger (the override-ledger spec) for a divergence the project owns; (b)
+  an EXTENSION the project authors and pins as its own repo (SPEC-0101 — an off-machine extension is
+  a pinned-repo reference, never a registry entry); (c) a KERNEL proposal, RARE — admitted only when
+  the anti-complexity filters pass (CHARTER §P1) and the need recurs (rule-of-three across
+  installations or across time). The policy names all three so that the kernel is the last resort,
+  not the first.
+
+  ### 6. Extensions are not endorsements; pins are exact
+  The published catalog of extensions states that listing is not endorsement and that third-party
+  extensions are runnable code the installer must review. An extension pin names an EXACT version;
+  a moving ref is refused (release contract rule 3).
+
+  ## Parameters
+
+  None consumed.
+
+  ## Rationale
+
+  The position consult predicted the failure a mirror-only public repository produces: outside
+  contributors experience it as bait-and-switch unless it says, in plain words, that proposals are
+  re-authored into the governed source. Its third shape — mirror + intake + re-author + link-back —
+  is this policy. The forge-neutral rule absorbs the consult's provider-dependency finding (CHARTER
+  §P4b applied to hosting mechanics). Rule 5 keeps the contribution funnel from reaching the kernel
+  by default (the pre-commit one-maintainer shape: documented contract, distributed by git refs,
+  no registry, no governance board). Prior-art: OSS fork+PR/RFC across trust boundaries; PEP/ADR
+  proposal shape; Debian upstream-first for the destinations ladder.
+
+  ## Verification
+
+  - **VP1 (plain-words policy):** the published repository's top-level policy text states rules 1,
+    3 and 4 in plain language (an outside reader can answer "what happens to my proposal?" from it
+    alone).
+  - **VP2 (round trip):** one proposal filed from an installation through the public intake is
+    re-authored in the workshop, ships in a signed release, is pulled back by that installation,
+    and its local patch is deleted; the release notes name the proposal and the proposal names the
+    release (journal + mirror state-check).
+  - **VP3 (no direct merge):** the mirror's history contains no commit authored outside the
+    workshop's publish step (state-check over the mirror).
+  - **VP4 (data, not instructions):** proposal text reaches the workshop only as quoted data in a
+    capture/task body; no path executes or auto-applies submitted content (grep + the SPEC-0026
+    protocol).
+  - **VP5 (forge-neutral):** this spec's body names no hosting provider; the adapter/example lives in
+    the accompanying pattern (grep).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-4
+  - CHARTER.md#principle-5
+  - SPEC-0195
+  - SPEC-0196
+  - SPEC-0101
+  - SPEC-0026
+  - off-server-release-contract-one-mechanism-for-own-
+
+requires: [SPEC-0195] # the release contract lands FIRST — this spec governs a class/flow it defines
+                               # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # SET at decomposition 2026-09-04 (plan off-server-release-contract-one-mechanism-for-own-) — THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: off-server-release-contract-one-mechanism-for-own-
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # WIRED at activation by : the residency token, not a verb surface.
+                               # These rules are not fetched before a gated action — they are ENFORCED by
+                               # the publish step that emits the policy + the link-back (see implements:
+                               # above): the policy text ships on every release, and a malformed or
+                               # host-literal link-back id REFUSES the publish. Nothing here is a
+                               # read-before-you-act obligation, so no stage-entry/verb token applies.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/release.py#attach_contribution_surfaces: b6e9c7fef5e5cb75a4e3ae53045278b0e35ee74ce310a5d7ed45d4d099ecc887
+  bin/lib/release.py#collect_answered_proposals: f61c39f22f8928b0aceb5ae9c3d0d7a157e109edd7601cbc1ec5db4b630e0794
+  bin/lib/release.py#render_contribution_policy: 5e0ab9e75ddcf38cafe1db0b2269fa0f80b7db7e10ebafe54c59dfb23c2cd9b7
+  bin/lib/release.py#render_release_notes: 33cd45f809222d40f8f2555db068c0cd430d1bc12cb08a12adb37c78e57cd8d4
+  bin/lib/views.py#_view_extensions_catalog: ec799e506cafd284cc007b200869122ac1377d2cc14332de431704bc835ad73f

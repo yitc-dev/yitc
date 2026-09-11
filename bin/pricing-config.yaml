@@ -1,0 +1,201 @@
+# Provider token pricing — owner-editable DATA for the token-rollup lens.
+# CHARTER §P4b: provider-neutral normative text; concrete provider bindings live here.
+#
+# ESTIMATE-MARKED: rates sourced from the provider price-page cache of 2026-05-26;
+# prices change — VERIFY against the current provider price page before relying on
+# absolute $ figures. Comparisons across sessions computed with the SAME current
+# table stay valid (the owner decision 2026-06-05: price is NEVER stored — cost is
+# derived at read-time = archived tokens x CURRENT rates).
+#
+# Units: USD per 1,000,000 tokens (per-Mtok). cache_write_5m / cache_write_1h are
+# the 5-minute / 1-hour cache-write tiers (1.25x / 2x input); cache_read ~= 0.1x input.
+# A model absent from this table is reported as unpriced (cost_usd: null) — never guessed.
+
+estimate: true
+rates_source: provider price-page cache 2026-05-26 (owner-editable; verify before absolute use)
+
+rates_per_mtok:
+  the AI provider-opus-4-8:
+    input: 5.00
+    output: 25.00
+    cache_read: 0.50
+    cache_write_5m: 6.25
+    cache_write_1h: 10.00
+  the AI provider-opus-4-7:
+    input: 5.00
+    output: 25.00
+    cache_read: 0.50
+    cache_write_5m: 6.25
+    cache_write_1h: 10.00
+  the AI provider-opus-4-6:
+    input: 5.00
+    output: 25.00
+    cache_read: 0.50
+    cache_write_5m: 6.25
+    cache_write_1h: 10.00
+  the AI provider-sonnet-4-6:
+    input: 3.00
+    output: 15.00
+    cache_read: 0.30
+    cache_write_5m: 3.75
+    cache_write_1h: 6.00
+  the AI provider-haiku-4-5:
+    input: 1.00
+    output: 5.00
+    cache_read: 0.10
+    cache_write_5m: 1.25
+    cache_write_1h: 2.00
+  # OpenAI / <external-auditor> worker models — list price per the OpenAI API price page. gpt-5.5 per 2026-06-25
+  #. gpt-5.4 + gpt-5.4-mini SHORT (<272K) rates re-aligned 2026-06-29 to the then-current page
+  # (a post-5.5-launch reprice of the older models; deviation
+  # `pricing-config-<external-auditor>-gpt-5.4-mini-rates-stale-vs-current-openai-page`). These are SHORT-context base
+  # rates; the >272K long-context tier is now MODELED here via each model's `long_context:` block.
+  # OpenAI has NO separate cache-WRITE surcharge, so cache_write_5m/1h mirror `input` (the <external-auditor>
+  # economy lens reads only input/output/cache_read; the write tiers are present for schema parity).
+  #
+  # `long_context:` — the OpenAI >272K-input tier. When a request's context exceeds
+  # `threshold_input_tokens`, THAT request (not the whole session) is billed at input × input_multiplier
+  # and output × output_multiplier (cached-input follows input_multiplier). The scorecard buckets usage
+  # PER-CALL — only the >272K calls are tiered; sub-272K calls stay flat (a mixed session is NOT
+  # wholesale re-priced). ⚠ ESTIMATE — the 2.0/1.5 multipliers are the fu_2cbc4ae1fb99 author's
+  # UNVERIFIED understanding, NOT an OpenAI price page; `source: estimate` marks them. Confirm the REAL
+  # tier figure via the deferred >272K probe ( scope) before relying on absolute long-context $.
+  # A model with NO long_context block is priced flat at all context sizes (the AI provider models: no block).
+  # gpt-5.6-sol — the auditor model on BOTH tiers since 2026-09-04. Rates read from
+  # developers.openai.com/api/docs/models/gpt-5.6-sol on 2026-09-04; these are PROMOTIONAL prices
+  # stated to hold at least through 2026-11-21 — re-check the page after that date. Without this row
+  # the economy lens would silently price Sol at the `openai` provider fallback below (5.00/30.00).
+  gpt-5.6-sol:
+    input: 4.00
+    output: 20.00
+    cache_read: 0.40
+    cache_write_5m: 4.00
+    cache_write_1h: 4.00
+    long_context: {threshold_input_tokens: 272000, input_multiplier: 2.0, output_multiplier: 1.5, source: estimate}
+  gpt-5.5:
+    input: 5.00
+    output: 30.00
+    cache_read: 0.50
+    cache_write_5m: 5.00
+    cache_write_1h: 5.00
+    long_context: {threshold_input_tokens: 272000, input_multiplier: 2.0, output_multiplier: 1.5, source: estimate}
+  # RETIRED FROM THE PROVIDER (reported 2026-08-31; — not re-verifiable from this
+  # checkout, the <external-auditor> CLI exposes no model list). The two rows below are KEPT ON PURPOSE and
+  # are NOT selectable auditor models: the token-rollup lens prices ARCHIVED usage at read-time
+  # by model id (bin/lib/views.py#_view_token_rollup — price is never stored, owner decision
+  # 2026-06-05), so deleting a row would silently un-price every historical audit run that used
+  # it. Do NOT point bin/audit-config.yaml at either id.
+  gpt-5.4:
+    input: 2.50
+    output: 15.00
+    cache_read: 0.25
+    cache_write_5m: 2.50
+    cache_write_1h: 2.50
+    long_context: {threshold_input_tokens: 272000, input_multiplier: 2.0, output_multiplier: 1.5, source: estimate}
+  gpt-5.4-mini:
+    input: 0.75
+    output: 4.50
+    cache_read: 0.075
+    cache_write_5m: 0.75
+    cache_write_1h: 0.75
+    long_context: {threshold_input_tokens: 272000, input_multiplier: 2.0, output_multiplier: 1.5, source: estimate}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Provider-level FALLBACK rates — keyed by the normalized `provider` vocab
+# (SPEC-0025 §Normalized provider×model×effort vocabulary; SPEC-0135 observation loop).
+# The token-rollup lens tries the exact model in `rates_per_mtok:` FIRST; only when a
+# model id is ABSENT there does it fall back to its provider's rate here — the provider
+# is derived from the model-id prefix (the AI provider-* → the provider, gpt* → openai — the same
+# rule that keys `provider_subscription:` below). This gives an observed cross-provider
+# "bench prior-art" cost when a specific model is not individually priced yet, instead of
+# an unpriced null. A model whose provider is unknown (no prefix match) still yields null
+# — never guessed (the same discipline as the per-model table).
+#
+# ⚠ ESTIMATE — same units (USD per-Mtok) and same estimate caveat as rates_per_mtok above;
+# these are representative provider rates, NOT an invoice. Owner-editable; verify before
+# relying on absolute $. Cost stays read-time-derived, never stored (SPEC-0135).
+rates_per_provider:
+  the provider: # representative the AI provider flagship (opus-tier) rate
+    input: 5.00
+    output: 25.00
+    cache_read: 0.50
+    cache_write_5m: 6.25
+    cache_write_1h: 10.00
+  openai: # representative OpenAI/<external-auditor> flagship (gpt-5.5) rate
+    input: 5.00
+    output: 30.00
+    cache_read: 0.50
+    cache_write_5m: 5.00
+    cache_write_1h: 5.00
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Subscription window budgets — feed the scorecard ECONOMY %-of-window metrics
+# (pct_short_window / pct_weekly_window; SPEC-0047 rule 6b). A flat-rate Pro
+# subscription exposes no literal per-dollar meter, so each window `cap` is an
+# OWNER-SET modeled budget-per-window ($-equivalent proxy), NOT a provider per-dollar
+# rate — so price-never-stored holds: a cap is a budget figure, not a price.
+# The scorecard reports run_cost / window_cap; these caps are the SOLE runtime home.
+#
+# ⚠ ESTIMATE — caps below are seeded from the owner's 2026-06-28 illustrative anchor
+# ($2 = 2% of short → cap 100; $2 = 0.5% of weekly → cap 400). CONFIRM the real
+# Pro200 window ceilings before relying on the postcheck %-of-window batch.
+# Each window cap carries a `source:` provenance marker (SPEC-0047 rule 6b):
+# estimate = a modeled budget-per-window proxy (the labelled FALLBACK, used until calibrated);
+# calibrated = derived from a REAL provider window-utilization measurement (cap = cost / Δutilization).
+# The calibrator (calibrate_windows.py) flips a window to `source: calibrated` with the real
+# median cap + provenance once enough real samples exist; an under-sampled re-run RESTORES the window to
+# `source: estimate` + cap = estimate_cap. `estimate_cap` is the NEVER-LOST modeled fallback (so a
+# downgrade always has a value to restore to). A missing source reads as `estimate` (back-compat). The
+# scorecard surfaces this provenance per row (win_cap_source).
+subscriptions:
+  openai-pro200:
+    short: {period: 5h, cap: 100.0, estimate_cap: 100.0, source: estimate} # rolling 5-hour ("short") window
+    weekly: {cap: 400.0, estimate_cap: 400.0, source: estimate}
+    unit: usd-budget-proxy-per-window
+  the provider-pro200:
+    short: {period: 5h, cap: 100.0, estimate_cap: 100.0, source: estimate}
+    weekly: {cap: 400.0, estimate_cap: 400.0, source: estimate}
+    unit: usd-budget-proxy-per-window
+
+# Provider → active subscription. The scorecard derives the provider from the model-id
+# prefix (the AI provider-* → the provider, gpt-* → openai), then maps it here to the subscription
+# whose window caps the run cost is measured against.
+provider_subscription:
+  the provider: the provider-pro200
+  openai: openai-pro200
+
+# ── Context-window utilization sensor (SPEC-0115) — DATA for `bin/yitc-v2 session context` ──
+# Two owner-editable knobs the sensor reads (NOT spec-governed scalars — owner-tunable per deployment):
+#
+# context_refresh_threshold_pct — the refresh-due threshold as a % of the window (SPEC-0114 trigger
+# source (b)). One knob for v1; start 55 (owner band 50–60). Units = % of window (survives a model /
+# window change), never absolute tokens.
+context_refresh_threshold_pct: 55
+#
+# context_window — per-model window SIZE in tokens. The sensor divides last-completed-turn occupancy
+# by this. A model ABSENT here is reported `window: unknown` (verdict suppressed) — NEVER guessed,
+# mirroring the rate table's "unpriced → null, never guessed" discipline. An absent model is now
+# fail-VISIBLE: the sensor line WARNs, naming the model + this key ( — an unmapped model
+# silently suppressed the SPEC-0114 refresh proposal for a full day).
+# NOTE (deployment-specific): the provider transcript records the model id WITHOUT the long-context
+# suffix (e.g. `the AI provider-opus-4-8`, not `the AI provider-opus-4-8[1m]`), so these windows reflect THIS owner's
+# 1M-context ([1m]) deployment — verified live 2026-06-30 (the AI provider-opus-4-8 read 213.5K occupancy at
+# ~21% of 1M). A non-[1m] deployment of the same model has a 200K window — re-tune here per deployment.
+# CALIBRATE a new entry from the live transcripts, never by faith-copying a sibling: take the model's
+# MAX observed input-side occupancy — a reading above 200K proves the [1m] deployment (the AI provider-fable-5
+# read 659.3K on 2026-07-12, so 1M;. the AI provider-opus-5 read 390751 on 2026-08-06, so 1M).
+# SECOND SANCTIONED PATH — a model with no calibration-sufficient reading yet (nothing above
+# 200K) MAY be entered on an explicit OWNER DIRECTIVE, recorded as owner-set with the date + the
+# max-observed datum at entry; re-check when the first >200K reading arrives. SPEC-0115 §Parameters
+# names this map CONFIG DATA (owner-editable) and forbids only the SENSOR guessing, so an owner-set
+# value is not a guess — but it must be labelled as owner-set, never as a calibration.
+# (the AI provider-fable-5-1: owner-set 1M on 2026-09-02 per owner directive, entered when its max observed was
+# 165534 — below 200K, proving nothing either way. Re-measured the same day at Execution: 259441, now
+# ABOVE 200K, so the ordinary method above independently corroborates 1M;.)
+context_window:
+  the AI provider-opus-4-8: 1000000
+  the AI provider-opus-4-7: 1000000
+  the AI provider-opus-4-6: 1000000
+  the AI provider-fable-5: 1000000
+  the AI provider-opus-5: 1000000
+  the AI provider-fable-5-1: 1000000

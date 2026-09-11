@@ -1,0 +1,101 @@
+id: SPEC-0014
+title: 'Commit format and from: discipline — the retrieved commit-rules contract'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # `active` is the only normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # a read-before-commit RULE; no code reads a scalar param FROM it.
+
+implements: [] # documentary read-rule spec — the rule is fetched-before-`commit`, not
+                               # realised by one code site. Non-empty `binding:` (below) makes it
+                               # non-dangling (the binding discriminator, SPEC-0013 ## Internal).
+
+binding: # — delivered at the Commit stage-entry (the stage-delivery axis; was the `commit` floor trigger).
+  - stage-entry:Commit
+
+body: |
+  ## Scenario
+
+  Before the AI commits a change, it must shape the commit so the change is durably GROUNDED — every
+  commit cites the artifact that justifies it (`from:`), uses the agreed type/subject/body shape, and
+  never hand-stages files. The owner/AI never has to remember these rules from memory: the obligation lives in the
+  `task commit` verb precondition — the require-reads gate (SPEC-0042) REFUSES the commit unless this
+  contract was fetched in the current session, then prints the ready `graph query` command. The Commit
+  stage-entry pointer (`stage-entry:Commit` — by `stage Commit`; the `task test` forward-pointer)
+  is a delivery ECHO of that obligation, not the guarantee on its own (SPEC-0042 §7). Get it wrong and the
+  graph loses a `from:` edge or a stray file is mis-staged.
+
+  ## Internal
+
+  THE COMMIT CONTRACT (faithfully copied from AGENTS §Commit format — the handbook prose WAS the always-loaded copy until the strip task, which swapped it for a pointer (done); this spec is the retrieved home).
+
+  ### Format
+  ```
+  <type>(<task-id>): <subject>
+
+  <body>
+
+  from: <durable artifact reference>
+  ```
+  Allowed types: `feat / fix / chore / refactor / test / docs / perf / ci / style`.
+
+  ### `from:` — the durable grounding (CHARTER §Principle 2)
+  `from:` cites the durable artifact grounding this action:
+  - task YAML (`tasks/T-XXXX`), decision YAML (`decisions/D-XXXX`), spec YAML (`specs/SPEC-XXXX`)
+  - handbook section (`CHARTER §principle-N`, `AGENTS §audit-contract`, etc.)
+  - project-side documentation (when working on production projects: `<project>/BACKLOG.md§B-XXX`,
+    `<project>/docs/concept.md`, etc.)
+  - a materialized journal entry (`events.jsonl#source_ref=<locator>` / `events.jsonl#ts=<ISO>`) — NOT the raw provider session log.
+
+  **Chat instructions don't qualify as durable** — capture as a task first, or, when it establishes a NEW standing rule, a spec (`spec new`).
+
+  Mutated artifacts are visible in the diff — no separate `to:` field.
+
+  ### Staging is owned by `task commit`
+  In the Build flow you MUST NOT hand-stage files or run `git add` / `git add -A` / pathspec-exclude
+  resets — `task commit` runs `git add -A` in the worktree itself (safe because makes one
+  worktree == one task). This removes the manual staging step that mis-staged 3× (the
+  git-pathspec-exclude gotcha: v1 B-722).
+
+  ### Emergency bypass
+  If the action is urgent and no prior `from:` artifact exists:
+  - Use `emergency: <description ≥ 30 chars including incident context>` in the body.
+  - Owner-authorized (chat OK in the emergency itself; the commit message records the marker).
+  - Required: within 72 hours, write a retro-doc + file a post-incident task.
+  - Frequency check: > 1 use per 30 days triggers a Review-session audit.
+
+  ### Trailer
+  End each commit body with:
+  ```
+  Co-Authored-By: AI Agent <noreply@example.com>
+  ```
+  (Substitute the actual model identifier if different.)
+
+  ## Rationale
+
+  Source: AGENTS §Commit format (the always-loaded handbook prose, kept in place until, which stripped it to a pointer (done)). This spec is the `retrieved` tier home (Part I-A, plan
+  `part-i-a-retrieval-delivery-mechanism`): the four gating-verb rule sections move from always-loaded
+  prose to retrieved specs reached through the per-spec `binding:` field (SPEC-0013), so the
+  always-loaded budget shrinks without losing obligation-driven delivery (the floor trigger-map +
+  `task test` pointer fetch this before `commit`). Prior-art: PEP/ADR per-spec "which process touches
+  this rule" hooks; the binding inversion is the shipped `code_to_specs`/`verb-map` shape.
+
+  ## Verification
+
+  - Bound: `bin/yitc-v2 graph build` maps `Commit → SPEC-0014` in `binding_report.stage_to_specs`
+    (the stage-entry delivery axis) once this spec is `active`; `stage Commit` delivers it.
+  - Pointer: `bin/yitc-v2 task test T-XXXX` prints the commit-rules forward-pointer (element #2).
+  - Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded from `dangling_specs`.
+
+cites:
+  - part-i-a-retrieval-delivery-mechanism
+  - SPEC-0013
+  - AGENTS.md#commit-format
+  - CHARTER.md#principle-2
+
+requires: []
+supersedes: ~
+proposed_by: # work-first — activates proposed→active at close.

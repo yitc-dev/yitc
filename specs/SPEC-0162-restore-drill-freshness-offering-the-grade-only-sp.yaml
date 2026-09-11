@@ -1,0 +1,147 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0162
+title: Restore-drill freshness offering — the grade-only SPEC-0110 backup restore-drill capability as a first-class adoptable catalog extension
+
+status: active
+# Flipped to `active` by `task close` of the activation_owner_task (the guard lets
+# only that named task flip it). NO consumer precondition — the fleet-wait/deferred-activation reading is
+# RETIRED (owner directive 2026-07-17); see §Internal "Activation is kernel-local, firing is
+# per-consumer". Being active+adoptable puts it in the SPEC-0112 completeness set, so each consumer owes a
+# declare-or-waive at its OWN init (per-consumer fail-closed pressure); the consumer's own adopt record —
+# not this status — decides whether the feature FIRES for that consumer.
+
+created_at:
+
+travels: kernel
+# The capability GRADES a CONSUMER's yitc-ops.yaml restore_drill freshness (via the kernel-side SPEC-0110
+# monitor) and is a member of the kernel-owned SPEC-0101 catalog, so it TRAVELS to every v2 consumer —
+# the same born-v2-self→activate-kernel path as SPEC-0110/SPEC-0101/SPEC-0112.
+
+consumed: false
+# process/capability spec — no code reads a governing scalar param FROM it.
+
+extension: adoptable
+# SPEC-0101 rule 1 — a consumer-INSTALLABLE shared capability with an adopt-path: a consumer adopts it by
+# declaring a `freshness:` section naming a read-only restore-drill-age adapter (SPEC-0110 rule 2) + citing
+# this spec in its `extensions:` block (SPEC-0093 rule 13 / SPEC-0101 rule 4) — adopt-and-cite, never
+# copy/fork the kernel grader. The grader itself is the ALREADY-generic project-neutral SPEC-0110 monitor;
+# this spec adds NO new kernel grading code — it packages the grade-only restore-drill capability + ships a
+# reference `kind: command` adapter template as the concrete adopt-path artifact.
+
+implements:
+  - dev-utilities/reference-restore-drill-freshness-adapter.py#grade_restore_drill_freshness # the reference read-only kind:command adapter (adopt-path template)
+  - dev-utilities/reference-restore-drill-freshness-adapter.py#main # its CLI entry-point (prints the SPEC-0110 adapter-return JSON to stdout)
+
+body: |
+  ## Scenario
+
+  A project that runs a periodic **backup restore-drill** (a real operator-owned command it runs to prove
+  its backups actually restore) adopts a first-class, discoverable capability: the kernel **GRADES the
+  drill's freshness** — how long ago the drill last passed — and alerts when it goes stale or was never
+  run. The kernel NEVER runs the drill (that stays operator-owned); it only grades the
+  last-run age, exactly the SPEC-0110 grade-only shape. The owner/AI discovers the offering from the
+  system itself — `bin/yitc-v2 graph query extensions-catalog` lists it with its adopt-path — and a
+  project adopts it by declaring a `freshness:` section naming a read-only restore-drill-age adapter and
+  citing this spec. A shipped **reference adapter template** makes the adopt-path concrete: copy it,
+  point it at where the drill records its passes, done.
+
+  ## Internal
+
+  THE RESTORE-DRILL-FRESHNESS OFFERING — a grade-only SPEC-0110 capability packaged as a first-class
+  adoptable SPEC-0101 catalog extension. It adds NO new kernel grading mechanism (CHARTER §P1 F2): the
+  grader is the already-generic, project-neutral SPEC-0110 monitor (`bin/lib/nightly.py` `_check_freshness`
+  → `_default_freshness_adapter` → `_run_command_freshness_adapter`), which consumes a project-declared
+  adapter's NORMALIZED `{fresh|stale|miss}+age` per pipeline and embeds no project source format. A
+  `restore_drill`-named freshness pipeline is just one more DECLARED pipeline that generic grader already
+  handles (proven by). This spec's deliverable is the **catalog packaging** + the **reference
+  adapter template**, not new grading code.
+
+  ### The offering (what a consumer adopts)
+  1. DECLARE a `freshness:` section in `yitc-ops.yaml` with `kind: command` and a `command:` that runs a
+     read-only restore-drill-age adapter (SPEC-0110 rule 2 — the adapter names the source; thresholds/SLAs
+     are OWNED by the adapter, never inlined in the carrier).
+  2. The adapter reads WHERE the drill records its passes (a journaled `restore_drill_passed` event, a
+     timestamp file, etc.) and prints the kernel adapter-return contract to stdout:
+     `{"pipelines": [{"name": "restore_drill", "state": "fresh|stale|miss", "age_hours": <n>, "detail": …}], "error": null}`.
+  3. CITE `SPEC-0162` in the `extensions:` block (adopt-and-cite, SPEC-0093 rule 13 / SPEC-0101 rule 4).
+  The kernel SPEC-0110 monitor then grades the drill's freshness on its existing cadence — GRADE-only,
+  independent of the drill's own loop (SPEC-0110 rule 3), the kernel spawning NO drill command.
+
+  ### The reference adapter (the concrete adopt-path artifact)
+  `dev-utilities/reference-restore-drill-freshness-adapter.py` is a REAL, runnable, READ-ONLY reference
+  `kind: command` adapter a consumer copies + points at its own pass-record. It reads a journaled
+  `restore_drill_passed` event's age from an `events.jsonl` and prints the normalized adapter-return JSON;
+  it runs NO drill, mutates nothing, and fails closed to a whole-project MISS on an unreadable/absent
+  source (SPEC-0110 rule 3). It is the LIVE grade-run subject that proves this offering end-to-end.
+
+  ### Activation is kernel-local, firing is per-consumer ( doctrine)
+  This offering is ACTIVE with ZERO consumer preconditions. The earlier reading — ship `proposed` and
+  defer activation until the whole registry fleet declares-or-waives (a SPEC-0112 completeness gate on
+  the KERNEL) — is RETIRED by the amendment (owner directive 2026-07-17): it made the kernel wait
+  on projects, starved adopters until the slowest consumer answered, and asked consumers about a spec that
+  was not yet active. Under the per-consumer scheme: activation is written kernel-side by `task close` of
+  the activation_owner_task **** (the guard enforces that only the NAMED owner task may
+  flip it); a consumer's OWN `yitc-ops.yaml extensions:` adopt record switches the feature on for THAT
+  consumer alone, and a waive/silence fires nothing for them (the SPEC-0112 fail-closed declare-or-waive
+  pressure at that consumer's own `init` is UNCHANGED — it is per-consumer pressure, never a kernel gate).
+  Fleet completeness remains a report-only progress view. The kernel's own land verify reads no consumer's
+  live files (fixtures-only).
+
+  ## Rationale
+
+  Real pull: the 2026-07-04 T9 inspection unanimously GRADUATED `backup/restore-drill` (grade-only,
+  SPEC-0110 shape) and the follow-through was to expose it as a first-class ADOPTABLE catalog offering
+  (`t9-graduation-followthrough-stale-20260704`). already shipped the grade-only grader wiring +
+  reconciled the roster doctrine (kernel GRADES, operator RUNS); this spec is the catalog-packaging
+  follow-through it named. Prior-art: SPEC-0094 (the inaugural adoptable catalog extension) is the
+  structural analog for the marker + adopt-path; SPEC-0110 is the reused generic grader; SPEC-0112 is the
+  per-consumer declare-or-waive pressure at each consumer's own init.
+
+  ## Verification
+
+  Adoption probe (CHARTER §P3/§P8 — infra-class), both faces of the ONE claim "restore_drill freshness is
+  a discoverable, adoptable, grade-only offering":
+  - **catalog exposure (AC1 / consumer-read P8):** `bin/yitc-v2 graph query extensions-catalog` lists
+    SPEC-0162 with `adoptability: adoptable` + a non-null `adopt_path` (running the lens emits the
+    `cli_invoked` consumer-read evidence). Differential: a spec WITHOUT `extension: adoptable` would not
+    appear / would carry a null adopt_path.
+  - **live grade run (AC2 / live_trigger P8):** the kernel grader (`nightly._check_freshness` via the
+    DEFAULT adapter `_default_freshness_adapter`, `kind: command`) SPAWNS the reference adapter as a real
+    subprocess and grades a `restore_drill` pipeline to fresh / stale / miss + age, WITHOUT the kernel
+    running the operator drill ( lock). Differential: change the adapter's recorded pass-age and
+    the graded state flips fresh↔stale↔miss — a broken/never-run source grades MISS, not fresh.
+  - **per-consumer firing lock:** membership in the SPEC-0112 completeness set is decided MECHANICALLY by
+    `init._engine_catalog_members` (status==active filter), and firing for any given consumer is decided
+    SOLELY by that consumer's OWN yitc-ops.yaml record — an adopter grades, a waiver/silent consumer gets
+    nothing. No consumer state gates the kernel's activation or its land (fixtures-only suite).
+  Test: `tests/test_t10612_restore_drill_freshness_offering.py`.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - CHARTER.md#principle-8
+  - SPEC-0110
+  - SPEC-0093
+  - SPEC-0101
+  - SPEC-0112
+  -
+  - t9-graduation-followthrough-stale-20260704
+
+requires: []
+supersedes: ~
+activation_owner_task:
+# close flipped proposed→active as the NAMED owner task ( guard). No consumer
+# precondition — activation is kernel-local; per-consumer adopt records decide firing.
+proposed_by:
+# Work-first : the authoring task birthed this proposed spec. NOT the activation owner (that is
+# activation_owner_task above).
+binding:
+  - code-enforced
+# WIRED at activation by (the same tier as its siblings SPEC-0110/SPEC-0101/SPEC-0094): this
+# offering is enforced by KERNEL CODE, not a floor-trigger delivery — the SPEC-0110 `_check_freshness`
+# grader run from the L1 nightly does the grading, and the SPEC-0101 catalog view (`graph query
+# extensions-catalog`, bin/lib/graph.py) does the exposure. Was `[]` while proposed (a proposed spec is
+# not yet delivery-covered); an ACTIVE spec must carry a token (graph conformance delivery-coverage).
+init_concern: ~

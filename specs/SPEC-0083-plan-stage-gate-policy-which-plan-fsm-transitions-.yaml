@@ -1,0 +1,105 @@
+id: SPEC-0083
+title: Plan-stage gate policy — which plan-FSM transitions block on the external audit verdict
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+travels: ~ # UNMARKED = the spec class-default (kernel). The plan-gate policy IS
+                               # methodology a consumer pins — it travels.
+
+consumed: false # the policy is realized as CODE branches in cmd_plan_stage (the
+                               # blocking= / gate_policy= args), not a scalar param READ from this
+                               # spec (GRAPH `consumed:` whitelist) — stays false at active too.
+
+implements: # code-LINKED: the chokepoint that ENFORCES the policy ( audit-pre
+                               # F1) — non-dangling without a binding.
+  - bin/lib/plan.py#cmd_plan_stage
+
+body: |
+  ## Scenario
+
+  As a plan moves through its FSM (draft → specs → trial → accepted → decomposition → executing →
+  postcheck → realized), the transition verb (`plan stage <NEXT>`) asks the external auditor a
+  per-gate question template (homed in SPEC-0036 §Plan-stage overlays). This spec answers the
+  ORTHOGONAL question for each gate: does a bad verdict (RED/ABORT) HOLD the transition, or is the
+  verdict merely recorded while the transition proceeds? The owner sees ONE table: which plan
+  transitions are mandatory-blocking gates and which are advisory.
+
+  ## Internal
+
+  THE PLAN-STAGE GATE POLICY. Re-homed from SPEC-0036 §Plan-stage overlays ( stable-surface
+  split, SPEC-0005 §7) so the policy table has ONE home (P5); SPEC-0036 keeps a pointer and retains
+  the per-gate QUESTION TEMPLATES (a different concern — WHAT is asked, not WHETHER it blocks).
+
+  **Gate policy (one contract-line per gate):**
+  | Gate | Policy | Effect on transition |
+  |---|---|---|
+  | draft shaping (P1) | ON-DEMAND | owner-invoked `plan check`; advisory |
+  | draft→specs (P2) | MANDATORY-BLOCKING | `plan stage specs` asks `gate-specs`; RED/ABORT HOLDS the transition (status unchanged); the 2-pass audit-loop ceiling applies (ABORT burns no pass) |
+  | specs→trial (P3) | MANDATORY-BLOCKING (trial-eligible plans) | RED/ABORT holds the transition; ceiling applies |
+  | trial→accepted (P4) | MANDATORY-BLOCKING when a trial ran | RED holds; joins the accept-gate `plan check` prompt |
+  | decomposition→executing (P5) | MANDATORY-BLOCKING (every decomposed plan) | RED/ABORT holds; a fingerprint-fresh GREEN/YELLOW verdict required; ceiling applies (SPEC-0070 §3) |
+  | terminals (partial/rejected/cancelled) | NONE | `--reason` required by the verb; no audit |
+
+  All plan-level audits run FULL-capability (SPEC-0034 §Audit-posture).
+
+  **P2 made mandatory-blocking — the change this spec carries.** draft→specs was
+  AUTO-ADVISORY (the audit ran, the verdict was recorded, the transition NEVER held) with the
+  mandatory-vs-desirable question left OPEN (SPEC-0034 §Audit-posture). settles it: P2 is
+  MANDATORY-BLOCKING, wired the SAME inline-blocking way as the adjacent P3 gate-trial
+  (`_run_plan_gate_audit(..., "mandatory-blocking", blocking=True)`). Rationale: composing the
+  draft specs is a high-stakes design commitment; a RED draft-shaping verdict should hold the
+  transition, not be advisory-only — consistent with every other forward plan gate (P3/P4/P5 all
+  block). `specs→onward` was already mandatory (P3 blocks; the `specs→accepted` skip is gated by
+  the accept-gate `plan check`), so this aligns the one remaining advisory forward gate.
+
+  **Enforcement (code, single home).** Each gate's policy is realized as the `gate_policy` +
+  `blocking=` arguments to `_run_plan_gate_audit` in `cmd_plan_stage` (bin/yitc-v2). A
+  MANDATORY-BLOCKING gate `_die`s on a RED/ABORT verdict (transition held, status unchanged) and
+  enforces the 2-pass audit-loop ceiling (SPEC-0124 §Audit-loop ceiling); an ABORT burns no pass.
+  An ADVISORY gate records the verdict and always proceeds. This spec is the doctrine; the verb is
+  the chokepoint (`implements:` above).
+
+  ## Parameters
+
+  None consumed. The audit-loop ceiling constant (= 2) lives in its own home (SPEC-0124) — not
+  duplicated here.
+
+  ## Rationale
+
+  Prior-art: SPEC-0068 carved a stable surface out of SPEC-0055 (`supersedes: ~`, parent lives on)
+  — the same carve shape used here. The P2-P5 gate infrastructure already existed; the
+  policy table was a sub-surface of the large multi-concern SPEC-0036. Splitting the policy into
+  its own spec lets the normative P2 reshape (advisory→blocking) route cleanly through the spec FSM
+  (SPEC-0005 §7) without a normative in-place edit of an active spec, and gives the gate policy one
+  legible home (P5). Real driver: (owner-approved option A — settle the SPEC-0034 open
+  question).
+
+  ## Verification
+
+  - VP1 (P2 blocks): `plan stage specs <slug>` with a RED/ABORT `gate-specs` verdict REFUSES
+    (non-zero, no status write). Probe: tests/test_plan_stage.py RED-GREEN.
+  - VP2 (one home, P5): the gate-policy table lives ONLY here; SPEC-0036 carries a POINTER, not the
+    table. Probe: grep SPEC-0036 shows the pointer + retains the question templates.
+  - VP3 (code link): `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage` (non-dangling
+    without a binding).
+  - VP4 (activation): this spec resolves to exactly one `activation_owner_task`; closing
+    it flips proposed→active.
+
+cites:
+  - SPEC-0036
+  - SPEC-0034
+  - SPEC-0070
+  - SPEC-0035
+  - SPEC-0005
+  - CHARTER.md#principle-5
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by:
+binding: [code-enforced] # code-enforced contract (non-empty implements, realized by cmd_plan_stage); residency token, not a verb-fetch binding
+implements_signature:
+  bin/lib/plan.py#cmd_plan_stage: ee4be97f1d192fa17718bac9703082a938e9dd88c5c7e512790ce0609e293d10

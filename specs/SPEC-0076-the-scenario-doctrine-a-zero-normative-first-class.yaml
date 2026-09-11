@@ -1,0 +1,243 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0076
+title: 'The scenario doctrine — a zero-normative first-class user-path entity (graph node + covers edge), status FSM, enforcement split'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # currency/staleness; the DESIGN carrier for the scenario entity. Promotes
+                               # draft→proposed only via `plan stage accepted` on the proposing plan, and
+                               # proposed→active only via an activation_owner_task close (the mint).
+
+created_at:
+
+travels: ~ # UNMARKED = kernel class-default. Now `proposed` (a committed kernel
+                               # head): test_t0890 treats proposed as kernel-travelling, so the marker is
+                               # dropped (it was `v2-self` only while `draft`). The scenario DOCTRINE is
+                               # kernel methodology. (The v2-self scenario INSTANCES under scenarios/ stay
+                               # v2-self; a consumer authors its own.)
+
+consumed: false # process/design spec — no code reads a governing scalar param from it.
+
+implements: [] # DESIGN-STAGE mode (SPEC-0005 §7 mode b) — a draft not yet wired to a
+                               # concrete code anchor. At the mint, the implementing tasks fill durable
+                               # anchors: the graph node/edge registration (bin/yitc-v2 graph build), the
+                               # `covers` anchored-symbol resolver, and the per-stage check sites.
+
+amends: # canonical surfaces this doctrine DELIBERATELY changes (named per P7,
+                               # not silently diverged). Staged — takes effect only on activation (mint).
+  - : B3 "a scenario folds into a `## Scenario` spec-SECTION OR a scenario-PARENT spec" is
+      AMENDED for the CROSS-SPEC user-journey case — that journey is now the first-class scenario
+      ARTIFACT/node (rule 1/4), NOT a scenario-parent spec. The single-rule `## Scenario` spec SECTION
+      (one rule's external-behaviour face) is UNCHANGED — different altitude (rule 1).
+  - GRAPH.md#schema: the 6-node / 3-edge bound (post- slim) GROWS to 7 nodes (`scenario`) +
+      4 edges (`covers`) — the only schema change; the 4-filter justification for reversing the slim
+      lands in GRAPH.md at the mint (rule 4). No further node/edge growth implied (`FSM-state` deferred).
+  - scenario-section vocabulary ( §`## Scenario`/`## Internal`/`## Verification` model): the term
+      "scenario" now ALSO names the artifact/node; the spec-SECTION keeps its name (the collision is
+      acknowledged — a rename is an OPEN question carried in the plan, NOT decided by this spec).
+
+body: |
+  ## Scenario
+
+  The owner sees a **scenario** as the primary HUMAN-facing instrument for a project: a human-legible
+  description of a user-path (how the product works from the user's point of view), authored in human
+  terms — distinct from a spec, which is the primary teaching layer for the AI (rules → code). A
+  non-technical owner does not read specs but DOES hold the user-path model; the scenario answers
+  exactly that. It is also the owner's **bidirectional control surface**: FORWARD — authoring/correcting
+  a scenario steers the system (its normative content is extracted into specs + the FSM, all linked back
+  to the scenario); BACKWARD — any later change to a linked spec/FSM/code re-surfaces the scenarios it
+  touches, so a debugged user-path is not silently broken by further development.
+
+  ## Internal
+
+  THE SCENARIO DOCTRINE. A scenario is a FIRST-CLASS artifact (`scenarios/<slug>.md`) + a MINIMAL 7th
+  graph node-type. Eight rules. The 4 anti-complexity filters + the node-vs-edge / round-1..3
+  deliberation live in the proposing plan [[scenario-as-a-first-class-graph-entity-dogfood-on-]] (SPEC-0005
+  §3 content boundary — debate is plan material, not spec body); this spec carries only the standing rule.
+
+  ### 1. Identity & purpose
+  A scenario is a **zero-normative composition of specs into a user-path** + human narration. It is the
+  human's primary teaching/control instrument (the daily working entity), NOT a reference doc — which is
+  why it is a distinct node-type, not folded under `pattern` (a rarely-touched practice). It composes
+  specs; it never re-narrates the handbook or a spec's rule (a scenario that restates a rule is a drift
+  DEFECT, rule 7).
+
+  ### 2. Zero-normative boundary (OPERATIONAL — the absolute line)
+  A scenario may contain **narration + references (`cites`) + observed-path intent ONLY**. EVERY
+  enforceable rule / acceptance criterion / forbidden transition / binding ordering lives in the cited
+  spec / FSM / test — NOT in the scenario. Even a binding ORDER ("B requires A done first") is its own
+  ordering-spec the scenario `cites`; the order SHOWN in the scenario is purely descriptive assembly.
+  **Review REJECTS scenario-resident normative language** (a "must/always/never" that is an enforceable
+  constraint → extract to a spec + `cite` it). "Control surface" is a ROLE/workflow property (the human
+  drives THROUGH the scenario), never a STORAGE property — the scenario is never a second rules-home.
+
+  ### 3. Status FSM (minimal) — `draft → building → retired`, DERIVED from the cited specs
+  A scenario governs nothing, so it needs NO `proposed→active` activation gate and NO per-status verb.
+  The status is **DERIVED from the statuses of the specs the scenario `cites`** (a read-only view over
+  the graph the scenario already carries — NOT a hand-set label, NOT a cross-check against tasks). One
+  source of truth (the cited specs' FSM), so there is no second progress-language to diverge:
+    - `draft` — the scenario cites NO spec yet (only narration / un-authored rules): still being thought through.
+    - `building` — the scenario cites at least one spec: the path is the agreed target, being built.
+    - `live` — **RETIRED by; do NOT re-add it.** It read "ALL cited specs are `active` AND the
+      scenario's binding regression test (rule 6a) is green", with the green test as the
+      `building → live` transition mechanism. That test signal had NO producer in ANY repository — the
+      graph build hardcoded it False — so `live` was UNREACHABLE everywhere and every finished path read
+      `building` forever: a false negative indistinguishable from a genuinely unfinished path, and the
+      state said nothing anyone could act on. The retirement was settled by an external consult
+      (`decisions/four-forks-consult-audit-adhoc.yaml`, GREEN) against a two-arm reversal test — a CURRENT
+      caller needing `live` distinct from `building`, AND a cheap producer on an already-adopted signal —
+      of which only the first arm held (SPEC-0082's baseline-fidelity leg), so the state went and that leg
+      was retargeted onto the predicate that SURVIVED: "every spec the scenario cites is `active`"
+      (`_scenario_cites_all_active`, exposed as `cites_all_active` on the scenario node). Rule 6a's
+      regression-test obligation is UNCHANGED — a stabilized path is still captured as a test — it simply
+      no longer feeds a status. Re-introducing `live` needs BOTH arms, not just a producer.
+    - `retired` — human-set: the path is abandoned; stays in `scenarios/`, still referenced (mirrors spec `retired`).
+  So `draft → building` is a DERIVED read-only view; only `retired` is human-set. No new field beyond
+  `cites` + `status`; this REUSES the existing spec FSM + the rule-7 staleness-view machinery (no separate
+  detector). A stored `draft`/`building`/`live` in frontmatter stays ILLEGAL — the retired name included,
+  it was never legal to store. **The derived status carries WHICH rule-6 enforcement applies** (see rule
+  6): `draft` → none; `building` → structural hard-error (6b) once concrete anchors are declared +
+  staleness-WARN.
+
+  ### 4. Graph integration — +1 node, +1 edge, bounded
+  Reverses the deliberate v2 graph-slim cut (6 node-types) to **7 node-types (`scenario`)** and
+  **4 edge-types (`covers`)** — the only schema growth. (The 4-filter justification for reversing the cut
+  is homed in GRAPH.md at the mint + the proposing plan §Approach.)
+    - `scenario` node — a thin node (`scenarios/<slug>.md` frontmatter: `scenario`/`actor`/`status`/`cites`),
+      carrying `cites` like the `pattern` node (prior-art for node-reuses-`cites`: the `error` node).
+    - `covers` edge — `scenario → an anchor the graph ALREADY resolves TODAY` (the existing
+      `<file>#<symbol>` / `defined_in`-style anchor address space). **Scope guard (audit F1):** `covers`
+      targets ONLY anchors resolvable with the CURRENT graph anchor-space — it adds NO new
+      symbol-addressing/indexing substrate. A richer scenario↔FSM-state coverage (an addressable
+      state/transition symbol like `SPEC-XXXX#state:paid` that the graph CANNOT resolve today) is
+      therefore **OUT OF SCOPE for SPEC-0076** and requires its OWN spec to build the symbol-indexer — it
+      is NOT smuggled in here. A dedicated `FSM-state` node-type is likewise DEFERRED. So this spec's
+      schema change stays an HONEST EXACTLY +1 node + 1 edge (no hidden FSM-state layer).
+    - `cites` (reused, any→any) edge meaning is DERIVED from the typed endpoints — no new edge per relation:
+      `cites(scenario→spec)` = BINDS (a load-bearing rule the path passes through — binding by construction);
+      `cites(scenario→plan)` = design-input (the scenario→plan seam); `cites(scenario→scenario|pattern|doc)`
+      = composition/coherence link; `cites(plan→scenario)` = the plan's declared scenario INPUTS
+      (the scenario→plan seam from the plan side — a plan declares the user-path(s) it shapes by listing
+      scenario slug(s) in its own `cites:`, reusing the any→any edge; no new `scenarios:` field). The
+      coverage/coherence queries are VIEWS over the typed-cites graph.
+
+  ### 5. Authoring format — step-annotated cites + error branches
+  **The obligation is per-AUTHORED-item, NOT a coverage/completeness mandate (audit F3).** It constrains
+  only what IS written; the ABSENCE of a step or an error-branch is NOT itself a defect or a review-fail
+  (a scenario is descriptive composition, never a completeness/acceptance carrier — that would re-import
+  a normative-completeness criterion the rule-2 boundary forbids).
+    - Each AUTHORED step annotates its ONE governing anchor inline + a one-line role gloss
+      (`→ SPEC-XXXX — <gloss>`), OR is marked `(ungoverned)` for a deliberately ungoverned step (a
+      recognized non-goal). The gloss POINTS at the rule; it never RESTATES it (rule 2 / P5).
+    - **Error / negative branches, WHEN authored,** narrate the failure path descriptively and each
+      `cites` the spec whose `## Verification` carries the enforceable negative check (the test ORACLE).
+      Narration (scenario) + the enforceable check (spec `## Verification`) are complementary,
+      non-duplicating homes for "how it must NOT work" — the spec side stays the canonical oracle (rule 2
+      holds). Whether a given error-branch is worth authoring is a descriptive-completeness judgement, not
+      a rule the scenario must satisfy.
+    - Reusable blocks are factored out so scenarios compose shared sub-paths.
+
+  ### 6. Enforcement split — BLOCK ON FACT, never on suspicion (3 mechanisms on EXISTING stages)
+  A debugged user-path must not be silently broken by later development — but "block" is placed only where
+  the check can be RIGHT (so the graph never becomes a v1-style suspicion-gate):
+    - **(a) Regression of a debugged path → BLOCK via the TEST** (the one sanctioned V2 gate: tests green =
+      commit). A stabilized path is captured as a test (scenario path + the cited specs' negative checks =
+      oracle); later work that breaks it FAILS the suite. The scenario↔test binding makes a stabilized
+      path un-silently-breakable. (This obligation is unchanged by retirement of the `live`
+      STATUS — the test still gates regressions; it no longer feeds a status.) (Runs inside the existing Tests stage.)
+    - **(b) Broken REFERENCE → HARD ERROR, deterministic, SCOPED — FACT-only, not a legality validator
+      (audit F2)** — a scenario whose `covers`/`cites` target does NOT RESOLVE (a dangling anchor: the
+      referenced state/transition symbol or spec does not exist) fails like a broken reference / type
+      error (zero false-positive). The check is the FACT of non-resolution ONLY. It does **NOT** judge
+      transition LEGALITY ("the FSM forbids this transition") — that is semantic validation, which
+      contradicts "graph is not a validation layer" (GRAPH §What graph is NOT) and would re-open v1-style
+      gate creep; legality is left to TESTS or a read-only view, UNLESS a separate normative spec later
+      supplies a machine-checkable legality model. **Scoped to scenarios that declare concrete anchors**
+      (`building`); exploratory/pre-binding `draft` stays OUTSIDE. (At scenario/FSM-spec write-time.)
+    - **(c) Staleness / "zone touched" → read-only WARN** — the graph sees only STRUCTURAL overlap ("you
+      touched a spec scenario X cites"), not actual breakage, so it points at what to re-verify; the TEST
+      (a) decides. TWO DISTINCT LENSES, each keyed on its own question (X-1077 — keying both on
+      the TASK's cites made the staleness label name a defect it did not detect):
+      the IMPACT lens keys on the TASK's `cites` ("you are about to edit a spec these user-paths pass
+      through — re-verify them") and is delivered at Analysis; the STALENESS lens keys on the SCENARIO's
+      OWN `cites` — a scenario citing a spec that is no longer `active`, exactly the §7(2) signal — and is
+      TASK-INDEPENDENT: a stale file is named whether or not the task in hand cites it, and a re-pointed
+      one stops being named.
+  **Placed on EXISTING lifecycle stages, no new FSM state / gate / parallel lifecycle (B-0 bound):**
+  Analysis = impact-WARN, write-time = structural hard-error (b), Tests = regression-block (a),
+  claim + Analysis + Audit-post + Closure = staleness-WARN (c) — delivered EARLY as well as late,
+  because a stale citation surfaced only after the editing is done is a finding nobody can act on in
+  the pass that raised it. At PLAN altitude the `draft→specs` / `accepted→decomposition`
+  coherence check is transition-VALIDATION folded into the existing `plan stage` transition — NOT a new
+  verb/review-loop/approval gate.
+
+  ### 7. Drift-resistance (the design is sound only if all three hold)
+  A scenario is drift-RESISTANT iff: (1) zero-normatives (rule 2) — it restates no rule, so it can only go
+  stale on the STATUS of what it cites; (2) machine-checkable `cites` (rule 4) — "cites a superseded/retired
+  spec" is a QUERYABLE staleness signal, never silent; (3) a read-only staleness VIEW for human/AI
+  adjudication (NOT auto-fix — graph = visibility, not a validation layer). Distinguish COSMETIC drift (cite
+  target renamed/superseded, rule unchanged → cheap machine re-point) from a GENUINE path-change (the rule
+  changed how the path behaves → update the scenario; that is correctness, not drift).
+
+  ### 8. Anti-complexity bound (what this is NOT)
+  The whole footprint is **one artifact + one node + one edge + checks on existing stages**. NO new
+  lifecycle FSM state, NO parallel scenario-lifecycle, NO new gate cascade, NO automatic semantic
+  conflict-detector (the graph surfaces; human/AI adjudicates under P7), NO `FSM-state` node-type (deferred).
+  Minting the node-type requires the 4 filters + owner approval at authoring (the negative probe, rule below).
+
+  ## Rationale
+
+  Prior-art (CHARTER §P1 F4): v1 first-class `SCN-*` graph nodes; external BDD feature-files / UML
+  use-cases / user-story maps; production yitc-consumers — Boomrocket (`SCN ↔ FSM ↔ code`, 67 YAML,
+  `error_class` branches), kupiclub + aiseller `scenarios/` dirs; the live v2-self recurrence (Review/Build
+  micro-scenarios). The distinct node-type (not `pattern` reuse) is settled on the **primary-instrument**
+  argument (the scenario is the owner's daily control surface, managed/dashboarded AS A CLASS) + the
+  asymmetric multi-project retrofit cost (CHARTER §P1 scale-aware refinement) — full deliberation in the
+  proposing plan (3 external-audit rounds, all YELLOW-absorbed).
+
+  ## Verification
+
+  Adoption probes (verified at the mint, not while draft):
+  - graph indexes a `scenario` node; a `covers` edge resolves to an anchor the graph ALREADY resolves
+    today (a dangling `covers`/`cites` target → the rule-6b broken-reference hard-error; legality is NOT
+    checked); a target needing a new symbol-indexer is out of scope (rule 4).
+  - status is DERIVED, not hand-set: a scenario citing a spec reads `building`, one citing none reads
+    `draft` (rule 3); whether every cited spec is `active` is carried by the node's `cites_all_active`.
+  - the α (type-vs-cited-territory) + β (ungoverned-step) integrity queries surface on real scenarios
+    (already demonstrated on the v2-self dogfood under the existing carrier, no schema change — the
+    proposing plan's §Amendment 2026-06-16 session-3 + `scenarios/_dogfood-integrity-output.txt`).
+  - the scenario-staleness VIEW surfaces a scenario whose cited spec changed status (read-only, never a gate).
+  - NEGATIVE probes (the anti-complexity guard): a scenario that RESTATES a spec's rule FAILS review
+    (rule 2); the node-type is NOT minted without the 4-filter justification + owner approval; NO automatic
+    semantic conflict-detector is.
+
+cites:
+  - scenario-as-a-first-class-graph-entity-dogfood-on- # the proposing plan (deliberation + 4 filters)
+  - SPEC-0005 # spec doctrine — content boundary, FSM, homing (this spec authored under it)
+  - SPEC-0073 # placement contract — scenarios/ classification
+  - SPEC-0034 # plan lifecycle — draft→specs→accepted births/promotes this draft
+  - GRAPH.md#schema # the 6-node/3-edge bound this proposes to grow to 7/4
+  - # spec lifecycle + B3 scenario-as-spec-section (the prior model this supersedes-in-role)
+  - # the `error` node — prior-art for node-reuses-`cites`
+  - CHARTER.md#principle-1 # anti-complexity (4 filters + scale-aware refinement)
+  - CHARTER.md#principle-5 # single source of truth (one home; zero-normative boundary)
+  - CHARTER.md#principle-7 # dissonance — collision adjudication is human/AI, not an auto-detector
+  - scenario-carrier-position-round2 # the round-2 external consult (YELLOW-absorbed)
+  - scenario-integration-round3 # the round-3 external consult (YELLOW-absorbed)
+
+requires: [] # no blocking spec-level ordering — design-stage draft.
+supersedes: ~ # does NOT supersede a spec; it supersedes-IN-ROLE the B3
+                               # "scenario = a spec section" model (a doctrine shift, recorded in cites/plan,
+                               # not a spec supersession edge).
+activation_owner_task: # set at decomposition (plan scenario-...-dogfood); the integration/verifier card flips proposed->active at the mint (SPEC-0005 §5).
+proposed_by: scenario-as-a-first-class-graph-entity-dogfood-on-
+binding: [query-only] # mint: query-only residency (SPEC-0007 §5a) — this doctrine
+                               # is a RETRIEVED reference fetched on demand (handbook pointer-stubs in
+                               # LIFECYCLE §Scenario authoring + GRAPH.md + `graph query SPEC-0076`), NOT
+                               # read before a gated verb and NOT code-as-delivery (implements stays []).
+                               # The per-stage checks (rule 6) ride EXISTING stages via code (graph build
+                               # §6b + the impact/staleness WARNs + the integrity test); no new token minted.

@@ -1,0 +1,241 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0174
+title: 'HTTP-reachability offering — the project declares and runs the edge probe, the kernel grades only the freshness of its result'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: kernel # RE-PINNED at plan-accept 2026-08-07 (SPEC-0073 §3 explicit act, plan-check finding 3): a consumer-adoptable catalog member travels, matching its siblings SPEC-0162/SPEC-0164. Born v2-self as the prescribed plan-local draft value.
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: adoptable # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # = Anchors. durable anchors : PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+  - dev-utilities/reference-http-reachability-freshness-adapter.py#run_probe
+  - dev-utilities/reference-http-reachability-freshness-adapter.py#grade_http_reachability_freshness
+                               # wired the REFERENCE ADAPTER anchors this spec's own
+                               # design-phase note mandated ("the reference adapter template...
+                               # wired by the tasks this plan cuts"): the exemplar's PROBE half
+                               # (the project's own request) + its READ-ONLY grading half. The
+                               # grader-contract anchor stays with SPEC-0110, which owns it.
+                               # DESIGN-PHASE ( B5) — anchors land with the implementing cards,
+                               # NOT because none are owed. Rule 6 names the one code surface this
+                               # offering does touch: the normalized freshness-result contract + its
+                               # aggregation (the reachability-OUTCOME axis rule 3 requires). That
+                               # anchor, plus the reference adapter template, are wired by the tasks
+                               # this plan cuts. Completeness-set membership needs no anchor — it is
+                               # DERIVED from status:active + extension:adoptable, never a hand-list.
+
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  A project that serves live traffic can find out that it is DOWN through a standing surface it
+  declared itself — not only when a human happens to look. The project declares an HTTP-reachability
+  probe, names the address that probe reaches, and RUNS it on its own cadence. The kernel never issues
+  the request; it GRADES the freshness of the recorded result and surfaces a stale or failing one in
+  the debt echo unprompted. A project that has declared nothing is VISIBLY undeclared at its own
+  completeness sweep, instead of being indistinguishable from a project that is covered.
+
+  ## Internal
+
+  ### 1. The offering (what a consumer adopts)
+  An ADOPTABLE catalog member: the consumer declares a reachability probe as a read-only
+  result-age adapter and cites this spec in its own extensions block; the kernel grades the age of the
+  result against the declared SLA. Adopt-and-cite — never copy or fork the kernel grader. The adapter
+  shape, the extension/catalog mechanics and the declare-or-waive completeness machinery are homed in
+  their own specs and are NOT restated here; this spec adds the OFFERING and its two rules below.
+
+  ### 2. Grade-only is the boundary, and it is absolute
+  The kernel performs NO outbound request of its own on this capability's behalf — not to verify the
+  target, not to confirm a failure, not as a fallback when a result is missing or stale. A missing or
+  stale result grades as missing-or-stale; it never escalates into the kernel fetching the address
+  itself. This is the boundary the whole offering rests on: the kernel grades a RECORD produced by the
+  project, and the project owns every act of reaching its own runtime.
+
+  ### 3. Fresh-and-failing is its own outcome, never collapsed into stale or missing
+  The freshness vocabulary this capability borrows carries fresh, stale and missing, and NONE of those
+  three means "the probe ran fine and the subject is DOWN". Left alone a down target normalizes to
+  stale-or-missing and BAD NEWS is filed as NO DATA, so a reader cannot tell "we could not see" from
+  "we saw, and it is broken". An adopting adapter's result MUST therefore carry an explicit reachability
+  OUTCOME beside its freshness state, and the grade MUST surface a FRESH FAILING result as FAILING,
+  distinct from stale, from missing, and from silence. A rendering that shows a fresh failure as any of
+  those three does not satisfy this spec. This is the same invariant its sibling states for inspection
+  results, applied to a graded capability: no-data, bad-news and clean are three different things, and a
+  surface that renders any two of them identically is false-green by construction.
+
+  ### 4. The named target — ADVISORY on edge-ness, MANDATORY on naming
+  The declaration MUST name the address its probe reaches, and the grade MUST record what was named.
+  Reaching the LIVE EDGE rather than an internal address is ADVISORY, not enforced. The asymmetry is
+  structural, not a preference: the kernel cannot verify that an address IS the live edge without
+  REQUESTING it, and requesting is exactly what rule 2 forbids — so edge-ness is not merely hard to
+  enforce, it is unreachable without breaking this spec's own boundary, and a rule that cannot be
+  checked must not be written as though it were.
+  What this buys instead is LEGIBILITY: a declaration with no named target is REFUSED; a declaration
+  naming an internal address is ACCEPTED, and that address is visible to any reader of the grade. A
+  probe that quietly reaches past the live edge stops being invisible, which is the whole failure this
+  offering exists to answer.
+  WHERE THE TARGET LIVES AND WHO REFUSES. Both halves ride seams that already exist, so this rule adds
+  no kernel validator. DECLARATION side, the refusal: the target is named in the freshness-section
+  reference for this offering's adapter kind. The carrier spec already fixes what that section holds —
+  the declare-or-waive marker, the reference NAMING the project's adapter, and the observed-evidence
+  state — so this is ONE required field on that reference for this kind, and the refusal is the EXISTING
+  declare-or-waive completeness check finding an incomplete declaration. The carrier's "no values copied
+  in" discipline is about per-pipeline THRESHOLDS, which stay in the adapter; a target address is the
+  subject being declared, not a threshold. GRADE side, the legibility: the adapter reaches the address,
+  so the adapter is the single source of what was actually reached and reports it in its normalized
+  result, which the grade records. The kernel does NOT compare the declared target with the reached one
+  and issues no request of its own: comparison would need an equivalence judgement it has no basis for,
+  and rule 2 forbids the only way it could check. A divergence is left VISIBLE to a reader rather than
+  adjudicated, which is precisely the legibility this rule buys.
+
+  ### 5. Activation is kernel-local, firing is per-consumer
+  This spec becoming active is a KERNEL-local act with no fleet precondition and no fleet gate. Being
+  active and adoptable places it in the completeness set, so each consumer owes a declare-or-waive at
+  ITS OWN next init — per-consumer fail-closed pressure at that consumer's own gate. A consumer's own
+  record, never this spec's status, decides whether the capability FIRES for that consumer, and a
+  waive is a COMPLETE answer. One project's answer switches only that project.
+
+  ### 6. What this does NOT add — and the ONE thing it does
+  No monitoring subsystem, no new carrier section, no new event type, no new store, no new grader, and
+  no kernel reach into a project's runtime. The capability is one more row in a mechanism that already
+  runs, on the already-generic project-neutral grader.
+  It DOES extend that grader's normalized result contract by exactly ONE axis — the reachability
+  OUTCOME rule 3 requires, and the aggregation that renders a FRESH FAILING result as FAILING. Stated
+  plainly because the narrower claim «adds no grading code at all» is FALSE and load-bearingly so: the
+  borrowed vocabulary is the closed set fresh|stale|miss and the aggregation treats every non-`fresh`
+  state as the alert, so a result carrying «probe fresh, subject DOWN» grades CLEAN and surfaces
+  nothing, while the only states that would surface it are the two collapses rule 3 forbids. Rule 3 is
+  therefore unreachable on the untouched grader; one bounded axis is what it costs, and no reader
+  should plan against the cheaper claim.
+
+  ### Retirement — what this removes
+  The drift «availability coverage is per-project ad-hoc craft with no catalog home, so a project that
+  HAS it and a project that LACKS it look identical to every kernel surface» CEASES. Once this is a
+  catalog member, an uncovered project is visibly undeclared at its own completeness sweep rather than
+  silently uncovered. Retiring any project's OWN superseded health script is that project's act, never
+  the kernel's.
+
+  ## Parameters
+
+  None consumed. The per-project freshness SLA is a project declaration, not a kernel constant.
+
+  ## Rationale
+
+  A live consumer had no standing way to know it was down: everything it ran fired at a seam or on a
+  producer's cadence — an inline post-deploy health gate, a per-change deploy-seam probe, a
+  rollback-carve-out liveness gate, and a freshness adapter over data pipelines — and its own
+  alert-routing declaration named the residual out loud: a backend that dies outright, a wedged worker
+  or a failing deploy emit nothing and reach a human only when someone looks.
+
+  The sharper half is that this was a REGRESSION, not a never-had: a dedicated daily health cron
+  existed and was silenced during the v1→v2 migration as a leftover, nothing replaced it, and the loss
+  went unnoticed for five weeks. The nearest surviving cover reached the backend directly rather than
+  through the live edge, so an edge or TLS failure was invisible to it — which is precisely why rule 3
+  makes the target legible.
+
+  The shape is pinned by precedent, not designed here: an existing grade-only freshness offering is the
+  exact analog and the owner's chosen form. The demand arrived as a consumer's own pull-signal against a
+  catalog whose adoptable members it had already fully answered — this is a missing member, not a
+  skipped capability.
+
+  ## Verification
+
+  - **VP1 (grade-only boundary — the one that must not slip):** with the project's probe removed, the
+    kernel grades missing/stale and issues ZERO outbound requests from the grading path — observed, not
+    read off the code. Any outbound request from that path is the failing input.
+  - **VP2 (freshness grading):** a result older than the declared SLA grades stale and surfaces in the
+    debt echo; a fresh one does not. The stale case must go RED before the implementation exists.
+  - **VP3 (per-consumer switching):** flipping ONE project's record changes ONLY that project's
+    grading; a non-adopting project sees nothing fire and gates nobody else.
+  - **VP4 (named target):** a declaration with NO named target is refused; a declaration naming an
+    internal address is accepted AND that address is legible in the recorded grade. Both halves must be
+    demonstrated — the refusal alone would leave rule 4's legibility claim unproven.
+  - **VP5 (fresh-and-failing, rule 3):** a FRESH result reporting the target unreachable renders as
+    FAILING and surfaces as such. The failing inputs are the three collapses: the same result rendered
+    as stale, rendered as missing, or rendered as nothing at all. This probe carries the capability's
+    core claim — that a project which is DOWN finds out — so a suite that proves VP2 but not VP5 has
+    proven the plumbing and not the purpose.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - SPEC-0162
+  - SPEC-0110
+  - SPEC-0112
+  - SPEC-0101
+  - SPEC-0164
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: http-reachability-as-an-adoptable-grade-only-offer
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding:
+  - code-enforced # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

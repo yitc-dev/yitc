@@ -1,0 +1,77 @@
+id: SPEC-0010
+title: Auto-sync the journal on every CLI verb
+
+status: active
+
+created_at:
+# revision (2026-06-04): re-verified vs bin/lib/cli.py#_auto_sync after / — the
+# symbol-region drift is docstring-only; the around-dispatch · exit-independent · two-exclusion ·
+# ON-default invariant is UNCHANGED (the docstring itself: "the sync still RUNS for reads; only its
+# FAILURE is non-fatal"). Non-normative re-anchor of the freshness baseline; invariant text untouched.
+
+consumed: false # no code reads a scalar param from this spec; the contract is enforced
+                               # by the existing _auto_sync control-point, not a config read.
+
+implements: # durable anchor : the control-point that ENFORCES the contract.
+  - bin/lib/cli.py#_auto_sync
+
+binding:
+  - code-enforced # : explicit code-enforced residency token (implements: IS the delivery)
+
+body: |
+  ## Scenario
+  The owner never has to remember to "sync the journal". Whatever CLI verb they run, the durable
+  journal (events.jsonl) is brought up to date as a side-effect, so cross-session state is never
+  silently stale because a sync step was forgotten.
+
+  ## Internal
+  **Rule (invariant):** every `bin/yitc-v2` CLI verb runs `_auto_sync` around dispatch BEFORE the
+  verb's own effect, for ALL non-excluded verbs **including read-only ones**, and INDEPENDENT of the
+  verb's exit status (a failing verb must not skip the sync). Sync is **ON by default**.
+
+  **The ONLY opt-OUT verbs are exactly two — `journal sync` and `land`** — excluded to avoid
+  recursion / self-observation (`journal sync` IS the sync; `land` runs its own integrate-time sync).
+  No third exclusion is added without amending this spec.
+
+  **MODE amendment — the `--read-only` skip is on the MODE axis, not the verb axis.** The
+  opt-out VERB set above is still exactly two and is UNCHANGED. Additionally, `_auto_sync` is skipped
+  entirely under the `-C <path> --read-only` evidence mode — for a reason the verb axis cannot express:
+  the sync WRITES (it materializes `journal-sync-state/` into `REPO_ROOT` and appends events), and in
+  that mode `REPO_ROOT` is a foreign checkout this session has promised not to write to. So the skip is
+  a property of the TARGET, not of the verb — every one of these verbs still syncs normally in every
+  other invocation. Nothing about around-dispatch invocation, exit-status independence or the sync-ON
+  default changes outside the mode. This amendment is the amending §Rule requires; the mode's own rule
+  is homed in **SPEC-0078 §5** and is not restated here (SPEC-0005 rule 8).
+
+  **Why a read-only verb still syncs:** events.jsonl is **replayable derived state** (the provider
+  transcript is the authoritative origin), so a read-only session leaving transient allowlisted dirt
+  on `main` is intentional and FOLDABLE by the next `land` — not substantive drift. This is what makes
+  always-on sync safe.
+
+  An editor changing CLI dispatch, adding a verb, or touching `_auto_sync` MUST preserve: around-dispatch
+  invocation · exit-status independence · the exactly-two opt-out set · sync-ON default.
+
+  ## Rationale
+  Blind-zone incident ( origin, 2026-05-30): without a control-point sync, cross-session journal
+  state silently lagged — a verb could act on stale truth. Homing the rule here makes the contract a
+  durable, analyzable invariant instead of an inline code comment. Prior-art: the rule was authored as
+  decision (now historical-only, migrated here — Part F leg B). Extends the
+  control-point-sync doctrine ( §cache argument; CHARTER §P5 derived-state-is-committed).
+
+  ## Verification
+  Probe (observable): a read-only verb emits a sync side-effect (e.g. `task list` brings events.jsonl
+  current), and the two excluded verbs do NOT recurse/double-sync. Grep proof of the contract home:
+  this spec's `## Internal` states the around-dispatch + exit-independent + two-exclusion + ON-default
+  rule. (This spec does NOT claim sole/exclusive normative authority — that anchored phrase belongs
+  only to SPEC-0008's retirement-authority rule, per VP7.)
+
+cites:
+  - decisions/-auto-sync-journal-on-all-cli-verbs.yaml
+  - specs/SPEC-0008-new-standing-governance-rules-are-authored-as-spec.yaml
+  - CHARTER.md#principle-5
+
+requires: []
+supersedes: ~
+proposed_by:
+implements_signature:
+  bin/lib/cli.py#_auto_sync: 89b9c797f9ed359d2a9b22285283f879484b200fb7d745f4528297e1aaa563eb

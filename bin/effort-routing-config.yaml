@@ -1,0 +1,38 @@
+# Effort-tier routing — maps a task's effort_tier to the background-dispatch worker's
+# (model, effort). SPEC-0072. The SOLE tier->model/effort source: `dispatch` reads this
+# file, never a hardcoded model id (SPEC-0072 §3 / AC2). Owner-editable DATA.
+#
+# CHARTER §P4b: provider-neutral normative text; concrete model/effort bindings live HERE,
+# not in the handbook. The task FIELD names only a tier (`normal`/`critical`) — so a
+# multi-provider future is a config edit, never a field/verb change.
+#
+# Routing is by STAKES, not difficulty (SPEC-0072 §4): bench real-pilot-1 found subjective
+# quality a tie across difficulty, so `critical -> high` buys tail-risk insurance on
+# irreversible/wide-blast changes; `normal -> low` is the value default for everything else.
+#
+# PRECEDENCE: an explicit `dispatch --model/--effort` override WINS per-field over this map
+# (SPEC-0072 §2). FAILURE MODE: a KNOWN tier (`normal`/`critical`) that this map does not
+# resolve to BOTH a model and an effort -> `dispatch` FAILS CLOSED (refuses to launch) rather
+# than silently downgrade a critical task to the provider default (SPEC-0072 §3).
+
+tiers:
+  normal:
+    model: the AI provider-opus-5
+    effort: low
+  critical:
+    model: the AI provider-opus-5
+    effort: high
+
+# Warm-worker task-cap — per worker MODEL, the max tasks a single warm (reused) background worker
+# should be assigned in one dispatch wave (SPEC-0136 Axis-B sizing input; SPEC-0072). Keyed by
+# provider-neutral worker MODEL id (same id space as `tiers.*.model` above), NOT a worker-type
+# abstraction. Calibrated by the parent plan mechanize-dispatch-queue-building-into-a-read-only
+# §Resolved: a larger-context opus worker holds ~3 tasks per warm session; a <external-auditor> worker ~1.
+# The reader (_resolve_warm_worker_cap) FAILS CLOSED (refuses) on an unknown model — never a
+# silent default (SPEC-0136 Axis-B must not over-pack a warm worker off a missing calibration).
+max_tasks_per_warm_worker:
+  the AI provider-opus-5: 3 # inherits the the AI provider-opus-4-8 calibration (same 1M-context opus tier;
+                     # owner directive 2026-07-26). Recalibrate only if warm-worker
+                     # packing shows friction — no speculative bench.
+  the AI provider-opus-4-8: 3
+  gpt-5.5: 1

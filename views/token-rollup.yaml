@@ -1,0 +1,14 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: token-rollup
+description: Per-session token usage + read-time cost — summed from raw provider transcripts (archive + live) x current bin/pricing-config.yaml rates.
+lens:
+  kind: token-rollup # pure f over raw transcripts + pricing config; NOT f(graph) — reads no index data
+why: >-
+  The reroute (owner 2026-06-05) killed journal materialization of token usage: raw transcripts
+  are ARCHIVED per session (.yitc/transcript-archive/, Duty 1 of the cron-auto-sessions plan) and
+  numbers are computed AT READ-TIME — tokens from the archive x CURRENT rates (bin/pricing-config.yaml,
+  estimate-marked owner data; price never stored, stored price poisons comparisons). This lens IS that
+  read-side: per-session token fields grouped by model + cost_usd, feeding the task-scorecard view
+  (PART-2 scope 1) and the PART-3 benchmark scorecards. Pre-flight HARD-FAILS on a missing/empty/stale
+  archive (fail-closed per the task scope) — the fix is the Duty-1 rsync, named in the error.

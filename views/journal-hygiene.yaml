@@ -1,0 +1,29 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: journal-hygiene
+description: Weekly report-only hygiene digest — journal growth (events.jsonl size vs the 10MB rotation trigger) + untriaged deviation-capture pressure (the watermark-derived UNROUTED backlog, NOT kind-absence). A one-glance pairing of the two operational-pressure numbers for the weekly Review; composes the existing readers, no new store. Run `bin/yitc-v2 graph query journal-hygiene`.
+lens:
+  kind: journal-hygiene # journal-reading digest: pure f over events.jsonl — size via.stat +
+                          # total line count for growth; untriaged pressure via _last_triage_watermark
+                          # + _scan_captures (the triage-state basis). The size threshold reads the
+                          # shared _JOURNAL_ROTATION_BYTES constant (the SAME value displacement-
+                          # retention surface #1 checks — `> 10 MB`, one home). Recomputed
+                          # fresh, writes nothing.
+why: >-
+. A weekly operational-hygiene glance needs the two journal-pressure numbers together, in one
+  compact report — journal GROWTH (is events.jsonl approaching the rotation trigger?) + untriaged
+  deviation-capture PRESSURE (how big is the genuine triage backlog?). The three neighbours each touch a
+  signal but none is that glance: trend-report is the WINDOWED multi-section L4 ревизия feed (needs
+  --since/--until), triage-state is the per-capture routed-MARKER list, displacement-retention is the
+  multi-surface fired/acted trigger checklist. This lens is the thin digest pairing exactly the two
+  headline numbers, pointed at by a weekly roster row (patterns/inspection-criteria-roster.md). Anti-cx
+  (P1): it EXTENDS the saved-view family ( — same _run_view dispatch + views/ catalog as
+  trend-report / triage-state / displacement-retention), adds NO store, NO new reader, NO command family,
+  NO journal writer; the size half reads the shared _JOURNAL_ROTATION_BYTES constant (P5 single-source —
+  no second hard-coded threshold; the audit-pre finding) and the pressure half reuses the triage-state
+  watermark readers VERBATIM. It retires the ad-hoc "eyeball two views / re-measure journal size by hand
+  weekly" step (F3). The untriaged number is the watermark-derived UNROUTED backlog (SPEC-0055), NOT
+  kind-absence — kind is OPTIONAL at capture ( §2) and routing never backfills it, so
+  `kind:null == untriaged` overcounts; `kind_absent` is reported as a LABELLED informational aside only
+  (P7). Report-not-block; `graph query journal-hygiene` emits a cli_invoked observability event
+  so consumption is durable evidence.

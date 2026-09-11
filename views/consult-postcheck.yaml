@@ -1,0 +1,75 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: consult-postcheck
+description: The ceiling-consult EPISODE fold SPEC-0200 rule 9 defines — per-episode R (retest rounds, median_low), the four per-group outcome shares (proceed / terminal / owner-held / open, summing to 1), the contract-violation kinds and the completeness-failure total, all read from the DURABLE journal rows and never from the rewritable consult record, and rendered again split by auditor model. Run `graph query consult-postcheck [--since <date>]`.
+lens:
+  kind: consult-postcheck # pure f over the journal, ONE pass: `external_audit_completed` rows
+                            # carrying `episode_id` are grouped by (target, stage|gate) — the episode
+                            # id MINUS its attempt ordinal, never by episode; R per episode = rows of
+                            # `round_kind: retest`, malformed or not (SPEC-0200 rule 4's one
+                            # definition); the DENOMINATOR is the ceilinged non-consult audit rows
+                            # (`passes` at the SPEC-0124 ceiling) LEFT-JOINED with the episodes, so a
+                            # ceilinged key with NO consult row folds `open`; the per-GROUP outcome is
+                            # its LAST episode's, with an ended terminal/owner-held group counted only
+                            # once its owner route is complete on the TARGET's own durable state, and
+                            # `terminal_reason: target-closed` DERIVED from the target's closure.
+                            # Reuses the shared segment-aware journal reader + the shared window
+                            # predicate (P1). Recomputed fresh, writes nothing, emits nothing.
+why: >-
+  SPEC-0200 rule 9 + the proposing plan's §Realization-exit criteria. The contract's whole claim is
+  that a post-ceiling consult CONVERGES — one frozen baseline, retests scoped to unresolved ids, a
+  bounded four-call episode — and that claim is only checkable if someone can read, over a real
+  window, how many retests episodes actually took and how many groups actually reached PROCEED. That
+  reading is a fold, not a new mechanism: the quantities already ride the existing
+  `external_audit_completed` row (rule 9's eleven episode fields), and this lens is the reader.
+
+  IT READS THE ROWS, NEVER THE RECORDS, and that is the load-bearing choice. The consult record at
+  `saved_to` is REWRITTEN IN PLACE by every round of its episode, so a fold built on it would see only
+  each episode's last round and would silently lose every earlier round's R, violations and escapes —
+  reporting a converged fleet from a corpus that cannot show divergence. So the durable journal row
+  carries the measurements (rule 9's B13) and `saved_to` is provenance only. The probe deletes every
+  `saved_to` file before folding, so a fold that quietly depended on one fails rather than passes.
+
+  THE GROUPING UNIT IS (target, stage|gate), NEVER THE EPISODE. A target that was reopened after an
+  owner-held terminal has two episodes and is still ONE subject; counting episodes would let a group
+  that converged on its second attempt also carry its first attempt's owner-held as though it were a
+  separate case, and would inflate the denominator with the very reopenings the contract expects.
+  The differential is exercised as a tripwire: the same fixture grouped by episode reads a different
+  proceed_share, and the test asserts the correct unit.
+
+  TWO RULES EXIST SO AN UNFINISHED FLEET CANNOT FOLD TO A FALSE GREEN. A group whose last episode has
+  not ended folds `open`, not `proceed`; and a group whose last episode ENDED `terminal` or
+  `owner-held` counts as such only once its OWNER ROUTE is complete on the target's own durable state
+  (a task parked with a `return_trigger`, or `wont-do`, or closed, or a later episode; a plan at an
+  FSM terminal or reopened on the gate) — else it folds `open` too (B10). A card that hit the ceiling,
+  rested on an owner HOLD and was then simply left alone is unresolved work, and a postcheck that
+  scored it `terminal` would read a stalled fleet as a finished one. The mirror rule keeps the reading
+  honest in the other direction: an episode ended by the TARGET's own closure folds `terminal` with
+  `terminal_reason: target-closed`, DERIVED here from `closed_at` / the plan FSM and never emitted by
+  a round, because a round cannot know its subject will later close — without the derivation that
+  episode would stay an unfinishable debt no owner action could clear.
+
+  `median_low` EVERYWHERE (statistics.median_low), for the same reason the contract fixes it: R is a
+  count of auditor retests, so an even set must never produce «1.5 retests», a figure no one can act
+  on. And the four shares partition the denominator by construction, so they sum to 1 — a group is
+  assigned exactly one outcome, and the summation is reported rather than assumed.
+
+  HONEST BOUND ON THE DENOMINATOR, stated here because a reader deserves it before drawing a
+  conclusion. Rule 9 defines the denominator as the existing audit rows whose `passes` reached the
+  SPEC-0124 ceiling — but no live `external_audit_completed` row carries a `passes` key at all
+  (measured on this repo 2026-09-06; `passes` lives on the saved YAML record). Over a journal whose
+  emit carries the field the denominator is exact; over today's the ceilinged leg contributes nothing,
+  and the view SAYS SO in `denominator.bound` rather than reporting an empty result as health
+  (: an absent instrument is not a passing measurement). Adding that emit is the live-emission
+  axis owned by the C3 activation card, not by this lens. The same holds for the whole surface at the
+  moment it ships: card C4 is INERT by construction — nothing live emits the eleven episode fields
+  yet, so this lens reads an empty corpus and says that plainly.
+
+  Report-not-block : a low `proceed_share` or a non-zero `completeness_failures` is a SIGNAL
+  the plan's postcheck reading acts on, never a gate — no code escalates (CHARTER §6 fence). No new
+  store, no new event type, no new verb class, no persistence, no cache: it composes the existing
+  segment-aware journal reader (SPEC-0190 rule 4) and the existing shared window predicate, under the
+  ONE request-scoped ReadScope installed at its wiring site (SPEC-0190 rule 10 — never a per-view
+  cache). The view MECHANISM (lens dispatch / views/*.yaml format) is owned by SPEC-0031;
+  SPEC-0200 rule 9 owns the fold rules this lens REPORTS AGAINST and never re-tunes. Siblings:
+  `outcome-ratio` (the audit-cost side), `admission-series` (the queueing side).

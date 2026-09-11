@@ -1,0 +1,88 @@
+# YITC v2 — Deviation (error/friction/improvement) case-file template.
+#
+# STATUS: ILLUSTRATIVE — schema-derived from decisions/ (normative; §8
+# owns the single-status reopen-FSM) + patterns/error-friction-tracking.md (the procedure that
+# creates these files). Maintenance rule: ANY change to the E-XXXX shape MUST update /
+# / the pattern first (Principle 5 single source of truth: decision + pattern = normative, this
+# template = derived). Drift = bug.
+#
+# Copy this to errors/E-XXXX.yaml + fill fields. Strip the _template prefix and use a
+# real E-XXXX id on save (hand-allocated: next free from errors/, like decisions/specs).
+#
+# === PROMOTION-ONLY ===
+# An E-XXXX file is NOT created for every deviation. A deviation is EVENT-ONLY by default
+# (a `deviation_captured` line in events.jsonl). A case file is synthesized ONLY at the
+# promotion boundary (patterns/error-friction-tracking.md §Promotion):
+# - a hard defect, OR
+# - a recurring deviation crossing threshold (N>=2 events with the same `fingerprint`,
+# growth-engine parity), OR
+# - an owner-requested investigation.
+# At the threshold the reviewer MUST resolve it: file a fix task (owner + due date) OR
+# explicitly waive with a reason. No silent drop.
+#
+# === REFERENCE-FIRST ===
+# This file LINKS to its evidence; it never COPIES it. Do NOT paste audit matrices,
+# verification-protocol dimension tables, full event payloads, or diffs in here — point
+# at them by anchor in `refs:` (Principle 5; verification-protocol stays the single home
+# of the judgment matrix). Keep the body to synthesis + decision, not restated evidence.
+
+id: E-XXXX # sequential E-XXXX, hand-allocated from errors/
+title: <one-line — what deviated> # intent-vs-actual framing, e.g. «X expected, Y happened»
+
+kind: defect # defect | friction | improvement (Lean muda/kaizen, one enum)
+                                 # defect — wrong output / broken behaviour (intent != actual result)
+                                 # friction — correct outcome but wasted time/tokens / painful path
+                                 # improvement — incident-grounded betterment (rides the same tracker;
+                                 # pure forward ideas stay in ideas/, not here)
+
+severity: medium # low | medium | high (IEEE 1044 vocabulary donor)
+                                 # for a friction, may instead use a cost bucket: <5m | 5-30m | >30m
+
+relates_to: <failure-class-id or aspect> # e.g. "#6 Scope creep" (CHARTER taxonomy) and/or
+                                 # the originating aspect-audit (doc-conformance | doc-health |
+                                 # cli-vs-manual | resource | ai-failure-class). NOT a new taxonomy —
+                                 # reuse CHARTER's 20 classes + the 5 aspects.
+
+fingerprint: <stable-dedup-key> # stable string identifying THIS deviation shape, so recurrence is
+                                 # countable across events (N>=2 => promotion threshold). Same wording
+                                 # every time the same thing recurs — e.g.
+                                 # "orphaned-auto-emit-event-uncommitted-at-session-end".
+                                 # CANONICAL KEY for clustering : when one root accrues several
+                                 # near-synonym fingerprints, this `fingerprint:` is the canonical key and
+                                 # the member aliases are listed in `cites:` (the §9 LINK RULE — the
+                                 # single derivation source). The recurrence count VIEW rolls member counts
+                                 # up under this canonical via `_capture_cluster_counts`.
+
+refs: # REFERENCE-FIRST — anchors to evidence, never copies. >=1 required.
+  - events.jsonl#ts=<ISO> # the deviation_captured event(s) this case synthesizes
+  - decisions/<scope>-self-check.yaml # verification-protocol Track A (if any)
+  - decisions/<scope>-external-verify.yaml # verification-protocol Track B (if any)
+  - <git-sha> # commit / diff that introduced or fixed it (if any)
+
+# Optional — only for a PROMOTED hard defect worth a postmortem (SRE 5-Whys). Keep terse;
+# omit entirely for ordinary frictions.
+rca: ~ # | multi-line 5-Whys chain, or ~
+
+resolution: # REQUIRED at promotion — file-or-waive, never silent.
+  kind: fix_task # fix_task | waived
+  fix_task: T-XXXX # if kind=fix_task — the filed task id...
+  owner: <name> #... its forced owner...
+  due: YYYY-MM-DD #... and due date (flaky-test lesson: no ownerless/dateless fix)
+  waive_reason: ~ # if kind=waived — why it is acceptable to not fix now
+
+# --- single-status reopen-FSM ( §8 — collapses the old status + triage_step into ONE) ---
+status: open # open → investigating → resolved ⇄ reopened; any → waived
+                                 # open — filed, not yet worked
+                                 # investigating — under analysis (was triage_step: confirmed;
+                                 # set by the triage run)
+                                 # resolved — a LANDED root-fix removes the recurrence
+                                 # reopened — a new capture hit a resolved/waived fingerprint
+                                 # ("fixed badly") — auto-flip at capture ( §2)
+                                 # waived — accepted as not-fix-now, with a reason
+reopen_count: 0 # how many times this case reopened — the reopen/resolved rate is the
+                                 # symptom-treatment metric (read by the inspection T5 lens §8)
+prevention: ~ # the ROOT-fix / preventive measure that stops recurrence (not the
+                                 # symptom patch) — §6 fix-the-root. ~ until resolved/waived.
+adoption_probe: ~ # event/state/measurable confirming the prevention is ADOPTED
+                                 # (Principle 3 + 8) — mirrors a task's adoption_probe. ~ until set.
+created: YYYY-MM-DD # ISO date (UTC day acceptable)

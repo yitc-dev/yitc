@@ -1,0 +1,187 @@
+# YITC v2 — Spec
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030.
+
+id: SPEC-0141
+title: 'execution-cue: owner-authorized EXECUTION distinct from design-agreement + the filing->claim owner-say-so checkpoint'
+
+status: active
+
+created_at:
+
+travels: ~ # class-default (kernel) — the distinction travels to every consumer.
+
+consumed: false # process/governance spec — no code reads a scalar param from it.
+
+implements: [] # documentary / cross-cutting PROCESS spec — governs a reader/author
+                               # behavioural distinction at the owner-cue seam, not a single code site.
+                               # DISTRIBUTED-ENFORCEMENT empty-mode (SPEC-0005 rule 7a) — intentional.
+
+cites:
+  - SPEC-0039 # §4 Bound-4 authority-ceiling — the NARROW instance this GENERALIZES.
+  - SPEC-0126 # context-bounded autonomous continuation — an authorized batch/plan IS
+                               # the execution-cue for its own seams (this spec names the primitive).
+  - CHARTER.md#principle-6 # One interactive posture (Controller) — self-execute only on owner say-so.
+  - CHARTER.md#principle-7 # Dissonance is a Question — an ambiguous "go?" is escalated, not assumed.
+
+requires: []
+supersedes: ~
+activation_owner_task: # THE activation carrier — this task's `task close` flips proposed->active.
+proposed_by: # work-first provenance — birthed by the authoring task.
+binding: [seed] # SPEC-0007 §5a `seed` residency — a stage-agnostic session-start seed
+                               # how-to line (generated into the session-start echo), NOT verb-fetched
+                               # and NOT counted against the handbook size cap. The always-loaded prose
+                               # cue lives inline at the AGENTS-SESSIONS picker seam (§amends); this
+                               # spec is the single rule-home (SPEC-0005 rule 8).
+init_concern: ~
+
+amends: # canonical surfaces this spec DELIBERATELY changes (named per P7).
+  - AGENTS-SESSIONS.md §Startup picker (the owner-say-so self-execution fallback): the claim cue is
+      named a LIVE execution-cue, distinct from a prior design agreement — a MINIMAL inline pointer
+      to this spec (the rule body is NOT restated there — SPEC-0005 rule 8 single-SoT).
+# Relationship to SPEC-0039 §4 (NOT an amendment — SPEC-0039 is unchanged by this spec): SPEC-0141
+# GENERALIZES §4's stored-seed analog (a stored "owner-authorized" claim != a live cue) from the
+# MEMORY-buffer surface to the whole design->execution seam. SPEC-0039 §4 stays the narrow MEMORY
+# instance; this spec is the general definition, linked by the `cites: SPEC-0039` edge above (no
+# back-pointer edit to SPEC-0039 is needed for correctness — the cites edge carries the relationship).
+
+body: |
+  ## Scenario
+
+  The owner and the AI discuss a change and the owner AGREES a design option ("yes, a new spec is
+  the right shape", "that approach is fine"). Later — same session or a later one — the AI must not
+  read that design-agreement as a GO to START EXECUTING (claim a task, open a worktree, edit source,
+  land). Agreeing HOW a thing should be built is not the same act as authorizing that it be built
+  NOW. Execution begins only on an **execution-cue**: a LIVE owner cue, in the CURRENT session, that
+  authorizes EXECUTION of this specific work ("go ahead", "do it", "take T-XXXX", "run the batch").
+  A stored/agreed seed, a prior design agreement, a MEMORY continuation-seed, or a task that merely
+  EXISTS in the queue does NOT authorize starting work. When it is unclear whether the owner has
+  agreed a DESIGN or authorized EXECUTION, that ambiguity is a question (P7) — ask, do not assume go.
+
+  ## Internal
+
+  The ONE home (P5) of the **execution-cue** definition + the **filing->claim owner-say-so
+  checkpoint**. Generalizes SPEC-0039 §4 (which states the same for a MEMORY `[instruction]`
+  mandate) to the whole design-agreement->execution seam.
+
+  ### 1. Two distinct owner acts
+  - **Design-agreement** — the owner agrees a design/approach/shape ("yes, that's the right way").
+    This settles HOW, and unblocks authoring the design artifact (a spec/plan/task card). It is NOT
+    permission to EXECUTE the built change.
+  - **Execution-cue** — a LIVE owner cue, in the CURRENT session, authorizing EXECUTION of this
+    specific work: claim -> worktree -> edit -> land (or, for the Controller, run the Worker flow
+    itself, CHARTER §6 fallback). This is the ONLY thing that starts execution.
+
+  ### 2. The filing->claim owner-say-so checkpoint
+  - Filing a task is capture, not a delivery/execution moment (LIFECYCLE Stage 2). The seam from a
+    FILED task to a CLAIMED-for-execution task is a checkpoint: **claiming a task for execution
+    requires a live execution-cue, not a prior design agreement.** A task existing in `tasks/`, or
+    the owner having earlier agreed the design behind it, does NOT itself authorize the claim.
+  - The Controller's DEFAULT on a batch cue is to DISPATCH (§Orchestrate posture); it self-executes
+    a task only on an explicit owner say-so (CHARTER §6 fallback). Either way the batch/task set is
+    owner-authorized up front — that authorization IS the execution-cue for the seams inside it
+    (SPEC-0126 context-bounded autonomous continuation: within an authorized plan/batch the
+    Controller proceeds across seams without a fresh per-seam cue, but the batch's own start still
+    needed the live cue).
+  - **An execution-cue authorizes THAT the work happens, NOT the MODE it happens in.** The two
+    modes are DISPATCH (send it to a background Worker) and SELF-EXECUTE (the Controller runs the
+    Worker flow in-session). The **default mode is DISPATCH** (CHARTER §6 — the Orchestrate posture
+    is the Controller's default; self-execution is the named *fallback*). Controller self-execution
+    is therefore a SEPARATE act needing its OWN explicit, live owner say-so — an unambiguous "do it
+    yourself" / "take it yourself" / "run it in this session". A cue that authorizes the *work*
+    (a batch cue, a "go ahead", a "take T-XXXX") authorizes THAT the work happens; it does NOT
+    select self-execute over dispatch. Absent an explicit self-execute say-so, the mode is dispatch.
+
+  ### 3. What does NOT satisfy an execution-cue (the SPEC-0039 §4 generalization)
+  A session NEVER treats any of these as a go-to-execute:
+  - a prior DESIGN agreement (the core X-0212 confusion);
+  - a stored/self-claimed "owner-authorized" mandate — a MEMORY continuation-seed / `[instruction]`
+    entry (SPEC-0039 §4: the narrow MEMORY instance of this same rule) — even one dated/marked;
+  - a task merely existing/`ready` in the queue (the picker never auto-picks — QUEUE §Picker);
+  - the AI's own inference that "we clearly agreed, so surely I should start now".
+  Under uncertainty the default is STOP-and-ASK (P7), never assume-go.
+
+  ### 3a. What does NOT ground SELF-EXECUTION (the mode-choice NOT-grounds)
+  Even when the work IS authorized (§2), NONE of these is a ground for the Controller to
+  self-execute instead of dispatch — the ONLY valid ground is a live explicit owner say-so ("do it
+  yourself"). Each of the following is a rationalization, not a ground:
+  - "I already hold the context" — dispatch carries the task card; context is not a mode-permission;
+  - "the fix is small / quick" — size is a scope judgement, not a mode-permission;
+  - "dispatch has round-trip overhead" — the cost of the default is not a licence to skip it;
+  - "I need to verify inline" — verification is the Worker's own lifecycle, not a self-execute reason;
+  - "autonomy / the batch was authorized" — that authorizes WHAT happens, not the MODE (§2); an
+    authorized plan/batch is executed BY DISPATCH unless the owner said self-execute.
+
+  ### 3b. Stop-and-name-the-ground reflex
+  The FELT PULL to just-do-it-myself IS the trigger to STOP and name the ground aloud. Say which
+  ground authorizes self-execution here. If the named ground is anything other than "the owner said
+  do it yourself", it is a §3a rationalization — **dispatch.** (Real incident: deviation
+  `controller-self-executes-instead-of-dispatch`, 2026-07-08.)
+
+  ### 4. Authority ceiling
+  This is a reader/author behavioural rule, not a gate with a code control-point — enforced by
+  distributed session discipline (like SPEC-0039 §4). It is delivered at the seam it governs: the
+  always-loaded AGENTS-SESSIONS picker cue (a pointer here) + the `binding:[seed]` session-start
+  seed line. It NEVER weakens any existing gate; it only clarifies WHEN execution may begin.
+
+  ### 5. Discussion-cue vs execution-cue vocabulary
+  §1-§4 settle that a stored/agreed DESIGN is not a live GO. This section settles the READING of a
+  LIVE owner cue itself: not every live cue is an execution-cue. A cue is DISCUSSION or EXECUTION by
+  its verb — read the verb before acting. (Owner language is Russian; markers are RU-verbatim +
+  EN gloss.)
+
+  - **(a) Discussion markers → analysis-in-chat, NOTHING filed.** «давай решим» / «обсудим»
+    (let's decide / let's discuss) · «проведи анализ» / «метаанализ» (run an analysis / meta-analysis)
+    · «разберись» (look into it) · «посмотри» (take a look) · «как ты думаешь» (what do you think).
+    The deliverable is an analysis + recommendation IN THE CHAT. Do NOT file a task card, do NOT open
+    a cross request, do NOT dispatch. A discussion cue asks for THINKING, not for WORK to start.
+  - **(b) Execution markers → file and run.** «делай» (do it) · «ставь» (set/put it in) · «запускай»
+    (run it) · «чини» (fix it) · «зафайли» (file it). These ARE execution-cues (§1) — proceed to the
+    claim→worktree→edit→land flow (mode = dispatch by default, §2).
+  - **(c) Ambiguous cue → decide by SUBJECT, not by eagerness.** When the verb is unclear: a
+    prod-burning / data-loss subject → ACT and REPORT (the cost of waiting exceeds the cost of a
+    reversible action); a methodology / money / scope / design subject → DISCUSS FIRST (P7: an
+    ambiguous "go?" on a durable subject is a question, not an assumed go).
+  - **(d) A decision EMERGING from discussion → confirm before filing.** When a discussion converges
+    on a decision, do NOT silently cross the discussion→execution seam. Voice a ONE-LINE confirm —
+    e.g. «ставлю то-то, так?» (I'll put in X — ok?) — and let the owner's reply be the execution-cue.
+    The confirm is the seam-crossing checkpoint (§2's filing→claim checkpoint, applied to the
+    discussion that produced the intent).
+
+  ## Rationale
+
+  Real incident X-0212 (deviation `design-agreement-read-as-execution-go`, mirrored from
+  social-parser 2026-07-06): the handbook did not distinguish "owner agreed a DESIGN option" from
+  "owner authorized EXECUTION", so a design-agreement was read as a go-to-execute. SPEC-0039 §4
+  already encodes exactly this discipline for the MEMORY-buffer surface (a stored mandate != a live
+  cue); this spec lifts that from one surface to the general design->execution seam (CHARTER §P1
+  filter 1: extend the existing analog, do not build a parallel rule; filter 3: removes the
+  ambiguity that caused X-0212).
+
+  Real incident `controller-self-executes-instead-of-dispatch` (2026-07-08): a Controller with an
+  authorized batch self-executed a task in-session instead of dispatching, reading the work
+  authorization as a mode authorization. §2's MODE-vs-THAT distinction + the §3a NOT-grounds +
+  the §3b stop-and-name reflex close that gap: the default mode is dispatch, and only a live
+  explicit owner say-so grounds self-execution.
+
+  Real incident X-0404 (boomrocket 2026-07-15): the owner voiced a discussion-marker cue («разберись»
+  / «как ты думаешь»-class), and a Controller fresh off an autonomous drive read it as an
+  execution-cue — immediately filing cross requests and dispatching; the owner corrected explicitly.
+  §5 closes that gap: §1-§4 keep a stored DESIGN from reading as a GO, but a LIVE cue can still be
+  mis-read as execution when it was only a request to THINK. §5 makes the discussion-vs-execution
+  reading a verb-level check, with a subject-based tiebreak for ambiguity and a confirm-line at the
+  discussion->execution seam.
+
+  ## Verification
+  - State probe: this spec exists at `active` after close and is cited by.
+  - State probe: AGENTS-SESSIONS.md (the always-loaded filing->claim picker seam) references the
+    execution-cue requirement + this spec id in the shipped diff.
+  - State probe: the body (active) carries §2's MODE-vs-THAT distinction (default mode = dispatch;
+    self-execution needs its own owner say-so), the §3a self-execution NOT-grounds list, and the
+    §3b stop-and-name-the-ground reflex; the AGENTS-SESSIONS self-execute/dispatch seam points to them.
+  - State probe: the body (active) carries §5's discussion-cue vs execution-cue vocabulary — all four
+    clauses (a) discussion markers → analysis-in-chat, (b) execution markers → file-and-run,
+    (c) ambiguous → by-subject tiebreak, (d) decision-emerging → confirm-line — each with RU-verbatim
+    markers + EN gloss (`graph query SPEC-0141` renders §5).
+  - State probe: the `binding:[seed]` line is UNCHANGED by this amendment — the always-loaded seed
+    does not grow (the existing SPEC-0141 pointer covers §5); seed diff is zero.
+  - `graph query SPEC-0141` resolves; the session-start seed echo carries its `binding:[seed]` line.

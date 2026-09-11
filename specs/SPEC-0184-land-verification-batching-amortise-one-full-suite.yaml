@@ -1,0 +1,2354 @@
+
+id: SPEC-0184
+title: Land-verification batching — amortise one full-suite pass across the changes queued behind it
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # KERNEL (the class default) — re-pinned at plan-accept, 2026-08-16.
+                               # This spec governs the SHARED land path every consumer executes via
+                               # `-C`, so kernel is the correct END state; the only question was
+                               # TIMING. While `draft` it was pinned `v2-self` because SPEC-0073 §1/§8
+                               # holds that a non-active spec never travels, and `graph conformance`
+                               # flags a kernel-resolving spec that the active-only export slice would
+                               # exclude (release-spec-slice-leak). That check EXEMPTS `proposed`
+                               # explicitly (`status != "proposed"`, bin/lib/graph.py) — the birth at
+                               # `plan stage accepted` is therefore the sanctioned re-pin moment, and
+                               # this edit is that EXPLICIT act (SPEC-0073 §3), not a birth side-effect.
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # FILLED BY THE ACTIVATION CARD, in the SAME act that flips
+                               # proposed->active. This is a CODE-ENFORCED land rule, so its delivery
+                               # rides these anchors rather than a verb-fetch `binding:`; leaving them
+                               # empty at activation would make it a DANGLING spec (SPEC-0005 rule 7)
+                               # — active, governing, and pointed to by nothing.
+                               # Rules 1 + 2 + Parameters — formation, the authorship-keyed engagement
+                               # gate, and BATCH_MAX :
+  - bin/lib/batch_landing.py#_land_batch_members
+  - bin/lib/batch_landing.py#_land_form_batch
+  - bin/lib/batch_landing.py#_land_queue_at_slot_free
+  - bin/lib/batch_landing.py#_land_batch_engagement
+                               # Rule 3 — merge-and-evict BEFORE the pass is spent :
+  - bin/lib/batch_landing.py#_land_merge_probe
+  - bin/lib/batch_landing.py#_land_prequeue_merge_refusal
+  - bin/lib/batch_landing.py#_land_prequeue_currency_refusal # — the second pre-queue class
+  - bin/lib/batch_landing.py#_land_merge_members_in_queue_order
+                               # Rule 4 — ONE verify of the combined candidate, ATOMIC fast-forward,
+                               # and the red-batch dissolution that never re-forms :
+  - bin/lib/batch_landing.py#_land_merge_batch_into_candidate
+  - bin/lib/batch_landing.py#_land_rederive_merged_candidate # — rule 4: the candidate that
+                               # gets the ONE verify pass must be the tree that will BECOME main, so
+                               # the generated artifacts are RE-DERIVED over the merged candidate
+                               # before it is verified. Normative: the re-derivation is a no-op when
+                               # it has nothing to add, and it NEVER blanks a managed region a merge
+                               # just resolved (an EMPTY spec corpus is a no-op, not an empty render).
+  - bin/lib/batch_landing.py#_land_dissolve_batch
+                               # Rule 4 — the head-is-culprit RELEASE arm and the single
+                               # site that marks the batch's cause onto the rows BOTH red arms emit
+                               # :
+  - bin/lib/batch_landing.py#_land_release_peers_for_solo_head
+  - bin/lib/batch_landing.py#_land_mark_red_assertions
+                               # Rule 4 — restoration of the head member's branch on EVERY
+                               # non-landing end + the killed-process detection read :
+  - bin/lib/batch_landing.py#_land_restore_candidate_head
+  - bin/lib/batch_landing.py#_land_batch_foreign_merges
+  - bin/lib/batch_landing.py#_land_contamination_advisory
+                               # Rule 4 — the passenger-facing reader of the eviction record: the
+                               # named culprit is told, at its OWN next land, that it was named and
+                               # what the route out is :
+  - bin/lib/batch_landing.py#_land_named_culprit_advisory
+  - bin/lib/worktree.py#cmd_land
+  - bin/lib/batch_landing.py#_land_batch_ineligible_branches
+  - bin/lib/batch_landing.py#_land_rebaselining_branches
+  - bin/lib/batch_landing.py#_land_merge_invalid_acceptance_branches # — rule 4's SECOND
+                               # explicit ground: an acceptance assertion not valid in a MERGED tree
+  - bin/lib/batch_landing.py#_land_reddened_member_sets
+  - bin/lib/batch_landing.py#_land_pinned_supersession_branches # : the recorded-notice source
+                               # Rule 5 — the per-member verdict seam + its N=1 silence :
+  - bin/lib/batch_landing.py#_emit_land_member_verdicts
+  - bin/lib/batch_landing.py#_land_reconcile_member_verdicts # — the declared-vs-emitted reconciliation (rule 5)
+  - bin/lib/batch_landing.py#_emit_land_batch_formed
+  - bin/lib/batch_landing.py#_land_median_verify_wall_ms # — what a pass COST, beside what it covered
+  - bin/lib/batch_landing.py#_land_batch_formation_ids # — the three unrecoverable ids the formation row carries (rule 5)
+                               # Rule 6 — a dead member is dropped, the batch is not; the
+                               # claimant-kind-agnostic liveness trigger + the member's terminal
+                               # signal, which AMENDS SPEC-0180 :
+  - bin/lib/batch_landing.py#_land_member_claim_held
+  - bin/lib/batch_landing.py#_land_drop_dead_members
+  - bin/lib/batch_landing.py#_land_members_carried_by_ff
+  - bin/lib/batch_landing.py#_land_member_terminal_signal
+                               # Rule 7 — the SPEC-0077 pinned leg evaluated on the UNION of the
+                               # members' diffs, fail-closed :
+  - bin/lib/batch_landing.py#_land_batch_verify_path_touch
+                               # Rule 9 — THE LOCAL YIELD. The selector, the loop it runs in, and the
+                               # cost ladder the selector ranks on :
+  - bin/lib/batch_landing.py#_land_yield_target
+  - bin/lib/batch_landing.py#_land_yield_loop
+  - bin/lib/batch_landing.py#_land_cost_class
+                               # Rule 9 — the ADDRESSED handover: the off-tree offer naming the
+                               # successor, the peers' abstention read, the addressee's own consume,
+                               # and the liveness fence that makes a dead author's offer read as
+                               # ABSENT :
+  - bin/lib/batch_landing.py#_land_yield_offer_path
+  - bin/lib/batch_landing.py#_land_write_yield_offer
+  - bin/lib/batch_landing.py#_land_read_yield_offer
+  - bin/lib/batch_landing.py#_land_yield_offer_blocks
+  - bin/lib/batch_landing.py#_land_consume_yield_offer
+  - bin/lib/batch_landing.py#_land_clear_yield_offer
+  - bin/lib/batch_landing.py#_land_addressee_gone
+                               # Rule 9 — the opt-in queue-jump mark that outranks the PAYING cost
+                               # classes, and safeguard (c): a firing is journaled from the seam
+                               # where the handover was ACTUALLY performed :
+  - bin/lib/worktree.py#_land_queue_jump_reason
+  - bin/lib/worktree.py#_land_emit_queue_jump_firings
+                               # The one site that WIRES all seven rules into the shipped land path
+                               # (formation -> evict -> merge-into-candidate -> ONE verify -> single
+                               # ff -> per-member verdicts; the red path dissolves before its abort):
+                               # Rule 15 — the QUEUED PRE-MERGE : the tick itself,
+                               # its admission into land's step 2, and the abort-row
+                               # disposition it colours:
+  - bin/lib/worktree.py#_queued_premerge_from_main
+  - bin/lib/worktree.py#_premerge_consumable
+  - bin/lib/worktree.py#_premerge_reservation_disposition
+  - bin/lib/worktree.py#_land_integrate
+  - bin/lib/worktree.py#_verify_under_admission
+
+body: |
+  ## Scenario
+
+  Several changes are ready to land at the same moment. Today each waits for the one ahead, then pays
+  the full pinned suite by itself — so five queued changes cost five full passes and the last one waits
+  for four. Under this spec the changes waiting when the slot frees are verified TOGETHER, as one
+  candidate, in ONE pass; if it is green they all land. Nobody skips verification and nobody's change
+  reaches `main` untested — the cost is shared, not waived.
+
+  ## Internal
+
+  THE BATCH IS WHOEVER IS QUEUED — nine rules (rule 8 added by : the amortised pass is only a saving if the members do not each re-pay it afterwards; rule 9 by : which change the batch forms AROUND must be decided by cost, not by arrival order).
+
+  **What SPEC-0186 resolves to `never` is INERT for class assignment — the pinned-supersession key AND
+  the cost ladder's two-pass rung alike.** Class assignment reads the project's
+  `verify_policy.pinned_last_green` through the SAME resolver the land verify path uses (one authority,
+  read from the base tree at every call site), so a member is NOT isolated one-at-a-time for a check that
+  will not run — whether it was carrying the supersession key or merely touching the verifier's own
+  surface (rule 9). This spec remains the ONE normative home for HOW batches form and for the class set;
+  SPEC-0186 supplies only that policy input. Navigational pointer, not a second rule (SPEC-0005 rule 8).
+
+  **Red-batch BISECTION is OUT of this spec's scope** (plan-check finding 1, 2026-08-16). A red batch is
+  answered by rule 4 — no member lands — and DISSOLVED back into the queue. Identifying WHICH member was
+  the culprit without re-running every member separately is a cost optimisation with its own later
+  carrier, deliberately excluded here: this spec activates when the card implementing rules 1-7 closes,
+  and an `active` spec must not claim behaviour nobody has adopted (CHARTER §P3 / §P8). `BATCH_MAX`
+  below still bounds the diagnosis bill, because that bill is paid by re-queueing either way.
+
+  ### 1. Formation is queue-driven — never repo-driven, and never ACTOR-driven
+  When the land slot frees, the batch is exactly the set of lands queued AT THAT MOMENT, capped at
+  `BATCH_MAX`. Nothing waits to "fill" a batch: a quiet repo forms a batch of ONE, which MUST be
+  byte-identical to pre-spec behaviour — same events, same commits, same tokens. This is what makes the
+  mechanism self-disabling where it is not needed, with no flag and no per-repo branch (CHARTER §P1 —
+  no second code path to choose between). A repo is never named in this logic; only its queue depth is.
+
+  **QUEUE ORDER IS ACCUMULATED AGE, OLDEST FIRST — and it is a RULE, not an accident of the read**
+  (measured 2026-08-26). "Queue order" was previously left implicit here and the reader
+  supplied FIRST-SEEN-IN-TAIL order, whose docstring claimed it meant "whoever has been waiting
+  longest is ahead". It did not: every live waiter re-beats every ~20s, so within the freshness
+  window first-seen order is heartbeat-emit PHASE and is uncorrelated with age. That silently
+  contradicted the §Cap clause below, which has always required WAITING TIME to decide who is first.
+  Replayed on this repo's own journal at 11:18:20Z, first-seen order ranked the YOUNGEST of five
+  queued branches (307s) SECOND, ahead of three aged 1161s, 478s and 413s; task/ waited from
+  10:44:08Z while TWELVE branches landed.
+
+  The age a branch is ranked by is the wait it has ACCUMULATED, not the wait since its current park.
+  A land's per-park counter (`waited_s`) restarts on every re-park — a dissolution, or simply losing
+  the flock again — so the branch that has paid the most re-entered as a newcomer; measured on
+  task/ as four restarts under ONE pid and ONE attempt. The wait rows therefore carry an
+  ADDITIVE `queued_since_s`: seconds since the land PROCESS first parked at either queue seam
+  (SPEC-0132's admission slot or the reservation). A row without it falls back to
+  `waited_s`, so every row already written stays readable.
+
+  TWO BOUNDS, both load-bearing. **This orders MEMBERSHIP and the rule-9 YIELD target, never the
+  flock**: both queue seams are non-blocking flock races that consult no age, and this rule does not
+  make either FIFO. **And it does not starve new arrivals** — oldest-first is FIFO, whose property is
+  that a branch's rank is NON-INCREASING (a later arrival is younger and can never be inserted
+  ahead), so a branch arriving behind `k` waiters is admitted within `ceil((k+1)/BATCH_MAX)` rounds.
+  That is a BOUND; the ordering it replaces had none at any `k`. An age nothing can compute keeps its
+  first-seen position — it must not silently become the best or the worst rank — and a queue where
+  nothing can be dated is unchanged.
+
+  **THE CAP IS REACHED BY WALKING THE QUEUE, NOT BY SLICING IT** (measured 2026-08-19). The
+  set above is capped at the first `BATCH_MAX` MUTUALLY-COMPATIBLE candidates in queue order — not at
+  the first `BATCH_MAX` candidates. Formation walks the snapshot IN ORDER and admits a candidate only
+  when the cheap conflict predictor says it merges with those ALREADY selected; one it does not is
+  SKIPPED, and the walk CONTINUES down the remainder until the cap or exhaustion. Before this,
+  formation sliced at `BATCH_MAX` and learned about incompatibility only from rule 3, AFTER the slice
+  — so a candidate proven unmergeable had already consumed a capped place and the replacement behind
+  it had been discarded. Measured over the whole journal: 18 `evicted-for-conflict` verdicts across 7
+  branches, of which 11 are REPEAT evictions of a branch formation had already failed to merge
+  (task/ seven times, task/ four, task/ three, spanning 08-16/-17/-19), while
+  4-member batches landed 3 and 2 with up to EIGHT branches queued. Back-filling after a skip is not
+  an added feature; it is what walking does and slicing could not.
+
+  **QUEUE ORDER STILL SETS PRIORITY — a selector that reorders by compatibility is WRONG.** Members
+  are taken in ITERATION order and nothing sorts, ranks or scores them, so WAITING TIME, not
+  mergeability, decides who is first. A skip is ATTEMPT-SCOPED and never a permanent exclusion: the
+  skipped branch keeps its place and is first in line in a round where nothing selected ahead of it
+  conflicts. The HEAD is never skippable — it holds the slot, and the accumulator is seeded from it
+  explicitly before any peer is judged.
+
+  **THE SKIP IS NAMED IN THE RECORD, or the blindness returns.** A pre-emptive skip writes
+  `incompatible-with-selected` into the same `queue_excluded` sink the other exclusion reasons use.
+  An incompatibility between two BRANCHES is discoverable ONLY at this seam, and a drop that writes no
+  row is indistinguishable from a queue that was simply empty — the 2026-08-17 defect the
+  clause above already refused. It is a SINK REASON, never a member verdict: `evicted-for-conflict`
+  (rule 3) remains the only durable claim this family makes about somebody's changes.
+
+  **FAIL-OPEN, and rule 3 remains the AUTHORITY.** This predictor skips ONLY on a PROVEN blocking set
+  — `_classify_land_merge_conflicts` actually ran and named an unresolvable path — the same test and
+  the same oracle rule 3's pre-queue refusal applies. Every unprovable answer ADMITS and lets rule 3's
+  fail-CLOSED eviction decide, so a false admit costs exactly the pre-change eviction while a false
+  skip would cost the very capacity this clause recovers. That polarity is deliberately the INVERSE of
+  the per-branch eligibility filters, which have no authority behind them and so fail closed.
+
+  **A CANDIDATE'S OWN CORPUS INTEGRITY IS A PER-BRANCH ADMISSION QUESTION** (measured
+  2026-08-20). The three corpus-integrity guards — spec-hand-edit (SPEC-0005), decision
+  content-freeze (SPEC-0054), card-shape rationale (SPEC-0165) — are asked of EACH CANDIDATE ALONE,
+  against ITS OWN MERGE-BASE with the current land base, as a filter in this walk, BEFORE the
+  pairwise predictor above: a candidate ineligible on its own diff never needs a coexistence answer.
+
+  THE MERGE-BASE IS LOAD-BEARING, not an implementation detail (X-1072). The guards compare
+  a TWO-DOT `git diff <base> <head>`, which is SYMMETRIC: against the land base's TIP it reports
+  every file where the two trees differ, INCLUDING files MAIN changed after the candidate forked. So
+  a spec body a spec-touching land already put on main read, from an unmerged peer's side, as a body
+  change with no `spec_edited` receipt in that branch — and the peer's journal, being behind, carried
+  none of main's newer events to clear it. The peer was skipped as an off-path spec editor for the
+  sole offence of being BEHIND, which cancels batching precisely on the busiest queues. Asking
+  against the candidate's fork point restores the question the assembled-tree check has always
+  asked — "what did THIS branch author?" — without doing a merge, and weakens no guard: a branch
+  that really edited a spec body off-path carries that edit ABOVE its merge-base. An UNRESOLVABLE
+  merge-base is the checker's `error` answer below, never a fabricated clean and never a fallback to
+  the moved base. Its skip reason is
+  `corpus-integrity-violation` in the same `queue_excluded` sink, and it carries the guard's own
+  message so the branch that must act can self-diagnose — the delivery half is a REQUIREMENT, not
+  presentation, because a member's land log otherwise shows only its reservation wait while the
+  rejection goes to the head's process. MULTIPLE violators are all skipped: a corpus violation is a
+  property of ONE diff with no ambiguity, so the two-or-more-owners silence that governs assertion
+  attribution does not apply — nothing is being attributed.
+
+  ITS POLARITY IS THE COMPAT PREDICTOR'S, NOT THE PER-BRANCH FILTERS'. It skips ONLY on a PROVEN
+  violation: the checker returns clean / violation / **error** as three distinct answers, and both
+  `clean` and `error` ADMIT. An error is a fact about the CHECKER, never a claim about someone's
+  changes, and the aggregate guard on the assembled tree remains the authority behind this filter —
+  so an unprovable answer costs at most the pre-change outcome, while a spurious skip would cost the
+  capacity this whole rule recovers. This is why it does NOT fail closed like `cost-class`.
+
+  **A VIOLATING HEAD DISENGAGES FORMATION**. The head is never skippable — it holds the
+  slot — but it must not draw peers into a batch its own diff has already doomed. A head that
+  PROVABLY violates therefore makes this formation NOT ENGAGED, which rule 2 already expresses as a
+  batch of ONE with everyone else waiting, on this same path; the reason is `head-corpus-violation`,
+  a named member of rule 2's existing reason vocabulary. No head exemption and no second mechanism.
+  The filter and the head check are built under the SAME `engaged and peers` condition as the compat
+  predictor, so rule 1's quiet-repo byte-identity — no subprocess, no object written — is preserved.
+
+  **OVER-SELECT-THEN-TRIM WAS CONSIDERED AND REJECTED.** Taking `BATCH_MAX + k`, merging, and dropping
+  back to the cap requires REWINDING merges out of the candidate — the most fragile path in this
+  machinery, and one that failed observably on 2026-08-18 (`could NOT take the batch's peer merges
+  back off... they are STILL IN ITS HISTORY`). Skipping a candidate BEFORE the merge costs nothing;
+  unmerging one after costs the rewind path and sometimes does not work. Routine formation must not
+  depend on it.
+
+  **"QUIET" IS THE SCOPE OF THAT PROMISE, AND IT IS NOT A LOOPHOLE** (measured 2026-08-17).
+  Byte-identity is owed to a repo whose queue was EMPTY. A land that goes solo because the candidates
+  that WERE queued got dropped is a different event, and reading the silence as covering it made the
+  formation decision unobservable: "the queue was empty" and "a candidate was excluded for reason X"
+  produced identical journals, so two solo lands that day could not be classified at all — and one of
+  them had a candidate queued continuously for ten minutes. So a solo land WITH exclusions records
+  them on the existing `land_batch_formed` row (`solo: true` + `queue_depth` + the per-candidate
+  reasons; no new event type, no new store), while a solo land with a genuinely empty queue still
+  emits nothing. This changes WHAT IS RECORDED about a formation, never WHICH candidates are
+  admitted: rule 1's set and the strictly-newer admission test are untouched.
+
+  **THE RECORD IS EXHAUSTIVE OVER THE CANDIDATES ENUMERATED, AND CARRIES THE CLOCK IT READ THEM AT**
+  (measured 2026-08-19). The clause above makes a DROP legible; it does not make the
+  candidate SET legible, and the two are not the same guarantee. The sinks it produced are total over
+  the filters that OWN a reason, so a candidate leaving by any other door was absent from `members`
+  and from `queue_excluded` alike — and an absent branch is indistinguishable from one that was never
+  queued, which is the very confusion the clause above exists to end. Measured at 10:55:02Z that day:
+  a formation reporting one member and nine exclusions, with a branch that beat wait heartbeats
+  continuously across the instant appearing in NEITHER list. So a formation row records **a
+  disposition for EVERY branch the queue source yielded** — `admitted`, or the exclusion reason, or
+  the fail-loud `unaccounted` for a branch that reached neither — and the **`read_ts` at which the
+  candidate snapshot was READ**, which is NOT the row's own `ts` (the journal stamps that at emit,
+  after the merge probe and the cost classification have run, so the two date different instants).
+  Three drops that were previously unreasoned each acquire a named one: the HEAD short-circuit that
+  discards already-enumerated peers, the rule-4 requeue filter, and the cap REMAINDER.
+
+  Three bounds, all load-bearing:
+  - **Admission is UNTOUCHED.** This changes only what the event can PROVE. Which branches are
+    admitted is a separate question with its own carrier — as was the `queue_depth` derivation,
+    which this clause left exactly as it was and the clause below now repairs.
+  - **The dispositions ride EVERY formation row, not only the solo fork.** An accounting confined to
+    the solo fork would inherit the `queue_depth` inversion described below.
+  - **The quiet repo stays byte-identical.** The N=1 no-row clause widens by exactly one term — a
+    formation that SAW candidates emits a row — so a repo whose queue read yielded nobody still emits
+    nothing, and this is not the blanket always-emit the clause above already refused.
+
+  **THE RECORDED QUEUE DEPTH IS THE LIVE CANDIDATES, AND IT RIDES EVERY FORMATION ROW** (measured 2026-08-19). `queue_depth` was written only under the N<=1 branch and derived as the
+  member count plus the whole exclusion sink, so it went silent exactly when peers existed and loud
+  exactly when they did not: that day every multi-member row carried it absent — including a batch of
+  two paying members — while all five solo rows carried 8-10, composed entirely of candidates the
+  queue read had ITSELF judged no longer waiting. A field that reads backwards is worse than a
+  missing one: it does not merely mislead, it removes the ability to reason about the mechanism's
+  output at all, because the number can be trusted in neither direction.
+
+  So the depth is **the candidates that were LIVE at the read instant** — the admitted peers plus the
+  branches a filter DOWNSTREAM of the queue read declined to carry — and it is recorded on **every**
+  formation row, solo and multi alike. A candidate the queue read itself judged absent (its wait
+  evidence was not evidence of now, or its land had already ended) is NOT queue load; it stays in the
+  exclusion sink, which is where its reason belongs and where the differential lives. The
+  solo MARK stays on the N<=1 branch: it describes the batch, not the queue.
+
+  Two bounds. **Admission is untouched** — this is a derived REPORT, and the member set, the sink,
+  the dispositions and the quiet-repo no-row clause are all what they were. And **the classification
+  names the not-live family, never its complement**: those reasons are written by the queue read
+  alone and are bounded by what a wait-row read can conclude, while the live-but-not-carried family
+  grows with every filter added — so an unclassified future reason counts as LIVE and reads loud,
+  rather than silently vanishing from the count.
+
+  **AFTER A `landed` VERDICT THE WAIT EVIDENCE MUST BE A NEW WAIT, NOT A NEWER HEARTBEAT** (traced 2026-08-18). admission test asks whether a branch's newest wait row is STRICTLY
+  NEWER than its newest terminal row, and it applies that question VERDICT-BLIND. For every verdict but
+  one that is right. For `landed` it is not: the member's own land is parked in the land
+  reservation, a flock poll that consults the lock and the clock and never opens the journal, so NO
+  batch verdict can reach it and it keeps beating after its work is already in `main`. Traced end to
+  end on task/ — landed at 04:06:13Z, still beating 22 minutes later, announced as a member into
+  three later formations and delivering a verdict in NONE of them; 7 of 14 carried-landed peers show the
+  same tail. So for a `landed` member verdict — and for NO other verdict — admission ADDITIONALLY
+  requires the newest in-window wait row to be a NEW wait: its `waited_s` restarts at 0 when a new land
+  parks and does not restart across a verdict, so `row_ts - waited_s` at or after the verdict proves a
+  new land and anything earlier is the same one still parked. A wait that cannot be dated that way is
+  undecidable and EXCLUDES, the same fail-closed direction rule 1 already takes everywhere. This
+  NARROWS the discrimination; it does not replace the mechanism, and it is NOT a permanent exclusion —
+  a branch that genuinely re-lands with new commits parks a new land and is admitted again (task/,
+  task/ and task/ all did). `requeued-after-red-batch` keeps the untouched verdict-blind
+  path, so rule 4's one-round penalty stays ONE round. No new event type, no new store, no new entity:
+  `verdict` and `waited_s` are already on the rows this read parses.
+
+  **Nor is the CLAIMANT'S KIND named — an interactive Controller's land is an ordinary member** (owner
+  question, 2026-08-16). Everything motivating this spec is worker-framed: the deaths counted are
+  dispatched workers', the metric segments dispatched workers, and the SPEC-0180 seam is a worker
+  holding its turn. A reader can fairly conclude batching is a worker-only mechanism. It is NOT. A
+  Controller landing a `work/<slug>` filing batch enters the SAME serialized merge→verify→ff span
+   and takes the SAME admission slot (SPEC-0132) as any worker, so by this rule it is queued,
+  and therefore batchable, on identical terms. Making membership depend on the claimant's kind would be
+  a second code path selected by session label — exactly what this rule and CHARTER §P1 forbid, and it
+  would also shrink batches precisely in the interactive+worker mix where queueing is worst.
+
+  The asymmetry that IS real lives in rule 6, not here: what "the claimant died" MEANS differs between a
+  headless worker (whose process exits when it yields its turn) and an interactive session (which does
+  not). Rule 6 therefore defines eviction on a signal both kinds emit — see there. Membership itself
+  stays actor-agnostic.
+
+  **A MEMBER IS `paying` WHEN ITS OWN LAND WOULD ACTUALLY HAVE RUN THE SUITE — never when its paths
+  merely classify inert**. `paying_members` on the formation row counts the members that
+  would each have paid a full pass alone, and it is carried as its OWN key because `members` by itself
+  reads as "N lands per pass" whether or not any pass was actually amortised. The test is the ACTUAL
+  question, answered per engagement (rule 2): on a KERNEL-AUTHORED verify a first attempt always
+  verifies and therefore PAYS, and only a RETRY whose delta is inert skips — the inert class is that
+  skip's PRECONDITION, never the skip itself; on a PROJECT-AUTHORED verify a member pays only when some
+  declared layer would actually RUN for its changed paths, since a change every layer skips runs
+  nothing. A land running no tests pays nothing whatever its diff.
+
+  **THE PROJECT-AUTHORED HALF IS ASKED THROUGH `subject_globs`, NEVER `covers:`.** They are different
+  declarations with OPPOSITE defaults, and confusing them inverts the answer on real projects: `covers:`
+  names the test surface a layer OWNS (SPEC-0152 delegation), while `subject_globs:` is what the verify
+  seam actually skips on — and a layer declaring NO `subject_globs` runs ALWAYS. A layer may therefore
+  own `tests/**` by `covers:` while its subject spans `app/**`, so a change under `app/` really runs it
+  and PAYS although no `covers:` glob matches. The question is put to the SAME authority the seam skips
+  on, so this metric and the gate that decides what a land pays cannot answer differently; a WAIVED or
+  commandless layer runs for nothing whatever its globs say, and a carrier declaring nothing runnable at
+  all is UNDECIDABLE rather than free — inventing a saving out of an unusable declaration is the same
+  lie in the other direction.
+
+  **UNKNOWN IS NOT PAYING, and the direction is the point.** An unreadable or undiffable member, an
+  unknown attempt, or an undecidable engagement is never counted, so the number under-claims rather
+  than over-claims: this metric exists to expose a repo assumed to benefit while saving nothing, and
+  one that guessed upward would manufacture the very reassurance it is meant to withhold. Reading the
+  inert CLASS as the answer instead conflates it with a skip gated on `attempt > 1`, which reports zero
+  saving on the cheapest and most frequent class of land — the mechanism then reads as worthless
+  exactly where it works.
+
+  **Read the kernel consequence honestly.** Where every queued land really does pay a full pass — this
+  repo — `paying_members` converges to `members`. That is the repo's true cost, not the metric going
+  degenerate, and it must not be reported as a preserved kernel-side distinction: the separation
+  between the two numbers does its discriminating work on projects whose declared layers cover only
+  part of the tree.
+
+  **BESIDE THE TWO MEMBER COUNTS, THE ROW REPORTS WHAT A PASS COST** (owner direction
+  recorded 2026-08-25). `members` and `paying_members` are both counts of MEMBERS; neither is a
+  price. Batching amortises exactly ONE pass, so the benefit of forming a batch is that pass's price
+  times the members who would otherwise each have paid it — and the row carried both factors of that
+  product except the one that decides its size. `verify_wall_ms_median` (with
+  `verify_wall_ms_median_n`, the sample it rests on) is folded READ-ONLY from completed lands' own
+  recorded `land_completed.data.verify_duration_ms` over a bounded journal tail. Why it matters here
+  and not merely as telemetry: the narrowing shipped made a kernel pass materially cheaper,
+  which MOVES the value of every batch this spec forms — measured on this repo 2026-08-29, the median
+  fell from about 7.4 min to about 3.0 min post-narrowing (n=715 since 2026-08-25), i.e. roughly 2.5x
+  cheaper rather than the six-fold the direction predicted. The benefit therefore fell by about that
+  factor while the fate-binding cost is UNCHANGED, and no surface reported it.
+
+  **IT IS A REPORT AND IT DECIDES NOTHING.** Nothing reads the figure back: membership, the cap, the
+  cost ladder of rule 9, the class grouping of rule 10 and every fail-closed direction are exactly
+  what they were. It informs a HUMAN re-judging whether the amortisation is still worth the fate it
+  binds; it never makes that judgement. Two bounds follow and both are load-bearing: the fold happens
+  BELOW the emitter's N=1 early return, so rule 1's quiet-repo promise (a solo formation reads
+  nothing and writes no object) is untouched; and an unmeasurable pass OMITS both keys rather than
+  reporting a zero, because a zero reads as "a pass is free" and would invert the very argument the
+  figure is reported to inform.
+
+  ### 2. Engagement requires a DECLARED property from the project
+  The gate keys on WHO AUTHORED THE VERIFY, never on which repo this is (plan-check finding 1,
+  2026-08-16 — an earlier draft keyed it on the project `yitc-ops.yaml` carrier alone, which
+  self-disabled for the kernel, the one repo whose pain motivated the whole plan and which has no
+  `yitc-ops.yaml` at all):
+
+  - **Verify is the kernel's OWN pinned suite** (the bare `tests/` sweep) — batching engages without a
+    per-project declaration, because the AUTHOR of that suite and the enforcer of this rule are the same
+    party: the declaration and the thing declared about have one owner, so a separate assertion would be
+    the kernel telling itself what it already knows.
+  - **Verify is PROJECT-AUTHORED** (`verify.layers` commands) — a declaration is REQUIRED, because the
+    kernel cannot reason about `bash scripts/verify-stack.sh`.
+
+  **This is an AUTHORSHIP predicate, not a repo-identity bypass** (plan-check finding 2, 2026-08-16 —
+  read as an identity exception, which would contradict rule 1's "no repo is ever named"). Nothing here
+  asks "is this repo the kernel". It asks who WROTE the verify the batch is about to run, and the
+  kernel-authored branch would apply to ANY verify the kernel itself authors and owns. Rule 1's boundary
+  is intact: no repository is named, and a consumer never gets a different code path for being that
+  consumer. **The branch is nonetheless SPEC-0152's to own, with its own adoption probe** — SPEC-0152
+  owns the declaration surface, so it owns BOTH branches of the predicate including the
+  kernel-authored default and the evidence that the default was deliberate rather than an omission. It
+  is not left implicit here; this spec cites it and enforces the consequence (rule 2 head).
+
+  This is the same seam SPEC-0132 already draws (X-0678 named exactly these two verify-paying
+  phases when it fixed the unslotted consumer land), so it reuses an existing boundary rather than
+  inventing one, and no rule anywhere names a repository.
+
+  For the project-authored case: **SPEC-0152 DEFINES the declaration; this spec only CITES it and
+  enforces its consequence** (plan-check finding 2, 2026-08-16 — an earlier draft had the field
+  described in two places at once, which is the duplication CHARTER §P5 forbids). SPEC-0152 rule 16
+  owns the `yitc-ops.yaml` `verify:` carrier, so the field's NAME, SHAPE and WORDING are settled there
+  and are deliberately NOT restated here. What this spec states is the CONSEQUENCE only, and it is
+  fail-closed: **anything other than an explicit affirmative declaration means batches of one** —
+  absent, malformed, or false are not distinguished here, because telling them apart is the defining
+  spec's job, not this one's.
+  Bisection semantics cannot be PROVEN for arbitrary project-authored commands, and inferring them
+  would be a guess dressed as a guarantee — so the project asserts the property about its own surfaces
+  and the kernel enforces the consequence, the declare-or-waive shape the corpus already runs on.
+
+  ### 3. Merge-and-evict happens BEFORE the pass is spent
+  Members are merged onto the current `main` in queue order. A member whose merge conflicts with an
+  already-merged peer is EVICTED back to the queue before any verify starts — never after. A verify pass
+  is the scarce resource this whole spec exists to conserve; spending one to discover a merge conflict
+  would defeat it.
+
+  **A conflict with `main` ITSELF is refused BEFORE the queue, by this same oracle** (external-auditor consult `land-conflict-check-before-queue`). Rule 3 above evicts a member that
+  conflicts with a PEER; it says nothing about a branch that cannot merge with `main` at all, and
+  that branch pays the FULL queue before the in-lock `_update_from_main` tells it so. Measured
+  2026-08-17: task/ waited 71 minutes across 197 queue-wait rows and 7 batches, was evicted
+  from every one, and then aborted correctly on a non-union conflict with `main` — an answer
+  computable in milliseconds at the moment it entered. So the SAME classification runs as a DRY
+  PROBE above the land reservation: a proven blocking conflict aborts immediately, taking no
+  reservation, no verify slot and no batch membership. This spec's own rule-3 argument that an
+  evicted member "takes its own slot and verifies alone" is true but INERT for this class —
+  verifying alone fails for exactly the same reason.
+
+  **A SECOND pre-queue class: AUDIT CURRENCY**. The same argument holds for the other
+  question a land answers late and could answer first — is the diff about to land still the diff
+  that was audited (SPEC-0077 §3a). Measured 2026-08-21: that gate refused task/ once and
+  task/ twice, each refusal AFTER the reservation. So the SAME computation runs as a dry
+  probe beside the merge one — `_land_preflight_currency_lines`, which is itself a
+  caller of `_land_audited_footprint_split`, the in-lock gate's own classifier, so all three
+  sites answer from one definition. The three properties below govern it UNCHANGED (one oracle;
+  fail-OPEN, the gate stays the fail-closed authority; the refusal names the shas it is true
+  relative to), and it rides the existing abort carrier with the existing `audited-diff-stale`
+  class — no new abort path, class or event type. It carries ONE ADDITIONAL admission condition,
+  because currency is judgeable only AFTER update-from-main: the verdict is computed against the
+  MERGE-BASE of `main` and the branch — an ancestor of HEAD for EVERY branch, so a verdict always
+  EXISTS — and acted on ONLY where the pending merge provably cannot change it, i.e. where main
+  has touched NONE of the offending paths (`own_post_audit` + `unclassified`) since that base. For
+  such a path the merge takes the branch's content verbatim, so its pre-merge bucket IS its
+  post-merge bucket. Where even ONE offending path HAS moved on main since the base, the branch
+  proceeds unjudged — that merge can still move it into `mechanical_resolve` or
+  `merge_inherited`, and refusing on a verdict the merge could overturn would be exactly the false
+  abort the first property forbids.
+
+   shipped this admission at the BRANCH level — "refuses ONLY when the branch ALREADY
+  CONTAINS main's tip" — and narrowed it to the per-path test above, of which the old rule
+  is the DEGENERATE CASE: when the branch contains main's tip, the merge-base IS that tip, so the
+  oracle's base is unchanged and `base..main` is empty, making the test trivially true. Nothing
+  admitted under the old rule is admitted differently; the widening only ADDS the behind-main
+  cases whose verdict is provable. Its grounds are MEASURED: the tip-containment condition almost
+  never held in this repo's land traffic — five consecutive attempts on 2026-08-21, each a
+  `worktree sync` immediately followed by `land`, ALL found main advanced again by the time land
+  read it (a sync takes ~30s and main moves inside that window), so the probe fail-opened and the
+  branch queued exactly as before. The check was correct and rarely reached its verdict.
+
+  Three properties make that early refusal safe rather than merely fast, and none is optional:
+
+  - **ONE ORACLE, NOT TWO.** The pre-queue probe and the rule-3 eviction probe consume a single
+    shared definition, which is the same `_classify_land_merge_conflicts` authority the in-lock
+    merge runs. The consult's medium finding is why: a name-only `merge-tree` feed makes
+    auto-resolvable spec-signature and row-append conflicts read as BLOCKING, so an early path
+    with a feed of its own would FALSE-ABORT a land that would have succeeded — the mirror image
+    of the defect rule 3 already fixed. A false abort is worse than a slow success.
+  - **FAIL-OPEN, the inverse polarity of the in-lock check — deliberately.** The in-lock merge
+    remains the AUTHORITY and remains fail-CLOSED; the pre-queue probe is a cheap PREDICTOR of it
+    and refuses ONLY on a proven blocking set. Every answer it cannot prove — a git that could not
+    run, an unreadable ref, an unparsable stream, a classifier that could not decide — proceeds
+    into the queue and lets the authority decide. It never invents a refusal it could not prove.
+  - **THE REFUSAL NAMES WHAT IT IS TRUE RELATIVE TO.** The abort text and its journal row carry
+    both the `main` sha and the branch sha the refusal was proved against, because a branch refused
+    now may merge cleanly once `main` advances: this is stale-current-state, not a weaker merge
+    authority. The land-abort carrier, its class and its journal side effects are otherwise
+    unchanged — no new event type and no new abort class.
+
+  ### 4. One pass, then all-or-nothing — and a red batch NEVER reforms itself
+  The combined candidate is verified ONCE. On green, every surviving member is fast-forwarded onto
+  `main` atomically: partial application of a verified batch is forbidden, because `main` would then
+  hold a combination that nothing verified. On red, NO member lands.
+
+  **The safety guarantee is COMBINED-CANDIDATE safety, and it is stated here so nothing downstream
+  promises more** (gate-executing finding 1, 2026-08-16): what reaches `main` is EXACTLY what was
+  verified, as a SET. `main` is never green by assumption — it is green by having been run. A member
+  that is red ALONE but green IN COMBINATION (a peer masks its breakage) WILL land, and this design
+  cannot detect that: under batching a member has no personal candidate leg to be red on. Detecting it
+  would require verifying every member separately, which is the per-change pass this spec exists to
+  amortise — so the residual is ACCEPTED, not solved. What it costs: a latent breakage can sit in the
+  tree until the masking peer is reverted or the combination changes. What it never costs: a red
+  `main`. Every merge queue this spec cites as prior art carries the identical residual.
+
+  **A red batch DISSOLVES, and its members become batch-INELIGIBLE for their next attempt: each is
+  verified ALONE** (plan-check finding 1, 2026-08-16 — a livelock this spec would otherwise have
+). "Return them to the queue" is not sufficient on its own: the same members are still queued
+  together, so the next slot reforms the SAME batch, which fails identically, forever. The members must
+  therefore be marked single-verify for one round, which terminates the loop by construction — every
+  member reaches an INDIVIDUAL verdict on its own candidate leg, and the queue makes progress even
+  when nothing about the red is understood.
+
+  This is what makes dissolution SELF-CORRECTING, and it is the reason bisection can be deferred rather
+  than being load-bearing: after one dissolve round the genuinely red change has failed alone and is
+  out, while a PEER-DEPENDENT red — green for every member alone — passes alone and lands. Bisection
+  would reach the same outcome in fewer passes; it is a cost optimisation on top of this rule, never a
+  prerequisite for correctness. Without this paragraph deferring bisection would be unsound, so the two
+  belong together: **whatever else changes, a red batch may never be re-formed identically.**
+
+  A member returning from a dissolve regains ordinary batch eligibility once it has had its single
+  verdict — the ineligibility is one round, not a quarantine, and it is not a penalty box: a member
+  evicted for a PEER's red did nothing wrong and must not be disadvantaged beyond that one pass.
+
+  **AND THE MARK DOES NOT FALL ON A TIMEOUT AT ALL** (measured). The
+  guarantee above — a red batch may never be re-formed identically — is what JUSTIFIES the blanket,
+  and it needs the red to be a VERDICT ABOUT THE MEMBER COMBINATION: only then does "the next slot
+  would re-form the same batch and fail identically forever" follow. A verify TIMEOUT is not such a
+  verdict. It is an INCONCLUSIVE run — the abort class the red-ISOLATION probe one rule over
+  already refuses to convict anybody on, whose own words are that a launch error and a timeout arrive
+  in the same shape as an assertion failure and each must turn the probe UNDECIDABLE rather than name
+  a culprit. Re-forming the same batch under lighter load may well pass, so the livelock the mark
+  prevents cannot be INFERRED from a timeout, and marking the members converts ONE inconclusive run
+  into N full verifies. Batch `bat-621a860a8cbb` (four members) went red with BOTH failures reading
+  only `TIMED OUT after 300s`; no culprit was attributed — correctly, since a timeout belongs to
+  nobody — and all four were penalised anyway, 4 of the 28 member-verifies burned by red batches that
+  day. So when the red consists ENTIRELY of timeout entries the members requeue with rule 5's
+  ordinary `requeued-after-red-batch` verdict and NO one-round mark.
+
+  THE DISCRIMINATOR IS POSITIVE, and that bound is the rule, not an implementation note
+  (`lessons/carving-an-exception-into-a-fail-closed-gate`). The question is not "did we fail to find
+  a culprit?" — which would swallow the rule — but "is EVERY entry the red surfaced a timeout?",
+  asked through the SAME predicate the isolation probe uses, never a second detector that could drift
+  from it. Every other shape keeps today's blanket: a MIXED red (a timeout BESIDE a genuine failing
+  assertion) is still a verdict about the combination, so the livelock is live and the mark applies
+  unchanged; a red with nothing surfaced explains nothing and keeps the blanket; and a marker that
+  never reached the decision fails closed to the blanket, so broken plumbing can never open the
+  carve-out. UNDECIDED HERE, deliberately: the per-test timeout VALUE, and whether a timed-out batch
+  should be RETRIED — this rule withholds a penalty, it does not rescue the pass.
+
+  **BUT THE VERDICT MUST HAVE SETTLED SOMETHING, OR IT IS NOT THE ROUND THIS RULE PROMISES**
+  (measured 2026-08-27). The guarantee above — a red batch may never be re-formed
+  identically — is not delivered by the mark alone, because the mark is discharged by the member's
+  own individual verdict, and when the red is owned by NO MEMBER every member's individual verdict
+  fails on the SAME assertions, resolves nothing, and discharges its own mark. The composition then
+  re-forms and dies identically. `task/` was requeued at 12:09:10Z carrying `red_assertions`
+  {t11444, t11417}; its own solo land ran a full 681s verify and aborted at 13:41:05Z on EXACTLY
+  {t11444, t11417} — and that abort cleared its round. `task/` went round the loop four times
+  (10:52:19Z, 12:09:10Z, 12:48:37Z, 13:28:13Z), while `task/` and `task/` waited 8362s
+  and 2468s WITHOUT EVER REACHING VERIFY — `task/` behind `main` by ZERO commits. Nobody was
+  at fault: once the composition CHANGED, `task/` and `task/` landed clean at
+  14:20:41Z with no fix from anyone. So an individual verdict that RE-OBSERVED the batch's own
+  UNOWNED red does NOT discharge the mark.
+
+  This is the qualifier one layer deeper, not a second mechanism: that card demanded positive
+  evidence the individual leg RAN, and this one adds that a leg which ran and then re-observed the
+  very assertions the batch was requeued for resolved exactly as little. Both are this rule's own
+  words ("every member reaches an INDIVIDUAL verdict on its own candidate leg") being read, and
+  neither states a new obligation on any actor.
+
+  **UNOWNED means the dissolve's own decline record NAMED NOBODY** — outcome `interaction` (the
+  oracle PROVED no member reproduces alone) or `undecidable` (it named nobody at all, incl. the
+  `pinned-entry` gate: 8 of the 10 decline rows measured that day). `culprits-not-actionable` and
+  `partially-explained` NAME an owner, or part of one, so the red IS somebody's and the ordinary
+  clearing above is correct for them, unchanged. Nothing here changes the ORACLE, its outcomes or
+  their classification: this governs only what happens AFTER a decline.
+
+  **AND IT IS STILL NOT A QUARANTINE.** The member is not blocked and not penalised — it is verified
+  ALONE, which is the cheapest honest thing left to do with it, so it reaches its OWN terminal land
+  outcome on every pass instead of being dragged round inside a batch that cannot land. The mark
+  self-clears on the FIRST individual verdict that says anything new: a green land, or a leg that
+  fails on a different assertion. Nothing waits for the red to clear. The read stays FAIL-OPEN in the
+  direction it already takes: the mark is KEPT only on a positive, measured overlap, and every absent,
+  empty or unreadable input clears exactly as before — because a wrongly-KEPT mark on bad data is the
+  one thing that WOULD make this a quarantine.
+
+  **THE MARK FALLS ON THE ATTRIBUTED CULPRITS, NOT ON EVERY MEMBER — WHEN THE ATTRIBUTION ACCOUNTS FOR
+  THE WHOLE RED** (measured 2026-08-18). The blanket above was correct while a dissolve could
+  not tell WHO broke the batch. Since rule 5's attribution it often can, and marking everyone then
+  charges innocents a round for a peer's supersession: the four-member batch that died at
+   failed on two assertions BOTH attributed to `task/`, yet all four were
+  marked, so the queue paid one red pass PLUS four individual passes — one MORE than doing nothing, and
+  three of those passes were spent on members with no evidence against them.
+
+  So dissolution marks the attributed culprits alone, under a POSITIVE condition and never on the
+  absence of a detected problem: **every failing entry the red surfaced must be a pinned entry
+  attributed to some member.** A non-pinned candidate failure, an entry naming no assertion, a key that
+  resolves to no path or to two, an entry with zero or with several candidate owners — each leaves part
+  of the red unexplained, hence a culprit possibly unnamed, and the BLANKET is retained unchanged. The
+  unnamed-culprit hole is what makes this conditional rather than free: an unmarked culprit rejoins the
+  next batch and kills it.
+
+  **WHEN THE CULPRIT IS PROVEN, THE BATCH IS NOT DISSOLVED AT ALL — IT EVICTS AND CARRIES ON**
+  (measured 2026-08-19). Everything above describes a red batch that cannot say WHO broke
+  it, and that stays the DEFAULT and the fallback. But dissolution answers a red batch the way rule 3
+  answers a conflicted one only in outcome, never in blast radius: a member that cannot MERGE is
+  evicted and the rest carry on, while a member that fails the TESTS took every peer down with it —
+  measured over the whole journal as the LARGEST non-landing category, 39 member-slots against 20
+  `evicted-for-conflict`. The 20:07:40Z batch that day landed NOBODY and requeued three; one of them
+  was unrelated to all three failing assertions and paid ~19 minutes of pure overhead.
+
+  So before dissolving, the land ASKS WHO, with an ORACLE rather than a heuristic: re-run ONLY the
+  FAILING assertions against each member ALONE (`_land_red_isolation_probe`). Cheap by construction —
+  the failing set is typically one to three files and the batch is at most BATCH_MAX, so this is not
+  a suite pass per member. It is a DIAGNOSTIC, exactly as the external-auditor consult framed it
+  (`decisions/batch-member-rebaseline-authority-audit-adhoc.yaml`, 2026-08-19: "keep the merged-tree
+  pinned leg as the protective check; use per-member or subset runs only as diagnostics for
+  attribution"). THREE OUTCOMES, and the third is not optional:
+    * exactly one member reproduces alone -> evict it and carry the rest;
+    * several reproduce alone -> evict each, every one on its OWN reproduction;
+    * NO member reproduces alone -> the failure belongs to the MERGED tree. Nobody may be evicted,
+      and the dissolution above is the CORRECT answer rather than a misattribution to whichever
+      member a search happened to isolate first.
+  Anything the oracle cannot run, parse or decide — a verify timeout, a runner that could not launch,
+  a member that will not isolate, a red only partly accounted for — likewise falls back to the
+  dissolution above, byte-identically. A wrongly evicted member is an innocent branch told it broke
+  something it did not, so nothing is ever evicted on a guess.
+
+  **A PINNED ENTRY IS THE ONE NAMED EXCEPTION, AND IT IS ANSWERED BY THE ATTRIBUTION THIS RULE
+  ALREADY TRUSTS** (measured 2026-08-25). The oracle's refusal of a `[pinned/last-green] `
+  entry stays exactly as it is and is correct — reproducing one needs the pinned OVERLAY
+  construction (last-green checks over a candidate subject), not a plain re-run of a test file, and
+  the merge-base probe cannot help either: its axis separates MAIN from BRANCH, and every member of
+  a batch shares one merge-base. But that refusal is a statement about the PROBE's reach, not about
+  the batch's knowledge. Two calls later the dissolution ALREADY names the culprit: rule 5's
+  attribution marks the member that uniquely modified the resolved test file, and the POSITIVE
+  whole-red condition stated three paragraphs above decides whether that naming accounts for the
+  entire red. The answer simply existed too late to save anybody.
+
+  So on THIS decline reason alone the land ASKS THE ATTRIBUTION before dissolving, under the
+  IDENTICAL whole-red condition and the IDENTICAL two structural bounds. Nothing is widened: no
+  attribution gate is loosened, no new gate is added, the culprit set IS the complement the
+  ineligibility mark already falls on, and the record carries `reason: pinned-entry-attribution`
+  with an EMPTY `reproduced`, so an attributed culprit is never mistaken on the row for a
+  re-run-PROVEN one. It costs zero test subprocesses — it reads diffs, not tests — so it takes no
+  admission slot. What entitles an eviction here is narrower than blame: gate 4 proves the member
+  CHANGED the very file whose last-green assertion the merged tree now fails, and that supersession
+  is the member's own to declare on its own land (SPEC-0077 §3a) and no peer's to declare for it.
+  Evicting it routes the branch to the only land that can legitimately resolve its red.
+
+  **THE BOUND IS MEASURED AND PARTIAL BY CONSTRUCTION.** Over this repo's journal, 39 member rows
+  across 13 batches declined `pinned-entry` in the five days after the oracle. On 7 of those
+  13 the attribution reaches a culprit set that accounts for the whole red and leaves a survivor; on
+  3 of the 7 that set contains the HEAD, which the head bound below still forbids evicting, so 4
+  batches evict — 8 innocent peers spared. The other 6 stay dissolved because part of their red is
+  unowned, or because every member is a culprit and there is no survivor. That the fix is partial is
+  the discriminator working: it under-claims by design, and an unnamed culprit left in the candidate
+  is the failure this rule exists to prevent.
+
+  **THE REMAINDER MUST RE-VERIFY, AND THAT IS A CORRECTNESS BOUND, NOT AN OPTIMISATION.** The verify
+  that went red ran over a merged tree that INCLUDED the culprit. After eviction the tree is
+  DIFFERENT, so the survivors hold no green pass and take a FRESH one before any fast-forward.
+  Landing them on the strength of a run that failed would be a false green — the exact class
+  SPEC-0077's pinned leg exists to prevent. What this saves is N innocent peers skipping a full
+  requeue plus re-wait, at the price of ONE extra verify; it never saves the verify itself.
+
+  **TWO BOUNDS, BOTH STRUCTURAL.** The HEAD is never evicted: it owns the candidate branch the
+  fast-forward pushes to `main`, so removing it would rewrite the land's own subject — the same bound
+  rule 3 states as "the head is never evictable". And AT MOST ONE eviction round per land: a second
+  red after an eviction means the remainder is red too, so the batch is unhealthy and dissolves.
+
+  **WHEN THE PROVEN CULPRIT IS THE HEAD, THE PEERS ARE RELEASED AND THE HEAD VERIFIES ALONE**
+  (measured 2026-08-21). The head bound above is UNCHANGED and is not overcome here: the
+  head still owns the ff branch and is still never evicted. What changes is the DISPOSITION OF THE
+  PEERS when the oracle has proven the head reproduces the red alone. Dissolving there requeues every
+  innocent peer for a failure already attributed to somebody else — three consecutive red batches on
+  2026-08-21 (06:27:46, 06:37:07, 06:44:23) requeued twelve member-attempts and landed nothing, two of
+  them declining as `head-is-culprit`, i.e. the offender WAS identified and could not be acted on.
+
+  A PINNED red REACHES THIS ARM TOO, since. Before the pinned attribution above, a
+  pinned entry could never produce `culprits` at all — the oracle refused it at gate 1 — so no pinned
+  red ever derived `head-is-culprit` and this arm was UNREACHABLE for one. Now a pinned entry
+  uniquely owned by the HEAD yields exactly that: the attribution names index 0 alone, the head bound
+  refuses the eviction, the decline derives `head-is-culprit`, and the peers are RELEASED rather than
+  dissolved. That is the 3-of-7 head-containing case the measured bound above counts — they are no
+  longer merely spared an eviction, they are de-escalated. The route is asserted end-to-end, with a
+  differential per mechanism, by `tests/test_t11645_pinned_red_head_is_culprit_routing.py`.
+
+  NARROWED BY — "the proven culprit is the head" means the head is the ONLY proven culprit.
+  The head arm is asked LAST of the two, not first: a culprit set naming the head BESIDE an evictable
+  NON-HEAD member is not this decline at all, it is an ordinary eviction, and the non-head member is
+  evicted while the head stays. Only a set whose sole member is index 0 reaches `head-is-culprit` and
+  therefore this release. That ordering is the code's
+  (`_land_red_decline_record`, `bin/lib/batch_landing.py`), and it does not weaken anything above —
+  the head is still never evicted, and a release still costs nobody a punished requeue. It sharpens
+  WHEN the release fires, so a reader does not infer from "the proven culprit is the head" that a
+  head-containing set suffices.
+
+  So on that ONE decline reason the land RELEASES its peers and re-forms ALONE. Nobody lands on this
+  pass either — this de-escalates the batch, it does not rescue it — but the head then fails or passes
+  ON ITS OWN, which makes its next verdict unambiguously its own, and the released peers form the NEXT
+  batch without it. This is deliberately NOT the deferred carry-the-survivors design (landing the peers
+  PAST a red head), which would need a different ff target — a throwaway branch off `merged_base`
+  carrying only the peers — plus rework of this rule's atomicity argument and of
+  `_land_members_carried_by_ff`. Nothing of the sort is introduced: the head keeps its own ff branch, a
+  SOLO batch is an already-supported formation shape (the head short-circuit in `_land_batch_members`,
+  entered here by the same gate rebaselining and pinned-supersession already use), and the carried-by-ff
+  accounting is untouched.
+
+  THREE BOUNDS ON THE RELEASE, all of them existing mechanisms rather than new ones:
+    * A RELEASE IS NOT A PUNISHMENT. A released peer keeps the ordinary `requeued-after-red-batch`
+      verdict (rule 5's vocabulary stays closed — it IS requeued) and is marked `batch_ineligible:
+      False`, so the one-round mark does NOT fall on it and it re-enters the very next formation on the
+      same terms as any other candidate. It carries an additive `released_from_batch` record naming the
+      reason and the head, so a reader can tell a release from a punished requeue on the row alone
+      rather than by inferring it from an absent penalty.
+      **AND IT CARRIES WHOSE THE RED IS** (`failure_attribution`) — the OTHER HALF of the
+      cause below, and the one that makes the head-is-culprit verdict CHECKABLE rather than merely
+      readable. The attribution probe re-runs only the failing files at the merge-base and
+      returns `{outcome: branch | main | undecidable, reason, failing, at_main, at_branch}`; that
+      record reaches the `land_completed` ABORT row, but a peers-released red does not ABORT, it
+      RETRIES, so no abort row is written for the attempt and the verdict never travelled. Folded
+      over the engine's journal at filing time: 327 `land_member_verdict` rows, 40 of them released,
+      and ZERO carrying a verdict. With the cause alone a reader on main sees that a head was blamed
+      and on what — not whether that same assertion still fails WITHOUT the branch, which on
+      2026-08-23 evening was the whole answer (three heads later passed alone, one was genuinely
+      branch-attributed, three carried `outcome: main` from an environment cause). The record is
+      HANDED to the arm, never recomputed: the probe runs under the rule's admission slot and must
+      not be paid twice. **THE `not-probed` SENTINEL READS AS ABSENCE on a member row**, and that is
+      not an inconsistency with the abort row: `cmd_land` initialises the record to
+      `{outcome: undecidable, reason: not-probed}` when no slot was held and the probe never ran, and
+      the abort row records that deliberately because both readings are about an attempt the reader
+      is already looking at. A member row carries no such context, so an `undecidable` for a red
+      nobody probed would be a FABRICATED verdict — worse than a missing one. A PROBE-PRODUCED
+      `undecidable` IS recorded; the gate therefore keys on the reason, not on the outcome, since the
+      two share one. It records the verdict the probe ALREADY produced and changes WHO GETS BLAMED
+      not at all — rule 4's culprit-naming boundary is untouched.
+      **AND IT CARRIES THE BATCH'S CAUSE** (`red_assertions`, measured
+..) — on the SAME absent-means-UNRECORDED terms as a
+      dissolve's rows, and through the SAME single marking site, not a second mechanism. Twelve
+      multi-member batches went red in those twelve hours; TEN ended on THIS arm and put no cause on
+      any row that reaches `main`, while the two that DISSOLVED carried it. The cause was not lost —
+      it reached the head's own `land_completed` abort row — but that row is written in the HEAD
+      BRANCH's worktree journal and a failed land never integrates, so from `main` alone a red batch
+      was undiagnosable and triage meant opening `events.jsonl` inside each head worktree by hand
+      (where the causes proved NOT to be uniform). This is the arm where the peer is MOST entitled to
+      the answer: it is released precisely because the red was attributed to somebody else, and it
+      still has to decide what to do next. The key claims nothing about whose change it was — it is a
+      BATCH fact, the head is the attributed member, and `released_from_batch` on the same row already
+      says the peer was not blamed — so rule 5's verdict vocabulary and the no-culprit-naming bound
+      are untouched.
+    * THE ANTI-LIVELOCK GUARANTEE IS INHERITED, NOT WEAKENED. The releasing land re-forms with its head
+      SOLO for the rest of its life, so the batch that was red cannot re-form on its retry. The peers
+      are eligible again immediately, which is correct: nothing was shown about them, and the member
+      that WAS shown to be the cause is the one branch the next batch cannot contain, because it is
+      still this land's own head.
+    * THE SAME ONE-ROUND BUDGET, not a second one. A red AFTER a release means the head is red ALONE —
+      the individual verdict this rule wants — so there is nothing left to de-escalate and the land
+      reaches its ordinary abort.
+
+  **THE ANTI-LIVELOCK GUARANTEE IS INHERITED, NOT RE-IMPLEMENTED.** The evicted culprit keeps the
+  ordinary `requeued-after-red-batch` verdict — it IS requeued, for its own solo land — so it is
+  batch-INELIGIBLE for one round by the UNCHANGED mechanism above and cannot rejoin the retry's
+  batch or re-form the identical one. Rule 5's verdict vocabulary is therefore untouched: the
+  eviction rides ADDITIVE keys on that row (`evicted_as_culprit`, `red_isolation`), the same
+  copy-never-decide shape the attribution already uses. What changes is WHO gets a row — the
+  innocent peers no longer do, because they are no longer requeued.
+
+  **This does not weaken the anti-livelock guarantee above, and the guarantee is what bounds it.** A
+  dissolve marks either at least one attributed culprit or every member — never nobody — so the culprit
+  is still excluded, the next formation is drawn from a strictly smaller candidate set, and the
+  identical batch still cannot re-form. A member left eligible is not "released early": it was never
+  shown to be part of the cause, and it simply re-enters ordinary formation with no residual mark, no
+  retry counter and no timer. What is NOT changed is how long the mark lasts or what discharges it —
+  one round, cleared by the member's own individual verdict whose verify actually ran.
+
+  **THE HEAD MEMBER'S BRANCH IS RESTORED ON EVERY NON-LANDING END, NOT ONLY ON A RED DISSOLVE**
+  (measured 2026-08-17). A batch is built by merging the PEERS INTO THE HEAD MEMBER'S OWN
+  BRANCH, so on a green batch those merges ARE the joint land and correctly stay. On every OTHER end
+  they are another card's commits sitting in this card's history. The restoration was originally
+  written as the first of the red dissolve's two acts, which made it reachable ONLY from the red
+  path: an abort, an uncaught exception, or exhausted retries all bypassed it. The batch formed at
+   produced ZERO member verdicts — it neither landed nor dissolved — and its head
+  `task/` still carries `7c1db2aad` and `5cd3567ae`. It then INHERITED a peer's un-landable
+  conflict and sat roughly an hour blocked on a conflict that was never its own. Unlike a wasted pass,
+  this damage does not clear on the next attempt; it stays in that branch's history until a human
+  notices.
+
+  The rule is therefore stated on the END, not on the CAUSE: **whenever a land that merged peers into
+  the head member's branch ends WITHOUT fast-forwarding, that branch returns to its pre-formation
+  state.** The green path is the sole exception and it is decided by a positive fact — the ff
+  succeeded — never inferred from how the land exited. Enumerating the failing ends is NOT an
+  acceptable implementation: it is fail-open by construction, since the next exit added to the land
+  path silently reopens the hole this paragraph exists to close.
+
+  **AN UNPERFORMABLE RESTORATION IS LOUD.** The original implementation guarded the reset on three
+  conditions and wrapped it in a bare `except: pass`, while this rule's own text promised the peers'
+  commits leave the branch — a promise stated and not kept, the same stated-fail-closed /
+  implemented-fail-open class as. Worse, the swallow was invisible rather than merely
+  tolerant: the git helper returns a completed process instead of raising, so a FAILING reset produced
+  no exception to catch at all. A restoration that cannot be performed or cannot be proven is
+  journaled and surfaced; it is never silent. It stays NON-FATAL — every caller is on a path that is
+  already ending, and raising there would replace a precise diagnosis with a git error — because "not
+  fatal" and "not recorded" are different things and only the first was ever intended.
+
+  **THE BOUND THIS RULE DOES NOT CLAIM TO COVER.** A process KILLED outright runs no cleanup of its
+  own, so no in-process restoration reaches every case. That residue is NOT solved here and must not
+  be read as solved; what the rule requires instead is that it be DETECTABLE — a named read identifies
+  a head branch carrying peers' merge commits, names those commits, and says what to do. Detection
+  and advice only: repairing such a branch stays a human act, because the read cannot know which
+  commits above the contamination are the author's own.
+
+  **A LAND THAT IS REBASELINING A PINNED ASSERTION IS BATCH-INELIGIBLE BEFORE THE PASS, NOT AFTER IT**
+  (measured 2026-08-17). Everything above learns ineligibility from a red batch — i.e. after a
+  full combined pass has already been spent. One class is knowable BEFORE: a member whose change
+  SUPERSEDES a pinned assertion reddens any combined candidate it joins, and the only thing that clears
+  that red is a `--rebaseline` declaration scoped to the assertions ONE `--rebaseline-waive` set NAMES,
+  authorised by THAT card's own audit-post (SPEC-0077 §3a). No other member can carry it. So such a
+  member is not a batch that MIGHT fail; it is a batch that CANNOT land. It is therefore excluded at
+  the SAME two decision points rule 4 already owns — a rebaselining HEAD forms a batch of ONE, a
+  rebaselining PEER is dropped BEFORE the cap — and the exclusion is REPORTED through the rule-1
+  exclusion sink with its own named reason, so a solo land still says why it was solo. What does NOT
+  change: the rebaselining land itself lands SOLO exactly as before, with its own declaration and its
+  own fresh audit-post. No gate is removed, no authority widened, no event type or store added, and the
+  land is NOT refused — the pre-queue refusal shape is for a land that cannot succeed AT ALL, and a
+  rebaselining land succeeds fine alone.
+
+  Rate, so the rule is sized rather than guessed: 6 of 48 branches that landed on 2026-08-17 carried a
+  rebaseline (~12.5%), giving a batch of N a superseder with probability ≈ 1 − 0.875^N — 23% at N=2,
+  41% at N=4. BOTH formations that day contained one and BOTH died red; under this rule neither would
+  have formed, costing zero successful batches and saving two combined passes. The second occurrence
+  landed the cost entirely on a bystander: a filing land of two YAML cards (an inert diff) was batched
+  with a superseding peer and reddened by it, `paying_members` 1 of 2.
+
+  **THE PEER'S INTENT RIDES THE WAIT ROW THE QUEUE READ ALREADY CONSUMES.** The head knows its own
+  flags; a peer's declaration must be visible in the journal. It is, and early enough by construction:
+  `--rebaseline` is declared at ARGUMENT-PARSE time and an EMPTY `--rebaseline-waive` is refused right
+  there, so an intending land carries a complete declaration before the reservation, before
+  the queue read and before formation — and it beats `waiting_for_*` heartbeats the whole time it is
+  queued. Those rows carry an ADDITIVE `rebaselining: true`, present ONLY when declared, on BOTH wait
+  types (the reservation row matters most: lands serialize behind the reservation, so a queued peer is
+  normally parked there and only the holder reaches the admission slot). This is the same additive-key
+  growth `solo` / `queue_depth` already ride — no second store and no new event type, and a
+  non-rebaselining land's rows stay byte-identical. Freshness is load-bearing: only rows inside the
+  queue read's own window count, newest-wins, so a PRIOR attempt's declaration never excludes a later
+  flagless attempt of the same branch — the exclusion is attempt-scoped, and rule 4 is not a quarantine.
+
+  **THERE ARE TWO DOORS TO THAT KEY, AND THE SECOND IS TOKENLESS ( — an ADDITIVE extension;
+  a `--rebaseline` land's behaviour is UNCHANGED).** The paragraph above describes the GRANT door, and
+  for a while it was the only one — which STARVED this whole filter. `--rebaseline` conflates two
+  separable things: the DECLARATION of intent ("I expect to supersede a pinned assertion; verify me
+  ALONE"), which is a batch-formation input, and the GRANT of a waive ("waive these named assertions"),
+  which needs a `KEY::ASSERTION` token. That token names what actually FAILED, so the sanctioned way to
+  learn it is to read it off a LIVE refusal — i.e. AFTER the branch has already reddened a batch and
+  cost its peers a shared pass. To avoid poisoning you had to declare; to declare you had to first
+  poison. The filter was not wrong, it was unreachable in time.
+
+  So `land --expect-rebaseline` reaches the SAME key with NO waive token and no prior failure. It is a
+  DECLARATION ONLY and **GRANTS NOTHING**: the full candidate verify, the pinned last-green suite, the
+  `--rebaseline-waive` matcher and the audit-currency gate are untouched, and a pinned assertion that
+  fails still REFUSES that land exactly as before — the operator then reads the authoritative token off
+  its OWN solo refusal and re-lands with `--rebaseline`, having cost no peer anything. Every property
+  the paragraph above states is INHERITED rather than re-engineered, because the carrier is the same
+  wait row: absent-unless-true, so a non-declaring land's rows stay byte-identical; folded by the same
+  `_land_rebaselining_branches` through the same freshness window, so the exclusion stays ATTEMPT-SCOPED
+  and rule 4 still is not a quarantine; and reported under the same rule-1 sink reason, so no new
+  `queue_excluded` string exists. In the land path one derived name — `declares_rebaseline =
+  owner_rebaseline or expect_rebaseline` — feeds the formation call and the admission heartbeat, while
+  the reservation heartbeat reaches the key through its own second branch; every OTHER `owner_rebaseline`
+  site is a GRANT or EXEMPTION site and is deliberately NOT widened, which is what confines a tokenless
+  declaration to moving batch formation and nothing else.
+
+  **THE CHAIN HAS A SECOND EXPLICIT GROUND, AND IT IS NOT A THIRD DOOR TO THE KEY ABOVE ( —
+  additive; every `--rebaseline` / `--expect-rebaseline` behaviour is UNCHANGED).** Both doors above
+  state the SAME thing: "I expect to supersede a pinned assertion". A branch whose ACCEPTANCE PROBE
+  cannot read a MERGED tree states something else. The canonical shape, and this ground's first real
+  instance, is : a probe that measures the branch's own diff against `main` and asserts a file
+  set, which inside a batch measures the PEERS' files and reddens the combined candidate through no
+  fault of the branch. Such a branch supersedes NO pinned assertion and has NOTHING to waive, so
+  declaring a rebaseline would be a FALSE STATEMENT — in prose, and in the two machine-readable places
+  the wait-row key `rebaselining` and the sink reason `rebaselining-pinned-assertion` occupy.
+  declined to make it and therefore had no honest way to ask for the solo verify it needed. MEASURED
+  COST OF THAT GAP: 6 batches in ~60 minutes all reddening on ONE assertion; requeues ×5 ×4 ×3 ×2 — each a fully paid verify that shipped nothing. The ground's NAME
+  and the shape of the remedy are the external auditor's (2026-08-28): «Add a separate ground such as
+  `acceptance-assertion-merge-invalid`; keep the rebaseline declaration, hint behavior, and
+  per-assertion waive-token rule distinct.»
+
+  So `land --merge-invalid-acceptance --merge-invalid-assertion <NAME>` enters at exactly the two
+  decision points above — a declaring HEAD forms a batch of one, a declaring PEER is dropped before the
+  cap — with its OWN additive wait-row key (`merge_invalid_acceptance`, on BOTH
+  `_LAND_QUEUE_WAIT_TYPES` rows), its OWN sink reason (`acceptance-assertion-merge-invalid`), and its
+  own reader, which is a thin WRAPPER over `_land_rebaselining_branches` rather than a fork of it, so
+  the freshness window, the newest-wins rule and the fail-open direction cannot drift apart. It
+  therefore inherits attempt-scoping unchanged: this is a declaration for ONE round, never a quarantine.
+
+  **WHAT IT DOES NOT DO IS THE LOAD-BEARING PART.** It GRANTS NOTHING — the full candidate verify, the
+  pinned last-green suite, the `--rebaseline-waive` matcher and the audit-currency gate are all
+  untouched. It is deliberately absent from `declares_rebaseline`, and — the part a reader must not
+  skim — deliberately absent from the `_sup = _sup - _reb` precedence subtraction: that subtraction
+  encodes an AUTHORITY (a declared rebaseline is the sanctioned way to supersede a pinned assertion,
+  SPEC-0077 §3a), and this ground carries none. A branch that supersedes a pinned assertion still owes
+  its own `--rebaseline` and still fails closed without one. For the same reason the new filter runs
+  LAST, after `_sup`: a candidate carrying both facts is reported under the SUPERSESSION reason,
+  because that is the one that names an obligation the operator still owes — reporting it under this
+  ground would read as "handled" and suppress that obligation through the sink instead of through the
+  subtraction. THE GROUND IS EXPLICIT, NEVER INFERRED: a bare declaration naming no assertion is
+  REFUSED at argument-parse time (abort class `merge-invalid-acceptance-undeclared`, the fail-closed
+  door put on an empty `--rebaseline-waive`), and the names it does give are RECORDED on the
+  wait rows and on `land_completed`, so a false declaration is attributable rather than quietly
+  granted. Inferring the ground from a diff would be exactly the positional guessing the red-batch
+  culprit probe was retired for.
+
+  **THIS DOES NOT CLOSE THE CIRCULARITY COMPLETELY, and the spec says so rather than letting a reader
+  assume it.** The available pre-failure HINT — a branch that MODIFIES an existing `tests/` file — is
+  offered as an ASK at `worktree sync` and is NEVER acted on by exclusion: measured over 283 branches in
+  7 days it scores recall 94%, false-positive 43%, PRECISION 30% (`fu_74b26470c694`), so excluding on it
+  would drop about half the queue and disable batching. And it MISSES source-only supersessions
+  entirely — a branch that breaks a pinned test WITHOUT touching it, by changing the source that test
+  reads. That case needs a pinned-test-to-source coverage map and is not addressed here.
+
+  **RECORDED, SO IT IS NOT RE-PROPOSED: PER-MEMBER REBASELINE DECLARATIONS WERE DECLINED BY THE OWNER**
+  (2026-08-17). The alternative design — a batch carrying one rebaseline declaration per member, each
+  bound to its own author's audit-post — was put to the owner and declined explicitly to avoid widening
+  who may waive a gate. Exclusion is the chosen design, not a stopgap for that one, and roughly 12.5%
+  of lands staying outside amortisation is the ACCEPTED cost.
+
+  **A CANDIDATE WHOSE OWN COMMIT ROW ALREADY CARRIES A PINNED-SUPERSESSION NOTICE IS BATCH-INELIGIBLE
+  TOO** (filed 2026-08-18). The clause above learns the supersession from the author's own
+  `--rebaseline` DECLARATION. There is a third source, and the system was already writing it down and
+  then ignoring it: when a commit's diff REMOVES an assertion line from the pinned surface, `task
+  commit` / `work commit` prints the notice and records it as
+  `data.pinned_supersession` on that commit's `commit_landed` row. A candidate whose LATEST such row
+  carries that key has probably superseded a pinned assertion WITHOUT declaring it — the exact shape
+  that reddens a combined candidate and that no peer can clear. It is therefore excluded at the SAME
+  two decision points rule 4 already owns — such a HEAD forms a batch of ONE, such a PEER is dropped
+  BEFORE the cap — and the peer drop is REPORTED through the rule-1 exclusion sink with its own named
+  reason, so a solo land still says why it was solo.
+
+  **PRECEDENCE: A DECLARED REBASELINE CLEARS THIS EXCLUSION.** A `--rebaseline` declaration is the
+  AUTHORISED way to supersede a pinned assertion (SPEC-0077 §3a), so a candidate that has declared
+  one is not excluded by THIS input at all; it may still be dropped for that attempt by the
+  declaration clause above, and is then reported EXACTLY ONCE, by that clause's reason. Reporting it
+  twice would inflate `queue_depth`, whose meaning is the candidates the formation SAW.
+
+  **NON-PERMANENCE IS CARRIED BY A MEANINGFUL EVENT, NOT BY A TIME WINDOW AND NOT BY A ROW'S MERE
+  ARRIVAL** (tightened by; the criterion this replaces is recorded at the end of this
+  clause). A commit row carrying the notice ARMS the exclusion. The exclusion is DISCHARGED only by
+  an event that RESOLVES the supersession, and there are exactly two: an evidence-bound
+  `--rebaseline` declaration naming the assertion (the precedence clause above), or a later SHIP
+  COMMIT — a task-tied `commit_landed` row for a real code change-set — that itself fired no notice.
+  Every other row is BOOKKEEPING and is PASS-THROUGH: it neither arms nor discharges, and leaves the
+  branch exactly as the last meaningful event left it. A branch that declares its waive, or ships
+  again cleanly, is admissible IMMEDIATELY — one round, never a quarantine.
+
+  The SHIP/BOOKKEEPING test is the field the row already carries and is FAIL-CLOSED: `task commit` —
+  the only emitter of a task's ship row — writes no `data.kind`, while every bookkeeping emitter
+  names one (`closure`, `pause`, `wont-do`, `park`, `closes_fp_link`, `pv_late_link`,
+  `probe_settle_link`, `reaudit-after-close`, `history-rewrite-repin`, `plan-*`, and `work` for the
+  task-id-less `work commit`). So the reader requires the ABSENCE of a kind to discharge, expressed
+  as a positive ship test rather than as a bookkeeping blocklist — a kind invented later cannot
+  discharge by default, and no enumeration has to be kept current for that to hold. Arming is
+  unconditional on kind: a substantive notice is a fact about a diff whatever row carries it.
+
+  WHY THE EARLIER CRITERION HAD TO GO, measured on this rule's OWN founding case. shipped
+  "the LATEST row wins; a later row without the key clears", which made the rule STRUCTURALLY INERT:
+  the Stage-9 CLOSURE record is a commit row the lifecycle emits for every task between its ship
+  commit and its land, so the ship commit armed the flag and the closure commit disarmed it before
+  any land could be attempted. task/ — the very branch this rule was built from — emitted its
+  keyed ship row at and a `kind: closure` row at 06:43:05Z, 2m38s BEFORE the
+  06:45:43Z formation, so it would have been admitted exactly as it was. This generalises rather than
+  being one unlucky ordering: 2189 of 2376 task ids carry more than one `commit_landed` row and 2052
+  of those rows are closure records.
+
+  **THE THIRD DISCHARGE IS EXPIRY, REPLACING "deliberately still NO freshness window".**
+  That clause reasoned that a wait heartbeat is evidence of NOW and goes stale while a commit row is
+  a fact that does not, so a window would EXPIRE a live supersession and admit the very member this
+  excludes. The first half is true; the second answers the wrong question. THE CLAIM WAS NEVER
+  ACTUALLY KEPT: the reader implemented a 512KB byte tail covering roughly 36 minutes of a busy
+  journal, so the operative lifetime was a write-rate artefact — shortest exactly when the journal is
+  busiest, which is when the answer is load-bearing — that nothing declared and nothing reported. An
+  unbounded lifetime cannot be served by a LIVE-SEGMENT read AT ALL, and the coverage report cannot
+  rescue it — loudness is not reach. made the archive case LOUD (reaching offset 0 counts as
+  coverage only when no older segment sits beside the journal, so a short live segment is REPORTED as
+  the SPEC-0190 rule-4 archive-branch condition it is), but a report that an answer is truncated is
+  not an answer: an arming row rotation moved into an archive is still outside what this read can
+. So the rule is BOUNDED instead, and read and rule became one number
+  (`_LAND_PINNED_SUPERSESSION_HORIZON_SEC`, pinned to the live window — the longest span a
+  live-segment read can serve without the segment-aware archive fold SPEC-0190 rule 4 prescribes).
+  A flag now discharges on a later clean SHIP row, on an evidence-bound `--rebaseline` declaration,
+  or by EXPIRY that many seconds after the arming row.
+  IT IS A RULE, NOT AN ARTEFACT OF THE READ — the age test runs over every row that arrives,
+  including an injected list no window ever bounded, which is what makes the older-than-horizon case
+  assertable as behaviour. An UNDATABLE row is kept, never discharged: its age is unknown, and this
+  clause is fail-open about missing an exclusion, not licensed to invent an expiry it cannot date.
+  THE FAIL DIRECTION MAKES IT SOUND: this clause fails OPEN, so a missed exclusion costs ONE repeated
+  batch while a spurious one would shrink batches on bad data — an expiry can only cost a pass, never
+  admit a wrong exclusion. And rule 4's red-batch fallback stands unchanged behind it: a branch that
+  really does supersede still reddens its batch, still takes the one-round mark and is still verified
+  alone. This clause SAVES that pass; it is not what makes the outcome safe. The horizon is
+  DECLARED-BY-CARRIER, never measured — at n=1 firings (see the paragraph below) there is no
+  arm->discharge distribution to measure, and reporting one would be a fabricated measurement.
+
+  **THIS SHIPS A HYPOTHESIS, NOT A MEASURED PRECISION, and the spec records that rather than a rate.**
+  The notice has fired EXACTLY ONCE since it began being journaled at, and that
+  one firing (commit_landed, 06:40:56Z, count=1 naming `tests/test_pinned_verify.py`)
+  preceded the death of the four-member batch formed 4m47s later, which died on two pinned assertions
+  — the FIRST of them that same file ( attributed both to). n=1: one firing predicting
+  one death is not a precision measurement. What supports the rule beyond n=1 is the notice's DESIGN
+  (it fires only on a REMOVED assertion line, so it stays off the ~90% of branches that merely touch
+  `tests/`, and an add-only diff records no key at all) and undeclared supersession being 3-for-3 as
+  the cause of post-fix batch deaths. The heavier alternative — a
+  file-touch predictor — was MEASURED over 107 task-branches (recall 96%, precision 32%, excluding
+  66% of the pool) and is NOT built: the notice is the sharper instrument and already exists.
+
+  **PARTIAL COVERAGE, STATED SO THE INSTRUMENT IS NOT OVERSTATED.** The notice named ONE of the two
+  assertions that killed that batch; one named supersession suffices to EXCLUDE, but the notice does
+  not enumerate every supersession a diff causes. And the read sees a candidate's commit rows only
+  once they are in the journal it reads: a QUEUED PEER's freshest rows live in its own worktree
+  journal until its land folds them (measured 2026-08-18). The read is therefore pointed at the
+  LANDING worktree's journal — a superset of main's, and the only place the HEAD's own rows exist
+  before the ff — which covers the traced shape (the superseder was the HEAD). A peer whose
+  supersession is still branch-local is not seen; that is a bound of the carrier, not of this rule.
+
+  **THE FORMATION ROW CARRIES THE THREE IDS OF THE DECISION IT RECORDS.** Rule 5's join key
+  told a reader WHICH batch a row belonged to; it never told them WHAT that batch was. Measured over
+  687 `land_batch_formed` rows (2026-08-18..25, 115 multi-member), members were identified by BRANCH
+  NAME ONLY — and a branch is DELETED when it lands, so afterwards the name resolves to nothing. Why
+  this cannot be a later derivation: formation MERGES its members onto the head member's branch (rule
+  3, above) about one second after emitting its row, so the row, the branch tips, git ancestry and
+  merge-tree all show POST-merge state, which is indistinguishable from pre-existing containment. The
+  row therefore RECORDS, at the formation instant and ABOVE that merge, exactly the three facts that
+  become unrecoverable: `member_tips` (a commit id per member), `base` (the `main` commit the batch
+  was formed on) and `pinned_baseline` (the pinned last-green verifier surface in force — its parts
+  AND a digest, so a reader recovers WHICH surface moved across a rebaseline, not merely that one
+  did). ADMISSION RULE, and the bound on this growth: RECORD WHAT BECOMES UNRECOVERABLE, DERIVE
+  EVERYTHING ELSE — containment between members, file overlap and per-member distance from `main` all
+  fall out of those three and are deliberately NOT fields. Additive keys on the existing row
+  (SPEC-0025), conditional on the reader being supplied, so rule 1's quiet-repo byte-identity
+  is untouched. This makes the formation decision AUDITABLE; it changes no batching behaviour.
+
+  ### 5. Every member gets its own verdict
+  Each member's outcome — **landed · evicted-for-conflict · requeued-after-red-batch ·
+  dropped-dead-member** — is journaled individually. That vocabulary is EXACTLY the set cards 1-4
+  deliver, and it deliberately omits `evicted-as-culprit` (plan-check finding 2, 2026-08-16): naming a
+  culprit requires the bisection this spec puts out of scope, so a verdict vocabulary carrying it would
+  promise an outcome nothing can produce. This is not reporting garnish — it is what lets a member
+  learn its own fate without reconstructing the batch, and it is the seam SPEC-0180 needs (below).
+
+  **THE OMISSION STANDS, BUT ITS REASON HAS MOVED.** Rule 4's isolation oracle CAN now name
+  a culprit, so "nothing can produce that outcome" is no longer why the value is absent. The
+  vocabulary stays CLOSED at these four for a better reason: an evicted culprit IS
+  `requeued-after-red-batch` — it goes back to the queue for its own solo land, which is exactly what
+  that value says — and it is the value rule 4's one-round ineligibility read consults, so a fifth
+  value would need that mechanism taught a second name to keep the anti-livelock guarantee. The
+  eviction is carried instead by ADDITIVE keys on the same row (`evicted_as_culprit`,
+  `red_isolation`), which is the growth SPEC-0025 / already sanction. What rule 4's change
+  altered is WHO gets a row — the innocent peers no longer get one, because they are no longer
+  requeued — never what a row may SAY.
+
+  **EVERY DECLARED MEMBER ENDS THE LAND WITH EXACTLY ONE VERDICT ROW, AND THE FIFTH VALUE IS
+  `unaccounted`.** The four values above are the OUTCOMES, and they are emitted from
+  explicit member lists at four call sites; nothing reconciled those lists against the set the
+  `land_batch_formed` row DECLARED. Measured : a batch declared three members,
+  two verdict rows were emitted, and `task/` received nothing at all — not landed, not
+  evicted, not requeued, not dropped — and formed its own batch a minute later. A member that
+  leaves the declared set with no row is indistinguishable from one that was never declared, which
+  is the same silence the FORMATION-side `queue_dispositions` closed one step earlier on
+  the CANDIDATE axis. So the declared members are RECONCILED against the rows actually emitted, at
+  the one catch-all end (`cmd_land`'s `finally`, where the rule-4 batch restoration already runs —
+  a per-outcome-seam pair would be fail-open by enumeration and would miss exactly the ends this
+  incident sits in), and each member left silent is journaled `unaccounted`.
+
+  **`unaccounted` IS NOT A FIFTH OUTCOME, AND THE TWO PRIOR DECISIONS BOTH STAND.** The
+  audit-absorbed 2026-08-16 decision (a removal reason must not become a claim about somebody's
+  CHANGES) and the sink below (diagnostic, non-terminal, `{branch, reason}`) are UNCHANGED: the
+  sink keeps recording every non-conflict removal, and none of the four outcome values is widened.
+  `unaccounted` asserts nothing about the member's changes. It states the only fact the land owns
+  about a member it dropped — *this batch declared you and produced no outcome for you* — and it is
+  the value already uses for the same question one step earlier, reused rather than
+  respelled. It is deliberately the value a drop point NOBODY HAS WRITTEN YET produces: a future
+  filter that forgets its sink entry yields a visible row instead of a silent disappearance.
+
+  Where a removal reason WAS recorded, it rides the row as `removal_reason` — BEST-EFFORT
+  enrichment, never the guarantee. The guarantee is the row; a reason nobody threaded degrades to a
+  bare `unaccounted`, which is still loud. **Rule 1 is untouched:** the reconciler emits through the
+  same emitter, whose N=1 clause owns the byte-identity, so a declared set of one produces nothing.
+  This amends only the sink paragraph's sentence that read a sink entry as meaning "has received NO
+  verdict" — it now receives exactly one, and that row still carries no outcome.
+
+  **A REMOVAL IS RECORDED IN A SINK, AND A SINK IS NOT A VERDICT.** A member can leave a
+  batch BEFORE the verify, and only ONE removal reason — `conflict` — produces a verdict
+  (`evicted-for-conflict`). The other four — `candidate-merge-failed`, `already-on-candidate`,
+  `head-unresolvable`, `not-in-landed-history` — deliberately produce NONE, and that exclusion STANDS:
+  a verdict is a durable claim about a member's CHANGES, while those four are facts about THIS
+  ATTEMPT (a ref that moved, a git error, work already carried elsewhere), so journaling one as a
+  verdict would invite a reader to treat a transient failure as a property of somebody's change
+  (audit-absorbed 2026-08-16). What that decision never provided was ANY record: measured
+  2026-08-18, a member announced into a batch whose head then landed ok had its removal reason
+  UNRECOVERABLE from the journal. So every non-conflict removal is recorded as an ATTEMPT-SCOPED
+  SINK entry — `{branch, reason}` under `members_removed` on the HEAD's own `land_completed` row,
+  present ONLY when non-empty so a land that removed nobody stays byte-identical.
+
+  The sink is **DIAGNOSTIC, NON-TERMINAL, and NOT a verdict**, and the naming carries that: it says
+  what this ATTEMPT did, never what a member IS. A branch listed there has received NO verdict and is
+  still in its own queue — the terminal signal remains the member verdict alone, and a reader must
+  not treat a sink entry as an outcome. That guard is the rule, not a stylistic note: the one real
+  risk here is semantic drift, downstream readers gradually reading sink entries as terminal
+  (external consult, 2026-08-18, GREEN). Conflicts are EXCLUDED from the sink because they already
+  carry the verdict, and double-recording would blur exactly this line. Same shape and same argument
+  as the FORMATION-side `queue_excluded` sink — an exclusion nobody can see is
+  indistinguishable from one that never happened.
+
+  **Bound, named not hidden:** the sink rides the OK payload only. The abort row is composed by a
+  separate helper fed from many call sites, so an abort at verify can still leave a pre-verify-removed
+  member unrecorded while its surviving peers receive `requeued-after-red-batch`. Tracked, not
+  prose-deferred (followup `fu_ee82d6562144`).
+
+  **At N=1 attribution REUSES the existing land events and emits NO new row** (plan-check finding 1,
+  2026-08-16). Rule 1 requires a batch of one to be byte-identical to the pre-spec path — same events,
+  same commits, same tokens — while this rule requires every member to carry its own verdict. Read
+  naively the two collide: a new per-member row on a singleton would break the identity Rule 1 promises.
+  They do not collide, and the reason is not a carve-out but an observation: a singleton's land ALREADY
+  carries its member's verdict, because the member IS the land. The existing `land_completed` row and
+  its `^LAND:` token are that member's individual outcome, in full. So attribution introduces NO new
+  carrier at N=1; the per-member rows this rule adds exist ONLY for N>1, where there is no longer a
+  one-to-one land to read a member's verdict from. As a probe-shaped invariant: the row set a land emits
+  is UNCHANGED at N=1 and grows only for N>1.
+
+  What is being claimed compatible is BEHAVIORAL, at three named levels — journal EVENTS (row set and
+  payload shape), COMMITS (the footprint the land leaves on `main`), and the terminal TOKEN contract
+  (`^LAND: (OK|ABORT)` as the final stdout line). It is NOT a claim of byte-identical process output in
+  general: timings, verify heartbeats and progress lines are free to differ, and a probe that keys on
+  them is testing the wrong thing.
+
+  ### 6. A dead member is DROPPED; the batch is not — AMENDS SPEC-0180
+  **This rule AMENDS an ACTIVE spec and must ship as an amendment, not as a contradiction left for a
+  reader to reconcile** (plan-check finding 2, 2026-08-16). SPEC-0180 states that a detached land dies
+  with the worker that claimed it. Under batching that sentence, taken literally, lets ONE worker's
+  death destroy a verify pass carrying up to three uninvolved peers — a safety property turned into a
+  denial of service. SPEC-0180's rule is therefore RESTATED there, by the card that builds this, as:
+  *a detached land dies with its claimant when the land carries only that claimant's change; when the
+  land carries a batch, the claimant's DEATH REMOVES ITS MEMBER, and the land continues for the
+  others.* Until that amendment lands, the two specs disagree and this one does not govern.
+
+  The protected property is unchanged: no land may outlive the turn that authorised it. What changes is
+  the unit the binding acts on — the member, not the pass.
+
+  Under batching the binding therefore changes SUBJECT, not strength: a dead member is EVICTED from the
+  batch and its change is not applied; the pass continues for everyone else.
+
+  WHEN the death is detected decides what that costs, and the two cases are NOT symmetric:
+
+  - **Before the verify starts** — the member is simply dropped from the candidate and the pass runs
+    over the remaining set. Nothing is wasted.
+  - **While the verify is RUNNING** (plan-check finding 5, 2026-08-16) — the pass in flight is over a
+    tree that includes the dead member, so its result cannot be applied to anyone as-is. The pass is
+    NOT killed (that would waste the scarce resource and punish the survivors for a peer's death): it
+    runs to completion and its verdict is recorded for diagnosis, but the fast-forward is refused and
+    the survivors are re-batched over the actual surviving set. A green verdict over a tree containing
+    a change nobody will apply proves nothing about the tree that would result from applying the rest.
+  - **After the verify has passed** — the surviving set is a DIFFERENT TREE from the one that was
+    verified, and it has been verified by nothing. A and B can be green together precisely because
+    they are together; B alone may be red. So the survivors are NOT fast-forwarded: the batch either
+    RE-VERIFIES over the actual surviving set, or every survivor is returned to the queue for the next
+    batch. Which of the two is a cost decision the decomposition settles; that neither may be skipped
+    is not.
+
+  An earlier draft of this rule allowed the survivors to land as one step, reasoning that the
+  surviving set is "the verified set minus a change merely not applied". That reasoning is WRONG and
+  is recorded here so it is not re-invented: removing a member from a verified combination produces a
+  combination nobody verified, which is the exact failure rule 4 exists to forbid (plan-check finding
+  1, 2026-08-16).
+
+  What must NOT happen is the inverse: a member's land surviving its own worker. That is the original
+  F2 worker-death class and it stays forbidden.
+
+  **The eviction signal must exist for an INTERACTIVE member too** (owner question, 2026-08-16). Rule 1
+  admits a Controller's `work/<slug>` land as an ordinary member, but this rule's trigger — the
+  claimant's death — is drawn from the dispatched-worker case, where the process exits at turn-yield and
+  that exit IS the signal. An interactive session does not die that way: it can sit idle indefinitely
+  without its member becoming abandoned. So the trigger MUST NOT be "the claimant process exited",
+  which would evict every interactive member the moment its session backgrounded the land — the
+  handbook's own recommended interactive posture (AGENTS-SESSIONS §land: an interactive caller PREFERS
+  to background the land). Defining it that way would make the recommended path self-defeating.
+
+  The card that owns per-member liveness therefore defines eviction on a claimant-kind-agnostic signal —
+  the member's own claim ceasing to be held, however the claimant is structured — and proves it on BOTH
+  kinds: a dispatched worker's death evicts its member, and an interactive member whose session merely
+  backgrounded its land does NOT get evicted. Until both are proven, batching admits worker members
+  only; that restriction is a temporary consequence of an unbuilt signal, NOT a rule about who may batch.
+
+  ### 7. The SPEC-0077 pinned leg is evaluated on the COMBINED diff — fail-closed
+  A third of lands run the suite TWICE: SPEC-0077 re-runs `main`'s pre-change ("pinned last-green")
+  verifier alongside the candidate verifier whenever the diff touches the verifier's OWN executable
+  surface, so a verifier-weakening change cannot self-approve. A batch's candidate IS the merged tree,
+  so the trigger MUST be evaluated over the UNION of the members' diffs: **if ANY member touches the
+  verify path, the whole batch pays both legs.**
+
+  This is a CORRECTNESS constraint, not tuning. In a batch, member A may weaken the verifier while
+  member B is a bad change — the candidate leg then runs A's weakened verifier over B, and the only
+  thing still protecting B's peers is the pinned leg re-running the pre-change verifier over that same
+  combined tree. Evaluating the trigger per-member, or on the first member, or skipping the pinned leg
+  to preserve the amortised saving, silently voids SPEC-0077 for EVERY member of the batch — the exact
+  self-approval hole that spec exists to close, widened from one change to four.
+
+  The cost consequence is stated so it is not discovered late: one verify-path-touching member imposes
+  the doubled regime on peers who did not touch it (measured ~3.1× the median single-leg land). That is
+  real cost-shifting, and it is also where batching pays most — amortising a DOUBLED pass across four
+  members is the largest single saving available. Neither observation licenses skipping the leg.
+
+  ### 8. A member whose content the head already landed does NOT re-verify it
+
+  MEASURED, and it is why this rule exists: batching was saving ZERO. Of every batch member whose own
+  land subsequently completed ok, **16 of 16 ran a FULL verify anyway** (224837ms..541226ms; zero
+  `reverify_skipped`) — over the engine repo's whole history of `land_member_verdict` rows with
+  `verdict: landed` and `batch_size > 1`, captured `events.jsonl#ts=`. The head puts
+  a member's content on `main` early via its fast-forward, but nothing ever told the member so: its own
+  land parks in a flock poll that reads the lock and the clock and NOTHING else, so no verdict from
+  rule 5 can reach it. It then takes a verify slot and re-verifies content already in main. Rules 1-7
+  amortise the pass ACROSS members; without this rule the member simply pays it again afterwards.
+
+  **The rule.** A land that carries nothing not already in `main` takes no land reservation, no
+  SPEC-0132 verify slot and runs no verify. It still fast-forwards (a no-op), commits its bookkeeping,
+  tears its worktree down and emits `LAND: OK` — "extinguished" names what it PAYS, not an early exit.
+  An early return would have to re-implement the ff, the bookkeeping, the teardown and the terminal
+  token, i.e. a second integration path (CHARTER §P5), and would strand the worktree that land owns.
+
+  **TWO QUESTIONS, KEPT SEPARATE — and this separation is the rule, not an implementation note.**
+  - A **per-branch marker**, written by the head at the rule-5 verdict seam inside the ff lock and read
+    by the parked member, decides **WHERE** a land stops paying: on the park path, before the
+    reservation. It exists for PROMPTNESS and must be as cheap to read as the lock beside it — ONE
+    existence test of a fixed path in the same off-tree sidecar as the reservation flock and the
+    SPEC-0132 slots. **The park poll never reads the journal.** Parsing a large append-only log every
+    poll interval is the wrong cost class, and is precisely the defect a marker exists to avoid.
+  - A **content check** decides **WHETHER** the land is extinguished at all, and it is the only thing
+    that does. A marker hit is a HINT TO LOOK, never a decision — which is what lets the marker be
+    cheap without being trusted: the worst a stale, wrong or forged marker can buy is one wasted git
+    call. The marker is consumed at the read, so it is single-use and cannot go stale onto a reused
+    branch name.
+
+  **BOUND — FAIL-CLOSED ON CONTENT.** A land whose branch carries commits NOT in main is NEVER
+  extinguished, whatever the marker says, and an UNDECIDABLE answer keeps the land alive. Both oracles
+  must answer POSITIVELY: the branch adds no commits the base lacks, AND the delta about to fast-forward
+  is INERT by SPEC-0064's one authority (consumed here, never re-derived). The commit axis is the
+  binding one — a tree-only test would admit a branch whose commits net out to no file change, i.e. real
+  unlanded history this land is the only carrier of. The cost asymmetry sets the direction: a missed
+  extinguish costs one pass, a wrong one loses work.
+
+  **THE MARK IS ALSO READ AT FORMATION — A MARKED PEER IS NOT A BATCH CANDIDATE.** The
+  marker says a head's fast-forward already carried that branch's content, so such a branch has
+  nothing left to integrate; taking it as a candidate spends one of `BATCH_MAX`'s places on a member
+  that can contribute nothing. So at rule-1 formation a QUEUED PEER whose mark is set is DROPPED
+  BEFORE the cap and REPORTED through the rule-1 exclusion sink with its own named reason — never
+  silently, because a drop that writes no row is indistinguishable from a queue that was simply
+  empty (`queue_depth` is derived as the sink length plus the members, so a silent drop is blind in
+  BOTH directions; measured and 08:00:35Z). The read is the marker's own cost
+  class — ONE existence test per candidate, no journal parse — and it is NON-CONSUMING: the park
+  path consumes the marker, formation only reads it, because unlinking it here would destroy the
+  hint that member's own parked land is about to use.
+
+  **BOUND — THIS STATES NOTHING ABOUT A MARKED HEAD, and that is the rule rather than a gap**
+  (controller resolution 2026-08-18). A genuinely superseded land never reaches formation: it exits
+  at the park site above, before it takes the reservation formation runs under. Where this rule
+  fails closed — an observable tree delta, or a content oracle that cannot answer — the marker is
+  OVERRIDDEN and the land proceeds as an ordinary land carrying REAL content, and narrowing THAT
+  head to a batch of one would cost a pass for nothing. The head is handled upstream; formation
+  answers the peer half only.
+
+  **BOUND — THE SUPERSEDED LAND IS NOT PRESERVED AS A FUTURE BATCH HEAD.** An earlier reading argued it
+  should stay alive because such a land often becomes head of the next batch and carries other branches.
+  That argument is WITHDRAWN and must not be reintroduced: those carried branches re-verified on their
+  own regardless (the 16 of 16 above), so the benefit never existed. The head role is not scarce —
+  whoever holds the slot is head — so freeing it sooner strands nobody. Owner decision 2026-08-18.
+
+  **MARK BY BRANCH, NEVER BY TASK.** Of the 16 measured members, 9 were `task/` branches and 7 were
+  `work/` branches — including a bookkeeping-only controller-session land that still burned 238880ms
+  for content already in main. A task-keyed marker would leave nearly half the population uncovered.
+
+  **THE SAVING IS RECORDED, at the boundaries actually saved.** An extinguished land's `land_completed`
+  carries `superseded_extinguished`, `verify_slot_taken` and `land_reservation_taken` beside the
+  existing `reverify_skipped` pair — separately, because a land that skipped its verify but had already
+  taken the reservation saved ONE boundary and a single flag would let that read as two. It reuses
+  `reverify_skipped` deliberately: that is the field the founding measurement read as zero, so the fix
+  is counted by the instrument that found the gap. **Coverage is bounded and stated, not assumed:** a
+  member whose branch left containment before its own land — e.g. an earlier ABORTED land of the same
+  branch already committed its step-2b/step-3 bookkeeping onto it — fails the content fence and
+  re-verifies. Over the 15 distinct measured member branches, 10 were still contained and 5 were not.
+
+  **Relationship to SPEC-0065.** That spec's lever B is the existing analog and its safety argument is
+  reused verbatim: `main` advances ONLY via a green land, so the base is already verified, and a delta
+  that changes nothing the verification environment executes or observes yields a tree that is
+  verification-EQUIVALENT to that already-green base. The green-before-ff gate is preserved, not
+  relaxed — there is no untested combination because there is no new combination. What differs is the
+  question: lever B asks it of a CONCURRENCY RETRY and is bounded to `attempt > 1` for its own reasons;
+  this rule asks it of a SUPERSEDED MEMBER, on a strictly narrower condition (no commits at all, not
+  merely an inert tree). SPEC-0065's bound is untouched, and `reverify_skipped` now has two producers,
+  discriminated by `reverify_skip_reason`.
+
+  ### 9. A slot holder YIELDS to a strictly cheaper unmarked queued class
+
+  Rules 1-8 make the batch cheaper to VERIFY. This rule is about WHOSE change the batch is composed
+  around, and it exists because that was being decided by chance: the head is whoever happened to
+  take the reservation, so the batch class — and therefore what the whole queue waits behind — is set
+  by arrival order rather than by cost. Owner directive 2026-08-18.
+
+  **The rule.** A land holding the reservation, BEFORE it verifies, reads the queue it already reads
+  for formation (rule 1). If a STRICTLY CHEAPER class is queued behind it, it RELEASES the reservation
+  and re-contends. That is the whole rule: the decision is LOCAL, taken by each lander for itself,
+  from signals that already exist. There is no central assembler, no shared queue state, and no
+  waiting for future arrivals — the batch-assembler alternative was rejected by the owner precisely
+  because it requires the head to WAIT for a composition decision, which is the queue-state machinery
+  CHARTER §6 forbids.
+
+  **THE QUESTION IS ASKED TWICE PER ATTEMPT, and the second time is where the queue has actually
+  changed (2026-08-19).** As first shipped the target was decided ONCE, at the instant the
+  reservation was taken, and was not re-decided until the holder's NEXT attempt. A verify runs 4-8
+  minutes (measured 241-951s that day), so the COMMON case — a cheaper branch arriving DURING the
+  holder's window — could never be offered the slot. Measured under a deliberate six-worker load:
+  ZERO yields fired in ~90 minutes while the queue reached eight branches with cheap and expensive
+  classes side by side, and FOUR branches degraded at the 2242s park bound; task/ (class 2)
+  held the reservation ~08:13:15..08:30:05 while work/approved-asks-and-new-defects (class 1,
+  strictly cheaper) began waiting at 08:27:44, fourteen minutes after that holder's only evaluation.
+  So the holder ASKS AGAIN at the END of its pre-verify integrate — after the merge from main, the
+  journal fold and the graph rebuild, and strictly BEFORE the rule-1 batch formation and the
+  SPEC-0132 admission slot. It still holds the reservation and has still verified nothing, so the
+  cost invariant is untouched: a yield costs a handover and never a verify.
+
+  **AND THE SECOND ASK IS PAIRED WITH A REDO, which is the rule rather than an implementation
+  detail.** `merged_base` — the optimistic-concurrency key — is captured before the merge, and a
+  yield that fires AFTER the merge lets the addressee land, which advances main and makes that key
+  stale. A holder that then verified against it would lose the entire pass to `retry-main-advanced`:
+  3 lost attempts and 44 minutes of burned verify were measured that same day, every one of them on
+  a branch that had degraded. So a fired second yield RE-INTEGRATES against the newer main — a git
+  merge, a journal fold and a graph rebuild, all seconds-class — instead of paying a second suite.
+  A bare late re-ask without the redo would be a NET REGRESSION on this rule's own metric.
+
+  **WHERE THE SECOND ASK MUST NOT BE, and this is load-bearing.** NOT on the park poll tick. Both
+  park loops read the flock, the clock and the rule-8 offer marker and NOTHING else BY DESIGN; a
+  queue read there is the wrong cost class, and audit-post already refused that shape.
+  NOT after the verify either — post-verify pre-ff is the same stale-base arithmetic as above, only
+  worse, because the pass is already paid when the handover invalidates it.
+
+  **STILL NO NEW BOUND: offer-once now means once-per-ATTEMPT, not once-per-CALL.** ONE candidate
+  set spans both evaluations, so each redo consumes at least one previously-unoffered branch of the
+  FINITE queue the read already bounds, and the rounds stop when no new strictly-cheaper candidate
+  is left. That is the SAME termination argument this rule already makes, applied one level up — it
+  names no number, adds no counter, cap, timer or tunable, and expires nothing. A per-call set would
+  let a peer that is queued and never contends hold the holder in a release/re-take spin forever,
+  which is precisely why the set is the caller's.
+
+  **THE HANDOVER IS ADDRESSED, not a released window (2026-08-19).** As first shipped the
+  release was UNADDRESSED — the reservation simply went free and whoever polled first took it — so the
+  starving branch the yield existed FOR could miss its own handover. Measured 2026-08-18: 4 yields fired
+  while two class-0 branches degraded at their park limit, and a bare `slot_yields` count could not tell
+  that apart from four successful handovers. The yielder now publishes ONE off-tree offer NAMING the
+  successor; every other peer abstains for that window, and the addressee CONSUMES the offer as it takes
+  the slot (consumption is the addressed branch's own act, exactly as with the rule-8 marker). Carrier,
+  cost class and fail-open contract are rule 8's — one cheap read on the poll path, never a journal read,
+  and any unreadable or unwritable offer degrades to the pre-rule race rather than failing a land.
+
+  **The yielder is NOT exempt from its own offer**, and that is load-bearing rather than incidental:
+  exempting it lets it release and instantly re-take, so the addressee still misses the same millisecond
+  window and the rule collapses back into the arrival-order accident it exists to remove (established at
+  audit-pre, RED/high, 2026-08-19). Its abstention is bounded by the EXISTING land-reservation park limit
+, whose degrade path withdraws the offer — so an addressee that stays queued and never
+  contends cannot hold the slot open. That reuse was the surviving option of a ceiling-convergence
+  consult, and it is why this rule still adds NO bound, timer, counter or tunable of its own. An offer
+  whose WRITER has died reads as ABSENT (one liveness probe), so an offer never outlives its author.
+
+  **THREE LIVENESS FENCES, and the third one is the ADDRESSEE'S LAND** (measured 2026-08-30).
+  An offer is consumable by the addressed branch's live land process ALONE, so the condition that makes
+  one permanently unconsumable is «no live land will come for it» — and the writer fence (the AUTHOR
+  lives) and the fence (the addressee's BRANCH ref lives) both answer a different question. On
+  2026-08-30 no land in the kernel repo completed between 05:45:51Z and a recovery ~2h later, with six
+  or more parked, on ONE offer naming `task/`: its writer was alive and parked, its branch and
+  worktree existed, and its worker had halted `blocked-on-land` at 05:43:17Z with no process surviving
+  it. The handle is RECORDED, never derived: the writer picks its addressee out of the queue read, and
+  the `waiting_for_*` rows that queue folds from already carry the queued land's pid — so the offer's
+  optional THIRD line is that pid and the fence is one more `os.kill(pid, 0)`, the writer fence's own
+  syscall asked about the other party. This keeps the rule's cost class exactly as stated above: no
+  journal read and no subprocess on the poll path, and NO bound, number, threshold or tunable — it
+  fires only on PROOF. An offer recording NO addressee pid (written before this change, or by a writer
+  that could not resolve one) is UNKNOWN, not failed-open: the check is not asked, the offer stays live
+  and the branch fence governs alone. That distinction is load-bearing — a blanket fail-open would
+  close the deadlock and delete the fair-queueing this rule exists to provide.
+
+  **THE COST CLASS IS A RANKING OVER EXISTING SIGNALS, never a new classifier.** `0` this member's own
+  land would run NO suite at all · `1` ONE pass, the ordinary candidate verify · `2` TWO passes, the
+  candidate verify PLUS the SPEC-0077 pinned last-green leg. An UNDECIDABLE answer is its own value and
+  NEVER yields on either side — a branch that cannot be diffed must not read as the cheapest thing in
+  the repo (the same two-positive-oracles shape rule 8 uses).
+
+  **THE RUNGS COUNT PASSES, and both ends of the original ladder named a path CLASS instead** (owner directive 2026-08-18). The rank decides which members batch together and who the reservation is
+  yielded to, so a rung that describes anything other than cost hands the road to whoever is cheapest in
+  name only.
+
+  **Rung 0 is asked of the rule-1 paying predicate, NEVER of the inert-path proxy.** The original rung 0
+  read SPEC-0064's inert verdict directly, but the inert skip is SPEC-0065's lever B, gated on
+  `attempt > 1` — so a FIRST-attempt inert land runs the full suite and only its canary is skipped.
+  Measured 2026-08-18: an inert-path branch on attempt 1 ranked 0 while paying a verify of 422129 ms
+  (`reverify_skipped` false, `attempt_count` 1) — ranked the cheapest thing in the repo while paying the
+  most frequent full pass, so the slot was yielded TO the expensive branch, the inverse of what this rule
+  was built to do. The question is now the SAME one rule 1's paying metric asks — «would this member's own
+  land actually have run the suite?» — consumed from that one predicate, never answered a second time.
+  **Honest consequence, stated rather than implied:** in a repo running the kernel-authored suite rung 0 is
+  nearly EMPTY by construction, because attempt 1 always verifies — only a RETRY with an inert delta or a
+  land running no tests is free. The populated cheap rung lives on CONSUMERS, where a diff disjoint from
+  every declared layer's subject really does run nothing, and rule 1's own consumer clause governs how that
+  is asked (through the declaration the verify seam skips on, never through the test-ownership declaration).
+
+  **Rung 2 collapses to rung 1 where the pinned leg is OFF.** Rung 2 is a SECOND pass, so it is only real
+  if that pass will happen: SPEC-0186 lets a project declare the pinned last-green leg off, and there a
+  verify-surface touch buys nothing and must not isolate a member for a pass that does not exist. The
+  policy is read through SPEC-0186's ONE resolver over the BASE tree (its rule 4) — the same authority the
+  pinned-supersession key narrowing above already consults, so formation reads ONE answer, not two.
+  FAIL-CLOSED both ways, in the direction each error costs least: an UNKNOWN paying answer (an unresolved
+  attempt, an unreadable declaration, an oracle that could not be asked) never reaches rung 0 but falls
+  through to the observable ladder, and an unresolved policy leaves the rank at 2 — isolating a member that
+  did not need it costs one unamortised pass, while batching one that DID need the pinned leg is a false
+  green.
+
+  **THE YIELD READS THE SUPERSESSION MARKS, and tests them FIRST.** A land must never hand the slot to
+  a branch whose rule-8 marker is set: that branch has nothing to integrate and would take the slot
+  only to exit. So a marked branch is never even ranked. The read is READ-ONLY — consuming a peer's
+  marker here would destroy the evidence that peer is parked waiting to read; consumption stays the
+  marked branch's own act.
+
+  **IT PROMISES A RELEASE, NOT A HANDOFF — and the distinction is the rule, not a caveat.** The
+  reservation is a first-come flock, so after a yield the slot may be taken by the queued cheaper
+  candidate, by a third lander, or by the YIELDER ITSELF re-contending on equal terms. A DETERMINISTIC
+  handoff would require the yielder to WAIT until someone else holds the lock, and the owner withdrew
+  that shape (2026-08-18). Convergence to the cheapest queued candidate is therefore PROBABILISTIC and
+  is MEASURED, not asserted: `land_completed` carries `slot_yields` on any land that yielded (absent
+  otherwise, so a quiet repo's row is byte-identical), and that count is what keeps the claim honest.
+
+  **WHAT MAKES IT WORK IS THAT LOSING IS CHEAP, not that the race is biased.** `_LAND_RESERVATION_POLL_SEC`
+  drops 1.0 -> 0.1, so a parked peer notices the freed window, and a yielder that re-takes its own slot
+  re-decides, within a tenth of a second. The race stays fair; only the cost of a wrong grab falls. The
+  yielder is never made to wait — it is only made to stop HOLDING while it re-reads the queue, and that
+  unlocked read IS the window. An earlier owner amendment prescribing a skip-a-tick back-off was
+  WITHDRAWN (2026-08-18) and must not be reintroduced.
+
+  **NO NEW BOUND — and what actually terminates a mutual yield is MEASURED, not assumed.** No deferral
+  counter and no yield cap. Two things keep the yield from cycling. First, under the shipped ranking a
+  mutual yield is UNREACHABLE: a strict order cannot hold A<B and B<A. Second, within one attempt a
+  candidate is offered the slot ONCE — the yielder skips the branches it has already yielded to, so a
+  candidate that is queued but never contends cannot hold it in a release/re-take spin. That is
+  idempotence over a queue the read already bounds, not a counter: it names no number and expires
+  nothing.
+
+  **The founding directive's stated backstop does NOT hold, and the correction is recorded rather than
+  quietly relied on** (measured 2026-08-18, deviation `t11275-park-limit-does-not-terminate-mutual-yield`).
+  The directive said mutual yielding was "already terminated by the EXISTING land-reservation park
+  limit". It is not: that limit bounds a contender WAITING on a reservation somebody else HOLDS, and a
+  mutual yield never waits — each side releases and re-acquires within microseconds, so the limit is
+  never approached. Two real contenders with the offer bookkeeping disabled run indefinitely. The
+  no-new-bound conclusion is unchanged — nothing numeric was added — but it rests on the two properties
+  above, not on that limit. The park limit remains bound on a contender parked behind a
+  genuinely held reservation; it is simply not the one that catches this.
+
+  **AN OPT-IN CARD MARK OUTRANKS THE COST LADDER — the emergency place (2026-08-26).**
+  Rules 1-11 make a queue cheaper and fairer to SERVE, and rule 9 above decides who is served first by
+  COST. Neither helps the one card whose whole purpose is to REMOVE the congestion: the admission slot
+  is single and serial and its order of service is arrival-driven, so a queue-FIXING change waits
+  behind the queue it fixes. Measured 2026-08-26 — (the batch-cap re-tune) sat blocked while
+  THREE separate batches of four dissolved, each costing four full verifies; and task/ waited
+  56 minutes while NINE later arrivals overtook it, because a dissolved member re-enters the queue
+  with its `waited_s` reset. So a task card MAY carry an OPT-IN `queue_jump: {reason: <text>}` mark,
+  and a queued branch whose card carries a LIVE mark is served ahead of the PAYING cost classes.
+
+  **IT YIELDS TO A BOOKKEEPING LAND AND OVERTAKES ONLY PAYING ONES — the mark is a RANK BETWEEN the
+  rungs, not above them (owner directive 2026-08-27).** The mark once won the scan OUTRIGHT,
+  ahead of EVERY cost class including rung 0. It now sits between them: **rung-0 < marked < paying**.
+  A rung-0 land runs no suite, so letting one through costs the jumper a fraction of a paying land's
+  wall — it gives up SECONDS, never a verify — while overtaking a PAYING land is where the emergency
+  place actually buys something, and that half is UNCHANGED. The rank has TWO halves and both are the
+  rule: a rung-0 CANDIDATE is scanned before the mark, and a rung-0 HOLDER does not enter the pass at
+  all (yielding its slot to a paying marked branch would put a bookkeeping land behind exactly the
+  wall this narrowing spares it). The paying/non-paying question is NOT asked a second time: it is
+  rung 0 of the cost ladder above — «this member's own land would not run the suite» — the same
+  answer rule 1's paying metric counts. A second predicate, a new field or a new store would be the
+  parallel encoding CHARTER §P1 forbids.
+
+  **WHERE THE PAYOFF LIVES, so its near-absence in the kernel is not read as failure.** Bookkeeping
+  lands are 0 of 294 batch members in the kernel and 173 of 293 (59%) in the kupiclub consumer, both
+  folded read-only from the respective journals on 2026-08-27. In a repo running the kernel-authored
+  suite rung 0 is nearly empty BY CONSTRUCTION (the rung-0 clause above says why), so this narrowing
+  is nearly INERT here and is the MAJORITY case on a consumer. Nothing is measured in the kernel to
+  prove it, and nothing should be.
+
+  **THE OBSERVATION THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/
+  — a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z — while the admission
+  queue grew to 10 and the oldest waiter sat at 3629 s. A mark that outranks EVERYTHING hands a
+  failing branch repeated priority over branches that would have cleared, including ones that would
+  have cleared for free.
+
+  **IT IS ORDER OF SERVICE, AND — SINCE — IT ALSO MAKES THE CARD SOLO.** A branch whose card
+  carries a LIVE mark is batch-INELIGIBLE for as long as the mark lives: an ineligible HEAD forms a
+  batch of ONE, an ineligible PEER is dropped before the cap (rule 4's existing membership seam,
+  reused unchanged). Owner decision 2026-08-27, and it OVERTURNS this paragraph's former reading
+  («it does not make a card solo — being verified alone is ALREADY derived where it belongs and needs
+  no second carrier»). The grounds: order of service alone does not deliver what the mark is FOR. A
+  marked card is served first and then verified INSIDE a batch, so its land is hostage to every peer
+  in it — a red raised by any member dissolves the batch and the urgent card waits another full
+  round. Serving it first and then making it wait on peers is the same delay wearing a different
+  name.
+
+  **ONE HOME, TWO SOURCES — the design, and why it is not a second carrier.** There is no stored solo
+  FIELD, here or anywhere: batch-ineligibility is DERIVED in
+  `bin/lib/batch_landing.py#_land_batch_ineligible_branches`. That ONE predicate now answers from TWO
+  sources — the rule-4 red-batch history, and a live rule-9 mark — so every existing consumer of
+  batch-ineligibility keeps working unchanged and nothing new is stored. In particular a mark
+  writes NO journal row: synthesising a `requeued-after-red-batch` verdict to fake ineligibility would
+  record a red batch that never happened in an append-only history, which is the one thing that must
+  stay true.
+
+  **THE TWO SOURCES HAVE DELIBERATELY DIFFERENT LIFETIMES, and this is the rule rather than an
+  artefact.** The red-batch source is ONE ROUND and self-clearing — its clearing signal is the
+  member's own individual verdict (rule 4: «one round, not a quarantine»). The mark source is
+  PERSISTENT: it holds while the mark holds and ends when the mark ends, which per safeguard (b)
+  below is when the card goes terminal. An individual verdict therefore does NOT clear a mark. Two
+  consequences follow, and both are load-bearing: the mark source is unioned AFTER the red-batch
+  fold rather than into it (entering that state machine would let its `land_completed` arm clear the
+  mark, shipping one round instead of the decided lifetime), and the entry SNAPSHOT `cmd_land` takes
+  for the abort clearing-copy stays the red-batch-only read — a clearing row is meaningful
+  only for a penalty some verdict clears.
+
+  **THE COST, RECORDED RATHER THAN LEFT TO BE REDISCOVERED AS AN OBJECTION.** A marked head can no
+  longer amortise: a green batch of 4 headed by a marked branch forfeits 3 passes. Measured
+  2026-08-27, marked branches headed two batches (bat-6e225d5f2ee4 n=2, bat-0f20f334cc5c n=4) and
+  BOTH went red, so nothing was actually forfeited in either — two observations, not proof that a
+  marked head never carries a green batch. The owner weighed that trade and accepted it: marked cards
+  are RARE BY CONSTRUCTION (the opt-in field below), and making an urgent queue-FIXING land wait
+  inside a batch is worse than the time its peers lose landing separately.
+
+  **WHAT IT STILL DOES NOT DO.** It is NOT derived from `priority`, and that was measured before being
+  rejected: 28 of 78 ready cards carried `priority: high`, a third of the queue, so deriving
+  precedence from it would have pushed bookkeeping lands to the back wholesale. The signal must be
+  RARE BY CONSTRUCTION, which an opt-in field is and a priority band is not.
+
+  **EVERY RULE-9 INVARIANT SURVIVES LITERALLY, which is why the mark is a rank rather than a bypass.**
+  The supersession mark is still tested FIRST (a branch with nothing to integrate is never ranked,
+  jump or no jump); offer-once-per-attempt still bounds the loop on the finite queue, so no counter,
+  cap or timer is added; an UNDECIDABLE holder still yields to nobody; and A JUMPER DOES NOT YIELD TO
+  A JUMPER. That last clause is load-bearing rather than cautious: this rule's termination argument is
+  that a STRICT order cannot hold A<B and B<A, so placing the mark below the PAYING cost classes is
+  safe only while marked branches are EQUAL to each other — the same «strictly cheaper, never equal»
+  clause the cost ladder already enforces. The narrowing (rung-0 < marked < paying) keeps that
+  order STRICT, and only because BOTH of its halves hold: excluding the rung-0 HOLDER from the pass is
+  what stops marked < rung-0 holding alongside rung-0 < marked. That exclusion is part of the
+  termination argument, not an ergonomic detail, and removing it re-opens the mutual yield this rule
+  refuses to bound with a counter.
+
+  **THREE SAFEGUARDS, AND THEY ARE THE RULE RATHER THAN DECORATION.**
+  * **(a) The reason is refused at WRITE time.** The mark carries, in itself, the blockage it claims
+    to clear; a reasonless mark is REFUSED by the writing verb (`task update --queue-jump`), not
+    merely discouraged. An unexplained pin is precisely the artifact nobody can judge later, and
+    «discouraged» has never yet stopped one being written.
+  * **(b) The mark DIES WITH ITS CARD, and the expiry is DERIVED, never swept.** The reader answers
+    «no precedence» for a card whose own status is terminal, so there is no second store to go stale
+    and no cleanup to forget. This is the direct lesson of ATOM3 — a hand-set pin that outlived its
+    own card by two days and reddened four unrelated batches before it was found. A mark that cannot
+    expire is the same defect wearing a different name.
+  * **(c) A FIRING is journaled and surfaced.** When the mark actually reorders admission the yield
+    site emits `land_queue_jump_fired` naming the card and the reason, and the `debt` view surfaces
+    those firings — so overuse needs no audit to notice. The row is emitted ONLY when the mark DECIDED
+    the handover: a mark that exists and changed nothing emits nothing, which is what makes the record
+    a reading of real reorderings rather than a census of the corpus.
+
+  Reader-side fail-closure is the same polarity as everything else in this family: an absent card, an
+  unparseable one, a blank reason and an unreadable tasks directory each answer «no precedence». A
+  reader that GUESSED a jump from something it could not parse would hand the road away on noise —
+  strictly worse than the arrival-order lottery this exists to fix.
+
+  ### 11. A candidate whose WORKTREE IS DIRTY does not consume a batch place
+
+  **The rule.** At formation, a candidate whose own worktree holds UNCOMMITTED changes is
+  batch-INELIGIBLE for that attempt. Such a HEAD forms a batch of ONE; such a PEER is dropped BEFORE
+  the cap. Those are the same two decision points rules 4 and 8 already own, reused rather than
+  duplicated — one mechanism, a fifth source of the answer.
+
+  **THIS IS A PRECONDITION FAILURE, NOT A COUPLING RISK, and conflating the two is what made the
+  founding wave read as a batching defect.** Every other ineligibility source in this spec exists for
+  a CLEAN but suspect candidate that must not carry peers — a red-batch requeue (rule 4), a declared
+  rebaseline, a recorded supersession notice, a supersession mark (rule 8). A dirty branch is a
+  different thing entirely: it aborts IDENTICALLY whether it lands alone or in a batch, because what
+  refuses it is its own tree and not its company. So "give it its own slot" is not the remedy here
+  and never was — COMMITTING is — and this rule is not a widening of rule 4`s family.
+
+  **What it excludes and what it must not do.** The input is the candidate`s own WORKTREE DIRTY
+  PATHS — the paths its working tree holds uncommitted — read READ-ONLY. This rule NEVER writes to a
+  candidate: no commit, no stash, no checkout, and specifically **no `worktree sync`, nor any other
+  writing sync/update operation, on a candidate worktree**. The verb is named as well as the general
+  prohibition stated, deliberately: `worktree sync` merges `main` into a worktree IN PLACE, and
+  auto-merging into another session`s LIVE worktree is exactly what the worktree-stamp
+  discipline forbids — a paraphrase alone would leave the next reader to decide for themselves
+  whether that verb is covered. Formation READS and REPORTS; the owning session commits.
+
+  **EVERY DIRTY CANDIDATE NAMES WHAT IT MUST COMMIT.** An exclusion that does not say why sends its
+  operator back to the queue a second time, which is the same argument rules 1 and 4 already make for
+  their own sinks. A dropped PEER is reported through the rule-1 exclusion sink with its own named
+  reason AND a bounded list of its dirty paths. A dirty HEAD reports the same bounded list on its own
+  MEMBER record — not in the exclusion sink, for the reason a rebaselining head is not there either:
+  the head is not a queue candidate, so a sink row would describe the slot holder as one of its own
+  exclusions and would inflate `queue_depth`, whose meaning is the candidates the formation SAW.
+  Both halves report; each through the carrier its own position already owns.
+
+  **A QUIET REPO IS UNTOUCHED — the reader is not built when there is nothing to select between.**
+  Rule 1 promises that a solo formation runs no subprocess and writes no object, and reading a
+  candidate's worktree is a subprocess. So this rule is consulted only when a PEER is actually
+  present. Nothing is lost by that: a solo head has no peers to drag into a batch it cannot finish,
+  and it aborts on its own tree exactly as it does today. Same construction gate, and the same
+  promise, as rule 1's own compatibility predictor.
+
+  **FAIL-OPEN, and the direction is the point.** A branch with no resolvable worktree, an unreadable
+  tree, or any error at all reads as NOT DIRTY and is admitted. The exclusion fires only on PROVEN
+  dirt. A false admit therefore costs exactly today`s abort — the status quo — while a false exclusion
+  would cost batch capacity, which is the thing this spec exists to produce. Same polarity, and the
+  same reason, as rules 4 and 8`s own readers.
+
+  **WHY THE COMMIT-ONLY ORACLE COULD NOT ANSWER THIS.** Rule 3`s eviction probe composes a merge in a
+  throwaway index and checks nothing out, and since it asks the SAME admission authority the
+  land path uses — one oracle, per CHARTER §Principle 5. But it compares COMMITS. No commit-vs-commit
+  question can observe an uncommitted working tree, so before this rule no formation-time reader could
+  see dirt at all. This rule adds a reader, not a second conflict authority: it answers a candidate`s
+  OWN precondition, never whether two branches can coexist.
+
+  **FOUNDING MEASUREMENT** (2026-08-25). A wave of five lands produced four aborts, and four
+  of them were the branch`s own uncommitted state rather than anything about batching: task/
+  (04:45:50Z and again 04:59:31Z) and task/ (05:10:58Z) on uncommitted non-journal changes,
+  task/ (05:10:03Z) and task/ (05:11:21Z) on local `events.jsonl` changes the merge
+  would overwrite. The fifth, task/, was CLEAN and died at 05:08:04Z on a BATCH ATTRIBUTION
+  failure carrying two peers` assertions — it then landed unchanged once it went alone. Cost of the
+  check: 19 ms median per worktree, 0.3 s across all 12 live at the time, against land-reservation
+  waits of median 12.2 min and p90 225.9 min over the preceding week (n=309).
+
+  **THE JOURNAL-ONLY CASE IS NO LONGER COUNTED — SUPERSEDED 2026-08-27.** Dirt confined to
+  the journal is FOLDABLE — the land`s own pre-merge step commits the bookkeeping allowlist and
+  refuses only the remainder — so a candidate whose ENTIRE dirt is foldable now reads CLEAN at
+  formation. The reader consults the land`s OWN foldable notion (`_is_foldable_bookkeeping`, extracted
+  to one home from `_fold_trailing_bookkeeping`), never a second definition that could drift from the
+  fold actually performed.
+
+  **WHAT THIS CHANGES AND WHAT IT DOES NOT.** NON-foldable dirt still excludes, unchanged, and MIXED
+  dirt — a foldable path ALONGSIDE a source path — still reads DIRTY: the remainder is non-empty, so a
+  foldable path can never mask a forgotten `task commit`. The reported path list is now the
+  non-foldable REMAINDER, i.e. the paths its operator must actually commit, since naming a path the
+  land was going to fold sends them to stage a file for nothing. Every case the founding measurement
+  was built on — task/ and task/, both uncommitted NON-journal changes — is caught
+  exactly as before.
+
+  **WHY THE ORIGINAL REASONING DID NOT HOLD, stated plainly because it was DELIBERATE and not an
+  oversight.** It ran: a peer carried as a batch MEMBER is merged from its COMMITTED tip, so its
+  uncommitted rows are folded by nothing and simply do not travel — therefore the candidate is not
+  ready to be carried. The premise is TRUE and remains true. The conclusion does not follow, because
+  non-travel is not LOSS: a successful batch removes only the HEAD`s own worktree, never a peer`s, so
+  the peer`s uncommitted rows survive on disk and reach `main` through that peer`s own next land —
+  the identical path they would take had it been excluded. The exclusion therefore bought a deferral
+  the peer was going to take anyway, and charged a whole batch place for it.
+
+  **THE MEASURED COST OF COUNTING IT** (2026-08-27): 9 `uncommitted-worktree-dirt` exclusions
+  across 45 formations in one day, and task/ dropped from two consecutive formations
+  (09:40:25Z, 09:51:30Z) with `events.jsonl` as its ONLY dirty path. The burden fell on PEERS alone,
+  and asymmetrically: a HEAD reaches formation ALREADY folded clean by `cmd_land`s two
+  `_fold_trailing_bookkeeping` calls, while a peer`s tree is folded by nobody. So the two candidate
+  positions were being judged by different standards — not by design, but as a side effect of where
+  the fold runs.
+
+  ### 12. An exact member SET that already reddened is not RE-FORMED — recompose, never block
+
+  **The rule.** At formation, once the members have been selected and the cap applied, a batch whose
+  EXACT member set already produced a red batch is not formed. A member is dropped, and another if
+  needed, until the composition DIFFERS. This is rule 4's own closing promise —
+  *"whatever else changes, a red batch may never be re-formed identically"* — held at the FORMATION
+  seam as well as by the one-round mark, and it is a sixth SOURCE of an answer formation already
+  makes, not a new mechanism.
+
+  **IT RECOMPOSES, IT DOES NOT BLOCK, and that is the load-bearing half.** Blocking would convert a
+  COST problem into a LIVENESS one. Every member still reaches a batch in the same round, down to a
+  batch of one; a dropped member leaves through the rule-1 exclusion sink with its own named reason and
+  waits for its own slot, exactly as an over-cap member does. An implementation that forms NOTHING
+  fails this rule outright. What recomposition buys beyond the prevention is the reason it is the right
+  shape rather than merely the safe one: splitting the group makes members meet DIFFERENT peers each
+  round, which incidentally ISOLATES them across rounds and yields cheap bisection — the diagnosis that
+  red-batch culprit ATTRIBUTION has repeatedly failed to deliver.
+
+  **THE ANTI-LOOP INVARIANT — the rule's most important bound, and what keeps it from becoming a
+  LOCKOUT** (owner concern raised at filing, 2026-08-28). **The exclusion applies to MULTI-MEMBER sets
+  ONLY. A batch of ONE is NEVER refused by this rule, whatever its history.** A branch whose SOLO run
+  reddened must still be allowed to run solo again, because solo is the terminating case every
+  recomposition descends toward. Without this bound the rule is not a loop but something worse: a
+  branch that fails alone could never form a batch again and would be permanently unlandable, with no
+  verb to release it. So recomposition always TERMINATES, because the descent multi-member -> smaller
+  -> solo has a floor that is always eligible.
+
+  **DERIVED, NEVER STORED.** Rule 1 keeps formation queue-driven and stateless, so the "already
+  reddened" fact is read from the journal that already carries it: a dissolve journals one
+  `land_member_verdict` per member with verdict `requeued-after-red-batch`, carrying `batch_id` and
+  `batch_size`, so grouping those rows by `batch_id` RECONSTRUCTS the exact member set of every red
+  batch from rows written for another purpose. A persisted composition ledger is FORBIDDEN — it is the
+  parallel state home CHARTER §Principle 1 forbids, and it would also be wrong within a day, since the
+  journal rotates and a ledger would not.
+
+  **A RECONSTRUCTED SET COUNTS ONLY WHEN IT IS PROVABLY COMPLETE.** Two emitters write
+  `requeued-after-red-batch`: the dissolve, which names EVERY member, and the solo-head peer release
+  (rule 4's head-is-culprit arm), which names the PEERS ONLY while carrying the whole batch's
+  `batch_size`. A group short of the size its own rows declare is a PARTIAL view of some batch, and
+  excluding on it would refuse a set that never existed — so a group counts iff its row count EQUALS
+  the declared `batch_size` and that size is greater than one. Rows carrying no `batch_id` are skipped
+  rather than joined by branch-plus-timestamp, which mis-attributes whenever one branch appears in
+  several batches.
+
+  **THE EXCLUSION IS VISIBLE WHEN IT FIRES.** A recomposition names its reason in the EXISTING rule-1
+  `queue_excluded` vocabulary on the `land_batch_formed` row, so journal and debt readers can COUNT
+  firings. A silent recomposition would be indistinguishable from ordinary formation, and the predicted
+  ~1-per-day rate could then never be checked against reality — which is the one thing that would let
+  a wrong rule live forever.
+
+  **FAIL-OPEN, the polarity every reader on this path takes.** An unreadable journal, a missing path,
+  an unparseable row: all yield "no composition is known to have reddened", i.e. ordinary formation. A
+  missed exclusion costs one repeated batch, which then dissolves and IS recorded, so the next
+  formation has the fact; a spurious one would shrink batches on bad data, which is the capacity this
+  spec exists to produce.
+
+  **MEASURED — INCLUDING WHAT ARGUES AGAINST THIS RULE, recorded so nobody has to rediscover it**
+  (2026-08-28). Over the live journal segment 2026-08-21..28: **194 multi-member batches, 189
+  unique compositions, only 5 exact repeats** — an expected firing rate of roughly one per day. Of the
+  two informative repeats **one went red then GREEN** (this rule would have prevented a batch that
+  SUCCEEDED) and one went green then RED. **So an exact-set repeat does NOT predict the outcome.** A
+  near-miss cohort — a later batch sharing >=2 members with a red one — reds at 76% against a 57%
+  baseline, but that cohort is **CONFOUNDED**: a single genuinely-broken branch touring the queue
+  inflates it, so it is not evidence that the COMBINATION causes the red, and the figure must not be
+  quoted as a rate this rule acts on. **The honest case for the rule is CHEAP PREVENTION plus the free
+  bisection recomposition yields, NOT predictive power** — do not write it up as the latter. The owner
+  was shown this and decided to proceed.
+
+  **WHAT THIS RULE IS NOT.** It is not rule 4's one-round dissolution, not the rule-9 queue-jump mark,
+  not the rebaseline declaration or its per-assertion waive-token gate, and it makes NO attempt to NAME
+  the culprit. Two ad-hoc audits on red-batch culprit attribution (both RED) concluded attribution
+  should be RETIRED rather than repaired, with prevention moved into cheaper pre-merge solo-exclusion
+  rules; this rule joins that family and is designed as a member of it, never as attribution by another
+  name.
+
+  ### 13. Three batch rides without landing sends a branch SOLO — whether or not anyone was named
+
+  **The rule.** A branch that has been a MEMBER of three or more multi-member batch formations since
+  its last completed verify, without landing, is batch-INELIGIBLE: its next attempt is verified ALONE.
+  It is a SEVENTH SOURCE feeding the ONE existing ineligibility predicate — not a new mechanism, not a
+  new mark, and not a second rule.
+
+  **IT COUNTS; IT DOES NOT JUDGE, and that is the whole point of it.** Every other ineligibility source
+  keys on a VERDICT or a MARK about a branch or a set: rule 4's one-round requeue, rule 12's exact red
+  set, a declared rebaseline, a rule-8 supersession mark, a rule-9 queue-jump mark, a dirty worktree.
+  All of them are silent BY CONSTRUCTION in the case this rule exists for: **a red batch whose
+  attribution DECLINES to name anyone.** Measured 2026-08-28 — `bat-f2749263764c` reddened with every
+  member requeued, the head itself unaccounted, and NO name produced. A count needs no name, so it
+  reaches that case and nothing else does. An implementation that consults any verdict has reproduced
+  the gap under a new name.
+
+  **ONE RULE SERVING BOTH SIDES, which is why it is one rule and not two.** For a branch that keeps
+  breaking batches it RESTRAINS — it stops burning peers. For an innocent eternal passenger it
+  RELEASES: `task/` rode six batches, was never at fault, and landed green on its first solo
+  attempt. The same predicate frees one and constrains the other; two mechanisms here would be a
+  misreading of the shape.
+
+  **IT SELF-CLEARS, and this bound matters more than it looks.** The count is RESET — never marked — by
+  the branch's own `land_completed` WHOSE VERIFY ACTUALLY RAN, which is rule 4's clearing signal reused
+  unchanged. Once the solo attempt COMPLETES, whatever its outcome, the branch is an ordinary candidate
+  again. The reason this is not optional: the trigger reads HISTORY, and a count of past rides can only
+  GROW, so a mark that did not clear would be **PERMANENT by construction**. Solo is the SLOWEST lane (a
+  full verify alone, 8-12 min measured 2026-08-28, against 3-9 s as a rider in a green batch), so an
+  unclearing mark would condemn an innocent branch to the expensive lane for other branches' defects —
+  `task/` would have been marked on ride three and never released. Worse, every permanently
+  marked branch LEAVES the shared batches, so batching would shrink toward nothing while still
+  appearing to run. Rule 4 already gets this right — one round, not a quarantine, cleared by the
+  individual verdict itself — and this rule MATCHES it rather than inventing a second lifetime.
+
+  **WHAT COUNTS AS A RIDE: being NAMED in a formed MULTI-MEMBER batch.** Formation is the moment a
+  branch's fate is coupled to its peers', which is exactly what this rule bounds. "Paid a verify as a
+  member" was considered and rejected: the `land_batch_formed` row carries `paying_members` as a COUNT,
+  not a SET, so that reading is not per-member derivable from anything journaled today and would need
+  new attribution and a new field — a strictly larger blast radius for no gain. **A SOLO formation is
+  NEVER a ride** (`members: 1`), so the routing this rule produces can never feed itself.
+
+  **DERIVED, NEVER STORED — and read through the SAME window as the mark it joins.** Rule 1 keeps
+  formation queue-driven and stateless, so the count is folded from `land_batch_formed` rows that
+  already exist, inside the SAME journal read the ineligibility predicate already performs (the
+  `land_` superset prescan over the horizon window). No second reader, no extra read, and no store.
+  **The window must be the LIFETIME-SIZED read, never a byte-bounded tail** : under the former
+  512KB tail a first ride 630833 bytes from EOF was invisible, so a counter built on it would report
+  two rides forever on exactly the busy days this rule exists for — a counter that appears to work and
+  counts nothing.
+
+  **FAIL-OPEN, the polarity every reader on this path takes.** An unreadable journal, a missing path,
+  an unparseable row: all yield "nobody has ridden", i.e. ordinary formation.
+
+  **WHAT THIS RULE IS NOT.** It does not attribute a red, does not tell the branch WHY it was routed
+  (that is), and does not replace any verdict-keyed source — those already work and are
+  untouched.
+
+  ### 14. A refuted head-blame sends the peers it released SOLO — for one round, and only then
+
+  **The rule.** When a red batch names its HEAD and releases every peer UNPENALISED
+  (`batch_ineligible: false`, reason `head-is-culprit`), and the head's FIRST OWN `land_completed`
+  at-or-after that blame comes back **`ok`** — the head passed ALONE, so the blame is **REFUTED** —
+  every peer that release let go is batch-INELIGIBLE for ONE ROUND. It is an EIGHTH SOURCE feeding the
+  ONE existing ineligibility predicate: no new event, no new field, no new store, no new read.
+
+  **THE MEASUREMENT THAT BOTH JUSTIFIES IT AND BOUNDS IT.** The head-blame confirmation rate is
+  **32/48 = 66.7%** over `..` (48 red batches ending
+  peers-released blaming the head, deduped by `batch_id`, 40 distinct heads, 51 distinct peers, 0
+  unresolved) — stable against 15/22 = 68.2% over the shorter window. On the AC1-literal
+  same-assertion reading over the carried-verdict population it is **11/30 = 36.7%**. So the blame is
+  right about two times in three and **wrong 16 times in 48**; in those 16 the head passed alone, the
+  red came from a peer or from the combination, and the set containing it went back to the queue
+  unmarked. Derivation: `dev-utilities/head-blame-refutation-.md`.
+
+  **WHAT THAT NUMBER REJECTS, so it is never proposed as the simpler version of this rule.** Marking
+  every released peer the way rule 4 marks a dissolve's members would tax **32 innocent peer-sets to
+  catch 16 guilty ones**. Rule 4's blanket mark is justified on the dissolve path for a reason that
+  does NOT transfer: there **no attribution was made at all**, so there is no innocence to protect.
+  Here an attribution WAS made, and the head's own solo run either upholds it or overturns it. This
+  rule consumes that verdict instead of guessing, so it fires in the 16 and never in the 32 — it taxes
+  no innocent peer, and it reads a signal the record already produces and nothing else consults.
+  **Releasing unpenalised on a CONFIRMED blame stays deliberate and correct, exactly as before.**
+
+  **THE LIVELOCK IT CLOSES, observed and not postulated.** A peer released unpenalised is re-admitted
+  to the very next batch and is then blamed itself by the SAME assertion. **15 such recurrence pairs**
+  over the window, across **7 distinct branches**: `task/` (2026-08-25, the single trace
+   recorded), `task/`, `task/`, `task/`, `task/` (released five
+  times before its own turn), `task/`, `task/`. This is the ordinary failure of the
+  path, not one incident. **AND THE HONEST BOUND ON WHAT THIS RULE FIXES: only 10 of those 15 follow
+  a REFUTED blame, so rule 14 would have marked 10 and left 5 alone.** The other 5 followed a
+  CONFIRMED blame — the head really was red AND a released peer was also red — and this rule
+  deliberately does not reach them, because reaching them means marking on suspicion. **It closes
+  two thirds of the observed recurrence, not all of it.**
+
+  **THREE OUTCOMES, NOT TWO — the head's first own land at-or-after the blame decides.** `ok`
+  **REFUTES** and marks the peers. An abort of class `verify-failed` **CONFIRMS** and marks NOBODY.
+  **ANY OTHER abort class is UNRESOLVED** — a rebaseline refusal, a stale-diff preflight, a merge
+  conflict all say nothing about whether the head's code was red — so the peers stay PENDING and the
+  row decides NEITHER way. Collapsing that third case into either answer would mark or absolve on
+  evidence that settled nothing, which is the defect removed from rule 4's clearing signal.
+
+  **RETROACTIVE, NOT HELD — decided on measured cost, because the timing is the design problem.** The
+  peers are released BEFORE the head's solo run concludes, so the mark cannot be written at release
+  time. Both shapes were costed over the window above:
+    - **HOLD the release** until the head resolves: **2603 peer-minutes** across **109 peers** in all
+      48 blames (median blame→head-own-land gap 7.9 min, max 155.9). Two thirds of that is paid in
+      the CONFIRMED cases where the mark never fires, and it needs a new held state against rule 1's
+      stateless, queue-driven formation.
+    - **RETROACTIVE** (this rule): nothing at release time; the mark is DERIVED at the next
+      ineligibility read from rows that already exist. Its cost is that the mark arrives LATE — a
+      peer re-forming inside the gap rides that round unmarked, measured at **23** such formations
+      across the 16 refuted blames' 38 peers.
+  23 late rounds in the refuted cases only beats 2603 peer-minutes paid in every case, so the mark is
+  retroactive. **This bound is stated, not hidden: the rule is late by design and does not claim to
+  catch the first re-admission.**
+
+  **IT SELF-CLEARS ON RULE 4'S OWN SIGNAL, and shares rule 4's lifetime exactly.** The mark ends at the
+  peer's own `land_completed` WHOSE VERIFY RAN, or at its own `landed` member verdict. **One round,
+  never a quarantine.** For the same reason the mark is written into rule 4's own state rather than
+  unioned after the fold the way rules 9 and 13 are: those two are unioned precisely because their
+  lifetimes are LONGER than one round, and this one's is not. A **round already served** is not owed a
+  second: a peer whose own verify completed between the release and the refutation is never marked,
+  because a second round from one blame is the quarantine this rule and rule 4 both forbid.
+
+  **SEVERAL OPEN BLAMES AGAINST ONE PEER, and ANY ONE refutation fires.** A peer is routinely
+  released by more than one blame before ANY of their heads resolves — `task/` was released
+  unpenalised by **five** different heads before its own turn came. Each release is a SEPARATE claim
+  about who owned that batch's red, so each is separately refutable: the peer is marked when the
+  FIRST of them is overturned, a head whose own run CONFIRMS its blame withdraws only ITS OWN claim,
+  and the peer is owed nothing only once every blame against it has been confirmed. A rule that kept
+  one blame per peer would go quiet in exactly the pile-up the livelock is made of.
+
+  **WHAT THIS RULE IS NOT.** It does not change WHO gets blamed — rule 4's culprit-naming boundary is
+  untouched. It does not change the DISSOLVE path, whose blanket one-round mark stays unconditional.
+  It introduces no parameter and no threshold: the trigger is a verdict that already exists.
+
+  ### 15. A queued branch pre-merges main WHILE PARKED — and step 2 consumes only a PROVEN-CURRENT result
+  **The problem.** `land` merges `main` into the branch only AFTER the serialized reservation is
+  acquired (`_land_integrate` step 2), so the WHOLE reservation wait sits between the branch's last
+  commit and its merge from main. Measured 2026-09-05: waits of 45-111 minutes, and three
+  `merge-non-union-conflict` aborts (78.6 / 110.8 / 44.3 min) on pins a sibling had just landed —
+  each sending the branch to the queue tail AFTER it had already paid the wait.
+
+  **The rule.** A land that is PARKED on the land reservation MAY bring its own worktree up to date
+  with `main` from inside the wait, under these terms and no others:
+  1. **The tick is the land's own merge, run earlier — never a second merge implementation.** It runs
+     the SAME `_fold_trailing_bookkeeping` + `_update_from_main` pair the land and `worktree sync`
+     already run, under the SAME `land` label, so a conflict it meets aborts with the identical class
+     and text step 2 would have produced.
+  2. **It is throttled on the MAIN-TIP WATERMARK, not on a clock alone.** A tick is skipped unless
+     `main` has MOVED since the tip the last tick attempted. A persistent conflict is therefore
+     re-attempted once per MAIN ADVANCE, never once per throttle interval.
+  3. **A FORCED tick runs at reservation ACQUISITION** — bypassing the min-wait and the throttle but
+     NOT the watermark — for any land that actually queued, closing the window between the last
+     queued tick and the acquisition.
+  4. **A BASE-CAPTURE FAILURE FAILS OPEN.** The tick captures the branch tip before the FIRST
+     pre-merge (step 5 re-anchors `pre_merge_sha` to it). If that lookup fails OR RAISES, the tick
+     declines: no merge, NO watermark, a recorded non-consumable error, and land runs its ordinary
+     step-2 merge exactly as it does without this rule. The tick MUST NOT raise into the reservation
+     wait — an exception there aborts a land that a freshness OPTIMISATION was supposed to help.
+  5. **AN UNSAFE WORKTREE STOPS THE LAND — it is the one uncertainty that does NOT fail open.** Every
+     non-success tick path runs a cleanup that must PROVE the pre-tick state restored (`merge --abort`
+     succeeded, no `MERGE_HEAD`, no unmerged paths). When that proof fails, disabling later ticks is
+     NOT sufficient: it bounds what the pre-merge may still do and says nothing about the tree step 2
+     is handed, and an ordinary `git merge` over a half-resolved index commits a partial resolution as
+     branch-authored content. The land therefore ABORTS at acquisition, BEFORE step 2, with its own
+     `queued-premerge-unsafe-state` class naming what survived (the failed abort / `MERGE_HEAD` / the
+     unmerged paths). Main is untouched and the worktree is left intact for inspection. It is placed
+     ahead of the generic `uncommitted-dirt` refusal deliberately: that class tells the reader they
+     left files uncommitted, which is not what happened.
+  6. **Step 2 CONSUMES the pre-merge result ONLY when `main`'s tip STILL equals the last ATTEMPTED
+     tip**, and only for an outcome the MERGE PATH produced (`merged` / `conflict`) or for `current`,
+     which is the proof no merge was needed. A `current` may never be INFERRED from an absent answer:
+     a failed or non-numeric behind-count is an `error`. A `dirty`/unsafe record is NEVER one of
+     them: it is TERMINAL under clause 5 and the land has ALREADY ABORTED at acquisition, BEFORE
+     step 2 is reached at all, so on that record there is no fall-through to describe. FAIL-OPEN IS
+     RESERVED FOR CLEAN ERROR RESULTS — a base-lookup failure or a failed/non-numeric behind-count,
+     where NOTHING was merged and the tree is provably as it was. Those, together with any advance
+     of main and the kill switch, fall through to running step 2's own merge exactly as today.
+  7. **The tick takes NO LOCK and touches ONLY the branch's worktree.** It never opens, writes or
+     locks the reservation path, so acquisition stays the unordered flock contention rule 9 assumes.
+
+  **Why here.** This is the reservation WAIT — the window rule 9 already governs from the holder's
+  side. This rule governs it from the WAITER's side, and it deliberately introduces no new ordering,
+  no new lock and no new class of batch member: a land that never parks is byte-identical to one
+  without it.
+
+  ### 16. A QUEUED land observes a withdrawal request and withdraws ITSELF; an ADMITTED land is never interrupted
+  **The rule, in one sentence.** A withdrawal request addressed to ONE land attempt (the
+  marker family) is observed at the VERIFY-SLOT ADMISSION SEAM and nowhere else: a land that is still
+  QUEUED for a slot observes it and withdraws ITSELF, while a land that has already been ADMITTED
+  never observes it, is never signalled, and runs its verify to completion. The decision "withdraw"
+  versus "admitted, proceed" is made ONCE, by ONE holder of ONE lock.
+
+  **TWO OBSERVATION POINTS, AND ONLY ONE OF THEM MAY GRANT PROCEEDING.** The asymmetry IS the rule:
+  1. **The in-flock seam — THE AUTHORITY.** Inside the verify-admission slot flock, immediately
+     before the verify runs. This is the last instant before the pass is PAID, and a land is admitted
+     only by getting past this read WHILE HOLDING the slot. Whatever any earlier read did or did not
+, nothing but this one grants proceeding.
+  2. **The slot-wait poll tick — ABORT-ONLY.** On a tick at which the land is PROVABLY still parked
+     waiting for a slot, holding nothing and having paid nothing. Its single reachable outcome is
+     withdrawal; it can never admit. It exists because a withdrawal is wanted precisely WHILE a land
+     is queued: honouring it at (1) alone would make the withdrawal latency equal to the queue
+     latency, so the remedy would arrive exactly when the problem ends.
+
+  **Why (2) does not re-open the check-to-admission race** (audit-pre finding G2, and the race that
+  killed the signalling design). G2's defect is check-then-ADMIT across two lock states: a
+  read taken outside the lock can be invalidated between the check and the admission it grants. An
+  abort-only read GRANTS NOTHING, so there is no admission for a later event to invalidate. Nor can
+  the observation go stale in the unsafe direction: a request is addressed to ONE attempt, and the
+  only process that can consume it is that attempt itself, so once a land reads it, nothing any peer
+  does can make "do not withdraw" the right answer. An early observation and a late one are the same
+  fact.
+
+  **THE NEVER-INTERRUPT INVARIANT, stated as a prohibition because that is what it is.** Past
+  admission, NO path observes the request and NO signal of any kind is sent on any path — no
+  `os.kill`, no `pidfd_send_signal`, no confirmation poll. This is not a small-window promise: the
+  window is ABSENT, not narrow, and a design that needed the window merely to be SMALL would fail
+  this rule. Concretely, the probe is wired into the CANDIDATE verify call ALONE; the
+  failure-attribution and red-isolation probes, which run only after the candidate pass has been
+  paid, are deliberately NOT given it, and that absence is a decision rather than an omission. Nor is
+  any probe wired into the land-RESERVATION wait: that is a different, earlier wait, and a third
+  observation point there would reverse the G2 absorption a second time with no incident behind it
+  (CHARTER §Principle 1 filter 4).
+
+  **A LAND THAT CANNOT CLEAR ITS OWN REQUEST DOES NOT REPORT A CLEAN WITHDRAWAL** (consult round-6
+  finding C4). The terminal exit first consumes THIS attempt's own request through the verified
+  consume — one that re-checks and reports what it FINDS, never merely the absence of an exception.
+  On a failure the land aborts NAMING the un-cleared path and emits no withdrawal record: attesting a
+  clean withdrawal from a fact about control flow would be an assertion about the world the code has
+  not made, and vanishing quietly would leave a request still addressing this same attempt.
+
+  **THE OBSERVABLE.** A completed withdrawal emits **`land_withdrawn`**, whose payload keys are named
+  in SPEC-0161's recorded run and NOT here (a rule body carries no payload shape — SPEC-0005 rule 8).
+  Nothing else changes on the caller-facing surface: a withdrawn land is an ordinary refusal reported
+  through the ONE shipped `^LAND: (OK|ABORT)` terminal token (SPEC-0180 rule 2c), with no verify run,
+  the slot released or never taken, `main` untouched and the worktree intact.
+
+  **Bound, named.** The abort-only poll tick exists only where the admission wait is POLLED. Where
+  the heartbeat is disabled the admission is a single blocking lock acquisition with no ticks, and
+  the withdrawal is honoured at the in-flock seam alone — later, never wrongly. Forcing the polling
+  path whenever a withdrawal is possible would silently change what that documented switch does. The
+  degradation runs in this family's fail-closed direction throughout: the worst outcome anywhere in
+  this rule is a withdrawal that does not happen, never an admitted land that is interrupted.
+
+  ### Interaction with SPEC-0180 (the detached held-turn land)
+  SPEC-0180 lets a dispatched worker hold its turn while its land runs detached, polling ITS OWN land
+  process for `^LAND: (OK|ABORT)` or process exit — token-or-exit, nothing else. Under batching a member
+  has NO personal land process: there is one shared batch run. The terminality contract therefore
+  extends — a member's terminal signal becomes its OWN journaled verdict (rule 5), including the case
+  where the batch was red for someone else's change and this member will be re-batched. SPEC-0180 is a
+  hard PREREQUISITE, not a companion: batching lengthens the wait (formation plus a verdict on other
+  people's changes), so without a survivable wait it kills workers faster than the status quo.
+
+  ### Relationship to SPEC-0132 — a different axis, not a new rung
+  SPEC-0132's escalation ladder is about SHARING THE HOST (serialize-ff → raise the verify worker cap →
+  per-land core-sharing). This spec does not move along that ladder: it amortises the PASS across
+  changes rather than redistributing the machine. The two compose and must not be read as alternatives —
+  a host-sharing decision never substitutes for batching, and batching never licenses raising the cap.
+
+  ## Parameters
+
+  | param | value | meaning | carrier |
+  |---|---|---|---|
+  | `BATCH_MAX` | **4** | upper bound on members per batch — bounds the COST OF DIAGNOSING a red batch, not formation | code constant in `bin/lib/worktree.py` CITING this spec; `consumed: false` |
+  | `RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` | **3** | rule 13 — batch rides since the last completed verify after which a branch is routed SOLO | code constant `_LAND_RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` in `bin/lib/batch_landing.py` CITING this spec; `consumed: false` |
+
+  **The value is 4, and it is a code constant, not a spec-consumed scalar** (plan-check finding 4,
+  2026-08-16). `consumed: true` is reserved for governance scalars an existing control-point READS
+  from the spec; a batch cap is ordinary tuning that belongs beside the code that enforces it, with a
+  citation back here — the same shape `_VERIFY_WORKER_CEILING` already uses for SPEC-0132.
+
+  **`RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` is 3, and it is AUTHOR-DECLARED AND REVISABLE — never
+  measured.** A later reader must not treat it as derived from anything. The readings it was chosen
+  AGAINST, recorded beside it so the choice can be re-argued rather than rediscovered: `task/`
+  rode four batches, `task/` rode six, and the external consult
+  (`decisions/land-conveyor-blindspots-audit-adhoc.yaml`, finding 3) proposed one or two passenger
+  turn-backs. It is a code constant for the same reason `BATCH_MAX` is — ordinary tuning that belongs
+  beside the code that enforces it, with a citation back here, so re-tuning costs nothing.
+
+  Measured basis: over 675 distinct branches attempting to land in August 2026, 8.8% were ever red on
+  their own candidate leg. At that rate a batch of 4 is all-green about 69% of the time; 8+ inverts the
+  trade (all-green drops below half). 4 also halves cleanly, which keeps the eventual bisection
+  optimisation (out of scope here) at two passes rather than an uneven three.
+
+  **The 69% ASSUMES member reds are INDEPENDENT** — it is 0.912^4 — and they may not be: a broken
+  `main`, a flaky pinned test, or one bad merge-base correlates redness across a batch, pushing the
+  all-green rate DOWN and the re-queue bill UP. The trial must REPORT the observed batch-level red rate
+  against this 69% rather than assume it; if reds correlate materially, `BATCH_MAX` is the parameter to
+  re-tune, and it is a code constant precisely so that costs nothing to change.
+
+  Probes belong AT and OVER the cap: a queue of exactly `BATCH_MAX` forms one batch; a queue of
+  `BATCH_MAX + 1` forms a full batch plus a remainder that waits, never an oversized batch.
+
+  ## Rationale
+
+  Measured, not assumed (2026-08-16):
+
+  - **Verify cost is FIXED, not proportional to the change.** Regression over 165 (audited-files,
+    verify-seconds) pairs gives ~515s base and −1.0s per file — the slope is zero. audited 53
+    files in 438s; a 2-file land took 460s. So per-change cost cannot be reduced by making changes
+    smaller; only the NUMBER of passes can fall.
+  - **That fixed cost now exceeds what a worker survives.** August median land verify 325s (n=743), p95
+    743s, against a ~590s harness per-call cap; on 2026-08-15, 22% of dispatched workers halted
+    `blocked-on-land`. SPEC-0132 Rule 4's Tier-C triggers (median >5min OR p95 >12min) have both fired.
+  - **Test selection is unavailable as a lever here.** 70% of the 830-file corpus asserts on kernel
+    SOURCE TEXT rather than executing it; the union of executed lines across a traced sample covers only
+    6.1% of `worktree.py`. Coverage cannot observe those dependencies and selection on it would produce
+    a false green. The suite can be amortised but not shortened.
+  - **Queueing is deliberate and correct.** serialized merge→verify→ff after measuring 71% of
+    the verify budget as redo (11.6h discarded against 4.6h that counted, all `retry-main-advanced`).
+    Racing is worse. What that change did not provide is a way to survive the queue it created.
+
+  Prior art extended rather than replaced: SPEC-0132 (governor + ladder) (serialized span),
+  SPEC-0077 (doubled verify) (pinned-verdict cache, keyed on the whole candidate tree so it
+  only hits on a repeated attempt of the SAME branch — it does not amortise across different changes).
+  Industry precedent for this exact shape: Bors / GitHub merge queue (batch then bisect), Zuul
+  (speculative chains).
+
+  ## Verification
+
+  - **Rule 15 (the queued pre-merge — four differentials, `tests/test_t12150_queued_land_branch_freshness.py`):**
+    (a) FRESHNESS — a branch parked on a real held reservation gains main's commit WHILE STILL
+    PARKED and the merge path is invoked exactly ONCE across the whole land; with
+    `YITC_LAND_QUEUED_PREMERGE=0` the same fixture leaves the branch untouched during the wait and
+    merges only after acquisition. (b) WATERMARK — a persistent conflict costs exactly one attempt
+    per MAIN ADVANCE, not one per throttle interval, and an unproven behind-count is recorded as a
+    non-consumable `error`, never as a consumable `current`. (c) FAIL-OPEN — an injected exception
+    in the base capture leaves the land SUCCEEDING, sets no watermark, consumes nothing and lets
+    step 2 run its own merge. (d) THE ONE NON-FAIL-OPEN ARM — with `git merge --abort` genuinely
+    wedged, the record carries `unsafe_state` naming what survived AND the land aborts at
+    acquisition with class `queued-premerge-unsafe-state`, the post-release step-2 merge invocation
+    counter reading 0 and main untouched. A rule that only disabled later ticks passes (a)-(c) and
+    MUST fail (d).
+
+  - **Rule 1:** a queue of depth 1 produces a land whose journalled events, commits and terminal token
+    are identical to the pre-spec path at the three levels rule 5 names (differential: the same branch
+    landed before and after shows no new rows — and specifically NO per-member attribution row, per
+    rule 5's N=1 clause); a queue of depth N>1 produces ONE verify for N members.
+  - **Rule 1 (the `paying` metric — a DIFFERENTIAL, never an assertion):** over one fixture family,
+    a FIRST-attempt member whose paths are inert is counted as paying while a RETRY carrying the same
+    inert delta is not, and a member whose paths cannot be read is counted on neither. A rule that
+    simply counted every member would satisfy the first half and MUST fail the second; a rule that
+    kept the inert-path proxy fails the first. The consumer cohort is probed in the same family: a
+    member whose paths every declared layer would SKIP stays non-paying while one some layer RUNS
+    for pays, so one classifier is proven to give opposite answers in a kernel-authored and a
+    project-authored repo. That half is probed against `subject_globs` on a REAL declared shape
+    whose `covers:` and `subject_globs:` DISAGREE — a layer owning `tests/**` while its subject
+    spans `app/**` — because a probe where the two coincide cannot tell the carriers apart, and a
+    `covers:`-read passes it while inverting the live answer. A layer declaring NO `subject_globs`
+    runs always, and that default is probed too.
+  - **Rule 2 (declaration half):** a project without the declaration never forms a batch of 2+,
+    asserted with the declaration present and absent over the same queue.
+  - **Rule 2 (kernel half — combined-candidate blame is VALID on the kernel's own suite)** (plan-check
+    finding 2, 2026-08-16). Rule 2 engages batching for the kernel with NO declaration, on the grounds
+    that the kernel owns its suite's isolation properties. That is an ASSERTION until probed, and the
+    entire red-path safety argument rests on it — an unprobed assertion here is exactly the shape that
+    lets a red change ride a green batch. So it is probed directly, on the kernel suite:
+    a red combined candidate lands NO member and dissolves the batch back into the queue, and each
+    re-queued member is then verified ALONE. Blame is not computed and is not needed (plan-check finding
+    1, 2026-08-16 — the earlier wording probed bisection, which this spec no longer scopes): dissolution
+    is SELF-CORRECTING. A genuinely red member fails again on its own candidate leg and is caught; a
+    PEER-DEPENDENT red — one that fails only for the COMBINATION — goes green alone and lands, which is
+    the correct outcome rather than a misattribution to whichever member a bisection happened to isolate
+    first. What the probe must show is that the kernel suite behaves this way over a COMBINED candidate
+    at all: that a combined red is detected, that it is total (no member rides it onto `main`), and that
+    re-verifying the members singly reproduces each one's true individual verdict. A failure here is a
+    finding against rule 2's no-declaration path itself — it would mean the kernel suite needs the same
+    declaration a project-authored verify does, and rule 2's asymmetry is wrong.
+  - **Rule 3:** two members whose merges conflict — the loser is evicted with ZERO verify passes spent
+    (probe: no verify-start row between formation and eviction).
+  - **Rule 13 (differential, both directions):** a fixture branch named in THREE multi-member
+    `land_batch_formed` rows with no completed-verify land since is NOT placed in a multi-member batch
+    at the next formation, while the SAME branch with the rides absent or below threshold IS — nothing
+    counts rides before this rule.
+  - **Rule 13 (it needs no name):** the fixture red batch names NO culprit (attribution declined) and
+    the routing still fires on the third ride. An implementation keying on any verdict fails this.
+  - **Rule 13 (it self-clears):** after the solo attempt COMPLETES — ok or abort, verify having run —
+    the branch is an ordinary batch candidate again; an unclearing mark fails.
+  - **Rule 13 (it survives a busy day):** a third ride is still counted when the first ride row has
+    scrolled far beyond the former 512KB tail bound — the count rides the lifetime-sized window.
+  - **Rule 4:** a red batch leaves `main` unchanged for EVERY member; a green batch moves `main` by all
+    members in one step. The hard failure this guards: a member on `main` whose own candidate leg was
+    red.
+  - **Rule 5:** each member's verdict is readable from the journal alone, without reconstructing the
+    batch — including a member re-queued because a PEER was red.
+  - **Rule 7 (the safety probe of this spec — a differential, not an assertion):** a batch in which
+    exactly ONE member touches the verify path runs BOTH legs for the whole batch (probe: `verify_mode`
+    records the doubled regime for a batch whose other members touch nothing verify-related). And the
+    property that leg protects is probed directly: a batch pairing a verifier-WEAKENING member with a
+    member the pre-change verifier would reject must NOT land — the candidate leg passes under the
+    weakened verifier, and the PINNED leg is what refuses it. A green result there is the failure this
+    probe exists to catch, not a pass.
+  - **Rule 9 (differential, on the YIELD — not on the successor):** with an expensive-class slot
+    holder and a strictly cheaper UNMARKED candidate queued behind it, the holder releases the
+    reservation without verifying; with the class comparison removed (the holder ranked cheapest) it
+    does not. **The successor half is no longer silent (2026-08-19).** While the handover was
+    a first-come flock this criterion asserted nothing about WHO takes the slot next, because the
+    mechanism genuinely lacked that property. It has it now — the yield is ADDRESSED — so the paired
+    criteria are: only the NAMED successor may take the offered slot (a third contender must abstain,
+    and with the offer removed it must not), the named successor TAKES it on the poll tick it already
+    runs and consumes the offer, and an offer nobody answers is ended by the EXISTING park limit rather
+    than holding the slot open.
+  - **Rule 9 (the mark, owner requirement):** a cheaper candidate whose rule-8 supersession marker is
+    SET is NOT a yield target, and the marker SURVIVES the read (a rule that yields to any cheaper
+    candidate passes the differential above and fails here).
+  - **Rule 9 (complement — the quiet repo):** with no strictly cheaper unmarked candidate queued
+    (empty queue, equal class, or an undecidable one), there is no yield, no extra wait and no
+    `slot_yields` key — byte-identical to the pre-rule path. A rule that yields whenever anything is
+    queued passes the differential and fails here.
+  - **Rule 9 (no new bound, no livelock) — a DIFFERENTIAL over two real contenders, not an
+    assertion:** the decision path reads no yield count and no cap exists. A mutual-yield fixture,
+    constructible only by INJECTING an inconsistent ranking (the shipped strict order makes it
+    unreachable), drives the SHIPPED loop from two separate PROCESSES against a real reservation
+    flock. WITH the offer bookkeeping it settles at once; with that bookkeeping disabled — one line
+    of injected difference — the same pair does NOT settle inside a window many times the pinned
+    park limit. That is what establishes which property terminates it, and it is why the rule above
+    records that the park limit is not the backstop the founding directive named.
+  - **Rule 9 (convergence, MEASURED not assumed):** yields-per-slot-acquisition stays at or below a
+    small named bound (start: 2) on the differential fixture, driven through the SHIPPED fairness
+    dispatch against a real flock with a real parked peer. A rule that satisfies the differential but
+    ping-pongs until the park limit fails here; the answer to a failure is a MEASURED poll value, not
+    a re-introduced back-off.
+
+cites:
+  - SPEC-0132 # host-sharing governor — the OTHER axis; reconciled, not extended
+  - SPEC-0152 # rule 16 owns yitc-ops.yaml verify: — the declaration's home (AMENDED)
+  - SPEC-0180 # detached held-turn land — prerequisite, and rule 6 AMENDS its binding
+  - SPEC-0077 # the doubled verify whose cost this spec amortises
+  - CHARTER.md#principle-1 # anti-complexity: one mechanism, self-disabling, no repo branching
+
+requires: [] # EMPTY BY ANALYSIS, not by omission (plan-check finding 3, 2026-08-16).
+                               # This spec must not activate before the SPEC-0180 amendment (rule 6)
+                               # lands — but that ordering CANNOT ride this field: `requires:` names
+                               # specs that must LAND FIRST, and SPEC-0180 is ALREADY active, so
+                               # `requires: [SPEC-0180]` would be satisfied the moment it was written
+                               # and would gate nothing. The blocking subject is an AMENDMENT to an
+                               # active spec, which carries no id of its own. The ordering is therefore
+                               # carried on the axis that does block: `activation_owner_task` is set at
+                               # decomposition to the card that `requires:` the card carrying the
+                               # SPEC-0180 amendment. Since `task close` is the SOLE writer of
+                               # proposed->active (GRAPH §Spec lifecycle) and the picker blocks on an
+                               # unfinished `requires:` target, this spec is structurally unable to
+                               # reach `active` while the amendment is unlanded. Plan §Planned artifacts
+                               # holds the same reasoning.
+                               # (Field contract: spec-level BLOCKING ordering B6 — requires-
+                               # orders concurrent proposed children of one spec, GRAPH §Spec lifecycle.)
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # SET AT DECOMPOSITION (SPEC-0034 §decomposition Work) — the ONE card
+                               # whose close flips this spec proposed->active. is the card that
+                               # makes the WHOLE narrowed spec real (one verify + atomic multi-member
+                               # fast-forward + the rule-4 no-reformation rule + the rule-7 SPEC-0077
+                               # union trigger); the earlier cards are prerequisites and merely `cite`.
+                               # Its close must ALSO set `implements:` in the same act (see `binding:`).
+                               # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: batch-queued-land-verifications-into-one-candidate
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # FILLED BY THE ACTIVATION CARD in the SAME close that flips
+                               # proposed->active and sets `implements:` above — the residency token
+                               # its siblings on this exact machinery already use (SPEC-0077 the
+                               # doubled verify, SPEC-0132 the admission governor, SPEC-0180 the
+                               # detached held-turn land). It states the DELIVERY MODE, and the mode
+                               # is: the `implements:` anchors ARE the delivery. Not verb-fetched
+                               # (no reader has to remember to ask for it before landing) and not
+                               # `floor` (it is not always-loaded seed text) — the land path enforces
+                               # it every time it runs, which is what `code-enforced` names.
+                               # ORIGINAL DRAFT NOTE, kept because its reasoning is what made both
+                               # fields obligatory (plan-check finding 4, 2026-08-16):
+                               # Once active this is a CODE-ENFORCED land rule,
+                               # so its delivery rides `implements:` anchors on the land verify path
+                               # rather than a verb-fetch binding. Leaving BOTH empty at activation
+                               # would make it a DANGLING spec (SPEC-0005 rule 7) — active, governing,
+                               # and pointed to by nothing. The activation_owner_task therefore sets
+                               # `implements:` to the carrying symbols in bin/lib/worktree.py in the
+                               # SAME close that flips proposed->active; if that close ever leaves both
+                               # empty, `graph build`'s bidirectional report is the backstop that says so.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/batch_landing.py#_emit_land_batch_formed: ff36b48a6277c1c41beff47f26186d62d8a1bf282c15de5c7329e9aaf13594a2
+  bin/lib/batch_landing.py#_emit_land_member_verdicts: 91bbf4698d6acd7531c34e0ab51f3775213c46a525526aa11b02b13186c63420
+  bin/lib/batch_landing.py#_land_addressee_gone: 216d05af011bfaf5d2fb455335b599e2ab9c1b7e8616142999ca551f227ab456
+  bin/lib/batch_landing.py#_land_batch_engagement: 6f0f4f4dd72e23a55002fcc817cdb351317dcdeed3f4e729def2b3d5b2e25b5c
+  bin/lib/batch_landing.py#_land_batch_foreign_merges: 45ddd72592a346f428bab170db59d9d87ef3cfa570a883673cc79cb7b9d3bde2
+  bin/lib/batch_landing.py#_land_batch_formation_ids: efb09da9dd4b8f7e55db09f8756dee6a9481132f0650ebd9108d93cf503c4261
+  bin/lib/batch_landing.py#_land_batch_ineligible_branches: 1410159144b06d707674d12b8c820c1796ba168e6829001e8b3d662e5102f66d
+  bin/lib/batch_landing.py#_land_batch_members: c1ff77b8f4f667eea07e3e4526109cfe1ad1d5df8ea94d77ea60eaff9c4b1422
+  bin/lib/batch_landing.py#_land_batch_verify_path_touch: 153524acb9e4f5f663243863d0c413ff6f73f85b3f46bb4eb853bdcddc046ea7
+  bin/lib/batch_landing.py#_land_clear_yield_offer: b24ed066be5706662defcd7727513b012113c9729411a9ae871f1565f8a5e7be
+  bin/lib/batch_landing.py#_land_consume_yield_offer: a687199e81e30ea75f2d7166a354252a6edf56fe8dbea2949c36bf67e4e3a53a
+  bin/lib/batch_landing.py#_land_contamination_advisory: 8a2e579619bc31f82fb19cd5dcc1844b0d09bbbea05138cb722438d22cf3b93a
+  bin/lib/batch_landing.py#_land_cost_class: 092bbf099aaa64858d8474a624b2033228f548dfbd2d634fd05f312efb611fa6
+  bin/lib/batch_landing.py#_land_dissolve_batch: 712c4651e9041421c1c4ecf468843afbbeef22e416317de855b0e680d5322c17
+  bin/lib/batch_landing.py#_land_drop_dead_members: f43df5e723e0251634593a0c55330004c16ccb30bfbac0d89b9cf73270004437
+  bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/batch_landing.py#_land_mark_red_assertions: d329a77d50e5930c49161eeb9f6dde8fca7ca86d4913827e1b82e5e3db6757ec
+  bin/lib/batch_landing.py#_land_median_verify_wall_ms: 3553a9e331e8e5e22a45cd559b2b1be560deaf419121c3c035057c07181af064
+  bin/lib/batch_landing.py#_land_member_claim_held: 8c9c247f06d1a629b7f7b88c963ec44edddae28a765eda4d0612d0fe7336ab79
+  bin/lib/batch_landing.py#_land_member_terminal_signal: 1958c1514c82d8c709d457ca124ae32df775fa3fe681f771a2ff7d19d09c2cd1
+  bin/lib/batch_landing.py#_land_members_carried_by_ff: 4cc526a2357251203dcffb7fef75b70f15432f7d607b14395d26482253dd7a6c
+  bin/lib/batch_landing.py#_land_merge_batch_into_candidate: f2f529b6ff5b846341a476c5c86e2079ad3253b86f625702ea8d17dbc2b5dd0f
+  bin/lib/batch_landing.py#_land_merge_invalid_acceptance_branches: 67938af4e0accdd07e97c15adce349b77d568c9dc28ca372c3c03036822b162b
+  bin/lib/batch_landing.py#_land_merge_members_in_queue_order: 29c99525d8bd8aafcc57f77772ab9b4c28b726ecde4ce0f266f927f2dca62ddc
+  bin/lib/batch_landing.py#_land_merge_probe: 431260ac22edfd8faea90aaa31010cce587bc11418eb7acc3ce577618e96159f
+  bin/lib/batch_landing.py#_land_named_culprit_advisory: 82066974d541e12f7774f88517add4414f43a8357cad56721ed6f7856f1fb8da
+  bin/lib/batch_landing.py#_land_pinned_supersession_branches: 491757e0571b036e0a3b4dc106177e997937e3b00803b5a9106cc0795af0d781
+  bin/lib/batch_landing.py#_land_prequeue_currency_refusal: 20c591dcc4eab1d9be9336b6dd057015e415499f8a867b1a897efc57774f9c3b
+  bin/lib/batch_landing.py#_land_prequeue_merge_refusal: 503596a59bb68b2172dba4538b60de6333284890a70ae17fa1ae98ac7612f007
+  bin/lib/batch_landing.py#_land_queue_at_slot_free: e4e27c736e5ba82dd2e47fe7a9117ec226bbeb9bc09512a0a677c40b07f5266e
+  bin/lib/batch_landing.py#_land_read_yield_offer: 6b25de4e113ab4214b11efb8196eca490101c0d2911d8d6bb3519c3c9e19261c
+  bin/lib/batch_landing.py#_land_rebaselining_branches: 6700eaad0ec66151374c28ec6e8cac17724d7a752867eb8ad799ee4516c9367a
+  bin/lib/batch_landing.py#_land_reconcile_member_verdicts: 9d4e7876d49c3bea6c8ca1a84067493dbe7affd9f587ec58f32982302bbeb904
+  bin/lib/batch_landing.py#_land_reddened_member_sets: a2b6f910cda74c93b63f7020b21107996d46f29e2fa58cb7ca1068d483942683
+  bin/lib/batch_landing.py#_land_rederive_merged_candidate: 8f748034ff41e6e21ba9fe03a217f67f2b74f9fe79dde74233267ca80c01ef73
+  bin/lib/batch_landing.py#_land_release_peers_for_solo_head: 2537c79df892760d35bc02361283fea17c69359636cf362b10164461ad025716
+  bin/lib/batch_landing.py#_land_restore_candidate_head: 57da8242076ea5659594a91f03dd496bb94ad5eea2879a5448c4a5145e389a1c
+  bin/lib/batch_landing.py#_land_write_yield_offer: 8e4e3d0c4565fae3ee3a6a901494c96c33e291238af59a5cda9c8d8e30fa8735
+  bin/lib/batch_landing.py#_land_yield_loop: 9a5306cd7d2bfdae8091f03c28e097e22b01e5fb3b7c1b03aa23478bd990887a
+  bin/lib/batch_landing.py#_land_yield_offer_blocks: 2bf5572ed5a139febe89642ee0bb808bde8b7ccb53c8cbb4fc64f6e348187bf5
+  bin/lib/batch_landing.py#_land_yield_offer_path: 974d38b701dc6d407c31437434e34975f1b73914e7fd398643a0e9f84ecf28f8
+  bin/lib/batch_landing.py#_land_yield_target: 53bd0d8ef30beb4edd343775802e61882db7f21f703112b8502dcca0d306ba46
+  bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
+  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae
+  bin/lib/worktree.py#_land_queue_jump_reason: 590b4396db58f99cf8846bab9364d8e3d1f47a966b19111ef903c66d91abc482
+  bin/lib/worktree.py#_premerge_consumable: ce9643e12273b28d01f64784105fdc92fa1c70a322a677d30d608440055bc38e
+  bin/lib/worktree.py#_premerge_reservation_disposition: e2fddeef4f0c97720d47a0739483bf3c77d281e0157b0095c61129a9e5f9b70d
+  bin/lib/worktree.py#_queued_premerge_from_main: fe87050583370642c5c8b3778195c9c1ec21ada26b8f8af7455e7eb744923b80
+  bin/lib/worktree.py#_verify_under_admission: 0c38efdcc0357723cc79ed792037c6cd6259bd0d9d09fb073081338ae109ad3d
+  bin/lib/worktree.py#cmd_land: 144d854f0c901d1d882cf6a06f329a56b108a012db7646e24fa0f1e404836c51

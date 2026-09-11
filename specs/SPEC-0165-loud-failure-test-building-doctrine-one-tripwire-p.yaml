@@ -1,0 +1,470 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0165
+title: Loud-failure test-building doctrine — one tripwire per silently-breakable atomic rule
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: [] # design-phase doctrine spec — enforcement anchors are wired by the
+                               # plan's implementing tasks (per-AC check in task verbs, ledger docs).
+
+body: |
+  ## Scenario
+
+  Before any test is written or waived, one question is asked aloud: **"which SILENT breakage does
+  this tripwire make LOUD?"** The owner can ask the same question about any rule and get the answer
+  from the project's ledger, not from anyone's memory. Tests stop being a per-task ritual and become
+  posts guarding rules: no rule that can break silently is unguarded, and no rule gets more than its
+  one guard.
+
+  ## Internal
+
+  THE LOUD-FAILURE PRINCIPLE (the single organizing rule for test-building):
+
+  **A rule needs a test ONLY if it can break SILENTLY. Then it gets exactly ONE tripwire that makes
+  the breakage LOUD. If the rule already breaks loudly, no test — record a waive instead.**
+
+  Definitions (fail-closed, auditor-amended 2026-07-18):
+
+  1. **Loud** — a violation is loud ONLY if a **named existing mechanism fails closed BEFORE the
+     harmful action on the relevant path** (verb refusal, land-verify failure, schema/type error,
+     startup crash). If you cannot NAME the mechanism, the rule is SILENT. Assumed visibility
+     ("someone would notice") is never loud.
+  2. **Atomic rule** — one independently breakable equivalence boundary or state transition.
+     Composite clauses (ranges, ordering, retries, idempotency, concurrency) are split into atoms
+     FIRST; then one tripwire per atom.
+  3. **Tripwire quality** — a tripwire is DIFFERENTIAL: it proves the rule by a failing input,
+     anchored to the SPEC's text (or an explicit owner clarification), never to current code
+     behavior. Happy-path multiplication adds weight, not loudness.
+     **NAME THE HISTORICAL BASELINE (the anchoring half of "differential").** When the failing input
+     is a PRE-CHANGE state read out of the repository's own history, the tripwire MUST name that
+     baseline EXPLICITLY — a fixed commit SHA, a tag, or an inline copy of the pre-change text — and
+     MUST NOT derive it from a merge-base, a branch tip, or a remote tip (`git merge-base`, `main`,
+     `origin/*`, `HEAD`), UNLESS the test is explicitly ABOUT those refs. A moving ref names the
+     pre-change state only while the change is UNLANDED; once it lands, the ref's target CONTAINS the
+     change, both differential legs invert, and the test fails on every branch regardless of its diff
+     — so a moving ref is "current code behavior" wearing a historical name, which the sentence above
+     already forbids. Fail CLOSED when the named baseline is unreachable (a shallow clone): a
+     differential that cannot read its baseline is not silently green.
+     **ASK THE DISCRIMINATING QUESTION BEFORE YOU WRITE THE ASSERTION.** The paragraph above is a
+     PROHIBITION over refs, and it reaches only one form: a differential baseline read off a
+     merge-base, a branch tip or a remote tip. It does not fire on a test that pins a NAMED CURRENT
+     FACT — the head migration revision, a live file still containing a class a sibling card is
+     chartered to delete, a string derived from today's date — where no ref moves at all, yet the
+     failure mode is identical. So beside the prohibition, answer one question at the keyboard:
+     **if this test fails, will it mean somebody made a MISTAKE, or that somebody simply CHANGED
+     something?** A mistake ⇒ it asserts a RULE — write it. A change ⇒ it asserts a FACT — do not:
+     its red carries no information about correctness, only about staleness. A rule does not move,
+     so its failure is always a defect; a fact moves by design, so its failure is always a chore —
+     a bell tied to a door that is supposed to open. The hand-check that catches most of them: *is
+     the rule already proven on a fixture beside this?* If yes, the fact-pin is redundant — the
+     rule is covered and the pin adds only a fact. This is a judgement about the author's INTENT
+     and is deliberately NOT mechanised: no automatic classifier of assertions, here or later.
+     **Why a QUESTION and not a stronger prohibition — the cost is EXTERNALISED.** The author pays
+     one second writing the pinned value. The bill is paid by a DIFFERENT person, days later, in an
+     area they did not touch, reading a red they cannot interpret. The author never sees the cost,
+     which is why a locally-reasoned exception keeps looking cheap from where it is made, and why a
+     prohibition alone does not correct one — an externality is answered by making the reader's bill
+     visible at the moment of writing, not by one more rule to argue around.
+     **Wanting to be TOLD about a change is an ARMED FOLLOWUP, not a test.** When the real intent is
+     "let me know when X changes or closes", that wait already has its own primitive — capture it
+     with `followup add --trigger --awaits` (SPEC-0095), not with an assertion. A test is for a
+     BREAKAGE.
+     **ANTI-PATTERN — the COVERAGE-GUARD AC: "remove an assertion and the file's own run MUST
+     redden".** An acceptance criterion of that shape is UNSATISFIABLE, and it is worth naming
+     because it LOOKS like the differential this item demands. Removing an assertion leaves a
+     STRICTLY WEAKER suite, and a strictly weaker suite cannot redden — so the probe returns green
+     on a healthy tree and green on a broken one, which is not a differential at all but a
+     constant. Measured on both files the shape was written against (evidence
+     `dev-utilities/suite-profile-.md`): with the assertion deleted, `test_dispatch` exited
+     rc=0 at 37/37 and `test_t10149` exited rc=0 all-PASS; perturbing the guarded SUBJECT instead
+     reddened both (rc=1).
+     **The SOUND shape is SUBJECT-MUTATION: perturb what the assertion GUARDS, never the assertion.**
+     The failing input must be a change to the rule's subject — the guard, the payload, the
+     composition site — because that is the breakage the tripwire exists to make loud; deleting the
+     tripwire only proves that a test which is not there does not run. This is named as an
+     anti-pattern rather than left to judgement because it was authored TWICE ( AC2
+     AC2) before anyone ran it, which is the F4 recurrence evidence: the shape reads as rigour and
+     passes review, and only an actual run distinguishes it from the sound one.
+     **THE FAILURE MESSAGE MUST DESCRIBE WHAT THE ASSERTION ACTUALLY CHECKS.** Everything above
+     this paragraph governs what a tripwire ASSERTS. This governs the MESSAGE beside it: a message
+     that states a stronger property than its assertion checks is a DEFECT IN THE TRIPWIRE, not a
+     stylistic preference.
+     **The violating shape, named so a real tripwire can be failed against it.** An assertion that
+     checks a PROXY — a substring of some source text, a call count, a type, the mere presence of a
+     symbol — carrying a message that states the BEHAVIOURAL GUARANTEE the proxy stands in for. The
+     message must be about the proxy ("the guard must still name `culprit_indices`"); the
+     behavioural claim belongs only on an assertion that exercises the behaviour. The test to apply
+     at the keyboard: **would this message still be TRUE if the assertion were the only thing you
+     knew?** A bare "write clear messages" satisfies nothing here — this clause is met by naming
+     what is checked, not by writing more warmly.
+     **Why the MESSAGE and not only the assertion — it is the half most readers ever.** The
+     message is what `land` prints in its FAILING ASSERTION(S) block, so it reaches everyone
+     downstream of a red — a controller triaging a batch, an auditor, the owner — none of whom
+     opens the test file. An overstated message is therefore read AS the tripwire's content, by
+     exactly the readers with the least means to check it.
+     **Worked example — 2026-08-26, one full dispatched-worker cycle.** In
+     `tests/test_t11335_evict_on_test_redness.py` the assertion stood as:
+
+         assert "0 not in" in guard and "culprit_indices" in guard, (
+             "the fork must refuse to act when the HEAD is among the proven culprits")
+
+     The assertion greps the guard's SOURCE TEXT; the message states a behavioural guarantee it
+     does not check. The sibling assertion immediately below it says where the bound really lives —
+     "the acted-on set must exclude index 0 structurally, not only by the guard above". Reading the
+     message as the content, a controller judged a landed-green build a data-loss regression and
+     refused the worker's sanctioned rebaseline route twice, in writing. The worker refuted it
+     mechanically and by adversarial consult, then correctly stopped rather than override a
+     controller decision. Every one of those steps was right; the whole cycle existed because a
+     message overstated its assertion.
+     **How this differs from the question above — the two are violated INDEPENDENTLY.** The
+     mistake-or-change question decides whether such an assertion should EXIST; this clause decides
+     whether its message DESCRIBES it. Neither answer implies the other, and the example above
+     violates both. (That question is stated in its own paragraph above and is not restated here —
+     one home per rule, SPEC-0005 rule 8.)
+     Repo-local prior art, kept where it lives — whose rule 3 observed the same thing from one
+     land: `lessons/a-source-form-probe-is-not-a-behaviour-test.md`. Like the rest of this item,
+     this is AUTHORING doctrine: no classifier of assertion messages is admitted, here or later.
+  4. **Waive contract** — a waive names the mechanism, its pre-harm fail point, the covered path,
+     and a representative violating input — otherwise build the tripwire. Every waive carries
+     class, rationale, approver, and a recheck trigger (spec edited / frozen→active / area touched).
+  5. **Extend-before-create** — one post per rule: before writing a new test file, extend the
+     rule's existing suite. A new standalone file is justified only by a genuinely NEW rule.
+     (Kernel corollary: task probes fold into per-rule suites — never one-file-per-task-forever.)
+     **Does this new test inspect THIS HOST? Then classify it in the SAME card.** A file that reads a
+     `/home/<user>` path, the locally-installed auditor binary, the real cross-project store, the host
+     sandbox, or this box's own debt-echo state means something HERE and nowhere else — it is not
+     venue-agnostic, and a kernel verify pass no longer runs only here. Ask the question at the keyboard,
+     while the file is being written and the card that ships it is still open: the classification belongs
+     in the same card as the test, never in a later sweep by someone who did not write it. What the
+     classes ARE, and what an unclassified file counts as, is **SPEC-0203 rule 8** — read it before you
+     answer: `yitc-v2 graph query SPEC-0203`. The class is RECORDED, never guessed: the local-probe class
+     is carried by `tests/local-probe-files.json`, whose per-file reasons live in
+     `dev-utilities/remote-verify-local-probe-classification.md`. A CUE plus a POINTER, per SPEC-0005
+     rule 8, exactly as item 9's journal-cost bullet does for SPEC-0190: rule 8 has exactly ONE home and
+     this is not it — inlining its sentences here would be the second home that drifts the day
+     SPEC-0203 is amended.
+  6. **Walk order** — rules are mapped/closed in order of the COST of silent breakage
+     (money → outbound mutations → isolation/access → data mutations → background jobs).
+  7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen specs are not rules and
+     need no tripwire.
+  8. **Ledger role** — the per-project ledger stores ONLY rule→tripwire/waive links and waive
+     contracts: derived bookkeeping, re-derivable, never a parallel truth (the spec stays the
+     rule's normative home; the test stays the proof). **Home + schema (pinned):** one F4-shaped
+     doc per repo — `specs/<PROJECT>-rule-test-ledger.md` — one row per atom:
+     `spec anchor · atomic rule summary · tripwire test path(s) | waive{class, mechanism,
+     fail-point, path, violating-input, approver, recheck-trigger}`. Nothing else lives there.
+     The tripwire field carries the test path(s) AND — where item 9 calls for one — the short
+     cost rationale for keeping an expensive tripwire in that shape. That rationale is part of
+     the tripwire field, never a new column, row type or store.
+
+  9. **Cost placement (PROVISIONAL — see the review trigger at the end of this item)** — items 1-8
+     decide whether a tripwire must EXIST; this one decides where its COST belongs. It sets no
+     budget, no threshold, no gate, and adds no store.
+     - **Cheapest shape that stays loud.** Among the tripwire shapes that make the SAME silent
+       break loud, choose the cheapest to run. This is a choice of SHAPE, never a licence to
+       weaken: a cheaper shape that no longer fails on the violating input is not a candidate at
+       all — item 3 still governs, and a tripwire that stopped being differential is not cheaper,
+       it is absent.
+     - **An expensive tripwire kept anyway records WHY the cost belongs there.** When the loud
+       shapes are all expensive, keep the tripwire and record — in its EXISTING ledger row, inside
+       item 8's tripwire field — what the cheaper shapes would have stopped proving. This is a
+       kept guard with a stated reason, NOT a waive: item 4's waive contract is for a rule that
+       needs no tripwire, and an expensive rule is not an unguarded one.
+     - **Cost that is really the PRODUCT's is product debt, not test tuning.** Where the expense
+       is a slow product path or governed verb that the test merely exercises honestly, the
+       finding is PRODUCT performance debt: file or route it as such. Do not absorb it as
+       test-suite tuning — trimming the test hides a cost every human caller of that path is
+       already paying, and hands back nothing.
+     - **Before you write a test that spawns a child or folds the journal, ask what HISTORY it is
+       paying for.** This is the concrete form the bullets above take in THIS corpus, and it is
+       measured, not asserted: the verify suite's per-file cost is dominated by tests that fold
+       accumulated history they assert nothing about — on 2026-08-28, three files went from
+       407s / 249s / 101s to 4s / 6s / 9s by bounding exactly that,
+       with nothing they prove changed. A cost that grows with the project's own history is the
+       cheapest-shape question above with a known answer, so ask it at the keyboard.
+       **There IS a standing rule for this, it is enforced in code, and it is NOT restated here:
+       SPEC-0190 rule 9** (with its construction contract in rule 9a and its fixture boundary in
+       the clause beside them) — read it before writing such a test: `yitc-v2 graph query SPEC-0190`.
+       A CUE plus a POINTER, per SPEC-0005 rule 8: rule 9 has exactly ONE home and this is not it.
+       Do NOT inline its normative sentences here — a second copy would drift the day SPEC-0190 is
+       amended, and a stale copy delivered at the authoring moment is worse than no copy at all,
+       which is the precise failure this bullet is written to avoid.
+     **PROVISIONAL, and named as such so it cannot harden by default.** The whole evidential basis
+     is one optimisation pass on one day: it supports this PLACEMENT doctrine and not a broader
+     standing cost discipline. **Review trigger:** accumulated slow-tail observations from the
+     report-only per-file duration delta (SPEC-0119 rule 19, which owns the DRIFT half of this
+     axis — this item owns ADMISSION only and neither restates nor gates on it). Revisit this item
+     when those observations have accumulated: confirm it, sharpen it, or retire it.
+
+  10. **Machine-attributable failure — a failing tripwire NAMES ITSELF.** Items 1-9 decide whether a
+      tripwire must EXIST and what it must PROVE; this one decides what it must LEAVE BEHIND when it
+      fires. **A failing test MUST leave, in its captured output, a failure identity a machine can tie
+      back to the test** — either (a) a naturally RAISED exception carrying its message, or (b) a
+      SELF-REPORTED failure summary in a form the land-verify failing-assertion extractor recognizes.
+      Either binding satisfies this item; a failure that leaves NEITHER is the violating case.
+      **The recognized forms are the EXTRACTOR's, and are deliberately NOT restated here** — read them
+      at `bin/lib/cli.py#_extract_failing_assertion` and its producer
+      `bin/lib/verify_runner.py#_verify_failure_excerpt`, which is where they will also CHANGE. A cue plus a
+      pointer, per SPEC-0005 rule 8: a copy of the accepted shapes in this body would be a second home
+      that silently rots the day the extractor widens, and this item must stay correct across exactly
+      that event.
+      **Why this belongs beside "make the breakage LOUD".** A tripwire whose failure carries no
+      bindable identity is loud to a HUMAN reading the whole log and silent to every machine downstream
+      of it: the batch-attribution oracle has nothing to attribute, so it names no culprit, evicts
+      nobody, and requeues the innocent members alongside the guilty one. Loudness no consumer can
+      attribute is loudness spent — which is why this is an obligation of the tripwire, not of the
+      reader.
+      **What this does NOT require.** No style: a `__main__` print-runner is as compliant as a
+      `unittest` case, provided the line it prints on failure is one the extractor binds. No verbosity:
+      one identifying line is the whole obligation. No retro-fit: an existing suite that already
+      self-reports is reached by WIDENING the extractor, never by editing the tests — the identity is
+      already in the output, and the parser is the single place that must learn to read it.
+      **NO GATE — this is authoring doctrine, exactly like the rest of this spec.** Nothing refuses,
+      warns, or exits nonzero on account of this item: a test that violates it still runs, still fails
+      loudly to a human, and still lands. A validator here would be the behavioural detector CHARTER's
+      non-goals forbid, and it would be aimed at the wrong target besides — the corrective surface is
+      review and the ledger row, never a check.
+
+  11. **Absence is not evidence — the READER's dual of item 1.** Items 1-10 govern what a mechanism
+      must EMIT and what a tripwire must PROVE. This one governs what a READER of a signal — a
+      watcher, a status classifier, a journal fold, a human tailing a log — may CONCLUDE from NOT
+      seeing something. **The absence of a positive signal is never, on its own, evidence of any
+      state.** A missing token, an empty output file, an unreadable row, a zero count, a grep that
+      matched nothing: each is equally consistent with the healthy case, with a reader that ran too
+      early, and with a read that failed. So a reader concludes ONLY from a POSITIVE, PARSED
+      observation, and every not-seen case FAILS CLOSED to "cannot answer" — which is a third value,
+      distinct from both answers, and never silently folded into the safe-looking one.
+      **Why this belongs beside "make the breakage LOUD".** Item 1 buys loudness by naming a
+      mechanism that fails closed. A reader that treats silence as an answer SPENDS that loudness
+      before it arrives: the mechanism fires correctly and the reader has already concluded. Loudness
+      and the reading of it are one guarantee, and item 1 alone secures only half of it.
+      **The three shapes it takes, so a surface can recognise itself in it.** (a) A WATCHER: a
+      terminal state is read off a positive terminal token, never off the absence of a running one.
+      (b) A CLASSIFIER: an unreadable or missing input leaves the subject UNRESOLVED, never
+      relabelled as the explained case. (c) A READER RETURNING A SET: an empty set is the CLAIM
+      "nothing", so a row that cannot answer returns a third value instead — `None` is not an empty
+      set.
+      **THE CONCRETE FORM SHAPE (b) TAKES IN THIS CORPUS: A CHECK THAT RESOLVES A JOURNAL ROW.**
+      The journal is ONE logical history spread across BOUNDED physical segments, so a check that
+      opens the journal PATH reads the LIVE segment alone. **A check whose declared horizon can
+      exceed the live window — and anything resolving a FIXED historical row by `ts` or id is
+      unbounded backwards, which is exactly the range that is archived first — MUST read through
+      the SEGMENT RESOLVER, never the live file.** The rule it is an instance of has exactly ONE
+      home and is NOT restated here: **SPEC-0190 rule 4** (a reader declares its horizon; the fold
+      honours it) — read it before writing such a check: `yitc-v2 graph query SPEC-0190`. A cue
+      plus a pointer, per SPEC-0005 rule 8, exactly as item 9's journal-cost bullet does for the
+      same spec; inlining rule 4's sentences here would be the second home that drifts the day
+      SPEC-0190 is amended.
+      **THE FAILURE IT PREVENTS, NAMED: SILENT ABSENCE READ AS EVIDENCE LOSS.** An aged row does
+      not vanish — it MOVES into an archive segment of the SAME logical journal. A live-only read
+      therefore stops seeing it on a day nobody chose, and the check then reports the one thing
+      this item forbids concluding from a not-seen: that the evidence is gone. **Which is why such
+      a check PASSES ON THE DAY IT IS WRITTEN and reddens later by the PASSAGE OF TIME** — the two
+      legs of its differential are its own reading window and the calendar, and neither of them is
+      the subject it exists to guard. Item 3's question answers itself here: its red means nobody
+      made a mistake and nobody even CHANGED the subject.
+      **DO NOT read this as "do not cite a journal row".** Citing a row by `ts` is this corpus's
+      normal way of anchoring a tripwire to durable evidence and it stays correct — what this
+      clause governs is HOW the row is READ. Re-pointing the citation at a NEWER row is not the fix
+      either: it goes green instantly and leaves the reader defect in place for whoever hits it
+      next. And widening WHERE a check looks must never soften WHETHER absence is an error — a
+      fold that also swallows the miss has removed the tripwire rather than repaired it.
+      **Worked NEGATIVE example, beside the wording that would have passed** — 2026-08-31,
+      `tests/test_t11476_tripwire_inert_paths.py`, whose `_recorded_row` opened `events.jsonl`
+      alone. The row it cites (`ts=`) had rotated into
+      `archive/events-2026-08-23.jsonl`; because the assertion also failed on the PINNED last-green
+      leg it refused EVERY branch's land regardless of diff — abort cause
+      `verify-failed#ec7ed56fff5d`, 9 distinct branches — until repaired it. The FAILING
+      wording, whose comment makes the live-only read sound deliberate:
+
+          The row is read from the live journal on purpose: physical rotation is FORBIDDEN
+          (SPEC-0002 §Rotation policy), so the recorded sample is permanent.
+
+      and the assertion MESSAGE that shipped with it, which item 3 already governs:
+
+          the land row cited by AC1 (events.jsonl#ts=...) is not in the journal — the
+          classification has lost the evidence it is graded against. Physical rotation is FORBIDDEN
+          (SPEC-0002 §Rotation policy), so this is a real loss, not an expected ageing-out.
+
+      The wording that PASSES — horizon declared, resolver named, absence still hard:
+
+          The row is read across the journal's WHOLE segment set (SPEC-0190 rule 4), never the live
+          segment alone: rotation moves an aged row into an archive segment of the SAME logical
+          journal, so the recorded sample stays permanent. [...] ABSENT FROM EVERY SEGMENT IS STILL
+          A HARD FAILURE. Widening WHERE we look must not soften WHETHER absence is an error: the
+          raise stays at function level, after every segment has been searched.
+
+      Read the pair for what actually separates them. The failing one is not missing a caveat — it
+      rests a PERMANENCE claim on a premise about the STORAGE that was false when it was written,
+      and states that premise confidently enough that the next reader inherits it. That is the
+      shape to recognise at the keyboard: a comment explaining why the narrow read is safe is the
+      moment to check whether it still is.
+      **NO GATE, exactly like the rest of this spec.** This is operational doctrine for authors of
+      readers; nothing refuses or exits nonzero on account of it, and no classifier of "did the
+      reader confirm positively" is admitted, here or later.
+      Its surfaces keep their own MECHANICS and point here for the rule: the accepted tokens and
+      prefixes of the land watcher (`AGENTS-SESSIONS.md` §land), the fleet watcher's positive-terminal
+      read (`patterns/background-session-monitoring.md` §Watcher), the fail-closed classifier
+      outcomes (SPEC-0133), and the three-valued reader returns (`bin/lib/debt.py`). Read alongside
+      `lessons/fail-closed-belongs-to-the-reader-not-the-parser`, whose point — fail-closed is a
+      property of a USE SITE, not of a parser — this item is the general statement of.
+
+  ## Rationale
+
+  Real incidents: (a) kernel test accretion — tripwires hung on TASKS not RULES: +124 standalone
+  test files in one week (601→725, 2026-07-11..18), fat clusters re-proving overlapping rules
+  (audit 38 files, land 35); (b) specs↔tests unlinked in every repo — no machine answer to "is this
+  rule enforced?" (consumer suites 1271/1719 functions with zero rule-traceability); (c) the owner
+  reads specs, not code — an unenforced spec is the only truth the owner can verify, so its silent
+  drift is invisible to them; (d) a tripwire that fired and could not be ATTRIBUTED — batch
+  bat-610872eb3db6, 2026-08-21, whose `red_assertions` carried one entry bound by its
+  `AssertionError` text and one reading "no failure marker in the captured output", so the
+  eviction path recorded `red_isolation_decline` with outcome `undecidable`, reason
+  `entry-names-no-assertion`, and requeued all three members (item 10's basis); (e) a tripwire
+  whose MESSAGE overstated its assertion — the 2026-08-26 controller/worker cycle worked through
+  in item 3, where a source-text grep carried a behavioural message and a correct build was
+  refused twice on the strength of it. (f) item 11's basis — the same absence-read
+  recurred twice at the human/AI layer inside 24 hours after living in five separate homes that
+  never cited each other: a controller read an UNFLUSHED launch log as absence and re-launched
+  three cards, and a session read a WINDOWED debt count as a present-tense
+  claim that main was broken. External consult verdict YELLOW,
+  `decisions/absence-is-not-evidence-audit-adhoc.yaml`: extend this spec rather than mint a ninth
+  CHARTER principle, on the condition that the five homes LOSE their general prose. Convergent provenance: six external consults 2026-07-18
+  (decisions/loud-failure-principle-audit-adhoc.yaml is the principle's own verdict: adopt with
+  named amendments — absorbed above). Prior art extended, not re-invented: SPEC-0015 differential
+  probes, SPEC-0060 AC discipline, the F4 module→spec coverage-admission ledger shape.
+
+  ## Verification
+
+  Delivered at Tests stage-entry (binding). Probes: (a) a task adding a standalone test file whose
+  rule already has a suite draws the review question "which existing rule suite did you extend?";
+  (b) ledger rows answer rule→tripwire/waive for 100% of tier-1 normative rules; (c) kernel
+  new-test-file rate < 20/week within 2 weeks of adoption (baseline ≈124), REPORTED PAIRED with the
+  new-test-FUNCTION delta so growth cannot hide inside fat files; (d) a waive lacking the
+  §4 contract fields is rejected at review; (e) for item 10, the machine-attributable-failure
+  rule resolves in THIS spec's body and in no other spec (one doctrine, one home), NAMES BOTH
+  accepted bindings independently, and is wired to NO code — `implements:` stays empty,
+  `consumed:` stays false, and no code path reads or enforces the clause, so nothing refuses on
+  account of it; (f) for item 3's message-matches-assertion clause, the clause NAMES the violating
+  shape concretely (a proxy-checking assertion under a behavioural message) and carries its worked
+  example with BOTH the assertion and the message, so a reader can fail a real tripwire against it
+  — a reduction to a bare exhortation is a regression, and the clause is likewise wired to NO code.
+  (h) for item 11, the rule resolves in THIS body and in no
+  other spec, and its five prior homes carry a POINTER plus their own surface mechanics and NOT the
+  general rule — a DIFFERENTIAL with both legs: this body carries the rule, and a later edit that
+  re-inlines it into any of those five surfaces goes RED. It is likewise wired to NO code:
+  `implements:` stays empty and nothing refuses on account of it.
+  (g) for item 9's journal-cost bullet, a DIFFERENTIAL tripwire holds BOTH legs at once: this body
+  CARRIES the pointer naming SPEC-0190 rule 9, and it does NOT carry rule 9's normative sentences —
+  the second leg goes RED if a later edit inlines the rule here, which is the P5 second-home drift
+  the bullet exists to prevent. A missing pointer and an inlined rule are distinct failures and are
+  reported as such; the bullet is, like every other item here, wired to NO code.
+  (i) for item 11's journal-row clause, a DIFFERENTIAL with both legs held at once: this body
+  CARRIES the rule (a check resolving a fixed historical journal row reads through the segment
+  resolver, and the failure it prevents is NAMED as silent absence read as evidence loss), and it
+  does NOT carry SPEC-0190 rule 4's normative sentences — the second leg goes RED if a later edit
+  inlines them here, which is the P5 second-home drift the clause's own pointer exists to prevent.
+  A third state-check, because the clause is useless to anyone but its author without it: the
+  worked NEGATIVE example is present WITH BOTH its failing texts (the reader's comment and the
+  assertion message) AND the wording that would have passed, so a reader can hold a real check
+  against it — a reduction to the abstract rule alone is a regression. And the clause must keep
+  DENYING BY SHAPE rather than by prohibition: an edit that turned it into a ban on citing journal
+  rows, or on reading the live segment for a reader that genuinely declares a short horizon, is a
+  loss of real coverage and fails this probe. Wired to NO code, like every other item here:
+  `implements:` stays empty, `consumed:` stays false, and nothing refuses on account of it.
+  (j) for item 5's host-inspecting-test cue, a DIFFERENTIAL with both legs held at once: item 5's own
+  text CARRIES the cue (the authoring question) AND a fetchable pointer naming SPEC-0203 rule 8 and the
+  artifact that records the local-probe class, and it does NOT carry rule 8's normative sentences — the
+  second leg goes RED if a later edit inlines them here, which is the P5 second-home drift the pointer
+  exists to prevent. Both legs are held against negative fixtures built from the shipped body, so the
+  check is shown to discriminate a stripped pointer from an inlined rule and to report them separately.
+  Delivery is part of the probe: SPEC-0165 must still bind stage-entry:Filing and stage-entry:Tests, or
+  the cue reaches neither authoring moment. Wired to NO code, like every other item here.
+
+cites:
+  - CHARTER.md#principle-3
+  - SPEC-0015
+  - SPEC-0060
+  - SPEC-0077
+  - SPEC-0203
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: loud-failure-principle-one-tripwire-per-silently-b
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: # delivered where tests are DESIGNED (Filing: ACs name test-or-waive)
+  - stage-entry:Filing # and where they are WRITTEN (Tests) — plan-check finding 2 absorbed
+  - stage-entry:Tests
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

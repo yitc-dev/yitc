@@ -1,0 +1,40 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: extensions-catalog
+description: >-
+  The reusable «дополнения» / extensions catalog — every `extension:`-marked spec, with its
+  adoptability state (adoptable = consumer-installable / has an adopt-path; internal-only =
+  kernel-own, discoverable but not adoptable) + a derived entry-point (the spec's implements
+  anchors). DERIVED from the spec corpus, recomputed on read — never a hand-list (SPEC-0101 rule
+  2/3). Inaugural entries — SPEC-0094 (deploy) = adoptable; SPEC-0047 (AI bench-stand) =
+  internal-only. Run `bin/yitc-v2 graph query extensions-catalog`.
+lens:
+  kind: extensions-catalog # pure f over index["specs"]: select the spec nodes carrying the
+                             # `extension:` marker (landed, carried into the index spec node by
+                             # graph.py), surface each with adoptability (the marker value) + a DERIVED
+                             # entry-point (the spec's `implements:` anchors, sorted) + an adoptability-
+                             # keyed adopt-path. DERIVED, never a stored list — recomputed fresh on read
+                             # (: store the query, never the output), so it CANNOT drift from the
+                             # spec corpus (the single source of truth, SPEC-0101 rule 3). Reuses the ONE
+                             # index reader (no second parse path, P1). Writes nothing.
+why: >-
+  SPEC-0101 rule 2 (the extension capability — marker + derived catalog + adopt/cite, slice-1 of the
+  extensions-as-a-first-class-installable-capability plan). A reusable engineering capability a project
+  adopts (a «дополнение» / extension — the AI-bench stand, the deploy capability) must be a FIRST-CLASS,
+  DISCOVERABLE thing: the owner/AI answers "what reusable extensions exist and how a project adopts one"
+  from the system itself, WITHOUT a server-wide search (the real incident — deviation
+  reusable-tool-bench-not-discoverable-no-registry-or-graph-pointer). This lens is that catalog. It is
+  computed at read time from the `extension:` marker on the existing spec node (landed — a FIELD,
+  not a new graph node-type; CHARTER §P1 F2 prefers a field/view over a new entity), so it is ALWAYS
+  current and CANNOT go stale (: store the query, never the output). The SPEC CORPUS is the single
+  source of truth (SPEC-0101 rule 3); this view is DERIVED from it — exactly one source, no parallel
+  catalog store. It reuses the existing saved-view query-lens mechanism (SPEC-0031) and the
+  single index reader (Principle 1 — no second parse path), adding only one more lens of the established
+  shape (the projection-currency / propagation-surfaces precedent). Report-not-block : a
+  discovery surface, never a gate — the adopt/promote TRANSACTION is OUT of this slice (SPEC-0101 rule 6).
+  `graph query extensions-catalog` emits a `cli_invoked` observability event, so a reader
+  RUNNING the lens IS the durable P8 consumer-read adoption evidence. This view SUBSUMES the
+  standalone-catalog idea (closed subsumed): the derived view replaces the would-be hand-maintained
+  markdown + the server-wide-grep discovery path — the discovery home is `graph query --type view`
+  (AGENTS.md [REF_AVAILABLE]). The view MECHANISM (lens dispatch / views/*.yaml format) is owned by
+  SPEC-0031; SPEC-0101 rule 2 owns the catalog REQUIREMENT this view realizes.

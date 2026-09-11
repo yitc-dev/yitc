@@ -1,0 +1,164 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0069
+title: Triage LINK RULE + closure-time fingerprint linkage (task close --closes-fp records the remediated fp into cites)
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # activation_owner_task below). On activation, supersedes: SPEC-0068
+                               # flips active→superseded atomically (SPEC-0005 rule 4).
+                               # `active` is the ONLY normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # code-enforced LINK-RULE reader + closure-time creation path, not a
+                               # code-read scalar param: the live `_fingerprint_cites_index` reader +
+                               # the `cmd_task_close --closes-fp` writer ARE this spec's delivery; the
+                               # AI does not fetch it before a verb (mirrors SPEC-0063/SPEC-0068).
+
+implements: # code-enforced delivery. The reader anchor is CARRIED FORWARD from
+                               # SPEC-0068 (this spec supersedes it) so the LINK RULE never re-dangles;
+                               # the closure-time creation path is the NEW anchor.
+  - bin/lib/cli.py#_fingerprint_cites_index # the LINK-RULE reader (cites:-EXCLUSIVE derivation) — UNCHANGED
+  - bin/lib/task.py#cmd_task_close # the closure-time creation path (`--closes-fp`)
+
+body: |
+  ## Scenario
+
+  When a fix-task that remediated a captured deviation closes, the link between the fingerprint and its
+  fix is recorded THEN — at the moment a human knows the task fixed it — so the next triage reads the
+  problem as OWNED and does not re-file a duplicate. The owner sees: "we closed the task, noting what it
+  fixes — and triage sees that", without anyone hand-editing YAML or the triage guessing. (The triage-run
+  WINDOW, batch-run journal isolation, discovery stem-clustering, and the v1 queue lineage are the
+  OTHER surfaces — SPEC-0055. The into-work currency classifier is SPEC-0063/SPEC-0061; the routing
+  analysis order + reopen-FSM is SPEC-0056.)
+
+  ## Internal
+
+  THE LINK RULE ( §9) + its closure-time CREATION path. Supersedes SPEC-0068 (the
+  carve-out) — carries its rule forward verbatim and ADDS the creation path. The reader
+  `_fingerprint_cites_index` is UNCHANGED — it just finds a populated `cites:`.
+
+  ### The LINK RULE — one canonical carrier
+  A fix-task / decision that addresses a deviation back-references the fingerprint(s) it closes in its
+  **`cites:`** field — the SINGLE canonical carrier. Readers derive linkage from `cites:`
+  **EXCLUSIVELY** (no body-text parsing). A promoted artifact lists in `cites:` **ALL** fingerprints it
+  closes (a root-fix may close several — §6); order is not significant. A human-readable body
+  mention is allowed but is never the derivation source. The SAME `cites:` carrier ALSO feeds the
+  **cluster-aware recurrence count** : when an errors/E-XXXX case file cites several
+  near-synonym fingerprints of one root, `_capture_cluster_counts` rolls their member counts up under
+  the case file's canonical `fingerprint:`, so a fragmented root crosses the `N>=2` threshold instead
+  of reading as many invisible `N=1` aliases (the undercount).
+
+  ### R-B. Closure-time linkage (human-asserted, NOT derived)
+  At `task close`, the closing author records the fingerprint(s) the task remediated into the task's
+  **`cites:`** — the SINGLE canonical LINK-RULE carrier above. Mechanism: an explicit
+  `task close --closes-fp <fingerprint>` (repeatable), folded into the task `cites:` (dedup,
+  order-preserving) by the same atomic closure write.
+  - **Human-asserted, NOT auto-derived.** The link is admitted because the closing author ASSERTS
+    «this task fixed this fingerprint» — a real remediation signal. The verb does NOT infer remediation
+    from a capture's `task_id` (that names «encountered during task T», not «T fixed it» — the rejected
+    read-time derivation, RED'd at the plan's specs gate).
+  - **Value validation — ONE shape home, shared with the readers.** Each `--closes-fp` is
+    validated against the fingerprint shape and the close `_die`s LOUDLY on a malformed value, so a typo /
+    arbitrary string can never pollute the canonical carrier. The admitted shape is a **whitespace-free
+    token**: letters in ANY case, digits, `.` `_` `-` `:`; whitespace, slashes and the empty string are
+    REFUSED. It is spelled ONCE (`bin/lib/triage.py#FINGERPRINT_SHAPE_RE`, aliased by the close-side
+    `_CLOSES_FP_RE`) — because the CAPTURE side applies no charset check at all, a close side spelled
+    separately and more narrowly made a genuinely-remediated deviation unlinkable through no fault of the
+    closing card (109 of 3455 distinct captured fingerprints, 2026-08-12).
+  - **Stored VERBATIM, never case-folded.** The asserted token is folded into `cites:` exactly as
+    captured. Every reader of the link — `_fingerprint_cites_index` and the triage route / currency /
+    cluster-rollup readers keyed off it — matches the journal's `data.fingerprint` by EXACT string
+    equality, so normalizing at write time would record an entry matching no capture: linked at close yet
+    still reading un-routed in the debt views, which is worse than refusing it. For the same reason the
+    reader-side "is this `cites:` entry a fingerprint?" test uses that ONE shape constant, and excludes
+    artifact ids by an EXPLICIT id predicate rather than by the shape being lowercase-only.
+  - **Candidate suggestion = report-only.** A close WITHOUT `--closes-fp` MAY surface CANDIDATE
+    fingerprints (captures emitted under this task — top-level `task_id == tid`, OR `relates_to`
+    containing the EXACT `\bT-NNNN\b` token, never a bare substring) as a HINT for `--closes-fp` —
+    ADVISORY only, never auto-applied (no over-claim, no gate; CHARTER non-goal #7). The author confirms.
+  - **Late linkage.** A `done` task is not re-closeable, but a forgotten link is still recordable:
+    `task close <tid> --closes-fp <fp>` on a done task folds the fp into cites + commits the amendment
+    (reusing the closure-record commit machinery) — closing the «link never created» gap even after the
+    fact. This makes recording the link a PROMPTED, recoverable closure step instead of a forgotten
+    manual edit — WITHOUT a new store, a new event type, or auto-detection of «fixed».
+
+  ### Surface touched (explicit, not silent — SPEC-0005 §3 / P7)
+  The link-CREATION rule is homed here as a LINK-RULE extension (supersedes SPEC-0068). The MECHANISM
+  is an ADDITIVE closure side-effect in `cmd_task_close`: the SPEC-0015 closure contract (probe
+  verification, `status: done`, audit-post-precedes-closure) is UNCHANGED — only an optional
+  `--closes-fp` recording is added. Named explicitly (cites SPEC-0015) so the closure-contract surface
+  is amended openly, never silently bypassed. SPEC-0050 (the require-reads gate) co-anchors
+  `cmd_task_close` for its read-gate ONLY — UNTOUCHED here (deliberate-non-update).
+
+  **Co-anchor collateral (deliberate-non-update).** The crash-atomic closure-ordering change
+  (`_activate_task_proposed_specs` MOVED to run AFTER the durable `status: done` write in
+  `cmd_task_close`) touches a DIFFERENT region of the verb — this spec's closure-time creation path (the
+  `--closes-fp` cites-fold) stays BEFORE the done-write, UNCHANGED, and the `_fingerprint_cites_index`
+  reader is UNTOUCHED. So the `cmd_task_close` co-anchor `possibly-stale` flag is a false positive (the
+   collateral co-anchor class); refreshed last-touch.
+
+  ## Parameters
+
+  None consumed. The `cites:`-derivation, the rollup, and the fingerprint-shape validator are the
+  triage/close functions' own logic in `bin/yitc-v2` (single source — the code IS the home).
+
+  ## Rationale
+
+  Real incident: duplicate fix-tasks for already-closed problems (owner-directive 2026-06-09). Journal
+  evidence at authoring: 29 of 44 recurring fingerprints are cited by NO task/decision, because a
+  fix-task filed via plain `task file` never populated `cites:`. The SOUND place to create the link is
+  CLOSURE (a real, human-asserted remediation act) — NOT read-time inference from a capture's `task_id`
+  (`task_id` = «captured during task T», not «T fixed it»; that over-link can hide a real defect — the
+  rejected design B, RED-flagged at the specs gate). Full deliberation + the read-time-vs-closure-time
+  fork: the proposing plan `triage-dedup-against-closed-problems-temporal-deri` §B (SPEC-0005 rule 3).
+  Supersedes SPEC-0068 (the narrow LINK-RULE carve) rather than the multi-rule SPEC-0055 (the
+  rejected wholesale-supersede shape of the withdrawn SPEC-0062 draft) — one narrow home, no lineage rupture.
+
+  ## Verification
+
+  - **VP1 (RED-GREEN closure-time creation):** `task close <tid> --closes-fp F` ⇒ `F` appears in the
+    task `cites:` ⇒ the next `triage run` reads `F` owned-by-a-`done`-task (linked/owned, NOT TRULY-NEW)
+    via the REAL triage path (`_currency_status`/`cmd_triage_run`), not merely `_fingerprint_cites_index`
+    presence (tests/test_error_verbs.py). RED before the closure-time recording exists.
+  - **VP2 (candidate suggestion is report-only):** a close WITHOUT `--closes-fp` leaves `cites:`
+    unchanged (no auto-apply, no over-claim); the candidate scan matches the EXACT task-id token, not a
+    substring (tests/test_error_verbs.py).
+  - **VP3 (closure contract regression-safe, SPEC-0015):** probe verification + `status: done` behave
+    exactly as before when `--closes-fp` is absent.
+  - **VP4 (value validation):** a malformed `--closes-fp` value (whitespace / non-token) is rejected
+    LOUDLY before any write (tests/test_error_verbs.py).
+  - **VP5 (one home + non-dangling + supersession, P5):** the LINK RULE + R-B rule text resolves
+    in THIS spec; `supersedes: SPEC-0068` (on activation SPEC-0068 → superseded atomically, one active
+    lineage); non-empty `implements:` ⇒ excluded from `dangling_specs` once active.
+
+  ## Drift review
+
+   (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`. edited only
+  the spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range` scoping for the
+  WARN) — it does NOT touch the `--closes-fp` / `_fold_closes_fp_into_cites` closure-time fingerprint
+  linkage this spec governs. The graph last-touch flag was a region shift only; no semantic drift.
+  This re-touch clears the possibly-stale flag.
+
+cites:
+  - SPEC-0068
+  - SPEC-0055
+  - SPEC-0015
+  -
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - triage-dedup-against-closed-problems-temporal-deri
+
+requires: []
+supersedes: SPEC-0068 # the narrow LINK-RULE carve — this spec is its successor home.
+activation_owner_task: # close activates this spec (proposed → active), work-first (SPEC-0005 §5),
+                               # atomically flipping SPEC-0068 active→superseded.
+proposed_by: # work-first provenance — the authoring task ( model).
+binding:
+  - code-enforced # the reader + the `--closes-fp` writer `implements:` anchors ARE the
+                               # delivery (mirrors SPEC-0063/SPEC-0068); the AI does not fetch it before a verb.
+implements_signature:
+  bin/lib/cli.py#_fingerprint_cites_index: 3f30981c3d380305279328bd5ad08a21303ad341cf88c773b5d6c668eb55b4d4
+  bin/lib/task.py#cmd_task_close: 5b32310d96f0879475b45cd1c6fdb21a912b9d16b8a8b1bbce3c20b516cb9a22

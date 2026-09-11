@@ -1,0 +1,18 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: observation
+description: Per-project real-work observation slices keyed by the normalized provider×model×effort triple — session counts + read-time cost, folded from the enriched session_started fields x token-rollup. Run `graph query observation [project]`.
+lens:
+  kind: observation # pure f over events.jsonl (session_started enriched fields) + the token-rollup lens; NOT a new store
+why: >-
+  The read-side of the real-work observation-loop doctrine (SPEC-0135): each PROJECT measures ITSELF
+  cheaply, at read-time, over events that already fire. This lens folds the enriched session_started
+  observation fields ( — the normalized provider×model×effort triple + project) into per-project
+  slices keyed by that triple (the SPEC-0135 §6 sole cross-session slice key), and joins the read-time
+  token-rollup cost (durable) best-effort per session — so a project sees which
+  provider×model×effort configurations ran and at what cost, WITHOUT a new store/event. Usage +
+  cost stay READ-TIME DERIVED (SPEC-0135 §3): token-rollup HARD-FAILS on an absent/stale transcript
+  archive (gitignored in worktrees) — the cost column degrades to n/a, never inheriting the hard-fail
+  (the task-scorecard precedent). An optional positional filters to one project; a no-arg run returns all.
+  EXTENDS the existing per-project derived-view family (task-scorecard / trend-report / token-rollup),
+  reusing their carriers — no parallel observability path (CHARTER §P1).

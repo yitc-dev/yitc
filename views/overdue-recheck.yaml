@@ -1,0 +1,33 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: overdue-recheck
+description: User-facing `none` waivers PAST their recheck_by date — dated non-adoption debts now fallen due, DERIVED at read time from the task-YAML live_probe carrier paired with today. Zero stored state (SPEC-0093 r7 / P5). The overdue-recheck_by revisit path raised at the weekly Review sweep (QUEUE.md §Re-review triggers). Run `graph query overdue-recheck`.
+lens:
+  kind: overdue-recheck # pure f over the task corpus + today: scan tasks/T-*.yaml for a `live_probe`
+                          # WAIVER (`none` present) that is user-facing (`user_facing` absent → TRUE,
+                          # the close-gate fail-closed read, SPEC-0094 §3) AND whose `recheck_by` ISO
+                          # date is STRICTLY BEFORE today. Each such task is an OVERDUE recheck debt:
+                          # closed but never proven live, owed a real per-change live_probe at the
+                          # deploy seam (SPEC-0094 §4). DERIVED, never a stored status field (SPEC-0093
+                          # rule 7 / P5). Reuses the ONE task reader (_read_yaml, P1). Recomputed fresh,
+                          # writes nothing.
+why: >-
+  SPEC-0094 §3 (the P3 honesty floor of the deploy-adoption mechanism). A user-facing `none` waiver is
+  NOT a free pass: it requires a reason AND a `recheck_by:` date, and the change STAYS a VISIBLE, dated
+  non-adoption debt until a real live_probe passes against prod (SPEC-0094 §3/§4). This lens completes
+  that floor — it is the overdue-`recheck_by` REVISIT path (plan finding #2, "closed but not live, just
+  with a date"): when the recheck_by date passes, the debt is OVERDUE and must surface as UNRESOLVED at
+  the weekly Review sweep (QUEUE.md §Re-review triggers — its authoritative home). It is computed at
+  read time from the CARRIER of the waiver — the task YAML's `live_probe` field the close-gate authored
+   — paired with today, so it is ALWAYS current and CANNOT go stale (: store the query,
+  never the output). It is a DERIVED view, NEVER a stored status field (SPEC-0093 rule 7 / P5): zero
+  new persisted state, no new event type, no new command family, no dashboard / gate. It is the
+  task-local companion of the commit-ancestry not-adopted surface (SPEC-0094 §2): not-adopted
+  answers "what shipped isn't live", this answers "which declared non-adoption debts have now fallen
+  due". It reuses the existing saved-view query-lens mechanism (SPEC-0031) and the single task
+  reader (`_read_yaml`, Principle 1), adding only one more lens of the established shape. Report-not-
+  block : a non-empty surface is a SIGNAL the sweep acts on, never a gate. `graph query
+  overdue-recheck` emits a `cli_invoked` observability event, so a reviewer RUNNING the lens
+  at the weekly sweep IS the durable P8 consumer-read adoption evidence. The view MECHANISM (lens
+  dispatch / views/*.yaml format) is owned by SPEC-0031; SPEC-0094 §3 owns the honesty-floor
+  REQUIREMENT this view realizes.

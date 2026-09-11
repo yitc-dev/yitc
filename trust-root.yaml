@@ -1,0 +1,30 @@
+schema_version: 1
+keys:
+- fingerprint: SHA256:fxSmnOxwlztBxmGq5ckGI+Xg9XKMfE33WBXeCnrhikY
+  principal: yitc-release
+  public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAU9SBh9fKWajBPX8Rs6zQzil26HUBse6AlQZDcNiUY/
+    anchor
+  role: anchor
+  valid_from: '2026-09-05T00:00:00Z'
+- fingerprint: SHA256:zb5E9Ij1it1of0TkEMPf0OGN7qIjK5o9AvKODkBoHi4
+  principal: yitc-release
+  public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH293xoMSn6Q08o3CtT/oUc/YAzMRFP/Ctax7N9yQqZl
+    release
+  role: rotated
+  admitted_by: SHA256:fxSmnOxwlztBxmGq5ckGI+Xg9XKMfE33WBXeCnrhikY
+  valid_from: '2026-09-05T00:00:00Z'
+  valid_until: '2028-09-05T00:00:00Z'
+  overlap_until: '2028-09-05T00:00:00Z'
+  transition_signature: '-----BEGIN SSH SIGNATURE-----
+
+    U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgBT1IGH18pZqME9fxGzrNDOKXbo
+
+    dQGx7oCVBkNw2JRj8AAAAMeWl0Yy1yZWxlYXNlAAAAAAAAAAZzaGE1MTIAAABTAAAAC3Nz
+
+    aC1lZDI1NTE5AAAAQGYFyBEuOU91T/dinEKNLz9DHyTdozyoo3/6LN7j2Hv3y9ffU6V9v+
+
+    TN2auN3gf0BOnXATTevpIw9XbchcH/WAQ=
+
+    -----END SSH SIGNATURE-----
+
+    '

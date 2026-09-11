@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""yitc-v2 — the CLI entry point. A THIN SHIM: import and dispatch, nothing else.
+
+The whole CLI body lives in `bin/lib/cli.py`. Keep it that way (T-11319).
+
+WHY (measured, not asserted): CPython byte-caches an imported module but never `__main__`, so every
+line left in this file is re-parsed and re-compiled on every single invocation. At the body's size
+that was 116ms of compile against 2ms of unmarshal, on ~1316 CLI executions per verify run. Adding
+logic here also re-couples the ~570 tests that load the CLI in-process to one universal file, which
+is the second thing the split undoes.
+
+Enforced by tests/test_t11319_thin_shim.py — it fails loudly if this file grows a body.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from lib.cli import main  # noqa: E402  (path must be set up first)
+
+if __name__ == "__main__":
+    main()

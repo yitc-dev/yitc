@@ -1,0 +1,145 @@
+# YITC v2 — Spec
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md / SPEC-0005.
+
+id: SPEC-0157
+title: Capture-routing — the situation→home saved view naming where each capture goes (graph query capture-routing)
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+consumed: false # seed-delivery + view-home spec — no code reads a scalar param from it.
+                               # Stays false at active too (it carries a pointer + a naming convention,
+                               # not a scalar param).
+
+implements: # the VIEW's derivation IS this spec's governed code (the saved
+                               # view contract): the lens fn + its `_run_view` dispatch branch. Anchored
+                               # at symbol granularity (SPEC-0088). `binding:[seed]` (below) is
+                               # the SEPARATE seed-delivery axis (SPEC-0007 §5a), not a substitute for
+                               # these code anchors — a spec may carry both.
+  - bin/lib/views.py#_view_capture_routing
+  - bin/lib/cli.py#_run_view
+
+binding: [seed] # SPEC-0007 §5a `seed` residency class : always-loaded SEED
+                               # content for STAGE-AGNOSTIC general verbs, generated SOLELY from this
+                               # carrier into the session-start seed how-to (`_seed_howto`). This spec's
+                               # TITLE renders as the ONE session-start seed pointer line — the cue an AI
+                               # needs at the MOMENT of a capture: "where does this go?" (X-0402 G3).
+
+activation_owner_task: # the single task whose `task close` flips this spec proposed→active
+                               # (SPEC-0005 §5). Set EXPLICITLY (never derived). Work-first activation.
+
+proposed_by: # provenance — the authoring task (work-first, SPEC-0005 §5).
+
+body: |
+  ## Scenario
+
+  At the MOMENT of a capture — a deviation, a fact learned about the environment, a reusable practice,
+  a standing rule, an incident arc, a cross-project ask, a worker escalation — the AI must know WHERE
+  that capture goes WITHOUT re-deriving it from nine scattered specs. The `capture-routing` saved view
+  (`bin/yitc-v2 graph query capture-routing`) is that one-glance situation→home table: each row
+  names the SITUATION, its HOME (the artifact/node/store), and the OWNING SPEC where the rule actually
+  lives. The AI reads the row, then routes to the named home. A terse pointer to this view rides the
+  session-start seed line (this spec's title), so the routing surface is discoverable from token 0.
+
+  This closes X-0402 G3 (the routing map lived ONLY scattered across SPEC-0056/0090/0005/0076/0095/
+  0140/0084-86/0039 — nobody could read it at the moment of writing, which is how boomrocket invented an
+  unsanctioned `docs/incidents/` class and an ad-hoc baseline file, X-0403 sub-class 1).
+
+  ## Internal
+
+  ### 1. The view is a DERIVED discovery surface, not a new store (no-new-entity)
+  `capture-routing` is a saved query-lens (`views/capture-routing.yaml` → the `capture-routing`
+  `_run_view` dispatch branch → `views._view_capture_routing`). It renders the situation→home table
+  ROWS, each ANCHORED to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055, SPEC-0095,
+  SPEC-0090, SPEC-0005, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039, SPEC-0093) — so the rule text
+  is NEVER duplicated (SPEC-0005 rule 8, one home); the view ROUTES, the specs GOVERN. It is a VIEW
+  over existing homes (CHARTER §P1 F2), adds NO store / node-type / edge, recomputed fresh on read.
+
+  ### 2. The E-case incident-narrative row (from / SPEC-0056 §4a)
+  The table INCLUDES the multi-error incident-narrative row: a multi-error ARC → the promoted
+  `errors/E-XXXX.yaml` BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a. This is the
+  row the sibling card blessed; the view sources it from the amended spec.
+
+  ### 3. Worker escalation-doc convention (R3) — the de-facto home, NOW named
+  A dispatched worker that halts on a blocked land/audit (SPEC-0103 `blocked-on-land`) records its
+  rationale in a **`decisions/<task>-escalation.md`** doc. This convention was DE-FACTO (used in
+  practice, homed nowhere). This spec NAMES it as the sanctioned home and the `capture-routing` view
+  surfaces it as a row, so a worker no longer invents an ad-hoc escalation surface. It is a NAMING
+  convention over the EXISTING `decisions/` store — no new store/node (CHARTER §P1).
+
+  ### 4. Environment-facts flavors (X-0403) — route to EXISTING homes, named explicitly
+  A "fact about the environment" is NOT a methodology practice and NOT a standing rule; the view names
+  its flavors and their existing homes so they stop landing in an ad-hoc baseline file:
+  - **neighbor-contracts / data-quirks / glossary** (human-read facts) → a **fact-flavored
+    `lessons/<slug>.md`** (the existing per-repo local-craft node, SPEC-0090). A lesson is exactly the
+    local/non-traveling counterpart these facts need.
+  - **machine-read baselines** (startup_checks, verify/test rows, deploy policy, declared config) → the
+    **`yitc-ops.yaml`** carrier (SPEC-0093). These are the project's machine-consumed contract, not prose.
+  Both are EXISTING homes; the view only NAMES the routing (X-0403), it adds no new fact store.
+
+  ### 5. Pointer-only seed line (Single-SoT + seed budget)
+  This spec restates NO rule its rows point at (SPEC-0005 rule 8). Its `binding:[seed]` makes
+  `_seed_howto` render its TITLE as ONE session-start seed line — a cue+pointer to the view, NOT the
+  table (the table is the view's job; putting it in the seed would blow the CHARTER §P2 budget). Exactly
+  the SPEC-0051 write-flow-pointer shape.
+
+  ### 6. Post-/compact compaction-survival (SPEC-0007 §5b, option (b))
+  The seed line is emitted ONLY by `session start` (not re-run after `/compact`), BUT its CONTENT is a
+  pointer to a DERIVED VIEW re-runnable on demand (`graph query capture-routing`) — the same
+  re-derivation posture as the SPEC-0086 `cross-coord:` echo and the SPEC-0119 `debt` echo. So no
+  separate post-/compact wiring is needed: the routing surface is re-fetchable any time, never stale.
+
+  ## Rationale
+
+  X-0402 G3 + X-0403 (owner-confirmed package): the situation→home routing lived only scattered across
+  nine specs, unreadable at the moment of writing — the real incident that drove boomrocket's
+  controller to invent `docs/incidents/` (X-0402) and an ad-hoc baseline file (X-0403). A saved view is
+  the answer to "what governs X?" answered on demand (prior-art: consumer-dimension-bundle,
+  extensions-catalog, journal-hygiene). CHARTER §P1: a view over existing homes, no new store/node/edge;
+  the escalation-doc + env-facts flavors route to existing stores (`decisions/`, `lessons/`,
+  `yitc-ops.yaml`), naming conventions that already exist de-facto.
+
+  ## Verification
+
+  - **VP1 (view renders):** `bin/yitc-v2 graph query capture-routing` renders the situation→home table
+    INCLUDING the E-case incident-narrative row (SPEC-0056 §4a), the escalation-doc convention row
+    (`decisions/<task>-escalation.md`), and the environment-facts flavors (lessons/ vs yitc-ops).
+  - **VP2 (discoverable):** `bin/yitc-v2 graph query --type view` lists `capture-routing` with its
+    description (the catalog line).
+  - **VP3 (seed pointer):** after activation, `bin/yitc-v2 session start` renders the generated seed
+    line carrying SPEC-0157 + its title (the capture-routing pointer), via `_seed_howto` derived SOLELY
+    from binding:[seed] (P5, no hand list).
+  - **VP4 (single-SoT):** each row's rule text lives in its OWNING spec, NOT restated in this spec body
+    or the view (grep — SPEC-0005 rule 8); the view ROUTES, the specs GOVERN.
+  - **VP5 (no new store):** the change adds `views/capture-routing.yaml` + the lens fn + this pointer
+    spec ONLY — no new node-type/edge/store; escalation-doc → `decisions/`, env-facts → `lessons/` /
+    `yitc-ops.yaml` (all existing homes).
+
+cites:
+  - SPEC-0056
+  - SPEC-0055
+  - SPEC-0095
+  - SPEC-0090
+  - SPEC-0005
+  - SPEC-0076
+  - SPEC-0084
+  - SPEC-0085
+  - SPEC-0086
+  - SPEC-0140
+  - SPEC-0039
+  - SPEC-0093
+  - SPEC-0007
+  - SPEC-0101
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  -
+  -
+
+requires: []
+supersedes: ~
+implements_signature:
+  bin/lib/cli.py#_run_view: adbb82608f307b3907eeffbc22af434693cda98ea87d1182b515da4f1a678f0a
+  bin/lib/views.py#_view_capture_routing: 459c419c51c14628344bb682d52693f17c61b9e94a8918bb1912e67b2bd3d16b

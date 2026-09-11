@@ -1,0 +1,155 @@
+id: SPEC-0054
+title: Decisions are content-frozen history — land rejects rule-text added to a decision body
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (SPEC-0005 §4 FSM). `active` is the ONLY normative status.
+
+created_at:
+
+consumed: false # code-enforced guard, not a code-read scalar param (GRAPH `consumed:`
+                               # whitelist) — stays false at active.
+
+implements: # code-enforced delivery : the guard function IS this spec's
+                               # delivery; the AI does not fetch it before a verb.
+  - bin/lib/worktree.py#_run_decision_rule_body_guard
+
+body: |
+  ## Scenario
+
+  The owner/AI sees decisions/ as FROZEN history. A `decisions/D-NNNN-*.yaml` records a governance
+  act that happened — it is never the live home of an evolving standing rule (CHARTER §5: a NEW
+  standing rule is authored as a SPEC via `spec new`, never written into a decision body; `decision
+  new` is retired). When a `land` would ADD rule-bearing text to a decision body, land is REJECTED
+  with a reason pointing the author at `spec new` — so the frozen-class invariant cannot silently
+  regress, even mid-migration.
+
+  ## Internal
+
+  This spec is CODE-ENFORCED by `_run_decision_rule_body_guard(cwd) -> list` in `bin/yitc-v2`,
+  invoked inside `_land_integrate` (the land verify section): it runs on EVERY land (including
+  `--no-tests`), positioned after the test suite and before the host-leak canary, and feeds its
+  findings into the same `bad[]` → `_die` → `LAND: ABORT` path as the other verify checks. `[]` ==
+  pass; `[reason...]` == reject.
+
+  ### The rule
+  A land is REJECTED if its diff adds NET rule-bearing text to the body of a `decisions/D-NNNN-*.yaml`
+  file. "Rule-bearing text" = net-inserted content tokens inside the GOVERNED fields — `body`,
+  `decision`, `resolution`, `anti_complexity_check` — whose source line is not an allowed
+  pointer/historical marker (and top-level metadata keys are outside the governed region entirely).
+  "Net-inserted" is measured by the ORDERED per-field token diff (§Normalization), so a reflow of
+  unchanged prose adds nothing while a reorder / duplicate / net-new rule sentence does.
+
+  ### Scope of the check (what is compared)
+  - Compare `main:<file>` (old; empty if the file is new — a brand-new D-NNNN carrying body rule-text
+    is ALSO rejected, since `decision new` is retired) against `HEAD:<file>` (new) for each changed
+    `decisions/D-NNNN-*.yaml`.
+  - EXCLUDED targets (never checked): any `*-audit-*.yaml` (audit verdict store — `decisions/` doubles
+    as the audit store), `_template.yaml`, and any non-`D-NNNN` file (e.g. `decisions/T-XXXX-audit-*.yaml`).
+  - Only the GOVERNED fields {body, decision, resolution, anti_complexity_check} are scanned; top-level
+    metadata keys (`status`, `supersedes`, `migrated_to`, `closed_into`, `superseded_by`, …) are
+    outside the governed region and therefore freely editable (status flips, supersession, pointers).
+
+  ### Normalization + ORDERED per-field token diff (so reflow/pointer-only rewrites do not false-block)
+  Each governed field is canonicalized to an ORDERED word-token sequence : YAML block-scalar
+  indentation is stripped and trailing whitespace removed, blank lines are dropped, then each line is
+  split on whitespace into tokens kept VERBATIM in ORDER (whitespace runs collapsed). The old vs new
+  per-field token SEQUENCES are then diffed with `difflib`; the INSERTED tokens (the `insert`/`replace`
+  opcodes) are the net additions. A harmless rewrap / re-wrap / re-indent / reflow of UNCHANGED prose
+  only moves whitespace, so it collapses to the IDENTICAL ordered token sequence → zero inserts → no
+  false-block. Order is preserved DELIBERATELY (NOT an unordered bag/multiset): a token REORDER, a
+  DUPLICATE of an existing rule token, or a same-token-count semantic rewrite still changes the
+  sequence and surfaces as inserted tokens. So only NET-NEW substantive rule content (or a reorder /
+  duplicate) trips the guard. (Replaces the prior raw-split-line multiset, which read a reflow as
+  net-new lines — the audit-post pass-3 YELLOW.)
+
+  ### Allowed tokens (exact accepted pointer/historical forms)
+  An inserted token is ALLOWED (not a violation) iff its SOURCE physical line is an allowed
+  pointer/historical marker — and the allow-flag is carried PER-TOKEN at source-line granularity (not a
+  flat token set), so a generic word that also appears in a pointer line cannot accidentally exempt a
+  real rule insertion. A source line is a marker iff, after stripping leading DECORATION — the set
+  `` #*_[ \t` `` (: a `#` comment marker, markdown emphasis `*`/`_`, a `[` bracket, whitespace, and
+  a backtick) — its text begins (case-insensitively) with one of these EXACT markers:
+  - `historical-only`
+  - `see SPEC-`
+  - `moved to `
+  - `migrated to `
+  - `superseded by `
+  The widened leading-strip means a MARKDOWN-DECORATED pointer line (e.g.
+  `**[HISTORICAL-ONLY — migrated to SPEC-XXXX]`, ``[`migrated to …`]``) is recognized as a marker and
+  does not false-block a legit migration land. The accepted-marker SET is UNCHANGED — only the leading
+  decoration that may precede a marker is stripped; a decorated NON-pointer rule line still fails the
+  prefix match and is correctly rejected (the strip stays pointer-only — it never tightens nor admits
+  net-new rule text).
+  Metadata-field lines (`status:`/`supersedes:`/`migrated_to:`/`closed_into:`/`superseded_by:` at the
+  top level) are outside the governed region and so are implicitly allowed — they are never candidates.
+  A MIGRATION edit (REMOVE the rule text + ADD a forward pointer) therefore PASSES: the removals are
+  not additions, and the added pointer line is recognized as an allowed marker.
+
+  ### 4 anti-complexity filters (CHARTER §Principle 1)
+  - **F1 existing analog?** YES — extends the existing `_land_integrate` verify section (peer to
+    `_run_verify_tests` / `_run_host_leak_canary`), the established land control-point. No new hook,
+    parser, ledger, or storage; reuses the `bad[]`/`_die`/`LAND: ABORT` contract.
+  - **F2 new entity or new view?** A VIEW/check over existing data (the git diff of decision files) —
+    no new data structure, no new file format, no new event type.
+  - **F3 what gets removed?** The recurrence vector is closed: live rule-text can no longer be EDITED
+    INTO a frozen decision body (the incident, 2026-06-06). Live rules leave the frozen class;
+    the guard makes the "rules→specs / decisions frozen" invariant actually TRUE in the corpus.
+  - **F4 real incident / prior-art?** YES — had 9 rule-text edits landed into its §5/§6/§8 on
+    2026-06-06 (`triage-methodology-standing-rules-homed-in-and-edited-into-final-decision-d0086-not-a-spec`);
+    the external consult (`decisions-full-retirement-vs-guard`, YELLOW) explicitly recommended this
+    narrow transition guard.
+
+  ## Parameters
+
+  None consumed. Governed fields {body, decision, resolution, anti_complexity_check} and the allowed
+  pointer markers are the guard's own constants in `bin/yitc-v2` (single source — the code IS the home).
+
+  ## Rationale
+
+  Decisions were a live rule-authoring surface until `decision new` retired; existing live-rule hosts
+   were left stranded and one was re-edited in place after the retirement.
+  The external consult (`decisions-full-retirement-vs-guard`, YELLOW) rejected full retirement of the
+  decision class (it doubles as the audit-verdict store + owner-directive-only provenance loses rationale)
+  and recommended P1 = freeze + a narrow land-time guard against new normative prose in decision bodies,
+  installed FIRST to close the recurrence vector before the migrations. This spec homes that guard.
+
+  ## Verification
+
+  - **VP1 (reject):** a land whose diff adds a rule-bearing line to a `decisions/D-NNNN` body dies with
+    `LAND: ABORT` carrying the guard reason (tests/test_land.py).
+  - **VP2 (allow status/pointer):** a status-only flip, a `*-audit-*.yaml` write, and a migration edit
+    (rule-text removed + forward pointer added) all PASS (tests/test_land.py).
+  - **VP3 (always-on):** the guard runs even on `--no-tests` lands (it is not gated on `run_tests`).
+  - **VP4 (live no-false-positive):** a concrete legit decision-bookkeeping land (a real status/pointer
+    edit) passes; recorded in the trial set as the no-false-positive proof.
+  - **VP5 (ORDERED per-field token sequence, not an unordered bag):** the comparison is a per-field
+    `difflib` diff over the OLD vs NEW ordered token SEQUENCE; the inserted tokens are the net
+    additions. So (a) a SECOND copy of an already-present rule token (a duplicate), (b) a token REORDER,
+    and (c) a rule token MOVED into a different governed field all change the sequence and register as
+    net additions and are rejected (tests/test_land.py — audit-post F3 + field-sensitivity; the diff is
+    per-field, so a field-insensitive flatten would mask the move, and an unordered bag would mask the
+    reorder/duplicate).
+  - **VP6 (reflow tolerance — no false-block):** a pure rewrap / re-wrap / re-indent of UNCHANGED
+    governed prose collapses to the IDENTICAL ordered token sequence → zero inserted tokens → the land
+    PASSES (tests/test_land.py — the audit-post pass-3 reflow case the old raw-line multiset
+    false-blocked).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - SPEC-0005
+  -
+  - finalize-decisions-to-specs-migration-inventory-cl
+  - decisions-full-retirement-vs-guard
+
+requires: []
+supersedes: ~
+activation_owner_task: # close activates this spec (proposed → active).
+proposed_by: finalize-decisions-to-specs-migration-inventory-cl # plan-born provenance (corpus carrier).
+binding:
+  - code-enforced # — the guard's `implements:` anchor IS its delivery; the AI does
+                               # not fetch this spec before a verb. (`land` is NOT a binding token; the
+                               # land-time enforcement is expressed via implements + this residency token.)
+implements_signature:
+  bin/lib/worktree.py#_run_decision_rule_body_guard: 6c4649b125026d8a06074bce57f61d288a18abf5cd267339027211eefe54147a

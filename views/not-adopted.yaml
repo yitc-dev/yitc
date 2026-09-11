@@ -1,0 +1,30 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: not-adopted
+description: Shipped-but-not-live changes — the commits on main NOT yet covered by a deploy, DERIVED at read time from ancestry between the latest deploy_completed revision (the current-live SHA) and HEAD. Zero stored state (SPEC-0093 r7 / P5). Optional project filter as the positional arg. Run `graph query not-adopted [<project>]`.
+lens:
+  kind: not-adopted # pure f over the journal + git: the LATEST deploy_completed event (by ts,
+                      # optionally project-filtered) gives the current-live revision (a rollback is
+                      # itself a deploy_completed, kind=rollback, so the latest record is always live —
+                      # SPEC-0094 §1); the not-adopted surface = the commits in (live, HEAD] via a
+                      # read-only `git rev-list`. live==HEAD → 0 (clean); live an ancestor → exactly
+                      # (live,HEAD]; no deploy on record → status no-deploy-recorded. DERIVED, never a
+                      # stored status field (SPEC-0093 rule 7 / P5). Reuses the ONE journal reader
+                      # (_iter_events, P1). Recomputed fresh, writes nothing.
+why: >-
+  SPEC-0094 §2 (the deploy-adoption mechanism, slice-1 of the seed-and-grow capability). "Done" for a
+  deploying project means the change is verifiably LIVE, not merely committed (CHARTER §P3 "done =
+  adopted"). This lens is the owner-facing VISIBILITY of that gap: which shipped changes (committed to
+  main) are not yet live. It is computed at read time from commit ancestry between the current-live
+  revision — the latest `deploy_completed` event's `revision` (emitted by the `deploy` verb, Card 2) — and main HEAD, so it is ALWAYS current and CANNOT go stale (: store the query, never
+  the output). It is a DERIVED view, NEVER a stored status field (SPEC-0093 rule 7 / P5): zero new
+  persisted state, no new event type, no new command family, no dashboard / CI gate / upgrade-report
+  layer (the carrier holds declared config, never a computed fact). It reuses the existing saved-view
+  query-lens mechanism (SPEC-0031) and the single journal reader (`_iter_events`, Principle 1
+  — no second parse path), adding only one more lens of the established shape (the triage-state /
+  discipline-ratio precedent). Report-not-block : a non-empty surface is a SIGNAL that shipped
+  changes await a deploy, never a gate — the executable live check lives at the DEPLOY seam (SPEC-0094
+  §1, §4), not here. `graph query not-adopted` emits a `cli_invoked` observability event, so a
+  reviewer RUNNING the lens IS the durable P8 consumer-read adoption evidence. The view MECHANISM (lens
+  dispatch / views/*.yaml format) is owned by SPEC-0031; SPEC-0094 §2 owns the not-adopted
+  REQUIREMENT this view realizes.

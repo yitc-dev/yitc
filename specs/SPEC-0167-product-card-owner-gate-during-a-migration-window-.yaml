@@ -1,0 +1,131 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0167
+title: Product-card owner-gate during a migration window (dispatch refuses product-touch cards without owner-ack while a migration plan is executing)
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: kernel
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: [] # design-phase draft — code born by the implementing cards ( B5)
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+
+body: |
+  ## Scenario
+  While a brownfield migration is under way, "migrating the methodology" must not silently become
+  "changing the product." So while a migration-window plan is `executing`, dispatching a card that
+  touches PRODUCT code refuses unless the owner has explicitly authorized THAT card. The owner sees a
+  refusal that names the exact token to add; nothing product-touching ships in a migration window
+  without their say-so.
+
+  ## Internal
+  - **Window carrier (existing FSM — no new marker/ledger; SOURCE-AGNOSTIC):** the migration window IS
+    an active brownfield-onboarding plan in `executing` (the `real-project-integration-onto-v2-phased-migration-`
+    class / runbook Branch B). The window is defined by the TARGET (onboarding onto v2), NOT the source
+    methodology — so it covers a migration from YITC v1, from a different methodology, OR from pure
+    vibe-coding (a vibe-coded project onboarding is still a Branch B brownfield migration; the gate is
+    most valuable there, no test safety net). No separate window flag — the plan's own status is the window.
+  - **Owner-ack carrier (existing parser):** a per-card OPTIONAL field
+    `product_dispatch_owner_ack: <ref>` set via the EXISTING `task update` route — reuses the
+    cross-request kind:task owner-gate shape, no new gate cascade.
+  - **PRODUCT-touch test (mechanical, fail-closed):** a card whose `expected_touch` reaches any path
+    OUTSIDE the governance/docs path set (tasks/ specs/ decisions/ plans/ patterns/ lessons/
+    scenarios/ *.md graph/ events.jsonl) is product-touching. When in doubt → product-touching.
+  - **The gate:** while a migration-window plan is `executing`, `dispatch` of a product-touching card
+    REFUSES unless it carries `product_dispatch_owner_ack:`. Out of a window, or for a
+    governance-only card, unchanged. Report-with-the-fix: the refusal prints the exact token to add.
+
+  ## Rationale
+  aiseller 2026-07-13: two imported PRODUCT cards ( CSRF) were dispatched inside what the
+  owner understood as a migration/revizia context; the CSRF one took prod auth down. The owner's
+  expectation "a migration does not touch product code" was encoded nowhere. This gate encodes it.
+  Full design: plan `migration-import-safety-provenance-marker-premise-`. Origin cross X-0372.
+
+  ## Verification
+  Differential pinned test: with a migration plan `executing`, dispatch of a synthetic
+  product-touching card REFUSES without the ack and SUCCEEDS with it; a governance-only card is
+  unaffected; out of a window the product card dispatches freely.
+
+cites: # informational any→any refs ( B2)
+  - SPEC-0028 # the task-schema spec that OWNS the product_dispatch_owner_ack: field
+  - SPEC-0166 # sibling of this plan's corpus (premise pass); both key off imported cards
+  - SPEC-0073 # placement/realm (this spec travels kernel to consumer migrations)
+  - migration-import-safety-provenance-marker-premise- # the proposing plan
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: migration-import-safety-provenance-marker-premise-
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # — code-enforced residency: the product-card owner-gate is enforced in cmd_dispatch (dispatch.py _product_gate_refusals); not verb-fetched / stage-delivered (SPEC-0072 precedent). (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

@@ -1,0 +1,273 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NB: NO operational state ignored — CHARTER Principle 5 «Single Source of Truth»:
+# derived artifacts (graph/index.json, events.jsonl) ARE committed.
+# v1 mistake of.gitignoring `.yitc/liveness-registry.yaml` caused gates
+# to depend on machine-local state — V2 does not repeat.
+
+# V1 hook contamination cleanup (2026-05-26).
+# These dirs were created by V1 hooks firing pre-marker-ship during.
+# NOT V2 operational state — V2 emits к events.jsonl at repo root.
+# Marker (.no-v1-hooks) prevents future V1 writes; these are pre-marker remnants.
+.yitc/
+patterns/.yitc/
+# V1 session lock artifacts ( — V2 does not use V1-shape locks)
+<provider-config>-session-main.lock
+
+# / : flock marker files for serialized ID allocation (_id_alloc_lock).
+# Runtime ephemera (zero-byte), not derived state — process-local lifetime. One pattern
+# covers all allocators: tasks/.t-alloc.lock, decisions/.d-alloc.lock, specs/.spec-alloc.lock.
+*-alloc.lock
+
+# / SPEC-0003: per-session journal-sync checkpoint cache.
+# The ONE documented exception to "no operational state ignored" above: these are
+# machine-local sync CURSORS, NOT source of truth and NOT a derived artifact with
+# cross-machine meaning. Truth = events.jsonl + source session logs; if lost, re-sync
+# from start + source_ref dedup recovers with zero loss. Committing would create
+# spurious per-machine diffs. (Created by the parser/adapter.)
+journal-sync-state/
+
+# : repo-local test temp artifacts (cleaned up by tests; ignored in case of crash)
+tests/adapter-test-*/
+tests/events-test-*.jsonl
+
+# : defense-in-depth for test-sandbox tmpdirs. Sandboxes now use system tmp (the
+# hermetic fix), so a tmp*/ dir should never appear at repo root — but if a sandbox is ever
+# (re)written with dir=REPO_ROOT and crashes before cleanup, this keeps the stray dir UNTRACKED
+# so it can't be `git add`-ed into the tree again (the bug this task removed). Anchored to root
+# dirs only (leading / + trailing) so it never matches a source path elsewhere.
+/tmp*/
+# redesign (owner 2026-06-05): raw transcript archive — data dir, never committed
+.yitc/transcript-archive/
+
+# (recurring land-blocker, N=2 — hit by): the agent harness nests its OWN
+# registered git worktrees (wf_*) under <provider-config>/worktrees/. They show as untracked on the main
+# checkout and trip land's main-dirt guard, ABORTing the first land. NOT a V2 governed artifact —
+# ignore so land stays clean when the fleet dir is present. SCOPED to <provider-config>/worktrees/ ONLY —
+# <provider-config>/commands/yitc.md + <provider-config>/settings.json are TRACKED and MUST stay tracked.
+/<provider-config>/worktrees/
+
+# (root cause of the RED, which committed a.AGENTS-SESSIONS.md.hwwi5dk6.tmp).
+# `write_text_atomic` writes via mkstemp(prefix=f".{name}.", suffix=".tmp") + os.replace; a
+# process killed mid-write (concurrent land / timeout) strands that scratch file next to its
+# target, and `_commit_worktree`'s verb-owned `git add -A` — whose contract explicitly delegates
+# ephemera exclusion to this file — sweeps it into the ship diff. 5 such temps reached main.
+# NOT a CHARTER §P5 breach (derived artifacts are committed, never gitignored): this matches ONLY
+# the dot-prefixed in-flight scratch shape, which SPEC-0131 Rule 3 already classifies as a normal
+# transient, never a derived view — every real release-view file is a handbook doc name and is
+# never dot-prefixed. Same move as /tmp*/ above against the same add-all.
+# `**` is load-bearing: gitignore `*` does not cross `/`, and temps also appear in release-view/graph/.
+/release-view/**/.*.tmp
+
+# : the SAME shape, SECOND scope — the SOURCE `graph/` tree, not just its release-view copy.
+# The rule above is release-view-anchored, so a strand beside a generated seed at `graph/` matched NO
+# rule at all: audit-post went RED on `graph/.worker-seed.md.u22yvgi3.tmp`, swept in by the
+# same verb-owned `git add -A`. The worker-seed generator writes exactly there, so this is where the
+# strand lands first — release-view only ever receives the copy. Same narrow dot-prefixed shape and
+# same non-breach argument as the entry above (SPEC-0131 Rule 3: an in-flight scratch is a
+# transient, never a derived view — every real graph/ file is a handbook/view doc name, never
+# dot-prefixed), so the committed generated views under graph/ keep shipping. Deliberately NOT the
+# blanket `.*.tmp`. `**` is load-bearing here too (gitignore `*` does not cross `/`), and the leading
+# `/` anchors it to THIS repo-root graph/, never an unrelated nested one.
+/graph/**/.*.tmp
+
+# : the same in-flight scratch shape for a FOLDABLE JOURNAL. land now rewrites a journal
+# atomically (`write_text_atomic` -> `.<name>.<rand>.tmp` beside the target + `os.replace`), so a
+# process KILLED mid-write can strand one next to `events.jsonl`; untracked at repo root it would trip
+# land's main-dirt guard or ride a `git add -A` into a ship diff. Same move + same rationale as the
+# entry above. DELIBERATELY UNANCHORED (no leading `/`) so it also covers the second foldable
+# journal `.yitc/events.jsonl` (audit-pre finding, absorbed mode-b): `.yitc/` is already ignored in this
+# repo AND in every `-C` consumer (`_BORN_GITIGNORE_LINES`), but relying on that would leave a legacy
+# consumer that still tracks `.yitc/` uncovered — one unanchored pattern closes both at no extra cost,
+# and it stays narrow by naming `events.jsonl` explicitly (never the blanket `.*.tmp`).
+.events.jsonl.*.tmp
+
+# : THE REMAINING SCOPES — the three entries above were each added REACTIVELY, after a strand of
+# this shape had already reached a diff. This block closes the set and RECORDS it, so the answer stops
+# being re-derived per incident. Enumeration probe (re-runnable, and re-derived at test time by
+# tests/test_t10988_atomic_tmp_scopes.py rather than frozen here):
+# grep -rn "write_text_atomic(" bin/ | grep -v "def write_text_atomic"
+# 71 call sites resolve to 14 distinct target scopes. Every one is labelled:
+#
+# ADDITION — the ROTATION scopes (SPEC-0190 rules 2+3). Rotation is the first writer to
+# put an atomic write under `archive/`, and the first to write the journal from `events.py`:
+# archive/ events.py (rotate_journal — each archive segment, written tempfile->fsync->replace
+# BEFORE the live file is truncated) -> /archive/**/.*.tmp (NEW, below)
+# events.jsonl events.py (rotate_journal / recombine_journal — the live segment's rewrite and
+# the undo's re-join) ->.events.jsonl.*.tmp
+# This entry is what keeps a rotation KILLED mid-write from stranding an untracked
+# `archive/.events-2026-08-16.jsonl.<rand>.tmp` — which, sitting outside the housekeeping
+# allowlist, would trip land's main-dirt guard or ride a `git add -A` into a ship diff, the exact
+# shape the three reactive entries above were each added AFTER. Recorded WITH the change rather
+# than after the first strand, which is the point of this block existing.
+#
+# COVERED BY AN EXISTING RULE (3)
+# graph/ graph.py:541,542,549,555,562,594 (index.json, floor-trigger-map.md,
+# activation-checklist.md, concern-registry.json, born-ops.yaml, seed views)
+# -> /graph/**/.*.tmp
+# release-view/ graph.py:3459 (_write_release_view) -> /release-view/**/.*.tmp
+# events.jsonl worktree.py:12708,13822 (the merge-conflict journal union in `_update_from_main`
+# and land's step-3 per-segment dedup rewrite) AND
+# evidence_custody.py:211,320 (the fold's branch-journal write and
+# `_restore_main_journals`' unwind of main's journals)
+# ->.events.jsonl.*.tmp
+#
+# NEWLY COVERED — the seven rules below (each a real target dir with no matching rule before this)
+# ( renamed the host residue: the call sites once listed as `yitc-v2:<line>` now live in
+# `cli.py`, since `bin/yitc-v2` became a thin import-and-dispatch shim and its body moved to
+# `bin/lib/cli.py`. Same call sites, same scopes — only the file name changed.)
+# ( did the same for one more file: the verify RUNNER was extracted out of `worktree.py`
+# into `bin/lib/verify_runner.py`, carrying `cmd_verify_durations`'s single `write_text_atomic`
+# of `tests/verify-durations.json` with it. Same call site, same scope, byte-identical body —
+# only the file name changed. That scope is UNRULED here and was unruled before the move too:
+# a `tests/.verify-durations.json.<rand>.tmp` strand is covered by no entry below. This card
+# RECORDS that rather than fixing it, because adding an eighth rule is a different change from
+# relocating a function and would be an undeclared behaviour edit riding a byte-identical move.)
+# ( did the same for one more file: the SPEC-0168 EVIDENCE-CUSTODY block was extracted out
+# of `worktree.py` into `bin/lib/evidence_custody.py`, carrying TWO `write_text_atomic` call sites
+# with it — the fold's branch-journal write (`_fold_main_journal_into_branch`) and the pre-ff
+# unwind's rewrite of main's journals (`_restore_main_journals`). Same call sites, same scope
+# (`events.jsonl`, already ruled by `.events.jsonl.*.tmp`), byte-identical bodies — only the file
+# name changed, which is why the line above now names both modules. The worktree.py line numbers
+# beside it were RE-DERIVED at the same time rather than left at their pre-extraction values.)
+# tasks/ cli.py:3514,4148,6158; task.py:1555,1940,4213,4236,4861,5437
+# decisions/ audit.py:2780,5688,6190,6342; plan.py:2057,2415; cli.py:3795
+# specs/ spec.py:265,523; cli.py:3963
+# errors/ error.py:105,239,302,332; audit.py:6776; cli.py:4623
+# plans/ plan.py:513,693,1351,1359 (via _write_draft, cli.py:11471); plan.py:2476
+# ideas/ plan.py:2584 (the plan->idea demote)
+# <repo root> graph.py:3761 (AGENTS*.md read-order regen); graph.py:3782 + spec.py:284
+# (kernel-vs-self-manifest.md); MEMORY.md / yitc-ops.yaml under -C
+#
+# PROVABLY CANNOT STRAND INTO A SHIP DIFF (4) — no rule added; the reason IS the waive
+# journal-sync-state/ journal.py:1781. The WHOLE dir is already ignored above (SPEC-0003).
+#.yitc/ the whole dir is already ignored above AND born-ignored in every consumer
+# (_BORN_GITIGNORE_LINES); the unanchored rule also already matches
+# `.yitc/.events.jsonl.*.tmp`.
+# consumer repos init.py (36 sites) + v1_quiesce.py:134 write into ANOTHER repo under
+# `-C <path>`. A strand there cannot enter THIS repo's ship diff and this
+# file has no reach over it (the fix would be _BORN_GITIGNORE_LINES —
+# routed to a followup, not silently dropped).
+# test sandboxes any write under a tests/ sandbox tmpdir — system-tmp hermetic,
+# with the `/tmp*/` entry above as the repo-root belt.
+#
+# Same narrow dot-prefixed shape and same non-breach argument as the three entries above (SPEC-0131
+# Rule 3: an in-flight scratch is a transient, never a derived view — the task/decision/spec/error/
+# plan/idea YAMLs and the root handbook docs the repo commits ON PURPOSE keep shipping). Deliberately
+# NOT the blanket `.*.tmp`, which would silently drop those committed artifacts (CHARTER Principle 5).
+# `**` is load-bearing on the six directory rules (gitignore `*` does not cross `/`); each leading `/`
+# anchors the rule to THIS repo root. `/.*.tmp` is the ROOT scope and is the widest of the seven —
+# bounded by being root-anchored (no subdirectory reach), dot-prefixed and `.tmp`-suffixed; none of the
+# repo's tracked root dotfiles carries a `.tmp` suffix, asserted against the live checkout by the test.
+/archive/**/.*.tmp
+/tasks/**/.*.tmp
+/decisions/**/.*.tmp
+/specs/**/.*.tmp
+/errors/**/.*.tmp
+/plans/**/.*.tmp
+/ideas/**/.*.tmp
+/.*.tmp
+
+# Hourly git-maintenance cron redirects its output here (repo root, working tree).
+# Untracked dirt on the shared main checkout makes `land` refuse EVERY branch.
+/.git-maintenance.log
+
+# — the measurement instruments' scratch dir. `measure-land-verify-attribution.py` and
+# `census-journal-driven-tests.py` GENERATE their escape shim + ledgers here at run time from the ONE
+# shim source in the instrument. Committing that generated copy would store a SECOND copy of the
+# measurement code (audit-post finding 1) — parallel stored measurement code is exactly what the
+# single-shim reuse in those instruments exists to prevent. Regenerated on every run; never a source.
+.scratch/
+
+# ── — UNDECLARED in-tree scratch DIRECTORIES: invert the polarity ───────────────────────────
+# Every entry ABOVE this line covers a scratch path ONCE THAT PATH IS DECLARED. Both observed ship-diff
+# strays were a NEW site reaching a commit BEFORE anyone declared it, so the guard could not have caught
+# either: `.tmp/spec-edit.yaml` rode into 0afc6478 (docs, 2026-08-22) and was hand-removed two
+# commits later by d1ff9123; `.scratch/t11443-shim/sitecustomize.py` rode into 902dd9fa (feat)
+# and the `.scratch/` entry above arrived only in the FOLLOW-UP ce8b5802 ("absorb audit-post RED —
+# untrack the generated shim"). In both the catch was a human or an external audit, never the rule.
+#
+# CENSUS of every in-tree dot-prefixed directory on main, taken 2026-08-30 (the evidence the rule below
+# is sized against — recorded here, the block's precedent, so the next reader need not re-derive):
+#.tmp/ NOT ignored — `/tmp*/` (above) requires the name to BEGIN with `tmp`
+#.scratch/ ignored, but only since ce8b5802 — i.e. AFTER it had already shipped
+#.pytest_cache/ NOT ignored — a fourth instance, found while sizing this rule
+# somedir/.yitc-locks/ NOT ignored; invisible to `git status` only because it holds no files, so the
+# first file written there rides an add-all (this is AC4's site — the
+# disposition is IGNORED by the rule below, not removed: moving an existing
+# site is hygiene and explicitly out of this card's scope)
+#.yitc/ already ignored (line 27)
+# <provider-config>/ TRACKED — and the ONLY tracked dot-prefixed directory at any depth in the tree
+#
+# THE RULE. `_commit_worktree` (bin/lib/cli.py) stages the whole tree with `git add -A` and delegates
+# exclusion entirely to this file, so an unignored scratch dir rides in silently. Adding one more entry
+# per site is the third symptom mitigation of a class whose first two were meant to
+# become belts and did not. Instead: default-DENY a dot-prefixed DIRECTORY and require a DECLARATION to
+# re-include one. The failure direction inverts — an undeclared dot-dir is no longer silently committed,
+# it is visibly absent from `git status` the moment its author creates it. `<provider-config>/` is the whole
+# allowlist because the census above is exact; a future legitimate dot-dir adds one `!` line here, which
+# is the declaration this rule exists to require. Already-TRACKED files are unaffected either way
+# (.gitignore never applies to tracked paths), so this cannot drop committed work — and a legitimate NEW
+# non-dot source directory is untouched by it, which `tests/test_t11882_undeclared_scratch_dir.py` AC2
+# asserts as the load-bearing negative.
+#
+# RESIDUAL, stated rather than hidden: the deny is DIRECTORY- and dot-scoped. A new undeclared scratch
+# dir with a NON-dot name (`scratchpad/`) is still unignored and still rides an add-all. Zero of the six
+# sites above have that shape, and a blanket deny on all new directories would break the AC2 negative
+# outright — so it is left out, deliberately, rather than covered by a wider rule nobody can hold.
+.*/
+!/<provider-config>/
+
+# ── / X-1226 — the mktemp PAYLOAD FILE the kernel's own guidance prescribes ─────────────────
+# `_commit_worktree` (bin/lib/cli.py) stages with a verb-owned `git add -A` and its docstring delegates
+# ephemera exclusion ENTIRELY to this file. Meanwhile the kernel PRESCRIBES creating exactly such an
+# ephemeral file: two sites in bin/lib/cli.py (`grep -n 'mktemp -p' bin/lib/cli.py` — line numbers rot,
+# re-derive them) tell a session to compose an over-long event payload under a WORKTREE-LOCAL
+# per-invocation temp file, `f=$(mktemp -p.)`, rather than a fixed shared name (X-1132).
+# `mktemp -p.` with no template yields a NON-dot `tmp.XXXXXXXXXX` at the worktree ROOT, and NOT ONE
+# rule above matched it: `/tmp*/` is DIRECTORY-only (trailing slash), `.*/` is dot-DIRECTORY-only, and
+# `/.*.tmp` needs a dot PREFIX and a `.tmp` SUFFIX. So the kernel manufactured a file its own commit
+# verb then silently shipped — observed in aiseller (X-1226): the stray rode into commit 2cf2dbd on
+# work/own-warehouse-identity-spec as a 4th file where 3 were intended, costing junk in permanent
+# history plus a follow-up deletion commit. No warning fired.
+#
+# WHY THE RULE AND NOT SCOPED STAGING. The sibling verb (`task close`'s closure-record commit) hit this
+# class and was fixed the OTHER way, by scoping its staging (X-1020) — because that commit
+# ALREADY DOCUMENTED a scoped set, so scoping restored a promise it had made. `_commit_worktree`
+# documents the OPPOSITE: add-all is the DEFAULT, load-bearing against three v1 mis-staging incidents
+# (B-722), with `pathspecs` reserved for the halt-mid-work cases where "one worktree ==
+# one unit" does NOT hold. A Stage-7 ship is not one. Its docstring names THIS file as the exclusion
+# mechanism, so the missing thing was the rule — same remedy as every prior strand this add-all swept
+#.
+#
+# THE SHAPE, and why it is not the blanket `tmp*` CHARTER Principle 5 forbids (derived artifacts are
+# committed, never gitignored). Root-anchored (leading `/`), literal `tmp.`, then EXACTLY TEN `?` —
+# mktemp's template length — and a gitignore `?` never crosses `/`. So it matches the prescribed shape
+# and nothing else: `tmp_helper.py` has no dot, `tmpdir_notes.md` neither, `bin/tmp.py` is not at the
+# root, and `tmp.data/` has four chars after the dot, not ten. tests/test_mktemp_payload_file_ignored.py
+# asserts all four as the load-bearing negative, each with its own differential.
+#
+# THE SECOND LINE IS LOAD-BEARING (audit-pre finding 1, absorbed mode-a). A gitignore pattern with no
+# trailing slash matches a DIRECTORY as well as a file, so the deny alone would also swallow a root dir
+# literally named `tmp.<10 chars>/` — reaching past this entry's declared boundary into the non-dot
+# scratch-DIRECTORY residual recorded and deliberately left open. The dir-only negation placed
+# AFTER the deny (last-match-wins) re-includes the DIRECTORY while leaving the FILE — the shape the
+# kernel actually prescribes — ignored. Mirrored to consumers by `_BORN_MKTEMP_IGNORE_LINES`
+# (bin/lib/init.py), since the reporter of X-1226 is a consumer and an engine-only fix never reaches it.
+/tmp.??????????
+!/tmp.??????????/

@@ -1,0 +1,17 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: consumer-deploy-policy
+description: Every registry yitc_v2 consumer's deploy-autonomy stance side by side — deploy.policy classes DECLARED (A/S/C1/C2 opt-in) vs WAIVED (owner-gated), and the security section declared vs waived (declare-or-waive) — so divergence + gaps are visible in one glance (X-0187 / SPEC-0097).
+lens:
+  kind: consumer-deploy-policy # reads each registry yitc_v2 CONSUMER's yitc-ops.yaml deploy.policy + security; engine excluded
+why: >-
+  X-0187 — consumer deploy.policy stances DIVERGED (boomrocket born-WAIVED despite JWT/telegram auth +
+  PII; social-parser opted-in A/S/C1 with pg_dump + restore-drill): same SPEC-0097 A/S/C1/C2 vocabulary,
+  adopted ad-hoc per-project, with inconsistent security declare-or-waive. This is the REF_AVAILABLE
+   review SURFACE that answers "which consumers opted into autonomous deploys vs stay owner-gated,
+  and is each security section declared or waived?" on demand — the at-a-glance gap-finder for the weekly
+  review. Enumeration REUSES the read-only nightly._v2_projects registry scan (-safe, the same read
+  the cross-peer set uses) and reads each consumer's yitc-ops.yaml carrier (SPEC-0093 rule 7 declared
+  config); the engine itself is excluded (not a deploy consumer, no yitc-ops.yaml). Membership + stance are
+  DERIVED fresh on read — no new store, no new node/edge, no gate, no event. Closing a gap (a per-project
+  card / `cross request`) is the X-0187 FOLLOW-ON, deliberately OUT of this read-only lens.

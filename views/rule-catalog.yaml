@@ -1,0 +1,11 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: rule-catalog
+description: All governance rules extracted from the canonical handbook (the consolidated rule listing).
+lens:
+  kind: node-list # reuse the graph's node-listing path
+  node_type: rule
+why: >-
+  The original discovery-friction case : "which rules are in effect?" was an ephemeral
+  `graph query --type rule` output, discoverable only from AI memory. This view makes that report a
+  named, catalog-listed lens — found via `graph query --type view`, run via `graph query rule-catalog`.

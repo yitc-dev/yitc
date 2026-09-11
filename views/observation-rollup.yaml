@@ -1,0 +1,29 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: observation-rollup
+description: KERNEL cross-project real-work observation rollup — worker×auditor PAIR (provider×model×effort) slices aggregated across EVERY registry yitc_v2 project, ALWAYS with sample-size, each CONTROLLED by effort-tier + task-class cross-tabs (the pooled mix is confounded by SPEC-0072 routing); FINDINGS not scores, NEVER a universal best pair. Run `graph query observation-rollup`.
+lens:
+  kind: observation-rollup # registry-enumerating fold over each v2 project's events.jsonl; NOT a new store
+why: >-
+  The KERNEL half of the real-work observation-loop doctrine (SPEC-0135 §2): each PROJECT measures
+  ITSELF (the per-project `observation` view); the KERNEL aggregates across ALL projects
+  rarely, at read-time. This lens enumerates every `registry.yaml methodology: yitc_v2` project (the
+  kernel INCLUDED) via the read-only nightly._v2_projects scan — the same cross-project enumeration
+  seam SPEC-0105 §2 carries — reads each project's events.jsonl READ-ONLY, and rolls the observations
+  up to the worker×auditor PAIR (SPEC-0135 §4): the worker triple on `session_started` JOINED
+  by session_ref to the auditor triple on `external_audit_completed`. Each pair slice ALWAYS
+  shows sample_size + contributing project_count + raw verdict counts — so the loop can compare
+  provider×model×effort PAIRs across real work to steer methodology evolution and recommend a pair to
+  users. CONTROLLED READ : a pair's POOLED verdict mix is NOT like-for-like — SPEC-0072 routing
+  binds worker-effort to task STAKES (critical -> high-effort), so a high-effort pair's sample is mostly
+  critical work, which REDs more by stakes rather than by pair quality. That confound produced the
+  2026-07-16 "effort-tier inversion" reading, which DISSOLVED once controlled. So each pair also carries
+  two cross-tabs — `by_effort_tier` (the routed confounder, from bg_dispatch_launched.source_tier) and
+  `by_task_class` (secondary stratifier, from task_filed.class) — each bucket holding its own
+  sample_size + verdicts, resolved in the SAME read-only journal fold (no card read, no cross-project
+  filesystem reach). Compare pairs only WITHIN a matching bucket. FINDINGS not scores (SPEC-0135 §5 /
+  SPEC-0057 §4 fence): NO composite score, NO best-pair marker — pairs sort by sample_size (CONFIDENCE,
+  not quality) and a no_best_pair note states the sample-size-qualified-findings-only contract; the
+  cross-tabs add only raw per-bucket COUNTS, never a score or ranking. A pure DERIVED view : stores the QUERY,
+  recomputes fresh on read; adds NO store/event/node/edge/daemon (CHARTER §P1). EXTENDS the saved-view
+  family (observation / consumer-deploy-policy), reusing their carriers — no parallel observability path.

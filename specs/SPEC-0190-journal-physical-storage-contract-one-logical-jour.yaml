@@ -1,0 +1,974 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0190
+title: 'Journal physical storage contract — one logical journal across bounded physical segments, and what a reader owes'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: true # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements:
+  - bin/lib/events.py#append_event # rule 1/3 — the append path; writes the LIVE segment only
+  - bin/lib/events.py#logical_journal # rule 1 — the ONE LOCK IDENTITY: an archive segment resolves
+                                        # to its live segment, so rotation's two writes, a concurrent
+                                        # append and a land's RMW all flock ONE inode
+  - bin/lib/events.py#rotate_journal # rules 2+3 — the crash-safe transaction: age boundary from
+                                        # the newest row present; archive durable + VALIDATED before
+                                        # the live file is truncated; idempotent by date-label
+  - bin/lib/events.py#recombine_journal # the documented UNDO, rehearsed once
+  - bin/lib/worktree.py#rotate_branch_journal # rule 3 — the seam's half: rotate, then the index
+                                               # update, staged unconditionally so an interrupted
+                                               # run converges instead of wedging the next land
+  - bin/lib/cli.py#_iter_events # rule 4/5 — the shared iterator (69 call sites) folds across segments
+  - bin/lib/cli.py#_iter_events_tail # rule 6 — the named order-sensitive tail-window reader
+  - bin/lib/journal.py#tail_scan_events_covering # rule 4 — the DECLARE-and-HONOUR half made
+                                        # mechanical : a bounded reader whose window is
+                                        # sized by its DECLARED horizon rather than by a byte
+                                        # constant, and which REPORTS a window that could not reach
+                                        # that horizon instead of silently answering short. Stays on
+                                        # the live segment because its callers' horizons are under
+                                        # the live window; a boundary that falls inside the horizon
+                                        # (rotation) surfaces as an uncovered read, never as silence.
+                                        # — it now also carries `_has_older`, the injection
+                                        # that lets the SAME walk read a NON-live segment: the
+                                        # default asks whether an `archive/` dir sits beside the
+                                        # path, which is right for the live segment and false for an
+                                        # archive one, so without it a mid-archive segment's offset 0
+                                        # would certify as full coverage
+  - bin/lib/journal.py#archive_scan_events_covering # rule 4 — THE ARCHIVE BRANCH the sibling above
+                                        # declares but deliberately does not take. Where a
+                                        # reader's declared horizon outruns the live segment, this
+                                        # continues the read BACKWARDS through the archive segments,
+                                        # newest-first, through that same primitive — stopping at the
+                                        # first segment that reaches the cutoff, so a question about
+                                        # the last seven days never folds the whole archive. Archive
+                                        # segments ONLY: the live half is the caller's read and is
+                                        # never repeated
+  - bin/lib/cli.py#_land_integrate # rule 3 — the land events union+dedup seam that rotates
+  - bin/lib/views.py#_standing_rotation_defer # §Rotation policy — the standing-DEFER verdict
+                                              # reader; re-homed here with the section
+  - bin/lib/journal.py#revision_segment_paths # rule 4b — WHICH segments exist at a revision, in
+                                               # fold order, for the reader class that shells out to
+                                               # git against a literal path and never touches the
+                                               # shared iterator
+  - bin/lib/journal.py#revision_segment_show_argvs # rule 4b — HOW that class reads them: ONE
+                                               # `git show` over the whole segment set where every
+                                               # spec resolves, per-segment argvs otherwise. The
+                                               # fallback is contract, not tuning — a batch holding
+                                               # one absent spec exits 128 with zero stdout, i.e. a
+                                               # truncated fold looking healthy
+# NOTE ( B5): these anchors are the DECLARED targets of the implementing tasks; the segment-aware
+# behaviour lands with them. Listed at draft so the contract is not born dangling (SPEC-0005 rule 7).
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+
+body: |
+  ## Scenario
+
+  The owner asks "why is the repo big again?" — and today the honest answer is the journal: every
+  governed action rewrites one ever-growing file, so the cost of doing anything is set by how long
+  the project has been running rather than by what changed. Under this contract that stops being
+  true. The journal is still ONE journal — one line format, one parser, one append-and-union-merge
+  discipline, one history you can grep and cite — but it is stored as a series of bounded physical
+  segments instead of a single unbounded blob. Nothing a reader can observe about the history
+  changes; what changes is that writing to it, verifying a change against it, and garbage-collecting
+  it stop growing without bound.
+
+  ## Internal
+
+  Eleven rules (ten numbered plus rule 4b, which splits a reader CLASS off rule 4 rather than adding a
+  new concern — see it there). This spec owns the PHYSICAL storage contract for the journal and what a reader owes
+  because of it. It does not restate the ENTRY schema (envelope, provenance, ordering, size cap) —
+  that stays SPEC-0002's, whose rotation POLICY section re-homes HERE as §Rotation policy below (NOT
+  into a numbered rule — the rules state this contract's own obligations, while the re-homed section
+  is the standing rotation VERDICT and its trigger conditions), so rotation has exactly one home.
+
+  **Rule 1 — One logical journal, many physical segments.** The journal is one LOGICAL append-only
+  history realized as an ordered set of physical segments: exactly one LIVE segment (`events.jsonl`,
+  the only appendable one) plus zero or more ARCHIVE segments. An archive segment is a physical unit
+  of the SAME logical journal — it is NOT a second journal, NOT a second format, and NOT a second
+  parser (CHARTER §Principle 5; the same reading SPEC-0084 ratified when it held "one journal" to
+  mean one MECHANISM, explicitly not one physical FILE). A change that gives the archive its own
+  line format, its own reader, or its own append discipline violates this rule even if it saves
+  disk.
+  **The archive REUSES the in-git archive convention this repo already has.** SPEC-0052 already
+  displaces a closed task's audit YAMLs out of the active `decisions/` directory into in-git archives
+  by `git mv`, precisely so the active corpus stays loadable while provenance stays git-tracked —
+  the same shape as this archive, for the same reason. CHARTER §Principle 1 filter 1 therefore settles
+  placement and naming by reuse: extend that convention, do not introduce a second unrelated notion of
+  "archive" into a repo that already has one.
+
+  **One logical journal means ONE LOCK IDENTITY, keyed to the logical journal and never to a physical
+  segment.** The advisory sidecar lock that serialises appends and reads derives its key from the
+  journal's resolved PATH, so a second physical segment would get a second sidecar BY CONSTRUCTION —
+  and `flock` does not serialise two different inodes. Rotation writes two paths at once while an
+  appender holds one and a reader folds both, so per-file locking here is not a weaker guarantee, it
+  is no guarantee. **This is a repeat, not a hypothesis:** the same shape has already been paid for in
+  this corpus — two processes derived two different sidecars for the SAME journal, which
+  made the reader lock inert for precisely the audience it was added for, and a partial-journal read
+  followed 2h38m after that lock landed. The route differed (the key followed the environment rather
+  than the path) and the failure was identical. Placing rotation at a seam that already holds a lock
+  (rule 3) fixes WHEN it runs, never WHAT the lock covers; only this rule fixes that.
+
+  **Rule 1b — SCOPE: this contract governs the ROOT journal only; the `.yitc/` hook-tail is OUT.**
+  Stated because the fold treats the two as a PAIR (`worktree.py#_is_foldable_journal` returns true for
+  `events.jsonl` AND `.yitc/events.jsonl`), so "the journal" alone leaves a reader guessing which half
+  rotates — and the guess is load-bearing: a host script reads the tail, and the pair is what `land`
+  unions. The tail is EXCLUDED for a reason, not by omission: it is a per-session hook-tail whose rows
+  can never reach a committed journal on their own (the same property SPEC-0168 rule 1 relies on), so
+  it neither grows without bound nor carries the history a citation resolves against. If it ever does
+  need rotating, that is a separate change with its own evidence — never an unstated extension of this
+  one.
+
+  **Rule 2 — The boundary is AGE, never a decreed byte number.** A row leaves the live segment
+  because it is older than the live window, not because the file crossed a size. **The boundary is
+  fully specified or it is not a boundary:** age is measured from the NEWEST row present in the
+  logical journal — never from wall-clock `now`, which would make the same corpus segment differently
+  on two machines and make a rotation unreproducible — and the comparison is `ts < boundary` moves to
+  the archive, `ts >= boundary` stays live. Both halves matter: a reader declaring a horizon EQUAL to
+  the live window (there are two in this corpus) sits exactly on that comparison, so an unstated
+  inclusivity is an off-by-one waiting to be discovered in production rather than here. A byte threshold is
+  forbidden as the rotation trigger: it makes the boundary a function of write volume, so the same
+  calendar span rotates differently under load than idle, and it re-creates the decreed-number
+  failure this corpus has already recorded elsewhere. The live window is a governing parameter
+  (§Parameters), not a constant buried in code.
+
+  **A FUTURE-DATED ROW IS NOT A VALID ANCHOR (amended by, on measurement).** "The newest row
+  present" is refined here because taken literally it is hijackable by ONE outlier: a single row
+  stamped ahead of real time drags the boundary with it and archives the ENTIRE live journal in a
+  single land. That is measured, not hypothetical — a synthetic corpus in `tests/test_land.py`
+  carries `cli_invoked` rows stamped 2099-01-01 beside real ones, and the first implementation of
+  this rule moved the anchor 73 years and emptied the live segment of all genuine history in one
+  pass. The same shape reaches production through a skewed clock or a malformed row, and its
+  consequence is severe in a quiet way: nothing is LOST, because the rows are in the archive and the
+  fold still returns them, but every LIVE-SEGMENT reader goes blind at once — the failure mode
+  hardest to notice, because the journal still looks healthy.
+
+  So the anchor is the newest row present **whose `ts` is not in the future**; a future-dated row is
+  skipped for ANCHORING and needs no separate keep-rule, since it is trivially `>= boundary` and the
+  ordinary comparison already leaves it live. **Wall-clock is a CEILING on the anchor, never the
+  anchor** — and that distinction is precisely what this rule forbids and permits. The ban above is
+  on MEASURING FROM `now`, because that would make the same corpus segment differently on two
+  machines and make a rotation unreproducible. A ceiling that only ever REJECTS an impossible value
+  changes nothing for any corpus whose rows are in the past — which is every real one — so
+  reproducibility is preserved exactly where this rule cares about it. Enforced single-site by
+  `bin/lib/events.py#rotation_boundary`.
+
+  **AND THE ANCHOR IS READ FROM THE TOP-LEVEL ENVELOPE, PARSED — never pattern-matched.** A row's
+  age is decided by its ENVELOPE `ts` and by nothing else: a scan for the first `"ts"` in the raw
+  line hands back a NESTED `data.ts` for any row whose envelope has none, and the row is then filed
+  under a date describing something else entirely — moving a row this rule says must never move. The
+  parse costs about a second and a half over a 175 MB journal inside a seam that already runs for
+  minutes, which is the correct trade in the one place that decides which rows leave the live file.
+  A row whose envelope `ts` is absent, non-string or not a REAL CALENDAR DATE is UNDATABLE and never
+  moves. Calendar, not shape: a digit/hyphen check admits `2026-02-31`, which is not a date — and that
+  is not cosmetic, because such a value sorts perfectly well, so the row would be moved and filed under
+  a day that never existed, and as the NEWEST row it would raise inside the boundary computation and
+  SILENTLY DISABLE ROTATION for the whole repo from then on. One impossible timestamp is enough for
+  that, so the date is parsed and rejected rather than pattern-checked — the safe side, since a row left live is merely not-yet-archived while a row moved on a
+  guess is filed where no reader will look for it.
+
+  **Rule 3 — Rotation happens at the land seam, and nowhere else.** The seam that already performs a
+  read-modify-write of the journal under its existing lock — `land`'s events union+dedup — is the
+  seam that rotates. This adds no cron, no daemon, no scheduled job and no liveness question of its
+  own: rotation is a step inside an operation that already holds the lock and already rewrites the
+  file. A rotation path that runs outside that seam is out of contract, because it would need its own
+  concurrency story against every appending session.
+  **WRITE ORDER AND CRASH-ATOMICITY — the archive is DURABLE before the live file is truncated.**
+  Rotation is a truncating rewrite of one file plus a write of another, and
+  `patterns/atomic-state-file-writes.md` names this journal explicitly as a risk class: `open(path,
+  "w")` truncates at open, so a process death mid-write leaves an empty or partial file and history
+  simply disappears. Two constraints follow and neither is optional. **(a) Order:** the archive segment
+  is written and made durable FIRST (sibling tempfile → fsync → `os.replace`), and only then is the
+  live file rewritten the same way. The reverse order has a window in which the rows exist nowhere.
+  **(b) Atomicity:** both writes take the tempfile-then-replace path, so a crash leaves an orphan
+  tempfile and an untouched original rather than a truncated journal. A duplicate surviving a crash is
+  harmless — the union+dedup collapses it; a LOST row is not recoverable by anything.
+
+  **MIGRATION ORDER — the archive path must be ADMITTED before the first rotation writes it, or the
+  first rotation wedges every land in the repo.** `land` refuses on any main dirt outside a
+  hand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`, an explicit frozenset of six
+  literal paths), and the archive segment is a NEW path. So the first rotation leaves a file the next
+  land refuses on — and so does every land after it, until the allowlist is widened. The corpus has
+  already paid for this exact shape once, when a dirty `MEMORY.md` in the same non-allowlist position
+  wedged every later land (X-0274). The widening therefore ships IN THE SAME CHANGE as rotation; it is
+  an ordering constraint on the migration, never a follow-up.
+  **The archive must inherit `merge=union`, and that list lives in GIT CONFIG, not Python.**
+  `.gitattributes` carries exactly one line — `events.jsonl merge=union` — as a LITERAL PATH. An
+  archive segment does not match it and falls back to the default three-way merge, so it CONFLICTS as
+  soon as two branches both touch it, which rotation guarantees: every landing branch rotates and each
+  carries its own copy. The cost of that class is already measured in this repo —
+  `merge-non-union-conflict` accounts for 62 land aborts in 7 days and 717 minutes, the largest
+  early-refusal class — so an archive without the attribute does not conflict in theory, it joins a
+  known bill. (The same file's comment independently states rule 5's guarantee: under parallel
+  worktrees the union driver keeps both sides, so physical line order is no longer chronology.)
+
+  **And it is a CLASS, not one list.** The journal is named by literal path 138 times across the
+  kernel (worktree.py 72, cli.py 16, task.py 14, dispatch.py 13, init.py 5, journal.py 3, audit.py 3,
+  views.py 2). The dangerous members are the hand-maintained SETS and membership tests, because a
+  missed one does not raise — it silently changes behaviour: `worktree.py#_is_foldable_journal` (the
+  fold PAIR), `audit.py#_CONSULT_BASIS_DERIVED_BOOKKEEPING_FILES`, `plan.py`'s scoped-commit
+  pathspecs, `init.py`'s consumer bootstrap presence checks. A reader missed returns wrong data; a
+  membership test missed wedges a land or silently widens a gate.
+
+  **A TASK AUDIT PACKET IS BOUND BY SPEC-0168 RULE 1, WHICH NAMES EXACTLY ONE INSTANCE.** That rule
+  says the packet counts evidence from the repo-root `events.jsonl` and "nothing else: no other repo,
+  no shared coordination store, no invented enumeration". After segmentation that path is the LIVE
+  segment alone, so a task whose acceptance rows are older than the window would have its own evidence
+  invisible to its own audit packet — the packet reporting a criterion unproven while the evidence
+  exists, which is the exact failure SPEC-0168 was written to prevent. Teaching the packet to fold the
+  segment set is therefore an AMENDMENT to SPEC-0168, not an implementation detail beneath it, because
+  rule 1 forbids the enumeration in its own words. **The exposure is ordinary, not a corner:** an
+  owner-gated card routinely waits weeks — three of the five cards waiting at this spec's authoring had
+  been paused longer than a seven-day window.
+
+  **PRECONDITION — the seam must be SOUND before rotation is added to it.** The step-2b fold this rule
+  builds on carries a live, recurring blocking-wait defect: its own test
+  (`tests/test_t9801_step2b_fold_journal_lock.py`) was killed by the land-verify timeout seven times
+  in two days, each at 300 s wall against 0.1 s of CPU — no work at all, the signature of a deadlock or
+  a blocked wait rather than a slow loop. Rotation adds a second, larger read-modify-write across TWO
+  paths at that same seam, under the very lock rule 1 redefines. So this is a PRECONDITION, not a
+  neighbouring bug to fix later: the existing stall is understood and resolved BEFORE rotation is added
+  there, or rotation ships onto a live defect and inherits its aborts. It does not change WHERE
+  rotation belongs — only what must be true before it arrives.
+
+  **ORDER IS LOAD-BEARING: the land seam's own journal FOLD will UNDO rotation unless it is
+  segment-aware and runs BEFORE it.** `land` unions main's WORKING-TREE journal into the landing
+  branch's journal (`evidence_custody.py#_fold_main_journal_into_branch`), at step-2b and again inside the lock
+  before the fast-forward. A rotation that truncates the live segment and is then followed by that
+  union gets its rows back verbatim — the seam chosen for rotation is the seam that reverses it. This
+  is not a deduction: it was simulated before this plan existed and recorded on parked card —
+  a file cut to 5,000 lines returned to 201,420. So the contract is: the union folds across the
+  SEGMENT SET (never a fixed live path), and rotation is the LAST step of the seam, after every union
+  that could reintroduce a row. A rotation placed anywhere else in the seam is out of contract even
+  though it holds the right lock, because holding the lock was never the whole requirement.
+
+  **What "bounded" therefore means, stated exactly.** The live segment is bounded by the window on
+  MAIN. On a BRANCH the bound is the window PLUS whatever that branch accumulated since it forked,
+  because a branch that has not landed has not rotated. Cost is paid per COMMIT, so a merely old
+  branch costs nothing; the exposure is a branch that is both long-lived and actively committing. This
+  qualification is not a footnote — boundedness is the entire promise of this change, so a reader must
+  know which artifact it holds for. (Measured in the authoring corpus: branches up to 60 days old
+  exist, though the aged ones are stale.)
+  **A branch that SPANS the rollout must reconcile across differing shapes.** A branch forked before
+  rotation carries one unsegmented file while main carries live plus archive, so `land`'s union+dedup
+  has to fold two different shapes into one. This is a real state, not a corner: at authoring time six
+  branches sat ahead of main, the oldest by roughly 58 days. Any rollout therefore has a window in
+  which both shapes coexist, and the fold must be correct throughout it — a migration that assumes
+  every branch already knows about segments is wrong on its first day.
+
+  **Rule 4 — A reader declares its horizon; the fold honours it.** Every journal reader either folds
+  the LIVE segment only, or folds live + archive. The choice is the reader's DECLARED horizon, not an
+  accident of which file path it happened to open. A reader whose answer depends on history it did
+  not declare is a defect under this rule, and so is a reader that folds the whole archive to answer
+  a question about the last seven days.
+  **A declared horizon GREATER THAN OR EQUAL TO the live window takes the archive branch — equality
+  included.** Equality is the case that looks safe and is not: at the boundary the two are the same
+  length only in nominal terms, and any skew, any inclusivity choice, or any row arriving during the
+  read puts rows the reader declared outside the file it reads. Measured in this corpus, two journal
+  readers declare exactly the live window's length, so this is the common case rather than the corner.
+
+  **The cross-segment fold EXTENDS the fold that already exists — it is not a new one.**
+  `task.py#_folded_journal_events` already folds TWO physical journal files (a worktree's journal and
+  main's) through an injected dedup key, which is exactly the shape this rule needs: several physical
+  carriers, one logical result, duplicates collapsed. CHARTER §Principle 1 filter 1 therefore settles
+  the implementation question before it is asked — extend that fold to take a segment SET, rather than
+  authoring a second folding path beside a working one. Naming it here is the difference between an
+  implementer finding it and an implementer reinventing it.
+
+  **Rule 4b — A reader that takes the journal out of a GIT REVISION resolves the SEGMENT SET at that
+  revision, never a fixed filename.** Rule 4 governs readers that go through the shared fold; this rule
+  exists because a whole CLASS of readers does not. Four readers in this corpus shell out to git
+  against a path — three `git show <rev>:events.jsonl` and one `git grep` over the same path — and
+  never touch the shared iterator, so making that iterator segment-aware does not reach them. At a
+  POST-rotation revision the named path is the LIVE SEGMENT ALONE, and each of these would silently
+  read a truncated journal while looking entirely healthy. Such a reader must therefore enumerate the
+  segments present AT that revision and fold them, exactly as an on-disk reader does.
+  **The pre-rotation revision is the harmless case, not the hard one.** A revision from before
+  segmentation has no archive beside it because the single file IS the whole journal there; nothing is
+  missing and nothing needs expressing. Stated because the intuition runs the other way, and designing
+  against the wrong half of this would leave the real gap open.
+
+  **Rule 5 — The guarantee is multiset identity plus partition-stable order — NOT byte identity.**
+  For every reader, the set of events returned before and after segmentation is identical WITH
+  multiplicity, and the order within each segment is stable. Byte-identity of a reader's output is
+  explicitly NOT promised and must never be written into an acceptance criterion: rows are routinely
+  appended out of `ts` order (union-merge makes that ordinary), so partitioning legitimately reorders
+  them across the boundary. A byte-identity gate would encode a test the design cannot pass even when
+  it is correct. **Measured on the real corpus at a 7-day boundary:** 3.64% of rows (14,292) are
+  appended out of `ts` order, and **1,864 rows — 0.47% — change position** under the segmented fold.
+  So the reordering this rule admits is neither hypothetical nor rare enough to ignore, and it is also
+  not large: the number is given so a reader can size the risk instead of guessing at it.
+
+  **Rule 6 — Order-sensitive readers owe their own probe, against their OWN CONTRACT — not against
+  identity.** Multiset identity is the floor, not the ceiling. A reader whose OUTPUT depends on row
+  order — a tail window, a latest-wins fold, a first-match scan — must carry a reader-specific probe,
+  because rule 5's guarantee cannot witness order. But the probe asks whether that reader's own
+  promise still holds, **not** whether its output is byte-for-byte the same, and the difference is not
+  academic: the tail reader locates its window by PHYSICAL position over a file that is not ts-ordered,
+  so measured on the real corpus it misses 175 rows on the unsegmented file and misses NONE on the
+  live segment. Segmentation makes it strictly MORE complete — and an identity criterion would REJECT
+  that improvement. Its documented contract is SOUNDNESS (a tail credit is provably also a full
+  credit; it may miss an older anchor, it can never invent one), and soundness holds on both shapes.
+  A reader that DOES promise identity is still held to identity. One rule, applied to each reader's
+  own promise. Classifying each reader — order-sensitive or not, and to WHICH promise — is part of the
+  migration, not a later discovery.
+
+  **Rule 7 — A historical citation resolves across segments, unchanged.** Citations of the form
+  `events.jsonl#ts=<ISO>` and `events.jsonl#source_ref=<locator>` are load-bearing in commit
+  trailers and closed cards across the entire history (CHARTER §Principle 2 names them as the
+  durable `from:` form). Resolution is a property of the LOGICAL journal: a citation authored before
+  segmentation existed must resolve after it, without the citer knowing which segment holds the row.
+  A shape that breaks a historical citation is rejected, never migrated around.
+
+  **Rule 8 — A size-derived governance bound reads the quantity its own ACTION can move; the
+  aggregate stays a REPORTED trajectory.** Any mechanism whose purpose is to EXPIRE a standing
+  decision by observing journal size must (a) COMPARE against the quantity the decision's own action
+  can change — the LIVE segment — and (b) keep the LOGICAL size (live + archive) VISIBLE and
+  REPORTED on the same surface, as a trajectory carrying no trigger.
+
+  **Why both halves, and why neither alone.** Part (b) is the original rule 8 and its concern is
+  unchanged: reading the live segment and DROPPING the aggregate would let rotation silently disable
+  the very mechanism that decides whether rotation is still warranted — a bound that can never fire
+  again is worse than no bound, because it reports as healthy. But binding the TRIGGER to the
+  aggregate fails the mirror way, and by construction rather than by accident: archive segments are
+  append-only history that is never deleted, and SPEC-0002 §Violations forbids an in-place rewrite,
+  so no action anyone is PERMITTED to take can reduce the aggregate. A bound that can never be
+  SATISFIED is a permanently-lit flag — the class this corpus has already retired twice (
+  report-only rows; the done-log count-gate, because counts grow with the work) and the exact
+  shape §Rotation policy's disk-volume axis says this section must never become. Live-only means the
+  bound can never FIRE; aggregate-only means it can never be SATISFIED. The two halves above take
+  each design's true half: the aggregate stays governed by REMAINING VISIBLE, which is what part (b)
+  was protecting, while the trigger measures what its own action moves.
+
+  **The unit is not a detail — it is what broke.** `ROTATION_VERDICT_REREVIEW_MB: 220` was
+  calibrated on the LIVE FILE before rotation existed: §Rotation policy's own Origin datum records
+  `2026-08-22 — ls -l events.jsonl: 179,767,105 B = 171.44 MB`, an `ls` of the single live file, with
+  220 as headroom above it. Measured 2026-08-30 the live segment was 79.3 MB (far under 220) and the
+  aggregate 252.62 MB (over it), so the lens printed `EXPIRED — re-run the review` and the standing
+  DEFER stopped counting as `acted` — not because the journal had grown past what was reviewed, but
+  because the measured UNIT changed underneath a number nobody re-set. A bound compared against a
+  quantity it was not calibrated on reports neither health nor its absence.
+
+  This rule binds TWO named mechanisms, and a migration that fixes one and misses the other leaves
+  the hole open — so both are named: (1) the standing rotation verdict's size bound
+  (`bin/lib/views.py#_standing_rotation_defer`), whose `live_mb` parameter is the live segment; and
+  (2) the SPEC-0052 displacement-retention sweep, which resolves each surface's governing trigger and
+  reports `fired? acted?` — its journal surface is TWO rows, a governed live-segment row against the
+   threshold and a `report_only: true` aggregate trajectory row carrying no
+  fired/acted/flagged_action keys (SPEC-0052 rule 2; the row shape). Neither bound is idling:
+  measured 2026-08-22 the live journal was 175.4 MB against the 220 MB re-review bound — **~8 days
+  from firing** at the observed ~5.4 MB/day — and that is the reading the bound is FOR. What this
+  rule prevents is the opposite failure from the one its first form feared: not a bound quietly
+  retired by segmentation, but a bound quietly rendered unsatisfiable by it.
+
+  **Rule 9 — Verifying a change must not cost what the history has accumulated.** A test's cost may
+  not track journal length. A test that needs journal input folds a PINNED historical slice, not the
+  live journal; a test that genuinely needs the live journal for what it asserts is exempt WITH that
+  reason recorded, and a recorded exemption is a legitimate outcome, not a miss. This rule binds the
+  same property as rules 1-3 on a different axis: rotation bounds what a WRITE costs, this bounds
+  what a VERIFY costs. Neither implies the other — an archive-folding reader still pays the whole
+  corpus, so rotation alone does not satisfy this rule.
+
+  **The pinned slice is FIXTURE DATA and is NOT part of the logical journal.** The mechanism rule 9
+  prescribes introduces a durable artifact, so its boundary is fixed here — otherwise it becomes the
+  second journal rule 1 forbids, by accident rather than by decision. A pinned slice: records its own
+  provenance (source journal, row range, content hash), so what it represents stays auditable; is
+  authoritative for TESTS ONLY; is never read by a governed verb, never appended to, and never
+  union-merged. It is regenerated only DELIBERATELY, by a named generator, when a test's subject
+  changes — never automatically and never on a schedule, since a self-refreshing slice would
+  re-acquire the growth this rule removes. It is bounded and stays bounded, and it retires with the
+  last test that folds it. A slice that acquires an appender, a governed reader, or automatic refresh
+  has stopped being a fixture and is in breach of rule 1.
+
+  **Rule 9a — the CONSTRUCTION contract: how a slice is cut, what it may carry, and what proves it
+  still works.** The clause above fixes what the slice IS. It says nothing about how the slice is
+  BUILT, and that omission is not neutral: an artifact cut under no stated rule was cut under
+  someone's unrecorded judgement, and the most consequential thing about this one — that the journal
+  it is cut from records owner directives VERBATIM — was never decided at all. The four clauses below
+  are that contract.
+
+  **(a) MINIMISATION — bounded by SHAPE, never by history.** A slice is the union of two bounded
+  selections: the last N rows of EACH event type, which buys COVERAGE, and the last M rows
+  CONTIGUOUSLY, which buys VOLUME and ADJACENCY. Both are re-emitted in source order. Its size is
+  therefore a function of the type COUNT and of M, and never of how long the project has been
+  running — a selection whose size would grow with history is out of contract, because it would
+  re-acquire the very cost rule 9 exists to remove. Neither leg is optional, and that is measured
+  rather than assumed: a plain tail is bounded but NOT faithful (a 1500-row tail of this journal
+  carried 51 of its ~200 types and missed one entirely, so a test asserting that a surface has ever
+  fired would flip from a true statement about history to a false one about a sampling artifact),
+  while coverage alone leaves no realistic distribution for a windowed or recency fold.
+
+  **(b) OWNER-AUTHORED TEXT — SCRUBBED, and the reason.** Free text in a pinned slice is REDACTED to a
+  fixed placeholder before the slice is written. The fork was SCRUB (redact real text) versus
+  SYNTHESISE (author fake rows), and the PREFERRED PROPERTY is SHAPE-FAITHFULNESS, paid for with
+  prose-verbatimness. The ground: what a slice's readers consume is SHAPE — field names, nesting,
+  types, the per-type census, row adjacency, ts-disorder, malformed lines, the absence of exact
+  duplicates. No reader folds the natural-language VALUE of a free-text field. So redacting those
+  values costs the readers nothing, whereas synthesising would destroy precisely what they DO
+  consume — the real distribution — which is the same ground on which pinning a slice from nothing is
+  already refused.
+
+  The redaction has TWO legs, because one is demonstrably not enough. The first is a CLOSED LIST of
+  dedicated free-text carriers, redacted at any length. The second is a PROSE-LENGTH FLOOR: any string
+  value at or above it is redacted, whatever field carries it AND AT WHATEVER DEPTH — payloads nest
+  freely, so a redaction that stopped at the top level would leave prose behind while reporting
+  success (measured: 456 nested values survived a flat pass on this corpus, one of them carrying a
+  guillemet-quoted owner phrase). The floor exists because owner words
+  mostly arrive QUOTED INSIDE prose the AI authored, in fields named after neither the owner nor the
+  quotation — so a carrier list alone leaves owner text in the artifact, and no list could ever name
+  them all. The floor is a GOVERNING PARAMETER set by MEASUREMENT on the corpus, at the point where
+  values stop being structure (ids, statuses, verdicts, short references) and start being prose; on the
+  corpus this rule was written against, that point is 80 characters. Unlike a list, a floor extends
+  CORRECTLY to event types that do not exist yet.
+
+  The redaction is MECHANICAL and ASSERTED, never trusted — which is the honest answer to the
+  objection that a redaction is something a reader must take on faith. It is applied by the slice's
+  SOLE writer, because a scrub performed anywhere else would be a second writer of the artifact and so
+  a breach of the clause above; and it is checked over the SHIPPED BYTES, in BOTH directions — that
+  nothing unredacted survives, AND that the check catches an unredacted row, so a green verdict is
+  never vacuous. It is checked for NON-MANGLING as well: a sanitizer's natural test asserts only that
+  the token is GONE, and that assertion is green precisely when the sanitizer has destroyed its input,
+  so the scrub is additionally held to IDEMPOTENCE and to STRUCTURAL INVARIANCE (no key, no nesting
+  level, no value type and no value below the floor may move under it).
+
+  NAMED RESIDUALS, so they are decisions and not omissions. Transcript LOCATORS and SESSION IDS are
+  NOT redacted: they are not owner-authored prose, and the citation form rule 7 protects is built on
+  the locator, so redacting them would put the readers this artifact exists to feed at risk. And a
+  mechanical scrub cannot reach owner words PARAPHRASED into AI prose below the floor — no rule can,
+  and a contract claiming otherwise would be the trusted redaction this clause refuses to be. What the
+  contract does guarantee is that every dedicated carrier and every prose-length value is gone.
+
+  **(c) REFRESH — on a change, by a person, and in two distinct shapes.** Unchanged from the clause
+  above: refresh is never automatic and never scheduled. This names the two shapes it takes, because
+  conflating them silently re-selects an artifact its consumers are pinned against. A RE-CUT
+  re-selects rows from the live journal and is warranted only when a test's SUBJECT changes; it moves
+  the recorded source and selection provenance with it. A RE-SCRUB re-applies clause (b) to the slice
+  already on disk and leaves the SELECTION untouched, so the recorded source and selection provenance
+  stay true and the consumers keep the exact rows they were pinned against; it is the right shape
+  whenever what changed is what a row may CONTAIN rather than which rows were chosen. Either way a
+  person runs the named generator and commits the diff, and the provenance record carries the contract
+  that produced those bytes.
+
+  **(d) THE DIFFERENTIAL — minimisation needs a floor, or it is an instruction with no bottom.** A
+  slice is only safely minimised if the minimised artifact still EXERCISES the reader classes its
+  consumers drive over it. So a check states those properties, is asserted to PASS on the shipped
+  slice, and — this is the half that keeps it from being decorative — is proved BY EXECUTION to FAIL
+  on a degraded slice that no longer reaches them. Each property is DERIVED from a named consumer arm
+  rather than invented for the check: type coverage and tail adjacency from the two selection legs in
+  (a); and, from the readers, the ts-disorder that makes the segment-boundary reordering of rules 5
+  and 6 reachable at all, a span wide enough that rotation yields more than one segment (a
+  single-segment slice makes a differential compare a world with itself), and the ABSENCE of
+  exact-duplicate rows, on which the distinction between set-identity and multiset-identity rests. A
+  check that no degradation can fail is not a floor; it is decoration with a green light.
+
+  **Rule 10 — A COMPOSED SEAM owns ONE read scope; the views it composes own none.** Rules 4 and 9 bind
+  a SINGLE reader and a SINGLE test. Neither binds the axis on which this contract has actually been
+  breached three times: a verb whose tail composes a DOZEN individually rule-4-correct views, each
+  declaring its horizon honestly and each folding the same segment set for itself. Every view passes
+  rule 4; the seam pays the corpus once per view. That is not a defect in any of them, so no rule that
+  looks at readers one at a time can name it — which is why it needed this one.
+
+  **A verb or seam that composes MORE THAN ONE journal or card view establishes exactly ONE
+  request-scoped ReadScope, at the WIRING SITE.** The wiring site is where the composition is decided —
+  the function that calls the views — never inside a view. That placement is the whole mechanism: one
+  scope at `cli.py#_debt_echo_lines` is what buys all THREE debt seams (session-start, the land tail,
+  and the on-demand `debt` re-fold) from a single declaration, because they are three callers of one
+  composition. A scope pushed down into the views instead would have to be installed, and kept correct,
+  once per view per seam.
+
+  **The ReadScope is the ONLY owner of physical segment folds and card scans for that request.** Within
+  it: a seam-callable view RECEIVES rows and cards from the scope. It DECLARES its journal horizon
+  (rule 4 — the declaration does not weaken, and a view that needs archive still says so) and its card
+  slice, and it does NOT perform its OWN PHYSICAL read — it never opens a segment path or globs
+  `tasks/*.yaml` for itself.
+
+  **"Receives from the scope" is a property of the READ, not a restriction on which function a view may
+  call, and getting this distinction wrong would make the rule unimplementable.** A view legitimately
+  goes on calling the shared journal and card primitives — `segment_lines`, `fold_lines`,
+  `state.load_path`; what makes those calls conformant is that the PRIMITIVES consult the installed
+  scope and serve from it, so inside a scope the call costs no physical read. That is what "the scope
+  owns the folds" means operationally, and it is why the obligation lands on the primitives rather than
+  on every call site: a rule requiring each view to be rewritten against a scope-shaped API would have
+  to be adopted N times per seam and would be silently unadopted wherever someone forgot. THE
+  COROLLARY IS LOAD-BEARING: a primitive that does NOT consult the scope leaves every view built on it
+  outside the rule, whatever the wiring site does. The first instance is exactly this — the STREAMING
+  primitive `journal.segment_lines` did not consult the scope, so two views folding through it read
+  every segment of the corpus a second and third time INSIDE a correctly installed ReadScope
+. A view that reaches a segment through a scope-blind reader has bypassed the scope just as
+  surely as one that opened the file itself, and the seam's regression is what says so out loud rather
+  than leaving it to a profiler and a waiting human. STANDALONE read verbs —
+  those composing ONE view — are unaffected by the scope requirement and read only through the
+  INSTRUMENTED primitives, so their cost is counted even where there is nothing to collapse.
+
+  **Every composed seam carries a REGRESSION asserting physical folds <= 1 per segment in scope and
+  card parses <= 1 per card in scope.** The bound is stated per artifact, not as a total, because a
+  total hides which segment was read twice. The regression counts through the instrumented primitives
+  (the `reads` counters), so what it measures is the same quantity the `cli_invoked` row reports, and
+  it fails when its seam's scope is bypassed. A counting probe that only ever sees the collapsed path
+  cannot tell "collapsed to one read" from "never read at all", so the regression is DIFFERENTIAL: it
+  drives the bypassed shape back in and proves the assertion fails there.
+
+  **RETIRED alongside (CHARTER §Principle 1 filter 3), and this is the half that keeps rule 10 from
+  being an addition.** (a) The PER-VIEW CACHE as a remedy class: the answer to a slow composed seam is
+  the seam's ONE scope, never a cache bolted onto each view — N caches have N invalidation stories, N
+  lifetimes and N ways to serve a stale answer, and they leave the composition itself unmeasured. A
+  proposal to add a cache to a view inside a composed seam is a proposal to skip this rule. (b) The
+  HAND-DECLARED MEMO PATH LIST as a durable artifact: the scope declares the LOGICAL journal and
+  resolves its own segment set, so no site maintains a list of physical paths that goes stale the next
+  time rotation adds one. That is not hypothetical — it is exactly how the first instance broke.
+
+  **FIRST INSTANCES — this rule is DISTILLED from three, not proposed for a fourth.** ****: the
+  session-start debt echo took 383 s, of which 378 s was ~20 whole-corpus passes, because
+  memo declared the LIVE path literally while every migrated reader resolved the segment SET — the
+  hand-declared path list of (b), stale the moment rotation. ****: a THIRD request-scoped
+  memo at the SAME wiring site, for a fold defined over raw lines that could not consume the parsed-rows
+  lane — the composition needed one more scope, and the site is where it went. ****: the same
+  seam bounded on the horizon axis. Each was correct, each was found by a human waiting, and each was a
+  one-site fix under no rule. Rule 10 is what makes the next one a test failure instead.
+
+  **The bounded EXEMPTION, and where it may live.** A seam that genuinely cannot hold the bound
+  declares it — and a declared exemption is a legitimate outcome, not a miss (the rule-9 posture). It
+  lives in EXACTLY ONE place: the project's own `yitc-ops.yaml`, under `reads.exemptions[]`, each entry
+  a mapping carrying **all four** of `seam` (the wiring site the exemption is about), `ratio_bound` (the
+  number of folds-per-segment this seam is permitted — an exemption with no ceiling is not an
+  exemption), `reason` (why the bound cannot be held here) and `until` (an ISO date, so the exemption is
+  reviewed rather than inherited). All four are REQUIRED and the check is FAIL-CLOSED per SPEC-0093
+  declare-or-waive: a malformed entry is refused with the missing field NAMED, never silently ignored,
+  because an exemption nobody can read is indistinguishable from a breach. The section is OPT-IN and is
+  born FULLY COMMENTED — nothing in it is live, so an untouched carrier declares NO exemption and
+  ABSENCE reads as "this project exempts no seam", which is the fail-closed default and the state every
+  project starts in. Commented rather than absent because a hatch nobody can find is not a bound, it is
+  a trap: an operator who cannot see the shape declares nothing and simply misses the rule, which is
+  the outcome this carrier exists to replace. What is refused is PRE-GRANTING it, not documenting it —
+  the `startup_checks` born shape, for the same reason. The per-section shape is catalogued at its
+  single home, SPEC-0160.
+
+  ### Rotation policy
+
+  > **Re-homed from SPEC-0002 by — this is the SINGLE normative home for rotation.**
+  > SPEC-0002 carries a pointer here and no rotation rule of its own. What did NOT move, and is
+  > referenced across specs below because of it: SPEC-0002 §Violations, which still forbids a
+  > second event-log file and any in-place rewrite, and still reserves PHYSICAL rotation to
+  > explicit owner approval. The section text is otherwise unchanged from its SPEC-0002 form.
+
+  Day 1: NONE. One file, append-only (~50 KB / ~330 events at 2026-05-28). Rotation is
+  triggered (each → a separate future decision with empirical evidence, NOT pre-built):
+  - events.jsonl > 10 MB → **REVIEW-and-decide flag, NOT a rotate prescription.** At the
+    threshold the SPEC-0052 displacement-retention lens FLAGS the journal for a query-perf
+    REVIEW; it does NOT owe a rotation, and there is no "missing covering verb" — the
+    STANDING VERDICT is `ROTATION_STANDING_VERDICT: DEFER` (below) and PHYSICAL rotation is
+    FORBIDDEN by SPEC-0002 §Violations (no second event-log file, no in-place rewrite). So the governed
+    decision at 10 MB is *to review, and (twice affirmed) NOT to rotate* — a consumer must
+    NOT read this line as «rotation owed but no verb covers it». Reopen only on a REAL
+    perf-threshold crossing (below).
+  - graph build > 5 s → consider rotation OR graph index optimization
+  - a specific query degraded due to full rescan → pivot strategy
+  - multi-project setup → per-project journal segregation may help
+  - the journal's ON-DISK VOLUME, read as a REPORTED TRAJECTORY and never as a threshold →
+    **REVIEW-and-decide flag, exactly like the `> 10 MB` line above** — the reading may reopen the
+    rotation QUESTION; it decrees no byte number at which rotation is owed. See the disk-volume
+    axis below for what is read, the bound on what a review may conclude, and why no number.
+
+  **The disk-volume axis — REPORTED, never a decreed number.** The four conditions above
+  are all SPEED conditions: they fire when the journal makes something SLOW. None of them fires on
+  what the journal COSTS to store, so before this axis existed no amount of disk growth could reopen
+  the rotation question through this policy. This axis closes that gap on the storage side, and
+  nothing else — speed is healthy at the sizes recorded here, and this amendment makes no perf claim.
+
+  **What it reads** — three readings taken together, none of them a trigger on its own: the live
+  `events.jsonl` bytes and line count; the storage the journal's rewrite-on-nearly-every-commit
+  pattern generates in git (loose-object count and bytes, pack bytes); and host filesystem headroom.
+  The three are read as a CURVE against the origin datum below, not compared to a limit.
+
+  **The bound — a REVIEW only, and SPEC-0002 §Violations is untouched.** This axis changes WHEN the rotation
+  question is reviewed; it never changes WHAT is permitted. SPEC-0002 §Violations still forbids a second
+  event-log file alongside events.jsonl and any in-place rewrite of events.jsonl (CHARTER
+  §Principle 5, one journal), so a review that concluded "rotate" would still have to clear
+  SPEC-0002 §Violations AND explicit owner approval, exactly as before this axis existed. The standing
+  `ROTATION_STANDING_VERDICT: DEFER` above is NOT disturbed by this axis, and neither are the
+  affirmations that produced it. A reader of THIS section needs to follow no citation to see that
+  bound: a disk reading, however large, authorizes a conversation and nothing more.
+
+  **Why no number, and the shape this must never become.** The corpus has already ruled on this exact
+  shape one level up. CHARTER §Principle 2 "Byte/token axis" (owner ruling 2026-07-17) faced
+  the identical problem — a line cap blind to density — and chose a REPORTED outcome plus a trajectory
+  warn, with "no second hard cap and no token number", on the stated ground that a decreed number is
+  voluntaristic. This axis follows that precedent rather than inventing a byte threshold beside it.
+  The named failing shape this section must therefore NEVER carry is a trigger of the form
+  `events.jsonl > N MB → rotate`: it would both decree a voluntaristic number and prescribe an outcome
+  SPEC-0002 §Violations forbids. (The host's `check-jsonl-size.sh`, `WARN_MB=2000`, is such a decreed threshold
+  over a DIFFERENT directory — named here as the shape not copied, not as prior art.) Distinguish the
+  one number this section already carries: `ROTATION_VERDICT_REREVIEW_MB` bounds how long the standing
+  DEFER counts as `acted` for the SPEC-0052 lens. That is a bound on a VERDICT's currency,
+  not a rotation prescription, and this axis adds no second number beside it.
+
+  **Origin datum — the zero point the trajectory is a trajectory FROM** (the analog of CHARTER
+  §Principle 2's own origin datum), kernel repo, each figure with the command it came from:
+  - 2026-08-22 — `ls -l events.jsonl`: 179,767,105 B = **171.44 MB**; `wc -l < events.jsonl`:
+    **382,455 lines**; `git count-objects -vH`: **424 loose objects / 2.38 GiB**, in-pack 231,158
+    objects in **4 packs / 4.45 GiB**; `df -h /`: **67% full** (362G used of 564G, 180G free).
+  - 2026-08-21, the preceding reading (recorded on the card): 170 MB / 377,619 lines;
+    82 loose objects / 298.94 MiB; 2 packs / 4.33 GiB; 67% full. The one-day delta between the two
+    readings is itself the first segment of the curve, which is the point of recording both.
+
+  **Which EXISTING surface reports the reading — and the half that has none.** No new store, check,
+  cron line or event type is added by this axis (CHARTER §P1 F1/F3): the journal-bytes half is
+  ALREADY reported, by the SPEC-0052 displacement-retention lens — surface `events.jsonl size`
+  (`bin/lib/views.py`, the LIVE segment, which also runs the standing-DEFER `acted` check) and its
+  `report_only` sibling `events.jsonl all-segment total`, which is THIS axis's own reading: the
+  logical journal as a curve, carrying no trigger (rule 8) — and by the weekly digest's
+  `journal_growth` block, whose `all_segment_size_mb` is the same trajectory. The git-object half is reported by the nightly's `housekeeping-blocked`
+  check, which sizes the loose pile — but only WHEN `.git/gc.log` exists (deliberately one signal, no
+  tuned floor), so it is an incident reading, not a continuous one. Host filesystem headroom has NO
+  v2 surface at all; `git count-objects -vH` and `df` are the on-demand commands, run by hand. That
+  last gap is RECORDED here as the honest finding rather than closed by a mechanism smuggled in under
+  a prose amendment; it is carried as its own follow-up.
+
+  **Where the live work on this question already sits.** The draft plan
+  `journal-storage-shape-keep-one-logical-journal-wit` (2026-08-16, opened out of
+  `ideas/journal-on-disk-growth-curve-does-the-repo-journal.md`) asks the storage-shape question at
+  plan altitude and owns its design. This axis neither duplicates nor pre-empts it — it names, INSIDE
+  the policy, the axis on which that reopen actually happened, so the next one is routed by this
+  section instead of arriving from outside it.
+
+  **First firing — RESOLVED 2026-06-07, verdict = INDEX-OPTIMIZE / DEFER.** The
+  `> 10 MB` trigger FIRED (journal at 13.7 MB / 29,681 lines). The empirical query-perf
+  review it mandates was run on that journal and found NO degradation, so rotation is NOT
+  warranted (the bytes crossed 10 MB but the perf the trigger protects is healthy):
+  - raw full-journal `json.loads` of every line: **0.118 s** (linear, no full-rescan pathology);
+  - `journal query` (type filter) **~0.33 s** total, full unfiltered scan **~0.58 s** total —
+    dominated by the journal-independent **~0.17 s** interpreter/import startup, not the scan;
+  - `graph build` **~2.2 s** and it does NOT read events.jsonl at all (it walks
+    `specs/`+`tasks/`+`decisions/` YAML — `graph_build_index` references no `EVENTS_PATH`), so
+    the `> 5 s graph build` trigger above is UNCOUPLED from journal size.
+  Decision: **defer rotation; keep ONE append-only journal** (CHARTER §Principle 5 — no parallel
+  archive read-path, no second log). **SCOPED (additive amendment, SPEC-0084):** "no second log" forbids a
+  second FORMAT / parser / discipline within a repo OPERATIONAL-STATE storage — NOT the kernel-owned
+  SHARED coordination INSTANCE, which this entry schema GOVERNS IDENTICALLY (same envelope / provenance /
+  ordering / append + union-merge); its `cross_*` events EXTEND this OPEN catalog, so there is
+  ONE schema, not two. Reopen ONLY when a future measurement crosses a REAL perf
+  threshold (a `journal query` that is interactively slow once startup is netted out, OR a
+  `graph build` that begins consuming the journal AND exceeds 5 s). The empirical basis is the
+  durable artifact `tasks/-*.yaml` `implementation_plan` (this note summarizes it). This
+  satisfies the / SPEC-0002 first-firing requirement (recorded empirical evidence) WITHOUT
+  reviving the retired `decision new` class — the standing rule is homed HERE, its single home
+  (re-homed out of SPEC-0002 into this spec by; SPEC-0002 keeps a pointer).
+
+  **Re-affirmed 2026-06-23 at ~49 MB.** The journal has since grown to ~49 MB /
+  ~118,900 lines and the `> 10 MB` trigger remains FIRED. The mandated perf review was
+  RE-RUN at this size and STILL finds no degradation — bytes crossed 10 MB but the perf the
+  trigger protects is healthy:
+  - raw full-journal `json.loads` of every line: **~0.42 s** (linear, no full-rescan pathology);
+  - `journal query` (type filter) **~0.8 s** total — interactively fine, startup-dominated;
+  - `graph build` **~3.1 s** and it STILL does NOT read events.jsonl (walks `specs/`+`tasks/`+
+    `decisions/` YAML only), so the `> 5 s graph build` trigger stays UNCOUPLED from journal size.
+  The standing verdict is UNCHANGED — defer rotation, keep ONE append-only journal — and is
+  recorded here as a machine-readable token so the displacement-retention lens (SPEC-0052
+  rule 1, where `acted` = "a rotation/split/compaction decision on record") recognizes the
+  decision-on-record disjunct WITHOUT an artificially-open follow-up task:
+
+      ROTATION_STANDING_VERDICT: DEFER # standing decision on record; reopen ONLY on a REAL perf-threshold crossing
+      ROTATION_VERDICT_AFFIRMED_MB: 110 # live-journal size at the last affirmation (2026-08-08)
+      ROTATION_VERDICT_REREVIEW_MB: 220 # the BOUND: past this size the DEFER stops counting as acted
+
+  This is NOT physical rotation — SPEC-0002 §Violations still forbids a second event-log file or
+  an in-place rewrite; full history stays intact.
+
+  **A standing DEFER is BOUNDED — it EXPIRES BY SIZE (the rule).** The verdict
+  satisfies the SPEC-0052 rule-1 `acted` disjunct ONLY while the live journal is at or below
+  the `ROTATION_VERDICT_REREVIEW_MB` bound recorded beside it. Past that bound the
+  displacement-retention surface FLAGS again and the mandated perf review MUST be re-run and
+  re-recorded here (a new affirmation moves both numbers, or the verdict changes). FAIL-CLOSED:
+  a `ROTATION_STANDING_VERDICT` token carried WITHOUT a parseable bound does NOT count as
+  acted. This retires the never-expiring token: a verdict decided at 49 MB kept reporting the
+  surface "attended" all the way to 110 MB — through the 2026-08-07 afternoon in which four
+  dispatched workers lost their builds to journal-size-amplified test timeouts — and would have
+  kept reporting it at 1 GB. The bound is the review's own recheck trigger, not a rotation
+  prescription. Enforced single-site by `bin/lib/views.py#_standing_rotation_defer`; tripwire
+  `tests/test_displacement_retention.py::test_standing_rotation_defer_expires_past_rereview_bound`.
+
+  **Third firing — RE-AFFIRMED 2026-08-08 at ~110 MB, now BOUNDED.** Journal at
+  115,563,299 B = 110.21 MB / 257,296 lines; the `> 10 MB` trigger remains FIRED. The mandated
+  perf review was RE-RUN at this size and STILL finds no degradation of the perf the trigger
+  protects:
+  - raw full-journal `json.loads` of every line: **0.816 s** (0.118 s @13.7 MB, ~0.42 s @49 MB —
+    bytes ×8 since the first firing, time ×7: linear, no full-rescan pathology);
+  - `journal query` (type filter) **1.56 s**, full unfiltered dump **3.32 s** total, of which
+    ~0.35 s is journal-independent interpreter/import startup — interactively acceptable;
+  - `grep -c owner_directive events.jsonl` **0.026 s** — grep-based recovery is unaffected;
+  - `graph build` **6.06 s**, which is ABOVE the 5 s mark named above — but that leg reads
+    «a graph build that begins CONSUMING the journal AND exceeds 5 s», and this one is NOT
+    journal-driven: measured by `strace`, one build reads events.jsonl 20,597,243 B in 14 reads
+    (a bounded ~10 MB tail, twice — not the 110 MB file), and `cProfile` attributes the time to
+    YAML loading + `_resolve_implements_anchor` regex (~2.9 s in `re.search` over 442 anchors)
+    + 74 git subprocesses. Recording it as a literal reopen would fire the criterion on false
+    grounds; it is a real but journal-INDEPENDENT slowdown, routed as its own observation.
+  **Who decided and on what basis** (the acceptance requirement): decided by the
+  dispatched Worker executing the owner-filed card, on the basis of (i) the
+  measurements above, (ii) SPEC-0002 §Violations, which reserves PHYSICAL rotation to explicit owner
+  approval, so a worker cannot self-authorize it, and (iii) the owner's own card wording, which
+  admits the recorded-DEFER disjunct. The 2026-08-07 test-timeout incident (four lost builds)
+  is NOT dismissed: it was a real size-driven incident, it was fixed AT SOURCE by hermetizing
+  the two offending pinned tests ( — both landed), and it FIRES the second
+  disjunct of the parked `return_trigger`, which is where the owner's rotation
+  override decision lives. That routing is this task's followup, not a silent defer.
+
+  ## Parameters
+
+  | Parameter | Meaning | `consumed` |
+  |---|---|---|
+  | `JOURNAL_LIVE_WINDOW_DAYS` | age boundary separating the live segment from the archive (rule 2) | yes — read by the rotation seam |
+
+  **THE VALUE, as a machine-readable token the rotation seam READS.** `consumed: true`
+  means code reads a governing scalar FROM this spec, so the parameter needs a value HERE and not a
+  constant in `bin/` — rule 2 says so in as many words: *the live window is a governing parameter, not
+  a constant buried in code.* The token is read by `bin/lib/worktree.py#journal_live_window_days`, the
+  same read-only text scan `views.py#_rotation_rereview_bound_mb` already performs on this same file
+  for `ROTATION_VERDICT_REREVIEW_MB` — one carrier, one idiom, no second config path.
+
+      JOURNAL_LIVE_WINDOW_DAYS: 7 # rule 2's live window. NOT a pick from the table above: 7 is the
+                                    # FLOOR the existing readers impose — two journal readers declare
+                                    # a seven-day horizon and the read-gate's tail window is seven
+                                    # days, so any shorter window puts declared rows in the archive on
+                                    # every ordinary read. Changing it is a governed spec edit.
+
+  FAIL-CLOSED, and in the direction that cannot lose a row: a carrier or token that cannot be read
+  yields no value and **rotation does not run**. It never falls back to a default, because a default
+  would be exactly the decreed number rule 2 forbids, and a rotation on a guessed window would move
+  rows a reader had declared it would find in the live file. Not rotating is always recoverable.
+
+  **SET BY MEASUREMENT, and its floor is set by the READERS — not decreed.** Sensitivity over the
+  authoring corpus, as git loose-object cost per commit against ~293 commits/day:
+
+  | window | live rows | live raw | loose | GB/day | vs today |
+  |---|---|---|---|---|---|
+  | 1 d | 18,829 | 7.9 MB | 0.91 MB | 0.27 | 29.1x |
+  | 3 d | 41,380 | 23.2 MB | 3.55 MB | 1.04 | 7.5x |
+  | **7 d** | **82,449** | **43.3 MB** | **6.71 MB** | **1.97** | **4.0x** |
+  | 14 d | 132,171 | 67.0 MB | 10.39 MB | 3.04 | 2.6x |
+  | 30 d | 155,282 | 76.5 MB | 11.60 MB | 3.40 | 2.3x |
+
+  A shorter window buys more, so the value is NOT chosen by picking the best row: **two journal
+  readers declare a seven-day horizon and the read-gate's tail window is seven days**, so any window
+  below that puts declared rows in the archive on every ordinary read. That is legal under rule 4, and
+  it is also self-defeating — those readers would pay the archive read every time. Seven days is
+  therefore the FLOOR the existing readers impose, and 4.0x is what the change buys at that floor.
+  Recording the whole table rather than the chosen row, so a later reader can see the shape of the
+  trade instead of re-deriving it. A different project resolves a different number from the same rule
+  and the same method: measure the sensitivity, then take the floor its own readers impose.
+
+  ## Rationale
+
+  Held to what interprets the rules (SPEC-0005 rule 3); the deliberation, the rejected one-off cut,
+  and the ratification history live in the proposing plan.
+
+  - Rules 1-3 exist because the cost being removed is git-object churn, not parse time: a full parse
+    of the whole file measured 1.45s, while ~293 commits/day each wrote a fresh ~6 MB loose object,
+    and `.git` twice reached tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after a
+    clear). Read rule 2's age boundary against that: the ground for the change is UNBOUNDEDNESS,
+    which is why a one-off cut cannot satisfy it and why the trigger cannot be a size.
+  - Rule 5's phrasing is the one an earlier draft got wrong, and the correction is the point: the
+    honest guarantee is multiset identity, and every downstream acceptance criterion must be phrased
+    against it rather than against "identical output".
+  - Rule 8 names a real, live instance rather than a hypothetical: a bound whose whole purpose is to
+    expire a standing deferral by size, computed from a `.stat` of the journal file.
+  - Rule 9 rests on measurement: two lands died the same day on journal-driven test timeouts (a 180s
+    subprocess cap, and a 300s per-file cap against a 286s measured runtime — a 5% margin), the
+    recorded suite total is 431.7 min across 879 files with 102 files at >=60s carrying 63% of it,
+    and nine files grew 55-63% in one window on tests whose diffs did not change. The startup anchor
+    pays it too: `session start` in a fresh worktree measured 2m27s and blocked a governed verb
+    behind it.
+
+  ## Verification
+
+  - **Rule 1 / rule 7 (no second journal, citations survive) — phrased as a DIFFERENTIAL, because the
+    absolute is already false.** Measured before any segmentation: of 201 well-formed historical
+    `#ts=` citations sampled from the corpus, **176 resolve and 25 (12%) do not** — and every miss is
+    in-range, so it is genuinely absent rather than older than the journal. The criterion is therefore
+    **no citation that resolves TODAY may stop resolving after segmentation**, never "all citations
+    resolve": a probe written against the absolute fails on a pre-existing condition this change
+    neither caused nor promises to repair, which would make it unrunnable and eventually ignored.
+    Differential: a citation pointing at a row now in the ARCHIVE half must resolve; if every sampled
+    citation happens to sit in the live window, the probe proves nothing (122 of the resolving 176 sit
+    in the archive half at a 7-day boundary, so a real sample is available).
+    **The 12% is a SEPARATE finding, not this rule's business** — it means some `from:` citations
+    already point at rows the journal does not carry. Recorded here because a reader of this rule must
+    not mistake the differential for a claim that the chain is whole.
+  - **Rule 4 / rule 5 (identity):** for each reader in the census, compare pre- and post-change
+    output as MULTISETS over the real corpus. The differential needs BOTH directions: a deliberately
+    DROPPED row must make the comparison fail, AND a deliberately DUPLICATED one must too. The second
+    half is not symmetry for its own sake — measured on the real corpus, the journal contains **zero
+    exact-duplicate lines**, so set-identity and multiset-identity coincide there today. A comparison
+    written against SETS therefore passes on this corpus while being blind to duplication, and no
+    natural input exists to catch the confusion. Plant it, or the probe cannot witness rule 5.
+  - **Rule 6 (order-sensitive readers):** each such reader carries its own probe; the tail-window and
+    latest-wins readers are the named instances.
+  - **Rule 8 (the bound reads what its action moves, and the aggregate stays visible):** compute the
+    governance bound after rotation and show it reads the LIVE SEGMENT, while the logical size is
+    still REPORTED beside it as a trajectory carrying no trigger. Differential: two fixtures
+    differing ONLY in live-segment size across the recorded bound must produce DIFFERENT verdicts
+    (a probe that only checks the aggregate is present cannot witness this), and an aggregate over
+    every threshold must contribute NO flagged action — the unsatisfiable-bound failure is what this
+    probe exists to catch, alongside the vanished-aggregate one.
+  - **Rule 9 (verify cost decoupled):** re-measure `tests/verify-durations.json` and show the named
+    journal-driven files flat against a journal grown by a KNOWN amount. This is a differential, not
+    an absolute: "the suite got faster" does not satisfy it, and an unchanged-but-decoupled suite
+    does.
+  - **Rules 2-3 (bounded growth, no manual intervention):** one week of ordinary concurrent operation
+    with bounded `.git` growth and no manual gc, including at least one abandoned branch to exercise
+    the unreachable-object path.
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-N # ( B2). Non-blocking, suppressed in default views.
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: journal-storage-shape-keep-one-logical-journal-wit
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding:
+  - code-enforced # residency token: `implements:` IS the delivery — the rotation
+                               # reader (views.py#_standing_rotation_defer) and the rotation/fold seams
+                               # named above carry this contract into the runtime. Declared at the
+                               # activation, per SPEC-0005 §7 (a spec must declare HOW it
+                               # reaches the AI); same token SPEC-0002 carries for the same reason.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+concern: # SPEC-0128 Rule 2 — the `reads:` ops-carrier section rule 10's bounded
+                               # exemption lives in. OPT-IN and born INERT on purpose: an exemption is an
+                               # EXCEPTION, so the `born:` block below is seeded FULLY COMMENTED and nothing
+                               # LIVE reaches any project's carrier — absence of an uncommented entry means
+                               # "this project exempts no seam", which is the fail-closed reading and the
+                               # one every project starts in. It is seeded rather than omitted because the
+                               # two properties are separable: what P1 refuses is PRE-GRANTING the escape
+                               # hatch, not DOCUMENTING its shape where the person who needs it will look.
+                               # A commented block grants nothing and is what makes the four required
+                               # fields discoverable at the carrier instead of only in this spec. (This
+                               # supersedes an earlier "there is NO born: block" reading, which described
+                               # the intent — nothing pre-granted — but not the shipped shape;.)
+                               # The residual per-entry shape (all four of seam/ratio_bound/reason/until,
+                               # fail-closed) is enforced by the kernel-owned hook named here and
+                               # catalogued in SPEC-0160.
+  section: reads
+  carrier_path: reads
+  declare_key: exemptions
+  declare_type: list
+  presence_policy: opt-in
+  waiver_policy: loose
+  update_policy: init re-seed
+  shape_hook: reads_exemptions_shape
+  born_order: 100
+  born: |
+    # reads:
+    # # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier for a COMPOSED SEAM
+    # # that cannot hold rule 10's read contract. OPT-IN and born fully COMMENTED: nothing here is live,
+    # # so an untouched carrier declares NO exemption, and ABSENCE reads as "this project exempts no
+    # # seam" — the fail-closed default, and the state every project starts in. An exemption is an
+    # # EXCEPTION; this block is here so the escape hatch is DISCOVERABLE and shaped, never so that it
+    # # is pre-granted.
+    # #
+    # # Rule 10, in one line (the rule body is SPEC-0190's — `yitc-v2 graph query SPEC-0190`): a verb or
+    # # seam composing MORE THAN ONE journal/card view establishes ONE request-scoped ReadScope at the
+    # # wiring site, the views it composes stop owning their own folds, and the seam carries a
+    # # regression pinning physical folds <= 1 per segment in scope and card parses <= 1 per card.
+    # #
+    # # DECLARE an exemption only when a seam genuinely cannot hold that bound. ALL FOUR fields are
+    # # REQUIRED and the check is FAIL-CLOSED (SPEC-0093 declare-or-waive): a malformed entry is REFUSED
+    # # with the missing field NAMED, never silently ignored — an exemption nobody can read is
+    # # indistinguishable from a breach of the rule.
+    # exemptions: # the list; each entry carries ALL FOUR fields below
+    # - seam: "bin/lib/cli.py#_debt_echo_lines" # the WIRING SITE, <file>#<symbol>. The exemption is
+    # # about a COMPOSITION, so it names where the composition is
+    # # decided; a view name would not identify what is exempted.
+    # ratio_bound: 2 # the folds-per-segment this seam is permitted. A POSITIVE number,
+    # # required: an exemption with no ceiling is not an exemption, it
+    # # is a repeal — the seam would be released from the rule rather
+    # # than held to a wider bound.
+    # reason: "<why this seam cannot hold folds <= 1 per segment>" # what is being accepted has to
+    # # be readable by whoever reviews it; a bare date carries none of it.
+    # until: 2026-12-31 # a real ISO date (YYYY-MM-DD) review-by, so the exemption is
+    # # REVIEWED rather than inherited (the rule-8 strict-waiver
+    # # `expiry:` / rule-20 cadence shape, and the same reason).
+implements_signature:
+  bin/lib/cli.py#_iter_events: e62ee528cfcee6df98494858a9f3b8aaabda90e1f6d7018f191ee748bef01602
+  bin/lib/cli.py#_iter_events_tail: 2204d73f266cf306f5fd488c1e28b26cb90e4e236edf3313a7179362e03ef971
+  bin/lib/cli.py#_land_integrate: ed33b2715f783b5bdadea3dbc0421c8e724b84317979a1ee305c7313864ea084
+  bin/lib/events.py#append_event: d9f2201a0f782c728b1e4af415e3f17755f9dfa6c799c12e70c8a3d6f6482548
+  bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735
+  bin/lib/events.py#recombine_journal: fdb186bc5ed87c8fdbd4f1bc2cf146411e79fd762216799a5c9abf6d41ee151e
+  bin/lib/events.py#rotate_journal: b31bb2d4bb31c2a7844e5f5e794db66bca7922c939210c39be37ff2eca6236aa
+  bin/lib/journal.py#archive_scan_events_covering: dec124e360b9ffabf44d19d0754f80b66016da62c7e6bc2d0a5ed6904dd0dbd3
+  bin/lib/journal.py#revision_segment_paths: ae28d789ed11fbdbc2b9c5fe5067729ee6a09fe4cb4e5d2eb39cd49c3eb4873f
+  bin/lib/journal.py#revision_segment_show_argvs: bf3c11a8857b59aa73794dcdde9f6c6073495840974e183c14c8ba9fcc1f5d23
+  bin/lib/journal.py#tail_scan_events_covering: d4a787b6e33cee23ce6189971e9330b81f5b18d1b234c27b0e2f2262f2184a23
+  bin/lib/views.py#_standing_rotation_defer: 6b8e10f47876508037a39ddfb9b8c81f3a9fe3ece6143f9cb43f632b2217d86a
+  bin/lib/worktree.py#rotate_branch_journal: bfbf361b76462f1e65a371531a9c012ea1caba70e151f161b0a17b9021897f2b

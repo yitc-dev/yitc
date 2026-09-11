@@ -1,0 +1,288 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0198
+title: 'Project growth profile — derived resolver, snapshot + check-set hash, conservative defaults, owner override, and the seam-bound lens-activation contract'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # re-pinned to the kernel class-default at plan-accept 2026-09-04 (SPEC-0073 §3) — was the mandatory draft v2-self
+                               # class-default (`~`, travels) at `plan stage accepted` when born proposed.
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # SHIPPED anchors. The design-stage empty mode (SPEC-0005 §7
+                               # mode (b)) is now CLOSED with exactly the anchors it always named —
+                               # a non-normative in-place amend, not a reshape: no rule's required
+                               # behaviour changes, only the empty field is filled with the code that
+                               # implements it.
+  - bin/lib/profile.py#resolve_profile # rule 2 + rule 3 — THE one derivation site; returns
+                                              # {dimensions, check_set, snapshot_hash, check_set_hash}
+  - bin/lib/profile.py#required_check_set # rule 6 activation table, bounded by rule 7 (a prototype
+                                              # criticality collapses the set to the constant floor)
+  - bin/lib/profile.py#profile_snapshot # rule 3 — snapshot_hash over the resolved values+sources
+  - bin/lib/profile.py#check_set_hash # rule 3 — the hash over the derived required check-set
+  - bin/lib/profile.py#second_derivation_sites # rule 3's own tripwire: the AST scan that names any
+                                              # second derivation site outside this module
+  - bin/lib/cli.py#cmd_profile # rule 3 — the read-only `profile` verb (no write, no
+                                              # event: the `debt` posture)
+  - bin/lib/views.py#_render_debt_echo # rule 5 — the seam-bound surfacing: ONE report-only line
+                                              # (snapshot hash + activated lens set) rendered at the
+                                              # three seams the shared debt residue already serves
+
+body: |
+  ## Scenario
+
+  A project on yitc-v2 is never asked to describe itself. At every seam that already runs — session
+  start, the land tail, `debt`, the deploy gate, an authoring floor trigger — the kernel RESOLVES the
+  project's growth profile from what the checkout and its journal already show (routes, auth code,
+  payment SDKs, PII-shaped fields, external keys, migrations, deploy class, collaborators) and reads
+  the lenses that profile requires. When the project crosses a threshold — its first public route, its
+  first PII table, its first payment SDK, its first collaborator — the matching questions ACTIVATE by
+  themselves: the right SPEC-0100 items start arriving at the authoring moment, the cron audit's
+  required scope widens so the last report reads stale, the debt echo shows that dimension's gap
+  register, and the gap items are auto-filed as followups. The owner sees questions, never a prompt to
+  "update the profile"; nothing is executed, dispatched, audited or deployed from a crossing — the owner
+  still authorizes every batch. A prototype with no users hears only the constant floor.
+
+  ## Internal
+
+  THE PROJECT GROWTH PROFILE + LENS-ACTIVATION CONTRACT. One derived declaration, one resolver, many
+  readers. Eight rules.
+
+  ### 1. Ten dimensions, each load-bearing
+  `surface` (public | internal | unknown) · `input_trust` (untrusted | trusted | unknown) ·
+  `data_sensitivity` (pii | sensitive | none | unknown) · `money` (present | absent | unknown) ·
+  `users_roles_tenancy` (multi | single | none | unknown) · `external_integrations` (present | absent |
+  unknown) · `statefulness` (stateful | stateless | unknown) · `operational_criticality` (live-critical |
+  live | prototype | unknown) · `traffic_scale` (declared only) · `collaborator_rights` (declared or
+  provider-backed only). A dimension exists ONLY if at least one derived check changes with its value;
+  a dimension that changes nothing is removed, not kept "for later" (CHARTER §P1 F3).
+
+  ### 2. Derivation table — cheap, reliable, checkout+journal only
+  Each derivable dimension names its SIGNALS (read from the repo tree, `yitc-ops.yaml`, the migrations/ORM
+  schema, dependency manifests, and this repo's journal) and its CONSERVATIVE DEFAULT when no signal
+  resolves: surface→public/unknown activates public-boundary checks; input_trust→untrusted if public or
+  unknown; data_sensitivity→pii-candidate for a stateful public app; money→present on any payment signal;
+  users→multi-user candidate when auth is seen; external→present on a provider/key signal; statefulness→
+  stateful when mutable endpoints or a live app; criticality→live-critical-candidate for public+PII/money/
+  auth. `traffic_scale` and `collaborator_rights` are NOT derived from the checkout (a commit-author count
+  is not a permission proof); they stay owner-declared or provider-backed and read `unknown` otherwise.
+  Signals that are NEVER sufficient alone: README claims, comments/TODOs, UI copy, package popularity,
+  generic HTTP-client usage, uncommitted dashboards. The table is CODE (one module), this rule names it.
+
+  ### 3. One resolver, one snapshot, one hash
+  Exactly ONE kernel library resolves the profile; every seam CALLS it, none re-derives. It returns
+  `{dimensions, signal-per-dimension, snapshot_hash, check_set_hash}`; `snapshot_hash` covers the resolved
+  values (overrides), `check_set_hash` covers the derived required check-set. A consumer of the profile
+  (a SPEC-0145 audit report, an inspection record, a gap-register row) RECORDS the hash it acted under; a
+  reader COMPARES against the current resolution. The read-only verb `bin/yitc-v2 [-C <repo>] profile`
+  prints the resolution; it writes nothing and emits no event (the `debt` posture).
+  **The MACHINE form of that read is `profile --json`, and its payload is a CONTRACT.** A
+  deterministic non-AI consumer — a byte-copied SPEC-0145 producer with no `bin/lib/` beside it — reaches
+  this one derivation site only by EXECUTING the engine, so the JSON it parses is a stable surface, not
+  incidental output. `--json` prints ONE line: `json.dumps` of the dict the resolution ALREADY returns,
+  sorted keys. It is a second RENDER of an existing public value — the resolver is not touched, so the one
+  derivation site is preserved rather than forked.
+  REQUIRED FIELDS, each of which a reader MAY fail closed on: **`snapshot_hash`** and **`check_set_hash`**,
+  each a 64-character lowercase-hex string; **`check_set`**, a non-empty list of non-empty strings. The
+  resolution's other keys (`dimensions`, `evidence`) travel too and are NOT part of the required set — a
+  reader must tolerate their presence and must not depend on them. **A reader validates the required set in
+  FULL before acting on any of it**: there is no partial-success state, and a payload missing or
+  mistyping ANY required field is a DEGRADE, never a partial read (SPEC-0145 owns what a degrade looks
+  like in a report).
+  **The command is a DERIVED value, never a stance.** Where a consumer's carrier holds this invocation
+  (SPEC-0145's `security.audit.profile_snapshot.command`, rendered by `init`), that value is computed by
+  the kernel, not answered by a human — so it is ratified BY CONSTRUCTION and owes no unratified-adoption
+  debt (SPEC-0119 rule 13 exclusion (v)). A derived value is never asked as a question.
+  **It runs SESSION-LESS by contract.** The real trigger of a consumer's security audit is cron/systemd,
+  which carries no session, so `profile` is a member of the SPEC-0050 §8a bounded read-only tolerance set:
+  it resolves and prints under a sessionless environment while every GOVERNED verb still fails closed
+  there. The warning it emits on that path goes to STDERR, so the JSON on stdout stays parseable.
+
+  ### 4. Owner override wins, and is shown as such
+  The `profile:` section of `yitc-ops.yaml` (concern block below) carries ONLY `override:` values and an
+  optional loose `waiver:`; a present override replaces the derived value and is rendered as `override`.
+  Absent/stale/unparseable section = derived profile, conservative. Nothing in the kernel ever asks the
+  owner to maintain this section; the derivation is the default path.
+
+  ### 5. Activation is SEAM-BOUND SURFACING — the CHARTER §6 line
+  Resolution runs ONLY inside verbs that are already running (session start, land tail, `debt`, deploy
+  gate, floor trigger, cron audit, `profile`). A crossing (a dimension moving to a wider value than the
+  last recorded snapshot at that seam) may: deliver the dimension's SPEC-0100 items at the authoring
+  floor; widen the SPEC-0145 required scope; render the dimension's gap register on the debt echo;
+  AUTO-FILE followups for the gap items (armed on a nameable artifact where one exists, else actionable —
+  the shape). It may NOT: watch continuously, classify runtime behaviour, fetch external provider
+  state without an owner command, dispatch a worker, run an audit, open a PR, deploy, or mutate code.
+  Execution of any surfaced item is owner-authorized (a batch), exactly as before.
+
+  ### 6. The activation table
+  first public route or public deploy → surface/input_trust → floor trigger + session-start debt + land
+  tail + cron scope (deploy gate if live) → followup per missing public-boundary item; a TASK only for a
+  deploy-blocking live gap. · first request body/form/upload/webhook → input_trust → authoring floor + land
+  tail → validation/rate-limit/CSRF/log-redaction followups. · first PII/auth/user table → data_sensitivity/
+  users → SPEC-0100 delivery + gap register + cron widening → retention/deletion/classification followups;
+  a task for live unhandled PII. · first payment SDK/key/webhook → money/external_integrations →
+  before-adding-a-dependency + debt + cron + deploy gate for live payments → webhook verification / key
+  rotation / cost-threshold items. · first DB/migration/storage → statefulness → migration stance, tests
+  taxonomy, deploy probe, debt → backup/restore + migration-test items. · first live deploy class →
+  operational_criticality → deploy gate + session-start debt + the monthly active-project review →
+  health/rollback/runbook/alert gaps. · a load-test/SLO artifact appears → traffic_scale → perf lens + debt.
+  · collaborator proof/declaration → collaborator_rights → land-time shared floor + debt → CI/branch-
+  protection/human-author floor. The table is the ONE home; SPEC-0100 / SPEC-0119 / SPEC-0145 / SPEC-0164
+  point here.
+
+  ### 7. Bounds — no flood, no flap, no prototype drowned
+  Prototype/live status gates which lenses may activate at all (a `prototype` criticality receives only
+  the constant floor: secrets, dependency hygiene). Stable dedupe keys (dimension + item id) — one followup
+  per gap item, ever. Followups before tasks. Hysteresis: a dimension widens on one crossing and NARROWS
+  only by an explicit owner override (latch-until-owner-downgrade for surface / money / data_sensitivity /
+  users). Per-project per-run cap on what the monthly review files: one profile-mismatch item + the top
+  two risk items; the aggregate rollup across projects renders first.
+
+  ### 8. The "does this edit raise the profile?" first question
+  At each birth trigger (SPEC-0100 `before-authoring-public-boundary` / `before-adding-a-dependency`) the
+  first delivered line asks whether THIS edit creates a higher-profile surface; if yes, the prospective
+  higher check-set applies to the edit now, and the next seam re-resolves — so an edit that itself
+  changes the profile is never checked against the pre-edit profile.
+
+  ## Parameters
+  None consumed. The dimension vocabulary, the signal table and the caps are CODE constants in the
+  resolver module (single source); this spec names the contract. The cap values (1 mismatch + 2 risk per
+  project per monthly run; hysteresis latch set) are stated in rule 7 as the contract a reader can
+  verify, not as tunables.
+
+  ## Rationale
+  Real incidents (CHARTER §P1 F4): aiseller X-0369 / X-0345 (auth + secrets retrofitted LIVE); the
+  forgotten security plan (deviation `plan-parked-in-draft-on-unnameable-pull-trigger-forgotten`); nine
+  consumers carrying one identical `security.audit` shape regardless of stage. External adjudication:
+  `decisions/production-readiness-derived-profile-self-activating-audit-adhoc.yaml` (YELLOW — seam-bound
+  surfacing only; one resolver; cut every slice) + the two sibling consults. Prior-art: SPEC-0128 (one
+  declaration → all surfaces), SPEC-0119 (report-only debt seams) (auto-filed carrier at a seam),
+  threat-model-as-code, OWASP ASVS levels as check-set libraries. Anti-complexity: +1 concern on the
+  existing registry, +1 read-only verb, one library; NO new store, event type, FSM, detector or gate.
+  What it removes: every instruction that depends on the owner remembering to update a profile; the
+  security-local profile carrier; deploy-only production-gap surfacing.
+
+  ## Verification
+  - **VP1 (derivation, differential):** a fixture checkout with planted signals resolves each dimension per
+    rule 2; removing a signal drops that dimension to its conservative default; `traffic_scale` /
+    `collaborator_rights` read `unknown` with no declaration (test file named by the S0 task).
+  - **VP2 (one resolver, one hash):** two resolutions of an unchanged checkout are byte-identical; every
+    seam that renders a profile-derived line calls the resolver (an AST/grep tripwire names any second
+    derivation site).
+  - **VP3 (override wins + shown):** a `profile.override.surface: internal` on a public-signal fixture
+    renders `internal (override)`; a malformed section reads derived-conservative.
+  - **VP4 (fence, by absence):** a fixture crossing yields `followup_added` rows and NO `bg_dispatch_*` /
+    `deploy_completed` / `land_completed` / audit row caused by it.
+  - **VP5 (bounds):** a prototype fixture activates only the constant floor; a toggled signal keeps the
+    latched value; the per-run cap holds on a fixture with 10 gap items.
+  - **VP6 (adoption, CHARTER §P8):** on ≥ 3 live consumers the session-start echo carries the snapshot hash
+    + activated lens set, and ≥ 1 real crossing produced an auto-filed followup with no owner cue (journal).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-6
+  - CHARTER.md#principle-8
+  - SPEC-0128
+  - SPEC-0093
+  - SPEC-0119
+  - SPEC-0100
+  - SPEC-0145
+  - SPEC-0164
+  - SPEC-0095
+  - SPEC-0169
+  - SPEC-0126
+  - production-readiness-by-derived-profile-a-project-
+
+requires: []
+supersedes: ~
+activation_owner_task: # set at decomposition 2026-09-04 — the S0 card (C0) activates this spec at close.
+proposed_by: production-readiness-by-derived-profile-a-project-
+binding:
+  # CONFIRMED AT ACTIVATION, which is what the draft binding said would happen here. The
+  # `before-project-dimension-judgement` token is WITHDRAWN, on two grounds that agree:
+  # * AXIS — that floor is the kernel↔consumer PLACEMENT/REALM bundle (SPEC-0073/0090/0093/0122/
+  # 0125): where an artifact LIVES. This spec answers a different question — what STAGE a project
+  # has reached — and it is not read before a realm judgement.
+  # * BOUND — that floor carries a hard anti-bloat cap of five specs ( AC3). Joining it would
+  # have spent the sixth slot, and a floor everyone must read is exactly where an unearned entry
+  # costs every session. The guard is deliberate and is left standing.
+  # Delivery is unaffected: this spec reaches the AI through `code-enforced` + a non-empty
+  # `implements:` (SPEC-0005 §7), and its RUNTIME surfacing is the seam echo + the `profile` verb,
+  # never an authoring floor.
+  - code-enforced # the resolver + verb ARE the chokepoint (anchors)
+concern:
+  section: profile
+  carrier_path: profile
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: override
+  declare_type: mapping
+  waiver_policy: loose
+  born_order: 185
+  born: |
+    profile:
+      # SPEC-0198 (project growth profile). This section is DERIVED by the kernel from what the
+      # checkout and journal show (routes, auth, payment SDKs, PII fields, keys, migrations, deploy
+      # class) — you do NOT maintain it. Read the current resolution with `__YITC_CLI__ profile`.
+      # Declare here ONLY what the kernel cannot derive, or an OVERRIDE you want shown as yours:
+      # override:
+      # traffic_scale: "<low | medium | high — the kernel cannot read real traffic from a checkout>"
+      # collaborator_rights: "<solo | named-collaborators — a commit-author count is not a proof>"
+      # surface: "<internal — ONLY if you know this project is never publicly reachable>"
+      # An absent override keeps the derived value; an unknown dimension reads CONSERVATIVE
+      # (wider checks), never narrower. Widening happens by itself at the next seam; NARROWING a
+      # latched high-risk dimension (surface / money / data_sensitivity / users) is an explicit act HERE.
+      #
+      # BORN WAIVED, like `deploy.policy` and `security` — and here the waiver is the literally true
+      # statement, not a placeholder: this section is DERIVED, so a fresh project owes it nothing.
+      # It is seeded as a waiver rather than as an empty `override: {}` because the SPEC-0093 rule-3
+      # stance reader reads an empty declare-key as UNANSWERED, which made every born consumer carry
+      # a permanent conformance issue and failed a fresh `init` (caught by the land verify).
+      waiver:
+        reason: "Born with no override: the growth profile is DERIVED by the kernel from this checkout and its journal, so nothing is owed here. Replace this waiver with an `override:` mapping only to declare what the kernel cannot derive (traffic_scale / collaborator_rights) or to narrow a latched dimension deliberately."
+init_concern: ~
+implements_signature:
+  bin/lib/cli.py#cmd_profile: 0cc9ec1f9829d414f43d2c377b67628e4a1701629618df012e9b3e3afab4e705
+  bin/lib/profile.py#check_set_hash: 4bd9c4f1acec0927a50b1fa4879784c57ed4292af56f427abbdf3818b5366f07
+  bin/lib/profile.py#profile_snapshot: 3e51def17898497c220b35cfa5240581097799fd01abd6bfa7a8d51fc843e4f7
+  bin/lib/profile.py#required_check_set: 0c48cde590be15b085207cca55f507dc59938e10b2b31ff5af09c7eeef752c2b
+  bin/lib/profile.py#resolve_profile: 09eec24e7fb69c3d5fcb669c925ce3e4278630ffcbbe97ad85359afa9ca5313c
+  bin/lib/profile.py#second_derivation_sites: aa77d3aa412aea4e1ed2b71990b3f2309888d4372b21d1860a2ca9ba3e146372
+  bin/lib/views.py#_render_debt_echo: c17a07c0e67d96650d6d47e3bde4d88ff5da080cb388314404c772600e647dbe

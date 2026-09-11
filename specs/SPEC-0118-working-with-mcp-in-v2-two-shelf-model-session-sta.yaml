@@ -1,0 +1,129 @@
+# YITC v2 — Spec
+# Allocated by `bin/yitc-v2 spec new` (auto-ID + flock). Field catalog: SPEC-0030. FSM: GRAPH.md.
+
+id: SPEC-0118
+title: Working with MCP in v2 — two-shelf model + session-start reconcile + capture-delivery contract (before-mcp-use)
+
+status: active
+                               # below (the standard activate-at-close binding pattern, mirrors
+                               # SPEC-0116). The before-mcp-use floor ROW renders UNBOUND in the
+                               # authoring commit ('no spec bound yet') and BINDS at close.
+
+created_at:
+
+travels: ~ # class-default KERNEL — the MCP governance + its delivery travel to every
+                               # consumer (every session, kernel or consumer, may connect/use an MCP server).
+
+consumed: false # no code reads a governing scalar FROM this spec — the governance is prose
+                               # (homed in the pattern), the delivery is the binding, not a read param.
+
+implements: [] # DOCUMENTARY/DELIVERY — like SPEC-0100, this spec is the RETRIEVAL-DELIVERY
+                               # contract for a pattern; it adds NO code. The before-mcp-use floor ROW that
+                               # surfaces it in graph/floor-trigger-map.md is wired by the same task's
+                               # FLOOR_TRIGGERS edit (bin/yitc-v2); non-dangling via `binding:` below.
+
+body: |
+  ## Scenario
+
+  A session (the kernel's own, or a consumer's) needs an external tool-provider — an MCP server — to
+  do its work: a design backend, a chat service, a third-party API surface. It should know, without
+  re-deriving per project, HOW v2 wants it to connect/use that server, how to keep the connected set
+  clean across sessions, and what it MUST record when an MCP tool changes the outside world. The owner
+  sees: a project's always-needed servers are declared once in its committed MCP config; a one-off
+  server added for a single need is dropped again at the next session-start reconcile; and a
+  substantive external write through any MCP tool leaves a journal line like a deploy does.
+
+  ## Internal
+
+  The MCP working-discipline (the two-shelf model, the session-start reconcile, the delivery axis, the
+  territory composition) lives in the pattern `patterns/working-with-mcp-in-v2.md` — the single
+  PROVIDER-NEUTRAL home (SoT; this spec does NOT restate it — CHARTER §P5). The concrete provider
+  commands live separately in a per-client `class: adapter` MCP runbook (e.g.
+  `patterns/the AI provider-code-mcp-runbook.md`) — NOT a governance source (CHARTER §P4b). This spec is that
+  pattern's RETRIEVAL-DELIVERY contract: it binds the delivery so `graph build` surfaces the discipline
+  at the two moments it is needed (the SPEC-0013 binding contract; plan-check finding #1's two delivery
+  moments):
+
+  - **`binding: [seed]`** → the **session-start** delivery, carrying the pattern's §session-start
+    reconcile. Because the `binding:[seed]` `_seed_howto` echo is a `session start` output evicted by a
+    `/compact` (and `session start` is NOT re-run), the concrete post-`/compact` re-delivery surface is
+    the explicit pointer in **AGENTS.md §After-/compact** ("MCP session-start reconcile re-delivery").
+  - **`binding: [before-mcp-use]`** → the **connect/use** floor trigger, carrying the pattern's
+    §two-shelf model / §delivery axis. Before a session registers or uses an MCP server the
+    floor-trigger-map row points it at this spec → the pattern; that row re-delivers via the re-readable
+    `graph/floor-trigger-map.md`.
+
+  Beyond the one design-backend capability rule stated in §Design-backend capability below, this spec
+  carries NO governance rule of its own — the rules (the two-shelf model, the reconcile, the capture
+  obligation, the delivery axis, the territory composition) live ONLY in the pattern sections named
+  above, and the capture floor in SPEC-0116 (P5 — no restatement here, so nothing can drift beside the
+  pattern + the AGENTS re-delivery pointer). Read `patterns/working-with-mcp-in-v2.md` for the rules.
+
+  ## Design-backend capability (provider-neutral rule)
+
+  A design backend has two project types — a reusable **design-system catalog** and a concrete
+  **screen design-project canvas**. They are NOT served by the same tool:
+
+  - The **design-system catalog** round-trips (read + write) through the **built-in / harness-native
+    design-sync tool** — no separately-declared design MCP is required for that side.
+  - The **screen design-project canvas** does **NOT** round-trip through the built-in tool. Its
+    round-trip **REQUIRES the declared design MCP capability** — an explicitly connected design-backend
+    MCP server (a `before-mcp-use` connect, this spec's floor). A session that needs to pull or write a
+    *screen* MUST connect that declared design MCP; the built-in tool alone does not reach it.
+
+  This rule is stated **provider-neutrally** (CHARTER §Principle 4b — the normative text names no
+  provider). *Current implementation facts (non-normative):* the built-in tool is **DesignSync**, the
+  declared design MCP is **`claude_design`** (`api.the provider.com/v1/design/mcp`), both authed via
+  **`/design-login`** — named as facts, not as the rule. Full discipline + the capability matrix +
+  provenance (owner-verified on bc-community, cross X-0230, correcting the earlier X-0136 «one built-in
+  tool covers both types» claim) live in `patterns/design-tool-roundtrip.md` §capability matrix.
+
+  ## Parameters
+
+  None consumed. The binding tokens (`before-mcp-use`, `seed`) are the delivery contract, not a
+  code-read scalar — so `consumed: false`.
+
+  ## Rationale
+
+  Real incident: a kupiclub session wrote a correction into design-project `c95f02ff` via the
+  harness-native DesignSync tool (2026-06-30) and v2 had no documented stance on connecting/using
+  external tool-providers, nor on capturing an MCP-mediated external write (cross X-0138/X-0139). This
+  spec is the delivery vehicle for that stance; the governance prose is the pattern. Prior-art for the
+  delivery SHAPE: SPEC-0100 (a thin floor-binding spec fronting the behavioral-baseline-defaults
+  pattern). Deliberation + rejected alternatives (a coded reconcile verb, a dedicated MCP verb) live in
+  the proposing plan `external-system-interaction-governance-capture-doc`, not here.
+
+  ## Verification
+
+  - **Floor delivery:** after `graph build`, `graph/floor-trigger-map.md` carries a `before-mcp-use`
+    row resolving to `SPEC-0118` (once active); `grep 'before-mcp-use' graph/floor-trigger-map.md`.
+  - **Seed delivery (post-/compact survival):** `bin/yitc-v2 session start` echoes the `binding:[seed]`
+    general-verb seed line naming `SPEC-0118` (the reconcile pointer). Because that echo is evicted by a
+    `/compact` and `session start` is NOT re-run, the concrete post-/compact re-delivery surface is the
+    explicit pointer in **AGENTS.md §After-/compact** ("MCP session-start reconcile re-delivery") — grep
+    `before-mcp-use` / `SPEC-0118` in AGENTS.md. (The floor CONNECT/USE half re-delivers via the
+    re-readable `graph/floor-trigger-map.md` row.)
+  - **Provider-neutrality (CHARTER §P4b):** the pattern `patterns/working-with-mcp-in-v2.md` normative
+    text contains NONE of {`the AI provider mcp`, `the AI provider Code`, `/mcp`, `.mcp.json`, `~/<provider-config>.json`} — those
+    live ONLY in the `class: adapter` runbook.
+  - **Capture composition:** a substantive MCP-mediated external write emits a SPEC-0116
+    `external_action` event (probed there, not duplicated here).
+
+cites:
+  - CHARTER.md#principle-4
+  - CHARTER.md#principle-5
+  - SPEC-0013
+  - SPEC-0084
+  - SPEC-0116
+  - SPEC-0100
+
+requires: []
+supersedes: ~
+activation_owner_task: # this task's `task close` activates SPEC-0118 (proposed→active) + binds
+                               # the before-mcp-use floor row (mirrors SPEC-0116).
+proposed_by: external-system-interaction-governance-capture-doc # plan-born (joins the plan corpus +
+                               # finalization gate — the aggregate audit post --plan at postcheck).
+binding: [before-mcp-use, seed] # before-mcp-use → floor-trigger-map (connect/use); seed → the
+                               # session-start general-verb seed (the reconcile). Plan-check finding #1's
+                               # two delivery moments.
+init_concern: ~

@@ -1,0 +1,193 @@
+id: SPEC-0082
+title: Scenario-fidelity is a recorded plan-check verdict dimension
+
+status: active
+
+created_at:
+
+travels: kernel # SET to kernel by the activation_owner_task (this card) when the spec
+                               # goes active — this IS a kernel methodology rule (the scenario-fidelity dimension
+                               # travels to every consumer). The status gate (SPEC-0073 §1: non-active never travels)
+                               # kept it from exporting while proposed; close flips status → active, so it now travels.
+
+consumed: false # behaviour rule realized by the plan-check verify step, NOT a code-read scalar
+
+implements: # DESIGN-STAGE anchors ( B5 / SPEC-0005 §7 mode (b)): the symbols EXIST;
+                               # this draft describes a dimension to be ADDED to the plan-check verify path,
+                               # built by the activation_owner_task at the plan's decomposition. Non-line-range.
+  - bin/lib/plan.py#cmd_plan_check # the plan-check verdict + audit prompt the dimension extends
+  - bin/lib/cli.py#_plan_structural_findings # the per-audit structural pre-pass the dimension folds into
+  - bin/lib/plan.py#_plan_accept_freshness_hash # the freshness-hash inputs the declared-scenario FSM joins
+
+body: |
+  ## Scenario
+
+  When a plan that declares scenario inputs is `plan check`'d, the verdict records a **scenario-fidelity
+  dimension** computed from machine FACT. A plan declares each scenario with a ROLE: a **baseline**
+  scenario the plan ASSUMES is already a working invariant, or a **target** scenario the plan is BUILDING.
+  Only a **baseline** scenario that does NOT have every spec it `cites` `active` (it cites nothing at all,
+  or rests on a rule not yet agreed — so it is not actually a working invariant) surfaces as a finding; a
+  **target** scenario legitimately does not (that is what the plan builds) and is NEVER flagged. So a plan cannot be vetted toward `accepted` while a scenario it
+  ASSUMES is silently not working — yet a greenfield plan BUILDING a scenario is not dead-ended, and a plan
+  with NO declared scenario roles is audited exactly as before. The owner never re-authors a per-project
+  scenario-coherence rule; it travels as kernel methodology. (Qualitative SPEC-0076 §5 conformance is NOT
+  part of this recorded dimension — see The check + the retirement note.)
+
+  ## Internal
+
+  THE RULE. The `plan check` verdict gains one dimension; NO new gate, verb, event, or lifecycle stage.
+
+  - **Applicability — an EXPLICIT plan-owned role marker (this spec is the SINGLE normative source;
+    strictly conditional, the negative-probe invariant).** A plan declares its scenario roles in a
+    plan-owned frontmatter field **`scenario_roles: { baseline: [<slug>...], target: [<slug>...] }`** —
+    the SOLE normative carrier, whose semantics are owned HERE (SPEC-0082). The dimension keys ONLY off
+    `scenario_roles`, NEVER off bare `cites:` (which stays informational-only in the corpus — an
+    incidental/comparative scenario reference there is OUT of scope and never triggers the dimension; this
+    retires the `cites:`-as-hidden-switch overload). Deriving the role from graph lineage / `proposed_by`
+    is REJECTED (too implicit — it cannot reliably separate baseline from incidental). A plan with NO
+    `scenario_roles` (or an empty one) is out of scope, and the dimension is a STRICT no-op: **NO prompt
+    additions, NO scenario-fidelity section written to the verdict, NO byte drift in the saved verdict**
+    vs the pre-dimension output. Bound to the negative-probe regression test (Verification). (`scenario_roles`
+    is ONE honest plan field; it removes two overloads — see Rationale. The prior dependency on a separate
+    `cites:`-carrier task, is dropped; plan-draft template seeding becomes the place to
+    seed `scenario_roles`, an independent usability aid, not a normative prerequisite for this rule.)
+  - **Field home + form + overlap (one-home, findings 1/2/3).** **SPEC-0082 IS the canonical home for the
+    `scenario_roles` plan-frontmatter field** — its semantics, minimal form, AND invariants are defined
+    HERE. This is a clean EXTENSION, not a second authority: plans have NO single SPEC-0028-style monolithic
+    frontmatter-schema spec — plan fields are defined by their owning specs (`status`/`closed_into`/
+    `implementation_plan` by SPEC-0034) + the SPEC-0043 template, so a new field owned by its introducing
+    spec IS the existing pattern. The SPEC-0043 plan-draft template is AMENDED to SEED the field (the
+    authoring surface). **Minimal form:** an OPTIONAL plan-frontmatter mapping with two OPTIONAL slug-lists
+    `baseline` and `target`; each entry MUST resolve to a `scenario` graph node; **`baseline` and `target`
+    MUST be disjoint** — a slug appearing in both is a MALFORMED declaration (surfaced as a structural
+    finding, NEVER silently normalized).
+  - **The check — fit criterion (DETERMINISTIC, BASELINE-only, from the EXISTING computed signal; no new
+    validator).** For each scenario in `scenario_roles.baseline`, call the existing pure
+    `_scenario_cites_all_active` (bin/lib/graph.py), surfaced on the scenario node as
+    `cites_all_active`. A baseline scenario for which it is **FALSE** — the scenario cites NO spec at all
+    (under-authored), or a spec it cites is not `active` — is a FINDING (a scenario the plan ASSUMES is a
+    working invariant is not actually working); a baseline whose every cited spec is `active` passes (this
+    IS the positive control). **AMENDED by :** the criterion was "computed status is not `live`".
+    `live` required a binding-test-green signal that had NO producer in any repository, so it was
+    UNREACHABLE and the finding fired on EVERY baseline everywhere — a false negative indistinguishable
+    from a genuinely unfinished baseline. `live` is retired from the SPEC-0076 §3 FSM; this criterion keeps
+    the REACHABLE half of what it meant, so both pre-amendment finding populations (`draft` and `building`
+    baselines) are preserved and none is added. **Scenarios in `scenario_roles.target` are
+    NEVER flagged** — any status is legitimate (the plan is building them); they are declared (so they join
+    freshness) but excluded from the finding rule. A `covers`/`cites` anchor that does NOT resolve stays
+    the EXISTING `graph build` HARD ERROR (`building` scope, SPEC-0076 §6b) — unchanged, not
+    duplicated here. Staleness is NOT a separate detector: it is enforced via Freshness (below).
+  - **§5 conformance — ADVISORY prompt cue ONLY (non-recorded, non-freshness-bearing, non-gating;
+    explicit retirement per the external adjudication 2026-06-17).** The audit prompt MAY carry a CUE +
+    POINTER to SPEC-0076 §5/§6 (by reference — NEVER a copy of those contracts; SPEC-0076 stays the SOLE
+    normative home, P5 / SPEC-0005) to orient the auditor toward the §5 rules — added ONLY when the plan
+    declares `scenario_roles` (a no-`scenario_roles` plan gets NO prompt additions — the strict no-op).
+    But qualitative §5 conformance is **NOT a recorded fidelity dimension**: it does NOT enter the saved
+    verdict's scenario-fidelity result, does NOT enter the freshness fingerprint, and does NOT gate. **RETIREMENT
+    (named, P1 F3):** this spec does NOT implement load-bearing qualitative §5 fidelity — making it
+    load-bearing while excluding the scenario body from freshness was internally contradictory (a §5-body
+    change would shift fidelity without staling the verdict), and making freshness cover the body would
+    require an artificial "authored surface vs cosmetic prose" boundary on zero-normative narration = a
+    new quasi-validator (P1 / SPEC-0076 §6 "block on FACT, never a legality validator"). If load-bearing
+    §5 enforcement is later desired (the F-014 concern), it is a SEPARATE artifact/follow-up, not this
+    dimension.
+  - **Report, not a new blocker — explicit verdict-level mapping (finding 2).** The dimension NEVER
+    unilaterally forces RED. Its contribution to the `plan check` verdict: **no `scenario_roles` (or
+    empty)** → no contribution (verdict byte-unchanged); **every `baseline` scenario has all its cited
+    specs `active`** → no scenario-fidelity finding; **a `baseline` scenario that does not** → a
+    **medium-severity** finding →
+    contributes **YELLOW** (recorded + visible; it does NOT hard-block accept on its own); **a malformed
+    `scenario_roles`** (baseline∩target overlap, or a slug not resolving to a `scenario` node) → a
+    **structural finding** from the structural pre-pass; **`target`/incidental** scenarios → never a
+    finding. Enforcement is visibility in the fresh GREEN/YELLOW verdict + owner judgment, NOT an
+    auto-block. A genuinely broken `cites`/`covers` reference stays the existing `graph build` HARD ERROR
+    (`building` scope) — unchanged. Consistent with SPEC-0076 §6 report-not-block.
+  - **Freshness — the BASELINE slice + each baseline scenario's check inputs (one exact rule).** A
+    fingerprint over (i) the **`baseline` list** of `scenario_roles` ONLY — NOT the `target` list — (so
+    adding/removing a baseline, or RECLASSIFYING a scenario into/out of `baseline`, re-checks) and (ii)
+    each **baseline** scenario's `cites` + `covers` + computed status (the FACT inputs the recorded finding
+    reads) joins the EXISTING `_plan_accept_freshness_hash` inputs (same mechanism, more inputs; no new
+    machinery). So a change that can affect the recorded result stales the prior verdict and the accept-gate
+    demands a fresh check. **A `target`-only change (and any incidental scenario) does NOT stale the
+    verdict** — consistent, because `target`/incidental bear no finding AND the `target` list is not in the
+    hash input; a purely EDITORIAL body edit never churns it either (the dimension reads no prose body —
+    zero-normative narration, SPEC-0076). Freshness keys on EXACTLY the inputs the deterministic check
+    reads — the baseline slice — no more, no less, so there is no fidelity-vs-freshness gap. This is how
+    staleness is enforced (see The check).
+  - **Amends (replacement-map)** — SPEC-0034 §accepted/§decomposition (the plan-check verdict gains the
+    deterministic baseline-scenario fidelity dimension; the `_plan_accept_freshness_hash` inputs gain the
+    `baseline` slice of `scenario_roles` + each baseline scenario's `cites`/`covers`/status — the `target`
+    list is NOT a freshness input); SPEC-0043 plan-draft template (AMENDED to seed the `scenario_roles`
+    field — the authoring surface); SPEC-0036
+    §Plan-stage overlays (the single home for the plan-gate QUESTION
+    TEMPLATES — the accept/decomposition template MAY gain an ADVISORY pointer-cue to SPEC-0076 §5/§6: a
+    reference only, never a copied rule-text, and explicitly non-recorded / non-freshness-bearing /
+    non-gating; SPEC-0076 stays the sole normative home, P5 / SPEC-0005); and SPEC-0076 §6 plan-altitude
+    clause (RETIRES the convention-only/unrecorded scenario-coherence expectation at plan authoring; NAMES
+    `plan check` as where the DETERMINISTIC scenario-fidelity result is recorded). The §6 TASK-lifecycle
+    touchpoints (regression-test / broken-ref hard error / staleness WARN) are UNCHANGED.
+
+  ## Rationale
+
+  F-009 (kupiclub pilot): the scenario entity shipped (node/doctrine/verbs) but scenario coherence never
+  reached the plan-lifecycle external check, so a plan could be vetted with a BASELINE scenario it assumes
+  working that is not. This dimension REUSES the `plan check` verdict + the pure `_compute_scenario_status`
+  (CHARTER §P1 F2 — extend over a new gate) to record a DETERMINISTIC baseline-fidelity finding
+  (originally baseline-not-`live`; see The check for the amendment),
+  and RETIRES the convention-only plan-altitude scenario check (§P1 F3). **The explicit `scenario_roles`
+  marker (one honest plan field) removes TWO bad overloads (external adjudication 2026-06-17, P1):**
+  (1) "any not-yet-proven cited scenario is a universal finding" — which would dead-end a greenfield plan
+  building its own (legitimately not-yet-proven) target scenario; and (2) "bare `cites:` is a hidden gate
+  switch" — turning an informational/comparative reference into a load-bearing input. The sibling F-014
+  false-flag shares the root but is NOT closed by this dimension as a load-bearing check — only an advisory
+  §5 prompt cue is added here; load-bearing §5 enforcement, if wanted, is a separate follow-up. Net-new
+  dimension grounded in F-009 (journal sweep: the 46 `fidelity` hits are the unrelated
+  decomposition-fidelity audit).
+
+  ## Verification
+
+  - **observed (detection — baseline fidelity):** a plan whose `scenario_roles.baseline` lists a scenario
+    that cites no spec, or cites a spec that is not `active` (`cites_all_active` FALSE), yields a
+    scenario-fidelity FINDING in its `plan check` verdict.
+  - **observed (target excluded — the greenfield case):** a plan whose `scenario_roles.target` lists a
+    scenario at `draft`/`building` yields NO scenario-fidelity finding (the plan is building it; not a
+    dead-end).
+  - **observed (positive control / no false positive):** a plan whose `scenario_roles.baseline` scenario
+    has every spec it cites `active` yields NO scenario-fidelity finding. This control is REACHABLE only
+    because of the amendment — under the retired `live` criterion no repository could satisfy it,
+    so the control was vacuous.
+  - **observed (negative probe — STRICT no-op):** a plan with NO `scenario_roles` (incidental scenario
+    `cites:` only) has a verdict byte-IDENTICAL to the pre-dimension output — no prompt additions, no
+    scenario-fidelity section.
+  - **observed (freshness — baseline slice only):** after a GREEN/YELLOW `plan check`, changing the
+    `baseline` slice (add/remove/reclassify a baseline) OR a baseline scenario's `cites`/`covers`/status
+    stales the prior verdict; a `target`-only change, an incidental scenario, or a purely EDITORIAL
+    baseline body edit does NOT stale it.
+  - **observed (prompt — advisory pointer, non-recorded):** the `plan check` audit prompt carries a CUE +
+    POINTER to SPEC-0076 §5/§6 (by reference, not copied rule-text); it is advisory and does NOT enter the
+    recorded scenario-fidelity result or the freshness fingerprint.
+  - **failure-threshold:** a false finding on a no-roles plan OR an all-cites-active baseline OR a target
+    scenario (scope creep / false positive / greenfield dead-end); OR a not-all-active BASELINE producing NO finding
+    (miss); OR the dimension adding a transition-refusing gate; OR a `scenario_roles`/baseline-input change
+    failing to stale the verdict.
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0034
+  - SPEC-0036
+  - SPEC-0043
+  - SPEC-0076
+  - SPEC-0070
+  - scenario-to-plan-fsm-fidelity-gate-enforce-scenari
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # SET at the plan's decomposition (2026-06-17) — the wiring card whose close activates this spec
+proposed_by: scenario-to-plan-fsm-fidelity-gate-enforce-scenari
+binding: [code-enforced] # code-enforced contract (non-empty implements, realized by the plan-check verify step);
+                               # set the residency token at activation (matches SPEC-0077 sibling machinery)
+implements_signature:
+  bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
+  bin/lib/plan.py#_plan_accept_freshness_hash: 0571aad078c3e832c44ccb982039b5dee82a376c602af785fe6f15bc996d5890
+  bin/lib/plan.py#cmd_plan_check: feb077f4fd1ec168b36ae31902cebdcd282282763aa91ddc6aee7f69af84d0e1

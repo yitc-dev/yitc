@@ -1,0 +1,347 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0170
+title: Frontend-error triage conveyor — an adoptable extension folding a project-side error store by fingerprint into confirmed clusters
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: adoptable # SET at plan-accept 2026-08-07 (accept-gate finding 2): a consumer-installable
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # SET by, the first implementing card — the fold + view verb.
+                               # The note below is kept: the spec was BORN `implements: []` on purpose,
+                               # and these are the concrete anchors it said the implementing cards set.
+                               # Further anchors (preflight, declaration, echo, ack, promote, cadence)
+                               # are added by /0775/0776/0777/0779/0803 as each lands.
+  - bin/lib/frontend_errors.py#classify_kind
+  - bin/lib/frontend_errors.py#normalize_message
+  - bin/lib/frontend_errors.py#fingerprint
+  - bin/lib/frontend_errors.py#extract_label
+  - bin/lib/frontend_errors.py#fold
+  - bin/lib/frontend_errors.py#read_rows
+  - bin/lib/cli.py#cmd_frontend_errors
+  - bin/lib/frontend_errors.py#qualifying_source_violations # — the six-property preflight
+  - bin/lib/init.py#_hook_extensions # — the EXISTING declare-or-waive
+                                                              # declaration that CARRIES the preflight
+                                                              # (no second declaration path)
+  - bin/lib/init.py#_extension_source_violations # — the ONE home both the read side
+                                                              # (sweep) and the write side (adopt) resolve
+                                                              # the per-spec source residual through
+  - bin/lib/init.py#_adopt_extensions # — the adopt path, now GATED by the
+                                                              # preflight at WRITE time
+  - bin/lib/init.py#_parse_extension_source # — the `--extension-source` grammar
+  - bin/lib/init.py#_render_source_block # — the nested `source:` TEXT render
+  - bin/lib/frontend_errors.py#fold_acks # — the ack marker's journal FOLD
+                                                              # (SPEC-0095 shape: append-only events,
+                                                              # derived at read time, no store)
+  - bin/lib/frontend_errors.py#apply_acks # — the suppression PREDICATE
+                                                              # (`last_seen <= acked_at`): the whole
+                                                              # never-a-permanent-mute guarantee
+  - bin/lib/frontend_errors.py#resolve_ack_target # — fail-closed ack resolution:
+                                                              # only a cluster the line SHOWS is ackable
+  - bin/lib/frontend_errors.py#render_acked # — the audit surface for what an
+                                                              # ack is currently suppressing
+  - bin/lib/frontend_errors.py#resolve_promote_target # — promote resolution (visible
+                                                              # AND acked: a mute is not an un-know)
+  - bin/lib/frontend_errors.py#promotion_capture # — the cluster rendered as the
+                                                              # EXISTING followup carrier's capture
+  - bin/lib/followup.py#_require_provenance_in_card # — THE provenance gate: the
+                                                              # promoted card must name the cluster
+                                                              # fingerprint or the promote refuses
+  - bin/lib/followup.py#cmd_followup_promote # — the UNCHANGED open->promoted
+                                                              # leg the promotion path rides
+  - bin/lib/frontend_errors.py#visible_clusters # — the ONE home for
+                                                              # fold->ack-fold->ack-apply, shared by the
+                                                              # verb, the echo and the cadence sweep
+  - bin/lib/nightly.py#_check_frontend_errors # — the CADENCE: the periodic fold
+                                                              # riding the EXISTING SPEC-0105 nightly
+                                                              # carrier (SPEC-0142 §2 binding 1)
+  - bin/lib/frontend_errors.py#cadence_liveness # — the marker-gated liveness fold
+                                                              # over the CARRIER's own journal
+  - bin/lib/frontend_errors.py#cadence_not_fired_lines # — the loud-failure tripwire: a
+                                                              # dead cadence never reads as "no errors"
+                               # DESIGN-PHASE note (kept, accept-gate finding 5, 2026-08-07):
+                               # born `proposed` before its implementing symbols exist; a placeholder
+                               # anchor would enter the graph as FALSE evidence. Concrete anchors are
+                               # set by the implementing cards (GRAPH: specs may exist before code).
+                               # = Anchors. durable anchors : PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  A consumer project already captures its frontend errors in its own store. The owner never reads that
+  store raw. Instead, a cadence sweep folds it by fingerprint, recurrence collapses the noise, and only
+  what survives the thresholds becomes a CONFIRMED cluster the owner is shown and can promote into a
+  task. Nothing is promoted automatically.
+
+  ## Internal
+
+  DRAFT — plan-local, governs nothing (SPEC-0005 §4). Its parameters are the SUBJECT of the plan's
+  `trial`: they are deliberately UNSET here, because fixing them from the armchair is exactly what the
+  trial exists to prevent. What IS settled and must not drift during the trial:
+
+  1. **Placement split (settled prior-art, SPEC-0122 / X-0205).** CAPTURE is `project` realm — the
+     consumer's own store, its own code, never written by the kernel. PROCESS is `kernel` realm — this
+     conveyor, travelling as a pin, adopted per project.
+     - **INPUT CONTRACT — the QUALIFYING SOURCE (measured at n=2 in run-2; owner-decided 2026-08-06 on
+       the external consult `decisions/frontend-error-conveyor-input-contract-fork-audit-adhoc.yaml`,
+       YELLOW/3, all three findings absorbed).** The placement split above must NOT be read as "the
+       consumer has a store". The contract is CAPABILITY-based — and deliberately STRONGER than "any
+       stream the kernel can read". A source QUALIFIES only if it is all six of — **consumer-owned**
+       (its realm, its code) · **durable** (outlives the process that wrote it) · **queryable across the
+       whole fold window** (not merely a live tail) · **provenance-preserving** (a cluster chains back to
+       its captured rows) · **fingerprintable** (a shape stable enough to fold on) · **covering the
+       in-scope error classes** (not one narrow slice).
+       Measured against that contract aiseller's `system_errors` qualifies, and boomrocket's capture
+       fails it on four of the six — its sinks are an external SaaS, one unstructured log line and a
+       fire-and-forget webhook (not consumer-owned, not durably queryable, no kernel-readable trace at
+       all across 30h of live logs), and it covers only React render crashes, missing the api-fetch class
+       that is 94% of aiseller's stream.
+       **Resolution (owner, 2026-08-06).** Keep the kernel conveyor THIN — NO ingest path and NO provider
+       adapters (that route drags in credentials, rate-limit behaviour and precisely the parallel
+       pipeline this plan refuses to build). Adoption is gated by a **qualifying-source preflight** that
+       rides the EXISTING SPEC-0093 declare-or-waive adoption declaration — NOT a new checker, store or
+       FSM (CHARTER §P1 F1/F2). What it REMOVES (F3) is SILENT non-adoption — today a consumer whose
+       source does not qualify would see exactly what a healthy consumer sees, an empty line; the
+       preflight makes that case say WHY instead. A consumer that needs capture-store work is addressed
+       by a SEPARATE `cross request` in its own realm and on its own timeline — never as a blocker of
+       this plan.
+       **Bound (same consult).** n=2 settles THIS plan's scope, because one real counterexample is enough
+       to retire an unconditional-adoptability claim. It does NOT license a universal capture-store
+       standard, and none is authored here.
+  2. **Confirmed clusters are a DERIVED VIEW over the project-side store — never copied state**
+     (CHARTER §P5; gate-specs GREEN finding 4, 2026-08-06). No second store, no mirror, no sync.
+  3. **The sweep triages and REPORTS; it never promotes work** (CHARTER §6 fence; gate-specs GREEN
+     finding 5). Promotion is an owner/session act through the existing `followup` carrier.
+     **BUILT — the promotion path, and the two properties that carry it.** The act is
+     `frontend-errors --promote <label|fingerprint>`: it resolves ONE confirmed cluster and captures
+     it through the EXISTING `followup add` body (SPEC-0095) — no promote verb of its own, no second
+     capture path, no store. The followup then becomes a task card by the carrier's UNCHANGED
+     open->promoted leg (`followup promote <id> --into T-XXXX`, whose `--into` was already mandatory
+     per X-0165); SPEC-0095's 2-state FSM is REAFFIRMED, not extended, because the cluster travels as
+     an ATTRIBUTE (`fingerprint`, born-only + immutable — the `actor` shape), never as a status.
+     - **Provenance survives the hand-off, or the hand-off does not happen.** The hand-off is the one
+       moment provenance can be dropped SILENTLY: a card filed without the fingerprint looks entirely
+       ordinary, and nothing else in the system would notice that the task can no longer be traced to
+       the errors that justified it. So `followup promote` REFUSES when the record carries a
+       `fingerprint` the target card's text does not contain (a substring test over the card TEXT —
+       a fingerprint is `kind | normalized message`, not a graph id, so it belongs in the card's prose
+       and not in `cites:`). The check FAILS CLOSED: a fingerprint-bearing record whose session cannot
+       read cards is refused rather than promoted unchecked. Given the fingerprint, the cluster and
+       its source `row_ids` re-resolve through `frontend-errors --json` — the chain, end to end.
+     - **Nothing promotes autonomously**, and this is STRUCTURAL rather than promised: promotion is
+       reachable only from that explicit argv act, so no fold / echo / view path can enter it — there
+       is no threshold, no schedule and no "should I promote?" judgement anywhere in the module. An
+       acked cluster stays promotable (a mute is not an un-know), which is the sole deliberate
+       difference between promote-resolution and ack-resolution.
+     Probed by A31-A34 in `tests/test_frontend_error_conveyor.py`, of which A32 is the SPEC-0165
+     tripwire against the silent breakage — provenance dropped in the hand-off.
+  4. **No parallel journal, parser or workflow** (gate-specs GREEN finding 2). The conveyor reuses the
+     deviation-channel semantics wholesale — see the plan's prior-art table.
+  5. **Adoptability.** Marked `extension: adoptable` (SPEC-0101) with a consumer-side declaration
+     (SPEC-0093); a consumer that does not declare it simply does not have it. The marker is the whole
+     of what SPEC-0101 contributes (rule 1 — the adoptability STATE); the derived catalog surfaces it,
+     and the adopt PATH stays SPEC-0093 rule 13's (one home each).
+     **The adopt path is GATED by the qualifying-source preflight at WRITE time, not only at sweep time
+.** The two are one contract, and splitting them is not neutral: the governed
+     `init --adopt-extension SPEC-0170` would otherwise write a bare cite that the carrier's very next
+     declare-or-waive sweep fail-closes on — the verb WEDGING the carrier it just wrote, with no
+     verb-covered exit but a hand-edit (the X-0401 defect shape). So adopting this extension REFUSES,
+     with the failing property NAMED, unless a qualifying `source:` is declared, and the declaration is
+     itself governed (`init --extension-source SPEC-0170:<properties>`) rather than hand-written. Which
+     specs demand a source is ONE home shared by both sides (`bin/lib/init.py#_extension_source_violations`),
+     never a literal repeated per call site.
+  6. **The CADENCE and its liveness.** §Scenario says «a cadence sweep folds it»; this item
+     is where that cadence's rules live. It rides an EXISTING OS-triggered carrier — the SPEC-0105
+     nightly runner, whose trigger→run path is already a system cron invoking a deterministic script —
+     because SPEC-0142 §2 binding 1 requires a governed recurring obligation's WHOLE trigger→run path
+     to be provider-independent, and reusing a compliant carrier is how that is met without a second
+     scheduler (CHARTER §P1 F1/F2: no new scheduler, store, FSM, config surface or event type; the run
+     record is the carrier's own `nightly_run_completed`). The sweep folds ONLY sources a consumer has
+     already DECLARED and the preflight passes — it never discovers a source and never authors a
+     consumer-side declaration. A run over ZERO adopted sources is an explicitly STATED no-op,
+     because an empty run that printed nothing would be indistinguishable from a run that never fired.
+     Any AI triage of the resulting clusters would be a SEPARABLE, non-gating downstream layer
+     (SPEC-0142 §2 binding 2); none exists, and none may become what fires or gates the sweep.
+     **LIVENESS is part of the cadence, not an extra.** Every surface this conveyor ships is
+     suppressed-when-clean, so a DEAD cadence reads exactly like a healthy quiet one — the state the
+     plan's trial actually found the delivery half in. So a cadence that has not fired inside its
+     declared window (48h — a daily carrier plus one missed run of slack) is REPORTED not-fired on the
+     reader surfaces, naming the carrier and its OS trigger. Two properties make that report sound and
+     both are load-bearing: liveness is folded from the CARRIER's own journal, never from the journal of
+     whatever repo is being read (SPEC-0110 r3 — a monitor moved by the thing it monitors grades every
+     healthy consumer dead); and a carrier run counts only when it CARRIED the sweep, proven by the
+     run-row marker, since a carrier run without this leg is not this cadence firing and counting it
+     would let a healthy cron keep the alarm quiet over a dead delivery half.
+
+  ## Parameters
+
+  Set from the trial's convergence read, not before it. Listing them here is what makes the trial's
+  subject explicit and its exit checkable. Values below carry the run-ref that set them; a value set
+  by ONE run is provisional until it survives a second run unchanged (SPEC-0035 rule 5).
+
+  | Parameter | What it decides | Status |
+  |---|---|---|
+  | kind cut | which error KINDS are eligible to confirm at all | SET(run-1, provisional): transport is NEVER confirmable — `TypeError: Failed to fetch` / `Load failed` / HTTP 502·503·504. Confirmable: `code-defect` (`Uncaught *`, `[react render]`), `server-defect` (HTTP 500 carrying a signature), `unhandled-rejection`, HTTP 4xx. A bare HTTP 500 `Internal server error` carries no signature — `server-opaque`, not confirmable |
+  | confirm-threshold | how many recurrences make a fingerprint a CONFIRMED cluster | **POLICY CHOICE(run-1) inside an observed safe band, NOT an evidence-selected value.** The runs show only that 2, 3 and 5 were EQUIVALENT on the one qualifying stream — they do not show that 2 beats 3 or 5, and 10 silenced real defects. So `2` is chosen within the band the data left open (a lower value confirms sooner once the kind cut has already removed the noise class), and it is recorded as a choice so no later reader mistakes it for a measured optimum. Distinguishing 2 from 3/5 needs data this trial did not have |
+  | severity-cut | which severities are eligible to confirm at all | SET(run-1): `error` only (`warning` excluded). NOT the discriminator it was assumed to be — the store carries only two severities and every frontend row is `error`; the kind cut does the work |
+  | TTL / ack | when a confirmed cluster ages out or is acknowledged away | SET(run-4) — the pair SPLITS and resolves in opposite directions. **TTL — REMOVED** (CHARTER §P1 F3): a cluster already leaves the line by ageing out of the rolling window, so a separate TTL knob governs nothing; measured across 80 daily window positions, every cluster's stretch ended by window-expiry alone. **ack — KEPT, and now evidence-backed**: the measured worst case is a **30-day nag** — two clusters (`PhraseFunnelSnapshot`, `React error #31`) stayed confirmed on EVERY start-up for the window's full length, and five more ran 21-25 days. Without an ack the only ways to silence a known-and-not-being-fixed cluster are to fix it or to wait a month, which is exactly how a report-only line turns into noise the owner learns to ignore. **Form — a DESIGN BOUND, not a trial-proven behaviour.** The trial proved the NEED (the measured 30-day nag); it never exercised an ack. The intended shape is a journal-folded marker against the fingerprint — the existing `followup` shape (SPEC-0095: a 2-state item folded from the journal, no store of its own) — suppressing that fingerprint's line entry until it recurs after the ack. That suppress-until-recurrence behaviour is UNVERIFIED and must be probed when built; it is a bound on the design, not a result. **BUILT + PROBED ** — the form is the one bound above and nothing more: an append-only `frontend_error_acked` journal event carrying the FINGERPRINT, folded at read time (`fold_acks`), with NO store, table, file, status field or FSM. **The suppression rule, now stated:** an acked cluster is hidden iff `last_seen <= acked_at`, re-derived on EVERY fold — so suppression is a COMPARISON against evidence that keeps arriving, never a stored mute that could outlive the judgement behind it. The first occurrence AFTER the ack returns the cluster to the line unasked, with its full count intact. Two consequences are load-bearing and deliberate: the ack timestamp is the EVENT's own envelope `ts` (it cannot be back-dated over a recurrence that already arrived), and an ack RESOLVES only against the clusters the line currently SHOWS — re-acking an already-suppressed cluster is REFUSED, because it would push the ack forward on a cluster that has produced nothing new and so silently stretch the mute. Ack buys silence on the session-start ECHO only: the explicitly-invoked view REPORTS the suppressed count (and `--acked` lists them with their ack dates), because an ack no one can enumerate is a mute with no audit surface. Probed by A-FE27/28/29/30 in `tests/test_frontend_error_conveyor.py`, of which A-FE28 is the SPEC-0165 tripwire against the one dangerous degradation — ack becoming a PERMANENT mute over a recurring live defect |
+  | fingerprint shape | what makes two frontend errors "the same" | SET(run-1, provisional): `kind │ normalized-message`. Normalization strips row UUIDs and free numbers but **EXEMPTS HTTP status codes and error codes** (blanket digit-stripping merged 502+504 and ate React `#31`). The ENDPOINT is cluster METADATA, never part of the key (keying on it split one transport fingerprint into 20). `error_class` is unusable — NULL on every frontend row |
+  | window | how far back the fold looks | SET(run-1, provisional): **30 days**, rolling |
+  | per-fingerprint cap | bounding one fingerprint's contribution during a burst | REMOVED(run-1) — measured inert: cap 5/20/None produced identical output on the 158-row burst day, because the fold itself is the burst defense (152 rows → ONE cluster ×152). Kept out per CHARTER §P1 F3 |
+
+  **Why the kind cut, not the count (run-1's central finding).** On the real stream the noisy class is
+  ALSO the highest-count class — transport is 782 of 836 rows (94%) — so a count threshold ranks noise
+  first at every setting: thresholds 2/3/5 produced an IDENTICAL line, and 10 silenced the real defects
+  too. Confirmability is a question of KIND (can the owner act on it?), not of volume.
+
+  **Verification status (run-2).** Every value above was EXECUTED end-to-end against the real
+  stream, not merely diagnosed — status/error codes survive normalization (`500` and
+  `React error #31` stay distinct, while 502/504 are correctly classed transport), the endpoint
+  stays metadata, provenance rows are retained, and the 30-day window is silent a second time.
+  Values UNCHANGED by run-2. They stay provisional because run-2 edited this spec body (the
+  input-contract constraint above), so the two-quiet-cycles floor (SPEC-0035 rule 5) restarts here.
+
+  None is `consumed` (no code reads a governing scalar from this spec —).
+
+  ## Rationale
+
+  Real incident: the v1 `ux-reviewer` role ran this conveyor nightly and v1-quiesce retires it, so on
+  v2 a consumer's captured error stream accumulates unread. Prior-art for the mechanism is the kernel's
+  OWN deviation channel, which already runs capture → fold → confirm → promote (SPEC-0055 / SPEC-0056 / SPEC-0095). Owner design cue 2026-07-11: a frontend error is the product-side
+  twin of a methodology deviation — model the process half on that channel, not a new pipeline.
+
+  ## Verification
+
+  Trial-stage (this draft): each trial run is journaled with a `run_ref`; a run that changes any
+  parameter above is by definition non-converged. Exit per SPEC-0035 rule 5 + the plan's baked criteria.
+  Post-activation: the plan's postcheck probe block — the echo fires on confirmed clusters, stays silent
+  when clean (BOTH halves), and ≥1 real cluster travels capture → fold → confirm → promote with its
+  provenance chain intact.
+
+  **View-verb invocation shapes ( — no parameter above changes).** `frontend-errors` takes TWO
+  argv shapes over the SAME fold: the AD-HOC one (explicit `--pg-container`/`--table`, unchanged, for a
+  one-off or un-adopted source) and the BARE one (no flags), which resolves the source the consumer
+  DECLARES under `extensions.adopts[] spec: SPEC-0170` — the same declaration §Internal item 1's
+  six-property preflight already gates, read via `frontend_errors.declared_source`, with a
+  non-qualifying declaration REFUSED naming the failing property rather than folded over. This is a
+  resolution path in FRONT of the reader, not a change to the window, the confirm gate, the fingerprint
+  or the reader itself; the bare shape exists because it is what SPEC-0171's post-`/compact` re-fold
+  must be able to invoke (the `debt` / `cross outbox` shape, where the on-demand view IS the re-fold).
+  Covered by A-FE26 in `tests/test_frontend_error_conveyor.py`.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-N # ( B2). Non-blocking, suppressed in default views.
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # SET at decomposition 2026-08-07 — card 3 is the ONE task whose close
+                               # activates this spec (SPEC-0034 plan-born rule).
+                               # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: frontend-error-telemetry-conveyor-as-a-kernel-exte
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # : the residency token — this spec's rules are ENFORCED IN CODE
+                               # (the fold's settled parameters in bin/lib/frontend_errors.py; the
+                               # six-property preflight + the write-time adopt gate in bin/lib/init.py),
+                               # not FETCHED by a session before a gated action. It is not a floor
+                               # (nothing about it must be always-loaded) and not query-only (code, not
+                               # only a view, reads it) — the same token SPEC-0101, its catalog sibling,
+                               # carries.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/cli.py#cmd_frontend_errors: 9268f9483976b17f4f9ca6e4a70c56d3cfa3c79af0220b3f226372607b051404
+  bin/lib/followup.py#_require_provenance_in_card: 975409dfe78957e4ebfc58ec7d8b1235dbe38dc5b01b3a2b0936686677fdc5a3
+  bin/lib/followup.py#cmd_followup_promote: 92e35fbc3c8da9b7903df704440a777d79a1f47b8aa1597d3129e87733e1492c
+  bin/lib/frontend_errors.py#apply_acks: 2f14dfa7e9fedc2c6c98ee412e0f687badfffc6fb8e4bfe96110bca2074545d1
+  bin/lib/frontend_errors.py#cadence_liveness: c8ce9baa35213151c53c0935a3d456c69d786034a9ea0e96ec5db63334096874
+  bin/lib/frontend_errors.py#cadence_not_fired_lines: e78fd7abed869bdc462c7acdc9c74b5910a53f591cf8f9c9d0d0444405f1fa8f
+  bin/lib/frontend_errors.py#classify_kind: b11084df8201e7c5768a1e6d5134aded57d0f2fcc4037164c650015fb05e8775
+  bin/lib/frontend_errors.py#extract_label: 942714ecbeeaef7c4ee7f130adb986be1f6d45df7835aa4dc2c995501521f67a
+  bin/lib/frontend_errors.py#fingerprint: 5469b0aec1c27652a6175845d6df728b6ad708a2d1bc8954dd3d6c9658379812
+  bin/lib/frontend_errors.py#fold: b7292dbc838dea399750ebba658d8c22cfe01db9dffcbaaeb838ba858087875d
+  bin/lib/frontend_errors.py#fold_acks: b1f1b81a6079db203105e21a84427472c62e88d9878105940854c8d4c71c5b6f
+  bin/lib/frontend_errors.py#normalize_message: ec49bd6acc80893ed4d0d92f0647795e26c57ed00555c818ccbec317b7482e6a
+  bin/lib/frontend_errors.py#promotion_capture: 03712ad78c0959df88a6b937ff2214a0da9a955c6964d54edf0c46dae490f774
+  bin/lib/frontend_errors.py#qualifying_source_violations: 5b6282d083c7ecbd6fbeb22ec9b75f3a510121cf0531f5418e33f8971f9001ba
+  bin/lib/frontend_errors.py#read_rows: bd4eaabde8a50638f0120313e68e1370c4383894bd3acbf406a867e80bb262c0
+  bin/lib/frontend_errors.py#render_acked: 51cc40c5949ab63e3afb2eb60711562d958666fed53519baa45da7a17479b1db
+  bin/lib/frontend_errors.py#resolve_ack_target: 310058466db2da3a1840774587406123349b34b6907f549efda9ed8ed7d85877
+  bin/lib/frontend_errors.py#resolve_promote_target: 23e024edd02c09f1b60f9dff1dbd87b66d58d9eb9c2ab5912f6928a97da00374
+  bin/lib/frontend_errors.py#visible_clusters: 34f83d9f2f45ce2917aecd4e7f759c90bb12aeb826a1912a1f9e9d5810a65a01
+  bin/lib/init.py#_adopt_extensions: ba3b18d744a51c5b211a6f792be1d0de2b9627c2a2b55483ba234ceeab592293
+  bin/lib/init.py#_extension_source_violations: b8e52c002c644b8a5311ce5b8da0742c50aeaf579ce24350c59de36880794c88
+  bin/lib/init.py#_hook_extensions: 451b5d0421e6b8c58efa55d63b0525dc5890b9f6a798ab58e22c5238c65ab92b
+  bin/lib/init.py#_parse_extension_source: 663bed1ab097f9463131dc83ea1885652c0b577bfd5067b6102bc253d7e23bc5
+  bin/lib/init.py#_render_source_block: 21698434032551c0c36be28446ef18da6b53bbeaf1f09608ac28b1e7b14dcc5a
+  bin/lib/nightly.py#_check_frontend_errors: 9015de3043d3446850a584672d04d7ec9a3e84a88136c404482391384ad93d75

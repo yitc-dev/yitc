@@ -1,0 +1,277 @@
+# YITC v2 — Spec. Allocated by `bin/yitc-v2 spec new --draft` ( Part A).
+# Field catalog: SPEC-0030. Spec lifecycle FSM: GRAPH.md + SPEC-0005 §4.
+
+id: SPEC-0035
+title: Plan stage trial — controlled real-data design-convergence between specs and accepted
+
+status: active
+                               # Promotion draft→proposed happens at `plan stage accepted` of the
+                               # proposing plan (one promotion route); proposed→active via the
+                               # activation_owner_task set at decomposition (SPEC-0034 linkage chain).
+
+created_at:
+
+consumed: false
+
+implements: [] # design-phase process spec ( B5): the implementing change-set
+                               # wires bin/lib/plan.py#cmd_plan_stage (PLAN_STAGE_SEQUENCE insertion) and
+                               # sets anchors then. Note per template: empty implements is deliberate.
+
+body: |
+  ## Scenario
+
+  A mechanism-class plan (one that births a spec / verb / flow) whose design cannot honestly be
+  verified by text audit alone passes, between composing its draft specs and acceptance, through a
+  TRIAL: the planned mechanism is run in a controlled way on real(-ish) working data until the
+  design stops changing. The plan carries its own baked `Trial protocol`, so any fresh session
+  works from the plan alone. The owner judges convergence and advances the plan to `accepted` —
+  which then means "the design converged against real data", not merely "audited on paper".
+
+  ## Internal
+
+  1. **FSM placement.** `trial` is a NAMED plan-FSM state between `specs` and `accepted`:
+     `draft → specs → trial → accepted → executing → postcheck → realized` (existing terminals).
+     **Skip path:** the `accepted` entry-gate is two-branch — *trial converged* (for trial-eligible
+     plans) OR *draft specs composed + checked* (for non-eligible plans, the unchanged current path).
+     One gate, no new taxonomy.
+
+  2. **Eligibility (BOTH required; checked at entry; entry is owner-invoked by default — narrowed by the rule 9 autonomous-non-destructive-trial carve-out).**
+     (a) the plan is mechanism/behavioral — it births a spec / verb / flow;
+     (b) design convergence cannot honestly be obtained by text-audit-only — a short rationale
+     (incident / prior-art / analog) is baked into the protocol at entry.
+     A prose/docs plan is NOT eligible and takes the skip path. (Guards against `trial` creeping
+     into a universal mandatory gate.)
+
+  3. **Entry contract (`plan stage trial`).** The verb delivers THIS spec at stage-entry (the
+     existing plan-stage-entry axis, SPEC-0034 model). Before dwell-work begins, the plan MUST bake
+     a `## Trial protocol` section: chosen mode + why (methods catalog lives in
+     `patterns/trial-methods.md`); probe targets (which edge-case classes are sought); exit
+     criteria (the universal floor of rule 5 + per-plan criteria; the exit convergence read is DUAL — primary + external, rule 5); the safety envelope; the
+     eligibility rationale (rule 2b). The baked protocol makes the plan SELF-SUFFICIENT: `trial` is
+     long-running and multi-session — fresh sessions read the PLAN, not this spec (the
+     `implementation_plan`/resume-contract analog, SPEC-0027).
+
+  4. **Dwell contract.** The plan AND its draft specs are corrected in place, together, as findings
+     accumulate (co-evolution). A trial NEVER mutates real working data: permitted forms are
+     emulation/modulation of the planned flow, or manual controlled execution that is reviewable +
+     rollbackable. Mutation of production data is FORBIDDEN.
+
+  5. **Exit contract (`trial → accepted`).** Universal observable floor (all three):
+     ≥1 journaled trial run; a trial-summary in the plan (verdict against the baked criteria);
+     plan + draft specs unchanged across the last 2 trial cycles. PLUS the per-plan baked criteria
+     (rule 3). The FINAL act is owner judgment citing the journal run-refs — there is NO automated
+     convergence detector (V2 non-goals: no autonomy FSM / detectors).
+
+     **What the third floor item is counted OVER — the DESIGN, not the plan FILE (in-place
+     clarification of a rule that was silent, SPEC-0005 rule 7 —).** Read byte-literally,
+     floor items 2 and 3 are not jointly satisfiable by any trial lasting more than one cycle:
+     recording a cycle's trial-summary IS an edit to the plan file, so "plan … unchanged" could
+     never hold. They are jointly satisfiable because item 3 counts the DESIGN state — the plan's
+     protocol, rules and design body plus the draft specs — which is exactly what rule 4 has
+     co-evolve ("corrected in place … as findings accumulate") and what rule 10(b) calls the DRY
+     state of iterate-until-dry. So: **recording a cycle's trial-summary / run-record section does
+     NOT reset the count; a correction to the design or to a draft spec DOES, and restarts it from
+     that cycle** (fix-first, rule 10(b)). This states what the rule already means — the floor keeps
+     EXACTLY its three items, none widened, none weakened.
+     - **Suppression is not dryness (the direction that matters first).** A finding that requires a
+       correction to the design or to a draft spec must be absorbed before the next cycle
+       (fix-first, "never logged-and-deferred"): withholding, deferring or logging-and-deferring
+       that absorption to keep the count alive buys unchanged-ness by SUPPRESSION, and the cycle
+       does NOT count dry. Only a cycle whose findings needed NO design / draft-spec correction at
+       all — nothing absorbed, nothing deferred that an absorption would have carried — leaves the
+       count intact (e.g. an observation about delivery or adoption rather than design, or a
+       thought parked as a `followup`). Record WHICH of the two it was, so "unchanged" reads as
+       *nothing was there*, not as *nobody looked*.
+     - **Counting when a trial exits on its THIRD or later cycle.** "The last 2 cycles" is the
+       BOUNDARY between the two most recent cycles: the design state at the end of cycle N-1 is
+       identical to the design state at the end of cycle N. Corrections made IN cycle N-1 do not by
+       themselves break it — they are what cycle N was run against. Grounds in this spec's own text:
+       rule 10(b) names the item as the dry state of "keep running cycles until A cycle surfaces
+       nothing new" (singular), which a two-consecutive-dry-cycles reading would contradict. The
+       exiting cycle's own summary write is a record, not a change (above).
+     Real-incident grounding (CHARTER §Principle 1 filter 4) — the same question answered by
+     reasoning at the seam twice, by two authors, deviation fingerprint
+     `spec0035-exit-floor-unchanged-vs-required-summary-ambiguity`: plan
+     `project-declared-audit-post-exemption-cases-plus-t` (2026-08-13, cycle 2, and its cycle-9
+     counting note left deliberately open) and, independently, plan
+     `widen-the-land-re-verify-skip-beyond-the-inert-ret` (2026-08-14, run 3 — the third-cycle form).
+
+     **Dual convergence analysis (the convergence read draws on TWO independent perspectives).** The
+     convergence assessment that the trial-summary records is produced by BOTH (a) the PRIMARY AI
+     self-analysis (the existing trial-summary verdict against the baked criteria) AND (b) an EXTERNAL
+     AUDITOR independent convergence read — applying CHARTER §Principle 4a auditor-independence to the
+     convergence JUDGMENT itself, so "did the design converge?" no longer rests on the single running
+     (primary-only) perspective. The external read REUSES `audit adhoc` (SPEC-0036) — NO new
+     verb/gate/store/detector (CHARTER §Principle 1); it DERIVES its verdict from the baked trial
+     criteria (rule 3) + the journal run-refs, treating the primary trial-summary as CONTEXT/carrier
+     only (not the thing it ratifies). The two reads are produced independently, THEN COMPARED: their
+     agreement/divergence is itself a convergence signal folded into the trial-summary (two agreeing
+     reads strengthen the signal; a divergence surfaces a question for owner judgment to weigh).
+     **BOUNDARY — additive INPUT, NOT a gate.** The external read is an INPUT to owner judgment, NEVER
+     a blocker: trial exit is NOT externally gated, and owner judgment stays the FINAL act — the floor
+     + per-plan criteria + owner-final above are UNCHANGED; this rule ADDS a second analytical read, it
+     does not alter any existing exit obligation. The package-level accept-gate `plan check` (FULL)
+     stays a SEPARATE later audit — this dual read neither duplicates nor replaces it. The how-to (the
+     dual-convergence-analysis METHOD) lives in `patterns/trial-methods.md` (rule 6 carrier).
+     Real-incident grounding (CHARTER §Principle 1 filter 4): the
+     `forward-propagation-adoption-trigger-disposition-r` plan dual-read its trial convergence on
+     2026-06-09 (decisions/forward-propagation-trial-convergence-audit-adhoc.yaml — the two reads
+     agreed on convergence, diverged only on a scope claim later adjudicated GREEN).
+
+     **NARROWING the floor — permitted ONLY as an EXPLICIT RECORDED owner act (additive carve-out,
+     SPEC-0005 rule 7 —).** OLD RULE (the floor above): the three-item floor is UNIVERSAL, and
+     owner judgement — though FINAL — acts WITHIN it; nothing grants a power to narrow the floor
+     itself, so a plan that declares the floor locally superseded overrides an active spec by its own
+     prose, which CHARTER §Principle 7 forbids (specs win). NEW RULE (this carve-out): the floor MAY be
+     narrowed, for ONE NAMED TRIAL, by an EXPLICIT OWNER ACT RECORDED IN THAT PLAN — and the exit then
+     CITES that record instead of overriding this rule. The record MUST name ALL THREE:
+     (i) WHICH floor item is unmet;
+     (ii) WHERE each unmet criterion MOVES — the LATER GATE that now carries it, named by that gate's
+          OWN criterion / block (never a bare "later");
+     (iii) WHY the TRIAL ITSELF cannot produce it — a property of the trial's own legs, not its cost,
+           duration or fatigue.
+     A record missing any of the three is NOT a narrowing: the floor stands unnarrowed and the exit is
+     refused.
+     **BOUNDS — the act NARROWS, it never DISCHARGES:**
+     - the narrowing discharges NOTHING — a moved criterion still GATES its new home, which must stay
+       unreachable without it; moving is STRICTER placement, never retirement;
+     - it NEVER silently narrows a per-plan BAKED criterion (rule 3) — a baked criterion is narrowed
+       only by being NAMED under (i)-(iii) in its own right, never as a side-effect of narrowing the
+       universal floor;
+     - owner judgement stays a JUDGEMENT, not a rubber stamp — the act is the OWNER's, taken on the
+       recorded evidence; a session's own generous re-reading of a criterion is NOT this act and stays
+       refused.
+     Everything else in this rule is UNCHANGED: the three floor items themselves, the per-plan baked
+     criteria, the dual convergence read, and owner judgement as the FINAL act. Real-incident grounding
+     (CHARTER §Principle 1 filter 4): the `close-the-spike-mode-safety-floor-to-data-carried-` plan's
+     accept-gate `plan check` returned RED on two consecutive passes on 2026-08-11 for exactly this
+     absence — an owner-approved narrowed exit with no authority carrier in the corpus.
+
+  6. **Carrier boundary (editorial rule).** The plan carries ONLY the baked protocol + the
+     exit-facing trial-summary. `events.jsonl` carries ONLY raw run observations.
+     `patterns/trial-methods.md` carries ONLY reusable methods / lessons. Moving raw observations
+     into the plan is FORBIDDEN (no parallel carrier — CHARTER §P5).
+
+  7. **Narrowing (what this rule removes).** For trial-eligible plans `plan check` is NOT the
+     design-convergence gate — convergence evidence is produced in `trial` against the baked
+     criteria; `plan check`'s role at the `accepted`-gate is the audit of the ASSEMBLED package.
+     Post-accept spec-rework driven by reality-vs-paper divergence is no longer a normal path (the
+     cheap pre-accept convergence loop replaces the costly post-accept correction loop).
+
+  8. **No-orchestration guard.** `trial` introduces NO new session type, dispatcher, supervisor, or
+     autonomous loop. It is by default an owner-invoked manual Build/Review practice run with existing tooling
+     (CHARTER non-goals #1/#7); rule 9 permits AUTONOMOUS entry for a provably-non-destructive trial under
+     an owner-authorized plan-drive, but this guard against any autonomous LOOP / dispatcher / supervisor
+     stays in force regardless.
+
+  9. **Autonomous-entry carve-out for provably-non-destructive trials (narrowing, additive — SPEC-0005 rule 7).**
+     OLD RULE (rules 2, 3, 8 above): trial entry is ALWAYS owner-invoked. NEW RULE (this carve-out narrows
+     it): a trial-eligible plan whose baked `## Trial protocol` is PROVABLY NON-DESTRUCTIVE — it never
+     mutates production data, honouring the rule 3-4 dwell/safety envelope (emulation/modulation of the
+     planned flow, or reviewable + rollbackable manual execution ONLY) — MAY be entered AUTONOMOUSLY by the
+     Controller under an owner-authorized plan-drive. A trial that is risky or irreversible (any
+     production-data mutation, or a safety envelope not provably non-destructive) STAYS owner-invoked (the
+     unchanged default). Eligibility (rule 2) and the non-destructiveness judgement remain OWNER-AUTHORED in
+     the baked protocol — there is NO detector and NO new mechanism (judgement, not machinery — CHARTER
+     §Principle 1); the Controller reads the baked protocol and enters autonomously ONLY when it provably
+     clears rules 3-4. This narrows ONLY the entry-invocation authority under an existing owner-authorized
+     drive: the eligibility test (rule 2), entry contract (rule 3), dwell/safety envelope (rule 4), and
+     owner-final exit judgment (rule 5) are UNCHANGED, and the no-orchestration guard (rule 8) still forbids
+     any autonomous loop / dispatcher / supervisor.
+
+  10. **Trial-reliability doctrine + skip-is-default (additive, SPEC-0005 rule 7 —).**
+      Two clarifications the prior rules left implicit:
+
+      **(a) Skip-trial is the DEFAULT; enter-trial is the deliberate act.** `trial` is NOT a stage
+      every plan visits and then decides to skip — it is entered ONLY when rule-2 eligibility holds
+      (mechanism/behavioral AND text-audit-insufficient) AND the owner invokes it (or, under rule 9, the
+      Controller enters a provably-non-destructive trial autonomously). For every OTHER plan the path is
+      just `specs → accepted` and NO owner decision is required to "skip" — the skip is the zero-cost
+      default, not a fork to pose. Reading `trial` as opt-OUT (a gate you must justify skipping) is the
+      error this rule closes: it is opt-IN. A plan whose completeness risk is about "does the SHIPPED
+      thing behave" — not "is the DESIGN converged" — does NOT belong in `trial` at all; it soaks at
+      **`postcheck`** (the real-data soak of built work, SPEC-0034 §postcheck), which is a different
+      stage answering a different question. Trial = pre-build design convergence; postcheck = post-build
+      adoption soak. Do not route a build-completeness worry into `trial`.
+
+      **(b) Reliability escalation ladder — fix-first → iterate-until-dry → real-user → concurrent.**
+      When a trial IS run, its dwell (rule 4) climbs a reliability ladder rather than declaring
+      convergence off one clean run: **fix-first** (each surfaced defect is FIXED and the design/specs
+      co-evolved before the next cycle — never logged-and-deferred), then **iterate-until-dry** (keep
+      running cycles until a cycle surfaces NOTHING new — the exit floor's "plan + draft specs unchanged
+      across the last 2 cycles", rule 5, is this dry state), then escalate the FIDELITY of the runs:
+      **real-user** (exercise the flow the way a real user/operator would, not just the happy path the
+      author imagined) and **concurrent** (where the mechanism runs under parallelism/background
+      dispatch, exercise it CONCURRENTLY — the failure class text-audit and single-threaded runs both
+      miss, e.g. the double-claim / journal-isolation defects the §Rationale trial surfaced). This is
+      the reliability shape of rule 5's convergence floor, not a new gate: it says HOW to spend the
+      dwell so the owner's final convergence judgement rests on progressively harder evidence. No
+      detector, no automated ladder-tracker — judgement, per rule 8.
+
+  **Amends (activating change-set obligations).** Activation inserts `trial` into the authoritative
+  plan FSM: SPEC-0034 (FSM line; per-stage list; VP1 binding-token set 6 → 7) and LIFECYCLE.md
+  §Plan-lifecycle (`[trial]` row becomes authoritative). The SAME change-set MUST carry the explicit
+  replacement map (which SPEC-0034 / `patterns/plan-lifecycle.md` / accept-gate formulations are
+  rewritten) — no two competing convergence regimes may remain.
+
+  ## Rationale
+
+  Real incident: dogfooding the `fresh-session-task-dispatch` plan (runs 1–2) surfaced a
+  concurrency double-claim, unreliable free-text gate-at-land, a supervision
+  journal-isolation flaw, false-HANG reads, and a real `task commit` bug — none visible to
+  text-only audit. Prior-art: the Agile/XP SPIKE (time-boxed throwaway experiment whose product is
+  design knowledge); PEP "Provisional" considered and rejected (post-build, the opposite lifecycle
+  end). Full deliberation + decision trail: the proposing plan
+  (plans/add-a-controlled-real-data-trial-stage-between-pla.md).
+
+  ## Verification
+
+  Adoption probe (activation gate, CHARTER §P3/§P8 — infra-class): the FIRST real plan run through
+  `specs → trial → accepted` with journal/state evidence — `plan_stage_entered` (trial) for a live
+  plan; that plan's baked `## Trial protocol` section present; ≥1 journaled trial run; the
+  trial-summary in the plan; the subsequent `plan_stage_entered` (accepted) citing the journal
+  run-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial` between `specs` and `accepted`;
+  `graph query SPEC-0035` shows binding `plan-stage-entry:trial` and `plan stage trial` delivers
+  this spec in its bundle. Without this evidence the activating task does NOT close.
+
+  **(AC1-AC4) what the unchanged-across-2-cycles item is counted over:** rule 5 carries the
+  in-place clarification that the count is over DESIGN state (the plan's design body + its draft specs),
+  that recording a cycle's trial-summary does NOT reset it, the suppression-is-not-dryness direction, and
+  the third-or-later-cycle boundary form — with the real incident cited. Probe (additive edit to this
+  active spec, SPEC-0005 rule 7 — no re-activation): `grep -c 'Suppression is not dryness\|What the third
+  floor item is counted OVER\|spec0035-exit-floor-unchanged-vs-required-summary-ambiguity'
+  specs/SPEC-0035-*.yaml` ≥ 3, and rule 5's floor still lists exactly the same three items.
+
+  **(AC5) trial-reliability doctrine + skip-is-default present:** rule 10 carries (a)
+  skip-trial-is-the-DEFAULT + the trial-vs-postcheck routing, and (b) the fix-first → iterate-until-dry
+  → real-user → concurrent reliability ladder. Probe (additive edit to this active spec, SPEC-0005 rule
+  7 — no re-activation): `grep -c 'skip-trial is the DEFAULT\|fix-first\|iterate-until-dry\|Trial-reliability doctrine' specs/SPEC-0035-*.yaml` ≥ 2.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - CHARTER.md#principle-5
+  - CHARTER.md#principle-8
+  -
+  -
+  - SPEC-0005
+  - SPEC-0027
+  - SPEC-0034
+  - LIFECYCLE.md#plan-lifecycle
+  - add-a-controlled-real-data-trial-stage-between-pla
+  - plan-lifecycle-delivery-parity-redesign-lifecycle-
+
+requires: []
+supersedes: ~ # in-FSM insertion is an AMEND of SPEC-0034's surface (see body
+                               # §Amends), staged; not a wholesale replacement of SPEC-0034.
+activation_owner_task: # set at decomposition 2026-06-05 (plan stage executing) — task close
+                               # (plan stage executing) — one activating task for this spec.
+proposed_by: add-a-controlled-real-data-trial-stage-between-pla
+
+binding: # SET by (the trial replacement-map change-set) — the token is
+                               # VALID now that inserted `trial` into PLAN_STAGE_SEQUENCE
+                               # (`_is_valid_plan_stage_entry` accepts it; graph conformance GREEN). This
+                               # spec stays `proposed` (non-authoritative) until its activation_owner_task
+                               # closes (proposed→active); `proposed` ⇒ unbound was legitimate
+                               # before, but the token is bound now so `plan stage trial` delivers it.
+  - plan-stage-entry:trial

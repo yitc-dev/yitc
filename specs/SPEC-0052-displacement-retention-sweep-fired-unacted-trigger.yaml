@@ -1,0 +1,224 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0052
+title: Displacement-retention sweep — fired-unacted trigger check over un-capped surfaces + audit-YAML archive
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # process/governance spec — no code reads a scalar param FROM it. The
+                               # governing thresholds it CHECKS (10 MB / 500 / 2500 / 2000) live in their
+                               # OWN homes (QUEUE / CHARTER) and are referenced, never duplicated.
+
+implements: # distributed/documentary mode (SPEC-0005 rule 7a): the sweep is realized
+                               # across the view-lens + the triage sub-routine; the anchors below are the
+                               # concrete realization sites, declared per the admission discipline.
+  - bin/lib/views.py#_view_displacement_retention
+  - bin/lib/cli.py#_displacement_retention_sweep
+  - bin/lib/audit.py#archive_terminal_nontask_audits # — non-task-keyed terminal drain
+
+body: |
+  ## Scenario
+
+  When the owner launches an inspection, or the weekly Review backstop runs, the FIRST
+  step is a displacement-retention sweep. It is not a new mechanism — it is a VIEW over the
+  per-surface triggers that ALREADY exist ( `events.jsonl > 10 MB`; CHARTER handbook hard-cap
+  2500 / warn 2000; the `decisions/*-audit-*.yaml` accretion). For EACH
+  un-capped surface the sweep does not merely MEASURE the value — it looks up that surface's governing
+  trigger and reports `fired? acted?`. A surface whose governing trigger has been RETIRED is reported
+  as a REPORT-ONLY measurement instead, with no `fired`/`acted` (rule 2). A trigger that FIRED but was never ACTED on is a flagged
+  action the launcher must resolve. The sweep also drains the acute audit-YAML surface: at/after a
+  task's closure its audit YAMLs `git mv` out of active `decisions/` into two in-git archives, so the
+  active corpus stays loadable while the provenance stays git-tracked.
+
+  ## Internal
+
+  This spec is a PROCESS spec (SPEC-0005 rule 1 broadened identity). It adds no cron/hook/new store —
+  it EXTENDS the saved-view family + `cmd_triage_run` (SPEC-0029) + the retirement procedure
+  (manual-first). Three rules + one classifier.
+
+  ### 1. The fired-unacted invariant (the load-bearing rule)
+  For each un-capped surface the sweep MUST do BOTH: (a) MEASURE the current value, AND (b) resolve
+  that surface's GOVERNING TRIGGER (the threshold + its home) and emit `fired` (value crossed the
+  threshold) + `acted` (a resolving action is on record — a rotation/split/compaction decision, an
+  archive run, an open follow-up task). `fired AND NOT acted` ⇒ a FLAGGED ACTION (never a bare
+  number). A surface with NO governing trigger is reported as `ungoverned` (a coverage gap to file),
+  not silently dropped. This closes the exact 2026-06-07 inspection gap: it measured
+  `events.jsonl=13.1MB` twice but never checked it against the 10 MB trigger, so no finding
+  surfaced (fingerprints `inspection-size-count-probes-measure-but-dont-check-governing-threshold-fired-unacted`
+  + `journal-events-jsonl-past-d0030-10mb-rotate-trigger-unacted`).
+
+  ### 2. Surface roster (a VIEW, not a redefinition of the triggers)
+  The surfaces + their governing triggers are REFERENCES to existing homes — this spec owns the
+  fired-unacted CHECK, never the threshold values:
+    - `events.jsonl` size vs `> 10 MB` (rotation_policy) — **TWO rows since **, because
+  one figure cannot serve both purposes. (i) A GOVERNED row measuring the **LIVE SEGMENT** against
+  the `> 10 MB` trigger and against the standing DEFER's `ROTATION_VERDICT_REREVIEW_MB` currency
+  bound: the live segment is the quantity rotation's own ACTION can move, and the unit the bound
+  was calibrated on (SPEC-0190 §Rotation policy's Origin datum is an `ls -l events.jsonl`).
+  (ii) A **`report_only: true`** row carrying the ALL-SEGMENT logical aggregate as a TRAJECTORY —
+  the same shape as the done-log row below: measured, with `fired`/`acted`/`flagged_action`
+  ABSENT, so it can never reach `flagged_actions`. Against the aggregate both the trigger and the
+  bound are unactionable BY CONSTRUCTION — archive segments are append-only history that is never
+  deleted and SPEC-0002 §Violations forbids an in-place rewrite — so a verdict row there would be
+  the permanently-lit flag this rule already retires twice. SPEC-0190 rule 8 states the same
+  contract from the storage side and names the same quantity for the same purpose; this roster
+  REFERENCES it and never restates the bound (P5).
+    - `tasks/` done-count — **REPORT-ONLY, no trigger **. The `> 500` done-log-split gate
+      is RETIRED at its own home: QUEUE §Done log carries the dated KEEP-FLAT re-decision (2026-07-17) that the `~500`/`~1500` marks are HISTORY and the SOLE trigger is OBSERVED grep or
+      tooling friction — the count-gate class SPEC-0031 §Node-volume retired at. This roster
+      REFERENCES homes, it never revives a threshold one has withdrawn, so the row MEASURES the count
+      and carries NO `fired`/`acted`/`flagged_action` (the keys are ABSENT, not False — a False
+      `fired` would still assert a live threshold). The retained path is MANUAL: real friction is
+      captured as a deviation, never derived from the count. Rule 1 is unweakened —
+      the surface is REPORTED, not silently dropped; what is dropped is the verdict it can no longer
+      earn. (Before this row read `fired: true, acted: false` permanently — the count only
+      grows, and its one `acted` disjunct was an open task CITING `QUEUE.md`, i.e. an artificially
+      -open sentinel task. A permanently-lit flag on a withdrawn trigger costs the OTHER rows their
+      signal.)
+    - handbook aggregate vs CHARTER hard-cap `2500` (RED) / warn `2000` (YELLOW) — the LINE axis is the
+      cap's stated unit AND the sole gate; a BYTE(est-token) axis is reported alongside REPORT-ONLY and
+      never gates (owner declined a token bound, owner_directive 2026-07-10).
+    - active `decisions/*-audit-*.yaml` count — the acute surface (~152/day growth), drained by rule 3.
+  Adding/removing a surface is editing the roster, NOT inventing a trigger; a new surface's threshold
+  must already be homed elsewhere (or filed as `ungoverned`).
+  **`acted?` resolver for the non-acute surfaces.** For a surface whose remedy is a tracked
+  task, `acted?` is a DURABLE cited-task linkage, NOT a keyword match over task title/scope text: an
+  open (non-terminal) task counts as the recorded action only when its `cites:` list names the
+  surface's GOVERNING ARTIFACT — `events.jsonl`→``, handbook→
+  `CHARTER.md` (the `tasks/` done-log→`QUEUE.md` linkage is GONE with that row's trigger) (the §9 `cites:` LINK-RULE analog; id-tokens resolve via the repo's one cite-id
+  grammar, handbook-home tokens match the file or its `#section` anchor). This is the same EXACT-signal
+  discipline the acute audit-YAML surface (rule 3) already uses on disk — the keyword heuristic it
+  replaces could false-positive on an unrelated mention ( audit-post F0).
+
+  ### 3. Audit-YAML displacement to two in-git archives (the retention drain)
+  The sweep `git mv`s a TERMINAL audit YAML out of active `decisions/` into ONE of two git-tracked
+  archives, chosen by the deterministic classifier (rule 4). TWO drain surfaces, by how the audit YAML
+  is keyed:
+    - **Task-keyed** (`decisions/<T-XXXX>-audit-*.yaml` — pre/post/consult): drained at/after that
+      task's CLOSURE (status `done` | `wont-do`), and by the backstop sweep over every closed task.
+    - **Non-task-keyed** (the plan-slug-keyed gate/consult `<plan-slug>-audit-gate-*` /
+      `<plan-slug>-audit-consult-*`, and the free-slug `<slug>-audit-adhoc`): drained by the backstop
+      sweep when the TARGET is terminal. The target is read from the audit YAML's own
+      `target_kind` / `target_id` fields: an `adhoc`/`ad-hoc` is a standalone one-shot consult with no
+      lifecycle ⇒ always terminal; a `plan`/`consult` whose `target_id` resolves to `plans/<slug>.md`
+      is terminal iff that plan's `status` is in the plan-terminal set (the ONE truth `lib.plan.
+      PLAN_TERMINAL` — `realized` | `partial` | `rejected` | `cancelled`, never restated here, P5). A
+      consult on a task id (or any target that does not resolve to a terminal plan) is left to the
+      task-keyed surface.
+  IN-FLIGHT tasks' audit YAMLs and audits of NON-terminal plans are NEVER moved — the audit-loop
+  ceiling reads them in place by exact path. The move MUST be idempotent: a YAML already under an
+  archive dir is skipped (re-running the sweep performs no double-move). Both archives stay git-tracked
+  (provenance for later analysis); nothing is deleted ( retire ≠ delete data; the retire
+  procedure forbids deleting append-only/done-task history).
+
+  **"Already archived" is judged by CONTENT, never by NAME (additive —).** The rule above was
+  silent on a state the drain provably reaches: a post-close re-audit (`audit post
+  --reaudit-after-close`, or a mode-a absorption written after `task close` already archived the
+  original) writes a NEWER record to the ACTIVE `decisions/<id>-audit-<stage>.yaml` path while the
+  OLDER one already sits in the archive under that SAME name. Such an active record is NOT "already
+  under an archive dir" and MUST NOT be skipped: reading the name collision as a completed move
+  stranded 236 files that a `triage sweep` reported archiving, all content-divergent from their twin,
+  and left this spec's own surface-4 flag fired-and-unacted PERMANENTLY — a flag no verb could clear,
+  at the first step of every revizia (the skim-the-flag class). So, for an active record whose
+  destination name already exists:
+    - **byte-identical** ⇒ genuinely already archived; the redundant ACTIVE copy is STILL drained (the
+      archived content is not rewritten). Leaving it in `decisions/` would keep the surface lit for
+      that class, which is the same defect wearing a different mask.
+    - **divergent** ⇒ the ACTIVE copy is the NEWER record. RECONCILE, never discard: the older
+      archived copy is preserved beside it, in its own lane, under a name derived from that record's
+      OWN content (`<stem>.superseded-<hash>.yaml`), and the newer record takes the canonical archived
+      name — so the per-path readers named in §Consumer-coherence keep resolving to the NEWEST record.
+      Both moves are reported, naming where each record went (nothing is deleted —, above).
+    - **either side unreadable** ⇒ NOTHING is moved and nothing is reported. This never claims "already
+      archived": the record stays visible on the surface instead of being mis-handled silently.
+  Idempotency is unchanged and in fact stronger — every moving branch leaves no active file behind, so
+  a second consecutive run has nothing to move.
+
+  ### 4. The routine/escalation classifier (deterministic, EXACT total function)
+  Each audit YAML routes by a pure total function of its own saved fields — no judgement, no network,
+  every case covered:
+    - `decisions/archive/audit-escalation/` iff ANY of: `verdict` in {RED, ABORT} | `passes >= 2` |
+      `target_kind` in {adhoc, consult} | `owner_reset` truthy | `tooling_absence_abort` truthy.
+    - `decisions/archive/audit-routine/` OTHERWISE — i.e. a GREEN/YELLOW verdict with `passes` in
+      {absent, 0, 1} and none of the escalation markers. The zero-pass / absent-`passes` case is
+      ROUTINE (it is a clean low-pass artifact); only `passes >= 2` escalates. ABORT is escalation (a
+      blocked stage, not a clean close). A malformed/unparseable YAML routes to escalation (fail-safe —
+      keep the suspect artifact in the inspected lane).
+  A task with a MIXED set (e.g. routine pre + escalation post) routes EACH file by its OWN verdict, so
+  the escalation archive captures every escalation artifact while routine clean ones drain separately.
+
+  ### Consumer-coherence requirement (P5 — the migration that travels with the move)
+  Moving the files relocates a path every reader assumed at `decisions/<id>-audit-*.yaml`. The same
+  change MUST keep every consumer correct: the chronology git-diff pathspec exclusion (`_DIFF_EXCL`)
+  ALSO excludes the archive subtree; the per-path audit readers (`_count_audit_passes` /
+  `_prior_audit_record` and the audit-pre/post existence gates) fall back to the archive paths so a
+  re-audit of an archived task still finds its prior record; the SPEC-0001 self-test scope is
+  unchanged (audits are always WRITTEN to `decisions/`, archived only after closure); the plan-audit
+  namespace guard (`_reject_id_shaped_plan_slug`) note covers the archive subtree. The graph (post
+) holds no audit nodes, and the `external_audit_completed` journal event remains the durable
+  record — neither needs migration.
+
+  ## Parameters
+
+  None consumed. Governing thresholds (10 MB / 500 / 2500 / 2000) live in / QUEUE / CHARTER —
+  referenced, never duplicated or `consumed:` here (SPEC-0005 §Parameters discipline).
+
+  ## Rationale
+
+  Anti-complexity (CHARTER §P1, 4 filters, written down):
+  (1) Existing analog — the `views/` saved-lens family (`_run_view`), `cmd_triage_run`
+      (SPEC-0029), and the retirement procedure. EXTENDED, not paralleled.
+  (2) New entity or new view — a VIEW: a view-lens + a triage sub-routine; no new store/format/parser.
+  (3) What gets removed — the ~1001-strong active `decisions/*-audit-*.yaml` accretion drains to
+      archives; the trend-report MEASURE-but-not-CHECK gap is closed by the fired-unacted invariant.
+  (4) Real incident — the 2026-06-07 inspection measured `events.jsonl=13.1MB` twice yet never checked
+      it against the 10 MB trigger → no finding (the two fingerprints in rule 1).
+  Prior-art: log-rotation / retention tooling everywhere checks a measured value against a configured
+  threshold and acts; the gap here was a measure step with no governing-threshold check. Manual-first
+   (the sweep is a verb the launcher/Review runs, not a cron) until the steps repeat.
+
+  ## Verification
+
+  - **VP1 (state-probe):** this `proposed` spec exists and `graph query SPEC-0052` resolves it,
+    defining the sweep, the two archive dirs, the fired-unacted invariant, and the deterministic
+    routine/escalation classifier (rule 4).
+  - **VP2 (fired-unacted behavior-probe):** `graph query displacement-retention` reports, for each
+    surface, BOTH the measured value AND its trigger's `fired`/`acted` flags; a surface past its
+    threshold with no recorded action shows as a FLAGGED action (RED-GREEN: a synthetic over-threshold
+    surface flags; an under-threshold one does not).
+  - **VP3 (archive behavior-probe):** running the sweep moves closed-task audit YAMLs AND terminal
+    adhoc/gate/consult YAMLs into the two archives, the active `decisions/*audit*.yaml` count
+    drops materially, and a re-run is idempotent (no double-move); in-flight tasks' audits and audits of
+    NON-terminal plans stay in `decisions/`.
+  - **VP4 (consumer coherence-probe):** the chronology pathspec excludes the archive subtree, the
+    per-path readers fall back to the archive paths, and the full test suite stays green (no consumer
+    breaks) — grep-checkable + `tests/test_displacement_retention.py`.
+  - **VP5 (one home, P5):** the thresholds are referenced from / QUEUE / CHARTER, never
+    restated here; this spec owns only the fired-unacted CHECK + the archive drain.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  -
+  -
+  -
+  -
+  - SPEC-0029
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first — this task's `task close` activates the spec (proposed→active)
+proposed_by: # provenance / corpus carrier (work-first authoring task)
+binding:
+  - query-only # query-only reference (SPEC-0007 §5a) — reached on demand via the
+                               # inspection-launch / weekly-Review pointer + `graph query SPEC-0052`;
+                               # NOT floor-triggered (sibling of SPEC-0029).
+implements_signature:
+  bin/lib/audit.py#archive_terminal_nontask_audits: d9dd4e2d2d80c0589ac084215c446920be62edbec45c12f8b1dd32d9adfa0805
+  bin/lib/cli.py#_displacement_retention_sweep: 0b595e744dbc5cdea8665697c3cab853ea552f9c7375f6a7a66b4f5890e09267
+  bin/lib/views.py#_view_displacement_retention: 3749db07a53bfca81648e3461945b29172c6c16ea20552e1b8cb75b9762f4d4f

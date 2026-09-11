@@ -1,0 +1,155 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0125
+title: Consumer vendor-adapter doctrine — thin <vendor-adapter>.md + provider-neutral project-context home
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+travels: kernel
+                               # DRAFT-born v2-self (plan-local, governs nothing); re-pinned to kernel
+                               # at plan-accept (SPEC-0073 §3) — this doctrine TRAVELS to every consumer.
+
+consumed: false # documentary/process doctrine — no scalar param READ from this spec.
+
+extension: ~
+
+implements:
+  - bin/lib/init.py#_ensure_consumer_vendor_adapter # SPEC-0125 Rule 3 — the `-C init` scaffold
+                               # that borns a thin consumer <vendor-adapter>.md + ensures the neutral home.
+
+body: |
+  ## Scenario
+
+  When a project runs the yitc-v2 methodology as a CONSUMER, the owner/AI keeps the project's own
+  operating-context (product profile, module map, integration constraints, safety bans, PII policy)
+  in a **provider-neutral home** that ANY AI provider reads — not in the vendor-specific
+  `<vendor-adapter>.md`. `<vendor-adapter>.md` exists only because some AI tools auto-read that exact filename; in a
+  consumer it is a THIN adapter that (a) names the engine + the `-C` verb-invocation form and (b)
+  POINTS at the neutral home. So swapping or adding an AI provider never loses or diverges the
+  project's operating-context, and no substantive rule accretes into a file only one provider reads.
+  This is the consumer-side generalization of the kernel's own thin-adapter shape (: the
+  kernel `<vendor-adapter>.md` is a 5-line `@AGENTS.md` pointer).
+
+  ## Internal
+
+  THE CONSUMER VENDOR-ADAPTER DOCTRINE. A "vendor adapter file" = a file a specific AI tool auto-reads
+  by exact filename (`<vendor-adapter>.md` is the concrete instance today). Three rules:
+
+  ### Rule 1 — Substantive project-context lives in a provider-neutral home, never in the vendor adapter
+  A consumer's substantive operating-context (product profile / modules / integrations / safety bans /
+  PII policy / work-area + product-file warnings — anything an editor must know to work the project
+  safely) MUST live in a provider-neutral home the vendor adapter merely POINTS at. **Neutral-home
+  selection (binding default order — ONE declared home):**
+  1. the consumer's product **`CHARTER.md`** if it has one (the `-C` echo already names it as the
+     project's separate project-context);
+  2. else a dedicated project **`AGENTS.md`** — the exact mirror of the kernel shape.
+  **`README.md` is NOT a v2 consumer artifact** — it is public/product-facing (a different
+  audience), NOT an AI operating-context home. The consumer's human/context entry home is the product
+  `CHARTER.md` (the ONE declared neutral home above); README is never a fallback and is not
+  designated as a context home. Prefer reuse of an existing product doc over creating a new file
+  (CHARTER §P1 F1/F2); whichever of the order above is chosen, there is exactly ONE declared home.
+
+  ### Rule 2 — The vendor adapter file carries ONLY the thin adapter
+  A consumer vendor adapter file (`<vendor-adapter>.md`) carries ONLY: (a) the engine location + the
+  `-C` verb-invocation form `<engine>/bin/yitc-v2 -C <this-repo-abs-path> <verb>` (a consumer has no
+  local `bin/yitc-v2` — the X-0144 class), (b) the session-start pointer, and (c) a pointer to the
+  neutral home (Rule 1). It carries NO product rules, NO methodology rule-sections, NO deploy section.
+  A rule-section authored into a consumer `<vendor-adapter>.md` is a doctrine violation (origin incident:
+  the trend-finder `## Deploy` over-scope, reverted).
+
+  ### Rule 3 — The thin shape is BORN by the governed `-C init` carrier
+  The thin adapter is delivered by the governed `-C init` carrier (extend its existing
+  update + bootstrap-commit machinery — lesson `governed-consumer-config-write-via-init-extension`;
+  never a new verb, never a raw cross-repo edit), so a consumer is born in the thin
+  shape rather than hand-assembled. A legitimate change to the adapter is re-issued through `init`,
+  not accreted by hand. **The adapter's pointer MUST resolve:** `init` ensures the ONE declared neutral
+  home (Rule 1) EXISTS — the product `CHARTER.md` when present, else a born project `AGENTS.md` stub —
+  so the born vendor adapter never points at a missing home.
+
+  **Write-LOCK is NOT adopted (anti-complexity — CHARTER §P1 F4).** A hard file-lock (chmod, the
+  kernel-managed-file posture) to physically prevent accretion is deliberately NOT part of this
+  doctrine: there is no incident that born-thin (Rule 3) + thin-only (Rule 2) + the onboarding-runbook
+  rule do not already close, and a hard lock adds real friction (every legitimate change forced
+  through a re-issue). Revisit ONLY on a real re-accretion incident (a consumer `<vendor-adapter>.md` regrowing
+  substantive content despite Rules 1-3) — captured as a deviation, then a fresh task. Until then the
+  accretion path is closed by discipline + born-thin, not by a lock.
+
+  ### Coherence note (CHARTER §P7 — the runbook lockstep)
+  `patterns/onboarding-onto-yitc-runbook.md` currently prescribes a consumer-`<vendor-adapter>.md` adapter block
+  ENDING in a `## Product rules (KEEP - project-owned)` section INSIDE `<vendor-adapter>.md` — the exact shape
+  Rule 1/2 forbid. Activating this doctrine REQUIRES updating that runbook in lockstep (move the
+  KEEP-rules to the neutral home; thin the adapter). This is named so the contradiction is resolved,
+  not silently chosen.
+
+  ## Rationale
+
+  `<vendor-adapter>.md` is a the AI provider-vendor-specific filename — only the AI provider-family tools auto-read it (the
+  provider-name explanation is confined to this rationale per the gate-specs F6 note; the rule text
+  above is phrased around "vendor adapter file"). Consumer `<vendor-adapter>.md` files had accreted substantial
+  project content with no neutral home to point to, so operating-context sat in a file other providers
+  never read → multi-provider divergence as more providers are used. The kernel already fixed this for
+  itself ( thin adapter). Prior-art / analogs: SPEC-0102 (any role on any provider),
+  CHARTER §P4 (provider-neutral methodology language), SPEC-0073 (project-realm placement). Real
+  trigger: the `over-scoped-deploy-rule-into-consumer-the AI provider-md` incident (trend-finder).
+  Deliberation, the rejected shapes, and the ratification act live in the proposing plan
+  `consumer-the AI provider-md-provider-divergence-doctrine-ne` (SPEC-0005 rule 3 content-boundary).
+
+  ## Verification
+
+  - VP1 (Rule 2 — thin adapter): a consumer `<vendor-adapter>.md` contains ONLY adapter content (engine path +
+    `-C` verb form + neutral-home pointer) — grep shows NO product-rule / methodology / deploy section.
+  - VP2 (Rule 1 — neutral home): the consumer's substantive operating-context is present in the ONE
+    declared neutral home (product `CHARTER.md`, else project `AGENTS.md`; `README.md` is NOT a home).
+  - VP3 (Rule 3 — born thin): a temp `-C init` into a throwaway dir produces a thin vendor `<vendor-adapter>.md`
+    (this plan's probe) — adapter-only, no product/methodology/deploy sections (grep-checked).
+  - VP4 (runbook lockstep): `patterns/onboarding-onto-yitc-runbook.md` no longer prescribes a
+    `## Product rules (KEEP inside <vendor-adapter>.md)` section — grep is clean.
+  - VP5 (activation): this spec resolves to exactly one `activation_owner_task`; closing it flips
+    draft/proposed → active.
+
+cites:
+  - X-0163
+  -
+  - SPEC-0073
+  - SPEC-0102
+  - CHARTER.md#principle-4
+  - governed-consumer-config-write-via-init-extension
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: consumer-the AI provider-md-provider-divergence-doctrine-ne
+binding:
+  - before-project-dimension-judgement # AI-delivery axis (orthogonal to `implements:` code-link): where consumer project-context lives — the placement bundle (SPEC-0073/0090/0093)
+init_concern: # (X-0313) — activation baseline-concern declaration (SPEC-0030
+                                 # schema; DERIVED into graph/activation-checklist.md by SPEC-0096). The
+                                 # provider-neutral operating-context home is a consumer baseline every
+                                 # project inherits regardless of stack/archetype → tier: universal. The
+                                 # ANSWER is a filled DOC (the neutral home), not a yitc-ops.yaml carrier
+                                 # section — same doc-answer shape as SPEC-0100, so NO `concern:` block.
+  init_question: >-
+    Is this project's substantive operating-context (product profile, module map, integration
+    constraints, safety bans, PII policy) FILLED into the ONE declared provider-neutral home the thin
+    vendor adapter points at — product `CHARTER.md` if present, else the born project `AGENTS.md` (Rule
+    1) — rather than left as the born `<fill in …>` stub or accreted into the vendor `<vendor-adapter>.md`? Fill
+    the neutral home, or waive with a named explicit waiver (never a silent empty stub).
+  waiver: >-
+    A project with genuinely no substantive operating-context to record (a trivial repo with no safety
+    bans / integrations / PII surface) may bare-waive — but as a NAMED explicit waiver (reason), never a
+    silent unanswered `<fill in>` stub. The waiver records that the neutral home is intentionally empty;
+    it never licenses operating-context to sit in the vendor adapter (Rule 1/2).
+  evidence: >-
+    the ONE declared provider-neutral home — product `CHARTER.md`, else the born project `AGENTS.md`
+    (Rule 1 order) — carries a filled `## Product operating-context` replacing the born `<fill in …>`
+    placeholder (the VP2 neutral-home probe), reached at `-C init` via the SPEC-0096 rule-8 born-waiver
+    sweep; or a named waiver recorded for the concern. The thin vendor adapter (`<vendor-adapter>.md`) only POINTS
+    here, never carries it.
+  tier: universal
+implements_signature:
+  bin/lib/init.py#_ensure_consumer_vendor_adapter: f3608fe262babe11690a8234389ce36d1f09e2a2fcb64e6df3543d6fa4bb752d

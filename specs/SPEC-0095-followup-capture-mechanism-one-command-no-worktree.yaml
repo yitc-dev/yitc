@@ -1,0 +1,655 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0095
+title: Followup capture mechanism — one-command no-worktree journal-append capture of a small follow-up (dodelka) with a 2-state fold
+
+status: active
+
+created_at:
+
+travels: ~ # class-default = kernel: a general capture verb every consumer uses for
+                               # its own follow-ups (the cross-analog SPEC-0085/0086 are likewise kernel).
+
+consumed: false # no code reads a governing scalar FROM this spec.
+
+implements: # the full load-bearing surface: the 6 verb bodies + the fold + the derived
+                               # armed partition + the host sink-parity residue (read-path==write-path).
+                               # proposed-before-code B5; activation flips proposed→active at close.
+  - bin/lib/followup.py#cmd_followup_add
+  - bin/lib/followup.py#cmd_followup_promote
+  - bin/lib/followup.py#_require_promote_target
+  - bin/lib/followup.py#cmd_followup_drop
+  - bin/lib/followup.py#cmd_followup_list
+  - bin/lib/followup.py#cmd_followup_arm
+  - bin/lib/followup.py#cmd_followup_unarm
+  - bin/lib/followup.py#validate_promotes
+  - bin/lib/followup.py#require_promote_provenance
+  - bin/lib/followup.py#promote_at_filing
+  - bin/lib/followup.py#_provenance_refusal
+  - bin/lib/followup.py#_fold
+  - bin/lib/followup.py#_fu_id
+  - bin/lib/followup.py#_clean_trigger
+  - bin/lib/followup.py#_clean_awaits
+  - bin/lib/followup.py#awaits_kind
+  - bin/lib/followup.py#split_event_awaits
+  - bin/lib/followup.py#event_after_arrived
+  - bin/lib/followup.py#advisory_candidate_refs
+  - bin/lib/followup.py#arrived_ids
+  - bin/lib/followup.py#born_armed_advisory_line
+  - bin/lib/followup.py#_partition_open
+  - bin/lib/followup.py#open_followup_counts
+  - bin/lib/task.py#cmd_task_file
+  - bin/lib/cli.py#_followup_events_path
+  - bin/lib/cli.py#_cross_items
+  - bin/lib/cli.py#_nonterminal_cross_ids
+  - bin/lib/cli.py#_open_awaited_refs
+  - bin/lib/cli.py#_terminal_cross_ids
+
+body: |
+  ## Scenario
+
+  Mid-work the owner/AI notices a small follow-up (dodelka) (a one-line follow-up, a "remember to X") that is NOT
+  worth the full task lifecycle yet must not be lost. Capturing it must be ONE command with NO worktree —
+  not the heavy path (a markdown followups-inbox entry needs a worktree + a work-commit + a land per
+  note; trial-proven insufficient, X-0056). Later that captured item is either PROMOTED into a real task
+  or DROPPED — and the open set is listable. The state is never a separate stored file: it is FOLDED from
+  the one journal, exactly like the cross inbox/outbox view.
+
+  ## Internal
+
+  THE FOLLOWUP CAPTURE CONTRACT. A `followup` is a lightweight capture recorded as APPEND-ONLY JOURNAL
+  EVENTS in `events.jsonl` — it adds NO new store / format / parser (CHARTER §P5: the one journal
+  mechanism; the derived-state view, not a second ledger).
+
+  ### Verbs (the contract)
+  - **`followup add --text <t> [--relates-to <ref>] [--trigger <phrase> --awaits <artifact>]`** — appends
+    `followup_added` and prints the id. NO WORKTREE (the append-only-journal exception applies — a
+    followup append is the same journal MECHANISM as `event` / a `deviation_captured`, in-bounds from the
+    main checkout). `--trigger` captures it BORN-ARMED (§Armed); an empty/whitespace-only value REFUSES
+    rather than silently capturing an actionable followup (passing the flag is a claim that a trigger
+    exists). `--relates-to` is PROVENANCE; `--awaits` names the AWAITED ARTIFACT (§Armed).
+    **`--trigger` and `--awaits` are REQUIRED TOGETHER, in BOTH directions.** `--awaits`
+    without `--trigger` REFUSES — an awaited artifact with no named moment would be armed-but-unnamed
+    (the X-0165 discipline). `--trigger` without `--awaits` REFUSES too — a named moment with no
+    artifact to fire it is an UNFIREABLE WAITER (§Armed → why `awaits` is required). Both refuse BEFORE
+    any append, so a rejected capture leaves NO event and nothing to dispose. So the invariant the
+    partition branches on is `armed <=> trigger AND awaits`, at this door and at `arm`'s alike; to
+    capture a bare future event with no artifact to name, omit BOTH and capture it ACTIONABLE.
+    The `followup_added` payload ALSO carries **`actor`** — WHO captured it. It is DERIVED
+    host-side from the launch context (`lib/memory.py#resolve_actor`: the owner-role host user records
+    the default `ai-agent`; a named provisioned user, e.g. <collaborator>, records their own name), so attribution
+    costs the human ZERO added input — there is no `--actor` flag to pass and none is wanted (owner
+    directive 2026-07-11). It is BORN-ONLY meta: the fold reads it off `followup_added` alone, and no
+    later `followup_armed` / `promoted` / `dropped` re-writes it — the CAPTURER is immutable, exactly as
+    `added_at` is. `followup list` renders `[by: <actor>]` ONLY for a real person (suppressed-when-clean:
+    an `ai-agent` capture — the overwhelming majority — prints nothing, so the view gains signal, not
+    noise). Reuses the existing event; NO new store / field-store / verb (CHARTER §P1 F1-F2).
+  - **`followup promote <id> --into <T-XXXX | lessons|patterns/<note>.md | plan-slug>`** — appends `followup_promoted`; the open→promoted leg. `--into` is REQUIRED (X-0165): a bare promote would fold to promoted with `into=None`, stranding a promoted-but-carrierless item; `promote` names the carrier the followup BECAME (file/author it first, then promote --into it, or `drop`).
+  **THREE CARRIERS, resolved by the target's own SHAPE.** `T-NNNN` is the TASK leg,
+  unchanged. A repo-relative `lessons/<name>.md` or `patterns/<name>.md` is the **AUTHORED REFERENCE
+  NOTE** leg — the carrier SPEC-0140 names as the LIGHTEST for a captured followup, drained
+  in ONE batched `work/<slug>` land rather than a worktree cycle per note (the X-0148
+  ceremony-per-lesson cost). That carrier is a FILE, and before this the vocabulary could not name a
+  file, so the sanctioned lightest path terminated in `drop`: on 2026-08-26 four DELIVERED notes were
+  recorded `dropped`, the carrier surviving only as prose. The 2-state fold is what later readers
+  count and `dropped` means DECIDED-NOT-TO, so a delivered note recorded there is indistinguishable
+  from an abandoned one, and the recommended carrier was the only one whose outcome could not be
+  recorded truthfully. The note leg is FAIL-CLOSED on the SAME terms as the plan leg: the file must
+  EXIST or the promote is REFUSED naming the path, before any append. Its shape is BOUNDED to the two
+  sanctioned directories, one slash, a `.md` leaf — a carrier that could name any file would record
+  nothing — and is disjoint from the other two legs by construction. `drop` is UNCHANGED and stays
+  the honest terminal for a note genuinely abandoned; nothing already recorded is rewritten (the
+  journal is append-only, so the four notes above keep their `dropped` status and their reasons).
+  Anything else is read as a **PLAN slug** — for the followups whose real carrier IS a
+  plan (their body authored verbatim into a plan draft, the plan disposing of them). Before this
+  they had no honest target, so they were either mis-linked to a task (`fu_cbb23cc25d01 --into
+  `, recorded and IRREVERSIBLE — promote is terminal) or left open forever. The plan leg is
+  **FAIL-CLOSED and LOUD**: a slug that resolves to no draft in `plans/` or `ideas/` is REFUSED
+  naming the slug, BEFORE any append, so the followup stays `open` and disposable. A silent accept
+  would be strictly worse than the pre- state — it would record a carrier that does not
+  exist while looking successful. This is a WIDENING of the one target validation plus a
+  plan-existence check: no second link store, no second event, no parallel promote path (§P1 F1 /
+  §P5). The DECLARED `promotes:` filing leg is unaffected — its `into` is the task id `task file`
+  is minting, real by construction.
+  - **`followup drop <id> [--reason <r>]`** — appends `followup_dropped`; the open→drop leg.
+  - **`followup arm <id> --trigger <phrase> --awaits <artifact>`** — appends `followup_armed`; marks an
+    OPEN followup as an ARMED WAITER (§Armed). `--trigger` is REQUIRED and non-empty — the same discipline
+    `promote --into` learned from X-0165: an armed followup is BY DEFINITION awaiting a NAMED trigger, so a
+    triggerless `arm` would drop it out of the actionable headline with nothing able to bring it back.
+    `--awaits` names the AWAITED ARTIFACT whose arrival fires it (the SOLE fire key) and is **likewise
+    REQUIRED ** — an arm with no awaited artifact writes a waiter that is out of the headline
+    AND unfireable, so it REFUSES BEFORE any append, leaving the item open and disposable (§Armed → why
+    `awaits` is required). It must ALSO be a **RESOLVABLE REFERENCE in one of the three named grammars**
+    (§Armed → the awaits grammar); an unresolvable one — a repo path, a spec id, a plan slug,
+    free prose — REFUSES on the same terms, at BOTH write doors, naming what IS resolvable. A bare
+    future event with no machine-checkable artifact is therefore LEFT ACTIONABLE (visible, awaiting an
+    explicit disposition) or dropped — never armed. `arm` RE-STATES THE WHOLE AWAITED
+    CONDITION (both attributes, last write wins), so it applies to a FIRED followup too and RETURNS IT TO
+    `armed` — the operator saying "that fire was wrong, here is the real condition" (§Armed → re-arming).
+    NO WORKTREE.
+  - **`followup unarm <id>`** — appends `followup_armed` with `trigger: null` AND `awaits: null`; clears
+    both and returns the item to the actionable set. Clearing the trigger while leaving the awaited
+    artifact would strand an actionable item carrying a live fire key. The explicit re-actionable path for
+    a waiter whose trigger went MOOT (a plan abandoned, a gate dropped) and so will never fire. NO WORKTREE.
+  - **`followup list [--status open|actionable|armed|fired|promoted|dropped|all]`** — folds + prints
+    (default `open`, which renders the three-way §Armed partition with per-group counts). The three OPEN
+    lenses (`actionable` / `armed` / `fired`) are DERIVED views over that partition, NOT stored statuses.
+    An actionable row whose provenance task CLOSED after that row was captured, and which was not
+    captured inside that card's own closure window, also renders the report-only provenance hint
+    (§Armed → the stale-provenance marker, whose condition is membership, ordering AND provenance);
+    the summary reports that subset beside the headline count.
+
+  ### 2-state FSM (folded, never stored)
+  `open → promoted | dropped`. State is DERIVED by folding the journal: an id is `open` once
+  `followup_added`, and terminal once a `followup_promoted` / `followup_dropped` for that id appears —
+  NO `status:` is stored anywhere (the cross-fold model; SPEC-0005 §single-carrier). A transition verb
+  REFUSES (die) an unknown id OR an already-terminal id (only an `open` followup transitions).
+  **`arm`/`unarm` do NOT extend this FSM** — they set/clear an ATTRIBUTE and never write `status`; an
+  armed followup promotes/drops by these same unchanged legs (§Armed).
+
+  ### Armed waiters — the derived partition of the OPEN set (re-keyed by)
+  An OPEN followup may carry an optional **`trigger` ATTRIBUTE**: the NAMED future moment it waits for.
+  An ARMED WAITER is not stale and not yet actionable (a P8 adoption confirmation awaiting the next real
+  fire, an owner-held plan finalization, a postcheck-gated disposition), so it MUST NOT inflate the
+  headline "awaiting disposition" count the owner reads to decide what needs a decision NOW.
+
+  **AWAITED vs PROVENANCE — two fields, never one (NORMATIVE).** A followup names TWO different
+  artifacts, and conflating them is a defect:
+  - **`relates_to`** — **PROVENANCE**: what the followup is ABOUT (the task it was noticed under).
+    Free-form, rendered as `[relates: …]`. It is **NEVER read by the fire check.**
+  - **`awaits`** — the **AWAITED ARTIFACT**: the machine-resolvable artifact whose ARRIVAL *is* the
+    arrival of the awaited moment. It is the **SOLE fire key**. DECLARED (`add --awaits` /
+    `arm --awaits`), never inferred from the trigger prose, **REQUIRED wherever a `trigger` is
+    written** ( — §Armed → why `awaits` is required), and **RESOLVABLE** — a reference in one of
+    the three named grammars below, never free text. It is absent, or present-but-unresolvable,
+    only on LEGACY records captured before those rules, which the readers still tolerate.
+
+  **THE `awaits` GRAMMAR — three named shapes, and nothing else (NORMATIVE).** closed
+  the case `awaits` ABSENT. This closes the case `awaits` PRESENT but naming nothing whose arrival any
+  reader can decide — the same defect wearing a costume, and it was the DOMINANT one. Measured on the
+  kernel 2026-09-02: of 49 open armed records, 4 named a task id (all 4 already terminal, i.e. exactly
+  the 4 `armed_fired`), 4 a coordination id, 3 a plan slug, 35 a REPO PATH and 3 free prose — **45 of 49
+  unfireable, and the live resolvable population EMPTY**. A further 74 of the same shape sit on an
+  unlanded disposal branch (39 paths, 32 spec ids). The records say WHY in their own trigger prose
+  ("OWNER DECISION: bin/lib/debt.py:3268 …", "WAITING ON FLEET DATA: … bin/lib/nightly.py:1187"): the
+  path is WHERE the subject lives, the awaited moment is an owner decision or fleet data, and the
+  author needed a value for a REQUIRED flag. A required field with no grammar collects the nearest
+  concrete token.
+  - **`T-NNNN`** — a task reaching a terminal status (`done|wont-do`). UNCHANGED: the shape the fire
+    check has always read.
+  - **`X-NNNN`** — a SHARED-COORDINATION item reaching a terminal status. The honest home for an
+    obligation whose proof lives in ANOTHER repo, which is never an acceptance-probe target from a V2
+    write (`lessons/a-deferral-needs-a-named-carrier-before-it-reads-as-one`).
+  - **`events.jsonl#type=<event_type>`** — a journal row of that EVENT CLASS appearing. This EXTENDS the
+    existing load-bearing citation address space (`task.py#_journal_locator`, which already
+    resolves `events.jsonl#ts=` / `#source_ref=`), it does NOT open a second one (CHARTER §P1 F1).
+    It arrives on **MEMBERSHIP** — the mere EXISTENCE of a row of that type, with no ordering check —
+    so a class that already has rows fires the moment it is armed. UNCHANGED by the fourth shape
+    below, byte-for-byte: an awaits carrying no `@after=` reads exactly as it always has.
+  - **`events.jsonl#type=<event_type>@after=<ISO ts>`** — the SAME class, **ANCHORED IN TIME**: it
+    arrives iff a row of that type carries an envelope `ts` **STRICTLY LATER** than `<ISO ts>`. A row
+    at EXACTLY that instant does NOT fire. This is the shape a «wake me on the NEXT occurrence of
+    `<type>`» wait needs, and without it that wait was **unarmable**: measured on the kernel
+    2026-09-04, of the 212 followups left actionable after the owner's sweep an estimated 40-60 wait
+    on the next occurrence of a class the journal already carries thousands of
+    (`nightly_run_completed`, `inspection_completed`, `bg_dispatch_halted`, `cross_done`) — every one
+    of them fires immediately under the bare form, so every one of them stayed in the actionable
+    headline the owner reads as spam. recorded that limit here rather than extending the
+    grammar; extends it.
+    - **STRICTLY later, never `>=`, and the direction is deliberate.** The operator anchors on a
+      moment that HAS happened (their own land, the sweep they just ran), so a row bearing exactly
+      that timestamp is part of what they anchored PAST, not the next occurrence they await.
+    - **The timestamp is the journal's OWN spelling and nothing else** — `YYYY-MM-DDTHH:MM:SSZ`, the
+      fixed-width UTC form every emitter in the corpus writes. That is what makes the comparison a
+      plain lexicographic one (over that set, string order IS chronological), and it is why any
+      other spelling — a local offset, a fractional second, a bare date — is REFUSED at the write
+      door rather than silently compared: a shape the ordering is not provably correct over would
+      fire on the wrong rows and do it invisibly.
+    - **Malformed ⇒ refused, not degraded.** A non-conforming or empty anchor, or a second `@`
+      anywhere, makes `awaits_kind` return None, so `followup add` and `followup arm` REFUSE naming
+      the grammar (the fail-closed posture, unchanged). The item stays ACTIONABLE — visible
+      — rather than becoming a waiter no reader can fire.
+    - **ONE parse home, ONE predicate.** `followup.py#split_event_awaits` is the sole parser of both
+      event shapes (`awaits_kind` delegates to it); the fold carries the per-type latest `ts` in the
+      walk it was ALREADY making, and the single fire branch gains ONE predicate
+      (`event_after_arrived`). The ARRIVED set (`arrived_ids`) is untouched — a free timestamp
+      cannot be enumerated into a set, so an anchor is expressed as the comparison it is. No new
+      event, verb, store or knob (CHARTER §P1 F1/F2).
+    - **The bound: a kernel awaits reads the KERNEL journal.** A wait on a CONSUMER-side event is
+      not reachable by any suffix; that need routes as a `cross request` to the consumer plus a
+      kernel followup armed on the resulting `X-NNNN`.
+
+  **BORN ARMED IS THE DEFAULT WHEREVER THE AWAITED MOMENT IS A NAMEABLE ARTIFACT (NORMATIVE).** A followup whose firing moment IS a reference the grammar above resolves is CAPTURED
+  born-armed (`add --trigger … --awaits <ref>`); it is not captured actionable with the wait written
+  as PROSE. ACTIONABLE is the honest state only for a wait no grammar can name. The mechanism alone
+  never delivered this — measured on the kernel 2026-09-04 the headline read 246 actionable / 9 armed,
+  and well over a hundred of the 246 named their waiting moment in prose — so the CAPTURE DOOR says
+  so: when no `--awaits` was given and the capture's own text names a still-OPEN `T-NNNN` or a
+  non-terminal `X-NNNN` other than the `relates_to` provenance ref, `followup add` prints ONE
+  report-only line naming it and the exact `arm` command. It NEVER gates, emits, or changes the exit
+  code; it names only references `awaits_kind` already resolves and never guesses a trigger PHRASE
+  (armedness stays a human judgement — §Why the trigger is DECLARED); and it is fail-open to SILENCE,
+  because a report-only signal about a reader fails the opposite way to a guard. The EVENT grammar is
+  deliberately OUTSIDE the advisory: an event class ARRIVES on MEMBERSHIP, so a class with rows
+  already in the journal fires IMMEDIATELY — advising one would manufacture the false-armed
+  state that grammar was narrowed to end. AMENDS the SECOND half of that reason without moving
+  the advisory: a «next occurrence of <type>» wait now HAS an artifact — the time-anchored `@after=`
+  shape above — so it is no longer INEXPRESSIBLE, merely UNDEDUCIBLE. The advisory still declines to
+  propose one, and the distinction is the point: the anchor is a TIME THE OPERATOR CHOOSES, and no scan
+  can read a chosen moment out of prose, so proposing one would be the guess this advisory exists not
+  to make. The remedy is delivered where the problem is OBSERVABLE instead — at `arm`'s existing
+  row-count report, which now names the fourth shape and prints the exact re-arm command whenever the
+  class it just armed on already has rows (report-only; the operator's awaits is never rewritten).
+  `cli.py#_arm_cross_re_entry` stays actionable-by-design, unchanged (the consult: the
+  peer's condition names no local artifact).
+
+  **WHERE THE MOMENT LANDS DECIDES THE CARRIER (owner ruling 2026-09-04, NORMATIVE).** Every
+  shape in the grammar above resolves against THE JOURNAL OF THE REPO THE FOLLOWUP LIVES IN. So the
+  first question about any wait is not WHICH shape names it, but WHOSE journal its firing moment
+  lands in — and when the answer is ANOTHER PROJECT, no followup in this repo can carry it. Such a
+  wait is carried by a **`cross request --kind task --to <project>`** (SPEC-0085 §3) whose brief asks
+  that project to (a) ARM ITS OWN followup on the moment, in its own repo, with the grammar above
+  (typically `events.jsonl#type=<type>@after=<ISO ts>`), and (b) REPORT THE READING BACK with `cross
+  done <X-NNNN> --note '<the reading + its locator>'` — plus **AT MOST ONE** followup on this side
+  ARMED on the resulting `X-NNNN`. The kernel then wakes exactly when the peer answers, cites the
+  answer as `coordination.jsonl#cross=X-NNNN` (the SPEC-0015 shared-store locator kind), and
+  polls nothing in between. Grounds: the owner ruling of 2026-09-04 — this project does not monitor
+  other projects — and the measurement that made it necessary: of the 212 followups left actionable
+  after that day's sweep, an estimated 60-80 waited on a row in a CONSUMER's journal, every one of
+  them unfireable by construction and permanently resident in the actionable headline.
+  - **The `X-NNNN` item STAYS OPEN (`picked`) while the peer holds the obligation, and that is the
+    CARRIER, not spam.** `picked` rows are outside the session-start outbox cut, so an item
+    the peer is working is not something the author is re-asked about. **Shape (B) — CLOSING the
+    coordination item as soon as the peer arms — was considered and REJECTED by the same ruling: it
+    loses the return channel, so the reading has nowhere governed to come back to and this side keeps
+    no adoption record of its own.**
+  - **This is the STANDARD route for a consumer-side adoption/verification wait, not an owner-gated
+    ask.** The `--kind task` owner-gate named in SPEC-0085 covers a project→kernel FEATURE request
+    and is UNCHANGED; a wait asking a peer to read its own journal and report back is ordinary
+    coordination.
+  - **Nothing here changes a KERNEL-side wait.** A moment that lands in THIS repo's journal is
+    carried exactly as the grammar above already says — an armed followup, or ACTIONABLE when nothing
+    resolvable names it. What this paragraph adds is the answer for the case the grammar could not
+    express at all.
+
+  **What is deliberately NOT in the grammar, stated so the omissions do not read as oversights.** A
+  repo PATH: a file has no arrival — it exists from birth, so "fires when this path closes" is not a
+  proposition, and firing on its next EDIT would fire on unrelated churn. A SPEC id: `active` is a
+  spec's NORMAL state, not an awaited moment. A PLAN slug: 3 records name one, which does not carry a
+  new resolver through CHARTER §P1 F4, and a plan-shaped need is expressible as the task that closes
+  it. Each stays REFUSED — and the refusal NAMES THE ALTERNATIVE (leave it ACTIONABLE, route it as a
+  `cross request` and await the X-NNNN, or drop it), because an author refused here holds a real
+  obligation and a refusal with nowhere to put it only relocates the problem.
+
+  **The event grammar REPORTS rather than validates its referent, and the direction is deliberate.** A
+  misspelled task or coordination id is visibly wrong; a misspelled event type is not. Validating it
+  against the classes OBSERVED in the journal would refuse exactly the useful case — a class that has
+  never fired is precisely what these records wait for. So `arm` PRINTS whether rows of that class
+  exist today: ABSENT is the ordinary armed case, PRESENT warns that this arm reads as FIRED on the
+  next read. **THAT VERDICT IS THE BARE FORM'S, and since it is stated as such.** Membership
+  is what decides a bare awaits, so over a TIME-ANCHORED one the same count answers a question nobody
+  asked: the anchor decides arrival there, and an arm on a class carrying thousands of rows still
+  reads `armed_waiting` while none of them is later than it. So for the suffixed shape `arm` reports
+  the count as CONTEXT and states the ANCHORED reading — it fires only on a row STRICTLY LATER than
+  the anchor — never the FIRED verdict. suppressed the REMEDY for that shape but left this
+  verdict sentence unconditioned, so the door told the operator their arm was useless at the exact
+  moment it was working (measured on all five of that card's own AC5 arms; deviation fingerprint
+  `arm-report-says-FIRED-over-a-time-anchored-awaits`). An already-arrived moment firing immediately is the honest reading, not a defect: the
+  `armed_fired` group is surfaced UNFLOORED, so the outcome is LOUDER than the `armed_waiting` it
+  replaces. AND SINCE IT ALSO CARRIES THE REMEDY, in the same line: when the class
+  already has rows, `arm` names the `@after=` shape and prints the exact re-arm command. Reporting the
+  problem without naming the fix is what left the «next occurrence» class unarmable in practice — the
+  operator was told their arm was useless and not what to type instead. The line stays REPORT-ONLY: the
+  arm they asked for is already appended, nothing is rewritten, and the exit code does not move —
+  `awaits` is DECLARED, never inferred (§Why the trigger is DECLARED), and an immediate fire is
+  sometimes exactly what was meant. It is suppressed where it has nothing to add: an already-suffixed
+  awaits has taken the remedy, and an ABSENT class is the ordinary armed case with no problem to fix.
+
+  **The partition is DERIVED, never stored** (`_partition_open`), recomputed on every read from the folded
+  records plus the caller's **ARRIVED set** (`followup.arrived_ids`). No new store, no new FSM state, no
+  third status:
+  - **actionable** — open, no trigger. The headline count.
+  - **armed_fired** — open, triggered, and **`awaits`** is a member of the ARRIVED set: the artifact it
+    WAITED FOR arrived, so the awaited moment ARRIVED. It is DUE, and the SPEC-0119 debt echo surfaces it
+    **UNFLOORED**.
+  - **armed_waiting** — open, triggered, arrival not yet provable. Counted, reported beside the headline,
+    but never permitted to nag.
+
+  **The ARRIVED set is ONE set built from three INJECTED corpora ** — terminal task ids (the
+  host's existing `_terminal_task_closures`), terminal coordination ids (`_terminal_cross_ids`, folded
+  from the kernel-owned shared store and **fail-open to EMPTY**, so an unreadable store leaves a waiter
+  VISIBLE rather than firing on an arrival it could not confirm), and the event classes observed by the
+  fold that same call already runs. The host owns the paths and the stores; `followup.py` stays a
+  stdlib-only leaf and never learns where either lives. NOTHING is stored, and the fire branch is
+  unchanged — it is still `awaits in <a set>` (CHARTER §P1 F2: a wider view over reads that were already
+  happening, not a new entity).
+
+  **The fire set and the stale-marker set are TWO PARAMETERS, and that separation is normative
+.** `_partition_open` reads the terminal-task set TWICE today — for the fire check and for
+  the stale-provenance marker below. They had to separate the moment the fire set widened past task
+  ids, not later: `relates_to` ALREADY carries `X-NNNN` refs (`cli.py#_arm_cross_re_entry` writes
+  them), so one widened set would have changed the MARKER's population as an invisible side effect of a
+  change to the FIRE key. That is the ADD-vs-SUBTRACT blurring and separated three
+  cards apart, and the marker's own "NOT the fire key returning" argument below holds only while the
+  two sets are genuinely distinct. The marker keeps reading TERMINAL TASK IDS ALONE.
+
+  **The STALE-PROVENANCE marker — a REPORT, never a route (X-0486).** Each **actionable** row
+  also derives a `stale_provenance` flag. The task it was noticed under has CLOSED, so the followup may
+  ALREADY be fixed by that land. Unmarked, it is invisible: X-0486 saw later sessions read the same
+  actionable row, fail to notice the fix had, and re-promote it — 3 wasted dispatch cycles + 3
+  wont-do cards in ONE revizia (fingerprint `landed-fix-leaves-source-followup-open-stale-queue`).
+  `followup list` renders the hint on the row and `open_followup_counts` reports `actionable_stale`
+  BESIDE (never instead of) the actionable count.
+
+  **The flag's condition is THREE-PART — membership, ordering AND provenance.** It
+  is True iff (i) its `relates_to` names a task in `terminal_ids`, AND (ii) the closing land could
+  POSSIBLY have fixed the row — suppressed only where BOTH timestamps are in hand AND the record's
+  `added_at` is strictly after that task's `closed_at` — AND (iii) the row was not captured BY
+  CONSTRUCTION at that closure: suppressed where the record's own `session_ref` is a recorded
+  closure-window session of that card. Part (ii) asserts a NECESSARY CONDITION on the marker's own
+  claim: for a land to have fixed a row, the row must have EXISTED when the land ran, so a followup
+  captured AFTER its provenance reached terminal status provably cannot have been fixed by it.
+
+  **Part (iii) — the by-construction suppression (resolving X-1239 + X-1241).** Part (ii)
+  subtracts only rows captured AFTER the closure; the dominant real shape is the opposite. A followup
+  FILED AT its card's closure — noticed while writing the closure, captured minutes BEFORE the
+  `task_closed` row — satisfied (i) and was never reached by (ii), so the marker fired on essentially
+  every close-time filing. kupiclub measured it twice: of 134 marked rows 125 were still LIVE against
+  the checkout (a reader trusting the marker drops ~93% of rows wrongly), and of four rows judged by
+  measurement two WERE fixed but by later, unrelated cards — not by the closing land the marker named.
+  A closure reaches `main` through TWO sessions in the ordinary shape — the one recording `task_closed`
+  and the one running the `land` that folds it — so the closure window is the SET of both session refs
+  per card, and a capture from either is by construction part of that closure rather than an
+  independent observation about it. Membership is an EXACT match on RECORDED session refs; nothing is
+  inferred from timestamps or prose.
+
+  Part (ii) exists because the one-part condition carried no information. Measured on the kernel's live
+  open set 2026-08-26: of 63 actionable rows, 52 named a terminal task and 52 of those 52 were flagged —
+  the marker fired on 100% of the rows it was ELIGIBLE to fire on, so the "one glance" cost
+  argument budgeted was paid 52 times rather than once. It converged there STRUCTURALLY: `relates_to`
+  names the card its author was working on when they noticed the thing, and that card closes as a matter
+  of course, so the flag tracked TIME PASSING rather than fixed-ness.
+
+  **FAIL-OPEN on the marker, and this is load-bearing.** Any gap in the evidence — no closure timestamps
+  supplied, no recorded `closed_at`, no `added_at`, no recorded `session_ref` on either side (every
+  record born before) — leaves the ordering or the provenance UNPROVEN and the marker firing
+  exactly as it did before parts (ii) and (iii) existed. The rule only ever SUBTRACTS a proven impossibility, so it
+  can never re-open X-0486 by guessing a row safe.
+
+  **Bound, stated rather than glossed:** part (ii) removes the rows the closure PROVABLY could not have
+  fixed (on that live set, 52 of 52 eligible down to 41 of 52). It does not remove a row whose closing
+  diff simply never touched its subject — that is not derivable without parsing free-form prose, which
+  is the inferred-not-declared mistake `awaits` exists to end. Two richer keys were considered and
+  REJECTED: the card's `created_at` (it would unflag the X-0486 shape itself — a capture made DURING its
+  provenance card), and the provenance's last SHIP commit (measured WORSE, because `commit_landed` also
+  carries the Stage-9 closure record, and separating the two means classifying commit subjects).
+
+  **The rendered hint STATES A FACT, NOT A HYPOTHESIS.** It renders the two timestamps and
+  nothing else — "provenance T-XXXX closed <ts>; this was captured <ts>" — so a reader can tell why
+  this row and not its unflagged neighbour, and forms the verdict themselves. The former tail, "the
+  closing land may already have fixed it; verify before promoting", is RETIRED: it named a MECHANISM,
+  and X-1241 measured that mechanism wrong even where the conclusion was right (two of four rows were
+  fixed by later, unrelated cards). A stated reason a reader can go and check, that does not hold, is
+  worse than a plain miss — so whether the closure touched THIS row's subject, which was never
+  derivable here, is no longer implied.
+
+  **This is NOT the fire key returning — the boundary is ADD vs SUBTRACT, and it is NORMATIVE.**
+  Firing on `relates_to` asserted that an AWAITED MOMENT had ARRIVED; that assertion RECLASSIFIED the row
+  out of the headline, and its false positives silenced 9 live captures. The marker asserts nothing about
+  arrival and MOVES NO ROW: a flagged followup stays `actionable`, stays in the headline count, keeps its
+  status `open`, and merely gains a hint for the human who disposes it. `awaits` therefore remains the
+  **SOLE fire key**, and no verb may auto-promote/auto-drop off this flag — a free-form provenance ref is
+  ambiguous evidence, and auto-mutating on it is the CHARTER §6 surface-don't-auto-mutate fence. The
+  asymmetry that makes the prose key admissible HERE (and only here): a false marker costs one glance,
+  while a missed one costs nothing at all — the row keeps exactly the visibility it already had.
+  Membership is an **EXACT** match against the terminal ids: `relates_to` is free-form, and a regex that
+  guessed an id out of prose would be the inferred-not-declared mistake `awaits` exists to end. Only
+  ACTIONABLE rows are marked — an armed row already carries a DECLARED fire key, and a second
+  provenance-keyed hint beside it would re-blur the two fields separated.
+
+  **Why the fire key is `awaits` and not `relates_to` (the incident).** Keying the fire on
+  provenance made a followup fire the instant the task it was merely ABOUT closed — which is precisely NOT
+  what it waited for. On 2026-07-10 **all 9** live `fired` rows were false: each awaited a FUTURE event
+  (the next real revizia run, the next `-C` consumer init, trend-finder's next land, the next
+  owner-invoked T7 run, a plan's revival) that had not occurred. Fingerprint:
+  `followup-fire-on-relates-to-not-awaited-condition`. The cost is not noise — it is a debt echo that
+  trains its reader to ignore it.
+
+  **Re-arming is the CORRECTION path — `arm` on a FIRED followup returns it to `armed`.**
+  `arm` re-states the WHOLE awaited condition (`trigger` + `awaits` together, last write wins), so it
+  applies to a followup in ANY open group, `armed_fired` included: the operator is saying "the fire was
+  wrong, here is the real condition". Previously `arm` was a silent NO-OP on a fired item — firing derived
+  from the irreversible fact that the provenance task was closed, and `arm` could not touch it, so a
+  wrongly-fired followup stayed fired forever (`followup-arm-noop-on-already-fired`). This needs **no
+  un-fire leg and no new state**: `fired` is a derived VIEW of an `open` record, so re-arming simply
+  changes what the view reads. `relates_to` is never rewritten by an arm — what a followup is ABOUT does
+  not change when the operator re-states what it WAITS FOR.
+
+  **Why the trigger is DECLARED and never inferred from the capture text.** Armedness is a human judgement
+  about a FUTURE event; a regex over free prose must guess, and the two misclassifications are NOT
+  symmetric — a false-ARMED item silently drops OUT of the owner's headline (strictly worse than noise),
+  while a false-ACTIONABLE item merely stays visible. So every unknown falls to **actionable**, and the
+  fire check proves arrival only for the artifact-named class. The SAME discipline governs `awaits`: it is
+  declared, never parsed out of the trigger prose — a regex that guessed an awaited artifact would
+  resurrect exactly the false-fire above. **Honest limit:** a trigger naming a plan slug or a bare future
+  event ("next real dispatch") has no machine-resolvable artifact — so, per the rule below, such an item
+  is NOT ARMED AT ALL: it stays ACTIONABLE and is disposed by an explicit act (promote/drop).
+
+  **Why `awaits` is REQUIRED wherever a trigger is written — the write door, not the read
+  side.** The honest limit above was, for two months, a permitted STATE rather than a refusal, and it
+  became the default one. MEASURED 2026-08-30 by folding the segment-aware journal: of **207 open armed
+  followups, 200 carried NO `awaits`** — only 7 carried one. Oldest 2026-07-04; 35 in July, 164 in
+  August, a rising rate.
+
+  That state is the WORST the mechanism can produce, and worse than leaving an item actionable. Arming
+  REMOVES an item from the actionable headline, while `_partition_open` fires on `awaits` ALONE — so an
+  armed record with no `awaits` is invisible at session start AND can never come back on its own. The
+  actionable items at least stay visible; these were silent. And it was the CHEAPEST state to reach:
+  the shortest path to arming was the path that produced an unfireable waiter.
+
+  So `--awaits` is REQUIRED beside `--trigger` at BOTH doors — `arm`, and `add`'s born-armed path, which
+  is the same claim reached by a second route — refusing BEFORE any append, so a refused capture leaves
+  the item open, visible and disposable. A bare future event with no artifact to name is kept ACTIONABLE
+  rather than armed into silence. This is the THIRD application of one discipline to this verb family,
+  not a new mechanism (CHARTER §P1 F1): `promote --into` was made REQUIRED for the identical stranding
+  shape (X-0165) and `arm --trigger` was made required for it too; this closes the last optional field of
+  that form. No new validator layer, no new event, no new store, no FSM leg.
+
+  **The rule is asymmetric between WRITE and READ, deliberately.** It forbids CREATING the shape; it does
+  not reinterpret, silence or auto-dispose the ~200 that exist. Those still fold to `armed_waiting` — open,
+  visible in `list --status armed`, disposed by hand — exactly as the migration below promises. The two
+  concerns are separate: forbidding new ones is this rule, and disposing of the existing population is its
+  own work, which must run AFTER this rule lands or it would re-create what it removes.
+
+  **`unarm` is untouched** — it writes `trigger: null` AND `awaits: null` together, which satisfies
+  `armed <=> trigger AND awaits` by clearing both, and remains the route back to the headline.
+
+  **MIGRATION of pre-`awaits` records (EXPLICIT — no silent reinterpretation).** No event is
+  rewritten and no capture text is touched. Every record captured before `awaits` existed folds to
+  `awaits: None`, hence reads **`armed_waiting`**. This is the LOSSLESS direction and it is CORRECT for
+  the 9 live rows it moved (each awaited a future event, none awaited a closed artifact): they stay OPEN,
+  stay visible in `list --status armed`, keep their text / trigger / `relates_to`, and each returns to the
+  headline by an explicit act — `arm --awaits <artifact>` once a machine-checkable artifact exists,
+  `unarm`, or promote/drop. Nothing is dropped, silenced, or auto-disposed. What is WITHDRAWN is a FALSE
+  claim ("its awaited moment arrived"); withdrawing a false claim needs no migration event, and
+  re-asserting a TRUE one is the operator's explicit `arm --awaits`.
+
+  **The closure guarantee.** Arming DEFERS a followup out of the headline; the UNFLOORED `armed_fired`
+  clause guarantees it comes BACK. Arming can never make a followup disappear indefinitely — and since
+   the guarantee is structural rather than conventional at the write door: a NEW armed record
+  always names the artifact whose closure fires it. A LEGACY record with no `awaits` is one an operator
+  must dispose BY HAND, exactly as an unresolvable plan-slug trigger already was, never one that hides.
+
+  ### The link may be DECLARED AT FILING
+
+  A task card MAY declare, in an optional `promotes: [fu_...]` field, the OPEN followups it CARRIES.
+  Each declared id is promoted AT FILING — one ordinary `followup_promoted {followup_id, into}` per
+  id, appended by `task file` in the same command. There is no second promote mechanism, no second
+  event shape and no second FSM: what this adds is the MOMENT, not a new leg.
+
+  Why the moment matters. Before it, the only way to state the link was a SECOND manual act after the
+  card existed, and the journal records what that cost: of 221 `followup_promoted` rows, ZERO preceded
+  their target card's `task_filed`, and all 219 that have one came after it — 174 of those within ten
+  minutes (measured 2026-08-15 by joining the two event types on task id). Until someone ran that
+  second command, work that HAD been filed kept reading as open debt in the actionable count the owner
+  reads to size the backlog.
+
+  **DECLARED, NEVER INFERRED — the bound, restated because this is exactly where it would erode.** The
+  link is what the FILER states. No overlap hit, title-keyword screen or heuristic ever promotes
+  anything: this spec settled that axis once, when keying the fire on `relates_to` made all 9 live
+  rows false. The filing-time overlap screen stays ADVISORY and gains only the
+  mirror of `_cites_cross_without_resolves` — it WARNs when it names an open followup the card did NOT
+  declare, and prints nothing when every named one was declared. A screen may raise a question; only
+  a declaration mutates state.
+
+  **FAIL-CLOSED, AND ENTIRELY BEFORE THE WRITE.** Three refusal shapes, each naming the offending id:
+  a malformed token (not the `fu_` + 12-hex shape), an unknown id (absent from the fold), and an
+  already-terminal id (re-promoting it would overwrite the carrier already on record). A silent skip
+  is forbidden — that is the X-0304 silent-drop class the stdin path already burned once. The
+  SPEC-0170 source-cluster provenance gate applies unchanged, sharing ONE implementation and ONE
+  wording with the standalone `promote` leg; at filing it reads the COMPOSED card text, since the
+  target card does not exist yet. Every check therefore precedes the write, so a refused declaration
+  leaves no card on disk, no id consumed and no `task_filed` emitted — the filing happens whole or not
+  at all. The emit leg that follows validates nothing, by construction.
+
+  The field is the followup-axis MIRROR of `resolves_cross` (SPEC-0085) — same additive-optional
+  shape (absent key = no declaration), same both-paths ingestion (argv flag + stdin mapping), same
+  member validation before the write, same journal mirror in `task_filed`. Reusing that shape is why
+  this adds no store, no verb and no gate that refuses a filing over an overlap.
+
+  ### Read-path == write-path resolution (HARD)
+  The fold read-path MUST resolve the SAME effective journal the append writes to: the host residue
+  honors `YITC_EVENTS_SINK` (precedence over `EVENTS_PATH`) for BOTH the append (via `_append_event`) and
+  the fold — otherwise a sink-quarantined run cannot observe its own capture (the hermetic-test
+  invariant; also the correct production invariant).
+
+  **This is a MUST-INCLUDE, not a MUST-BE-ALONE (X-0952).** One read-path — the DECLARED
+  `--promotes` link resolved at `task file` — folds the SPEC-0168 rule-1 instance PAIR: the effective
+  journal above (always FIRST, so keep-first de-dupe prefers the instance the promote event will
+  itself be appended to) PLUS the repo MAIN checkout's root `events.jsonl` when a distinct one exists.
+  The rule above is UNVIOLATED: the write side's instance is still resolved, still first, still the
+  one a sink-quarantined run observes its own capture in. What the pair adds is an instance the write
+  side never claimed to be the only one.
+  **Why the pair is forced by THIS spec's own rules.** `followup add` is a no-worktree capture from
+  the main checkout (§Capture, the append), while a card is filed from a worktree (
+  worktree-before-write) that may have branched BEFORE the capture. So capture-on-main →
+  file-in-worktree is the order the rules ENDORSE, and a single-instance lookup refused a real open
+  followup as unknown — the filer then filed WITHOUT the link and the followup kept reading as open
+  actionable debt (measured: kupiclub against fu_4fb0763233c9, captured ~20 min before the
+  worktree existed).
+  **Bounds.** No second notion of "the other journal" is invented: the instance set and the resolver
+  are SPEC-0168 rule 1's, reused. Widening WHERE an id may be found does NOT widen WHAT is accepted —
+  every refusal leg of `validate_promotes` is unchanged, so an id in NEITHER instance still refuses
+  fail-closed. And the union is replayed in TIMESTAMP order, never concatenation order: `status` is a
+  fold over the FSM below, so a `followup_promoted` replayed before its own `followup_added` would be
+  dropped and the item would read `open` when it is terminal — journal LAYOUT deciding FSM outcome.
+  The single-instance fold is unchanged and replays in file order.
+
+  ### Id is collision-safe
+  The followup id is `fu_` + a hash of the text + a UNIQUE nonce (`uuid4`), so two identical captures at
+  the same timestamp granularity get DISTINCT ids — never merged into one logical followup.
+
+  ### Placement (leaf-up)
+  Per SPEC-0080 §P-A1 (net-new code authored in its own module): the body lives in `bin/lib/followup.py`
+  (stdlib-only, host deps injected), with only a thin residue (argparse + dispatch) in the host.
+
+  ## Rationale
+
+  Real incident / prior-art: X-0056 (kupiclub) — the markdown followups-inbox is trial-proven
+  insufficient (worktree+land per staging note). The cross verb family (SPEC-0085/0086) is the direct
+  structural prior-art: a journal-append FSM verb family whose state is a derived fold. Owner-approved
+  new mechanism (when-NOT-to-add ratified 2026-06-21). Authored work-first by.
+
+  ## Verification
+
+  - Adoption (§P3/§P8): activates at close; a live `followup add` records a real `followup_added`
+    (the live-trigger probe).
+  - State-check: a hermetic test drives `add → promote` and `add → drop` (both legs) and asserts the fold
+    reports the right terminal state; an unknown-id / double-transition is refused.
+  - No-worktree: `followup add` succeeds from a non-worktree checkout (the -class append).
+  - Fire key (DIFFERENTIAL): a followup whose `relates_to` is TERMINAL but whose `awaits` is not
+    reads `armed_waiting`; its sibling whose `awaits` IS terminal still reads `armed_fired`. A fix that
+    merely suppressed the lens would fail the second half.
+  - Re-arm : `arm` on a FIRED followup returns it to `armed` with the new trigger recorded.
+  - Migration : a legacy record carrying no `awaits` never auto-fires; it stays open + visible.
+  - Required `awaits` (DIFFERENTIAL): `followup arm <id> --trigger X` with NO `--awaits` is
+    REFUSED and appends NO `followup_armed`; `followup add --text X --trigger Y` with no `--awaits` is
+    refused on the same terms (born-armed and later-armed are one claim reached two ways). Both FAIL on
+    the pre-change code, where each succeeds and folds to armed — the path that produced 200 of the 207
+    open armed records. The refusal is FAIL-CLOSED, not lossy: after a refused arm the item is still
+    OPEN and still listed by `followup list --status actionable`. The positive halves are asserted too,
+    so a fix that merely refused everything cannot pass, and the READ side is pinned unchanged: a legacy
+    awaits-less record still folds to `armed_waiting`.
+    Probe: tests/test_t11863_followup_arm_requires_awaits.py.
+  - Declared-at-filing (DIFFERENTIAL): filing a card WITH `--promotes <id>` emits
+    `followup_promoted` with `into` naming that card and drops the followup out of the actionable
+    lens; filing the SAME card WITHOUT the declaration leaves it actionable and emits nothing. A
+    no-op would pass neither half.
+  - Declared-at-filing REFUSALS : each of the three bad shapes — malformed token, unknown
+    id, already-terminal id — exits nonzero NAMING the id, and writes NO card (the pre-write
+    ordering is asserted, not just the exit code: a silent skip, or a card left on disk beside a
+    failed promote, FAILS).
+  - Overlap WARN, both directions (COHORT COMPLEMENT): a card that declares nothing while
+    the screen names an open followup WARNs; the same card declaring all of them does not. The WARN
+    cannot go green by never firing.
+  - Stale provenance (DIFFERENTIAL): an actionable followup whose `relates_to` is TERMINAL is
+    flagged + counted + rendered as possibly stale, while its twin with an OPEN `relates_to` is
+    UNTOUCHED (a fix that flagged every row fails the second half). ANTI-REGRESSION half: the flagged
+    row is STILL `actionable`, still `open`, and still headline-counted — never fired, reclassified, or
+    auto-disposed (a fix that routed on provenance would revive and fails here).
+  - Stale-provenance ORDERING (DIFFERENTIAL): a fixture PAIR identical except for the order of
+    `added_at` and the provenance's `closed_at` — the later-captured row is UNFLAGGED and the
+    earlier-captured one STAYS FLAGGED, asserted together so the ordering cannot be claimed without
+    being exercised (a fix that flagged both, or neither, fails one half). FENCES, each its own leg: a
+    capture made DURING its provenance card is STILL flagged (the X-0486 shape — the over-correction
+    that would re-open the incident); an UNPROVEN ordering (no closure map / no `closed_at` / no
+    `added_at`) leaves the marker firing (fail-open, asserted not assumed); rows whose `relates_to` is
+    absent or is not a task id stay byte-identical. NO PREVALENCE NUMBER is asserted anywhere — a
+    tripwire on today's flagged-over-eligible ratio would go red when the corpus legitimately shifts
+    (SPEC-0165), so what is pinned is the rule's behaviour on constructed fixtures.
+
+cites:
+  - CHARTER.md#principle-5
+  - CHARTER.md#principle-1
+  - SPEC-0025
+  - SPEC-0080
+  - SPEC-0085
+  - X-0056
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first: close flips proposed→active
+proposed_by: # work-first provenance (the authoring task)
+binding: # code-enforced residency: implements: IS the delivery (SPEC-0005 §7; mirrors SPEC-0002)
+  - code-enforced
+implements_signature:
+  bin/lib/cli.py#_cross_items: ccfa77436d160429ec5050757c69d79e6033b931187d0967218365d61b1b6348
+  bin/lib/cli.py#_followup_events_path: 9d06e6fc14275c0e0e4fc2aa775cc556df2e2ae619e1abf289a0418472ebeb97
+  bin/lib/cli.py#_nonterminal_cross_ids: 0518f78ed087e269d115a50304559f8b2cfe0dab7870c86507c1fe71106799a3
+  bin/lib/cli.py#_open_awaited_refs: 6c30c057169e1011b2a08055ebe860480bb532cbcbb54511c1829b8542ac1715
+  bin/lib/cli.py#_terminal_cross_ids: 957341dc2ae48e28f424fb41edbce0b7c030eb404d640a927dda1cef8335ce79
+  bin/lib/followup.py#_clean_awaits: 07edb202d142a4229eb3b72fef3b20ff534032c793b6649ff1eb6afeda749f50
+  bin/lib/followup.py#_clean_trigger: 416aa884c7741302bb8a38a2b0c601648c7fc849ebced634ddc96b3e0ee8512a
+  bin/lib/followup.py#_fold: 8c48858e99b8010ba25b5970e5bcbf0ef93eb1cd36ce40e54ce7a0d10ccb78d6
+  bin/lib/followup.py#_fu_id: 972d551b84aec0bc47bad06226f0dc531c364c25da5b3e03c7fd4e8d5f0c0ad3
+  bin/lib/followup.py#_partition_open: 3ebdad23a2368a31494cda8608be5601621e3615afa74d3841f1b6e076006bf3
+  bin/lib/followup.py#_provenance_refusal: 709c47901e2aeb17902aa3a823f13660124d91a3aca90469384f2c17f886646e
+  bin/lib/followup.py#_require_promote_target: 6fe6e84f84450076b29b35fe952b0a1c63eb904c8330f78693b3fac4077e2be8
+  bin/lib/followup.py#advisory_candidate_refs: ac0b7baaeaf4e95a0883f5c0ead129fef92af9fd32ef9aae244d671807d2538d
+  bin/lib/followup.py#arrived_ids: 7ac6c30c5f9016471beda1bdf6f45448affdf0629b1fd843858d1ef393255c6e
+  bin/lib/followup.py#awaits_kind: ca96a0145e1cf4ba61878fe266bb80737c312d30a572fc2f975b7c62a0746220
+  bin/lib/followup.py#born_armed_advisory_line: bb759a5bc016feff9932eef282c67eff321b8aa3bb758e63a1c7db5b0e4ba514
+  bin/lib/followup.py#cmd_followup_add: 463c40504379b4538a6800a3d6371036089d3c879feb218f4f4865dc43d60260
+  bin/lib/followup.py#cmd_followup_arm: c2da7478d8f38bdca2829d77f803a7fe38021b7a8ee4e777868220b67024f2d6
+  bin/lib/followup.py#cmd_followup_drop: 53325fff2a241c652cfc162792891dfb61e603b4dc737f117791676bc4aa18ba
+  bin/lib/followup.py#cmd_followup_list: 5b1ce0719a69fd91bd5b0d7b15158d50b605273219914fc3133f0811a19989a8
+  bin/lib/followup.py#cmd_followup_promote: 92e35fbc3c8da9b7903df704440a777d79a1f47b8aa1597d3129e87733e1492c
+  bin/lib/followup.py#cmd_followup_unarm: eda53ae5a16b367b649d710c69aa6c2bef16a37ccde5c613ed7db9a2811f7ff0
+  bin/lib/followup.py#event_after_arrived: 6774b347c424ab0cb97d95fe2314eed0a6ab113c25af823614efb9290ce5621c
+  bin/lib/followup.py#open_followup_counts: 441402bc0d5878a5149877c5b6c8dc1fb24f75402aa397b16e4c601a00481873
+  bin/lib/followup.py#promote_at_filing: 1516f301183382cfd26a9cbe40fa34198911e19f39724ddfa7da0aa1c3b0b22d
+  bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
+  bin/lib/followup.py#split_event_awaits: 33f5554be1bbbc36549b58bfc329881e7e45bd7503ded24ca98d0d55a08c8135
+  bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
+  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93

@@ -1,0 +1,398 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0185
+title: 'Kernel code reads a consumer surface from the declaration that covers it, never from a hardcoded path'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # placement realm (the corpus-wide placement contract; catalog
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: [] # DISTRIBUTED / DOCUMENTARY empty-mode (SPEC-0005 rule 7, named as
+                               # required so empty != omission): an authoring rule for kernel code,
+                               # enforced at every site that resolves a consumer surface, not at one
+                               # code site. Its structural backstop is the tripwire named in
+                               # ## Verification. The reuse exemplars are cited in the body (§5).
+
+body: |
+  ## Scenario
+
+  A project keeps its tests at `backend/tests/`, says so in its `yitc-ops.yaml`, and the kernel's
+  gates run against `backend/tests/`. Nobody has to move a directory to be governed, and nobody has
+  to declare one thing more than they already do. When a kernel gate cannot find a project's surface,
+  the honest outcome is that it says so — never that it quietly finds nothing and reports green.
+
+  ## Internal
+
+  ### 1. The rule
+
+  **Kernel code MUST NOT resolve a CONSUMER-INTERNAL path from a hardcoded literal WHEN an
+  ops-contract declaration or waiver already exists for that surface. Where a declaration exists, it
+  is the resolution source; and it MUST be read in FULL — the UNION of the declared entries — never
+  the first entry that appears to cover the surface.**
+
+  Three parts — historically «halves», the name §3 and ## Verification still use — because the rule
+  has been broken in three different ways (§3):
+
+  - **(a) Hardcoded path.** Resolving a surface by an assumed literal (`<repo>/tests`) when
+    `yitc-ops.yaml` declares where that surface is.
+  - **(b) Under-read declaration.** Consulting the declaration but reading LESS of it than it says —
+    taking the single entry whose glob claims the surface when coverage is per-UNION, or otherwise
+    narrowing a declared set. A rule written only against string literals would not reach this half
+    at all, and a quarter of the evidence for this rule is of exactly this shape.
+  - **(c) Convention-shaped surface.** Identifying a surface by a NAMING or SHAPE convention the
+    kernel carries internally — a filename regex, an extension list, a directory-name habit — when
+    the project's own contract declares where that surface is. Test-FILE naming is the incident case
+    (§3, X-1235): a Python-shaped filename regex read a correctly-authored `frontend/….test.js`
+    acceptance criterion as UNNAMED. Halves (a) and (b) are both about a PATH; this one is about a
+    PATTERN, and a rule written only against paths would not reach it. The obligation is identical
+    to (a) and (b), and so is its bound: where the project declares the convention, THE DECLARATION
+    IS THE RESOLUTION SOURCE, read in FULL as the UNION of its entries; where the project declares
+    nothing, §2's qualifier applies unchanged and this half obliges nothing at all.
+
+  ### 2. THE SCOPE QUALIFIER IS THE RULE, and here is why it is load-bearing
+
+  «WHEN a declaration or waiver exists for that surface» is not a caveat attached to the rule. It is
+  the rule's extent, and removing it changes what the rule demands of every project.
+
+  The broad form — «the kernel never guesses a consumer path» — is unimplementable without a
+  declaration for every path the kernel might ever want. That obliges the ops contract to grow a
+  field per filesystem detail: config sprawl, plus a parallel mirror of every consumer's tree that
+  goes stale the moment a project moves a directory and forgets the carrier. Two homes for one fact
+  is the accretion CHARTER §Principle 1 exists to prevent, and it would be a worse failure than the
+  one this rule closes, because a stale declaration misdirects a gate as silently as a hardcoded path
+  does.
+
+  The narrow form cannot do that. Its scope is bounded ABOVE by what a project has ALREADY chosen to
+  declare, so it can never enlarge the contract: it adds no field, no section, no store, and for a
+  project that declares nothing it obliges nothing at all. It is a rule about how kernel code READS
+  an existing surface, not about what a project must WRITE on one.
+
+  And the bound costs no evidence. In BOTH incidents (§3) the declaration EXISTED and the kernel did
+  not use it. The narrow rule reaches every case the evidence actually contains, which is precisely
+  why the broader form buys nothing and pays with sprawl.
+
+  **The corollary, so the qualifier is not read as a licence:** a hardcoded literal for a surface NO
+  declaration covers is OUT OF SCOPE of this rule. It may still be poor code, and its own spec may
+  govern it — but it is not a violation of THIS rule, and no guard built for this rule may fail it.
+
+  **The inverse move — where it is taken, and on what evidence.** Tightening what a project is
+  REQUIRED to declare waits for evidence that the contract cannot EXPRESS a needed surface. For the
+  two founding incidents that evidence pointed the other way: the contract expressed it and the
+  kernel did not read it, so nothing was added for them and nothing is added for them now.
+
+  X-1235 (§3) is the case where the evidence finally points inward, and it is admitted on exactly
+  that showing: the `tests:` taxonomy could name a test CLASS and its MOMENT but had no way to say
+  where that class's test FILES LIVE, so a kernel-carried filename regex was the only recognizer
+  there was — a contract that cannot express the surface leaves the kernel nothing to read. The move
+  is therefore taken ONCE and BOUNDED to what the evidence showed missing: the OPTIONAL per-class
+  `globs:` list on `tests.classes[]` (SPEC-0160 rule 10 owns its shape). It is OPTIONAL, so no
+  project is obliged to write it and no existing carrier becomes non-conforming; it enlarges what a
+  project MAY say, never what it MUST. That bound is the whole of the permission: a further field is
+  not licensed by this paragraph — it needs its own showing that the contract cannot express its own
+  surface, which is the same bar X-1235 cleared and the same bar §2 has always set.
+
+  ### 2a. Two duties this rule does NOT delegate to a declaration
+
+  Not every project difference is a project DECLARATION. Two are the kernel's own duties, and reading
+  them as things a project ought to declare would put the config sprawl §2 refuses back on the
+  contract by another door.
+
+  **(i) NO script or encoding assumption — a kernel ROBUSTNESS duty.** Kernel code makes no
+  assumption about the SCRIPT, ENCODING or PROSE LANGUAGE of a consumer's paths or text.
+  Concretely: git path output is UN-ESCAPED at EVERY reader that consumes it (git quotes non-ASCII
+  bytes as octal escapes under the default `core.quotepath`, so a reader that does not decode them
+  compares a path against a different string than the one on disk — X-1237); text is read and
+  written as UTF-8, the platform contract; and no surface assumes ASCII-only identifiers or a
+  particular prose language in a card, a criterion or a commit body. A project MAY declare a
+  human-facing prose locale for GENERATED copy where one is needed, but no such declaration may ever
+  affect PATH CORRECTNESS — a project must never have to declare that it uses Cyrillic filenames or
+  writes its cards in Russian in order to be read correctly. This duty is unconditional: it holds
+  for a project that declares everything and for one that declares nothing, because it is not about
+  a declaration at all.
+
+  **(ii) A kernel DEFAULT is admitted ONLY as a fail-open fallback, and only where nothing gates.**
+  Where a project has declared nothing for a convention-shaped surface, half (c) obliges nothing —
+  and a kernel-carried default (the existing filename regex, say) MAY still run. It is admitted on
+  TWO conditions, both required: it applies ONLY to an UNDECLARED project (a declaration always
+  wins, and is never merged with, augmented by, or second-guessed against the default), and it sits
+  ONLY on a REPORT-ONLY surface — an advisory whose exit code does not move. A default that GATES is
+  the mandated layout of §4 wearing a fallback's clothes: it makes the kernel's internal convention
+  the thing a project is measured against, which is precisely what this rule removes. Fail-OPEN is
+  the direction that matters: an undeclared project gets a best-effort advisory it may ignore, never
+  a refusal it must satisfy.
+
+  ### 3. The evidence — two incidents, by id (CHARTER §Principle 1 filter 4)
+
+  - **X-0938 — a HARDCODED PATH (half (a)).** The SPEC-0077 pinned last-green verify leg overlaid
+    exactly `("tests", "yitc-ops.yaml")`. For a consumer whose tests are at `backend/tests/`,
+    DECLARED as `verify.layers[backend].command: bash backend/scripts/verify.sh`, the root-level
+    lookup MISSED, so no old check was overlaid at all — while the leg still ran and still recorded
+    `verify_mode=pinned+candidate`. It applied the candidate's own checks to the candidate's own
+    tree. Fixed by.
+  - **X-0894 — an UNDER-READ DECLARATION (half (b)), not a plain hardcoded path.** The tests-sweep
+    delegation check resolved THE single layer whose `covers:` glob claimed `tests/`, while real
+    coverage in a consumer is per-UNION: a covered file is routinely executed by a SIBLING declared
+    layer. 8 of 39 covered files were reported as named by nothing, when a sibling layer named them.
+    Fixed by.
+
+  - **X-1235 — a CONVENTION-SHAPED surface (half (c)).** The SPEC-0060 test-or-waive advisory
+    recognized a test reference by `bin/lib/task.py#_AC_TEST_REF_RE`, a kernel-carried filename
+    regex whose branches were all Python-shaped (a `tests?/` path, `test_<name>`, `<name>_test`, a
+    `::node` id, the explicit `(test: …)` marker). A consumer testing with vitest names its files
+    `<name>.test.js`, so four correctly-authored criteria naming an EXECUTABLE test file were all
+    reported as naming no test at all (measured on kupiclub, 2026-09-02). The project's
+    `tests:` taxonomy could not have been read instead, because it had no field for where a class's
+    test files live — the gap §2 admits the inverse move for. Fixed by, which widened the
+    regex; this rule is what makes the widening a stopgap rather than the answer (§4).
+  - **X-1237 — an ENCODING assumption, the §2a(i) duty rather than a declaration.** The audit-post
+    packet-readiness advisory compared `expected_touch` against path names taken from diff text
+    WITHOUT un-escaping git's default `core.quotepath` octal quoting. A Cyrillic-named path
+    therefore failed to match ITSELF, landing in both declared-not-audited and audited-not-declared
+    (measured on kupiclub, 2026-09-02: declared 10, audited 12, outside-forecast 6, four of the six
+    false — on a project with Cyrillic file names, every card touching that tree). Fixed by.
+    It is listed here because it is the incident that establishes §2a(i): the honest reading is that
+    the kernel owed the decoding, NOT that the project owed a declaration of its alphabet.
+
+  **Why four, and what the count is not doing.** All four produced SILENT FALSE PROTECTION — a gate
+  or an advisory that reported having checked something it had not checked, or reported a
+  correctly-authored thing as missing. That CHARACTER, not the count, is what clears the filter-4
+  threshold: a silent false-green cannot be found by the mechanism that is supposed to find it, so
+  waiting for one more instance means waiting for one nobody will notice. The first two are of half
+  (a)/(b) shape and were already sufficient for the rule as it stood; the second two are what
+  EXTEND it — X-1235 is the sole evidence for half (c) and for the bounded inverse move (§2), and
+  X-1237 is the sole evidence for §2a(i). Each addition is carried by its own incident, not by the
+  aggregate.
+
+  ### 4. What is REMOVED (CHARTER §Principle 1 filter 3)
+
+  **RETIRED: the kernel habit of ROOT-LAYOUT FALLBACK GUESSING** — resolving a consumer surface from
+  an assumed root layout and, for any project shaped differently, degrading SILENTLY to a no-op that
+  still reports. That habit is REMOVED, and deliberately NOT REPLACED:
+
+  - **No mandated project layout** — explicitly rejected. This rule requires no project to move
+    anything or to look like any other project.
+  - **No new project-layout mechanism** — no discovery layer, no layout registry, no resolver
+    framework. The declaration surface that exists is the one that is read.
+  - **Optional `init` defaults stay acceptable ONLY as recommendations for NEW projects**, never as a
+    compatibility rule an existing project is measured against. A born default is a convenience at
+    birth; the moment it is treated as what a project OUGHT to look like, it has become the mandated
+    layout above.
+
+  **RETIRED (added by X-1235): the PER-LANGUAGE REGEX GROWTH PATH** — answering "the kernel does not
+  recognize this project's tests" by adding one more branch to a kernel-carried filename pattern.
+  That is REMOVED as the standing answer, and deliberately NOT REPLACED by its neighbours:
+
+  - **No per-language adapter, no convention registry, no auto-detection layer.** Each is a SECOND
+    convention system standing beside the project's own contract, which is the accretion CHARTER
+    §Principle 1 refuses; the declaration that exists is the one that is read.
+  - **The growth path's real defect is that it never terminates and never says so.** Every added
+    branch is individually cheap and locally correct, so the kernel silently accumulates one
+    project-shaped assumption per language while every unlisted convention keeps reading as a defect
+    in the PROJECT. widening for vitest/Playwright was the right immediate fix and is not
+    undone here; what is retired is treating the NEXT such widening as the answer rather than as the
+    signal that the surface wants a declaration.
+  - **What replaces it is not a mechanism but a precedence:** where a project declares the
+    convention, the declaration resolves it (half (c)); where none is declared, the kernel default
+    stays, on the §2a(ii) fail-open, report-only terms and no others.
+
+  ### 5. The existing analog this rule governs — it BUILDS no carrier
+
+  `yitc-ops.yaml` (SPEC-0093, with the verify/coverage/startup sections in SPEC-0152) ALREADY IS the
+  declaration surface: `verify.layers[].command` / `covers` / `subject_globs` / the per-layer and
+  per-section waivers, and `coverage.load_bearing` / `admitted`, and — for half (c) — the `tests:`
+  taxonomy's `classes[]`. This rule builds **no carrier, no store, no section**: it governs how
+  kernel code READS the carrier that exists.
+
+  **The one field, named honestly.** The §2 inverse move admits EXACTLY ONE addition to that
+  carrier: the OPTIONAL per-class `globs:` list on `tests.classes[]`, whose shape SPEC-0160 rule 10
+  owns and whose sole justification is X-1235 — the surface half (c) governs could not otherwise be
+  declared at all. It is OPTIONAL and checked only if present, so it enlarges what a project MAY
+  say and obliges no project to say it. Recording it here rather than repeating "no field" keeps
+  this section true: one field, one incident, one home for its shape.
+
+  A concrete instance of the reading it requires, already shipped and available for reuse rather than
+  reinvention: `bin/lib/worktree.py#_pinned_declared_check_paths` (derive the surface from the
+  declared layers) and `#_declared_check_surface_globs` (take the UNION of the declarations).
+
+  ### 5a. How this rule reaches the author
+
+  Delivered at the **Execution stage-entry** — the moment kernel code is being written, which is when
+  an author would otherwise reach for a path literal. It is deliberately NOT on the
+  `before-project-dimension-judgement` floor: that surface answers a different question (is this
+  artifact kernel, v2-self or project?) and is a deliberately capped bundle — five named specs, an
+  anti-bloat bound guarded by `tests/test_t9442_project_dimension_floor.py`. This rule concerns how
+  kernel code RESOLVES a surface it has already decided to reach, so the stage axis is the honest
+  one and the floor stays small.
+
+  ### 6. Realm
+
+  This spec is KERNEL-realm and TRAVELS to every consumer — the spec class default (`travels: ~`),
+  stated here in words because a default carried by an absent field is not legible on the artifact.
+  It governs KERNEL code. It places no obligation on a consumer: a consumer declares exactly what it
+  declared before.
+
+  ### 7. Anti-complexity record (CHARTER §Principle 1, four filters — AGENTS §When NOT to add a mechanism)
+
+  1. **Existing analog?** Yes, and it is REUSED, not paralleled: SPEC-0093 / SPEC-0152 own the
+     declaration surface; this spec adds a read-discipline over it. Not folded INTO either, per
+     SPEC-0005 rule 6: both are at the anti-oversize bound (SPEC-0152 was itself split out of
+     SPEC-0093 for that reason), and they govern the carrier's SHAPE — what a project declares —
+     while this governs kernel READ behaviour, a different stable surface.
+  2. **New entity or new view?** No new entity: no carrier, no store, no section — a standing rule
+     over existing data, with one tripwire. ONE new field, and it is named rather than hidden: the
+     OPTIONAL `tests.classes[].globs` (§5), admitted on X-1235's showing that the contract could not
+     express the surface, optional and checked-only-if-present so no existing carrier changes.
+  3. **What gets removed?** §4 — root-layout fallback guessing, plus (X-1235) the per-language regex
+     growth path: both named and removed, neither replaced by a mechanism.
+  4. **Real incident?** Four, by id, in §3 — all four shipped and closed. Each ADDED part is carried
+     by its own incident, not by the aggregate: X-1235 for half (c), the §2 inverse move and the §4
+     retirement; X-1237 for the §2a(i) encoding duty.
+
+  ## Rationale
+
+  Controlling provenance: the external consult
+  `decisions/project-layout-vs-kernel-path-assumptions-audit-adhoc.yaml` (2026-08-16, YELLOW), whose
+  two findings set this spec's wording. Finding 1 NARROWED the originally-proposed broad rule («the
+  kernel does not GUESS a project path») to the declaration-exists form of §1, on the ground that the
+  broad form overgeneralizes into a configure-every-path rule — hence §2. Finding 2 re-characterized
+  X-0894 as a declaration-INTERPRETATION defect rather than a hardcoded path — hence half (b) of §1
+  and the §3 wording. The same consult named the §4 retirement and rejected mandating a layout.
+
+  Incident provenance: X-0938 (fixed by, commit `4f4aa8981`) and X-0894 (fixed by,
+  commit `0e1d3a8cc`). This rule guards neither instance — both are closed — it guards the CLASS.
+
+  **The 2026-09-03 amendment (half (c), §2's bounded inverse move, §2a, the §4 retirement).**
+  Controlling provenance: the external consult
+  `decisions/project-declared-conventions-audit-adhoc.yaml` (2026-09-03, GREEN). Its Q1 set half
+  (c)'s precedence — derive a test reference from the declared `tests:` taxonomy FIRST, keeping the
+  kernel regex as the fail-open default for a project that declares none. Its Q2 set §2a(i): paths,
+  quoting, Unicode and locale are kernel ROBUSTNESS duties, not project declarations, so no project
+  declares its alphabet to be read correctly. Its Q5 set §2a(ii)'s two conditions — narrow kernel
+  defaults ONLY for undeclared projects and ONLY where fail-open is backward-compatible — and
+  refused the neighbours §4 now names (plugin APIs, per-language adapters, convention registries,
+  auto-detection). Incident provenance: X-1235 (fixed by) and X-1237 (fixed by),
+  both raised by a consumer and both closed. As with the founding pair, this rule guards neither
+  instance; it guards the class each one exposed. A first draft of this amendment birthed a
+  duplicate spec, SPEC-0194 — WITHDRAWN: the rule has ONE home, and it is this one.
+
+  ## Verification
+
+  Tripwire (SPEC-0165: one differential tripwire for a rule that can break silently — and this rule
+  can, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.
+  It is anchored to the text of §1/§2 above and NOT to current code behaviour; where it uses a
+  pre-change state as a failing input it carries an INLINE copy of that state and names the fixed
+  commit it was taken from, never a merge-base, `main`, or `HEAD`.
+
+  Three legs, each naming its input:
+
+  - **A — the violating input (the guard MUST fail).** An ops carrier declaring
+    `verify.layers[backend].command: bash backend/scripts/verify.sh`, so `backend/tests` IS
+    declaration-covered. The pre- root-layout resolver (inline copy, baseline named) resolves
+    only a root `tests`, missing the declared surface → VIOLATION of §1(a). The current
+    `_pinned_declared_check_paths` on the SAME carrier → no violation. The negative control is proven
+    in-arm, per `lessons/a-negative-control-must-fail-without-the-intervention.md`.
+  - **B — the out-of-scope input (the guard MUST pass).** The SAME hardcoding resolver against a
+    carrier that declares NOTHING for that surface → NO violation, because §2's qualifier puts it
+    outside the rule. This leg is not politeness: a guard that failed here would have implemented the
+    broad rule the consult rejected, and would be the config-sprawl pressure §2 exists to refuse.
+  - **C — the under-read input (the guard MUST fail), so §1(b) is enforced and not merely
+    described.** A carrier with two executable layers — the one whose `covers:` claims the surface,
+    plus a SIBLING that names the file. A first-layer-only reader reports the file unnamed →
+    VIOLATION; the union reader does not.
+
+  Adoption (CHARTER §Principle 8, infra-class): the guard suite executing under the pinned land-verify
+  suite, with leg A's named failing input demonstrating the differential.
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0160
+  - SPEC-0060
+  - SPEC-0093
+  - SPEC-0152
+  - SPEC-0077
+  - SPEC-0165
+  - SPEC-0073
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: # PROVENANCE / corpus carrier — who BIRTHED this proposed spec; NOT the
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding:
+  - stage-entry:Execution # delivered where kernel code is WRITTEN — the stage at which an author
+                               # would otherwise reach for a path literal. NOT the
+                               # before-project-dimension-judgement floor bundle: that surface is a
+                               # deliberately capped set (<=5 named specs, AC3 anti-bloat, guarded by
+                               # tests/test_t9442_project_dimension_floor.py) and is already full at 5.
+                               # This rule is about how kernel code RESOLVES a declared surface, not
+                               # about judging an artifact's kernel|v2-self|project dimension, so the
+                               # Execution stage-entry is the honest delivery axis and the floor stays
+                               # small.
+                               # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)

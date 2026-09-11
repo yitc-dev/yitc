@@ -1,0 +1,113 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030. Spec lifecycle FSM: GRAPH.md / SPEC-0005.
+
+id: SPEC-0116
+title: External-mutation capture — external_action event for a substantive outbound mutation lacking a dedicated verb
+
+status: active
+
+created_at:
+
+travels: kernel # DRAFT is plan-local (governs nothing). Re-pin to kernel is the EXPLICIT
+                                 # action at plan-accept (SPEC-0073 §3) — this doctrine TRAVELS to every
+                                 # consumer once active (a session in any project captures external writes).
+
+consumed: false # documentary/process doctrine — no code reads a scalar param from it.
+
+implements: [] # process/governance doctrine — no NEW code; it REUSES the existing
+                                 # generic journal append `bin/yitc-v2 event` (the deviation_captured
+                                 # path). Non-dangling via `binding:` below, not via an anchor.
+
+body: |
+  ## Scenario
+
+  When a session does something that changes the world OUTSIDE every repo — writes a correction into a
+  design project, posts to a chat service, calls a third-party write API — and **no dedicated v2 verb
+  already captures that action**, the session records it with ONE journal line: an `external_action`
+  event (via `bin/yitc-v2 event`). So the mutation is visible across sessions the same way a `deploy`
+  or a `cross request` is. READS and trivial/no-effect calls need nothing.
+
+  ## Internal
+
+  THE RULE (the fallback capture FLOOR for outbound external mutations):
+
+  A **substantive outbound external mutation** that **lacks a dedicated capturing verb** MUST emit an
+  `external_action` journal event at the time of the action, via `bin/yitc-v2 event` (no worktree — it
+  rides the append-only journal path, the exception, exactly like `deviation_captured`).
+
+  - **"Substantive external mutation"** = a WRITE / side-effect to a system OUTSIDE every repo (an
+    external service, project, or API). **READS and trivial/no-effect calls are EXCLUDED** — the bright
+    line is a state change in the external world, mirroring the Principle-2 "substantive action"
+    threshold. (Capturing reads would be noise.)
+  - **"Lacks a dedicated verb"** = no existing verb already produces that action's capture. Named
+    external interactions that DO have richer, dedicated capture are governed by THEIR verb, NOT this
+    floor: `deploy` (`deploy_completed` + `live_probe`, SPEC-0094); `cross *` (`cross_requested`,
+    SPEC-0085/0086); the shared-store append (SPEC-0084). This doctrine is the **fallback floor for the
+    un-verbed remainder only** — it does NOT replace or weaken those, and the §Verb-execution discipline
+    is unchanged (where a dedicated verb exists, using it stays the obligatory path; hand-emitting this
+    generic event instead of the proper verb is NOT permitted).
+  - **Required `data` fields** of the `external_action` event:
+    - `channel` — HOW the mutation was issued (e.g. `mcp:<server>`, `harness-tool:<name>`, `bash:<cmd>`).
+    - `target` — WHAT external system/object changed (e.g. `design-project:c95f02ff`, `slack:<channel>`).
+    - `action` — WHAT was done (e.g. `write_files`, `post_message`, `PUT /resource`).
+    - `from` — the durable basis for the action (CHARTER §P2): a task/plan/spec id or a journal locator.
+  - **Territory composition:** an external-service write is OUTSIDE every repo, so it is NOT a
+    cross-repo write — the SAME legality basis as the SPEC-0084 shared-store carve-out. The capture
+    obligation therefore does not conflict with the scope-boundary discipline (it neither writes nor
+    probes another project's repo).
+  - **Channel-agnostic:** the obligation is INDEPENDENT of transport — an MCP tool, a harness-native
+    tool, or a raw `curl`/API call in Bash all incur it equally. (MCP transport specifics: the
+    "working with MCP in v2" pattern, which POINTS here for capture — it does not restate this rule.)
+
+  `external_action` is a NEW event type added to the events catalog (SPEC-0025 / extension) —
+  additive to the one journal (CHARTER §P5), no new store/parser/format.
+
+  ## Parameters
+
+  None consumed. The `data` field set above is the event PAYLOAD contract (channel/target/action/from),
+  not a code-read scalar governance param — so `consumed: false`.
+
+  ## Rationale
+
+  Real incident: a kupiclub session wrote a correction into design-project `c95f02ff` via DesignSync
+  `write_files` (2026-06-30) and it fired **no journal line** — an uncaptured external mutation (cross
+  X-0138/X-0139). v2 captured outbound mutations ONLY per-named-action (deploy / cross / shared-store);
+  an external mutation with no dedicated verb had no capture doctrine at all. This generalizes those
+  per-action instances into ONE fallback floor. Prior-art for the SHAPE: `deviation_captured` — a
+  generic, no-worktree, fire-from-anywhere journal event with no dedicated verb. (Deliberation +
+  rejected alternatives — a dedicated verb, the scope/trial choices — live in the proposing plan
+  `external-system-interaction-governance-capture-doc`, not here.)
+
+  ## Verification
+
+  - **Probe (behavioral):** after a substantive un-verbed external mutation, `grep '"type":
+    "external_action"' events.jsonl` shows the event carrying `channel` / `target` / `action` / `from`.
+  - **Negative probe (reads):** a READ-only external call emits NO `external_action` event (reads excluded).
+  - **Negative probe (no verb bypass):** an action that a DEDICATED verb covers (a deploy, a `cross`
+    request) emitted via a hand `external_action` event INSTEAD of its verb is a VIOLATION, not
+    compliance — the §Verb-execution discipline holds; this floor is the fallback for the un-verbed
+    remainder only, never an escape from a covering verb.
+  - **Adoption (P8):** the event fires for ≥1 real (PIGGYBACKED on an already-authorized) external
+    mutation — graph presence is not adoption.
+
+cites:
+  - CHARTER.md#principle-2 # durable-capture grounding (the doctrine's parent principle)
+  - CHARTER.md#principle-5 # one journal — additive event type, no new store
+  - CHARTER.md#principle-8 # adoption strength for infra-class
+  - SPEC-0025 # events.jsonl schema / event-type catalog (the new external_action type)
+  - SPEC-0084 # shared-store carve-out — the territory legality analog
+  - SPEC-0094 # deploy capture — a per-named-action instance generalized here
+
+requires: []
+supersedes: ~
+activation_owner_task: # forbidden while draft; set EXPLICITLY at decomposition to the ONE
+                                 # task whose close activates this spec (SPEC-0005 §5).
+proposed_by: external-system-interaction-governance-capture-doc
+
+binding:
+  - before-external-mutation # floor-trigger (mirrors before-deploy → SPEC-0097): before issuing a
+                                 # substantive outbound external mutation, read this spec. Generates a
+                                 # graph/floor-trigger-map.md entry at `graph build`; the spec body stays
+                                 # retrieved-on-demand, only the one-line pointer is always-loaded.
+
+init_concern: ~

@@ -1,0 +1,18 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: task-scorecard
+description: Per-task lifecycle metrics for a closed task (T-XXXX) — lead time, per-stage wall, audit passes + GREEN-first, land attempts, deviations, tokens/cost. Run `graph query task-scorecard T-XXXX`.
+lens:
+  kind: task-scorecard # pure f over events.jsonl (the journal SoT) + the token-rollup lens for the cost column; NOT a new store
+why: >-
+  Inspection-metrics PART-2 (plans/inspection-metrics-consumption-views-thresholds-tr.md, TASK-B):
+  the per-task scorecard the inspection/ревизия cycle and the AI-config benchmark scorecards read.
+  All six metrics are journal-DERIVED (lead time, per-stage wall, audit passes + GREEN-first, land
+  attempts both-outcome, deviations) — no new event, no new store: a saved view recomputed fresh
+. The tokens/cost column REUSES the token-rollup lens — clean attribution when 1
+  task = 1 session (the benchmark shape), explicit n/a when a multi-task session makes per-task
+  attribution ambiguous (per-task-token-attribution-in-multi-task-sessions idea, deferred). The lens
+  takes a target id as a second positional (`graph query task-scorecard T-XXXX`); a no-arg run prints
+  the usage hint (never errors — keeps the every-view-executable sweep green). Token-rollup may be
+  unavailable (its raw archive is gitignored, absent in worktrees) — the cost column degrades to n/a,
+  never inheriting the hard-fail.

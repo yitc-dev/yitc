@@ -1,0 +1,78 @@
+id: SPEC-0001
+title: All operational state lives in YAML per-entry files
+status: active
+created_at: '2026-05-26'
+consumed: false
+implements: [] # cross-cutting invariant — enforced by EVERY state writer (task file / close,
+                # decision backlog verbs (accept/finalize/withdraw), spec new, draft verbs, audit, event, graph build all write YAML
+                # per-entry). No single code site → intentionally empty ( documentary
+                # convention, audit F1; the graph does not machine-distinguish this from omission).
+
+binding: [floor] # : FOUNDATIONAL always-loaded invariant. The YAML single-source-of-truth rule
+                  # IS CHARTER §Principle 5 (one of the 8 always-loaded Principles), honored by every
+                  # state writer -> mandatory tier. `floor` excludes it from the verb inversion AND from
+                  # the dangling check (its rule is delivered always-loaded via CHARTER §P5, not fetched
+                  # before a verb). Resolves the chronic dangling false-flag ( audit-pre F1).
+body: |
+  ## Internal
+
+  Operational state — tasks, decisions, specs — lives as per-entry YAML files
+  in dedicated directories (`tasks/`, `decisions/`, `specs/`). No aggregate
+  index file is the source of truth. Markdown is reserved for human-facing
+  documentation (CHARTER, AGENTS, LIFECYCLE, QUEUE, GRAPH, PATTERNS, README).
+
+  ### Boundaries
+
+  - **operational state** = mutable data managed by AI agent or CLI:
+    tasks (`tasks/<id>.yaml`), decisions (`decisions/<id>.yaml`), specs
+    (`specs/<id>.yaml`).
+  - **derived artifacts** = build outputs (`graph/index.yaml`, future
+    aggregate views). These ARE generated, BUT committed to repo (not
+    `.gitignored`).
+  - **event log** = single `events.jsonl` append-only file. JSON Lines
+    format (one JSON object per line). Schema: `{ts, type, task_id?, data}`.
+  - **documentation** = markdown in repo root. Stable, version-controlled,
+    human-edited.
+
+  ### Violations
+
+  Any of:
+  - Adding a markdown file under `tasks/` or `decisions/` or `specs/`
+  - Maintaining a parallel aggregate index file editable by writers
+  - Adding a second event log file alongside `events.jsonl` — **SCOPED (additive amendment, SPEC-0084).**
+    This violation governs a repo OPERATIONAL-STATE storage (a divergent PARALLEL store + a second
+    PARSER path — the failure named below). The ONE kernel-owned SHARED coordination instance is NOT a
+    second event log in this sense: it is the SAME journal MECHANISM (SPEC-0002 entry schema, ONE parser,
+    append + union-merge), a permitted explicitly-scoped instance adding NO second format or parser path
+    — so the storage-truth invariant stays intact. A literal second FORMAT/parser path still violates.
+    See CHARTER §Principle 5 amendment + SPEC-0084.
+  - Adding `*.yaml` operational state to `.gitignore`
+
+  → anti-complexity filter applies. Requires owner approval + D-XXX
+  decision recording why exception warranted.
+
+  ## Rationale
+
+  V1 split-storage (markdown aggregate + YAML per-entry + aggregate index)
+  caused 200-tool-call debugging session on 2026-05-26: writers and readers
+  operated on different storage contracts; consumers fell through to stale
+  markdown when YAML reader path failed. Single source of truth eliminates
+  this class of bug entirely.
+
+  Per-entry over aggregate: aggregate files force concurrent writers to
+  serialize through one file (merge conflicts) and make grep-style discovery
+  noisier. Per-entry scales to thousands of items without coordination cost.
+
+  ## Verification
+
+  - `find./tasks./decisions./specs -name '*.md' -type f` returns nothing
+  - `find./tasks./decisions./specs -name '*.yaml' -type f` returns valid YAML
+  - No file outside `events.jsonl` accumulates operational mutations
+  - `graph/index.yaml` is committed (not in `.gitignore`)
+
+cites:
+  - CHARTER.md#principle-5
+  - LIFECYCLE.md
+  - QUEUE.md
+  - GRAPH.md
+  - decisions/-v2-clean-slate.yaml

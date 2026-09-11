@@ -1,0 +1,826 @@
+id: SPEC-0178
+title: 'Project-declared audit-post exemption cases — declaration, self-reference guard, automatic restoration'
+
+status: active
+
+created_at:
+
+travels: ~ # KERNEL (the spec class-default). Re-pinned from the plan-local DRAFT
+                               # default `v2-self` by, the activating card — the explicit
+                               # action that default reserves, missed at plan-accept and performed at
+                               # the last moment before this spec governs anything. It MUST travel:
+                               # a CONSUMER is this mechanism's entire audience (the kernel declares
+                               # no ops contract and can host no case at all, SPEC-0178 rule 5's
+                               # cycle-15 table), its readers ship in `bin/` which travels by the
+                               # SPEC-0073 class-default, and `v2-self` would keep the governing
+                               # contract out of the active-only release-view export slice the
+                               # consumer reads — an ACTIVE rule whose audience cannot receive it,
+                               # i.e. a standing CHARTER §P7 contradiction between the code realm
+                               # and its spec's.
+
+consumed: false
+
+extension: ~
+
+activation_owner_task: # the decomposition cut's single activation carrier (SPEC-0005 §5 /
+                                # SPEC-0070 §2). Card 5 — the card that also ships the rule 7 review. It is the FIRST card where every
+                                # activation probe is provable at that close, and VP21 needs every
+                                # kernel-executed `born:` key to have a reader→effect chain while
+                                # `declared_at` / `restore_after` / `window_days` name
+                                # `_case_restoration_state`, which creates; VP10 needs the same
+                                # reader; and because 'active' is the ONLY normative spec status, activating
+                                # THERE makes 'no case may be live until card 5' a property of the
+                                # EXISTING status mechanism rather than a sentence in a plan — no flag,
+                                # no new gate (moved from on 2026-08-16, gate-executing RED).
+                                # lands the activation PRECONDITIONS (carrier, CHARTER,
+                                # SPEC-0015/0036, SPEC-0025) and leaves this spec `proposed`.
+proposed_by: project-declared-audit-post-exemption-cases-plus-t
+
+binding:
+  - stage-entry:Closure # the exemption is READ at the Closure seam, where the audit-post
+  - code-enforced # precondition is evaluated. `implements:` is filled by the
+                               # implementing card at activation (design-phase draft — see below).
+
+cites:
+  - SPEC-0093 # the ops-contract carrier this concern registers a section in
+  - SPEC-0128 # one declaration → every surface generated
+  - SPEC-0015 # the closure contract whose audit-post precondition this conditions
+  - SPEC-0036 # the external-auditor contract
+  - SPEC-0124 # the audit-loop ceiling (rule 4)
+  - SPEC-0119 # the debt/echo surface the revision reads
+
+implements: # FILLED AT ACTIVATION by, and deliberately not before — the
+                               # anchors were shipped across cards 1-5, but the `implements:` LINK
+                               # rides the `proposed → active` flip this spec's activation_owner_task
+                               # carries. One anchor per rule that has a reader, so a reverse lookup
+                               # (`graph query bin/lib/task.py`) names this spec from every site that
+                               # decides an exemption.
+  - bin/lib/task.py#_audit_scrutiny_cases # rule 1 — the `cases:` carrier reader
+  - bin/lib/task.py#_case_valid # rule 1 — applicability incl. the mandatory reason
+  - bin/lib/task.py#_case_exempt_refusal # rule 2 — `exempt:` is `audit-post` and nothing else
+  - bin/lib/task.py#_case_match # rule 1 — class / paths / the conjunction
+  - bin/lib/task.py#_case_declaration_refusal # rule 3 — the declaration-time belt
+  - bin/lib/task.py#_case_governance_guard # rule 3 — the Closure-seam guard, read off the DIFF
+  - bin/lib/task.py#_case_out_of_path_observation # rule 6 — the report-only observation
+  - bin/lib/task.py#_case_closure_index # rules 5+7 — the CLOSURE end of the derived join
+  - bin/lib/task.py#_case_attribution # rule 5 — precedence, postdates, the `kind` filter
+  - bin/lib/task.py#_case_restoration_state # rule 5 — K-in-W automatic restoration
+  - bin/lib/task.py#_case_covered_share # rule 9 — the live covered share over the case's W
+  - bin/lib/task.py#_case_revision_proposal # rule 7 — the four-field proposal
+  - bin/lib/task.py#_case_revision_review # rules 7+9 — the whole revision fold
+  - bin/lib/task.py#cmd_task_close # rules 1-6 — the Closure seam that reads them all
+  - bin/lib/inspection.py#cmd_inspect_record # rules 7+9 — where a review run RECORDS its proposals
+
+concern:
+  section: audit_scrutiny
+  carrier_path: audit_scrutiny
+  declare_key: cases
+  declare_type: list
+  presence_policy: opt-in # ABSENT ⇒ every substantive task takes audit-post (today's behaviour)
+  waiver_policy: loose
+  born_order: 100
+  # shape_hook: NONE — deliberately, and REMOVED at rather than implemented.
+  #
+  # The block seeded `audit_scrutiny_shape` at birth, but no kernel deep-shape validator was ever
+  # written for it, and the registry's own invariant is that every NAMED hook is implemented
+  # (`graph build`'s orphan/missing check + tests/test_t10037_generic_sweep_engine.py). Activating
+  # this concern therefore turned a dormant naming into a live contradiction, caught at land-verify.
+  #
+  # Removing the name is the SMALLER and the TRUER of the two repairs. This concern's declaration
+  # shape is ALREADY validated, by rules 1-3's own shipped refusals — `_case_valid` (a mapping, a
+  # non-empty `case:`, a NON-EMPTY `reason:`), `_case_exempt_refusal` (`exempt:` is exactly
+  # `audit-post`) and `_case_declaration_refusal` (a case whose own `paths:` name a governance
+  # surface). A second validator at the init seam would be a parallel reading of one shape, which is
+  # the P5 failure this corpus keeps paying for; and writing one here would be the new detector this
+  # card's scope bars. A hookless concern is the ORDINARY shape, not an exception: nine active
+  # concerns carry none (coverage, deploy, live_probe, migrations, outcome_invariants, product_cron,
+  # rollback, security_audit, startup_checks).
+  #
+  # HONEST BOUND: the shipped refusals run at the CLOSURE seam, so a malformed case is caught when a
+  # card would first close under it, not at `init`. Rule 3 calls its declaration-time belt "early and
+  # REDUNDANT", so nothing depends on the earlier moment — but an init-seam validator would genuinely
+  # be earlier, and that is a real (small) improvement this card is not the place for. Filed.
+  update_policy: init re-seed
+  born_stance: permissive # (SPEC-0189 rules 1+8) — what `init` WRITES for this
+                                     # concern RELAXES a control (it declares a case that exempts
+                                     # matching cards from audit-post), so the birth owes an explicit
+                                     # human confirmation and its ratification provenance, and an
+                                     # UNCONFIRMED / noninteractive birth writes NO declaration at
+                                     # all. The axis is the VALUE'S DIRECTION, never this gate's
+                                     # identity. It says NOTHING about what an ABSENT declaration
+                                     # READS: that is rule 1 above (the empty case list, fail-closed)
+                                     # and SPEC-0189 rule 7 keeps the two apart.
+  detector: audit-scrutiny-exempted-rework # SPEC-0189 rule 1 — the PAIR is the unit of admission:
+                                     # the NAME of the code watching for what this absence costs,
+                                     # registered in the kernel detector registry
+                                     # (`bin/lib/debt.py#_surface2_exempted_rework_detector`).
+                                     # Without it this permissive declaration is a
+                                     # `graph conformance` RED (`init.py#born_permissive_detector_
+                                     # violations`), which is why the detector, this declaration and
+                                     # the born flip ship together in ONE land.
+  born: |
+    audit_scrutiny:
+      # SPEC-0178. OPT-IN. Absent ⇒ every substantive task takes audit-post — the fail-closed
+      # default, and the state every project starts in. Declaring a case is an explicit acceptance
+      # of risk by the project, recorded with its reason.
+      #
+      # EXECUTABLE-KEY OWNERSHIP (SPEC-0150). Every key below is kernel-executed — the kernel READS
+      # it and it has an EFFECT — so each carries its reader→effect chain. The anchors named here are
+      # the ones build step 3 (the `cases:` carrier) and step 4 (automatic return) create; until they
+      # exist this spec is `draft` and consumes nothing ( B5, spec-before-code).
+      #
+      # EVERY chain below is WELL-FORMED to the SPEC-0150 grammar, and the six the grammar can fully
+      # express are verified END-TO-END — all three links — by `bin/yitc-v2#_ownership_chain_break`
+      # (the probe runs it per key). It was not so before : all EIGHT declarations were
+      # UNPARSEABLE — a `skip:` / `window-origin` / `K` / `W` effect kind the grammar has no form for,
+      # a dotted `emit:task_closed.exempted_case`, and trailing prose INSIDE the chain — and nothing
+      # noticed, because the checker's walk is scoped to `deploy.policy.*` at path-depth 5 over
+      # UNCOMMENTED keys and never reaches this section at all. The markers read like verified chains
+      # while being verified by nobody: the exact SPEC-0150 §Internal 2 shape, one level up.
+      # RULES OF THE FORM, recorded because each was learned by breaking it: the chain ENDS at its
+      # effect kind (`emit:<EVENT>` or `refuse`), so per-key meaning goes on its OWN line below the
+      # marker, never appended to the chain; the event is a bare identifier, never a dotted field
+      # path; and the effect SITE must be a symbol whose call closure both REACHES the reader and
+      # CONTAINS the emit/refusal — which is why every effect here is `cmd_task_close` (the Closure
+      # seam that acts) rather than the reader itself.
+      # cases: # ownership: kernel-executed reader=bin/lib/task.py#_audit_scrutiny_cases effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+      # # the carrier read — what it returns decides whether any case
+      # # is consulted at all, and the close records the outcome.
+      # - case: docs # ownership: kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+      # # the stable name. Read by `_case_valid` — `_case_match`
+      # # DELEGATES to it — and recorded verbatim as
+      # # `task_closed.exempted_case`, the key rule 5 joins through.
+      # match: { paths: [docs/**] } # ownership: kernel-executed reader=bin/lib/task.py#_case_match effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+      # # decides whether THIS card is matched, hence whether the
+      # # close skips audit-post and records the case.
+      # # by paths (PREFERRED)
+      # # OR { class: docs } one class
+      # # OR { class: [docs, refactor] } several (a plain OR)
+      # # OR BOTH -> a CONJUNCTION, i.e. NARROWER:
+      # # { class: docs, paths: [docs/**] }
+      # # = a docs card whose diff stays inside docs/**
+      # exempt: audit-post # ownership: kernel-executed reader=bin/lib/task.py#_case_exempt_refusal effect=bin/lib/task.py#cmd_task_close:refuse
+      # # the ONLY exemptible gate (rule 2); any other value refuses
+      # # at declaration. Reader CORRECTED at : it named
+      # # `_case_match`, which never accesses `exempt` — it delegates
+      # # to `_case_exempt_refusal`, the one `case.get("exempt")`.
+      # reason: "<why this project accepts shipping these without a semantic diff review>" # ownership: kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:refuse
+      # # empty/missing => the case does not apply (rule 1). Effect
+      # # site CORRECTED at from `_case_valid` itself, which
+      # # returns a verdict and refuses nothing.
+      # declared_at: 2026-08-13 # ownership: kernel-executed reader=bin/lib/task.py#_case_restoration_state effect=bin/lib/task.py#cmd_task_close:refuse
+      # # the restoration window's ORIGIN (rule 5); unreadable =>
+      # # the case does not apply, so the close takes audit-post.
+      # # restore_after: 3 # ownership: kernel-executed reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse
+      # # optional override of K (kernel default 3); malformed =>
+      # # the case does not apply.
+      # # window_days: 90 # ownership: kernel-executed reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse
+      # # optional override of W (kernel default 90); malformed =>
+      # # the case does not apply.
+      #
+      # NAMED RESIDUE, not a silence: the last two chains are well-formed and their links 2+3 hold,
+      # but link 1 (the reader ACCESSES the key) cannot be satisfied for them, and the probe
+      # asserts that as a PINNED set rather than passing it off as coverage. `restore_after` and
+      # `window_days` are read by ONE parameterized helper — `case.get(key)` with `key` a parameter —
+      # which is deliberate: one reader under one rule is why a malformed `restore_after` and a
+      # malformed `window_days` cannot diverge. Splitting it into two literal readers to satisfy a
+      # text matcher would trade a real invariant for a checkable string. Filed instead: the grammar's
+      # inability to express a parameterized reader is SPEC-0150's question, not this spec's.
+      #
+      # PREFER `paths:` — and know what a class-only case actually admits, because the label does
+      # not show it (measured over 474 docs/refactor cards on four projects, 2026-08-14):
+      # * only ~half (48-58%) of such cards stay inside ONE top-level directory;
+      # * they ship into EXECUTABLE directories routinely — tests/ on 24% and bin/ on 20% of the
+      # kernel's own docs/refactor cards; backend/ on ~half of aiseller's and a third of
+      # boomrocket's; app/ scripts/ tests/ frontend/ across kupiclub's.
+      # Rule 3 covers PART of that, and the part it covers is WIDER than this template first said
+      # (reconciled by against the SHIPPED guard — deviation fingerprint
+      # `spec0178-rule3-governance-set-bin-tests-contradiction`). The guard takes back GOVERNANCE
+      # surfaces: specs, an always-loaded seed, this file, AND the SPEC-0077 pinned-test surface —
+      # which resolves mechanically to `bin/**` + `tests/**` + `yitc-ops.yaml`. So a docs card
+      # shipping into bin/ or tests/ IS taken back. What the guard does NOT touch is the rest:
+      # app/, backend/, frontend/, scripts/. So a class-only case is legal and NOT fully guarded,
+      # and it also gives up the rule 6 out-of-path observation, since no class-to-path source of
+      # truth exists.
+      # You may still declare it. This is here so that choice is informed, not so it is refused.
+      #
+      # A case may exempt audit-post and NOTHING else. It cannot reach audit-pre, the tests stage,
+      # the land-verify layers, the worktree rule, or the closure probes.
+      #
+      # AND it never reaches a GOVERNANCE SURFACE (rule 3): a card whose DIFF touches a spec, the
+      # pinned-test surface, an always-loaded seed, or this file takes audit-post whatever your case
+      # says. So a `paths:` set covering e.g. specs/** buys you nothing there — the guard reads the
+      # diff, not the declaration.
+      #
+      # ─── THE BORN-PERMISSIVE DECLARATION (SPEC-0189 rules 1+7+8) ───────────────────────
+      # UNLIKE every commented key above, the fragment below is LIVE, and that is the whole point of
+      # this surface. It is written ONLY into a birth carrying an explicit PER-SECTION human
+      # confirmation for THIS concern (`init --confirm-born-permissive audit_scrutiny:<owner>`); an
+      # unconfirmed or NONINTERACTIVE birth has the whole section WITHHELD by
+      # `init.born_permissive_gate`, so no relaxing declaration is written and absence reads
+      # fail-closed. The same act records the confirmation as this declaration's ratification
+      # provenance (a SPEC-0143 `adoption:` record under the NAMED owner, never the `init`
+      # sentinel), so there is no state in which the relaxation exists un-ratified. Both write paths
+      # are gated — the fresh-birth body and the rule-11 carrier UPDATE — so a
+      # consumer born before this concern existed cannot receive it un-ratified either.
+      #
+      # WHY IT IS LIVE WHERE SURFACE 1's IS COMMENTED: a commented fragment declares nothing, so
+      # `_mirror_adoption_status` reads the section `na` and there is nothing for
+      # `record_born_permissive_ratifications` to ratify. LIVE is what makes the ratification
+      # reachable, and it is what makes this an actual born default rather than a documented one.
+      #
+      # WHAT IS BEING ACCEPTED, stated plainly: a project born this way ships its docs-only cards
+      # without a semantic diff review. It is bounded by construction and NOT by trust — the case
+      # matches `docs/**` ONLY, and rule 3's governance guard takes back specs, an always-loaded
+      # seed, this file and the SPEC-0077 pinned-test surface (`bin/**` + `tests/**` +
+      # `yitc-ops.yaml`) whatever the case says. The named detector above watches for the absence
+      # starting to cost something and PROPOSES turning it back on; restoration is this project's
+      # own explicit act — delete or narrow the case here (SPEC-0189 rule 4).
+      #
+      # `declared_at:` is the RESTORATION WINDOW'S ORIGIN (rule 5), and a fixed birth-directive date
+      # is deliberate: an origin in the past can only make MORE attributions count toward automatic
+      # restoration, never fewer, which is the protective direction. An unreadable one would make
+      # the case not apply at all — also fail-closed.
+      # yitc:born-permissive-declaration
+      cases:
+        - case: docs
+          match: { paths: [docs/**] }
+          exempt: audit-post
+          reason: "born permissive per the owner directive of 2026-08-21 — a new project does not
+            pay a semantic diff review for a docs-only card from day one. Bounded to docs/**, and
+            rule 3's governance guard takes back every governance surface regardless. The periodic
+            review watches for the absence starting to cost something and PROPOSES restoring the
+            gate (SPEC-0189); restoration is this project's own explicit act — delete or narrow this
+            case."
+          declared_at: 2026-08-21
+      # yitc:end-born-permissive-declaration
+
+body: |
+  ## Scenario
+
+  A project decides that for some kind of its own work — a class of cards, or changes confined to
+  some paths — it will ship without the external semantic review of the shipped diff, and it says so
+  out loud, with a reason, in its own operating contract. Cards matching that case close without
+  audit-post; everything else is unchanged. Nothing is silent: the exemption is a visible declaration
+  that appears in the contract sweep and in the periodic review, and it names who accepted the risk
+  and why. If defects start escaping through a case, the gate comes back on its own and the project
+  has to decide again, now knowing the price.
+
+  ## Internal
+
+  ### Rule 1 — The declaration
+  A project declares exemptions in `audit_scrutiny.cases[]` of its `yitc-ops.yaml`. Each entry
+  carries: `case` (a stable name, used verbatim in revision proposals and journal records), `match`,
+  `exempt: audit-post`, and a NON-EMPTY `reason`. A missing or empty `reason` makes the entry invalid
+  and the case does not apply.
+
+  **`match` accepts `class:`, `paths:`, or BOTH (owner ruling 2026-08-14).**
+  - `class:` takes ONE task class or a LIST of them (`class: [docs, refactor]`). A list is a plain
+    OR — it exists so a project expresses one intent as one entry instead of N near-duplicate entries
+    it then has to keep in step.
+  - `paths:` is unchanged: a list of globs.
+  - **When BOTH are present they are a CONJUNCTION — both must hold.** `class: docs` + `paths:
+    [docs/**]` means "a docs card whose diff stays inside docs/**", which is NARROWER than either leg
+    alone. This is the form that lets a project keep the rule 6 out-of-path observation while still
+    matching by class: the observation is computed for any case that declares `paths:`, so a
+    conjunction case has it, and a class-only case still gives it up (rule 6 unchanged).
+
+  **A class-only declaration is the WIDE form and the project should know how wide.** Measured over
+  2905 closed cards on four projects (2026-08-14): the widest LEGAL class declaration — every class
+  except `infra` (rule 4 forbids it) and `hygiene` (already fast-pathed) — covers 60.8% / 73.6% /
+  86.5% / 65.6% of closed cards for yitc-v2 / kupiclub / aiseller / boomrocket, and after the rule 3
+  guard takes the governance-touching ones back, **30.4% / 34.9% / 55.0% / 36.2%** would actually
+  close without audit-post. The realistic `docs + refactor` set is 5.6-10.7%. So widening `class:` is
+  not a convenience — it multiplies the reachable surface roughly five-fold. Hence rule 9.
+
+  **Those post-guard shares are an UPPER BOUND, not the shipped number.** They were computed
+  reading the guard's governance set NARROWLY — without the `bin/**` + `tests/**` that the SPEC-0077
+  pinned-test carrier actually contributes to it. The guard as SHIPPED is wider, so it takes MORE cards
+  back and the true survival is LOWER: re-measured on the kernel's own corpus at 13.8% against the
+  30.4% quoted above. The direction is what matters here and it is the safe one — the exposure this
+  paragraph warns about is smaller than stated, never larger. The study is not re-derived for the other
+  three projects, because doing so would be a new measurement rather than a reconciliation; what is
+  recorded is that these figures bound the exposure from above.
+
+  **And the class label does not describe the diff** (measured over 474 done `docs`/`refactor` cards
+  on four projects, 2026-08-14): only 48-58% stay inside ONE top-level directory, and they ship into
+  EXECUTABLE directories routinely — `tests/` on 24% and `bin/` on 20% of the kernel's own, `backend/`
+  on roughly half of aiseller's and a third of boomrocket's. **Rule 3 reaches PART of that** (corrected
+  by against the shipped guard): its governance set includes the SPEC-0077 pinned-test surface,
+  which resolves to `bin/**` + `tests/**` + `yitc-ops.yaml`, so a card shipping into `bin/` or `tests/`
+  IS taken back — it does NOT reach `app/`/`backend/`/`frontend/`/`scripts/`. A conjunction
+  case would exclude about half of what a class-only case admits, which is why `paths:` is the
+  PREFERRED form and why the born template states the exposure at the point of declaration. The
+  choice stays the project's — the owner ruling that shaped this spec grants exactly that freedom —
+  but it is now an informed one, and "I did not know a docs card could ship into `backend/`" is no
+  longer available to anyone declaring here.
+
+  ### Rule 9 — Each case reports what it is ACTUALLY covering (report-only, never a cap)
+  For every declared case, the periodic review (rule 7) reads the share of closed cards that case
+  actually exempted over the review window, folded from the project's own journal. Report-only: no
+  ceiling, no threshold, nothing refused — the owner ruling that shaped this spec declined outer caps
+  and this does not reintroduce one.
+
+  **WHICH window — the case's OWN `W`, not "since the last review" (trial cycle 19).** The share is
+  read over the case's restoration window: `window_days`, kernel default 90, exactly as rule 5 already
+  carries it per case. **Why not since-the-last-review, which is what "the review window" invites a
+  reader to assume:** measured over every `inspection_completed` in four projects, reviews arrive in
+  BURSTS — the median inter-review gap is **0 days** on all four (yitc-v2 144 consecutive pairs,
+  aiseller 17, boomrocket 30), so a since-last-review window is usually ~0 days long and contains ~0
+  closed cards. The KERNEL, the healthiest reviewer of the four, has **zero** closed cards in its most
+  recent such window: a share over a zero-card denominator is undefined, and a drift between two
+  same-day reviews is noise. Reusing `W` costs no new parameter (CHARTER §P1 F1/F2), is stable however
+  irregularly reviews run, keeps two consecutive reviews comparing like-for-like periods, and puts the
+  two numbers a reviewer weighs together — attributions within `W` (rule 5) and the covered share
+  within `W` — on the SAME period.
+
+  **What this does NOT repair, recorded rather than designed around.** Rule 9's stated justification
+  for a live share over a declaration-time estimate is that DRIFT is the signal. A drift needs two
+  reviews, and **kupiclub has run one review in its entire history** — so for that project the drift
+  is uncomputable no matter how the window is defined. Fixing the window makes each individual share
+  well-defined; it does not manufacture a cadence. This is the cycle-9 finding (the pass that would
+  deliver it is not run) landing on this rule specifically, and the honest response is to say so, not
+  to add a trigger the owner declined.
+
+  **It is a LIVE share, deliberately not a declaration-time estimate (owner objection, 2026-08-14).**
+  The first draft of this rule showed the declarer what the case WOULD HAVE covered across its
+  history. That is backward-looking and misleads exactly where it matters most: a young project has
+  no history to fold, and a maturing one shifts its class mix — early work is feature- and
+  infra-heavy, later work is fix- and docs-heavy — so a historical share describes a population the
+  project may already have left. One number, measured forward, replaces it.
+
+  **The drift is the SIGNAL, not a defect of the measure.** A case whose actual share creeps from 10%
+  to 40% has changed what the project is accepting without anyone re-deciding it, and that is
+  precisely what a reviewer must; a static estimate taken at declaration could never show it.
+  Rule 7 already requires each proposal to name its BASIS — this share is a basis datum, so no new
+  surface is introduced: the review that exists gains a number it can read.
+
+  Grounds for having it at all: rule 1's wide form makes the difference between "I named four
+  classes" and "I am shipping half my work without a semantic diff review" invisible. Responsibility
+  can only be carried knowingly, and unlike a cap this leaves the decision entirely with the project.
+
+  The section is OPT-IN: **absent ⇒ every substantive task takes audit-post**. That is the state a
+  project is born in and returns to by deleting a case; silence is never an exemption.
+
+  This rule sets NO ceiling on how many cards a case may exempt, and no time bound on how long an
+  exemption stands. The bound is the project's declaration and the restoration in rule 5.
+
+  ### Rule 2 — Scope bound: audit-post ONLY
+  `exempt:` accepts exactly one value, `audit-post`. A case NEVER reaches audit-pre, the Tests stage,
+  the land-verify layers, the worktree-before-write rule, or the Closure probe requirement. Which
+  verify layers run stays decided by computation over the diff (`verify.layers[].subject_globs`,
+  SPEC-0152 rule 16) — a case may neither widen nor narrow it, so exactly one mechanism decides that
+  question.
+
+  ### Rule 3 — Governance-surface guard (computed on the DIFF, never on the match)
+  A card whose diff TOUCHES a GOVERNANCE SURFACE takes audit-post regardless of any case matching it.
+  The set is **not invented here**: it is exactly what LIFECYCLE §Two flow types already classifies as
+  fast-path INELIGIBLE at any diff size — a **spec** (`specs/*.yaml`), the **pinned-test surface**
+  (SPEC-0077's pinned last-green verify-path), an **always-loaded seed** (a `HANDBOOK_READ_ORDER`
+  handbook file or the floor trigger-map) — PLUS this mechanism's own **operating contract**
+  (`yitc-ops.yaml`), the self-reference member.
+
+  The guard is evaluated at the Closure seam against the card's ACTUAL changed paths, so it holds
+  identically for a case declared by `paths:` and for one declared by `class:` — neither needs a
+  class-to-path mapping in order to be safe, and no such mapping exists to be relied on. A declaration
+  whose own `paths:` name a governance surface is additionally refused at declaration time, as an early
+  and redundant belt.
+
+  **WHICH diff — the boundary, stated because leaving it unstated is a divergence bug (owner ruling
+  2026-08-15, trial cycle 12).** "The card's ACTUAL changed paths" means the card's **ship diff PLUS
+  the governance writes `task close` is itself about to make** in the closure-record commit. Naming
+  only the ship diff would put the guard's most predictable blind spot outside it: a card's git
+  footprint is ship commit(s), then a closure-record commit written BY `task close`, then land
+  bookkeeping (LIFECYCLE §Stage 7) — so at the seam the closure commit does not exist yet, and the
+  `proposed → active` activation that GRAPH.md makes `task close` the SOLE writer of falls outside any
+  pre-closure diff BY CONSTRUCTION. Measured over every done case-reachable card on four projects
+  (trial cycle 12): a governance surface is changed ONLY in the closure commit on 0.9% / 2.8% / 3.7% /
+  1.4% of them (yitc-v2 / kupiclub / aiseller / boomrocket) — 26 of those 28 cards being exactly that
+  activation write, and 2 being authored normative text committed at closure (yitc-v2 wrote
+  prose into `QUEUE.md`, an always-loaded seed; wrote `## Drift review` blocks into two spec
+  bodies).
+
+  This is a SCOPING sentence, not a mechanism: it adds no counter, cap or predicate, and the
+  activation is deterministic and already known at the seam, so the guard computes over one more
+  known set rather than acquiring a new judgement. **Honest bound, recorded rather than glossed:**
+  `audit post` also reads only the ship diff (`--commit HEAD`, before closure), so the activation
+  write is unreviewed today too and 26 of the 28 carry no exposure the status quo lacks. What this
+  clause buys is that rule 3's PROMISE — a card touching a governance surface does not skip
+  audit-post — is true as written instead of true only of surfaces that happen to land early. The
+  alternative (read the ship diff only, on the grounds that a spec's body is gated on the plan axis)
+  was considered and declined: it survives only if `task close` never folds AUTHORED governance text,
+  which and refute. Independent external consult on the fork returned GREEN/0
+  (`decisions/cycle12-rule3-diff-boundary-audit-adhoc.yaml`), agreeing on both counts and finding no
+  fourth option that respects the standing no-caps/no-predicates rulings.
+
+  Two reasons, one per member. The **carrier**: a contract that can exempt changes to itself stops
+  being auditable, which would void every other rule here. The **governance surfaces**: the kernel has
+  ALREADY decided they are never low-radius, so a declared case skipping audit-post on one would put
+  this spec in direct contradiction with LIFECYCLE's "substantive path, both audits" — two kernel
+  surfaces issuing opposite instructions for one diff. Making the guard a property of the DIFF is what
+  keeps all of it computable.
+
+  This adds NO new judgement and no predicate of its own: LIFECYCLE's classification is already
+  MECHANICAL, path/surface-based and fail-closed ("when in doubt, substantive"), so this rule reuses a
+  decided classification rather than introducing the outer caps the owner declined (§the owner ruling
+  that shaped this spec). **Consumer note:** a consumer has no `HANDBOOK_READ_ORDER` seed of its own —
+  that seed is engine-provided — so for a consumer that member is simply an empty set, not an exception.
+
+  ### Rule 4 — What a skipped audit-post is NOT
+  A card closed under a case:
+  - burns **no** audit-loop pass (SPEC-0124) — an absent audit is not a failed one;
+  - **cannot** satisfy Principle-8 infra-class adoption evidence — an infra-class card takes
+    audit-post regardless of any case matching it;
+  - is recorded **separately** from a YELLOW absorption — the two are different facts and must not
+    be counted together;
+  - records the exempting case on its own closure record as **`task_closed.data.exempted_case`**, so
+    every skip is attributable after the fact. That is the SAME key name rule 5 reads, deliberately:
+    the derived attribution joins a capture to a case THROUGH this field, so a closure record naming
+    it differently would break the join rather than merely read oddly (plan-check F2, 2026-08-15 —
+    this rule said `case` while rule 5 said `exempted_case`, and cycle 14 had verified only that the
+    hook existed, never that the NAME matched what rule 5 reads).
+
+  ### Rule 5 — Automatic restoration (automation may only RESTORE)
+  When **K attributed defects** land against the same case within window **W**, audit-post is
+  restored for that case automatically and the restoration is recorded. A **single** attributed
+  defect does NOT change the regime: attribution is a human judgement, and a rule that made one mark
+  flip a case would make marking expensive and drive it out of use, blinding the feedback this rule
+  depends on.
+
+  Automation acts in ONE direction only: it may RESTORE a gate, never remove one. Re-declaring a
+  restored case is always an owner act.
+
+  **Kernel defaults:** `K = 3`, `W = 90` days. A project overrides them per case with positive
+  integers `restore_after:` and `window_days:`. A present-but-MALFORMED override (non-integer,
+  zero, negative) makes the case NOT APPLY — it never silently falls back to the default.
+
+  **THE READER — `bin/lib/task.py#_case_restoration_state` — and the four readings this
+  rule left to it.** The reader its ownership chains name now exists. Each reading below is stated
+  because its opposite is plausible AND would change what this rule DOES; none of them describes
+  code:
+  - **W is a span between the ATTRIBUTIONS, not a window on the clock.** The state paragraph below
+    says K attributions "within W of each other" — of each other, so the reader takes no clock and
+    one journal always yields one answer. A clock window would let a RESTORED case silently
+    un-restore itself as its attributions aged out, which is automation REMOVING a gate — forbidden
+    two paragraphs above.
+  - **A missing or unreadable `declared_at:` makes the case NOT APPLY**, the same direction as a
+    malformed override. This rule makes `declared_at` the window's ORIGIN, so a case without a
+    readable one has no computable window and therefore no brake — and the brake is what this rule
+    IS. Fail-closed here means "do not exempt", the only direction rule 1's opt-in default admits.
+  - **The POSTDATES bound binds the DERIVED link only.** A hand-supplied attribution applies only
+    where no derived case exists, so there is no closure for it to postdate; and an unprovable
+    closure instant does not count either, because a comparison that cannot be made has not been
+    satisfied.
+  - **The closure end is read from the `task_closed` EVENT, and that event's `ts` is the closure
+    instant.** The payload carries no `closed_at` of its own, and both ends of this join are
+    catalogued as event payloads (VP10) — joining to the task YAML's field instead would split a
+    two-payload join across two carriers for no gain.
+
+  **Attribution carrier (no new store) — the link is DERIVED, not remembered (owner ruling
+  2026-08-14).** A defect reaches a case through the EXISTING `deviation_captured` event carrying
+  `exempted_case: <case name>`, and that key is **computed** rather than recalled: the capture already
+  names a `task_id` in 46-67% of real captures, and rule 4 already RECORDS the exempting case on
+  every card closed under one — as `task_closed.data.exempted_case`, the SAME key this rule reads —
+  so both halves exist and the system joins them. A hand-supplied `exempted_case` stays legal as the
+  belt, for a capture with no task id or one pointing elsewhere.
+
+  **PRECEDENCE between the two paths — fail-closed, because two attributions with no conflict rule is
+  a silent-divergence bug (plan-check F2, 2026-08-15):**
+  - the DERIVED case is CANONICAL wherever it can be computed;
+  - a hand-supplied `exempted_case` applies ONLY where no derived case exists — a capture with no
+    `task_id`, or one naming a card that closed under no case;
+  - where both exist and DISAGREE, neither silently wins: the capture surfaces at triage carrying BOTH
+    values and advances NO restoration counter until a human resolves it. The disagreement is itself
+    the signal — either the card's recorded case is wrong or the human attributed to the wrong one, and
+    both are worth a look. Counting nothing errs toward UNDER-restoring, which a human can still correct
+    by hand; silently over-restoring on a wrong link is the direction nobody would notice.
+
+  **Where the join surfaces: TRIAGE, because that is where the judgement already lives.** `kind` is
+  optional at capture and decided at triage (SPEC-0056 §1), and the triage sweep already walks
+  un-routed captures over a window and assigns each exactly one route (SPEC-0055). The derived link
+  rides that existing pass: the router is handed "this capture is against a card that closed under
+  case X" instead of being expected to reconstruct it. No new surface, no new moment of judgement —
+  what is removed is the need to remember a COUNTERFACTUAL about a card whose exempt status the author
+  may never have seen.
+
+  **What still counts, and why unclassified captures must NOT:** restoration counts a capture that is
+  case-linked AND judged a DEFECT at triage. An unclassified capture does not count. This is
+  deliberate and measured: the corpus carries ~1.7 captures per closed card (4925 captures across four
+  projects), so counting every linked capture regardless of kind would drive K=3 within days on any
+  case of ordinary width and the exemption would never survive its first month. That is the same
+  failure the K=1 rejection above names — a brake that fires on everything is a brake nobody can keep
+  using. The `kind` call therefore stays human, and it is the only thing left that is.
+
+  **Honest bound on what this fixes.** Deriving the link removes the RECALL problem, not the
+  JUDGEMENT problem: `kind` is currently absent on 91-99% of captures in all four projects, so the
+  defect determination remains the thin part of this rule. Cycle 8 measured exactly that and it is
+  recorded rather than designed around; if triage-side classification stays this rare in practice, the
+  restoration brake is weaker than its text implies and the honest response is to re-open rule 5, not
+  to loosen what counts.
+
+  **THE AUTOMATIC BRAKE IS INOPERATIVE WHERE THE `kind` JUDGEMENT IS NOT MADE — stated because the
+  measurement says so, not as a caveat (owner ruling 2026-08-15, trial cycle 15).** Cycle 8's "thin"
+  turned out to be, on the projects this mechanism is FOR, exactly zero. Traversing the whole chain
+  end-to-end — case close record → post-close deviation → derived attribution → `kind: defect` at
+  triage → K within W — over every `deviation_captured` in four projects' full history:
+
+  | hop | yitc-v2 | kupiclub | aiseller | boomrocket |
+  |---|---|---|---|---|
+  | resolves to a case-reachable CLOSED card | 1178 | 200 | 114 | 182 |
+  | postdates that closure (the rule above) | 484 | 61 | 35 | 44 |
+  | judged `kind: defect` at triage | 65 | **0** | **0** | **0** |
+  | emulated cases reaching K=3 / W=90d | 1 | **0** | **0** | **0** |
+
+  On all three CONSUMERS the chain collapses to ZERO at the triage hop across their entire history.
+  It survives only in the kernel — which declares no ops contract and therefore cannot host a case at
+  all. Two compounding reasons, both observed: the `kind` call is optional and mostly not made (cycle
+  8), the triage pass that would make it is dormant in two of three consumers (cycle 9), and `kind` is
+  free text in practice while this rule counts one exact string — **no consumer has ever written
+  `defect`** (kupiclub wrote `bugfix`, aiseller `process`, boomrocket `spec_stale_vs_code` /
+  `premise_narrowed` / `probe-evidence`). Normalizing that vocabulary would gain ONE capture across all
+  four projects, so it is not the fix and is not offered as one.
+
+  **What follows, and what deliberately does NOT.** The automatic path is KEPT exactly as written
+  wherever the judgement is made — nothing above is weakened, and no `kind`-less capture becomes
+  countable (that is the brake-that-fires-on-everything this rule already rejects; measured: dropping
+  the `kind` filter fires on essentially every wide case, 4/3/2/3 classes by project). What changes is
+  that the rule stops implying an automatic safeguard where there is none: **where no case-linked,
+  post-close capture is judged a defect, restoration is carried by the rule 7 periodic review**, whose
+  action vocabulary ALREADY includes `restore` and whose `BASIS`/`STRENGTH` fields already force an
+  absence of observation to be labelled as such and never presented as evidence of safety. This adds
+  no verb, no store, no action and no counter — it names an existing carrier and removes a promise the
+  evidence does not support (CHARTER §P1 F3).
+
+  **Its cost, recorded not buried:** rule 7's review is itself irregular in two of three consumers
+  (cycle 9 — kupiclub 1 run ever, aiseller stopped 22 days in). So this trades an automatic safeguard
+  that measurably never fires for a human one that runs unevenly. That is a weaker promise and a TRUE
+  one; the alternative was shipping a safeguard the declaring project was told it had.
+
+  **The key is routed to the event-catalog home, and that routing is a PRECONDITION of activation.**
+  `exempted_case` is added to the documented payloads in **SPEC-0025** (the events.jsonl schema +
+  event-type catalog) by an IN-PLACE additive amendment — a new OPTIONAL key, leaving every
+  already-catalogued key's meaning untouched. Reusing the existing events is what keeps this rule
+  free of a new store; but reuse of the EVENT is not reuse of its SCHEMA, so the key is catalogued
+  where payloads are owned rather than left as ad-hoc `data`.
+
+  **The amendment covers BOTH events, under ONE key name (plan-check F2, 2026-08-15).** The derived
+  join has two ends and both are event payloads, so both are catalogued:
+  - **`deviation_captured.data.exempted_case`** — the ATTRIBUTION end (the hand-supplied belt above,
+    and the resolved value the triage router carries);
+  - **`task_closed.data.exempted_case`** — the CLOSURE end that rule 4 records, and the field the
+    derived join reads to answer *which case did this card close under*.
+
+  Cataloguing only the capture end would leave the load-bearing half of the join uncatalogued: the
+  RESTORED/ACTIVE state is computed by joining a capture to a closure record, so a reader that knows
+  the capture key but not the closure key cannot compute the regime at all. **One canonical name on
+  both ends** — the alternative, a distinct closure-side name, buys nothing and gives the join two
+  spellings to keep in step; the drift this replaces (rule 4 `case` vs rule 5 `exempted_case`) is
+  exactly what an un-catalogued second end produces.
+
+  **Why unknown-key tolerance does not substitute for cataloguing it.** `data` is P5-safe and
+  consumers ignore unknown keys — which is the right rule for a key a reader may safely
+  IGNORE. This key is LOAD-BEARING in the opposite direction: the RESTORED/ACTIVE state above is
+  computed FROM it, so a reader that treats it as an unknown extra computes the wrong regime and
+  a case that should have been restored keeps running. Tolerance covers ignorable extras; a field a
+  rule's state depends on belongs in the catalog.
+
+  **Provenance discipline, inherited from the sibling keys:** `exempted_case` is attribution, so —
+  exactly like `captured_via` and `actor` — it MUST NOT enter the `fingerprint`. A fingerprint that
+  absorbed the case name would fragment one recurrence class across cases and blind the very
+  feedback rule 5 depends on.
+
+  **State is DERIVED, never stored.** A case entry carries `declared_at: <ISO-8601 date>`. The case
+  is RESTORED iff at least K attributions naming it exist with `ts > declared_at` within W of each
+  other; otherwise it is ACTIVE. Re-declaring is exactly one act: updating `declared_at` to a new
+  date, which starts a fresh window and makes prior attributions historical rather than erased.
+  Deleting the entry returns the case to the default (audit-post always).
+
+  **An attribution must POSTDATE the closure it is derived through (trial cycle 13, 2026-08-15).**
+  `declared_at` bounds the WINDOW; this bounds the individual LINK. A derived attribution counts only
+  if the capture's `ts` is later than the `closed_at` of the card it is derived through. A capture made
+  after the case was declared but BEFORE that card closed does NOT count, at any K.
+
+  The reason is what this rule is FOR. Restoration needs a retrospective counterfactual — *this defect
+  exists BECAUSE that case skipped its audit* — and that can only be true of a card whose audit was
+  already skipped. A capture made while the author was still working ON the card is PROVENANCE ("where
+  I was when I noticed it"), not causal attribution: at that instant nothing had been exempted.
+  Measured over every `deviation_captured` in four projects' full history (trial cycle 13), on the
+  `task_id` carrier this rule names: only **29.9% / 16.9% / 16.2% / 13.3%** of resolvable case-reachable
+  links postdate the closure, so **70-87% would have counted on evidence that cannot bear the claim**.
+  The differential control sharpens rather than weakens it — the looser `relates_to`-containing-an-id
+  carrier is markedly MORE retrospective (37-58%), so the carrier this rule actually names is the most
+  provenance-shaped of the two.
+
+  This adds no counter, cap, predicate or store: it is a comparison of two timestamps the join already
+  holds, and it makes the derived link mean what the owner ruling that created it said it means.
+  **Honest bound, recorded not glossed:** the `kind: defect` filter is thin (1-9% base rate, cycle 8),
+  so few captures count at all today and the practical blast radius is small; and because no card has
+  yet closed under a case, the measurement reads how authors USE the task ref rather than the mechanism
+  in flight. Both are proxies — and both point the same way.
+
+  ### Rule 6 — Out-of-path observation (report-only; PATH-declared cases ONLY)
+  For a case declared by `paths:`, a card closed under it whose diff went OUTSIDE those paths is
+  surfaced report-only to the periodic review. This never blocks a close and never un-applies a case;
+  it is the evidence a reviewer needs to propose narrowing a declaration.
+
+  **WHICH diff — the SHIP diff, and DELIBERATELY not rule 3's (trial cycle 18).** Rule 3 defines its
+  own boundary as the ship diff PLUS the governance writes `task close` is itself about to make. This
+  rule reads the **ship diff ONLY**. The two differ because they are FOR different things: rule 3
+  guards SAFETY, so it must see every governance touch however late it lands; rule 6 shows a reviewer
+  the scope the AUTHOR chose, so a write the author did not make is not evidence about their
+  declaration. Counting `task close`'s own writes here would flag every spec-ACTIVATING card under a
+  `paths:` case as out-of-path for something nobody authored — and cycle 12 measured that shape at
+  **26 of 28** closure-commit governance writes, so the observation would become noise in precisely
+  the population it exists to inform. Stated because the bare word "diff" appeared three times in this
+  rule while the boundary clause lived one rule away: two rules reading two different diffs is a
+  design choice, and it has to read as one.
+
+  For a case declared by `class:` this observation is **NOT computed** — there is no declared path
+  set for the diff to be outside of, and no class-to-path source of truth exists to invent one. The
+  asymmetry is stated rather than papered over: declaring by `class:` buys convenience and gives up
+  this observation; a project that wants the observation declares the case by `paths:`. Rule 3's
+  guard is unaffected either way, since it reads the diff.
+
+  ### Rule 7 — What the review proposes
+  The periodic review does not compute whether to loosen. Each proposal it produces names four
+  things: the CASE, the ACTION (restore · narrow · widen · leave), the BASIS (the specific records),
+  and the STRENGTH of that basis — either **direct observation** (a defect was attributed, an audit
+  found something) or **absence of observation** (nothing was recorded over the window). Absence of
+  observation is labelled as such and is never presented as evidence of safety.
+
+  ### Rule 8 — Reconciliation with the closure and audit contracts (REQUIRED before activation)
+  This spec CONDITIONS a precondition owned by two active contracts, so leaving them unqualified
+  would be a standing contradiction (CHARTER §P7), not a harmless overlap:
+  - **SPEC-0015** (closure contract) states audit-post precedes closure;
+  - **SPEC-0036** (external-auditor contract) frames audit-post as the Stage-8 gate.
+
+  Both take an IN-PLACE additive amendment naming this spec as the one condition under which that
+  precondition does not apply, and naming rules 2 and 4 as its bounds. Those amendments are a
+  PRECONDITION of activation: this spec may not go `proposed → active` while either contract still
+  reads as unconditional. The CHARTER amendment does NOT substitute for them — it authorises the
+  policy at the principle level; it does not reconcile the lower-level contracts.
+
+  ### Verification
+  - **VP1 (rule 1, fail-closed default):** a project with no `audit_scrutiny` section closes a
+    matching-class card WITH audit-post required — unchanged behaviour. Probe: a close refused for a
+    missing audit-post on a project declaring nothing.
+  - **VP2 (rule 1, reason mandatory):** a case with an empty/missing `reason` does not apply; the
+    card takes audit-post. Probe: state-check on a deliberately reason-less case.
+  - **VP3 (rule 2):** an `exempt:` value other than `audit-post` is refused at declaration. Probe:
+    refusal on a fixture declaring `exempt: audit-pre`.
+  - **VP4 (rule 3, the carrier member):** a case matching the carrier path is refused at declaration
+    AND at the Closure seam. Probe: two refusals from one fixture.
+  - **VP11 (rule 3, the governance-surface members) — differential, and it must fail the OTHER way
+    too:** a card matched by a live case, whose diff touches a **spec**, still takes audit-post; the
+    same case on a card touching NEITHER a governance surface nor the carrier still closes exempt.
+    Probe: two fixtures differing ONLY in whether the diff includes a `specs/*.yaml`, with opposite
+    outcomes — a guard that fired on both would be a blanket, not a guard. The live shape this is
+    written from: a `class: docs` card whose sole deliverable is spec files and which triggers no
+    verify layer at all (kupiclub, trial cycle 3).
+  - **VP5 (rule 4, the closure end of the join carries the CANONICAL key):** a card closed under a
+    case emits its closure record carrying **`task_closed.data.exempted_case: <case name>`**, and the
+    audit-loop pass counter for that card is unchanged. Probe: journal read — and the probe reads the
+    key by its exact name, because the failure mode caught is a closure record that carries the case
+    under some OTHER key (`case`) and so is invisible to the rule-5 derived join even though a human
+    reading the row would see the case perfectly well (plan-check F2, 2026-08-15).
+  - **VP6 (rule 5):** K attributed defects in W restore the case without any operator action, and
+    K-1 do not. Probe: two fixtures, one restoring and one not.
+  - **VP16 (rule 3, the DECLARATION-TIME belt) — the half VP4 never covered:** a case whose own
+    `paths:` name a GOVERNANCE surface (e.g. `paths: [specs/**]`) is REFUSED at declaration, not merely
+    neutralised later at the Closure seam. Probe: a fixture declaring it is refused, and the otherwise
+    identical fixture naming a non-governance path is accepted — so the refusal is shown to key on the
+    surface rather than on declaration length or shape.
+  - **VP19 (rule 3, the DIFF BOUNDARY) — differential on the seam, not on the match:** a card matched
+    by a live case whose SHIP diff touches NO governance surface, but whose closure would flip a spec
+    `proposed → active`, still takes audit-post; the otherwise identical card under the same case whose
+    closure activates nothing still closes exempt. Probe: two fixtures differing ONLY in whether a spec
+    activation is pending at the seam, with opposite outcomes — a guard passing both would prove it
+    still reads the ship diff alone, and one refusing both would be a blanket rather than a guard. This
+    is the claim the boundary clause rests on, and nothing tested it until trial cycle 12; the failure
+    mode being caught is a guard that is true of governance surfaces landing EARLY and silently false
+    of the one write `task close` performs itself.
+  - **VP17 (rule 4, infra is never exemptible):** an `infra`-class card MATCHED by a live case still
+    requires audit-post at closure, because an exempt close could not carry the Principle-8 adoption
+    evidence an infra card owes. Probe: two fixtures under the SAME case differing only in class —
+    `infra` still gated, non-infra closing exempt. This is the claim the envelope measurement rests on
+    (infra is 11-35% of closed cards per project); nothing tested it until now.
+  - **VP18 (rule 5, precedence between the two attribution paths):** where a derived case and a
+    hand-supplied `exempted_case` DISAGREE, the capture advances NO restoration counter and surfaces
+    carrying both values; where only one exists, that one applies. Probe: three fixtures — derived-only,
+    manual-only, and disagreeing — with the third moving no counter.
+  - **VP14 (rule 5, the DERIVED link) — differential on both halves:** a capture naming a task whose
+    card closed under case X resolves to X with NO `exempted_case` in its own data (the join works
+    unaided), while a capture naming a task whose card closed NOT exempt resolves to no case (it does
+    not over-attribute). Probe: two fixtures, opposite outcomes.
+  - **VP20 (rule 5, an attribution must POSTDATE its closure) — differential on the timestamp, not on
+    the link:** a capture whose `ts` follows the `closed_at` of the card it is derived through advances
+    the restoration counter; the otherwise identical capture whose `ts` PRECEDES that closure does not,
+    even though the derived link resolves identically in both. Probe: two fixtures differing ONLY in the
+    capture timestamp, with opposite counter outcomes — a counter moving on both would prove the rule
+    still keys on `declared_at` alone. The failure mode caught: 70-87% of real resolvable links are
+    captured while the author is working on the card (trial cycle 13), so a rule that ignores the
+    ordering counts provenance as causal attribution and drives K on evidence that cannot bear it.
+  - **VP15 (rule 5, unclassified captures do not count):** a case-linked capture with no `kind`
+    does NOT advance the restoration counter, and the same capture judged a defect at triage DOES.
+    Probe: one fixture read twice across the triage classification — the counter moves only on the
+    second read. This is the guard against a brake that fires on ~1.7 captures per closed card.
+  - **VP7 (rule 6, report-only) — AND differential on WHICH diff it reads (trial cycle 18's claim,
+    untested until now):** an out-of-path close is surfaced report-only and the close still succeeds.
+    Probe: journal read plus a successful close. **The differential half:** under one `paths:` case,
+    a card whose **SHIP diff** lands outside the declared paths IS surfaced, while the otherwise
+    identical card whose ship diff stays INSIDE them and goes out-of-path only through the governance
+    writes `task close` itself makes (a pending spec activation, the closure record) is **NOT**
+    surfaced. Two fixtures differing ONLY in which of the two diffs escapes, with opposite outcomes.
+    A probe firing on BOTH would prove rule 6 is reading rule 3's broader boundary rather than the
+    ship diff — the exact confusion cycle 18 corrected in the text and this probe now holds it to; one
+    firing on NEITHER would prove the observation is dead. The failure mode caught is measured: 26 of
+    28 closure-commit governance writes are `task close`'s own (cycle 12), so a rule 6 reading rule
+    3's diff would flag nearly every spec-activating card under a `paths:` case for something its
+    author never wrote, and the observation would be noise in exactly the population it informs.
+  - **VP9 (rule 8) — THREE surfaces, and they must AGREE, not merely mention.** Before this spec is
+    activated, CHARTER, SPEC-0015 and SPEC-0036 each carry the amendment naming this spec, AND all
+    three state the SAME two bounds: the exemption reaches **audit-post only** (rule 2), and a
+    skipped audit-post **burns no audit-loop pass and cannot satisfy Principle-8 adoption evidence**
+    (rule 4); all three also state that automation may only RESTORE a gate, never remove one
+    (rule 5). **FOURTH agreement item, added by trial cycle 17 — and VP9 failed on exactly the defect
+    it names for itself.** All three must ALSO state that the automatic restoration is **INOPERATIVE
+    wherever the `kind` judgement is not made**, with the rule 7 review carrying restoration there
+    (the cycle-15 measurement). Without it this probe can PASS while CHARTER promises a working
+    automatic safeguard that this spec has already qualified — which IS the "CHARTER authorises the
+    policy in wider terms than the contracts implement" failure below, arriving through the probe
+    rather than around it. A restoration-only clause that omits the qualification is not a wording
+    variation; it is the stronger claim. Probe: read all three bodies; a surface stating the
+    automation bound WITHOUT its inoperative-where-unjudged qualification FAILS.
+    Probe: read all three bodies; a surface that names this spec while stating a DIFFERENT
+    bound FAILS the probe — the failure mode being caught is a CHARTER that authorises the policy
+    more widely than the contracts implement it, which is a standing contradiction (CHARTER §P7)
+    rather than a wording variation. Activation is refused while any of the three is missing or
+    disagrees. (CHARTER is the third surface because the principle-level authorisation and the
+    contract-level conditions are what must not drift apart; rule 8's own text names the two
+    contracts, and this probe is what verifies the set.)
+  - **VP21 (SPEC-0150 executable-key ownership) — an ACTIVATION precondition, like VP9:** every
+    kernel-executed key this spec's `born:` template registers (`cases` and its `case` / `match` /
+    `exempt` / `reason` / `declared_at` / `restore_after` / `window_days` members) carries a
+    `kernel-executed reader=… effect=…` chain, and `bin/yitc-v2 graph conformance` stays GREEN once
+    this concern goes active — i.e. no `_key_ownership_violations` and no `_ownership_chain_break`
+    row names this section. Probe: run `graph conformance` at the activating close; a key registered
+    without a reachable reader→effect chain FAILS it. The failure mode caught is SPEC-0150's own
+    born-failing case (`classes.C1.restore_drill`: seeded as kernel-executed with zero readers), which
+    is what a carrier declared before its reader ships looks like when nobody checks.
+  - **VP22 (rule 5, the inoperative-brake honesty) — differential on whether the judgement is made:**
+    in a project where NO case-linked post-close capture carries `kind: defect`, the automatic
+    restoration does NOT fire and the case is surfaced to the rule 7 review as a `restore` candidate
+    whose BASIS is labelled *absence of observation*; in a project where the judgement IS made, K
+    attributions still restore automatically exactly as before. Probe: two fixtures differing ONLY in
+    whether the linked captures carry `kind: defect`, with opposite carriers — automatic in one, the
+    review in the other. A fixture where BOTH fire would prove the automatic path was widened to
+    `kind`-less captures (the brake-that-fires-on-everything this rule rejects); a fixture where
+    NEITHER fires would prove the honesty clause removed the safeguard instead of re-homing it. The
+    failure mode caught is the measured one: three consumers with zero `defect` judgements in their
+    whole history, each of which would otherwise be told it had an automatic brake.
+  - **VP8 (rule 7):** a recorded review run carries at least one proposal with all four fields, and
+    an absence-of-observation basis is labelled as such. Probe: read the recorded run.
+  - **VP12 (rule 1, the widened match) — differential on each leg:** a `class: [a, b]` case matches a
+    card of class b (the OR works) and not one of class c; a conjunction case `class: a` + `paths:
+    [p/**]` matches a class-a card inside `p/**` and does NOT match a class-a card outside it (the
+    conjunction narrows rather than widens). Probe: four fixtures, two matching and two not — a
+    conjunction that matched on either leg alone would be the defect this catches.
+  - **VP13 (rule 9, report-only + live):** a review run over a window in which a case exempted cards
+    reports that case's ACTUAL share, and a wide share still ACCEPTS every close — the number informs,
+    it never refuses. Probe: two review runs over windows with different exempted shares for the same
+    case produce different reported shares (so it tracks the live population, not a stored estimate),
+    and a case that exempted nothing in the window reports zero rather than being omitted.
+    **Differential on WHICH window, added by trial cycle 19's correction:** over ONE fixed journal,
+    (i) two review runs whose gap is the observed cadence — a second review run the SAME day as the
+    first — report the SAME share, computed over the case's `window_days`; and (ii) the same journal
+    read under a case declaring a SHORTER `window_days` reports a DIFFERENT share. Two comparisons,
+    opposite sensitivities: the share must be INSENSITIVE to when the previous review ran and
+    SENSITIVE to the case's own `W`. A probe passing (i) only by reporting zero, or one where the
+    same-day second run yields an undefined/empty denominator, proves the share is still being
+    computed since-last-review — which the measurement says is the usual case, not an edge one: the
+    median inter-review gap is 0 days on all four projects and the kernel has zero closed cards in
+    its most recent such window (cycle 19). Default `W` = 90 where the case declares none.
+  - **VP10 (rule 5, attribution carrier) — BOTH ends of the join are catalogued:** SPEC-0025 documents
+    `exempted_case` as an optional key on **both** the `deviation_captured` payload (the attribution
+    end) and the `task_closed` payload (the closure end rule 4 records) before this spec is activated,
+    and the restoration reader resolves attributions through those documented keys. Probe: read BOTH
+    SPEC-0025 catalog entries, plus a fixture where an attribution naming a case is counted and one
+    omitting the key is not. A catalog carrying only the capture end FAILS this probe: the regime is
+    computed by joining the two, so a documented capture key and an undocumented closure key leave the
+    computation resting on an uncatalogued field (plan-check F2, 2026-08-15).
+implements_signature:
+  bin/lib/inspection.py#cmd_inspect_record: 2ef7a7c8786f6e2bb8276a487ac8460dd2f4c09160ab6f65ee8ed9d3a4e6315a
+  bin/lib/task.py#_audit_scrutiny_cases: 93b55012af9ecc8c96732ea52e945bd1de03d56cc1ecd0bb49bcfd848639a013
+  bin/lib/task.py#_case_attribution: 88b25c3be118aa2190961730522547f818f3365df549079c1d4a11f7aed3b1a6
+  bin/lib/task.py#_case_closure_index: 51d90ca81e2415a311299373b722134914a8a5bf27e298daf649ce9cb763a2f5
+  bin/lib/task.py#_case_covered_share: 53ddd113ef5149baafcdf85ffb833790f8f49ddd660e7cff49688f12245a681e
+  bin/lib/task.py#_case_declaration_refusal: 5bd8af9e8abd0fe36066011d1c6c42402a03c4252480f7bb37b757430f682d0e
+  bin/lib/task.py#_case_exempt_refusal: 85308d8da223a74ec9362761325864f8ca71dcb5d89750b9cbdb31d616fa277c
+  bin/lib/task.py#_case_governance_guard: 6ac4cf571df35676fd5fedbe9bbbad3dba052864e3652c2056ae05b23712fdfb
+  bin/lib/task.py#_case_match: 90e154158a6e80973365751157c24d3732570b3fbe7154ee4fbfabfe132c0a9e
+  bin/lib/task.py#_case_out_of_path_observation: 4bd00363b2e4810cd804b5734671b74b16c7be6dba92da56521369bc97620b39
+  bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
+  bin/lib/task.py#_case_revision_proposal: c9857adec42d372b91c68fe9600bbd17f0e26d4a272113981004fcf334ae80db
+  bin/lib/task.py#_case_revision_review: d0fbdbac52a6674d4eed0970ebb11cabb0223e58311bb7a614f1197a3fdcb15c
+  bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
+  bin/lib/task.py#cmd_task_close: 5b32310d96f0879475b45cd1c6fdb21a912b9d16b8a8b1bbce3c20b516cb9a22

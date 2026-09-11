@@ -1,0 +1,701 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0175
+title: 'Spike-sandbox data floor — a restored production copy is the sanctioned source, treated on three strands before the stack is usable'
+
+status: active
+                               # ACTIVATED by closing its activation_owner_task (GRAPH §Spec
+                               # lifecycle: `task close` is the SOLE writer of this field — there is no
+                               # manual status edit and no `spec activate` subcommand, so the committed
+                               # value stays `proposed` right up to that close). Before it, this floor
+                               # governed NOTHING (SPEC-0005 rule 4) and registered nothing (SPEC-0128 /
+                               # is active-only), so no consumer surface carried the
+                               # `spike_data_safety` ask at all. The activation is what registers it.
+
+created_at:
+
+travels: kernel
+                               # RE-PINNED at plan-accept (2026-08-11), the explicit action the draft
+                               # comment below reserved for this moment. Born `v2-self` per SPEC-0073 §3
+                               # (a plan-local draft must not resolve the kernel export realm); the RULES
+                               # here are kernel-realm by intent — the three strands, the actor split, the
+                               # declare obligation and the prove-by-querying obligation are methodology a
+                               # consumer PINS (rule 7). The re-pin is what puts them in the release view,
+                               # so a consumer asked to declare against this floor can actually read it.
+                               # The CLASS INVENTORY still does not travel — that boundary is rule 7's,
+                               # and it is unaffected by this field.
+
+consumed: false # no code reads a governing scalar param from this spec.
+
+extension: ~
+
+implements: []
+                               # DESIGN-STAGE empty (SPEC-0005 §7 mode (b)): this draft is not yet wired
+                               # to a concrete anchor. Its detectors and the carrier reader are cut as
+                               # their own tasks at decomposition; each names its anchor then.
+
+body: |
+  ## Scenario
+
+  A spike sandbox is worth having because it holds REAL data — real volumes, real edge cases, real
+  foreign-key tangles. So the sanctioned way to fill one is to take a static copy of production and
+  restore it into the sandbox. That is permitted, and it is the point.
+
+  What is NOT permitted is the spike RUNTIME touching the live production system, and what is not
+  SAFE is working in a copy that still carries live values. A restored copy is not made safe by
+  living in a sandbox: it arrives carrying webhook URLs that still route, tokens that still
+  authenticate, people's addresses that are harmful the moment they are read, and outbox rows that
+  will send the moment a worker starts.
+
+  So the owner/AI answers five questions the same way every reader would:
+
+  1. May I restore a production copy into my spike sandbox? — **Yes. That is the sanctioned source.**
+  2. May the refresh step read live production to make that copy? — **Yes, read-only, and only that step.**
+  3. What is forbidden? — **The spike runtime connecting to the live production system.**
+  4. What must I do to the copy before the stack is usable? — **Treat all three strands: neutralize
+     what can reach, handle what discloses, defuse what would do work — and PROVE it.**
+  5. Who may touch a production-derived artifact before that proof passes? — **Only the export step,
+     the restore, the treatment step and the probes — and the artifact chain outside the sandbox
+     (the dump, its temp files, logs and backups) is destroyed, not left lying.**
+
+  And the owner can ask any adopting project *"prove nothing live, nothing pending, and nothing
+  private beyond what you explicitly accepted and recorded, is in your spike copy"* and get a machine
+  answer with controls, not a reassurance.
+
+  ## Internal
+
+  > **SANDBOX FAMILY — navigation, not a rule.** `spike_data_safety` is ONE of three
+  > separately named concerns that together answer a project's sandbox questions: `sandbox_entry`
+  > (SPEC-0169 — WHERE a collaborator enters, OPT-IN), `spike_sandbox` (SPEC-0172 — WHETHER a caged
+  > bridge exists and its pinned release) and `spike_data_safety` (this spec — WHAT the restored copy
+  > carries). They stay DISTINCT; a reader who knows only one of the names sees all three via
+  > `bin/yitc-v2 graph query sandbox-family`. Grounds: on 2026-08-13 a reader grepped `spike_sandbox`,
+  > found none in a project that declares its sandbox under `sandbox_entry`, and concluded it had none
+  > (X-0852). A navigational pointer (SPEC-0005 rule 8) — it changes nothing here, and it creates NO
+  > concern-to-concern dependency: declaring a sandbox does not, by this pointer, make anything owed.
+
+  THE SPIKE-SANDBOX DATA FLOOR. Eight rules. It is the DATA sibling of SPEC-0172: that contract's
+  atoms are predicates over the STACK a spike declares (identity, scheduler, outbound channels, grant
+  order); these are predicates over what the COPY carries. Separate spec because the surface,
+  the detectors and the declaring evidence are different (SPEC-0005 rule 6 lower bound); it adds no
+  store, FSM, journal, service or parser (rule 8).
+
+  ### 1. The axis is the LIVE SYSTEM, not "production data"
+  The boundary this floor draws is **live production system vs a static copy derived from it** — NOT
+  production-data vs not. A production-DERIVED static copy is the **sanctioned** data source of a
+  spike sandbox.
+  **Why this rule exists as a rule and not as a wording preference:** the production-data-vs-not axis
+  puts the practice's own subject matter on the forbidden side, and every downstream failure followed
+  from that. Under it, a restored copy became "the sandbox's own data" the moment it landed, so the
+  floor read SATISFIED while the copy carried live values (X-0798), and whether the restore was
+  permitted at all was undecidable from the text (X-0799 — the owner of the pilot project hit this
+  personally). A later surface MUST NOT restate the floor on the production-data axis.
+
+  ### 2. THE ACTOR SPLIT — stated, never inferred
+  Two actors, two different permissions. Both halves are normative, and neither may be left to a
+  reader's inference:
+
+  - **The named refresh/export STEP MAY read the live production system READ-ONLY**, for the sole
+    purpose of producing a static copy. It writes nothing there, changes nothing there, and it is the
+    ONLY actor holding this permission.
+  - **The spike RUNTIME NEVER connects to the live production system.** No process inside the spike
+    stack is pointed at it, tunnelled to it, reading from it, or writing to it.
+
+  A floor that states only "a spike never touches production" collapses these two actors into one and
+  is therefore defective by this rule — that collapse is what killed the first replacement wording,
+  and it is why the split is a RULE rather than a clarifying sentence.
+
+  ### 3. THREE STRANDS — three different dangers, each with its OWN verbs
+  A restored copy carries three kinds of danger. They are not degrees of one danger, and a strand
+  answered with another strand's verb is **not answered**.
+  **Classification is MANY-TO-MANY, and this is the common case, not an edge.** One surface may sit
+  in two strands or all three, and EVERY applicable strand must be treated and proven for it. A
+  customer email address is DISCLOSURE (it identifies a person) and REACHABILITY (mail sent to it
+  arrives at a real inbox); accepting it under disclosure says nothing about whether it can still be
+  written to. Filing a surface under one strand does not discharge the others.
+
+  - **REACHABILITY — can this value cause a LIVE side effect?**
+    The class is anything that can **route, authenticate, identify, schedule or trigger**: webhook
+    URLs, tokens, bot credentials, redirect targets, addressable contacts — **and** external resource
+    IDs and object keys, which route just as surely as a URL does.
+    Verb: **NEUTRALIZE** — replace the value with one that cannot reach.
+    **NO-ACCEPT SCOPES TO WHAT CAME OUT OF THE COPY — a row SEEDED AFTER the treatment is OUTSIDE
+    this rule, not an exception to it.** The absence of an accept verb here governs values that
+    ORIGINATED IN THE PRODUCTION COPY: an ACCEPT would leave one of THOSE reachable, and that is
+    what is refused. A sandbox-owned row written AFTER neutralization — the admin a bring-up seeds
+    so that anyone can sign in at all, whose hash must be real because a hash nobody can use is the
+    same as no account — was never in the copy, so it is not an ACCEPT and needs none; its
+    credential is a sandbox credential, not a production one under another name. This is spelled
+    out because "no credential anyone can use" reads as ABSOLUTE, and a reader meeting a detector
+    exclusion on the ONE strand with no accept verb will otherwise read it as an accept smuggled
+    in — a consumer already had to write that reinterpretation in its own territory. This is a
+    SCOPE statement, never a general reachability exception: for anything that DID come out of the
+    copy, NEUTRALIZE remains the only verb.
+    **AND AN EXCLUSION FOR SUCH A ROW IS KEYED TO PROVEN POST-TREATMENT PROVENANCE, NEVER TO A BARE
+    ADDRESS.** A detector exclusion keyed only on an identifying value says "skip this address",
+    which is also what a SURVIVING PRODUCTION CREDENTIAL at that address looks like — so an
+    address-keyed exclusion does NOT satisfy this rule, however carefully the address is declared.
+    What must be proven, at a DECLARED uniqueness scope: the excluded row is the post-treatment
+    seeded one and there is EXACTLY ONE of it; no copied row holds the identifying value; and the
+    detector compares the identity in the SAME NORMALIZED form the database stores it in. The
+    shapes that defeat a careless exclusion are named so they can be checked for: a uniqueness
+    scope narrower or wider than the one the identity is really unique at, a normalization mismatch
+    between comparison and storage, bad ordering, and a LATER import re-introducing a copied row at
+    that address after the proof passed.
+    **ORDERING is part of the rule:** seed AFTER the treatment — earlier and the treatment
+    neutralizes the hash — and BEFORE the proof, or the one row nothing inspected is the excluded
+    one.
+    **Two conditions that are commonly OVERSTATED, in their correct strength.** Declaring the
+    seeded identity as a single value in the same carrier as the sentinels (rule 5) is
+    TRACEABILITY — it keeps the value out of hard-coding and out of naming-convention inference —
+    and is NOT itself a safety property; it proves nothing about what the copy contains. And "it is
+    structurally impossible for a copied row to hold that identifying value" holds ONLY where a
+    DATABASE CONSTRAINT enforces it AND a proof runs over the NORMALIZED identity at the declared
+    uniqueness scope; asserted from the treatment's rewrite alone, the claim is stronger than the
+    mechanism delivers.
+  - **DISCLOSURE — is this content harmful merely by being READABLE?**
+    Personal data, financial records, anything privacy-bearing or regulated. Neutralizing a webhook
+    URL does not neutralize a person's address, and no length of neutralize-list ever will: the
+    danger is not that the value reaches something, it is that a reader sees it.
+    Verbs: **MASK, MINIMIZE, EXCLUDE, or explicitly ACCEPT.**
+    **ACCEPT is a BOUNDED exception, not a fourth free option.** It is a named human approval —
+    recorded BEFORE any accepted residual is read, emitted or exposed to anyone outside rule 4's
+    permitted set, and in any case before the proof can pass. (Never "before the copy is worked with" —
+    rule 4 forbids that phrasing by name.) It records four things: the class accepted, the PURPOSE it is
+    accepted for, WHO may read it, and WHEN it is destroyed. It is machine-visible as a residual —
+    the proof REPORTS every accepted class rather than passing silently over it, so "accepted" never
+    reads the same as "absent". Silence is not acceptance, and a blanket acceptance of every class is
+    not an answer to this strand — it is the strand going unanswered with a signature on it.
+  - **OPERATIONAL STATE — will this copied state make WORK HAPPEN?**
+    Outbox rows, queued jobs and scheduler entries are the obvious members, but the class is defined
+    by the EFFECT, not by the moment or the storage shape: **any copied state that can cause work
+    when ANYTHING consumes it** — a worker, a scheduler, a request handler, a database trigger, a
+    stored procedure, a replication or change-data-capture subscription, an installed extension, or
+    an external callback arriving later — **regardless of WHEN that happens.** A job that fires
+    tomorrow, or only after a user acts, is in this class; so is executable schema that ships inside
+    the copy and calls out the moment it is restored.
+    Verb: **DEFUSE** — the state is drained, cancelled, disabled or marked terminal before anything
+    can consume it.
+    *Two readings this wording exists to refuse:* "it does not fire at startup, so it is not
+    operational state", and "a trigger is schema, not a row, so no strand covers it".
+
+  ### 4. THE UNTREATED ARTIFACT — from the first exported byte to destruction
+  The obligation attaches to the **production-derived ARTIFACT**, not only to the restored database.
+  It begins at the FIRST EXPORTED BYTE and ends when that artifact is treated-and-proven or
+  destroyed. **A STREAMED export is the preferred shape, and the rule covers both.** Where the export can be
+  piped straight into the restore with no host-side dump file at all — the shape the pilot project's
+  real refresh uses — there is simply less untreated artifact to govern, and that is the safer
+  arrangement rather than merely a permitted one. Where a dump IS staged, everything below applies to
+  it. In scope for the whole of that interval: the dump or export itself (when one exists), its temporary files,
+  any CI artifact or object-store copy it was staged through, every backup of it, the restored copy —
+  **and the OUTPUTS of every step that handles it**: the logs, console output, traces, and the
+  before/after or redaction REPORTS produced by the export, the restore, the treatment step and the
+  probes. A treatment step that writes the values it just removed into its own report has moved the
+  data, not removed it; those outputs are untreated artifacts and carry the same emission limits and
+  the same destruction obligation as the dump. Naming only the restored copy would
+  leave the rawest form of the data — the dump — governed by nothing, which is the hole this rule
+  closes.
+
+  - **WHO may touch an untreated artifact:** only the **export step, the restore, the treatment step
+    and the probes** — **plus a person holding a rule-3 recorded acceptance, strictly within the scope
+    that acceptance names.** That last clause is not a loosening; without it the emission rule's own
+    escape ("needs the rule-3 recorded acceptance first") is DEAD, because no actor the list admits
+    is a person who could hold one. A rule that grants a permission no admitted actor can exercise
+    has not been strict, it has been incoherent. Application workers, schedulers, request handlers and networked processes stay
+    OFF until the proof passes; during that window the environment holding the artifact denies
+    outbound egress and keeps executable schema (triggers, stored procedures, subscriptions,
+    extensions) disabled — otherwise the copy acts before anyone has judged it.
+    **Executable schema is made inert AS PART OF the restore, never disabled afterwards.** The
+    restore is INSIDE this window, and a naive restore creates-and-ARMS the schema as it goes — a
+    copied trigger can enqueue a live-shaped call on the very insert that populates the copy, with no
+    worker, no scheduler and no application running. A rule that says "disable it during the window"
+    is already too late by the time it is read; the copy must arrive inert.
+  - **WHAT A PROBE MAY EMIT — a PROPERTY, never a list of permitted shapes.** A probe is allowed
+    inside the window precisely because it is supposed to be blind, and blindness is a property of
+    the EFFECT of its output, not of the output's format. **The test has TWO limbs, and an emission
+    must pass BOTH:** it may not (a) increase what its reader learns about any identifiable person,
+    account or tenant in the copy, and it may not (b) reveal, reconstruct or link any value that can
+    route, authenticate, identify, schedule, trigger or reach an external resource. Limb (b) is not
+    redundant: a live webhook URL or an object key is about no person at all, so a person-centric
+    test alone would wave it through. Anything that does not clearly pass BOTH limbs is treated as
+    failing and needs the rule-3 recorded acceptance first — the permission to touch is not a
+    permission to look.
+    The following are ILLUSTRATIONS of the test, not the rule, and no list here may be read as a
+    whitelist:
+    - *Passes:* the schema; a coarse detector total over the whole copy; pass/fail; the hash of a
+      control value the probe itself planted.
+    - *Fails:* a production value. A deterministic hash of one — where the value space is small or
+      enumerable (an email, a phone number, a customer id) a hash is that value in another encoding,
+      reversible by dictionary and linkable across runs even when it is not. A count keyed by a
+      sensitive predicate, a tenant, a person or a small cohort — `hiv_diagnosis_rows: 1` names a
+      person as surely as the row does. Anything transmitted off the host, or written into logs,
+      transcripts, an AI context, or test output.
+      **The PROOF'S OWN REPORT is a permitted emission — and saying so is not an exception to the
+      property, it is the property applied.** Rule 6 obliges the proof to report its controls, its
+      completeness disposition and the NAMES of accepted residual classes; each passes both limbs by
+      construction (a pass/fail, a coarse total, a control outcome, a disposition, a class name).
+      Read without this sentence, the failing example above — which is aimed at raw VALUES leaking
+      into output — forbids the very report rule 6 requires, so a compliant proof could not state
+      that it had passed. Where an accepted class is scoped so narrowly that naming it would
+      identify a person, the NAME is bounded exactly as the acceptance is — and a report naming a
+      class whose acceptance restricts its readers may not be written to a channel that does not
+      respect that restriction. A permitted emission is still addressed to somebody.
+      **THE ACCEPTANCE ESCAPE IS DISCLOSURE-ONLY.** An emission that fails limb (a) may be licensed by
+      a rule-3 acceptance, because disclosure is the strand that HAS an accept verb. An emission that
+      fails limb (b) may NOT: reachability has no ACCEPT — its only verb is NEUTRALIZE — so a value
+      that can route, authenticate, schedule or trigger is emitted only blind (a count, a property) or
+      already neutralized. Acceptance never discharges reachability, and the escape must not be read
+      as though it did.
+    **Build detectors to this property by DEFAULT, not by memory.** A detector written the obvious
+    way — "show me what you found" — echoes the live-shaped value it matched and breaks limb (b) on
+    its first run; leg 1 hit exactly that. The default output of a detector is its COUNT.
+    *A whitelist of shapes cannot bound disclosure. Do not convert this rule back into one.*
+  - **DESTRUCTION is part of the rule, not hygiene after it.** Every untreated artifact outside the
+    sandbox is destroyed once the copy is restored; a surviving raw dump, staging copy or backup is a
+    violation of this floor, not an untidy leftover.
+  - **AND WHAT BECOMES PERMITTED WHEN THE PROOF PASSES — stated, because two independent readers both
+    named this the hardest thing to answer here.** Once the proof passes, the treated copy is ordinary
+    sandbox data: the spike stack may run against it, and it is governed from then on by the ordinary
+    spike cage (SPEC-0172), not by this rule. Two things do NOT end at that moment: an accepted
+    disclosure residual stays bounded by the purpose, readers and destruction date its rule-3 record
+    names, and the copy is still never a route to the live production system (rule 2). This floor
+    stated when its obligation ENDS and left what becomes ALLOWED to inference — and an unresolved
+    inference at exactly this seam is the failure this whole contract exists to remove.
+
+  Phrasings that place the obligation "before the copy is worked with" are forbidden by this rule:
+  they name no actor and no moment, so they hide exactly this interval.
+
+  ### 5. DECLARE the classes — in the existing carrier, as a registered concern
+  **The CANDIDATES are DERIVED from the live schema; only the DECISION is declared.** A project does
+  not hand-keep a list of its own tables and columns — that list rots exactly the way this methodology
+  forbids elsewhere. It enumerates candidate surfaces MECHANICALLY from the schema itself, and
+  declares, per candidate, the DECISION: which strand(s) it carries, or none-of-the-three with a
+  reason. A candidate is a guess, never a finding. This is the shape the pilot project independently
+  shipped (its probe derives candidates from `information_schema` and its declaration carries the
+  per-column decision) — two parties reaching it from opposite ends, which is why it is stated as the
+  rule rather than as one project's habit. The travel boundary (rule 7) is UNCHANGED: the derivation
+  MECHANISM travels, the resulting inventory stays local.
+
+  A project DECLARES, per strand, which of its own surfaces hold which class — **plus, as a FOURTH
+  key, the surfaces it answers as NONE of the three, each with a reason.** That fourth key is what
+  makes the rule-6b fail-closed sweep usable instead of permanently failing: an honest first pass over
+  a real schema leaves many surfaces (primary keys, numeric foreign keys, a filename) in no strand at
+  all, and without a place to say "none of the three, because it is an internal row id" a project must
+  either stuff id columns into a strand list or never pass. Fail-closed then refuses **silence**,
+  which is the thing worth refusing, rather than refusing **completeness**, which is unreachable.
+  The declaration lives
+  in the ops-contract carrier as a registered concern (SPEC-0128 rule 1), so the born template, the
+  declare-or-waive sweep and the debt lens are all GENERATED from one declaration. No parallel
+  checklist, no per-project schema editing, no second store — the same shape SPEC-0172 rule 2 uses,
+  in its OWN carrier section: a section is owned by exactly one governing spec, so this floor declares
+  `spike_data_safety` beside the wiring contract's `spike_sandbox` rather than reaching into it.
+  **Presence policy: DECLARE-OR-WAIVE — and the waiver is REFUSABLE, not a free pass.** Every project
+  that answers the bridge question also answers this one; a project running no spike sandbox waives in
+  one line, exactly as it waives the bridge. But a waiver ASSERTS a fact — "this project fills no
+  sandbox from a production-derived copy" — and that assertion is checkable against what the project
+  already declares elsewhere: a waiver standing beside an enabled bridge, a declared refresh/export
+  step, or recorded evidence of a restored copy is REFUSED, not accepted. A waiver that cannot be
+  contradicted by anything is a silence with a signature on it — which is the state rule 5 exists to
+  remove.
+  **THAT REFUSAL IS PERFORMED — and here is exactly what it reads, so no reader has to
+  infer what "contradicts" means.** The concern names a residual shape hook
+  (`shape_hook: spike_data_safety_shape`, dispatched by the same registry-driven declare-or-waive
+  sweep every other concern rides — SPEC-0128 rule 2, no second mechanism). When, and only when, this
+  section is WAIVED, the sweep reads THREE signals off the project's own already-parsed carrier and
+  REFUSES the waiver on any one of them, naming the contradicting path:
+
+  | Signal | Read from | Contradiction when |
+  |---|---|---|
+  | (a) an enabled spike bridge | `spike_sandbox.bridge.enabled` | truthy |
+  | (b) a declared refresh/export step | `spike_sandbox.bridge.refresh` · `spike_sandbox.bridge.export` · `spike_sandbox.refresh` · `spike_sandbox.export` | declared non-empty |
+  | (c) recorded evidence of a restored copy | `spike_sandbox.restored_copy` · `spike_data_safety.restored_copy` | declared non-empty |
+
+  Signal (a) is boolean-shaped; (b) and (c) are read TYPE-GENERICALLY (a command string, a list of
+  steps and a mapping all count; `~`, `""`, `[]` and `{}` do not), so a project cannot evade the
+  refusal by declaring its refresh step in a different shape.
+
+  **What this refusal is NOT, stated because the failure mode here is over-refusing.** It judges the
+  WAIVER, never the project: a section that DECLARES `data_safety:` is not touched by this hook even
+  beside an enabled bridge (that project answered the question), an ABSENT section is the generic
+  stance check's business, and a bridge declared `enabled: false` is a real answer rather than a
+  contradiction. A check that refused every waiver would break the declare-or-waive contract for
+  every project that legitimately runs no spike sandbox — which is the honest answer this floor
+  keeps cheap (one line), exactly as the bridge question does. The two asks are deliberately issued
+  in ONE pass rather than staged, so a project answers both keys in a single sitting instead of a
+  second round-trip.
+
+  ### 6. PROVE the treatment by querying the copy — two obligations, both fail-closed
+  A declaration is not a proof. The treatment is proven by querying the treated copy, under two
+  obligations that are what keep the proof from being satisfied on paper:
+
+  - **(a) A CONTROL PER DETECTOR.** Each detector is demonstrated to catch a planted value **of its
+    own class**, on a copy seeded with that value, and to pass after treatment. One generic planted
+    value proves ONE detector and says nothing about the others.
+  - **(b) SCOPE COMPLETENESS, FAIL-CLOSED.** The proof NAMES every copied surface — columns, JSON and
+    free-text payloads, attachments, caches, encrypted blobs, executable schema, and any other copied
+    store — and **fails closed on a surface it can neither classify nor dispose of**, rather than
+    passing silently. Silence is a REFUSAL, never an omission.
+    **The enumeration covers DERIVED surfaces and executable schema, not only base tables.** An
+    enumeration keyed on tables silently misses views, materializations and triggers, so the
+    fail-closed half would be evaded by construction rather than by omission — leg 1 confirmed a
+    table-keyed sweep passing over both a view and a trigger that carried live values.
+    **An UNQUERYABLE surface is disposed of, not merely reported.** A binary attachment or an
+    encrypted blob cannot be read by a text detector, so a rule that only refuses it means a project
+    with one binary column can never pass. Its legitimate dispositions are exactly two: **EXCLUDE it
+    from the copy** (it is not copied at all), or **explicitly ACCEPT it** under rule 3's recorded
+    disclosure acceptance. The proof fails closed only when it is NEITHER.
+    **But ACCEPT discharges the DISCLOSURE strand ONLY, and an unqueryable surface is exactly where
+    that matters most.** An encrypted blob or a binary attachment may carry tokens (reachability) or
+    queued work (operational state) that nobody can see precisely BECAUSE it is unqueryable. Accepting
+    it as a disclosure risk says nothing about those, so an unqueryable surface that could carry either
+    is **EXCLUDED** unless those strands are separately answered — treated by their own verbs, or
+    recorded as none-of-the-three with a reason. Disposing of an unreadable surface with the one verb
+    that only covers readability is how a live token rides into the sandbox unexamined.
+    **The enumeration is taken over the SOURCE of the copy, and a surface REMOVED by treatment is
+    RECORDED as disposed.** Enumerating the TREATED copy instead lets treatment-by-deletion vanish: a
+    surface dropped to satisfy the inert-on-restore rule above simply stops being a candidate, so the
+    sweep passes with no record that it ever existed. A project could drop every trigger, pass cleanly,
+    and the proof could not tell TREATED from NEVER-EXISTED. Same family as (c) below: the proof must
+    distinguish treated from absent, and silence is not evidence of either.
+    **That source enumeration is CAPTURED BY THE EXPORT STEP and TRAVELS WITH THE COPY.** The proof
+    runs inside the sandbox after the restore, and rule 2 gives live-read permission to the named
+    refresh/export step ALONE — so the proof may NOT reach back to the live system to build the
+    enumeration itself. The export step, which is permitted, captures it as a manifest that travels
+    with the copy, and the proof reads that. Stated because the first version of this rule obliged the
+    proof to do something rule 2 forbids it to do: a rule nobody may obey is not a stricter rule, it is
+    an unenforceable one.
+    **The manifest is DELIVERED AS ITS OWN OUTPUT of the export step, never attached to a dump file** —
+    the preferred streamed shape has no host-side file to attach anything to, so "travels with the
+    copy" means delivered alongside it, not embedded in it.
+    **The manifest is SUBJECT TO THE SAME TWO-LIMB TEST as any other emission — "schema only" is not a
+    safety class.** A surface NAME can carry the payload: a per-tenant schema named after the customer,
+    or a table whose name states a sensitive predicate about the people in it, discloses without a
+    single value being read. Where a name does that, the manifest carries a stable opaque alias and the
+    real name lives in an acceptance-bound annex.
+    **THAT ANNEX IS NOT A NEW ARTIFACT — it IS the rule-3 acceptance record, and it may not become a
+    side file.** A real name that discloses is disclosed CONTENT, so the only thing permitted to hold it
+    is the acceptance that licenses it: the annex is a field OF that record and inherits its terms
+    unchanged — the PURPOSE the name is kept for, WHO may read it, WHEN it is destroyed — and it dies
+    WITH the acceptance rather than living the manifest's longer life. Three consequences, stated
+    because an alias otherwise merely MOVES the disclosure it was meant to remove: the annex NEVER
+    travels with the copy and is never an export output (only the aliased manifest is); a manifest whose
+    aliases resolve for a reader the acceptance does not admit has failed limb (a) exactly as a clear
+    name would; and a project with no channel able to respect those reader controls does not get an
+    annex — it EXCLUDES the surface instead. No new store, no new parser, no second record: if the
+    acceptance cannot hold the name, the name is not kept. **And, so qualified, the manifest SURVIVES the
+    destruction sweep.** Destruction
+    covers step outputs that carry VALUES; a list of surface NAMES carries none, passes both emission
+    limbs, and is precisely what the proof must read AFTER the restore — destroying it at restore time
+    would delete the evidence the next rule depends on. Any export output that does carry values is
+    destroyed as before.
+    **The METADATA around an unqueryable surface is its own surface.** `attachments.filename =
+    passport-scan.jpg` discloses without the blob ever being read; classifying the blob and
+    forgetting its filename is the leg-1 miss this sentence exists to prevent.
+  - **(c) ACCEPTED RESIDUALS ARE REPORTED, never absorbed.** A pass that rests on a rule-3 disclosure
+    acceptance says so, naming each accepted class. A proof whose output cannot tell "this class was
+    treated" from "this class was accepted" is not a proof of this floor — it is the reassurance the
+    floor exists to replace.
+
+  ### 7. What travels and what does not
+  The **RULES travel** — the three strands, the actor split, the declare obligation and the
+  prove-by-querying obligation are kernel-realm methodology a consumer pins.
+  The **CLASS INVENTORY does not travel** — which tables, columns and stores hold which class is
+  per-schema and irreducibly local (project realm, SPEC-0073). A kernel artifact that starts listing
+  a project's columns has crossed that line.
+
+  ### 8. Layer + status honesty, and the scope bound
+  This floor inherits SPEC-0172 rule 4's standard verbatim, and it is not decoration: **every rule
+  here NAMES the layer that carries its check** (kernel CONTRACT · library MECHANICS · project
+  PIN-AND-ENABLE), and **where the named layer does not carry the check yet, the rule says so plainly
+  and is DISCIPLINE — recorded and taught, never presented as prevention.** A later surface MUST NOT
+  re-inflate a DISCIPLINE rule into a claimed refusal, and MUST NOT delete this sentence to make the
+  floor read stronger. DISCIPLINE is a truthful interim, never a resting place: each such rule
+  carries the work that would make it CHECKED.
+
+  #### 8a. The per-obligation layer table — this floor's own declaration, machine-read
+
+  One row per obligation. A rule without its row, or a row without its rule, is a contract defect.
+
+  **The conformance set this table is read under — stated explicitly, because a partial import leaves
+  the rest dead-lettered.** SPEC-0172 rule 4e's C1, C2, C3 and C5 are imported VERBATIM: one row per
+  obligation; the layer comes from the rule-1 vocabulary; the status is exactly CHECKED or DISCIPLINE
+  with **no third, softer word**; and a DISCIPLINE row claims NO anchor and names the closing work.
+  **C4 is imported in ADAPTED form and C6 is NOT imported, and here is why** — 4e's table is
+  per-ATOM, with its own refusal-condition and positive-control columns, so C4 can demand an anchor
+  PER NAMED LAYER and C6 can compare the row against the kernel cage-check predicate. This table is
+  per-OBLIGATION and carries neither column, because the refusal conditions and controls are the rule
+  bodies above and restating them here would be a second home for them. So: **a CHECKED row here names
+  ONE resolvable evidence anchor** (C4 adapted), and **C6 has no subject in this contract** — there is
+  no cage-check predicate for a data obligation to correspond to. Nothing is silently dropped.
+
+  | Obligation | Check layer | Status | Evidence anchor (CHECKED) / closing work (DISCIPLINE) |
+  |---|---|---|---|
+  | 1 — the axis is the live system, not "production data" | KERNEL | DISCIPLINE | definitional; a wording-conformance check over the floor text is the only thing that could carry it — cut at decomposition or accept permanently as taught |
+  | 2 — the actor split (refresh reads read-only; runtime never connects) | PROJECT | DISCIPLINE | a detector proving the spike stack's resolved config reaches no production endpoint |
+  | 3 — three strands, many-to-many, per-strand verbs | PROJECT | DISCIPLINE | the adopting project's per-strand detectors, built in its own realm (a detector queries that project's schema, so it is never a kernel artifact — rule 7 / SPEC-0073); the kernel's own release ask comes AFTER its enablers, never before them |
+  | 4 — the untreated artifact: window, emission limits, destruction | PROJECT + LIBRARY MECHANICS | DISCIPLINE | egress-denied + executable-schema-disabled restore rails in the pinned library; a destruction check over the artifact chain |
+  | 5 — declare the classes in the carrier | KERNEL | CHECKED | test:tests/test_t9389_ops_carrier_seed.py::test_unanswered_section_fails_closed — the flip this row itself reserved for ACTIVATION: closing registered `spike_data_safety` as a `presence_policy: mandatory` concern (SPEC-0128 rule 2), so the generated declare-or-waive sweep now REFUSES silence on it exactly as the named test proves for the sweep's other mandatory sections — one anchor, resolvable, per §8a C4-adapted. The REFUSABLE-waiver half of rule 5 is a SEPARATE obligation with its own anchor — row 5b, so neither half rides the other's evidence |
+  | 5b — the waiver is REFUSABLE: a waived section contradicted by the project's own declarations is refused | KERNEL | CHECKED | test:tests/test_spec0175_waiver_contradiction.py::test_ac1_waiver_beside_an_enabled_bridge_is_refused — shipped the contradiction-refusal hook this row previously carried as its closing work: the concern names `shape_hook: spike_data_safety_shape`, so the SAME registry-driven declare-or-waive sweep now reads rule 5's three signal paths off the project's own carrier and REFUSES a waiver standing beside any of them, naming the contradicting path. `waiver_policy: loose` is unchanged and still accepts an UNcontradicted reasoned waiver — the named test's own complement legs pin that, so the row claims a refusal that discriminates rather than one that refuses everything |
+  | 6 — prove by querying: control per detector, fail-closed scope, reported residuals | PROJECT | DISCIPLINE | the proof runner + its per-detector controls |
+  | 7 — rules travel, class inventory does not | KERNEL | CHECKED | test:tests/test_t0888_placement_contract.py::test_matrix_exhaustive_over_corpus — the placement contract already refuses a kernel artifact carrying project data (SPEC-0073); a bare spec id is NOT an anchor kind, which is why this row now names a resolving test |
+  | 8/8a — layer + status honesty | KERNEL | DISCIPLINE | a conformance check over THIS table, the sibling of SPEC-0172's C1-C6 |
+
+  *A correction's explanation belongs here rather than in a cell: this table declares itself
+  machine-read, and a cell quoting a forbidden token is a false positive waiting for the first
+  checker that reads it.*
+
+  **Read this table as the honest state, not as a disappointment.** Most of this floor is DISCIPLINE
+  today, and saying so is the whole point of rule 8: a floor that claimed prevention it does not have
+  is precisely the defect that produced this plan. The detectors are what turn these rows CHECKED, and
+  they are cut before any policy or release work.
+  **Scope bound:** no new store, no new FSM, no new journal, no new service, no new parser. If an
+  implementation appears to need one, that is a dissonance to escalate (CHARTER §Principle 7).
+
+  ## Parameters
+
+  None consumed. The per-strand class inventory is PROJECT-realm data (rule 7), never a kernel
+  parameter.
+
+  ## Rationale
+
+  Two coordination items from the pilot project, both against the SHIPPED floor text and both
+  reproduced on the ground it was written from: X-0798 (a restored copy reads as "the sandbox's own
+  data" while carrying live webhook URLs, tokens and contact values — and the covering neutralization
+  step was declared in that project's plan and never built) and X-0799 (whether the restore itself is
+  permitted is undecidable from the wording — the pilot's own owner read it and asked).
+
+  Three of the four failures survived a pass whose whole purpose was de-ambiguating this floor. The
+  fourth is the decisive one: the first proposed REPLACEMENT re-created the undecidability in new
+  words, caught by an adversarial wording consult run before spec composition (RED, six findings,
+  `decisions/floor-wording-hidden-cases-audit-adhoc.yaml`). That is why the actor split (rule 2), the
+  disclosure verbs (rule 3), the unsafe window (rule 4) and the fail-closed scope completeness (rule
+  6b) are stated as RULES with their own refusal conditions rather than as careful prose: careful
+  prose is precisely what lost, four readings out of four.
+
+  The same consult was then re-run against THIS drafted text (round 2, RED, five findings, all
+  absorbed). It is why rule 4 governs the ARTIFACT from the first exported byte rather than the
+  restored database (the raw dump was governed by nothing), why a probe's output is bounded
+  (permission to touch is not permission to look), why operational state is defined by EFFECT rather
+  than by the startup moment (executable schema and a job that fires tomorrow both escaped), and why
+  ACCEPT is a bounded, reported exception rather than a fourth free verb (a blanket acceptance passed
+  while the promise said "nothing private"). Recording that round 2 also came back RED is the point:
+  a text this floor's readers keep defeating does not get to be trusted because it was rewritten
+  carefully — only because it was attacked again.
+
+  Prior-art (CHARTER §P1 F1): no data-neutralization rule exists anywhere in the corpus, so this
+  EXTENDS nothing and Filter 1 honestly answers "no analog". SPEC-0100's security defaults govern a
+  different moment (authoring code that handles a secret), not treating a restored copy.
+
+  ## Verification
+
+  - **VP1 (five-question reader agreement).** Two independent readers, given this floor alone, answer
+    all five §Scenario questions identically. Re-uses the two-reader probe SHAPE that surfaced the
+    original divergence, not a new invention.
+  - **VP2 (actor split is normative, not prose).** Rule 2 states BOTH halves — the read-only refresh
+    permission AND the runtime prohibition — as obligations. Probe: grep this body for `READ-ONLY`
+    and `NEVER connects`; a floor carrying only one half fails.
+  - **VP3 (per-strand verbs are distinct).** Rule 3 gives disclosure its own verbs (mask / minimize /
+    exclude / accept) and does NOT fold it into the neutralize list. Probe: grep for `MASK, MINIMIZE,
+    EXCLUDE`; a body where disclosure's treatment is "neutralize" fails.
+  - **VP4 (control per detector — the differential).** Each detector catches a planted value of its
+    OWN class and passes after treatment; a run where one detector's control fails to catch its
+    planted value is NOT a pass. Differential: a detector that passes on a copy seeded with its own
+    class's violating value is not detecting.
+  - **VP5 (scope completeness fails closed).** A proof run over a copy carrying a surface the
+    declaration does not classify REFUSES. Differential: if that run passes, the fail-closed half is
+    not wired and the proof is satisfiable on paper.
+  - **VP6a (the artifact chain is governed, not just the restored copy).** A raw dump, staging copy or
+    backup surviving after the restore is a REFUSAL. Differential: a run that treats the restored
+    database perfectly while leaving the dump on disk must FAIL — if it passes, rule 4's scope is
+    wording, not a rule. Probe: grep this body for `FIRST EXPORTED BYTE` and `DESTRUCTION`.
+  - **VP6b (a probe cannot disclose — the PROPERTY, not the shape).** A probe emission that increases
+    what its reader learns about an identifiable subject is a REFUSAL absent a recorded rule-3
+    acceptance, whatever its format. THREE differentials, because the shape-based reading passed the
+    first two: (i) seed a copy with a known personal value — the value must not appear in any probe
+    output; (ii) nor may a deterministic hash of it; (iii) nor may a count keyed to a sensitive
+    predicate or a cohort small enough to identify someone. A rule that passes (i) and (ii) but not
+    (iii) has been rewritten back into a shape whitelist.
+  - **VP6c (accepted residuals are visible).** A proof run resting on an acceptance names the accepted
+    class in its output. Differential: if a run with an acceptance is byte-identical to a run without
+    one, the residual is invisible and rule 6(c) is unwired.
+  - **VP6d (the source manifest is real, aliased, and survives).** The export-captured source
+    enumeration rule 6b requires is exercised on THREE differentials, because it is the one input the
+    proof cannot rebuild for itself: (i) **ALIASING** — a surface whose NAME carries the payload
+    appears under a stable opaque alias, its real name reachable only through the acceptance-bound
+    annex; a manifest carrying such a name in clear is a REFUSAL. (ii) **SURVIVAL** — the manifest is
+    still readable by the proof AFTER the destruction sweep has run; a sweep that destroys it fails
+    this probe, and, in the other direction, an export output carrying VALUES that survives that sweep
+    fails it too. (iii) **DISPOSED SURFACES** — a surface removed by treatment appears in the manifest
+    with its disposal recorded; a run in which a dropped trigger leaves no record passes the sweep
+    blind and is NOT a pass.
+  - **VP7 (adoption, infra-class — CHARTER §P8).** Consumer-read or live-trigger evidence from at
+    least one adopting project: a declared `spike_data_safety` block — the registered carrier section
+  rule 5 names, a SIBLING of `spike_sandbox` and never nested inside it — plus a recorded proof run.
+  - **VP8 (named non-goal).** Nothing here weakens SPEC-0172's CHECKED stack-identity atom or its
+    DISCIPLINE dial-out half. This floor closes IN ADDITION to them, never by redistributing their
+    weight. Probe: SPEC-0172 rules 4a-4d and their table rows are unchanged by this plan's diff.
+  - **VP9 (internal coherence — whole-artifact, which is why it is not a VP6* probe).** No passage in
+    this spec or in the rewritten `patterns/spike-mode.md` presupposes an operation another forbids, and
+    the artifact carve-out is written around the rule-1 distinction (production-derived copies allowed /
+    live-system contact not) rather than contrasting artifacts with "production data". Numbered VP9, and
+    moved here, because VP6a-VP6d are the probes of RULE 6 specifically; a coherence probe over the whole
+    contract sharing that label made probe references ambiguous for decomposition and audit.
+
+cites:
+  - SPEC-0172 # the spike-sandbox WIRING contract — this floor is its DATA sibling
+  - SPEC-0093 # the ops-contract carrier the declaration lives in
+  - SPEC-0128 # one concern declaration → all surfaces generated (rule 5)
+  - SPEC-0073 # placement realms — the rules travel, the class inventory does not
+  - SPEC-0165 # loud-failure test-building — one tripwire per atomic rule
+  - SPEC-0100 # security authoring-moment defaults — an ADJACENT moment, not this one
+  - SPEC-0035 # trial — this plan is trial-eligible (real restored copy)
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-7
+
+requires: []
+supersedes: ~
+activation_owner_task:
+                               # SET at decomposition (SPEC-0070 §2 — the cut sets the single
+                               # activation owner). is card K1 of this plan's cut: closing
+                               # it flips proposed→active as the deterministic closure side-effect
+                               # (GRAPH §Spec lifecycle — `task close` is the SOLE writer of that
+                               # flip). The other cards (58/59/60) CITE this spec; exactly
+                               # one activating task per spec is the HARD invariant.
+proposed_by: close-the-spike-mode-safety-floor-to-data-carried-
+binding: [before-restoring-a-production-copy]
+                               # SETTLED by the activating task, which registered this token in
+                               # BINDING_VERB_SURFACES (bin/yitc-v2) — the birth-time DRAFT INTENT
+                               # (SPEC-0005 §7, declared so the draft did not arrive already-dangling)
+                               # reserved exactly that settlement for this moment. It is a new INSTANCE
+                               # of the existing verb-surface class (#), never a new routing axis, residency marker, parser or door:
+                               # BINDING_VERB_SURFACES membership IS the recognition door, and it is
+                               # what makes this spec conformant as an ACTIVE spec.
+                               # THE RENDERED FLOOR ROW IS A SEPARATE, REQUIRES-ORDERED CARD, and the
+                               # split is FORCED, not a preference: a FLOOR_TRIGGERS row added while
+                               # this spec is still `proposed` renders UNBOUND, which
+                               # tests/test_t0243_demote.py AC2a refuses — and the row can only BIND at
+                               # the `task close` that activates the spec, i.e. AFTER the Stage-6 gate
+                               # the row must already pass. So the token lands here and the row lands
+                               # once this spec is active. Same forced split as ->.
+                               # That row SHIPPED with : the
+                               # `before-restoring-a-production-copy` trigger renders in
+                               # `graph/floor-trigger-map.md` and in the FLOOR_TRIGGERS table
+                               # (`bin/lib/cli.py`), so this floor is now delivered by the
+                               # always-loaded trigger map, not only by `graph query SPEC-0175`
+                               # on demand.
+                               # An AT-THE-MOMENT trigger, deliberately NOT the reserved `floor`
+                               # token: the rules are needed exactly when a copy is about to be made,
+                               # and putting a whole contract in the always-loaded seed spends the
+                               # CHARTER §Principle-2 budget for a moment most sessions never reach.
+                               # Same shape as the existing `before-deploy` / `before-handling-a-secret`
+                               # rows — a new token in an existing generated map, not a new mechanism.
+init_concern: ~
+
+concern: # SPEC-0128 rule 1 — the SINGLE authoritative declaration. Registers only
+                               # once this spec is `active`, so a draft adds no consumer ask.
+  - section: spike_data_safety
+    born_order: 210 # immediately after the SPEC-0172 `spike_sandbox` bridge block (200).
+    carrier_path: spike_data_safety
+                               # ITS OWN section, because a carrier SECTION is owned by EXACTLY ONE
+                               # governing spec (SPEC-0128 rule 2 / SPEC-0093 rule 18): a `spike_sandbox`
+                               # block here would be the SECOND carrier both forbid, and the guard
+                               # `test_t10868_the_registry_row_is_not_a_second_declaration` refuses it.
+                               # This is the corrected shape — the first draft tried the nested
+                               # `spike_sandbox.data_safety` path and was refused at land verify
+                               # (deviation `spec0128-rule1-silent-on-one-section-one-owning-spec`).
+                               # It is still NO new mechanism: one more registered concern in the
+                               # existing registry, generated onto the existing surfaces.
+    presence_policy: mandatory
+                               # DECLARE-OR-WAIVE (rule 5). `mandatory` is the stance under which an
+                               # ABSENT block is a VIOLATION, so a project that answers the data
+                               # question NOWHERE is a KNOWN state rather than an invisible one — the
+                               # same reasoning SPEC-0172 rule 2 gives for the bridge question.
+                               # DELIBERATE COST NOTE: this is a SECOND declare-or-waive key for the
+                               # same consumers. It costs no second round-trip because the existing
+                               # `spike_sandbox` wave is HELD pending this floor and is re-issued once
+                               # — both keys are answered in one sitting.
+    update_policy: init re-seed
+    declare_key: data_safety
+    declare_type: mapping
+                               # ONE mapping carrying the five data rules 5-6 name: `reachability`,
+                               # `disclosure`, `operational_state` (each the project's own class
+                               # inventory — project realm, rule 7) and `proof` (where the querying
+                               # proof RUNS). A MAPPING so the strands travel as one answer and a
+                               # half-written block cannot read as declared.
+    waiver_policy: loose
+                               # a reasoned waiver is a legitimate answer — a project that restores no
+                               # production copy pays one line, not a process. `loose` STAYS the right
+                               # value now that the contradiction-refusal hook has shipped (# §8a row 5b): `loose` governs the SHAPE a waiver must have (a reasoned
+                               # mapping), and the refusal is about its TRUTH — a waiver contradicted
+                               # by the project's own declarations. Tightening this stance to `strict`
+                               # would demand an expiry date of every sandbox-less project instead,
+                               # which answers a different question and refuses the honest waivers.
+    shape_hook: spike_data_safety_shape
+                               # THE REFUSABLE-WAIVER HALF OF RULE 5, PERFORMED. The residual
+                               # deep-shape hook the generic registry-driven sweep dispatches AFTER the
+                               # stance check (SPEC-0128 rule 2 — the existing extension point, no
+                               # second mechanism, no second registry). It fires ONLY on a WAIVED
+                               # section and reads rule 5's three signal paths off the project's own
+                               # already-parsed carrier — an enabled bridge, a declared refresh/export
+                               # step, recorded evidence of a restored copy — refusing the waiver and
+                               # NAMING the contradicting path. A DECLARED or ABSENT section is not its
+                               # business (it never backfills a stance —
+                               # `lessons/a-stance-mirror-is-only-sound-at-birth`).
+    born: |2
+      spike_data_safety:
+        # SPEC-0175 — what the RESTORED COPY carries. The SIBLING of the `spike_sandbox` block above,
+        # which is about the spike STACK's wiring: this one is about the DATA inside it. A restored production
+        # copy is the SANCTIONED source of a spike sandbox — and it is not made safe by living there.
+        #
+        # To DECLARE, replace the waiver below with one mapping carrying all four:
+        # data_safety:
+        # reachability: <your surfaces holding values that can route, authenticate, identify,
+        # schedule or trigger — incl. external resource IDs and object keys>
+        # disclosure: <your surfaces holding content harmful merely by being READ —
+        # personal, financial, regulated. An ACCEPTED class is recorded here
+        # with its purpose, who may read it, and when it is destroyed>
+        # operational_state: <your surfaces holding state that DOES WORK when anything consumes it
+        # — outbox, queued jobs, scheduler entries, AND executable schema:
+        # triggers, stored procedures, CDC subscriptions, extensions. The
+        # class is the EFFECT, not the moment: "it only fires tomorrow" is
+        # still in it>
+        # none_of_the_three: <surfaces you answer as carrying NO strand, each with a reason —
+        # internal row ids, numeric foreign keys, and the like. This key is
+        # what makes the sweep pass at all: it refuses SILENCE, not
+        # completeness. An unqueryable surface (a blob, a ciphertext) does
+        # NOT belong here — it is EXCLUDED from the copy or explicitly
+        # ACCEPTED under disclosure>
+        # proof: <where the querying proof RUNS — it must carry a control PER DETECTOR,
+        # enumerate DERIVED surfaces and executable schema too (a table-keyed
+        # sweep misses views and triggers), fail closed on a surface it can
+        # neither classify nor dispose of, and NAME any accepted disclosure
+        # class rather than passing over it>
+        #
+        # THE THREE STRANDS TAKE DIFFERENT VERBS, and a strand answered with another strand's verb is
+        # not answered: reachability is NEUTRALIZED, disclosure is MASKED / MINIMIZED / EXCLUDED or
+        # explicitly ACCEPTED, operational state is DEFUSED.
+        #
+        # THE OBLIGATION STARTS AT THE FIRST EXPORTED BYTE, not at the restore: the dump, its temp
+        # files, the logs of the steps that made it, any staging or backup copy, and the restored
+        # database are ALL untreated production-derived artifacts. Only the export step, the restore,
+        # the treatment step and the probes may touch one; the chain outside the sandbox is DESTROYED,
+        # not left lying.
+        #
+        # WHAT A PROBE MAY EMIT IS A PROPERTY, NEVER A LIST OF PERMITTED SHAPES — and that property has
+        # TWO limbs, BOTH of which an emission must pass. Counts, schema and pass/fail are NOT safe by
+        # shape: they pass only when both limbs pass, and a reading that asks only whether the output
+        # teaches something about a real person lets a live routable value walk straight through. Read
+        # the rule before you build a detector — SPEC-0175 rule 4 — and do not convert it back into a
+        # whitelist of shapes.
+        #
+        # WHAT GOES HERE IS YOUR OWN INVENTORY: which tables and columns hold which class is
+        # per-schema and stays in your project (SPEC-0073). The RULES travel; the column list does not.
+        #
+        # THE BORN STANCE IS A WAIVER and is a real key, not commentary: this section is emitted for
+        # every project, and a comment-only block declares NOTHING.
+        waiver:
+          reason: >-
+            no restored production copy — this project runs no spike sandbox filled from a production
+            dump. Replace this waiver with `data_safety: {reachability, disclosure, operational_state,
+            none_of_the_three, proof}` when it does (SPEC-0175 rules 5-6).

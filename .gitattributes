@@ -1,0 +1,37 @@
+# events.jsonl is an append-only journal (SPEC-0002). Under parallel writing-session
+# worktrees, two branches each append distinct rows; the built-in `union` merge
+# driver keeps BOTH sides instead of raising a conflict. Consequence: physical line order
+# is NO LONGER chronology — order by `ts` (SPEC-0002 §Concurrent-merge chronology). The
+# `land` control-point drops duplicate rows post-union by canonical-object
+# identity ( — serialization-robust; never merges two genuinely-distinct events).
+events.jsonl merge=union
+
+# tests/verify-durations.json is DELIBERATELY NOT declared here, and this comment is the record of
+# why. It has the same problem the line above solves — it is machine-written, rewritten
+# wholesale, and conflicts whenever two branches both rebuild it — but no committable git attribute
+# fixes it:
+# * `merge=union` is WRONG: it would interleave two JSON documents into one invalid file.
+# * `merge=ours` is a SILENT NO-OP: a custom driver resolves only when `merge.ours.driver` exists
+# in git CONFIG, config is never committed, and this machine has no merge driver configured at
+# any level. The attribute would be present, the file would look fixed, and the next merge would
+# conflict exactly as before.
+# * unsetting (`-merge`) does not help either: git takes ours as the tentative result AND declares
+# the merge conflicted, which is still a refused land.
+# Git's only built-in low-level drivers are text/binary/union, so there is no keep-one-side driver to
+# declare. Its resolution lives instead in `_DERIVED_MERGE_ARTIFACTS` (bin/lib/cli.py), the existing
+# take-ours set for committed derived artifacts, which `_classify_land_merge_conflicts` applies at
+# every seam that merges main into a branch (`land`'s update-from-main step, `land`'s in-lock post-ff
+# fold, and `worktree sync`). Nothing above is changed by that entry: events.jsonl still unions.
+
+# (SPEC-0190 rules 1+3): the journal's ARCHIVE SEGMENTS are physical units of the SAME
+# logical journal — same line format, same parser, same append+union-merge discipline — so they must
+# inherit `merge=union` for exactly the reason the live segment has it. The line above CANNOT cover
+# them: it is a LITERAL PATH, and `archive/events-2026-08-16.jsonl` does not match it, so a segment
+# would fall back to the default three-way merge and CONFLICT as soon as two branches both touch it
+# — which rotation guarantees, since every landing branch rotates and each carries its own copy.
+# `merge-non-union-conflict` is already the largest early-refusal class in this repo (62 land aborts
+# in 7 days), so this is joining a measured bill, not guarding a hypothetical.
+# The pattern is the definer's, not a re-spelling: `bin/lib/events.py#archive_glob` derives
+# `events-*.jsonl` from the journal's own stem+suffix and `ARCHIVE_DIRNAME` gives the directory;
+# tests/test_t11446_archive_admission.py asserts this literal still equals what they derive.
+archive/events-*.jsonl merge=union

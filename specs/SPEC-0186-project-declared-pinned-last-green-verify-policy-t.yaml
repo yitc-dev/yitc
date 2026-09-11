@@ -1,0 +1,412 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0186
+title: 'Project-declared pinned last-green verify policy — two states, guarded at the declaration, read pre-merge'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: kernel
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # = Anchors. durable anchors : PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+  - bin/lib/task.py#_verify_policy_pinned_last_green # the ONE reader (rules 1+4)
+  - bin/lib/init.py#_hook_verify_policy_pinned_last_green # the named validator (rules 1+3)
+  - bin/lib/batch_landing.py#_land_batch_members # the inert supersession key (rule 9)
+  - bin/lib/worktree.py#_land_integrate # the land gate + rules 7+8
+                               # The DESIGN-PHASE note ( B5) is discharged: Card A shipped
+                               # the reader + the formation-side read, Card B the validator and
+                               # the land gate, so the anchors its cards promised to fill are filled.
+
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  A project decides it will not pay the pinned last-green verify leg, and says so out loud, with a
+  reason, in its own operating contract. From the next land onward that project's lands do not run the
+  leg, and its cards stop being isolated one-at-a-time for a supersession nothing will check. Every
+  other project is untouched, and the engine cannot be switched at all. Turning it off is not a flick
+  of a toggle: the declaration is itself an audited change that names who accepted the risk and why.
+
+  ## Internal
+
+  ### Rule 1 — Two states, and only two; `reason` is required IFF `never`
+  `verify_policy.pinned_last_green` takes exactly `all` or `never`. **`all` is the READ default** —
+  absence of a declaration means `all`, fail-closed.
+
+  **What a project is BORN with is a separate question from what an absence READS, and since
+  the two answers differ** (SPEC-0189 rules 7+8; the earlier wording said `all` was both, which was
+  true only while `init` wrote no declaration at all). What an ABSENT declaration reads is UNCHANGED
+  and stays `all` — the sentence above, and the code path that serves it, are untouched. What `init`
+  WRITES moved: a birth carrying an explicit human confirmation writes `never` with its reason AND
+  that confirmation's ratification provenance, while an UNCONFIRMED or noninteractive birth writes no
+  declaration at all and therefore lands in the `all` state above. So no project is ever silently
+  relaxed, and no existing consumer is re-declared by this change.
+
+  **The born entry and `presence_policy: opt-in` are NOT in conflict, and this rule says so rather than
+  leaving a later reader to re-derive it** (plan-check residual). The generated born block is
+  ADVISORY DEFAULT MATERIAL written at `init`: its guidance prose reaches every project verbatim while
+  its two keys ship COMMENTED, so a freshly-born project carries the section as DOCUMENTATION and
+  declares nothing — and ABSENCE of a declaration is VALID and reads `all`.
+
+  **The keys are commented rather than live, and the plan bound that said otherwise is amended here
+  rather than quietly reversed** (external consult `t11281-born-block-vs-day-one-adoption-debt`,
+  which refuted the alternatives). The decomposition bound absorbed at the plan's accept gate said a
+  freshly-born project "carries `pinned_last_green: all` explicitly". Shipping it live was measured to
+  break a different, already-shipped guarantee: a LIVE key is a DECLARATION, the SPEC-0143 adoption
+  pre-seed stamps it `adopt@init`, and the unratified-adoption debt view then reports a day-one debt for
+  EVERY bootstrapped project — against the named false-positive guard that a virgin consumer's born
+  carrier is CLEAN. The two rejected alternatives were accepting that nag (it breaks a shipped guard for
+  consumers that will never touch this switch) and teaching the debt view to exempt a born-default value
+  (concern-specific policy inside shared machinery). The sibling opt-in concern `audit_scrutiny` already
+  ships commented for exactly this reason: an OPT-IN section whose ABSENCE is the fail-closed default
+  owes no stance at birth. What the bound was protecting — that the option is VISIBLE in a born
+  contract, not hidden in a spec — is fully kept: the block, its two states, the reason condition and
+  the audit cost are all written into the born template where the project reads them. `presence_policy: opt-in`
+  means the fail-closed sweep DEMANDS nothing — it never asks a project to declare this section, and only
+  checks the SHAPE of one that is present. Two roads to the same safe state, neither of them a presence
+  requirement. This is also why EXISTING consumers need no migration: kupiclub / aiseller / boomrocket hold
+  a `yitc-ops.yaml` that will not receive the new section, and that is correct BY CONSTRUCTION rather than
+  an undelivered carrier — so the parked born-subfield-delivery card is NOT triggered by this
+  concern.
+
+  **The schema is VALUE-DEPENDENT, stated here so it is not left to a template comment:**
+  `reason` is **required and non-empty if and only if** the value is `never`. For `all` it MAY be
+  absent or null — which is why the born template ships `pinned_last_green: all` with `reason: ~` and
+  that is VALID, not a contradiction. A `never` with a missing, null, or empty/whitespace `reason` is
+  an **INVALID declaration**: it does not take effect, and the project reads `all` (fail-closed, the
+  same direction as rule 4's unresolvable case). Probed at Verification 8.
+
+  A third state — run the leg only where audit-post was waived — was considered and **REJECTED**. All
+  ten demonstrated catches occurred on cards whose audit-post RAN and passed GREEN, so that state would
+  have caught 0 of 10: the compensating-control intuition is inverted for this layer, whose whole value
+  is catching what a PASSING audit missed. Recorded as rejected design rationale — it is not a claim
+  that such a state must have zero value in future.
+
+  ### Rule 2 — Its own carrier, and NOT `audit_scrutiny`
+  The declaration lives in a `verify_policy:` section of the project's `yitc-ops.yaml` (the SPEC-0093
+  ops-contract). It **must not** be carried by `audit_scrutiny`: CHARTER §Project-declared audit-post
+  exemption bound 1 is `audit-post ONLY — a case never reaches audit-pre, the Tests stage, the
+  land-verify layers, the worktree-before-write rule, or the Closure probes`, and the pinned leg is a
+  land-verify layer. That bound is NOT amended here; it exists so an audit-post exemption can never
+  quietly become a licence to drop verification.
+
+  **The two surfaces do not compose.** An `audit_scrutiny` case never affects the pinned leg; a
+  `verify_policy` declaration never affects audit-post. Neither implies the other in either direction.
+
+  ### Rule 3 — One declaration, generated surfaces, ONE reader (SPEC-0128)
+  This spec's `concern:` block is the single authoritative declaration. The born `yitc-ops.yaml`
+  template entry and the declare-or-waive fail-closed sweep are GENERATED from it at `graph build`.
+  No hand-maintained parser, no hand-maintained value list, no second registry.
+
+  **The enum and the `reason` condition are carried by a NAMED KERNEL VALIDATOR, not by prose or a
+  list.** The `concern:` block declares `shape_hook: verify_policy_pinned_last_green` alongside its
+  FINITE metadata (`declare_key`, `presence_policy: opt-in`, `waiver_policy`); that hook is the ONE
+  enforcement carrier for the closed `all|never` enum and for the reason-required-IFF-`never` condition,
+  so the generated declare checks and the runtime reader share a single source and no hand-maintained
+  schema or value table exists anywhere. This is the existing SPEC-0128 rule-2 mechanism — the same
+  carrier the STRICT security waiver's reason+compensating_control+expiry stance check uses — not a new
+  shape language (SPEC-0128 rule 1 forbids a shape-DSL).
+
+  **Implementation constraint — ONE reader serves BOTH call sites.** Generation covers the born
+  template and the sweep, but the RUNTIME value is read by two places: the land verify path (rule 4)
+  and batch formation (rule 9). Both MUST resolve it through the **one existing ops-contract/concern
+  parser entry point** — no second ad-hoc YAML reader, and no enum table duplicated beside the
+  generated one. This is what makes the rule-9 "one authority, two call sites" requirement concrete
+  rather than aspirational, and it is the probe that carries the otherwise-weak F3 removal claim:
+  if a second reader or a second value list appears, the change has ADDED machinery, not reused it.
+  Probed at Verification 7.
+
+  ### Rule 4 — The policy is read PRE-MERGE, from the old tree
+  A land resolves the policy from the **base/main** tree it is landing onto, never from the merged
+  candidate. A diff that sets `never` therefore still pays the leg on its OWN land; the new value takes
+  effect only from the next land. Reading post-merge would let the diff that disables the layer exempt
+  itself from the layer — the self-reference hole this rule closes. Unresolvable policy → `all`
+  (fail-closed), the same direction as the existing `_verdict = "observable"` classifier fallback.
+
+  ### Rule 5 — The guard sits on the DECLARATION, not on the diff
+  Turning the leg off is governed by making the DECLARATION expensive and visible, not by re-checking
+  every diff. `yitc-ops.yaml` is inside the SPEC-0077 pinned-test surface, so it is fast-path
+  INELIGIBLE at any diff size (LIFECYCLE §Two flow types): any edit to it — including this section —
+  mechanically takes the substantive path with BOTH audits, and the `reason` is mandatory and non-empty
+  or the declaration is invalid.
+
+  Carrying SPEC-0178's governance-surface guard over verbatim was MEASURED and REJECTED: it catches
+  82.3% of the 1168 lands on which the leg actually ran, leaving the switch effective on 17.7% — a
+  decorative switch. That guard is broad because its exemption is per-case and `match`-patterned, so a
+  case can be CRAFTED to cover exactly the dangerous diff. A binary repo-level switch has no `match`
+  and nothing to craft, so the defence it imports is against a capability this construction lacks.
+
+  ### Rule 6 — The engine is not switchable (KERNEL INVARIANT)
+  No reachable declaration turns the leg off in the engine repo. This is stated as an invariant, not
+  inferred from the ten-case sample: the engine has no `yitc-ops.yaml`, so it has no carrier for a
+  declaration, and it is where every demonstrated catch lives.
+
+  ### Rule 7 — A distinct verify outcome, never a reuse of `candidate`
+  A land that skips the leg by policy records `verify_mode: candidate_policy_off`. This is a new value
+  in the EXISTING `land_completed.verify_mode` value set — SPEC-0025 (the `events.jsonl` schema home) is
+  amended in the same change; no new event type, no second schema home.
+
+  Not cosmetic. Conflating "did not run" with "ran and passed" already corrupted analysis of this very
+  layer: 15 of 30 decisive cases were misread as "the tree later passed the pinned check" when the leg
+  had simply not run. Shipping the switch without this value poisons every future measurement at source.
+
+  **The value marks a POLICY SKIP, not merely a project's policy**. It is recorded when the land
+  DID touch the verifier surface — i.e. the leg would have run — and the declaration stopped it. A land
+  that touched nothing records plain `candidate` under either policy, because nothing was skipped there;
+  reading `candidate_policy_off` as "this project has the leg off" instead of "this land skipped the leg"
+  would re-introduce the same conflation in the other direction.
+
+  ### Rule 8 — `--rebaseline` refuses when the leg did not run
+  A re-baseline waives a superseded pinned check. Where the leg did not run there is nothing to waive,
+  so `--rebaseline` REFUSES with that reason. Additive and orthogonal to, which left the
+  rebaseline gate (`_change_is_audited`) unchanged and altered only the refusal message.
+
+  ### Rule 9 — Batch formation consults the same resolver, and lands FIRST
+  The three-class batch formation must read the policy through the SAME resolver a land uses — one
+  authority, every call site — or formation and verify disagree. When the policy resolves to `never`,
+  what is INERT for class assignment is EVERYTHING that describes the unrun leg: the pinned-supersession
+  key (a member carrying it is not forced into the isolate-alone class for a check that will not run)
+  AND the cost ladder's two-pass rung itself, which exists only to say «this member pays the pinned leg
+  as well». A member is otherwise isolated for a second pass that does not happen — the residual
+  left when it wired this resolver into the key alone, closed by. All three inputs (repo policy,
+  the card's audit-post presence, the diff paths) are readable at the formation instant, and the rung
+  meanings themselves are SPEC-0184 rule 9's business, not this spec's: this rule supplies the policy
+  input, that rule owns the ladder.
+
+  **Ordering:** the formation-side read must land BEFORE `never` is reachable. shipped the
+  three-class formation with no notion of this policy, so until then a declaring project would still
+  have its keyed cards isolated for an unrun check.
+
+  ## Rationale
+
+  The external audit `decisions/groupland-strategy-audit-adhoc.yaml` returned RED, finding 3: audit the
+  historical pinned failures, classify unique real catches versus audit-covered ones, then trial a
+  narrowed or removed leg behind a reversible gate.
+
+  That classification was done (`events.jsonl#ts=`) over 496 aborts on 301 kernel
+  branches, whole history. Because audit-post runs at Stage 8 and closure at Stage 9, every pinned
+  failure at land is BY CONSTRUCTION a diff the external auditor had already passed GREEN/YELLOW — a
+  natural experiment, not a proxy. Ten branches answered the pinned objection by changing the tree
+  rather than blessing it; five touched production `bin/`. So the leg is not removable.
+
+  It is also not universally worth its price: it runs on 27% of kernel lands, 21% kupiclub, 9% aiseller,
+  and costs the suite a second time (2.93 s scaffold, then 3284.8 cpu-s over 792 files —). In
+  kupiclub 61 of 62 firings are the untouched-file drift class and zero are catches. Hence a per-project
+  decision rather than a global one.
+
+  Design fork consulted before this spec existed:
+  `decisions/pinned-layer-project-switch-audit-adhoc.yaml` (YELLOW, no RED blocker).
+
+  ## Verification
+
+  Differential probes, one per silently-breakable rule (SPEC-0165):
+  1. R1/R4 — `never` declared → leg does not run and the land records `candidate_policy_off`; policy
+     removed → same tree runs it.
+  2. R4 — a diff that SETS `never` still pays the leg on its own land; the next land does not.
+  3. R9 — with `never`, a member carrying the supersession key is not forced to the isolate-alone
+     class; with `all`, it is.
+  4. R8 — `--rebaseline` refuses when the leg did not run.
+  5. R6 — no reachable declaration turns the leg off in the engine.
+  6. R2 — an `audit_scrutiny` case does not change the pinned leg, and a `verify_policy` declaration
+     does not change audit-post (non-composition, both directions).
+  7. R3 — the born template entry and the declare-or-waive sweep are GENERATED, and BOTH runtime call
+     sites (land verify, batch formation) resolve the value through the ONE existing ops-contract
+     parser: no second reader, no second enum table. This probe carries the F3 removal claim.
+  8. R1 — a `never` declaration whose `reason` is missing, null, or whitespace-only is INVALID and the
+     project reads `all`; the same declaration with a non-empty reason takes effect. `all` with an
+     absent/null reason is VALID (the born default), so the probe must assert both directions.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - SPEC-0077 # the pinned last-green leg this policy switches
+  - SPEC-0093 # the yitc-ops.yaml ops-contract carrier
+  - SPEC-0128 # the concern registry that GENERATES the surfaces below
+  - SPEC-0178 # the audit-post exemption this must NOT be folded into (rule 2)
+  - SPEC-0025 # the events schema home amended for candidate_policy_off (rule 7)
+  - SPEC-0184 # batch formation, the rule-9 consumer
+  - CHARTER.md#principle-1
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # the ONE activation carrier (SPEC-0005 §5): ships the concern
+                               # surfaces, the rule text, the generated declaration behaviour and the
+                               # runtime switch, so its closure is what makes this spec govern. Set at
+                               # decomposition per SPEC-0034; gate-executing RED finding 1. # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: let-a-project-switch-the-pinned-last-green-leg-off
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+concern: # SPEC-0128 rule 1 — the ONE authoritative declaration of this
+                               # seed-and-grow concern. Rule 2 GENERATES the born yitc-ops.yaml
+                               # template entry + the declare-or-waive fail-closed sweep from it at
+                               # `graph build`; no hand-maintained parser, list, or second registry.
+  section: verify_policy
+  born_order: 220 # LAST top-level section, after spike_data_safety (210). Deliberately
+                             # not slotted beside `coverage` (110): the born template's comment
+                             # ATTRIBUTION is positional, and inserting a section between
+                             # `coverage:` and the commented `# startup_checks:` block re-parents
+                             # SPEC-0152 rule 17's citation (pin that adjacency).
+                             # Appending costs nothing and disturbs no neighbour.
+  spec: SPEC-0186
+  declare_key: pinned_last_green
+  presence_policy: opt-in # absence is VALID and reads `all` (the born default, rule 1) —
+                                     # so this is NOT declare-or-waive; silence is the fail-closed state
+  update_policy: owner-declared # only an explicit, audited project act moves it (rule 5)
+  waiver_policy: reason-required-on-never
+  born_stance: permissive # (SPEC-0189 rules 1+8) — what `init` WRITES for this
+                                     # concern RELAXES a control, so the birth owes an explicit human
+                                     # confirmation and its ratification provenance, and an
+                                     # UNCONFIRMED / noninteractive birth writes NO declaration at all.
+                                     # The axis is the VALUE'S DIRECTION, never this gate's identity.
+                                     # It says NOTHING about what an ABSENT declaration READS: that is
+                                     # rule 1 above (`all`, fail-closed) and rule 7 keeps the two apart.
+  detector: verify-policy-pinned-last-green # SPEC-0189 rule 1 — the PAIR is the unit of admission:
+                                     # the NAME of the code watching for what this absence costs,
+                                     # registered in the kernel detector registry
+                                     # (`bin/lib/debt.py#_surface1_pinned_leg_detector`). Without it
+                                     # this permissive declaration is a `graph conformance` RED
+                                     # (`init.py#born_permissive_detector_violations`), which is why
+                                     # the detector, this declaration and the born flip ship together.
+  shape_hook: verify_policy_pinned_last_green # the KERNEL-OWNED validator carrying the closed enum
+                                     # (all|never) AND the value-dependent `reason` condition
+                                     # (required+non-empty IFF never, rule 1). Named here rather than
+                                     # restated as a list, so the generated checks and the runtime
+                                     # reader share ONE source and no hand-kept schema exists — the
+                                     # same carrier the STRICT security waiver's
+                                     # reason+compensating_control+expiry stance check uses
+                                     # (SPEC-0128 rule 2). FINITE metadata, no shape-DSL (rule 1).
+  born: |
+    verify_policy:
+      # SPEC-0186. Whether THIS project pays the SPEC-0077 pinned last-green verify leg — the re-run
+      # of the LAST-GREEN test suite against new code at land. Two states only:
+      # all — run it. The DEFAULT, and the state every project is born in.
+      # never — do not run it. This project accepts that a test weakened inside a branch whose own
+      # suite stays green is then caught by audit-post alone.
+      # `reason:` is MANDATORY and non-empty for `never`, or the declaration is INVALID.
+      # Turning it off is an AUDITED act: yitc-ops.yaml sits inside the pinned-test surface, so any
+      # edit here is fast-path-INELIGIBLE and takes BOTH audits (LIFECYCLE §Two flow types).
+      # UNRELATED to `audit_scrutiny` — the two surfaces do NOT compose, in either direction.
+      # The ENGINE cannot declare this at all (SPEC-0186 rule 6 — kernel invariant).
+      #
+      # THE KEYS BELOW ARE COMMENTED, and that is the design rather than a formatting choice
+      # (external consult t11281-born-block-vs-day-one-adoption-debt). ABSENCE already
+      # reads `all`, so a born project needs no key to be in the safe state — while a LIVE key
+      # here would be a DECLARATION nobody reviewed, which the SPEC-0143 adoption pre-seed stamps
+      # `adopt@init` and the unratified-adoption debt view then reports on day one, for every
+      # project, forever. That breaks a shipped false-positive guard (a virgin consumer's born
+      # carrier is CLEAN) to say something the project never chose. Same shape as
+      # `audit_scrutiny`, for the same reason: an OPT-IN section whose ABSENCE is the fail-closed
+      # default owes no stance at birth. UNCOMMENT one of these to make a real choice — and note
+      # that `never` needs a real `reason:` or the declaration is INVALID and reads `all`.
+      # pinned_last_green: all
+      # reason: ~
+      #
+      # THE FRAGMENT BELOW IS THE BORN-PERMISSIVE DECLARATION (SPEC-0189 rules 1+7+8), and
+      # UNLIKE every commented key above it is LIVE — which is the whole point of this surface, and
+      # what registered. A commented fragment declares nothing, so `_mirror_adoption_status`
+      # reads the section `na` and `record_born_permissive_ratifications` has nothing to ratify; LIVE
+      # is what makes the ratification reachable, and what makes this an actual born default rather
+      # than a documented one. It is written ONLY into a birth carrying an explicit PER-SECTION human
+      # confirmation for THIS concern (`init --confirm-born-permissive verify_policy:<owner>`); an
+      # unconfirmed or NONINTERACTIVE birth has the whole section WITHHELD by
+      # `init.born_permissive_gate`, so no relaxing declaration is written and absence reads `all`,
+      # fail-closed. The same act records the confirmation as this declaration's ratification
+      # provenance (a SPEC-0143 `adoption:` record under the NAMED owner, never the `init` sentinel),
+      # so there is no state in which the relaxation exists un-ratified. Both write paths are gated —
+      # the fresh-birth body and the rule-11 carrier UPDATE — so a consumer born
+      # before this concern existed cannot receive it un-ratified either. (The blanket
+      # `--ratify-born-permissive` handle this text once named did not survive the shape fork —
+      # consult `definer-shape-fork-born-ratification-audit-adhoc`; the declared unit of provenance is
+      # the SECTION, so the per-section handle above is the surviving mechanism, and the marker
+      # comments that once delimited a fragment for that handle are gone with it.) Re-COMMENTING it by
+      # hand is an ordinary owner declaration, governed exactly as rule 5 says — an audited edit of a
+      # file inside the pinned-test surface, needing a real reason.
+      #
+      # WHAT IS BEING ACCEPTED, stated plainly: a project born this way does not pay the SPEC-0077
+      # pinned last-green leg from day one, and accepts that a test weakened inside a branch whose own
+      # suite stays green is then caught by audit-post alone. The named detector above watches for the
+      # absence starting to cost something and PROPOSES turning it back on; restoration is this
+      # project's own explicit act — set `pinned_last_green: all` here (SPEC-0189 rule 4).
+      pinned_last_green: never
+      reason: "born permissive per the owner directive of 2026-08-21 — a new project does not pay the
+        pinned last-green leg from day one; the periodic review watches for the absence starting to cost
+        something and PROPOSES turning it back on (SPEC-0189). Restoration is this project's own explicit
+        act — set `pinned_last_green: all` here."
+
+init_concern: ~ # OPTIONAL (SPEC-0096) — NOT set: this concern needs no
+                               # activation-walk surfacing, and the SPEC-0128 `concern:`
+                               # block above is the SINGLE authoritative declaration
+                               # (plan-check YELLOW 1+2; a duplicate here would break the
+                               # rule-1 invariant this very spec states).
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/batch_landing.py#_land_batch_members: c1ff77b8f4f667eea07e3e4526109cfe1ad1d5df8ea94d77ea60eaff9c4b1422
+  bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
+  bin/lib/task.py#_verify_policy_pinned_last_green: ca1681a267547beba68c784f648f65e8e91089a69d513fe45ac2ef5eecc170e9
+  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae

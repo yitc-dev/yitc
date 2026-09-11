@@ -1,0 +1,93 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0146
+title: 'Consumer scoped-user governance-file writes are permitted — readonly is not FS-enforced, land does not guard governance-path writes by role'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+travels: ~ # kernel (class-default) — the rule governs consumer scoped-user
+                               # behavior + the kernel land/FS posture, so it travels to every consumer.
+
+consumed: false # documentary standing rule — no code reads a scalar param FROM it.
+
+extension: ~
+
+implements: [] # documentary / posture spec — it RECORDS the standing rule + the
+                               # explicit NON-guard; there is nothing to wire (the whole point is
+                               # that no FS-perm or land role-guard mechanism exists or is added).
+
+body: |
+  ## Scenario
+
+  A collaborator onboarded to a consumer project as a `methodology:readonly` scoped user does normal
+  work: takes notes and running context in `MEMORY.md` (a SPEC-0039 scratch buffer), and edits the
+  project's own governance config — `yitc-ops.yaml`, `yitc-verify.yaml` — when their task legitimately
+  needs it. These writes SUCCEED. The `readonly` label scopes what the picker/command-guard offers and
+  the intended posture, but it is NOT a filesystem permission wall: born governance files are
+  group-readable/writable and a scoped user owns their own worktree copies. `land` integrates their
+  change like any other — it does NOT inspect the acting identity and refuse a governance-path write by
+  role. A future session reading this spec MUST NOT re-flag "a scoped user can write governance files"
+  as a security gap: it is the recorded, owner-decided posture, not a hole.
+
+  ## Internal
+
+  THE STANDING RULE (owner decision 2026-07-08, no real incident — anti-complexity Principle-1 F4):
+
+  1. `methodology:readonly` is a SCOPING label (picker/command-guard + intended posture), NOT a
+     filesystem-enforced permission class. A readonly scoped user MAY write the per-project governance
+     files `MEMORY.md`, `yitc-ops.yaml`, `yitc-verify.yaml` during normal work. `MEMORY.md` in
+     particular is a legitimate SPEC-0039 scratch buffer for ANY collaborator, readonly included.
+
+  2. `land` does NOT guard governance-path writes by acting-identity role. There is no protected-path
+     diff guard, no chown-based repair, no FS-perm wall keyed to the lander. This is deliberate: the
+     0644 born-governance FS hardening is RETIRED, because FS/chown enforcement is unreliable
+     for an unprivileged scoped lander who owns their worktree files (and `land` rewrites under the
+     lander's umask anyway) — keeping it would be permission theater that enforces nothing real.
+
+  REVISIT TRIGGER (fail-closed only on evidence, NOT pre-emptively): this posture is reopened ONLY by a
+  REAL incident — e.g. an accidental `yitc-ops.yaml` verify-section corruption by a scoped user. The
+  remedy THEN is a TARGETED land-time protected-path validator (a diff guard keyed to trusted OS
+  identity, fail-closed, over one Single-SoT protected-path set), per the external-auditor consult —
+  NOT a role-based permission wall or FS-perm theater. Until such an incident, adding any enforcement
+  fails Principle-1 F4 (no real incident, no prior-art pull) and is deferred.
+
+  ## Rationale
+
+  Owner decision 2026-07-08 grounded in two external-auditor ad-hoc consults:
+  - `decisions/methodology-readonly-enforcement-gap-audit-adhoc.yaml` (YELLOW) — FS/chown enforcement
+    cannot be performed by an unprivileged scoped lander; if enforcement is ever wanted, it must be a
+    land-time protected-path diff guard keyed to trusted OS identity, fail-closed, over one Single-SoT
+    protected-path set — never worktree-ownership or permission theater.
+  - `decisions/keep-vs-retire-governance-0644-audit-adhoc.yaml` (GREEN) — RETIRE the 0644 hardening; it
+    enforces nothing real against a scoped collaborator who owns their worktree files or against `land`
+    rewriting under the lander/umask; revisit only on a real incident with a targeted validator.
+  This resolves the Principle-7 dissonance the correct-verify plan carried (its exit-criterion + postcheck
+  failure-threshold treated a scoped-user governance write as a FAIL): this spec is the authoritative
+  source, and drops those plan clauses. Extends SPEC-0039 (MEMORY.md scratch-buffer legitimacy).
+
+  ## Verification
+
+  - `bin/yitc-v2 graph query SPEC-0146` resolves the rule at `status: active` (after close).
+  - `plans/correct-verify-the-full-project-user-collaboration.md` no longer lists the
+    "a readonly scoped user cannot write governance files" exit-criterion nor the
+    "a readonly-user WRITE to a governance file succeeding" postcheck failure-threshold clause.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-7
+  - SPEC-0039
+  - methodology-readonly-enforcement-gap-audit-adhoc
+  - keep-vs-retire-governance-0644-audit-adhoc
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by:
+binding: [query-only] # documentary read-on-demand posture spec — no verb-fetch, no code enforcement
+init_concern: ~

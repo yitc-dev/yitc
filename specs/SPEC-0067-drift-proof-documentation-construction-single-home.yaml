@@ -1,0 +1,139 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md / SPEC-0005.
+
+id: SPEC-0067
+title: 'Drift-capable-vs-drift-proof classifier for standing-rule documentation mentions (the drift-possibility lens baseline)'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # plan-local draft (SPEC-0005 §4); born by `plan stage accepted` →
+                               # proposed, then → active via activation_owner_task close. proposed ⇒
+                               # consumed:false. `active` is the ONLY normative status.
+
+created_at:
+
+consumed: false # documentary/process spec — no code reads a scalar param from it
+                               # (SPEC-0005 rule 7 mode (a)). The classifier is applied by the
+                               # drift-possibility lens (a Review audit), not a code-read param.
+
+implements: [] # SPEC-0005 rule 7 mode (a): distributed/documentary — an active
+                               # cross-cutting CLASSIFIER with no single code site. Delivered as a
+                               # RETRIEVED reference (binding: [query-only]) reached on demand via
+                               # `graph query`, routed at rule-authoring time by the SPEC-0005 normative before-rule-change handoff (NOT a floor entry); consumed corpus-wide by the sibling
+                               # drift-possibility lens. Intentional empty, not omission.
+
+body: |
+  ## Scenario
+
+  V2 ALREADY holds the norms that keep documentation from drifting: a standing rule lives in exactly
+  one home (SPEC-0005 rule 8), a spec body points rather than restates (SPEC-0005 rule 3), and
+  cross-cutting content is derived from a single carrier rather than duplicated (SPEC-0033; the
+  generated floor-trigger-map and the SPEC-0059 per-verb map are the in-repo proof). What was MISSING is
+  a single, AUDITABLE **classifier**: given any place a homed rule is MENTIONED, is that mention
+  drift-PROOF or drift-CAPABLE? Without it, the **drift-impossibility** concern (build it so it
+  CANNOT drift) had no operational test and the drift-possibility inspection lens had no baseline to
+  audit against. This spec owns ONLY that classifier + its discriminating criterion — NOT the base
+  norms (which stay in their homes, cited below).
+
+  **Usage contract — WHO / WHEN / HOW:**
+  - **WHO:** (a) the sibling drift-possibility inspection lens, as the classification it audits the
+    corpus against; (b) a session authoring/editing standing-rule documentation, as the test for "is
+    this mention drift-proof?"; (c) an external auditor reviewing a rule-bearing change.
+  - **WHEN:** at the standing-rule authoring chokepoint (`before-rule-change` — `spec new` / `spec
+    edit`); at inspection-run time when the lens scans the corpus; on demand (`graph query SPEC-0067`).
+  - **HOW (delivery, declared honestly per surface):** spec authoring/edit → ACTIVE via SPEC-0005 (binding:
+    [query-only] ⇒ RETRIEVED, non-dangling, reached on demand by `graph query SPEC-0067`; the
+    always-loaded SPEC-0005 before-rule-change floor entry carries the NORMATIVE handoff routing the
+    author here — SPEC-0067 is NOT itself a second floor entry, so keeps the floor [SPEC-0005]). Non-spec surfaces (handbook / pattern) → AUDIT-ONLY (the lens) + on-demand
+    fetch; authoring-time delivery does NOT reach them. No "one binding covers everything" claim.
+
+  ## Internal
+
+  ### 1. What this spec OWNS — and what it does NOT (the anti-self-drift boundary)
+  OWNS only: the classifier (§2) + the discriminating criterion (§3) + its scope (§4). It does **NOT**
+  own — and never restates — one-home / point-don't-restate / derive-don't-duplicate; those stay in
+  their homes (§5, cited). **Delete-test:** removing this spec loses the classifier (the lens baseline),
+  which has NO home in SPEC-0005 (the spec-node doctrine) or SPEC-0033 (verb delivery) — so it is a
+  genuine residual, not a parallel re-homing.
+
+  ### 2. The classifier (the auditable output)
+  For any place a rule whose authoritative home is ELSEWHERE is MENTIONED:
+  - **drift-PROOF** — a `cites` / navigational POINTER to the home · a GENERATED / derived artifact
+    (built from the single carrier) · a note that only provenance-interprets without restating the
+    rule's REQUIRES / FORBIDS (the form SPEC-0005 rule 3 already allows).
+  - **drift-CAPABLE** — a hand-maintained RESTATEMENT: the rule's compliance content duplicated as
+    prose, able to diverge when the home changes.
+  (The list names WHICH existing forms are safe vs unsafe; the WHY of each form lives in its home — §5.)
+
+  ### 3. The discriminating criterion (the genuinely-new operational test)
+  **"If the home's rule-text changed, would THIS text have to be changed too, BY HAND, to stay
+  correct?"** — YES ⇒ drift-CAPABLE; NO (it only points, derives, or provenance-interprets) ⇒
+  drift-PROOF. This is the single cross-surface test the lens and the author apply; it is the spec's
+  load-bearing contribution.
+
+  ### 4. Scope (canonical homes + mentions; plan/decision rule-text is NOT a home)
+  A standing rule's canonical home is a **spec body OR handbook/pattern prose** (SPEC-0005 rule 8). The
+  classifier applies to MENTIONS of such homed rules anywhere in the corpus. **`plan/` and `decision/`
+  rule-text are NOT canonical homes** — decisions are frozen history (SPEC-0054) and plan bodies carry
+  deliberation — so rule-text appearing there is classified **drift-CAPABLE by default** (a
+  pointerize-out target), never legitimised as a carrier. The classifier covers canonical homes +
+  derived/pointer mentions; it does not extend governance to deliberation prose.
+
+  ### 5. The norms this classifier operationalises (CITES, never restated — P5 / SPEC-0005 rule 3)
+  one-home → SPEC-0005 rule 8 · point-don't-restate (spec body) → SPEC-0005 rule 3 · derive-don't-
+  duplicate (delivery) → SPEC-0033 · derived-view exemplar → SPEC-0059 · generated-artifact exemplar →
+  `graph/floor-trigger-map.md`. This spec references them as the WHY behind §2's safe forms; it adds the
+  cross-surface §3 test, nothing more.
+
+  ## Parameters
+
+  None consumed.
+
+  ## Rationale
+
+  The owner named three documentation concerns (2026-06-09 Review research): anti-drift (detect — theme
+  T1), anti-duplication (duplication mass — theme T7), and drift-impossibility (build it so it CANNOT
+  drift). The prevention NORMS for the third already existed (SPEC-0005 rule 8/3, SPEC-0033, SPEC-0059);
+  what was absent was an auditable CLASSIFIER + a single cross-surface test so the drift-possibility
+  lens could scan. An accept-gate audit (2026-06-09) RED-flagged a first, broader draft for re-homing
+  the base norms (accretion where it claimed consolidation); this spec is the thinned residual that
+  survives the SPEC-0005 delete-test. Grounding: `deviation_captured` fingerprint
+  `inspection-roster-no-drift-possibility-derivation-audit-lens`; proposing plan
+  `add-a-drift-possibility-single-home-derivation-pro`. Guard B (SPEC-0005): a process spec admitted as
+  a SAMPLED PILOT — delete-test + content-boundary both pass.
+
+  ## Verification
+
+  - **VP1 (anti-self-drift / content-boundary, dogfood):** a grep of this body finds NO restatement of
+    SPEC-0005 rule 8 / rule 3 or SPEC-0033 rule-text — only the §2 classifier, the §3 test, and §5
+    POINTERS. The spec is itself drift-PROOF by its own §3 criterion (if rule 8 changed, this body would
+    NOT need a hand edit — it only points).
+  - **VP2 (query-only delivered, non-dangling, NOT floored):** `binding: [query-only]` + `implements: []` ⇒
+    a RETRIEVED reference; after `graph build` SPEC-0067 is NON-dangling AND ABSENT from
+    `verb_to_specs["spec-new"]` / the `before-rule-change` floor (which stays exactly `[SPEC-0005]` —
+    `tests/test_t0243_demote.py` GREEN). RED-GREEN: the `query-only` residency token is excluded from the
+    dangling check; switching back to a verb-surface binding would re-flag the floor regression.
+  - **VP3 (lens baseline):** the sibling drift-possibility lens cites SPEC-0067 as the classification it
+    audits against (verified when the lens lands).
+
+cites:
+  - SPEC-0005 # rule 8 (one-home) + rule 3 (spec-body content-boundary) — norms operationalised, NOT restated
+  - SPEC-0033 # one-source delivery (derive-don't-duplicate) — operationalised, NOT restated
+  - SPEC-0054 # decisions are frozen history — why decision rule-text is drift-capable-by-default (§4)
+  - SPEC-0059 # derived per-verb map — derived-view exemplar
+  - SPEC-0013 # binding/delivery contract
+  - SPEC-0057 # inspection construct — context for the sibling drift-possibility lens
+  - CHARTER.md#principle-5 # single source of truth — the principle the classifier serves
+  - add-a-drift-possibility-single-home-derivation-pro # proposing plan
+  - drift-possibility-inspection-lens # sibling lens plan (the consumer of this classifier)
+
+requires: []
+supersedes: ~
+activation_owner_task: # set EXPLICITLY at decomposition (the ONE implementing task whose close
+                                # activates this spec); forbidden while draft.
+proposed_by: add-a-drift-possibility-single-home-derivation-pro
+binding:
+  - query-only # RETRIEVED residency (SPEC-0007 §5a): non-dangling WITHOUT a
+                                # second always-loaded before-rule-change floor entry ( keeps it
+                                # exactly [SPEC-0005]). Authoring-time delivery rides the SPEC-0005
+                                # normative before-rule-change handoff (Option A, consult).

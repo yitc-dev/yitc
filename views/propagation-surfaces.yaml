@@ -1,0 +1,31 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: propagation-surfaces
+description: >-
+  Candidate propagation/application surfaces for a multi-site spec — given a SPEC id, returns the
+  sites that already engage it (citing_tasks) + the code that implements it (implementing_code /
+  implements_anchors), the sweep-set for "now that this exists, where ELSE must it be applied?"
+  (SPEC-0053 disposition). RECIPE: run `graph query propagation-surfaces SPEC-XXXX`; read
+  `citing_tasks` (the tasks already referencing the spec — likely consequent-change sites) and
+  `implementing_code` (the code application surfaces); pure reuse of the existing tasks_citing /
+  code_to_specs reverse-index — NO new store.
+lens:
+  kind: propagation-surfaces # pure f over the EXISTING reverse-index (index["tasks_citing"] +
+                               # index["code_to_specs"], the SAME maps `graph query <SPEC>` already
+                               # uses) — adds NO store, NO new edge. Takes a SPEC id as the second
+                               # positional (`graph query propagation-surfaces SPEC-XXXX`); a no-arg
+                               # run prints the usage hint (never raises — keeps the every-view-
+                               # executable AC6 sweep green). Recomputed fresh.
+why: >-
+  Instrument-2 ("Saved sweep lens") of plan forward-propagation-adoption-trigger-disposition-r
+  §Implementation-order. SPEC-0053 makes a forward-propagation disposition REQUIRED at an infra-class
+  `task close` — «now that this mechanism exists, where ELSE must it be applied?». That question
+  needs a cheap, repeatable way to ENUMERATE the candidate sites instead of an ad-hoc grep. This lens
+  is that tool: for a known multi-site spec it returns the sites that already cite it (candidate
+  consequent-change surfaces) + the code that implements it, so the closer answering the disposition
+  has a deterministic candidate set, not a heuristic sweep. It is the saved-LENS half of the finding-1
+  recipe carrier (the recipe TEXT lives in this view's own `description` above — no separate prose-only
+  recipe file); SPEC-0053 carries only the navigational pointer to it. Report-not-block (CHARTER §P1 /
+  non-goal #2): it surfaces CANDIDATES, never asserts completeness — the disposition decision stays
+  owner/closer judgement. Reuses the graph index reverse-index only — no new store, verb, event, or
+  pattern (the plan's F1/F3 anti-complexity constraint).

@@ -1,0 +1,1755 @@
+id: SPEC-0025
+title: events.jsonl schema and event-type catalog — retrieved reference
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (the activation_owner_task below). `active` is the only normative
+                               # status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # reference catalog — no code reads a scalar param FROM this spec.
+
+implements: [] # documentary read-rule spec (query-only retrieved tier, SPEC-0007 §5a):
+                               # the events.jsonl schema is CONSULTED when authoring/reasoning about an
+                               # event, not realised by one code site. Delivery is the AGENTS.md
+                               # pointer-stub + `graph query SPEC-0025`, NOT a verb/floor binding —
+                               # hence `binding: [query-only]` below (the reserved residency token added
+                               # by, which closed the prior dangling report gap + deviation).
+
+binding: [query-only] # QUERY-ONLY delivery class (SPEC-0007 §5a) — reserved residency token
+                               #, NOT floor-triggered and NOT verb-bound: emitting an event is an
+                               # append-only, NON-gated action ( forbids gating events; a
+                               # `before-event` trigger would be creep). Delivery = the always-loaded AGENTS
+                               # pointer-stub (§events.jsonl schema / §Event types catalog) naming this
+                               # spec + `bin/yitc-v2 graph query SPEC-0025`. The query-only token (# the "own task" the prior note deferred to) excludes it from the dangling
+                               # check — closing the deviation
+                               # `binding-dangling-report-blind-to-query-only-delivery-class` (was).
+
+body: |
+  ## Scenario
+
+  When the AI emits a journal event — or reasons about what an event MEANS — it needs the events.jsonl
+  schema: the one-line-per-object shape, the universal `{ts,type,task_id,data}` triple, and the catalog
+  of event types with their payloads. The owner/AI does not hold this from memory: this spec is the
+  `retrieved` home, pulled on demand via `bin/yitc-v2 graph query SPEC-0025` when authoring/validating an
+  event surface (the always-loaded AGENTS.md §events.jsonl-schema / §Event types catalog stubs point
+  here). It is reference, not a control-point — emitting an event is an append-only, non-gated action.
+
+  ## Internal
+
+  THE events.jsonl SCHEMA + EVENT-TYPE CATALOG (faithfully moved from AGENTS §events.jsonl schema +
+  §Event types catalog extension by the demote task — the rule MOVED to this spec, it was not
+  deleted; the always-loaded handbook now carries a pointer-stub). Append-only, P5-safe: consumers parse
+  unknown event types as an opaque `{ts,type,data}` triple, never fail. No upfront closed enum.
+
+  `events.jsonl` lives at `<project-root>/events.jsonl`. JSON Lines format — one JSON object per line,
+  append-only. Manual writes during Day 1-2 used `cat >> events.jsonl`; Day 3+ the CLI emits structured.
+
+  ### Universal schema
+  ```jsonc
+  {"ts": "", "type": "<event_type>", "task_id": "T-XXXX", "data": {...}}
+  ```
+  - `ts` — ISO 8601 UTC, microsecond optional
+  - `type` — snake_case event name
+  - `task_id` — optional, present when the event ties to a specific task
+  - `data` — type-specific payload. May include `commit: <sha>` (for commit-related events:
+    `commit_landed`, `audit_post_completed`) or `audit_id: <task-audit-stage>` (for audit-related
+    events: `external_audit_completed`)
+
+  ### Required `duration_ms` field set ( — the machine-readable roster)
+
+  The event types on which `duration_ms` is a REQUIRED `data` field. This roster is the SINGLE source
+  the schema self-test reads (`tests/test_test_and_audit_rows_carry_duration.py`), so the catalog and
+  the check cannot drift apart — a type is required-by-being-listed here, nowhere else:
+
+  ```yaml
+  duration_ms_required_on:
+    - tests_passed
+    - tests_failed
+    - audit_pre_completed
+    - audit_post_completed
+    - external_audit_completed
+  ```
+
+  A row of one of these types with no `duration_ms` FAILS the check. Rows emitted BEFORE
+  landed are grandfathered — the check reads fixture rows and the emitters, not the historical
+  journal (an append-only log cannot be retro-fixed, and the recovery-by-pairing fallback above is
+  what reads those). The ONE exempt live shape is named at §tests_passed: a hand-authored
+  `--evidence` with no run attached, which measured nothing and must not fabricate a 0.
+
+  ### Required event types (LIFECYCLE references)
+
+  **audit_pre_completed** (Stage 4):
+  ```jsonc
+  {"ts": "", "type": "audit_pre_completed", "task_id": "",
+   "data": {"verdict": "GREEN", "findings_count": 0, "duration_ms": 61234,
+            "saved_to": "decisions/-audit-pre.yaml"}}
+  ```
+
+  **external_audit_completed** (Stages 4 + 8 + ad-hoc):
+  ```jsonc
+  {"ts": "", "type": "external_audit_completed", "task_id": "",
+   "data": {"stage": "pre", "verdict": "GREEN", "absorbed": 0, "followups_filed": [],
+            "duration_ms": 61234}}
+  ```
+
+  **audit_self_provider_used** (Stages 4 + 8 + ad-hoc + consult — every gate, per SPEC-0201 rule 2):
+  ```jsonc
+  {"ts": "", "type": "audit_self_provider_used", "task_id": "",
+   "data": {"target_kind": "task", "target_id": "", "stage": "pre", "tier": "routine",
+            "provider": "<the auditor's resolved provider>", "model": "<the model the adapter ran>",
+            "primary_provider": "<the primary AI's provider for this session>"}}
+  ```
+  ONE row per SAME-PROVIDER audit — the audit ran on the primary AI's own provider because NO external
+  provider resolved for the tier. It is the journal counterpart of the verdict's
+  `auditor_independence: same-provider` stamp (SPEC-0036 §Saved audit result), emitted at the SAME
+  single invocation chokepoint; an `external` audit emits NOTHING. The payload is exactly these SEVEN
+  keys: `target_kind` (task | plan | ad-hoc) · `target_id` (the audited node id) · `stage`
+  (pre | post | ad-hoc | consult-*) · `tier` (the audit tier resolved for this invocation) ·
+  `provider` (the auditor's resolved provider) · `model` (the model the adapter actually ran) ·
+  `primary_provider` (the primary AI's provider for this session; the value the stamp compared
+  `provider` against). Provider-neutral by construction — the values are resolved identifiers, and no
+  brand name is named in this catalog. The row is what makes «how often did this install audit itself?»
+  answerable from the durable journal rather than from a count of verdict files. Rule home:
+  `bin/yitc-v2 graph query SPEC-0201`.
+
+  **CATALOGUED BEFORE ITS EMITTER, deliberately** — the emitter is (`bin/lib/audit.py`), and
+  this row is the definition that emitter writes against. Same discipline, and the same reason, as
+  `ceiling_decision` (SPEC-0161 §Roster): the card that BIRTHS a shared payload owns its definition
+  first, so the writers that follow cannot each agree with one another and disagree with the catalog.
+  Until that emitter lands, no live row carries this type — additive and P5-safe.
+
+  **external_audit_completed — the ELEVEN CEILING-CONSULT EPISODE FIELDS (SPEC-0200 rule 9, added
+  INERT by / plan card C4).** An EXTENSION of THIS event, never a new event type (CHARTER §P1
+  F1/F2). They ride a `stage: consult-*` row and make the post-ceiling consult's quality measurable
+  from the DURABLE journal: the consult RECORD at `saved_to` is rewritten in place by every round, so
+  a fold built on it would see only each episode's last round — the row is where the per-round truth
+  has to live (rule 9's B13), and `saved_to` stays provenance only.
+
+  ADDED INERT, AND THAT IS PART OF THE CONTRACT (rule 9's B11): as of the fields are DEFINED,
+  formatted (`bin/lib/audit.py#consult_episode_row_fields`) and read by the `consult-postcheck` saved
+  view, and NO live row carries any of them — a live `audit consult` / auto-consult emits the legacy
+  row unchanged. The FIRST live emission is card C3's, which wires the emit together with
+  the prompt and the predicates, because SPEC-0200 rule 7 holds that a partially-landed state is not a
+  valid state of that contract. Every field below is therefore additive-optional and P5-safe: a
+  consumer that does not know them ignores them, and a legacy row carries none.
+
+  - `episode_id` — rule 1's `<target>/<stage|gate>/<attempt n>`; the fold groups by this id MINUS its
+    attempt ordinal, i.e. by `(target, stage|gate)`.
+  - `baseline_revision` — the basis fingerprint the frozen baseline was established at. Carried as its
+    OWN field, never as part of `episode_id`, so two episodes on the same basis never collide.
+  - `round_kind`: baseline | retest — FIXED by the state BEFORE the call (rule 4), never by its
+    outcome. R counts rounds of kind `retest` ONLY, malformed or not.
+  - `malformed` — true | false. A SEPARATE flag, never a kind: a malformed retest is still a retest
+    and still consumes R.
+  - `r_after` — R after this round.
+  - `malformed_count` — the episode-scoped malformed tally (rule 2: ONE re-run per EPISODE, not per
+    basis).
+  - `no_answer` — true | false (rule 4 row 0a). TRUE when the round returned NO PAYLOAD at
+    all — an rc-124 wall-clock timeout, a normalized launch/transport failure, or an empty payload at
+    any rc. Distinct from `malformed`, which is a payload that CAME BACK and could not be read: a
+    no-answer freezes nothing, consumes NO round (`r_after` unchanged), leaves `malformed_count`
+    untouched, and is NOT terminal, so the episode stays OPEN and the next call joins it.
+  - `no_answer_count` — consecutive no-answers, per ROUND: reset to 0 by any round that ANSWERS, so
+    the budget cannot accumulate across a healthy round.
+  - `no_answer_route`: auditor-unavailable — present ONLY on the SECOND consecutive no-answer. It is
+    the SPEC-0103 §3a auditor-OUTAGE route, explicitly NOT `malformed-exhausted` and NOT an episode
+    terminal: an outage is a fact about the AUDITOR, never about the subject.
+  - `contract_violations` — THIS round's violations as `[{id, kind}]` (the row's measurement shape;
+    the record keeps the richer `{id, field, reason}`).
+  - `completeness_failures_delta` — the escapes counted THIS ROUND (rule 8's row-10 pre-existing NEW
+    blocking findings), never the running total: the total is the record's, and a row carrying it
+    would double-count under the fold's own summation.
+  - `outcome`: proceed | hold | owner-held | terminal | malformed | no-answer — the round's single
+    per-round outcome row (rule 4's precedence). `malformed` only for the FIRST, re-run malformed
+    round; `no-answer` is NOT in the terminal set, so an episode folding it stays OPEN.
+  - `terminal_reason`: open-ids-at-r2 | malformed-exhausted | non-admissible-verdict | target-closed —
+    present iff `outcome: terminal`. `target-closed` is the one member NO round ever emits: it is
+    DERIVED by the fold from the target's own closure (a task's `closed_at`, a plan's FSM terminal),
+    because a round cannot know its subject will later close.
+  - `non_admissible`: red-proceed | zero-survivors | multiple-survivors | survivor-not-offered — names
+    the shape of a rule-4 pre-matrix non-admissible response.
+
+  The three PRE-AUDITOR refusals (`hand-framed-options`, `episode-busy`, `episode-ended`) are NEVER
+  rounds: they are journaled by the verb's existing refusal emit and produce no
+  `external_audit_completed` row at all (rule 9 / C4.2).
+
+  **`duration_ms` — REQUIRED on EVERY audit completion row.** It is present on
+  `audit_pre_completed`, `audit_post_completed` and `external_audit_completed` alike, on every emit
+  path — the pre/post gate, the ad-hoc consult, the ceiling-convergence consult and the aspect audit —
+  and it has exactly ONE definition across all of them: **the monotonic wall in ms since that path's
+  own `audit_prompt_sent`**, or since the invocation's monotonic start on a path that sends no prompt
+  (a consult-governed or unchanged-fingerprint carry-forward invokes no auditor). Source: the single
+  `_audit_duration_ms(started)` helper in `bin/lib/audit.py`, called at each completion emit.
+
+  **This SUPERSEDES the narrower pre- reading** (§Auditor-side observation fields, where the
+  key meant the `_invoke_auditor` call wall alone). That reading held on ONE path: 0 of 558
+  ad-hoc and 0 of 752 consult rows carried the key at all, so an audit stage's wall could not be split
+  into machine time and worker time (deviation `audit-duration-ms-absent-on-adhoc-and-consult-paths`,
+  retired by). The call wall survives as an internal measurement and is no longer journaled;
+  one field defined one way beats a per-path reading. **Recovering a duration by pairing
+  `audit_prompt_sent` → completion rows is now a READ-ONLY FALLBACK for PRE- rows only** — for
+  rows emitted since, read the field.
+  Per, when the audit targets a DECISION the payload carries `target_kind: "decision"` +
+  `target_id: "D-XXXX"` as the AUTHORITATIVE carrier; `task_id` is legacy/optional but STILL active
+  : `bin/yitc-v2` emits top-level `task_id` and the journal/graph still index by it, so it
+  mirrors the id for current readers; `target_id` is the source of truth and `task_id` goes nullable only
+  once consumers read `target_id` — not yet. For a task audit `target_kind` defaults to `task` (additive —
+  consumers ignore unknown keys P5-safe).
+  **Auditor-side observation fields (per SPEC-0135 §4 — additive, OPTIONAL, P5-safe).** On an AUDITED
+  task this event ALSO carries — WHEN available — the normalized AUDITOR identity, so the observation
+  loop can roll the worker (`session_started`) and auditor up to the **worker×auditor PAIR** the CHARTER
+  §P4 different-providers rule already establishes: `provider` / `model` / `effort` (the same normalized
+  triple defined in §Normalized provider×model×effort vocabulary, resolved for the auditor). The
+  `duration_ms` key rides the same row but is NO LONGER one of these optional observation fields: it is REQUIRED on every audit completion row and means the prompt-sent-anchored PATH wall,
+  not the auditor call's wall-clock (read that definition in §Required event types, not this one; the
+   never-a-fabricated-0 discipline still governs every OTHER optional timing key).
+  Identity + timing raw facts ONLY — no usage/cost is journaled (SPEC-0135 §3;
+  cost is the read-time `token-rollup` × `pricing-config` derived view). Each key OMITTED when the
+  auditor config yields no signal (or `"unknown"` per the vocab fallback). Additive / P5-safe.
+
+  **plan_draft_finalized** (plan DRAFT-stage END verb `plan draft --finalize`):
+  `data: {slug, body_hash, reads_verified, sections_filled, sections_missing}` — records that the
+  draft END verb ran with its doctrine read-gate satisfied. `reads_verified` is the CREDITED FETCH
+  SET the SPEC-0042 read-gate actually credited for this session — derived from the LIVE
+  `plan-stage-entry:draft` bundle, never an enumerated fixed pair (the bundle's membership is
+  whatever binds that axis at the time, so it grows/shrinks with the corpus). It is EMPTY when the
+  gate credited nothing — the vacuous-gate case a `-C` consumer with NO `plan-stage-entry` bindings
+  hits, where the gate returns on its graceful-empty branch: an empty list is the HONEST record of
+  that run, NOT breakage or a lost read. THIS EVENT IS the
+  body-bound worked-through proof (provenance — only `plan draft --finalize` emits it): `plan stage
+  specs` REQUIRES a fresh one whose `body_hash` matches the current draft body (SPEC-0034 §draft/§specs,
+  SPEC-0059 §First-stage-check-carrier-gap). Append-only + P5-safe
+  (consumers ignore unknown keys).
+
+  **task_closed** (Stage 9):
+  ```jsonc
+  {"ts": "", "type": "task_closed", "task_id": "",
+   "data": {"commit": "<sha>", "probe_passed": true, "probes": [{"ac": "AC1", "result": "pass"}]}}
+  ```
+  **Outcome observation fields (per SPEC-0135 §3/§5 — additive, OPTIONAL, P5-safe).** `task_closed` MAY
+  additionally carry raw OUTCOME facts the observation loop counts (never a composite score — SPEC-0135
+  §5 fence): `class` (str — the task's `class:`, e.g. `infra` | `product` | …, so outcomes slice by kind),
+  `audited` (bool — whether the task ran the external-audit stages), `audit_passes` (int — the audit-loop
+  pass count reached, the discipline-friction proxy). All OPTIONAL raw facts / join keys only — no derived
+  score, no usage/cost (SPEC-0135 §3). Each OMITTED when unavailable; additive / P5-safe.
+
+  **`exempted_case` — the CLOSURE end of the SPEC-0178 restoration join (additive, OPTIONAL).** A card
+  closed under a project-declared `audit_scrutiny` exemption case carries `exempted_case: <case name>`
+  — the name of the case whose declaration let it close without audit-post (SPEC-0178 rule 4). OMITTED
+  when the card closed under no case, so the key's presence is itself the honest signal.
+  **The exact NAME is load-bearing, not cosmetic:** SPEC-0178 rule 5 computes a case's RESTORED/ACTIVE
+  regime by joining an attribution to this field, so a closure record spelling it anything else
+  (`case`, `audit_exemption`) is INVISIBLE to that join even though a human reading the row would see
+  the case perfectly well. **This is also why the ordinary unknown-key tolerance ( — consumers
+  ignore unknown keys) does NOT excuse leaving it uncatalogued:** tolerance is the right rule for a key
+  a reader may safely IGNORE, and this one is the opposite — a reader that treats it as an unknown
+  extra computes the wrong regime, and a case that should have been restored keeps running.
+  **Provenance discipline, inherited from the sibling keys:** `exempted_case` is ATTRIBUTION, so —
+  exactly like `captured_via` and `actor` on the capture event below — it MUST NOT enter any
+  `fingerprint`. A fingerprint absorbing the case name would fragment one recurrence class across
+  cases and blind the very feedback rule 5 depends on.
+
+  **deviation_captured** (capture model AGENTS.md; established by, renaming `friction_captured` — the ONE capture event for any
+  nonconformity; CLI-emitted by `event` + `audit run`):
+  ```jsonc
+  {"ts": "...", "type": "deviation_captured", "task_id": "T-XXXX | E-XXXX | null",
+   "data": {"kind": "defect|friction|improvement (OPTIONAL at capture — decided in triage, SPEC-0056; established by §2)",
+            "relates_to": "<failure-class id and/or aspect>",
+            "impact": "<WHAT is not as it should be — the deviation itself, in one subject-bearing line>", "fingerprint": "<source-INDEPENDENT recurrence key>",
+            "finding": "<one-line, present when via audit run>", "refs": ["events.jsonl#ts=...", "<git-sha>"],
+            "captured_via": "manual | cli | audit-run | inspection",
+            "actor": "<WHO captured it — DERIVED at emit, never asked for + never caller-supplied >",
+            "inspection_theme": "<T1..T8 — present WHEN captured_via:inspection, per SPEC-0057 (established by)>",
+            "inspection_run_ref": "<the inspection run's inspection_completed ts/ref — present WHEN captured_via:inspection>"}}
+  ```
+  Append-only + P5-safe (consumers ignore unknown keys). Event-only by default; a recurring
+  fingerprint (N>=2) or a hard defect promotes to an `errors/E-XXXX.yaml` case file. `captured_via` is
+  provenance ONLY — it MUST NOT enter the `fingerprint` (else recurrence fragments across sources).
+  **`impact` is the CONTENT key — WHAT is not as it should be, not how bad it is (reconciling
+  this line with the code that has governed it since).** Until this amend the placeholder above
+  read as a SEVERITY ENUM — the three severity words, or a time-cost bucket (the verbatim string is in
+  git history at this line, deliberately not reproduced here so the AC1 probe grep stays clean). That
+  was never what the field carried, and it contradicted this spec's OWN body — the `fingerprint`
+  derivation paragraph just below already said «a bare severity word is not a recurrence key, but a
+  DESCRIPTIVE impact is often a capture's only subject». Reconciled here so the
+  schema stops teaching the opposite of what the readers do. THE CODE, which is the reconciliation
+  target — prose preference is not: `bin/lib/journal.py#untriageable_impact` treats an
+  `impact` that is PRESENT but subjectless — blank, or a bare token from `error.ERROR_SEVERITIES`,
+  which is exactly the `("low", "medium", "high")` tuple the old placeholder prescribed — as
+  UNTRIAGEABLE: callers WARN on it and `#derived_fingerprint` excludes it, so the prescribed literal
+  was the one value the code
+  refuses to act on. An ABSENT `impact` is NOT flagged (fingerprint-only captures stay acceptable by
+  design), and the WARN never gates — capture is a reflex. And
+  `bin/lib/journal.py#CAPTURE_CONTENT_KEYS` makes `impact` the canonical WRITE key of the
+  capture-content vocabulary, ordered second only behind the accessor's own output key. THE CORPUS
+  agrees, measured twice: folded 5538 of 5967 rows carrying `impact` (92.8%); re-folded
+  2026-09-04 over the segment-aware `journal query` reader and classified by importing
+  `untriageable_impact` itself rather than re-typing its vocabulary, n=6443 — 6003 carry `impact`
+  (93.2%), 5763 are subject-bearing (89.4%), and only 240 are blank-or-bare-severity. The enum this
+  line prescribed described under 4% of what authors actually write. **Severity did not move to another
+  key — it is simply not part of this payload:** where a severity IS wanted it is the promoted
+  `errors/E-XXXX.yaml` case file's `severity:` (the `ERROR_SEVERITIES` vocabulary's real home), decided
+  at triage like `kind`, never asserted at capture. IN-PLACE amend, not a supersede (SPEC-0005 rule 7):
+  no already-covered case's required behaviour changes — this restates the obligation the code has
+  enforced all along.
+  **`fingerprint` is ALWAYS PRESENT on a capture emitted since — DERIVED when the author
+  supplied none, never absent and never refused.** An author-supplied fingerprint is stored
+  byte-for-byte and nothing below applies to it; this covers only the case the schema previously left
+  open, where the key was simply missing. It was left open because the fingerprint is OPTIONAL at
+  capture by design — capture is a one-command reflex — but every routing carrier is
+  keyed BY fingerprint (a task `cites:`, a cross `origin_fp`, an `errors/E-XXXX.yaml` file), so a row
+  without one could never be routed: `triage run` counted it, showed it, WITHHELD it from the
+  `--complete` route set, and advanced the watermark past it regardless (SPEC-0055 §Triage run). The
+  loss was ROUTING, not data — such rows persist and `journal query --grep` finds them — but it was
+  silent, and 92 rows had accrued in the 2026-08-30 window, all through the sanctioned CLI path.
+  The emit therefore DERIVES one (`bin/lib/journal.py#derived_fingerprint`, pure + total): from the
+  caller's substantive payload where there is any — so two captures of ONE deviation derive ONE key
+  and recurrence-matching still works — else from the row's own envelope (ts + task_id + actor),
+  which is unique per row rather than a shared constant that would fabricate a recurrence class. A
+  derived row carries **`fingerprint_derived: true`**, so a reader can tell a key the author CHOSE
+  from one the verb COMPUTED. The provenance/attribution exclusions above are OBSERVED by the
+  derivation (`captured_via` / `actor` / `exempted_case` never enter it), as is `kind` — a closed
+  vocabulary decided at TRIAGE (SPEC-0056 §1), which would otherwise let one deviation derive two
+  keys depending on a later judgement. `impact` enters only when it carries a subject
+  (`journal.untriageable_impact`): a bare severity word is not a recurrence key, but a DESCRIPTIVE
+  impact is often a capture's only subject and excluding it would strand exactly those rows in the
+  envelope arm. DERIVE rather than REFUSE is the deliberate choice: refusing would trade an
+  unroutable capture for a LOST one, and gating the reflex is the worse defect (the posture).
+  This is ADDITIVE — a case the schema did not previously answer gains an answer; no already-covered
+  case's compliance changes (SPEC-0005 in-place amend).
+  **`exempted_case` — the ATTRIBUTION end of the SPEC-0178 restoration join (additive, OPTIONAL).** A
+  capture MAY carry `exempted_case: <case name>`, naming the project-declared `audit_scrutiny` case
+  this deviation is attributed to (SPEC-0178 rule 5). It is the BELT for a capture the derived join
+  cannot compute — one with no `task_id`, or one naming a card that closed under no case; where a
+  derived case exists it is canonical, and where the two disagree neither wins and the capture
+  surfaces at triage carrying both. This is the SAME key name the closure end carries above
+  (`task_closed.data.exempted_case`), deliberately: the regime is computed by joining the two, so ONE
+  canonical name on both ends is what makes the join computable at all, and a documented capture key
+  beside an undocumented closure key would leave its load-bearing half unreadable. Like
+  `captured_via` and `actor` it is provenance/attribution ONLY and MUST NOT enter the `fingerprint`,
+  or one recurrence class fragments per case.
+  **`actor` — WHO captured it (extending to this last emit site).** DERIVED host-side
+  at the emit from the launch context (`bin/lib/memory.py#resolve_actor` over the host registry `users:`
+  block) — the SAME seam behind `task file`'s `created_by` (SPEC-0028), `followup add` (SPEC-0095) and
+  `cross request` (SPEC-0086). Attribution costs the human ZERO added input, so it is never asked for;
+  and it is never CALLER-supplied — `actor` is a RESERVED `--data` key (`bin/yitc-v2#RESERVED_DATA_KEYS`),
+  so a forged identity is REFUSED, not silently overwritten (fail-CLOSED on vocabulary: only a
+  registry-provisioned name is ever stamped, free text never reaches the field). It is a RECORD, NEVER a
+  gate: an unknown user / empty identity / unreadable registry degrades to `ai-agent` (the historical
+  default — the ~1000 existing kernel captures keep their meaning), so attribution can never block the
+  capture reflex. Like `captured_via` it is provenance ONLY and MUST NOT enter the
+  `fingerprint` — two capturers of one class share one recurrence key. Surfaced suppressed-when-clean
+  (a real PERSON only, per `memory.py#is_named_actor`) in the triage routing window — SPEC-0056 §1.
+  **Inspection findings (per SPEC-0057 §7; established by §7):** an inspection finding is captured here like
+  any other nonconformity — `captured_via: inspection` + the two provenance keys above — and routes
+  through the SAME SPEC-0056 triage pipeline (no special-casing). **Metric split:** a `deviation_captured`
+  counts a **FINDING**; an `inspection_completed` counts a **RUN** — they are different event types read
+  by different counters and are **NEVER summed** (there is no aggregation that adds them; the recurring/
+  finding counter filters to capture events only, so it cannot see a run-event).
+  **`friction_captured` is the RETIRED legacy name** — read-only: readers (e.g. the recurring-fingerprint
+  report) parse BOTH so historical lines keep counting; new captures write `deviation_captured` only.
+
+  **error_filed / error_promoted** ( — emitted by `bin/yitc-v2 error file|promote`): a case
+  file opened / resolved (file-or-waive). `data` carries `kind|severity|fingerprint` (filed) or
+  `resolution|status` (promoted).
+
+  **triage_run_completed** (per SPEC-0055; established by §3 — the slow-lane **watermark**; emitted by the triage verb) — marks the boundary of a triage run over un-routed `deviation_captured` captures. The NEXT
+  run's routing depth = the window SINCE this watermark; **no watermark yet → scan from the journal
+  start**; the watermark is a **closed boundary** (excluded from the next window) so each capture routes
+  exactly once (QUEUE.md §Triage-run window). `task_id` null.
+  ```jsonc
+  {"ts": "...", "type": "triage_run_completed",
+   "data": {"routed": 7, "linked": 3, "promoted": 1, "window_since": "<ts of prior watermark | null>",
+            "window_through": "<routed-boundary max ts | null>", //
+            "routes": [{"ts": "...", "fingerprint": "<fp>", // — per-capture
+                        "target_kind": "task|decision|cross", "target_id": "T-…|D-…|X-…"}]}}
+  ```
+  `routed`/`linked` are DERIVED from `routes` (the per-capture capture->target audit-trail):
+  `routed` = #routed capture events, `linked` = the cites-owned (task/decision) subset; `promoted`
+  stays operator-supplied. `routes` is OMITTED when the window routed nothing (additive, P5-safe unknown-key tolerance). The capture->target link is READ from the already-persisted carriers
+  (a task `cites:` the fp, a cross carries it as `cross_requested.origin_fp`), not a new store.
+  Append-only, P5-safe. Until ships the verb, it is emittable via the generic `event` verb. A
+  `data.probe: true` watermark is a **schema-probe, NOT a real routing boundary** — the triage window
+  computation MUST exclude `probe: true` watermarks when finding the last boundary.
+
+  **inspection_completed** (per SPEC-0057 §6; established by §6 — RUN-accounting for a periodic **inspection**;
+   defines it emits the first real one). Emitted **exactly once per inspection run, even on
+  zero findings** (proof-of-performance). It counts **RUNS** — never summed with the `deviation_captured`
+  FINDINGS the run routes into the SPEC-0056 sink (the two metrics stay split, SPEC-0057 §7). `task_id` null.
+  ```jsonc
+  {"ts": "...", "type": "inspection_completed",
+   "data": {"theme": "T1", "findings_count": 4, "high_count": 1,
+            "lenses_covered": ["doc-anchor-resolve", "rule-extraction"],
+            "criteria_ref": "patterns/inspection-criteria-roster.md#T1@<sha256[:12]>", // — checklist-hash
+            "no_data": false, // SPEC-0173 rule 1 — did the run produce a verdict at all
+            "tracks_covered": ["primary", "external"]}} // — WHICH tracks ran (see below)
+  ```
+  **`tracks_covered`** (per SPEC-0057 §Run-mode) records **which of the declared tracks actually
+  ran** for that subject — the vocabulary is the two names the run-mode fixes, `primary` and `external`, in
+  that order. It is written on EVERY run, and an empty list means the run did NOT SAY what its coverage was;
+  a READER treats an empty list AND an ABSENT field (every record predating this) as **UNRECORDED — never
+  as a claim that both tracks ran**, since inventing coverage for a run nobody described would put a
+  stronger claim in the journal than was ever made. It exists because the dual-track discipline is the
+  load-bearing half of the inspection method while its ABSENCE previously left no trace: on the 2026-08-13
+  cycle `inspect record` was emitted for T1 through T10 while only T5 and T7 had a second track, and those
+  eight events were indistinguishable here from converged ones.
+  **It is COVERAGE, not a grade** — not a colour, score or band, and deliberately NOT a record of whether
+  the tracks CONVERGED (whether the two finding sets agreed is the operator's compare-after-both-finish
+  judgement, and storing it would be the per-theme verdict SPEC-0057 §4 forbids). Consistently, a
+  single-track run is suppressed NOWHERE: unlike `no_data` it still anchors its subject's review-due clock,
+  because gating on a track count would derive exactly that forbidden judgement.
+  There is **NO color/verdict field** — an inspection's evaluation IS its findings list, not a
+  GREEN/YELLOW/RED (SPEC-0057 §4 — a color floods RED and pushes toward scoring/bands); the only per-theme
+  signal is the derived binary `open HIGH?`. Additive, P5-safe (consumers ignore unknown keys).
+  The `inspect record` verb (SPEC-0057 §6) now emits this event with a REAL **checklist-hash**
+  `criteria_ref` — `<roster>#<theme>@<sha256[:12]>` over the theme's living lens-checklist section in
+  `patterns/inspection-criteria-roster.md`, so editing the checklist changes the hash and a stale theme
+  run is detectable. It stays MANUAL-FIRST (owner-invoked, no cron — SPEC-0057 §2); the generic `event`
+  emit path remains valid (P5). A `data.probe: true` inspection_completed is a **schema-probe, NOT a real run** (mirror of
+  triage_run_completed) — would be excluded from a future run-register view (a saved-view over
+  these events), which is DEFERRED until a real pull (SPEC-0057 §6 — no such view exists in views/ yet; established by §9).
+
+  **`spec_reverified`** (E-0019 kind-B) — emitted by `bin/yitc-v2 spec reverify <SPEC>`
+  after it records the durable content-signature freshness baseline. `task_id` = the reverified SPEC
+  id; `data` = `{path, status, signed: [<anchor>...], unsignable: [<anchor>...]}`. Append-only,
+  non-gated. The blessed signatures live on the spec's `implements_signature:` field (SPEC-0006).
+
+  **commit_landed** — emitted by BOTH commit verbs so every real git commit leaves a journal event
+  : `task commit` emits it WITH `task_id` set; `work commit` emits it with NO `task_id` (the
+  commit is not task-tied) + `data.kind: "work"` to disambiguate. `data.commit` = short sha.
+
+  **deploy_completed** (per SPEC-0094 §1; emitted by `bin/yitc-v2 deploy` —) — the governed
+  deploy-adoption record. Emitted ONLY after the project-declared `deploy:` / `rollback:` command (the
+  executable smoke/health gate, from `yitc-ops.yaml` / SPEC-0093) exits 0 — a non-zero gate leaves NO
+  event (the broken revision is never recorded live). Emitted on EVERY deploy AND every rollback, so the
+  current-live revision is always the LATEST `deploy_completed` event's `revision`. `task_id` null (a
+  deploy is project-level, not task-tied).
+  ```jsonc
+  {"ts": "...", "type": "deploy_completed",
+   "data": {"revision": "<git-sha left live + gate-verified>", "project": "<slug>",
+            "kind": "deploy" | "rollback"}}
+  ```
+  Append-only, P5-safe (consumers ignore unknown keys). The presence of this event is what
+  distinguishes a GOVERNED deploy-via-verb from an off-path direct script run (which leaves no
+  `deploy_completed`) — AGENTS §Verb-execution discipline.
+
+  **born_permissive_ratified** (per SPEC-0189 rule 8; emitted by `bin/yitc-v2 -C <repo> init` —
+  /, key corrected) — the RATIFICATION record for a born declaration that RELAXES
+  a control. Rule 8 writes such a declaration ONLY against an explicit human confirmation, and this row
+  is that act's journal face: one row per confirmed concern section, emitted on BOTH born-declaration
+  write paths (the fresh-birth body and the SPEC-0093 rule-11 carrier update). `task_id` null (a birth
+  is project-level). Emitted only AFTER the init sweeps pass, so a refused init leaves no row.
+  ```jsonc
+  {"ts": "...", "type": "born_permissive_ratified",
+   "data": {"concern": "<carrier section, e.g. audit_scrutiny>", "owner": "<the confirming handle>",
+            "confirmation_source": "flag" | "prompt", "spec": "<the concern's declaring spec id>"}}
+  ```
+  **The route key is `confirmation_source`, NOT `source`** — the envelope writer stamps `data.source`
+  with the WRITER tag on every row (`append_event`), so a payload key of that name is clobbered before
+  any reader sees it; the two are different questions (which ROUTE ratified vs which PROGRAM wrote the
+  row) and the row carries both. The ratification RECORD itself lives in the consumer's
+  `yitc-ops.yaml` `adoption:` entry under the confirming handle — this row is the journal witness of
+  it, never its source of truth.
+
+  **release_tagged** (per SPEC-0122 release act; emitted by `bin/yitc-v2 work tag` —) — the
+  governed release-tag record. Emitted when the verb creates an annotated git tag on a LANDED main
+  commit, so a release (a registered shared-lib project releases → consumers move their pin, SPEC-0122)
+  is journal-visible. `task_id` null (a release is project-level, not task-tied). Create+emit are
+  failure-atomic: a tag never exists without this event.
+  ```jsonc
+  {"ts": "...", "type": "release_tagged",
+   "data": {"tag": "<annotated tag name, e.g. v1.2.0>", "sha": "<full sha of the tagged main commit>",
+            "project": "<slug>"}}
+  ```
+  Append-only, P5-safe (consumers ignore unknown keys). Its presence is what distinguishes a
+  GOVERNED release-via-verb from an off-path raw `git tag -a` (which leaves no `release_tagged` — the
+  X-0354 untracked-release gap) — AGENTS §Verb-execution discipline.
+
+  **release_published** (per SPEC-0195 rule 5; emitted by `bin/yitc-v2 work publish` —) — the
+  release PUBLISH record: the SPEC-0073 kernel-realm slice was cut at a governed tag's peeled commit and
+  written, with its manifest, into a destination checkout as one history-free commit. `task_id` null (a
+  release is project-level, not task-tied), so a P8 reference to it takes the
+  `release_published@<iso-ts>` pinned form.
+  ```jsonc
+  {"ts": "...", "type": "release_published",
+   "data": {"tag": "<the source release tag>", "source_sha": "<full sha of the peeled commit>",
+            "tree_digest": "<sha256 of the artifact tree, EXCLUDING the manifest>",
+            "destination": "<absolute path of the destination checkout>",
+            "file_count": <files in the cut>}}
+  ```
+  The pair `release_tagged` -> `release_published` is a release's journal-visible provenance: the first
+  says WHICH commit was blessed, the second says what was actually cut from it and to what digest.
+  Because the cut is a pure function of the peeled commit, re-publishing the same tag emits a row
+  carrying the SAME `tree_digest` — so a differing digest for one tag is a real signal, not noise.
+
+  **release_verified** / **release_installed** (per SPEC-0195 rules 6+7; emitted by `bin/yitc-v2
+  release verify` and `release install` —) — the CONSUMER-side half of the same provenance:
+  where the two rows above record what the publisher CUT, these record what an installation actually
+  CHECKED, and against which out-of-band anchor. `task_id` null (an install is project-level), so a
+  P8 reference takes the `release_verified@<iso-ts>` pinned form.
+  ```jsonc
+  {"ts": "...", "type": "release_verified",
+   "data": {"destination": "<the published release directory>",
+            "anchor": "<the OUT-OF-BAND trust-root fingerprint the adopter pinned>",
+            "ok": <true|false>, "signing_key": "<SHA256:... or null>",
+            "tag": "<the manifest's source_ref, or null>",
+            "reasons": ["<refusal reason>", "..."]}}
+  ```
+  `release_installed` carries the same keys plus `into` (the directory the verified release was
+  installed into). BOTH ROWS ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a
+  refused verification is the security-relevant event, so a journal that recorded only successes
+  would be silent about exactly the attempts worth reading. `ok: false` rows carry the `reasons` the
+  operator saw — a tampered artifact, a trust root that failed against the anchor, a revoked signing
+  key named with its revocation.
+
+  **live_probe_passed** (per SPEC-0094 §4; emitted by `bin/yitc-v2 liveprobe` —) — the
+  per-change live-adoption PROOF. Emitted ONLY when a task's declarative read-only `live_probe` GET
+  (the SPEC-0028 task-YAML assertion) returns the expected status (optional body-contains) against
+  production, run at the DEPLOY seam. A FAILING probe leaves NO event (the change is NOT confirmed
+  live). `task_id` = the probed task (the proof is per-change, unlike the project-level
+  `deploy_completed`). The no-follow/redirect dialect (SPEC-0094 §4) adds an OPTIONAL
+  `location` field recording the matched immediate-redirect `Location` (present only for an
+  `expect_location` assertion against a redirect status).
+  ```jsonc
+  {"ts": "...", "type": "live_probe_passed", "task_id": "T-XXXX",
+   "data": {"task": "T-XXXX", "revision": "<git-sha at probe time>", "project": "<slug>",
+            "url": "<resolved GET target>", "expect_status": <int>, "actual_status": <int>,
+            "location": "<matched Location — OPTIONAL, no-follow redirect dialect only>"}}
+  ```
+  Append-only, P5-safe (consumers ignore unknown keys).
+
+  The SAME event type is emitted on the ATTESTED REPORT path (per SPEC-0094 §4b) — a live
+  proof the PROJECT itself ran at its own gate, GRADED by the kernel, which issues no request of its
+  own on that path. Such a row is distinguished by `reported: true` + `attested` / `runs_at` /
+  `asserts` and carries NO `url` / `expect_status` / `actual_status` (there was no kernel GET). Read
+  the flag, never the presence of a key, when telling the two paths apart.
+
+  **live_probe_failed** (per SPEC-0094 §4b; emitted by `bin/yitc-v2 liveprobe --report fail` —
+) — a RECORDED NEGATIVE READING of an attested project-run proof. It exists because the
+  alternative is worse than the gap it closes: without it, a proof that ran and did NOT pass could
+  only be filed as absence, and permanent silence would then read as health. It is NOT an adoption
+  proof and never satisfies one — it is the opposite — so it is deliberately absent from every
+  probe-evidence set that discharges a debt, and a card recording it STAYS on the overdue-recheck
+  lens marked `failing`, with no date test. (Distinct from a failing kernel GET, which still emits
+  nothing at all: that path has no reported reading to record.)
+  ```jsonc
+  {"ts": "...", "type": "live_probe_failed", "task_id": "T-XXXX",
+   "data": {"task": "T-XXXX", "revision": "<git-sha at report time>", "project": "<slug>",
+            "attested": "<the instrument the project ran>", "runs_at": "<where it is gated>",
+            "asserts": "<what it proves>", "reported": true,
+            "detail": "<what the reading said — OPTIONAL>"}}
+  ```
+  Append-only, P5-safe (consumers ignore unknown keys).
+
+  **security_live_probe_passed** (per SPEC-0098 §3; emitted by `bin/yitc-v2 liveprobe` for a SECURITY
+  live-probe — the SPEC-0098 §1 header/cookie dialect) — the Class-S adoption PROOF: a named security
+  PROPERTY was asserted read-only at the deploy seam and HOLDS (auth still required / no CORS header leaked /
+  a required security header present / a session cookie host-only+Secure+HttpOnly). Emitted ONLY on a PASS;
+  a probeable property that does NOT hold leaves NO event (the security violation blocks adoption). The
+  `data` payload is fixed by the SPEC-0098 §3 contract — `{property, url, project, expect, actual}` — with
+  NO `task` key inside `data`; task identity rides the universal TOP-LEVEL `task_id` (same as every
+  lifecycle event), so attribution is not lost despite the contract-fixed `data` shape.
+  ```jsonc
+  {"ts": "...", "type": "security_live_probe_passed", "task_id": "T-XXXX",
+   "data": {"property": "<security-property name>", "url": "<resolved GET target>", "project": "<slug>",
+            "expect": "<asserted summary>", "actual": "<observed summary>"}}
+  ```
+  **security_live_probe_escalated** (per SPEC-0098 §2/§3; emitted by `bin/yitc-v2 liveprobe`) — fail-closed
+  owner-escalation evidence: a declared security property CANNOT be asserted by a read-only GET (an
+  un-probeable `{property, unprobeable: <reason>}` live_probe form), so the deploy escalates to the owner
+  rather than silently passing. The runner emits this event and exits non-zero — un-probeable is NEVER
+  treated as passed. `data` is fixed by SPEC-0098 §3 — `{property, project, reason}`; task identity rides
+  the top-level `task_id`.
+  ```jsonc
+  {"ts": "...", "type": "security_live_probe_escalated", "task_id": "T-XXXX",
+   "data": {"property": "<security-property name>", "project": "<slug>", "reason": "<why un-probeable>"}}
+  ```
+  Both are additive + P5-safe (no existing event changes; consumers ignore unknown types/keys).
+
+  **host-config apply evidences** (per SPEC-0111 / SPEC-0094 §3; emitted by `bin/yitc-v2 hostapply` —
+) — the THREE task-scoped evidences the host-config three-evidence close-gate requires. Each is
+  carry the PROVENANCE TAG `emitter: "hostapply"` in `data`; in normal governed operation ONLY the
+  SPEC-0111 helper emits these three types. The tag blocks ABSENT/INCIDENTAL evidence at the close-gate; it
+  is a provenance marker on the operator-trusted journal, NOT an unforgeable signature (per-event
+  anti-forgery is deliberately not added — CHARTER §P1, no incident; the whole journal is operator-trusted).
+  All three carry the top-level `task_id`; `data` always includes `{emitter: "hostapply", task, project}`.
+  - **apply_confirmed** — the OWNER human-apply confirmation (the manual-path form of evidence (1),
+    SPEC-0111 §1/§5); emitted only with `--confirm`. `data` adds `{targets: [<vhost paths>]}`.
+  - **host_health_sweep_passed** — the server-wide post-apply health sweep passed (no baseline-healthy
+    domain regressed, SPEC-0111 §3). `data` adds `{domains_checked: <int>, healthy: <int>}`.
+  - **host_reconciliation_recorded** — the live effective config reflects the shipped conf (repo-conf ==
+    live-conf via `nginx -T`, no shared-resource clobber, SPEC-0111 §4). `data` adds
+    `{server_names: [...], clobbered: false}`.
+  ```jsonc
+  {"ts": "...", "type": "host_health_sweep_passed", "task_id": "T-XXXX",
+   "data": {"emitter": "hostapply", "task": "T-XXXX", "project": "<slug>", "domains_checked": 7, "healthy": 7}}
+  ```
+  Additive + P5-safe (no existing event changes; consumers ignore unknown types/keys).
+
+  **`governing_contract`** (delivery-observability field, per SPEC-0013 §Delivery-observability) — carried in `data` by the floor-gated lifecycle events (`spec_filed`, `spec_edited`,
+  `task_picked` claim-marker, `commit_landed`, `task_closed`, `audit_{stage}_completed`,
+  `scenario_filed`). A
+  deterministic binding-derived PROJECTION of WHICH contract governs that gate — fixed shape
+  `{specs: [...], status: resolved|derivation-failed}` (`_governing_contract_for`). It records the
+  GOVERNING contract, NOT read-evidence that the AI consumed/read it (the honest name).
+  RENAMED from `consumed_contract` on 2026-06-05; historical journal lines KEEP
+  `consumed_contract` (append-only) — a reader handles BOTH keys by `ts` (additive / P5-safe).
+  The `{specs, status}` dict is the ONE documented shape EVERY emitter now writes ( normalized the
+  `spec_edited` + `scenario_filed` emitters that historically wrote a BARE `[SPEC-NNNN]` list); historical
+  pre- lines keep that bare-list form (append-only) — a reader stays tolerant, treating a bare list
+  as `{specs: <list>, status: resolved}` (additive / P5-safe).
+
+  **worktree_created** (amending) — emitted by `bin/yitc-v2 worktree new` after the
+  worktree is created, bound to the MAIN checkout's journal. `data: {branch, path, leaf}`; NO `task_id`.
+  Makes verb-vs-raw-git worktree creation observable: a worktree WITHOUT a matching `worktree_created`
+  event = **missing control-point evidence** (it was likely made with raw `git worktree`), a SOFT signal
+  for human/AI judgement — NOT a definitive bypass (the raw `git worktree` recovery path stays legitimate).
+  No checker/gate is wired (deferred — Principle 1 F4).
+
+  **worktree_children_reaped** — emitted by `bin/yitc-v2 worktree park --confirm-dead`
+  (the shared `_assert_no_live_holder` gate), bound to the MAIN checkout's journal; `task_id` = the
+  parked task where there is one. Records the teardown of a DEAD holder session's ORPHAN processes: the
+  live-cwd guard refuses while ANYTHING holds the worktree as its working directory, which is
+  right for a mid-Stage-6 holder and wrong for an orphan — X-1350 (aiseller, 2026-09-09) left two
+  `docker run` land-verify containers on a confirmed-dead worker's worktree and X-1346 (kupiclub)
+  two leaked node processes, and in BOTH the only lever was a hand kill. `data: {path, kind,
+  dead_session_ref, holder_verdict, reap_complete, pids: [{pid, cwd, signals, outcome}], containers:
+  [{container, name, outcome}], stop_failures, reap_failures, term_wait_s}` — the per-target outcome
+  is recorded INCLUDING failures (`stop-failed` / `survived-SIGKILL` / `SIG*-failed` /
+  `already-gone`), so the row names what did NOT die rather than implying a clean sweep.
+  `reap_complete` is the DISCRIMINATOR and the reason the row is emitted on BOTH legs, and it is
+  computed from TWO failure lists because a holder survives the teardown by two different routes: a
+  `docker stop` that fails ABORTS the reap before any pid is signalled (`stop_failures`), while a pid
+  that outlived SIGKILL or could not be signalled at all is reported after the escalation has run
+  (`reap_failures`) — for the purpose of removing a worktree around it, an unkillable process is
+  indistinguishable from a container that would not stop. EITHER list non-empty REFUSES the teardown
+  and journals `reap_complete: false`; a half-run reap is exactly what a later reader must be able to
+. `reap_failures` is classified against a POSITIVE success set (`terminated` / `killed` /
+  `already-gone`), so an outcome added later counts as a failure by default rather than failing open.
+  `holder_verdict` is always `dead`, which requires a negative `_session_proc_alive` probe, a takeable
+  scan (`_proc_scan_is_takeable`) AND a terminal dispatch marker as the journal's last row for
+  that ref — a LIVE holder is refused unchanged (the 2026-08-10 fence) and an unanswerable
+  liveness or container read refuses fail-closed. Container holders are judged by their RUNTIME working
+  directory (`/proc/<State.Pid>/cwd`, the same evidence class every other holder is answered by), never
+  by `Config.WorkingDir` and never by a mount scan. No checker/gate is wired (Principle 1 F4).
+  Append-only, P5-safe (consumers ignore unknown keys).
+
+  **worktree_adopted** — emitted by `bin/yitc-v2 worktree adopt --task T-XXXX
+  --confirm-dead`, bound to the MAIN checkout's journal; `task_id` = the adopted task. The
+  VERB-ASSISTED controller takeover of a CONFIRMED-DEAD worker's orphan `task/T-XXXX` worktree
+  (the §Controller-takeover re-stamp), replacing the prior ad-hoc HAND overwrite of the stamp file.
+  `data: {branch, path, prior_session_ref, session_ref, started_at}` — `prior_session_ref` is the
+  dead holder's stamp (or null/UNKNOWN), `session_ref`/`started_at` are the adopting session's NEW
+  stamp (the adoption RECORD). Makes the takeover cross-session visible. The
+  verb does NO process walk / NO auto-death decision (detect+surface, CHARTER L59/148): `--confirm-dead`
+  is the controller's ASSERTION that the §Abnormal «Confirmed-dead GATE» held first. No checker/gate
+  is wired (Principle 1 F4). Append-only, P5-safe (consumers ignore unknown keys).
+
+  **cli_invoked** — emitted by the CLI dispatch control-point AFTER one of the **6
+  read/query verbs** runs (`task list` / `graph query` / `journal query` / `error list` / `error show` /
+  `plan list`), so the `resource` aspect-audit has a durable signal for «how much context did
+  queries pour in» / «duplicate queries» (these otherwise leave zero journal footprint). `task_id` null.
+  `data: {verb, shape, arg_fingerprint, stdout_bytes, stdout_lines, exit_code, duration_ms, reads}` —
+  `duration_ms` is the verbs own wall-clock in milliseconds (speed observability; additive,
+  consumers ignore unknown keys); `reads` is the additive READ-AMPLIFICATION
+  block described just below; `shape` is a
+  **normalized** arg signature (flags kept, every value → `<val>`) and `arg_fingerprint` its short hash,
+  so the journal records query SIZE + SHAPE, never a free-form body (no shadow transcript). Mutating verbs
+  are EXCLUDED (they already emit a semantic effect-event — no double-emit); `event` + `journal sync` are
+  excluded (recursion / self-observation). Append-only-safe.
+  **`reads` — the READ-AMPLIFICATION block (additive).** `data.reads = {folds, segments,
+  rows_parsed, rows, cards_parsed, cards, project, realm, wall_ms}` records what THIS process
+  physically read. NUMERATORS are incremented at the LOWEST PHYSICAL READ PRIMITIVES ONLY —
+  `journal.py#_fold_lines_uncached` (the one physical byte read), `#_rows_from_lines` (the one
+  event-line parser), `#segment_lines` + `#segment_text` (the two folds that open segments
+  themselves), `#_tail_window_start` (the read-gate's backward byte scan), `cli.py#_iter_events_tail`
+  (its own tail read; it parses through `_rows_from_lines`), and `state.py#load_path` for
+  `cards_parsed`, which counts a PHYSICAL parse of a `tasks/T-*.yaml` and deliberately NOT a
+   memo hit. A composer over those primitives (`fold_rows` / `segment_rows` /
+  `cli._iter_events`) is never counted — that would double-count one physical read — and NO VIEW
+  SELF-REPORTS: a reader that wants to be counted routes through a primitive. DENOMINATORS are
+  `segments` = `len(events.segment_paths(EVENTS_PATH))`, `rows` = the folds' OWN recorded line
+  counts (so it costs no extra read), `cards` = the count of `tasks/T-*.yaml`; `project` / `realm`
+  (`kernel` | `consumer`) make a row foldable per project, since the SAME kernel code emits onto a
+  `-C` consumer's own journal. `wall_ms` is milliseconds inside the read primitives — RECORDED,
+  never a target (a shared host under load; the governing figures are the ratios). WHY IT IS ON
+  THIS ROW rather than in a store of its own: this event already exists once per verb and already
+  grows by additive keys, and a second telemetry file would be a second journal for a number the
+  journal can carry. The block is OMITTED (never zero-filled) if it cannot be computed, so an
+  absent `reads` reads as "not measured", never as "measured nothing". Uncounted raw scans are not
+  silent either: `dev-utilities/read-instrumentation-allowlist-.json` names each with a
+  reason, and `tests/test_t12034_reads_counters.py` fails on a new one.
+
+  **READ-GATE SENTINEL RECEIPTS (a second producer of this event —).** Two
+  session-entry gates reuse this SAME event as their pass-granting evidence, each emitting a `cli_invoked`
+  row whose `data.node_id` is a fixed `cli:`-prefixed SENTINEL (deliberately not a `SPEC-XXXX`, so it never
+  collides with a `graph query` node_id): (a) `--help` emits `node_id: cli:help` (`HELP_INVENTORY_NODE_ID`) — the verb-inventory scan receipt read by `_require_help_read`; (b) `session start` emits
+  `node_id: cli:seed` (`SEED_READ_NODE_ID`) AFTER it delivers the audience seed — the seed READ
+  receipt read by `_require_seed_read` (the BROAD anti-Forgetting floor, SPEC-0050 §8). The `cli:seed`
+  receipt ALSO carries an ADDITIVE `data.epoch` (int) = the CONTEXT EPOCH at emit (the provider
+  transcript's `/compact` count; `session.session_epoch`) — the gate credits it only when epoch >= the
+  current epoch, so a pre-compact receipt goes stale (a missing/pre-change `epoch` normalizes to 0).
+  `session start`
+  OWNS the `cli:seed` primitive (producer-owns-primitive), so downstream probes may reference it. These
+  sentinel receipts are the gates' evidence, NOT read-verb observability rows — a consumer counting the
+  6-read-verb footprint filters them out by their sentinel `node_id`.
+
+  **session_started** (emitted by `session start` — `--type` is optional: omit => interactive
+  Controller, `--type build` => dispatched Worker, so the payload `type` value is `controller|build`, NOT
+  the retired `build|review` choice, retired) — the durable
+  session-activation marker. `data: {type, project, session_config, resolved_session_ref, source_kind}` — `resolved_session_ref` + `source_kind` (collapse-forensic) are the resolved session identifier and the registry-MODELED class it was resolved FROM (`env:<NAME>` | `arg`), produced together by the `_resolve_session_ref_with_source` so the pair is coherent; fail-closed — no `unknown` class. `session_config` is
+  ONE opaque, comparable descriptor of the primary-AI configuration, recorded VERBATIM from what the
+  harness reports (env keys per the `SESSION_CONFIG_ENV_KEYS` binding in `bin/yitc-v2` — P4b, the
+  single normative carrier — plus a best-effort `model=<verbatim>` from the provider transcript tail).
+  **Opaque-key contract: consumers compare the descriptor for EQUALITY only — never parse, never
+  normalize, no semantic fields.** Zero harness signals → the explicit marker `"unknown"` (never
+  inferred). The value is a session-START snapshot (a mid-session knob toggle is not re-captured);
+  the PART-3 benchmark protocol reads this snapshot as its configuration axis.
+  **Raw observation-loop fields (per SPEC-0135 — additive, all OPTIONAL, P5-safe).** `session_started`
+  additionally carries — WHEN available — the NORMALIZED worker-side identity triple + host facts, the
+  cheap always-on capture the observation loop rolls up (SPEC-0135 §1/§3, raw source-facts / join keys):
+  - `provider` / `model` / `effort` — the normalized `provider×model×effort` triple (the §Normalized
+    provider×model×effort vocabulary below), DERIVED from the opaque `session_config`. This triple — NOT
+    the `session_config` string — is the SOLE slice key for cross-session rollup (SPEC-0135 §6): the
+    verbatim `session_config` STAYS as raw provenance only (NON-slice-source). Each key OMITTED (or the
+    triple = `"unknown"` per the vocab fallback) when the descriptor yields no signal — never fabricated.
+  - `cores` (int, logical CPUs) / `mem_gb` (number, total RAM GB) / `host_label` (str, a stable host
+    identifier — hostname or a configured label) — the host facts that let the loop size minimum
+    hardware per project class (SPEC-0135 §Scenario). Best-effort; each OMITTED when unavailable (the
+     no-fabricated-0s discipline). NO usage/cost field is journaled here — cost is a READ-TIME
+    DERIVED view, never a source-fact (SPEC-0135 §3, the Single-SoT fence).
+  Additive + P5-safe : every field is OPTIONAL, so an emitter that supplies none writes the
+  byte-unchanged legacy payload and a consumer that doesn't know them parses the opaque triple.
+
+  ### Normalized provider×model×effort vocabulary (per SPEC-0135)
+  The **normalized `provider×model×effort` triple** is the observation loop's SOLE cross-session slice
+  key (SPEC-0135 §6). It is DERIVED at read/emit time from the opaque `session_config` descriptor; the
+  descriptor itself stays raw provenance and is compared for EQUALITY only (never a slice source). The
+  triple rides `session_started` (worker side) and `external_audit_completed` (auditor side) so a
+  rollup can compare the **worker×auditor pair** (SPEC-0135 §4). Fields (all snake_case strings):
+  - `provider` — the AI vendor/system (e.g. `the provider`, `openai`, `google`). ALIGNS to the
+    OpenTelemetry GenAI `gen_ai.system` attribute (SPEC-0135 §7 — a naming/export aid ONLY; the SoT
+    stays the journal event, this is not an OTel dependency).
+  - `model` — the model id/family, VERBATIM as reported (e.g. `the AI provider-opus-4-8`, `gpt-5.5`). ALIGNS to
+    `gen_ai.request.model`.
+  - `effort` — the reasoning/effort tier when the provider exposes one (e.g. `low` | `medium` | `high`
+    | `xhigh` | `max`), else the marker `none` (provider has no effort axis). A provider-specific
+    naming aid; no OTel canonical attribute.
+
+  **Allowed keys / unknown / null fallback.** The three keys above are the ONLY normalized slice keys —
+  no other semantic field is parsed out of `session_config`. Each axis is an EXTENSIBLE vocabulary, NOT
+  a closed enum (the spec-wide append-only stance): a new provider/model/effort value is added
+  by simply appearing, and unknown consumers ignore it. When an axis CANNOT be resolved from the
+  descriptor, the fallback is the explicit literal **`"unknown"`** (never inferred, never guessed —
+  mirrors the `session_config` zero-signal rule); a WHOLE-triple resolution failure sets all three to
+  `"unknown"`. A missing (absent) key is read as `"unknown"` (null-equivalent), so absent and
+  `"unknown"` collapse to the same slice — a rollup counts them as one `unknown` bucket, never as a
+  distinct real value.
+
+  **Opaque `session_config` → triple mapping (absorbs plan-check finding #3).** The mapping is a
+  READ-TIME derivation, NOT a stored second copy (Single-SoT — the descriptor is the raw source, the
+  triple is its derived view): parse the verbatim `session_config` descriptor for the `model=<verbatim>`
+  tail + the `SESSION_CONFIG_ENV_KEYS` signals, map the vendor to `provider`, the model tail to `model`,
+  and the effort/tier signal (when present) to `effort`; any axis with no signal → `"unknown"` (never
+  `null` in the triple). Because the derivation is read-time, a later mapping refinement re-derives the
+  triple from the UNCHANGED descriptor — no migration, no re-emit (SPEC-0135 §3/§6). Usage + cost are
+  STILL never journaled here — they resolve only via the read-time `token-rollup` × `pricing-config`
+  view (SPEC-0135 §3), so the triple is identity/join-key ONLY.
+
+  **`wait_reason` — the normalized pause/block reason (per SPEC-0135 §5).** An OPTIONAL normalized field
+  carried by BOTH wait/block carriers — `task_paused` (pause) and `bg_dispatch_halted` (block) — ALONGSIDE
+  each event's existing free reason string (`paused_reason` / `reason`), which STAYS as detail (additive,
+  no rename, P5-safe). It categorizes WHY a session waited so the loop can find where time is lost /
+  discipline breaks. EXTENSIBLE vocabulary (not closed); named canonical values:
+  `owner-wait` (waiting on an owner decision) · `auditor-abort` (external auditor could not run) ·
+  `audit-ceiling` (audit-loop ceiling reached) · `env-fault` (environmental/tooling fault) · `dep-wait`
+  (blocked on an unsatisfied `requires:` dependency) · `session-end` (clean session close). Any value
+  outside the list → the explicit fallback **`"other"`** (the free reason string carries the specifics).
+
+  **graph_built** — emitted by `graph build` + every `_auto_rebuild_graph` side-effect rebuild.
+  `data: {counts, trigger?, had_errors?, errors_count?, duration_ms?}` — `duration_ms` is the
+  build wall (index build + write); additive, present only when measured (no fabricated 0s — the
+   discipline).
+
+  **tests_passed** — Stage-6 evidence capture emitted by `task test --evidence` (`--evidence`
+  alone does not run tests). `data: {current_stage, evidence, acceptance, duration_ms}` +
+  OPTIONAL author-reported run numbers : `duration_ms` + `passed` + `failed` — an
+  ALL-OR-NOTHING flag group (a partial set is refused, never written), always accompanied by
+  `counts_source: "author_reported"`.
+
+  **`duration_ms` is REQUIRED on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS
+  RUN (the delegated-layer leg and the tests/ sweep alike) and writes the measured wall in ms, so the
+  Tests-stage wall splits into machine time and worker time without inference. An explicitly passed
+  `--duration-ms` still WINS (and still stamps `counts_source: "author_reported"`). THE ONE EXEMPT
+  SHAPE, stated so the requirement is honest rather than aspirational: a hand-authored `--evidence`
+  with NO run attached measured nothing, so it carries the field only via the author-reported group —
+  never a fabricated 0 (the discipline). Before the field was author-reported-only and
+  25 of 511 kernel rows in 2026-08-19..09-02 carried one.
+
+  **tests_failed** — the RED half of `tests_passed`, emitted by `task test --run` when the Stage-6
+  self-check FAILS. It exists because a green run had a home and a red one had none: the run
+  happened, cost its minutes, and left no row, so a later session could not see that a suite had
+  already failed here or why (kupiclub X-1112; measured on kupiclub, where the only surviving
+  trace of a full failing run was prose in an unrelated message an hour later). `data: {current_stage,
+  failed, layers, evidence, duration_ms, counts_source: "harness_measured", leg: "candidate"}` —
+  * `duration_ms` — **REQUIRED **: the same measured subprocess wall `tests_passed` carries,
+    written on the SAME rule (an explicit `--duration-ms` wins, else the measurement), because a red
+    run costs exactly the minutes a green one does and the row exists to say what the run cost;
+  * `failed` = the failing-entry COUNT; `evidence` = the runner's own failure messages, bounded, so the
+    row answers *what failed* without a re-run;
+  * `layers` = an ordered list of `{name, attribution}`, one per failing test file or consumer verify
+    layer (SPEC-0152). `attribution` is a CLOSED set: **`in-diff`** (this card's changed-path set — its
+    working tree plus untracked files versus `merge-base(HEAD, main)` — contains that layer's own file)
+    · **`not-in-diff`** (it does not) · **`undetermined`** (the relation could not be established;
+    recorded explicitly, never guessed). MATCHING IS EXACT: a failing TEST-FILE name is a basename and
+    is resolved only by joining it to the tests directory it came from, never by suffix — a changed
+    `docs/test_X.py` does NOT make a failing `tests/test_X.py` read `in-diff`, because a basename is
+    not an address. A name that addresses no file at all (a consumer verify LAYER label) is
+    `undetermined`, since a diff-touch relation is undefined for it; a confident wrong attribution is
+    worse than an absent one, because a reader acts on it.
+  * `counts_source: "harness_measured"` — the deliberate CONTRAST with `tests_passed`'s
+    `author_reported`: these numbers come from the runner this verb just executed, not from an author.
+  * `leg: "candidate"` — the row is scoped to the CANDIDATE leg this verb runs. `land` verifies TWO
+    legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT described by this row.
+
+  **READ `attribution` AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation, not
+  a proof of causation: `not-in-diff` does NOT assert the failure is pre-existing on `main` (a card can
+  break a file it never opened), and `in-diff` does not assert the card caused it. It is the strongest
+  attribution computable without materializing and re-running main's tree, and it is what the incident
+  needed — establishing that a red sat in a layer the card had not written.
+
+  **NOT A GATE, and not blocklisted for P8.** The emit changes no verdict and no exit code: a failing
+  run refuses exactly what it refused before it existed. And unlike `tests_passed`, this type is
+  deliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row is blocklisted because
+  CHARTER §P8 says tests green BY ITSELF proves nothing (every task earns one for free, zero
+  differential), whereas this row exists ONLY when a run actually failed, so its presence IS a
+  differential. Same reasoning as the three named `land_completed` row-ref exceptions.
+
+  **land_completed** — emitted on BOTH outcomes of a `land` attempt ( — the journal mirror of
+  the `LAND: OK|ABORT` stdout token contract). **Consumers MUST key off `data.status` — NEVER
+  read land_completed as success-only** (duration trend views filter `status: ok`). Pre- rows
+  carry no `status` key — readers treat an ABSENT status as ok (those rows were emitted only on
+  successful lands). Ok path (post-ff, on main): `data: {branch, sha, worktree, status: "ok",
+  verify_duration_ms, admission_wait_ms, reservation_wait_ms, duration_ms?, reverify_skipped, reverify_skip_reason?, verify_mode}` —
+  `verify_duration_ms` = the landing attempt's step-4 verify wall, and it is QUEUE-INCLUSIVE :
+  the wall starts BEFORE the SPEC-0132 verify-admission slot is requested, so it charges both waiting
+  for a slot and running the checks. `admission_wait_ms` (int ms) = the QUEUE half of it —
+  total time that attempt spent ACQUIRING admission slots (the candidate verify, plus the pinned
+  last-green re-run when it fires), so RUN time is `verify_duration_ms - admission_wait_ms` with no
+  inference. ALWAYS present on an ok land; `0` on an uncontended land (a truthful measurement, not a
+  fabricated zero — the sub-ms non-blocking slot scan) and on a land that never reached a verify.
+  `reservation_wait_ms` (int ms) = the OTHER queue, and it is NOT inside `verify_duration_ms`
+  at all: the land-fairness RESERVATION ( — the serialized merge->verify->ff window) is taken at
+  the TOP of the attempt, before the merge and before step 4, so no subtraction over the verify wall can
+  recover it. It is the SUM of every reservation acquisition this LAND made, not one attempt's — the
+  reservation fd is held across attempts, so the wait is a property of the land. ALWAYS present on an ok
+  land; `0` when the reservation was taken without waiting (again a measurement, not a fabricated zero).
+  **THE TWO QUEUE FIELDS ARE NEVER SUMMED INTO ONE**, and that is a contract rather than a formatting
+  choice: they ask for DIFFERENT remedies — an admission wait says the verify SLOT POOL is the
+  constraint, a reservation wait says a PEER LAND is holding the window — so a single collapsed field
+  would name neither. Before the reservation wait appeared in NO summary field on any row and
+  was recoverable only by hand-folding `waiting_for_land_reservation` heartbeats per (session, branch);
+  one measured group land (task/, sha cc5fcfa, 2026-08-27) reported 65 min total, 9 min verify
+  and 0 admission wait, with the missing 56 min sitting in 195 such heartbeats.
+  Before it, 3892 samples carried a total and no wait, so a 0.1-to-18.2-minute spread could not be
+  attributed and each remedy (slot count / cores per verify / the worker command cap) was a guess;
+  the only estimate available was counting `waiting_for_verify_admission_slot` heartbeats. REPORT-ONLY.
+  `duration_ms` = whole-land wall; `reverify_skipped` (bool) = re-verify skip telemetry — True iff this ok land's ff'ing attempt skipped the code/test
+  re-verify. It has TWO producers, and the discriminator is `reverify_skip_reason` (str), which rides
+  only when True: `inert-retry-delta` = lever B (SPEC-0065 §Verification), a concurrency retry whose
+  inert merged-tree delta made re-verifying redundant; `superseded-nothing-to-integrate` = lever C
+  (SPEC-0184 rule 8), a land carrying nothing not already in `main` — typically a batch member
+  whose content the head already fast-forwarded. Reading the bool as "an inert retry" is therefore
+  wrong; key off the reason. An extinguished (lever-C) land additionally carries
+  `superseded_extinguished: true` + `verify_slot_taken: false` + `land_reservation_taken` (bool) —
+  three keys rather than one because the boundaries saved are separate, and a land that skipped its
+  verify but had already taken the land reservation saved one of them, not both. All ADDITIVE, present
+  only on that path, REPORT-ONLY.
+  `verify_mode` (str) = the pinned LAST-GREEN both-must-pass verify signal (SPEC-0077 §Verification,
+  the SOLE authoritative adoption signal): `"pinned+candidate"` iff this land touched the verifier surface
+  (the verify-implementation-touch predicate fired) so the pinned last-green verifier re-ran IN ADDITION to
+  the candidate; `"candidate"` otherwise (the negative/scope probe — no blanket-gate creep);
+  `"candidate_policy_off"` (SPEC-0186 rule 7) iff the land DID touch the verifier surface but the
+  project declares `verify_policy.pinned_last_green: never` in its `yitc-ops.yaml`, so the leg was SKIPPED
+  BY POLICY rather than run. A THIRD value in this one set, never a reuse of `"candidate"`: "did not run"
+  and "ran and passed" are different facts, and conflating them already misread 15 of 30 decisive cases in
+  the 2026-08-18 analysis of this very layer, so a shared value would poison every future measurement at
+  source. Scoped to the SKIP: a land with no verifier-surface touch is plain `"candidate"` under either
+  policy, because nothing was skipped by policy there. (`"rebaselined+candidate"` remains the fourth.) ALWAYS present
+  on an ok land; a `land: verify_mode=<m>` stdout marker is operator convenience only (Single-SoT).
+  `pinned_layout_excused` (list[str]) = the SPEC-0077 §3 additive engine-LAYOUT carve-out signal —
+  PRESENT ONLY when the pinned re-run's failures were ALL excused as `No module named '<X>'` for
+  candidate-added `bin/` module(s) (a purely-additive layout change the stale last-green fixture could not
+  provision); ABSENT on every normal land (additive / P5-safe). It is the durable never-silent record (§P8)
+  + an operator stdout note; it is NOT mirrored as a `deviation_captured` (an excusal is expected, not a
+  friction). `pinned_cache_hit` (bool, SPEC-0077 §3-watch / SPEC-0132 §3) = PRESENT ONLY when the
+  pinned LAST-GREEN verdict was REUSED from the content-addressed cache (unchanged verifier×tree×engine key)
+  and the ~full pinned re-run was SKIPPED — ABSENT on every fresh-run land (additive / P5-safe). The
+  SPEC-0132 §3 cache-hit-rate watch-point signal (`grep pinned_cache_hit events.jsonl`).
+  BOTH KEYS NOW ALSO RIDE THE `status: "abort"` ROW. Until the pinned leg ran FIRST they could
+  arise only on an ok land, because a failing candidate leg meant the pinned leg never ran and there was
+  no pinned result to carry. Pinned-first makes that state reachable — the pinned leg has already spoken
+  (warm hit, or an EXCUSED additive-layout mismatch) by the time the candidate leg fails — and omitting
+  its answer from the abort row would record a land that DID take the hit as having none, and one whose
+  mismatch WAS excused as having no excusal: the same "did not run" vs "ran and passed" conflation
+  `verify_mode` is scoped against above, one surface over. Same present-only shape on both rows; an
+  abort with no pinned result carries neither key. `candidate_leg_run` (bool) = PRESENT ONLY on
+  a `status: "abort"` row, and only as `false` — the pinned/last-green leg refused this land BEFORE the
+  candidate suite was started, so the candidate leg's result for that branch is UNKNOWN, not passing.
+  The `abort_class` stays the UNCHANGED `verify-failed` (deliberately — no new taxonomy), which is
+  exactly why the distinguishing fact needs its own key: no reader can recover it from the class or from
+  the wall clock. Report-only, like `abort_preflight`: nothing gates on it.
+  `verify_metrics` (dict, SPEC-0132 §2 Rule 2) = the additive PER-LAND verify-metrics payload
+  — the standing observability probe the concurrency governor (SPEC-0132 Rule 1 / A2) and the Rule-3/4
+  report-only signals CONSUME. PRESENT ONLY on an ok land that RAN the suite (`do_test_verify` populated
+  it) — ABSENT on a `--no-tests` / inert-retry ok land, so those payloads are byte-unchanged (additive /
+  P5-safe). The LOAD-BEARING minimal subset (SPEC-0132 §2 "the minimal subset MUST emit before final
+  governor adoption") is ALWAYS present: `verify_wall_ms` (int ms — the attempt's verify wall, re-pinned
+  to the same value as the top-level `verify_duration_ms` so the nested metric never disagrees),
+  `worker_count` (int — the verify worker cap in effect), `fail_class` (`"ok"` on the ok land emit — the
+  distinct `"failed"` / `"timeout"` classes are the abort-path story). Two additional CHEAP fuller fields
+  ride when measured: `queue_wait_ms` (int ms — the longest a submitted test-file waited before its worker
+  slot freed, a saturation proxy) and `mem_peak_kb` (int — children peak RSS in KB via
+  `getrusage(RUSAGE_CHILDREN)`; best-effort, OMITTED when the platform lacks it — never fabricated). The
+  remaining SPEC-0132 §2 fields (tmp/inode usage, fd/process pressure, serial-lane time) are DEFERRED
+  additive fields ("the fuller payload MAY follow") — they are OMITTED until a real capture site exists,
+  never written as a fabricated 0 (the no-fabricated-0s discipline).
+  Four SELECTION fields ride alongside (SPEC-0181) — the per-land record of the affected-test
+  decision: `selection_rule_version` (str — the coverage-rule version the decision was made under, so
+  a later reading knows which rule produced it, and — since — which rows fall inside the
+  auto-rollback's counting window), `selection_would_select` / `selection_would_omit` (int counts that
+  SUM to `selection_discovered_count` — the decision accounts for the WHOLE enumeration, never a
+  subset) and `selection_full_suite_reason` (str or null — the ladder rung that forced a full-suite
+  decision; `null` ONLY when a real omission was earned, and an unmapped path is NAMED here as
+  `unresolved-path:<path>` so the coverage map can be grown against evidence). PRESENT whenever
+  `verify_metrics` is.
+  SINCE THE DECISION GOVERNS THE CANDIDATE LAND VERIFY — it is no longer a record-only field
+  set, and the shadow-boundary reading above is RETIRED. Three fields carry that, and they are what
+  make the omission auditable off ONE row: `selection_discovered_count` (int — what the glob FOUND,
+  where `test_file_count` keeps its standing meaning of what RAN, so a governed land reads
+  `test_file_count < selection_discovered_count`), `selection_governed` (bool — whether THIS run acted
+  on the decision) and `selection_govern_reason` (str — WHY it did not, e.g. `switch-off` /
+  `miss-threshold:<n>/<t>` / `ladder-full-suite` / `empty-selection` / `governor-cannot-count`;
+  ABSENT when the run governed, never a fabricated empty). A run that was never eligible at all (any
+  caller but the candidate land sweep) reads `selection_governed: false` with reason `not-selected`
+  via `selection_full_suite_reason`.
+  TWO MORE ride CONDITIONALLY, and only when the AC2 tripwire FIRED: `selection_tripwire_recovered`
+  (int) and `selection_tripwire_tests` (list of str) — the omitted tests whose source named a changed
+  path, which the independent oracle put BACK into the run. ABSENT — never a zero, never an empty
+  list — when it did not fire, because a firing is a coverage-map DEFECT and a key that
+  reported one every land would report nothing. A firing ALSO emits a durable `deviation_captured`
+  (fingerprint `selection-omitted-a-test-naming-a-changed-path`).
+  THAT DEVIATION ROW IS SELF-SUFFICIENT. Beside its `tests` list (the recovered names,
+  RENDERED clipped at 20) it carries two further CONDITIONALLY-present keys, ABSENT rather than
+  empty or fabricated whenever they would say nothing (the same discipline the two keys
+  above follow):
+  `matched_changed_paths` (map of test BASENAME -> sorted changed paths) — the changed path that
+  RECOVERED each test, so a reader can size the (changed-path, omitted-test) pair off ONE row
+  instead of replaying that land's diff against that checkout's test sources. It is restricted to
+  the 20 RENDERED names, so it cannot reintroduce the unbounded-payload cost the clip exists to
+  avoid; and it is scoped to MATCH-based recoveries ONLY. THE UNREADABLE-SOURCE FAIL-SAFE RECOVERY
+  IS THE ONE RECOVERY THAT CARRIES NO ENTRY: a test whose source could not be READ is put back
+  because the oracle cannot CLEAR it, not because a path matched it, so no path recovered it and
+  none is invented. That absence is its READER-VISIBLE SIGNATURE — a name in `tests` with no entry
+  here IS the fail-safe recovery — which is why no third key exists to state it. The whole key is
+  omitted when the map is empty (an all-unreadable firing carries no paths and says so).
+  `omitted_total` (int) — the TRUE number of recovered tests, present ONLY when the rendered list is
+  actually TRUNCATED (more than 20). On an untruncated row it is ABSENT, because there the rendered
+  list already IS the count. Without it a clipped row reads 20 whatever the real figure was, which
+  measured at roughly a third of all firings on this journal.
+  A SIXTH selection field rides CONDITIONALLY : `selection_ran_tests` (list of str) — the
+  test-file BASENAMES this verify actually ran, sorted, recorded ONLY when the run was NARROWED
+  (`0 < test_file_count < selection_discovered_count`) and ABSENT — never an empty list, never a
+  fabricated value — on a full-enumeration or unmeasurable run. `len(selection_ran_tests) ==
+  test_file_count` BY CONSTRUCTION: both are taken from the same enumeration, which is what lets a
+  reader treat a disagreement as a corrupt row rather than as coverage.
+  It exists because the counts state HOW MANY files ran and never WHICH, so the known-broken-on-main
+  fold (SPEC-0181 §Known-broken-on-main) could clear a record only by asking "did you run
+  EVERYTHING" — a question a SURGICAL repair, narrow by construction, can never answer yes to. It is
+  the same BASENAME identity every other name-keyed surface here uses (`test failed: <name>`, the
+  `only` re-selector, `selection_tripwire_tests`), so no path prefixing is involved on either side.
+  THE NARROWED-ONLY BOUND IS THE DESIGN, not a tuning knob, and it is the same bound
+  `per_file_durations` states below: recording all ~800 files on every land is EXPLICITLY REJECTED
+  there (~45KB/land, ~50% growth of the whole log) — and a full-enumeration land needs no list, since
+  its counts already answer the question. Measured on this repo's journal at filing: of 505 rows
+  carrying `selection_discovered_count`, 246 ran narrowed at 79/138/732 files (min/median/max) and
+  test filenames average 35.7 chars, so the key costs ~5.4KB median (~28KB worst) per narrowed land
+  and ~1.0% of a ~136MB log — the same order as `per_file_durations` (~1.1%). Report-only: it gates
+  nothing and, like every selection field here, is written AFTER the executor ran so it cannot
+  influence what ran.
+  TWO DELEGATION FIELDS RIDE CONDITIONALLY, AS A PAIR :
+  `consumer_tests_delegated_layer` (str) and `consumer_tests_delegated_files` (list of str) — the
+  NAME of the declared verify layer the kernel tests sweep DELEGATED to (SPEC-0152 rule 16) and the
+  bare BASENAMES of the test files that skipped sweep would have enumerated, sorted. Present ONLY on
+  a `-C` consumer land whose declared layer `covers:` its test dir AND whose surface enumerated at
+  least one file; ABSENT — never an empty list, never a fabricated value — on every engine
+  land, every non-delegating consumer land, and any land whose enumeration could not be read, so
+  those payloads are byte-unchanged. BOTH-OR-NEITHER, under one conjunctive guard: a name without a
+  surface would say WHO answered without saying WHAT FOR.
+  They exist because a delegating consumer runs NO sweep, so it writes no `selection_ran_tests` and
+  the known-broken-on-main fold (SPEC-0181 §Known-broken-on-main) had no clearing route for it at
+  all — routes (a)/(b)/(c) each need something only a sweep produces. Measured twice on 2026-08-27
+  (X-1151 / X-1164): a consumer that followed the declared delegation contract could never clear a
+  record its PRE-delegation sweep established, and every governance-only branch was refused
+  pre-queue. The basenames are the SAME identity every other name-keyed surface here uses, so no
+  path prefixing is involved on either side; the enumeration is taken from the SAME directories and
+  the SAME `test_*.py` glob the skipped sweep would have used, which is what makes the recorded
+  surface unable to drift from the skipped one. The declared layer count is a handful and a
+  delegated consumer suite is tens of files, so the pair costs the same order as the fields above.
+  Report-only: they gate nothing and are written AFTER the layers ran, so they cannot influence what
+  ran — what READS them is the fold's route (d), which clears a record only on the conjunction
+  SPEC-0181 rule 2 states.
+  A FIFTH selection field rides CONDITIONALLY : `selection_full_suite_globs` (list of str) —
+  WHICH member(s) of the verifier-surface constant the diff matched, recorded ONLY when
+  `selection_full_suite_reason` is `verify-implementation-touch`, and ABSENT — never an empty list,
+  never a fabricated value — on every other rung, so the record accuses no glob on a decision
+  no glob made. Present-when-refused rather than always-present because it names a CAUSE: it is the
+  same report-only class as the four above and governs nothing. It exists because that one reason
+  token collapses the LARGEST class in the record (415 of 740 recorded decisions, 56.1%) into a
+  single string naming no cause, leaving the per-glob share recoverable only by reconstruction — two
+  independent reconstructions of it disagreed with the journal by 2.5x. The value is the SORTED,
+  DISTINCT set of matched globs, not the first match: the matcher walks the DIFF's paths, so a
+  first-match value would be decided by the order git listed the diff in, and a diff touching two
+  surfaces would name only one.
+  TWO BOUND fields ride the payload : `verify_test_timeout_s` (float) = the per-file wall
+  bound (SPEC-0071) that was IN FORCE for this run, and `verify_test_timeout_source` (str, one of
+  `env` | `declared` | `default`) = WHICH rung of the `_verify_test_timeout_seconds` ladder supplied
+  it — the YITC_VERIFY_TEST_TIMEOUT escape hatch, a project declaration, or the 300s default. The
+  runner already resolved both and discarded them, so every recorded per-file duration and every
+  timeout kill sat in the journal with no record of the bound it was judged against: a fold could not
+  distinguish a default-bounded run from one running under an ambient override, which is exactly the
+  question 32 recorded above-300s per-file entries raised and none of the 82 timeout kills could
+  answer. Report-only, additive, on the `per_file_durations` precedent — they gate nothing and are
+  written after the run. The value is ALWAYS present; the SOURCE key is ABSENT rather than fabricated
+   when the ladder did not run — an explicit caller-supplied `timeout=` was decided upstream
+  and has no rung, so the vocabulary stays exactly those three names. No land path supplies one.
+  `per_file_outcomes` (dict, SPEC-0203 rule 4) = the LOCATOR of the COMPLETE per-file
+  outcome list — `{path, sha256, count}`, and deliberately NOT the list itself. It is the answer to
+  the cost of the bound `per_file_durations` states below: that bound is right for the ROW, and it
+  left the whole system unable to NAME a failing file beyond the slowest ten (measured:
+  counted 92-94 failing files of 1387 on a rented box and could name ten, so its AC2 was discharged
+  as unreachable). So the full list goes to a machine-readable sidecar on disk and the ROW carries a
+  three-field reference to it: `path` (absolute — the default is under the temp base, NEVER inside
+  the verified checkout, since an in-tree export is land-blocking dirt in any repo that does not
+  ignore it), `sha256` of the exported bytes (so a reader can prove the file it read is the file the
+  run wrote), and `count` (so completeness is assertable against the row rather than inferred). The
+  row's SIZE is therefore unchanged in kind — a locator is ~200 bytes, where the ~800-row list this
+  spec's `per_file_durations` entry rejects would be ~45KB per land. PRESENT whenever the run
+  discovered at least one test file AND the export succeeded; ABSENT — never empty, never fabricated
+   — on a no-test-files run or when the export could not be written, because the export is
+  failure-INERT: it never raises into the run and never changes a verdict. The sidecar itself names
+  every DISCOVERED file (not only the started ones — a fail-fast tail is exported as `not-started`
+  with a null wall) and carries its own outcome vocabulary, which is the runner's own `_record`
+  token set: `passed` / `failed` / `timed-out` / `killed-fail-fast` / `launch-error` / `not-started`.
+  Report-only, additive, on the `per_file_durations` precedent: no new event type, no second metrics
+  path, no new store, and nothing gates on it.
+  `flaky_retry` (dict|str, SPEC-0132 §Rule 2) = WHAT THE ISOLATED RE-RUN DID on this land.
+  When a leg stopped on failures within `YITC_VERIFY_RETRY_MAX_FILES`, the runner re-ran each failing
+  file ONCE alone, on the same tree, outside the contended pool: `{rows: [{file, leg, isolated,
+  pool_tail, load1?}], resumed?}`, where `isolated` is `pass` / `fail` / `unrunnable` and `resumed`
+  (the count of files the resume covered) is present ONLY when every named file passed and the leg
+  therefore resumed. When the plan DECLINED it records `{skipped: <reason>}` — `over-bound` (more
+  failing files than the bound, which is also how a bound of 0 disables the feature),
+  `timeout-class` (SPEC-0071 makes a verify timeout non-retriable) or `no-failures`. A ROUTED land
+  folds the per-leg record onto this SAME unprefixed key from the venue envelope
+  (`venue_flaky_retry` per leg), deliberately NOT under a `venue_` prefix — prefixing would put the
+  routed record on a different field from the local one and split the field in two. An envelope
+  that never carried the key folds the STRING `"unknown"`, never `{}` and never absence, because
+  both of those read as "no flakes anywhere" (SPEC-0165 item 11). ABSENT — never an empty dict
+   — when no retry was reached, so a green land never reports one it did not do and the
+  pre- payload of such a land is byte-unchanged (additive / P5-safe). Report-only, on the
+  `per_file_durations` precedent: no new event type, no second metrics path, no new store. It gates
+  NOTHING — a file is cleared only by PASSING alone, and this key merely records that it did.
+  `load_sensitive` (dict|str) = WHAT THE SERIALIZED TAIL DID on this land. The runner reads
+  the committed carrier `tests/load-sensitive.txt` (the declared load-sensitive set: one test file
+  per line, comment-tolerant, ENTERED automatically at the land tail and REMOVED only by a card) and
+  runs every listed file AFTER the concurrent pool, one at a time, on both legs; a pass or fail there
+  decides the verdict exactly as a pool result does — the set moves WHERE a file runs, never WHETHER.
+  `{tail: [{file, outcome}], unresolved?}` — `outcome` is the file's real verdict in the same closed
+  vocabulary as `per_file_outcomes` (`not-started` when a tripped fail-fast gate skipped the tail),
+  `unresolved` (present only when non-empty) names listed files this run did not discover. A ROUTED
+  land folds the per-leg record onto this SAME unprefixed key from the envelope (`venue_load_sensitive`
+  per leg), and an envelope that never carried the key folds the STRING `"unknown"` — never `{}` and
+  never absence, both of which would read as "every listed file passed" (SPEC-0165 item 11). ABSENT
+  — never an empty dict — when the carrier lists nothing, so a repo without a set reports
+  nothing it did not do and its payload is byte-unchanged (additive / P5-safe). Report-only, on the
+  `flaky_retry` precedent: no new event type, no second metrics path, no new store.
+
+  `per_file_durations` (dict) = the BOUNDED PER-FILE duration record — the sub-payload that
+  makes test-duration GROWTH observable at all. Before it, `verify_metrics` carried AGGREGATES ONLY
+  (measured: 1527 rows, the complete key union being worker_count / test_file_count / verify_wall_ms /
+  queue_wait_ms / mem_peak_kb / fail_class + the four selection_* keys) — not one per-file duration in
+  the journal's whole history, so nothing downstream could watch duration creep: there was no SERIES,
+  only one-off measurement campaigns. The runner necessarily HAS the datum (each test file is its own
+  subprocess under the SPEC-0071 per-file wall clock) and simply discarded it. PRESENT whenever at
+  least one test file STARTED; ABSENT — never an empty dict, never a fabricated 0 — on a run
+  that measured nothing (a no-test-files verify), so the pre- payload of such a run is
+  byte-unchanged (additive / P5-safe). Four keys — three from, plus `duration_series`
+  (described below): `slowest_files` (list[dict] —
+  `{file:str, wall_ms:int, outcome:str}`, DESCENDING by wall, AT MOST `_VERIFY_SLOWEST_FILES_N` = 10
+  entries) and `wall_ms_pct` (dict — `p50`/`p75`/`p90`/`p99`/`max`, integer ms, NEAREST-RANK over the
+  whole sample so every reported value is a real measured file's wall, never an interpolated midpoint)
+  and `sample_count` (int — the percentile BASE; read beside `test_file_count` it STATES how many files
+  never started under a fail-fast abort, instead of leaving that gap implicit).
+  THE BOUND IS THE DESIGN, not a tuning knob: recording all ~800 files per land is EXPLICITLY REJECTED
+  — at ~55-85 bytes/entry that is ~45KB per land, which across the 1527 metric-bearing lands already
+  journaled would have added ~68MB to a ~136MB events.jsonl (≈50% growth of the entire log) for a
+  payload no reader consumes per-row; the bounded record is ~980B/land (~1.1% over the same series).
+  `slowest_files` and `wall_ms_pct` are COMPLEMENTARY and both load-bearing: the top-N is the TAIL
+  (where one newly-pathological file surfaces first), the percentiles are the SHAPE (a broad uniform
+  creep moves p50 while leaving top-N membership byte-identical — the growth mode a slowest-only
+  record is blind to). N=10 is derived, not round: on an 802-file suite the p99 is the 8th-slowest
+  file, so 10 covers the whole ≥p99 band by construction.
+  `duration_series` (dict inside `per_file_durations`) = the WHOLE distribution, compactly.
+  The two keys above are a TAIL and a SHAPE, and neither can be re-simulated: with 10 of ~877 files
+  named, no question about a run's shape can be ANSWERED, only bounded — the union of the recorded
+  top-tens over 416 historical runs yields 45 distinct files, and every estimate about the other 830
+  had to assume them flat, which erases the mid-tail and understates whatever it computes. So this
+  third key represents EVERY file that STARTED — that is its atomic rule — inside a stated byte
+  ceiling. Four keys: `walls_ds` (str — one quantised wall per started file, comma-joined, in the
+  runner's DISPATCH order), `unit_ms` (int — the quantum those values are expressed in; a reader
+  multiplies), `count` (int — how many values `walls_ds` carries, so completeness is ASSERTABLE
+  against `sample_count` rather than inferred from a parsed string) and `order` (str — the recorded
+  order, NAMED rather than implied, so a later change of dispatch order cannot silently invalidate
+  archived rows: a reader that does not recognise the value stops).
+  DURATIONS IN DISPATCH ORDER, NOT NAMES — and that is the whole reason a compact form suffices. The
+  two questions this record exists to settle offline, from ONE recorded run and with no extra verify,
+  are (a) longest-first vs the current alphabetical dispatch and (b) the skip-top-N curve. Both are
+  list-schedule simulations over a worker pool, and both need exactly the duration MULTISET (any
+  reordering) plus the DISPATCH ORDER (to reproduce the current alphabetical baseline). Neither needs
+  a file NAME — and names are what the rejected raw dump spends its bytes on. The runner enumerates
+  the emitter sorts by file name, so the values are laid out in NAME order; recording COMPLETION
+  order instead would leave the payload well-formed and make the baseline arm of every simulation
+  wrong. ** amends what that order MEANS, not what it IS:** name order WAS the runner's
+  dispatch order when this key was defined. The runner now dispatches longest-recorded-first
+  (SPEC-0132 §6), so `order: "alphabetical"` stays exactly true as a statement about this key's
+  LAYOUT — which is all a simulation reconstructing the alphabetical baseline needs — and is no
+  longer a description of the schedule that ran. The schedule that ran is recorded separately, by
+  `dispatch` below.
+  QUANTUM: 100 ms, round-to-NEAREST, CLAMPED to >= 1 unit (a started file always cost something; a
+  zero would be a free job that flatters every schedule it appears in). Measured tolerance: a
+  13-worker makespan recomputed from the series lands within 1% of the same computation over raw
+  per-file walls, on both arms (0.05% / 0.02% on the 800-file probe) — the compaction is lossy in
+  bytes and not in the answer.
+  SIZE, the fence AC1 alone would not hold: ~4 bytes per file, so the WHOLE `per_file_durations`
+  block measures 3193B on an 800-file run against a stated 8192B ceiling
+  (`_VERIFY_DURATION_SERIES_MAX_BYTES`), versus ~46KB for the 800 raw named entries. The ceiling is
+  held BY CONSTRUCTION, never by truncation — a series that had to be cut would stop representing
+  every file, which is the one property the key exists for.
+  PER-REPOSITORY BY CONSTRUCTION: the record rides `land_completed` on the journal of the repo whose
+  suite ran (`-C <consumer> land` writes THAT consumer's events.jsonl), so the kernel's 877 files and
+  a consumer's entirely different suite never share a table. There is deliberately no cross-repo
+  duration store; a reader must take the table belonging to the repo it is scheduling, and a fresh
+  consumer with no history is the normal first case.
+  REPORT-ONLY, and this is a fence rather than an omission: nothing consumes the series to order,
+  skip, or gate anything. Recording the number is this record; ACTING on it (the dispatch reorder) is
+  a separate decision, to be made ON this number rather than on the estimate that preceded it.
+  `dispatch` (dict, SPEC-0132 §6) = WHAT SCHEDULE ACTUALLY RAN. The runner hands its files
+  to the pool in DESCENDING recorded duration against the fixed per-repo table
+  (`<test_dir>/verify-durations.json`), and that order is otherwise unobservable after the fact:
+  `duration_series` is published in NAME order by design, so a reader could only RE-DERIVE the
+  schedule by re-sorting against the table, which evidences nothing about what the runner did. Four
+  keys: `order` ("duration-desc" when a table was read, "name" when none was — so the degraded case
+  SAYS so rather than being inferred from a missing key), `table_files` (how many files the table
+  named), `unrecorded` (how many dispatched files the table did NOT name, and were therefore
+  scheduled at the imputed median — the DIVERGENCE, visible per land rather than only on demand),
+  and `head` (the first three files actually handed to the pool — the evidence: on a name-ordered
+  tree these are the alphabetically-first files, here they are the heaviest). Additive single key on
+  the existing payload: no new event, no second metrics path, and every reader was checked for
+  whole-dict equality before it was added (the additive-payload lesson). PRESENT whenever
+  `verify_metrics` is, including on a run with no table — an absent table is a normal state, not a
+  reason to omit the record of how it was scheduled.
+  `verify_table_refresh` (dict, SPEC-0132 §6) = THE DURATION TABLE'S OWN REFRESH RECORD, and
+  the only surface on which a table that stopped tracking the suite is visible. A green land now
+  derives the table from the measurement it already took and rewrites it under a stated write policy;
+  this key records what that decision WAS. Keys: `written` (bool — always present), `reason` (one of
+  `coverage` / `order-gain` / `below-threshold` / `no-measurement` / `no-test-dir` / `no-test-files` /
+  `delegated` / `error:<Type>`), `samples` (how many green lands the median folded), plus the decision
+  arithmetic (`recorded` / `derived` / `discovered`, and on the value arm `makespan_before_ms` /
+  `makespan_after_ms` / `gain_ms` / `workers`). A NOT-WRITTEN land is recorded just as loudly as a
+  written one — `below-threshold` is the EXPECTED steady state (the order is deliberately immobile) and a reader must be able to tell it apart from a refresh that silently never ran, which is
+  precisely the three-day blind spot this card closed. `delegated` is the refusal inherited
+  verbatim: where a project delegates its root `tests/` to a declared verify layer, the numbers would
+  measure the suite failing to START and nothing would read them, so the land REFUSES to write and
+  says so. ABSENT — not empty — on a land that measured nothing (`--no-tests`, an inert retry), so
+  those payloads stay byte-identical. Additive single key on the existing payload: no new event, no
+  new store, no second metrics path.
+  `per_layer_durations` (dict, resolves X-0945) = the PER-LAYER duration record — the
+  decomposition of the verify total by DECLARED VERIFY LAYER (`yitc-ops.yaml` `verify.layers`,
+  SPEC-0152 rule 16). Before it the journal recorded only the queue-inclusive TOTAL
+  `verify_duration_ms` plus per-ATTEMPT rows, so no project could see WHERE its verify time went
+  from its own journal: it could see THAT verify was slow and never WHICH layer, could not tell a
+  slow layer from a slow phase, and could not show a before-and-after when it fixed one. The
+  reporting consumer obtained every number of a 197s layer by hand-instrumenting a run — the datum
+  the engine already brackets was simply discarded. Two keys: `layers` (list[dict] —
+  `{layer:str, duration_ms:int}`, in DECLARATION order; a LIST rather than a name→ms mapping so two
+  same-named layers cannot silently collapse to one measurement) and `attributed_ms` (int — the sum
+  those layers account for). RECONCILIATION, not a sum alone: the verify wall COVERS the consumer
+  layers, so the unattributed remainder is `verify_wall_ms - attributed_ms` (the engine
+  sweep, the admission wait, setup) — parts and total sit in the SAME dict so that subtraction needs
+  no inference. UNBOUNDED, deliberately unlike `per_file_durations`' top-N: the declared layer count
+  is hand-written and a handful, so the whole record is tens of bytes, and a top-N here would drop
+  exactly the layer a project is trying to. PRESENT only when at least one declared layer
+  EXECUTED; ABSENT — never an empty dict, never a fabricated 0 — on a land whose layers did
+  not run (a default-only / probes / section-waiver consumer, or the engine's own build), so those
+  payloads are byte-unchanged (additive / P5-safe). The peer row on `consumer_verify_layers` carries
+  the same `duration_ms` per layer; a row for a layer that executed NOTHING (waived / malformed /
+  skipped-disjoint-subject) carries no such field at all. REPORT-ONLY, and this is a fence rather
+  than an omission: no exit code, verdict, outcome, or admission decision reads any recorded
+  duration — what, if anything, the fleet should DO about verify shape is a separate question
+   and is explicitly not derivable from one project's measurement.
+
+  `verify_cache` (dict / SPEC-0187) = the CONTENT-KEYED PER-TEST result cache's own record
+  for this run — `hit` / `miss` / `non_keyable` / `unkeyed` (ints, the four ways a test file can be
+  dispositioned, together accounting for the WHOLE enumeration), `saved_ms` (int, the summed recorded
+  wall of the files that were skipped) and `land_class` (str: `entry-script` | `bin-lib` | `neither`
+  — the axis the hit rate varies along by an order of magnitude, so a blended figure would average
+  the dominant case away). ADDITIVE, on the `per_file_durations` precedent: one key on the payload
+  the land already writes, no new event type and no second metrics store. PRESENT only when the
+  cache was in play (`YITC_VERIFY_CACHE=0`, a non-git checkout, a named-subset run and every
+  non-land driver stand down) — ABSENT rather than a fabricated zero, so those payloads are
+  byte-unchanged. Its land-tail line is REPORT-ONLY but deliberately NOT suppressed-when-clean: a 0%
+  rate PRINTS, because the failure this record exists to prevent is precisely the one where a dead
+  cache and a working one look identical from outside ( wrote 1185 markers, read none across
+  1390 lands, and stayed invisible until someone went looking —).
+  **RETIRED 2026-08-26 (SPEC-0187 §Retirement) — the field STOPS APPEARING on new lands.**
+  The cache is now off unless `YITC_VERIFY_CACHE=1` asks for it, so a land ordinarily has no
+  verify-cache state to report and this key is ABSENT — which the paragraph above already defines as
+  the correct rendering of "not in play", so no reader-facing rule changes. The HISTORICAL rows keep
+  their meaning in full and stay valid: they are exactly the population the retirement decision was
+  measured on (430 lands, 2026-08-20..2026-08-25 — 6.5% of lands hit, 63.0% inert, the class that
+  closed at 85.2% reading 0.89%). Catalogued rather than deleted, because a reader meeting an absent
+  key on new lands and a populated one on old lands needs to be able to tell a retirement from a
+  regression — and this catalog is where that question is asked.
+  `outcome` is the COHORT-COMPLETENESS field. Every file that STARTED is recorded WITH its outcome —
+  `passed` | `failed` | `timed-out` | `launch-error` | `killed-fail-fast` | `cached` — never dropped:
+  a file that exited early (a timeout kill, a fail-fast kill) cost LESS wall than it would have, so
+  dropping it biases every downstream ranking DOWNWARD, and a timed-out file is the most interesting
+  entry a duration series can hold. `cached` (SPEC-0187) is the file the per-test result
+  cache SKIPPED: it costs ~0ms and NEVER STARTED a process, so it is the one outcome that must not be
+  read as a fast pass — it belongs to the cohort for completeness (a reader can see the whole
+  enumeration is accounted for) and must be EXCLUDED from any duration ranking, exactly as the
+  early-exit outcomes must be excluded in the opposite direction. `file` is the BASENAME (`tf.name`), matching the identifier every other
+  name-keyed surface of this runner already speaks — the `test failed: <name>` failure shape, the
+  `land-verify-timeout:<name>` deviation fingerprint, and the `selection_failing_side` join — and the
+  runner's enumeration is a FLAT `tests/test_*.py` glob, so basenames are unique by construction.
+  Like the shadow-selection fields this is a RECORD, not a gate: nothing consumes it to change what
+  runs, no threshold is set here, and judging any duration is a separate concern.
+  `attempt_count` (int), `attempt_breakdown` (list[dict]), `pre_attempt_ms` (int),
+  `unattributed_ms` (int) (plan
+  `land-throughput-cut-queue-occupancy-and-doomed-lan` S4) = the land's own PER-ATTEMPT COST
+  ATTRIBUTION. `land` integrates through a bounded optimistic-concurrency retry loop
+  (`_LAND_MAX_RETRIES`) and `verify_duration_ms` records the LAST attempt only — so before this key
+  set every earlier attempt's full suite run was invisible in the journal (measured: 53.6h of a
+  134.0h/30d successful-land budget sat in an unattributed residual that could be assigned to this
+  loop only by INFERENCE), and an inert retry made the payload actively MISLEADING (a land recording
+  `verify_duration_ms: 2500` + `reverify_skipped: true` after 4354 real seconds reads as "ran no
+  tests, took 72 minutes" although attempt 1 ran the full suite). `attempt_count` = the number of
+  integration attempts this land took, ALWAYS PRESENT on an ok land (an uncontended land records
+  `1` — "no retry" as a STATED fact, not the absence of one). `attempt_breakdown` = one dict PER
+  ATTEMPT in attempt order, `{attempt:int, duration_ms:int, verify_duration_ms:int|null,
+  admission_wait_ms:int|null, outcome:str}`, where `admission_wait_ms` is THAT attempt's own queue
+  time (same semantics as the top-level key; `null` when the attempt never reached step 4)
+  and `outcome` is `"ok"` for the ff'ing attempt, `"abort"` for the attempt a land DIED on
+  ( — the last part of an abort payload's breakdown), and otherwise NAMES the retry cause
+  (`retry-main-advanced` | `retry-inlock-fold-failed` | `retry-ff-refused-journal-dirt`); a part's
+  `verify_duration_ms` is THAT attempt's step-4 verify wall (`null` only if the attempt never reached
+  step 4). `pre_attempt_ms` = the pre-loop (step-1 / setup) slice, i.e. `t_start`..first-attempt.
+  `inlock_folds` (int) is the OTHER thing a part may say, and it describes an attempt that did
+  NOT retry: how many main-side advances that attempt ABSORBED in-lock — the E-0033 journal-only fold
+  and its settle-only-card sibling — instead of discarding itself. Note the asymmetry with
+  `outcome` above, which is deliberate: `outcome` names why an attempt did NOT ff, so a fold that
+  SUCCEEDED could never be spelled there (the attempt goes on to ff and closes `"ok"`). PRESENT ONLY
+  when that attempt folded — absent, never `0` — so every part on every land that never folded is
+  byte-unchanged.
+  `inlock_folds_absorbed` (int) is the LAND-LEVEL total of the same quantity, on the row
+  itself and on BOTH outcomes (the ok payload and, read off the same accumulator, the abort one). It
+  is on the row rather than only in the breakdown because a fold's whole purpose is to keep the land
+  on attempt 1, where no breakdown is published: a breakdown-only marker would be missing from
+  exactly the runs it exists to make readable. PRESENT ONLY when the land folded — absent, never `0`
+  — which is what makes its presence the signal: before it, a successful fold and a land that never
+  needed one were byte-identical on this row, so the mechanism was observable ONLY when it FAILED
+  (the two retry causes above) and own acceptance — "a land_completed row whose attempt
+  record shows the fold" — could not be read at all. Its per-attempt sibling `inlock_folds` is read
+  off the SAME accumulator, so the two can never disagree. REPORT-ONLY: nothing gates on either, and
+  the fold's own accept predicate is untouched.
+  `preff_folds` (int, per-part) / `preff_folds_absorbed` (int, row-level, both outcomes) —,
+  the SAME pair for the OTHER fold: the E-0006/ PRE-FF re-fold, which absorbs concurrent
+  on-main journal dirt inside the lock immediately before the ff. It had the identical gap — it
+  recorded on FAILURE only (`refold-commit-failed`, `retry-ff-refused-journal-dirt`) while its
+  success path committed and fell through silently, so a fold that ABSORBED something and a fold
+  that NEVER RAN were byte-identical. Same presence discipline as the pair above: absent, never `0`.
+  DELIBERATELY A SECOND COUNTER rather than a widening of `inlock_folds*`, because the two folds
+  answer different questions ("this attempt absorbed a main-side ADVANCE and stayed alive" vs "this
+  land absorbed journal DIRT that appeared during verify") and can BOTH fire within one attempt:
+  sharing would make the common pre-ff absorption assert a main-advance absorption that never
+  happened. Also REPORT-ONLY — nothing gates on it, and no land outcome changed.
+  BOTH the breakdown and `pre_attempt_ms` are PRESENT ONLY when `attempt_count > 1` (and
+  `pre_attempt_ms` additionally only when `duration_ms` is measurable), so a single-attempt payload is
+  unchanged apart from the one `attempt_count` int (additive / P5-safe). SUM INVARIANT: on a retried
+  land `pre_attempt_ms + sum(attempt_breakdown[].duration_ms) + unattributed_ms == duration_ms`
+  EXACTLY — all are read off one monotonic clock, and the parts are gap-free BY CONSTRUCTION (each
+  attempt's span is closed at the TOP of the next iteration, so no retry path can drop one). That
+  invariant is what makes the breakdown trustworthy: a breakdown silently missing an attempt cannot
+  satisfy it. `unattributed_ms` (int) is what makes it EXACT rather than approximate: the
+  parts span `loop_t0`..the close of the ff'ing attempt and `pre_attempt_ms` spans
+  `t_start`..`loop_t0`, so the remainder is the span from that close to the `duration_ms` read —
+  land cost nothing attributed. It is NOT rounding: measured over the 161 landed multi-attempt rows
+  on 2026-08-17 it runs to a mean of 2072ms and a max of 10562ms, with a median of 4193ms on lands
+  that emitted a `land_audited_footprint` row (n=67) against 4ms on those that did not (n=94) — that
+  ~4ms floor is the truncation-and-descheduling term, and the seconds above it are the post-attempt
+  bookkeeping the span contains. It is measured against the SAME `duration_ms` this identity is
+  stated over, never from a second clock read. Recording it rather than widening
+  a tolerance is deliberate: a tolerance is squeezed from both sides — below it must exceed this
+  span or the pinned assertion flakes (it did, on two branches), above it must stay under the
+  SHORTEST attempt or a genuinely dropped attempt slips through — so naming the remainder is what
+  keeps "a breakdown missing an attempt cannot satisfy the identity" true at any load.
+  `unattributed_ms` DOES NOT CARRY THE BREAKDOWN'S PRESENCE RULE — it is present whenever the land
+  ENTERED THE RETRY LOOP, on ONE attempt or many (amending original statement of
+  the rule as identical to the breakdown's). The two rules were conflated and they answer different
+  questions. Withholding `attempt_breakdown` and `pre_attempt_ms` on a single-attempt land is a
+  PUBLICATION judgement — there is nothing to break down. But the remainder is arithmetic over three
+  numbers that are measured on a single-attempt land too (`t_start`, the loop's zero point, and the
+  one closed part), so withholding it was the no-fabricated-0s discipline applied to a value
+  that IS measured. It cost a reader: `debt.py`'s abort-cost fold recorded `unattributed_ms` reading
+  0.0 on all 25 rows of a class whose two largest members are single-attempt lands of 121.4 and
+  114.8 minutes against a near-zero verify — the absent key coerced to 0, and an hour of real land
+  cost attributed to nothing. The no-fabrication rule is unchanged where it actually binds: a
+  PREFLIGHT abort never enters the loop, has no parts and no measurable `t_start`, and still carries
+  NONE of this key set — so absence still means "never entered the loop" and must not be read as a
+  zero remainder. BOTH OUTCOMES take this rule identically (the abort row computes the attributed
+  total at the site that holds the parts and closes the remainder at the emit that measures
+  `duration_ms`), because this section describes ONE key set for both outcomes and a presence rule
+  that differed by outcome would split it into two.
+  REPORT-ONLY — nothing gates on these keys and nothing auto-escalates from them (CHARTER non-goal
+  #7); they are read by a human or by the existing report-only scaling signals.
+  BOTH OUTCOMES CARRY THIS KEY SET (same plan slice S4) — the ABORT payload records
+  `attempt_count` / `attempt_breakdown` / `pre_attempt_ms` with the SAME spellings, the SAME
+  semantics and the SAME presence rule (breakdown + `pre_attempt_ms` only above one attempt), so
+  there is ONE description here and no parallel abort-side one. Rationale identical to the ok side:
+  an abort at attempt 3 has already paid two full suite runs, and before this the row showed a
+  single `duration_ms` (measured: 33.3h of abort cost in 7d that nothing attributed per attempt).
+  The dying attempt is CLOSED into the breakdown before the row is emitted, so the parts stay
+  gap-free — and since a verify-failure abort means the suite RAN, that last part is usually the
+  expensive one. The SUM INVARIANT holds on the abort row against ITS OWN `duration_ms`, and holds
+  EXACTLY there too : the abort row's `duration_ms` is measured off the SAME `t0` that
+  `cmd_land` hands `_land_integrate` as its `t_start`, so one origin and one clock cover both ends,
+  and `unattributed_ms` NAMES the unwind between closing the parts and measuring it rather than
+  leaving it as a caveat (the attribution is still composed as the LAST act before the abort raises,
+  which is what keeps that span small — the key now says how small). PRESENT ONLY when the land reached
+  the retry loop at all: a PREFLIGHT abort (every refusal raised before attempt 1 — unauthorized
+  `--no-tests`, `rebaseline-unauthorized`, the spike gate, the concurrent-land guard) carries NONE
+  of these keys, because it has no attempt to attribute and an `attempt_count: 1` there would be a
+  fabricated fact (the no-fabricated-0s discipline). Absence therefore MEANS "never entered
+  the loop", and must not be read as one attempt.
+  NAME NOTE (deliberate, not a collision to fix): the task-scorecard VIEW in `bin/lib/views.py` also
+  emits a key spelled `attempt_count`, meaning "how many `land_completed` rows this TASK has" — a
+  different artifact with a different denominator. This one is a single land's OWN retry count. The
+  spelling is the one the governing plan's P5 probe names.
+  `actor` (str) = WHO RAN THIS LAND. The ONE key on this event that is ALWAYS PRESENT on
+  BOTH outcomes (ok and abort) and is therefore NOT additive/conditional like every key described
+  around it — a payload comparison written before sees one new key on every row from that
+  point on. It exists because the bypass keys below record that a verify bypass happened and WHY, and
+  recorded no actor: measured on this repo, of 7419 land_completed rows the 17 carrying a
+  `no_tests_reason` had a null `source_ref` and no actor of any kind (kupiclub measured 67 of 67), so
+  the acting person was recoverable only by joining `session_ref` against sibling rows of the same
+  session that happen to carry one — reconstruction, not a record, and the forensic step nobody takes
+  until something has already gone wrong. Producer: `bin/lib/cli.py#_server_actor` ->
+  `bin/lib/memory.py#resolve_server_actor`, stamped in the single host append wrapper
+  (`_append_event`) so all three emit sites — the ok emit, `_emit_land_abort`, and its
+  clearing copy — are covered by one home. SERVER-ISSUED and NOT CALLER-ASSERTABLE (SPEC-0169 rule 3
+  applied to a record): the identity is the passwd name of the uid the process runs as
+  (`memory.os_identity`, deliberately NOT `getpass.getuser`, which an exported `USER`/`LOGNAME` can
+  move), no argument or environment variable reaches it, and the stamp OVERWRITES any `actor` a
+  caller pre-seeded into the payload (`actor` is additionally a RESERVED `--data` key).
+  VALUES: a provisioned registry user's NAME when a non-owner acted; `ai-agent` when the owner-role
+  host user did (unchanged corpus meaning); and the literal `"unresolved"` when the identity could not
+  be resolved at all — never a null and never an absent key, so "nobody was distinguishable" stays
+  distinguishable from both "not recorded" and "the agent acted" (the non-fabrication line).
+  Unlike the SPEC-0169 gate it borrows its derivation from, this NEVER refuses: a land must not fail
+  because a passwd lookup did.
+  `no_tests` (bool), `owner_authorized` (bool), `no_tests_reason` (str, present only when set)
+  (SPEC-0077 §2a owner-gate) = the recorded OWNER-AUTHORIZED test-skip — PRESENT ONLY on a
+  `land --no-tests` land (ABSENT on every normal land, so normal payloads are byte-unchanged; additive /
+  P5-safe). The durable, queryable, never-silent surface (CHARTER §P2 accountability — `grep no_tests
+  events.jsonl` is the >1/30d frequency audit). `rebaselined` (bool), `rebaseline_reason` (str, when set),
+  `pinned_superseded` (list[str], the waived old-behaviour assertions) (SPEC-0077 §3a) = the
+  recorded owner-acked graceful re-baseline of a candidate-GREEN / pinned-RED audited behaviour change —
+  PRESENT ONLY on a re-baselined land (ABSENT otherwise; additive / P5-safe), with `verify_mode=
+  rebaselined+candidate`. Durable + queryable (`grep rebaselined events.jsonl`). `rebaseline_waived`
+  (list[dict] `{assertion, test_file, class, covered_by:{source,ref}}`, SPEC-0077 §3a) = the
+  PER-ASSERTION waive record — each waived pinned assertion PAIRED with the operator's
+  `--rebaseline-waive` declaration that covered it, so the journal shows exactly what the ack BOUGHT
+  and not only what was given up (`pinned_superseded`, its flat list[str] sibling, is unchanged).
+  PRESENT ONLY on a re-baselined land (additive / P5-safe). A failing pinned assertion NO declaration
+  covers does not appear here — it REFUSES the land (`abort_class=rebaseline-unauthorized`), which is
+  the point: before the waive was all-or-nothing and absorbed unnamed failures into the next
+  last-green baseline (the incident). `rebaseline_kind` (str, closed vocabulary
+  `broken` | `unrunnable-here`, SPEC-0077 §3a) = WHY the pinned check was waived — DECLARED by
+  the authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`, never inferred or
+  defaulted) and written from that declaration alone. It separates a waive of a check whose failure is
+  REAL here from one of a check that is HEALTHY but cannot RUN here at all (X-0739); before it the two
+  were indistinguishable in the record and only the free-text `rebaseline_reason` prose separated them.
+  PRESENT ONLY on a re-baselined land, and ABSENT on every row recorded before — absence means
+  NOTHING WAS DECLARED and MUST NOT be read as either value or as a default; nothing backfills or
+  re-keys an existing row. The kind is a LABEL read by no gate: it never widens who may waive or what a
+  waive covers. `merge_invalid_acceptance` (bool) + `merge_invalid_assertions` (list[str]) (SPEC-0184 rule 4) = the DURABLE record of the declare->exclude->solo chain's SECOND ground — an
+  acceptance assertion that is not valid inside a MERGED tree, DECLARED by the operator at
+  `--merge-invalid-acceptance` and NAMED by the REQUIRED `--merge-invalid-assertion` (a bare
+  declaration naming nothing is refused at argument-parse time, `abort_class=
+  merge-invalid-acceptance-undeclared`). It is the auditable half of "refused or recorded, never
+  quietly granted": the same declaration ALSO rides both `_LAND_QUEUE_WAIT_TYPES` wait rows so a peer's
+  formation can read it, but those are QUEUE evidence and expire with the freshness window, so this is
+  where a granted declaration stays readable. PRESENT ONLY on a declaring land (ABSENT otherwise;
+  additive / P5-safe). It is NOT a rebaseline key and must never be read as one — this ground
+  supersedes no pinned assertion, waives nothing, and cannot substitute for `--rebaseline`.
+  `ancestor_audit`
+  (dict `{task,commit}`, SPEC-0077 §3a / X-0040) = on a POST-CLOSE work/<slug> re-baseline,
+  the GREEN/YELLOW audit-post honored when the source delta to HEAD was EMPTY (the audited tree the
+  current source byte-equals) — PRESENT ONLY on an ancestor-audit re-baseline (additive / P5-safe). Abort
+  path (best-effort, the current checkout's journal — folds at the next land per the append
+  exception; never masks the abort or breaks the final LAND: token line): `data: {status: "abort",
+  abort_reason, duration_ms, verify_duration_ms, admission_wait_ms, reservation_wait_ms, branch?}`. Duration + `reverify_skipped` + `verify_mode` keys additive (no fabricated 0s).
+  `verify_duration_ms` + `admission_wait_ms` are the SAME two keys, with the SAME
+  QUEUE-INCLUSIVE semantics, that the ok path above describes — the WALL-CLOCK SPLIT of the
+  `duration_ms` this row already reports, so `RUN = verify_duration_ms - admission_wait_ms` reads
+  identically on both outcomes. `reservation_wait_ms` rides the abort row on the IDENTICAL
+  terms and carries the SAME meaning the ok path above states — a THIRD phase, outside the verify wall,
+  never summed with `admission_wait_ms`. Its `null` says THIS LAND NEVER REACHED THE RESERVATION (a
+  `cmd_land` preflight refusal), which is the distinction a reader needs before pricing an abort's
+  queueing. All three are ALWAYS PRESENT on an abort row, and `null` is MEANINGFUL: it
+  says THIS LAND NEVER REACHED THE TIMED VERIFY (a `cmd_land` preflight refusal, or an in-loop abort
+  raised before step 4), which is what makes an abort that ran the suite distinguishable from one
+  that never did. `null` is NEVER to be coerced to `0` by a reader: that coercion is what published a
+  wrong number (every abort classified as aborted-before-verify with 0.0 verify hours, although
+  196/352 demonstrably ran the suite —). Measured before the change, 2026-08-18..2026-08-25
+  over 812 `land_completed` rows: both keys present on 460/460 ok rows and 0/352 aborts, so the one
+  row that reports what an aborted land COST could not say how much of it was QUEUEING. REPORT-ONLY —
+  nothing gates on either key on either outcome.
+  An abort raised INSIDE the integration retry loop additionally carries the per-attempt cost
+  attribution (`attempt_count` / `attempt_breakdown` / `pre_attempt_ms`) — described ONCE
+  above with the ok path, not restated here; the two keys above are read back off THAT breakdown's
+  closing part rather than re-derived, so a row's top-level split and its `attempt_breakdown[-1]`
+  cannot disagree.
+  A `no-tests-unauthorized` / `rebaseline-unauthorized` abort rides this same abort shape
+  via its `abort_class`; a verify-fail abort additionally carries `failing_tests` + `failing_assertions`
+  (the surfaced drowned assertion lines).
+  `failure_attribution` (dict recorded / persisted, SPEC-0181 §Known-broken-on-main) =
+  WHOSE red this is. `_land_failure_attribution_probe` re-runs ONLY the failing files at `merged_base`
+  (main WITHOUT this branch's diff) and returns
+  `{outcome, reason, failing, at_main, at_branch, quarantined}` — `outcome` a CLOSED four-value set
+  (`main` | `branch` | `mixed` | `undecidable`), `at_main` the `(file, assertion)` pairs the merge-base
+  REPRODUCED and `at_branch` those it did not. `quarantined` (list) is the THIRD bucket: pairs
+  excluded from the blame split entirely, attributed to NOBODY, and reported as such rather than
+  silently dropped. A pair enters it under a CONJUNCTION — the failing assertion DECLARES its own
+  quarantine at its own site, in the `[attribution-quarantine: <removal condition>]` grammar the kernel
+  carries (`_land_attribution_quarantine_reason`), with a NON-EMPTY removal condition (an exemption with
+  no named exit grants nothing); AND that same declaration is present in the MERGE-BASE's copy of that
+  file. The second half is a trust boundary, not a formality: the marker is read out of text the tree
+  under attribution authors, so without it a branch could quarantine its OWN new failing assertion and
+  clear its own blame. Fail-closed on every unproven leg — an absent/unreadable base copy, a base
+  carrying no marker, or a path that never reaches the base tree admits NOTHING — with the deliberate
+  consequence that a quarantine takes effect from the land AFTER the one that declares it, so no change
+  can exempt itself. WHAT IT DOES NOT DO: it withholds BLAME, never the failure. The assertion still
+  runs, the red still ABORTS the land with the same class, tail and exit, and the operator line SAYS the
+  quarantine with its removal condition (a declined attribution is not silence). A red made ENTIRELY of
+  quarantined pairs is `undecidable`/`all-failing-assertions-quarantined` — never `main`, which an empty
+  remainder would otherwise read as. Grounds : over 2026-08-27..28 one racy assertion refused
+  SIX distinct branches with a false `ATTRIBUTION: THIS BRANCH`, and `task/` proved the verdict
+  false by landing UNCHANGED 46 minutes after its own refusal. PRESENT ONLY on an abort whose probe
+  produced a record —
+  additive / P5-safe, guarded exactly as `verify_metrics` is, and an abort raised before the probe could
+  run carries none. The record is COMPLETE EVEN WHEN IT SAYS NOTHING (`undecidable` with a named reason),
+  so "the probe could not decide" stays distinguishable from "the probe never ran". REPORT-ONLY: nothing
+  gates on it, and an `outcome: main` land aborts exactly as loudly as any other. It became a PERSISTED
+  key at because it is the ESTABLISHING PAYLOAD of the known-broken-on-main fold
+  (`debt.open_known_broken`, SPEC-0181): that fold reads `at_main` / `at_branch` from HERE and never the
+  first-sight `failing_tests` / `failing_assertions` above, nor `verify_metrics.fail_class`. Before
+   the record was computed on every red land and DROPPED by this emitter's key allow-list.
+  `prequeue_known_broken` (dict, SPEC-0181 §Known-broken-on-main / SPEC-0119 rule 33) = the
+  PRE-QUEUE KNOWN-BROKEN REFUSAL's own record — the COMPLEMENT of `failure_attribution` above, on the
+  same row and by the same rules: that key records a land that DISCOVERED a break, this one a land
+  REFUSED because of one already recorded.
+  `{branch, pairs: [{pair, file, since, established_by, establishing_sha}], main, merge_base}` —
+  `establishing_sha` is `null`, never a fabricated value, when main's history does not reach the
+  establishing instant (the discipline). PRESENT ONLY on an abort raised by
+  `_land_prequeue_known_broken_refusal`, guarded on presence exactly as `verify_metrics` is, so every
+  other abort row is byte-unchanged (additive / P5-safe). It rides the EXISTING `corpus-integrity`
+  abort_class and the EXISTING `abort_preflight` shape: **no new event type enters this catalog** —
+  which is the point of the choice, since a dedicated type would first have to be catalogued here
+  before any branch emitting it could land at all (the pre-queue uncatalogued-type refusal),
+  and would create a SECOND land-outcome carrier beside `land_completed` that every existing reader
+  of land outcomes would have to learn or silently under-count.
+  WHY IT EXISTS AT ALL: this refusal is CHEAP — it fires above the attempt loop and takes nothing —
+  so it never reaches the seam that publishes to main, and its abort row is written to the LANDING
+  CHECKOUT's journal, which reaches main only if the refused branch eventually LANDS. A refused
+  branch very often never lands (discarded, parked, re-cut), so the record died with the worktree:
+  measured 2026-08-28, main's journal named this refusal ZERO times in its whole history, and the
+  refused work/red-main-guard-and-repair-path's entire footprint was three rows, none of them the
+  refusal. The row is therefore additionally delivered to MAIN at the refusal, as a `ts`-pinned
+  byte-identical copy through the SAME / `clearing_copy_events_path` seam — so nothing
+  double-records and the land-time dedup collapses the pair.
+  REPORT-ONLY, and the fence is load-bearing: nothing gates on it, it waives no gate and excuses no
+  red, and it is deliberately NOT shaped as a queue entry — no position, no ordering key, no retry
+  hook. It makes a refusal VISIBLE; it makes nothing RESUME.
+  **THE MAIN-SIDE COPY IS NOW GENERAL, and the three reasons above are each a special case of it
+.** An abort `land_completed` for ANY class outside the never-landing set
+  (`worktree._LAND_NEVER_LANDING_ABORT_CLASSES`, whose members are RE-ROUTED to main instead) is
+  additionally delivered to MAIN through the SAME `clearing_copy_events_path` seam, as the same
+  `ts`-pinned byte-identical copy — so nothing double-records, the land-time `_dedup_events`
+  collapses the pair, and the LANDING CHECKOUT keeps its own row (a copy, never a re-route: the
+   repeated-abort backstop reads that checkout's journal before the land folds main in).
+  WHY GENERAL RATHER THAN A FOURTH REASON: the row's TARGET and the LAND QUEUE's oracle had drifted
+  apart. The `waiting_for_*` heartbeats and the liveness fold
+  (`_land_queue_terminal_epochs`, for which a `land_completed` IS a terminal row) both read MAIN's
+  journal, while an aborted land wrote its terminal row to the landing checkout — so a branch whose
+  land had already died stayed ADMITTED to the queue until its heartbeats aged out of the 90 s
+  freshness window, holding a verify slot nobody was waiting in. Publishing per-reason could only
+  ever fix the reasons someone had already measured.
+  BOUND (not a promise the seam can keep): the copy target exists only once `cmd_land` has resolved
+  the main worktree, so an abort raised above that point keeps the landing-checkout-only behaviour;
+  it is below every admission wait, so no admitted land is affected. The copy stays BEST-EFFORT — a
+  copy whose append fails, or an emit yielding no witness `ts` to pin, is skipped rather than
+  written unpinned.
+  **Resource-summary observation fields (per SPEC-0135 §3 — additive, OPTIONAL, P5-safe).** An ok
+  `land_completed` MAY additionally carry a host-load raw summary the observation loop uses to size
+  minimum hardware per project class: `load1` (number — the 1-minute load average at land time) and
+  `peak_mem` (int — peak memory in KB during the land's verify, best-effort via
+  `getrusage(RUSAGE_CHILDREN)`, aligned with the existing `verify_metrics.mem_peak_kb`). Raw host facts
+  ONLY — no usage/cost (SPEC-0135 §3). Each OMITTED when the platform can't measure it (the
+  no-fabricated-0s discipline); PRESENT only on an ok land that ran the suite, so `--no-tests`/inert-retry
+  payloads stay byte-unchanged. Additive / P5-safe.
+
+  **land_member_verdict** (SPEC-0184 rule 5) — ONE row per BATCH MEMBER of a land, carrying
+  that member's own outcome so it is readable from the journal ALONE, without reconstructing the
+  batch. `data: {branch, verdict, batch_size, task?, batch_id?}`. `verdict` is a CLOSED vocabulary of
+  exactly four values — `landed` | `evicted-for-conflict` | `requeued-after-red-batch` |
+  `dropped-dead-member` — and an emitter passing anything else RAISES rather than writing the row
+  (`_emit_land_member_verdicts`, bin/lib/worktree.py). The closed-vocabulary rule is deliberate and is
+  the one place unknown-key tolerance does NOT reach: tolerance is right for a key a reader
+  may safely IGNORE, and this is the opposite — a reader that cannot interpret the verdict computes
+  the wrong fate for a change. `evicted-as-culprit` is ABSENT BY DESIGN, not pending: naming a culprit
+  requires the red-batch bisection SPEC-0184 explicitly puts out of scope, and a catalogued value
+  nothing can produce is a promise the mechanism cannot keep.
+  **EMITTED ONLY WHEN `batch_size` > 1 — a singleton land emits NO row of this type at all.** That is
+  SPEC-0184 rule 5's N=1 clause, and it is a presence rule with teeth rather than an optimisation: a
+  singleton's `land_completed` row and its `^LAND: (OK|ABORT)` token ALREADY ARE that member's
+  individual verdict in full, because the member IS the land. Adding a row there would break the
+  byte-identity rule 1 promises a quiet repo at three levels (events, commits, terminal token). So
+  the presence of this event type is itself the signal that a land carried more than one change, and
+  its ABSENCE must never be read as a missing verdict.
+  `batch_id` (str) rides only once batch FORMATION exists — it is the join key that lets a
+  member's row be read without the batch; OMITTED, never a fabricated placeholder, while nothing
+  mints one (the no-fabricated-values discipline). `task` (str) rides when the member's branch
+  carries a task id. Emitted post-ff INSIDE the land's repo lock, immediately after `land_completed`,
+  and folded into the SAME `land: bookkeeping` commit — so an N>1 land adds rows, never a commit.
+
+  **load_sensitive_entered** — ONE row per test file the land tail ENTERED into the declared
+  load-sensitive set `tests/load-sensitive.txt`. `data: {file, count, threshold, window_days,
+  locators[], carrier}`. Emitted by `land` post-ff, in-lock, immediately after `land_completed` and
+  folded into the SAME fresh bookkeeping commit as the appended carrier line, so an entry can never
+  arrive without the land that decided it. `count` is the number of ISOLATED-PASS `flaky_retry` rows
+  the file accumulated inside the window (>= `threshold`, the `YITC_FLAKY_SENSITIVE_ENTER` tunable;
+  `window_days` the `YITC_FLAKY_SENSITIVE_WINDOW_DAYS` one — both `config`-class, SPEC-0193) and
+  `locators` names every one of those retries by its `land_completed` row (`events.jsonl#ts=<ts>`,
+  leg-suffixed on a routed land), so the entry is reconstructible from the journal alone. THE
+  DIFFERENTIAL A READER MUST HOLD: a carrier line WITHOUT a matching row was hand-added, and a row
+  is never emitted for a REMOVAL — there is no automatic exit and no event for one, because a file in
+  the serialized lane cannot prove pool-robustness; the line leaves only in a card's ship diff.
+
+  **land_batch_formed** (SPEC-0184 rules 1-2 + the realization exit criterion) — ONE row per
+  FORMED batch, recording what the batch was and what it actually SAVED.
+  `data: {members, paying_members, batch_max, branches[], batch_id?, engagement?}`.
+  `members` is the member COUNT and `paying_members` is how many of them would have run a full suite
+  pass ALONE (an OBSERVABLE change under `_classify_inert_paths`; an inert one pays nothing). The two
+  are SEPARATE keys and MUST NOT be collapsed into one number: a batch of 4 carrying 1 paying member
+  reads as «4.0 lands per pass» on the member count alone while it actually saved ONE pass, and
+  exposing exactly that gap — a repo assumed to benefit while saving nothing — is why the metric
+  exists. `paying_members` UNDER-counts by design (a member whose changed-path set cannot be read is
+  not counted), so the recorded saving is never larger than the proven one.
+  `engagement` (str, optional) names WHY the batch was or was not engaged
+  (`kernel-authored-verify` | `project-declared-combined-candidate-safe` | the
+  `project-authored-verify-*` refusals) — diagnostic only; nothing branches on it.
+  `queue_excluded` (list, optional) names each branch the formation SAW and did not admit, with its
+  reason. Two families, and the split is what `queue_depth` below is derived from. The CLOSED one —
+  written by the queue read itself for a candidate it judged NOT a live waiting peer at that instant:
+  `stopped-waiting` | `terminal-row-undatable` | `liveness-unreadable` | `stale-wait-row` |
+  `clock-skewed-wait-row` | `undatable-wait-row` | `landed-member-still-parked` |
+  `landed-member-wait-undatable`. The OPEN one — written by a filter DOWNSTREAM of that read, for a
+  candidate that WAS waiting and that this formation declined to carry (the batch cap, a cost class,
+  a rebaseline or supersession, an incompatibility, and whatever a later filter adds). A reader must
+  not treat the enumeration as closed in the second direction: the family grows with the filters.
+  `queue_depth` (int) is the LIVE candidates that formation saw — the admitted peers plus the
+  branches a filter downstream of the queue read declined to carry. It rides EVERY row;
+  a candidate the queue read itself judged no longer waiting is not queue load and does not count,
+  though its reason still appears in `queue_excluded` above. Before it was written only at
+  `members: 1` and counted the whole sink, so it read backwards — absent whenever peers existed,
+  8-10 stale ghosts whenever they did not.
+  **A ROW ALSO APPEARS AT `members: 1` WHEN — AND ONLY WHEN — `queue_excluded` IS NON-EMPTY**
+, carrying the additive `solo: true` (the mark describes the BATCH, not the queue —
+  `queue_depth` is on every row). Rule 1 scopes its byte-identity promise to a QUIET repo, so a solo land whose queue was
+  genuinely EMPTY still emits NO row at all — that half is unchanged — while a solo land that
+  DROPPED candidates is no longer indistinguishable from it (two 2026-08-17 solo lands were
+  unclassifiable for exactly that reason). A reader counting real FORMATIONS must therefore filter
+  on `members > 1` (equivalently, exclude `solo: true`) rather than counting rows.
+
+  **land_batch_head_restored** (SPEC-0184 rule 4) — ONE row per attempt to take a batch's
+  peer merges back OFF the head member's own branch, emitted on every end where the batch did not
+  land. `data: {branch, pre_sha, outcome, reason, batch_size, peers[], error?}`.
+  `outcome` is `restored` | `failed`; `reason` names the end that triggered it
+  (`red-batch-dissolve` | `land-ended-without-landing`). `peers` is the MERGED set whose commits were
+  on that branch, so the row states WHOSE work was involved rather than only that something happened.
+  **A `failed` row is the point of the event type, not its error case.** The restoration this records
+  was previously wrapped in a bare `except: pass`, which made an unperformable undo indistinguishable
+  from an unnecessary one — and left another card's commits in a branch's history with nothing
+  anywhere saying so. A `failed` row carries `error` (the git message or the reason the reset could
+  not be attempted) and is accompanied by an explicit stderr block naming the remedy; it is what makes
+  the residue discoverable by a later session.
+  **NO ROW IS EMITTED WHEN NO PEER WAS MERGED** — the `not-needed` outcome is not journaled, because
+  a land that merged nothing has nothing to undo and rule 1's N=1 identity forbids adding a row to a
+  singleton land. Note the asymmetry that is deliberate: absence of a `pre_sha` is NOT what decides
+  this. Silence means the batch state proved no peer merge happened; a merged batch with no recorded
+  undo target emits `failed`, never silence.
+  **EMITTED ONLY WHEN `members` > 1** — the same SPEC-0184 rule 1 N=1 clause `land_member_verdict`
+  carries, and enforced in the same place (inside the emitter, so every later call site inherits it):
+  a singleton land is byte-identical to the pre-spec path at the event level, so it emits no row of
+  this type at all, and that absence is never a missing metric.
+
+  **bg_dispatch_halted** (per the dispatch contract — `plans/fresh-session-task-dispatch-context-economics-hand.md`,
+  filed) — the terminal STOP marker a dispatched background Build session emits when it hits a hard
+  governance boundary mid-task (audit-loop ceiling / genuine architectural fork / auditor ABORT) instead of
+  closing. It is the "stop-and-look" trigger for the controller. Counterpart of `task_closed`: BOTH are the
+  two terminal events of a dispatched session (done vs halt).
+  ```jsonc
+  {"ts": "...", "type": "bg_dispatch_halted", "task_id": "T-XXXX",
+   "data": {"dispatch": "<dispatch-tag>", "reason": "audit-ceiling|owner-wait|auditor-abort: <detail>",
+            "passes": <n>, "stage": "<current_stage>"}}
+  ```
+  As the BLOCK-side wait carrier it MAY additionally carry the OPTIONAL normalized `wait_reason` (per
+  SPEC-0135 §5 — the shared pause/block reason vocabulary at §Normalized provider×model×effort
+  vocabulary), ALONGSIDE the free `reason` detail string; additive / P5-safe.
+
+  **timing_instrument_reading** ( — the SPEC-0105 §2c quiet lane; SPEC-0077 §3b):
+  ONE row per REGISTERED timing instrument per quiet-lane run, whatever happened. It is a NEW event
+  TYPE, disjoint from the `reads` keys added to the existing `cli_invoked` row: those are new
+  KEYS on an existing type carrying a read-cost counter, this is a new TYPE carrying a wall-clock
+  READING. The two never share a row and neither is derivable from the other.
+  ```jsonc
+  {"ts": "...", "type": "timing_instrument_reading",
+   "data": {"instrument": "<registry id>", "verdict": "ok|failed|skipped",
+            "duration_ms": <int|null>, "exit_code": <int|null>, "serialized": true,
+            "baseline_median_ms": <number|null>, "delta_pct": <number|null>,
+            "regression": <bool>, "readings_considered": <int>, "reason": "<str|null>"}}
+  ```
+  - `verdict` — `ok` (the instrument ran and exited 0) / `failed` (it ran and exited non-zero, was
+    killed by the lane's timeout, or its REGISTERED file/leg did not resolve) / `skipped` (the host
+    was not quiet — a verify held an admission slot past the ones this lane holds, on either side of
+    the run). The split is by WHOSE fault the missing number is, not by whether a process started:
+    `skipped` is the TRANSIENT, blameless case that will simply be measured again tomorrow, and it is
+    silent by design; an unresolvable registration is a PERMANENT defect that would otherwise let an
+    instrument quietly stop being measured for weeks under a verdict that reads as normal, so it is
+    `failed` and raises the lane's `alert` (this matches SPEC-0105 §2c, whose `skipped` clause is the
+    lane-could-not-run-at-all case). A run that produced no row at all is a DEFECT, not a state: the
+    lane emits one row per registered instrument unconditionally, so an absent row means the lane
+    itself did not run.
+  - `duration_ms` — the measured wall-clock, and the WHOLE POINT of the row. NULL, never 0, for a
+    `skipped` reading: a fabricated 0 would enter the baseline and pull every later comparison down
+    (the no-fabricated-zeros discipline).
+  - `baseline_median_ms` / `delta_pct` / `regression` / `readings_considered` — the report-only
+    regression signal, computed against the TRIMMED median of that instrument's last 7 prior readings
+    folded from this same type. With fewer than two priors there is no baseline: `baseline_median_ms`
+    and `delta_pct` are null, `regression` is false, and `readings_considered` says how few were
+    found. `regression: true` moves NO verdict and NO exit code (SPEC-0105 §2c).
+  - `serialized` — records that this reading was taken with the instruments run one at a time and the
+    verify-admission pool held, i.e. that the reading's own precondition held when it was taken. A
+    reading is interpretable only against the conditions it was taken under.
+
+  ### Terminal-marker contract + Per-dispatch correlation (dispatched sessions) → SPEC-0153
+  The dispatched-session **terminal-marker contract** and the **per-dispatch correlation**
+  fields were SPLIT VERBATIM into **SPEC-0153** under the SPEC-0120 §3 must-split ceiling
+  (SPLIT-never-delete). Fetch them via `bin/yitc-v2 graph query SPEC-0153`.
+  ### Event-type catalog extension → SPEC-0161
+  The **event-type catalog extension** — the maximalist-capture event types: the
+  fundamental-gap events (`dissonance_detected`, `consumer_read_evidence`, `live_trigger_evidence`,
+  `task_paused`, `task_resumed`), the general maximalist-capture events (`owner_directive`,
+  `ai_reasoning_note`, `failed_attempt`), the retired stage-timing events (`stage_entry` / `stage_exit`,
+  `task_picked`), the LIVE `stage_entered` content-delivery event, `check_admission_demonstrated`,
+  `spec_activated`, `test_class_executed`, and the followup-capture events — was SPLIT VERBATIM into
+  **SPEC-0161** under the SPEC-0120 §3 must-split ceiling (SPLIT-never-delete). This parent keeps
+  the universal schema, the required event types, and the §Normalized provider×model×effort vocabulary.
+  Fetch the extension catalog via `bin/yitc-v2 graph query SPEC-0161`.
+
+  ## Rationale
+
+  Source: AGENTS §events.jsonl schema + §Event types catalog extension (the always-loaded handbook prose,
+  kept in place until, which stripped it to pointer-stubs). This spec is the `retrieved` tier home
+  (Part I-B bulk demote, plan `part-i-b-tier-split-carving-floor-wiring-first-the` §Phase-2): situational
+  reference prose consulted WHEN authoring/validating an event surface moves out of the always-loaded
+  budget into a query-only retrieved spec (SPEC-0007 §5a), reached via the AGENTS pointer-stub + `graph
+  query`. It is NOT floor-triggered: emitting an event is an append-only, non-gated action ( — a
+  `before-event` trigger would be obligation-set creep, anti-cx F4). Prior-art: the same query-only demote
+  shape SPEC-0007 §5a names the DEFAULT for situational reference catalogs; SPEC-0014/0015/0016 are the
+  floor-triggered control-point analogues (Part I-A).
+
+  ## Verification
+
+  Probe CONTRACTS (not one-time results):
+  - **VP1 (fidelity, moved-not-lost):** the key phrases of each demoted section resolve in THIS spec and
+    are ABSENT from AGENTS.md (probe: `grep "Universal schema"` / `grep "Event-type catalog extension"` /
+    `grep "Fundamental-gap-related"` present here, the bodies gone from AGENTS.md — only the pointer-stubs
+    remain). RED-GREEN: the grep-absent assertion fails BEFORE the AGENTS strip.
+  - **VP2 (delivery, query-only):** `bin/yitc-v2 graph query SPEC-0025` resolves this node; the
+    always-loaded AGENTS §events.jsonl-schema + §Event types catalog stubs name this spec id + the lookup
+    command. Both halves of the ratification probe (pointer surface + lookup command) are nameable.
+  - **VP3 (query-only, no floor-trigger):** `graph/floor-trigger-map.md` gains NO `before-event` trigger
+    (negative probe — this spec's `binding:` is `[query-only]`, a residency token with no verb surface;
+    the four triggers stay commit/audit/closure/rule-change). AND it is NOT in
+    `binding_report.dangling_specs` ( query-only token).
+  - **VP4 (graph-indexed):** `bin/yitc-v2 graph build` indexes SPEC-0025 as a `spec` node.
+  - **VP5 (stage_entered discoverable + P5-safe, /AU-2):** a synthetic
+    `event stage_entered --data '{"stage":...,"delivered":[...],"delivered_verbs":[...]}'` append is
+    returned by `journal query --type stage_entered` with the bundle rendered in the summary column, AND
+    a mixed journal with other event types still queries green (no reader breaks). Committed regression
+    coverage: `tests/test_journal_query.py::test_stage_entered_discoverable_and_p5_safe`.
+  - **VP6 (terminal-marker contract):** a synthetic dispatch emits BOTH a `task_closed` and a
+    `bg_dispatch_halted` keyed by the SAME top-level `task_id` AND the same `data.dispatch` tag into a
+    worktree journal; ONE scoped query (`type in {task_closed,bg_dispatch_halted}` AND `task_id==<id>` AND
+    `data.dispatch==<tag>`) returns BOTH terminals — exercising key (task_id) + tag (data.dispatch) +
+    one-location. RED-GREEN: a halt keyed only by `data.task` (the run-9 form) is MISSED by the
+    `task_id`-scoped query. Committed regression coverage:
+    `tests/test_dispatch_terminal_marker.py::test_one_query_finds_both_terminals`.
+  - **VP7 (per-dispatch correlation):** a synthetic dispatch emits its full chain
+    (`startup_protocol_completed -> task_picked -> tests_passed -> task_closed`) under ONE `session_ref`;
+    ONE filter `journal query --session <session_ref>` returns the EXACT ordered happy-path chain
+    INCLUDING the recognized terminal (`task_closed`), proving the whole lifecycle is filterable as one
+    unit by the envelope key. RED-GREEN: an event emitted under a DIFFERENT session_ref is absent from
+    the chain. Committed regression coverage:
+    `tests/test_dispatch_correlation.py::test_one_session_filter_returns_full_ordered_chain`.
+  - **VP8 (observation-loop raw fields + vocab present, / SPEC-0135):** the amended body
+    LISTS every added raw observation field — `session_started` {provider,model,effort,cores,mem_gb,
+    host_label}, `external_audit_completed` {provider,model,effort,duration_ms}, `stage_entered`
+    {ctx_pct}, `land_completed` {load1,peak_mem}, `task_closed` {class,audited,audit_passes},
+    `task_paused`/`bg_dispatch_halted` {wait_reason} — AND carries the §Normalized provider×model×effort
+    vocabulary (allowed keys + `"unknown"`/null fallback + opaque `session_config`→triple mapping + the
+    `wait_reason` enum). State-check (documentary spec, no code probe): `bin/yitc-v2 graph query SPEC-0025`
+    renders the fields + the vocabulary subsection; grep-absent of any usage/cost source-fact confirms the
+    SPEC-0135 §3 read-time-derived-cost fence holds (identity/join-keys only).
+
+cites:
+  - part-i-b-tier-split-carving-floor-wiring-first-the
+  - SPEC-0007
+  - AGENTS.md#events-jsonl-schema
+  -
+  -
+  -
+  - SPEC-0055
+  - SPEC-0056
+  - SPEC-0057
+  - SPEC-0135
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first : closing activates this proposed spec.
+proposed_by: # PROVENANCE: born by the demote task (work-first).

@@ -1,0 +1,119 @@
+# External auditor configuration — provider bindings for AGENTS.md §audit contract.
+# CHARTER §P4b: provider-neutral normative text; concrete bindings live here.
+#
+# SUBSCRIPTION-ONLY : the V2 external auditor runs ONLY via ChatGPT subscription
+# auth (<external-auditor> auth_mode=chatgpt) — NEVER an API key. _invoke_codex preflight refuses launch
+# when OPENAI_API_KEY is set or auth.json is in apikey mode (would bill per-token).
+#
+# Usage (Day 1-2 manual fallback):
+# routine: <external-auditor> exec -c "model=$ROUTINE_MODEL" - <<'EOF'... EOF (ROUTINE_MODEL = this file's
+# routine.model; read it with python3 -c "import yaml;print(yaml.safe_load(open('bin/audit-config.yaml'))['routine']['model'])" — yq is NOT installed on the host)
+# full: <external-auditor> exec - <<'EOF'... EOF (default model = full)
+#
+# Per-tier auditor selection. Each tier may set THREE knobs — the auditor is fully
+# provider-abstracted (AUDIT_PROVIDERS, CHARTER §P4b: provider bindings live here, not in handbook):
+# provider: which adapter runs the audit — `<external-auditor>` (default) or `the AI provider`.
+# model: the provider's model id (<external-auditor>: gpt-5.4 / gpt-5.4-mini; the AI provider: e.g. the AI provider-opus-4-8).
+# effort: per-invocation reasoning effort (low|medium|high|xhigh|max). Honored by BOTH adapters:
+# the the AI provider adapter passes the AI provider `--effort <lvl>`; the <external-auditor> adapter passes the
+# `-c model_reasoning_effort="<lvl>"` config-override (<external-auditor> has no native flag — the knob is
+# the CODEX_HOME `model_reasoning_effort` key, default medium). Absent `effort:` => no flag /
+# no override => the provider's own config-default (<external-auditor> stays medium, byte-identical).
+# Both routine + full stay `provider: <external-auditor>` below (the DEFAULT — unchanged). To audit cross-provider
+# (e.g. the provider-independence sweep: opus-high auditing <external-auditor> workers), point a tier at the AI provider:
+# full:
+# provider: the AI provider
+# model: the AI provider-opus-4-8
+# effort: high
+# SUBSCRIPTION-ONLY applies to the AI provider too ( mirror): the the AI provider adapter refuses launch when
+# ANTHROPIC_API_KEY / <provider-session-env> / <provider-session-env> is set (per-token billing).
+#
+# <external-auditor> binary + auth home — <external-auditor>-adapter-wide (NOT per-tier; both tiers share them).
+#
+# THIS FILE TRAVELS IN EVERY PUBLISHED RELEASE, so it must not carry any ONE machine's absolute
+# paths: an adopter inherits them and every `audit pre|post` ABORTs on a path that exists only on
+# the authoring host (measured on the v2.0.0 mirror snapshot, 2026-09-06 —). A host-literal
+# tripwire now FAILS the suite if a `/home/<user>` path reappears below
+# (tests/test_engine_code_host_path_guard.py).
+#
+# codex_binary: the <external-auditor> EXECUTABLE the governed auditor invokes. Resolved PER MACHINE, most
+# explicit first — YITC_CODEX_AUDIT_BIN > `<external-auditor>` on PATH > this key > a NAMED
+# refusal telling the operator how to bind an auditor. The KEY IS ABSENT BELOW and
+# should stay that way: an ordinary auditor-CLI install puts `<external-auditor>` on PATH, which
+# binds every machine with no configuration. For an auditor deliberately installed
+# off PATH use YITC_CODEX_AUDIT_BIN, NOT this key: a per-user path (home/<you>/...)
+# is rejected by the host-literal tripwire, and anything host-specific here is
+# inherited by every adopter. The key remains readable as a last resort, for a
+# genuinely machine-independent path (a fleet-standard /opt install).
+# An EXPLICIT binary (anything but bare "<external-auditor>") is preflighted to resolve to
+# an executable BEFORE spawn (refuse, never a silent ambient fallback — mirrors the
+# worker's YITC_CODEX_WORKER_BIN).
+# CAPABILITY NOTE: the auditor models configured below need the OFFICIAL unconfined
+# <external-auditor> (npm build, 0.142); the older third-party snap build (0.114) rejects them.
+# On this workshop `<external-auditor>` on PATH IS the unconfined 0.146.0 build.
+# codex_home: the CODEX_HOME the auditor's <external-auditor> runs under, so <external-auditor> finds the ChatGPT
+# *subscription* auth (auth.json). `~`-expanded — home-relative, never a host
+# absolute path. Env override: an already-set CODEX_HOME wins (and is used as
+# given). A configured home that DOES NOT EXIST on this machine resolves to None
+# rather than being handed to <external-auditor>: pointing <external-auditor> at a missing directory makes it
+# create a fresh empty home with no auth, failing worse than naming none. Absent or
+# non-existent => CODEX_HOME unset (<external-auditor>'s own default ~/.<external-auditor>, where a plain
+# `<external-auditor> login` puts its auth — the clean-machine route).
+# The unconfined <external-auditor> needs a working bubblewrap sandbox (`-s read-only`); host prereq bwrap +
+# /etc/apparmor.d/bwrap installed by.
+codex_home: ~/snap/<external-auditor>/current
+
+# Routine audit-pre/post — small changes, quick verdict, absorption iterations.
+# Default routine auditor = gpt-5.6-luna @ low effort — moved off gpt-5.5 by because THE
+# PROVIDER RETIRED IT: measured on this host 2026-09-07 04:00-04:20Z with bare `<external-auditor> exec` probes,
+# gpt-5.5 returns HTTP 404 "does not exist or you do not have access" on the chatgpt.com backend, so
+# every governed audit ABORTs with an empty payload (two consults did exactly that,
+# external_audit_completed 04:02:02Z / 04:03:12Z, and the worker halted). That VOIDS the premise of
+# the rollback to gpt-5.5 — a rollback target the plan no longer serves is not a fallback —
+# and AC3's 7-day convergence observation is cut short by the retirement, not by a reading.
+# Of the ids the ChatGPT plan still answers (gpt-5.4-mini, gpt-5.6-sol, gpt-5.6-luna — everything else
+# probed 400 "not supported... with a ChatGPT account"), luna and sol both caught the two seeded
+# review defects at low AND xhigh; luna answered in 7-11 s. Owner picked luna: events.jsonl#ts=
+# ("давай на 5.6 луна"). The EFFORT is unchanged (low — the bench sweet
+# spot for the high-frequency per-task path). Requires the unconfined <external-auditor> (codex_binary above).
+routine:
+  provider: <external-auditor>
+  model: gpt-5.6-luna
+  effort: low
+  use_when:
+    - audit-pre on single-task scope (< 200 lines plan)
+    - audit-post on single-task diff
+    - absorption pass verdict (max 2 per ceiling)
+
+# Full-capability — big-plan validation, architectural, coherence, multi-file.
+# Default full-tier auditor = gpt-5.6-luna @ xhigh effort — moved off gpt-5.5 by for the SAME
+# reason as the routine tier above: the ChatGPT plan retired gpt-5.5 (HTTP 404, measured 2026-09-07
+# 04:00-04:20Z), so the rollback's premise — that gpt-5.5 is available to roll back TO — is
+# false, and its AC3 7-day convergence window ends by retirement rather than by a reading. The
+# CONVERGENCE concern measured against gpt-5.6-sol is not being dismissed: luna is a different
+# model, and the plan frozen-defect-baseline-at-the-audit-loop-ceiling-d remains the structural fix
+# for that class regardless of which auditor runs. Owner picked luna: events.jsonl#ts=
+# ("давай на 5.6 луна"). The depth grounds for the xhigh EFFORT itself are
+# unchanged. Requires the unconfined <external-auditor> (codex_binary above). xhigh runs longer:
+# a CONSULT / adhoc run is capped by the INSPECTION budget AUDIT_INSPECTION_TIMEOUT_SECONDS (540 since
+# — NOT the 300s AUDIT_TIMEOUT_SECONDS, which caps the Stage-4/8 + plan-gate GATE audits), and
+# since that inspection budget is a SPEC-0193 PERFORMANCE key: raise it per machine with
+# `bin/yitc-v2 config set lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS <secs>` instead of the hand
+# YITC_AUDIT_TIMEOUT_SECONDS env dance (which spans both classes and stays GATE). On a consult, expiry
+# is now a SPEC-0200 row-0a NO-ANSWER: no round spent, no malformed count, the episode stays OPEN and
+# the same consult is simply re-runnable — so the dead end (two timeouts ending the episode)
+# is gone. Alternatives on repeated timeouts: raise the budget, downgrade effort, or narrow the scope.
+full:
+  provider: <external-auditor>
+  model: gpt-5.6-luna
+  effort: xhigh
+  use_when:
+    - big-plan validation (> 200 lines, foundational decisions)
+    - architectural / coherence audits
+    - multi-task scope OR cross-project review
+    - when routine model context window insufficient
+
+# Convention source: owner-confirmed 2026-05-26 ( Build session).
+# Prior art: MEMORY.md feedback <external-auditor>-full-model-for-planning.
+# <external-auditor> CLI on ChatGPT account: o3-mini/o4-mini/gpt-4.1-mini NOT supported;
+# gpt-5.4-mini IS supported as of 2026-05-26.

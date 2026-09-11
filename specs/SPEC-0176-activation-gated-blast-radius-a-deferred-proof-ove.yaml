@@ -1,0 +1,115 @@
+id: SPEC-0176
+title: 'Activation-gated blast radius — a deferred-proof overlay for scope fidelity, never a waiver of it'
+
+status: active
+
+created_at:
+
+travels: ~
+
+consumed: false
+
+extension: ~
+
+implements: # — the SHIPPED control-point anchors. The authoring-time
+                               # placeholders (`bin/lib/task.py#cmd_audit_post`,
+                               # `bin/yitc-v2#_require_scope_fidelity`) named symbols that do not
+                               # exist and never did: scope fidelity is an auditor-LENS judgement,
+                               # not a coded gate, so there is no `_require_scope_fidelity` to point
+                               # at. Re-pointed at what actually carries this rule.
+  - bin/lib/cli.py#_require_activation_gated_radius
+  - bin/lib/cli.py#_activation_gated_specs
+  - bin/lib/task.py#_activation_gated_radius_declaration_error
+  - bin/lib/audit.py#cmd_audit
+
+body: |
+  ## Scenario
+
+  A card activates a mandatory concern. Because the concern registry answers only for what is
+  ALREADY live, the set of fixtures that activation touches cannot be seen until the flip happens —
+  and the flip is performed by the closure of that very card. So the author cannot write an
+  `expected_touch` forecast, audit-post faults the card for the missing forecast, and the argument
+  that follows is about a prediction nobody could have made.
+
+  With this overlay the author declares the condition UP FRONT, ships, and then supplies a MEASURED
+  reconciliation naming the fixtures the activation actually touched. The check still runs. What
+  moves is WHEN its evidence becomes available — not whether it is owed.
+
+  ## Internal
+
+  **Rule 1 — this is a member of the deferred-proof overlay family, not a new rule about scope
+  fidelity.** It sits on the same axis as `--event-emit-only`, `--serve-deploy`, `--host-config`,
+  `--land-emitted-event` and `--post-ship-observation` (SPEC-0036): each names a ship whose proof
+  legitimately cannot exist at the pre-land, diff-only audit-post. Adding a sixth member reuses an
+  existing analog (CHARTER §P1 F1); a bespoke scope-fidelity exception was REJECTED as
+  over-design by the external consult of 2026-08-13
+  (`decisions/scope-fidelity-unknowable-forecast-audit-adhoc.yaml`, YELLOW finding 2).
+
+  **Rule 2 — eligibility is an OBJECTIVE STRUCTURAL PREDICATE, never a self-declaration.** The
+  card qualifies only if it PERFORMS a concern activation whose affected fixtures are hidden by
+  live-active-only gating. A declaration alone is not falsifiable and would let a card whose radius
+  WAS knowable dress itself as unknowable — the consult's YELLOW finding 1, which corrected the
+  controller's original proposal. The declaration is the ADMISSION TICKET (it must be present
+  before activation, so the exception can never be claimed retroactively); the predicate is the
+  GATE.
+
+  **Rule 3 — the measured reconciliation is MANDATORY and is verified, not accepted.** Audit-post
+  checks the reconciliation against the ACTUAL post-activation diff and requires it to list the
+  fixtures genuinely touched. A reconciliation that is absent, unmeasured, or unverifiable against
+  the diff fails the gate exactly as a missing forecast does today.
+
+  **Rule 4 — the BOUNDARY (from the consult, carried verbatim in substance).** Activation-gated
+  must remain an auditable structural condition, declared before activation, UNAVAILABLE to
+  ordinary knowable-radius cards, and always followed by the measured reconciliation. This overlay
+  NEVER waives scope fidelity. If a future reader can use it to skip a forecast they could have
+  written, the rule has been broken, not extended.
+
+  **Rule 5 — the stronger fix is named, not foreclosed.** The consult ranked a registry
+  dry-run/projection query ("what WOULD activate") ABOVE this overlay in principle, because it
+  makes the forecast writable and leaves audit-post untouched entirely. It is not adopted here
+  because it must model hypothetical activation semantics correctly and would add a new query
+  surface. If the registry ever gains that projection cheaply, this overlay becomes retirable —
+  record that as its retirement trigger rather than treating it as permanent.
+
+  ## Rationale
+
+  Real incident: burned 4 audit passes, 2 owner-reset authorizations and one full
+  convergence consult arguing about the quality of a touched-file forecast that could not have
+  existed, because the 20-fixture blast radius of the activation was invisible until its own
+  closure performed the flip. The cost is not local — every future mandatory-concern activation
+  pays it again. A sibling followup (fu_0357d26ef695) records a second consequence of the same
+  live-active-only gating.
+
+  ## Verification
+
+  - A card WITHOUT the up-front declaration that omits an `expected_touch` forecast still fails
+    audit-post scope fidelity, unchanged (the ordinary path is untouched).
+  - A card WITH the declaration but WITHOUT a measured reconciliation fails.
+  - A card WITH the declaration whose reconciliation does not match the actual post-activation
+    diff fails.
+  - A card that does NOT perform an activation hidden by live-active-only gating is refused the
+    overlay even when it declares it (rule 2 — the predicate, not the claim, is the gate).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - SPEC-0036
+  - SPEC-0046
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: ~
+binding: # — CODE-ENFORCED residency: this rule is not delivered as a
+                               # read at a stage-entry or floor; it is carried entirely by the
+                               # fail-closed guard `_require_activation_gated_radius`, which REFUSES
+                               # the `audit post --activation-gated-radius` entry on any of its six
+                               # axes. Nothing for a session to read up front — the mechanism holds it.
+  - code-enforced
+
+init_concern: ~
+implements_signature:
+  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0
+  bin/lib/cli.py#_activation_gated_specs: f34498993c6613edcefb3f7e387fb0447b76e62135e8099d7a233d430596caaf
+  bin/lib/cli.py#_require_activation_gated_radius: 52c55fd9fcc6e781063b904d6b8154b72f5697bb24155fd06ceeda7c36499e80
+  bin/lib/task.py#_activation_gated_radius_declaration_error: 137fdd5ec749ed15b6a926c93b7eae3fa2174fc674982019515698ef34d2c2e6

@@ -1,0 +1,272 @@
+id: SPEC-0002
+title: events.jsonl entry schema — envelope, provenance, size cap, ordering
+status: active
+created_at: '2026-05-28'
+consumed: false
+implements: # durable anchors — file#symbol, build-resolved
+  - bin/lib/cli.py#SESSION_REF_ENV_VARS # session-start bootstrap / forensic source_kind carrier
+                                       # (NOT the keyer order — SPEC-0137 Rule 4/8b)
+  - bin/lib/cli.py#_resolve_session_ref # the fail-closed governance KEYER (v2-owned rediscovery)
+  - bin/lib/cli.py#_append_event # envelope + provenance + append write
+  - bin/lib/cli.py#MAX_EVENT_BYTES # per-line size cap
+binding:
+  - code-enforced # : explicit code-enforced residency token (implements: IS the delivery)
+
+body: |
+  ## Internal
+
+  `events.jsonl` is the single append-only governance journal (one JSON object per
+  line, JSON Lines). Every entry is written through the single emission path
+  `_append_event` (CHARTER §Principle 5). Each entry carries this envelope:
+
+      {
+        "ts": "<ISO 8601 UTC>", # required — defaults to _utc_now_iso; the
+                                                # adapter MAY supply the source-entry (utterance) ts
+        "type": "<snake_case event>", # required
+        "task_id": "<T-/D-/SPEC-/phase- id>",# optional — present when tied to an artifact
+        "agent": "main|audit-subprocess|cron|manual", # writer identity (provenance)
+        "session_ref": "<opaque adapter-defined>", # this writer's session id
+        "spawned_by": "<parent session_ref>|null", # subprocess writers; null otherwise
+        "source_ref": "<opaque source-log locator>|null", # supplied by the parser/adapter, OR by an
+                                                            # explicit CLI locator; null when neither did
+        "data": {..., "source": "yitc-v2-cli" } # type-specific payload + source tag
+      }
+
+  Provenance fields (`agent` / `session_ref` / `spawned_by` / `source_ref`) are
+  envelope-level siblings of `ts`/`type`/`task_id` — writer-origin metadata, distinct
+  from the semantic `data` payload. Auto-filled by `_append_event` (
+  provenance_fields_schema). `agent` = writer identity (default `main`); `spawned_by`
+  is reserved for genuine subprocess/cron writers.
+
+  **`source_ref` — supplied, or honestly null; never dropped (X-1174).** It is an
+  OPAQUE locator naming where this row CAME FROM, and it has TWO legitimate writers: the
+  parser/adapter, which passes the transcript locator it captured; and a CALLER of the `event`
+  verb, which may name one explicitly. An explicitly supplied locator PERSISTS for ANY event
+  type, or the emit REFUSES naming the reason — the third outcome, accepting the value and
+  storing null, is not admissible on this field. `null` therefore MEANS «no writer supplied
+  one», never «one was supplied and lost». This is what makes the field CITABLE: the
+  load-bearing citation form `events.jsonl#source_ref=<ref>` (CHARTER §Principle 2)
+  can only resolve against a row that actually carries the ref, and a settlement can only be
+  given a UNIQUE locator when several rows share a second. The refusal is a property of the
+  emitting USE SITE, not of `_append_event`, which persists faithfully whatever it is given
+  (lessons/fail-closed-belongs-to-the-reader-not-the-parser.md). One type is stricter still:
+  an `owner_directive` is AUTHORITY-class, so its locator is additionally derived-if-omitted
+  and must OPEN on disk (SPEC-0121 refusal ground 1 / / X-0447).
+
+  ### session_ref resolution — two roles (SPEC-0137)
+
+  Resolution is **v2-OWNED REDISCOVERY**, not an env-carrier read: no PROVIDER environment
+  variable is consulted at resolution at all (SPEC-0137 Rule 4). Two DISTINCT resolvers serve
+  two DISTINCT roles — conflating them is the error this section exists to prevent:
+
+  **(1) The governance KEYER — `_resolve_session_ref` — FAIL-CLOSED.** Its result KEYS a
+  governance decision (the read-gate anchor/seed-receipt match, the worktree-stamp own-check,
+  journal-sync keying, aspect-audit), so «who am I, provably» must be bounded: an unbacked or
+  ambiguous identity FAILS CLOSED, never guesses. It tries, IN ORDER (SPEC-0137 Rule 2 — the
+  record's own-id match IS the identity; the other selectors only NARROW which record):
+
+      (0) the in-process `_FROZEN_SESSION_REF` memo — a same-process short-circuit, not a
+             selector: it only replays whatever (1a)/(1b)/(2)/(3) already decided once
+      (1a) the frozen worker contract `YITC_EXPECTED_SESSION_REF` (launcher-assigned at
+             dispatch, immutable, self-checked —); present-but-blank ABORTS, never
+             falls through. EXCLUSIVE while set: a worker box NEVER reaches the (hook)/(1b)/
+             (2)/(3) rediscovery legs below, which run only when this contract var is ABSENT
+      (hook) isolated-verify scenario ref (`YITC_ISOLATED_VERIFY`) — Rule 6, so a hermetic
+             `land` verify box owns its OWN identity, never the launcher's leaked one. It wins
+             before any RECORD probe, but sits INSIDE rediscovery — so it does NOT override the
+             (1a) worker contract ( exclusivity); a box carrying BOTH keys off (1a)
+      (1b) the BOUNDED v2-own carried self-ref `YITC_SESSION_REF` — honored ONLY when BACKED
+             by live v2-owned evidence (a live runtime record for that id, OR a current-epoch
+             `session_started`/seed-receipt anchor for it). An UNBACKED carry (stale / foreign /
+             typo) does NOT win — it falls through. Carrying a v2-MINTED, v2-NAMED uuid is
+             provider-NEUTRAL, not the coupling Rule 4 removes
+      (2) the worktree gitdir stamp — a per-instance locus by construction
+      (3) the sole LIVE runtime record for this locus, after the MANDATORY dead-PID prune
+             (signal-0 liveness, Rule 2.4) that runs BEFORE any ambiguity is declared
+
+  **Rule-5 fail-closed refusal.** Multiple live records for one locus and no distinct selector →
+  refuse (`ambiguous`). No backed carry and zero record match → refuse (`absent`). Both `_die`
+  with a diagnostic NAMING the enumerated selectors tried. The keyer NEVER guesses and NEVER
+  cross-credits a read-gate receipt. No inference, no process-tree walk, no mtime fallback.
+
+  **(2) The event-envelope STAMPER — `_resolve_session_ref_for_envelope` — BEST-EFFORT.** This is
+  `_append_event`'s DEFAULT: an emit is append-only provenance that must NEVER be lost or blocked,
+  so it NEVER dies. Precedence: in-process frozen snapshot → worker `expected` → the RAW carried
+  self-ref (honored even when UNBACKED — a stamp is provenance, not a keying decision) → the
+  non-dying rediscovery result → the `unresolved` sentinel. It is provider-free too, so a stamped
+  `session_ref` is at worst a v2-own best-effort value or `unresolved`, NEVER a provider id. A
+  best-effort stamp is explicitly NON-AUTHORITATIVE: no governance consumer keys off a
+  `session_ref` read back FROM an event line (the keying consumers resolve LIVE via the keyer), so
+  it can never become a parallel identity path. **Gate-bearing emits are the exception that proves
+  the rule:** an emit WRITING read-gate evidence (the `session_started` anchor, the seed-read /
+  `--help` fetch receipts) passes an EXPLICIT strict/bootstrap ref, so the evidence the keyer later
+  matches is written under the authoritative id.
+
+  **What the registry still does (narrowed role).** `SESSION_IDENTITY_REGISTRY` and
+  `_resolve_session_ref_with_source` are NO LONGER on the keying path. They serve the `session start`
+  BOOTSTRAP (Rule 1: resolve an explicit arg / worker `expected` / carried self-ref, else MINT a fresh
+  uuid — the sole verb exempt from needing a pre-existing record, because it WRITES one) and the
+   forensic `source_kind`. Post- the registry's `env` arm holds ONLY the provider-neutral
+  `YITC_SESSION_REF`; an unmodeled source CLASS is still rejected (`_assert_modeled_source_kind`).
+  The PROVIDER carriers (`<provider-session-env>` / `CODEX_THREAD_ID`) survive in ONE separate role —
+  the transcript-join / context-epoch key (`PROVIDER_TRANSCRIPT_DESCRIPTORS`) — and are NEVER
+  an identity selector (Rule 8b). This is what closed X-0158: a missed carry can no longer land a
+  read-gate receipt under a drifting provider key; it degrades to the record, or fails closed.
+
+  ### Append-only invariant
+
+  Entries are appended via `open(path, "a")` (O_APPEND) **under an advisory exclusive
+  `fcntl.flock` held around the write**. O_APPEND alone is atomic only for writes
+  < PIPE_BUF (~4 KiB on Linux); the per-entry byte cap below keeps the common case within
+  that bound, but it is NOT enforced on arbitrary `event --data` payloads, so a > PIPE_BUF
+  line is reachable. The flock makes the append atomic **regardless of line size** — it
+  serializes concurrent writers contending on the same journal file, so a large line can no
+  longer interleave or be silently lost (the structural close of the
+  `startup-event-emit-silent-loss-concurrent-main-checkout` nonconformity). Advisory +
+  process-local is sufficient because every writer is `bin/yitc-v2` (same idiom as
+  `_id_alloc_lock` / `_with_repo_lock`); cross-worktree writers each target their own
+  `events.jsonl`, and the union-merge (below) folds those at land. **E-0021 extension:** that advisory lock is now a STABLE *sidecar* (kept OUTSIDE the working tree (system-temp, keyed by the journal's RESOLVED absolute path), O_CREAT-only — never truncated/renamed so its inode is stable (unlike the truncate-at-open data fd) and leaving zero tree footprint), and `land`'s pre-ff read-modify-write of `main`'s journal takes the SAME sidecar lock as `append_event` — closing the window where a direct append landing between land's re-fold READ and its ff WRITE was silently overwritten (`event-emit-silent-loss-concurrent-main-checkout`). Never rewritten in place;
+  `tempfile`+`os.replace` is INAPPROPRIATE here (it would erase history — see
+  patterns/atomic-state-file-writes.md §When NOT to apply). Historical entries remain valid
+  forever; consumers MUST ignore unknown event types and absent fields gracefully ( F5
+  append-only contract).
+
+  ### Size cap per entry
+
+  - Hard cap: ≤ 3500 bytes per JSONL line (POSIX PIPE_BUF 4096 − 500 byte safety margin)
+    — a defence-in-depth bound that keeps a single append within the O_APPEND atomicity
+    window; append atomicity itself no longer DEPENDS on it (the flock above guarantees it
+    for any size). The cap is enforced only on `text`-bearing rows.
+  - Verbatim `text` field (parser-captured rows): ≤ 3000 chars.
+  - Overflow shape: store first 1500 + last 500 chars + a middle elision marker, plus
+    `truncated: true`, `original_size_chars: <N>`, and `sha256: <hash of full text>`
+    for future re-verification.
+
+  ### Append ordering (per sync batch — atomic recovery path)
+
+  1. Append new journal rows to events.jsonl (one O_APPEND syscall per row, < PIPE_BUF).
+  2. fsync the events.jsonl fd.
+  3. Atomic temp+rename update of the per-session checkpoint file (SPEC-0003).
+
+  Crash between 1–2 or 2–3 → next sync re-reads from the old checkpoint; `source_ref`
+  dedup skips already-appended rows. No silent data loss.
+
+  ### Concurrent-merge chronology
+
+  Parallel writing sessions each commit in their own worktree branch, then
+  `land` to main. `events.jsonl` carries `.gitattributes merge=union`: the built-in git
+  `union` driver keeps BOTH sides of an overlapping append-hunk instead of raising a
+  conflict. Consequences (binding on all consumers):
+
+  - **Chronology is `ts`, NOT physical line order.** Union interleaves each branch's block
+    as-is; a later-committed row may sit physically above an earlier one. Consumers MUST
+    order by the `ts` field. Physical adjacency ("the line immediately after X") is NOT a
+    valid probe or invariant — any such assumption is a bug (the one historical instance,
+     AC, was reworded to a `ts`-ordering claim).
+  - **Union does not deduplicate.** When divergent branch histories place a byte-identical
+    line inside two CONFLICTING hunks at a non-alignable position (e.g. A=[X,Y], B=[Z,X] →
+    union yields [X,Y,Z,X], X twice — the merge cannot factor X as a common prefix/suffix),
+    the union driver emits that line from BOTH sides → a duplicate row. (Alignable cases —
+    identical appends at the same spot, or a shared row at a common prefix/suffix like
+    A=[X,Y]/B=[X,Z] — are coalesced as one edit and do NOT duplicate.) In practice
+    provenance-stamped events (distinct `session_ref`/`ts`) almost never byte-collide, so
+    the dedup is a cheap idempotent GUARD, not a hot path; union's primary value is
+    conflict-free concurrent appends.
+  - **Land-time dedup (defined here; implemented by `land`; key refined).**
+    After the union merge, `land` removes duplicate rows by CANONICAL-OBJECT identity — the
+    JSON object with sorted keys (`json.dumps(loads(line), sort_keys=True)`), order-preserving
+    (keep first occurrence). This is a strict superset of byte-identity: it also collapses two
+    serializations of the SAME event (key-order / whitespace variance a union or re-emit may
+    introduce), while STILL never merging two genuinely-distinct events — any distinct field
+    (`ts` / `type` / `task_id` / payload) yields a distinct key, so it is a full-OBJECT match,
+    NOT a field subset, and cannot drop a real event. A non-JSON row falls back to its raw line
+    (deduped byte-wise, never folded into another event). This is a derived, idempotent cleanup
+    — not a rewrite of history (the surviving rows are unchanged).
+
+  ### Rotation policy — RE-HOMED to SPEC-0190
+
+  **This spec no longer carries a rotation rule. The single normative home is SPEC-0190
+  §Rotation policy** (`bin/yitc-v2 graph query SPEC-0190`), which carries the trigger
+  conditions, the disk-volume reopen axis, the recorded firings and affirmations, and the
+  machine-readable standing verdict (`ROTATION_STANDING_VERDICT` / `ROTATION_VERDICT_AFFIRMED_MB`
+  / `ROTATION_VERDICT_REREVIEW_MB`) that `bin/lib/views.py#_standing_rotation_defer` reads.
+
+  Re-homed by, as a MOVE and a pointer — NOT a supersession: this spec spans the
+  envelope, provenance, the per-line size cap and ordering, none of which the re-home touches,
+  so superseding it to relocate one surface would be the wrong instrument (the same
+  stable-surface split SPEC-0124 took out of SPEC-0036). Nothing else in this spec moved.
+
+  **What stays HERE and is referenced from the new home: §Violations below** — it still forbids
+  a second event-log file alongside events.jsonl and any in-place rewrite of it (CHARTER
+  §Principle 5, one journal), and so still reserves PHYSICAL rotation to explicit owner
+  approval. SPEC-0190 §Rotation policy cites it rather than restating it, so the prohibition has
+  one home too.
+
+  ### Orphan-tail recovery
+
+  Bounded lag is EXPLICIT, not papered over. A session that ends without a final CLI
+  call leaves directives in the session-log tail un-materialized until the next sync.
+  Recovery verb: `bin/yitc-v2 journal sync --session-ref <id>` (ships in),
+  invoked manually for forensic recovery. Cross-session auto-recovery is DEFERRED
+  (reopen only on an incident demonstrating a governance gap — CHARTER §Principle 1 F4).
+
+  ### Violations
+
+  Any of:
+  - Adding a second event-log file alongside events.jsonl (CHARTER §Principle 5)
+  - Rewriting events.jsonl in place (breaks append-only invariant)
+  - Emitting chat-class events (owner_directive / instruction_injection / slash_command)
+    from an AI-discretion CLI path instead of the parser/adapter
+  - Bypassing fail-closed session_ref resolution (silent fallback)
+
+  → anti-complexity filter applies; requires owner approval + a D-XXXX decision.
+
+  ## Rationale
+
+  The single emission path (`_append_event`) makes the envelope drift-impossible (one
+  writer — CHARTER §Principle 5).
+
+  > **TEST-ONLY `YITC_EVENTS_SINK` is IMMATERIAL to this contract ( freshness review).**
+  > `_append_event` gained an env-gated write-sink quarantine: when the TEST-ONLY env
+  > `YITC_EVENTS_SINK` is set, ALL appends divert to the named sink (child-process scoping so
+  > sandbox tests cannot pollute the host journal). With the env unset — every production
+  > invocation — behavior is exactly as specified here: same single path, same envelope, same cap. Append-only via O_APPEND preserves history forever;
+  `tempfile`+`os.replace` is inappropriate here because it would erase that history. The
+  append is held under an advisory exclusive flock, so it is atomic for any line
+  size; the per-line byte cap (< PIPE_BUF) is a defence-in-depth bound, no longer the sole
+  guarantor of atomicity (it was a hole for un-capped `event --data` payloads — the
+  silent-loss nonconformity). The fail-closed session_ref KEYER
+  refuses to guess a writer's identity (no silent fallback would mis-attribute a governance
+  decision); the event-envelope STAMPER is best-effort by design and never blocks an emit
+  (§session_ref resolution — two roles). For concurrent writers, `merge=union` gives conflict-free appends ordered
+  by `ts` (physical line order is not meaningful), and land-time canonical-object dedup
+   is a cheap idempotent guard against duplicate rows — robust to serialization
+  variance, never merging two genuinely-distinct events.
+
+  ## Verification
+
+  - A new event written via `bin/yitc-v2 event` has non-empty `session_ref` + `agent`.
+  - **Keyer fails closed only on genuine absence/ambiguity** (SPEC-0137 Rule 5): with no backed
+    carry, no worktree stamp and no live runtime record for the locus, `_resolve_session_ref`
+    exits non-zero naming the selectors it tried; with MULTIPLE live records and no distinct
+    selector it exits non-zero as `ambiguous`. *(Unsetting the PROVIDER vars is NOT this probe:
+    they are never read at resolution, so a stamped worktree still resolves via selector 2.)*
+  - **Envelope stamper never blocks an emit:** `_resolve_session_ref_for_envelope` returns a
+    v2-own value or the `unresolved` sentinel — it never `_die`s, so an append is never lost.
+  - **Rule-4 grep probe:** no PROVIDER env-var NAME (`<provider-session-env>` / `CODEX_THREAD_ID`)
+    appears on the `_resolve_session_ref` → `_try_rediscover_session_ref` call path.
+  - `bin/yitc-v2 graph build` parses every events.jsonl line without error.
+  - Legacy rows lacking provenance fields still parse (json.loads succeeds); readers
+    apply documented defaults `agent=main`, `source_ref=null`.
+
+cites:
+  - decisions/-own-journal-governance-sot.yaml
+  - SPEC-0003
+  - CHARTER.md#principle-5
+  - decisions/-event-types-catalog-extension.yaml
+  - patterns/atomic-state-file-writes.md
+implements_signature:
+  bin/lib/cli.py#MAX_EVENT_BYTES: c5a4738563da50a1f8909155e6979cf521660c6a46f6c1f30f47986c9eda0998
+  bin/lib/cli.py#SESSION_REF_ENV_VARS: cdc61f80a7f5d4a56f6abe0963af2ddf497b2a64eae6c4a55067e51fb9c681eb
+  bin/lib/cli.py#_append_event: ebd87612256adbebbdabe953540ceb55db39201cd2f815395ae7236606bc7f25
+  bin/lib/cli.py#_resolve_session_ref: a1ff02077dff58b2b28478d852fe4474acea893971edf5e460d62f55249d35e7

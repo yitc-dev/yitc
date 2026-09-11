@@ -1,0 +1,116 @@
+id: SPEC-0064
+title: Inert-path classifier — observability-based no-verify classification of a changed-path set
+
+status: active
+
+created_at:
+
+consumed: false # documentary/contract spec — code calls the classifier helper; it does
+                               # not read a governing SCALAR param from this spec body.
+
+implements: [bin/lib/worktree.py#_classify_inert_paths] # design-phase draft ( B5): the code anchor — the single
+                               # classifier helper in bin/yitc-v2 — is BORN by lever-B's implementing
+                               # task and recorded on `implements:` at activation. Named here in §Internal.
+
+body: |
+  ## Scenario
+
+  Land's verification (the test suite + the host-leak canary) is expensive (~96s, ~the whole land).
+  Some changes that ride a land CANNOT alter the verification's outcome, because the verification
+  environment never OBSERVES them. The classifier answers one question over a set of changed paths —
+  **"is every path INERT to what land's verification can observe?"** — so callers can safely skip
+  verification work that provably cannot change its verdict. It is a pure classification primitive: it
+  decides nothing about WHEN to skip (that is each caller's rule); it only labels a path-set.
+
+  ## Internal
+
+  THE INERT-PATH CLASSIFIER — one shared authority, consumed by every land-verification skip decision
+  (the inert-retry re-verify skip; the conditional host-leak canary). One helper, one reason taxonomy,
+  one evaluation point — callers MUST NOT re-encode "inert".
+
+  ### 1. Definition (observability, not a path whitelist by convenience)
+  A path is **INERT** iff a change confined to it cannot alter the outcome of land's verification.
+  The verification environment OBSERVES: which test files exist (test discovery); the code the tests
+  import and execute (`bin/**`); env / config the run reads (e.g. `bin/*-config.yaml`); generated
+  fixtures; repo-root behaviour; and the host-leak canary's clean-checkout shape. A change to anything
+  in that observable set is **OBSERVABLE** (NOT inert).
+
+  ### 2. The fail-closed allowlist (the operational rule)
+  A changed-path set is classified **INERT only if EVERY path is in the proven-inert allowlist**;
+  ANY path outside it makes the whole set **OBSERVABLE**. Proven-inert allowlist:
+  `tasks/** · decisions/** · plans/** · ideas/** · errors/** · events.jsonl · graph/**`.
+  (`errors/**` added by trial run 1 — the E-XXXX case-files are artifact-data the suite isolates in
+  tempdirs exactly like `decisions/`, proven by the tests/ sweep; see §5.)
+  Everything else is OBSERVABLE — explicitly including `bin/** · tests/** · specs/** · patterns/** ·
+  top-level *.md · _template.yaml · repo-root config/build files · any unrecognised or new path`.
+  (`patterns/**` was a trial-1 candidate — trial run 2 DISPROVED inertness: several tests ASSERT on
+  the REAL `patterns/*.md` content — `test_decomposition_ordering_rule.py` reads
+  `patterns/plan-lifecycle.md` + `patterns/big-plan-checklist.md`; `test_t0393` reads
+  `patterns/event-emit-only-audit-post.md` — so a `patterns/` change CAN alter a verify verdict.
+  CORRECTLY OBSERVABLE. The contrast with `errors/`: no test asserts real `errors/` content.)
+  **Fail-closed:** an unknown/new path is OBSERVABLE by default; widening the allowlist requires a
+  separate proof that the added class is unobserved (a spec change), never an ad-hoc exception.
+
+  ### 3. Evaluation point — the FINAL merged tree, measured against the base it will ff onto
+  The classifier is ALWAYS evaluated on the diff of the **final merged tree about to fast-forward
+  `main`** — concretely `merged_base..HEAD`, where `merged_base` is the `main` tip THIS attempt
+  merged. So the classified set is the **landing branch's OWN delta, the one the ff is about to
+  apply** on top of that tip. Two things it is NOT: never an initial branch diff, and never the set
+  of paths the re-merge BROUGHT IN from newer `main` — content that arrived with `main` is present
+  in both `merged_base` and `HEAD`, so it cancels out of this diff by construction. (Both consumers
+  evaluate this same point: SPEC-0065 for the inert-retry re-verify skip, SPEC-0066 §2 for the
+  conditional canary.)
+  Under concurrency a land re-merges newer `main` on each retry, which MOVES `merged_base` — so the
+  delta is RECOMPUTED against the CURRENT base on every attempt, never carried over from an earlier
+  one. That recomputation is what keeps the classification honest: the base changed, and resolving
+  the branch against that newer base can put observable content into the branch's own delta that an
+  earlier attempt's evaluation did not contain.
+
+  ### 4. One implementation authority
+  Exactly ONE helper computes the classification and returns a single result shape — a verdict
+  (`inert` | `observable`) plus a reason (the offending path-class when observable). Every caller
+  consumes THAT helper's output; no caller re-derives "inert" from its own path test (the drift the
+  one-authority rule forbids).
+
+  ### 5. Why the allowlist members are inert (interpreting note, not the rule)
+  `tasks/ decisions/ plans/ ideas/ errors/` are artifact YAML/markdown the suite never imports as code,
+  and tests run in process-isolated tempdir git repos that do not read the real checkout's artifact
+  dirs (the trial-1 tests/ sweep confirmed every `errors/` reference in tests is a tempdir fixture —
+  test_t0246: "…errors/… at an empty tmp dir, so the build NEVER opens" the real one);
+  `events.jsonl` is append-only journal data; `graph/**` is derived (land rebuilds it). So a change
+  confined to them changes nothing the suite or canary executes or observes. `specs/ patterns/ *.md`
+  are EXCLUDED on purpose — they are not proven unobserved (a spec/pattern may be read by a code path a
+  test exercises), so the fail-closed rule keeps them OBSERVABLE.
+
+  ## Parameters
+
+  The proven-inert allowlist (§2) is the governing set. It is a code constant in the classifier helper,
+  NOT a runtime/config param; changing it is a normative spec change (§2 fail-closed clause).
+
+  ## Rationale
+
+  Land median ≈ 96s ≈ the whole land; worst-case 457s comes from re-running full verify on concurrency
+  retries; ~79% of real ship commits touch only the inert allowlist (2026-06-09 telemetry, plan
+  `speed-up-land-under-concurrency-inert-retry-re-ver`). The observability framing + the exclusion of
+  `specs/`/`*.md` are the load-bearing safety conditions established by the external consults
+  (`decisions/land-canary-conditional-audit-adhoc.yaml`) + the plan-check (the deliberation lives in
+  the plan, per SPEC-0005 rule 3).
+
+  ## Verification
+
+  Unit: the classifier returns `inert` for a path-set drawn only from the allowlist; `observable`
+  (with the offending class) for any set containing a `bin/**`/`tests/**`/`specs/**`/`*.md`/unknown
+  path; evaluated on a constructed final-merged-tree delta (not a branch diff). Adoption: both
+  consumers (lever-B re-verify skip; the conditional canary) call the SAME helper — provable by a
+  single-authority test asserting one code path produces both decisions.
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0041
+  - speed-up-land-under-concurrency-inert-retry-re-ver
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
+binding: [code-enforced]

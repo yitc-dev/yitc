@@ -1,0 +1,1003 @@
+# yitc-ops.yaml — this project's cross-cutting OPS contract carrier (SPEC-0093).
+# ONE file, one top-level SECTION per concern. Each section is DECLARE-OR-WAIVE, fail-closed:
+# either its section-appropriate declaration OR `waiver: { reason: <text> }`. A seeded section left
+# UNANSWERED (neither) is an init/sweep ERROR — never a silent skip. The kernel owns each section's
+# SHAPE; this project owns the VALUES. The carrier stores DECLARED config only, never a computed status.
+#
+# Slice-1 LIVE sections (read by the `deploy` verb, SPEC-0094):
+# deploy: command: <cmd to deploy this project> | waiver: {reason: <why>}
+# ↳ if `command:` is a hand-runnable deploy.sh, EMBED the governed-deploy guard at its TOP so a raw
+# hand-run is REFUSED (it would skip the class-gate, the Class-C1 pg_dump + deploy_completed — SPEC-0094 §1).
+# Get the exact snippet: `__YITC_CLI__ deploy --print-guard`.
+# rollback: command: <cmd to roll back a deploy> | waiver: {reason: <why>}
+# live_probe: live_base_url: <url> + dialect | waiver: {reason: <why>}
+# (The per-CHANGE probe assertion lives on the task YAML, not here.)
+#
+# deploy.policy SUBFIELD (SPEC-0097) — the deploy-AUTONOMY stance (the WHEN of the deploy concern, so a
+# SUBFIELD of deploy:, NOT a new top-level section — SPEC-0093 rule 1 honored). Declare-or-waive, fail-
+# closed BOTH ways: declare `classes:` (the per-class commands/thresholds that opt INTO autonomous
+# deploys; the kernel owns the A/S/C1/C2 vocabulary, this project owns the VALUES) OR `waiver: {reason}`
+# (owner-gated every deploy, the pre-policy default — NO autonomous path). Born WAIVED. The deploy-verb
+# gate that READS this stance is wired separately (SPEC-0097 §5, its own task) — the carrier only seeds
+# + sweeps the stance, fail-closed.
+#
+# security: SECTION (SPEC-0093 rule 8, pairs with the contract SPEC-0098) — the project's security
+# live-probes (named read-only property assertions a Class-S deploy binds). DECLARE a `probes:` list
+# (each entry: property + assertion + url) OR WAIVE. The security waiver is STRICT (rule 6 instance, NOT
+# a bare reason): it REQUIRES reason + compensating_control + a real-ISO-date expiry — fail-closed. Born
+# WAIVED with the kernel's always-on security baseline as the compensating control + a placeholder review
+# date the owner replaces. `probes:`+`waiver:` together is a contradiction (ERROR). The live-probe
+# SEMANTICS + events are owned by SPEC-0098 — this carrier owns only the section SHAPE.
+#
+# ui: SECTION (SPEC-0093 rule 9, X-0050) — the project's UI baseline: DECLARE `baseline: <design-system>`
+# (optional styleguide/tokens/lint/archetype) OR WAIVE (a LOOSE bare reason — a no-UI project). Pure
+# declared config (rule 7), no paired contract spec.
+# tests: SECTION (SPEC-0093 rule 10, X-0053) — the project's test class×moment TAXONOMY: DECLARE a
+# `classes:` list (each {class, moment}, optional command) OR WAIVE (a LOOSE bare reason). It is the
+# taxonomy INVENTORY, NOT the land-verify gate — verify is single-home in the carrier `verify.layers`
+# (rule 5/16). `baseline:`/`classes:` + `waiver:` together is a contradiction (ERROR).
+# startup_checks: SECTION (SPEC-0152 rule 17, X-0191) — OPTIONAL, report-only project startup checks.
+# DECLARE a `startup_checks:` list, each entry { label, command, detail }: `command` runs cheaply at
+# each session-start / land seam and a NON-ZERO exit means the check FLAGS (something to look at); the
+# declared checks are AGGREGATED into ONE report-only line (count + `label (detail)`), appended to the
+# SPEC-0119 debt echo — SUPPRESSED-WHEN-CLEAN, never a gate. OPT-IN like the `extensions`/`coverage`
+# sections: ABSENT = no checks (NOT swept, never fail-closed). See the commented example at file end.
+
+deploy:
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no deploy command yet; replace with `command: <cmd>` once a deploy exists."
+  policy:
+    # Deploy-AUTONOMY stance (SPEC-0097). Born WAIVED → this project stays owner-gated every deploy
+    # (never auto-granted). A RECOMMENDED A/S/C1/C2 template sits below under `recommended:` as a
+    # STARTING POINT — it is INERT (the deploy gate reads only `policy.classes`, so `recommended:` grants
+    # NO autonomy). To opt in: review the template, TUNE each class's per-project VALUES (the commands /
+    # thresholds — you own the VALUES, the kernel owns the A/S/C1/C2 vocabulary + escalation semantics),
+    # then PROMOTE it by renaming `recommended:` → `classes:` and removing this `waiver:`.
+    waiver:
+      reason: "Initialized via `bin/yitc-v2 init` — no deploy-autonomy policy yet; stays owner-gated every deploy (the pre-policy default, never auto-granted). A recommended A/S/C1/C2 template is seeded below under `recommended:` — tune its per-class values, then promote it to `classes:` (removing this waiver) to opt into autonomous deploys (SPEC-0097)."
+    recommended:
+      # RECOMMENDED per-class template (SPEC-0097 A/S/C1/C2) — a sane starting default, NOT an active
+      # declaration: it is a sibling of `waiver:` and is IGNORED by the deploy gate until promoted to
+      # `classes:`. Tune each `evidence`/command to this project's real deploy, then rename → `classes:`.
+      A: # code-only / trivially reversible: an inline post-deploy health gate + the per-change live-probe.
+        evidence: "<deploy command's inline post-deploy gate (health 200 + containers up + smoke, auto-rollback on failure) + the per-change live_probe at the deploy seam (SPEC-0094 §4)>"
+      S: # security-affecting: a read-only security probe asserts auth is STILL enforced.
+        # BOTH keys are REQUIRED to deploy S — the verb RUNS the probe before deploying and refuses
+        # without a budget. If the property is not assertable read-only, declare `unprobeable: <reason>`
+        # INSTEAD (the deploy then escalates to the owner, SPEC-0097 §2) — never omit both.
+        security_probe: "<a read-only command asserting the security property still holds — exit 0 = holds; e.g. curl -fsS -o /dev/null -w '%{http_code}' <url> | grep -qx 401>" # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_security_probe_passed
+        security_probe_budget_seconds: 60 # <positive int — the probe must answer read-only within it> # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition effect=bin/lib/deploy.py#cmd_deploy:refuse
+        # OPTIONAL — the DOWN-surface carve-out (SPEC-0097 §2a). Read this BEFORE your first outage,
+        # not during one. WHAT IT BUYS: when the surface is already DOWN, the `security_probe` above
+        # cannot pass (nothing is serving to enforce auth), so the Class-S deploy REFUSES — and the
+        # deploy that would END the outage is exactly the one being refused. That is circular, and it
+        # is why this key exists: a probe that proves the surface is POSITIVELY DOWN lets the deploy
+        # PROCEED (backstopped by a mandatory post-deploy security probe + auto-rollback), because a
+        # down surface exposes nothing while a broken-auth serving surface does.
+        # OPT-IN, both keys or neither. Left commented out, the carve-out simply does not exist and a
+        # DOWN-surface Class-S deploy refuses exactly as it does today.
+        # CLOSED VOCABULARY — the kernel reads ONLY the exit code, and only `1` opens the carve-out:
+        # exit 0 = SERVING → your security property is genuinely broken; fix it.
+        # exit 1 = DOWN → the ONLY answer that opens the carve-out.
+        # any other exit, or timeout = UNKNOWN → refuse; your probe did not answer, fix the probe.
+        # «Any non-zero ⇒ down» is NOT the rule, deliberately: 127 (not-found) / 126 (not-executable) /
+        # 128+N (signalled) are the RUNNER's own errors, so a typo'd command would read as «down» and
+        # open the carve-out — fail-open on a security gate. Exits outside the vocabulary REFUSE.
+        # WORKED EXAMPLE — curl exit 7 (connection refused) is what a down surface usually gives you,
+        # so map it EXPLICITLY onto 1; anything else must NOT become 1:
+        # liveness_probe: "curl -fsS -o /dev/null --max-time 5 https://<host>/healthz; c=$?; \
+        # [ $c -eq 0 ] && exit 0; { [ $c -eq 7 ] || [ $c -eq 28 ]; } && exit 1; exit 2"
+        # liveness_probe_budget_seconds: 10
+        # To opt in: REPLACE <host> with your real host and uncomment BOTH lines. Never uncomment a
+        # placeholder verbatim — a liveness probe you have not tuned is a claim about your own outage.
+        # liveness_probe: "<read-only; exit 0=serving / 1=down / other=unknown — see the worked example above>" # ownership: kernel-executed reader=bin/lib/deploy.py#_liveness_probe_precondition effect=bin/lib/deploy.py#cmd_deploy:refuse
+        # liveness_probe_budget_seconds: 10 # <positive int — the probe must answer read-only within it> # ownership: kernel-executed reader=bin/lib/deploy.py#_liveness_probe_precondition effect=bin/lib/deploy.py#cmd_deploy:refuse
+        evidence: "<the project's declared security live-probes (the `security:` section below) asserting auth is still enforced after deploy; read-only so autonomous; if a property is not read-only probeable → escalate (SPEC-0097 §2)>"
+      C1: # DB/state-changing but recoverable within RTO/RPO: pg_dump + restore-drill + a delayed re-check.
+        # A COMMAND + ITS BUDGET ARE BOTH REQUIRED to deploy C1 — the verb RUNS the dump and refuses
+        # without a budget, and `init` refuses a half-declared C1 block at birth (SPEC-0097 §4).
+        # Two shapes are accepted and normalized at one boundary; this nested mapping is the CANONICAL
+        # one. The accepted ALIAS is the flat pair `pg_dump: "<cmd>"` + `pg_dump_budget_seconds: 120`.
+        pg_dump: # ownership: kernel-executed reader=bin/lib/deploy.py#_normalize_pg_dump effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_backup_taken
+          command: "<pre-deploy pg_dump of the live DB — e.g. docker exec <db> pg_dump -U <user> -d <db> -Fc>"
+          dump_budget_s: 120 # <positive int — §4 duration budget; exceeding it ⇒ Class C2 (escalate)>
+        # expected_database: <the database this project's C1 deploy dumps, e.g. myapp_prod>
+        # OPTIONAL (SPEC-0148 §3), commented out because it is per-project. DECLARED ⇒ the produced
+        # archive's OWN header must name this database, or the deploy REFUSES (exit 3, the dump is
+        # discarded, no deploy_backup_taken) — that is what catches a fat, exit-0 dump of the WRONG
+        # database. ABSENT ⇒ the identity is still read from the archive and RECORDED in
+        # deploy_backup_taken, never enforced. Uncomment with a REAL database name; a placeholder
+        # left verbatim would refuse every C1 deploy.
+        # OPERATOR-OWNED (SPEC-0150): the drill is a REAL command the project runs
+        # (e.g. kupiclub `scripts/restore-drill.sh`) and its PASS is journal-recorded — but NO
+        # kernel reader executes it (the consult rejected seam-execution). Its freshness
+        # is keyed to COMPATIBILITY, not to a deploy (SPEC-0149 §4).
+        restore_drill: "<the restore-drill command proving the dump restores — e.g. bash bin/restore-drill.sh>" # ownership: operator-owned
+        evidence: "<the pg_dump (within budget) + the restore-drill record + the delayed re-check past the observation window — the class-proof is COMPLETE only after that later re-check (SPEC-0097 §5), never at deploy_completed alone>"
+      C2: # NOT acceptably reversible within RTO/RPO: owner escalation, NO autonomous deploy.
+        escalate: "owner decision REQUIRED with the concrete RTO/RPO risk; `deploy --class C2` escalates (no autonomous deploy_completed — SPEC-0097 §5)" # ownership: operator-owned
+  convergence:
+    # Post-deploy CONVERGENCE check (SPEC-0097 §11). Born WAIVED → this project's deploy is NOT
+    # convergence-verified: the kernel emits deploy_completed on the deploy command's exit-0 alone,
+    # which is exactly how a deploy can report OK while one service still runs the OLD code (X-0374:
+    # a celery worker kept leaking the credential the deploy claimed to have redacted, for hours).
+    # To opt in: list EVERY in-scope running service and a command that PRINTS the revision that
+    # service is ACTUALLY running, then remove this `waiver:`. Any service that reports a different
+    # revision (or cannot be asked) FAILS the deploy — no deploy_completed, exit 5.
+    waiver:
+      reason: "Initialized via `bin/yitc-v2 init` — no convergence check declared yet; deploy_completed is emitted on the deploy command's exit-0 alone, so a service left on old code would NOT be caught (X-0374). Declare `services:` (each with a command printing the revision it runs) to opt in (SPEC-0097 §11)."
+    recommended:
+      # RECOMMENDED shape — INERT until promoted: rename `recommended:` → `services:` (and delete the
+      # `waiver:` above) once each command below is real for this project.
+      # <service>: <command printing the revision that service RUNS — exit non-zero / silence = NOT converged>
+      web: "<e.g. docker compose exec -T web cat /app/REVISION>"
+      worker: "<e.g. docker compose exec -T worker cat /app/REVISION — the worker is the one that gets skipped (X-0374)>"
+    # budget_seconds: 120 # OPTIONAL positive int — per-service ask timeout; absent ⇒ kernel default.
+    # out_of_scope: # DECLARE-OR-WAIVE: a service deliberately NOT verified names itself + WHY.
+    # nginx: "reverse proxy — carries no app revision" # never probed, but journalled: an exemption
+    # # is declared, never silent (a blank reason refuses).
+  host_config:
+    # HOST-level config surface (SPEC-0093 rule 14, pairs with SPEC-0111 apply / SPEC-0097 host class).
+    # Born WAIVED → this project owns no host nginx/vhost surface. To declare a host-config surface,
+    # REPLACE this waiver with THREE keys: `vhost_files:` (a non-empty list of the host vhost file path(s)
+    # THIS project EXCLUSIVELY owns), `live_base_url:` (the host live base URL the server-wide health sweep
+    # + reconciliation probe targets), and `apply:` (the human-gated apply recipe). The host-config waiver
+    # is LOOSE (rule 6): a bare `reason:` — a docker-only app legitimately owns no host vhost.
+    waiver:
+      reason: "Initialized via `bin/yitc-v2 init` — no host-level (nginx/vhost) config surface yet; declare `vhost_files:` + `live_base_url:` + `apply:` once this project owns host config (SPEC-0093 rule 14)."
+  runtime_delivery:
+    # SPEC-0093 rule 22 (X-0370). DECLARE how code actually reaches this project's RUNTIME —
+    # the one fact the deploy mechanism ASSUMED and never asked. SPEC-0094 treats the `deploy` verb as
+    # the SOLE path to prod; that is true for a baked artifact and FALSE for a bind-mounted source tree,
+    # where a plain `docker compose up`/recreate ships whatever sits on main with NO gate, NO class
+    # check and NO deploy_completed. X-0370: a recreate shipped HALF a paired change (mounted backend +
+    # stale baked frontend) → 8h outage. Replace this waiver with ONE `model:` from the CLOSED enum:
+    # model: image-baked # the runtime runs a built ARTIFACT (baked image / compiled bundle) —
+    # # the deploy verb IS the only path to prod (the kernel's assumption HOLDS)
+    # model: source-mounted # the runtime reads the SOURCE TREE (bind mount) — a recreate ships main
+    # # WITHOUT the verb: the deploy verb is BYPASSABLE
+    # model: hot-reload # the process re-reads source on change (--reload / watcher) — BYPASSABLE
+    # model: hybrid # some surfaces baked, some mounted (X-0370's real shape) — BYPASSABLE,
+    # # and the two halves can ship SEPARATELY
+    # OPTIONAL companion (informational, not a shape gate): `note:` — e.g. WHICH surfaces are mounted
+    # vs baked under `hybrid`. An UNKNOWN/typo'd model FAILS CLOSED (it must never read as declared).
+    # Declaring a bypassable model gates NOTHING and is not a defect — bind-mounting is a legitimate
+    # choice. It makes the kernel HONEST: under a bypassable model the commits between the last
+    # deploy_completed and main are not "shipped-but-not-live" — they are ALREADY LIVE and passed no
+    # deploy gate, surfaced report-only at the debt seams (SPEC-0119 rule 16).
+    # The runtime_delivery waiver is LOOSE (rule 6): a bare `reason:` — a library / CLI / no-runtime
+    # project has no delivery model. But THIS born placeholder is NOT an answer: leave it and the
+    # bypass surfaces anyway (the X-0088 silent-born-waiver class). EITHER declared OR waived, never both.
+    waiver:
+      reason: "Initialized via `bin/yitc-v2 init` — no runtime-delivery model declared yet; declare a `model:` (image-baked | source-mounted | hot-reload | hybrid) once this project has a runtime, or keep this waiver if it legitimately has none (a library / CLI / no prod surface). A BIND-MOUNTED runtime makes the deploy verb BYPASSABLE — a container recreate ships main with no gate and no deploy_completed (X-0370: half a paired change, 8h outage)."
+rollback:
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no rollback command yet; replace with `command: <cmd>` once a rollback exists."
+live_probe:
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no live probe yet; replace with `live_base_url:` + `dialect:` once a deploy target exists."
+security:
+  # SPEC-0093 rule 8 / SPEC-0098. DECLARE security live-probes instead of waiving once this project has a
+  # security/auth surface: replace this waiver with a `probes:` list, each entry { property, assertion, url }.
+  # The waiver is STRICT (rule 6): reason + compensating_control + a real-ISO-date expiry are ALL required.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no project-specific security live-probe yet; declare a `probes:` list once this project has a security/auth surface."
+    compensating_control: "Kernel always-on security baseline: prompt-injection protection, the `security-review` skill, secrets-out-of-git, the host-leak canary."
+    expiry: "2026-12-31" # review-by date — REPLACE with your real security-review date.
+  audit:
+    # SECURITY-AUDIT CADENCE (SPEC-0145, pairs with SPEC-0093 rule for the `security.audit` shape).
+    # A DETERMINISTIC audit script (no AI in the loop) runs on a SYSTEM trigger (cron/systemd — NOT a
+    # provider scheduler) and writes an evidence-rich report to `.yitc/findings/`; the deploy gate
+    # rejects a report that is stale-by-SLA OR incomplete-by-evidence, even if its date is fresh.
+    # DECLARE `cadence:` (the system-trigger schedule) + `freshness_sla:` (the gate window) + `runner:`
+    # (the deterministic audit command) once this project has a security surface, OR keep this STRICT
+    # waiver. The waiver is STRICT (SPEC-0093 rule 6): reason + compensating_control + a real-ISO-date
+    # expiry are ALL required.
+    waiver:
+      reason: "Initialized via `bin/yitc-v2 init` — no project-specific security-audit cadence yet; declare `cadence:` + `freshness_sla:` + `runner:` once this project has a security surface (SPEC-0145)."
+      compensating_control: "Kernel always-on security baseline: prompt-injection protection, the `security-review` skill, secrets-out-of-git, the host-leak canary."
+      expiry: "2026-12-31" # review-by date — REPLACE with your real security-review date.
+    profile_snapshot:
+      # PROFILE SNAPSHOT (SPEC-0198, delivered by for the SPEC-0145 report).
+      # ACTIVE AT BIRTH — and there is no stance here for you to take. The security-audit report
+      # annotates itself with this project's DERIVED growth profile — `snapshot_hash` +
+      # `check_set_hash` + the derived check set — so a report can be told apart from one produced
+      # under a different risk profile. You do NOT maintain the profile: the kernel derives it from
+      # this checkout and its journal (read it any time with `__YITC_CLI__ profile`).
+      #
+      # `command:` below is NOT an answer you were asked for — it is a DERIVED VALUE the kernel
+      # RENDERS at init: the route from a byte-copied producer (no `bin/lib/` beside it) to the ONE
+      # derivation site, `bin/lib/profile.py#resolve_profile`. A derived value is never asked as a
+      # question (SPEC-0198), so a section whose every value is kernel-rendered is ratified BY
+      # CONSTRUCTION and owes no unratified-adoption debt (SPEC-0119 rule 13's narrow exclusion).
+      #
+      # TO OPT OUT: replace `command:` with a `waiver:` whose `reason:` says why. The report is then
+      # byte-identical to an unannotated one. A DECLARED-BUT-BROKEN command is never silent: the
+      # report degrades VISIBLY, carrying `profile_snapshot.status: unavailable` plus an open
+      # `SEC-PROFILE-SNAPSHOT` finding — so a broken declaration can never be mistaken for that
+      # deliberate opt-out.
+      command: "__YITC_CLI__ profile --json"
+ui:
+  # SPEC-0093 rule 9 (X-0050). DECLARE this project's UI baseline once it has a UI surface: replace this
+  # waiver with `baseline: <named design-system>` (optional styleguide/tokens/lint/archetype). The ui:
+  # waiver is LOOSE (rule 6): a bare `reason:` — a CLI-only/library/headless project legitimately has no UI.
+  #
+  # PRIMARY-DESIGN intake (X-0054) — onboarding asks "primary design?" alongside "first scenarios?". This
+  # section IS that intake (declare-or-waive, no separate interactive walk). Two inbound modes:
+  # * GREENFIELD (rules->code): no UI code yet — DECLARE the chosen `baseline:` + `archetype:` (the
+  # inception-fixed UI archetype / design-template + responsive posture) up front.
+  # * BROWNFIELD / design-from-outside (code->rules INVERSION): UI code ALREADY exists — DERIVE the
+  # baseline/archetype FROM the existing surfaces (read the code, name the de-facto design) and record
+  # it here, rather than imposing a fresh one.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no UI baseline yet; declare a `baseline: <named design-system>` (`archetype:`) once this project has a UI surface — greenfield: declare up front; brownfield: derive it from existing UI code (the design-from-outside inversion, X-0054)."
+tests:
+  # SPEC-0093 rule 10 (X-0053). DECLARE this project's test class×moment TAXONOMY once it has tests:
+  # replace this waiver with a `classes:` list, each entry { class, moment } (optional command). This is
+  # the taxonomy INVENTORY, NOT the executable land-verify gate — that lives in the carrier `verify.layers`
+  # (rule 16, the migrated `verify` home — rule 5); a `tests.classes[].command` for `moment: verify` is
+  # FORBIDDEN once `verify:` lands (no second command home, rule 10).
+  # The tests: waiver is LOOSE (rule 6): a bare `reason:` — a project with no test taxonomy to declare yet.
+  #
+  # TIMING-SENSITIVE TESTS (SPEC-0160 rule 10). A class entry MAY additionally carry
+  # `timing_lane:` — a non-empty list of repo-relative globs naming the tests whose verdict is a
+  # function of WALL CLOCK (a duration assertion, a rate, a timeout margin). The kernel does ONE
+  # thing with it: it REFUSES to pin those files in the SPEC-0077 pinned last-green leg, which runs
+  # inside a land beside every other land's verify and therefore measures the host, not the check.
+  # The refusal names the matching glob and this route; the file still runs in the ordinary verify.
+  # Want one pinned anyway? Say so explicitly with a sibling
+  # `timing_lane_waiver: { globs: [...], reason: "<who accepted the flake risk, and why>" }`.
+  # Absence is a STANCE — declaring nothing is fully conforming and changes nothing.
+  #
+  # TEST-CLASS intake — onboarding asks "what are your test classes, and what does each one
+  # DEPEND ON?", alongside the ui: section's "primary design?". This section IS that intake
+  # (declare-or-waive, no separate interactive walk) and it is NOT A GATE: leaving it unanswered still
+  # initialises cleanly. Answer it in TWO passes, so one honest answer fills BOTH sections that need it:
+  # PASS 1 — NAME THE CLASSES here: each { class, moment }. That is this section's taxonomy inventory.
+  # PASS 2 — for each class, name WHAT IT DEPENDS ON in order to run: a container bring-up, a database,
+  # a browser, a built bundle, a dependency install — or nothing at all. That dependency is the CUT
+  # RULE for the carrier `verify.layers` (rule 16): CLASSES THAT SHARE AN ENVIRONMENT STAY
+  # IN ONE LAYER — cutting them apart buys nothing and pays that environment's SETUP COST a second
+  # time — while a class with its OWN dependency earns its OWN layer, carrying `subject_globs:` that
+  # name the diff paths it is about, so a diff that cannot touch it does not pay for it.
+  # Two inbound modes, as with the ui: intake:
+  # * GREENFIELD (rules->code): no tests yet — declare the classes you intend, and re-answer as they land.
+  # * BROWNFIELD / taxonomy-from-outside (code->rules INVERSION): tests ALREADY exist — DERIVE the classes
+  # from what runs today (read the test tree and the CI / verify script, name the de-facto classes)
+  # rather than inventing a fresh taxonomy nothing runs.
+  # Answering BOTH passes produces a carrier that already satisfies rule 26 (cross-section
+  # correspondence): every `moment: verify` class here is answered on the `verify.layers` side — by its
+  # own declared layer, or by a covering waiver that NAMES the covering layer and states the
+  # SHARED-SETUP-COST basis for the merge. A bare "covered by the default layer" is not an answer.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no test taxonomy declared yet; declare a `classes:` list (each {class, moment}) once this project runs tests. The executable land-verify gate lives in the carrier `verify.layers` (SPEC-0152 rule 16)."
+verify:
+  # SPEC-0152 rule 16 (X-0140). The per-layer LAND-VERIFY carrier — `verify.layers` is the AUTHORITATIVE
+  # land-layer universe (the migrated `verify` single-home, rule 5). DECLARE a `layers:` list (each entry
+  # { layer: <id>, command: <hermetic land cmd> } OR { layer: <id>, waiver: {reason} }; optional `covers:`
+  # globs feed the report-only coverage WARN) OR WAIVE the whole concern (a LOOSE bare `reason:`). A layer
+  # with NEITHER command nor waiver is an UNANSWERED LAYER (ERROR); a layer with BOTH is a contradiction
+  # (ERROR); `layers:` + a section `waiver:` together is a contradiction (ERROR). Born WAIVED — a fresh
+  # consumer has no land-verify layer declared yet. The EXECUTABLE land RUN (run every layer / fail-on-any)
+  # + the yitc-verify.yaml retire+migration SHIPPED in : `land` reads these layers, and a legacy
+  # yitc-verify.yaml is folded into this section + removed at init (no two live homes — rule 5).
+  # HERMETICITY CONTRACT (F-025): each per-layer `command:` MUST be HERMETIC — `land` runs it on the LIVE
+  # host, so it MUST run against an isolated project on ephemeral ports and MUST NOT mutate prod/host
+  # state (no shared DB, no fixed host ports, no `docker compose down -v` against a live stack). A
+  # non-hermetic command is a contract violation that makes `land` destructive.
+  # SUBJECT_GLOBS (SPEC-0152 rule 16 subject_globs sub-rule). A layer MAY additionally carry
+  # an OPTIONAL `subject_globs:` — a list of globs naming the diff paths that layer is ABOUT, so a
+  # land whose diff is provably DISJOINT from them can report-only would-skip that layer's run. OPT-IN
+  # and fail-closed: an ABSENT `subject_globs` → the layer ALWAYS runs (backward-compat); the pinned
+  # verify surface / `tests/**` / this yitc-ops.yaml carrier always force the full run (SPEC-0077
+  # supremacy). AUTHOR SUBJECTS FROM A DEPENDENCY AUDIT of the layer's COMMAND — its actual file
+  # reads, container mounts, and sub-scripts — NOT by copying `covers:`. A naive covers-copy false-skips:
+  # a `covers: [backend/alembic/**]` layer whose command also reads `backend/alembic.ini` (a file the
+  # dir-glob does not match) would wrongly skip an alembic.ini-only diff. A declared `subject_globs`
+  # SHOULD be a SUPERSET of that layer's `covers:`. Advisory, never a validator.
+  # The SECOND land-speed lever composes with this one: `subject_globs` removes a layer from the
+  # lands it is irrelevant to; `patterns/consumer-suite-parallelization.md` cuts the cost of the
+  # lands that DO run it (hermetic first, parallel second).
+  #
+  # HOW YOUR PROBE INVOKES ITS CONTAINER — the choice worth making ONCE, here, while you are
+  # writing your FIRST layer, rather than re-deriving it after it has set (from
+  # kupiclub X-0956 + X-0961). Two shapes exist and BOTH are legitimate:
+  # - THROWAWAY: each probe brings up and tears down its own container (`compose run --rm`).
+  # Maximum isolation; you pay a container bring-up per probe.
+  # - EXEC: the layer brings a stack up ONCE and each probe runs inside it (`compose exec`).
+  # One bring-up for the layer; probes share it, so they must not fight over shared state.
+  # Measured across nine v2 consumers on 2026-08-16: two projects doing the SAME KIND of work
+  # landed on opposite shapes — one at 55 throwaway invocations, another at 0 — and neither was
+  # wrong on purpose. Nothing had ever put the question in front of them.
+  # THIS IS A QUESTION, NOT A THRESHOLD. No target number is stated here and none is derivable
+  # from that measurement: a probe that genuinely needs its own process is legitimately
+  # throwaway, and a young or genuinely coupled project may rightly declare ONE layer and ZERO
+  # `subject_globs`. What this asks is only that the choice be made KNOWINGLY and the reason
+  # written in the layer comment — so the next reader inherits a decision, not an accident.
+  # TIMEOUT (X-0204). Each layer command is bounded by a wall clock. To declare that bound
+  # DURABLY — instead of a remembered `YITC_VERIFY_TEST_TIMEOUT=` prefix on every land — add a positive
+  # `timeout: <seconds>` to a layer (bounds that layer + its `prep:`), and/or a section-level
+  # `timeout_seconds: <seconds>` (the default for layers declaring none). Precedence, highest first:
+  # the env escape hatch · the layer's `timeout:` · `timeout_seconds:` · the 300s global default. Both
+  # keys are OPTIONAL (absent = the global default); a present-but-malformed one fails the land CLOSED.
+  # A legitimately slow verify (a Docker bring-up) declares its bound here — it never re-tunes the global.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no land-verify layer declared yet; declare a `layers:` list (each {layer, command} or per-layer {layer, waiver:{reason}}) as this project's land-verify layers settle (SPEC-0152 rule 16)."
+  # ── declaration-gated capabilities (generated from the concern registry) ──
+  # An OPT-IN key this section gates a kernel capability on. ABSENT is the fail-closed default, so
+  # nothing below is engaged until you write it in — and leaving it commented is a legitimate answer,
+  # as long as it is a KNOWING one. Uncomment and answer to make the choice; the kernel never infers it.
+  #
+  # combined_candidate_safe: true # (SPEC-0152)
+  # turns on: land-verify BATCHING — several queued lands verified TOGETHER, in ONE pass over a
+  # combined candidate, instead of a full verify per land. Declare it only if your layers
+  # isolate one change from another: a shared fixture, port, database or build cache can make
+  # one member's failure indistinguishable from a peer's, which is why the kernel cannot infer
+  # this.
+  # while absent: every land is verified alone — batches of one, whatever the queue depth.
+audit_scrutiny:
+  # SPEC-0178. OPT-IN. Absent ⇒ every substantive task takes audit-post — the fail-closed
+  # default, and the state every project starts in. Declaring a case is an explicit acceptance
+  # of risk by the project, recorded with its reason.
+  #
+  # EXECUTABLE-KEY OWNERSHIP (SPEC-0150). Every key below is kernel-executed — the kernel READS
+  # it and it has an EFFECT — so each carries its reader→effect chain. The anchors named here are
+  # the ones build step 3 (the `cases:` carrier) and step 4 (automatic return) create; until they
+  # exist this spec is `draft` and consumes nothing ( B5, spec-before-code).
+  #
+  # EVERY chain below is WELL-FORMED to the SPEC-0150 grammar, and the six the grammar can fully
+  # express are verified END-TO-END — all three links — by `bin/yitc-v2#_ownership_chain_break`
+  # (the probe runs it per key). It was not so before : all EIGHT declarations were
+  # UNPARSEABLE — a `skip:` / `window-origin` / `K` / `W` effect kind the grammar has no form for,
+  # a dotted `emit:task_closed.exempted_case`, and trailing prose INSIDE the chain — and nothing
+  # noticed, because the checker's walk is scoped to `deploy.policy.*` at path-depth 5 over
+  # UNCOMMENTED keys and never reaches this section at all. The markers read like verified chains
+  # while being verified by nobody: the exact SPEC-0150 §Internal 2 shape, one level up.
+  # RULES OF THE FORM, recorded because each was learned by breaking it: the chain ENDS at its
+  # effect kind (`emit:<EVENT>` or `refuse`), so per-key meaning goes on its OWN line below the
+  # marker, never appended to the chain; the event is a bare identifier, never a dotted field
+  # path; and the effect SITE must be a symbol whose call closure both REACHES the reader and
+  # CONTAINS the emit/refusal — which is why every effect here is `cmd_task_close` (the Closure
+  # seam that acts) rather than the reader itself.
+  # cases: # ownership: kernel-executed reader=bin/lib/task.py#_audit_scrutiny_cases effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+  # # the carrier read — what it returns decides whether any case
+  # # is consulted at all, and the close records the outcome.
+  # - case: docs # ownership: kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+  # # the stable name. Read by `_case_valid` — `_case_match`
+  # # DELEGATES to it — and recorded verbatim as
+  # # `task_closed.exempted_case`, the key rule 5 joins through.
+  # match: { paths: [docs/**] } # ownership: kernel-executed reader=bin/lib/task.py#_case_match effect=bin/lib/task.py#cmd_task_close:emit:task_closed
+  # # decides whether THIS card is matched, hence whether the
+  # # close skips audit-post and records the case.
+  # # by paths (PREFERRED)
+  # # OR { class: docs } one class
+  # # OR { class: [docs, refactor] } several (a plain OR)
+  # # OR BOTH -> a CONJUNCTION, i.e. NARROWER:
+  # # { class: docs, paths: [docs/**] }
+  # # = a docs card whose diff stays inside docs/**
+  # exempt: audit-post # ownership: kernel-executed reader=bin/lib/task.py#_case_exempt_refusal effect=bin/lib/task.py#cmd_task_close:refuse
+  # # the ONLY exemptible gate (rule 2); any other value refuses
+  # # at declaration. Reader CORRECTED at : it named
+  # # `_case_match`, which never accesses `exempt` — it delegates
+  # # to `_case_exempt_refusal`, the one `case.get("exempt")`.
+  # reason: "<why this project accepts shipping these without a semantic diff review>" # ownership: kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:refuse
+  # # empty/missing => the case does not apply (rule 1). Effect
+  # # site CORRECTED at from `_case_valid` itself, which
+  # # returns a verdict and refuses nothing.
+  # declared_at: 2026-08-13 # ownership: kernel-executed reader=bin/lib/task.py#_case_restoration_state effect=bin/lib/task.py#cmd_task_close:refuse
+  # # the restoration window's ORIGIN (rule 5); unreadable =>
+  # # the case does not apply, so the close takes audit-post.
+  # # restore_after: 3 # ownership: kernel-executed reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse
+  # # optional override of K (kernel default 3); malformed =>
+  # # the case does not apply.
+  # # window_days: 90 # ownership: kernel-executed reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse
+  # # optional override of W (kernel default 90); malformed =>
+  # # the case does not apply.
+  #
+  # NAMED RESIDUE, not a silence: the last two chains are well-formed and their links 2+3 hold,
+  # but link 1 (the reader ACCESSES the key) cannot be satisfied for them, and the probe
+  # asserts that as a PINNED set rather than passing it off as coverage. `restore_after` and
+  # `window_days` are read by ONE parameterized helper — `case.get(key)` with `key` a parameter —
+  # which is deliberate: one reader under one rule is why a malformed `restore_after` and a
+  # malformed `window_days` cannot diverge. Splitting it into two literal readers to satisfy a
+  # text matcher would trade a real invariant for a checkable string. Filed instead: the grammar's
+  # inability to express a parameterized reader is SPEC-0150's question, not this spec's.
+  #
+  # PREFER `paths:` — and know what a class-only case actually admits, because the label does
+  # not show it (measured over 474 docs/refactor cards on four projects, 2026-08-14):
+  # * only ~half (48-58%) of such cards stay inside ONE top-level directory;
+  # * they ship into EXECUTABLE directories routinely — tests/ on 24% and bin/ on 20% of the
+  # kernel's own docs/refactor cards; backend/ on ~half of aiseller's and a third of
+  # boomrocket's; app/ scripts/ tests/ frontend/ across kupiclub's.
+  # Rule 3 covers PART of that, and the part it covers is WIDER than this template first said
+  # (reconciled by against the SHIPPED guard — deviation fingerprint
+  # `spec0178-rule3-governance-set-bin-tests-contradiction`). The guard takes back GOVERNANCE
+  # surfaces: specs, an always-loaded seed, this file, AND the SPEC-0077 pinned-test surface —
+  # which resolves mechanically to `bin/**` + `tests/**` + `yitc-ops.yaml`. So a docs card
+  # shipping into bin/ or tests/ IS taken back. What the guard does NOT touch is the rest:
+  # app/, backend/, frontend/, scripts/. So a class-only case is legal and NOT fully guarded,
+  # and it also gives up the rule 6 out-of-path observation, since no class-to-path source of
+  # truth exists.
+  # You may still declare it. This is here so that choice is informed, not so it is refused.
+  #
+  # A case may exempt audit-post and NOTHING else. It cannot reach audit-pre, the tests stage,
+  # the land-verify layers, the worktree rule, or the closure probes.
+  #
+  # AND it never reaches a GOVERNANCE SURFACE (rule 3): a card whose DIFF touches a spec, the
+  # pinned-test surface, an always-loaded seed, or this file takes audit-post whatever your case
+  # says. So a `paths:` set covering e.g. specs/** buys you nothing there — the guard reads the
+  # diff, not the declaration.
+  #
+  # ─── THE BORN-PERMISSIVE DECLARATION (SPEC-0189 rules 1+7+8) ───────────────────────
+  # UNLIKE every commented key above, the fragment below is LIVE, and that is the whole point of
+  # this surface. It is written ONLY into a birth carrying an explicit PER-SECTION human
+  # confirmation for THIS concern (`init --confirm-born-permissive audit_scrutiny:<owner>`); an
+  # unconfirmed or NONINTERACTIVE birth has the whole section WITHHELD by
+  # `init.born_permissive_gate`, so no relaxing declaration is written and absence reads
+  # fail-closed. The same act records the confirmation as this declaration's ratification
+  # provenance (a SPEC-0143 `adoption:` record under the NAMED owner, never the `init`
+  # sentinel), so there is no state in which the relaxation exists un-ratified. Both write paths
+  # are gated — the fresh-birth body and the rule-11 carrier UPDATE — so a
+  # consumer born before this concern existed cannot receive it un-ratified either.
+  #
+  # WHY IT IS LIVE WHERE SURFACE 1's IS COMMENTED: a commented fragment declares nothing, so
+  # `_mirror_adoption_status` reads the section `na` and there is nothing for
+  # `record_born_permissive_ratifications` to ratify. LIVE is what makes the ratification
+  # reachable, and it is what makes this an actual born default rather than a documented one.
+  #
+  # WHAT IS BEING ACCEPTED, stated plainly: a project born this way ships its docs-only cards
+  # without a semantic diff review. It is bounded by construction and NOT by trust — the case
+  # matches `docs/**` ONLY, and rule 3's governance guard takes back specs, an always-loaded
+  # seed, this file and the SPEC-0077 pinned-test surface (`bin/**` + `tests/**` +
+  # `yitc-ops.yaml`) whatever the case says. The named detector above watches for the absence
+  # starting to cost something and PROPOSES turning it back on; restoration is this project's
+  # own explicit act — delete or narrow the case here (SPEC-0189 rule 4).
+  #
+  # `declared_at:` is the RESTORATION WINDOW'S ORIGIN (rule 5), and a fixed birth-directive date
+  # is deliberate: an origin in the past can only make MORE attributions count toward automatic
+  # restoration, never fewer, which is the protective direction. An unreadable one would make
+  # the case not apply at all — also fail-closed.
+  # yitc:born-permissive-declaration
+  cases:
+    - case: docs
+      match: { paths: [docs/**] }
+      exempt: audit-post
+      reason: "born permissive per the owner directive of 2026-08-21 — a new project does not
+        pay a semantic diff review for a docs-only card from day one. Bounded to docs/**, and
+        rule 3's governance guard takes back every governance surface regardless. The periodic
+        review watches for the absence starting to cost something and PROPOSES restoring the
+        gate (SPEC-0189); restoration is this project's own explicit act — delete or narrow this
+        case."
+      declared_at: 2026-08-21
+  # yitc:end-born-permissive-declaration
+inspection:
+  # SPEC-0093 rule 12 (the unify-revizia plan). DECLARE this project's LOCAL inspection ("revizia") themes
+  # once it grows observation lenses on top of the kernel's traveling T1–T10 themes
+  # (patterns/inspection-criteria-roster.md): replace this waiver with a `themes:` list, each entry
+  # { theme: <slug>, probe: <ONE KIND — see below>, cadence: weekly|monthly|quarterly }. PURE declared
+  # config — NO kernel runner/events; the RUN stays MANUAL via patterns/inspection-triage-launch-runbook.md
+  # (SPEC-0057 §2 manual-first). A `probe:` declares EXACTLY ONE KIND — `view:` XOR `sweep:` (SPEC-0093
+  # rule 12, as `_hook_inspection` enforces): `view:` is a `graph query <view>` lens name (a non-empty
+  # string, reusing the existing query surface); `sweep:` is a non-view product-realm sweep — a mapping
+  # with REQUIRED `surfaces:` (non-empty string) + `checks:` (non-empty list of non-empty strings) and an
+  # OPTIONAL `against:` (non-empty string). BOTH kinds together is a contradiction (ERROR); NEITHER is an
+  # ERROR (fail-closed). The inspection: waiver is LOOSE (rule 6): a bare `reason:` — a project that
+  # has no project-local inspection themes declared yet (for its own project revizii it MAY use the kernel T1–T10 lens APPROACHES as adaptation examples — the METHOD travels, the engine themes do not). `themes:`+`waiver:` together is a
+  # contradiction (ERROR) — EXCEPT beside the ONE kernel-owned entry below, which the waiver does not
+  # cover: a project `waiver:` is the project's stance on its OWN themes (SPEC-0093 rule 12).
+  themes:
+  # THE KERNEL-OWNED BASELINE ENTRY — seeded by `init` in every consumer, NOT the project's to remove
+  # (owner directive 2026-09-04). Absent / `owner: kernel` stripped / moved out of `themes[]` is a
+  # fail-closed init-sweep ERROR. You MAY narrow `surfaces:` to this project's own layout.
+  - theme: repeated-work
+    owner: kernel
+    probe:
+      sweep:
+        surfaces: "backend/**/* app/**/* frontend/src/**/* scripts/**/* workers/**/*"
+        checks:
+          - "n-plus-one-queries-in-loops"
+          - "same-file-config-or-row-re-read-per-request-or-iteration"
+          - "remote-resource-re-fetched-or-pagination-restarted"
+          - "unbounded-loops-retries-or-polls"
+          - "whole-table-or-whole-dir-scans-repeated-per-lookup"
+          - "frontend-refetch-and-effect-retrigger-loops"
+          - "worker-or-cron-reprocessing-without-a-watermark"
+        against: "patterns/repeated-work-lens.md"
+    cadence: monthly
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no project-local inspection themes declared yet; for its own project revizii it MAY use the kernel T1–T10 lens APPROACHES as adaptation examples (the METHOD travels, the engine themes do not). Declare a `themes:` list (each {theme, probe, cadence}, where `probe` is EXACTLY ONE KIND — `view:` XOR `sweep:`, per SPEC-0093 rule 12) once this project grows local revizia lenses."
+# reads:
+# # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier for a COMPOSED SEAM
+# # that cannot hold rule 10's read contract. OPT-IN and born fully COMMENTED: nothing here is live,
+# # so an untouched carrier declares NO exemption, and ABSENCE reads as "this project exempts no
+# # seam" — the fail-closed default, and the state every project starts in. An exemption is an
+# # EXCEPTION; this block is here so the escape hatch is DISCOVERABLE and shaped, never so that it
+# # is pre-granted.
+# #
+# # Rule 10, in one line (the rule body is SPEC-0190's — `yitc-v2 graph query SPEC-0190`): a verb or
+# # seam composing MORE THAN ONE journal/card view establishes ONE request-scoped ReadScope at the
+# # wiring site, the views it composes stop owning their own folds, and the seam carries a
+# # regression pinning physical folds <= 1 per segment in scope and card parses <= 1 per card.
+# #
+# # DECLARE an exemption only when a seam genuinely cannot hold that bound. ALL FOUR fields are
+# # REQUIRED and the check is FAIL-CLOSED (SPEC-0093 declare-or-waive): a malformed entry is REFUSED
+# # with the missing field NAMED, never silently ignored — an exemption nobody can read is
+# # indistinguishable from a breach of the rule.
+# exemptions: # the list; each entry carries ALL FOUR fields below
+# - seam: "bin/lib/cli.py#_debt_echo_lines" # the WIRING SITE, <file>#<symbol>. The exemption is
+# # about a COMPOSITION, so it names where the composition is
+# # decided; a view name would not identify what is exempted.
+# ratio_bound: 2 # the folds-per-segment this seam is permitted. A POSITIVE number,
+# # required: an exemption with no ceiling is not an exemption, it
+# # is a repeal — the seam would be released from the rule rather
+# # than held to a wider bound.
+# reason: "<why this seam cannot hold folds <= 1 per segment>" # what is being accepted has to
+# # be readable by whoever reviews it; a bare date carries none of it.
+# until: 2026-12-31 # a real ISO date (YYYY-MM-DD) review-by, so the exemption is
+# # REVIEWED rather than inherited (the rule-8 strict-waiver
+# # `expiry:` / rule-20 cadence shape, and the same reason).
+extensions:
+  # SPEC-0093 rule 13 (realizes SPEC-0101 §4) + SPEC-0112 (catalog-set completeness). The SHARED extensions
+  # (the project's declared extensions) this project ADOPTS — reusable capabilities (e.g. the deploy capability, SPEC-0094)
+  # installed by CITING, never copy/fork. NON-catalog opt-in is unchanged (absence = adopts nothing, rule-13).
+  # BUT for the ACTIVE+ADOPTABLE catalog set (SPEC-0101 rule-2 view), every member is now DECLARE-OR-WAIVE,
+  # fail-closed (SPEC-0112 rule-1): silence on a catalog member is an ERROR at init / consumer-read. To
+  # DECLARE, use the GOVERNED path `__YITC_CLI__ init --adopt-extension SPEC-XXXX` (it refuses a
+  # missing / non-`adoptable` spec and appends `- spec: SPEC-XXXX` under `adopts:`). To WAIVE, carry a
+  # forward-aware `waives:` entry {spec, reason} whose reason names the waive->declare re-entry path
+  # (SPEC-0112 rule-2). init SEEDS this section born-COMPLETE (a forward-aware waive per catalog member);
+  # discover the catalog via `__YITC_CLI__ graph query extensions-catalog`.
+  adopts: []
+coverage:
+  # SPEC-0152 rule 15 (X-0129) — the B5 COVERAGE-ADMISSION carrier: WHICH load-bearing code
+  # surfaces are REASONED spec-less (a deliberate exclusion) vs a genuine NEW orphan. OPT-IN (the
+  # extensions rule-13 model): an ABSENT section, OR an empty `load_bearing:`, means NO coverage-
+  # admission tracking — a clean default, never fail-closed. `graph build` diffs this project's live
+  # load-bearing surfaces (the `load_bearing:` globs) against spec coverage (the `implements` edge) +
+  # the `admitted:` list, and report-only WARNs any load-bearing surface that is NEITHER spec-covered
+  # NOR admitted (a candidate new orphan). To opt in, DECLARE:
+  # load_bearing: # globs naming the load-bearing surface universe (repo-relative)
+  # - "bin/lib/*.py"
+  # admitted: # reasoned spec-less surfaces NOT flagged — each needs surface + reason
+  # - surface: "bin/lib/legacy.py"
+  # reason: "<why this is a deliberate spec-less exclusion, not an orphan>"
+  # An admission entry missing a non-empty `surface` OR `reason` does NOT suppress (fail-OPEN: an
+  # evidence-less admission can never silently hide a new orphan). OR waive the whole concern:
+  # waiver: { reason: "<why this project tracks no coverage admission>" }
+  load_bearing: []
+  admitted: []
+# startup_checks:
+# # SPEC-0152 rule 17 (X-0191) — OPTIONAL, report-only project startup checks. Uncomment + declare
+# # your own; each { label, command, detail }. `command` runs cheaply at each session-start / land;
+# # a NON-ZERO exit means the check FLAGS. The flagged checks are aggregated into ONE report-only
+# # `startup-check: …` line (count + `label (detail)`), suppressed when all pass. OPT-IN — leaving
+# # this section absent/commented declares no checks (never fail-closed, never swept).
+# - label: pending-proposals
+# command: "test $(ls proposals/*.draft 2>/dev/null | wc -l) -eq 0"
+# detail: "see proposals/ — drafts awaiting review"
+product_source:
+  # SPEC-0152 rule 27. DECLARE which code surfaces this repo actually SHIPS — the
+  # AUTHORITATIVE answer to «what is this project's product source?». The work-batch carrier gate
+  # (an uncarried `work/<slug>` batch, no card and no emergency marker) reads `product_source.globs`
+  # and NOTHING ELSE. In particular it no longer reads `verify.layers[].covers`: that field SCOPES
+  # which verify layers run for a diff, where NARROW is good — and the same narrowing, read as a
+  # product-source declaration, is bad. One field, two purposes, opposite incentives; two fields
+  # with one purpose each is the fix.
+  # TWO ANSWERS, and only these two silence the report-only migration note:
+  # globs: [ "app/**", "frontend/src/**" ] # the trees this repo actually ships
+  #...or, for a repo that genuinely ships none of its own:
+  # waiver: { reason: "<why this repo ships no product source of its own>" }
+  # OPT-IN and effect-free while unanswered: an empty `globs:` reads exactly as an ABSENT section —
+  # recognition falls to the kernel floor alone, and a `bin/**` touch is refused with or without a
+  # declaration either way. So leaving this empty is a legitimate answer, as long as it is a KNOWING
+  # one. `globs:` and `waiver:` together is a contradiction; a glob is repo-relative (no leading `/`,
+  # no `../`).
+  globs: []
+migrations:
+  # SPEC-0093 rule 21. DECLARE how this project evolves its persistent SCHEMA: replace this
+  # waiver with a non-empty `command:` — the upgrade command that brings a database to the current
+  # schema (e.g. `alembic upgrade head`). OPTIONAL companions (informational, not a shape gate):
+  # tool: alembic # the named migration tool
+  # versions: backend/alembic/versions # where the revision history lives
+  # applied_at: deploy # WHERE the upgrade actually fires — `deploy` when the deploy
+  # # script runs it (a deploy-coupled schema change: say so out
+  # # loud rather than bury it in a shell script), or `manual`.
+  # The kernel checks the STANCE + shape, NEVER the values — it never runs a migration (rule 3).
+  # The migrations: waiver is LOOSE (rule 6): a bare `reason:`. That is the clean unconditional-waive case
+  # — a project with NO migration tool: lifespan-DDL (schema created at app startup), an ORM create_all, a
+  # schema-less store, or no persistent schema at all. A project with no schema history has no hole to
+  # compensate for, so no compensating control / expiry is demanded.
+  # EITHER declared OR waived, never both (fail-closed exclusivity).
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no schema-migration stance declared yet; declare a `command:` (e.g. `alembic upgrade head`, + optional tool/versions/applied_at) once this project migrates a persistent schema, or keep this waiver if it legitimately has none (lifespan-DDL / ORM create_all / schema-less)."
+outcome_invariants:
+  # SPEC-0093 rule 24 (X-0419). DECLARE the STANDING PRODUCT-OUTCOME invariants of this
+  # project's long-lived subsystems — the ones no single card owns. THE GAP THIS CLOSES: adoption
+  # evidence (CHARTER §P3/§P8) is framed on the DIFF, so every card proves only ITS OWN change
+  # adopted; a subsystem nobody owns therefore has NO outcome probe and cannot be observed broken.
+  # X-0419: five remediation cards closed GREEN over three days while the product stayed broken —
+  # 34 cards on one surface, not one owning "does it still work?" — and the OWNER was the only
+  # monitor. Replace this waiver with an `invariants:` list; each entry needs FOUR keys:
+  # invariants:
+  # - id: stats-nonzero # the project-local invariant name (English slug)
+  # subsystem: stats # the long-lived subsystem this covers
+  # invariant: "the stats page reports a non-zero row count for the last 24h" # ONE line, in
+  # # product terms — prose FOR A HUMAN; the kernel never parses it
+  # probe: # the read-only adapter that ASKS (SPEC-0110 L3 / rule-23 shape)
+  # kind: command
+  # command: ["python3", "scripts/probe_stats_nonzero.py"]
+  # # stdout MUST be {"ok": true|false, "detail": "<why>"}
+  # The probe MUST be READ-ONLY: the kernel runs it at EVERY debt seam (session-start / land-tail /
+  # `debt`), so a mutating probe would make an informational surface destructive. The kernel checks
+  # the STANCE + shape, NEVER the values (rule 3) — it never judges whether your invariant is the
+  # RIGHT one; it runs what you declared and reports what came back.
+  # HOW IT SURFACES (SPEC-0119 rule 17, report-only, suppressed-when-clean, never a gate): BROKEN
+  # (the probe says the invariant is violated NOW) · DEGRADED (the probe could not answer — an
+  # invariant whose probe is broken is NOT covered, so this is never silently green) · UNPROVEN (no
+  # recorded RED `check_admission_demonstrated` for the probe's CURRENT definition — SPEC-0156
+  # reused, no new event type — so its green proves nothing). Demonstrate a probe once: break its
+  # subject deliberately, watch it go RED, record the event.
+  # The outcome_invariants: waiver is LOOSE (rule 6): a bare `reason:`. That is the clean
+  # unconditional-waive case — a library / CLI / a greenfield with no product surface yet, or a
+  # project whose subsystems are each genuinely owned by a live card. A single ENTRY may also carry
+  # its own `waiver: {reason}` (the verify.layers[] per-entry precedent), dropping just that one.
+  # EITHER declared OR waived, never both (fail-closed exclusivity).
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no standing outcome-invariant declared yet; declare an `invariants:` list (each {id, subsystem, invariant, probe}) for any long-lived subsystem no single card owns, or keep this waiver if this project legitimately has none (a library / CLI / no product surface). Adoption evidence is framed on the DIFF, so an unowned subsystem has NO outcome probe and cannot be observed broken (X-0419: five cards closed green over three days while the product stayed broken; the owner was the only monitor)."
+product_cron:
+  # SPEC-0109 (kernel L2 product-cron governance) + SPEC-0093 rule-4 section-add. DECLARE this project's
+  # OWN scheduled work so v2 KNOWS and GOVERNS it — it is never invisible. v2 does NOT run the cron (the
+  # project's deploy does); it GOVERNS it: the owner reads ONE file to see everything the project schedules.
+  # Replace this waiver with:
+  # scheduler: celery-beat # the declaration key that ANSWERS this section
+  # source: backend/app/tasks/celery_app.py # the beat_schedule literal — the SOLE source of truth
+  # inventory: [...] # a DERIVED view of the job set
+  # SINGLE SOURCE OF TRUTH — IMPORTED, NEVER HAND-RE-ENTERED (rule 2). The project's existing scheduler
+  # definition stays the sole SoT for the job set; any inventory here is DERIVED/IMPORTED from it (render
+  # it with a project script + VERIFY it on land), never a parallel hand-maintained cron ledger.
+  # "GOVERNED" IS AN OBSERVABLE, NOT A DECLARATION (rule 3): a declared scheduler counts as governed only
+  # when (a) its inventory is VISIBLE here AND (b) >=1 observed fired-job / journaled run proves it actually
+  # runs. `declared` alone != `governed` (the X-0089 lesson: a scheduled mechanism must prove it FIRES).
+  # A fragile HOST-ONLY cron (one that lives solely in a crontab and is silently lost on redeploy) is
+  # declared HERE like any other scheduled work (rule 4) — one governed home, no separate carrier.
+  # The product_cron: waiver is LOOSE (rule 6) but FORWARD-AWARE (rule 1): say WHY there is no scheduled
+  # work yet AND how to flip waive->declare later. A project with no scheduler legitimately waives.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no product scheduler declared yet. This project runs no scheduled work of its own; if it gains one (a celery-beat schedule, a host cron), replace this waiver with `scheduler:` + `source:` (the definition that stays the sole source of truth) + a DERIVED `inventory:` (rendered from that source, never hand-entered — SPEC-0109 rule 2)."
+freshness:
+  # SPEC-0110 (kernel L3 liveness/freshness monitor) + SPEC-0093 rule-4 section-add. DECLARE this project's
+  # freshness contract if it PRODUCES data on a cadence (a sync/discovery/tracking pipeline that must keep
+  # producing fresh output). Replace this waiver with:
+  # adapter: bin/freshness-adapter.py # the declaration key that ANSWERS this section
+  # kind: command # the kernel runs it LIVE and parses its stdout JSON
+  # command: [python3, bin/freshness-adapter.py]
+  # THE SOURCE IS A LIVE READ-ONLY ADAPTER, NEVER A STATIC PRE-NORMALIZED FILE (rule 2/3). A stale file
+  # would read `fresh` after the producer died — the exact single-point-of-failure this rule forbids. The
+  # kernel monitor INVOKES the adapter at grade-time through its injectable seam and grades the NORMALIZED
+  # output; it embeds NO project source format (CHARTER §P1 + the territory boundary). The adapter
+  # prints the kernel adapter-return contract as JSON to stdout:
+  # SUCCESS -> {"pipelines": [{"name", "state" in {fresh|stale|miss}, "age_hours", "detail"}...], "error": null}
+  # SOURCE failure -> {"pipelines": [], "error": "<detail>"} # a whole-project miss
+  # THRESHOLDS/SLAs ARE OWNED BY THE ADAPTER (rule 2), never copied here — the carrier holds only the
+  # declare-or-waive marker + the reference NAMING the adapter.
+  # The probe MUST be INDEPENDENT of the project's own loop (rule 3): a freshness check that rides the very
+  # pipeline it grades cannot report that pipeline's death.
+  # The freshness: waiver is LOOSE (rule 6) but FORWARD-AWARE: say WHY nothing here needs freshness grading
+  # yet AND how to flip waive->declare later. A project with no cadence-producing pipeline (a CRUD app, a
+  # library, a CLI) legitimately waives — it has no staleness to hide.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no freshness contract declared yet. This project produces no data on a cadence that must be graded for staleness; if it gains one (a sync / discovery / tracking pipeline), replace this waiver with an `adapter:` naming a read-only LIVE adapter command (never a static file — SPEC-0110 rule 3) that prints the kernel adapter-return JSON."
+remote_sync:
+  # SPEC-0163 (remote-sync/CI ops contract) + SPEC-0093 rule-4 section-add. DECLARE where this
+  # project's code SYNCS when it leaves this machine, WHO pushes it there, and whether CI is LIVE on
+  # the far side — the three are ONE stance (rule 1). Replace this waiver with:
+  # remote: git@github.com:<org>/<repo>.git # the declaration key that ANSWERS this section
+  # pusher: "<who/what pushes — a named actor + credential path, or the automation that does it>"
+  # ci: "<is CI live? on what trigger? and is it a GATE or an EXTRA CHECK? (rule 3)>"
+  # IMPLEMENTATION-AGNOSTIC (rule 2): this mandates NO forge and NO CI system. `remote:` may name any
+  # git remote (a forge URL, a bare mirror, an internal host); `ci:` may name any system — or none.
+  # `ci: none` is a COMPLETE answer. The kernel checks the STANCE, never the remote's reachability,
+  # the pusher's credentials, or the CI system's quality (SPEC-0093 rule 3).
+  # CI DECLARES LIVENESS *AND ROLE* (rule 3) — a workflow file's existence is not a stance. Say whether
+  # it actually runs (trigger / path filters) and whether it GATES the work or is an EXTRA CHECK beside
+  # your real land gate (`verify.layers`). That is an owner decision; it is declared, never inferred.
+  # A DECLARED section must answer ALL THREE (rule 4, fail-closed): `remote:` without `pusher:`+`ci:` is
+  # an init ERROR, not a silent pass. Name a REAL pusher: an auto-pusher that dies with a retired system
+  # leaves the remote silently un-synced (aiseller's v1 auto-push died at quiesce).
+  # The remote_sync: waiver is LOOSE (rule 6) — a project with no remote legitimately waives with a bare
+  # reason. But read what you are waiving (rule 5): NO REMOTE MEANS EVERY CI WORKFLOW IN THIS REPO IS
+  # DORMANT — CI runs on the far side of a remote, and with no remote there is no far side. If this repo
+  # carries a workflow file, waiving here is the moment it becomes legible as a LEFTOVER, not coverage
+  # (X-0346: boomrocket carried.github/workflows/product-safety-guards.yml with no remote at all).
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no git remote declared yet. This project syncs nowhere off this machine, so it has no pusher and no live CI; if it gains a remote, replace this waiver with `remote:` + `pusher:` (who pushes) + `ci:` (live? gate or extra check?) — all three (SPEC-0163 rule 4). NOTE: while this waiver stands, any CI workflow committed in this repo is DORMANT, never coverage (SPEC-0163 rule 5)."
+alert_routing:
+  # SPEC-0164 (alert-routing/notify offering) + SPEC-0093 rule-4 section-add. DECLARE where this
+  # project's incident alerts GO and WHO reads them and acts — the two are ONE stance (rule 2).
+  # Replace this waiver with:
+  # sink: "<WHERE an incident alert is delivered — a chat webhook, an email alias, a pager
+  # rota, an issue tracker, a log a human really reads>"
+  # receiver: "<WHO reads it and ACTS — a named human, rota, or on-call identity (or the
+  # automation that escalates to one)>"
+  # A LIVE PROJECT IS ALSO ASKED HOW IT IS WATCHED (rule 5) — three OPTIONAL keys on THIS section,
+  # surfaced on the gap register ONLY when SPEC-0198 resolves operational_criticality to a live
+  # reading (never on a positive `prototype`), and each answered BY ITSELF — declaring one key does
+  # NOT answer the others:
+  # health: "<the endpoint a human or a monitor can hit to ask 'is it up?'>"
+  # logs: "<the structured-log stance — what is logged, in what shape, and WHERE it is read>"
+  # slo:
+  # objective: "<the ONE thing promised, e.g. 'checkout responds under 500ms at p95'>"
+  # target: "<the number that decides whether it was kept, e.g. '99.5% of requests'>"
+  # `health:` and `logs:` are free prose and are NEVER shape-refused. A present, non-waived `slo:`
+  # must carry BOTH `objective:` AND `target:` — either missing is an init ERROR (rule 5), for the
+  # same reason a sink needs a receiver: a promise with no number commits to nothing. Omitting all
+  # three is a STANCE, not an error — the register asks, the hook does not invent.
+  # IMPLEMENTATION-AGNOSTIC (rule 4): this mandates NO alerting product and NO transport. Any sink a
+  # human really reads is a complete answer.
+  # GRADE-ONLY (rule 3): the kernel grades that the STANCE is present and complete. It NEVER contacts
+  # the sink, sends a test alert, authenticates to a webhook, or judges deliverability or latency —
+  # alerting stays operator-owned and runs on its own loop (SPEC-0093 rule 3 / SPEC-0110 rule 3).
+  # A DECLARED section answers BOTH parts (rule 2, fail-closed): `sink:` without `receiver:` is an
+  # init ERROR, not a silent pass. AN ALERT NOBODY READS IS NOT ROUTING — it is coverage-shaped
+  # silence, and a sink with no named reader is the shape that produces it (the same class as a
+  # remote whose auto-pusher died and left it silently un-synced, X-0346).
+  # The alert_routing: waiver is LOOSE (rule 6) — a project that routes nowhere legitimately waives
+  # with a bare reason. But read what you are waiving (rule 1): NOTHING HERE WILL TELL YOU THIS
+  # PROJECT IS BROKEN. While this waiver stands, an incident in this project reaches a human only
+  # when someone happens to look. That is a legitimate choice for a project nobody depends on yet —
+  # and a conscious one, which is the point of saying it out loud.
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no alert routing declared yet. Incidents in this project reach a human only when someone looks. If this project gains a sink, replace this waiver with `sink:` (where alerts go) + `receiver:` (who reads it and acts) — both (SPEC-0164 rule 2)."
+profile:
+  # SPEC-0198 (project growth profile). This section is DERIVED by the kernel from what the
+  # checkout and journal show (routes, auth, payment SDKs, PII fields, keys, migrations, deploy
+  # class) — you do NOT maintain it. Read the current resolution with `__YITC_CLI__ profile`.
+  # Declare here ONLY what the kernel cannot derive, or an OVERRIDE you want shown as yours:
+  # override:
+  # traffic_scale: "<low | medium | high — the kernel cannot read real traffic from a checkout>"
+  # collaborator_rights: "<solo | named-collaborators — a commit-author count is not a proof>"
+  # surface: "<internal — ONLY if you know this project is never publicly reachable>"
+  # An absent override keeps the derived value; an unknown dimension reads CONSERVATIVE
+  # (wider checks), never narrower. Widening happens by itself at the next seam; NARROWING a
+  # latched high-risk dimension (surface / money / data_sensitivity / users) is an explicit act HERE.
+  #
+  # BORN WAIVED, like `deploy.policy` and `security` — and here the waiver is the literally true
+  # statement, not a placeholder: this section is DERIVED, so a fresh project owes it nothing.
+  # It is seeded as a waiver rather than as an empty `override: {}` because the SPEC-0093 rule-3
+  # stance reader reads an empty declare-key as UNANSWERED, which made every born consumer carry
+  # a permanent conformance issue and failed a fresh `init` (caught by the land verify).
+  waiver:
+    reason: "Born with no override: the growth profile is DERIVED by the kernel from this checkout and its journal, so nothing is owed here. Replace this waiver with an `override:` mapping only to declare what the kernel cannot derive (traffic_scale / collaborator_rights) or to narrow a latched dimension deliberately."
+environments:
+  # SPEC-0199 (production-readiness carriers) — WHERE config comes from and whether a staging
+  # environment mirrors prod. Asked by the kernel once the project is live (SPEC-0198). Replace with:
+  # config_source: "<env | secrets store | file — and that no prod-only code path exists>"
+  # staging: "<present: <how it mirrors prod> | absent: <why that is acceptable now>>"
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no environments stance declared yet."
+sandbox_entry:
+  # SPEC-0169 — the collaborator sandbox ENTRY POINT, declared once instead of re-derived per
+  # project. OPT-IN: most projects have no collaborator sandbox and owe nothing here. Declare it
+  # when a person other than the owner is meant to enter a non-production stack of this project:
+  # entry: <the address or handle a collaborator enters through>
+  # A declared entry becomes conformance-checkable; a hand-wired one is invisible.
+  #
+  # WHY OPT-IN AND NOT DECLARE-OR-WAIVE: an UNDECLARED sandbox is not left unguarded by this
+  # choice — a collaborator can only be IN a sandbox by holding a grant (SPEC-0169 rule 1), and a
+  # grant names its project explicitly. Visibility is therefore carried by the grant contract;
+  # forcing every consumer to answer a sandbox question it does not have would be process for its
+  # own sake (CHARTER §Principle 1 filter 3 — nothing would be removed).
+  #
+  # The entry point is a LOCATION, never a credential: keys, tokens and passwords never appear
+  # here (SPEC-0100 §Security authoring-moment defaults, item 2 — no secret in runtime output or
+  # committed state). Read-only dry-run credentials are provisioned out of band.
+  #
+  # THE BORN STANCE IS A WAIVER, and it must be a real key rather than commentary. The
+  # section is EMITTED for every project, so it is PRESENT — and `_hook_sandbox_entry` holds a
+  # present block to a stance fail-closed, on the `live_revision` precedent that a present-but-
+  # empty block is malformed opt-in config and not absence. A comment-only block declares
+  # NOTHING, so every freshly-`init`ed project would fail its own born template the moment this
+  # spec went active. Replace the waiver with `entry:` when this project actually grows a
+  # collaborator sandbox; the waiver is what an opt-in concern with no sandbox honestly says.
+  waiver:
+    reason: >-
+      no collaborator sandbox yet — this project keeps no non-production stack, so it has no
+      entry point to declare. Replace this waiver with `entry: <address>` when one exists
+      (SPEC-0169 rule 1a; the grant contract, not this section, is what admits a person to a
+      project at all).
+data_obligation:
+  # SPEC-0199 — WHAT personal/sensitive data this project holds, for HOW LONG, and how it is DELETED
+  # on request. Asked once the profile resolves PII (SPEC-0198). BORN AS A DECLARATION, not a waiver:
+  # a project that stores no PII legitimately DECLARES that; the STRICT waiver (reason +
+  # compensating_control + expiry, SPEC-0093 rule 6) is for a project that HOLDS PII and defers the
+  # obligation — write it only then, with a REAL date. Replace the born values with:
+  # classification: "<which stores hold PII / sensitive data>"
+  # retention: "<how long, and what enforces it>"
+  # deletion: "<how a deletion request is honoured end-to-end>"
+  classification: "none — no personal or sensitive data is stored (re-declared at the first PII-shaped migration; SPEC-0198 asks then)"
+  retention: "n/a — nothing to retain"
+  deletion: "n/a — nothing to delete"
+cost:
+  # SPEC-0199 — the spend (infra + AI) at which cost becomes a task, and where the number is read.
+  # Asked once money or a live deploy is present (SPEC-0198). Replace with:
+  # threshold: "<amount per period at which a cost task is filed>"
+  # reading: "<where the current figure is read — a billing page, an export, a metric>"
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no cost threshold declared yet."
+dependency_cadence:
+  # SPEC-0199 — pinned manifest + lockfile + the rhythm dependencies are updated on. Part of the
+  # CONSTANT floor: every project is asked, prototype included (SPEC-0198 §7). Replace with:
+  # rhythm: "<e.g. monthly review of advisories + quarterly upgrade window>"
+  # lockfile: "<path — and that installs are frozen to it>"
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no dependency cadence declared yet."
+runbook:
+  # SPEC-0199 — what to do when it breaks: where the logs are, how to roll back, who to contact.
+  # Asked once the project is live (SPEC-0198). Distinct from alert_routing (WHO is told) — this is
+  # WHAT they do. Replace with:
+  # logs: "<where a human reads them>"
+  # rollback: "<the command or the pointer to yitc-ops rollback: — and how long it takes>"
+  # contact: "<who to call, in what order>"
+  waiver:
+    reason: "Initialized via `bin/yitc-v2 init` — no runbook declared yet."
+spike_sandbox:
+  # SPEC-0172 — the throwaway debugging SANDBOX wiring: which bridge release this project pins,
+  # whether the bridge is on, and where its cage checks live. Declared ONCE here instead of
+  # re-derived by the next project (rule 2). DECLARE-OR-WAIVE: every project must ANSWER the
+  # bridge question — answering neither is DEBT and surfaces as such.
+  #
+  # To DECLARE, replace the waiver below with one mapping carrying all three:
+  # bridge:
+  # pin: <exact release ref of the shared bridge library this project runs — rule 3>
+  # enabled: true # is the bridge actually in use here
+  # cage_checks: <where the machine-checked cage rules live — rule 4>
+  #
+  # The PIN is a release ref, never a local copy (rule 3): a surviving local copy of a neutral
+  # bridge module is a violation, not an optimisation, and a needed fix goes UPSTREAM and the
+  # project re-pins. The CAGE is DECLARED AND CHECKED, never merely described (rule 4) — prose
+  # describing a cage does not constitute a cage, so `cage_checks:` points at something that
+  # RUNS. `enabled:` is the switch, not the permission: an outbound channel inside a spike stack
+  # still needs its own explicit per-case owner grant, recorded when it is enabled.
+  #
+  # THE BORN STANCE IS A WAIVER, and it is a real key rather than commentary (the
+  # lesson, `lessons/a-stance-mirror-is-only-sound-at-birth.md`): this section is EMITTED for
+  # every project, so it is PRESENT — and a comment-only block declares NOTHING, so under this
+  # concern's declare-or-waive policy every freshly-`init`ed project would fail its own born
+  # template. A waiver is what a project with no spike bridge honestly says.
+  waiver:
+    reason: >-
+      no spike sandbox yet — this project runs no pinned bridge and keeps no caged spike stack.
+      Replace this waiver with `bridge: {pin, enabled, cage_checks}` when it does (SPEC-0172
+      rules 2-4); a spike is a throwaway exploration whose exit is knowledge, never landed code.
+spike_data_safety:
+  # SPEC-0175 — what the RESTORED COPY carries. The SIBLING of the `spike_sandbox` block above,
+  # which is about the spike STACK's wiring: this one is about the DATA inside it. A restored production
+  # copy is the SANCTIONED source of a spike sandbox — and it is not made safe by living there.
+  #
+  # To DECLARE, replace the waiver below with one mapping carrying all four:
+  # data_safety:
+  # reachability: <your surfaces holding values that can route, authenticate, identify,
+  # schedule or trigger — incl. external resource IDs and object keys>
+  # disclosure: <your surfaces holding content harmful merely by being READ —
+  # personal, financial, regulated. An ACCEPTED class is recorded here
+  # with its purpose, who may read it, and when it is destroyed>
+  # operational_state: <your surfaces holding state that DOES WORK when anything consumes it
+  # — outbox, queued jobs, scheduler entries, AND executable schema:
+  # triggers, stored procedures, CDC subscriptions, extensions. The
+  # class is the EFFECT, not the moment: "it only fires tomorrow" is
+  # still in it>
+  # none_of_the_three: <surfaces you answer as carrying NO strand, each with a reason —
+  # internal row ids, numeric foreign keys, and the like. This key is
+  # what makes the sweep pass at all: it refuses SILENCE, not
+  # completeness. An unqueryable surface (a blob, a ciphertext) does
+  # NOT belong here — it is EXCLUDED from the copy or explicitly
+  # ACCEPTED under disclosure>
+  # proof: <where the querying proof RUNS — it must carry a control PER DETECTOR,
+  # enumerate DERIVED surfaces and executable schema too (a table-keyed
+  # sweep misses views and triggers), fail closed on a surface it can
+  # neither classify nor dispose of, and NAME any accepted disclosure
+  # class rather than passing over it>
+  #
+  # THE THREE STRANDS TAKE DIFFERENT VERBS, and a strand answered with another strand's verb is
+  # not answered: reachability is NEUTRALIZED, disclosure is MASKED / MINIMIZED / EXCLUDED or
+  # explicitly ACCEPTED, operational state is DEFUSED.
+  #
+  # THE OBLIGATION STARTS AT THE FIRST EXPORTED BYTE, not at the restore: the dump, its temp
+  # files, the logs of the steps that made it, any staging or backup copy, and the restored
+  # database are ALL untreated production-derived artifacts. Only the export step, the restore,
+  # the treatment step and the probes may touch one; the chain outside the sandbox is DESTROYED,
+  # not left lying.
+  #
+  # WHAT A PROBE MAY EMIT IS A PROPERTY, NEVER A LIST OF PERMITTED SHAPES — and that property has
+  # TWO limbs, BOTH of which an emission must pass. Counts, schema and pass/fail are NOT safe by
+  # shape: they pass only when both limbs pass, and a reading that asks only whether the output
+  # teaches something about a real person lets a live routable value walk straight through. Read
+  # the rule before you build a detector — SPEC-0175 rule 4 — and do not convert it back into a
+  # whitelist of shapes.
+  #
+  # WHAT GOES HERE IS YOUR OWN INVENTORY: which tables and columns hold which class is
+  # per-schema and stays in your project (SPEC-0073). The RULES travel; the column list does not.
+  #
+  # THE BORN STANCE IS A WAIVER and is a real key, not commentary: this section is emitted for
+  # every project, and a comment-only block declares NOTHING.
+  waiver:
+    reason: >-
+      no restored production copy — this project runs no spike sandbox filled from a production
+      dump. Replace this waiver with `data_safety: {reachability, disclosure, operational_state,
+      none_of_the_three, proof}` when it does (SPEC-0175 rules 5-6).
+verify_policy:
+  # SPEC-0186. Whether THIS project pays the SPEC-0077 pinned last-green verify leg — the re-run
+  # of the LAST-GREEN test suite against new code at land. Two states only:
+  # all — run it. The DEFAULT, and the state every project is born in.
+  # never — do not run it. This project accepts that a test weakened inside a branch whose own
+  # suite stays green is then caught by audit-post alone.
+  # `reason:` is MANDATORY and non-empty for `never`, or the declaration is INVALID.
+  # Turning it off is an AUDITED act: yitc-ops.yaml sits inside the pinned-test surface, so any
+  # edit here is fast-path-INELIGIBLE and takes BOTH audits (LIFECYCLE §Two flow types).
+  # UNRELATED to `audit_scrutiny` — the two surfaces do NOT compose, in either direction.
+  # The ENGINE cannot declare this at all (SPEC-0186 rule 6 — kernel invariant).
+  #
+  # THE KEYS BELOW ARE COMMENTED, and that is the design rather than a formatting choice
+  # (external consult t11281-born-block-vs-day-one-adoption-debt). ABSENCE already
+  # reads `all`, so a born project needs no key to be in the safe state — while a LIVE key
+  # here would be a DECLARATION nobody reviewed, which the SPEC-0143 adoption pre-seed stamps
+  # `adopt@init` and the unratified-adoption debt view then reports on day one, for every
+  # project, forever. That breaks a shipped false-positive guard (a virgin consumer's born
+  # carrier is CLEAN) to say something the project never chose. Same shape as
+  # `audit_scrutiny`, for the same reason: an OPT-IN section whose ABSENCE is the fail-closed
+  # default owes no stance at birth. UNCOMMENT one of these to make a real choice — and note
+  # that `never` needs a real `reason:` or the declaration is INVALID and reads `all`.
+  # pinned_last_green: all
+  # reason: ~
+  #
+  # THE FRAGMENT BELOW IS THE BORN-PERMISSIVE DECLARATION (SPEC-0189 rules 1+7+8), and
+  # UNLIKE every commented key above it is LIVE — which is the whole point of this surface, and
+  # what registered. A commented fragment declares nothing, so `_mirror_adoption_status`
+  # reads the section `na` and `record_born_permissive_ratifications` has nothing to ratify; LIVE
+  # is what makes the ratification reachable, and what makes this an actual born default rather
+  # than a documented one. It is written ONLY into a birth carrying an explicit PER-SECTION human
+  # confirmation for THIS concern (`init --confirm-born-permissive verify_policy:<owner>`); an
+  # unconfirmed or NONINTERACTIVE birth has the whole section WITHHELD by
+  # `init.born_permissive_gate`, so no relaxing declaration is written and absence reads `all`,
+  # fail-closed. The same act records the confirmation as this declaration's ratification
+  # provenance (a SPEC-0143 `adoption:` record under the NAMED owner, never the `init` sentinel),
+  # so there is no state in which the relaxation exists un-ratified. Both write paths are gated —
+  # the fresh-birth body and the rule-11 carrier UPDATE — so a consumer born
+  # before this concern existed cannot receive it un-ratified either. (The blanket
+  # `--ratify-born-permissive` handle this text once named did not survive the shape fork —
+  # consult `definer-shape-fork-born-ratification-audit-adhoc`; the declared unit of provenance is
+  # the SECTION, so the per-section handle above is the surviving mechanism, and the marker
+  # comments that once delimited a fragment for that handle are gone with it.) Re-COMMENTING it by
+  # hand is an ordinary owner declaration, governed exactly as rule 5 says — an audited edit of a
+  # file inside the pinned-test surface, needing a real reason.
+  #
+  # WHAT IS BEING ACCEPTED, stated plainly: a project born this way does not pay the SPEC-0077
+  # pinned last-green leg from day one, and accepts that a test weakened inside a branch whose own
+  # suite stays green is then caught by audit-post alone. The named detector above watches for the
+  # absence starting to cost something and PROPOSES turning it back on; restoration is this
+  # project's own explicit act — set `pinned_last_green: all` here (SPEC-0189 rule 4).
+  pinned_last_green: never
+  reason: "born permissive per the owner directive of 2026-08-21 — a new project does not pay the
+    pinned last-green leg from day one; the periodic review watches for the absence starting to cost
+    something and PROPOSES turning it back on (SPEC-0189). Restoration is this project's own explicit
+    act — set `pinned_last_green: all` here."
+overrides:
+  # SPEC-0196 — THE OVERRIDE LEDGER: the ONLY sanctioned form of local divergence from an
+  # upstream-owned file of the pinned release (SPEC-0195 rule 2). Born EMPTY, which is the
+  # honest default: a fresh project diverges from nothing. Add an entry ONLY when this project
+  # must run a local edit of an upstream-owned file before upstream carries it.
+  #
+  # Each entry carries EXACTLY these four fields (rule 1) — no others, no free-form policy text:
+  # path: the upstream-owned file diverged from
+  # rationale: one plain sentence — why this project needs the divergence now
+  # upstream_intent: temporary-patch | forwarded | accepted-exception | not-forwarded
+  # (a CLOSED vocabulary; `not-forwarded` is a recorded decision, never a default)
+  # review_trigger: an ISO date (YYYY-MM-DD) OR a named artifact whose close re-opens the entry
+  #
+  # DELETE-ON-MERGE (rule 4): the moment the pinned release carries the divergence, delete the
+  # entry AND drop the local edit — the drift check reports the entry REDUNDANT until you do.
+  # The check is REPORT-ONLY and adds no land gate; it rides `update`'s divergence report and the
+  # nightly sweep. An UNREGISTERED edit of an upstream-owned file is a CONFLICT on update and is
+  # never resolved silently in either direction (rule 3).
+  entries: []
+# ── END born-ops template (generated completeness sentinel —) ──

@@ -1,0 +1,238 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0171
+title: Consumer session-start error echo — report-only suppressed-when-clean delivery plus its post-compact re-fold
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements: # SET by, the ACTIVATING card (both halves in ONE change — the
+                               # §Internal item 2 co-design MUST). The note below is kept: the spec was
+                               # born `implements: []` on purpose (accept-gate finding 5, 2026-08-07),
+                               # born `proposed` before its implementing symbols existed; a placeholder
+                               # anchor would have entered the graph as FALSE evidence.
+  # — the ECHO half —
+  - bin/lib/frontend_errors.py#echo_lines # the line shape (labels · top-2 · `+K more`)
+  - bin/lib/frontend_errors.py#not_qualifying_lines # §Scenario's scoped promise: non-adoption says WHY
+  - bin/lib/frontend_errors.py#declared_source # reads the EXISTING SPEC-0093 adopts[] declaration
+  - bin/lib/frontend_errors.py#read_kwargs # that declaration rendered as reader arguments
+  - bin/lib/session.py#frontend_error_echo_lines # the seam leaf (best-effort, suppressed-when-clean)
+  - bin/lib/cli.py#_frontend_error_echo_lines # the host residue that prints it at session start
+  # — the RE-FOLD half, shipped in the SAME change (SPEC-0007 §5b) —
+  - bin/lib/cli.py#cmd_frontend_errors # the SAME view verb, now invocable BARE
+  - AGENTS.md#compact # the '## After /compact' heading: the re-fold's
+                                                     # documented home, beside its `debt` / `cross
+                                                     # outbox` analogs. Symbol-decomposed per
+                                                     # SPEC-0088 (a markdown heading IS a symbol) —
+                                                     # the bare-file form re-fired the file-granular
+                                                     # advisory on every build and made every
+                                                     # unrelated AGENTS.md edit read as drift on
+                                                     # this spec.
+                               # = Anchors. durable anchors : PREFER <file>#<symbol> over a
+                               # bare <file> (the code-decompose rule, SPEC-0088 — a file-granular
+                               # anchor is flagged report-only at `graph build`). NOT line ranges.
+                               # Resolved at `graph build`; stale = warned.
+                               # Design-phase / documentary spec → `implements: []` + a note.
+
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  The owner of an ADOPTING consumer — one whose error source PASSES the qualifying-source preflight
+  (SPEC-0170 §Internal item 1) — starts a session and is TOLD what is breaking in the product frontend
+  — one short line: how many confirmed clusters, the top items, where to look. They did not ask. When
+  nothing is confirmed the line does not appear at all and the session is silent.
+
+  **Scoped promise, not a universal one (absorbed 2026-08-06 from the external consult, finding 3).**
+  The silence above means ONE thing only — this consumer's qualifying source currently holds no
+  confirmed cluster. A consumer whose source does NOT qualify must never be served that same silence:
+  its non-adoption is reported with its REASON at the declare-or-waive seam, because an echo that reads
+  identically for "you are healthy" and "I cannot see anything at all" is the suppressed-when-clean
+  surface lying by construction.
+
+  ## Internal
+
+  DRAFT — plan-local, governs nothing (SPEC-0005 §4). This is the DELIVERY half of the conveyor
+  (SPEC-0170 is the mechanism half). What is settled:
+
+  1. **It must be a SPEC that carries the delivery, not a pattern.** Both always-loaded surfaces — the
+     floor-trigger-map and the session-start seed how-to — are GENERATED from each spec's `binding:`
+     field and render **spec IDs only**; a `patterns/` file can never be a floor/seed target. So this
+     spec is the thin binding CARRIER — and, because the echo's parameters (line shape, label, top-N)
+     live nowhere else, it is ALSO their authoritative rule HOME. The earlier `pointer-only` framing is
+     retired (accept-gate finding 6, 2026-08-07): a spec cannot be pointer-only and simultaneously hold
+     the only copy of a rule. No new pattern doc is created for prose that already has a home here. Source:
+     lesson `delivering-a-pattern-on-the-floor-or-seed`, consulted at plan-draft authoring 2026-08-06.
+  2. **CO-DESIGN MUST (SPEC-0007 §5b) — non-negotiable, and the reason this spec exists separately.**
+     Anything added to what `session start` DELIVERS must co-design its post-`/compact` re-delivery in
+     the SAME change. A `/compact` evicts a start-time echo and re-reading the handbook seed does NOT
+     restore it. So this echo ships WITH a named re-fold verb, exactly as `debt` (SPEC-0119) and
+     `cross outbox`/`cross inbox` (SPEC-0086) have one. **An echo without its re-fold is incoherent by
+     that invariant and must not pass decomposition.**
+  3. **Report-only, suppressed-when-clean.** The line is derived at read time from the confirmed
+     clusters; it stores nothing, gates nothing, and starts no work. An ACKED cluster is off this line
+     until it RECURS — the ack rule, its journal-folded marker and the never-a-permanent-mute guarantee
+     have ONE home, SPEC-0170 §Parameters "TTL / ack"; this spec only records that the echo
+     renders the post-ack VISIBLE set, and its own contract is unchanged by it.
+  3a. **ONE exception to the suppression, and it is the suppression's own safety catch.**
+     Suppressed-when-clean answers "nothing is confirmed" with silence — which is correct while the
+     periodic sweep is RUNNING, and identical to what a reader gets once that sweep has been dead for
+     months. So when the SPEC-0170 cadence has not fired inside its declared window, this echo emits
+     the CADENCE-NOT-FIRED line even though the fold is clean, naming the carrier, its OS trigger and
+     how long it has been silent. This does not weaken item 3: the line reports the state of the
+     MECHANISM, never a cluster, and it still stores nothing and gates nothing. It exists because the
+     plan's own trial found the delivery half had never once run on a live session and no surface said
+     so — the silence was indistinguishable from health, which is exactly the lie the §Scenario scoped
+     promise forbids, one level up. The liveness rule, its window and its marker-gated fold have ONE
+     home: SPEC-0170 §Internal item 6 (`cadence_liveness` / `cadence_not_fired_lines`).
+  4. **Both halves are load-bearing at verification.** A suppressed-when-clean echo tested only in its
+     non-empty state is green by construction — the silent half must be probed too.
+
+  ## Parameters
+
+  Values carry the run-ref that set them; a value set by ONE run is provisional until it survives a
+  second run unchanged (SPEC-0035 rule 5).
+
+  | Parameter | What it decides | Status |
+  |---|---|---|
+  | line shape | count only, or count + top-N + pointer | SET(run-1, provisional): count + top-N + pointer — but the item MUST be a short LABEL, never the raw fingerprint. Rendering raw fingerprints ran 209 chars at top-3 and truncated mid-token (`(psycopg2.errors.Undefin (×9)`), which reads as damage, not information |
+  | label | how one cluster is named inside the line | SET(run-1, provisional) — a NEW parameter the run surfaced: extract the distinctive signature (exception class `UndefinedFunction`, `ReferenceError: setHelpOpen`, `React error #31`), fall back to the message head, cap ~38 chars. This is what makes a top-N line readable at all |
+  | top-N | how many items the line names before it becomes noise | SET(run-1, provisional): **2** — with labels, top-1/2/3 measured 67/110/142 chars; 110 sits closest to the sibling `debt` / `cross-coord` echoes, which are one short line |
+  | re-fold REQUIRED | whether the echo must ship with a named re-fold verb at all | **SETTLED — not by this trial, by precedent.** The SPEC-0007 §5b co-design invariant already binds it: a `/compact` evicts a start-time echo and re-reading the seed does not restore it, so the echo ships WITH a re-fold verb or it is incoherent — exactly as `debt` (SPEC-0119) and `cross outbox`/`cross inbox` (SPEC-0086) do. This obligation is NOT weakened by the row below |
+  | re-fold verb NAME | the lexical name of that verb | **OUT-OF-TRIAL(run-1)** — structurally mis-scoped at bake time and removed on that ground, not because it resisted convergence. No error stream of any shape or volume discriminates one verb name from another, so no run could ever have set it; run-1 discovered this and five further runs left it untouched. The NAME is settled at `accepted`/decomposition against the `debt` + `cross outbox` precedents. Recorded openly rather than quietly dropped: nothing adverse in the data is hidden here, and the requirement above survives intact (external consult 2026-08-07, GREEN, `decisions/frontend-error-conveyor-refold-name-fork-audit-adhoc.yaml`) |
+
+  **Verification status (run-2).** The line was RENDERED from the corrected fold, not just
+  specified — the labelled top-2 form came out at 86 characters on the real confirmed set
+  (`frontend: 8 confirmed — UndefinedFunction ×9; UniqueViolation ×6 +6 more`), in the same
+  register as the sibling `debt` / `cross-coord` echoes. One unplanned gain — the label rule
+  surfaces a cluster's CAUSE over its symptom (a rolled-back-transaction cluster now reads
+  `UniqueViolation`). Values UNCHANGED by run-2, still provisional — the two-quiet-cycles floor
+  (SPEC-0035 rule 5) restarts from this run.
+
+  None is `consumed`.
+
+  ## Rationale
+
+  Prior-art is the kernel's own start-time echoes: `debt` (SPEC-0119) and the `cross-coord` counts
+  (SPEC-0086) — both report-only, both suppressed-when-clean, both carrying a re-fold verb precisely
+  because a `/compact` evicts them. Owner cue 2026-07-11: the consumer `session start` should surface
+  "what needs fixing" without being asked. The no-startup-spam bound is carried in from the settled
+  signal-hygiene requirements of the proposing plan.
+
+  ## Verification
+
+  Trial-stage: the line shape is exercised against the trial's confirmed-cluster output; a run that
+  changes the shape is non-converged. Post-activation: BOTH halves probed on a live consumer session
+  (fires on confirmed / silent when clean), plus the re-fold verb re-surfacing the same content after a
+  `/compact` — the co-design invariant proved, not asserted.
+
+  **Shipped (the activating card).** The re-fold verb NAME — left OUT-OF-TRIAL above, to be
+  settled at decomposition against precedent — is **`bin/yitc-v2 frontend-errors`**: the SPEC-0170
+  view verb ITSELF, invoked BARE (it resolves the source the consumer already declares), exactly as
+  `debt` and `cross outbox` are simultaneously the on-demand view and the post-`/compact` re-fold. No
+  second verb name exists, so the two cannot drift.
+
+  Both halves are covered by differential tripwires in `tests/test_frontend_error_conveyor.py`
+  (SPEC-0165 rule 5 — EXTENDED, not a per-task file), ledger rows A-FE22..A-FE26:
+
+    * A-FE22 probes suppression in BOTH directions — the SILENT half explicitly (an empty fold AND a
+      200-row stream of never-confirmable transport noise), which §Internal item 4 demands: tested only
+      non-empty, this surface is green by construction.
+    * A-FE23 pins the line shape (LABELS, top-2, `+K more`, one bounded line, no raw fingerprint).
+    * A-FE24 pins §Scenario's scoped promise: an adopted consumer whose source does NOT qualify is told
+      WHY, naming the failing properties — the differential no other test can make, since both states
+      otherwise print nothing.
+    * A-FE25 pins the wiring to the EXISTING declaration (no second declaration path) and the
+      best-effort posture (a blowing-up reader degrades to silence, never a broken `session start`).
+    * A-FE26 pins the CO-DESIGN invariant itself: the bare argv must survive the parser — before this
+      card it died there on `the following arguments are required: --pg-container`, i.e. the documented
+      re-fold shape did not exist — and the AGENTS §After-`/compact` paragraph must name this verb.
+
+cites: # informational any→any refs — spec↔spec / scenario→spec / etc.
+  - CHARTER.md#principle-N # ( B2). Non-blocking, suppressed in default views.
+
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # SET at decomposition 2026-08-07 — card 4 is the ONE task whose close
+                               # activates this spec (SPEC-0034 plan-born rule).
+                               # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: frontend-error-telemetry-conveyor-as-a-kernel-exte
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [seed] # SET at plan-accept 2026-08-07 (accept-gate finding 3): the session-start
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  AGENTS.md#compact: 292ac05c3b8587272ab7556dabea000fcd4b51d06c09bb71f24b0f5d19980c52
+  bin/lib/frontend_errors.py#declared_source: fc76f919bd81c16f0aedb7c5f001b3e642a534a65e83cc4eb1a459deb39eac53
+  bin/lib/frontend_errors.py#echo_lines: b30abdc92ec6890a077b27ed861c4537738fa7450f958f680a876c17885430e9
+  bin/lib/frontend_errors.py#not_qualifying_lines: 42fbad7a72eb177052a74d2fdc22d809858cb238c1be1daf13ccf476df162bab
+  bin/lib/frontend_errors.py#read_kwargs: 04be1a5ec4a3e95b1db2978489dd8245d4fc2d2144ec00f7ede99e4a6b5c4438
+  bin/lib/session.py#frontend_error_echo_lines: f14d4aae12b006943626400d625d202a2c4570c1b2fb4f379546e11c40c4861b
+  bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
+  bin/lib/cli.py#cmd_frontend_errors: 9268f9483976b17f4f9ca6e4a70c56d3cfa3c79af0220b3f226372607b051404

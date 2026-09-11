@@ -1,0 +1,755 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0086
+title: cross verbs — request inbox outbox pick done reject dispute close ack archive plus the outbox startup surface
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # DRAFT (plan-local, SPEC-0005 §4) — born by plan
+                               # shared-coordination-log-supersede-cross-tasks-per-; governs NOTHING until
+                               # `plan stage accepted` → proposed and its activation_owner_task closes →
+                               # active. `active` is the ONLY normative status.
+
+created_at:
+
+travels: ~ # kernel (class-default, UNMARKED) — re-pinned from draft v2-self at
+                               # decomposition (SPEC-0073 rule-8: a `proposed` kernel head is exempt
+                               # from the release-slice guard and stays unmarked; it travels on activation).
+                               # Catalog: SPEC-0030.
+
+consumed: false # design-stage documentary verb-contract (SPEC-0005 §7 mode (b)) — no code
+                               # reads a governing scalar param FROM this spec.
+
+implements: # (activation owner): concrete `#<symbol>` anchors added at
+                               # activation, as this body instructs. The 8 verbs live in the dedicated
+                               # module `bin/lib/cross.py` (rule 5) with thin dispatch in `bin/yitc-v2`;
+                               # the outbox startup surface (rule 4) is in `cmd_session_start`.
+  - bin/lib/cross.py#cmd_cross_request
+  - bin/lib/cross.py#cmd_cross_pick
+  - bin/lib/cross.py#describe_holder # (X-0456) — the ONE shared holder renderer both
+                                             # intake surfaces print through (no wording drift).
+  - bin/lib/task.py#_auto_cross_pick_for_file # (X-0456) — reports the already-HELD skip
+                                             # (was silent) so the filing can name the holder.
+  - bin/lib/cross.py#intake_advisories # — the `cross pick` intake-hygiene pre-check
+                                             # — the `already_held` double-intake advisory.
+                                             # (already-addressed staleness REFUSAL + not-for-this-side
+                                             # relevance surface), computed BEFORE the FSM _guard.
+  - bin/lib/cross.py#cross_pick_for_file # — PURE FSM-legality fn for auto-pick-on-file (mirror of cross_done_for_close), reused by task.py#_auto_cross_pick_for_file at task file
+  - bin/lib/cross.py#unanswered_cross_link_advice # (X-0943) — PURE advice for a resolves_cross
+                                             # link the close-side auto-cross_done will NOT answer; the
+                                             # oracle is cross_done_for_close itself, so it cannot drift.
+  - bin/lib/cross.py#print_unanswered_cross_link_warns # — the ONE print site for the above.
+  - bin/lib/cross.py#premise_review_cue # (rule 7) — the PURE receiver-side premise-review
+                                             # cue; the ONE emitter both intake surfaces share, so the
+                                             # cue wording cannot drift between them.
+  - bin/lib/task.py#cmd_task_file # (rule 7) — the SECOND intake surface the clause
+                                             # governs: the `resolves_cross` ASSOCIATION created at
+                                             # filing (the non-`cross pick` half of the semantic
+                                             # transition), which prints the same shared cue. Anchored
+                                             # because rule 7 names this call-site as a current
+                                             # implementation — the clause governs behaviour HERE, so the
+                                             # coverage must say so (audit-post finding, 2026-07-12).
+  - bin/lib/cross.py#cmd_cross_done
+  - bin/lib/cross.py#cmd_cross_reject
+  - bin/lib/cross.py#cmd_cross_dispute # (X-1093) — the AUTHOR's negative verdict:
+                                             # the symmetric sibling of `cross reject` one role over.
+  - bin/lib/cli.py#cmd_cross_dispute # — the host wrapper (the ordinary thin dispatch)
+  - bin/lib/cross.py#cmd_cross_ack
+  - bin/lib/cross.py#cmd_cross_close
+  - bin/lib/cross.py#cmd_cross_inbox
+  - bin/lib/cross.py#cmd_cross_outbox
+  - bin/lib/cross.py#canonical_peer # rule 6 — the PURE alias -> canonical id resolver
+  - bin/lib/cross.py#read_events # rule 6a — THE canonicalization choke point (the one seam)
+  - bin/lib/cross.py#unroutable_rows # rule 6c — the PURE unroutable set behind the loud WARN
+  - bin/lib/cross.py#unregistered_sender_rows # rule 6d — the PURE unregistered-sender set behind its WARN
+  - bin/lib/cross.py#inbox_picked_untracked_rows # rule 4 — the PURE accepted-but-untracked cut
+  - bin/lib/cross.py#availability_claim_findings # rule 4 — the PURE availability-claim detector
+  - bin/lib/cross.py#premature_announcement_warning # rule 4 — the PURE WARN text behind the conjunction
+  - bin/lib/cli.py#_cross_unlanded_claim # rule 4 — the host-side unlanded-claim derivation
+  - bin/lib/cli.py#_cross_peer_aliases # rule 6 — the host-side registry.yaml alias-map resolver
+  - bin/lib/cli.py#_cross_self # rule 6 — self resolved to the CANONICAL registry key
+  - bin/lib/cli.py#_cross_linked_ids # rule 4 — the ONE host scan of DECLARED local
+                                                # carriers (task `resolves_cross` + non-terminal plan
+                                                # frontmatter), the exclusion both start cuts read.
+  - bin/lib/cli.py#_declared_resolves_cross # rule 4 — the shared per-record coercion, so
+                                                # the task and plan legs cannot drift.
+  - bin/lib/session.py#cmd_session_start # rule 4 — the report-only `cross-coord:` outbox/inbox surface (extracted byte-identical)
+
+body: |
+  ## Scenario
+
+  A session works the shared coordination log entirely through `cross` verbs — never a raw append. It
+  files an item (`cross request`), sees what is addressed to it (`cross inbox`) or what it authored and
+  must now finalize (`cross outbox`), and drives an item through its protocol (`pick` → `done` →
+  `close`, or `ack`, or `reject`). At session start it is SHOWN its `outbox` — the items it authored
+  that a peer has fixed and now await its close — so "consumer sees fixed → verify at start" is a
+  surfaced fact, not a manual peer-scan. Each verb owns the unsafe mechanics (id allocation, atomic
+  append, the role-emit guard) and emits its `cross_*` event deterministically.
+
+  ## Internal
+
+  THE VERB CONTRACT for the shared coordination log — the `cross` verb group, the fold-rendering views,
+  and the `outbox` session-start surface (with its post-`/compact` re-delivery). The DATA model + event
+  FSM + view fold-semantics live in the protocol sibling (this plan's protocol spec); the store's
+  authority/placement in the authority sibling. This spec owns only the CLI surface + the startup
+  delivery. Each verb is checked against `patterns/verb-design.md` (the 5 aspects). Five rules.
+
+  ### 1. The verb group — names pinned (D3), each a control chokepoint for its write
+  Ten verbs (the D3-pinned names, plus the author-side `dispute`); raw appends to the shared store are FORBIDDEN — a `cross` verb is
+  the ONLY path (verb-design #4 control-chokepoint), so the id-allocation + atomic append + role-guard +
+  `cross_*` emit cannot be hand-done wrong:
+    - **`cross request`** (#1 ease + #2 error-reduction) — allocates the immutable id under flock,
+      validates `from`/`to`/`kind`/brief, atomically appends + emits `cross_requested`. The author verb.
+      The `to` validation is FAIL-CLOSED against the KNOWN participants : the registry's yitc_v2
+      project CANONICAL IDS (§Peer identity below) ∪ every participant already in the shared log ∪ self.
+      `to` is CANONICALIZED before validation, so a peer addressed by either spelling resolves to its one
+      id. An unknown `to` is REFUSED with the closest `did you mean <X>?` suggestion — so a misaddressed
+      item cannot be silently folded by no one — unless `--force` files it to a genuinely-new
+      not-yet-registered peer (the documented escape, mirroring `cross pick --force`).
+      DEAD-LETTER WARN (X-0547) — after a successful emit, if `to` resolves to a REGISTERED
+      but NO-TEAM project (neither `methodology: yitc_v2` nor an active `team_mode`/`ai_team.enabled`, so
+      it never runs a session that could `cross pick/reject/ack`), a REPORT-ONLY WARN names the
+      dead-letter risk + a host-infra routing hint. It is NOT a gate (CHARTER non-goal #7): the request
+      still succeeds (a no-team project may be a legitimate FYI-note target) and it is orthogonal to the
+      membership check + `--force` (which concern identity, not intake-capability).
+      PREMATURE-AVAILABILITY-ANNOUNCEMENT WARN (X-1048) — after a successful emit, when the
+    sending session HOLDS AN UNLANDED WRITING CLAIM (a `task/T-XXXX` / `work/<slug>` branch; derived
+    host-side and INJECTED, never read inside this module) **AND** the brief reads as an announcement
+    of AVAILABILITY («this is, go run it»), a REPORT-ONLY WARN names the BRANCH, its task id
+    and its distance from `main`, plus the land command to run first. Same posture as the two WARNs
+    above and NOT a gate: the item stands as filed, unaltered, and no event records the advisory.
+    THE CONJUNCTION IS THE RULE, not an implementation detail — the narrow target is an announcement
+    of availability, so a deviation capture, a question, a reframe and an ordinary note are UNTOUCHED
+    from a worktree, with no added step. That bound is load-bearing: the no-worktree coordination path
+    exists so the capture reflex stays ONE command, and a fix that taxes that reflex would be
+    worse than the defect it closes. Two BOUNDS are stated in the WARN text itself rather than
+    implied away: the detector is a HEURISTIC over prose (there is no enumerated field to route on —
+    cf. SPEC-0085 §3), so an availability claim worded outside the matched set is NOT caught and
+    silence is not proof of absence; and an undecidable claim (non-git / detached HEAD / any git
+    error) degrades to SILENCE, never to an accusation. Grounds: X-1041 announced a capability as
+    SHIPPED at and it landed at 07:56:52Z — the consumer ran the verb it was
+    told to run, measured an absence, and audited the sender's source.
+    **`cross request --task T-NNNN`** (X-1152) — OPTIONAL: the card this request is filed IN
+      SERVICE OF. Stored on `cross_requested` as BIRTH meta, so the fold reads it off that event alone
+      and the audit packet of THAT card can see the request as its own evidence (SPEC-0168 rule 4).
+      Validated FAIL-CLOSED on SHAPE only (`T-NNNN`, anchored): the tie downstream is an EQUALITY
+      against a card id, so a malformed value would store quietly and match nothing forever. Existence
+      is deliberately NOT checked — the store is shared and the card lives in a repo this verb may not
+      have (SPEC-0084 rule 5), so shape is the only thing checkable without reaching across a project
+      boundary. Read from BOTH input modes and therefore listed in the `--from-stdin` × argv conflict
+      table like every other such field. `cross show` prints it as a `filed for task:` line ABOVE the
+      receiver-side `task:` line, never merged into it: the author's link says what the AUTHOR was
+      working on when they raised the item, the receiver's says which card RESOLVED it.
+    The `cross_requested` payload ALSO carries **`actor`** — the PERSON who authored the item, beside
+      the `from` PROJECT that raised it. DERIVED host-side from the launch context
+      (`lib/memory.py#resolve_actor`: the owner-role host user records the default `ai-agent`; a named
+      provisioned user, e.g. <collaborator>, records their own name) — zero added input from the human, no
+      `--actor` flag (owner directive 2026-07-11). BIRTH meta, immutable like `kind`/`from`/`to`: the
+      fold reads it off the meta-establishing `cross_requested` alone, so a later protocol event can
+      never re-write who authored the item. `cross show` prints an `actor:` line when one is recorded
+      (the same shape as `origin_fp` / `origin_ref`). Reuses the existing event — NO new store (§P1).
+    - **`cross inbox`** (read-only) — renders the fold-derived INBOX view (non-terminal `to:me`); a query
+      verb, no mutation. (View definition: protocol sibling rule 5a.)
+    - **`cross outbox`** (read-only) — renders the fold-derived OUTBOX view (`from:me` awaiting MY
+      action: done-awaiting-close / rejected-awaiting-close); a query verb. (Same fold home.)
+    - **`cross pick`** (#2+#3+#4) — receiver accepts; appends + emits `cross_picked` (role-guard: only `to`).
+      **Intake hygiene, BEFORE the FSM guard:** REFUSE (journal-observable) a STALE pick — a DONE
+      local task already resolves the item (its `resolves_cross` link names it), naming the resolver, with
+      a `--force` override; and SURFACE a not-actionable-for-this-side item (addressed to a different peer)
+      as a clear skip line (the FSM guard then refuses it wrong-role). So no side re-picks already-addressed
+      or irrelevant work (the duplicate-intake class). The advisories are PURE/derived (`intake_advisories`
+      over a deterministic done-resolver scan), no stored state.
+      **Double-intake visibility (X-0456) — the THIRD advisory, `already_held`:** an item a peer
+      ALREADY holds (a live `picked`/`done` intake, per the fold's derived `held{by,ts,task}` view) is
+      REFUSED naming the HOLDER + its pick ts + its resolving task when known. This adds NO gate — the FSM
+      guard (`from_states={"requested"}`) already refused this state; what was missing is WHO holds it, so a
+      raced second intake reads as a bare wrong-state code instead of a nameable conflict. NOT
+      `--force`-overridable (`--force` covers only the staleness advisory; a second pick is
+      FSM-illegal regardless). A SETTLED (terminal) item is excluded — that is the `already_addressed`
+      staleness case above, not a concurrent double-intake.
+      **The `task file --resolves-cross` half of the same rule:** the auto-pick below SKIPS an item
+      it cannot advance; when the cause is `already_held`, the filing PRINTS an already-linked advisory
+      naming the holder + its existing task (report-only — it never blocks a filing, emits no event, and
+      never changes the exit code). Both surfaces render the holder through the ONE shared
+      `describe_holder` renderer, so the wording cannot drift between them (the `premise_review_cue`
+      single-emitter precedent). Real incident: two live controllers both intook X-0452 while the filing
+      path skipped SILENTLY -> duplicate cards and a wasted dispatch cycle (a recurrence of
+      the X-0430 two-controllers-one-concern class).
+      **Unanswered-link visibility (X-0943) — the file-side warn for EVERY link the auto-pick
+      could not advance.** The close-side auto-`cross_done` fires ONLY for an item self RECEIVES that is
+      EXACTLY `picked`, so PICKED is the discriminator and an UNPICKED linked item is silently NEVER
+      answered. The `already_held` advisory above covers ONE of the auto-pick's skips; the rest — a
+      non-pickable `note` kind, a wrong-role link, and a `parked`/`wont-do` filing that does not auto-pick
+      at all — emitted nothing. So `task file` PRINTS one WARN per link that will not be answered at
+      close, naming the item, its KIND and STATUS, and the next command that is CORRECT FOR THAT KIND: a
+      `note` is advised toward `cross ack` (its only receiver terminal — advising `cross pick`/`cross done`
+      would name a command the verb REFUSES, which is worse than no warn), a pickable kind toward
+      `cross pick`, an item this side AUTHORED toward `cross close`. An item already `done`/terminal, or
+      one the close WILL answer, stays silent; ids the already-linked advisory just named are skipped so
+      one filing never double-signals one item. The "will it answer?" oracle is `cross_done_for_close`
+      ITSELF, not a re-derived copy of its conditions, so the warn and the emit cannot drift apart. ADDS
+      NO GATE — report-only, no event, no status change, no exit-code change, fail-open (making `close`
+      REFUSE would gate a card on a peer-log state, CHARTER non-goal #7). Real incident: social-scraper's
+      X-0750 / X-0829 / X-0649 each stayed `[note/requested]` after the resolving task landed done, while
+      `cross pick` refused them naming that same done task and `cross show` printed `task: (none)` — three
+      surfaces, three different answers about one item; their PICKED pair auto-closed correctly, which is
+      what isolates PICKED as the cause. Pure renderer: `cross.unanswered_cross_link_advice`; the ONE print
+      site `cross.print_unanswered_cross_link_warns`.
+      **Auto-pick on `task file`, the symmetric mirror of the close-side auto-`cross_done`:**
+      filing a READY local task that carries `resolves_cross:[X-NNNN]` auto-emits `cross_picked` for each
+      linked item self RECEIVES that is EXACTLY `requested` + a pickable kind (`task`/`bugfix`) — so the
+      normal flow (file → work → close) moves the item off the "new inbound" surface AND makes the
+      close-side auto-`cross_done` (which fires only from `picked`) reachable. Idempotent + fail-open
+      (pick ONLY when the item exists, `to==self`, kind pickable, status EXACTLY `requested`; else skip,
+      NEVER fail the `task file`). READY-only: a `parked`/`wont-do` filing does NOT auto-pick (not an
+      active-claim acceptance). REUSES the cross mechanism (a direct emit — no new event/verb/state); a
+      `cross_*` append needs no worktree. Pure FSM-legality: `cross.cross_pick_for_file`.
+    - **`cross done`** (#2+#3+#4) — receiver finishes (may carry the receiver's `T-NNNN`); emits `cross_done`.
+  **The done MAY carry `--note <text>` : WHAT the receiver actually did, recorded on
+  `cross_done.data.note` and surfaced by `cross show` as the item's resolution note** — the
+  receiver-side mirror of `cross close --note` below. A receiver whose outcome DIVERGES from the
+  request needs a durable home ON the item to say so: X-0227 was closed with a bare `cross_done`
+  after the kernel retired the requested change (SPEC-0146), and the author, unable to
+  learn that outcome, re-filed the identical ask as X-0256. OPTIONAL — a bare done emits the same
+  `{id, by}` (a REQUIRED flag would be a new gate, forbidden here by CHARTER §Principle 1). No
+  read-side change: `resolution_note` already reads a `note` key off ANY accepted event, the LAST
+  one winning, so a later author-side `cross close --note` supersedes it.
+  **The close-side AUTO-`cross_done` ( at `task close` / at land) DERIVES a resolution
+  text from the RESOLVING TASK — its title + closing commit sha (`cross.resolution_note_for_close`,
+  the ONE emitter of the wording, so the two auto paths cannot drift) — so an auto-resolved item
+  never reaches its author bare (X-0356: X-0346 + X-0351 arrived bare and the author had
+  to re-ask).** The card already HOLDS the answer, so nothing is stored anew and no receiver must
+  remember to type it; a task too thin to say anything (no title) emits NO text rather than a blank
+  one.
+  **The derived text SAYS WHAT THE FIX CANNOT REACH, when the resolving card declares it (X-1179).** A fix can resolve the reported CLASS while structurally excluding the reported
+  INSTANCE, and the derived note read as a plain resolution either way — so a requester acted on a
+  closure that did not reach them, re-claiming the reported card and spending an external auditor
+  invocation before the (correct) guard refused. When the resolving card carries the OPTIONAL
+  `resolution_excludes:` (SPEC-0028), the same one emitter appends it to the derived text, on the
+  same `auto_note` key, with no read-side change. It is DECLARED, never inferred — no code judges
+  reach — and it is ADDITIVE: a card that omits it emits the identical note as before, so an
+  ordinary closure is not taxed to describe the rare one. The bound: this makes a KNOWN limitation
+  legible; it cannot discover one the resolver never noticed.
+  **That derived text rides `auto_note` — PROVENANCE, never the receiver's return slot (X-0618).** It used to be written to `note`, and because the auto-emit fires at LAND it always got
+  there FIRST: the resolver's substantive return then had nowhere to go, and `cross done` refused a
+  second emit, so both sides read a completed handoff while the payload was a generated stub. The
+  workaround cost a hand-authored extra item per truncated return and only worked when a human
+  NOTICED (X-0616 re-delivered a whole trial return as its own item; X-0620 asked for that
+  re-delivery; X-0622 was it). So the two texts are separated AT THE KEY: `auto_note` is read by
+  `cross.auto_resolution_note` and rendered by `cross show` on its own `auto-resolution:` line;
+  `note` (`_NOTE_KEYS`, `cross.resolution_note`) stays the receiver's own words. `_NOTE_KEYS` is
+  deliberately NOT widened to include it — that would put the stub back in the slot.
+  **The done is legal from `done` as a NOTE-ATTACH, and then `--note` is REQUIRED.**
+  `from_states` is `{picked, done}`: the resolver writes its substantive return AFTER the land (it
+  cites the landed sha), by which point the auto-close has already moved the item to `done`, so a
+  `picked`-only guard locked the receiver out of its own item. From `done` a bare repeat is REFUSED
+  through the ordinary journal-observable refusal (the transition already happened — it would
+  resolve nothing); with a `--note` it appends the return, which the LAST-accepted-note read side
+  surfaces with no change. The data-model half — that this adds no state, no event type, and is not
+  the forbidden terminal reanimation — is the protocol sibling SPEC-0085 rule 2's.
+    - **`cross reject`** (#2+#3+#4) — receiver declines with reason; emits `cross_rejected` (terminal).
+      **It carries the RE-ENTRY DISPOSITION ** — see §`cross close` for the one shared rule.
+      This is the leg the rule exists for most sharply: a reject is terminal AND the author never gets
+      a close to be gated at, so a conditional decline captured nowhere here is captured nowhere at all
+      (X-0387). `--re-entry "<condition>"` (optionally `--re-entry-awaits <T-NNNN>`) arms the waiter in
+      the RECEIVER's debt echo; `--no-re-entry "<why>"` records the dismissal on `cross_rejected` as
+      the additive `re_entry_dismissed` key, outside `_NOTE_KEYS`. `--reason` stays REQUIRED and is the
+      text the guard reads alongside the chain-derived resolution note.
+    - **`cross dispute`** (#2+#3+#4) — the AUTHOR records that a peer-declared `done` fix does NOT reach
+      the case: emits `cross_disputed` (NON-terminal), returning the item to `picked`. The symmetric
+      sibling of `cross reject` one role over — the receiver has always been able to decline with a
+      reason; the author had no way to say the delivered fix does not work. Role-guard: only `from`;
+      kinds `{task, bugfix}`; from-state `done`. **`--reason` is REQUIRED** (unlike `cross done --note` /
+      `cross close --note`, which are optional): the disproof is the entire content of the edge, and a
+      dispute without it is indistinguishable from a mis-click and gives the peer nothing to act on —
+      the same reasoning that makes `--reason` required on `cross reject`. It rides `_NOTE_KEYS`, so
+      `cross show` renders it as the resolution note with no read-side change, and it takes the
+      CITATION ORDERING check like every other human string this verb group publishes (refused BEFORE
+      the emit, so an unallocated `X-NNNN` never reaches the append-only log).
+      **WHY (X-1093, reported by kupiclub and caused by us):** an author who VERIFIED that a peer's fix
+      does not reach the reported case had two moves and both were wrong. `cross close` ASSERTS
+      verification, so closing writes a false record — and it was a single command, i.e. the dishonest
+      act was the cheap one. Doing nothing left the item in the fixed-to-verify outbox cut (rule 4)
+      indefinitely, carrying no trace of the verification that already happened. The partial route that
+      existed — the RECEIVER re-running `cross done --note` on an already-done item — puts the
+      disproof on the item but is available only to the OTHER party, needs them to volunteer it, and
+      leaves the item still reading `done`. Measured 2026-08-22 on X-1044 + X-1045.
+      **THE FENCE: `cross close` is NOT widened.** Its role, kinds and from-states are untouched, so a
+      close still means «I verified»; on a disputed item (`picked`) a close is refused wrong-state by
+      the ordinary guard. Solving this by admitting the negative case into `close` would have destroyed
+      the one thing the close record means. And the item stays TERMINABLE: a real fix emits a new
+      `cross_done` and the author then closes for real (no new status class, nothing stranded). The
+      data-model half — the statusless event, the done-cancelling fold rule and its order-independence —
+      is the protocol sibling SPEC-0085 rule 2's.
+    - **`cross ack`** (#2+#3+#4) — receiver acknowledges a `note`; emits `cross_acked` (terminal).
+      **It carries the RE-ENTRY DISPOSITION too **, on identical terms to `cross reject` above
+      and for the identical reason: it is the `note` kind's ONLY terminal, so a conditional decline
+      written on it strands with no author close to gate. The guard reads the ack's own `--note` plus
+      the chain-derived resolution note, and it holds on the note-attach from `acked` as well.
+    **The ack MAY carry `--note <text>` (X-0889): the receiver's SUBSTANTIVE RETURN,
+    recorded on `cross_acked.data.note` and surfaced by `cross show` as the item's resolution
+    note** — the note kind's equivalent of `cross done --note` above, on the ONE terminal a note
+    has. A `note` that ASKED for work previously had no answer slot anywhere: `cross done` is
+    kind-guarded to `{task, bugfix}` and the ack emitted `{id, by}` only, so a receiver who did the
+    work had to re-file the answer as a SEPARATE id (X-0872 → X-0890) while the answered item read
+    `resolution note: (none)`. Optional by construction on a FIRST ack — a bare ack emits the same
+    `{id, by}` it always did (most notes are one-way FYI with nothing to return, and a required
+    flag would be a new gate, CHARTER §P1) — and needs no read-side change, since `_NOTE_KEYS`
+    already reads a `note` off ANY accepted event, the LAST one winning.
+    **The ack is legal from `acked` as a NOTE-ATTACH, and then `--note` is REQUIRED.**
+    The exact shape of the `cross done` attach from `done` above, one kind over, and for the same
+    reason: the return is often written AFTER the terminal fired (X-0872 was acked at
+     and the evidence came later), so gating on `requested` alone locks the
+    receiver out of its own item and leaves the separate-id workaround as the only path. A BARE
+    repeat resolves nothing and is refused journal-observably (`cross_refused`, reason
+    `already-acked`), appending no event; with a `--note` it appends the return, which the
+    last-accepted-note read side surfaces. The data-model half — that this adds no state, no event
+    type, and is not terminal reanimation (same-type terminals leave the fold's winner, the
+    `acked` status and `contested` all unchanged) — is the protocol sibling SPEC-0085 rule 3's.
+    - **`cross close`** (#2+#3+#4) — the AUTHOR finalizes their own item: `cross_closed` when the work
+      was done + verified, OR `cross_withdrawn` when the author RETRACTS a not-done item (`--withdraw`
+      + reason). One author-terminal verb covers both author terminals (the D3 set has no separate
+      `withdraw` verb); role-guard: only `from`. **The close MAY carry `--note <text>` : WHAT
+      the author verified, recorded on `cross_closed.data.note` and surfaced by `cross show` as the
+      item's resolution note.** Closing ASSERTS «I verified the peer fixed it», so that assertion gets a
+      durable home ON the item instead of only in the closing session's transcript. OPTIONAL — a bare
+      close emits the same `{id, by}` and simply shows no verification record; `--note` is REFUSED on
+      `--withdraw` (a retraction's human string is its required `--reason`), never silently dropped.
+      **ORPHAN-AUTHOR CLOSE — the plain close's ROLE guard relaxes to the RECEIVER, and only
+      then, when the item's `from` names NO registered peer.** SPEC-0085 rule 2 carries the FSM half and
+      the incident (X-0905/X-0907/X-0909 from the phantom sender `clone`); this is the VERB half. The
+      receiver runs the ORDINARY `cross close <id> --note <text>` — no new verb, no new flag, no new
+      event — and only the role axis moves: kinds stay `{task, bugfix}` and the from-state stays `done`,
+      so an item that could not be author-closed cannot be receiver-closed either. Two fences, the same
+      two the out-of-band mode uses: `--note` is REQUIRED in this mode (a bare orphan close would assert
+      an author verification nobody performed), and the event carries `orphan_author: true`, so every
+      reader can tell a receiver's orphan close from an author's verified one, and `_legality` has the
+      POSITIVE marker it needs to accept a role it otherwise drops. **The registry is read HERE, at the
+      WRITE, never at the fold** — and it FAILS CLOSED: `sender_is_unregistered` is the SAME predicate
+      the `cross inbox`/`outbox` unregistered-sender WARN is built from (one home — the verb can never
+      admit a close the WARN would not have flagged), and an empty/unreadable registry makes it FALSE,
+      so the widening simply does not fire. That is deliberately the INVERSE of the read view's
+      fail-soft: a view that cannot tell says nothing, a WRITE that cannot tell refuses.
+      **The WARN that names this remedy is computed per row, never canned :** it previously
+      prescribed `cross close <id> --withdraw` to a reader who is NEVER the author (the row set exempts
+      `self`), so the one command it named was unfollowable for every row it printed. The advice is now
+      derived from each row's role, kind and state — `cross ack` for a `note`, `cross reject` from
+      `requested`/`picked`, this orphan close from `done` — the `unanswered_cross_link_advice` /
+      `describe_holder` single-emitter shape. The register-the-sender half is unchanged: that stays the
+      right answer when the sender is a REAL peer whose registry entry is merely missing.
+      **OUT-OF-BAND CLOSE (X-0721; extended to `note` by) — `cross close --out-of-band
+      --reason <why>` emits the SAME `cross_closed` terminal from ANY non-terminal author state
+      (`requested`/`picked`/`done`), for an item whose substance was delivered OUTSIDE the peer return
+      path. The ENFORCED KIND SET is `{task, bugfix, note}` — i.e. every kind; the mode is state-gated,
+      not kind-gated.** (Stated explicitly because it once was not: this paragraph named NO kind
+      restriction while the code enforced `{task, bugfix}`, so a reader could not tell the rule from the
+      text — CHARTER §P7.) **`note` is in the set for the same reason the mode exists at all,
+      one kind over.** A note's only other terminal, `cross ack`, belongs to the RECEIVER, and a one-way
+      informational note ASKS NOTHING — so nobody has cause to ack it and it stays `requested` forever
+      (40 of 70 non-terminal outbox rows on 2026-08-11, oldest X-0347, arriving in same-note fan-outs of
+      9 peers). That left the author only `--withdraw`: a RETRACTION, misreporting delivered information
+      as never-wanted. So a note now has TWO honest terminals — receiver `ack` (UNCHANGED: this ADDS a
+      terminal, it does not MOVE one) and author out-of-band `close` — and the fold takes whichever fires
+      first. A note is NOT auto-terminated on append: that alternative was considered and REJECTED,
+      because it would silently drop notes out of the receiver's inbox and destroy the ack signal, which
+      is genuinely used (X-0800, a note whose whole purpose was to be read once). The PLAIN close is NOT
+      widened and stays `{task, bugfix}`: it gates from `done`, a state no note can reach, so admitting
+      the kind there would add an unreachable path rather than a terminal. **The out-of-band-ONLY
+      constraint is enforced where the log is READ, not only where this CLI writes :**
+      `EVENT_KINDS` is coarse (event × kind) AND is the shared log's defense-in-depth gate — and that log
+      is append-only and written by many peers' CLI versions, so the verb branch is not the boundary.
+      `_legality` therefore DROPS a `cross_closed` on a kind-`note` item unless the event POSITIVELY
+      carries `out_of_band` EXACTLY `true` AND a `reason` that is a non-empty STRING (never a coerced
+    non-string — `[]` must not read as the non-empty "[]"), reusing the existing `kind` drop-reason (no
+      new vocabulary, no new store). A positive marker, never inferred from an absence. The plain close is gated on `done`, i.e.
+      reachable only after a `cross_done`; when delivery happened out of band that event never comes, so the
+      author's only terminal was `--withdraw` — a RETRACTION, which misreports delivered work as never-wanted.
+      The item therefore stayed non-terminal forever and the session-start `outbox` echoed FINISHED work as
+      open — signal erosion in the one surface built to be trusted at a glance (aiseller reported exactly this).
+      A MODE of the existing verb on the existing event — no new verb, no new event type, no new store. It is
+      NOT a mute button, and two fences keep it honest — `--reason` is REQUIRED (it rides `_NOTE_KEYS`, so
+      `cross show` prints it as the resolution note with no read-side change), and `out_of_band` is recorded
+      on the event so the closure reads as REQUESTER-closed rather than peer-returned. The chain carries no
+      `cross_done`, `cross show` names the provenance on its own closure line (`out_of_band_closure`, a
+      derived accepted-only read, never a stored status), and the author role-guard is unchanged, so a peer
+      cannot use it. `--note` and `--withdraw` are both REFUSED alongside it (one terminal, one text slot).
+      **CITATION ORDERING (X-0643) — whichever human string this verb PUBLISHES (`--note` on a
+      close, `--reason` on a withdraw or an out-of-band close) is REFUSED when it cites an `X-NNNN` that
+      does not resolve in the fold**, journal-observably (the same `cross_refused` trace as the FSM
+      guards), with a message naming
+      the unresolved id(s) and the required ORDER: file the replacement FIRST (`cross request`, the ONE
+      allocation site — it prints the id), THEN close citing the id it printed. The item's OWN id is not a
+      forward reference and is exempt. Real incident: an author whose re-file `cross request` was refused
+      missed the refusal and closed the superseded items citing an id nothing ever allocated — and the log
+      is APPEND-ONLY, so the dangling citation was published to the peer and could not be retracted. The
+      refusal runs BEFORE the emit, which is what makes the ordering safe BY CONSTRUCTION. `cross close`
+      stays a pure terminal verb: allocating the replacement inside it would make a second id-allocation
+      site (rule 4), so the check RESOLVES against the existing fold rather than creating anything. No new
+      verb, no new status, no new event type.
+      **RE-ENTRY DISPOSITION (X-0472; extended to the RECEIVER terminals by) — a
+      conditional decline may not go terminal unwatched.** Some resolutions decline an ask FOR NOW and
+      name the moment to come back ("Re-entry: declare subject_globs when verify.layers gain executable
+      entries"). Going terminal ends the item, so that condition survives only as prose in a note
+      nothing watches. X-0472's condition FIRED weeks later and the author side never learned.
+      **The rule binds every terminal that can strand a condition — THREE verbs, ONE guard:**
+      `cross close` (both modes: plain and `--out-of-band`) on the AUTHOR side, and `cross reject` +
+      `cross ack` on the RECEIVER side. wired the author side alone; extended the SAME
+      predicate and the SAME guard to the receiver side rather than authoring a second mechanism
+      (`bin/lib/cross.py#_re_entry_disposition` — one module-level home, called from all three).
+      **The receiver leg is not a mirror — it is where the asymmetry bites.** On a REJECT the author
+      NEVER GETS A CLOSE to be gated at, so a disposition not captured where the RECEIVER acts is never
+      captured at all. X-0387 (yitc-v2 -> trend-finder) is that shape live on the log: `rejected`,
+      carrying "please FIX the ai-safety record + re-issue", nothing gating it and no close that will
+      ever come. `cross ack` is the same hole one kind over — the `note` kind's ONLY terminal, given a
+      substantive-return slot by.
+      So: when the item's RESOLUTION names a re-entry condition — the chain-derived `resolution_note`
+      `cross show` displays, **not** only the acting party's own string, because in X-0472 the condition
+      was the RECEIVER's `cross done --note` and the author closed bare — the verb **REFUSES** until the
+      acting party declares exactly ONE of **`--re-entry "<condition>"`** or **`--no-re-entry "<why>"`**.
+      **WHOSE debt echo does a receiver-side re-entry belong in? The RECEIVER's** — the journal of the
+      session that ran the verb — decided on its own grounds, NOT by mirroring the author case.
+      (1) MECHANICAL BOUND: a followup is an append to the LOCAL journal, and §3 / SPEC-0084 rule 5 make
+      the shared coordination store the ONE cross-party writable surface — arming into the AUTHOR's echo
+      is unreachable by any sanctioned path, and building one would be the cross-repo write the boundary
+      forbids. (2) The condition is the RECEIVER'S OWN UTTERANCE — they wrote "come back when X", they
+      know it, and they are the party who will be asked again, so the waiter is a real obligation rather
+      than manufactured debt. (3) The AUTHOR IS NOT BLIND: the condition is PUBLISHED to them on the
+      shared log via this verb's own `--reason`/`--note`, which rides `_NOTE_KEYS`, so `cross show <id>`
+      renders it as the resolution note with no read-side change. (4) THE HONEST BOUND: this puts NO
+      debt in the author's echo and no kernel mechanism can — the party who must RE-ASK learns of the
+      condition by reading `cross show`, because a terminal item leaves the outbox. That residual is the
+      price of the territory boundary, recorded here rather than left to be rediscovered.
+      **COVERAGE BOUND of the predicate, stated so it is not mistaken for total.** The predicate is
+      MARKER-KEYED, and X-0387's "re-issue" is NOT one of its markers — so this gate would not have
+      fired on the very item that demonstrates the reject leg. Widening was MEASURED and DECLINED
+      : over the live log `re-?issue|re-?file|re-?submit|re-?send` adds 26 hits of which ~2 are
+      genuine, the rest NARRATING a past re-file ("re-filed to:social-parser", "the ask re-issued
+      corrected as X-0397"). The predicate GUARDS AN ACTION and so fails closed; its precision is the
+      property that must not erode, and the shared predicate would carry those false hits onto the
+      AUTHOR side too. X-0387 was dispositioned by one-time backfill instead.
+      The refusal runs BEFORE the emit (the same by-construction ordering as the citation check) and is
+      journal-observable via the ordinary `cross_refused` trace.
+      `--re-entry` arms an ORDINARY followup through `followup add` (SPEC-0095) — one capture
+      mechanism, one event shape, one fold — carrying the X-NNNN as `relates_to` (PROVENANCE) and the
+      author's words as `trigger`; optional **`--re-entry-awaits <T-NNNN>`** supplies the `awaits` fire
+      key, and without it the waiter stays VISIBLE in the debt echo's armed clause but cannot auto-fire
+      (SPEC-0095's own stated honest limit — a condition about a PEER's repo state has no local
+      terminal task, and inventing one is the false-fire class). `--no-re-entry` records its
+      reason on the SAME `cross_closed` as an additive `re_entry_dismissed` key — deliberately OUTSIDE
+      `_NOTE_KEYS`, so a dismissal can never occupy the resolution-note slot. Both flags are REFUSED on
+      `--withdraw`: a retraction unasks the question, so there is nothing to come back on.
+      **The condition is DECLARED, never inferred.** The prose predicate decides only whether the
+      author must ANSWER; it never writes a trigger and never mutates the log's content — SPEC-0095
+      settles that axis and is the incident. Because the predicate now guards an ACTION it
+      requires an EXPLICIT re-entry marker (never a bare "when"/"once") and its precision was MEASURED
+      before it was trusted: over the 439 noted terminal items it returns 19 hits, and 13/13 of those
+      on the author side — the only side this seam gates — are genuine conditional declines. No new
+      verb, no new event type, no new store, no new state.
+    - **`cross archive`** (#1+#4) — the KERNEL archivist rotates terminal+old items to the archive
+      sibling; emits `cross_archived`. Kernel-only (authority sibling §3 / protocol sibling rule 5c).
+      **IMPL DEFERRED (owner-split 2026-06-18):** the verb surface is documented here (forward design B5) but archival rotation is built by the follow-up plan
+      `cross-log-archival-rotation-move-terminal-old-coor`, NOT by this plan's cut (the active log
+      simply grows until that plan lands). The other 8 verbs ship in this cut (card).
+  **Failure-behaviour (#5):** every mutating verb appends atomically (clean-fail — no half-written
+  line), refuses a wrong-ROLE or wrong-STATE emit (the FSM, protocol sibling rule 2), and a refusal is
+  journal-observable (a `gate_refused`-class trace, not stderr-only — the rubric §3 corollary), so a
+  blocked cross-write is analyzable across sessions.
+
+  ### 2. The two views are DERIVED, never a second stored state
+  `cross inbox` / `cross outbox` compute their content by FOLDING the shared log by id at read time
+  (protocol sibling rule 5a) — there is NO stored per-item status, NO second state model. A terminal
+  item is absent from both views by fold (zero maintenance). The verbs render; the fold is the truth.
+
+  ### 3. Deviation-origin discipline (router unchanged)
+  A `cross request` of a DEVIATION-origin item is filed ONLY via the triage/promotion path (SPEC-0055/
+  0056 stays the sole router); a non-deviation ask may be `cross request`-ed directly. The verb does not
+  bypass triage — it is the carrier, not a second router (protocol sibling rule 3). (Pointer, not a
+  restated rule — P5.)
+
+  ### 4. The `outbox` session-start surface — REPLACES the SPEC-0079 inbound count (co-designed re-delivery)
+
+  **WORKTREE EXCEPTION at the session-start seam (WIDENED to the checkout by).**
+  This surface — and the shared-log FOLD that computes it — is SKIPPED when the run is inside a
+  WORKTREE. That is the whole condition (`cli.py#_receipt_only_session_start`): a main-checkout
+  journal that resolves AND differs from this checkout's. No flag, no config, no new store; the skip
+  prints one line naming the re-fold. originally keyed this on a FRESH same-ref same-epoch
+  `seed_read` receipt on the main journal and justified it as RE-DELIVERY ONLY — such a session had
+  already been shown this surface on main. measured the case that ground does not reach (a
+  FIRST-in-checkout anchor holding no receipt) and re-grounded the skip on AUDIENCE + SEAM: this
+  surface's session-start seam is the MAIN CHECKOUT. The re-fold this rule already prescribes
+  (`cross outbox` / `cross inbox` — the same pointer covering post-`/compact` eviction below) is what
+  keeps that safe. Nothing else moves: report-only, suppressed-when-clean, no-auto-pull and the
+  LOG-vs-queue line are unchanged. On the MAIN checkout the two journal paths are equal, so the
+  predicate is False BY CONSTRUCTION and that seam is untouched; where the main checkout cannot be
+  RESOLVED at all the predicate answers False and the run takes the FULL surface (fail-closed toward
+  the prior behaviour, deliberately not degraded to "assume worktree"). This exception is stated
+  IDENTICALLY in SPEC-0119 rule 2 — the two describe ONE condition, and a surface stating a different
+  bound is a standing contradiction (CHARTER §Principle 7), not a wording variation.
+
+  `session start` SURFACES the author's `outbox` (report-only, after the type choice): the count +
+  pointer of `from:me` items a peer has actioned and that now await MY close. This **replaces** the
+  retired SPEC-0079 per-repo inbound-COUNT surface (the #16 over-counter that could not be acked):
+  terminal items are gone by fold, so the surface cannot over-count. It COUNTS + POINTS to `cross
+  outbox`; it does NOT auto-pull (surfacing ≠ queue-scan — the LOG-vs-queue line holds). It also
+  surfaces the `inbox` count — the NEEDS-DECISION subset (: items `to:me` that are EXACTLY
+  `requested` AND not yet tracked by a local CARRIER via `resolves_cross`; `picked`/`done`/linked
+  items do NOT inflate it), preserving the kernel→consumer intake direction SPEC-0079 §6.
+  It ALSO surfaces the ACCEPTED-BUT-UNTRACKED count : items `to:me` this side has PICKED that
+  NO local CARRIER declares. This is the MIRROR of the needs-decision cut, not a
+  widening of it — the `requested` cut is UNCHANGED.
+  **A local CARRIER is a TASK naming the id in its `resolves_cross:`, or a NON-TERMINAL PLAN naming it
+  in its frontmatter `resolves_cross:`.** Both cuts read the ONE host-scanned declared set
+  (`bin/lib/cli.py#_cross_linked_ids`); the fold predicates are carrier-agnostic. The plan carrier
+  exists because the SPEC-0140 sieve routes an ask needing a spec corpus or a coordinated cut to a
+  PLAN — so without it, routing an item to its CORRECT carrier made it read as tracked by NOTHING
+  forever (measured 2026-08-26: X-0560 and X-1113 both named while each had a live plan carrying it).
+  Two bounds hold the widening honest. **(a) The key is `resolves_cross`, never `cites:`** — a
+  subtraction that drops "already handled" must key on a marker whose PRESENCE is an assertion by its
+  author, never on provenance, or it goes quiet exactly where it should speak; `cites:` is any-to-any
+  provenance (GRAPH §Edge types), so honouring it would let an id cited for CONTEXT silence the
+  detector (the task side already ruled this — WARNs on cites-without-`resolves_cross`).
+  **(b) A TERMINAL plan's declaration does NOT count** — a realized/partial/rejected/cancelled plan
+  tracks nothing forward, so honouring it would be silence-by-stale-carrier, the very failure this cut
+  exists to prevent. Nothing is auto-linked in either direction: the honesty test is that a
+  plan-declared item drops OUT while an item declared by NOTHING still appears. It exists because that cut, by design,
+  stops counting an item the moment it is picked: PICKING is therefore the act that removes an item
+  from the only surface naming it, while LINKING a task — what would restore visibility — is exactly
+  what has not happened, so the system is quietest about the items it has already promised to do.
+  Measured 2026-08-16 on the live ledger: 8 of 8 picked items read `task: (none)`, and hours later the
+  `requested` cut had fallen to ZERO while six picked items were tracked by nothing. Harm confirmed on
+  X-0595: picked and then fully delivered, yet left at `picked` with no resolution note, so its
+  reporter was never told (hand-closed ~10 days late). The cut is FENCED on both sides — a picked item
+  that IS task-linked and any terminal item are excluded (a surface counting those would fire always
+  and mean nothing, the failure mode that narrowed the other counts) — and it is REPORT-ONLY in the
+  identical posture: suppressed-when-clean, no event, no status change, no exit-code move, NO auto-pull
+  and NO auto-linking (linking is a judgement about intent; the LOG-vs-queue line holds). It names the
+  ids, because not going to look is the condition it exists for.
+  `cross inbox` renders the full non-terminal SUPERSET (the startup surface is the actionable subset,
+  and now also the accepted-but-untracked subset — both are cuts of that one fold, SPEC-0086 rule 2).
+  **Co-designed post-`/compact` re-delivery (SPEC-0007 §5b coherence invariant — MANDATORY because this
+  CHANGES a `session start` delivery):** the surfaced count is a CONVENIENCE over durable state (the
+  shared log on disk), NOT held in context. A `/compact` evicts the printed line; do NOT re-run `session
+  start` to recover it (that re-emits the startup side-effects). Re-surface by re-folding the shared log
+  directly (`cross outbox` / `cross inbox`) — the same fold path, no count held in memory; each verb is
+  the full SUPERSET re-fold of its actionable START subset (the start surfaces are the done-awaiting-close
+  and needs-decision cuts/ — the re-fold is the durable source, the start cut a convenience). AGENTS
+  §Three-phase-startup + §After-`/compact` are co-amended: the SPEC-0079 inbound-count text → this
+  outbox/inbox surface (its home, SPEC-0005 §8 one-home; this spec is the authority home it points to).
+
+  ### 5. Module home — a dedicated `bin/lib/cross.py` from day 1 (scale-aware code placement)
+  The `cross` verbs are authored in a DEDICATED module `bin/lib/cross.py` (prior-art: the `bin/lib/
+  state.py` / `bin/lib/error.py` extractions), with only thin dispatch wiring in the `bin/yitc-v2`
+  body — NOT appended into the monolith. This is CHARTER §P1 scale-aware refinement (design the split
+  UP FRONT — migration cost is asymmetric) applied to code PLACEMENT, so the after-the-fact kernel
+  surgery the extraction effort is doing now is never repeated. Classified `kernel` per SPEC-0073 at
+  authoring. (A code-placement directive for THIS surface, not a new rule about modules generally.)
+
+  ### 6. Peer identity — one canonical id per project (supersedes the basename contract)
+  A **participant id is the project's CANONICAL REGISTRY KEY** (`registry.yaml`, the `yitc_v2` entries).
+  Its **main-checkout BASENAME is an ALIAS** of that key, and nothing else is. The two are usually the
+  same string; where they differ (`trend-finder` at `.../social-parser`) only the key is the identity.
+
+  This REPLACES the prior claim that a participant id is the checkout basename — a rule that named
+  SPEC-0084 §3 as its home although SPEC-0084 defines no participant id at all. It had no authority home;
+  it has one now, here.
+
+  Incident (X-0259, the reason this rule exists): `_cross_self` minted the basename while the nightly
+  concern-drift auto-file (SPEC-0143 Rule 4) addressed the registry key. Three live inbound items —
+  X-0121, X-0200, X-0222 — were therefore addressed to a peer NO session folded, and sat invisible in the
+  shared log. fail-closed `--to` validation could not catch this: it guards `cross request`
+  alone, while the nightly appends through `cross_emit` directly; and the known-participant LOG-UNION
+  made any bad spelling permanently "known" once written, so validation could never refuse it again.
+
+  Three obligations follow, and they are what make the alias a NORMALIZATION rather than the "two names
+  per peer" that rightly declined:
+    (a) **One choke point.** Canonicalization happens exactly once, in `cross.read_events(path, aliases)`,
+        which rewrites every event's `from`/`to`/`by` before anything folds them. `fold` and every view,
+        guard and pure helper take NO `aliases` argument and compare canonical to canonical. Two seams
+        could disagree; one cannot. (Structurally guarded by a signature test.)
+    (b) **Writes are canonical.** `cross request` canonicalizes `--to` before validating and appending,
+        and `self_name` arrives canonical. Exactly ONE spelling ever reaches the log going forward; the
+        alias exists only to read history and to forgive a human typing the other name.
+    (c) **An unroutable `to:` is REPORTED, never silently dropped.** A non-terminal item addressed to a
+        peer in no registry reaches nobody — no inbox folds it and the author is never told. `cross inbox`
+        and `cross outbox` print a loud WARN naming each such id and its bad `to:` value (X-0067's
+        `to:__invalid__` is the specimen). Report-only: a read view never gates. Terminal items are
+        exempt — a withdrawn item needed no route, and warning about it forever is noise.
+    (d) **An unregistered `from:` is LABELLED at read time**. The mirror of (c) one field
+        over: (c) flags an item nobody will fold, (d) flags one nobody sent. A non-terminal item whose
+        `from` names no registered peer is not a peer ask, but it renders identically to one — so
+        `cross inbox` and `cross outbox` print a loud WARN naming each such id and its bad `from:`
+        value, in the same report-only shape as (c) (never a gate, terminal items exempt, silent on an
+        unreadable registry). Specimen: the 20-row burst of from a sender `clone`
+        — an ad-hoc COPY of a governed repo resolving its own directory basename as its identity — of
+        which 15 sat in the inbox reading as live peer requests and cost a full controller triage pass.
+        THE MEMBERSHIP TEST IS `registry_peers` DIRECTLY, never `known_participants_from_events`: that
+        helper unions in every `from`/`to` already on the log, which is right for validating a `--to`
+        (a peer mid-conversation is addressable before it is registered) and exactly wrong here, since
+        it would let a phantom sender vouch for itself the instant its own first row landed. Self is
+        exempt so an unregistered local checkout does not flag its own rows. A LABEL, NOT A BELT: it
+        would not have prevented the specimen — that checkout existed on disk when it appended — and
+        the write-side isolation is a separate mechanism (`ensure_shared_store`).
+
+  Fail-soft READS, fail-CLOSED write on an UNREADABLE registry (matching the
+  unreadable=alert direction; ABSENT != UNREADABLE): an unreadable/absent registry yields an empty alias
+  map (the identity map) and an empty known-peer set, so READS degrade to the pre- basename
+  behaviour and the WARN stays silent rather than flagging every item — refusing a read would wedge inbox
+  inspection. But `cross request` (the WRITE) FAILS CLOSED when the registry is UNREADABLE (corrupt /
+  non-mapping top level — distinguished from a legitimately-absent or empty registry via the host
+  `_registry_unreadable_reason`, which reuses `state.load_path(errors=)`): authoring a NEW item while
+  identity resolution is broken would silently orphan it under the wrong id (the X-0259/X-0101 disease),
+  so the request is REFUSED with a named error and the `--force` escape. An ABSENT registry stays benign
+  (fail-soft) — it is not corruption. The kernel module never reads the registry itself (identity-
+  agnostic, SPEC-0073 `bin/` HARD class) — the host residue resolves the map and injects it.
+
+  ### 7. Receiver-side premise review — before any pick / resolves_cross association
+  The intake hygiene of rule 1 checks a request's SHAPE (already-addressed staleness · wrong-address
+  relevance). Its central CLAIM is checked by nothing: X-0297 arrived asserting a parity gap the kernel
+  had ALREADY closed (pre-report), and only ad-hoc Controller discipline caught it
+  (deviation `cross-intake-lacks-receiver-side-premise-review`). This rule closes that gap.
+
+  **The trigger is the SEMANTIC transition, not a command list.** BEFORE any operation that creates a
+  cross **pick** or a **`resolves_cross` association**, the RECEIVER verifies the request's central claim
+  against its OWN CURRENT state. The request TEXT is the FROZEN original ask — evidence of what a peer
+  believed when they filed it, never evidence of what is true now. Naming the transition (not the verbs)
+  is deliberate: a future attachment path inherits the duty automatically. CURRENT named implementations:
+  **`cross pick`** and the **`task file` `resolves_cross` filing**.
+
+  **Four outcomes — each on an EXISTING mechanism (no new verb, event, state, or store):**
+    (a) **Accept as-is** — the claim holds; proceed (`cross pick` / file the linked card).
+    (b) **Accept REFRAMED** — the claim is partly false or the real need differs. The corrected premise
+        AND the divergence MUST be recorded **on the SHARED item**, via the receiver's own surface
+        **`cross done --note`** (rule 1) — NOT only in the receiver's local task, where the requester
+        cannot see it. (`cross close --note` is the AUTHOR's confirmation surface — role-guarded to
+        `from` — so it can never discharge the receiver's recording duty.) A reframe the requester cannot
+        see is indistinguishable from a silent drop: X-0227 was closed with a bare `cross_done` after the
+        kernel retired the requested change, and the author, unable to learn that outcome, re-filed the
+        identical ask as X-0256. **Bound:** if the reframe no longer preserves the REQUESTER-VISIBLE need,
+        it is not a reframe — take outcome (c) or (d) instead, so the decision returns to the requester.
+    (c) **Reject** — the premise is false / the work is already shipped: `cross reject --reason` (terminal).
+    (d) **Bounce a question** — the premise is unclear: send it back as a `note`-kind `cross request`
+        addressed to the author, and leave the item unpicked.
+  **Symmetric for EVERY receiver** — kernel and consumer alike; nothing here is kernel-only.
+
+  **Delivery is a REPORT-ONLY cue, never a gate.** Both named surfaces print one cue line
+  (`cross.premise_review_cue`, the single emitter both share) naming the discipline and POINTING here;
+  per SPEC-0005 §8 the cue carries no restated rule-text — this clause is the one home, so the cue cannot
+  drift from it. It never blocks a pick or a filing (non-goal #7): the judgement is the receiver's, the
+  cue only guarantees the question is ASKED at the moment the intake happens ( extend-the-verb).
+
+  ## Parameters
+
+  None consumed.
+
+  ## Rationale
+
+  The pre-specs audit named the AUTHOR-side close-loop as the missing piece: `inbox` (receiver pickup)
+  alone does not make the done-criterion ("consumer sees fixed → verify at start") provable, so an
+  explicit author-side `outbox` view + its session-start delivery (rule 4) is required, and — because it
+  changes a `session start` surface — it must co-design its post-`/compact` re-delivery (SPEC-0007 §5b).
+  The verb names are D3-pinned (owner-settled); each is checked against the verb-design rubric (the
+  control-chokepoint that makes the FSM role-guard + deterministic emit enforceable — verb-design #2/#3/
+  #4/#5). Module-home-from-day-1 (rule 5) is the owner's scale-aware code-placement refinement. Anti-
+  complexity: REUSES the existing `session start` surface slot + the `task file`-style id-allocation +
+  the fold (no stored status) — adds the verb group as the ONE governed write path, no new gate, no
+  second state store. The deliberation lives in the plan (SPEC-0005 §3).
+
+  ## Verification
+
+  - **VP1 (verbs are the only write path):** a raw append to the shared store is not the sanctioned path;
+    each `cross` mutating verb allocates/append/emits atomically and refuses a wrong-role/wrong-state
+    emit with a journal-observable refusal. (test at activation)
+  - **VP2 (views derived, no stored status):** `cross inbox`/`outbox` fold the log at read time; a
+    terminal item is absent from both with no stored flag. (test)
+  - **VP3 (outbox startup surface replaces the inbound count):** `session start` surfaces the outbox/inbox
+    count+pointer (report-only, no auto-pull); the SPEC-0079 per-repo inbound count is gone and cannot
+    over-count (terminal items fold out). (test + grep AGENTS startup)
+  - **VP4 (post-`/compact` re-delivery co-designed — D5 probe):** consumer-session journal/read evidence
+    that `outbox` surfaced at session start, DROPPED from the view after `cross close`, and was
+    RE-DELIVERED correctly after `/compact` (by re-folding the log, not by re-running `session start`).
+    (the plan's startup-surface probe — D5)
+  - **VP5 (module home):** the verbs live in `bin/lib/cross.py` with thin `bin/yitc-v2` dispatch, not in
+    the monolith body; classified kernel per SPEC-0073. (state-check at activation)
+  - **VP6 (re-entry disposition, DIFFERENTIAL —):** closing an item whose resolution NAMES a
+    re-entry condition, with neither `--re-entry` nor `--no-re-entry`, EXITS NONZERO and emits no
+    `cross_closed`; the SAME close carrying an UNCONDITIONAL decline note closes cleanly and arms
+    NOTHING. A predicate widened to always-true fails the second half; arming off the note instead of
+    the declaration fails it too. Second axis: `--re-entry --re-entry-awaits <closed task>` reaches the
+    debt echo's UNFLOORED fired clause, while the same watcher with no awaited artifact still reaches
+    its armed clause — both RUN, neither assumed from SPEC-0095's contract. (test)
+  - **VP7 (re-entry disposition on the RECEIVER terminals, DIFFERENTIAL —):** a `cross reject`
+    whose `--reason` NAMES a re-entry condition, declaring neither flag, EXITS NONZERO, emits no
+    `cross_rejected` (the item stays non-terminal) and arms nothing; the SAME reject carrying
+    `--re-entry` succeeds and arms exactly ONE followup whose `relates_to` is that X-NNNN. COHORT
+    COMPLEMENT, in the same probe: a reject with an UNCONDITIONAL reason goes terminal cleanly,
+    refuses nothing and arms nothing — so forcing the predicate always-true turns the complement RED
+    and the guard cannot be green by construction. Second axis: the armed row lands in the journal of
+    the session that ran the REJECT (the RECEIVER's — the whose-echo decision above, asserted rather
+    than assumed) and names the AUTHOR as its counterparty. Third axis: the same guard holds on
+    `cross ack`, including the note-attach from `acked`. (test)
+
+amends: # canonical surfaces this verb contract DELIBERATELY changes (named per P7).
+                               # Staged — takes effect on activation (the activation owner edits each home).
+  - AGENTS.md (Three-phase startup + After /compact): the SPEC-0079 per-repo cross-log inbound-count
+      session-start surface is replaced by the fold-derived outbox/inbox surface + its post-/compact
+      re-delivery; the text is co-amended IN AGENTS (its home), this spec is its authority home.
+  - SPEC-0079: its §start-surfacing inbound count is retired (the protocol sibling carries the
+      SPEC-0079 supersede; this spec realises the replacement startup surface).
+
+cites:
+  - CHARTER.md#principle-1 # anti-complexity — reuse the start-surface slot + id-allocation + the fold
+  - CHARTER.md#principle-5 # single source of truth (views derived, one write path)
+  - SPEC-0079 # the per-repo cross-log + inbound count this surface replaces
+  - SPEC-0007 # §5b startup-delivery co-design (the MANDATORY post-/compact re-delivery)
+  - SPEC-0013 # the binding contract (how this spec reaches the AI)
+  - SPEC-0055 # triage — the sole deviation router (rule 3 pointer)
+  - SPEC-0056 # nonconformity routing (rule 3 pointer)
+  - shared-coordination-log-supersede-cross-tasks-per- # the parent plan (deliberation home)
+
+requires:
+  - SPEC-0085 # the protocol sibling defines the event FSM + fold the verbs realise —
+                                # one active lineage, requires-ordered (GRAPH §Spec lifecycle concurrent
+                                # invariant): the verbs cannot land before the protocol they emit.
+supersedes: ~ # this spec adds the verb surface; SPEC-0079 is superseded by the protocol
+                               # sibling, not here.
+activation_owner_task: # set at decomposition (SPEC-0005 §5); closing flips proposed->active.
+proposed_by: shared-coordination-log-supersede-cross-tasks-per-
+binding: # on-demand verb-contract reference (the operative slices are delivered AT
+  - query-only # the verb invocations + the cmd_session_start surface, like SPEC-0079).
+                               # RE-EVALUATE at the accept-gate: the outbox startup surface may warrant a
+                               # session-start delivery binding (the post-/compact re-delivery rule 4).
+implements_signature:
+  bin/lib/cli.py#_cross_linked_ids: 465fcbf35b18213cdeb1746e6837b1cf5913958579dec378c8fbc0c42d0993ca
+  bin/lib/cli.py#_cross_peer_aliases: 3208af4899cccb9cc691fa3d15f0dad72209f9aa812c47073126264a118a7e68
+  bin/lib/cli.py#_cross_self: 4c6f29c717eb4eaea4d3861c86969c96971102981da7876885618c56468da2d9
+  bin/lib/cli.py#_cross_unlanded_claim: 0714bd0f1216e588a81b774bc5ed9e6100f9deacfae4db82eaa3b56b184b11af
+  bin/lib/cli.py#_declared_resolves_cross: d5a5c930f526f1dab4c8145db76f45ad2acf6a6c9a8e9bfcab126c3328e16f07
+  bin/lib/cli.py#cmd_cross_dispute: a2a9dfcd13abb5ef24f9dda22cd881fd43547067505c5f509df9f5f78e65409a
+  bin/lib/cross.py#availability_claim_findings: 92a1fcd9d0d1b9eb1b7bec9efbb18278fae7f6ea6e81263d26abff3cdad7077f
+  bin/lib/cross.py#canonical_peer: fb42fe6efa1cce1f777c63cf04bfb4a0d4a8f5cfacdc0c767cfbac538d839427
+  bin/lib/cross.py#cmd_cross_ack: 9312c49b6b23fca6c53e0baae4e86b560a9ec306acba8b86f39864dbd32a6ea3
+  bin/lib/cross.py#cmd_cross_close: ef90cb4ea45a78b1c82a2b511ab37e05f5f5c60bc79467c443979cb12abef2bb
+  bin/lib/cross.py#cmd_cross_dispute: 0c6afc85b900e8d1b5199b04e5f8dc5d45effd907febc35a7c220e0a16a44a90
+  bin/lib/cross.py#cmd_cross_done: 937a4313b6739490c9977cc888f8d875668875bc95523f8171e00b742a49b8bd
+  bin/lib/cross.py#cmd_cross_inbox: 3202233cae4f0bcb170cc1959881af0cf3141caa3618ae89e066a65b769060f5
+  bin/lib/cross.py#cmd_cross_outbox: 768329186f6a9e1778c7784850ee60347668bfe088072055a769dcf60e18cd32
+  bin/lib/cross.py#cmd_cross_pick: e5c7aa3e66f7ee791b718b9cec5c56c5f56c709fbcfa855a14cd5e64a8941640
+  bin/lib/cross.py#cmd_cross_reject: c40be847a64f956c2a4bd23049f4c6fd247eac3a8bac725b2931c17de00db24a
+  bin/lib/cross.py#cmd_cross_request: cb1e36627cf8ed41944b52582240662f7b6248324838d406ce60a6c6674b407c
+  bin/lib/cross.py#cross_pick_for_file: 422375b6b56a82e3fc6ee5c3a0d9d8b54708175e359b9b528ebd6e5d065011be
+  bin/lib/cross.py#describe_holder: 2e292c3ec8b95b7774abd5208b4c75704e3d12bd02a37446e73a9d87008e6c63
+  bin/lib/cross.py#inbox_picked_untracked_rows: 8231b1019f1af903d8b56b5ca538e0690b312d3b5247743ad1a76e8ff4b60354
+  bin/lib/cross.py#intake_advisories: 7a65c857d69ceaa8dc02b4b01ec525af85bbd5c824356bb5be0ae0b7d95df05c
+  bin/lib/cross.py#premature_announcement_warning: 16ee20b2814345a2629de82ea51137ca0b4b19f9eb8b9f116d28cbb6142df3e6
+  bin/lib/cross.py#premise_review_cue: fd44ee1fe5306f92c2a1bd706b67ced342bd5d1881bba10d95e2e7b80ea80fed
+  bin/lib/cross.py#print_unanswered_cross_link_warns: 818ce3af4e1f8c274df488a2bd8290bc1e7f2bff480b736b97957aa1a675a193
+  bin/lib/cross.py#read_events: f6b3e3604624a2b40c6b961c06bdd0918ef7752cf36c956a781f776a37169d9b
+  bin/lib/cross.py#unanswered_cross_link_advice: faf1084d8b2f53ea054697a9f36cce28ddfd35c8610c94eb8247c28914d53a36
+  bin/lib/cross.py#unregistered_sender_rows: 7e5fd7f7c1f10e92a8140cebec1f7f0d6f70116728c6230dfac3a478b123ef2b
+  bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
+  bin/lib/session.py#cmd_session_start: f3de662a4bc6577be4ef802ef78392bf4dbaf4f2a2bf77ef218adb6c9eb4d6c6
+  bin/lib/task.py#_auto_cross_pick_for_file: 7ec08e2e7cc2ab9cc1959d08476bbab10176dcf91906541c7274acb97def07c2
+  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93

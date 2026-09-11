@@ -1,0 +1,366 @@
+id: SPEC-0005
+title: The spec doctrine — identity, content boundary, FSM, homing, and how to create/split/reshape a spec
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active # ACTIVATED by (2026-06-01) through the proposed->active
+                               # adoption gate: the doctrine is REALIZED — SPEC-0008 was authored as a
+                               # process-spec UNDER it (broadened identity rule 1). `active` is the ONLY
+                               # normative spec status (GRAPH §What a spec is FOR); the doctrine now
+                               # GOVERNS spec authoring (its `amends:` block takes effect). The plan's
+                               # broader model adds a `draft` stage BELOW `proposed`; no tooling yet, so
+                               # this pilot used the existing `proposed` status. (History: git + parent plan.)
+
+created_at: ''
+
+consumed: false # process/governance spec — no code reads a scalar param from it.
+                               # Stays false at `active` too: enforcement is distributed authoring
+                               # discipline, not a code-read scalar param (GRAPH `consumed:` whitelist).
+
+implements: [] # documentary / cross-cutting PROCESS spec — governs AUTHORING
+                               # discipline, enforced by every spec author + `spec new` + `graph
+                               # build` admission/anchor checks, not a single code site. This is the
+                               # DISTRIBUTED-ENFORCEMENT empty-mode (rule 7), intentional — not omission.
+
+activation_owner_task: # the single task that ACTIVATED this spec (rule 5) — carries closure,
+                               # the adoption probe, and supersession responsibility. Singular;
+                               # transferable only by explicit mutation. Other tasks `cite` the spec.
+
+amends: # canonical surfaces this doctrine DELIBERATELY changes (named per P7,
+                               # not silently diverged). Staged — takes effect only on adoption.
+  - : broadens spec identity to code-OR-process-OR-both (rule 1); re-homes the admission test +
+      two-bound volume discipline here (rules 2, 6) unchanged; AMENDS §6 authority chain — "specs CITE
+      decisions" becomes specs cite PLANS (the deliberation home), since the decision class retires (rule 8).
+  - : adds a `draft` stage below `proposed` in the spec FSM (rule 4) — staged pending adoption;
+      reuses the existing proposed→active probe gate + atomic supersede flip unchanged.
+  - plan one-task rule: relaxes activation cardinality from "one task per spec" to "one activation
+      OWNER per spec" (rule 5).
+  - / : re-homes the retired decision class — standing rule-text → spec (this doctrine);
+      deliberation + ratification act → the plan; the decision-finalize audit altitude → plan
+      finalization (parent plan §2). Existing decisions stay frozen history (not converted here).
+  - NEW (not an amendment of an existing surface): the "one home incl. handbook/pattern prose" rule +
+      the verification-contract-travels-with-the-rule rule (rule 8) — the spec/plan/task-field split
+      was non-exhaustive; rule 8 names the third home.
+
+body: |
+  ## Scenario
+
+  The owner/AI sees ONE durable design corpus. Whenever a STANDING normative rule must be captured —
+  governing CODE, a PROCESS, or both — it is written as (or folded into) a SPEC, not a separate
+  `decision` artifact — UNLESS the rule is already canonically homed in handbook/pattern prose, where
+  it stays (rule 8). The "why" (deliberation, rejected alternatives, the ratification act) lives in
+  the PLAN that produced the spec; a choice local to one task lives as a field on that TASK. A
+  `proposed` spec is a staged, non-binding design head; it governs nothing until a task ACTIVATES it.
+
+  ## Internal
+
+  This spec is the doctrine for the spec node-type itself (the meta-spec). It is NORMATIVE about
+  authoring discipline; it adds no tooling. Eight rules + two guards.
+
+  ### 1. Identity (broadened)
+  A spec is **a standing normative rule with implementation/adoption links — code OR process OR
+  both**, not only a code-bound contract. A process/governance rule is a legitimate spec.
+  **Exclusion (admission floor for a process rule):** spec-worthy ONLY if it is cross-task, durable,
+  analysis-shaping, AND behavior/probe-relevant. One-off operating guidance, a temporary workflow
+  choice, and a local authoring preference are NOT specs — they stay task fields or plan notes.
+  (Amends identity.)
+  **Single identifier/storage form (one spec node-type — anti-recurrence, X-0195/X-0197):** a spec
+  id and filename are `SPEC-XXXX` (stored `specs/SPEC-XXXX.yaml`) ONLY — the SOLE spec identifier
+  shape. GRAPH §Schema and SPEC-0030 own the one-node-type fact (the v1 analog `INVARIANT-*` was
+  unified into the single `spec` node); do not restate it here (rule 8). An invariant, a config
+  parameter, or an FSM is spec CONTENT — a `## Internal` rule, a `## Parameters` entry, or a body
+  section — NEVER a parallel node-type or filename prefix. Do NOT author
+  `INVARIANT-*` / `CONFIG-*` / `FSM-*` `.yaml` files: `graph build` indexes only `SPEC-*.yaml`, so an
+  other-prefixed spec-shaped file is silently graph-invisible (its `implements:` anchors never reach
+  the graph) — the boomrocket-migration incident (X-0195 / X-0197).
+
+  ### 2. Admission test (re-homed from)
+  Warranted if MOST hold: (1) states a rule/invariant/contract/design-boundary OR a governing
+  parameter an editor must know before safe change; (2) survives an internal refactor; (3)
+  implementation-shape-independent; (4) a change to it needs deliberate review; (5) affects ANALYSIS
+  SCOPE (tells the AI what else to inspect); (6) probeable; (7) non-local effect. **Probe breadth:**
+  "probeable" means at system-behavior level — and for a PROCESS spec that includes governance /
+  repository-state / CLI-behavior / adoption-evidence probes, not only runtime product behavior.
+  **Delete-test:** if removing it would not materially worsen change analysis, it wasn't a spec. NOT
+  a spec: paraphrases one function's control flow; a behavior-preserving refactor would rewrite it;
+  better as code/test/comment.
+
+  ### 3. CONTENT BOUNDARY (the load-bearing discipline)
+  A spec body carries ONLY: (a) the standing RULE-TEXT, and (b) rationale STRICTLY in service of
+  INTERPRETING or APPLYING that rule. **ALLOWED:** concise provenance / change-origin notes that help
+  interpret or prevent misapplication of the CURRENT rule (e.g. "Amends identity"; "the
+  byte-cap counts pre-normalization") — these explain the rule as it stands. **FORBIDDEN** — these
+  belong in the PLAN: full rejected-alternatives narratives / "why X over Y" debate; approval or
+  ratification history / who-signed-off / dates of agreement; deliberation chronology. **Probe:** a
+  body sentence that would have to CHANGE if a *different* option had been chosen — while the rule
+  itself stayed the same — is misplaced deliberation → move it to the plan. (The line: a note that
+  interprets the rule may stay; the debate that produced the rule may not.)
+
+  ### 4. FSM (adds `draft` below `proposed`)
+  `draft → proposed → active → superseded → retired` (terminal `withdrawn` / `rejected`).
+    - `draft` — exploratory, lives in a plan-draft, in the graph for plan-local reasoning, governs
+      NOTHING, triggers NO currency/staleness.
+    - `proposed` — committed staged direction; currency/staleness tracks it; non-authoritative;
+      `consumed:` MUST be false; has an `activation_owner_task` (rule 5).
+    - `active` — realized; the **ONLY** normative status.
+    - `superseded` / `retired` / `withdrawn` / `rejected` — non-normative history, kept + indexed.
+  `proposed → active` is GATED by an adoption probe (CHARTER §P3/§P8); on activation any `supersedes:`
+  target flips atomically (`active` target → `superseded`; a still-`proposed` target being replaced →
+  `withdrawn`/`rejected`, since it never governed).
+  **Draft tooling — SHIPPED ( Part A).** The `draft` stage is now live: `spec new --draft
+  --proposed-by <plan>` births a plan-local draft; `graph build` indexes drafts (status-agnostic
+  walk); default `graph query --projected` EXCLUDES all drafts; `graph query --projected
+  --include-draft=<plan>` is the plan-scoped what-if. Draft→proposed is NOT a spec verb — that
+  promotion is Part B's `plan accept` (one promotion route only). **Currency/staleness is NOT yet
+  built (Part G):** when it ships it MUST start at `proposed` and NEVER fire on `draft` — until then
+  there simply is no currency mechanism, so a draft triggers none.
+
+  ### 5. One activation OWNER per spec
+  Carrier field: **`activation_owner_task: T-XXXX`** — the SINGLE task that carries closure, the
+  adoption probe, and supersession responsibility. Lifecycle: forbidden while `draft`; REQUIRED for
+  `proposed → active` (a `proposed` spec may sit briefly without one, but cannot activate without
+  one); singular at all times; transferable only by explicit mutation. Other tasks MAY implement
+  portions of the same spec (multi-surface / infra+product / staged rollout) — they `cite` the spec;
+  they do not own its activation.
+  **Many-implementer rule:** when a rule has several implementing tasks (the old decision
+  `refs.follow_ups` shape), exactly ONE becomes the `activation_owner_task`; the rest `cite` the spec.
+  **Grandfathering:** a pre-doctrine spec is VALID without `activation_owner_task` / `proposed_by` —
+  these fields are required only for newly-created specs OR on the next substantive reshape /
+  supersession of a legacy spec. No retroactive backfill.
+
+  ### 6. Volume discipline — two bounds (re-homed from)
+    - **Lower (anti-oversplit, HARD merge-default):** a new spec MUST prove separation materially
+      improves change analysis; else MERGE into an existing spec.
+    - **Upper (anti-oversize):** when a spec grows too big to load cheaply → SPLIT, but **by stable
+      surface/boundary, NEVER by perspective**.
+  Anti-bloat is held by this discipline + retrieval precision + currency — NOT a spec-count cap.
+  Metric = load-cost + retrieval precision.
+
+  ### 7. How to create / split / reshape
+    - **Create:** `bin/yitc-v2 spec new --title …`; fill anchors + body sections + `proposed_by`.
+    - **Declare the binding (MANDATORY when creating OR correcting a spec — closes the dangling door):**
+      every spec MUST declare HOW it reaches the AI: either a `binding:` (the gating verb/stage that
+      FETCHES it before acting — `commit` / `close` / `audit-pre` / `audit-post` / `spec-new` /
+      `plan-close`, per the binding contract SPEC-0013) OR the reserved `floor` token (always-loaded,
+      not verb-fetched) OR a non-empty `implements:` (a code-enforced contract). A spec left ACTIVE with
+      none of these — no binding, not `floor`, empty `implements:` — is a **dangling spec** the AI is
+      never pointed to. This step is an AUTHORING DISCIPLINE (the author declares the binding because
+      this doctrine requires it — NOT a code gate on `spec new`; a gate is non-goal #2). The structural
+      backstop is the `graph build` bidirectional report (SPEC-0013), which CATCHES any dangling spec
+      that slips — prevention by discipline, detection by the report.
+    - **Split:** by stable surface/boundary (rule 6) — never to mirror a code-file layout or a
+      narrative perspective.
+    - **Reshape (correct / supersede):** author a NEW `proposed` spec with `supersedes:` the old; the
+      activation step flips the old atomically (rule 4). During Execution a task may CONFIRM
+      (proposed→active) / CORRECT (new proposed +) / CANCEL (withdraw) / BIRTH a spec.
+      Cross-refs reuse EXISTING fields — `proposed_by` (provenance field, NOT a 7th edge), `cites`,
+      `supersedes`, `closed_into`; the 6-edge bound holds.
+    - **In-place amend vs supersede — the boundary (the line is NORMATIVITY, not edit size):**
+      - **IN-PLACE amend ALLOWED** — edit the ACTIVE spec body directly for a typo / clarification /
+        non-normative editorial correction that does NOT change what the rule REQUIRES or FORBIDS (a
+        concise interpreting note per rule 3, a cross-ref fix, disambiguating prose the rule was silent
+        on). No new id, no `supersedes:`, no FSM transition. A multi-line / full-section in-place
+        amend rides the verb via `spec edit --from-file`/`--from-stdin` (a YAML mapping {old, new,
+        replace_all?}) — NOT a hand-edit of the YAML (which skips the `spec_edited` emit).
+        Prior-art: docs / docs
+        corrected active spec bodies in-place; added a binding field + an authoring sub-rule
+        in-place. PEP/ADR analog: living docs take errata in-place.
+      - **SUPERSEDE via a NEW `proposed` spec + `supersedes:` REQUIRED** — for a NORMATIVE reshape: any
+        change to what the rule REQUIRES / FORBIDS / its behaviour or scope (the thing a consumer acts
+        on differently). Routed through the FSM (rule 4); never reshaped normatively in place.
+      - **ADDITIVE EXTENSION to an ACTIVE spec is IN-PLACE (the recurring fork):** ADDING a
+        NEW case to an active rule — a new exemption / carve-out / permitted-state / ceiling-extension
+        — that leaves EVERY already-covered case's required behaviour UNCHANGED is an in-place amend,
+        NOT a supersede: it enlarges coverage without reshaping any existing obligation, so no
+        consumer's PRIOR compliance changes; only a situation the rule did not previously address gains
+        an explicit additive answer. Prior-art (in-place on the ACTIVE SPEC-0036 audit-loop ceiling):
+         (commit 965af137) added a new ceiling-EXEMPT case — the plan-freshness re-audit
+        ledger-skip — directly in SPEC-0036's body; (6c7e5021, a consult-reopened owner-reset
+        pass) and (66efb620, a uniform ceiling-continuation carrier) likewise EXTENDED that
+        ceiling in-place. Contrast a RESHAPE of an already-covered case (e.g. ceiling 2->3 for the
+        existing absorption loop, or REMOVING an exemption) — that alters existing compliance →
+        supersede.
+      - **The discriminating probe:** "does the edit change what a consumer must DO to comply IN AN
+        ALREADY-COVERED case?" YES → supersede; NO (it only clarifies / interprets / corrects, OR adds
+        a NEW case while leaving every already-covered case's compliance unchanged) → in-place. (Mirror
+        of rule 3's content-boundary probe.) The "already-covered" qualifier is what keeps a purely
+        ADDITIVE extension from reading as a spurious YES.
+      - **Internal-basis change under PRESERVED rule-text — text-preservation is NOT the discriminator
+        (E-0025):** when a spec's internal BASIS / derivation / mechanism changes while the rule's WORDS
+        stay identical, the boundary is STILL consumer-observable normativity, NOT the unchanged text —
+        run the discriminating probe on BEHAVIOUR, not the words. A basis change that alters what a
+        consumer OBSERVES or relies on in an already-covered case → NORMATIVE reshape → SUPERSEDE
+        (preserved wording is incidental, not exculpatory): watermark basis change (`now →
+        window_through`) kept the rule-text ("closed boundary / routed exactly once") intact YET changed
+        the reprocessing window a consumer observes → routed via supersede (consult-blessed). A basis
+        change that is only a more-honest RESTATEMENT of the SAME obligation, with NO consumer-observable
+        difference → IN-PLACE (e.g. correcting an interpreting/provenance note per rule 3 — "the byte-cap
+        counts pre-normalization" — sharpens the basis without changing what any consumer must DO). The
+        two E-0025 fingerprints resolve thus: an ADDITIVE ceiling-extension → IN-PLACE (the ADDITIVE
+        EXTENSION bullet above); an internal-basis edit → run the BEHAVIOUR probe (supersede iff it shifts
+        observable behaviour, else in-place).
+    - **Floor coverage of in-place edits (`before-rule-change`) — recorded decision, REVERSED by :**
+       recorded that the `before-rule-change` floor trigger keyed to the `spec-new` ACTION ALONE was
+      "correct by design", relying on a structural backstop (a normative change smuggled in-place leaves
+      NO `supersedes:` lineage / activation carrier — a drift-#10 / P5 signal). (owner-authorized
+      2026-06-03) REVERSES that: the backstop was shown UNRELIABLE (delivery-inspection finding-3
+      `rule-change-keyed-to-spec-new`, reproduced N=2 — an ungated in-place edit left NO journal trace at
+      all, so the bypass was invisible, not merely lineage-less). The `before-rule-change` trigger now ALSO
+      covers the `spec edit` in-place chokepoint (binding: [spec-new, spec-edit]); `spec edit` makes an
+      in-place edit journal-observable (a `spec_edited` event carrying the binding-derived
+      `governing_contract`), so an off-path raw edit is DETECTABLE as a spec-file diff with no `spec_edited`
+      event. The in-place-vs-supersede NORMATIVITY boundary above is UNCHANGED — a normative reshape still
+      routes through `spec new`; `spec edit` is the sanctioned path for the non-normative in-place
+      clarifications rule 3 already allows, now gated + observable. **Land enforcement :** an off-path raw spec body/implements edit reaching `land` is BLOCKED (LAND: ABORT), not merely surfaced — the prior WARN-only was silently skippable, which the owner directive closed. A legitimate bulk body-migration that cannot ride `spec edit` per-occurrence declares an explicit `spec-hand-edit-waiver: <reason>` commit-body trailer (>=30 chars, the CHARTER §P2 emergency-marker shape — durable in git history, never silent), which downgrades the off-path edit to an acknowledged non-blocking warn. **Commit-time SIGNAL :** the SAME land guard is also read at `task commit` / `work commit` and its finding REPORTED there — a WARN, never a refusal. The block stays at `land`, unmoved: a commit-time gate would be STRICTER than land (which scans the whole branch and accepts a waiver trailer declared on any commit in it), so refusing at commit would make the legal multi-commit waiver flow illegal. One detector, two read points.
+
+      **THE RECEIPT MUST RIDE THE SAME BRANCH AS THE DIFF (absorbing the external
+      auditor's finding 2 on the corpus-guard-ordering consult, 2026-08-20).** A `spec_edited`
+      receipt clears an off-path body/implements diff ONLY when the SAME member branch introduced
+      BOTH. This is stated because it is STRICTER than what a merged-tree check can, and the
+      strictness must be normative BEFORE it is enforced, never discovered from a land refusal.
+      WHY the two differ: the journal is append-only and UNION-MERGED at `land`, so once branches A
+      and B are merged into one candidate, A's receipt and B's body change sit in the same tree and
+      the guard clears B — even though B, alone, changed a governing spec body with no receipt of
+      its own. Union-merge therefore HIDES a provenance violation that per-branch checking sees.
+      The same-branch reading is the rule because the receipt's whole purpose is to record WHO
+      made THIS edit and under which governing contract; a receipt authored by someone else's
+      branch records neither. The identical rule governs the sibling rationale-bearing guards
+      (SPEC-0054 decision content-freeze, SPEC-0165 card-shape rationale): the rationale must be
+      introduced by the same member branch as the change it justifies. This clause is what a
+      pre-admission per-branch check ENFORCES; the merged-tree check remains a backstop and is not
+      weakened by it.
+    - **Empty `implements:` has TWO legitimate modes — name which, so empty ≠ omission:**
+      (a) *distributed/documentary* — an active cross-cutting invariant enforced everywhere, no single
+      code site (e.g. SPEC-0001, this spec); (b) *design-stage* — a `proposed` spec not yet wired to a
+      concrete anchor. Always add a one-line note saying which.
+
+  ### 8. Homing a standing rule — one home; verification travels with the rule
+    - **One home (P5):** a standing rule lives in EXACTLY ONE canonical home — a SPEC, **OR existing
+      handbook/pattern prose** when the rule is already canonical there (CHARTER / AGENTS / LIFECYCLE
+      / QUEUE / GRAPH, or a `patterns/*` file). Never both. A rule already homed in the handbook/pattern
+      STAYS there — do NOT duplicate it into a spec. (This is the THIRD home the spec/plan/task-field
+      split omitted.)
+    - **Verification travels WITH the rule:** a rule's verification CONTRACT (what must be true for it
+      to count as adopted — the probe definition) lives in the rule's `## Verification` — it is part of
+      the rule, not deliberation. The one-time verification RESULT (a probe's status / verified_at /
+      evidence list) is HISTORY, NEVER the live spec body — and its home is precise: the
+      **activation-owner task** owns the durable probe result, the **journal** records the activation
+      event, the **plan** summarizes only migration-wide outcomes.
+    - **Migrating a legacy rule (when the decision class retires) is NOT 1:1** — route each via one of
+      three verbs: *fold-into-existing-spec* (the rule joins an existing spec) / *absorb-into-meta-spec*
+      (a foundational rule about the model joins a doctrine spec like this one) / *freeze-history-only*
+      (a pure act / dead / handbook-duplicate stays frozen + gets `migrated_to` or a prose historical-only disclaimer).
+      The one-time field-by-field map for the existing legacy decisions is MIGRATION PROCEDURE — it lives
+      in the parent plan (Part F) [[doc-model-rework-retire-decision-unify-on-spec-spe]], not restated
+      here (rule 3 — migration narrative is plan material).
+    - **Build it drift-PROOF — classify before you mention a homed rule (per SPEC-0067):** before
+      authoring or editing standing-rule documentation, apply the SPEC-0067 cross-surface test to every
+      place you MENTION a rule homed elsewhere — *"if the rule-text at the home changed, would THIS
+      mention need a manual edit to stay correct?"* YES ⇒ drift-CAPABLE (pointerise / derive /
+      provenance-interpret instead); NO ⇒ drift-PROOF. The classifier + criterion live in SPEC-0067
+      (`graph query SPEC-0067`); this is a mandatory before-rule-change routing, not an optional aside.
+    - **Prompts, checklists, and cues carry a discipline CUE + a POINTER only — never the corpus
+      content (the SPEC-0067 drift test applied to the highest-risk MENTION surface):** an authoring
+      aid that MENTIONS a corpus rule — a floor-trigger cue, a front-load checklist item (SPEC-0043 /
+      SPEC-0060), a skeleton prompt, a stage next-hint — carries ONLY (a) a discipline-level CUE (name
+      the discipline + why it matters) and (b) a POINTER to the ONE home of the rule; it MUST NOT
+      restate the concrete rule-text, parameters, or action steps. A cue that restates concrete corpus
+      rule/action content DUPLICATES the spec/pattern that owns it — a second home → drift (P5), the
+      exact failure that lets a stale aid silently contradict its home. The aid names the discipline
+      and points (do the X-discipline — see the home); it never carries the restated steps. (Incident:
+       — a planning sizing rule was directed into the decomposition DOCTRINE itself, the SPEC-0043
+      front-load checklist POINTING to it, not restating it.)
+
+  ### Guard A — draft-check scope
+  Checks over `draft` specs are STRICTLY plan-LOCAL structural checks (one plan's what-if). A draft
+  check may NOT emit a global contradiction claim, backlog pressure, or a staleness event — global
+  currency/staleness starts at `proposed`. ONE contradiction system, not two (P5).
+
+  ### Guard B — anti-drift on process specs
+  The risk of the broadened identity (rule 1) is normalizing "spec as governance container" faster
+  than the admission discipline. So: NO process spec is admitted unless BOTH the rule-2 delete-test
+  AND the rule-3 content-boundary check pass; and the first process specs are treated as SAMPLED
+  PILOTS, not automatic precedent for admitting the next one.
+
+  ## Parameters
+
+  None consumed. Governing constants referenced (handbook cap = 2500, audit-loop ceiling = 2,
+  promotion threshold N≥2) live in their OWN specs/decisions — NOT duplicated or `consumed:` here.
+
+  ## Rationale
+
+  Prior-art (PEP / ADR / Specification-by-Example) keeps rule + rationale in ONE artifact and runs no
+  parallel decision+spec classes (research [[spec-driven-prior-art-research-spec-kit-kiro-tessl]]).
+  The CONTENT BOUNDARY (rule 3) is the load-bearing discipline: living-docs survive only with a clean
+  rule-vs-deliberation separation (Gojko Adzic's Specification-by-Example retrospective); without it,
+  unification looks simpler but rots into muddier semantics. The decision→spec seam is field-level and
+  far from 1:1 — a standing rule may also already be homed in handbook/pattern prose (rule 8). This
+  meta-spec is itself the PILOT proof: a PROCESS rule (the spec doctrine) living in a spec WITHOUT
+  recreating a decision — if this body stays free of forbidden content (rule 3 self-applied), the
+  broadened identity (rule 1) is demonstrated on itself.
+
+  ## Verification
+
+  - **VP1 (content boundary, dogfood):** grep this body — no full rejected-alternatives narrative,
+    no approval/ratification chronology, no dated audit-finding refs; only concise interpreting
+    provenance notes remain (rule 3 ALLOWED set).
+  - **VP2 (one activation owner):** a `proposed`/`active` (non-grandfathered) spec resolves to exactly
+    one `activation_owner_task`; other implementing tasks only `cite` it.
+  - **VP3 (non-authoritative):** `status: proposed` + `consumed: false` — governs nothing; removing
+    this pilot changes no live behavior.
+  - **VP4 (amendment honesty, P7):** the `amends:` block names every canonical surface this doctrine
+    changes (the plan's one-task rule) and flags rule 8 as NEW.
+  - **VP5 (one home, P5):** no rule stated in this spec is also duplicated as a standing rule in
+    handbook/pattern prose; a handbook-homed rule is referenced (`cites`), never restated.
+  - **VP6 (verification routing):** this spec's `## Verification` holds probe CONTRACTS (VP1–VP7), not
+    one-time results — no `verified_at` / evidence lists live in the body.
+  - **VP7 (declare-the-binding step + own binding):** §7 carries the MANDATORY
+    declare-the-binding authoring step (grep); and this doctrine declares its OWN `binding: [spec-new]`
+    (it is the read-before-spec-authoring rule), so `graph build` no longer lists SPEC-0005 in
+    `binding_report.dangling_specs` (RED-GREEN: drop the binding → it reappears).
+  - **VP8 (in-place vs supersede boundary + floor coverage; floor-coverage decision REVERSED by):** §7 names BOTH the in-place
+    clarification path AND the supersede-reshape path with the "does compliance change?" discriminator,
+    AND records that the `before-rule-change` floor coverage now spans BOTH `spec-new` AND `spec-edit`
+    (the reversal — in-place edits are gated + journal-observable, no longer spec-new-only).
+    Probe = the AC1/AC2/AC3 grep (`in-place` + `supersede` + `before-rule-change` present in this
+    spec) — no new artifact; reuses the existing acceptance probes.
+  - **VP9 (additive-extension carve-out):** §7 names the ADDITIVE-EXTENSION-to-an-active-spec
+    case as IN-PLACE, distinct from a normative reshape, with the "already-covered case" qualifier on
+    the discriminating probe AND a CONCRETE prior-art citation (commit 965af137 — the
+    plan-freshness re-audit ledger-skip added in-place to the active SPEC-0036 ceiling). Probe = grep
+    this spec for `ADDITIVE EXTENSION` + `already-covered` + ``; a future additive
+    ceiling-extension cites this carve-out instead of drawing a spurious supersede-RED.
+  - **VP10 (internal-basis-under-preserved-text discriminator / E-0025):** §7 names the
+    INTERNAL-BASIS-change-under-PRESERVED-rule-text case — text-preservation is NOT itself the
+    discriminator; the BEHAVIOUR probe decides (supersede iff it shifts observable behaviour, else
+    in-place) — with a mirror IN-PLACE example AND both E-0025 fingerprints explicitly dispositioned
+    (additive ceiling-extension → in-place; internal-basis edit → behaviour probe). Probe = grep this
+    spec for `Internal-basis change under PRESERVED rule-text` + `E-0025`; a future internal-basis edit
+    runs the behaviour probe instead of treating preserved wording as automatically in-place.
+  - **VP11 (single identifier/storage form / X-0195):** §1 Identity states the SOLE spec
+    identifier shape is `SPEC-XXXX` (`specs/SPEC-XXXX.yaml`) and that an invariant/config/FSM is spec
+    CONTENT, never a parallel `INVARIANT-*`/`CONFIG-*`/`FSM-*` prefix (graph-invisible otherwise).
+    Probe = grep this spec for `INVARIANT-*` + `SOLE spec identifier` + `X-0195`; a migrating consumer
+    reads the single-format rule instead of reinventing v1-shaped separate spec artifacts.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  -
+  -
+  -
+  -
+  -
+  - SPEC-0013
+  - SPEC-0067 # drift-proof construction classifier — the before-rule-change handoff target
+  - doc-model-rework-retire-decision-unify-on-spec-spe
+  - metaspec-over-decisions-conversion-2026-05-31
+  - spec-driven-prior-art-research-spec-kit-kiro-tessl
+
+requires: []
+supersedes: ~
+proposed_by: doc-model-rework-retire-decision-unify-on-spec-spe
+binding: # — SPEC-0005 IS the read-before-spec-authoring rule, fetched
+  - spec-new # before `spec new` (the rule-change gating verb). Clears it from the
+                               # dangling_specs set (it was active + unbound). Per SPEC-0013.
+  - spec-edit # — ALSO fetched before `spec edit` (the in-place-modify
+                               # chokepoint); before-rule-change now covers in-place edits too (VP8).

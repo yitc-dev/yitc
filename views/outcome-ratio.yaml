@@ -1,0 +1,58 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: outcome-ratio
+description: Aggregate lifecycle OUTCOME metrics over the journal — audits-per-close, first-pass-GREEN percent (PER GATE, pre + post, never one mixed figure), RED rate (PER GATE, over the PASS population), deviations-per-close. Windowed by the shared --since/--until pair. Run `graph query outcome-ratio [--since <date>]`.
+lens:
+  kind: outcome-ratio # pure f over the journal, ONE pass: count(task_closed) is the shared
+                           # denominator; the numerators are the audit_pre_completed +
+                           # audit_post_completed events (cost), the EARLIEST audit event per
+                           # (task, gate) (first-pass verdict), the PER-GATE verdict histogram over
+                           # EVERY verdicted pass (the RED rate — a PASS population, not the first-pass
+                           # TASK one), and deviation_captured +
+                           # the legacy friction_captured (deviation pressure). Reuses the
+                           # line-by-line journal reader + the shared window predicate (P1, one scan).
+                           # Recomputed fresh, writes nothing. Every denominator==0 metric → null.
+why: >-
+  `discipline-ratio` answers "how often does a session get REFUSED at a read-gate" — the input side of
+  discipline. Nothing answered the OUTPUT side: what a closed task actually COSTS in audit passes, how
+  often it clears its gates on the FIRST try, and how much deviation pressure accompanies it. Those three
+  numbers were reachable only by a by-hand grep+count over `events.jsonl`, re-derived (and re-mis-derived)
+  per review. This lens names that query once, so it is discoverable via `graph query --type view` and
+  recomputed identically every run.
+
+  The single load-bearing rule is that first-pass-GREEN is reported PER GATE and NEVER summed: a pre-audit
+  RED means the PLAN was wrong, a post-audit RED means the shipped DIFF was wrong — different failure
+  modes with different fixes. This is exactly the kind-split discipline `discipline-ratio` holds across its
+  refusal kinds (plan-check F3), applied to the audit gates. A task audited pre but never post counts in the
+  pre population only; the two gates are independent populations.
+
+  RED RATE is the third figure, and its POPULATION is the load-bearing part: first-pass-GREEN
+  counts each TASK once per gate (its earliest pass), while red_rate counts every verdicted PASS. "How
+  often does this gate come back RED" is a question about passes; "how often does a task clear on the
+  first try" is a question about tasks. Neither is derivable from the other, and answering one with the
+  other's denominator silently reports a figure nobody asked for. It was added because the 2026-08-13
+  revizia (T4) had raw audit COUNTS and no outcome ratios at all — counts are not outcomes — and the gap
+  was reported as an absent finding rather than as an absent instrument.
+
+  Two journal-shape facts are load-bearing, and getting either wrong silently under-reports rather than
+  failing: (1) an audit event's verdict lives under `data.verdict` OR the early-history `data.final_verdict`
+  — both are read; (2) verdicts carry absorption suffixes (`YELLOW-absorbed`, `GREEN-on-absorption`,
+  `RED-absorbed`), so the leading token before `-` is the verdict. Likewise the deviation numerator counts
+  BOTH `deviation_captured` and its retired legacy name `friction_captured`. A verdict outside the
+  canonical set surfaces in `other_verdicts` rather than being folded into not-GREEN (fail-visible — the
+  `discipline-ratio` `other_kinds` precedent).
+
+  No fabricated zeros : with no closes in the window every dependent metric is `null`, never 0.0 —
+  "no closes to divide by" is not "zero cost". sharpened that into a WORDING rule: a 0-denominator
+  metric also emits a `no_data` line NAMING the instrument that had nothing to read, so an UNAVAILABLE
+  input never reads as a measured zero. A MEASURED zero (passes existed, none were RED) still reports 0.0
+  and carries no such line — the two are different facts and the output says which one it is. Under an active window an event whose `ts` cannot be parsed
+  is EXCLUDED (fail-closed — it cannot be proven in-window).
+
+  Report-not-block : a rising audits-per-close or a falling first-pass-GREEN is a SIGNAL to look at
+  what changed upstream, never a gate. `graph query outcome-ratio` emits a cli_invoked observability event
+   — a reviewer RUNNING the lens IS the durable P8 consumer-read adoption evidence. No new store, no
+  new command family, no new event type, no persistence, no metrics daemon (CHARTER §6 non-goal: no
+  observability layer) — it composes the existing journal readers (P5). The view MECHANISM (lens dispatch /
+  views/*.yaml format) is owned by SPEC-0031; the window semantics are the trend-report pair
+   reused verbatim, not a second dialect.

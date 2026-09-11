@@ -1,0 +1,214 @@
+id: SPEC-0026
+title: Instruction-injection protocol and rule-visibility reverse-mapping — retrieved reference
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (the activation_owner_task below). `active` is the only normative
+                               # status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # reference catalog — no code reads a scalar param FROM this spec.
+
+implements: [] # documentary read-rule spec (query-only retrieved tier, SPEC-0007 §5a):
+                               # the injection protocol + reverse-mapping queries are CONSULTED when
+                               # reasoning about injections / running a cost audit, not realised by one
+                               # code site. Delivery is the AGENTS.md pointer-stub + `graph query
+                               # SPEC-0026`, NOT a verb/floor binding — hence `binding: [query-only]`
+                               # below (the reserved residency token added by).
+
+binding: [query-only] # QUERY-ONLY delivery class (SPEC-0007 §5a) — reserved residency token
+                               #, NOT floor-triggered and NOT verb-bound: injection happens at
+                               # session start / task pickup, NOT at a gated verb (a `before-injection`
+                               # trigger would be obligation-set creep, SPEC-0007 §5a). Delivery = the
+                               # always-loaded AGENTS pointer-stub (§Instruction injection protocol /
+                               # §Rule visibility) naming this spec + `bin/yitc-v2 graph query SPEC-0026`.
+                               # The query-only token (the "own task" the prior note deferred to)
+                               # excludes it from the dangling check — closing deviation
+                               # `binding-dangling-report-blind-to-query-only-delivery-class` (was).
+
+body: |
+  ## Scenario
+
+  The ONLY way to influence AI behaviour is what is in its context — so instruction injection (what we
+  tell the AI, when, in what form) is a load-bearing governance surface, and "what does rule X cost per
+  session" is an owner-facing audit question. When reasoning about an injection (its category, its
+  rationale grounding) or running the weekly bloat-prevention audit, the AI/owner pulls this `retrieved`
+  reference on demand via `bin/yitc-v2 graph query SPEC-0026` (the always-loaded AGENTS.md §Instruction
+  injection protocol / §Rule visibility stubs point here). It is reference, not a control-point — an
+  injection is not a gated verb action.
+
+  ## Internal
+
+  THE INSTRUCTION-INJECTION PROTOCOL + RULE-VISIBILITY / REVERSE-MAPPING REFERENCE (faithfully moved from
+  AGENTS §Instruction injection protocol + §Rule visibility and reverse-mapping
+  by the demote task — the rules MOVED to this spec, they were not deleted; the always-loaded
+  handbook now carries pointer-stubs). This protocol makes injections **visible, accountable, audit-able**.
+
+  ### Four categories
+  | Category | Semantics | When to use |
+  |---|---|---|
+  | **MUST_READ_NOW** | AI is required to Read before next action | Session start mandatory load; post-/compact recovery; task-pickup cited docs |
+  | **SHOULD_READ_TASK** | Recommended while working on an intersecting task | «Editing implementing code SPEC-X → Read SPEC-X first»; related decisions for current scope |
+  | **REF_AVAILABLE** | Pointer without a read-directive; AI judges relevance | «PATTERNS catalog (look if useful)»; alternative-search hints |
+  | **JUST_FYI** | Contextual cue; no action expected | «Cron ran last night»; ambient signals |
+
+  ### Comment shape
+  Every injection wraps the target with metadata in standard form:
+  ```
+  [<CATEGORY>] [<MANDATORY|ADVISORY>] [<FIRST|REPEAT N>] <target>: <comment ≥10 chars>
+  ```
+  Examples:
+  - `[MUST_READ_NOW] [MANDATORY] [FIRST] CHARTER.md: session start protocol per AGENTS §At-session-start`
+  - `[SHOULD_READ_TASK] [ADVISORY] [FIRST] SPEC-0001: task cites this spec`
+  - `[REF_AVAILABLE] [ADVISORY] [REPEAT 3] PATTERNS.md: catalog (referenced again)`
+
+  `comment` = an AI-facing brief hint. NOT the same as `rationale` (the governance justification, below).
+
+  ### Tracking event schema
+  An `instruction_injected` event is written to `events.jsonl` per injection:
+  ```jsonc
+  {
+    "ts": "",
+    "type": "instruction_injected",
+    "task_id": "", // optional
+    "data": {
+      "target": "CHARTER.md", // OR "CHARTER.md§Principle-2", OR "specs/SPEC-0001.yaml"
+      "category": "MUST_READ_NOW", // MUST_READ_NOW | SHOULD_READ_TASK | REF_AVAILABLE | JUST_FYI
+      "form": "full_inline", // full_inline | excerpt_link | link_only
+      "size_lines": 142, // size at injection time (impossible to reconstruct later)
+      "size_chars": 6904, // ~tokens / 4
+      "rationale": "AGENTS.md §At-session-start mandates initial read for principle awareness",
+      "comment": "session start protocol",
+      "source": "auto", // auto | hook | owner | ai-self-initiated
+      "mandatory": true,
+      "first_time": true,
+      "repeat_count": 1 // present if first_time=false
+    }
+  }
+  ```
+
+  ### Rationale field (governance closure at injection level)
+  Every **substantive** injection (MUST_READ_NOW or SHOULD_READ_TASK) MUST have a `rationale:` field
+  citing a durable artifact — the analog of the commit `from:` (Principle 2 recursive closure applied to
+  the injection action).
+  | Injection situation | Rationale example |
+  |---|---|
+  | Session start handbook load | `AGENTS.md §At-session-start` |
+  | Post-/compact recovery | `AGENTS.md §After /compact` |
+  | Per-task cited spec read | `LIFECYCLE.md §Stage-1 + tasks/<task-id>.yaml cites:` |
+  | Audit prompt V2 lens | `AGENTS.md §audit-prompt-principles` |
+  | Owner ad-hoc directive | materialized journal entry (`events.jsonl#source_ref=<locator>` or `events.jsonl#ts=<ISO>`), or author a spec (`spec new`) when a durable standing rule is warranted |
+  | AI self-initiated Read for analysis | `LIFECYCLE.md §Stage-1 prior-art discretion` |
+  | Emergency bypass | `CHARTER §emergency-bypass` (within 72h: retro-doc capturing the new protocol + a post-incident task; a resulting standing rule homes in a spec) |
+
+  **Chat-directive citation ().** Ephemeral chat NOT captured anywhere
+  doesn't qualify. But the primary AI **provider session log** captures all chat durably — and the
+  **parser/adapter materializes** chat-class directives into events.jsonl with provenance fields (
+  ships the first concrete adapter). Cite the **materialized journal entry**:
+  `events.jsonl#source_ref=<locator>` or `events.jsonl#ts=<ISO>`. Author a spec only when the
+  directive warrants durable governance (a new standing rule / supersession), not for routine commands.
+
+  ### Substantive vs trivial tier
+  - **Substantive injection** (MUST_READ_NOW or SHOULD_READ_TASK) — `rationale` REQUIRED. Per
+    (), the parser/adapter materializes `instruction_injection` events from the
+    session log into events.jsonl with provenance fields; the AI manual emit is retired. Cite the
+    materialized journal entry if the injection needs a durable rationale.
+  - **Trivial injection** (REF_AVAILABLE or JUST_FYI single-line) — `rationale` OPTIONAL, no event needed.
+
+  Mirror to the Principle 2 «substantive vs read-only» distinction. Anti-complexity: don't burden 1-line
+  FYIs with a full schema.
+
+  ### What this protocol enables
+  - **Forward query** «AI was told what?» — list injection events.
+  - **Reverse query** «protocol X cost?» — sum injection volumes citing X as rationale (see §Rule
+    visibility below).
+  - **Gap analysis** «MUST_READ_NOW not followed by Read?» — discipline-violation detection.
+  - **First-vs-repeat detection** — efficient reload patterns.
+
+  ### Rule visibility and reverse-mapping
+  V2 governance principle: **AI behaviour is driven by what's in context. The owner needs visibility into
+  the rule set + the ability to audit AI compliance against it.** This is NOT a separate mechanism — it is
+  a query-layer use case (GRAPH.md §Query layer).
+
+  #### Forward queries («what AI knows about X»)
+  ```
+  yitc-v2 graph query --type rule --severity must # all MUST rules
+  yitc-v2 graph query --type rule --source CHARTER.md # rules sourced from a doc
+  yitc-v2 graph query --task --type rule # rules applicable to a task
+  ```
+  Rules are extracted by the graph build script from the canonical docs — lines marked `[MUST]` /
+  `[SHOULD]` / `[MAY]` or containing keywords (Must / Cannot / Required) become rule attributes on the
+  respective doc nodes.
+
+  #### Reverse-mapping queries («what X costs»)
+  PRIMARY tool for bloat-prevention. Per insight #6 — without the rationale field, per-rule cost is
+  invisible; with it, every doc/section gets cost-accounted.
+  ```
+  yitc-v2 graph query --injections-triggered-by CHARTER.md§Principle-2
+    # → all instruction_injected events citing this rationale
+    # → sum of size_lines = total burden Principle-2 imposes per session
+
+  yitc-v2 graph query --top-rationale-by-volume --window 7d
+    # → top 5 protocols by injection cost — hotspot detection
+
+  yitc-v2 graph query --never-cited-in-rationale --window 30d
+    # → docs/specs/decisions without recent rationale citations
+    # → candidates for retirement or supersession
+
+  yitc-v2 graph query --mandatory-unread <task-id> # DEFERRED Day 6+
+    # → MUST_READ_NOW injections without subsequent Read events = violations
+    # Requires an `instruction_read` event source decision (or native Read tracking).
+  ```
+
+  #### Anti-recurrence vs v1 bloat
+  V1 accumulated 22 DPs / 41 policies / 508 spec artifacts because per-rule cost was invisible.
+  Reverse-mapping queries make every rule cost-accounted:
+  - Rule causes 50% of session injection volume? → split or excerpt-only inject.
+  - Rule never cited as rationale in 30 days? → retirement candidate.
+  - Rule rarely cited but always large? → review value.
+
+  The owner runs the reverse-mapping audit **weekly** in a Review session (Day 5+ when event data
+  accumulates). It surfaces drift before it accumulates.
+
+  ## Rationale
+
+  Source: AGENTS §Instruction injection protocol + §Rule visibility and reverse-mapping (the always-loaded
+  handbook prose, kept in place until, which stripped it to pointer-stubs). This spec is the
+  `retrieved` tier home (Part I-B bulk demote, plan `part-i-b-tier-split-carving-floor-wiring-first-the`
+  §Phase-2): situational reference prose consulted WHEN reasoning about an injection / running a cost audit
+  moves out of the always-loaded budget into a query-only retrieved spec (SPEC-0007 §5a), reached via the
+  AGENTS pointer-stub + `graph query`. It is NOT floor-triggered: an injection happens at session start /
+  task pickup, not at a gated verb — a `before-injection` trigger would be obligation-set creep (anti-cx
+  F4). The injection protocol + its reverse-mapping use-case are kept in ONE spec (anti-oversplit
+  merge-default, GRAPH §Volume) because the reverse queries operate over the very `instruction_injected`
+  events + `rationale` field the protocol defines — one surface, cross-referenced.
+
+  ## Verification
+
+  Probe CONTRACTS (not one-time results):
+  - **VP1 (fidelity, moved-not-lost):** the key phrases of each demoted section resolve in THIS spec and
+    are ABSENT from AGENTS.md (probe: `grep "Four categories"` / `grep "Comment shape"` / `grep
+    "Reverse-mapping queries"` present here, the bodies gone from AGENTS.md — only the pointer-stubs
+    remain). RED-GREEN: the grep-absent assertion fails BEFORE the AGENTS strip.
+  - **VP2 (delivery, query-only):** `bin/yitc-v2 graph query SPEC-0026` resolves this node; the
+    always-loaded AGENTS §Instruction injection protocol + §Rule visibility stubs name this spec id + the
+    lookup command. Both halves of the ratification probe (pointer surface + lookup command) are nameable.
+  - **VP3 (query-only, no floor-trigger):** `graph/floor-trigger-map.md` gains NO `before-injection`
+    trigger (negative probe — this spec's `binding:` is `[query-only]`, a residency token with no verb
+    surface; the four triggers stay commit/audit/closure/rule-change). AND it is NOT in
+    `binding_report.dangling_specs` ( query-only token).
+  - **VP4 (graph-indexed):** `bin/yitc-v2 graph build` indexes SPEC-0026 as a `spec` node.
+
+cites:
+  - part-i-b-tier-split-carving-floor-wiring-first-the
+  - SPEC-0007
+  - AGENTS.md#instruction-injection-protocol
+  - AGENTS.md#rule-visibility-and-reverse-mapping
+  -
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first : closing activates this proposed spec.
+proposed_by: # PROVENANCE: born by the demote task (work-first).

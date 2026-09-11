@@ -1,0 +1,24 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: mandatory-concern-gaps
+description: Who owes what RIGHT NOW — every registry yitc_v2 project with an UNANSWERED MANDATORY concern, in one read, without waiting for a session to open in that project. Per concern the projects that owe an answer; per project the concerns it owes. Declare-or-waive stance, mandatory-only (an opt-in concern never appears), derived on read.
+lens:
+  kind: mandatory-concern-gaps # kernel concern registry (presence_policy: mandatory) x each project's yitc-ops.yaml stance; engine excluded
+why: >-
+  The per-project concern seams are sound but LATENT: the `-C` session-start drift echo only speaks when
+  someone OPENS a session in that project, so a dormant project accrues an unanswered mandatory concern
+  and learns nothing until it is visited — a delivery-latency property of a per-project seam, not a
+  defect in it. On 2026-08-13 a controller needing the fleet answer ("who has not answered
+  spike_data_safety?") had no command for it, grepped key names across repos by hand, and got the first
+  answer WRONG. This is the REF_AVAILABLE surface that answers it on demand. It is a DIFFERENT
+  predicate from the nightly's concern_drift, deliberately: drift asks whether a consumer's `adoption:`
+  ledger kept up with contract-VERSION moves and diverges in both directions from "who owes an answer"
+  (it reported boomrocket/spike_sandbox un-adopted while that carrier DECLARES the bridge, and it reports
+  non-mandatory concerns); this asks whether the carrier answers the concern AT ALL. Enumeration REUSES
+  the read-only nightly._v2_projects registry scan (-safe) and each project's yitc-ops.yaml
+  (SPEC-0093); the stance comes from the SAME `_ops_carrier_violations` evaluator the init sweep fails
+  closed on (CHARTER §P5 — one stance home). Membership + stance are DERIVED fresh on read: no new store,
+  no cache, no fourth concern, no parallel concern registry, no gate, no event. MANDATORY-ONLY by
+  construction, so an OPT-IN concern's silence is never reported as debt; a project that has ANSWERED
+  (declared OR waived) does not appear for that concern, and a project with no gaps is omitted entirely.
+  Answering a gap is the project's OWN governed `-C` carrier op — deliberately OUT of this read-only lens.

@@ -1,0 +1,261 @@
+# YITC v2 — Spec (draft, plan-local — SPEC-0005 §4). Field catalog: SPEC-0030.
+
+id: SPEC-0096
+title: Activation baseline-concern checklist generator — declaration-driven init-walk + doc-checklist
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # by `plan stage accepted`, activated proposed→active by the close of
+                               # `activation_owner_task` (set at decomposition).
+
+created_at:
+
+travels: kernel # draft default (SPEC-0073 §3) — re-pinned to kernel at plan-accept
+                               # (this generator is kernel methodology; the re-pin is an EXPLICIT
+                               # accept-time action, not a draft-birth side-effect).
+
+consumed: false # process/governance + code-derived view spec — no code reads a
+                               # governing scalar PARAM from it. Stays false at active (the
+                               # generation rides graph-build + the carrier, not a spec-read param).
+
+implements: # Generator anchors (wired at activation) — the derivation code +
+                               # the derived artifact itself (so the new GEN view is not spec-less,
+                               # audit-pre F2). Non-empty ⇒ NON-DANGLING once active.
+  - bin/lib/graph.py#_activation_concern_rows # the fail-closed derivation of the concern roster
+  - bin/lib/graph.py#_render_activation_checklist # the two derived views (init-walk SET + doc-checklist)
+  - bin/lib/graph.py#_activation_checklist_drift # the DO-NOT-EDIT drift lock (conformance RED set)
+  - graph/activation-checklist.md#Activation # the generated DO-NOT-EDIT derived artifact
+  - bin/lib/init.py#_render_init_concern_sweep # rule 8 — the owner-visible born-waiver/default sweep at init
+
+body: |
+  ## Scenario
+
+  When a project is activated onto the kernel, the kernel walks it through a GENERATED checklist of
+  baseline concerns — one row per concern whose instance has DECLARED an init-question — forcing
+  declare-or-waive on each (opt-out always available). The activation walk AND a human-readable
+  doc-checklist are GENERATED from ONE canonical per-concern declaration, exactly as
+  `graph/floor-trigger-map.md` is generated from each spec's `binding:`. So when a new concern
+  instance is built and declares its init-question, its row AUTO-APPEARS in both the walk and the doc
+  with no hand edit — "the questionnaire fills itself". Each answer is a POINTER to the concern's
+  governed adoption-evidence, never a stored status. The owner sees baseline concerns CONSIDERED at
+  activation by a list that maintains itself — not a bespoke hand-written charter re-deriving each
+  baseline from scratch.
+
+  ## Internal
+
+  THE ACTIVATION-CHECKLIST GENERATOR (generator-only scope). Seven rules. It adds a declaration FIELD on
+  the concern SPEC (a SPEC-schema extension, SPEC-0030) + a `graph build` DERIVED VIEW (the init-walk SET
+  + the doc-checklist) — reusing the existing floor-trigger-map derived-view machinery, adding NO new
+  store / parser / journal / generator engine (CHARTER §P1). **Scope boundary (plan-check finding #3 —
+  the plan was narrowed to generator-only):** the INTERACTIVE walk at `init` (presenting the SET +
+  collecting the declare-or-waive ANSWERS into `yitc-ops.yaml`) is NOT here — it is owned by the
+  onboarding instance, a separate scope. This spec produces the generated SET the walk would
+  present; it never performs the walk or touches the carrier answer.
+
+  ### 1. ONE canonical per-concern declaration is the single generation source — KERNEL-SIDE, ON THE SPEC
+  The declaration is **KERNEL methodology, authored ONCE as a field on the concern's own SPEC (a
+  SPEC-schema extension — SPEC-0030; kernel realm, SPEC-0073)** — NEVER copied into each project. Each
+  concern spec declares, in that one kernel place, its **`init_question`** (the prompt the activation
+  walk shows) + its **waiver-contract** (what a waiver may omit; any compensating-control/expiry
+  requirement — the per-section waiver POLICY itself stays owned by SPEC-0093 rule 6) + its
+  **adoption-evidence pointer** (the spec/probe/live_probe that proves the concern handled) + its
+  **tier marker** (rule 7). That single kernel declaration on the spec is the SOURCE from which the two
+  generated views are derived — the init-walk SET and the doc-checklist (rule 2) — no derived surface is
+  hand-authored in parallel (P5). One kernel source on the spec, derived views.
+  **The declaration is NOT the project's ANSWER (the P5 home — plan-check finding #1).** The declaration
+  lives on the concern SPEC (SPEC-0030 schema), NOT in the carrier; what lives per-project in
+  `yitc-ops.yaml` is the project's ANSWERED STATE (the declared command/contract OR its `waiver:
+  {reason}`) — collected by the walk, out of THIS scope. The kernel declaration travels (one
+  source on the spec); the per-project carrier holds only that project's answer. Copying declaration text
+  into each project is FORBIDDEN (it would duplicate concern metadata across projects — the P5 violation
+  the finding named).
+
+  ### 2. Generation REUSES the `graph build` derived-view pattern — no new engine
+  The init-walk concern SET and the human-readable doc-checklist are DERIVED at `graph build` from the
+  per-concern declarations into a `DO NOT EDIT` managed GEN region — the SAME `<!--GEN-->`
+  derived-view machinery that generates the floor-trigger-map. Regeneration is deterministic; a hand
+  edit to a generated surface is DRIFT, not an authoring path. No second generator engine / parser /
+  store / journal (CHARTER §P1 F1–F3 / §P5).
+  **Ownership boundary (the hard split — plan-check finding #2).** This spec owns the GENERATED VIEWS
+  (the derived init-walk SET + the doc-checklist) and the declaration SEMANTICS (rule 1) — and NOTHING
+  ELSE. It does NOT own: the carrier schema (SPEC-0093, rule 3) OR the INTERACTIVE WALK — the verb that
+  presents the SET to the project at `init` and collects the declare-or-waive answers, which is owned by
+  the onboarding instance. SPEC-0096 GENERATES the set the walk presents; it never performs the
+  walk. No rule duplication, no floating responsibility.
+
+  ### 3. The declaration FIELD extends the SPEC schema (SPEC-0030) — the carrier (SPEC-0093) is separate
+  The declaration field (rule 1) is an additive extension of the SPEC YAML schema (SPEC-0030 — the
+  field catalog) on the concern's own spec. It is NOT a carrier (`yitc-ops.yaml`) field: ONE home, ONE
+  schema-owner (SPEC-0030 for the declaration; SPEC-0093 for the carrier answer). The carrier (SPEC-0093)
+  holds the project's per-project ANSWER, collected by the walk — out of THIS scope; the
+  generated doc-checklist merely POINTS at where each concern's answer lives (a reference in the derived
+  view), it does not author the carrier section or collect the answer. This honours SPEC-0093 rule 4
+  ("future concerns are tracked ids, extensible by construction"): a concern joins the generated SET only
+  when its spec lands AND declares its `init_question`. No parallel schema, no per-project declaration
+  copy (CHARTER §P5).
+
+  ### 4. The walk surfaces ONLY declared instances — the tier is the target, the seed is what ships
+  The generator surfaces a concern row ONLY once its instance has declared an `init_question`. This
+  reconciles "universal-tier walk" with "only declared instances surface": the TIER names the target
+  roster; the generated walk shows the COMMITTED seed (the concerns whose instances declared); the
+  tier FILLS as instances land. No concern is a row before its instance + declaration exist —
+  reserving empty schema for an un-pulled concern is FORBIDDEN (the platform-creep boundary, SPEC-0093
+  rule 4 / CHARTER §P1 F4 — imagined necessity defers).
+
+  ### 5. Opt-out is always available — the checklist guarantees CONSIDERATION, never adoption
+  Every generated row is WAIVABLE: a reasoned refusal is a first-class answer, never a failure. The
+  checklist guarantees only that each surfaced concern was CONSIDERED at activation; it NEVER mandates
+  adoption (a frame to think, not a gate that blocks). A row's waiver-contract MAY require a
+  compensating control + an expiry where bare-waiving is genuinely unsafe (e.g. a security row) — but
+  a project is never forced to declare a concern it does not have. The per-section waiver POLICY is
+  owned by SPEC-0093 rule 6; this spec states only that a GENERATED row inherits its concern's policy.
+
+  ### 6. Answers are POINTERS to governed adoption-evidence — no stored computed status
+  A declare-or-waive answer captures CONSIDERATION. To avoid decaying into stale parallel truth (P5),
+  each answer is a POINTER to the concern's governed adoption-evidence (the spec / probe / live_probe
+  that proves it handled — e.g. deploy → `deploy_completed` + the live_probe soak). The generated
+  checklist is an ENTRY-SURFACE + pointers; adherence / coverage is DERIVED at read time over the
+  journal + carrier, NEVER persisted (SPEC-0093 rule 7 — the carrier stores no computed status; no
+  dashboard / CI-gate / coverage-report layer).
+
+  ### 7. Tiering is MINIMAL first-ship policy on the committed seed — the rest is deferred
+  First ship carries only the MINIMAL tier marker on each COMMITTED-seed concern: `universal` (kernel
+  seeds it) vs not. The tier of a concern is part of its declaration (rule 1), so even this minimal
+  marker is data-driven, not a hand-listed gate. The richer taxonomy — **archetype packs** (UI /
+  responsive / optimistic-vs-pessimistic, seeded only if the project declares an archetype) and
+  **project-added** product/domain concerns — is DESIGN POLICY, less directly incident-backed, so it is
+  DEFERRED to tracked follow-up work, pulled per real incident (CHARTER §P1 F4), NOT shipped here. The
+  load-bearing first-ship claim is the GENERATOR MECHANISM (rules 1–6); the tier taxonomy beyond the
+  universal/committed-seed marker is not first-ship scope. This keeps the checklist an activation PROMPT
+  scoped to the mechanism, not a normative product framework (the v1 platform-posture failure).
+  **`universal` admission test (one line, plan-check residual #4):** mark a concern `tier: universal`
+  IFF it applies to EVERY project the kernel could activate regardless of stack/archetype/domain (a
+  cross-cutting baseline, e.g. deploy-adoption) — if it needs a stack/archetype/product to be relevant,
+  it is NOT universal (it is archetype/project-tier, deferred per the taxonomy above).
+
+  **Walk norms are REFERENCED, not restated (plan-check residual #1).** Every NORM of the interactive
+  walk itself — how the SET is PRESENTED at `init`, how the declare-or-waive ANSWER is collected, the
+  fail-closed-on-unanswered-seeded-row policy — is owned by the onboarding instance and the
+  carrier (SPEC-0093 rule 3); this spec POINTS at them, never re-specifies them. SPEC-0096's contract
+  ends at the generated SET (the walk's INPUT); it never describes the walk's behaviour.
+
+  ### 8. The generated SET drives an OWNER-VISIBLE born-waiver/default sweep at `init` — the generic close
+  Closing the silent-born-waiver class GENERICALLY (X-0088, external MED): `init` SURFACES the generated
+  SET owner-visibly as a "born-waiver/default sweep" — one line per declared concern (EVERY init-defaultable
+  concern, not only deploy), each flagged to be EITHER explicitly declared on-plan OR explicitly
+  owner-waived (with a real reason), never an invisible default. So when a project is bootstrapped, the
+  owner SEES the whole roster of concerns whose init path can default/waive owner-significant behaviour —
+  not just the one deploy concern (the gap that let deploy-AUTONOMY (SPEC-0097) ship as a silent init
+  born-waiver before). SPEC-0097 is the FIRST concrete concern in the sweep; the sweep generalises
+  it to the whole class. This is a NON-INTERACTIVE SURFACING (a report read off the already-generated
+  graph/activation-checklist.md), distinct from and NOT the interactive declare-or-waive COLLECTION owned
+  by the onboarding walk (rule 2/4): the sweep PRINTS the SET, it collects no answer and writes no
+  carrier section. It reuses the existing generated surface — no new gate/detector/store/parser/journal
+  (CHARTER §P1 / non-goal #7); a missing engine artifact never crashes init and is never SILENTLY skipped
+  (a silent absence would itself be a silent default — the failure this closes), so the absent case emits an
+  EXPLICIT owner-visible "unavailable" notice. Every concern still inherits its own waiver POLICY (rule 5) — the sweep surfaces the
+  choice, it never forces adoption and never auto-seeds an active policy (the SPEC-0097 §9 safety
+  corollary: surfacing the DECISION must not silently GRANT autonomy).
+
+  ### 9. The activation checklist is ONE generated view of the concern registry (SPEC-0128)
+  This generator is one CONSUMER of the single **concern registry** (SPEC-0128, "one declaration → all
+  surfaces generated"): the per-concern `init_concern` declaration this spec derives its two views from
+  (the init-walk SET + the doc-checklist) is a COMPANION field carried alongside the Rule-1 concern
+  registry metadata on the concern's own SPEC (SPEC-0030 schema), NOT a second parallel declaration. So
+  the checklist row a concern gets, the carrier section that concern owns (SPEC-0093), that concern's
+  floor-trigger row, and its review/debt lens are all views of the ONE `concern:`-block declaration — a
+  concern can never be half-registered (present on one surface, silently missing from another). Rules 1–8
+  are UNCHANGED: this spec still owns the generated VIEWS + the declaration SEMANTICS; the cross-surface
+  invariant that binds this view to the same registry as the carrier and the standing conformance/skew
+  views is owned by SPEC-0128, which NAMES this spec as one of its surfaces (no rule duplication).
+
+  **Guards.** (a) No concern row is generated for a concern whose instance is not built + declared
+  (rule 4). (b) No generated surface (the walk set, the doc-checklist) is ever hand-edited (rule 2) —
+  a divergent hand edit is a drift signal. (c) No computed status is persisted (rule 6).
+
+  ## Parameters
+
+  None consumed. The per-concern declarations (`init_question` text, waiver-contract, adoption-evidence
+  pointer) are KERNEL METHODOLOGY authored once on the concern's instance/spec (rule 1) — NOT a
+  kernel-read governance SCALAR, and NOT per-project config. The per-project `yitc-ops.yaml` carrier
+  holds only the project's ANSWER (declared command/contract OR waiver) — project-local answered state,
+  not a spec-read param. The carrier schema constants live in SPEC-0093 / `bin/yitc-v2`, single-source —
+  not read from this spec.
+
+  ## Rationale
+
+  Real incidents (kupiclub, the motivating evidence): an off-style UI control shipped through all gates
+  (`ui-style-compliance-not-seeded-or-enforced`); a destructive action fired with no confirm → kupiclub
+  authored SPEC-0016 from scratch (`behavioral-baseline-not-seeded`) — both because baseline DEFAULTS
+  were not seeded at activation, and the one prior activation produced a bespoke hand-written
+  `CHARTER.md` re-deriving every baseline. Prior-art (extend, not create — CHARTER §P1 F1): the
+  `graph/floor-trigger-map.md` generated-from-`binding:` derived view (the generation pattern reused in
+  rule 2) + the SPEC-0093 `yitc-ops.yaml` carrier (the declare-or-waive substrate the per-project ANSWER
+  rides — rule 3) + the SPEC-0030 spec schema (the home of the declaration field — rule 1/3). This spec
+  adds only the GENERATION layer (the declaration field + the derived views) — no new store/parser/journal.
+  Generator-only scope: the interactive walk is separate. Full deliberation + the gate-specs RED
+  + plan-check absorptions: plan `project-activation-baseline-concern-checklist-gene` (a plan never
+  governs — GRAPH §What-a-spec-is-FOR).
+
+  ## Verification
+
+  Probe CONTRACTS (RED-GREEN — observe failing before trusting):
+  - **VP1 (auto-grow from declarations — the load-bearing probe):** a fixture concern instance
+    declaring an `init_question` makes its row appear in BOTH the generated init-walk AND the generated
+    doc-checklist after `graph build`, with NO hand edit; removing the declaration removes both rows.
+  - **VP2 (the generated SET is the walk's input — ownership boundary):** the generated universal-tier
+    SET this spec produces equals what the onboarding walk presents at `init`, each row
+    carrying its declare-or-waive contract; a reasoned waiver is accepted and an unanswered seeded row
+    fails closed (the DECLARE-OR-WAIVE policy + the interactive collection are inherited — SPEC-0093
+    rule 3 + the walk verb — NOT owned here). This spec's probe is on the SET + its contracts;
+    the interactive walk behaviour is probed by.
+  - **VP3 (only declared instances surface):** a universal-tier concern with NO built instance produces
+    NO row (rule 4 — no reserved empty schema).
+  - **VP3a (active-only —):** the checklist derives from status:ACTIVE specs only — a
+    `draft`/`proposed` spec's `init_concern` produces NO row (non-authoritative until activation, SPEC-0005
+    §4; the sibling of the concern-registry gate; a status-less synthetic fixture is admitted so the
+    mechanics tests stay status-agnostic). Probe: `tests/test_t10176_activation_active_only.py`.
+  - **VP4 (deterministic regeneration / no hand-edit):** the generated doc-checklist regenerates
+    byte-identically via `graph build`; a divergent hand edit to the GEN region is flagged (the
+    drift-lock, like the floor-trigger-map).
+  - **VP5 (pointer-only adoption):** each answer resolves to a governed adoption-evidence pointer; no
+    computed adherence/coverage status is persisted in the carrier (grep + state check — SPEC-0093 r7).
+  - **VP6 (declaration home = SPEC schema, NOT carrier):** the `init_question` declaration is a field on
+    the concern's own SPEC (a SPEC-0030 schema extension), NOT a `yitc-ops.yaml` field; the carrier holds
+    only the project's answer; no second config file / parallel schema is introduced (grep — no parallel
+    SoT, one home / one schema-owner).
+  - **VP8 (owner-visible init sweep — the generic close):** a `-C <synthetic> init` run PRINTS a
+    born-waiver/default sweep block enumerating EVERY concern in the generated SET (≥ the 4 declared:
+    SPEC-0094/0097/0099/0100), each line flagging explicit declare-or-waive; the block reads the existing
+    graph/activation-checklist.md (no new derivation) and emits an explicit owner-visible "unavailable"
+    notice (never a silent skip) when that artifact is absent.
+  - **VP7 (three-tier composition):** the kernel-seeded roster contains UNIVERSAL concerns only;
+    archetype/project concerns are not kernel-seeded (state check over the seed set).
+
+cites:
+  - CHARTER.md#principle-1 # anti-complexity — reuse the spec schema + the generated-view pattern
+  - CHARTER.md#principle-5 # single source of truth — one declaration on the spec, derived views
+  - SPEC-0030 # the spec YAML schema — the HOME of the declaration field (rule 1/3)
+  - SPEC-0093 # the yitc-ops carrier — holds the project ANSWER (rule 3); separate scope
+  - SPEC-0094 # the deploy instance — the proof concern + its adoption-evidence pointer
+  - SPEC-0073 # placement — this generator is kernel methodology (re-pinned at accept)
+  - SPEC-0034 # plan lifecycle — the birthing plan's FSM
+  - SPEC-0039 # buffer authority — the non-stored-status discipline lineage
+  - SPEC-0128 # rule 9 — the concern registry; this checklist is ONE of its generated views
+
+requires: []
+supersedes: ~
+activation_owner_task: # the named activator (chosen at decomposition; wired at Execution alongside the implements anchors). `task close` flips proposed→active.
+proposed_by: project-activation-baseline-concern-checklist-gene # plan-born provenance (SPEC-0005 §5).
+binding:
+  - code-enforced # CODE-ENFORCED residency ( activation): no verb FETCHES this spec —
+                               # it is enforced by code (the `graph build` generator derives the views;
+                               # `_activation_checklist_drift` in the conformance RED set locks them). Not
+                               # verb-fetched, not query-only, not floor. The implements anchors carry the
+                               # delivery; this token classifies the residency so conformance is satisfied.
+implements_signature:
+  bin/lib/graph.py#_activation_checklist_drift: 9bfcef208eaab20bebfc3d3cbfeefdff1cf90a5df03e52982b8bf125644a44d2
+  bin/lib/graph.py#_activation_concern_rows: c2ee0f5445229739643f4eef6e1592e676aca975320f7473b1dd7ce8c85a62f1
+  bin/lib/graph.py#_render_activation_checklist: 8af3d6341691bb7484176762ea5659cdfeae66c360889ef8ba6a328e50bde12f
+  bin/lib/init.py#_render_init_concern_sweep: 6327359f336067e34ad9a7bfce2113f46aca5b51747d9bcbec0f7c1502525345
+  graph/activation-checklist.md#Activation: d85a75a6f6b0b0aa9c5a184ff7d4bafe8cd5771d50d5c6a7f5a80158f24cbbdd

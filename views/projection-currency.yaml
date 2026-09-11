@@ -1,0 +1,17 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: projection-currency
+description: Proposed specs that have gone stale vs what landed (stale / dangling / sibling-contradiction) — currency report, never a gate.
+lens:
+  kind: projection-currency # pure filter over `graph query --projected`: surface only proposed specs
+                              # carrying a currency-problem flag (stale / dangling / multi-proposer-unordered)
+why: >-
+  Part G/1 (currency) — the SURVIVAL signal the big plan flags as non-optional (Gojko Adzic's
+  Specification-by-Example retrospective: version-controlled living docs survive ONLY with cheap
+  automated validity-tracking, else the corpus rots into the flat pile V2 is escaping). The
+  `--projected` projection ( B4) already computes the structural flags; this lens names the
+  three that mean a `proposed` spec went stale relative to what landed since it was staged
+  (superseded-target changed → stale, ordering edge dangles → dangling, sibling proposed
+  contradicts → multi-proposer-unordered) and filters to those. The healthy staged-change flags
+  (added / changed / superseded) are excluded, so a clean corpus reports zero. Report-not-block
+  (CHARTER §P1 / non-goal #2); reuses the projection — no new store, no new command family.

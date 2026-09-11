@@ -1,0 +1,156 @@
+id: SPEC-0080
+title: 'Code-architecture evolution principles — extraction-not-accretion, realize declared seams, report-not-block'
+
+status: active
+
+created_at:
+
+travels: ~ # class-default = kernel (methodology). `proposed` is a FORWARD kernel head:
+                               # legitimately excluded from the active-only export slice BY STATUS until it
+                               # activates (SPEC-0073 §8 guard EXEMPTS proposed — only draft/terminal carry
+                               # travels:v2-self). So it stays kernel-realm, UNMARKED. It does not actually
+                               # travel to a consumer until `active`; the consumer DEPLOYMENT/use timing is
+                               # the §Deferral concern, distinct from this placement realm.
+
+consumed: false # no code reads a governing scalar FROM this spec; the trigger-surface
+                               # numbers are tunable knobs documented here, not a consumed-param source.
+
+implements: [] # design-phase governance spec ( B5): the principle home. Its code
+                               # anchor is the sibling architecture-drift inspection lens (the report
+                               # surface, plan architecture-drift-inspection-lens-extends-spec-00); the
+                               # activation_owner_task wires `implements:` to that lens code at activation.
+
+body: |
+  ## Scenario
+
+  When the owner/AI evolves CODE (the engine's own self-tooling OR a consumer project's source), the
+  decision "extend this file or extract a module" is GOVERNED, not left to taste. A file does not grow
+  unbounded until someone happens to ask; a declared seam (a library the charter/specs already promised)
+  is not deferred forever; and the judgement is SURFACED as a read-only finding, never enforced as a
+  gate. So code architecture stays legible the way the handbook size-cap (§P2) keeps docs legible —
+  without a build-time validator or a pre-commit wall.
+
+  ## Internal
+
+  THE CODE-ARCHITECTURE EVOLUTION PRINCIPLES. A process/governance spec (SPEC-0005 rule 1) — it governs
+  authoring discipline corpus-wide and adds NO new store / verb / gate (the report surface is the
+  sibling inspection lens; the §P2-shaped budget rides existing review). Six principles + the trigger
+  surface. Each is a standing rule; the deliberation that produced them lives in the proposing plan
+  (SPEC-0005 rule 3 content-boundary), not here.
+
+  ### P-A1. Code grows by EXTRACTION, not ACCRETION
+  When a single code file crosses the size budget (§Trigger surface) OR a coherent subsystem (state
+  I/O, a verb family, a prompt builder) is duplicated past the duplication threshold, the NEXT change
+  that touches it EXTRACTS the subsystem to its own module rather than appending to the existing file.
+  This is the code-axis mirror of §P2's doc compaction-trigger.
+
+  **Complement — net-new code is born in its OWN module (PROACTIVE).** The trigger above is
+  REACTIVE: it fires on an EXISTING file crossing the size budget OR a duplicated subsystem — it does
+  NOT speak to NET-NEW code. So §P-A1 also carries a proactive rule: a NEW verb (or any net-new
+  coherent subsystem) is authored DIRECTLY in its own `bin/lib/<name>.py` module from the first
+  commit — as a thin injecting RESIDUE + argparse registration in the host, with leaf-up imports (the
+  module imports only already-extracted lower leaves + stdlib, never back-imports the host) — never
+  grown into the host body. Why proactive and not only reactive: appending net-new to a
+  freshly-slimmed host re-starts accretion BELOW the reactive §Trigger surface (the file is not yet
+  over budget, nothing is yet duplicated), so the monolith silently re-grows until the reactive
+  trigger eventually fires; authoring in-module from the start prevents the re-accretion the reactive
+  trigger cannot yet. (Non-normative HOW — the seam recipe + pitfalls — see-also
+  `lessons/library-extraction.md`; this rule's required shape is stated self-contained here, P5.)
+
+  ### P-A2. REALIZE the declared seam
+  A module/seam that the charter or an active spec already PROMISED (the canonical instance: CHARTER §P5
+  "one parser library `bin/lib/state.py`") is standing architecture debt. It is BUILT at the first
+  extraction that touches its surface — not perpetually deferred. An unrealized declared seam is a §P7
+  dissonance the architecture-drift lens surfaces.
+
+  ### P-A3. ADMISSION TEST for a P-A1 extraction (not a separate rule — the test that gates P-A1)
+  P-A1 says WHEN to extract; P-A3 is the TEST an extraction must pass to be admitted (the distinction:
+  P-A1 is the rule, P-A3 is its gate — absorbing the structure-audit LOW finding). Splitting code is an
+  ADDITION (a new file/module), so an extraction earns admission ONLY if it DELETES duplication or
+  reduces reasoning cost — never cosmetic file-shuffling. A per-verb or per-section breakup that removes
+  no duplication and lowers no reasoning cost FAILS the test and is REJECTED (the §P1 F3 "what gets
+  removed?" filter applied to code structure). So: P-A1 triggers a candidate; P-A3 admits or rejects it.
+
+  ### P-A4. State the REAL trigger; drop the false one
+  **Merge-conflict pressure alone is NOT sufficient justification for a split.** The legitimate triggers
+  are: duplication count, reasoning/navigation cost, and process startup/parse cost. (In THIS engine's
+  context the merge argument is moreover near-absent — a solo author with per-write worktree isolation — but the rule does not REST on that premise: even where multiple authors exist, "we'd collide
+  on one file" is a tooling-isolation problem, not an architecture trigger.)
+
+  ### P-A5. ONE authored home — ENGINE-NORMATIVE (consumer is non-normative intent only)
+  These principles are **normative for the ENGINE'S OWN code** (this spec, engine corpus) — that is the
+  full scope this spec governs TODAY. They live ONCE here; nothing re-authors them. **Consumer
+  applicability is non-normative design INTENT, not a rule of this spec** (absorbing the accept-gate
+  HIGH-1 — an engine-only spec must not embed a consumer-binding mechanism): the whole
+  distribution / adoption / lens-delivery MECHANISM (how a consumer ever receives or is checked against
+  these principles) is NOT specified here — it is deferred and homed in
+  `ideas/consumer-side-distribution-and-adoption-of-the-cod` (§Deferral). Until that lands and this spec
+  activates, the consumer scope is intent only — placement is kernel (a forward head that travels only
+  once `active`), which is distinct from the consumer-deployment timing the §Deferral homes.
+
+  ### P-A6. REPORT, never BLOCK
+  An architecture-drift judgement is surfaced as a read-only finding (the sibling architecture-drift
+  inspection lens, run by the weekly inspection), with a verdict + a candidate list. It is NEVER a
+  pre-commit gate, a build-time validator, or a land blocker (CHARTER non-goals #2/#7). Same posture as
+  the existing `discipline-ratio` / `canary-backstop` / `displacement-retention` review lenses.
+
+  ### Trigger surface (PROVISIONAL report-only starting heuristics — calibrate before hardening)
+  So a verdict is concrete, not a vibe (the principles must render the same call on the known monolith
+  as the 2026-06-16 ad-hoc audit). These are **provisional starting heuristics, NOT hardened thresholds**
+  (absorbing the structure-audit MED-2): each cites an observed-corpus basis, and the sibling lens's
+  FIRST live run records hit-rate + false-positive behaviour — only after that calibration pass may a
+  number be hardened. Tuned like the MEMORY parallelism knob:
+  - **size budget** — starting knob **~2000 lines** (basis: reuses the §P2 doc warn-threshold; the
+    `bin/yitc-v2` monolith is 20,347 — 10× over). Crossing it is a candidate, not a violation.
+  - **duplication threshold** — **≥ ~5 sites** of a copy-pasted idiom is a candidate (basis: the 58
+    inline `yaml.safe_load` + the 13×/7×/6× store-glob repetition observed in `bin/yitc-v2`).
+  - **declared-seam flag** — a charter/spec-promised seam left unrealized (P-A2) is a candidate
+    regardless of counts (basis: §P5 `bin/lib/state.py`, never built).
+  - **outcome shape** — REPORT-ONLY (P-A6): every trigger yields a surfaced finding, never a gate.
+  - **calibration status (explicit)** — these numbers are **non-normative calibration SEEDS, not
+    policy**, until ≥3 named live applications record their hit-rate/false-positive behaviour. Hardening
+    a number into normative policy is its OWN follow-up (the sibling lens's trial soak supplies the
+    evidence); until then no session may cite a knob as a settled threshold.
+
+  ### Deferral (pure pointer — no consumer mechanism specified here)
+  Consumer-side DISTRIBUTION + adoption is **OUT OF SCOPE of this spec** and tracked, with its whole
+  mechanism + trigger, in `ideas/consumer-side-distribution-and-adoption-of-the-cod`. This spec
+  specifies NONE of that mechanism (no distribution path, no per-consumer trigger, no lens-delivery) —
+  it points; the idea homes it. This spec proves ENGINE-side authorship + adoption only.
+
+  ## Rationale
+
+  Real incident / prior-art (full deliberation in the proposing plan): `bin/yitc-v2` reached one
+  20,347-line file with 477 commits and a never-built §P5 `bin/lib/state.py` (58 inline `yaml.safe_load`),
+  caught only because the owner asked; external ad-hoc audit `monolith-split-readiness-audit-adhoc`
+  = YELLOW. V2 had a size-cap for DOCS (§P2) but nothing for CODE — the gap these principles close.
+
+  ## Verification
+
+  - Adoption (§P3/§P8): this spec reaches `active` via its `activation_owner_task` close; ≥1 downstream
+    artifact `cites` it.
+  - Would-have-fired (honesty test): applying §Trigger surface to `bin/yitc-v2` flags it (≥2000-line
+    budget exceeded + `yaml.safe_load` duplication ≥5 + the unrealized §P5 seam) — reproducing the
+    YELLOW ad-hoc verdict from NAMED thresholds, not a judgement call.
+  - Report-only (P-A6): the realized check is a read-only lens finding; no gate/validator is added
+    (state-check: no new pre-commit/land gate references this spec).
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-2
+  - CHARTER.md#principle-5
+  - CHARTER.md#principle-7
+  - SPEC-0073
+  - define-code-architecture-evolution-principles-self
+  - architecture-drift-inspection-lens-extends-spec-00
+  - extract-bin-lib-state-py-to-realize-principle-5-sh
+  - kernel-extraction-evidence-driven-engine-consumabi
+
+requires: []
+supersedes: ~
+activation_owner_task: # forbidden while draft (SPEC-0005 §5); set at decomposition to the ONE
+                               # task chosen to activate this spec (plan-born activation, SPEC-0034).
+proposed_by: define-code-architecture-evolution-principles-self
+binding:
+  - query-only # not a verb-fetched retrieved spec; a governance principle consulted by
+                               # the sibling lens. The lens code becomes the `implements:` anchor at activation.

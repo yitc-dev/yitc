@@ -1,0 +1,341 @@
+id: SPEC-0122
+title: 'External shared-library dependency — govern a consumer''s fix by pinned-dependency-contract, escalate to register-as-project'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # below) through the proposed->active adoption gate. `active`
+                               # is the ONLY normative status; proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # UNMARKED = the spec class-default (kernel). This is METHODOLOGY that
+                               # travels to every consumer — a consumer hits a shared external lib and
+                               # needs this doctrine — so it is kernel, not v2-self. No exception marker.
+
+consumed: false # design/governance spec — no code reads a governing scalar param FROM
+                               # it. Enforcement is distributed authoring/judgement discipline delivered
+                               # at `before-project-dimension-judgement`, not a code-read scalar.
+
+implements: [] # DOCUMENTARY / cross-cutting governance spec — governs a project-
+                               # dimension JUDGEMENT (how a consumer treats a shared external lib), not
+                               # a single code site. Reaches the AI via `binding:` below. This is the
+                               # DISTRIBUTED-ENFORCEMENT empty-mode (SPEC-0005 §7 mode (a)), intentional.
+
+body: |
+  ## Scenario
+
+  A v2 consumer depends on a shared library whose source lives in ITS OWN git repo OUTSIDE every yitc
+  territory — e.g. `<host-home>/lib/<pkg>`, `pip install -e`'d, bind-mounted **read-only** into the
+  consumer's containers, and depended on by several projects. One day the consumer needs to FIX that
+  library. The load-bearing code sits outside its repo, so a fix is BOTH (a) a cross-territory write
+  the territory contract forbids (SPEC-0084 §External territory) AND (b) invisible to the consumer's
+  graph/coherence — a drift the consumer's own governance can never. The consumer must NOT just
+  edit the external file in place. This spec is the ONE home for HOW that fix is governed: which of
+  the three candidate mechanisms applies, and when.
+
+  The owner/AI sees a simple decision: **by default, pin the dependency and send the fix upstream**;
+  **escalate to registering the library as its own yitc project only when it is genuinely shared or
+  repeatedly patched.** Vendoring the library's source into the consumer's repo is off the table.
+
+  ## Internal
+
+  This spec adds the FOURTH answer to the project-dimension judgement (SPEC-0073 classifies every
+  artifact+code as kernel | v2-self | project; the cross system SPEC-0084/0085/0086 routes fixes to
+  registered PROJECTS). None of those covers code that lives in a repo OUTSIDE all yitc territory and
+  is depended on by a consumer. That code is an **EXTERNAL DEPENDENCY** — external territory
+  (SPEC-0084: referenced read-only, NEVER edited from a consumer write). Five rules.
+
+  ### R1 — Recognize the external-dependency dimension
+  When judging an artifact's/code's dimension (the `before-project-dimension-judgement` bundle),
+  code that (i) lives in a git repo outside every yitc project's territory AND (ii) a consumer
+  depends on at runtime is an EXTERNAL DEPENDENCY — neither kernel, v2-self, nor project. It is
+  external territory: read-only to the consumer, never an in-place edit target, never a consumer
+  acceptance-probe target (SPEC-0084 §Scope-boundary). Its INTERNALS stay out of the consumer graph
+  by design; what the consumer graph DOES record is the **pin** (R2).
+
+  ### R2 — DEFAULT mechanism: the pinned-dependency-contract
+  The consumer governs its relationship to the external lib by a PIN, not by editing it:
+  - **(a) Declare a pin.** The consumer records the exact version / git commit / tag of the lib it
+    runs, in its own dependency manifest (the durable, in-territory record of WHAT it depends on).
+    The pin is the coherence anchor — reproducible, visible to the consumer's own governance.
+  - **(b) Read-only in place.** The lib is external territory; the consumer never edits it in place
+    and never makes it an acceptance-probe target.
+  - **(c) Fix upstream, then re-pin.** A needed fix goes to the lib's OWN repo (its own git /
+    maintainer / upstream PR); once released there, the consumer moves its pin to the fixed version.
+  This is the lightest mechanism (CHARTER P1): it adds no fork to maintain, no new territory, no new
+  graph — only a pin the consumer already ought to keep. It is the DEFAULT for a single-consumer lib
+  with occasional fixes.
+
+  ### R3 — ESCALATE to register-as-own-project (the decision tree)
+  Escalate from R2 to registering the lib as a first-class yitc project when EITHER trigger holds:
+  - **(a) co-developed by >= 2 consumers** — a genuinely shared, independently-evolving component
+    (the pin-and-upstream loop is paid by multiple owners; the lib is effectively co-owned); OR
+  - **(b) a single consumer needs RECURRING local fixes** — the pin-and-upstream loop is paid so
+    often that treating the lib as an untouchable external dep is a fiction; it is de-facto co-owned.
+  Registration gives the lib its OWN territory + graph + 9-stage lifecycle + cross-request intake.
+  Fixes then route as governed **cross requests** (SPEC-0084/0085/0086) into that project, are
+  executed there through the lifecycle, released, and every consumer moves its pin (R2 still governs
+  each consumer's *relationship* — the pin — even after registration; registration governs the lib's
+  *internal* development). Escalation is a heavier answer, so it is justified only by a trigger, never
+  taken by default (CHARTER P1: pick the lightest carrier that fits — LIFECYCLE §Routing analog).
+
+  ### R4 — vendor-in is REJECTED (named retirement)
+  Copying the lib's source INTO the consumer repo ("vendor-in") is NOT a permitted standing mechanism.
+  It creates a maintained fork the consumer must re-sync with upstream forever — accretion the P1
+  filter forbids ("what is REMOVED?" — nothing; a permanent divergent copy is added). A vendored copy
+  also silently detaches from upstream security/bug fixes. (A one-off copy of a dead/unmaintained tiny
+  snippet is an explicit OWNER exception on its own judgement — it is not this doctrine's mechanism and
+  is not "vendor-in as a governed answer".)
+
+  ### R5 — What this doctrine RETIRES / FORBIDS (retirements, explicit)
+  - The **silent in-place cross-territory edit** of a shared external lib from a consumer session —
+    FORBIDDEN. Already implied by SPEC-0084 (external territory is read-only); made explicit here for
+    the external-lib case, because it was the drift-prone implicit fallback the incident exposed.
+  - **vendor-into-consumer-repo as a standing mechanism** — FORBIDDEN (R4).
+  - The unspoken assumption that a fix must be either "edit it here" or "it's not my repo, ignore it" —
+    RETIRED: the governed answers are R2 (pin+upstream) and, on a trigger, R3 (register), never a
+    silent edit and never neglect.
+
+  ### R6 — Adoption-completeness: the surface-coverage leg (declare-or-waive)
+  R2's pin proves CODE IDENTITY (the no-local-diff HEALTH check — a consumer's pinned copy equals its
+  upstream pin), but identity is NOT SURFACE COVERAGE. A consumer can pin a library correctly and still
+  adopt only a FRACTION of the surface it ships — invisibly. Incident **X-0543** (boomrocket, 2026-07-19):
+  ticket-review's adoption ran 6/15 endpoints, ZERO UI, ZERO ops checks for weeks; the owner discovered
+  the partial adoption by eye, after ~10 remediation tasks, 2 breaking pin bumps, alembic chain breaks and
+  an enum mismatch. The green pin read as "adopted" the whole time. R6 closes that blind spot.
+
+  - **(a) The consumer-integration MANIFEST (the library ships it).** A pinned dependency SHOULD ship —
+    or point at — a consumer-integration manifest: the DECLARED surface a consumer is expected to wire
+    up, across five surface kinds — **endpoints, UI, ops checks, automation, per-release upgrade-steps**.
+    The manifest is authored on the LIBRARY side (its release names what integrating it entails); the
+    library-side asks already made of ticket-review (X-0537/X-0542) SHIP that manifest. R6 does NOT
+    duplicate that authoring (CHARTER §P5) — it defines only the manifest's CONTRACT (the five surface
+    kinds, each surface a stable id) and the CONSUMER obligation below. **The same manifest also
+    declares the library's NEUTRAL-MODULE surface** (`neutral_modules:` — the package-qualified module
+    paths a consumer must resolve FROM the pin rather than keep a copy of): one more declared field on
+    the one library-shipped manifest, read by the identity leg's `no_local_diff` (see §TIMING + the
+    HEALTH invariant). One manifest carries BOTH legs' declared surfaces — coverage and identity — so
+    a consumer has one thing to point at and the kernel has no second carrier to parse (CHARTER §P5).
+  - **(b) The consumer conformance check (report-only).** The consumer's verify/nightly runs a
+    CONFORMANCE check against the manifest: for each declared surface, is it INTEGRATED (or explicitly
+    waived) here? A surface the manifest declares that the consumer neither integrated nor waived is a
+    LOUD gap, named surface-by-surface — the exact X-0543 signal that was invisible. The check is
+    REPORT-ONLY (it rides the existing conformance sweep, adds no new land gate — CHARTER §P1); it
+    REUSES the R2/SPEC-0093 adoption evidence surface rather than building a new store.
+  - **(c) SHOULD-grade DECLARE-OR-WAIVE (mirror SPEC-0093).** The leg is SHOULD, not MUST: a consumer
+    whose pinned library ships no manifest YET records a bare waiver (a `reason`, loose per SPEC-0093
+    rule 6) with re-entry — a recorded, re-visitable waive, never a hard block. But the obligation is
+    FAIL-CLOSED over the APPLICABLE dependency set: an applicable pinned external-shared-library
+    dependency (R1 — code under external territory the consumer depends on) that carries NO manifest
+    declaration and NO waiver is itself a LOUD miss. Omitting the declaration cannot dodge the leg — that
+    is the difference between "no applicable dependency" (genuinely nothing to answer) and "applicable
+    dependency, unanswered" (the declare-or-waive fail-closed the X-0543 blind spot needs).
+
+  This is the identity->coverage completion of R2: R2 keeps the pinned copy HONEST (no-local-diff); R6
+  keeps the ADOPTION honest (no invisible partial surface). Both are read-only health signals, never a
+  new gate cascade (CHARTER §P1) — the pin health check and the surface-coverage check are siblings.
+
+  ### Worked case — <host-home>/lib/apify-client (the synthetic adoption exercise, AC#3)
+  - **Shape.** `<host-home>/lib/apify-client` is a standalone git repo (its own `.git`, HEAD 976f2b6),
+    the `apify_parsing` package installed via `pip install -e <host-home>/lib/apify-client/`,
+    bind-mounted read-only into consumer containers. Its README self-describes as "Cross-project
+    Apify integration."
+  - **Consumers.** THREE projects bind-mount it: `boomrocket`, `social-scraper`, `social-parser`
+    (proof: `grep -rl apify <host-home>/projects/*/docker-compose*.yml`).
+  - **Walk the tree.** DEFAULT (R2) would be pin-and-upstream. BUT trigger R3(a) fires — the lib is
+    co-developed by >= 2 consumers (three). → **ESCALATE to register-as-own-project.** apify-client
+    becomes a registered yitc project with its own territory/graph/lifecycle; the social-parser fix
+    (the 2026-07-01 incident that raised X-0146) routes as a **cross request** into that project, is
+    executed there through the 9 stages, released, and boomrocket / social-scraper / social-parser
+    each move their pin. Until registration lands, the fix stays a tracked cross/task, NEVER a silent
+    in-place edit of `<host-home>/lib/apify-client`.
+  This is the escalation branch, not the bare default — the case is exactly why R3 exists.
+
+  ## Reuse across projects (the pattern / code / runtime ladder)
+
+  R1–R5 govern the ONE case where the reusable code lives OUTSIDE all yitc territory (an external
+  dep). But the SAME `before-project-dimension-judgement` moment also faces the broader question the
+  external-lib case is a slice of: **a capability is wanted in >= 2 projects — in what FORM is it
+  reused?** This section is the doctrine for that judgement. It carries no new trigger — it is read
+  at the existing `before-project-dimension-judgement` bundle, alongside R1–R5. (Cross-cutting
+  comparison of a would-be-shared concept across projects is a plan-gate lens — pointer:
+  the cross-project-comparison-lens trial-plan `cross-project-comparison-lens-at-plan-draft-and-re`
+  / SPEC-0104; this section is the AUTHORING-time reuse-FORM chooser it feeds.)
+
+  ### STEP-0 — the ownership filter (run FIRST, before choosing a reuse form)
+  Before asking "which reuse form", classify WHOSE capability this is:
+  - **external dependency** — the capability is someone else's product we consume (a third-party
+    service or library). It is external territory (R1); we do NOT reuse-share it, we DEPEND on it.
+    If we consume it through code we own, that code is an **adapter**, and the adapter's DEFAULT form
+    is a **library** (a pinned local artifact, per the CODE rung) — reused as pattern-or-code like any
+    of our capability. Escalate the adapter to a **RUNTIME gateway** ONLY when a shared credential /
+    quota / rate-limit chokepoint forces one hosted instance to own that chokepoint (see the CHOOSER).
+  - **our capability** — code/behavior WE author and could reuse across our projects. This is the
+    subject of the ladder + chooser below.
+  - **external-service-behind-our-adapter** — a hybrid: the external service is the dependency, the
+    adapter around it is OUR capability. Judge the adapter with the ladder; judge the service as the
+    external dep (R1–R5 when it is a shared library).
+
+  ### The 3-form reuse ladder
+  A capability reused across projects takes exactly one of three forms per component:
+  - **PATTERN** — each project re-implements the capability INDEPENDENTLY from a shared idea/recipe.
+    No shared artifact; divergence is allowed and cheap. Lightest coupling (CHARTER §P1).
+  - **CODE** — one PINNED local artifact (a library / SDK / snippet) is shared by-value: each consumer
+    depends on a pinned version, reads it read-only locally, and moves its pin to adopt a fix
+    (the R2 pinned-dependency-contract generalized beyond the external-lib case).
+  - **RUNTIME** — ONE hosted instance owns the capability's execution + state, and every project calls
+    it over a contract (an API / service). Heaviest coupling; justified only when a single
+    source-of-truth or chokepoint must exist.
+
+  ### The code-vs-runtime CHOOSER
+  Classify **per component**, not per whole system (a system is usually a mix). Record a REASON for
+  each; do NOT force a single label onto the whole thing.
+  - **Primary gate — where must execution / source-of-truth-STATE / authority / a chokepoint live?**
+    If exactly one instance MUST own the live state / be the single authority / hold a shared
+    credential-or-rate-limit chokepoint → **RUNTIME**. If the capability is pure-enough that each
+    consumer can run its own copy against its own state → **CODE** (or PATTERN, per TIMING).
+  - **Tie-break (when the primary gate does not force it) — contract-volatility + who a change
+    serves.** A volatile contract whose changes serve ONE consumer favors PATTERN/CODE (independent
+    movement); a stable contract whose changes must serve ALL consumers at once favors RUNTIME.
+
+  ### TIMING + the HEALTH invariant
+  - **TIMING — shareable != extract-now.** That a capability COULD be shared does not mean extract it
+    today (CHARTER §P1: what is removed? nothing, if premature). Change-frequency decides
+    pattern-vs-code: a rarely-changing recipe stays PATTERN until a second real consumer + a real
+    divergence-cost appears; only then extract to CODE. Extract on the second incident, not the first
+    guess.
+  - **HEALTH invariant (for the CODE form).** A pinned copy is READ-ONLY locally: never edited in
+    place, fixed only upstream + re-pinned (R2 generalized). The health check is a **no-local-diff**
+    check — the consumer's pinned copy must equal its upstream pin. This REUSES the existing
+    Done=Adopted adoption evidence (SPEC-0093 adoption probe) as the signal; it adds NO new storage,
+    event, or gate (CHARTER §P1 — reuse the existing probe, do not build a new one).
+    - **CARRIED, not merely described.** This invariant is now checked by
+      `init.no_local_diff` — the report-only IDENTITY sibling of the R6 surface-coverage leg (never
+      raises, never gates). Its first application is SPEC-0172 rule 3's spike bridge: for a consumer
+      that DECLARED `spike_sandbox.bridge`, every neutral bridge symbol must resolve FROM the pin.
+      It distinguishes THREE outcomes and treats the first two alike: a byte-identical
+      `surviving-local-copy` and a divergent `modified-local-copy` are BOTH violations — an in-place
+      patch is precisely the drift the pin exists to prevent (R2c: fix UPSTREAM, then re-pin) — while
+      the copy REMOVED reads clean. Silence is never the fallback: a declared-but-unresolvable pin is
+      a LOUD `pin-unresolved`, so deleting the pin record cannot quiet the check while the copy
+      survives (the R6 anti-dodge, applied on the identity axis).
+    - **The selector is DECLARED, never inferred — this is what bounds the check.** The candidate set
+      is exactly the modules the LIBRARY declares neutral (`neutral_modules:` on the consumer-
+      integration manifest of R6(a) — one more declared field on the same library-shipped manifest,
+      no new carrier), matched PACKAGE-QUALIFIED (`ticket_bridge/channels.py`, not a bare basename).
+      Which modules are neutral is a library MECHANIC, so the kernel READS that declaration and
+      reports the MISSING DECLARATION rather than guessing from the release's directory tree. That
+      report NAMES ITS OWNER, because the surface can fail to be read for two causes whose owners are
+      OPPOSITE : `neutral-surface-unpointed` — this CONSUMER declared no
+      `adoption_completeness.dependencies[].manifest` pointer, so no library manifest was reached at
+      all; consumer-owned and consumer-REACHABLE — versus `neutral-surface-undeclared` — the manifest
+      WAS reached and ships no `neutral_modules:` list; LIBRARY-owned and unreachable from the
+      consumer, clearable only by the library shipping the surface and the project re-pinning. Both
+      stay LOUD: the split makes the report ADDRESSED, never quieter. Reporting ONE kind for both (the
+      pre- shape) asserted the library cause unconditionally, so a consumer that had merely not
+      declared its own pointer was told its library was at fault — and a permanently loud line naming
+      no reachable action is the check every project learns to ignore, which is exactly the scope
+      bound this bullet goes on to state. Consequence, and the point: **ordinary product runtime code living in the
+      consumer is normal and is NOT flagged** — a product `app/services/channels.py` sharing only a
+      basename, and a package-qualified copy of a release module the library did not declare neutral,
+      both read clean. A check that fired on either would be one every project learns to ignore.
+
+  ### Worked examples (per-component classification, with REASON)
+  - **ai-gateway = RUNTIME** — one hosted instance must own the shared API credential + rate-limit
+    chokepoint (primary gate: chokepoint authority must be singular).
+  - **tickets = CODE** — a pinned shared library; each project runs its own copy against its own
+    store, no shared live-state authority (primary gate not triggered → CODE, stable-enough contract).
+  - **frontend-errors = CODE(SDK) + per-project** — the capture SDK is shared as pinned CODE, but the
+    error STORE/state is per-project (each project owns its own errors; no single source-of-truth
+    across projects → the stateful half is NOT runtime-shared).
+  - **auth = PATTERN** — each project re-implements auth from a shared recipe; contract is volatile
+    and changes serve one consumer at a time (tie-break → independent re-implementation).
+  - **Google / GitHub = EXTERNAL + library-adapter** — the service is an external dependency (STEP-0);
+    our adapter around it is CODE (a pinned library), no shared-credential chokepoint forcing a
+    gateway → stays a library, not a runtime gateway.
+
+  ### Route-check (carrier of a change to THIS doctrine)
+  This doctrine is a standing rule. A change to it may need a PLAN escalation (SPEC-0005) rather than a
+  bare in-place edit — the EXECUTOR decides the carrier at Analysis (an in-place amendment when the
+  change deepens the same judgement; a PLAN when it opens a new standing-rule surface).
+
+  ## Rationale
+
+  Real incident: **X-0146** (social-parser → yitc-v2, 2026-07-01) — a consumer needed to GOVERN a fix
+  to load-bearing code in a shared external library (`<host-home>/lib/apify-client`) that has its own
+  git, is bind-mounted read-only, and is not a registered yitc project. Editing it in place is a
+  cross-territory write (SPEC-0084) AND is invisible to the consumer graph/coherence (drift risk).
+  Owner-approved direction 2026-07-02 (external-consulted, AGREE-with-change): default =
+  pinned-dependency-contract; escalate to register-as-project on the two triggers in R3; vendor-in
+  rejected. This spec cites SPEC-0073 (the placement contract it extends), SPEC-0084 (the territory
+  contract that forbids the in-place edit and provides the cross-request routing on escalation), and
+  CHARTER §Principle 1 (lightest-mechanism / name-the-retirement).
+
+  ## Verification
+
+  - **Activation probe (AC#1):** `bin/yitc-v2 graph query SPEC-0122` shows `status: active` after
+     `task close`.
+  - **Content probe (AC#2):** the shipped spec body weighs all three mechanisms (vendor-in /
+    register-as-own-project / pinned-dependency-contract — R2/R3/R4) and names the retirements (R5);
+    verifiable in the spec diff.
+  - **Adoption-exercise probe (AC#3):** the apify-client case (three consumers → R3(a) escalation to
+    register-as-project) is recorded in the body; verifiable in the diff.
+  - **Delivery probe:** `bin/yitc-v2 graph query --type view consumer-dimension-bundle` (and the
+    derived `graph/floor-trigger-map.md`) surface SPEC-0122 at `before-project-dimension-judgement`
+    alongside SPEC-0073/0090/0093.
+  - **Reuse-doctrine content probe :** the shipped body carries the `## Reuse across
+    projects` section with all five doctrine parts (STEP-0 ownership filter; the PATTERN/CODE/RUNTIME
+    ladder + the cross-project-comparison-lens plan pointer; the code-vs-runtime CHOOSER; TIMING +
+    the HEALTH invariant; the Route-check note) AND the five worked examples (ai-gateway=runtime,
+    tickets=code, frontend-errors=code(SDK)+per-project, auth=pattern,
+    Google/GitHub=external+library-adapter); verifiable in the spec diff / `graph query SPEC-0122`.
+  - **Identity-leg (no-local-diff) probe (R2 HEALTH / SPEC-0172 rule 3):** the HEALTH invariant
+    is CARRIED, not described — `init.no_local_diff` (`_bridge_declaration`, `_resolve_pinned_release`,
+    `_neutral_module_ids`, `_neutral_modules`, `_local_copies`), differential-pinned by the arms
+    of `tests/test_t10694_adoption_completeness.py` (the pin suite, EXTENDED per SPEC-0165 rule 5 — not a
+    standalone file), ALL IN ONE RUN: a declared consumer with a surviving byte-identical local neutral
+    module is CAUGHT (L1); the SAME consumer with the copy REMOVED comes back CLEAN (L0 — the
+    differential without which the check measures nothing); a LOCALLY MODIFIED copy is ALSO caught (L2 —
+    an in-place patch is the drift the pin exists to prevent); ordinary product runtime code is NOT
+    flagged, on both a basename-collision control and an undeclared-release-module control (L3); an
+    undeclared consumer is never examined (L4); an unresolvable pin (L5) and an undeclared neutral
+    surface (L7) report LOUD rather than clean. Failing inputs are named on each arm — chiefly a
+    surviving copy reading clean, both states reading the same, a patched copy tolerated as no-longer-a-
+    copy, or product code flagged. Verified MECHANICALLY rather than by construction — a basename
+    selector turns L3 RED, tolerating a divergent copy turns L2 RED, and inferring the candidate set from
+    the release tree turns L7 RED. Like the probe below this is a BODY-ONLY verification pointer,
+    not an `implements:` anchor — SPEC-0122 is a distributed-enforcement empty-mode governance spec, and
+    a code anchor would mis-mode its report-only delivery code as consumed code.
+  - **Adoption-completeness leg probe (SPEC-0122 R6 / X-0543):** the shipped body carries the
+    `### R6 — Adoption-completeness` leg (manifest CONTRACT: the five surface kinds endpoints/UI/ops/
+    automation/upgrade-steps; the report-only consumer conformance obligation; SHOULD-grade
+    declare-or-waive mirroring SPEC-0093, fail-closed over the applicable pinned-dep set), and the leg
+    is DELIVERED by the report-only conformance code it governs: `init.adoption_completeness` (the SoT
+    reader + `_detect_pinned_shared_libs` independent detector) surfaced per-project by
+    `nightly._check_adoption_completeness`, differential-pinned by
+    `tests/test_t10694_adoption_completeness.py` (a manifest of N surfaces integrated N-1 → a LOUD
+    `surface-not-integrated` report naming the gap; full coverage clean). Verifiable in the spec diff /
+    `graph query SPEC-0122` and the named code/test. This BODY-ONLY probe (not an `implements:`
+    code anchor) is the INTENDED coverage carrier: SPEC-0122 is a distributed-enforcement empty-mode
+    governance spec (`consumed: false`, `implements: []` — SPEC-0005 §7 mode (a), see the header
+    comments), so its report-only delivery code is governed by this verification pointer, exactly like
+    the reuse-doctrine probe above — a code-binding anchor is deliberately NOT added (it would
+    mis-mode a report-only doctrine spec as consumed code).
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0073
+  - SPEC-0084
+  - SPEC-0090
+  - SPEC-0093
+  - SPEC-0104
+
+requires: []
+supersedes: ~
+activation_owner_task: # the single task whose `task close` activates this spec (SPEC-0005 §5).
+proposed_by: # work-first provenance — the authoring task.
+binding:
+  - before-project-dimension-judgement # joins the kernel<->consumer project-dimension doctrine
+                               # bundle (SPEC-0073/0090/0093): this external-dependency dimension is
+                               # read BEFORE deciding how a consumer relates to a shared external lib.
+init_concern: ~

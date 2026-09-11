@@ -1,0 +1,47 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: audit-ceiling-clusters
+description: Audit-ceiling cases clustered by ROOT CAUSE — every subject that ran past the 2-pass ceiling, its per-pass cause sequence, and the cause clusters SPLIT BY GATE (audit-pre = the plan kept failing / audit-post = the shipped diff kept failing, never one mixed figure). Derived from the per-pass `finding_class` tag on the saved audit records. Run `bin/yitc-v2 graph query audit-ceiling-clusters`.
+lens:
+  kind: audit-ceiling-clusters # pure f over the decisions corpus: scan decisions/*-audit-{pre,post}.yaml
+                                 # (the consult / ad-hoc families excluded — a consult adjudicates the
+                                 # ceiling, it is not a ceiling PASS record), select records whose
+                                 # `passes` EXCEEDS AUDIT_PASS_CEILING, and read each subject's cause
+                                 # sequence = passes_trail[*].finding_class + the record's own
+                                 # finding_class. A record predating the tag is classified at read time
+                                 # from its own findings (`retro_tagged`); trail passes that predate it
+                                 # are reported as `untagged_passes`, never silently dropped.
+                                 # Recomputed fresh, writes nothing. No new store, no new event.
+why: >-
+  The audit-loop ceiling (SPEC-0124) exists to bound a loop nobody could characterise, and until now the
+  only lever anyone had was the COUNT: the pass record kept `passes` and a verdict and said NOTHING about
+  WHY each pass failed, because superseded verdicts are deliberately not retained. So the T5 inspection
+  matrix mandated a root-cause clustering of ceiling cases that the corpus could not produce — boomrocket
+  measured 81 subjects at >=3 passes (X-0587) and could only offer a hypothesis from four data points.
+  Every proposed remedy was therefore un-evidenced: the count says the loop is expensive while saying
+  nothing about what to fix.
+
+   retained a short per-pass finding-CLASS tag on the EXISTING pass record (no new store, no
+  retention of superseded verdict bodies, no new event type), and this lens is the query that consumes it.
+  A tag no query reads is shipped-not-adopted (CHARTER §Principle 8), so the lens is half of the same
+  change, not a follow-up.
+
+  The single load-bearing rule is that clusters are reported PER GATE and NEVER summed — this is the
+  `outcome-ratio` kind-split invariant (plan-check F3) applied to the ceiling, and it is exactly the
+  distinction X-0587 could only hypothesise: an audit-PRE ceiling means the PLAN kept failing (plan
+  quality or auditor-expectation mismatch), an audit-POST ceiling means the shipped DIFF kept failing.
+  Summing them would erase the only signal a remedy could act on.
+
+  Two corpus facts are load-bearing and are surfaced rather than smoothed: (1) records written before the
+  tag existed are RETRO-classified from their own findings, which are still on disk in their own file, and
+  marked `retro_tagged` — so history clusters too, without the lens pretending the tag was always there;
+  (2) the earlier passes of such a record are genuinely unrecoverable (their verdict bodies were never
+  kept), and their number is reported as `untagged_passes` — a visible statement of what the corpus still
+  cannot answer, never a silent truncation.
+
+  Report-not-block : a dominant cluster is a SIGNAL naming where the ceiling cost is actually
+  generated, never a gate — nothing in the ceiling's pass counting, refusal threshold, or
+  convergence-consult path reads this lens. `graph query audit-ceiling-clusters` emits a cli_invoked
+  observability event — a reviewer RUNNING the lens IS the durable P8 consumer-read adoption
+  evidence. The view MECHANISM (lens dispatch / views/*.yaml format) is owned by SPEC-0031 and is
+  reused unchanged; the ceiling itself stays homed in SPEC-0124.

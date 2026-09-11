@@ -1,0 +1,247 @@
+id: SPEC-0032
+title: Stage-1 (Analysis) procedure — the ordered checklist delivered at task claim
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (GRAPH §Spec lifecycle). proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # a read-before-claim RULE; no code reads a governing scalar param FROM it.
+
+implements: # control-point anchors : the claim verb + the two surfacing
+                               # helpers that DELIVER this procedure at the claim moment. Non-empty
+                               # implements + a verb binding ⇒ control-point (not a pointer-only read-rule).
+  - bin/lib/worktree_lifecycle.py#cmd_worktree_new
+  - bin/lib/cli.py#_analysis_procedure_reminder
+  - bin/lib/cli.py#_plan_structural_findings
+  - bin/lib/cli.py#_print_cross_territory_routing_hint # : report-only cross-territory routing hint
+  - bin/lib/cli.py#_stage_sequence_skeleton # : the per-stage command-sequence skeleton appended at claim
+
+body: |
+  ## Scenario
+
+  The moment a Build session CLAIMS a task (`worktree new --task T-XXXX`) it must RECEIVE the ordered
+  Stage-1 (Analysis) procedure — the checklist of what to establish before any edit — at that exact
+  moment, in that exact place (the owner-paramount concern: do not miss the delivery moment). The
+  session never has to remember the procedure from memory: the claim verb surfaces it (the
+  Analysis stage-entry — the claim IS Analysis-entry) and runs the decomposition structural pre-pass
+  over the task's scope+acceptance. Surfaces + reports, never gates — claim-counting stays AI/auditor judgement.
+
+  ## Internal
+
+  Read the task YAML in full, then work these ORDERED Stage-1 steps IN ORDER before any edit. Each step
+  REFERENCES its detail home; it does NOT duplicate the discipline (DRY — those specs/principles stay the single homes):
+
+  1. **Prior-art grep** — CHARTER §Principle 1 filter 1: does a similar mechanism / file / decision
+     already exist? Sweep current artifacts AND the PLAN layer (`bin/yitc-v2 plan list --status accepted` —
+     is this already planned, or does it contradict a plan? plans are committed direction/;
+     : plans are NOT startup-scanned, this is a targeted Stage-1 sweep). ALSO consult `patterns/methodology-lessons.md` (the catalog of rejected/withdrawn methodological options + their why) — anti-reinvention #5: is this approach already weighed and rejected? Extend it, don't create parallel. ALSO surface relevant `lessons/` entries for this topic — the Stage-1 lessons read-surface (SPEC-0091 Rule 1).
+     - **Already-SHIPPED dup-check (BEFORE claiming/implementing)** — "prior-art" is not only "is there an
+       analog?" but "is this exact work already DONE?". Grep the task's core implementation SYMBOL (the
+       function / flag / artifact the task would create), AND check the CITED plan's done tasks +
+       `closed_into` — a realized plan that still carries `closed_into: []` makes the "already done" link
+       INVISIBLE, so check the plan's done-task list too, not only the field. If the symbol resolves to
+       shipped code OR a cited plan-task already closed it → it is a duplicate: HALT, do not re-implement.
+       (Run-5 n=3 A/B [[fresh-session-task-dispatch-context-economics-hand]]: two sessions self-halted here,
+       one MISSED it and began re-implementing already-shipped code — `_activate_task_proposed_specs`.)
+  1a. **REPEATED-WORK CHECK** — the prevention half of filter 1: an "existing analog?" that is not
+     REUSED becomes the same work done twice. Does this change add a read, a loop, a poll, a remote
+     fetch, a scan or a worker pass? Then NAME the NEIGHBOURING mechanism at the same seam that
+     already folds / caches / bounds / watermarks that work and state what is reused — or record that
+     none exists (this change then owns the first one). Classes, detect heuristics and the severity
+     rubric: `patterns/repeated-work-lens.md` (the single home — never restated here, SPEC-0005 rule 8).
+     Report-only, like the rest of this checklist: no verb refuses on it, and the `analysis:` record is
+     its only carrier. The KERNEL-VERB counterpart of this same check — the read contract for composed
+     kernel seams, measured by kernel counters rather than by eye — is IN FLIGHT as **** (it
+     lands as SPEC-0190 rule 10; until that task closes there is no rule 10 to read). Grounds: 10 HIGH
+     findings across two consumer products in a single 2026-09-04 pass, nearly every one with its
+     remedy already present a few lines away.
+  2. **Cite-the-proof** — (failure classes #7/#8): an asserted existence/absence MUST cite the
+     grep/path that proves it, and sweep `decisions/` (not only code). «I think it exists» is not prior-art.
+     - **Premise check — the CARD's own assertions. NARROW, and never a gate.** The rule above
+       governs YOUR assertions; this applies it to the CARD's. If the card STATES a **causal or empirical
+       premise** («X happens because Y», «no verb covers this», «the row is absent»), TEST that one claim
+       against the NEAREST code/corpus evidence and RECORD the outcome in the `analysis:` record as
+       **confirmed / refined / refuted**. A card that states no such claim is recorded **not-applicable** —
+       for a purely descriptive card that branch is the expected answer, not an escape.
+       **Three bounds, all load-bearing:** it is NOT a blanket re-derivation of the card (re-litigating a
+       card at Stage 1 costs more than the gap this closes), NOT a second decomposition pass, and NOT
+       permission to reopen an accepted design decision the card is downstream of. **It never blocks:** no
+       verb refuses on it and it adds no artifact — the analysis record is its only carrier.
+       A REFUTED premise found BEFORE the claim takes the governed pre-claim exit (`task refuse` —
+       SPEC-0133); found AFTER, capture the deviation and escalate per SPEC-0103.
+       Siblings — pointers, not restatements, so the corpus reads as one rule: SPEC-0060 item 3 is the
+       FILING-side cue (how a card is written); `patterns/validate-deviation-task-premise-at-analysis.md`
+       is the how-to for the deviation-framed subset («X is missing») — read it when the card has that
+       shape; SPEC-0166 is the same discipline at the IMPORT-INTAKE seam (`imported_from:` cards, where it
+       does gate dispatch) — this clause neither extends nor re-gates it.
+       Grounds: five cards in two days had their stated premise contradicted by the worker who measured it
+       (then, both filed by a controller and caught at a
+       worker's pre-claim analysis) — which is why the duty is homed HERE, reaching every executing session
+       including a Controller self-executing, rather than in the dispatched-worker preamble.
+  3. **Standing-rule check** — does this establish/change a rule / invariant / contract / design-boundary
+     / governing parameter? If yes it is a candidate `proposed` spec (SPEC-0005) — name it now, STAGE it
+     in Plan (it is NOT authored in Analysis).
+  4. **Decomposition check** — ONE provable claim per accept-unit (SPEC-0012): if the unit proves >1
+     claim, SPLIT (encode the order via `requires:`); a deferral MUST be a tracked task, never prose.
+  5. **Spec-coverage reverse-lookup** — for EACH file/symbol this task EXPECTS TO TOUCH (its
+     `expected_touch`), run the reverse lookup `bin/yitc-v2 graph query <file>` (code→specs, SPEC-0031)
+     → READ the governing active spec(s) → DECLARE in `implementation_plan` one line PER DIRECTION: (1)
+     the touched code IS governed by spec(s) → `spec update: yes <which>` OR `no, because <reason>`; (2)
+     the touched code has NO governing spec → either justified spec-less (the SPEC-0005 admission test
+     does not warrant one) OR name the candidate `proposed` spec (this JOINS step 3 standing-rule check,
+     it does not duplicate it).
+  6. **Read the cited specs / decisions / prior tasks.**
+  7. **Scope unclear?** File a clarification to a Review session — do NOT proceed on a guess.
+
+  **Done when** you can name: (a) what already exists, (b) what changes, (c) the smallest concrete edit.
+
+  DELIVERY (the load-bearing contract). This procedure is delivered at the **Analysis stage-entry** ( —
+  `binding: [stage-entry:Analysis]`; the `worktree new --task` claim IS Analysis-entry, so it surfaces this
+  procedure, and `stage Analysis` re-delivers it). The claim path
+  (`cmd_worktree_new` → `_claim_task`) SURFACES the checklist (`_analysis_procedure_reminder`) AND runs
+  *(freshness note 2026-06-05: `cmd_worktree_new` gained the session-stamp + foreign-resume guard
+  BEFORE the claim step — the Stage-1 delivery contract here is unchanged; reviewed, no drift)*
+  the decomposition step's mechanical half — the EXISTING structural pre-pass (`_plan_structural_findings`
+  over scope+acceptance, reused — not a parallel validator). Both are **report-not-block** (CHARTER
+  non-goal #7 + SPEC-0012 §C). The `task_picked` event carries `trigger: "stage-entry:Analysis"` (the
+  always-present, activation-independent claim-time delivery marker) + `governing_contract` (the standard
+  active-only delivery-observability projection, SPEC-0013; resolves to this spec once active).
+
+  CROSS-TERRITORY ROUTING HINT (additive —, SPEC-0005 §7). Alongside the structural pre-pass, the
+  claim path ALSO surfaces a **report-only cross-territory routing hint** (`_print_cross_territory_routing_hint`):
+  when the claimed task's forecast paths (`expected_touch`) resolve OUTSIDE own territory (a path-based
+  signal — AGENTS §Scope boundary), the work looks like ANOTHER project's, so the hint names the
+  territory-safe route — file a coordination item via `yitc-v2 cross request --to <project>` (the shared
+  coordination log) instead of `task file`-ing it into THIS queue. The SAME hint fires at `cmd_task_file`
+  (filing time, before the write). It is **report-not-block** like the pre-pass (never gates — CHARTER
+  non-goal #7), and a **navigational POINTER** (SPEC-0005 rule 8): the governing routing CONTRACT lives
+  single-SoT in **SPEC-0084** (the cross system — the old per-repo `CROSS-TASKS.md` / SPEC-0079 surface
+  was retired at the cutover) — this spec does not restate it, it only wires the write-side
+  surfacing of it at the Analysis claim + filing moments.
+
+  PER-STAGE COMMAND SEQUENCE (additive —). The claim moment ALSO surfaces the canonical
+  per-stage command sequence (`_stage_sequence_skeleton`, appended to `_analysis_procedure_reminder`):
+  for every substantive stage IN ORDER it prints ENTER (`stage <NAME> --task`) -> FETCH (the EXACT
+  `graph query SPEC-XXXX` DERIVED from `_stage_bundle_specs` — the SAME carrier `_require_reads`
+  enforces, P5) -> WORK -> FINALIZE (the STAGE_WORK_VERBS work-verb), then `land`. This is a
+  delivery/discoverability fix, NOT a new gate: a fresh executor learns the whole ENTER->FETCH->WORK->
+  FINALIZE shape ONCE at claim instead of via the cascading stage-correspondence / read-gate refusals
+  (the gates are UNCHANGED + correct). Report-not-block (CHARTER non-goal #7).
+
+  This spec HOMES the ordered SEQUENCE + the delivery contract — NOT a copy of each step's discipline
+  (those are CHARTER §1 / / SPEC-0005 / SPEC-0012). LIFECYCLE §Stage 1 prose is demoted INTO this
+  spec by — which SUPERSEDES always-loaded retention of the Stage-1 standing-rule question
+  (now that the procedure is DELIVERED at claim + pointed-to by the always-loaded floor-map, the always-loaded
+  copy was P5 duplication; the same retrieved-tier model itself used for Stage-3→SPEC-0027); the standalone before-file decomposition surfacing is retired by (the
+  decomposition step now reaches the session at CLAIM, before filing). Both are separate downstream units
+  (add-new-before-remove ordering, both `requires: []`).
+
+  ## Rationale
+
+  The Stage-1 procedure was NARRATED in LIFECYCLE prose but never DELIVERED at the claim moment — a
+  session could claim a task and start editing without the analysis discipline reaching it (owner-paramount
+  2026-06-03: "do not miss the delivery moment; reliably receive the instruction at the right time in the right place").
+  Prior-art EXTENDED, not reinvented: SPEC-0012/ (decomposition discipline delivered at `task file`
+  via the before-file trigger) (the chokepoint-verb + before-rule-change trigger shape). No new
+  store / hook / parser — the existing stage-entry/binding delivery machinery + the claim verb.
+
+  ## Verification
+
+  - **VP1 (delivery — the paramount probe, CHARTER §P3/§P8 infra-class):** a LIVE claim of a real task
+    (`worktree new --task T-XXXX`) surfaces the ordered checklist (INCLUDING the decomposition step) and
+    emits a `task_picked` carrying `trigger: "stage-entry:Analysis"` (the migrated claim-delivery marker; pre- rows carry the legacy `before-analysis` — a journal read resolves both); a dedicated `live_trigger_evidence` event
+    names this spec. PROBE = the event present in events.jsonl + the surfaced output captured from a real
+    claim (NOT a unit test asserting the binding string).
+  - **VP2 (stage delivery):** `stage_to_specs["Analysis"]` (graph/index.yaml binding_report) contains
+    SPEC-0032, so `stage Analysis` delivers it ( — the before-analysis floor row was retired).
+    PROBE: inspect the index / run `stage Analysis`.
+  - **VP3 (references, not duplication):** the §Internal steps reference SPEC-0012 + SPEC-0005 + CHARTER §1 without restating their rules. PROBE: grep this body.
+  - **VP4 (control-point, not pointer-only):** the binding-completeness report shows SPEC-0032 delivered
+    (non-empty binding) with 0 unexplained dangling, and the `implements:` anchors resolve. PROBE: graph
+    build / binding report.
+  - **VP5 (dup-check sub-step present + executed):** step 1 carries the explicit Already-SHIPPED
+    dup-check sub-bullet (grep the core implementation SYMBOL + check the cited plan's done tasks +
+    `closed_into` BEFORE claiming/implementing). STATE-CHECK probe: grep this body for the dup-check
+    sub-bullet. CONSUMER-READ probe: a Build/dispatched session's Stage-1 record cites a live grep-proof of
+    the dup-check applied to its OWN task (the run-6 form: "symbol resolves to nothing / cited plan has no
+    done task for this") — a `consumer_read_evidence` event naming this spec counts. Closes the run-5
+    `dispatched-build-session-stage1-prior-art-miss` deviation at its durable home (was prompt-layer only).
+  - **Re-verified current (2026-06-07 — E-0019 reconcile):** `cmd_worktree_new`'s region
+    drifted since last-touch (recent worktree/claim work). Body re-verified ACCURATE vs current code — the
+    Stage-1 Analysis procedure this spec delivers at the claim moment (the ordered checklist + dup-check +
+    reverse-lookup sub-steps) is faithfully described and still wired (VP1/VP2 hold). Last-touch refreshed.
+    Kind-(B) symbol-level TRUE-positive — durable fix (content-signature, new store) is owner-Review-gated;
+    legitimate one-time reconcile, not a cosmetic re-pin.
+  - **Re-verified current (2026-06-07):** `cmd_worktree_new`'s region drifted since last-touch —
+     threaded a parse_errors accumulator + the shared `_report_graft_parse_errors` report through the
+    claim-screen advisory graft snapshot (inside the existing fail-open try). Body re-verified ACCURATE vs
+    current code — the Stage-1 Analysis procedure this spec delivers at the claim moment is untouched (the
+    change adds an advisory stderr line, not a checklist/claim-surfacing change). Last-touch refreshed.
+  - **Re-verified current (2026-06-08 last-touch):** `cmd_worktree_new`'s anchor region drifted
+    since last-touch — (ship 5849b6d0) inserted a read-gate ANCHOR cue print block AFTER the
+    `--task` claim and BEFORE the Stage-1 surfacing, cueing the operator/worker to run `session start` in
+    the new worktree FIRST (design C, cue-only / fail-closed; no auto-emit). Body re-verified ACCURATE vs
+    current code — the Stage-1 Analysis procedure this spec delivers at the claim moment (the ordered
+    checklist + dup-check + reverse-lookup sub-steps) is UNCHANGED and still surfaced by the same post-claim
+    block (VP1/VP2 hold); the cue prints ABOVE that block, it does not alter the procedure delivery.
+    Last-touch refreshed.
+  - **VP6 (reverse-lookup sub-step present + applied):** §Internal step 5 carries the
+    spec-coverage reverse-lookup (`graph query <file>` per touched file → read governing active specs →
+    declare a per-direction `spec update:` line in `implementation_plan`). STATE-CHECK probe: grep this
+    body for the reverse-lookup sub-step (both directions present). CONSUMER-READ probe: a real task's
+    `implementation_plan` carries the declared `spec update: yes/no + why` line produced by applying it —
+    a `consumer_read_evidence` event naming this spec counts.
+  - **VP7 (per-stage command sequence surfaced at claim):** the claim-moment surface
+    (`_analysis_procedure_reminder`) embeds `_stage_sequence_skeleton`, which prints — for every
+    substantive stage in lifecycle order — the ENTER (`stage <NAME>`) / FETCH (exact `graph query
+    SPEC-XXXX` from `_stage_bundle_specs`) / FINALIZE (STAGE_WORK_VERBS) commands + trailing `land`.
+    STATE-CHECK probe: tests/test_t9741_stage_sequence_skeleton.py asserts the full
+    ENTER->FETCH->WORK->FINALIZE sequence is present in ONE place. CONSUMER-READ probe: a real claim
+    surfaces the sequence in its captured output (the per-stage refusal cascade is no longer the only
+    discovery path).
+  - **Re-verified current (2026-06-16):** all three anchors re-verified ACCURATE vs current code.
+    `_analysis_procedure_reminder` still emits the ordered 7-step checklist (prior-art grep / cite-the-proof
+    / standing-rule / decomposition / reverse-lookup / read-cited / scope-unclear) verbatim + the
+    DERIVED Analysis stage-entry pointer; `_plan_structural_findings` is the reused report-only structural
+    pre-pass; `cmd_worktree_new` → `_claim_task` surfaces both at the claim moment (VP1/VP2 hold). The drift
+    was a region-shift only (the read-gate anchor cue + parse-error threading already documented above). No
+    semantic drift; baseline refreshed.
+  - **Re-verified current (2026-06-18):** `cmd_worktree_new`'s region drifted since last-touch —
+     added the F-019 orphan-resume branch (an in-progress + paused task whose worktree was removed at a
+    prior pause/land is RECREATED + resumed, not refused). Body re-verified ACCURATE vs current code — the
+    Stage-1 Analysis procedure this spec delivers is bound to the CLAIM path (`_claim_task` → the post-claim
+    surfacing block) and is UNCHANGED: the new resume branch deliberately does NOT surface Stage-1 (a resume
+    re-enters at the persisted `current_stage`, it is not an Analysis claim) and runs no `_claim_task` /
+    `_analysis_procedure_reminder` (VP1/VP2 hold on the claim path). Region-shift only, no semantic drift;
+    baseline refreshed.
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0012
+  - SPEC-0005
+  - SPEC-0031
+  - SPEC-0007
+  - SPEC-0084
+  -
+  -
+  -
+  -
+  - SPEC-0060 # : the FILING-side sibling of the step-2 premise check
+  - SPEC-0133 # : the governed pre-claim exit a refuted premise takes
+  - SPEC-0166 # : the same discipline at the import-intake seam (imported_from: cards)
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first: this spec activates at `task close` (proposed→active).
+proposed_by: # provenance — the authoring task.
+binding: # — the Stage-1 procedure delivered at the Analysis stage-entry (was the before-analysis floor trigger).
+  - stage-entry:Analysis
+implements_signature:
+  bin/lib/cli.py#_analysis_procedure_reminder: cd19fd102f8d3af763736cf1e74b13202f997cc744271d1ff05583a5c09662d0
+  bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
+  bin/lib/cli.py#_print_cross_territory_routing_hint: 3178b489c3bbc6306346b1d27fc90e49053be940a358e70190c6b00babbf5f13
+  bin/lib/cli.py#_stage_sequence_skeleton: 9f8fe02b191eca77aef67621f885058712d895209044d00f62c360c8801f7458
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 4c0776cf67c1f57a146cdd1324f6188634d69c52cb6623eabca4ac968ebcbc44

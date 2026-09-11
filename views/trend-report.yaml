@@ -1,0 +1,22 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: trend-report
+description: L4 system-trend report over a date window — journal growth + test-leak share, op-duration trends, queue flow, adoption-debt aging, churn, overhead share. The ревизия feed.
+lens:
+  kind: trend-report # journal-only lens: pure f over events.jsonl (full data payloads) + the
+                       # committed graph index (a DERIVED journal+corpus projection — NOT a new store).
+                       # Windowed by `graph query trend-report --since/--until` (ISO, UTC-normalized;
+                       # since inclusive, until exclusive). Reads nothing else; writes nothing.
+why: >-
+  PART-2 scope 2 (the L4 trend report — plans/inspection-metrics-consumption-views-thresholds-tr.md).
+  The inspection construct ( ревизии — T4/T6/T7 themes) needs a discoverable, recomputed-fresh
+  trend feed instead of the ad-hoc manual re-measurement of 2026-06-05 (the speed analysis that
+  re-measured journal growth, durations, and overhead by hand — F3 retirement). All PART-1 fields are
+  already live in the journal (duration_ms carriers /, land both-outcomes);
+  this lens is the read-side that turns them into windowed trend sections. Anti-complexity (P1): it
+  EXTENDS the existing saved-view family ( — same _run_view dispatch + views/ catalog as
+  token-rollup / projection-currency / verb-map), adds NO store, NO command family, NO journal writer.
+  Empty sections print an explicit `n/a` (never silently dropped) so a missing trend is visible, not
+  invisible. queue-flow + adoption-debt read the committed graph index for task/spec STATE — the index
+  is a pure derived projection of the journal + corpus, not a second authored store, so "journal-only"
+  holds.

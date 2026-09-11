@@ -1,0 +1,291 @@
+id: SPEC-0110
+title: 'Liveness/freshness control — declare cadence + freshness probe, independent kernel-side monitor'
+
+status: active
+
+created_at:
+
+travels: kernel
+# RE-PINNED from draft v2-self to kernel by (SPEC-0073 §3), completing the re-pin THIS spec's own
+# comment mandated at activation but which its activation_owner_task left undone: the rule governs
+# a CONSUMER's yitc-ops.yaml `freshness:` section (a kernel-side monitor), so it TRAVELS to every v2
+# consumer — the same born-v2-self→activate-kernel path as SPEC-0105/SPEC-0093, and the identical re-pin
+# SPEC-0109 (its L2 sibling) already performed. MECHANICAL, no new decision — and load-bearing, not
+# cosmetic: only an `active` spec whose placement resolves to `kernel` travels into the consumer
+# release-view (graph.py `_kernel_realm_slice`), so while it stayed `v2-self` its freshness concern would
+# have shipped a born carrier section citing a spec the consumer cannot read.
+
+consumed: false
+
+extension: ~
+# A yitc-ops declare-or-waive SECTION concern (SPEC-0093 rule-4 section-add), NOT a SPEC-0101 catalog
+# «extension» (classification Variant B, proposing plan).
+
+implements:
+- bin/lib/nightly.py#_check_freshness
+- bin/lib/nightly.py#_default_freshness_adapter
+- bin/lib/nightly.py#_run_command_freshness_adapter
+- bin/lib/nightly.py#_load_freshness_decl
+- bin/lib/init.py#_hook_freshness
+# Code anchors WIRED at activation by (the activation_owner_task): the kernel-side generic GRADER
+# (_check_freshness) + the injectable seam's default adapter (file + kind:command via
+# _run_command_freshness_adapter) + the declare-or-waive gate (_load_freshness_decl). Proven at
+# real pull: a cron-fired nightly caught trend-finder's genuine dead-loop tracking MISS (2026-06-28).
+# (Was DRAFT design-phase — governs nothing — until this activation; the original note:) The L3
+# `yitc-ops.yaml` freshness section + the
+# independent kernel-side probe (a derived freshness VIEW, not a new ledger) are filled by the
+# implementing task when the first project pulls a freshness alert (trend-finder).
+
+body: |
+  ## Scenario
+
+  A project that REQUIRES regular work (its output must stay fresh — e.g. trend-finder's parsed social
+  data) declares its expected CADENCE + a FRESHNESS probe on its `yitc-ops.yaml`. A bounded v2 monitor
+  then checks "did the regular work actually run / is the output fresh?" and ALERTS on a miss — and it
+  does so INDEPENDENTLY of the project's own loop, so a dead scheduler cannot also kill its own alarm.
+
+  ## Internal
+
+  LIVENESS / FRESHNESS CONTROL (L3 — is the project's output fresh). Rules:
+
+  ### 1. The freshness-probe SCHEMA (what a declaration MEANS — declare-or-waive, P5)
+  Freshness is a declare-or-waive SECTION on `yitc-ops.yaml` (a SPEC-0093 rule-4 section-add). Rule 1
+  defines the SCHEMA / SEMANTICS the monitor interprets; **WHERE the per-pipeline VALUES live is rule 2
+  (pointer, not copy)** — the rule-1/rule-2 boundary, made explicit after the cycle-1 external
+  convergence read flagged it. The schema: a freshness probe is a **LIST of pipelines, NOT a single
+  probe** (trend-finder = 2: discovery + tracking), and per pipeline the kernel monitor consumes a
+  **NORMALIZED** record — a `{fresh|stale|miss}` state + the last-run AGE (optional `detail`) — produced
+  by the project's read-only ADAPTER (rule 2). The adapter owns the interpretation that yields that
+  normalized state: the expected CADENCE, the staleness threshold, and the STATUS FILTER — only a
+  SUCCESSFUL recent run normalizes to `fresh`; a too-old or failed run normalizes to `stale`/`miss`. These
+  are the FIELD SEMANTICS the monitor consumes; rule 2 governs the adapter contract that produces them. A project with no scheduled
+  output yet (e.g. kupiclub) WAIVES it forward-aware. This extends the slice-1 `live_probe:` (a single
+  `GET /health`, SPEC-0094), insufficient for "is the data fresh".
+
+  ### 2. The SOURCE is a GENERIC normalized-freshness ADAPTER contract — never a static block premise
+  The freshness SOURCE is NOT a fixed `registry.yaml pipelines:` block the kernel parses (that premise
+  was WRONG: trend-finder's real signal is a LIVE Postgres query + a docker-log heartbeat, not a static
+  YAML block — external consult `decisions/-audit-adhoc.yaml`, verdict RED). Instead each PROJECT
+  supplies a **read-only freshness ADAPTER** and the KERNEL stays a generic GRADER. The adapter contract
+  is NORMALIZED: for each pipeline it returns a `{fresh|stale|miss}` state + the last-run AGE (optional
+  `detail`, + the optional reachability OUTCOME of §2a below). The adapter — not the kernel — owns reading the project's real source (DB / log / registry
+  block / env threshold, whatever the project already encodes) and the cadence/threshold/`status_ok`
+  interpretation that decides fresh-vs-stale; a failed or too-old run normalizes to `stale`/`miss`. The
+  `yitc-ops.yaml` freshness section holds ONLY: (a) the declare-or-waive marker, (b) a reference NAMING
+  the project's adapter (no per-pipeline threshold VALUES copied in — single-source discipline preserved,
+  CHARTER §P5; no second threshold ledger), (c) the observed-evidence state. The kernel monitor CONSUMES
+  the adapter's normalized output through its ALREADY-INJECTABLE reader seam and embeds NO
+  project-specific format — no registry-block parsing, no SQL, no docker — keeping kernel code
+  project-neutral (CHARTER §P1 + the territory boundary). An unreadable adapter source is a MISS,
+  never a silent skip (rule 3). **Coverage-overlap stays FREE:** the project's adapter reads the EXACT
+  signal its v1 watchdog reads, so during the retire-overlap window they cannot diverge and the no-gap
+  proof is like-for-like.
+
+  #### 2a. The reachability OUTCOME — fresh-and-failing is its own verdict (ADDITIVE)
+  The freshness STATE says how OLD a result is. It cannot say **"the probe ran fine and the SUBJECT is
+  down"**: `fresh` reads that record as clean, and the only two states that would surface it — `stale`,
+  `miss` — say we could not SEE, filing BAD NEWS as NO DATA. So the normalized record MAY carry an
+  explicit reachability **`outcome`, one of `reachable` | `unreachable`**, BESIDE its `state`, and the
+  grade MUST render a FRESH result whose outcome is `unreachable` as **FAILING** — a project verdict
+  distinct from the stale/miss `alert`, from the clean `ok`, and from the silence of `none`. A rendering
+  that shows a fresh failure as any of those does not satisfy this rule. (This is the surface SPEC-0174
+  rule 3 requires; that spec states the REQUIREMENT, this rule defines the SHAPE.)
+  - **ADDITIVE — the field is OPTIONAL and absence is unchanged behaviour.** An adapter that reports no
+    outcome (every declaration that predates this axis, and every project with no reachability target)
+    keeps EXACTLY its prior grade: `fresh` grades ok, `stale`/`miss` grade alert. No existing obligation
+    is reshaped — only a case the rule did not previously address gains an answer (SPEC-0005 rule 7,
+    in-place additive extension). The `concern:` born declaration template stays CORRECT as written.
+  - **The `fresh` half is load-bearing.** An `unreachable` outcome carried on a `stale` or `miss` record
+    is itself stale news — a subject cannot be declared down from a reading we already know we could not
+    take — so such a record stays the ordinary no-data `alert` and never borrows the confirmed-failure
+    reading. Conversely `failing` OUTRANKS `alert` when both are present: a confirmed-down subject is the
+    sharper news, and every stale/miss pipeline still renders its own line beside it.
+  - **Fail-closed, and the two absence classes differ — the line is KEY PRESENCE, not value-emptiness.**
+    An ABSENT outcome — the KEY is not there at all — is a legitimate "this adapter reports none". A
+    PRESENT key is the record failing to say what it claimed unless it carries `reachable` or
+    `unreachable`: at the SOURCE that is a whole-project adapter ERROR (rule 3), exactly as an unusable
+    `state` is, and at normalization it fails closed to `miss`. **A present key carrying null/empty is
+    UNUSABLE, not absent** — an adapter that emitted the field and left it unfilled TRIED to report and
+    failed, and reading that as "reports none" would grade the record clean. It is never silently
+    dropped either — a dropped outcome renders the record CLEAN, the false-green this axis exists to
+    close.
+  - **Grade-only is untouched.** This axis adds NO outbound request: the kernel still grades only the
+    RECORD the project's adapter produced, never reaching the subject to verify or confirm a reported
+    failure (SPEC-0174 rule 2 — absolute, and asserted by this rule's suite rather than assumed).
+
+  **none = NON-ADOPTED (the migration-gate honesty rule).** A project with NO freshness declaration, a
+  WAIVED one, or one naming no usable adapter grades to verdict `none` — and `none` is **NOT freshness
+  coverage**. For a project SLATED TO RETIRE its v1 watchdog (trend-finder) a coverage/adoption
+  gate MUST treat `none` as **NON-ADOPTED** and MUST NOT count it as a v2 replacement — only a DECLARED
+  adapter actually graded by the monitor counts. The monitor marks each result `adopted: true|false`
+  accordingly so the downstream gate cannot silently read an absent declaration as covered.
+
+  ### 3. The probe is INDEPENDENT of the project's own loop (the single-point-of-failure rule)
+  The kernel freshness monitor MUST NOT depend on the project's own scheduler to fire. aiseller's only
+  freshness alarm is its OWN `celery-beat` task — if the beat dies, the alarm dies with it. The v2
+  monitor runs from the bounded methodology nightly (L1, SPEC-0105), OUTSIDE the project's loop, so a
+  dead project loop is exactly what it catches rather than what silences it. **Unreadable-source = MISS,
+  never silent-skip (trial cycle 1 finding).** If the freshness SOURCE itself is unreadable (the DB /
+  table is down, the timestamp query errors), the monitor MUST treat that as a MISS and ALERT — NOT skip
+  silently. Otherwise a project that takes its own DB down silences its own alarm (the very rule-3
+  failure mode), since the source and the project share fate. Read-error ⇒ alert; only a successful read
+  of a fresh successful run clears it.
+
+  ### 4. Liveness is a DERIVED freshness VIEW, not a new ledger (anti-complexity F2)
+  The "is it fresh" answer is COMPUTED on read from existing journal / output state (last-run
+  timestamp vs threshold), not stored in a new freshness ledger. No new store/parser (CHARTER §P1 F2 —
+  a view over existing state beats a new entity).
+
+  ### 5. SEED-then-grow boundary + the named deferral
+  L3 governs single-project output freshness; it does NOT own L1 (the nightly runner, SPEC-0105) nor L2
+  (product-cron declaration, SPEC-0109). L3 activates when the first project needs a freshness alert
+  (trend-finder) — its real PULL. **Cross-project runtime-dependency liveness** (boomrocket→social-scraper,
+  study gap 4) is a NAMED-DEFERRED future extension point of this shape — recorded in the plan's deferred
+  concerns, opened on its own carrier at boomrocket's migration, NOT built here.
+
+  ### 6. A reachability-kind declaration NAMES its target — unnamed REFUSED, edge-ness ADVISORY
+  A freshness declaration may declare that its adapter reaches a live HTTP surface rather than — or
+  beside — a data pipeline. That REACHABILITY KIND is declared by its own key on the section,
+  `reachability:`, because `kind:` already names how the kernel INVOKES the adapter (`command`|`file`,
+  rule 2) and must keep meaning only that. A declaration carrying no `reachability:` key is NOT of this
+  kind and this rule asks it NOTHING: the existing cohort — the kernel's own carrier and every consumer
+  declaring plain pipeline freshness — validates unchanged. That non-breakage is part of the rule, not
+  a side-effect of how it happens to be checked.
+  A declaration that IS of this kind MUST NAME the address its probe reaches, in `reachability.target`.
+  An unnamed one is REFUSED by the section's existing declare-or-waive completeness check, through the
+  concern's registered shape hook (SPEC-0128 Rule 2) — never accepted-and-ignored, and never a new gate
+  class. The discriminator is the PRESENCE of the key, so a `reachability:` that is present but
+  unusable (not a mapping, empty, or a blank target) is REFUSED too, rather than read as "not of this
+  kind": a broken declaration must never disable the requirement it was written to satisfy.
+  This EXTENDS what rule 2 says the section holds, and does not contradict it. Rule 2's "no VALUES
+  copied in" discipline is about per-pipeline THRESHOLDS and SLAs, which stay owned by the adapter; a
+  target ADDRESS is the subject being declared, not a threshold, and it is the same class of datum as
+  the reference NAMING the adapter that rule 2 already requires.
+  REACHING THE LIVE EDGE rather than an internal address is ADVISORY and is NEVER enforced. The
+  asymmetry is structural, not a preference: the kernel cannot confirm that an address IS the live edge
+  without REQUESTING it, and requesting is precisely what the grade-only boundary forbids — so a rule
+  that cannot be checked must not be written as though it were. Therefore a declaration naming an
+  INTERNAL address is ACCEPTED, and the named address stays readable from the parsed declaration for
+  any reader of the grade. What the refusal buys instead is LEGIBILITY: a probe that quietly reaches
+  past the live edge stops being invisible, which is the failure this naming requirement answers. The
+  kernel judges the PRESENCE of the answer only — never the address's value, its reachability, or its
+  edge-ness (the SPEC-0093 rule-3 boundary) — and it issues no request of its own. A `waiver:` on the
+  section stays the stance the generic declare-or-waive check owns, so a waived section is asked
+  nothing here either.
+
+  ### Coverage-overlap (no freshness gap — the L3 real pull is the trend-finder migration)
+  L3's real PULL is the trend-finder migration (`migrate-trend-finder-onto-yitc-v2-v1-incumbent-gat`):
+  trend-finder is freshness-critical and its v1 `watchdog.sh` coverage is removed at migration. The v2
+  monitor MUST be PROVEN catching a (synthetic) freshness miss on trend-finder BEFORE the v1 watchdog is
+  retired (task, parked on exactly this proof) — the no-gap coverage-overlap rule lives single-SoT
+  in that migration plan's §Verification (pointer, not restated here).
+
+  ### Build-order — NO catalog-amendment prerequisite (corrected 2026-06-27)
+  L3 has **no** hard dependency on the extension-catalog amendment (plan
+  `extension-catalog-population-from-3-project-breadt` / SPEC-0112). The external re-check (consult
+  `decisions/extcat-scope-variants-audit-adhoc.yaml`) confirmed L3 is a non-catalog `yitc-ops.yaml`
+  declare-or-waive SECTION-ADD (`extension: ~`): its forward-aware waive is already expressible via
+  SPEC-0093 rule-6, and its freshness truth is its OWN observed-evidence-state (rule 2c) + the independent
+  monitor's events (rule 3), not the catalog `wired`/`resolves_to` vocabulary (which L3 does not use). So
+  the prior hard `requires:` edge is REMOVED — L3 decomposes/builds on its own.
+  (`extension-catalog-population-...` stays an informational `cites:` only.)
+
+  ## Rationale
+
+  trend-finder is freshness-critical and its v1 watchdog/registry-threshold machinery is removed by
+  migration with nothing on the v2 side to replace it; boomrocket has NO `registry.yaml pipelines:`
+  block so `watchdog.sh` skips it (a freshness GAP); aiseller's alarm is single-point-of-failure. The
+  3-project study lives in the proposing plan (SPEC-0005 §3 content boundary — not restated).
+  Predecessor: the withdrawn SPEC-0107 (re-authored here under the follow-on grow-plan; SPEC-0107
+  frozen historical).
+
+  ## Verification
+
+  Adoption probe (CHARTER §P3 + §P8 — infra-class): the v2 monitor CATCHES a (synthetic/injected)
+  freshness miss on a real project (trend-finder), firing from the bounded nightly INDEPENDENTLY of the
+  project's own scheduler. FAILURE-CHECK: the monitor goes silent when the project's own loop dies
+  (rule 3 violated) — the very condition it must detect.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - SPEC-0093
+  - SPEC-0094
+  - SPEC-0105
+  - SPEC-0109
+  - SPEC-0107
+  - extension-catalog-population-from-3-project-breadt
+  - migrate-trend-finder-onto-yitc-v2-v1-incumbent-gat
+  - v2-automation-grow-l2-product-cron-governance-l3-l
+
+requires: []
+# No build-order prerequisite on the extension-catalog amendment (removed 2026-06-27 — see body
+# §Build-order). L3 is a non-catalog section-add with its own evidence; SPEC-0112 is not a blocker.
+supersedes: ~
+# SPEC-0107 is `withdrawn` (terminal — never governed), so no supersedes: edge; cited as provenance.
+concern: # (SPEC-0128 Rule 1) — REGISTERING the concern this ACTIVE spec has
+                                  # governed since activation. Rule 1 ("Freshness is a declare-or-waive
+                                  # SECTION on yitc-ops.yaml") was live, but with NO `concern:` block the
+                                  # section was HALF-REGISTERED: absent from graph/concern-registry.json +
+                                  # born-ops.yaml + the init declare-or-waive sweep, so trend-finder
+                                  # HAND-ADDED it and the next consumer would silently default — exactly what
+                                  # SPEC-0128 forbids ("no concern can be half-registered"; the X-0088 class).
+                                  # Shape matches trend-finder's ADOPTED section (its carrier annotates
+                                  # `adapter:` as the "SPEC-0110 usable-declaration key"), so registering
+                                  # forks no second shape. Pulled by aiseller (workday-window sync-freshness
+                                  # SLAs, today embedded in a <vendor-adapter>.md ritual) — CHARTER §P1 F4.
+  - section: freshness
+    carrier_path: freshness
+    presence_policy: checked-if-present
+    update_policy: init re-seed
+    declare_key: adapter
+    declare_type: string
+    waiver_policy: loose # forward-aware bare reason. STRICT (compensating control + expiry) is the
+                                  # SECURITY shape: a project with no cadence-producing pipeline has no hole
+                                  # to compensate for, and demanding one would be the ceremony §P1 forbids.
+    shape_hook: freshness_shape # (SPEC-0128 Rule 2) — the RESIDUAL shape body rule 6 adds, on
+                                  # top of the generic `adapter:`-XOR-`waiver:` stance above: a declaration
+                                  # of the REACHABILITY KIND (the `reachability:` key PRESENT) must NAME the
+                                  # address its probe reaches in `reachability.target`; an unnamed — or a
+                                  # present-but-unusable — one is REFUSED. A declaration WITHOUT that key is
+                                  # not of the kind and is untouched. Implemented by bin/lib/init.py
+                                  # `_hook_freshness`; edge-ness is never judged (SPEC-0174 rule 4).
+    born_order: 160
+    born: |2
+      freshness:
+        # SPEC-0110 (kernel L3 liveness/freshness monitor) + SPEC-0093 rule-4 section-add. DECLARE this project's
+        # freshness contract if it PRODUCES data on a cadence (a sync/discovery/tracking pipeline that must keep
+        # producing fresh output). Replace this waiver with:
+        # adapter: bin/freshness-adapter.py # the declaration key that ANSWERS this section
+        # kind: command # the kernel runs it LIVE and parses its stdout JSON
+        # command: [python3, bin/freshness-adapter.py]
+        # THE SOURCE IS A LIVE READ-ONLY ADAPTER, NEVER A STATIC PRE-NORMALIZED FILE (rule 2/3). A stale file
+        # would read `fresh` after the producer died — the exact single-point-of-failure this rule forbids. The
+        # kernel monitor INVOKES the adapter at grade-time through its injectable seam and grades the NORMALIZED
+        # output; it embeds NO project source format (CHARTER §P1 + the territory boundary). The adapter
+        # prints the kernel adapter-return contract as JSON to stdout:
+        # SUCCESS -> {"pipelines": [{"name", "state" in {fresh|stale|miss}, "age_hours", "detail"}...], "error": null}
+        # SOURCE failure -> {"pipelines": [], "error": "<detail>"} # a whole-project miss
+        # THRESHOLDS/SLAs ARE OWNED BY THE ADAPTER (rule 2), never copied here — the carrier holds only the
+        # declare-or-waive marker + the reference NAMING the adapter.
+        # The probe MUST be INDEPENDENT of the project's own loop (rule 3): a freshness check that rides the very
+        # pipeline it grades cannot report that pipeline's death.
+        # The freshness: waiver is LOOSE (rule 6) but FORWARD-AWARE: say WHY nothing here needs freshness grading
+        # yet AND how to flip waive->declare later. A project with no cadence-producing pipeline (a CRUD app, a
+        # library, a CLI) legitimately waives — it has no staleness to hide.
+        waiver:
+          reason: "Initialized via `bin/yitc-v2 init` — no freshness contract declared yet. This project produces no data on a cadence that must be graded for staleness; if it gains one (a sync / discovery / tracking pipeline), replace this waiver with an `adapter:` naming a read-only LIVE adapter command (never a static file — SPEC-0110 rule 3) that prints the kernel adapter-return JSON."
+activation_owner_task:
+proposed_by: v2-automation-grow-l2-product-cron-governance-l3-l
+binding:
+- code-enforced
+# WIRED at activation by : the freshness monitor is enforced by the kernel code (the
+# _check_freshness grader run from the L1 nightly), not a floor-trigger delivery — same tier as its
+# sibling SPEC-0105. (Was design-phase draft until activation.)
+init_concern: ~
+implements_signature:
+  bin/lib/init.py#_hook_freshness: 70ef31ed885f832557faabfcd3751394fdcd5e990f6c5cbef41ff03413109da8
+  bin/lib/nightly.py#_check_freshness: 30d7a1ffe5717c3f2971af12d60bc550fb26da7beca6f1e50aa45f044846d2db
+  bin/lib/nightly.py#_default_freshness_adapter: b1992d776600690644978f2caf06221a701360ae420897d2146c584e5e99f04d
+  bin/lib/nightly.py#_load_freshness_decl: 89bafa11e0037fc9b6d1c7632ed6f9f9a4991700d8a6d5a1a91eef282dfdc475
+  bin/lib/nightly.py#_run_command_freshness_adapter: a4474c3aec33aa3d1e7985711d30c74e8192053ca5cfe16699e97cc9146820ec

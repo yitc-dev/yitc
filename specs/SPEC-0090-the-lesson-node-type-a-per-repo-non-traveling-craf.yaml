@@ -1,0 +1,274 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0090
+title: The lesson node type — a per-repo non-traveling craft-knowledge entity + the patterns(travel)/lessons(local) boundary
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # plan-local DRAFT (SPEC-0005 §4 FSM) — governs NOTHING; born by the plan
+                               # patterns-vs-lessons-architecture-traveling-pattern. Promotes draft→proposed
+                               # ONLY via `plan stage accepted` on that plan, and proposed→active ONLY via an
+                               # activation_owner_task close. `active` is the ONLY normative status.
+
+created_at:
+
+travels: kernel
+                               # DRAFT default (plan-local, governs nothing). The lesson-node-type DOCTRINE
+                               # is kernel methodology that TRAVELS — so this re-pins to `kernel` at
+                               # plan-accept (an EXPLICIT action, not a birth side-effect; SPEC-0073 §3).
+                               # NOTE the two-realm split (rule 3): the DOCTRINE travels (kernel); a lesson
+                               # INSTANCE under lessons/ is PROJECT realm (born empty per repo, never travels).
+
+consumed: false # design/governance spec — no code reads a governing scalar PARAM from it.
+                               # The graph walk + node registration are CODE (bin/yitc-v2 graph build), not
+                               # a spec-read scalar. Stays false at active too.
+
+implements: [] # DESIGN-STAGE mode (SPEC-0005 §7 mode b) — a draft not yet wired to a
+                               # concrete code anchor. At the mint the implementing build-cards (plan
+                               # decomposition) fill durable anchors: the `lessons/` graph-walk + the
+                               # `lesson` node registration in `bin/yitc-v2 graph build`, and the GRAPH.md
+                               # schema row. Reached on-demand meanwhile via binding:[query-only] below.
+
+body: |
+  ## Scenario
+
+  The owner sees TWO clean homes for durable craft knowledge, told apart by a single decidable test:
+  **`patterns/`** holds the reusable YITC methodology/technique the ENGINE needs for its own work — it
+  is GENERAL and TRAVELS (kernel-authored, the same tooling shipped into every project). **`lessons/`**
+  holds ONLY a specific project's own specifics — craft about THAT codebase/product that the kernel does
+  not need to operate — it is LOCAL and does NOT travel; each repo has its own. So a project-specific
+  note («how kupiclub's monolith splits», «kupiclub's auth quirks») has an honest home that does not
+  pollute the cross-project `patterns/` catalog, and the owner/AI can always answer «patterns or lessons?»
+  deterministically. A lesson is the LOCAL counterpart of a pattern — a reference note, never a rule.
+
+  ## Internal
+
+  THE LESSON NODE TYPE + THE PATTERNS/LESSONS BOUNDARY. A `lesson` is a per-repo, NON-traveling
+  craft-knowledge artifact (`lessons/<topic>.md`) + a MINIMAL 8th graph node-type. Seven rules. The
+  CHARTER §P1 four-filter justification for adding a new node type (vs reusing `pattern`) + the
+  round-by-round design deliberation live in the proposing plan
+  [[patterns-vs-lessons-architecture-traveling-pattern]] (SPEC-0005 §3 content boundary — debate is plan
+  material, not spec body); this spec carries only the standing rule.
+
+  ### 1. Identity & purpose
+  A `lesson` is a **zero-normative, per-repo craft-knowledge note about ONE specific project's specifics**
+  — the LOCAL counterpart to a `pattern` (general, traveling methodology). It is a REFERENCE artifact
+  (like a pattern), authored locally in the repo it concerns. It is semantically distinct from a pattern
+  precisely along the axis this architecture exists to make queryable: **LOCAL/non-traveling vs
+  GENERAL/traveling** — which is why it is a NEW node-type, not a `pattern` reused (folding the two onto
+  one type would destroy that distinction). A lesson never carries a standing enforceable rule (that is a
+  spec); a lesson that states a «must/always/never» enforceable constraint is a drift DEFECT — extract it
+  to a spec and `cite` it (rule 5).
+
+  ### 2. The boundary criterion (THE rule — decidable per artifact)
+  Apply this single test to every piece of durable craft knowledge:
+    - **Needed for the KERNEL's OWN work → `patterns/`** — general YITC methodology / technique /
+      discipline the engine operates by; therefore TRAVELS to every project (kernel-authored).
+      (Examples: `doc-conventions`, `retirement-procedure`, `verification-protocol`, `big-plan-checklist`.)
+    - **ONLY a specific project's specifics → `lessons/`** — craft about THAT codebase/product, not YITC
+      methodology; the kernel does not need it for its own operation; stays LOCAL in that repo.
+      (Examples: «how to split kupiclub's monolith», «kupiclub's auth quirks».)
+    - **Edge rule:** a lesson distilled from a project's OWN refactor that is GENERAL methodology (the
+      kernel would use it on any project) → `patterns/`; if it is purely that-codebase trivia → that
+      repo's `lessons/`. The discriminator is «does the ENGINE need it for its own work?», never the
+      origin of the insight.
+
+  ### 2b. Periodic generalization re-evaluation (the Review-judged sweep)
+  §2 decides local-vs-general AT AUTHORING. But a lesson's generality often becomes clear only with use, so
+  the boundary is **re-applied on a cadence**, never frozen at authoring. A **weekly Review lens** sweeps ALL
+  `lessons/` (QUEUE §Re-review triggers — a new row, NOT a new machine) and routes each lesson by ONE of FOUR
+  outcomes, every outcome riding an EXISTING rail:
+    1. **Consolidate** — merge/dedup/refine overlapping sibling lessons in place.
+    2. **Promote local→general (a SPLIT, not a move)** — when §2 now says the lesson's WHY is general, EXTRACT
+       that WHY into a `pattern`/`spec` (travels, kernel-authored) and KEEP the local HOW as a `lesson` + a
+       pointer (the proven SPEC-0080 ↔ `lessons/library-extraction` shape). **Whole-move is the bounded
+       exception** — allowed ONLY when, after extracting the WHY, no project-specific HOW worth preserving
+       remains; otherwise split+pointer is MANDATORY (a whole-move must never carry a local HOW across the
+       territory boundary — the §3 lessons-don't-travel invariant).
+    3. **Propose outward (PROPOSAL-ONLY)** — a project-discovered lesson that should travel goes UP to the
+       kernel (consumer→kernel) or ACROSS to sibling projects **filed as an ordinary `cross request`** (the
+       EXISTING cross-request shape over the shared store, SPEC-0085/0086 — NOT a new transport or message
+       type). The `lesson` ITSELF never travels (§3): the request body carries only a **proposal + a pointer +
+       the extracted general WHY**; the KERNEL side then revalidates and authors the resulting `pattern`/`spec`
+       in kernel territory, and closes the `cross` item. (No semantic leak across the boundary.)
+    4. **Retire or narrow locally** — a stale / wrong / oversized lesson that should NOT be promoted is
+       retired or narrowed in place via the **retirement-procedure**.
+  The lens is a **Review JUDGEMENT** (no detector / no auto-trigger — CHARTER non-goal #7): it SURFACES
+  candidates; the human/AI decides + routes. It is **report-not-block** and adds **no new store / hook / FSM
+  / verb** — every outcome reuses a rail this corpus already owns. The lessons-don't-travel invariant (§3)
+  and the kernel-only pattern-authoring authority (§3 / §3a) are UNCHANGED — this section adds the periodic
+  WHEN, not a new transport or a new authority.
+
+  ### 3. Storage + the two-realm placement split (SPEC-0073)
+  - **Storage:** `lessons/<topic>.md` — markdown + frontmatter (the `patterns/` doc model, REUSED),
+    **FILE-PER-TOPIC** (never one bloating file).
+  - **The doctrine (THIS spec) is kernel realm** — methodology that TRAVELS as a pin (the node-type, the
+    boundary criterion, the scaffold) is shipped into every consumer.
+  - **A lesson INSTANCE is project realm** — born empty per repo, authored locally, NEVER travels
+    (SPEC-0073 three-way cut: project corpus is born empty).
+  - **Placement-contract amendment (MANDATORY — SPEC-0073 is exhaustive):** because SPEC-0073's
+    class-default matrix is EXHAUSTIVE + mandatory, this new `lessons/` artifact class MUST be added to
+    it — `lessons/` → realm **project** (born empty per repo, never travels, **never enters the export
+    slice**); the lesson node-type DOCTRINE (this spec) → realm **kernel** (travels); a consumer's
+    distributed `patterns/` is the kernel-owned read-only copy. This amendment is named in `amends:`
+    below and applied (spec-edit on SPEC-0073) at the mint. (plan-check 2026-06-19 F2.)
+  - **Authoring authority:** patterns are authored ONLY in the KERNEL; a consumer's distributed
+    `patterns/` is a kernel-owned **READ-ONLY** copy (the consumer never edits/authors it → no
+    shadow/own-wins problem). A consumer authors ONLY its own `lessons/`. (Transport/refresh REUSES the
+    in-flight distribution substrate — NOT a parallel distributor; bound by the plan's distribution unit.)
+
+  ### 3a. Distribution / refresh carrier — the ONE governed path (bound by the plan's distribution unit)
+  §3's parenthetical deferred the transport/refresh path to «the plan's distribution unit» — this section
+  FILLS that binding (plan card C3). It states the boundary + the reuse; it adds NO mechanism.
+  - **THE ONE carrier — the `-C` engine-content RESOLUTION seam.** A consumer's read-only `patterns/` is
+    not COPIED into the consumer — it is RESOLVED from the engine install path on every `-C` operation, via
+    the already-shipped ENGINE_ROOT-fallback resolution (provenance: /; code anchors
+    `_kernel_content_file` + the patterns-granular `_resolve_pattern` + the directory-level
+    `_kernel_overlay_files` in `bin/yitc-v2` — consumer-own WINS, a missing kernel pattern resolves from
+    `ENGINE_ROOT/patterns/`). So a kernel-side pattern change is reflected on the consumer's NEXT `-C` op
+    with NO copy, NO push, NO separate refresh step — **resolution IS the refresh**. This is the export-slice
+    contract's «CORE travels as a PIN, not a copy» (element 1) + «exactly ONE writable source, never two»
+    (element 2): `[[export-slice-contract-and-core-authoring-model]]` (the governing design-input) +
+    `[[kernel-extraction-evidence-driven-engine-consumabi]]` (the `-C` resolution seam home).
+  - **WHAT travels = the POST-split GENERAL `patterns/` only.** After the kernel split (plan card C2) the codebase-LOCAL craft is moved to the kernel's `lessons/`, which is PROJECT realm and NEVER
+    enters the export slice (rule 3 + SPEC-0073 amendment). So the engine-resolved travel-set excludes
+    project-specific entries BY CONSTRUCTION — the carrier needs no per-entry filter.
+  - **The SINGLE choice point + the FAILURE MODE.** The one decision the binding settles is
+    **resolve-from-engine (CHOSEN)** vs **vendor-a-copy into the consumer (REJECTED)**. A vendored/copied
+    snapshot — or any parallel distributor / second parser — is the failure mode along TWO axes: (a) it goes
+    STALE after a kernel change (no automatic refresh), and (b) it becomes a SHADOW-authorship home for
+    `patterns/` (the phantom second truth — export-slice element 2; the read-only-invariant probe, §Verification).
+    Therefore an exercised refresh MUST resolve to EXACTLY this one carrier — **NO parallel distributor, NO
+    second parser** (CHARTER §P1 anti-complexity, §P5 single source of truth).
+  - **Scope of THIS card (C3) — the BINDING claim ONLY.** Naming the carrier + the failure mode + what
+    travels is C3's whole claim. The LIVE consumer-refresh PROOF (deliver to kupiclub, change a kernel
+    pattern, observe the updated read-only `patterns/`) is owned by the `-C init` card C4 /, NOT here.
+
+  ### 4. Graph integration — +1 node-type, NO new edge, bounded
+  Grows the graph schema from **7 node-types to 8** (`+lesson`; the scenario node took it 6→7, SPEC-0076).
+  **No new edge** — a lesson REUSES `cites` (any→any), so the 4-edge bound is UNCHANGED.
+    - `lesson` node — a THIN node (`lessons/<slug>.md` frontmatter: `lesson` slug + optional `status` +
+      `cites`), carrying `cites` exactly like the `pattern` / `scenario` / `error` nodes (prior-art for
+      node-reuses-`cites`).
+    - **Per-repo indexing:** `graph build` (already per-repo, runs under `-C`) walks `lessons/` in EACH
+      repo — the KERNEL graph indexes the kernel's own lessons; a PROJECT graph indexes that project's
+      lessons. A lesson is never indexed cross-repo (it does not travel). The 4-filter for reversing the
+      graph-slim bound is homed in GRAPH.md at the mint + the proposing plan.
+
+  ### 5. Zero-normative + no status FSM (REUSES the pattern model)
+  A lesson governs nothing, so it needs **NO `proposed→active` activation gate, NO per-status verb, and
+  NO currency/staleness machinery** — it REUSES the `pattern` reference-doc model (no FSM). An OPTIONAL
+  `status: retired` (human-set) marks an abandoned lesson, which stays in `lessons/` and is still indexed
+  (mirrors `pattern`/spec `retired`). No new field beyond `cites` + the optional `status`. (Contrast
+  SPEC-0076's scenario, which derives a richer FSM from its cited specs — a lesson is simpler, a flat
+  reference note.)
+
+  ### 6. Enforcement — storage-FORMAT only, never a content/legality gate
+  `graph build` walking `lessons/` REJECTS (exit 2) only a MALFORMED frontmatter (a storage-FORMAT
+  contract check — the same narrow exception SPEC-0076 §3 / GRAPH §What-graph-is-NOT carved for the
+  scenario `status` field, like a YAML-parse fail-closed). It NEVER judges lesson CONTENT, never gates on
+  «is this really local vs general» (the boundary criterion rule 2 is owner/AI judgement, not a detector —
+  CHARTER non-goal #7). No new hook, no new gate; the graph just indexes (GRAPH §What graph is NOT).
+
+  ### 7. Doc-taxonomy change — ADDITIVE storage row only, NO routing retirement here (CHARTER §P1 F3)
+  This spec touches ONLY canonical STORAGE taxonomy, and ADDITIVELY: it ADDS a `lessons` row to
+  `patterns/doc-conventions.md §Artifact taxonomy` naming `lessons/` as the per-repo local-craft home
+  (local → `lessons/`, general → `patterns/`). Adding a home is additive — it RETIRES no routing surface,
+  so it creates NO dissonance window even if the structural leg lands before the behavioral one.
+    - **ALL routing RETIREMENTS belong WHOLLY to the SIBLING behavioral plan**
+      (`lessons-read-surfaces-and-route-by-purpose-lane-di` / **SPEC-0091**), NOT this spec: the «a
+      project-specific craft note → `patterns/` (or no home)» route AND the «findings/analysis →
+      `pattern[observation]`» route are retired THERE, alongside the route-by-purpose ENFORCEMENT they
+      belong with — **SPEC-0091 is the single normative home of the route-by-purpose lane + read-surfaces**
+      (accept-gate F1; SPEC-0089 keeps only the producer/capture discipline). (plan-check 2026-06-19 F1:
+      retiring a routing surface HERE without a co-adoption order would leave an active routing dissonance
+      — avoided by keeping this leg additive-only.)
+    - **no NEW fallback home is added** (no shadow-pattern convention — projects never author `patterns/`);
+      the only added home is `lessons/`.
+    - **Bounded coexistence (P1 F3, plan-check round-2 F1):** because this leg only ADDS the home, the
+      old local-craft routing and the new `lessons/` home COEXIST until the sibling retires the old route.
+      That window is BOUNDED — its retirement TRIGGER is the sibling behavioral plan reaching its
+      routing-retirement landing — so the addition is not an open-ended standalone surface; the two legs
+      together satisfy «what gets removed» (the home added here, the old route subtracted there).
+
+  ## Rationale
+  Two kinds of durable craft knowledge were conflated with no clean home: project-specific notes had
+  nowhere to live except the cross-project `patterns/`, which the taxonomy frames as GENERAL — so they
+  polluted it and contradicted the taxonomy. The boundary criterion (owner-given, 2026-06-19) makes the
+  home decidable. The new node-type (vs reusing `pattern`) earns its way through the CHARTER §P1 four
+  filters — homed in the proposing plan [[patterns-vs-lessons-architecture-traveling-pattern]] §Node type
+  (existing analog = the `pattern`/`scenario`/`error` doc-that-`cites` node, shape REUSED; prior-art = v1
+  SCN-style first-class nodes + the SPEC-0076 scenario precedent + the cross-project retrofit cost,
+  CHARTER §P1 scale-aware). The `ideas/`-catch-all drift (deviation 2026-06-19) is the real incident.
+
+  ## Verification
+  - **Node resolves:** after the mint, `bin/yitc-v2 graph query <lesson-slug>` resolves a `lesson` node in
+    the KERNEL graph AND `bin/yitc-v2 -C <project> graph query <lesson-slug>` resolves one in a project graph.
+  - **Schema grew honestly:** GRAPH.md §Schema shows 8 node-types (`lesson`) and STILL 4 edge-types (no
+    new edge); `graph build` indexes `lessons/` per-repo.
+  - **Scaffold delivery:** `bin/yitc-v2 -C <project> init` delivers an empty `lessons/` + a distributed
+    read-only `patterns/` (the delivery test).
+  - **Taxonomy coherence (additive):** `patterns/doc-conventions.md §Artifact taxonomy` carries a new
+    `lessons` row + the patterns(travel)/lessons(local) boundary. (Retiring the
+    findings→pattern[observation] route is the SIBLING plan's probe, not this spec's — rule 7.)
+  - **Placement-matrix amendment:** SPEC-0073's class-default matrix carries a `lessons/` row = project
+    realm; a release/export-slice check confirms `lessons/` content NEVER enters the export slice.
+  - **Read-only invariant (Single-SoT for distributed `patterns/`, plan-check round-2 F3):** a state
+    check that a consumer has NO authoritative local-edit path for its distributed `patterns/` (kernel
+    read-only copy) and that the governed refresh is the ONLY update path — a consumer cannot establish
+    shadow authorship of `patterns/`.
+  - **Boundary holds:** after the kernel split, `patterns/` holds zero project-specific entries (read from
+    the actual tree/graph, not a ledger).
+  - **Refresh carrier is bound to EXACTLY ONE path (§3a, plan card C3):** the spec names exactly
+    ONE carrier (the `-C` engine-content resolution seam) + its failure mode (a vendored copy / parallel
+    distributor → stale + shadow authorship) — grep-checkable; the post-split travel-set excludes
+    project-specific entries by construction. The LIVE consumer-refresh proof is C4 /, NOT this spec.
+  - **Format gate:** a `lessons/` file with malformed frontmatter fails `graph build` (exit 2); a
+    well-formed one indexes without any content/legality judgement.
+
+cites:
+  - CHARTER.md#principle-1 # anti-complexity (the 4-filter for the new node-type)
+  - CHARTER.md#principle-5 # single source of truth (one home per artifact; no parallel storage)
+  - CHARTER.md#principle-7 # dissonance (lessons-in-patterns contradicted the taxonomy)
+  - GRAPH.md#schema # the 7→8 node-type schema amendment
+  - SPEC-0005 # the spec doctrine (this is a process/design spec under it)
+  - SPEC-0073 # the corpus-wide placement contract (kernel vs project realm)
+  - SPEC-0076 # the scenario node-type precedent (node-reuses-cites, +1 node shape)
+  - SPEC-0089 # the lesson PRODUCER discipline (already in trial) — the sibling stream
+  - SPEC-0091 # the route-by-purpose lane + read-surfaces home — rule 7 routing-retirement tie retargeted here (off SPEC-0089)
+  - patterns-vs-lessons-architecture-traveling-pattern # the proposing plan (the 4-filter + deliberation home)
+  - lessons-read-surfaces-and-route-by-purpose-lane-di # the sibling behavioral plan (read-surfaces/routing)
+  - export-slice-contract-and-core-authoring-model # §3a governing design-input (CORE travels as a pin, not a copy)
+  - kernel-extraction-evidence-driven-engine-consumabi # §3a the -C engine-content resolution seam (the refresh carrier home)
+
+requires: [] # no spec-level blocking ordering (the sibling behavioral plan has no requires: edge)
+supersedes: ~ # net-new node-type — supersedes nothing
+activation_owner_task: # set EXPLICITLY at decomposition (the ONE build-card that registers the
+                               # node in graph build + amends GRAPH.md); forbidden while draft.
+proposed_by: patterns-vs-lessons-architecture-traveling-pattern
+binding:
+  - query-only # reached on-demand via `graph query` (a node-type doctrine, like SPEC-0076);
+                               # the behavioral read-surfaces are the sibling plan's job, not a verb-gate here.
+  - before-project-dimension-judgement # — ALSO in the kernel↔consumer doctrine bundle: the
+                               # patterns(travel)/lessons(local) boundary IS a project-dimension judgement.
+                               # ORTHOGONAL to query-only (SPEC-0013 §Allowed-tokens: behavioral floor ⊥
+                               # residency) — query-only stays the default on-demand delivery; the floor
+                               # surface ALSO pulls it before the realm/travel decision. NOT a 2nd residency.
+
+amends: # canonical surfaces this doctrine DELIBERATELY changes (named per P7,
+                               # not silently diverged). Staged — takes effect only on activation (mint).
+  - GRAPH.md#schema: the 7-node / 4-edge bound (post-SPEC-0076) GROWS to 8 node-types (`lesson`);
+      edges UNCHANGED at 4 (`lesson` reuses `cites`). The 4-filter justification lands in GRAPH.md at
+      the mint (SPEC-0005 §7). No further node/edge growth implied.
+  - patterns/doc-conventions.md#artifact-taxonomy: ADDS a `lessons` row (the per-repo local-craft home,
+      file-per-topic) + the patterns(travel)/lessons(local) boundary. ADDITIVE — retires NO routing
+      surface (rule 7); all routing retirements + the route-by-purpose enforcement are the sibling plan's
+      surface (SPEC-0091 — the single normative home of read-surfaces + route-by-purpose). No dissonance window.
+  - SPEC-0073#class-default-matrix: ADDS the `lessons/` artifact class to the EXHAUSTIVE placement matrix
+      — realm = PROJECT (born empty per repo, never travels, never enters the export slice); the lesson
+      node-type DOCTRINE itself = kernel (travels); a consumer's distributed `patterns/` = the kernel
+      read-only copy. Required because SPEC-0073's matrix is exhaustive + mandatory (plan-check F2).
+      Applied as a spec-edit on SPEC-0073 at the mint.

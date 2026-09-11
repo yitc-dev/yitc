@@ -1,0 +1,108 @@
+id: SPEC-0081
+title: Architecture-drift inspection lens — report-only inspection lens auditing code against SPEC-0080
+
+status: active
+
+created_at:
+
+travels: ~ # RECONCILED to kernel at plan-accept (draft→proposed, 2026-06-17): a
+                               # proposed spec is a FORWARD kernel head, excluded from the active-only export
+                               # slice BY STATUS until it activates (SPEC-0073 §8 EXEMPTS proposed — only
+                               # draft/terminal carry travels:v2-self). So it now stays kernel-realm, UNMARKED
+                               # — exactly like SPEC-0080. (Was `v2-self` while DRAFT.) The lens is review
+                               # machinery in the kernel, like SPEC-0057 / SPEC-0080; the SPEC-0080
+                               # consumer-application DEFERRAL is an adoption-TIMING concern, NOT a placement realm.
+
+consumed: false # no code reads a governing scalar FROM this spec; the trigger NUMBERS live
+                               # in SPEC-0080 §Trigger surface (consulted by pointer, never duplicated here).
+
+implements: [] # documentary / cross-cutting PROCESS lens spec — SPEC-0005 §7 empty-implements
+                               # mode (a), exactly like the sibling SPEC-0057 (the inspection construct) and
+                               # SPEC-0080 (the baseline). The realizing anchor is the roster ENTRY
+                               # (patterns/inspection-criteria-roster-run-and-lenses.md §Architecture-drift lens (SPEC-0120 part-2 split)) + the manual
+                               # inspection procedure it describes — NEITHER is a code site, so `implements:` (a
+                               # spec→code edge) stays [], NOT a pattern-doc path ( execution correction,
+                               # deviation documentary-lens-spec-implements-empty-not-pattern-path).
+
+body: |
+  ## Scenario
+
+  On each weekly inspection (Review), the architecture-drift lens scans the engine corpus's CODE for
+  conformance to the SPEC-0080 code-architecture evolution principles and surfaces a READ-ONLY finding
+  — a verdict plus a candidate list. It NEVER blocks a commit or a land; it is the standing eyes that
+  see architecture drift (a file past budget, a duplicated subsystem, an unrealized declared seam)
+  BEFORE it compounds, instead of the drift being noticed only by chance (the bin/yitc-v2 monolith was
+  caught only because the owner asked).
+
+  ## Internal
+
+  THE ARCHITECTURE-DRIFT INSPECTION LENS — a themed lens in the SPEC-0057 inspection roster
+  (`patterns/inspection-criteria-roster.md`), audit baseline = SPEC-0080. It EXTENDS the existing
+  inspection construct — it adds NO new store / verb / gate / parser (CHARTER §P1; the same shape the
+  drift-possibility lens used). Same report-only posture as the existing `discipline-ratio` /
+  `canary-backstop` / `displacement-retention` lenses.
+
+  ### What it checks (each surface → a CANDIDATE finding, never a block — SPEC-0080 P-A6)
+  1. **Size budget** — code files past SPEC-0080 §Trigger surface's line budget (P-A1).
+  2. **Duplication** — a coherent subsystem (state I/O, a verb family, a prompt builder) duplicated
+     past SPEC-0080 §Trigger surface's duplication threshold (P-A1).
+  3. **Unrealized declared seam** — a charter/spec-PROMISED seam left unbuilt (P-A2; canonical instance
+     CHARTER §P5 `bin/lib/state.py`), flagged regardless of counts.
+
+  The threshold NUMBERS are read BY POINTER from SPEC-0080 §Trigger surface — they are NOT restated here
+  (P5 / SPEC-0005 rule 3: one home for the knobs, SPEC-0080).
+
+  ### Output shape — REPORT-ONLY (the hard boundary)
+  The lens yields a read-only verdict + candidate list, surfaced by the weekly inspection and recorded as
+  an `inspection_completed` event. It is NEVER a pre-commit gate, a build-time validator, or a land
+  blocker (CHARTER non-goals #2/#7; SPEC-0080 P-A6). A finding is a candidate for the next change to
+  consider, not an enforcement.
+
+  ### Knob-calibration loop (the carrier — governed, not owner vigilance)
+  The lens's recorded hit-rate + false-positive counts ARE the calibration data for SPEC-0080's
+  provisional knobs. The keep/change decision lands as a GOVERNED artifact: a knob CHANGE via a
+  `spec edit` to SPEC-0080 §Trigger surface (the before-rule-change chokepoint); a knob KEPT-UNCHANGED
+  via the `inspection_completed` evidence citing the data that justified leaving it. The AI running the
+  the inspection owns this from the lens output — the owner is never in the calibration loop.
+
+  ### Baseline-authority sequencing
+  The lens may RUN against SPEC-0080's provisional (pre-`active`) wording during the proposing plan's
+  `trial`; it is declared done (its plan reaches `realized`) only once SPEC-0080 is `active` — the
+  principles it enforces must be normative before the lens is final. Directional dependency, carried by
+  this rule + the `cites` baseline, not a blocking `requires:` on the design phase.
+
+  ## Parameters
+
+  None consumed. The trigger numbers (line budget / duplication threshold) live in SPEC-0080
+  §Trigger surface and are consulted by pointer, never read as a scalar param from this spec.
+
+  ## Rationale
+
+  Real incident: `bin/yitc-v2` reached one 20,347-line file with a never-built CHARTER §P5
+  `bin/lib/state.py`, caught only because the owner asked (`decisions/monolith-split-readiness-audit-adhoc.yaml`
+  = YELLOW). Prior-art: the drift-possibility lens added to the SAME SPEC-0057 roster (the precedent
+  shape). Full deliberation lives in the proposing plan (SPEC-0005 rule 3 content-boundary), not here.
+
+  ## Verification
+
+  - **Would-have-fired (honesty test):** a real inspection run emits an `inspection_completed` covering the
+    architecture-drift theme that FLAGS `bin/yitc-v2` from SPEC-0080's named thresholds (line budget
+    exceeded + duplication ≥ threshold + the unrealized §P5 seam) — not a judgement call.
+  - **Report-only (state-check):** no pre-commit / land gate references this spec; the realized check is
+    a read-only inspection finding only.
+
+cites:
+  - SPEC-0080
+  - SPEC-0057
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-6
+  - architecture-drift-inspection-lens-extends-spec-00
+
+requires: []
+supersedes: ~
+activation_owner_task: # set at the plan's decomposition (2026-06-17) to the ONE card that activates this spec; was ~ while draft (SPEC-0005 §5). Per-spec home; set at the plan's decomposition to
+                               # the ONE task chosen to activate this spec (plan-born activation, SPEC-0034).
+proposed_by: architecture-drift-inspection-lens-extends-spec-00
+binding:
+  - query-only # not a verb-fetched retrieved spec; a lens consulted by the weekly inspection.
+                               # The roster entry / lens mechanism is the implements: anchor at activation.

@@ -1,0 +1,1424 @@
+#!/usr/bin/env bash
+# Deterministic, provider-INDEPENDENT security-audit EVIDENCE PRODUCER — kernel init scaffold.
+#
+# SPEC-0145 §2/§3/§5: a MECHANICAL script (no AI in the loop) runs on a SYSTEM trigger (cron/systemd —
+# NOT a provider scheduler), read-only, and writes an EVIDENCE-RICH report
+# to the in-place, gitignored `.yitc/findings/<date>-security.yaml`. The deploy/gate side reads
+# that report and REJECTS anything stale-by-SLA OR incomplete/inconsistent-by-evidence — this producer's
+# whole job is to make the report HONESTLY FRESH by carrying the FULL §5 evidence schema plus a
+# recomputable content-hash. Retiring any AI role can never orphan the gate, because the producer is this
+# script on a system trigger, not a role (incident).
+#
+# DESIGN lifted + GENERALIZED from the social-parser prior-art `bin/security-audit.sh` (READ-ONLY
+# provenance): a set of deterministic read-only probes, each recording its own exit code + scope, whose
+# findings carry a STABLE fingerprint + fresh evidence, ending in a report content-hash over the body.
+# This kernel scaffold keeps the DESIGN but drops the project-specific probes — a freshly-`init`ed
+# consumer gets generic, self-contained checks it can extend (declare its concrete `runner:` in the
+# `security.audit` carrier, SPEC-0145 §6). Mutates NOTHING (read-only).
+#
+# §5 PINNED evidence schema this report carries (every field gate-required + non-empty to ACCEPT) —
+# the exact canonical field NAMES single-sourced in SPEC-0145 §5:
+# date · run_at · run_identity · tool_versions · checks (id+exit_code+ran_at) · scanned_paths (LIST,
+# input scope) · required_scope (LIST) · dependency_lockfile_hashes (MAPPING {path: sha256}) ·
+# prior_baseline · fingerprint_derivation · findings (the ONE canonical key, never `items` — §5
+# rule 4) · report_hash (final line, over the pinned canonical text — see the hash block below).
+set -uo pipefail
+
+# The GENERIC kernel scaffold's self-declared identity (SPEC-0145 §9). ONE constant, used BOTH for the
+# emitted `produced_by:` line and for the §9b guard below: a consumer that takes real ownership by
+# extending + RENAMING this runner edits this one place, and the guard self-disables (it is then no
+# longer the generic scaffold, so §9's direction-awareness stops binding it).
+SCAFFOLD_ID="bin/security-audit"
+
+# ── SPEC-0154 rule 4 — the MODE DISCRIMINATOR (`produced_by`, never prose) ───────────────────────────
+# KERNEL_SCAFFOLD_ID is the IMMUTABLE kernel identity; SCAFFOLD_ID above is the one line a fork edits to
+# take ownership. Comparing them IS the discriminator, so the mode is read off `produced_by` itself:
+# scaffold mode (equal) — this IS the kernel scaffold: it is the sole report assembler, schema
+# authority and hash signer (rule 1), and the hook machinery below is LIVE.
+# foreign mode (unequal) — this file has been renamed/adopted as a project's own full producer
+# (SPEC-0145 §9 foreign-over-scaffold, the permitted take-ownership
+# direction). It is then in LEGACY FULL-PRODUCER mode and the hook machinery
+# is entirely INERT: no carrier read, no hook discovery, no hook execution,
+# no adapter block — and (per rule 3's bound) a present-but-undeclared hook
+# file can NEVER fail-close a legacy fork.
+KERNEL_SCAFFOLD_ID="bin/security-audit"
+if [ "$SCAFFOLD_ID" = "$KERNEL_SCAFFOLD_ID" ]; then PRODUCER_MODE="scaffold"; else PRODUCER_MODE="foreign"; fi
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO" || { echo "security-audit: cannot cd to repo root" >&2; exit 2; }
+
+TODAY="$(date -u +%F)"
+NOW="$(date -u +%FT%TZ)"
+mkdir -p "$REPO/.yitc/findings"
+OUT="$REPO/.yitc/findings/${TODAY}-security.yaml"
+
+# ── run-scoped cleanup (SPEC-0155 rule 2 atomic publication) ─────────────────────────────────────────
+# ONE consolidated EXIT trap owns every run-scoped temp path — the run-scoped report temp (below) AND the
+# hook sandbox (the hook block registers into this list instead of setting its own clobbering trap). A
+# run killed at any point removes only its own temp artifacts; the last COMPLETED report is never touched.
+_CLEANUP_PATHS=
+_cleanup { local p; for p in "${_CLEANUP_PATHS[@]:-}"; do [ -n "$p" ] && rm -rf "$p"; done; }
+trap _cleanup EXIT
+
+# ── SPEC-0145 §9b — refuse to RUN over a foreign producer's report (fail CLOSED, before any write) ────
+# A report is FOREIGN when its TOP-LEVEL `produced_by:` is anything other than SCAFFOLD_ID, INCLUDING
+# absent (an unattributable report is never assumed to be ours). `sed` anchors at column 0, so a nested
+# `produced_by:` inside a finding cannot spoof ownership. Refuse for the GENERIC scaffold only.
+# Ownership is judged by CURRENT state — the LATEST-by-date report only (the `<date>-security.yaml`
+# naming convention makes the lexicographically-last file the newest), never by ANY historical report
+# (X-0321): an older foreign report sitting alongside a newer core-owned latest is history, not
+# ownership, and must not block the scaffold FOREVER. This mirrors the init §9a guard's D1 detector
+# (`bin/lib/init.py#_foreign_security_producer`) so the two seams answer ownership identically.
+# Fail-closed keeps its bite where the LATEST report is foreign or unattributable.
+_latest_report=""
+for _report in "$REPO"/.yitc/findings/*-security.yaml; do
+  [ -e "$_report" ] || continue # nullglob-less guard: greenfield has no reports
+  _latest_report="$_report" # glob expands sorted → last iteration = newest
+done
+if [ -n "$_latest_report" ]; then
+  _pb="$(sed -n 's/^produced_by:[[:space:]]*//p' "$_latest_report" | head -1 | tr -d '"'\''' | tr -d '\r')"
+  if [ "$_pb" != "$SCAFFOLD_ID" ]; then
+    echo "security-audit: REFUSING to run — ${_latest_report} is owned by a foreign security producer" >&2
+    echo " produced_by: ${_pb:-<absent>} (expected ${SCAFFOLD_ID})" >&2
+    echo " The generic kernel scaffold never overwrites a findings path another producer owns" >&2
+    echo " (SPEC-0145 §9b, fail-closed). Nothing was written." >&2
+    echo " Remedy: keep your own producer (run IT on your cadence), or retire it and declare" >&2
+    echo " \`security.audit.runner: ${SCAFFOLD_ID}\` in yitc-ops.yaml." >&2
+    exit 3
+  fi
+fi
+
+# ── SPEC-0155 rule 2 — SINGLE-WRITER lock-guard (serialize cadence + deploy-seam runs) ────────────────
+# ONE producer identity serves BOTH triggers; the run is lock-guarded so concurrent cadence/seam runs
+# SERIALIZE over the whole compute+publish and never interleave. flock is the family's serialization
+# primitive (prior-art: bin/lib/events.py, bin/lib/spec.py — no new mechanism). Acquired ONLY HERE, AFTER
+# the §9b foreign-producer guard, so a refused run creates NO artifact (not even this lock file) before
+# that guard's "Nothing was written" promise holds. FD 9 stays open for the process; the lock releases on
+# exit. flock UNAVAILABLE → FAIL CLOSED: a security producer never runs without its serialization
+# guarantee (flock is present on the kernel/consumer Linux hosts). Blocking, so runs queue, never race.
+LOCK_FILE="$REPO/.yitc/findings/.security-audit.lock"
+if ! command -v flock >/dev/null 2>&1; then
+  echo "security-audit: REFUSING to run — flock is unavailable, cannot guarantee single-writer" >&2
+  echo " serialization (SPEC-0155 rule 2). A security producer never runs without its lock-guard." >&2
+  echo " Nothing was written. Remedy: install util-linux (flock) on this host." >&2
+  exit 2
+fi
+exec 9>"$LOCK_FILE" || { echo "security-audit: cannot open lock file $LOCK_FILE" >&2; exit 2; }
+flock 9 || { echo "security-audit: cannot acquire single-writer lock $LOCK_FILE" >&2; exit 2; }
+
+HEAD_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# Full commit hash of the scanned checkout — the code-identity partner of dependency_lockfile_hashes,
+# emitted as the SPEC-0145 §5 supplemental `commit_identity` field (gate-IGNORED for cadence
+# completeness; consumed ONLY at the deploy-seam identity-match judgement, SPEC-0155 §4). `head` stays
+# the short human-facing SHA; this is the full, unambiguous hash the seam gate matches on.
+COMMIT_IDENTITY="$(git rev-parse HEAD 2>/dev/null || echo unknown)"
+HOSTID="$(hostname 2>/dev/null || echo unknown-host)"
+PREV="$(ls "$REPO"/.yitc/findings/*-security.yaml 2>/dev/null | sort | grep -v "${TODAY}-security.yaml" | tail -1)"
+
+# ── SPEC-0155 rule 3 — ADVISORY-FETCH CACHE (cadence prewarm / deploy-seam bounded-fresh reuse) ───────
+# The dependency-vulnerability probes (CHECK 4) fetch an external advisory DB (npm audit / pip-audit).
+# An advisory-service OUTAGE must never fail-close a deploy. So: a COMPLETED scan PREWARMS a per-unit
+# cache under the already-gitignored `.yitc/`; when a later run's live fetch is unreachable (the scanner
+# RAN but produced no result — NOT tool-absence/no-target), a BOUNDED-FRESH cache is reused instead.
+# "Bounded-fresh" is SINGLE-SOURCED — no advisory data older than the project's DECLARED
+# `security.audit.freshness_sla` (SPEC-0145 §6, the SAME window the gate judges reports by; NO new
+# threshold key). With no bounded-fresh cache the PINNED degrade applies (the SEC-DEP-ADVISORY-UNAVAILABLE
+# `warning` finding below): the in-scope check records `unavailable` + its exit code, the report stays
+# COMPLETE + gate-acceptable, the deploy is NOT fail-closed, and the outage is debt-visible (SPEC-0119).
+ADVISORY_CACHE_DIR="$REPO/.yitc/findings/.advisory-cache"
+ADVISORY_DEGRADED=0
+ADVISORY_DEGRADE_NOTES=""
+
+# ── SPEC-0145 §5 scope-honesty — the SCANNER-ABSENT marker (X-0724) ─────────────────────────
+# A DISTINCT cause from the advisory outage above, tracked in its own pair of variables (same idiom):
+# the applicable ecosystem's scanner is NOT INSTALLED (`_dep_run` exit 127), so the probe never ran at
+# all. Recording that only on the CHECK left the report finding-free and therefore gate-ACCEPTABLE — a
+# probe that never looked, reading exactly like a probe that found nothing (X-0724, aiseller: pip-audit
+# existed in one user's ~/.local/bin and nowhere else, so every other actor's audit silently skipped the
+# check and still passed). These notes drive the PINNED blocking finding assembled further below.
+SCANNER_MISSING=0
+SCANNER_MISSING_NOTES=""
+SCANNER_MISSING_TOOLS=""
+# The cache freshness bound in whole days, READ from the declared `freshness_sla` carrier (single source,
+# SPEC-0145 §6). Mirrors the gate's `_sla_to_days` forms (P<n>D / P<n>W / bare-int); the DECLARED VALUE
+# is single-sourced — only the trivial ISO-duration decode is local. Default 7 = the gate's
+# DEFAULT_FRESH_DAYS when the carrier declares no SLA.
+# RAW `yaml.safe_load` — JUSTIFIED, do NOT route through `bin/lib/state.py` ( sweep): this runner
+# is BYTE-COPIED into a consumer's own `bin/` (SPEC-0145 §9 `_deliver_cadence_scaffold`), where `bin/lib/`
+# does not exist, and each carrier read is a FRESH `python3 -` interpreter with no path to the engine lib.
+# It must also stay inert where PyYAML is absent (the `except ImportError` degrade below) — a hard
+# `from lib import state` would turn both into a crash. Self-containment IS this scaffold's contract.
+ADVISORY_SLA_DAYS="$(python3 - "$REPO/yitc-ops.yaml" <<'PY' 2>/dev/null || echo 7
+import re, sys
+try:
+    import yaml
+except ImportError:
+    print(7); sys.exit(0)
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        ops = yaml.safe_load(f)
+except (OSError, yaml.YAMLError):
+    print(7); sys.exit(0)
+sla = None
+if isinstance(ops, dict):
+    sec = ops.get("security")
+    aud = sec.get("audit") if isinstance(sec, dict) else None
+    if isinstance(aud, dict):
+        sla = aud.get("freshness_sla")
+s = str(sla).strip if sla is not None else ""
+days = 7
+mw = re.match(r"^P(\d)W$", s, re.IGNORECASE)
+md = re.match(r"^P(\d)D$", s, re.IGNORECASE)
+mb = re.match(r"^(\d)[dD]?$", s)
+if mw:
+    days = int(mw.group(1)) * 7
+elif md:
+    days = int(md.group(1))
+elif mb:
+    days = int(mb.group(1))
+print(days)
+PY
+)"
+ADVISORY_SLA_DAYS="${ADVISORY_SLA_DAYS:-7}"
+
+# --- run/agent identity (§5): deterministic script, this host, this pid, this HEAD ---
+RUN_ID="${HOSTID}:$$:${HEAD_SHA}"
+
+# --- tracked-file scope for the grep-based probes (input scope, §5) ---
+# Prefer git's tracked set (deterministic, no walking.yitc/ or vendored dirs); fall back to a bounded find.
+# BOTH sources yield REPO-RELATIVE paths (cwd is $REPO): the fallback walks `.` and strips the `./` prefix,
+# so a repo-root-anchored path filter (`^`) means the same thing whichever source ran. Before this, the
+# fallback emitted ABSOLUTE paths — an anchored exclusion (below) would have silently not applied there.
+if TRACKED="$(git ls-files 2>/dev/null)" && [ -n "$TRACKED" ]; then
+  SCAN_SOURCE="git-ls-files"
+else
+  TRACKED="$(find. -type f -not -path '*/.git/*' -not -path '*/.yitc/*' 2>/dev/null | sed 's|^\./||')"
+  SCAN_SOURCE="find"
+fi
+SCAN_COUNT="$(printf '%s\n' "$TRACKED" | grep -c.)"
+
+# --- archived corpora: NOT live source ---
+# A repo may carry a frozen predecessor corpus (`v1-archive/`) — archived reports, retros, ledgers whose
+# NARRATIVE quotes the very secret-shaped defaults it was auditing. That prose is history, not a live
+# credential surface: grepping it produces CRITICALs no one can ever resolve (fixing them means rewriting
+# history), which fail-close the deploy gate on a finding with no live referent — observed on aiseller
+# (4 archived-prose CRITICALs, `v1-archive/reports/*`, blocking).
+# The pattern is REPO-ROOT-ANCHORED and fail-closed: a nested `*/v1-archive/` under live source (say
+# `backend/app/v1-archive/`) is NOT excluded — only a top-level archived corpus is, the one shape both
+# archive-carrying repos actually use. Scope-only: the secret grep reads live source; CHECK 2 still scans
+# the FULL tracked set, because an archived committed `.pem`/`.env` is a real leaked secret, not prose.
+ARCHIVED_CORPORA_RE='^v1-archive/'
+
+# ---------------------------------------------------------------------------------------------------
+# Deterministic read-only probes. Each records: an exit code, a timestamp, and its scanned scope.
+# A probe's unavailability is RECORDED, never fatal (the report stays honest about what could not run).
+# ---------------------------------------------------------------------------------------------------
+
+# CHECK 1 — hardcoded-secret grep across tracked text files (assignment-shaped secret literals).
+# STATEMENT-POSITION anchored (X-0310): the secret keyword must be the LHS of a real
+# `key = "literal"` / `key: "literal"` assignment at the START of the line — NOT prose deeper inside a
+# string. Before the `^` anchor, `password: "` occurring MID-line inside instructional/prompt string
+# CONTENT false-matched and fail-closed a consumer deploy (X-0310, live on trend-finder:
+# `password = input("Admin password: ").strip` matched the `password:` inside the `"Admin password:
+# "` literal, its closing `"` + trailing `).strip` completing the pattern). The anchor permits before
+# the keyword ONLY: leading whitespace, a bounded ALLOWLIST of declaration keywords (const/let/var/
+# export/public/... — so JS/TS `const password = "..."` / `let token = "..."` real assignments still
+# match), and an optional dot-terminated member prefix (`self.`/`this.`/`obj.`). It deliberately does
+# NOT allow a bare identifier before the keyword — that would re-admit the prose shape `Admin password:
+# "..."` / `Set password: "..."` this fix exists to reject. This is a fail-closed NARROWING (per the
+# card: shrink the false-positive class rather than widen the exclusion tail): a secret passed as a
+# mid-line call kwarg, or a Java-style TYPED field (`private String password = "..."`, a bare type
+# name before the keyword), is no longer caught — accepted trades for killing the prose FP. The `["']?`
+# around the key additionally catches JSON-quoted keys the old spelling missed. Exclusion tail below unchanged.
+SECRET_TS="$(date -u +%FT%TZ)"
+# LIVE-SOURCE list = tracked minus binaries minus the archived corpora (see ARCHIVED_CORPORA_RE above).
+# Materialized once so the check reports its OWN input scope (SECRET_SCAN_COUNT), not the repo-wide one —
+# an evidence-honesty requirement (SPEC-0145 §5 scope honesty): a check must say what it actually read.
+SECRET_LIVE_FILES="$(printf '%s\n' "$TRACKED" \
+  | grep -viE '\.(png|jpe?g|gif|pdf|lock|min\.js|map)$' \
+  | grep -vE "$ARCHIVED_CORPORA_RE")"
+SECRET_SCAN_COUNT="$(printf '%s\n' "$SECRET_LIVE_FILES" | grep -c.)"
+SECRET_HITS="$(printf '%s\n' "$SECRET_LIVE_FILES" \
+  | while IFS= read -r f; do [ -f "$f" ] && printf '%s\0' "$f"; done \
+  | xargs -0 -r grep -InE '^[[:space:]]*((export|const|let|var|public|private|protected|static|readonly|final|val)[[:space:]])*([A-Za-z_][A-Za-z0-9_]*\.)?["'"'"']?(password|secret|api[_-]?key|token|passwd)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']{6,}' 2>/dev/null \
+  | grep -viE 'getenv|environ|os\.env|process\.env|example|sample|placeholder|xxx|<[a-z_]+>|test_|_test|dummy|redacted' \
+  | grep -c.)"
+SECRET_EXIT=$?
+SECRET_HITS=${SECRET_HITS:-0}
+
+# CHECK 2 — tracked env/secret files that must never be committed (.env, *.pem, id_rsa, *.p12/pfx).
+ENV_TS="$(date -u +%FT%TZ)"
+ENV_TRACKED="$(printf '%s\n' "$TRACKED" \
+  | grep -iE '(^|)(\.env(\..)?|.*\.pem|id_rsa|.*\.p12|.*\.pfx|.*\.key)$' \
+  | grep -viE '\.pub$|example|sample|\.enc$' \
+  | grep -c.)"
+ENV_EXIT=$?
+ENV_TRACKED=${ENV_TRACKED:-0}
+
+# CHECK 3 — dependency lockfile inventory + content hashes (§5 dependency-lockfile hash(es)).
+# Deterministic sha256 over each known lockfile in scope; absence recorded as an empty inventory.
+# Emitted under the PINNED canonical key `dependency_lockfile_hashes` as a MAPPING `{path: sha256_16}`
+# (SPEC-0145 §5 pin — NOT the retired `dependency_lockfiles`-as-a-list spelling the gate never read).
+LOCK_TS="$(date -u +%FT%TZ)"
+LOCK_FILES="$(printf '%s\n' "$TRACKED" \
+  | grep -iE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Pipfile\.lock|requirements\.txt|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$' \
+  | sort)"
+LOCK_EXIT=0
+LOCK_YAML=""
+LOCK_COUNT=0
+if [ -n "$LOCK_FILES" ]; then
+  while IFS= read -r lf; do
+    [ -f "$lf" ] || continue
+    h="$(sha256sum "$lf" 2>/dev/null | cut -c1-16)"; h="${h:-unavailable}"
+    LOCK_YAML="${LOCK_YAML} \"${lf}\": \"${h}\"
+"
+    LOCK_COUNT=$((LOCK_COUNT + 1))
+  done <<< "$LOCK_FILES"
+else
+  LOCK_YAML=" {} # no dependency lockfiles found in scope
+"
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# CHECK 4 — DEPENDENCY-VULNERABILITY audit (SPEC-0154 rule 6 — the X-0306 half-2 fix).
+#
+# CHECK 3 above inventories WHICH lockfiles exist; it never asks whether the pinned deps are
+# VULNERABLE. This probe asks — and its results enter the report as FIRST-CLASS FINDINGS (stable
+# fingerprint + severity + status), never as the bare probe SCALAR the incident found
+# (`npm_audit: "5 vulnerabilities (1 moderate, 4 high)"` — a string that can enter NO waiver, NO
+# gate and NO debt machinery: it has no fingerprint to waive, no severity to block on, no status
+# to age).
+#
+# TWO-LEVEL SCOPE GATE (the honesty contract; audit-pre YELLOW-1):
+# out of ECOSYSTEM scope (no lockfile of that ecosystem) — NOT APPLICABLE: no check record, no
+# tool_versions entry, no findings. A repo with no npm/python deps owes nothing here, and its
+# report body stays BYTE-IDENTICAL to a pre-CHECK-4 run.
+# in ECOSYSTEM scope — APPLICABLE, and therefore ALWAYS recorded in `checks:` — INCLUDING when the
+# scanner tool itself is absent (exit_code 127 / `unavailable`, zero findings). An in-scope repo
+# whose scanner did not run must SAY SO: a silently-absent check is exactly the date-only
+# freshness the concern retires (SPEC-0145 §4).
+#
+# Both tools exit NONZERO precisely when they FIND something, so the exit code is RECORDED like every
+# other probe's and is never treated as failure — only the parsed JSON decides the findings.
+# ---------------------------------------------------------------------------------------------------
+DEP_TS="$(date -u +%FT%TZ)"
+DEP_TIMEOUT="${YITC_SECURITY_DEP_AUDIT_TIMEOUT:-120}" # bounded like the hook's (advisory-DB fetch)
+DEP_CHECKS_YAML=""
+DEP_TOOLS_YAML=""
+DEP_FINDINGS_YAML=""
+DEP_OPEN_COUNT=0
+
+NPM_APPLICABLE=0
+PY_APPLICABLE=0
+printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' && NPM_APPLICABLE=1
+printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|)(poetry\.lock|Pipfile\.lock|requirements\.txt)$' && PY_APPLICABLE=1
+
+# THE SCAN TARGET MUST BE THE REPO'S PINNED DEPS — NOT THE HOST ENVIRONMENT (audit-post finding).
+# `npm audit` reads the lockfile in its cwd, so running it from $REPO is already repo-scoped. But a BARE
+# `pip-audit` audits the ACTIVE PYTHON ENVIRONMENT, not the repo's files — so it would report the HOST's
+# installed packages and MISS the very pinned dependencies that put this repo in scope: the probe would
+# answer a question nobody asked while appearing to answer the right one. pip-audit's repo-scoped input
+# is `-r <requirements-file>`, so the requirements files ARE the target list; a repo pinned ONLY by a
+# `poetry.lock` / `Pipfile.lock` has NO pip-audit-auditable target (pip-audit takes neither), and that is
+# recorded as `unavailable` — honestly out of reach — rather than silently scanning the host env.
+PY_REQ_FILES="$(printf '%s\n' "$LOCK_FILES" | grep -iE '(^|)requirements\.txt$' || true)"
+
+_dep_run { # $1 = tool, rest = argv — bounded; prints stdout, returns exit code
+  if ! command -v "$1" >/dev/null 2>&1; then return 127; fi
+  if command -v timeout >/dev/null 2>&1; then timeout "$DEP_TIMEOUT" "$@" 2>/dev/null; else "$@" 2>/dev/null; fi
+}
+
+# `_dep_result` and `_dep_convert` are USED by the per-lockfile-dir npm loop below, so both are defined
+# HERE — ahead of their old post-run site. `_dep_result` renders a probe run's honest one-line result
+# string (moved up verbatim, unchanged). `_dep_convert` is the SPEC-0154 rule-6 CONVERTER hoisted into a
+# REUSABLE single-source function so npm (once PER lockfile directory) and pip each feed it the SAME
+# python3+yaml parser — no new parser path (CHARTER §P5). It reads CONV_MODE (npm|pip) + the raw payload
+# (NPM_LOCKDIR for npm) from the environment, and prints "<count>\t<completed>" then a `---` sentinel
+# then the 2-space-indented canonical findings fragment.
+_dep_result { # $1 = tool, $2 = exit code, $3 = completed?(1/0), $4 = finding count
+  if [ "$2" = 127 ]; then echo "$1=unavailable (not installed)"
+  elif [ "$2" = 126 ]; then echo "$1=unavailable (no repo-scoped target: poetry.lock/Pipfile.lock are not pip-audit inputs)"
+  elif [ "$3" != 1 ]; then echo "$1=unavailable (did not complete; exit=$2)"
+  else echo "vulnerable_dependencies=$4"; fi
+}
+
+_dep_convert {
+  # The `VAR=val _dep_convert` caller-assignments are visible here (function-scope), and this `python3`
+  # prefix RE-EXPORTS them into the subprocess so `os.environ` sees them.
+  CONV_MODE="${CONV_MODE:-}" NPM_RAW="${NPM_RAW:-}" NPM_LOCKDIR="${NPM_LOCKDIR:-}" \
+  PIP_RAW="${PIP_RAW:-}" python3 - <<'PY' 2>/dev/null || true
+import hashlib
+import json
+import os
+import re
+import sys
+
+import yaml
+
+CHECK_ID = "SEC-DEP-VULN"
+
+# The MAPPING onto the report's EXISTING severity vocabulary — the load-bearing half of rule 6. The two
+# consumers pin that vocabulary between them: `bin/v2-security-gate` BLOCKS a deploy on an open
+# {critical, high} finding, and the SPEC-0119/ debt view counts an aged open {warning, info} one.
+# npm/pip speak a different dialect ("moderate", "low", unranked), which belongs to NEITHER set — so an
+# UNMAPPED severity would land in the gap and be silently uncountable by both. An unrecognized severity
+# therefore maps to `warning` (VISIBLE as debt), never to something that would drop it out of both.
+SEVERITY_MAP = {
+    "critical": "critical", "high": "high",
+    "moderate": "warning", "medium": "warning",
+    "low": "info", "info": "info", "informational": "info", "none": "info",
+}
+UNRANKED = "warning"
+ADVISORY_RE = re.compile(r"(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|CVE-\d{4}-\d)", re.IGNORECASE)
+
+
+def sha16(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest[:16]
+
+
+def finding(ecosystem, package, advisory, raw_sev, summary, url, affected, fix, lockdir=""):
+    # A NON-ROOT lockdir is folded into the ecosystem TAG, so the finding's title — and thus its
+    # fingerprint sha256(check_id LF title) — is STABLE per dir+advisory AND distinct from a
+    # same-advisory finding in another lockfile directory (X-0311). The ROOT lockfile ("" / ".") keeps
+    # the pre- tag VERBATIM, so a root-only repo's findings stay byte-identical (the regression
+    # contract): title, evidence and fingerprint are all unchanged there.
+    ld = (lockdir or "").strip
+    tag = f"{ecosystem}:{ld}" if ld and ld != "." else ecosystem
+    title = f"Vulnerable dependency: {package} ({tag}, {advisory})"
+    raw = str(raw_sev or "").strip.lower
+    return {
+        "check_id": CHECK_ID,
+        "severity": SEVERITY_MAP.get(raw, UNRANKED),
+        "status": "open", # a REPORTED vulnerability IS open; the scaffold re-derives
+        "fingerprint": sha16(f"{CHECK_ID}\n{title}"), # status from the live surface each run and never
+        "title": title, # carries one forward — a fixed dep just stops appearing.
+        "what": (f"{ecosystem} dependency `{package}` is affected by {advisory}"
+                 f" (reported severity: {raw or 'unranked'})."
+                 + (f" {summary}" if summary else "")),
+        "evidence": (f"{ecosystem}-audit"
+                     + (f" [lockdir={ld}]" if ld and ld != "." else "")
+                     + f" @ affected={affected or 'unspecified'};"
+                     f" fix={fix or 'unspecified'}; ref={url or 'none'}"),
+        "_sort": (tag, str(package), str(advisory)),
+    }
+
+
+def npm_findings(raw, lockdir=""):
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    vulns = payload.get("vulnerabilities") if isinstance(payload, dict) else None
+    if not isinstance(vulns, dict):
+        return []
+    out = []
+    for package, entry in vulns.items:
+        if not isinstance(entry, dict):
+            continue
+        pkg_sev = entry.get("severity")
+        fix = entry.get("fixAvailable")
+        affected = entry.get("range")
+        advisories = []
+        for via in (entry.get("via") or []):
+            # A STRING `via` is a transitive POINTER to another vulnerable package (which carries its
+            # own entry + its own advisories) — it names no advisory, so it is not a unit of its own.
+            if not isinstance(via, dict):
+                continue
+            aid = str(via.get("source") or "").strip
+            if not aid:
+                match = ADVISORY_RE.search(str(via.get("url") or ""))
+                aid = match.group(1).upper if match else ""
+            advisories.append((aid or "unspecified", via.get("severity") or pkg_sev,
+                               str(via.get("title") or ""), str(via.get("url") or "")))
+        if not advisories:
+            # Vulnerable, but npm named no advisory object (a purely transitive entry). Still a
+            # first-class finding — never silently dropped.
+            advisories = [("unspecified", pkg_sev, "", "")]
+        for aid, sev, summary, url in advisories:
+            out.append(finding("npm", package, aid, sev, summary, url, affected,
+                               "available" if fix else "none", lockdir))
+    return out
+
+
+def pip_findings(raw):
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    deps = payload.get("dependencies") if isinstance(payload, dict) else payload
+    if not isinstance(deps, list):
+        return []
+    out = []
+    for dep in deps:
+        if not isinstance(dep, dict):
+            continue
+        package = str(dep.get("name") or "unknown")
+        version = str(dep.get("version") or "")
+        for vuln in (dep.get("vulns") or []):
+            if not isinstance(vuln, dict):
+                continue
+            aid = str(vuln.get("id") or "unspecified")
+            fixes = vuln.get("fix_versions")
+            out.append(finding(
+                "pip", package, aid,
+                vuln.get("severity"), # pip-audit advisories are UNRANKED → mapped to `warning`
+                " ".join(str(vuln.get("description") or "").split)[:180],
+                "", version, ", ".join(str(v) for v in fixes) if isinstance(fixes, list) and fixes else "none"))
+    return out
+
+
+def npm_completed(raw):
+    """Did npm actually PRODUCE a report? Exit code alone cannot say: npm audit exits NONZERO both when
+    it FINDS vulnerabilities and when it dies, and a timed-out/crashed scanner emits no (or an error)
+    payload. The honest discriminator is therefore the OUTPUT — a payload carrying the
+    `vulnerabilities` section IS a completed scan (an empty section = a clean scan); anything else
+    (empty stdout on a timeout, an `{"error":...}` object, garbage) is a scan that did not run."""
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        return False
+    return isinstance(payload, dict) and isinstance(payload.get("vulnerabilities"), dict)
+
+
+def pip_completed(raw):
+    try:
+        payload = json.loads(raw)
+    except (ValueError, TypeError):
+        return False
+    return isinstance(payload, list) or (isinstance(payload, dict)
+                                         and isinstance(payload.get("dependencies"), list))
+
+
+mode = os.environ.get("CONV_MODE", "")
+if mode == "npm":
+    raw = os.environ.get("NPM_RAW", "")
+    fnd = npm_findings(raw, os.environ.get("NPM_LOCKDIR", ""))
+    completed = npm_completed(raw)
+else:
+    raw = os.environ.get("PIP_RAW", "")
+    fnd = pip_findings(raw)
+    completed = pip_completed(raw)
+findings = sorted(fnd, key=lambda f: f.pop("_sort"))
+
+# line 1 = this source's finding count + its COMPLETION flag (bash needs both); then the canonical
+# findings fragment (2-space indented list items, ready to splice into the ONE `findings:` list the core
+# owns — rule 1: the core is the sole assembler).
+print(f"{len(findings)}\t{int(completed)}")
+print("---")
+if findings:
+    text = yaml.safe_dump(findings, sort_keys=False, default_flow_style=False).rstrip("\n")
+    print("\n".join(" " + line for line in text.splitlines))
+PY
+}
+
+# ── SPEC-0155 rule 3 — the advisory-cache store/load helper ───────────────────────────────────────────
+# ONE python source, MODE-selected (the `_dep_convert` single-source idiom — no new parser path, §P5):
+# store — wrap a COMPLETED scanner payload as {key, cached_at=NOW, payload} under a sha16(key) filename
+# (the cadence PREWARM). Best-effort: a cache-write failure never fails the run.
+# load — emit the cached payload on stdout IFF it is BOUNDED-FRESH (age = NOW - cached_at, in whole
+# days, <= AC_SLA_DAYS); else exit nonzero (miss / stale / clock-anomaly) so the caller
+# degrades. The freshness bound is the declared freshness_sla days (passed in AC_SLA_DAYS).
+_advisory_cache { # AC_MODE=store|load AC_KEY=<unit> [AC_PAYLOAD=<raw> | AC_SLA_DAYS=<n>]
+  AC_MODE="${AC_MODE:-}" AC_KEY="${AC_KEY:-}" AC_PAYLOAD="${AC_PAYLOAD:-}" \
+  AC_SLA_DAYS="${AC_SLA_DAYS:-7}" AC_DIR="$ADVISORY_CACHE_DIR" AC_NOW="$NOW" \
+  python3 - <<'PY' 2>/dev/null
+import hashlib, json, os, sys
+from datetime import datetime, timezone
+
+mode = os.environ.get("AC_MODE", "")
+key = os.environ.get("AC_KEY", "")
+cdir = os.environ.get("AC_DIR", "")
+if not mode or not key or not cdir:
+    sys.exit(1)
+path = os.path.join(cdir, hashlib.sha256(key.encode("utf-8")).hexdigest[:16] + ".json")
+
+
+def _parse(ts):
+    return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+if mode == "store":
+    try:
+        os.makedirs(cdir, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"key": key, "cached_at": os.environ.get("AC_NOW", ""),
+                       "payload": os.environ.get("AC_PAYLOAD", "")}, f)
+    except OSError:
+        sys.exit(1) # best-effort prewarm — a write failure is not fatal to the run
+    sys.exit(0)
+
+# load
+try:
+    with open(path, encoding="utf-8") as f:
+        rec = json.load(f)
+    age = (_parse(os.environ["AC_NOW"]) - _parse(rec["cached_at"])).days
+    sla = int(os.environ.get("AC_SLA_DAYS", "7"))
+except (OSError, ValueError, KeyError):
+    sys.exit(1)
+if age < 0 or age > sla:
+    sys.exit(1) # stale (or a clock anomaly) → treat as NO cache (bounded-fresh contract)
+sys.stdout.write(str(rec.get("payload", "")))
+sys.exit(0)
+PY
+}
+
+# ── npm: run `npm audit --json` once PER LOCKFILE DIRECTORY (X-0311) ───────────────────────
+# NPM_APPLICABLE keys off ANY npm-ecosystem lockfile ANYWHERE in the tree, but `npm audit` reads only
+# the lockfile in its CWD — so a single run from $REPO root would silently MISS a non-root lockfile
+# (e.g. frontend/package-lock.json) while still flipping applicability: a false-clean on the very
+# surface made first-class. So derive the DISTINCT lockfile DIRECTORIES from the SAME
+# npm-ecosystem lockfile set NPM_APPLICABLE keys off (package-lock.json / yarn.lock / pnpm-lock.yaml —
+# NOT all LOCK_FILES, which include python/rust/… lockfiles npm audit cannot scan; audit-pre YELLOW
+# absorbed) and run once per dir. Each dir's findings are TAGGED with its lockdir (non-root → a
+# dir-stable fingerprint distinct from a same-advisory root finding), and every run is recorded in the
+# check's per-dir `runs:` trail so the gate can see which dirs actually ran.
+NPM_RUNS_YAML=""; NPM_FINDINGS_YAML=""; NPM_TOTAL=0
+NPM_REP_EXIT=127; NPM_DIRS_TOTAL=0; NPM_DIRS_INCOMPLETE=0
+if [ "$NPM_APPLICABLE" = 1 ]; then
+  NPM_VER="$(npm --version 2>/dev/null || echo unavailable)"
+  DEP_TOOLS_YAML="${DEP_TOOLS_YAML} npm: \"${NPM_VER}\"
+"
+  NPM_DIRS="$(printf '%s\n' "$LOCK_FILES" \
+    | grep -iE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' \
+    | while IFS= read -r lf; do [ -n "$lf" ] && dirname "$lf"; done \
+    | awk 'NF' | sort -u)"
+  while IFS= read -r nd; do
+    [ -n "$nd" ] || continue
+    NPM_DIRS_TOTAL=$((NPM_DIRS_TOTAL + 1))
+    npm_raw="$( (cd "$REPO/$nd" 2>/dev/null && _dep_run npm audit --json))"; npm_ex=$?
+    NPM_REP_EXIT=$npm_ex # representative exit for the check (per-dir truth in `runs:`)
+    npm_conv="$(CONV_MODE=npm NPM_RAW="$npm_raw" NPM_LOCKDIR="$nd" _dep_convert)"
+    npm_head="$(printf '%s\n' "$npm_conv" | head -1)"
+    npm_cnt="$(printf '%s' "$npm_head" | cut -f1)"; npm_cnt=${npm_cnt:-0}
+    npm_done="$(printf '%s' "$npm_head" | cut -f2)"; npm_done=${npm_done:-0}
+    # SPEC-0155 r3 — cadence PREWARM on a completed scan; deploy-seam bounded-fresh REUSE on an outage.
+    # An OUTAGE is a scanner that RAN but produced no result (done=0) and is not tool-absent (exit 127):
+    # only then is a cached payload a legitimate stand-in for the failed live advisory fetch.
+    npm_src="live"
+    if [ "$npm_done" = 1 ]; then
+      AC_MODE=store AC_KEY="npm:${nd}" AC_PAYLOAD="$npm_raw" _advisory_cache || true
+    elif [ "$npm_ex" != 127 ]; then
+      npm_cached="$(AC_MODE=load AC_KEY="npm:${nd}" AC_SLA_DAYS="$ADVISORY_SLA_DAYS" _advisory_cache)"
+      if [ -n "$npm_cached" ]; then
+        npm_conv="$(CONV_MODE=npm NPM_RAW="$npm_cached" NPM_LOCKDIR="$nd" _dep_convert)"
+        npm_head="$(printf '%s\n' "$npm_conv" | head -1)"
+        npm_cnt="$(printf '%s' "$npm_head" | cut -f1)"; npm_cnt=${npm_cnt:-0}
+        npm_done="$(printf '%s' "$npm_head" | cut -f2)"; npm_done=${npm_done:-0}
+        npm_src="cache"
+      fi
+    fi
+    npm_frag="$(printf '%s\n' "$npm_conv" | sed '1,2d')"
+    [ -n "$npm_frag" ] && NPM_FINDINGS_YAML="${NPM_FINDINGS_YAML}${npm_frag}
+"
+    if [ "$npm_done" = 1 ]; then NPM_TOTAL=$((NPM_TOTAL + npm_cnt))
+    else
+      NPM_DIRS_INCOMPLETE=$((NPM_DIRS_INCOMPLETE + 1))
+      # a genuine advisory outage (ran-but-no-result, not tool-absent) with no bounded-fresh cache → degrade
+      if [ "$npm_ex" != 127 ]; then
+        ADVISORY_DEGRADED=1
+        ADVISORY_DEGRADE_NOTES="${ADVISORY_DEGRADE_NOTES}npm[${nd}]=exit:${npm_ex}; "
+      else
+        # SPEC-0145 §5 — the OTHER half of the same branch: the scanner is not installed, so
+        # this applicable lockdir was never scanned. Marked for the pinned blocking finding below.
+        SCANNER_MISSING=1
+        SCANNER_MISSING_NOTES="${SCANNER_MISSING_NOTES}npm[${nd}]=exit:127 (npm-ecosystem lockfile present); "
+        case " ${SCANNER_MISSING_TOOLS} " in *" npm "*);; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}npm ";; esac
+      fi
+    fi
+    if [ "$npm_src" = cache ]; then
+      npm_res="vulnerable_dependencies=${npm_cnt} (from bounded-fresh advisory cache; live fetch exit=${npm_ex})"
+    else
+      npm_res="$(_dep_result npm "$npm_ex" "$npm_done" "$npm_cnt")"
+    fi
+    NPM_RUNS_YAML="${NPM_RUNS_YAML} - lockdir: \"${nd}\"
+        exit_code: ${npm_ex}
+        result: \"${npm_res}\"
+"
+  done <<< "$NPM_DIRS"
+fi
+
+PIP_RAW=""; PIP_EXIT=127; PIP_COUNT=0
+if [ "$PY_APPLICABLE" = 1 ]; then
+  if [ -n "$PY_REQ_FILES" ]; then
+    PIP_ARGS=
+    while IFS= read -r rf; do [ -f "$rf" ] && PIP_ARGS+=(-r "$rf"); done <<< "$PY_REQ_FILES"
+    PIP_RAW="$(_dep_run pip-audit "${PIP_ARGS[@]}" --format=json)"; PIP_EXIT=$?
+  else
+    PIP_EXIT=126 # in scope (poetry.lock / Pipfile.lock) but NO pip-audit-auditable target: the
+    PIP_RAW="" # probe refuses to fall back to a host-environment scan (see the note above)
+  fi
+  PIP_VER="$(pip-audit --version 2>/dev/null | head -1 | awk '{print $NF}' || echo unavailable)"
+  DEP_TOOLS_YAML="${DEP_TOOLS_YAML} pip-audit: \"${PIP_VER:-unavailable}\"
+"
+fi
+
+# pip: ONE repo-scoped run, converted by the same single-source `_dep_convert` (the npm loop above
+# already converted its per-dir payloads). No new parser path — CONV_MODE selects the ecosystem.
+PIP_COUNT=0; PIP_OK=0; PIP_FINDINGS_YAML=""; PIP_SRC="live"
+if [ "$PY_APPLICABLE" = 1 ]; then
+  pip_conv="$(CONV_MODE=pip PIP_RAW="$PIP_RAW" _dep_convert)"
+  pip_head="$(printf '%s\n' "$pip_conv" | head -1)"
+  PIP_COUNT="$(printf '%s' "$pip_head" | cut -f1)"; PIP_COUNT=${PIP_COUNT:-0}
+  PIP_OK="$(printf '%s' "$pip_head" | cut -f2)"; PIP_OK=${PIP_OK:-0}
+  # SPEC-0155 r3 — mirror the npm loop: PREWARM a completed scan; REUSE a bounded-fresh cache on an
+  # outage (ran-but-no-result, done=0). 127 (tool absent) and 126 (no pip-audit-auditable target) are
+  # NOT advisory outages — neither prewarms, reuses, nor degrades.
+  if [ "$PIP_OK" = 1 ]; then
+    AC_MODE=store AC_KEY="pip" AC_PAYLOAD="$PIP_RAW" _advisory_cache || true
+  elif [ "$PIP_EXIT" != 127 ] && [ "$PIP_EXIT" != 126 ]; then
+    pip_cached="$(AC_MODE=load AC_KEY="pip" AC_SLA_DAYS="$ADVISORY_SLA_DAYS" _advisory_cache)"
+    if [ -n "$pip_cached" ]; then
+      pip_conv="$(CONV_MODE=pip PIP_RAW="$pip_cached" _dep_convert)"
+      pip_head="$(printf '%s\n' "$pip_conv" | head -1)"
+      PIP_COUNT="$(printf '%s' "$pip_head" | cut -f1)"; PIP_COUNT=${PIP_COUNT:-0}
+      PIP_OK="$(printf '%s' "$pip_head" | cut -f2)"; PIP_OK=${PIP_OK:-0}
+      PIP_SRC="cache"
+    fi
+  fi
+  pip_frag="$(printf '%s\n' "$pip_conv" | sed '1,2d')"
+  [ -n "$pip_frag" ] && PIP_FINDINGS_YAML="${pip_frag}
+"
+  if [ "$PIP_OK" != 1 ] && [ "$PIP_EXIT" != 127 ] && [ "$PIP_EXIT" != 126 ]; then
+    ADVISORY_DEGRADED=1
+    ADVISORY_DEGRADE_NOTES="${ADVISORY_DEGRADE_NOTES}pip=exit:${PIP_EXIT}; "
+  fi
+  # SPEC-0145 §5 — pip-audit is NOT INSTALLED while a requirements file made the probe
+  # applicable: the probe never ran. Exit 126 is deliberately NOT marked here — that is an honest
+  # no-repo-scoped-target state (poetry.lock / Pipfile.lock are not pip-audit inputs), a scanner-input
+  # limitation rather than a missing tool, and turning it into an alert would punish a repo for
+  # something installing a scanner cannot fix.
+  if [ "$PIP_EXIT" = 127 ]; then
+    SCANNER_MISSING=1
+    _pip_trigger="$(printf '%s' "$PY_REQ_FILES" | tr '\n' ' ' | sed 's/ *$//')"
+    SCANNER_MISSING_NOTES="${SCANNER_MISSING_NOTES}pip-audit=exit:127 (applicable via ${_pip_trigger:-python lockfile}); "
+    case " ${SCANNER_MISSING_TOOLS} " in *" pip-audit "*);; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}pip-audit ";; esac
+  fi
+fi
+
+# Assemble the dependency findings fragment (per-dir npm fragments, then the pip fragment) + the open
+# count the comparison block reads. Each fragment already carries its own trailing newline when
+# non-empty, so an all-empty run leaves the report body byte-identical to a pre-CHECK-4 run.
+DEP_FINDINGS_YAML="${NPM_FINDINGS_YAML}${PIP_FINDINGS_YAML}"
+DEP_OPEN_COUNT=$((NPM_TOTAL + PIP_COUNT))
+
+# The check RECORDS (in-ecosystem-scope only — the two-level gate above). `unavailable` is the honest
+# record of an applicable scanner that could not run; it is NOT the same state as out-of-scope silence.
+#
+# NOT-RUN IS NOT A CLEAN SCAN (audit-post RED-1, absorbed mode-a). The first cut keyed `unavailable`
+# off exit 127 alone — so a scanner that TIMED OUT (`timeout` exits 124) or crashed produced no
+# findings and was recorded `vulnerable_dependencies=0`: a scan that never happened, reported as a
+# clean bill of health. That is precisely the false coverage the bare scalar was, re-introduced at the
+# check layer, and it contradicted the scope-honesty text this task ships in SPEC-0145 par-5. The
+# COMPLETION flag from the converter (a parseable payload carrying the tool's real result section) is
+# what separates "ran and found nothing" from "did not run" — the exit code alone cannot, because both
+# scanners exit nonzero when they FIND something. (`_dep_result` is defined ABOVE — it is called by the
+# per-dir npm loop, which precedes this check-record site.)
+#
+# The npm check's `result` AGGREGATES across the per-dir runs (total vulnerable deps when every dir
+# completed; the honest `unavailable` phrasing when none did; a mixed count-plus-unavailable note
+# otherwise), and its `runs:` sub-block carries the per-dir trail (lockdir + exit + result) so the gate
+# can see WHICH dirs actually ran. A single-lockfile repo reduces to exactly the pre- one-line
+# result — the `runs:` list simply has one entry.
+#
+# AN EMPTY PER-DIR TRAIL IS NOT A CLEAN SCAN EITHER ( — the same lesson one level down).
+# `NPM_APPLICABLE` (above) and the `NPM_DIRS` derivation (the loop above) read the SAME npm-ecosystem
+# lockfile subset of `LOCK_FILES` through the SAME regex, so applicable ⟺ >=1 lockfile ⟹ >=1 lockdir:
+# an applicable probe with ZERO recorded runs is a CONTRADICTION between two reads of one set, not a
+# state any honest repo can reach. But this script runs under `set -uo pipefail` WITHOUT `-e`, so a
+# failing stage of that derivation pipeline yields EMPTY and execution CONTINUES — the per-dir loop
+# body never runs, and the record below would then write `runs:` EMPTY with the aggregate
+# `vulnerable_dependencies=0`: a scan that never happened, published as a clean bill of health, with
+# not even the SPEC-0145 §5 scanner-missing finding (that too is emitted inside the loop). Observed
+# three times as a land ABORT whose verdict named the lander instead of this defect.
+# So REFUSE — the file's own fail-closed idiom (the §9b foreign-report guard / SPEC-0154 rule-3
+# `_hook_refuse`: same exit 3 = "refused, nothing written", ~200 lines before the single write). The
+# test keys off the OUTCOME (dirs counted, trail emitted), never off one pipeline stage, so no future
+# route to empty can pass silently by another path. The DISCRIMINATOR IS POSITIVE and stays inside the
+# applicable branch: a repo with NO npm lockfile has `NPM_APPLICABLE=0`, never reaches this line, and
+# keeps its legitimate not-applicable silence — a fail-close there would punish an honest repo.
+if [ "$NPM_APPLICABLE" = 1 ]; then
+  if [ "$NPM_DIRS_TOTAL" -eq 0 ] || [ -z "$NPM_RUNS_YAML" ]; then
+    echo "security-audit: REFUSING to produce a report — empty per-dir derivation for the npm probe" >&2
+    echo " NPM_APPLICABLE=1 (an npm-ecosystem lockfile is tracked) but the per-dir derivation yielded" >&2
+    echo " 0 lockdir(s) and recorded 0 run(s) — the two reads of one lockfile set contradict." >&2
+    echo " Recording the check here would publish an EMPTY \`runs:\` trail with" >&2
+    echo " \`vulnerable_dependencies=0\`: a scan that never happened, reported as a clean bill of" >&2
+    echo " health. A never-run probe never degrades silently into thinner evidence." >&2
+    echo " Nothing was written. Remedy: the derivation pipeline (\`grep | dirname | awk | sort -u\`" >&2
+    echo " over the tracked npm lockfiles) failed on this host — check those tools, then re-run." >&2
+    exit 3
+  fi
+  if [ "$NPM_DIRS_INCOMPLETE" -eq 0 ]; then
+    NPM_AGG_RESULT="vulnerable_dependencies=${NPM_TOTAL}"
+  elif [ "$NPM_DIRS_INCOMPLETE" -eq "$NPM_DIRS_TOTAL" ]; then
+    NPM_AGG_RESULT="$(_dep_result npm "$NPM_REP_EXIT" 0 0)"
+  else
+    NPM_AGG_RESULT="vulnerable_dependencies=${NPM_TOTAL} (${NPM_DIRS_INCOMPLETE} of ${NPM_DIRS_TOTAL} lockdir(s) unavailable)"
+  fi
+  DEP_CHECKS_YAML="${DEP_CHECKS_YAML} - id: SEC-DEP-AUDIT-NPM
+    ran_at: \"${DEP_TS}\"
+    exit_code: ${NPM_REP_EXIT}
+    scanned_paths_count: ${SCAN_COUNT}
+    result: \"${NPM_AGG_RESULT}\"
+    runs:
+${NPM_RUNS_YAML}"
+fi
+if [ "$PY_APPLICABLE" = 1 ]; then
+  if [ "$PIP_SRC" = cache ]; then
+    PIP_RESULT="vulnerable_dependencies=${PIP_COUNT} (from bounded-fresh advisory cache; live fetch exit=${PIP_EXIT})"
+  else
+    PIP_RESULT="$(_dep_result pip-audit "$PIP_EXIT" "$PIP_OK" "$PIP_COUNT")"
+  fi
+  DEP_CHECKS_YAML="${DEP_CHECKS_YAML} - id: SEC-DEP-AUDIT-PIP
+    ran_at: \"${DEP_TS}\"
+    exit_code: ${PIP_EXIT}
+    scanned_paths_count: ${SCAN_COUNT}
+    result: \"${PIP_RESULT}\"
+"
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# CONTRIBUTOR HOOK — the SPEC-0154 core+adapter composition seam (rules 1/2/4).
+#
+# The consumer declares ONE optional project hook on the `security.audit` carrier
+# (`yitc-ops.yaml`: `security.audit.hook: bin/security-audit.local.sh`). The hook is a READ-ONLY
+# CONTRIBUTOR, never a second producer: it prints findings as JSON on stdout under the PINNED contract
+#
+# {"adapter_id": "<id>", "version": "<optional>", "required_scope": ["<path>"...],
+# "findings": [{"check_id", "severity", "status", "fingerprint"?, "title", "what", "evidence"}...]}
+#
+# and THIS core stays the sole report assembler / schema authority / hash signer (rule 1): it VALIDATES
+# and RE-SERIALIZES the hook's items into the ONE canonical `findings:` list, and records the adapter
+# block (`adapter_id` · `command` · `version_hash` · `required_scope` · `exit_code` · `stdout_hash`)
+# INSIDE `$BODY` — hence BEFORE `report_hash` is computed over it, so the hook's contribution is covered
+# by the same hash chain as everything else (rule 2). The hook's JSON is an INPUT contract only; it is
+# never an independently authoritative report.
+#
+# DECLARED SHAPE (pinned — audit-pre YELLOW-1, absorbed mode-b in decisions/-audit-pre.yaml):
+# `hook:` is a REPO-RELATIVE PATH TO ONE EXECUTABLE FILE — not a command line (no args / shell string /
+# PATH lookup). That is what makes `version_hash` deterministic: there is exactly one file to hash.
+# `command` still records the DECLARED string verbatim, so a malformed declaration is visible as-declared.
+#
+# FAIL-CLOSED HOOK POLICY (SPEC-0154 rule 3). A declared-or-discovered hook that is
+# MALFORMED / TIMED-OUT / NONZERO / DECLARED-BUT-MISSING / PRESENT-BUT-UNDECLARED yields NO accepted
+# report — the run REFUSES (`_hook_refuse`, exit 3, nothing written) instead of emitting a report that
+# quietly carries a broken contribution. ONLY absent-and-undeclared degrades to generic-only evidence.
+# The whole policy is scaffold-mode-only (rule 4): a legacy fork's hook machinery stays INERT, so a
+# present hook file can never fail-close it.
+# ---------------------------------------------------------------------------------------------------
+HOOK_DECL=""
+ADAPTER_YAML=""
+HOOK_FINDINGS_YAML=""
+HOOK_OPEN_COUNT=0
+HOOK_TIMEOUT="${YITC_SECURITY_HOOK_TIMEOUT:-60}"
+
+# The CONVENTIONAL hook path — the one the seam DISCOVERS for the present-but-undeclared branch. A hook
+# is a contributor because the carrier DECLARES it (rule 2), never because a file exists; a file sitting
+# here undeclared is the silent-second-producer hazard rule 3 fail-closes.
+HOOK_CONVENTIONAL="bin/security-audit.local.sh"
+
+# The refusal idiom is the SPEC-0145 §9b foreign-report guard's, reused verbatim (same exit 3 = "refused,
+# nothing written"; no second exit-code taxonomy). Every branch fires from the seam below — ~200 lines
+# BEFORE the single `printf > "$OUT"` — so "NO accepted report" is literal: no file is written at all.
+_hook_refuse { # $1 = branch, $2 = detail
+  echo "security-audit: REFUSING to produce a report — hook contract violated (${1})" >&2
+  echo " ${2}" >&2
+  echo " SPEC-0154 rule 3 (fail-closed): a declared-or-discovered hook that is malformed / timed-out /" >&2
+  echo " nonzero / declared-but-missing / present-but-undeclared yields NO accepted report. A broken" >&2
+  echo " contributor never degrades silently into thinner evidence. Nothing was written." >&2
+  echo " Remedy: fix the hook, or remove BOTH the file and its \`security.audit.hook\` declaration —" >&2
+  echo " absent-and-undeclared is the ONE legal degrade (generic-only evidence)." >&2
+  exit 3
+}
+
+# Rule 4: in FOREIGN mode (a renamed legacy full-producer fork) the whole block below is skipped — no
+# carrier read, no discovery, no execution, no adapter block. Inertness, not merely "no refusal".
+if [ "$PRODUCER_MODE" = "scaffold" ] && command -v python3 >/dev/null 2>&1; then
+  # Carrier read — RAW `yaml.safe_load`, JUSTIFIED exactly as the freshness-SLA read above :
+  # this runner is byte-copied into a consumer `bin/` with no `bin/lib/` beside it, and this is a fresh
+  # `python3 -` interpreter, so `bin/lib/state.py` is unreachable; the ImportError degrade must hold.
+  # No new parser path (CHARTER §P5).
+  HOOK_DECL="$(python3 - "$REPO/yitc-ops.yaml" <<'PY' 2>/dev/null || true
+import sys
+try:
+    import yaml
+except ImportError:
+    sys.exit(0)
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        ops = yaml.safe_load(f)
+except (OSError, yaml.YAMLError):
+    sys.exit(0)
+sec = ops.get("security") if isinstance(ops, dict) else None
+audit = sec.get("audit") if isinstance(sec, dict) else None
+hook = audit.get("hook") if isinstance(audit, dict) else None
+print(str(hook).strip if hook and str(hook).strip else "")
+PY
+)"
+fi
+
+# Branch (5) PRESENT-BUT-UNDECLARED — a DISCOVERY check, deliberately outside the `[ -n "$HOOK_DECL" ]`
+# block below: an undeclared hook file is exactly the case no declaration-driven path would ever reach.
+# Refuses whether the file is the only hook (never declared) or a SECOND one sitting beside a
+# differently-declared hook. Scaffold mode only — in foreign mode `HOOK_DECL` is never even read and this
+# check is skipped, keeping the legacy fork inert (rule 4).
+# Note the fail-closed edge: if python3 is absent the carrier cannot be read, so `HOOK_DECL` is empty and
+# a hook file present here reads as UNDECLARED and refuses. That is the correct direction — a seam that
+# cannot verify a declaration must not accept the contribution it cannot attribute.
+if [ "$PRODUCER_MODE" = "scaffold" ] && [ -e "$REPO/$HOOK_CONVENTIONAL" ] \
+   && [ "$HOOK_DECL" != "$HOOK_CONVENTIONAL" ]; then
+  _hook_refuse "present-but-undeclared" \
+    "${HOOK_CONVENTIONAL} exists on disk but is not the declared hook (security.audit.hook: ${HOOK_DECL:-<none>})."
+fi
+
+if [ -n "$HOOK_DECL" ]; then
+  HOOK_PATH="$REPO/$HOOK_DECL"
+  HOOK_TMP="$(mktemp -d)"
+  _CLEANUP_PATHS+=("$HOOK_TMP") # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
+  HOOK_STDOUT="$HOOK_TMP/stdout"
+  : > "$HOOK_STDOUT"
+
+  if [ -f "$HOOK_PATH" ] && [ -x "$HOOK_PATH" ]; then
+    if command -v timeout >/dev/null 2>&1; then
+      timeout "$HOOK_TIMEOUT" "$HOOK_PATH" > "$HOOK_STDOUT" 2>/dev/null
+    else
+      "$HOOK_PATH" > "$HOOK_STDOUT" 2>/dev/null
+    fi
+    HOOK_EXIT=$?
+  else
+    HOOK_EXIT=-1 # declared-but-missing / not executable — branch (4) below refuses it
+  fi
+
+  # The EXIT-CODE branches run BEFORE the renderer below, and their order is load-bearing: a hook that
+  # died produced no stdout, and empty stdout is malformed for EVERY failing hook — so checking these
+  # first is what makes each fixture surface ITS OWN reason instead of collapsing into "malformed".
+  #
+  # Branch (4) DECLARED-BUT-MISSING.
+  if [ "$HOOK_EXIT" -eq -1 ]; then
+    if [ -e "$HOOK_PATH" ]; then
+      _hook_refuse "declared-but-missing" \
+        "the declared hook ${HOOK_DECL} exists but is not an executable file (chmod +x it, or fix the declaration)."
+    fi
+    _hook_refuse "declared-but-missing" \
+      "security.audit.hook declares ${HOOK_DECL}, but no such file exists in the repo."
+  fi
+
+  # Branch (2) TIMEOUT — 124 is GNU `timeout`'s kill status. Checked before the generic nonzero arm so a
+  # hook that hangs is never reported as a plain failure (they need different remedies).
+  if [ "$HOOK_EXIT" -eq 124 ]; then
+    _hook_refuse "timeout" \
+      "the hook ${HOOK_DECL} did not finish within ${HOOK_TIMEOUT}s (YITC_SECURITY_HOOK_TIMEOUT)."
+  fi
+
+  # Branch (3) NONZERO — a hook that failed cannot vouch for its own findings, so its (possibly partial)
+  # stdout is never folded in.
+  if [ "$HOOK_EXIT" -ne 0 ]; then
+    _hook_refuse "nonzero-exit" \
+      "the hook ${HOOK_DECL} exited ${HOOK_EXIT}; a failed contributor's output is never folded into the report."
+  fi
+
+  # The core validates + re-serializes the hook's contribution (rule 1) and renders the adapter block
+  # (rule 2). Emits three fragments: the `adapter:` block, the hook-contributed `findings:` items, and —
+  # for branch (1) MALFORMED — a `reject` reason when the stdout fails the PINNED contract.
+  python3 - "$HOOK_PATH" "$HOOK_DECL" "$HOOK_STDOUT" "$HOOK_EXIT" \
+           "$HOOK_TMP/adapter.yaml" "$HOOK_TMP/findings.yaml" "$HOOK_TMP/open_count" \
+           "$HOOK_TMP/reject" <<'PY' 2>/dev/null || true
+import hashlib
+import json
+import sys
+
+import yaml
+
+(hook_path, declared, stdout_path, exit_code,
+ adapter_out, findings_out, open_out, reject_out) = sys.argv[1:9]
+
+# The PINNED rule-2 finding contract. `fingerprint` is the ONE optional member — the core derives it
+# (rule 1), so omitting it is terse, not malformed. Every other field must be present AND non-empty:
+# under rule 3 an under-specified finding is a MALFORMED contribution, never a defaulted one. Validate
+# FIRST, normalize only what passed — otherwise the normalizer's `or "<default>"` reads would paper the
+# gap over (a missing title lands as "", a missing status silently defaults to `open`).
+REQUIRED_FINDING_FIELDS = ("check_id", "severity", "status", "title", "what", "evidence")
+
+
+def reject(reason: str) -> None:
+    with open(reject_out, "w", encoding="utf-8") as f:
+        f.write(reason.strip + "\n")
+    sys.exit(0) # the REASON is the verdict; bash reads the file and refuses (branch 1)
+
+
+def sha16(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest[:16]
+
+
+def fingerprint(check_id: str, title: str) -> str:
+    # the report's own `fingerprint_derivation` — sha256(check_id LF title)[:16]; the core derives it
+    # when the hook omits one, so a waiver keeps matching across runs.
+    return sha16(f"{check_id}\n{title}".encode("utf-8"))
+
+
+try:
+    with open(hook_path, "rb") as f:
+        version_hash = sha16(f.read)
+except OSError:
+    # Unreachable under rule 3 — bash refuses a declared-but-missing hook (branch 4) before this runs.
+    # Kept as the fail-closed floor: an unresolvable version is RECORDED, never assumed.
+    version_hash = "unresolved"
+
+try:
+    with open(stdout_path, "rb") as f:
+        raw = f.read
+except OSError:
+    raw = b""
+stdout_hash = sha16(raw)
+
+# ── branch (1) MALFORMED — every way the pinned stdout contract can break ─────────────────────────
+try:
+    payload = json.loads(raw.decode("utf-8"))
+except (ValueError, UnicodeDecodeError):
+    reject(f"the hook {declared} did not emit valid JSON on stdout "
+           f"(stdout_hash={stdout_hash}, {len(raw)} byte(s)).")
+if not isinstance(payload, dict):
+    reject(f"the hook {declared} emitted JSON of type {type(payload).__name__}, not the pinned "
+           f"object {{adapter_id, findings...}}.")
+
+adapter_id = str(payload.get("adapter_id") or "").strip
+if not adapter_id:
+    reject(f"the hook {declared} omitted the pinned `adapter_id` — a contribution the report "
+           f"cannot attribute is never folded in.")
+
+items = payload.get("findings")
+if not isinstance(items, list):
+    reject(f"the hook {declared} omitted the pinned `findings:` list "
+           f"(got {type(items).__name__}); emit `\"findings\": []` to contribute none.")
+
+for pos, item in enumerate(items):
+    if not isinstance(item, dict):
+        reject(f"the hook {declared} emitted findings[{pos}] as {type(item).__name__}, not an object.")
+    missing = [k for k in REQUIRED_FINDING_FIELDS if not str(item.get(k) or "").strip]
+    if missing:
+        reject(f"the hook {declared} emitted findings[{pos}] missing required contract field(s): "
+               f"{', '.join(missing)} (only `fingerprint` is optional — the core derives it).")
+
+required_scope = []
+scope = payload.get("required_scope")
+if isinstance(scope, list):
+    required_scope = [str(p) for p in scope]
+
+# The CORE re-serializes every hook finding into the canonical schema — the hook's keys are an INPUT
+# contract, never the report's schema. Unknown keys are dropped; `adapter_id` is stamped on each item so
+# a hook-contributed finding stays attributable inside the one canonical `findings:` list. Every field
+# read below is now contract-VALIDATED above, so these reads carry no silent defaults — the one derived
+# value is the OPTIONAL `fingerprint` (rule 1: deriving it is the core's job, and it keeps a waiver
+# matching across runs).
+normalized, open_count = [], 0
+for item in items:
+    check_id = str(item["check_id"])
+    title = str(item["title"])
+    status = str(item["status"])
+    normalized.append({
+        "check_id": check_id,
+        "severity": str(item["severity"]),
+        "status": status,
+        "fingerprint": str(item.get("fingerprint") or fingerprint(check_id, title)),
+        "title": title,
+        "what": str(item["what"]),
+        "evidence": str(item["evidence"]),
+        "adapter_id": adapter_id,
+    })
+    if status == "open":
+        open_count += 1
+
+adapter = {"adapter": {
+    "adapter_id": adapter_id, # contract-validated above: non-empty by branch (1)
+    "command": declared, # the DECLARED string, verbatim — visible even when malformed
+    "version_hash": version_hash,
+    "required_scope": required_scope,
+    "exit_code": int(exit_code),
+    "stdout_hash": stdout_hash,
+    "findings_contributed": len(normalized),
+}}
+with open(adapter_out, "w", encoding="utf-8") as f:
+    f.write(yaml.safe_dump(adapter, sort_keys=False, default_flow_style=False).rstrip("\n") + "\n")
+
+with open(findings_out, "w", encoding="utf-8") as f:
+    if normalized:
+        text = yaml.safe_dump(normalized, sort_keys=False, default_flow_style=False).rstrip("\n")
+        f.write("\n".join(" " + line for line in text.splitlines) + "\n")
+
+with open(open_out, "w", encoding="utf-8") as f:
+    f.write(str(open_count))
+PY
+
+  # Branch (1) MALFORMED — the renderer's verdict. It writes the reason and contributes nothing.
+  if [ -s "$HOOK_TMP/reject" ]; then
+    _hook_refuse "malformed-stdout" "$(cat "$HOOK_TMP/reject")"
+  fi
+
+  # Fail-closed BACKSTOP: a declared hook whose adapter block the core could not render (e.g. PyYAML
+  # absent) left NO reject reason and NO block. The seam cannot validate — let alone attribute — the
+  # contribution, so it refuses rather than emit a report silently missing the adapter recording that
+  # rule 2 requires INSIDE the hash chain.
+  if [ ! -s "$HOOK_TMP/adapter.yaml" ]; then
+    _hook_refuse "adapter-unrenderable" \
+      "the core could not render the adapter block for ${HOOK_DECL} (is PyYAML installed for python3?)."
+  fi
+
+  # Trailing-newline concatenation (the `$LOCK_YAML` idiom): an EMPTY fragment must leave the report
+  # body byte-identical to a no-hook run, so the fragment carries its own terminator when non-empty.
+  if [ -s "$HOOK_TMP/adapter.yaml" ]; then
+    ADAPTER_YAML="$(cat "$HOOK_TMP/adapter.yaml")
+"
+  fi
+  [ -s "$HOOK_TMP/findings.yaml" ] && HOOK_FINDINGS_YAML="$(cat "$HOOK_TMP/findings.yaml")"
+  [ -s "$HOOK_TMP/open_count" ] && HOOK_OPEN_COUNT="$(cat "$HOOK_TMP/open_count")"
+  HOOK_OPEN_COUNT=${HOOK_OPEN_COUNT:-0}
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# Derive findings FROM the probe results (status derived from the live surface, never blind carry-forward).
+# Fingerprint derivation (§5): sha256(check_id "\n" title)[:16] — STABLE across runs so a waiver keeps
+# matching. Recorded explicitly under `fingerprint_derivation` so the gate/validator can re-derive it.
+# ---------------------------------------------------------------------------------------------------
+fp { printf '%s\n%s' "$1" "$2" | sha256sum | cut -c1-16; }
+
+SECRET_TITLE="Hardcoded secret literal(s) in tracked source"
+ENV_TITLE="Secret/credential file tracked in git"
+LOCK_TITLE="Dependency lockfile inventory (supply-chain baseline)"
+
+[ "$SECRET_HITS" -gt 0 ] 2>/dev/null && SECRET_STATUS="open" || SECRET_STATUS="resolved"
+[ "$ENV_TRACKED" -gt 0 ] 2>/dev/null && ENV_STATUS="open" || ENV_STATUS="resolved"
+[ "$LOCK_COUNT" -gt 0 ] 2>/dev/null && LOCK_STATUS="info" || LOCK_STATUS="info"
+
+SECRET_FP="$(fp SEC-SECRET-GREP "$SECRET_TITLE")"
+ENV_FP="$(fp SEC-ENV-TRACKED "$ENV_TITLE")"
+LOCK_FP="$(fp SEC-DEP-LOCK "$LOCK_TITLE")"
+
+OPEN_COUNT=0
+[ "$SECRET_STATUS" = open ] && OPEN_COUNT=$((OPEN_COUNT + 1))
+[ "$ENV_STATUS" = open ] && OPEN_COUNT=$((OPEN_COUNT + 1))
+
+# ── SPEC-0155 rule 3 — the PINNED no-cache degrade finding ────────────────────────────────────────────
+# When an in-scope advisory scan hit a genuine outage (ran-but-no-result, not tool-absent) AND no
+# bounded-fresh cache stood in, surface the unavailability as a FIRST-CLASS `warning` finding — never a
+# silent gap. `warning` is NON-BLOCKING (the gate blocks only open critical/high), so the report stays
+# COMPLETE + gate-acceptable and the deploy is NOT fail-closed by the outage; the finding is
+# debt-visible via SPEC-0119 (aged open warning/info). The `checks:` record already carries the
+# `unavailable` + exit-code half; this is the finding half the card requires.
+ADVISORY_DEGRADE_YAML=""
+ADVISORY_DEGRADE_OPEN=0
+if [ "$ADVISORY_DEGRADED" = 1 ]; then
+  ADV_TITLE="Advisory data unavailable — dependency vulnerability scan degraded"
+  ADV_FP="$(fp SEC-DEP-ADVISORY-UNAVAILABLE "$ADV_TITLE")"
+  ADVISORY_DEGRADE_OPEN=1
+  # Leading newline so this fragment splices onto the findings list WITHOUT changing the report body
+  # when it is EMPTY (the no-degrade path stays byte-identical — the DEP/HOOK concatenation contract).
+  ADVISORY_DEGRADE_YAML="$(printf '\n'; cat <<ADV
+  - check_id: SEC-DEP-ADVISORY-UNAVAILABLE
+    severity: warning
+    status: open
+    fingerprint: "${ADV_FP}"
+    title: "${ADV_TITLE}"
+    what: "External advisory service unreachable and no bounded-fresh cache (<= freshness_sla ${ADVISORY_SLA_DAYS}d) available; the dependency-vulnerability scan could not complete. The deploy is NOT fail-closed by the outage; re-run when the advisory service is reachable."
+    evidence: "advisory-fetch outage @ ${HEAD_SHA}; ${ADVISORY_DEGRADE_NOTES}cache miss/stale vs freshness_sla=${ADVISORY_SLA_DAYS}d (SPEC-0155 r3)"
+ADV
+)"
+fi
+
+# ── SPEC-0145 §5 — the PINNED scanner-ABSENT finding (X-0724) ───────────────────────────────
+# The SIBLING of the advisory degrade above, and deliberately a DIFFERENT severity. Recording an
+# applicable-but-unrun probe on the CHECK alone was not enough: the gate judges FINDINGS, so a report
+# whose scanner was never installed carried zero dependency findings and was ACCEPTED — indistinguishable
+# from a clean scan. That is the false-green the scope-honesty rule exists to prevent.
+#
+# WHY `high` (BLOCKING) WHERE THE ADVISORY OUTAGE IS `warning` (NON-blocking): the two causes are not the
+# same kind of gap. An advisory-service outage is EXTERNAL and TRANSIENT, and fail-closing a deploy on it
+# would be flakiness — hence rule 3's deliberate non-blocking degrade. A MISSING SCANNER is host
+# configuration inside the operator's control, is not transient, and yields ZERO coverage rather than
+# degraded coverage; the remedy is to install the tool, not to wait. So it BLOCKS, via the gate's existing
+# open-critical/high rule — no new gate, no new severity, no new config key.
+#
+# Bounds this finding does NOT cross: an OUT-OF-ecosystem repo is untouched (both markers sit inside the
+# `*_APPLICABLE` branches, so a repo owing nothing here still emits nothing and its body stays
+# byte-identical); exit 126 (no pip-audit-auditable target) sets no marker; a scanner that RAN keeps every
+# prior behaviour. Same leading-newline splice idiom as the advisory fragment.
+SCANNER_MISSING_YAML=""
+SCANNER_MISSING_OPEN=0
+if [ "$SCANNER_MISSING" = 1 ]; then
+  SCM_TOOLS="$(printf '%s' "$SCANNER_MISSING_TOOLS" | sed 's/ *$//; s/ /, /g')"
+  SCM_TITLE="Dependency-vulnerability scanner absent — an applicable probe never ran"
+  SCM_FP="$(fp SEC-DEP-SCANNER-MISSING "$SCM_TITLE")"
+  SCANNER_MISSING_OPEN=1
+  SCANNER_MISSING_YAML="$(printf '\n'; cat <<SCM
+  - check_id: SEC-DEP-SCANNER-MISSING
+    severity: high
+    status: open
+    fingerprint: "${SCM_FP}"
+    title: "${SCM_TITLE}"
+    what: "This repo's committed lockfiles put the dependency-vulnerability probe IN SCOPE, but the scanner(s) ${SCM_TOOLS} are not installed on the audit host, so the probe never ran. A probe that never looked is NOT a clean scan: zero dependency findings here means no coverage, not no vulnerabilities. Remedy: install ${SCM_TOOLS} on the host that runs this audit, then re-run."
+    evidence: "scanner absent @ ${HEAD_SHA}; ${SCANNER_MISSING_NOTES}resolved from PATH (SPEC-0145 §5 scope honesty; / X-0724)"
+SCM
+)"
+fi
+
+# ── SPEC-0198 PROFILE SNAPSHOT ─────────────────────────────────────────────────────────────
+# ANNOTATE this report with the project's DERIVED growth profile, so a report can be told apart from
+# one produced under a different risk profile (snapshot_hash / check_set_hash / the derived check set).
+#
+# WHY THE CARRIER HOLDS A COMMAND AND NOT THE VALUES. The profile has exactly ONE derivation site,
+# `bin/lib/profile.py#resolve_profile` (SPEC-0198 rule 3). THIS script is byte-copied into a consumer
+# with no `bin/lib/` beside it, so that site is unreachable in-process and re-deriving anything here
+# would FORK the single site — precisely what SPEC-0198 forbids. So the consumer's carrier declares the
+# ENGINE INVOCATION that reaches it (`security.audit.profile_snapshot.command`, born already rendered
+# by init to `<engine>/bin/yitc-v2 -C <repo> profile --json`), this script EXECUTES it, and the kernel
+# stays the only thing that ever computes a profile.
+#
+# THREE STATES, AND ONLY ONE OF THEM IS SILENT:
+# * ABSENT or WAIVED declaration — the INTENTIONAL opt-out. Emits nothing; the report body stays
+# byte-identical to a pre- report (the empty-fragment splice contract the advisory and
+# scanner fragments already use).
+# * DECLARED and the command yields a COMPLETE, well-typed resolution — the `profile_snapshot:`
+# block, assembled INSIDE `$BODY` and so covered by the same `report_hash` chain as everything else.
+# * DECLARED but the command is missing / exits nonzero / EXCEEDS ITS TIMEOUT / prints unparseable
+# JSON / fails the contract in ANY field — a VISIBLE degrade: `status: unavailable` plus an OPEN
+# `SEC-PROFILE-SNAPSHOT` finding. Never a silent fall-through to the legacy shape, because a broken
+# declaration and a deliberate opt-out must never produce the same report.
+# The contract is validated in FULL before any success block is written — `snapshot_hash` and
+# `check_set_hash` each a 64-char lowercase-hex string, `check_set` a non-empty list of non-empty
+# strings — so no partial-success state exists in which a malformed payload leaks into the report.
+#
+# SEVERITY `info`, deliberately, and NOT the SPEC-0154 hook path's whole-report REFUSAL: a hook is a
+# findings CONTRIBUTOR whose silent loss would hide security findings, whereas an unreachable profile
+# resolver costs only this annotation. Refusing the entire security report on it would let one broken
+# engine path disarm every consumer's audit — strictly worse than a visible open finding.
+PROFILE_SNAPSHOT_YAML=""
+PROFILE_SNAPSHOT_FINDING_YAML=""
+PROFILE_SNAPSHOT_OPEN=0
+PS_COMMAND=""
+PS_TIMEOUT="${YITC_PROFILE_SNAPSHOT_TIMEOUT:-60}"
+
+# The declared command is PROJECT-AUTHORED free text — it may legitimately contain the quotes, colons
+# and backslashes that a bare `key: "${VAR}"` interpolation would splice straight into the report as
+# BROKEN YAML (measured: a declaration carrying `"` produced an unparseable report). Every value
+# derived from it is therefore emitted as a properly ENCODED scalar. JSON string syntax IS a valid YAML
+# double-quoted scalar, so `json.dumps` is the encoder — no new dependency, no hand-rolled escaping.
+_ps_scalar { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1" 2>/dev/null || printf '""'; }
+
+# Carrier read — RAW `yaml.safe_load` in a fresh `python3 -`, JUSTIFIED exactly as the HOOK_DECL and
+# freshness-SLA reads: no `bin/lib/state.py` is reachable from a byte-copied producer, so the
+# ImportError degrade must hold. No new parser path (CHARTER §P5). A `waiver:` yields no command,
+# which IS the opt-out state. Scaffold mode only, like every other carrier read here (rule 4).
+if [ "$PRODUCER_MODE" = "scaffold" ] && command -v python3 >/dev/null 2>&1; then
+  PS_COMMAND="$(python3 - "$REPO/yitc-ops.yaml" <<'PY' 2>/dev/null || true
+import sys
+try:
+    import yaml
+except ImportError:
+    sys.exit(0)
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        ops = yaml.safe_load(f)
+except (OSError, yaml.YAMLError):
+    sys.exit(0)
+sec = ops.get("security") if isinstance(ops, dict) else None
+audit = sec.get("audit") if isinstance(sec, dict) else None
+snap = audit.get("profile_snapshot") if isinstance(audit, dict) else None
+cmd = snap.get("command") if isinstance(snap, dict) else None
+print(str(cmd).strip if cmd and str(cmd).strip else "")
+PY
+)"
+fi
+
+if [ -n "$PS_COMMAND" ]; then
+  PS_TMP="$(mktemp -d)"
+  _CLEANUP_PATHS+=("$PS_TMP") # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
+  PS_STDOUT="$PS_TMP/stdout"
+  : > "$PS_STDOUT"
+  PS_REASON=""
+  # `timeout` bounds the run; its own exit 124 is the timeout. The declaration is a shell STRING
+  # (unlike `security.audit.hook`, pinned to one executable file so it can be version-hashed): it is
+  # the project's own carrier declaration run with the project's own privileges, exactly like the
+  # declared `runner:` this producer already is.
+  timeout "$PS_TIMEOUT" bash -c "$PS_COMMAND" > "$PS_STDOUT" 2>/dev/null
+  PS_EXIT=$?
+  if [ "$PS_EXIT" -eq 124 ]; then
+    PS_REASON="the declared command exceeded its ${PS_TIMEOUT}s budget (YITC_PROFILE_SNAPSHOT_TIMEOUT)"
+  elif [ "$PS_EXIT" -ne 0 ]; then
+    PS_REASON="the declared command exited ${PS_EXIT}"
+  fi
+  if [ -z "$PS_REASON" ]; then
+    # FULL-contract validation. Prints the ready-to-splice YAML on success (exit 0); on ANY contract
+    # failure it prints the REASON and exits 1 — so an incomplete or malformed payload can never reach
+    # the report, and the cause is named rather than swallowed.
+    PS_RENDER="$(python3 - "$PS_STDOUT" <<'PY'
+import json, re, sys
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        payload = json.load(f)
+except (OSError, ValueError):
+    print("the declared command did not print parseable JSON")
+    sys.exit(1)
+if not isinstance(payload, dict):
+    print("the declared command printed JSON that is not an object")
+    sys.exit(1)
+for key in ("snapshot_hash", "check_set_hash"):
+    val = payload.get(key)
+    if not (isinstance(val, str) and HEX64.match(val)):
+        print("`%s` is missing or is not a 64-character lowercase-hex string" % key)
+        sys.exit(1)
+cs = payload.get("check_set")
+if not (isinstance(cs, list) and cs):
+    print("`check_set` is missing or is not a non-empty list")
+    sys.exit(1)
+if not all(isinstance(x, str) and x.strip for x in cs):
+    print("`check_set` holds an entry that is not a non-empty string")
+    sys.exit(1)
+# The two hashes are already pinned to 64-hex by the check above; `check_set` entries are project
+# strings, so they are JSON-encoded (valid YAML double-quoted scalars) rather than interpolated raw.
+out = ["profile_snapshot:",
+       " status: present",
+       ' snapshot_hash: "%s"' % payload["snapshot_hash"],
+       ' check_set_hash: "%s"' % payload["check_set_hash"],
+       " check_set:"]
+out += [" - %s" % json.dumps(c) for c in cs]
+print("\n".join(out))
+PY
+)" || PS_REASON="$PS_RENDER"
+  fi
+  if [ -z "$PS_REASON" ]; then
+    # Leading newline so the fragment splices onto the body WITHOUT changing it when EMPTY (the
+    # advisory/scanner concatenation contract).
+    PROFILE_SNAPSHOT_YAML="$(printf '\n'; printf '%s' "$PS_RENDER")"
+  else
+    PS_TITLE="Profile snapshot unavailable — the declared resolver command did not answer"
+    PS_FP="$(fp SEC-PROFILE-SNAPSHOT "$PS_TITLE")"
+    PROFILE_SNAPSHOT_OPEN=1
+    PS_REASON_Q="$(_ps_scalar "$PS_REASON")"
+    PS_COMMAND_Q="$(_ps_scalar "$PS_COMMAND")"
+    PROFILE_SNAPSHOT_YAML="$(printf '\n'; cat <<PSU
+profile_snapshot:
+  status: unavailable
+  reason: ${PS_REASON_Q}
+  command: ${PS_COMMAND_Q}
+PSU
+)"
+    PS_WHAT_Q="$(_ps_scalar "security.audit.profile_snapshot.command is DECLARED but did not yield a complete SPEC-0198 resolution, so this report carries no profile annotation. That is NOT the same as declining it: to opt out deliberately, replace the declaration with a 'waiver' whose 'reason' says why, in yitc-ops.yaml. Remedy: fix the declared command (${PS_REASON}).")"
+    PS_EVIDENCE_Q="$(_ps_scalar "declared command ${PS_COMMAND} @ ${HEAD_SHA}; ${PS_REASON} (SPEC-0198)")"
+    PROFILE_SNAPSHOT_FINDING_YAML="$(printf '\n'; cat <<PSF
+  - check_id: SEC-PROFILE-SNAPSHOT
+    severity: info
+    status: open
+    fingerprint: "${PS_FP}"
+    title: "${PS_TITLE}"
+    what: ${PS_WHAT_Q}
+    evidence: ${PS_EVIDENCE_Q}
+PSF
+)"
+  fi
+fi
+
+# ---------------------------------------------------------------------------------------------------
+# Assemble the report body. `report_hash` is appended AS THE FINAL LINE, over the SPEC-0145 §5 PINNED
+# canonical hash input: the report TEXT with every top-level `report_hash:` line removed AND trailing
+# newline(s) stripped — with NO trailing newline re-added. `$BODY` already IS exactly that (command
+# substitution strips its trailing newline and it carries no report_hash line), so the runner hashes
+# `$BODY` verbatim; the gate reads the on-disk file, strips its report_hash line back off + rstrips,
+# and recomputes over the identical text. This is the ONE canonicalization both sides share — pinned
+# after the interop bug (the runner had hashed the file bytes WITH the trailing newline while
+# the gate rstripped it → a false TAMPER on every fresh report). `hash_input` records the contract.
+# ---------------------------------------------------------------------------------------------------
+BODY="$(cat <<YAML
+schema: security-audit/v1
+role: security
+date: "${TODAY}"
+scan_mode: deterministic
+produced_by: ${SCAFFOLD_ID}
+provider_independent: true
+run_at: "${NOW}"
+run_identity: "${RUN_ID}"
+agent_identity: "deterministic-runner@${HOSTID}"
+head: "${HEAD_SHA}"
+scan_source: "${SCAN_SOURCE}"
+scanned_paths:
+  - "."
+required_scope:
+  - "."
+scanned_paths_count: ${SCAN_COUNT}
+scanned_paths_root: "${REPO}"
+tool_versions:
+  git: "$(git --version 2>/dev/null | awk '{print $3}' || echo unavailable)"
+  bash: "${BASH_VERSION%%(*}"
+  grep: "$(grep --version 2>/dev/null | head -1 | awk '{print $NF}' || echo unavailable)"
+  sha256sum: "$(sha256sum --version 2>/dev/null | head -1 | awk '{print $NF}' || echo unavailable)"
+${DEP_TOOLS_YAML}prior_baseline: "${PREV:-none}"
+fingerprint_derivation: "sha256(check_id LF title)[:16]"
+hash_input: "sha256(report text, all top-level report_hash: lines removed, trailing newline(s) stripped)[:16]"
+${ADAPTER_YAML}commit_identity: "${COMMIT_IDENTITY}"${PROFILE_SNAPSHOT_YAML}
+dependency_lockfile_hashes:
+${LOCK_YAML}checks:
+  - id: SEC-SECRET-GREP
+    ran_at: "${SECRET_TS}"
+    exit_code: ${SECRET_EXIT}
+    scanned_paths_count: ${SECRET_SCAN_COUNT}
+    result: "hardcoded_secret_hits=${SECRET_HITS}"
+  - id: SEC-ENV-TRACKED
+    ran_at: "${ENV_TS}"
+    exit_code: ${ENV_EXIT}
+    scanned_paths_count: ${SCAN_COUNT}
+    result: "tracked_secret_files=${ENV_TRACKED}"
+  - id: SEC-DEP-LOCK
+    ran_at: "${LOCK_TS}"
+    exit_code: ${LOCK_EXIT}
+    scanned_paths_count: ${SCAN_COUNT}
+    result: "lockfiles=${LOCK_COUNT}"
+${DEP_CHECKS_YAML}comparison:
+  prior_baseline: "${PREV:-none}"
+  open_count: $((OPEN_COUNT + HOOK_OPEN_COUNT + DEP_OPEN_COUNT + ADVISORY_DEGRADE_OPEN + SCANNER_MISSING_OPEN + PROFILE_SNAPSHOT_OPEN))
+  note: "deterministic re-check of generic surfaces; AI deep-review (NEW-finding discovery) is a separate non-gating layer (SPEC-0145 §2)"
+findings:
+  - check_id: SEC-SECRET-GREP
+    severity: critical
+    status: ${SECRET_STATUS}
+    fingerprint: "${SECRET_FP}"
+    title: "${SECRET_TITLE}"
+    what: "Assignment-shaped secret literals in live source: hits=${SECRET_HITS}."
+    evidence: "grep over ${SECRET_SCAN_COUNT} live-source path(s) of ${SCAN_COUNT} tracked (archived corpora excluded: ${ARCHIVED_CORPORA_RE}) @ ${HEAD_SHA}; exit=${SECRET_EXIT}; status derived ${SECRET_STATUS}"
+  - check_id: SEC-ENV-TRACKED
+    severity: critical
+    status: ${ENV_STATUS}
+    fingerprint: "${ENV_FP}"
+    title: "${ENV_TITLE}"
+    what: "Secret/credential files committed to git (.env/*.pem/*.key/id_rsa/...): hits=${ENV_TRACKED}."
+    evidence: "git-tracked file scan over ${SCAN_COUNT} path(s) @ ${HEAD_SHA}; exit=${ENV_EXIT}; status derived ${ENV_STATUS}"
+  - check_id: SEC-DEP-LOCK
+    severity: info
+    status: ${LOCK_STATUS}
+    fingerprint: "${LOCK_FP}"
+    title: "${LOCK_TITLE}"
+    what: "Dependency lockfiles inventoried for supply-chain baseline: count=${LOCK_COUNT}."
+    evidence: "sha256-hashed lockfile inventory @ ${HEAD_SHA}; see dependency_lockfile_hashes"
+${DEP_FINDINGS_YAML}${HOOK_FINDINGS_YAML}${ADVISORY_DEGRADE_YAML}${SCANNER_MISSING_YAML}${PROFILE_SNAPSHOT_FINDING_YAML}
+YAML
+)"
+
+# SPEC-0155 rule 2 — ATOMIC PUBLICATION. Assemble the COMPLETE report (body + report_hash) into a
+# run-scoped TEMP file, then atomically PROMOTE it to latest with a single rename. Nothing ever writes
+# `$OUT` in place: a run killed mid-write leaves only its temp file (swept by the EXIT trap) and the
+# prior COMPLETED report at `$OUT` byte-intact — a reader/gate never observes a partial (missing
+# report_hash) or interleaved report. The temp is created in the SAME directory as `$OUT` so the rename
+# stays on one filesystem (POSIX-atomic), and is dot-prefixed + `.tmp.`-suffixed so it never matches the
+# gate's `*-security.yaml` latest-pick glob (bin/v2-security-gate) nor the §9b foreign-report scan.
+# The hash is over the canonical text ($BODY, no trailing newline — the SPEC-0145 §5 pinned input the
+# gate reproduces by stripping the report_hash line + rstripping).
+TMP_OUT="$(mktemp "$REPO/.yitc/findings/.${TODAY}-security.yaml.tmp.XXXXXX")" \
+  || { echo "security-audit: cannot create run-scoped temp report file" >&2; exit 2; }
+_CLEANUP_PATHS+=("$TMP_OUT")
+printf '%s\n' "$BODY" > "$TMP_OUT"
+HASH="$(printf '%s' "$BODY" | sha256sum | cut -c1-16)"
+printf 'report_hash: "%s"\n' "$HASH" >> "$TMP_OUT"
+# --- atomic promote (run-scoped temp -> latest) ---
+mv -f "$TMP_OUT" "$OUT"
+
+echo "security-audit: wrote $OUT"
+echo " head=${HEAD_SHA} hash=${HASH} run_id=${RUN_ID} | secret=${SECRET_STATUS}(hits=${SECRET_HITS}) env=${ENV_STATUS}(hits=${ENV_TRACKED}) locks=${LOCK_COUNT} dep_vulns=${DEP_OPEN_COUNT} scanned=${SCAN_COUNT} adapter=${HOOK_DECL:-none} advisory_degraded=${ADVISORY_DEGRADED} scanner_missing=${SCANNER_MISSING}"
+exit 0

@@ -1,0 +1,120 @@
+id: SPEC-0108
+title: 'Migrated-project deploy security pre-gate — block open-critical, governed expiring waiver, fail-closed freshness'
+
+status: active
+
+created_at:
+
+travels: ~ # UNMARKED = kernel default (the placement contract, SPEC-0073) — this
+                               # deploy-gate contract travels to every migrated consumer, identity-agnostic.
+
+consumed: false # process/governance spec — no code reads a scalar param FROM it.
+
+extension: ~
+
+implements: [] # documentary / cross-cutting PROCESS spec — governs the deploy-gate
+                               # CONTRACT every migrated project's own deploy command realizes; enforced
+                               # by each consumer's deploy gate + audit-pre review, not a single engine
+                               # code site (distributed-enforcement empty-mode, SPEC-0005 rule 7). First
+                               # realization: social-parser — a CONSUMER ops surface, not engine code.
+
+body: |
+  ## Scenario
+
+  A project migrated from v1 to v2 still deploys via its own `deploy.sh`, which historically called the
+  v1 platform Release Gate. That gate aborts a v2 deploy on RETIRED v1-governance (the v1 Build Gate +
+  DECISIONS.md blockers) that no longer applies — while also carrying the one check that DOES still
+  matter: a block on open critical security findings. After migration the deploy must gate on REAL
+  security, not v1 governance: the owner runs a validation deploy, the governance noise is gone, but a
+  genuine open critical still stops the deploy, and a known, owner-accepted risk passes only through a
+  recorded, expiring waiver — never a silent bypass.
+
+  ## Internal
+
+  The deploy SECURITY pre-gate contract for a MIGRATED (v1→v2) project whose deploy is owner-gated (not
+  yet in the SPEC-0097 autonomous A/S/C1/C2 regime). It is the pre-gate the project's OWN deploy command
+  runs — SPEC-0094 §1 delegates the executable deploy-seam gate to the project; this spec fixes the
+  SECURITY contract that gate must honor. It does NOT replace SPEC-0098's Class-S autonomous security
+  live-probe (a different, autonomous deploy posture). Six rules:
+
+  1. **Drop v1 governance from the v2 deploy path.** The migrated project's deploy pre-gate MUST NOT run
+     v1-platform governance checks (the v1 Build Gate, DECISIONS.md blockers). Those are retired v1
+     governance and do not gate a v2 project. (Retirement — what this contract removes.)
+
+  2. **Preserve a blocking security check.** Dropping governance MUST NOT silently drop the real security
+     check: the pre-gate MUST still BLOCK (non-zero exit) the deploy on any OPEN critical/high security
+     finding from the project's governed security audit.
+
+  3. **Governed, expiring acceptance — NO in-code exception list.** A specific critical finding may be
+     accepted (non-blocking) ONLY via a governed, durable, git-TRACKED waiver source that records, per
+     finding: fingerprint + reason + a real-date EXPIRY + a tracking task. An EXPIRED waiver no longer
+     accepts. The acceptance MUST NOT be a fingerprint list embedded in the gate code (a second policy
+     store that drifts from the security process — CHARTER §P5 single-source / §P1). Any open critical
+     that is neither governed-accepted (status resolved/accepted_risk) nor an unexpired waiver — i.e. a
+     NEW finding — still BLOCKS. The waiver source MUST NOT live in a regenerated/gitignored artifact
+     (e.g. the nightly findings report), so acceptance is durable and auditable.
+
+  4. **Fail-closed freshness + deterministic selection.** The gate selects its findings report
+     DETERMINISTICALLY — an explicit input, or the newest by a stable date-contract (the report `date:`
+     / filename `YYYY-MM-DD`), NEVER ambiguous mtime — and FAILS CLOSED (blocks) if the report is
+     missing, unparseable, or older than a freshness threshold. A stale or absent security report never
+     silently passes.
+
+  5. **Deploy-time coupling via a SHARED release token.** Where a deploy rebuilds coupled services that
+     share one image (e.g. a backend image shared by celery worker/beat), the post-deploy gate MUST
+     assert co-deployment via a SHARED release label/version stamped on every coupled image AT BUILD and
+     verify the running containers carry the SAME token — NOT a brittle build-timestamp proximity proxy
+     (which can both false-pass and false-fail).
+
+  6. **The pre-gate must be invoked by the deploy path it guards.** The project's deploy command MUST
+     route its pre-deploy gate to THIS security gate (not the retired v1 gate); the wiring is verifiable
+     repo-locally (the resolved pre-gate command), without depending on any external absolute path.
+
+  ## Rationale
+
+  Real incident: the validation deploy of social-parser was BLOCKED by the v1 Release Gate's
+  Build-Gate + DECISIONS governance branches (23 retired blockers) plus 2 open criticals — governance
+  noise on a v2 project. Audit-pre flagged THREE times (incl. an owner-reset pass) that wiring a v2
+  security gate + a finding-acceptance store without a governing contract is an ungoverned new mechanism
+  (CHARTER §P1 «when NOT to add a mechanism»). This spec is that governing contract.
+  Anti-complexity 4 filters: (1) existing analog — SPEC-0094 (deploy-seam gate, §1 delegates the
+  executable gate to the project) + SPEC-0098 (Class-S autonomous security live-probe) are CITED; this
+  is a DISTINCT concern (the owner-gated pre-deploy security blocker for a migrated project), so a new
+  spec, not a parallel re-statement; (2) a standing rule that is cited+queried needs a spec node, not a
+  view; (3) RETIRES the v1 Release Gate (Build Gate + DECISIONS) from the v2 deploy path — a named
+  removal, not pure accretion; (4) real incident + 3× independent-auditor finding. Prior-art:
+  every surveyed project gates the executable check at its own deploy (kupiclub `scripts/deploy.sh`,
+  aiseller's blocking gates, boomrocket's post-deploy gate).
+
+  ## Verification
+
+  - A migrated project's v2 deploy over a findings report whose only open criticals are governed-accepted
+    or unexpired-waived PASSES the pre-gate (exit 0); a report carrying a non-accepted open critical
+    BLOCKS it (exit ≠ 0).
+  - A missing / unparseable / stale (> threshold) findings report → pre-gate FAILS CLOSED.
+  - An EXPIRED waiver → its finding blocks again.
+  - The post-deploy coupling gate PASSES when all coupled images share the release token, FAILS when one
+    is stale/empty.
+  - Repo-local check: the project's deploy command resolves its pre-deploy gate to the v2 security gate,
+    not the v1 Release Gate.
+  - First adoption (social-parser): bin/v2-security-gate.sh + bin/v2-security-waivers.yaml +
+    bin/smoke-test.sh (release-label) + deploy.sh PRE_DEPLOY_GATE repoint; probed by bin/tests/test-deploy-gates.sh.
+
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - SPEC-0094
+  - SPEC-0097
+  - SPEC-0098
+  -
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first (SPEC-0005 §5) — close activates this spec.
+proposed_by:
+binding:
+  - query-only # a reference CONTRACT fetched on demand (`graph query SPEC-0108`) at a
+                               # migration deploy-rehome — not floor-loaded, not code-enforced, not
+                               # verb-stage-delivered. Classifies the spec so it is not flagged dangling.
+init_concern: ~

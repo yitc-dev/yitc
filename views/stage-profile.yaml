@@ -1,0 +1,38 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: stage-profile
+description: Per-STAGE lifecycle cost over the tasks CLOSED in a window, for THIS project — n, median, p90 and sum of wall per stage, the machine-time share of each stage reported over the rows that actually carry a duration, lead-time median/p90, audits-per-close. Default window 14 days. Run `graph query stage-profile [--since <date>]`.
+lens:
+  kind: stage-profile # pure f over events.jsonl (the journal SoT), aggregating the SAME per-task
+                         # stage walk `task-scorecard` uses (_stage_walls_from_boundaries) over the
+                         # tasks closed in [since, until); NOT a new store and NOT a new event
+why: >-
+  `task-scorecard` answers "what did THIS task cost" and `trend-report` answers "what do the system's
+  OPERATIONS cost" (suite / land / verify / graph-build). Neither answers the question a review
+  actually asks: over the last N days, in this project, what does each of the nine lifecycle STAGES
+  cost, and how much of that cost is machine time rather than worker time. That number was reachable
+  only by a by-hand journal fold — the Controller re-derived it twice on 2026-09-02 (kernel Tests 7.3
+  min median / 171 h over ~700 closures; kupiclub Tests 5.2 min median, n=212), which is two chances
+  to derive it differently. This lens names the query once, so it is discoverable through
+  `graph query --type view` and recomputed identically on every run.
+
+  It AGGREGATES rather than re-implements: the per-stage walls come from the same
+  `_stage_walls_from_boundaries` walk `task-scorecard` calls per task (CHARTER §P5), so the aggregate
+  can never disagree with the per-task lens it sums. The window is the trend-report `--since/--until`
+  pair reused verbatim, and the population is tasks whose LAST `task_closed` falls inside it
+  — so the profile always describes COMPLETED lifecycles, never a slice through open ones.
+
+  The load-bearing rule is the MACHINE-TIME honesty. `duration_ms` became universal on tests and audit
+  rows only at, so any window reaching further back sees a MIXED population, and a share
+  computed over rows lacking the field would silently understate every stage. So each stage reports
+  `rows`, `rows_with_duration` and the literal "k of n with duration", computes the share over those k
+  rows against the walls of the tasks those rows belong to, and — when k is zero — prints "no duration
+  rows" with a NULL share rather than 0%. An unmeasured stage and a stage the machine spent nothing in
+  are different facts, and the output says which one it is (SPEC-0135 §5; the `_dur_stats`
+  never-silently-drop contract; the `outcome-ratio` no-fabricated-zeros rule, which also governs the
+  empty-window payload: every figure null beside a `no_data` line, never a page of zeros).
+
+  Report-not-block : a rising stage cost is a SIGNAL to look at what changed upstream, never a
+  gate. Under `-C <project>` it folds THAT checkout's journal (segment-aware — SPEC-0190 rule 4), and
+  `nightly` (SPEC-0105) prints one report-only line per enumerated project, suppressed when that
+  project closed nothing in the window. No new store, no new event, no new command family.

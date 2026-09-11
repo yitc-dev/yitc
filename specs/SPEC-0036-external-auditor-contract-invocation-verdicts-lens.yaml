@@ -1,0 +1,1089 @@
+id: SPEC-0036
+title: 'External auditor contract — invocation, verdicts, lens, per-stage overlays incl. plan-stage templates'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+
+created_at:
+
+consumed: false # read-rule spec; no code reads a scalar param FROM it.
+
+implements: [] # documentary read-rule spec — fetched before audits / at plan gates.
+                               # Non-empty `binding:` ⇒ non-dangling.
+
+binding: # SPEC-0013 — delivered at BOTH task-audit stage-entries (inherited
+  - stage-entry:Audit-pre # from SPEC-0016). ONE delivery axis only (graph conformance rule:
+  - stage-entry:Audit-post # no second-delivery-source) — the PLAN gates do NOT need spec-
+                               # delivery: the transition verbs (`plan check` / `plan stage <NEXT>`)
+                               # ASK the matching template themselves (they are the control-point;
+                               # the prompt builders consume the template text from this one home).
+
+body: |
+  ## Scenario
+
+  Before the AI runs an audit it must hold the audit contract: that the auditor is an INDEPENDENT
+  second agent, what each verdict means, the absorption ceiling, and the V2 evaluation lens the
+  prompt must carry — otherwise audits drift to generic "good practice" and lose their
+  blind-spot-catching value. THIS head additionally carries the PLAN-STAGE QUESTION TEMPLATES: the
+  owner-visible, durable question sets asked at each plan-FSM gate (so the owner can see WHAT the
+  external auditor checks, correct it controllably, and append case-specific questions via
+  `--focus`) — closing the gap where early plan transitions (draft→specs, specs→trial) had no
+  named audit questions at all. One contract body serves the task-audit stages AND the plan gates;
+  splitting would duplicate the universal lens (P5).
+
+  ## Internal
+
+  THE AUDIT CONTRACT. The external auditor IS the second AI agent — a DIFFERENT provider from the
+  primary (CHARTER §Principle 4a); each catches the other's blind spots.
+
+  ### Auditor selection — provider + model + EFFORT (per-tier)
+  The auditor for an invocation is selected by THREE per-tier knobs in `bin/audit-config.yaml`
+  (routine vs full tier — CHARTER §P4b keeps the concrete bindings in config, not in this normative
+  text): `provider:` (which adapter — `<external-auditor>` default, or `the AI provider`), `model:` (the provider's model
+  id), and `effort:` (per-invocation reasoning effort — low|medium|high|xhigh|max; default `medium`,
+  the explicit real-work level). Effort is honored by BOTH adapters : the the AI provider adapter
+  passes the AI provider's native `--effort <lvl>`; <external-auditor> has no native flag, so its adapter passes the
+  `-c model_reasoning_effort="<lvl>"` config-override (the CODEX_HOME `model_reasoning_effort` key,
+  whose own default is medium). An ABSENT `effort:` adds no flag / no override — each provider stays
+  its own config-default (<external-auditor> byte-identical to a no-effort invocation). `effort` is a RUNTIME
+  invocation knob, not a consumed-spec governing param.
+
+  **ENV override — per-context auditor selection (precedence: env > audit-config tier default).**
+  Each of the three knobs has a matching environment variable — `YITC_AUDIT_PROVIDER`,
+  `YITC_AUDIT_MODEL`, `YITC_AUDIT_EFFORT`. When a var is set (non-empty) it WINS over the
+  `bin/audit-config.yaml` tier default; when unset, resolution returns the config default UNCHANGED
+  (byte-identical — the committed config is test-pinned to <external-auditor>/medium by, so the env path
+  must not perturb it). This lets a caller select the auditor PER-INVOCATION without editing the
+  committed config — e.g. the bench harness exports the trio into each dispatched polygon worker's
+  launch subshell (parity with its CODEX_HOME export) so a per-cell auditor is honored, and an ad-hoc
+  consult can override on the command line. The override is read in `bin/lib/audit.py`
+  resolve_audit_provider/model/effort (the single resolution chokepoint). It is a RUNTIME selection
+  knob, same class as `effort` above — not a consumed-spec governing param.
+
+  ### When invoked
+  audit-pre/post apply to a TASK (Stage 4/8) OR a DECISION OR a PLAN — for a plan: the
+  aggregate `audit post --plan` at the close-gate (Part B) PLUS the per-gate QUESTION
+  TEMPLATES below (§Plan-stage overlays) asked by `plan check` / `plan stage <NEXT>`. For a TASK:
+  audit-pre = "does the plan match scope + acceptance?" governs proceed-to-execution; audit-post =
+  "does the shipped diff match the plan?" governs close-vs-reimplement. Hygiene fast-path tasks
+  skip BOTH. CLI target: `audit pre|post --task T-XXXX` OR `--decision D-XXXX` OR
+  `audit post --plan <slug>`.
+
+  **Re-audit-after-close carve-out (X-0040 non-empty-delta half) — the ONE exception to
+  "TASK audits run in-progress only."** A TASK audit-post normally requires `status: in-progress`
+  (audits ARE Stage 4/8, which only exist for an open task). The narrow exception: a status:**done**
+  task whose worktree carries LEGITIMATE post-audit-post SOURCE changes (e.g. recovery test-fixes)
+  needs a FRESH audit-post over the CURRENT tree to reach a post-close `land --rebaseline` WITHOUT the
+  blunt `--no-tests` (the deadlock live-hit on : the original audit no longer covers the changed
+  tree, and a done task previously refused re-audit). `audit post --reaudit-after-close --task T-XXXX`
+  is that path: it is **post-only + --task-only + status:done-only** (drop any one → the ordinary
+  in-progress audit-post path runs unchanged; the flag rides the shared `audit post` parser surface, so
+  it is FAIL-CLOSED REJECTED on a non-task `--decision`/`--plan` target rather than silently ignored),
+  it ALWAYS audits **HEAD** (the current tree; `--commit`
+  is rejected — the freshness guarantee is "audit the current tree"), and it records the fresh
+  `audit_post_completed` GREEN/YELLOW at HEAD. The honoring of that fresh audit on the `--rebaseline`
+  land rides the EXISTING `_change_is_audited` inert-delta gate (delta HEAD..HEAD is empty → audited) —
+  no new honoring path (SPEC-0077 §3a sibling). The read-gate + stage-correspondence bypass this path
+  requires (a done task cannot enter `stage Audit-post`) is governed by SPEC-0050's Instance.
+  This SUPERSEDES the prior SPEC-0077 §3a claim that the post-close case "needs NO re-audit-after-close
+  path, so SPEC-0036's in-progress-only audit rule is untouched" — it is now touched, exactly here.
+
+  ### Verdict handling (uniform across pre / post / ad-hoc / plan-gates)
+  | Verdict | Action |
+  |---|---|
+  | GREEN | Proceed. |
+  | YELLOW (medium findings) | Absorb inline if quick; file a follow-up for residual; proceed. |
+  | RED (critical/high findings) | STOP at a BLOCKING gate (re-plan / escalate; never silent-pass). At an ADVISORY plan-gate: recorded, transition proceeds (§Plan-stage overlays gate policy). |
+  | ABORT (auditor unavailable / malformed) | STOP. Don't proceed without a verdict. Surface to owner. **Exception : a TRANSIENT no-read-tooling ABORT** — the auditor ABORTs claiming it lacks file-read tooling, carrying NO findings — is retried ONCE by `audit pre|post`; if it persists it is recorded (`tooling_absence_abort: true`) but does NOT burn an audit pass (the ledger is not advanced — re-run later, it is not a real ABORT). **Exception : a <external-auditor> TIMEOUT ABORT** — `_invoke_auditor` hits its hard timeout (rc==124), which maps to verdict ABORT carrying NO findings — is the SAME no-real-outcome class: recorded (`timeout_abort: true`) but does NOT burn an audit pass (ledger-skip), so a timeout never forces an `--owner-reset` (the incident). **SUPERSEDED by — the ledger now keys on the NO-OUTCOME INVARIANT, not on the cause.** ANY ABORT carrying NO findings is ledger-skipped, whatever the rc: the auditor produced no verdict, so nothing was absorbed against one (`is_no_data_verdict` — the SPEC-0173 rule-1 predicate that ALREADY classifies this shape as a run that did not complete). It strictly SUBSUMES the two per-cause predicates above, which survive as forensic MARKERS (`tooling_absence_abort` / `timeout_abort`) and keep their other jobs (the retry loop; the auto-park) — only the LEDGER stopped keying on them. FAIL-CLOSED, and this is the whole boundary: the skip needs verdict==ABORT **AND** findings==[]; an ABORT that CARRIES findings is the auditor having RUN and refused with content — a real outcome that STILL advances — and no non-ABORT verdict (GREEN/YELLOW/RED) can ever open it. **What OVERRIDES, named so it is traceable:** clause held it DELIBERATE that a non-124 no-outcome failure (auth / network / malformed config) still advances the ledger, so a broken ENVIRONMENT would surface through ceiling pressure. Overridden because (i) an ABORT ALREADY STOPs on pass 1 (this same row), so the environment surfaces IMMEDIATELY — ceiling pressure only adds a later, opaquer signal that spends the card's `--owner-reset` on the way, exactly what incident measured (rc==1 with EMPTY stdout, twice, each advancing the ledger to 3 against a HEALTHY auditor); and (ii) the ceiling counts ABSORPTION passes against an AUDITOR, so charging a run that invoked none makes the counter measure something other than what it bounds (the / measurement-validity argument, already ratified on this ledger). ACCEPTED COST: a persistent no-outcome fault matching no outage signature accrues no ceiling pressure at all — safe because nothing auto-retries an ABORT, so it cannot spin silently. Compliance on a GENUINE ABORT (one carrying findings) is unchanged. Compliance on a GENUINE ABORT is unchanged. **Exception : an AUDITOR-OUTAGE ABORT** — the auditor genuinely could not RUN (`is_auditor_outage_abort`: verdict ABORT, NO findings, AND rc in {126,127} — subscription-preflight refusal / <external-auditor> CLI missing — OR an env/config / usage-limit / quota signature; EXCLUDES the rc==124 timeout above) is a no-plan-defect class: there is nothing in-scope to fix, so a DISPATCHED worker (`YITC_EXPECTED_SESSION_REF` set) is AUTO-PARKED GRACEFULLY by `audit pre|post` — the worktree+branch are torn down (`worktree park` / the shared `_park_worktree` core, emitting `worker_parked`) and the task stays `ready` on main → cleanly re-dispatchable, no dead-but-unlanded orphan (the X-0098/X-0092 incident — twice in one session). An INTERACTIVE session prints the manual `worktree park` hint instead (never auto-destroy an interactive worktree). The dispatched-worker park-not-escalate behavior is the SPEC-0103 §3a subclass. |
+
+  ### Auditor-tier policy — routine vs FULL, and no relitigation of a FULL-settled point
+  Two standing policies (owner precedent 2026-06-11). NO new mechanism: session DISCIPLINE on
+  the EXISTING `--full` flag + the EXISTING consult path, never a detector or gate (CHARTER non-goal
+  #7 — no behavioral auto-classifier).
+
+  - **(b) Tier selection — doctrine/scope-sensitive gates default to FULL.** The BASE tier guidance
+    lives in AGENTS §External auditor (FULL for big-plan / architectural / conceptual-coherence;
+    lighter routine for small mechanical pre/post) — read it there, not duplicated here (P5). This
+    SHARPENS it on the GATE axis: when the gate turns on a DOCTRINE, GOVERNANCE, SCOPE-BOUNDARY, or
+    CONCEPTUAL-COHERENCE judgement — not a mechanical diff check — the session passes `--full` BY
+    DEFAULT. The session JUDGES sensitivity (a routine/mechanical change stays routine); this is a
+    behavioral discipline, NEVER an auto-classifier or gate (non-goal #7). Rationale: a weaker model
+    relitigates settled doctrine, so a doctrine gate starts at the tier where doctrine is adjudicated.
+
+  - **(a) No relitigation after a FULL consult settles a point.** Once a FULL consult (the
+    ceiling-convergence consult, or a FULL ad-hoc) has SETTLED a point — a FRESH single-survivor
+    GREEN/YELLOW on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that
+    settled point. The FULL consult is the authoritative adjudication; a routine RED that merely
+    RE-ASSERTS what the fresh FULL consult resolved is treated as DOCTRINE-INCONSISTENT and is NOT
+    relitigated — it is dispositioned in the audit YAML `session_disposition` citing the consult
+    (the owner standing precedent «doverit umnomu» ("trust the smart one")). This GENERALIZES, as standing doctrine,
+    the already-shipped MECHANIZED instance: at the `--owner-reset` ceiling-continuation the
+    consult-GOVERNS path (SPEC-0124 §Audit-loop ceiling) carries the consult verdict VERBATIM with
+    no weaker-model re-invocation. SAME freshness guard binds BOTH: only a consult matching the CURRENT
+    subject (pre = plan_fingerprint, post = commit SHA) settles a point — a STALE / multi-survivor /
+    ABORT consult settles NOTHING, and a routine RED with no settling consult governs normally.
+
+  ### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)
+  RE-HOMED to SPEC-0124, which binds the SAME Audit-pre/Audit-post stage-entries and is
+  therefore always delivered alongside this spec — read the ceiling contract there.
+
+  ### Universal V2 evaluation lens (include in EVERY prompt)
+  Evaluate against CHARTER principles:
+  - Anti-complexity: does this add mechanism/file/rule? 4 filters passed?
+  - Done = adopted: acceptance includes probe evidence (event/state/measurable)?
+  - Documentation-first: relevant docs read/updated?
+  - Single source of truth: parallel storage/parser created?
+  - AI independence: provider-specific terms in normative text?
+  - Controller+Worker only (CHARTER §P6 — the live session taxonomy; Build+Review is retired): pipeline/role-split crept in?
+  - Repeated work (audit-pre / any plan-shaped artifact): does the plan add repeated work — an N+1, a
+    re-read, a re-fetch, an unbounded loop or poll, a repeated scan, an unwatermarked pass — WITHOUT
+    naming the neighbouring mechanism at the same seam that it reuses (or recording that none exists)?
+    The classes + detect heuristics live single-home in `patterns/repeated-work-lens.md`; this lens
+    asks the ONE question and never restates them (SPEC-0005 rule 8). Its authoring-side counterparts
+    are SPEC-0032 §Internal item 1a (Analysis) and SPEC-0027 §Stage 3 (the plan's `reuses:` /
+    `adds-first:` line) — the absence of that line is at most a finding here, never a refusal there.
+    Inert for an artifact that adds no read / loop / poll / fetch / scan / worker pass.
+  - **Touch-forecast / coverage COMPLETENESS is CONTEXT, never a finding.** That a file or
+    a spec is ABSENT from the card's `expected_touch`, or from the `### Spec coverage of touched
+    files` forecast, is NOT a defect at any severity and the auditor MUST NOT raise it as a finding —
+    not high, not low, not a note dressed as one. `expected_touch` is an OPTIONAL plan-time forecast
+    (SPEC-0028) whose three consumers are dispatch/planning/claim, and `task commit` now REFRESHES it
+    from the committed diff (`bin/lib/task.py#refresh_expected_touch`), so a gap is a fact about WHEN
+    the card was written, not about the change. The comparison stays rendered — as CONTEXT for the
+    scope-fidelity judgement: a path in the diff the card's SCOPE does not justify is still a
+    scope-fidelity finding, judged on the CHANGE and never on the forecast's completeness.
+    ENFORCED, not merely asked: a RED whose ONLY findings carry `class_id: forecast-completeness`
+    (`bin/lib/audit.py#FORECAST_COMPLETENESS_CLASS_ID`) is REFUSED at the parse floor —
+    `bin/lib/audit.py#red_findings_forecast_completeness_only`, the sibling of SPEC-0204 rule 1's
+    contract-fields floor — so no verdict is recorded and NO pass is spent. A RED carrying a genuine
+    finding ALONGSIDE a forecast remark is recorded normally; the refusal can only ever discard a
+    verdict with nothing else in it. Grounds: three of four RED audit-pre passes on 2026-09-09
+    ( pass 2 pass 2 + its consult) were of this class, each a ceiling exit.
+  - **WITHDRAWN-TEMPORARILY (owner directive 2026-09-05) — the full-verdict rule
+     is NOT in force.** It required every RED verdict (audit-pre AND audit-post) to
+    enumerate the COMPLETE defect set over the WHOLE subject, with a `findings_complete: true |
+    false` declaration read fail-closed on omission, and a one-shot completion re-prompt in the same
+    pass. Measured over the day it ran, ordering a fresh whole-subject survey on EVERY pass made the
+    loop worse, not shorter: audit-post RED share 16% -> 44%, post-audits per task median 2 -> 3
+    (share with 3+ passes 41% -> 62%), max consult rounds per (task,stage) 1 -> 11. An external
+    ad-hoc consult confirmed the mechanism (the clause re-surveys the whole subject each pass, and
+    `findings_complete` records a model assertion rather than an exhaustive boundary) and ruled a
+    prompt-only narrowing UNSAFE, naming a plain revert the safe temporary rollback. No auditor
+    surface carries the clause and no verdict schema asks for the declaration. The NARROWED
+    successor — ONE exhaustive survey at the baseline-establishing consult, later rounds scoped to
+    that baseline's closure plus fix-induced regressions — is being designed in plan
+    `frozen-defect-baseline-at-the-audit-loop-ceiling-d`; read the rule there, not here. The CONSULT
+    half was withdrawn on the same terms in SPEC-0124 §Ceiling-convergence triage.
+  - Amendment-merit (a CHARTER-amending artifact — E-0013): IF the artifact EXPLICITLY proposes to
+    AMEND a CHARTER principle/section AND states the amendment's
+    merit, do NOT RED it merely for being incoherent with the CURRENT CHARTER text — that
+    incoherence is the POINT of an amendment, not a defect. Evaluate the amendment ON ITS MERITS
+    (justified by a real need / prior-art? scoped? retirements named? probe-shaped? does it EXPLICITLY
+    amend the surface it changes, not silently bypass it?); RED only if the amendment ITSELF is
+    unsound / unjustified / out of scope. Inert for ordinary artifacts proposing no amendment —
+    coherence-with-current-CHARTER still governs those. Parity with the decision audit-pre amendment
+    overlay (AGENTS §Per-stage overlays); without it any §N-amendment plan is incoherent-by-construction
+    and structurally cannot pass before the amendment lands (E-0013, N=2).
+
+  ### Monotonic per-pass re-audit prompt (pass N>=2) ( — lever #1 of plan
+  audit-reliability-and-convergence-overhaul-monoton; X-0134 RC1a)
+  The auditor prompt is MONOTONIC across re-audit passes — it does NOT re-survey from scratch.
+  - **NEW (account-for-prior FIRST):** on pass N>=2 (a prior saved audit record exists for this
+    target+stage) the prompt LEADS with a monotonic re-audit section — placed AFTER the fixed lens but
+    BEFORE the fresh-survey overlay/body so it is read first. It (a) inlines the PRIOR verdict's
+    findings verbatim, (b) renders the plan/diff DELTA — the prior artifact IDENTITY (plan_fingerprint
+    for pre / commit sha for post) as the FROM endpoint, plus a computed unified diff when the prior
+    artifact text is available, else an explicit framing of the current plan/diff (in the body) as the
+    TO endpoint — and (c) makes the auditor's FIRST task per-prior-finding RESOLVED / NOT-RESOLVED
+    against that delta. Only THEN may it raise a finding, and a NEW finding MUST be justified as
+    genuinely-new (a real defect the current change introduced OR the prior pass missed) — NOT a
+    re-survey of settled ground and NOT a goalpost-shift. CONVERGENCE: all prior findings resolved +
+    no new REAL defect -> GREEN.
+  - **NOT BLINDED (constraint #2):** monotonic means "account for prior first", NOT "new findings
+    forbidden". A genuinely-new REAL defect STILL surfaces and STILL blocks (verdict != GREEN); the
+    section says so explicitly, so the convergence pressure never suppresses a real defect.
+  - **CONDITION-BASED resolution, NOT diff-delta-only ( — X-0134 RC1a out-of-diff half; live
+    incident false-RED):** marking a prior finding RESOLVED is judged against its CURRENT
+    SATISFACTION in the FULL packet the auditor now sees (the body, the attached/referenced files,
+    AND the surfaced adoption/state evidence) — NOT only against whether the audited DIFF changed
+    since the prior pass. A resolution may live OUTSIDE the audited diff: an ENGINE / environment fix
+    or freshly-surfaced evidence that now renders a once-missing thing PRESENT (e.g. an
+    adoption-evidence SURFACER fix that makes `state_checked` / `external_audit_completed` evidence
+    visible in the packet). So an UNCHANGED audited diff is NOT, by itself, grounds to carry a prior
+    finding forward — the auditor must re-check the FINDINGS CONDITION, and mark it RESOLVED when
+    that condition is now met REGARDLESS of diff change. The diff-DELTA stays an AID for justifying a
+    genuinely-NEW finding (what the current change introduced), NOT the sole resolved-test for a prior
+    finding. This NEVER becomes a blanket clear-on-no-change: resolution must be GENUINE — RESOLVED
+    only when the condition is ACTUALLY satisfied now; a still-unmet condition STILL blocks (verdict
+    != GREEN) even with no diff change. This is an in-place ADDITIVE clarification (SPEC-0005 §7): the
+    rule was silent on out-of-diff resolution; the in-diff path + the not-blinded + goalpost-shift
+    invariants are UNCHANGED.
+  - **AMENDMENTS ARE RENDERED ( — X-1182; kupiclub):** the section ALSO inlines the
+    card's `amend_notes:` entries — the notes `task update --note` appends — but ONLY those written
+    AFTER the prior pass. `task update --note` is the governed route for ANSWERING a finding, yet
+    `amend_notes` was rendered NOWHERE in the packet: an author answered three findings through it and
+    the next pass returned the identical three, each prefixed "Prior finding N NOT-RESOLVED". The
+    auditor was not disagreeing — it never saw the answer, and the only other route out was a further
+    commit that `task commit --fix-red` correctly refuses as bookkeeping-only. So the answer is made
+    VISIBLE where it is used, rather than the write being warned about. Three bounds: the cut is
+    DIFFERENTIAL (entries after the prior pass only, so the prompt budget stays flat as a card
+    accumulates amendments) and FAIL-CLOSED (an unparseable prior timestamp or entry prefix renders
+    nothing — the whole history is never dumped); an amendment is EVIDENCE the auditor must engage,
+    NEVER by itself a resolution — a finding whose CONDITION is still unmet STILL blocks whatever the
+    amendment argues, which leaves the condition-based resolution rule above untouched; and pass-1
+    packets are unchanged, since the whole section renders only on pass N>=2.
+  - **RESOLUTION ROWS — the auditor judges a CHECK instead of re-surveying :** an
+    `amend_notes` entry written after the prior pass (the SAME differential cut as the bullet above,
+    never widened) whose note body matches the one-line grammar
+    `RESOLVED <finding-index>: <text> | CHECK: <text> | OUTPUT: <text>` — the literal `RESOLVED`, a
+    1-based index into the PRIOR verdict's findings order, then the three `|`-separated fields — is
+    rendered as a TABLE ROW aligned to that prior finding, and the section instructs the auditor to
+    judge THAT recorded check FIRST. A prior finding no entry names rows as `no resolution recorded`,
+    which carries no claim either way. The grammar is a READING convention over the existing field:
+    the raw note stays the source of truth (every entry, parsed or not, still renders verbatim), the
+    row is an INDEX into it, and NO new field, store or verb is introduced — `task update --note`
+    remains the writer. The ENGINE NEVER EXECUTES THE CHECK: the author records the OUTPUT and the
+    auditor reads it, so a row is EVIDENCE — never by itself a resolution, and a finding whose
+    condition is still unmet STILL blocks (the framing, unchanged). PARSE FAILURE: an entry
+    beginning `RESOLVED` that does not match the grammar, or that names an index outside the prior
+    findings, renders UNSTRUCTURED exactly as it did before this rule PLUS ONE diagnostic line naming
+    the entry and the expected shape — never silent loss, never a refusal. Pass-1 packets are
+    unchanged (the whole section renders only on pass N>=2).
+  - **Scope:** the absorption-loop audits only — TASK audit-pre/post + PLAN gate audit-post (the shared
+    `build_audit_prompt` engine). The consult / ad-hoc / decision target-kinds carry their own
+    prior-trail handling and are passed NO `prior_record`, so they are unaffected.
+  - **Compatibility (additive — SPEC-0005 §7 in-place extension; no new SPEC-ID):** the section is
+    rendered ADDITIVELY and ONLY on pass N>=2; pass-1 prompts are unchanged. The audit-record SCHEMA is
+    untouched — the ledger-skip family (single-homed at SPEC-0124 §Ledger-skip axes) and the
+    recorded `passes:` semantics are PRESERVED (the ceiling still counts passes identically — this
+    changes the PROMPT, not the counting). The
+    prompt text is DERIVED implementation wording (SPEC-0005 rule 8 cue+pointer); the canonical rule is
+    THIS section, the code home is `build_audit_prompt` / `_format_monotonic_reaudit_section`.
+
+  ### Task per-stage overlays
+
+  - **audit-pre (Stage 4) — plan quality:** scope match with task AC; alternatives / prior-art
+    considered (existing analog — spans current artifacts AND the PLAN layer, `plan list --status
+    accepted`); scope-creep risk; implementation-plan completeness (file list / test strategy /
+    risks); adoption-honesty (E-0005: narrowing a claim about an out-of-scope downstream obligation
+    is valid ONLY if a tracked blocking follow-up is filed); PLACEMENT (SPEC-0073): is each new / re-scoped artifact the plan forecasts correctly placed kernel (methodology a consumer pins) vs v2-self (this repo's dev-history that never travels) vs project — flag a V2-SELF class treated as kernel (export-slice leak), or an exception-capable artifact (spec/pattern) whose placement the plan leaves implicit (`spec new` fails closed without a `--travels` decision). ALSO inline relevant `lessons/` entries to the design-judging auditor via the EXISTING `audit pre --from-file <lesson>` carrier — the audit lessons read-surface (SPEC-0091 Rule 1). CONTENT-BOUNDARY BINDING (SPEC-0005 §3 / X-0134 RC1b): when a forecast change AUTHORS or EDITS a spec, implementation detail — DTO / payload / schema SHAPES, field / function signatures, data-structure layouts, runtime flags / env-var names / config keys / CLI spellings — is METHODOLOGY-FORBIDDEN spec content (it lives in the code or the plan, never the spec body); the audit-pre lens binds the auditor to NOT flag the ABSENCE of such impl detail as a defect and NOT DEMAND that a spec ADD it, because demanding it asks the author to VIOLATE SPEC-0005 §3 — a spec that states its rule and omits the wire-level / code-level shape is CORRECT and complete, not 'under-specified' / 'missing detail'. This is DERIVED prompt wording; the canonical content-boundary rule stays single-homed in SPEC-0005 §3 / SPEC-0046 (cue + pointer, SPEC-0005 rule 8), guarded by a drift-probe test.
+  - **audit-post is CONDITIONAL on exactly one thing — a project-declared exemption case (SPEC-0178,
+    additive amendment; rule 8 makes this a PRECONDITION of that spec's activation).** A project MAY
+    declare, in its own `yitc-ops.yaml`, named cases whose matching cards close WITHOUT the Stage-8
+    audit-post below, each carrying a mandatory reason recording who accepted the risk and why.
+    Everything else about this contract is unchanged. The bounds are stated identically here, in
+    SPEC-0015 and in the CHARTER — a surface stating a DIFFERENT bound is a standing contradiction
+    (CHARTER §P7), not a wording variation:
+    **audit-post ONLY (rule 2)** — a case never reaches audit-pre, the Tests stage, the land-verify
+    layers, the worktree-before-write rule, or the Closure probes;
+    **a skipped audit-post burns NO audit-loop pass and CANNOT satisfy Principle-8 adoption evidence
+    (rule 4)** — an absent audit is not a failed one, so nothing is counted against the audit-loop
+    ceiling, and an infra-class card takes audit-post regardless of any case matching it;
+    **a card whose diff touches a GOVERNANCE surface takes audit-post whatever a case says (rule 3)**
+    — computed on the diff, never on the declaration;
+    **automation may only RESTORE this gate, never remove one (rule 5)** — removing it is always an
+    explicit project act — **AND that automatic restoration is INOPERATIVE wherever the `kind`
+    judgement is not made**, since it counts only captures judged a DEFECT at triage, a call that is
+    optional and, measured across three consumers' entire history, never made; where it is not made,
+    restoration is carried by the SPEC-0178 rule 7 periodic review. That qualification is not
+    optional wording: without it this contract would promise a stronger safeguard than SPEC-0178
+    provides. A card closed under a case records `task_closed.data.exempted_case` (SPEC-0025).
+  - **audit-post (Stage 8) — ship quality:** shipped-diff drift from plan; each AC has a probe
+    result; missing adoption (code shipped but not invoked) — for an infra-class task confirm a
+    Principle-8 adoption artifact exists. **The P8 artifact has THREE equally-valid forms per CHARTER
+    §8: a `consumer_read_evidence` event, a `live_trigger_evidence` event, OR — the THIRD
+    satisfier — an EXPLICITLY BLOCKING ADOPTION FOLLOW-UP FILED. ANY one is sufficient.
+    NEVER RED because the task used one valid form when you expected the other.**
+    **The third satisfier's SHAPE is three-part and fail-closed (SPEC-0119 rule 31):** a followup
+    whose text DECLARES `P8-CARRIER: <the audited task id>`, carrying BOTH (a) a named trigger
+    condition and (b) a machine-resolvable awaited artifact (`--awaits`, the SPEC-0095 fire key,
+    which is also its ownership). All three parts, or it is not a carrier: a followup missing the
+    marker, the trigger or the awaits buys nothing and is judged exactly as before. Such a carrier
+    is rendered in the audit-post packet's `### Adoption evidence` section, labelled `blocking
+    adoption follow-up (SPEC-0015 third satisfier): <id> awaits <artifact>`
+    (`bin/lib/debt.py#p8_carrier_followups` folds it — the SAME reader the `debt` view uses — and
+    `bin/lib/audit.py#format_p8_carrier_followup_section` renders it).
+    **SCOPE — it satisfies THIS gate, and defers rather than discharges.** It satisfies the
+    audit-post adoption criterion, which is where a DEFERRED adoption (one whose live firing is
+    unreachable before the ship lands) previously had no route at all: filed exactly such a
+    carrier and RED-ed through two further passes because the accepted-carrier set omitted it. It
+    does NOT change closure: the `task close` CHARTER §P8 / E-0005 WARN logic still reads only the
+    two P8 EVENT types, and the followup stays on the `debt` echo — un-dischargeable by time
+    passing — until its named trigger fires. This is NOT a member of the deferred-adoption OVERLAY
+    family below: those exempt an ABSENCE and take a flag, while this renders an artifact that
+    EXISTS, takes no flag, and adds no store, event or gate.
+    **TRIGGER-FIRED MECHANISM — adoption demand is keyed on BEHAVIOUR, not the `class:` label
+    (X-0089):** for ANY shipped mechanism whose SUCCESS DEPENDS ON AN EXTERNAL TRIGGER FIRING —
+    a scheduler/cron/celery-beat, a hook, an event-consumer, or any periodic/background runner —
+    demand **live-trigger OR synthetic-load** evidence that the mechanism ACTUALLY FIRED (the
+    `live_trigger_evidence` form), REGARDLESS of the task's `class:` label. A direct-call UNIT test
+    proves the code runs WHEN CALLED, not that the trigger invokes it in production — so a unit test
+    alone is NOT adoption evidence for such a mechanism. This catches the mis-classification path: a
+    triggered mechanism filed `class:feature` (e.g. a periodic cache-GC) escapes the class:infra-scoped
+    confirmation above and ships audit-post-GREEN though no runner ever fires it in prod (the X-0089
+    incident). This is **NARROWLY scoped to trigger-fired success-depends-on-firing mechanisms** — it is
+    NOT a blanket live-trigger demand on all infra or all features; an intrinsic-behaviour change whose
+    success does NOT depend on an external trigger is unaffected (judge by behaviour, never by a
+    keyword). NO new mechanism/detector — this is the auditor's adoption-honesty judgement (CHARTER §P8),
+    sharpened in prompt only.
+    **DIFFERENTIAL PROBE — per acceptance criterion, name the input that would make it FAIL (X-0246):**
+    for EACH acceptance criterion, the auditor MUST answer: *would this criterion still pass if the thing
+    under test were BROKEN?* If yes it is a smoke check, not a probe — the criterion is **NOT met**, and
+    that is a **RED** no matter how exactly the shipped diff matches the plan. Diff-matches-plan and
+    criterion-is-differential are two INDEPENDENT questions; a card can pass the first and fail the second,
+    and until now only the first was asked. **VACUOUS-ABSENCE sub-class (the named failure mode):** a
+    criterion satisfied by asserting an artifact is ABSENT (no event fired / no command ran / no file
+    written) is VACUOUS unless the shipped diff shows the mechanism that PRODUCES that artifact was
+    actually INVOKED in the same scenario — an absence asserted over a state where the mechanism was never
+    called is true of the EMPTY state and proves nothing. Its mirror: a criterion asserting an artifact IS
+    present while the property under test is VIOLATED enshrines the defect as expected behaviour. Real
+    incident (corrected by): a proof card shipped a test whose escalate-branch never
+    invoked the verb it claimed to gate, so its `no deploy_completed` assertion was vacuously true; it
+    passed byte-for-byte against a verb carrying NO gate at all — which is exactly what had. This
+    is a lens DEMAND, not a new mechanism: the differential discipline is homed at CHARTER §Principle 3
+    (done = adopted) and cued at authoring by SPEC-0060 §4 — one rule, now ASKED at verify where filing
+    only PROMPTED it.
+    **ORDERING (E-0008 sub-cause 2):** for an event-based P8 task the adoption event is emitted
+    DURING Execution (Stage 5) — by the SESSION running `bin/yitc-v2 event …` (V2 has NO automated
+    emitter code path and adds none) — so it is EXPECTED already present at audit-post. Read it from
+    the `### Adoption evidence` prompt section (events.jsonl is excluded from the diff).
+    Judge ONLY whether SOME P8 event of either form EXISTS — the absence of an automated emit
+    call-site is NEVER a finding. A still-absent event is the adoption gap ONLY if NO P8 event of
+    EITHER form exists; never RED a not-yet-emitted timing artifact (closure-time emission would
+    post-date you); `task_closed` metadata absent now is expected (Stage 9 follows you).
+  **Deferred-adoption + waive carve-out family (ONE table; each flag is `--task audit-post only`).**
+  Every row's `re-lens` members still INVOKE the auditor on a real shipped diff and only tell it an
+  artifact is legitimately ABSENT/PRESENT; the `short-circuit` member invokes NO auditor at all.
+
+  | Flag (audit-post) | What the auditor must NOT RED | Scope / predicate | Recorded marker |
+  |---|---|---|---|
+  | `--event-emit-only` | the closure-event-absent category — judge ONLY diff-drift / non-adoption AC / coherence | a ship whose adoption probe IS a single Stage-9-recorded P8 event (the emission IS the closure substance, not a Stage-5 side-effect): the P8 event legitimately does NOT yet exist at audit-post — the NORMAL ordering for that ship class, NEVER a finding. Makes the "closure-time emission would post-date you" exemption OPERATIVE | `event_emit_only: true` |
+  | `--serve-deploy` (SPEC-0094 §5) | the adoption-missing category — judge ONLY diff-drift / non-adoption AC / coherence | a serve/deploy ship is a live deploy — an ACTION, not a code diff — so live-adoption is proven at the DEPLOY seam and recorded at Stage-9 Closure (`live_probe`), AFTER this diff-only audit-post; EXPECTED absent here. Removes the X-0039 owner-reset/ceiling-burn | `serve_deploy: true` |
+  | `--host-config` (SPEC-0094 §3 / SPEC-0111) | the adoption-missing category | a `host_config: true` ship: adoption proof is the THREE hostapply evidences (`apply_confirmed` / `host_health_sweep_passed` / `host_reconciliation_recorded`) recorded by the SPEC-0111 apply seam at Stage-9 Closure, AFTER audit-post. Removes the X-0117 false-RED | `host_config: true` |
+  | `--land-emitted-event` (X-0188; NAMED + guarded by, X-0837) | the acceptance-probe-not-satisfied / event-absent category — judge ONLY diff-drift / non-deferred AC / coherence | the GENERALIZATION of event-emit-only to a NON-P8 event: an acceptance probe EMITTED BY `land` AT Stage 9 (e.g. `verify_layer_prep`) is legitimately ABSENT at this pre-land diff-only audit-post; the P8-closure-specific event-emit-only overlay does NOT extend to it. **The overlay NAMES the deferred evidence :** an ABSTRACT exemption could not be matched to the evidence the packet renders CONCRETELY — a card deferring its `resolves_cross` items sees their rows printed in the CROSS-INSTANCE EVIDENCE section in a NOT-YET-TERMINAL state (their `cross_done` is emitted by `land` at the ff), so the auditor followed the visible unresolved row and kept demanding the closed rows be quoted (X-0837: two RED consult passes, then an owner escalation). The overlay therefore lists the evidence the CARD'S OWN acceptance names, and states that such a not-yet-closed coordination row IS that pending evidence, never an unmet criterion. Evidence the card does NOT name is NOT exempted. **Guard (fail-closed) — this is what stops a naming carve-out becoming a blanket excuse:** the overlay entry REFUSES (emitting the EXISTING `read_gate_refused`) unless the card's acceptance names at least one piece of pending-until-land evidence — an event token in a land-emitted-phrased criterion, or an `X-NNNN` id the card ALSO carries in `resolves_cross` (that link is the structural land-tie; a bare prose mention is not enough). A card naming NEITHER still REDs for its absent evidence on the ordinary path | `land_emitted_event: true` + `land_emitted_named_evidence: [<names>]` |
+  | `--post-ship-observation` (X-0710) | the acceptance-probe-not-satisfied / no-observation-result / adoption-missing category — judge ONLY diff-drift / non-deferred AC / coherence / whether the declared observation actually corresponds to the AC it defers | an acceptance whose probe is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION (aiseller : «the daily count is flat or falling over 7 days»): the reading cannot exist at this pre-land diff-only audit-post because the observation WINDOW OPENS ONLY AFTER THE SHIP. No sibling covers it (event-emit-only is P8-specific, land-emitted-event needs an event `land` itself emits, serve-deploy/host-config name their own evidence sets), so the base overlay read the missing reading as a defect and the worker had to misuse a non-matching flag or halt (X-0710). **Guard (fail-closed) — this is what stops it being a blanket «my proof is in the future» excuse:** the overlay entry AND the `task close` seam both REFUSE (emitting the EXISTING `read_gate_refused`) unless the CARD declares a well-formed, UNSETTLED `post_ship_observation: {observation, due_by}` (SPEC-0028); an already-settled declaration is refused too (nothing left to defer). **The deferral is TRACKED, not waived:** that same declaration is folded by the `overdue-recheck` debt lens (SPEC-0094 §3, extended by) from the moment it is declared until a `settled_by` locator names where the recorded reading landed — time passing moves it `pending` → `overdue`, and NOTHING but recording it clears it | `post_ship_observation: true` + `post_ship_observation_due_by: <ISO date>`. **SENSITIVITY (X-1126) — the declaration also names the historical evidence that its predicate FIRES when the defect IS present** (the OPTIONAL `sensitivity:` key, rule home SPEC-0028). An observation settles by READING A PREDICATE, and a predicate that can never match anything reads EMPTY — indistinguishable from «the defect is absent» — so a vacuous predicate settles on having measured nothing (aiseller measured two such cards 8 days overdue). This overlay CONSUMES the key: declared, it NAMES the evidence to the auditor alongside the observation and due window, to be weighed under judgement (4) — does the declared observation actually correspond to the AC it defers; undeclared, it SAYS SO and states in the same breath that the absence is an AUTHORING PROMPT, **never a finding and never a RED on its own**. The prompt for the author is printed report-only at the declaring seam (`_require_post_ship_observation`), which refuses nothing new and leaves its exit code unchanged. Deliberately NO gate and NO predicate analyser (CHARTER non-goals #2/#7) — a DISCIPLINE, not a validator |
+  | `--activation-gated-radius` (SPEC-0176) | the missing-up-front-touched-file-forecast / unforecast-diff category, **for the reconciled paths ONLY** — judge every other touched path under ORDINARY scope fidelity against the card's still-required `expected_touch`, and judge a reconciliation entry that is plainly ordinary authored work as a FINDING | a card whose OWN CLOSURE flips a `proposed` spec carrying a `concern:`/`init_concern:`: the concern registry + activation checklist are gated LIVE-ACTIVE-ONLY (`graph._active_concern_blocks` / `_activation_concern_rows`), so the fixtures the activation invalidates are structurally invisible until the flip — and the flip is performed by the very closure that follows this audit, so no author could have written the forecast (: 4 audit passes, 2 owner resets, 1 convergence consult spent arguing about it). **Guard (fail-closed) — the least trust-based member of the family, because what it defers is scope fidelity itself:** the overlay entry REFUSES unless (a) the card declares a well-formed `activation_gated_radius: {declaration, reconciliation}` (SPEC-0028), (b) an OBJECTIVE STRUCTURAL PREDICATE holds — the card really owns such a proposed concern-bearing spec (a self-declaration is not falsifiable: the external consult's finding 1), (c) `expected_touch` is still NON-EMPTY, (d) the reconciliation matches the REAL diff and ENUMERATES it (entries must be LITERAL touched paths — a glob or bare directory is refused even when it would match, because one `*` would cover the whole diff and collapse (e)+(f) back into the blanket waiver), (e) no ACTUAL touched path is claimed in both sets, and (f) no touched path falls outside BOTH. **It never waives scope fidelity — it moves WHEN the evidence exists** (SPEC-0176 rule 4); the stronger fix, a registry projection query, is named as its retirement trigger (rule 5) | `activation_gated_radius: true` + `activation_gated_specs:` + `activation_gated_reconciliation:` + `activation_gated_forecast:` |
+  | `--reaudit-after-close` | a "closed inside shipped diff" finding — REVERSES the STAGE-BOUNDARY closure-absence expectation for this re-audit only | INVERTED from the adoption-absence siblings — those exempt an ABSENT adoption artifact, this exempts a PRESENT closure artifact: a re-audit of an already-CLOSED (status:done) task audits HEAD, whose diff CONTAINS the Stage-9 closure metadata. Diff-drift / unmet AC / coherence judged unchanged | `reaudit_after_close: true` |
+  | `--zero-ship-diff` ( guard SHORT-CIRCUIT) | nothing — **NO external auditor is invoked**; there is literally nothing to audit | **SHORT-CIRCUIT family** (`unchanged_fp`), NOT a re-lens overlay. Its former sibling the CONSULT-GOVERNED short-circuit — which carried a converged consult's verdict in place of an auditor invocation at the `--owner-reset` ceiling continuation — is RETIRED by SPEC-0204 rule 6 : past the ceiling a pass is admitted only by the Controller's recorded `ceiling_decision` rows, and that pass runs a REAL auditor, so no consult verdict is carried for anything any more. CLOSING an already-LIVE task whose ship diff is **zero** after subtracting governed lifecycle bookkeeping (task YAML, `events.jsonl`, the task's own audit records): NO change in ANY authored artifact. An invariant of delivery SHAPE, **NOT a size tier**. Affects Stage-8 audit-post + (conceptually) plan-finalization — **NEVER audit-pre**. **Guard (fail-closed):** the overlay entry AND the `task close` seam both REFUSE (emitting the EXISTING `read_gate_refused`) on ANY unresolved git delta beyond the allow-listed bookkeeping, and both REQUIRE an `evidence-locator` naming the pre-existing immutable record/probe; the guard runs BEFORE the short-circuit | `zero_ship_diff: true` + `external_invoked: false` + `ship_diff_after_exclusions: zero` + `evidence_locator` — so a reader NEVER equates this record with a real external-audit invocation |
+
+  **`### DEFERRED BY DECLARATION` — the FAMILY-WIDE reading of every carve-out above.**
+  The per-flag entries in the table each exempt an ABSENT proof, but each speaks about "that
+  acceptance event" IN THE ABSTRACT. Nothing in the packet ever enumerated, in ONE place, WHICH
+  criteria of THIS card are deferred and BY WHAT declaration — so handed a per-flag paragraph and an
+  acceptance list in which two criteria both read "post-land", the auditor cannot map exemption to
+  criterion and falls back on the criteria it CAN read. Measured: audit-post recorded
+  `overlay_source: derived` with `post_ship_observation: true` and STILL RED-ed on AC2 and AC3
+  COLLAPSED TOGETHER; its consult, which sees no overlay at all, held on the same. This is the SAME
+  failure mode X-0837 proved once for a single flag («the exemption never said WHICH evidence it
+  covered»); fixed it for `--land-emitted-event` ALONE and the fix was never generalized.
+  This section generalizes it.
+
+  A TASK `audit post` packet AND the ceiling-convergence CONSULT packet both render a
+  `### DEFERRED BY DECLARATION — judge the declaration, not the absence` section, derived from the
+  card ALONE (pure f(card); no store, no field, no flag, no new event type — CHARTER §P1 F1/F2). It
+  enumerates each deferred CRITERION with the DECLARATION that defers it. THREE kinds, each reusing
+  the one existing predicate rather than restating a grammar:
+  - **post-ship-observation** — a grammar-valid, UNSETTLED `post_ship_observation:` (the same
+    predicate the table entry and the debt lens read). A SETTLED declaration yields NO row: the proof
+    exists, so nothing is deferred.
+  - **land-emitted** — built ENTRY BY ENTRY so each name maps deterministically back to the criterion
+    that defers it, but a candidate is admitted ONLY if `land_emitted_named_evidence` also returns it.
+    That flat namer stays the TRUST-BOUNDARY oracle, so this rendering and the `_require_*` guard can
+    never disagree about what the card named; the per-entry walk adds only the CRITERION.
+  - **settle-probe-owed** — probe keys already recorded `deferred`, plus acceptance entries naming a
+    SETTLE VERB (`--settle-probe` / `--settle-observation` / `--settle-evidence` / `task close
+    --settle`) or the explicit `deferred until Stage 9` shape. Prose that merely says "later" matches
+    nothing and yields no row — that emptiness is the differential.
+
+  **How it binds, and how it does NOT.** The UNIVERSAL LENS carries a matching paragraph, appended
+  ONLY when the section is actually rendered, making the section BINDING on the verdict class: for a
+  criterion listed there the ABSENCE of its proof is EXPECTED and is NEVER a finding and NEVER a RED.
+  The list is EXHAUSTIVE — a criterion NOT listed is judged exactly as usual, so the section widens
+  nothing. What the auditor STILL judges is the DECLARATION: whether it corresponds to the criterion
+  it defers, and whether it is dated/tracked. A deferral naming no reading, no due date and no settle
+  carrier IS a finding — the section is not a blanket «my proof is in the future» excuse and says so
+  in its own text.
+
+  **Scope.** Audit-POST and CONSULT only; audit-PRE renders nothing (a pre-audit judges a plan, not
+  absent evidence), matching the family's own `--task audit-post only` scoping. INERT by construction
+  — a card that declares nothing renders no section and gets an unchanged lens. RETIREMENT (§P1 F3):
+  the consult's single-kind post-ship-observation block is SUBSUMED and removed — it rendered
+  one of these three kinds, leaving the consult blind to the other two.
+
+  **`### DEFERRED PROBES — settled after landing by the Controller` — the FILING-TIME declaration,
+  read at BOTH task stage overlays.** The section above is audit-POST-only, and its
+  three kinds are all written at CLOSE. That leaves the shape whose proof is IMPOSSIBLE before the
+  land by its own wording — an acceptance criterion whose probe is a FIRST REAL USE AFTER LANDING —
+  invisible to BOTH audits at the moment they judge it. Measured, one day, this repo: on 2026-09-10
+  six such cards were RED-flagged on exactly that criterion ( audit-pre RED x2 → ceiling same / audit-post RED audit-post RED x2 → ceiling
+  warned), for a finding that is never a defect. Two of the six were audit-PRE, which the section
+  above does not reach at all.
+
+  A TASK `audit pre` AND `audit post` packet both render a
+  `### DEFERRED PROBES — settled after landing by the Controller` section, derived from the card
+  ALONE — pure f(card); no store, no new field, no flag, no new event type (CHARTER §P1 F1/F2). Its
+  ONE source is the card's `probe_moments:` (schema home SPEC-0028), the carrier SPEC-0060 requires
+  such a criterion to declare AT FILING. It enumerates each declared CRITERION with its AWAITED
+  MOMENT, and tells the auditor that the absence of that proof pre-land is the DECLARED ORDERING,
+  never a defect.
+
+  **TWO admission conditions, both required; either failing drops the entry silently.**
+  - **GRAMMAR** — the moment parses under the ONE existing grammar home (an ISO `due_by` date, or an
+    `awaits:` ref `` / `X-0042` / `events.jsonl#type=<t>[@after=<ISO>]`). A moment no reader
+    can decide declares nothing.
+  - **NAMESPACE** — the key names a criterion THIS CARD'S OWN ACCEPTANCE declares. Without this an
+    orphan key (`probe_moments: {AC99:...}` on a card with no AC99) would let a card exempt a
+    criterion it does not have, and the parse floor below would refuse a RED naming AC99 instead of
+    recording it. A card whose acceptance names no parseable criterion ids yields NO rows.
+
+  **The RED parse floor — the ENFORCED half (the shape, reused).** A RED whose ONLY findings
+  are P8-adoption-class AND every one of which names, by the SPEC-0204 rule-1 key precedence, a
+  criterion this card DECLARED deferred is REFUSED at the parse floor: no verdict recorded, no pass
+  spent, so re-running costs nothing. It sits inside the SAME narrowing as its sibling floors
+  (`target_kind == "task"`, a genuine auditor response), and the refusal is the USE SITE's — the
+  predicate is pure and judges only shape.
+
+  **How it binds, and how it does NOT.** «EVERY finding», not «any», is the whole safety of it: a RED
+  that raises a real defect ALONGSIDE a P8-adoption remark is recorded exactly as before, and a
+  P8-adoption finding against an UNDECLARED criterion is judged exactly as today. The section is
+  EXHAUSTIVE — a criterion not listed is judged as usual, so it widens nothing. What the auditor
+  STILL judges is the DECLARATION: whether it corresponds to the criterion it defers, and whether its
+  moment is machine-resolvable. INERT by construction: a card declaring nothing renders no section
+  and gets an unchanged lens.
+
+  **Why this is not a fourth kind of the section above.** That section is audit-POST-only by its own
+  scoping rule and reads three close-time sources; this one is filing-time, reads a fourth source
+  those three do not (`probe_moments`), and must reach audit-PRE — where two of the six measured
+  incidents happened. In practice they do not overlap: a filed-but-unclosed card carries
+  `probe_moments` and no `probes:`, so the same criterion is not rendered twice.
+
+  **DERIVED-FROM-THE-CARD selection — four of the flags above need not be passed at all.**
+  Every guard in this family already anchors its trust in a CARD-SIDE DECLARATION (SPEC-0028), so on a
+  TASK `audit post` invoked with NO overlay flag the verb DERIVES the overlay from the card itself:
+  a grammar-valid, **UNSETTLED** `post_ship_observation:` → `--post-ship-observation`; a declared
+  `activation_gated_radius:` → `--activation-gated-radius`; `host_config: true` → `--host-config`; an
+  acceptance naming a land-emitted event token and/or an `X-NNNN` the card ALSO carries in
+  `resolves_cross` → `--land-emitted-event`. A derived overlay is only the same BOOLEAN the flag
+  supplies: it passes the SAME scoping check and the SAME fail-closed `_require_*` guard, unchanged and
+  in the same order, so a card that declares something it is not entitled to is refused exactly as it
+  would be with the flag — the derivation is a TRIGGER, never a GRANT, and can widen no exemption.
+  A SETTLED `post_ship_observation:` derives NOTHING, deliberately: the proof exists, so there is
+  nothing to defer and the ORDINARY audit applies.
+  **The flags remain the explicit override** — an explicitly passed derivable flag wins and derivation
+  steps aside. **A flag that CONTRADICTS the card's declaration is REFUSED before the auditor is
+  invoked** (no `audit_prompt_sent`, no pass spent), naming BOTH the declared field and the passed flag:
+  silently preferring either side would leave a verdict marked with an overlay the card never declared.
+  **NOT DERIVED** — `--event-emit-only`, `--serve-deploy`, `--external-action`,
+  `--preshipped-deliverable`, `--settlement-sweep`, `--zero-ship-diff`, `--reaudit-after-close`: none
+  has a card-side declaration to key on (`--event-emit-only` describes the SHIP's shape, not a field the
+  card carries), so they stay explicit-only.
+  **Recorded marker:** every task audit-post verdict carries `overlay_source: derived | explicit | none`
+  BESIDE the per-flag markers in the table above, never instead of them — those say WHICH overlay ran,
+  this says WHERE it came from, so a later reader can tell a card-anchored deferral from an
+  invocation-side one without re-deriving it from the card as it stands today.
+  **THE FAMILY IS CLOSED AGAINST A DECLARING-CARD VARIANT (X-1240) — a named retirement,
+  recorded here so the next reader does not re-derive it.** A carrier-/entry-DECLARING card — one whose
+  deliverable IS a declaration (a live entrance, a carrier, a host config) — cannot read the evidence
+  of its own declaration at this pre-land audit-post: the reading is taken from the artifact at its
+  REGISTERED path, which does not carry the branch's edit until the land, and the land comes after the
+  closure this audit gates. That shape looks like a sixth deferred-adoption member and IS NOT ONE. The
+  reading that it needs an overlay variant of its own (`--declaration-evidence-at-land`) is RETIRED:
+  its ORDERING half is covered by whichever EXISTING member matches the ship (`host_config: true` →
+  `--host-config`; a serve/deploy ship → `--serve-deploy`), which the derivation above picks off the
+  card's own declaration without any flag being passed; and its remaining half is not an audit problem
+  at all but a COMMIT one — a RED naming the card's own RECORDED EVIDENCE is repaired through
+  `task commit --fix-red --card-repair` (SPEC-0015 §Internal, the route home). A new row would have
+  duplicated two live analogs (F1) and removed nothing (F3).
+  MEASURED, and it is the whole grounds: aiseller (2026-09-03) shipped a complete, live,
+  MEASURED entrance, was cut WITHOUT the `host_config` marker its own deliverable earned, took the
+  ordering false-RED this family exists to prevent, and its worker read all three commit routes as
+  closed and self-halted. It then closed GREEN on the SAME commit once the card DECLARED
+  `host_config` and the existing overlay ran (`overlays: [host_config]`,
+  `corrected_overlay_reaudit: true`) — resolved end to end by mechanisms that already existed. So the
+  incident is evidence AGAINST the variant, not for it; what it actually indicts is a card cut without
+  its declaration, and the fix for that is to declare it.
+
+  WHY: the family was invocation-side only, so a card that DECLARED its deferral still RED'd as
+  adoption-missing whenever the worker forgot the flag — P8-adoption was 142/383 (37%) of RED
+  audit-post passes (kernel since 2026-08-18); kupiclub deviation
+  `audit-post-pass-burned-on-known-deferred-adoption-overlay-not-applied-first`.
+
+  **RESERVED-NAMESPACE naming constraint — the `decisions/<task-id>-*` prefix belongs to a
+  card's OWN records, so an authored DELIVERABLE must not wear it.** The allow-listed bookkeeping named
+  in the `--zero-ship-diff` row above is PATH-SHAPED (`_zero_ship_diff_bookkeeping`, `bin/lib/cli.py`):
+  `decisions/<task-id>-*.yaml` reads as this card's own audit / consult record for ANY suffix. That
+  reservation is also what the no-authored-content guard reads, so it has a consequence for
+  AUTHORING, not just for waiving: a card whose DELIVERABLE is an authored record under `decisions/`
+  — a saved finding, a measurement, a recorded verdict — and which names it `decisions/<its-own-task-id>-*.yaml`
+  produces a ship whose authored-path set is EMPTY. `audit post` then refuses the ship that carries the
+  work, and the card is structurally unauditable. **So name such a deliverable by SUBJECT (optionally
+  +date), never by task id** — the shape the corpus already demonstrates
+  (`decisions/spec-0080-remeasure-2026-08-25-finding.yaml`, which hit this seam and resolved it
+  exactly this way; the pre-guard `decisions/-spec-0080-live-use-finding.yaml` is the shape that
+  would refuse today and is frozen history, not a model). This is a NAMING rule, deliberately not a
+  narrowing of the guard: enumerating the audit writer's own filenames here would re-encode a vocabulary
+  that module owns, and its drift would fail PERMISSIVELY — letting a contentless subject reach the
+  auditor, the defect the guard exists to close. The authoring-surface pointer lives at
+  `patterns/doc-conventions.md` §Naming (LIFECYCLE §Stage 2 routes new-artifact authors there); this row
+  is the rule home.
+
+  **GOVERNED CARD-REPAIR SUBJECT (X-1233) — an admission on the MEASUREMENT, not a waiver.**
+  The guard asks whether the subject the auditor RECEIVES carries authored content, and answers
+  it off the subject commit's OWN diff. For every shape it was written against those are the same
+  thing. For ONE shape they are not: `get_audit_post_diff` has sent the CUMULATIVE range
+  `merge-base(sha, main)..sha` since, so a commit that is itself record-only but sits ON TOP of
+  the card's audited ship hands the auditor that whole ship PLUS the record change — strictly MORE
+  material than the RED pass saw, not less. Refusing it closed the last door on a kernel-caused card
+  corruption (kupiclub, parked with its deliverable shipped and verified). So the guard ADMITS
+  such a subject, on FOUR conjuncts, every one DERIVED and fail-closed — a missing injection, an
+  absent marker, an unreadable record and any git failure all REFUSE:
+    (a) PROVENANCE — the subject IS the task's RECORDED commit, and that `commit_landed` record
+        carries the `data.card_repair` marker the `task commit --fix-red --card-repair` arm writes.
+        This is what ties the admission to the GOVERNED route rather than to a commit shape;
+    (b) SHAPE — the subject's diff carries THIS card's OWN card file, read off GIT;
+    (c) the PRIOR audit-post record is RED **and its cause DERIVES to this card's own record** — so
+        the repair being admitted is the repair that verdict actually asked for. Read from the
+        governed `decisions/<tid>-audit-post.yaml` pinned to that custody sha, NEVER from the journal,
+        and judged by the ONE shared predicate `_red_cause_is_card_record` that the governed
+        `task commit --fix-red --card-repair` arm reads TOO. **That sharing is the rule, not
+        an implementation note:** until this conjunct existed HERE and not at the commit door,
+        so the two verbs on one governed route could answer differently about one RED — and on
+        kupiclub they did, the commit door admitting a repair this door then refused (X-1251,
+        CHARTER §Principle 7). One predicate makes that disagreement structurally impossible.
+        **RETIRED (P1 F3) by : the KEYWORD TEST this conjunct used to be** — a match on whether
+        the auditor happened to write `tasks/<tid>*.yaml`, the word "card", or "recorded
+        evidence". Admission turned on PHRASING, so each miss bought one more keyword. The derivation
+        that replaces it is homed with the arm in SPEC-0015 §Internal (the two-part read — no authored
+        reference anywhere in the record, AND at least one reference that IS this card's own record by
+        path / by an acceptance-named task-tied event type / by an acceptance-criterion id the card
+        declares); it is not restated here, so the two homes cannot diverge (CHARTER §P5);
+    (d) that covered commit provably carries authored content, read through the SAME predicate this
+        guard already uses (one definition of "authored" — CHARTER §P5), so the cumulative range the
+        packet sends is not empty;
+    (e) CHAIN CONTINUITY — the subject's FIRST PARENT *is* that covered ship, read off git. The arm
+        builds the repair directly on the commit the RED graded, so parenthood is its exact shape;
+        mere ancestry would admit a card-only commit made anywhere later on the branch.
+  **(a) IS REQUIRED BUT NEVER SUFFICIENT — every other conjunct is read from something the actor being
+  fenced does not author.** Both halves of this were found by AUDIT, not by the author. A GIT-ONLY
+  admission takes any card-only commit sitting on an audited ship, however made, un-tying the
+  admission from the governed arm this rule names as its bound (audit-post pass 1). But ANDing in the
+  marker does not repair that on its own, because a `commit_landed` row is HAND-EMITTABLE — an event
+  append is the bypass class the protocol names outright — so a forged row merely names a forged
+  subject (audit-post pass 2). Hence the shape above: the marker stays as the governed arm's
+  provenance, and what CARRIES the admission is git (shape + parenthood) plus the audit verb's own
+  recorded verdict. A hand-made card-only commit with a perfect hand-emitted row is REFUSED unless it
+  also sits directly on the audited ship AND answers a RED that actually named the card record.
+  The residual — an actor who can rewrite the audit RECORD itself — is the trust boundary every
+  governed record in this kernel sits behind, and no predicate here can narrow it. The provenance read
+  reuses the EXISTING `_recorded_commit_landed` payload reader, so no new journal consumer enters the
+  system (CHARTER §P1 F1/F2; the SPEC-0190 census is untouched).
+  **Deliberately NOT a member of the exempt-flag family above.** Those rows are for ships that are not
+  diffs AT ALL, and they are operator-DECLARED; a card repair IS a diff, and this admission is derived
+  from governed records with no flag for an operator to get wrong. Every other empty subject — a
+  park/pause/wont-do displacement, an empty ship, an ordinary bookkeeping commit — carries no marker
+  and is refused byte-identically to before.
+
+  **SCENARIO-STATUS COMPUTED-VIEW carve-out (SPEC-0076 §3) — unconditional, NO flag,** so it
+  is not a row above: a scenario's `status` is a COMPUTED, DERIVED read-only VIEW (`draft → building →
+  live`). It MUST NOT be stored — only `retired` (human-set) or an ABSENT status frontmatter field is
+  legal, and `graph build` exits 2 on any illegally-stored status. So a scenario file with NO `status:`
+  frontmatter is CORRECT BY CONSTRUCTION: its absence is NEVER a 'missing required status field'
+  finding (the X-0081 false-positive this kills). Fires whenever a scenario file is in the shipped diff.
+    An
+    adoption-honesty finding routes to a FILED follow-up (not absorb-by-narrowing, E-0005);
+    coherence with other docs/state; Review-only : the auditor does NOT execute the test
+    suite — Stage 6 owns test runs; VERIFY the recorded Stage-6 evidence exists + is plausible +
+    matches the probes.
+
+  ### Spec coverage of touched files ( — task pre + post)
+  A derived `### Spec coverage of touched files` section rides EVERY task audit prompt (pre + post),
+  appended right after the body. It is pure f(graph, plan/diff) and REPORT-NOT-BLOCK (GRAPH is not a
+  validator). Pre lists the files the `implementation_plan` + `expected_touch` FORECAST; post lists the
+  files of the shipped diff. Per file it shows the governing ACTIVE specs (graph `code_to_specs`,
+  status-filtered) or a `(no governing spec)` marker, plus symbol-level `possibly-stale` drift flags
+  (reuse `_anchor_drift_warning` via `_changed_anchor_spec_drift`, touched-scoped) for a touched
+  `implements:` anchor whose spec was not updated. BOTH task overlays carry the two questions this
+  section exists to let the auditor answer — closing the «code born/changed outside the documentation»
+  fear at both gates: (1) code touched with NO governing spec → justified spec-less (SPEC-0005
+  admission) or a documentation gap? (2) a touched active-spec `implements:` anchor whose spec is NOT
+  updated in the same change → justified (unrelated symbol / deliberate) or undeclared doc drift?
+  BOTH questions are about the DOCUMENTATION of the code, never about the COMPLETENESS of the
+  forecast itself. A file or spec missing FROM the forecast is CONTEXT and is NEVER a finding of any
+  severity (§Universal lens): the forecast is refreshed from the committed diff at `task
+  commit`, and a RED whose only findings carry `class_id: forecast-completeness` is refused at the
+  parse floor. The section's `## Declared vs audited touch` sibling carries the same
+  reading in the packet the auditor reads.
+
+  ### Plan-stage overlays — the per-gate question templates (NEW in this head)
+
+  **Selection carrier (deterministic — the VERB invocation, never bare `status`):**
+  - **ad-hoc check** (`plan check <slug>` [+`--focus`]) → the ONE shaping template that exists:
+    `draft` → P1 below. Ad-hoc shaping is DRAFT-ONLY (trial-run-2 — a per-status template family
+    was promised but never delivered; narrowed honestly); at `specs`+ the checks ride the gate
+    templates (P2-P4) and the accept-gate lens;
+  - **gate template** → asked by the TRANSITION verb itself: `plan stage <NEXT>` asks the
+    entry-gate template FOR `<NEXT>` (the verb already gates the prior stage and delivers the stage
+    bundle — the template question joins that exact moment). No new flag, no new verb.
+
+  **Gate policy — homed in SPEC-0083 ( stable-surface split, P5).** WHICH plan-FSM
+  transition blocks on the audit verdict vs records-and-proceeds is the ORTHOGONAL concern to the
+  question TEMPLATES below (WHAT is asked); the one-table gate POLICY lives single-SoT in SPEC-0083
+  (`graph query SPEC-0083`). The per-gate question templates (P1-P5) below are UNAFFECTED by the split.
+
+  **Plan-FINALIZATION overlay — reached-active acceptance (mirrors SPEC-0034 §realized
+  clause (a)).** The aggregate `audit post --plan` finalization overlay tells the external
+  auditor the SAME realize-gate semantics the code gate (`_require_plan_finalization_ready`) enforces:
+  a `proposed_by` spec satisfies the gate when it has REACHED `active` — current `active` OR a
+  POST-active state (`superseded` / `retired`), which the spec FSM (proposed -> active -> superseded
+  -> retired) makes reachable ONLY after `active`, so either status PROVES the spec became normative
+  (its content typically carried forward by lineage, e.g. SPEC-0037 -> SPEC-0040 -> SPEC-0046). So a
+  lineage-evolved corpus of superseded/retired specs is CORRECT and realized — the auditor must NOT
+  RED it for "zero currently-active specs" nor YELLOW it for "a superseded spec in the corpus". ONLY a
+  never-active NON-TERMINAL status (proposed / draft) or an unknown status is a genuine half-realized
+  finding; a DELIBERATE terminal (withdrawn / rejected) is EXEMPT (mirrors SPEC-0034 §realized
+  clause (a)) — a deliberately-abandoned plan-born spec is a tracked scope-cut, NOT an unrealized
+  obligation, so it is flagged `[deliberately abandoned]`, EXCLUDED from the reached-active tally, and
+  is NEVER a finding (the lens mirrors the code gate `_require_plan_finalization_ready`). The corpus
+  body reports `reached-active? N/N` (active + post-active, deliberate terminals excluded) for this gate;
+  the auditor judges against THAT, not a bare current-active tally. (P5 — the lens reads the code gate.)
+
+  **Plan-FINALIZATION overlay — drain-at-realize correctness.** A `realized` plan is a
+  TERMINAL carrier (historical record + pointer only), so the finalization auditor ALSO checks that any
+  durable/living content the plan HOSTED — criteria, rosters, checklists, standing rules, living tables
+  — was DRAINED to a STABLE home (a spec or a non-FSM pattern) before realize: no durable content is
+  orphaned in the terminal plan (P5 one-home / P7; SPEC-0034 §realized). A plan retaining ONLY a
+  historical record + a pointer to the stable home is GREEN; durable/living content still authored IN
+  the terminating plan (not merely pointed-to) is a drain finding. Living/WIP content was legitimate
+  while the plan was ACTIVE — the check fires AT the realize transition, NOT before.
+
+  **P1 — plan-draft shaping template («prover' draft» ("check the draft"), owner-invoked):**
+  - Is the problem GROUNDED — real incident / prior-art / external analog (anti-cx F4)?
+  - Are all angles/halves of the carve ENUMERATED — completeness ONLY: is every part LISTED at all
+    (a deliverable simply omitted is invisible to a resolver)? Includes the status-template-matrix
+    completeness check (trial-run-2): everything a carrier/mechanism section PROMISES (e.g. a
+    template per status/gate) must appear in the deliverables — a promised-but-undelivered member
+    is an omitted half. Whether listed parts should be SEPARATE plans is the NEXT question, not
+    this one (trial-run-1: asked together, the two collapsed for the auditor).
+  - **Plan-split criterion — one convergence regime / one fate per plan (SPEC-0012):** do parts have
+    different validation horizons (one provable now, one needs accumulated real data)? independently
+    rejectable fates? does one part consume the other's real-data output? Any YES → recommend
+    splitting into cross-referenced plans (tracked ids, no requires between them). **Trial-FSM
+    carve-out (trial-run-1):** for a trial-ELIGIBLE plan, its own design-convergence (trial) phase
+    followed by implementation (executing) is ONE sequential regime — that built-in sequence is NOT
+    a split signal; apply the split signals only to parts whose fates stay independently rejectable
+    AFTER accept.
+  - Trial-eligibility pre-assessment: mechanism/behavioral (trial-bound) vs prose/docs (skips trial)?
+  - Is the existing-analog sweep honest — corpus + plans/ + journal searched?
+  - Are references inside the draft body CURRENT — no superseded/stale FSM or artifact references?
+    Judge stage vocabulary against the AUTHORITATIVE plan FSM (LIFECYCLE §Plan-lifecycle:
+    draft→specs→trial→accepted→executing→postcheck→realized), which the prompt assembly MUST
+    include (trial-run-1: without it, `executing` was falsely flagged as a stale reference).
+    The assembled FSM line (`_plan_fsm_line`) ALSO states that `trial` is OWNER-INVOKED and
+    conditionally SKIPPED for trial-ineligible (prose/docs) plans (SPEC-0035): a `specs → accepted`
+    transition that skips `trial` is a SANCTIONED path, NOT a process bypass — do NOT RED-flag a
+    trial-skipping plan as a stale-FSM reference or a process violation (the X-0132 false-RED fix).
+
+  **P2 — draft→specs gate template (asked by `plan stage specs`):**
+  - Is the draft THOUGHT-THROUGH enough to compose specs — scope stable across recent edits?
+  - Every carve-out / deferral carried by a TRACKED id (SPEC-0012 — never prose)?
+  - Contradictions resolved or explicitly named (P7)?
+  - Multi-part plan: is the build ORDER fixed (instrument-before-policy where applicable)?
+
+  **P3 — specs→trial gate template (asked by `plan stage trial`; MANDATORY-BLOCKING):**
+  - Eligibility rationale honest — BOTH legs (mechanism-class AND convergence not honestly
+    obtainable by text audit alone)?
+  - `## Trial protocol` baked and sound: mode + why, probe targets, exit criteria, safety envelope
+    (never mutates production data) — per `patterns/trial-methods.md`?
+  - Draft specs composed + checked (the prior stage actually complete)?
+
+  **P4 — trial→accepted trial-evidence block (joins the accept-gate `plan check` prompt when a
+  trial ran; MANDATORY-BLOCKING):**
+  - Does the JOURNALED trial evidence (runs + convergence claim) support «design converged» — or
+    did runs stop while the design was still moving?
+  - Did the trial feed the plan/specs (co-evolution visible), or were they untouched despite
+    divergent runs (a smell)?
+
+  **P5 — decomposition→executing fidelity template (asked by `plan stage executing`; MANDATORY-BLOCKING — SPEC-0070 §3):**
+  Audit the FILED TASK CARD SET (delivered in the prompt as `## Decomposition — the filed task CARD
+  SET`) against the plan AND its goals — the SET-level properties no single-card audit-pre can reach
+  (the cut, not one card). Seeded from the two by-hand fidelity audits already run
+  (`lifecycle-path-decomp-fidelity`, `two-plan-decomposition-review`) + the SPEC-0070 §3 SET-quality list:
+  - Coverage 1:1 — is every plan part / accept-unit mapped to exactly ONE card, with no plan part
+    unmapped and no card outside the plan's scope?
+  - One provable claim per card (SPEC-0046) — does any card BUNDLE two concerns, or carry an
+    acceptance OVERLAPPING a sibling card's claim, instead of one provable accept-unit?
+  - `requires:` ordering encoded, not prose — is every intended precedence (a «first» / «before» /
+    verifier-after-settled relationship) carried by a `requires:` edge, so no later writer can legally
+    run before a card it depends on? (A named-first card with NO outgoing dependency edge is the defect.)
+  - Singular activation — does each `proposed` spec have EXACTLY ONE `activation_owner_task` across its
+    sibling cards (the others `cite` it) — never zero, never two? Answer this ONLY from the
+    `## Proposed-spec activation` block appended to the card set (X-0707) — it is the
+    AUTHORITATIVE evidence and the ONLY evidence: in V2 the activation owner is a spec→task POINTER on
+    the SPEC yaml, NOT a per-card field, so a card's `cites:` is NOT a proxy for ownership and MUST NOT
+    be read as one. The block lists every spec with `proposed_by ==` this plan, resolving each
+    `activation_owner_task` against the cut. The DEFECT SHAPES are exactly two: a spec reading
+    `NO activation_owner_task — UNOWNED` (zero owners — nothing in the cut will ever activate it), and a
+    spec whose owner reads `NOT a member of this cut` (the cut cannot deliver the activation it
+    promises). A spec reading `owner: T-NNNN — IN this cut` is CORRECT and must NOT be reported, and the
+    explicit `(no spec is born of this plan …)` line means the question is ANSWERED-CLEAN — NOT
+    unchecked — so it must NOT be reported either. Grounds: bc-community 2026-08-08 — with no activation
+    block in the prompt the auditor inferred ownership from `cites:` and emitted a HIGH
+    ("no card owns activation of SPEC-XXXX") that was both false and unverifiable; in a
+    MANDATORY-BLOCKING gate that inflated the finding count AND burned one of the two ceiling passes
+    that exist to resolve REAL findings. A blocking RED must rest only on findings that can be verified.
+  - Probe quality — is each card's acceptance probe satisfiable AND journalable AT THAT task's OWN
+    closure (no future-bound / soak-dependent / luck-only probe), and does a promised invariant carry
+    an explicit probe rather than only a prose promise?
+  - No reopened settled choice — does any card REOPEN a design choice the plan/specs already settled
+    (e.g. a «confirm-or-revise» embedded in the card instead of implementing the accepted unit)?
+  - Touch-forecast present + plausible — does each card carry an `expected_touch` naming the
+    concrete files/symbols its scope implies, and is that plausibly the cut's blast-radius (present,
+    non-empty, not obviously mismatched vs the card's scope)? An empty `expected_touch` on a decomposed
+    card is a cut-fidelity gap (SPEC-0046 §Persist-the-enumerated-blast-radius) — the cutter already
+    enumerated the touch to size the cut, so a blank forecast is reason-then-discard, not "unknown yet".
+  - Set-level semantic coherence over a SHARED SURFACE (X-0593) — do any two cards in this
+    cut WRITE or KEY the same named surface, and if so does the cut state which definition GOVERNS?
+    Read the `## Shared surfaces` block appended to the card set: it lists every surface named by >=2
+    cards (grouped by the `expected_touch` path, so `a.py` and `a.py#sym` count as one surface) with
+    the sharing cards' COMMON `cites:` resolved against the corpus. A shared surface whose line reads
+    `(no ACTIVE governing spec cited in common)` is the DEFECT SHAPE: two independent workers can then
+    each implement a self-consistent reading, and nothing before the merge land verify compares them.
+    Ask it card-to-card, not card-to-plan: are the two cards' acceptance/scope readings of that surface
+    mutually satisfiable? The cut must either cite the ACTIVE spec that governs the surface, or name
+    ONE card as its definer and `requires:`-order the other after it. Grounds: boomrocket 2026-07-24 —
+     and, from one cut and closed 15 minutes apart, landed contradictory key-semantics for
+    prod-absent proposal deltas (one attempt-keyed, one record-keyed); both were independently
+    well-formed and correctly ordered, so every other question here passed.
+  - Fidelity to intent — taken as a whole, does the cut faithfully realize the plan's PURPOSE, not
+    merely the literal `implementation_plan` map?
+
+  **`--focus "<text>"` — the composable append (on `plan check` / `audit post --plan`):** appends an
+  owner/session-specific question block AFTER the stage template (the ad-hoc form made composable —
+  it never REPLACES the template). The appended text is recorded VERBATIM in the saved verdict
+  `notes` field — **`notes` IS the single verbatim carrier** (full text, byte-equal);
+  `prompt_excerpt` stays a ~200-char excerpt and is NEVER the carrier (accept-check F1 sharpening
+  2026-06-05). No new schema field.
+
+  **Verdict recording (ONE canonical schema — P5):** every plan-gate verdict saves to the canonical
+  audit-result schema (AGENTS §Saved audit result) extended by TWO additive fields:
+  `stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`, `gate-trial`,
+  `gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory | mandatory-blocking`). The legacy
+  draft-check shape (`draft:`/`kind:`/`content_hash`) is NORMALIZED onto this schema — its
+  freshness extras (`content_hash`/`accept_freshness_hash`) join as additive fields; no second
+  verdict format survives.
+
+  **Retirement (what this head removes):** (a) hand-authored free-form external-auditor prompts for
+  plan-stage questions are DEMOTED to the documented manual fallback ONLY (CLI unavailable /
+  recovery — same posture as LIFECYCLE §4/§8 manual fallback); (b) the habit of pasting ad-hoc
+  question blocks into bespoke auditor runs for plans is RETIRED — its replacement IS `--focus`.
+
+  ### Saved audit result
+  Every invocation saves the result to `decisions/<id>-audit-<stage>.yaml` — the annotated schema
+  below is the SoT home, `<id>` = `T-XXXX` for a task audit OR `D-XXXX` for a decision
+  audit. A CLOSED task's saved YAML is later `git mv`d into
+  `decisions/archive/audit-{routine,escalation}/` by the displacement-retention drain (SPEC-0052), so the ceiling reader `_count_audit_passes` resolves the active OR the archive path —
+  same pass COUNT, only the WHERE widens; an IN-FLIGHT task's audits are never moved. A PLAN
+  audit-post verdict ALSO records `lens_version:` ( — the FINALIZATION-overlay lens version it
+  was rendered under; drives the lens-version freshness re-audit, SPEC-0124 §Audit-loop ceiling):
+  additive-optional, plan audit-post only, absent on task/decision audits.
+
+  ```yaml
+  target_kind: task # task | decision | plan ( plan-gate audits) | ad-hoc
+                      # ( `audit adhoc`, free-slug consult). The audited node's kind.
+  target_id: T-XXXX # T-XXXX | D-XXXX | <plan-slug> | <consult-slug> — the audited node id
+  task: T-XXXX # LEGACY alias = target_id when target_kind=task. STILL active : read by
+                      # the cmd_audit SPEC-0001 self-test + the graph audit-edge; generalization to
+                      # target_id-only is DEFERRED — no consumer has migrated yet (NOT a pending S2/ step).
+                      # When target_kind is absent, readers DEFAULT it to `task` (additive, no drift #10).
+                      # For a NON-task target_kind the key is OMITTED entirely — never written null.
+  stage: pre # pre | post | ad-hoc
+  date: '2026-05-26'
+  verdict: GREEN # GREEN | YELLOW | RED | ABORT
+  passes: 1 # optional — absorption pass count (per SPEC-0124 §Audit-loop ceiling)
+  commit: <git-sha> # REQUIRED for stage=post (commit being audited); optional for stage=pre / ad-hoc
+  findings:
+    - severity: high # high | medium | low
+      what: <one-line>
+      where: <file:line OR description>
+      fix: <one-line concrete fix>
+  # ── PER-FINDING RESPONSE CONTRACT — additive-optional at schema level ──
+  # A finding MAY additionally carry the keys below. They are consumed ONLY at a baseline-bearing
+  # post-ceiling consult; the SEMANTICS (what makes a finding blocking, how a retest echo is judged)
+  # live single-SoT in SPEC-0200 rules 3-4 — this table declares WHICH keys exist and WHO supplies
+  # each, never the blocking definition. `bin/yitc-v2 graph query SPEC-0200`
+  #
+  # ELEVEN new key names in total, split by SUPPLIER — the auditor is never asked for an engine field:
+  #
+  # AUDITOR-supplied — NINE key names occupying EIGHT slots, because `criterion_ref` and `class_id`
+  # are two ALTERNATIVE keys sharing ONE slot (a blocking finding carries one or the other):
+  # disposition: blocking | deferrable
+  # criterion_ref: an exact acceptance-criterion id of the target's lens } one slot,
+  # class_id: one of SPEC-0200 rule 3's six CLOSED must-not-land classes } alternatives
+  # locator: file:symbol or scope ref
+  # failing_input: the concrete input/state that fails
+  # causality: introduced-by-subject | pre-existing-in-subject
+  # baseline_ref: the baseline/residual id this finding echoes (a retest echo)
+  # resolution: open | closed
+  # resolution_evidence: reviewable closure evidence — required for `resolution: closed`
+  #
+  # ENGINE-supplied — TWO: `id` (the allocated B<n> / R<k>.<n>) and `subject_revision` (the basis
+  # fingerprint judged). Derived by the engine, never requested from the auditor.
+  #
+  # `severity` above is OUTSIDE this set: it is pre-existing OPTIONAL TRIAGE METADATA and it NEVER
+  # derives `disposition` — a `severity: high` finding without the rule-3 fields is deferrable, and a
+  # `severity: low` one with them is blocking. Ranking a finding is not classifying it.
+  #
+  # READ vs JUDGED: `parse_audit_verdict` TRANSCRIBES these keys faithfully — present -> verbatim,
+  # absent -> absent, no defaulting and no validation. Every missing-value judgement belongs to the
+  # READER that classifies them (lessons/fail-closed-belongs-to-the-reader-not-the-parser.md), not to
+  # the parser. Absent on every audit that is not a baseline-bearing consult.
+  findings_complete: true # OPTIONAL report-only metadata: did the auditor VOLUNTEER that the
+                      # findings list above is exhaustive? true | false | absent ("not stated").
+                      # REPORT-ONLY on this record: no gate, verdict, exit code or pass count reads
+                      # it, and nothing INFERS it — since withdrew the full-verdict rule
+                      # (§Universal lens) no prompt surface asks for the declaration, so in practice
+                      # it is absent unless an auditor volunteers it. The field is kept because it is
+                      # additive, harmless, and reused by the narrowed successor in plan
+                      # `frozen-defect-baseline-at-the-audit-loop-ceiling-d`. The CONSULT record
+                      # carries the same field — see SPEC-0124 §Ceiling-convergence triage.
+  absorbed: [] # finding indices absorbed inline this commit
+  followups: [] # follow-up task IDs filed for residual findings
+  # OPTIONAL markers — the ceiling-skip / re-audit markers (tooling_absence_abort · timeout_abort ·
+  # unchanged_fp_reaudit · concurrent_merge_reaudit · task_lens_reaudit · passable_absorption_reaudit ·
+  # consult_governed) each mark a no-real-outcome re-audit whose `passes` is NOT advanced (the
+  # ledger-skip); `lens_version` is instead the ordinary version field recording which lens a verdict
+  # was rendered under (PLAN audit-post). Per-marker presence + pass-count semantics are homed in
+  # SPEC-0124 §Audit-loop ceiling. Absent on every normal run. `bin/yitc-v2 graph query SPEC-0124`
+  auditor_provider: <abstract identifier — not a provider brand>
+  auditor_independence: external | same-provider
+                      # REQUIRED on every saved verdict (task pre/post, plan gates, ad-hoc, consult).
+                      # `external` = the auditor's resolved provider differs from the primary AI's
+                      # provider for this session; `same-provider` = it does NOT, or the primary
+                      # cannot be determined (fail-closed toward the honest reading). A
+                      # `same-provider` verdict is ADMITTED on every gate — never refused, never a
+                      # wait — and ALSO journals one `audit_self_provider_used` row (SPEC-0025).
+                      # Written at the ONE invocation chokepoint, no second writer.
+                      # Rule home: `bin/yitc-v2 graph query SPEC-0201`.
+  auditor_model: <the model id the adapter actually ran>
+                      # REQUIRED beside the stamp above: which model produced this verdict, as the
+                      # adapter actually invoked it (never the configured default re-stated). What
+                      # makes a bound non-default model honest rather than silent. Same rule home.
+  prompt_excerpt: <first ~200 chars of prompt sent>
+  notes: <free-form context, optional> # codified audit-pre F2 absorption — de-facto used in 10+ artifacts
+  # ── SPEC-0204 ceiling-decision keys — additive-optional, absent on an ordinary pass ─────
+  findings[].finding_fingerprint: fp1:<16 hex>
+  # The ENGINE-computed matching key for this finding (SPEC-0204 rule 1), written on EVERY RED
+  # verdict's findings. Here it is a HUMAN-READABLE PROJECTION: the CANONICAL value rides the
+  # `external_audit_completed` journal row, and every reader resolves fingerprints from the journal
+  # ONLY — so hand-editing this line changes nothing. Never supplied by the auditor: an
+  # auditor-written key is dropped and the engine's written in its place. A finding the engine could
+  # not key fully carries the marked degraded form `fp1d:`.
+  basis: on-decisions
+  # Present ONLY on the ONE bounded pass past the audit-loop ceiling that SPEC-0204 rule 3 admits —
+  # the pass whose authority is the Controller's recorded `ceiling_decision` rows rather than an
+  # auditor or an owner grant. It rides beside `ceiling_ref: <tid>/<stage>/pass-<N>`, which names the
+  # ceiling row those decisions were bound to. A RED on this pass is TERMINAL for that (task, stage).
+  # It REPLACES the retired `owner_reset` / `owner_reset_basis` / `worker_auto_consult` /
+  # `consult_governed` carriers: no route writes those any more, records already holding them stay
+  # readable, and no new record may claim an admission basis that no longer exists.
+  ```
+
+  ### What was JUDGED, beside what custody PINS (audit-post only)
+
+  `commit:` above is the CUSTODY pin — the repository state the verdict is tied to at the moment
+  of judgement. It is NOT, and never was, a statement of what the auditor read: `get_audit_post_diff`
+  sends a cumulative RANGE (`merge-base(commit, main)..commit`). Those two facts differ routinely,
+  because Stages 6 and 7 append their own records on top of the ship, so the commit standing at Stage 8
+  is frequently a record rather than a ship — measured over 728 rows in one consumer, 56% name a commit
+  carrying no product file at all. A reader given only `commit:` therefore read reach as coverage, and
+  one forensic review built its strongest finding on that gap (X-1108).
+
+  So an audit-post verdict records BOTH, and a reader needs both:
+
+  ```yaml
+  commit: <git-sha> # CUSTODY — what this verdict is pinned to (unchanged, still required)
+  audited_base: <git-sha> # the merge-base the judged diff was taken from
+  audited_files: <int> # how many files the judged range carried
+  ```
+
+  - The pair is ADDITIVE-OPTIONAL and appears on audit-POST only. It is derived (`audit_post_range`),
+    never authored, and is bounded by the SAME exclude list that bounds the diff — so the count
+    describes exactly the material the auditor saw, not a second notion of what counts as bookkeeping.
+  - It is FAIL-SAFE: an underivable range omits both keys rather than refusing the audit or recording a
+    zero. These are observability fields; absent means "not derivable", never "nothing was judged".
+  - The SAME pair rides the `audit_post_completed` event, from the same value, so the record and the
+    event cannot disagree.
+  - It DOES NOT re-point custody. `commit:` keeps its meaning and every chain-of-custody rule standing
+    on it is untouched — the range is recorded BESIDE the sha, never instead of it.
+
+  This is the audit trail. Trail enables post-hoc analysis (which auditor verdict governed which ship),
+  audit-loop ceiling enforcement (count passes per task per stage), and methodology drift detection
+  (per-stage finding patterns over time).
+
+  The ceiling ledger-skip MARKER catalog (the `tooling_absence_abort` / `freshness_reaudit` /
+  `consult_governed` / `unchanged_fp_reaudit` / `concurrent_merge_reaudit` / `task_lens_reaudit` /
+  `passable_absorption_reaudit` additive-optional markers documenting which re-audits do NOT advance
+  `passes`) is RE-HOMED to SPEC-0124 §Saved-result ledger-skip markers — fetch via
+  `bin/yitc-v2 graph query SPEC-0124`.
+
+  **Consult verdict — `decisions/<tid>-audit-consult-<stage>.yaml`, `target_kind: consult`,
+  `stage: consult-<pre|post>`.** The ceiling-convergence triage saves the canonical schema PLUS the
+  structured triage fields: `options` (the submitted candidate resolutions), `survivors` (a list of
+  {option, text}, a SUBSET of `options` — fail-closed: an out-of-set survivor or a recommendation
+  that is not exactly one survivor → verdict ABORT, no usable basis), `recommendation` (the single
+  surviving option number)
+  — **and the RENDERINGS an option index may be named in, on the way back IN (X-0835).** The
+  reader normalizes an index written as a plain integer (`survivors: [2]`), as a QUOTED string
+  (`["2"]` / `recommendation: "2"`), or as a MAPPING carrying an `option:` key (`- option: 2`, with or
+  without its `text:` sibling) — the last being this very schema's OWN saved survivor shape, which the
+  reader previously rejected, so a real adjudication expressed in the system's own vocabulary was
+  recorded as the auditor-unavailable/malformed ABORT class and the ceiling escalated to the owner on a
+  PARSE mismatch instead of on substance. **This widens which RENDERING is recognised, never which
+  INDICES are admissible:** the subset check, the exactly-one-survivor convergence requirement and
+  every fail-closed downgrade are unchanged, so an out-of-set index, a mapping naming no `option:`, a
+  non-list `survivors:` scalar, and a genuinely non-converged verdict (zero survivors, or more than
+  one) are all still refused and still escalate, and `basis_fingerprint` (the exact-match freshness
+  carrier — pre = plan_fingerprint, post = recorded commit SHA). A consult emits ONE audit-family event
+  surface (`external_audit_completed` with `target_kind: consult` + `stage: consult-<pre|post>`), never
+  a second parallel event.
+
+  **WHICH CONSULTS STILL WRITE THIS RECORD.** SPEC-0204 rule 6 retired the CEILING-adjudication
+  consult, so this schema is now written by the two surviving forms ONLY: `audit consult --on-demand`
+  (the below-ceiling technical-fork pick, key `on-demand`) and `audit consult --plan <slug> --gate <id>`
+  (the plan-gate consult, which `plan stage --owner-reset` still verifies as its basis). The TASK
+  `--task --stage` form REFUSES with a pointer to `audit decide` / `--on-decisions`. Consequently a
+  consult record is NO LONGER A BASIS FOR ANY TASK audit pass: the `owner_reset_basis:
+  consult:<file> | owner-authorized` line this section used to describe is retired with the flag that
+  read it, and records already carrying it stay readable history.
+
+  ### Packet preview — `audit pre|post --preview` (X-1060)
+  The flag ASSEMBLES AND PRINTS the packet and STOPS: no auditor is invoked, no ceiling pass is
+  consumed, no verdict is written, no stage gate is satisfied. It is this same verb stopping ONE
+  STEP EARLIER — it returns immediately after `_build_audit_prompt`, before the `audit_prompt_sent`
+  emit and `_invoke_auditor` — which is what makes what it prints THE packet the next real
+  invocation assembles rather than a description of one. It invents no second assembler, and a
+  second assembler is the thing to refuse if this is ever extended.
+  WHY. Owner-authorized ask from kupiclub (2026-08-21), measured at their : the only way to
+  learn what the auditor would SEE was to invoke it, which costs a ceiling pass and past the
+  ceiling costs an owner grant — so the one question whose answer prevents the failure ("is my
+  packet right?") was gated behind the resource the failure consumes. Three RED passes plus the
+  grant were each spent on something a free look answers.
+  CEILING-NEUTRAL BY CONSTRUCTION. The preview runs AT and PAST the audit-loop ceiling (SPEC-0124):
+  the ceiling bounds AUDITOR PASSES, and a preview invokes none and advances no ledger, so it has
+  no pass to bound and refusing it would enforce nothing while withholding the look exactly where
+  it is worth most. It therefore also skips the ceiling region's mutating machinery (the trend
+  grant, the L3 dispatched-worker auto-consult). REFUSED with `--owner-reset` (nothing to grant)
+  and with `--absorb` (no record to field-edit).
+  RECEIPT, AND ITS INERTNESS. One event, `audit_packet_previewed` — the read receipt, and the only
+  surface on which "did anyone look before re-invoking?" is answerable. It is EXCLUDED
+  unconditionally from `_ac_probe_evidence_events_for`, ahead of every tie-route: the
+  card-opt-in route renders any task_id-tied type a card's acceptance NAMES, so without the
+  exclusion a preview would enter the NEXT packet's evidence section and be made a lie by its own
+  act. A read receipt is evidence of a LOOK, never of a probe.
+  TWO DIAGNOSTICS, BOTH ADVISORY — and that is a RULING, not an omission: X-1060's own external
+  consult ruled they must NOT become hard gates, because they are lifecycle behaviour rather than
+  artifact integrity. (1) declared-touch (the card's `expected_touch`) vs audited-touch (the paths
+  in the assembled diff) vs intersection — the X-1056 comparison, advisory here. (2) "no journal
+  row for this card since the previous RED verdict at <ts>" — the re-run-vs-resolve fork of CHARTER
+  Principle 7, surfaced at the moment it applies instead of as a rule to be remembered; it EXCLUDES
+  the preview's own receipt, since a preview is a look and not a fix. NEITHER PRINTS AS ITS OWN LINE
+  ANY MORE : both are FOLDED into the packet-readiness block below — diagnostic (1) as its
+  `touch:` row, diagnostic (2) as its `prior findings without response:` row. The comparisons, their
+  data on the `audit_packet_previewed` receipt, and the advisory ruling are unchanged; what is
+  retired is the third redundant surface (`packet_touch_advisory`), leaving ONE report surface, not
+  three (CHARTER §P1 F3).
+  PACKET READINESS — the REPORT-ONLY block the preview prints. Every `--preview` run (no
+  flag; the block is not opt-in) prints, on STDERR beside the packet, a block of machine-stable rows
+  derived from the packet's own inputs — so the FORM failures that dominate RED verdicts are visible
+  BEFORE a pass is spent. Measured over the kernel journal since 2026-08-18: of 383 RED audit-post
+  passes, P8-adoption 37% + test-evidence 24% + spec-coherence 17% + scope-fidelity 11% are form
+  mismatches these inputs already reveal, and 23% of REDs are withdrawn on the SAME commit with no
+  code change. The rows, ONE per line, with fixed labels (downstream surfaces parse them, so the
+  shape is a contract, not a rendering choice):
+    `AC<n>: verifier <PRESENT|ABSENT|WAIVED>; evidence <PRESENT|ABSENT>`
+    `P8 carrier: <PRESENT|DEFERRED-DECLARED <field>|ABSENT|n/a (class <x>)>`
+    `stale anchors: <file> -> <SPEC-ID>` (one row per pair) or `stale anchors: none`
+    `touch: declared <n> audited <m> outside-forecast <k>`
+    `prior findings without response: <n>`
+  Anything else the block prints is an INDENTED detail line beneath its row, never a row itself.
+  `AC<n>` is the criterion's own leading `ACn` token when it carries one, else its positional index;
+  the verifier state reuses the SPEC-0060 item 4 test-or-waive predicate (`test-not-applicable:
+  <reason>` reads WAIVED); evidence is PRESENT only when the packet carries a row the criterion's own
+  text points at. The P8 row is `n/a` outside `class: infra`, and `DEFERRED-DECLARED <field>` names
+  the SPEC-0028 deferred-proof declaration the card carries.
+  IT IS ADVISORY, and that is the X-1060 ruling carried forward UNCHANGED: exit 0, no verdict, no
+  ceiling pass, no gate, no counted set — nothing branches on a row, here or downstream. It is made
+  mandatory by DELIVERY (the audit stage bundles and the worker preamble name the preview step), never
+  by a gate. ONE ASSEMBLER, still: the block is built INSIDE `build_audit_prompt` on the preview path,
+  from the parts that one assembly pass already computed (acceptance, the counted adoption evidence,
+  the Stage-6 row, the coverage walk's stale anchors, the touch reconciliation, the prior record) and
+  handed back through an optional sink — the `evidence_sink` shape. It appends NOTHING to the packet,
+  so the preview stays byte-identical to the real invocation. A SECOND ASSEMBLER, or a re-parse of the
+  rendered packet, remains the thing to refuse.
+  DIAGNOSTIC (1) IS NO LONGER PREVIEW-EXCLUSIVE. The same comparison ALSO renders into the
+  TASK AUDIT-POST PACKET as a report-only section (`packet_touch_section`, appended by the one
+  assembler `build_audit_prompt`), so the auditor reads the card's ON-DISK `expected_touch`. WHY: the
+  packet's task body renders acceptance / plan / stage-6 / adoption / diff and NOT `expected_touch`,
+  so the auditor's only view of the forecast was the card YAML hunk in the shipped diff — its
+  COMMITTED state. That collided with the governed correction route: `task analyze
+  --forecast-correction` deliberately leaves the card DIRTY so the audited commit does not
+  move, which made the sanctioned correction structurally invisible to the gate demanding it
+  ( — audit-post pass 3 restated pass 2 verbatim against a card whose on-disk forecast already
+  covered the diff; two owner-authorized ceiling resets). BOUNDS, all three load-bearing: it is
+  AUDIT-POST ONLY (audit-pre carries no diff, so the comparison there is noise, and audit-pre has
+  `_forecast_touched_files` already); it is built INSIDE the SAME assembler, which is what keeps the
+  preview byte-identical to the real invocation — no second assembler is introduced, and one is
+  still the thing to refuse; and it stays ADVISORY, the X-1060 consult's ruling unchanged — the
+  section states in its own text that it gates nothing, and no verdict, exit code, ceiling pass or
+  counted set moves on it.
+  NO PACKET TO PREVIEW. On the three short-circuit branches that record a verdict without
+  assembling a packet (consult-governed carry-forward, unchanged-fingerprint carry-forward,
+  zero-ship-diff waive) the preview NAMES the governing branch and prints no packet — printing one
+  the real invocation never builds is the failure mode the preview exists to prevent.
+  BOUND: the preview runs the same stage-correspondence and read gates as the real invocation. That
+  is deliberate — a preview assembled under different preconditions would not be the same packet.
+  ONE GATE IT DOES NOT RUN, and only this one (X-1121): the / WRITE-ISOLATION
+  guard. `cmd_audit` takes it because the verb WRITES `decisions/<id>-audit-<stage>.yaml`; a preview
+  writes no such record, and its only record is the `audit_packet_previewed` journal append, which
+  AGENTS-SESSIONS §Writes-happen-in-a-worktree exempts from the worktree requirement. So a
+  preview runs wherever a journal append may run, INCLUDING the main checkout. The condition is on
+  the PREVIEW PATH, never on the verb: a NON-preview `audit pre|post` off a writing worktree is
+  refused exactly as before, because its verdict YAML is the non-bookkeeping dirt that guard exists
+  to keep off `main` (E-0014). WHY IT MATTERS beyond the message: the shape that needs the
+  preview most could not get one at all — a card in-progress at Audit-post whose ship already landed
+  has no worktree, and `worktree new --task` validates the card is `ready`, so kupiclub had no
+  legal route to a look.
+
+  ### Anti-pattern (do not do)
+  Run audit "just to check" on hygiene tasks; iterate >2 absorption passes; cherry-pick verdict
+  (run multiple auditors, pick the favorable one); bypass audit via env var; hand-author a bespoke
+  plan-gate prompt when the template+`--focus` path is available; make either `--preview` diagnostic
+  gate anything; assemble a preview packet through any path but the one real assembler.
+
+  ## Verification
+
+  - Bound: `graph build` maps the Audit-pre + Audit-post stage-entries to this spec once active
+    (the ONE delivery axis — `binding:`); the plan gates carry NO plan-stage-entry binding: `plan
+    stage specs|trial` and the accept-gate `plan check` ASK the matching template themselves (the
+    prompt builders consume the template text from this one home —; dissonance
+    spec-0036-verification-vs-binding-axis-contradiction resolved toward the binding carrier).
+  - A saved plan-gate verdict YAML carries `stage_template:` + `gate_policy:` (state check).
+  - A `--focus` text appears verbatim in a saved verdict (live-trigger, P8).
+  - On activation SPEC-0016 flips `superseded` atomically (activation_owner_task close).
+
+cites:
+  - CHARTER.md#principle-4
+  - SPEC-0012
+  - SPEC-0013
+  - SPEC-0034
+  - SPEC-0035
+  - AGENTS.md#external-auditor-invocation-contract
+  - patterns/trial-methods.md
+  - per-stage-external-audit-question-templates-for-th
+
+requires: []
+supersedes: SPEC-0016
+activation_owner_task: # set at decomposition 2026-06-05 (plan stage executing) —
+                               # (gate-template wiring) is the ONE activating task; its close flips
+                               # proposed->active + SPEC-0016 -> superseded atomically.
+proposed_by: per-stage-external-audit-question-templates-for-th

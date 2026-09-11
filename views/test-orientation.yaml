@@ -1,0 +1,15 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: test-orientation
+description: A project's declared test rows bound to their moment/layer — the class×moment taxonomy (SPEC-0093 rule 10 `tests.classes[]`) + the land-verify layers (rule 16 `verify.layers[]`, moment=verify). Read-only orientation, NO gate / event.
+lens:
+  kind: test-orientation # reads REPO_ROOT/yitc-ops.yaml; binds each declared test row → its moment/layer
+why: >-
+  X-0140 Card 3 (the per-layer land-verify plan): promote ONLY the minimal class×moment orientation
+  vocabulary the incident pulls — a read-only view binding a project's declared test row to its
+  `moment`/layer, NOT a gate. Membership is DERIVED at read time from the SPEC-0093 yitc-ops.yaml carrier
+  the project already declares (`tests.classes[]` = the descriptive class×moment inventory, rule 10;
+  `verify.layers[]` = the moment:verify executable land layers, rule 16) — no new store, no new
+  node/edge, no new gate or event (the read-only shape). A consumer-only surface: the kernel's
+  own repo has no yitc-ops.yaml, so it returns clean-empty there. The full class×cadence×depth CANVAS
+  stays the DEFERRED engineering-corpus idea (test-taxonomy-cadence-and-depth-canvas) — NOT promoted here.

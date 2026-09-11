@@ -1,0 +1,281 @@
+id: SPEC-0055
+title: 'Triage-run window and queue lineage reference'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # proposed→active at close (work-first — activation_owner_task
+                               # below). On activation, supersedes: SPEC-0029 flips active→superseded atomically
+                               # (SPEC-0005 rule 4). proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # documentary reference — no code reads a scalar PARAM from it.
+
+implements: # durable anchor — the triage-run window + link rule is
+                               # REALISED by the triage verb. Non-empty ⇒ NON-DANGLING (SPEC-0013).
+                               # Anchored to the code-backed portion ONLY (audit-pre F2 honesty): the
+                               # manual weekly/monthly Review cadence has NO code home, so it STAYS
+                               # MANDATORY in QUEUE.md and is NOT carried here.
+  - bin/lib/triage.py#cmd_triage_run # computes the triage-run window from the watermark + routes captures.
+
+binding:
+  - query-only # query-only reference (SPEC-0007 §5a) — NOT floor-triggered; reached
+                               # via the QUEUE.md pointer-stub + `graph query SPEC-0055`.
+
+body: |
+  ## Scenario
+
+  When a Review session runs a triage sweep, it needs the precise rule for HOW FAR BACK to route
+  un-routed `deviation_captured` captures (the window). (HOW a fix-task/decision back-references the
+  deviations it closes — the link rule — is carved out to SPEC-0068, `graph query SPEC-0068`.) This is
+  situational reference consulted at triage time, fetched
+  via `bin/yitc-v2 graph query SPEC-0055` (the QUEUE.md pointer-stub names this spec). The always-loaded
+  QUEUE core keeps the manual Review-scan CADENCE (weekly parking-lot/blocked, monthly done-log,
+  per-session observations) — those are short process policy with no code home.
+
+  ## Internal
+
+  THE TRIAGE-RUN WINDOW + LINK RULE ( §3/§9). Faithfully carried from QUEUE.md §Re-review (the
+  triage slow-lane portion only — the manual-cadence bullets stay mandatory in QUEUE.md).
+
+  ### Triage run ( §3 slow lane)
+  The owner-invoked Review scan ALSO sweeps the journal's un-routed `deviation_captured` captures (one
+  more thing this control-point looks at — NOT a new recurring/cron procedure; CHARTER §6/§7). Each
+  capture routes to exactly ONE of the **four routes**: `event-only` · `linked` (an existing
+  fix-task/decision already owns it) · `promote-to-fix-task` · `promote-to-E-XXXX`. The triage VERB
+  is `bin/yitc-v2 triage` (`cmd_triage_run`).
+
+  **Filing-contract delivery at the scan entry (X-0128 — pointer, the rule lives in SPEC-0060).**
+  Because `promote-to-fix-task` is a route, the scan's expected output is filing — so the scan entry
+  DELIVERS the Filing/task-authoring doctrine (SPEC-0060) at entry (an honest node_id-bearing
+  `cli_invoked` delivery-receipt, verb `"triage run"`), so a `task file` mid-batch is not surprise
+  read-gate-refused. This is SPEC-0060's delivery surface, not a new window/lineage rule; the receipt
+  semantics + credit-path are owned by SPEC-0060 §Delivery wiring (pointer only — P5, not restated).
+
+  ### Triage-run window + the link rule ( §3/§9; watermark BASIS hardened —)
+  - **Per-capture ROUTE recording at completion ( — X-0126).** `triage run --complete` records
+    the route PER CAPTURE, not just the watermark count: for each routed capture in the window it writes
+    a `routes[]` row `{ts, fingerprint, target_kind, target_id}`, and `routed`/`linked` are DERIVED from
+    that set (`routed` = #routed capture events; `linked` = the cites-owned task/decision subset; the
+    cross subset is routed-but-not-`linked`; `promoted` stays operator-supplied). The capture->target
+    link is READ from the already-persisted carriers — a task `cites:` the fp (the §9 LINK RULE,
+    `_fingerprint_cites_index`), a cross carries it as `cross_requested.origin_fp`, and an errors/E-XXXX
+    case file OWNS it (`_error_fingerprint_index`, values shaped `(E-id, status)`) — NOT a new store
+    (P1). This closes the X-0126 lineage gap: the routing audit-trail (which capture went to which
+    task/cross/case-file) is now durable, where the bare `routed`/`linked` count alone lost it.
+    **All THREE carriers are read (X-0344).** The E-file carrier was MISSING from the original
+     loop, so this section's own FOUR-route rule (§Triage run — `promote-to-E-XXXX`) was invisible
+    to the derivation: a PROMOTED capture was counted as un-dispositioned (`routed` short by one, the
+    capture mislabelled «genuinely unrouted»). An E-file route is routed-but-NOT-`linked` (like a cross
+    route — `linked` stays the cites-owned task/decision subset). The `--routed/--linked` flags remain
+    NON-authoritative (reverting that IS the X-0126 defect), but a passed value that DISAGREES with the
+    derived count now WARNs — naming both numbers + the carrier that makes a route countable — instead
+    of being silently zeroed (the operator-facing half of X-0344).
+  - **Routing depth = the window SINCE the last `triage_run_completed` watermark** (already-routed
+    captures stay routed). **Bootstrap:** if no watermark exists yet, scan from the **start of the
+    journal**. The watermark is a **closed boundary** — it is *excluded* from the next window, so each
+    capture is routed exactly once. (The watermark event is defined in `AGENTS.md §events.jsonl-schema`.)
+  - **Watermark BASIS = `data.window_through`, NOT the completion-event `ts` ( — supersedes the
+    pre- `ts` basis carried by SPEC-0029).** `window_through` is the max ts of the window the
+    completing run ACTUALLY ROUTED, and `_last_triage_watermark` — the SINGLE reader the three consumers
+    (`cmd_triage_run`, the realize-gate `_require_captures_routed`, the postcheck-readiness view) all key
+    off — returns it. This closes a SILENT-LOSS class: with a 1-second-resolution `ts` (`_utc_now_iso`)
+    and NO per-event tie-break key (journal physical order is not stable after a union-merge, SPEC-0002),
+    a capture emitted in the SAME wall-clock second as `--complete` but AFTER it had `ts == now` ⇒ the
+    closed `ts > prior` boundary excluded it from EVERY future window ⇒ it was lost forever. Keying off
+    the routed-window max instead never advances past a capture the run did not route, so a later-second
+    capture stays in-window. **Gap-free recording:** the boundary MUST be the max ts of what the READ run
+    SHOWED — so `triage run --complete --through <ts>` lets the operator PIN it (the `triage run` read
+    prints the value), and a rescan-at-completion is NOT used as the authority (it would advance past a
+    capture that arrived in the read→complete gap). A pinned `--through` is VALIDATED — well-formed UTC
+    ISO and NEVER earlier than the current boundary — so it can only hold or advance the boundary, never
+    regress it (the non-regression safety contract). **Back-compat:** a pre- watermark with no
+    `window_through` falls back to its event `ts` — identical to the old behaviour. The boundary
+    predicate (`ts > prior`) and the closed-boundary / routed-exactly-once contract are UNCHANGED — only
+    the basis the boundary is computed FROM is hardened, so consumers' compliance action is identical.
+  - **Residuals (deferred to):** two cases unclosable at the boundary level with `ts` alone (1-s
+    resolution, no per-event tie-break key): (a) a capture at the EXACT same second as the boundary,
+    arriving after the read — the IRREDUCIBLE 1-second tie; (b) when `--through` is OMITTED, a capture
+    that arrived in the read→complete GAP and is swept into the best-effort rescan max. Both are CLOSED at
+    the per-capture level by per-capture routed-marker — the `triage-state` saved view
+    (`_view_triage_state` view family) — which inherits THIS safe boundary (the hardening was the
+    precondition the audit-pre consult ABORT required: "harden the primitive FIRST, before building
+    new consumers on it"). The view buckets EACH deviation_captured against `window_through` as ROUTED /
+    genuinely-UNROUTED / BOUNDARY-TIE, SURFACING (a) the exact-equal-second tie per-capture so it is never
+    silently mis-bucketed, and keeping (b) the read→complete-gap capture VISIBLE (UNROUTED/TIE, not
+    silently-routed). It is a DERIVED verdict — NO persisted stamp, NO new store, NO parallel cursor (the
+    consult rejected those). The gap-free `--through` path additionally avoids (b) at completion time.
+  - **The LINK RULE — one canonical carrier:** carved out to its own narrow spec — **SPEC-0068**
+    (Triage LINK RULE — fingerprint↔fix linkage derived from `cites:` exclusively). Fetch via
+    `bin/yitc-v2 graph query SPEC-0068`. It homes the `cites:`-EXCLUSIVE derivation rule + the
+    cited-rollup cluster-aware recurrence count (`_capture_cluster_counts`). This spec keeps
+    the window, batch-run journal isolation, discovery stem-clustering, and queue lineage.
+
+  ### Batch-run journal isolation — emit from the run worktree, fold at land
+  The discipline, in one line (verbatim state-probe phrase):
+  **emit a long batch run's events from the run worktree, fold at land.**
+  A **long owner-invoked batch run** — the triage run (this verb), the periodic inspection
+, or an ad-hoc audit batch — emits MANY journal events over a multi-minute window (captures,
+  `inspection_completed`, `triage_run_completed`, audit events). Such a run **MUST emit ALL its run
+  events from its OWN `work/<slug>` worktree** (the existing write-flow primitive) and **fold
+  them into `main` with ONE `land`** at the end — so `main`'s `events.jsonl` stays CLEAN across the
+  whole window and the run's captures appear on `main` only at the single fold-land commit. This stops
+  the long-lived dirty-window on `main` that feeds the E-0010 land-abort-on-dirt family for concurrent
+  sessions (real incident: the 2026-06-07 fresh-inspection run, ~40 emits from `main` over ~50 min).
+  ONE isolation rule covers ALL three batch families — not one per run type.
+
+  - **Invocation form is load-bearing (audit-pre F1):** `REPO_ROOT` is derived from the
+    BINARY location (`Path(__file__).parent.parent`), NOT the cwd — so a bare `cd <wt> && bin/yitc-v2
+    event …` that resolves the MAIN checkout's binary on `PATH` still writes to MAIN's `events.jsonl`,
+    silently defeating the isolation. Use a repo-root-rebinding form: **`bin/yitc-v2 -C <wt> event …`**
+    (the `-C` flag rebinds `REPO_ROOT` to the worktree) **OR the worktree-local binary
+    `<wt>/bin/yitc-v2 event …`**. Same form as the proven prior-art `( cd <worktree> && bin/yitc-v2
+    event bg_dispatch_halted …)` / `bin/yitc-v2 -C <worktree> event …` (`patterns/background-session-
+    monitoring.md` §Abnormal — "emitted FROM the worktree so it lands in the worktree journal, folded
+    to main at land").
+  - **Boundary — deterministic (audit-pre F-low):** the rule scopes to a run that OPENS a
+    `work/<slug>` worktree for its own work (a batch run is one such) → emit there, fold at land. A
+    **single from-anywhere ad-hoc `deviation_captured`** (the capture reflex) is the EXCLUDED case: it
+    needs NO worktree and STAYS emittable from anywhere incl. the main checkout, folded by the next
+    `land` (** single-deviation-capture-from-anywhere reflex — PRESERVED, not banned**). The cut
+    is "does this run already own a `work/<slug>` worktree?" — if yes (batch run), emit in it; if it is
+    one stray capture with no worktree, the reflex applies.
+
+  ### Discovery stem-clustering — the UNCITED half ( §5)
+  The cited-rollup (the LINK RULE cited-rollup, now homed in SPEC-0068) is the AUTHORITATIVE recurrence count, but it only rolls up fingerprints a
+  case file ALREADY cites. A root whose near-synonym spellings are **not yet cited anywhere** stays
+  fragmented and invisible. The **discovery stem-cluster view** (`_discovery_stem_clusters`) is its
+  complement: it groups the LEFTOVER fingerprints — those owned by NO case file (neither a canonical
+  `fingerprint:` nor a `cites:` member) — into families by a **deterministic root-stem** (two
+  fingerprints are same-family iff ANY of (1) one's hyphen-token sequence is a PREFIX of the other's, OR
+  (2) their SIGNIFICANT-token sets — tokens minus structural stopwords — share >=3 tokens AND a Jaccard
+  ratio >=0.6 (order-INDEPENDENT root-stem overlap), OR (3) both are spelled `<root>:<subject>`
+  and their `<root>` is BYTE-IDENTICAL (the DECLARED ROOT); merged transitively; the family key
+  = the shortest-token member, lexicographic tie-break — EXCEPT a family whose members ALL declare the
+  SAME root, which is keyed by that DECLARED ROOT, so the surfaced row NAMES the root instead of an
+  arbitrary member (guarded so a key never shadows a real fingerprint). A family of `>=2` distinct
+  spellings surfaces as ONE candidate to act on, on BOTH promotion-facing surfaces (answering cross item X-1187): `triage run` Section **B2**, and `graph query --type error
+  --recurring` — the surface that names itself the promotion threshold. The second was
+  added because its absence WAS the defect: that surface counted recurrence by BYTE-IDENTICAL
+  fingerprint plus the cited rollup only, so a family whose spellings are each N=1 contributed
+  ZERO rows and a real root could never reach `N>=2` (measured in the kernel 2026-08-28: 91 of the
+  109 families were entirely invisible there, the largest at 17x across 14 spellings, while Section
+  B2 had been rendering them all along). Counting root-CLUSTERS rather than fingerprint EQUALITY is
+  the whole change — no new store, no new clusterer, and the `N>=2` threshold value is untouched. A
+  discovery row is LABELLED as a discovery family on both surfaces, because it remains a hint (next
+  bullet), never the authoritative count.
+  - This is **DISCOVERY ONLY** — a hint, never an authority: confirm a single shared cause (one 5-whys §6) then cite the members under ONE E-XXXX via the LINK RULE (SPEC-0068); if no cause emerges,
+    DISBAND (a false root is itself a defect, §6). It NEVER mutates a case.
+  - It does **NOT replace** the cites-LINK-RULE cited-rollup, and the two never double-claim a
+    fingerprint: an owned (cited or canonical) fp is EXCLUDED from the discovery set. Token-PREFIX (not
+    blind substring) plus the TWO root-stem gates (>=3 shared significant tokens AND Jaccard >=0.6) are the
+    anti-over-merge guard — `plan-check-on-main{,-dirties…,-writes…}` merge (predicate 1), and a root
+    respelled with different word order — `hand-edited-spec-body-…` / `spec-body-edited-by-hand-…` /
+    `spec-file-hand-edited-…` (the E-0026 spec-edit-bypass family) — merges (predicate 2); but
+    `plan-check-verdict-stray…` / `plan-check-generic-lens…`, and a fingerprint sharing only a generic
+    LENS (e.g. just `spec`+`edit`), stay separate. Discovery is advisory anyway (confirm-cause-or-disband,
+    SPEC-0056 §2), never an authoritative count.
+  - **Predicate (3) reads a DECLARATION; it does not loosen (1) or (2) — and why neither could reach it
+    :** a `<root>:<subject>` fingerprint does not RESPELL a root, it NAMES one and varies the
+    SUBJECT, so the two heuristics beside it are STRUCTURALLY blind to it rather than mis-tuned. The
+    tokenizer splits on `-` only, so the `:` fuses root-tail and subject into ONE opaque token
+    (`land-verify-timeout:test_x.py` -> `['land','verify','timeout:test_x.py']`). Predicate (1) then
+    fails because the token sequences DIVERGE at that token and neither is a prefix of the other;
+    predicate (2) fails because the whole subject rides inside that one token, so the two spellings
+    share only {land, verify} — 2 significant tokens against the >=3 floor, Jaccard 0.5 against the
+    >=0.6 floor (MEASURED, not estimated: `land-verify-timeout:test_session_verb.py` vs
+    `...:test_fleet_verdict.py`). BOTH of predicate (2)'s gates fail, and the shared-token gate fails
+    first. So predicate (3) is EXACT (byte-identical root, no threshold) precisely so it CANNOT widen
+    (2)'s fuzzy matching or manufacture a family: it fires ONLY where both spellings declare the same
+    root, ADDING a family the two heuristics never could while changing NO family they already form.
+    The declared-root KEY is bounded the same way — a family not wholly composed of one-root members
+    keeps the shortest-token/lexicographic key unchanged. A declared root stays DISCOVERY: it never
+    confers ownership (the cited-rollup, SPEC-0068, remains the authoritative ownership view).
+  - Corollary ( §5(1)): an **alias-singleton of a known root** is therefore not hidden by the
+    `N>=2` threshold — a CITED alias surfaces via the cited-rollup + the alias-aware reopen
+    (`_reopen_resolved_error` matches `cites:` members), and an UNCITED near-synonym surfaces
+    here; `N>=2` stays advisory, never a gate that buries a known-root alias.
+
+  ## Rationale
+
+  Demoted to the retrieved tier (SPEC-0007 §5a query-only): the window computation + link rule are
+  consulted only when running a triage sweep, not before a gated control-point. The anchor
+  (`cmd_triage_run`) is honest for these rules (audit-pre F2) — the manual Review cadence and v1 lineage
+  are NOT claimed as code behavior; the cadence stays mandatory, the lineage is provenance below.
+
+  **Why supersede SPEC-0029 :** SPEC-0029 stated the closed-boundary / routed-exactly-once
+  contract but its watermark BASIS (the completion-event `ts`) silently broke it for a same-second
+  capture. The boundary basis change (`ts` → `window_through`) changes WHICH capture is in-window —
+  observable consumer behaviour — so per SPEC-0005 rule 7 it is a normative reshape routed through the
+  FSM (new `proposed` spec + `supersedes:`), not an in-place clarification. The window-section is the
+  only substantive change; the link rule, batch-run isolation, discovery stem-clustering, and queue
+  lineage are carried forward verbatim.
+
+  **Queue lineage (what this REPLACES from v1 — provenance for the per-entry queue model):** the V2
+  queue model replaced v1's scattered single-file aggregates with per-entry YAML in one directory
+  (CHARTER §P5):
+  - `yitc-backlog.md` (single-file aggregate) → `tasks/*.yaml` (per-entry)
+  - `.yitc/index/backlog.yaml` (separate aggregate) → derived only, not source
+  - `yitc-deferred.md` → parking lot bucket (same `tasks/` directory)
+  - `yitc-decisions.md` → `decisions/*.yaml` (separate, per-entry)
+  - `REVIEW-TASKS.md` → `tasks/*.yaml` created by Review session (same directory)
+  One directory (`tasks/`), one format, one parser — CHARTER Principle 5. V1 split storage (aggregate
+  index + per-entry workspace) caused 200-tool-call debugging; V2 does not repeat it.
+
+  ## Verification
+
+  - **Watermark basis hardened (RED-GREEN):** the phrase `Watermark BASIS = ` + `window_through`
+    resolves in THIS spec §Internal; a `deviation_captured` emitted in a later second than the
+    completing run's max-observed capture is RECOVERED into the next window (RED before the fix on the
+    `ts` basis, GREEN after) — probe tests/test_triage.py::{test_same_second_after_complete_not_lost,
+    test_window_through_recorded_on_complete, test_watermark_backcompat_falls_back_to_ts,
+    test_no_op_complete_does_not_regress_boundary, test_exact_equal_second_remainder_deferred}.
+  - **Per-capture routed-marker — residuals (a)/(b) CLOSED :** the `triage-state` saved view
+    (`_view_triage_state` / `views/triage-state.yaml` view family) derives per-capture
+    routed-state (ROUTED / genuinely-UNROUTED / BOUNDARY-TIE) from `window_through` + `_scan_captures`,
+    NEVER from `kind` presence (the 535/660 over-read fix). A `kind: null` capture on either side of the
+    boundary classifies purely from its ts; the exact-equal-second capture surfaces in BOUNDARY-TIE (not
+    silently routed). DERIVED verdict only — NO persisted stamp/store/cursor. Discoverable in
+    `graph query --type view`; a live `graph query triage-state` emits cli_invoked (P8 adoption). Probes
+    tests/test_triage_state_view.py::{test_unrouted_is_true_backlog_not_kind_absent,
+    test_kind_null_classifies_from_boundary_both_sides, test_boundary_tie_surfaced_not_silently_routed,
+    test_bootstrap_all_unrouted, test_e2e_cli_emits_cli_invoked_and_catalog_discoverable}.
+  - **Fidelity (RED-GREEN):** a substantive phrase (e.g. `The watermark is a **closed boundary**` /
+    `yitc-backlog.md (single-file aggregate)`) resolves in THIS spec and is ABSENT from QUEUE.md.
+  - **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0055` resolves; the QUEUE.md pointer-stub
+    names `SPEC-0055` + lookup command. NO floor-trigger.
+  - **Honest anchor (audit-pre F2):** `implements:` lists ONLY `cmd_triage_run` (the code-backed rule);
+    the manual Review cadence remains MANDATORY in QUEUE.md (grep: weekly/monthly bullets still present).
+  - **Non-dangling:** non-empty `implements:` ⇒ excluded from `dangling_specs` once active.
+  - **Supersession (P7, SPEC-0005 rule 4):** `supersedes: SPEC-0029`; on this spec's activation (
+    close) SPEC-0029 flips active→superseded atomically. One active lineage ( B6).
+  - **Batch-run journal isolation — state-probe:** the phrase
+    `emit ALL its run events from its OWN ` + `fold them into ` + `with ONE ` + `land` resolves in THIS
+    spec §Internal, AND the **invocation-form** phrase `bin/yitc-v2 -C <wt> event` resolves here too.
+    **coherence-probe:** the phrase ` single-deviation-capture-from-anywhere reflex — PRESERVED,
+    not banned` resolves in §Internal — the from-anywhere reflex is the EXCLUDED case, explicitly retained.
+  - **Discovery stem-clustering :** `_discovery_stem_clusters` groups the 3 uncited
+    `plan-check-on-main` spellings into ONE family (NOT 3 singletons) and EXCLUDES any fp owned by a
+    case file's canonical/`cites:`; `triage run` prints Section **B2** for it. The cited-rollup
+    (`_capture_cluster_counts`, E-0010 x15) is unchanged. Probes: tests/test_triage.py::{test_discovery_
+    merges_3_plan_check_spellings_one_family, test_discovery_excludes_cited_and_owned_fingerprints,
+    test_cited_rollup_unchanged_alongside_discovery} + tests/test_error_verbs.py::test_reopen_on_cited_
+    alias_not_canonical (the alias-aware reopen).
+
+cites:
+  - QUEUE.md#re-review-triggers
+  - SPEC-0007
+  - SPEC-0013
+  -
+  - CHARTER.md#principle-5
+  - part-i-b-tier-split-carving-floor-wiring-first-the
+  - SPEC-0002
+  -
+
+requires: []
+supersedes: SPEC-0029
+activation_owner_task: # work-first — activates proposed→active at close,
+                               # atomically flipping SPEC-0029 active→superseded.
+proposed_by:
+implements_signature:
+  bin/lib/triage.py#cmd_triage_run: ee330cbfaf7694416e2b32d7925b57b92f8ef231bd5cfaeff02afc79ee96d3b7

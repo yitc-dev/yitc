@@ -1,0 +1,143 @@
+# YITC v2 — Spec
+# Field catalog: SPEC-0030 (`graph query SPEC-0030`). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0092
+title: Kernel-prefixed spec retrieval — graph query --kernel resolves the KERNEL spec under -C when a consumer owns the same id
+
+status: active
+
+created_at:
+
+travels: ~ # UNMARKED = kernel class-default — engine CLI behaviour that travels.
+
+consumed: false
+
+implements:
+  - bin/lib/cli.py#_find_spec_path
+  - bin/lib/cli.py#_find_error_yaml # : the error-node sibling of the force_engine seam (SPEC-0092 widened to E-ids)
+  - bin/lib/graph.py#_node_source_path # : moved to the graph engine module (host keeps a thin residue)
+  - bin/lib/graph.py#cmd_graph_query # : moved to the graph engine module (host keeps a thin residue)
+
+body: |
+  ## Scenario
+  A `-C <consumer>` session reads a handbook retrieved-tier pointer — e.g. «Read it via
+  `bin/yitc-v2 graph query SPEC-0014`» — which names a KERNEL contract by its bare id. If that
+  consumer happens to own its OWN spec at the SAME id (SPEC-0014 is the kernel commit contract,
+  but a consumer may have authored an unrelated SPEC-0014), a bare `graph query SPEC-0014`
+  resolves the CONSUMER's own spec — the session silently gets the WRONG body (X-0038). To fetch
+  the KERNEL spec unambiguously the session adds `--kernel`:
+
+      bin/yitc-v2 graph query --kernel SPEC-0014
+
+  which ALWAYS returns the kernel (engine) spec node + body, regardless of a consumer collision.
+  A bare `graph query SPEC-XXXX` is UNCHANGED — consumer-own still wins (a consumer-only id and
+  the consumer's own intended specs resolve exactly as before).
+
+  **Same collision, second node type — the `error` case file (cross X-0583).** The error
+  corpus collides the same way and worse: the kernel's `errors/E-0002` is «AI hand-allocated a
+  decision id instead of using the verb», while boomrocket's own `E-0002` is an unrelated 2026-07-12
+  stats-pipeline incident — and consumer artifacts cite those ids BARE. Recurrence-matching («have
+  we hit this before?») is the entire reason the `error` node type exists, so a bare
+  `graph query E-0002` answering from whichever corpus the reader stands in returns a PLAUSIBLE
+  WRONG answer in EITHER direction. The realm-explicit escape is THE SAME ONE — no second
+  mechanism:
+
+      bin/yitc-v2 graph query --kernel E-0002
+
+  returns the KERNEL case-file node + body regardless of a consumer collision. A bare
+  `graph query E-XXXX` is likewise UNCHANGED (consumer-own wins), and now SELF-DISCLOSES the
+  collision (§Internal) so a sweep resolving against one corpus alone can no longer report CLEAN
+  over it.
+
+  ## Internal
+  Resolution precedence (the rule an editor must preserve):
+  - **bare lookup (default):** consumer-own wins per id, else the engine fallback
+    (`_find_spec_path(sid, engine_fallback=True)` / the `cmd_graph_query` spec branch's
+    `elif _is_consumer_build and nid in _engine_index`). Resolution UNTOUCHED by this spec.
+    **Self-disclosure safeguard (X-0551):** the bare lookup, when it resolves a SPEC-id the
+    `-C` consumer OWNS ON DISK (`_find_spec_path(nid)` own-only) while the kernel owns the SAME id (a
+    collision), prints a REPORT-ONLY stderr line naming the resolved project (`_cross_self`) + the
+    `--kernel` escape — so a reader following a bare KERNEL pointer that silently mis-resolved is TOLD.
+    Report-only (stderr, never the stdout node); resolution semantics are unchanged. A consumer-only id
+    (no kernel counterpart) and the engine's own session stay SILENT (no collision to disclose).
+  - **`--kernel` (the kernel-prefixed path):** FORCE the engine spec — INVERT the precedence so
+    the consumer-own copy is bypassed even when present. On a consumer build (`_is_consumer_build`)
+    the node is read from `_engine_index` and the body from `ENGINE_ROOT/specs` via
+    `_find_spec_path(sid, force_engine=True)`. On the engine's OWN session (REPO_ROOT == ENGINE_ROOT)
+    `--kernel` is a no-op refinement — own IS the kernel, so it resolves the own spec.
+  - `force_engine` is a NEW keyword on `_find_spec_path` / `_node_source_path`: when set it resolves
+    ONLY from the engine specs dir (consumer build) — never own-first. It is orthogonal to and takes
+    precedence over `engine_fallback`.
+  - **Composition guard:** `--kernel` composes ONLY with a spec-id point-lookup. It is REJECTED with
+    `--type` / `--projected` / `--carve-out` / `--recurring` / `--as-of`, with a view-name, and with a
+    missing id — those forms have no kernel-vs-consumer ambiguity, so the flag is fail-closed there.
+  - **The resolution is now RECORDED, not just performed (X-0865 — pointer, the rule lives in
+    SPEC-0050 §2).** A point-lookup of a SPEC / E id stamps the REALM that answered onto the fetch receipt
+    (`cli_invoked data.node_realm` = "kernel" | "own"), read off the branch that resolved above — using the
+    SAME own-only ownership predicate the / disclosures use, never index membership. The
+    precedence THIS spec homes is UNCHANGED; what changes is that a downstream reader can tell which corpus
+    answered. Its consumer is the SPEC-0050 read-gate, which now requires the KERNEL receipt for a kernel
+    contract instead of crediting any same-id fetch — the credit rule is homed there, not restated here.
+  - **Doc convention:** a handbook retrieved-tier pointer is authored bare (`graph query SPEC-XXXX`).
+    A `-C` reader that hits a consumer-id collision re-issues it with `--kernel`. The handbook prose
+    is NOT rewritten per pointer — the convention is the reader's escape hatch for the collision case.
+  - **`error` node type (X-0583) — the SAME rules, one node type wider.** `--kernel` routes
+    by id shape: an `E-` id resolves the kernel `errors` node (`_engine_index` on a consumer build,
+    the own index on the engine's own session — own IS the kernel) and dies loudly when the KERNEL
+    corpus has no such case; every other id keeps the spec path above, byte-identical. The appended
+    source body comes from `_find_error_yaml(eid, force_engine=True)` — a verbatim mirror of
+    `_find_spec_path`'s `force_engine` (kernel-only on a consumer build, `ERRORS_DIR` on the engine's
+    own session). The composition guard is unchanged in KIND (point-lookup only), widened in the id
+    set it accepts: SPEC or E.
+    **Bare error lookup is UNCHANGED and now SELF-DISCLOSES:** consumer-own still wins and NO engine
+    fallback is added for errors (a kernel-only E-id in a consumer still reports not-found, exactly
+    as before — X-0583 is about the reader having no realm-explicit way to ASK, not about bare
+    resolution picking the wrong side). When that bare lookup resolves an E-id the consumer OWNS ON
+    DISK while the kernel owns the SAME id, it prints the report-only stderr disclosure naming the
+    resolved project + the `--kernel` escape — the safeguard applied to the error corpus, and
+    what makes the collision DETECTABLE rather than merely resolvable. Ownership is tested by the
+    consumer's OWN case FILE (`_find_error_yaml` own-only), never index membership — a blank
+    consumer's index IS the engine's, so membership would false-positive on a kernel-only id. A
+    consumer-ONLY id and the engine's own session stay SILENT (no collision to disclose).
+
+  ## Rationale
+  Owner-locked decision 2026-06-20 (cross X-0038, kupiclub→yitc-v2): a kernel-PREFIXED retrieval path,
+  NOT id renumbering/namespacing — renumbering would break every existing `from:` / `cites:` citation
+  across the corpus. Build on the EXISTING engine-content fallback rather than a parallel
+  mechanism (CHARTER §Principle 1 — reuse the seam). The defect is real: under -C the handbook's
+  retrieved-tier refs all name kernel specs by bare id, so a colliding consumer id silently mis-resolves
+  a governance contract.
+
+  ## Verification
+  - AC1: under a genuine `-C` consumer that owns its own SPEC-0014, `graph query --kernel SPEC-0014`
+    returns the KERNEL body (probe: tests/test_t9363_kernel_prefixed_spec_retrieval.py).
+  - AC2: a bare `graph query SPEC-0014` under that consumer still returns the consumer's own spec, and a
+    consumer-only id is unaffected (same test).
+  - `_find_spec_path("SPEC-0014", force_engine=True)` under that consumer resolves the ENGINE path;
+    bare `_find_spec_path("SPEC-0014")` resolves the consumer path.
+  - AC3 (X-0583 — the `error` node type): with the SAME id defined in BOTH corpora,
+    `graph query --kernel E-0002` returns the KERNEL case file and a bare `graph query E-0002`
+    returns the CONSUMER's, and the two are asserted to be DIFFERENT documents (probe:
+    tests/test_t10748_error_realm_retrieval.py).
+  - AC4 : that bare lookup prints the collision disclosure on STDERR only (never stdout),
+    while a consumer-ONLY E-id and the engine's own session stay SILENT (same test) — the collision
+    is DETECTABLE, so a one-corpus sweep cannot report clean over it.
+  - AC5 : SPEC-id resolution is byte-identical before and after — asserted by
+    tests/test_t9363_kernel_prefixed_spec_retrieval.py + tests/test_t10700_collision_disclosure.py
+    staying green UNMODIFIED.
+
+cites:
+  - CHARTER.md#principle-1
+  - SPEC-0073
+  - SPEC-0005
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by:
+binding: [code-enforced] # code-enforced contract (non-empty implements, realized by the land verify step — matches SPEC-0077/0082); residency token set at activation
+implements_signature:
+  bin/lib/cli.py#_find_error_yaml: 8d58af74be6e4a91b41dfcdf915528688ca420ec0935c2f085b2bb66093b5bd0
+  bin/lib/cli.py#_find_spec_path: 16440c590b62f99802ac22d6483ce4eb94a141ac0f70989f70a73d977a4e59b1
+  bin/lib/graph.py#_node_source_path: 09cc8af62f98803e375ca4665f47da39e399591d1438142edc4b978228342738
+  bin/lib/graph.py#cmd_graph_query: 7737cb19e92617ba45e17fbde4ed6545ef89f6abf3d5716ba00980fbb7d08480

@@ -1,0 +1,184 @@
+id: SPEC-0006
+title: 'Durable spec-code anchors: file/symbol over line numbers + report-not-block resolution'
+# `class:` REMOVED — body carries the layers as sections.
+
+status: active # ACTIVATED during late-stage adoption work (2026-06-01, Stage 8→9)
+                               # — proposed→active per the pilot plan; adoption probe (## Verification)
+                               # passed: graph build exit 0, zero stale anchors, SPEC-0006 both
+                               # resolve. Migrated FROM
+                               # (doc-model-rework Phase 1). Now the normative home of the durable-anchor
+                               # rule (ADDITIVE — stays frozen Final history + migrated_to).
+
+created_at:
+
+consumed: false # rule/contract spec — code does not read a scalar param FROM it.
+
+implements: # durable anchors (THIS spec's own rule, dogfooded — file#symbol, not lines):
+                               # the code that ENFORCES the rule = graph-build anchor resolution.
+  - bin/lib/cli.py#_resolve_implements_anchor # resolves each implements anchor against the tree; reports stale
+  - bin/lib/textutil.py#anchor_file # normalizes the file component for both `:` and `#` (reverse index + query) (extracted)
+  - bin/lib/cli.py#_anchor_drift_warning # the freshness detector — content-signature baseline over git last-touch
+  - bin/lib/cli.py#_anchor_content_signature # sha256 of an anchor's current region — the durable signature
+  - bin/lib/spec.py#cmd_spec_reverify # the bless verb that records implements_signature (E-0019 kind-B)
+  - GRAPH.md#Schema # the §Schema heading region (Node/Edge types + Why-this-schema) — the
+                                             # implements-edge schema this rule governs (: narrowed from a
+                                             # whole-file GRAPH.md anchor — a §Spec-lifecycle edit no longer
+                                             # re-fires this spec possibly-stale; E-0019 broad-anchor false-positive)
+  - GRAPH.md#Build # the §Build-tool heading region — the build-time resolution + report-only channel
+
+binding:
+  - code-enforced # : explicit code-enforced residency token (implements: IS the delivery)
+
+body: |
+  ## Scenario
+
+  The owner/AI asks «which code enforces this spec?» and «is this spec→code link still valid?» and
+  always gets a truthful answer — even after the code has been edited and lines have shifted. A
+  spec's link to code is written as a durable anchor (a file, or a file#symbol name), so a normal
+  refactor never silently breaks it; if a target genuinely disappears, `graph build` SAYS SO (a
+  stderr warning) instead of echoing a stale pointer.
+
+  ## Internal
+
+  The graph's spec→code edge — the `implements:` field on a spec — MUST anchor to durable,
+  drift-resistant references, never raw line numbers; and `graph build` MUST surface targets that no
+  longer resolve.
+
+  - `implements:` entries are `<file>` (file-level) OR `<file>#<symbol>` (a def / class / module-const /
+    markdown-heading name; OR a JS/JSX/TS form — a `function` decl, a `const`/`let`/`var` arrow-const
+    component, or a `describe`/`it`/`test` label —) — **never** `<file>:<line-range>`. A `#symbol`
+    anchor into a NON-symbol-bearing target TYPE (a template / markup / data file — `_file_has_symbol_space`
+    is False) is auto-exempted rather than false-flagged stale (reuses the SPEC-0088 atomic-target
+    posture); a symbol-bearing type still reports a genuinely-missing symbol.
+  - `graph build` RESOLVES each anchor against the CURRENT tree at build time (file exists; symbol is
+    present). An anchor that no longer matches is REPORTED on stderr (like a parse-error surfacing) —
+    not silently echoed. This is a control-point inside the existing spec-walk, **report-not-
+    block**: it does NOT fail the build (GRAPH §«NOT a validation layer» holds).
+  - **Freshness / possibly-stale (report-only; symbol-level since):** for an `active`
+    spec whose anchor RESOLVES, `graph build` ALSO checks spec↔code freshness via git provenance — the
+    code AS OF the spec's last-touch commit vs the CURRENT working tree (so an uncommitted edit counts).
+    A mismatch → the spec is flagged `possibly-stale` on stderr (review for drift). SAME report-not-block
+    channel (build stays exit 0). **Granularity matches the anchor :** a `<file>#<symbol>` anchor
+    compares only that SYMBOL's region (whole-file blob is the fast path — equal blobs short-circuit to
+    silent), so an edit ELSEWHERE in a shared monolithic file does NOT false-flag every spec anchored into
+    it (the 2026-06-01 5/5 incident on this one-file CLI); a file-level anchor (no `#symbol`) keeps
+    whole-file comparison. Silent by design when: the spec is uncommitted; OR the anchor file did NOT exist
+    at the spec's last-touch (a spec that PRE-DATES its code — B5, not a false positive); OR (symbol
+    anchors) the symbol did not exist at the last-touch / its region is un-extractable. Only `active` specs
+    are checked (a non-normative spec governs nothing). (Last-touch verified accurate vs anchor
+    0b27e5d62: the only GRAPH.md change since was patterns/plan-lifecycle.md->SPEC-0034
+    repoint in §Spec-lifecycle — outside this spec's §Schema/§Build-tool surface; a collateral
+    monolithic-doc false positive of the very class this bullet describes. Reviewed 2026-06-06: re-verified vs anchor 53a640322 — the only GRAPH.md change since is
+    `plan accept`->`plan stage accepted` rename in §Spec-lifecycle, again OUTSIDE §Schema/§Build-tool;
+    no drift in this spec's surface — the same file-level-anchor collateral false positive.)
+  - **Durable content-signature baseline (E-0019 kind-B — the symbol-level TRUE-POSITIVE
+    durability fix):** the git last-touch baseline is NON-DURABLE by construction — it advances with
+    any commit that touches the spec file, so it BOTH re-fires on later unrelated edits to a symbol the
+    spec still describes accurately AND silently CLEARS a real drift when code+spec land together
+    (base==cur). The durable replacement: `yitc-v2 spec reverify <SPEC>` records, per `implements:`
+    anchor, the sha256 of its CURRENT region into the new OPTIONAL `implements_signature:` field — the
+    content the author just VERIFIED-ACCURATE. When a signature exists for an anchor, `_anchor_drift_
+    warning` compares the current content against THAT stored value (decoupled from git history) and
+    fires only on real content drift; equal/un-signable → silent. An anchor with NO stored signature
+    keeps the last-touch path verbatim (ADDITIVE-OPTIONAL, back-compat). `spec reverify` is the durable
+    SUCCESSOR of the point-in-time `spec edit` re-touch ritual for symbol anchors — and is a SEPARATE
+    verb because re-verification often confirms accuracy with NO text change (which `spec edit`, a
+    non-empty replacement, cannot express). **The bless is SCOPED to what was actually verified
+    :** a whole-spec re-sign silently re-baselines anchors the caller's diff never moved
+, so `spec reverify` refuses to re-sign an already-drifted anchor whose region
+    is IDENTICAL at `merge-base(HEAD, main)` — a signature comparison, hence SYMBOL-precise, since a
+    monolithic file hosts many anchors. `--anchor <a>` re-signs only the named anchor (every other
+    baseline survives byte-identical); `--include-untouched` is the explicit whole-spec opt-in. An
+    untouched anchor with NO prior signature warns but proceeds (a first baseline blesses no drift).
+    The shared signer is unguarded by default, so `task close --reverify` is unaffected. A genuinely DELETED/renamed anchor symbol stays surfaced by
+    the resolve-layer (`symbol not found`), so the signature path's defensive silence does not hide it.
+  - **WHEN to re-sign — after a merge that MOVES anchored code, re-sign BEFORE you take the audit
+.** The bullet above says WHAT `spec reverify` records and how narrowly it may bless;
+    this says WHEN the operator runs it. **Trigger:** a merge brought in code that MOVED a region an
+    `active` spec anchors — in practice folding `main` into a branch before landing, which is when
+    someone else's landed refactor arrives under your anchors. **Obligation:** before taking the
+    audit for that branch, re-sign the AFFECTED specs PER ANCHOR —
+    `bin/yitc-v2 spec reverify <SPEC-ID> --anchor '<file>#<symbol>'`, one invocation per anchor you
+    have actually re-verified. Per-anchor is not a stylistic preference here: `--include-untouched`
+    would blanket-bless anchors the merge never moved, which the bullet above already refuses, so
+    the ordering rule must never be read as a licence for the whole-spec re-sign. **Cost of not
+    doing it:** the audit is then taken over stale `implements_signature` values and REDs
+    predictably on exactly that — and an audit pass is NOT refundable, so a predictable RED spends a
+    pass against the SPEC-0124 audit-loop ceiling that the branch may then need to finish. Measured:
+    on 2026-08-24 a merge into `task/` moved `bin/lib/worktree.py#_land_integrate`; eight
+    active specs held three different stale signatures; the re-audit returned RED high-severity on
+    that alone, burned one of only two passes plus a full external-auditor invocation, and the card
+    needed an owner-authorized `--owner-reset` to finish.
+    Read the ordering together with its sibling on the same axis: `graph build` REPORTS a
+    possibly-stale anchor without blocking, so nothing refuses on your behalf between the merge and
+    the audit — the report is the signal, and acting on it is this rule.
+  - Reverse-index + query normalization: the code→spec index and `graph query <file>` lookup normalize
+    the file component for BOTH the legacy `<file>:<line-range>` and the durable `<file>#<symbol>` forms,
+    so `graph query <file>` keeps matching across the migration.
+  - Coverage is a DOCUMENTARY convention, NOT machine-distinguishable: a spec with no single code site
+    SHOULD carry a human-visible note explaining why `implements:` is empty. The graph treats empty
+    `implements` identically either way (no empty-by-decision vs empty-by-omission field).
+  - Scope: ONLY the `implements` edge (spec→code). The other graph edges (cites / defined_in — the
+    surviving non-implements edges post the 6→3 edge cut) are ID-anchored and already drift-immune
+    — explicitly out of scope.
+
+  ## Verification
+
+  (Adopted from own adoption probe + AC1-AC4 — the anchor rule's checks, NOT the
+  pilot's acceptance.)
+  - GRAPH §Schema documents the durable-anchor `implements` form (probe: grep).
+  - `graph build` reports an unresolved `implements` anchor on stderr (probe: a synthetic broken anchor
+    → a stderr warning line, build still exit 0).
+  - Every active spec either resolves OR carries a human-visible empty-note (probe: `graph build` clean
+    + grep).
+  - `graph query <file>` matches a `<file>#<symbol>` anchor — reverse index + query normalized for both
+    `:` and `#` (probe: run on a migrated spec's file).
+  - **Freshness :** editing an `active` spec's resolved anchor file makes the next `graph build`
+    flag that spec `possibly-stale` on stderr (in `_freshness_warnings`), build still exit 0; an
+    unchanged anchor stays silent (probe: tests/test_graph_freshness.py edit-then-build case).
+  - **Durable content-signature baseline :** after `spec reverify` records `implements_signature`,
+    an anchor whose region content MATCHES the stored signature stays silent even when the spec's git
+    last-touch is stale, and a region that DIFFERS from it fires — AND the decisive cut: code+spec
+    committed together (last-touch base==cur → last-touch silent) STILL fires against the stored
+    signature (probe: tests/test_graph_freshness.py::test_t0506_signature_catches_what_lasttouch_silently_misses
+    + ::test_t0506_spec_reverify_writes_field_and_emits_and_preserves_comments).
+  - **Re-verified current + ANCHOR NARROWED (2026-06-07 — E-0019 root fix for the broad-anchor
+    false-positive class):** the GRAPH.md anchor was a whole-FILE anchor, so every §Spec-lifecycle edit
+    re-fired SPEC-0006 `possibly-stale` even though this spec governs only §Schema + §Build-tool — the
+    recurring E-0019 false positive (point-refreshed by /, recurred each time). FIXED durably
+    by narrowing to `GRAPH.md#Schema` + `GRAPH.md#Build` (the two section regions it governs), reusing the
+    EXISTING `<file>#<symbol>` heading granularity — NO new mechanism. GOVERNED SURFACE
+    re-verified accurate vs the §Schema 11->6 node cut (scope = the `implements` spec->code edge +
+    §Schema/§Build-tool, NOT the full body): the `implements` edge THIS spec governs is untouched by that
+    cut (it dropped task/decision/commit/audit/event NODE-types + their edges, not the spec->code edge),
+    so SPEC-0006's rule is unchanged. (The §Scope line's stale dropped-edge names were tidied by,
+    the audit-post hygiene follow-up.) Probe: tests/test_graph_freshness.py::test_t0499_narrowed_section_
+    anchor_suppresses_out_of_section_edit. The kind-(B) symbol-level true-positive durable fix
+    (content-signature, needs a new store) is owner-Review-gated — see the owner-Review decision.
+
+  ## Rationale
+
+  Durable anchors (file or symbol name) survive line shifts, so the drift failure class disappears at
+  the source (CHARTER §5) instead of being re-patched by periodic re-numbering. Symbol/section anchors
+  mirror external prior-art (ctags, GitHub permalink-by-symbol, content-hash code graphs). Build-time
+  resolution adds drift DETECTION without a separate validation layer — it runs inside the existing
+  spec-walk (control-point), reports rather than blocks, staying within GRAPH §«NOT a
+  validation layer». File-level is the cheap floor; `file#symbol` is the precise option, chosen per spec.
+
+cites:
+  - decisions/-graph-spec-code-links-durable-anchors-over-line-nu.yaml # the migrated source (frozen history)
+  - GRAPH.md#schema # the edge + spec schema this rule governs
+  - # control-point-over-hook — build-time resolution is a verb side-effect, not a gate
+  - CHARTER.md#principle-5 # fix-at-source (kill the drift class)
+
+requires: []
+supersedes: ~ # migration is ADDITIVE (caveat 5) — stays frozen Final history, not superseded.
+proposed_by: # the pilot task that authored this proposed spec (doc-model-rework Phase 1)
+implements_signature:
+  GRAPH.md#Build: b62802d660dc3d2d6087e044ab034fc02768d62045e53dfbc465f80d7cf3592e
+  GRAPH.md#Schema: fc80a7242389ef95552d2b15098f102ec766bbbcee949628242334a79e6347a0
+  bin/lib/cli.py#_anchor_content_signature: 8061ff36ec14bdc8cbbcd03c5c10be585141705125d7a8eed69ced32cd236487
+  bin/lib/cli.py#_anchor_drift_warning: d17e129ce47f983aa6075539c78bdc97257afa4b891a0c7db8cff0e025065edd
+  bin/lib/cli.py#_resolve_implements_anchor: 7767adcda50af1580b275a1fa0a84c9fce21f9dae21745128cac12daa06c2a1c
+  bin/lib/spec.py#cmd_spec_reverify: 493acdfc371f193f4a29dc586c76e18da614e714f4300a4ecd71718426b8bf56
+  bin/lib/textutil.py#anchor_file: 7944426743aaaea6da2365d70fb87ad4773e6a8ea3c7e16063ab030ac9d97f93

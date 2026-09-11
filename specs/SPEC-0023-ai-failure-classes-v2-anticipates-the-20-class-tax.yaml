@@ -1,0 +1,127 @@
+id: SPEC-0023
+title: AI failure classes V2 anticipates — the 20-class taxonomy and class-ID referencing usage
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # (the demote's authoritative retrieved home). `active` is the ONLY
+                               # normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # a reference taxonomy; no code reads a scalar param FROM it.
+
+implements: [] # documentary read-rule spec — the query-only retrieved home of the
+                               # failure-class taxonomy (SPEC-0007 §5a). Not realised by one code site;
+                               # consulted when reasoning about / citing a failure class. Resolved by
+                               # : `binding: [query-only]` (the reserved residency token, peer to
+                               # `floor`) marks it intentionally pointer-delivered → no longer dangling.
+                               # (Retired note: the prior `binding: []` joined the report-only dangling
+                               # list; deviation binding-vocab-cannot-mark-intentional-query-only-...
+                               # -false-flags-dangling is now CLOSED by the query-only token.)
+
+body: |
+  ## Scenario
+
+  When the owner/AI files a decision or plan, or reasons about an observed incident, they reach for a
+  shared vocabulary of the ways an AI agent characteristically fails — so risk can be discussed with
+  precise class IDs ("addresses #4 Accretion + #17 Adoption gap") rather than vague worry. This is the
+  retrieved home of that vocabulary: a query-only reference pulled when a failure class is referenced,
+  not an always-loaded mandatory rule. The CHARTER keeps a pointer-stub; the taxonomy lives here.
+
+  ## Internal
+
+  THE AI-FAILURE-CLASS TAXONOMY (faithfully moved from CHARTER §"AI failure classes V2 anticipates" by
+   — the handbook prose WAS the always-loaded copy until this query-only demote; this spec is the
+  retrieved home, reached via the CHARTER pointer-stub + `bin/yitc-v2 graph query SPEC-0023`).
+
+  V2 **anticipates** these AI failure modes. Anticipation ≠ uniform coverage:
+  - Some classes have **codified mechanisms** (e.g., #4 Accretion → Anti-complexity Filter 3; #17
+    Adoption gap → Principle 8)
+  - Some are **monitored via discipline** (e.g., #5 Re-invention → LIFECYCLE Stage 1 prior-art grep —
+    relies on AI to follow)
+  - Some are **explicit gaps** awaiting incident-trigger codification (4 classes per current coverage)
+
+  The list is **non-exhaustive** — new classes emerge via observed cycles per growth-engine pattern.
+  Coverage matrix + per-phase watch list: `<v1-workspace>/yitc-v2-business-cycle-review-and-roadmap-2026-05-26.md` §8.2-8.3.
+
+  **Class-ID referencing usage** — calibrated to non-performative:
+  - **Required:** infra-class / process-class / foundation-class decisions (audit prompt MUST include
+    relevant class refs in V2 evaluation lens)
+  - **Recommended:** substantive feature tasks when audit or planner flags elevated AI-risk
+  - **Optional:** ordinary product work, hygiene fast-path
+
+  Goal — vocabulary for real risk discussion, not ritual tagging.
+
+  **The 20 anticipated classes (numbered for reference):**
+
+  | # | Class | Description |
+  |---|---|---|
+  | 1 | **Forgetting (context loss)** | AI loses prior context across /compact, session boundaries, MEMORY drift |
+  | 2 | **Premature closure** | Claiming «done» without probe verification; abandoning mid-stage |
+  | 3 | **Over-engineering** | Pile-on mechanisms, gold-plating, «just one more flag» |
+  | 4 | **Accretion (layering)** | Adding layers without removing equivalents — v1 archetype |
+  | 5 | **Re-invention** | Designing greenfield mechanism when analog exists; skip prior-art |
+  | 6 | **Scope creep** | Fixing adjacent issues mid-task without filing separate task |
+  | 7 | **Hallucinated context** | Using wrong file paths / API / assumptions without verifying |
+  | 8 | **False confidence** | Assertions without evidence; «tests passed» without visible output |
+  | 9 | **Drift doc ↔ code** | Documentation says X; code/hooks do Y; independent evolution |
+  | 10 | **Format drift** | Schema changes without consumer parser updates — silent breakage |
+  | 11 | **Silent skip / fail-open** | Hooks exit 0 without doing work |
+  | 12 | **Audit-loop infinite** | Iterate absorption forever not shipping |
+  | 13 | **Pseudo-ask filing** | Filing N clarifications instead of executing directive |
+  | 14 | **Multi-variable change** | Changing model + protocol + scope simultaneously — root cause non-isolable |
+  | 15 | **Galloping / runaway** | Parallel dispatches without observability |
+  | 16 | **Bypass abuse** | Emergency bypass used for non-emergencies |
+  | 17 | **Adoption gap** | Building infra without actually using it |
+  | 18 | **Self-imposed stop** | AI pauses on autonomous-mode directive |
+  | 19 | **Summary-instead-of-action** | Generating tally tables instead of continuing work |
+  | 20 | **Drift over time** | Mechanism slowly degrades; quarterly health declines |
+
+  **Usage at planning time:** when authoring a spec or plan, reference relevant class IDs
+  (e.g., «addresses #4 Accretion + #17 Adoption gap»). External auditor prompts include relevant class
+  references in V2 evaluation lens.
+
+  **Growth (incident-driven):** new classes added via growth-engine cycle (observed incident → author a spec
+  codifying class + counter-mechanism → ship). List updated at each addition.
+
+  ## Rationale
+
+  The taxonomy is the anti-recurrence vocabulary distilled from V1 production (the 20 classes were
+  observed across months of v1 cycles, not speculated). It is SITUATIONAL reference — consulted when
+  authoring a spec/plan or reasoning about an incident — so it belongs in the `retrieved` tier
+  (SPEC-0007 §5a query-only default), not the always-loaded mandatory floor: keeping it mandatory would
+  bloat the floor against its token budget (CHARTER §P2) for prose that is not needed to act safely at
+  all. Demoting it keeps the taxonomy authoritative (this spec is `active` post-close) while shrinking
+  the always-loaded core — the in-scope Part I-B payoff.
+
+  ## Verification
+
+  Probe CONTRACTS (RED-GREEN — observed failing before the fix is trusted Slip 4):
+  - **VP1 (fidelity, moved-not-lost):** the taxonomy's key phrases — "The 20 anticipated classes",
+    "Forgetting (context loss)", "Adoption gap", "anticipation ≠ uniform coverage" — resolve in THIS
+    spec body and are ABSENT from CHARTER.md (CHARTER keeps a pointer-stub only). Probe:
+    `grep "The 20 anticipated classes" specs/SPEC-0023-*.yaml` matches; `grep` of the same in CHARTER.md
+    does not.
+  - **VP2 (delivery / ratification, query-only — SPEC-0007 §5a):** the rule reaches its moment-of-use via
+    (a) the surviving CHARTER pointer-stub naming `SPEC-0023` + the lookup path, AND (b)
+    `bin/yitc-v2 graph query SPEC-0023` resolving this node. BOTH named ⇒ delivered.
+  - **VP3 (query-only, no floor-trigger):** this spec's `binding:` is `[query-only]` — the reserved
+    residency token (NO verb token, NOT `floor`), so it is query-only reference, not floor-triggered (a
+    failure-class reference is not a gated control-point). Probe: `binding: [query-only]`; the spec is
+    absent from `graph/floor-trigger-map.md`; AND it is NOT in `binding_report.dangling_specs`.
+  - **VP4 (graph-indexed + active):** `graph build` indexes SPEC-0023 as a `spec` node; post--close
+    `status: active`. Probe: `graph query SPEC-0023` resolves; status active.
+
+cites:
+  - CHARTER.md#what-v2-is
+  - SPEC-0007
+  - part-i-b-tier-split-carving-floor-wiring-first-the
+  -
+
+requires: []
+supersedes: ~
+activation_owner_task: # work-first — `task close ` flips this proposed→active.
+proposed_by: # provenance: born by the demote task (work-first).
+binding: [query-only] # QUERY-ONLY (SPEC-0007 §5a) — reserved residency token, no verb
+                               # token, not `floor`. Reached via the CHARTER pointer-stub + `graph query
+                               # SPEC-0023`. Excluded from the verb inversion AND the dangling check.

@@ -1,0 +1,108 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0088
+title: 'Code-decompose rule: graph-governed code anchors to <file>#<symbol> for implements/covers'
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active # ACTIVATED by (its activation_owner_task) — adoption probe
+                               # (## Verification) passes: a deliberately file-granular implements
+                               # anchor is flagged by `graph build` (report-only). The check ships
+                               # in the SAME task, so the rule is realized, not merely declared.
+
+created_at:
+
+travels: ~ # placement realm — UNMARKED = kernel class-default (methodology that
+                               # travels to a consumer). This rule governs the graph spec/scenario→code
+                               # edge schema, which every consumer inherits, so kernel is correct.
+
+consumed: false # rule/contract spec — code does not read a scalar param FROM it.
+
+implements: # the code that ENFORCES the rule (dogfooded — symbol anchors, not files):
+  - bin/lib/graph.py#_file_granular_anchor_warning # the report-only check: a no-#symbol implements/covers anchor → warning
+  - bin/lib/cli.py#_file_has_symbol_space # : atomic-target exemption — symbol-less target auto-exempted
+  - bin/lib/graph.py#cmd_graph_build # surfaces the warnings to stderr (exit-0 channel, report-not-block)
+
+body: |
+  ## Scenario
+
+  The owner/AI asks «which code does this spec govern?» and gets a PRECISE answer — a symbol, not a
+  whole file. When a graph-governed code link (`implements:` on a spec, `covers:` on a scenario) is
+  authored at whole-file granularity, `graph build` SAYS SO (a stderr warning, report-only), nudging
+  the author to decompose it to `<file>#<symbol>`. The graph thus trends toward symbol-precision
+  without ever blocking a build.
+
+  ## Internal
+
+  **The rule (code-only this iteration).** A graph-governed CODE anchor on the two code-edge carriers
+  — a spec's `implements:` and a scenario's `covers:` — MUST decompose to `<file>#<symbol>`, not a
+  bare `<file>`. The symbol component (a def/class/async-def, a module-level const/annotation, or a
+  markdown heading — the same address space `_resolve_implements_anchor` resolves) is what makes the
+  link survive a refactor AND pin the governed surface precisely (the durable-anchor doctrine,
+  SPEC-0006, raised one notch of granularity).
+
+  **Enforcement is REPORT-ONLY (report-not-block, per GRAPH «NOT a validation layer» + SPEC-0006).**
+  `graph build` collects every file-granular implements/covers anchor (one with neither `#symbol`
+  nor `:line`) and prints them to stderr on the exit-0 channel — NEVER exit 2, never a land block.
+
+  **The `:line` case is NOT an exemption from the norm — it is reported on a DIFFERENT channel (no
+  double-count).** A legacy `<file>:<line-range>` anchor does NOT satisfy the symbol-decompose ideal
+  either; but it is ALREADY warned drift-prone by `_resolve_implements_anchor` (SPEC-0006, «re-author
+  to <file>#<symbol>»). Re-flagging it HERE would emit two warnings for one anchor, so THIS check
+  scopes to the bare-`<file>` case only. Net effect across both checks: every non-`#symbol` code
+  anchor is surfaced exactly once. Hence «MUST decompose to <file>#<symbol>» holds for ALL forms —
+  the norm and the code are coherent, the `:line` form simply rides SPEC-0006's existing warning.
+
+  **Genuinely-atomic targets — AUTO-EXEMPT (was review-and-leave).** Some targets do not
+  decompose: a Jinja template, a markup/data file, a symbol-less shell script. The advisory's «review
+  and leave» was originally manual — so on such a target it RE-FIRED on every `graph build`, permanent
+  noise the author could not action (the kupiclub `landing.html` / `not_found.html` recurrence,
+  X-0051). The exemption is now MECHANIZED by `_file_has_symbol_space`, keyed on FILE TYPE: only a
+  symbol-bearing source type the `<file>#<symbol>` space can meaningfully decompose is advised — `.py`
+  and `.md`, the JS/JSX/TS web-component sources `.js`/`.jsx`/`.ts`/`.tsx` ( — the resolver now
+  parses their function decls, const/arrow components, and describe/it test labels),
+  (and an extensionless file whose content is Python, e.g. `bin/yitc-v2`); a template
+  (`.html`/`.j2`/`.jinja`), a data file (`.yaml`/`.json`), or a shell script (`.sh`) is auto-exempted
+  (no advisory). The key is TYPE, deliberately NOT a generic token scan: a token scan misreads a
+  template/data/shell file whose `# comment` or `key:` line LOOKS like a heading/const, re-firing the
+  very noise this closes ( audit-pre finding). No new annotation store — the signal is a pure
+  type check (CHARTER §Principle 1, F1/F2). An unreadable/absent EXTENSIONLESS file is NOT exempted (we
+  cannot prove it atomic; its absence is separately surfaced by `_resolve_implements_anchor`). The check
+  remains report-only: a hard gate would still false-positive on every legitimately whole-file target
+  (no gate without a real need).
+
+  ## Family note (NON-NORMATIVE — not a rule, no probe)
+
+  The graph carries three anchor GRANULARITIES, a family: `<file>` (whole-file), `<file>#<symbol>`
+  (symbol), and the legacy `<file>:<line-range>` (line, drift-prone — SPEC-0006). This spec governs
+  ONLY the two CODE edges (`implements`, `covers`) and ONLY the file→symbol decompose step. It does
+  NOT touch the informational `cites:`/`requires:` edges (they reference artifacts, not code regions),
+  and it does NOT unify anchor handling across edge types. That unification is DEFERRED — code-only
+  this iteration, by design. (Non-normative orientation; nothing here is checked.)
+
+  ## Verification
+
+  PROBE (adoption, P3/P8): author a deliberately file-granular `implements:` anchor and confirm the
+  rule's check flags it — `_file_granular_anchor_warning("foo.py")` returns a non-None warning while
+  `_file_granular_anchor_warning("foo.py#bar")` returns None; and `graph build` lists the bare-file
+  anchor under «file-granular … (report-only)» on stderr at exit 0. STATE: this spec is `active`,
+  `graph build` exits 0 (conformance GREEN). Covered by the task's regression test.
+
+cites:
+  - SPEC-0006 # the durable-anchor doctrine this rule raises one granularity notch
+  - SPEC-0076 # the scenario doctrine — the `covers:` edge this rule also governs
+  - GRAPH.md#Schema # the implements/covers edge schema home
+  - CHARTER.md#principle-1 # report-only, not a gate — no mechanism without a real need
+
+requires: []
+supersedes: ~
+activation_owner_task: # the single activation carrier (SPEC-0005 §5) — close activates this spec
+proposed_by: # work-first authoring task (SPEC-0005 §5)
+binding:
+  - code-enforced # the rule IS delivered by the code it `implements:` (graph-build check); no verb-fetch
+implements_signature:
+  bin/lib/cli.py#_file_has_symbol_space: dadfe76d7b5b1b2fb53d836c278d87781ca2901324b35a4a487ddff414179e22
+  bin/lib/graph.py#_file_granular_anchor_warning: ecba78f3506c7561ef652b184ce4b1673171c5530beea3bcf3524d4c8e63ca8e
+  bin/lib/graph.py#cmd_graph_build: 6807128a31ce7d22d208da3219b23e1c9c0a76bad72fa3d2074d23bb669b493c

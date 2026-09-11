@@ -1,0 +1,239 @@
+id: SPEC-0061
+title: Triage currency — temporal recurs (capture-after-close) + fuzzy Section-A dedup
+
+status: active
+
+created_at:
+
+consumed: false
+
+implements:
+  - bin/lib/triage.py#_currency_status # the route-table currency classifier (recurs branch)
+  - bin/lib/triage.py#cmd_triage_run # where `recurs` is computed + Section-A currency printed
+  - bin/lib/triage.py#cmd_triage_remedy # R-D: the triage-time remedy-existence carrier
+  - bin/lib/triage.py#_remedy_sweep_index # R-D: the read side — folds the `remedy_swept` verdicts
+
+body: |
+  ## Scenario
+
+  After a fix-task closes a defect, a later triage run must NOT re-offer that already-fixed problem
+  as into-work — unless the problem genuinely came back. The owner sees: "we ran triage, fixed it,
+  ran triage again — and the old item does not resurface as a duplicate", while a real regression DOES surface.
+
+  ## Internal
+
+  Extends SPEC-0063 — the into-work currency classifier (`_currency_status`; the route table + 5
+  currency tokens + recurs, carved out of SPEC-0056 §1(5)/§5 by). Three rules (R-A/R-D/R-C):
+
+  ### R-A. Temporal recurrence (capture-after-close)
+  For a fingerprint OWNED by a `done`/`Final` fix-task (LINK-RULE owner, SPEC-0055/SPEC-0062),
+  `recurs` is TRUE **only if at least one capture's `ts` is strictly AFTER the owning fix-task's
+  `closed_at`** (the recurrence post-dates the fix). An all-time capture count ≥ 2 is **NOT** by
+  itself recurrence: captures at or before the owner's `closed_at` are the SAME incident (caught
+  while the fix was being built), not a regression.
+  - done/Final owner + a post-`closed_at` capture ⇒ **REGRESSED** (into-work).
+  - done/Final owner + only pre/at-`closed_at` captures ⇒ **ALREADY-FIXED** (NOT into-work).
+  - NO done/Final owner (no `closed_at` to compare) ⇒ the prior count-based signal is UNCHANGED
+    (a no-owner fp recurring N≥2 stays a promotion candidate). Multiple owners: the LATEST
+    `closed_at` among done/Final owners is the comparison boundary. **Case-id-cited fix-task (E-0036):** when a `resolved` case-file records its fix via `resolution.fix_task` and that done fix-task cites the CASE-ID (not the fingerprint), the fix-task is ABSENT from the fingerprint's cites-owners; resolve it as a done LINK-RULE owner so its `closed_at` IS the comparison boundary — else all-pre-fix captures read a false REGRESSED instead of ALREADY-FIXED (realised in `_resolved_case_fix_owner`). **Landed-root-fix case, no fix-task :** a case
+    resolved by `error resolve --root-fix` records `resolution.kind: root_fix_landed` with its `root_fix`
+    as PROSE and NO `fix_task` at all, so the E-0036 clause above can never resolve it and every capture —
+    including ones long predating the fix — fell through to a false REGRESSED (measured 2026-08-30: half
+    of one run's 8 REGRESSED verdicts were false, all of this one shape; E-0058 reported 83x REGRESSED
+    with its last capture 16 days BEFORE its fix landed). Such a case carries no date anywhere in its
+    YAML, so its boundary is the ts of its own `error_resolved` journal row — the datable instant the
+    landing was attested (the same carrier choice `_case_closure_index` makes: the closure instant is the
+    event's own ts). That is an UPPER bound on the landing, which is the same direction this rule already
+    takes for a task boundary. Resolve it as a done LINK-RULE owner keyed by the CASE id so this same
+    comparison engages. **And where NEITHER shape resolves, the verdict SAYS SO:** a `resolved` case with
+    no done fix-task and no datable landed root fix has no boundary at all, so `recurs` has fallen back to
+    the bare all-time count and carries no information about the fix — the row is rendered
+    `boundary-unresolvable` (NOT into-work, and explicitly neither REGRESSED nor ALREADY-FIXED) naming the
+    missing fact, never silently defaulted to either label. No sixth currency token: an unresolvable case
+    reads OWNED-IN-FLIGHT, which is already this branch's non-recurring verdict. **Unlinked-mention
+  boundary — a SECOND, WEAKER, EXPLICITLY-LABELLED source, never a linkage source:** the
+  two clauses above both resolve a carrier that is off the `cites:` index but still *asserted* by an
+  author. A third shape is not asserted at all — an artifact NAMES the fingerprint in BODY TEXT and
+  does not carry it in `cites:`, so the LINK RULE cannot see it (detected report-only by,
+  which read the mentioning cards and confirmed the cites-EXCLUSIVE linkage rule of SPEC-0068
+  CORRECT as written). Such a row therefore has no owner and no boundary, and falls to the
+  no-done-owner leg above: a bare TRULY-NEW, whatever the truth. Measured over all 182 recurring
+  rows of the 2026-08-30 read: 32 rows carried the advisory — 22 (54 occurrences) were genuinely
+  ALREADY-FIXED and rendered as brand-new work, and 6 (22 occurrences) were POST-CLOSURE
+  recurrences hidden as fresh ideas; 4 had no done mentioning card, 0 were undetermined. So a
+  mentioning card that is `done` AND carries a datable boundary is resolved as a done LINK-RULE
+  owner, engaging this SAME comparison with no new comparator (realised in
+  `_mention_derived_boundary_owners`). **This does NOT redefine ownership and does NOT link
+  anything** — SPEC-0068 is untouched — and it is bounded by two FAIL-CLOSED gates: it fires ONLY
+  where there is no cites-owner and no case file (a cites-derived or case-file verdict is never
+  displaced, so a mention can fill a vacuum but never overrule evidence), and ONLY a `done`
+  mentioning card with a datable boundary contributes (an OPEN one yields nothing — promoting prose
+  into an OWNED-IN-FLIGHT verdict would assert live ownership off a body mention, exactly the claim
+  SPEC-0068 forbids). **The resulting verdict is MARKED mention-derived** and the unlinked-mention
+  advisory keeps firing once the row is no longer TRULY-NEW, so the two provenances stay
+  distinguishable and the prose a verdict rests on stays visible; silently merging them would trade
+  one invisible error for another. No sixth currency token. **And the LATEST-boundary rule above is
+  load-bearing HERE specifically, because it INVERTS verdicts:** measured on
+  `worktree-sweep-permission-impossible-residue` (12 occurrences), read against two of its three
+  mentioning cards (closed 2026-08-10) its 2026-08-21 capture reads REGRESSED, while against all
+  three — latest closed 2026-08-30 — the SAME capture reads ALREADY-FIXED. The rule is therefore
+  held by REUSING the existing `max`-over-done-owners comparator, never by a second expression
+  that could drift from it.
+  This REPLACES the bare-count `recurs = all-time count ≥ 2` for the done-owner branch (the retired
+  rule). The `closed_at` is read from the owning task YAML (already present; no new field).
+
+  ### R-D. The remedy-existence verdict has a TRIAGE-TIME carrier (X-1131)
+  The remedy-existence sub-check (SPEC-0063 §1, the TRULY-NEW branch this spec extends) requires a
+  recorded verdict before a TRULY-NEW candidate is promoted, and `triage run` flags every unswept row
+  `⚠ REMEDY-UNSWEPT`. That verdict is recorded in EITHER of TWO carriers, read together as ONE
+  3-state token:
+  - **capture time** — the capture's own `data.remedy_ref`, set when the deviation is emitted;
+  - **triage time** — `bin/yitc-v2 triage remedy --fp <fp> --remedy <ref> | --absent`, recorded
+    against an ALREADY-CAPTURED fingerprint (a `remedy_swept` journal row).
+
+  The TRIAGE-TIME record **WINS** when both exist: it is the deliberate later act, made with the
+  backlog in view. A re-sweep likewise corrects an earlier one (latest wins). Absent a triage-time
+  record the capture-time field stands unchanged, so every pre- reading is preserved.
+
+  **Why the second carrier is REQUIRED for the rule to be satisfiable at all.** The sweep is by
+  nature a triage-time act over an ACCUMULATED BACKLOG, so the capture-time field is unwritable
+  exactly when the rule demands it. Measured: since shipped this classifier, ZERO `remedy_ref`
+  rows were ever written in the kernel's OR aiseller's entire journal history — total non-adoption of
+  the write side, in both repos, while aiseller's own backlog sweep had to record 252 verdicts as
+  typed `remedy_swept` rows the classifier did not read.
+
+  **Why a DISTINCT event type, and this is the load-bearing constraint.** The only retroactive route
+  the capture-time field left was emitting a SECOND capture carrying the same fingerprint — which
+  bumps `counts[fp]` to 2 and flips `recurs` True, converting genuinely-new singletons into
+  FABRICATED recurring promote-candidates. So the sanctioned field could not be filled without
+  falsifying the very recurrence signal R-A above refines. `remedy_swept` is NOT a capture event, so
+  `_scan_captures` never sees it and `_capture_fingerprint_counts` never counts it: **recording a
+  verdict changes NO recurrence count, BY CONSTRUCTION** rather than by care.
+
+  Fail-closed on both axes: the fingerprint MUST already be captured (this records a verdict ABOUT a
+  capture, never a back door for inventing one), and EXACTLY one of `--remedy` / `--absent` must be
+  given. Posture is UNCHANGED — the sweep stays AI/owner-PERFORMED (the verb records a verdict a
+  human reached; it never greps for an analog itself), and the recording clears the advisory flag
+  without gating `promote` (CHARTER non-goal #7). Realised in `_remedy_sweep_index` /
+  `_resolve_remedy` / `cmd_triage_remedy`.
+
+  ### R-E. A remedy REFERENCE is not a remedy VERDICT — the re-test direction
+  `--remedy <ref>` records that an ARTIFACT exists. Only re-running the **ORIGINAL FAILING INPUT**
+  records that the **BEHAVIOUR** changed. R-D's carrier could not tell the two apart, and a recorded
+  ALREADY-BUILT read identically either way — which misled in BOTH directions, three weeks apart:
+  the 2026-08-26 sweep marked `owner-reset-unreachable-when-consult-survivor-is-hold-for-owner`
+  already-built off, which is message-only and says so in its own docstring (a LIVE defect
+  retired on paper); on 2026-08-31 a reporter read that same artifact, did not re-test, and filed
+  X-1210 against a defect had already fixed (a DEAD defect resurrected).
+
+  **WRITE side — fail-closed on a third axis.** A `--remedy` MUST state its re-test direction:
+  exactly one of `--retested "<the original failing input you re-ran, and what it did>"` (⇒
+  ALREADY-BUILT — a real clearance, `data.retested` recorded) or `--no-retest "<why that input
+  cannot be re-run>"` (⇒ **REMEDY-UNSWEPT**, `data.{remedy_ref,retest_absent_reason}` recorded — the
+  artifact IS recorded and named, the candidate is NOT cleared). A `--remedy` with neither is
+  REFUSED. `--absent` is untouched: a sweep that found nothing has no behaviour to re-test.
+
+  **NO FOURTH REMEDY STATE IS INVENTED.** The inability reuses the EXISTING third token, and it
+  fails in the CONSERVATIVE direction — the candidate stays flagged not-promotable rather than being
+  silently retired on an unverified artifact. Likewise NO sixth currency token (SPEC-0056 §5
+  enumerates exactly five) and no change to into-work membership.
+
+  **READ side — HISTORY IS NOT REWRITTEN.** `_remedy_sweep_index` returns `(refs, retests)` from ONE
+  pass over the SAME rows (latest-wins in lockstep, no second journal pass). Neutralization keys on
+  the row's OWN recorded `verdict`, so every pre- row — verdict ALREADY-BUILT, no `retested`,
+  including aiseller's 252 backlogged verdicts — keeps reading exactly as it did, and R-D's AC3
+  consumer-shape promise is intact. What makes those legacy verdicts legible is the MARK
+  `_currency_status(retest_absent=)`, which ANNOTATES the ALREADY-BUILT route and reclassifies
+  nothing — the same annotate-never-merge move R-A's `boundary_unresolvable` and
+  `mention_derived` already make in this classifier. A later `--no-retest` row WITHDRAWS an earlier
+  clearance, so a correction can actually correct.
+
+  **What was NOT built, and why (CHARTER §P1 F1/F2/F3).** No probe runner and no per-fingerprint
+  repro store: the sweep is by construction an AI/owner-PERFORMED act whose only durable residue is
+  a reference string, and a capture records no re-runnable input to re-run. Building one would be
+  the behavioural detector CHARTER non-goal #7 forbids. What is added is one optional field on an
+  existing event, one refusal direction on an existing verb, and one mark on an existing route
+  string. Realised in `cmd_triage_remedy` / `_remedy_sweep_index` / `_resolve_retest` /
+  `_currency_status`.
+
+  **Verification (RED-GREEN, differential on PRE-FIX-COMPATIBLE input — a differential whose pre-fix
+  failure is `unrecognized arguments` proves nothing about semantics):**
+  - R-E (AC2, read-side, pure data): a `remedy_swept` ROW `{verdict: REMEDY-UNSWEPT, remedy_ref,
+    retest_absent_reason}` renders NO built verdict and names the missing re-test. PRE-FIX the fold
+    took ANY non-empty `remedy_ref` and mapped it to ALREADY-BUILT, so this FAILS on the old
+    semantics, with no CLI shape involved.
+  - R-E (AC2, write-side, pre-fix-VALID invocation): `triage remedy --fp X --remedy <ref>` with no
+    re-test statement — a flag set the PRE-FIX verb ACCEPTS — records no ALREADY-BUILT clearance.
+  - R-E coverage (explicitly NOT differential, the flags do not exist pre-fix): `--no-retest` records
+    REMEDY-UNSWEPT with the reason; `--retested` still records ALREADY-BUILT.
+  - R-E regression guards: a legacy no-`retested` ALREADY-BUILT row still reads ALREADY-BUILT and
+    not-into-work, carrying the mark; every non-ALREADY-BUILT branch is byte-identical under the
+    flag; recurrence counts and REMEDY-ABSENT rendering are untouched.
+
+  ### R-C. Fuzzy Section-A currency (cited-rollup ONLY)
+  Section A (the routing window — the section that drives «file a task?») computes `currency_status`
+  using the **cited-rollup LINK-RULE cluster** that Section B already applies (`_capture_cluster_counts`,
+  the AUTHORITATIVE cite-based rollup). A routing-window capture whose fingerprint is a **cited-alias
+  member** of an already-owned root is classified by the ROOT's owner status — NOT as a standalone
+  exact-string-miss `TRULY-NEW`. This REPLACES Section A's exact-only `cites_idx.get(fp)` lookup for
+  currency (the retired behaviour); the cited-rollup function is reused, not duplicated.
+
+  **Discovery stem-clustering stays out (P5/P7 one-home):** the discovery stem-cluster
+  (`_discovery_stem_clusters`) is DISCOVERY-ONLY — «a hint, never an authority» (SPEC-0055 §Discovery
+  stem-clustering, UNCHANGED). R-C does NOT promote it to a routing/currency authority; that rule keeps
+  living in SPEC-0055 and is not overturned from here. Only the CITED (authoritative) rollup feeds
+  Section-A currency.
+
+  ## Parameters
+  None consumed. `closed_at` is read from task state, not a governing scalar.
+
+  ## Rationale
+  Real incident: duplicate fix-tasks for already-closed problems (owner-directive 2026-06-09).
+  Journal evidence at authoring: 13 of 15 cite-linked recurring fingerprints are owned by a `done`
+  task yet read perpetual `REGRESSED` under the bare all-time count (false into-work); Section A's
+  exact-match misses near-synonym aliases of fixed roots. Full deliberation + alternatives: the
+  proposing plan `triage-dedup-against-closed-problems-temporal-deri` (SPEC-0005 rule 3 — not here).
+
+  ## Verification
+  RED-GREEN (RED on the current bare-count / exact-match code):
+  - R-A: fixture done-task `closed_at=T`; a capture `ts<T` (and count≥2) ⇒ `ALREADY-FIXED`,
+    into-work=no; a capture `ts>T` ⇒ `REGRESSED`, into-work=yes.
+  - R-A regression-guard: a no-owner fingerprint recurring N≥2 still surfaces as a promotion
+    candidate (unchanged).
+  - R-D (AC1): a fixture journal carrying ONE unswept capture reads `⚠ REMEDY-UNSWEPT`; after
+    `triage remedy --fp <fp> --remedy <ref>` the flag is GONE and the row reads ALREADY-BUILT
+    (`--absent` ⇒ TRULY-NEW into-work, swept clean).
+  - R-D (AC2, DIFFERENTIAL and load-bearing): `counts[fp]` and `recurs` are IDENTICAL across the
+    recording, and the fingerprint gains no Section-B row. This assertion FAILS if the carrier is
+    ever re-implemented as a second capture — which is the falsification the rule exists to prevent.
+  - R-D (AC3): a `remedy_swept` row in the shape a consumer already recorded
+    (`data.{fingerprint,verdict,remedy_ref,swept,found,sweep_of}`) is consumed by the classifier
+    as-is, with nothing re-emitted.
+  - R-C: a routing-window capture that is a cited-alias of a `done`-owned root ⇒ shown `linked`
+    (owner status), NOT `TRULY-NEW`.
+  - real-data soak (trial): the ~13 false-`REGRESSED` + the unlinked-alias fingerprints stop
+    reading into-work, while any genuine post-close recurrence still does.
+
+cites:
+  - SPEC-0056
+  - SPEC-0055
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - triage-dedup-against-closed-problems-temporal-deri
+
+requires: []
+supersedes: SPEC-0063 # re-pointed by : SPEC-0056's currency surface was carved into the NARROW
+                        # SPEC-0063 (the into-work currency classifier). SPEC-0061 refines THAT surface
+                        # (R-A temporal recurs + R-C fuzzy Section-A dedup) without rupturing SPEC-0056's
+                        # other surfaces. Was `SPEC-0056` (the gate-trial RED finding this split fixes).
+activation_owner_task: # set at executing decomposition (SPEC-0034 §executing): (Section-A cited-rollup, the LAST of ->) activates SPEC-0061 on close — flips proposed->active + SPEC-0063 active->superseded
+proposed_by: triage-dedup-against-closed-problems-temporal-deri
+binding:
+  - code-enforced # R-A/R-C are realised in the live _currency_status / cmd_triage_run
+                               # functions (mirrors SPEC-0063, which this); the AI does not
+                               # fetch this spec before a verb — the code IS the delivery.
+implements_signature:
+  bin/lib/triage.py#_currency_status: c4d0ad13e524882cee394e72f92625d4fe9d374e4f4e1e8b20c33d20df6832ee
+  bin/lib/triage.py#_remedy_sweep_index: f25453689b34d7fb627b17ac5f90111ca9f82cbe99278ed957e525df9920cf1f
+  bin/lib/triage.py#cmd_triage_remedy: e70382451491aa9015857e486046620584d2ca8f4d44b2cde5890fcce0a815ba
+  bin/lib/triage.py#cmd_triage_run: ee330cbfaf7694416e2b32d7925b57b92f8ef231bd5cfaeff02afc79ee96d3b7

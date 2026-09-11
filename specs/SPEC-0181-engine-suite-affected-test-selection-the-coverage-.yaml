@@ -1,0 +1,783 @@
+# YITC v2 — Spec template
+# Copy this file to specs/SPEC-XXXX-<slug>.yaml when creating a new spec.
+# Allocated by `bin/yitc-v2 spec new --title...` (auto-ID + flock). Field catalog: SPEC-0030
+# (`graph query SPEC-0030`; demoted GRAPH.md → SPEC-0030 by). Spec lifecycle FSM: GRAPH.md.
+
+id: SPEC-0181
+title: 'Affected-test selection over a script-run test suite — the coverage contract, fail-closed to the full suite, GOVERNING the candidate verify at BOTH seams — the land sweep since, the Stage-6 self-check since '
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # withdrawn | rejected) — B1. A NEW spec scaffolds `proposed`
+                               # (the design-grade head): `active` is the ONLY normative status
+                               # and is reached ONLY through the proposed→active adoption
+                               # gate (GRAPH §Spec lifecycle) — the default must NOT bypass it.
+                               # proposed ⇒ consumed:false.
+
+created_at:
+
+travels: ~ # kernel class-default AFFIRMED (see §Placement in the body)
+                               # → SPEC-0030). UNMARKED (`~`) = the spec class-default (kernel —
+                               # methodology that travels to a consumer). Set a concrete realm
+                               # (`v2-self` | `project`) ONLY for an EXCEPTION (e.g. an active spec
+                               # that is V2-dev-specific and must NOT travel). `spec new --travels`
+                               # writes this line ONLY for a non-default exception + records the
+                               # decision durably in the spec_filed event for every spec.
+
+consumed: false # — `true` ONLY if code READS a governing scalar param
+                               # FROM this spec (single-source). HARD whitelist: stable/global/
+                               # non-local/deliberately-changed scalar governance params; NEVER
+                               # env/secret/per-deploy/runtime/flags/sizes/paths. Read by an
+                               # EXISTING control-point; no new parser/runtime/config framework.
+                               # MUST be false while status: proposed (non-authoritative).
+
+extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on a
+                               # capability-spec that IS a reusable extension (a reusable add-on). A field
+                               # on the existing spec node, NOT a new graph node-type (the GRAPH
+                               # node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new
+                               # entity). Carries an ADOPTABILITY state (discoverable ≠ installable):
+                               # adoptable — a consumer-installable shared capability (has an
+                               # adopt-path; consumer declares+cites it, SPEC-0093).
+                               # internal-only — a kernel-OWN tool, catalogued for discoverability
+                               # but NOT consumer-adoptable (no install-path).
+                               # UNMARKED (`~`/absent) = not an extension. `graph build` carries the
+                               # marker onto the spec node; `graph query --type spec --extension` lists
+                               # the marker-bearing specs + state; the derived catalog view
+                               # surfaces it. No validation layer (GRAPH «what graph is NOT»).
+
+implements:
+  - bin/lib/verify_runner.py#_shadow_select
+  - bin/lib/verify_runner.py#governed_selection # : THE ladder, as one function.
+                                                          # Extracted from `_run_verify_tests` so the
+                                                          # SPEC-0203 routed land seam asks the SAME
+                                                          # decision instead of growing a second one
+                                                          # (the routed candidate leg runs on the box,
+                                                          # so the runner is never entered for it).
+                                                          # Behaviour unchanged — an in-place amend
+                                                          # (SPEC-0005 rule 7): every already-covered
+                                                          # case's required behaviour is identical.
+  - bin/lib/verify_runner.py#_run_verify_tests
+  - bin/lib/verify_runner.py#_selection_governs # : may this land ACT on the decision
+  - bin/lib/verify_runner.py#_selection_recorded_misses # : the auto-rollback count + its window
+  - bin/lib/verify_runner.py#_selection_omission_tripwire # : the AC2 independent oracle
+  - bin/lib/debt.py#open_known_broken # : §Known-broken-on-main IS this
+                                                          # fold's rule home — it was governing the
+                                                          # anchor without naming it
+body: | # fixed minimal section shape (split by stable boundary):
+  ## Scenario
+
+  A land runs the tests its diff can actually break, instead of all of them. Which tests those are is
+  decided by a ladder whose default is RUN — every state the ladder does not understand resolves to
+  the full suite, so a land can only ever skip what it has an argument for.
+
+  The question "is this selector safe enough to be allowed to decide?" was answered the slow way. For
+  a shadow period the land RECORDED what the selector would have run and what it would have skipped
+  while still running everything, and the decision to let it govern was taken from measurements over
+  real lands rather than from anyone's confidence. That period is over; what it left behind
+  is still working, because the ~half of lands that a verifier-surface touch forces onto the full
+  suite keep recording the same decision, and a recorded disagreement turns the selector off again.
+
+  Nothing about this makes a skipped test a matter of trust. A land that omits a test the full suite
+  would have failed on FAILS — an independent oracle checks the omitted set before anything is
+  dropped, and puts back anything it cannot clear.
+
+  ## Internal
+
+  THE COVERAGE CONTRACT. A selection decision is a PROOF OBLIGATION: the default is RUN, and an
+  omission carries the argument. The decision is a ladder, evaluated in order; every rung except the
+  last resolves to the FULL suite, so every unhandled state is safe by construction.
+
+    R1 SUPREMACY / SELF-GUARD. When the diff touches the verifier's own surface
+       (`_is_verify_implementation_touch` over `_VERIFY_IMPLEMENTATION_GLOBS`), NOTHING may be
+       omitted. A selector may not select the tests that guard it: its own implementation lives
+       under `bin/**` and its own tripwires under `tests/**`, both inside that constant, so this
+       rung is self-applying and cannot be escaped by editing the selector. SPEC-0077 supremacy is
+       untouched — this rule never narrows the pinned last-green pass.
+       - THE `bin/**` HALF IS NARROWED TO AN EXPLICIT, FAIL-CLOSED ALLOWLIST. `bin/**` is
+       37 modules and ~126k lines treated as ONE atom, while the runner and this ladder live in two
+       of them. A changed path whose EXACT repo-relative spelling is one of the enumerated
+       periphery paths (`_SELECTION_PERIPHERY_FREED_PATHS`) no longer fires this rung. MEASURED: of
+       the recorded refusals carrying `selection_full_suite_globs`, 85.4% matched `bin/**` ALONE;
+       and of 235 first-parent commits touching `bin/` since 2026-08-11, 76 (32.3%) touch ONLY
+       allowlisted paths — `bin/yitc-v2` alone accounts for 69 of those touches and is a 22-line
+       import-and-dispatch shim whose emptiness tests/test_t11319_thin_shim.py already asserts.
+       THE DISCRIMINATOR IS POSITIVE, and that is the whole safety: the rule enumerates what is
+       FREED, by exact path — never a prefix, a filename shape, or an EXCLUDED set. A path under
+       `bin/` that nobody enumerated (a module added next month, a rename, a directory, a config
+       file) matches nothing and keeps forcing the full suite, so a new module is safe by DEFAULT.
+       The membership test, so a later editor applies it rather than guesses: a path belongs iff it
+       neither RUNS the land's test suite nor PARTICIPATES in the selection decision. What still
+       fires this rung: `bin/lib/verify_runner.py` (THE RUNNER ITSELF — see the re-pointing below),
+       `bin/lib/worktree.py` (the RESIDUE, which still holds this ladder's callers, its two freeing
+       classifiers and their constants — freed only at the finer def granularity, which
+       PROVES non-participation rather than asserting it),
+       `bin/lib/cli.py` (the glob constant and the verify wiring), `bin/lib/init.py` (writes a
+       consumer's verify-contract scaffolds), every non-`.py` path under `bin/`, and anything
+       unlisted. (`bin/lib/verifycache.py` — «decides whether verify runs at all» — was listed
+       here until DELETED it with the retired per-test verify cache, SPEC-0187 step 4.
+       It is dropped rather than left naming a path that no longer resolves; the rung is
+       unchanged, it simply has one fewer member.)
+       THE RULE NAMES THE RUNNER, AND THE RUNNER IS NO LONGER `bin/lib/worktree.py`.
+       extracted the verify runner into `bin/lib/verify_runner.py` and proved that extraction
+       complete in both directions, so the module this rung exists to protect has MOVED. The runner's
+       refusal was correct but ACCIDENTAL — it held only because nobody had enumerated the module in
+       the freed list, i.e. by the fail-closed default rather than by the rule. It is now NAMED here
+       and pinned by tests/test_verify_implementation_rule_narrowed.py, whose differential shows the
+       pin is load-bearing: put the runner in the freed list and the predicate flips. No second
+       production constant was minted to hold that name — the tripwire is the carrier (SPEC-0165).
+       WHAT DID **NOT** CHANGE, and it is the honest bound: the residue is NOT freed per file, and this
+       re-pointing moves no recorded share. Freeing `bin/lib/worktree.py` wholesale would free edits to
+       the EXECUTABLE freeing rule that lives in it, voiding the self-guard stated below; and giving it
+       a coverage-map family so its fence-freed diffs earn an omission is the entry shipped and
+       reverted, because mapping a module this rung still refuses deletes the R3 backstop. So a diff the
+        fence frees leaves this rung only to resolve at R3, which is also run-everything — the
+       fence is INERT for the residue until the ladder LEAVES it. That is a sequencing fact about the
+       split, not a defect in this rung.
+       THE SELF-GUARD NOW COVERS ITS OWN WEAKENING. The guarantee stated below — that
+       weakening the executable rule requires an edit this rung refuses — did NOT hold for the freeing
+       classifiers themselves: `_SELECTION_DECISION_ROOTS` rooted classifier but never
+        sibling nor the three helpers the reachability prover delegates to, so a diff touching
+       only the classifier that frees paths was itself freed. All five are now roots, which WIDENS what
+       this rung refuses (the safe direction) and cannot reach the pinned pass.
+       THE SELF-GUARD ARGUMENT IS UNWEAKENED, exactly as the `tests/**` narrowing left it:
+       escaping the selector still requires editing its implementation, and both files that hold it
+       still fire this rung. A periphery module's edit changes what THAT module does, never what
+       the selector omits for something else. The freeing rides the SAME opt-in channel as
+       (`reachability_freed`), whose only caller is the land's candidate sweep — so the SPEC-0077
+       pinned-verify trigger, the declared-check-surface predicate and the per-layer `subject_globs`
+       sibling all pass None and are byte-identical, and SPEC-0077 section 1's constant is NOT
+       narrowed by this rule. HONEST BOUND, not laundered: freeing a path narrows NOTHING by
+       itself — it hands the question back to ordinary reachability through the `bin/*` family
+       below, which may still select many tests.
+     - THE `tests/**` HALF IS NARROWED TO WHAT THE RUNNER DOES NOT COLLECT. A changed
+         path that IS one of the test files this run enumerates — a LEAF test, added or edited —
+         no longer fires this rung. MEASURED: of 751 commits touching `tests/` since 2026-08-01,
+         97.6% touched ONLY leaf test files, so the blanket form refused ~99 times in 100 on a
+         change that cannot invalidate the map for any OTHER test. What still fires it: shared test
+         infrastructure (conftest, fixtures, helper modules, test data — anything affecting
+         COLLECTION), and DELETES and RENAMES. Those are KEPT because one shared fixture can alter
+         many tests at once, so freeing them would be unsound. The self-guard argument above is
+         UNWEAKENED: escaping the selector still requires editing its implementation under `bin/**`
+         or its collection surface, both of which still fire this rung — a leaf tripwire's own edit
+         changes what that ONE test asserts, never what the selector omits for another. Leafness is
+         judged by MEMBERSHIP in the runner's enumeration, never by a filename shape: the collector
+         defines what a test is, which is also why a delete and a rename's vanished old path keep
+         refusing (they are not in the tree, so they are not enumerated) without needing the diff
+         status `--name-only` does not carry. Callers with no enumeration to judge against (the
+         per-layer `subject_globs` sibling) free nothing and keep the blanket rung.
+    R2 EDGES. An absent comparison base, an unresolvable or ambiguous diff, or an empty diff omits
+       NOTHING. Mirrors the edge set the layer-granularity sibling already fails closed on.
+    R3 UNKNOWN MAPPING. A changed path matched by NO coverage-map entry omits NOTHING, and the
+       unmatched path is NAMED in the record. A full-suite backstop on unknown mapping is NOT
+       optional; growing the map is the only way to earn an omission.
+    R4 Otherwise the would-run set is the union of the test globs the changed paths map to; the
+       remainder is the would-omit set.
+    R5 THE DECLARED ALWAYS-RUN SET IS UNIONED IN. Whenever a governed run actually
+       narrows — every `task test --run` and land candidate leg that reaches R4 and earns an omission,
+       local or routed to a venue — the executed set is the union of the R4 slice and the DECLARED
+       always-run set: the repo's CONSISTENCY TRIPWIRES. A full-suite run at R1/R2/R3 is UNCHANGED,
+       because it already contains them.
+       WHY A DECLARED SET AND NOT A MAP ENTRY. A consistency tripwire asserts that a DERIVED BOOK
+       BALANCES over the whole tree — every journal reader is enumerated and dispositioned, every test
+       that reads the root cwd is in the census, every top-level function of an extracted module has a
+       host residue, every tunable has an inventory row, every event type has a catalog entry. It
+       therefore fails on ANY change OF ITS KIND ANYWHERE, which is not a relation from a changed PATH
+       to a test and so is not a relation a path-to-test coverage map can express at all. R3 does not
+       help either: those diffs map fine, they simply map to something else. Measured 2026-09-10 22:00
+       → 09-11 04:00 on the kernel: five lands failed their candidate leg on exactly this class, each
+       costing a reservation slot plus a rework round.
+       THE MARKER IS THE SOLE CARRIER. A file joins the set by declaring `# yitc: selection: always` in
+       its own source, and leaves it by deleting that line — there is NO list of these files in the
+       engine, so the set cannot drift from the files it names. Adding the marker is an authoring act,
+       reviewed like any other test edit. A declaration that cannot be honoured — a marker outside a
+       tests/ directory, or on a file carrying neither a `def test_` node nor a script main — is REFUSED
+       WITH A NAMED REASON and reported on the run's own selection line, never silently dropped: a
+       declaration that grants nothing is the authoring defect this leg exists to make loud.
+       It is a SECOND declaration and deliberately not the SPEC-0077 §3 `# yitc: pinned-leg: census`
+       marker, whose consumer is the PINNED leg and whose effect there is to EXCLUDE. The two answer
+       different questions for different legs in opposite directions, and adopting the census spelling
+       to mean this would silently un-pin every file that adopted it.
+       DIRECTION, AND IT ONLY EVER WIDENS. The union is applied AFTER the empty-selection fallback has
+       been judged on the R4 slice alone, so an always-run member can never convert a would-be
+       full-suite fallback into a narrowed run; and any failure to compute the set at all falls to the
+       FULL suite (`always-set-error`), never to a slice trusted without it. No diff selects fewer tests
+       than it did before this rung existed.
+       RECORDED: `selection_always_count` (`selection_always_tests`, and `selection_always_refused`
+       when a declaration was refused) on the same `verify_metrics` payload the other `selection_*` keys
+       ride, on BOTH the local and the routed leg. ABSENT — never zero and never fabricated — on an
+       ungoverned run, which is how a `--full` or fail-closed run reads. The count and
+       `selection_would_select` describe two OVERLAPPING sets and are not addends.
+
+  THE COVERAGE RULE'S EXECUTABLE CARRIER IS CODE, AND ONLY CODE. The rule has two carriers with
+  different standing: this spec is the normative PROSE, and code is the sole EXECUTABLE map.
+  `consumed: false` is load-bearing here, not bookkeeping — no code reads a value out of this
+  spec, so this file is not an input the verify path consumes and cannot, by itself, change what a
+  land omits. Weakening the EXECUTABLE rule therefore requires editing code under `bin/**`, which
+  rung R1 already forces to the full suite. That is how AC1's "a change to its coverage rule runs
+  the full suite" is honoured.
+    - THE MAP IS DERIVED, NOT HAND-LISTED. The executable map was once a literal constant
+      of test-file names; it is now computed by `_selection_coverage_map` from what each test file
+      READS, unioned with those literal tuples as a FLOOR so the derivation can never narrow
+      coverage below the audited registrations. This does not move the carrier: the derivation is
+      code under `bin/**`, so weakening it still requires a `bin/**` edit and still fires rung R1.
+      The hand-listed form was retired because the bucket a test belongs to is set by what it READS,
+      not by what its card is about, so a card adding a test could not forecast the edit — three
+      dispatched workers were blocked by exactly that within one hour on 2026-08-20.
+    - WHAT THE DERIVATION READS IS ALREADY A VERIFY INPUT, so the forward obligation below is met
+      rather than newly owed: the derivation's inputs are the `tests/**` sources, and `tests/**` is
+      already in the SPEC-0077 self-guard constant — a change there forces the full suite at rung
+      R1 before any derived map is consulted. Stated explicitly because this is precisely the case
+      the forward obligation exists to catch. SINCE a LEAF test's own edit is freed from the
+      self-guard at rung R1 — it can change only its OWN derived entry, never another test's — and
+      that freeing reached the full suite at rung R3 instead, because the coverage map held no
+      `tests/*` source entry and the changed path was unmatched. was therefore INERT AS
+      SHIPPED: both rungs mean run-everything.
+    - THE `tests/*` ENTRY, AND WHAT REPLACES THE R3 BACKSTOP FOR IT ( — the answer the R3
+      reservation above was owed). The family EXISTS now, so a leaf-test diff is MATCHED and no
+      longer falls to R3. What earns the omission in R3's place is a UNION, and NEITHER half alone
+      is sound — the external auditor refused each:
+        - the CHANGED TEST ITSELF. Without it the entry would omit the very test being edited,
+          because the derived family answers "which tests READ `tests/`" — a different question from
+          "what breaks when THIS test changes", and most tests are not in it;
+        - the DERIVED `tests/` READERS, unioned with the always-run set. Without them a leaf-test
+          change could omit a sibling that READS or ENUMERATES the tests/ tree and can be broken by
+          it, which is the unsound direction.
+      The self half is a function of the DIFF, not of a glob, so it is not expressible as a map
+      entry; it is judged by MEMBERSHIP in the runner's enumeration — the same test rung R1 frees a
+      leaf by — and is additive only, never licensing an omission.
+    - THE `bin` ENTRIES, ON THE IDENTICAL TERMS ( — the sibling the paragraph above owes).
+    The `bin/**` narrowing has the same shape of hole the `tests/**` one had: a path freed at rung
+    R1 that no map entry matches falls to rung R3, which is also run-everything, so the narrowing
+    would ship INERT. The families EXIST now, ONE PER FREED PATH, SOURCED FROM THE ALLOWLIST rather
+    than from a `bin/*` glob — so the MAPPED set and the FREED set are THE SAME SET and cannot
+    drift. A single glob was tried and is WRONG: it would also map `bin/lib/worktree.py` and
+    `bin/lib/cli.py`, which this rung must always refuse. That entry is invisible while R1 works
+    and DELETES A BACKSTOP the moment R1 breaks — the diff would then resolve at R4 and earn an
+    omission instead of failing closed at R3. Nothing R1 still refuses is mapped, which is the
+    property `tests/test_t11112_shared_fail_closed_edge.py` already pins from the other side.
+    They are DERIVED-ONLY — present in `_SELECTION_FAMILY_EXTRA_READERS` with an EMPTY `extra` and
+    EXCLUDED from the hand FLOOR, for the reason `tests/*` is: there is no hand-AUDITED reader list
+    for them, so a floor entry would be an UNDER-approximation, the one unsound direction. Every
+    entry's first segment is `bin`, so each resolves to the same derived family. What earns the
+    omission is the derivation —
+    the tests whose source READS a path under `bin/` from the live checkout root, unioned with the
+    always-run and corpus-wide classes. Absent from the floor, a derivation that cannot decide
+    returns a map with no `bin` family, the changed path is unmatched, and R3 takes the land to the
+    full suite: the fallback is exactly the verdict this family got before the narrowing, so it
+    cannot regress. THE SELF-HALF OF THE `tests/*` UNION HAS NO ANALOG HERE and none is owed: that
+    half exists because the CHANGED TEST is itself a test, and a changed `bin/` module is not.
+    What covers a changed periphery module is the derived readers plus the SPEC-0181 tripwire,
+    which independently adds back any omitted test whose source NAMES the changed path.
+    The SELF-GUARD ARGUMENT IS UNWEAKENED. The COLLECTION surface (conftest, fixtures, helpers,
+      data), which can move many tests' entries at once, plus DELETES and RENAMES, is unfreed and
+      still fires R1, so none of it ever reaches this entry; and weakening the executable rule still
+      requires a `bin/**` edit, which R1 refuses.
+    - A DERIVATION THAT CANNOT DECIDE FALLS BACK, NEVER NARROWS. A test that reads at the checkout
+      root but from which no family path resolves is UNDECIDABLE and joins the always-run set; any
+      failure to derive at all returns the floor unchanged. Both are the same fail-closed direction
+      the ladder's other rungs take.
+    - Why the spec file is NOT added to the self-guard constant: SPEC-0077 section 1 defines that
+      constant as the verifier's own EXECUTABLE surfaces and states explicitly that a `specs/`-only
+      land does NOT touch the verifier and MUST NOT fire the pinned re-run. Adding a spec path there
+      would contradict a live contract to close a hole that `consumed: false` already closes.
+    - FORWARD OBLIGATION, so this stays true: if the map is ever relocated to a carrier OUTSIDE
+      `bin/**` (a data/config file the verify path reads), that carrier becomes a verify input and
+      MUST be added to the constant in the SAME change — the obligation SPEC-0077 section 1 already
+      imposes, named here because this rule is what would otherwise silently outgrow it.
+
+  PLACEMENT — `kernel` (the spec class-default), affirmed rather than defaulted into. This contract
+  travels to consumers because the surface it governs does: `_run_verify_tests` is not
+  engine-only — it is the mode-"probes" verify path a CONSUMER takes when it declares no
+  `verify.layers` (`bin/lib/init.py`, `_all_tests_script_runnable`). So a consumer on that path
+  inherits this ladder and must be able to pin it. NOT `v2-self`: that realm is for rules a
+  consumer never sees, and this one reaches any layer-less consumer. NOT `project`: nothing here is
+  one project's local craft — the ladder is uniform across every checkout the engine verifies.
+
+  SELECTION GOVERNS ( — the successor gate the SHADOW BOUNDARY reserved, now GRANTED). This
+  contract licenses computing, recording AND ACTING ON the decision. The shadow boundary — "the
+  executed test set is the full enumeration, unconditionally" — is RETIRED; what replaces it is a
+  bounded grant with a named opt-in, a switch, a tripwire and an auto-rollback:
+
+    THE OPT-IN IS THE CANDIDATE RUN — AT BOTH SEAMS IT HAPPENS ( extends the ONE-CALLER
+    wording; the grant itself is unchanged). The governed thing is the CANDIDATE verify, and that
+    same candidate verify is executed at TWO seams over one task's life: the land's own sweep
+    (`_land_integrate._candidate_verify`) and the STAGE-6 SELF-CHECK of that identical suite
+    (`task test --run`, `cmd_task_test`). Both pass `select=True` to the SAME runner entry point, so
+    both reach one decision, one fail-closed R1/R2/R3 ladder, one omission tripwire and one
+    `selection-omitted-a-test-naming-a-changed-path` capture. This is not a second opt-in but the
+    same one, applied where the same suite runs: `task test --run` exists PRECISELY to be the
+    candidate leg, so leaving it on the full enumeration made a worker pay a suite land
+    was never going to run — measured on the kernel journal 2026-08-18..09-02, the Tests stage cost
+    med 7.3 min / p90 26 min / 171 h across ~700 closures, more than Execution (63 h), while
+    `tests_failed` attributed 744 not-in-diff failures against 6 in-diff. The runner's parameter
+    still defaults to False, so every OTHER caller runs the full enumeration by construction: the
+    PINNED last-green re-run, the nested/merged-base drivers, the red-batch isolation oracle's
+    `only=` path, and every dev-utility. The opt-in is deliberately NOT spelled
+    `land_verify=True` — the pinned re-run passes that too, and rung R1's promise that this rule
+    never narrows the pinned pass would be broken by a gate spelled that way.
+
+    THE STAGE-6 SEAM IS SUPERSET-OR-EQUAL OF THE LAND SEAM, NEVER NARROWER — the bound that makes
+    the extension safe, stated so no reader takes it backwards. Land additionally supplies two
+    OPTIONAL refinement channels (`selection_reachability_freed`, `selection_tripwire_inert_paths`)
+    that live in `bin/lib/worktree.py`, which `bin/lib/task.py` cannot import. Stage 6 passes them
+    as None, and their ABSENCE frees LESS (the selector refuses more paths) and recovers MORE (the
+    tripwire's needle set is unfiltered) — so Stage 6 runs the land-selected set PLUS possibly more.
+    That is the only direction a self-check may err in: a Stage-6 green that ran FEWER tests than
+    land will is exactly the false-green the verb exists to prevent. The claim is
+    therefore SAME SELECTOR, SAME INPUTS-AS-SUPPLIED, never byte-identity with a land reading two
+    channels Stage 6 structurally cannot.
+
+    THE STAGE-6 RUN NAMES ITS OWN SCOPE, AND SO DOES ITS EVIDENCE. The run prints
+    `selection: affected (n of N)` / `selection: full (fail-closed) — <reason>` /
+    `selection: full (--full)` plus the omitted-and-recovered set, and the `tests_passed` payload
+    records the mode + counts. `--run --full` is the explicit full-suite escape and is REPORTED as
+    an escape, never as a fail-closed fallback: a reader who cannot tell a deliberate whole-suite
+    pass from a selector that gave up cannot act on either. The three invariants this extension
+    preserves — fail-closed-to-full selection, omitted-test recovery + capture, and the attribution
+    of remaining not-in-diff failures — are preserved BY CALLING the same entry point rather than by
+    a matching re-implementation, which is the only way they cannot drift.
+
+    THE GOVERNED POPULATION IS WHAT THE LADDER ALREADY EARNS. No second narrowing rule is added:
+    governing acts exactly when the ladder returns an earned omission (`reason is None`), which R1
+    already withholds from any `bin/**` or shared-test-infra touch. So the activated class is every
+    land not touching the verifier's own surface — roughly half of lands — and it is NOT narrowed
+    further to a safer-looking subset, because evidence about a subset would be evidence about the
+    subset rather than about the mechanism.
+
+    THE DIFFERENTIAL TRIPWIRE SHIPS WITH THE ACTIVATION, NOT AFTER IT. A land whose selector omits a
+    test the full suite would have failed on must ITSELF FAIL. Before anything is dropped, an
+    INDEPENDENT oracle (`_selection_omission_tripwire`) asks a FINER question than the selector did:
+    the selector maps a changed path to its FIRST SEGMENT and thence to tests, while the oracle asks
+    whether an OMITTED test's source literally NAMES this diff's changed path. Different granularity
+    by a different method, so it can disagree — which is the only reason to have it. What it finds is
+    ADDED BACK to the executed set, so a defect reachable only through an omitted test is REACHED and
+    fails the land through the ordinary verdict path. It can only ever ADD tests: it can never
+    license an omission, and when the map is right it finds nothing and costs nothing. A firing is a
+    coverage-map DEFECT and is recorded as one — a durable `deviation_captured`
+    (`selection-omitted-a-test-naming-a-changed-path`) plus `selection_tripwire_recovered` on the run.
+
+    THE ORACLE IS ASKED ONLY ABOUT CHANGED PATHS THAT COULD CHANGE AN OUTCOME. The paths
+    the oracle looks for are the diff's OBSERVABLE ones: a changed path the SPEC-0064 inert authority
+    classifies INERT is EXCLUDED from the needle set, contributing neither its full path nor its
+    basename. The reason is that SPEC-0064 answers THIS ORACLE'S OWN QUESTION for such a path, and
+    answers it with a proof — an inert path is one a change confined to it cannot alter the outcome
+    of land's verification, which is why a wholly-inert diff is already licensed to skip
+    re-verification entirely. Recovering a test because its source mentions such a path recovers on a
+    needle that carries no signal, and it contradicts a contract the same land relies on elsewhere.
+
+    THIS NARROWS THE ORACLE'S INPUT, NEVER ITS PREDICATE. Over an OBSERVABLE path the oracle stays
+    exactly as coarse as it was — a raw-source mention, prose included, still recovers a test —
+    because that coarseness is its fail-safe. The exclusion is CONSUMED from the one inert authority
+    and never re-encoded (SPEC-0064 §4), and it defaults to EMPTY, so a caller that cannot establish
+    the classification recovers MORE. It therefore adds no exposure the inert allowlist does not
+    already carry: it can skip a genuinely affected test only if that allowlist is wrong, and in that
+    case the far larger whole-diff re-verify skip is already open.
+
+    THE COARSENESS IS KEPT DELIBERATELY, AND HERE IS THE RESIDUAL IT COSTS. The paragraph
+    above declines to narrow the predicate; what it did not carry was the SIZE of what that leaves on
+    the table, so the choice read as an assertion rather than a decision anyone could check. The
+    residual is the class of recoveries resting on a source MENTION of a changed path that is not a
+    READ of it. It is CHARACTERISED here, over the corpus as it stands, so a later reader weighing the
+    same question starts from numbers instead of from this sentence:
+      - THE CLASS IS SMALL AND FLAT, not growing. Folded from every metric-bearing row in this
+        repo's journal, recovered tests as a share of the would-omit set ran 15.8% on 2026-08-23 —
+        the day BEFORE the inert-path exclusion above shipped — and then 0.07%–0.66% per day for the
+        seven consecutive days since, with no upward trend. The mention residual is a FRACTION of
+        that already-sub-1% class.
+      - THE CORPUS CEILING ON WHAT A NARROWING COULD BUY. Replaying the oracle's own needle
+        construction over the whole checkout (13,149 tracked paths × 1,202 test files) yields 5,675
+        (test, path) pairs the oracle could fire on at all — a superset of every recovery any future
+        diff can produce. 1,021 of them (18.0%) are MENTION-ONLY; 3,296 are read-backed, and 1,358
+        undecidable occurrences are folded into READ, the conservative direction, so the mention
+        count is a floor on nothing and a ceiling on the claim. Distinguishing mention from read
+        could therefore remove at most 18% of a ≤0.7% class — under one extra test file per governed
+        land against a ~1,200-file suite.
+      - THE IDIOMS ARE LEGITIMATE AND PERMANENT, which is why they are not a map defect to be fixed
+        at the map. Three produce the whole class: LITERAL-PATH-AS-DATA, 660 — a test whose SUBJECT
+        is a path list or classification, so the paths ARE the fixture
+        (`tests/test_t11511_bin_periphery_allowlist.py:208`, which enumerates the freed allowlist it
+        asserts over); COMMENT-OR-DOCSTRING CITATION, 322 — prose naming a sibling artifact
+        (`tests/test_init_verb.py:57` citing `tests/test_spec0169_activation_last.py`); and MIXED,
+        39 — both in one file (`tests/test_consumer_conformance.py:488` and `:496`, which name
+        `scenarios/_template.md` once in a comment and once in an assertion message, never reading
+        it). The two idioms the halt that filed this question named still reproduce at HEAD:
+        `tests/test_t9613_kind_command_adapter.py:49` writes a path into a config body it composes,
+        and `tests/test_t11380_abort_cause_breadth.py` carries another test's failure text as a
+        synthetic failing-cause fixture.
+    THE DECISION IS KEEP. The three grounds are the measurement above plus one that does not depend
+    on it: a read-detecting predicate would put a SECOND, cleverer predicate inside the one oracle
+    whose entire value is being independent of the selector's cleverness, and the mention/read
+    distinction is not reliably decidable at source level anyway — a read constructed through an
+    ALIASED root reads exactly like a mention, which is why the classification above had to
+    resolve each occurrence's receiver by hand to reach its verdict. Nothing is removed by such a
+    predicate and the only thing bought is omission SHARE, which §A DISAGREEMENT IS A DEFECT, NOT A
+    PARAMETER already refuses as a reason. This is the same answer the two declined tightenings got,
+    now carrying the number it always implied.
+    HONEST BOUNDS, so the figures are not over-read. The corpus replay uses TRACKED paths only, so a
+    diff that ADDS a path contributes a needle it cannot; and a recorded land row carries no
+    diff, so the journal half measures the WHOLE recovery class, never the mention fraction of it
+    directly. The two halves bound the residual from opposite sides; neither alone is the number.
+    Re-runnable at any HEAD by `dev-utilities/measure-oracle-mention-residual-.py`, whose
+    output — including the per-pair listing with its idiom label — is
+    `dev-utilities/oracle-mention-residual-.json`.
+    NEITHER PREVIOUSLY-REFUSED ROUTE WAS RE-TRIED, and no new evidence overturns the measurement that
+    refused them: widening each family to every test whose source MENTIONS a path in it makes the
+    entries INERT (tests 409 → 1171 of 1194; events.jsonl 391 → 925; tasks 391 → 749; specs 442 →
+    712), and folding the oracle's predicate into rung R4 is the detector-silencing the same halt's
+    own acceptance forbids. Both stay closed on measurement.
+
+    MEASURED, NOT ASSUMED. On the first governed land (`events.jsonl#ts=`) the
+    oracle recovered 377 tests, and all 377 rest on exactly TWO changed paths — `events.jsonl` and
+    `graph/index.json` — both proven-inert, and both written by LAND'S OWN BOOKKEEPING rather than by
+    the change under test, which is why an unrelated branch recorded the identical 377 two hours
+    later. Every one of the 377 was classified NOT-AFFECTED and independently re-checked by a method
+    neither predicate uses; none reads the live journal or the live graph index. Evidence:
+    `dev-utilities/selection-tripwire-classification-.json`. Two further tightenings the same
+    evidence would support — ignoring prose, and refusing a generic basename — are deliberately NOT
+    taken: each would only buy omission SHARE, and share is not a reason (§A DISAGREEMENT IS A
+    DEFECT, NOT A PARAMETER).
+
+    THE SWITCH, AND REVERSIBILITY. `YITC_SELECTION_GOVERN=0` returns selection to shadow by the same
+    switch that activated it (the `YITC_GRAPH_CACHE=0` idiom). Reversion is judged by the OBSERVED
+    difference in executed test count, never by the flag: a switch that only claims to revert is
+    indistinguishable from one that does not.
+
+    AUTO-ROLLBACK — THREE recorded misses (owner-set) turn governing OFF. The threshold direction is
+    toward SHADOW: reaching it restores the full suite rather than relaxing anything. Detection is
+    NOT lost when selection governs, because the ~half of lands that still run the full enumeration
+    keep RECORDING the decision, and those are the only lands on which a disagreement can appear at
+    all. What is lost is ATTRIBUTION, which the containment card repairs.
+
+    THE ROLLBACK CRITERION IS TWO-SIDED, AND IT IS THE EXECUTED COUNT. The rollback fires
+    AT the third recorded miss and PROVABLY NOT at the first or second: a rollback that trips early
+    is as wrong as one that never trips, and only the two-sided assertion separates them — from the
+    outside both failures look like "the land ran everything", which a dozen safe rungs also
+    produce. So the criterion is the one already imposed on the manual switch, for the same reason:
+    the OBSERVED difference in executed test count, never the flag. A run below the threshold
+    EXECUTES FEWER FILES THAN IT DISCOVERED; the run at the threshold returns the executed count TO
+    the discovered count and records `selection_govern_reason: miss-threshold:<n>/<t>`, the
+    mechanism's own signature, which is what attributes a full suite to THIS rung rather than to
+    `switch-off` / `ladder-full-suite` / `governor-cannot-count` / `empty-selection`.
+    Home: `tests/test_selection_rollback.py`, which drives `_run_verify_tests` end-to-end at 0/1/2/3
+    injected misses on ONE fixture. Its sub-threshold arms are the NEGATIVE CONTROL and are aimed at
+    an input that SUCCEEDS without the intervention
+    (lessons/a-negative-control-must-fail-without-the-intervention): they are runs that genuinely
+    govern and genuinely narrow, so they cannot pass with the rollback deleted. The threshold NUMBER
+    is pinned LAST, deliberately — the behaviour is proven against whatever the constant says, so a
+    mutation of the LOGIC reports a broken rollback rather than being pre-empted as a moved number.
+    THE WINDOW IS PART OF THE SAME CLAIM, exercised where the count is CONSUMED: three misses
+    recorded under a SUPERSEDED rule version leave the run governing. Without that arm "three" is a
+    number with no domain, and a fold widened to all history would silently revert selection on the
+    strength of the exposure this contract explicitly ACCEPTED.
+
+    EVERY UNANSWERABLE STATE RUNS MORE. Governing is a GATE on what runs, so the fail-safe direction
+    inverts from the shadow era: a governor that raises, a journal whose misses cannot be counted, a
+    tripwire that errors, and a selection resolving to an EMPTY executed set all fall back to the
+    full suite. An empty executed set is specifically named because the verdict contract is "pass iff
+    no test failed" — running nothing reads GREEN, and a selection that resolves to nothing has not
+    earned an omission of everything, it has failed to decide.
+
+  THE DERIVATION READS THE ANCHOR, IT NO LONGER RECOGNISES THE NAME. The derivation above
+  saw a live-checkout read only when a line paired a path literal with an anchor whose NAME was on a
+  fixed list (`REPO_ROOT|ENGINE_ROOT|REPO|ROOT|MAIN_ROOT|HERE|_CHECKOUT*|...`). This suite's DOMINANT
+  loader idiom is `YITC_V2_PATH = Path(__file__).parent.parent / "bin" / "yitc-v2"`, and that name was
+  not on the list — so a test that LOADS AND EXECUTES `bin/lib/cli.py` from the live checkout was
+  classified HERMETIC, joined NO family, and was omitted by every selection. `_selection_file_anchors`
+  now folds each file's OWN `Path(__file__)`-derived assignments to a repo-relative prefix, so the
+  anchor is established from a FACT ABOUT THE FILE rather than from a naming convention — the same
+  reason judges leafness by MEMBERSHIP in the runner's enumeration and not by a filename shape.
+  A longer name list was the obvious alternative and is the wrong one: it drifts the moment a test
+  picks a new variable name, and it fails SILENTLY in the unsound direction.
+
+    MEASURED. 560 of 1194 test files carry such an anchor. Of the 181 distinct files the tripwire
+    recovered across 132 firings (2026-08-23..2026-08-30), 144 (80%) are this ONE class, 108 of them
+    through `YITC_V2_PATH` itself — so the audit-surface concentration the firings show
+    (test_audit_consult.py 51, test_t10502 39, test_t0370 32, test_carve_selection 30, test_t10567 29,
+    test_audit_owner_reset 28) is not 181 independent map entries. It is one region: `bin/lib/audit.py`
+    is periphery-FREED at rung R1, so an audit diff reaches R4 and EARNS an omission, while the tests
+    that exec that very module sat outside `derived["bin"]`. The derived `bin` family moves 534 -> 1090
+    and the always-run set 73 -> 121 of 1194 (6.4% -> 10.1%, the machine-checked figure in
+    `_selection_analyse`'s docstring). Replaying the 62 recorded firing lands, 495 of 596 recovery
+    pairs (83%) dissolve, against 139 under the pre-fix map.
+
+    REFUSED ON MEASUREMENT, so it is not re-tried: also dropping the `not fams` conjunct from that
+    function's undecidable verdict — which would catch a file that resolves one family AND performs an
+    unresolvable live-root read. It is the safe direction and it was implemented, but it takes the
+    always-run set to 421 of 1194 (35%), the neighbourhood of the 44% the same docstring already
+    records as "would make the shadow metric meaningless". Resolving the read beats collapsing the
+    class. The refusal and its numbers live at the return site.
+
+    THE RESIDUAL IS NOT A MAP DEFECT, AND THIS IS THE HONEST BOUND. 101 of the 596 replayed pairs
+    survive, and every one is a source MENTION that is not a read: test_t11380_abort_cause_breadth.py
+    carries `"test_spec0149_obligation_fold.py: AssertionError:..."` as a synthetic failing-cause
+    fixture; test_t9613 writes `adapter: bin/freshness-adapter.py` into a config body. The map is RIGHT
+    for those and the ORACLE is coarser BY DESIGN — see the tripwire's own rule that its coarseness over
+    observable paths is its fail-safe. The two routes to zero are both refused. Widening each family to
+    every test whose source MENTIONS a path in it makes the map as coarse as a substring scan (`tests`
+    409 -> 1171 of 1194, `events.jsonl` 391 -> 925, `tasks` 391 -> 749, `specs` 442 -> 712), i.e. the
+    entry goes INERT — the failure and both name. Folding the oracle's predicate into
+    rung R4 is refused for the other reason: that is silencing the detector, not fixing the map. So a
+    residual firing rate is EXPECTED after this card, and reading it as a fresh map defect would be
+    wrong; a firing is a map defect only when the recovered test genuinely READS the changed path.
+    That residual class is carried by as its own card, because it is a question about the
+    ORACLE's granularity rather than about the map, and both routes above are recorded refused there.
+
+  A DISAGREEMENT IS A DEFECT, NOT A PARAMETER. If a recorded would-omit set is ever found to
+  contain a test that would have failed, the coverage MAP is wrong and is fixed at the map. It is
+  never absorbed as an acceptable miss rate and never tuned away by relaxing this contract.
+
+  THE ARTEFACT CARVE-OUT IS WITHDRAWN — OWNER RULING 2026-08-23, recorded at
+  `events.jsonl#ts=` (event `owner_directive`, task_id, carrying the
+  ruling and the owner's verbatim wording). This is stated HERE, where the threshold is defined and
+  where a reader of the exposure figure meets it, because the figure and the threshold both used to
+  rest on it.
+
+    WHAT WAS WITHDRAWN. The miss threshold formerly excluded load artefacts by the recorded
+    `fail_class`. That classifier is demonstrably unreliable — on 2026-08-23 a real, reproducible
+    breakage was labelled `verify-flake` — so a threshold resting on it rested on nothing. EVERY
+    recorded disagreement now counts as a real miss, and no `fail_class`-based exclusion appears
+    anywhere the miss count is computed. The differential
+    `tests/test_t11462_selection_coverage_differential.py` goes RED if one reappears.
+
+    WHAT THE EXPOSURE ACTUALLY READS. 5 genuine misses in 71 failing runs (~7%) as of the ruling;
+    re-folded with no carve-out at implementation time, 6 in 74 (~8%). Both SUPERSEDE the previously
+    quoted 3-in-71 (4.2%), which was produced by excluding 2 of 5 disagreements as load-induced. Use
+    ~7%, never 4.2%.
+
+    THE THRESHOLD NUMBER IS UNCHANGED AT THREE, but it now counts every disagreement, so it fires
+    SOONER. That direction is intended: it fails toward shadow mode, which is the safe side.
+
+    THE COUNTING WINDOW IS THE RULE VERSION, and it is part of the same ruling rather than a
+    softening of it. The ruling names a NUMBER and no WINDOW; folded over ALL history this repo's
+    journal already carried 6 disagreements at the moment of activation, so an all-history count
+    would have reverted selection to shadow on the very land that activated it — contradicting the
+    same ruling's directive to activate now. Misses are therefore counted under the
+    `selection_rule_version` in force ("2" from, the governing rule). The accepted historical
+    exposure stays the ACCEPTED exposure and the threshold governs NEW evidence. A later coverage-map
+    fix that bumps the version earns a fresh window BY CONSTRUCTION — and only through a `bin/**`
+    edit, which rung R1 forces onto the full suite and the substantive 9-stage path.
+
+  ## Known-broken-on-main — the derived record, and why it clears only by evidence
+
+  THE FACT, AND THE COST OF NOT HAVING IT. When a test is broken on `main`, EVERY branch inherits the
+  red. Measured: on 2026-08-23 a pre-existing main breakage made main un-landable for every card and
+  each branch paid a full 420-570s verify to rediscover the same fact independently; on 2026-08-22
+  two causes refused five branches inside 24h, each paying in full; and on 2026-08-22
+  worker hand-assembled the evidence that main was red, halted, and its finished work sat unlanded
+  ~18 hours. The fact was PROVEN, repeatedly, and then thrown away each time.
+
+  THE ESTABLISHING EVENT TYPE AND PAYLOAD. `land_completed` — the event type the catalog already
+  admits (SPEC-0025), on the abort rows it already emits. The payload is `data.failure_attribution`,
+  the record composed by `_land_failure_attribution_probe` and persisted onto that row by
+  `_emit_land_abort` : `{outcome, reason, failing, at_main, at_branch}`, where `at_main`
+  holds the `(file, assertion)` pairs the merge-base REPRODUCED and `at_branch` those it did not.
+  NO new event type is minted, and none is needed.
+
+  THE RECORD IS A FOLD, NOT A STORE. `debt.open_known_broken` derives the current set on demand from
+  those journal rows. There is NO side ledger, NO stored status field, NO followup-queue carrier and
+  no new verb — the same acceptance boundary SPEC-0149 holds for post-deploy obligations, for the
+  same reason: a stored status is a second truth that drifts from the journal that produced it.
+
+  RULE 1 — WHAT ESTABLISHES A RECORD. A pair listed in a row's `at_main`. That pair failed TWICE, in
+  two independent executions on two different trees: once in the land's candidate verify (the merged
+  tree) and once in the attribution probe's fresh checkout of `merged_base`. The confirming re-run is
+  therefore already paid for on every red land, and FIRST SIGHT ESTABLISHES NOTHING — a failure that
+  does not reproduce lands in `at_branch` and opens no record.
+
+  RULE 1a — WHAT THE FOLD MUST NEVER READ, each named with its incident. NOT `fail_class`: it is
+  demonstrably unreliable (the 2026-08-23 mislabel recorded above under the artefact carve-out
+  withdrawal), and a guard built on it would both freeze the repository on a mislabel and miss the
+  breakages it exists to catch. NOT `failing_tests` / `failing_assertions`: those are the FIRST-SIGHT
+  keys, and an implementation reading them records a standing "main is broken" claim on a single
+  observation — it would satisfy the reporting criterion and fail the flake guard outright.
+
+  RULE 2 — WHAT CLEARS A RECORD, and it is ONLY evidence that this pair's test RAN and PASSED on a
+  fresh main, recorded STRICTLY LATER than the row that established it. The journal stamps whole
+  SECONDS, so two rows can share a `ts`; a same-instant row is not later evidence, it is a tie broken
+  by where the row happens to sit in the file, and the tie FAILS CLOSED to not-evidence. (The
+  opposite direction from SPEC-0149's `>=`, deliberately: there a recheck appended in the same second
+  as its deploy really did happen after it, while here "later" IS the whole claim.) A RE-OBSERVATION
+  re-stamps that instant — the record is a fact about the newest tree, so evidence must post-date the
+  newest observation, not the original one. Exactly two routes:
+    (a) PAIR-LEVEL. A later row lists that pair in `at_branch` — its merge-base run did NOT reproduce
+        the failure, which is a direct observation of it passing on main.
+    (b) FULL-ENUMERATION GREEN LAND. A later `status: ok` row whose verify ran the WHOLE discovered
+        enumeration (`verify_metrics.test_file_count >= selection_discovered_count > 0`) AND whose
+        own recorded `sha` names a tree CONTAINING that pair's test file. Green means every executed
+        file passed, and the sha it fast-forwarded main to IS main's new tip.
+    (c) RECORDED-SELECTION GREEN LAND. A later `status: ok` row whose
+        `verify_metrics.selection_ran_tests` NAMES that pair's test file. This is a direct
+        observation that the file ran and passed on the tree that land produced, so it clears the
+        pair whether or not the land ran the whole enumeration. It needs NEITHER of (b)'s conjuncts:
+        both exist because COUNTS cannot say which files ran, and a recorded selection says exactly
+        that — so no sha probe and no git are involved. A file NOT in the recorded set is simply not
+        evidence and the record stays reported.
+    (d) DELEGATED-LAYER GREEN. A later `status: ok` row whose recorded DELEGATED verify
+        layer PASSED and whose recorded delegated SURFACE contains that pair's test file. A consumer
+        whose declared layer `covers:` its test dir REPLACES the kernel's bare sweep (SPEC-0152 rule
+        16), so it runs no sweep, writes no selection, and (c) has nothing to read.
+  WHY (d) EXISTS, AND THE DEADLOCK IT REMOVES. Routes (a), (b) and (c) ALL close under delegation,
+  and they close on the repo that did exactly what the delegation contract (SPEC-0185 §1a) tells it
+  to do. Measured twice on 2026-08-27 by an adopting consumer (X-1151, escalated by X-1164): a sweep
+  widening opened a known-broken record for a test that was NOT broken — it passed 18/18 in that
+  repo's own verify-layer venv — the repo delegated its test dir to the layer that runs the suite
+  properly, and from then on (a) needed a FAILING land, (b) needed a full enumeration the delegated
+  sweep never runs, and (c) needed a selection the skipped sweep never records. The record therefore
+  could not clear BY CONSTRUCTION, and every governance-only branch (plan, spec, card) was refused
+  PRE-QUEUE from then on. The block was invisible until it bit: code-bearing branches still reach the
+  break and are admitted, so only paperwork was refused.
+  WHAT (d) DOES NOT OPEN, and this is the reason it is a conjunction rather than a layer name. The
+  reporting consumer identified a mechanical route to clear the record — revert the delegation and
+  point the sweep's python3 at the layer venv, making all 47 files import and exit 0 WITHOUT
+  executing a single assertion — and REFUSED to take it, because a full-enumeration green that
+  asserts nothing is the precise false-green rule 2 exists to refuse. That judgement is upheld here,
+  not undone: (d) requires the delegated layer's own recorded outcome to be exactly `passed` (a
+  failed / timed-out / waived / skipped layer, or a DIFFERENT layer passing, is not evidence), the
+  row to SAY explicitly that it was green (never a default — the same finding that shaped (c)), and
+  the pair's file to be IN the recorded surface. That last conjunct is not decoration: clearing on a
+  bare layer NAME would clear pairs the delegated layer never claimed, which is over-clearing, not
+  evidence. A file outside the recorded surface is simply not evidence and the record stands.
+  WHAT (d) DOES NOT CHANGE, each stated so a reader can check it: rule 1/1a are untouched — this
+  changes what counts as EVIDENCE FOR CLEARING, never what ESTABLISHES a record; rule 3's VACATE
+  disposition is untouched, because (d) makes no file-EXISTENCE claim and so route (b)'s historical
+  blob probe has nothing to add here; rule 4 is untouched and the fold stays free of `now`, any
+  window and any deadline — (d) reads a recorded NAME SET and an OUTCOME, never an age; rule 5 is
+  untouched, so a later `at_main` re-opens a pair (d) cleared; and rule 6 is untouched — the record
+  still gates nothing and excuses nothing, and the pre-queue refusal that reads it is unaffected in
+  both directions. HONEST BOUNDS: (d) is PROSPECTIVE (rows journaled before its keys existed carry
+  neither and keep clearing by (a)/(b)/(c) alone), and it is a claim about the DELEGATED SURFACE at
+  FILE granularity — the same granularity every other route here uses — not a per-assertion one.
+  WHY (c) EXISTS, AND WHAT IT REMOVES. Routes (a) and (b) between them left a GREEN, NARROWED land
+  unable to clear anything: (a) needs a FAILING land and (b) needs full enumeration, while affected-
+  test selection makes a precisely-scoped change run a SUBSET. The consequence was structural, not
+  anyone's mistake — THE MORE PRECISELY A REPAIR WAS SCOPED, THE LESS ABLE IT WAS TO CLEAR THE RECORD
+  IT REPAIRED, leaving that to whichever unrelated broad land happened along next. Measured
+  2026-08-28 from this repo's own journal: 06:47:43Z a land's attribution probe opened a record;
+  07:45:16Z the REPAIR landed GREEN having run 150 of 1103 files and the record stayed OPEN; at
+  ~07:59Z a docs-only batch was refused PRE-QUEUE as main-known-broken while main was in fact green;
+  the record cleared only when an UNRELATED full-enumeration land arrived — a ~35-minute window in
+  which main was green and the record said otherwise. Route (b)'s full-enumeration test is now the
+  SUFFICIENT case it always was rather than the only one.
+  WHAT (c) DOES NOT CHANGE, each stated because a reader must be able to check it: rule 3's VACATE
+  disposition is untouched (a green full-enumeration land whose tree lacked the file still VACATES —
+  route (c) simply has nothing to say about a row that records no selection); rule 4 is untouched and
+  the fold remains free of `now`, any window and any deadline; rule 6 is untouched — this changes what
+  counts as EVIDENCE FOR CLEARING a record, never what happens WHILE one stands, so the pre-queue
+  refusal that reads this record is unaffected in both directions. HONEST BOUND: the evidence is a
+  key the emitter writes, so route (c) is PROSPECTIVE — rows journaled before it existed carry no
+  selection and keep clearing by routes (a)/(b) alone.
+  The file-existence conjunct is HISTORICAL — asked of the CLEARING ROW'S OWN SHA, never of the
+  current working tree. Both halves were established by audit-pre REDs on and neither is
+  optional: counts alone would clear a pair whose test file was DELETED or RENAMED since the
+  breakage (no longer in the enumeration, so the counts still read "full" while its test never ran),
+  and a working-tree check would clear a pair whose file was absent at that land and re-added
+  afterwards.
+
+  RULE 3 — A THIRD DISPOSITION, because absence is not a pass. A full-enumeration green land whose
+  tree did NOT contain the file VACATES the record (`test-file-removed`) rather than clearing it. It
+  is reported under its own count, never folded into the cleared count: "the test was not there" and
+  "the test ran and passed" are different facts, and a surface that conflates them tells a reader the
+  suite proved something it never executed.
+
+  RULE 4 — NEVER BY TIME. No window, no deadline, no expiry, and `now` is not a parameter of the
+  fold. Route (c) is held to this identically: it reads a recorded SET, never an age. This is the acceptance boundary, not a stylistic preference: a time-based expiry would ALSO
+  stop reporting a fixed test, so only clearing on the passing EVIDENCE distinguishes a fold that
+  works from one that merely goes quiet. Two journals whose rows carry identical elapsed time and
+  differ only in whether a clearing row exists MUST fold to different answers; two that differ only
+  in how OLD the establishing row is MUST fold to the same one. Everything the fold cannot establish
+  — an unresolvable sha, no git, a row missing the counts — FAILS CLOSED to NOT-evidence, leaving
+  the record reported.
+
+  RULE 5 — A LATER `at_main` RE-OPENS A CLEARED PAIR. The fold reports the CURRENT state of main, not
+  an ever-seen list: a test fixed and broken again is broken.
+
+  RULE 6 — IT NAMES A CAUSE; IT NEVER EXCUSES ONE. The record gates nothing, waives nothing, skips no
+  assertion and makes no land pass — the identical bound attribution record was built
+  under. This makes a broken main CHEAP TO KNOW ABOUT and must never make it cheap to bypass.
+
+  THE SURFACE (SPEC-0119 rule 29). The standing record is visible at session start beside the
+  existing derived debt views, suppressed when clean, and re-foldable on demand by `bin/yitc-v2 debt`
+  — the same one-wiring-site-buys-every-seam discipline every sibling view here uses, so it reaches
+  session-start, the land tail and the post-`/compact` re-fold at once. A fold nobody can see is
+  indistinguishable from no fold: the second branch to meet a broken main must learn it from a line,
+  not from a 420-570s verify.
+
+  ## Parameters
+
+  None consumed (`consumed: false`). The coverage map is a code constant, not a scalar read FROM
+  this spec; this body states the RULE the map must satisfy, never the map's contents (which would
+  drift between spec and code — the file-membership discipline SPEC-0077 section 1 already fixes for
+  the verify-surface constant). The known-broken fold consumes no parameter either — it has no
+  window and no threshold to read.
+
+  ## Rationale
+
+  Built on a fired trigger, not a forecast: SPEC-0132 Rule 4 defers affected-test selection until
+  measured land verify crosses its thresholds, and on 2026-08-14 two of its three limbs crossed
+  (p50 324.6s against the 300s limb, p95 866.2s against the 720s limb, over 837 land_completed
+  rows). Prior-art EXTENDED rather than reinvented: the same skip-what-the-diff-does-not-touch
+  doctrine already ships one granularity up, for consumer verify LAYERS (`subject_globs`,
+  SPEC-0152 rule 16), enabled after a 60-land replay with zero false would-skips; this spec carries
+  that doctrine down to the per-test-file granularity of the script-run suite path, reusing its
+  fail-closed edge set and its self-guard predicate rather than authoring a parallel design.
+
+  ## Verification
+
+  - VP1 (self-guard, differential): a diff touching `bin/**` yields an EMPTY would-omit set.
+    Failing input — remove rung R1 and the tripwire goes RED.
+  - VP2 (governs nothing, differential): the executed test set equals the unfiltered enumeration
+    regardless of the recorded decision. Failing input — feed the would-run set into the executed
+    list and the tripwire goes RED.
+  - VP3 (unknown mapping, differential): a changed path outside the coverage map yields an EMPTY
+    would-omit set. Failing input — have R3 return the mapped subset and the tripwire goes RED.
+  - VP4 (the record exists): a land's `land_completed.verify_metrics` carries the selection fields,
+    with would-run plus would-omit equal to the full test-file count.
+cites:
+  - SPEC-0077
+  - SPEC-0132
+  - SPEC-0152
+  - CHARTER.md#principle-3
+requires: [] # spec-level BLOCKING ordering ( B6) — spec/decision IDs that
+                               # must land first; requires-orders concurrent proposed children of
+                               # one spec (GRAPH §Spec lifecycle concurrent invariant). Omit if none.
+supersedes: ~ # spec-level replacement ( B6) — SPEC-XXXX this proposed spec
+                               # replaces; on activation (by the activation_owner_task's close) that
+                               # spec → status: superseded (atomic).
+activation_owner_task: # THE SINGLE ACTIVATION CARRIER (SPEC-0005 §5, the authority) — the ONE
+                               # task `T-XXXX` whose `task close` activates this spec (proposed→active)
+                               # + flips any `supersedes:` target. Singular; set EXPLICITLY (never derived
+                               # from cites/proposed_by); other implementing tasks merely `cite` the spec.
+                               # REQUIRED for proposed→active; forbidden while `draft`.
+proposed_by: # PROVENANCE / corpus carrier — who BIRTHED this proposed spec; NOT the
+                               # activation owner (that is `activation_owner_task` above). Work-first
+                               # : the authoring task `T-XXXX`. Plan-born (`plan accept`): the
+                               # PLAN slug (so the plan's corpus + finalization gate keep seeing it — P5).
+                               # NOT cites (cites is informational-only).
+binding: [code-enforced] # (Part I-A) — retrieval binding: which gating verb/stage
+                               # FETCHES this `retrieved` spec before acting. List of tokens from
+                               # {commit, close, audit-pre, audit-post, spec-new, plan-close} (a spec
+                               # MAY bind several; a surface MAY have several specs). Reserved token
+                               # `floor` = mandatory-tier always-loaded (NOT verb-fetched). Empty =
+                               # unbound. `graph build` inverts this into the verb→section map + the
+                               # floor trigger-map + the bidirectional completeness report. An active
+                               # read-rule spec (no `implements:`, not `floor`) left unbound is flagged
+                               # DANGLING. See the binding-contract spec (proposed_by).
+init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern declaration. Set
+                               # ONLY on a CONCERN spec that should surface at project activation (`init`).
+                               # A mapping; `graph build` DERIVES two views from it (the init-walk SET +
+                               # the human doc-checklist → graph/activation-checklist.md), exactly as the
+                               # floor-trigger-map is derived from `binding:`. FAIL-CLOSED: a row appears
+                               # ONLY when `init_question` is a non-empty string (a non-mapping value or a
+                               # missing/empty `init_question` is skipped — lands in NEITHER view). Keys:
+                               # init_question: <the prompt the activation walk shows — the surfacing key>
+                               # waiver: <what a bare waiver may omit / compensating-control+expiry note>
+                               # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
+                               # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
+implements_signature:
+  bin/lib/debt.py#open_known_broken: 9c7339c9d7889adb4f4ab67231f7d6c36e1afa3472144aa9d2721720d0329fa5
+  bin/lib/verify_runner.py#_run_verify_tests: b28f5fdb41bcf229873c4c0863c60270227d9967b53583e275890d4e6dbf842e
+  bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
+  bin/lib/verify_runner.py#_selection_omission_tripwire: b126dc3392997cd77448594bc042f1a4970b163264646316900c959434d3aea9
+  bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0
+  bin/lib/verify_runner.py#_shadow_select: 0475b0d463862f3bc4272e51057e9748d6f7707a14ac671fe82d584bb842ef31
+  bin/lib/verify_runner.py#governed_selection: cea15af5b8c5d8ddd19594b1062d030f0dc38e85ac329616aaf960e7c8c1d20c

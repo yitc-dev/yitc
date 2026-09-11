@@ -1,0 +1,310 @@
+# YITC v2 — Spec
+# Allocated by `bin/yitc-v2 spec new` (auto-ID + flock). Field catalog: SPEC-0030. FSM: GRAPH.md.
+
+id: SPEC-0100
+title: Behavioral-baseline default catalog — at-the-moment delivery of the seeded cross-project behavioral/UX-safety defaults (before-authoring-interaction)
+
+status: active
+
+created_at:
+
+travels: ~ # class-default KERNEL — the catalog + its delivery travel to every consumer
+                               # (a new project inherits the named defaults; the per-project FILL is its own spec).
+
+consumed: false # no code reads a governing scalar FROM this spec (the catalog is prose +
+                               # a review lens; the delivery is the floor binding, not a read param).
+
+implements: [] # DOCUMENTARY/DESIGN — delivery is the `before-authoring-interaction` floor
+                               # binding (below), not a code anchor. The floor ROW that surfaces this spec
+                               # in graph/floor-trigger-map.md is wired by the requires-ordered follow-up
+                               # (a proposed spec renders an unbound floor row → it cannot co-land
+                               # with the FLOOR_TRIGGERS edit; deviation 2026-06-22).
+
+body: |
+  ## Scenario
+
+  A project (a consumer, or the kernel) is about to author a user-facing interaction — a delete button,
+  a form submit, a money action. At THAT moment it should be reminded, without having to remember, that
+  a catalog of cross-project behavioral/UX-safety DEFAULTS already exists — so it FILLS a concrete project
+  spec from the relevant default instead of re-deriving the rule from an incident (the kupiclub
+  cabinet-delete class: an irreversible action fired with no confirm). The owner sees: a new project
+  inherits «confirm-before-irreversible» (and the candidate defaults) for free, names them once, and grows
+  the catalog when it finds a new universal default.
+
+  ## Internal
+
+  The named cross-project behavioral/UX-safety DEFAULTS live in the catalog pattern-doc
+  `patterns/behavioral-baseline-defaults.md` — the single home of the named index + the fill/grow/
+  adopt-back protocol + the review lens (SoT; this spec does NOT restate the UX-safety defaults — CHARTER §P5). EXCEPTION — the SECURITY authoring-moment defaults (§Security authoring-moment defaults below) single-home in THIS spec body: a DISTINCT axis (before-handling-a-secret / before-authoring-auth), so naming them here is not a double-home.
+  This spec is the catalog's RETRIEVAL-DELIVERY contract: it binds the `before-authoring-interaction`
+  floor surface, so `graph build` surfaces it in the always-loaded floor trigger-map (the at-the-moment
+  reminder, the floor-trigger-map analog). The floor trigger-map is kernel-derived and TRAVELS to consumer
+  build sessions (the kernel_provided consumer-build note) — so the reminder reaches a consumer at the
+  moment of UI authoring, where it belongs.
+
+  Scope bound (anti-complexity, CHARTER §Principle 1): this seeds the cross-project DEFAULTS + their
+  delivery — it is NOT a new rule engine. A project's behavioral rules already home in its own `specs/`;
+  the only added value is naming the defaults ONCE so a new project does not re-derive them. The delivery
+  REUSES the existing floor-trigger pipeline (per-spec `binding:` → `_build_binding_views` →
+  `_render_floor_trigger_map`, SPEC-0013), it does not add a parallel mechanism.
+
+  ## AI-session behavioral default (owner-communication axis)
+
+  The catalog ALSO names ONE AI-session behavioral default beside the user-facing UX-safety defaults:
+  `offer-audit-adhoc-on-a-structural-pre-plan-fork` (catalog naming in
+  `patterns/behavioral-baseline-defaults.md` §AI-session behavioral defaults). Its RULE-HOME is
+  AGENTS-PROTOCOL.md §Recommendation Default — read there for the trigger, scope bound, and
+  offered-not-auto semantics (named, not restated here — CHARTER §P5). This axis is delivered via that
+  always-loaded controller seed, NOT the before-authoring-interaction floor, which stays scoped to
+  user-facing UI.
+
+  Adoption (CHARTER §Principle 8, infra-class): a consumer FILLS a default by authoring its own concrete
+  `specs/<SPEC>.yaml` that `cites:` the catalog — that cite IS the consumer-read evidence. First evidence:
+  kupiclub SPEC-0016 (confirm-before-irreversible) — tracked by the blocking adopt-back cross to kupiclub
+  (a consumer-repo edit is cross-territory from the kernel).
+
+  ## Security authoring-moment defaults (owner-adjudicated LIGHT secbaseline)
+
+  Beside the user-facing UX-safety defaults (catalog SoT above) this spec ALSO names a SECURITY axis:
+  six authoring-moment security defaults, delivered on TWO floor surfaces — `before-handling-a-secret`
+  (a session about to handle key material / a credential / a ciphertext surface) and `before-authoring-auth`
+  (a session about to author an auth flow). These are PROMPTS/DEFAULTS a project FILLS or waives at the
+  moment it authors — never a gate, register, waiver-contract, or probe obligation (the heavier enforcement
+  form B is PARKED; owner adjudication decisions/secbaseline-fork-audit-adhoc.yaml GREEN, sole survivor =
+  this LIGHT form). Origin: a day of real aiseller incidents (X-0369 — an 8h prod-auth outage + a 5h
+  key-rotation outage from exactly the knowledge this catalog exists to deliver; X-0345 item 1 — a key
+  rotation with no ciphertext-surface map). Unlike the UX defaults (SoT = the catalog pattern-doc), this
+  security axis single-homes HERE in the spec body (a distinct axis — no P5 double-home).
+
+  **Delivered at `before-handling-a-secret`:**
+  1. **Key separation** — a data-encryption key is NEVER derived from or shared with the session / JWT
+     signing key (distinct purpose ⇒ distinct key). *Incident: X-0369 (aiseller reused the JWT-signing key
+     for data encryption).*
+  2. **No secret in runtime output** — no key / token / credential ever reaches logs, traces, or error
+     bodies. *Incident: X-0369 cluster.*
+  3. **No placeholder secret in a live env** — a live/prod environment never runs on a dev/placeholder/
+     example secret; the deployed secret is real and env-scoped. *Incident: X-0369 cluster.*
+  4. **Rotation is a rehearsed scripted procedure covering every ciphertext surface** (CAPABILITY, not a
+     one-time act) — the project CAN rotate a credential via a rehearsed script that re-encrypts every
+     ciphertext surface; a project with no ciphertext surface binds not-applicable WITH proof of that
+     absence. *Incident: X-0345 item 1 (rotation with no ciphertext-surface map → 5h outage).*
+  5. **Backup restore-drill** (CAPABILITY, same phrasing) — the project CAN restore from backup via a
+     rehearsed drill; not-applicable is bound only with proof of no persisted secret / ciphertext surface.
+     *Incident: X-0345 (secrets / crypto continuity).*
+
+  **Delivered at `before-authoring-auth`:**
+  6. **Auth baseline** — an authored auth flow sets an httpOnly session cookie, states its CSRF posture,
+     returns UNIFORM auth errors (no user-enumeration oracle), and rate-limits login. *Incident: X-0369 /
+     aiseller CSRF retrofit-live (8h prod-auth outage).*
+
+  Optional probe pointers (EXAMPLES ONLY — evidence a project MAY choose to add, never a required SPEC-0098
+  probe and never binding state): a grep of logs/responses for known secret prefixes (item 2); a scripted
+  rotation dry-run asserting every ciphertext column re-encrypts (item 4); a restore-drill that boots from a
+  fresh backup (item 5); an auth smoke asserting httpOnly + a 401 shape identical for unknown-user vs
+  bad-password (item 6). A project FILLS a default as its own concrete `specs/<SPEC>.yaml` (the cite IS the
+  consumer-read evidence) or waives with a reason — CONSIDERATION, never forced adoption.
+
+  ## UI accessibility authoring-moment defaults (before-authoring-UI)
+
+  A THIRD axis, delivered on the EXISTING `before-authoring-UI` floor surface — the row that already
+  points at this spec, derived from the SPEC-0093 `ui` concern block, NOT from this spec's
+  `binding:` list. This section therefore adds NO trigger and changes no delivery wiring; it fills the
+  surface that reader already reaches. Like the security axis above (and unlike the UX-safety defaults,
+  whose SoT is the catalog pattern-doc), accessibility single-homes HERE — a distinct axis, so no P5
+  double-home.
+
+  These three are a CONSTANT floor: they apply from the FIRST user, at any project size, and are NEVER
+  profile-gated — an interface either exposes its controls to a keyboard and a screen reader or it does
+  not, and retrofitting that later is the expensive path. Like every catalog item they are
+  CONSIDERATION, never forced adoption: a project FILLS one as its own concrete `specs/<SPEC>.yaml`
+  (that cite IS the consumer-read evidence) or waives it with a reason. They are never a gate,
+  register, waiver-contract, or probe obligation.
+
+  1. **Every interactive control has an accessible name** — every button, link, input, and icon-only
+     control exposes a non-empty accessible name (a visible label, `aria-label`, or `aria-labelledby`);
+     an icon-only control with no text is the recurring miss. A control a screen reader announces as
+     "button" is unusable, not merely unpolished.
+  2. **Every flow is keyboard-reachable** — each flow can be started, completed, and escaped with the
+     keyboard alone: every interactive element is focusable, focus is VISIBLE, focus order follows
+     reading order, and an overlay/modal traps focus then RESTORES it on close. No action is reachable
+     only by hover or pointer.
+  3. **A validation/error state is ANNOUNCED, not colour-only** — an error carries TEXT tied
+     programmatically to its control (`aria-invalid` + `aria-describedby`), and when it appears
+     asynchronously it lands in a polite live region so it is announced rather than silently painted.
+     Colour is never the sole carrier of the state.
+
+  Optional probe pointers (EXAMPLES ONLY — cheap evidence a project MAY adopt, never a required
+  SPEC-0098 probe and never binding state): item 1 — the axe-core `button-name` / `link-name` /
+  `image-alt` rules, or a DOM assertion that every focusable control resolves a non-empty accessible
+  name; item 2 — a DOM assertion walking Tab order through one flow and asserting it completes, or the
+  axe-core `focus-order-semantics` rule plus a no-positive-`tabindex` check; item 3 — a DOM assertion
+  that after an invalid submit the error TEXT is present and associated with its field, or the axe-core
+  `aria-valid-attr-value` rule over that wiring.
+
+  **i18n is deliberately NOT here yet** (locale formatting, RTL, translation-readiness): the accessibility
+  floor is constant from the first user, whereas i18n's cost and timing depend on whether a project will
+  serve a second locale at all. Recorded as a CHOICE, not an oversight — added when a project pulls it.
+
+  ## Born-secure authoring-moment baseline (before-authoring-public-boundary / before-adding-a-dependency)
+
+  A FOURTH axis, delivered on TWO new floor surfaces — `before-authoring-public-boundary` (a session about
+  to author an endpoint, accept external input, render user text, read/write an object on someone's behalf,
+  accept an upload, or make an outbound request on a caller-supplied URL) and `before-adding-a-dependency`.
+  The adjudication (decisions/security-born-secure-authoring-baseline-audit-adhoc.yaml, finding 2)
+  deliberately kept it to TWO tokens: a per-seam split (`before-authoring-an-endpoint` +
+  `before-accepting-external-input`) would deliver this same spec twice at one seam. Like the
+  security axis and the accessibility axis, these items single-home HERE — a distinct axis, no P5
+  double-home. Derived from OWASP ASVS L1 (the CHARTER §Principle 1 Filter 4 documented external analog),
+  NOT pasted from it: ten items, each with ONE cheap differential probe. What is deliberately NOT seeded at
+  this baseline, recorded as a CHOICE: ASVS L2/L3 depth, WAF/RASP/SIEM platforms, pen-test programs,
+  SLSA/SBOM signing, HSM key ceremonies, enterprise SAML/SCIM, and broad scanner-platform mandates — all
+  profile-escalatable later. Like every catalog item these are CONSIDERATION, never forced adoption: a
+  project FILLS one as its own concrete `specs/<SPEC>.yaml` (that cite IS the consumer-read evidence) or
+  waives it with a reason. They are never a gate, register, waiver-contract, or probe obligation.
+
+  DELIVERY IS PROFILE-GATED (SPEC-0198). Two items are a CONSTANT FLOOR — every project hears them from the
+  first line of code, at any size. The other eight are BOUNDARY items, delivered when the project's resolved
+  `surface` is `public` or `unknown` (SPEC-0198 rule 2 treats an unresolved dimension as WIDE; rule 7 means a
+  proven `prototype` hears the constant floor alone). The gate is membership of the item's lens in the
+  `check_set` `bin/lib/profile.py` resolves — the ONE derivation site, never re-derived here. Because a
+  profile is a snapshot and an EDIT can move it, the delivery's FIRST line asks whether THIS edit raises the
+  profile (SPEC-0198 §8); if it does, apply the higher check-set to THIS edit rather than to the next one.
+
+  1. **Object-level authorization** — `object-level-authz` (ASVS L1 V4.1.1 / V4.2.1). Every object read,
+     update and delete re-checks that the CALLER owns or is granted THAT object id; a route-level
+     logged-in check is authentication, not authorization.
+     *Probe:* as user A, request user B's object id and assert the response carries none of B's fields.
+     *Bad input:* `GET /objects/<B_id>` with A's session — a 200 carrying B's data FAILS the probe.
+  2. **Input validation and canonicalization** — `input-validation` (ASVS L1 V5.1.3 / V5.1.4). Every
+     external field is validated against a positive schema (type, enum membership, length) BEFORE use, and
+     a rejection changes no state.
+     *Probe:* send a malformed type, an unknown enum value, and an oversized field; assert 4xx and that
+     the stored record is byte-identical to before.
+     *Bad input:* `{"role": "wizard", "age": "abc"}` on a route accepting `role` in `{user,admin}` — a 2xx,
+     or a mutated record, FAILS the probe.
+  3. **Injection-safe data access** — `injection-safe-data-access` (ASVS L1 V5.3.4 / V5.3.8). Every query
+     and command is built from parameterized/bound values, never from concatenated caller input.
+     *Probe:* submit a control-character payload in a filter field and assert the result set is EMPTY (or
+     the literal match), never widened, and that no shell/DB command ran.
+     *Bad input:* `' OR '1'='1` in a search field — a response returning ALL rows FAILS the probe.
+  4. **Output encoding** — `output-encoding` (ASVS L1 V5.3.1 / V5.3.3). Stored and reflected user text is
+     contextually encoded at render; markup in data is never markup in output.
+     *Probe:* store text containing script markup, re-render the page, and assert it appears as inert TEXT.
+     *Bad input:* `<script>alert(1)</script>` saved in a display name — a live script node in the DOM FAILS
+     the probe.
+  5. **Public endpoint size and rate bounds** — `endpoint-size-rate-bounds` (ASVS L1 V13.2.4 / V12.1.1). A
+     publicly reachable endpoint caps request body size and has a deterministic burst-protection path.
+     *Probe:* POST a body over the cap and assert 413; then burst the endpoint and assert a deterministic
+     429/protection response rather than a timeout.
+     *Bad input:* a 100 MB body to an endpoint documented for 1 MB — a 200 (or a hung worker) FAILS.
+  6. **Security headers and CORS** — `headers-cors` (ASVS L1 V14.4.1 / V14.5.3). Public responses carry the
+     baseline headers, and a disallowed Origin never receives a credentialed
+     `Access-Control-Allow-Origin`.
+     *Probe:* request with a disallowed `Origin` and assert no ACAO echo alongside
+     `Access-Control-Allow-Credentials`.
+     *Bad input:* `Origin: https://attacker.example` — a response echoing that origin with credentials
+     allowed FAILS the probe.
+  7. **Upload handling** — `upload-handling` (ASVS L1 V12.1.1 / V12.3.1 / V12.5.1). Uploads are bounded by
+     size, restricted by verified type, stripped of path components in the filename, and served
+     non-executable and non-inline.
+     *Probe:* upload a file whose name traverses and whose type is disallowed; assert rejection, and assert
+     an ACCEPTED file is served with a non-executable content type and `Content-Disposition: attachment`.
+     *Bad input:* a filename of `../../etc/passwd.php` — an accepted upload, or one written outside the
+     upload root, FAILS the probe.
+  8. **SSRF and outbound URL restriction** — `ssrf-outbound-url` (ASVS L1 V12.6.1 / V5.2.6). A
+     caller-supplied URL is validated against an allowlist and resolved-address check BEFORE any outbound
+     request; loopback, link-local, private and cloud-metadata ranges are refused.
+     *Probe:* submit a metadata-service URL and assert the refusal happens with NO outbound request made.
+     *Bad input:* `http://<ip>/latest/meta-data/` — any outbound attempt at all FAILS the probe.
+  9. **Dependency hygiene** — `dependency-hygiene` (ASVS L1 V14.2.1 / V14.2.4). CONSTANT FLOOR. Every
+     dependency is pinned in a manifest WITH a committed lockfile, installs are frozen (no resolution drift
+     at build time), and no critical/high advisory is carried unwaived.
+     *Probe:* run the frozen install and the advisory audit in CI and assert both are clean.
+     *Bad input:* an unpinned range with no lockfile entry — a frozen install that silently resolves it, or
+     an audit reporting an unwaived critical, FAILS the probe.
+  10. **PII, log and error safety** — `pii-log-error-safety` (ASVS L1 V7.1.1 / V8.3.4 / V14.3.2). CONSTANT
+     FLOOR. Credentials, tokens and personal data never reach logs, traces or error bodies, and a public
+     error response never carries a stack trace or internal identifier.
+     *Probe:* drive a request with a fake password/token/email through a deliberate failure and grep the
+     logs and the response body for those literals.
+     *Bad input:* a request carrying `password=hunter2-probe` that 500s — that literal appearing in a log
+     line or the response, or a stack trace in the public body, FAILS the probe.
+
+  ## Rationale
+
+  Real incident (CHARTER §Principle 1 Filter 4): kupiclub cabinet delete fired immediately on click, no
+  confirm → kupiclub SPEC-0016. Today every project re-derives such universal defaults from scratch, usually
+  only after its own incident. Prior-art: the existing general UX patterns (`ux-destructive-operation-safety`,
+  `ux-general-principles`) carry the CONTENT but are not a NAMED, delivered cross-project default catalog.
+  The seed-and-grow shape (the LOGIC sibling of design-by-default) names them once + delivers them. Origin:
+  cross X-0059.
+
+  ## Verification
+
+  - graph query SPEC-0100 resolves the active spec (post-activation).
+  - graph query behavioral-baseline-defaults resolves the catalog pattern node; the pattern carries a
+    "## Review lens" section (state-check).
+  - A seeded ACTIVE spec bound to `before-authoring-interaction` inverts into verb_to_specs (the floor-row
+    mechanism, exercised by tests/test_t9421_behavioral_baseline_catalog.py; the live floor ROW lands in).
+  - The two security tokens (before-handling-a-secret / before-authoring-auth) each render a
+    floor-trigger-map row pointing at this spec; differential — removing a token from binding: removes
+    its row (graph build regenerates graph/floor-trigger-map.md).
+  - The two born-secure tokens (before-authoring-public-boundary / before-adding-a-dependency)
+    each render a floor-trigger-map row pointing at this spec; differential — removing a token from
+    binding: removes its row (tests/test_t12086_born_secure_triggers.py).
+  - The ten §Born-secure items are delivered PROFILE-GATED by `graph.born_secure_render` off the ONE
+    SPEC-0198 resolver: a prototype-profile checkout receives the two constant-floor items and NOT the
+    eight boundary ones; a public-surface checkout receives all ten; an UNRESOLVABLE profile fails CLOSED
+    to the two constant-floor items. The profile-raising question (SPEC-0198 §8) is the FIRST line of the
+    delivery, ahead of the section heading (differential — same test file).
+  - Each of the ten items names a one-line differential probe and the bad input that FAILS it (state check
+    over this body; the probes are exercised table-driven in the same test file).
+  - The three accessibility items (accessible name · keyboard-reachable flow · error announced,
+    not colour-only) are present in §UI accessibility authoring-moment defaults, each with an optional
+    example probe (state check: grep this body for the three item headings and for the probe-pointer
+    paragraph naming an axe-core rule or a DOM assertion for each). Differential — deleting an item
+    drops its heading from that grep; and the `before-authoring-UI` floor row is UNCHANGED by this
+    section because the row is derived from the SPEC-0093 `ui` concern block, not from this
+    spec's binding: (differential — the row moves only if that concern block or binding: changes,
+    neither of which this section touches).
+
+cites:
+  - behavioral-baseline-defaults
+  - ux-destructive-operation-safety
+  - ux-general-principles
+  - SPEC-0013
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-8
+
+requires: []
+supersedes: ~
+activation_owner_task: # task close activates proposed→active
+proposed_by: # provenance (work-first authoring task)
+binding: # before-authoring-interaction : the FIRST behavioral, non-CLI-verb
+  - before-authoring-interaction # floor surface. Registered in BINDING_VERB_SURFACES here; the FLOOR_TRIGGERS
+                               # ROW that renders it in the floor trigger-map is wired by (requires).
+  - before-handling-a-secret # — security authoring-moment defaults (secret/key/ciphertext axis)
+  - before-authoring-auth # — auth baseline (delivered when authoring an auth flow)
+  - before-authoring-public-boundary # — the born-secure boundary items (endpoint / external input /
+                               # output rendering / object access / upload / outbound URL), profile-gated
+  - before-adding-a-dependency # — the born-secure dependency-hygiene item (constant floor)
+init_concern: # — activation baseline-concern declaration (SPEC-0030 schema;
+                                 # DERIVED into graph/activation-checklist.md by SPEC-0096). The cross-project
+                                 # behavioral/UX-safety DEFAULTS are inherited by every consumer regardless
+                                 # of stack/archetype (the catalog travels — SPEC-0100) → tier: universal.
+  init_question: >-
+    When authoring a user-facing interaction (a delete button, a form submit, a money action), does
+    this project FILL the relevant cross-project behavioral/UX-safety DEFAULT (e.g.
+    confirm-before-irreversible) from the catalog `patterns/behavioral-baseline-defaults.md` into its
+    own spec — instead of re-deriving the rule from an incident? Adopt the behavioral-baseline
+    defaults, or waive.
+  waiver: >-
+    A project with no user-facing interactions (a pure library / CLI with no destructive or
+    irreversible actions) may bare-waive. A project that HAS such actions but waives a specific default
+    must record a reason — the catalog guarantees CONSIDERATION, never forced adoption (SPEC-0096
+    rule 5).
+  evidence: >-
+    a consumer-authored `specs/<SPEC>.yaml` that `cites:` the catalog (the consumer-read evidence —
+    first instance: kupiclub SPEC-0016, confirm-before-irreversible), reached at authoring time via the
+    `before-authoring-interaction` floor reminder in graph/floor-trigger-map.md.
+  tier: universal

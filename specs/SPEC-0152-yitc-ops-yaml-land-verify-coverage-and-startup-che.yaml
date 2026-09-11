@@ -1,0 +1,881 @@
+id: SPEC-0152
+title: 'yitc-ops.yaml land-verify, coverage and startup-check sections (split from SPEC-0093)'
+
+status: active
+
+created_at:
+
+travels: ~ # kernel class-default (spec new --travels kernel; recorded in spec_filed).
+                               # The moved carrier sections travel to a consumer via `-C` — kernel realm.
+
+consumed: false # per-project ops config values only (verify commands / coverage globs /
+                               # startup-check commands) — never a kernel-read governance scalar.
+
+extension: ~
+
+implements: # 6 anchors re-homed VERBATIM from SPEC-0093 ( split).
+  - bin/lib/graph.py#_coverage_admission_warnings # rule 15 — the B5 coverage-admission check
+  - bin/lib/graph.py#_verify_layer_coverage_warnings # rule 16 — the verify-layer coverage WARN (X-0140)
+  - bin/lib/worktree.py#_consumer_zero_probe_guard # rule 16 — the EXECUTABLE land RUN over verify.layers (X-0140)
+  - bin/lib/worktree.py#_undeclared_source_layers # rule 16 — the layer-PRESENCE check: a source layer absent from verify.layers (X-0140)
+  - bin/lib/verify_runner.py#_consumer_tests_delegation # rule 16 — the tests-sweep DELEGATION predicate: a covering layer skips the bare sweep (X-0297)
+  - bin/lib/init.py#_migrate_legacy_verify_yaml # rule 5 — the one-time yitc-verify.yaml→verify.layers migration
+  - bin/lib/session.py#startup_check_lines # rule 17 — the OPT-IN startup_checks: reader + aggregated report-only echo line (X-0191)
+  - bin/lib/graph.py#_verify_layer_boundary_warnings # rule 16 amend — the report-only OUTSIDE-EVERY-BOUNDARY WARN (X-0375)
+  - bin/lib/debt.py#unexecuted_test_classes # rule 24 — the never-run/stale test-class debt fold (X-0375)
+  - bin/lib/debt.py#undeclared_class_remedy # rule 24 §declared-class validation — the point-of-construction check + the artifact-improving remedy text (X-1057)
+  - bin/lib/worktree.py#_delegated_tests_execution_gap # rule 16 §delegation-is-a-declaration — the execution-registry gap: which covered files the UNION of the declared layers names (X-0860; union widening / X-0894)
+  - bin/lib/worktree.py#_render_tests_delegation_note # rule 16 §delegation-is-a-declaration — the ONE renderer carrying the trust boundary + the named gap to every delegating site (X-0860)
+  - bin/lib/task.py#cmd_task_test # rule 16 §delegation-is-a-declaration — the Stage-6 delegating site: the QUALIFIED `task test --run` PASS wording the sub-rule governs (X-0860, audit-post RED)
+  - bin/lib/worktree.py#_uncommitted_layer_surface # rule 16 §stage-6-reads-a-working-tree — the uncommitted-inside-a-declared-surface signal: which working-tree paths a layer's own globs claim that are in no commit (X-1209)
+  - bin/lib/worktree.py#_render_uncommitted_layer_surface_note # rule 16 §stage-6-reads-a-working-tree — the ONE renderer carrying that Stage-6 caveat (X-1209)
+  - bin/lib/worktree.py#_work_batch_declared_product_source # rule 27 — the `product_source:` reader: the per-repo product-source DECLARATION, decoupled from verify covers
+  - bin/lib/worktree.py#_work_batch_product_source_migration_note # rule 27 §the-narrowing-must-never-be-silent — the report-only note for a repo declaring covers but no product_source
+
+body: |
+  ## Scenario
+
+  The land-verify, coverage-admission, and startup-check facets of a project's `yitc-ops.yaml`
+  ops-contract carrier (SPEC-0093). In the SAME one carrier file a project declares which land-verify
+  LAYERS the `land` gate runs, which load-bearing code surfaces are reasoned spec-less
+  (coverage-admission), and its own cheap report-only startup checks. These sections were SPLIT OUT
+  of SPEC-0093 (SPEC-0120 §3 aggregate-neutral split) when that carrier grew past the one-bounded-read
+  ceiling; they are the code-backed cluster — their `implements:` anchors are the land-verify runner,
+  the coverage / verify-layer WARNs, and the startup-check reader.
+
+  ## Internal
+
+  A SPLIT-OUT part of SPEC-0093 (the yitc-ops.yaml project ops-contract carrier). It carries FOUR of
+  that carrier's rules VERBATIM — the land-verify / coverage / startup-observability surface:
+  **rule 5** (verify's authoritative home is `verify.layers`), **rule 15** (`coverage:` section),
+  **rule 16** (`verify:` section — the per-layer land-verify policy), **rule 17** (`startup_checks:`
+  section). Every carrier-wide rule these depend on (rule 1 one-file/one-section, rule 3
+  declare-or-waive fail-closed, rule 6 per-section waiver policy, rule 7 derived-surfaces-only, rule
+  18 registry-generated surfaces) stays in SPEC-0093 and governs unchanged.
+
+  **Concern-registry blocks stay on SPEC-0093 (single-SoT — NOT re-homed here).** This spec carries the
+  moved rules' PROSE + their `implements:` anchors ONLY. The `concern:` / `born:` registry blocks for
+  `verify` / `coverage` / `startup_checks` REMAIN on the ACTIVE SPEC-0093: born-ops generation is
+  active-gated (`_active_concern_blocks` / SPEC-0128), so a concern block on this PROPOSED spec
+  would silently vanish from every consumer's born `yitc-ops.yaml`. The generation metadata is part of
+  the carrier's `init.py#cmd_init` seed/sweep mechanism (which also stays on SPEC-0093), so it belongs
+  with the active carrier — there is exactly ONE home for each concern block, never a duplicate.
+
+  **Shared rule numbering (the split-pair convention).** These rules KEEP their original SPEC-0093
+  numbers, so the moved text is byte-identical and every in-code `rule N` ref changes only its spec
+  id. A bare `rule N` inside a moved rule body whose number is NOT one of {5, 15, 16, 17} refers to
+  the SPEC-0093 rule of that number (e.g. rule 16's references to "rule 3 / rule 6 / rule 10" are
+  SPEC-0093 rules). The two specs are ONE carrier contract split across two files (SPEC-0120 §3).
+
+  ### 5. `verify`'s authoritative home is the carrier `verify.layers` (the slice-1 single-home, MIGRATED — no straddle, P5)
+  Slice-1 pinned `verify` to `yitc-verify.yaml`; that single-home is now MIGRATED into the carrier
+  `verify.layers` section (rule 16) — the AUTHORITATIVE source-of-truth for the land-verify layer
+  universe. This is the migration slice-1 itself NAMED as a tracked follow-up, realized in-place
+  on this active carrier (the rule-4 extensibility). The POLICY moved here; the EXECUTABLE leg —
+  `land` reading `verify.layers` (run every declared layer / fail-on-any / per-layer + section waiver),
+  the explicit RETIRE of `yitc-verify.yaml` (REFUSED on read at land — never silently read), and its
+  init-time MIGRATION (a legacy `yitc-verify.yaml` folded into `verify.layers` + removed) — SHIPPED in
+   (bin/lib/worktree.py + bin/lib/init.py). There are NEVER two LIVE homes: `yitc-verify.yaml` is
+  RETIRED and `verify.layers` is the SOLE home (gate-specs finding #4 — decided here, not on the fly).
+
+  ### 15. The `coverage:` section schema (rule-4 section-add — the B5 coverage-admission carrier;, X-0129)
+  The `coverage:` top-level section is the durable carrier for the **B5 coverage-admission** — WHICH
+  load-bearing code surfaces are REASONED spec-less (a deliberate exclusion) vs a genuine NEW orphan.
+  Before this carrier the judgment survived ONLY as a consumer's closed-task free-text (the trend-finder
+   ~30-module list) and ROTTED the moment no one re-read it: `graph build` reported code↔spec
+  coverage but had no admission REFERENCE, so a NEWLY-added uncovered load-bearing module tripped nothing
+  and was indistinguishable from a reasoned exclusion (X-0129). This rule OWNS the section SHAPE; the
+  CHECK that consumes it is `bin/lib/graph.py#_coverage_admission_warnings`, called report-only from
+  `graph build` (it diffs the project's live load-bearing surfaces against spec coverage + the admission
+  list; GRAPH «NOT a validation layer» — it WARNs, never fails the build).
+
+  **OPT-IN — NOT declare-or-waive, NOT fail-closed (the `extensions:` rule-13 model).** An ABSENT
+  `coverage:` section, OR a present section with an empty/absent `load_bearing:`, means the project does
+  NO coverage-admission tracking — a legitimate silent-clean default, never an error. A project opts in
+  by declaring its load-bearing surface universe. The kernel checks the section's SHAPE only IF PRESENT.
+
+  **DECLARE — two lists:**
+  - `load_bearing:` — a list of globs (each repo-relative, e.g. `bin/lib/*.py`) enumerating the
+    LOAD-BEARING surface universe the check walks. Empty/absent = no tracking (the opt-in default).
+  - `admitted:` — a list of the REASONED spec-less surfaces that are NOT flagged. Each entry is a
+    mapping carrying a non-empty `surface:` (a repo-relative path) AND a non-empty `reason:` (why it is
+    a deliberate spec-less exclusion, not an orphan). An admission entry missing either key does NOT
+    suppress — an evidence-less admission can never silently hide a new orphan (the fail-OPEN safety
+    rule; audit-pre finding 0).
+
+  **The check (report-only):** for each file matching a `load_bearing:` glob, if it is NEITHER
+  spec-covered (a key in the graph's `code_to_specs` — an `implements` edge from an active spec) NOR
+  validly `admitted:`, `graph build` emits a report-only stderr WARN naming it as a candidate new orphan.
+  PURE per-project ops config the graph-build check READS — never a kernel-read governance scalar (this
+  spec stays `consumed: false`).
+
+  **WAIVE — the whole concern.** A `coverage:` section may instead carry `waiver: { reason: <why> }` (a
+  LOOSE bare reason — a project that deliberately tracks no coverage admission); the check then skips.
+
+  ### 16. The `verify:` section schema (rule-4 section-add — the per-layer land-verify policy; / X-0140)
+  The `verify:` top-level section is the AUTHORITATIVE source-of-truth for a project's LAND-VERIFY LAYER
+  UNIVERSE — the set of test layers the `land` gate runs at the `verify` moment (e.g. a backend pytest
+  layer AND a frontend smoke layer). It is the slice-1 `verify` single-home (rule 5) MIGRATED from
+  `yitc-verify.yaml` into the carrier. This rule owns the section SHAPE; the EXECUTABLE land RUN (run
+  every declared layer, FAIL on any failed layer, honor a per-layer waiver, migrate/retire
+  `yitc-verify.yaml`, per-layer command inherits the F-025 hermeticity contract) is owned by the
+  implementing land card. DECLARE-OR-WAIVE, fail-closed, checked ONLY IF PRESENT (the
+  security/ui/tests/host_config backward-compat precedent — a pre-`verify:` carrier still passes). The
+  kernel checks the STANCE + structural SHAPE, never the command's correctness (rule 3). PURE per-project
+  ops config the land/build verbs READ — never a kernel-read governance scalar (this spec stays
+  `consumed: false`).
+
+  **The authoritative land-layer SoT (the design spine, X-0140 finding #1).** `verify.layers` is the
+  authoritative enumeration of the project's land-verify layers — fail-closed cannot catch an OMITTED
+  layer without it (a frontend layer silently untested at land is exactly the X-0140 incident). A "known
+  layer" is defined against this list, and the report-only verify-layer coverage WARN below is computed
+  against it.
+
+  **DECLARE — a non-empty `layers:` list.** Each entry is a mapping carrying a required non-empty
+  `layer:` name (the layer id, e.g. `backend` | `frontend`), and is itself PER-LAYER DECLARE-OR-WAIVE,
+  fail-closed:
+  - DECLARE the layer — a non-empty `command:` string (the hermetic verify command `land` runs for that
+    layer; the kernel checks shape, never correctness — rule 3); OR
+  - WAIVE the layer — a `waiver:` mapping with a non-empty `reason:` (a LOOSE per-layer waiver — a layer
+    legitimately without a harness yet).
+  A layer entry carrying NEITHER `command:` nor a reasoned `waiver:` is an UNANSWERED LAYER → ERROR (the
+  per-layer fail-closed floor, rule 3). A layer entry carrying BOTH is a contradiction → ERROR (a layer
+  is EITHER declared OR waived). An OPTIONAL `covers:` (a list of non-empty glob strings, repo-relative —
+  shape-only, never judged for value) names the code surface that layer verifies; it feeds the
+  report-only coverage WARN below and — for the ONE tests-dir case in the §tests-sweep delegation
+  sub-rule below — the land RUN's tests-sweep delegation (the RUN otherwise ignores it).
+  `covers:` SCOPES VERIFICATION AND DECLARES NOTHING ABOUT WHAT THE REPO SHIPS — see rule 27
+  (`product_source:`), which owns that second question. Until the work-batch carrier gate read
+  THIS field as its per-repo product-source set, which loaded one field with two opposite incentives
+  (narrow is good here, narrow is bad there); it no longer reads it at all. Narrow `covers:` freely for
+  verify-scoping reasons — that is what it is for.
+  A DECLARED
+  layer MAY additionally carry an OPTIONAL `prep:` dependency-prep sub-field (the §per-layer prep sub-rule
+  below): the land runner runs it INSIDE the fresh worktree BEFORE that layer's `command:`.
+
+  **The `health:` sub-field — WHICH declared layers a NIGHTLY health run may execute (a SECTION-level
+  sub-rule of `verify:`, not a new section; / SPEC-0105 §1a).** The OPTIONAL `verify.health:`
+  is the project's per-layer OPT-IN for the nightly project-verify health check: `layers:` — a
+  non-empty list of names that must each match a `verify.layers[].layer` already declared above — or
+  a `waiver: {reason:}` / absence, which are equally legitimate non-adoptions. It DECLARES NO COMMAND
+  AND NO LAYER OF ITS OWN: it SELECTS from the layer universe this rule already owns, so there is one
+  layer vocabulary and it cannot drift between the land run and the health run.
+
+  WHY AN OPT-IN AT ALL, since it costs a project a second declaration: a health run executes these
+  commands in the project's checkout unattended, on the KERNEL's schedule. Running every layer is not
+  free (a container/browser layer costs minutes), and the kernel cannot tell a cheap layer from an
+  expensive one — `timeout:` is a BUDGET, not a cost — so any kernel-side selection rule would be the
+  kernel GUESSING which of another project's commands are safe to run in that project's territory
+. Naming the layers here is that authorisation, at the granularity the cost actually varies
+  at. A layer's `prep:` is NOT run by a health run (it is a dependency-tree write), so a layer that
+  cannot pass without its prep must not be named here.
+
+  The kernel checks STANCE + SHAPE only (rule 3), and the READER's obligations are SPEC-0105 §1a's:
+  a name here that matches no declared layer is a BROKEN WATCH and alerts (never a silent skip); a
+  declared layer NOT named here is reported as not-run BY NAME, never counted as passing; and a
+  project with no opt-in reports that it declares none — never a silent healthy.
+
+  **The `combined_candidate_safe:` sub-field — the project's COMBINED-CANDIDATE assertion about its own
+  layers (a SECTION-level sub-rule of `verify:`, not a new section; / SPEC-0184 rule 2).** The
+  OPTIONAL `verify.combined_candidate_safe:` is a plain BOOLEAN by which the project asserts that its
+  DECLARED layers behave correctly when they run over a COMBINED candidate — a tree carrying several
+  changes merged together — rather than over one change at a time. Its ONE consumer is land-verification
+  batching (SPEC-0184): with `true`, several queued lands may be verified TOGETHER in one pass; without
+  it, each land is verified alone.
+
+  **WHERE THE PROJECT MEETS THIS KEY.** A key the project must assert is worth nothing if the
+  project is never told it exists — an opt-in nobody was told about is off by IGNORANCE, not by the
+  decision this declare-or-waive shape assumes was made (kupiclub: 154 land batches of ONE, every row
+  stamped `engagement: project-authored-verify-undeclared`, while the key lived only in kernel source
+  and in this body). So `combined_candidate_safe` is DECLARED on the `verify` concern's
+  `gated_capabilities:` (SPEC-0093), and the born `yitc-ops.yaml` template — plus every already-init'd
+  carrier, through the idempotent update path — carries it as a COMMENTED key with its meaning. That
+  disclosure is generated, never hand-listed, and changes nothing while the key stays commented; this
+  section remains the single home of the field's NAME, SHAPE and SEMANTICS (SPEC-0128 Rule 2).
+
+  **Why the project must assert it and the kernel must not infer it.** This section's own rule 3 boundary
+  applies at full strength here: a layer is an ARBITRARY command (`bash scripts/verify-stack.sh`), so the
+  kernel cannot know whether it isolates one change from another — a shared fixture, a port, a database,
+  a build cache shared across the combined tree can all make one member's failure indistinguishable from
+  a peer's. Inferring the property would be a guess dressed as a guarantee, so it is DECLARED, in the
+  declare-or-waive shape this carrier already runs on.
+
+  **FAIL-CLOSED, and the three failing shapes have ONE effect.** Only the BOOLEAN `true` engages
+  batching. ABSENT (the default every existing carrier has — backward-compatible by construction),
+  explicitly `false`, and MALFORMED (anything that is not the boolean, including the STRING `"true"`)
+  all mean the same thing: batches of one. They are distinguished in the reader's DIAGNOSTIC only,
+  never in effect. An unreadable or unparseable carrier is likewise not engaged — never widen a gate on
+  a file that could not be read.
+
+  **NOT consulted at all when the verify is KERNEL-AUTHORED.** The engagement predicate keys on WHO
+  AUTHORED the verify, never on repo identity (SPEC-0184 rule 2): where there is no project-authored
+  `layers:` list — no carrier, no `verify:` section, a section-level `waiver:`, or an empty list — the
+  verify in force is the kernel's own pinned suite, whose author and whose enforcer are the same party,
+  so no declaration is read anywhere. This sub-field governs the PROJECT-AUTHORED branch only. Consumed
+  by `bin/lib/batch_landing.py#_land_batch_engagement`; this spec stays `consumed: false` (pure per-project
+  ops config the land verb READS, never a kernel-read governance scalar — rule 16 head).
+
+  **The tests-sweep DELEGATION (X-0297; a SUB-rule of `verify.layers[]`).** The kernel's own
+  land-verify runs a BARE sweep of the repo-root `tests/` dir — each `tests/test_*.py` executed as
+  `python3 <file>`, exit 0 = pass (the ENGINE suite convention). On a `-C` consumer that sweep ran IN
+  ADDITION to the declared layers, making the root `tests/` a SECOND de-facto verify home — contradicting
+  rule 5 (`verify.layers` is the authoritative land-verify home; never two live homes). It also forced a
+  real cost: a pytest/venv consumer had to make EVERY test file script-runnable under the SYSTEM
+  `python3`, and its layer then re-ran the same suite properly (a double run per land).
+
+  **The rule.** When a consumer declares an EXECUTABLE layer (a non-empty `command:`, not waived) whose
+  `covers:` globs name the ROOT tests dir (first path segment `tests`), that layer IS the verify for that
+  surface — so the land RUN DELEGATES the bare sweep to it and SKIPS the sweep as redundant. This makes
+  rule 5 TRUE BY CONSTRUCTION for a covering consumer: one home, the declared layer. It is the ONE case
+  where `covers:` is load-bearing at the land RUN rather than report-only.
+
+  **NO verify hole — only the REDUNDANT half is skipped.** The layer itself still runs (the land RUN over
+  `verify.layers` is unchanged), so the tests stay verified — by the layer that claims to cover them.
+
+  **§DELEGATION-IS-A-DECLARATION — the kernel never prints an unqualified PASS over a surface it did
+  not run (X-0860).** The paragraph above is true about the LAYER and says nothing about the
+  FILES: `covers:` is the consumer's ASSERTION that the layer verifies `tests/`, and the kernel
+  verifies no execution behind it. Where that gap became a lie: kupiclub's layer was a hand-written
+  script registering each suite EXPLICITLY, one test file had ZERO references in it, and `task test
+  --run` printed `PASS — full subprocess suite green` while that file was executed by NOTHING — four
+  mutation-verified tripwires shipped through `land` believing they were gated. Two obligations follow,
+  at EVERY delegating site (one renderer, so they cannot drift):
+
+  1. **STATE THE TRUST BOUNDARY, unconditionally.** The delegation note says the kernel did NOT run the
+     files under `tests/` and does NOT verify the layer executed them, and the `task test --run` PASS
+     line is QUALIFIED accordingly — «the declared layer exited 0», never «the full subprocess suite is
+     green» (which, on this branch, no longer describes anything that happened). This half is NEVER
+     suppressed by a clean-looking check: an advisory is cheap by construction, and buying quiet with a
+     suppression rule is the failure mode.
+  2. **NAME WHAT IS PROVABLY UNREGISTERED, and claim nothing more.** There is no generic execution
+     ledger — a layer is an arbitrary command — so the kernel asks the NARROW PROVABLE question, «does
+     the layer's execution registry NAME this file?», reading the layer's `command:` plus the in-repo
+     script(s) it names, TRANSITIVELY to a small depth cap (bounded: repo-relative, worktree-contained,
+     depth-, size- and count-capped, and cycle-safe). Depth 1 — the scripts the command names — is not
+     enough once a layer splits into a DRIVER plus per-surface scripts, the split this kernel asks
+     consumers to perform: the suites are then named one level further down, and a depth-1 read accuses
+     files that all execute (kupiclub measured 37 of 38, X-0883 / X-0886). The cap is REQUIRED, not
+     optional — an unbounded follow is what the bound exists to refuse; it is a safety bound, never a
+     tuning knob.
+     The registry read is over the UNION of the declared layers, never the delegated one alone
+     (X-0894). `covers:` names THE single layer that answers for `tests/`, but real coverage
+     in a consumer is per-UNION: a covered file is routinely executed BY A DIFFERENT declared layer.
+     Read singly, the check CRIES WOLF — kupiclub moved `covers: [tests/**]` onto their `stack` layer
+     and 8 of 39 covered files were reported unnamed while `scripts/verify-static.sh`, a SIBLING
+     layer, executes all 8 by name (the host-side tripwires the in-container pytest cannot run). So a
+     covered file counts as named when ANY EXECUTABLE declared layer's registry names it; each layer
+     is walked under its OWN caps (a shared cap would let one layer starve the next, and a starved
+     read removes text, which ACCUSES more) and the per-layer texts are joined on a newline so no
+     cross-layer adjacency forges a match. A WAIVED layer never joins the union — it does not run, so
+     naming a file there absolves nothing. There is no layer-count cap: capping would re-create the
+     same false accusation one layer further out.
+     This widening is a FALSE-ALARM fix, NOT a verify hole being patched — the error direction was
+     OVER-reporting — and it must stay one: when that union registry names >=1 covered file the
+     declared layers demonstrably ENUMERATE their suites, and every covered file named NOWHERE IN ANY
+     OF THEM is still reported BY NAME. When it names none (a `pytest tests/`-style discovery runner)
+     NO per-file claim is made at all. A union that reported zero for everything would have REMOVED
+     the check rather than fixed it.
+
+  **Registry-based in BOTH directions.** A textual mention is not proof of execution — a comment or a
+  dead branch can name a file that never runs — so the report says a file is NOT NAMED IN THE REGISTRY,
+  and a named file is never rendered or implied as kernel-verified-as-executed.
+
+  **§STAGE-6 READS A WORKING TREE, LAND READS A COMMIT (X-1209).** The sibling clause above
+  bounds what `covers:` proves about EXECUTION. This one bounds what the Stage-6 mirror proves about the
+  INPUT, and it is a different gap: `task test --run` runs the SAME checks `land` runs (the
+   / / parity invariant), but it runs them at Stage 6 — BEFORE the Stage-7 commit.
+  So a declared layer whose command reads COMMITTED state (a `git diff <merge-base>..HEAD`) judges a tree
+  that does not yet contain this task's work, and its exit 0 says nothing about the branch that will land.
+  Measured (aiseller, 2026-08-31): the `file-size-limit` layer's script collected over
+  `<base>..HEAD`, the task's new 312-line test file was still untracked, the layer passed, and the
+  IDENTICAL command after the commit failed the same branch — costing a post-commit in-scope split plus a
+  re-audit on an already-RED card, on that card's third dispatch. The Stage-6 output over that input was
+  BYTE-IDENTICAL to the output over a branch with nothing wrong on it; that indistinguishability is the
+  defect, not the block. One obligation follows:
+
+  **NAME THE UNCOMMITTED PATHS INSIDE A LAYER'S OWN DECLARED SURFACE, and claim nothing more.** Whether a
+  given command reads committed state is UNPROVABLE from the kernel — a layer is an arbitrary command —
+  so the kernel asks the narrow provable question, «are there paths inside this layer's own declared
+  surface whose content is in NO commit?», and says only that this Stage-6 result does not cover them and
+  that it cannot rule out that the layer did not see them. The surface is the CONSUMER'S OWN declaration
+  (`subject_globs:` ∪ `covers:`), read with the same fnmatch idiom that decides whether the layer RUNS —
+  so ordinary bookkeeping dirt is excluded by construction rather than by a hand-maintained ignore list,
+  and a consumer that declared those paths meant to. The remedy the note names is the consumer's: commit
+  first and re-run, or make the layer read the WORKING TREE plus untracked files, which is what the
+  kernel's own `_task_diff_files` already does. NO new field, no new gate, no verdict — this is the same
+  report-only family as the clause above, with the same inverted fail-safe direction (any doubt yields
+  FEWER rows, never a fabricated one), so the parity invariant is stated honestly rather than weakened.
+
+  **REPORT-ONLY, and it fails toward not accusing.** Nothing here joins a `bad` list, changes a verdict
+  or moves an exit path — so the / / Stage-6==land parity invariant holds BY
+  CONSTRUCTION. Note the fail-safe direction is INVERTED relative to the delegation predicate above:
+  that predicate GUARDS an action, so any doubt runs the sweep (fail-CLOSED); this is a SIGNAL
+  DESCRIBING what a layer did, so any doubt makes NO per-file claim — one false accusation gets the
+  whole signal skimmed, while a missed detection only leaves the silence that already existed.
+
+  **Every bare-sweep site delegates, or the rule is a half-rule.** ONE predicate decides it, keyed off by
+  every path that would otherwise bare-sweep a consumer tree: the `land` candidate verify, its SPEC-0077
+  pinned last-green re-run (which fires precisely when the diff touches `tests/**` or `yitc-ops.yaml` —
+  the change a delegating consumer makes most), and the Stage-6 `task test --run` self-check (so the
+   / / Stage-6==land parity holds BY CONSTRUCTION, never re-encoded). The skip is
+  REPORTED, never silent: a gate that stops running must say so, and name the layer now covering it.
+
+  **Fail-CLOSED — any doubt runs the sweep.** No delegation on: the engine's OWN build (inert); an
+  absent / unreadable / malformed carrier; a SECTION-level `verify.waiver` (the land RUN short-circuits on
+  it, so the layers would NOT run — delegating there would leave the tests verified by nothing); a
+  layer that is waived, carries no executable `command:`, or names no `covers:` glob under `tests/`; or
+  a layer that names `tests/` but whose whole `command:` PROVABLY COVERS NOTHING.
+
+  **RUNNING IS NOT COVERING.** The executability test above proves a layer RUNS. It proves
+  nothing about the layer being able to COVER the surface it claims — so a layer declaring `covers:
+  [tests/**]` with `command: 'true'` passed every axis, SILENTLY REPLACED the bare sweep, and the land
+  read green while the suite that would have caught a defect never ran. Silent by construction:
+  nothing failed and nothing warned. So a layer whose whole `command:` is one of the shell's own
+  DO-NOTHING ATOMS does not delegate, and — since a gate that keeps running owes the same account as
+  one that stops — the refusal is REPORTED, naming the layer, its command and the carrier. It is never
+  a bare fall-through to the sweep, which would be indistinguishable from a project that declared no
+  routing at all.
+
+  **The discriminator is a CLOSED ENUMERATION, and that bound is the rule, not a shortfall.** It asks
+  only «is this command one of the shell's do-nothing atoms?» — never «does this command look weak».
+  An unrecognised command (a script, a test-runner invocation, a compound, an unparseable string) is
+  NOT provably a no-op and is HONOURED exactly as before, which is what keeps this fence from becoming
+  refuse-all-routing; a shape like `sh -c true` is deliberately out of reach, because widening the test
+  into a shell parser would re-introduce the guessing the enumeration exists to remove. The kernel
+  still checks STANCE + SHAPE only (rule 3): it judges no command's correctness, only whether the
+  command IS the null one.
+
+  **The pinned re-run reads its ROUTING from the CANDIDATE carrier (X-0657).** On the SPEC-0077
+  pinned last-green path the predicate runs over a worktree whose `yitc-ops.yaml` is the LAST-GREEN
+  overlay — while the candidate's NEW test files SURVIVE in its `tests/` (the overlay restores last-green's
+  files, it does not delete extra ones). Evaluated on the last-green carrier alone, that is a BOOTSTRAP
+  TRAP: a consumer ADOPTING delegation in the SAME land as the test file that needs it gets a fully GREEN
+  candidate verify and a RED pinned bare sweep → LAND: ABORT, with no one-land route to adoption (the
+  X-0657 incident: kupiclub, both layers OK + 49 domain-unit probes green in-container). So on that
+  path, when the last-green carrier does not itself delegate, the ROUTING — WHICH layer answers for
+  `tests/` — is read from the CANDIDATE carrier, and honoured ONLY IF that layer is one the LAST-GREEN
+  carrier will actually RUN (present, non-waived, executable `command:`, no section-level waiver) AND
+  whose command in the LAST-GREEN carrier is not a provable no-op (the §RUNNING IS NOT COVERING axis
+  above). That last qualifier is not decorative: matching the routed NAME against
+  executability alone let a candidate route `tests/` to a last-green layer that does nothing — the
+  routing face of the same hole, reachable by an operator who lands the route by itself.
+
+  **Why that is NOT a self-approval hole.** The pinned CHECKS still come from last-green on BOTH halves —
+  the overlaid last-green `tests/` files and the last-green `verify.layers` commands the land RUN executes
+  over the candidate subject. Only the ROUTING among those already-last-green layers is read from the
+  candidate; a candidate cannot conjure a verifier. A candidate that DELEGATES AWAY to nothing — naming a
+  layer that is absent, waived or commandless in last-green, or delegating under a last-green section
+  waiver — routes to a layer that will not run, so the predicate REFUSES, the bare sweep fires, and the
+  ABORT survives. Same ONE predicate, one optional `routing_from` carrier argument: no second predicate,
+  and the candidate verify + Stage-6 `task test --run` paths are unchanged (they read one carrier only).
+
+  **The `prep:` sub-field — per-layer dependency-prep (X-0140; a SUB-rule of `verify.layers[]`,
+  not a new section).** A `land`-verify layer runs inside a short-lived git worktree, but a frontend
+  layer's `node_modules` is git-ignored and therefore ABSENT in a freshly-created worktree — so that
+  layer cannot run there (the X-0140 incident: a frontend layer left un-wired at land, or hand-symlinked
+  by workers, ships untested by the gate). The `prep:` sub-field is the kernel fix: a per-layer
+  dependency-preparation step the land runner runs in the worktree BEFORE the layer's `command:`. It is
+  DECLARE-OR-WAIVE, the SAME fail-closed discipline the carrier uses, and checked ONLY IF PRESENT (a
+  layer with NO `prep:` prepares nothing — the backward-compat default; a Dockerized backend layer that
+  bakes its deps into an isolated image needs none). This is a SUB-rule of the existing `verify.layers[]`
+  contract (gate-specs finding [4] — keep `prep` inside `verify.layers[]`, no new section/file/parser),
+  authored as an IN-PLACE amend of this active spec (SPEC-0005 §7 in-place amend / one-home). The kernel
+  checks the declared STANCE + structural SHAPE, never the command's/lockfile's correctness (rule 3).
+
+  - **DECLARE — a `prep:` mapping carrying a required non-empty `mode:`** naming the built-in prep mode.
+    The kernel BUILT-IN mode in this slice is **`npm-ci`**: the runner runs the equivalent of `npm ci`
+    INSIDE the worktree, installing the layer's deps from the project LOCKFILE + the declared RUNTIME (a
+    CLEAN install from the lockfile — never a mutate-in-place `npm install`). OPTIONAL keys pin the prep
+    inputs when they are not at the repo/layer default (shape-only, never judged for value): `lockfile:`
+    (repo-relative path to the lockfile, e.g. `frontend/package-lock.json`), `manifest:` (the
+    `package.json` path), `package_manager:` (e.g. `npm`), `runtime:` (e.g. `node@20`), and `workdir:`
+    (the sub-directory the install + layer command run in, e.g. `frontend`). OR
+  - **WAIVE — a `waiver:` mapping with a non-empty `reason:`** (a LOOSE per-layer-prep waiver — a layer
+    that legitimately needs no prep, e.g. a Dockerized backend that bakes deps into its image).
+  - A `prep:` carrying BOTH a `mode:` and a `waiver:` is a contradiction → ERROR; a `prep:` carrying
+    NEITHER is an UNANSWERED prep → ERROR (the per-layer fail-closed floor, rule 3). `prep:` ABSENT
+    entirely = the layer prepares nothing (the checked-if-present backward-compat default — NOT an error,
+    distinct from a present-but-empty `prep:`).
+
+  **The machine-checkable prep record `verify_layer_prep` (gate-specs finding [5] — the stable contract
+  field name).** When the runner executes a layer's `prep`, it records a **`verify_layer_prep`**
+  state/event carrying: the `layer:` key, the RESOLVED `lockfile_hash:` (the content hash of the lockfile
+  the deps were installed from), the `package_manager:` it used, and the `runtime:` it matched. SPEC-0093
+  fixes this record's NAME + fields HERE so the sibling land-runner code card has a stable
+  contract to implement + emit, and the postcheck probe is machine-checkable. No SPEC-0025 events-catalog
+  edit is needed — the events catalog is code-derived from emit call-sites, so `verify_layer_prep` enters
+  the catalog when emits it.
+
+  **Fail-closed contract (no silent best-effort → no false-green).** If ANY prep input dimension cannot be
+  matched — the manifest, the lockfile, the package-manager, or the declared runtime is
+  missing / un-resolvable / mismatched — the prep FAILS the land (the layer is NOT run best-effort against
+  the wrong deps). Clean-install-from-lockfile + fail-on-mismatch is exactly what covers the 7
+  auditor-named failure modes: native-addon rebuilds, platform-specific optional packages, Node-version
+  drift, package-manager drift, postinstall side-effects, stale lockfiles, and tests that mutate
+  `node_modules`.
+
+  **Deferred NON-scope (named — gate-specs finding [1], later opt-in only).** Two optimizations are
+  EXPLICITLY out of this slice and NOT built pre-emptively (CHARTER §P1 F4 — add only when a real
+  land-time-cost incident pulls it): the shared **content-addressed dependency store** (approach D — a
+  warm cache keyed by lockfile hash; needs locking + GC + hash validation) and the **symlink / reuse-the-
+  main-checkout `node_modules`** cache (approach A — cheapest but weakest: false-green under a lockfile /
+  runtime / platform / native-addon-ABI mismatch, unsafe under concurrent parallel lands mutating one
+  shared tree). Approach A is admissible LATER ONLY as an opt-in cache guarded by an exact lockfile-hash +
+  runtime match + read-only discipline + a fall-back to `npm ci` on any mismatch — never the default. The
+  slice-1 built-in is the conservative per-worktree `npm ci` (approach C).
+
+  **The `timeout:` sub-field — a project DECLARES its land-verify bound (X-0204; a SUB-rule of
+  `verify.layers[]` + one OPTIONAL section scalar, not a new section).** `land` bounds every layer command
+  by a wall clock (the / SPEC-0071 hang guard — a verify must never hang the gate forever). That
+  bound was a GLOBAL 300s default, overridable ONLY by the `YITC_VERIFY_TEST_TIMEOUT` env var — so a
+  consumer whose verify is legitimately slower (a Docker bring-up running ~251s, passing standalone but
+  flaky-timing-out under land Docker-load) could only be rescued by a REMEMBERED env override on every
+  land: undurable, forgettable, and invisible to the carrier (the X-0204 incident, filed by kupiclub).
+  A project may now declare that bound DURABLY, in the carrier that already owns its verify policy:
+
+  - **Per layer — an OPTIONAL `timeout:`** on a DECLARED layer entry: positive seconds bounding THAT
+    layer's `command:` (and its `prep:`, which shares the layer's budget). Shape-only: the kernel checks
+    it is a positive number, never whether the number is big enough (rule 3).
+  - **Per project — an OPTIONAL section-level `timeout_seconds:`** on the `verify:` section: the default
+    bound for every layer that declares no `timeout:` of its own.
+  - **PRECEDENCE, highest first:** the `YITC_VERIFY_TEST_TIMEOUT` env ESCAPE HATCH · the layer's
+    `timeout:` · the section's `timeout_seconds:` · the 300s global default (whose VALUE is unchanged by
+    this rule). Env stays on top by design: a per-host/CI operator override a committed declaration could
+    veto would not be an escape hatch.
+  - **BOTH keys are OPTIONAL** — absent = the prior global-only behaviour, unchanged (the checked-if-
+    present backward-compat default; a pre-`timeout:` carrier still passes). Neither key participates in
+    the declare-or-waive stance: a timeout is a BOUND, not a probe, so omitting it waives nothing.
+  - **FAIL-CLOSED when present-but-malformed** — a declared timeout is a positive UNQUOTED NUMBER: not
+    null, not a string (`timeout: "900"` is a typo, not a declaration), not a bool (`timeout: true` is a
+    stance, not a bound), not non-positive. The land runner's accepted set is EXACTLY the init shape
+    hook's: the land-time reader is never LOOSER than the declare-time check, else a carrier `init`
+    rejects would still run at land. A bad section `timeout_seconds:` fails the land BEFORE any layer
+    runs; a bad per-layer `timeout:` is that layer's `malformed` outcome and its command does NOT run.
+    This is the OPPOSITE stance from the env override's fail-SAFE fall-through (: an operator's
+    typo must never disable the bound) — and deliberately so: a typo'd DECLARATION must never silently
+    revert to the global default it was written to replace, silently resurrecting the flake it was
+    declared to fix. A timed-out layer's abort NAMES the effective bound + how to raise it.
+
+  **WAIVE — the whole concern (section-level).** The section may instead carry a section-level `waiver:`
+  with a non-empty `reason:` (a LOOSE bare reason — a project with no land-verify layer declared yet).
+
+  **Exclusivity (fail-closed, mirrors rule 8).** A `verify:` section MUST NOT carry BOTH a `layers:`
+  declaration AND a section-level `waiver:` — a non-empty `layers:` XOR a section `waiver:`, never both →
+  ERROR. A `verify:` section present but carrying NEITHER is also an ERROR (declare-or-waive is
+  fail-closed, rule 3).
+
+  Concrete pinned shape (the kernel pins the SHAPE; a section waiver OR a non-empty layers list):
+
+      verify:
+        timeout_seconds: 600 # OPTIONAL — the default land-verify bound for layers with no `timeout:`
+        layers: # DECLARE: the AUTHORITATIVE land-layer universe — XOR a section waiver:
+        - layer: backend # required — the layer id (a non-empty string)
+          command: "pytest -q" # DECLARE this layer (XOR a per-layer waiver:): the hermetic land command
+          covers: ["app/**/*.py"] # OPTIONAL — globs naming the code surface this layer verifies (coverage WARN)
+        - layer: frontend
+          command: "npm run test -- --run" # DECLARE this layer: the hermetic land command
+          timeout: 900 # OPTIONAL — THIS layer's bound (positive seconds); beats timeout_seconds
+          prep: # OPTIONAL dependency-prep run in the worktree BEFORE command
+            mode: npm-ci # built-in: `npm ci` from the lockfile + runtime (XOR a prep waiver:)
+            workdir: frontend # OPTIONAL — the sub-dir the install + command run in
+            lockfile: frontend/package-lock.json # OPTIONAL — pin the lockfile when not at the repo default
+          covers: ["frontend/**/*.ts"] # OPTIONAL — globs naming this layer's code surface
+        # a layer that needs no prep simply OMITS `prep:` (a Dockerized backend bakes deps into its image)
+        # waiver: { reason: "<why>" } # section-level WAIVE (XOR layers:): no land-verify layer declared yet
+
+  **Declare-or-waive-THEN-GROW — the layer-PRESENCE prompt (X-0140 finding §1).** The rules above
+  make every layer IN the list answered. This sub-rule makes the LIST ITSELF answerable: a source layer that
+  exists in the repo but is named by NO `verify.layers` entry is a **SILENTLY-ABSENT layer** — the state
+  X-0140 filed (a frontend source tree, a backend-only verify, a GREEN land). The policy:
+
+  > **A task that changes a layer with no test harness DECLARES-OR-WAIVES it, then GROWS the harness when
+  > pulled. It never omits the layer.** A layer with no harness yet is a WAIVED layer whose `reason:` records
+  > the GROW-TRIGGER that will pull one — never an absent one. Absence is not an answer.
+
+  `land`'s consumer verify guard detects a source layer by a kernel MARKER (a file that proves that layer
+  exists in the tree) and, when the layer is named by no `verify.layers` entry, prints a **report-only
+  declare-or-waive PROMPT** naming the layer, the marker, and both legal answers.
+
+  - **REPORT-ONLY, never a gate.** The prompt adds nothing to the land's failure set; a land never fails on
+    it. The enforcement is visibility (the analog of the coverage WARN below). Promoting it to a blocking
+    multi-layer gate is the REBUILD declined (`wont-do` stands) — do not resurrect it without a fresh
+    incident (CHARTER §P1 F4).
+  - **ANSWERED = present in `verify.layers`,** DECLARED (a `command:`) or WAIVED (a `waiver: {reason}`).
+    Either silences the prompt; the per-layer stance check already polices the entry's shape. A declared
+    layer whose `covers:` globs name that tree also answers it (that layer says it verifies the surface).
+  - **The grow-trigger is NORMATIVE-only, never machine-checked.** Rule 3 fixes that the kernel checks the
+    declared STANCE + structural SHAPE, never the VALUE, and rule 6 makes a per-layer waiver LOOSE (a bare
+    non-empty reason). Grep-ing free-text prose for a grow-trigger is a value judgement any string defeats.
+    The spec prescribes WHAT the reason must say; the code checks THAT an answer exists.
+  - **A SECTION-level `waiver:` does NOT answer a DETECTED layer.** A fresh consumer is BORN section-waived,
+    so honoring the section waiver here would silence the prompt in exactly the born-waived-consumer-with-a-
+    frontend case X-0140 filed. A detected layer is answered PER LAYER.
+  - **The marker registry is SEED-AND-GROW** (`bin/lib/worktree.py#_SOURCE_LAYER_MARKERS`). It is born with
+    the ONE family a real incident pulled — `frontend`, proven by a `frontend/package.json` — and grows when
+    a new layer is actually pulled. A bare ROOT `package.json` is deliberately NOT a marker: a Node BACKEND
+    declares one too, so it cannot distinguish the layers, and a false "frontend detected" would break the
+    zero-false-positive stance the coverage WARN below holds. Fail-OPEN: an absent/malformed carrier prompts
+    nothing.
+
+  **Report-only coverage WARN (REUSING the rule-15 `coverage:` shape — no new gate, X-0140).** `graph
+  build` reports — report-only, never a build failure (GRAPH «NOT a validation layer») — any LOAD-BEARING
+  surface present in code (a file matching the rule-15 `coverage.load_bearing` globs) that is covered by
+  NO declared `verify.layers` layer's `covers:` glob and is not validly `admitted:` (the rule-15 admission
+  list). It is the verify-layer analog of the rule-15 spec-coverage WARN — it REUSES the SAME
+  `coverage.load_bearing` universe + `admitted:` suppression + the same report-only stderr channel, adding
+  NO new gate / event / section. OPT-IN: it no-ops unless the project BOTH declares `coverage.load_bearing`
+  AND declares a non-empty `verify.layers` (a waived/absent `verify:` means no per-layer coverage tracking
+  — never a false "everything uncovered").
+
+  **The `boundary:` sub-field — what a layer's harness can SEE (X-0375; a SUB-rule of
+  `verify.layers[]`, not a new section).** `covers:` names what a layer VERIFIES; it does NOT name what
+  that layer's harness can even REACH. A land-verify layer runs inside a hermetic worktree mount, and code
+  OUTSIDE that mount is invisible to it — it cannot fail a test that never sees it. X-0375 is that blind
+  spot cashing in: a hermetic mount blind to `scripts/` let that code reach the container un-tested with
+  nothing in the carrier to say so — covered-by-silence. An OPTIONAL `boundary:` (a list of non-empty glob
+  strings, repo-relative — shape-only, never judged for value) on a `verify.layers[]` entry DECLARES the
+  paths that layer's harness can see (its mount scope). It is checked-if-present (a layer with no
+  `boundary:` declares no visibility scope — the backward-compat default; a pre-`boundary:` carrier still
+  passes) and feeds ONLY the report-only OUTSIDE-EVERY-BOUNDARY WARN below — it is never load-bearing at the
+  land RUN (like `covers:`, the runner ignores it).
+
+  **Report-only OUTSIDE-EVERY-BOUNDARY WARN (REUSING the rule-15 `coverage:` shape — no new gate, X-0375).**
+  `graph build` reports — report-only, never a build failure (GRAPH «NOT a validation layer») — any
+  LOAD-BEARING surface present in code (a file matching the rule-15 `coverage.load_bearing` globs) that falls
+  OUTSIDE every declared `verify.layers[].boundary:` glob and is not validly `admitted:`. It is the
+  VISIBILITY analog of the `covers:` coverage WARN above: `covers:` asks "does a layer claim to verify
+  this?", `boundary:` asks "can any layer's harness even SEE this?". A surface can be INSIDE a boundary yet
+  uncovered (the covers WARN) OR OUTSIDE every boundary (this WARN — code no harness reaches). It REUSES the
+  SAME `coverage.load_bearing` universe + `admitted:` suppression + the same report-only stderr channel,
+  adding NO new gate / event / section. OPT-IN: it no-ops unless the project BOTH declares
+  `coverage.load_bearing` AND at least one `verify.layers` layer declares a non-empty `boundary:` — without
+  a declared boundary every file is trivially "outside", so the check stays silent until a project answers
+  "what can my harnesses see?" (the zero-false-positive discipline the covers WARN holds). The check is
+  `bin/lib/graph.py#_verify_layer_boundary_warnings`; a zero-resolving `boundary:` glob is caught by the
+   zero-glob WARN, extended here to the boundary globs.
+
+  **The `subject_globs:` sub-field — per-layer diff-relevance subject (a SUB-rule of `verify.layers[]`,
+  not a new section).** A DECLARED layer MAY additionally carry an OPTIONAL `subject_globs:` — a
+  non-empty list of non-empty repo-relative glob strings claiming EXHAUSTIVELY: "a change to a path
+  matching NO glob here cannot affect this layer's verdict." When present, the land RUN MAY SKIP that
+  layer for a candidate diff whose every touched path provably matches none of the globs. Fail-closed
+  on every edge: an ABSENT `subject_globs` → the layer ALWAYS runs (opt-in, backward-compat); an
+  empty list / non-string entry / unresolvable or ambiguous path comparison → run (malformed shape is
+  a carrier ERROR per rule 3); a diff touching ANY verify-infrastructure surface — the SPEC-0077
+  pinned set, `tests/**`, the ops-carrier `yitc-ops.yaml`, the land/verify implementation — runs
+  EVERYTHING including the pinned re-run (SPEC-0077 supremacy, unchanged). A skip is NEVER silent:
+  every skipped layer is NAMED in land stdout AND carried in the `land_completed` payload
+  (`{layer, outcome: skipped-disjoint-subject}`), the auditable-skip discipline. DISTINCT from
+  `covers:` (loose, non-exhaustive, report-only + tests-sweep delegation — NOT retro-flipped into
+  skip authority); a declared `subject_globs` SHOULD be a superset of the layer's `covers:` globs —
+  an advisory shape note, never a validator. The kernel checks STANCE + structural SHAPE, never glob
+  "correctness" (rule 3).
+
+  ### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-IN report-only startup surface; / X-0191)
+  The OPTIONAL `startup_checks:` top-level section lets a project declare its OWN cheap, report-only
+  startup checks — so a project-specific "you have N things to look at" (e.g. in-work proposals in a
+  subsystem, un-applied config) is SURFACED at session-start instead of being invisible (the X-0191
+  real incident: 3 in-work proposals in a ticket subsystem were invisible at session start). It is
+  **OPT-IN, like `extensions:` (rule 13) / `coverage:` (rule 15)** — ABSENT = the project declares no
+  startup checks (never fail-closed, never a sweep ERROR). It is deliberately NOT in the concern
+  registry, so the generic declare-or-waive sweep IGNORES it (the rule-3 non-whitelist invariant):
+  adding checks is zero-onboarding-friction and demands no waiver (P1 anti-complexity).
+
+  **DECLARE — a `startup_checks:` list.** Each entry is a mapping with three string keys:
+  - `label:` — a short slug naming the check (the echo label).
+  - `command:` — a CHEAP shell command run at each session-start / land seam; a NON-ZERO exit means
+    the check FLAGS (there is something to look at), exit 0 means CLEAN.
+  - `detail:` — a short pointer (a doc path / a command to run) telling the reader where to look.
+
+  **Echo semantics — REUSE the SPEC-0119 proactive-debt echo plumbing (no new mechanism, P1).** The
+  declared checks are run and AGGREGATED into ONE report-only line — count + per-check `label (detail)`
+  — appended to the SPEC-0119 debt-echo output, so it rides the SAME three seams for free
+  (session-start, land-tail, the `bin/yitc-v2 debt` post-`/compact` re-fold). Print discipline is
+  SPEC-0119's verbatim: SUPPRESSED-WHEN-CLEAN (nothing prints when zero checks flag), REPORT-ONLY (it
+  never gates / blocks / auto-acts). TOKEN-FRUGAL by contract: count + pointer only, never the checks'
+  stdout — coherent with the always-loaded-seed-weight-trim doctrine (plan
+  `reduce-always-loaded-startup-seed-weight-controlle`), adding no new startup noise.
+
+  **Fail-SAFE reader (never breaks startup).** The reader is best-effort: an absent section, a malformed
+  entry, an unreadable carrier, or a command that errors/times-out is SKIPPED, never surfaced as a
+  broken session-start (a report-only surface must never nag on the unknown — the SPEC-0119 rule-1
+  principle). Because the section is un-swept, the kernel does NOT shape-validate it — a malformed entry
+  is silently skipped rather than an init ERROR (the price of zero-friction opt-in). The ENGINE ITSELF
+  has no `yitc-ops.yaml`, so this surface is a no-op in the kernel's own sessions.
+
+  ### 24. Test-class last-successful-execution — a declared class records that it actually RAN (X-0375)
+  SPEC-0156 admits a declared kernel-graded check on a recorded RED demonstration — proof it CAN fail. It
+  never asks whether the check has ever ACTUALLY RUN green. aiseller's e2e test class was DECLARED (rule 10
+  `tests.classes[]`) but its browsers were never installed: nothing ran, so nothing failed, and a class that
+  never executed read as coverage while catching nothing (X-0375). This rule is the EXECUTION axis of that
+  admission doctrine: a declared test class records its LAST SUCCESSFUL EXECUTION in the journal, and a class
+  with none — or one gone stale — surfaces report-only in the debt echo (SPEC-0119), never a gate.
+
+  **JOURNAL-DERIVED, NO NEW STORE (the SPEC-0149 §2 acceptance boundary).** There is no stored last-run
+  field on the carrier and no new FSM: the carrier says what is DECLARED, the journal says what was RUN, and
+  the debt is the difference — recomputed fresh at read time by `bin/lib/debt.py#unexecuted_test_classes`.
+  The carrier holds NO computed status (rule 7).
+
+  **THE PRODUCER IS A DELIBERATE, EVIDENCE-BEARING ACT — never a declaration-derived auto-emit.** A pinned
+  suite PASSING does NOT positively observe that a SPECIFIC declared class ran: `land` runs `verify.layers`
+  by LAYER id, never per tests-class, so auto-recording "executed" from the declaration list would be the
+  very "nothing ran, nothing failed" false-green this doctrine exists to end ( audit-pre). The
+  execution is recorded by whoever ACTUALLY RAN the class — a CI job, a post-deploy hook, a human — via the
+  EXISTING generic `event` verb: `bin/yitc-v2 event test_class_executed --data '{"class":…,"outcome":
+  "pass","evidence":…}'`. This is the SPEC-0156 `check_admission_demonstrated` producer precedent EXACTLY:
+  no new verb, no new emitter, no new store (the event is catalogued in SPEC-0025).
+
+  **RECORD contract — the fold CLEARS a class ONLY on a COMPLETE record** (the SPEC-0156 conservative
+  direction — under-evidenced ⇒ still owed): a non-empty `class`, an `outcome` of `pass`, AND a non-empty
+  `evidence:` naming the run (a CI url / a log ref / a harness id). A bare "it ran" with no named run is a
+  CLAIM anyone could type, and clearing a class on a claim is the false-green this rule exists to end. A
+  non-pass / under-evidenced / mis-attributed record does not clear — the class stays visible as debt.
+
+  **DECLARED-CLASS validation AT THE POINT OF CONSTRUCTION — an undeclared `class:` does not pass silently
+  (X-1057).** The RECORD contract above is a COMPLETENESS test: it asks whether the payload names
+  an outcome and an evidence, never whether the `class:` it names is one this project DECLARED. A row naming
+  an undeclared class is therefore complete — it is written, it reads to a human as coverage, it matches no
+  declared class so it clears nothing, and it appears on no surface at all (the near-miss report of the same
+  rule is scoped to still-surfaced DECLARED names, so it does not see the row either). MEASURED, kupiclub
+  2026-08-20: two rows emitted with `class=stack` and `class=static` — verify LAYER ids, not any of the
+  eight classes that carrier declares — were accepted without a word, the next morning's fold still reported
+  the same declared-but-unproven count, and the acceptance criterion that named the event stayed unmet for a
+  day. The wrong value is the EASY one to write, which is why this is a kernel defect and not carelessness:
+  both vocabularies live in ONE file a few sections apart, they OVERLAP (kupiclub's `frontend-unit` is BOTH
+  a layer id and a class name, so the right KIND of name cannot be settled by inspection), and the run output
+  on screen at the moment of recording prints the LAYER names, never the class names.
+
+  So the `class:` is validated against the project's OWN `tests.classes[]` declaration AT THE EMIT — the one
+  seam where the mistake is still cheap and the vocabulary is already in hand. It FAILS BY IMPROVING THE
+  ARTIFACT, not by a bare refusal: the append is refused so no false coverage row is ever written, and the
+  message hands back what the author lacked — every legal value NAMED, and, where the given value is a
+  declared `verify.layers[]` LAYER id, that layer's own `covers_classes:` named as the classes it carries
+  (the exact translation the author needed). A silent accept is the defect this replaces; a BARE refusal
+  would be the weaker fix, sending the author back to the same confusing file with no more information than
+  they started with.
+
+  It ABSTAINS wherever the declaration cannot be read — no carrier (the engine kernel itself), a waived or
+  absent `tests:` section, zero declared classes, or any parse failure. A project that has declared no
+  vocabulary has authorised no refusal, and history is never retro-charged (the SPEC-0149 lesson, and the
+  reader-owns-the-missing-value discipline). The declaration is read in FULL, the UNION of declared classes,
+  never a first match (SPEC-0185 §1b). This adds NO new verb, NO new flag, NO new gate class: it is one
+  vocabulary check at the existing generic `event` write, in the same fail-closed family as the
+  `deviation_captured` realm and `deviation_resolved` disposition checks that already live there. Contract
+  home `bin/lib/debt.py#undeclared_class_remedy`; the `event` verb is the call site.
+
+  **The DEBT view (report-only, two surfaces).** For each declared `tests.classes[]` class (a waived section
+  or a waived entry declares no class — rule 6, an ANSWERED question): a class with NO matching complete
+  record surfaces `never`; one whose latest one has aged past the staleness floor
+  (`YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`, default 30 days) surfaces `stale`. NEVER-run is unconditional
+  debt (unfloored); STALE surfaces only while the floor is active (a non-positive floor disables the
+  staleness arm, the sibling-fold AGE-floor discipline). Wired at the ONE shared debt residue
+  (`bin/yitc-v2#_debt_echo_lines`) so it rides all three seams (session-start / land-tail / `debt` re-fold),
+  suppressed-when-clean. A repo that declares no test class (the engine kernel itself, no yitc-ops.yaml)
+  folds to zero, so history is never retro-charged (the SPEC-0149 lesson).
+
+  ### 25. Hermetic-class admission — a class declared HERMETIC is hermetic in TIME, not just DATA (X-0431)
+  Rules 10/16 let a project DECLARE a test class or verify-layer HERMETIC (the `tests.classes[]` taxonomy
+  + the rule-16 F-025 per-layer hermeticity contract — `land` runs it on the LIVE tree with no network /
+  no shared fixture mutation). That contract is hermetic in DATA: no test sees another's rows, no external
+  is really mutated. It says nothing about TIME. A declared-hermetic suite can still, per test, fire a
+  prod code path that reaches out to an external infra dependency that the hermetic container does NOT
+  provide (a broker `.delay` with no Redis, a cache client with no cache, a third-party HTTP client) and
+  then WAIT OUT that dependency's connect/retry timeout — a hidden per-test stall that is invisible to
+  every DATA-hermeticity check. This rule is the TIME axis of the hermetic-class admission doctrine.
+
+  **THE ADMISSION CRITERION (report-only authoring doctrine).** A suite/class declared hermetic MUST be
+  hermetic in TIME: **every external infrastructure dependency it can reach (broker / queue / cache /
+  third-party API) is stubbed, run EAGER (in-process, e.g. celery `task_always_eager`), or mocked — OR it
+  fails FAST** (a short connect timeout configured in the TEST environment, so an absent external errors in
+  milliseconds instead of waiting out a real ~15-20s connect/retry). **Waiting out a real connect timeout
+  to an absent external is a DOCTRINE VIOLATION, not a slow test** — the class was never hermetic in time.
+  The unmocked external is easy to miss precisely because the OBVIOUS externals (email, a bot API) are
+  already mocked: it takes only ONE prod code path firing ONE unmocked infra call to silently set a whole
+  suite's per-test floor (X-0431: boomrocket's declared-hermetic backend suite carried a hidden
+  ~19.5s-per-test celery result-backend connect-retry stall — 7 tests ≈ 136s of a 145s file — that
+  survived 990-test growth and pinned the whole suite's parallel floor, found only by a faulthandler stack
+  dump; PuzzleBot + email were mocked, celery was the ONE unmocked external and no methodology rule asked
+  the question).
+
+  **REPORT-ONLY — an authoring/declaration criterion, no gate, no scanner (the rule-16 subject-scoping
+  sibling — X-0426).** The kernel does NOT time-profile a consumer's suite or scan for unmocked
+  externals — it judges STANCE + shape, never behaviour (rule 3). This criterion is the QUESTION an author
+  answers when declaring a class hermetic, and the doctrine an audit/review cites; it composes with the
+  rule-24 last-successful-execution debt (a class that RAN green) and the rule-16 hermeticity contract (a
+  class hermetic in DATA). The DIAGNOSTIC SIGNATURE + triage recipe (uniform per-test durations clustering
+  near a configured timeout ⇒ hidden external wait; `--durations=N` → confirm with a `faulthandler_timeout`
+  stack dump; boomrocket worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`
+  — the hermetic-in-TIME half assumed by `patterns/consumer-suite-parallelization.md`'s "hermetic first,
+  parallel second" precondition. Consumer-side fix worked example: boomrocket (celery
+  `task_always_eager` + a short test-env broker timeout).
+
+  ### 27. The `product_source:` section — what this repo SHIPS, declared SEPARATELY from what it VERIFIES (rule-4 section-add; / external audit ad-hoc 2026-09-01, MEDIUM)
+  The `product_source:` top-level section is the AUTHORITATIVE per-repo statement of WHICH code surfaces
+  this repo SHIPS — its product source. It exists because that question and rule 16's question are
+  DIFFERENT questions that were being answered by ONE field, and this rule's whole job is to keep the
+  next reader from re-deriving that coupling from rule 16.
+
+  **THE SPLIT, stated plainly — two fields, one purpose each:**
+  - **`verify.layers[].covers` SCOPES VERIFICATION** (rule 16). It answers «which layer verifies this
+    surface?», and its incentive runs NARROW: fewer covered globs mean fewer layers run for a diff and
+    faster lands. Narrowing it is a legitimate, even desirable, act of project hygiene.
+  - **`product_source.globs` DECLARES SHIPPED SOURCE** (this rule). It answers «what does this repo
+    ship?», and its incentive runs WIDE: every glob missing from it is product source that a governance
+    gate cannot recognise. Narrowing it is a loss of governance.
+  - **The work-batch carrier gate (`bin/lib/worktree.py`) reads `product_source.globs`
+    and NEVER `verify.layers[].covers`** — under any condition, including when `product_source:` is
+    absent. That sentence is the rule; everything below is its shape and its consequences.
+
+  **WHY the two must not share a field (the defect this replaces).** Until the carrier gate read
+  `covers:` as its per-repo recognition set. One field then carried two purposes with OPPOSITE
+  incentives, so a project that honestly optimised its verify time silently weakened its own governance
+  gate, with no signal that it had. shipped a bounded kernel carrier floor which BOUNDED that
+  blast radius; the external auditor's finding says in terms that a floor «does not actually decouple the
+  two meanings», and it does not — the inversion lives in the FIELD, so only separating the fields ends
+  it. This is a P1 F3 REPLACEMENT: `bin/lib/worktree.py#_work_batch_declared_source_globs`, the reader
+  that made `covers:` load-bearing for governance, is DELETED, not deprecated. There is no fallback path
+  and therefore no second live home (rule 5's never-two-live-homes discipline, applied to the new field).
+
+  **DECLARE — `globs:`.** A list of non-empty, repo-relative PATH globs (`app/**`, `frontend/src/**`),
+  shape-only and never judged for value (rule 3). A glob that is not a string, is blank, or escapes
+  upward (`/…`, `../…`) is dropped — a malformed carrier NARROWS recognition and can never widen it.
+
+  **WAIVE — `waiver: { reason: <why> }`**, for a repo that genuinely ships no product source of its own.
+
+  **OPT-IN, NOT declare-or-waive, NOT fail-closed — the rule-15 `coverage:` model, reused deliberately
+  (P1 F1/F2).** An ABSENT section is legitimate and is never an error: it means the repo has not
+  declared, and recognition falls to the kernel carrier floor alone. This is NOT the rule-3
+  declare-or-waive stance and MUST NOT become it: a fail-closed stance here would refuse every land in
+  every already-init'd consumer on the day it. For the same reason this section takes NO
+  `concern:` registry block, so it changes no born template, no `init` sweep, and no existing carrier.
+
+  **ABSENT AND WAIVED ARE IDENTICAL IN EFFECT AND DIFFERENT IN MEANING.** Both fall to the kernel floor.
+  They differ ONLY in what may be SAID about them: a waiver is an answer somebody gave, an absence is a
+  question nobody has been asked. That distinction is the waiver form's entire function — do not
+  collapse the two, and do not add an effect to the waiver to justify it.
+
+  **THE ABSENT-DECLARATION RULE IS A DECIDED FORK, AND ITS COST WAS MEASURED, NOT ASSUMED.** The
+  alternative — an absent section falling back to the covers union — was migration-friendly and was
+  rejected: it would have preserved the coupling permanently for every repo that never declares, which
+  on the evidence is every repo, since nothing would ever pull them. The accepted cost, swept across all
+  10 registered v2 consumers at 2026-09-01 (`git ls-files` through the live recogniser, with covers vs
+  without): boomrocket 692→138, aiseller 234→51, kupiclub 238→63, bc-community 164→7, ticket-review
+  36→5 recognised paths; social-parser, social-scraper, ai-gateway and ai-safety are UNCHANGED (they
+  declare no covers, or only `tests/**`, which the tests-segment subtraction already removed); cardlab
+  was not git-readable and is REPORTED as unswept rather than counted as zero. So ~1100 application-tree
+  files in 5 consumers stop being recognised until each declares. That loss is BOUNDED: this gate fires
+  only on a `work/<slug>` batch carrying NO card and NO emergency marker, so no task deliverable, no
+  carried batch, no verify layer and no audit changes.
+
+  **THE NARROWING MUST NEVER BE SILENT — the report-only migration note.** When a repo's stance is
+  ABSENT and it still declares `verify.layers[].covers`, `land` prints ONE report-only note naming the
+  globs that are no longer recognised and both ways to answer. It is REPORT-ONLY in the rule-16
+  delegation/uncommitted-surface sense: no verdict, no refusal, no event, no stored state, and it prints
+  on the refusal path too. It is suppressed by a declaration or by a waiver, and by nothing else — an
+  unanswered repo keeps being told. This is the DISCLOSURE, not the gate; the narrowing has already
+  happened by the time it prints.
+
+  **The kernel floor is unchanged and the fence is NOT re-litigated here.** Recognition stays
+  POSITIVE (an unrecognised path LANDS — the X-0857 decision), the tests-segment subtraction applies to
+  the declared globs exactly as it did to covers, `yitc-ops.yaml` stays excluded, and the principled
+  boundary holds: the kernel MAY name cross-project build/deploy/container carrier surfaces and MUST NOT
+  guess framework-specific application trees — which is precisely the job this section exists to do.
+
+  **PURE per-project ops config the land verb READS** — never a kernel-read governance scalar, so this
+  spec stays `consumed: false`.
+
+  ## Parameters
+
+  As SPEC-0093: the carrier's values are PER-PROJECT ops config (verify-layer commands, coverage
+  globs, startup-check commands) — NEVER kernel-read governance scalars (the SPEC-0005 §Parameters
+  non-whitelist). So this spec is `consumed: false`.
+
+  ## Rationale
+
+  A SPEC-0120 §3 aggregate-neutral split (SPLIT-never-delete) of SPEC-0093, which reached 979 lines /
+  80945 bytes — over BOTH the 800-line and 63000-byte one-bounded-read ceilings. The seam is by stable
+  SURFACE (SPEC-0005 rule 6): the land-verify / coverage / startup cluster owns 6 of the carrier's 7
+  `implements:` anchors (the 7th, `init.py#cmd_init`, is the generic seed/sweep and stays with the
+  core). Split under — its own card, decomposed off because it re-homes rule->code
+  anchors, not a plain doc relocation.
+
+  ## Verification
+
+  - the `verify:` section (rule 16) is checked-if-present declare-or-waive: `init` on a fresh consumer
+    seeds it born WAIVED (section-level); a non-empty `layers:` list passes when EVERY layer is declared
+    (`command:`) or waived (`waiver: {reason}`); an UNANSWERED layer (neither), a layer carrying BOTH, a
+    layer missing its `layer:` name, and a `layers:` + section-`waiver:` together each FAIL closed; a
+    pre-`verify:` carrier still passes; the report-only verify-layer coverage WARN fires at `graph build`
+    for a load-bearing surface covered by no declared layer (rule-15 `coverage:` shape reused) — state
+    checks in tests/test_t9718_verify_layers_carrier.py. A `tests.classes[].command` for
+    `moment: verify` is REJECTED once a `verify:` section is present (the rule-10 forbiddance
+    enforcement — no second command home; same test).
+  - the `verify.layers[].prep` sub-field (rule 16 amend / X-0140) is checked-if-present
+    declare-or-waive: a DECLARED layer MAY carry `prep: { mode: npm-ci... }` and the land runner prepares
+    that layer's deps from the lockfile INSIDE the worktree before running its `command:`; a `prep:`
+    carrying BOTH a `mode:` and a `waiver:`, or NEITHER, FAILS closed; a layer with no `prep:` prepares
+    nothing (backward-compat, checked-if-present). The runner records the `verify_layer_prep` state/event
+    (layer key + resolved lockfile hash + package-manager + runtime matched) — the executable land leg +
+    fail-closed-on-mismatch + state-check tests ship in the sibling land-runner card
+    (bin/lib/worktree.py); the events catalog is code-derived, so `verify_layer_prep` enters it at that
+    emit (no SPEC-0025 edit here).
+  - the `verify.layers[].boundary` sub-field + OUTSIDE-EVERY-BOUNDARY WARN (rule 16 amend / X-0375)
+    is checked-if-present + opt-in report-only: `graph build` lists a `coverage.load_bearing` surface that
+    falls outside every declared `boundary:` glob and is not `admitted:`; it no-ops unless BOTH
+    `coverage.load_bearing` AND ≥1 layer `boundary:` are declared (never a false 'everything outside'); a
+    zero-resolving `boundary:` glob folds into the zero-glob WARN — `bin/lib/graph.py#
+    _verify_layer_boundary_warnings`, tests/test_coverage_boundary.py.
+  - the test-class last-successful-execution debt (rule 24 / X-0375) is journal-derived + zero
+    stored state: a declared `tests.classes[]` class with no COMPLETE `test_class_executed` (pass + a named
+    `evidence:`) surfaces `never`; one aged past `YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS` surfaces `stale`; a
+    non-pass / under-evidenced record does NOT clear it; a waiver answers; a repo with no carrier owes
+    nothing — `bin/lib/debt.py#unexecuted_test_classes`, differential probes in tests/test_coverage_boundary.py.
+  - the `product_source:` section (rule 27) is OPT-IN, checked-if-present: a declared
+    `globs:` list IS read by the work-batch carrier gate and DOES govern (an uncarried `work/<slug>`
+    batch touching a declared glob refuses at land with `work-batch-uncarried-product-source`); a
+    `waiver: {reason}` and an ABSENT section both fall to the kernel carrier floor and differ only in
+    whether the report-only migration note prints; a repo declaring `verify.layers[].covers` and NO
+    `product_source:` does NOT get those globs recognised — the DIFFERENTIAL arm, which lands
+    post-fix and refuses pre-fix with the deleted covers reader restored; malformed entries narrow and
+    never widen — `bin/lib/worktree.py#_work_batch_declared_product_source` +
+    `#_work_batch_product_source_migration_note`, land-level differentials in
+    tests/test_work_batch_carrier_gate.py.
+  - AC2 aggregate-neutrality : the concatenated SPEC-0093-remaining + SPEC-0152 `### N.` rule
+    blocks reproduce the pre-split rule text byte-for-byte (a reconstruction check, not an eyeball).
+
+cites:
+  - SPEC-0093
+  - # rule 27 — the product_source declaration that decouples product source from verify covers
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-5
+  - SPEC-0073
+  - SPEC-0128
+  - SPEC-0119
+  - SPEC-0094
+  - SPEC-0156
+  - SPEC-0025
+
+requires: []
+supersedes: ~
+activation_owner_task:
+proposed_by:
+binding:
+  - code-enforced # its implements: anchors ARE its delivery (default residency).
+implements_signature:
+  bin/lib/debt.py#undeclared_class_remedy: ce313b003c5c9d62b16b42e0090c227fb99daf826cf61ec0bfee3d0e7b3ac3b8
+  bin/lib/debt.py#unexecuted_test_classes: f39b254bd51f8e654ec68d1f9cc203ea6b5904c5faa0de2abc6ca2de17ed6222
+  bin/lib/graph.py#_coverage_admission_warnings: a4a7cf5cbce6eeb61dfc67b8d10aba0f6168d55e7147b503b24737414414890d
+  bin/lib/graph.py#_verify_layer_boundary_warnings: c56ff639967669874bb428b6470cb18bd32bf097ddeffe45b799f87ed22a77d1
+  bin/lib/graph.py#_verify_layer_coverage_warnings: bec29aeb8df5a536e0045b40215fec4afde7fbab98e79bcfd3deb0df1cba3c2a
+  bin/lib/init.py#_migrate_legacy_verify_yaml: d569d33740b4779074f5c7fc4e556554f2393f37b40d132aa1bbf5d53e21eeb4
+  bin/lib/session.py#startup_check_lines: 3beef4f3882861fe2c539a3fb61e95a5ef5596c7a3387b3320af648ffac81461
+  bin/lib/task.py#cmd_task_test: 47be321d4e05b034a4cd8d49091a183acdd775a1d9a5d809f0c7ea38a4ec7f83
+  bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 2064b72fb104d34509b3d925f89d7e0161d0f5d4b403192fd7b8775bb5297351
+  bin/lib/worktree.py#_delegated_tests_execution_gap: 87cbbf90702d6e1c27828c851dbf8bf3eed4341d825af73321f251bcfa0a20ca
+  bin/lib/worktree.py#_render_tests_delegation_note: 2238f41351b2c6527fd63eed0c61ff0277af4f00fd117229a730a1882d645230
+  bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 1aedb89b0841e26147e43566c45abe44d7cb7ad7108813b18ad0eb60adfc4c72
+  bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279
+  bin/lib/worktree.py#_undeclared_source_layers: 3b0d4128f1bfb886059b7b7f5c0c0e4587b7dd22478725f0bb8f9157823e1e27
+  bin/lib/worktree.py#_work_batch_declared_product_source: afc13381164b9790a795039c616d1995669a88716bbd16c4f967cb2f0c7431b4
+  bin/lib/worktree.py#_work_batch_product_source_migration_note: 571e06c8b837927a00b38f9665e4cfe8c96f159f8430fa0f630ae674db16c245

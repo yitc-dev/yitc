@@ -1,0 +1,204 @@
+id: SPEC-0053
+title: Forward-propagation disposition — required propagation decision at task close
+# `class:` REMOVED — a spec carries both layers as body sections (Scenario + Internal).
+
+status: active
+                               # plan-born draft (proposed_by = the plan slug). Born `proposed` at the
+                               # plan accept-gate (`plan stage accepted`); reaches `active` ONLY through
+                               # the proposed→active adoption gate (the activation_owner_task's close).
+                               # `active` is the ONLY normative status. proposed ⇒ consumed:false.
+
+created_at:
+
+consumed: false # a read-before-close RULE + a structural presence-gate; no code reads a
+                               # scalar governance PARAM from it. Stays false at `active` too.
+
+implements: [] # DESIGN-STAGE empty-mode (SPEC-0005 §7 mode b): the rule is realized at
+                               # `task close`, but the required-field check + event field are not wired
+                               # yet. The implementing task (at `executing`) adds the anchor
+                               # `bin/yitc-v2#cmd_task_close` when it wires the presence-gate AND adds
+                               # SPEC-0053 to the `task close` require-reads set (SPEC-0042 — see
+                               # §Delivery + read-contract). Non-empty `binding:` below keeps the spec
+                               # non-dangling meanwhile (SPEC-0013).
+
+binding: # delivered at the Closure stage-entry, ALONGSIDE SPEC-0015 + SPEC-0038
+  - stage-entry:Closure # (the established closure-sub-rule delivery shape — the closer holds this
+                               # rule when filling the disposition at close).
+
+body: |
+  ## Scenario
+
+  When an infra-class task closes (the class V2 treats as mechanism/infrastructure-class), the system must not silently skip the
+  forward question: «now that this exists, where ELSE must it be applied, and what consequent changes
+  does that imply?». V2 already DEFERS «apply elsewhere» to separately-filed tasks (SPEC-0034
+  retrospective-routing), but nothing GUARANTEED those tasks were considered — the prompt had no
+  trigger, so a forward-adoption gap could leak silently (the E-0005 class). At closure the session is
+  now FORCED to record a propagation DECISION: the follow-up task IDs it filed (consequent work
+  actionable now), a forward concern parked as an idea (real but not yet actionable), OR an explicit
+  «nowhere-else-applies» with a reason. The owner sees, on every mechanism ship, a recorded answer to
+  «where else?» — never an unasked question.
+
+  ## Internal
+
+  THE FORWARD-PROPAGATION DISPOSITION — a required closure decision for infra-class tasks (the
+  mechanism/infrastructure class; see §Scope for why infra is the required FLOOR, not a universal
+  mechanism-shipping selector). This is the SOLE home of the rule; SPEC-0015 (closure contract) and SPEC-0034 (plan postcheck) carry only
+  a sibling POINTER / a read-only detection backstop, never a second statement of it (P5, one home).
+
+  ### Scope — infra-class task close (the required FLOOR, not a universal selector)
+  The disposition is REQUIRED at `task close` for `class: infra` tasks — the SAME class V2 already
+  treats as mechanism/infrastructure-class for CHARTER §P8 adoption-evidence (SPEC-0015
+  §Infrastructure-class adoption strength; the infra catalog: format-migration / generator / event /
+  graph / audit / parser / hook / verb / rule). The normative scope is precisely this — **«an
+  infra-class closure requires a propagation disposition»**, NOT «every mechanism-shipping closure in
+  every class». `class: infra` is the required FLOOR: a clean, false-positive-free machine selector,
+  not a claim to capture every propagation-bearing ship. Non-infra classes (feature / fix / refactor /
+  docs / hygiene) are NOT required to record one (a disposition MAY be recorded, but absence is not
+  refused). Most non-infra closures ship no reusable mechanism; when one does (e.g. a feature that
+  ships a mechanism — observed:), its propagation is OFTEN already handled by its
+  plan/decomposition WHEN ONE EXISTS — advisory context only, NOT a guarantee and NOT the normative
+  reason for the exclusion (a standalone non-infra mechanism would have no such decomposition). A
+  blanket required-disposition across ALL classes would be standing busywork AND would need a new
+  author-declared «ships a mechanism» selector + judgment call at close; that is DEFERRED until a real
+  incident pulls it (anti-complexity F4). So infra-required is the floor — the rule deliberately does
+  NOT overclaim coverage it cannot provide.
+
+  ### The disposition — three valid outcomes, recorded in `task_closed`
+  At close, an infra-class task records `propagation_disposition` in the `task_closed` event, with
+  EXACTLY ONE of three shapes:
+    - `follow_ups_filed: [T-NNNN | fu_XXXXXXXXXXXX, …]` — ≥1 ids that capture the consequent «apply
+      elsewhere» work that is ACTIONABLE now. (The work itself is NOT done inside this task — it is
+      FILED, per LIFECYCLE §Filing rule; this records WHICH ids carry it.) **TWO accepted carriers
+      (widened by / kupiclub X-1083):** a TASK id `T-NNNN`, or a FOLLOWUP id `fu_` + 12
+      lowercase hex — a followup is the kernel's OWN carrier for consequent work (SPEC-0095), and
+      `task file --promotes` already accepts exactly that shape. Refusing it here made the honest
+      disposition unrecordable and forced filing a card purely to mint an id the flag would accept —
+      a card created by a flag's TYPE rather than by a judgement, with both neighbours false
+      (`nowhere_else_applies` would deny a real application site; `deferred_to_idea` would call
+      actionable work not-yet-actionable). This widens the accepted ALPHABET only: a malformed token
+      still refuses, and the three outcomes stay mutually exclusive.
+    - `deferred_to_idea: <ideas-slug>` — a REAL forward concern that is NOT YET actionable (no
+      task-shape yet) is captured in the EXISTING `ideas/` home (LIFECYCLE §Planning artifacts — a
+      flat forward note held until an incident makes it actionable), NOT forced into a premature task.
+      This is the «not-yet-actionable forward seed» route SPEC-0034 retrospective-routing already
+      recognises — reused here, no new store. **BOUNDARY (do not let the idea sink weaken filing):**
+      this outcome is ONLY for the not-yet-actionable case — an ACTIONABLE consequence STILL becomes a
+      task via `follow_ups_filed` (SPEC-0034 routing). `deferred_to_idea` never substitutes for filing
+      work that is already actionable at closure.
+    - `nowhere_else_applies: <reason>` — a non-empty reason asserting the mechanism has no other
+      application site. An owner-judged claim, not a proven one (see anti-busywork bound).
+  The three exhaust the honest answers — «filed it», «noted it for later», «nothing else» — so the
+  required field never forces a premature task or a dishonest `nowhere_else_applies` (gate-specs /
+  ad-hoc external finding, 2026-06-07).
+
+  ### Tooling — enumerate the candidate sites (the disposition sweep)
+  To answer «where ELSE must it be applied?» deterministically rather than by ad-hoc grep, run the saved
+  lens `bin/yitc-v2 graph query propagation-surfaces <SPEC>` — for a multi-site spec it returns
+  the sites already citing it (candidate consequent-change surfaces) + the code implementing it, reusing
+  the existing tasks_citing / code_to_specs reverse-index (no new store). It surfaces CANDIDATES, never
+  asserts completeness — the disposition decision stays owner/closer judgement. This is a navigational
+  POINTER to the tool (SPEC-0005 rule 8); the recipe TEXT lives in that view's own description, not here.
+
+  ### Structural presence-gate, NOT a semantic correctness gate
+  `task close` REFUSES an infra-class closure that records NONE of the three outcomes (an empty /
+  absent disposition) — the same structural, false-positive-free shape as the EXISTING empty-probe-set
+  rejection (SPEC-0015 §Probe verification): the gate checks only that a DECISION is PRESENT, never
+  whether it is the right one. Whether the session truly found every other site is owner-judgement,
+  NOT machine-checked — V2 adds no behavioral detector for it (CHARTER non-goal #7). So this
+  STRENGTHENS the previously soft, skippable forward-propagation prompt into a required outcome,
+  without becoming a content gate. (Contrast: the P8 `adoption_evidence_seen` signal stays a
+  non-blocking WARN because consumer-adoption evidence CAN false-positive; a disposition's PRESENCE
+  cannot.)
+
+  ### Delivery + read-contract — co-shipped with the presence-gate (do not let policy outrun delivery)
+  A required field MUST NOT become enforceable without its rule being in the closer's declared
+  pre-read set. SPEC-0053 binds `stage-entry:Closure` (delivered by `stage Closure` alongside
+  SPEC-0015 / SPEC-0038), but delivery-at-stage-entry alone is NOT the enforcement contract: the
+  `task close` REQUIRE-READS gate (SPEC-0042, `_require_reads` on `cmd_task_close`) is what refuses a
+  close until the closure contract was fetched THIS session. Therefore the implementing task that wires
+  the presence-gate MUST, in the SAME change, ADD SPEC-0053 to that `task close` require-reads set —
+  the presence-gate (policy) and the read-contract inclusion co-ship (the SPEC-0007 §5b co-design
+  discipline: a delivery obligation and its enforcement land together, never apart). The SPEC-0015
+  pointer (a separate implementing task) also NAMES SPEC-0053 so it is visible in the closure contract
+  a reader already holds. (External ad-hoc finding, 2026-06-07.)
+
+  ### Distinct from the P8 adoption-evidence WARN — adjacent axes, do not conflate
+  The CHARTER §P8 `adoption_evidence_seen` handling (SPEC-0015) is the VERTICAL axis — «was THIS
+  task's shipped mechanism adopted by its own consumer?». The propagation disposition is the
+  HORIZONTAL axis — «where ELSE in the system must this now be applied?». Both fire at infra close and
+  are recorded in `task_closed`, but they answer different questions; a task satisfies each
+  independently (P8 evidence does not satisfy the disposition, nor vice-versa).
+
+  ### Relationship to SPEC-0034 retrospective-routing (what this replaces — CHARTER §P1 F3)
+  SPEC-0034's retrospective-routing guidance («an actionable rule change → file a task») is the
+  EXISTING soft, non-guaranteed forward-propagation prompt. The disposition is the missing TRIGGER
+  that makes it guaranteed at closure. After this rule is active, retrospective-routing is a
+  REFERENCED sibling (the routing target for the filed follow-ups), NOT the mechanism relied on to
+  remember to file them — the reliance on an un-triggered prompt is what is removed. SPEC-0034 carries
+  only a read-only DETECTION backstop (surfacing dispositionless infra closures in a plan's corpus at
+  postcheck), which references THIS rule and does not restate it.
+
+  ### Anti-busywork bound
+  The disposition asks for a recorded DECISION, not a proof of completeness. `nowhere_else_applies`
+  with an honest one-line reason is a first-class, expected outcome — most infra ships legitimately
+  apply in one place. If the disposition degrades into ignored boilerplate (e.g. a reflexive
+  `nowhere_else_applies` with no thought), that is a methodology-rework signal (a deviation capture),
+  NOT a reason to add more gating.
+
+  ## Parameters
+
+  None consumed. The infra-class scope selector reuses the EXISTING `class:` task field + the same
+  infra-class detection SPEC-0015 §P8 already uses — no new parameter, selector, or store.
+
+  ## Rationale
+
+  Real incident / prior-art (CHARTER §P1 F4): E-0005 (SPEC-0007; the handbook was never
+  reorganized to match — a non-blocking WARN that was missed) (remedy-existence sweep) — the
+  silent forward-adoption-gap class V1 suffered. Prior-art for the SHAPE: SPEC-0038 homes a
+  self-contained closure sub-rule (`post_verification`) as a separate `stage-entry:Closure` spec with
+  a SPEC-0015 pointer — this spec follows that established pattern rather than bloating the large
+  SPEC-0015 closure contract (SPEC-0005 rule 6 anti-oversize + rule 1 F1 extend-the-pattern). Prior-art
+  for the HARD presence-gate: SPEC-0015 already hard-rejects an empty probe set — a required-decision
+  gate is the same false-positive-free structural class. The deliberation (options weighed, the
+  weekly-cadence backstop considered and dropped, the trial route) lives in the plan
+  [[forward-propagation-adoption-trigger-disposition-r]], NOT here (SPEC-0005 rule 3 content boundary).
+
+  ## Verification
+
+  - **VP1 (presence-gate, RED→GREEN):** an infra-class `task close` with no `propagation_disposition`
+    is REFUSED before the change and accepted after only when a disposition is present — observe the
+    refusal flip. Evidence: the `task close` exit + `task_closed.data.propagation_disposition`.
+  - **VP2 (three outcomes recorded):** a real infra closure records EXACTLY ONE of `follow_ups_filed:
+    [T-…]` / `deferred_to_idea: <slug>` / `nowhere_else_applies: <reason>` in `task_closed` (grep
+    events.jsonl); a not-yet-actionable forward concern routes to `deferred_to_idea`, not a premature task.
+  - **VP3 (scope):** a non-infra task closes with NO disposition and is NOT refused (the gate is
+    infra-class only).
+  - **VP4 (distinct axis):** a task carrying P8 `adoption_evidence_seen` evidence but NO disposition
+    is still refused at infra close — the two axes are independent.
+  - **VP5 (non-dangling):** empty `implements:` + non-empty `binding: [stage-entry:Closure]` ⇒ excluded
+    from `dangling_specs`; `graph build` maps `Closure → SPEC-0053` in `binding_report.stage_to_specs`
+    once active.
+  - **VP6 (one home, P5):** the rule TEXT appears only here; SPEC-0015 / SPEC-0034 carry only a pointer
+    / a read-only detection reference, verified by grep (no restated rule body).
+  - **VP7 (read-contract co-ship):** when the presence-gate is active, SPEC-0053 is in the `task close`
+    require-reads set (SPEC-0042) — a close attempt without having fetched it is refused with the
+    require-reads message, NOT a closure that enforces the field while the rule was never delivered.
+
+cites:
+  - forward-propagation-adoption-trigger-disposition-r
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-3
+  - CHARTER.md#principle-8
+  - SPEC-0015
+  - SPEC-0034
+  - SPEC-0038
+  - SPEC-0042
+  - E-0005
+
+requires: []
+supersedes: ~
+activation_owner_task: # set at decompose ( — the policy/activation card) — the ONE task
+                                # that wires the presence-gate + flips this spec proposed→active at its
+                                # close; other implementing tasks (SPEC-0015 pointer, SPEC-0034 backstop,
+                                # the saved lens) merely `cite` this spec.
+proposed_by: forward-propagation-adoption-trigger-disposition-r
