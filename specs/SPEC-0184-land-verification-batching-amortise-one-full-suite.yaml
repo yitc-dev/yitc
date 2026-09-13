@@ -1434,10 +1434,38 @@ body: |
   optional THIRD line is that pid and the fence is one more `os.kill(pid, 0)`, the writer fence's own
   syscall asked about the other party. This keeps the rule's cost class exactly as stated above: no
   journal read and no subprocess on the poll path, and NO bound, number, threshold or tunable — it
-  fires only on PROOF. An offer recording NO addressee pid (written before this change, or by a writer
-  that could not resolve one) is UNKNOWN, not failed-open: the check is not asked, the offer stays live
-  and the branch fence governs alone. That distinction is load-bearing — a blanket fail-open would
-  close the deadlock and delete the fair-queueing this rule exists to provide.
+  fires only on PROOF. An offer recording NO addressee pid is UNKNOWN, not failed-open: the check is
+  not asked, the offer stays live and the branch fence governs alone. That distinction is load-bearing
+  — a blanket fail-open would close the deadlock and delete the fair-queueing this rule exists to
+  provide.
+
+  **THE FOURTH HOLE IS CLOSED ON THE WRITE SIDE: AN OFFER IS PUBLISHED ONLY WHEN IT CAN BE PROVEN
+  CONSUMABLE** (measured 2026-09-11). The three fences above all ask about a land that HAS
+  STARTED. None asks about one that never did — and a queued land that has not begun publishes no pid
+  in its `waiting_for_*` rows, so the writer could not resolve a handle, so the offer went out with no
+  third line and read UNKNOWN forever. Measured 13:33Z-14:50Z: 17 lands parked on
+  `waiting_for_land_reservation` (4706 heartbeat rows in three hours) with the reservation flock
+  UNHELD, on ONE offer naming `task/` whose worker was ALIVE but in Stage 6. Every fence
+  answered correctly, none could fire, and nothing in existence could consume the file. So the WRITER
+  now refuses to publish what it cannot prove consumable: with no resolvable addressee land pid, or one
+  that does not answer, it records NOTHING and the yielder simply re-takes the reservation — an
+  unaddressed round, which is this rule's own pre- behaviour for a peer that cannot be named,
+  and strictly better than a park nobody can end. The liveness probe discriminates by ERRNO: ESRCH
+  proves absence, EPERM proves EXISTENCE (a cross-uid land), and anything else is unproven and never
+  published as live. THE READ SIDE IS UNCHANGED, and the paragraph above still governs it: a two-line
+  offer already on disk — written by a pre- binary, in flight across the upgrade — still reads
+  UNKNOWN and still fences. What changed is only that this rule no longer CREATES one. No bound,
+  timeout, TTL, counter or tunable is added: it is the same liveness derivation the three fences above
+  are built on, asked at the one moment the handle is already in hand and free.
+
+  **AND A STALE OFFER HAS A GOVERNED CLEAR**. The 14:50Z removal above was a hand `mv`,
+  because no verb reached `_land_clear_yield_offer` from outside the yield loop — a genuine gap, so the
+  act left no record of who removed a repo-wide park or why. `bin/yitc-v2 worktree clear-yield-offer
+  --reason <why>` is the covering verb: it journals `yield_offer_cleared {addressee, writer_pid,
+  addressee_pid, reason, age_s}`, records NOTHING when no offer is on disk (idempotent — one removal
+  never yields two rows), and is REFUSED while the recorded addressee land pid is ALIVE, because that
+  land consumes the offer itself and taking it away mid-handover destroys the evidence the handover
+  rests on. `age_s` is REPORTED and decides nothing — this rule still names no number.
 
   **THE COST CLASS IS A RANKING OVER EXISTING SIGNALS, never a new classifier.** `0` this member's own
   land would run NO suite at all · `1` ONE pass, the ordinary candidate verify · `2` TWO passes, the
@@ -2339,16 +2367,16 @@ implements_signature:
   bin/lib/batch_landing.py#_land_rederive_merged_candidate: 8f748034ff41e6e21ba9fe03a217f67f2b74f9fe79dde74233267ca80c01ef73
   bin/lib/batch_landing.py#_land_release_peers_for_solo_head: 2537c79df892760d35bc02361283fea17c69359636cf362b10164461ad025716
   bin/lib/batch_landing.py#_land_restore_candidate_head: 57da8242076ea5659594a91f03dd496bb94ad5eea2879a5448c4a5145e389a1c
-  bin/lib/batch_landing.py#_land_write_yield_offer: 8e4e3d0c4565fae3ee3a6a901494c96c33e291238af59a5cda9c8d8e30fa8735
+  bin/lib/batch_landing.py#_land_write_yield_offer: 4bd87a84572902c73a59480cf22092d51ad56984eb1e6684051f91d89dc0e2b9
   bin/lib/batch_landing.py#_land_yield_loop: 9a5306cd7d2bfdae8091f03c28e097e22b01e5fb3b7c1b03aa23478bd990887a
   bin/lib/batch_landing.py#_land_yield_offer_blocks: 2bf5572ed5a139febe89642ee0bb808bde8b7ccb53c8cbb4fc64f6e348187bf5
   bin/lib/batch_landing.py#_land_yield_offer_path: 974d38b701dc6d407c31437434e34975f1b73914e7fd398643a0e9f84ecf28f8
   bin/lib/batch_landing.py#_land_yield_target: 53bd0d8ef30beb4edd343775802e61882db7f21f703112b8502dcca0d306ba46
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae
+  bin/lib/worktree.py#_land_integrate: 3e331509f46abb45fa86c1c157a7df4898890c2291b5c26faf171f54537cfe87
   bin/lib/worktree.py#_land_queue_jump_reason: 590b4396db58f99cf8846bab9364d8e3d1f47a966b19111ef903c66d91abc482
   bin/lib/worktree.py#_premerge_consumable: ce9643e12273b28d01f64784105fdc92fa1c70a322a677d30d608440055bc38e
   bin/lib/worktree.py#_premerge_reservation_disposition: e2fddeef4f0c97720d47a0739483bf3c77d281e0157b0095c61129a9e5f9b70d
   bin/lib/worktree.py#_queued_premerge_from_main: fe87050583370642c5c8b3778195c9c1ec21ada26b8f8af7455e7eb744923b80
   bin/lib/worktree.py#_verify_under_admission: 0c38efdcc0357723cc79ed792037c6cd6259bd0d9d09fb073081338ae109ad3d
-  bin/lib/worktree.py#cmd_land: 144d854f0c901d1d882cf6a06f329a56b108a012db7646e24fa0f1e404836c51
+  bin/lib/worktree.py#cmd_land: 50a9e02c0b96d01dce4f5ea00550bd37127ba9d6577cfd6260efd70b6e10dc70

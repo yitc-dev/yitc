@@ -396,7 +396,7 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
                                # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
                                # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
 implements_signature:
-  bin/lib/audit.py#build_audit_prompt: 086e29c6bc5703f4962931313ff6696d131ce3f0e9a557d3cbd096222c2a5b35
+  bin/lib/audit.py#build_audit_prompt: 1eda0a7055441bb3cabc2d227ddc23cfd82989b399277db49785f326c69cd716
   bin/lib/cli.py#_ac_probe_evidence_events_for: b3caeddc388758984da81448619bf62b2fbbf59e0f505e04b3ccd8eb4a185707
   bin/lib/cli.py#_cross_evidence_section_for: e1840db8a4f62e7fa07dde54b957192da91cc3434e9e32fff1244c91168286b7
   bin/lib/cli.py#_p8_evidence_events_for: bc0670a73cdfe69c153e2af0090d2d74318de157d427dc6d1b81465e870ca672

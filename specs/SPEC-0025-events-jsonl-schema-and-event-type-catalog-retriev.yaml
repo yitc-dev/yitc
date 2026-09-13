@@ -435,6 +435,27 @@ body: |
   distinguishes a GOVERNED deploy-via-verb from an off-path direct script run (which leaves no
   `deploy_completed`) — AGENTS §Verb-execution discipline.
 
+  **security_audit_scope_stale** (per SPEC-0145 §5; emitted by `bin/yitc-v2 deploy` at the security
+  seam — `bin/lib/deploy.py#_run_security_audit_seam`) — the record of a CLASS-A deploy that
+  PROCEEDED over a security report whose profile check-set is a strict SUBSET of the CURRENT required
+  set. The gate PASSED (class A is code-only and trivially reversible — SPEC-0097 §2), so there is no
+  refusal to read anywhere else; THE ROW'S PRESENCE IS THE SIGNAL, and it is the only durable trace
+  that the ship was judged against a narrower profile than the project now carries. Emitted at most
+  once per deploy, AFTER `deploy_security_gate_passed`, and ONLY for class A — every other class, and
+  the cadence path, is REFUSED by the gate and emits nothing. `task_id` null (a deploy is
+  project-level, not task-tied).
+  ```jsonc
+  {"ts": "...", "type": "security_audit_scope_stale",
+   "data": {"class": "A", "report_hash": "<the report's own content-hash>",
+            "current_check_set_hash": "<the check_set_hash of the CURRENT resolution>"}}
+  ```
+  The two hashes are what make the row answerable rather than merely alarming: `report_hash` names the
+  exact evidence that was accepted and `current_check_set_hash` names the profile it fell short of, so
+  a reader can tell WHICH report and HOW MUCH later without re-deriving anything. Catalogued here
+  because a reader that treats the row as an unknown extra cannot answer the one question it exists
+  for. Read off the gate's OWN published verdict (`SECURITY_GATE_VERDICT_FILE`), never re-derived at
+  the seam.
+
   **born_permissive_ratified** (per SPEC-0189 rule 8; emitted by `bin/yitc-v2 -C <repo> init` —
   /, key corrected) — the RATIFICATION record for a born declaration that RELAXES
   a control. Rule 8 writes such a declaration ONLY against an explicit human confirmation, and this row
@@ -498,7 +519,32 @@ body: |
             "reasons": ["<refusal reason>", "..."]}}
   ```
   `release_installed` carries the same keys plus `into` (the directory the verified release was
-  installed into). BOTH ROWS ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a
+  installed into).
+
+  **release_updated** (per SPEC-0195 rule 8; emitted by `bin/yitc-v2 release update` — the emit
+  shipped with, the verb reached the CLI with) — the THIRD adopter-side entrypoint's
+  row, on the same terms as the two above: `task_id` null, emitted on refusal as well as on success.
+  It carries the `release_installed` keys (`destination` / `into` / `anchor` / `ok` / `signing_key` /
+  `tag` / `reasons`) and adds the update's OWN outcome — `from_ref` / `to_ref` (the release moved
+  FROM and TO), the per-class counts `replaced` / `merged` / `preserved` / `skipped` / `conflicts`
+  (rule 8's four classes plus the undecidable ones), and the SPEC-0196 override-ledger reading
+  `ledger_status` / `ledger_findings`. Those last two RIDE THIS ROW rather than emitting a second
+  one (CHARTER §P1 F2): "did this update happen, and what did it find" has one answer and one row.
+  ```jsonc
+  {"ts": "...", "type": "release_updated",
+   "data": {"destination": "<the published release N+1 directory>",
+            "into": "<the existing install being moved forward>",
+            "anchor": "<the OUT-OF-BAND trust-root fingerprint>", "ok": <true|false>,
+            "from_ref": "<the release moved FROM, or null when no base was supplied>",
+            "to_ref": "<the release moved TO>",
+            "replaced": <upstream-owned>, "merged": <template-owned>, "preserved": <n>,
+            "skipped": <consumer-owned, never written>, "conflicts": <n>,
+            "ledger_status": "<the SPEC-0196 override-ledger reading>",
+            "ledger_findings": <n>,
+            "reasons": ["<refusal reason>", "..."]}}
+  ```
+
+  ALL THREE ROWS ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a
   refused verification is the security-relevant event, so a journal that recorded only successes
   would be silent about exactly the attempts worth reading. `ok: false` rows carry the `reasons` the
   operator saw — a tampered artifact, a trust root that failed against the anchor, a revoked signing
@@ -608,6 +654,28 @@ body: |
   for human/AI judgement — NOT a definitive bypass (the raw `git worktree` recovery path stays legitimate).
   No checker/gate is wired (deferred — Principle 1 F4).
 
+  **merge_resolved_by_hand** — emitted by `bin/yitc-v2 worktree sync --resolved`, ONCE,
+  immediately after it commits an update-from-main merge whose non-union conflicts a HUMAN resolved.
+  Bound to the journal of the WORKTREE it ran in (the merge is on that branch, and the row rides the
+  same land fold as every other worktree-side append). `task_id` = the task for a `task/` branch, else
+  null. `data: {branch, main_sha, merge_commit, head_before, resolved, resolved_source, worktree}` —
+  `main_sha` is the `MERGE_HEAD` actually merged (not a re-read of the moving ref), `resolved` is the
+  list of paths that conflicted, and `resolved_source` names WHERE that list came from: `merge-msg`
+  (git's own `# Conflicts:` record for this merge — the exact set) or `staged-delta` (the fallback
+  superset, every path the merge staged). A reader MUST honour that distinction rather than treating
+  every list as exact.
+  WHY IT EXISTS: `land` refuses before the queue on a non-union conflict and `worktree sync` stops on
+  the same class, but the RESOLUTION was raw git — three hand merges on 2026-09-10 alone, each
+  leaving the journal no record of what a human changed. AGENTS §Verb-execution discipline forbids
+  hand-doing what a verb covers; this row is what makes the covering verb's work visible.
+  WHAT A READER MAY CONCLUDE: that these paths were resolved by a human, in that merge, by that
+  session. **What it is NOT:** it is NOT evidence the resolution is CORRECT (no verb judges that), and
+  it is explicitly NOT an audit-currency exemption — a hand resolution is authored content, so
+  SPEC-0077 §3a demands the re-audit exactly as before (`_offending_drift_is_merge_produced` names
+  this case as precisely what the rule exists to refuse). The row makes the shift ATTRIBUTABLE, and
+  `_land_audited_footprint_split` CITES it report-only for that reason; a consumer that read it to
+  ADMIT such a path would invert the rule. No checker/gate is wired (Principle 1 F4). Append-only,
+  P5-safe (consumers ignore unknown keys).
   **worktree_children_reaped** — emitted by `bin/yitc-v2 worktree park --confirm-dead`
   (the shared `_assert_no_live_holder` gate), bound to the MAIN checkout's journal; `task_id` = the
   parked task where there is one. Records the teardown of a DEAD holder session's ORPHAN processes: the
@@ -646,6 +714,21 @@ body: |
   verb does NO process walk / NO auto-death decision (detect+surface, CHARTER L59/148): `--confirm-dead`
   is the controller's ASSERTION that the §Abnormal «Confirmed-dead GATE» held first. No checker/gate
   is wired (Principle 1 F4). Append-only, P5-safe (consumers ignore unknown keys).
+
+  **yield_offer_cleared** — emitted by `bin/yitc-v2 worktree clear-yield-offer
+  --reason <why>`, bound to the MAIN checkout's journal; `task_id: null` (the offer is keyed to the
+  repo, not to any one card). The GOVERNED removal of a STALE land-reservation yield offer
+  (SPEC-0184 rule 9) — the record the 2026-09-11 14:50Z hand `mv` could not leave behind. `data:
+  {addressee, writer_pid, addressee_pid, reason, age_s}` — `addressee` is the branch the offer named,
+  `writer_pid` the yielding land that published it, `addressee_pid` the recorded addressee land pid
+  (null for a pre- two-line offer, which is precisely the measured stall: an offer for a land
+  that had never started, unconsumable by anyone), `reason` the operator's free-form justification
+  (REQUIRED by the verb), and `age_s` the offer file's whole-second age at removal — REPORTED, never
+  a threshold: nothing branches on it, this card adds no TTL or timeout. The verb is idempotent and
+  records NOTHING when no offer is on disk (one removal never yields two rows), and it REFUSES while
+  the recorded addressee land pid is alive, so a row here always means «no live land was coming for
+  it». No checker/gate is wired (Principle 1 F4). Append-only, P5-safe (consumers ignore unknown
+  keys).
 
   **cli_invoked** — emitted by the CLI dispatch control-point AFTER one of the **6
   read/query verbs** runs (`task list` / `graph query` / `journal query` / `error list` / `error show` /
@@ -935,6 +1018,23 @@ body: |
   ABSENT when the run governed, never a fabricated empty). A run that was never eligible at all (any
   caller but the candidate land sweep) reads `selection_governed: false` with reason `not-selected`
   via `selection_full_suite_reason`.
+  FOUR PRESMOKE FIELDS are RETIRED by (2026-09-12) and are NEVER WRITTEN AGAIN:
+  `presmoke_selected` (int), `presmoke_s` (float), `presmoke_failed` (list of str) and
+  `presmoke_skipped` (str). They recorded the POST-SYNC SMOKE — the SPEC-0181 affected
+  selection run locally on the MERGED candidate tree after update-from-main and BEFORE the
+  verify-admission slot. They remain READ-TOLERATED on the 2026-09-11..12 rows that carry them, so a
+  reader folding that window still resolves them; no reader may require them, and no writer may
+  emit them.
+  MEASURED GROUNDS for the retirement, folded off this repo's own journal for that window: EIGHT
+  lands ran the smoke, each costing 210.2-540.5 s against a `venue_all_in_wall_s` of 226.2-666.0 s —
+  the SAME order of magnitude, not the «seconds» premised — selecting 511-1440 of ~1530
+  discovered test files, with ZERO `presmoke_failed` rows in the entire window: it refused nothing.
+  WHY it was removed rather than bounded (owner ruling 2026-09-12, «пусть даже малый»): the smoke
+  re-ran the SAME governed SPEC-0181 selection the venue's candidate leg already runs, inside the ONE
+  serialized land reservation, so every queued peer paid the duplicate minutes too. The duplicate run
+  IS the defect — a narrower bound would still be a duplicate — and the candidate leg keeps the
+  IDENTICAL check, so no coverage is lost. Per patterns/retirement-procedure.md this took the
+  measured-then-removed-in-one-ship arm: the mechanism had no adopter and no consumer land ever ran it.
   TWO MORE ride CONDITIONALLY, and only when the AC2 tripwire FIRED: `selection_tripwire_recovered`
   (int) and `selection_tripwire_tests` (list of str) — the omitted tests whose source named a changed
   path, which the independent oracle put BACK into the run. ABSENT — never a zero, never an empty
@@ -1013,6 +1113,23 @@ body: |
   DISTINCT set of matched globs, not the first match: the matcher walks the DIFF's paths, so a
   first-match value would be decided by the order git listed the diff in, and a diff touching two
   surfaces would name only one.
+  A SIXTH selection field rides on EXACTLY those terms and is CO-DERIVED with the fifth :
+  `selection_full_suite_paths` (list of str) — the SORTED, DISTINCT changed path(s) that MATCHED those
+  globs, recorded under the SAME `verify-implementation-touch` guard and ABSENT — never empty, never
+  fabricated — on every other rung. It exists because the fifth field names a SURFACE, not a
+  cause, for the arm that dominates the record: `bin/**` is ONE glob over ~37 modules, and measured
+  over 2026-08-27..09-12, 41% of ALL kernel lands (361 of 874) were refused with
+  `selection_full_suite_globs == ['bin/**']` — so the largest refusal class could be attributed per
+  glob but not per module, and the per-module share had to be RECONSTRUCTED from git history, an
+  approximation whose imprecision is what this field removes. WHY THE PAIR IS RECORDED TOGETHER rather
+  than as an independent second match: both keys are projected from ONE call to the one matching
+  carrier (`_verify_implementation_touch_pairs`), which returns the `(path, glob)` PAIRS, so the
+  invariant «globs non-empty <=> paths non-empty, and every recorded path matched a recorded glob» is
+  STRUCTURAL and the two keys can never name different diffs — the same one-carrier discipline
+  established for the glob reading, applied one level deeper. A second independent matcher would be
+  precisely the drift this construction forbids. Report-only on the fifth field's terms: nothing reads
+  it, nothing gates on it, SPEC-0181's shadow boundary is untouched, and the cost is bounded by the
+  refusing diff's matched-path count (single digits across the measured window).
   TWO BOUND fields ride the payload : `verify_test_timeout_s` (float) = the per-file wall
   bound (SPEC-0071) that was IN FORCE for this run, and `verify_test_timeout_source` (str, one of
   `env` | `declared` | `default`) = WHICH rung of the `_verify_test_timeout_seconds` ladder supplied
@@ -1062,6 +1179,19 @@ body: |
   pre- payload of such a land is byte-unchanged (additive / P5-safe). Report-only, on the
   `per_file_durations` precedent: no new event type, no second metrics path, no new store. It gates
   NOTHING — a file is cleared only by PASSING alone, and this key merely records that it did.
+  `failed_output_tail` (dict) = THE LAST OUTPUT OF EVERY FILE THE RUN STILL FAILS ON. For
+  each file named by the run's returned failures: the last <=40 lines of that file's raw combined
+  stdout+stderr, each line clipped to 200 chars — a failure with EMPTY output records `[]`, never an
+  absent entry, and a timeout kill records the partial output drained before it. A file its isolated
+  retry cleared records nothing. ONE aggregate bound: at most 20 entries — past 20 failing files the
+  first 19 by name keep their tails and the 20th entry is `(overflow)`, naming how many were not
+  recorded. ABSENT — never `{}` — on a run with no failure. A ROUTED land carries it per leg
+  in the venue envelope and folds it onto `venue_failed_output_tail`: ONE `{file: [...]}` map,
+  candidate-leg keys bare, pinned-leg keys `[pinned/last-green] <file>` (the `failing_assertions`
+  prefix), under the same 20-entry bound, ABSENT when no leg recorded one. It exists because the
+  runner's 400-char failure excerpt and the leg's first-line-per-file record left a venue failure
+  readable only as «(no assertion captured)». Report-only, on the `flaky_retry` precedent: no new
+  event type, no second metrics path, no new store, and it gates nothing.
   `load_sensitive` (dict|str) = WHAT THE SERIALIZED TAIL DID on this land. The runner reads
   the committed carrier `tests/load-sensitive.txt` (the declared load-sensitive set: one test file
   per line, comment-tolerant, ENTERED automatically at the land tail and REMOVED only by a card) and
@@ -1558,6 +1688,28 @@ body: |
   DIFFERENTIAL A READER MUST HOLD: a carrier line WITHOUT a matching row was hand-added, and a row
   is never emitted for a REMOVAL — there is no automatic exit and no event for one, because a file in
   the serialized lane cannot prove pool-robustness; the line leaves only in a card's ship diff.
+  `card` is the id of the ready card the entry auto-filed for this file; `card_preexisting`
+  (bool — named 2026-09-11 after its first row at 17:02:16Z reddened the SPEC-0161 refresh
+  corpus-wide) is present and true ONLY when a card for the same fingerprint already existed, i.e.
+  the file RE-ENTERED the carrier (the class: a re-entry on pre-removal evidence); absent on
+  a first entry.
+
+  **land_tail_write_withheld** (SPEC-0188 rule 7) — ONE row per post-ff bookkeeping WRITE
+  the land DECLINED to commit because the tests that READ what it wrote were not proven green on the
+  written tree. `data: {writer, paths[], reason, test, failing[], readers[], wall_ms,
+  restore_errors[]?}`. `writer` names the tail writer as a stable token (`verify_duration_table` /
+  `load_sensitive_entry`), `paths` is the writer's WHOLE transaction — restored together, never
+  partially (a green path may not ride past the gate beside an unproven sibling) — `readers` is the
+  DERIVED set of test files that read those paths and `failing` each one's `{test, why}`, where `why`
+  is `exit:<n>` / `timeout` / `over-budget` / `error:<Type>`. `reason` is the verdict class
+  (`reader-failed` / `timeout` / `over-budget` / `error:<Type>`); it is NEVER `green`, since a green
+  verdict emits no row at all. Emitted by `land` post-ff, in-lock, before the `git add` that would
+  have staged the write, and folded into the SAME fresh bookkeeping commit — so the record of the
+  refusal lands even though the write did not. THE DIFFERENTIAL A READER MUST HOLD: this row is NOT
+  a failed land and NOT a failing test on `main` — the land is GREEN and `main` carries exactly the
+  verified tree; what the row says is that a re-derivable bookkeeping write was DEFERRED to the next
+  land. One row is a deferral; a run of them for one `writer` means that writer and its readers
+  genuinely disagree (the SPEC-0119 rule-42 debt line reports exactly that shape).
 
   **land_batch_formed** (SPEC-0184 rules 1-2 + the realization exit criterion) — ONE row per
   FORMED batch, recording what the batch was and what it actually SAVED.

@@ -3113,6 +3113,51 @@ def _land_clear_yield_offer(main_wt: "Path | None", *, _land_yield_offer_path=No
     except Exception:                  # noqa: BLE001 — an unremovable offer still expires by liveness
         return
 
+def _land_stale_yield_offer_verdict(main_wt: "Path | None", *, now=None,
+                                    _land_read_yield_offer=None, _land_yield_offer_path=None,
+                                    _land_pid_is_live=None) -> dict:
+    """T-12413 — READ the yield offer on disk and say whether it is CLEARABLE. Pure read; unlinks
+    nothing. Returns `{status, addressee, writer_pid, addressee_pid, age_s}`.
+
+    `status` over a CLOSED three-value vocabulary:
+      - `absent`               — no offer, or one that does not read. Nothing to clear; the verb's
+                                 idempotent no-op path.
+      - `addressee-land-alive` — the offer records an addressee land pid and that pid EXISTS. The
+                                 REFUSAL: a live land will consume this offer itself, and taking it
+                                 away from under one would destroy a handover that is still running.
+      - `stale`                — clearable. Either NO addressee pid is recorded (the pre-T-12413
+                                 shape, which is exactly the 2026-09-11 fleet park: an offer for a
+                                 land that never started, which no process can ever consume) or one
+                                 IS recorded and does not exist.
+
+    THE DECISION AND THE ACT ARE SEPARATE, deliberately. The verb must be able to PRINT a refusal
+    without having half-performed it, and a reader that unlinked as a side-effect of being asked
+    could not be called twice.
+
+    `age_s` IS REPORTED, NEVER A THRESHOLD. Nothing here branches on it — this card adds no TTL,
+    timeout or number (the design principle the three sibling fences are built on); the age exists so
+    the journal row can say HOW LONG the thing had been parking the fleet, which is what the operator
+    and a later reader actually want to know. An unreadable mtime yields None rather than a guess.
+
+    THE WRITER'S OWN LIVENESS IS NOT CONSULTED, and that is the point of a separate verb. A dead
+    writer already expires its offer inside `_land_yield_offer_blocks`, so an offer that needs a
+    HUMAN is by definition one the automatic fences cannot resolve: what this answers is only whether
+    an addressee land is still coming."""
+    path = _land_yield_offer_path(main_wt)
+    offer = _land_read_yield_offer(main_wt)
+    if path is None or offer is None:
+        return {"status": "absent", "addressee": None, "writer_pid": None,
+                "addressee_pid": None, "age_s": None}
+    br, writer_pid, addressee_pid = offer
+    try:
+        age = int(max(0.0, (time.time() if now is None else now) - path.stat().st_mtime))
+    except Exception:                  # noqa: BLE001 — an unreadable mtime is UNKNOWN, never a guess
+        age = None
+    status = "addressee-land-alive" if (addressee_pid is not None
+                                        and _land_pid_is_live(addressee_pid)) else "stale"
+    return {"status": status, "addressee": br, "writer_pid": writer_pid,
+            "addressee_pid": addressee_pid, "age_s": age}
+
 def _land_completed_verify_ran(data: "dict | None") -> bool:
     """T-11256 (SPEC-0184 rule 4) — does this `land_completed` row EVIDENCE that a candidate leg ran?
 
@@ -8140,6 +8185,35 @@ def _land_supersession_probe_fired(superseded_probe, superseded_out) -> bool:
         superseded_out.append(True)
     return True
 
+def _land_pid_is_live(pid: int) -> bool:
+    """T-12413 — does `pid` name a process that EXISTS? One `os.kill(pid, 0)`, errno-discriminated.
+
+    EPERM IS LIVE, AND THAT IS NOT A DETAIL. POSIX gives `kill(pid, 0)` exactly one errno that proves
+    ABSENCE — ESRCH (`ProcessLookupError`). EPERM (`PermissionError`) is the kernel answering «that
+    process exists and you may not signal it», which is what a land running under a DIFFERENT UID on
+    this host looks like. Collapsing the two into a bare `except OSError` would read such an addressee
+    as dead, suppress the offer it is entitled to, and quietly return that handover to the
+    arrival-order lottery T-11279 replaced (audit-pre finding, 2026-09-11, medium).
+
+    WHY THE TWO READER FENCES KEEP THEIR BARE `except OSError` AND THIS DOES NOT — the asymmetry is
+    deliberate, not an inconsistency left behind. On the READ side (`_land_yield_offer_blocks`) a
+    wrong «dead» only fails OPEN: the offer stops fencing and the repo costs exactly its pre-offer
+    behaviour. On the WRITE side a wrong «dead» SUPPRESSES the handover outright. The two sides
+    therefore owe opposite care about an unproven errno, and only the write side is this card's
+    subject.
+
+    ANYTHING ELSE IS FALSE. An errno neither ESRCH nor EPERM is unproven, and an unproven handle may
+    not be published as a promise that somebody will come for the slot."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:         # ESRCH — the ONLY errno that proves absence
+        return False
+    except PermissionError:            # EPERM — it EXISTS; we merely may not signal it
+        return True
+    except OSError:                    # unproven — never published as live
+        return False
+    return True
+
 def _land_write_yield_offer(main_wt: "Path | None", branch: "str | None", *, addressee_pid=None,
                             _land_yield_offer_path=None) -> bool:
     """Publish «the reservation is offered to <branch>», stamped with THIS process id.
@@ -8159,12 +8233,36 @@ def _land_write_yield_offer(main_wt: "Path | None", branch: "str | None", *, add
     Stamping it turns the missing check into one more `os.kill(pid, 0)` — the identical syscall and
     cost class as the writer fence beside it.
 
-    ABSENT IS UNKNOWN, and the file stays BYTE-IDENTICAL to the pre-change two-line form when no pid
-    is passed or the one passed is not a positive int. A caller that cannot resolve the addressee's
-    pid (a wait row predating this change, a branch new to a later yield round) must record nothing
-    rather than a placeholder: `_land_yield_offer_blocks` reads an absent third line as NOT-PROVEN and
-    falls through to exactly today's behaviour, which is the only safe direction — a fence that
-    guessed «dead» would switch the addressed handover off repo-wide."""
+    T-12413 — AN OFFER IS PUBLISHED ONLY WHEN IT CAN BE PROVEN CONSUMABLE, and that is this card's
+    whole claim. T-11878 made the READER able to expire an offer whose addressee land had DIED; it
+    left untouched the case where that land had NEVER STARTED. Measured 2026-09-11 13:33Z-14:50Z
+    (fingerprint `yield-offer-addressee-land-not-started-parks-fleet`): 17 lands parked on
+    `waiting_for_land_reservation` — 4706 heartbeat rows in three hours — with the reservation flock
+    UNHELD. The offer named `task/T-12378`, whose worker was ALIVE but in Stage 6: its land had not
+    begun, so the wait rows carried no pid, so the offer went out with NO third line, so the T-11878
+    fence read UNKNOWN and fell through. Both shipped fences answered correctly and neither fired —
+    the writer was alive and parked, the addressee branch existed — and consumption belongs to the
+    addressee's live land ALONE (`_land_consume_yield_offer`), so no process in existence could ever
+    take the file away. It came off by HAND at 14:50Z.
+
+    So the fix is on the WRITE side, where the question is FREE and has a real answer: the writer
+    picked this addressee out of its own queue read, and if that read cannot name a LIVE land pid,
+    there is nobody to hand the slot to and NOTHING IS RECORDED (returns False, no file touched). The
+    yielder then simply takes the reservation back on its own `retake()` — an unaddressed round,
+    which is the pre-T-11279 behaviour for a peer that cannot be named, and strictly better than
+    publishing a park nobody can end.
+
+    ABSENT IS STILL UNKNOWN — ON THE READ SIDE, WHICH IS WHERE THAT RULE ALWAYS BELONGED. A two-line
+    offer already on disk (written by a pre-T-12413 binary, in flight across the upgrade) still reads
+    as NOT-PROVEN in `_land_yield_offer_blocks` and still fences, exactly as before: a reader that
+    took absence for death would switch the addressed handover off repo-wide. What changes is only
+    that this function no longer CREATES one, so the shape it writes is always T-11878's three-line
+    form.
+
+    NO TIMEOUT, TTL, COUNTER OR TUNABLE — one `os.kill(pid, 0)` via `_land_pid_is_live`, the identical
+    syscall and cost class as the two fences beside it, asked at the one moment the handle is already
+    in hand. The same liveness derivation the three sibling fences are built on, moved to the write
+    side."""
     br = (branch or "").strip()
     path = _land_yield_offer_path(main_wt)
     if not br or path is None:
@@ -8175,10 +8273,11 @@ def _land_write_yield_offer(main_wt: "Path | None", branch: "str | None", *, add
         apid = None
     if apid is not None and apid <= 0:
         apid = None
+    if apid is None or not _land_pid_is_live(apid):
+        return False                   # T-12413 — nobody is coming for it, so it is not published
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        body = f"{br}\n{os.getpid()}\n" + (f"{apid}\n" if apid is not None else "")
-        path.write_text(body, encoding="utf-8")
+        path.write_text(f"{br}\n{os.getpid()}\n{apid}\n", encoding="utf-8")
         return True
     except Exception:                  # noqa: BLE001 — an offer never fails a land (see docstring)
         return False

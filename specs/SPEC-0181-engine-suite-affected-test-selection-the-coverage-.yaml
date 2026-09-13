@@ -775,7 +775,7 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
                                # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
 implements_signature:
   bin/lib/debt.py#open_known_broken: 9c7339c9d7889adb4f4ab67231f7d6c36e1afa3472144aa9d2721720d0329fa5
-  bin/lib/verify_runner.py#_run_verify_tests: b28f5fdb41bcf229873c4c0863c60270227d9967b53583e275890d4e6dbf842e
+  bin/lib/verify_runner.py#_run_verify_tests: 621175988cb35a1e74b2b3f645ca95ea67a5df7918af478416101402c342660d
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: b126dc3392997cd77448594bc042f1a4970b163264646316900c959434d3aea9
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0

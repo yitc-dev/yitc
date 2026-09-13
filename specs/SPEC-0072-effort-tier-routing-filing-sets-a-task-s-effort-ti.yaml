@@ -157,7 +157,7 @@ binding: [code-enforced] # code-enforced residency : routing enforced in cmd_dis
 implements_signature:
   bin/effort-routing-config.yaml: 93b612f519c788c4ebbd4110d0da7744f50350b0cf2421f20818f527e487643d
   bin/lib/cli.py#_resolve_effort_routing: 3e00a47eef8924a4d47d17bdb4e7ebd14b95cef99c6b8b5429661905977eee07
-  bin/lib/dispatch.py#cmd_dispatch: 8f6f28c12c7c47f8e702137215cc2b48d2c949f9e7d184d5ef268e8add4b39e7
-  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
-  bin/lib/task.py#cmd_task_update: 563c27c87f96147ded8f48a07b2986525b7da1a3bab2baf50ce4ea41b4836a5b
+  bin/lib/dispatch.py#cmd_dispatch: ae4796cd55ab7c8e82f2cc6a08ea01c71e2a19cd881207d1bb91f2adcc9b3540
+  bin/lib/task.py#cmd_task_file: 31973f540b35183222a96c09cc63968f9dce26a94f19a1e0ee7b4f1e80d9a022
+  bin/lib/task.py#cmd_task_update: 2384654cd5392fa64680e05177d098a83df9ab9cbe336159f731e85b34723a8b
   bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

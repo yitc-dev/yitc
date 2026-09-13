@@ -285,4 +285,4 @@ implements_signature:
   bin/lib/profile.py#required_check_set: 0c48cde590be15b085207cca55f507dc59938e10b2b31ff5af09c7eeef752c2b
   bin/lib/profile.py#resolve_profile: 09eec24e7fb69c3d5fcb669c925ce3e4278630ffcbbe97ad85359afa9ca5313c
   bin/lib/profile.py#second_derivation_sites: aa77d3aa412aea4e1ed2b71990b3f2309888d4372b21d1860a2ca9ba3e146372
-  bin/lib/views.py#_render_debt_echo: c17a07c0e67d96650d6d47e3bde4d88ff5da080cb388314404c772600e647dbe
+  bin/lib/views.py#_render_debt_echo: 35ba13d5a6113a9e2990351c453cdec058a4354148a1360f4a9c7368e08d751d

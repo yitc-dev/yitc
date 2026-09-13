@@ -37,6 +37,7 @@ import errno
 import json
 import os
 import re
+import shlex
 import signal
 import stat
 import subprocess
@@ -1677,7 +1678,7 @@ def _park_worktree(task: str, reason: str, *, _append_event, _die, _main_worktre
 def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm_dead: bool,
                         _append_event, _classify_inert_paths, _die, _main_worktree,
                         _read_worktree_stamp, _stamp_is_own, _worktree_path_for_branch, _run_git_cap,
-                        REPO_ROOT,
+                        REPO_ROOT, _acting_session_ref,
                         _session_proc_alive=None,
                         _live_path_holders=None, _assert_no_live_holder=None,
                         _proc_scan_is_takeable=None, _docker_cwd_holders=None,
@@ -1712,7 +1713,36 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
     triple, never fail). SPEC-LESS by the SPEC-0005 admission test — the invariant lives wholly here,
     code + test enforced (identical posture to park T-9583 / sweep T-9532).
 
+    WHO DESTROYED IT vs WHO HELD IT (T-12331, X-1341). The row records an IRREVERSIBLE act, so its two
+    load-bearing facts are the ACTOR and whether a guard was OVERRIDDEN — and both were wrong here until
+    T-12331: `discarded_by` was read off the batch's own STAMP (the holder being torn down, not the
+    session doing the tearing), and `forced` was `force and verdict == "observable"` (so a `--force` the
+    dirt gate did not happen to need read as false). Measured on aiseller 2026-09-09: controller
+    `0a3435e6` forced a `--confirm-dead` discard of a batch held by DEAD `e95ef355`, and the only
+    durable record of that act named the dead session as the destroyer and denied the override. Now:
+    `discarded_by` = the ACTING session (injected `_acting_session_ref`), `held_by` = the stamp's holder
+    (the fact the old key was silently carrying, under its true name), `forced` = `bool(force)`.
+    NOTHING IS LOST by widening `forced`: `_classify_inert_paths` returns `dirt_class` non-None IFF the
+    verdict is `observable`, and `dirt_class` is on the row — so the OLD meaning is exactly
+    `forced and dirt_class is not None`, still derivable from the same row.
+
+    `_acting_session_ref` is REQUIRED (no default) and is resolved by the HOST residue: this module is
+    identity-agnostic and never back-imports the host (SPEC-0073 bin/ HARD class), so the resolver
+    crosses the existing injection seam exactly as `cmd_worktree_new` receives `_resolve_session_ref`.
+    The host injects `_resolve_session_ref_for_envelope` — the SAME function `_append_event`'s default
+    uses (SPEC-0137 Rule 2 best-effort envelope role: it never `_die`s, the right posture for a record
+    that must survive a destructive step) — which makes it structurally impossible for `discarded_by` to
+    disagree with the row's own top-level `session_ref`.
+
     Returns the `work_batch_discarded` event data dict. Raises via `_die` on any refusal."""
+    # WIRING CHECK (audit-pre finding 1) — required kwarg AND callable, verified BEFORE any destructive
+    # step, so an unwired call site is a named refusal with nothing torn down rather than a bare
+    # `TypeError: 'NoneType' object is not callable` raised from inside a half-completed teardown.
+    if not callable(_acting_session_ref):
+        _die("worktree park: internal wiring error — `_acting_session_ref` was not injected as a "
+             f"callable (got {type(_acting_session_ref).__name__}). The acting session is the WHO of "
+             "an irreversible discard record (T-12331); refusing to tear down a batch we could not "
+             "attribute. The host residue `cmd_worktree_park` must inject it.")
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", (slug or "").strip()):
         _die(f"worktree park: --work slug must be kebab-case [a-z0-9-], got {slug!r}")
     slug = slug.strip()
@@ -1727,6 +1757,10 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
         _die("worktree park: --force requires --reason — a forced discard of SUBSTANTIVE work must be "
              "journal-evidenced, never silent.")
     main_wt = _main_worktree(REPO_ROOT) or REPO_ROOT
+    # T-12331 — resolve the ACTING session HERE: before the `os.chdir(main_wt)` below, so the ref is
+    # read from the invocation's own locus rather than the post-chdir one, and before anything
+    # destructive, so the record's WHO is in hand no matter which teardown step fails.
+    acting = _acting_session_ref()
     stamp = _read_worktree_stamp(wt)
     if not _stamp_is_own(stamp) and not confirm_dead:
         holder = (stamp or {}).get("session_ref") or "UNKNOWN (unstamped / raw-git)"
@@ -1774,7 +1808,11 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
              f"path-class: {dirt_class}). Discarding it would destroy unlanded work. Land it "
              f"(`bin/yitc-v2 land --branch {branch}`), or — if it is genuinely disposable — re-invoke "
              f"with `--force --reason <why>`.")
-    forced = bool(force and verdict == "observable")
+    # T-12331 — `forced` records WHETHER THE GUARD WAS OVERRIDDEN, as passed, not whether the dirt gate
+    # happened to need the override. The narrower old reading (`force and verdict == "observable"`) is
+    # still derivable from this row as `forced and dirt_class is not None` — `_classify_inert_paths`
+    # sets `dirt_class` non-None IFF the verdict is `observable`.
+    forced = bool(force)
     # TEARDOWN — out of the worktree first, then force-remove + delete the branch + prune (the park/land
     # cleanup idiom; force is safe here only because the dirt gate above already proved nothing
     # substantive is lost, or the operator forced it with a recorded reason).
@@ -1788,7 +1826,14 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
     _run_git_cap(["worktree", "prune"], main_wt)
     data = {"slug": slug, "branch": branch, "reason": (reason or "").strip() or "abandoned",
             "forced": forced, "dirt_class": dirt_class,
-            "discarded_by": (stamp or {}).get("session_ref"), "confirm_dead": bool(confirm_dead),
+            # T-12331 (X-1341) — the two DISTINCT sessions this row must keep apart: the one that
+            # DESTROYED the batch, and the one that HELD it. `discarded_by` carried the holder until
+            # now, so a `--confirm-dead` discard of a dead session's batch credited the destruction to
+            # the corpse. `held_by` is additive (SPEC-0025/D-0009: an unknown key reads as an opaque
+            # triple), and `work_batch_discarded` has no pinned key-set test — unlike `worker_parked`,
+            # whose T-11298 AC3/AC4 pin is why the task arm's identical defect is a separate card.
+            "discarded_by": acting, "held_by": (stamp or {}).get("session_ref"),
+            "confirm_dead": bool(confirm_dead),
             "degraded": False, "branch_deleted": True}
     if bd.returncode != 0:
         # JOURNAL-BEFORE-DIE (audit-pre HIGH, T-10589). The worktree is ALREADY destroyed, so dying
@@ -1822,6 +1867,7 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
                       _read_worktree_stamp, _stamp_is_own, _worktree_path_for_branch, _run_git_cap,
                       _classify_inert_paths, REPO_ROOT,
                       _session_proc_alive=None,
+                      _acting_session_ref=None,
                       _live_path_holders=None, _discard_work_batch=None, _park_worktree=None,
                       _proc_scan_is_takeable=None, _docker_cwd_holders=None,
                       _resolve_holder_sessions=None, _reap_holders=None,
@@ -1841,7 +1887,17 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
         card to satisfy. Emits `work_batch_discarded`.
 
     Both shapes share the teardown spine, the own-stamp gate (T-0362) and the fail-closed posture; they
-    differ only in the evidence each uses to prove the teardown loses nothing."""
+    differ only in the evidence each uses to prove the teardown loses nothing.
+
+    `_acting_session_ref` is REQUIRED at the --work arm and DEFAULTED on the verb (T-12331): the --work
+    arm's record must name WHO destroyed the batch, and that requirement is enforced by the wiring check
+    in `_discard_work_batch` (callable-or-named-refusal, BEFORE any destructive step) — so an unwired
+    --work call is still a named refusal with the batch intact, never a bare TypeError. The `=None`
+    default exists because the --task arm never touches it: making the kwarg required on the OUTER verb
+    broke every direct caller of the --task arm that passes no resolver (the T-0362 suite drives it
+    without the cli host residue — land ABORT 2026-09-11). `worker_parked`'s emitted key set is pinned
+    by T-11298 AC3/AC4, so the --task arm's identical holder-not-actor defect is its own card (followup
+    fu_596f1532bb7e)."""
     task, work = getattr(args, "task", None), getattr(args, "work", None)
     # Defensive both/neither (argparse's mutually-exclusive group already enforces it) — mirrors
     # cmd_worktree_new's identical guard.
@@ -1871,6 +1927,7 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
             _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp,
             _stamp_is_own=_stamp_is_own, _worktree_path_for_branch=_worktree_path_for_branch,
             _run_git_cap=_run_git_cap, REPO_ROOT=REPO_ROOT,
+            _acting_session_ref=_acting_session_ref,
             _session_proc_alive=_session_proc_alive, _live_path_holders=_live_path_holders,
             _proc_scan_is_takeable=_proc_scan_is_takeable,
             _docker_cwd_holders=_docker_cwd_holders,
@@ -1879,8 +1936,13 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
             _session_terminally_over=_session_terminally_over,
             _docker_client_holders=_docker_client_holders)
         main_wt = _main_worktree(REPO_ROOT) or REPO_ROOT
+        # T-12331 — `forced` no longer implies dirt (it is now `bool(--force)`), so the over-dirt
+        # clause is keyed on `dirt_class` instead; keying it on `forced` would print the nonsense
+        # "FORCED over None dirt" for a --force the dirt gate never needed.
+        _forced_over = (f"; FORCED over {data['dirt_class']} dirt" if data["forced"] and data["dirt_class"]
+                        else "; FORCED (no substantive dirt to override)" if data["forced"] else "")
         print(f"worktree park: {data['branch']} discarded (reason: {data['reason']}"
-              f"{'; FORCED over ' + str(data['dirt_class']) + ' dirt' if data['forced'] else ''}); "
+              f"{_forced_over}); "
               f"work_batch_discarded emitted")
         print(f"  work batch {data['slug']} is DISCARDED (a batch has no card — never re-dispatchable); "
               f"worktree removed + branch deleted, no orphan")
@@ -2313,6 +2375,119 @@ def _merged_main_tip(W: "Path", main_sha: str, *, _run_git_cap) -> str:
     return tip if re.fullmatch(r"[0-9a-f]{7,64}", tip) else main_sha
 
 
+#: T-12365 — the conflict-marker tokens, matched LINE-ANCHORED. A prose mention of the token inside a
+#: paragraph (this module is full of them) is not a marker; a line that STARTS with one is.
+_CONFLICT_MARKER_PREFIXES = ("<<<<<<< ", "=======", ">>>>>>> ")
+
+
+def _merge_in_progress(W: "Path", *, _run_git_cap) -> bool:
+    """T-12365 — is a merge IN PROGRESS in `W`? `MERGE_HEAD` resolves iff git is mid-merge.
+
+    Pure; never raises. Any failure answers False, which routes the caller to its ordinary arm — the
+    fail-safe direction, since the ordinary arm's own guards then apply unchanged."""
+    try:
+        return _run_git_cap(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], W).returncode == 0
+    except Exception:                          # noqa: BLE001 — git could not run: not mid-merge
+        return False
+
+
+def _hand_resolved_merge_paths(W: "Path", *, _run_git_cap) -> "tuple[list, str]":
+    """T-12365 — the set of paths THIS merge conflicted on, plus the SOURCE the answer came from.
+
+    PRIMARY SOURCE IS GIT'S OWN RECORD, not a re-derivation. When a merge conflicts, `git merge`
+    writes a `# Conflicts:` comment block into `MERGE_MSG` naming every conflicted path, and that
+    block survives the operator's `git add` — which is exactly what makes it readable HERE, after the
+    resolution, when the index no longer carries a single unmerged entry to read the set from. Using
+    it means this function introduces NO second oracle: the set is the one git recorded for this very
+    merge.
+
+    THE FALLBACK IS A SUPERSET, DELIBERATELY. When the block is absent or unreadable (an older git, a
+    hand-edited message, an unreadable git dir) the answer is the STAGED MERGE DELTA
+    (`git diff --cached --name-only HEAD`) — every path this merge is about to commit. That is a
+    strict superset of the conflicted set, so every check built on this answer becomes at least as
+    STRICT, never less: the marker scan looks at more files, the unstaged-edit check covers more
+    files. Degrading toward more scrutiny is the fail-closed direction.
+
+    THE SOURCE IS RETURNED, NOT SWALLOWED, and it rides the journal row. A reader asking "which paths
+    did a human resolve" must be able to tell the exact answer from the superset — otherwise the row
+    would quietly claim precision it does not have on the fallback path.
+
+    Resolves the message file via `git rev-parse --git-path MERGE_MSG`: a LINKED worktree's git dir is
+    not `W/.git`, so a hardcoded path would read the wrong file (or none) for every worktree this verb
+    actually runs in. Pure; never raises."""
+    try:
+        r = _run_git_cap(["rev-parse", "--git-path", "MERGE_MSG"], W)
+        if r.returncode == 0 and (r.stdout or "").strip():
+            mm = Path((r.stdout or "").strip())
+            if not mm.is_absolute():
+                mm = Path(W) / mm
+            if mm.is_file():
+                out, seen = [], False
+                for ln in mm.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if ln.strip().lower().startswith("# conflicts:"):
+                        seen = True
+                        continue
+                    if not seen:
+                        continue
+                    if not ln.startswith("#"):
+                        break                  # the block ended — never read past it
+                    p = ln[1:].strip()
+                    if p:
+                        out.append(p)
+                if seen and out:
+                    return (sorted(set(out)), "merge-msg")
+    except Exception:                          # noqa: BLE001 — unreadable record ⇒ take the superset
+        pass
+    try:
+        # `-z` rather than a line read: it is NUL-separated AND UNQUOTED, so a path with a space or a
+        # non-ASCII byte arrives verbatim instead of in git's `"...\303..."` escaped form — which
+        # would then match no blob and no pathspec. This module imports only stdlib (see its header),
+        # so asking git not to quote is the right fix here, not importing an unquoter.
+        d = _run_git_cap(["diff", "--cached", "--name-only", "-z", "HEAD"], W)
+        if d.returncode == 0:
+            return (sorted({q.strip() for q in (d.stdout or "").split("\0") if q.strip()}),
+                    "staged-delta")
+    except Exception:                          # noqa: BLE001
+        pass
+    return ([], "unavailable")
+
+
+def _staged_conflict_marker_paths(W: "Path", paths, *, _run_git_cap) -> list:
+    """T-12365 — the subset of `paths` whose STAGED content still carries a conflict marker.
+
+    THE STAGED CONTENT, NEVER THE WORKING TREE. `git show :0:<path>` reads stage 0 of the index —
+    which is precisely what the commit would record. Scanning the working tree instead would answer a
+    question about a file that is not the one about to be committed, and the two differ exactly when
+    the operator has an unstaged edit on top — the case the caller's own separate check is for.
+
+    LINE-ANCHORED (`_CONFLICT_MARKER_PREFIXES`): a line that STARTS with a marker token. This module,
+    the specs and the tests all discuss these tokens in prose, and a substring match would name every
+    such file as a half-resolution.
+
+    UNREADABLE CONTENT IS SKIPPED, NOT GUESSED AT — a binary blob or a failed read yields no claim in
+    EITHER direction. That is a MISSED refusal, never a false one: the caller's remaining checks and
+    `land`'s own conflict proof are both still ahead of it. Pure; never raises."""
+    out = []
+    for raw in paths or ():
+        p = str(raw).strip()
+        if not p:
+            continue
+        try:
+            b = _run_git_cap(["show", f":0:{p}"], W)
+        except Exception:                      # noqa: BLE001
+            continue
+        if getattr(b, "returncode", 1) != 0:
+            continue
+        try:
+            for ln in (b.stdout or "").splitlines():
+                if ln.startswith(_CONFLICT_MARKER_PREFIXES):
+                    out.append(raw)
+                    break
+        except Exception:                      # noqa: BLE001 — undecodable ⇒ no claim either way
+            continue
+    return out
+
+
 def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_worktree,
                       _worktree_path_for_branch, _run_git_cap, _BOOKKEEPING_ALLOWLIST,
                       _is_yitc_session_state, _DERIVED_MERGE_ARTIFACTS,
@@ -2345,6 +2520,29 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
 
     ALREADY-CURRENT IS A CLEAN NO-OP, NOT AN ERROR: 0 commits behind -> say so, emit
     `worktree_synced{noop: true}`, exit 0, change nothing. Re-running the verb is always safe.
+
+    `--resolved` — THE HAND-RESOLVED ARM (T-12365). The ordinary path above stops on a non-union
+    conflict (`_update_from_main` aborts the merge; `land` refuses on the same class BEFORE the
+    queue), and the resolution itself was RAW GIT: open the merge, edit, `git add`, `git commit` —
+    done by hand three times on 2026-09-10 alone, each leaving NO journal row naming what was
+    resolved. AGENTS §Verb-execution discipline forbids hand-doing what a verb covers; nothing
+    covered this. This arm does, and it is an ARM of the verb that already owns the seam rather than
+    a new verb (CHARTER §P1 F1).
+    It runs INSIDE the worktree with the merge IN PROGRESS, after the operator resolved and staged:
+    fail-closed checks (nothing unmerged, no conflict marker in the STAGED content, no unstaged edit
+    on a resolved path — each refuses naming the path, commits nothing, emits nothing, and leaves the
+    merge in place so nothing is lost) -> `git commit --no-edit`, i.e. git's OWN prepared merge
+    message -> ONE `merge_resolved_by_hand` row -> the SAME conflict proof `land` runs, re-run and
+    reported.
+    TWO BOUNDS, both load-bearing. It RESOLVES NOTHING ITSELF — the resolution is the operator's, and
+    automatic resolution of anything is explicitly out of scope. And it is NOT an audit-currency
+    exemption: a hand resolution is AUTHORED CONTENT, so SPEC-0077 §3a demands the re-audit exactly
+    as it did before this arm existed. The row makes the shift ATTRIBUTABLE, not excused.
+    FAILURE ORDERING ACROSS THE COMMIT: the commit is the last act that can strand state; a failed
+    emit exits NONZERO, prints no success line, names the commit and prints the paste-ready
+    `event merge_resolved_by_hand` recovery; and the commit is never rolled back, because it carries
+    work that exists nowhere else. The re-proof is report-only and three-state, so it can never be
+    what claims completion. Raw git stays the recovery escape hatch (D-0054), never the primary path.
 
     IT IS ALSO THE RESUMED-LAND PRE-FLIGHT (T-11313). It already ran land's steps 1 and 2 and produced
     the real post-merge tree, so it is where the COMPLETE blocker set of a resumed land is computable
@@ -2423,6 +2621,149 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     if head_branch != branch:
         _die(f"worktree sync: worktree {W} is on {head_branch or 'a detached HEAD'!r}, not {branch!r} — "
              f"refusing to sync a worktree that is not on the branch you named.")
+
+    # ── T-12365 — THE HAND-RESOLVED ARM ────────────────────────────────────────────────────────────
+    # Placed HERE: after every worktree/branch validation above (all of which apply unchanged — the
+    # linked-worktree guard, the not-the-main-checkout guard, the on-the-named-branch guard) and
+    # BEFORE the behind-count, because the ordinary path cannot run at all with a merge in progress.
+    resolved_arm = bool(getattr(args, "resolved", False))
+    in_merge = _merge_in_progress(W, _run_git_cap=_run_git_cap)
+    if resolved_arm and not in_merge:
+        _die(f"worktree sync --resolved: no merge is in progress in {W} — nothing to finish. This arm "
+             f"COMMITS a merge from main whose conflicts YOU have already resolved and staged; it "
+             f"does not START one. To get INTO the merge, run `yitc-v2 worktree sync "
+             f"{('--task ' + task) if task else ('--work ' + str(work))}` — it folds the trailing "
+             f"bookkeeping and runs the merge (no raw git needed for that either). If it stops on a "
+             f"non-union conflict, resolve the named files, `git add` them, and re-run this arm.")
+    if in_merge and not resolved_arm:
+        # The ordinary arm's own fail-closed guard: it would otherwise fold bookkeeping and merge on
+        # TOP of an unfinished merge. It is also the arm's discovery surface — the operator holding a
+        # half-finished merge is told the verb that finishes it, at the moment they are holding it.
+        _die(f"worktree sync: a merge from main is IN PROGRESS in {W} — refusing to sync on top of it "
+             f"(worktree intact, main untouched, your resolution untouched). If you have resolved the "
+             f"conflicted files and `git add`ed them, finish the merge with the covering verb: "
+             f"`yitc-v2 worktree sync --resolved "
+             f"{('--task ' + task) if task else ('--work ' + str(work))}` — it records WHICH paths "
+             f"you resolved on a `merge_resolved_by_hand` row instead of leaving a raw `git commit` "
+             f"the journal never saw. To abandon the merge instead: `git merge --abort`.")
+    if resolved_arm:
+        merge_head = _run_git_cap(["rev-parse", "MERGE_HEAD"], W).stdout.strip()
+        head_before = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
+        conflicted, conflicted_source = _hand_resolved_merge_paths(W, _run_git_cap=_run_git_cap)
+
+        # ── THE FAIL-CLOSED SET. Every check runs BEFORE the commit and before any emit, so a refusal
+        # here commits nothing and emits nothing (AC2). None of them runs `merge --abort`: the
+        # operator's resolution is content that exists nowhere else, so a refusal PRESERVES it and the
+        # verb is simply re-runnable once the named path is fixed.
+        unmerged = [q.strip() for q in
+                    (_run_git_cap(["diff", "--name-only", "--diff-filter=U", "-z"], W).stdout or "")
+                    .split("\0") if q.strip()]
+        if unmerged:
+            _die("worktree sync --resolved: the merge is NOT fully resolved — these path(s) are still "
+                 "unmerged (resolve them, then `git add` each one):\n  " + "\n  ".join(sorted(unmerged))
+                 + "\nNothing was committed and no `merge_resolved_by_hand` row was written; your "
+                   "merge and your resolution are intact.",
+                 abort_class="hand-resolution-incomplete")
+        marked = _staged_conflict_marker_paths(W, conflicted, _run_git_cap=_run_git_cap)
+        if marked:
+            _die("worktree sync --resolved: a CONFLICT MARKER is still present in the STAGED content "
+                 "of these path(s) — they were staged mid-resolution (edit them, then `git add` "
+                 "again):\n  " + "\n  ".join(sorted(marked))
+                 + "\nNothing was committed and no `merge_resolved_by_hand` row was written; your "
+                   "merge and your resolution are intact.",
+                 abort_class="hand-resolution-incomplete")
+        # An UNSTAGED edit sitting on top of a staged resolution would silently commit LESS than the
+        # operator resolved. Scoped to the previously-conflicted paths ONLY — an unrelated dirty file
+        # is none of this arm's business and must never block it.
+        if conflicted:
+            dirty = [q.strip() for q in
+                     (_run_git_cap(["diff", "--name-only", "-z", "--", *conflicted], W).stdout or "")
+                     .split("\0") if q.strip()]
+            if dirty:
+                _die("worktree sync --resolved: these resolved path(s) carry UNSTAGED changes on top "
+                     "of what is staged — committing now would record LESS than you resolved (`git "
+                     "add` them, then re-run):\n  " + "\n  ".join(sorted(dirty))
+                     + "\nNothing was committed and no `merge_resolved_by_hand` row was written; your "
+                       "merge and your resolution are intact.",
+                     abort_class="hand-resolution-incomplete")
+
+        # ── THE COMMIT — the LAST act that can strand state (STEP 3a(a)). `--no-edit` takes the
+        # message git ITSELF prepared for this merge, which is the same message the mechanical
+        # `_update_from_main` path produces: no second message format is introduced.
+        cc = _run_git_cap(["commit", "--no-edit"], W)
+        if cc.returncode != 0:
+            _die("worktree sync --resolved: could not commit the resolved merge (worktree intact, "
+                 "main untouched, your resolution intact):\n" + (cc.stderr or cc.stdout or "").strip(),
+                 abort_class="hand-resolution-commit-failed")
+        merge_commit = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
+
+        payload = {"branch": branch, "main_sha": merge_head, "merge_commit": merge_commit,
+                   "head_before": head_before, "resolved": conflicted,
+                   "resolved_source": conflicted_source, "worktree": str(W)}
+        try:
+            _append_event("merge_resolved_by_hand", task, payload)
+        except Exception as e:                 # noqa: BLE001 — STEP 3a(b): FAIL LOUD, NEVER claim success
+            # The commit is NEVER rolled back (STEP 3a(c)): it carries the operator's hand resolution,
+            # content that exists nowhere else. Destroying unrecoverable work to make this verb look
+            # atomic would be the worse failure — so instead the record is made RECOVERABLE in one
+            # pasted command (`event` needs no worktree, D-0049) and the verb exits NONZERO without
+            # printing its success line, so nobody is told this completed when it did not.
+            _die("worktree sync --resolved: the merge WAS COMMITTED as " + merge_commit[:12] +
+                 " but its `merge_resolved_by_hand` row could NOT be written: " + str(e) +
+                 "\nThe resolution is safe — only its RECORD is missing. Recover it with (needs no "
+                 "worktree, D-0049):\n  bin/yitc-v2 event merge_resolved_by_hand"
+                 + (f" --task {task}" if task else "") + " --data "
+                 # shlex-quoted, so the pasted argument reaches `event` as the JSON OBJECT itself
+                 # (a double-quoted JSON-of-JSON form is readable by a shell too, but only after
+                 # its escapes, and it lets `$`/backticks in a path expand — the auditor's finding).
+                 + shlex.quote(json.dumps(payload, sort_keys=True))
+                 + "\nThen re-run `land` as usual.",
+                 abort_class="hand-resolution-unrecorded")
+
+        print(f"worktree sync --resolved: merge from main COMMITTED as {merge_commit[:12]} on "
+              f"{branch} (main {merge_head[:12]}). Worktree intact at {W}; main was NOT advanced — "
+              f"this is a SYNC, not a land.")
+        if conflicted:
+            print(f"  resolved BY HAND ({len(conflicted)} path(s), recorded on this run's "
+                  f"`merge_resolved_by_hand` row, source: {conflicted_source}):")
+            for _p in conflicted:
+                print(f"    {_p}")
+        else:
+            print("  no previously-conflicted path could be named (source: "
+                  f"{conflicted_source}) — the row records the merge, not a path list.")
+
+        # ── THE RE-PROOF — REPORT-ONLY and THREE-STATE (STEP 3a(d)). It is the SAME conflict proof
+        # `land` runs before the queue, called directly — never a second checker — and it GATES
+        # NOTHING here: `land` remains the enforcement point. A proof that could not RUN is stated as
+        # unknown, never rendered as proved (the T-11349 say-which-silence-this-is discipline this
+        # verb already applies to its currency phase).
+        if _land_preflight_conflict_lines is not None:
+            _sink: dict = {}
+            _lines = _land_preflight_conflict_lines(
+                branch, main_wt, task, _run_git_cap=_run_git_cap,
+                _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dedup_events,
+                EVENTS_PATH=EVENTS_PATH, _classify_inert_paths=_classify_inert_paths,
+                _blockers_out=_sink)
+            for ln in _lines:
+                print(ln)
+            if not _lines:
+                print("  conflict re-proof: RAN and reported no blocker — the same check `land` runs "
+                      "before the queue no longer refuses on the conflict you just resolved.")
+        else:
+            print("  conflict re-proof: SKIPPED — not run at all, so this line is NOT a clean "
+                  "verdict: the phase's injected helper is unavailable in this process. Treat the "
+                  "branch's merge-cleanliness as UNKNOWN and expect `land` to judge it.")
+
+        print("  CUSTODY UNCHANGED: a hand resolution is AUTHORED CONTENT, so SPEC-0077 §3a still "
+              "requires the re-audit it required before this verb existed. The row makes the shift "
+              "ATTRIBUTABLE — it does not excuse it.")
+        # `return None`, not a bare `return`: this arm is TERMINAL and sits ABOVE the ordinary path,
+        # so a bare one would read as the already-current NO-OP path's return to anything scanning
+        # this function top-down for it (tests/test_t11711_census_preflight.py splits the source on
+        # exactly that token to prove the census pre-flight runs on the no-op path too). Same
+        # semantics, unambiguous marker.
+        return None
+    # ── end of the hand-resolved arm ───────────────────────────────────────────────────────────────
 
     main_sha = _run_git_cap(["rev-parse", "main"], W).stdout.strip()
     head_before = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()

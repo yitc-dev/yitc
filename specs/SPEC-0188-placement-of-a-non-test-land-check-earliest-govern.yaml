@@ -47,6 +47,8 @@ extension: ~ # OPTIONAL (SPEC-0101 rule 1) — the EXTENSION marker. Set ONLY on
 
 implements:
   - bin/lib/worktree.py#_corpus_integrity_verdict # the ONE implementation rule 4 requires (subject parameterised by `head`)
+  - bin/lib/worktree.py#_land_tail_tripwire_verdict # RULE 7 — the post-ff write's admission predicate (one implementation, both writers)
+  - bin/lib/worktree.py#_land_tail_withhold # RULE 7 — the atomic per-transaction undo + the `land_tail_write_withheld` record
   - bin/lib/batch_landing.py#_land_form_batch # POINT 1 — selection, the earliest eligible subject
   - bin/lib/worktree.py#_land_integrate # POINT 2 — the assembled tree, before the admission slot and the suite
 
@@ -123,6 +125,55 @@ body: |
   and named). "Anything re-derived after a retry" is a bucket, and buckets are refused: they
   reintroduce append-to-the-END under a rule-shaped name.
 
+  ### Rule 7 — A post-ff bookkeeping WRITE re-asks the readers of what it wrote, or it is withheld
+  **A land's post-ff bookkeeping write is ADMITTED only on positive proof that the tests which READ
+  the artifact it wrote are green on the written tree; every other outcome WITHHOLDS the write,
+  restores the tree the fast-forward published, and records the withholding.**
+
+  This is rule 1's second clause applied to a mutation the rule's original two placements did not
+  cover: the verified subject is the CANDIDATE tree, and a tail write mutates `main` AFTER that
+  subject was judged. The write IS the named invalidator, so re-asking is licensed; what is re-asked
+  is bounded to that artifact's own readers, which is why this is not the rule-5 bucket ("anything
+  re-derived after the ff"). A tail write nothing reads re-asks nothing and costs nothing.
+
+  Three bounds, each load-bearing:
+  1. **THE UNIT IS THE WRITER'S WHOLE TRANSACTION.** A writer that produces several paths is judged
+     over the UNION of their readers and its paths are admitted or withheld TOGETHER. A per-path
+     check admits a green path beside an unproven sibling written in the same breath.
+  2. **THE READER SET IS DERIVED FROM THE CORPUS, NEVER DECLARED.** A hand-maintained writer→test
+     map is complete when written and wrong afterwards: the tripwire that caught the incident in
+     §Worked example 2 did not exist when the writer that broke it. Over-inclusion is harmless
+     (an extra green file costs its own bounded wall); under-inclusion is the defect.
+  3. **WITHHOLDING IS THE FAIL-CLOSED DEFAULT, AND IT IS FREE ONLY BECAUSE THE WRITE IS
+     RE-DERIVABLE.** Red, timeout, budget, runner error — anything that is not positive proof
+     withholds. That is affordable precisely because every writer this rule governs recomputes its
+     write from scratch on the next land, so a withheld write is DEFERRED, never lost. **A tail
+     write that is NOT re-derivable may not use this rule to skip itself** — it must be moved into
+     the verified candidate or else not be a tail write at all.
+
+  The five elements, filled (rule 2), for the seam this rule governs:
+  - (1) SUBJECT — the tree ON `main` AFTER the fast-forward AND after this one writer's paths are
+    written; nothing earlier holds those bytes.
+  - (2) REQUIRED FACTS — the written paths and the tests that read them. Unanswerable before the
+    write exists, which is what places the check here and not at either rule-2 point.
+  - (3) LATER INVALIDATORS — none within the land: the check runs inside the same ff lock as the
+    write and the bookkeeping commit, so nothing mutates between the verdict and the commit.
+  - (4) EXPECTED COST — the readers of ONE artifact, run in parallel under a wall budget, paid by
+    the LANDING land only and only when a write actually happened. Measured on this repo: ~11.4s
+    for the lane carrier's 5 readers, ~13.3s for the duration table's 13, against a measured
+    incident cost of ~2.5h of serialized reservation, >15 parked lands and two halted workers.
+    The budget is also the deadlock bound — a reader that hangs against the held lock expires into
+    a withhold rather than wedging it.
+  - (5) RECIPIENT OF FAILURE — the WRITER, not a branch: no branch caused this and none is refused.
+    The `land_tail_write_withheld` row names the writer, its withheld paths and the failing reader,
+    and the derived debt view surfaces a run of them — which is the real signal, since one
+    withholding is a deferral and a repeated one means the writer and its readers genuinely
+    disagree.
+
+  **What this rule does NOT license:** it is not a general post-ff re-verify (rule 5 stands — the
+  full candidate suite is NOT re-run), it gates no branch, it refuses no land, and it never makes a
+  land that already integrated fail. Its only power is to decline to COMMIT a bookkeeping write.
+
   ### Rule 6 — What this spec does NOT do
   It relocates no check (that work is, landed), adds no gate, verb, event type or store, and
   changes nothing about WHAT any guard considers a violation. It governs WHERE a check is asked, WHO
@@ -173,6 +224,31 @@ body: |
     exactly the guess the failing-assertion attributor refuses to make. The abort carries the
     existing `abort_preflight` row shape (rule 3).
 
+  ## Worked example 2 — the post-ff tail write (rule 7), in this rule's terms
+
+  **`bin/lib/worktree.py#_land_tail_tripwire_verdict`, consulted by each withholdable tail writer in
+  `_land_integrate` between its write and the `git add` that stages it.** The five elements are
+  filled in rule 7 itself rather than repeated here; what this example adds is the INCIDENT and the
+  two writers it governs today.
+
+  MEASURED 2026-09-11, two fleet-wide main-red incidents of one class. The second is this rule's
+  subject: at 16:20-17:53Z the load-sensitive tail (`_load_sensitive_entry_at_land_tail`) re-entered
+  a lane line the landing card's own ship diff had just removed, contradicting that card's own
+  tripwire — a test file that did not exist when the writer. Every land aborted for 93
+  minutes: >15 parked lands, six aborted verifies, two halted workers, and a cause that read as each
+  successive branch's failure rather than as the tail's.
+
+  The two writers under rule 7 today, both re-derivable and so both withholdable:
+  `_refresh_verify_duration_table` (`tests/verify-durations.json`) and
+  `_load_sensitive_entry_at_land_tail` (the lane carrier plus each auto-filed card — ONE transaction,
+  bound 1).
+
+  A THIRD post-ff writer is NAMED HERE AS OUT OF SCOPE, because silence would read as coverage: the
+  land's own JOURNAL appends (`land_completed` and its siblings) are verdict-affecting too — a new
+  payload key on one of them can red the payload-key census — but they are NOT withholdable: the
+  journal is append-only (CHARTER §P5) and `land_completed` is the land's terminal record. Rule 7
+  does not reach them, and their remedy is branch-side detection, not withholding.
+
   ## Delivery
 
   `binding: [code-enforced]` with non-empty `implements:` — the anchors ARE the delivery: an author
@@ -212,6 +288,14 @@ body: |
     value blanked.
   - **VP5 (no third placement point):** rule 5 states the refusal and rule 2 element 3 carries the
     obligation that licenses any later placement. PROBE: grep this body.
+  - **VP6 (rule 7 — the tail write is admitted only on proof):** a post-ff write whose reader goes
+    red is restored rather than committed, and the writer's paths move together. PROBE:
+    `tests/test_land_tail_write_withheld.py` — three arms, each asserting unconditionally on its
+    own differential: a red reader withholds and restores; a green reader is admitted byte-for-byte
+    (the DIFFERENTIAL that rejects a gate which simply never writes); and a transaction whose
+    carrier is green but whose sibling card is red withholds BOTH (bound 1). Its fourth arm proves
+    the reader set is DERIVED (bound 2) by finding a tripwire written after the writer and NOT
+    selecting a test that names a different artifact.
 
 cites:
   - CHARTER.md#principle-1
@@ -264,4 +348,4 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
 implements_signature:
   bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
-  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae
+  bin/lib/worktree.py#_land_integrate: 3e331509f46abb45fa86c1c157a7df4898890c2291b5c26faf171f54537cfe87

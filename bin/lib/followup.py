@@ -1270,8 +1270,19 @@ def open_followup_counts(events_path, terminal_ids=frozenset(), closed_at_by_id=
     return counts
 
 
-def _awaits_shape_refusal(awaits: str, verb: str) -> str:
-    """The T-11964 unresolvable-shape refusal, worded ONCE for both write doors.
+def _awaits_shape_refusal(awaits: str, verb: str, family: str = "followup",
+                          stake: "str | None" = None) -> str:
+    """The T-11964 unresolvable-shape refusal, worded ONCE for every write door.
+
+    T-12407 WIDENED THE DOOR SET WITHOUT FORKING THE TEXT. `task pause --awaits` is a THIRD door onto
+    the same grammar, so it must refuse a repo path / spec id identically — and the two things an
+    author actually needs from this refusal, the NAMED GRAMMAR and the NAMED ALTERNATIVES, are
+    door-independent. Only two fragments are not: the command being refused (`family`/`verb`) and the
+    one-sentence STAKE of arming an unresolvable reference, which differs by door — an unresolvable
+    followup leaves the actionable headline forever, an unresolvable pause leaves the session-start
+    echo asserting a wait it can never end. So those two are parameters and everything else is shared.
+    `stake=None` keeps the followup wording byte-identical, which is what
+    `tests/test_t10335_followup_awaited_artifact.py` pins.
 
     Two doors, ONE claim — the same rule T-11863 established for the missing-awaits refusal: a
     followup reaches `armed` via `arm` AND via `add --trigger`, so a check on only one leaves the hole
@@ -1285,10 +1296,12 @@ def _awaits_shape_refusal(awaits: str, verb: str) -> str:
     (`lessons/a-deferral-needs-a-named-carrier-before-it-reads-as-one`), or discard it. That third
     branch is exactly what T-11951's 40 residuals needed and could not express.
     """
-    return (f"followup {verb} --awaits {awaits!r} names no resolvable awaited artifact — refusing, "
-            f"because an armed followup LEAVES the actionable headline and this one could never fire, "
-            f"which is strictly worse than staying visible (the T-11863 defect in a new shape: that "
-            f"card closed `awaits` ABSENT, this closes `awaits` PRESENT but unresolvable).\n"
+    stake = stake or ("because an armed followup LEAVES the actionable headline and this one could "
+                      "never fire, which is strictly worse than staying visible (the T-11863 defect "
+                      "in a new shape: that card closed `awaits` ABSENT, this closes `awaits` PRESENT "
+                      "but unresolvable)")
+    return (f"{family} {verb} --awaits {awaits!r} names no resolvable awaited artifact — refusing, "
+            f"{stake}.\n"
             f"{AWAITS_GRAMMAR_HELP}\n"
             f"A repo PATH, a SPEC id or a plan slug is NOT an awaited artifact: a file has no arrival, "
             f"and a spec's `active` status is its normal state, not a moment. If the awaited moment is "

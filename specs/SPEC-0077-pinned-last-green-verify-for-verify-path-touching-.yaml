@@ -65,6 +65,8 @@ implements: # durable anchor — the code site the rule is realized in.
                                               # RECORDED land abort. Fail-closed on each; an
                                               # unestablished acquisition clears nothing and refuses
                                               # nothing (the preflight's fail-open rule)
+  - bin/lib/rebaseline_currency.py#_pinned_touched_weakened_keys # : the FIRST-attempt preflight's SELECTION — the files this branch's diff both TOUCHED and WEAKENED, i.e. the exact COMPLEMENT of touched-exclusion (the self-approval fence's own set, the one class about to RED); reuses `_pinned_touched_is_weakening` unchanged and fails toward ADMITTING, never toward inventing a refusal
+  - bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text # : the COMPLETE refusal an UNDECLARED first attempt is owed — a renderer that can never admit (the refusal is decided on the failing entries, never on token availability), reaching the composer from ONE call site so it and the post-verify refusal cannot drift; restates the A-prime authority rather than relaxing it
   - bin/lib/rebaseline_currency.py#_rebaseline_waive_stable_token # : the SECOND SPEC-0077 3a token SHAPE (key + the assertion stable identifying span), offered beside the exact one so a token stays bindable across a MAIN-varying value where the run-varying normalizer deliberately does not reach; widens only what is OFFERED, matcher untouched
   - bin/lib/rebaseline_currency.py#_rebaseline_waive_paste_lines # : the ONE composer of the --rebaseline-waive paste lines for every refusal in that module, so the exact+stable pair cannot drift between refusals (the X-0685 class) and the byte identity AC4 asserts becomes structural
   - bin/lib/rebaseline_currency.py#_environmental_broken_refusal_text # : the COMPLETE refusal
@@ -343,6 +345,48 @@ body: |
     in a 7-day window ending 2026-08-24 the session-start debt echo reported this as the LARGEST
     reclaimable abort class in the repo (waive-coverage 21x/327.1min, authorization 5x/55.0min, both
     GROWING) — a dated reading, cited as the grounds for this rule, not as a live figure.
+    **AND THE FIRST ATTEMPT NO LONGER HAS TO DISCOVER IT BLIND — the step-4a preflight now
+    has TWO arms, and this is the second.** The rule above still stands unchanged: carry the
+    declaration into the first attempt. But an operator who could not have known WHICH assertions
+    their change superseded used to have exactly one way to find out — run the whole two-leg verify
+    and read the abort. Measured over 2026-09-03..10 that cost 151 `verify-failed` aborts at a median
+    12.9 min apiece, and is why a rebaseline land needed a mean 3.81 attempts against 1.26 for a plain
+    one. So on a verify-path-touching land carrying NO `--rebaseline`, BEFORE the full verify and
+    before the SPEC-0132 admission slot, the pinned last-green copies of exactly the test files the
+    branch's own diff both TOUCHED and WEAKENED are run — and when one FAILS the land REFUSES there,
+    naming the FILE::ASSERTION token(s) and pasting the ready `--rebaseline` command, so the operator's
+    SECOND attempt is the declared re-baseline.
+    **THE SELECTION IS, READ IN THE OTHER DIRECTION.** §3's touched-exclusion drops a
+    touched-but-NOT-weakened file from the pinned leg entirely; what stays pinned is the WEAKENED
+    case, the self-approval fence, and that is precisely the set about to RED. So this arm runs the
+    COMPLEMENT of that exclusion and nothing else — never the whole pinned set, and never the
+    census/untouched stale-pin class, which is a different question and is not consulted here.
+    **FOUR BOUNDS, each of which the arm would be wrong without:**
+    (i) **FAIL-OPEN, inherited not re-decided** — an unresolvable diff, an unreadable last-green blob
+        or an acquisition that could not be ESTABLISHED all read as ADMIT, and the land proceeds into
+        the full verify on a byte-identical path. This arm may make a refusal EARLIER and CHEAPER; it
+        may never invent one from an unestablished fact (the rule, unchanged).
+    (ii) **THE A-PRIME AUTHORITY BELOW IS UNTOUCHED** — nothing is auto-declared. The refusal PASTES a
+        command the operator must choose to run; `--rebaseline` remains the only waiver and still
+        requires its kind, its MECHANICALLY-TIED `>=30-char` reason and a fresh audit-post. What moves
+        is WHEN the operator learns what to declare, never WHO may declare it, and a refusal that
+        arrives sooner must not read as permission that came easier.
+    (iii) **THE REFUSAL IS DECIDED ON THE FAILING ENTRIES, NEVER ON TOKEN AVAILABILITY** — a failure
+        that binds no waive token is refused just as firmly and told the re-baseline route is
+        unavailable to it, rather than being handed a token that cannot bind (the X-0685 drift).
+    (iv) **ONE TEXT, ONE COMPOSER** — this refusal's token lines come from the SAME composer
+        the post-verify refusal uses, so the two cannot drift (the (iii) discipline).
+    (v) **AN EXCUSED FAILURE IS NOT A REFUSAL** — the arm applies the SAME §3 / additive-layout
+        classifier the full pinned leg applies. A failure the pinned leg FORGIVES and RECORDS
+        (`land_completed.pinned_layout_excused`) must not become a hard early refusal demanding a
+        declaration for a change that superseded no assertion: excused → admit, and the excusal record
+        is written downstream exactly where it is written today. The classifier is all-or-nothing, so
+        any set carrying a real assertion failure is still refused in full.
+    (vi) **IT IS A PINNED-FIRST ORDERING, AND OBEYS THE PINNED-FIRST SWITCH** — this arm moves the
+        pinned judgement earlier still, so `YITC_PINNED_FIRST=0` ( existing operator control,
+        which restores the pinned-LAST order) governs it too. One switch for one ordering; no second
+        knob is minted, and differential control keeps its meaning.
+    The full pinned leg still runs, complete and unnarrowed, on the declared attempt exactly as before.
     **The obligation is SYMMETRIC — declare iff the leg will arm, never defensively.** An UNNEEDED
     `--rebaseline` on a diff that does not touch the verify path is refused exactly as hard as a
     missing one; this rule buys the operator ONE decision made early, not a habit of declaring. When
@@ -1222,12 +1266,14 @@ implements_signature:
   bin/lib/cli.py#_extract_failing_assertion: 0d089df5b265d5ed5316fc741553cd14152ebd9b79f7f8cfb3b23a17127aa198
   bin/lib/rebaseline_currency.py#_environmental_broken_refusal_text: 203d51d231c5262397ca1fb96f085b7b182d0835fb06fef1d3a2122a9139b658
   bin/lib/rebaseline_currency.py#_environmental_waive_bindings: 7b83c8add92401ab004c2864e439be1111c65deacaf3e13921ef350a833206cb
+  bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text: 891be361dd007b7641dcab62e00efafa6f4c7ac699e46b5f48ae8af8812f903b
   bin/lib/rebaseline_currency.py#_offending_drift_is_merge_produced: 4ea70f441f97e9508f7cf2c4d88154657088f6f257c4033b5368db4609ad9ec3
+  bin/lib/rebaseline_currency.py#_pinned_touched_weakened_keys: 30b462384debceb499272320ca6ad0ffe2c96e54812a9948ad5be19c8fa32684
   bin/lib/rebaseline_currency.py#_rebaseline_waive_paste_lines: d7e3f472bc1f82a53e525031fa41776c9e250067608df41481c9e5bc87102951
   bin/lib/rebaseline_currency.py#_rebaseline_waive_stable_token: aaa1246318df7b61a98be775459a63bbbb6a20ef5f26a932376493bcff80afa1
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
   bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
-  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae
+  bin/lib/worktree.py#_land_integrate: 3e331509f46abb45fa86c1c157a7df4898890c2291b5c26faf171f54537cfe87
   bin/lib/worktree.py#_pinned_recovery_hint: 15a2024219cd72b83d56a329ed0c64413f1c1f3e21e45a026083f1ec7ba19824
   bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

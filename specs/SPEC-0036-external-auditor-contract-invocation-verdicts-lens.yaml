@@ -457,6 +457,88 @@ body: |
   incidents happened. In practice they do not overlap: a filed-but-unclosed card carries
   `probe_moments` and no `probes:`, so the same criterion is not rendered twice.
 
+  **MACHINE-REFUTED P8-adoption finding on a NON-infra card — the second admissible class
+  of the machine-refutation seam.** CHARTER §8 (Adoption Verification Strength) binds
+  INFRA-class work only; Principle-3 probe evidence governs a product / feature card, and the packet
+  readiness block already prints `P8 carrier: n/a (class <x>)` on every non-infra card. So a finding
+  whose class is P8-adoption / `adoption-gap` («no consumer_read_evidence / live_trigger_evidence /
+  blocking adoption follow-up») on a card whose `class` is NOT `infra` is machine-decidable, and the
+  engine RECORDS it `machine_refuted: true` with a `machine_refutation` evidence dict
+  (`kind: p8-adoption-on-non-infra`, the card's `task_class`, the reason «CHARTER §8 binds infra-class
+  only; packet readiness: P8 carrier n/a», `charter_ref`, `checked_at`, the policy string) — the
+  finding's own text is never edited. The class is read BOTH from the SPEC-0204 rule-1 structured
+  `class_id` slot (`P8-adoption` or the auditor-spelled `adoption-gap`) AND from prose naming the P8
+  evidence types / the principle over EVERY prose field (the measured pass-2 finding,
+  fp1:04687d12731e4141, carried its claim in `failing_input`, which the `finding_class` sniff does
+  not read); the prose arm reads ONLY the §8 carrier vocabulary — the P8 evidence types
+  (consumer_read_evidence / live_trigger_evidence) or the principle itself (P8 / Principle 8 /
+  CHARTER §8): it never admits the bare `adopt` token, so a correctness finding that merely says
+  «adopts» is never touched, and it never admits a generic «no adoption evidence / probe» complaint
+  against the card's OWN criterion either — that is a Principle-3 probe complaint about a deferred
+  probe, judged by the declared-deferred floor (declared → refused at the parse floor;
+  undeclared / orphan → the RED stands and the pass is recorded). Measured: 2026-09-11 round 4 (post-decision RED →
+  terminal → wont-do) and pass 2 (ceiling) — fingerprint
+  auditor-p8-adoption-gap-on-feature-card-contradicts-packet-readiness; the medium/low
+  absorption does not reach this class because it arrives HIGH.
+
+  **How it binds, and how it does NOT.** INFRA-class cards are UNCHANGED — there the finding is
+  exactly what §8 asks for and stands as written; a caller that supplies no class (a plan / decision
+  target) refutes nothing. The pass is skipped ONLY when EVERY finding in it is machine-refuted — a
+  real finding beside the P8 one charges the pass exactly as before. The count of refuted findings
+  (parse-refuted + P8-refuted together) is the one `machine_refuted_count`. Home of the predicate and
+  the seam: `bin/lib/audit.py#p8_adoption_gap_on_non_infra` / `#machine_refute_findings`.
+
+  **BUNDLED FINDINGS ARE NOT REFUTED.** A finding that carries the §8 wording BESIDE an
+  independent defect claim — a concrete source location the kernel does not own the judgement of (a
+  `.py` path under `bin/` or `tests/`), or an explicit execution-failure claim (a failing assertion or
+  test, a raised exception, a traceback) — is NOT refuted, on EITHER arm (the structured `class_id`
+  slot as well as the prose sniff): the auditor bundled two claims into one finding and only one of
+  them is machine-decidable, so the WHOLE finding stands and the pass is charged. Judgement vocabulary
+  (scope / coherence / adequacy) is deliberately NOT an independent-defect signal — an auditor may
+  legitimately phrase the §8 claim that way, and admitting it would stop the refutation firing on the
+  shapes it exists for. Predicate: `bin/lib/audit.py#bundles_an_independent_defect`.
+
+  **THE ALL-REFUTED FOLD — what the recorded verdict is when NOTHING the auditor raised
+  survives.** The contract «the VERDICT is never touched» is AMENDED here, and only here. It
+  left the all-refuted pass with no exit at all: the pass is not charged, so the SPEC-0124 ceiling is
+  never reached, so the SPEC-0204 `audit decide` route does not exist, so `task close` stays
+  RED-blocked and the worker's only moves are a third identical pass (CHARTER §Principle 7 forbids
+  it) or `blocked-on-land`. MEASURED on kernel (2026-09-12: built, 3/3 ACs, 1539/1539,
+  audit-pre GREEN, two consecutive audit-post REDs whose sole finding is fp1:35d7971ae2afe775, kind
+  `p8-adoption-on-non-infra`, on a class:fix card, passes 0) and again on. The external ad-hoc
+  consult `all-refuted-red-verdict` (FULL model, GREEN, `decisions/all-refuted-red-verdict-audit-adhoc.yaml`)
+  recommended the smallest resolution: fold to GREEN, reusing the SPEC-0204 rule-8
+  `verdict_excluding_late` shape — a kernel-computed recorded verdict that differs from the auditor's
+  word, with the auditor's word preserved and the reason in `notes` — rather than a third
+  audit-ceiling path or a human-signature route.
+
+  So: a TASK audit-pre/post whose auditor verdict is RED or YELLOW, and EVERY one of whose findings is
+  machine-refuted, RECORDS `verdict: GREEN`. THE FENCE, all of it conjunctive and all of it fail-closed
+  to the auditor's verdict:
+  (1) a CLOSED allowlist of exactly the two machine-decidable classes — `governed-artifact-parse-claim`
+  and `p8-adoption-on-non-infra` — so a FUTURE refutation kind is NOT foldable until it is NAMED there
+  by an explicit change; (2) a NON-EMPTY finding set (a clean pass has nothing to refute and is not a
+  fold); (3) EVERY finding individually refuted, its count re-derived from the findings rather than
+  trusted from the caller; (4) every refutation block produced by THIS pass (`checked_at` and `policy`
+  must match), so a block carried in from a prior record is stale and never folds; (5) unknown, stale,
+  malformed or unavailable refutation data fails closed. An ABORT is never folded — it means the
+  auditor produced no usable outcome, which a refutation cannot disprove; a plan / decision target is
+  out of scope.
+
+  WHAT IS PRESERVED, so no reader can mistake the fold for the auditor having passed the change: the
+  saved record and the `audit_{pre,post}_completed` row BOTH carry `verdict_as_returned` (the auditor's
+  own word, captured before any kernel seam recomputes the verdict) and `machine_refuted_all: true`,
+  additive-optional and ABSENT (never false) on every pass that did not fold; every finding keeps its
+  verbatim `machine_refutation` block; `notes` states the fold and names the kinds. `passes` is
+  UNCHANGED — the existing ledger-skip already leaves it at `prior_passes`, and this fold neither reads
+  nor writes it. SEAM ORDER is load-bearing: the fold runs AFTER the SPEC-0204 rule-8 record seam (so
+  rule 1's fingerprints and every verdict-driven upstream guard — the unchanged-HEAD GREEN-flip refusal
+  in particular — judge the AUDITOR's own word) and BEFORE the rule-3 on-decisions seam (so rule 3's
+  absolute «a `fix` residual echoed OPEN forces RED» clause can still re-raise a folded verdict; a
+  recorded Controller decision outranks a category-error fold). Home of the fence and the seam:
+  `bin/lib/audit.py#machine_refutation_folds_to_green` / `#FOLDABLE_REFUTATION_KINDS`, and the policy
+  string `MACHINE_REFUTATION_POLICY` every saved verdict carries states the same rule.
+
   **DERIVED-FROM-THE-CARD selection — four of the flags above need not be passed at all.**
   Every guard in this family already anchors its trust in a CARD-SIDE DECLARATION (SPEC-0028), so on a
   TASK `audit post` invoked with NO overlay flag the verb DERIVES the overlay from the card itself:
@@ -819,6 +901,10 @@ body: |
   # disposition: blocking | deferrable
   # criterion_ref: an exact acceptance-criterion id of the target's lens } one slot,
   # class_id: one of SPEC-0200 rule 3's six CLOSED must-not-land classes } alternatives
+  # (BASE audit-pre/post response: the prompt's closed vocabulary is those six PLUS the
+  # finding-class names P8-adoption | spec-coherence | scope-fidelity | test-evidence, and a finding
+  # that fails no ACn MUST carry class_id; an omitted one may be engine-derived, marked
+  # class_id_derived: true — SPEC-0204 rule 1)
   # locator: file:symbol or scope ref
   # failing_input: the concrete input/state that fails
   # causality: introduced-by-subject | pre-existing-in-subject

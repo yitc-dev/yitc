@@ -58,8 +58,8 @@ body: |
   by the project's read-only ADAPTER (rule 2). The adapter owns the interpretation that yields that
   normalized state: the expected CADENCE, the staleness threshold, and the STATUS FILTER — only a
   SUCCESSFUL recent run normalizes to `fresh`; a too-old or failed run normalizes to `stale`/`miss`. These
-  are the FIELD SEMANTICS the monitor consumes; rule 2 governs the adapter contract that produces them. A project with no scheduled
-  output yet (e.g. kupiclub) WAIVES it forward-aware. This extends the slice-1 `live_probe:` (a single
+  are the FIELD SEMANTICS the monitor consumes; rule 2 governs the adapter contract that produces them. A project that has not
+  yet declared a scheduled output WAIVES it forward-aware. This extends the slice-1 `live_probe:` (a single
   `GET /health`, SPEC-0094), insufficient for "is the data fresh".
 
   ### 2. The SOURCE is a GENERIC normalized-freshness ADAPTER contract — never a static block premise

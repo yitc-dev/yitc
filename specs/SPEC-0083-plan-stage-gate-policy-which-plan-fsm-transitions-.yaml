@@ -59,6 +59,9 @@ body: |
   `blocking=` arguments to `_run_plan_gate_audit` in `cmd_plan_stage` (bin/yitc-v2). A
   MANDATORY-BLOCKING gate `_die`s on a RED/ABORT verdict (transition held, status unchanged) and
   enforces the 2-pass audit-loop ceiling (SPEC-0124 §Audit-loop ceiling); an ABORT burns no pass.
+  What happens AT that ceiling is homed in SPEC-0204 rule 9 (the plan-gate arm): the Controller records
+  one typed decision per residual and ONE bounded pass then rides the FSM advance this gate blocks. The
+  consult-governed continuation this policy previously pointed at is retired there (rule 6).
   An ADVISORY gate records the verdict and always proceeds. This spec is the doctrine; the verb is
   the chokepoint (`implements:` above).
 
@@ -102,4 +105,4 @@ activation_owner_task:
 proposed_by:
 binding: [code-enforced] # code-enforced contract (non-empty implements, realized by cmd_plan_stage); residency token, not a verb-fetch binding
 implements_signature:
-  bin/lib/plan.py#cmd_plan_stage: ee4be97f1d192fa17718bac9703082a938e9dd88c5c7e512790ce0609e293d10
+  bin/lib/plan.py#cmd_plan_stage: 4362b6693fd6f6926ce287dee4ff143f9ef79f02e7a7ccc291dc6399799fb095

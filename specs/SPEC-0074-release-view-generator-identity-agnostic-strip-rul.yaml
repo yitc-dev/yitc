@@ -182,6 +182,6 @@ implements_signature:
   bin/lib/graph.py#cmd_graph_release_view: a3db5be5267519ad7e9f484bf5ea99d6423e9cc19a2e5764449b08b906058119
   bin/lib/host_paths.py#host_home: 3029bb1be8e3c1227b06a4c0e8489056bba383ec7c922afc27c0ff1ba5af55be
   bin/lib/release.py#build_manifest: 107c52480dcb2305aa4a8c8bdee85d687b9742bf8f138ed449a965f2a68189ac
-  bin/lib/release.py#cmd_work_publish: b1c273ebdac2b667e9db7fd73178e50aa23a71b999fe9d3947f4509384083973
+  bin/lib/release.py#cmd_work_publish: e280328bedb142289a2621d02e6f928fb0ff5de4f6aaaac68da765ef14003c9d
   bin/lib/release.py#cut_release_tree: c6b4f7e007fe3a6814b06bdeb3af7fd1fd161869ad6b480837d7a88693c150f1
   bin/lib/release.py#host_literal_violations: 517ca88cf4b540bb917bc3f1319c0a0603b24f1f038de2ed713d1bc53e095757

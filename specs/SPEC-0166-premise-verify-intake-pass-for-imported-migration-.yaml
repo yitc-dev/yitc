@@ -205,7 +205,7 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
                                # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
                                # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
 implements_signature:
-  bin/lib/dispatch.py#_resolve_dispatch_routing: cb9eca0732a38aa8accc875964cdece0305ceda0d8ae8a0ad2accf5907796c22
+  bin/lib/dispatch.py#_resolve_dispatch_routing: 0e65436769b74b2baad359e71f88f3c778a6a5d68dd838a7ce1ee5c2d3e39744
   bin/lib/task.py#_premise_dispatch_block: bc89539c4c0df4432115de067b9924c393610e854a4a966734bdb16a47185ef5
   bin/lib/task.py#_premise_markers: 4dafee6f579cf488990ba04180b5512e6b28e2d70cde834486a3047ba61e0721
   bin/lib/task.py#_premise_verify_card: 0468ca7337b0fdd66474fbdcc37bf0e2f166296b65277e16ef33c77d739f168a

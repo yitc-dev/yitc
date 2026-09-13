@@ -165,7 +165,10 @@ body: |
 
      **The verdict channel (what makes the bounds enforceable).** A caller cannot bound what it cannot
      read: an exit code names no class and no findings. So the gate PUBLISHES its verdict as JSON
-     (`{ok, reason, detail, blocking[], report}`) when the caller supplies the
+     (`{ok, reason, detail, blocking[], scope_stale{}, report}` — `scope_stale` added by,
+     the SPEC-0145 §5 class-A profile-scope WARN record, populated ONLY on that path and read by
+     the same seam for the same reason: the record of what a deploy proceeded over must be the
+     GATE's judgement, not the caller's re-derivation) when the caller supplies the
      `SECURITY_GATE_VERDICT_FILE` env seam — the same env-seam idiom the gate already uses for
      `SECURITY_FINDINGS_FILE` / `WAIVERS_FILE` / `SECURITY_DEPLOY_COMMIT`, and PURELY ADDITIVE: with
      the env absent nothing is written and every exit code, message and judgement is byte-identical
@@ -273,7 +276,7 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
                                # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
 implements_signature:
   bin/lib/deploy.py#_apply_security_gate_override: 2c69de2dfcaeea6090c6f0ab17ca6de02280ed4608e94752aa3b9f7867630f46
-  bin/lib/deploy.py#cmd_deploy: f5816f71a00d7972618d672fa5cf03d853d35d7038d3f31c8413dbab9b322a1e
-  bin/security-audit: f9686824594e219dcc68628bb28ca1a11c88e8973d1eaf7d8d514eae50f8ad77
-  bin/v2-security-gate#_publish_verdict: 6cbfa31aaefd655ed92c0bfa215c8bed017396b58b914084dd034df7e0985309
-  bin/v2-security-gate#evaluate_report: 0c0b03e1766ca9777c99c433ae5a208721df124d82a91707cecc2367cc209b09
+  bin/lib/deploy.py#cmd_deploy: ace6ae4cdef95e60662a97d4d8ba31cb50609390d7043aca3dcf0c90811da011
+  bin/security-audit: c4261290fd555d9e3fbadef97a8da2960cc99782087def5fd13ad09b76439d1e
+  bin/v2-security-gate#_publish_verdict: a2cb16b9a68474c8ad6e9e916343d7b025fcf56187fda41d2fdda3ea9adaaa3f
+  bin/v2-security-gate#evaluate_report: fbb86ae2786d0b327bf4d814780aa339239f8ba728ccf991aa65bfcd1774799c

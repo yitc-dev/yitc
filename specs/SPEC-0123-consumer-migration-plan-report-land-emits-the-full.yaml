@@ -138,5 +138,5 @@ binding: [query-only] # reference/design rule reached on demand; wires `implemen
 init_concern: ~
 implements_signature:
   bin/lib/worktree.py#_consumer_pending_migrations: 2b597c8dc26954b7b14b1b2d27f6981bb747b937ed9f4d8af90f0a726da532ff
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 2064b72fb104d34509b3d925f89d7e0161d0f5d4b403192fd7b8775bb5297351
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 5a16a244a6c592f25316f3d78ff9b3aa02f3f59bdb0924447343d920cebf39fa
   bin/lib/worktree.py#_render_consumer_migration_plan: 5bcf0db938d0ff0adcd779b27a9cf19c15b8121146ae9926253c737f9929fbf4

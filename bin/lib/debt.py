@@ -34,6 +34,7 @@ Like `cmd_deploy` / `cmd_init`, this module back-imports NOTHING from the host.
 """
 from __future__ import annotations
 
+import ast
 import bisect
 import difflib
 import hashlib
@@ -2626,8 +2627,11 @@ def unmonitored_dispatches(rows, _status_row, _dispatch_events, floor_minutes: i
             continue
         if not isinstance(status, dict):
             continue                      # unreadable status ⇒ never nag on an unknown (rule 3)
-        if status.get("class") == "TERMINAL":
-            continue                      # already drained — a done task is never debt
+        if status.get("class") in ("TERMINAL", journal.DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND):
+            # already drained — a done task is never debt. T-12351: the controller-lands contracted
+            # completion (the worker stopped after `task close` as told) is not an unmonitored
+            # in-flight worker either — it is owed a land, which `--dispatch-status` names.
+            continue
         read_ts = read_at.get(task)
         if read_ts is not None and read_ts >= launch_ts:
             continue                      # a monitoring read NAMING this task, since it launched
@@ -6035,6 +6039,58 @@ ABORT_PREFLIGHT_MARKER = "abort_preflight"   # the payload key a row sets when i
                                              # step-4a PREFLIGHT — its OWN recorded refusal point
 ABORT_COST_GROUPS = ("gate-caught", "inconclusive", "process-refusal", "preflight-refused", "early")
 
+# ── T-12396: AN EVICTION IS NOT AN ABORT — the land-reservation park-limit class, counted APART ───
+#
+# THE FINDING, measured on this repo 2026-09-11. `bin/yitc-v2 debt` printed «476 aborted land(s) in
+# the last 7 day(s) cost wall-clock that shipped nothing» and the roster part-3 parallel-landing-health
+# fold printed «terminal lands n=899 ok=423 abort=476 abort share 53% (prior 38%)». Both folded EVERY
+# `land_completed{status: abort}` row, including the T-11819 park-limit class — a land that verified
+# nothing, merged nothing and spent no CPU: it WAITED OUT the land reservation behind a holder that
+# would not release, and then STOPPED rather than racing for the ff. In the 11:39-13:40Z window alone
+# 4 of 14 aborts were such evictions (T-12322 11:59:22Z, T-12315 12:08:55Z, T-12340 12:20:57Z,
+# T-12361 12:34:40Z — each after 149 min in the queue). So the abort share read the SAME congestion
+# TWICE: once as the wait it already reports, and once again as a failure that never happened. Owner
+# ruling 2026-09-11: «в долгах не считать».
+#
+# WHY IT IS A DIFFERENT KIND OF THING, and not merely a cheap abort. Every other class in this fold
+# describes a land that TRIED and was REFUSED — a verify that failed, a merge that conflicted, a
+# bookkeeping guard that fired. Each of those is a question about the branch. An eviction is a
+# question about the QUEUE: nothing about the branch was ever judged. Pricing it beside them answers
+# neither, and it points a reader at the gate for a cost the gate never incurred — the same
+# wrong-remedy harm T-11777 removed from the RECLAIMABLE group and T-11831 removed from the phase
+# split, applied once more at the population rather than at the group.
+#
+# THE KEY IS THE CLASS, READ STRUCTURALLY. `abort_class` is set at the T-11819 `_die` origin
+# (`worktree.py`, `abort_class="land-reservation-park-limit"`) and carried onto the row by
+# `_emit_land_abort`. Folded over this repo's whole journal: 29 rows carry it and ZERO park-limit rows
+# lack it, so no `abort_reason` regex is needed — and none is used, on the same
+# structured-state-only discipline `surface4_structured_failing_layers` states above. One constant,
+# one predicate, asked by BOTH readers.
+#
+# THE MINUTES ARE NEVER DROPPED — that half is load-bearing, and it is the same bound T-11777 set for
+# `preflight-refused`. Removing an eviction from the abort count while leaving its wall-clock
+# unreported would trade an overstatement for a DISAPPEARANCE, which is the direction this module
+# already refuses when it declines to price an undetermined cost at zero. An eviction is reported as
+# its OWN number, with the wait it PROVES (`reservation_wait_ms`) and the COVERAGE of that proof.
+#
+# SCOPE, stated so a reader does not look for changes that are not here: this is the classification
+# ONLY. The eviction BEHAVIOUR (whether an evicted branch should be re-queued) is a separate card,
+# and no other abort class and no threshold on the share moves. Rule home: SPEC-0119 rule 27.
+ABORT_CLASS_PARK_LIMIT_EVICTION = "land-reservation-park-limit"   # the T-11819 `_die`'s abort_class
+
+
+def abort_class_is_park_limit_eviction(klass) -> bool:
+    """Is this `abort_class` the T-11819 land-reservation park-limit EVICTION (SPEC-0119 rule 27)?
+
+    THE ONE CLASSIFICATION HOME both readers ask — this fold, and the roster part-3
+    parallel-landing-health block (which cannot import it, being contracted to run against any repo
+    on pure stdlib, and so carries the literal under a test that asserts the two agree).
+
+    Compared on the STRIPPED string, matching how `_abort_rows` normalizes the field, and FAIL-CLOSED
+    on anything that is not a string: a row this cannot positively identify stays an ABORT, which is
+    today's reading and the direction that never silently shrinks the abort count."""
+    return isinstance(klass, str) and klass.strip() == ABORT_CLASS_PARK_LIMIT_EVICTION
+
 # ── T-11426 (kupiclub X-1096): THE ARM SPLIT — one abort class carrying two refusals ──────────────
 #
 # THE FINDING. `rebaseline-unauthorized` is ONE class NAME over TWO refusals with different
@@ -6134,6 +6190,34 @@ ABORT_ARM_WAIVE_COVERAGE_MARK = "the ack is scoped to the pinned assertion(s)"
 #       3  a guard message AND a real failing test assertion             -> mixed
 #     ---- `failing_assertions` present on 185/185; `abort_reason` on 185/185.
 #
+# THE FIFTH SHAPE, AND IT IS A CONSUMER'S (T-12406 / kupiclub X-1326). A CONSUMER verify LAYER that
+# runs out of wall-clock reaches this same reader as a `verify-failed` row, because
+# `worktree._run_verify_tests` appends its `verify layer 'X' command TIMED OUT after Ns` sentence to
+# the SHARED `bad` list WITHOUT `_VERIFY_TIMEOUT_MARKER` — so the class fork never sees a timeout and
+# rule (2) above answered `test-failure`, which is the one arm the render is entitled to call a caught
+# defect. Measured on kupiclub, 2026-09-04: SIX `land_completed{abort, verify-failed}` rows across FOUR
+# branches (T-0617, T-0621 x2, T-0623 x2, T-0624), each carrying exactly ONE assertion (that sentence),
+# `failing_tests` EMPTY, and a `consumer_verify_layers` trail whose `frontend-unit` layer reads
+# `outcome: timed-out` at ~300.1 s against a 300.0 s limit while `static` / `sandbox` / `stack` all
+# PASSED. A host that times out an otherwise-healthy layer under a land wave is a host/limits signal;
+# the echo priced all six as the gate EARNING ITS KEEP, and the honest signal was invisible.
+#
+#       6  a TIMED-OUT layer in the trail, every non-guard assertion is its timeout sentence
+#                                                                      -> layer-timeout   [kupiclub]
+#
+# THE 185 KERNEL ROWS ABOVE DO NOT MOVE, and that is MEASURED rather than assumed. Seven of them
+# mention a timeout, and every one is a TEST timeout — `subprocess.TimeoutExpired` from a pytest
+# driver — carrying NEITHER the layer sentence NOR any `consumer_verify_layers` trail (all `None`,
+# since the trail is a consumer-land field). Both legs of the new rule are therefore unreachable for
+# them: the structured leg finds no trail, and the legacy belt matches on the layer sentence they do
+# not contain. The 173 / 4 / 5 / 3 counts stand exactly as tabulated.
+#
+# AND THE CLASS EMISSION IS DELIBERATELY NOT TOUCHED — this is T-11426's move applied a THIRD time,
+# for the third time for the same two reasons. Making `worktree.py` mark these rows `verify-timeout`
+# would be the rename eleven readers key against (T-11426 / T-11607), and every historical row would
+# still need exactly this reader. A THIRD READING OF AN EXISTING PAYLOAD — no new capture key, no new
+# event, no `worktree.py` edit (CHARTER §P1 F1/F2/F3).
+#
 # THE DECISIVE MEASUREMENT IS THE 4, and it is what rules out the obvious structured reader. The
 # card's own stated HYPOTHESIS was that a structured marker might beat the reason text. It does —
 # but NOT `failing_tests`. "No failing test file ⇒ this was bookkeeping" is FALSE for those 4 rows:
@@ -6157,6 +6241,14 @@ ABORT_ARM_WAIVE_COVERAGE_MARK = "the ack is scoped to the pinned assertion(s)"
 ABORT_ARM_TEST_FAILURE = "test-failure"            # the gate earning its keep — a real defect caught
 ABORT_ARM_CORPUS_BOOKKEEPING = "corpus-bookkeeping"  # refused on the branch's PAPERWORK, not its code
 ABORT_ARM_MIXED = "mixed"                          # both — attributed to neither arm alone
+ABORT_ARM_LAYER_TIMEOUT = "layer-timeout"          # T-12406 — the LAYER ran out of wall-clock: a
+                                                   # host/limits signal, not a statement about the code
+# The two things that prove a layer timeout, kept beside the arm they attribute. The OUTCOME is the
+# structured trail T-11973 records (`land_completed.data.consumer_verify_layers[*].outcome`); the MARK
+# is the invariant opening of the sentence `worktree._run_verify_tests` appends to the shared `bad`
+# list on a layer timeout, used ONLY by the legacy belt for rows predating that trail.
+_LAYER_TIMEOUT_OUTCOME = "timed-out"
+_LAYER_TIMEOUT_ASSERTION_MARK = "command TIMED OUT after"
 # THE ARM VOCABULARY'S ONE HOME (CHARTER §P5). The render asks THIS which of a gate-caught group's
 # rows the "a real defect caught before it landed" sentence may be said of, instead of re-listing arm
 # names in the echo text where they could silently drift from the fold that produces them.
@@ -6193,6 +6285,29 @@ def _is_corpus_guard_assertion(text: str) -> bool:
     return any(mark in text for mark in _CORPUS_GUARD_MARKS) if isinstance(text, str) else False
 
 
+def _row_has_timed_out_layer(data: dict) -> bool:
+    """True when this abort row's STRUCTURED per-layer trail records a layer that TIMED OUT (T-12406).
+
+    PURE, and typed element by element for the same load-bearing reason `_abort_arm_verify_failed`
+    types `failing_assertions`: a `consumer_verify_layers` that is a bare string is iterable, and a
+    membership test over it would walk CHARACTERS and prove nothing about any layer. A value that is
+    not a list of dicts proves nothing, so it answers False and the caller falls through to a reader
+    that can prove something — never into the new arm."""
+    rows = data.get("consumer_verify_layers")
+    if not isinstance(rows, (list, tuple)):
+        return False
+    return any(isinstance(r, dict) and r.get("outcome") == _LAYER_TIMEOUT_OUTCOME for r in rows)
+
+
+def _is_layer_timeout_assertion(text: str) -> bool:
+    """True when this recorded assertion is the LAYER-TIMEOUT sentence rather than a test's failure.
+
+    Containment on the assertion ELEMENT, never on a flattened blob — the same shape as
+    `_is_corpus_guard_assertion`, and for the same reason: only a per-element test can say that
+    NOTHING ELSE is in the failing set."""
+    return _LAYER_TIMEOUT_ASSERTION_MARK in text if isinstance(text, str) else False
+
+
 def _abort_arm_rebaseline(data: dict) -> str:
     """The T-11426 arm reader for `rebaseline-unauthorized`. Moved VERBATIM under the per-class
     dispatch below (T-11607) — the ordered reader, its 5 rules and its measured behaviour on the 180
@@ -6226,6 +6341,10 @@ def _abort_arm_verify_failed(data: dict) -> str:
     is in here"; it can never say "and nothing else is".
 
       (1) every readable assertion is a corpus-guard message -> corpus-bookkeeping
+      (1a) a TIMED-OUT layer in the structured trail, and every non-guard assertion is that layer's
+           timeout sentence                                  -> layer-timeout [T-12406]
+      (1b) a timed-out layer beside anything else            -> mixed
+      (1c) LEGACY BELT (no structured trail): a SOLE timeout sentence -> layer-timeout
       (2) no assertion is                                    -> test-failure
       (3) both kinds present                                 -> mixed        [never either alone]
       (4) no `failing_assertions` at all: the LEGACY BELT — a guard mark in `abort_reason`, with
@@ -6243,6 +6362,31 @@ def _abort_arm_verify_failed(data: dict) -> str:
         guard = [a for a in marks if _is_corpus_guard_assertion(a)]
         if len(guard) == len(marks):
             return ABORT_ARM_CORPUS_BOOKKEEPING
+        # T-12406 — THE LAYER-TIMEOUT RULE, ORDERED BEFORE `test-failure`. A consumer verify LAYER
+        # that ran out of wall-clock reaches this reader indistinguishable from a failing test,
+        # because `worktree._run_verify_tests` appends its timeout sentence to the SAME shared `bad`
+        # list WITHOUT the `_VERIFY_TIMEOUT_MARKER` the class fork keys on — so the row is emitted
+        # `verify-failed` and rule (2) below, reading "no assertion is a guard message", would answer
+        # `test-failure` and let the render say a real defect was caught before it landed. The
+        # STRUCTURED trail is what makes the honest answer readable without parsing prose.
+        non_guard = [a for a in marks if not _is_corpus_guard_assertion(a)]
+        timeouts = [a for a in non_guard if _is_layer_timeout_assertion(a)]
+        if timeouts and _row_has_timed_out_layer(data):
+            # SOLE only when the timeout sentences are the WHOLE non-guard set AND no guard fired.
+            # Anything else — a timed-out layer beside a real failing test, or beside a corpus-guard
+            # message — is MIXED: attributed to neither arm alone, exactly as the existing mixed arm
+            # is, because splitting one abort between arms would invent a division the row does not
+            # record and placing it whole in either would overstate that arm.
+            if not guard and len(timeouts) == len(non_guard):
+                return ABORT_ARM_LAYER_TIMEOUT
+            return ABORT_ARM_MIXED
+        # LEGACY BELT, bounded DELIBERATELY to the sole-assertion case. A row predating the T-11973
+        # trail has no structured proof, so the sentence is all there is; with exactly ONE assertion
+        # and no guard mark, that sentence IS the whole refusal and the reading is safe. With more
+        # than one, nothing in the row can say whether the other assertions are tests that genuinely
+        # failed, so the row falls through UNCHANGED rather than being guessed into the new arm.
+        if (not guard and len(marks) == 1 and _is_layer_timeout_assertion(marks[0])):
+            return ABORT_ARM_LAYER_TIMEOUT
         if not guard:
             return ABORT_ARM_TEST_FAILURE
         return ABORT_ARM_MIXED
@@ -6676,6 +6820,29 @@ def aborted_land_cost(events_path, window_days: int = ABORT_COST_WINDOW_DAYS, no
     start = datetime.fromtimestamp(now.timestamp() - _span, tz=timezone.utc)
     midpoint = datetime.fromtimestamp(now.timestamp() - _span / 2.0, tz=timezone.utc)
     rows = _abort_rows(events_path, start, now)
+    # T-12396 — THE EVICTIONS LEAVE THE POPULATION HERE, BEFORE ANY FOLD TOUCHES THEM, and that
+    # placement is the whole implementation: `by_class`, `groups`, `count`, `undetermined`, `trivial`,
+    # the phase `split` and the `aborts` total below all derive from `rows`, so excluding the class at
+    # the source makes every one of them true of the non-evicted set BY CONSTRUCTION. No clause
+    # downstream subtracts anything, and none can be forgotten. (A later partition would have to
+    # unwind five accumulators and the trend halves — the shape that leaves one of them stale.)
+    # `.get`, not `[...]`, though `_abort_rows` always SETS the key (it normalizes a missing one to
+    # ABORT_UNCLASSIFIED) and the fold below subscripts it directly. The partition runs FIRST, so a
+    # raise here would take out the whole report-only view rather than one row; `.get` costs nothing
+    # and fails in the direction the predicate already promises — a row that cannot be positively
+    # identified stays an ABORT, never a silently-shrunk count (audit-post pass 2).
+    evicted = [r for r in rows if abort_class_is_park_limit_eviction(r.get("abort_class"))]
+    rows = [r for r in rows if not abort_class_is_park_limit_eviction(r.get("abort_class"))]
+    # THE WAIT IS WHAT THE ROWS PROVE, NEVER WHAT THEY IMPLY. `reservation_wait_ms` is the land's own
+    # recorded wait for the reservation (T-11690); a row that does not carry it is counted in `n` and
+    # excluded from `waited_n`, so the minutes are always reported WITH the coverage that makes them
+    # honest — the `split_n` discipline, reused, and the reason the render never prints a bare figure.
+    _ev_waits = [r["reservation_wait_ms"] for r in evicted if r.get("reservation_wait_ms") is not None]
+    evicted_result = {
+        "n": len(evicted),
+        "waited_minutes": round(sum(_ev_waits) / 60000.0, 1) if _ev_waits else 0.0,
+        "waited_n": len(_ev_waits),
+    }
     # KEYED BY (class, group), NEVER BY CLASS ALONE — the audit-post pass-2 correction, and it is a
     # correctness fix rather than a refinement. A class can be MIXED: `rebaseline-unauthorized` splits
     # by `abort_preflight` into a cheap pre-verify refusal and an expensive post-verify one under ONE
@@ -6799,13 +6966,20 @@ def aborted_land_cost(events_path, window_days: int = ABORT_COST_WINDOW_DAYS, no
                                         for c in classes), 1),
     }
     return _aborted_land_cost_result(now, classes, groups, days, len(rows), count, undetermined,
-                                     trivial, split)
+                                     trivial, split, evicted_result)
 
 
 def _aborted_land_cost_result(now, classes: list, groups: dict, window_days: int, aborts: int,
                               count: int, undetermined: int, trivial: int,
-                              split: "dict | None" = None) -> dict:
+                              split: "dict | None" = None,
+                              evicted: "dict | None" = None) -> dict:
     return {
+        # T-12396 — the park-limit EVICTIONS, reported APART from every abort figure beside them and
+        # added to none of them. Defaulted so every existing caller and probe keeps today's call
+        # exactly, and defaulted to a zero COUNT rather than to absent: a window with no eviction has
+        # provably none, which is a different claim from an unmeasured one.
+        "evicted": evicted if evicted is not None else {"n": 0, "waited_minutes": 0.0,
+                                                        "waited_n": 0},
         # T-11514 — the window-wide wait/work split (see `aborted_land_cost`). Defaulted so every
         # existing caller and probe keeps today's call exactly.
         "split": split if split is not None else {"wait_minutes": 0.0, "work_minutes": 0.0,
@@ -6865,7 +7039,20 @@ def _aborted_land_cost_result(now, classes: list, groups: dict, window_days: int
                 "minutes would point at a leg a one-line project declaration had already retired and "
                 "send someone to fix a cost that no longer exists (X-1039, volunteered by the "
                 "requester against their own interest). An abort whose cost cannot be determined is "
-                "reported as UNDETERMINED, never as zero. DERIVED at read time from the journal — "
+                "reported as UNDETERMINED, never as zero. ONE CLASS IS NOT IN ANY OF THIS: the "
+                "T-11819 LAND-RESERVATION PARK-LIMIT eviction is EXCLUDED from the abort population "
+                "entirely and reported apart under `evicted` (T-12396). It is not a cheap abort, it "
+                "is a different kind of event — the land verified nothing, merged nothing and spent "
+                "no CPU: it waited out the reservation behind a holder that would not release and "
+                "then STOPPED. Every other class here describes a branch that was JUDGED and "
+                "refused; an eviction is a fact about the QUEUE, and counting it as a failed attempt "
+                "reads one congestion twice, once as the wait this fold already reports and once as "
+                "a failure that never happened (measured 2026-09-11: 4 of 14 aborts in one 2-hour "
+                "window, each after 149 min queued; owner ruling «в долгах не считать»). Its "
+                "wall-clock is NOT dropped — `evicted` carries the wait those rows PROVE "
+                "(`reservation_wait_ms`) with the coverage of that proof, because removing it from "
+                "the abort count while leaving it unreported would trade an overstatement for a "
+                "disappearance. DERIVED at read time from the journal — "
                 "zero stored state, no new event, no new store, no cadence (SPEC-0142 §4). "
                 "Report-only, never a gate.",
         "now": now.isoformat().replace("+00:00", "Z"),
@@ -9803,6 +9990,12 @@ def spec0161_structural_keys(text, lines=None):
     STRUCTURAL position whose KEY LITERAL sits on one of `lines` (1-based; None = the whole file).
     PURE.
 
+    A VIEW OVER `spec0161_structural_key_sites` (T-12411), which answers the same question one
+    notch finer (WHERE each key sits). Keeping ONE matcher is what lets the three readers that need
+    only the key set, the message that needs the charging SITE, and the merge-base side of the
+    attribution all be judged by the same predicate — a second scanner could disagree with this one
+    about what a structural position is, and at a REFUSING gate that disagreement is a false charge.
+
     THE MATCH IS RUN OVER THE WHOLE BLANKED FILE AND FILTERED BY THE LITERAL'S OWN LINE — which is
     what makes it exact in BOTH directions, the two ways a line-based selection gets this wrong:
 
@@ -9818,29 +10011,137 @@ def spec0161_structural_keys(text, lines=None):
     not the statement, not the `.get(` — to be on an added line asks exactly the question the rule
     asks: did THIS branch write this key here? A wrapped readback puts the literal on the added line;
     an untouched neighbour in the same dict does not."""
+    return set(spec0161_structural_key_sites(text, lines))
+
+
+def spec0161_structural_key_sites(text, lines=None):
+    """T-12411: `spec0161_structural_keys` with the LINE each key was found on kept — returns
+    `{key: [1-based line numbers, ascending]}` over the same blanked post-image, by the same match,
+    with the same `lines` filter. PURE.
+
+    THE LINE IS NOT DECORATION — it is what makes a charge CHECKABLE BY THE CHARGED PARTY. The
+    refusal this feeds says "your diff introduces these keys"; without a `<path>:<line>` the operator
+    must re-derive the scan by hand to find out WHERE, which at a gate that fires seconds before a
+    venue slot is the expensive minutes the whole seam exists to save. The path is added by the
+    caller that knows it (`_spec0161_branch_added_code`); this function owns the line.
+
+    ONE SCANNER, TWO READERS: `spec0161_structural_keys` is `set()` of this, so the key set a gate
+    charges and the sites a message prints can never come from two different notions of "structural".
+    """
     scanned = spec0161_code_text(text, None)
     if not scanned:
-        return set()
+        return {}
     wanted = None if lines is None else {int(n) for n in lines}
     starts = []                                         # cumulative offset of each line's start
     off = 0
     for row in scanned.split("\n"):
         starts.append(off)
         off += len(row) + 1
-    keys = set()
+    sites = {}
     for m in _SPEC0161_STRUCTURAL.finditer(scanned):
         for group in ("key", "key2", "key3"):
             if m.group(group) is None:
                 continue
-            if wanted is not None:
-                lineno = bisect.bisect_right(starts, m.start(group))
-                if lineno not in wanted:
-                    continue
-            keys.add(m.group(group))
+            lineno = bisect.bisect_right(starts, m.start(group))
+            if wanted is not None and lineno not in wanted:
+                continue
+            sites.setdefault(m.group(group), set()).add(lineno)
+    return {k: sorted(v) for k, v in sites.items()}
+
+
+#: The shape an EVENT TYPE literal wears — the same lowercase-identifier grammar the journal's own
+#: types are written in (`_SPEC0161_RECORD_ROW`'s left-hand side). A `Call` whose first positional
+#: argument is a string constant of this shape is what `spec0161_added_emit_pairs` reads as an emit.
+_SPEC0161_EVENT_TYPE = re.compile(r"\A[a-z][a-z0-9_]*\Z")
+
+
+def _spec0161_payload_dict_keys(node, lines):
+    """The TOP-LEVEL string keys of one payload dict LITERAL whose key literal sits on an added line.
+    PURE. `lines` is a set of 1-based added line numbers, or None for the whole file.
+
+    TOP-LEVEL ONLY, and `**{...}` unpacked AT that top level counts as top level — because that is
+    exactly what the journal's own candidate set is (`data.keys()`), so this derivation and the
+    oracle agree BY CONSTRUCTION about what a payload key IS. A dict nested as a VALUE inside the
+    payload contributes nothing: its keys could no more appear in `type_keys` than they can here."""
+    keys = set()
+    if not isinstance(node, ast.Dict):
+        return keys
+    for k, v in zip(node.keys, node.values):
+        if k is None:                                   # `**expr` at the payload's top level
+            if isinstance(v, ast.Dict):
+                keys |= _spec0161_payload_dict_keys(v, lines)
+            continue
+        if not (isinstance(k, ast.Constant) and isinstance(k.value, str)):
+            continue
+        if lines is not None and getattr(k, "lineno", None) not in lines:
+            continue
+        keys.add(k.value)
     return keys
 
 
-def spec0161_attribute_unnamed(unnamed, *, added_files, unnamed_by_branch=None):
+def spec0161_added_emit_pairs(added_files):
+    """T-12423: the {event_type -> set(keys)} map read STRUCTURALLY FROM THIS BRANCH'S ADDED CODE —
+    the SECOND candidate source for the ONE oracle, which otherwise learns a (type, key) pair only
+    from a row that ALREADY EXISTS in the journal. PURE; never raises.
+
+    WHY A SECOND SOURCE AND NOT A SECOND ORACLE (the T-11379 precedent — one rule, second
+    quantifier). `spec0161_payload_key_coverage` walks `type_keys`, which `_spec0161_inputs` folds
+    FROM THE JOURNAL, so a pair is not a CANDIDATE until a row carrying the key exists. A branch that
+    ADDS THE EMITTER carries no such row — the first one is written at RUNTIME, after the land — so
+    at its own land the preflight had nothing to see and ADMITTED it. MEASURED, 2026-09-11: T-12373's
+    land brought `bg_dispatch_launched.land_regime` unnamed and was not refused; once a later dispatch
+    emitted the first row ON MAIN, the census tripwire reddened EVERY candidate tree for 2h10m until
+    the key was named by hand. The refusal that DID fire on aiseller fired on a key whose rows already
+    existed — i.e. the gate only ever caught the case it was not built for.
+
+    `added_files` — the same contract `_spec0161_branch_added_code` returns and
+    `spec0161_attribute_unnamed` takes: a sequence of `(post_image_text, added_line_numbers_or_None)`
+    pairs. `{}` on None, so a caller with an unknowable diff contributes no candidates (the
+    fail-OPEN direction, which is the only safe one at a REFUSING gate).
+
+    THE STRUCTURAL BOUNDARY, stated exactly (audit-pre finding 2). An EMIT CALL is a `Call` whose
+    FIRST POSITIONAL argument is a string constant of event-type shape (`[a-z][a-z0-9_]*`). Its
+    PAYLOAD KEYS are the TOP-LEVEL string keys of a dict LITERAL that is a DIRECT argument of that
+    call — a positional argument or a keyword value — plus the top-level keys of any `**{...}` dict
+    unpacked at that same top level (`_spec0161_payload_dict_keys`). A dict nested as a VALUE inside
+    the payload is NOT a key source, and neither is a dict passed to some INNER call. That boundary
+    is not a taste: the journal's candidate set is `data.keys()`, which is top-level only.
+
+    A KEY COUNTS ONLY WHEN ITS LITERAL SITS ON A LINE THIS BRANCH ADDED — the same question arm (i)
+    of the attribution asks, so a branch adding one entry to a pre-existing payload dict is charged
+    for that entry alone and not for its untouched neighbours. The TYPE literal is deliberately NOT
+    required to be on an added line: adding a new key to an EXISTING emit call is precisely the shape
+    that reddened main, and requiring the type too would exempt it.
+
+    NAMED BOUND, honest and fail-OPEN: an emitter whose payload dict is built in a VARIABLE and
+    passed by name is not a literal at the call site and is not seen — the same residue the journal
+    leg already documents. Unparseable text (a shell script, a file mid-edit) contributes nothing and
+    never raises, because a file that does not parse is a fact about the CHECKER, and inventing a
+    charge at a refusing gate out of one is the expensive error (the T-11718 arm's own words)."""
+    pairs = {}
+    for text, lines in (added_files or ()):
+        try:
+            tree = ast.parse(text or "")
+        except (SyntaxError, ValueError, RecursionError):
+            continue                                    # not Python, or mid-edit — charges nothing
+        wanted = None if lines is None else {int(n) for n in lines}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            first = node.args[0]
+            if not (isinstance(first, ast.Constant) and isinstance(first.value, str)
+                    and _SPEC0161_EVENT_TYPE.match(first.value)):
+                continue
+            keys = set()
+            for arg in list(node.args[1:]) + [kw.value for kw in node.keywords if kw.arg]:
+                keys |= _spec0161_payload_dict_keys(arg, wanted)
+            if keys:
+                pairs.setdefault(first.value, set()).update(keys)
+    return pairs
+
+
+def spec0161_attribute_unnamed(unnamed, *, added_files, unnamed_by_branch=None,
+                               base_structural_keys=None):
     """T-12232: split the ONE oracle's `unnamed` pairs into the ones THIS BRANCH INTRODUCED and the
     ones it INHERITED from main. PURE — no I/O, no policy; the caller supplies both facts.
 
@@ -9852,6 +10153,10 @@ def spec0161_attribute_unnamed(unnamed, *, added_files, unnamed_by_branch=None):
                           sequence — when the diff could not be determined.
       unnamed_by_branch — the SET of keys this branch removed from SPEC-0161's record span (may be
                           empty; ignored when `added_files` is None).
+      base_structural_keys — T-12411: the SET of keys that ALREADY had a structural occurrence under
+                          `bin/` AT THE MERGE-BASE. Subtracted from arm (i) below. None/absent = the
+                          pre-T-12411 reading (nothing subtracted), which is what keeps this
+                          function independently exercisable without a git repo.
 
     FOURTH MEMBER OF THE DIFF-AWARE FAMILY (`graph.seed_growth_warnings`,
     `graph.new_test_file_warnings`, `graph.uncatalogued_type_findings`) — same question, one level
@@ -9866,10 +10171,25 @@ def spec0161_attribute_unnamed(unnamed, *, added_files, unnamed_by_branch=None):
     TWO WAYS A BRANCH BECOMES ANSWERABLE, and a diff-scoped derivation must carry BOTH or it exempts
     half the class silently:
       (i)  it ADDS the key TO CODE — the key appears on an added `bin/` line in one of the STRUCTURAL
-           forms below;
+           forms below, AND NO STRUCTURAL OCCURRENCE OF IT EXISTED UNDER `bin/` AT THE MERGE-BASE
+           (T-12411, `base_structural_keys`);
       (ii) it UN-NAMES the key — the key was in SPEC-0161's record span at the merge-base and is not
            in it now (`unnamed_by_branch`). Editing a name out of the record makes the pair
            govern-and-unnamed exactly as surely as adding the emitter does.
+
+    ARM (i) IS ALSO BASELINE-VS-CURRENT NOW (T-12411, aiseller X-1343 / T-0500). "The key is on a
+    line this branch added" is not by itself "this branch INTRODUCED the key": a branch that adds a
+    SECOND readback of a key already read back elsewhere under `bin/` on main added no new governing
+    key at all, and charging it re-reads a key that governed before it existed. Measured: T-0500's
+    land was REFUSED for `spike_channel_grant.compose_project` because it added
+    `meta.get("compose_project")` in `bin/tests/spike_live_support.py`, while
+    `bin/spike-lib.sh:46` had carried `m.get("compose_project")` at the merge-base all along. So arm
+    (i) now subtracts `base_structural_keys` and the docstring's old concession — that the code arm
+    could not afford the family's baseline-vs-current shape — is RETIRED: the base side is not the
+    whole `bin/` tree, it is TARGETED at the handful of keys THIS branch added, which is cheap (see
+    `_spec0161_branch_added_code`). Arm (ii) is deliberately NOT filtered by it: un-naming a recorded
+    key is a charge whatever the code says, and a key un-named from the record is by definition one
+    whose readback already existed.
 
     ARM (i) IS STRUCTURAL, NOT A WORD SCAN, and that distinction is load-bearing (audit-post finding
     1). A bare word scan charges a branch for MENTIONING the key — in a comment, a docstring, a
@@ -9912,6 +10232,11 @@ def spec0161_attribute_unnamed(unnamed, *, added_files, unnamed_by_branch=None):
     keys = set()
     for text, lines in added_files:
         keys |= spec0161_structural_keys(text, lines)
+    # T-12411: ARM (i) MINUS the merge-base. A key whose structural readback pre-exists under `bin/`
+    # on main was not introduced HERE, whichever line of this diff it also appears on. The
+    # subtraction is applied to the CODE arm only — arm (ii) is unioned AFTER it, so an un-naming is
+    # never cancelled by the readback whose existence is precisely what makes the un-naming matter.
+    keys -= set(base_structural_keys or ())
     keys |= set(unnamed_by_branch or ())
     introduced = [p for p in pairs if p[1] in keys]
     inherited = [p for p in pairs if p[1] not in keys]
@@ -9990,8 +10315,66 @@ def _spec0161_record_span_keys(spec_text):
 _SPEC0161_SPEC_NAME = re.compile(r"(?:\A|/)SPEC-0161-[^/]*\.yaml\Z")
 
 
-def _spec0161_branch_added_code(repo_root):
+def _spec0161_base_structural_keys(_git, base_sha, branch_keys, repo_root):
+    """T-12411: of `branch_keys` (the keys THIS branch added in a structural position under `bin/`),
+    the ones that ALREADY had a structural occurrence under `bin/` AT `base_sha`. Returns a set, or
+    None when a git call FAULTED (the unknowable third state its caller propagates).
+
+    TARGETED, WHICH IS THE WHOLE POINT. The cost objection that kept arm (i) off the family's
+    baseline-vs-current shape priced a base side that re-read the whole `bin/` tree. This asks a
+    strictly smaller question — "did any of THESE FEW key literals appear under `bin/` at the base?"
+    — so one `git grep -l -F` yields a handful of candidate paths, and only those are read at the
+    base rev. On the common case (a genuinely new key) the grep matches nothing and this returns
+    after ONE git call.
+
+    THE GREP IS A FILE FILTER, NEVER THE VERDICT. `-F` fixed strings (`"k"` and `'k'`) are used
+    deliberately: no regex dialect of git's is relied on, and being over-broad here is harmless
+    because every candidate is then judged by the SAME pure `spec0161_structural_keys` the branch
+    side is judged by — tokenizer-blanked, so a comment, a docstring or a non-identifier literal at
+    the base exempts nothing. Being over-broad in the FILTER only costs a `git show`; being
+    over-broad in the VERDICT would silently exempt a branch, which is why the filter does not get
+    to decide.
+
+    rc 1 IS "NO MATCH", AN ANSWER (audit-pre finding 1): the empty set, so the keys stay charged.
+    rc > 1 — and any failing `git show` — is a FAULT: None. Reading a fault as an empty base set
+    would restore the exact over-charge this function exists to remove."""
+    if not branch_keys:
+        return set()
+    args = []
+    for k in sorted(branch_keys):
+        args += ["-e", f'"{k}"', "-e", f"'{k}'"]
+    grep = _git("grep", "-l", "-F", *args, base_sha, "--", "bin")
+    if grep is None or grep.returncode > 1:
+        return None
+    if grep.returncode == 1:
+        return set()                                    # no candidate file — nothing pre-existed
+    base_keys = set()
+    for row in grep.stdout.splitlines():
+        row = row.strip()
+        if not row:
+            continue
+        # `git grep -l <rev>` prints `<rev>:<path>`; the rev is a full sha here, so one split on the
+        # FIRST colon is exact (a path may itself contain a colon, the rev may not).
+        rel = row.split(":", 1)[1] if row.startswith(f"{base_sha}:") else row
+        shown = _git("show", f"{base_sha}:{rel}")
+        if shown is None or shown.returncode != 0:
+            return None
+        base_keys |= spec0161_structural_keys(shown.stdout) & branch_keys
+    return base_keys
+
+
+def _spec0161_branch_added_code(repo_root, *, consumer=False):
     """T-12232: the two diff facts the attribution needs, or None when they are unknowable.
+
+    `consumer` (T-12412) — this root does not own the SPEC-0161 record (see
+    `_spec0161_engine_record_specs`). ARM (ii) IS SKIPPED, and the skip is the correct answer rather
+    than a shortcut: arm (ii) asks "did THIS branch REMOVE names from the record?", and a consumer
+    branch cannot touch the kernel record at all (it is query-only under `-C`, and a consumer write
+    into the engine corpus is refused by `cli._guard_consumer_engine_write`, SPEC-0078). Asking it
+    anyway means running `git show <consumer-base>:specs/SPEC-0161…` against a tree that has never
+    contained that file — putting a question only the kernel tree can answer to the consumer tree.
+    ARM (i) is UNCHANGED for a consumer: keys added on `bin/` lines this branch added are its own
+    genuine charge, and that is exactly the list the downgraded WARN reports.
 
     The impure sibling of `_spec0161_inputs`, written to its rules — best-effort, never raises, so a
     git fault degrades the seam rather than breaking a `land` or a `task commit`.
@@ -10018,10 +10401,33 @@ def _spec0161_branch_added_code(repo_root):
     file at one rev, which is why this arm can afford the family's baseline-vs-current shape while
     arm (i) cannot.
 
-    Returns `(added_files, unnamed_by_branch_keys)` — `added_files` a list of
-    `(post_image_text, added_line_numbers_or_None)` — or None, never `([], set())`, when there is no
-    merge-base or any git call fails. `([], set())` is a real answer (this branch touched neither);
-    None is the ABSENCE of one, and the callers take opposite fail-safe directions on it."""
+    ARM (i) IS BASELINE-VS-CURRENT AS OF T-12411 — TARGETED, which is what makes it affordable. The
+    docstring of `spec0161_attribute_unnamed` used to concede that the code arm could not have the
+    diff-aware family's baseline-vs-current shape, because its base side would be the whole `bin/`
+    tree plus the re-folded journal at the merge-base. That objection prices the WRONG question. The
+    only keys whose base state can change an answer are the FEW this branch actually added, so the
+    base side asks about those alone: one `git grep -l -F` over `<base>:bin` restricted to those key
+    literals gives a handful of CANDIDATE FILES, and each candidate is read at the base rev and
+    judged by the SAME pure `spec0161_structural_keys`. The grep is a FILE FILTER ONLY — every
+    verdict still comes from the tokenizer-blanked matcher, so a quoted example or a comment at the
+    base can no more exempt a branch than it can charge one.
+
+    EXIT STATUS 1 IS AN ANSWER, NOT A FAULT (audit-pre finding 1), and conflating the two would
+    DISABLE this gate rather than narrow it. `git grep` exits 1 when nothing matches — which is the
+    NORMAL case this whole mechanism exists for: a genuinely new key has no base occurrence, so the
+    branch IS charged. Only rc > 1 (or a subprocess that did not run), and a failing `git show` of a
+    candidate, are git FAULTS; those return None, never an empty base set, because an empty one
+    would silently restore the over-charge at a REFUSING gate (episode-2 finding B6, applied in the
+    opposite direction: an unknown base must not be read as "nothing pre-existed").
+
+    Returns `(added_files, unnamed_by_branch_keys, base_structural_keys, sites)` — `added_files` a
+    list of `(post_image_text, added_line_numbers_or_None)`, `base_structural_keys` the subset of
+    this branch's added keys that already read back under `bin/` at the merge-base, and `sites` a
+    `{key: "<relpath>:<line>"}` map of one charging site per added key (T-12411) — or None, never a
+    partial answer, when there is no merge-base or any git call fails. `([], set(), set(), {})` is a
+    real answer (this branch touched neither); None is the ABSENCE of one, and the callers take
+    opposite fail-safe directions on it. The tuple GREW at the tail, so every existing reader of
+    `[0]` / `[1]` is unchanged by construction."""
     import subprocess
 
     def _git(*args):
@@ -10065,12 +10471,17 @@ def _spec0161_branch_added_code(repo_root):
     # that then misses the key the unread file introduced. A deletion is not this case: `+++
     # /dev/null` already excluded deleted paths from `per_file` above, so any OSError here is a
     # genuine read fault and the whole answer becomes None.
-    added = []
+    # `added` is the contract the pure attributor takes (text, lines); `paths` is the PARALLEL list
+    # of the relative path each entry came from, kept because only THIS layer knows it and the
+    # charging-site rendering (T-12411) needs it. Built in the same two loops, so the two lists
+    # cannot drift.
+    added, paths = [], []
     for rel, lines in sorted(per_file.items()):
         try:
             added.append((Path(repo_root, rel).read_text(encoding="utf-8", errors="ignore"), lines))
         except OSError:
             return None
+        paths.append(rel)
 
     untracked = _git("ls-files", "-o", "--exclude-standard", "--", "bin")
     if untracked is None or untracked.returncode != 0:
@@ -10085,6 +10496,19 @@ def _spec0161_branch_added_code(repo_root):
                 (Path(repo_root, rel).read_text(encoding="utf-8", errors="ignore"), None))
         except OSError:
             return None
+        paths.append(rel)
+
+    # T-12411 — the CHARGING SITES and the MERGE-BASE side, both derived from `added` and therefore
+    # shared by the consumer arm below (a consumer's arm (i) charge is as over-chargeable as the
+    # kernel's, and its WARN names a site for the same reason a refusal does).
+    _sites, _branch_keys = {}, set()
+    for _rel, (_text, _lines) in zip(paths, added):
+        for _k, _ls in spec0161_structural_key_sites(_text, _lines).items():
+            _branch_keys.add(_k)
+            _sites.setdefault(_k, f"{_rel}:{_ls[0]}")
+    _base = _spec0161_base_structural_keys(_git, base_sha, _branch_keys, repo_root)
+    if _base is None:
+        return None
 
     # ARM (ii): the record span, then vs now — BOTH SIDES RESOLVED INDEPENDENTLY (audit-post
     # episode-2 finding B5). Reading the base side at the CURRENT path silently returns an empty
@@ -10094,6 +10518,13 @@ def _spec0161_branch_added_code(repo_root):
     # nothing. So the base side is located in the BASE TREE (`git ls-tree`) and the current side on
     # disk, and their span keys are differenced whichever way the file moved. A git fault on either
     # side is UNKNOWABLE (None, finding B6), never an empty set.
+    if consumer:
+        # Skipped, not silently empty. Both sides of arm (ii) would resolve to nothing in a consumer
+        # tree today, so the observable answer is the same — but writing the skip down is what stops
+        # a future consumer that grows an unrelated `specs/SPEC-0161-*` from being compared against
+        # the WRONG record. Arm (i) above still carries this branch's real charge.
+        return added, set(), _base, _sites
+
     base_tree = _git("ls-tree", "-r", "--name-only", base_sha, "--", "specs")
     if base_tree is None or base_tree.returncode != 0:
         return None
@@ -10113,7 +10544,38 @@ def _spec0161_branch_added_code(repo_root):
                 spec_paths[0].read_text(encoding="utf-8", errors="ignore"))
         except OSError:
             return None
-    return added, base_keys - now_keys
+    return added, base_keys - now_keys, _base, _sites
+
+
+def _spec0161_engine_record_specs(repo_root):
+    """T-12412: THE ONE PREDICATE for "does this root own the SPEC-0161 record, or borrow it?".
+
+    Returns the ENGINE's `specs/` dir when this root carries no `SPEC-0161-*.yaml` of its own and the
+    engine root is a genuinely different path; returns None otherwise. `None` therefore means exactly
+    "kernel-shaped root — read your own record", which is what keeps the engine's own checkout (and
+    every engine worktree, which carries the file too) on the UNCHANGED path by construction.
+
+    THE DISCRIMINATOR IS THE CORPUS, NOT A BUILD FLAG, on purpose. The fact that makes `spec_text`
+    empty IS the fact that makes the remedy unexecutable IS the fact that makes the land refusal
+    unfair — so one predicate answers all three, and they cannot drift apart. It also gets the
+    SPEC-0092 id-collision case right for free: a consumer that owns its OWN `SPEC-0161-*.yaml` reads
+    as kernel-shaped and keeps its own text and its own hard refusal, which is correct — it CAN edit
+    that file.
+
+    Never raises: the engine root is derived from `host_paths._engine_root()` (off `__file__`, so a
+    copied or published engine tree resolves to the copy it is actually running from), and any fault
+    resolving or globbing degrades to None — i.e. to today's behaviour."""
+    try:
+        from lib import host_paths as _hp
+        root = Path(repo_root).resolve()
+        if any(root.glob("specs/SPEC-0161-*.yaml")):
+            return None
+        engine = Path(_hp._engine_root()).resolve()
+        if engine == root:
+            return None
+        return engine / "specs"
+    except Exception:
+        return None
 
 
 def spec0161_branch_unnamed(repo_root, *, oracle=None):
@@ -10123,6 +10585,24 @@ def spec0161_branch_unnamed(repo_root, *, oracle=None):
     the `work commit` WARN, the cheap `land` preflight refusal, and the two live-corpus land-verify
     gates. One implementation, so a refusal, a warning and a test verdict can never disagree about
     who introduced a key (SPEC-0188 rule 4's one-implementation discipline).
+
+    TWO CANDIDATE SOURCES AS OF T-12423, ONE ORACLE. The journal fold can only offer a (type, key)
+    pair once a row CARRYING the key exists, so the branch that ADDS the emitter was admitted at its
+    own land and reddened every other tree once the first row arrived at runtime (measured
+    2026-09-11: `bg_dispatch_launched.land_regime`, 2h10m of fleet-wide main-red). So the oracle is
+    ALSO run over a candidate set read structurally from this branch's ADDED CODE
+    (`spec0161_added_emit_pairs`), with the SAME corpus / code blob / record text, and its `unnamed`
+    is UNIONED into `introduced` (deduped, and minus the T-12411 merge-base keys). ALONGSIDE, never
+    instead of: `inherited`, `governing`, `named`, `unnamed` and `coverage` are the JOURNAL leg's
+    verbatim, so an inherited pair still reads inherited and is still charged to nobody (T-12423 AC2).
+
+    THE RESIDUE THIS SECOND SOURCE ADDS, named rather than papered over. `spec0161_added_emit_pairs`
+    reads an emit by SHAPE (first positional string constant + a payload dict literal), so a
+    non-emitting call wearing that shape — `d.setdefault("state", {"x": 1})` — offers a candidate
+    pair. It is only ever a CANDIDATE: the oracle still requires the type to be mentioned in the
+    corpus, the key to be absent from it, and the key to be read back under `bin/`, and T-12411's
+    merge-base subtraction still applies. A pair surviving all four is one the record genuinely does
+    not name.
 
     Returns the `spec0161_attribute_unnamed` dict plus `governing` / `unnamed` / `coverage` from the
     oracle, so a caller needing the corpus-wide reading beside the attributed one (the floor gate)
@@ -10136,48 +10616,179 @@ def spec0161_branch_unnamed(repo_root, *, oracle=None):
     another, i.e. a false failure from a concurrent write. Passing the snapshot makes the pair
     consistent BY CONSTRUCTION; omitting it keeps the self-contained behaviour the verbs use."""
     root = Path(repo_root)
+    # T-12412 — computed ONCE and reported, so the three things that depend on it (which record to
+    # read, which remedy to name, whether the land refuses) can never disagree. It describes the
+    # ROOT, not the snapshot, so it is reported even when the caller injected its own `oracle`.
+    _engine_specs = _spec0161_engine_record_specs(root)
+    _consumer = _engine_specs is not None
     result = oracle
+    _corpus_side = None
     if result is None:
         corpus, code_blob, type_keys, spec_text = _spec0161_inputs(
-            root / "specs", root / "bin", root / "events.jsonl")
+            root / "specs", root / "bin", root / "events.jsonl",
+            engine_specs_dir=_engine_specs)
+        _corpus_side = (corpus, code_blob, spec_text)
         result = spec0161_payload_key_coverage(
             corpus=corpus, code_blob=code_blob, type_keys=type_keys, spec_text=spec_text)
-    _diff = _spec0161_branch_added_code(root)
+    _diff = _spec0161_branch_added_code(root, consumer=_consumer)
     attribution = spec0161_attribute_unnamed(
         result["unnamed"],
         added_files=None if _diff is None else _diff[0],
-        unnamed_by_branch=None if _diff is None else _diff[1])
+        unnamed_by_branch=None if _diff is None else _diff[1],
+        base_structural_keys=None if _diff is None else _diff[2])
+    # T-12423 — THE SECOND CANDIDATE SOURCE, run through THE SAME ORACLE. The journal leg above can
+    # only see a pair a row already carries, so the branch that ADDS the emitter is admitted at its
+    # own land and reddens main for everyone once the first row arrives at runtime. Here the
+    # candidate set is read from the branch's ADDED CODE instead (`spec0161_added_emit_pairs`), the
+    # oracle answers the SAME governing/named question over the SAME corpus / code / record, and its
+    # `unnamed` is UNIONED into `introduced`. ALONGSIDE, never instead of: `inherited`, `governing`,
+    # `named`, `unnamed` and `coverage` stay the journal leg's verbatim, so a pair whose rows predate
+    # this branch is still charged exactly as before (AC2).
+    _introduced = list(attribution["introduced"])
+    if _diff is not None and attribution["attributable"]:
+        _added_pairs = spec0161_added_emit_pairs(_diff[0])
+        if _added_pairs:
+            if _corpus_side is None:
+                # The caller injected its own `oracle`, so the corpus side was never materialised
+                # here. Read it WITHOUT the journal fold — which is what the `_spec0161_corpus_inputs`
+                # split exists for: this leg must not consult the journal, and re-folding it would
+                # also pay the expensive input twice.
+                _corpus_side = _spec0161_corpus_inputs(
+                    root / "specs", root / "bin", engine_specs_dir=_engine_specs)
+            _added_result = spec0161_payload_key_coverage(
+                corpus=_corpus_side[0], code_blob=_corpus_side[1],
+                type_keys={t: set(ks) for t, ks in _added_pairs.items()},
+                spec_text=_corpus_side[2])
+            # T-12411's rule, unchanged and applied to this leg too: a key that ALREADY read back
+            # structurally under `bin/` at the merge-base was not introduced HERE.
+            _base = set(_diff[2] or ())
+            for _pair in _added_result["unnamed"]:
+                _pair = tuple(_pair)
+                if _pair[1] in _base or _pair in _introduced:
+                    continue
+                _introduced.append(_pair)
+    attribution = dict(attribution, introduced=_introduced)
     return dict(attribution,
+                consumer=_consumer,
+                # T-12411 — the charging SITES, carried out beside the verdict so the ONE message
+                # every reader pastes can name `<path>:<line>` without re-deriving the scan. Empty
+                # on an unknowable diff, where there is nothing charged to site anyway.
+                sites={} if _diff is None else _diff[3],
                 governing=result["governing"],
                 named=result["named"],
                 unnamed=result["unnamed"],
                 coverage=result["coverage"])
 
 
-def spec0161_unnamed_key_message(pairs, *, verb):
+#: The `deviation_captured` fingerprint the consumer land-preflight downgrade records, and the value
+#: the downgrade's own message hands the operator to paste into `cross request --origin-fp`. ONE
+#: derivation, so the row that is recorded and the request that discharges it name the SAME thing.
+SPEC0161_CONSUMER_FP_PREFIX = "spec0161-key-unnamed-consumer"
+
+
+def spec0161_consumer_fingerprint(pairs):
+    """T-12412: the stable fingerprint for "this consumer branch owes these SPEC-0161 names".
+
+    Derived from the SORTED pair set alone, so the same owed set always clusters to the same value
+    however the pairs were discovered. It is for CLUSTERING, never for suppression: nothing reads it
+    to skip a row, and every consumer land that still owes the pairs records another
+    `deviation_captured` — the recurrence COUNT is the signal an aspect-audit folds
+    (`patterns/error-friction-tracking.md`), and deduping would hide exactly how often a consumer is
+    paying this."""
+    body = ";".join(f"{t}.{k}" for t, k in sorted(pairs))
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:12]
+    return f"{SPEC0161_CONSUMER_FP_PREFIX}-{digest}"
+
+
+def spec0161_unnamed_key_message(pairs, *, verb, consumer=False, sites=None):
     """T-12232: THE ONE TEXT the commit WARN and the land refusal both paste, so they cannot drift.
 
     This string IS the line the Controller had been hand-adding to every dispatch brief («a NEW
     journal payload key in your diff MUST be named in the SPEC-0161 record in the SAME diff»), moved
     into the verb that can actually detect the condition. A hand-carried rule reaches only the
-    briefs someone remembered to write it into; this reaches every branch that introduces a key."""
-    listed = "\n".join(f"    {t}.{k}" for t, k in sorted(pairs))
+    briefs someone remembered to write it into; this reaches every branch that introduces a key.
+
+    `consumer` (T-12412) — ONLY THE REMEDY LINE FORKS, and it forks because the kernel remedy is
+    UNEXECUTABLE by the party it is handed to. SPEC-0161 is a kernel spec: under `-C` it is
+    query-only (SPEC-0092) and a consumer write into the engine corpus is refused outright
+    (`cli._guard_consumer_engine_write`, SPEC-0078). Telling a consumer to `spec edit SPEC-0161` is
+    telling it to run a command the engine will refuse — measured as a HARD land refusal with no
+    consumer-side exit at all (aiseller X-1349, `T-0500`). The consumer is instead pointed at the
+    route that actually gets a key named for it: `cross request` to the kernel — the same X-1263 ->
+    T-12069 route by which `spike_channel_grant.compose_project` got into the record in the first
+    place. The finding, the why, and the inherited-pairs footer stay ONE shared text: a consumer and
+    the kernel must never disagree about WHAT was found, only about what to do next.
+
+    `sites` (T-12411) — the `{key: "<path>:<line>"}` map `spec0161_branch_unnamed` returns. Each
+    listed pair is rendered WITH its charging site when one is known, so the charged party can go
+    look at the line rather than re-deriving the structural scan by hand to find out where the claim
+    comes from. A pair charged by the UN-NAMING arm has no code site and is listed bare — correctly:
+    its charge is in the record, not in the diff. Optional and absent-tolerant, so the pure callers
+    and every existing test keep the unchanged text."""
+    def _listed(t, k):
+        where = (sites or {}).get(k)
+        return f"    {t}.{k}" + (f"  ({where})" if where else "")
+    listed = "\n".join(_listed(t, k) for t, k in sorted(pairs))
+    if consumer:
+        brief = "; ".join(f"{t}.{k}" for t, k in sorted(pairs))
+        fp = spec0161_consumer_fingerprint(pairs)
+        remedy = (
+            f"  SPEC-0161 is a KERNEL spec — this repo cannot edit it (query-only under `-C`, and a "
+            f"consumer write into the engine corpus is refused), so the fix is NOT a spec edit here. "
+            f"Route it to the kernel, which is how these keys get named (the X-1263 -> T-12069 "
+            f"route):\n"
+            f"    bin/yitc-v2 cross request --to yitc-v2 --kind bugfix \\\n"
+            f"      --origin-fp {fp} \\\n"
+            f"      --origin-ref <this-repo>/events.jsonl#ts=<the deviation_captured row just "
+            f"recorded> \\\n"
+            f"      --brief 'name these governing journal payload keys in the SPEC-0161 record: "
+            f"{brief}'\n"
+            f"  (`--kind bugfix` requires both origin flags — SPEC-0085 §3. The fingerprint above is "
+            f"the one this run recorded, so the request and the capture join up.)\n"
+            f"  Your land is NOT blocked by this — it is recorded and reported, not refused.\n")
+    else:
+        remedy = (
+            f"  Fix it here, for free: `bin/yitc-v2 spec edit SPEC-0161` and add the key(s) to the "
+            f"set under \"{SPEC0161_RECORD_HEADING}\", then commit that edit with this change.\n")
     return (
         f"{verb}: this branch's diff introduces {len(pairs)} governing journal payload key(s) that "
         f"SPEC-0161's record does not name:\n{listed}\n"
         f"  A key is named in the SPEC-0161 record BY THE BRANCH THAT INTRODUCES IT, in the SAME "
         f"diff — otherwise the land-verify recomputation reds every later land until someone edits "
         f"the record by hand (measured 2026-09-07: 7 aborted lands, 4 halted workers, ~70 min).\n"
-        f"  Fix it here, for free: `bin/yitc-v2 spec edit SPEC-0161` and add the key(s) to the set "
-        f"under \"{SPEC0161_RECORD_HEADING}\", then commit that edit with this change.\n"
+        + remedy +
         f"  Inherited pairs — ones your diff did not introduce — are NOT your charge and are not "
         f"listed here; they are reported by `bin/yitc-v2 debt` (SPEC-0119 rule 28).")
 
 
-def _spec0161_inputs(specs_dir, code_dir, events_path):
-    """The three materialisations rule 28's fold needs, kept out of the oracle so the oracle stays
-    pure. Every read is best-effort: an unreadable file contributes nothing rather than raising,
-    because this feeds a report-only seam that must never break `session start` or `land`."""
+def _spec0161_corpus_inputs(specs_dir, code_dir, *, engine_specs_dir=None):
+    """The THREE CORPUS-SIDE materialisations the oracle needs — corpus, code blob, record text —
+    kept out of the oracle so the oracle stays pure, and kept out of `_spec0161_inputs` (which is
+    this plus the journal fold) so a second CANDIDATE SOURCE can reuse them WITHOUT re-folding the
+    journal (T-12423). Every read is best-effort: an unreadable file contributes nothing rather than
+    raising, because this feeds a report-only seam that must never break `session start` or `land`.
+
+    THE SPLIT IS THE WHOLE POINT, not tidiness. The journal fold is the expensive input AND the one
+    the T-12423 leg must NOT consult: a branch that ADDS an emitter has no row carrying its key yet,
+    so the added-code candidate source asks the oracle the same question against the same corpus /
+    code / record while supplying its OWN `type_keys`. One oracle, two quantifiers.
+
+    `engine_specs_dir` (T-12412) — WHERE TO FIND THE RECORD WHEN THIS ROOT DOES NOT OWN IT. SPEC-0161
+    is a KERNEL spec; a `-C` consumer's `specs/` has no `SPEC-0161-*.yaml`, so `spec_text` came back
+    EMPTY and the oracle's `named` test — `pair[0] in spec_text and pair[1] in spec_text` — was
+    ALWAYS false there. Every governing pair read UNNAMED under `-C`, INCLUDING the pairs the kernel
+    record does name (aiseller X-1349: `T-0500`'s land hard-refused on `spike_channel_grant.
+    compose_project`, a pair the kernel record has named since T-12069 / X-1263). Given this dir, the
+    record is resolved from it when — and only when — this root carries none of its own.
+
+    THE CORPUS IS DELIBERATELY NOT EXTENDED, only `spec_text`. `governing` asks two questions about
+    THIS repo's corpus (is the TYPE mentioned in it, is the KEY absent from it); folding kernel text
+    into the corpus would make a consumer's key read as MENTIONED merely because the kernel happens
+    to name it elsewhere, silently erasing the consumer's own coverage measurement. `named` is a
+    question about the RECORD, and the record is the kernel's — that one, and only that one, moves.
+
+    Keyword-only and defaulted, so omitting it reads exactly as this did before T-12412: the
+    positional form every caller uses is byte-identical in behaviour."""
     corpus_parts, spec_text = [], ""
     for path in sorted(Path(specs_dir).glob("*.yaml")):
         try:
@@ -10187,6 +10798,17 @@ def _spec0161_inputs(specs_dir, code_dir, events_path):
         corpus_parts.append(blob)
         if "SPEC-0161-" in path.name:
             spec_text = blob
+
+    if not spec_text and engine_specs_dir is not None:
+        # Best-effort, like every other read here: an unreadable or absent engine record leaves
+        # `spec_text` empty, which is exactly today's behaviour — never an exception at a seam that
+        # must not break `session start` or `land`.
+        try:
+            for path in sorted(Path(engine_specs_dir).glob("SPEC-0161-*.yaml")):
+                spec_text = path.read_text(encoding="utf-8", errors="ignore")
+                break
+        except OSError:
+            pass
 
     code_parts = []
     _code_root = Path(code_dir)
@@ -10211,6 +10833,19 @@ def _spec0161_inputs(specs_dir, code_dir, events_path):
         except OSError:
             continue
 
+    return "".join(corpus_parts), "".join(code_parts), spec_text
+
+
+def _spec0161_inputs(specs_dir, code_dir, events_path, *, engine_specs_dir=None):
+    """The four materialisations rule 28's fold needs: the corpus side (`_spec0161_corpus_inputs`)
+    plus the JOURNAL fold that turns emitted rows into the oracle's candidate set.
+
+    Signature and return order are UNCHANGED (T-12423 split only the corpus side out), so every
+    existing caller and test reads exactly as it did before — `engine_specs_dir` stays keyword-only
+    and defaulted, and the positional three-arg form is byte-identical in behaviour."""
+    corpus, code_blob, spec_text = _spec0161_corpus_inputs(
+        specs_dir, code_dir, engine_specs_dir=engine_specs_dir)
+
     type_keys = {}
     try:
         # SPEC-0190 rule 4 — the WHOLE journal (T-11649). This fold's declared horizon is the
@@ -10228,7 +10863,7 @@ def _spec0161_inputs(specs_dir, code_dir, events_path):
     except OSError:
         pass
 
-    return "".join(corpus_parts), "".join(code_parts), type_keys, spec_text
+    return corpus, code_blob, type_keys, spec_text
 
 
 def recorded_measurement_drift(events_path, *, specs_dir, code_dir, margin):
@@ -11308,6 +11943,53 @@ def queue_jump_firings(events_path, now=None, window_days: int = QUEUE_JUMP_WIND
     except Exception:                     # noqa: BLE001 — see docstring
         return {"count": 0, "firings": [], "window_days": int(window_days)}
     return {"count": len(firings), "firings": firings, "window_days": int(window_days)}
+
+
+# ── T-12420 (SPEC-0119 rule 42 / SPEC-0188 rule 7) — the WITHHELD TAIL WRITE view ────────────────
+# A post-ff bookkeeping write that could not prove its readers green is WITHHELD rather than
+# committed, so `main` never goes red for it. Withholding is silent by itself — the land is GREEN and
+# nothing is missing from the tree — which is exactly why it owes a reading: a writer that is
+# withheld land after land is a real defect (a tripwire and an automatic writer that genuinely
+# disagree), not a passing flake. Windowed like its rule-9 / rule-33 siblings, so the line decays
+# into silence once the writer is admitted again.
+TAIL_WITHHELD_EVENT = "land_tail_write_withheld"
+TAIL_WITHHELD_WINDOW_DAYS = 7
+
+
+def land_tail_writes_withheld(events_path, now=None,
+                              window_days: int = TAIL_WITHHELD_WINDOW_DAYS) -> dict:
+    """Fold the journal → the post-ff tail writes WITHHELD in the window (T-12420).
+
+    Returns `{count, writers: {<writer>: <n>}, latest: {writer, test, reason, ts}, window_days}`.
+    The count is of WITHHOLDINGS, not distinct writers: one writer withheld nine times is the
+    recurrence this view exists to make visible, and collapsing it would hide it.
+
+    Never raises: an unreadable / missing / malformed journal folds to `count: 0` — a REPORT-ONLY
+    surface must never nag on, or die of, an unknown (the rule-9 fold's contract, reused)."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    span = max(1, int(window_days or TAIL_WITHHELD_WINDOW_DAYS))
+    writers: dict = {}
+    latest = None
+    count = 0
+    try:
+        for event in journal.segment_rows_since(
+                events_path, _window_segment_floor(now, days=span)):
+            if not isinstance(event, dict) or event.get("type") != TAIL_WITHHELD_EVENT:
+                continue
+            ts = _parse_stamped_deadline(event.get("ts"))
+            if ts is None or (now - ts).days > span:
+                continue
+            data = event.get("data") if isinstance(event.get("data"), dict) else {}
+            writer = str(data.get("writer") or "unknown")
+            writers[writer] = writers.get(writer, 0) + 1
+            count += 1
+            latest = {"writer": writer, "test": data.get("test"),
+                      "reason": data.get("reason"), "ts": event.get("ts")}
+    except Exception:                     # noqa: BLE001 — see docstring
+        return {"count": 0, "writers": {}, "latest": None, "window_days": int(window_days)}
+    return {"count": count, "writers": writers, "latest": latest, "window_days": int(window_days)}
 
 
 # ── T-11799 (SPEC-0119 rule 33) — the PRE-QUEUE KNOWN-BROKEN REFUSAL view ─────────────────────────

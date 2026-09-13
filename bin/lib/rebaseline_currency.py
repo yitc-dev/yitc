@@ -693,6 +693,93 @@ def _pinned_touched_is_weakening(pinned_wt: Path, W: Path, rel: str) -> bool:
     return False
 
 
+_PINNED_FIRST_ATTEMPT_SURFACE = "tests/"      # the pinned test surface this preflight selects over
+
+
+def _pinned_touched_weakened_keys(W: Path, merged_base: str, *, _run_git_cap) -> list:
+    """T-12325 (SPEC-0077 §3a) — the basenames of the pinned test files THIS branch's own diff both
+    TOUCHED and WEAKENED, in diff order and de-duplicated. `[]` when there are none.
+
+    THIS IS THE COMPLEMENT OF `_pinned_touched_refusals`, AND THE COMPLEMENT IS THE POINT. That
+    sibling builds the EXCLUSION set — touched AND *not* weakening, dropped from the pinned leg
+    because the last-green copy would be asserting behaviour the card deliberately supersedes. What
+    is left PINNED on purpose is the weakening case: the SPEC-0077 self-approval fence, where a
+    candidate that hollows out a registered check must still face the copy that would have bitten it.
+    That set is therefore exactly the population whose pinned copies are about to RED — and the whole
+    of what a first, undeclared land pays a full two-leg verify to discover. Running just those files
+    answers the question in seconds instead.
+
+    THE WEAKENING JUDGEMENT IS NOT MADE HERE. It is `_pinned_touched_is_weakening`, called UNCHANGED,
+    so the two-count rule (`def test_` / `assert`), its documented blind spot, and its fail-safe
+    directions all keep exactly ONE home. This function only SELECTS what to ask it about and
+    materializes the last-green blob it needs — because at this seam, before any pinned overlay
+    worktree exists, there is no `pinned_wt` to hand it. The blob it is given is the SAME content the
+    overlay would have carried (`<merged_base>:<rel>`, the last-green copy), so the predicate is
+    answering its own question about its own two trees, not a re-derived approximation of it.
+
+    THE DISCOVERY BOUND IS COPIED FROM THE RUNNER, AND THE COUPLING IS THE REAL CONTENT OF THIS NOTE.
+    `_run_pinned_verify` discovers its sweep with `<dir>.glob("test_*.py")` — NON-recursive — so this
+    selects `tests/test_*.py` with exactly one path separator and nothing deeper. Widening it to
+    `rglob` would name files the pinned leg never runs, which would refuse a land on a check that was
+    never going to execute. If the runner's discovery ever goes recursive, THIS must follow in the
+    same change, or a weakened nested test silently stops being preflighted.
+
+    FAIL DIRECTION: TOWARD ADMITTING — and it is the OPPOSITE of the sibling's, deliberately. Any git
+    failure, any unreadable blob, any exception at all returns `[]`: no keys, so no preflight, so the
+    land proceeds into the full verify exactly as it does today. In `_pinned_touched_refusals` a
+    failure must not SHRINK the pinned leg, so it fails toward pinning MORE; here a failure must not
+    INVENT a refusal, so it fails toward admitting — the T-11479 preflight's own fail-open rule,
+    inherited rather than re-decided. Both directions are the same rule ("never a false green"):
+    there, admitting less; here, refusing less. Neither can let a broken check through, because the
+    full pinned leg still runs on every land this function stays silent about.
+
+    Git for the diff and for each last-green blob; no carrier read, no mutation, no admission slot."""
+    import tempfile
+
+    try:
+        r = _run_git_cap(["diff", "--name-only", f"{merged_base}..HEAD"], W)
+        if getattr(r, "returncode", 1) != 0:
+            return []
+        touched = [n.strip().lstrip("./") for n in (r.stdout or "").splitlines() if n.strip()]
+    except Exception:                      # noqa: BLE001 — a fact about the checker, never a verdict
+        return []
+
+    cands = []
+    for rel in touched:
+        # The runner's NON-recursive `tests/*.py` glob, restated as a path shape (see the note above).
+        if not rel.startswith(_PINNED_FIRST_ATTEMPT_SURFACE) or rel.count("/") != 1:
+            continue
+        name = Path(rel).name
+        if not (name.startswith("test_") and name.endswith(".py")):
+            continue
+        if rel not in cands:
+            cands.append(rel)
+    if not cands:
+        return []
+
+    keys = []
+    try:
+        with tempfile.TemporaryDirectory(prefix="yitc-pinned-firstattempt-") as td:
+            base = Path(td)
+            for rel in cands:
+                blob = _run_git_cap(["show", f"{merged_base}:{rel}"], W)
+                if getattr(blob, "returncode", 1) != 0:
+                    # The file does not exist at last-green — this branch ADDED it. An added file has
+                    # no last-green copy to weaken and the pinned leg's own prune drops it, so it is
+                    # not a candidate here either. Skipping it is the fact, not a fail-open.
+                    continue
+                dst = base / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_text(blob.stdout or "", encoding="utf-8")
+                if _pinned_touched_is_weakening(base, W, rel):
+                    k = Path(rel).name
+                    if k not in keys:
+                        keys.append(k)
+    except Exception:                      # noqa: BLE001 — fail toward ADMITTING (see above)
+        return []
+    return keys
+
+
 def _pinned_touched_refusals(W: Path, merged_base: str, rels, *, pinned_wt: Path, _run_git_cap) -> dict:
     """T-12307 (SPEC-0077 §3) — WHICH of the pinned sweep's test files THIS branch's own diff TOUCHED,
     and are therefore NOT re-run as their LAST-GREEN copy. Returns
@@ -3281,6 +3368,81 @@ def _preflight_waive_refusal_text(bad_tokens, entries, *, _rebaseline_waive_sugg
             "SUPERSEDED old-behaviour check; anything else failing is a real signal and must be "
             "FIXED, not absorbed into the next last-green baseline.\n" + toks + paste)
 
+def _first_attempt_preflight_refusal_text(entries, keys, *, _rebaseline_waive_suggested_token,
+                                          _pinned_entry_waive_record, _surface_failing_assertions,
+                                          REBASELINE_KINDS=None, _shell_dq=None) -> str:
+    """T-12325 (SPEC-0077 §3a) — the COMPLETE refusal a FIRST, UNDECLARED land attempt is owed when the
+    pinned copies of the files it touched AND weakened already fail. This branch is the only one that
+    established what happened, so exactly one diagnosis reaches the operator and it is composed here,
+    never as a fragment above someone else's conclusion
+    (`lessons/carving-an-exception-into-a-fail-closed-gate.md` §2).
+
+    IT IS A RENDERER AND IT CAN NEVER ADMIT A LAND. The caller has already decided to refuse — on
+    `entries` being non-empty, i.e. on a pinned copy having actually FAILED — before this is called.
+    Nothing computed here can reverse that, and in particular the availability of a bindable token
+    does not: when the composer yields no line (a C3 / unkeyed / assertion-less failure) this text says
+    the `--rebaseline` route is UNAVAILABLE for that failure and routes to fix-or-escalate, which is a
+    firmer refusal than the tokenful one, not a softer one. What is withheld in that case is the PASTE
+    LINE alone — offering a token that cannot bind is the X-0685 drift, and offering nothing is the
+    honest answer (audit-pre finding 1, 2026-09-10).
+
+    THE TOKEN LINES COME FROM THE ONE COMPOSER, AT ONE CALL SITE.
+    `_rebaseline_waive_paste_lines` is called ONCE from this function, and no `--rebaseline-waive`
+    line is spelled anywhere else in it — that is what keeps this refusal and the post-verify one
+    byte-identical BY CONSTRUCTION rather than by a test that has to assert it (T-12149 / T-10850
+    (iii)). The surrounding command block is pasted in the shape `_backstop_rebaseline_hint` already
+    uses, for the same reason: a recovery line that prints a command the next preflight refuses is not
+    a recovery.
+
+    THE A-PRIME AUTHORITY IS NOT TOUCHED, AND IS RESTATED RATHER THAN ASSUMED. This text tells the
+    operator WHAT to declare; it does not declare it, and it does not lower what a declaration must
+    satisfy — the kind, the `>=30-char` reason MECHANICALLY TIED to the assertions below, and a fresh
+    GREEN/YELLOW audit-post over the current tree. It closes with the same
+    if-you-cannot-tie-it-this-is-REAL / escalate clause `_pinned_recovery_hint` carries, because a
+    refusal that arrives EARLIER must not read as permission that came easier.
+
+    Pure apart from the injected builders: no git, no I/O, no clock."""
+    recs = [_pinned_entry_waive_record(e, _surface_failing_assertions=_surface_failing_assertions)
+            for e in (entries or [])]
+    # THE ONE COMPOSER FOR THIS MODULE, ONE CALL SITE (T-12149). Do NOT spell a `--rebaseline-waive`
+    # line anywhere else in this function — that is exactly the drift this composer exists to prevent.
+    lines = _rebaseline_waive_paste_lines(
+        recs, indent="    ", _shell_dq=_shell_dq,
+        _rebaseline_waive_suggested_token=_rebaseline_waive_suggested_token)
+    failing = _surface_failing_assertions(list(entries or [])) or []
+    lead = ("FAILING ASSERTION(S) — from the pinned/last-green copies of the file(s) YOUR OWN diff "
+            "weakened:\n- " + "\n- ".join(failing) + "\n\n") if failing else ""
+    if lines:
+        remedy = (
+            "IF YOUR CHANGE DELIBERATELY SUPERSEDES THOSE ASSERTION(S), this is the declared "
+            "re-baseline — paste it VERBATIM (the token(s) are built by the SAME builder the "
+            "matcher's own records feed, T-10820, so do NOT compose one by hand):\n"
+            "  bin/yitc-v2 land --rebaseline --rebaseline-kind <"
+            + "|".join(REBASELINE_KINDS or ()) + "> \\\n"
+            "    --rebaseline-reason \"<>=30 chars, tied to the assertion(s) above + the change that "
+            "obsoletes them>\" \\\n" + "\n".join(lines) + "\n")
+    else:
+        remedy = (
+            "THOSE FAILURE(S) CANNOT BE RE-BASELINED. They bind no waive token (an unkeyed or "
+            "assertion-less failure), so `--rebaseline` would have nothing to waive and declaring it "
+            "would be refused as well. This is a REAL signal: FIX it, or escalate.\n")
+    return ("land: REFUSED before the verify — the pinned/last-green copies of the test file(s) this "
+            "branch both TOUCHED and WEAKENED already FAIL (SPEC-0077 §3 / §3a, T-12307 / T-12325). "
+            "Only those file(s) were run — " + ", ".join(keys or []) + " — in a single subprocess "
+            "taking no verify-admission slot, so this verdict cost seconds instead of the full "
+            "two-leg verify a first attempt used to pay to learn it. The CANDIDATE leg was NOT run "
+            "and its result for this branch is UNKNOWN, not passing.\n\n" + lead + remedy +
+            "\nAUTHORITY (SPEC-0077 §3a A-prime) IS UNCHANGED BY THIS EARLIER REFUSAL: the owner "
+            "ACKs, OR a dispatched Worker SELF-CLEARS — the latter ONLY when candidate verify is "
+            "GREEN, a FRESH audit-post for this branch's task is GREEN, `--no-tests` is absent, the "
+            "`>=30-char` reason is recorded, AND that reason is MECHANICALLY TIED to the EXACT "
+            "assertion(s) above plus the declared behaviour/harness change that obsoletes them. "
+            "Free-form 'this looks stale' is NOT sufficient.\n"
+            "IF YOU CANNOT MAKE THAT TIE: ESCALATE — `blocked-on-land <task> <reason>`, worktree "
+            "intact. That escalation is the CORRECT outcome, not a failure: SPEC-0121's "
+            "default-under-uncertainty is STOP, and hearing this sooner never overrides it.\n")
+
+
 def _recorded_pinned_failure_assertions(events, branch) -> list:
     """T-11686: the assertion strings of the MOST RECENT recorded pinned failure for `branch`, over
     BOTH shapes the journal records one in. `[]` when nothing of either shape is recorded.
@@ -3803,7 +3965,7 @@ def _land_audited_footprint_split(W: Path, branch: str, merged_base: "str | None
                                   observable_footprint: "list | None", *,
                                   _run_git_cap, EVENTS_PATH, merged_delta: "list | None" = None,
                                   _DERIVED_MERGE_ARTIFACTS=None,
-                                  _anchor_signature_of_text=None, _AUDITED_FOOTPRINT_LIST_CAP=None, _governed_closure_side_effects=None, _last_audit_post_for_task=None, _mechanically_resolved_conflicts=None, _uncovered_path_provenance=None) -> "dict | None":
+                                  _anchor_signature_of_text=None, _AUDITED_FOOTPRINT_LIST_CAP=None, _governed_closure_side_effects=None, _last_audit_post_for_task=None, _mechanically_resolved_conflicts=None, _uncovered_path_provenance=None, _read_land_events=None) -> "dict | None":
     """T-10896 (X-0738 / X-0696) — PARTITION the branch's OBSERVABLE footprint by PROVENANCE against
     the commit its own audit-post reviewed. This is the primitive both halves of the card need: the
     footprint was computed as a FLAT path set, so nothing could say which part of what is about to
@@ -3927,6 +4089,37 @@ def _land_audited_footprint_split(W: Path, branch: str, merged_base: "str | None
         # the operator cannot see would be noise. Nothing branches on it; the offending set is unchanged.
         out["uncovered_provenance"] = _uncovered_path_provenance(
             out["own_post_audit"] + out["unclassified"], W, merged_base, _run_git_cap=_run_git_cap)
+        # T-12365 — CITE THE HAND RESOLUTION, do not exempt it. This record is what explains the SHIFT
+        # that forces a re-audit, and until now the loudest cause of that shift — a human resolving a
+        # non-union conflict and committing it as a merge — was recorded NOWHERE, so the record named
+        # the paths without ever being able to name WHY they moved. `worktree sync --resolved` now
+        # writes a `merge_resolved_by_hand` row per resolution; this folds the rows whose merge commit
+        # lies in `<audit_commit>..HEAD` and names them beside the buckets.
+        # REPORT-ONLY, and that is the load-bearing half. Nothing branches on this key: every bucket,
+        # every verdict and every refusal is byte-identical with or without it. A hand resolution is
+        # AUTHORED CONTENT — `_offending_drift_is_merge_produced` says so in as many words, and it is
+        # exactly what the rule exists to refuse — so making the shift ATTRIBUTABLE must not make it
+        # EXCUSABLE. A future change that read this key to admit such a path would invert the rule.
+        # FAIL-SAFE: absent whenever it could not be measured (no reader injected, an unreadable
+        # journal, a git that would not answer). An absent key is never a claimed empty set.
+        if _read_land_events is not None:
+            try:
+                rl = _run_git_cap(["rev-list", f"{commit}..HEAD"], W)
+                if rl.returncode == 0:
+                    since = {ln.strip() for ln in (rl.stdout or "").splitlines() if ln.strip()}
+                    rows = []
+                    for e in _read_land_events(EVENTS_PATH):
+                        if e.get("type") != "merge_resolved_by_hand":
+                            continue
+                        d = e.get("data") or {}
+                        if d.get("branch") != branch or (d.get("merge_commit") or "") not in since:
+                            continue
+                        rows.append({"merge_commit": str(d.get("merge_commit") or "")[:7],
+                                     "resolved": sorted(d.get("resolved") or []),
+                                     "resolved_source": d.get("resolved_source")})
+                    out["hand_resolved"] = rows
+            except Exception:                  # noqa: BLE001 — a report never fails the gate it describes
+                pass
         return out
 
     footprint = list(observable_footprint)

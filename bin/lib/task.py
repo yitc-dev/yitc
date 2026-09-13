@@ -116,6 +116,11 @@ _STDIN_VERB_OWNED_KEYS = {
     "next_action": "task pause",
     "paused_at": "task pause",
     "paused_reason": "task pause",
+    # T-12407 — the DECLARED awaited artifact, verb-owned for exactly the reason `paused_at` /
+    # `paused_reason` are: a pause is a RECORDED MOMENT about a claimed card, never filing-time
+    # authored state. Without this entry a filed card could carry an awaited ref no pause ever
+    # recorded, and the session-start echo would read a wait that never happened.
+    "paused_awaits": "task pause",
     "unparked_note": "task update --status ready",
     "wont_do_reason": "task update --status wont-do",
     "amend_notes": "task update --note",
@@ -373,11 +378,19 @@ UPDATE_STDIN_CONFLICTING_ARGV_FLAGS = (
     # Its siblings --live-probe-recheck-by (an ISO date) and --live-probe-not-user-facing (a boolean)
     # carry no prose, so they stay off the table — as do the T-11223 assertion flags (a URL + an int).
     ("live_probe_none", "--live-probe-none", "live_probe_none", None),
+    # T-12409 (aiseller X-1338): the ADD-ACCEPTANCE text is free prose — the SAME class as the rows
+    # above, and the one whose shell-eaten forms (a backtick, an apostrophe) E-0054 is named for. ONE
+    # row, one argv source. Its stdin KEY is honoured because `add_acceptance` joins
+    # PROSE_BEARING_UPDATE_FIELDS below: without that, this row's refusal ("move it into the stdin
+    # mapping (key: add_acceptance)") would name a key the ingest then drops — the lie the table's own
+    # header comment warns about for --old/--new.
+    ("add_acceptance", "--add-acceptance", "add_acceptance", None),
 )
 # The PROSE-bearing `task update` fields — free narrative the shell can eat, folded back onto `args`
 # after the ingest. Ordered as the table above; `--status`/`--class` are enums and never appear here.
 PROSE_BEARING_UPDATE_FIELDS = ("reason", "note", "return_trigger",
-                               "pv_criterion", "pv_signal", "pv_waive", "live_probe_none")
+                               "pv_criterion", "pv_signal", "pv_waive", "live_probe_none",
+                               "add_acceptance")
 
 
 # --- T-11742 (X-1157): the `task update --from-stdin` key classification --------------------------
@@ -1196,18 +1209,31 @@ def p8_carrier_cross_route_text(tid: str, consumers: list) -> str:
             f"the consumer to hold the obligation — `yitc-v2 cross request --kind task --to {who} "
             f"--from-stdin` (--from-stdin because the brief carries backticks, E-0054), the brief "
             f"asking them to ARM THEIR OWN followup on the moment in THEIR repo "
-            f"(`followup add --trigger '<the moment>' --awaits 'events.jsonl#type=<event_type>"
-            f"@after=<ISO ts>'`, T-12057) and to REPORT THE READING BACK with "
+            f"(`followup add --trigger '<the moment>' --awaits "
+            f"'events.jsonl#type=<THE KEY YOU VERIFIED>@after=<ISO ts>'`, T-12057) and to REPORT THE "
+            f"READING BACK with "
             f"`yitc-v2 cross done <X-NNNN> --note '<the reading + its journal locator>'`; (2) arm "
             f"THIS carrier on the item they answer — `yitc-v2 followup arm <this id> --trigger "
             f"'<consumer> reports the reading on X-NNNN' --awaits X-NNNN`, so the kernel wakes "
             f"exactly when the consumer answers and nothing is polled in between. When it fires, "
             f"cite their answer as `coordination.jsonl#cross=X-NNNN` (the SPEC-0015 shared-store "
-            f"locator kind, T-11297) and emit the P8 event for {tid}. The X- item STAYS OPEN "
-            f"(`picked`) while the consumer holds the obligation — that is the carrier, not spam: "
-            f"`picked` rows are outside the session-start outbox cut (T-9400), and closing the item "
-            f"when they arm would lose the return channel and the kernel's own adoption record "
-            f"(shape (B), REJECTED by the same ruling). ")
+            f"locator kind, T-11297) and emit the P8 event for {tid}. "
+            f"NAME THE AWAITS KEY YOURSELF — DO NOT SHIP A PLACEHOLDER. You own every emitter this "
+            f"moment could fire from, so the consumer cannot know the key and you can: grep the "
+            f"emitter, check the type against the SPEC-0025 / SPEC-0161 catalog, and write THAT "
+            f"literal `events.jsonl#type=<t>` into the brief. When NO emitter fires at that moment, "
+            f"the ask is unanswerable as written — do not file it: drop the carrier (`followup drop`) "
+            f"or record it wont-hold, or file an EMITTER card first and ask afterwards (measured: "
+            f"kupiclub X-1379, three of the asks named a moment that emits nothing). "
+            f"The X- item STAYS OPEN (`picked`) while the consumer holds the obligation — that is "
+            f"the carrier, and SAY SO HONESTLY IN THE BRIEF, because it is not free for THEM: while "
+            f"the item sits `picked`, THEIR session start prints «N inbox item(s) ACCEPTED (picked) "
+            f"but tracked by NO local task» on EVERY start (T-11202). The T-9400 cut that keeps a "
+            f"`picked` row quiet is YOUR outbox, not their inbox — so tell them how to silence it: "
+            f"declare a local carrier for the obligation they just accepted — `task file … "
+            f"--resolves-cross <X-NNNN>` (or a non-terminal plan's frontmatter `resolves_cross:`, "
+            f"T-11585). Closing the item when they arm would lose the return channel and the "
+            f"kernel's own adoption record (shape (B), REJECTED by the same ruling). ")
 
 
 def p8_carrier_autofile_text(tid: str, card: dict, peers=()) -> str:
@@ -1312,6 +1338,100 @@ def _autofile_p8_carrier(tid: str, card: dict, events_paths, _append_event, _die
             f"{_route}"
             f"Then capture the failure as a deviation.\n")
         return None
+
+
+# ── T-12339 (SPEC-0060 item 3 — the premise-verify cue's MECHANICAL FLOOR at the authoring seams) ──
+# Measured 2026-09-10: the Controller filed T-12326 amending SPEC-0200 (SUPERSEDED by SPEC-0204) and
+# extending `audit consult --reopen` (on SPEC-0204 rule 6's retirement list); a dispatched worker refused
+# it pre-claim (SPEC-0133 rule 2f) — one worker bootstrap, one dispatch slot, a wont-do card and a re-file
+# (T-12335) spent on a premise the graph already knew was false at FILING. Two report-only lines close that
+# gap where it is cheapest: (a) a cited or scope/acceptance-named spec whose index status is NON-ACTIVE
+# (only `active` governs — SPEC-0005 / GRAPH §What a spec is FOR), naming its superseder when the index
+# records one; (b) a card text naming a RETIRED `audit` CLI flag. ADVISORY ONLY — no gate, no event, no
+# exit-code change (CHARTER non-goal #7); a NECESSARY condition on the premise, never a judgement of it.
+# ONE CARRIER for the flag set: `audit.RETIRED_AUDIT_FLAGS`, the SAME object the SPEC-0204 pre-parse shim
+# and graph conformance's VP6 probe (`graph_lib.retired_audit_flag_violations`) read — imported by name,
+# read in place, never copied (AC2), matched by the probe's own whole-token matcher (`_names_flag_token`).
+#: the spec statuses a citing card is advised about. `draft` / `proposed` are non-authoritative too, but
+#: citing a proposed spec is the normal design-first shape (GRAPH §Spec lifecycle) — NOT flagged.
+NON_ACTIVE_SPEC_STATUSES = frozenset({"superseded", "retired", "withdrawn", "rejected"})
+_SPEC_ID_RE = re.compile(r"\bSPEC-\d{4}\b")
+
+
+def _card_texts(title, scope, acceptance) -> list:
+    """The card's free-text fields as one flat list of strings (title + every scope/acceptance entry)."""
+    out = [str(title or "")]
+    for field in (scope, acceptance):
+        for entry in (field or []):
+            out.append(str(entry or ""))
+    return out
+
+
+def _non_active_spec_refs(cites, scope, acceptance, specs) -> list:
+    """T-12339 — the pure selector for line (a): every SPEC-XXXX the card cites OR names in its scope/
+    acceptance text that resolves in `specs` (the graph index's spec node map) to a NON-ACTIVE status.
+    Returns sorted [{spec, status, superseded_by}] — `superseded_by` is the spec whose `supersedes` names
+    it (the index carries that edge on the SUPERSEDER), or None. An id absent from the index is NOT a
+    hit (a dangling cite is another advisory's concern). PURE over passed-in data."""
+    specs = specs if isinstance(specs, dict) else {}
+    named = {c for c in (cites or []) if isinstance(c, str) and _SPEC_ID_RE.fullmatch(c.strip())}
+    for text in _card_texts("", scope, acceptance):
+        named.update(_SPEC_ID_RE.findall(text))
+    out = []
+    for sid in sorted(named):
+        node = specs.get(sid.strip()) or {}
+        status = node.get("status")
+        if status not in NON_ACTIVE_SPEC_STATUSES:
+            continue
+        superseder = next((k for k, v in sorted(specs.items())
+                           if isinstance(v, dict) and str(v.get("supersedes") or "") == sid), None)
+        out.append({"spec": sid, "status": status, "superseded_by": superseder})
+    return out
+
+
+def _retired_flag_refs(texts) -> list:
+    """T-12339 — the pure selector for line (b): the RETIRED `audit` flags (read IN PLACE off the one
+    carrier `audit.RETIRED_AUDIT_FLAGS`) that any of `texts` names as a WHOLE flag token, via the VP6
+    probe's own matcher so `--owner-reset=1` matches and `--owner-reset-something` does not. Sorted."""
+    return sorted(tok for tok in audit.RETIRED_AUDIT_FLAGS
+                  if any(graph_lib._names_flag_token(t, tok) for t in (texts or [])))
+
+
+def _committed_index_specs(repo_root) -> dict:
+    """T-12339 — the spec node map off the COMMITTED derived `graph/index.json` (a json read, no build).
+    A dedicated helper, NOT inlined into its caller: the T-12034 reads-census flags any function that
+    names a journal token AND raw-reads AND json-parses; `cmd_task_update` names the journal for its
+    own event appends, so an inline read of this NON-journal file reads as an uncounted journal scan
+    (the `_run_pinned_verify` false-positive shape). Held apart, the read is what it is: an index read."""
+    idx = json.loads((Path(repo_root) / "graph" / "index.json").read_text())
+    return (idx or {}).get("specs") or {}
+
+
+def _print_premise_advisory(tid, title, cites, scope, acceptance, specs) -> None:
+    """T-12339 (SPEC-0060 item 3, advisory registry rows 12 + 13) — print the two premise-verify floor
+    lines for a card's EFFECTIVE fields, or NOTHING when the card cites only active specs and names no
+    retired flag. ONE printer, TWO callers: `task file` (the grafted `_preview_index["specs"]`) and the
+    `task update --old/--new` field-edit arm (the POST-edit parse). ADVISORY ONLY at both seams: never
+    blocks, never emits an event, never changes the exit code; callers own the fail-open wrapping."""
+    spec_hits = _non_active_spec_refs(cites, scope, acceptance, specs)
+    if spec_hits:
+        print(f"non-active spec cited (advisory — filing not blocked): {len(spec_hits)} spec(s) {tid} "
+              f"cites or names resolve to a NON-ACTIVE status — only `active` governs (SPEC-0005)")
+        for h in spec_hits:
+            tail = f"; superseded by {h['superseded_by']}" if h["superseded_by"] else ""
+            print(f"  {h['spec']}  ({h['status']}{tail})")
+        print("  disposition: re-check the premise against the ACTIVE successor and amend the card "
+              "(cites + the scope/acceptance lines that name it) — SPEC-0060 item 3 premise-verify cue; "
+              "authoring prompt, not a gate")
+    flag_hits = _retired_flag_refs(_card_texts(title, scope, acceptance))
+    if flag_hits:
+        print(f"retired flag named (advisory — filing not blocked): {len(flag_hits)} retired `audit` CLI "
+              f"flag(s) named in {tid}'s text (SPEC-0204 rule 6)")
+        for tok in flag_hits:
+            print(f"  {tok}  — {_truncate_advisory_text(audit.RETIRED_AUDIT_FLAGS[tok])}")
+        print("  disposition: a card that extends or amends a retired surface rests on a false premise — "
+              "re-read SPEC-0204 and re-aim it at the live route; a mention of the same token on a "
+              "NON-audit surface (`plan stage --owner-reset`) is a different flag — ignore this line")
 
 
 def _print_ac_measured_bound_status(acceptance) -> None:
@@ -2905,6 +3025,10 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
             # cite. INSIDE the same fail-open try for the same reason: an index-build error suppresses the
             # advisory, never breaks a completed filing.
             _print_undercitation_preview(tid, list(expected_touch), list(cites), _preview_index, REPO_ROOT)
+            # T-12339 (SPEC-0060 item 3 floor, registry rows 12+13): the premise-verify lines ride the SAME
+            # grafted index (one build, not three) — a cited/named spec resolving NON-ACTIVE, a retired
+            # `audit` flag named in the text. INSIDE the same fail-open try for the same reason.
+            _print_premise_advisory(tid, title, list(cites), scope, acceptance, _preview_index.get("specs"))
         except Exception:  # noqa: BLE001 — advisory; never fatal to a filing
             pass
 
@@ -3271,6 +3395,10 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     # T-11547 (SPEC-0072 rules 1 + 6): read the EFFORT-TIER mode's flag here, beside the other
     # single-field mode flags, so every sibling mode's exclusivity check can name it symmetrically.
     _effort_tier_arg = (getattr(args, "effort_tier", None) or "").strip() or None
+    # T-12409: the ADD-ACCEPTANCE mode's flag, read HERE beside the other single-field mode flags so
+    # every sibling mode's exclusivity check can name it symmetrically (the convention
+    # test_effort_tier_mode_exclusivity_is_symmetric pins for --effort-tier).
+    _add_ac_arg = getattr(args, "add_acceptance", None)
     # ── T-11223 + T-11209 (SPEC-0094 §3/§4 / SPEC-0015; kupiclub X-0964 / X-0955): LIVE-PROBE mode ──
     # The `live_probe` field had NO writer after filing: a deploying project's `task close` REFUSES a
     # card that declares none, and the refusal could only be satisfied by HAND-EDITING the governed
@@ -3343,10 +3471,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                                  "live_probe_expect_status", "live_probe_body_contains",
                                  "live_probe_expect_location", "live_probe_none",
                                  "live_probe_recheck_by"))
-                or bool(getattr(args, "live_probe_not_user_facing", False))):
+                or bool(getattr(args, "live_probe_not_user_facing", False))
+                or _add_ac_arg is not None):
             _die("task update: --queue-jump / --queue-jump-clear is its own mode — do not combine "
                  "with --status / --class / --note / --return-trigger / --reason / --old / --new / "
-                 "--pv-* / --live-probe-* / --evidence / --effort-tier. Two governed card mutations "
+                 "--pv-* / --live-probe-* / --evidence / --effort-tier / --add-acceptance. Two "
+                 "governed card mutations "
                  "must not ride one invocation (each owns its own write + event).")
         if _qj is not None and _qj_clear:
             _die("task update: --queue-jump and --queue-jump-clear are opposites — pass one. "
@@ -3545,10 +3675,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                                  "live_probe_expect_status", "live_probe_body_contains",
                                  "live_probe_expect_location", "live_probe_none",
                                  "live_probe_recheck_by"))
-                or bool(getattr(args, "live_probe_not_user_facing", False))):
+                or bool(getattr(args, "live_probe_not_user_facing", False))
+                or _add_ac_arg is not None):
             _die("task update: --effort-tier (the effort-tier change) is its own mode — do not "
                  "combine with --status / --class / --note / --return-trigger / --reason / --old / "
-                 "--new / --pv-* / --live-probe-* / --evidence. Two governed card mutations must not "
+                 "--new / --pv-* / --live-probe-* / --evidence / --add-acceptance. Two governed "
+                 "card mutations must not "
                  "ride one invocation (each owns its own write + event). Run them as separate calls.")
         # CLOSED VOCABULARY (the card's AC2 fence). argparse `choices=EFFORT_TIERS` is the outer
         # fence for argv; this is the fence for from-code callers, so NO path reaches the write with
@@ -3609,10 +3741,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                                  "live_probe_expect_status", "live_probe_body_contains",
                                  "live_probe_expect_location", "live_probe_none",
                                  "live_probe_recheck_by"))
-                or bool(getattr(args, "live_probe_not_user_facing", False))):
+                or bool(getattr(args, "live_probe_not_user_facing", False))
+                or _add_ac_arg is not None):
             _die("task update: --evidence (the evidence-row declaration) is its own mode — do not "
                  "combine with --status / --note / --return-trigger / --reason / --class / --old / "
-                 "--new / --pv-* / --live-probe-* / --effort-tier. Two governed card mutations must not ride one "
+                 "--new / --pv-* / --live-probe-* / --effort-tier / --add-acceptance. Two governed "
+                 "card mutations must not ride one "
                  "invocation (each owns its own write + event). Run them as separate calls.")
         cur = task.get("status")
         if cur in ("done", "wont-do"):
@@ -3697,10 +3831,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 or _new_class_arg is not None or old is not None or new is not None
                 or _effort_tier_arg is not None
                 or any(getattr(args, f, None) is not None
-                       for f in ("pv_criterion", "pv_signal", "pv_waive"))):
+                       for f in ("pv_criterion", "pv_signal", "pv_waive"))
+                or _add_ac_arg is not None):
             _die("task update: --live-probe-* (the live-probe declaration) is its own mode — do not "
                  "combine with --status / --note / --return-trigger / --reason / --class / --old / "
-                 "--new / --pv-criterion / --pv-signal / --pv-waive / --effort-tier. Two governed card mutations must "
+                 "--new / --pv-criterion / --pv-signal / --pv-waive / --effort-tier / "
+                 "--add-acceptance. Two governed card mutations must "
                  "not ride one invocation (each owns its own write + event). Run them as separate calls.")
         cur = task.get("status")
         if cur in ("done", "wont-do"):
@@ -3862,10 +3998,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 or _new_class_arg is not None or old is not None or new is not None
                 or _effort_tier_arg is not None
                 or any(getattr(args, f, None) is not None
-                       for f in ("pv_criterion", "pv_signal", "pv_waive"))):
+                       for f in ("pv_criterion", "pv_signal", "pv_waive"))
+                or _add_ac_arg is not None):
             _die("task update: --observation/--observation-due (the deferred-proof declaration) is its "
                  "own mode — do not combine with --status / --note / --return-trigger / --reason / "
-                 "--class / --old / --new / --pv-criterion / --pv-signal / --pv-waive / --effort-tier. "
+                 "--class / --old / --new / --pv-criterion / --pv-signal / --pv-waive / --effort-tier "
+                 "/ --add-acceptance. "
                  "Two governed card mutations must not ride one invocation. Run them as separate calls.")
         # THE PAIR, never half of it — the --live-probe-url/--expect-status and --pv-criterion/--pv-signal
         # pairing refusal, same reason: a deferred proof naming a WHAT with no WHEN is an undated debt,
@@ -3962,6 +4100,94 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                  "(SPEC-0038 §3 — the fill-or-waive answer is authored at a TERMINAL closure). A park "
                  "is reversible, so its post_verification is authored by whatever closes the card "
                  "later; for a normal closure use `task close` (which carries the same three flags).")
+    # ── T-12409 (aiseller X-1338): ADD-ACCEPTANCE mode — the governed APPEND to `acceptance` ───────
+    # `acceptance` had no APPEND route. The field-edit arm below called itself "the verb's ONLY
+    # acceptance-writing route", and the ADD it documents ("--new may SUPERSET --old") does not reach a
+    # WRAPPED list: the emitter stores each criterion as a single-quoted scalar folded across physical
+    # lines, so a `--new '<tail>\n- AC4: …'` lands the new line INSIDE the still-open quoted scalar.
+    # MEASURED on a 3-AC card: the file stays valid YAML, the list length stays 3, the round-trip guard
+    # is satisfied, the verb prints success at exit 0 — and the card's third criterion now reads
+    # "…width 3 - AC4: brand new criterion". `task close --probe AC4` then correctly refuses against a
+    # label the card does not parse as its own entry. So this is the SAME "governed field with no
+    # writer" catch-22 the five sibling own-modes on this verb already closed (--class T-9745,
+    # --evidence T-11408, --live-probe-* T-11223/T-11209, --pv-* T-10722, --effort-tier T-11547,
+    # --observation T-10916): it EXTENDS that family rather than opening a parallel path (CHARTER §P1
+    # F1), validates the composed value, writes through the YAML EMITTER, and reuses the EXISTING
+    # `task_amended` event (SPEC-0025 catalog untouched). What it REMOVES (F3) is the silent glue path:
+    # the guard at the end of the field-edit arm below refuses that superset before any write.
+    # Placed BEFORE the field-edit arm so a mixed invocation gets ONE deterministic refusal from this
+    # mode's own conflict check rather than a misleading message from a downstream guard.
+    _add_ac = _add_ac_arg
+    if _add_ac is not None:
+        if (target is not None or note is not None or return_trigger is not None or reason is not None
+                or _new_class_arg is not None or _effort_tier_arg is not None
+                or old is not None or new is not None):
+            _die("task update: --add-acceptance (the governed acceptance APPEND) is its own mode — do "
+                 "not combine with --status / --note / --return-trigger / --reason / --old/--new "
+                 "(field-edit) / --class (reclassify) / --effort-tier (run them as separate calls)")
+        _add_ac = str(_add_ac).strip()
+        if not _add_ac:
+            _die("task update: --add-acceptance must be non-empty — it is the new criterion's TEXT, "
+                 "led by its own next `ACn:` label (SPEC-0028 acceptance schema). Nothing was written.")
+        cur = task.get("status")
+        if cur in ("done", "wont-do"):
+            _die(f"{tid} is {cur} — a terminal card is frozen history, so no criterion is appended to "
+                 f"it (a closed card's acceptance is what its audit judged the work against). The ONE "
+                 f"terminal acceptance route is the post-close CORRECTION of existing text on a "
+                 f"done-but-UNLANDED card (`--old/--new`, T-11458) — a correction, never an addition. "
+                 f"Nothing was written.")
+        _ac_cur = list(task.get("acceptance") or [])
+        # The EXPECTED label is DERIVED from the card, never taken from the caller: the highest `ACn`
+        # label the card already carries, or the entry COUNT where the entries are unlabelled, +1. Both
+        # readings are needed — a label-bearing card with a gap (AC1/AC2/AC5) must not re-issue AC4,
+        # and an unlabelled card of 3 entries must still land AC4.
+        _labels = [int(_m.group(1)) for _m in
+                   (re.match(r"AC(\d+)\b", str(_e or "").strip()) for _e in _ac_cur) if _m]
+        _expected_n = max(max(_labels) if _labels else 0, len(_ac_cur)) + 1
+        _expected = f"AC{_expected_n}"
+        _m_new = re.match(r"AC(\d+)\b", _add_ac)
+        # STRICT BY DESIGN: `task close --probe AC4` keys on the LABEL, so a criterion whose label is
+        # absent, out of sequence, or already taken is unprobeable — refuse it at the door rather than
+        # write a card whose own closure cannot name its newest criterion.
+        if _m_new is None:
+            _die(f"task update: --add-acceptance must START with the card's NEXT acceptance label — "
+                 f"expected {_expected}: (the card carries {len(_ac_cur)} criteri"
+                 f"{'on' if len(_ac_cur) == 1 else 'a'}). `task close --probe {_expected}` keys on that "
+                 f"label, so an unlabelled criterion is unprobeable. Nothing was written.")
+        if int(_m_new.group(1)) != _expected_n:
+            _already = any(re.match(rf"AC{int(_m_new.group(1))}\b", str(_e or "").strip())
+                           for _e in _ac_cur)
+            _die(f"task update: --add-acceptance is labelled AC{_m_new.group(1)} but this card's NEXT "
+                 f"label is {_expected} — "
+                 + (f"AC{_m_new.group(1)} is ALREADY on the card (an APPEND never re-issues a label; "
+                    f"correct existing text with --old/--new). " if _already else
+                    f"the labels must stay GAPLESS (the card carries {len(_ac_cur)} criteri"
+                    f"{'on' if len(_ac_cur) == 1 else 'a'}). ")
+                 + f"Re-run with {_expected}: leading the text. Nothing was written.")
+        task["acceptance"] = _ac_cur + [_add_ac]
+        # Through the YAML EMITTER, never the --old/--new text matcher — which is the whole point: the
+        # matcher cannot append to a wrapped scalar list without gluing (the measurement above).
+        _write_task_state(yaml, path, task)
+        # NO NEW EVENT TYPE (CHARTER §P1 F1/F3) — `task_amended(field_edit)` is this verb's existing
+        # carrier for a governed field write; `added_acceptance` names WHICH label landed, so a later
+        # reader (and the `task close` unseen-amendment guard, which qualifies a row by `fields`) can
+        # attribute the new criterion to this amendment.
+        _append_event("task_amended", tid, {"field_edit": True, "field": "acceptance",
+                                            "fields": ["acceptance"],
+                                            "added_acceptance": _expected})
+        print(f"acceptance appended: {tid} -> {_expected} ({len(task['acceptance'])} criteria) — "
+              f"task_amended(field_edit) emitted")
+        # The SAME advisories the FILING seam runs, on the POST-edit list — this is a third AUTHORING
+        # seam for a criterion, so it owes the same prompts. ONE call: `_print_ac_test_waive_status`
+        # ends by calling `_print_ac_measured_bound_status` itself (T-12251 caller 1), so invoking both
+        # here would print the measured block twice. Report-only and FAIL-OPEN, as at the other two
+        # seams: a governed write that already landed is never broken by an advisory that could not
+        # compute.
+        try:
+            _print_ac_test_waive_status(tid, task["acceptance"], REPO_ROOT)
+        except Exception:                              # noqa: BLE001 — an advisory never raises
+            pass
+        return
     # FIELD-EDIT mode (T-1164) — its own mode, handled BEFORE the status/note machinery + the
     # "nothing to do" guard (an --old/--new-only invocation must not die as "nothing to do").
     if old is not None or new is not None:
@@ -4239,6 +4465,52 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # cut's sole authoritative writer (CHARTER §P1 F1: harden the existing analog, do not add a
         # parallel `--decomposed-from` setter mode). `recut` and `uncut` are mutually exclusive by
         # construction (the terminal branch owns `uncut`).
+        # GLUE GUARD (T-12409, aiseller X-1338) — the F3 half of the --add-acceptance mode above: the
+        # superset trick stops being a legal route INTO a wrapped list. The documented ADD ("--new may
+        # SUPERSET --old") works by substituting RAW TEXT, so a newline-led `- ` item aimed at a list
+        # whose entries the emitter WRAPPED lands INSIDE the still-open quoted scalar: valid YAML, the
+        # round-trip and identity checks above all satisfied, and the list LENGTH unchanged — the
+        # author's new item silently became a tail of the previous one (measured: a 3-AC card's AC3 read
+        # "…width 3 - AC4: brand new criterion" at exit 0). So: when `--new` offers a newline-led item
+        # and some LIST field changed while NONE of them GREW, the intended addition provably did not
+        # become an entry. Refuse before the write, naming the covering verb.
+        #
+        # TWO conditions, both needed, each answering a measured false positive:
+        #  • `--new` offers MORE newline-led `- ` items than `--old` did — i.e. the replacement
+        #    textually ADDS one. A like-for-like item REPLACEMENT (`--old 'scope:\n- x' --new
+        #    'scope:\n- y'`, pinned by test_amend_note/field-edit siblings) offers the same count and is
+        #    never this defect; counting only the ADDED ones is what keeps it admitted.
+        #  • some LIST field changed and NONE of them GREW — the added item provably did not become an
+        #    entry. This is what keeps the pinned superset ADD (T-10546 / X-0413) working: ABSENT →
+        #    present is growth (an absent key reads as an empty list), and `requires: []` → one entry is
+        #    growth.
+        # It fires only when a list field CHANGED — an edit that glues prose into a SCALAR field is a
+        # different shape with no --add-acceptance route to offer, so it is left to the existing
+        # type/round-trip guards rather than refused by a message naming the wrong remedy.
+        _item_re = re.compile(r"\n[ \t]*- ")
+        if len(_item_re.findall(new)) > len(_item_re.findall(old)):
+            _list_changed, _list_grew = [], False
+            for _k in set(orig_parsed) | set(rt):
+                _b, _a = orig_parsed.get(_k), rt.get(_k)
+                if _b == _a or not isinstance(_a, list):
+                    continue
+                _list_changed.append(_k)
+                if len(_a) > len(_b or []):
+                    _list_grew = True
+            if _list_changed and not _list_grew:
+                _fields = ", ".join(f"`{_k}`" for _k in sorted(_list_changed))
+                _ac_hint = (" For `acceptance`, that verb is `bin/yitc-v2 task update " + tid
+                            + " --add-acceptance '<ACn>: <text>'` — it appends through the YAML "
+                              "emitter, so wrapping cannot glue it." if "acceptance" in _list_changed
+                            else "")
+                _die(f"refusing to write {path.name} — --new offers a newline-led `- ` item, but "
+                     f"{_fields} changed WITHOUT growing: the item did not become a list entry. The "
+                     f"emitter stores a long entry as a quoted scalar WRAPPED across physical lines, so "
+                     f"a raw-text superset aimed inside one is absorbed into THAT entry's text "
+                     f"(the card still parses, the length stays flat, and a later `task close --probe "
+                     f"<label>` then refuses a label the card does not carry — aiseller X-1338). Use "
+                     f"the governed APPEND instead of a text superset.{_ac_hint} (the file is "
+                     f"untouched.)")
         recut_from = recut_to = None
         recut = False
         if not uncut and orig_parsed.get("decomposed_from") != rt.get("decomposed_from"):
@@ -4275,6 +4547,16 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         if "acceptance" in amended_fields:
             try:
                 _print_ac_measured_bound_status(rt.get("acceptance"))
+            except Exception:                          # noqa: BLE001 — an advisory never raises
+                pass
+        # T-12339 — CALLER 2 of 2 of the premise-verify floor (SPEC-0060 item 3, registry rows 12+13).
+        # Fires when `scope` or `acceptance` changed, reading the POST-edit parse `rt` (the effective
+        # card — audit-pre F1), with the spec statuses off the committed derived `graph/index.json`
+        # (a json read, no build, no new injected dep). Report-only and FAIL-OPEN, as the caller above.
+        if {"scope", "acceptance"} & set(amended_fields):
+            try:
+                _print_premise_advisory(tid, rt.get("title"), rt.get("cites"), rt.get("scope"),
+                                        rt.get("acceptance"), _committed_index_specs(REPO_ROOT))
             except Exception:                          # noqa: BLE001 — an advisory never raises
                 pass
         _append_event("task_amended", tid, {"field_edit": True, "replacements": count,
@@ -4627,11 +4909,40 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
     if task.get("paused_at"):
         _die(f"{tid} is already paused (paused_at={task.get('paused_at')!r}, reason="
              f"{task.get('paused_reason')!r}) — `task resume {tid}` first to re-enter it.")
+    # T-12407 — the DECLARED awaited artifact (kupiclub X-1322). Three fail-closed checks, ALL before
+    # any write, so a refusal leaves the card untouched (the verb's stated FAILURE property). The
+    # shape check DELEGATES to `followup.awaits_kind` — the ONE grammar home (T-11964), imported the
+    # same function-local way `_probe_moment_declaration` already imports it — so a repo path, a spec
+    # id or a plan slug is refused at THIS door exactly as at the two followup doors. Declared, never
+    # inferred: nothing here mines an id out of `next_action` prose (the rejected design option B).
+    awaits = (getattr(args, "awaits", None) or "").strip() or None
+    if reason == "artifact-wait" and not awaits:
+        _die(f"task pause --reason artifact-wait REQUIRES --awaits: the whole point of this reason is "
+             f"an awaited item whose arrival a reader can DECIDE, so the session-start echo can say "
+             f"RESUMABLE instead of asserting a wait it cannot check. Name it "
+             f"(`--awaits T-NNNN|X-NNNN|events.jsonl#type=<t>`), or use `--reason owner-wait` if what "
+             f"{tid} really waits on is an owner answer.")
+    if awaits and reason not in ("artifact-wait", "owner-wait"):
+        _die(f"task pause --awaits is not meaningful with --reason {reason!r} — refusing rather than "
+             f"writing a field nothing reads. The awaited-artifact echo resolves ONLY for "
+             f"artifact-wait (where it is required) and owner-wait (where it is optional: an owner "
+             f"answer that is itself gated on an item closing).")
+    if awaits:
+        from lib import followup as _followup
+        if _followup.awaits_kind(awaits) is None:
+            _die(_followup._awaits_shape_refusal(
+                awaits, "pause", family="task",
+                stake=("because a pause whose awaited item can never be resolved leaves the "
+                       "session-start echo asserting a wait it can never end — the measured X-1322 "
+                       "failure this flag exists to close (T-0422 read WAITING-ON-OWNER for 8 days "
+                       "after the item it actually awaited had closed)")))
     resume_from = (getattr(args, "resume_from", None) or "").strip() or None
     next_action = (getattr(args, "next_action", None) or "").strip() or None
     stage = task.get("current_stage")
     task["paused_at"] = _utc_now_iso()
     task["paused_reason"] = reason
+    if awaits:
+        task["paused_awaits"] = awaits
     if resume_from:
         task["resume_from"] = resume_from
     if next_action:
@@ -4641,6 +4952,11 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
     # free `reason` detail — categorizes WHY the session waited so the loop finds where time is lost.
     _append_event("task_paused", tid, {"reason": reason, "stage": stage,
                                        "resume_from": resume_from, "next_action": next_action,
+                                       # T-12407 — the declared awaited ref + its resolvable KIND,
+                                       # so the halt's awaited moment is queryable from the journal
+                                       # alone (the `wait_reason` sibling: categorize, don't re-derive).
+                                       **({"awaits": awaits,
+                                           "awaits_kind": _awaits_kind_of(awaits)} if awaits else {}),
                                        **({"wait_reason": observe.normalize_wait_reason(reason)}
                                           if observe.normalize_wait_reason(reason) else {})})
     print(f"{tid} paused (reason={reason}, stage={stage or '?'}) | {path.relative_to(REPO_ROOT)}")
@@ -4658,6 +4974,14 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
               "so for a BOOKKEEPING-ONLY pause (no uncommitted work), `land` it (pause-shape fork, "
               "SPEC-0103 §5). A WORK-CARRYING pause keeps the worktree INTACT — do NOT land, the halt is "
               "queryable in the worktree and the WIP survives for in-place `task resume`.")
+    # T-12407 — the artifact-wait cue, beside the two above. It names the SAME re-read the echo will
+    # make, so the operator can see what will end this pause without going looking for the rule.
+    if awaits:
+        print(f"  awaits {awaits} ({_awaits_kind_of(awaits)}) — once that item is terminal, session "
+              f"start reads {tid} as RESUMABLE instead of WAITING-ON-"
+              f"{'ARTIFACT' if reason == 'artifact-wait' else 'OWNER'} (T-12407). Until then it prints "
+              f"the wait WITH the awaited ref, so the echo never asserts a wait it cannot check. "
+              f"`task resume {tid}` clears it.")
     # T-12304 — the Controller-cued clean STOP. Unlike owner-wait (which surfaces at session start),
     # this row is read by `journal query --dispatch-status/--fleet-verdict` as the TERMINAL class
     # `paused(controller-wait)`, so the relaunch is ONE command and needs no `--force`.
@@ -5429,6 +5753,33 @@ def _worktree_dirty_paths(*, REPO_ROOT, _run_git_cap, pathspecs: list[str] | Non
     # allow-list every caller of this reader compares against, so it read as authored dirt it is not.
     return textutil.git_porcelain_paths(out.stdout)
 
+
+def _worktree_path_statuses(*, REPO_ROOT, _run_git_cap, pathspecs: list[str] | None = None):
+    """T-12371 — the `{path: "XY"}` map for the SAME `git status --porcelain` listing
+    `_worktree_dirty_paths` above reads, or **`None` when git could not answer**.
+
+    It is that reader with the two status columns KEPT, sharing its argv, its pathspec semantics and
+    its decoder (`textutil.git_porcelain_path_statuses`, the status-bearing sibling of the paths
+    decoder) — so the keys here are the paths that reader returns, by construction rather than by two
+    parsers agreeing (CHARTER §P1 F1 / §P5).
+
+    `None` VS `{}` IS THE WHOLE POINT, and they are not interchangeable. `{}` is a clean answer about
+    a clean worktree («nothing is dirty»); `None` says the QUESTION could not be answered (a non-git
+    sandbox, a detached or broken checkout). Its one consumer — the `--fix-red` door's deletion
+    filter — must distinguish them: a map it HAS lets it drop a proven deletion, while `None` leaves
+    it applying no filter at all, i.e. exactly today's behaviour. The sibling collapses both onto
+    `[]` because its consumers only ever ask "is anything dirty?"; that collapse would silently turn
+    "git is broken" into "no path is a deletion" here, which is a different claim.
+
+    Factored out beside its sibling so the door stays unit-testable without a real worktree (stub
+    this, not git). Never raises."""
+    argv = ["status", "--porcelain"] + (["--", *pathspecs] if pathspecs else [])
+    out = _run_git_cap(argv, REPO_ROOT)
+    if out.returncode != 0:
+        return None
+    return textutil.git_porcelain_path_statuses(out.stdout)
+
+
 def _excluded_selfcommit_dirt(staged: list[str], *, REPO_ROOT, _worktree_dirty_paths) -> list[str]:
     """T-11756 (X-1159) — the worktree dirt a SCOPED self-commit deliberately leaves OUT, as sorted
     repo-relative posix paths. REPORT-ONLY: it stages nothing and decides nothing; it exists so the
@@ -5717,7 +6068,8 @@ def _foreclosed_park_route(tid: str, task: dict) -> str:
     )
 
 
-def _red_fix_authored_paths(tid: str, *, _worktree_dirty_paths, _zero_ship_diff_bookkeeping):
+def _red_fix_authored_paths(tid: str, *, _worktree_dirty_paths, _zero_ship_diff_bookkeeping,
+                            _worktree_path_statuses=None):
     """T-11600 — the POSITIVE discriminator for the Stage-8 RED in-scope-fix leg
     (`task commit --fix-red`). Return the sorted AUTHORED (non-bookkeeping) paths this commit would
     stage, or `[]` when it can prove none. Never raises.
@@ -5751,13 +6103,73 @@ def _red_fix_authored_paths(tid: str, *, _worktree_dirty_paths, _zero_ship_diff_
     everything else the leg requires (the audit-POST hazard state AND a RED verdict AND an in-budget
     re-audit), and it is named rather than hidden.
 
+    A DELETION IS NOT AUTHORED CONTENT — THE SAME READING THE SUBJECT GUARD ALREADY APPLIES
+    (T-12371, measured on T-12345 / commit e086597). Until this card there were TWO predicates for
+    ONE question. This door read the worktree DIRTY SET — paths only, because
+    `textutil.git_porcelain_paths` discards the porcelain status columns — and called every
+    non-allow-listed path authored, a DELETION included. Its sibling at the other end of the same
+    governed route, `_bookkeeping_commit_authored_paths` (bin/lib/cli.py, T-10567 + T-11668), reads
+    the resulting COMMIT's own diff and SKIPS a pure `D`: «a deletion is not shipped content» — after
+    it the tree holds less, not more. The T-11405 loud stop in `audit post` and `--repin-ship` read
+    the GUARD, so a set this door admitted could re-pin custody onto a commit no audit form would
+    then take. On T-12345 it did: a `--fix-red` over two DELETED scratch files plus `events.jsonl`
+    produced e086597, custody moved, two `ceiling_decision` rows bound to it, and every exit refused
+    — five spent audit invocations and a card closed wont-do with the dead-end unresolved.
+    So the door now asks the GUARD's question: the authored set is the non-bookkeeping paths the
+    commit would CARRY. This REMOVES a second notion of "authored" (CHARTER §P1 F1/F3); it adds no
+    new allow-list, no new flag and no third reading.
+
+    THE DELETION TEST IS OVER THE WHOLE `XY` PAIR, NEVER ONE COLUMN (audit-pre pass-1 finding). What
+    must be predicted is the state `git add -A` LEAVES BEHIND, not merely whether a `D` appears
+    somewhere: a path is a proven pure deletion iff EVERY NON-BLANK column of its status is `D`.
+    That admits `" D"` (deleted in the worktree, staged by `add -A`), `"D "` (a staged deletion the
+    worktree agrees with) and `"DD"`, and refuses every MIXED shape. `"DM"` is the failing input the
+    fence exists for: the index says deleted while the worktree holds a RECREATED, modified file, so
+    `add -A` stages that content and the commit CARRIES the path — dropping it would make this door
+    refuse a commit the guard reads as authored, the same disagreement merely inverted. `"MD"`,
+    `"AD"` and any unrecognised letter fall the same way, as does a path the status map does not
+    name: every mixed or unknown shape errs toward ADMITTING a commit the guard will ALSO call
+    authored, never toward a fresh disagreement. (`"AD"` is the one declared residual — kept
+    authored here though its commit carries no hunk for that path at all; a staged set of only such
+    a path produces an empty diff `task commit` already refuses upstream, so it is unreachable
+    through this leg.)
+
+    THE STATUS READER IS OPTIONAL, AND THAT IS NOT A HOLE. `_worktree_path_statuses` defaults to
+    `None`, and `None` — an unwired injection, or a git that could not answer — applies NO filter, so
+    every pre-T-12371 caller is byte-identical. The fail-closed arm that decides there is the
+    UNCHANGED one above: `_worktree_dirty_paths` yields `[]` on any git failure, which empties the
+    set and REFUSES the leg. The new filter only ever NARROWS, and only on PROOF — the same
+    direction, and the same standard of proof, the guard narrows by.
+
+    THE ONE BOUND, stated rather than hidden: the set SOURCE is still `_worktree_dirty_paths`, which
+    returns a rename's DESTINATION only, so a rename SOURCE is not added here the way the guard's
+    `-M` scan adds it. Renames are outside this predicate's question (which is about deletions) and
+    the guard's rename fence is untouched.
+
     PURE + INJECTED, so it is unit-testable without a real worktree (the sibling's convention: stub
-    the dirty-paths reader, not git)."""
+    the dirty-paths reader and the status reader, not git)."""
     try:
         dirty = [p for p in (_worktree_dirty_paths() or []) if (p or "").strip()]
     except Exception:
         return []
-    return sorted({p for p in dirty if not _zero_ship_diff_bookkeeping(p, tid)})
+    try:
+        statuses = _worktree_path_statuses() if _worktree_path_statuses else None
+    except Exception:      # noqa: BLE001 — a reader that cannot answer applies no filter (see above)
+        statuses = None
+
+    def _proven_pure_deletion(path: str) -> bool:
+        """Every non-blank column is `D`. An absent path, an empty status and any mixed or
+        unrecognised letter answer False — the strict side, which keeps the path AUTHORED."""
+        if not isinstance(statuses, dict):
+            return False
+        xy = statuses.get(path)
+        if not isinstance(xy, str):
+            return False
+        letters = set(xy) - {" ", ""}
+        return letters == {"D"}
+
+    return sorted({p for p in dirty
+                   if not _zero_ship_diff_bookkeeping(p, tid) and not _proven_pure_deletion(p)})
 
 def _card_repair_staged_card(tid: str, *, _worktree_dirty_paths, _zero_ship_diff_bookkeeping):
     """T-11991 — the POSITIVE shape proof for the `--fix-red --card-repair` ARM: is the staged set a
@@ -8958,6 +9370,15 @@ _CROSS_SETTLE_LOCATOR_RE = re.compile(r"^coordination\.jsonl#cross=(?P<id>X-\d+)
 # nothing — this set is the whole vocabulary of a settleable coordination outcome.
 _CROSS_SETTLE_EVIDENCE_TYPES = ("cross_done", "cross_closed")
 
+# T-12322 — the types that may carry the IDENTITY link, which is a STRICTLY WIDER set than the
+# ANSWERING types above and must never be conflated with them. `cross_requested` joins it because the
+# item's BIRTH row carries the AUTHOR's own card when it was filed in service of one (`cross request
+# --task`, T-11747) — the same named, author-written link `cross.card_tied_items` route (b) already
+# trusts. It does NOT join `_CROSS_SETTLE_EVIDENCE_TYPES`: a request says an ask was FILED, never that
+# anyone answered it, so admitting it as an ANSWER would let a card settle a criterion by having filed
+# an item nobody ever returned — the exact false green that keeps `cross_picked` out of the set above.
+_CROSS_SETTLE_NAMING_TYPES = _CROSS_SETTLE_EVIDENCE_TYPES + ("cross_requested",)
+
 
 def _cross_settle_locator(locator) -> "str | None":
     """Parse a COORDINATION-LOG settlement locator → the `X-NNNN` item id, else None. PURE.
@@ -8985,7 +9406,22 @@ def _cross_settle_evidence_unresolved(item_id: str, tid: str, cross_events) -> "
     it reports back (`cross done --task T-NNNN`, and the auto-emit at close/land carries it too).
 
     TWO DISTINCT REFUSALS, because they are two different authoring mistakes: an item nobody has
-    heard of (a typo'd / invented id) and a real item whose answer belongs to someone else."""
+    heard of (a typo'd / invented id) and a real item whose answer belongs to someone else.
+
+    T-12322 — THE TWO BOUNDS ARE NOW EVALUATED SEPARATELY, which is what they always meant. They were
+    collapsed into ONE row predicate ("a row that is BOTH an answer AND names this card"), and that
+    collapse silently required the ANSWERING party to be the party that owns the settling card. It is
+    not: `cross done --task` is the RECEIVER's card and `cross close` had no `--task` at all, so the
+    AUTHOR of an item could never name its own card on any row read here (measured on T-11674 /
+    X-1171, 2026-09-10). Split, the two bounds are:
+      (i)  ANSWERED — some row for the item is a `cross_done`/`cross_closed`. Vocabulary UNCHANGED;
+           this is the bound that keeps a merely-filed or merely-picked item from settling anything.
+      (ii) NAMES THIS CARD — some row for the item carries `data.task == tid`: the answering row
+           (the receiver's `cross done --task`, or the author's `cross close --task`), or the item's
+           BIRTH row (`cross request --task`, the author-side link).
+    The split is strictly TIGHTENING-NEUTRAL on bound (i) and only widens WHO may satisfy (ii); the
+    identity bound itself is untouched, so a row belonging to a DIFFERENT card still settles nothing.
+    """
     item_id = str(item_id or "").strip()
     tid = str(tid or "").strip()
     rows = [e for e in (cross_events or ())
@@ -8994,18 +9430,28 @@ def _cross_settle_evidence_unresolved(item_id: str, tid: str, cross_events) -> "
     if not rows:
         return (f"--settle-evidence names cross={item_id!r}, which resolves to NO item in the shared "
                 f"coordination log — a settlement must cite a coordination row that actually exists")
+    answering = [e for e in rows if str(e.get("type") or "") in _CROSS_SETTLE_EVIDENCE_TYPES]
     naming = [e for e in rows
-              if str(e.get("type") or "") in _CROSS_SETTLE_EVIDENCE_TYPES
+              if str(e.get("type") or "") in _CROSS_SETTLE_NAMING_TYPES
               and str(e["data"].get("task") or "").strip() == tid]
-    if not naming:
+    if not answering or not naming:
         answered = sorted({str(e.get("type") or "") for e in rows
                            if str(e.get("type") or "") in _CROSS_SETTLE_EVIDENCE_TYPES})
-        return (f"--settle-evidence names cross={item_id!r}, but no {'/'.join(_CROSS_SETTLE_EVIDENCE_TYPES)} "
-                f"row for that item NAMES this task ({tid}) — the shared store is identity-agnostic and "
-                f"every peer folds the same log, so a row that does not name this card proves nothing "
-                f"about it (rows seen for the item: "
-                f"{', '.join(answered) if answered else 'none of those types'}). Report back with "
-                f"`cross done {item_id} --task {tid} --note <what shipped>`, then settle")
+        # ONE message naming WHICH bound failed. Both halves are reported on every refusal rather
+        # than short-circuiting on the first: an author who reads only "not answered" would report
+        # back and then hit the identity refusal on the very next run, which is two round trips for
+        # one authoring mistake.
+        return (f"--settle-evidence names cross={item_id!r}, but no "
+                f"{'/'.join(_CROSS_SETTLE_EVIDENCE_TYPES)} row for that item NAMES this task ({tid}) "
+                f"— the shared store is identity-agnostic and every peer folds the same log, so a row "
+                f"that does not name this card proves nothing about it. TWO bounds must BOTH hold: "
+                f"ANSWERED = {'yes' if answering else 'NO — nothing has answered this item yet'}; "
+                f"NAMES THIS CARD = {'yes' if naming else 'NO'} (rows seen for the item: "
+                f"{', '.join(answered) if answered else 'none of those types'}). The RECEIVER names "
+                f"its card with `cross done {item_id} --task <its T-NNNN> --note <what shipped>`; "
+                f"YOU, as the item's AUTHOR, name YOUR OWN card with `cross close {item_id} --task "
+                f"{tid}` (admitted as an idempotent naming amend when the item is already closed). "
+                f"Then settle")
     return None
 
 
@@ -9452,6 +9898,18 @@ def _probe_moment_declaration(value) -> "dict | None":
         pass
     from lib import followup as _followup
     return {"awaits": v} if _followup.awaits_kind(v) is not None else None
+
+
+def _awaits_kind_of(awaits):
+    """The resolvable KIND of a declared `awaits` ref, for the pause's journal payload + cue (T-12407).
+
+    A one-line DELEGATION to `followup.awaits_kind`, function-local-imported exactly as
+    `_probe_moment_declaration` above imports it (followup.py is a stdlib-only leaf, SPEC-0080 §P-A1 —
+    it is imported INTO here, never the reverse). It exists so the classification is spelled once for
+    the two places `cmd_task_pause` needs it rather than twice, and so neither can drift from the
+    predicate the write-door guard itself refused on."""
+    from lib import followup as _followup
+    return _followup.awaits_kind(awaits)
 
 
 def _probe_moment_refusal(subject: str) -> str:
@@ -12444,7 +12902,7 @@ def cmd_task_close(args: argparse.Namespace, *, REPO_ROOT, STAGE_ENTRY_PREFIX, _
                 f"WARN: {tid} closed OK but the at-closure audit-YAML archive step did not complete "
                 f"({_exc}); the backstop sweep (`yitc-v2 triage sweep`) will drain it (SPEC-0052).\n")
 
-def cmd_task_pick(args: argparse.Namespace, *, REPO_ROOT, _die, _foreign_hold_report, _format_task_verdict_line, _live_claimed_task_ids, _load_task_for_transition, _main_worktree, _read_worktree_stamp, _report_graft_parse_errors, _requires_incomplete, _stamp_is_own, _task_safety_verdict, _with_live_nodes, _worktree_path_for_branch, graph_build_index) -> None:
+def cmd_task_pick(args: argparse.Namespace, *, REPO_ROOT, _die, _foreign_hold_report, _format_task_verdict_line, _live_claimed_task_ids, _load_task_for_transition, _main_worktree, _read_worktree_stamp, _report_graft_parse_errors, _requires_incomplete, _stamp_is_own, _task_safety_verdict, _task_decomposed_from_pre_executing_plan, _with_live_nodes, _worktree_path_for_branch, graph_build_index) -> None:
     """READ-ONLY inspector (per T-0124 / D-0037 option B). It NO LONGER mutates the task or
     emits an event — the claim moved into `worktree new --task` so the ready→in-progress flip is
     written in the writing worktree and reaches main only via `land` (a `task pick` on main used
@@ -12467,6 +12925,21 @@ def cmd_task_pick(args: argparse.Namespace, *, REPO_ROOT, _die, _foreign_hold_re
     premise_block = _premise_dispatch_block(task)
     if premise_block:
         _die(f"{tid} NOT dispatchable — {premise_block} (QUEUE / SPEC-0166 premise-verify).")
+    # T-12403 (SPEC-0070 §5 claim-block PARITY) — the picker surfaces the plan-pre-executing claim-block
+    # too. Without it `task pick` printed the `worktree new --task` next line for a cut card whose plan
+    # has not passed the decomposition→executing fidelity gate — advertising a claim the claim-block
+    # (_assert_task_claimable / _claim_task) will refuse; measured as a side-door on kupiclub X-1375.
+    # The SAME single injected predicate those two surfaces use, so the three cannot drift (the
+    # `_premise_dispatch_block` shape directly above — one predicate, three call sites, SPEC-0166).
+    # Pick is a READ-ONLY inspector, so this is a report-with-next-step refusal like the two `_die`s
+    # above and emits NO event: the `claim_refused` marker stays owned by the claim surfaces alone.
+    pre = _task_decomposed_from_pre_executing_plan(task)
+    if pre:
+        slug, pst = pre
+        _die(f"{tid} is decomposed_from plan {slug!r} at status={pst!r} (pre-`executing`) — not claimable "
+             f"until plan {slug!r} reaches `executing` (SPEC-0070 §5 claim-block: the cut is "
+             f"decomposition-fidelity-audited at decomposition→executing BEFORE any card is built).\n"
+             f"next: `yitc-v2 plan stage executing {slug}` — then this card becomes claimable.")
     # T-0195 (read-side salvage of T-0184): a `ready`-on-main task may already be claimed in a
     # LIVE unlanded worktree (the claim flip lives there until land). Refuse re-claim — mirror of
     # the worktree-new double-claim message — so a 2nd session does not duplicate the T-0178 path.
@@ -12565,6 +13038,23 @@ def cmd_task_execute(args: argparse.Namespace, *, _append_event, _die, _load_tas
 #: bound keeps one pathological run from writing a megabyte into an append-only journal. Sized to the
 #: same order as the shipped `_VERIFY_FAIL_EXCERPT_BOUND` per-test excerpt, times a handful of files.
 _STAGE6_FAILURE_EVIDENCE_BOUND = 4000
+
+
+def _test_run_token(ok: bool, summary: str) -> str:
+    """T-12431 — the ONE machine-readable terminal line `task test --run` ends its stdout with.
+
+    THE SHAPE IS `land`'s, deliberately (T-0269 / SPEC-0180 rule 2(a)): a contracted
+    `^TEST: (PASS|FAIL)` final stdout line is what lets a DETACHED over-cap suite be polled for
+    TERMINALITY at all. Before it, a worker whose suite could not fit the harness per-call
+    foreground cap had nothing to gate a bounded poll on, so it reached for the provider's
+    background tool and yielded — the class that killed three of ten wave workers in one hour on
+    2026-09-12 (T-12416 / T-12404 / T-12409).
+
+    IT REPORTS, IT DOES NOT DECIDE. The token is rendered from the verdict the verb already
+    reached; no exit path, no `bad` entry, no journal payload and no gate moves because of it. On
+    the FAIL path it is printed immediately before the UNTOUCHED `_die`, which writes STDERR — so
+    the token stays the final STDOUT line there too."""
+    return f"TEST: {'PASS' if ok else 'FAIL'} {summary}"
 
 def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs=()) -> list:
     """T-11583 — the ATTRIBUTION half of a `tests_failed` row: relate each failing layer to THIS
@@ -13413,6 +13903,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                       f"the refusal below is unaffected.")
             # Engine-side (inert guard) every failure IS a test file — keep that refusal text verbatim.
             noun = "verify failure(s)" if cguard["mode"] else "test file(s) failed"
+            # T-12431 — the terminal token, AFTER the `tests_failed` emit above and BEFORE the
+            # untouched `_die` (which writes stderr), so it is the FINAL STDOUT line of the run.
+            # Ordering is load-bearing on this path: a poller that saw the token before the row was
+            # appended could read the journal and find nothing (AC2).
+            print(_test_run_token(False, f"{tid} {len(bad)} {noun}"))
             _die(f"{tid} task test --run: FAIL — {len(bad)} {noun} (same runner as `land`; "
                  f"a `pytest tests/` pass here would be a FALSE-GREEN — T-10097). Fix, then re-run.")
         # T-11073 (X-0860) — the PASS line is QUALIFIED whenever the tests/ surface was DELEGATED. The
@@ -13453,6 +13948,16 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         if not getattr(args, "evidence", None):
             # pure self-check (no --evidence) — done; record the pass separately with --evidence.
             print(_post_action_hint(f"record the pass: `yitc-v2 task test {tid} --evidence ...` (or re-run with --run --evidence)"))
+            # T-12431 — the token prints here TOO, and this path appends NO journal row. That is
+            # not an oversight, it is the amended AC2 read against active SPEC-0025, which declares
+            # `tests_passed` emitted by `task test --evidence` ONLY (D-0033: `--run` runs,
+            # `--evidence` records). Making a bare `--run` synthesise that row would fabricate the
+            # Stage-6 evidence audit-post reads, so SPEC-0025 is left untouched and the TOKEN — a
+            # printed line, not a governed record — is what every invocation form carries. A poller
+            # therefore always has a terminality signal; the detached recipe still prescribes the
+            # `--run --evidence` form, whose row IS the evidence, and confirms against it.
+            print(_test_run_token(True, f"{tid} candidate leg green (no row: bare --run records "
+                                        f"nothing, SPEC-0025 — re-run with --evidence to record)"))
             return
         # --run --evidence: fall through to record the pass below (run-then-record).
     evidence = getattr(args, "evidence", None)
@@ -13513,6 +14018,16 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         print(f"{tid} tests_passed recorded ({len(evidence)} chars) — audit-post will read it")
         print(_post_action_hint(f"`yitc-v2 task commit {tid} --message ...`"))   # T-0297 post-action hint
         print(_governing_rule_pointer("commit"))   # element #2 — the verb BEFORE commit (T-0232)
+        # T-12431 — the terminal token for the RUN-THEN-RECORD form (`--run --evidence`), the
+        # invocation the detached over-cap recipe prescribes. It prints LAST, and strictly AFTER the
+        # `tests_passed` append above: on this form the row IS the Stage-6 evidence, so a token
+        # reaching a poller before its row would send that poller to a journal that does not yet
+        # carry the proof (AC2 — row first, then token).
+        # GATED ON `--run`, because this block is ALSO the bare `task test --evidence` recorder,
+        # which ran no suite (D-0033). A token there would assert a run this invocation never made —
+        # the same fabrication the `duration_ms` / selection keys above already decline.
+        if getattr(args, "run", False):
+            print(_test_run_token(True, f"{tid} candidate leg green, tests_passed recorded"))
         return
     # T-0288: no current_stage write — the `stage` verb is the sole writer. current_stage IS Tests here
     # (the precondition just asserted it).
@@ -15225,15 +15740,23 @@ def _require_clean_batch_for_close(tid: str, task_path: "Path", *, REPO_ROOT, _B
 # SPEC_BODY_EDIT_CUE / P8_EVIDENCE_PAYLOAD_CUE precedent (T-10159 / T-10486); a FUNCTION rather than a
 # constant only because the text already varied by task class + absorb mode + commit sha.
 def commit_stage_next_cue(task: dict, *, commit_short: str | None = None, absorb: bool = False,
-                          fix_red: bool = False) -> str:
+                          fix_red: bool = False, reship: bool = False) -> str:
     """Render the Commit-stage next-step cue for `task` (T-10737). `commit_short` = the commit the cue
     points at — the just-made one at `task commit`, the D-0082 RECORDED one on a `stage Commit`
     re-read; None renders the `<commit-sha>` placeholder (no commit recorded yet). `absorb` selects the
     Stage-8 mode-a round-trip (T-0370); `fix_red` selects the Stage-8 RED in-scope-fix round-trip
-    (T-11600). Both round-trips REQUIRE the re-audit — that is what re-pins custody — so neither cue
+    (T-11600); `reship` selects the Stage-8 GREEN second-ship round-trip (T-12410). All three
+    round-trips REQUIRE the re-audit — that is what re-pins custody — so no cue
     is advisory. Pure — no I/O, no state; both surfaces print exactly this."""
     tid = task.get("id")
     sha = commit_short or "<commit-sha>"
+    if reship:
+        # T-12410: the re-audit is MANDATORY for the same reason it is under the other two cycles,
+        # and the reason reads most sharply here — the GREEN the operator holds covers the OLD
+        # commit, so until a fresh audit-post pins THIS one, `task close` fail-closes (chain of
+        # custody, D-0082). A GREEN in hand is exactly the state in which it is tempting to skip it.
+        return (f"next (REQUIRED — GREEN second ship): `yitc-v2 stage Audit-post --task {tid}` → "
+                f"`yitc-v2 audit post --task {tid} --commit {sha}` (re-pins custody + carries the passes trail)")
     if fix_red:
         # T-11600: the re-audit is MANDATORY for the same reason it is under mode-a — this commit
         # superseded the RED verdict, so until a fresh audit-post pins THIS commit, `task close`
@@ -15442,7 +15965,9 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                     _bookkeeping_commit_authored_paths=None,
                     _prior_audit_record=None,
                     _red_cause_is_card_record=None,
-                    _lifecycle_bookkeeping_path=None) -> None:
+                    _lifecycle_bookkeeping_path=None,
+                    _worktree_path_statuses=None,            # T-12371 — the door's deletion reading
+                    _zero_ship_diff_bookkeeping=None) -> None:   # T-12371 — the ONE allow-list, for the count
     """Stage 7 git-wrapper. Delegates staging+commit to the shared `_commit_worktree()` core
     (D-0051) and adds the task-mode extras: the strict Commit stage-correspondence precondition
     (T-0288 — no stage bump; the `stage` verb is the sole current_stage writer) + the `commit_landed`
@@ -15504,6 +16029,12 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
     # Namespace that omits the field never AttributeErrors. It is an ARM, never a leg: it is
     # meaningless without `--fix-red` and is refused below when passed alone.
     card_repair = bool(getattr(args, "card_repair", False))
+    # T-12410 — the Stage-8 GREEN SECOND-SHIP leg. Read additively (getattr), the same
+    # optional-flag pattern as `absorb` / `fix_red` / `card_repair` above, so a hand-built Namespace
+    # that omits the field never AttributeErrors. It is the THIRD declared cycle, not an arm: the
+    # family is now one flag per admitting VERDICT — `--absorb` YELLOW (T-0370), `--fix-red` RED
+    # (T-11600), `--reship` GREEN (here).
+    reship = bool(getattr(args, "reship", False))
     # T-9403 — owner-authorized late-finding continuation. Read additively (getattr) so a hand-built
     # Namespace that omits the field never AttributeErrors (the repo's additive-optional flag pattern,
     # cf. `absorb` above). `late_finding_continuation` records when the exhausted-ceiling escape fires,
@@ -15542,6 +16073,30 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
              f"cause is inside {tid}'s declared scope (T-11600). They are admitted on DIFFERENT "
              f"evidence, so passing both declares nothing. Re-run with whichever verdict you actually "
              f"hold — `yitc-v2 audit post --task {tid}` has recorded it.")
+    # T-12410 — the THIRD cycle joins the same mutual exclusion, on the same terms and in the same
+    # place (BEFORE the hazard read, so an ambiguous declaration never reaches a discriminator at
+    # all). ONE message per pair rather than a combined one: each names the two verdicts actually in
+    # play, which is what an operator holding one of them needs to read.
+    if reship and absorb:
+        _die(f"--reship and --absorb are two of the THREE Stage-8 cycles and they are mutually "
+             f"exclusive — declare ONE. `--absorb` is the mode-a INLINE ABSORPTION of an accepted "
+             f"YELLOW finding (T-0370); `--reship` commits a FURTHER in-scope ship over a GREEN "
+             f"audit-post (T-12410). They are admitted on DIFFERENT evidence, so passing both "
+             f"declares nothing. Re-run with whichever verdict you actually hold — `yitc-v2 audit "
+             f"post --task {tid}` has recorded it.")
+    if reship and fix_red:
+        _die(f"--reship and --fix-red are two of the THREE Stage-8 cycles and they are mutually "
+             f"exclusive — declare ONE. `--fix-red` commits a fix for the cause a RED audit-post "
+             f"NAMED (T-11600); `--reship` commits a FURTHER in-scope ship over a GREEN audit-post "
+             f"that named no cause at all (T-12410). They are admitted on DIFFERENT evidence, so "
+             f"passing both declares nothing. Re-run with whichever verdict you actually hold — "
+             f"`yitc-v2 audit post --task {tid}` has recorded it.")
+    # NO `reship and card_repair` guard, and its absence is reasoned rather than forgotten: that
+    # combination is already UNREACHABLE through the two guards above it. `--card-repair` without
+    # `--fix-red` is refused by the arm-is-not-a-leg guard earlier in this function; WITH `--fix-red`
+    # it is refused by the `--reship`/`--fix-red` pair just above. A third guard would be code no
+    # input can reach, which is exactly what CHARTER §P1 F3 asks us not to add. The test pins BOTH
+    # reaching refusals so a future reordering cannot silently open the hole.
     hazard = _audit_commit_shift_hazard(tid)
     if hazard and fix_red and hazard[0].endswith("-audit-post.yaml"):
         # T-11600 — the Stage-8 RED IN-SCOPE-FIX leg: the missing commit route the T-11573
@@ -15718,10 +16273,45 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"grades the ship AND this repair together and re-pins custody (D-0082); "
                   f"`task close` fail-closes until it runs.", file=sys.stderr)
         if not authored:
-            _die(f"--fix-red refused: this commit carries NO authored content — nothing here can be "
+            # T-12371 — NAME THE DELETION SHAPE WHEN IT IS THE ONE PRESENT. The refusal below is the
+            # general one and is unchanged; this prefix exists because the shape that produced the
+            # T-12345 dead-end (e086597: two DELETED scratch files + events.jsonl) reads, to its
+            # author, as a commit that plainly stages something. Saying «every path is bookkeeping»
+            # to someone looking at two non-bookkeeping filenames sounds wrong, so the reader has to
+            # be told WHICH reading refused them — the same one `audit post` applies downstream.
+            # Count-only, off the staged set already in hand: no extra git, no new state.
+            _deleted_n = 0
+            try:
+                _st = (_worktree_path_statuses()
+                       if (_worktree_path_statuses and _zero_ship_diff_bookkeeping) else None)
+                if isinstance(_st, dict):
+                    _deleted_n = sum(1 for _p, _xy in _st.items()
+                                     if isinstance(_xy, str) and (set(_xy) - {" ", ""}) == {"D"}
+                                     and not _zero_ship_diff_bookkeeping(_p, tid))
+            except Exception:                 # noqa: BLE001 — a count is never worth masking a refusal
+                _deleted_n = 0
+            _deletion_note = ""
+            if _deleted_n:
+                _deletion_note = (
+                    f"THIS SET CARRIES NO AUTHORED CONTENT: {_deleted_n} deletion(s) + bookkeeping. "
+                    f"A path this commit only DELETES is not content it carries — after it the tree "
+                    f"holds less, not more — which is exactly how `audit post` reads the resulting "
+                    f"commit (T-11668), so a custody re-pin here would be refused downstream by the "
+                    f"T-11405 no-authored-content guard with no way back. That is the measured "
+                    f"T-12345 dead-end (commit e086597: two deleted `.git-commit-msg-*` scratch "
+                    f"files + events.jsonl — the door admitted it, custody moved, two ceiling "
+                    f"decisions bound to it, and all five exits then refused). If you are simply "
+                    f"DROPPING scratch files, that is not a fix at all: commit them with a plain "
+                    f"`yitc-v2 work commit` (no task id, so it moves no audit custody). If the RED's "
+                    f"fix is a correction to {tid}'s OWN card record, use `--fix-red --card-repair`. "
+                    f"The general form of this refusal follows. ")
+            _die(f"--fix-red refused: {_deletion_note}this commit carries NO authored content — "
+                 f"nothing here can be "
                  f"the in-scope fix it declares. `--fix-red` commits a FIX for the cause the RED "
                  f"audit-post named; the proof it is a fix is that the commit stages a path that is "
-                 f"not lifecycle bookkeeping, and every path it would stage is bookkeeping (or this "
+                 f"not lifecycle bookkeeping AND that the commit would CARRY (a path it only "
+                 f"deletes is not carried — the same reading `audit post` applies, T-11668), and "
+                 f"every path it would stage fails that test (or this "
                  f"checkout's git could not answer, which refuses the same way — fail-closed). "
                  f"A commit that supersedes a RED verdict while adding nothing is EXACTLY the shape "
                  f"that produced the T-11550 circular deadlock: it displaces audit custody onto a "
@@ -15829,6 +16419,134 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"not deleted. REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — "
                   f"it re-pins custody (D-0082) and carries the passes trail; `task close` "
                   f"fail-closes until it runs.", file=sys.stderr)
+    elif hazard and reship and hazard[0].endswith("-audit-post.yaml"):
+        # T-12410 — the Stage-8 GREEN SECOND-SHIP leg: the THIRD member of a family that already had
+        # one flag per admitting verdict and was missing exactly one. MEASURED (aiseller X-1348 /
+        # T-0500): an audit-post came back GREEN on the recorded commit, and THEN a Stage-6 verify
+        # layer reddened on the shipped module with a fix that is itself a further IN-SCOPE ship (a
+        # file split). Every governed route refused — the plain commit trips
+        # `_audit_commit_shift_hazard` and routes to `task close`; `--absorb` is YELLOW-only and its
+        # GREEN branch says «it is a re-audit you need» while naming NO verb to get one; `--fix-red`
+        # is RED-only; `work commit` is post-close. The controller hand-committed c7d7472 + f23f585
+        # under the genuine-gap exception: no `commit_landed` rows, custody unpinned, the card still
+        # `ready` on main. That is a refusal prescribing a remedy the system does not implement —
+        # the EXACT defect T-11600 was filed to end, recurring one verdict over.
+        #
+        # IT EXTENDS THE CYCLE, it does not parallel it (CHARTER §P1 F1/F2): the mechanics below are
+        # `--fix-red`'s verbatim — the superseded verdict is folded INTO this commit (NEVER
+        # hand-deleted, which zeroes `_count_audit_passes` and loses the trail), the authored-content
+        # proof is the SAME `_red_fix_authored_paths` predicate read the same fail-closed way, the
+        # ceiling is checked HERE before the commit, and the follow-up `audit post --commit <new>` is
+        # EQUALLY REQUIRED to re-pin custody (D-0082). What differs is the ADMITTING EVIDENCE, and
+        # only that — which is precisely how `--fix-red` was justified against `--absorb`.
+        #
+        # WHY A NEW FLAG RATHER THAN WIDENING `--fix-red` TO GREEN (the recorded fork): `--fix-red`'s
+        # message and its `red_fix: true` journal marker both SAY «the cause a RED named». A GREEN
+        # audit-post named no cause, so a widened `--fix-red` would tell every later reader of the
+        # journal something untrue about what happened. Two acts, two flags, two proofs.
+        #
+        # NEITHER SIBLING GUARD IS WEAKENED. `--absorb` over a non-YELLOW and `--fix-red` over a
+        # non-RED are still refused on every path, byte-unchanged. This leg admits a DIFFERENT act
+        # declared by a DIFFERENT flag, and it carries the SAME positive discriminator: the commit
+        # must carry AUTHORED content. A contentless commit that displaces custody — the T-11550
+        # shape — is refused at ALL THREE doors.
+        #
+        # Scoped to the audit-POST hazard state by the branch condition itself (an audit-PRE hazard
+        # falls through to the ordinary refusal), and to GREEN ONLY.
+        superseded_verdict = audit.normalized_verdict(audit.prior_audit_record(
+            tid, "post", decisions_dir=(REPO_ROOT / hazard[0]).parent))
+        if superseded_verdict != "GREEN":
+            # ONE COMPLETE message per branch — never a specific diagnosis printed above a generic
+            # fall-through (`lessons/carving-an-exception-into-a-fail-closed-gate` §2).
+            if superseded_verdict == "YELLOW":
+                _why = (f"a YELLOW audit-post raised findings, and absorbing them INLINE is the "
+                        f"mode-a cycle, which is `--absorb`'s and has been since T-0370: "
+                        f"`yitc-v2 stage Commit --task {tid}` → `yitc-v2 task commit {tid} --absorb "
+                        f"--message ...` → `yitc-v2 audit post --task {tid} --commit <new>`. Use "
+                        f"that; this leg would tell the journal you shipped over a clean verdict "
+                        f"when findings were open.")
+            elif superseded_verdict == "RED":
+                _why = (f"a RED audit-post NAMED a cause, and committing a fix for it is "
+                        f"`--fix-red`'s leg (T-11600), not this one: `yitc-v2 stage Commit --task "
+                        f"{tid}` → `yitc-v2 task commit {tid} --fix-red --message ...` → `yitc-v2 "
+                        f"audit post --task {tid} --commit <new>`. Use that when the cause is inside "
+                        f"{tid}'s declared scope; when it is OUTSIDE scope or environmental, STOP "
+                        f"and escalate with `yitc-v2 blocked-on-land {tid} <reason>`, worktree "
+                        f"intact (SPEC-0103).")
+            elif superseded_verdict == "ABORT":
+                _why = (f"an ABORT is an auditor that could not RUN — an environmental or config "
+                        f"fault, not a verdict at all. There is no GREEN here to ship a second time "
+                        f"over, and committing would pin custody to a commit no verdict covers. "
+                        f"STOP and escalate with `yitc-v2 blocked-on-land {tid} <reason>`, worktree "
+                        f"intact (SPEC-0103 §3a).")
+            else:
+                _why = (f"the superseded audit-post record does not state a readable verdict, so "
+                        f"this commit cannot be shown to be the GREEN second ship it declares "
+                        f"itself to be. Refusing fail-closed: re-run `yitc-v2 audit post --task "
+                        f"{tid} --commit <recorded>` to produce a verdict, then act on what it says.")
+            _die(f"--reship refused: the audit-post verdict it would supersede is "
+                 f"{superseded_verdict or '(unreadable)'}, not GREEN. `--reship` is the Stage-8 leg "
+                 f"for committing a FURTHER in-scope ship after an audit-post came back GREEN and "
+                 f"something still has to change (T-12410) — GREEN and only GREEN. {_why}")
+        # THE POSITIVE DISCRIMINATOR, identical to `--fix-red`'s and load-bearing for the same
+        # reason. "This is a further SHIP" is a claim about the diff, so it is proven from the diff —
+        # never from the flag. `_red_fix_authored_paths` returns [] on any unprovable input (a git
+        # that cannot answer), so an unprovable answer REFUSES rather than admits; a missing
+        # injection (`None`) is the same fail-closed case, deliberately — a plumbing failure must
+        # never open a carve-out (`lessons/carving-an-exception-into-a-fail-closed-gate` §1).
+        # THE SAME PREDICATE, NOT A SECOND ONE (P5): there is one notion of "authored" in this verb.
+        authored = _red_fix_authored_paths(tid) if _red_fix_authored_paths else []
+        if not authored:
+            _die(f"--reship refused: this commit carries NO authored content — nothing here can be "
+                 f"the further ship it declares. `--reship` commits a SECOND in-scope ship over a "
+                 f"GREEN audit-post; the proof it is a ship is that the commit stages a path that is "
+                 f"not lifecycle bookkeeping, and every path it would stage is bookkeeping (or this "
+                 f"checkout's git could not answer, which refuses the same way — fail-closed). "
+                 f"A commit that supersedes a verdict while adding nothing is EXACTLY the shape that "
+                 f"produced the T-11550 circular deadlock: it displaces audit custody onto a commit "
+                 f"no verdict covers and leaves {tid} unable to re-audit, rebaseline OR land. "
+                 f"TWO routes, and this refusal names the one that fits — a refusal that named no "
+                 f"reachable remedy is the defect this leg exists to end: (1) you genuinely have a "
+                 f"further ship → stage it and re-run this leg; (2) you have NOTHING further to "
+                 f"ship and the GREEN stands → you are DONE with Stage 8, so leave the audit YAML "
+                 f"DIRTY and go to Stage 9: `yitc-v2 task close {tid} --commit {hazard[1][:7]} "
+                 f"--probe AC1:pass ...`, which commits that YAML in its own closure-record commit "
+                 f"WITHOUT re-shifting custody (LIFECYCLE §Stage 8 / T-0275, SPEC-0015 §Internal). "
+                 f"Do NOT weaken the audit to get past this.")
+        # VERIFY THE PROMISED REMEDY IS AVAILABLE BEFORE GRANTING THE RISK — this leg's whole custody
+        # story is the REQUIRED follow-up re-audit, and a grant justified by a backstop is void
+        # without the backstop (`lessons/carving-an-exception-into-a-fail-closed-gate` §How to
+        # apply). So the ceiling is checked HERE, before the commit, exactly as the two sibling
+        # branches check it, and with the SAME shape at the ceiling (AC4).
+        #
+        # NO OWNER-RESET ARM, and its absence is deliberate rather than an omission: the mode-a
+        # E-0030 escape and the T-12164 RED one both existed to MATERIALIZE a committed subject for a
+        # ceiling-convergence consult, and SPEC-0204 rule 6 (T-12290) retired that whole sequence.
+        # A new leg does not get to be born carrying a retired escape. Past the ceiling the route is
+        # the SPEC-0204 one — `audit decide` per residual, then the ONE bounded `--on-decisions` pass.
+        prior_reship = _count_audit_passes(tid, "post")
+        if prior_reship >= AUDIT_PASS_CEILING + 1:
+            _die(audit.RETIRED_AUDIT_SURFACES["spent-budget-bypass"] + "\n\n"
+                 + f"`--reship` refused: {prior_reship} audit-post passes are recorded for {tid}, "
+                   f"which is past the {AUDIT_PASS_CEILING}-pass ceiling, and this leg has no "
+                   f"one-pass-wide arm — the reset such an arm would depend on is retired.\n\n"
+                 + audit.RETIRED_CEILING_POINTER)
+        if prior_reship >= AUDIT_PASS_CEILING:
+            # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
+            # closure deadlocks without one, and to name the route that now admits it. Naming a
+            # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
+            print(f"# WARN --reship at {prior_reship} passes: the REQUIRED re-audit is pass "
+                  f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
+                  f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
+                  f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
+                  f"{tid} --on-decisions` runs it (SPEC-0204 rules 2-3). Without that, closure "
+                  f"deadlocks (E-0008).", file=sys.stderr)
+        print(f"# --reship: committing a FURTHER in-scope ship for {tid} over its GREEN audit-post "
+              f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
+              f"{' …' if len(authored) > 5 else ''}). The superseded GREEN verdict is folded IN, "
+              f"not deleted. REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — the "
+              f"GREEN you hold covers the OLD commit, so until a fresh audit-post pins THIS one "
+              f"`task close` fail-closes (chain of custody, D-0082).", file=sys.stderr)
     elif hazard and absorb and hazard[0].endswith("-audit-post.yaml"):
         # T-11573 — the VERDICT gate on the mode-a carve-out, mirroring the pre-side sibling
         # (`audit pre --absorb`, audit.py#absorb_into_audit_record). Until this check the carve-out
@@ -15871,7 +16589,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                         f"for a mode-a cycle to fix. If the audit is GREEN you are DONE with Stage 8: "
                         f"go to Stage 9 and run `yitc-v2 task close {tid} --commit <audited> "
                         f"--probe AC1:pass ...`, which commits the audit YAML itself. If you have a "
-                        f"further SHIP change to make, it is a re-audit you need, not an absorption.")
+                        f"further SHIP change to make, it is a re-audit you need, not an absorption "
+                        # T-12410 — until this leg existed, that sentence ended HERE, naming the need
+                        # and no verb that meets it. A worker holding a GREEN verdict and a further
+                        # in-scope ship read it, found every governed route refused, and hand-committed
+                        # (aiseller X-1348 / T-0500). Name the route.
+                        f"— and that route now HAS a verb: `yitc-v2 stage Commit --task {tid}` → "
+                        f"`yitc-v2 task commit {tid} --reship --message ...` → `yitc-v2 audit post "
+                        f"--task {tid} --commit <new>` (T-12410). `--reship` folds this GREEN verdict "
+                        f"in rather than deleting it, and admits ONLY a commit that carries AUTHORED "
+                        f"content — so it is not a way around this refusal.")
             elif superseded_verdict in ("RED", "ABORT"):
                 _why = (f"{superseded_verdict} means STOP (LIFECYCLE §Stage 8) — re-plan or escalate, "
                         f"NEVER absorb. Absorbing here would commit over a verdict that refused the "
@@ -15973,6 +16700,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                 f"audit-POST state (there is no RED audit-post verdict here to fix the cause of). "
                 f"Leave {rel} dirty and follow the standard flow."
             )
+        if reship:
+            # T-12410 — the symmetric reading for the GREEN leg. Same bound as both siblings above:
+            # all three Stage-8 cycles are scoped to the superseded audit-POST state, so an audit-PRE
+            # hazard is not this verb's case at any of the three doors.
+            _die(
+                f"--reship is the Stage-8 GREEN second-ship leg (T-12410): the staged hazard is "
+                f"{rel}, not an audit-post verdict — this leg applies only to the superseded "
+                f"audit-POST state (there is no GREEN audit-post verdict here to ship a second time "
+                f"over). Leave {rel} dirty and follow the standard flow."
+            )
         _die(
             f"refusing: a standalone `task commit` would stage {rel}, shifting the recorded commit "
             f"past the audited commit {audited[:7]} (D-0082: recorded = latest commit_landed) — the "
@@ -15982,7 +16719,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             f"close commits it without re-shifting the audited commit (SPEC-0015 §Internal). "
             f"Absorbing audit-post findings INLINE (Stage-8 mode-a — fix + second ship commit + "
             f"re-audit)? That cycle is sanctioned via `yitc-v2 stage Commit --task {tid}` → "
-            f"`yitc-v2 task commit {tid} --absorb --message ...` → re-audit (T-0370)."
+            f"`yitc-v2 task commit {tid} --absorb --message ...` → re-audit (T-0370). "
+            # T-12410 — the GREEN route, named HERE because this is the refusal a worker holding a
+            # GREEN verdict and a further in-scope ship actually reaches (aiseller X-1348: it read
+            # the `task close` prescription above, found it did not fit, and hand-committed two
+            # commits under the genuine-gap exception). One sentence, all three cycles, so no reader
+            # of this text is left without a route.
+            f"Audit-post came back GREEN and you STILL have a further IN-SCOPE ship to make (a "
+            f"verify layer reddened on the shipped code, say)? That is the THIRD cycle: `yitc-v2 "
+            f"task commit {tid} --reship --message ...` → `yitc-v2 audit post --task {tid} "
+            f"--commit <new>` (T-12410). A RED cause to fix in scope? `--fix-red` (T-11600)."
             # T-11765 — same appended signpost, same emptiness for a non-parked card: this arm's
             # `task close` prose is foreclosed for a park just as the T-11509 arm's is.
             + _foreclosed_park_route(tid, task)
@@ -16001,6 +16747,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
              f"found, so there is no RED verdict this commit would supersede. If audit-post has not "
              f"run for the recorded commit, run it first; otherwise commit normally without "
              f"--fix-red.")
+    elif reship:
+        # T-12410 — parity with the two refusals above: no hazard state, no carve-out. Without this
+        # branch a `--reship` with no hazard would fall through to the ordinary commit path and the
+        # flag would be a silent no-op that still journal-marked a second ship — a claim with nothing
+        # behind it.
+        _die(f"--reship is the Stage-8 GREEN second-ship leg (T-12410): it requires a dirty "
+             f"{tid}-audit-post.yaml pinned to the recorded commit (the T-0275 hazard state) — none "
+             f"found, so there is no GREEN verdict this commit would supersede. If audit-post has "
+             f"not run for the recorded commit, run it first; if this is still the FIRST ship of "
+             f"{tid}, no audit has pinned anything yet — commit normally without --reship.")
     else:
         # T-11509 — the SECOND arm of the same T-0275 chain-of-custody rule, checked ONLY here: after
         # the whole hazard/absorb chain above has declined, and never on the `--absorb` path (the
@@ -16047,7 +16803,16 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
     # `work commit` hint left the operator to reconstruct the round-trip by hand). Name the EXACT mode-a
     # sequence instead. Same DRY extra_hint channel (no new mechanism, still emits read_gate_refused);
     # the hint only appears ON the refusal — a correct absorb (already at Commit) never sees it.
-    if fix_red:
+    if reship:
+        # T-12410 — the same T-10332 absorb-aware treatment, for the GREEN leg: a `--reship` caller
+        # is mid Stage-8 too and is almost always still at current_stage=Audit-post, so the Commit
+        # stage-check refuses. Name the EXACT round-trip rather than a generic "run stage Commit".
+        _stage_hint = (
+            f"This is the Stage-8 GREEN second-ship leg (T-12410) — run the full round-trip: "
+            f"`yitc-v2 stage Commit --task {tid}` → `yitc-v2 task commit {tid} --reship --message ...` "
+            f"→ `yitc-v2 stage Audit-post --task {tid}` → `yitc-v2 audit post --task {tid} "
+            f"--commit <new>` (re-pins custody + carries the passes trail).")
+    elif fix_red:
         # T-11600 — the same T-10332 absorb-aware treatment, for the RED leg: a `--fix-red` caller is
         # mid Stage-8 too and is almost always still at current_stage=Audit-post, so the Commit
         # stage-check refuses. Name the EXACT round-trip rather than a generic "run stage Commit".
@@ -16153,6 +16918,14 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # commit_landed data keys, so this needs no schema change). ABSENT — never false — on an
         # ordinary commit, so a row can never claim a leg that did not fire.
         event_data["red_fix"] = True
+    if reship:
+        # T-12410 — journal-marks the GREEN second-ship commit, the exact additive-optional shape of
+        # the `absorption` / `red_fix` / `card_repair` markers beside it (SPEC-0025 does not
+        # enumerate commit_landed data keys, so this needs no schema change). ABSENT — never false —
+        # on every other commit, so a row can never claim a leg that did not fire. Like `red_fix`
+        # and unlike `card_repair`'s `kind:` note: this is the commit custody is meant to LAND on,
+        # so it is not marked as displacing.
+        event_data["reship"] = True
     if card_repair:
         # T-11991 — journal-marks the card-repair ARM, the same additive-optional shape as `red_fix`
         # / `absorption` / `owner_reset` beside it (SPEC-0025 does not enumerate commit_landed data
@@ -16233,16 +17006,29 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         from lib import debt as _debt
         _k = _debt.spec0161_branch_unnamed(REPO_ROOT)
         if _k["introduced"]:
+            # T-12412 — the SAME one text, with the remedy the CALLER can actually run: a
+            # consumer cannot `spec edit SPEC-0161` (kernel spec, query-only under `-C`), so
+            # it is pointed at `cross request` instead. ONE fact, read from the verdict.
             sys.stderr.write(_debt.spec0161_unnamed_key_message(
-                _k["introduced"], verb="task commit") + "\n")
+                _k["introduced"], verb="task commit",
+                consumer=bool(_k.get("consumer")),
+                # T-12411 — and the charging SITE per key (`<path>:<line>`), read from the
+                # same verdict, so the operator can check the claim instead of re-deriving
+                # the structural scan by hand.
+                sites=_k.get("sites")) + "\n")
     except Exception:
         pass
 
     # T-10737: the cue text itself lives in the single-SoT `commit_stage_next_cue` above, so the
-    # non-mutating `stage Commit` re-prints THIS string rather than an operator having to re-run this
-    # verb to re-read it (X-0606). The branch conditions are unchanged — absorb / mid-task / hygiene.
-    if absorb or fix_red or mid_task:
-        nxt = "\n" + commit_stage_next_cue(task, commit_short=short, absorb=absorb, fix_red=fix_red)
+    # non-mutating `stage Commit` re-prints THIS string rather than an operator having to re-read it
+    # (X-0606). T-12410 — `reship` joins the explicit cycle disjunction, not just the call below it.
+    # The disjunction names each cycle BESIDE `mid_task` precisely so the REQUIRED re-audit cue
+    # survives on a card whose status is not `in-progress`; threading the flag into the renderer
+    # while leaving it out of the guard would have made `--reship` the one cycle that goes silent
+    # exactly there — and its cue is the one saying the GREEN in hand covers the OLD commit.
+    if absorb or fix_red or reship or mid_task:
+        nxt = "\n" + commit_stage_next_cue(task, commit_short=short, absorb=absorb, fix_red=fix_red,
+                                           reship=reship)
     else:
         nxt = ""
     print(f"{tid} commit {short} landed | from: {from_ref}{nxt}")

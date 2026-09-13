@@ -4960,6 +4960,141 @@ def debt_mod_gap_window() -> int:
         return 14
 
 
+def abort_cause_breadth_cause_line(c) -> str:
+    """T-12392 — THE one per-cause line of the SPEC-0119 rule-26 land-abort cause-breadth fold.
+
+    HOISTED VERBATIM out of `_render_debt_echo`'s nested `_one_cause` closure, and module-level for
+    exactly one reason: a SECOND reader of this fold now exists — the land HEAD, which prints the
+    unresolved causes BEFORE paying the SPEC-0132 admission wait and the verify behind it
+    (`worktree.cmd_land`, wired at cli.py's cmd_land residue). Two renderings of one fold would drift,
+    and the identity digest is precisely what ties a land-head note to the `debt` line a reader then
+    goes and reads — so there is ONE renderer and both seams call it (CHARTER §P5). The body is
+    unmoved: the digest, the branch list, the T-12052 `, K since landed` suffix, the T-11900
+    `, last fired Xh ago` age and the T-11810 failing-assertion sample all render exactly as before,
+    so every suite asserting the session-start / land-tail / `debt` text keeps its answer.
+
+    Pure and never raises: a non-dict cause yields "", and each annotation independently degrades to
+    absent rather than to a guess (SPEC-0165 item 11). The duration formatting lives HERE and not in
+    the fold because `bin/lib/debt.py` carries no duration vocabulary (SPEC-0149's structural
+    tripwire) — the reason it sat in this module to begin with."""
+    if not isinstance(c, dict):
+        return ""
+    _brs = [str(b) for b in (c.get("branches") or [])]
+    _named = ", ".join(_brs[:3]) + (f" +{len(_brs) - 3} more" if len(_brs) > 3 else "")
+    # T-11810 — NAME WHAT IS FAILING, BESIDE the digest and never instead of it. Measured
+    # on the 2026-08-28 incident: this line fired correctly, and the controller who got it
+    # at session start read past it, because `verify-failed#67dd68e5dcff` names nothing a
+    # reader can act on and the row's own next step was another manual hop. The digest
+    # STAYS — it is what ties this line to the repeated-abort backstop and to
+    # `worktree._land_abort_cause_identity`. Deliberately BOUNDED (at most 2 names, each
+    # truncated): this is one suppressed-when-clean line on a seam that already carries a
+    # dozen others, and a failing-set dump gets read past for a different reason. A cause
+    # whose rows carried no assertion text renders exactly as before rather than guessing.
+    _asrt = [" ".join(str(a).split()) for a in (c.get("assertions") or [])][:2]
+    _asrt = [(a[:60] + "…") if len(a) > 60 else a for a in _asrt if a]
+    # T-11900 — SAY WHEN THE CAUSE LAST FIRED. The branch COUNT is a 24h-windowed
+    # number and the line reads in the present tense, so a cause that stopped firing
+    # hours ago is indistinguishable from one failing branches right now. Measured
+    # 2026-08-30: this line's named cause last fired at 10:55:22Z, four lands passed
+    # the same leg afterwards, and at 15:13Z it was still reported to the owner as
+    # «one cause is STILL failing seven branches» — the second windowed-counter
+    # misread of the same day, both owner-surfaced. The datum needs no fold change:
+    # `land_abort_cause_breadth` already returns `last_ts` per cause and this render
+    # simply dropped it. Same reason and same idiom as the sibling rule-34 span
+    # directly below — a bare count cannot tell a live burn from a dead one — and the
+    # formatting sits HERE for the same reason it does there: the fold carries no
+    # duration vocabulary (SPEC-0149's structural tripwire over `bin/lib/debt.py`).
+    # A cause whose `last_ts` is absent or unparseable — and a future stamp, which is
+    # a clock skew and not an age — renders exactly as before rather than showing a
+    # guessed or zero age (SPEC-0165 item 11: a value that cannot be answered is not
+    # rendered as an answer), the same discipline the assertion sample above uses.
+    _age_txt = ""
+    _lts = c.get("last_ts")
+    if isinstance(_lts, str) and _lts:
+        from datetime import datetime as _dtc, timezone as _tzc
+        try:
+            _then = _dtc.fromisoformat(_lts.replace("Z", "+00:00"))
+        except ValueError:
+            _then = None
+        if _then is not None:
+            if _then.tzinfo is None:
+                _then = _then.replace(tzinfo=_tzc.utc)
+            # Sign-test the RAW delta, never the truncated one (audit-post finding):
+            # `int()` truncates toward ZERO, so a stamp half a second in the future
+            # gives int(-0.5) == 0 and would print a fabricated `0m ago` — the exact
+            # guessed-value this branch exists to withhold, arriving through the guard
+            # meant to stop it.
+            _delta = (_dtc.now(_tzc.utc) - _then).total_seconds()
+            _sec = int(_delta)
+            if _delta >= 0:
+                _age = (f"{_sec // 3600}h{(_sec % 3600) // 60:02d}m" if _sec >= 3600
+                        else f"{_sec // 60}m")
+                _age_txt = f", last fired {_age} ago"
+    # T-12052 — SAY HOW MANY OF THE NAMED BRANCHES HAVE SINCE LANDED. The fold now
+    # drops a branch from the cause once it lands, so a cause reaches this render only
+    # while at least `min_branches` of them are still unresolved; the count and list
+    # above stay the TOTAL refused set (a reader chasing the cause wants every lane it
+    # hit), and this suffix says how much of that total is already history. Emitted
+    # ONLY when K > 0, so a cause with nothing resolved — every cause that could reach
+    # this line before T-12052 — renders byte-for-byte as it did.
+    _res = c.get("resolved_count")
+    _res_txt = (f", {_res} since landed"
+                if isinstance(_res, int) and not isinstance(_res, bool) and _res > 0
+                else "")
+    return (f"{c.get('abort_class') or '?'}#{c.get('identity')} on "
+            f"{c.get('branch_count')} branches ({_named}){_res_txt}{_age_txt}"
+            + (f" — failing: {'; '.join(_asrt)}" if _asrt else ""))
+
+
+def abort_cause_breadth_land_head_lines(view) -> list:
+    """T-12392 — the LAND-HEAD note for the SPEC-0119 rule-26 fold: the abort cause(s) still
+    unresolved on several DIFFERENT branches, named BEFORE this land spends anything.
+
+    THE GAP, MEASURED (aiseller X-1365, 2026-09-10): one unresolved cause
+    (`verify-failed#e7ab35cc1f71`) refused FOUR different branches, and each paid a FULL verify to
+    re-diagnose what another branch had already surfaced. The fold that sees it has existed since
+    T-11380, but it was read at SESSION START and at the land TAIL only — both of which are after
+    the spend, or in a different process. This adds no fold, no store, no event and no gate: it
+    reads the SAME view at an EARLIER seam.
+
+    WHY EVERY CAUSE IS NAMED, with no cap and no `+N more` — deliberately UNLIKE the sibling debt
+    echo this shares its renderer with. That echo truncates at 2 because it rides a seam already
+    carrying a dozen report-only lines. This one fires ONLY when the fold is non-empty, which is
+    rare, and it fires immediately before a 430-560s spend the reader may be about to waste — so
+    completeness is worth more than brevity here, and a truncated list would leave a named cause
+    unprinted at the one moment it could still save the verify (audit-pre pass-1 F2).
+
+    REPORT-ONLY and SUPPRESSED-WHEN-CLEAN: `[]` for an absent, malformed or zero-count view, so a
+    land with nothing unresolved prints byte-identically to before. Never raises — a report-only
+    surface must never break the seam it rides."""
+    if not isinstance(view, dict):
+        return []
+    # SUPPRESSION IS KEYED ON THE FOLD'S OWN DECLARED `count`, not merely on an empty `causes` list
+    # (audit-post pass-1). The fold keeps the two in step — `count` IS `len(causes)` — so in
+    # production they cannot disagree; the point is that this reader must not be the place where a
+    # disagreement gets RESOLVED IN FAVOUR OF PRINTING. `count` is the field the suppressed-when-clean
+    # contract is stated over, so an absent, non-numeric or non-positive one is read as «nothing to
+    # say» and returns before rendering anything. Fail-closed toward silence, the direction every
+    # error in this family already leans.
+    count = view.get("count")
+    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+        return []
+    causes = view.get("causes")
+    if not isinstance(causes, list):
+        return []
+    rendered = [t for t in (abort_cause_breadth_cause_line(c) for c in causes) if t]
+    if not rendered:
+        return []
+    out = [f"land: NOTE — {len(rendered)} land-abort cause(s) are STILL UNRESOLVED on several "
+           f"DIFFERENT branches (SPEC-0119 rule 26). This land has not spent its verify yet:"]
+    out += [f"land:   - {t}" for t in rendered]
+    out.append("land:   if your verify fails on the same cause, do NOT re-diagnose it — read the "
+               "named branch's abort row, fix the cause ON MAIN, and the rest stop paying for it. "
+               "Report-only: this refuses nothing and changes no verdict (`bin/yitc-v2 debt` for "
+               "the full rendering).")
+    return out
+
+
 def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followup_count,
                       followup_floor: int = 5, _concern_conformance=None, _review_due=None,
                       _proof_obligations=None, _armed_fired_count=None,
@@ -4992,6 +5127,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                       _selection_rollback=None,
                       _uncarried_p8=None,
                       _queue_jump_firings=None,
+                      _tail_writes_withheld=None,
                       _load_sensitive_lane=None,
                       _seam_read_amplification=None,
                       _nightly_verdict_changes=None,
@@ -5632,6 +5768,30 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"{': ' + _named if _named else ''}. Each firing is an emergency somebody declared; "
                 f"a run of them means the queue itself needs fixing, not more marks. Clear a mark "
                 f"whose blockage is gone with `bin/yitc-v2 task update <id> --queue-jump-clear`.")
+
+    # WITHHELD TAIL-WRITE view (SPEC-0119 rule 42 / SPEC-0188 rule 7, T-12420): the OPTIONAL injected
+    # fold over `land_tail_write_withheld`. A withheld write is INVISIBLE on its own — the land is
+    # GREEN and the tree is exactly the verified one — so without this line an automatic writer that
+    # its own readers keep rejecting would be silently disabled forever. Report-only, windowed,
+    # suppressed-when-clean, NEVER gates: the withholding already happened, this is only its reading.
+    if _tail_writes_withheld is not None:
+        _tw = _tail_writes_withheld() or {}
+        tw = _n(_tw.get("count")) if isinstance(_tw, dict) else None
+        if tw and tw > 0:
+            _by = _tw.get("writers") if isinstance(_tw.get("writers"), dict) else {}
+            _named = ", ".join(f"{k} x{v}" for k, v in sorted(_by.items()))
+            _last = _tw.get("latest") if isinstance(_tw.get("latest"), dict) else {}
+            lines.append(
+                f"debt: {tw} post-ff tail write(s) WITHHELD in the last "
+                f"{_n(_tw.get('window_days')) or 7}d — a land's bookkeeping write could not prove "
+                f"the tests that read it green, so it was restored instead of committed and `main` "
+                f"stayed green (SPEC-0188 rule 7)"
+                f"{': ' + _named if _named else ''}."
+                + (f" Last: {_last.get('reason')}"
+                   + (f" on {_last.get('test')}" if _last.get('test') else "") + "."
+                   if _last else "")
+                + " One withholding is a deferral the next land re-derives; a RUN of them means the "
+                  "writer and its readers genuinely disagree — fix that, do not re-enable the write.")
 
     # LOAD-SENSITIVE LANE view (SPEC-0132 §3 as extended by T-12360): the OPTIONAL injected fold over
     # the declared load-sensitive carrier + the FIXED duration table (`debt.load_sensitive_lane`).
@@ -6552,7 +6712,21 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     if _aborted_land_cost is not None:
         _al = _aborted_land_cost() or {}
         alc = _n(_al.get("count")) if isinstance(_al, dict) else None
-        if alc and alc > 0:
+        # T-12396 — the park-limit EVICTIONS, read here so the block's ENTRY can account for them.
+        # They are no longer in any abort figure this line prints (the fold drops them from the
+        # population), so a window whose only aborts were evictions now folds to `count == 0` and
+        # would print NOTHING — turning a cost that is visible today into a silence. That is the
+        # disappearance the exclusion is explicitly not allowed to cause, so the block also opens on
+        # an eviction alone. SUPPRESSION IS OTHERWISE UNTOUCHED: clean still means "nothing cost
+        # anything worth reporting" and never "nothing aborted" (SPEC-0119 rule 27).
+        # GUARDED ON `_al` ITSELF, not only on the field: the fold result is an INJECTED
+        # collaborator and its degenerate shapes (a string, a partial dict, an older probe's
+        # return) are exercised by the rule-27 suite. `alc` above takes the same precaution; a
+        # bare `.get` here would raise inside a report-only render and break the seam it rides.
+        _ev = _al.get("evicted") if isinstance(_al, dict) else None
+        _ev = _ev if isinstance(_ev, dict) else {}
+        _ev_n = _n(_ev.get("n")) or 0
+        if (alc and alc > 0) or _ev_n:
             _CAP = 3               # top 3 named per group, then `+N more` — the sibling convention
             _groups = _al.get("groups") if isinstance(_al.get("groups"), dict) else {}
             _classes = [c for c in (_al.get("classes") or []) if isinstance(c, dict) and c.get("class")]
@@ -6602,10 +6776,18 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             # reconciling claim — a total we cannot prove is not asserted, the same never-fabricate
             # discipline the fold applies to an undetermined cost.
             _ab = _n(_al.get("aborts"))
+            alc = alc or 0
             _hdr = _ab if (_ab is not None and _ab >= alc) else alc
-            _line = (f"debt: {_hdr} aborted land(s) in the last {_al.get('window_days')} day(s) cost "
-                     f"wall-clock that shipped nothing")
-            if _hdr != alc:
+            # T-12396 — a window whose aborts were ALL evictions has no aborted-land subject at all,
+            # and printing "0 aborted land(s) ... cost wall-clock that shipped nothing" would assert
+            # that emptiness as this line's finding. The line then OPENS with the eviction clause
+            # instead; every other window keeps today's headline byte-for-byte.
+            if _hdr:
+                _line = (f"debt: {_hdr} aborted land(s) in the last {_al.get('window_days')} day(s) "
+                         f"cost wall-clock that shipped nothing")
+            else:
+                _line = f"debt: in the last {_al.get('window_days')} day(s)"
+            if _hdr and _hdr != alc:
                 _line += (f" ({alc} of them above the cost-reporting floor; the group counts below "
                           f"cover all {_hdr})")
             if _pr_n:
@@ -6650,7 +6832,15 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 # removes, pointed the other way.
                 _gc_book = [c for c in _gc_rows if c.get("arm") in
                             (debt_arms.ABORT_ARM_CORPUS_BOOKKEEPING, debt_arms.ABORT_ARM_MIXED)]
-                _gc_unk = [c for c in _gc_rows if c not in _gc_def and c not in _gc_book]
+                # T-12406 — A FOURTH BUCKET, AND IT MUST BE TAKEN BEFORE THE REMAINDER. `_gc_unk` is
+                # computed as "neither defect nor bookkeeping", so a new arm added to the fold and
+                # nowhere here would be absorbed by it and reported as a row that COULD NOT BE
+                # PLACED. That would be false in the one way this block exists to prevent: a
+                # layer-timeout row places precisely — the trail names the layer and its outcome —
+                # and what it places as is not a defect at all.
+                _gc_to = [c for c in _gc_rows if c.get("arm") == debt_arms.ABORT_ARM_LAYER_TIMEOUT]
+                _gc_unk = [c for c in _gc_rows
+                           if c not in _gc_def and c not in _gc_book and c not in _gc_to]
 
                 def _sub(rows):
                     return (sum(_int_or_none(c.get("n")) or 0 for c in rows),
@@ -6658,6 +6848,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
 
                 _df_n, _df_m = _sub(_gc_def)
                 _bk_n, _bk_m = _sub(_gc_book)
+                _to_n, _to_m = _sub(_gc_to)
                 _uk_n, _uk_m = _sub(_gc_unk)
                 if _df_n:
                     _line += (f". SEPARATELY, AND NOT WASTE: {_df_m} min across {_df_n} abort(s) "
@@ -6672,6 +6863,16 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                               f"defect is claimed of them, and they are not inside the minutes "
                               f"above. A `[mixed]` arm refused on BOTH and is attributed to neither "
                               f"alone (T-11607)")
+                if _to_n:
+                    _line += (f". A FURTHER {_to_n} abort(s) in that same group, {_to_m} min "
+                              f"({_named_rows(_gc_to, (_to_n, _to_m))}), refused because a verify "
+                              f"LAYER RAN OUT OF WALL-CLOCK — the layer's command hit its timeout "
+                              f"while the other layers passed, which is a HOST/LIMITS signal, not a "
+                              f"statement about the code. NO caught defect is claimed of them, and "
+                              f"their minutes are not inside the minutes above. Read the remedy off "
+                              f"the layer, not off the branch: either the host was too loaded to "
+                              f"finish work it normally finishes, or the layer's declared `timeout:` "
+                              f"is below what it honestly needs (T-12406)")
                 if _uk_n:
                     _line += (f". And {_uk_n} abort(s), {_uk_m} min ({_named_rows(_gc_unk, (_uk_n, _uk_m))}), could "
                               f"not be placed in EITHER arm from what the row records — reported "
@@ -6683,6 +6884,36 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             if _ea_n:
                 _line += (f". Refused EARLY without paying a verify: {_ea_m} min across {_ea_n} "
                           f"abort(s) ({_named('early')})")
+            # T-12396 — THE EVICTIONS, BESIDE THE ABORT FIGURES AND INSIDE NONE OF THEM. Until this
+            # card a T-11819 land-reservation park-limit halt was counted as an abort, which read one
+            # congestion twice: once as the reservation wait the clause below reports, and once again
+            # as a failed attempt that never happened (measured 2026-09-11: 4 of 14 aborts in one
+            # 2-hour window, each after 149 min queued). It is not a cheap abort — the land verified
+            # nothing and merged nothing; it stopped WAITING — so it is stated as its own kind of
+            # thing rather than folded into a group, and the clause says what it is NOT, because the
+            # remedy it points at (the queue, and the peer holding the reservation) is not the one
+            # any abort figure above points at.
+            #
+            # THE MINUTES CARRY THEIR COVERAGE, never a bare figure: `waited_n of n`, the same shape
+            # the split and reservation clauses above use. With NO covered row the minutes are
+            # SUPPRESSED and the wait is reported UNRECORDED — a stated `0.0 min` would assert a
+            # measurement no row proves, which is the zero-for-absent reading this whole line refuses.
+            if _ev_n:
+                _ev_wn = _n(_ev.get("waited_n")) or 0
+                _line += ("." if _hdr else "") + (
+                    f" SEPARATELY, AND NOT AN ABORT: evicted from the queue (park-limit): {_ev_n}")
+                if _ev_wn:
+                    _line += (f" — waited nothing-shipped {_ev.get('waited_minutes')} min "
+                              f"(over {_ev_wn} of {_ev_n})")
+                else:
+                    _line += " — none of them recorded the wait it served, reported as unrecorded"
+                _line += (". Each verified nothing, merged nothing and spent no CPU: it waited out "
+                          "the LAND RESERVATION behind a holder that would not release and then "
+                          "STOPPED rather than racing for the ff (T-11819). It is EXCLUDED from "
+                          "every abort count, group and minute above — counting it as a failed "
+                          "attempt reads the same congestion twice — and what it asks for is the "
+                          "QUEUE, not the gate: read why a PEER held the reservation that long "
+                          "(T-12396)")
             # T-11514 (AC3) — WAIT vs WORK, the clause that makes the split CONSUMED rather than
             # merely stored. Every class above is priced by its whole-land wall, which answers "what
             # did this cost" and not "what was it doing" — and the two answers point at DIFFERENT
@@ -6757,9 +6988,14 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 else:
                     _line += (f". {_tr} abort(s) in the window cost too little to be worth "
                               f"reporting individually")
-            _line += (f". Read the TREND before acting: a DECAYING class is already going away "
-                      f"under its own steam — usually a declaration or a fix that has landed — and "
-                      f"building against it spends effort on a cost that no longer exists (X-1039)")
+            # T-12396 — the TREND sentence is about the CLASSES above, so it is stated only when
+            # there are any: on an eviction-only window it would counsel reading a trend over an
+            # empty partition.
+            if _hdr:
+                _line += (f". Read the TREND before acting: a DECAYING class is already going "
+                          f"away under its own steam — usually a declaration or a fix that has "
+                          f"landed — and building against it spends effort on a cost that no "
+                          f"longer exists (X-1039)")
             # T-11426 (kupiclub X-1096): a class NAME that unions two refusals of different MOVABILITY
             # is named as such, at the same prominence as its minutes — printed only when such a class
             # is actually in this render, so nothing is asserted about a window that has none. Without
@@ -6788,7 +7024,12 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                           f"row is paperwork and a `[test-failure]` row is a caught defect, and they "
                           f"are two remedies. A `[mixed]` row refused on BOTH and is attributed to "
                           f"neither alone; an `[unattributed]` one could not be placed and is reported "
-                          f"as such rather than guessed (T-11607)")
+                          f"as such rather than guessed (T-11607). A `[layer-timeout]` row is a THIRD "
+                          f"thing again: a consumer verify LAYER hit its wall-clock timeout, whose "
+                          f"sentence reaches that same shared failing list without the marker the "
+                          f"class fork keys on — so it arrives labelled `verify-failed` while saying "
+                          f"nothing about the code. Its remedy is the host or the layer's declared "
+                          f"`timeout:`, never the branch (T-12406)")
             # T-11682 — THE CLASS THIS LINE CANNOT COST, NAMED HERE WITH ITS CAUSE. This fold's
             # subject is `land_completed{status:abort}` rows and their MINUTES; a land that DIED wrote
             # no such row, no abort class and no duration, so it contributes nothing here and a reader
@@ -7395,75 +7636,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         if abc and abc > 0:
             _cs = _ab.get("causes") or []
             _cs = _cs if isinstance(_cs, list) else []
-            def _one_cause(c):
-                if not isinstance(c, dict):
-                    return ""
-                _brs = [str(b) for b in (c.get("branches") or [])]
-                _named = ", ".join(_brs[:3]) + (f" +{len(_brs) - 3} more" if len(_brs) > 3 else "")
-                # T-11810 — NAME WHAT IS FAILING, BESIDE the digest and never instead of it. Measured
-                # on the 2026-08-28 incident: this line fired correctly, and the controller who got it
-                # at session start read past it, because `verify-failed#67dd68e5dcff` names nothing a
-                # reader can act on and the row's own next step was another manual hop. The digest
-                # STAYS — it is what ties this line to the repeated-abort backstop and to
-                # `worktree._land_abort_cause_identity`. Deliberately BOUNDED (at most 2 names, each
-                # truncated): this is one suppressed-when-clean line on a seam that already carries a
-                # dozen others, and a failing-set dump gets read past for a different reason. A cause
-                # whose rows carried no assertion text renders exactly as before rather than guessing.
-                _asrt = [" ".join(str(a).split()) for a in (c.get("assertions") or [])][:2]
-                _asrt = [(a[:60] + "…") if len(a) > 60 else a for a in _asrt if a]
-                # T-11900 — SAY WHEN THE CAUSE LAST FIRED. The branch COUNT is a 24h-windowed
-                # number and the line reads in the present tense, so a cause that stopped firing
-                # hours ago is indistinguishable from one failing branches right now. Measured
-                # 2026-08-30: this line's named cause last fired at 10:55:22Z, four lands passed
-                # the same leg afterwards, and at 15:13Z it was still reported to the owner as
-                # «one cause is STILL failing seven branches» — the second windowed-counter
-                # misread of the same day, both owner-surfaced. The datum needs no fold change:
-                # `land_abort_cause_breadth` already returns `last_ts` per cause and this render
-                # simply dropped it. Same reason and same idiom as the sibling rule-34 span
-                # directly below — a bare count cannot tell a live burn from a dead one — and the
-                # formatting sits HERE for the same reason it does there: the fold carries no
-                # duration vocabulary (SPEC-0149's structural tripwire over `bin/lib/debt.py`).
-                # A cause whose `last_ts` is absent or unparseable — and a future stamp, which is
-                # a clock skew and not an age — renders exactly as before rather than showing a
-                # guessed or zero age (SPEC-0165 item 11: a value that cannot be answered is not
-                # rendered as an answer), the same discipline the assertion sample above uses.
-                _age_txt = ""
-                _lts = c.get("last_ts")
-                if isinstance(_lts, str) and _lts:
-                    from datetime import datetime as _dtc, timezone as _tzc
-                    try:
-                        _then = _dtc.fromisoformat(_lts.replace("Z", "+00:00"))
-                    except ValueError:
-                        _then = None
-                    if _then is not None:
-                        if _then.tzinfo is None:
-                            _then = _then.replace(tzinfo=_tzc.utc)
-                        # Sign-test the RAW delta, never the truncated one (audit-post finding):
-                        # `int()` truncates toward ZERO, so a stamp half a second in the future
-                        # gives int(-0.5) == 0 and would print a fabricated `0m ago` — the exact
-                        # guessed-value this branch exists to withhold, arriving through the guard
-                        # meant to stop it.
-                        _delta = (_dtc.now(_tzc.utc) - _then).total_seconds()
-                        _sec = int(_delta)
-                        if _delta >= 0:
-                            _age = (f"{_sec // 3600}h{(_sec % 3600) // 60:02d}m" if _sec >= 3600
-                                    else f"{_sec // 60}m")
-                            _age_txt = f", last fired {_age} ago"
-                # T-12052 — SAY HOW MANY OF THE NAMED BRANCHES HAVE SINCE LANDED. The fold now
-                # drops a branch from the cause once it lands, so a cause reaches this render only
-                # while at least `min_branches` of them are still unresolved; the count and list
-                # above stay the TOTAL refused set (a reader chasing the cause wants every lane it
-                # hit), and this suffix says how much of that total is already history. Emitted
-                # ONLY when K > 0, so a cause with nothing resolved — every cause that could reach
-                # this line before T-12052 — renders byte-for-byte as it did.
-                _res = c.get("resolved_count")
-                _res_txt = (f", {_res} since landed"
-                            if isinstance(_res, int) and not isinstance(_res, bool) and _res > 0
-                            else "")
-                return (f"{c.get('abort_class') or '?'}#{c.get('identity')} on "
-                        f"{c.get('branch_count')} branches ({_named}){_res_txt}{_age_txt}"
-                        + (f" — failing: {'; '.join(_asrt)}" if _asrt else ""))
-            _txt = "; ".join(x for x in (_one_cause(c) for c in _cs[:2]) if x)
+            _txt = "; ".join(x for x in (abort_cause_breadth_cause_line(c) for c in _cs[:2]) if x)
             _more = f" (+{abc - 2} more cause(s))" if abc > 2 else ""
             lines.append(
                 f"debt: {abc} land-abort cause(s) refused SEVERAL DIFFERENT branches in the last "

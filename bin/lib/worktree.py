@@ -345,6 +345,21 @@ try:
         "yitc_v2_pinned", SourceFileLoader("yitc_v2_pinned", str(_mod_src)))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    # T-12438: the verify-leg binder moved out of lib/cli.py into lib/verify_wiring.py, and it now takes
+    # the CLI module's globals EXPLICITLY (`_host_globals`) instead of reading them as its own. The
+    # pinned snapshot is the LAST-GREEN engine and may be EITHER vintage — the first land carrying that
+    # change pins a PRE-move tree — so resolve both, prefer the new home, and fail LOUD naming the symbol
+    # when neither holds the runner (skipping the pinned leg would be the false green it exists to stop).
+    if (Path(pinned_bin) / "lib" / "verify_wiring.py").exists():
+        import functools
+        from lib import verify_wiring as _vw   # sys.path[0] is the pinned tree, fresh interpreter
+        _runner = functools.partial(_vw._run_verify_tests, _host_globals=vars(mod))
+    elif hasattr(mod, "_run_verify_tests"):
+        _runner = mod._run_verify_tests
+    else:
+        raise RuntimeError(
+            "PINNED-DRIVER-ERROR: no `_run_verify_tests` in the pinned engine — looked in "
+            + str(Path(pinned_bin) / "lib" / "verify_wiring.py") + " and on " + str(_mod_src))
     _kw = {"journal_path": Path(journal_path)}
     if _workers is not None:   # only thread the cap when set → byte-identical for a runner lacking the param
         _kw["workers"] = _workers
@@ -358,7 +373,7 @@ try:
     # the complete set. The in-process §6b path in `_run_pinned_verify` gets it immediately.
     import inspect
     try:
-        _has_ff = "fail_fast" in inspect.signature(mod._run_verify_tests).parameters
+        _has_ff = "fail_fast" in inspect.signature(_runner).parameters
     except (TypeError, ValueError):
         _has_ff = False
     if _has_ff:
@@ -370,7 +385,7 @@ try:
     # own key filter narrows — a slower answer, never a wrong one.
     if _only is not None:
         try:
-            _has_only = "only" in inspect.signature(mod._run_verify_tests).parameters
+            _has_only = "only" in inspect.signature(_runner).parameters
         except (TypeError, ValueError):
             _has_only = False
         if _has_only:
@@ -382,7 +397,7 @@ try:
     # widened signature entirely.
     bad = []
     for _td in [s for s in str(test_dir).split(",") if s]:
-        bad.extend(mod._run_verify_tests(Path(_td), Path(cwd), **_kw))
+        bad.extend(_runner(Path(_td), Path(cwd), **_kw))
     Path(result_path).write_text(json.dumps(list(bad)), encoding="utf-8")
 except BaseException as e:   # noqa — any failure must FAIL-CLOSED via a missing/partial result file
     import traceback
@@ -400,7 +415,7 @@ def _materialize_pinned_engine_bin(*a, **kw):
     body takes `_run_git_cap` as a REQUIRED keyword-only parameter with NO default — exactly as it did
     before the move — and both callers of this name supply it themselves: `bin/lib/cli.py`'s own two-arg
     residue (`_materialize_pinned_engine_bin(W, merged_base)` → `_run_git_cap=_run_git_cap`), which is
-    also the callable cli.py injects into `_run_pinned_verify`, and `tests/test_t9532_worktree_sweep.py`,
+    also the callable `verify_wiring._run_pinned_verify` reads out of cli.py's globals (T-12438), and `tests/test_t9532_worktree_sweep.py`,
     which passes a fake. Injecting `_run_git_cap` here would ADD a default the original never had — a
     behaviour change inside a byte-identical relocation. The chain is pinned by
     `tests/test_t11523_rebaseline_currency_extraction.py`, so it is a caught regression rather than a
@@ -1433,6 +1448,137 @@ def _merge_row_append_conflict(rel_path: str, W: Path, *, _run_git_cap,
     return "".join(out)
 
 
+# T-12448 — the manifest's GEN-managed regions: EXACTLY the three `_regen_manifest_managed_regions`
+# rewrites at land step 3 (the `bin/lib/cli.py` sentinel regexes). A GEN region outside this set is not
+# regenerated there, so a conflict inside one is not mechanical and stays refused.
+_MANIFEST_GEN_REGION_CLASS = "manifest-gen-region"
+_MANIFEST_GEN_REGIONS = ("placement-spec-classification", "placement-file-classification",
+                         "spec-code-map")
+_MANIFEST_GEN_OPEN_RE = re.compile(r"^<!--GEN:(" + "|".join(_MANIFEST_GEN_REGIONS) + r")(?=[\s-])")
+_MANIFEST_GEN_CLOSE_RE = re.compile(r"^<!--/GEN:(" + "|".join(_MANIFEST_GEN_REGIONS) + r")-->")
+_CONFLICT_OPEN_RE = re.compile(r"^<{7}(?: |$)")
+_CONFLICT_BASE_RE = re.compile(r"^\|{7}(?: |$)")
+_CONFLICT_SEP_RE = re.compile(r"^={7}\r?$")
+_CONFLICT_CLOSE_RE = re.compile(r"^>{7}(?: |$)")
+
+
+def _merge_manifest_gen_region_conflict(rel_path: str, W: Path, *, _run_git_cap,
+                                        _show_stage=None, _reason_out=None) -> "str | None":
+    """T-12448: resolve a `kernel-vs-self-manifest.md` merge-conflict whose EVERY hunk lies strictly
+    inside one of the GEN-managed regions — two branches that each ran `graph build` and so each
+    re-rendered the same derived row differently (T-12382: 2 of 4 conflict-aborts; the merge workers
+    resolved both by regeneration alone). Returns the resolved text, or None when the conflict is not
+    provably of this class — None means "not mine", so the `merge-non-union-conflict` abort still
+    fires (fail-closed: the resolver only ever ADMITS, never suppresses, an abort).
+
+    It runs AFTER `_merge_row_append_conflict`, which already keyed-merges DIFFERENT rows appended in
+    a GEN block; what reaches here is a SAME key moved differently on both sides, which that resolver
+    must refuse because for an authored row it is a real disagreement. Inside a GEN region it is not:
+    neither side's rendering is authoritative, the merged corpus is.
+
+    THE DEPENDENCY THAT MAKES TAKE-OURS SOUND: land step 3 calls `_regen_manifest_managed_regions`
+    (T-12236) right after `_auto_rebuild_graph("land")` and commits the manifest in the reconcile, so
+    all three regions are rewritten from the MERGED corpus before verify. The ours side kept here is
+    therefore a placeholder that never lands as such. Remove that regen and this class must go with it.
+
+    DECIDED BY LINE POSITION, NEVER BY CONTENT. The open region is tracked from sentinel lines OUTSIDE
+    hunks; a hunk must open while a managed region is open and contain no sentinel line (a hunk that
+    carries one reaches past the region's edge into hand-maintained text). A hunk outside every region,
+    an unterminated hunk or region, a stray marker, or no hunk at all → None, naming why in `_reason_out`.
+
+    TAKE-OURS PER HUNK, not per file. `checkout --ours` would also discard theirs' CLEANLY-merged edits
+    outside the regions — the hand §1/§2 rows — so each hunk is replaced by its ours side and every
+    other line of the merged text is kept as git merged it.
+
+    WHERE THE MERGED TEXT COMES FROM. With a real merge (`_show_stage` None) it is the working-tree file
+    `git merge` just wrote. The SPEC-0184 eviction probe has no working tree, so it recomputes the same
+    text with `git merge-file` over the three stage blobs — ONE admission authority for both (T-11216).
+
+    `_reason_out` names the class `manifest-gen-region` either way: on a resolution, so the outcome is
+    attributable to this class; on a refusal, with the line that refused. Report-only."""
+    def _note(why: str):
+        if _reason_out is not None:
+            _reason_out[rel_path] = f"{_MANIFEST_GEN_REGION_CLASS}: {why}"
+        return None
+
+    if rel_path not in _LAND_REDERIVED_MANIFEST_PATHS:
+        return None
+    if _show_stage is None:
+        try:
+            text = (W / rel_path).read_text(encoding="utf-8")
+        except (OSError, TypeError):
+            return None
+    else:
+        import tempfile
+        blobs = []
+        for stage in (2, 1, 3):
+            blob = _show_stage(stage, rel_path)
+            if blob is None:
+                return None                  # no 3-way basis (add/add, delete/modify) — refuse
+            blobs.append(blob)
+        with tempfile.TemporaryDirectory(prefix="yitc-manifest-gen-") as td:
+            names = []
+            for label, blob in zip(("ours", "base", "theirs"), blobs):
+                p = Path(td) / label
+                p.write_text(blob, encoding="utf-8")
+                names.append(str(p))
+            r = _run_git_cap(["merge-file", "-p", "-L", "ours", "-L", "base", "-L", "theirs", *names],
+                             Path(td))
+        # exit status = the conflict count (0..127); anything else is git failing, not a merge
+        if not (0 <= getattr(r, "returncode", -1) <= 127) or not isinstance(r.stdout, str):
+            return None
+        text = r.stdout
+    lines = text.splitlines(keepends=True)
+    out: list = []
+    region = None
+    hunks = 0
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if _CONFLICT_OPEN_RE.match(line):
+            if region is None:
+                return _note(f"conflict hunk at line {i + 1} lies outside every GEN-managed region")
+            ours: list = []
+            in_ours = True
+            j = i + 1
+            while j < len(lines) and not _CONFLICT_CLOSE_RE.match(lines[j]):
+                body = lines[j]
+                if _ROW_DOC_GEN_RE.match(body):
+                    return _note(f"conflict hunk at line {i + 1} crosses the GEN sentinel at line "
+                                 f"{j + 1} into hand-maintained text")
+                if _CONFLICT_BASE_RE.match(body) or _CONFLICT_SEP_RE.match(body):
+                    in_ours = False
+                elif in_ours:
+                    ours.append(body)
+                j += 1
+            if j == len(lines):
+                return _note(f"conflict hunk at line {i + 1} is unterminated")
+            out.extend(ours)
+            hunks += 1
+            i = j + 1
+            continue
+        if _CONFLICT_BASE_RE.match(line) or _CONFLICT_SEP_RE.match(line) or _CONFLICT_CLOSE_RE.match(line):
+            return _note(f"stray conflict marker at line {i + 1}")
+        opened = _MANIFEST_GEN_OPEN_RE.match(line)
+        closed = _MANIFEST_GEN_CLOSE_RE.match(line)
+        if opened:
+            if region is not None:
+                return _note(f"GEN region opened at line {i + 1} inside the open `{region}` region")
+            region = opened.group(1)
+        elif closed:
+            if closed.group(1) != region:
+                return _note(f"GEN closer at line {i + 1} does not close the open region")
+            region = None
+        out.append(line)
+        i += 1
+    if region is not None:
+        return _note(f"GEN region `{region}` is never closed")
+    if not hunks:
+        return _note("no conflict hunk found in the merged text")
+    _note("resolved — every hunk inside a GEN-managed region, took ours; land step 3 regenerates them")
+    return "".join(out)
+
+
 def _merged_worktree_anchor_signer(W: Path, unmerged, *, _anchor_signature_of_text):
     """T-11291 — the LAND-side merged-tree reader for the same-anchor signature re-derivation.
 
@@ -1523,8 +1669,10 @@ def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
         # DIFFERENT top-level fields (7 measured sole-blocker aborts since 2026-08-01). Same
         # fail-closed contract as its two siblings: it returns None for anything it cannot PROVE is
         # its class, so admission and the fall-through below are unchanged in kind.
+        # T-12448 adds `_merge_manifest_gen_region_conflict` AFTER the row-append ledger: a manifest
+        # conflict confined to its GEN-managed regions, taken ours and regenerated at land step 3.
         for _resolver in (_merge_spec_signature_conflict, _merge_row_append_conflict,
-                          _merge_task_card_conflict):
+                          _merge_manifest_gen_region_conflict, _merge_task_card_conflict):
             # T-11291: only the signature resolver takes the merged-tree re-derivation seam; the
             # row-append ledger and the task card have no derived values, so their signatures stay
             # untouched (a card field is AUTHORED — there is deliberately nothing to re-derive).
@@ -1532,7 +1680,8 @@ def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
                      if _resolver is _merge_spec_signature_conflict else {})
             # T-11907 — the refusal-diagnosis sink, offered only to the resolver that produces one.
             # Report-only: it names the HUNK for the abort text and decides nothing.
-            if _resolver is _merge_task_card_conflict and _reasons_out is not None:
+            if (_resolver in (_merge_task_card_conflict, _merge_manifest_gen_region_conflict)
+                    and _reasons_out is not None):
                 extra = {"_reason_out": _reasons_out}
             merged_text = _resolver(f, W, _run_git_cap=_run_git_cap, _show_stage=_show_stage, **extra)
             if merged_text is not None:
@@ -3028,7 +3177,71 @@ def _rebaseline_policy_off_text(*a, **kw):
     return rebaseline_currency._rebaseline_policy_off_text(*a, **kw)
 
 
-def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _worktree_path_for_branch, EVENTS_PATH, LAND_REPEATED_ABORT_THRESHOLD, REPO_ROOT, _BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=frozenset(), _LAND_BACKSTOP_ABORT_CLASS, _NO_TESTS_MIN_REASON_CHARS, _NO_TESTS_UNAUTHORIZED_ABORT_CLASS, _append_event, _emit_land_abort, _is_yitc_session_state, _land_integrate, _land_repeated_abort_count, _land_terminal_signal, _read_land_events, __file__, _live_land_frontier=None, _classify_inert_paths=None, _land_abort_key=None, _read_worktree_stamp=None, _stamp_is_own=None, _arm_liveness_watchdog=None, _main_events_path=None, _capture_reopen_errors_dirt=None, _is_verify_implementation_touch=None, _is_consumer_build=None, _debt_echo_tail=None, _context_seam_tail=None, _scaling_signals_tail=None) -> None:
+
+def _spec0161_land_preflight(W, *, _die, _append_event, _warn=None):
+    """T-12232 + T-12412: the land preflight's unnamed-payload-key DECISION, as one callable.
+
+    Extracted from `cmd_land` for exactly one reason: the consumer downgrade's whole claim is that
+    the land is NOT refused, and the only honest proof of "never refuses" is to RUN the decision with
+    a `_die` that trips. Inspecting the source for the shape cannot distinguish "the consumer arm
+    does not call `_die`" from "the consumer arm reaches a `_die` further down" (audit-pre finding 1).
+
+    THREE OUTCOMES, and the middle one is the change:
+      * nothing introduced (or the diff is unknowable) -> returns silently. `spec0161_branch_unnamed`
+        never raises and reports `attributable: False` on an unknowable diff, on which `introduced`
+        is empty by construction; the `try` is a belt on the CALL, not a second policy. A guard whose
+        job is to make a refusal CHEAPER must never invent one.
+      * CONSUMER root -> WARN on stderr + ONE `deviation_captured`, then RETURN. The land proceeds
+        and exits 0, and no `land_aborted{abort_class: spec0161-key-unnamed}` row can exist, because
+        `_die` is the sole emitter of it and is not reached. `spec edit SPEC-0161` is not a thing a
+        consumer can run (kernel spec, query-only under `-C`; a consumer write into the engine corpus
+        is refused by SPEC-0078), so refusing the land here refuses it with no available exit —
+        measured on aiseller `T-0500` (X-1349). The rule-28 report-only debt still MEASURES the pair,
+        so nothing goes unwatched; only the blocking goes away.
+      * KERNEL root -> the IDENTICAL refusal as before, byte for byte. The engine's own checkout and
+        every engine worktree carry `specs/SPEC-0161-*.yaml`, so they take this arm by construction.
+
+    REPEATED ROWS ARE ACCEPTED, NOT DEDUPED. Every consumer land that still owes the pairs appends
+    another `deviation_captured` carrying the same `spec0161_consumer_fingerprint`. That is the
+    intended reading, not an oversight: a capture is a reflex whose RECURRENCE COUNT is the signal an
+    aspect-audit folds, and a suppressor would hide how often a consumer is paying this while
+    removing nothing (CHARTER §P1 F3). The fingerprint clusters the rows; it does not silence them.
+
+    The event append is itself belted: a journal fault must never turn a downgrade back into a
+    failure. `_warn` defaults to stderr and is injectable so a test can capture the text."""
+    if _warn is None:
+        _warn = lambda _t: sys.stderr.write(_t)
+    try:
+        from lib import debt as _debt_keys
+        _key_verdict = _debt_keys.spec0161_branch_unnamed(W)
+    except Exception:
+        return
+    if not _key_verdict or not _key_verdict["introduced"]:
+        return
+    _pairs = _key_verdict["introduced"]
+    _consumer = bool(_key_verdict.get("consumer"))
+    # T-12411 — the charging SITE per key rides the same verdict, so a refusal seconds before the
+    # venue slot names `<path>:<line>` instead of leaving the operator to re-derive the scan.
+    _msg = _debt_keys.spec0161_unnamed_key_message(_pairs, verb="land", consumer=_consumer,
+                                                   sites=_key_verdict.get("sites"))
+    if not _consumer:
+        _die(_msg, abort_class="spec0161-key-unnamed", abort_detail={"preflight": True})
+        return                                  # unreachable in production; a tripwire `_die` returns
+    _warn(_msg + "\n")
+    try:
+        _append_event("deviation_captured", None, {
+            "relates_to": "kernel",
+            "impact": ("this consumer branch introduces governing journal payload key(s) the KERNEL "
+                       "SPEC-0161 record does not name: "
+                       + "; ".join(f"{t}.{k}" for t, k in sorted(_pairs))
+                       + " — the land was NOT refused (the remedy is a kernel spec edit this repo "
+                         "cannot perform); route it with `cross request --to yitc-v2 --kind bugfix`"),
+            "fingerprint": _debt_keys.spec0161_consumer_fingerprint(_pairs),
+        })
+    except Exception:
+        pass
+
+def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _worktree_path_for_branch, EVENTS_PATH, LAND_REPEATED_ABORT_THRESHOLD, REPO_ROOT, _BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=frozenset(), _LAND_BACKSTOP_ABORT_CLASS, _NO_TESTS_MIN_REASON_CHARS, _NO_TESTS_UNAUTHORIZED_ABORT_CLASS, _append_event, _emit_land_abort, _is_yitc_session_state, _land_integrate, _land_repeated_abort_count, _land_terminal_signal, _read_land_events, __file__, _live_land_frontier=None, _classify_inert_paths=None, _land_abort_key=None, _read_worktree_stamp=None, _stamp_is_own=None, _arm_liveness_watchdog=None, _main_events_path=None, _capture_reopen_errors_dirt=None, _is_verify_implementation_touch=None, _is_consumer_build=None, _debt_echo_tail=None, _context_seam_tail=None, _scaling_signals_tail=None, _abort_cause_breadth_head=None, _land_head_read_scope=None) -> None:
     """`land` control-point (D-0037 — a CLI control-point per D-0033, NOT a hook): integrate the
     current writing worktree's branch into main. Run from INSIDE the worktree. All-or-nothing:
     update-from-main → reconcile events (union + land-time dedup per SPEC-0002) → rebuild graph
@@ -3038,6 +3251,14 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
     Steps 1 (resolve+guard the landing worktree) live here; steps 2-7 (the integrate pipeline,
     incl. the concurrent-land optimistic-concurrency retry) live in `_land_integrate` (T-0138).
     """
+    # T-12438: cli.py no longer forwards the SPEC-0077 predicate (see the same note in `_land_integrate`).
+    # Bound here to the ONE globs constant, which moved with the binder into lib/verify_wiring.py — imported
+    # lazily because that module imports this one. An explicit value still wins.
+    if _is_verify_implementation_touch is None:
+        import functools
+        from lib import verify_wiring as _vw   # noqa: PLC0415 — lazy, breaks the import cycle
+        _is_verify_implementation_touch = functools.partial(
+            globals()["_is_verify_implementation_touch"], _VERIFY_IMPLEMENTATION_GLOBS=_vw._VERIFY_IMPLEMENTATION_GLOBS)
     import subprocess
 
     # T-0677 (E-0010 manifestation D): defensive cwd-safety. If this process inherited a
@@ -3979,17 +4200,15 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
         # what exempts this cheap deterministic refusal from the T-0655 repeated-abort streak exactly
         # as its three siblings are exempt. No new event type, no new payload key, no new constant;
         # the one new thing is the abort_class NAME, which a genuinely new refusal cause must have.
+        #
+        # CONSUMER ROOTS DOWNGRADE TO A WARN (T-12412 / aiseller X-1349). The refusal's remedy —
+        # `spec edit SPEC-0161` — is UNEXECUTABLE by a consumer (kernel spec, query-only under `-C`),
+        # so under `-C` this was a hard refusal with no consumer-side exit at all. The kernel-root
+        # refusal is UNCHANGED. The whole decision lives in `_spec0161_land_preflight` (above) so a
+        # test can drive it with a tripwire `_die` and PROVE the consumer arm never reaches one — a
+        # source-shape assertion cannot (audit-pre finding 1).
         if run_tests:
-            try:
-                from lib import debt as _debt_keys
-                _key_verdict = _debt_keys.spec0161_branch_unnamed(W)
-            except Exception:
-                _key_verdict = None
-            if _key_verdict and _key_verdict["introduced"]:
-                _die(_debt_keys.spec0161_unnamed_key_message(
-                         _key_verdict["introduced"], verb="land"),
-                     abort_class="spec0161-key-unnamed",
-                     abort_detail={"preflight": True})
+            _spec0161_land_preflight(W, _die=_die, _append_event=_append_event)
         # T-11226: route the restoration receipt to MAIN's journal, like every other batch row. A
         # land that ends without landing leaves its abort row in the LANDING checkout's journal
         # (fu_85d590649c50), which is precisely why the T-11098 contamination was invisible on main.
@@ -4047,6 +4266,32 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
         # is main's journal, which is where the eviction row is written.
         for _cline in _land_named_culprit_advisory(branch, _main_events_path_for_restore):
             print(_cline, file=sys.stderr, flush=True)
+
+        # T-12392 (SPEC-0190 rule 10) — THE ONE REQUEST-SCOPED ReadScope FOR THE LAND HEAD, opened
+        # here so the T-0655 backstop's own `_read_land_events` fold below runs INSIDE it and the
+        # cross-branch cause note further down is SERVED from that same parse instead of re-reading
+        # the window's segments. Measured on this checkout (103 segments / 748,284 rows): the note's
+        # fold costs 2.43s uncached, the backstop read already standing at this seam costs 8.71s.
+        # It is the primitive `cmd_session_start` and `_advisory_read_scope` already install — no
+        # store, no cache file, no new constant, and nothing survives the scope.
+        #
+        # IMPERATIVE ExitStack RATHER THAN A `with` BLOCK, deliberately: a `with` would re-indent the
+        # whole ~75-line backstop below for no behavioural gain, and this file's `cmd_land` is edited
+        # by several concurrent sessions.
+        #
+        # THE SCOPE IS CLOSED BEFORE `_land_integrate`, AND THAT IS A CORRECTNESS BOUND, NOT TIDINESS.
+        # T-11139 PINS the land TAIL's debt counts to agree with a `debt` re-fold run AFTER the land,
+        # and a land appends to the journal throughout — so the tail MUST read fresh. That is also why
+        # the head's view is never handed FORWARD to the tail: head and tail are two reads of two
+        # different journal states, by contract. The only path that skips the explicit `close()` below
+        # is a `_die`/exception, which terminates the land before `_land_integrate` is reached, so no
+        # later reader can be served a stale snapshot.
+        _head_scope = contextlib.ExitStack()
+        if _land_head_read_scope is not None:
+            try:
+                _head_scope.enter_context(_land_head_read_scope())
+            except Exception:   # noqa: BLE001 — a read OPTIMISATION must never refuse a land
+                pass
 
         # T-0655: REPEATED-ABORT CONVERGENCE BACKSTOP (pre-verify). Before paying the ~30-60s
         # _land_integrate verify, check whether THIS branch has already aborted N consecutive times
@@ -4124,6 +4369,35 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
         else:
             print(f"land: --ack-repeated-abort — proceeding past the repeated-abort backstop "
                   f"(conscious continuation) on branch {branch}.", file=sys.stderr)
+
+        # T-12392 (SPEC-0119 rule 26 / CHARTER §Principle 7 / aiseller X-1365) — NAME THE CROSS-BRANCH
+        # ABORT CAUSE(S) BEFORE THIS LAND SPENDS ANYTHING. Every surface that could catch a repeating
+        # abort is scoped to ONE lane — the re-run-vs-resolve discipline to a SESSION, the T-0655
+        # backstop directly above to a BRANCH, the SPEC-0124 ceiling to a TASK — so a cause that fails
+        # ONCE on each of four branches trips none of them. Measured (aiseller, 2026-09-10): one such
+        # cause refused FOUR branches and each paid a FULL verify to re-diagnose what another branch
+        # had already surfaced. The fold that sees it has existed since T-11380, but nothing read it
+        # HERE: it rode session start and the land TAIL only — after the spend, or in another process.
+        #
+        # PLACEMENT: AFTER the backstop, so a branch already refused for its OWN repeated cause gets
+        # that sharper per-branch message first; and BEFORE the `--no-tests` gate, the work-batch
+        # carrier gate, the per-worktree flock and `_land_integrate` — i.e. before the SPEC-0132
+        # admission wait and the minutes-long verify behind it, which is the entire point.
+        #
+        # REPORT-ONLY: it refuses nothing, emits no event, writes no state, moves no exit code, and
+        # prints nothing when clean. FAIL-OPEN like the report-only tails (`_tail_early`) — a
+        # diagnostic must never be the thing that breaks a land — but the miss is NAMED, not
+        # swallowed. Uninjected (a direct or test caller that did not opt in) ⇒ a no-op.
+        if _abort_cause_breadth_head is not None:
+            try:
+                for _acb_line in (_abort_cause_breadth_head() or ()):
+                    print(_acb_line, file=sys.stderr, flush=True)
+            except Exception as _acb_e:   # noqa: BLE001
+                print(f"land: report-only cross-branch abort-cause note skipped (non-fatal, NOT a "
+                      f"land failure): {_acb_e}", file=sys.stderr, flush=True)
+        # The head's shared read ends HERE — see the ExitStack comment above for why this must close
+        # before `_land_integrate` rather than wrap it.
+        _head_scope.close()
 
         # T-9306 (SPEC-0077 §2 owner-gate): `--no-tests` is the owner-authorized emergency-bypass of
         # the tests-green gate — NOT a free agent self-clear (F-024). REFUSE it unless BOTH the explicit
@@ -5482,6 +5756,37 @@ def _land_reservation_park_limit_seconds() -> float:
     except ValueError:
         return computed
     return v if v > 0 else computed
+
+
+_LAND_PARK_REQUEUE_MAX = 2          # T-12393 — how many times a land evicted by the park bound may
+                                    # RE-ENTER the wait by itself. The owner's stated bound
+                                    # («потолок попыток 2–3», 2026-09-11), lower end: the requeue
+                                    # exists so a land that lost to a MOVING queue is not handed back
+                                    # to a human, not so a land may queue forever.
+_LAND_PARK_REQUEUE_MAX_ENV = "YITC_LAND_PARK_REQUEUE_MAX"
+
+
+def _land_park_requeue_max() -> int:
+    """T-12393 — the cap on park-bound REQUEUES for one land process.
+
+    Env override, the BYTE-FOR-BYTE idiom of `_land_reservation_park_limit_seconds` above and the
+    SAME env-variable door, deliberately, because this is the same kind of number: a GATE-class
+    bound that decides whether a land HALTS. `bin/lib/machine_settings.py` records exactly that
+    ground for `_LAND_MAX_RETRIES` and for the park limit this extends, so the cap is inventoried
+    GATE and is therefore refused by `config set` and dropped on read — the amended AC3's door.
+
+    0 is LEGAL and means «no requeue» — today's T-11819 behaviour, byte-identical, which is what
+    makes the AC2 differential differential. Only a NEGATIVE or unparseable value falls back to the
+    default: a cap is a bound, so a stray env value must not be able to remove it.
+    """
+    raw = os.environ.get(_LAND_PARK_REQUEUE_MAX_ENV)
+    if raw is None or not raw.strip():
+        return _LAND_PARK_REQUEUE_MAX
+    try:
+        v = int(raw.strip())
+    except ValueError:
+        return _LAND_PARK_REQUEUE_MAX
+    return v if v >= 0 else _LAND_PARK_REQUEUE_MAX
 
 
 # T-12150 — the QUEUED PRE-MERGE knobs. A land parked in the reservation wait re-merges main into
@@ -7220,7 +7525,9 @@ _SELECTION_DECISION_ROOTS = (
     "_selection_omission_tripwire",         # SPEC-0181 implements: the omission oracle
     "_selection_coverage_map",              # the map the decision reads
     "_verify_skip_fail_closed_edge",        # the shared fail-closed rungs it delegates to
-    "_verify_implementation_touch_globs",   # the ONE matching carrier (T-11460)
+    "_verify_implementation_touch_pairs",   # T-12155: the ONE matching carrier (the loop + both
+                                            # narrowings live here now)
+    "_verify_implementation_touch_globs",   # T-11460's reading, now a projection over the pairs above
     "_is_verify_implementation_touch",      # its bool()
     "_selection_leaf_test_freed",           # the T-11461 narrowing it applies
     # T-11521 (SPEC-0181 R1) — THE CLASSIFIERS THAT DECIDE WHAT IS FREED FROM THIS RUNG ARE THEMSELVES
@@ -7405,7 +7712,8 @@ _SELECTION_ROOT_MODULES = (
 # non-participating and free it; moved to a `bin/` path in neither carrier it would match nothing and
 # force the full suite every time. Note the coverage-map family and the floor-exclusion are DERIVED
 # from this constant below — one edit, no second list to keep in step.
-#   bin/lib/cli.py        — hosts `_VERIFY_IMPLEMENTATION_GLOBS` itself and the verify wiring.
+#   bin/lib/verify_wiring.py — hosts `_VERIFY_IMPLEMENTATION_GLOBS` itself and the verify wiring (T-12438 moved
+#                           both out of bin/lib/cli.py, which is why cli.py is now FREED — see below).
 #   bin/lib/init.py       — writes a consumer's verify-contract scaffolds.
 #   everything non-`.py` under bin/ (audit-config.yaml, effort-routing-config.yaml,
 #   pricing-config.yaml, git-maintenance.sh, verify-backup.sh, security-audit, v2-security-gate)
@@ -7415,6 +7723,80 @@ _SELECTION_ROOT_MODULES = (
 # BEING the runner — it neither defines it nor feeds the land's selection decision, and `task test
 # --run` is a caller selection never governs (`select` defaults False). Named here rather than left
 # for a reader to rediscover.
+#
+# THE FOUR ENTRIES T-12155 ADDED, and the FIVE it deliberately KEPT OUT. Same membership test as
+# above, re-run over every currently-unlisted `bin/*.py`; it returned 9 mechanical ADMITs, and each was
+# then READ BY HAND, because the derivation is a FLOOR and not an oracle. Both halves are recorded,
+# because a positive allowlist is only safe while every NEAR-MISS is on the record too — a reader who
+# sees four names and no rejects cannot tell a judged list from an unjudged one.
+#   ADMITTED AND FREED (clean on both limbs; each re-derives ADMIT on every land via §AC1 (i)):
+#   bin/lib/release.py    — the RELEASE-SIGNATURE verify (`release` publishes the identity-agnostic
+#                           view and checks its own signature). That word "verify" is the whole reason
+#                           this entry is spelled out: it is a DIFFERENT verify from the land's test
+#                           legs. It defines none of the four verify-leg roots, defines nothing the host
+#                           binds into one, never calls the runner, and references no
+#                           `_SELECTION_DECISION_ROOTS` name.
+#   bin/lib/venue.py      — provisions/records the rented box (SPEC-0203's venue record). ZERO
+#                           selection or runner references: it decides WHERE a leg could run, never
+#                           WHETHER one runs nor WHICH tests are selected. The module that actually
+#                           RUNS the legs on that box is `remote_verify.py`, and it is KEPT OUT below —
+#                           the pair is the discrimination this entry rests on, not an oversight.
+#   bin/lib/profile.py    — the machine/effort profile reader. Clean on both limbs.
+#   bin/lib/host_paths.py — the declared-surface path resolver (SPEC-0187). Clean on both limbs; it
+#                           resolves paths, it decides nothing about verify.
+#   ADMITTED MECHANICALLY BUT KEPT OUT — each with the reason, FAIL-CLOSED on doubt:
+#   bin/lib/remote_verify.py — IT RUNS THE LAND'S SUITE. SPEC-0203 rules 3-4: its ROUTING ENTRY
+#                           ships the tree to the venue, runs BOTH SPEC-0077 legs there, and validates
+#                           the verdict envelope. The derivation admitted it because limb A named only
+#                           the FOUR pre-SPEC-0203 verify-leg roots and was therefore BLIND to the
+#                           remote executor — a DEFECT IN THE FENCE, not a judgement call, captured as
+#                           a deviation and FIXED in the same diff: T-12155 adds THAT ROUTING ENTRY
+#                           to limb A's root set in `tests/test_t11511_bin_periphery_allowlist.py`, so
+#                           this module now derives REFUSED rather than resting on this prose. A strict
+#                           TIGHTENING — the added root can only ever refuse MORE. (The entry is
+#                           named by its exact symbol THERE and only by DESCRIPTION here, which is
+#                           not coyness: T-12194's `test_nothing_in_bin_calls_the_ROUTING_ENTRY`
+#                           greps every `bin/**/*.py` for the literal token, so spelling it in this
+#                           comment would read as a CALL SITE it plainly is not. Captured as a
+#                           deviation — a guard whose stated intent is "nothing CALLS it" but whose
+#                           mechanism is a text grep — rather than worked around in silence.)
+#   bin/lib/machine_settings.py — decides each verify tunable's CLASS and holds a gate-class
+#                           (`YITC_ISOLATED_VERIFY`); a class flip there is a live path from this module
+#                           to HOW verify runs. Kept out on the substance, not on the derivation.
+#   bin/lib/init.py       — SPEC-0181 R1's own prose NAMES it as still firing (it writes a consumer's
+#                           verify-contract scaffolds — see the list above), while the mechanical
+#                           derivation admits it. That is an artifact contradiction (CHARTER §P7),
+#                           captured as a deviation and resolved FAIL-CLOSED for this card: the spec's
+#                           answer wins, the module stays out. Reconciling the two needs its own card;
+#                           it is worth 17 sole refusals in the measured window.
+#   bin/lib/read_site_retirement.py — rewrites the read-set ledger the SPEC-0077 pinned probes assert
+#                           against, so an edit here can change what those probes conclude.
+#   bin/lib/worktree_batch_recovery.py — CLEAN on both limbs, and kept out anyway: ZERO occurrences in
+#                           the measured window. CHARTER §P1 filter 3 — no evidence pulls it in, and an
+#                           allowlist entry that frees nothing is dead weight that reads as coverage
+#                           (the §AC2 existence arm above exists for the same reason).
+#
+# WHAT THIS CUT IS WORTH, stated plainly rather than dressed up: 341 -> 325 sole-refuser groups
+# (-4.7%) over 2026-08-27..09-12. The DOMINANT refusers — `bin/lib/cli.py` (125 sole refusals) and
+# `bin/lib/worktree.py` (56) — are refused on BOTH limbs precisely because they hold the verify wiring
+# and the selection ladder, so freeing either per file IS the self-approval hole this rung exists to
+# close. The real lever was to MOVE that wiring out of cli.py — T-12438 did, recorded next.
+#
+# T-12438 — bin/lib/cli.py ADMITTED, and bin/lib/verify_wiring.py KEPT OUT in its place. The membership
+# test above, re-run on cli.py AFTER the move, derives ADMIT on both limbs (§AC1 (i) re-derives it on
+# every land). What it refused on BEFORE, measured at Analysis, and why each ground is gone:
+#   limb A — cli.py DEFINED `_run_verify_tests` and `_run_pinned_verify` (verify-leg roots) and
+#            `_is_verify_implementation_touch` (a name this module binds into a verify-leg gate). All
+#            three definitions moved to bin/lib/verify_wiring.py; cli.py now only PASSES the runner on,
+#            which the test does not read as running a leg (the recorded bin/lib/task.py precedent).
+#   limb B — cli.py DEFINED the selection root `_is_verify_implementation_touch`, and the decision
+#            REACHED its `_land_integrate` residue because that residue forwarded the root by keyword.
+#            The def moved and the forward is gone: `_land_integrate` / `cmd_land` here bind their own
+#            predicate. cli.py still NAMES the root in `_is_governance_surface` (the SPEC-0136 dispatch
+#            classifier), which the decision does not reach — naming is not participating (T-12005).
+#   bin/lib/verify_wiring.py — KEPT OUT: it DEFINES both verify-leg roots and the selection root, so it
+#            derives REFUSED on both limbs by construction; every future edit to that wiring lands
+#            there and still forces the full suite.
 #
 # SPEC-0181's SELF-GUARD ARGUMENT IS UNWEAKENED, exactly as T-11461 left it for the `tests/**` arm:
 # escaping the selector still requires editing its implementation, and both files that hold it still
@@ -7429,6 +7811,7 @@ _SELECTION_PERIPHERY_FREED_PATHS = frozenset((
     "bin/lib/__init__.py",
     "bin/lib/audit.py",
     "bin/lib/cage.py",
+    "bin/lib/cli.py",
     "bin/lib/cross.py",
     "bin/lib/debt.py",
     "bin/lib/deploy.py",
@@ -7449,7 +7832,10 @@ _SELECTION_PERIPHERY_FREED_PATHS = frozenset((
     "bin/lib/memory.py",
     "bin/lib/nightly.py",
     "bin/lib/observe.py",
+    "bin/lib/host_paths.py",
     "bin/lib/plan.py",
+    "bin/lib/profile.py",
+    "bin/lib/release.py",
     "bin/lib/scenario.py",
     "bin/lib/session.py",
     "bin/lib/spec.py",
@@ -7458,6 +7844,7 @@ _SELECTION_PERIPHERY_FREED_PATHS = frozenset((
     "bin/lib/textutil.py",
     "bin/lib/triage.py",
     "bin/lib/v1_quiesce.py",
+    "bin/lib/venue.py",
     "bin/lib/views.py",
     "bin/lib/vocab.py",
     "bin/lib/worktree_lifecycle.py",
@@ -7819,6 +8206,20 @@ def _selection_reachability_freed(worktree: Path, base_rev: str, changed_paths, 
         except Exception:
             continue                                       # never freed on an error
     return frozenset(freed)
+
+
+@functools.wraps(verify_runner._verify_implementation_touch_pairs)
+def _verify_implementation_touch_pairs(*a, **kw):
+    """T-12155 host residue — the body lives in `bin/lib/verify_runner.py#_verify_implementation_touch_pairs`
+    (the ONE matching carrier, one level below the globs projection). Host collaborators/globals are
+    read HERE, at call time, so `-C` rebinds and `monkeypatch.setattr(yitc, ...)` stay honoured — the
+    SAME shape as the `_verify_implementation_touch_globs` residue just below, whose single injected
+    collaborator this carrier is the real consumer of."""
+    for _k, _v in (
+                       ("_selection_leaf_test_freed", _selection_leaf_test_freed),
+    ):
+        kw.setdefault(_k, _v)
+    return verify_runner._verify_implementation_touch_pairs(*a, **kw)
 
 
 @functools.wraps(verify_runner._verify_implementation_touch_globs)
@@ -11012,7 +11413,8 @@ def _land_abort_is_preflight(abort_detail: "dict | None") -> bool:
     return bool(isinstance(abort_detail, dict) and abort_detail.get("preflight"))
 
 
-def _land_abort_attributable(cur_attempt: int, abort_detail: "dict | None") -> bool:
+def _land_abort_attributable(cur_attempt: int, abort_detail: "dict | None",
+                             attempt_verify_ms: "int | None" = None) -> bool:
     """T-12077 — has this dying land actually PAID an attempt whose cost can be attributed?
 
     The attribute decision, built ON `_land_abort_is_preflight` above, so the row's
@@ -11030,6 +11432,8 @@ def _land_abort_attributable(cur_attempt: int, abort_detail: "dict | None") -> b
         `attempt_count: 1` that SPEC-0025 §land_completed and `_attempt_attribution`'s own docstring
         both forbid in terms ("an `attempt_count: 1` there would be a fabricated fact" — the T-0358
         no-fabricated-0s discipline). Absence MEANS "no attempt was paid" and must not be read as one.
+        T-12325 NARROWS THIS SHAPE TO THE FACT IT MEANT: a preflight that RECORDED a verify wall
+        (`attempt_verify_ms`) DID pay, and is attributable. See the inline note at the test.
 
     TRUE otherwise — including a PREFLIGHT refusal on attempt >= 2, which is deliberately UNCHANGED:
     attempt 1 there genuinely ran and paid a verify (one such row exists in the measured window,
@@ -11041,6 +11445,19 @@ def _land_abort_attributable(cur_attempt: int, abort_detail: "dict | None") -> b
     if not cur_attempt:
         return False
     if _land_abort_is_preflight(abort_detail) and cur_attempt < 2:
+        # T-12325 — FOLLOW THE FACT, NOT THE MARKER. The paragraph above reads `abort_preflight` as
+        # "this attempt paid NOTHING", which held for every preflight that existed when it was
+        # written: all of them were pure bookkeeping. T-12325 ships the FIRST preflight that actually
+        # RUNS TESTS (the pinned copies of the touched-and-weakened files), and there the marker and
+        # the fact SEPARATE. So the question is now asked of the MEASURED wall rather than of the
+        # marker: an attempt that recorded a verify run has paid a cost that can be attributed,
+        # whatever refused it. The `fabricated fact` guard is UNWEAKENED and stays exact in the
+        # direction it was written to protect — a preflight that ran nothing carries no wall
+        # (`None`), falls through to the `return False` below, and attributes nothing, exactly as
+        # before. `0` is not a measured run either (a wall this arm never starts), so the truth-test
+        # is deliberately falsy-based, not `is not None`.
+        if attempt_verify_ms:
+            return True
         return False
     return True
 
@@ -14197,7 +14614,11 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                              **_layer_duration_ms(_layer_t0)})
             continue
         if r.returncode != 0:
-            tail = (r.stdout + r.stderr).strip()[-500:]
+            # T-12384 (X-1373): SIGNAL-keyed excerpt, not the blind `[-500:]` tail — a docker-backed
+            # layer prints its teardown (one container/db name per line) AFTER pytest's short summary,
+            # so the positional tail carried the resource-name list and the FAILED node ids never
+            # reached `_surface_failing_assertions`. The entry's first-line shape is unchanged.
+            tail = _layer_failure_excerpt(r.stdout + r.stderr)
             bad.append(f"land(consumer): verify layer {name!r} FAILED (exit {r.returncode}): {cmd!r}\n{tail}")
             outcomes.append({"layer": name, "outcome": "failed", **_prov,
                              **_layer_duration_ms(_layer_t0)})
@@ -14753,6 +15174,28 @@ def _preflight_waive_refusal_text(*a, **kw):
     return rebaseline_currency._preflight_waive_refusal_text(*a, **kw)
 
 
+@functools.wraps(rebaseline_currency._pinned_touched_weakened_keys)
+def _pinned_touched_weakened_keys(*a, **kw):
+    """T-11523 host residue — the body now lives in `bin/lib/rebaseline_currency.py#_pinned_touched_weakened_keys`
+    (T-12325). It reads its ONE moved sibling `_pinned_touched_is_weakening` from that module directly,
+    so there is no host collaborator to inject here; the residue exists so `-C` rebinds and
+    `monkeypatch.setattr(yitc, ...)` stay honoured for the seam itself."""
+    return rebaseline_currency._pinned_touched_weakened_keys(*a, **kw)
+
+
+@functools.wraps(rebaseline_currency._first_attempt_preflight_refusal_text)
+def _first_attempt_preflight_refusal_text(*a, **kw):
+    """T-11523 host residue — the body now lives in `bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text`
+    (T-12325). Host collaborators/globals are read HERE, at call time, so `-C` rebinds and
+    `monkeypatch.setattr(yitc, ...)` stay honoured."""
+    for _k, _v in (
+                       ("_shell_dq", _shell_dq),
+                       ("REBASELINE_KINDS", REBASELINE_KINDS),
+    ):
+        kw.setdefault(_k, _v)
+    return rebaseline_currency._first_attempt_preflight_refusal_text(*a, **kw)
+
+
 def _land_current_branch(repo_root, _run_git_cap) -> str:
     """T-11347: the branch `land` is about to act on, resolved READ-ONLY for message composition alone.
     `cmd_land` resolves the same value later inside its guarded body; this is needed EARLIER, at the
@@ -14892,8 +15335,16 @@ def cmd_work_commit(args: argparse.Namespace, *, _append_event, _commit_worktree
         from lib import debt as _debt
         _k = _debt.spec0161_branch_unnamed(REPO_ROOT or Path.cwd())
         if _k["introduced"]:
+            # T-12412 — the SAME one text, with the remedy the CALLER can actually run: a
+            # consumer cannot `spec edit SPEC-0161` (kernel spec, query-only under `-C`), so
+            # it is pointed at `cross request` instead. ONE fact, read from the verdict.
             sys.stderr.write(_debt.spec0161_unnamed_key_message(
-                _k["introduced"], verb="work commit") + "\n")
+                _k["introduced"], verb="work commit",
+                consumer=bool(_k.get("consumer")),
+                # T-12411 — and the charging SITE per key (`<path>:<line>`), read from the
+                # same verdict, so the operator can check the claim instead of re-deriving
+                # the structural scan by hand.
+                sites=_k.get("sites")) + "\n")
     except Exception:
         pass
 
@@ -16454,6 +16905,30 @@ def _land_read_yield_offer(*a, **kw):
     return batch_landing._land_read_yield_offer(*a, **kw)
 
 
+@functools.wraps(batch_landing._land_pid_is_live)
+def _land_pid_is_live(*a, **kw):
+    """T-12413 host residue — the body lives in `bin/lib/batch_landing.py#_land_pid_is_live`. No host
+    collaborator to inject; kept as a forwarding DEF (not a bare alias) so the T-11524 census reads
+    exactly one host definition under the moved name and `monkeypatch.setattr(yitc, ...)` stays
+    honoured at call time through `_land_stale_yield_offer_verdict`'s injection block."""
+    return batch_landing._land_pid_is_live(*a, **kw)
+
+
+@functools.wraps(batch_landing._land_stale_yield_offer_verdict)
+def _land_stale_yield_offer_verdict(*a, **kw):
+    """T-12413 host residue — the body lives in
+    `bin/lib/batch_landing.py#_land_stale_yield_offer_verdict`. Moved siblings arrive via their own
+    residue, read HERE at call time, so `-C` rebinds and `monkeypatch.setattr(yitc, ...)` stay
+    honoured (the T-11524 inject-residue shape)."""
+    for _k, _v in (
+                       ("_land_read_yield_offer", _land_read_yield_offer),
+                       ("_land_yield_offer_path", _land_yield_offer_path),
+                       ("_land_pid_is_live", _land_pid_is_live),
+    ):
+        kw.setdefault(_k, _v)
+    return batch_landing._land_stale_yield_offer_verdict(*a, **kw)
+
+
 @functools.wraps(batch_landing._land_addressee_gone)
 def _land_addressee_gone(*a, **kw):
     """T-11524 host residue — the body now lives in `bin/lib/batch_landing.py#_land_addressee_gone`."""
@@ -17504,6 +17979,87 @@ def _rescued_failure_lines(*a, **kw):
     return verify_runner._rescued_failure_lines(*a, **kw)
 
 
+# T-12384 (X-1373): the consumer verify-LAYER excerpt producer — HOST code, homed here (not in
+# verify_runner.py): the T-11519 extraction contract admits into the runner module ONLY symbols the
+# runner roots reach, and this producer is read by the land-time consumer-layer path in THIS module
+# (merge-fallout re-home, 2026-09-11; the pinned extraction tripwires named the misplacement).
+# T-12384 (X-1373): the ONE definition of the sentence a consumer verify-LAYER failure record carries
+# when its captured output holds NO pytest summary — written by `_layer_failure_excerpt`, carried
+# verbatim into the land abort_reason. Same one-string discipline as `_VERIFY_FAIL_OVERBUDGET_MARK`.
+_LAYER_NO_PYTEST_SUMMARY_MARK = "no pytest summary in the captured output"
+_LAYER_EXCERPT_BOUND = 500          # the historical blind `[-500:]` char budget of the layer tail (T-12384)
+_LAYER_SUMMARY_MAX_LINES = 24       # whole summary LINES kept from a pytest short-summary block (T-12384)
+_LAYER_CONTEXT_LAST_LINES = 8       # non-teardown lines kept when no pytest summary exists (T-12384)
+# A TEARDOWN-NOISE line: after `strip()`, ONE bare token (no inner whitespace, no `::`) that carries a
+# >=6-char hex-ish run containing a digit, a >=4-digit run (a pid / port / counter), or an xdist `_gwN`
+# / `-gwN` worker suffix — the container / db / image / resource names docker and psql print ONE PER
+# LINE at teardown (aiseller's `aiseller_test_766830-f44e84ea_gw0` / `aiseller_verify_pg_12345-deadbeef`,
+# the X-1373 shapes). POSITIVE and whole-token anchored: a `FAILED <nodeid> …` summary line has inner
+# whitespace and can never match; a prose line likewise.
+_VERIFY_LAYER_TEARDOWN_NOISE_RE = re.compile(
+    r"^(?!.*::)[\w.:/-]*?(?:(?=[0-9a-f]*\d)[0-9a-f]{6,}|\d{4,}|[_-]gw\d+(?![\w]))[\w.:/-]*$")
+_PYTEST_SUMMARY_HEADER_RE = re.compile(r"^=+\s*short test summary info\s*=+$")
+_PYTEST_SUMMARY_ITEM_RE = re.compile(r"^(?:FAILED|ERROR)\s+\S+")
+_PYTEST_FINAL_BANNER_RE = re.compile(r"^=+\s.*\b\d+\s+(?:failed|errors?|passed)\b.*\s=+$")
+
+def _layer_failure_excerpt(out: "str | None", bound: int = _LAYER_EXCERPT_BOUND,
+                           max_summary_lines: int = _LAYER_SUMMARY_MAX_LINES,
+                           last_lines: int = _LAYER_CONTEXT_LAST_LINES) -> str:
+    """T-12384 (X-1373): the recorded tail of a FAILED consumer verify LAYER — SIGNAL-keyed, not positional.
+
+    WHY. The layer runner recorded `(stdout + stderr).strip()[-500:]`, a blind tail slice. A docker-backed
+    hermetic layer prints pytest's `short test summary info` block and THEN its own teardown epilogue
+    (one container / db name per line), so the last 500 chars were the resource-name list and the
+    summary never reached the record. Downstream `_extract_failing_assertion` can only name what
+    SURVIVES the record, so the land ABORT read `unmarked-layer-failure:<id> — no failure marker …; last
+    output line: verify-hermetic: pytest exit=1` over a list of container names — a red gate no reader
+    could act on (MEASURED aiseller T-0557, 2026-09-11). `_verify_failure_excerpt` (the KERNEL-path
+    sibling) is head+rescued+tail and deliberately positional; for a script-wrapped layer BOTH ends are
+    noise (docker build at the head, teardown at the tail), so the layer needs the SIGNAL located.
+
+    CONTRACT (pure; never raises):
+      1. teardown-noise lines are dropped WHOLE (`_VERIFY_LAYER_TEARDOWN_NOISE_RE`, matched on the
+         stripped line — the noise is INDENTED in the wild); blank lines are dropped;
+      2. the pytest signal is located scanning BACKWARDS: the LAST `short test summary info` header,
+         the LAST final `=== N failed … ===` banner at/after it, the `FAILED` / `ERROR` items. The
+         returned block is header..banner (header..last item when no banner; the item run when there
+         is no header). Over `max_summary_lines` it keeps the header + the LAST items that fit + the
+         banner and STATES the clip — whole lines only, a node id is never cut mid-line;
+      3. no signal → `_LAYER_NO_PYTEST_SUMMARY_MARK` + the last `last_lines` non-teardown lines, that
+         lines part bounded to `bound` chars from the END (the historical budget, so the honest last
+         line survives intact and the mark itself is never clipped).
+    Only WHAT THE RECORD SAYS changes: the exit-code gate, the failure-marker protocol, the
+    `unmarked-layer-failure` id and every waive reader are untouched — they receive a tail that can
+    carry the signal. `ERROR <nodeid>` lines are KEPT in the block as context; the extractor's
+    FAILED-only rule is deliberately not widened here (the T-11346 bound)."""
+    raw = [ln.strip() for ln in str(out or "").splitlines()]
+    lines = [ln for ln in raw if ln and not _VERIFY_LAYER_TEARDOWN_NOISE_RE.match(ln)]
+    if not lines:
+        return _LAYER_NO_PYTEST_SUMMARY_MARK
+    header = next((i for i in range(len(lines) - 1, -1, -1) if _PYTEST_SUMMARY_HEADER_RE.match(lines[i])), None)
+    items = [i for i, ln in enumerate(lines) if _PYTEST_SUMMARY_ITEM_RE.match(ln)]
+    if header is None and not items:
+        ctx = lines[-last_lines:]
+        text = "\n".join(ctx)
+        if len(text) > bound:
+            text = text[-bound:]
+        return f"{_LAYER_NO_PYTEST_SUMMARY_MARK}; last {len(ctx)} non-teardown line(s):\n{text}"
+    start = header if header is not None else items[0]
+    # the LAST final banner at/after the block start closes it; else the last item does
+    banner = next((i for i in range(len(lines) - 1, start - 1, -1) if _PYTEST_FINAL_BANNER_RE.match(lines[i])), None)
+    end = banner if banner is not None else max([i for i in items if i >= start] or [start])
+    block = lines[start:end + 1]
+    if len(block) > max_summary_lines:
+        head = [block[0]] if header is not None else []
+        tail_ = [block[-1]] if banner is not None else []
+        body = block[len(head):len(block) - len(tail_)]
+        keep = max(max_summary_lines - len(head) - len(tail_) - 1, 1)
+        dropped = len(body) - keep
+        block = head + [f"[... {dropped} summary line(s) not shown ...]"] + body[-keep:] + tail_
+    return "\n".join(block)
+
+
+
 @functools.wraps(verify_runner._verify_failure_excerpt)
 def _verify_failure_excerpt(*a, **kw):
     """T-11519 host residue — the body now lives in `bin/lib/verify_runner.py#_verify_failure_excerpt`.
@@ -17763,7 +18319,7 @@ _SELECTION_FAMILY_EXTRA_READERS = (
 # which is also run-everything — the precise way T-11461 shipped inert.
 #
 # WHY ONE ENTRY PER FREED PATH AND NOT A SINGLE `bin/*`. A `bin/*` glob would map the WHOLE engine —
-# including `bin/lib/worktree.py` and `bin/lib/cli.py`, which rung R1 must always refuse. Mapping them
+# including `bin/lib/worktree.py` and `bin/lib/verify_wiring.py`, which rung R1 must always refuse. Mapping them
 # is not merely redundant, it REMOVES A BACKSTOP: R1 catches a verifier-surface touch first, so the
 # map entry is invisible while R1 works, and the moment R1 is BROKEN the diff would resolve at R4 and
 # earn an omission instead of failing closed at R3. That is defence-in-depth deleted silently, and
@@ -18377,6 +18933,166 @@ def _refresh_verify_duration_table(main_wt: Path, current: "list", workers: int,
     return report
 
 
+# ── T-12420 (SPEC-0188 rule 7) — THE POST-FF TAIL WRITE ADMISSION PREDICATE ───────────────────────
+# A land VERIFIES a candidate tree, fast-forwards `main`, and only THEN writes its bookkeeping into
+# the tree it just verified. Nothing re-verified that tree, so a tail write could make `main` fail a
+# test the candidate passed — and the FIRST land to discover it was the NEXT branch's, which read as
+# that branch's failure. Measured 2026-09-11, 16:20-17:53Z: the load-sensitive tail re-entered a lane
+# line T-12378's ship diff had just removed, contradicting that card's own tripwire, and every land
+# aborted for 93 minutes (>15 parked lands, six aborted verifies, two halted workers).
+#
+# THE ADMISSION RULE: a tail write is admitted ONLY on positive proof — the tests that READ what it
+# wrote are GREEN on the written tree. Everything else (a red reader, a timeout, the budget, a runner
+# error) WITHHOLDS the write. Fail-closed costs nothing here BY CONSTRUCTION: every withholdable tail
+# writer re-derives its write from scratch on the next land, so a withheld write is DEFERRED, never
+# lost — which is what lets this be an admission gate rather than a judgement call.
+_TAIL_TRIPWIRE_BUDGET_DEFAULT = 120
+_TAIL_TRIPWIRE_BUDGET_ENV = "YITC_LAND_TAIL_TRIPWIRE_BUDGET_S"
+_TAIL_TRIPWIRE_BUDGET_RANGE = (10, 900)
+
+
+def _land_tail_tripwire_budget_s(*, env: "dict | None" = None) -> int:
+    """T-12420 — the WALL BUDGET for one tail writer's admission run, resolved on the ONE precedence
+    this family already uses (`_flaky_sensitive_knob`: env > machine settings > built-in, fail-safe
+    to the built-in on anything blank / non-numeric / out-of-band).
+
+    There is deliberately NO disable value: a knob that turns the gate off would be a hole in a
+    fail-closed admission, and the band's floor is what the measured reader sets need (the lane's 5
+    readers run ~11.4s in parallel, the duration table's 13 ~13.3s on a 48-core venue). The budget is
+    also the DEADLOCK BOUND — a reader that hangs against the ff lock this seam runs inside expires
+    into a withhold rather than wedging the lock."""
+    return _flaky_sensitive_knob(_TAIL_TRIPWIRE_BUDGET_ENV, _TAIL_TRIPWIRE_BUDGET_DEFAULT,
+                                 _TAIL_TRIPWIRE_BUDGET_RANGE, env=env)
+
+
+def _land_tail_tripwire_readers(test_dir, artifacts) -> list:
+    """T-12420 — the tests that READ the given artifacts, DERIVED from the corpus, never declared.
+
+    A test file is a reader of an artifact when its SOURCE mentions that artifact's BASENAME. The
+    derivation is the whole point: the tripwire that caught the 2026-09-11 lane incident
+    (`tests/test_t12378_t11906_lane_line_removed.py`) DID NOT EXIST when the writer that broke it
+    shipped, so any hand-maintained writer->test map would have been complete and still wrong. A
+    derived set cannot go stale, and over-inclusion is harmless (an extra green file costs its own
+    wall, bounded by the budget) while under-inclusion is the defect."""
+    names = {Path(a).name for a in artifacts if a}
+    out = []
+    if not names:
+        return out
+    for path in sorted(Path(test_dir).glob("test_*.py")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            # Unreadable is NOT "not a reader": count it, so an unreadable tripwire fails its run
+            # and withholds rather than silently shrinking the evidence set.
+            out.append(path.name)
+            continue
+        if any(n in text for n in names):
+            out.append(path.name)
+    return out
+
+
+def _land_tail_tripwire_verdict(main_wt, artifacts, *, budget_s: "int | None" = None,
+                                _readers=None) -> dict:
+    """T-12420 (SPEC-0188 rule 7) — MAY the paths this tail writer just wrote be committed?
+
+    THE UNIT IS THE WRITER'S WHOLE TRANSACTION, NOT ONE FILE. `_load_sensitive_entry_at_land_tail`
+    writes a carrier line AND N auto-filed cards; a per-file check would admit a green carrier beside
+    a card that reds a reader (the audit-pre finding on this card). So `artifacts` is the COMPLETE
+    set of paths the writer produced and the readers of all of them are run as ONE verdict: admitted
+    together, or withheld together.
+
+    Returns `{ok, readers, failing, reason, wall_ms}` and NEVER raises — but `ok` is FALSE for every
+    outcome that is not positive proof, including an internal error. An empty reader set is the one
+    honest `ok: True` without a run: nothing reads the write, so nothing it does can red a test.
+
+    Each reader runs the way the suite runs it (`python3 tests/<f>` from the repo root — the
+    script-style invocation `task test --run` uses, never a bare `pytest` collection, T-10097), in
+    parallel because SPEC-0131 makes them hermetic, under one wall budget."""
+    t0 = time.time()
+    report: dict = {"ok": False, "readers": [], "failing": [], "reason": "unrun", "wall_ms": 0}
+    try:
+        main_wt = Path(main_wt)
+        test_dir = main_wt / "tests"
+        if not test_dir.is_dir():
+            report.update({"ok": True, "reason": "no-test-dir"})
+            return report
+        readers = list(_readers) if _readers is not None else _land_tail_tripwire_readers(test_dir, artifacts)
+        report["readers"] = readers
+        if not readers:
+            report.update({"ok": True, "reason": "no-readers"})
+            return report
+        budget = int(budget_s if budget_s is not None else _land_tail_tripwire_budget_s())
+        import concurrent.futures as _cf
+        import subprocess                      # the module-local idiom this file already uses
+
+        def _run_one(name):
+            remaining = budget - (time.time() - t0)
+            if remaining <= 0:
+                return name, "over-budget"
+            try:
+                rc = subprocess.run([sys.executable, str(test_dir / name)], cwd=str(main_wt),
+                                    capture_output=True, text=True, timeout=remaining)
+            except subprocess.TimeoutExpired:
+                return name, "timeout"
+            except Exception as exc:                       # noqa: BLE001 — fail-closed below
+                return name, f"error:{type(exc).__name__}"
+            return name, (None if rc.returncode == 0 else f"exit:{rc.returncode}")
+
+        failing = []
+        with _cf.ThreadPoolExecutor(max_workers=min(len(readers), (os.cpu_count() or 4))) as pool:
+            for name, why in pool.map(_run_one, readers):
+                if why is not None:
+                    failing.append({"test": name, "why": why})
+        report["failing"] = failing
+        report.update({"ok": not failing, "reason": "green" if not failing else "reader-failed"})
+        return report
+    except Exception as exc:                               # noqa: BLE001 — fail-closed: no proof, no write
+        report.update({"ok": False, "reason": f"error:{type(exc).__name__}"})
+        return report
+    finally:
+        report["wall_ms"] = int((time.time() - t0) * 1000)
+
+
+def _land_tail_withhold(main_wt, writer: str, artifacts, verdict: dict, *, _run_git_cap,
+                        _append_event) -> dict:
+    """T-12420 — UNDO the writer's whole transaction and RECORD it, atomically for the writer.
+
+    A tracked path is restored from `HEAD` (the tree the ff published, i.e. the VERIFIED one); a path
+    that did not exist before the write is removed. Neither can fail the land: the work is already on
+    `main`, and the worst case of a failed restore is dirt the next land folds. The ONE
+    `land_tail_write_withheld` row names the writer, the withheld paths and the failing reader, so
+    the debt view can surface it and the next land can re-derive the write."""
+    withheld, restore_errors = [], []
+    for rel in artifacts:
+        if not rel:
+            continue
+        try:
+            tracked = _run_git_cap(["ls-files", "--error-unmatch", str(rel)], main_wt).returncode == 0
+            if tracked:
+                # HEAD, explicitly — NOT the bare `checkout -- <path>`, which restores from the
+                # INDEX. The tree this must return to is the one the ff PUBLISHED, and an index
+                # that already carries the write would restore the very bytes being withheld.
+                _run_git_cap(["checkout", "HEAD", "--", str(rel)], main_wt)
+            else:
+                (Path(main_wt) / rel).unlink(missing_ok=True)
+            withheld.append(str(rel))
+        except Exception as exc:                           # noqa: BLE001 — never fail a landed land
+            restore_errors.append(f"{rel}:{type(exc).__name__}")
+    payload = {"writer": writer, "paths": withheld, "reason": verdict.get("reason"),
+               "test": (verdict.get("failing") or [{}])[0].get("test"),
+               "failing": verdict.get("failing") or [], "readers": verdict.get("readers") or [],
+               "wall_ms": verdict.get("wall_ms")}
+    if restore_errors:
+        payload["restore_errors"] = restore_errors
+    _append_event("land_tail_write_withheld", None, payload,
+                  events_path=Path(main_wt) / "events.jsonl")
+    print(f"land: tail write WITHHELD ({writer}) — {payload['reason']}"
+          + (f", first failing reader {payload['test']}" if payload.get("test") else "")
+          + f"; {len(withheld)} path(s) restored, re-derived on the next land", file=sys.stderr)
+    return payload
+
+
+
 @functools.wraps(verify_runner.cmd_verify_durations)
 def cmd_verify_durations(*a, **kw):
     """T-11519 host residue — the body now lives in `bin/lib/verify_runner.py#cmd_verify_durations`.
@@ -18415,6 +19131,7 @@ def _run_verify_tests(*a, **kw):
                        ("_verify_heartbeat_interval", _verify_heartbeat_interval),
                        ("_verify_heartbeat_line", _verify_heartbeat_line),
                        ("_verify_implementation_touch_globs", _verify_implementation_touch_globs),
+                       ("_verify_implementation_touch_pairs", _verify_implementation_touch_pairs),
                        ("_verify_worker_governor", _verify_worker_governor),
                        ("hermetic_child_env", hermetic_child_env),
     ):
@@ -18594,8 +19311,10 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str) -> dict:
     READS THE ONE RECORD T-12357 ALREADY WRITES (CHARTER §P1 F1 — never a second counter):
     `data.verify_metrics.flaky_retry`, in BOTH shapes it takes — the LOCAL land's `{rows: [...]}` and a
     ROUTED land's per-leg `{cand: {rows}, pinned: {rows}}` (a leg that recorded nothing is `null`; the
-    string `"unknown"` carries no rows and folds to nothing). A row counts iff `isolated == "pass"`:
-    an `isolated: fail` named a real defect and `unrunnable` proved nothing, so neither is a flake.
+    string `"unknown"` carries no rows and folds to nothing). A row counts iff `isolated == "pass"`
+    AND it is not a T-12426 LANE retest (`lane: True`): an `isolated: fail` named a real defect,
+    `unrunnable` proved nothing, and a lane row is an already-listed file's own retest — none is a
+    pool flake this fold may enter.
 
     SEGMENT-AWARE (SPEC-0190 rule 4) THROUGH THE ONE READER: the rows arrive from
     `journal.segment_rows_since` — the same windowed fold the `debt` views use — so the segment set is
@@ -18630,6 +19349,14 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str) -> dict:
             for row in (lrec.get("rows") or []):
                 if not isinstance(row, dict) or row.get("isolated") != "pass":
                     continue
+                if row.get("lane"):
+                    # T-12426 — a LANE retest is not this fold's evidence. The question here is «did
+                    # this file pass ALONE after failing in the POOL»; a lane member never ran in the
+                    # pool, so counting its isolated pass would re-add (or duplicate) a
+                    # tests/load-sensitive.txt line for a file ALREADY in the lane — the T-12378
+                    # re-add class, which the existing `n not in listed` guard cannot see when the
+                    # card removed the line in this very ship diff. A plain POOL row is untouched.
+                    continue
                 name = row.get("file")
                 if not isinstance(name, str) or not name:
                     continue
@@ -18641,6 +19368,46 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str) -> dict:
                 out.setdefault(name, []).append(
                     f"events.jsonl#ts={ts}" + (f":{stamped}" if stamped else ""))
     return out
+
+
+def _locator_ts(locator: str) -> str:
+    """`events.jsonl#ts=<ISO>[:<leg>]` → `<ISO>`; anything else → "" (sorts before every real ts,
+    so an unparseable locator can only make the exit guard LESS likely to skip — fail-open)."""
+    import re as _re
+    m = _re.search(r"#ts=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)", str(locator or ""))
+    return m.group(1) if m else ""
+
+
+def _load_sensitive_exited_at(main_wt, name: str) -> "str | None":
+    """The commit date (ISO, UTC `Z`) of the most recent commit on `main_wt`'s HEAD line that REMOVED
+    `name` from `tests/load-sensitive.txt` — a card's exit (T-12358: exit is a card's decision) — or
+    None when no such removal exists or git cannot answer. Walks the `-S<name>` history of the carrier
+    newest-first and returns the first commit whose carrier LACKS the name. NEVER RAISES."""
+    carrier_rel = "tests/" + verify_runner._LOAD_SENSITIVE_FILE
+    try:
+        import subprocess as _sp
+        log = _sp.run(["git", "log", "-8", "--format=%H %cI", f"-S{name}", "--", carrier_rel],
+                      cwd=str(main_wt), capture_output=True, text=True, timeout=20)
+        if log.returncode != 0:
+            return None
+        for line in log.stdout.splitlines():
+            parts = line.split()
+            if len(parts) != 2:
+                continue
+            sha, ciso = parts
+            shown = _sp.run(["git", "show", f"{sha}:{carrier_rel}"], cwd=str(main_wt),
+                            capture_output=True, text=True, timeout=20)
+            body = shown.stdout if shown.returncode == 0 else ""
+            if name not in body:
+                import datetime as _dt
+                try:
+                    d = _dt.datetime.fromisoformat(ciso)
+                    return d.astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                except ValueError:
+                    return None
+        return None
+    except Exception:              # noqa: BLE001 — a diagnostic guard must never break the land tail
+        return None
 
 
 _LOAD_SENSITIVE_HEADER = """\
@@ -18710,6 +19477,21 @@ def _load_sensitive_entry_at_land_tail(main_wt, *, now: "str | None" = None, ent
     discovered = {p.name for p in test_dir.glob("test_*.py")}
     entrants = sorted(n for n, locs in passes.items()
                       if len(locs) >= enter and n not in listed and n in discovered)
+    # A CARD'S EXIT IS HONOURED (2026-09-11 incident, main red on every land): T-12378 made
+    # t11906 load-robust and REMOVED its line in its ship diff (ca54d3665f); this seam, run at that
+    # very land's tail, found the file "not listed", re-counted the SAME three pre-exit retries and
+    # re-entered it (477bbdf68e) — contradicting the card's own tripwires, so every later land
+    # aborted. Automation only tightens on NEW evidence: a file whose most recent carrier removal is
+    # newer than every retry that would re-enter it is NOT an entrant. Fail-open: no removal found
+    # (or git unavailable) → today's behaviour, byte-identical.
+    exited_skipped: dict = {}
+    for n in list(entrants):
+        exited = _load_sensitive_exited_at(Path(main_wt), n)
+        if exited and all(_locator_ts(loc) <= exited for loc in passes[n]):
+            exited_skipped[n] = exited
+            entrants.remove(n)
+    if exited_skipped:
+        report["exited_skipped"] = exited_skipped
     report.update({"threshold": enter, "window_days": window_days, "candidates": len(passes)})
     if not entrants:
         report["reason"] = "below-threshold"
@@ -19975,8 +20757,15 @@ def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap) -> st
     yields NO pointer — silence beats a command that would refuse.
 
     It promises only what the verb does: the fold plus this same merge, worktree intact. Resolving a
-    genuinely conflicting SOURCE file afterwards is merge-recovery semantics and is deliberately NOT
-    claimed here.
+    genuinely conflicting SOURCE file afterwards is no longer unclaimed (T-12365 gave that seam its
+    covering verb, `worktree sync --resolved`) — so the LAND caller's pointer now names that arm as
+    its SECOND step, in one added sentence.
+    THE SYNC CALLER STILL GETS NOTHING, deliberately. T-11264 fixed exactly that: a pointer raised
+    from a `worktree sync` abort advises re-running the verb that just aborted, and its own test is
+    the differential that keeps the pointer CONDITIONAL. `--resolved` does not change that — the sync
+    abort leaves NO merge in progress (`_update_from_main` aborts it), so `--resolved` is not the next
+    step from there either. The operator holding a HALF-FINISHED merge meets the arm at the surface
+    that is actually true for them: `cmd_worktree_sync`'s own merge-in-progress refusal names it.
     """
     if label != "land":
         return ""
@@ -19990,16 +20779,26 @@ def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap) -> st
         branch = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], W).stdout.strip()
         m = re.fullmatch(r"task/(T-\d{4,})", branch)
         if m:
-            form = f"yitc-v2 worktree sync --task {m.group(1)}"
+            selector = f"--task {m.group(1)}"
         elif branch.startswith("work/") and branch[len("work/"):]:
-            form = f"yitc-v2 worktree sync --work {branch[len('work/'):]}"
+            selector = f"--work {branch[len('work/'):]}"
         else:
             return ""
+        form = f"yitc-v2 worktree sync {selector}"
+        resolved_form = f"yitc-v2 worktree sync --resolved {selector}"
     except Exception:                          # noqa: BLE001 — a pointer that raises must not abort
         return ""
+    # T-12365 — the SECOND step: what to do about the conflict itself. The land caller keeps its
+    # existing first sentence verbatim and gains this one.
+    finish = (f"\nThen finish it with the covering verb — resolve the conflicted file(s), `git add` "
+              f"each one, and run `{resolved_form}`: it checks nothing is left half-resolved, commits "
+              f"the merge, and records WHICH paths you resolved on a `merge_resolved_by_hand` row "
+              f"(a raw `git commit` here leaves the journal no record at all). It does NOT resolve "
+              f"anything for you, and it is not an audit-currency exemption — a hand resolution is "
+              f"authored content, so the re-audit SPEC-0077 §3a already required still applies.")
     return (f"\nRecovery: `{form}` — the covering verb for this seam. It folds the trailing "
             f"bookkeeping and re-runs this same merge in place (worktree intact, main untouched), "
-            f"so no raw git is needed to get here again.")
+            f"so no raw git is needed to get here again." + finish)
 
 
 def _apply_land_merge_resolution(W: Path, unmerged, resolved, *, _run_git_cap,
@@ -20212,6 +21011,29 @@ def _merged_main_tip(*a, **kw):
     return worktree_lifecycle._merged_main_tip(*a, **kw)
 
 
+@functools.wraps(worktree_lifecycle._merge_in_progress)
+def _merge_in_progress(*a, **kw):
+    """T-12365 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_merge_in_progress`.
+    It takes no host injections (only its `W` argument and the injected `_run_git_cap`), so this
+    residue is a pure forward with no injection block, exactly like `_merged_main_tip` above."""
+    return worktree_lifecycle._merge_in_progress(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._hand_resolved_merge_paths)
+def _hand_resolved_merge_paths(*a, **kw):
+    """T-12365 host residue — the body lives in
+    `bin/lib/worktree_lifecycle.py#_hand_resolved_merge_paths`. Same shape as the sibling above: no
+    host injection, `_run_git_cap` arrives keyword-only from the caller."""
+    return worktree_lifecycle._hand_resolved_merge_paths(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._staged_conflict_marker_paths)
+def _staged_conflict_marker_paths(*a, **kw):
+    """T-12365 host residue — the body lives in
+    `bin/lib/worktree_lifecycle.py#_staged_conflict_marker_paths`. Same shape as the sibling above."""
+    return worktree_lifecycle._staged_conflict_marker_paths(*a, **kw)
+
+
 @functools.wraps(worktree_lifecycle._land_preflight_conflict_lines)
 def _land_preflight_conflict_lines(*a, **kw):
     """T-11522 host residue — the body now lives in `bin/lib/worktree_lifecycle.py#_land_preflight_conflict_lines`.
@@ -20307,6 +21129,11 @@ def _land_audited_footprint_split(*a, **kw):
                        ("_last_audit_post_for_task", _last_audit_post_for_task),
                        ("_mechanically_resolved_conflicts", _mechanically_resolved_conflicts),
                        ("_uncovered_path_provenance", _uncovered_path_provenance),
+                       # T-12365 — the journal reader the report-only `hand_resolved` citation folds
+                       # `merge_resolved_by_hand` rows through. Injected here like every sibling, so a
+                       # `-C` rebind and a test monkeypatch reach it; un-injected the key is simply
+                       # absent and the record is byte-identical to before the card.
+                       ("_read_land_events", _read_land_events),
     ):
         kw.setdefault(_k, _v)
     return rebaseline_currency._land_audited_footprint_split(*a, **kw)
@@ -20384,7 +21211,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     owner_authorized: bool = False,
                     owner_rebaseline: bool = False,
                     rebaseline_reason: "str | None" = None, _land_bookkeeping_sha: "str | None" = None, *,
-                    expect_rebaseline: bool = False, merge_invalid_acceptance: bool = False, merge_invalid_assertions: "list | None" = None, _VERIFY_IMPLEMENTATION_GLOBS=None, _anchor_signature_of_text=None, rebaseline_waive=None, rebaseline_kind: "str | None" = None, _append_event, _auto_rebuild_graph, _die, _run_git_cap, _with_repo_lock, EVENTS_PATH, _BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES, _NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER, _change_is_audited, _classify_inert_paths, _consumer_zero_probe_guard, _consumer_tests_delegation=None, _delegated_tests_execution_gap=None, _dedup_events, _fold_main_journal_into_branch, _is_foldable_journal, _is_verify_implementation_touch, _is_yitc_session_state, _land_content_confirmation, _land_retry_backoff_seconds, _merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping, _run_decision_rule_body_guard, _run_pinned_verify, _run_verify_tests, _surface_failing_assertions, _verify_failing_test_names, write_text_atomic, _auto_file_kernel_deviations=None, _auto_cross_done_for_landed_closes=None, _audience_view_paths=None, _land_frontier_count=None, _event_dedup_key=None, member_claim_pid=None, batch_state: "dict | None" = None, _inland_audit_post=None, _at_post_ceiling=None, _inland_on_decisions_admission=None, _is_consumer_build=None, _debt_echo_tail=None, _context_seam_tail=None, _scaling_signals_tail=None, _regen_manifest_managed_regions=None, _regen_manifest_root=None, _id_alloc_lock=None, _dump_state_yaml=None) -> "str | None":
+                    expect_rebaseline: bool = False, merge_invalid_acceptance: bool = False, merge_invalid_assertions: "list | None" = None, _VERIFY_IMPLEMENTATION_GLOBS=None, _anchor_signature_of_text=None, rebaseline_waive=None, rebaseline_kind: "str | None" = None, _append_event, _auto_rebuild_graph, _die, _run_git_cap, _with_repo_lock, EVENTS_PATH, _BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES, _NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER, _change_is_audited, _classify_inert_paths, _consumer_zero_probe_guard, _consumer_tests_delegation=None, _delegated_tests_execution_gap=None, _dedup_events, _fold_main_journal_into_branch, _is_foldable_journal, _is_verify_implementation_touch=None, _is_yitc_session_state, _land_content_confirmation, _land_retry_backoff_seconds, _merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping, _run_decision_rule_body_guard, _run_pinned_verify, _run_verify_tests, _surface_failing_assertions, _verify_failing_test_names, write_text_atomic, _auto_file_kernel_deviations=None, _auto_cross_done_for_landed_closes=None, _audience_view_paths=None, _land_frontier_count=None, _event_dedup_key=None, member_claim_pid=None, batch_state: "dict | None" = None, _inland_audit_post=None, _at_post_ceiling=None, _inland_on_decisions_admission=None, _is_consumer_build=None, _debt_echo_tail=None, _context_seam_tail=None, _scaling_signals_tail=None, _regen_manifest_managed_regions=None, _regen_manifest_root=None, _id_alloc_lock=None, _dump_state_yaml=None) -> "str | None":
     """Steps 2-7 of `land` (T-0138 refactor — NO new mechanism, just a testable seam + the
     concurrent-land race fix). OPTIMISTIC-CONCURRENCY retry (D-0083 §3d / AC1): each attempt
     merges the LATEST main → rebuilds graph + dedups events + reconcile-commits → FULLY verifies
@@ -20400,6 +21227,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     `_after_verify_hook` is an INTERNAL test seam ONLY (set by tests to advance main HEAD between
     verify and the ff, deterministically exercising the retry branch) — never an env gate or an
     external control surface."""
+    # T-12438: cli.py no longer forwards the SPEC-0077 predicate — forwarding a selection-root name is what
+    # made the decision REACH cli.py's residue. It is this module's OWN predicate bound to the globs the
+    # caller already passes: the same predicate, the same globs, one hop fewer. An explicit value still wins.
+    if _is_verify_implementation_touch is None:
+        import functools
+        _is_verify_implementation_touch = functools.partial(
+            globals()["_is_verify_implementation_touch"], _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS)
     import json as _json
     import os
     import subprocess
@@ -20892,12 +21726,23 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                   f"unchanged (fail-open).", file=sys.stderr, flush=True)
 
 
+    # T-12393 — the DISTINCT reservation-holder pids observed while this land parks. Read by the
+    # halt row (`holders_seen`) and by the requeue arm in `_take_land_reservation`: >=2 means the
+    # QUEUE MOVED during the bound (the 2026-09-11 eviction class), 1 or 0 means ONE holder sat out
+    # the whole bound (the wedged-holder case T-11819 exists for, and the fail-closed direction
+    # whenever the holder is unresolvable). Outer-scoped for the same reason as `park_halt` below:
+    # produced inside the `on_wait` closure, read outside it. CLEARED by the requeue, so each bound
+    # is judged on ITS OWN observation window, never on a union across bounds.
+    park_holders = []
+
     def _fairness_wait_event(kind):
         # Throttled `waiting_for_land_reservation` heartbeat — the same carrier + throttle shape as
         # `waiting_for_verify_admission_slot` (T-10128), so a parked/escalating land is VISIBLE in the
         # journal instead of reading as a hang to a headless worker / --fleet-verdict.
         _hb = _verify_heartbeat_interval()   # shares the verify-heartbeat cadence + its test seam
         _last = [0.0]
+        _sample_last = [0.0]     # T-12393 — the holder sampler's own timer (see `on_wait`)
+        _sampled_holder = [None]  # T-12393 — last sampled holder dict, REUSED by the heartbeat row
         _tid = branch.split("/", 1)[1] if branch and branch.startswith("task/") else None
 
         def on_wait(waited_s):
@@ -20916,6 +21761,25 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             # no lock; see `_queued_premerge_tick`.
             if waited_s is not None and waited_s >= _queued_premerge_min_wait():
                 _queued_premerge_tick()
+            # T-12393 — THE HOLDER SAMPLE, ABOVE the heartbeat early-return DELIBERATELY, for the
+            # SAME reason the queued pre-merge tick above it is: a BEHAVIOURAL decision (whether the
+            # evicted land requeues) must not depend on an observability switch — the T-11690 rule,
+            # applied to a third consumer of this callback. `_flock_holder` was already resolved once
+            # per beat BELOW the return, for the heartbeat row; the resolve MOVES here and the
+            # heartbeat REUSES it (`_sampled_holder`), so there is no second /proc read per beat and
+            # the 0.1s poll is untouched (a resolve per poll tick would be the wrong cost class).
+            # Its own timer at the heartbeat CADENCE — falling back to `_VERIFY_HEARTBEAT_DEFAULT_SECS`
+            # when the heartbeat is disabled, so no new number enters the file. ZERO-SEEDED, so the
+            # FIRST `on_wait` tick ALWAYS samples: a land that polled at all can never report
+            # holders_seen=0 and be misread as the stuck-holder case.
+            _hs_cadence = _hb if (_hb and _hb > 0) else _VERIFY_HEARTBEAT_DEFAULT_SECS
+            _now_s = time.monotonic()
+            if (not _sample_last[0]) or (_now_s - _sample_last[0]) >= _hs_cadence:
+                _sample_last[0] = _now_s
+                _sampled_holder[0] = _flock_holder(_land_reservation_path(main_wt))
+                _hp = (_sampled_holder[0] or {}).get("pid")
+                if _hp is not None and _hp not in park_holders:
+                    park_holders.append(_hp)
             if not _hb or _hb <= 0:
                 return   # heartbeat disabled (the same env switch the verify heartbeat honours)
             nowm = time.monotonic()
@@ -20990,7 +21854,11 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             # RECORDS ONLY — no reaping, timeout or takeover rides on this; acting on a stale
             # holder is a decision nobody has taken. What it buys is that a queue stalled behind a
             # DEAD holder stops looking exactly like one moving normally: the pid can be checked.
-            _holder = _flock_holder(_land_reservation_path(main_wt))
+            # T-12393: the resolve MOVED above the early-return (the sampler) and this row now
+            # REUSES it — same dict, same beat, one /proc read. The sampler runs on the SAME cadence
+            # and the SAME zero-seeded timer as this heartbeat, so whenever this row is emitted the
+            # sample fired on this very tick; the value is never staler than the resolve it replaces.
+            _holder = _sampled_holder[0]
             # EXISTING ANALOG, and the divergence from it is deliberate: the once-per-attempt
             # `land_reservation_park_degraded` row below already records `_flock_holder` raw —
             # dict-or-None. None is unambiguous THERE, because that row only exists when the bound
@@ -21051,18 +21919,35 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         _tid = branch.split("/", 1)[1] if branch and branch.startswith("task/") else None
         _holder = _flock_holder(_land_reservation_path(main_wt))
         _limit = int(_land_reservation_park_limit_seconds())
-        park_halt[0] = {"waited_s": int(waited_s), "limit_s": _limit, "holder": _holder}
+        # T-12393: how many DISTINCT holders this bound watched go by. ADDITIVE (D-0009 / SPEC-0025)
+        # and always present on this row — the row only exists when the bound fired, so «unobserved»
+        # is a fact worth recording as 0 rather than leaving absent. It is what separates the class
+        # this halt belongs to: >=2 = the queue was MOVING and this land was merely slow (the four
+        # 2026-09-11 evictions), <2 = ONE holder sat out the whole bound (the T-11819 wedge).
+        _holders_seen = len(park_holders)
+        park_halt[0] = {"waited_s": int(waited_s), "limit_s": _limit, "holder": _holder,
+                        "holders_seen": _holders_seen}
         _append_event("land_reservation_park_halted", _tid,
                       {"branch": branch, "waited_s": int(waited_s),
                        "limit_s": _limit,
+                       "holders_seen": _holders_seen,
                        "holder": _holder},
                       events_path=main_wt / "events.jsonl")
+        # T-12393 — the WORDING, not the row, is what changed here. This callback fires on EVERY
+        # bound, including the ones the call site then REQUEUES, so it can no longer announce
+        # "STOPPING": that would print a falsehood on every requeue. It states the FACT (the bound
+        # fired, behind whom, having watched N holders) and names the call site as the decider; the
+        # two outcomes print their own line immediately after — the requeue notice below, or the
+        # `_die` reason. The journal row is unchanged and still emitted on every bound, which is what
+        # makes the halted/requeued PAIR readable after the fact.
         print(f"land: land-reservation park bound reached after {waited_s:.0f}s "
               f"(limit {_land_reservation_park_limit_seconds():.0f}s = "
-              f"{_LAND_RESERVATION_PARK_WALLS:g} verify walls) — the holder is not releasing; "
-              f"STOPPING rather than racing for the ff (T-11819). The worktree is intact and main is "
-              f"untouched; a fresh `land` may try again. "
-              f"See journal `land_reservation_park_halted`.", file=sys.stderr, flush=True)
+              f"{_LAND_RESERVATION_PARK_WALLS:g} verify walls); the holder did not release within "
+              f"it and {_holders_seen} distinct holder(s) were observed. The land leaves the park "
+              f"here — whether it re-enters the wait (T-12393) or STOPS rather than racing for the "
+              f"ff (T-11819) is decided at the call site and printed next. The worktree is intact "
+              f"and main is untouched. See journal `land_reservation_park_halted`.",
+              file=sys.stderr, flush=True)
 
     # T-10847 (SPEC-0025 §land_completed): PER-ATTEMPT COST ATTRIBUTION — report-only. `verify_ms`
     # below is re-measured every attempt and only the LAST one survives into land_completed, so an
@@ -21219,7 +22104,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         `_land_abort_attributable` predicate, which also answers the emitter's `abort_preflight`
         marker, so the two cannot disagree. A preflight on attempt >= 2 is unchanged: attempt 1
         there really did pay."""
-        if not _land_abort_attributable(cur_attempt, abort_detail):
+        if not _land_abort_attributable(cur_attempt, abort_detail, attempt_verify_ms):
             return None
         if not attempt_closed:
             _close_attempt(cur_attempt, outcome)
@@ -21621,43 +22506,90 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             # heartbeat is disabled (`YITC_VERIFY_HEARTBEAT_SECS<=0`), so deriving the summary from
             # it would make a durable metric depend on an observability switch — and would
             # under-report every wait shorter than one beat. One monotonic clock, one subtraction.
-            _res_t0 = time.monotonic()
-            # T-11819: no `if fair_degraded: return` stickiness guard here any more. It existed
-            # because a degraded land STAYED ALIVE on the optimistic path and had to be kept from
-            # re-queueing behind the same wedged holder on every attempt. A land that reaches the
-            # bound now STOPS (below), so nothing survives to re-enter — the guard would be dead code.
-            if fair_fd is None and attempt >= _LAND_FAIRNESS_ATTEMPT:
-                # T-11117: at _LAND_FAIRNESS_ATTEMPT=1 this is the FIRST attempt — the reservation is
-                # taken BEFORE any verify is paid, which is the point: 71% of the verify budget was redo
-                # because peers raced for the ff and the loser re-verified. Take the exclusive
-                # reservation and hold it for the rest of this process, so peers park and this lander
-                # gets a clear merge→verify→ff window.
-                fair_fd = _acquire_land_reservation(main_wt, on_wait=_fairness_wait_event("escalate"),
-                                                    on_degrade=_fairness_halt_event,
-                                                    superseded_probe=_probe,
-                                                    superseded_out=_sink,
-                                                    self_branch=branch)
-                # T-11274: `None` is shared by the degrade path and the supersession exit, so the SINK —
-                # not the return value — discriminates them. A supersession is not a wedged holder and
-                # must not be recorded as one, nor drop this land onto the optimistic race for life.
-                fair_degraded = fair_fd is None and not _sink
-            elif fair_fd is None:
-                # Not holding: PARK while a peer holds its window, then proceed WITHOUT holding. With no
-                # reservation held (the common case) this is ONE non-blocking flock test and no sleep —
-                # the single, uncontended land is unchanged. T-11117: the park is BOUNDED — past
-                # `_land_reservation_park_limit_seconds()` it degrades to the ordinary optimistic path
-                # (a wedged holder must not park the repo forever) and says so in the journal.
-                fair_degraded = not _await_land_reservation(
-                    main_wt, on_wait=_fairness_wait_event("park"),
-                    on_degrade=_fairness_halt_event,
-                    superseded_probe=_probe, superseded_out=_sink,
-                    self_branch=branch)
-            # T-11690 — CLOSE the wait, on every path out of the if/elif above, INCLUDING the ones
-            # that end in a `_die` below (the park-bound halt) and the one where this land was
-            # already holding `fair_fd` and waited for nothing at all. That last case records a
-            # truthful ~0: an uncontended `_await_land_reservation` is one non-blocking flock test,
-            # so "waited on neither queue" reads as zero rather than as an absent key.
-            reservation_waits.append(time.monotonic() - _res_t0)
+            # T-12393 — THE REQUEUE LOOP. The acquire/await dispatch below is unchanged; what is
+            # new is that the park bound is no longer unconditionally terminal. When the bound fired
+            # and the queue was MOVING (>=2 distinct holders watched go by), this land re-enters the
+            # SAME wait by itself — worktree intact, queue position re-taken, nothing merged, main
+            # untouched — instead of being handed to a human. When ONE holder sat out the whole
+            # bound it breaks to the EXISTING `_die` below, byte-identical to today (T-11819).
+            # Bounded by `_land_park_requeue_max()`: past the cap it breaks to that same `_die` with
+            # the reason EXTENDED to name the attempts. Grounding: the four evictions of 2026-09-11
+            # (T-12322/T-12315/T-12340/T-12361), each naming DIFFERENT holders across its wait and
+            # each re-run BY HAND by the Controller; T-12361 then landed on the re-run.
+            _requeue_attempt = 0
+            _requeue_cap_exhausted = False
+            _rq_tid = branch.split("/", 1)[1] if branch and branch.startswith("task/") else None
+            while True:
+                _res_t0 = time.monotonic()
+                # T-11819: no `if fair_degraded: return` stickiness guard here any more. It existed
+                # because a degraded land STAYED ALIVE on the optimistic path and had to be kept from
+                # re-queueing behind the same wedged holder on every attempt. A land that reaches the
+                # bound now STOPS (below), so nothing survives to re-enter — the guard would be dead code.
+                # T-12393 amends the SECOND sentence, not the first: a land CAN now re-enter this
+                # wait, but only through the requeue arm below, which re-enters ONLY when the queue
+                # was proven to be MOVING and only up to `_land_park_requeue_max()` times. Re-queueing
+                # behind the SAME wedged holder — the thing the removed guard forbade — is exactly the
+                # case that still breaks to the `_die`, so the guard stays dead code.
+                if fair_fd is None and attempt >= _LAND_FAIRNESS_ATTEMPT:
+                    # T-11117: at _LAND_FAIRNESS_ATTEMPT=1 this is the FIRST attempt — the reservation is
+                    # taken BEFORE any verify is paid, which is the point: 71% of the verify budget was redo
+                    # because peers raced for the ff and the loser re-verified. Take the exclusive
+                    # reservation and hold it for the rest of this process, so peers park and this lander
+                    # gets a clear merge→verify→ff window.
+                    fair_fd = _acquire_land_reservation(main_wt, on_wait=_fairness_wait_event("escalate"),
+                                                        on_degrade=_fairness_halt_event,
+                                                        superseded_probe=_probe,
+                                                        superseded_out=_sink,
+                                                        self_branch=branch)
+                    # T-11274: `None` is shared by the degrade path and the supersession exit, so the SINK —
+                    # not the return value — discriminates them. A supersession is not a wedged holder and
+                    # must not be recorded as one, nor drop this land onto the optimistic race for life.
+                    fair_degraded = fair_fd is None and not _sink
+                elif fair_fd is None:
+                    # Not holding: PARK while a peer holds its window, then proceed WITHOUT holding. With no
+                    # reservation held (the common case) this is ONE non-blocking flock test and no sleep —
+                    # the single, uncontended land is unchanged. T-11117: the park is BOUNDED — past
+                    # `_land_reservation_park_limit_seconds()` it degrades to the ordinary optimistic path
+                    # (a wedged holder must not park the repo forever) and says so in the journal.
+                    fair_degraded = not _await_land_reservation(
+                        main_wt, on_wait=_fairness_wait_event("park"),
+                        on_degrade=_fairness_halt_event,
+                        superseded_probe=_probe, superseded_out=_sink,
+                        self_branch=branch)
+                # T-11690 — CLOSE the wait, on every path out of the if/elif above, INCLUDING the ones
+                # that end in a `_die` below (the park-bound halt) and the one where this land was
+                # already holding `fair_fd` and waited for nothing at all. That last case records a
+                # truthful ~0: an uncontended `_await_land_reservation` is one non-blocking flock test,
+                # so "waited on neither queue" reads as zero rather than as an absent key.
+                reservation_waits.append(time.monotonic() - _res_t0)
+                if park_halt[0] is None:
+                    break                      # the ordinary path — the bound never fired
+                _holders_seen = len(park_holders)
+                _cap = _land_park_requeue_max()
+                if _holders_seen < 2:
+                    # ONE holder (or none resolvable) held the reservation for the WHOLE bound: the
+                    # wedged-holder case the bound exists for, and the FAIL-CLOSED direction when the
+                    # holder could not be resolved at all. Today's stop, unchanged.
+                    break
+                if _cap <= 0:
+                    break                      # requeue disabled (cap 0) — today's stop, unchanged
+                _requeue_attempt += 1
+                if _requeue_attempt > _cap:
+                    _requeue_cap_exhausted = True
+                    break
+                _append_event("land_reservation_park_requeued", _rq_tid,
+                              {"branch": branch, "attempt": _requeue_attempt,
+                               "holders_seen": _holders_seen},
+                              events_path=main_wt / "events.jsonl")
+                print(f"land: land-reservation park bound reached, but the queue MOVED during it "
+                      f"({_holders_seen} distinct holders) — re-entering the wait by itself "
+                      f"(attempt {_requeue_attempt}/{_cap}, {_LAND_PARK_REQUEUE_MAX_ENV}). The "
+                      f"worktree is intact and main is untouched. See journal "
+                      f"`land_reservation_park_requeued`.", file=sys.stderr, flush=True)
+                # Each bound is judged on ITS OWN window: clear both, so the next bound's
+                # `holders_seen` counts only what IT watched and the halt state starts clean.
+                park_halt[0] = None
+                park_holders.clear()
             # T-12150 (plan step 3b) — THE ACQUISITION-BOUND FINAL TICK. `main` can advance after the
             # last queued tick and before the flock is acquired, so the window AC1 measures would
             # otherwise still be open. `forced=True` bypasses the THROTTLE and the MIN-WAIT ONLY — it
@@ -21720,14 +22652,37 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 # two lands in one process and hit exactly that). A land halts here only when it
                 # genuinely served out the full park limit behind a holder that would not release.
                 _h = park_halt[0]
+                # ONE REFUSAL POINT, TWO REASONS (T-12393). The wedged-holder stop above and the
+                # requeue-cap stop share `abort_class`, recovery (re-run the land), governed point
+                # and cost — they differ only in the SENTENCE they hand the reader. Written as two
+                # `_die` calls they were two refusal SITES to the T-11371 placement sweep, which
+                # asks for one registered verdict per refusal point; a second verdict row would have
+                # been a duplicate of the first in every SPEC-0188 element. So the reason is chosen
+                # here and the refusal is raised ONCE.
+                if _requeue_cap_exhausted:
+                    # The queue WAS moving, so this is not the wedged-holder stop; this land simply
+                    # exhausted its requeue budget and STOPS rather than queueing without bound.
+                    _why = (f"after {_requeue_attempt - 1} automatic requeue(s) — "
+                            f"attempts={_requeue_attempt} > cap={_land_park_requeue_max()} "
+                            f"({_LAND_PARK_REQUEUE_MAX_ENV}). The queue kept MOVING "
+                            f"({_h.get('holders_seen', 0)} distinct holders in the last bound), so "
+                            f"this is not a wedged holder — this land is simply not getting "
+                            f"through, and STOPS rather than queueing without bound (T-12393). "
+                            f"Nothing was merged and main is untouched; the worktree is intact and "
+                            f"`land` may simply be re-run. See journal "
+                            f"`land_reservation_park_requeued` + `land_reservation_park_halted`.")
+                    _extra = {"requeue_attempts": _requeue_attempt,
+                              "requeue_cap": _land_park_requeue_max()}
+                else:
+                    _why = ("— the reservation holder is not releasing, so this land STOPS instead "
+                            "of racing for the ff (T-11819). Nothing was merged and main is "
+                            "untouched; the worktree is intact and `land` may simply be re-run once "
+                            "the holder clears. See journal `land_reservation_park_halted`.")
+                    _extra = {}
                 _die(f"land: land-reservation park bound reached after "
-                     f"{int(_h.get('waited_s', 0))}s (limit {int(_h.get('limit_s', 0))}s) — the "
-                     f"reservation holder is not releasing, so this land STOPS instead of racing for "
-                     f"the ff (T-11819). Nothing was merged and main is untouched; the worktree is "
-                     f"intact and `land` may simply be re-run once the holder clears. See journal "
-                     f"`land_reservation_park_halted`.",
+                     f"{int(_h.get('waited_s', 0))}s (limit {int(_h.get('limit_s', 0))}s) {_why}",
                      abort_class="land-reservation-park-limit",
-                     abort_detail={k: v for k, v in _h.items() if v is not None})
+                     abort_detail={**{k: v for k, v in _h.items() if v is not None}, **_extra})
 
         _take_land_reservation(_sup_probe, _sup_park)
 
@@ -22743,6 +23698,120 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                      abort_detail={"verify_mode": "pinned+candidate", "preflight": True,
                                    "rebaseline_bad_tokens": _pf_bad,
                                    "waive_coverage_preflight": True})
+        # T-12325 (SPEC-0077 §3a) — THE FIRST-ATTEMPT PREFLIGHT: the SAME step-4a seam, the OTHER
+        # side of the `owner_rebaseline` fork. Everything above is reachable only once `--rebaseline`
+        # is ALREADY declared, which is precisely why a FIRST attempt never reached any of it: it had
+        # to pay a full two-leg verify simply to learn WHICH pinned assertions its own change
+        # superseded, then declare them on a second attempt. Measured over 2026-09-03..10, that blind
+        # first attempt is 151 `verify-failed` aborts at a median 12.9 min apiece, and it is why a
+        # rebaseline land needed a mean 3.81 attempts against 1.26 for a plain one.
+        #
+        # WHAT IS RUN, AND WHY IT IS A SMALL SET RATHER THAN THE PINNED LEG. Only the files this
+        # branch's own diff both TOUCHED and WEAKENED — T-12307's classification, reused through
+        # `_pinned_touched_weakened_keys`, never re-derived here. That set is the exact COMPLEMENT of
+        # T-12307's touched-exclusion: a touched-but-not-weakened file is dropped from the pinned leg
+        # entirely (so it cannot fail and must not be preflighted), while a WEAKENED one stays pinned
+        # on purpose — the SPEC-0077 self-approval fence — and is therefore the one class that is
+        # about to RED. The census/untouched stale-pin class is a DIFFERENT question owned by
+        # T-12307/T-12313 and is never consulted here: the selection starts from this branch's diff,
+        # so an untouched file cannot enter it at all.
+        #
+        # ORDERED AFTER the declared block, never inside it, for the T-10850 (iii) reason that block
+        # states about its own last member: every pre-existing refusal keeps its exact message and
+        # abort_class, so this can only ADD a refusal on a path where nothing refused before.
+        #
+        # FAIL-OPEN, INHERITED RATHER THAN RE-DECIDED. `_pinned_touched_weakened_keys` returns `[]` on
+        # any failure and `_preflight_acquire_pinned_entries` returns `None` when the acquisition
+        # could not be ESTABLISHED; both read as ADMIT, and the land proceeds into the full verify on
+        # a byte-identical path. This arm may make a refusal EARLIER and CHEAPER; it may never invent
+        # one from an unestablished fact (the T-11479 rule).
+        #
+        # THE A-PRIME AUTHORITY IS UNTOUCHED. Nothing is auto-declared. The refusal PASTES a command
+        # the operator must choose to run, and `--rebaseline` remains the only waiver, still requiring
+        # its kind, its mechanically-tied >=30-char reason and a fresh audit-post. What moves is WHEN
+        # the operator learns what to declare — never WHO may declare it.
+        #
+        # ONE FILE-SET, ONE SUBPROCESS, NO ADMISSION SLOT: `_preflight_acquire_pinned_entries` runs
+        # `workers=1, admission_slots=None`, so this stays outside the SPEC-0132 bound. That is the
+        # whole point — a judgement reached after the slot has not moved at all.
+        # NO KILL-SWITCH KNOB, deliberately (CHARTER §P1 F4 + this card's declared "no new flag"
+        # bound). An env escape was drafted here and REMOVED: the arm is already fail-open BY
+        # CONSTRUCTION — an unresolvable diff or an unestablished acquisition admits — so a knob would
+        # buy nothing a failure path does not already give, while adding a governed tunable that must
+        # be inventoried and classified. There is no incident asking for one.
+        # ORDER-GATED ON THE EXISTING `YITC_PINNED_FIRST` KNOB (T-12151), not on a new one. This arm
+        # IS a pinned-first ordering: it moves the pinned judgement EARLIER still, to before the full
+        # verify. So the operator switch that restores the pinned-LAST order must govern it too, or
+        # T-12151's control arm would stop being a control — with this arm firing unconditionally, a
+        # `YITC_PINNED_FIRST=0` land on a weakening-touch branch would still never reach the candidate
+        # leg, and the differential that proves the ordering claim would prove nothing. Reading the
+        # SAME env the two sites above already read keeps one switch for one ordering (CHARTER §P5),
+        # and mints nothing: this card's "no new flag" bound is intact.
+        elif (_verify_path_touch and do_test_verify and not _pinned_policy_off
+              and os.environ.get("YITC_PINNED_FIRST", "1") != "0"):
+            _fa_keys = _pinned_touched_weakened_keys(W, merged_base, _run_git_cap=_run_git_cap)
+            if _fa_keys:
+                # MEASURE WHAT THIS ARM ACTUALLY SPENDS, and report it on the abort row through the
+                # EXISTING `attempt_verify_ms` carrier (T-10849's discipline, applied to a cheaper
+                # run). This refusal is not free — it runs real pinned test subprocesses — and a row
+                # carrying `verify_duration_ms: null` would claim it never verified anything at all,
+                # which SPEC-0025 reserves for an attempt that never reached step 4. Reporting the
+                # true, small number is what lets the SPEC-0119 rule-27 fold price this arm honestly
+                # against the full verify it replaces, instead of scoring it as costless.
+                _fa_t0 = time.monotonic()
+                _fa_acquired = _preflight_acquire_pinned_entries(
+                    _fa_keys, W, main_wt, merged_base, branch,
+                    _run_pinned_verify=_run_pinned_verify, _run_git_cap=_run_git_cap,
+                    _pinned_failure_test_file=_pinned_failure_test_file)
+                attempt_verify_ms = int((time.monotonic() - _fa_t0) * 1000)
+                _fa_entries = (_fa_acquired or ([], []))[0]
+                # THE REFUSAL IS DECIDED HERE, ON `_fa_entries` — on a pinned copy having actually
+                # FAILED — and never on whether a waive token can be composed for it. A failure that
+                # binds no token is refused just as firmly; the renderer then says the `--rebaseline`
+                # route is unavailable for it rather than fabricating a token (audit-pre finding 1).
+                # EXCUSED FAILURES ARE NOT REFUSALS — the SAME T-9246 / SPEC-0077 §3 classifier the
+                # full pinned leg applies (`_pinned_failures_are_additive_layout_mismatch`, one
+                # spelling, injected, never re-derived). A pinned failure that is a purely-additive
+                # engine-LAYOUT mismatch is EXPECTED behaviour the pinned leg forgives and RECORDS
+                # (`land_completed.pinned_layout_excused`); refusing it here would turn a forgiven
+                # mismatch into a hard early refusal and demand a `--rebaseline` declaration for a
+                # change that never superseded any assertion. Excused → this arm admits, the land
+                # proceeds into the full verify, and the excusal record is written downstream exactly
+                # where it is written today. The classifier is ALL-OR-NOTHING, so a set carrying any
+                # real assertion failure is still refused in full.
+                if _fa_entries and _pinned_failures_are_additive_layout_mismatch(
+                        list(_fa_entries), W, merged_base) is not None:
+                    _fa_entries = []
+                if _fa_entries:
+                    _fa_assertions = _surface_failing_assertions(list(_fa_entries)) or []
+                    _die(_first_attempt_preflight_refusal_text(
+                            _fa_entries, _fa_keys,
+                            _rebaseline_waive_suggested_token=_rebaseline_waive_suggested_token,
+                            _pinned_entry_waive_record=_pinned_entry_waive_record,
+                            _surface_failing_assertions=_surface_failing_assertions),
+                         # The class the POST-VERIFY undeclared refusal already uses — no new
+                         # vocabulary is minted. SPEC-0119 rule 27 splits paid-from-early by the
+                         # `verify_mode` MARKER and the `abort_preflight` one, never by class name
+                         # (`debt._abort_group` checks `paid` first and the name last), so this row
+                         # buckets as `preflight-refused` because it carries the preflight marker and
+                         # NOT the paid-verify one — exactly as the declared arm's refusals do.
+                         abort_class="verify-failed",
+                         # `preflight: True` is the EXISTING row shape that becomes
+                         # `land_completed.abort_preflight`. `refused_at` is carried alongside it as
+                         # the card's named descriptive key: additive on the same row, no new store,
+                         # event type, constant or enum, and the bucketing rides the marker that
+                         # already exists rather than a second one.
+                         # `candidate_leg_run: False` is the EXISTING T-12151 key, not a new one, and
+                         # it is REQUIRED here rather than decorative: this refusal is a pinned-first
+                         # refusal, so the candidate leg genuinely did not run and its result for
+                         # this branch is UNKNOWN — not passing. A record silent about that invites
+                         # the one inference this ordering makes unsafe (T-12151), and the refusal
+                         # TEXT says the same thing in words.
+                         abort_detail={"preflight": True, "refused_at": "preflight",
+                                       "first_attempt_preflight": True,
+                                       "candidate_leg_run": False, "pinned_first": True,
+                                       "failing_assertions": _fa_assertions,
+                                       "pinned_touched_weakened": _fa_keys})
         # T-10896 (X-0738 / X-0696, SPEC-0077 §3a) — THE AUDITED-DIFF CURRENCY GATE. Until now the
         # question "is the diff about to land still the diff that was audited" was asked on EXACTLY ONE
         # path: the `--rebaseline` preflight just above, and only on a verify-path touch. An ORDINARY
@@ -25207,6 +26276,20 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     _consumer_tests_delegation=_consumer_tests_delegation)
             except Exception as _vte:
                 _vtr = {"written": False, "reason": f"error:{type(_vte).__name__}"}
+            # T-12420 (SPEC-0188 rule 7) — ADMIT THE WRITE ONLY ON PROOF. The table is read by 13
+            # test files in this repo; a refresh that reds one of them would leave `main` failing a
+            # test the candidate passed. The verdict is taken on the WRITTEN tree, before the
+            # `git add` below, and a non-green one restores the table (which the next land
+            # re-derives from its own measurement — nothing is lost).
+            if _vtr.get("written"):
+                _vt_v = _land_tail_tripwire_verdict(main_wt, [f"tests/{_VERIFY_DURATIONS_FILE}"])
+                _vtr["tripwire"] = {k: _vt_v.get(k) for k in ("ok", "reason", "wall_ms")}
+                if not _vt_v.get("ok"):
+                    _land_tail_withhold(main_wt, "verify_duration_table",
+                                        [f"tests/{_VERIFY_DURATIONS_FILE}"], _vt_v,
+                                        _run_git_cap=_run_git_cap, _append_event=_append_event)
+                    _vtr["written"] = False
+                    _vtr["withheld"] = _vt_v.get("reason")
             payload = {"branch": branch, "sha": work_sha[:7], "worktree": str(W),
                        # SEMANTICS (T-10972, AC3 — stated here, at the payload, not left to a reader):
                        #   `verify_duration_ms` is QUEUE-INCLUSIVE. It is the step-4 wall measured from
@@ -25584,6 +26667,31 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 _lse = {"written": False, "reason": f"error:{type(_lse_e).__name__}"}
                 print(f"land: load-sensitive entry skipped (non-fatal, NOT a land failure): {_lse_e}",
                       file=sys.stderr)
+            # T-12420 (SPEC-0188 rule 7) — ADMIT THE WHOLE TRANSACTION, OR NONE OF IT. This writer
+            # produces TWO kinds of path — the carrier line and N auto-filed cards — so the verdict
+            # is taken over the UNION of their readers and the paths are restored TOGETHER: a green
+            # carrier must not carry an unproven card past the gate (the audit-pre finding). This is
+            # the seam of the measured incident: on 2026-09-11 the carrier write re-entered a lane
+            # line T-12378 had just removed and `tests/test_t12378_t11906_lane_line_removed.py` —
+            # a tripwire that did not exist when this writer shipped — reddened every later land.
+            # The reader set is DERIVED, which is why that tripwire is found at all.
+            if _lse.get("written"):
+                _lse_paths = [f"tests/{verify_runner._LOAD_SENSITIVE_FILE}"] + sorted(
+                    (_lse.get("cards") or {}).values())
+                _lse_v = _land_tail_tripwire_verdict(main_wt, _lse_paths)
+                _lse["tripwire"] = {k: _lse_v.get(k) for k in ("ok", "reason", "wall_ms")}
+                if not _lse_v.get("ok"):
+                    _land_tail_withhold(main_wt, "load_sensitive_entry", _lse_paths, _lse_v,
+                                        _run_git_cap=_run_git_cap, _append_event=_append_event)
+                    # The `load_sensitive_entered` rows this writer already appended STAY (the
+                    # journal is append-only, CHARTER §P5) — the withheld row is their correction,
+                    # and the carrier, which is what the runner and the debt lane actually read, is
+                    # back to the verified tree. The next land re-folds the same retries and
+                    # re-enters the file if the evidence still holds.
+                    _lse["written"] = False
+                    _lse["withheld"] = _lse_v.get("reason")
+                    _lse["cards"] = {}
+                    _lse["entered"] = []
             if _lse.get("entered"):
                 print("land: load-sensitive set — ENTERED " + ", ".join(_lse["entered"])
                       + f" (>= {_lse.get('threshold')} isolated-pass retries in {_lse.get('window_days')}d; "

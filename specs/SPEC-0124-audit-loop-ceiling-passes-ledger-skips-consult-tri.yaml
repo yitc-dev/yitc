@@ -146,6 +146,10 @@ body: |
   `YITC_EXPECTED_SESSION_REF` — never a new liveness / autonomy / state machine (CHARTER non-goals).
   The EARLY plan gates keep their own ceiling path in `_run_plan_gate_audit` (§Plan-target parity),
   which this retirement does not touch; their L3 parity remains the tracked deferral.
+  SUPERSEDED IN PART by SPEC-0204 rule 9 (the plan-gate arm): what happens AT a plan-gate ceiling is now
+  the typed-decision route homed there, and §Plan-target parity's consult-governed-only continuation —
+  together with the plan-gate auto-consult deferral above — is retired by SPEC-0204 rule 6. This spec
+  keeps the ceiling ITSELF (pass arithmetic, ledger-skips) for plan targets as for task targets.
 
   **Reject-as-wrong rationale.** Absorption (mode-a/mode-b) is for findings the session
   ACCEPTS. A THIRD disposition is REJECTING a YELLOW finding as WRONG — the auditor was mistaken,
@@ -174,6 +178,8 @@ body: |
   | **Passable-absorption** (E-0008 regression) | a TASK `audit post` RE-AUDIT (prior_passes >= 1) whose current verdict is YELLOW, carries NO high-severity finding, whose PRIOR audit-post verdict was ALSO YELLOW, AND whose audited COMMIT is UNCHANGED from the prior audit (current commit == prior recorded commit). The COMMIT-EQUALITY is the decisive diff-change signal: a true mode-b re-run re-audits the SAME commit, whereas a GENUINE mode-a rework — even one that stays YELLOW — re-commits via `task commit --absorb` → a DIFFERENT commit → NOT passable | NO — deliberately (anti-cx F3): the pre-block contract is UNCHANGED, so a prior-YELLOW audit-post AT the cap still `_die`s on a re-run | NO. `ledger_skip` preserves the verdict-note record (findings / notes / absorbed are written regardless — that IS the mode-b record); only the pass counter is withheld, and the verb WARNs that mode-b (record-and-proceed) was the right route | `passable_absorption_reaudit: true` | TASK `audit post` only |
   | **Consult-governed carry** | the granted continuation is CONSULT-GOVERNED — `_consult_basis` verified a FRESH single-survivor GREEN/YELLOW consult bound to the CURRENT subject fingerprint, so the pass carries that consult's verdict VERBATIM and the auditor is NOT re-invoked (`consult_adjudication` is non-None; the carry) | n/a — the continuation was already granted (this axis decides the CHARGE, never the admission) | NO — UNCONDITIONALLY on the carried verdict (GREEN/YELLOW alike), because no auditor produced it: nothing was absorbed against one | `consult_governed: true` (the existing marker, now also the ledger-skip marker) | TASK `audit pre` / `audit post` + the plan finalization gate |
   | **Plan task-carrier** | the plan's recorded `tasks:` carrier (`_plan_task_carrier`, the plan's cites-set recorded in the verdict's `tasks:`) DIFFERS from current — a cited task filed/removed OR a status change (e.g. in-progress→done). INDEPENDENT of the prior verdict (like the lens axis), because a stale carrier marks the verdict STALE (`_require_plan_finalization_ready` clause (d)) | YES | NO, when it returns a clean GREEN | `freshness_reaudit: true` (the same ledger-skip as the corpus/lens axes) | `audit post --plan` only |
+
+  | **Ship-custody re-pin** | `audit post --repin-ship` on a TASK: the card's ship LANDED but a BOOKKEEPING self-commit (pause/park/wont-do) displaced custody, and `_require_ship_custody_repin` has ALREADY proven — fail-closed, before any auditor call — that custody is genuinely bookkeeping-shifted, that the named sha IS the displaced ship, that every displacing record is diff-limited to bookkeeping, and that the ship landed on `main`. AND the saved audit-post record does NOT already pin that ship | YES — allowed to RUN even at/past the cap. Grounds are : this re-audits the ALREADY-GREEN LANDED SHIP DIFF, never the card's own absorption loop, and the ceiling bounds absorption loops. Without it a converged card at the ceiling cannot close AT ITS OWN LANDED SHIP — `task close` demands a verdict for the recorded commit and the pass producing it is refused (measured 2026-09-12) | YES — the pass COUNTS, deliberately. Unlike the currency route (`status: done`-only) this runs on a LIVE card, so it pays; the charge is the second bound | none new — the existing `custody_repin_from` provenance already identifies the route | TASK `audit post --repin-ship` only |
 
   **FAIL-CLOSED clauses (per axis — these bound every row above; when none matches, NORMAL pass
   counting + the ceiling apply):**
@@ -243,6 +249,17 @@ body: |
     re-run with no further task change matches → the ceiling re-applies (no unlimited bypass). A missing
     prior `tasks:` (pre- record) reads as [] → a non-empty current set differs → also a change. A
     surfaced YELLOW/RED/finding is a real outcome that advances `passes` normally + the ceiling applies.
+
+  - **Ship-custody re-pin:** ONE-SHOT by construction — the exemption holds only while the saved
+    audit-post record does not ALREADY pin the ship, and the repin pass records it, so an immediate
+    re-run's predicate is False and the ceiling re-applies. There is no sequence of repins that walks
+    past the cap. Everything unprovable REFUSES rather than grants: an unresolvable `--commit`, an
+    unreadable prior record, or an unresolvable prior pin leaves the exemption OFF. This axis grants
+    NOTHING that `_require_ship_custody_repin` has not already proven — it only stops the ceiling
+    pre-block from refusing a pass that gate admitted; a displacement caused by an AUTHORED commit is
+    still refused THERE, not here (that card's route is the SPEC-0204 rule-3 empty-set admission).
+    And it takes NO ledger skip: the pass advances `passes` like any other, which is what bounds it a
+    second time.
 
   - **Consult-governed carry:** the OWNER GRANT IS UNCHANGED — this axis removes EXACTLY ONE of the two
     costs a consult-carried verdict used to pay, never both. The continuation still requires a fresh
@@ -729,4 +746,4 @@ activation_owner_task:
 proposed_by: doc-governance-kernel-english-only-per-doc-size-ca
 init_concern: ~
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0
+  bin/lib/audit.py#cmd_audit: 1ab2d8cf4dd5688048a6d2de1626c9951944591002f078ff8228e940d573513f

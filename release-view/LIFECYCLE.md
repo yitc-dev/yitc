@@ -222,11 +222,11 @@ which closed GREEN on the same commit once its card declared `host_config`.
 After `audit post` writes `decisions/<task>-audit-post.yaml`, do NOT run a standalone `task commit` on
 it: that shifts the recorded commit past the audited commit and DEADLOCKS closure (the / E-0008
 chain-of-custody trap). `task close` folds the dirty audit YAML into its own closure-record commit.
-**TWO sanctioned exceptions, same mechanics, different admitting verdict:** the mode-a absorption cycle
+**THREE sanctioned exceptions — one per admitting verdict, same mechanics throughout:** the mode-a absorption cycle
 (`task commit --absorb` — YELLOW) and the RED in-scope-fix leg (`task commit --fix-red` —
 RED, and only on positive proof the commit carries authored content, so a fixless RED absorption stays
 refused at both doors; its `--card-repair` arm, admits the card-record repair on the
-different proof that the audited ship it rides on exists). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
+different proof that the audited ship it rides on exists), and the GREEN second-ship leg (`task commit --reship` — GREEN, same authored-content proof: audit-post passed and a further IN-SCOPE ship is still needed; nothing further to ship means the GREEN stands and Stage 9 is the route). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
 zeroes the passes counter), then the REQUIRED `audit post --commit <new>` re-pins custody and carries the
 trail (`passes_trail`). Full rule + the `cmd_task_commit` foot-gun guard: SPEC-0015 §Internal
 (`bin/yitc-v2 graph query SPEC-0015`).
@@ -271,7 +271,7 @@ work · task analog:
 - **draft** — start (`plan file` creates it) · author the draft (WIP planning) — front-load doctrine + skeleton sections delivered at `plan file`: SPEC-0043 (`graph query SPEC-0043`) · *Analysis*
 - **specs** — draft is thought-through · `plan stage specs` asks the **mandatory-blocking** `gate-specs` external audit (RED/ABORT holds the transition — gate policy home: SPEC-0083) · compose + check the draft specs (`spec new --draft`) · *Filing/Plan*
 - **trial** *(owner-invoked, trial-eligible plans only — SPEC-0035)* — draft specs composed + checked · run the planned mechanism on real(-ish) data until the design converges (baked `## Trial protocol`; never mutates production data); owner judges convergence on journaled runs · *pre-accept design-convergence soak*
-- **accepted** — draft specs composed + checked · confirm plan+specs, compose `implementation_plan`; specs born `proposed` · *Plan*
+- **accepted** — draft specs composed + checked · confirm plan+specs, compose `implementation_plan`; specs born `proposed`. ORDER : compose `implementation_plan` + the realization-exit block FIRST, then `plan check`, then `plan stage accepted`, then `decomposition` — the freshness `content_hash` covers the plan BODY, so a realization-exit block written after the check stales it and buys a full re-check (a frontmatter-field edit does not); a fresh check does NOT preserve mode-b `absorbed:` · *Plan*
 - **decomposition** *(SPEC-0070)* — `plan check` GREEN/YELLOW + impl-plan composed + specs `proposed` (LARGE plan: mandatory big-plan check) · cut the plan into task cards (SPEC-0046); the cut SET is then gated by a mandatory external decomposition-fidelity audit (SPEC-0070) before `executing` · *pre-build cut + fidelity gate*
 - **executing** — the cut passed the decomposition-fidelity audit (SPEC-0070) · the task cards run their own 9 stages (pure build; the cut is already audited) · *Execution + Tests*
 - **postcheck** — all tasks done + aggregate `audit post --plan` GREEN · real-data soak ×N + monitoring «works as intended» + corrections · *Audit-post + adoption soak*

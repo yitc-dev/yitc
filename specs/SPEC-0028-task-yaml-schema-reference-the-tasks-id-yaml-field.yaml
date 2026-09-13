@@ -466,7 +466,22 @@ body: |
   last_verified: null # ISO ts — last verified artifact/state
   next_action: null # one-line concrete next step
   paused_at: null # ISO ts when paused
-  paused_reason: null # one-line — owner-wait | auditor-abort | session-end | external-timeout
+  paused_reason: null # the trigger-typed halt reason (vocab.PAUSE_REASONS, the enum home):
+                                 # owner-wait | audit-ceiling | auditor-abort | batch-remainder |
+                                 # session-end | land-conflict | controller-wait | artifact-wait.
+                                 # artifact-wait = a wait on a DECLARED item whose arrival a
+                                 # reader can DECIDE; it REQUIRES paused_awaits below.
+  paused_awaits: null # — the awaited artifact whose arrival ENDS this pause, in the
+                                 # ONE awaits grammar (followup.awaits_kind): T-NNNN | X-NNNN |
+                                 # events.jsonl#type=<t>[@after=<ISO>]. DECLARED, never inferred from
+                                 # next_action prose. REQUIRED with paused_reason: artifact-wait,
+                                 # ALLOWED with owner-wait, refused with any other reason. Written ONLY
+                                 # by `task pause --awaits` (verb-owned — never filing-time authored)
+                                 # and cleared by `task resume`. The session-start echo RESOLVES it
+                                 # rather than asserting the wait: while the item is open it prints
+                                 # WAITING-ON-<OWNER|ARTIFACT> … awaits <ref> (open), and once the item
+                                 # is terminal it prints RESUMABLE. A card carrying no paused_awaits
+                                 # renders byte-identically to the pre- owner-wait line.
   refused_at: null # — ISO ts of a PRE-CLAIM refusal (`task refuse`); verb-owned,
                                  # never filing-time authored. A card carrying it is NOT dispatchable
                                  # (task.py#_premise_dispatch_block) and is awaiting a DISPOSITION;

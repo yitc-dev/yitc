@@ -115,6 +115,23 @@ ENTRYPOINT_INVENTORY = (
      "creates <path> or a journal in it. (If <path> is a governed checkout that ALREADY has a "
      "journal, one `release_installed` provenance row is appended there, on refusal as well as on "
      "success; the release being installed FROM is never written to.)"),
+    # T-12388 — the rule-8 UPDATE entrypoint. It belongs in this inventory for the same reason the
+    # two above do: rule 6 says an entrypoint that is not enumerated is a GAP, and rule 8's update is
+    # an entrypoint that WRITES into a consumer tree. `--from-release` is shown because an update
+    # WITHOUT it is a legal but weaker run (it can no longer tell a local edit from an out-of-date
+    # file, so it reports every differing path and changes none) — an adopter reading the inventory
+    # should see the argument that makes the merge decidable, not discover it from a refusal.
+    ("release update",
+     "yitc-v2 release update <dest> --into <path> --anchor <fingerprint> "
+     "[--from-release <pinned-release-N tree>]",
+     "Move an EXISTING install at <path> from release N to N+1. The gate reaches its verdict BEFORE "
+     "<path> is opened, so a refused update writes NOTHING into <path> and leaves it byte-identical "
+     "(SPEC-0195 rule 6, 'BEFORE any write', read literally). On the SUCCESS path only "
+     "upstream-owned and template-owned paths are written: consumer-owned paths — every path the "
+     "release does not ship — are reported and never written, and a template-owned file both sides "
+     "moved is reported as a CONFLICT rather than guessed (rule 8). (If <path> already has a "
+     "journal, one `release_updated` provenance row is appended there, on refusal as well as on "
+     "success; the release being updated FROM is never written to.)"),
 )
 
 # The four ORDERED steps of the lost-key recovery procedure (SPEC-0195 rule 7, loss recovery). The
@@ -623,7 +640,7 @@ def _write_tree(dest: Path, tree: dict, manifest_text: str, signature: bytes = b
 
 
 def _add_trust_surfaces(tree: dict, *, tag: str, source_sha: str, trust_root_arg, revocations_arg,
-                        answers, _die) -> dict:
+                        answers, _die, changes=None) -> dict:
     """Add the four published trust/policy surfaces to the cut, BEFORE the digest is taken.
 
     Two of them are OPERATOR-SUPPLIED and are copied verbatim — the trust root and the revocation
@@ -677,7 +694,7 @@ def _add_trust_surfaces(tree: dict, *, tag: str, source_sha: str, trust_root_arg
                      "release with itself. Sign it out of band, then re-run. Nothing was written.")
             out[REVOCATION_SIGNATURE_FILENAME] = sig_src.read_bytes()
     out[SECURITY_POLICY_FILENAME] = build_security_policy().encode("utf-8")
-    out[RELEASE_NOTES_FILENAME] = build_release_notes(tag, source_sha, answers).encode("utf-8")
+    out[RELEASE_NOTES_FILENAME] = build_release_notes(tag, source_sha, answers, changes).encode("utf-8")
     return out
 
 def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree, _is_consumer_build,
@@ -786,7 +803,10 @@ def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree,
     tree = _add_trust_surfaces(tree, tag=tag, source_sha=source_sha,
                                trust_root_arg=getattr(args, "trust_root", None),
                                revocations_arg=getattr(args, "revocations", None),
-                               answers=answers, _die=_die)
+                               answers=answers, _die=_die,
+                               changes=collect_change_list(tag, source_sha, main=main,
+                                                           _resolve_placement=_resolve_placement,
+                                                           _die=_die))
 
     survivors = published_host_literals(tree)
     if survivors:
@@ -1655,7 +1675,30 @@ _INVENTORY_ROW_PREFIX = "- `"
 _AUDITOR_SETUP_HEADING = "## External auditor setup"
 
 
-def build_release_notes(tag: str, source_sha: str, answers) -> str:
+def render_change_list(changes) -> str:
+    """The «What changed» section (T-12391): one line per kernel-realm task closed since the last tag.
+
+    `changes` is what `collect_change_list` returns — `None` for a first release, else a tuple of
+    `(task_id, title, class)` already in close order. The identity strip runs over the TITLE only:
+    the strip erases task ids by design (it launders dev provenance out of prose), so running it over
+    the whole line would publish a list with no ids in it. The id is printed verbatim instead.
+    """
+    lines = ["## What changed", ""]
+    if changes is None:
+        lines += ["This is the first release — there is no previous tag to compare against."]
+        return "\n".join(lines) + "\n"
+    changes = tuple(changes)
+    if not changes:
+        lines += ["No kernel task was closed since the previous release tag."]
+        return "\n".join(lines) + "\n"
+    lines += [f"{len(changes)} task(s) closed since the previous release tag, in close order:", ""]
+    for tid, title, klass in changes:
+        clean = " ".join(graph_lib._release_view_strip(str(title or "")).split())
+        lines.append(f"- {tid} — {clean} ({klass or 'unclassified'})")
+    return "\n".join(lines) + "\n"
+
+
+def build_release_notes(tag: str, source_sha: str, answers, changes=None) -> str:
     """The mirror's RELEASE-NOTES.md — the ONE COMPOSED WRITER of that published file.
 
     TWO active rules land on this ONE published filename and BOTH sections are required, so one
@@ -1690,7 +1733,7 @@ def build_release_notes(tag: str, source_sha: str, answers) -> str:
     """
     rows = "\n".join(f"- `{name}` — `{usage}`\n  {note}" for name, usage, note in ENTRYPOINT_INVENTORY)
     head = render_release_notes(tag=tag, source_sha=source_sha, answers=answers)
-    return head + f"""
+    return head + "\n" + render_change_list(changes) + f"""
 ## Trust surfaces
 
 GENERATED by `yitc-v2 work publish`; do not edit in the mirror.
@@ -2193,6 +2236,136 @@ def render_release_notes(*, tag: str, source_sha: str, answers) -> str:
         f"`{MANIFEST_FILENAME}` for this release's provenance and digest.",
     ]
     return "\n".join(lines) + "\n"
+
+
+_CHANGE_SUBJECT_RE = re.compile(r"\A[A-Za-z][\w-]*\((T-\d+)\)")
+
+
+def journal_task_closed_rows(since: str, *, main: Path, _die) -> list:
+    """`task_closed` rows with `ts >= since`, read through the governed `journal query` verb.
+
+    The verb is the segment-aware reader (SPEC-0190 rule 4), so the publish seam reads the one
+    logical journal across every segment rather than growing a second raw reader of its own. It is
+    FAIL-CLOSED: a query that cannot run, or prints a line that is not a JSON row, REFUSES the
+    publish — an empty list here would publish notes claiming nothing changed.
+    """
+    import json
+    import sys
+    argv = [sys.executable, str(Path(__file__).resolve().parent.parent / "yitc-v2"), "-C", str(main),
+            "journal", "query", "--type", "task_closed", "--since", since, "--limit", "0", "--json"]
+    try:
+        rp = subprocess.run(argv, cwd=str(main), capture_output=True, text=True)
+    except OSError as exc:
+        _die(f"work publish: could not run `journal query` for the change list ({exc}) — refusing "
+             "rather than publishing notes that silently list no change.")
+        return []
+    if rp.returncode != 0:
+        _die("work publish: `journal query --type task_closed` failed "
+             f"({rp.stderr.strip() or rp.returncode}) — refusing rather than publishing notes that "
+             "silently list no change.")
+        return []
+    rows = []
+    for line in rp.stdout.splitlines():
+        # A checkout with no journal at all is answered by the verb's own `(no events.jsonl)` line
+        # (exit 0): nothing was ever closed there, which is an honest empty list, not a bad read.
+        if not line.strip() or line.strip() == "(no events.jsonl)":
+            continue
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            _die(f"work publish: `journal query --json` printed a non-JSON line ({line[:80]!r}) — "
+                 "refusing to guess the change list.")
+            return []
+    return rows
+
+
+def collect_change_list(tag: str, source_sha: str, *, main: Path, _resolve_placement, _die,
+                        _task_closed_rows=None):
+    """The «What changed» list (T-12391): kernel-realm tasks closed since the previous release tag.
+
+    Returns `None` when there is no previous release tag, else a tuple of `(task_id, title, class)`
+    in close order. Three existing carriers, no new store:
+
+      the JOURNAL  says WHEN a task closed — `task_closed` rows with `ts` at or after the previous
+                   tag's source-commit time, via `journal_task_closed_rows` (injectable for tests);
+      GIT          says whether it TRAVELS — a task qualifies only when a commit in
+                   `<prev>..<source>` whose subject carries its id touches a path `_resolve_placement`
+                   resolves `kernel` (SPEC-0073), so a workshop-only task never appears;
+      the CARD     at the source commit supplies title and class, and must say `done` — a closure
+                   journaled after the tag is not part of this release.
+    """
+    this_v = parse_release_version(tag)
+    rp = subprocess.run(["git", "-C", str(main), "tag", "--list"], capture_output=True, text=True)
+    if rp.returncode != 0:
+        _die(f"work publish: could not list tags in {main} for the change list — refusing.")
+        return None
+    older = [(v, t) for t, v in ((t.strip(), parse_release_version(t.strip()))
+                                 for t in rp.stdout.splitlines() if t.strip())
+             if v is not None and this_v is not None and _compare(v, this_v) < 0]
+    if not older:
+        return None
+    import functools
+    prev_tag = max(older, key=functools.cmp_to_key(lambda a, b: _compare(a[0], b[0])))[1]
+
+    def git(*argv, env=None):
+        r = subprocess.run(["git", "-C", str(main), *argv], capture_output=True, text=True, env=env)
+        if r.returncode != 0:
+            _die(f"work publish: `git {' '.join(argv[:3])}` failed while composing the change list "
+                 f"({r.stderr.strip()}) — refusing.")
+            return None
+        return r.stdout
+
+    import os
+
+    def commit_time(sha):
+        return (git("show", "-s", "--format=%cd", "--date=format-local:%Y-%m-%dT%H:%M:%SZ", sha,
+                    env=dict(os.environ, TZ="UTC")) or "").strip()
+
+    prev_sha = (git("rev-parse", f"{prev_tag}^{{commit}}") or "").strip()
+    # The interval is CLOSED on both ends: at or after the previous tag's source commit, and at or
+    # before THIS tag's. Without the upper bound a closure journaled after the tag was cut — a later
+    # re-close or settle row — would be listed as part of a release it did not ship in.
+    since = commit_time(prev_sha)
+    until = commit_time(source_sha)
+    log = git("log", "--format=%x00%s", "--name-only", f"{prev_sha}..{source_sha}") or ""
+    kernel_ids = set()
+    for chunk in log.split("\x00"):
+        lines = [ln for ln in chunk.splitlines() if ln.strip()]
+        if not lines:
+            continue
+        m = _CHANGE_SUBJECT_RE.match(lines[0])
+        if m and any(_resolve_placement(p.strip()) == "kernel" for p in lines[1:]):
+            kernel_ids.add(m.group(1))
+
+    reader = _task_closed_rows or (lambda s: journal_task_closed_rows(s, main=main, _die=_die))
+    closed_at = {}
+    for row in reader(since) or ():
+        tid, ts = row.get("task_id"), str(row.get("ts") or "")
+        if (row.get("type", "task_closed") == "task_closed" and tid in kernel_ids
+                and since <= ts <= until):
+            closed_at[tid] = max(closed_at.get(tid, ""), ts)
+
+    cards = {}
+    for rel in (git("ls-tree", "--name-only", source_sha, "tasks/") or "").splitlines():
+        name = Path(rel.strip()).name
+        tid = name.split("-", 2)
+        if len(tid) >= 2 and name.endswith(".yaml"):
+            cards.setdefault(f"{tid[0]}-{tid[1].split('.')[0]}", rel.strip())
+    out = []
+    for tid in closed_at:
+        blob = _git_blob(main, source_sha, cards[tid]) if tid in cards else None
+        if blob is None:
+            continue
+        try:
+            data = state.load_str(blob.decode("utf-8")) or {}
+        except Exception as exc:
+            _die(f"work publish: {cards[tid]} at {source_sha[:12]} does not parse "
+                 f"({exc.__class__.__name__}) — refusing to guess its title for the change list.")
+            return None
+        if data.get("status") != "done":
+            continue
+        out.append((closed_at[tid], tid, str(data.get("title") or ""), str(data.get("class") or "")))
+    return tuple((tid, title, klass) for _ts, tid, title, klass in sorted(out))
 
 
 def attach_contribution_surfaces(tree: dict) -> dict:
@@ -2940,3 +3113,183 @@ def cmd_release_update(args, *, _append_event, _die) -> None:
         print(f"  LEDGER {f['kind'].upper()} {f['path']}: {f['detail']}")
     if not report["conflicts"] and not (report["ledger"].get("findings") or []):
         print("  no divergence and no ledger drift — every consumer-owned path untouched")
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+# T-12389 — `release check`: IS THERE AN UPDATE? A READ-ONLY REPORT, NEVER A GATE.
+#
+# The pin (SPEC-0195 rule 3) already says which engine release a consumer RUNS; nothing said whether
+# a NEWER one exists. Answering it by hand meant knowing to list the mirror's tags and compare them
+# with the pin — knowledge the verb now carries instead of the operator.
+#
+# THE ONE PREMISE EVERYTHING BELOW RESTS ON: `release_repo` IS A LOCAL PATH. Rule 3's born template
+# spells it «<absolute path to the local clone of the published release mirror>», and
+# `init.resolve_engine_pin` enforces exactly that — a value not starting with `/` is refused
+# `pin-unresolved`, and `_materialize_tagged_release` refuses a directory without a `.git`. So the
+# tags and the notes are read with `git -C <release_repo>` against a local clone and NOTHING here
+# touches the network. Admitting a remote URL would be a change to rule 3 itself, not to this verb.
+#
+# WRITES NOTHING, on every path: no event is emitted (the verb is given no emit channel at all), no
+# cache and no store is added, and the parser row carries `no_autosync=True` for the reason
+# `release verify`/`release install` carry it (T-12173) — `_auto_sync` would materialise
+# `events.jsonl` in the target checkout BEFORE the verb ran, a write performed on the behalf of a
+# verb whose contract is that there are none.
+# ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+CHECK_NOTES_HEAD_LINES = 12
+# How much of a newer release's notes the report shows. A HEAD, not the whole file: the question
+# being answered is "should I look at this release?", and a full RELEASE-NOTES.md per newer tag
+# would bury the one line that answers it. The pointer to the full text is the tag itself.
+
+_CHECK_GIT_TIMEOUT = 60   # the same bound `_names_moving_ref` / `_materialize_tagged_release` use
+
+
+def _check_git(release_repo, argv: list):
+    """Run one read-only `git -C <release_repo> …` and return its stdout, or None on ANY failure.
+
+    THE REASON THIS EXISTS RATHER THAN INLINE `subprocess` CALLS: the verb's contract is that a
+    branch pin or an unreachable mirror is «a plain error line, never a traceback». Routing every
+    git call through one wrapper that swallows the failure into a None makes that property
+    STRUCTURAL — a new call site cannot forget it — instead of a promise each call site keeps on its
+    own. The CALLER turns a None into the named line, because only it knows what was being asked.
+    """
+    import subprocess
+
+    try:
+        proc = subprocess.run(["git", "-C", str(release_repo)] + list(argv),
+                              capture_output=True, text=True, timeout=_CHECK_GIT_TIMEOUT)
+    except Exception:  # noqa: BLE001 — git missing/hanging/failing is UNANSWERABLE, never a crash
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def release_tags(release_repo) -> list:
+    """The mirror's RELEASE tags, ordered oldest → newest. `[]` when the repo cannot be read.
+
+    ORDER COMES FROM `parse_release_version` + `_compare` — the SAME zero-extending tuple comparison
+    the version floor already uses, so `v1.2` and `v1.2.0` order equal here exactly as they compare
+    equal there, and `v1.10.0` sorts ABOVE `v1.9.0` where git's lexical tag order would not. A
+    second ordering would be a second answer to one question (CHARTER §P5).
+
+    A tag `parse_release_version` rejects is DROPPED rather than sorted last: the mirror may carry
+    tags that are not releases, and guessing a version for one would let a non-release tag be
+    reported as an available update.
+    """
+    out = _check_git(release_repo, ["tag", "--list"])
+    if out is None:
+        return []
+    parsed = [(parse_release_version(line.strip()), line.strip()) for line in out.splitlines()
+              if line.strip()]
+    import functools
+    return [tag for _v, tag in
+            sorted(((v, t) for v, t in parsed if v is not None),
+                   key=functools.cmp_to_key(lambda a, b: _compare(a[0], b[0])))]
+
+
+def release_notes_head(release_repo, tag: str, lines: int = CHECK_NOTES_HEAD_LINES) -> list:
+    """The first `lines` non-trivial lines of `RELEASE-NOTES.md` AS OF `tag`, or `[]`.
+
+    READ FROM THE TAG'S BLOB (`git show <tag>:<file>`), never from the mirror's working tree: a
+    clone parked on some other branch must not be able to present its checked-out notes as the
+    notes of a release the operator has not got. This is the same "the bytes are the tag's"
+    discipline `_materialize_tagged_release` keeps for the release tree itself.
+
+    An empty list is a legitimate answer (a release that shipped no notes, or a mirror that will not
+    answer) and the caller SAYS so — it never fabricates a summary.
+    """
+    out = _check_git(release_repo, ["show", f"{tag}:{RELEASE_NOTES_FILENAME}"])
+    if out is None:
+        return []
+    head = []
+    for line in out.splitlines():
+        if line.strip():
+            head.append(line.rstrip())
+        if len(head) >= lines:
+            break
+    return head
+
+
+def cmd_release_check(args, *, repo_path, _die=None) -> None:
+    """`bin/yitc-v2 -C <project> release check` — does a NEWER release exist on this project's mirror?
+
+    READ-ONLY and EXIT 0 ALWAYS. It is a REPORT, not a gate: `_die` is never called from here (the
+    parameter is accepted for call-site symmetry with its `release verify` / `release install`
+    siblings, and so that a future refusing sibling does not have to change the signature), every
+    branch returns normally, and the two failure branches print one named line each.
+
+    IT STATES ITS SILENCE — the `frontend-errors` precedent (SPEC-0171): an EXPLICITLY INVOKED view
+    says why it has nothing to say, where a suppressed-when-clean session-start echo would print
+    nothing. A project carrying the born `kernel:` WAIVER declares no `engine:` mapping, reads
+    `not-declared`, and gets that sentence plus the one thing that would end the silence — because
+    silent output from a verb the operator deliberately ran is indistinguishable from "up to date",
+    which is the single worst answer this verb could give.
+
+    TWO READERS, ZERO RE-PARSING (the card's constraint): `resolve_engine_pin` supplies the status
+    vocabulary, the pinned ref and a printable `detail`; `_kernel_declaration` supplies
+    `release_repo`, which the pin dict does not carry and which this verb needs to read the mirror.
+    Both are `init`'s own carrier readers, so `yitc-ops.yaml` is parsed HERE not at all.
+    """
+    from lib import init as init_mod
+
+    pin = init_mod.resolve_engine_pin(repo_path)
+    status = pin.get("status")
+    detail = (pin.get("detail") or "").strip()
+
+    if status == "not-declared":
+        print(f"release check: {repo_path} declares no `kernel.engine` pin, so there is no pinned "
+              f"release to compare a mirror against — nothing to report, and that is a state, not a "
+              f"failure.")
+        print(f"  what would end this silence: declare `kernel: {{engine: {{release_repo, release}}}}` "
+              f"in yitc-ops.yaml (SPEC-0195 rule 3) — an absolute path to the local clone of the "
+              f"published mirror, plus the exact annotated release tag it runs.")
+        return
+
+    if status == "unreadable":
+        # NEVER folded into `not-declared` above. "The carrier will not parse" and "the carrier
+        # declares nothing" look alike in the output and have completely different next actions.
+        print(f"release check: cannot tell — {detail}")
+        return
+
+    if status in ("moving-ref", "pin-unresolved"):
+        # The two states AC3 names (a branch pin; an absent/unreachable `release_repo`). `detail`
+        # already names the cause and the fix in the pin resolver's own words; re-wording it here
+        # would give the same defect two descriptions that could drift apart.
+        print(f"release check: the pin does not resolve, so no comparison is possible — {detail}")
+        return
+
+    engine = init_mod._kernel_declaration(repo_path)
+    release_repo = str((engine or {}).get("release_repo") or "").strip()
+    pinned_ref = str(pin.get("ref") or "").strip()
+    pinned = parse_release_version(pinned_ref)
+
+    tags = release_tags(release_repo)
+    if not tags:
+        print(f"release check: the pin resolves, but {release_repo} lists no release tags — the "
+              f"mirror cannot be asked whether a newer release exists.")
+        return
+    if pinned is None:
+        # The pin RESOLVED (so the tag exists) but is not a version this ordering understands, which
+        # makes "newer" undefined rather than false. Saying so beats silently reporting the mirror's
+        # newest tag as an available update.
+        print(f"release check: pinned {pinned_ref} · newest {tags[-1]} — but {pinned_ref} is not a "
+              f"`vN.N.N` release version, so how far behind it is cannot be computed.")
+        return
+
+    newer = [t for t in tags if _compare(parse_release_version(t), pinned) > 0]
+    if not newer:
+        print(f"release check: pinned {pinned_ref} · newest {tags[-1]} · UP TO DATE — "
+              f"{release_repo} carries no release newer than the pin.")
+        return
+
+    print(f"release check: pinned {pinned_ref} · newest {tags[-1]} · BEHIND BY {len(newer)} "
+          f"release(s) on {release_repo}")
+    for tag in newer:
+        print(f"\n  {tag} — {RELEASE_NOTES_FILENAME}:")
+        head = release_notes_head(release_repo, tag)
+        if not head:
+            print(f"    (no {RELEASE_NOTES_FILENAME} at {tag}, or the mirror would not read it)")
+            continue
+        for line in head:
+            print(f"    {line}")
+    print(f"\n  this is a REPORT, not a gate — nothing was written. To move the pin, see "
+          f"`release update`.")

@@ -409,4 +409,4 @@ implements_signature:
   bin/lib/batch_landing.py#_land_batch_members: c1ff77b8f4f667eea07e3e4526109cfe1ad1d5df8ea94d77ea60eaff9c4b1422
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
   bin/lib/task.py#_verify_policy_pinned_last_green: ca1681a267547beba68c784f648f65e8e91089a69d513fe45ac2ef5eecc170e9
-  bin/lib/worktree.py#_land_integrate: 21431bd26960b686f90d50f61050afe4751b56f11faa5b75b73244c98c1568ae
+  bin/lib/worktree.py#_land_integrate: 3e331509f46abb45fa86c1c157a7df4898890c2291b5c26faf171f54537cfe87

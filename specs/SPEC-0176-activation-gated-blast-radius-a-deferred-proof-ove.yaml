@@ -109,7 +109,7 @@ binding: # — CODE-ENFORCED residency: this rule is not delivered as a
 
 init_concern: ~
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0
+  bin/lib/audit.py#cmd_audit: 1ab2d8cf4dd5688048a6d2de1626c9951944591002f078ff8228e940d573513f
   bin/lib/cli.py#_activation_gated_specs: f34498993c6613edcefb3f7e387fb0447b76e62135e8099d7a233d430596caaf
   bin/lib/cli.py#_require_activation_gated_radius: 52c55fd9fcc6e781063b904d6b8154b72f5697bb24155fd06ceeda7c36499e80
   bin/lib/task.py#_activation_gated_radius_declaration_error: 137fdd5ec749ed15b6a926c93b7eae3fa2174fc674982019515698ef34d2c2e6

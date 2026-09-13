@@ -68,6 +68,21 @@ SPEC_TRAVELS_REPIN_CUE = (
     "(SPEC-0073 §3)."
 )
 
+
+def _manifest_has_hand_table(_manifest_path) -> bool:
+    """T-12399 — is the SPEC_TRAVELS_REPIN_CUE's companion step ACTIONABLE here? The cue asks the
+    author to hand-update a row in kernel-vs-self-manifest.md; a CONSUMER corpus has no such file
+    (the kernel-vs-self split is the ENGINE's own concern), so printing it there names a file that
+    does not exist and a probe that cannot fail. FAIL-SAFE in both directions: an absent injector —
+    any caller that has not been given `_manifest_path` — or a raising one keeps the cue, so the
+    engine path and every legacy caller are unchanged; only a PROVABLY absent manifest silences it."""
+    if _manifest_path is None:
+        return True
+    try:
+        return bool(_manifest_path().exists())
+    except Exception:
+        return True
+
 # ── T-10321 — body-composed `spec edit` matching (the indentation trap, X-0284) ───────────────────
 # `spec edit` matches `old` against the RAW file text, but `--help` sells --from-file as a body
 # replacement and `graph query <SPEC>` prints the body UNindented (YAML strips the block-scalar
@@ -135,6 +150,90 @@ def _body_flow_quote(text: str) -> str | None:
 # both verbs call it. Behaviour here is unchanged BY CONSTRUCTION — this name is a thin alias to the
 # moved function, not a copy (CHARTER §P1 F1: extend the analog, never fork a second matcher).
 _flow_encode_variants = textutil.flow_encode_variants
+
+
+# ── T-12397 — allocation-time KERNEL-COLLISION disclosure for a `-C` consumer `spec new` ─────────
+# MEASURED (aiseller X-1372 near-miss + X-1376, 2026-09-10): a consumer `spec new` allocates max+1 of
+# ITS OWN specs/, so it can mint an id the KERNEL also owns. Under SPEC-0092 consumer-own-wins that is
+# BY DESIGN at QUERY time (kupiclub legitimately owns colliding SPEC-0060/0066) — but when the
+# consumer's own prose already CITES that id BARE, the new spec silently re-points those citations at
+# something else. T-10700 discloses the collision on a bare LOOKUP; nothing disclosed it at
+# ALLOCATION. This is the allocation-time sibling: report-only, never a refusal (the collision stays
+# legal), so the author sees it at the one moment a different id is still free.
+#
+# The scanned set is the consumer's OWN authored corpus only — never the vendored kernel release-view,
+# whose kernel-id mentions are not this consumer's citations.
+_CITATION_SCAN_DIRS = ("tasks", "decisions", "specs", "plans", "ideas")
+
+
+def _bare_citation_paths(repo_root, sid: str, exclude=None, limit: int = 5):
+    """Paths under the consumer's OWN authored dirs that mention `sid` as a BARE token — i.e. NOT in
+    the `--kernel <sid>` escape form, which explicitly means the kernel spec and so is never
+    re-pointed by a new consumer-own spec of that id. Returns (paths[:limit], total_count)."""
+    # The lookbehind is the fixed-width `--kernel ` prefix, so a `graph query --kernel SPEC-0055`
+    # pointer does not read as a citation this allocation would steal.
+    pat = re.compile(rf"(?<!--kernel ){re.escape(sid)}\b")
+    hits = []
+    excluded = {str(exclude)} if exclude is not None else set()
+    for d in _CITATION_SCAN_DIRS:
+        root = repo_root / d
+        if not root.is_dir():
+            continue
+        for p in sorted(root.rglob("*")):
+            if not p.is_file() or str(p) in excluded:
+                continue
+            try:
+                text = p.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue        # a binary/unreadable path is not a prose citation
+            if pat.search(text):
+                hits.append(p)
+    return hits[:limit], len(hits)
+
+
+_EXPLICIT_ID_RE = re.compile(r"^SPEC-(\d{4})$")
+
+
+def _parse_explicit_spec_id(raw, *, _die) -> "int | None":
+    """`--id SPEC-NNNN` → the integer the allocator admits, or None when the flag was omitted. SHAPE
+    only (T-12397): whether the id is FREE is the allocator's call under the lock, because only there
+    is the answer race-free."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    m = _EXPLICIT_ID_RE.match(raw.upper())
+    if not m:
+        _die(f"--id: invalid {raw!r} — expected the canonical SPEC-NNNN form (4 digits), e.g. SPEC-0062")
+    return int(m.group(1))
+
+
+def _kernel_collision_warn(sid: str, *, repo_root, engine_root, exclude, is_consumer) -> "int | None":
+    """Print the one report-only stderr WARN when a `-C` consumer has just allocated an id the KERNEL
+    owns. Returns the bare-citation COUNT when it warned, else None (no warn — so the caller records
+    `kernel_collision_warned` only for a real collision). Exit code is untouched, always."""
+    if not is_consumer or engine_root is None:
+        return None             # the engine's own session: own IS the kernel, there is no collision
+    kernel = sorted((engine_root / "specs").glob(f"{sid}-*.yaml"))
+    if not kernel:
+        return None
+    title = ""
+    for line in kernel[0].read_text(encoding="utf-8").splitlines():
+        if line.startswith("title:"):
+            title = line.split(":", 1)[1].strip().strip("'\"")
+            break
+    paths, count = _bare_citation_paths(repo_root, sid, exclude=exclude)
+    noun = "citation" if count == 1 else "citations"
+    msg = (f"yitc-v2: WARN {sid} is ALSO owned by the KERNEL ({kernel[0].name}"
+           + (f" — {title!r}" if title else "") + f"); this corpus has {count} bare {noun} of it.")
+    if paths:
+        msg += "\n  cited bare in: " + ", ".join(str(p.relative_to(repo_root)) for p in paths)
+        if count > len(paths):
+            msg += f", … (+{count - len(paths)} more)"
+    msg += (f"\n  Consumer-own wins at query time (SPEC-0092), so those citations now resolve to YOUR "
+            f"new spec. Report-only: keep the id, or re-file under an explicit `spec new --id SPEC-NNNN` "
+            f"above the kernel's range. Kernel contract stays reachable as `graph query --kernel {sid}`.")
+    print(msg, file=sys.stderr)
+    return count
 
 
 # ── T-10298 / SPEC-0151 — the active-behavioral-mandate ANCHOR RULE (report-only) ────────────────
@@ -240,7 +339,7 @@ def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _
                  _kernel_content_file, _scaffold_read_validate, _id_alloc_lock, SPECS_DIR, _slug,
                  _scaffold_substitute, write_text_atomic, _append_event, REPO_ROOT,
                  _governing_contract_for, _manifest_path, _backfill_spec_placement_handrow,
-                 _is_consumer_build=None) -> None:
+                 _is_consumer_build=None, ENGINE_ROOT=None) -> None:
     """Allocate the next SPEC-NNNN under flock + scaffold from specs/_template.yaml. Emits
     spec_filed + а reminder. Filename convention: specs/SPEC-NNNN-<slug>.yaml (matches the corpus)."""
     _require_writing_worktree()
@@ -280,14 +379,35 @@ def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _
     # `_id_alloc_lock`, so a missing decision burns no SPEC-id (F-011). Contract: SPEC-0073.
     is_draft = bool(getattr(args, "draft", False))
     travels_arg = (getattr(args, "travels", None) or "").strip().lower()
+    # T-12399 (kupiclub X-1335) — the predicate is bound ONCE here and drives BOTH the hint text (as
+    # before) and the realm resolution below. It was previously computed inline for the hint ALONE, so
+    # a consumer's own spec silently resolved an ENGINE realm: a draft to `v2-self` (the engine's own
+    # development history) and a non-draft `default` to `kernel` (the pinned methodology). SPEC-0073
+    # rule 1 gives a consumer's own specs exactly ONE legitimate realm — `project`.
+    is_consumer = bool(_is_consumer_build and _is_consumer_build())
     if travels_arg and travels_arg not in (*PLACEMENT_REALMS, "default"):
         _die(f"--travels: invalid '{travels_arg}' — choose one of kernel | v2-self | project | default")
+    # Refused BEFORE the non-draft fail-closed check below and BEFORE `_id_alloc_lock`, so a refused
+    # realm burns no SPEC-id (F-011) — and a consumer that omits `--travels` on a non-draft still gets
+    # the unchanged fail-closed message, not this one.
+    if is_consumer and travels_arg in ("kernel", "v2-self"):
+        _die(f"--travels {travels_arg}: refused on a CONSUMER corpus — SPEC-0073 rule 1 gives this "
+             "project's own specs exactly ONE legitimate realm: `project` (`v2-self` names the ENGINE's "
+             "own development history and `kernel` is the pinned methodology, neither of which a "
+             "consumer authors locally). Author it as `--travels project` (or omit `--travels` on a "
+             "`--draft`, which now resolves `project` here); to change the KERNEL, propose it with "
+             "`bin/yitc-v2 cross request --kind task --to yitc-v2 …` — never by a local travels:kernel.")
     if not is_draft and not travels_arg:
         _die("--travels {kernel|v2-self|project|default} required — the corpus-wide placement contract "
              "(SPEC-0073) fails closed: a new proposed spec MUST carry an explicit placement decision at "
-             f"authoring (`{graph_lib.spec_query_hint('SPEC-0073', is_consumer=bool(_is_consumer_build and _is_consumer_build()), cli='')}`). "
+             f"authoring (`{graph_lib.spec_query_hint('SPEC-0073', is_consumer=is_consumer, cli='')}`). "
              "`default` affirms the spec class-default (kernel).")
-    if is_draft:
+    if is_consumer:
+        # SPEC-0073 rule 1/§3 consumer clause: the ONE legitimate realm. `kernel`/`v2-self` are already
+        # dead above, so the only survivor an explicit arg can carry is `project` — the draft default and
+        # `--travels default` resolve there too. The engine arms below are reached UNCHANGED.
+        resolved_realm = "project"
+    elif is_draft:
         # A DRAFT is plan-local (SPEC-0005 §4) and governs nothing; SPEC-0073 §8 requires a non-active
         # spec to NOT resolve the kernel export realm, so a draft DEFAULTS to v2-self — the §3↔§8
         # coherence fix (T-9285): a kernel-default draft otherwise fails `graph conformance` the moment
@@ -308,16 +428,35 @@ def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _
     # the OUTPUT of a successful scaffold precondition, not a cost paid up front.
     template = _kernel_content_file("specs/_template.yaml")
     template_text = _scaffold_read_validate(template, ["id", *subs.keys()])
-    with _id_alloc_lock(SPECS_DIR, "SPEC") as sid:
+    # T-12397 — `--id SPEC-NNNN` overrides the sequential allocation. Parsed BEFORE the lock so a
+    # malformed value never opens one; ADMISSION (strictly above the floor) is the allocator's, under
+    # the lock, and fails closed with no id burned and no file written.
+    explicit = _parse_explicit_spec_id(getattr(args, "id", None), _die=_die)
+    # Passed only when given, so every existing `_id_alloc_lock(dir, prefix)` stub/spy keeps working.
+    alloc_kw = {"explicit": explicit} if explicit is not None else {}
+    with _id_alloc_lock(SPECS_DIR, "SPEC", **alloc_kw) as sid:
         path = SPECS_DIR / f"{sid}-{_slug(title, die=_die)}.yaml"
         if path.exists():
             _die(f"collision (post-lock): {path.name} already exists")
+        # T-12397 — the allocation-time kernel-collision disclosure, computed BEFORE the write so the
+        # spec being born is not counted as a citation of itself. Report-only; exit code untouched.
+        # The corpus root is SPECS_DIR.parent, not REPO_ROOT: they are the same directory in
+        # production (SPEC-0078's `_scope_guarded_corpus_root`) and the derived form keeps the scan
+        # inside whatever corpus this invocation is actually writing into.
+        collision_citations = _kernel_collision_warn(
+            sid, repo_root=SPECS_DIR.parent, engine_root=ENGINE_ROOT, exclude=path,
+            is_consumer=bool(_is_consumer_build and _is_consumer_build()))
         content = _scaffold_substitute(template_text, template.name, {"id": sid, **subs})
         write_text_atomic(path, content)
         _append_event("spec_filed", sid, {
             "path": str(path.relative_to(REPO_ROOT)), "title": title,
             "status": subs.get("status", "proposed"),
             "travels": resolved_realm,          # T-0888 — the DURABLE placement decision for EVERY new
+            "id_explicit": explicit is not None,  # T-12397 — the id was CHOSEN, not sequentially allocated
+            # Present ONLY when the kernel-collision WARN fired; the value is the bare-citation count
+            # (0 = the kernel owns the id but this corpus never cites it bare). Absent = no collision.
+            **({"kernel_collision_warned": collision_citations}
+               if collision_citations is not None else {}),
             "travels_explicit": bool(travels_arg),  # spec (distinguishable from a legacy unmarked spec, even
                                                 # when the body marker is omitted for the default case). True
                                                 # iff --travels was passed (always for a non-draft; optional draft).
@@ -377,7 +516,7 @@ def governed_content_digest(rec: dict) -> str:
 def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, _find_spec_path,
                   _read_yaml, SPEC_ABANDONED_TERMINAL, write_text_atomic, _governing_contract_for,
                   _append_event, REPO_ROOT, _run_git_cap=None,
-                  _require_before_rule_change_read=None) -> None:
+                  _require_before_rule_change_read=None, _manifest_path=None) -> None:
     """In-place chokepoint for editing an EXISTING active/proposed spec (T-0273) — the before-rule-change
     gate for MODIFYING a spec, the inverse of `spec new` (which gates CREATION). Resolves the spec by id,
     refuses superseded/retired (post-active frozen history), but ALLOWS a `draft` (plan-local, SPEC-0005
@@ -748,7 +887,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # so the detection costs no extra read/parse and cannot fail the edit — it runs after the atomic
     # write, on the success path. Any realm change fires it: a DRAFT row desyncs exactly like an
     # active one. Report-only (SPEC-0073 §3 stays the rule's home; this only points at it).
-    if (rec or {}).get("travels") != (updated_rec or {}).get("travels"):
+    # T-12399 — and ONLY when the manifest it names EXISTS. The cue's entire content is a COMPANION
+    # STEP in kernel-vs-self-manifest.md, a kernel-vs-self file a CONSUMER corpus does not have, so
+    # there it named a nonexistent file and a test that cannot fail. Fail-SAFE by construction: no
+    # injector (or a raising one) keeps the cue, so the engine path is unchanged.
+    if (rec or {}).get("travels") != (updated_rec or {}).get("travels") and _manifest_has_hand_table(_manifest_path):
         print(f"cue: {SPEC_TRAVELS_REPIN_CUE} "
               f"({(rec or {}).get('travels')!r} → {(updated_rec or {}).get('travels')!r})")
 

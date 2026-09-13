@@ -1464,7 +1464,7 @@ def governed_selection(test_files, *, select: bool = True, journal_path=None, te
 
 
 def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | None = None,
-                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None) -> list:
+                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None) -> list:
     """Run every `tests/test_*.py` as an isolated subprocess (canonical V2 test interface — exit 0 =
     pass, tests/README.md §Run all tests / T-0039) CONCURRENTLY (T-0274). Preserves the old serial
     loop's contract:
@@ -2083,6 +2083,7 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                         except TypeError:
                             _emit_verify_timeout_deviation(tf.name, timeout, journal_path, _wall, _cpu)
                     with flock:
+                        _fail_tails[tf.name] = _tail_rv._output_tail_lines("".join(_buf))   # T-12447 — partial output
                         _fail_sink.append(
                             f"test failed: {tf.name}\n"
                             # T-10875: `grace=N` states how many starvation-grace windows this kill
@@ -2127,6 +2128,7 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                 # T-10733: head+tail excerpt (was a front-truncating `[-400:]` tail slice, which cut
                 # away the very line naming the failing assertion). Short outputs pass through verbatim.
                 _fail_sink.append(f"test failed: {tf.name}\n{_verify_failure_excerpt(out)}")
+                _fail_tails[tf.name] = _tail_rv._output_tail_lines(out)   # T-12447 — the verbatim END of the output
             if not _isolated:
                 _trip_fail_fast()       # fail-fast: trip the gate for the remaining workers
         _mark_done()                     # T-9601: a file ran to completion (pass or fail)
@@ -2137,6 +2139,14 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
     # T-9600 intent). DISABLED (no thread, no output) outside a worker context or when the interval is
     # <=0 — so the engine self-build / sibling tests are byte-identical to the pre-T-9601 behaviour.
     _flaky_retry_record: "dict | None" = None    # T-12357: ABSENT (never {}) when no retry was reached
+    _fail_tails: dict = {}                       # T-12447: file -> last output lines of its LATEST failed run
+    # T-12447 — the tail + bound helpers live in `remote_verify` (the record's home, beside its host
+    # fold) and are reached LAZILY, so the runner gains no top-level def of its own: every top-level
+    # def this function reaches is part of the T-11519 move-set and would owe a host residue.
+    try:
+        from lib import remote_verify as _tail_rv
+    except ImportError:                                  # pragma: no cover — script-style import
+        import remote_verify as _tail_rv                  # type: ignore[no-redef]
     worker_ctx = bool(os.environ.get(EXPECTED_SESSION_REF_ENV, "").strip())
     hb_interval = _verify_heartbeat_interval()
     hb_stop = threading.Event()
@@ -2267,8 +2277,14 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # (retry + resume included). Each listed file runs ALONE — no sibling verify child beside it
         # in this run — through the UNCHANGED pool path of `_run_one`: it records to `failures`,
         # `_decided`, `file_durations` and the outcomes sidecar exactly as a pool file does, so the
-        # set moves WHERE a file runs, never WHETHER it counts. A failure here is NOT re-run in
-        # isolation — the tail already IS the isolated run, and a second one would re-roll a defect.
+        # set moves WHERE a file runs, never WHETHER it counts. A failure here IS re-run in
+        # isolation — see the T-12426 block below. T-12358 wrote «the tail already IS the isolated
+        # run», which held on the LOCAL single-leg path and is FALSE on a two-leg venue: `run_legs`
+        # starts cand and pinned in PARALLEL on one box, so a leg's tail runs beside the SIBLING
+        # leg's pool or tail (measured, analysis KNOWN-4: 39/39 post-pool rows across 17 lands read
+        # `quiet_wait: sibling-drained` at `quiet_wait_s: 0.0`, with load1 5.28–34.16 at that exact
+        # moment). Under that contention ONE run was terminal, so a lane member got LESS protection
+        # than a pool file, which already gets two isolated attempts after the sibling drains.
         # FAIL-FAST IS PRESERVED, not bypassed: the T-12357 retry `stop.clear()`s to re-run its
         # files, and a pool that is STILL failing after it must re-trip the gate — otherwise the tail
         # would run to completion behind an abort that is already decided. Under `fail_fast=True` a
@@ -2278,6 +2294,113 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
             _trip_fail_fast()
         for _tf in _serial_files:
             _run_one(_tf)
+        # ── T-12426 — THE LANE RETEST: a lane member gets the pool flake's two isolated attempts ──
+        # Still inside the `try` (the sandbox must be alive — the same rule the T-12357 block states).
+        # A lane member is EXCLUDED from `_pool_files`, so its failure is never in `failures` when
+        # `_flaky_retry_plan` is consulted and the tail loop above re-runs nothing: before this block
+        # a lane file that failed under sibling-leg load aborted the land with NO retest and a null
+        # `flaky_retry` (the measured row, events.jsonl#ts=2026-09-11T21:20:23Z). This gives it the
+        # SAME treatment a pool flake gets — up to two isolated attempts after the quiet point —
+        # through the UNCHANGED `_run_one(..., _isolated=True)` path. It consults NOTHING of the pool
+        # bound: `_verify_retry_max_files` is read only inside the `if failures:` pool block above,
+        # whose input is `_pool_files`, and no lane file is ever added to it.
+        if _serial_files and failures:
+            # CANDIDATE SET — «this lane file is why the leg is red», off the run's own parser.
+            _lane_failing = set(_verify_failing_test_names(list(failures)))
+            _lane_bad = [tf for tf in _serial_files if tf.name in _lane_failing]
+            # RETESTED = the ones a second isolated run can honestly RE-DECIDE: a real `failed`
+            # verdict. The rest still get a ROW naming why they were NOT retested, because AC4 folds
+            # «a lane-caused leg failure carries a null or absent retest record» — with
+            # retest-or-nothing a lane TIMEOUT would leave `flaky_retry` null and read as this
+            # mechanism's own failure. `timed-out` is declined by the EXISTING rule applied to the
+            # lane (`_flaky_retry_plan` declines a timeout for the pool; SPEC-0071 makes a verify
+            # timeout a distinct non-retriable class), `launch-error` is an environment fault a
+            # second launch proves nothing about. `not-started` / `killed-fail-fast` never reach
+            # `failures` at all, so they are not candidates — the resume below is what decides them.
+            _lane_retry = [tf for tf in _lane_bad if _decided.get(tf.name) == "failed"]
+            _lane_declined = [tf for tf in _lane_bad if tf not in _lane_retry]
+            _lane_rows: list = []
+            for _tf in _lane_declined:
+                _lane_rows.append({"file": _tf.name, "lane": True,
+                                   "retest": ("timeout-class" if _decided.get(_tf.name) == "timed-out"
+                                              else "launch-error")})
+            _lane_resumed = 0
+            if _lane_retry:
+                # THE QUIET POINT, reusing the T-12377 barrier already resolved above — no second env
+                # read, no new marker, no barrier redesign (card scope NOT). ONE wait per leg, shared
+                # by every row; `load1` read AFTER it so the figure describes the moment the retest
+                # actually ran, and recorded ABSENT when unmeasurable (never a fabricated 0.0).
+                _lqw: "dict | None" = None
+                if _quiet is not None:
+                    _lqw = _quiet_point_wait(_quiet["dir"], _quiet["leg"], _quiet["sibling"],
+                                             _quiet["sibling_pid"], float(timeout))
+                try:
+                    _lload1 = os.getloadavg()[0]
+                except (OSError, AttributeError):
+                    _lload1 = None
+                stop.clear()
+                _lane_cleared: list = []
+                for _i, _tf in enumerate(_lane_retry):
+                    _row = {"file": _tf.name, "lane": True}
+                    if _lload1 is not None:
+                        _row["load1"] = round(_lload1, 2)
+                    if _lqw is not None:
+                        _row["quiet_wait_s"] = _lqw["quiet_wait_s"]
+                        _row["quiet_wait"] = _lqw["quiet_wait"]
+                    # TWO calls, not a loop with a count — byte-identical in shape to the pool's own
+                    # attempts, so the bound cannot be re-rolled by a config value. `_isolated=True`
+                    # is UNCHANGED: it bypasses the fail-fast entry skip, never calls
+                    # `_trip_fail_fast()`, and `_record` writes NOTHING — so `_decided`,
+                    # `file_durations`, the duration table and the outcomes sidecar keep exactly one
+                    # row per file and `load_sensitive.tail[].outcome` still reports the tail's REAL
+                    # verdict.
+                    _iso: list = []
+                    _run_one(_tf, _sink=_iso, _box=f"lane{_i}", _isolated=True)
+                    _attempts = ["fail" if _iso else "pass"]
+                    if _iso:
+                        _iso2: list = []
+                        _run_one(_tf, _sink=_iso2, _box=f"lane{_i}b", _isolated=True)
+                        _attempts.append("fail" if _iso2 else "pass")
+                    _row["isolated"] = _attempts[-1]
+                    _row["isolated_attempts"] = _attempts
+                    if _attempts[-1] == "pass":
+                        _lane_cleared.append(_tf.name)
+                    _lane_rows.append(_row)
+                # CLEARANCE, on the pool's own terms — a file leaves `failures` only by PASSING
+                # ALONE on this tree. A DECLINED file is never cleared, and a file that fails alone
+                # twice leaves `failures` untouched, so the leg aborts exactly as today: the wider
+                # record buys observability, never a weakened gate.
+                if _lane_cleared:
+                    _clear = set(_lane_cleared)
+                    # Drop by NAME, through the run's own parser (`"test failed: <name>"`) — never a
+                    # new match. A `bad` entry that names no test (a graph-build / conflict-marker
+                    # line) yields no names and is therefore KEPT, which is the fail-closed direction.
+                    _keep = [f for f in failures
+                             if not (set(_verify_failing_test_names([f])) & _clear)]
+                    del failures[:]
+                    failures.extend(_keep)
+                # RESUME parity — under `fail_fast=True` the first lane failure tripped the gate and
+                # the REST of the tail was skipped `not-started`. Once nothing is failing any more,
+                # re-run the still-undecided tail files SERIALLY (the lane analogue of the pool's
+                # resume). Their verdicts are FINAL — no second re-plan.
+                if not failures:
+                    _lane_resume = [tf for tf in _serial_files if tf.name not in _decided]
+                    if _lane_resume:
+                        stop.clear()
+                        for _tf in _lane_resume:
+                            _run_one(_tf)
+                        _lane_resumed = len(_lane_resume)
+            if _lane_rows:
+                # ONE record, never a second store: absent → it becomes the record; present (rows, or
+                # a pool `{"skipped": ...}` that may carry no `rows` key at all) → the lane rows are
+                # APPENDED. `remote_verify._flaky_retry_leg_stamped` stamps `leg` onto them unchanged
+                # because it walks `rec["rows"]` regardless of `skipped`.
+                if _flaky_retry_record is None:
+                    _flaky_retry_record = {"rows": _lane_rows}
+                else:
+                    _flaky_retry_record.setdefault("rows", []).extend(_lane_rows)
+                if _lane_resumed:
+                    _flaky_retry_record["lane_resumed"] = _lane_resumed
     finally:
         hb_stop.set()
         if hb_thread is not None:
@@ -2385,6 +2508,16 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # `{"skipped": <reason>, ...}` when the plan declined.
         if _flaky_retry_record is not None:
             metrics_out["flaky_retry"] = _flaky_retry_record
+        # T-12447 — THE LAST OUTPUT OF EVERY FILE THIS RUN STILL FAILS ON, on the same additive-single-key
+        # shape: keyed by the names the RETURNED `failures` carry, so a file its isolated retry cleared
+        # records nothing and a green run has NO key (T-0358). Before it, the only failure text a
+        # routed land kept was the leg's first line per file — «(no assertion captured)» and nothing
+        # else (the 2026-09-12T15:07:33Z row). A failure whose output was empty records `[]`.
+        if failures:
+            _tail_names = sorted(set((_verify_failing_test_names
+                                      or globals()["_verify_failing_test_names"])(list(failures))))
+            metrics_out["failed_output_tail"] = _tail_rv._bounded_output_tail(
+                [(n, _fail_tails.get(n, [])) for n in _tail_names])
         # T-12358 — WHAT THE SERIALIZED TAIL DID, on the same additive-single-key shape: one more
         # field on the `verify_metrics` payload `land` already emits, no new event type, no second
         # store. ABSENT — never `{}` — when the carrier lists nothing, so a repo without a set reports
@@ -2492,14 +2625,26 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # untouched. ABSENT — not empty, never fabricated (T-0358) — on every other rung, so the key
         # accuses no glob on a decision no glob made (the fail-safe direction for a SIGNAL rather
         # than a gate, lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate).
+        # T-12155 — WHICH PATH refused, recorded BESIDE the glob and CO-DERIVED FROM THE SAME CALL.
+        # `bin/**` is one atom over ~37 modules, so for the largest refusal class the glob key names a
+        # surface rather than a cause: measured over 2026-08-27..09-12, 41% of all kernel lands were
+        # refused here with `selection_full_suite_globs == ['bin/**']` and the record could not say
+        # which module did it — the per-path attribution had to be RECONSTRUCTED from git history, an
+        # approximation whose imprecision is exactly what this key removes. ONE call to
+        # `_verify_implementation_touch_pairs` yields both keys, so "globs non-empty => paths
+        # non-empty" is STRUCTURAL rather than asserted, and the two can never name different diffs.
+        # REPORT-ONLY on the same terms as the glob key: nothing reads it, nothing gates on it,
+        # SPEC-0181's shadow boundary is untouched, and it is ABSENT — not empty, never fabricated
+        # (T-0358) — on every other rung.
         if _sel_reason == _SKIP_EDGE_VERIFY_TOUCH:
-            metrics_out["selection_full_suite_globs"] = list(
-                _verify_implementation_touch_globs(
-                    selection_diff_paths or (),
-                    _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS,
-                    # T-11461 — the SAME enumeration `_shadow_select` judged the refusal on, so the
-                    # key names only globs that actually refused THIS diff.
-                    test_file_names=_selection_enumerated_relpaths(test_files)))
+            _sel_pairs = _verify_implementation_touch_pairs(
+                selection_diff_paths or (),
+                _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS,
+                # T-11461 — the SAME enumeration `_shadow_select` judged the refusal on, so the
+                # key names only globs that actually refused THIS diff.
+                test_file_names=_selection_enumerated_relpaths(test_files))
+            metrics_out["selection_full_suite_globs"] = sorted({g for _p, g in _sel_pairs})
+            metrics_out["selection_full_suite_paths"] = sorted({_p for _p, _g in _sel_pairs})
         # T-11118: WHICH SIDE did a failing test fall on — the whole point of accumulating a window.
         # A DISAGREEMENT is by definition the selector omitting a test that FAILED, so a green run
         # can never contain one and only THIS branch can prove or refute the selector. Computed here
@@ -3948,22 +4093,23 @@ def _verify_heartbeat_line(done: int, total: int, elapsed: float) -> str:
             f"(dispatched-worker foreground heartbeat — keep `land` in the FOREGROUND; do NOT "
             f"background it: a yield would kill it mid-verify)")
 
-def _verify_implementation_touch_globs(changed_files, *, _VERIFY_IMPLEMENTATION_GLOBS,
-                                       test_file_names=None, reachability_freed=None, _selection_leaf_test_freed=None) -> tuple:
-    """T-11460 — the SORTED, DISTINCT set of verifier-surface globs the changed paths match; `()` when
-    none do. THE ONE MATCHING CARRIER: `_is_verify_implementation_touch` below is a thin `bool()` over
-    this, so the two readings — DID the diff touch the verifier, and WHICH glob made it — can never
-    drift apart (the same one-carrier discipline `_verify_skip_fail_closed_edge` applies to the shared
-    fail-closed rungs). Path normalisation (`./` strip) is done here, once.
+def _verify_implementation_touch_pairs(changed_files, *, _VERIFY_IMPLEMENTATION_GLOBS,
+                                      test_file_names=None, reachability_freed=None, _selection_leaf_test_freed=None) -> tuple:
+    """T-12155 — the SORTED, DISTINCT `(path, glob)` PAIRS the changed paths match; `()` when none do.
+    THE ONE MATCHING CARRIER, one level deeper than T-11460 left it: `_verify_implementation_touch_globs`
+    below is now a PROJECTION over this (the sorted distinct glob halves) and
+    `_is_verify_implementation_touch` a thin `bool()` over that — so the THREE readings (DID the diff
+    touch the verifier · WHICH glob made it · WHICH PATH matched that glob) are read off the SAME pair
+    and cannot drift apart. Path normalisation (`./` strip) and both narrowings are applied HERE, once,
+    exactly where they were applied before: this is T-11460's loop moved down one level, with NO new
+    matching logic and NO second normalisation.
 
-    WHY THE SET AND NOT THE FIRST MATCH. The predicate this replaces short-circuited on the first
-    matching (path, glob) pair while iterating over the DIFF's paths, so a "the glob that refused"
-    value read off it would depend on the order git happened to list the diff in, and a diff touching
-    both `bin/**` and `tests/**` would name whichever came first. The consumers of this measurement
-    (SPEC-0181's successor cards: narrow `tests/**`, then a reachability filter inside `bin/`) each
-    need the share of refusals attributable to THEIR glob ALONE — a question a first-match value
-    cannot answer and would answer wrongly. Reporting every matched glob costs one full pass over a
-    land's diff and makes the record order-independent.
+    WHY THE PATH HALF IS RECORDED AT ALL (T-12155). `selection_full_suite_globs` names WHICH GLOB
+    refused, and for the `bin/**` arm that is one atom covering ~37 modules: measured over
+    2026-08-27..09-12, 41% of all kernel lands were refused at rung R1 with
+    `selection_full_suite_globs == ['bin/**']` and the record could not say which module did it. The
+    attribution had to be RECONSTRUCTED from git history (an approximation), which is exactly the cost
+    keeping the path half removes. The predicate ALREADY computes the pair; this stops discarding it.
 
     PURE, and it changes NO decision: every caller's branch is still taken on emptiness, the refusal
     fires on exactly the inputs it fired on before, and no reason string moves."""
@@ -3987,8 +4133,39 @@ def _verify_implementation_touch_globs(changed_files, *, _VERIFY_IMPLEMENTATION_
             continue
         for g in _VERIFY_IMPLEMENTATION_GLOBS:
             if fnmatch.fnmatch(p, g):
-                matched.add(g)
+                matched.add((p, g))
     return tuple(sorted(matched))
+
+def _verify_implementation_touch_globs(changed_files, *, _VERIFY_IMPLEMENTATION_GLOBS,
+                                       test_file_names=None, reachability_freed=None, _selection_leaf_test_freed=None) -> tuple:
+    """T-11460 — the SORTED, DISTINCT set of verifier-surface globs the changed paths match; `()` when
+    none do. THE ONE MATCHING CARRIER: `_is_verify_implementation_touch` below is a thin `bool()` over
+    this, so the two readings — DID the diff touch the verifier, and WHICH glob made it — can never
+    drift apart (the same one-carrier discipline `_verify_skip_fail_closed_edge` applies to the shared
+    fail-closed rungs). Path normalisation (`./` strip) is done here, once.
+
+    T-12155 — SINCE THIS CARD THIS IS A PROJECTION over `_verify_implementation_touch_pairs` above
+    (the sorted distinct glob halves), which is where the loop, the normalisation and both narrowings
+    now live. The one-carrier claim therefore holds at a STRICTLY DEEPER level than before: the glob
+    reading and the new path reading are read off the SAME pair. Signature, return type and semantics
+    are unchanged — `tests/test_t11460_selection_refusal_glob.py` and the T3 projection arm of
+    `tests/test_t12155_selection_refusal_path.py` pin that re-layering against a behaviour change.
+
+    WHY THE SET AND NOT THE FIRST MATCH. The predicate this replaces short-circuited on the first
+    matching (path, glob) pair while iterating over the DIFF's paths, so a "the glob that refused"
+    value read off it would depend on the order git happened to list the diff in, and a diff touching
+    both `bin/**` and `tests/**` would name whichever came first. The consumers of this measurement
+    (SPEC-0181's successor cards: narrow `tests/**`, then a reachability filter inside `bin/`) each
+    need the share of refusals attributable to THEIR glob ALONE — a question a first-match value
+    cannot answer and would answer wrongly. Reporting every matched glob costs one full pass over a
+    land's diff and makes the record order-independent.
+
+    PURE, and it changes NO decision: every caller's branch is still taken on emptiness, the refusal
+    fires on exactly the inputs it fired on before, and no reason string moves."""
+    return tuple(sorted({g for _p, g in _verify_implementation_touch_pairs(
+        changed_files, _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS,
+        test_file_names=test_file_names, reachability_freed=reachability_freed,
+        _selection_leaf_test_freed=_selection_leaf_test_freed)}))
 
 def _verify_skip_fail_closed_edge(diff_paths, verify_globs, diff_error=None,
                                   test_file_names=None, reachability_freed=None, *, _SKIP_EDGE_DIFF_UNRESOLVABLE=None, _SKIP_EDGE_NO_DIFF=None, _SKIP_EDGE_NO_GLOBS=None, _SKIP_EDGE_VERIFY_TOUCH=None, _is_verify_implementation_touch=None) -> "str | None":

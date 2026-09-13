@@ -6,11 +6,18 @@ it the way `land` does. It is the ONE executor (SPEC-0203 rule 7): there is no s
 second verdict authority, no remote queue and no remote result store — the box RUNS, the local
 journal remains the sole durable verdict record (CHARTER §P5).
 
-WHAT THIS IS NOT — AND THE BOUNDARY IS THE POINT. This module has NO CALL SITE. It is not wired to
-routing, `land` does not read it, `task test --run` does not read it. The entry point that decides
-WHEN a pass goes remote, the run-size threshold and the box-concurrency priority rule are T-12199's
-card; the venue verbs (`venue raise|publish|unpublish|delete`) are T-12197's. This card DEFINES the
-surface and proves it against a real box through a rehearsal.
+WHO CALLS IT (corrected T-12425; the paragraph this replaces described the T-12194 card's own
+boundary — "this module has NO CALL SITE … `task test --run` does not read it" — which T-12199 wired
+and T-12221 extended to Stage 6, so it had been false for two cards). There are exactly TWO callers
+and both reach the box THROUGH `route`, never through the executor directly: `land`
+(`bin/lib/worktree.py`, kind `"land"`) and Stage 6 (`bin/lib/task.py` `cmd_task_test`, kind
+`STAGE6_KIND`). The venue verbs (`venue raise|publish|unpublish|delete`) stay T-12197's.
+
+AND THE TWO CALLERS SHIP DIFFERENT SUBJECTS, which is the one place `kind` changes behaviour rather
+than merely naming the caller in the envelope: `land` verifies the merged candidate COMMIT (`HEAD`),
+while a Stage-6 pass — which by lifecycle order runs BEFORE Commit — verifies a temporary SNAPSHOT
+COMMIT of the WORKING TREE (`working_tree_snapshot`), because the change under test is on disk and
+in no commit yet.
 
 THE PUBLIC API, fixed here (T-12195 adds `derive_remote_w`, T-12196 adds `local_probe_set` and
 T-12199 adds `route` BEHIND this surface; none of them re-words what is below):
@@ -480,6 +487,58 @@ def local_runner_digest(repo_root, ref: str = "HEAD") -> str:
     would fail every honest run. The box computes the same value from its checkout of the same ref,
     so the two are comparable by construction."""
     return _git(Path(repo_root), "rev-parse", f"{ref}:bin").strip()
+
+
+def working_tree_snapshot(repo_root) -> "str | None":
+    """The Stage-6 ref: a TEMPORARY SNAPSHOT COMMIT of the WORKING TREE, or `None` when the tree is
+    proven clean (T-12425).
+
+    WHY IT EXISTS. Stage 6 (Tests) runs BEFORE Stage 7 (Commit), so a worker's diff is on disk and
+    NOT in any commit when `task test --run` routes to the venue. Shipping `HEAD` therefore asks the
+    box about a tree WITHOUT the change under test, and the verdict is false in BOTH directions —
+    measured 2026-09-11: T-12420 false-RED on exactly 3 derived-artifact tests that pass 15/15 in its
+    working tree, and false-GREEN 1516/1516 on a HEAD that did not carry its code; T-12396 RED twice
+    on a stale HEAD and GREEN the moment its fix was committed. Only the rule-8 local probe leg
+    (~15 host-sensitive files) ever saw the working tree, which is why the pass looked healthy.
+
+    THE IDENTITY NOTION IS THE BOX'S OWN, REUSED — NOT A NEW ONE. Each leg's digest is already
+    `git write-tree` over its working tree through a temporary index over `add -A` (the load-bearing
+    property at the top of this module), so composing the shipped ref the SAME way makes the
+    transport's `box_cand_tree == cand_tree` check pass by construction rather than by arrangement.
+
+    IT TOUCHES NOTHING. The index is a throwaway file OUTSIDE the worktree (`GIT_INDEX_FILE`), so the
+    real index, HEAD, the branch and the reflog are never written; the returned commit is UNREACHABLE
+    and reaches the box only as the push SOURCE of this request's own transport ref, exactly as a
+    committed sha does today. `read-tree HEAD` seeds the temp index first so a TRACKED-but-ignored
+    path keeps its tracked identity — `add -A` against an empty index would read it as untracked and
+    drop it, silently shipping a tree the worker never had.
+
+    FAIL-LOUD, NEVER FAIL-BACK-TO-HEAD (audit-pre finding 1). Any git step failing RAISES: falling
+    back to HEAD would REINSTATE the exact defect this function removes, and do it invisibly, which
+    is strictly worse than the bug. `None` means one thing only — the working tree is PROVEN equal to
+    `HEAD^{tree}`, so today's ref is already the right one and no snapshot commit is minted.
+    `route` maps the raise onto the INDETERMINATE outcome rule 7 already defines."""
+    repo_root = Path(repo_root)
+    head_tree = _git(repo_root, "rev-parse", "HEAD^{tree}").strip()
+    with tempfile.TemporaryDirectory(prefix="yitc-venue-snap-") as td:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(td) / "index")}
+
+        def _snap_git(*args: str) -> str:
+            r = subprocess.run(["git", *args], cwd=str(repo_root), text=True,
+                               capture_output=True, env=env)
+            if r.returncode != 0:
+                raise RemoteVerifyError(
+                    f"the Stage-6 working-tree snapshot failed at `git {' '.join(args)}` "
+                    f"(rc={r.returncode}): {(r.stderr or r.stdout).strip()[:300]}")
+            return r.stdout
+
+        _snap_git("read-tree", "HEAD")
+        _snap_git("add", "-A")
+        tree = _snap_git("write-tree").strip()
+        if tree == head_tree:
+            return None
+        return _snap_git("commit-tree", tree, "-p", "HEAD", "-m",
+                         "venue stage-6 working-tree snapshot (T-12425)").strip()
 
 
 def shipped_identity(repo_root, ref: str = "HEAD", *, main_ref: str = "main") -> dict:
@@ -1353,7 +1412,21 @@ nice -n "$NICE" python3 - "$LEG" "$W" "$REQ" "$ATT" "$OUT" "$RUN/exclude.json" "
 import json, os, pathlib, subprocess, sys, time
 leg, W, req, att, out, exclude_path, only_path, repo_git, main_ref, pinned_skip_path = sys.argv[1:11]
 root = pathlib.Path.cwd(); sys.path.insert(0, str(root / "bin"))
-from lib.cli import _run_verify_tests            # noqa: E402  (path must be set up first)
+# T-12438 - the verify-leg binder moved from lib/cli.py to lib/verify_wiring.py and now takes the CLI
+# module's globals EXPLICITLY. The SHIPPED tree may be either vintage (the pinned leg ships last-green,
+# which is PRE-move on the first land carrying that change), so resolve both, prefer the new home, and
+# fail the leg LOUD, naming the symbol and both places looked, when neither holds the runner.
+if (root / "bin" / "lib" / "verify_wiring.py").exists():
+    import functools
+    from lib import cli as _cli                   # noqa: E402  (path must be set up first)
+    from lib import verify_wiring as _vw          # noqa: E402
+    _run_verify_tests = functools.partial(_vw._run_verify_tests, _host_globals=vars(_cli))
+else:
+    try:
+        from lib.cli import _run_verify_tests    # noqa: E402  (the PRE-move vintage)
+    except ImportError as _e:
+        raise SystemExit("PYRUN: no `_run_verify_tests` in the shipped tree - looked in "
+                         + str(root / "bin" / "lib" / "verify_wiring.py") + " and lib.cli (" + str(_e) + ")")
 metrics, durations = {}, []
 
 
@@ -1673,6 +1746,11 @@ json.dump({"leg": leg, "workers_requested": int(W), "workers_in_effect": metrics
            # listed" and ONLY an old-shape envelope lacks the key — which is what lets the host fold
            # tell "no tail" from "we do not know" (SPEC-0165 item 11).
            "venue_load_sensitive": metrics.get("load_sensitive"),
+           # T-12447 — THE LAST OUTPUT OF EACH FILE THIS LEG STILL FAILS ON, from the shipped runner
+           # (`failed_output_tail`: <=40 lines per file, <=20 entries, absent on a green run). Before
+           # it the only failure text this record carried was `failing` below, the first line per
+           # file, and a routed abort read «(no assertion captured)» with nothing else to go on.
+           "venue_failed_output_tail": metrics.get("failed_output_tail"),
            "verify_tmpdir": __import__("os").environ.get("YITC_VERIFY_TMPDIR"),
            "phases": [l.split() for l in open(out + "/phases.txt").read().splitlines()],
            "venue_refs_moved": venue_refs_moved,
@@ -2597,6 +2675,11 @@ VENUE_FLAKY_RETRY_KEY = "venue_flaky_retry"
 #: T-12358 — the per-leg envelope key carrying a leg's serialized-tail record; named once for the same
 #: reason as its sibling above.
 VENUE_LOAD_SENSITIVE_KEY = "venue_load_sensitive"
+#: T-12447 — the per-leg envelope key carrying a leg's failed-file output tails, and the ONE folded
+#: `verify_metrics` key a routed land records them under.
+VENUE_FAILED_OUTPUT_TAIL_KEY = "venue_failed_output_tail"
+#: The leg a pinned entry came from is named the way `failing_assertions` names it.
+VENUE_PINNED_TAIL_PREFIX = "[pinned/last-green] "
 
 
 def _leg_fold(result: dict, key: str, fold):
@@ -2733,6 +2816,55 @@ def _leg_load_sensitive(result: dict) -> "dict | str":
     The same tri-state as `_leg_flaky_retry`, for the same reason: a `{}`/None would read as
     "nothing ran in a tail anywhere", which an old-shape envelope cannot claim."""
     return _leg_key_fold(result, VENUE_LOAD_SENSITIVE_KEY)
+
+
+def _output_tail_lines(out: "str | None", *, lines: int = 40, line_chars: int = 200) -> list:
+    """T-12447: the last `lines` lines of a FAILED file's raw combined output, each clipped to
+    `line_chars`. Empty output is `[]` — an explicit empty tail, never an absent one. Unlike the
+    runner's `_verify_failure_excerpt` (a 400-char head+tail for the abort message) this keeps the
+    verbatim END of the output, where a traceback and a runner's summary sit. The runner calls it at
+    both failure sites; the bounds are the record's documented shape (SPEC-0025 / SPEC-0203)."""
+    return [ln[:line_chars] for ln in (out or "").splitlines()[-lines:]]
+
+
+def _bounded_output_tail(entries: list, *, max_entries: int = 20) -> dict:
+    """T-12447: ONE aggregate bound over `(key, lines)` pairs, in the order given. At most
+    `max_entries` entries: past it, the first `max_entries - 1` keep their tails and the last slot is
+    the single `(overflow)` entry naming how many were not recorded — so the map can never exceed the
+    bound, and a reader is told what is missing rather than shown a silent cut. The runner applies it
+    per leg and `_leg_failed_output_tail` applies it again over the combined legs — ONE function, so
+    the two bounds cannot drift."""
+    entries = list(entries)
+    if len(entries) <= max_entries:
+        return {k: v for k, v in entries}
+    keep = max_entries - 1
+    out = {k: v for k, v in entries[:keep]}
+    out["(overflow)"] = [f"{len(entries) - keep} more failing file(s): tails not recorded"]
+    return out
+
+
+def _leg_failed_output_tail(result: dict) -> dict:
+    """T-12447 — every leg's `venue_failed_output_tail` folded into ONE `{file: [lines]}` map.
+
+    Candidate-leg keys stay bare, pinned-leg keys carry `[pinned/last-green] ` — so a file failing on
+    both legs keeps both tails and a reader sees which leg each came from. Candidate first, each leg's
+    files by name with that leg's `(overflow)` note last, then the SAME aggregate bound the runner
+    applies (`_bounded_output_tail` above — one function, so the two bounds cannot drift). Returns `{}` when no leg recorded a tail (a green pass, or an old-shape leg): the
+    caller writes the key only when this is non-empty, so a green row carries no such key."""
+    legs = (result.get("envelope") or {}).get("legs") or {}
+    entries = []
+    for leg, prefix in (("cand", ""), ("pinned", VENUE_PINNED_TAIL_PREFIX)):
+        rec = legs.get(leg)
+        rec = rec.get(VENUE_FAILED_OUTPUT_TAIL_KEY) if isinstance(rec, dict) else None
+        if not isinstance(rec, dict):
+            continue
+        for name in sorted(rec, key=lambda n: (n == "(overflow)", n)):
+            lines = rec[name]
+            entries.append((prefix + str(name),
+                            [str(x) for x in lines] if isinstance(lines, list) else []))
+    if not entries:
+        return {}
+    return _bounded_output_tail(entries)
 
 
 def _leg_key_fold(result: dict, key: str) -> "dict | str":
@@ -3519,6 +3651,16 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
     its own leg BOX-SIDE rather than trusted of this caller. `pinned_skip=None` is the pre-T-12313
     behaviour, byte-for-byte, and is the fail-safe default.
 
+    THE SHIPPED REF IS COMPOSED HERE, AND IT DIFFERS BY KIND (T-12425). A `land` pass ships
+    `HEAD` — the merged candidate COMMIT — exactly as it always did. A STAGE-6 pass ships a
+    temporary snapshot commit of the WORKING TREE, because Stage 6 precedes Stage 7 and the diff
+    under test is not in any commit yet; shipping `HEAD` there asked the box about a tree without
+    the change, which read false in both directions (measured 2026-09-11 — see
+    `working_tree_snapshot`). The composition sits at THIS single seam rather than at either call
+    site, so there is exactly one push path and the land leg's identity is byte-identical by
+    construction. A snapshot that cannot be taken returns INDETERMINATE (`venue-fault`) — it is
+    never quietly downgraded to a HEAD pass.
+
     MEASURED GROUND (the card's own differential): the first routed land shipped the whole 1394-file
     discovered suite for a `tasks/`-only filing batch whose local land runs a 505-file governed
     selection — 184.1 s of box leg to pay for a pass the local path sizes at a fifth of it."""
@@ -3540,6 +3682,35 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
     # THIS pass, not of the box. The `// 2` literal this replaced is now the knob's DEFAULT
     # (`VENUE_STAGE6_WORKERS_FRACTION_DEFAULT` = 0.5), so an unset machine derives the same width it
     # always did (T-12261).
+    # ── THE REF COMPOSITION (T-12425) — THE ONE SEAM, kind-guarded. ────────────────────────────
+    # A STAGE-6 pass ships a SNAPSHOT of the working tree; a `land` pass ships what it always did.
+    # It lives HERE, at the single existing seam every routed pass already passes through, rather
+    # than at either call site: a second ref-composition site would be a second push path (CHARTER
+    # §P1 F1), and the land leg's identity — the merged candidate COMMIT — must stay byte-identical,
+    # which "no branch taken" guarantees more cheaply than any parallel code could.
+    #
+    # AN EXPLICIT CALLER `ref` STILL WINS, and nothing in the tree passes one today: the override is
+    # what keeps this composable for a caller that knows its own subject (the same shape `workers`
+    # has just below), not a route anyone takes to opt out of the snapshot.
+    #
+    # A SNAPSHOT THAT CANNOT BE TAKEN IS A FAULT IN THE PASS, NOT A LICENCE TO SHIP HEAD. It maps
+    # onto the INDETERMINATE outcome rule 7 already defines, under the EXISTING `venue-fault` class
+    # (the closed six-class vocabulary is not widened: a half of the pass that could not run is
+    # exactly what that class already means) — so `task test --run` FAILS naming the class and never
+    # reports a verdict taken on the committed tree.
+    if kind == STAGE6_KIND and executor_kw.get("ref") is None:
+        try:
+            _snapshot = working_tree_snapshot(repo_root)
+        except Exception as e:                              # noqa: BLE001 — mapped, never swallowed
+            return {"venue": "remote", "reason": "venue", "note": "",
+                    "outcome": OUTCOME_INDETERMINATE, "indeterminate_class": "venue-fault",
+                    "cand": [], "pinned": [],
+                    "metrics": {"venue_indeterminate_detail": str(e),
+                                "venue_snapshot_error": f"{type(e).__name__}: {e}"},
+                    "partition": partition, "result": None}
+        if _snapshot is not None:
+            executor_kw["ref"] = _snapshot
+
     fingerprint = record.get("fingerprint")
     workers = executor_kw.pop("workers", None)
     if workers is None:
@@ -3652,6 +3823,12 @@ def venue_verify_metrics(result: dict, partition: "dict | None" = None) -> dict:
     # T-12358 — the pass's serialized-tail record, per leg, under its venue-PREFIXED key on the same
     # terms (the caller maps it onto the canonical `load_sensitive` via `fold_venue_load_sensitive`).
     out[VENUE_LOAD_SENSITIVE_KEY] = _leg_load_sensitive(result or {})
+    # T-12447 — the failed files' output tails, per file across both legs. ABSENT, never `{}`, when no
+    # leg recorded one: a green pass carries no such key (T-0358), and a failing file whose output was
+    # empty still has its explicit `[]` entry because the runner wrote one.
+    _tail = _leg_failed_output_tail(result or {})
+    if _tail:
+        out[VENUE_FAILED_OUTPUT_TAIL_KEY] = _tail
     if partition is not None:
         out["venue_local_probe_count"] = partition["counts"]["local"]
         out["venue_local_probe_pct"] = partition["local_pct"]

@@ -68,6 +68,8 @@ implements: # (activation owner): concrete `#<symbol>` anchors added at
   - bin/lib/cross.py#inbox_picked_untracked_rows # rule 4 — the PURE accepted-but-untracked cut
   - bin/lib/cross.py#availability_claim_findings # rule 4 — the PURE availability-claim detector
   - bin/lib/cross.py#premature_announcement_warning # rule 4 — the PURE WARN text behind the conjunction
+  - bin/lib/cross.py#placeholder_awaits_key_warning # rule 4 — the PURE WARN text for a --kind task
+                                            # ask still carrying the literal placeholder awaits key
   - bin/lib/cli.py#_cross_unlanded_claim # rule 4 — the host-side unlanded-claim derivation
   - bin/lib/cli.py#_cross_peer_aliases # rule 6 — the host-side registry.yaml alias-map resolver
   - bin/lib/cli.py#_cross_self # rule 6 — self resolved to the CANONICAL registry key
@@ -132,6 +134,22 @@ body: |
     error) degrades to SILENCE, never to an accusation. Grounds: X-1041 announced a capability as
     SHIPPED at and it landed at 07:56:52Z — the consumer ran the verb it was
     told to run, measured an absence, and audited the sender's source.
+    PLACEHOLDER-AWAITS-KEY WARN (kupiclub X-1379) — after a successful emit, when the
+    request is `--kind task` **AND** its brief still carries the LITERAL placeholder
+    `type=<event_type>`, a REPORT-ONLY WARN names it and the way to resolve it. Same posture as the
+    two WARNs above and NOT a gate: the item stands as filed, unaltered, and no event records the
+    advisory. THE CONJUNCTION IS THE RULE — a `bugfix` routes a deviation and prescribes no awaits at
+    all, so it is silent, as are `question` / `note`. The asking side owns every emitter the awaited
+    moment could fire from and the receiver owns none of them, so the key is knowable at authoring
+    time and merely guessable at reading time; an `--awaits events.jsonl#type=<t>` armed on a type
+    nothing emits NEVER fires, which makes the handed-over obligation unfireable by construction.
+    The RULE is homed in SPEC-0095 §Armed (an ask may only prescribe an awaits key the asking side
+    has verified exists); this section documents the verb's mechanism, which is the standing division
+    of labour between the two specs. Deliberately a LITERAL match and not a catalog validation — for
+    the reason SPEC-0095 gives for REPORTING rather than validating an event type: a class that has
+    never fired is exactly what these records wait for. Grounds: of the X-1274..X-1291 family, three
+    asks prescribed an awaits key on a moment that emits no event at all (a printed refusal, a
+    stdout-only view, an absent emitter), leaving the consumer to guess.
     **`cross request --task T-NNNN`** (X-1152) — OPTIONAL: the card this request is filed IN
       SERVICE OF. Stored on `cross_requested` as BIRTH meta, so the fold reads it off that event alone
       and the audit packet of THAT card can see the request as its own evidence (SPEC-0168 rule 4).
@@ -318,6 +336,35 @@ body: |
       durable home ON the item instead of only in the closing session's transcript. OPTIONAL — a bare
       close emits the same `{id, by}` and simply shows no verification record; `--note` is REFUSED on
       `--withdraw` (a retraction's human string is its required `--reason`), never silently dropped.
+      **THE AUTHOR'S OWN CARD — `cross close --task <T-NNNN>`.** A close MAY name the
+      AUTHOR's own card, recorded on `cross_closed.data.task`. It is the AUTHOR-side sibling of
+      `cross done --task` and answers a different question: `cross done --task` is the RECEIVER's card
+      that did the work, this is the card whose acceptance CITES the item. It exists because
+      `task close --settle-evidence coordination.jsonl#cross=X-NNNN` resolves only against a row that
+      NAMES the settling card (the identity bound — resolution rule home: SPEC-0015 §the evidence-locator
+      address space + `bin/lib/task.py#_cross_settle_evidence_unresolved`), and until this flag the only
+      writers of that field belonged to the other party (`cross done --task`) or to the item's BIRTH
+      (`cross request --task`) — so an author with an already-filed item could not name its own
+      card anywhere the settlement reads. MEASURED 2026-09-10: settle was refused after
+      X-1171's report-back had been verified and the item closed. It is carried on the PLAIN close and
+      the `--out-of-band` close, and REFUSED on `--withdraw` (a retraction answers nothing, so it can
+      settle no criterion) — refused, never dropped, the shape `--note` uses one branch over.
+      **NAMING AMEND — the one branch reachable from the TERMINAL `closed` state.** `cross close <id>
+      --task <T-NNNN>`, passed ALONE, is admitted on an item this side already closed: it appends a
+      further `cross_closed` carrying `{task, naming_amend: true}` and re-states nothing else. Any other
+      mode or prose flag alongside it is REFUSED. Without it the fix would serve only FUTURE items and
+      every card blocked when it shipped would stay blocked. It is NOT terminal reanimation — a
+      same-type second terminal leaves the fold's winner, the `closed` status and `contested` all
+      unchanged, the SPEC-0085 rule-3 attach shape `cross done` / `cross ack` already use. IDEMPOTENT
+      BY CHECK: when an accepted `cross_closed` already names that card the verb appends NOTHING and
+      exits 0, because the store is append-only and a re-run must not leave a second row forever. The
+      role guard is the ordinary author one, so a PEER's item is refused journal-observably; kinds stay
+      `{task, bugfix}` — `note` is excluded because `_legality` accepts a `cross_closed` on a note ONLY
+      with the positive `out_of_band` marker the amend does not carry, so admitting it would emit a row
+      the fold DROPS, i.e. a verb reporting success while the store learns nothing.
+      **READ SURFACE:** `cross show` prints it as its OWN line, `closed naming task:`, beside the
+       `filed for task:` birth link and the receiver's `task:` — three lines, not one widened
+      field, for the reason gave: they are written by different parties at different moments.
       **ORPHAN-AUTHOR CLOSE — the plain close's ROLE guard relaxes to the RECEIVER, and only
       then, when the item's `from` names NO registered peer.** SPEC-0085 rule 2 carries the FSM half and
       the incident (X-0905/X-0907/X-0909 from the phantom sender `clone`); this is the VERB half. The
@@ -731,14 +778,14 @@ implements_signature:
   bin/lib/cross.py#availability_claim_findings: 92a1fcd9d0d1b9eb1b7bec9efbb18278fae7f6ea6e81263d26abff3cdad7077f
   bin/lib/cross.py#canonical_peer: fb42fe6efa1cce1f777c63cf04bfb4a0d4a8f5cfacdc0c767cfbac538d839427
   bin/lib/cross.py#cmd_cross_ack: 9312c49b6b23fca6c53e0baae4e86b560a9ec306acba8b86f39864dbd32a6ea3
-  bin/lib/cross.py#cmd_cross_close: ef90cb4ea45a78b1c82a2b511ab37e05f5f5c60bc79467c443979cb12abef2bb
+  bin/lib/cross.py#cmd_cross_close: 7eab26cecd2ca3d98c33d9e06f47ff624ad1bf0abefa537a59b25133fd38f5be
   bin/lib/cross.py#cmd_cross_dispute: 0c6afc85b900e8d1b5199b04e5f8dc5d45effd907febc35a7c220e0a16a44a90
   bin/lib/cross.py#cmd_cross_done: 937a4313b6739490c9977cc888f8d875668875bc95523f8171e00b742a49b8bd
   bin/lib/cross.py#cmd_cross_inbox: 3202233cae4f0bcb170cc1959881af0cf3141caa3618ae89e066a65b769060f5
   bin/lib/cross.py#cmd_cross_outbox: 768329186f6a9e1778c7784850ee60347668bfe088072055a769dcf60e18cd32
   bin/lib/cross.py#cmd_cross_pick: e5c7aa3e66f7ee791b718b9cec5c56c5f56c709fbcfa855a14cd5e64a8941640
   bin/lib/cross.py#cmd_cross_reject: c40be847a64f956c2a4bd23049f4c6fd247eac3a8bac725b2931c17de00db24a
-  bin/lib/cross.py#cmd_cross_request: cb1e36627cf8ed41944b52582240662f7b6248324838d406ce60a6c6674b407c
+  bin/lib/cross.py#cmd_cross_request: 1af50a5bb8eee666cf4293147faf3d53691dc5e1d129ef15f0b8c3f4d18ea67a
   bin/lib/cross.py#cross_pick_for_file: 422375b6b56a82e3fc6ee5c3a0d9d8b54708175e359b9b528ebd6e5d065011be
   bin/lib/cross.py#describe_holder: 2e292c3ec8b95b7774abd5208b4c75704e3d12bd02a37446e73a9d87008e6c63
   bin/lib/cross.py#inbox_picked_untracked_rows: 8231b1019f1af903d8b56b5ca538e0690b312d3b5247743ad1a76e8ff4b60354
@@ -750,6 +797,6 @@ implements_signature:
   bin/lib/cross.py#unanswered_cross_link_advice: faf1084d8b2f53ea054697a9f36cce28ddfd35c8610c94eb8247c28914d53a36
   bin/lib/cross.py#unregistered_sender_rows: 7e5fd7f7c1f10e92a8140cebec1f7f0d6f70116728c6230dfac3a478b123ef2b
   bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
-  bin/lib/session.py#cmd_session_start: f3de662a4bc6577be4ef802ef78392bf4dbaf4f2a2bf77ef218adb6c9eb4d6c6
+  bin/lib/session.py#cmd_session_start: 69163774384084b75d8f58617327720e7a432e1c4199a27a75266bcc2ed79da7
   bin/lib/task.py#_auto_cross_pick_for_file: 7ec08e2e7cc2ab9cc1959d08476bbab10176dcf91906541c7274acb97def07c2
-  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/task.py#cmd_task_file: 31973f540b35183222a96c09cc63968f9dce26a94f19a1e0ee7b4f1e80d9a022

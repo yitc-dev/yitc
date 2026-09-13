@@ -961,7 +961,7 @@ concern: # SPEC-0128 Rule 2 — the `reads:` ops-carrier section rule 10's bound
 implements_signature:
   bin/lib/cli.py#_iter_events: e62ee528cfcee6df98494858a9f3b8aaabda90e1f6d7018f191ee748bef01602
   bin/lib/cli.py#_iter_events_tail: 2204d73f266cf306f5fd488c1e28b26cb90e4e236edf3313a7179362e03ef971
-  bin/lib/cli.py#_land_integrate: ed33b2715f783b5bdadea3dbc0421c8e724b84317979a1ee305c7313864ea084
+  bin/lib/cli.py#_land_integrate: 79e3deb5339180189de340cf167ee996c52133815097e07d9f3b4f638112c0f8
   bin/lib/events.py#append_event: d9f2201a0f782c728b1e4af415e3f17755f9dfa6c799c12e70c8a3d6f6482548
   bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735
   bin/lib/events.py#recombine_journal: fdb186bc5ed87c8fdbd4f1bc2cf146411e79fd762216799a5c9abf6d41ee151e

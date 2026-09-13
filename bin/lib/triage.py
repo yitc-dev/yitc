@@ -24,9 +24,11 @@ byte-identical to the inline originals — the test suite is the oracle.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as _dt
 import json
 import re
+from pathlib import Path
 
 from lib import state
 from lib import journal as journal_mod  # T-11444: the SPEC-0190 segment-aware journal folds
@@ -1631,14 +1633,94 @@ def _last_triage_watermark(events_path) -> "str | None":
     return latest_boundary if latest is not None else None
 
 
+# T-12204 (SPEC-0190 rule 10) — the RESULT memo the `graph query` seam's ReadScope installs.
+#
+# THE SHAPE IT REMOVES, MEASURED ON THIS REPO 2026-09-07: `graph query --type error --recurring`
+# composes THREE views — `_capture_fingerprint_counts`, `_capture_cluster_counts` and
+# `_discovery_stem_clusters` — and the second and third each call the first internally. Every one of
+# them streams the WHOLE logical journal through `_scan_captures` -> `journal.segment_lines`, so ONE
+# request folded all 98 segments THREE times: folds 294 / segments 98 = folds_per_segment 3.000,
+# against a bound of one physical read per artifact. The live `cli_invoked` maximum for the verb that
+# day was 296/98 — the same shape, in production, not a sandbox artefact.
+#
+# WHY A RESULT MEMO AND NOT THE PARSED-ROWS LANE. `journal_mod.rows_memo` — the memo
+# `_debt_echo_lines` / `_advisory_read_scope` / `graph conformance` install — holds the bound here
+# too, but `segment_lines` streams precisely so a 325 MB journal is never materialised, and inside
+# this scope nothing else has materialised it: measured on the real corpus (98 segments / 644k rows)
+# it took peak RSS 153 MB -> 657 MB for wall 16.7s -> 14.6s. This memo holds the same bound at
+# 152 MB (flat) and 16.7s -> 10.9s, so it wins on both axes it does not tie on. That is the
+# `followup.fold_memo` shape rule 10 already sanctions for a fold defined over RAW LINES which
+# cannot consume the parsed-rows lane (T-12031) — which is exactly what `_scan_captures` is. The
+# deliberate NON-installation of `rows_memo` here follows the measured-omission precedent T-12144 set
+# at the sibling `journal query` seam: a ReadScope is only free where the reader was going to read
+# the whole declared journal anyway.
+#
+# IT IS ONE SCOPE, NOT A PER-VIEW CACHE (rule 10's named retirement (a)): the obligation lands on the
+# PRIMITIVE, so every view built on captures serves from the one scope the wiring site declares.
+#
+# SCOPE DISCIPLINE, taken verbatim from `followup.fold_memo`: the prior value is SAVED and RESTORED.
+# A nested scope SHADOWS the outer one — the inner body folds once on its own, the outer memo is
+# neither read nor written while it is installed, and on exit it is restored EXACTLY as it was.
+# Shadowing is deliberate rather than a limitation: an inner scope that inherited outer entries would
+# serve a caller rows folded under a different request. An exception raised inside the body can never
+# leave a stale snapshot installed for a later, unrelated verb. OUTSIDE a scope `_scan_captures` is a
+# plain pass-through, so every one of its 15 call sites is byte-identical.
+_CAPTURE_SCAN_MEMO = None
+
+
+@contextlib.contextmanager
+def capture_scan_memo():
+    """Serve `_scan_captures` from ONE physical fold per journal path for the duration of the scope."""
+    global _CAPTURE_SCAN_MEMO
+    prior = _CAPTURE_SCAN_MEMO
+    _CAPTURE_SCAN_MEMO = {}
+    try:
+        yield
+    finally:
+        _CAPTURE_SCAN_MEMO = prior
+
+
+def _capture_scan_key(events_path):
+    """The entry key: the RESOLVED path, the `JournalRowsMemo._key` shape. Falls back to the raw
+    string on OSError, so an unresolvable path still keys deterministically instead of raising."""
+    try:
+        return str(Path(events_path).resolve())
+    except OSError:
+        return str(events_path)
+
+
 def _scan_captures(events_path) -> list:
     """Read every nonconformity capture from events.jsonl — BOTH the current `deviation_captured`
     (D-0086 rename) AND the legacy read-only `friction_captured` (append-only, P5-safe: the rename
     never resets recurrence). Returns normalized rows
     {ts,type,fp,relates_to,via,kind,impact,finding,task_id,remedy}.
-    Single scan reused by the recurring counter, the routing window, and the cluster set."""
+    Single scan reused by the recurring counter, the routing window, and the cluster set.
+
+    MEMO-SERVED inside a `capture_scan_memo()` scope, a plain physical fold outside one (T-12204).
+    Pass-through by default, so no caller outside a scope moves. A memo HIT performs no physical read
+    and therefore records none — the same reason `segment_lines` skips `note_fold` on its
+    scope-served branch (T-12035) and `state.load_path` counts misses, not hits. Counting a hit would
+    report amplification exactly where the collapse succeeded.
+
+    THE MEMO IS AN EARLY RETURN IN THIS FUNCTION, deliberately NOT the front-door/`_uncached` SPLIT
+    that `followup._fold` uses. The T-11442 journal-consumer census records a reader by its
+    (file, FUNCTION NAME, kind) triple, so extracting the fold into `_scan_captures_uncached` MOVES
+    the recorded site: the census then reports 1 recorded-but-not-enumerated + 1 live-but-unrecorded,
+    its reconciler pairs neither (`moved=0`), and regenerating needs `--allow-shrink` — a flag that
+    asserts the population SHRANK, which would be untrue here. Keeping ONE function name keeps the
+    census site identical and the artifact untouched, which is also the smaller change (CHARTER §P1
+    F3). `followup._fold` can afford the split because its physical read lives in a helper the census
+    already records under its own name."""
+    memo = _CAPTURE_SCAN_MEMO
+    key = None
+    if memo is not None:
+        key = _capture_scan_key(events_path)
+        if key in memo:
+            return memo[key]
     out: list = []
     if not events_path.exists():
+        if memo is not None:
+            memo[key] = out
         return out
     for line in journal_mod.segment_lines(events_path):  # T-11444: segment-aware fold (SPEC-0190 r4)
         line = line.strip()
@@ -1679,6 +1761,8 @@ def _scan_captures(events_path) -> list:
                     # `finding` below are untouched, so no existing consumer moves.
                     "content": journal_mod.capture_content(d),
                     "remedy": d.get("remedy_ref")})   # T-0500: the remedy-existence sweep verdict (D-0086 §5)
+    if memo is not None:
+        memo[key] = out
     return out
 
 

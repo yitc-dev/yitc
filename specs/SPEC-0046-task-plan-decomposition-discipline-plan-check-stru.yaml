@@ -467,4 +467,4 @@ proposed_by:
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
   bin/lib/plan.py#cmd_plan_check: feb077f4fd1ec168b36ae31902cebdcd282282763aa91ddc6aee7f69af84d0e1
-  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/task.py#cmd_task_file: 31973f540b35183222a96c09cc63968f9dce26a94f19a1e0ee7b4f1e80d9a022

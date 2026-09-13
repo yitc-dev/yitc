@@ -35,7 +35,15 @@ PAUSE_REASONS = ("owner-wait", "audit-ceiling", "auditor-abort",
                  # Terminal + resumable: `--dispatch-status` reads it as `paused(controller-wait)`
                  # (never `working`), the dispatch in-flight guard yields to it without `--force`,
                  # and `dispatch --resume` relaunches from the recorded resume contract.
-                 "controller-wait")
+                 "controller-wait",
+                 # T-12407 (kupiclub X-1322): a wait on a DECLARED artifact whose arrival a reader
+                 # can DECIDE — the awaited item is named on the card (`task pause --awaits`), not
+                 # inferred from prose. It exists because `owner-wait` was the only park available
+                 # for an artifact wait and the session-start echo reads that reason ALONE: T-0422
+                 # sat resumable for 8 days while three sessions were told it was waiting on the
+                 # owner. This reason's card carries the awaited ref, so the echo can say RESUMABLE
+                 # the moment the item closes instead of asserting a wait it cannot check.
+                 "artifact-wait")
 EFFORT_TIERS = ("normal", "critical")
 EFFORT_TIER_DEFAULT = "normal"
 HOST_CONFIG_KINDS = ("nginx-vhost", "cron", "systemd-unit", "other")

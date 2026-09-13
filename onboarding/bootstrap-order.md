@@ -34,9 +34,14 @@ over the manifest. Without it there is no trust step and nothing below may proce
 
 ## Step 2 — The anchor
 
-The **anchor fingerprint** is taken by the PERSON from the org-profile README on the independent
-channel and handed to the AI. The AI never fetches the anchor from the mirror it is about to check —
-an artifact does not get to certify itself.
+The person hands over ONE link — this mirror — and nothing else. The **anchor fingerprint** is then
+fetched by the AI, not by the person: the mirror's own README names the org-profile page
+(<https://github.com/yitc-dev/.github>, section **Trust anchor**), the AI reads the anchor FROM THAT
+PAGE — an independent repository, never the mirror it is about to check, because an artifact does
+not get to certify itself — and then SHOWS the person the page URL and the exact line it took. The
+person confirms one thing, in one word: that this is the `yitc-dev` organization page. Naming the
+page inside the mirror is safe; taking the anchor from the mirror is not, and that is the whole
+distinction this step turns on.
 
 ## Step 3 — Clone, verify, install
 
@@ -73,29 +78,40 @@ kernel:
   content: {release: <tag>, answers: <answers-tag-or-~>}
 ```
 
-## Step 6 — The external auditor
+## Step 6 — The external auditor (recommended, not a precondition)
 
-**Required, and a DIFFERENT provider from the primary AI** (CHARTER §P4a). The auditor exists to
-catch the primary AI's blind spots; an auditor that is the same model reviewing its own work catches
-nothing. Without a bound auditor every `audit pre` / `audit post` ABORTs, and the lifecycle cannot
-reach `land`.
+Work runs from day one on the ONE provider the person already has — the primary AI. A second,
+**different** provider is **recommended** because it catches the first one's blind spots (CHARTER
+§P4a); it is not a precondition for anything. While none is bound, every `audit pre` / `audit post`
+still RUNS, on the primary AI's own provider, and every such verdict is honestly stamped
+`auditor_independence: same-provider` — the owner can always tell from a verdict whether a different
+mind checked the work. Until an external provider is bound, one line at each `session start` reminds
+the person of this recommendation (re-fold it on demand with `bin/yitc-v2 audit status`, which
+prints the resolved auditor per tier and its independence); the line goes silent the moment one is
+bound. Nothing waits, nothing is refused.
 
-The AI PROPOSES this step and, with the person's agreement, carries it out:
+When the person agrees to bind one, the AI PROPOSES this step and carries it out:
 
 1. **Choose the second provider.** The AI asks which other AI provider the person already has or
    wants. This doc names none — the choice is the person's (CHARTER §P4b).
-2. **Install that provider's CLI** per **that provider's own documentation**, so its binary lands on
-   `PATH`.
-3. **Log in** with the person's own account for that provider, per the same documentation.
-4. **Bind it** (in this order):
-   - the configured binary name (by default `<external-auditor>`) is on `PATH` — nothing further to do; or
-   - `export YITC_CODEX_AUDIT_BIN=<absolute-path-to-binary>` in the environment the AI runs in.
+2. **Install that provider's CLI and log in** per **that provider's own documentation**, with the
+   person's own account. HOW is not prescribed here — the AI proposes, the person agrees.
+3. **Bind it** — the whole binding is up to four lines written by `config set` into ONE file, the
+   machine-settings file `~/.yitc-coordination/machine-settings.json` (per SPEC-0202; outside the
+   engine tree, so `release verify` and `update` never touch it; `bin/yitc-v2 config list` prints
+   its exact path):
 
-   The kernel config file is the LAST RESORT only. There is no machine-setting `config set` for this
-   key — it is GATE-class and `config set` refuses it.
-5. **Smoke-verify the binding** with an `bin/yitc-v2 audit adhoc --help`-class call. If the binary
-   cannot be resolved the engine answers with a NAMED refusal telling you exactly which of the three
-   lookups failed — never a silent success.
+   ```bash
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.provider <adapter>
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.binary <absolute-path-to-binary>
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.home <provider-auth-dir> # optional
+   <engine-dir>/bin/yitc-v2 config set auditor.routine.model <model-id> # optional
+   ```
+
+   (`<adapter>` is a name the engine's adapter registry knows — `bin/audit-config.yaml` lists them;
+   the same four keys exist for the `full` tier.)
+4. **Check the binding** with `<engine-dir>/bin/yitc-v2 audit status`: the routine tier should read
+   `independence=external` and name the bound binary and model; the session-start line is now silent.
 
 ## Step 7 — Open the AI tool in the project and start a session
 
@@ -107,3 +123,6 @@ The person opens their AI tool with `<project>` as the working directory; the AI
 
 and follows the seed it is handed. From here the ordinary session protocol applies and this doc is
 done.
+
+When the person asks what this system is, how a working day looks, how projects are made, or what
+the sandbox is, the answer is [`overview.md`](overview.md) — read it and voice it in their language.

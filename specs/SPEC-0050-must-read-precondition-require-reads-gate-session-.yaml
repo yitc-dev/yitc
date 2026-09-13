@@ -275,6 +275,17 @@ body: |
   refusal text — this spec's governed behavior) UNCHANGED. So the co-anchor `possibly-stale` flag is a
   false positive (deliberate-non-update of this spec), refreshed last-touch.
 
+  Instance : `spec new` gains an explicit-id allocation (`--id SPEC-NNNN`, admitted only
+  strictly above the allocator's floor) and a report-only stderr WARN when a `-C` consumer's freshly
+  allocated id is ALSO kernel-owned. Every edit sits BELOW the read-gate: the `--draft` plan-`specs`
+  `_require_reads` PROLOGUE is byte-identical, the NON-draft path still carries no read-check at all,
+  and the new work (id parse, the allocator kwarg, the WARN, two `spec_filed` fields) runs after it.
+  So this spec's governed behavior — the doc-set derivation, the `cli_invoked` evidence window and the
+  stdout refusal text — is UNCHANGED, and the co-anchor `possibly-stale` flag is a false positive: the
+  same shape as the instance above, which likewise appended operator-facing behavior to this
+  very function. Reviewed against the code, not re-baselined blind (the honesty clause), and
+  re-signed with a SCOPED reverify naming this one anchor.
+
   Instance ( — the ONE governed BYPASS of the audit read-gate, X-0040 non-empty-delta half):
   `audit post --reaudit-after-close` SKIPS the `cmd_audit` TASK Audit-post read-gate prologue
   (`_require_reads("stage", {"stage": "Audit-post", …})`) AND the stage-correspondence guard — UNLIKE
@@ -534,7 +545,7 @@ proposed_by:
 binding:
   - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0
+  bin/lib/audit.py#cmd_audit: 1ab2d8cf4dd5688048a6d2de1626c9951944591002f078ff8228e940d573513f
   bin/lib/cli.py#_emit_cli_invoked: 4a8c59a0913e134a44caed023fc8ac2f2fe0e357ee36d31ffd0d5875d6a9a240
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
   bin/lib/gates.py#_fetched_spec_ids: 4f91d79220adae801846c2a84860c2c964b1ea5445d0ad8d73acbdda2033bbd8
@@ -544,6 +555,6 @@ implements_signature:
   bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
   bin/lib/plan.py#cmd_plan_check: feb077f4fd1ec168b36ae31902cebdcd282282763aa91ddc6aee7f69af84d0e1
   bin/lib/session.py#session_epoch: 9de86dd52424e7ab717de755fe7d7efd6393e5621e20a243e44cdfdd0e3b40ff
-  bin/lib/spec.py#cmd_spec_new: 44b349d1563a84c6a8c0c041f2965d1b1d7b312c5b5f43eb82dcde2dd832111c
+  bin/lib/spec.py#cmd_spec_new: d8bd3b6b454fe2042945a6a94e8517b552c1fa804ee5fc19b9a7a976808f9176
   bin/lib/task.py#cmd_task_close: 5b32310d96f0879475b45cd1c6fdb21a912b9d16b8a8b1bbce3c20b516cb9a22
-  bin/lib/task.py#cmd_task_commit: b5fe00f8c5c09e269b981048d5049771ef5677d4fca5a2eb5e03dc3e9f1dc0ac
+  bin/lib/task.py#cmd_task_commit: 57886abc9aa5f7106cff9b1a29164f9b7d4b00cafcf012f4b0fbfe7270bddd59

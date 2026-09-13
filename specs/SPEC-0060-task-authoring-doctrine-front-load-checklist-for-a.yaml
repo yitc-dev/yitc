@@ -121,6 +121,14 @@ body: |
      --finalize` REFUSES a plan that never REFERENCES a canonical `ACn` id, naming the uncovered
      ids. A NECESSARY condition only — the auditor still judges substance — so it floors the
      scope↔plan relation this item asks you to think through; it does not check it.
+     **The premise-verify cue's own MECHANICAL FLOOR —** `task file` and `task update
+     --old/--new` (on `scope`/`acceptance`) print two report-only lines,
+     `non-active spec cited (advisory — filing not blocked)` and
+     `retired flag named (advisory — filing not blocked)` (registry rows 12 + 13 below), when a
+     cited or named spec resolves in the graph index to a non-active status
+     or the card text names a retired `audit` CLI flag (SPEC-0204 rule 6) — the two premise faults the
+     graph already knew at the filing. A NECESSARY condition only (status and token, never
+     substance); filing is never blocked.
   4. **Acceptance WITH probe (front-load thinking — OWNED here, load-bearing)** — does each criterion
      name a probe (event / state / measurable effect)? "code committed" is NOT "done" (done=adopted +
      infra-adoption → CHARTER §P3/§P8). This IS the per-unit verification artifact SPEC-0059's
@@ -631,7 +639,7 @@ body: |
   **The task-file advisory line REGISTRY — what `task file` prints, and who owns each line.**
   A DELIVERY REGISTRY, not a rule family: it records WHICH advisory lines `cmd_task_file` prints and
   WHERE each line's semantics are homed. It deliberately does NOT claim this spec owns all of them —
-  the ten lines answer different questions and keep different homes (external consult
+  the thirteen lines answer different questions and keep different homes (external consult
   `decisions/-audit-adhoc.yaml`, survivor C; the blanket reading "filing previews → SPEC-0044"
   is contradicted by this split, as is any reading that SPEC-0060 owns the whole family).
 
@@ -648,6 +656,8 @@ body: |
   | 9 | `AC test/waive status (advisory — filing not blocked)` | `_print_ac_test_waive_status` | | this spec (item 4 — each AC names a test or an explicit waive) |
   | 10 | `stranded-filing (advisory — filing NOT blocked)` | `_print_stranded_filing_advisory` | | **AGENTS-SESSIONS §Writes happen in a worktree** (pointer — the filing-is-not-executing hand-off) |
   | 11 | `AC measured-bound status (advisory — filing not blocked)` | `_print_ac_measured_bound_status` — fired at BOTH authoring seams: `task file` (via `_print_ac_test_waive_status`) and the `task update --old/--new` field-edit that changes `acceptance` | | this spec (item 4 — the Measured-bound cue: a numeric bound names its measurement or states a direction) |
+  | 12 | `non-active spec cited (advisory — filing not blocked)` | `_print_premise_advisory` — fired at BOTH authoring seams: `task file` (off the grafted index) and the `task update --old/--new` field-edit that changes `scope` or `acceptance` (off the committed `graph/index.json`) | | this spec (item 3 — the premise-verify cue's mechanical floor: a cited or scope/acceptance-named spec whose index status is `superseded\|retired\|withdrawn\|rejected`, naming its superseder; only `active` governs — SPEC-0005) |
+  | 13 | `retired flag named (advisory — filing not blocked)` | `_print_premise_advisory` (same printer, same two seams as row 12) | | **SPEC-0204 rule 6** (pointer — the retirement authority); the flag SET is read in place off the ONE carrier `bin/lib/audit.py#RETIRED_AUDIT_FLAGS` that the pre-parse shim and graph conformance's `retired-audit-flags` probe read, matched by that probe's own whole-token matcher — never a second list |
 
   **Line 1 is a POINTER, never restated here (P5).** Its collision/lineage semantics — the spec-lineage
   and code-surface altitudes, the SAFE/WAIT/CLASH/CLAIMED verdicts, the release predicate — are
@@ -928,6 +938,6 @@ binding:
   - stage-entry:Filing # delivers BOTH the `task file` read-check derivation AND the
                                # session-start availability reference (the Filing stage bundle).
 implements_signature:
-  bin/lib/session.py#cmd_session_start: f3de662a4bc6577be4ef802ef78392bf4dbaf4f2a2bf77ef218adb6c9eb4d6c6
-  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/session.py#cmd_session_start: 69163774384084b75d8f58617327720e7a432e1c4199a27a75266bcc2ed79da7
+  bin/lib/task.py#cmd_task_file: 31973f540b35183222a96c09cc63968f9dce26a94f19a1e0ee7b4f1e80d9a022
   bin/lib/triage.py#cmd_triage_run: ee330cbfaf7694416e2b32d7925b57b92f8ef231bd5cfaeff02afc79ee96d3b7

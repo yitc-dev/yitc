@@ -1856,6 +1856,50 @@ def premature_announcement_warning(nid: str, brief, unlanded_claim) -> "str | No
         f"outside the matched set is NOT detected — silence here is not proof the brief makes none.\n")
 
 
+PLACEHOLDER_AWAITS_KEY = "type=<event_type>"
+"""T-12408 — the LITERAL placeholder an unfinished awaits key is spelled with, in the one place both
+the WARN below and its test read it from."""
+
+
+def placeholder_awaits_key_warning(nid: str, kind, brief) -> "str | None":
+    """PURE — the report-only WARN text for a `--kind task` ask that still carries the placeholder
+    awaits key, or None. The FOURTH member of this verb's report-only family, same posture as
+    `premature_announcement_warning` above: stderr, after the successful emit, never a gate.
+
+    Fires ONLY on the CONJUNCTION: (i) `kind == "task"` — the ask that PRESCRIBES what the receiver
+    should arm (a `bugfix` routes a deviation and prescribes no awaits, so it is silent, and so are
+    `question` / `note`) AND (ii) the brief contains the literal `type=<event_type>`.
+
+    WHY THE ASKING SIDE, not the receiver (measured — kupiclub X-1379 over the X-1274..X-1291 family,
+    2026-09-11): three asks prescribed an awaits key on a moment that emits NO event at all — a
+    printed refusal, a stdout-only view, an absent emitter. The asking side owns every emitter the
+    moment could fire from, so it is the only side that CAN resolve the key; leaving the placeholder
+    in makes the receiver guess a key that may not exist, and an armed followup on a type nothing ever
+    emits never fires. SPEC-0095 §Armed carries the rule.
+
+    Deliberately a LITERAL match, not a catalog validation: SPEC-0095 §Armed states why an event type
+    is REPORTED rather than validated — a class that has never fired is exactly what these records
+    wait for, so refusing an uncatalogued type would refuse the useful case. The placeholder is
+    different in kind: it is not a type at all, it is the absence of one."""
+    if str(kind or "").strip() != "task":
+        return None
+    if PLACEHOLDER_AWAITS_KEY not in str(brief or ""):
+        return None
+    return (
+        f"WARN: {nid} is filed, but its brief still carries the PLACEHOLDER awaits key "
+        f"`{PLACEHOLDER_AWAITS_KEY}` — the receiver cannot resolve it, and you can.\n"
+        f"  You own every emitter the awaited moment could fire from; they own none of them. An "
+        f"`--awaits events.jsonl#type=<t>` armed on a type nothing emits NEVER fires, so the "
+        f"obligation you just handed over is unfireable by construction (measured: kupiclub X-1379, "
+        f"three asks of one family named a moment that emits no event).\n"
+        f"  Resolve it: grep the emitter, check the type against the SPEC-0025 / SPEC-0161 catalog, "
+        f"and re-file with THAT literal key. If NO emitter fires at that moment, the ask is "
+        f"unanswerable as written — file the emitter card first, or drop the carrier, instead of "
+        f"asking (SPEC-0095 §Armed).\n"
+        f"  Report-only: nothing was refused and {nid} stands as filed — `cross show {nid}` to read "
+        f"it back, your own `cross close {nid} --withdraw` to dispose of it.\n")
+
+
 def cmd_cross_request(args: argparse.Namespace, *, cross_log_path, lock_path, self_name,
                       cross_emit, die, registry_peers=None, no_team_receivers=None,
                       aliases=None, actor=None, unlanded_claim=None) -> str:
@@ -2078,6 +2122,18 @@ def cmd_cross_request(args: argparse.Namespace, *, cross_log_path, lock_path, se
     # untouched from a worktree, with no added step (D-0049: the capture reflex stays one command).
     try:
         warn = premature_announcement_warning(nid, brief, unlanded_claim)
+        if warn:
+            sys.stderr.write(warn)
+    except Exception:  # noqa: BLE001 — advisory; a heuristic bug must never break a filed request
+        pass
+
+    # T-12408 (kupiclub X-1379): the PLACEHOLDER-AWAITS-KEY WARN — the fourth member of this verb's
+    # report-only family, wired on identical terms to the three above: stderr, AFTER the successful
+    # emit, never blocks, never alters the item, emits no event, fail-open. The verdict and the text
+    # are the PURE `placeholder_awaits_key_warning` (the `premature_announcement_warning` shape), so
+    # this site holds only the wiring and the rule is testable without a shared store.
+    try:
+        warn = placeholder_awaits_key_warning(nid, kind, brief)
         if warn:
             sys.stderr.write(warn)
     except Exception:  # noqa: BLE001 — advisory; a heuristic bug must never break a filed request
@@ -2527,7 +2583,11 @@ def cmd_cross_close(args, *, cross_log_path, self_name, cross_emit, local_append
     T-10816 (X-0643) — whichever human string this invocation publishes (`--note` on a close, `--reason`
     on a withdraw) is REFUSED when it cites an `X-NNNN` that does not resolve, with a message naming the
     required order. The check runs BEFORE the emit, so the append-only log never receives a citation of an
-    id nothing allocated."""
+    id nothing allocated.
+
+    T-12322 — `--task <T-NNNN>` names the AUTHOR's OWN card on `cross_closed.data.task`, the field the
+    settlement resolver reads (`task.py#_cross_settle_evidence_unresolved`). On an item that is
+    ALREADY `closed` it is admitted alone as an idempotent NAMING AMEND — see the branch comment."""
     # T-11582 (E-0054, X-1111): the shell-proof INGEST fork, and it is the FIRST statement on purpose.
     # Hoisted ABOVE every existing validity check — the required-`--reason` checks in the out-of-band
     # and withdraw branches, the orphan-author `--note` requirement, the citation and re-entry guards —
@@ -2549,6 +2609,73 @@ def cmd_cross_close(args, *, cross_log_path, self_name, cross_emit, local_append
     # `events` is already canonicalized by the read above — the `events=` reuse path (one read, one fold).
     item = _resolve_or_die(cross_log_path, args.id, die, events=events)
     note = (getattr(args, "note", None) or "").strip()
+
+    # ── T-12322 — the AUTHOR's own card link, on the AUTHOR's own terminal ───────────────────────
+    # THE GAP. `task close --settle-evidence coordination.jsonl#cross=X-NNNN` resolves only against a
+    # row whose `data.task` NAMES the settling card (the identity bound — the store is shared and
+    # every peer folds it, so item-id-alone resolution would let any project's row settle any card's
+    # criterion). But the only two verbs that could write that field belong to the OTHER party or to
+    # the item's BIRTH: `cross done --task` is the RECEIVER's card, and `cross request --task`
+    # (T-11747) can only be passed at filing. So the AUTHOR of an already-filed item had NO way to
+    # name its own card on any row the resolver reads. MEASURED 2026-09-10: T-11674's settle was
+    # refused after the report-back had been verified and X-1171 closed, and the fired P8 carrier
+    # could not discharge by its own recipe.
+    #
+    # Validated with the EXISTING T-11747 shape regex — one shape home, no second validator, and the
+    # same FAIL-CLOSED rationale: the tie is an EQUALITY against a card id, so a malformed value
+    # would store quietly and match nothing forever. Existence of the card is deliberately NOT
+    # checked here either (the card lives in a repo this reader may not have, SPEC-0084 rule 5).
+    task_link = (getattr(args, "task", None) or "").strip()
+    if task_link and not _TASK_LINK_RE.fullmatch(task_link):
+        die(f"--task must be a T-NNNN card id (got {task_link!r}). It names YOUR OWN card — the one "
+            f"whose acceptance cites this item — so that card's `task close --settle-evidence "
+            f"coordination.jsonl#cross={item['id']}` can resolve against the row this close writes.")
+
+    # NAMING AMEND (T-12322) — hoisted ABOVE the mode dispatch on purpose: it is the ONE branch
+    # reachable from the TERMINAL `closed` state, so it has to be decided before the ordinary plain
+    # close's `_guard(from_states={"done"})` refuses it. It exists because the items that most need
+    # the link are exactly the ones ALREADY closed when this shipped (X-1171 among them): without it
+    # the fix would serve only future items and every card blocked today would stay blocked.
+    #
+    # It is NOT terminal reanimation, and that is a property of the DATA MODEL rather than a promise:
+    # a second `cross_closed` is the SAME TYPE as the winning terminal, so the fold's
+    # `min(_order_key)` winner, the `closed` status and `contested` (`len({types}) > 1`) are all
+    # unchanged by construction. Same same-type-attach shape SPEC-0085 rule 3 already gives the
+    # `cross done` / `cross ack` re-emits one verb over.
+    if task_link and item.get("status") == "closed":
+        _bad_mode = next((f for f in ("withdraw", "out_of_band") if getattr(args, f, False)), None)
+        _bad_prose = next((f for f in ("note", "reason", "re_entry", "re_entry_awaits", "no_re_entry")
+                           if (getattr(args, f, None) or "").strip()), None)
+        _bad = _bad_mode or _bad_prose
+        if _bad:
+            # Refuse rather than drop, the shape every other mode-conflict on this verb uses: the
+            # amend PUBLISHES nothing but the link, so a silently-ignored flag would leave the author
+            # believing prose or a disposition was recorded on a row that does not carry it.
+            die(f"--{_bad.replace('_', '-')} does not apply to the naming amend. This item is already "
+                f"CLOSED; `--task` alone re-states WHOSE card it served, and re-closes, retracts and "
+                f"records nothing else. Pass `cross close {item['id']} --task {task_link}` on its own.")
+        # kinds EXCLUDES `note` deliberately, though the out-of-band close admits it: `_legality`
+        # accepts a `cross_closed` on a `note` ONLY with the positive `out_of_band` marker, which the
+        # amend does not carry — so admitting `note` here would emit a row the fold DROPS, i.e. a
+        # verb that reports success while the store learns nothing. The role axis is the ordinary
+        # author one, which is what refuses a PEER's item journal-observably (the AC2 differential).
+        _guard(local_append, die, item, "close --task (naming amend)", self_name,
+               role="author", kinds={"task", "bugfix"}, from_states={"closed"})
+        already = [e for e in item_events(events, item["id"])
+                   if e["accepted"] and e["event"].get("type") == "cross_closed"
+                   and str((e["event"].get("data") or {}).get("task") or "").strip() == task_link]
+        if already:
+            # IDEMPOTENT by CHECK, not by dedup: the store is append-only and union-merged, so a
+            # re-run that emitted would leave a second identical-in-meaning row forever. Nothing is
+            # appended and the exit is 0 — a re-run is a no-op, which is what makes this safe to put
+            # in a recipe someone repeats.
+            print(f"cross close: {item['id']} already names task {task_link} — naming amend is a no-op")
+            return
+        cross_emit("cross_closed", {"id": item["id"], "by": self_name, "task": task_link,
+                                    "naming_amend": True})
+        print(f"cross close (naming amend): {item['id']} now names task {task_link} "
+              f"— status unchanged (closed)")
+        return
 
     def _require_resolvable_citations(text: str, verb: str) -> None:
         missing = unresolved_cited_ids(text, items, self_id=item["id"])
@@ -2615,6 +2742,8 @@ def cmd_cross_close(args, *, cross_log_path, self_name, cross_emit, local_append
         _require_resolvable_citations(reason, "close --out-of-band")
         _require_re_entry_disposition(reason, "close --out-of-band")   # T-11116
         data = {"id": item["id"], "by": self_name, "reason": reason, "out_of_band": True}
+        if task_link:
+            data["task"] = task_link      # T-12322 — the author's own card, on the author's terminal
         _arm_or_record(data)
         cross_emit("cross_closed", data)
         print(f"cross closed (out of band): {item['id']} by {self_name} — {reason}")
@@ -2633,6 +2762,13 @@ def cmd_cross_close(args, *, cross_log_path, self_name, cross_emit, local_append
             die("--re-entry / --no-re-entry apply to a CLOSE, not --withdraw. A withdraw retracts the "
                 "ask itself, so there is no condition to re-enter on. If the ask still stands but is "
                 "declined for now, close it (--out-of-band --reason ... --re-entry ...) instead.")
+        if task_link:
+            # T-12322 — refuse, never drop, the shape the --note refusal just above uses. A withdraw
+            # RETRACTS the ask, so it answers nothing and can settle no card's criterion; carrying a
+            # card link on it would publish a settlement handle for work that was never done.
+            die("--task applies to a CLOSE, not --withdraw. A withdraw retracts the ask, so it "
+                "answers nothing and can settle no criterion. If the substance WAS delivered, close "
+                "it (--out-of-band --reason ... --task ...) instead.")
         reason = (getattr(args, "reason", None) or "").strip()
         if not reason:
             die("--withdraw requires --reason")
@@ -2671,6 +2807,8 @@ def cmd_cross_close(args, *, cross_log_path, self_name, cross_emit, local_append
         data = {"id": item["id"], "by": self_name}
         if note:
             data["note"] = note
+        if task_link:
+            data["task"] = task_link      # T-12322 — the author's own card, on the author's terminal
         if orphan:
             data["orphan_author"] = True
         _arm_or_record(data)
@@ -3044,6 +3182,23 @@ def resolved_by_task(chain: list):
     return None
 
 
+def closed_naming_task(chain: list):
+    """The AUTHOR's own `T-NNNN` named on an accepted `cross_closed` (`cross close --task`, T-12322),
+    else None. The LAST such row wins, so a naming amend supersedes an earlier link.
+
+    Deliberately SEPARATE from `resolved_by_task` (which reads `cross_done` ONLY) rather than folded
+    into it: the two say different things and are written by different parties at opposite ends of the
+    item's life — this is the card the AUTHOR was serving, that is the RECEIVER's card that did the
+    work. Same accepted-only rule as `resolution_note`: a dropped `cross_closed` closed nothing, so it
+    cannot carry the link either."""
+    for entry in reversed(chain):
+        if entry["accepted"] and entry["type"] == "cross_closed":
+            task = ((entry["event"].get("data") or {}).get("task") or "").strip()
+            if task:
+                return task
+    return None
+
+
 def out_of_band_closure(chain: list) -> bool:
     """Did an ACCEPTED `cross_closed` close this item OUT OF BAND (T-10909)? Same accepted-only rule as
     `resolution_note`/`auto_resolution_note`: a DROPPED event closed nothing, so it cannot claim the
@@ -3170,6 +3325,15 @@ def cmd_cross_show(args, *, cross_log_path, die, aliases=None, **_) -> None:
     # above — an item serving no card prints nothing, so an operator never reads an absence as a claim.
     if item.get("task"):
         print(f"filed for task: {item['task']}  (author-side link — `cross request --task`)")
+    # T-12322 — the OTHER author-side link, on its OWN line for the same reason T-11747 gave above:
+    # `filed for task` is BIRTH meta (what the author was working on when they raised it), while this
+    # is what the author named on the TERMINAL — often a different card, and settable long after the
+    # item was filed. Conditional like every line around it, so an absence is never read as a claim.
+    # It is the read surface for what `cross close --task` writes: without it an operator could only
+    # confirm the link by grepping the out-of-repo store.
+    closed_task = closed_naming_task(chain)
+    if closed_task:
+        print(f"closed naming task: {closed_task}  (author-side link — `cross close --task`)")
     print(f"task: {resolved_by_task(chain) or '(none)'}")
     print(f"resolution note: {resolution_note(chain) or '(none)'}")
     auto = auto_resolution_note(chain)      # T-10785 — provenance, on its OWN line, never the slot above

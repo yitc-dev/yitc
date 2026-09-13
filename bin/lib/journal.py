@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from pathlib import Path
 from lib import state    # noqa: E402
@@ -114,6 +115,21 @@ def _classify_cc_entry(e: dict, *, _extract_text) -> str | None:
     # list-structured long content w/o owner phrasing = context/skill injection
     if isinstance(content, list) and len(text) > 500:
         return "instruction_injection"
+    # T-12400: a DISPATCHED WORKER's standing preamble arrives as a plain-STRING `user` entry, so
+    # every one of them fell through to `owner_directive` below — 209 rows in 3 days in the kernel,
+    # polluting the ONE channel AGENTS §Recovery tells a session to grep FIRST for the owner's own
+    # wording (kupiclub X-1364 / aiseller X-1345). It IS machine-injected instruction text, which is
+    # exactly what `instruction_injection` names. The marker is SINGLE-SOURCED from the module that
+    # BUILDS the preamble (it interpolates the same constant), read by the established LAZY leaf-order
+    # import — dispatch imports journal, so a module-level import here would be circular. Fail-SAFE:
+    # any import/attribute failure leaves today's classification untouched (a best-effort denoise must
+    # never be able to break the materializer).
+    try:
+        from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy by design (leaf-order)
+        if text.startswith(_dispatch.DISPATCH_PREAMBLE_MARKER):
+            return "instruction_injection"
+    except Exception:
+        pass
     return "owner_directive"
 
 
@@ -280,7 +296,21 @@ DISPATCH_CLASS_VOCAB = (
      "CHILD is gone but the WORKER SESSION still lives — it may be re-invoking its own land per the "
      "synchronous-to-LAND discipline, so WAIT/re-poll; recovery is NOT applicable (T-10953, X-0815) / "
      "`land-dead` = abandoned, recover "
-     "with the governed `bin/yitc-v2 worktree recover-land --task T-XXXX`)"),
+     "with the governed `bin/yitc-v2 worktree recover-land --task T-XXXX`). Scoped to the WORKER "
+     "land regime (the launch row's `land_regime` absent or `worker`) — under `controller` the same "
+     "shape reads `closed_awaiting_controller_land` below, never here"),
+    ("closed_awaiting_controller_land",
+     "the CONTRACTED completion under the CONTROLLER-LANDS regime (T-12351 / T-12373): the worker's "
+     "launch row carries `land_regime: controller`, the task is `done` on its branch (task_closed, "
+     "live `task/T-XXXX` worktree claim still on disk) and NO land process is running — the worker "
+     "stopped after `task close` exactly as its composed STOP/LAND CONTRACT told it to (SPEC-0103). "
+     "NOT a death, NOT a halt, NOT a recovery case: the one owed step is the CONTROLLER's plain "
+     "`bin/yitc-v2 land --task T-XXXX` from main (never `worktree recover-land` — that verb's "
+     "predicate is a DEAD worker, and this worker is not dead, it is finished). The dispatch watcher "
+     "reads it as a positive TERMINAL(done) (`WATCH: ANY_TERMINAL` names it; no WAKE) and the "
+     "SPEC-0119 rule-12/18 debt lines exclude it. Detail: the claim stamp's provenance "
+     "`own|foreign|unknown-stamp`. A land process ALIVE on that branch keeps the "
+     "`closed_pending_land(…,land-alive)` reading — a running land is left alone whatever the regime"),
     ("paused",
      "a CONTROLLER-CUED CLEAN STOP (T-12304): the worker\'s brief ended in «STOP and report» (a "
      "re-plan-only / align-only step), it exited cleanly and recorded the stop via `task pause "
@@ -337,6 +367,32 @@ DISPATCH_CLASS_VOCAB = (
 # fleet-verdict branch and the dispatch in-flight guard all key on the same literal (T-10253: one
 # carrier per state, never a second vocabulary).
 CONTROLLER_WAIT_PAUSE_REASON = "controller-wait"
+
+# T-12373 / T-12351 — the LAND REGIME values a `bg_dispatch_launched.data.land_regime` row carries,
+# named ONCE at the journal leaf so the launcher (dispatch.py re-binds these), the stage reminder
+# resolver and the dispatch-status classifier cannot spell them apart. `worker` is the CANON (CHARTER
+# §6, owner ruling «оставляем канон» events.jsonl#ts=2026-09-11T03:38:42Z); an absent key reads `worker`.
+LAND_REGIME_WORKER = "worker"
+LAND_REGIME_CONTROLLER = "controller"
+
+# T-12351 — the class token for a worker that STOPPED AFTER `task close` under `land_regime:
+# controller` (the contracted completion, SPEC-0103 / T-12373). Named once here, beside the vocabulary
+# that carries its gloss, so the classifier, the fleet-verdict fold, the `--watch` reader and the
+# SPEC-0119 rule-12 debt fold all key on the same literal (T-10253: one carrier, never a second).
+DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND = "closed_awaiting_controller_land"
+
+
+def _launch_land_regime(launch_data) -> str:
+    """The land regime ONE launch row's `data` declares, fail-safe toward canon (PURE, T-12351).
+
+    The same read `dispatch.land_regime_for_worker` makes over the whole stream, applied to the ONE
+    launch row `_classify_dispatch` already holds (`newest_launch`) — the classifier cannot import
+    dispatch.py (it imports this leaf), and re-scanning the stream for a row already in hand would be
+    a second keying path. Absent key / unrecognised value / malformed data → `worker`, the canon."""
+    if not isinstance(launch_data, dict):
+        return LAND_REGIME_WORKER
+    regime = launch_data.get("land_regime")
+    return LAND_REGIME_CONTROLLER if regime == LAND_REGIME_CONTROLLER else LAND_REGIME_WORKER
 
 
 # T-12304 — the CONTROLLER-WAIT pause row, derived from the SAME ts-ascending chain the classifier
@@ -2072,7 +2128,43 @@ def _superset_matcher(tokens):
 # rows — deriving both from ONE read is what makes it impossible for them to disagree about which
 # journal state they are talking about (the same consistency property `_dispatch_status_events` argues
 # for at its own union).
-_ROWS_MEMO = None       # request-scoped; INSTALLED ONLY inside `rows_memo()` and None everywhere else
+# REQUEST-SCOPED MEANS PER-THREAD, AND THAT IS A CORRECTNESS BOUND, NOT TIDINESS (T-12424). This was
+# a module GLOBAL, which is request-scoped only in a single-threaded process. Two concurrent callers
+# in ONE process shared it, and the re-entrancy arm in `rows_memo` below (T-12208) — whose `holds()`
+# test asks «does the installed scope cover this path», never «is the installed scope MINE» — handed
+# the SECOND caller the FIRST caller's already-cached snapshot. Measured on
+# `tests/test_ceiling_decisions_decide.py::test_concurrent_decisions_are_serialized_to_one_row`,
+# where two `audit decide` calls race under the REAL flock: the lock WINNER folded the journal into
+# the shared memo BEFORE appending its `ceiling_decision` row, and the LOSER — inside its own
+# critical section, holding the lock the winner had released — was served that pre-append snapshot,
+# saw no decision, and appended a second row. The flock was sound throughout (two distinct open file
+# descriptions, so it does exclude in-process); what the shared memo de-serialized was the READ. So
+# SPEC-0190 rule 10's «the seam owes ONE ReadScope, never a stale one» was being broken by the
+# scope's LIFETIME rather than by its placement, and the T-12287 contract «the journal read, the
+# duplicate check and the append are ONE critical section» was structurally true and semantically
+# false. 11 of 12 single-test runs red on the engine host; it also aborted the pinned leg of an
+# unrelated worker land (2026-09-11T20:13:40Z) and had been mislabelled a load flake.
+#
+# The fix is a NARROWING of this variable's lifetime — the same memo, scoped to the unit that owns
+# it — not a new mechanism (CHARTER §P1: the existing analog IS this variable; no new entity; it
+# REMOVES both the cross-thread read and the lost-update where one thread's scope EXIT restored over
+# a peer's live scope; the incident is measured, not imagined). It adds no lock, no timeout and no
+# retry. FAIL-SAFE BY CONSTRUCTION: a memo MISS already falls through to a plain read, so a thread
+# that no longer inherits an outer scope pays one uncached read and can never get a wrong answer —
+# which is why the engine's other threads (the `verify_runner` pools, the audit/land heartbeats,
+# none of which install or consume a scope) are unaffected. Every `rows_memo(` caller installs and
+# consumes inside one synchronous `with` body on one thread, so none of them loses a hit.
+_ROWS_MEMO_TLS = threading.local()   # request-scoped == THREAD-scoped; INSTALLED ONLY inside
+                                     # `rows_memo()` and absent on every other thread
+
+
+def _rows_memo_current():
+    """The memo installed by THIS thread's innermost `rows_memo()` scope, or None.
+
+    The single read site for the scope — every reader below goes through it, so "is a scope
+    installed" can never be answered off another thread's state. Outside a scope this returns None
+    and each reader folds plainly, byte-for-byte as before the memo existed."""
+    return getattr(_ROWS_MEMO_TLS, "memo", None)
 
 
 # ── T-12034 — the PROCESS-SCOPED read counters (SPEC-0190 / SPEC-0161 / SPEC-0025) ────────────────
@@ -2307,40 +2399,47 @@ def rows_memo(paths):
     Scope discipline, taken verbatim from `cli._dispatch_events_memo` (T-11438): the prior value is
     SAVED and RESTORED, so a nested scope degrades to the outer memo rather than leaking, and an
     exception inside the body can never leave a stale snapshot installed for a later, unrelated verb.
+    Both the save and the restore are THIS THREAD's (T-12424 — see `_ROWS_MEMO_TLS`), so a scope
+    exiting on one thread can no longer restore over a peer's still-live scope.
 
-    RE-ENTRANT (T-12208): when the installed scope ALREADY declares every path this one would, the
+    RE-ENTRANT (T-12208), WITHIN ONE THREAD: when the installed scope ALREADY declares every path
+    this one would, the
     inner `with` yields THAT memo and installs nothing. Without it, wiring a scope at a COMPOSING
     seam (SPEC-0190 rule 10 — `cli.cmd_session_start` is the first such caller of an inner site that
     already scopes itself) would make the INNER scope re-fold everything the outer one holds, so the
     seam would pay MORE reads for adopting the rule. The `holds()` test is the whole condition and
     is deliberately strict: a NARROWER outer scope must never swallow a WIDER inner declaration, so
     a scope declaring paths the outer one does not hold installs its own memo exactly as before.
+    "Outer" means outer IN THIS THREAD — the only reading this arm was ever written for (its
+    motivating caller, `cli.cmd_session_start` wrapping an inner site that already scopes itself, is
+    a same-thread nesting). A PEER thread's memo does not satisfy it: the `holds()` test asks which
+    paths a scope covers, never whose scope it is, so before T-12424 a concurrent caller silently
+    adopted another request's snapshot — see `_ROWS_MEMO_TLS` for the measured incident.
     """
-    global _ROWS_MEMO
-    prior = _ROWS_MEMO
+    prior = _rows_memo_current()
     if prior is not None and all(prior.holds(p) for p in (paths or ()) if p):
         yield prior
         return
     memo = JournalRowsMemo(paths)
-    _ROWS_MEMO = memo
+    _ROWS_MEMO_TLS.memo = memo
     try:
         yield memo
     finally:
-        _ROWS_MEMO = prior
+        _ROWS_MEMO_TLS.memo = prior
 
 
 def rows_memo_holds(path) -> bool:
     """True iff a scope is installed AND it holds `path` — the opt-in test a reader with its own
     cheaper bounded/prescanned path consults before giving that path up (see
     `_dispatch_status_events`)."""
-    memo = _ROWS_MEMO
+    memo = _rows_memo_current()
     return memo is not None and memo.holds(path)
 
 
 def fold_lines(path) -> list:
     """The stripped non-empty lines of `path` — memo-served inside a declaring scope, a plain read
     outside one. Pass-through by default, so no caller's behaviour moves."""
-    memo = _ROWS_MEMO
+    memo = _rows_memo_current()
     if memo is not None and memo.holds(path):
         return memo.lines(path)
     return _fold_lines_uncached(path)
@@ -2352,7 +2451,7 @@ def fold_rows(path) -> list:
     THE replacement for the ~15 hand-written `open() → for line → strip → json.loads` loops. Physical
     order is preserved; a caller that needs chronology still sorts by `ts`, exactly as before.
     """
-    memo = _ROWS_MEMO
+    memo = _rows_memo_current()
     if memo is not None and memo.holds(path):
         return memo.rows(path)
     return _rows_from_lines(_fold_lines_uncached(path))
@@ -2472,7 +2571,7 @@ def segment_lines(path, *, encoding="utf-8", errors=None, _chunk=_SEGMENT_CHUNK_
         # counting one would report amplification where the collapse succeeded — the same reason
         # `state.load_path` counts misses and not memo hits (T-12034).
         if rows_memo_holds(seg):
-            yield from _ROWS_MEMO.lines(seg)
+            yield from _rows_memo_current().lines(seg)
             continue
         t0 = time.monotonic()
         try:
@@ -3517,6 +3616,22 @@ def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None
                 # substring/equality reader of the two original values is untouched.
                 if land_alive(task_id):
                     detail = f"{prov},land-alive"
+                elif _launch_land_regime(_ldata) == LAND_REGIME_CONTROLLER:
+                    # T-12351 — the CONTROLLER-LANDS regime (T-12373): the worker's own launch row
+                    # says the Controller lands, so a worker that stopped after `task close` with no
+                    # land running is the CONTRACTED completion, not a death (SPEC-0103 / T-12303:
+                    # «yielding AFTER task close, with the sha reported, IS the completion»). Measured
+                    # 2026-09-10: T-12319 + T-12337 stopped as contracted and read land-dead, so the
+                    # Controller filed a death-class deviation (premise false) and used the RECOVERY
+                    # verb for the sanctioned next step. Same evidence, honest class: the launch row is
+                    # the one already bound above (`_ldata`), the provenance the one just derived; no
+                    # second read, no new state. Worker regime / no key falls through unchanged, and a
+                    # land ALIVE on the branch stays closed_pending_land(land-alive) above whatever the
+                    # regime (a running land is left alone). Whether the worker SESSION still lives
+                    # is not a sub-signal here: under this regime it has nothing left to do.
+                    # (Emitted as the LITERAL, like every sibling class: the T-10253 single-carrier
+                    # test AST-derives the emitted set from these return heads.)
+                    return ("closed_awaiting_controller_land", prov, last_ts, sref)
                 elif sref and proc_alive(sref):
                     detail = f"{prov},land-dead,session-alive"
                 else:
@@ -3921,6 +4036,13 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None):
     advice. OPTIONAL by construction: `detail=None` (the 2-arg call every existing caller and test
     makes) returns exactly what it returned before this card, byte for byte."""
     t = task_id or "T-XXXX"
+    if cls == DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND:
+        # T-12351 — the contracted completion under the controller-lands regime: the ONE owed step is
+        # the plain land from main. Not a recovery route (no grace-wait, no liveness check, no
+        # `recover-land` — its predicate is a dead worker and this worker simply finished).
+        return (f"built+closed as CONTRACTED under land_regime: controller — the worker stopped after "
+                f"`task close` on purpose; nothing to recover. Next: `bin/yitc-v2 land --task {t}` "
+                f"(from main)")
     if cls == "closed_pending_land":
         return (f"built+closed, NOT integrated -> self-land likely IN PROGRESS (land verify is SILENT for "
                 f"minutes — journal-silence is NOT death); grace-wait for terminal FIRST (T-9258: "
@@ -4835,7 +4957,7 @@ def _infer_directive_classification(text: str) -> str:
         return "correction"        # bare «нет»/«no» = a rejection/correction, not a directive
     return "directive"
 
-def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source_refs, _append_event, _attachment_injection, _cap_text, _checkpoint_path, _classify_cc_entry, _die, _extract_text, _governed_read_target, _graph_query_node_ids, _infer_directive_classification, _normalize_log_ts, _resolve_session_ref, _session_log_path, _utc_now_iso, write_text_atomic) -> int:
+def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source_refs, _append_event, _attachment_injection, _cap_text, _checkpoint_path, _classify_cc_entry, _die, _extract_text, _governed_read_target, _graph_query_node_ids, _infer_directive_classification, _normalize_log_ts, _resolve_session_ref, _session_log_path, _provider_transcript_ref, _utc_now_iso, write_text_atomic) -> int:
     """Materialize new chat-class events from the session log (per D-0030 + SPEC-0004).
 
     session_ref None → current (fail-closed resolve). Returns count materialized.
@@ -4851,6 +4973,22 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
         return 0
     ref = session_ref or _resolve_session_ref()
     log = _session_log_path(ref)
+    if log is None and not session_ref:
+        # T-12400: the IMPLICIT current-session resolve only. Since T-10152 an interactive session's
+        # identity is a MINTED uuid that names no transcript, so this leg was reached on EVERY
+        # interactive Controller verb and returned 0 — the auto-sync was structurally inert and every
+        # real owner turn had to be hand-emitted (kupiclub X-1364 / aiseller X-1345). Retry with the
+        # ref that NAMES the transcript (the live D-0030 provider carrier, else the provider id this
+        # session recorded at birth). Rebind `ref` TOO, not just `log`: the checkpoint is keyed on
+        # `ref`, so keying it on the ref that LOCATED the transcript gives the implicit path and the
+        # explicit `--session-ref <provider id>` recovery path ONE shared cursor instead of two
+        # cursors over the same file. Identity is untouched — this is the transcript name, never a
+        # resolution fallback (SPEC-0137 Rule 4).
+        alt = _provider_transcript_ref(ref)
+        if alt and alt != ref:
+            alt_log = _session_log_path(alt)
+            if alt_log is not None:
+                ref, log = alt, alt_log
     if log is None:
         if session_ref:                    # explicit recovery for a named session
             _die(f"session log not found for --session-ref {ref}")
@@ -5606,7 +5744,12 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
         # T-10378 — a PARKED task is row-terminal (see the per-task fold above): exclude it from the
         # nonterminal set so a parked-only worker (proc gone, no child) is DROPPED by the in-flight
         # filter below, and a parked task never drives a still-live mixed worker's reported `class`.
-        nonterminal = [t for t in wtids if per_task[t]["cls"] != "TERMINAL" and not per_task[t]["parked"]]
+        # T-12351 — closed_awaiting_controller_land is TERMINAL-EQUIVALENT here: the dispatch is over
+        # by contract (the worker stopped after close as told), so its slot is released exactly like a
+        # TERMINAL(done) row and it never yields the needs-decision that woke the watcher. The owed land
+        # is read off `--dispatch-status` (its `recovery` cue), not off an in-flight row.
+        nonterminal = [t for t in wtids if per_task[t]["cls"] not in ("TERMINAL", DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND)
+                       and not per_task[t]["parked"]]
         # T-10193 (SPEC-0133) — a self-HALTED worker (`bg_dispatch_halted` terminal, e.g. a PRE-claim
         # halt at analysis that never created a worktree) classifies TERMINAL(halt): it carries no live
         # proc, no child proc, and no non-terminal task, so the IN-FLIGHT filter below would DROP it —
@@ -5731,7 +5874,8 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
         last_event_type = last_ev.get("type") if last_ev else None
         # land-readiness: a closed-but-unlanded worktree is READY to land; a live claim on a working
         # task is CLAIM-LIVE (a land would race it); no live claim → none.
-        if any(per_task[t]["cls"] == "closed_pending_land" for t in wtids):
+        if any(per_task[t]["cls"] in ("closed_pending_land", DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND)
+               for t in wtids):
             land_readiness = "ready"
         elif any(t in live_claims for t in wtids):
             land_readiness = "claim-live"
@@ -6734,7 +6878,7 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
             continue
         tid, cls, detail, last_ts, sref, identity = _row
         all_events = allev_of.get(tid) or []
-        label = f"{cls}({detail})" if detail and cls in ("TERMINAL", "hang_suspect", "closed_pending_land", "launch-stall", "paused") else cls
+        label = f"{cls}({detail})" if detail and cls in ("TERMINAL", "hang_suspect", "closed_pending_land", DISPATCH_CLASS_CLOSED_AWAITING_CONTROLLER_LAND, "launch-stall", "paused") else cls
         # T-12304 — a `paused(controller-wait)` row is actionable ONLY if the pending step is named,
         # and the pause row already carries it; print it beside the class (report-only, AC1).
         natxt = ""

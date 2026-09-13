@@ -394,6 +394,7 @@ body: |
   - **`audit_yamls_archived`** — `bin/lib/triage.py` — audit-record archival sweep.
   - **`land_started`** — `bin/lib/worktree.py` — a land BEGAN on this branch, in this process: emitted at land entry immediately after the three structural branch guards (detached-HEAD / on-main / not-a-linked-worktree) and BEFORE the spike guard, the dirt guard, the land reservation, the SPEC-0132 verify-admission slot and `_land_integrate` — so it is above everything that can queue. Carries `branch` / `pid` / `ppid` / `reason`, and rides `task_id` for a `task/T-NNNN` branch; the `session_ref` and `ts` that place the launch act are the ordinary envelope fields every row carries, never re-derived in the payload. It exists because nothing recorded that a land had STARTED: `land_completed` is emitted only at the END and not at all when the land is killed, and start attribution was inferable ONLY from `waiting_for_land_reservation`, which exists only under admission CONTENTION — of 199 lands carrying a `land_completed` since 2026-08-26, 15 emitted no queue-wait row whatsoever, so for those nothing on record said a land had ever run. `pid` is load-bearing rather than decorative: four separate `task/` lands between 04:00:27Z and 05:16:34Z on 2026-08-27 carried the SAME `session_ref` and differed only by pid, so a row keyed on branch or session alone would have collapsed four launch acts into one — the exact ambiguity that let an owner-directed hold be lost twice (fu_72c83eccd466). UNCONDITIONAL over session kind, unlike its neighbour `land_process_group_escaped`, which is deliberately non-worker-only: every land emits this row, which is what makes its ABSENCE for a given land a real signal rather than missing data. The emit is FAIL-SOFT — it is observability, never a gate, so an unwritable journal announces itself on stderr and the land PROCEEDS. It records a fact and nothing more: it is not a hold, lock or lease, and changes nothing about admission, batching or the `os.setsid` escape.
   - **`waiting_for_land_reservation`** — `bin/lib/worktree.py` — land queued behind the land reservation (concurrency governor heartbeat, cf. SPEC-0132).
+  - **`land_reservation_park_requeued`** — `bin/lib/worktree.py#_take_land_reservation` — a land EVICTED by the SPEC-0132 §1a park bound RE-ENTERED the same wait BY ITSELF, instead of being handed back to a human. Emitted once per automatic requeue, on the MAIN checkout's journal, carrying `branch` / `attempt` (1-based, this process) / `holders_seen` (DISTINCT reservation-holder pids watched go by during the bound that just fired). The requeue fires ONLY when `holders_seen >= 2` — i.e. the QUEUE WAS MOVING and this land was merely slow — and is capped by the GATE-class `YITC_LAND_PARK_REQUEUE_MAX` (default 2); a bound served out behind ONE holder is the wedged-holder case exists for and still STOPS, unchanged, and so does a land past the cap. Ground : on 2026-09-11 four lands were evicted by the bound while naming DIFFERENT holders across their waits, were each re-run BY HAND by the Controller, and then landed on the re-run — the bound was reading a 9-10-deep MOVING queue as a wedge. Reading the pair: a `land_reservation_park_halted` row WITHOUT any preceding `land_reservation_park_requeued` for the branch is either a genuine wedge or a cap-0 fleet; one WITH them is a land that queued, requeued and still did not get through. FAIL-CLOSED on an unresolvable holder: `holders_seen` cannot then reach 2, so the land takes the stop.
   - **`waiting_for_venue_admission`** — `bin/lib/worktree.py` (relayed from the box-side leg) — a land queued behind the MACHINE-WIDE venue request cap (`YITC_VENUE_MAX_REQUESTS`, default 1 — SPEC-0203 rule 4). Carries `request` / `leg` / `live` / `cap` / `waited_s` / `branch` / `box`. It is a THIRD queue and reports as itself: it is deliberately NOT a member of `journal.LAND_QUEUE_WAIT_TYPES`, because that tuple is the one source through which two independent readers — the SPEC-0132 admission lens and SPEC-0119 rule 27's abort phase-split — resolve the LOCAL per-repo wait series, and joining it would silently re-attribute box waits into local admission statistics (the exact conflation homed that tuple to prevent). The row is emitted LOCALLY, by the land, off a throttled line the leg prints on stderr while it waits — the box cannot write this journal, and the module that runs the pass writes no journal of its own (CHARTER §P5), so the relay is injected at the land call site that already owns the row.
   - **`land_retry_started`** — `bin/lib/worktree.py` — emitted AT THE START of every land attempt after the first: the ff-race loser is re-running the whole verify from scratch, and this is the row that says so WHILE it happens (the terminal `land_completed` `attempt_breakdown` only reports it once the cost is paid). Carries `branch`/`attempt`/`previous_outcome`/`previous_attempt_ms`/`previous_verify_duration_ms`, so the discarded attempt's cause — `retry-main-advanced` and its siblings — is readable without a fold. Third member of the land observable-wait family beside the two rows above, same shape and same reason: a working land must never read as a hang (SPEC-0132). A single-attempt land emits it ZERO times.
   - **`land_reservation_park_degraded`** — `bin/lib/worktree.py` — a parked lander hit the land-reservation park bound (5 verify walls) and DEGRADED to the ordinary optimistic path rather than parking forever behind a wedged holder; carries `waited_s`/`limit_s`/`holder` (SPEC-0132 Rule 1a).
@@ -671,9 +672,9 @@ body: |
   `audit_yamls_archived.nontask_swept|tasks_swept` ·
   `authorization_decided.identity_source|rights_held` ·
   `bg_dispatch_halted.confirmed_death_basis|log_tail|redispatchable` ·
-  `bg_dispatch_launched.source_tier` · `canary_backstop_ran.verdict_class` ·
+  `bg_dispatch_launched.source_tier|land_regime` · `canary_backstop_ran.verdict_class` ·
   `cli_invoked.carried_session_ref_unbacked` ·
-  `consumer_read_evidence.evidence_events|failing_input|halt_ts|no_split_n|split_n` ·
+  `consumer_read_evidence.evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n` ·
   `deviation_captured.evidence_events` · `dispatch_outcome.land_sha` ·
   `draft_closed.reverse_linked` · `error_reopened.reopen_count` ·
   `error_residual_recurrence.reopen_count` · `external_audit_completed.no_data_class` ·
@@ -724,6 +725,18 @@ body: |
   waits the land withdrew from — a closed vocabulary already carried by the two wait rows, not a new
   one — which is what lets a reader of a `land_withdrawn` row tell a withdrawal from a queue it never
   entered apart from one taken at the seam.
+
+  **SEVEN MORE PAIRS NAMED FORWARD — the withheld post-ff tail write (2026-09-11).**
+  SPEC-0188 rule 7 introduces a new event type, `land_tail_write_withheld` (a land's post-ff
+  bookkeeping write that could not prove the tests reading it green, restored instead of committed),
+  whose data keys — `writer` / `paths` / `reason` / `test` / `failing` / `readers` / `wall_ms`, plus
+  `restore_errors` when a restore itself failed — are named here BEFORE any row carrying them has
+  reached `main`, on exactly the terms the / blocks use. They are NOT added to the
+  count, for the same reason: naming a pair the recomputation cannot yet find is free, inflating the
+  count states a figure nobody can reproduce. This naming is not incidental to the card that adds
+  them — THE UNNAMED-KEY CLASS IS ONE OF THE TWO INCIDENTS THAT CARD EXISTS FOR (2026-09-11
+  13:04-15:14Z, `bg_dispatch_launched.land_regime`), so a card in that class that shipped its own key
+  unnamed would have re-run the very failure it was fixing.
 
   **SIX MORE PAIRS NAMED FORWARD, and THREE keys that this measurement structurally cannot see
   (2026-09-07).** The machine-wide venue request cap introduces a new event type,
@@ -866,6 +879,15 @@ body: |
   mirror ship, landed 7db4963) WITHOUT naming them; the first rows carrying them (venue publish /
   unpublish after that land) made the census RED on every later land, C6 first. Named here so the
   oracle reads them as recorded; the rule still holds — the introducing card should have.
+  **ONE MORE key on a DIFFERENT row, named by the Controller as filing-batch collateral on identical
+  terms (2026-09-11):** `bg_dispatch_launched.land_regime` — introduced by (one land regime per
+  dispatched brief, landed 4f49796) WITHOUT naming it; the first `bg_dispatch_launched` rows carrying it
+  made the census RED on every later land on the host (the batch attribution declined to name a culprit,
+  so three sessions aborted on it the same afternoon — deviation events.jsonl#ts=).
+  CANDIDATE standing like every name here: `land_regime_for_worker` READS the key back off prior rows and
+  the dispatch-status fold BRANCHES on it — the confirmed-reader condition — but promotion is a separate
+  change with its own gate. Named here so the oracle reads it as recorded; the rule still holds —
+  the introducing card should have (fu_9a5cbd189e36 names the missing pre-land check).
   `venue_published.ssh_user` was missed here for exactly the reason this paragraph gives and then
   did not follow through on: the record is journaled WHOLE, so EVERY field of it travels — not the
   one field the forward name happened to think of. The first REAL publication (the venue
@@ -1382,6 +1404,13 @@ body: |
   3. **the two live-corpus land-verify gates** (`tests/test_spec0161_payload_key_refresh.py` and the
      coverage-floor arm of `tests/test_event_catalog_completeness.py`) charge THIS branch only for
      pairs it introduced. Inherited pairs are REPORTED and do not fail a bystander.
+  All three paste ONE text, and that text NAMES THE CHARGING SITE — `<path>:<line>` of an added
+  structural occurrence, per charged key. A charge the charged party cannot check is a
+  charge they must re-derive the structural scan by hand to locate, at a gate that fires seconds
+  before a venue slot; the site is carried out of the same materialiser pass that computes the
+  charge, so the message and the verdict cannot name different places. A pair charged by count 2
+  (un-naming) has no code site and is listed bare — correctly: its charge is in the record, not in
+  the diff.
 
   **WHAT ATTRIBUTION MEANS, exactly — and it is STRUCTURAL, never a mention.** A branch is answerable
   for a key on either of two counts:
@@ -1389,7 +1418,26 @@ body: |
      position that actually makes it a payload key: `.get("k")` or `["k"]` (VERBATIM the two regexes
      the oracle derives its own `readback` conjunct from — the same expressions, not lookalikes) or
      `"k":` (the key as a payload-dict KEY LITERAL, needed because a branch may add the emitting dict
-     while the readback already existed on main). Every form requires the key QUOTED.
+     while the readback already existed on main). Every form requires the key QUOTED. **AND no
+     structural occurrence of that key existed under `bin/` AT THE MERGE-BASE.** Adding an
+     occurrence is not the same fact as INTRODUCING the key: a branch that adds a SECOND readback of
+     a key main already reads back made nothing govern that did not govern before, so charging it
+     re-reads a key that governed before the branch existed. Measured — aiseller X-1343 / ``:
+     its land was refused for `spike_channel_grant.compose_project` because it added
+     `meta.get("compose_project")` in `bin/tests/spike_live_support.py`, while `bin/spike-lib.sh:46`
+     had carried `m.get("compose_project")` at the merge-base all along. The base side is a
+     BASELINE-vs-CURRENT comparison of the same shape count 2 already has, and it is affordable for
+     the same reason: it is TARGETED. Only the FEW keys this branch added can change an answer, so
+     one `git grep -l -F` over `<base>:bin` restricted to those literals yields a handful of
+     CANDIDATE files, and each candidate is read at the base rev and judged by the SAME structural
+     matcher the branch side is judged by — the grep is a FILE FILTER, never the verdict, so a
+     comment or a quoted example at the base can no more exempt a branch than it can charge one. The
+     earlier concession that this arm could not afford the family's baseline shape priced the WRONG
+     question (the whole `bin/` tree plus the re-folded journal at base) and is retired. **`git grep`
+     exit status 1 is "no match", an ANSWER — the common case, and the key stays charged;** only a
+     genuine git fault is unknowable (None), because reading a fault as "nothing pre-existed" would
+     restore the over-charge at a refusing gate, and reading rc 1 as a fault would make every
+     genuinely-new key unattributable, i.e. disable this gate rather than narrow it.
   2. **it UN-NAMES the key** — the key was in this record's span at the merge-base and is not in it
      now. That arm is a BASELINE comparison (`git show <base>:<spec>` versus the span on disk), which
      is the diff-aware family's own shape and is affordable here because the input is one small file
@@ -1428,6 +1476,15 @@ body: |
   run. The corpus-wide net is not removed, it MOVES to where it can be acted on: per-pair on the
   introducing branch (strictly stronger than an 80% aggregate), and the SPEC-0119 rule-28 debt echo
   still reads the RAW figure, report-only, unchanged.
+
+  **THE ATTRIBUTION BINDS EVERY ARM OF THE CHECK, NOT ONE OF THEM.** A pair no branch diff
+  introduces — a key first emitted by a kernel-path emitter such as a `land` tail, the venue runner or
+  a bookkeeping write — is REPORTED as inherited from main and is NEVER charged to the branch that
+  happens to be landing, in EVERY arm of `tests/test_spec0161_payload_key_refresh.py`, including the
+  differential pre-refresh arm; an arm left reading the whole corpus reds every branch for a key none
+  of them touched, which is the condition the attribution exists to end. Excusing an inherited pair is
+  conditional on the attribution being AVAILABLE: on `attributable: False` every arm keeps the
+  whole-corpus bar, per the opposite-fail-safe-directions rule below.
 
   **THE TWO FAIL-SAFE DIRECTIONS ARE DELIBERATELY OPPOSITE.** When the diff cannot be computed the
   attribution is UNKNOWN — a NAMED third state (`attributable: False`), never an empty `introduced`

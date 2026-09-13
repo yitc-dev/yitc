@@ -2293,10 +2293,10 @@ picks it up from the emit call site below without a hand-maintained list)."""
 _TIMING_INSTRUMENTS = (
     {"id": "t11451-coupled-bite-proof",
      "path": "tests/test_t11451_journal_length_decoupling.py",
-     "leg": "test_the_differential_detects_a_still_coupled_file"},
+     "leg": "lane_the_differential_detects_a_still_coupled_file"},
     {"id": "t11808-shim-wall-clock-leg2",
      "path": "tests/test_t11808_shim_argv_not_truncated.py",
-     "leg": "test_ac3_the_shim_stays_cheap_and_the_measurement_can_show_a_regression"},
+     "leg": "lane_leg2_shipped_wall_clock_regression_detection"},
 )
 """THE REGISTRY — the wall-clock legs this lane runs, each named by FILE and by the LEG's own function
 name.

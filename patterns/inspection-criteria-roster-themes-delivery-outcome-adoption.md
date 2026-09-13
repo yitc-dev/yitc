@@ -336,6 +336,21 @@ over seven consecutive real kernel days these fire on 2026-08-21 alone (7 branch
 and are silent on 2026-08-16..20, whose worst stretches run 2-4 branches. Everything else printed is
 trajectory, not verdict.
 
+**AN EVICTION IS NOT AN ABORT, and [b]/[c] count it apart.** A `land_completed` row whose
+`abort_class` is `land-reservation-park-limit` is a EVICTION: the land waited out the land
+reservation behind a holder that would not release and then STOPPED — it verified nothing, merged
+nothing and spent no CPU. Every other abort describes a branch that was JUDGED and refused; an
+eviction is a fact about the QUEUE. Counting it in the abort share therefore reads ONE congestion
+TWICE — once as the wait, once as a failure that never happened (measured 2026-09-11: 4 of 14 aborts
+in the 11:39-13:40Z window, each after 149 min queued; owner ruling «в долгах не считать»). So the
+fold drops evictions from the TERMINAL-LAND population entirely — `n`, `ok`, `abort` and both shares
+are over the non-evicted set, and so is [c]'s zero-success stretch, so a wait can no longer
+manufacture a congestion-regime finding out of itself. They are printed as their own `evicted=N`
+beside those figures, never inside them. The key literal below is the same one `bin/lib/debt.py`
+names as `ABORT_CLASS_PARK_LIMIT_EVICTION`; this block cannot import it (it is contracted to run on
+pure stdlib against any repo, see the next paragraph), so `tests/test_debt_park_limit_counted_apart.py`
+extracts this block and asserts the two agree rather than leaving the duplication on trust.
+
 **Runs against ANY repo — pass the repo root, so a consumer runs it unchanged over ITS OWN journal**
 (`python3 <this block> /path/to/consumer`); it is pure stdlib and resolves no kernel path. Optional
 2nd/3rd args replay a window: `<end-ISO> <days>`. A repo with no rows in the window says so explicitly
@@ -357,14 +372,23 @@ for line in open(os.path.join(root, "events.jsonl"), encoding="utf-8", errors="r
     w = "window" if b1 <= ts < end else ("prior" if b0 <= ts < b1 else None)
     if not w: continue
     if t == "land_batch_formed": form[w].append(d)
-    elif t == "land_completed": land[w].append((ts, d.get("status"), d.get("branch")))
+    elif t == "land_completed": land[w].append((ts, d.get("status"), d.get("branch"), d.get("abort_class")))
 if not form["window"] and not land["window"]:
     print("parallel-landing: no land_batch_formed / land_completed rows in %s.. %s — nothing landed in this repo in the window (report-only, not 'clean')" % (b1, end)); sys.exit
+EVICTED = "land-reservation-park-limit" # / — the eviction abort_class; MUST equal
+                                          # debt.ABORT_CLASS_PARK_LIMIT_EVICTION (asserted by test)
+def is_evicted(r):
+    return r[1] == "abort" and isinstance(r[3], str) and r[3].strip == EVICTED
+def terminal(l):
+    """The terminal lands — evictions removed. A land that stopped WAITING was never judged."""
+    return [r for r in l if not is_evicted(r)]
 def solo_pct(f):
     return round(100 * sum(1 for d in f if (d.get("members") or 0) <= 1) / len(f)) if f else "n/a"
 def abort_pct(l):
     return round(100 * sum(1 for r in l if r[1] == "abort") / len(l)) if l else "n/a"
-f, l = form["window"], land["window"]
+f, l_all = form["window"], land["window"]
+l = terminal(l_all); l_prior = terminal(land["prior"])
+ev = [r for r in l_all if is_evicted(r)]
 qd = sorted((d.get("queue_depth") or 0) for d in f)
 exc = collections.Counter; stale = 0
 for d in f:
@@ -379,9 +403,10 @@ print("[a] formations n=%d width=%s solo=%s%% (prior %s%%) queue_depth med=%s ma
          dict(collections.Counter(d.get("engagement") or "none" for d in f))))
 print(" real per-branch exclusions (ranked): %s" % (exc.most_common(6) or "none"))
 print(" stale-wait-row: %d — a historical wait row correctly DISCARDED, NOT an excluded branch; never rank it beside the above" % stale)
-print("[b] terminal lands n=%d ok=%d abort=%d abort share %s%% (prior %s%%)"
-      % (len(l), sum(1 for r in l if r[1] == "ok"), sum(1 for r in l if r[1] == "abort"), abort_pct(l), abort_pct(land["prior"])))
-l.sort; bounds = [b1] + [r[0] for r in l if r[1] == "ok"] + [end]; worst = (0, 0.0, "")
+print("[b] terminal lands n=%d ok=%d abort=%d abort share %s%% (prior %s%%) evicted=%d (park-limit — NOT an abort, NOT in n/ok/abort/share above)"
+      % (len(l), sum(1 for r in l if r[1] == "ok"), sum(1 for r in l if r[1] == "abort"), abort_pct(l), abort_pct(l_prior), len(ev)))
+l.sort(key=lambda r: r[0]) # by ts only — the tuple now carries a possibly-None abort_class
+bounds = [b1] + [r[0] for r in l if r[1] == "ok"] + [end]; worst = (0, 0.0, "")
 for x, y in zip(bounds, bounds[1:]):
     br = {r[2] for r in l if x < r[0] < y and r[1] == "abort"}
     mins = (datetime.datetime.strptime(y, F) - datetime.datetime.strptime(x, F)).total_seconds / 60
@@ -390,8 +415,8 @@ print("[c] worst zero-success stretch: %d distinct branch(es) aborted over %.0f 
 find = []
 if worst[0] >= 5 and worst[1] >= 60:
     find.append("CONGESTION REGIME — %d distinct branches aborted across %.0f min in which NOTHING landed (from %s); read the cause with `bin/yitc-v2 debt` rule-26 line, then fix it ON MAIN" % worst)
-if len(l) >= 20 and len(land["prior"]) >= 20 and abort_pct(l) - abort_pct(land["prior"]) >= 15:
-    find.append("abort share ROSE %d pp (%d%% -> %d%%) vs the prior window" % (abort_pct(l) - abort_pct(land["prior"]), abort_pct(land["prior"]), abort_pct(l)))
+if len(l) >= 20 and len(l_prior) >= 20 and abort_pct(l) - abort_pct(l_prior) >= 15:
+    find.append("abort share ROSE %d pp (%d%% -> %d%%) vs the prior window" % (abort_pct(l) - abort_pct(l_prior), abort_pct(l_prior), abort_pct(l)))
 # Formation WIDTH is deliberately NOT a finding criterion: the head holds the slot and cannot be
 # skipped, and dropping peers protects them from a batch the head's diff already dooms ( —
 # visibility only, no behaviour change). Width is REPORTED in [a] as a trajectory, never judged.

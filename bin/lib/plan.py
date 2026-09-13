@@ -743,8 +743,11 @@ def _plan_accept_core(path: Path, fm: dict, body: str, slug: str, *, AUDIT_VERDI
     if not checked_hash:
         _die(f"{slug}: the recorded check predates content-hash freshness — re-run `yitc-v2 plan check {slug}`.")
     if checked_hash != cur_hash:
-        _die(f"{slug}: plan edited since the check (content hash mismatch) — the verdict is stale. "
-             f"Re-run `yitc-v2 plan check {slug}` before accept.")
+        _die(f"{slug}: plan BODY edited since the check (content hash mismatch) — the verdict is stale. "
+             f"The freshness basis is `content_hash (plan body)`: it covers the plan BODY only, so a "
+             f"FRONTMATTER-field edit (e.g. `implementation_plan`) does NOT stale the check, while any "
+             f"body edit (e.g. the realization-exit block) does — compose the body BEFORE the check "
+             f"(SPEC-0034 §accepted Work-ORDER). Re-run `yitc-v2 plan check {slug}` before accept.")
     # T-0332 — the accept-gate audit must cover the PLAN-BORN draft specs vs the active+proposed
     # corpus, and the draft→proposed BIRTH is gated on a check whose freshness reflects the draft
     # specs + corpus CONTENT. Editing a draft spec (or a corpus spec) after the check stales the
@@ -848,7 +851,11 @@ def _require_plan_decomposition_ready(slug: str, fm: dict, body: str, *, AUDIT_V
         _die(f"{slug}: `plan check` verdict is {verdict or 'MISSING'} — decomposition needs GREEN/YELLOW.")
     checked_hash = av.get("content_hash")
     if not checked_hash or checked_hash != _plan_content_hash(body):
-        _die(f"{slug}: `plan check` is stale (content-hash mismatch) — re-run `yitc-v2 plan check {slug}`.")
+        _die(f"{slug}: `plan check` is stale (content-hash mismatch) — the freshness basis is "
+             f"`content_hash (plan body)`: it covers the plan BODY only, so a FRONTMATTER-field edit "
+             f"(e.g. `implementation_plan`) does NOT stale it, while any body edit (e.g. the "
+             f"realization-exit block) does — compose the body BEFORE the check (SPEC-0034 §accepted "
+             f"Work-ORDER). Re-run `yitc-v2 plan check {slug}`.")
     ip = fm.get("implementation_plan")
     if not (ip and str(ip).strip()):
         _die(f"{slug}: implementation_plan is empty — compose the decomposition map (the acceptance-stage "
@@ -1072,7 +1079,7 @@ def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, 
 
 
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
-                                         *, owner_reset: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_cut_cards, _read_yaml, _run_plan_gate_audit) -> None:
+                                         *, owner_reset: bool = False, on_decisions: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_cut_cards, _read_yaml, _run_plan_gate_audit) -> None:
     """The `decomposition → executing` entry gate (SPEC-0070 §3/§4 — the NEW mandatory gate added by
     T-0649): entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**
     verdict over the task CARD SET whose recorded `card_set_fingerprint` MATCHES the current cut.
@@ -1121,7 +1128,7 @@ def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
     # blocking: dies on RED/ABORT or — until T-0650 — a missing template; the safe fail-closed window).
     _run_plan_gate_audit(slug, fm, body, "gate-executing", "mandatory-blocking",
                          blocking=True, card_set_fp=fp, extra_context=_plan_card_set_context(slug),
-                         owner_reset=owner_reset)
+                         owner_reset=owner_reset, on_decisions=on_decisions)
     av = (_read_yaml(audit_path) or {}) if audit_path.exists() else {}
     if (str(av.get("verdict") or "").upper() not in AUDIT_VERDICT_CLOSURE_OK
             or av.get("card_set_fingerprint") != fp):
@@ -1306,7 +1313,18 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     print(observe.checkout_provenance_line(REPO_ROOT, verb="plan stage"), file=sys.stderr)
     _require_writing_worktree()
     name = (args.name or "").strip()
-    _owner_reset = bool(getattr(args, "owner_reset", False))   # T-9286 — plan-gate ceiling consult-governs
+    _owner_reset = bool(getattr(args, "owner_reset", False))   # T-9286 — RETIRED at the gate (T-12335)
+    # T-12335 (SPEC-0204 rule 3, plan-gate arm) — the ONE bounded pass past a plan-gate ceiling,
+    # governed by the Controller's recorded `ceiling_decision` rows. Carried by THIS verb and not by
+    # `audit pre --plan --gate` because `_run_plan_gate_audit` is invoked from here ALONE and it is the
+    # FSM ADVANCE the gate blocks: the ONE pass and the advance become the SAME act, so the pass cannot
+    # be spent without the FSM moving, and there is no second door at which a plan-gate ceiling can be
+    # argued. Additive-optional getattr shape, like `--owner-reset` above.
+    _on_decisions = bool(getattr(args, "on_decisions", False))
+    if _on_decisions and _owner_reset:
+        _die("plan stage: --on-decisions and --owner-reset are not combinable — each was a DIFFERENT "
+             "basis for the ONE pass past a plan-gate ceiling, and `--owner-reset` is RETIRED "
+             "(SPEC-0204 rule 6, plan-gate arm). Drop it.")
     _by_record = bool(getattr(args, "by_record", False))       # T-9369 — realized-by-record terminal
     if name not in PLAN_STATUSES:
         _die(f"plan stage: unknown stage {name!r} — must be one of {list(PLAN_STATUSES)} (the plan FSM).")
@@ -1376,14 +1394,15 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         # adjacent P3 gate-trial below: RED/ABORT HOLDS the transition (status unchanged); the
         # 2-pass audit-loop ceiling applies (ABORT burns no pass).
         gate_verdict = _run_plan_gate_audit(slug, fm, body, "gate-specs", "mandatory-blocking",
-                                            blocking=True, owner_reset=_owner_reset)
+                                            blocking=True, owner_reset=_owner_reset,
+                                            on_decisions=_on_decisions)
         msg = (f"(draft specs being composed + checked; gate-specs MANDATORY-BLOCKING gate passed: "
                f"{gate_verdict} — SPEC-0083)")
     elif name == "trial":
         # T-0349 — the P3 specs→trial entry-gate template (SPEC-0036 §Gate policy:
         # MANDATORY-BLOCKING — RED/ABORT holds the transition; the 2-pass ceiling applies).
         _run_plan_gate_audit(slug, fm, body, "gate-trial", "mandatory-blocking", blocking=True,
-                             owner_reset=_owner_reset)
+                             owner_reset=_owner_reset, on_decisions=_on_decisions)
         # `plan stage trial` (T-0336, SPEC-0035 rule 3): a trial-eligible plan enters controlled
         # real-data design-convergence. No status side-effect beyond the transition write + bundle
         # delivery (shared `_emit_plan_stage_entered`); the contract is to PROMPT the protocol-baking
@@ -1446,7 +1465,8 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         _require_reads("stage", {"axis": "plan", "stage": "decomposition",
                                  "verb": "plan stage executing",
                                  "action": "decomposition->executing transition"})
-        _require_plan_decomposition_fidelity(slug, fm, body, owner_reset=_owner_reset)
+        _require_plan_decomposition_fidelity(slug, fm, body, owner_reset=_owner_reset,
+                                             on_decisions=_on_decisions)
         msg = "(tasks run their own 9 stages — pure build; the cut is fidelity-audited)"
     elif name == "postcheck":
         _require_plan_postcheck_ready(slug, body)
@@ -1565,6 +1585,17 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
             "SPEC-0034", is_consumer=bool(_is_consumer_build and _is_consumer_build()), cli="yitc-v2")
         print(f"work-items of this stage → SPEC-0034 §Per-stage mechanics `{name}` Work "
               f"(`{_s34}`)")
+    # T-12404 — ORDER cue at `accepted` entry: the accept-gate freshness `content_hash` covers the plan
+    # BODY, and the realization-exit block IS a body section — so a body edit made NOW re-stales the
+    # check the `decomposition` gate re-reads, buying a full re-`plan check` for no design change.
+    # POINTER ONLY (the T-0333 rule): the ORDER is stated here as a cue; its content + rationale stay
+    # single-sourced in SPEC-0034 §accepted Work-ORDER — no work-item map in the verb.
+    if name == "accepted":
+        print("order (SPEC-0034 §accepted Work-ORDER): compose `implementation_plan` + the "
+              "realization-exit block FIRST, then `plan check`, then `plan stage accepted`, then "
+              "`plan stage decomposition` — the freshness basis is `content_hash (plan body)`, so a "
+              "BODY edit from here re-stales the check (a frontmatter-field edit does not), and a "
+              "fresh `plan check` does NOT preserve mode-b `absorbed:`.")
     # T-0623 — POST-SPECS FORK: at the decision point after the draft specs are composed, surface
     # BOTH branches so a trial-ELIGIBLE plan is not silently routed past `trial` straight to
     # `accepted` (the deviation trial-eligible-plan-routed-past-trial-verb-hints-omit-trial). Both
@@ -2110,9 +2141,33 @@ def _plan_gate_template_text(template: str, *, _find_spec_path):
         return None
 
 
+def _plan_gate_decision_route(slug, gate_id, template) -> str:
+    """The SPEC-0204 plan-gate decision route, spelled ONCE (T-12335).
+
+    THREE sites print it — the retired `--owner-reset` shim, the ordinary ceiling refusal, and the
+    retired plan-gate consult (which reads the same carrier from `audit.RETIRED_AUDIT_SURFACES`) — and
+    all three are reached by a caller who is already blocked. A second copy would drift, and the
+    T-11250 lesson is precisely that a refusal reached under pressure must print the EXACT invocation:
+    the gate id and the template name are DIFFERENT identifiers and both are real, so both are named.
+
+    Pure f(args); never raises."""
+    gate = gate_id or "<gate>"
+    return ("Run, verbatim:\n"
+            f"  1) yitc-v2 audit decide --plan {slug} --gate {gate} --finding <fp> "
+            f"--disposition fix|accept|defer --reason … --directive events.jsonl#ts=<ISO>\n"
+            f"     (ONCE PER RESIDUAL — the refusal above, or the `--on-decisions` run below, names "
+            f"the undecided ones)\n"
+            f"  2) yitc-v2 plan stage <NEXT> {slug} --on-decisions\n"
+            f"NOTE the two identifiers are DIFFERENT and both are real: `{template}` is the "
+            f"audit-record/template name, `{gate}` is the value `--gate` takes (SPEC-0124 gate "
+            f"identity). A plan-gate `fix` is a PLAN-BODY edit whose `--evidence` is the plan's "
+            f"CURRENT signature; at the `decomposition-executing` / `finalization` gates `fix` is "
+            f"refused by name and `accept`/`defer` are the dispositions available.")
+
+
 def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_policy: str,
                          *, blocking: bool, card_set_fp: "str | None" = None,
-                         extra_context: "str | None" = None, owner_reset: bool = False, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _file_followup=None, _plan_gate_lens=None, _parse_audit_verdict_c1=None, AUDIT_PASS_CEILING, AUTO_CONSULT_HOLD_OPTION, AUTO_CONSULT_PROCEED_OPTION, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _consult_adjudicate, _consult_basis, _die, _invoke_auditor, _parse_audit_verdict, _parse_consult_result, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_consult_adjudication, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, build_plan_consult_prompt, finding_count_trend, is_trend_convergence_grant, write_text_atomic) -> str:
+                         extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic) -> str:
     """T-0349 — the verb-asked plan-gate audit (SPEC-0036 §Plan-stage overlays): `plan stage specs`
     asks P2 (auto-advisory), `plan stage trial` asks P3 (mandatory-blocking). FULL-capability
     auditor (SPEC-0034 plan-audit posture). Saves the canonical verdict (T-0348 schema +
@@ -2138,11 +2193,15 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     # INV-1 gate id + INV-2 fingerprint), the FULL consult GOVERNS: carry its verdict VERBATIM, no
     # auditor re-invocation. Plan owner-reset is consult-governed ONLY (no bare owner-authorized
     # fallback): a stale / multi-survivor / ABORT / missing / wrong-gate consult → REFUSE + escalate.
-    _consult_carry = None
     _trend_ceiling_grant = False
-    _worker_auto_consult = False
+    # HOISTED (T-12335): the gate id is the identity the SPEC-0204 plan-gate arm keys everything on —
+    # the ceiling row's `stage`, `ceiling_ref`, the decision payload — so `_save` needs it too, not just
+    # the ceiling block below. A template with no gate id (there is none today) yields None and the row
+    # emit in `_save` is SKIPPED rather than written unkeyed: fail-closed.
+    gate_id = _PLAN_TEMPLATE_TO_GATE_ID.get(template)
+    _sig_field = (_PLAN_CONSULT_GATE_AUDIT.get(gate_id) or (None, None))[1] if gate_id else None
+    _od = None            # the admitted rule-3 context: {ceiling_ref, residual_keys, by_fp, named}
     if blocking and prior_passes >= AUDIT_PASS_CEILING:
-        gate_id = _PLAN_TEMPLATE_TO_GATE_ID.get(template)
         # T-9717 (L2 parity with T-9682/T-9702) — TREND-AWARE ceiling grant for the EARLY plan gates.
         # Pure f(prior record): when the recorded finding-count trend is strictly DECREASING with LOW
         # residual severity AND prior_passes == the flat cap (the one pass the +1 unblocks), grant ONE
@@ -2151,116 +2210,166 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         # still-decreasing step at cap+1 stays blocked; a FLAT/GROWING/high-residual trend blocks too.
         # Gated on `not owner_reset` so an explicit --owner-reset keeps its UNCHANGED T-9286
         # consult-governs path (a trend grant never preempts the owner's explicit reset).
-        trend_grant = (not owner_reset and prior_passes == AUDIT_PASS_CEILING
+        # ── SPEC-0204 rule 6, PLAN-GATE arm (T-12335) — `--owner-reset` IS RETIRED HERE ────────────
+        # Its basis was a converged plan-gate consult, and that consult is retired with the episodes it
+        # opened (`audit consult --plan --gate` now refuses). Retiring the basis without retiring the
+        # flag would leave a flag that can never be satisfied — which is precisely the dead end this
+        # card exists to remove, dressed as a live surface. The flag stays REGISTERED so a caller
+        # holding a pre-retirement brief meets this route rather than argparse's `unrecognized
+        # arguments`; the two retirements are named in ONE carrier
+        # (`audit.RETIRED_AUDIT_SURFACES`), which `plan_gate_live_terminal_reasons` also reads.
+        #
+        # PLACED FIRST in the ceiling block, above every read: no auditor invoked, no pass spent, and
+        # the route learned before anything is paid for (the sibling shims' placement rule).
+        if owner_reset:
+            _die(audit_lib.RETIRED_AUDIT_SURFACES["plan-gate-owner-reset"] + "\n\n"
+                 + _plan_gate_decision_route(slug, gate_id, template))
+        trend_grant = (not on_decisions and prior_passes == AUDIT_PASS_CEILING
                        and is_trend_convergence_grant(prior))
-        # T-9717 (L3 parity with T-9683/T-9702) — DISPATCHED-worker AUTO-consult. A headless worker
-        # (YITC_EXPECTED_SESSION_REF set) cannot self-grant the owner-gated --owner-reset, so at the
-        # ceiling it would die-but-unlanded. Instead it AUTO-runs THIS gate's plan-gate consult (an
-        # AUDITOR adjudication, NOT an owner decision) via the SHARED consult engine
-        # (build_plan_consult_prompt + _consult_adjudicate — the SAME the finalization ceiling T-9702
-        # and the interactive `audit consult --plan --gate` use) with the TWO fixed framed options; on
-        # a CLEAN single TECHNICAL survivor (option-1 PROCEED) it flips owner_reset=True so the EXISTING
-        # T-9286 consult-governs branch below carries the fresh consult's verdict WITHOUT an owner ask.
-        # FAIL-CLOSED: a value/design ambiguity (option-2 HOLD), RED, ABORT, or >1 survivor keeps
-        # owner_reset False → escalate. Interactive sessions (no worker ref) are UNTOUCHED.
+        # ── SPEC-0204 rule 6, PLAN-GATE arm (T-12335) — THE DISPATCHED-WORKER AUTO-CONSULT IS GONE ──
+        # A headless worker at a plan-gate ceiling used to AUTO-run a convergence consult and, on a
+        # clean single technical survivor, self-grant the `--owner-reset` above. Rule 6 already retired
+        # the auto-consult on the TASK axis; this is the SAME mechanism on the plan axis, and it goes
+        # with the same reasoning: a Worker never decides past the ceiling (SPEC-0103 §3). It HALTS
+        # naming its residual fingerprints, the Controller records one typed decision per residual, and
+        # the worker resumes with `plan stage <NEXT> --on-decisions`. The halt text below is the
+        # ordinary ceiling refusal, which now names those fingerprints for exactly that reason.
         _worker_ref = os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip()
-        if not trend_grant and not owner_reset and gate_id and _worker_ref:
-            cur_sig = _plan_gate_recorded_signature(slug, gate_id)
-            if cur_sig:
-                _auto_opts = [AUTO_CONSULT_PROCEED_OPTION, AUTO_CONSULT_HOLD_OPTION]
-                _auto_prompt = build_plan_consult_prompt(
-                    slug, gate_id, _auto_opts, fm, body,
-                    _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _plan_fsm_line=_plan_fsm_line,
-                    _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, DECISIONS_DIR=DECISIONS_DIR)
-                print(f"# audit-loop ceiling reached for {slug} {gate_id} (dispatched worker) — "
-                      f"AUTO-running the ceiling-convergence consult before any owner escalation "
-                      f"(T-9717/T-9683, SPEC-0124 §Audit-loop ceiling).", file=sys.stderr)
-                _auto_provider = _resolve_audit_provider(True)
-                _ca, _csurv, _crec, _cpath = _consult_adjudicate(
-                    slug, gate_id, True, _auto_opts, _auto_prompt, _auto_prompt[:200],
-                    prior_passes, cur_sig,
-                    _auto_provider, audit_lib.resolve_model_for_provider(_resolve_audit_model, True, _auto_provider),
-                    _resolve_audit_effort(True),   # T-12350: provider first (admission)
-                    _invoke_auditor=_invoke_auditor, _parse_consult_result=_parse_consult_result,
-                    _strip_degenerate_tail=_strip_degenerate_tail, _append_event=_append_event,
-                    _utc_now_iso=_utc_now_iso, _plan_content_hash=_plan_content_hash,
-                    _auto_rebuild_graph=_auto_rebuild_graph, write_text_atomic=write_text_atomic,
-                    _die=_die, REPO_ROOT=REPO_ROOT,
-                    # SPEC-0200 (T-12182) — the PLAN-GATE producer takes the SAME contract
-                    # injections the task producers do. That identity is what rule 9's «both
-                    # producers comply by construction» means operationally: the plan gate is not a
-                    # second adjudication path, it is the same engine with a plan-shaped lens.
-                    _with_repo_lock=_with_repo_lock, _iter_events=_iter_events,
-                    events_path=EVENTS_PATH, _file_followup=_file_followup,
-                    _parse_audit_verdict=_parse_audit_verdict_c1,
-                    lens=(_plan_gate_lens(gate_id) if _plan_gate_lens else set()))
-                # FAIL-CLOSED grant gate: verdict GREEN/YELLOW, EXACTLY one survivor, AND survivor ==
-                # option-1 (PROCEED, not the HOLD option). Anything else escalates below (unchanged).
-                if (_ca.get("verdict") in ("GREEN", "YELLOW")
-                        and len(_csurv) == 1 and _csurv[0] == 1):
-                    owner_reset = True
-                    _worker_auto_consult = True
-                    _append_event("audit_worker_auto_consult_granted", None, {
-                        "slug": slug, "gate": gate_id, "prior_passes": prior_passes,
-                        "granted_pass": prior_passes + 1,
-                        "consult": str(_cpath.relative_to(REPO_ROOT)), "verdict": _ca.get("verdict"),
-                        "worker_ref": _worker_ref, "pass_ceiling": AUDIT_PASS_CEILING})
-                    print(f"# audit-loop ceiling: DISPATCHED-WORKER AUTO-CONSULT grant — the auto-run "
-                          f"{gate_id} consult converged to the clean TECHNICAL-PROCEED survivor "
-                          f"({_ca.get('verdict')}) for {slug}; granting the consult-governed "
-                          f"continuation (pass {prior_passes + 1}) WITHOUT an owner ask "
-                          f"(T-9717/T-9683, SPEC-0124).", file=sys.stderr)
-                else:
-                    print(f"# audit-loop ceiling: DISPATCHED-WORKER AUTO-CONSULT did NOT converge to a "
-                          f"clean single TECHNICAL survivor (verdict={_ca.get('verdict')}, "
-                          f"survivors={_csurv}) for {slug} {gate_id} — value/design ambiguity or "
-                          f"non-convergence. HOLDING; escalating to the owner (T-9717/T-9683, "
-                          f"SPEC-0124).", file=sys.stderr)
-        if owner_reset and gate_id:
-            cur_sig = _plan_gate_recorded_signature(slug, gate_id)
-            cstatus, cfile, creason = _consult_basis(
-                slug, gate_id, cur_sig,
-                consult_cmd_hint=f"yitc-v2 audit consult --plan {slug} --gate {gate_id} --option … --option …")
-            if cstatus == "consult":
-                # SPEC-0200 rule 7, PLAN-GATE arm (T-12182). A plan has NO park, `return_trigger` or
-                # `wont-do`: when an episode on this gate ends on a terminal — row 15, row 16, or the
-                # rule-4 pre-matrix non-admissible terminal — the plan simply STAYS at its current FSM
-                # stage, and its ceiling closes ONLY through a consult-governed PROCEED. So the reset
-                # is admitted by a recorded `outcome: proceed` on the CURRENT episode and by nothing
-                # else. The explicit owner action opens a NEW episode (round 0, n+1) on the SAME gate,
-                # and THAT episode's PROCEED is what this verifies — there is no bare
-                # owner-authorized fallback for a plan gate (SPEC-0124 §Plan-target parity).
-                #
-                # LEGACY-TOLERANT, deliberately: a record carrying NO `outcome` at all predates this
-                # contract and is left to the unchanged `_read_consult_adjudication` convergence check
-                # below. The new gate BINDS a record that HAS an outcome, so it can only ever refuse a
-                # terminal the old check would have admitted — it never admits one the old check
-                # refused.
-                _crec_raw = _read_yaml(REPO_ROOT / cfile) if (REPO_ROOT / cfile).exists() else None
-                if isinstance(_crec_raw, dict) and _crec_raw.get("outcome") \
-                        and not audit_lib.consult_plan_reset_admitted(_crec_raw):
-                    _die(f"{slug}: --owner-reset REFUSED at the {template} gate (SPEC-0200 rule 7, "
-                         f"plan-gate arm). The consult episode "
-                         f"{_crec_raw.get('episode_id') or '(unrecorded)'} on gate {gate_id} recorded "
-                         f"`outcome: {_crec_raw.get('outcome')}`"
-                         + (f" / `terminal_reason: {_crec_raw.get('terminal_reason')}`"
-                            if _crec_raw.get("terminal_reason") else "")
-                         + f", not PROCEED. "
-                         + audit_lib.consult_terminal_owner_route(_crec_raw, is_plan=True,
-                                                                 target_id=slug,
-                                                                 consult_key=gate_id)
-                         + " (no pass burned — this refusal fired before any auditor invocation).")
-                adj = _read_consult_adjudication(cfile, expected_basis_fp=cur_sig)
-                if adj is None:
-                    _die(f"{slug}: --owner-reset consult-governs at the {template} gate: the verified "
-                         f"consult basis {cfile} could not be re-read as a converged single-survivor "
-                         f"GREEN/YELLOW verdict — re-run `audit consult --plan {slug} --gate {gate_id}` "
-                         f"or escalate to the owner.")
-                _consult_carry = (cfile, adj)
-            else:
-                _die(f"{slug}: --owner-reset refused at the {template} gate: {creason}. A plan gate "
-                     f"owner-reset is CONSULT-GOVERNED ONLY — escalate to the owner per SPEC-0124 "
-                     f"§Plan-target parity (no bare owner-authorized fallback for a plan gate).")
+        # ── RULE 4 — TERMINAL FOR THIS (plan, gate) ────────────────────────────────────────────────
+        # An `--on-decisions` pass that came back RED ENDS this gate: a further gate audit here is
+        # refused, with or without the flag. A plan has no park / `wont-do` / `return_trigger`, so the
+        # only exits are the plan's OWN FSM terminals — `plan stage rejected|cancelled --reason` and the
+        # `partial` split. Read from the SAME folded rows the admission reads, so a decision recorded on
+        # main and a terminal recorded in the worktree are both visible (SPEC-0168 rule 7).
+        _od_rows = list(_folded_events()) if _folded_events is not None else []
+        _od_stage_rows = audit_lib._stage_audit_rows(_od_rows, slug, gate_id) if gate_id else []
+        _od_terminal = next(
+            (r for r in _od_stage_rows
+             if str(((r.get("data") or {}).get("basis")) or "") == audit_lib.ON_DECISIONS_BASIS
+             and str(((r.get("data") or {}).get("verdict")) or "").strip().upper() == "RED"),
+            None)
+        if _od_terminal is not None:
+            _append_event("read_gate_refused", None, {
+                "verb": f"plan stage ({template} gate)",
+                "action": "run a further plan-gate audit pass",
+                "kind": "ceiling-terminal", "target_kind": "plan", "plan_slug": slug,
+                "gate": gate_id, "stage": gate_id,
+                "reason": "on_decisions_pass_returned_red",
+                "ceiling_ref": (_od_terminal.get("data") or {}).get("ceiling_ref"),
+                "terminal_at": _od_terminal.get("ts")})
+            _die(f"{slug} gate {gate_id}: TERMINAL. The SPEC-0204 rule-3 pass "
+                 f"({(_od_terminal.get('data') or {}).get('ceiling_ref')}, recorded "
+                 f"{_od_terminal.get('ts')}) came back RED, which ENDS this gate for this plan: no "
+                 f"further {template} gate audit runs here, with or without `--on-decisions`, and a "
+                 f"body edit does not re-admit one (rule 4). A plan has NO park, `return_trigger` or "
+                 f"`wont-do` — the exits are the plan's OWN FSM terminals: "
+                 f"`yitc-v2 plan stage rejected {slug} --reason …`, `plan stage cancelled {slug} "
+                 f"--reason …`, or the `partial` split.")
+        if on_decisions:
+            # ── C-C — THE ONE BOUNDED PASS, ADMITTED (SPEC-0204 rule 3, plan-gate arm) ─────────────
+            # Every helper called here is the TASK arm's, keyed on `(slug, gate_id)` in place of
+            # `(tid, stage)`: no second reader, no second matrix, no second event type.
+            if not gate_id:
+                _die(f"{slug}: --on-decisions is not available at the {template} gate — the template "
+                     f"maps to no SPEC-0124 gate id, so a ceiling row cannot be keyed (fail-closed).")
+            if _folded_events is None:
+                _die("plan stage --on-decisions: the folded journal reader is not wired at this call "
+                     "site (engine defect — report it).")
+
+            def _od_refuse(kind: str, why: str, message: str, extra=None) -> None:
+                """The ONE refusal seam of the plan-gate rule-3 admission: journal the axis, then die.
+                No auditor is invoked and no pass is spent on any path through here, so `passes` in the
+                saved record is untouched. The emit is wrapped so a journal write error can never mask
+                the refusal (the `_emit_read_gate_refused` best-effort idiom)."""
+                payload = {"verb": f"plan stage ({template} gate)",
+                           "action": "run the SPEC-0204 rule-3 on-decisions pass",
+                           "kind": kind, "target_kind": "plan", "plan_slug": slug,
+                           "gate": gate_id, "stage": gate_id, "reason": why}
+                if extra:
+                    payload.update(extra)
+                try:
+                    _append_event("read_gate_refused", None, payload)
+                except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
+                    pass
+                _die(f"{slug} gate {gate_id}: {message}")
+
+            # THE CEILING ROW — the journal row for this pair, else the READ-TIME SYNTHETIC row built
+            # from `prior`, the gate's own saved record THIS FUNCTION ALREADY READ. Nothing is
+            # appended and no second YAML parser exists: the synthetic row carries no `findings[]`, so
+            # `row_residual_fingerprints` takes its shape-(c) branch with that record INJECTED.
+            _od_ceiling_row = audit_lib._ceiling_row_of(_od_stage_rows) if _od_stage_rows else None
+            _od_record = None
+            if _od_ceiling_row is None:
+                _od_record = prior if isinstance(prior, dict) and prior else None
+                if not _od_record:
+                    _od_refuse("below-ceiling", "no_completion_row",
+                               f"there is no `external_audit_completed` row for this gate and no saved "
+                               f"gate-audit record to resolve one from — nothing to decide "
+                               f"(SPEC-0204 rule 3).")
+                _od_ceiling_row = audit_lib.plan_gate_synthetic_ceiling_row(
+                    slug, gate_id, template, _od_record,
+                    saved_to=str(audit_path.relative_to(REPO_ROOT)))
+            _od_res = audit_lib.on_decisions_residuals(
+                _od_ceiling_row, _od_stage_rows, slug, gate_id,
+                repo_root=[REPO_ROOT], decisions_dir=DECISIONS_DIR, record=_od_record)
+            _od_passes = _od_res.get("passes")
+            if _od_passes is None:
+                _od_refuse("below-ceiling", "ceiling_row_passes_unresolved",
+                           f"the ceiling row records no `passes` counter and the saved gate record "
+                           f"states none either, so `ceiling_ref` cannot name a pass — the decisions "
+                           f"could not be bound to it (SPEC-0204 rules 2-3).")
+            _od_ref = f"{slug}/{gate_id}/pass-{_od_passes}"
+            _od_keys = list(_od_res.get("keys") or ())
+            # The decisions come from the SAME folded rows: a `ceiling_decision` is a no-worktree
+            # append that lands on MAIN (D-0049), so reading only this checkout's journal would
+            # deadlock the very gates this route exists to unblock (SPEC-0168 rule 7).
+            _od_decisions = [r for r in _od_rows
+                             if isinstance(r, dict) and r.get("type") == "ceiling_decision"
+                             and (r.get("data") or {}).get("plan_slug") == slug
+                             and (r.get("data") or {}).get("gate") == gate_id]
+            _od_by_fp = audit_lib.on_decisions_bind(_od_decisions, _od_ref)
+            _od_subjects = {str(d.get("subject_revision") or "").strip()
+                            for d in _od_by_fp.values()} - {""}
+            _od_ceiling_subject = next(iter(_od_subjects)) if len(_od_subjects) == 1 else None
+            # THE CURRENT SUBJECT. For the three `content_hash` gates it is the plan body's signature
+            # RECOMPUTED NOW, so a body edited after the decisions were recorded is caught by arm 1.
+            # For `card_set_fingerprint` / `corpus_signature` it is the gate's RECORDED signature: a
+            # `fix` is refused at decide time for those gates (nothing here could verify one), so the
+            # only admissible sets there are all-`accept`/`defer`, whose named revision IS that
+            # recorded signature. Reading it back is honest; recomputing a fingerprint whose one home
+            # is the gate that writes it would be a second scheme (INV-2).
+            _od_current = (_plan_content_hash(body) if _sig_field == "content_hash"
+                           else _plan_gate_recorded_signature(slug, gate_id))
+            _od_named, _od_refusal = audit_lib.on_decisions_admission(
+                tid=slug, stage=gate_id, residual_keys=_od_keys, decisions=_od_decisions,
+                ceiling_ref=_od_ref, ceiling_subject_revision=_od_ceiling_subject,
+                current_subject=_od_current, reaudit_after_close=False,
+                unresolvable=bool(_od_res.get("unresolvable")),
+                unresolvable_reason=_od_res.get("unresolvable_reason"),
+                # ARM 2 (ancestry) is POST-ONLY by that helper's own contract and `stage` here is a
+                # gate id, so it never runs; a content hash has no ancestry to answer about. The
+                # callable is still supplied so the helper is never handed None on a path it could
+                # reach — it fails closed on anything that is not True.
+                strict_descendant=(lambda _a, _b: None))
+            if _od_refusal:
+                _od_refuse(_od_refusal["kind"], _od_refusal["why"], _od_refusal["message"],
+                           {"ceiling_ref": _od_ref, "residual_count": len(_od_keys),
+                            "decisions_applied": len(_od_by_fp),
+                            **{k: v for k, v in _od_refusal.items()
+                               if k not in ("kind", "why", "message")}})
+            _od = {"ceiling_ref": _od_ref, "residual_keys": _od_keys, "by_fp": _od_by_fp,
+                   "named": _od_named,
+                   "packet": audit_lib.on_decisions_projection(
+                       tid=slug, stage=gate_id, ceiling_ref=_od_ref, residual_keys=_od_keys,
+                       decisions_by_fp=_od_by_fp, degraded=_od_res.get("degraded"),
+                       unresolvable=_od_res.get("unresolvable"), late=_od_res.get("late"),
+                       named_revision=_od_named,
+                       non_defect_rows_skipped=_od_res.get("non_defect_skipped"))}
+            print(f"# audit-loop ceiling: ON-DECISIONS PASS — every residual of {_od_ref} carries a "
+                  f"recorded `ceiling_decision` ({len(_od_by_fp)} decision(s)); running the ONE "
+                  f"bounded pass past the ceiling (pass {prior_passes + 1}) at "
+                  f"{_od_named or 'the ceiling subject'} (T-12335, SPEC-0204 plan-gate arm).",
+                  file=sys.stderr)
         elif trend_grant:
             # GRANT-MOMENT JOURNAL — emit the grant NOW, BEFORE the (minutes-long, possibly-ABORTing)
             # auditor invocation, so the grant is journal-visible at the instant granted; the completed
@@ -2283,32 +2392,49 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         else:
             # T-11250 (kupiclub X-0974) — PRINT THE EXACT COMMAND, do not make the caller derive it.
             # This refusal is reached precisely when the caller is already blocked and under time
-            # pressure, and it used to name the gate ONLY by its audit-TEMPLATE name (`gate-executing`)
-            # while prescribing "a converged plan consult" with no invocation. `--stage` is the
-            # nearest-named flag on that very verb and takes {pre,post}, so the obvious reading dies
-            # on an argparse error — two failed invocations, reported. `gate_id` (computed above from
-            # _PLAN_TEMPLATE_TO_GATE_ID) IS the `--gate` token, so the command can simply be spelled.
-            # The template name stays — it is the audit RECORD's name, visible in the filename right
-            # there — but the two identifiers are now told apart instead of left to collide. Nothing
-            # in the parser is widened: the fix is entirely in this text (SPEC-0124 owns the gate
-            # identity). Same discipline as the `land` recovery line, and the reporter's own ask.
-            _consult_cmd = (f'yitc-v2 audit consult --plan {slug} --gate {gate_id} --full '
-                            f'--option "<proceed: …>" --option "<hold: …>"') if gate_id else None
+            # pressure. It used to prescribe «a converged plan consult + `--owner-reset`»; SPEC-0204's
+            # plan-gate arm retires BOTH (T-12335), so it now prints the DECISION route — and, for a
+            # DISPATCHED WORKER, the residual FINGERPRINTS the Controller has to decide, because a
+            # halt that names no fingerprint makes the Controller re-derive them by hand (the task-arm
+            # rule-6 lesson). The two identifiers stay told apart: `{template}` is the audit-RECORD's
+            # name, `{gate_id}` is the value `--gate` takes (SPEC-0124 gate identity).
+            _fps = []
+            if gate_id:
+                _ceil = audit_lib._ceiling_row_of(_od_stage_rows) if _od_stage_rows else None
+                if _ceil is None and isinstance(prior, dict) and prior:
+                    _ceil = audit_lib.plan_gate_synthetic_ceiling_row(
+                        slug, gate_id, template, prior,
+                        saved_to=str(audit_path.relative_to(REPO_ROOT)))
+                if _ceil is not None:
+                    _r = audit_lib.on_decisions_residuals(
+                        _ceil, _od_stage_rows, slug, gate_id, repo_root=[REPO_ROOT],
+                        decisions_dir=DECISIONS_DIR,
+                        record=(prior if isinstance(prior, dict) and prior else None))
+                    if not _r.get("unresolvable"):
+                        _fps = list(_r.get("keys") or ())
+            if _worker_ref:
+                _append_event("bg_dispatch_halted", None, {
+                    "kind": "plan_gate_audit_ceiling", "plan_slug": slug, "gate": gate_id,
+                    "template": template, "prior_passes": prior_passes,
+                    "residual_fingerprints": _fps, "worker_ref": _worker_ref,
+                    "pass_ceiling": AUDIT_PASS_CEILING})
             _die(f"{slug}: audit-loop ceiling reached at the {template} gate ({prior_passes} passes on "
-                 f"record in {audit_path.name}); pass {prior_passes + 1} = escalate to owner per "
-                 f"CHARTER §audit-loop-ceiling — never silent-loop"
-                 + ("" if owner_reset else
-                    " (a converged plan consult + the gate verb `--owner-reset` may continue ONE pass).")
-                 + ("" if (owner_reset or not _consult_cmd) else
-                    f"\nRun, verbatim:\n"
-                    f"  1) {_consult_cmd}\n"
-                    f"  2) re-run this gate verb with --owner-reset\n"
-                    f"NOTE the two identifiers are DIFFERENT and both are real: `{template}` is the "
-                    f"audit-record/template name printed above, `{gate_id}` is the value "
-                    f"`audit consult --gate` takes (SPEC-0124 gate identity). The consult flag is "
-                    f"`--gate`, NOT `--stage` — `--stage` exists on that verb but is the TASK axis "
-                    f"and takes only pre|post."))
+                 f"record in {audit_path.name}); pass {prior_passes + 1} is admitted ONLY by the "
+                 f"SPEC-0204 decision route — never a silent loop, and no longer a consult or an "
+                 f"owner reset (rule 6, plan-gate arm).\n"
+                 + (f"RESIDUAL FINGERPRINT(S) of this gate's ceiling row ({len(_fps)}): "
+                    f"{', '.join(_fps)}\n" if _fps else
+                    "The residual fingerprints could not be resolved from this gate's ceiling row or "
+                    "saved record — run the route below and it will name what is undecided.\n")
+                 + _plan_gate_decision_route(slug, gate_id, template)
+                 + (f"\nA DISPATCHED WORKER STOPS HERE: a Worker never decides past the ceiling "
+                    f"(SPEC-0103 §3). The halt above names the fingerprints; the Controller records "
+                    f"one decision per residual and re-dispatches." if _worker_ref else ""))
     tmpl = _plan_gate_template_text(template)
+    #: The SPEC-0204 rule-3 extension keys of THIS pass's ceiling row, empty on every ordinary pass.
+    #: Declared before `_save` closes over it and filled after the matrix runs, so the row is written
+    #: ONCE with its decision trail rather than emitted twice or patched after the fact.
+    _od_row_fields: dict = {}
 
     def _save(audit: dict) -> None:
         content = state.dump(audit)
@@ -2320,6 +2446,36 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             "slug": slug, "verdict": audit["verdict"], "findings_count": len(audit["findings"]),
             "stage_template": template, "gate_policy": gate_policy,
             "saved_to": str(audit_path.relative_to(REPO_ROOT))})
+        # ── C-A (T-12335) — THE CEILING ROW A PLAN GATE NEVER HAD ───────────────────────────────
+        # Until now a plan gate emitted `draft_checked` ONLY: no `findings[]`, no `passes`, and never an
+        # `external_audit_completed` row — so the whole SPEC-0204 rule-1/2/3 reader chain, which keys off
+        # THAT row, had nothing to read for a plan target (deviation
+        # `plan-gate-has-no-external-audit-completed-ceiling-row`, 2026-09-10). This is that row: the SAME
+        # event type, the SAME ceiling-extension keys, `stage` = the GATE ID, per-finding fingerprints
+        # from the SAME `finding_key_of` the reader recomputes — so the row and every reader agree BY
+        # CONSTRUCTION rather than by two loops matching.
+        #
+        # `draft_checked` STAYS, unchanged: it is the plan FSM's own gate record and has its own readers.
+        # This is an ADDITIONAL row for the ceiling axis, not a replacement (no reader is re-pointed).
+        # A template mapping to no gate id emits NO row rather than an unkeyed one — fail-closed.
+        if gate_id:
+            _row = audit_lib.plan_gate_ceiling_row_payload(
+                slug, gate_id, template, audit,
+                saved_to=str(audit_path.relative_to(REPO_ROOT)), repo_root=[REPO_ROOT])
+            if _od_row_fields:
+                _row.update(_od_row_fields)
+                # THE WRITE-SITE VALIDATOR (SPEC-0046 §A) — C1's shared validator, scoped to the keys
+                # THIS site writes. An incomplete rule-3 extension would leave the pass unreadable to
+                # the terminal check and to `audit decide`, so it is an ENGINE defect here, not
+                # something a re-run fixes.
+                _probs = audit_lib.on_decisions_row_problems(_row)
+                if _probs:
+                    _die(f"{slug} gate {gate_id}: REFUSED to record this pass — the SPEC-0204 rule-3 "
+                         f"extension of the completion row is incomplete ({', '.join(_probs)}). The "
+                         f"pass ran and its verdict record is on disk, but the JOURNAL ROW every "
+                         f"cross-session reader folds would not carry the decision trail. This is an "
+                         f"ENGINE defect at this write site: report it.")
+            _append_event("external_audit_completed", None, _row)
 
     base = {"target_kind": "plan", "target_id": slug, "stage": template,
             "stage_template": template, "gate_policy": gate_policy,
@@ -2329,34 +2485,14 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         # (card-set fingerprint). `plan stage executing` recomputes + requires an EXACT match, so a cut
         # edited after the audit re-fingerprints → stale → re-audit. Only the gate-executing run passes it.
         base["card_set_fingerprint"] = card_set_fp
-    if _consult_carry is not None:
-        # T-9286 consult-GOVERNS carry: the FULL ceiling-convergence consult already adjudicated this
-        # gate — record its verdict VERBATIM (no auditor re-invocation), mirroring the task T-0522 path.
-        cfile, adj = _consult_carry
-        cverdict = adj["verdict"]
-        cfindings = ([] if cverdict == "GREEN" else [{
-            "severity": "low",
-            "what": f"consult-governed residual: surviving option {adj.get('recommendation')} carried "
-                    f"from the FULL ceiling-convergence consult",
-            "where": cfile,
-            "fix": adj.get("survivor_text") or "(see the consult survivor)"}])
-        audit = {**base, "verdict": cverdict, "passes": prior_passes + 1, "commit": None,
-                 "findings": cfindings, "absorbed": [], "followups": [],
-                 "owner_reset": True, "owner_reset_basis": f"consult:{cfile}", "consult_governed": True,
-                 # T-9717 — durable marker: when a DISPATCHED-worker auto-consult (L3) drove this
-                 # consult-governed continuation (not an owner-passed --owner-reset), record it (the
-                 # audit YAML analog of cmd_audit's worker_auto_consult marker, T-9683/T-9702).
-                 **({"worker_auto_consult": True} if _worker_auto_consult else {}),
-                 "auditor_provider": "external-auditor-full",
-                 "prompt_excerpt": f"(consult-governed — no auditor call; basis {cfile})",
-                 "notes": (f"T-9286 consult-GOVERNS: carried verdict {cverdict} from {cfile} "
-                           f"(recommendation {adj.get('recommendation')}); no auditor re-invocation "
-                           f"(SPEC-0124 §Plan-target parity)."
-                           + (" DISPATCHED-worker auto-consult (T-9717 L3)." if _worker_auto_consult else ""))}
-        _save(audit)
-        print(f"{slug} {template} gate ({gate_policy}): {cverdict} (consult-governed owner-reset, "
-              f"pass {prior_passes + 1}) -> {audit_path.relative_to(REPO_ROOT)}")
-        return cverdict
+    # T-12335 (SPEC-0204 rule 6, plan-gate arm) — THE CONSULT-GOVERNED CARRY IS DELETED, not shimmed.
+    # It recorded a plan-gate verdict VERBATIM from a converged ceiling-convergence consult, with no
+    # auditor re-invocation, as the body of the `--owner-reset` continuation. Both the flag's basis and
+    # the consult that produced it are retired above, so this branch had become unreachable — and dead
+    # code that once wrote governed verdicts is worse than none: a later reader cannot tell it from a
+    # live path. This deletion IS the removal this addition pays for (CHARTER §P1 filter 3). The flag
+    # itself survives as the refusal shim in the ceiling block, which is what a pre-retirement caller
+    # meets.
     if tmpl is None:
         # Template home broken/unavailable — the policy split (T-0349 audit-pre F1). NOTE (T-9316/F-010,
         # kernel-pin T-10581/X-0433): the PRIMARY -C path never reaches here — `_plan_gate_template_text`
@@ -2392,7 +2528,12 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
               f"below; ground the verdict in them:\n\n{tmpl}\n"
               f"\n## Plan {slug}\n\nfrontmatter: {fm}\n\n{body}\n"
               + (f"\n## Decomposition — the filed task CARD SET (audit the CUT against the plan)\n"
-                 f"{extra_context}\n" if extra_context else ""))
+                 f"{extra_context}\n" if extra_context else "")
+              # C-C (T-12335) — on the rule-3 pass the auditor sees each residual, its fingerprint and
+              # its recorded disposition, and is asked to VERIFY `fix`, treat `accept`/`defer` as
+              # settled, and put `echo_of: <fp>` on any re-raise. Rendered by the SAME
+              # `on_decisions_packet_block` the task packet uses — one block, one wording.
+              + (audit_lib.on_decisions_packet_block(_od["packet"]) if _od is not None else ""))
     print(f"# Invoking external auditor: {provider}/{model} (full) — {template} gate "
           f"({gate_policy}) on plan {slug}...", file=sys.stderr)
     rc, stdout, stderr = audit_lib.invoke_auditor_tiered(_invoke_auditor, provider, prompt, model, full=True)   # T-12350
@@ -2400,12 +2541,78 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         verdict, findings, parse_notes = "ABORT", [], f"auditor exit {rc}: {stderr[:500]}"
     else:
         verdict, findings, parse_notes = _parse_audit_verdict(stdout)
+    # ── C-E (T-12335) — THE MALFORMED-RESPONSE PARSE FLOOR, PLAN-GATE ARM (SPEC-0204 rule 1) ────────
+    # A response whose findings were scraped by the STAGE-3 RAW SINGLE-LINE BULLET fallback is refused
+    # HERE — BEFORE `_save`, so `passes` in the record is UNCHANGED, NO record is written and NO ceiling
+    # row is emitted. That ordering is the whole point: on 2026-09-09 (X-1330) a malformed RESPONSE
+    # envelope consumed the SAME bounded budget as a real disagreement (4 invocations, ~10 min), because
+    # the engine recorded `{severity, what: "<bullet text>"}` dicts that `parse_audit_verdict` itself
+    # calls «likely misleading» as if they were findings. A parse failure is not a verdict about the
+    # plan, so it must not cost a pass — and with no round recorded, the SPEC-0200-era
+    # `malformed-exhausted` terminal that stranded both consumer plans becomes unreachable for a plan
+    # gate (AC3; `plan_gate_live_terminal_reasons` is the conformance-visible half).
+    #
+    # The PREDICATE is pure and lives in audit.py; the REFUSAL is here, at the use site
+    # (`lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`). Stage-2 STRUCTURED recovery is
+    # NOT malformed and is recorded unchanged, and a WELL-FORMED RED on the same fixture IS recorded and
+    # DOES spend its pass — the differential arm of AC3.
+    _malformed = audit_lib.plan_gate_response_malformed(findings, parse_notes)
+    if _malformed:
+        _append_event("read_gate_refused", None, {
+            "verb": f"plan stage ({template} gate)", "action": "record a plan-gate audit round",
+            "kind": "response-malformed", "target_kind": "plan", "plan_slug": slug,
+            "gate": gate_id, "stage": gate_id, "reason": "raw_bullet_fallback_findings",
+            "prior_passes": prior_passes, "findings_scraped": len(_malformed)})
+        _die(f"{slug}: the {template} gate response is MALFORMED — its {len(_malformed)} "
+             f"finding(s) were recovered by the raw single-line bullet fallback (strict YAML AND the "
+             f"structured multi-line parser both failed), which `parse_audit_verdict` documents as "
+             f"«likely misleading». REFUSED AT PARSE: no record written, no ceiling row emitted and "
+             f"`passes` unchanged at {prior_passes} — a parse failure is not a verdict about the plan "
+             f"and must not spend the bounded budget (SPEC-0204 rule 1, plan-gate arm; X-1330). "
+             f"Re-run the gate; the auditor is asked for the same judgement in a parseable envelope.")
+    # ── C-C (T-12335) — THE RULE-3 RESULT MATRIX, when this pass was admitted on decisions ──────────
+    # The SAME closed matrix the task arm applies: an echo of an `accept`/`defer` residual is
+    # `overruled_by_decision` and never a verdict driver; an echo of a `fix` residual still open forces
+    # RED whatever word the auditor returned; anything else counts NEW at its own severity, with an
+    # unverifiable `echo_of` DROPPED. No second matrix exists.
+    if _od is not None:
+        _m = audit_lib.on_decisions_matrix(
+            findings, tid=slug, stage=gate_id, verdict=verdict,
+            residual_keys=_od["residual_keys"], decisions_by_fp=_od["by_fp"],
+            repo_root=[REPO_ROOT])
+        findings = _m["findings"]
+        if _m["verdict"] != verdict:
+            parse_notes = ((parse_notes + " | " if parse_notes else "")
+                           + f"SPEC-0204 rule 3 (plan-gate arm): the auditor returned {verdict}; this "
+                           f"is the ON-DECISIONS pass on {_od['ceiling_ref']}, where "
+                           f"{len(_m['overruled'])} finding(s) re-raised a residual an `accept`/`defer` "
+                           f"decision had already settled (recorded `overruled_by_decision`, never "
+                           f"verdict drivers) and {len(_m['fix_open'])} re-raised a `fix` residual "
+                           f"still OPEN, so the recorded verdict is {_m['verdict']}.")
+            verdict = _m["verdict"]
+        if _m["dropped_echo"]:
+            print(f"NOTE: {slug} gate {gate_id}: {len(_m['dropped_echo'])} `echo_of` reference(s) "
+                  f"named no residual of {_od['ceiling_ref']} ({', '.join(_m['dropped_echo'])}) — "
+                  f"DROPPED, and those findings count as NEW at their own severity (the ENGINE "
+                  f"verifies `echo_of`).", file=sys.stderr)
+        _od_row_fields.update({
+            "basis": audit_lib.ON_DECISIONS_BASIS,
+            "ceiling_ref": _od["ceiling_ref"],
+            "decisions_applied": len(_od["by_fp"]),
+            "overruled_by_decision": list(_m["overruled"]),
+            "new_findings": len(_m["new"])})
     passes = prior_passes + (0 if verdict == "ABORT" else 1)   # ABORT burns no pass
     audit = {**base, "verdict": verdict, "passes": passes, "commit": None,
              "findings": findings, "absorbed": [], "followups": [],
              # T-9717 — durable marker: this pass was granted past the flat cap by the L2 trend grant
              # (the audit YAML analog of cmd_audit's trend_ceiling_grant, T-9682/T-9702).
              **({"trend_ceiling_grant": True} if _trend_ceiling_grant else {}),
+             # T-12382 (audit-post finding AC2, 2026-09-11) — the saved gate-audit YAML is the
+             # human-readable PROJECTION of the rule-3 extension the ceiling row carries (SPEC-0036
+             # §Saved audit result: `basis` rides beside `ceiling_ref`), exactly as `cmd_audit`
+             # projects its `on_decisions_yaml_fields` on the TASK arm. ONE dict feeds both writes, so
+             # the record on disk and the journal row cannot disagree about the decision trail.
+             **dict(_od_row_fields),
              "auditor_provider": "external-auditor-full", "prompt_excerpt": prompt[:200],
              "notes": parse_notes or f"Raw stdout captured ({len(stdout)} chars)."}
     if rc != 0:
@@ -2425,7 +2632,13 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     if blocking and verdict in ("RED", "ABORT"):
         _die(f"{slug}: the {template} gate is MANDATORY-BLOCKING and the verdict is {verdict} — "
              f"the transition is held (status unchanged). "
-             + ("Absorb the findings and retry (ceiling: 2 passes)." if verdict == "RED"
+             + (("Absorb the findings and retry (ceiling: 2 passes)."
+                 if _od is None else
+                 f"This WAS the SPEC-0204 rule-3 pass on {_od['ceiling_ref']}, so it is TERMINAL for "
+                 f"this gate: no further {template} audit runs here. A plan has NO park, "
+                 f"`return_trigger` or `wont-do` — the exits are the plan's own FSM terminals "
+                 f"(`plan stage rejected|cancelled {slug} --reason …`, or the `partial` split).")
+                if verdict == "RED"
                 else "Auditor unavailable/malformed — don't proceed without a verdict; retry "
                      "(no pass burned)."))
     return verdict

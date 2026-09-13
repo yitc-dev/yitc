@@ -21,6 +21,7 @@ import hashlib
 import re
 import sys
 import unicodedata
+from pathlib import Path  # T-12435 — the re-homed `symbol_region` binds a file suffix to its grammar
 
 from lib import events
 from lib import state
@@ -505,6 +506,116 @@ def anchor_file(anchor: str) -> str:
     """File component of an implements anchor — strips both `#<symbol>` (durable, D-0036)
     and legacy `:<line-range>`. Used to key the reverse index + match `graph query <file>`."""
     return re.split(r"[:#]", str(anchor), 1)[0]
+
+
+# T-12435 — RE-HOMED from bin/lib/cli.py, verbatim. These two were the corpus's ONE region
+# extractor, but they lived in the HOST module, so a leaf that needs them (bin/lib/audit.py's
+# SPEC-0204 rule-8 locator derivation) could not import them without a cycle and would have had to
+# write a SECOND resolver — the thing CHARTER §P1 F1 forbids. They join `anchor_file` here for the
+# same reason it is here (T-9260): a pure, stdlib-only text primitive shared by host and leaves.
+# cli.py keeps re-export residue, so every existing call site is unedited and behaviour-identical.
+
+
+def symbol_bearing_lines(text: str, sym: str) -> list:
+    """The `(line_index, line_text)` pairs for every DISTINCT line of `text` containing the literal
+    `sym` (T-10797). The shared prefilter behind both anchor scans: every `<file>#<symbol>` pattern
+    embeds `re.escape(sym)`, so no line without that literal can match, and a build resolves
+    hundreds of anchors against files up to 1.1 MB. `str.find` walks the handful of hits at memchr
+    speed instead of testing every line; newline counting accumulates FORWARD, never re-counting,
+    and lines are sliced by offset so the caller need not split the whole text. Order is ascending,
+    so a caller's «first matching line wins» tie-break is preserved."""
+    out = []
+    scanned = idx = 0
+    pos = text.find(sym)
+    while pos != -1:
+        idx += text.count("\n", scanned, pos)
+        scanned = pos
+        if not out or out[-1][0] != idx:
+            begin = text.rfind("\n", 0, pos) + 1
+            stop = text.find("\n", pos)
+            out.append((idx, text[begin:] if stop == -1 else text[begin:stop]))
+        pos = text.find(sym, pos + 1)
+    return out
+
+
+def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
+    """Return the SOURCE SUBSTRING of `sym`'s region within `text`, or None if absent (T-0214).
+    Reuses the SAME def/const/heading shapes as `_resolve_implements_anchor` — no parallel parser.
+
+    GRAMMAR IS BOUND TO THE FILE TYPE (T-10310), never raced on line order. `file_rel` selects the ONE
+    grammar that file's language actually has: `.md` -> markdown headings; everything else (incl. an
+    EXTENSIONLESS python script like `bin/yitc-v2`) -> python def/const. Previously all three patterns
+    were tried against every line and the first LINE matching ANY of them won — so a python `# ...`
+    comment naming the symbol matched the markdown head_pat BEFORE the scan reached the real `def`,
+    collapsing the region to that one comment line. The signature then hashed a comment: body edits
+    never moved it, `graph build` reported 0 anchor drift, and `spec reverify` could not re-stamp it
+    (live incident: SPEC-0133's `bin/lib/journal.py#cmd_journal_fleet_verdict` signed identically on
+    main and on a branch that rewrote the function body — blocked T-10291's audit-post). `file_rel` is
+    REQUIRED, not defaulted, so no call site can silently inherit the old grammar-race.
+
+    Boundary heuristic (report-only, so a conservative bound is acceptable):
+      - def/class/async-def: from its line (INCLUDING contiguous leading `@decorator` lines at the
+        same indent — audit-pre F0: a decorator change must be in-region) until the next non-blank
+        line at indent <= the def's. Multi-line signatures are covered: their continuation lines
+        indent past the def, so they fall inside the region.
+      - module const / annotation (`<sym> [:=]` at col 0): its line until the next non-blank col-0 line.
+      - markdown heading (`#..# ... <sym>`): until the next heading of level <= its own."""
+    # LITERAL PREFILTER (T-10797) — all three patterns below are matched LINE-BOUND (`.match` on one
+    # line, never across the text) and embed `re.escape(sym)`, so `symbol_bearing_lines` yields
+    # EXACTLY the lines the scan-every-line loop could have matched, in the same ascending order.
+    # That loop ran up to 3 regex matches over EVERY line of files up to 1.1 MB — 2.3 M
+    # python-level `re.match` calls per build.
+    is_md = Path(file_rel).suffix.lower() == ".md"
+    def_pat = re.compile(rf"^(\s*)(?:async\s+def|def|class)\s+{re.escape(sym)}\b")
+    const_pat = re.compile(rf"^{re.escape(sym)}\s*[:=]")
+    head_pat = re.compile(rf"^(#{{1,6}})\s+.*\b{re.escape(sym)}\b")
+    start = indent = level = None
+    kind = None
+    for idx, ln in symbol_bearing_lines(text, sym):
+        if is_md:                                 # markdown: headings ONLY — a fenced `def` is a sample
+            hm = head_pat.match(ln)
+            if hm:
+                start, level, kind = idx, len(hm.group(1)), "head"
+                break
+            continue
+        m = def_pat.match(ln)                     # code: def/const ONLY — a `#` line is a comment
+        if m:
+            start, indent, kind = idx, len(m.group(1)), "def"
+            break
+        if const_pat.match(ln):
+            start, indent, kind = idx, 0, "const"
+            break
+    if start is None:
+        return None
+    lines = text.split("\n")                  # split only once a region exists to bound
+    body_from = start                         # the matched def/const/head line; end-scan starts AFTER it
+    if kind == "def":
+        # extend the region START upward over contiguous leading decorators at the def's indent (F0).
+        # `body_from` stays the def line so the end-scan below isn't truncated by the decorator lines.
+        j = start - 1
+        while j >= 0:
+            dl = lines[j]
+            if dl.strip() and (len(dl) - len(dl.lstrip())) == indent and dl.lstrip().startswith("@"):
+                start = j
+                j -= 1
+            else:
+                break
+    end = len(lines)
+    if kind == "head":
+        for j in range(body_from + 1, len(lines)):
+            hm = re.match(r"^(#{1,6})\s+", lines[j])
+            if hm and len(hm.group(1)) <= level:
+                end = j
+                break
+    else:
+        for j in range(body_from + 1, len(lines)):
+            ln = lines[j]
+            if not ln.strip():
+                continue
+            if (len(ln) - len(ln.lstrip())) <= indent:
+                end = j
+                break
+    return "\n".join(lines[start:end])
 
 
 # Path-shaped token: a token carrying a `/` and a file extension (bin/lib/x.py, specs/SPEC-0036.yaml,
@@ -1017,4 +1128,44 @@ def git_porcelain_paths(stdout) -> list:
         p = git_unquote_path(p.strip()).strip()
         if p:
             out.append(p)
+    return out
+
+
+def git_porcelain_path_statuses(stdout) -> dict:
+    """T-12371 — the STATUS-BEARING sibling of `git_porcelain_paths` above: `{path: "XY"}` over the
+    same `git status --porcelain` (v1) listing, keyed by the same decoded paths that reader returns.
+
+    WHY IT EXISTS. `git_porcelain_paths` slices `ln[3:]` and throws the two status columns away, so
+    every caller built on it can see THAT a path is dirty and never HOW. `_red_fix_authored_paths`
+    (the `--fix-red` door) is one of those callers, and the one where the missing letters cost
+    something measurable: it called a path the staged set only DELETES "authored content", while the
+    audit-post subject guard `_bookkeeping_commit_authored_paths` — reading the resulting commit's
+    own `--name-status` — reads a pure `D` as carrying nothing (T-11668). Custody could therefore be
+    re-pinned by the door onto a commit no audit form would take (T-12345 / e086597).
+
+    NOT A SECOND DECODER (CHARTER §P1 F1/F5). The line shape, the `ln[3:]` slice, the rename
+    DESTINATION rule and the `core.quotepath` decode are the ONES stated and implemented in
+    `git_porcelain_paths`; this function is that function with the prefix KEPT, so a future quoting
+    or slicing fix still lands in one place. The keys are IDENTICAL to `git_porcelain_paths`' list by
+    construction — a caller may filter one by the other without a second notion of "which path".
+
+    THE PREFIX IS RETURNED RAW, two characters wide, blanks included (`" D"`, `"D "`, `"DM"`) —
+    interpretation belongs to the reader, not here. A line shorter than its prefix, or one that
+    decodes to no path, is skipped exactly as the sibling skips it. On a DUPLICATE path (a porcelain
+    listing should not produce one, but an unmerged entry can be printed more than once) the LAST
+    occurrence wins, which is the state git reports most recently.
+
+    PURE, and total: no git, no I/O, never raises. `None` / an empty listing yields `{}`; order is
+    irrelevant to a mapping. ASCII is unaffected by construction, as in the sibling."""
+    out: dict = {}
+    for ln in str(stdout or "").splitlines():
+        if not ln.strip():
+            continue
+        status = ln[:2]
+        p = ln[3:]
+        if " -> " in p:                          # rename/copy: the staged DESTINATION is what lands
+            p = p.split(" -> ", 1)[1]
+        p = git_unquote_path(p.strip()).strip()
+        if p:
+            out[p] = status
     return out

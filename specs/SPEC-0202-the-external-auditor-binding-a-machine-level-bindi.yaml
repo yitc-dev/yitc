@@ -1,0 +1,114 @@
+# YITC v2 — Spec (draft, plan-local; born by `spec new --draft`). Field catalog: SPEC-0030.
+id: SPEC-0202
+title: 'The external-auditor binding: a machine-level binding class in the settings file (provider, binary, home, model), stamped on every verdict, with the session-start hint until an external one is bound'
+status: active
+created_at:
+travels: ~ # KERNEL (class default) — re-pinned from the draft-only v2-self at plan-accept (2026-09-06) per SPEC-0073 §3: this doctrine TRAVELS to every adopter once active
+consumed: false
+extension: ~
+implements: # design-stage anchors (SPEC-0005 §7 mode (b)) — wired by the implementing cards
+  - bin/lib/machine_settings.py#INVENTORY # the third class `binding` + its four keys
+  - bin/lib/audit.py#resolve_codex_binary # the resolution order gains the binding-file layer
+  - bin/lib/audit.py#resolve_audit_provider # provider + model read the binding file after env, before repo config
+  - bin/lib/cli.py#cmd_session_start # the hint line (SPEC-0201 rule 3a)
+  - bin/lib/audit.py#cmd_audit_status # the read-only re-fold view (new verb)
+body: |
+  ## Scenario
+
+  The person says «ок, ставим внешнего». The AI helps them install whichever provider's CLI they chose
+  and log in — how, is their business. Then ONE file outside the engine tree gets three or four lines:
+  `bin/yitc-v2 config set auditor.routine.provider <adapter>`, `… auditor.routine.binary <path>`,
+  optionally `… auditor.routine.home <dir>` and `… auditor.routine.model <id>`. That is the whole
+  binding. `release verify` and `update` never see the file; `config list` shows it; the next audit
+  runs on the bound provider, the verdict says which provider and model, and the reminder goes silent.
+
+  ## Internal
+
+  ### Rule 1 — A third machine-settings class: `binding` (amends SPEC-0193 rule 2)
+  SPEC-0193 rule 2 has PERFORMANCE and GATE. This spec adds `binding` — a LOCATOR the operator declares:
+  WHICH auditor runs on this machine. It is neither cadence (performance) nor a threshold a refusal
+  reads (gate): it changes WHO judges, not whether a judged thing passes. Exactly FOUR keys per tier
+  (`routine` | `full`): `auditor.<tier>.provider` (an adapter name the ADAPTER REGISTRY knows —
+  SPEC-0036 §Auditor selection + `bin/audit-config.yaml`, where the adapter names live and where a
+  new adapter is added as one function; no brand is restated here, CHARTER §P4b),
+  `auditor.<tier>.binary`
+  (a path), `auditor.<tier>.home` (the provider's auth/config home dir), `auditor.<tier>.model` (a
+  model id). `effort` is NOT a binding key — it stays repo config + env. Anything else under
+  `auditor.*` is unclassified → GATE → refused, as SPEC-0193 rule 2 already says.
+
+  ### Rule 2 — Why `model` is in the binding, and the two guards that make that honest
+  (gate-specs finding 2.) A model choice changes audit STRENGTH, so a silently weaker model would be a
+  degradation nobody sees. It is admitted into the binding because an adopter on a non-default
+  provider MUST be able to name a model without editing the engine tree (a tracked-file edit is refused
+  by `release verify`). Two guards: (a) every verdict STAMPS `auditor_model` beside
+  `auditor_provider` (SPEC-0201 rule 2) — the model that ran is always on record; (b) when the bound
+  model differs from the repo config's tier default, the SPEC-0201 rule-3 line names BOTH («bound model
+  X, shipped default Y») at `session start` and in the `audit status` re-fold — session-start-only by owner decision 2026-09-06 («только на старте»); NO per-audit line. No refusal, no threshold — visibility.
+
+  ### Rule 3 — Resolution order and precedence (one chokepoint, extends)
+  For each of provider / binary / home / model: environment (`YITC_AUDIT_PROVIDER`,
+  `YITC_CODEX_AUDIT_BIN`, `CODEX_HOME`, `YITC_AUDIT_MODEL`) → the binding file → PATH lookup (binary
+  only) → the repo `bin/audit-config.yaml` tier default → (binary only) a NAMED refusal telling the
+  operator how to bind one. Resolved in bin/lib/audit.py's existing resolve_* functions — no second
+  resolver. SPEC-0193 rule 7's «environment > machine file > built-in default» is preserved; the
+  binding class simply becomes a second thing the file may carry (rule 3 there is amended: «PERFORMANCE
+  and BINDING-class values only»). Rule 4 there is unchanged: GATE keys are still refused and dropped.
+
+  ### Rule 4 — The hint's home and its post-/compact re-fold (SPEC-0007 §5b co-design)
+  The SPEC-0201 rule-3 line at `session start` is a report-only echo of the debt-echo shape (SPEC-0119):
+  computed, suppressed-when-clean, no stored state. Its on-demand / post-`/compact` view is the
+  read-only verb `bin/yitc-v2 audit status`: prints the resolved auditor per tier, its independence
+  (external | same-provider), the bound-vs-default model, and the same-provider verdict count; states
+  its silence explicitly when invoked bare (the `frontend-errors` precedent, SPEC-0171). AGENTS
+  §After-/compact gains one pointer line to it (co-designed in the same change).
+
+  ### Rule 5 — What this does NOT do
+  No install procedure for any provider (unregulated — owner directive 2026-09-06); no change to
+  `config set`'s GATE refusal; no new store, no new file (the machine-settings file already exists,
+  SPEC-0193 rule 3); no provider brand in this spec's normative sentences (CHARTER §P4b — adapter NAMES
+  live in SPEC-0036's config description and in `bin/audit-config.yaml`).
+
+  ## Parameters
+  None consumed (the four keys are machine values read through `machine_settings.get_value`, never a
+  governing scalar out of this spec).
+
+  ## Rationale
+  Real incidents: pre-claim refusal (2026-09-06) measured that the auditor binary is
+  GATE-class today and `config set` refuses it — so a per-machine binding is impossible without this
+  class; the adopter probe measured audits ABORTing on this workshop's paths carried in the
+  kernel config. Prior-art: SPEC-0193 (the file, the classes, the precedence), SPEC-0036 §Auditor
+  selection (the three knobs + env), SPEC-0119/SPEC-0171 (the echo + re-fold shape) (PATH +
+  named refusal). REMOVED (P1 F3): the implicit «external auditor = this workshop's binding»
+  assumption; ADDED: one class value, one verb — the minimum that makes «три строки в одном файле»
+  true.
+
+  ## Verification
+    bin/yitc-v2 config set auditor.routine.provider the AI provider # accepted (binding class); config_changed row
+    bin/yitc-v2 config set auditor.routine.effort high # REFUSED (unclassified under auditor.* → GATE)
+    bin/yitc-v2 config list # shows the four keys with class=binding
+    bin/yitc-v2 audit status # resolved auditor per tier + independence + counts
+    # tripwires: a binding-file value is READ by resolve_* (differential: remove it → PATH/default);
+    # the hint prints when unbound and is silent when bound; bound model ≠ default → both named
+cites:
+  - CHARTER.md#principle-1
+  - CHARTER.md#principle-4
+  - SPEC-0193
+  - SPEC-0036
+  - SPEC-0119
+  - SPEC-0171
+  - SPEC-0007
+  - SPEC-0201
+  -
+requires:
+  - SPEC-0201
+supersedes: ~
+activation_owner_task: # set at decomposition (SPEC-0034): the ONE decomposed task that activates this spec
+proposed_by: external-auditor-on-a-clean-machine-same-provider-
+binding: [code-enforced] # residency token ( activation): the binding class, the resolution order, the hint and the audit-status re-fold are enforced by the code this spec anchors (machine_settings INVENTORY / resolve_* / cmd_session_start / cmd_audit_status) and its tripwires — not fetched before a verb (the SPEC-0201 / SPEC-0193 shape)
+init_concern: ~
+implements_signature:
+  bin/lib/audit.py#cmd_audit_status: 95c4b4d84a61c2d233aa2e6327455bc2dd57d1adceb483053203873dfcce0d5b
+  bin/lib/audit.py#resolve_audit_provider: 30abe5bd75660bb4925b7d9bdaf89deff28000a1e6cb4fdc77ffed1906ba228f
+  bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
+  bin/lib/cli.py#cmd_session_start: b4f83faacbd9cac56fc624cf0446b6e8c6f420d2fb94eb91d324cf711505dd7e
+  bin/lib/machine_settings.py#INVENTORY: 0c1407e38b52ef7261675ef95501e52cc3b6530234f1b09620b700dc33981bb8

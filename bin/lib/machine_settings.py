@@ -278,6 +278,22 @@ INVENTORY: "tuple[Knob, ...]" = (
        "before giving up, never which files run or how they conclude — a file is cleared ONLY by "
        "PASSING in isolation, so no value here can admit a failing check",
        bounds=(0, 20)),
+    _p("YITC_LAND_TAIL_TRIPWIRE_BUDGET_S", "int", 120,
+       "bin/lib/worktree.py#_land_tail_tripwire_budget_s",
+       "the WALL BUDGET, in seconds, for ONE post-ff tail writer's admission run — the tests that "
+       "READ what the writer wrote, run in parallel on the written tree before the bookkeeping "
+       "commit (SPEC-0188 rule 7, T-12420). Over the budget the write is WITHHELD and re-derived by "
+       "the next land, never committed unproven. THE DEFAULT 120 IS MEASURED: on this repo the two "
+       "governed writers' derived reader sets run ~11.4s (the load-sensitive lane's 5) and ~13.3s "
+       "(the duration table's 13) in parallel on a 48-core venue, so 120 is ~9x the observed worst "
+       "case — wide enough that the budget expires only on a genuinely stuck reader. Admissible "
+       "10..900; anything else is ignored and the default stands. THERE IS DELIBERATELY NO DISABLE "
+       "VALUE: this is a fail-closed admission gate, and a knob that turned it off would be a hole "
+       "in it. The budget is also the DEADLOCK BOUND — the run happens inside the land's ff lock, "
+       "so a reader that hangs against that lock expires into a withhold rather than wedging it. "
+       "SAFETY-NEUTRAL: no value can admit a write whose readers failed, only change how long a "
+       "slow reader is given before its write is withheld",
+       bounds=(10, 900)),
     _p("YITC_FLAKY_SENSITIVE_ENTER", "int", 3,
        "bin/lib/worktree.py#_flaky_sensitive_enter",
        "how many ISOLATED-PASS `flaky_retry` rows a test file needs inside the window for `land` to "
@@ -511,6 +527,10 @@ INVENTORY: "tuple[Knob, ...]" = (
        "— stretching the interval past a wait suppresses the queued surfacing entirely, so it is not "
        "merely timing. A <=0 or non-numeric value falls back to the default, so it can never be "
        "turned into an unthrottled loop"),
+    _g("YITC_LAND_PARK_REQUEUE_MAX", "int", 2, "bin/lib/worktree.py#_land_park_requeue_max",
+       "the T-12393 cap on automatic park-bound REQUEUES for one land process. GATE on the SAME "
+       "ground as `_LAND_MAX_RETRIES` and as the park limit it extends: the number decides whether "
+       "the land eventually gives up and HALTS, which is a verdict, not a cadence"),
     _g("YITC_LAND_RESERVATION_PARK_LIMIT_SECS", "float", None, "bin/lib/worktree.py",
        "the SPEC-0132 park BOUND: expiry degrades the land, so it is a verdict input (and is "
        "explicitly written never to be disableable)"),

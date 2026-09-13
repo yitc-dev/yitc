@@ -2208,6 +2208,50 @@ def _names_flag_token(text: str, token: str) -> bool:
     return re.search(pat, text or "") is not None
 
 
+def retired_plan_gate_terminal_violations(live_reasons, retired_reasons) -> list:
+    """T-12335 (SPEC-0204 plan-gate arm, AC3) — the `retired-plan-gate-terminal` absence probe: a
+    terminal reason this contract RETIRED for a plan gate must stay ABSENT from the reasons a plan gate
+    can still reach.
+
+    WHAT IS SILENT WITHOUT IT (SPEC-0165). The plan-gate `malformed-exhausted` terminal is what stranded
+    two consumer plans that had CONVERGED on the merits (aiseller `otgruzki-design-parity-…` gate
+    draft-specs, X-1334; kupiclub `podklyuchenie-statistiki-…` gate specs-trial, X-1336): every door was
+    shut and the only exit was cancelling the plan. This arm makes it unreachable by retiring the
+    plan-gate consult that opened the episodes and by refusing a malformed response at parse. NOTHING
+    watched that: re-registering the plan-gate consult would silently make the terminal reachable again,
+    and no land-verify check would fire.
+
+    Its differential failing input is the PRE-RETIREMENT engine, where the plan-gate consult was live —
+    `plan_gate_live_terminal_reasons()` then returns the whole vocabulary and every retired reason is
+    reported. That is why the LIVE set is DERIVED from the retirement carrier rather than declared: a
+    declared empty tuple would be this probe asserting its own answer.
+
+    TWO RULES, ONE `kind`:
+      (a) PRESENCE — a retired reason appearing in the live set is a violation, named.
+      (b) FAIL-CLOSED — an EMPTY `retired_reasons` is itself a violation: an absence probe with no
+          subject must not read as «nothing retired found», which is the one way it could pass vacuously
+          forever. An empty LIVE set is the healthy state and is not a violation.
+
+    PURE over passed-in data; the derivation lives in `bin/lib/audit.py` and is injected, which is what
+    keeps this module inside its declared `state`+stdlib import bound (the `retired_audit_flag_violations`
+    discipline). Returns a sorted list of {kind, reason, detail}."""
+    live = tuple(live_reasons or ())
+    retired = tuple(retired_reasons or ())
+    out = []
+    if not retired:
+        out.append({"kind": "retired-plan-gate-terminal", "reason": "<subject>",
+                    "detail": "no RETIRED plan-gate terminal reason was supplied, so the absence could "
+                              "not be evaluated — an absence probe with no subject fails CLOSED, it "
+                              "never reads as clean"})
+    for reason in sorted(set(retired) & set(live)):
+        out.append({"kind": "retired-plan-gate-terminal", "reason": reason,
+                    "detail": f"the consult terminal reason `{reason}` is RETIRED for a plan gate "
+                              f"(SPEC-0204 rule 6, plan-gate arm) yet is still reachable on the "
+                              f"plan-gate path — the plan-gate consult retirement was removed or "
+                              f"bypassed, which re-opens the terminal that stranded X-1334 / X-1336"})
+    return sorted(out, key=lambda v: (v["kind"], v["reason"]))
+
+
 def retired_audit_flag_violations(help_texts: dict, retired_flags, retired_surfaces=None) -> list:
     """T-12291 (SPEC-0204 rule 6, VP6) — the `retired-audit-flags` absence probe: the retired post-ceiling
     `audit` surfaces must STAY absent from the CLI's own `--help` text.
@@ -4160,6 +4204,113 @@ def new_test_file_warnings(baseline_files: set, current_files: set) -> list:
     IS the loud surface (SPEC-0165: a loud tripwire OR an explicit waive, never silence) — the author
     either folds the probe into the rule's existing suite or names the new-rule justification."""
     return [{"file": f} for f in sorted(current_files - baseline_files)]
+
+
+# T-12398 (X-1368) — the named-consumer-example probe's two narrow spans. A rule body may cite a
+# consumer name legitimately (a prior-art line, a cross-reference); what ROTS is the name used as the
+# ILLUSTRATIVE CASE of a rule — the `e.g. <name>` / `(<name>)` shape. These two regexes bound the probe
+# to exactly that shape so the report stays readable instead of matching every mention.
+_NCE_EG_SPAN = re.compile(r"\be\.g\.[^.;)]*", re.IGNORECASE)
+_NCE_PAREN_SPAN = re.compile(r"\(([^()]*)\)")
+# A `### <N>.` heading opens a NUMBERED RULE body; any other `###` heading closes it. The probe reads
+# only inside such a region — a `### Prior-art` / `### Build-order` section is history/narration, not a
+# rule, so a name there is not an illustrative case of anything.
+_NCE_NUMBERED_HEADING = re.compile(r"^\s*#{2,4}\s+(\d+)\.")
+_NCE_ANY_HEADING = re.compile(r"^\s*#{2,4}\s+")
+# The AC2 DIFFERENTIAL at LINE granularity: a prior-art / history / incident citation INSIDE a numbered
+# rule body names a real project as a RECORD of what happened, which cannot go stale the way an
+# illustrative case can. Matched as a line-leading marker, never a substring anywhere on the line.
+_NCE_HISTORY_LINE = re.compile(
+    r"^\s*[-*>|]*\s*\**\s*(prior[- ]art|history|historical|incident|measured|grounds|provenance|precedent)\b",
+    re.IGNORECASE)
+# The SAME differential at SPAN granularity, which is where it actually bites. The dominant real shape
+# is not a prior-art LINE but a RECORD CITATION inside the very parenthetical the probe reads —
+# «(T-11411, kupiclub X-1068)», «(kupiclub, measured 2026-08-13)», «(boomrocket, 2026-07-15)». Those
+# name the project that REPORTED or SUFFERED a thing, which is a fact about the past and cannot go
+# stale the way «e.g. kupiclub waives it» did. Measured on this corpus: without this bound the sweep
+# reported 22 mentions of which ~14 were citations, and a report that is mostly noise is one nobody
+# reads. A span is a citation iff it carries an artifact id (T-/X-/E-/D-/SPEC-/fu_), an ISO-ish date,
+# or a reporting verb.
+# A `/` is NOT treated as a word character in the name match, because «(trend-finder/boomrocket)» is a
+# slash-joined PAIR OF PROJECT NAMES held up as the illustrative declares-case — exactly the shape this
+# probe exists to see — and a `/`-in-boundary rule silently swallowed it (SPEC-0109 §5, the card's own
+# subject). What the `/` bound was really for is a PATH or a COMMAND, and that is excluded directly and
+# visibly instead: a span carrying a path root, a `bin/` command or a source-file extension is not a
+# project being named as an example.
+_NCE_PATHLIKE_SPAN = re.compile(r"(?:^|[\s(])/|\bbin/|\.(?:ya?ml|py|md|json|sh)\b")
+_NCE_CITATION_SPAN = re.compile(
+    r"\b(?:[TXED]-\d{3,}|SPEC-\d{3,}|fu_[0-9a-f]+)\b"
+    r"|\b\d{4}-\d{2}-\d{2}\b"
+    r"|\b(?:measured|reported|filed by|incident|outage|prior[- ]art)\b",
+    re.IGNORECASE)
+
+
+def named_consumer_example_findings(spec_texts: dict, consumer_names) -> list:
+    """T-12398 (X-1368) — the REPORT-ONLY named-consumer-example probe. Given `spec_texts`
+    ({spec id -> the ACTIVE spec's body text}, the host supplies both the corpus walk and the
+    active-status filter) and `consumer_names` (the registered consumer ids, host-read from the
+    registry), REPORT every place an ACTIVE kernel spec's NUMBERED RULE body names a registered
+    consumer as its ILLUSTRATIVE case. Returns a sorted list of {spec, line, name, text}; [] when clean.
+
+    THE INCIDENT (kupiclub X-1368, measured). Two ACTIVE kernel specs named kupiclub as the illustrative
+    WAIVE case — SPEC-0109 §5 «a project with no scheduler, e.g. kupiclub, waives it» and SPEC-0110
+    rule 1 «A project with no scheduled output yet (e.g. kupiclub) WAIVES it». Both went FALSE on
+    2026-08-08 when kupiclub started running a collector service, and neither spec noticed. Worse, the
+    rot was LOAD-bearing: kupiclub's own `yitc-ops.yaml` waiver reason literally cited «SPEC-0109 §5
+    names kupiclub itself as the waive case», so the stale example SHIELDED a false consumer
+    declaration. A kernel rule that names a consumer takes on that consumer's state as a maintenance
+    obligation nobody records; this probe makes the obligation visible.
+
+    WHAT IS MATCHED, and why each bound is there (each bound EXCLUDES real mentions on purpose — the
+    probe is built to be READ, and a report nobody reads is the same as no report):
+      * ACTIVE specs only — the host's filter. A superseded/retired spec is history; its examples
+        cannot mislead a reader of the governing corpus.
+      * NUMBERED RULE bodies only — a `### <N>.` heading region, ending at the next `###` heading of any
+        kind. A name in a `### Prior-art` / `### Build-order` / `### Refs` section is narration.
+      * the `e.g. ...` span or a parenthetical `( ... )` on the line, whole-word — the illustrative
+        shape. A name in ordinary rule prose («the kernel routes to <name>») is a cross-reference the
+        rule genuinely makes, not an example standing in for a class.
+      * NOT a prior-art / history / incident LINE, even inside a numbered rule body (`_NCE_HISTORY_LINE`)
+        — a citation of what happened is a RECORD; it does not rot when the project moves on.
+      * NOT a span that is itself a RECORD CITATION (`_NCE_CITATION_SPAN`) — the same differential where
+        it actually bites. «(T-11411, kupiclub X-1068)» names who reported a thing, not an example of a
+        rule; on this corpus that bound is the difference between 22 reported mentions and 8 real ones.
+      * NOT the caller's own kernel name. The host passes the consumer set MINUS the kernel: `yitc-v2`
+        appears inside a parenthetical in nearly every rule body as part of a `bin/yitc-v2 ...` verb
+        pointer, so matching it would bury every real finding under hundreds of command citations. The
+        kernel is also not a "named consumer" — it is the engine the rule is written FOR.
+      * a name adjacent to `/`, `.` or `-` is NOT a whole-word hit — that is a path or a compound
+        token (a `<projects-root>/<name>` path, `<name>.yaml`), not a project held up as an example.
+
+    REPORT-ONLY BY CONTRACT (the sibling of `new_test_file_warnings` / `uncatalogued_type_findings`):
+    the caller prints a WARN and NEVER folds this into the conformance RED set or an exit code. A rule
+    that names a real project is sometimes exactly right — a positive declares-case, a named
+    interoperability target — so this can only PROMPT the author to ask "does this example rot?", never
+    refuse. PURE: every reading (the corpus, the active filter, the registry) is supplied by the host."""
+    names = sorted({n for n in (consumer_names or ()) if n})
+    if not names:
+        return []                 # an unresolvable registry reports NOTHING, never everything (fail-soft)
+    out = []
+    for spec_id in sorted(spec_texts):
+        in_rule = False
+        for lineno, line in enumerate(str(spec_texts[spec_id] or "").splitlines(), start=1):
+            if _NCE_ANY_HEADING.match(line):
+                in_rule = bool(_NCE_NUMBERED_HEADING.match(line))
+                continue
+            if not in_rule or _NCE_HISTORY_LINE.match(line):
+                continue
+            spans = [m.group(0) for m in _NCE_EG_SPAN.finditer(line)]
+            spans += [m.group(1) for m in _NCE_PAREN_SPAN.finditer(line)]
+            spans = [s for s in spans if not _NCE_CITATION_SPAN.search(s)
+                     and not _NCE_PATHLIKE_SPAN.search(s)]
+            if not spans:
+                continue
+            for name in names:
+                word = re.compile(r"(?<![\w.-])" + re.escape(name) + r"(?![\w.-])")
+                if any(word.search(s) for s in spans):
+                    out.append({"spec": spec_id, "line": lineno, "name": name,
+                                "text": line.strip()[:160]})
+    return sorted(out, key=lambda f: (f["spec"], f["line"], f["name"]))
 
 
 def classify_event_types(types, corpus_text: str, code_blobs: dict):

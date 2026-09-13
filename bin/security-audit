@@ -76,6 +76,22 @@ for _report in "$REPO"/.yitc/findings/*-security.yaml; do
   _latest_report="$_report" # glob expands sorted → last iteration = newest
 done
 if [ -n "$_latest_report" ]; then
+  # UNREADABLE is a DISTINCT fault from FOREIGN, and must be reported as one. Without this
+  # test the sed below simply fails on an unreadable report, prints nothing, and leaves `_pb` EMPTY —
+  # which falls into the foreign arm and blames a foreign producer for what is really a file-MODE
+  # fault, sending the operator to the opposite remedy. The two are not distinguishable after the sed,
+  # so the readability test has to come BEFORE it.
+  if [ ! -r "$_latest_report" ]; then
+    echo "security-audit: REFUSING to run — ${_latest_report} exists but is UNREADABLE by $(id -un 2>/dev/null || echo "uid $(id -u)")" >&2
+    echo " This is a file-MODE fault, NOT a foreign producer: the report's owner published it with a" >&2
+    echo " private mode (a 0600 report is unreadable to every other project user), so its produced_by" >&2
+    echo " cannot be read and ownership cannot be established. Refusing rather than guessing." >&2
+    echo " Nothing was written." >&2
+    echo " Remedy: as the report's owner, \`chmod 0664 ${_latest_report}\` (and \`chmod g+w\` its directory if" >&2
+    echo " needed). Reports published by THIS producer are born 0664 group-shared, so this is" >&2
+    echo " a one-time repair of a report left behind by the pre-fix producer." >&2
+    exit 3
+  fi
   _pb="$(sed -n 's/^produced_by:[[:space:]]*//p' "$_latest_report" | head -1 | tr -d '"'\''' | tr -d '\r')"
   if [ "$_pb" != "$SCAFFOLD_ID" ]; then
     echo "security-audit: REFUSING to run — ${_latest_report} is owned by a foreign security producer" >&2
@@ -1416,6 +1432,14 @@ _CLEANUP_PATHS+=("$TMP_OUT")
 printf '%s\n' "$BODY" > "$TMP_OUT"
 HASH="$(printf '%s' "$BODY" | sha256sum | cut -c1-16)"
 printf 'report_hash: "%s"\n' "$HASH" >> "$TMP_OUT"
+# The report is SHARED, gitignored, non-secret evidence: the deploy gate reads it, and whichever
+# project user's trigger fires next must be able to re-publish over it. `mktemp` creates its file 0600
+# BY CONSTRUCTION — a umask can only take permissions away, never add them, so the mode has to be set
+# explicitly here or the report lands private to whoever produced it and locks every other project user
+# out of both the gate and this producer. Chmod the TEMP, not $OUT: the mode is then already
+# correct at the instant of the atomic promote below, so no reader ever observes a private $OUT. The
+# temp is always self-created, so this chmod cannot fail on a foreign owner.
+chmod 0664 "$TMP_OUT"
 # --- atomic promote (run-scoped temp -> latest) ---
 mv -f "$TMP_OUT" "$OUT"
 

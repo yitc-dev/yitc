@@ -62,7 +62,7 @@ body: |
   ### 5. SEED-then-grow boundary + the named L2 retirement
   L2 governs the project's own scheduled work; it does NOT own the methodology nightly (L1, SPEC-0105)
   nor the freshness probe (L3, SPEC-0110). L2 activates when a real project DECLARES a scheduler
-  (trend-finder/boomrocket) — not speculatively (a project with no scheduler, e.g. kupiclub, waives it).
+  (trend-finder/boomrocket) — not speculatively (a project that has not yet declared a scheduler waives it).
   RETIREMENT (CHARTER §P1 F3): ad-hoc / manual scheduler-inventory tracking is RETIRED in favor of the
   DERIVED `beat_schedule` view (rule 2) — no parallel cron inventory permitted.
 

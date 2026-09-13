@@ -155,6 +155,16 @@ body: |
       verb next-hints, so a trial-eligible plan is not silently routed past `trial`.
     - Work: confirm the plan + specs; compose the `implementation_plan` (the decomposition map — a plan
       field mirroring the task field of the same name).
+    - **Work — ORDER (do the accepted-stage work BEFORE the accept-gate check):** the sequence
+      is **compose `implementation_plan` + the REALIZATION-EXIT block FIRST → `plan check` → `plan stage
+      accepted` → `plan stage decomposition`**. BASIS: the accept-gate freshness hash (`content_hash`)
+      covers the plan **BODY** only, and the realization-exit block IS a body section — so composing it
+      AFTER the check stales the verdict and costs a full re-`plan check` before `decomposition` (which
+      re-checks the SAME hash), for no design change. `implementation_plan` is a FRONTMATTER field and
+      does NOT stale the check, so the cost is the body half. Ordering GUIDANCE, not a new gate — no
+      mechanical refusal moves. And a fresh `plan check` does **NOT** preserve mode-b `absorbed:`
+      entries: a fresh verdict is a fresh record, by design — one more reason to compose the body
+      BEFORE the check rather than re-checking after it.
     - Work (REALIZATION-EXIT criteria, UP FRONT — owner directive 2026-06-06): ALSO compose the
       plan's REALIZATION-EXIT criteria here — the postcheck probe block (observed-behaviour / min-runs /
       failure-threshold / evidence-home) — the way a TASK authors its `acceptance` at FILING, not reactively
@@ -674,4 +684,4 @@ proposed_by: # PROVENANCE — this task births the spec (work-first); the plan's
 implements_signature:
   bin/lib/plan.py#cmd_plan_check: feb077f4fd1ec168b36ae31902cebdcd282282763aa91ddc6aee7f69af84d0e1
   bin/lib/plan.py#cmd_plan_file: 23457a86729170156be47d5b89b58efd93420f3dec95db14d8eb2c50ee6f24ca
-  bin/lib/plan.py#cmd_plan_stage: ee4be97f1d192fa17718bac9703082a938e9dd88c5c7e512790ce0609e293d10
+  bin/lib/plan.py#cmd_plan_stage: 4362b6693fd6f6926ce287dee4ff143f9ef79f02e7a7ccc291dc6399799fb095

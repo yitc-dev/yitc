@@ -140,7 +140,7 @@ init_concern: ~
 implements_signature:
   bin/lib/cli.py#cmd_config_list: 2c80248f835834cdafe06fbba797e46c1ca9c5171daac62a954f15f19b80c925
   bin/lib/machine_settings.py#ENTRYPOINTS: 816f31d1eae99164e9ea2b172bc694a30a5b2b7a8ba21a86e0068af8599b12e1
-  bin/lib/machine_settings.py#INVENTORY: 3aee5b3d9b1ecd04481790f25188f96cc2699d239c1b5d2ed7ea4d1d5c72f65d
+  bin/lib/machine_settings.py#INVENTORY: 8af648342d1a72a883636f06f4f4d3ab62ee96350ef960301d98de9a48fd5af6
   bin/lib/machine_settings.py#_refuse_gate: ef38a62e4a6cd3ba854aee5203e1fe51cb83b456968c2852ce6452c45ce41a27
   bin/lib/machine_settings.py#load: 3ee3050bada40482bae46bf92d7597d525413d41f81cafec68847f60e58dd1ab
   bin/lib/machine_settings.py#resolve_settings_path: 5031380a4b5d8cf3f1624798cc7d1b8047ef1371f96169ebd5ea8caf11890307

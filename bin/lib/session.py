@@ -46,7 +46,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
                       CROSS_LOG_PATH, _cross_linked_ids=None, _cross_peer_aliases=None,
                       _read_yaml=None,
                       _debt_echo_lines=None, _receipt_only=False,
-                      _write_runtime_record=None, _provider_kind=None,
+                      _write_runtime_record=None, _provider_kind=None, _provider_session_id=None,
                       _controller_acting_holder=None) -> "tuple[str, str]":
     """Session activation (per D-0041): durable journal MARKUP + startup-protocol ECHO.
 
@@ -137,8 +137,17 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # consumed. Best-effort — a runtime-home/FS quirk must never break session start (broad-except).
     if _write_runtime_record is not None:
         try:
+            # T-12400: capture the provider's OWN session id beside the KIND. The kind alone only
+            # ORDERS the descriptor scan; the id is what NAMES the transcript file — and since T-10152
+            # `resolved_ref` is a MINTED uuid that names none, without this a later verb whose env no
+            # longer carries the provider var cannot join this session's transcript at all (the
+            # structurally-inert implicit `journal sync` this card fixes). Forensic-only, exactly like
+            # provider_meta: recorded here, read back by the transcript join, NEVER by identity
+            # resolution (SPEC-0137 Rule 4 stays provider-free).
             _write_runtime_record(resolved_ref,
-                                  provider_meta=(_provider_kind() if _provider_kind else None))
+                                  provider_meta=(_provider_kind() if _provider_kind else None),
+                                  provider_session_id=(_provider_session_id() if _provider_session_id
+                                                       else None))
         except Exception:
             pass
     # T-10152 (SPEC-0137 Rule 1/8, option-A): a FRESH interactive session MINTED its v2-owned identity
@@ -487,14 +496,37 @@ def _print_await(label: str, show_posture: bool) -> None:
               "task yourself only on owner say-so. Weekly audits are owner-invoked.")
 
 
-def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml) -> list:
+def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None) -> list:
     """T-0381: the read-only WAITING-ON-OWNER surfacing — in-progress tasks paused with
     reason==owner-wait + paused_at set. Closes the run-9 gap (a halted owner-wait task looked
     like ordinary concurrent work from main; parent plan to-fix #8). The DURABLE acceptance-#1
     state-check is the committed paused_reason/paused_at in the task YAML on main (grep / `task
     list`) — session-type independent; these startup lines are the convenience surfacing over
     that same committed state. Called by BOTH the build AND review startup dispatch (audit-pre
-    F2 — a fresh non-build session also reads main)."""
+    F2 — a fresh non-build session also reads main).
+
+    T-12407 GENERALISED IT FROM ONE REASON TO ONE QUESTION — «what ends this wait, and has it
+    happened?» The pre-T-12407 body selected on `paused_reason == "owner-wait"` and read NO artifact
+    state, so a card whose awaited item had ALREADY closed kept printing WAITING-ON-OWNER forever:
+    measured on kupiclub X-1322, where T-0422 advertised a wait for 8 days after the item it actually
+    awaited was terminal, and three sessions read that line and believed it. A line that can be WRONG
+    about the thing it exists to report is worse than no line.
+
+    So a card that DECLARES what it awaits (`task pause --awaits` → `paused_awaits`) has its wait
+    RESOLVED here rather than asserted. `_awaits_arrived` is an INJECTED pure predicate
+    `(ref) -> (arrived: bool, at: str|None)`, built by the host from the readers that already decide
+    this question elsewhere (`followup.arrived_ids` + `event_after_arrived`, the pair
+    `views._deferred_probe_due` composes) — this leaf learns nothing about where the journal, the
+    task corpus or the shared coordination store live.
+
+    TWO INVARIANTS, both load-bearing:
+      (1) A card WITHOUT `paused_awaits` renders BYTE-IDENTICALLY to the pre-T-12407 line. That is the
+          whole existing population, and `tests/test_t0381_task_pause_resume.py` pins it.
+      (2) The resolver FAILS OPEN TO «not arrived» — an absent injection, an unreadable store, an
+          unclassifiable ref all leave the card reading WAITING. A false WAITING is visible and one
+          command from disposition; a false RESUMABLE tells an operator to re-enter work that is
+          still blocked, which is the very assertion-without-evidence this change removes. The
+          direction is the same one `_terminal_cross_ids` fails in, for the same reason."""
     out = []
     for p in state.scan_tasks(TASKS_DIR):
         # T-12030 — ask the STATUS first, and read the card only for the ones this view can report.
@@ -508,13 +540,40 @@ def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml) -> list:
         d = _read_yaml(p)
         if not isinstance(d, dict) or not d.get("id"):
             continue
-        if (d.get("status") or "") == "in-progress" and d.get("paused_at") \
-                and (d.get("paused_reason") or "") == "owner-wait":
-            line = f"  WAITING-ON-OWNER {d.get('id')} — {d.get('title') or '(no title)'} " \
-                   f"(paused {d.get('paused_at')}"
+        reason = d.get("paused_reason") or ""
+        if (d.get("status") or "") != "in-progress" or not d.get("paused_at") \
+                or reason not in ("owner-wait", "artifact-wait"):
+            continue
+        tid, title = d.get("id"), d.get("title") or "(no title)"
+        awaits = d.get("paused_awaits")
+        # The UNDECLARED case, unchanged char-for-char (invariant 1 above). `artifact-wait` cannot
+        # reach it — the verb refuses that reason without an `--awaits` — so this branch stays the
+        # owner-wait line it has always been.
+        if not awaits:
+            line = f"  WAITING-ON-OWNER {tid} — {title} (paused {d.get('paused_at')}"
             if d.get("next_action"):
                 line += f"; next: {d.get('next_action')}"
             out.append(line + ")")
+            continue
+        arrived, at = False, None
+        if _awaits_arrived is not None:
+            try:
+                arrived, at = _awaits_arrived(awaits)
+            except Exception:
+                arrived, at = False, None   # fail-open to WAITING (invariant 2)
+        if arrived:
+            # `closed <ts>` ONLY where the reader actually HAS a timestamp. A terminal task carries
+            # its `closed_at`; a coordination item's fold carries a status and no terminal ts, and
+            # inventing one — or standing up a second terminality scan to find it — would be a
+            # fabricated field or a second source of truth (CHARTER §P5) for a cosmetic gain.
+            line = f"  RESUMABLE {tid} — {title} — awaited {awaits} closed" \
+                   + (f" {at}" if at else "") + f" (paused {d.get('paused_at')}"
+        else:
+            line = f"  WAITING-ON-{'ARTIFACT' if reason == 'artifact-wait' else 'OWNER'} {tid} — " \
+                   f"{title} — awaits {awaits} (open) (paused {d.get('paused_at')}"
+        if d.get("next_action"):
+            line += f"; next: {d.get('next_action')}"
+        out.append(line + ")")
     return out
 
 

@@ -21,6 +21,14 @@ NEW over the lifted design (SPEC-0145 §4/§5), all fail-closed:
   - COMPLETE — every required evidence field present AND non-empty; an empty `findings` list is
                 INCOMPLETE (a fields-present-but-empty / date-fresh-but-thin report is REJECTED).
   - SCOPE — the report's `scanned_paths` must COVER the required input scope → else REJECT.
+  - PROFILE-SCOPE — a report whose `profile_snapshot` CLAIMS a profile (`status: present`) must still
+                declare the CURRENT required check-set: a strict SUBSET of it is NOT fresh however
+                current the date (the project's risk profile widened). Absent or `unavailable` ⇒ the
+                legacy path, verdict unchanged. Fail-closed: a `present` claim whose current resolution
+                is unobtainable is REFUSED (`profile-unresolvable`), because accepting it would declare
+                the report fresh-by-scope having compared nothing. Class-softened by SPEC-0145 §5: for
+                deploy class A (code-only, trivially reversible) a scope-stale report only WARNS; for
+                S/C1/C2 — and on the CADENCE path, regardless of class — it REJECTS.
 
 Required-input-scope derivation (SPEC-0145 §4, reservation #3 — PINNED, single precedence):
   1. the explicit `SECURITY_REQUIRED_SCOPE` env (a colon- or comma-separated path list) — the deploy
@@ -53,7 +61,10 @@ Deploy-seam identity match (SPEC-0155 §4 — the structural kill of vintage amb
 Test seams (env): SECURITY_FINDINGS_FILE (report path), WAIVERS_FILE (waivers), FRESH_DAYS (SLA-window
 override — else the carrier), SECURITY_REQUIRED_SCOPE (required input scope), SECURITY_DEPLOY_COMMIT (the
 deploy candidate's commit — the seam identity binding above; supplied in production by the deploy verb,
-exactly as SECURITY_REQUIRED_SCOPE is). A NON-ZERO exit aborts a deploy (deploy-gate contract).
+exactly as SECURITY_REQUIRED_SCOPE is), SECURITY_DEPLOY_CLASS (the deploy class the seam is running
+under — the PROFILE-SCOPE class-split binding above; ABSENT = the cadence path),
+YITC_PROFILE_SNAPSHOT_TIMEOUT (the profile-resolver budget, the SAME env the producer honours).
+A NON-ZERO exit aborts a deploy (deploy-gate contract).
 """
 from __future__ import annotations
 
@@ -62,6 +73,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 
 import yaml # reuse the kernel's YAML parser (no new parser path — CHARTER §P5)
@@ -115,13 +127,21 @@ class Verdict:
     ONLY on a `blocking` reject, empty everywhere else. The severity step already builds this list; it
     used to collapse it to a count. Keeping the records is what lets the deploy-seam owner-override
     journal WHAT it bypassed from the gate's OWN judgement instead of the operator's claim (SPEC-0155
-    rule 7 — the override must NAME every blocking finding, and the record must be true)."""
+    rule 7 — the override must NAME every blocking finding, and the record must be true).
 
-    def __init__(self, ok: bool, reason: str = "", detail: str = "", blocking: "list | None" = None):
+    `scope_stale` carries the PROFILE-SCOPE warn record ({class, report_hash, current_check_set_hash,
+    missing}) — populated ONLY on the class-A WARN path, empty everywhere else. It rides the SAME
+    published-verdict channel `blocking` already uses (SECURITY_GATE_VERDICT_FILE), so the deploy seam
+    journals the widened profile it proceeded over from the gate's OWN judgement (SPEC-0145 §5 class
+    split) rather than from a second channel."""
+
+    def __init__(self, ok: bool, reason: str = "", detail: str = "", blocking: "list | None" = None,
+                 scope_stale: "dict | None" = None):
         self.ok = ok
         self.reason = reason
         self.detail = detail
         self.blocking = blocking or []
+        self.scope_stale = scope_stale or {}
 
     def __str__(self) -> str:
         if self.ok:
@@ -303,14 +323,21 @@ def evaluate_report(
     path: "str | None" = None,
     waivers: "dict | None" = None,
     expected_commit: "str | None" = None,
-    project_path: "str | None" = None) -> Verdict:
+    project_path: "str | None" = None,
+    deploy_class: "str | None" = None) -> Verdict:
     """Validate one security-audit evidence report. Returns a Verdict (fail-closed: any parse
     failure or missing evidence is a REJECT). Order: parse → TAMPER → COMPLETE → STALE → SCOPE →
-    IDENTITY → SEVERITY. First failure wins.
+    PROFILE-SCOPE → IDENTITY → SEVERITY. First failure wins.
 
     `expected_commit` (with `project_path`) is the DEPLOY-SEAM identity binding (SPEC-0155 §4): supplied
     ⇒ the report must PROVE it covers that deploy candidate; ABSENT (the cadence/CI path) ⇒ the IDENTITY
-    step does not run and the verdict is exactly what it was before this binding existed."""
+    step does not run and the verdict is exactly what it was before this binding existed.
+
+    `deploy_class` is the SPEC-0145 §5 class split for the PROFILE-SCOPE step: class `A` downgrades a
+    scope-stale report to a WARN carried on the accepting verdict (`scope_stale`); every other class,
+    and the cadence path, REJECTS. The class is honoured ONLY together with `expected_commit` — a class
+    with no deploy candidate is the cadence path wearing a class, and is judged as cadence. A report carrying no `profile_snapshot` — every report
+    produced before — takes the legacy path and its verdict is unchanged by this parameter."""
     today = today or datetime.date.today
     waivers = waivers if waivers is not None else {}
 
@@ -371,6 +398,24 @@ def evaluate_report(
     if uncovered:
         return _reject("scope-mismatch", "uncovered required path(s): " + ", ".join(uncovered))
 
+    # PROFILE-SCOPE — the report's declared check-set must still be the CURRENT one (SPEC-0145 §4/§5).
+    # Placed AFTER SCOPE and BEFORE IDENTITY for the same reason IDENTITY sits before SEVERITY: a report
+    # whose declared scope is no longer current must not have its findings judged at all. Runs ONLY for a
+    # snapshot CLAIMING a profile (`status: present`); absent or `unavailable` ⇒ the legacy path, verdict
+    # byte-for-byte unchanged. See the step's own contract above for the route split and the class split.
+    #
+    # THE CLASS BINDS ONLY AT THE DEPLOY SEAM (audit-post RED pass 1). Class-A softening is an
+    # argument about a REVERSIBLE SHIP, so it exists only where a ship does — where the seam supplied the
+    # deploy candidate (`expected_commit`, the same binding that arms IDENTITY). A class with no candidate
+    # is NOT a deploy: honouring it would let a cadence run carrying a stray `SECURITY_DEPLOY_CLASS=A`
+    # accept a scope-stale report the cadence path must refuse regardless of class (SPEC-0145 §5). So the
+    # class is DROPPED here, at the one judgement, rather than trusted to every caller's env hygiene.
+    scope_verdict, scope_warn = profile_scope_step(
+        data, project_path=project_path or os.getcwd,
+        deploy_class=deploy_class if expected_commit else None)
+    if scope_verdict is not None:
+        return scope_verdict
+
     # IDENTITY — at the DEPLOY SEAM the report must PROVE it covers the deploy candidate (SPEC-0155 §4).
     # Placed BEFORE severity on purpose: a report that does not describe the deployed code must not have
     # its findings judged at all — neither to block (the already-fixed HIGHs) nor to pass. Runs
@@ -412,8 +457,175 @@ def evaluate_report(
         return _reject("blocking", f"{len(blocking)} open critical/high finding(s)", blocking=blocking)
 
     proven = f" identity=proven@{str(expected_commit).strip[:12]}" if expected_commit else ""
-    return _accept(f"date={rd.isoformat} age={age}d findings={len(findings)} "
-                   f"waivers={len(waivers)}{proven}")
+    stale = " profile-scope=STALE(warn,class=A)" if scope_warn else ""
+    verdict = _accept(f"date={rd.isoformat} age={age}d findings={len(findings)} "
+                      f"waivers={len(waivers)}{proven}{stale}")
+    # The class-A WARN rides the ACCEPTING verdict: the gate passes, and the seam journals what it
+    # passed OVER. Carried on the verdict rather than printed-and-forgotten so the record the deploy
+    # writes is the GATE's judgement, not a re-derivation (the same discipline `blocking` follows).
+    verdict.scope_stale = scope_warn or {}
+    return verdict
+
+
+
+# ── SPEC-0145 §4/§5 — PROFILE-SCOPE: is the report's declared check-set still the CURRENT one? ────────
+# A fresh DATE proves recency and the IDENTITY step proves the report covers the deployed CODE. Neither
+# proves the report was produced under the risk profile the project has SINCE BECOME: a project that
+# grows a payment surface or a public boundary OWES more checks than it did last week, and a report
+# carrying the NARROWER check-set is stale in a way no date can express. So a report whose
+# `profile_snapshot` CLAIMS a profile (`status: present`, written by the producer's SPEC-0198
+# annotation) submits its `check_set_hash` to a comparison against the CURRENT resolution.
+#
+# HOW THE GATE REACHES THE ONE DERIVATION SITE. The profile has exactly ONE derivation site,
+# `bin/lib/profile.py#resolve_profile` (SPEC-0198 rule 3). This gate is SourceFileLoader-harnessed by
+# standalone test scripts with no `bin/` on sys.path (see the module-level note above), so importing
+# that site is not available to it any more than it is to the byte-copied producer. It therefore takes
+# the SAME route the producer already takes: the consumer's carrier declares the ENGINE INVOCATION
+# (`security.audit.profile_snapshot.command`), and the gate EXECUTES it. One declaration, two readers —
+# no second derivation site, no new parser path, and it works in the byte-copied consumer layout.
+#
+# THE ROUTE SPLIT, and why each arm is what it is:
+# * `profile_snapshot` ABSENT (every report produced before) ⇒ the LEGACY path: no comparison
+# runs and the verdict is byte-for-byte what it was before this step existed. No already-covered
+# case changes its compliance.
+# * `status: unavailable` — the VISIBLE DEGRADE (a broken declaration, carrying an open
+# SEC-PROFILE-SNAPSHOT info finding) ⇒ the SAME legacy path, deliberately. A degrade is neither
+# incomplete nor tampered; SPEC-0145 §5 fixes that it stays visible-but-non-blocking, and reading it
+# as INCOMPLETE here would refuse every degraded report — the opposite of what the degrade is for.
+# * `status: present` — a report CLAIMING a profile ⇒ it is CHECKED, and a claim that cannot be
+# checked is REFUSED (`profile-unresolvable`). That is the deliberate INVERSION of the skip above:
+# an absent claim skips because there is nothing to compare; a present claim that cannot be compared
+# would otherwise be declared fresh-by-scope having performed no comparison at all.
+_PROFILE_SNAPSHOT_TIMEOUT = int(os.environ.get("YITC_PROFILE_SNAPSHOT_TIMEOUT", "60") or 60)
+_HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _carrier_profile_snapshot_command(project_path: str) -> "str | None":
+    """The project's `security.audit.profile_snapshot.command` from <project>/yitc-ops.yaml — the ONE
+    declaration the producer already reads. Returns the command when DECLARED; None when it is
+    absent / waived / the carrier is missing-or-unreadable. Mirrors `_carrier_freshness_days` exactly
+    (same open → `yaml.safe_load` → isinstance descent, same tolerant None) — no new parser path
+    (CHARTER §P5). Tolerant here, fail-closed at the CALLER: a `present` claim whose command cannot be
+    found is refused by `profile_scope_step`, per the reader-owns-fail-closed discipline."""
+    ops_path = os.path.join(project_path, "yitc-ops.yaml")
+    if not os.path.isfile(ops_path):
+        return None
+    try:
+        with open(ops_path) as f:
+            ops = yaml.safe_load(f)
+    except (OSError, yaml.YAMLError):
+        return None
+    if not isinstance(ops, dict):
+        return None
+    security = ops.get("security")
+    audit = security.get("audit") if isinstance(security, dict) else None
+    snap = audit.get("profile_snapshot") if isinstance(audit, dict) else None
+    cmd = snap.get("command") if isinstance(snap, dict) else None
+    text = str(cmd).strip if cmd is not None else ""
+    return text or None
+
+
+def _current_profile_resolution(project_path: str) -> "dict | None":
+    """Execute the declared resolver command and return the CURRENT resolution, or None when anything at
+    all failed (command undeclared / missing / nonzero / timed out / unparseable / contract-failing).
+
+    Validates the SAME full contract the producer validates before it writes a `present` snapshot
+    (`bin/security-audit`): `snapshot_hash` and `check_set_hash` each a 64-char lowercase-hex
+    string, `check_set` a non-empty list of non-empty strings. Producer and gate therefore agree BY
+    CONSTRUCTION on what a usable resolution IS — a payload the producer would have degraded on is not
+    one the gate will compare against. Same `YITC_PROFILE_SNAPSHOT_TIMEOUT` budget, same default."""
+    command = _carrier_profile_snapshot_command(project_path)
+    if not command:
+        return None
+    try:
+        result = subprocess.run(["bash", "-c", command], cwd=project_path, capture_output=True,
+                                text=True, timeout=_PROFILE_SNAPSHOT_TIMEOUT)
+    except (OSError, subprocess.SubprocessError):
+        return None # missing shell / timeout / spawn failure — all "unobtainable"
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    for key in ("snapshot_hash", "check_set_hash"):
+        val = payload.get(key)
+        if not (isinstance(val, str) and _HEX64_RE.match(val)):
+            return None
+    cs = payload.get("check_set")
+    if not (isinstance(cs, list) and cs):
+        return None
+    if not all(isinstance(x, str) and x.strip for x in cs):
+        return None
+    return payload
+
+
+def _check_set_hash(check_set: list) -> str:
+    """Recompute `check_set_hash` over a check-set LIST, byte-identically to
+    `bin/lib/profile.py#check_set_hash` (sha256 over the same canonical JSON). This is a HASH
+    RECOMPUTATION OVER RECORDED DATA — it names no dimension, no dimension value and no activation
+    table — so it is NOT a second derivation site and the SPEC-0198 rule-3 tripwire
+    (`profile.second_derivation_sites`) stays satisfied. It exists so the gate can prove a snapshot's
+    two halves agree with EACH OTHER (AC2): a `check_set_hash` that does not hash its own recorded
+    `check_set` is a tampered or half-written snapshot, judgeable without any resolver at all."""
+    return hashlib.sha256(
+        json.dumps(list(check_set), sort_keys=True, separators=(",", ":"),
+                   ensure_ascii=True).encode("utf-8")).hexdigest
+
+
+def profile_scope_step(data: dict, *, project_path: str,
+                       deploy_class: "str | None" = None) -> "tuple[Verdict | None, dict | None]":
+    """The PROFILE-SCOPE judgement. Returns `(verdict, warn)`: a REJECT Verdict, or a WARN record, or
+    `(None, None)` for the legacy path. At most one of the two is ever non-None.
+
+    THE CLASS SPLIT (SPEC-0145 §5, owner ruling 2026-09-06 option A). A scope-stale report REFUSES the
+    pre-deploy gate for deploy classes S, C1 and C2 — and for class A (code-only, trivially reversible,
+    SPEC-0097 §2) only WARNS: the caller journals one `security_audit_scope_stale` row and the deploy
+    proceeds. The CADENCE path (no `SECURITY_DEPLOY_CLASS`, the gate run without a deploy candidate —
+    SPEC-0155 §4) reports scope-stale REGARDLESS of class: there is no reversible-deploy argument to
+    make when nothing is being deployed, and the cadence run is exactly where a widened profile should
+    become visible."""
+    snap = data.get("profile_snapshot")
+    if not isinstance(snap, dict):
+        return None, None # AC3 legacy path — verdict unchanged
+    status = str(snap.get("status", "")).strip.lower
+    if status != "present":
+        return None, None # `unavailable` degrade — same legacy path
+
+    recorded_hash = str(snap.get("check_set_hash", "") or "").strip
+    reported = snap.get("check_set")
+    if not recorded_hash:
+        return _reject("incomplete", "profile_snapshot is `present` but carries no check_set_hash"), None
+    if not (isinstance(reported, list) and reported
+            and all(isinstance(x, str) and x.strip for x in reported)):
+        return _reject("incomplete", "profile_snapshot is `present` but its check_set is missing or is "
+                                     "not a non-empty list of non-empty strings"), None
+    if _check_set_hash(reported) != recorded_hash:
+        return _reject("tampered", "profile_snapshot check_set_hash does not hash its own check_set"), None
+
+    current = _current_profile_resolution(project_path)
+    if current is None:
+        return _reject("profile-unresolvable",
+                       "the report claims a profile (`status: present`) but the CURRENT resolution is "
+                       "unobtainable (security.audit.profile_snapshot.command undeclared, missing, "
+                       "nonzero, timed out, unparseable, or contract-failing) — fail-closed: a claim "
+                       "that cannot be checked is never accepted as current"), None
+
+    missing = sorted(set(current["check_set"]) - set(reported))
+    if not missing:
+        return None, None # SUBSET-shaped, not mere inequality: a SUPERSET report is not narrower
+
+    detail = ("the project's profile widened since this report: it does not cover "
+              + ", ".join(missing) + " (report check_set_hash " + recorded_hash[:12]
+              + ", current " + current["check_set_hash"][:12] + ")")
+    cls = str(deploy_class or "").strip
+    if cls == "A":
+        return None, {"class": "A", "report_hash": str(data.get(_HASH_KEY, "") or "").strip,
+                      "current_check_set_hash": current["check_set_hash"], "missing": missing,
+                      "detail": detail}
+    return _reject("profile-scope-stale", detail), None
 
 
 def _find_report(project_path: str) -> "str | None":
@@ -557,6 +769,7 @@ def _publish_verdict(verdict: Verdict, report_path: "str | None" = None) -> None
                 "reason": verdict.reason,
                 "detail": verdict.detail,
                 "blocking": verdict.blocking,
+                "scope_stale": verdict.scope_stale,
                 "report": report_path,
             }, f)
     except OSError:
@@ -614,9 +827,19 @@ def main(argv: "list[str] | None" = None) -> int:
     if expected_commit:
         print(f" deploy-seam identity binding: candidate commit {expected_commit[:12]} — the report "
               f"must prove it covers this code (SPEC-0155 §4)")
+    # The SPEC-0145 §5 class split binding: the deploy verb supplies the class it is deploying under
+    # (bin/lib/deploy.py#_run_security_audit_seam), exactly as it supplies SECURITY_DEPLOY_COMMIT.
+    # ABSENT = the cadence path, which reports scope-stale regardless of class.
+    deploy_class = os.environ.get("SECURITY_DEPLOY_CLASS", "").strip
     verdict = evaluate_report(text, fresh_days=fresh_days, path=report_path, waivers=waivers,
-                              expected_commit=expected_commit or None, project_path=project_path)
+                              expected_commit=expected_commit or None, project_path=project_path,
+                              deploy_class=deploy_class or None)
     _publish_verdict(verdict, report_path)
+    if verdict.ok and verdict.scope_stale:
+        print(f" WARN[profile-scope-stale]: {verdict.scope_stale.get('detail', '')} — class A "
+              f"(code-only, trivially reversible, SPEC-0097 §2): the deploy PROCEEDS and the seam "
+              f"journals security_audit_scope_stale. Re-run the security producer to refresh the "
+              f"report under the CURRENT profile.", file=sys.stderr)
     if verdict.ok:
         print(f" PASS: {os.path.basename(report_path)} — {verdict.detail}")
         return 0

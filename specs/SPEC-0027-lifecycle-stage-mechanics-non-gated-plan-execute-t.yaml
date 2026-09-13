@@ -386,9 +386,9 @@ supersedes: ~
 activation_owner_task: # work-first — activates proposed→active at close.
 proposed_by: # PROVENANCE — this task births the spec (work-first).
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d57bdf8cfc5c5d9b1438e37ca6cd2255fb408f6133b83cc3a31d50fadf7c71d0
+  bin/lib/audit.py#cmd_audit: 1ab2d8cf4dd5688048a6d2de1626c9951944591002f078ff8228e940d573513f
   bin/lib/gates.py#advance_stage_pointer: a1abdc4e6c7d4707cc6c9213872419c9649940c0d43ac1d11573b50203ebacf9
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: 3025f33868547f921472ddaf1bcb43d18b82bcf02324ad80bf24d5daac88907f
-  bin/lib/task.py#cmd_task_test: 47be321d4e05b034a4cd8d49091a183acdd775a1d9a5d809f0c7ea38a4ec7f83
+  bin/lib/task.py#cmd_task_test: 3c7e5dbe291776e36f62eecd59c1988b150df4f83ef99c703b8720d92f696a62

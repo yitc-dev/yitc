@@ -93,6 +93,9 @@ implements: # PLANNED anchors ( B5 — a design-phase spec may carry anchors +
   - bin/lib/debt.py#_abort_breadth_resolution # rule 26 — the RESOLUTION predicate: the mirror of `_abort_breadth_refusal`, admitting BOTH landing shapes (`land_completed{ok}` and `land_member_verdict{landed}`), cause-agnostic and fail-closed on a blank branch
   - bin/lib/debt.py#land_abort_cause_breadth # rule 26 — the cross-BRANCH abort-cause fold: groups on the BORROWED backstop identity, counts DISTINCT branches, fail-closed on a missing identity or a blank branch
   - bin/lib/cli.py#_abort_cause_breadth_view # rule 26 — the host residue: binds the journal + the two knobs + `worktree._land_abort_cause_identity` itself, so this view and the backstop can never disagree about what one cause is
+  - bin/lib/views.py#abort_cause_breadth_cause_line # rule 26 — THE one per-cause renderer, hoisted module-level so the land-HEAD note and the debt echo render one fold through one function and their identity digests cannot drift (P5)
+  - bin/lib/views.py#abort_cause_breadth_land_head_lines # rule 26 — the LAND-HEAD note: every still-unresolved cause named on stderr BEFORE the SPEC-0132 admission wait and the verify, no cap, report-only, suppressed-when-clean
+  - bin/lib/cli.py#_abort_cause_breadth_head_lines # rule 26 — the host residue for that note: the SAME `_abort_cause_breadth_view` fold the debt echo reads, rendered for the land head; wired at the `cmd_land` residue, never at `_debt_echo_lines`
   - bin/lib/cli.py#_debt_abort_breadth_window_hours # rule 26 — the OUTER reading HORIZON knob (YITC_DEBT_ABORT_BREADTH_WINDOW_HOURS): how far back a repeat on a branch that NEVER lands is still worth naming. It is NOT what clears a fixed cause — that claim is RETRACTED; `#_abort_breadth_resolution` is
   - bin/lib/cli.py#_debt_abort_breadth_min_branches # rule 26 — the DISTINCT-branch threshold knob (YITC_DEBT_ABORT_BREADTH_MIN_BRANCHES): not a count floor — one branch retrying contributes exactly 1, so 2 is the earliest moment the cross-branch fact exists
   - bin/lib/debt.py#aborted_land_cost # rule 27 — the aborted-land cost fold: `land_completed{status: abort}` in a trailing window, priced by the `duration_ms` already carried, grouped by abort_class into four groups that are NEVER summed
@@ -103,7 +106,11 @@ implements: # PLANNED anchors ( B5 — a design-phase spec may carry anchors +
   - bin/lib/debt.py#_abort_arm # rule 27 — the ARM reader for a class NAME that unions two refusals of different MOVABILITY; read from the existing payload, never captured, and `unattributed` rather than guessed
   - bin/lib/debt.py#_abort_label # rule 27 — the one home of the `<class>[<arm>]` name a reader of the fold sees, so the render can never re-union what the fold separated
   - bin/lib/debt.py#_abort_arm_verify_failed # rule 27 — the ARM reader for `verify-failed`, which unions a failing TEST with a CORPUS-INTEGRITY guard over one shared `bad` list; partitions `failing_assertions` ELEMENT by element, because only that tells a SOLE-guard refusal from a MIXED one
+  - bin/lib/debt.py#_row_has_timed_out_layer # rule 27 — the STRUCTURED leg of the fifth arm: reads the per-layer outcome trail, typed element by element so a malformed value proves nothing rather than being walked character by character
+  - bin/lib/debt.py#_is_layer_timeout_assertion # rule 27 — the LEGACY leg: the layer-timeout sentence's invariant opening, matched per assertion ELEMENT (never on a flattened blob), and bounded to the sole-assertion case where that sentence IS the whole refusal
   - bin/lib/debt.py#_is_corpus_guard_assertion # rule 27 — the one home of the three corpus guards' invariant openings, so the bookkeeping-vs-defect judgement is made in ONE place and the echo can never re-assert it in its own words
+  - bin/lib/debt.py#ABORT_CLASS_PARK_LIMIT_EVICTION # rule 27 — the `abort_class` a land-reservation park-limit EVICTION carries; named once so the abort fold and the roster part-3 lens cannot drift apart on what an eviction IS
+  - bin/lib/debt.py#abort_class_is_park_limit_eviction # rule 27 — the ONE classification home both readers ask: fail-closed on anything not a string, so a row it cannot positively identify stays an ABORT and the count never silently shrinks
   - bin/lib/debt.py#abort_arm_is_caught_defect # rule 27 — the ALLOWLIST predicate the render asks before saying 'a real defect caught before it landed' of a row; positive by design, so `mixed` and `unattributed` are excluded rather than swept in
   - bin/lib/debt.py#_abort_trend # rule 27 — the DECAYING/GROWING/STANDING reading over the window's two halves; the X-1039 requirement, `unknown` rather than a guess below the floor
   - bin/lib/debt.py#ABORT_PAID_VERIFY_MARKER # rule 27 — the payload key present IFF the verify actually ran; named once so paid-vs-early can never drift back to being inferred from the class name
@@ -1802,7 +1809,25 @@ body: |
       SEPARATE ELEMENT, so the reader partitions ELEMENTS: only that can tell a SOLE-guard refusal from a
       MIXED one, which a scan of the flattened reason blob can never do. A MIXED row gets its OWN arm —
       splitting one abort's minutes would invent a division the row does not record, and putting it in
-      either arm whole would overstate that arm. **AND THE NOT-WASTE SENTENCE IS COMPUTED FROM THE ROWS IT IS
+      either arm whole would overstate that arm. **A FIFTH ARM, AND IT COMES FROM A CONSUMER** (kupiclub X-1326). A consumer verify LAYER that runs out of wall-clock reaches this same reader as a
+      `verify-failed` row: `worktree._run_verify_tests` appends its `verify layer 'X' command TIMED OUT
+      after Ns` sentence to the SHARED failing list WITHOUT the `_VERIFY_TIMEOUT_MARKER` the class fork
+      keys on, so no timeout is ever seen and the `test-failure` rule above — "no assertion is a guard
+      message" — claimed it as the one arm entitled to the caught-defect sentence. Measured on kupiclub
+      2026-09-04: SIX rows across FOUR branches, each with exactly one assertion (that sentence),
+      `failing_tests` empty, and a `consumer_verify_layers` trail whose `frontend-unit` layer reads
+      `outcome: timed-out` at ~300.1s against a 300.0s limit while `static`/`sandbox`/`stack` PASSED.
+      A host that times out an otherwise-healthy layer under a land wave is a HOST/LIMITS signal, not a
+      statement about the code, and pricing all six as defects the gate caught made the honest signal
+      invisible. The arm is `layer-timeout`, read from the STRUCTURED trail already records
+      (never from the prose), ordered BEFORE the `test-failure` rule, and EXCLUDED from
+      `ABORT_ARMS_CAUGHT_DEFECT` — which needs no edit, because that allowlist is positive by design and
+      a new arm is outside it by construction. A timed-out layer beside a real failing test, or beside a
+      guard message, is MIXED on the same reasoning as above; a pre- row with no trail is admitted
+      by a belt bounded to a SOLE timeout sentence, since with more than one assertion nothing in the row
+      can say whether the others are tests that genuinely failed. **THE CLASS EMISSION IS AGAIN NOT
+      TOUCHED** — a third application of the same two reasons: eleven readers key on the literal
+      `verify-failed` string, and every historical row would need this reader anyway. **AND THE NOT-WASTE SENTENCE IS COMPUTED FROM THE ROWS IT IS
       TRUE OF, never merely caveated afterwards**: stating the whole group's count and minutes and
       qualifying them a clause later has still ASSERTED them to a reader who stops at the first
       sentence. So the gate-caught group renders in THREE buckets — the rows an ALLOWLIST predicate
@@ -1844,6 +1869,35 @@ body: |
       ARM, GROUP) entry the count is, by construction rather than by a second code path.
       The trend is printed BESIDE the minutes of every named class, at the same prominence, so the
       raw-minutes reading the correction disproved is never the only one on offer.
+      **AN EVICTION IS NOT AN ABORT, AND IS NOT IN THIS POPULATION AT ALL** (owner ruling
+      2026-09-11 «в долгах не считать»). A `land_completed{status: abort}` row whose `abort_class` is
+      `land-reservation-park-limit` (the halt) is EXCLUDED from the abort rows this rule folds
+      — from every class, group, count, minute, trend and from the window's `aborts` total — and is
+      reported APART under `evicted`. It is NOT a cheap abort to be bucketed with the early ones: the
+      land verified nothing, merged nothing and spent no CPU; it waited out the land reservation behind
+      a holder that would not release and then STOPPED rather than racing for the ff. Every other class
+      here describes a branch that was JUDGED and refused, which is a question about the branch; an
+      eviction is a fact about the QUEUE, and nothing about the branch was ever judged. Counting it as
+      a failed attempt therefore reads ONE congestion TWICE — once as the reservation wait this rule
+      already reports, and once again as a failure that never happened. MEASURED 2026-09-11: `debt`
+      read 476 aborted lands over 7 days and the roster part-3 fold read `abort share 53%`, while in
+      the 11:39-13:40Z window alone 4 of 14 aborts were evictions ( —
+      each after 149 min queued). **THE KEY IS THE CLASS, READ STRUCTURALLY** — `abort_class` is set at
+      the `_die` origin and carried by `_emit_land_abort`; folded over this repo's whole
+      journal, 29 rows carry it and zero park-limit rows lack it, so no `abort_reason` regex is used
+      (the structured-state-only discipline this module already holds). ONE constant and ONE predicate
+      are the single classification home; the roster part-3 fold, which is contracted to run on pure
+      stdlib against any repo and so cannot import them, carries the literal under a test asserting
+      the two agree. **AND THE MINUTES ARE NEVER DROPPED** — the same bound rule 27 sets for
+      `preflight-refused`: `evicted` carries the wait those rows PROVE (`reservation_wait_ms`) WITH its
+      coverage (`waited_n` of `n`), and the render prints the coverage beside the figure and suppresses
+      the figure entirely when nothing proves it. Removing an eviction from the abort count while
+      leaving its wall-clock unreported would trade an overstatement for a DISAPPEARANCE, the same
+      direction as pricing an undetermined cost at zero. Because an eviction can no longer un-suppress
+      the abort headline, the render OPENS on `evicted` alone when a window's only aborts were
+      evictions — the exclusion is not permitted to make a visible cost silent. SCOPE: the
+      CLASSIFICATION only. The eviction BEHAVIOUR (whether an evicted branch should be re-queued) is a
+      separate card, no other abort class moves, and no threshold on the share is introduced.
       **AN UNDETERMINED COST IS NEVER A ZERO** (the fabricated-measurement class). A row whose
       `duration_ms` is absent or not an integer is reported as UNDETERMINED and counts toward the
       reportable set. It is unreachable on today's corpus, which is exactly why it is built and
@@ -2401,6 +2455,30 @@ body: |
       An OPTIONAL injected report-only fold over the JOURNAL (`debt.land_abort_cause_breadth`), wired at
       the ONE shared host residue like every sibling and riding all 3 seams (session-start / land-tail /
       the `debt` re-fold).
+      **A FOURTH READ — THE LAND HEAD, BEFORE THE SPEND (aiseller X-1365).** This fold is ALSO
+      read at the head of `land` itself — after the repeated-abort backstop and BEFORE the
+      SPEC-0132 verify-admission wait and the verify behind it — and prints ONE line per still-unresolved
+      cause on stderr (`views.abort_cause_breadth_land_head_lines`, wired at the `cmd_land` residue).
+      ADDITIVE, and NOT a fourth debt-echo seam: it does not ride `_debt_echo_lines`, so the «two code
+      call sites» the echo rule states are UNCHANGED and every existing seam's output is byte-identical.
+      MEASURED (aiseller, 2026-09-10): one unresolved cause — `verify-failed#e7ab35cc1f71`, a
+      SECRETS-atom false positive later fixed in 7d78788963 — refused FOUR different branches, and each
+      paid a FULL verify to re-diagnose what another branch had already surfaced. The reading existed the
+      whole time; both of its seams were simply AFTER the spend (the land tail) or in another process
+      (session start). ONE RENDERER, never a second: the per-cause line is the module-level
+      `views.abort_cause_breadth_cause_line` the debt echo itself calls, so the identity digest a reader
+      sees at the land head is the identity `debt` prints, and the two cannot drift (P5).
+      IT NAMES EVERY UNRESOLVED CAUSE, with no cap — deliberately unlike the debt echo's 2-cause
+      truncation, which exists because that seam already carries a dozen report-only lines. This one
+      fires only when the fold is non-empty and fires immediately before a 430-560s spend, so a truncated
+      list would withhold a named cause at the one moment naming it could still save the verify.
+      REPORT-ONLY and suppressed-when-clean like every sibling: it refuses nothing, changes no verdict,
+      emits no event, writes no state and moves no exit code, and a land with nothing unresolved prints
+      byte-identically to before. Its journal read runs inside the SPEC-0190 rule-10 request-scoped
+      ReadScope the backstop's own read already opened, so it adds NO physical journal traversal; that
+      scope is CLOSED before `_land_integrate`, because pins the LAND-TAIL counts to a `debt`
+      re-fold taken AFTER the land and a land appends throughout — head and tail are two reads of two
+      journal states, by contract, and the head's view is never handed forward to the tail.
       **SUBJECT.** One CAUSE that has refused `min_branches` (default 2) or more DISTINCT
       branches inside the window (default 24h). MEASURED: an uncatalogued live event type on `main`
       refused four branches in about an hour — each worker diagnosed it correctly and INDEPENDENTLY, each
@@ -3191,7 +3269,7 @@ implements_signature:
   bin/lib/cli.py#_debt_dead_land_floor_minutes: db6149b040d3e7cab32c6ed3789ae35239d4ad48aa92eefeb43981f50a70d92a
   bin/lib/cli.py#_debt_dispatch_monitor_floor_minutes: bc1d7cbaf9715b971f8459ca70d3049f2c6fa7d7ff2b76c8caf7f26096d2effa
   bin/lib/cli.py#_debt_echo_compact: b37e6ab041149d1b4caf9419cfcaeb3b7d0849f98f4403a8ad878f5e23aef7da
-  bin/lib/cli.py#_debt_echo_lines: e7bf2460147554480ce517cf3300d276be365e9018bf4a7857e7951b2ad02d29
+  bin/lib/cli.py#_debt_echo_lines: defe29976eb71b2f4bf84aeb3301dab5c977c7c3e3f89d577e1503f9fedf88d5
   bin/lib/cli.py#_debt_echo_lines_land_tail: 957e327a58dfdacf6d0eb7f92fbd8b2fac914a7eab80c13efbdf30baf630a773
   bin/lib/cli.py#_debt_measurement_margin: 88064faa1a2b793d637926e4c9982f9c1b905448bdb4ae8c77dfb4e23ce9f933
   bin/lib/cli.py#_debt_security_finding_floor_days: dc9be77f81f97946cdfef76a6ece306ef35540790ce404da50d9f893629e4f59
@@ -3222,7 +3300,7 @@ implements_signature:
   bin/lib/debt.py#SPEC0161_RECORD_HEADING: 6af0d344026ff1ead7139c454241ec20c0c4882329b641b4027c0f0a2c1941a5
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_abort_arm: 25ed5996288419d0a3c20fcf30748a40c7f6c8457058002f7c43909e92c07169
-  bin/lib/debt.py#_abort_arm_verify_failed: bba290851751bfa1ab358c016d88b591c3b4e6741df5da87b5fb78752f064e81
+  bin/lib/debt.py#_abort_arm_verify_failed: d3f94108a6f1bfea9aa1c7fb167300b7b81d6e672ef068808cdd7870b16a63a6
   bin/lib/debt.py#_abort_attributed_wait_ms: 942237c8f79318e8ae32f7673bdb1777480f8cdbf551c2db2b9e7db933432db3
   bin/lib/debt.py#_abort_breadth_resolution: 6f080ee9e7f80495b9cdded6e4ad06bd605e609d069100a0749d4a7ce8ffa366
   bin/lib/debt.py#_abort_group: 295526eee00c4e0692df08f15d23564ccd31eff9f3d262007eac78337c3c25ee
@@ -3254,7 +3332,7 @@ implements_signature:
   bin/lib/debt.py#_unpickable_ready_result: 4b2ee637961891df40349ad9eaac203f50af387bbf2bd52f4736624a9ba3866a
   bin/lib/debt.py#_younger_than: 0a9c5459e7b95505db55ad2c54b9d3a387968d5e47b17ba6a74923a19ba18718
   bin/lib/debt.py#abort_arm_is_caught_defect: fee12e06bd56f4b58c5515bde5545b8243c3aea0fbc1664a116c8112e5429e49
-  bin/lib/debt.py#aborted_land_cost: 6ddcaf1b8ef8072808ec14b8443110b0cc66ccd7f97f6679425f82765fb9011c
+  bin/lib/debt.py#aborted_land_cost: 9279e3955f391bd50c1f8650399338a0319b0e2455bfc8f3d69a51755962722b
   bin/lib/debt.py#ahead_work_branches: b503aff05d118fcd0bb95039312133af71b26b755ed22cb7f99cecf0f84da61e
   bin/lib/debt.py#behind_work_branches: 667ac5fbc8cd6b4ad41ff916dad94e1dff3835ff15c611deed852a4195031dcd
   bin/lib/debt.py#branch_unlanded_attempt_burn: 6dc1e3f3e4cb24aa77a10ea0177a1a166b9f7483b9615f3016305cf426936456
@@ -3286,7 +3364,7 @@ implements_signature:
   bin/lib/debt.py#spec0161_payload_key_coverage: 84957874db0cbd39d338e6e947297e279d84d1dbe72e5b07fedf353938167e50
   bin/lib/debt.py#uncarried_p8_warns: 27a572710b275e26560f9f115a2f2cf293b30c6e1067f8a44a9574e5cb71dae9
   bin/lib/debt.py#unexecuted_subject_files: 4f8a4ed876cac259b20167db48ea99c65d4bfa45e2c9d8a7dbe4101659a5d79a
-  bin/lib/debt.py#unmonitored_dispatches: df16f8968c0660238c3101d4f161781f311a4dbd6a3bee8f4dccf18855894501
+  bin/lib/debt.py#unmonitored_dispatches: cf84cb437afea4b677956328d86553151c008132c72f83f394391d47127af6b0
   bin/lib/debt.py#unpickable_ready_cards: f54d81b985deb8ee56f6639077dc00b2775e65f7afcd38afa86c27b4ec4875e5
   bin/lib/debt.py#unresolved_worker_halts: 6d2a6e9557beb47d174a9a524d6c30aa815919b62ec53dbda40ddbe5e9d0e9c0
   bin/lib/init.py#_born_comment_anchors: 3f4eae930fd26f47af10d39bfe858ff638673a0fe27e80a6c3b59b28e47d7e5e
@@ -3304,12 +3382,13 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 7112507e1f5dcc499d9eeb7cdedc44d394f97776759472c4fe043378adcede18
   bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: f3de662a4bc6577be4ef802ef78392bf4dbaf4f2a2bf77ef218adb6c9eb4d6c6
+  bin/lib/session.py#cmd_session_start: 69163774384084b75d8f58617327720e7a432e1c4199a27a75266bcc2ed79da7
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 9445d30cba6bcc62e2ad8ac8ea530c9289d3238c663ed67522a0f060aaf04577
+  bin/lib/views.py#_render_debt_echo: 35ba13d5a6113a9e2990351c453cdec058a4354148a1360f4a9c7368e08d751d
   bin/lib/views.py#_view_review_due: 67d6d610eba3d0bcc7a780a94147345c6a9693ef333b46b0b30ff5026f255677
+  bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_emit_land_abort: 4109411e03f5b75acf95d4938ad2eb792aa4ea7be8c6a33d2e0364d0a9aec064
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_registry_names_file: 85426b25d567d463c9debede36c118666df3b881341b97f249dca6a6eb0e9884
-  bin/lib/worktree.py#cmd_land: 144d854f0c901d1d882cf6a06f329a56b108a012db7646e24fa0f1e404836c51
+  bin/lib/worktree.py#cmd_land: 50a9e02c0b96d01dce4f5ea00550bd37127ba9d6577cfd6260efd70b6e10dc70

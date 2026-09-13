@@ -221,38 +221,38 @@ cwd-independent verbs), not by removing isolation. So:
   pick` on `main` would leave an uncommitted claim the worktree (branched from committed HEAD) never
   sees — the desync. `task pick` is therefore a **read-only inspector** only.
 - Integrate via the single blessed path, **run FROM the main checkout — never `cd` into the worktree**:
-  **`bin/yitc-v2 land --task T-XXXX`** or **`bin/yitc-v2 -C <worktree> land`** (for a `work/<slug>` batch:
+  **`bin/yitc-v2 land --task T-XXXX`** / **`bin/yitc-v2 -C <worktree> land`** (a `work/<slug>` batch:
   `land --branch work/<slug>`). It does update-from-main → events union+dedup → graph rebuild → verify → ff-only main → remove worktree;
-  one run-from-main form removes all three frictions at once (no wrong-branch ABORT, no getcwd false-fail,
-  no `cd`-back dance). `main` stays the SOLE integration branch — no PR/release/dev-branch ceremony.
-- **Why `main` looks "stale" until land (this is isolation, NOT a bug):** a worktree is a normal
-  git branch off `main`; `main` advances ONLY via the ff at `land`. So every edit, the claim
-  (`ready→in-progress`), and emitted events are INVISIBLE on `main` until you land — standard
-  feature-branch isolation, exactly what lets concurrent sessions not collide. Corollary
-  (the Slip-5 trap): a *relative* grep run from the main checkout won't see your worktree's
-  edits — **verify a write in the same checkout you wrote it** (absolute path or `git -C <worktree>`).
-- **Fallback — ONLY if you did `cd` into the worktree** (the run-from-main form above avoids this): `cd`
-  back to main after `land` — land removed the worktree dir, leaving the shell in a deleted directory (`getcwd` error / nonzero exit though land succeeded); `land` prints a `cd <main>` cue.
+  run-from-main removes all three frictions at once (no wrong-branch ABORT, no getcwd false-fail, no
+  `cd`-back dance). `main` stays the SOLE integration branch — no PR/release/dev-branch ceremony.
+- **A non-union merge conflict from main has a COVERING VERB — never finish it with raw `git commit`:**
+  `land` and `worktree sync` both STOP on one. Resolve the named files, `git add` each, then
+  **`bin/yitc-v2 worktree sync --resolved --task T-XXXX`** — it refuses a half-resolution, commits the
+  merge, and records WHICH paths you resolved (`merge_resolved_by_hand`). Custody is UNCHANGED: a hand
+  resolution is authored content, so SPEC-0077 §3a still requires the re-audit.
+- **Why `main` looks "stale" until land (isolation, NOT a bug):** a worktree is a branch off `main`, which
+  advances ONLY via the ff at `land` — so every edit, the claim (`ready→in-progress`) and emitted events are
+  INVISIBLE on `main` until you land, which is what lets concurrent sessions not collide. Corollary
+  (the Slip-5 trap): a *relative* grep from the main checkout won't see your worktree's edits —
+  **verify a write in the same checkout you wrote it** (absolute path or `git -C`). Fallback if you DID `cd`
+  in (run-from-main avoids it): `cd` back after `land` — it removed the worktree dir, so `getcwd` fails and the exit reads nonzero though land succeeded (`land` prints a `cd <main>` cue).
 - **Backgrounded / tool-invocation callers: key off the `LAND:` token, NOT the shell exit.** Land emits a contracted machine-readable **terminal-status token as its FINAL stdout line**:
   `LAND: OK <sha>` on success / `LAND: ABORT <reason>` on refusal (match `^LAND: (OK|ABORT)\b`,
   case-sensitive — the lowercase human `land:` line + the `cd <main>` cue never collide); parse THAT, not
   the shell exit. Run-from-main keeps your cwd alive, but the token matters either way: the legacy
   in-worktree `cd <worktree> && bin/yitc-v2 land` has its cwd removed by the *successful* land so the
-  wrapper's `getcwd` fails and the shell exit reads nonzero though land exited 0 (E-0010 manifestation D —
-  the false-fail); the token survives it. The `land_completed` journal event stays INTERNAL provenance —
-  the STDOUT token is the single caller-facing terminal-status contract.
+  wrapper's `getcwd` fails and the shell exit reads nonzero though land exited 0 (E-0010 manifestation D
+  — the false-fail); the token survives it. `land_completed` stays INTERNAL provenance — the STDOUT token is the single caller-facing contract.
   - **A `LAND:`-ONLY filter is not a complete watcher — capture STDERR and admit `^yitc-v2:` too.** A pre-verify REFUSAL (a missing `-C` target, a fail-closed session identity, any guard
     upstream of `cmd_land`'s terminal-signal seam) never reaches the token: it prints as a plain
-    `yitc-v2: …` line on **stderr** and exits nonzero, so a `^LAND:`-only watcher captures an EMPTY
-    file (measured 2026-08-13, X-0843 — an instance of SPEC-0165 item 11). Redirect `2>&1` and match
-    `^(LAND:|yitc-v2:)`; the `LAND:` token stays the TERMINAL-STATUS contract, unchanged.
+    `yitc-v2: …` line on **stderr** and exits nonzero, so a `^LAND:`-only watcher captures an EMPTY file
+    (measured 2026-08-13, X-0843 — an instance of SPEC-0165 item 11). Redirect `2>&1` and match `^(LAND:|yitc-v2:)`; the `LAND:` token stays the TERMINAL-STATUS contract, unchanged.
     **That widening is for CAPTURE ONLY — never gate TERMINALITY on it (SPEC-0180 rule 2c).**
     Terminality is **token-or-exit**: the `^LAND: (OK|ABORT)\b` token, or the land process EXITING.
     `yitc-v2:` is the tool's GENERIC message prefix — `land` prints ordinary progress under it (the
     graph auto-rebuild notice, the verify heartbeat) — so a bare `yitc-v2:` line is terminal only WITH
-    an exit, never on its own. Collapsing the two is a measured false green: a poll loop keyed on
-    `^(LAND:|yitc-v2:)` fired at 47 s on a graph-rebuild notice while the land was still verifying, and
-    its premature exit then killed the healthy land. Capture wide; gate narrow.
+    an exit. Collapsing the two is a measured false green: a poll loop keyed on it fired at 47 s on a
+    graph-rebuild notice mid-verify, and its premature exit killed the healthy land. Capture wide; gate narrow.
 - **`land` verify runs for several MINUTES — and how you run it SPLITS BY SESSION KIND ( — the
   two audiences must not be conflated; the §2 verify step update-from-main → graph rebuild → pinned
   hermetic test suite routinely runs minutes, longer than a tool's short default command timeout):**

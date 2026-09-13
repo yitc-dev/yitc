@@ -258,12 +258,30 @@ body: |
   other projects — and the measurement that made it necessary: of the 212 followups left actionable
   after that day's sweep, an estimated 60-80 waited on a row in a CONSUMER's journal, every one of
   them unfireable by construction and permanently resident in the actionable headline.
+  - **THE ASK MAY ONLY PRESCRIBE AN AWAITS KEY THE ASKING SIDE HAS VERIFIED EXISTS.** The
+    asking side owns every emitter the awaited moment could fire from and the receiver owns none of
+    them, so the key is knowable at authoring time and guessable only at reading time: name the
+    literal `events.jsonl#type=<t>`, checked against the SPEC-0025 / SPEC-0161 catalog, never a
+    placeholder for the peer to resolve — and when NO emitter fires at that moment, the ask is
+    unanswerable as written and MUST NOT be filed as one (file the emitter card first, or drop the
+    carrier / record it wont-hold). This does not reinstate validation of a TYPE (§the event grammar
+    REPORTS rather than validates, below — a class that has never fired is exactly what these records
+    wait for); a placeholder is not an uncatalogued type, it is the absence of a type.
+    `cross.py#placeholder_awaits_key_warning` reports the literal placeholder on a `--kind task`
+    request, report-only. Grounds: kupiclub X-1379 over the X-1274..X-1291 family, 2026-09-11 —
+    three asks of one family prescribed an awaits key on a moment that emits no event at all.
   - **The `X-NNNN` item STAYS OPEN (`picked`) while the peer holds the obligation, and that is the
-    CARRIER, not spam.** `picked` rows are outside the session-start outbox cut, so an item
-    the peer is working is not something the author is re-asked about. **Shape (B) — CLOSING the
-    coordination item as soon as the peer arms — was considered and REJECTED by the same ruling: it
-    loses the return channel, so the reading has nowhere governed to come back to and this side keeps
-    no adoption record of its own.**
+    CARRIER.** `picked` rows are outside the session-start outbox cut, so an item the peer
+    is working is not something THE AUTHOR is re-asked about. **That cut is the AUTHOR's outbox, and
+    the brief must not offer it to the RECEIVER as a no-nag promise :** on the receiving
+    side `session start` prints «N inbox item(s) ACCEPTED (picked) but tracked by NO local task»
+    (`cross.inbox_picked_untracked_rows`) at EVERY start until they declare a local carrier
+    — a card filed `--resolves-cross <X-NNNN>`, or a non-terminal plan's frontmatter
+    `resolves_cross:`. So the ask states that cost plainly and names the silencer, which is
+    also what tracks the obligation the peer just accepted. **Shape (B) — CLOSING the coordination
+    item as soon as the peer arms — was considered and REJECTED by the same ruling: it loses the
+    return channel, so the reading has nowhere governed to come back to and this side keeps no
+    adoption record of its own.**
   - **This is the STANDARD route for a consumer-side adoption/verification wait, not an owner-gated
     ask.** The `--kind task` owner-gate named in SPEC-0085 covers a project→kernel FEATURE request
     and is UNCHANGED; a wait asking a peer to read its own journal and report back is ordinary
@@ -652,4 +670,4 @@ implements_signature:
   bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
   bin/lib/followup.py#split_event_awaits: 33f5554be1bbbc36549b58bfc329881e7e45bd7503ded24ca98d0d55a08c8135
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
-  bin/lib/task.py#cmd_task_file: df440d05c18bcb487026cfa6d67d42bbef5b2a85e0704b58da75381c9169bc93
+  bin/lib/task.py#cmd_task_file: 31973f540b35183222a96c09cc63968f9dce26a94f19a1e0ee7b4f1e80d9a022

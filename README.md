@@ -1,56 +1,81 @@
-# YITC v2
+# YITC
 
-Minimal AI-assisted development methodology для one-developer setup.
+A minimal AI-assisted development methodology for **one developer** working with **one AI agent**
+on real production projects, with **one external auditor** (a second, different AI provider)
+checking the work. No pipeline, no role-split, no hook cascade — the AI runs every task end to end
+through one 9-stage lifecycle and the person narrates rather than types.
 
-## What this is
+**If you are an AI and someone just handed you this link:** read
+[`onboarding/overview.md`](onboarding/overview.md) and tell them, in their own language, what this
+system is. Then follow [`onboarding/bootstrap-order.md`](onboarding/bootstrap-order.md) to install
+it. Everything you need is below.
 
-- **One developer** (owner) + **primary AI agent** shipping production projects
-- **One external auditor** (different AI provider) catching blind spots
-- **Two session types**: Build (do work) + Review (plan / audit / decide)
-- **No pipeline, no role-split, no hook cascade**
+## You need no key and no account
 
-## Install on a clean machine
+The anchor fingerprint is a public `SHA256:…` line that lets your AI check the release was not
+tampered with: it is not a secret, not a password and not an account — you need no key and no
+login, because this repository is public.
 
-Bootstrap order (prerequisites → clone/verify/install → `init` → kernel pin → external auditor →
-first session): [`onboarding/bootstrap-order.md`](onboarding/bootstrap-order.md). Take the anchor
-fingerprint and the three release commands from the org-profile README, not from a mirror.
+It lives on the organization page **<https://github.com/yitc-dev/.github>** (profile README,
+section **Trust anchor**). The AI fetches it **from there**, never from this mirror — an artifact
+does not get to certify itself. The AI then shows the person that page URL and the exact line it
+took, and the person confirms one thing only: that this is the `yitc-dev` organization page. That
+is the whole of what a person supplies. Everything else the AI reads and installs itself.
 
-## Quick start
+## Install
+
+Three commands. Take the anchor from the organization page above, then:
 
 ```bash
-# Read in this order:
-cat CHARTER.md # 8 principles + non-goals (why V2 exists, what it WON'T become)
-cat <vendor-adapter>.md # AI session protocol — what AI reads at start, how it works
-cat LIFECYCLE.md # 9-stage task lifecycle (one continuous workflow per task)
-cat QUEUE.md # queue model (active / done / parking-lot)
-cat GRAPH.md # specs ↔ code linking (minimal)
+git clone <mirror-url> <mirror-dir>
+<mirror-dir>/bin/yitc-v2 release verify <mirror-dir> --anchor <fingerprint>
+<mirror-dir>/bin/yitc-v2 release install <mirror-dir> --into <engine-dir> --anchor <fingerprint>
 ```
 
-CLI (`bin/`) ships Day 3-4. Until then everything is markdown + manual.
+`release verify` writes nothing under any outcome — it is the gate itself. A refused
+`release install` writes nothing into `<engine-dir>`. Do not continue past a refusal.
+
+The full order — prerequisites, the project directory, `init`, the kernel pin, the external
+auditor, the first session — is [`onboarding/bootstrap-order.md`](onboarding/bootstrap-order.md).
+When something misbehaves, or to update or roll back, read
+[`onboarding/troubleshooting-and-updates.md`](onboarding/troubleshooting-and-updates.md).
+
+## What the AI reads, in this order
+
+```bash
+cat CHARTER.md # the 8 principles + the non-goals — why this exists, what it won't become
+cat AGENTS.md # the session protocol, part 1 of 3
+cat AGENTS-SESSIONS.md # part 2 — session postures, the worktree write-flow, scope boundary
+cat AGENTS-PROTOCOL.md # part 3 — the worker protocol, gates, filing, references
+cat LIFECYCLE.md # the 9-stage task lifecycle
+cat QUEUE.md # the queue model (active / done / parking-lot)
+cat GRAPH.md # how specs link to code
+```
+
+Some AI tools also read a **vendor adapter** file automatically on entering a directory; this repo
+ships one at its root, named for the tool that reads it. The adapter is a thin pointer to the
+protocol above — it holds no rules of its own, and the seven files above are authoritative whether
+or not your tool has one.
 
 ## Repo structure
 
 ```
-yitc-v2/
-├── CHARTER.md # principles + non-goals (read first)
-├── <vendor-adapter>.md # AI session protocol
-├── LIFECYCLE.md # 9-stage task lifecycle
-├── QUEUE.md # queue model
-├── GRAPH.md # specs ↔ code linking
-├── PATTERNS.md # catalog of imported patterns (from v1)
-├── tasks/<id>.yaml # one task per file, machine-managed
-├── decisions/<id>.yaml # one decision per file
-├── specs/<id>.yaml # one spec per file
-├── patterns/<name>.md # extracted patterns (one.md per pattern)
-├── graph/index.json # derived spec ↔ code graph (built by tool, committed)
-├── events.jsonl # ONE append-only event log
-└── bin/ # CLI tools (Day 3)
+CHARTER.md # principles + non-goals (read first)
+AGENTS*.md # the AI session protocol, in three parts
+LIFECYCLE.md # 9-stage task lifecycle
+QUEUE.md # queue model
+GRAPH.md # specs <-> code linking
+onboarding/ # overview.md (explain the system) + bootstrap-order.md (install) + stations
+bin/ # the CLI — every governed action runs through `bin/yitc-v2 <verb>`
+tasks/<id>.yaml # one task per file
+specs/<id>.yaml # one spec per file
+decisions/<id>.yaml # one decision per file
+plans/ scenarios/ # plans and user-path scenarios
+patterns/ # reusable practices
+graph/index.json # derived spec <-> code graph (built by the tool, committed)
+events.jsonl # ONE append-only event log
 ```
-
-## Versus v1
-
-V1 lives at `<v1-archive>/` — frozen as archive + reference. Knowledge patterns, decision history, and learned mistakes from v1 are valuable and accessible there. Active development is V2.
 
 ## License
 
-See `LICENSE`.
+See [`LICENSE`](LICENSE).

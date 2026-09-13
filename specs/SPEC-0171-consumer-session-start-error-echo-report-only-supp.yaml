@@ -228,11 +228,11 @@ init_concern: ~ # OPTIONAL (SPEC-0096) — the activation baseline-concern decla
                                # evidence: <pointer to the governed adoption-evidence (spec/probe/live_probe)>
                                # tier: universal # minimal first-ship tier marker (SPEC-0096 r7)
 implements_signature:
-  AGENTS.md#compact: 292ac05c3b8587272ab7556dabea000fcd4b51d06c09bb71f24b0f5d19980c52
+  AGENTS.md#compact: 9803fbbed2ddec9e5e9873639abf2414248d824855ac020d140cabae2cab324a
+  bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
+  bin/lib/cli.py#cmd_frontend_errors: 9268f9483976b17f4f9ca6e4a70c56d3cfa3c79af0220b3f226372607b051404
   bin/lib/frontend_errors.py#declared_source: fc76f919bd81c16f0aedb7c5f001b3e642a534a65e83cc4eb1a459deb39eac53
   bin/lib/frontend_errors.py#echo_lines: b30abdc92ec6890a077b27ed861c4537738fa7450f958f680a876c17885430e9
   bin/lib/frontend_errors.py#not_qualifying_lines: 42fbad7a72eb177052a74d2fdc22d809858cb238c1be1daf13ccf476df162bab
   bin/lib/frontend_errors.py#read_kwargs: 04be1a5ec4a3e95b1db2978489dd8245d4fc2d2144ec00f7ede99e4a6b5c4438
   bin/lib/session.py#frontend_error_echo_lines: f14d4aae12b006943626400d625d202a2c4570c1b2fb4f379546e11c40c4861b
-  bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
-  bin/lib/cli.py#cmd_frontend_errors: 9268f9483976b17f4f9ca6e4a70c56d3cfa3c79af0220b3f226372607b051404

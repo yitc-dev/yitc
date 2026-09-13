@@ -231,11 +231,11 @@ which closed GREEN on the same commit once its card declared `host_config`.
 After `audit post` writes `decisions/<task>-audit-post.yaml`, do NOT run a standalone `task commit` on
 it: that shifts the recorded commit past the audited commit and DEADLOCKS closure (the / E-0008
 chain-of-custody trap). `task close` folds the dirty audit YAML into its own closure-record commit.
-**TWO sanctioned exceptions, same mechanics, different admitting verdict:** the mode-a absorption cycle
+**THREE sanctioned exceptions — one per admitting verdict, same mechanics throughout:** the mode-a absorption cycle
 (`task commit --absorb` — YELLOW) and the RED in-scope-fix leg (`task commit --fix-red` —
 RED, and only on positive proof the commit carries authored content, so a fixless RED absorption stays
 refused at both doors; its `--card-repair` arm, admits the card-record repair on the
-different proof that the audited ship it rides on exists). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
+different proof that the audited ship it rides on exists), and the GREEN second-ship leg (`task commit --reship` — GREEN, same authored-content proof: audit-post passed and a further IN-SCOPE ship is still needed; nothing further to ship means the GREEN stands and Stage 9 is the route). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
 zeroes the passes counter), then the REQUIRED `audit post --commit <new>` re-pins custody and carries the
 trail (`passes_trail`). Full rule + the `cmd_task_commit` foot-gun guard: SPEC-0015 §Internal
 (`bin/yitc-v2 graph query SPEC-0015`).

@@ -1521,7 +1521,8 @@ def _override_covers(blocking: list, advisories) -> list:
 
 
 def _run_security_audit_seam(plan: _SecurityAuditPlan, *, revision, project, REPO_ROOT, deploy_env,
-                             _append_event, override: "_SecurityOverride | None" = None) -> None:
+                             _append_event, override: "_SecurityOverride | None" = None,
+                             deploy_class: "str | None" = None) -> None:
     """SPEC-0155 rule 1 — run the DECLARED security producer at the deploy seam, THEN judge the fresh
     report with the pre-deploy gate, BEFORE the project deploy command runs. Mirrors the C1 pg_dump
     (T-10259) and Class-S security_probe (T-10279) selected-then-executed seam steps: any failure
@@ -1540,7 +1541,16 @@ def _run_security_audit_seam(plan: _SecurityAuditPlan, *, revision, project, REP
     the gate REFUSES. That binding exists ONLY here, at the seam — a cadence/CI run supplies no candidate,
     so cadence acceptance is unchanged. No second producer identity — the seam runs the ONE declared
     `security.audit.runner` (SPEC-0145 §6), the same one cron uses, so a seam-produced report matches the
-    candidate by construction and the match only ever fails on genuinely non-covering evidence."""
+    candidate by construction and the match only ever fails on genuinely non-covering evidence.
+
+    PROFILE SCOPE (SPEC-0145 §4/§5, T-12445). The gate ALSO judges whether the report's declared
+    check-set is still the CURRENT one — a project whose risk profile has widened owes more checks than
+    the report ran. That judgement is class-split, so the seam passes the deploy class it is running
+    under in `SECURITY_DEPLOY_CLASS`, exactly as it passes the candidate commit: class A (code-only,
+    trivially reversible — SPEC-0097 §2) WARNS and PROCEEDS, and this seam journals one
+    `security_audit_scope_stale` row naming what it proceeded over; every other class REFUSES inside the
+    gate, on the ordinary non-zero-exit path above. The cadence path supplies no class and no candidate,
+    and reports scope-stale regardless."""
     command = plan.runner
     print(f"deploy: running the declared security producer at the seam (SPEC-0155 rule 1); the gate "
           f"judges the FRESH report before the deploy runs:")
@@ -1588,6 +1598,11 @@ def _run_security_audit_seam(plan: _SecurityAuditPlan, *, revision, project, REP
         verdict_path = Path(_vdir) / "verdict.json"
         gate_env = {**deploy_env, "SECURITY_DEPLOY_COMMIT": str(revision),
                     "SECURITY_GATE_VERDICT_FILE": str(verdict_path)}
+        # SPEC-0145 §5 class split. Set ONLY when a class is known: its ABSENCE is the cadence/no-class
+        # path, which the gate reads as "reject scope-stale regardless of class". Threading an empty
+        # string would be indistinguishable from a class the gate does not soften for, so it is omitted.
+        if deploy_class:
+            gate_env["SECURITY_DEPLOY_CLASS"] = str(deploy_class)
         gate = subprocess.run([sys.executable, str(gate_path), str(REPO_ROOT)],
                               cwd=str(REPO_ROOT), env=gate_env)
         verdict = _read_gate_verdict(verdict_path)
@@ -1604,6 +1619,22 @@ def _run_security_audit_seam(plan: _SecurityAuditPlan, *, revision, project, REP
     _append_event("deploy_security_gate_passed", None, {"revision": revision, "project": project})
     print(f"deploy: pre-deploy security gate PASSED on the fresh report; deploy_security_gate_passed "
           f"emitted.")
+    # SPEC-0145 §5 — the class-A scope-stale WARN. The gate PASSED, so the deploy proceeds; what must
+    # not be silent is that it proceeded over a report produced under a NARROWER profile than the
+    # project now carries. The row's PRESENCE is the signal (SPEC-0025). Read off the gate's OWN
+    # published verdict — never re-derived here — so the record is the gate's judgement, and an
+    # absent/unparseable verdict simply emits nothing (it can only ever under-report, never fabricate).
+    scope_stale = (verdict or {}).get("scope_stale") or {}
+    if isinstance(scope_stale, dict) and scope_stale:
+        _append_event("security_audit_scope_stale", None, {
+            "class": scope_stale.get("class"),
+            "report_hash": scope_stale.get("report_hash"),
+            "current_check_set_hash": scope_stale.get("current_check_set_hash"),
+        })
+        print(f"deploy: WARN — the security report's profile check-set is a strict SUBSET of the "
+              f"CURRENT required set ({scope_stale.get('detail', '')}). Class A is code-only and "
+              f"trivially reversible (SPEC-0097 §2), so the deploy PROCEEDS; "
+              f"security_audit_scope_stale emitted.", file=sys.stderr)
 
 
 # ── SPEC-0097 §11 — the POST-exit-0 convergence verification (T-10510, X-0374) ───────────────────────
@@ -2619,7 +2650,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         else:
             _run_security_audit_seam(audit_plan, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
                                      deploy_env=deploy_env, _append_event=_append_event,
-                                     override=security_override)
+                                     override=security_override,
+                                     deploy_class=(gate.deploy_class if gate is not None else None))
 
     # For a rollback, pass the resolved target sha to the rollback command as a positional arg, so the
     # project script (e.g. `scripts/rollback.sh "$REV"`) knows WHAT to roll back to (AC1). The value is

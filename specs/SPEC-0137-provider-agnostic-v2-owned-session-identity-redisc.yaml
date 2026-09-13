@@ -30,7 +30,7 @@ implements: # durable anchors — the resolution + verify code this spec governs
   - bin/lib/cli.py#_try_resolve_session_ref
   - bin/lib/cli.py#_append_event
   - bin/lib/cli.py#SESSION_IDENTITY_REGISTRY
-  - bin/lib/cli.py#_run_verify_tests
+  - bin/lib/verify_wiring.py#_run_verify_tests
   - bin/lib/dispatch.py#_dispatch_worker_env
 
 body: |
@@ -75,7 +75,9 @@ body: |
   corrupt/foreign file in the record dir by SKIPPING it (never wedged by one bad file — trial finding P11).
   **CLOSED record schema (anti-creep, gate-trial F4 / plan-check F3):** a runtime record's ONLY permitted
   fields are `session_id`, a `pid` (liveness/locus discriminator), `locus_key`, optional `provider_meta`
-  (forensic-only, Rule 2.5), and an optional `isolated_verify` marker (Rule 6). ANY other session state is
+  (forensic-only, Rule 2.5), an optional `provider_session_id` (forensic-only, Rule 2.5 — the provider's
+  OWN session id, which NAMES the transcript; see the transcript-join paragraph in Rule 4), and an
+  optional `isolated_verify` marker (Rule 6). ANY other session state is
   FORBIDDEN — this is an identity record, NOT a general session-state store, NOT a durable corpus, and adds
   no journal expansion.
   **Bootstrap exemption + fail-closed-without-a-record (session-start-skipped defense).** `session start`
@@ -149,7 +151,18 @@ body: |
   resolve (`_journal_sync` on every verb) is likewise best-effort — it only LOCATES a transcript and
   fail-safes to INERT when none is found, so it too resolves via the envelope resolver and never fails
   closed a bootstrap/unbacked session (the explicit `journal sync --session-ref <id>` recovery path passes
-  its ref explicitly and keeps its own fail-closed-on-missing-log contract). **Gate-bearing emits are the exception that
+  its ref explicitly and keeps its own fail-closed-on-missing-log contract).
+  **Best-effort is not the same as INERT-BY-CONSTRUCTION.** Under Rule 1 a fresh interactive
+  session's identity is a MINTED uuid, which by construction names NO transcript — so for EVERY
+  interactive Controller, in every home, that current-session resolve found none and the auto-sync
+  materialized nothing at all, leaving every real owner turn to be hand-emitted. A fail-safe that can
+  never succeed is a dead path, not a graceful one. So on the IMPLICIT resolve ONLY — and only after the
+  v2 identity has failed to name a transcript — the locator retries with the ref that DOES name one, per
+  the transcript-join role in Rule 4. On a hit, the sync keys its checkpoint on the ref that LOCATED the
+  transcript, so the implicit path and the explicit `--session-ref <provider id>` recovery path share ONE
+  cursor over that file rather than keeping two. The explicit-ref contract, its fail-closed
+  `--session-ref` diagnostic, and the no-transcript-yet 0-row return are all UNCHANGED, and a session
+  with neither a live carrier nor a recorded provider id still returns 0 without dying. **Gate-bearing emits are the exception that
   proves the rule:** an emit that WRITES read-gate evidence (the `session_started` anchor, the seed-read /
   `--help` fetch receipts) passes an EXPLICIT strict/bootstrap `session_ref` — never the best-effort
   default — so the evidence the keyer later matches is written under the same authoritative id (Rule 1
@@ -184,6 +197,16 @@ body: |
   retired provider-precedence registry. (The SEPARATE transcript-join / context-epoch role of the
   provider carriers — `PROVIDER_CARRIERS` → the `~/<provider-config>/.../<id>.jsonl` transcript path — is UNAFFECTED;
   that is a diagnostic join key, never the identity, and this spec does not touch it.)
+  **The transcript-join role, named explicitly — a NON-identity role, and the ONLY one.** The
+  provider session id is used for exactly one thing: NAMING the transcript file, for the forensic
+  journal-sync join and the context epoch. It is read from the live provider carrier, else from the
+  `provider_session_id` recorded on the runtime record at birth (the Rule-2.5 forensic capture above, one
+  field over from `provider_meta` and consumed the same way — v2 STATE, not the live env, so a verb that
+  no longer carries the provider var still joins). NEITHER source is ever consulted by identity
+  resolution: `_resolve_session_ref` is provider-free, the resolution registry carries no provider
+  carrier, and a session whose provider id is absent resolves EXACTLY as before. The bound is what makes
+  this safe to state: a role that only names a FILE cannot become a resolution selector, because nothing
+  in the resolution path reads it — so recording the id does not reopen the coupling this rule removed.
 
   ### Rule 5 — Ambiguity / absence → FAIL-CLOSED [finding 1, the hard corner]
   When rediscovery finds MULTIPLE live records for one locus and NO distinct selector (the genuinely-hard
@@ -324,6 +347,6 @@ implements_signature:
   bin/lib/cli.py#_resolve_session_ref: a1ff02077dff58b2b28478d852fe4474acea893971edf5e460d62f55249d35e7
   bin/lib/cli.py#_resolve_session_ref_for_envelope: 66160831484eeec9813b8ee54881d9dd7c150f300bf78e4730d5744ab2f1577b
   bin/lib/cli.py#_resolve_session_ref_with_source: 5199e4cf40f4304c77772d2514aab04c7a11f776ca733cdb75696caa9b4aefdb
-  bin/lib/cli.py#_run_verify_tests: 75672a19fdb84e1b4318c40d1ac5507eec80a7af0ea94e9cb264f0e765318acf
   bin/lib/cli.py#_try_resolve_session_ref: a0b0c89d7a03dca5d501962473340f43ba896452422ca24d58ea59887ee44277
   bin/lib/dispatch.py#_dispatch_worker_env: cea5586d22914fdda73bf43726fd82993835704cab708e3a3f705a1c83015d12
+  bin/lib/verify_wiring.py#_run_verify_tests: d54826568608f0d6e0ecf9ddc577e730d90bb7402aaad5ed035c635e14caf8d3

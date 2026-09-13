@@ -190,9 +190,9 @@ implements_signature:
   bin/lib/cli.py#_session_log_path: 1e482b30962d0398cfa631ff18805a0cd867731a887cd38d3f2b7615602ccddb
   bin/lib/journal.py#_all_source_refs: a242993440672b44768e65eaf577ae17777c0f1e7d84a69edd3004ab5af59e54
   bin/lib/journal.py#_attachment_injection: 36123c7b5e90dabd76b3a1120afe6dd7ac2f2eca9fce06a991d836ae39d49ac0
-  bin/lib/journal.py#_classify_cc_entry: 931473c25fe4870f6e977f51ecc559d5f5f898afc49ef3b4feb9608fa3ad1cc5
+  bin/lib/journal.py#_classify_cc_entry: 7288bc23571a397549c2b3593aca565949df1cccbf87c6cd2faa9cc280c8cfc1
   bin/lib/journal.py#_governed_read_target: ea216608df0dcda04e3a6150ed10504855531fa09fa9d3bb4f02fd683a4ef469
   bin/lib/journal.py#_infer_directive_classification: ad052f641cfa111bfc6cc8ad632d60f2c81bc8265e527527e97a22d12d230ea1
-  bin/lib/journal.py#_journal_sync: 0200b24da899fc7fb42d4e87eec7a65317b29eddf38b91690d3e4cdc0d4438d8
+  bin/lib/journal.py#_journal_sync: f3e88c54eb708b894a1867bb89292d5e19a73d6ec40cbe57fdb3dc1f84f1936b
   bin/lib/journal.py#cmd_journal_sync: 4ff5d71ae0a362bb1e354b76795d563caa80b66b18517d7c6f29274bed04b358
   bin/lib/textutil.py#cap_text: bee40bd5f934c5e92b755939adc6aa90bfaff9fb29b0884460b5231d0417a2b9
