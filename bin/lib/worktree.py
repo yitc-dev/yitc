@@ -11111,6 +11111,7 @@ def _land_failure_attribution_probe(*a, **kw):
                        ("_land_red_isolation_entries", _land_red_isolation_entries),
                        ("_land_red_isolation_reproduced", _land_red_isolation_reproduced),
                        ("_consumer_verify_layer_key", _consumer_verify_layer_key),   # T-13107
+                       ("_subject_globs_would_skip", _subject_globs_would_skip),     # T-13449
     ):
         kw.setdefault(_k, _v)
     return batch_landing._land_failure_attribution_probe(*a, **kw)
@@ -11120,6 +11121,14 @@ def _land_failure_attribution_probe(*a, **kw):
 def _land_ambient_yitc_overrides(*a, **kw):
     """T-11524 host residue — the body now lives in `bin/lib/batch_landing.py#_land_ambient_yitc_overrides`."""
     return batch_landing._land_ambient_yitc_overrides(*a, **kw)
+
+
+@functools.wraps(batch_landing._land_attribution_unreachable_layers)
+def _land_attribution_unreachable_layers(*a, **kw):
+    """T-11524 host residue — the body lives in
+    `bin/lib/batch_landing.py#_land_attribution_unreachable_layers` (T-13449). Pure over its arguments
+    plus one read of the base tree it is handed, so it needs no host collaborator forwarding."""
+    return batch_landing._land_attribution_unreachable_layers(*a, **kw)
 
 
 @functools.wraps(batch_landing._land_attribution_quarantine_reason)
@@ -24831,6 +24840,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     # T-12358 — and the serialized-tail record, on identical terms (`"unknown"` when
                     # the envelope predates the key; homed in `remote_verify.fold_venue_load_sensitive`).
                     remote_verify.fold_venue_load_sensitive(verify_metrics)
+                    # T-13451 — and the BASE keys a local land's runner writes (test_file_count,
+                    # selection_ran_tests, worker_count, per_file_*, fail_class), folded from the routed
+                    # pass + the probe/box rows above, so the SPEC-0181 known-broken fold and the
+                    # form-(10) gate read a routed row as a local one. Homed in
+                    # `remote_verify.fold_venue_base_metrics`, which names the keys it leaves absent.
+                    remote_verify.fold_venue_base_metrics(verify_metrics, _venue_routed,
+                                                          _cand_file_durations, repo_root=W)
                     if _venue_routed["outcome"] == remote_verify.OUTCOME_INDETERMINATE:
                         # Rule 7 — NOT a test failure and NOT a pass. The land ABORTS on the venue
                         # class with `main` untouched and the worktree intact, and NO local re-run
@@ -25474,6 +25490,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             # subprocesses and taking them outside the governor would be the one unbounded verify
             # load. Costs seconds against the 420-560s a hand-diagnosis pays for the same answer.
             _attr = {"outcome": "undecidable", "reason": "not-probed"}
+            _attr_diff_inert = None
+            try:
+                _attr_diff_paths = list(_merged_tree_delta_paths(W, merged_base))
+                _attr_inert_verdict, _ = _classify_inert_paths(_attr_diff_paths)
+                _attr_diff_inert = _attr_inert_verdict == "inert"
+            except Exception:                  # noqa: BLE001 — no diff = no exemption (T-13449)
+                _attr_diff_paths = None
             if _admitted_slots:
                 _attr = _verify_under_admission(
                     main_wt, branch, _admitted_slots,
@@ -25494,7 +25517,11 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                         # T-13320 — a multi-member candidate is attributed to the BATCH, not to this
                         # head branch: the merge-base re-run cannot tell members apart.
                         batch_branches=[str((_m or {}).get("branch") or "") for _m in (batch_members or [])
-                                        if isinstance(_m, dict)]),
+                                        if isinstance(_m, dict)],
+                        # T-13449 — the candidate diff + the two authorities that say whether it can
+                        # reach a failing layer at all; an unreadable diff exempts nothing.
+                        diff_paths=_attr_diff_paths, diff_inert=_attr_diff_inert,
+                        _is_verify_implementation_touch=_is_verify_implementation_touch),
                     _append_event=_append_event, wait_out=admission_waits,
                     attempt=attempt, no_tests=not run_tests,
                     queued_since=_queued_since_seed)   # T-11681

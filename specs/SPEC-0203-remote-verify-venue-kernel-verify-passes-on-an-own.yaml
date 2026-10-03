@@ -903,4 +903,4 @@ implements_signature:
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
   bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77

@@ -76,10 +76,11 @@ body: "## Internal\n\nA **session-log adapter** materializes chat-class governan
   \ read, record `target` + `size` + `arrival` + presence; capture is EXTENDED to\
   \ COMMANDED /\nactual governed-doc reads (`_governed_read_target` gate) that were\
   \ previously dropped as tool-result\nnoise. OWNER-DIRECTIVE channel: drop command-wrappers\
-  \ / stdout / slash-command bodies (harness\nmachinery) and keep the owner's own\
-  \ text (credential shapes redacted at write, before the SPEC-0002\ncap — SPEC-0163\
-  \ §4e); best-effort `classification` (directive | question | stop |\ncorrection)\
-  \ — a LOOSE heuristic, never strict normalization (`_classify_cc_entry` /\n`_infer_directive_classification`).\n\
+  \ / stdout / slash-command bodies and the AI\ntool's own context-compaction summary\
+  \ (`isCompactSummary`) — harness machinery — and keep the owner's own text (credential\
+  \ shapes redacted at write, before the SPEC-0002\ncap — SPEC-0163 §4e); best-effort\
+  \ `classification` (directive | question | stop |\ncorrection) — a LOOSE heuristic,\
+  \ never strict normalization (`_classify_cc_entry` /\n`_infer_directive_classification`).\n\
   \nThe expected↔actual COMPLIANCE VIEW (join expected reads ↔ actual reads → \"obligatory\
   \ but NOT read\")\nis a PENDING forward capability (a query joining the journal's\
   \ actual-reads with the docs'\nrule-extraction importance), NOT yet an active rule\
@@ -174,7 +175,7 @@ implements_signature:
   bin/lib/cli.py#_session_log_path: 1e482b30962d0398cfa631ff18805a0cd867731a887cd38d3f2b7615602ccddb
   bin/lib/journal.py#_all_source_refs: 4b9df3902f89f4af7d344eb505f55a63dfa608a13a66a6e058f397fa70887044
   bin/lib/journal.py#_attachment_injection: c64f4a925626655a73f0d9d4075ab4d5870f01f982959de1ead284c9313b9caa
-  bin/lib/journal.py#_classify_cc_entry: 7288bc23571a397549c2b3593aca565949df1cccbf87c6cd2faa9cc280c8cfc1
+  bin/lib/journal.py#_classify_cc_entry: 9c95dbd8ca9bb47574876501a386b2a4f811524ae75fdbeef41a2e82f505c0ee
   bin/lib/journal.py#_governed_read_target: 0eb60a85601fad3bede9c0bd437bab1aabc5d6e572e483f9400b0ed8c75719a5
   bin/lib/journal.py#_infer_directive_classification: ad052f641cfa111bfc6cc8ad632d60f2c81bc8265e527527e97a22d12d230ea1
   bin/lib/journal.py#_journal_sync: 26f6cb1e7c439302f95898b7510b7f93662ab01302983ebff43436da99496e9d

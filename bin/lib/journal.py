@@ -263,6 +263,11 @@ def _classify_cc_entry(e: dict, *, _extract_text) -> str | None:
     # are NOT isMeta, so they still classify as slash_command below (no slash_command suppressed).
     if e.get("isMeta"):
         return None
+    # T-13447 (GitHub #26): the AI tool's own context-compaction summary arrives as a plain-string
+    # `user` entry flagged `isCompactSummary`. The owner never wrote it, so it must never be
+    # journaled — and thereby citable — as owner_directive. Machinery, like isMeta: drop it.
+    if e.get("isCompactSummary"):
+        return None
     content = e.get("message", {}).get("content")
     text = _extract_text(content).strip()
     if not text:

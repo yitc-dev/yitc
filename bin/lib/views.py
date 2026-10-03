@@ -6789,7 +6789,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                                  f"definition that no longer exists"
                                  + (f", stale since {_since}" if _since else "") + ")")
             _CAP = 4
-            _names = [str(c.get("check")) for c in _checks if c.get("check")]
+            # Each name carries the identity the carrier computes NOW (T-13445): the remedy row must quote it
+            # verbatim, and a wrong guess cannot be taken back out of the append-only journal.
+            _names = [str(c.get("check")) + (f" -> {c['definition_identity']}" if c.get("definition_identity") else "")
+                      for c in _checks if c.get("check")]
             _named = (" — " + ", ".join(_names[:_CAP]) +
                       (f" +{len(_names) - _CAP} more" if len(_names) > _CAP else "")) if _names else ""
             # NEAR-MISS clause (T-11178 / X-0921): when a row WAS emitted for one of these checks and
@@ -6803,7 +6806,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"debt: {uc} declared check(s) admitted UNPROVEN{_stale_clause}{_named} — no recorded "
                 f"failing demonstration, so nothing shows they can fail when their subject breaks "
                 f"(SPEC-0156). Break each one's subject deliberately, watch it go RED, then record "
-                f"`bin/yitc-v2 event check_admission_demonstrated`. See `bin/yitc-v2 debt`."
+                f"`bin/yitc-v2 event check_admission_demonstrated` with the definition_identity shown "
+                f"beside each check. See `bin/yitc-v2 debt`."
                 f"{_near_miss}")
     # RUNTIME-DELIVERY view (SPEC-0119 rule 16, T-10511 / X-0370): the OPTIONAL injected fold over the
     # carrier + the repo's compose bind-mounts + the not-adopted view ALREADY computed above

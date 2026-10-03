@@ -128,85 +128,89 @@ body: "## Scenario\n\nThe person says «ок, ставим внешнего». T
   \ does not re-trips it for another cool-down. While tripped, a\nreserve that does\
   \ not answer falls back to the primary once — the breaker only REORDERS the two\n\
   declared pairs, it never adds a judge and never turns a verdict into a refusal.\
-  \ N and the\ncool-down are the two SPEC-0193 performance keys `lib.audit.AUDITOR_BREAKER_THRESHOLD`\
-  \ and\n`lib.audit.AUDITOR_BREAKER_COOLDOWN_SECONDS`. The state is DERIVED from the\
-  \ journal rows the\nno-answer rate already counts — no store. The trip and the reset\
-  \ each journal ONE row per\ntransition (the deviation-capture carrier, a `transition_id`\
-  \ every racing audit derives identically — a reset\nnames the trip it clears in\
-  \ `trip_id` —\nappended under a lock), naming the tier, the window count and the\
-  \ owner of the auditor config — never\na row per audit; a trip that cannot be journaled\
-  \ exactly once is not acted on. Each completion row records THIS\ninvocation's tier\
-  \ and route (`auditor_tier`, `auditor_route`: primary | breaker), so the rule-4\n\
-  rate counts an audit the breaker routed to the reserve as neither a primary answer\
-  \ nor a miss, and a\nbreaker-routed audit neither pair answered as a primary miss.\
-  \ A tier with NO reserve never trips: its wait above is unchanged. The environment\n\
-  model override bypasses the breaker exactly as it bypasses both pairs.\n\nA SUBSTITUTION\
-  \ IS NEVER SILENT. The saved verdict records WHICH pair answered — the model, its\n\
-  effort, and whether it was the primary or the reserve — and the run journals the\
-  \ switch naming both\npairs. A verdict's authority rests on who produced it (CHARTER\
-  \ §P4a / SPEC-0201 rule 2); two\nverdicts from different judges must not read as\
-  \ interchangeable. The journaled rows reuse the\nexisting deviation-capture carrier:\
-  \ a primary that will not answer IS «something is not as it\nshould be», and capturing\
-  \ it is what makes the outage class countable. No new event type.\n\nPRECEDENCE\
-  \ is rule 3's, unchanged: the environment model override wins over BOTH pairs. Where\
-  \ the\noperator has named a model for this invocation the tier's declaration is\
-  \ bypassed entirely — there\nis no second pair to switch to AND no wait to enter,\
-  \ and that invocation's refusal stays exactly\nwhat it is today. Imposing the wait\
-  \ there would turn an explicit model pin into a hang.\n\nVALUES LIVE IN THE CONFIG,\
-  \ THE RULE LIVES HERE (CHARTER §P4b). This rule names NO model id and NO\neffort\
-  \ level. Every concrete value — each tier's primary pair and its optional reserve\
-  \ pair — is\nowner-editable data: the repo auditor-config file carries the shipped\
-  \ DEFAULTS, and the rule-1\nmachine binding overrides any HALF of either pair per\
-  \ machine, in the rule-3 order (environment →\nbinding → repo config), so either\
-  \ door switches without a repo edit. The code carries no\nliteral. Deleting a tier's\
-  \ reserve block (and binding no reserve model) is the supported way to\nchoose the\
-  \ wait. A reserve that resolves EQUAL to its primary is no second door: `config\
-  \ set` warns\non it and `audit status` names it.\n\nA RESERVE BELONGS TO ITS TIER'S\
-  \ CONFIGURED PROVIDER. It differs from the primary in model\nand effort only, so\
-  \ its model id is one the CONFIGURED provider (binding → repo config) serves.\n\
-  When the tier RESOLVES to a different provider — the environment provider override,\
-  \ or the\nSPEC-0201 same-provider admission on a machine where the configured one\
-  \ does not resolve — the\nreserve is DROPPED: the tier behaves as one that declares\
-  \ none (it waits on its primary; the\nbreaker never trips), and `audit status` prints\
-  \ the dropped pair with the reason. A model declared\nfor one provider is never\
-  \ launched on another.\n\nA PAIR RUNS ONLY ON A CLI THAT CAN SERVE IT. The check\
-  \ is PER ADAPTER: an auditor adapter\nthat carries it (today ONE adapter — the `invoke_codex`\
-  \ anchor above; another adapter gains it only by\nits own change, and until then\
-  \ runs unchecked) runs it before EVERY spawn — primary and reserve alike —\nchecking\
-  \ the resolved provider CLI's version against the minimum declared for the model\
-  \ it would run,\nread from the SAME per-model floor map that provider's dispatched\
-  \ workers use (SPEC-0072 rule 8):\none map, never a second, because a model's CLI\
-  \ floor belongs to the provider CLI and the model, not\nto the role running it.\
-  \ A CLI older than the floor — or one whose version cannot be read where a\nfloor\
-  \ exists — is a PRE-SPAWN REFUSAL naming the binary, its version and the minimum:\
-  \ no verdict,\nABORT class, never a RED. It is not a non-answer either: nothing\
-  \ was asked, so it neither switches\nto the reserve nor enters the wait. A model\
-  \ with no floor row is not checked. Floors are observed\nvalues, never guesses:\
-  \ each is the version the model was seen working on, reduced only on evidence.\n\
-  \n### Rule 5 — What this does NOT do\nNo install procedure for any provider (unregulated\
-  \ — owner directive 2026-09-06); no change to\n`config set`'s GATE refusal; no new\
-  \ store, no new file (the machine-settings file already exists,\nSPEC-0193 rule\
-  \ 3); no provider brand in this spec's normative sentences (CHARTER §P4b — adapter\
-  \ NAMES\nlive in SPEC-0036's config description and in `bin/audit-config.yaml`).\n\
-  \n## Parameters\nNone consumed (the binding keys are machine values read through\
-  \ `machine_settings.get_value`, never a\ngoverning scalar out of this spec).\n\n\
-  ## Rationale\nReal incidents: pre-claim refusal (2026-09-06) measured that the auditor\
-  \ binary is\nGATE-class today and `config set` refuses it — so a per-machine binding\
-  \ is impossible without this\nclass; the adopter probe measured audits ABORTing\
-  \ on this workshop's paths carried in the\nkernel config. Prior-art: SPEC-0193 (the\
-  \ file, the classes, the precedence), SPEC-0036 §Auditor\nselection (the three knobs\
-  \ + env), SPEC-0119/SPEC-0171 (the echo + re-fold shape) (PATH +\nnamed refusal).\
-  \ REMOVED (P1 F3): the implicit «external auditor = this workshop's binding»\nassumption;\
-  \ ADDED: one class value, one verb — the minimum that makes «три строки в одном\
-  \ файле»\ntrue.\n\n## Verification\n  bin/yitc-v2 config set auditor.routine.provider\
-  \ the AI provider # accepted (binding class); config_changed row\n  bin/yitc-v2\
-  \ config set auditor.full.reserve.model <m> # accepted (binding class); warns if\
-  \ = primary\n  bin/yitc-v2 config set auditor.routine.anything x # REFUSED (unclassified\
-  \ under auditor.* → GATE)\n  bin/yitc-v2 config list # shows the eight keys per\
-  \ tier with class=binding\n  bin/yitc-v2 audit status # resolved auditor per tier\
-  \ + independence + counts\n  # tripwires: a binding-file value is READ by resolve_*\
-  \ (differential: remove it → PATH/default);\n  # the hint prints when unbound and\
-  \ is silent when bound; bound model ≠ default → both named\n"
+  \ N is PER TIER\n: the FULL tier — every consult, every default or --full ad-hoc,\
+  \ every full gate audit —\ntrips on its FIRST miss (N=1, `lib.audit.AUDITOR_BREAKER_FULL_THRESHOLD`),\
+  \ the routine tier on its\nthird (N=3, `lib.audit.AUDITOR_BREAKER_THRESHOLD`); the\
+  \ trip is journaled AT the miss that reaches N,\nonce per open trip, so the next\
+  \ audit of that tier runs the reserve first. N and the cool-down\n(`lib.audit.AUDITOR_BREAKER_COOLDOWN_SECONDS`)\
+  \ are SPEC-0193 performance keys. The state is DERIVED from the journal rows the\n\
+  no-answer rate already counts — no store. The trip and the reset each journal ONE\
+  \ row per\ntransition (the deviation-capture carrier, a `transition_id` every racing\
+  \ audit derives identically — a reset\nnames the trip it clears in `trip_id` —\n\
+  appended under a lock), naming the tier, the window count and the owner of the auditor\
+  \ config — never\na row per audit; a trip that cannot be journaled exactly once\
+  \ is not acted on. Each completion row records THIS\ninvocation's tier and route\
+  \ (`auditor_tier`, `auditor_route`: primary | breaker), so the rule-4\nrate counts\
+  \ an audit the breaker routed to the reserve as neither a primary answer nor a miss,\
+  \ and a\nbreaker-routed audit neither pair answered as a primary miss. A tier with\
+  \ NO reserve never trips: its wait above is unchanged. The environment\nmodel override\
+  \ bypasses the breaker exactly as it bypasses both pairs.\n\nA SUBSTITUTION IS NEVER\
+  \ SILENT. The saved verdict records WHICH pair answered — the model, its\neffort,\
+  \ and whether it was the primary or the reserve — and the run journals the switch\
+  \ naming both\npairs. A verdict's authority rests on who produced it (CHARTER §P4a\
+  \ / SPEC-0201 rule 2); two\nverdicts from different judges must not read as interchangeable.\
+  \ The journaled rows reuse the\nexisting deviation-capture carrier: a primary that\
+  \ will not answer IS «something is not as it\nshould be», and capturing it is what\
+  \ makes the outage class countable. No new event type.\n\nPRECEDENCE is rule 3's,\
+  \ unchanged: the environment model override wins over BOTH pairs. Where the\noperator\
+  \ has named a model for this invocation the tier's declaration is bypassed entirely\
+  \ — there\nis no second pair to switch to AND no wait to enter, and that invocation's\
+  \ refusal stays exactly\nwhat it is today. Imposing the wait there would turn an\
+  \ explicit model pin into a hang.\n\nVALUES LIVE IN THE CONFIG, THE RULE LIVES HERE\
+  \ (CHARTER §P4b). This rule names NO model id and NO\neffort level. Every concrete\
+  \ value — each tier's primary pair and its optional reserve pair — is\nowner-editable\
+  \ data: the repo auditor-config file carries the shipped DEFAULTS, and the rule-1\n\
+  machine binding overrides any HALF of either pair per machine, in the rule-3 order\
+  \ (environment →\nbinding → repo config), so either door switches without a repo\
+  \ edit. The code carries no\nliteral. Deleting a tier's reserve block (and binding\
+  \ no reserve model) is the supported way to\nchoose the wait. A reserve that resolves\
+  \ EQUAL to its primary is no second door: `config set` warns\non it and `audit status`\
+  \ names it.\n\nA RESERVE BELONGS TO ITS TIER'S CONFIGURED PROVIDER. It differs from\
+  \ the primary in model\nand effort only, so its model id is one the CONFIGURED provider\
+  \ (binding → repo config) serves.\nWhen the tier RESOLVES to a different provider\
+  \ — the environment provider override, or the\nSPEC-0201 same-provider admission\
+  \ on a machine where the configured one does not resolve — the\nreserve is DROPPED:\
+  \ the tier behaves as one that declares none (it waits on its primary; the\nbreaker\
+  \ never trips), and `audit status` prints the dropped pair with the reason. A model\
+  \ declared\nfor one provider is never launched on another.\n\nA PAIR RUNS ONLY ON\
+  \ A CLI THAT CAN SERVE IT. The check is PER ADAPTER: an auditor adapter\nthat carries\
+  \ it (today ONE adapter — the `invoke_codex` anchor above; another adapter gains\
+  \ it only by\nits own change, and until then runs unchecked) runs it before EVERY\
+  \ spawn — primary and reserve alike —\nchecking the resolved provider CLI's version\
+  \ against the minimum declared for the model it would run,\nread from the SAME per-model\
+  \ floor map that provider's dispatched workers use (SPEC-0072 rule 8):\none map,\
+  \ never a second, because a model's CLI floor belongs to the provider CLI and the\
+  \ model, not\nto the role running it. A CLI older than the floor — or one whose\
+  \ version cannot be read where a\nfloor exists — is a PRE-SPAWN REFUSAL naming the\
+  \ binary, its version and the minimum: no verdict,\nABORT class, never a RED. It\
+  \ is not a non-answer either: nothing was asked, so it neither switches\nto the\
+  \ reserve nor enters the wait. A model with no floor row is not checked. Floors\
+  \ are observed\nvalues, never guesses: each is the version the model was seen working\
+  \ on, reduced only on evidence.\n\n### Rule 5 — What this does NOT do\nNo install\
+  \ procedure for any provider (unregulated — owner directive 2026-09-06); no change\
+  \ to\n`config set`'s GATE refusal; no new store, no new file (the machine-settings\
+  \ file already exists,\nSPEC-0193 rule 3); no provider brand in this spec's normative\
+  \ sentences (CHARTER §P4b — adapter NAMES\nlive in SPEC-0036's config description\
+  \ and in `bin/audit-config.yaml`).\n\n## Parameters\nNone consumed (the binding\
+  \ keys are machine values read through `machine_settings.get_value`, never a\ngoverning\
+  \ scalar out of this spec).\n\n## Rationale\nReal incidents: pre-claim refusal (2026-09-06)\
+  \ measured that the auditor binary is\nGATE-class today and `config set` refuses\
+  \ it — so a per-machine binding is impossible without this\nclass; the adopter probe\
+  \ measured audits ABORTing on this workshop's paths carried in the\nkernel config.\
+  \ Prior-art: SPEC-0193 (the file, the classes, the precedence), SPEC-0036 §Auditor\n\
+  selection (the three knobs + env), SPEC-0119/SPEC-0171 (the echo + re-fold shape)\
+  \ (PATH +\nnamed refusal). REMOVED (P1 F3): the implicit «external auditor = this\
+  \ workshop's binding»\nassumption; ADDED: one class value, one verb — the minimum\
+  \ that makes «три строки в одном файле»\ntrue.\n\n## Verification\n  bin/yitc-v2\
+  \ config set auditor.routine.provider the AI provider # accepted (binding class);\
+  \ config_changed row\n  bin/yitc-v2 config set auditor.full.reserve.model <m> #\
+  \ accepted (binding class); warns if = primary\n  bin/yitc-v2 config set auditor.routine.anything\
+  \ x # REFUSED (unclassified under auditor.* → GATE)\n  bin/yitc-v2 config list #\
+  \ shows the eight keys per tier with class=binding\n  bin/yitc-v2 audit status #\
+  \ resolved auditor per tier + independence + counts\n  # tripwires: a binding-file\
+  \ value is READ by resolve_* (differential: remove it → PATH/default);\n  # the\
+  \ hint prints when unbound and is silent when bound; bound model ≠ default → both\
+  \ named\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
@@ -227,12 +231,12 @@ init_concern: null
 implements_signature:
   bin/lib/audit.py#auditor_breaker_state: 5b2f450f764c274f3b637b088e7181dd303099b269d5aec6f85b0206ca3d2ee8
   bin/lib/audit.py#cmd_audit_status: 121286835030579d99f161b8d80008ac6e37b36568af162a796039d9ecb6fac4
-  bin/lib/audit.py#invoke_auditor_tiered: e7054fb36a9d9ef3b2ec0af2cd4790a881a8f819436b67ce5f66b360e60f1605
+  bin/lib/audit.py#invoke_auditor_tiered: 9bd397c3cafb7397e6cd9d998aebc8b80c21e8c4e2c888887a8c568e14a8f060
   bin/lib/audit.py#is_auditor_non_answer: 282c1f60c644dfad1ec00c5d2ec221f4e5bda0c7c5e9a6fa36143e07bca1d94c
   bin/lib/audit.py#resolve_audit_provider: 30abe5bd75660bb4925b7d9bdaf89deff28000a1e6cb4fdc77ffed1906ba228f
   bin/lib/audit.py#resolve_audit_reserve: a9e4bd6661203aac6480b53cb8b29cf8b1afe981bdc17ecf1ea82f45d882882e
   bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
   bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695
   bin/lib/cli.py#cmd_session_start: 4e24b37368d83b32bf2328f9d87cf27ef5919333d9376705d6fe2eb9e73f9409
-  bin/lib/machine_settings.py#INVENTORY: 7b4037efe0d97c811683f1e81dd340b61de6b440c96b56765523250ed2f0ccbc
+  bin/lib/machine_settings.py#INVENTORY: 9a2f58600834184ec5162f00f842b0102ebd44fb248c9f8b152c2e63e9d7224d
   bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310

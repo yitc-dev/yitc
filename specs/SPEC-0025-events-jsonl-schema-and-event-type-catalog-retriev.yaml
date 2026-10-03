@@ -1088,15 +1088,20 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ SPEC-0132 §2 fields (tmp/inode usage, fd/process pressure, serial-lane time) are\
   \ DEFERRED\nadditive fields (\"the fuller payload MAY follow\") — they are OMITTED\
   \ until a real capture site exists,\nnever written as a fabricated 0 (the no-fabricated-0s\
-  \ discipline).\nFour SELECTION fields ride alongside (SPEC-0181) — the per-land\
-  \ record of the affected-test\ndecision: `selection_rule_version` (str — the coverage-rule\
-  \ version the decision was made under, so\na later reading knows which rule produced\
-  \ it, and — since — which rows fall inside the\nauto-rollback's counting window),\
-  \ `selection_would_select` / `selection_would_omit` (int counts that\nSUM to `selection_discovered_count`\
-  \ — the decision accounts for the WHOLE enumeration, never a\nsubset) and `selection_full_suite_reason`\
-  \ (str or null — the ladder rung that forced a full-suite\ndecision; `null` ONLY\
-  \ when a real omission was earned, and an unmapped path is NAMED here as\n`unresolved-path:<path>`\
-  \ so the coverage map can be grown against evidence). PRESENT whenever\n`verify_metrics`\
+  \ discipline).\nA ROUTED land (SPEC-0203) FOLDS the venue pass + local-probe leg\
+  \ onto these SAME base keys\nwith the SAME meaning, from measured facts only (`bin/lib/remote_verify.py#fold_venue_base_metrics`);\n\
+  a base key the routed pass does not measure is ABSENT there, never a placeholder\
+  \ — which, and why,\nis named once beside the fold (`VENUE_ABSENT_BASE_KEYS`). Earlier\
+  \ routed rows are not backfilled.\nFour SELECTION fields ride alongside (SPEC-0181)\
+  \ — the per-land record of the affected-test\ndecision: `selection_rule_version`\
+  \ (str — the coverage-rule version the decision was made under, so\na later reading\
+  \ knows which rule produced it, and — since — which rows fall inside the\nauto-rollback's\
+  \ counting window), `selection_would_select` / `selection_would_omit` (int counts\
+  \ that\nSUM to `selection_discovered_count` — the decision accounts for the WHOLE\
+  \ enumeration, never a\nsubset) and `selection_full_suite_reason` (str or null —\
+  \ the ladder rung that forced a full-suite\ndecision; `null` ONLY when a real omission\
+  \ was earned, and an unmapped path is NAMED here as\n`unresolved-path:<path>` so\
+  \ the coverage map can be grown against evidence). PRESENT whenever\n`verify_metrics`\
   \ is.\nSINCE THE DECISION GOVERNS THE CANDIDATE LAND VERIFY — it is no longer a\
   \ record-only field\nset, and the shadow-boundary reading above is RETIRED. Three\
   \ fields carry that, and they are what\nmake the omission auditable off ONE row:\
@@ -1773,27 +1778,27 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   (the surfaced drowned assertion lines).\n`failure_attribution` (dict recorded /\
   \ persisted, SPEC-0181 §Known-broken-on-main) =\nWHOSE red this is. `_land_failure_attribution_probe`\
   \ re-runs ONLY the failing files at `merged_base`\n(main WITHOUT this branch's diff)\
-  \ and returns\n`{outcome, reason, failing, at_main, at_branch, quarantined}` — `outcome`\
-  \ a CLOSED five-value set\n(`main` | `branch` | `batch` | `mixed` | `undecidable`),\
-  \ `at_main` the `(file, assertion)` pairs the merge-base\nREPRODUCED and `at_branch`\
-  \ those it did not. `batch` is the no-reproduction verdict when the\ncandidate was\
-  \ a MULTI-MEMBER batch: the re-run diff was the whole merged batch, so the record\
-  \ adds\n`members` (the batch's branches) and names NO single member — before it,\
-  \ every member of one red batch\nrecorded `branch` for a red that was one member's\
-  \ own (bat-9d45572f875f, bat-1e3a3b5c6de7). A `mixed`\nrecord in a batch likewise\
-  \ carries `members`. A `[pinned/last-green] ` entry stays\n`undecidable`/`pinned-entry`\
-  \ BY DESIGN: reproducing it needs the pinned OVERLAY over a candidate subject,\n\
-  not a plain merge-base re-run, and a batch names a pinned culprit through `pinned-entry-attribution`.\
-  \ `quarantined` (list) is the THIRD bucket: pairs\nexcluded from the blame split\
-  \ entirely, attributed to NOBODY, and reported as such rather than\nsilently dropped.\
-  \ A pair enters it under a CONJUNCTION — the failing assertion DECLARES its own\n\
-  quarantine at its own site, in the `[attribution-quarantine: <removal condition>]`\
-  \ grammar the kernel\ncarries (`_land_attribution_quarantine_reason`), with a NON-EMPTY\
-  \ removal condition (an exemption with\nno named exit grants nothing); AND that\
-  \ same declaration is present in the MERGE-BASE's copy of that\nfile. The second\
-  \ half is a trust boundary, not a formality: the marker is read out of text the\
-  \ tree\nunder attribution authors, so without it a branch could quarantine its OWN\
-  \ new failing assertion and\nclear its own blame. Fail-closed on every unproven\
+  \ and returns\n`{outcome, reason, failing, at_main, at_branch, quarantined, unreachable}`\
+  \ — `outcome` a CLOSED five-value set\n(`main` | `branch` | `batch` | `mixed` |\
+  \ `undecidable`), `at_main` the `(file, assertion)` pairs the merge-base\nREPRODUCED\
+  \ and `at_branch` those it did not. `batch` is the no-reproduction verdict when\
+  \ the\ncandidate was a MULTI-MEMBER batch: the re-run diff was the whole merged\
+  \ batch, so the record adds\n`members` (the batch's branches) and names NO single\
+  \ member — before it, every member of one red batch\nrecorded `branch` for a red\
+  \ that was one member's own (bat-9d45572f875f, bat-1e3a3b5c6de7). A `mixed`\nrecord\
+  \ in a batch likewise carries `members`. A `[pinned/last-green] ` entry stays\n\
+  `undecidable`/`pinned-entry` BY DESIGN: reproducing it needs the pinned OVERLAY\
+  \ over a candidate subject,\nnot a plain merge-base re-run, and a batch names a\
+  \ pinned culprit through `pinned-entry-attribution`. `quarantined` (list) is the\
+  \ THIRD bucket: pairs\nexcluded from the blame split entirely, attributed to NOBODY,\
+  \ and reported as such rather than\nsilently dropped. A pair enters it under a CONJUNCTION\
+  \ — the failing assertion DECLARES its own\nquarantine at its own site, in the `[attribution-quarantine:\
+  \ <removal condition>]` grammar the kernel\ncarries (`_land_attribution_quarantine_reason`),\
+  \ with a NON-EMPTY removal condition (an exemption with\nno named exit grants nothing);\
+  \ AND that same declaration is present in the MERGE-BASE's copy of that\nfile. The\
+  \ second half is a trust boundary, not a formality: the marker is read out of text\
+  \ the tree\nunder attribution authors, so without it a branch could quarantine its\
+  \ OWN new failing assertion and\nclear its own blame. Fail-closed on every unproven\
   \ leg — an absent/unreadable base copy, a base\ncarrying no marker, or a path that\
   \ never reaches the base tree admits NOTHING — with the deliberate\nconsequence\
   \ that a quarantine takes effect from the land AFTER the one that declares it, so\
@@ -1805,24 +1810,35 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ an empty\nremainder would otherwise read as. Grounds : over 2026-08-27..28 one\
   \ racy assertion refused\nSIX distinct branches with a false `ATTRIBUTION: THIS\
   \ BRANCH`, and `task/` proved the verdict\nfalse by landing UNCHANGED 46 minutes\
-  \ after its own refusal. PRESENT ONLY on an abort whose probe\nproduced a record\
-  \ —\nadditive / P5-safe, guarded exactly as `verify_metrics` is, and an abort raised\
-  \ before the probe could\nrun carries none. The record is COMPLETE EVEN WHEN IT\
-  \ SAYS NOTHING (`undecidable` with a named reason),\nso \"the probe could not decide\"\
-  \ stays distinguishable from \"the probe never ran\". REPORT-ONLY: nothing\ngates\
-  \ on it, and an `outcome: main` land aborts exactly as loudly as any other. It became\
-  \ a PERSISTED\nkey at because it is the ESTABLISHING PAYLOAD of the known-broken-on-main\
-  \ fold\n(`debt.open_known_broken`, SPEC-0181): that fold reads `at_main` / `at_branch`\
-  \ from HERE and never the\nfirst-sight `failing_tests` / `failing_assertions` above,\
-  \ nor `verify_metrics.fail_class`. Before\n the record was computed on every red\
-  \ land and DROPPED by this emitter's key allow-list.\n`prequeue_known_broken` (dict,\
-  \ SPEC-0181 §Known-broken-on-main / SPEC-0119 rule 33) = the\nPRE-QUEUE KNOWN-BROKEN\
-  \ REFUSAL's own record — the COMPLEMENT of `failure_attribution` above, on the\n\
-  same row and by the same rules: that key records a land that DISCOVERED a break,\
-  \ this one a land\nREFUSED because of one already recorded.\n`{branch, pairs: [{pair,\
-  \ file, since, established_by, establishing_sha}], main, merge_base}` —\n`establishing_sha`\
-  \ is `null`, never a fabricated value, when main's history does not reach the\n\
-  establishing instant (the discipline). PRESENT ONLY on an abort raised by\n`_land_prequeue_known_broken_refusal`,\
+  \ after its own refusal. `unreachable` (list) is the\nFOURTH bucket, attributed\
+  \ to NOBODY on the same terms: a consumer verify-LAYER pair the merge-base\ndid\
+  \ NOT reproduce, whose layer the land's candidate diff provably cannot reach — the\
+  \ WHOLE diff is\nSPEC-0064-inert, or it touches no verify implementation and misses\
+  \ the layer's `subject_globs` AS\nDECLARED AT THE MERGE-BASE (never the branch's\
+  \ own copy, the same trust boundary as the quarantine).\nOne passing base run is\
+  \ not evidence against a diff that cannot touch the layer (GitHub #29: a flaky\n\
+  timing assertion blamed on a tasks-only branch). A layer declaring no globs, under\
+  \ an observable\ndiff, keeps the ordinary split; a test-FILE pair never enters it;\
+  \ a missing diff or predicate admits\nnothing. A red made ENTIRELY of such pairs\
+  \ is `undecidable`/`failing-layer-unreachable-from-diff`,\nand the land still ABORTS\
+  \ on it. PRESENT ONLY on an abort whose probe\nproduced a record —\nadditive / P5-safe,\
+  \ guarded exactly as `verify_metrics` is, and an abort raised before the probe could\n\
+  run carries none. The record is COMPLETE EVEN WHEN IT SAYS NOTHING (`undecidable`\
+  \ with a named reason),\nso \"the probe could not decide\" stays distinguishable\
+  \ from \"the probe never ran\". REPORT-ONLY: nothing\ngates on it, and an `outcome:\
+  \ main` land aborts exactly as loudly as any other. It became a PERSISTED\nkey at\
+  \ because it is the ESTABLISHING PAYLOAD of the known-broken-on-main fold\n(`debt.open_known_broken`,\
+  \ SPEC-0181): that fold reads `at_main` / `at_branch` from HERE and never the\n\
+  first-sight `failing_tests` / `failing_assertions` above, nor `verify_metrics.fail_class`.\
+  \ Before\n the record was computed on every red land and DROPPED by this emitter's\
+  \ key allow-list.\n`prequeue_known_broken` (dict, SPEC-0181 §Known-broken-on-main\
+  \ / SPEC-0119 rule 33) = the\nPRE-QUEUE KNOWN-BROKEN REFUSAL's own record — the\
+  \ COMPLEMENT of `failure_attribution` above, on the\nsame row and by the same rules:\
+  \ that key records a land that DISCOVERED a break, this one a land\nREFUSED because\
+  \ of one already recorded.\n`{branch, pairs: [{pair, file, since, established_by,\
+  \ establishing_sha}], main, merge_base}` —\n`establishing_sha` is `null`, never\
+  \ a fabricated value, when main's history does not reach the\nestablishing instant\
+  \ (the discipline). PRESENT ONLY on an abort raised by\n`_land_prequeue_known_broken_refusal`,\
   \ guarded on presence exactly as `verify_metrics` is, so every\nother abort row\
   \ is byte-unchanged (additive / P5-safe). It rides the EXISTING `corpus-integrity`\n\
   abort_class and the EXISTING `abort_preflight` shape: **no new event type enters\

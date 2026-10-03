@@ -577,4 +577,4 @@ implements_signature:
   bin/lib/session.py#session_epoch: 9de86dd52424e7ab717de755fe7d7efd6393e5621e20a243e44cdfdd0e3b40ff
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
   bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
-  bin/lib/task.py#cmd_task_commit: 82dba6d0bde3a11a313d6954ffd013dea3651b56dd8e0cf6c25b45f2472d7396
+  bin/lib/task.py#cmd_task_commit: d52e5309b3dd543695f7834278495eb8a091b878fa5ba01f9c47f7e28f25300f

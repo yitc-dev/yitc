@@ -108,17 +108,23 @@ AUDIT_TIMEOUT_SECONDS = 300          # 5 min hard timeout per codex invocation �
                                      # override knob below. T-11149 gave this constant a sibling
                                      # rather than raising it: raising it flat would have spent the
                                      # extra wall-clock on the 7671 gate runs that never needed it.
-AUDIT_FULL_TIMEOUT_SECONDS = 900     # T-13205 — the FULL-tier gate-audit default (T-13162 had it
-                                     # borrow the 540s inspection budget). A HANG GUARD, not a budget:
-                                     # this host's journal, audit_*_completed duration_ms at xhigh,
-                                     # reads audit-pre p95 451s / audit-post p95 600s, and the newcomer
-                                     # test server ran 342-432s — 540 clips that tail. Per machine:
+AUDIT_FULL_TIMEOUT_SECONDS = 2160    # T-13450 (was 900, T-13205) — the FULL-tier gate-audit default.
+                                     # DERIVED, the T-11149 headroom method on the same quantile: the
+                                     # routine budget 300 s over the routine primary p95 112.084 s
+                                     # (n=441) is 2.677x; the full-tier xhigh primary p95 803 s (n=116,
+                                     # successful external_audit_completed duration_ms, 2026-09-30..
+                                     # 10-03; p99 926, max 948 — right-censored at the old 900 wall)
+                                     # x 2.677 = 2149.6 -> ceil to the minute = 2160. Per machine:
                                      # `config set auditor.full.timeout <secs>` (SPEC-0202 rule 1).
 #: T-12233 — the CONSULT-packet bound, defaulting to today's effective whole-packet ceiling so the
 #: registered default IS the current behaviour. Read through `consult_packet_max_bytes`, never here.
 CONSULT_PACKET_MAX_BYTES = AUDIT_MAX_PACKET_BYTES
 
-AUDIT_INSPECTION_TIMEOUT_SECONDS = 540   # T-11149 (X-0576's unshipped half) — the INSPECTION-class
+AUDIT_INSPECTION_TIMEOUT_SECONDS = 1320  # T-13450 RE-DERIVED (was 540): inspection primary p95 473 s
+                                     # (n=523 successful ad-hoc/consult runs, 2026-09-03..10-03) x the
+                                     # routine headroom 2.677x = 1266.1 -> ceil to the minute = 1320.
+                                     # The T-11149 derivation below is the HISTORY of the 540 value.
+                                     # T-11149 (X-0576's unshipped half) — the INSPECTION-class
                                      # default: the open-ended corpus-reading consults (`audit adhoc`
                                      # sweeps + `audit consult` convergence runs), which are the runs
                                      # that were ABORTing on the flat 300s wall.
@@ -244,7 +250,7 @@ def _audit_timeout_seconds(consult_class: "str | None" = None) -> int:
     the class split must never silently shadow the operator's override (T-11149 AC2).
 
     `consult_class` (T-11149): AUDIT_INSPECTION_CONSULT_CLASS selects the INSPECTION default
-    (AUDIT_INSPECTION_TIMEOUT_SECONDS, 540s — see that constant for the measured derivation);
+    (AUDIT_INSPECTION_TIMEOUT_SECONDS, 1320s — see that constant for the measured derivation);
     ANYTHING else, including the None default, selects the ROUTINE one (AUDIT_TIMEOUT_SECONDS, 300s).
     Fail-safe by construction: a caller that passes nothing gets exactly the pre-T-11149 value, so
     every routine gate audit and plan-gate audit is byte-identical to before.
@@ -1157,6 +1163,10 @@ def _auditor_pair_row(append_event, fingerprint: str, impact: str, data: dict) -
 # event type), deduplicated by a transition id every racing reader derives identically. A tier with
 # NO reserve never trips: rule 6's wait is untouched. It only ever REORDERS the two declared pairs.
 AUDITOR_BREAKER_THRESHOLD = 3
+# T-13450 — the FULL tier (every consult, every default/--full ad-hoc, every full gate audit) trips on
+# its FIRST miss: a big audit's miss costs a whole long budget, so one is the cap per cool-down (owner
+# decision events.jsonl#ts=2026-10-03T13:46:39Z). The routine tier keeps 3.
+AUDITOR_BREAKER_FULL_THRESHOLD = 1
 AUDITOR_BREAKER_COOLDOWN_SECONDS = 3600
 AUDITOR_NO_ANSWER_WINDOW_DAYS = 7          # the K17-2 window, shared with `auditor_status`
 # T-13310 — the two journal readers `audit status` composes, each with its SPEC-0190 rule-4 horizon:
@@ -1189,7 +1199,9 @@ def _positive_setting(key: str, default: int) -> int:
     return val if val > 0 else default
 
 
-def auditor_breaker_threshold() -> int:
+def auditor_breaker_threshold(full: bool = False) -> int:
+    if full:
+        return _positive_setting("lib.audit.AUDITOR_BREAKER_FULL_THRESHOLD", AUDITOR_BREAKER_FULL_THRESHOLD)
     return _positive_setting("lib.audit.AUDITOR_BREAKER_THRESHOLD", AUDITOR_BREAKER_THRESHOLD)
 
 
@@ -1285,21 +1297,42 @@ def _auditor_config_owner(full: bool, env=None) -> dict:
 
 
 def _breaker_append(append_event, iter_events, events_path, transition_id: str, fingerprint: str,
-                    impact: str, data: dict) -> bool:
+                    impact: str, data: dict, *, open_trip_guard: bool = False,
+                    now: "float | None" = None) -> "str | None":
     """Append ONE trip/reset row ATOMICALLY: under a discriminated `-breaker` sidecar flock over the
     LOGICAL journal (the `trail_lock` / `redact_lock` placement — NOT `journal_lock`, which
     `append_event` takes and is not re-entrant), RE-READ the journal and append only when that
     transition id is absent, so racing audits that derived the SAME transition journal it once.
     There is NO unlocked fallback: without a lock target, or on any lock / read / append failure, it
     appends nothing and returns False — the caller then does not trip (today's primary-first path),
-    so a transition is either journaled exactly once or not acted on. True = the row is present."""
-    def _present() -> bool:
-        return any(isinstance(e, dict) and e.get("type") == "deviation_captured"
-                   and (e.get("data") or {}).get("transition_id") == transition_id
-                   for e in iter_events())
+    so a transition is either journaled exactly once or not acted on. Returns the transition id now
+    present (truthy), or None.
+
+    T-13450 `open_trip_guard` (a TRIP only): on the same fresh read, an un-reset in-window trip row for
+    the same (tier, provider, primary pair) already IS the trip — nothing is appended and ITS id is
+    returned, so an at-miss trip and a fold-time trip (or two racing misses) journal ONE row."""
+    def _scan() -> "tuple[bool, str | None]":
+        present, open_trips = False, {}
+        start = (time.time() if now is None else now) - AUDITOR_NO_ANSWER_WINDOW_DAYS * 86400
+        for e in iter_events():
+            if not isinstance(e, dict) or e.get("type") != "deviation_captured":
+                continue
+            d = e.get("data") or {}
+            if d.get("transition_id") == transition_id:
+                present = True
+            if not open_trip_guard or (d.get("tier"), d.get("provider"), d.get("primary")) != (
+                    data.get("tier"), data.get("provider"), data.get("primary")):
+                continue
+            ts = _parse_iso_ts(e.get("ts"))
+            if d.get("fingerprint") == AUDITOR_BREAKER_TRIP_FINGERPRINT and ts is not None and ts >= start:
+                open_trips.setdefault(d.get("transition_id"), True)
+            elif d.get("fingerprint") == AUDITOR_BREAKER_RESET_FINGERPRINT:
+                open_trips[d.get("trip_id")] = False
+        live = [t for t, is_open in open_trips.items() if is_open and t]
+        return present, (live[-1] if live else None)
 
     if events_path is None or not append_event:
-        return False
+        return None
     fd = None
     try:
         import fcntl
@@ -1308,14 +1341,18 @@ def _breaker_append(append_event, iter_events, events_path, transition_id: str, 
         fd = lockfile.open_flock_target(
             events_mod._journal_lock_path(resolved, events_mod.journal_lock_key(resolved), "-breaker"))
         fcntl.flock(fd, fcntl.LOCK_EX)
-        if not _present():
-            from lib import journal as _journal   # T-13020: engine self-telemetry provenance stamp
-            append_event("deviation_captured", None, _journal.kernel_self_telemetry({
-                "relates_to": "audit-auditor-pair-resolution", "impact": impact,
-                "fingerprint": fingerprint, "transition_id": transition_id, **data}))
-        return True
+        present, open_trip = _scan()
+        if present:
+            return transition_id
+        if open_trip:
+            return open_trip
+        from lib import journal as _journal   # T-13020: engine self-telemetry provenance stamp
+        append_event("deviation_captured", None, _journal.kernel_self_telemetry({
+            "relates_to": "audit-auditor-pair-resolution", "impact": impact,
+            "fingerprint": fingerprint, "transition_id": transition_id, **data}))
+        return transition_id
     except Exception:   # noqa: BLE001 — journaling never changes the audit's outcome
-        return False
+        return None
     finally:
         if fd is not None:
             os.close(fd)   # releases the advisory flock
@@ -1395,7 +1432,7 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
                 # read; `_breaker_append` below keeps the injected FRESH reader (it must see a peer).
                 st = auditor_breaker_state((breaker_rows or iter_events)(), tier=tier, provider=provider, model=model,
                                            effort=primary_effort, now=_now)
-                threshold, cooldown = auditor_breaker_threshold(), auditor_breaker_cooldown_seconds()
+                threshold, cooldown = auditor_breaker_threshold(full), auditor_breaker_cooldown_seconds()
                 if st["tripped_at"] is not None:
                     mode = "open" if _now < st["tripped_at"] + cooldown else "probe"
                 else:
@@ -1425,7 +1462,8 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
         _record(pair, _model, _kw.get("effort"))
         return _r
 
-    def _transition(fingerprint: str, transition_id: str, impact: str, extra: "dict | None" = None):
+    def _transition(fingerprint: str, transition_id: str, impact: str, extra: "dict | None" = None,
+                    guard: bool = False):
         r_model, r_effort = reserve
         return _breaker_append(append_event, iter_events, events_path, transition_id, fingerprint, impact, {
             "tier": tier, "provider": provider,
@@ -1433,7 +1471,7 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
             "reserve": {"model": r_model, "effort": r_effort},
             "window_count": st["window_count"], "threshold": threshold,
             "cooldown_seconds": cooldown, "window_days": AUDITOR_NO_ANSWER_WINDOW_DAYS,
-            "config_owner": _auditor_config_owner(full), **(extra or {})})
+            "config_owner": _auditor_config_owner(full), **(extra or {})}, open_trip_guard=guard, now=_now)
 
     def _reset(trip_id):
         _transition(AUDITOR_BREAKER_RESET_FINGERPRINT, _breaker_id(trip_id, "reset"),
@@ -1444,9 +1482,10 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
 
     if mode == "trip":
         trip_id = _breaker_id(tier, provider, model, primary_effort, st["streak_close"])
-        if not _transition(AUDITOR_BREAKER_TRIP_FINGERPRINT, trip_id,
-                           f"the tier's PRIMARY auditor pair missed {st['streak']} audits in a row; its "
-                           f"RESERVE runs first until the cool-down lapses"):
+        trip_id = _transition(AUDITOR_BREAKER_TRIP_FINGERPRINT, trip_id,
+                              f"the tier's PRIMARY auditor pair missed {st['streak']} audits in a row; its "
+                              f"RESERVE runs first until the cool-down lapses", guard=True)
+        if not trip_id:
             mode, route = "closed", "primary"   # a trip not journaled exactly once is not acted on
     if mode in ("open", "trip"):
         trip_id = st["trip_id"] if mode == "open" else trip_id
@@ -1505,6 +1544,13 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
             _transition(AUDITOR_BREAKER_TRIP_FINGERPRINT, _breaker_id(st["trip_id"], "retrip"),
                         "the tier's PRIMARY auditor pair failed its post-cool-down probe; its RESERVE "
                         "runs first for another cool-down", {"retrip_of": st["trip_id"]})
+        elif mode == "closed" and st["streak"] + 1 >= threshold:
+            # T-13450 — trip AT the miss that reaches the threshold (a full-tier first miss), not at
+            # the next audit's fold: ONE row, guarded against a racing peer's open trip.
+            _transition(AUDITOR_BREAKER_TRIP_FINGERPRINT,
+                        _breaker_id(tier, provider, model, primary_effort, st["streak_close"], "at-miss"),
+                        f"the tier's PRIMARY auditor pair missed {st['streak'] + 1} audit(s) in a row; its "
+                        f"RESERVE runs first until the cool-down lapses", guard=True)
         r_kw = dict(kw)
         r_kw["effort"] = r_effort
         p_rc, p_stderr = rc, stderr
@@ -8011,7 +8057,11 @@ def ceiling_decide_route(tid, stage, worktree) -> str:
               "yaml;print(hashlib.sha256(str(yaml.safe_load(open(glob.glob(sys.argv[1])[0]))"
               "[\"implementation_plan\"]).strip().encode()).hexdigest())' " + card)
     else:
-        ev = f"for `fix`, <ev> = the fix commit sha: git -C {wt} rev-parse HEAD"
+        # T-13448: the decide refuses any `--evidence` that is not a STRICT descendant of the audited
+        # commit, so an in-scope fix must be COMMITTED before its sha can be named.
+        ev = (f"for a residual you fix in scope: FIRST commit it (`task commit --fix-red` in {wt}), "
+              f"THEN <ev> = the sha of that NEW commit (a strict descendant of the audited commit): "
+              f"git -C {wt} rev-parse HEAD")
     return f"{route} ({ev})"
 
 
@@ -8069,7 +8119,12 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
         f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land, needs a CONTROLLER "
         f"DECISION per residual: {_fp_clause}. Record one `yitc-v2 audit decide` per fingerprint, then "
         f"re-dispatch; the worker resumes with `audit {stage} --task {tid} --on-decisions` "
-        f"(SPEC-0204 rules 2-3, SPEC-0103 §3)" + _residual_suffix)
+        f"(SPEC-0204 rules 2-3, SPEC-0103 §3)"
+        # T-13448: a post `fix` evidence must be a STRICT descendant of the audited commit.
+        + (". For a residual the worker fixes in scope it commits the fix FIRST (`task commit "
+           "--fix-red`) and names that sha in its pause next_action — `audit decide --disposition "
+           "fix --evidence` must be a strict descendant of the audited commit" if stage == "post" else "")
+        + _residual_suffix)
     emit_fn("bg_dispatch_halted", tid, data)
     # T-12647 (X-1458) — THE STDERR LINE NAMES THE IDS, from `fingerprints`: the SAME list object the
     # payload above got, which the caller folded ONCE from the ceiling row's audit record. Until this

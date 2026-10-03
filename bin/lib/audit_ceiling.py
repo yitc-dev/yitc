@@ -3492,7 +3492,14 @@ def _repo_path_tokens(text: str, REPO_ROOT=None) -> set:
     HONEST BOUND on the closed set `.,;:)"\'`: only `.` is actually REACHABLE here — the others are
     not in the path char class, so a match can never end in one (and `:` could not survive the
     locator strip anyway). They are stripped for uniformity, not because this lexer can meet them;
-    the outcome for those characters was already correct before this change."""
+    the outcome for those characters was already correct before this change.
+
+    A LOCATOR REMAINDER IS NEVER A SECOND PATH (T-13443, GitHub #20). `:` and `#` are NOT in the path
+    char class, so `tasks/T-X.yaml:implementation_plan.step7/probe_moments.AC4` lexed as TWO matches,
+    and the field-path half (a dot in its last segment) read as an authored path — part (1) then
+    refused a RED whose only cause was the card record. A match that starts right after a `:` / `#`
+    which itself sits exactly where the PREVIOUS match ended is the rest of that one `path:locator`
+    word, so it is skipped. A path after `: ` (with a space) or after prose is untouched."""
     root = None
     try:
         if REPO_ROOT is not None:
@@ -3502,7 +3509,13 @@ def _repo_path_tokens(text: str, REPO_ROOT=None) -> set:
     except Exception:      # noqa: BLE001 — an unreadable root just means the strict branch
         root = None
     out = set()
-    for m in _RED_CAUSE_PATH_RE.finditer(text or ""):
+    text = text or ""
+    prev_end = -1
+    for m in _RED_CAUSE_PATH_RE.finditer(text):
+        glued = m.start() >= 1 and text[m.start() - 1] in ":#" and m.start() - 1 == prev_end
+        prev_end = m.end()
+        if glued:
+            continue                          # the locator remainder of one `path:locator` word
         tok = _RED_CAUSE_LOCATOR_RE.sub("", m.group(0)).rstrip(".,;:)\"'").strip("/")
         if not tok or "/" not in tok:
             continue

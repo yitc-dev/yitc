@@ -15300,8 +15300,9 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # exact harm the pre-retirement refusal already named.
         #
         # WHAT REPLACES IT IS NOT A NARROWER COMMIT DOOR BUT A DIFFERENT SEQUENCE: the residual is
-        # DECIDED first (`audit decide --disposition fix` names the revision that will carry the
-        # change), and the ONE bounded `--on-decisions` pass then VERIFIES that fix. The commit stops
+        # DECIDED (`audit decide --disposition fix` names the ALREADY-COMMITTED fix revision — a
+        # strict descendant of the audited commit, so the in-scope fix is committed via `--fix-red`
+        # at the ceiling first, T-13448), and the ONE bounded `--on-decisions` pass then VERIFIES it. The commit stops
         # being something to smuggle past a ceiling and becomes the ordinary subject of a governed
         # pass. The refusal is upstream of any staging, so nothing is written.
         prior_fix_red = _count_audit_passes(tid, "post")

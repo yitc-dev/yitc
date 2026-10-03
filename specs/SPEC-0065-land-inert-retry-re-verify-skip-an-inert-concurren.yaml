@@ -125,4 +125,4 @@ proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77

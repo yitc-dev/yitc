@@ -100,7 +100,7 @@ routine:
 # model (SPEC-0202 rule 6 — owner decision recorded on). Requires the unconfined <external-auditor>.
 # WALL-CLOCK per tier (SPEC-0202 rule 1): a gate audit's hang guard resolves env
 # YITC_AUDIT_TIMEOUT_SECONDS -> the machine key `bin/yitc-v2 config set auditor.<tier>.timeout <secs>`
-# -> the shipped default (routine 300 s, full 900 s); `bin/yitc-v2 audit status` shows the value and layer.
+# -> the shipped default (routine 300 s, full 2160 s); `bin/yitc-v2 audit status` shows the value and layer.
 # xhigh runs longer: a CONSULT / adhoc run is capped by AUDIT_INSPECTION_TIMEOUT_SECONDS (a SPEC-0193
 # performance key — raise it per machine with `bin/yitc-v2 config set
 # lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS <secs>`), not the GATE audits' AUDIT_TIMEOUT_SECONDS.

@@ -233,4 +233,4 @@ implements_signature:
   bin/lib/profile.py#required_check_set: 0c48cde590be15b085207cca55f507dc59938e10b2b31ff5af09c7eeef752c2b
   bin/lib/profile.py#resolve_profile: bccb545615b89bd1d57454b1035ce80300006de598d39f47d393908ae5c77653
   bin/lib/profile.py#second_derivation_sites: aa77d3aa412aea4e1ed2b71990b3f2309888d4372b21d1860a2ca9ba3e146372
-  bin/lib/views.py#_render_debt_echo: 5a8a92d8276f6e1465f994ec81b4b1699df79ca343c6ffdf81495188f6eed654
+  bin/lib/views.py#_render_debt_echo: 1169d24eda22e5021dc6dc7ea0b02485a0333a0cad0f97018e196bbdb4efed89

@@ -1,6 +1,6 @@
-# Release v2.2.1
+# Release v2.2.2
 
-Source commit: `242b8c4c4a394c60f7fd9cb99cec6a4ebdc62d56`
+Source commit: `3d918914f1d43c71feb37710bb3a148d28c96ad4`
 
 ## Proposals this release answers
 
@@ -46,76 +46,17 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## What changed
 
-68 task(s) closed since the previous release tag, in close order:
+9 task(s) closed since the previous release tag, in close order:
 
-- T-13364 — Serve audit decide's whole-history own leg from the segment index instead of holding every journal row in memory (fix) — events.jsonl#ts=2026-10-02T09:34:47Z
-- T-13352 — Answer graph conformance's two whole-history journal report views from an index instead of a whole-journal fold (fix) — events.jsonl#ts=2026-10-02T09:37:10Z
-- T-13280 — State the X/Y/Z partial hand-off rules in SPEC-0205 and the spike-mode runbook (docs) — events.jsonl#ts=2026-10-02T10:16:14Z
-- T-13379 — Make the audit pre/post read gate fold the journal once on the refused path (1.5x, ~50 s, 4 GB) (refactor) — events.jsonl#ts=2026-10-02T11:16:30Z
-- T-13281 — Make the spike hint and the declared-spike land refusal state the SPEC-0205 route (fix) — events.jsonl#ts=2026-10-02T11:31:32Z
-- T-13371 — Make session start read each journal segment at most once and cut its peak memory (1.05x, 4.9 GB) (refactor) — events.jsonl#ts=2026-10-02T11:55:12Z
-- T-13381 — Serve audit post's whole-history journal readers from the segment index (fix) — events.jsonl#ts=2026-10-02T12:08:29Z
-- T-13366 — Make dispatch read each journal segment at most once (4.3x folds per segment measured) (refactor) — events.jsonl#ts=2026-10-02T12:09:34Z
-- T-13380 — Find why seven verbs peak at 1.4-7.7 GB resident memory and cut the worst (refactor) — events.jsonl#ts=2026-10-02T12:39:21Z
-- T-13390 — Point the SPEC-0145 record-at hint at security.audit, the place the sweep reads (fix) — events.jsonl#ts=2026-10-02T13:04:22Z
-- T-13384 — Install the /yitc-projects start command at release install and let it create the first project (fix) — events.jsonl#ts=2026-10-02T13:05:46Z
-- T-13282 — Print two advisory stand-role lines in deploy from one pure tolerant role reader (feature) — events.jsonl#ts=2026-10-02T13:30:04Z
-- T-13388 — Keep init --dry-run from writing the journal by exempting it from the CLI journal auto-sync (fix) — events.jsonl#ts=2026-10-02T13:37:32Z
-- T-13382 — Make the release identity guard catch registered names inside compound tokens and in the publish commit identity (fix) — events.jsonl#ts=2026-10-02T13:53:19Z
-- T-13389 — Make the bootstrap-order engine pin template name the local mirror clone path, and check what a resolved pin bakes into project files (fix) — events.jsonl#ts=2026-10-02T13:54:14Z
-- T-13373 — Give the followup verbs (list, drop, unarm, show) a horizon-bounded or indexed journal read (1.4 GB, whole history) (refactor) — events.jsonl#ts=2026-10-02T14:04:37Z
-- T-13368 — Make stage read each journal segment at most once and only within its horizon (2.1x measured) (refactor) — events.jsonl#ts=2026-10-02T14:13:31Z
-- T-13372 — Bound task file's journal read to a declared horizon instead of whole history (12 s of reads) (refactor) — events.jsonl#ts=2026-10-02T14:16:57Z
-- T-13369 — Make worktree new read each journal segment at most once (2.0x measured) (refactor) — events.jsonl#ts=2026-10-02T14:16:58Z
-- T-13392 — Stop dispatched workers paying a read-gate refusal round trip after discarding a stage bundle or truncating a contract fetch (fix) — events.jsonl#ts=2026-10-02T14:27:55Z
-- T-13393 — Exclude the filing checkout's own branch from the in-flight intent overlap advisory under -C (fix) — events.jsonl#ts=2026-10-02T16:33:52Z
-- T-13394 — Split newcomer station [L] by host state so it tells the truth where no kernel is registered (docs) — events.jsonl#ts=2026-10-02T16:47:38Z
-- T-13403 — State at session handoff write when a hand-off may be written and that it is not re-written while work continues (fix) — events.jsonl#ts=2026-10-02T17:02:21Z
-- T-13385 — Install the start command for every AI tool from an extendable tool list — the AI tool and <external-auditor> by default, more per machine without a card (fix) — events.jsonl#ts=2026-10-02T17:29:13Z
-- T-13283 — Rewrite onboarding, README and the org page in the DEV and ACCEPTANCE stand words (docs) — events.jsonl#ts=2026-10-02T17:31:15Z
-- T-13395 — Say in a consumer session that a read-amplified seam is the kernel's cost, not a BLOCKING item of the project (fix) — events.jsonl#ts=2026-10-02T17:47:36Z
-- T-13397 — Refuse worktree park while a spike sandbox serves live code from that worktree (fix) — events.jsonl#ts=2026-10-02T18:02:19Z
-- T-13396 — Make the dispatch watch loop read only the appended journal tail per poll instead of re-folding it (fix) — events.jsonl#ts=2026-10-02T18:08:37Z
-- T-13400 — Give audit pre past a GREEN ceiling row one route to re-audit a Controller-amended plan (fix) — events.jsonl#ts=2026-10-02T18:22:12Z
-- T-13410 — Make a box leg's `session start` receipt-only by recognising a linked checkout of a bare clone that has no main checkout (fix) — events.jsonl#ts=2026-10-02T18:51:46Z
-- T-13409 — Exclude the archive segments land's JSON gate already proved from its conflict-marker grep, and fail closed when that grep errors (fix) — events.jsonl#ts=2026-10-02T19:13:02Z
-- T-13411 — Run the merged-base runner on the remote pinned leg and validate each leg against its own runner digest (fix) — events.jsonl#ts=2026-10-02T19:52:11Z
-- T-13386 — Give the agent one start order and a guide to the clean-machine pitfalls, and answer in the person's language (fix) — events.jsonl#ts=2026-10-02T19:52:16Z
-- T-13398 — Journal a deploy that changed production and then failed its gate or was interrupted (fix) — events.jsonl#ts=2026-10-02T20:17:32Z
-- T-13374 — Bound grants trail's journal read to a declared horizon or the index (7 s whole history) (refactor) — events.jsonl#ts=2026-10-02T22:24:34Z
-- T-13415 — Take the land reservation before a queue-jump mark commits to main, so the mark never discards a mid-verify land (fix) — events.jsonl#ts=2026-10-02T22:35:05Z
-- T-13417 — Cut a derived scenario id at a word boundary and let scenario new take an explicit --slug (fix) — events.jsonl#ts=2026-10-02T23:05:29Z
-- T-13412 — Make validate_envelope classify a remote leg whose runner raised as INDETERMINATE venue-fault, never GREEN (fix) — events.jsonl#ts=2026-10-02T23:13:31Z
-- T-13418 — Tell helper subagents of a started session to skip the born adapter's start routine (fix) — events.jsonl#ts=2026-10-02T23:39:21Z
-- T-13378 — Bound audit canary-backstop's journal read to a declared horizon (whole history) (refactor) — events.jsonl#ts=2026-10-03T00:12:03Z
-- T-13376 — Bound profile's journal read to a declared horizon or the index (whole history) (refactor) — events.jsonl#ts=2026-10-03T00:36:27Z
-- T-13408 — Make land's post-ff evidence-custody report read the committed journal once and only from the counted rows' earliest date (custody measured at 40-58 s per task land) (fix) — events.jsonl#ts=2026-10-03T00:38:13Z
-- T-13413 — Run the rule-8 local-probe leg concurrently with the venue box legs instead of after them (fix) — events.jsonl#ts=2026-10-03T00:59:42Z
-- T-13419 — Make audit pre's RED-verdict exit read each journal segment at most once (249 folds, 7.4 GiB measured) (refactor) — events.jsonl#ts=2026-10-03T01:22:20Z
-- T-13370 — Make worktree sweep read each journal segment once within a declared horizon (1.2x, whole history) (refactor) — events.jsonl#ts=2026-10-03T01:28:21Z
-- T-13416 — Resolve a same-second ts locator to its one citable row and stop suggesting an unrelated row as from (fix) — events.jsonl#ts=2026-10-03T01:53:58Z
-- T-13420 — Bound audit post --plan's journal read to a declared horizon or the index (whole history, 4.7 GiB measured) (refactor) — events.jsonl#ts=2026-10-03T01:55:29Z
-- T-13407 — Decide the fail-closed edge before deriving the coverage map in _shadow_select, and record each box leg's post-run seconds (fix) — events.jsonl#ts=2026-10-03T01:58:39Z
-- T-13375 — Bound memory consume and memory seed journal reads (whole history, 1.0-3.6 GB) (refactor) — events.jsonl#ts=2026-10-03T05:24:01Z
-- T-13426 — Remove the stale DRAFT sentence and the principle-N placeholder cite from active SPEC-0171 (fix) — events.jsonl#ts=2026-10-03T06:15:51Z
-- T-13365 — Make land read each journal segment at most once (8.5x folds per segment measured) (refactor) — events.jsonl#ts=2026-10-03T06:38:06Z
-- T-13434 — Align SPEC-0005 rule 7 with the graph dangling check — implements alone no longer declares delivery (fix) — events.jsonl#ts=2026-10-03T06:45:32Z
-- T-13425 — Scope the AGENTS manifest paragraph's assembled-view note to the Worker and list AGENTS.md in the numbered read-order (fix) — events.jsonl#ts=2026-10-03T06:46:36Z
-- T-13430 — Let a post-ceiling card-only repair close by making audit decide and audit post --on-decisions name the same subject (fix) — events.jsonl#ts=2026-10-03T06:47:07Z
-- T-13422 — Deliver each seed spec at session start as a one-sentence cue plus a pointer instead of a bare title (fix) — events.jsonl#ts=2026-10-03T07:19:17Z
-- T-13427 — Keep file paths and URLs intact when the release view strips provider names, and check named paths exist (fix) — events.jsonl#ts=2026-10-03T07:24:51Z
-- T-13428 — Build the shipped graph index from the redacted release sources so index and spec agree (fix) — events.jsonl#ts=2026-10-03T07:24:52Z
-- T-13429 — Refresh an unmodified engine-written /yitc-projects command on release install and update (fix) — events.jsonl#ts=2026-10-03T07:31:17Z
-- T-13433 — Journal the AI tool auto-attached release-view AGENTS.md and stop a consumer start reading it a second time (fix) — events.jsonl#ts=2026-10-03T08:06:56Z
-- T-13431 — Make an unbound echo of a decided ceiling residual loud instead of a silent fresh RED (fix) — events.jsonl#ts=2026-10-03T08:07:51Z
-- T-13377 — Bound work commit's journal read to a declared horizon (whole history, 6 s) (refactor) — events.jsonl#ts=2026-10-03T08:23:19Z
-- T-13432 — Bound how many Stage-6 suites run at once on the published verify venue (infra) — events.jsonl#ts=2026-10-03T09:07:01Z
-- T-13436 — Stop the venue admission wait from consuming a Stage-6 leg's execution timeout (fix) — events.jsonl#ts=2026-10-03T09:17:04Z
-- T-13435 — End the session-start report with a startup-done line and mark every non-seed echo line report-only, owner-cued or on-demand (fix) — events.jsonl#ts=2026-10-03T10:05:48Z
-- T-13438 — Let task update --awaits set parked_awaits on an already-parked card as a field repair (fix) — events.jsonl#ts=2026-10-03T11:43:03Z
-- T-13439 — Let a governed deploy's passing security probe keep the land floor's probe verdict fresh (fix) — events.jsonl#ts=2026-10-03T12:15:57Z
-- T-13441 — Carry venue pre-ship to main with the AC3 shipped-identity check validating merge parentage (infra) — events.jsonl#ts=2026-10-03T12:53:55Z
-- T-13440 — Carry land-proof archive passes to main with AC3's threat model bounded to honest engine drift (infra) — events.jsonl#ts=2026-10-03T13:02:30Z
+- T-13447 — Never journal the AI tool's context-compaction summary as an owner directive (fix) — events.jsonl#ts=2026-10-03T14:10:48Z
+- T-13444 — Skip host-registry registration when init runs in a linked task worktree (fix) — events.jsonl#ts=2026-10-03T14:20:20Z
+- T-13448 — Tell a halted worker to commit an in-scope fix before the Controller records audit decide fix (fix) — events.jsonl#ts=2026-10-03T14:41:16Z
+- T-13446 — Name the real cause when the born-permissive charter guard fails closed (fix) — events.jsonl#ts=2026-10-03T14:42:09Z
+- T-13451 — Fill the base verify_metrics fields on routed (remote-venue) land rows from the venue envelope (infra) — events.jsonl#ts=2026-10-03T14:59:22Z
+- T-13443 — Read a path-colon-locator RED cause as one card locator so card-repair admits a card-only RED (fix) — events.jsonl#ts=2026-10-03T15:12:59Z
+- T-13450 — Give the primary auditor a measured longer budget on big audits and trip the reserve breaker on the first big-audit miss (infra) — events.jsonl#ts=2026-10-03T15:14:29Z
+- T-13445 — Print each unproven declared check's current definition_identity where the debt line names it (fix) — events.jsonl#ts=2026-10-03T15:38:22Z
+- T-13449 — Stop land blaming the branch on one passing merge-base re-run when its diff cannot touch the failing layer (fix) — events.jsonl#ts=2026-10-03T15:59:08Z
 
 ## Trust surfaces
 

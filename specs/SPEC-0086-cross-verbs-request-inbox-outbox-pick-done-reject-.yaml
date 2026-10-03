@@ -751,46 +751,50 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ says so in one line — a directly-run test file or a hand probe (neither carries\n\
   the harness guard) otherwise leaked 31 `/tmp` entries into the live list on 2026-09-28.\
   \ A named\n`$YITC_REGISTRY` still registers a temp-dir project there; a project\
-  \ outside the temp dir is unchanged.\n\n### 6f. Project picker — a read-only view\
-  \ over the registry\n`bin/yitc-v2 session pick` shows a person the projects on this\
-  \ machine, numbered, in plain words, and\non their choice (a number or a name, given\
-  \ as an argument or typed once at an interactive prompt)\nenters that project and\
-  \ runs its own existing `session start` — nothing else. Three properties, each\n\
-  tested:\n  (a) **A VIEW, never a second list.** It reads the registry through the\
-  \ ONE reader the nightly uses\n      (`_v2_projects`); it owns no project list and\
-  \ never writes the registry — rule 6e's `init` stays\n      its only writer. The\
-  \ list always ends with a **new project** entry; choosing it starts nothing and\
-  \ writes nothing — it prints the bootstrap-order I4 order (folder + `git init`,\
-  \ `session start`, then `init`), and the command in (d) runs that order after asking\
-  \ a name restricted to one lowercase path segment.\n  (b) **It writes nothing itself.**\
-  \ A list-only run, or a choice that matches nothing (exit 2, nothing\n      started),\
-  \ leaves the registry and every journal byte-identical: the verb carries no invocation\n\
-  \      marker and is a member of the zero-write-view clause beside `nightly --status`\
-  \ (no auto-sync, no\n      seed-gate refusal row) — a newcomer runs it before any\
-  \ session exists. The only writes are those\n      of the chosen project's own `session\
-  \ start`, in that project.\n  (c) **One start path.** The chosen project is started\
-  \ by the same `session start` a person would\n      type (`-C <folder>` form), so\
-  \ its visible start line (SPEC-0125) is the one they.\n  (d) **Reachable from the\
-  \ home folder.** `release install` (after a verified copy, ending\n      with one\
-  \ plain next-step line naming the command) and `init`, at the host-registration\
-  \ seam, install ONE\n      user-level command `/yitc-projects` in the adopter's\
-  \ AI tool (a provider-adapter table in\n      `bin/lib/init.py` maps each tool to\
-  \ its command folder), ONLY if absent — an existing file is\n      reported and\
-  \ left byte-identical — and under the registry write's own test/temp-dir guards.\
-  \ Its\n      body runs `<engine-absolute>/bin/yitc-v2 session pick`, then the chosen\
-  \ project's start in the same\n      session, tells the AI to answer in the person's\
-  \ language, and ends with the ONE start order\n      : to start, restart or come\
-  \ back, open the AI tool in any folder (or clear the open\n      session) and run\
-  \ the command again — never a relaunch in the project folder, which the engine does\n\
-  \      not need (it finds the session record by session id in any folder). The\n\
-  \      non-interactive hint names the engine-absolute path. No in-project command,\
-  \ no hooks.\n\n### 7. Receiver-side premise review — before any pick / resolves_cross\
-  \ association\nThe intake hygiene of rule 1 checks a request's SHAPE (already-addressed\
-  \ staleness · wrong-address\nrelevance). Its central CLAIM is checked by nothing:\
-  \ X-0297 arrived asserting a parity gap the kernel\nhad ALREADY closed (pre-report),\
-  \ and only ad-hoc Controller discipline caught it\n(deviation `cross-intake-lacks-receiver-side-premise-review`).\
-  \ This rule closes that gap.\n\n**The trigger is the SEMANTIC transition, not a\
-  \ command list.** BEFORE any operation that creates a\ncross **pick** or a **`resolves_cross`\
+  \ outside the temp dir is unchanged.\n**A linked worktree is not a project either\
+  \ :** when `git rev-parse --git-dir` differs from\n`--git-common-dir`, `init` adds\
+  \ nothing to the host list (named `$YITC_REGISTRY` or not) and says so in\none line\
+  \ — the main checkout is the project, and a worktree's entry dangled once `land`\
+  \ removed it.\n\n### 6f. Project picker — a read-only view over the registry\n`bin/yitc-v2\
+  \ session pick` shows a person the projects on this machine, numbered, in plain\
+  \ words, and\non their choice (a number or a name, given as an argument or typed\
+  \ once at an interactive prompt)\nenters that project and runs its own existing\
+  \ `session start` — nothing else. Three properties, each\ntested:\n  (a) **A VIEW,\
+  \ never a second list.** It reads the registry through the ONE reader the nightly\
+  \ uses\n      (`_v2_projects`); it owns no project list and never writes the registry\
+  \ — rule 6e's `init` stays\n      its only writer. The list always ends with a **new\
+  \ project** entry; choosing it starts nothing and writes nothing — it prints the\
+  \ bootstrap-order I4 order (folder + `git init`, `session start`, then `init`),\
+  \ and the command in (d) runs that order after asking a name restricted to one lowercase\
+  \ path segment.\n  (b) **It writes nothing itself.** A list-only run, or a choice\
+  \ that matches nothing (exit 2, nothing\n      started), leaves the registry and\
+  \ every journal byte-identical: the verb carries no invocation\n      marker and\
+  \ is a member of the zero-write-view clause beside `nightly --status` (no auto-sync,\
+  \ no\n      seed-gate refusal row) — a newcomer runs it before any session exists.\
+  \ The only writes are those\n      of the chosen project's own `session start`,\
+  \ in that project.\n  (c) **One start path.** The chosen project is started by the\
+  \ same `session start` a person would\n      type (`-C <folder>` form), so its visible\
+  \ start line (SPEC-0125) is the one they.\n  (d) **Reachable from the home folder.**\
+  \ `release install` (after a verified copy, ending\n      with one plain next-step\
+  \ line naming the command) and `init`, at the host-registration seam, install ONE\n\
+  \      user-level command `/yitc-projects` in the adopter's AI tool (a provider-adapter\
+  \ table in\n      `bin/lib/init.py` maps each tool to its command folder), ONLY\
+  \ if absent — an existing file is\n      reported and left byte-identical — and\
+  \ under the registry write's own test/temp-dir guards. Its\n      body runs `<engine-absolute>/bin/yitc-v2\
+  \ session pick`, then the chosen project's start in the same\n      session, tells\
+  \ the AI to answer in the person's language, and ends with the ONE start order\n\
+  \      : to start, restart or come back, open the AI tool in any folder (or clear\
+  \ the open\n      session) and run the command again — never a relaunch in the project\
+  \ folder, which the engine does\n      not need (it finds the session record by\
+  \ session id in any folder). The\n      non-interactive hint names the engine-absolute\
+  \ path. No in-project command, no hooks.\n\n### 7. Receiver-side premise review\
+  \ — before any pick / resolves_cross association\nThe intake hygiene of rule 1 checks\
+  \ a request's SHAPE (already-addressed staleness · wrong-address\nrelevance). Its\
+  \ central CLAIM is checked by nothing: X-0297 arrived asserting a parity gap the\
+  \ kernel\nhad ALREADY closed (pre-report), and only ad-hoc Controller discipline\
+  \ caught it\n(deviation `cross-intake-lacks-receiver-side-premise-review`). This\
+  \ rule closes that gap.\n\n**The trigger is the SEMANTIC transition, not a command\
+  \ list.** BEFORE any operation that creates a\ncross **pick** or a **`resolves_cross`\
   \ association**, the RECEIVER verifies the request's central claim\nagainst its\
   \ OWN CURRENT state. The request TEXT is the FROZEN original ask — evidence of what\
   \ a peer\nbelieved when they filed it, never evidence of what is true now. Naming\

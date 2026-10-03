@@ -590,7 +590,7 @@ implements_signature:
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
   bin/lib/verify_runner.py#cmd_verify_durations: 73d8b1d8a0ed7ffc2aad8f64da5dfb4b2a1daf07a70f3f8cb41d591dc857391f
   bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
-  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
   bin/lib/worktree.py#_refresh_verify_duration_table: 315be956d48c30a142a2b37a16115f1653b1f9096616292265ff2ec31b46e757
   bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
   bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52

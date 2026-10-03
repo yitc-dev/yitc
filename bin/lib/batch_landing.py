@@ -1384,6 +1384,18 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
                      "failure — it says only that this red is not evidence about this branch's diff. "
                      "The removal condition above is the declared exit; when it is met, delete the "
                      "declaration.\n\n")
+    # T-13449 — a layer red the diff cannot reach is attributed to NOBODY and that is SAID, before the
+    # `undecidable` early-return for the same reason the quarantine lead is: the commonest case is a
+    # red made entirely of such pairs, which is `undecidable` by construction.
+    _u = [p for p in ((rec or {}).get("unreachable") or []) if str(p).strip()]
+    if _u:
+        _q_lead += ("ATTRIBUTION: NOT THIS BRANCH'S DIFF — likely flaky. The failing layer assertion(s) "
+                    "below passed at the merge-base, but this branch's diff cannot reach their layer "
+                    "(the diff is wholly inert, or misses the layer's subject_globs as declared at the "
+                    "merge-base), so one passing base run is not evidence against this branch:\n- "
+                    + "\n- ".join(_u)
+                    + "\nTHE LAND STILL ABORTS ON THEM — re-land to re-run the layer; if it fails again, "
+                      "the layer itself is unstable.\n\n")
     if outcome not in _LAND_ATTRIBUTION_OUTCOMES or outcome == "undecidable":
         return _q_lead
     if outcome == "main":
@@ -3943,6 +3955,35 @@ def _land_drop_dead_members(members: "list[dict]", *, _append_event,
 # FAILED (exit N): ...`), read on the merge-base re-run to tell a launch failure (126/127) from a red.
 _BASE_LAYER_EXIT_RE = re.compile(r"^land\(consumer\): verify layer .+? FAILED \(exit (-?\d+)\): ")
 
+def _land_attribution_unreachable_layers(base_tree: "Path | None", layer_names: list, diff_paths, *,
+                                         diff_inert: "bool | None" = None,
+                                         _is_verify_implementation_touch=None,
+                                         _subject_globs_would_skip=None) -> set:
+    """T-13449 — the failing layer names this land's diff provably CANNOT reach. Pure over its inputs
+    plus one read of the MERGE-BASE tree's `yitc-ops.yaml`. FAIL-CLOSED TO THE EMPTY SET: no layer, no
+    diff, an unreadable diff shape, a missing predicate, or any predicate that raises exempts nothing,
+    which is today's behaviour. (a) a wholly inert diff (`diff_inert is True`, the caller's verdict
+    from the SPEC-0064 authority) reaches no layer; (b) otherwise a layer is
+    unreachable only when the diff touches no verify implementation AND its base-declared
+    `subject_globs` are disjoint from the diff — an undeclared glob list is never disjoint."""
+    if not layer_names or not isinstance(diff_paths, (list, tuple)) or not diff_paths:
+        return set()
+    paths = [str(p) for p in diff_paths]
+    try:
+        if diff_inert is True:
+            return set(layer_names)
+        if (base_tree is None or _is_verify_implementation_touch is None
+                or _subject_globs_would_skip is None or _is_verify_implementation_touch(paths)):
+            return set()
+        ops = state.load_str((Path(base_tree) / _host_apply.CONSUMER_OPS_CONTRACT)
+                             .read_text(encoding="utf-8")) or {}
+        globs = {str((ly or {}).get("layer")): (ly or {}).get("subject_globs")
+                 for ly in ((ops.get("verify") or {}).get("layers") or []) if isinstance(ly, dict)}
+        return {n for n in layer_names if n in globs and _subject_globs_would_skip(paths, globs[n])}
+    except Exception:                          # noqa: BLE001 — an unreadable input exempts nothing
+        return set()
+
+
 def _land_failure_attribution_probe(bad: "list | None", *,
                                     main_wt: "Path | None" = None,
                                     merged_base: "str | None" = None,
@@ -3953,7 +3994,10 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                                     _surface_failing_assertions=None,
                                     _run_at_base=None, _land_red_isolation_entries=None, _land_red_isolation_reproduced=None,
                                     _consumer_verify_layer_key=None, _run_layer_at_base=None,
-                                    batch_branches: "list | None" = None) -> dict:
+                                    batch_branches: "list | None" = None,
+                                    diff_paths: "list | None" = None, diff_inert: "bool | None" = None,
+                                    _is_verify_implementation_touch=None,
+                                    _subject_globs_would_skip=None) -> dict:
     """T-11464 — WHOSE failure is this red: MAIN's, or this branch's? Returns a RECORD; decides
     nothing, journals nothing, and gates nothing. The caller reports it beside an abort whose class,
     message tail and exit are unchanged.
@@ -4021,12 +4065,29 @@ def _land_failure_attribution_probe(bad: "list | None", *,
     (no green main run happened, so no branch verdict); any other base outcome or guard mode is
     `base-layer-<x>`. Every one of those declines is `undecidable` for the WHOLE record — a partial
     picture is never decided. Without both injections a layer red refuses exactly as before.
+
+    T-13449 (GitHub #29) — ONE PASSING BASE RUN IS NOT BLAME WHEN THE DIFF CANNOT REACH THE LAYER. A
+    flaky timing assertion in a consumer verify layer was recorded `branch` on a tasks-only branch: the
+    base re-run happened to pass, and nothing asked whether the diff could touch that layer at all. A
+    layer pair the base did not reproduce is moved into `unreachable` — attributed to NOBODY, like a
+    quarantined pair — when the land's own candidate diff (`diff_paths`) provably cannot reach it:
+    (a) the WHOLE diff is SPEC-0064-inert (`diff_inert`, the caller's verdict from the one inert
+    authority `_classify_inert_paths` — this module never re-derives it), or (b) the diff touches no verify
+    implementation and the layer's `subject_globs` AS DECLARED AT THE MERGE-BASE are disjoint from it
+    (`_subject_globs_would_skip`). The globs are read from the base tree, never the branch, so a branch
+    cannot narrow its own layer's subject to clear its own blame (the T-11807 admission argument). A
+    layer declaring no globs, under an observable diff, keeps today's verdict: it runs on everything, so
+    a code change CAN break it. Test-FILE pairs are never unreachable. Every missing input — no diff,
+    no predicate, the injected `_run_at_base` path (no base tree to read) — exempts nothing.
     """
     import shutil
     import tempfile
 
     rec: dict = {"outcome": "undecidable", "reason": None, "failing": [],
-                 "at_main": [], "at_branch": [], "quarantined": []}
+                 "at_main": [], "at_branch": [], "quarantined": [], "unreachable": []}
+    # T-13449 — the layer names whose failure the diff provably cannot reach. Empty until the
+    # merge-base tree is in hand, so every path that never reaches it exempts NOTHING.
+    unreachable_layers: set = set()
     # T-13320 — THE SUBJECT OF THE RE-RUN IS THE CANDIDATE, AND A BATCH CANDIDATE IS NOT ONE BRANCH.
     # Measured (T-13313 census): the same failing assertion was recorded `branch` on every member of
     # bat-9d45572f875f, bat-1e3a3b5c6de7 and bat-4f3d6b53f0f1, while each red was ONE member's own
@@ -4083,9 +4144,16 @@ def _land_failure_attribution_probe(bad: "list | None", *,
         remainder, and which would be precisely that other-direction false verdict."""
         rec["quarantined"] = [p for p in failing if p in admitted_quarantine]
         rest = [p for p in failing if p not in admitted_quarantine]
+        # T-13449 — a layer pair the base did NOT reproduce and the diff cannot reach is evidence
+        # about nobody. A REPRODUCED one stays `at_main`: the base failing it is a fact either way.
+        _unreach = {_sid for _sid, _name in _layer_reds if _name in unreachable_layers}
+        rec["unreachable"] = [p for p in rest if p in _unreach and p not in reproduced]
+        rest = [p for p in rest if p not in rec["unreachable"]]
         rec["at_main"] = [p for p in rest if p in reproduced]
         rec["at_branch"] = [p for p in rest if p not in reproduced]
-        if not rest:
+        if not rest and rec["unreachable"]:
+            rec["outcome"], rec["reason"] = "undecidable", "failing-layer-unreachable-from-diff"
+        elif not rest:
             rec["outcome"], rec["reason"] = "undecidable", "all-failing-assertions-quarantined"
         elif not rec["at_branch"]:
             rec["outcome"], rec["reason"] = "main", "every-failing-assertion-reproduces-at-merge-base"
@@ -4189,6 +4257,10 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                         break
                 except OSError:                 # noqa: BLE001 — absent/unreadable = NOT admitted
                     continue
+        unreachable_layers.update(_land_attribution_unreachable_layers(
+            wt, [_l[1] for _l in _layer_reds], diff_paths, diff_inert=diff_inert,
+            _is_verify_implementation_touch=_is_verify_implementation_touch,
+            _subject_globs_would_skip=_subject_globs_would_skip))
         present = [n for n in failing_files
                    if any((wt / s / n).exists() for s in _subs)]
         # T-13107 — the failing consumer LAYERS, re-run on this same merge-base tree.

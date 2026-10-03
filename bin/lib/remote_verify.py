@@ -3760,6 +3760,119 @@ def fold_venue_load_sensitive(verify_metrics: dict) -> dict:
     return verify_metrics
 
 
+#: T-13451 — the base `verify_metrics` keys a LOCAL land's runner writes that a ROUTED land leaves
+#: ABSENT, because nothing the routed pass holds measures them. Absent — never null, never 0 (T-0358):
+#:   dispatch — the box runner's schedule record is not carried in the leg record;
+#:   mem_peak_kb — the host's RUSAGE_CHILDREN would measure the local-probe leg only, never the box;
+#:   queue_wait_ms — the box pool's queue wait is not carried in the leg record;
+#:   verify_test_timeout_s / _source — the per-file bound is resolved box-side and not carried;
+#:   selection_full_suite_globs / _paths — a host computation over the diff, not a venue fact, and
+#:     report-only (no land-row reader);
+#:   selection_tripwire_recovered / _tests — the omission tripwire runs inside the local runner only,
+#:     so on a routed pass it did not fire, which is exactly what an absent key says.
+VENUE_ABSENT_BASE_KEYS = ("dispatch", "mem_peak_kb", "queue_wait_ms", "verify_test_timeout_s",
+                          "verify_test_timeout_source", "selection_full_suite_globs",
+                          "selection_full_suite_paths", "selection_tripwire_recovered",
+                          "selection_tripwire_tests")
+
+
+def _count(v) -> bool:
+    """A count the fold may use: an int >= 0 that is not a `bool` (in Python `True` IS an `int`)."""
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def fold_venue_base_metrics(verify_metrics: dict, routed: "dict | None", durations=None, *,
+                            repo_root=None, _duration_record=None, _outcomes_export=None) -> dict:
+    """T-13451 — the HOST-side fold of a ROUTED pass onto the BASE `verify_metrics` keys a LOCAL land's
+    runner writes, with the SAME meaning, so the readers of those keys — the SPEC-0181 known-broken
+    fold (routes b + c), the SPEC-0015 form-(10) gate resolver, the per-file duration series — read a
+    routed land exactly as a local one. The sibling of `fold_venue_flaky_retry` /
+    `fold_venue_load_sensitive`: `venue_verify_metrics` stays `venue_*`-only (T-12199 AC1) and the
+    mapping onto the unprefixed keys is the LAND CALLER's, run right after it.
+
+    `routed` is `route()`'s return; `durations` is the land's `_cand_file_durations` — the local-probe
+    leg's rows plus the box candidate leg's (T-13228). Each key is written ONLY from a fact the pass
+    holds, and is otherwise ABSENT (never null, never a placeholder — T-0358):
+      test_file_count — what RAN on the candidate side: the box leg's own count plus the probe leg's.
+        Written only when the box count EQUALS the remote side the host handed it and the probe side is
+        accounted for (nothing to run, or it ran). Two accounts of what ran that disagree are not
+        evidence — the `_known_broken_ran_tests` count-mismatch doctrine, applied at the writer.
+      selection_ran_tests — the run set, under the local runner's own condition
+        (0 < test_file_count < discovered) and only when its length equals test_file_count.
+      worker_count — the derived box width (`venue_workers`, SPEC-0203 VP5).
+      per_file_durations / per_file_outcomes — the runner's OWN builders over the probe + box rows, so
+        there is no second shape; only when the box leg CARRIED its rows (an older envelope is absent,
+        never an all-`not-started` export) and the probe side is accounted for.
+      fail_class — the CANDIDATE verdict class, as the local runner derives it: "ok" when no candidate
+        file failed, "timeout" when a failed run's last word on some file is `timed-out`, else "failed".
+    NOTHING is written for an INDETERMINATE pass or without a partition: no verdict, no base facts.
+    `VENUE_ABSENT_BASE_KEYS` names the keys this fold never writes, and why. Mutates and returns the
+    same dict; never raises into the land it reports on."""
+    routed = routed or {}
+    result = routed.get("result") or {}
+    partition = routed.get("partition")
+    if routed.get("outcome") not in (OUTCOME_GREEN, OUTCOME_FAILED) or not isinstance(partition, dict):
+        return verify_metrics
+    counts = partition.get("counts") or {}
+    remote_names = [n for n in partition.get("remote") or () if isinstance(n, str) and n]
+    local_names = [n for n in partition.get("local") or () if isinstance(n, str) and n]
+    n_remote, n_local, n_found = counts.get("remote"), counts.get("local"), counts.get("discovered")
+    cand = (((result.get("envelope") or {}).get("legs")) or {}).get("cand")
+    cand = cand if isinstance(cand, dict) else {}
+    probe_accounted = (n_local == 0) or (result.get("local_probe_wall_s") is not None)
+    run_names = sorted(set(remote_names) | set(local_names))
+    sides_known = (_count(n_remote) and _count(n_local) and len(remote_names) == n_remote
+                   and len(local_names) == n_local and len(run_names) == n_remote + n_local)
+
+    box_ran = cand.get("test_file_count")
+    if sides_known and probe_accounted and _count(box_ran) and box_ran == n_remote:
+        ran = box_ran + n_local
+        verify_metrics["test_file_count"] = ran
+        if _count(n_found) and 0 < ran < n_found:
+            verify_metrics["selection_ran_tests"] = run_names
+
+    workers = (result.get("w_derivation") or {}).get("workers")
+    if _count(workers) and workers > 0:
+        verify_metrics["worker_count"] = workers
+
+    in_run = set(run_names)
+    entries = []
+    for r in durations if isinstance(durations, (list, tuple)) else ():
+        if not (isinstance(r, (list, tuple)) and len(r) == 3):
+            continue
+        name, wall_ms, outcome = r
+        if isinstance(name, str) and name in in_run and _count(wall_ms) and isinstance(outcome, str):
+            entries.append((name, wall_ms, outcome))
+
+    if sides_known and probe_accounted and isinstance(cand.get("durations"), list) and entries:
+        try:
+            try:
+                from lib import verify_runner
+            except ImportError:                           # direct `bin/lib` import (the tests' path shape)
+                import verify_runner                      # type: ignore[no-redef]
+            record = (_duration_record(entries) if _duration_record is not None else
+                      verify_runner._per_file_duration_record(
+                          entries, _duration_series=verify_runner._duration_series))
+            export = _outcomes_export or verify_runner._per_file_outcomes_export
+            locator = export(entries, run_names, Path(repo_root) if repo_root else Path.cwd())
+        except Exception:                                 # noqa: BLE001 — a report never masks the run
+            record, locator = {}, {}
+        if record:
+            verify_metrics["per_file_durations"] = record
+        if locator:
+            verify_metrics["per_file_outcomes"] = locator
+
+    cand_bad = routed.get("cand") or []
+    if not cand_bad:
+        verify_metrics["fail_class"] = "ok"
+    else:
+        last = {}
+        for name, _wall, outcome in entries:              # a retried file: the LAST word on it counts
+            last[name] = outcome
+        verify_metrics["fail_class"] = "timeout" if "timed-out" in last.values() else "failed"
+    return verify_metrics
+
+
 def remote_verify_row(result: dict) -> dict:
     """The BOUNDED journal payload for one executor run — identity, outcome, walls and the check
     roster's verdict, never the per-file lists (the sidecar locator names those, exactly as

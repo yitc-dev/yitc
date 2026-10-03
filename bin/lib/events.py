@@ -1939,7 +1939,7 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
              f"'{{\"check\":\"<surface>[<id>]\",\"declaration\":\"<carrier-locator>\","
              f"\"broken_input\":\"<what you deliberately broke>\","
              f"\"outcome\":\"{debt_mod.ADMISSION_RED_OUTCOME}\","
-             f"\"definition_identity\":\"<the identity the carrier computes now>\"}}'. "
+             f"\"definition_identity\":\"<the identity `bin/yitc-v2 debt` prints beside the check>\"}}'. "
              f"Nothing was appended.")
 
     # T-12866 (SPEC-0015, T-10282/T-10486): the P8 ADOPTION-EVIDENCE payload chokepoint — sixth member

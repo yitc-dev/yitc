@@ -410,6 +410,13 @@ INVENTORY: "tuple[Knob, ...]" = (
        "the answering pair returns, and a tier with no reserve never trips — so no value of it can "
        "turn a verdict into a refusal",
        bounds=(1, 1000)),
+    _p("lib.audit.AUDITOR_BREAKER_FULL_THRESHOLD", "int", 1,
+       "bin/lib/audit.py#invoke_auditor_tiered",
+       "T-13450 — the FULL tier's breaker threshold (every consult, every default/--full ad-hoc, "
+       "every full gate audit): its FIRST primary non-answer trips it, so a big audit pays at most "
+       "one long budget per cool-down. PERFORMANCE for the same reason as the routine threshold: "
+       "the breaker only REORDERS the two declared pairs",
+       bounds=(1, 1000)),
     _p("lib.audit.AUDITOR_BREAKER_COOLDOWN_SECONDS", "int", 3600,
        "bin/lib/audit.py#invoke_auditor_tiered",
        "T-13109 — how long a tripped tier breaker runs its RESERVE first before probing the primary "
@@ -433,7 +440,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "interrupts it, never on a counter, so no value of this key can turn a launch into a refusal — "
        "which is exactly what rule 2 asks of a performance key",
        bounds=(1, 3600)),
-    _p("lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS", "int", 540,
+    _p("lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS", "int", 1320,
        "bin/lib/audit.py#_audit_timeout_seconds",
        "T-12233 — the INSPECTION-class (consult / adhoc) auditor wall-clock budget in seconds. "
        "PERFORMANCE only BECAUSE of the same card's SPEC-0200 no-answer case: the expiry of THIS "
@@ -783,7 +790,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "refusal input must not be pinned machine-wide by a settings file"),
     _g("YITC_WATCH_KEEP_PROCESS_GROUP", "str", None, "bin/lib/dispatch.py",
        "process-group teardown behaviour — a safety switch"),
-    _g("lib.audit.AUDIT_FULL_TIMEOUT_SECONDS", "int", 900, "bin/lib/audit.py#audit_timeout_resolution",
+    _g("lib.audit.AUDIT_FULL_TIMEOUT_SECONDS", "int", 2160, "bin/lib/audit.py#audit_timeout_resolution",
        "T-13205 — the full-tier built-in default behind YITC_AUDIT_TIMEOUT_SECONDS; a machine moves "
        "it only through the BINDING key auditor.full.timeout"),
     _g("lib.audit.AUDIT_TIMEOUT_SECONDS", "int", 300, "bin/lib/audit.py",

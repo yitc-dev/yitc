@@ -4036,33 +4036,49 @@ def _born_fragment_is_live(section: str) -> bool:
     return _mirror_adoption_status(parsed, entry) == "adopt"
 
 
-def _charter_authorizes_born_permissive(charter_text: "str | None" = None) -> bool:
-    """Has the CHARTER amendment that authorizes a born relaxation landed (T-11972, SPEC-0189 r7+8)?
+def _engine_charter_path():
+    """The ENGINE CHARTER path, resolved relative to THIS module (the `_load_concern_registry` idiom) —
+    a seam so a test can point it at an unreadable file (T-13446)."""
+    from pathlib import Path
+    return Path(__file__).resolve().parents[2] / "CHARTER.md"
+
+
+def _charter_born_permissive_cause(charter_text: "str | None" = None) -> "str | None":
+    """WHY a born relaxation is NOT authorized, or None when the CHARTER amendment has landed
+    (T-11972, SPEC-0189 r7+8; the cause is carried since T-13446 / GitHub #25).
 
     Resolved through `debt.charter_amendment_state`, the ONE reader of the amendment's three elements
     — this adds no second spelling of "is the CHARTER amended" (CHARTER §P5). The CHARTER is read from
-    the ENGINE root (resolved relative to THIS module, the `_load_concern_registry` idiom), never the
-    consumer cwd: the born fragment a consumer receives is the KERNEL's, so the authorization for it
-    lives in the KERNEL's CHARTER regardless of where the sweep runs.
+    the ENGINE root, never the consumer cwd: the born fragment a consumer receives is the KERNEL's, so
+    the authorization for it lives in the KERNEL's CHARTER regardless of where the sweep runs.
 
-    FAIL-CLOSED: an unreadable CHARTER, or a debt module that cannot be imported, returns False — an
-    admission guard that cannot PROVE its precondition must refuse rather than admit."""
-    from pathlib import Path
-
+    FAIL-CLOSED: an unreadable CHARTER, or a debt module that cannot be imported, is a cause — an
+    admission guard that cannot PROVE its precondition must refuse rather than admit. The cause is
+    NAMED so a consumer report says which of the three failed, not only "not landed"."""
     try:
         from lib import debt as _debt
-    except Exception:                       # noqa: BLE001 — cannot prove it => not authorized
-        return False
+    except Exception as e:                  # noqa: BLE001 — cannot prove it => not authorized
+        return f"the amendment reader (lib.debt) failed to import: {type(e).__name__}: {e}"
     text = charter_text
     if text is None:
+        path = _engine_charter_path()
         try:
-            text = (Path(__file__).resolve().parents[2] / "CHARTER.md").read_text(encoding="utf-8")
-        except OSError:
-            return False
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:
+            return f"the engine CHARTER at {path} is unreadable: {type(e).__name__}: {e}"
     try:
-        return bool(_debt.charter_amendment_state(text).get("amended"))
-    except Exception:                       # noqa: BLE001 — same direction
-        return False
+        state = _debt.charter_amendment_state(text)
+    except Exception as e:                  # noqa: BLE001 — same direction
+        return f"the amendment reader raised: {type(e).__name__}: {e}"
+    if state.get("amended"):
+        return None
+    return str(state.get("why") or "the CHARTER amendment has NOT landed")
+
+
+def _charter_authorizes_born_permissive(charter_text: "str | None" = None) -> bool:
+    """Has the CHARTER amendment that authorizes a born relaxation landed? The bool view of
+    `_charter_born_permissive_cause`."""
+    return _charter_born_permissive_cause(charter_text) is None
 
 
 def born_permissive_detector_violations(entries: list | None = None, *,
@@ -4123,12 +4139,13 @@ def born_permissive_detector_violations(entries: list | None = None, *,
         detector = entry.get("detector")
         if isinstance(detector, str) and detector.strip():
             # the PAIR is satisfied; the corpus-level AUTHORIZATION is the second, independent door
-            if _born_fragment_is_live(section) and not _charter_authorizes_born_permissive(charter_text):
+            if _born_fragment_is_live(section) and (cause := _charter_born_permissive_cause(charter_text)):
                 viols.append({"kind": "concern-permissive-born-unauthorized-by-charter",
                               "detail": f"concern `{section}` (born_stance: permissive, declared on "
                                         f"{spec_id}) names a detector AND ships a LIVE born "
                                         f"declaration, but the CHARTER §Project-declared audit-post "
-                                        f"exemption amendment has NOT landed — so nothing authorizes a "
+                                        f"exemption amendment is NOT proven landed ({cause}) — so nothing "
+                                        f"authorizes a "
                                         f"born relaxation. SPEC-0189 rules 7+8: the amendment is a "
                                         f"requires-ordered DELIVERABLE, not an intention, and the "
                                         f"permissive default may not ACTIVATE before it lands. Land "
@@ -4136,12 +4153,12 @@ def born_permissive_detector_violations(entries: list | None = None, *,
                 continue
             proven.append(section)
             continue
-        if _born_fragment_is_live(section) and not _charter_authorizes_born_permissive(charter_text):
+        if _born_fragment_is_live(section) and (cause := _charter_born_permissive_cause(charter_text)):
             viols.append({"kind": "concern-permissive-born-unauthorized-by-charter",
                           "detail": f"concern `{section}` (born_stance: permissive, declared on "
                                     f"{spec_id}) ships a LIVE born declaration, but the CHARTER "
-                                    f"§Project-declared audit-post exemption amendment has NOT landed "
-                                    f"— so nothing authorizes a born relaxation. SPEC-0189 rules 7+8: "
+                                    f"§Project-declared audit-post exemption amendment is NOT proven "
+                                    f"landed ({cause}) — so nothing authorizes a born relaxation. SPEC-0189 rules 7+8: "
                                     f"the amendment is a requires-ordered DELIVERABLE, not an "
                                     f"intention, and the permissive default may not ACTIVATE before it "
                                     f"lands. Land the amendment (it must SEPARATE «an absent "
@@ -9810,14 +9827,28 @@ def _register_in_host_registry(REPO_ROOT) -> bool:
     the test harness is armed (YITC_TEST_JOURNAL_GUARD) and no $YITC_REGISTRY names a registry, nothing
     is written — a test registers only into a registry it named itself. T-13140: a project under the
     system temp dir is a scratch repo (a directly-run test file or a hand probe, neither carrying the
-    guard), so with no $YITC_REGISTRY it is not registered either — one line says so."""
+    guard), so with no $YITC_REGISTRY it is not registered either — one line says so. T-13444: a linked
+    git worktree (its git-dir differs from the common dir) is never registered — the main checkout is
+    the project, and a worktree's entry would dangle once land removes it."""
     import os
+    import subprocess
     import sys   # module-local idiom: init.py imports sys per-function, never at module level
     import tempfile
     from pathlib import Path
     from lib import host_paths, nightly
     named = os.environ.get("YITC_REGISTRY")
     if not named and os.environ.get("YITC_TEST_JOURNAL_GUARD"):
+        return False
+    try:
+        r = subprocess.run(["git", "rev-parse", "--git-dir", "--git-common-dir"], cwd=str(REPO_ROOT),
+                           capture_output=True, text=True)
+        dirs = r.stdout.split("\n")[:2] if r.returncode == 0 else []
+    except OSError:
+        dirs = []
+    if len(dirs) == 2 and all(dirs) and \
+            (Path(REPO_ROOT) / dirs[0]).resolve() != (Path(REPO_ROOT) / dirs[1]).resolve():
+        print(f"  consumer init ({REPO_ROOT.name}): not added to the host project list — it is a linked "
+              f"worktree; the main checkout is the project")
         return False
     if not named:
         tmp = Path(tempfile.gettempdir()).resolve()
