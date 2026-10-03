@@ -1,0 +1,171 @@
+id: SPEC-0209
+title: The argv prose seam — a flag writing a non-rewritable record refuses a surviving
+  backtick
+status: active
+created_at: 2026-09-16 16:22:35+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/textutil.py#ARGV_PROSE_SEAMS
+- bin/lib/textutil.py#ARGV_PROSE_WAIVED
+- bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS
+- bin/lib/textutil.py#argv_prose_seam_refusal
+- bin/lib/textutil.py#_argv_flag_values
+- bin/lib/textutil.py#argv_verb_start
+- bin/lib/cli_parser.py#build_parser
+- bin/lib/worktree.py#WORK_COMMIT_STDIN_CONFLICTING_ARGV_FLAGS
+- bin/lib/worktree.py#cmd_work_commit
+- bin/lib/cli.py#main
+body: "## Scenario\n\nAn author passes prose to a verb on the command line — a closure\
+  \ criterion, a cross-item brief, a\nceiling-decision reason. The shell reads that\
+  \ line BEFORE the verb exists, and a backtick span in\nthe prose is command substitution:\
+  \ bash runs it and replaces it with its output. When the\nsubstitution is partial,\
+  \ a stray backtick SURVIVES into argv and the rest of the span is already\ngone.\
+  \ Eight measured incidents of case file E-0054 end that way, and the expensive ones\
+  \ end on a\nrecord nobody can correct afterwards: a peer-facing cross closure published\
+  \ with its identifiers\neaten (X-1452, X-1111), a ceiling-decision row (X-1427),\
+  \ a `post_verification` written onto a card\nthat is then DONE (X-1457 — <project>\
+  \ had to carry the intended text in an amendment note,\nbecause no governed edit\
+  \ can restore what the criterion meant).\n\nWhat the author now sees is a refusal,\
+  \ by name, before anything is written: the flag, an excerpt\naround the surviving\
+  \ backtick, which non-rewritable record it would have damaged, and the\n`--from-stdin`\
+  \ key to re-send the value under. Nothing is appended, nothing is half-written.\n\
+  \n## Internal\n\nRULE 1 — THE ADMISSION CRITERION. A prose flag is GUARDED **iff\
+  \ the record it writes cannot be\ncorrected by any governed edit.** That is three\
+  \ record kinds and only three: (i) an append-only\njournal or shared-ledger row,\
+  \ (ii) `post_verification` written at closure onto a card that is then\nDONE, (iii)\
+  \ a git commit message (below). A\nflag writing an ORDINARY CARD FIELD is NOT guarded\
+  \ — `task update --old/--new` corrects it, the\ndamage is recoverable, and a refusal\
+  \ there would be a blanket ban on a character rather than a\nguard. The criterion\
+  \ is what makes the boundary auditable instead of arbitrary; it is the thing a\n\
+  later maintainer must argue against, not the list.\nRECLASSIFIED UNDER THE UNCHANGED\
+  \ CRITERION : a GIT COMMIT MESSAGE (`task commit` /\n`work commit` `--message` /\
+  \ `-m`) is kind (iii) — no governed verb rewrites one\n(`land`'s only `commit --amend`\
+  \ is its own `--no-edit` bookkeeping collapse) and audit custody\npins the ship\
+  \ sha, so a hand amend breaks the chain it records. It was first WAIVED as\n\"amendable\
+  \ before land\"; that premise is false for a governed run, so the flag is now GUARDED.\n\
+  The criterion's words did not move; its enumeration was wrong.\n\nRULE 2 — ONE SEAM,\
+  \ NOT A NINTH VERB. Every guarded flag reaches its value through the SAME place\n\
+  the shell has already touched: raw `sys.argv`, read in `cli.main` before `build_parser`.\
+  \ The\nguard lives there ONCE, beside the two pre-parse gates that established the\
+  \ shape\n(`cli._gate_actor_provenance`, `audit.retired_audit_surface_refusal`),\
+  \ and reuses the EXISTING\ndetector `textutil.argv_backtick_span`. A per-verb fix\
+  \ is the pattern this spec exists to stop: for\neight verbs the family grew eight\
+  \ `--from-stdin` escapes while the detector that REFUSES stayed\nwired to one of\
+  \ them.\nRESIDUE ROWS. For the commit-message rows ONLY — enumerated once, in\n\
+  `textutil.ARGV_PROSE_RESIDUE_VERBS` — the seam ALSO consults the EXISTING eaten-span\
+  \ detector\n`textutil.shell_substitution_findings` on the argv value, so a FULLY\
+  \ eaten span that left its gap\nis refused before `git commit`, not WARNed after\
+  \ it. Still one seam, still existing detectors. The\nset is narrow on purpose: residue\
+  \ is a heuristic with stated blind spots and a false-positive\nsurface, which a\
+  \ commit message can carry because its escape is one flag. MEASURED: <project>\n\
+  self-captured seven shell-damaged commit-message slips in seven sessions (2026-08-10..09-23),\
+  \ all\nafter `--from-stdin`; the texts were not kept, so how many a backtick-only\
+  \ guard would\nhave caught is unknown — which is why the residue predicate is admitted\
+  \ here. Every other row\nstays backtick-only until the same is shown for it.\n\n\
+  RULE 3 — THE GATE WRITES NOTHING. `argv_prose_seam_refusal` is a pure `f(argv) ->\
+  \ str|None`: no\ndisk, no journal, no shell, no exit. The caller prints and exits\
+  \ 2. Not style — a diagnostic append\nwould falsify the guarantee the refusal makes\
+  \ (\"NOTHING was written\"), and the gate sits BEFORE\n`main`'s `-C` rebind, so\
+  \ any row would be filed against the ENGINE journal even for a consumer\ninvocation:\
+  \ a record asserting the wrong repo. The refusal's reader is the caller, synchronously.\n\
+  \nRULE 4 — TOTALITY, AT TWO LEVELS. Neither list alone is a classification, and\
+  \ neither LEVEL alone\nis totality:\n(a) VERB level — `ARGV_PROSE_SEAMS` (guarded)\
+  \ and `ARGV_PROSE_WAIVED` (deliberately not, each with\n    its reason) must together\
+  \ EXHAUST the universe of module-level prose tables: every\n    `*STDIN_CONFLICTING_ARGV_FLAGS`\
+  \ / `PROSE_BEARING_*` name in `bin/lib/`.\n(b) FLAG level, DERIVED FROM THE PARSER\
+  \ — for every GUARDED verb, each value-bearing `--` option\n    its parser registers\
+  \ must be GUARDED or listed in that row's `exempt` WITH A REASON. (a) alone\n  \
+  \  is not enough and this is why: it sees only flags whose author remembered to\
+  \ add a module\n    constant, so a new prose flag wired STRAIGHT into the parser\
+  \ and the write path is invisible to\n    it. (b) derives the universe from `build_parser`\
+  \ itself, so a flag added to a guarded verb\n    tomorrow FAILS the probe until\
+  \ it is classified. This is the obligation; the lists are its\n    record.\n\nRULE\
+  \ 5 — THE ESCAPE IS PART OF THE GUARD, NOT A PRECONDITION FOR IT. A guard whose\
+  \ refusal names a\n`--from-stdin` key that does not exist leaves the author no route\
+  \ at all, which is worse than the\ndamage. The obligation that follows is to SUPPLY\
+  \ THE KEY, not to exempt the flag: when a flag\nQUALIFIES under rule 1 and its verb's\
+  \ ingest carries no key for it, the fix is to add the key to\nTHAT VERB'S EXISTING\
+  \ `--from-stdin` table — which is a data edit to one ingest, not the per-verb\n\
+  route-building rule 2 forbids. Qualifying under rule 1 is therefore SUFFICIENT:\
+  \ `exempt` classifies\nonly flags that do NOT qualify (ids, enums, locators, timestamps),\
+  \ and no qualifying flag may sit\nthere. MEASURED: four `task close` settle/live-probe\
+  \ prose flags (`--settle-reason`, `--asserts`,\n`--live-probe-outcome-detail`, `--settle-live-probe-reason`)\
+  \ were exempted on the\nescape-does-not-exist reading at this spec's first draft;\
+  \ the four keys were added to the one close\ningest and the flags moved to guarded\
+  \ within the same card (owner authorisation\n`events.jsonl#ts=`). The escape-shaped\
+  \ exemption is what rule 5 now forbids,\nbecause it was measured to be a route the\
+  \ author could take in one edit.\n\nHONEST BOUNDS, stated so they cannot erode:\n\
+  (a) THE SHELL RUNS FIRST. A FULLY substituted span leaves no backtick, and this\
+  \ gate — like any\n    argv-side check, including one that refused every backtick\
+  \ — cannot see it. It refuses the\n    WRITE when a backtick SURVIVED. Only `--from-stdin`\
+  \ prevents the execution; every refusal says\n    so.\n(b) FLAG-KEYED. `blocked-on-land`'s\
+  \ POSITIONAL reason form is not reachable by a flag scan;\n    `--reason` is guarded,\
+  \ the positional is not. Filed as a followup rather than papered over with\n   \
+  \ verb-specific argv arithmetic at a generic seam.\n(c) `audit decide`'s existing\
+  \ IN-VERB check STAYS — the seam covers the argv route, the in-verb\n    check covers\
+  \ a programmatic caller with no argv. Same detector, so no second validator.\n(d)\
+  \ Rule 4(b) binds the guarded verbs only. A brand-new prose flag on an as-yet-UNGUARDED\
+  \ verb is\n    seen by 4(a) if it joins a module table and by neither if it joins\
+  \ nothing — so the residual\n    narrowed rather than vanished. It is bounded to\
+  \ verbs that write nothing non-rewritable, which\n    is the set where the damage\
+  \ is recoverable by definition.\n(e) SPELLINGS. The flag scan is EXACT-TOKEN, so\
+  \ it sees only the spellings a row lists. A row whose\n    flag has a SHORT form\
+  \ lists it (`-m`, with argparse's `-mV` / `-m=V`), and its subparser takes\n   \
+  \ `allow_abbrev=False`, so every spelling argparse ACCEPTS is one the seam scans.\
+  \ Done for the\n    two commit rows; the other guarded rows still accept abbreviations\
+  \ (`--pv-crit=`) —\n    a pre-existing gap, filed as followup fu_e1ac30843b2d.\n\
+  (f) The post-commit eaten-span WARN in `cli._commit_worktree` STAYS, as the programmatic-caller\n\
+  \    fallback — the bound (c) shape: the seam covers argv, the WARN covers a caller\
+  \ with no argv.\n\n## Rationale\n\nMeasured, not inferred. `argv_backtick_span`\
+  \ landed with (from X-1427) and had exactly ONE\ncall site in the whole engine.\
+  \ Two reporters named live holes on the same day: X-1457 (`task close\n--pv-*` had\
+  \ no shell-proof route at all, and the reporting session itself passed `--pv-criterion`\n\
+  on argv — it survived only because that prose happened to carry no backtick) and\
+  \ X-1452 (the\nunguarded `cross` prose flags; one peer-facing correction published\
+  \ damaged, costing a follow-up\ncorrection item). The seam, not the ninth verb,\
+  \ is the level at which the class ends.\n\n## Verification\n\n`tests/test_argv_prose_seam.py`:\n\
+  - AC1 both arms — `task close --pv-criterion` and `cross close --reason` end-to-end\
+  \ through the\n  real CLI: refused now (exit 2, `argv-prose-seam`, journal byte-length\
+  \ and card unchanged); and\n  ACCEPTED, writing the damaged text, with the detector\
+  \ stubbed to the pre-change `lambda _t: None`.\n- RULE 5 both arms — `task close\
+  \ --settle-reason` with a surviving backtick REFUSES,\n  naming the flag and its\
+  \ `settle_reason` stdin key, and writes nothing; the SAME content sent\n  through\
+  \ `--from-stdin` under that key is ACCEPTED and lands VERBATIM. Asserted independently,\
+  \ so\n  neither arm can pass on the other's account.\n- AC2 — every flag in `ARGV_PROSE_SEAMS`\
+  \ refuses (driven OFF the registry, so an unwired row\n  fails); each guarded row's\
+  \ flags COVER the prose table its owning module declares; TOTALITY\n  rule 4(a)\
+  \ — the table universe is derived from `bin/lib/*.py` source and `guarded ∪ waived\
+  \ ==\n  universe`; and TOTALITY rule 4(b) — for each guarded verb the options are\
+  \ derived from\n  `build_parser` and every one is guarded or exempt-with-a-reason.\
+  \ The 4(b) differential:\n  `cross close --resolution` added to the parser alone\
+  \ fails that probe and nothing else.\n- AC3 — `task file --title`, `task update\
+  \ --note` and `graph query` with a backtick are untouched.\n- — `task commit -m`\
+  \ with eaten-span residue, end-to-end through `cli.main` in a real git\n  worktree:\
+  \ exit 2, HEAD unchanged, tree still dirty, journal unchanged, names `--from-stdin`\
+  \ /\n  `message:`; the differential commits the damage with the residue check neutralised.\
+  \ A surviving\n  backtick via `-m` and `--message` refuses; the same text via `--from-stdin`\
+  \ commits with its\n  backticks verbatim. `--mess=` is an argparse error on both\
+  \ commit verbs. The cohort complement\n  (ordinary prose, a sentence double-space\
+  \ after `.`) commits through `work commit` in\n  `tests/test_t10547_shell_substitution_artifact.py`.\n"
+cites:
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#main: a90b07009a3da221f3899f0fc55d93983155127809f2ca1fff31dc933ad3c774
+  bin/lib/cli_parser.py#build_parser: e24ef348436b9800ce4d8ac311ae77b72f4b1a414adf5a800ff8e004a8aa4b98
+  bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS: a14357dce8243c42484f7ceb2fcfa9f9cc57ca3d19b446ea91ce501c75ff1de3
+  bin/lib/textutil.py#ARGV_PROSE_SEAMS: 4b5e7099a6d1f87fb3ae82d7be6ca49092966b7485373ca299277036ab68c757
+  bin/lib/textutil.py#ARGV_PROSE_WAIVED: 315b572b5864e608df514228107852dbfcfc30e05e9030bfea31f00e1d43d979
+  bin/lib/textutil.py#_argv_flag_values: 8d42abd089157a129b42bdb764c2885ca21fca8bba1b1631700855d302e3f410
+  bin/lib/textutil.py#argv_prose_seam_refusal: 12599acbc942dc207a0d103eb0e4ec3b748c6bfa8c9489b9294b710cf442fbe3
+  bin/lib/textutil.py#argv_verb_start: d938108c1a0388a5ad62c0c47ab42ce1c822ef6394c04bb7cf8b530b1d0904b5
+  bin/lib/worktree.py#WORK_COMMIT_STDIN_CONFLICTING_ARGV_FLAGS: 7c9cfccc1764249cd1cda308796b1bbd3bd15f398a178d9804bb5e0bf2c75075
+  bin/lib/worktree.py#cmd_work_commit: 7e6f85465c462ee979c27cd45747134d6944e6b894b9a930f9242d6d7df63ec0

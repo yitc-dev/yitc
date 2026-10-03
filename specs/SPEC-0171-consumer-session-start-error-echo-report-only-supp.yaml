@@ -1,0 +1,156 @@
+id: SPEC-0171
+title: Consumer session-start error echo — report-only suppressed-when-clean delivery
+  plus its post-compact re-fold
+status: active
+created_at: 2026-08-06 13:17:51+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/frontend_errors.py#echo_lines
+- bin/lib/frontend_errors.py#not_qualifying_lines
+- bin/lib/frontend_errors.py#declared_source
+- bin/lib/frontend_errors.py#read_kwargs
+- bin/lib/session.py#frontend_error_echo_lines
+- bin/lib/cli.py#_frontend_error_echo_lines
+- bin/lib/cli.py#cmd_frontend_errors
+- AGENTS.md#compact
+body: "## Scenario\n\nThe owner of an ADOPTING consumer — one whose error source PASSES\
+  \ the qualifying-source preflight\n(SPEC-0170 §Internal item 1) — starts a session\
+  \ and is TOLD what is breaking in the product frontend\n— one short line: how many\
+  \ confirmed clusters, the top items, where to look. They did not ask. When\nnothing\
+  \ is confirmed the line does not appear at all and the session is silent.\n\n**Scoped\
+  \ promise, not a universal one (absorbed 2026-08-06 from the external consult, finding\
+  \ 3).**\nThe silence above means ONE thing only — this consumer's qualifying source\
+  \ currently holds no\nconfirmed cluster. A consumer whose source does NOT qualify\
+  \ must never be served that same silence:\nits non-adoption is reported with its\
+  \ REASON at the declare-or-waive seam, because an echo that reads\nidentically for\
+  \ \"you are healthy\" and \"I cannot see anything at all\" is the suppressed-when-clean\n\
+  surface lying by construction.\n\n## Internal\n\nThis is the DELIVERY half of the\
+  \ conveyor (SPEC-0170 is the mechanism half). What is settled:\n\n1. **It must be\
+  \ a SPEC that carries the delivery, not a pattern.** Both always-loaded surfaces\
+  \ — the\n   floor-trigger-map and the session-start seed how-to — are GENERATED\
+  \ from each spec's `binding:`\n   field and render **spec IDs only**; a `patterns/`\
+  \ file can never be a floor/seed target. So this\n   spec is the thin binding CARRIER\
+  \ — and, because the echo's parameters (line shape, label, top-N)\n   live nowhere\
+  \ else, it is ALSO their authoritative rule HOME. The earlier `pointer-only` framing\
+  \ is\n   retired (accept-gate finding 6, 2026-08-07): a spec cannot be pointer-only\
+  \ and simultaneously hold\n   the only copy of a rule. No new pattern doc is created\
+  \ for prose that already has a home here. Source:\n   lesson `delivering-a-pattern-on-the-floor-or-seed`,\
+  \ consulted at plan-draft authoring 2026-08-06.\n2. **CO-DESIGN MUST (SPEC-0007\
+  \ §5b) — non-negotiable, and the reason this spec exists separately.**\n   Anything\
+  \ added to what `session start` DELIVERS must co-design its post-`/compact` re-delivery\
+  \ in\n   the SAME change. A `/compact` evicts a start-time echo and re-reading the\
+  \ handbook seed does NOT\n   restore it. So this echo ships WITH a named re-fold\
+  \ verb, exactly as `debt` (SPEC-0119) and\n   `cross outbox`/`cross inbox` (SPEC-0086)\
+  \ have one. **An echo without its re-fold is incoherent by\n   that invariant and\
+  \ must not pass decomposition.**\n3. **Report-only, suppressed-when-clean.** The\
+  \ line is derived at read time from the confirmed\n   clusters; it stores nothing,\
+  \ gates nothing, and starts no work. An ACKED cluster is off this line\n   until\
+  \ it RECURS — the ack rule, its journal-folded marker and the never-a-permanent-mute\
+  \ guarantee\n   have ONE home, SPEC-0170 §Parameters \"TTL / ack\"; this spec only\
+  \ records that the echo\n   renders the post-ack VISIBLE set, and its own contract\
+  \ is unchanged by it.\n3a. **ONE exception to the suppression, and it is the suppression's\
+  \ own safety catch.**\n   Suppressed-when-clean answers \"nothing is confirmed\"\
+  \ with silence — which is correct while the\n   periodic sweep is RUNNING, and identical\
+  \ to what a reader gets once that sweep has been dead for\n   months. So when the\
+  \ SPEC-0170 cadence has not fired inside its declared window, this echo emits\n\
+  \   the CADENCE-NOT-FIRED line even though the fold is clean, naming the carrier,\
+  \ its OS trigger and\n   how long it has been silent. This does not weaken item\
+  \ 3: the line reports the state of the\n   MECHANISM, never a cluster, and it still\
+  \ stores nothing and gates nothing. It exists because the\n   plan's own trial found\
+  \ the delivery half had never once run on a live session and no surface said\n \
+  \  so — the silence was indistinguishable from health, which is exactly the lie\
+  \ the §Scenario scoped\n   promise forbids, one level up. The liveness rule, its\
+  \ window and its marker-gated fold have ONE\n   home: SPEC-0170 §Internal item 6\
+  \ (`cadence_liveness` / `cadence_not_fired_lines`).\n4. **Both halves are load-bearing\
+  \ at verification.** A suppressed-when-clean echo tested only in its\n   non-empty\
+  \ state is green by construction — the silent half must be probed too.\n\n## Parameters\n\
+  \nValues carry the run-ref that set them; a value set by ONE run is provisional\
+  \ until it survives a\nsecond run unchanged (SPEC-0035 rule 5).\n\n| Parameter |\
+  \ What it decides | Status |\n|---|---|---|\n| line shape | count only, or count\
+  \ + top-N + pointer | SET(run-1, provisional): count + top-N + pointer — but the\
+  \ item MUST be a short LABEL, never the raw fingerprint. Rendering raw fingerprints\
+  \ ran 209 chars at top-3 and truncated mid-token (`(psycopg2.errors.Undefin (×9)`),\
+  \ which reads as damage, not information |\n| label | how one cluster is named inside\
+  \ the line | SET(run-1, provisional) — a NEW parameter the run surfaced: extract\
+  \ the distinctive signature (exception class `UndefinedFunction`, `ReferenceError:\
+  \ setHelpOpen`, `React error #31`), fall back to the message head, cap ~38 chars.\
+  \ This is what makes a top-N line readable at all |\n| top-N | how many items the\
+  \ line names before it becomes noise | SET(run-1, provisional): **2** — with labels,\
+  \ top-1/2/3 measured 67/110/142 chars; 110 sits closest to the sibling `debt` /\
+  \ `cross-coord` echoes, which are one short line |\n| re-fold REQUIRED | whether\
+  \ the echo must ship with a named re-fold verb at all | **SETTLED — not by this\
+  \ trial, by precedent.** The SPEC-0007 §5b co-design invariant already binds it:\
+  \ a `/compact` evicts a start-time echo and re-reading the seed does not restore\
+  \ it, so the echo ships WITH a re-fold verb or it is incoherent — exactly as `debt`\
+  \ (SPEC-0119) and `cross outbox`/`cross inbox` (SPEC-0086) do. This obligation is\
+  \ NOT weakened by the row below |\n| re-fold verb NAME | the lexical name of that\
+  \ verb | **OUT-OF-TRIAL(run-1)** — structurally mis-scoped at bake time and removed\
+  \ on that ground, not because it resisted convergence. No error stream of any shape\
+  \ or volume discriminates one verb name from another, so no run could ever have\
+  \ set it; run-1 discovered this and five further runs left it untouched. The NAME\
+  \ is settled at `accepted`/decomposition against the `debt` + `cross outbox` precedents.\
+  \ Recorded openly rather than quietly dropped: nothing adverse in the data is hidden\
+  \ here, and the requirement above survives intact (external consult 2026-08-07,\
+  \ GREEN, `decisions/frontend-error-conveyor-refold-name-fork-audit-adhoc.yaml`)\
+  \ |\n\n**Verification status (run-2).** The line was RENDERED from the corrected\
+  \ fold, not just\nspecified — the labelled top-2 form came out at 86 characters\
+  \ on the real confirmed set\n(`frontend: 8 confirmed — UndefinedFunction ×9; UniqueViolation\
+  \ ×6 +6 more`), in the same\nregister as the sibling `debt` / `cross-coord` echoes.\
+  \ One unplanned gain — the label rule\nsurfaces a cluster's CAUSE over its symptom\
+  \ (a rolled-back-transaction cluster now reads\n`UniqueViolation`). Values UNCHANGED\
+  \ by run-2, still provisional — the two-quiet-cycles floor\n(SPEC-0035 rule 5) restarts\
+  \ from this run.\n\nNone is `consumed`.\n\n## Rationale\n\nPrior-art is the kernel's\
+  \ own start-time echoes: `debt` (SPEC-0119) and the `cross-coord` counts\n(SPEC-0086)\
+  \ — both report-only, both suppressed-when-clean, both carrying a re-fold verb precisely\n\
+  because a `/compact` evicts them. Owner cue 2026-07-11: the consumer `session start`\
+  \ should surface\n\"what needs fixing\" without being asked. The no-startup-spam\
+  \ bound is carried in from the settled\nsignal-hygiene requirements of the proposing\
+  \ plan.\n\n## Verification\n\nTrial-stage: the line shape is exercised against the\
+  \ trial's confirmed-cluster output; a run that\nchanges the shape is non-converged.\
+  \ Post-activation: BOTH halves probed on a live consumer session\n(fires on confirmed\
+  \ / silent when clean), plus the re-fold verb re-surfacing the same content after\
+  \ a\n`/compact` — the co-design invariant proved, not asserted.\n\n**Shipped (the\
+  \ activating card).** The re-fold verb NAME — left OUT-OF-TRIAL above, to be\nsettled\
+  \ at decomposition against precedent — is **`bin/yitc-v2 frontend-errors`**: the\
+  \ SPEC-0170\nview verb ITSELF, invoked BARE (it resolves the source the consumer\
+  \ already declares), exactly as\n`debt` and `cross outbox` are simultaneously the\
+  \ on-demand view and the post-`/compact` re-fold. No\nsecond verb name exists, so\
+  \ the two cannot drift.\n\nBoth halves are covered by differential tripwires in\
+  \ `tests/test_frontend_error_conveyor.py`\n(SPEC-0165 rule 5 — EXTENDED, not a per-task\
+  \ file), ledger rows A-FE22..A-FE26:\n\n  * A-FE22 probes suppression in BOTH directions\
+  \ — the SILENT half explicitly (an empty fold AND a\n    200-row stream of never-confirmable\
+  \ transport noise), which §Internal item 4 demands: tested only\n    non-empty,\
+  \ this surface is green by construction.\n  * A-FE23 pins the line shape (LABELS,\
+  \ top-2, `+K more`, one bounded line, no raw fingerprint).\n  * A-FE24 pins §Scenario's\
+  \ scoped promise: an adopted consumer whose source does NOT qualify is told\n  \
+  \  WHY, naming the failing properties — the differential no other test can make,\
+  \ since both states\n    otherwise print nothing.\n  * A-FE25 pins the wiring to\
+  \ the EXISTING declaration (no second declaration path) and the\n    best-effort\
+  \ posture (a blowing-up reader degrades to silence, never a broken `session start`).\n\
+  \  * A-FE26 pins the CO-DESIGN invariant itself: the bare argv must survive the\
+  \ parser — before this\n    card it died there on `the following arguments are required:\
+  \ --pg-container`, i.e. the documented\n    re-fold shape did not exist — and the\
+  \ AGENTS §After-`/compact` paragraph must name this verb.\n"
+cites:
+- SPEC-0170
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: frontend-error-telemetry-conveyor-as-a-kernel-exte
+binding:
+- seed
+seed_cue: In an adopting consumer, act on the session-start frontend-error line when
+  it appears (silence means the declared source holds no confirmed cluster); after
+  a /compact re-fold it with a bare `frontend-errors`.
+init_concern: null
+implements_signature:
+  AGENTS.md#compact: 53cb1cb517de20cba0a52050adbd3e05e365ae4f51adf672debd437e7ed86695
+  bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
+  bin/lib/cli.py#cmd_frontend_errors: bb0908d968e3dada8a5ab7a98f43f9b80b407e0c59cf06a65c1f3f16b6f379e6
+  bin/lib/frontend_errors.py#declared_source: fc76f919bd81c16f0aedb7c5f001b3e642a534a65e83cc4eb1a459deb39eac53
+  bin/lib/frontend_errors.py#echo_lines: b30abdc92ec6890a077b27ed861c4537738fa7450f958f680a876c17885430e9
+  bin/lib/frontend_errors.py#not_qualifying_lines: 42fbad7a72eb177052a74d2fdc22d809858cb238c1be1daf13ccf476df162bab
+  bin/lib/frontend_errors.py#read_kwargs: 04be1a5ec4a3e95b1db2978489dd8245d4fc2d2144ec00f7ede99e4a6b5c4438
+  bin/lib/session.py#frontend_error_echo_lines: f14d4aae12b006943626400d625d202a2c4570c1b2fb4f379546e11c40c4861b

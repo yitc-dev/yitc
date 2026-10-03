@@ -1,0 +1,218 @@
+id: SPEC-0185
+title: Kernel code reads a consumer surface from the declaration that covers it, never
+  from a hardcoded path
+status: active
+created_at: 2026-08-16 20:27:00+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in its\
+  \ `yitc-ops.yaml`, and the kernel's\ngates run against `backend/tests/`. Nobody\
+  \ has to move a directory to be governed, and nobody has\nto declare one thing more\
+  \ than they already do. When a kernel gate cannot find a project's surface,\nthe\
+  \ honest outcome is that it says so — never that it quietly finds nothing and reports\
+  \ green.\n\n## Internal\n\n### 1. The rule\n\n**Kernel code MUST NOT resolve a CONSUMER-INTERNAL\
+  \ path from a hardcoded literal WHEN an\nops-contract declaration or waiver already\
+  \ exists for that surface. Where a declaration exists, it\nis the resolution source;\
+  \ and it MUST be read in FULL — the UNION of the declared entries — never\nthe first\
+  \ entry that appears to cover the surface.**\n\nThree parts — historically «halves»,\
+  \ the name §3 and ## Verification still use — because the rule\nhas been broken\
+  \ in three different ways (§3):\n\n- **(a) Hardcoded path.** Resolving a surface\
+  \ by an assumed literal (`<repo>/tests`) when\n  `yitc-ops.yaml` declares where\
+  \ that surface is.\n- **(b) Under-read declaration.** Consulting the declaration\
+  \ but reading LESS of it than it says —\n  taking the single entry whose glob claims\
+  \ the surface when coverage is per-UNION, or otherwise\n  narrowing a declared set.\
+  \ A rule written only against string literals would not reach this half\n  at all,\
+  \ and a quarter of the evidence for this rule is of exactly this shape.\n- **(c)\
+  \ Convention-shaped surface.** Identifying a surface by a NAMING or SHAPE convention\
+  \ the\n  kernel carries internally — a filename regex, an extension list, a directory-name\
+  \ habit — when\n  the project's own contract declares where that surface is. Test-FILE\
+  \ naming is the incident case\n  (§3, X-1235): a Python-shaped filename regex read\
+  \ a correctly-authored `frontend/….test.js`\n  acceptance criterion as UNNAMED.\
+  \ Halves (a) and (b) are both about a PATH; this one is about a\n  PATTERN, and\
+  \ a rule written only against paths would not reach it. The obligation is identical\n\
+  \  to (a) and (b), and so is its bound: where the project declares the convention,\
+  \ THE DECLARATION\n  IS THE RESOLUTION SOURCE, read in FULL as the UNION of its\
+  \ entries; where the project declares\n  nothing, §2's qualifier applies unchanged\
+  \ and this half obliges nothing at all.\n\n### 2. THE SCOPE QUALIFIER IS THE RULE,\
+  \ and here is why it is load-bearing\n\n«WHEN a declaration or waiver exists for\
+  \ that surface» is not a caveat attached to the rule. It is\nthe rule's extent,\
+  \ and removing it changes what the rule demands of every project.\n\nThe broad form\
+  \ — «the kernel never guesses a consumer path» — is unimplementable without a\n\
+  declaration for every path the kernel might ever want. That obliges the ops contract\
+  \ to grow a\nfield per filesystem detail: config sprawl, plus a parallel mirror\
+  \ of every consumer's tree that\ngoes stale the moment a project moves a directory\
+  \ and forgets the carrier. Two homes for one fact\nis the accretion CHARTER §Principle\
+  \ 1 exists to prevent, and it would be a worse failure than the\none this rule closes,\
+  \ because a stale declaration misdirects a gate as silently as a hardcoded path\n\
+  does.\n\nThe narrow form cannot do that. Its scope is bounded ABOVE by what a project\
+  \ has ALREADY chosen to\ndeclare, so it can never enlarge the contract: it adds\
+  \ no field, no section, no store, and for a\nproject that declares nothing it obliges\
+  \ nothing at all. It is a rule about how kernel code READS\nan existing surface,\
+  \ not about what a project must WRITE on one.\n\n**The corollary, so the qualifier\
+  \ is not read as a licence:** a hardcoded literal for a surface NO\ndeclaration\
+  \ covers is OUT OF SCOPE of this rule. It may still be poor code, and its own spec\
+  \ may\ngovern it — but it is not a violation of THIS rule, and no guard built for\
+  \ this rule may fail it.\n\n**The inverse move — where it is taken, and on what\
+  \ evidence.** Tightening what a project is\nREQUIRED to declare waits for evidence\
+  \ that the contract cannot EXPRESS a needed surface. For the\ntwo founding incidents\
+  \ that evidence pointed the other way: the contract expressed it and the\nkernel\
+  \ did not read it, so nothing was added for them and nothing is added for them now.\n\
+  \nX-1235 (§3) is the case where the evidence finally points inward, and it is admitted\
+  \ on exactly\nthat showing: the `tests:` taxonomy could name a test CLASS and its\
+  \ MOMENT but had no way to say\nwhere that class's test FILES LIVE, so a kernel-carried\
+  \ filename regex was the only recognizer\nthere was — a contract that cannot express\
+  \ the surface leaves the kernel nothing to read. The move\nis therefore taken ONCE\
+  \ and BOUNDED to what the evidence showed missing: the OPTIONAL per-class\n`globs:`\
+  \ list on `tests.classes[]` (SPEC-0160 rule 10 owns its shape). It is OPTIONAL,\
+  \ so no\nproject is obliged to write it and no existing carrier becomes non-conforming;\
+  \ it enlarges what a\nproject MAY say, never what it MUST. That bound is the whole\
+  \ of the permission: a further field is\nnot licensed by this paragraph — it needs\
+  \ its own showing that the contract cannot express its own\nsurface, which is the\
+  \ same bar X-1235 cleared and the same bar §2 has always set.\n\n### 2a. Two duties\
+  \ this rule does NOT delegate to a declaration\n\nNot every project difference is\
+  \ a project DECLARATION. Two are the kernel's own duties, and reading\nthem as things\
+  \ a project ought to declare would put the config sprawl §2 refuses back on the\n\
+  contract by another door.\n\n**(i) NO script or encoding assumption — a kernel ROBUSTNESS\
+  \ duty.** Kernel code makes no\nassumption about the SCRIPT, ENCODING or PROSE LANGUAGE\
+  \ of a consumer's paths or text.\nConcretely: git path output is UN-ESCAPED at EVERY\
+  \ reader that consumes it (git quotes non-ASCII\nbytes as octal escapes under the\
+  \ default `core.quotepath`, so a reader that does not decode them\ncompares a path\
+  \ against a different string than the one on disk — X-1237); text is read and\n\
+  written as UTF-8, the platform contract; and no surface assumes ASCII-only identifiers\
+  \ or a\nparticular prose language in a card, a criterion or a commit body. A project\
+  \ MAY declare a\nhuman-facing prose locale for GENERATED copy where one is needed,\
+  \ but no such declaration may ever\naffect PATH CORRECTNESS — a project must never\
+  \ have to declare that it uses Cyrillic filenames or\nwrites its cards in Russian\
+  \ in order to be read correctly. This duty is unconditional: it holds\nfor a project\
+  \ that declares everything and for one that declares nothing, because it is not\
+  \ about\na declaration at all.\n\n**(ii) A kernel DEFAULT is admitted ONLY as a\
+  \ fail-open fallback, and only where nothing gates.**\nWhere a project has declared\
+  \ nothing for a convention-shaped surface, half (c) obliges nothing —\nand a kernel-carried\
+  \ default (the existing filename regex, say) MAY still run. It is admitted on\n\
+  TWO conditions, both required: it applies ONLY to an UNDECLARED project (a declaration\
+  \ always\nwins, and is never merged with, augmented by, or second-guessed against\
+  \ the default), and it sits\nONLY on a REPORT-ONLY surface — an advisory whose exit\
+  \ code does not move. A default that GATES is\nthe mandated layout of §4 wearing\
+  \ a fallback's clothes: it makes the kernel's internal convention\nthe thing a project\
+  \ is measured against, which is precisely what this rule removes. Fail-OPEN is\n\
+  the direction that matters: an undeclared project gets a best-effort advisory it\
+  \ may ignore, never\na refusal it must satisfy.\n\n### 3. The evidence — two incidents,\
+  \ by id (CHARTER §Principle 1 filter 4)\n\nFour, each carrying one part of the rule\
+  \ (details: git history + the fixing task):\n\n- **X-0938** — half (a), hardcoded\
+  \ path; fixed.\n- **X-0894** — half (b), under-read declaration (per-UNION coverage);\
+  \ fixed.\n- **X-1235** — half (c), convention-shaped surface, and the sole evidence\
+  \ for §2's bounded\n  inverse move and the §4 regex-growth retirement; fixed.\n\
+  - **X-1237** — the sole evidence for §2a(i) (an ENCODING assumption, a kernel duty\
+  \ rather than a\n  project declaration); fixed.\n\nAll four produced SILENT FALSE\
+  \ PROTECTION — a gate or advisory that reported having checked what it\nhad not,\
+  \ or reported a correctly-authored thing as missing. That CHARACTER, not the count,\
+  \ clears\nfilter 4: a silent false-green cannot be found by the mechanism meant\
+  \ to find it. Each ADDED part is\ncarried by its own incident, never by the aggregate.\n\
+  \n### 4. What is REMOVED (CHARTER §Principle 1 filter 3)\n\n**RETIRED: the kernel\
+  \ habit of ROOT-LAYOUT FALLBACK GUESSING** — resolving a consumer surface from\n\
+  an assumed root layout and, for any project shaped differently, degrading SILENTLY\
+  \ to a no-op that\nstill reports. That habit is REMOVED, and deliberately NOT REPLACED:\n\
+  \n- **No mandated project layout** — explicitly rejected. This rule requires no\
+  \ project to move\n  anything or to look like any other project.\n- **No new project-layout\
+  \ mechanism** — no discovery layer, no layout registry, no resolver\n  framework.\
+  \ The declaration surface that exists is the one that is read.\n- **Optional `init`\
+  \ defaults stay acceptable ONLY as recommendations for NEW projects**, never as\
+  \ a\n  compatibility rule an existing project is measured against. A born default\
+  \ is a convenience at\n  birth; the moment it is treated as what a project OUGHT\
+  \ to look like, it has become the mandated\n  layout above.\n\n**RETIRED (added\
+  \ by X-1235): the PER-LANGUAGE REGEX GROWTH PATH** — answering \"the kernel does\
+  \ not\nrecognize this project's tests\" by adding one more branch to a kernel-carried\
+  \ filename pattern.\nThat is REMOVED as the standing answer, and deliberately NOT\
+  \ REPLACED by its neighbours:\n\n- **No per-language adapter, no convention registry,\
+  \ no auto-detection layer.** Each is a SECOND\n  convention system standing beside\
+  \ the project's own contract, which is the accretion CHARTER\n  §Principle 1 refuses;\
+  \ the declaration that exists is the one that is read.\n- **What replaces it is\
+  \ not a mechanism but a precedence:** where a project declares the\n  convention,\
+  \ the declaration resolves it (half (c)); where none is declared, the kernel default\n\
+  \  stays, on the §2a(ii) fail-open, report-only terms and no others.\n\n### 5. The\
+  \ existing analog this rule governs — it BUILDS no carrier\n\n`yitc-ops.yaml` (SPEC-0093,\
+  \ with the verify/coverage/startup sections in SPEC-0152) ALREADY IS the\ndeclaration\
+  \ surface: `verify.layers[].command` / `covers` / `subject_globs` / the per-layer\
+  \ and\nper-section waivers, and `coverage.load_bearing` / `admitted`, and — for\
+  \ half (c) — the `tests:`\ntaxonomy's `classes[]`. This rule builds **no carrier,\
+  \ no store, no section**: it governs how\nkernel code READS the carrier that exists.\n\
+  \n**Two fields, named honestly — each admitted by §2's inverse move on its own incident.**\
+  \ Both are\nOPTIONAL and checked ONLY if present, so each enlarges what a project\
+  \ MAY say and obliges no\nproject to say it; no existing carrier becomes non-conforming.\
+  \ A THIRD field is not licensed by\nthis section — it needs its own showing that\
+  \ the contract cannot express its own surface.\n\n- The per-class `globs:` list\
+  \ on `tests.classes[]` (shape owned by SPEC-0160 rule 10), on X-1235's\n  showing\
+  \ that the surface half (c) governs could not otherwise be declared at all.\n- `verify.infra_globs:`\
+  \ (shape and refusals owned by SPEC-0152 rule 16), on X-0938's remainder —\n  a\
+  \ layer whose command names no path leaves the derived reader no key at all. WIDEN-ONLY:\
+  \ it can\n  only ADD coverage to the kernel set, never remove any of it.\n\nA concrete\
+  \ instance of the reading it requires, already shipped and available for reuse rather\
+  \ than\nreinvention: `bin/lib/land_verify_legs.py#_pinned_declared_check_paths`\
+  \ (derive the surface from the\ndeclared layers) and `#_declared_check_surface_globs`\
+  \ (take the UNION of the declarations).\n\n### 5a. How this rule reaches the author\n\
+  \nDelivered at the **Execution stage-entry** — the moment kernel code is being written,\
+  \ which is when\nan author would otherwise reach for a path literal. It is deliberately\
+  \ NOT on the\n`before-project-dimension-judgement` floor: that surface answers a\
+  \ different question (is this\nartifact kernel, v2-self or project?) and is a deliberately\
+  \ capped bundle — five named specs, an\nanti-bloat bound guarded by `tests/test_t9442_project_dimension_floor.py`.\
+  \ This rule concerns how\nkernel code RESOLVES a surface it has already decided\
+  \ to reach, so the stage axis is the honest\none and the floor stays small.\n\n\
+  ### 6. Realm\n\nThis spec is KERNEL-realm and TRAVELS to every consumer — the spec\
+  \ class default (`travels: ~`),\nstated here in words because a default carried\
+  \ by an absent field is not legible on the artifact.\nIt governs KERNEL code. It\
+  \ places no obligation on a consumer: a consumer declares exactly what it\ndeclared\
+  \ before.\n\n### 7. Anti-complexity record (CHARTER §Principle 1, four filters —\
+  \ AGENTS §When NOT to add a mechanism)\n\n1. **Existing analog?** REUSED, not paralleled\
+  \ — SPEC-0093 / SPEC-0152 own the declaration\n   surface (its SHAPE); this spec\
+  \ adds a read-discipline over it (kernel READ behaviour). Not\n   folded INTO either,\
+  \ per SPEC-0005 rule 6: both are at the anti-oversize bound.\n2. **New entity or\
+  \ new view?** No new entity — no carrier, no store, no section; a standing rule\n\
+  \   over existing data, with one tripwire, plus the two OPTIONAL fields §5 names.\n\
+  3. **What gets removed?** §4 — root-layout fallback guessing and the per-language\
+  \ regex growth\n   path: both named and removed, neither replaced by a mechanism.\n\
+  4. **Real incident?** Four, by id, in §3 — all shipped and closed, each carrying\
+  \ its own part.\n\n## Rationale\n\nThis rule guards the CLASS the §3 incidents exposed,\
+  \ never any one closed instance. Its narrow\ndeclaration-exists form (§2), half\
+  \ (b), half (c)'s precedence and the §2a duties were each set by\nan external consult;\
+  \ the deliberation is in git history and in the consult records under\n`decisions/`.\n\
+  \n## Verification\n\nTripwire (SPEC-0165: one differential tripwire for a rule that\
+  \ can break silently — and this rule\ncan, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.\n\
+  It is anchored to the text of §1/§2 above and NOT to current code behaviour; where\
+  \ it uses a\npre-change state as a failing input it carries an INLINE copy of that\
+  \ state and names the fixed\ncommit it was taken from, never a merge-base, `main`,\
+  \ or `HEAD`.\n\nThree legs, each naming its input:\n\n- **A — the violating input\
+  \ (the guard MUST fail).** An ops carrier declaring\n  `verify.layers[backend].command:\
+  \ bash backend/scripts/verify.sh`, so `backend/tests` IS\n  declaration-covered.\
+  \ The pre- root-layout resolver (inline copy, baseline named) resolves\n  only a\
+  \ root `tests`, missing the declared surface → VIOLATION of §1(a). The current\n\
+  \  `_pinned_declared_check_paths` on the SAME carrier → no violation. The negative\
+  \ control is proven\n  in-arm, per `lessons/a-negative-control-must-fail-without-the-intervention.md`.\n\
+  - **B — the out-of-scope input (the guard MUST pass).** The SAME hardcoding resolver\
+  \ against a\n  carrier that declares NOTHING for that surface → NO violation, because\
+  \ §2's qualifier puts it\n  outside the rule. This leg is not politeness: a guard\
+  \ that failed here would have implemented the\n  broad rule the consult rejected,\
+  \ and would be the config-sprawl pressure §2 exists to refuse.\n- **C — the under-read\
+  \ input (the guard MUST fail), so §1(b) is enforced and not merely\n  described.**\
+  \ A carrier with two executable layers — the one whose `covers:` claims the surface,\n\
+  \  plus a SIBLING that names the file. A first-layer-only reader reports the file\
+  \ unnamed →\n  VIOLATION; the union reader does not.\n\nAdoption (CHARTER §Principle\
+  \ 8, infra-class): the guard suite executing under the pinned land-verify\nsuite,\
+  \ with leg A's named failing input demonstrating the differential.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0160
+- SPEC-0060
+- SPEC-0093
+- SPEC-0152
+- SPEC-0077
+- SPEC-0165
+- SPEC-0073
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- stage-entry:Execution
+init_concern: null

@@ -1,0 +1,280 @@
+id: SPEC-0036
+title: External auditor contract — invocation, verdicts, lens, per-stage overlays
+  incl. plan-stage templates
+status: active
+created_at: 2026-06-05 11:50:40+00:00
+consumed: false
+implements: []
+binding:
+- stage-entry:Audit-pre
+- stage-entry:Audit-post
+body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contract:\
+  \ that the auditor is an INDEPENDENT\nsecond agent, what each verdict means, the\
+  \ absorption ceiling, and the V2 evaluation lens the\nprompt must carry — otherwise\
+  \ audits drift to generic \"good practice\" and lose their\nblind-spot-catching\
+  \ value. The PLAN-STAGE QUESTION TEMPLATES (the owner-visible, durable question\n\
+  sets asked at each plan-FSM gate, appendable via `--focus`) were born in this head\
+  \ and are now\nhomed in SPEC-0083 (re-homed by so the Audit-pre / Audit-post bundles\
+  \ stop carrying a\nplan-gate-only surface); the universal lens below stays single-homed\
+  \ here and the plan-gate\nprompts reference it (P5).\n\n## Internal\n\nTHE AUDIT\
+  \ CONTRACT. The external auditor IS the second AI agent — a DIFFERENT provider from\
+  \ the\nprimary (CHARTER §Principle 4a); each catches the other's blind spots.\n\n\
+  ### Auditor selection — provider + model + EFFORT (per-tier)\nThe auditor for an\
+  \ invocation is selected by THREE per-tier knobs in `bin/audit-config.yaml`\n(routine\
+  \ vs full tier — CHARTER §P4b keeps the concrete bindings in config, not in this\
+  \ normative\ntext): `provider:` (which adapter — `<external-auditor>` default, or\
+  \ `the AI provider`), `model:` (the provider's model\nid), and `effort:` (per-invocation\
+  \ reasoning effort — low|medium|high|xhigh|max; default `medium`,\nthe explicit\
+  \ real-work level). Effort is honored by BOTH adapters : the AI provider adapter\n\
+  passes the AI provider's native `--effort <lvl>`; <external-auditor> has no native\
+  \ flag, so its adapter passes the\n`-c model_reasoning_effort=\"<lvl>\"` config-override\
+  \ (the CODEX_HOME `model_reasoning_effort` key,\nwhose own default is medium). An\
+  \ ABSENT `effort:` adds no flag / no override — each provider stays\nits own config-default\
+  \ (<external-auditor> byte-identical to a no-effort invocation). `effort` is a RUNTIME\n\
+  invocation knob, not a consumed-spec governing param.\n\n**ENV override — per-context\
+  \ auditor selection (precedence: env > audit-config tier default).**\nEach of the\
+  \ three knobs has a matching environment variable — `YITC_AUDIT_PROVIDER`,\n`YITC_AUDIT_MODEL`,\
+  \ `YITC_AUDIT_EFFORT`. When a var is set (non-empty) it WINS over the\n`bin/audit-config.yaml`\
+  \ tier default; when unset, resolution returns the config default UNCHANGED\n(byte-identical\
+  \ — the committed config is test-pinned to <external-auditor>/medium, so the env\
+  \ path\nmust not perturb it). This lets a caller select the auditor PER-INVOCATION\
+  \ without editing the\ncommitted config — e.g. the bench harness exports the trio\
+  \ into each dispatched polygon worker's\nlaunch subshell (parity with its CODEX_HOME\
+  \ export) so a per-cell auditor is honored, and an ad-hoc\nconsult can override\
+  \ on the command line. The override is read in `bin/lib/audit.py`\nresolve_audit_provider/model/effort\
+  \ (the single resolution chokepoint). It is a RUNTIME selection\nknob, same class\
+  \ as `effort` above — not a consumed-spec governing param.\n\n### When invoked\n\
+  audit-pre/post apply to a TASK (Stage 4/8) OR a DECISION OR a PLAN — for a plan:\
+  \ the\naggregate `audit post --plan` at the close-gate (Part B) PLUS the per-gate\
+  \ QUESTION\nTEMPLATES below (§Plan-stage overlays) asked by `plan check` / `plan\
+  \ stage <NEXT>`. For a TASK:\naudit-pre = \"does the plan match scope + acceptance?\"\
+  \ governs proceed-to-execution; audit-post =\n\"does the shipped diff match the\
+  \ plan?\" governs close-vs-reimplement. Hygiene fast-path tasks\nskip BOTH. CLI\
+  \ target: `audit pre|post --task T-XXXX` OR `--decision D-XXXX` OR\n`audit post\
+  \ --plan <slug>`.\n\n**Re-audit-after-close carve-out (X-0040 non-empty-delta half)\
+  \ — the ONE exception to\n\"TASK audits run in-progress only.\"** A TASK audit-post\
+  \ normally requires `status: in-progress`\n(audits ARE Stage 4/8, which only exist\
+  \ for an open task). The narrow exception: a status:**done**\ntask whose worktree\
+  \ carries LEGITIMATE post-audit-post SOURCE changes (e.g. recovery test-fixes)\n\
+  needs a FRESH audit-post over the CURRENT tree to reach a post-close `land --rebaseline`\
+  \ WITHOUT the\nblunt `--no-tests` (the deadlock live-hit on : the original audit\
+  \ no longer covers the changed\ntree, and a done task previously refused re-audit).\
+  \ `audit post --reaudit-after-close --task T-XXXX`\nis that path: it is **post-only\
+  \ + --task-only + status:done-only** (drop any one → the ordinary\nin-progress audit-post\
+  \ path runs unchanged; the flag rides the shared `audit post` parser surface, so\n\
+  it is FAIL-CLOSED REJECTED on a non-task `--decision`/`--plan` target rather than\
+  \ silently ignored),\nit ALWAYS audits **HEAD** (the current tree; `--commit`\n\
+  is rejected — the freshness guarantee is \"audit the current tree\"), and it records\
+  \ the fresh\n`audit_post_completed` GREEN/YELLOW at HEAD. The honoring of that fresh\
+  \ audit on the `--rebaseline`\nland rides the EXISTING `_change_is_audited` inert-delta\
+  \ gate (delta HEAD..HEAD is empty → audited) —\nno new honoring path (SPEC-0077\
+  \ §3a sibling). The read-gate + stage-correspondence bypass this path\nrequires\
+  \ (a done task cannot enter `stage Audit-post`) is governed by SPEC-0050's Instance.\n\
+  This SUPERSEDES the prior SPEC-0077 §3a claim that the post-close case \"needs NO\
+  \ re-audit-after-close\npath, so SPEC-0036's in-progress-only audit rule is untouched\"\
+  \ — it is now touched, exactly here.\n\n### Verdict handling (uniform across pre\
+  \ / post / ad-hoc / plan-gates)\n| Verdict | Action |\n|---|---|\n| GREEN | Proceed.\
+  \ |\n| YELLOW (medium findings) | Absorb inline if quick; file a follow-up for residual;\
+  \ proceed. |\n| RED (critical/high findings) | STOP at a BLOCKING gate (re-plan\
+  \ / escalate; never silent-pass). At an ADVISORY plan-gate: recorded, transition\
+  \ proceeds (§Plan-stage overlays gate policy). |\n| ABORT (auditor unavailable /\
+  \ malformed) | STOP. Don't proceed without a verdict. Surface to owner. **Exception\
+  \ : a TRANSIENT no-read-tooling ABORT** — the auditor ABORTs claiming it lacks file-read\
+  \ tooling, carrying NO findings — is retried ONCE by `audit pre|post`; if it persists\
+  \ it is recorded (`tooling_absence_abort: true`) but does NOT burn an audit pass\
+  \ (the ledger is not advanced — re-run later, it is not a real ABORT). **Exception\
+  \ : a <external-auditor> TIMEOUT ABORT** — `_invoke_auditor` hits its hard timeout\
+  \ (rc==124), which maps to verdict ABORT carrying NO findings — is the SAME no-real-outcome\
+  \ class: recorded (`timeout_abort: true`) but does NOT burn an audit pass (ledger-skip),\
+  \ so a timeout never forces an `--owner-reset` (the incident). **SUPERSEDED by —\
+  \ the ledger now keys on the NO-OUTCOME INVARIANT, not on the cause.** ANY ABORT\
+  \ carrying NO findings is ledger-skipped, whatever the rc: the auditor produced\
+  \ no verdict, so nothing was absorbed against one (`is_no_data_verdict` — the <workshop-spec>\
+  \ rule-1 predicate that ALREADY classifies this shape as a run that did not complete).\
+  \ It strictly SUBSUMES the two per-cause predicates above, which survive as forensic\
+  \ MARKERS (`tooling_absence_abort` / `timeout_abort`) and keep their other jobs\
+  \ (the retry loop; the auto-park) — only the LEDGER stopped keying on them. FAIL-CLOSED,\
+  \ and this is the whole boundary: the skip needs verdict==ABORT **AND** findings==[];\
+  \ an ABORT that CARRIES findings is the auditor having RUN and refused with content\
+  \ — a real outcome that STILL advances — and no non-ABORT verdict (GREEN/YELLOW/RED)\
+  \ can ever open it. **What OVERRIDES, named so it is traceable:** clause held it\
+  \ DELIBERATE that a non-124 no-outcome failure still advances the ledger; that is\
+  \ overridden. Compliance on a GENUINE ABORT (one carrying findings) is unchanged.\
+  \ **Exception : an AUDITOR-OUTAGE ABORT** — the auditor genuinely could not RUN\
+  \ (`is_auditor_outage_abort`: verdict ABORT, NO findings, AND rc in {126,127} —\
+  \ subscription-preflight refusal / <external-auditor> CLI missing — OR an env/config\
+  \ / usage-limit / quota signature; EXCLUDES the rc==124 timeout above) is a no-plan-defect\
+  \ class: there is nothing in-scope to fix, so a DISPATCHED worker (`YITC_EXPECTED_SESSION_REF`\
+  \ set) is AUTO-PARKED GRACEFULLY by `audit pre|post` — the worktree+branch are torn\
+  \ down (`worktree park` / the shared `_park_worktree` core, emitting `worker_parked`)\
+  \ and the task stays `ready` on main → cleanly re-dispatchable, no dead-but-unlanded\
+  \ orphan (the X-0098/X-0092 incident — twice in one session). An INTERACTIVE session\
+  \ prints the manual `worktree park` hint instead (never auto-destroy an interactive\
+  \ worktree). The dispatched-worker park-not-escalate behavior is the SPEC-0103 §3a\
+  \ subclass. |\n\n### Auditor-tier policy — routine vs FULL, and no relitigation\
+  \ of a FULL-settled point\nTwo standing policies (owner precedent 2026-06-11). NO\
+  \ new mechanism: session DISCIPLINE on\nthe EXISTING `--full` flag + the EXISTING\
+  \ consult path, never a detector or gate (CHARTER non-goal\n#7 — no behavioral auto-classifier).\n\
+  \n- **(b) Tier selection — doctrine/scope-sensitive gates default to FULL.** The\
+  \ BASE tier guidance\n  lives in AGENTS §External auditor (FULL for big-plan / architectural\
+  \ / conceptual-coherence;\n  lighter routine for small mechanical pre/post) — read\
+  \ it there, not duplicated here (P5). This\n  SHARPENS it on the GATE axis: when\
+  \ the gate turns on a DOCTRINE, GOVERNANCE, SCOPE-BOUNDARY, or\n  CONCEPTUAL-COHERENCE\
+  \ judgement — not a mechanical diff check — the session passes `--full` BY\n  DEFAULT.\
+  \ The session JUDGES sensitivity (a routine/mechanical change stays routine); this\
+  \ is a\n  behavioral discipline, NEVER an auto-classifier or gate (non-goal #7).\
+  \ Rationale: a weaker model\n  relitigates settled doctrine, so a doctrine gate\
+  \ starts at the tier where doctrine is adjudicated.\n\n- **(a) No relitigation after\
+  \ a FULL consult settles a point.** Once a FULL consult (the\n  ceiling-convergence\
+  \ consult, or a FULL ad-hoc) has SETTLED a point — a FRESH single-survivor\n  GREEN/YELLOW\
+  \ on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that\n\
+  \  settled point. The FULL consult is the authoritative adjudication; a routine\
+  \ RED that merely\n  RE-ASSERTS what the fresh FULL consult resolved is treated\
+  \ as DOCTRINE-INCONSISTENT and is NOT\n  relitigated — it is dispositioned in the\
+  \ audit YAML `session_disposition` citing the consult. SAME freshness guard binds\
+  \ BOTH: only a consult matching the CURRENT\n  subject (pre = plan_fingerprint,\
+  \ post = commit SHA) settles a point — a STALE / multi-survivor /\n  ABORT consult\
+  \ settles NOTHING, and a routine RED with no settling consult governs normally.\n\
+  \n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\nRE-HOMED to SPEC-0124,\
+  \ which binds the SAME Audit-pre/Audit-post stage-entries and is\ntherefore always\
+  \ delivered alongside this spec — read the ceiling contract there.\n\n### Universal\
+  \ V2 evaluation lens (include in EVERY prompt)\nEvaluate against CHARTER principles:\n\
+  - Anti-complexity: does this add mechanism/file/rule? 4 filters passed?\n- Done\
+  \ = adopted: acceptance includes probe evidence (event/state/measurable)?\n- Documentation-first:\
+  \ relevant docs read/updated?\n- Single source of truth: parallel storage/parser\
+  \ created?\n- AI independence: provider-specific terms in normative text?\n- Controller+Worker\
+  \ only (CHARTER §P6 — the live session taxonomy; Build+Review is retired): pipeline/role-split\
+  \ crept in?\n- Repeated work (audit-pre / any plan-shaped artifact): does the plan\
+  \ add repeated work — an N+1, a\n  re-read, a re-fetch, an unbounded loop or poll,\
+  \ a repeated scan, an unwatermarked pass — WITHOUT\n  naming the neighbouring mechanism\
+  \ at the same seam that it reuses (or recording that none exists)?\n  The classes\
+  \ + detect heuristics live single-home in `patterns/repeated-work-lens.md`; this\
+  \ lens\n  asks the ONE question and never restates them (SPEC-0005 rule 8). Its\
+  \ authoring-side counterparts\n  are SPEC-0032 §Internal item 1a (Analysis) and\
+  \ SPEC-0027 §Stage 3 (the plan's `reuses:` /\n  `adds-first:` line) — the absence\
+  \ of that line is at most a finding here, never a refusal there.\n  Inert for an\
+  \ artifact that adds no read / loop / poll / fetch / scan / worker pass.\n- **Touch-forecast\
+  \ / coverage COMPLETENESS is CONTEXT, never a finding.** That a file or\n  a spec\
+  \ is ABSENT from the card's `expected_touch`, or from the `### Spec coverage of\
+  \ touched\n  files` forecast, is NOT a defect at any severity and the auditor MUST\
+  \ NOT raise it as a finding —\n  not high, not low, not a note dressed as one. `expected_touch`\
+  \ is an OPTIONAL plan-time forecast\n  (SPEC-0028) whose three consumers are dispatch/planning/claim,\
+  \ and `task commit` now REFRESHES it\n  from the committed diff (`bin/lib/task.py#refresh_expected_touch`),\
+  \ so a gap is a fact about WHEN\n  the card was written, not about the change. The\
+  \ comparison stays rendered — as CONTEXT for the\n  scope-fidelity judgement: a\
+  \ path in the diff the card's SCOPE does not justify is still a\n  scope-fidelity\
+  \ finding, judged on the CHANGE and never on the forecast's completeness.\n  ENFORCED,\
+  \ not merely asked: a RED whose ONLY findings carry `class_id: forecast-completeness`\n\
+  \  (`bin/lib/audit.py#FORECAST_COMPLETENESS_CLASS_ID`) is REFUSED at the parse floor\
+  \ —\n  `bin/lib/audit.py#red_findings_forecast_completeness_only`, the sibling of\
+  \ SPEC-0204 rule 1's\n  contract-fields floor — so no verdict is recorded and NO\
+  \ pass is spent. A RED carrying a genuine\n  finding ALONGSIDE a forecast remark\
+  \ is recorded normally; the refusal can only ever discard a\n  verdict with nothing\
+  \ else in it.\n- **WITHDRAWN-TEMPORARILY (owner directive 2026-09-05) — the full-verdict\
+  \ rule\n   is NOT in force.** It required every RED verdict (audit-pre AND audit-post)\
+  \ to\n  enumerate the COMPLETE defect set over the WHOLE subject, with a `findings_complete:\
+  \ true |\n  false` declaration read fail-closed on omission, and a one-shot completion\
+  \ re-prompt in the same\n  pass. No auditor\n  surface carries the clause and no\
+  \ verdict schema asks for the declaration. The NARROWED\n  successor — ONE exhaustive\
+  \ survey at the baseline-establishing consult, later rounds scoped to\n  that baseline's\
+  \ closure plus fix-induced regressions — is being designed in plan\n  `frozen-defect-baseline-at-the-audit-loop-ceiling-d`;\
+  \ read the rule there, not here. The CONSULT\n  half was withdrawn on the same terms\
+  \ in SPEC-0124 §Ceiling-convergence triage.\n- Amendment-merit (a CHARTER-amending\
+  \ artifact — E-0013): IF the artifact EXPLICITLY proposes to\n  AMEND a CHARTER\
+  \ principle/section AND states the amendment's\n  merit, do NOT RED it merely for\
+  \ being incoherent with the CURRENT CHARTER text — that\n  incoherence is the POINT\
+  \ of an amendment, not a defect. Evaluate the amendment ON ITS MERITS\n  (justified\
+  \ by a real need / prior-art? scoped? retirements named? probe-shaped? does it EXPLICITLY\n\
+  \  amend the surface it changes, not silently bypass it?); RED only if the amendment\
+  \ ITSELF is\n  unsound / unjustified / out of scope. Inert for ordinary artifacts\
+  \ proposing no amendment —\n  coherence-with-current-CHARTER still governs those.\n\
+  \n### Monotonic per-pass re-audit prompt (pass N>=2) ( — lever #1 of plan\naudit-reliability-and-convergence-overhaul-monoton;\
+  \ X-0134 RC1a)\nThe auditor prompt is MONOTONIC across re-audit passes — it does\
+  \ NOT re-survey from scratch.\n- **NEW (account-for-prior FIRST):** on pass N>=2\
+  \ (a prior saved audit record exists for this\n  target+stage) the prompt LEADS\
+  \ with a monotonic re-audit section — placed AFTER the fixed lens but\n  BEFORE\
+  \ the fresh-survey overlay/body so it is read first. It (a) inlines the PRIOR verdict's\n\
+  \  findings verbatim, (b) renders the plan/diff DELTA — the prior artifact IDENTITY\
+  \ (plan_fingerprint\n  for pre / commit sha for post) as the FROM endpoint, plus\
+  \ a computed unified diff when the prior\n  artifact text is available, else an\
+  \ explicit framing of the current plan/diff (in the body) as the\n  TO endpoint\
+  \ — and (c) makes the auditor's FIRST task per-prior-finding RESOLVED / NOT-RESOLVED\n\
+  \  against that delta. Only THEN may it raise a finding, and a NEW finding MUST\
+  \ be justified as\n  genuinely-new (a real defect the current change introduced\
+  \ OR the prior pass missed) — NOT a\n  re-survey of settled ground and NOT a goalpost-shift.\
+  \ CONVERGENCE: all prior findings resolved +\n  no new REAL defect -> GREEN.\n-\
+  \ **NOT BLINDED (constraint #2):** monotonic means \"account for prior first\",\
+  \ NOT \"new findings\n  forbidden\". A genuinely-new REAL defect STILL surfaces\
+  \ and STILL blocks (verdict != GREEN); the\n  section says so explicitly, so the\
+  \ convergence pressure never suppresses a real defect.\n- **CONDITION-BASED resolution,\
+  \ NOT diff-delta-only ( — X-0134 RC1a out-of-diff half; live\n  incident false-RED):**\
+  \ marking a prior finding RESOLVED is judged against its CURRENT\n  SATISFACTION\
+  \ in the FULL packet the auditor now sees (the body, the attached/referenced files,\n\
+  \  AND the surfaced adoption/state evidence) — NOT only against whether the audited\
+  \ DIFF changed\n  since the prior pass. A resolution may live OUTSIDE the audited\
+  \ diff: an ENGINE / environment fix\n  or freshly-surfaced evidence that now renders\
+  \ a once-missing thing PRESENT (e.g. an\n  adoption-evidence SURFACER fix that makes\
+  \ `state_checked` / `external_audit_completed` evidence\n  visible in the packet).\
+  \ So an UNCHANGED audited diff is NOT, by itself, grounds to carry a prior\n  finding\
+  \ forward — the auditor must re-check the FINDINGS CONDITION, and mark it RESOLVED\
+  \ when\n  that condition is now met REGARDLESS of diff change. The diff-DELTA stays\
+  \ an AID for justifying a\n  genuinely-NEW finding (what the current change introduced),\
+  \ NOT the sole resolved-test for a prior\n  finding. This NEVER becomes a blanket\
+  \ clear-on-no-change: resolution must be GENUINE — RESOLVED\n  only when the condition\
+  \ is ACTUALLY satisfied now; a still-unmet condition STILL blocks (verdict\n  !=\
+  \ GREEN) even with no diff change.\n- **AMENDMENTS ARE RENDERED ( — X-1182; <project>):**\
+  \ the section ALSO inlines the\n  card's `amend_notes:` entries — the notes `task\
+  \ update --note` appends — but ONLY those written\n  AFTER the prior pass. Three\
+  \ bounds: the cut is\n  DIFFERENTIAL (entries after the prior pass only, so the\
+  \ prompt budget stays flat as a card\n  accumulates amendments) and FAIL-CLOSED\
+  \ (an unparseable prior timestamp or entry prefix renders\n  nothing — the whole\
+  \ history is never dumped); an amendment is EVIDENCE the auditor must engage,\n\
+  \  NEVER by itself a resolution — a finding whose CONDITION is still unmet STILL\
+  \ blocks whatever the\n  amendment argues, which leaves the condition-based resolution\
+  \ rule above untouched; and pass-1\n  packets are unchanged, since the whole section\
+  \ renders only on pass N>=2.\n- **RESOLUTION ROWS — the auditor judges a CHECK instead\
+  \ of re-surveying :** an\n  `amend_notes` entry written after the prior pass (the\
+  \ SAME differential cut as the bullet above,\n  never widened) whose note body matches\
+  \ the one-line grammar\n  `RESOLVED <finding-index>: <text> | CHECK: <text> | OUTPUT:\
+  \ <text>` — the literal `RESOLVED`, a\n  1-based index into the PRIOR verdict's\
+  \ findings order, then the three `|`-separated fields — is\n  rendered as a TABLE\
+  \ ROW aligned to that prior finding, and the section instructs the auditor to\n\
+  \  judge THAT recorded check FIRST. A prior finding no entry names rows as `no resolution\
+  \ recorded`,\n  which carries no claim either way. The grammar is a READING convention\
+  \ over the existing field:\n  the raw note stays the source of truth (every entry,\
+  \ parsed or not, still renders verbatim), the\n  row is an INDEX into it, and NO\
+  \ new field, store or verb is introduced — `task update --note`\n  remains the writer.\
+  \ The ENGINE NEVER EXECUTES THE CHECK: the author records the OUTPUT and the\n \
+  \ auditor reads it, so a row is EVIDENCE — never by itself a resolution, and a finding\
+  \ whose\n  condition is still unmet STILL blocks (the framing, unchanged). PARSE\
+  \ FAILURE: an entry\n  beginning `RESOLVED` that does not match the grammar, or\
+  \ that names an index outside the prior\n  findings, renders UNSTRUCTURED exactly\
+  \ as it did before this rule PLUS ONE diagnostic line naming\n  the entry and the\
+  \ expected shape — never silent loss, never a refusal. Pass-1 packets are\n  unchanged\
+  \ (the whole section renders only on pass N>=2).\n- **Scope:** the absorption-loop\
+  \ audits only — TASK audit-pre/post + PLAN gate audit-post (the shared\n  `build_audit_prompt`\
+  \ engine). The consult / ad-hoc / decision target-kinds carry their own\n  prior-trail\
+  \ handling and are passed NO `prior_record`, so they are unaffected.\n- **Compatibility\
+  \ (additive — SPEC-0005 §7 in-place extension; no new SPEC-ID):** the section is\n\
+  \  rendered ADDITIVELY and ONLY on pass N>=2; pass-1 prompts are unchanged. The\
+  \ audit-record SCHEMA is\n  untouched — the ledger-skip family (single-homed at\
+  \ SPEC-0124 §Ledger-skip axes) and the\n  recorded `passes:` semantics are PRESERVED\
+  \ (the ceiling still counts passes identically — this\n  changes the PROMPT, not\
+  \ the counting). The\n  prompt text is DERIVED implementation wording (SPEC-0005\
+  \ rule 8 cue+pointer); the canonical rule is\n  THIS section, the code home is `build_audit_prompt`\
+  \ / `_format_monotonic_reaudit_section`.\n\n**This body CONTINUES in `SPEC-0036-external-auditor-contract-invocation-verdicts-lens.part2.yaml`\
+  \ and `SPEC-0036-external-auditor-contract-invocation-verdicts-lens.part3.yaml`**\
+  \ (SPEC-0120 §3\nsplit — SPLIT never deletes; `graph query SPEC-0036` serves base\
+  \ + parts as one body).\n"
+cites:
+- CHARTER.md#principle-4
+- SPEC-0013
+- SPEC-0034
+- SPEC-0035
+- AGENTS.md#external-auditor-invocation-contract
+- patterns/trial-methods.md
+- per-stage-external-audit-question-templates-for-th
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: per-stage-external-audit-question-templates-for-th

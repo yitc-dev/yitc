@@ -1,0 +1,154 @@
+id: SPEC-0059
+title: Universal stage contract — deliver / check / readiness across the task and
+  plan axes (the per-verb map is a derived view, not stored here)
+status: active
+created_at: 2026-06-08 20:13:45+00:00
+consumed: false
+implements:
+- bin/lib/gates.py#_require_reads
+- bin/lib/gates.py#_require_stage_correspondence
+- bin/lib/cli.py#_require_verification_artifact
+body: "## Scenario\n\nEvery lifecycle stage — on BOTH axes (the task 9-stage lifecycle\
+  \ and the plan\n`draft→specs→trial→accepted→executing→postcheck→realized` FSM) —\
+  \ runs ONE rhythm, so the AI is\nreliably pointed at the right doctrine and cannot\
+  \ silently skip the read or act at the wrong stage.\nA stage's ENTRY delivers that\
+  \ stage's doctrine; the stage's WORK-VERB both checks the doctrine was\nread in\
+  \ the current session AND does the stage's work; a readiness gate confirms the prior\
+  \ stage's\nexit plus the existence of the per-unit verification artifact. This spec\
+  \ states the cross-axis\nINVARIANT only; the per-verb realization is owned by the\
+  \ existing carriers (§The map is a derived\nview), never restated as a normative\
+  \ table here.\n\n## Internal\n\nThis spec states ONLY the cross-axis INVARIANT —\
+  \ that the three-leg stage rhythm holds IDENTICALLY\non BOTH axes. It RE-HOMES nothing:\
+  \ every per-surface rule named below stays normative in its own\nhome (read-check\
+  \ semantics → SPEC-0050; refusal-event shape/kinds → SPEC-0025; report-only structural\n\
+  pre-pass → SPEC-0046; per-stage doctrine → SPEC-0014/0015/0027/0034/0036; delivery\
+  \ binding →\nSPEC-0013). So NO rule-text is deleted from those specs — this is consolidation\
+  \ of the one thing none\nof them owns (the cross-axis contract), NOT a second normative\
+  \ layer over them (accept-gate F1,\n2026-06-08). The §Replacement map below makes\
+  \ that boundary explicit; the §Enforcement-classes and\n§Carrier-rule sections state\
+  \ the invariant and POINT — they do not re-define their homes' rules.\n\n### The\
+  \ universal stage contract — three legs (the cross-axis INVARIANT)\nEvery stage,\
+  \ on BOTH axes, has these three legs. This spec asserts only that the legs EXIST\
+  \ at every\nstage and NAMES each leg's home; each leg's behavior-changing SEMANTICS\
+  \ live ONLY in that home — no\nsentence here changes consumer behavior a home already\
+  \ owns (accept-gate F1, 2026-06-08):\n1. **Entry DELIVERS the stage doctrine** —\
+  \ home: the per-stage doctrine spec, routed by its `binding:`\n   (delivery mechanics\
+  \ → SPEC-0013). The ONE cross-cutting rule SPEC-0059 owns (no per-stage spec can\n\
+  \   state it about all the others): a stage doctrine spec carries how-to + how-to-VERIFY\
+  \ + the\n   mechanical-check procedure as ONE doctrine. Carve-out: **Filing** has\
+  \ no preceding entry verb, so\n   its doctrine is a session-start REFERENCE (availability,\
+  \ no gate) and only its CHECK leg holds.\n2. **Entry READINESS gate** — home: the\
+  \ `_require_*` code gates + each per-stage spec's entry-gate.\n   Invariant: the\
+  \ gate confirms BOTH (a) the prior stage's exit AND (b) the per-unit verification\n\
+  \   artifact EXISTS (the per-axis specifics — task `acceptance` / plan realization-exit\
+  \ — are\n   SPEC-0027 / SPEC-0034's, not restated here).\n3. **Work-verb CHECKS\
+  \ its stage's docs were read (current context) AND does the work** — home: the\n\
+  \   read-check primitive SPEC-0050 (session-scope + the `read_gate_refused` emission)\
+  \ + the\n   stage-correspondence guard `_require_stage_correspondence`. Invariant:\
+  \ every stage work-verb\n   carries BOTH a read-check leg AND a stage-correspondence\
+  \ leg.\n\n### Enforcement split (the invariant; semantics point out)\nThe three\
+  \ checks above BLOCK (refuse the verb); the decomposition structural pre-pass is\
+  \ REPORT-ONLY\n(home: SPEC-0046 — a judgement heuristic, never a hard block). Every\
+  \ BLOCK emits `read_gate_refused`\nwith its `kind` (`read-check` / `stage-correspondence`\
+  \ / `verification-exists` /\n`post-verification-fill`) — the emission + the event\
+  \ shape are owned by SPEC-0025 / SPEC-0050;\nSPEC-0059 asserts only that the emission\
+  \ is UNIFORM\nacross every blocking kind, so discipline is analyzable **per kind**\
+  \ (`cli_invoked` denominator;\n`read_gate_refused` numerator split BY `kind` — the\
+  \ lens is kind-aware, never one mixed ratio).\n\n### Carrier rule (no-work-verb\
+  \ stages) — a contract CLASS\nA stage with no single acting work-verb has its check\
+  \ carried by its ENTRY/TRANSITION verb (or the\nnext control-point); no stage is\
+  \ left without a carrier. This is the invariant CLASS — the CONCRETE\ncarrier verb\
+  \ per stage is a realization owned by that stage's per-stage spec/code, not fixed\
+  \ here\n(illustratively today: `trial` → `plan stage trial` + journaled runs; `realized`\
+  \ → the `plan stage\nrealized` finalize-gate; `postcheck` soak → the `audit post\
+  \ --plan` refresh).\n\n### The map is a DERIVED VIEW, not a normative store (Single-SoT,\
+  \ P5)\nThe per-verb map (verb → entry-delivers / work-verb-checks+does / readiness)\
+  \ is NOT hand-authored\nhere. Each of its three columns is ALREADY owned by an existing\
+  \ single source — restating them in a\nnormative table would double-bookkeep and\
+  \ drift (#10) as the verb surface evolves:\n- **entry-delivers** = the per-spec\
+  \ `binding:` fields, GENERATED into the graph + the floor-trigger-map\n  (the existing\
+  \ generated view; never hand-edited);\n- **work-verb checks+does** = each stage's\
+  \ own per-stage spec (SPEC-0014/0015/0027/0034/0036/0050…) + the verb's code;\n\
+  - **readiness** = the `_require_*` code gates + the per-stage spec's stated entry-gate.\n\
+  So: this spec holds the cross-axis INVARIANT (the three legs above + enforcement\
+  \ classes + the\nno-work-verb carrier class). The verb INVENTORY stays `bin/yitc-v2\
+  \ --help`; the delivery relations\nstay the generated binding view. A CONSOLIDATED\
+  \ map artifact, IF a real drift incident ever pulls\nfor one, is produced as a GENERATED\
+  \ view (the floor-trigger-map precedent: source first, generate\nlater) — never\
+  \ a hand-maintained table. When a verb/stage/gate changes, the change lands in its\
+  \ TRUE\nowner only (binding source · per-stage spec · code gate); any consolidated\
+  \ view regenerates.\n\nGREEN is always a work-verb's RESULT that gates the NEXT\
+  \ stage's entry — never a stage's own\nprecondition (an invariant of the contract,\
+  \ not a map row).\n\n### Replacement map — consolidation, not a second rule layer\
+  \ (accept-gate F1, 2026-06-08)\n| leg / concern | OWNED here (the irreducible invariant)\
+  \ | stays normative in its home (this spec only POINTS) |\n|---|---|---|\n| entry-delivers\
+  \ | \"every stage entry delivers its doctrine\" | the per-spec `binding:` source\
+  \ + the generated floor-trigger-map view (SPEC-0013) |\n| work-verb checks+does\
+  \ | \"the work-verb checks ITS stage's docs read, current session, then does the\
+  \ work\" | read-check semantics → SPEC-0050; per-stage doctrine → SPEC-0014/0015/0027/0034/0036\
+  \ |\n| readiness | \"prior-exit satisfied AND the per-unit verification artifact\
+  \ exists\" | the `_require_*` code gates + each per-stage spec's stated entry-gate\
+  \ |\n| refusal event | \"every blocking refusal is journaled\" | event shape + kinds\
+  \ → SPEC-0025 / SPEC-0050 |\n| enforcement split | \"read-check + stage-correspondence\
+  \ + verification-exists BLOCK; structural pre-pass REPORT-ONLY\" | the structural\
+  \ pre-pass rule → SPEC-0046 |\n**No rule-text is DELETED from those specs** — SPEC-0059\
+  \ re-homes none of them; it adds the cross-axis\ninvariant none owns. The deletion\
+  \ obligation is CONDITIONAL: if a corpus pass (R3) ever finds a\nper-surface rule\
+  \ actually DUPLICATED in this body, THAT duplicate is the delete target (pointerize\
+  \ it\ninto its home), keeping this spec invariant-only. At birth this body carries\
+  \ only the invariant + pointers.\n\n### First-stage check-carrier gap (an invariant,\
+  \ NOT a verb list)\nToday the Analysis (task) and draft (plan) stages have NO dedicated\
+  \ work-verb, so under checkpoint 3\nthey lack a check carrier — a gap each axis\
+  \ must close. **The INVARIANT:** each first stage MUST gain\na check carrier. The\
+  \ CONCRETE realization (the carrier verb + any stage-artifact field it records,\
+  \ and\nthe one-carrier-per-datum rule for that field) is owned by the per-stage\
+  \ mechanics spec (SPEC-0027\ntask / SPEC-0034 plan) and built by the plan's activation\
+  \ tasks — named THERE, not here (the\nderived-view discipline above; concrete carriers\
+  \ are realizations, not contract text).\n\n## Parameters\n\nNone consumed.\n\n##\
+  \ Rationale\n\nReal incident: the `postcheck-to-realized` plan re-designed a procedure\
+  \ SPEC-0034 already shipped\nbecause `plan file` delivered SPEC-0034 as a POINTER\
+  \ that was never fetched, and no verb gated the\nread before `plan stage specs`.\
+  \ The SPEC-0050 pilot (`task commit` / `task close`) proves the\nread-check lever\
+  \ works; this contract GENERALIZES that proven pilot to every stage's work-verb.\
+  \ The\ncontract is CROSS-AXIS — neither SPEC-0034 (plan-axis mechanics) nor SPEC-0027\
+  \ (task-axis FSM) nor\nSPEC-0013 (delivery binding) owns it — so it lives here,\
+  \ in one home, pointed to from LIFECYCLE.\n\n## Verification\n\nBehavioral (primary):\n\
+  - each mapped work-verb REFUSES when its stage docs are unread (read-check) and\
+  \ when invoked at the\n  wrong `current_stage` (stage-correspondence); PASSES on\
+  \ the valid flow (no false-refuse);\n- every blocking refusal emits a `read_gate_refused`\
+  \ event with its `kind`;\n- the verification-artifact-exists check refuses when\
+  \ the artifact is missing (task `acceptance`\n  before Tests/Closure; plan realization-exit\
+  \ at accept-gate / postcheck entry);\n- a real plan-draft cannot reach `plan stage\
+  \ specs` without a recorded SPEC-0034 fetch.\nStructural (secondary): every lifecycle\
+  \ stage resolves to the three contract legs (delivery carrier ·\ncheck carrier ·\
+  \ readiness gate) through its TRUE owners (binding · per-stage spec · code gate)\
+  \ — NOT\na table in this spec.\nEvidence: the journal (`cli_invoked` + `read_gate_refused`);\
+  \ the kind-aware `discipline-ratio`\nsaved view (`bin/yitc-v2 graph query discipline-ratio`)\
+  \ is the analysis lens — the\n`read_gate_refused` numerator split BY `kind` over\
+  \ the `cli_invoked` denominator, a SEPARATE ratio per\nkind (read-check / stage-correspondence\
+  \ / verification-exists / post-verification-fill), never one\nmixed ratio. The `post-verification-fill`\
+  \ kind is the SPEC-0038 §3 fill-or-waive block at\n`task close`; its ratio is the\
+  \ successor signal to the retired `post_verification_gap` marker — the\nrule's own\
+  \ skip rate stays measurable from the journal after the block replaced the WARN.\
+  \ The view\nMECHANISM is owned by SPEC-0031; this is a non-normative cross-reference\
+  \ (it names the\nrealizing lens, it does not change what this spec requires).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- SPEC-0050
+- SPEC-0034
+- SPEC-0027
+- SPEC-0013
+- SPEC-0046
+- SPEC-0032
+- lifecycle-path-and-verb-sequencing-coherence-who-a
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: lifecycle-path-and-verb-sequencing-coherence-who-a
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#_require_verification_artifact: 3420a1beaf501dc1a76d2754fc3fdb4a665fd07ae0585f8a0d07bea8a5ba5333
+  bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
+  bin/lib/gates.py#_require_stage_correspondence: 0bf0ebeebc0c56dcbc5a1a974707baf0691de09763b10929f17e5b82ffdb9670

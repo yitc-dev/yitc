@@ -1,0 +1,366 @@
+id: SPEC-0165
+title: Loud-failure test-building doctrine — one tripwire per silently-breakable atomic
+  rule
+status: active
+created_at: 2026-07-18 19:06:25+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nBefore any test is written or waived, one question is asked\
+  \ aloud: **\"which SILENT breakage does\nthis tripwire make LOUD?\"** The owner\
+  \ can ask the same question about any rule and get the answer\nfrom the project's\
+  \ ledger, not from anyone's memory. Tests stop being a per-task ritual and become\n\
+  posts guarding rules: no rule that can break silently is unguarded, and no rule\
+  \ gets more than its\none guard.\n\n## Internal\n\nTHE LOUD-FAILURE PRINCIPLE (the\
+  \ single organizing rule for test-building):\n\n**A rule needs a test ONLY if it\
+  \ can break SILENTLY. Then it gets exactly ONE tripwire that makes\nthe breakage\
+  \ LOUD. If the rule already breaks loudly, no test — record a waive instead.**\n\
+  \nDefinitions (fail-closed, auditor-amended 2026-07-18):\n\n1. **Loud** — a violation\
+  \ is loud ONLY if a **named existing mechanism fails closed BEFORE the\n   harmful\
+  \ action on the relevant path** (verb refusal, land-verify failure, schema/type\
+  \ error,\n   startup crash). If you cannot NAME the mechanism, the rule is SILENT.\
+  \ Assumed visibility\n   (\"someone would notice\") is never loud.\n2. **Atomic\
+  \ rule** — one independently breakable equivalence boundary or state transition.\n\
+  \   Composite clauses (ranges, ordering, retries, idempotency, concurrency) are\
+  \ split into atoms\n   FIRST; then one tripwire per atom.\n3. **Tripwire quality**\
+  \ — a tripwire is DIFFERENTIAL: it proves the rule by a failing input,\n   anchored\
+  \ to the SPEC's text (or an explicit owner clarification), never to current code\n\
+  \   behavior. Happy-path multiplication adds weight, not loudness.\n   **NAME THE\
+  \ HISTORICAL BASELINE (the anchoring half of \"differential\").** When the failing\
+  \ input\n   is a PRE-CHANGE state read out of the repository's own history, the\
+  \ tripwire MUST name that\n   baseline EXPLICITLY — a fixed commit SHA, a tag, or\
+  \ an inline copy of the pre-change text — and\n   MUST NOT derive it from a merge-base,\
+  \ a branch tip, or a remote tip (`git merge-base`, `main`,\n   `origin/*`, `HEAD`),\
+  \ UNLESS the test is explicitly ABOUT those refs. A moving ref names the\n   pre-change\
+  \ state only while the change is UNLANDED; once it lands, the ref's target CONTAINS\
+  \ the\n   change, both differential legs invert, and the test fails on every branch\
+  \ regardless of its diff\n   — so a moving ref is \"current code behavior\" wearing\
+  \ a historical name, which the sentence above\n   already forbids. Fail CLOSED when\
+  \ the named baseline is unreachable (a shallow clone): a\n   differential that cannot\
+  \ read its baseline is not silently green.\n   **ASK THE DISCRIMINATING QUESTION\
+  \ BEFORE YOU WRITE THE ASSERTION.** The paragraph above is a\n   PROHIBITION over\
+  \ refs, and it reaches only one form: a differential baseline read off a\n   merge-base,\
+  \ a branch tip or a remote tip. It does not fire on a test that pins a NAMED CURRENT\n\
+  \   FACT — the head migration revision, a live file still containing a class a sibling\
+  \ card is\n   chartered to delete, a string derived from today's date — where no\
+  \ ref moves at all, yet the\n   failure mode is identical. So beside the prohibition,\
+  \ answer one question at the keyboard:\n   **if this test fails, will it mean somebody\
+  \ made a MISTAKE, or that somebody simply CHANGED\n   something?** A mistake ⇒ it\
+  \ asserts a RULE — write it. A change ⇒ it asserts a FACT — do not:\n   its red\
+  \ carries no information about correctness, only about staleness. A rule does not\
+  \ move,\n   so its failure is always a defect; a fact moves by design, so its failure\
+  \ is always a chore —\n   a bell tied to a door that is supposed to open. The hand-check\
+  \ that catches most of them: *is\n   the rule already proven on a fixture beside\
+  \ this?* If yes, the fact-pin is redundant — the\n   rule is covered and the pin\
+  \ adds only a fact. This is a judgement about the author's INTENT\n   and is deliberately\
+  \ NOT mechanised: no automatic classifier of assertions, here or later.\n   **Wanting\
+  \ to be TOLD about a change is an ARMED FOLLOWUP, not a test.** When the real intent\
+  \ is\n   \"let me know when X changes or closes\", that wait already has its own\
+  \ primitive — capture it\n   with `followup add --trigger --awaits` (SPEC-0095),\
+  \ not with an assertion. A test is for a\n   BREAKAGE.\n   **ANTI-PATTERN — the\
+  \ COVERAGE-GUARD AC: \"remove an assertion and the file's own run MUST\n   redden\"\
+  .** An acceptance criterion of that shape is UNSATISFIABLE, and it is worth naming\n\
+  \   because it LOOKS like the differential this item demands. Removing an assertion\
+  \ leaves a\n   STRICTLY WEAKER suite, and a strictly weaker suite cannot redden\
+  \ — so the probe returns green\n   on a healthy tree and green on a broken one,\
+  \ which is not a differential at all but a\n   constant.\n   **The SOUND shape is\
+  \ SUBJECT-MUTATION: perturb what the assertion GUARDS, never the assertion.**\n\
+  \   The failing input must be a change to the rule's subject — the guard, the payload,\
+  \ the\n   composition site — because that is the breakage the tripwire exists to\
+  \ make loud; deleting the\n   tripwire only proves that a test which is not there\
+  \ does not run. It is named as an\n   anti-pattern rather than left to judgement\
+  \ because the shape reads as rigour and passes\n   review, and only an actual run\
+  \ distinguishes it from the sound one.\n   **THE FAILURE MESSAGE MUST DESCRIBE WHAT\
+  \ THE ASSERTION ACTUALLY CHECKS.** Everything above\n   this paragraph governs what\
+  \ a tripwire ASSERTS. This governs the MESSAGE beside it: a message\n   that states\
+  \ a stronger property than its assertion checks is a DEFECT IN THE TRIPWIRE, not\
+  \ a\n   stylistic preference.\n   **The violating shape, named so a real tripwire\
+  \ can be failed against it.** An assertion that\n   checks a PROXY — a substring\
+  \ of some source text, a call count, a type, the mere presence of a\n   symbol —\
+  \ carrying a message that states the BEHAVIOURAL GUARANTEE the proxy stands in for.\
+  \ The\n   message must be about the proxy (\"the guard must still name `culprit_indices`\"\
+  ); the\n   behavioural claim belongs only on an assertion that exercises the behaviour.\
+  \ The test to apply\n   at the keyboard: **would this message still be TRUE if the\
+  \ assertion were the only thing you\n   knew?** A bare \"write clear messages\"\
+  \ satisfies nothing here — this clause is met by naming\n   what is checked, not\
+  \ by writing more warmly.\n   The message is what `land` prints in its FAILING ASSERTION(S)\
+  \ block, so it reaches everyone\n   downstream of a red — a controller triaging\
+  \ a batch, an auditor, the owner — none of whom\n   opens the test file.\n   **Worked\
+  \ example — 2026-08-26, one full dispatched-worker cycle.** In\n   `tests/test_t11335_evict_on_test_redness.py`\
+  \ the assertion stood as:\n\n       assert \"0 not in\" in guard and \"culprit_indices\"\
+  \ in guard, (\n           \"the fork must refuse to act when the HEAD is among the\
+  \ proven culprits\")\n\n   The assertion greps the guard's SOURCE TEXT; the message\
+  \ states a behavioural guarantee it\n   does not check. The sibling assertion immediately\
+  \ below it says where the bound really lives —\n   \"the acted-on set must exclude\
+  \ index 0 structurally, not only by the guard above\". Read as the\n   content,\
+  \ that message cost one full controller/worker cycle in which every step was right;\
+  \ the\n   cycle existed because a message overstated its assertion.\n   **How this\
+  \ differs from the question above — the two are violated INDEPENDENTLY.** The\n\
+  \   mistake-or-change question decides whether such an assertion should EXIST; this\
+  \ clause decides\n   whether its message DESCRIBES it. Neither answer implies the\
+  \ other, and the example above\n   violates both. (That question is stated in its\
+  \ own paragraph above and is not restated here —\n   one home per rule, SPEC-0005\
+  \ rule 8.)\n   Repo-local prior art, kept where it lives — whose rule 3 observed\
+  \ the same thing from one\n   land: `lessons/a-source-form-probe-is-not-a-behaviour-test.md`.\
+  \ Like the rest of this item,\n   this is AUTHORING doctrine: no classifier of assertion\
+  \ messages is admitted, here or later.\n4. **Waive contract** — a waive names the\
+  \ mechanism, its pre-harm fail point, the covered path,\n   and a representative\
+  \ violating input — otherwise build the tripwire. Every waive carries\n   class,\
+  \ rationale, approver, and a recheck trigger (spec edited / frozen→active / area\
+  \ touched).\n5. **Extend-before-create** — one post per rule: before writing a new\
+  \ test file, extend the\n   rule's existing suite. A new standalone file is justified\
+  \ only by a genuinely NEW rule.\n   (Kernel corollary: task probes fold into per-rule\
+  \ suites — never one-file-per-task-forever.)\n   **Does this new test inspect THIS\
+  \ HOST? Then classify it in the SAME card.** A file that reads a\n   `/home/<user>`\
+  \ path, the locally-installed auditor binary, the real cross-project store, the\
+  \ host\n   sandbox, or this box's own debt-echo state means something HERE and nowhere\
+  \ else — it is not\n   venue-agnostic, and a kernel verify pass no longer runs only\
+  \ here. Ask the question at the keyboard,\n   while the file is being written and\
+  \ the card that ships it is still open: the classification belongs\n   in the same\
+  \ card as the test, never in a later sweep by someone who did not write it. What\
+  \ the\n   classes ARE, and what an unclassified file counts as, is **SPEC-0203 rule\
+  \ 8** — read it before you\n   answer: `yitc-v2 graph query SPEC-0203`. The class\
+  \ is RECORDED, never guessed: the local-probe class\n   is carried by `tests/local-probe-files.json`,\
+  \ whose per-file reasons live in\n   `dev-utilities/remote-verify-local-probe-classification.md`.\
+  \ A CUE plus a POINTER, per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and\
+  \ this is not it.\n6. **Walk order** — rules are mapped/closed in order of the COST\
+  \ of silent breakage\n   (money → outbound mutations → isolation/access → data mutations\
+  \ → background jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
+  \ specs are not rules and\n   need no tripwire.\n8. **Ledger role** — the per-project\
+  \ ledger stores ONLY rule→tripwire/waive links and waive\n   contracts: derived\
+  \ bookkeeping, re-derivable, never a parallel truth (the spec stays the\n   rule's\
+  \ normative home; the test stays the proof). **Home + schema (pinned):** one F4-shaped\n\
+  \   doc per repo — `specs/<PROJECT>-rule-test-ledger.md` — one row per atom:\n \
+  \  `spec anchor · atomic rule summary · tripwire test path(s) | waive{class, mechanism,\n\
+  \   fail-point, path, violating-input, approver, recheck-trigger}`. Nothing else\
+  \ lives there.\n   The tripwire field carries the test path(s) AND — where item\
+  \ 9 calls for one — the short\n   cost rationale for keeping an expensive tripwire\
+  \ in that shape. That rationale is part of\n   the tripwire field, never a new column,\
+  \ row type or store.\n   A new row's LABEL is allocated by `bin/yitc-v2 spec ledger-label`\
+  \ — unique within its\n   section, under the same allocator discipline as task/spec\
+  \ ids — never hand-picked,\n   so two concurrent authors cannot mint the same label.\n\
+  \n9. **Cost placement (PROVISIONAL — see the review trigger at the end of this item)**\
+  \ — items 1-8\n   decide whether a tripwire must EXIST; this one decides where its\
+  \ COST belongs. It sets no\n   budget, no threshold, no gate, and adds no store.\n\
+  \   - **Cheapest shape that stays loud.** Among the tripwire shapes that make the\
+  \ SAME silent\n     break loud, choose the cheapest to run. This is a choice of\
+  \ SHAPE, never a licence to\n     weaken: a cheaper shape that no longer fails on\
+  \ the violating input is not a candidate at\n     all — item 3 still governs, and\
+  \ a tripwire that stopped being differential is not cheaper,\n     it is absent.\n\
+  \   - **An expensive tripwire kept anyway records WHY the cost belongs there.**\
+  \ When the loud\n     shapes are all expensive, keep the tripwire and record — in\
+  \ its EXISTING ledger row, inside\n     item 8's tripwire field — what the cheaper\
+  \ shapes would have stopped proving. This is a\n     kept guard with a stated reason,\
+  \ NOT a waive: item 4's waive contract is for a rule that\n     needs no tripwire,\
+  \ and an expensive rule is not an unguarded one.\n   - **Cost that is really the\
+  \ PRODUCT's is product debt, not test tuning.** Where the expense\n     is a slow\
+  \ product path or governed verb that the test merely exercises honestly, the\n \
+  \    finding is PRODUCT performance debt: file or route it as such. Do not absorb\
+  \ it as\n     test-suite tuning — trimming the test hides a cost every human caller\
+  \ of that path is\n     already paying, and hands back nothing.\n   - **Before you\
+  \ write a test that spawns a child or folds the journal, ask what HISTORY it is\n\
+  \     paying for.** This is the concrete form the bullets above take in THIS corpus:\
+  \ the verify\n     suite's per-file cost is dominated by tests that fold accumulated\
+  \ history they assert\n     nothing about. A cost that grows with the project's\
+  \ own history is the cheapest-shape\n     question above with a known answer, so\
+  \ ask it at the keyboard.\n     **There IS a standing rule for this, it is enforced\
+  \ in code, and it is NOT restated here:\n     SPEC-0190 rule 9** (with its construction\
+  \ contract in rule 9a and its fixture boundary in\n     the clause beside them)\
+  \ — read it before writing such a test: `yitc-v2 graph query SPEC-0190`.\n     A\
+  \ CUE plus a POINTER, per SPEC-0005 rule 8: rule 9 has exactly ONE home and this\
+  \ is not it.\n     Do NOT inline its normative sentences here — a second copy would\
+  \ drift the day SPEC-0190 is\n     amended, and a stale copy delivered at the authoring\
+  \ moment is worse than no copy at all,\n     which is the precise failure this bullet\
+  \ is written to avoid.\n   **PROVISIONAL, and named as such so it cannot harden\
+  \ by default.** Its evidential basis\n   supports this PLACEMENT doctrine only,\
+  \ not a broader standing cost discipline.\n   **Review trigger:** accumulated slow-tail\
+  \ observations from the\n   report-only per-file duration delta (SPEC-0119 rule\
+  \ 19, which owns the DRIFT half of this\n   axis — this item owns ADMISSION only\
+  \ and neither restates nor gates on it). Revisit this item\n   when those observations\
+  \ have accumulated: confirm it, sharpen it, or retire it.\n\n10. **Machine-attributable\
+  \ failure — a failing tripwire NAMES ITSELF.** Items 1-9 decide whether a\n    tripwire\
+  \ must EXIST and what it must PROVE; this one decides what it must LEAVE BEHIND\
+  \ when it\n    fires. **A failing test MUST leave, in its captured output, a failure\
+  \ identity a machine can tie\n    back to the test** — either (a) a naturally RAISED\
+  \ exception carrying its message, or (b) a\n    SELF-REPORTED failure summary in\
+  \ a form the land-verify failing-assertion extractor recognizes.\n    Either binding\
+  \ satisfies this item; a failure that leaves NEITHER is the violating case.\n  \
+  \  **The recognized forms are the EXTRACTOR's, and are deliberately NOT restated\
+  \ here** — read them\n    at `bin/lib/cli.py#_extract_failing_assertion` and its\
+  \ producer\n    `bin/lib/verify_runner.py#_verify_failure_excerpt`, which is where\
+  \ they will also CHANGE. A cue plus a\n    pointer, per SPEC-0005 rule 8: a copy\
+  \ of the accepted shapes in this body would be a second home\n    that silently\
+  \ rots the day the extractor widens, and this item must stay correct across exactly\n\
+  \    that event.\n    A tripwire whose failure carries no bindable identity is loud\
+  \ to a HUMAN and silent to every\n    machine downstream of it: the batch-attribution\
+  \ oracle names no culprit, evicts nobody, and\n    requeues the innocent members\
+  \ alongside the guilty one. Loudness no consumer can attribute is\n    loudness\
+  \ spent, so this is an obligation of the tripwire, not of the reader.\n    **What\
+  \ this does NOT require.** No style: a `__main__` print-runner is as compliant as\
+  \ a\n    `unittest` case, provided the line it prints on failure is one the extractor\
+  \ binds. No verbosity:\n    one identifying line is the whole obligation. No retro-fit:\
+  \ an existing suite that already\n    self-reports is reached by WIDENING the extractor,\
+  \ never by editing the tests — the identity is\n    already in the output, and the\
+  \ parser is the single place that must learn to read it.\n    **NO GATE — this is\
+  \ authoring doctrine, exactly like the rest of this spec.** Nothing refuses,\n \
+  \   warns, or exits nonzero on account of this item: a test that violates it still\
+  \ runs, still fails\n    loudly to a human, and still lands. A validator here would\
+  \ be the behavioural detector CHARTER's\n    non-goals forbid, and it would be aimed\
+  \ at the wrong target besides — the corrective surface is\n    review and the ledger\
+  \ row, never a check.\n\n11. **Absence is not evidence — the READER's dual of item\
+  \ 1.** Items 1-10 govern what a mechanism\n    must EMIT and what a tripwire must\
+  \ PROVE. This one governs what a READER of a signal — a\n    watcher, a status classifier,\
+  \ a journal fold, a human tailing a log — may CONCLUDE from NOT\n    seeing something.\
+  \ **The absence of a positive signal is never, on its own, evidence of any\n   \
+  \ state.** A missing token, an empty output file, an unreadable row, a zero count,\
+  \ a grep that\n    matched nothing: each is equally consistent with the healthy\
+  \ case, with a reader that ran too\n    early, and with a read that failed. So a\
+  \ reader concludes ONLY from a POSITIVE, PARSED\n    observation, and every not-seen\
+  \ case FAILS CLOSED to \"cannot answer\" — which is a third value,\n    distinct\
+  \ from both answers, and never silently folded into the safe-looking one.\n    Item\
+  \ 1 buys loudness by naming a mechanism that fails closed; a reader that treats\
+  \ silence as\n    an answer spends that loudness before it arrives. Loudness and\
+  \ the reading of it are one\n    guarantee, and item 1 alone secures only half of\
+  \ it.\n    **The three shapes it takes, so a surface can recognise itself in it.**\
+  \ (a) A WATCHER: a\n    terminal state is read off a positive terminal token, never\
+  \ off the absence of a running one.\n    (b) A CLASSIFIER: an unreadable or missing\
+  \ input leaves the subject UNRESOLVED, never\n    relabelled as the explained case.\
+  \ (c) A READER RETURNING A SET: an empty set is the CLAIM\n    \"nothing\", so a\
+  \ row that cannot answer returns a third value instead — `None` is not an empty\n\
+  \    set.\n    **THE CONCRETE FORM SHAPE (b) TAKES IN THIS CORPUS: A CHECK THAT\
+  \ RESOLVES A JOURNAL ROW.**\n    The journal is ONE logical history spread across\
+  \ BOUNDED physical segments, so a check that\n    opens the journal PATH reads the\
+  \ LIVE segment alone. **A check whose declared horizon can\n    exceed the live\
+  \ window — and anything resolving a FIXED historical row by `ts` or id is\n    unbounded\
+  \ backwards, which is exactly the range that is archived first — MUST read through\n\
+  \    the SEGMENT RESOLVER, never the live file.** The rule it is an instance of\
+  \ has exactly ONE\n    home and is NOT restated here: **SPEC-0190 rule 4** (a reader\
+  \ declares its horizon; the fold\n    honours it) — read it before writing such\
+  \ a check: `yitc-v2 graph query SPEC-0190`. A cue\n    plus a pointer, per SPEC-0005\
+  \ rule 8, exactly as item 9's journal-cost bullet does for the\n    same spec; inlining\
+  \ rule 4's sentences here would be the second home that drifts the day\n    SPEC-0190\
+  \ is amended.\n    **THE FAILURE IT PREVENTS, NAMED: SILENT ABSENCE READ AS EVIDENCE\
+  \ LOSS.** An aged row does\n    not vanish — it MOVES into an archive segment of\
+  \ the SAME logical journal. A live-only read\n    therefore stops seeing it on a\
+  \ day nobody chose, and the check then reports the one thing\n    this item forbids\
+  \ concluding from a not-seen: that the evidence is gone. **Which is why such\n \
+  \   a check PASSES ON THE DAY IT IS WRITTEN and reddens later by the PASSAGE OF\
+  \ TIME** — the two\n    legs of its differential are its own reading window and\
+  \ the calendar, and neither of them is\n    the subject it exists to guard. Item\
+  \ 3's question answers itself here: its red means nobody\n    made a mistake and\
+  \ nobody even CHANGED the subject.\n    **DO NOT read this as \"do not cite a journal\
+  \ row\".** Citing a row by `ts` is this corpus's\n    normal way of anchoring a\
+  \ tripwire to durable evidence and it stays correct — what this\n    clause governs\
+  \ is HOW the row is READ. Re-pointing the citation at a NEWER row is not the fix\n\
+  \    either: it goes green instantly and leaves the reader defect in place for whoever\
+  \ hits it\n    next. And widening WHERE a check looks must never soften WHETHER\
+  \ absence is an error — a\n    fold that also swallows the miss has removed the\
+  \ tripwire rather than repaired it.\n    **Worked NEGATIVE example, beside the wording\
+  \ that would have passed** — a check whose\n    `_recorded_row` opened `events.jsonl`\
+  \ alone while the row it cites had rotated into an\n    archive segment; because\
+  \ the assertion also failed on the PINNED last-green leg it refused\n    EVERY branch's\
+  \ land regardless of diff. The FAILING wording, whose comment makes the\n    live-only\
+  \ read sound deliberate:\n\n        The row is read from the live journal on purpose:\
+  \ physical rotation is FORBIDDEN\n        (SPEC-0002 §Rotation policy), so the recorded\
+  \ sample is permanent.\n\n    and the assertion MESSAGE that shipped with it, which\
+  \ item 3 already governs:\n\n        the land row cited by AC1 (events.jsonl#ts=...)\
+  \ is not in the journal — the\n        classification has lost the evidence it is\
+  \ graded against. Physical rotation is FORBIDDEN\n        (SPEC-0002 §Rotation policy),\
+  \ so this is a real loss, not an expected ageing-out.\n\n    The wording that PASSES\
+  \ — horizon declared, resolver named, absence still hard:\n\n        The row is\
+  \ read across the journal's WHOLE segment set (SPEC-0190 rule 4), never the live\n\
+  \        segment alone: rotation moves an aged row into an archive segment of the\
+  \ SAME logical\n        journal, so the recorded sample stays permanent. [...] ABSENT\
+  \ FROM EVERY SEGMENT IS STILL\n        A HARD FAILURE. Widening WHERE we look must\
+  \ not soften WHETHER absence is an error: the\n        raise stays at function level,\
+  \ after every segment has been searched.\n\n    Read the pair for what actually\
+  \ separates them. The failing one is not missing a caveat — it\n    rests a PERMANENCE\
+  \ claim on a premise about the STORAGE that was false when it was written,\n   \
+  \ and states that premise confidently enough that the next reader inherits it. That\
+  \ is the\n    shape to recognise at the keyboard: a comment explaining why the narrow\
+  \ read is safe is the\n    moment to check whether it still is.\n    **NO GATE,\
+  \ exactly like the rest of this spec.** This is operational doctrine for authors\
+  \ of\n    readers; nothing refuses or exits nonzero on account of it, and no classifier\
+  \ of \"did the\n    reader confirm positively\" is admitted, here or later.\n  \
+  \  Its surfaces keep their own MECHANICS and point here for the rule: the accepted\
+  \ tokens and\n    prefixes of the land watcher (`AGENTS-SESSIONS.md` §land), the\
+  \ fleet watcher's positive-terminal\n    read (`patterns/background-session-monitoring.md`\
+  \ §Watcher), the fail-closed classifier\n    outcomes (SPEC-0133), and the three-valued\
+  \ reader returns (`bin/lib/debt.py`). Read alongside\n    `lessons/fail-closed-belongs-to-the-reader-not-the-parser`,\
+  \ whose point — fail-closed is a\n    property of a USE SITE, not of a parser —\
+  \ this item is the general statement of.\n\n## Rationale\n\nThe incident record\
+  \ behind each item — test accretion hung on tasks not rules, specs↔tests\nunlinked,\
+  \ a tripwire that fired and could not be attributed, a message that overstated its\n\
+  assertion (a tripwire whose MESSAGE overstated its assertion, worked through in\
+  \ item 3), the\nabsence-read recurrence — lives in git history and in the external\
+  \ consult\nverdicts this spec was absorbed from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n\
+  `decisions/absence-is-not-evidence-audit-adhoc.yaml`). Prior art extended, not re-invented:\n\
+  SPEC-0015 differential probes, SPEC-0060 AC discipline, the module→spec coverage-admission\n\
+  ledger shape.\n\n## Verification\n\nDelivered at Tests stage-entry (binding). Probes:\
+  \ (a) a task adding a standalone test file whose\nrule already has a suite draws\
+  \ the review question \"which existing rule suite did you extend?\";\n(b) ledger\
+  \ rows answer rule→tripwire/waive for 100% of tier-1 normative rules; (c) kernel\n\
+  new-test-file rate < 20/week within 2 weeks of adoption (baseline ≈124), REPORTED\
+  \ PAIRED with the\nnew-test-FUNCTION delta so growth cannot hide inside fat files;\
+  \ (d) a waive lacking the\n§4 contract fields is rejected at review; (e) for item\
+  \ 10, the machine-attributable-failure\nrule resolves in THIS spec's body and in\
+  \ no other spec (one doctrine, one home), NAMES BOTH\naccepted bindings independently,\
+  \ and is wired to NO code — `implements:` stays empty,\n`consumed:` stays false,\
+  \ and no code path reads or enforces the clause, so nothing refuses on\naccount\
+  \ of it; (f) for item 3's message-matches-assertion clause, the clause NAMES the\
+  \ violating\nshape concretely (a proxy-checking assertion under a behavioural message)\
+  \ and carries its worked\nexample with BOTH the assertion and the message, so a\
+  \ reader can fail a real tripwire against it\n— a reduction to a bare exhortation\
+  \ is a regression, and the clause is likewise wired to NO code.\n(h) for item 11,\
+  \ the rule resolves in THIS body and in no\nother spec, and its five prior homes\
+  \ carry a POINTER plus their own surface mechanics and NOT the\ngeneral rule — a\
+  \ DIFFERENTIAL with both legs: this body carries the rule, and a later edit that\n\
+  re-inlines it into any of those five surfaces goes RED. It is likewise wired to\
+  \ NO code:\n`implements:` stays empty and nothing refuses on account of it.\n(g)\
+  \ for item 9's journal-cost bullet, a DIFFERENTIAL tripwire holds BOTH legs at once:\
+  \ this body\nCARRIES the pointer naming SPEC-0190 rule 9, and it does NOT carry\
+  \ rule 9's normative sentences —\nthe second leg goes RED if a later edit inlines\
+  \ the rule here, which is the P5 second-home drift\nthe bullet exists to prevent.\
+  \ A missing pointer and an inlined rule are distinct failures and are\nreported\
+  \ as such; the bullet is, like every other item here, wired to NO code.\n(i) for\
+  \ item 11's journal-row clause, a DIFFERENTIAL with both legs held at once: this\
+  \ body\nCARRIES the rule (a check resolving a fixed historical journal row reads\
+  \ through the segment\nresolver, and the failure it prevents is NAMED as silent\
+  \ absence read as evidence loss), and it\ndoes NOT carry SPEC-0190 rule 4's normative\
+  \ sentences — the second leg goes RED if a later edit\ninlines them here, which\
+  \ is the P5 second-home drift the clause's own pointer exists to prevent.\nA third\
+  \ state-check, because the clause is useless to anyone but its author without it:\
+  \ the\nworked NEGATIVE example is present WITH BOTH its failing texts (the reader's\
+  \ comment and the\nassertion message) AND the wording that would have passed, so\
+  \ a reader can hold a real check\nagainst it — a reduction to the abstract rule\
+  \ alone is a regression. And the clause must keep\nDENYING BY SHAPE rather than\
+  \ by prohibition: an edit that turned it into a ban on citing journal\nrows, or\
+  \ on reading the live segment for a reader that genuinely declares a short horizon,\
+  \ is a\nloss of real coverage and fails this probe. Wired to NO code, like every\
+  \ other item here:\n`implements:` stays empty, `consumed:` stays false, and nothing\
+  \ refuses on account of it.\n(j) for item 5's host-inspecting-test cue, a DIFFERENTIAL\
+  \ with both legs held at once: item 5's own\ntext CARRIES the cue (the authoring\
+  \ question) AND a fetchable pointer naming SPEC-0203 rule 8 and the\nartifact that\
+  \ records the local-probe class, and it does NOT carry rule 8's normative sentences\
+  \ — the\nsecond leg goes RED if a later edit inlines them here, which is the P5\
+  \ second-home drift the pointer\nexists to prevent. Both legs are held against negative\
+  \ fixtures built from the shipped body, so the\ncheck is shown to discriminate a\
+  \ stripped pointer from an inlined rule and to report them separately.\nDelivery\
+  \ is part of the probe: SPEC-0165 must still bind stage-entry:Filing and stage-entry:Tests,\
+  \ or\nthe cue reaches neither authoring moment. Wired to NO code, like every other\
+  \ item here.\n"
+cites:
+- CHARTER.md#principle-3
+- SPEC-0015
+- SPEC-0060
+- SPEC-0077
+- SPEC-0203
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: loud-failure-principle-one-tripwire-per-silently-b
+binding:
+- stage-entry:Filing
+- stage-entry:Tests
+init_concern: null

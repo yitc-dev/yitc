@@ -1,0 +1,494 @@
+id: SPEC-0180
+title: Dispatched-worker land under a hard per-call foreground cap — the protected
+  property is the HELD TURN, not the foreground process
+status: active
+created_at: 2026-08-13 22:22:06+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/worktree.py#cmd_land
+- bin/lib/worktree.py#_resolve_held_turn_claim
+- bin/lib/worktree.py#_resolve_dispatch_worker_pid
+- bin/lib/worktree.py#_pid_alive
+- bin/lib/land_reservation.py#_arm_worker_liveness_watchdog
+- bin/lib/batch_landing.py#_land_member_claim_held
+- bin/lib/batch_landing.py#_land_drop_dead_members
+- bin/lib/batch_landing.py#_land_member_terminal_signal
+- bin/lib/worktree.py#_land_detached_signal
+- bin/lib/land_reservation.py#_arm_worker_land_pdeathsig
+- bin/lib/dispatch.py#SYNC_TO_LAND_RULE
+- bin/lib/worktree.py#_worker_start_detach_decision
+- bin/lib/worktree.py#_start_detached_worker_land
+body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green, its\
+  \ audit is GREEN — and its `land`\nverify legitimately needs longer than the harness\
+  \ allows any single foreground call to run. Today\nthat worker has no compliant\
+  \ path: run the land in the foreground and the harness kills it at the\ncap; detach\
+  \ it and `land` itself refuses. Its only exit is `blocked-on-land`, which asks an\n\
+  INTERACTIVE session to re-run the identical command — the work is correct, verified\
+  \ and finished,\nand still cannot reach `main` without a human-driven session.\n\
+  \nUnder this spec the worker lands it itself. It launches the land as a detached\
+  \ OS PROCESS, keeps\nits own TURN held by polling the log in bounded foreground\
+  \ windows, and proceeds when the\ncontracted terminal token appears. It never yields\
+  \ before that token.\n\n**Two DIFFERENT outcomes protect the yield case, and this\
+  \ spec must not blur them (plan-check\nfinding, 2026-08-14 — this scenario first\
+  \ said a yielding worker \"is refused exactly as before\",\nwhich is false for the\
+  \ claiming path):**\n- A worker that makes **no held-turn claim** and detaches is\
+  \ **REFUSED AT ADMISSION**, exactly as\n  today — the pre-existing guard, byte-identical.\n\
+  - A worker that **claims** the held-turn path and then yields anyway is **ADMITTED\
+  \ AND LATER\n  KILLED**: the land starts, the rule-3 binding notices the worker\
+  \ process is gone, and the land\n  terminates itself before integrating — `main`\
+  \ untouched, the work recoverable through the\n  existing idempotent `worktree recover-land`.\n\
+  Both end with no land, which is what makes them easy to conflate; but they fail\
+  \ at different\nmoments by different mechanisms, and only the second leaves a running\
+  \ land to kill. A reader who\nbelieves the claiming path is refused up front will\
+  \ not implement the watchdog at all — and the\ntrial demonstrated this second path\
+  \ live, unplanned, when a premature runner exit killed a\nhealthy land mid-verify.\n\
+  \n## Internal\n\nTHE WORKER LONG-LAND ADMISSIBILITY CONTRACT. It gives the already-shipped\
+  \ `YITC_SYNCHRONOUS_LAND`\nguard its spec home (the guard's code comments cite \"\
+  SPEC-0103 §1\", but SPEC-0103 §1 is the\nout-of-scope-EDIT rule — the guard has\
+  \ had no spec of its own), and it resolves a live P7\ncontradiction between two\
+  \ active corpus surfaces. It adds NO new store, verb, journal or gate: it\nRESHAPES\
+  \ the admission predicate of the existing guard and reuses the existing `^LAND:`\
+  \ token,\n`worktree recover-land`, and `blocked-on-land` channels.\n\n### 1. The\
+  \ protected property is the HELD TURN, not the foreground process\n**Scope note\
+  \ : this rule governs the dispatched worker's LONG COMMANDS as a class, of\nwhich\
+  \ the `land` is the first and the Stage-6 SUITE (`task test --run`) the second —\
+  \ see rule 8.\nWherever the text below says \"the land\", read \"the over-cap command\"\
+  ; the land is named because it\nis the case this spec was cut on, not because the\
+  \ held-turn property is peculiar to it.**\nSYNCHRONOUS-TO-LAND (`patterns/background-session-monitoring.md\
+  \ §Synchronous-to-LAND`) exists to\nprevent ONE failure: a one-shot worker YIELDS\
+  \ its turn, its process exits, and the land dies\nmid-flight leaving built-but-unlanded\
+  \ work. The property that prevents it is that **the worker\nholds its turn until\
+  \ the terminal token** — NOT that the land runs in the worker's own foreground\n\
+  process group. Those two were treated as the same thing because, for every land\
+  \ that fits the\ncap, they coincide. Over the cap they come apart, and only the\
+  \ first is load-bearing.\n\nTherefore: a dispatched worker's land MAY run as a DETACHED\
+  \ PROCESS when, and only when, the\nworker holds its turn across the whole land\
+  \ (rule 2). **Background-and-YIELD stays FORBIDDEN,\nunchanged** — what may be detached\
+  \ is the OS PROCESS, never the TURN.\n\n### 2. Admissibility bounds (all four, conjunctive\
+  \ — fail-closed)\nA detached worker land is admissible ONLY when ALL hold:\n- **(a)\
+  \ Self-verifying command.** The detached command commits + verifies its own work\
+  \ and emits a\n  contracted terminal token, OR rolls back cleanly on failure. `land`\
+  \ satisfies this by\n  construction: it verifies BEFORE its ff-only merge and emits\
+  \ `^LAND: (OK|ABORT)` as its final\n  stdout line. This is the `patterns/background-session-dispatch.md\n\
+  \  §Long-command-exceeds-tool-timeout` applicability bound, unchanged and inherited,\
+  \ not re-cut.\n- **(b) Turn held by bounded in-turn polling.** Each poll window\
+  \ is an ordinary foreground command\n  well under the cap, re-invoked INLINE in\
+  \ the SAME turn. A worker that launches detached and then\n  yields has NOT applied\
+  \ this rule — it has committed the very death rule 1 protects against.\n- **(c)\
+  \ Token-gated, never clock-gated — and CAPTURE is not TERMINALITY (trial cycle 2).**\n\
+  \  Terminality has exactly two forms: the contracted token `^LAND: (OK|ABORT)\\\
+  b` on stdout, OR the\n  land PROCESS EXITING. Nothing else is terminal — not wall-clock,\
+  \ not log length, and above all\n  **not a `^yitc-v2:` diagnostic line**. That prefix\
+  \ is the tool's GENERIC message prefix, not a\n  status contract: `land` prints\
+  \ ordinary progress under it (e.g. the graph auto-rebuild notice),\n  so a watcher\
+  \ that treats it as a token declares victory on a warning. Measured: a cycle-2 poll\n\
+  \  loop keyed on `^(LAND:|yitc-v2:)` fired at 47 s on `yitc-v2: graph auto-rebuild\
+  \ (land) — 14\n  possibly-stale spec(s)` while the land was still verifying, and\
+  \ the premature exit then killed\n  the land via rule 3's watchdog.\n  **The widening\
+  \ stands, for its own purpose.** Admitting `^yitc-v2:` on stderr is correct\n  for\
+  \ CAPTURE — a pre-verify refusal prints there and exits, and a `LAND:`-only filter\
+  \ would turn\n  that clear refusal into an empty file plus a generic failure. The\
+  \ two obligations are distinct\n  and must not be collapsed: **capture the diagnostic\
+  \ channel; gate terminality on token-or-exit.**\n  A `yitc-v2:` line is terminal\
+  \ only WITH an exit, never on its own.\n  **Token-or-exit is the terminality of\
+  \ a land THIS WORKER OWNS ALONE — a BATCH MEMBER's terminal\n  signal is its own\
+  \ journaled verdict (amending this clause for the batched case).**\n  Under SPEC-0184\
+  \ batching a member has NO personal land process: several queued changes are\n \
+  \ verified as one candidate in one shared run, so there is no per-member stdout\
+  \ to grep for a\n  token and no per-member pid whose exit could stand in for one.\
+  \ A member polling for token-or-exit\n  would be waiting on a signal that structurally\
+  \ cannot arrive — which is not a slow wait, it is a\n  permanent one. Its terminal\
+  \ signal is therefore its **own `land_member_verdict` row**\n  (SPEC-0184 rule 5),\
+  \ read from the journal alone, INCLUDING the case where the batch was red for\n\
+  \  someone ELSE's change and this member will be re-batched. The two forms do not\
+  \ compete: at\n  batch-size 1 no member row is emitted at all and this clause's\
+  \ token-or-exit applies exactly as\n  written, unchanged and byte-identical — a\
+  \ worker holding its turn over its own land reads the\n  token, as today. **Absence\
+  \ of a verdict row is NOT terminality** — it means still in flight, and\n  reading\
+  \ silence as an outcome is the one misreading this amendment must not licence.\n\
+  - **(d) Worker-liveness binding (rule 3).** The land dies if the WORKER dies.\n\n\
+  **Claim PROVENANCE — the presented value is verified against a SERVER-RESOLVED one,\
+  \ never trusted\n(settled at the decomposition-fidelity gate, 2026-08-14).** The\
+  \ claim names a pid, and a pid\nasserted by the caller proves nothing on its own:\
+  \ any process could name a long-lived unrelated\npid — a system daemon — then detach\
+  \ and yield, leaving a land that outlives its worker, which is\nthe precise failure\
+  \ this whole guard exists to prevent. So the land RESOLVES the worker pid from\n\
+  the DISPATCH RECORD (the `bg_dispatch_launched` row for this task, which already\
+  \ carries the task\nid, the expected session ref and the worker pid) and admits\
+  \ the claim only when the presented\nvalue MATCHES the resolved one. The worktree\
+  \ stamp independently binds that session to\nthis task's worktree. This is SPEC-0169\
+  \ rules 3+4 applied verbatim — server-issued, caller input\nrefused — and it adds\
+  \ NO new store, carrier or verb.\n**Fail-closed corollary:** when no dispatch record\
+  \ resolves — an interactive land, a hand-run, a\nworker launched outside `dispatch`\
+  \ — NO held-turn claim is admissible at all, and the pre-existing\nrefusal stands\
+  \ unchanged. The held-turn path is available to DISPATCHED workers, which are exactly\n\
+  the population the cap traps.\n**Stale-previous-holder corollary.** A worker RE-dispatched\
+  \ after its predecessor died\n(e.g. on the provider usage limit) stands in the preserved\
+  \ worktree, whose journal carries the\nPREDECESSOR's dispatch row, so it may present\
+  \ that dead pid. Such a claim is ADOPTED, not refused,\nONLY when the presented\
+  \ pid is DEAD, a `bg_dispatch_launched` row of the SAME task names it and\nSTRICTLY\
+  \ PRECEDES the governing dispatch row, and the server-resolved pid is a DIFFERENT,\
+  \ LIVE\nworker. The claim is re-bound to that server-resolved pid and the re-bind\
+  \ is journaled\n(`held_turn_claim_adopted`). The land is still admitted only against\
+  \ — and watchdog-bound to —\nthe server-resolved pid, so no caller can buy a land\
+  \ that outlives its worker; every other dead\npid keeps `claim-pid-dead`, and a\
+  \ LIVE non-matching pid keeps `claim-pid-mismatch`.\n\nAny bound unprovable ⇒ INADMISSIBLE.\
+  \ An unknowable answer is a refusal, never an admission.\n\n### 3. The liveness\
+  \ binding must name the WORKER, not the immediate parent\nToday's dynamic enforcement\
+  \ arms `PR_SET_PDEATHSIG` against the land's IMMEDIATE PARENT and refuses\nan already-orphaned\
+  \ land (`getppid==1`). Under a `setsid` detach the immediate parent is the\nlauncher\
+  \ shell, which exits at once — so the land is orphaned by construction and refused.\
+  \ That is\nwhy the sanctioned recipe is inadmissible for the one command it cites\
+  \ as its prior-art token.\n\nThe binding MUST therefore be to the **worker's own\
+  \ PROCESS LIVENESS**, not to the process that\nhappened to spawn the land: the detached\
+  \ land carries the worker's **process identifier**, and\nTERMINATES ITSELF once\
+  \ that process is no longer alive. Fail-closed: if the land cannot establish\nthe\
+  \ worker's liveness, it refuses (the behaviour for an unprovable case is preserved\
+  \ — only the\nQUESTION changes, from \"is my parent alive\" to \"is my worker alive\"\
+  ).\n**The carrier is the PROCESS, never the session ref alone (plan-check finding,\
+  \ 2026-08-14).** A\nv2 session identity (SPEC-0137) names WHO is acting; it does\
+  \ not and cannot say whether that actor\nis still RUNNING — a session ref outlives\
+  \ the process that minted it, so a watchdog keyed on it\nwould never fire and the\
+  \ whole binding would be decorative. Liveness is a question about a\nprocess, so\
+  \ it is asked of a process. The session ref may accompany the claim for attribution\
+  \ in\nthe journal record; it is never the liveness subject. Correspondingly the\
+  \ liveness read is\n**TRI-STATE** — alive / dead / UNPROVABLE — and UNPROVABLE is\
+  \ never coerced to alive.\n\n**The kill is JOURNALED — a silent liveness kill is\
+  \ forbidden (trial cycle 2, finding 4).** When\nthe watchdog terminates the land\
+  \ it MUST first write a journal record naming the dead worker and\nthe reason; if\
+  \ that write cannot be made, it MUST say so loudly on stderr before exiting. An\n\
+  unrecorded kill re-creates precisely the silent-death class this system spent `blocked-on-land`\n\
+  (SPEC-0103 §3) and the fleet verdict (SPEC-0133) removing: the controller would\
+  \ see a land that\nvanished with no cause, which reads as a hang rather than as\
+  \ correct enforcement.\n**Implementation constraint, learned the hard way:** in\
+  \ `bin/lib/worktree.py` the journal writer is\nINJECTED into each command as a keyword-only\
+  \ parameter, so a module-scope watchdog helper cannot\nresolve it by name — the\
+  \ trial's first candidate silently swallowed every record for exactly this\nreason\
+  \ (measured: a real worker kill produced exit 137 and ZERO `land_worker_liveness_lost`\
+  \ rows).\nThe watchdog therefore takes the writer by injection, like every sibling\
+  \ in that module.\n\n**The event contract, named here and not only in the proposing\
+  \ plan (plan-check finding,\n2026-08-14).** The record is a NEW event type **`land_worker_liveness_lost`**,\
+  \ carrying the dead\nworker's process identifier and the reason. Its catalog home\
+  \ is **SPEC-0161**, the single home of\nthe `events.jsonl` event-type roster since\
+  \ split that roster VERBATIM out of SPEC-0025 (whose\nsection is now a POINTER STUB)\
+  \ under the SPEC-0120 §3 size ceiling — one catalog, one home\n(CHARTER §P5) — the\
+  \ type is declared there in the SAME change that ships\nthe emit, never invented\
+  \ at the emit site. It is deliberately NOT folded into\n`land_synchronous_guard_refused`:\
+  \ that type means \"admission refused before anything ran\", while\nthis means \"\
+  an admitted land was terminated mid-flight because its worker died\". Collapsing\
+  \ them\nwould leave the fleet verdict unable to tell a refusal from a kill.\n\n\
+  The two RELIABLE static signals keep their meaning for every land that is NOT claiming\
+  \ this path:\n`session-leader` and `job-control-background` still refuse a worker\
+  \ land that carries no held-turn\nclaim. This rule REPLACES the orphan-refusal ONLY\
+  \ for a land that claims rule 2 and satisfies rule 3.\n\n### 4. Non-weakening (stated\
+  \ as a rule because \"make the long thing pass\" is the obvious wrong fix)\nNothing\
+  \ here relaxes a gate, a test, a bound, or the verify itself:\n- The verify runs\
+  \ in FULL, both passes when SPEC-0077 fires. No suite is trimmed, sampled or skipped.\n\
+  - The SPEC-0132 admission-slot arithmetic is UNTOUCHED — no extra slot, no fan-out\
+  \ change, no\n  queue-jumping. The wait simply no longer sits inside a capped call.\n\
+  - SPEC-0103 §3 is untouched: a genuine out-of-scope or environmental block still\
+  \ STOPs and\n  escalates via `blocked-on-land`, and §3a's auditor-outage park is\
+  \ unchanged.\n- `land --no-tests` and its owner-gate (SPEC-0077 §2a) are untouched.\
+  \ This rule grants no bypass.\n- A land that FITS the cap gains nothing and changes\
+  \ nothing — it runs foreground, as today.\n\n### 5. This RELOCATES cost; it does\
+  \ not REDUCE it\nStated so no reader mistakes this for a performance fix. The doubled\
+  \ suite still costs what it\ncosts and the admission wait still waits — they simply\
+  \ stop being adjudicated by a timer that\nmeasures the harness rather than the work.\
+  \ Any later attempt to make the suite cheaper is a\nSEPARATE concern with its own\
+  \ carrier; it is not discharged here.\n\n### 6. Under batching the binding acts\
+  \ on the MEMBER, not on the PASS — on a claimant-kind-agnostic trigger\n**This rule\
+  \ is the AMENDMENT SPEC-0184 rule 6 requires of this spec, shipped here rather than\
+  \ left\nas a contradiction for a reader to reconcile.** Rules 1 and 3 above say\
+  \ a detached land\ndies with the worker that claimed it. That sentence is correct\
+  \ — and it was written when a land\ncarried exactly one claimant's change. Taken\
+  \ literally under batching it lets ONE worker's death\ndestroy a verify pass carrying\
+  \ up to `BATCH_MAX` uninvolved peers, converting a safety property\ninto a denial\
+  \ of service. So it is RESTATED, member-scoped:\n\n*A detached land dies with its\
+  \ claimant when the land carries only that claimant's change. When\nthe land carries\
+  \ a BATCH, the claimant's death REMOVES ITS MEMBER, and the land continues for the\n\
+  others.*\n\n**The protected property is UNCHANGED and this is not a relaxation:\
+  \ no land may outlive the turn\nthat authorised it.** What changes is the UNIT the\
+  \ binding acts on — the member, not the pass. The\ninverse stays forbidden exactly\
+  \ as before: a member's change reaching `main` after its own\nclaimant is gone is\
+  \ the original F2 worker-death class. A dropped member's change is NOT applied;\n\
+  it is journaled `dropped-dead-member` (SPEC-0184 rule 5's vocabulary) and returns\
+  \ to the queue.\nAt batch-size 1 this rule collapses into rules 1+3 with no behavioural\
+  \ difference whatsoever —\nthe only member IS the pass, so removing it and killing\
+  \ the land are the same act.\n\n**THE TRIGGER IS A PROPERTY OF THE CLAIM, NEVER\
+  \ OF THE CLAIMANT.** The naive trigger — \"the\nclaimant process exited\" — is wrong,\
+  \ and wrong in a way that is easy to ship: SPEC-0184 rule 1\nadmits an interactive\
+  \ Controller's `work/<slug>` land as an ordinary member, and\nAGENTS-SESSIONS §land\
+  \ tells an interactive caller to PREFER BACKGROUNDING its land. An exit-keyed\n\
+  trigger therefore evicts every interactive member the moment it follows the handbook's\
+  \ own\nrecommended posture, making the recommended path self-defeating. Nor is the\
+  \ fix a second branch\nfor interactive claimants: a code path selected by session\
+  \ label is what CHARTER §P1 and\nSPEC-0184 rule 1 both forbid, and it would force\
+  \ this seam to ask \"which kind is calling?\" — a\nquestion it deliberately never\
+  \ asks.\n\nThe trigger is therefore **the member's own claim ceasing to be HELD,\
+  \ however the claimant is\nstructured**: a claim is held unless the binding the\
+  \ claimant ITSELF DECLARED is broken.\n- A rule-2 held-turn claim DECLARES a process\
+  \ binding — the server-resolved, verified worker pid.\n  It is released when that\
+  \ pid is no longer alive. This is rule 3's binding, asked per MEMBER.\n- A claim\
+  \ that declares NO process binding cannot be released by any process exiting. By\
+  \ rule 2's\n  fail-closed corollary that is precisely the non-dispatched claimant's\
+  \ only available shape (no\n  dispatch record ⇒ no held-turn claim is admissible),\
+  \ so an interactive member that backgrounds\n  its land is untouched.\nBoth cases\
+  \ run the SAME predicate; no actor is inspected. This does NOT exempt interactive\
+  \ members\nfrom liveness — they are subject to the identical rule, which simply\
+  \ has nothing to release\nbecause they bound nothing, and an interactive claim that\
+  \ DOES declare a pid is released on the\nsame terms as a worker's.\n\nFail-closed\
+  \ on the same axis as rule 3: the liveness read is TRI-STATE and **both `dead` and\n\
+  `unprovable` RELEASE the claim.** A liveness question that cannot be answered must\
+  \ not buy a\nmember continued membership, exactly as an unanswerable read never\
+  \ buys an admission.\n\nWHEN the death is detected decides the cost, and SPEC-0184\
+  \ rule 6 — not this spec — owns that\ntiming (drop-before-verify is free; mid-verify\
+  \ and post-verify refuse the fast-forward rather than\napplying a tree nothing verified).\
+  \ Named here only so a reader of this rule does not conclude that\ndropping a member\
+  \ is always cheap.\n\n### 7. The land may ORIGINATE the claim at the START, when\
+  \ the admission queue is non-empty\nRules 1-6 give a dispatched worker a compliant\
+  \ detached path. They left WHO STARTS IT to the\nworker, and the measured consequence\
+  \ is that the worker starts it only after being killed.\nFour independent kills\
+  \ on 2026-08-27 — 560 s 561 s 561 s\n561 s, three different tasks at three different\
+  \ hours — were all the same shape: a worker land\nqueued for a SPEC-0132 admission\
+  \ slot inside a foreground call the harness caps at ~600 s. In\nevery one of them\
+  \ the worker then applied the rule-2 recipe correctly, 10-11 s after the kill, and\n\
+  the relaunched land re-entered the queue with `waited_s` reset to 0 (observed on\
+  \ at\n11:17:14Z after 561 s of waiting). The remedy was already right; it was reached\
+  \ through a death\nthat forfeits ~9.5 minutes of queue position each time.\n\n**The\
+  \ predicate is available BEFORE the first attempt, which is why this is a small\
+  \ rule and not a\nredesign.** A land about to WAIT behind a non-empty admission\
+  \ queue cannot be assumed to fit a\ncapped call, and the queue depth is ALREADY\
+  \ read at formation (`_land_queue_at_slot_free`,\nSPEC-0184 rule 1). So: **a dispatched\
+  \ worker's `land` that finds the admission queue NON-EMPTY at\nentry relaunches\
+  \ itself as a DETACHED CHILD and exits, instead of waiting inside the capped call.**\n\
+  \n**Rule 2's four bounds are UNCHANGED and all hold — this rule moves WHO ORIGINATES\
+  \ the claim, and\nnothing else.**\n- **(a)** unchanged: the child is `land`, self-verifying\
+  \ and token-emitting by construction.\n- **(b)** is DELIVERED rather than asserted.\
+  \ The parent's last act is to print, on the original\n  stdout, the child pid, the\
+  \ log the child writes, and the bounded-poll command — so the worker\n  holds its\
+  \ turn on an instruction it was GIVEN, rather than on a claim it had to remember\
+  \ to\n  make. BACKGROUND-AND-YIELD stays forbidden, unchanged: what is detached\
+  \ is the OS PROCESS, never\n  the TURN, and a worker that yields anyway is still\
+  \ killed by (d).\n- **(c)** unchanged, and note what the parent does NOT do: it\
+  \ exits `SystemExit(0)` **before** the\n   token wrapper, emitting **no `LAND:`\
+  \ token at all**, because it reached no verdict. The\n  child writes the real token\
+  \ into the log. A parent that printed a token here would hand its\n  worker a false\
+  \ terminality on a land that had not started.\n- **(d)** unchanged, and it is the\
+  \ reason this is safe: the child carries\n  `YITC_LAND_HELD_TURN_PID` set to the\
+  \ SERVER-RESOLVED worker pid, so it is admitted by the\n  EXISTING §Claim-PROVENANCE\
+  \ comparison — it presents a value equal BY CONSTRUCTION to the one it\n  resolves\
+  \ for itself — and arms the same rule-3 watchdog on the same pid. No new admission\
+  \ logic,\n  no second watchdog call site, no new event type (the record reuses `land_process_group_escaped`\n\
+  \  discriminated by `mechanism: start-detach`).\n\n**Strictly stronger than the\
+  \ hand-run path, never weaker.** The hand-run claim is a value a caller\ntypes;\
+  \ this one is a value the land resolved for itself from the dispatch record. There\
+  \ is no\ncaller input to refuse, which is SPEC-0169 rules 3+4 taken to its end.\n\
+  \n**Fail-closed on every axis, and only a POSITIVE signal detaches.** No dispatch\
+  \ record (an\ninteractive land, a hand-run, a consumer land) ⇒ no detach — the rule-2\
+  \ corollary, unchanged. A\nworker liveness read of `dead` OR `unprovable` ⇒ no detach.\
+  \ An unreadable journal reads as an\nEMPTY queue ⇒ no detach. And an EMPTY queue\
+  \ keeps the foreground path BYTE-IDENTICAL: paying the\ndetach where nothing is\
+  \ waiting is a cost with no benefit.\n\n**Ordering, and it is load-bearing.** This\
+  \ arm is reached ONLY for a land that today would proceed\nin the foreground: the\
+  \ pre-existing detached/orphan refusal is evaluated FIRST and is unchanged, so\n\
+  a genuinely-detached NO-CLAIM land is still REFUSED AT ADMISSION exactly as the\
+  \ §Scenario says.\nThere is no fork loop to bound, structurally rather than by a\
+  \ flag: the child carries a claim, so\nit takes the claim branch, and this arm lives\
+  \ in that branch's `else`.\n\n**The PREFLIGHT/COMMIT split is part of the rule,\
+  \ not an implementation detail** (audit-pre\nfinding, 2026-08-27). Everything fallible\
+  \ — the log directory, the log file, the child env —\nhappens BEFORE the launch;\
+  \ if any of it fails, nothing irreversible has happened and the land\nresumes the\
+  \ foreground path. Once the child exists the parent is COMMITTED: the journal emit\
+  \ is\nFAIL-LOUD, never fail-back, because falling back would run a SECOND land.\n\
+  \n**HONEST BOUND — this makes nothing faster.** It does not shorten the queue, speed\
+  \ the verify, or\nchange the SPEC-0132 slot arithmetic. It removes a wasted ~9.5-minute\
+  \ wait per occurrence and\nnothing more. Rule 5 applies here verbatim: cost is RELOCATED,\
+  \ not reduced.\n\nSurfaces: `bin/lib/worktree.py#cmd_land` (the gated arm), `#_worker_start_detach_decision`\
+  \ (the\npure predicate) and `#_start_detached_worker_land` (the preflight/commit\
+  \ launcher).\n\n### 8. The SAME held-turn exit covers the Stage-6 SUITE (`task test\
+  \ --run`) — additive\nRules 1-4 were cut on the `land` because that was the over-cap\
+  \ command in evidence. The Stage-6\nfull suite is the second, and it meets the cap\
+  \ harder: on the kernel host it runs 10-15 minutes,\nwhere a land that fits the\
+  \ cap is the common case. Nothing in rule 1's reasoning is land-specific\n— the\
+  \ property that prevents built-but-unlanded work is that the worker HOLDS ITS TURN,\
+  \ and a\nsuite run in the provider's background tool with the turn yielded kills\
+  \ the worker exactly as a\nbackgrounded land does. Measured: three of ten wave workers\
+  \ died that way inside one hour on\n2026-09-12 (deviation fingerprint\n`worker-backgrounds-full-test-run-killed-by-headless-bg-wait-ceiling`),\
+  \ each at the headless 600 s\nbackground-wait ceiling, each stranding Execution\
+  \ work and a PAID audit-pre uncommitted.\n\nSo: **a dispatched worker's Stage-6\
+  \ suite MAY run as a DETACHED PROCESS on the same terms as the\nland** — rule 2's\
+  \ bounds (b) and (c) apply UNCHANGED (turn held by bounded in-turn foreground\n\
+  polling; terminality is token-or-exit, never a clock and never a diagnostic line),\
+  \ and rule 4's\nnon-weakening applies UNCHANGED (this is an exit from a suite too\
+  \ LONG for one call, never from a\nFAILING one; no test is trimmed, sampled or skipped).\
+  \ Rule 5 applies verbatim: the cost is\nRELOCATED, not reduced.\n\n**`task test\
+  \ --run` satisfies bound (a) by emitting `^TEST: (PASS|FAIL)` as its FINAL stdout\n\
+  line**, on BOTH outcomes and for EVERY invocation form. Ordering is part of the\
+  \ contract: in the\nevidence-recording form (`--run --evidence <summary>` — the\
+  \ one the detached recipe prescribes)\nthe journal row is appended BEFORE the token\
+  \ prints, so a poller that acts on the token never\nreads a journal that lacks the\
+  \ proof. A bare `--run` prints the token and appends NO row, exactly\nas SPEC-0025\
+  \ declares (`tests_passed` is emitted by `task test --evidence`; — `--run` runs,\n\
+  `--evidence` records). The token is a printed REPORT of a verdict already reached;\
+  \ it moves no\nexit path and gates nothing. **The one run with NO verdict :** when\
+  \ zero verify layers\nexecuted (every layer waived/skipped, or a section-level verify.waiver,\
+  \ and no tests/ leg) the\nfinal line is `TEST: NONE <why>` — never a PASS it did\
+  \ not earn — and `--run --evidence` appends\nNO `tests_passed` row; exit stays 0\
+  \ and terminality is still token-or-exit (rule 2c), so a poller\nkeyed on `(PASS|FAIL)`\
+  \ terminates on the process exit and must read `NONE` as no verdict.\n\n**TWO DIFFERENCES\
+  \ FROM THE LAND, both narrowing:** the suite takes NO held-turn admission claim\n\
+  and NO liveness watchdog (rules 2's claim half and 3 do not extend to it). Those\
+  \ exist because a\ndetached land MUTATES `main`, so a yielding claimant must be\
+  \ killed before it integrates. The\nsuite mutates and integrates nothing — a worker\
+  \ that yields mid-suite loses only its own run — so\na claim plus a watchdog would\
+  \ buy no protection and would add a second mechanism for nothing\n(CHARTER §P1 F1/F4).\
+  \ Consequently the suite path is a RECIPE, delivered in the dispatch preamble\n\
+  to BOTH regimes (`bin/lib/dispatch.py#_build_over_cap_test_rule`), not a gated arm\
+  \ in the verb.\n\n**THE POLL WINDOW IS DOUBLE-QUOTED, and that is a CONTRACT clause,\
+  \ not a style note (audit-post\npass 1, fp1:7e23c924909e6290).** The window interpolates\
+  \ the caller's own `$TEST_PID`, so the\nCALLER's shell must expand it BEFORE `bash\
+  \ -c` runs. Spelled in SINGLE quotes the name passes\nthrough literally; a nested\
+  \ `bash -c` does not inherit an unexported shell variable, so `kill -0`\nruns against\
+  \ an EMPTY pid and fails, `! kill -0` is TRUE on the first iteration, and the window\n\
+  returns INSTANTLY reporting a still-running suite as TERMINAL. That is precisely\
+  \ the false-GREEN\nbound (c) exists to forbid, reached through the QUOTING rather\
+  \ than through the token — which is\nwhy it is stated here: every substring of the\
+  \ recipe can be correct and present while the\nassembled command is wrong. The land\
+  \ recipe is not exposed to this (its poll interpolates no\nvariable), so this clause\
+  \ is the suite's own.\n\nSurfaces: `bin/lib/dispatch.py#_build_over_cap_test_rule`,\
+  \ `#_test_log_path`, `#_test_pid_path`\nand `bin/lib/task.py#_test_run_token`.\n\
+  \n### 9. The SAME held-turn exit covers `audit pre|post` — additive\nAn external-audit\
+  \ call is the third over-cap command in evidence: a primary auditor pair that times\n\
+  out (~300 s) followed by the reserve pair (~280 s) plus packet assembly outruns\
+  \ the per-call\nforeground cap, measured in a consumer worker (X-1689). Rule 8's\
+  \ reasoning carries over unchanged:\nwhat protects the work is the HELD TURN, so\
+  \ **a dispatched worker's `audit pre|post` MAY run as a\nDETACHED PROCESS on rule\
+  \ 8's terms** — rule 2's bounds (b) and (c) and rule 4's non-weakening apply\nUNCHANGED\
+  \ (no pass, lens, ceiling or verdict rule moves; this is an exit from a call too\
+  \ LONG, never\nfrom a RED). Rule 5 applies verbatim.\n\n**`audit pre|post` satisfies\
+  \ bound (a) by printing `^AUDIT: (GREEN|YELLOW|RED|ABORT)` as its FINAL\nstdout\
+  \ line on EVERY exit path.** A verdict-carrying exit renders that verdict (the exit\
+  \ code is\nunchanged, GREEN 0 / YELLOW 1 / RED 2 / ABORT 3); every other exit —\
+  \ a refusal, an exception\nincluding an interrupt, a preview or an absorb that reaches\
+  \ no auditor verdict — renders `AUDIT:\nABORT <why>`, meaning NO verdict this call,\
+  \ never a verdict it did not earn. The in-process\nceiling continuation is internal\
+  \ and prints no token of its own; only the outer call's\nfinal exit does. The saved\
+  \ `decisions/<id>-audit-<stage>.yaml` stays the durable verdict record.\n**One stream\
+  \ exception, `--preview`:** there STDOUT is the packet itself and must stay\nbyte-identical\
+  \ to what a real run hands the auditor, so the token is printed as the\nfinal STDERR\
+  \ line instead — a detached poll captures `2>&1` and still sees it.\n\n**The same\
+  \ TWO narrowings as rule 8:** no held-turn admission claim and no liveness watchdog.\
+  \ An\naudit writes its verdict into the worker's OWN worktree and journal and integrates\
+  \ nothing into\n`main`; a worker that yields mid-audit loses only that pass. So\
+  \ it is a RECIPE in the dispatch\npreamble's shared over-cap paragraph, not a gated\
+  \ arm in the verb.\n\nSurfaces: `bin/lib/audit.py#audit_terminal_token`, `bin/lib/audit.py#cmd_audit`\
+  \ (the verdict carried\non the SystemExit), `bin/lib/cli.py#cmd_audit` (the outermost\
+  \ wrapper that prints the token) and\n`bin/lib/dispatch.py#_build_over_cap_test_rule`.\n\
+  \n## Parameters\n\nNone consumed. The cap is a harness property (provider-specific,\
+  \ CHARTER §P4b) and is deliberately\nNOT a number in this body: the rule is \"a\
+  \ hard per-call cap exists and a land may exceed it\", which\nholds whatever the\
+  \ value is. A spec that named the number would have to change when the harness did.\n\
+  \n## Rationale\n\n**Real incident (F4).** X-0855 (<project> → yitc-v2, 2026-08-13):\
+  \ burned 4 land attempts\n(600 / 580 / 570 / 570 s, each killed at the cap without\
+  \ reaching a token) while its `verify.sh`\nwas independently proven GREEN in the\
+  \ same session — a fully audited, closed task that only an\ninteractive session\
+  \ could integrate.\n\n**Measured (`dev-utilities/land-verify-attribution-.md`).**\
+  \ Every figure names its\ncomparator, per `lessons/state-a-timing-claim-so-host-noise-cancels`:\n\
+  - The pinned suite is **3284.8 CPU-seconds** over 792 members — CPU, not wall, so\
+  \ host load\n  cancels; the measuring window's loadavg moved 7.9 → 31.3, which a\
+  \ wall reading would have\n  absorbed silently.\n- Dividing that census by this\
+  \ host's live-computed 13 verify workers gives a **zero-contention\n  floor** of\
+  \ 252.7 s for one pass — a floor, not an observation: it assumes an otherwise idle\
+  \ box.\n- A diff touching the verify implementation runs the cohort TWICE (SPEC-0077),\
+  \ so the floor doubles\n  to ~505 s against a ~600 s cap, before graph rebuild,\
+  \ scaffolding or any admission wait. The\n  dead-end is therefore arithmetic, not\
+  \ a noisy window.\n- Independent confirmation in the same window: own Stage-6 run\
+  \ measured the full suite\n  GREEN 792/792 in ~430 s at loadavg 20-30 — ~1.7× the\
+  \ 252.7 s floor, i.e. a SINGLE pass consumed\n  ~72% of the budget on a diff that\
+  \ did not even trigger the second one.\n- Worker-count sensitivity, same census:\
+  \ at 8 workers the ONE-pass floor alone (821 s) already\n  exceeds the cap. The\
+  \ margin is not fixed; it moves with the host's admitted worker count.\n\n**The\
+  \ P7 dissonance this resolves (CHARTER §Principle 7).** Two ACTIVE surfaces prescribe\
+  \ opposite\nthings for the same case: `patterns/background-session-dispatch.md\n\
+  §Long-command-exceeds-tool-timeout` sanctions detached-launch + bounded in-turn\
+  \ polling for a long\nself-verifying command and names `land`'s `^LAND: OK` token\
+  \ as its prior art; the shipped guard\nrefuses exactly that shape for a worker land.\
+  \ Captured as `deviation_captured` fingerprint\n`long-command-recipe-contradicts-synchronous-land-guard`\
+  \ (2026-08-13). Resolving it by rule rather\nthan by silent choice is what CHARTER\
+  \ §P7 requires.\n\n**Anti-complexity (CHARTER §Principle 1).**\n- **F1 existing\
+  \ analog?** YES, and it is REUSED rather than re-invented: the detached-launch +\n\
+  \  bounded-poll recipe already exists as a RULE, and `worktree recover-land` is\
+  \ already\n  idempotent for the case where a land dies anyway. This spec makes the\
+  \ existing recipe ADMISSIBLE\n  for `land`; it designs no new mechanism.\n- **F2\
+  \ new entity or new view?** Neither — a reshaped admission predicate on an existing\
+  \ guard.\n  No new verb, store, journal, gate or FSM.\n- **F3 what gets removed?**\
+  \ The orphan-refusal's unconditional reach over a held-turn detached\n  land, and\
+  \ the contradiction in rule 3's first paragraph. The guard's own dangling status\
+  \ is\n  removed too: it gains a spec home instead of a mis-citation of SPEC-0103\
+  \ §1.\n- **F4 real incident?** X-0855 above, plus the measured arithmetic.\n\n**Deliberation\
+  \ NOT carried here** (SPEC-0005 rule 3 content boundary): the rejected alternatives\
+  \ —\nsplitting the verify so no single call spans the cap, moving the admission\
+  \ wait out of the timed\ncall as its own mechanism, and a sanctioned worker-side\
+  \ `recover-land` handoff — live in the\nproposing plan, not in this body.\n\n##\
+  \ Verification\n\n- **Negative control (must FAIL without the change):** a dispatched\
+  \ worker whose verify is forced\n  past the cap reaches NO terminal land outcome\
+  \ under today's rules — aimed at a case that\n  SUCCEEDS when the cap is generous,\
+  \ so the arm distinguishes the mechanism from the world. An arm\n  that fails for\
+  \ any other reason proves nothing\n  (`lessons/a-negative-control-must-fail-without-the-intervention`).\n\
+  - **Positive:** the same worker, unchanged in every other respect, reaches `^LAND:\
+  \ OK` by itself;\n  `journal query --fleet-verdict` reads a real outcome rather\
+  \ than `blocked-on-land` or\n  launch-stall; no interactive session re-ran the command.\n\
+  - **Yield-still-dies (rule 1 non-weakening) — TWO SEPARATE ARMS, because there are\
+  \ two different\n  mechanisms (plan-check finding, 2026-08-14; the Scenario separates\
+  \ them and this section must\n  not re-merge them):**\n  - *No-claim arm:* a worker\
+  \ that detaches WITHOUT a held-turn claim is REFUSED AT ADMISSION —\n    the pre-existing\
+  \ guard path, exercised and not bypassed. Nothing ever starts, so there is\n   \
+  \ nothing to recover.\n  - *Claim-then-yield arm:* a worker that CLAIMS the held-turn\
+  \ path and then yields is ADMITTED,\n    and its land is KILLED by the liveness\
+  \ binding once the worker process is gone. `main` is\n    untouched (no integration\
+  \ was reached) and the work is recoverable via the existing idempotent\n    `worktree\
+  \ recover-land`. This arm must ALSO assert the kill left its\n    `land_worker_liveness_lost`\
+  \ record — a kill that cannot be seen is the silent death rule 3\n    exists to\
+  \ prevent, and the trial's first candidate passed every behavioural check while\n\
+  \    emitting nothing.\n  An implementation that satisfies only the first arm has\
+  \ not implemented the watchdog at all.\n- **Unprovable-liveness refusal (rule 3\
+  \ fail-closed):** a land claiming this path that cannot\n  establish its worker's\
+  \ liveness REFUSES, and `main` is untouched at the refusal.\n- **Gate-integrity\
+  \ (rule 4):** the pinned double-verify still runs both passes; the admission slot\n\
+  \  count is unchanged; `blocked-on-land` still fires for a genuine out-of-scope/environmental\
+  \ block.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0169
+- SPEC-0161
+- CHARTER.md#principle-7
+- SPEC-0077
+- SPEC-0103
+- SPEC-0132
+- SPEC-0133
+- give-a-dispatched-worker-a-land-path-that-survives
+amends:
+- SPEC-0103
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: give-a-dispatched-worker-a-land-path-that-survives
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/batch_landing.py#_land_drop_dead_members: f43df5e723e0251634593a0c55330004c16ccb30bfbac0d89b9cf73270004437
+  bin/lib/batch_landing.py#_land_member_claim_held: 8c9c247f06d1a629b7f7b88c963ec44edddae28a765eda4d0612d0fe7336ab79
+  bin/lib/batch_landing.py#_land_member_terminal_signal: 1958c1514c82d8c709d457ca124ae32df775fa3fe681f771a2ff7d19d09c2cd1
+  bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
+  bin/lib/land_reservation.py#_arm_worker_land_pdeathsig: e5975f47e25a8b714f5346cfd90ee0bc5bd6931f45999b58de1988bf43696db2
+  bin/lib/land_reservation.py#_arm_worker_liveness_watchdog: b31ac9da7642afc5ce47d806a6a616881eb1db0684380adcf800620faf36d1a6
+  bin/lib/worktree.py#_land_detached_signal: bbbe23ec6a11ee17f81a014d502513389bcd3a8f1b7c56f7c06191bf14d355fc
+  bin/lib/worktree.py#_pid_alive: b15b2c77d8df2bd8662d2a19968e91bc9356d09d5ae14dbbbdfbb12c8afdb42d
+  bin/lib/worktree.py#_resolve_dispatch_worker_pid: 1f8347e7aa7000c7f10a7a7329c2678c2f065a1094ae89382f02b5b6e11369dd
+  bin/lib/worktree.py#_resolve_held_turn_claim: 268031acd79305b7dc5abea784c214217bb6ccef27ab8cec7d0e119d069ae5db
+  bin/lib/worktree.py#_start_detached_worker_land: 45118db878f31f68137d4650eff65a344f5839bbda8079e4eca299290a2e200a
+  bin/lib/worktree.py#_worker_start_detach_decision: ef7ce322f125c363ad2292b34f51ce94ee4ab33690602ae05eed063218e7dc1c
+  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280

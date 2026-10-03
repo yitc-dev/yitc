@@ -1,0 +1,241 @@
+id: SPEC-0143
+title: Concern update-propagation to existing consumers — version derivation, per-consumer
+  adoption record, drift reconcile
+status: active
+created_at: 2026-07-07 13:57:16+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#concern_drift
+- bin/lib/init.py#_preseed_concern_adoptions
+- bin/lib/init.py#_adopt_concerns
+- bin/lib/init.py#_adoption_stance_violations
+- bin/lib/cli.py#_surface_concern_drift
+- bin/lib/nightly.py#_check_concern_drift
+- bin/lib/nightly.py#cmd_nightly
+- bin/lib/cross.py#auto_file_concern_drift_escalations
+- bin/lib/nightly.py#_CONCERN_DRIFT_ESCALATE_AFTER
+- bin/lib/nightly.py#_concern_surfacing_counts
+- bin/lib/nightly.py#_concern_drift_escalations
+body: "## Scenario\n\nA consumer that already migrated to v2 does not silently fall\
+  \ behind when a kernel concern's\ncontract changes. When the kernel evolves a seed-and-grow\
+  \ concern (SPEC-0128) — tightens a\nsecurity-evidence schema, changes a deploy gate,\
+  \ retires a dependency — every consumer that pinned\nthat concern is TOLD, automatically,\
+  \ that its adopted version is behind. The owner of that consumer\nsees a plain report-only\
+  \ line at their `session start` and in the nightly run: which concern, the\nversion\
+  \ they adopted, the current kernel version, and the review action. Nothing in the\
+  \ consumer's\nrepository is changed by the kernel — the owner decides whether to\
+  \ adopt the new version, waive it,\nor mark it not-applicable. Once they record\
+  \ that decision, the line clears. A concern whose contract\nhas not moved is never\
+  \ mentioned (silence = up to date).\n\n## Internal\n\nTHE UPDATE-PROPAGATION DOCTRINE\
+  \ — how a change to a kernel concern's contract reaches an\nALREADY-migrated consumer.\
+  \ SPEC-0128 delivers concerns to a NEWLY-born / `init`'d consumer (a\nbootstrap\
+  \ act); this spec is its sibling for the CONTINUING relationship. It OWNS the propagation\n\
+  doctrine only — it is NOT a second owner of the concern registry (SPEC-0128 stays\
+  \ the sole\ndeclaration source). Five rules, all on existing surfaces; no new store,\
+  \ FSM, scheduler, or blocking\ngate.\n\n### Rule 1 — Concern version is DERIVED,\
+  \ not authoritatively stored\nEach concern in the registry carries a `version`,\
+  \ DERIVED at `graph build` as a short content digest\nof that concern's **finite\
+  \ metadata table ONLY** (the SPEC-0128 Rule-1 fields: `section` /\n`carrier_path`\
+  \ / `presence_policy` / `declare_key` / `declare_type` / `update_policy` / `waiver_policy`\n\
+  / `shape_hook` / governing `spec`) and rendered into `graph/concern-registry.json`.\
+  \ **The `born` guidance\nblock is EXCLUDED from the hash** (trial finding, cycle\
+  \ 1): the born block is onboarding GUIDANCE, not\nthe machine-enforced contract,\
+  \ so hashing it would bump every consumer's version on a mere prose/typo\nedit —\
+  \ noise, not a contract change. The version BUMPS if and only if a finite-table\
+  \ field changes; an\nedit that does not touch the finite table (born-prose, comment,\
+  \ key order, whitespace) does not bump it. `graph/concern-registry.json`\nis GENERATED\
+  \ OUTPUT, never authoritative storage — the authoritative source stays the `concern:`\
+  \ block\non the governing spec (CHARTER §P5). There is NO hand-maintained version\
+  \ datum (a manual counter is the\nexact forget-to-update failure class this closes).\
+  \ This rule is a small EXTENSION of the SPEC-0128\nregistry derivation (the version\
+  \ is a registry field); the SPEC-0030 schema note records the field.\n\n### Rule\
+  \ 2 — Per-consumer adoption record lives in the consumer's ops-carrier, written\
+  \ only by the consumer\nEach consumer records, PER concern, an adoption entry in\
+  \ its own `yitc-ops.yaml` (the SPEC-0093\ncarrier): `{status: adopt | waive | na,\
+  \ version: <the adopted concern-version>, owner, at}`. It is\nwritten ONLY through\
+  \ the consumer's OWN governed `-C` op — the existing carrier-update / init-extension\n\
+  path (`lessons/governed-consumer-config-write-via-init-extension`) — NEVER a kernel\
+  \ push and NEVER a\nraw cross-repo edit. A concern present in the kernel registry\
+  \ with NO adoption entry in the\nconsumer reads as un-adopted (drift). The block\
+  \ is opt-in-shaped (absence = not-yet-adopted, surfaced\nas drift), not fail-closed\
+  \ declare-or-waive.\n\n**Init PRE-SEED at birth (NEWBORN-ONLY).** A FRESHLY-init'd\
+  \ consumer must not read\nas drifting on EVERY concern merely because it has no\
+  \ adoption records yet — its `init` declare-or-waive\nsweep IS the birth review\
+  \ (SPEC-0128 territory), and the Rule-3 drift reconcile is for LATER contract\n\
+  moves only. So at `init`, AFTER the concern sections are delivered and declare-or-waive'd,\
+  \ the SAME\ngoverned init carrier path (`bin/lib/init.py#_preseed_concern_adoptions`,\
+  \ riding the existing bootstrap\ncommit to the consumer's OWN main — no new verb,\
+  \ no kernel push, no cross-repo edit) writes a per-concern\nadoption record at each\
+  \ concern's CURRENT registry `version`, MIRRORING the just-made decision: a\nDECLARED\
+  \ section → `adopt`, a WAIVED section → `waive`, an absent/not-applicable section\
+  \ → `na` (owner =\nthe sentinel `init`). A brand-new consumer therefore starts DRIFT-QUIET\
+  \ (Rule 3 surfaces 0\n`concern_drift_surfaced` for it), while a LATER real version\
+  \ bump still surfaces drift. The pre-seed is\nNON-CLOBBERING (an owner's explicit\
+  \ `--adopt-concern` this run, or a prior run's record, is left\nuntouched → re-init\
+  \ is byte-stable) — it only fills the birth gap, it does not own the adoption\n\
+  decision.\n\n**The MIRROR binds the EXPLICIT writer too — an `adopt` over an undeclared\
+  \ section is REFUSED\n.** The \"record MIRRORS the stance\" rule above is a property\
+  \ of the RECORD, not of the\npre-seed that happened to derive it first, so it binds\
+  \ BOTH writers. The explicit\n`--adopt-concern SECTION:STATUS:OWNER` path (`bin/lib/init.py#_adopt_concerns`)\
+  \ validated only the\nrequest's SHAPE (a real section, a legal status, a well-formed\
+  \ owner) and then recorded the requested\nstatus VERBATIM — so `coverage:adopt:<owner>`\
+  \ over `coverage: {load_bearing: []}` wrote `status: adopt`\nwhile the coverage\
+  \ reader (`graph.py#_coverage_opt_in`) treats that empty list as NOT-opted-in. The\n\
+  ledger then asserts ADOPTED for a mechanism that tracks NOTHING — the shipped-but-not-invoked\
+  \ class\n(CHARTER §Principle 3/8), inverted into the record itself. Observed live:\
+  \ <project>, 2026-07-12.\nSo at write-time the explicit path now checks the requested\
+  \ status against the carrier's ACTUAL stance\n— via the SAME `_mirror_adoption_status`\
+  \ reader the pre-seed uses (one stance reader, CHARTER §P5) —\nand REFUSES an `adopt`\
+  \ whose section the carrier does not genuinely DECLARE (its `declare_key` absent,\n\
+  empty, or wrong-typed, or the section waived). The refusal names the TWO honest\
+  \ exits, which are just\nthe declare-or-waive stances Rule 2 already recognizes:\
+  \ DECLARE the concern (e.g. real\n`coverage.load_bearing:` globs) and re-adopt,\
+  \ or WAIVE it with a reason and record `:waive:`. Only\n`adopt` is gated — a `waive`/`na`\
+  \ record asserts NO active mechanism, so it cannot make this false\nclaim. This\
+  \ is ENFORCEMENT of Rule 2 on the path that skipped it, not a new rule; and it is\
+  \ the\nINVERSE of the `lessons/a-stance-mirror-is-only-sound-at-birth` trap — the\
+  \ gate never WRITES a\nmirrored stance on the owner's behalf, it blocks a false\
+  \ one and hands the question back.\n\n**ONE named exception — a born-EMPTY list\
+  \ that IS a stance (X-1391).** For the\n`overrides` concern (SPEC-0196) the ledger\
+  \ is born `entries: []` and that empty ledger is the honest\ndeclaration «this project\
+  \ diverges from nothing»: the ledger mechanism reads a PRESENT `entries: []`\nas\
+  \ a LIVE section, so refusing `overrides:adopt` over the born state contradicted\
+  \ the mechanism the\ngate guards and forced a consumer to waive a concern it had\
+  \ not waived. So at the `_adopt_concerns`\ngate ONLY, a section named in `_BORN_EMPTY_DECLARED_SECTIONS`\
+  \ (`{\"overrides\"}`) counts a PRESENT and\nWELL-TYPED but EMPTY `declare_key` list\
+  \ as declared (`_born_empty_ledger_declared`); an ABSENT key,\na non-mapping section,\
+  \ a non-list value, or a waived section still refuses. The set names the\nexception\
+  \ where it is widened, and widens nothing else: every other born-empty opt-in list\n\
+  (`coverage.load_bearing: []`, `product_source.globs: []`, …) keeps the reading —\
+  \ empty\nmeans the mechanism tracks nothing — and the birth pre-seed's `_mirror_adoption_status`\
+  \ is\nuntouched (the born ledger still pre-seeds `na`; the owner records the adopt\
+  \ explicitly).\n\n**The pre-seed licence is BIRTH, and birth ONLY (X-0240).** The\
+  \ pre-seed fires IFF the\nconsumer's ops-carrier was BORN THIS RUN (`fresh_carrier`\
+  \ — the `_seed_catalog_waives` born-this-run\ndiscriminator REUSED, i.e. the consult's\
+  \ absent-vs-present boundary: a fresh born section is a\nmigration, a PRESENT one\
+  \ is never auto-healed). On a carrier that already existed, `init` pre-seeds\nNOTHING\
+  \ and the consumer's drift STANDS for its owner. Rationale: the sweep the pre-seed\
+  \ mirrors is a\nBIRTH review only when init itself just wrote the carrier. A LEGACY\
+  \ consumer's stances were authored\nagainst the OLD concern definitions, so the\
+  \ stance-mirror copies the SHAPE of the old answer — which is\nSILENT about the\
+  \ new question. Recording that shape @current under the `init` sentinel silences\
+  \ real\npending drift, and the review-request Rule 3 exists to raise is consumed\
+  \ by the TOOL instead of by the\nowner (observed live in <project>: a bare `init`\
+  \ pre-seeded all 14 standing report-only drift lines\nas adopt/waive @current, with\
+  \ no review of whether the carrier CONTENT still satisfies the NEW concern\ndefinitions).\
+  \ The \"no adoption entry yet\" per-concern guard cannot make this distinction —\
+  \ it is equally\ntrue of a newborn and of a legacy consumer with real pending drift;\
+  \ at pre-seed time both read as\nall-un-adopted. \"The carrier did not exist a moment\
+  \ ago\" is the sole sound discriminator, and it is\nexactly equivalent to \"this\
+  \ consumer cannot have accumulated drift history\". This makes the `init`\nsentinel's\
+  \ provenance guarantee total: an `owner: init` record can only ever describe a stance\
+  \ made at\nbirth, never a legacy stance the tool re-affirmed on the owner's behalf.\
+  \ Consistent with Rule 3's\nstanding precision note — a legacy consumer with no\
+  \ `adoption:` block surfaces ALL concerns once\n(bootstrap review, correct-not-a-bug)\
+  \ — and with Rule 5: the kernel surfaces, the owner decides.\n\n### Rule 3 — Drift\
+  \ reconcile: derived, report-only, on two existing seams\nA DERIVED reconcile computes\
+  \ per-concern drift for a consumer — drift ⇔ the consumer's recorded\n`adoption.version`\
+  \ for a concern differs from the registry `version`, OR no adoption entry exists.\n\
+  Drift is surfaced REPORT-ONLY at two existing seams: (a) the consumer `-C` `session\
+  \ start` (the\nSPEC-0118 MCP-reconcile precedent) and (b) `bin/yitc-v2 nightly`\
+  \ (SPEC-0105). It is\nSUPPRESSED-WHEN-CLEAN (no output when every concern's adopted\
+  \ version equals the current version —\nthe SPEC-0119 debt-echo posture). Surfacing\
+  \ a drift emits `concern_drift_surfaced` (report-only\nobservability); a clean reconcile\
+  \ emits nothing. The reconcile is derived (no stored drift state) and\nNEVER mutates\
+  \ the consumer repo.\n\n### Rule 4 — The reconcile IS the review-request; escalation\
+  \ at a pre-existing governed blocking gate or after repeated undecided surfacing\n\
+  The report-only drift surface is itself the default review-request — there is NO\
+  \ stored review-request\nentity and NO per-drift coordination-log spam: at most\
+  \ ONE escalation per (consumer, concern, version).\nEscalation to a governed `bin/yitc-v2\
+  \ cross request` happens where an EXISTING governed gate already\nblocks on that\
+  \ concern (e.g. a deploy gate on stale/absent security evidence), OR — for a drift\
+  \ on ANY\nconcern — once the nightly reconcile has already surfaced the same (consumer,\
+  \ concern, current\nversion) seven times with no adopt/waive/na decision recorded.\
+  \ The kernel surfaces and requests; the\nconsumer's owner decides and acts.\n\n\
+  WIRED : the escalation rides the nightly reconcile (Rule-3 seam (b)). The set of\
+  \ concerns a\npre-existing governed BLOCKING gate blocks on is named `_GATE_BACKED_CONCERNS`\
+  \ in `bin/lib/nightly.py`\n— today just `security` (the deploy Class-S live-probe\
+  \ gate, SPEC-0098 / SPEC-0094, the example's\n\"deploy gate on stale/absent security\
+  \ evidence\"); the set grows ONLY when a real new blocking gate\nlands. When a drifting\
+  \ project's drift is on a gate-backed concern, the nightly files ONE kind=`note`\n\
+  `cross request` from the kernel to that consumer via `cross.auto_file_concern_drift_escalations`\
+  \ — the\nSAME shared-log write path + id-alloc flock as the land-time `auto_file_kernel_cross_requests`\n\
+  (SPEC-0086 / SPEC-0084), NOT a new mechanism. It is DEDUP-idempotent on an origin_fp\n\
+  `concern-drift:<consumer>:<concern>:<version>`, so a re-run of an unresolved drift\
+  \ files nothing and a\nlater contract move re-escalates. Every drift on a NON-gate-backed\
+  \ concern stays REPORT-ONLY (no cross\nrequest) until it reaches the surfacing-count\
+  \ trigger below. This adds NO new blocking gate and NO\nstored review-request entity\
+  \ (Rule 5 fence holds — the kernel writes only the shared coordination log,\nnever\
+  \ the consumer repo).\n\nWIRED — the surfacing-count trigger: a drift on a NON-gate-backed\
+  \ concern escalates through\nthe SAME write path and the SAME origin_fp once the\
+  \ nightly has surfaced its (consumer, concern,\ncurrent version) seven prior times.\
+  \ The watermark is DERIVED from the nightly's own report-only\nsurfacing record\
+  \ over the whole kernel journal — no new store and no new event type. Only the nightly\n\
+  seam counts (a consumer session-start re-print does not); the count is keyed on\
+  \ the current version,\nso a contract move restarts it; and an unreadable journal\
+  \ fails LOUD — that run skips the count arm\nand says so, never reading the watermark\
+  \ as zero. The brief names the surfacing count instead of a\ngate. Seven is one\
+  \ weekly cadence of nightlies.\n\n### Rule 5 — Fence: the kernel never auto-mutates\
+  \ a consumer repo (CHARTER §6)\nAt NO step does the kernel write into a consumer's\
+  \ repository — it derives, surfaces, and requests\nonly. This plan adds no new blocking\
+  \ gate; the sole place a drift may BLOCK is a pre-existing governed\ngate that already\
+  \ blocks on that concern. Adoption decisions are the consumer owner's, recorded\
+  \ by the\nconsumer's own governed op (Rule 2).\n\n### Build order (audit gate-specs\
+  \ finding — the explicit implementation sequence)\n1. Derive `version` per concern\
+  \ into the registry (Rule 1) — the SPEC-0128/SPEC-0030 extension; audit\n   EVERY\
+  \ specs-dict construction, incl. the `cmd_graph_conformance` partial dict, or the\
+  \ first real\n   declaration false-REDs the drift-lock (`lessons/wiring-first-real-instance-onto-a-declaration-driven-generator`).\n\
+  2. Per-concern adoption record in the consumer ops-carrier (Rule 2) — SPEC-0093\
+  \ extension via the\n   existing `-C` carrier op.\n3. The derived reconcile + `concern_drift_surfaced`\
+  \ at session-start and nightly (Rule 3) — SPEC-0105\n   + the session-start echo.\n\
+  4. Escalation-only review-request at a governed blocking gate (Rule 4).\n\n## Rationale\n\
+  \nReal incident (prior-art): the v1-autoteam retirement stopped <project>'s nightly\n\
+  security role, and the deploy gate then blocked permanently, unnoticed — an already-migrated\
+  \ consumer\nsilently orphaned when a kernel concern moved under it. SPEC-0128 closes\
+  \ the born/`init` delivery gap\nbut not the CONTINUING one. Design basis: external-auditor\
+  \ consult Q8 (in the <project> consumer\nrepo). Full deliberation, rejected alternatives\
+  \ (explicit-integer version, extend-SPEC-0128,\nper-drift cross-request), and the\
+  \ ratification act live in the proposing plan\n`concern-update-propagation-to-existing-consumers-c`\
+  \ (SPEC-0005 rule 3 — not restated here).\n\n## Verification\n\n- Version determinism:\
+  \ editing a concern's normative metadata bumps its `graph/concern-registry.json`\n\
+  \  `version`; an unrelated edit does not (deterministic content-derivation probe).\n\
+  - Drift surfaced + suppressed: a consumer behind on a concern gets a report-only\
+  \ line + a\n  `concern_drift_surfaced` event at session-start and nightly; a consumer\
+  \ level with every concern\n  gets no line and no event (suppressed-when-clean probe).\n\
+  - Adoption round-trip: an owner adoption-record write (via the consumer's own `-C`\
+  \ op) clears the\n  drift on the next reconcile.\n- Fence: zero kernel-side mutations\
+  \ of the consumer repo across the reconcile (any = fail).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-6
+- CHARTER.md#principle-5
+- SPEC-0128
+- SPEC-0093
+- SPEC-0105
+- SPEC-0118
+- SPEC-0119
+- SPEC-0030
+- wiring-first-real-instance-onto-a-declaration-driven-generator
+- governed-consumer-config-write-via-init-extension
+requires:
+- SPEC-0128
+supersedes: null
+activation_owner_task: null
+proposed_by: concern-update-propagation-to-existing-consumers-c
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#_surface_concern_drift: 729dc80316889d0ccf2fd83efe08bf113633ac7dcab8d8972101e8aca2b25615
+  bin/lib/cross.py#auto_file_concern_drift_escalations: 7505f186ebf3949bcfc6672ee1d0efcece8a4e781b74b447e37fcb8658253464
+  bin/lib/init.py#_adopt_concerns: 4b1b4585e06a331be3d18a914df9e73d072216d8f9ccd78947e61bcdcdb56ec7
+  bin/lib/init.py#_adoption_stance_violations: a5793115f8a67253aab5ebcf47267d0f9b012e1e3925fa2053ab125e3fa3fced
+  bin/lib/init.py#_preseed_concern_adoptions: 8f3645dae003cf86b779eab1efa081a0887affa5135ed51acace59e1674ce2e3
+  bin/lib/init.py#concern_drift: 4d74ecf0d6bc54093bccf6f3bf3619385f3d11d9fd9fd84594f6e504ef4be586
+  bin/lib/nightly.py#_CONCERN_DRIFT_ESCALATE_AFTER: d6d535389ce87fe2b44cef0c8587c02024002f75fdd088f99799e2ad32e0e34f
+  bin/lib/nightly.py#_check_concern_drift: 93a814359365b620afd514c591edf9bde587de9d7e24d131771d2f0aabf794c2
+  bin/lib/nightly.py#_concern_drift_escalations: 2cc935f1774709c64f2bbefdf0d5b810ea8c75253a3ba6b0a9994b2e2d3548a8
+  bin/lib/nightly.py#_concern_surfacing_counts: 8ca2ec3bd620094b21b0cabf790ae431d0584c9465023ca021d579d0311cef4f
+  bin/lib/nightly.py#cmd_nightly: 8db97c8d2cc6bd301f6d2707969896bcd828e8001c0cc9ac6acdea28db5d6739

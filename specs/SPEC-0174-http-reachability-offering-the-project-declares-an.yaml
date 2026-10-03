@@ -1,0 +1,144 @@
+id: SPEC-0174
+title: HTTP-reachability offering — the project declares and runs the edge probe,
+  the kernel grades only the freshness of its result
+status: active
+created_at: 2026-08-07 06:11:45+00:00
+travels: kernel
+consumed: false
+extension: adoptable
+implements:
+- dev-utilities/reference-http-reachability-freshness-adapter.py#run_probe
+- dev-utilities/reference-http-reachability-freshness-adapter.py#grade_http_reachability_freshness
+body: "## Scenario\n\nA project that serves live traffic can find out that it is DOWN\
+  \ through a standing surface it\ndeclared itself — not only when a human happens\
+  \ to look. The project declares an HTTP-reachability\nprobe, names the address that\
+  \ probe reaches, and RUNS it on its own cadence. The kernel never issues\nthe request;\
+  \ it GRADES the freshness of the recorded result and surfaces a stale or failing\
+  \ one in\nthe debt echo unprompted. A project that has declared nothing is VISIBLY\
+  \ undeclared at its own\ncompleteness sweep, instead of being indistinguishable\
+  \ from a project that is covered.\n\n## Internal\n\n### 1. The offering (what a\
+  \ consumer adopts)\nAn ADOPTABLE catalog member: the consumer declares a reachability\
+  \ probe as a read-only\nresult-age adapter and cites this spec in its own extensions\
+  \ block; the kernel grades the age of the\nresult against the declared SLA. Adopt-and-cite\
+  \ — never copy or fork the kernel grader. The adapter\nshape, the extension/catalog\
+  \ mechanics and the declare-or-waive completeness machinery are homed in\ntheir\
+  \ own specs and are NOT restated here; this spec adds the OFFERING and its two rules\
+  \ below.\n\n### 2. Grade-only is the boundary, and it is absolute\nThe kernel performs\
+  \ NO outbound request of its own on this capability's behalf — not to verify the\n\
+  target, not to confirm a failure, not as a fallback when a result is missing or\
+  \ stale. A missing or\nstale result grades as missing-or-stale; it never escalates\
+  \ into the kernel fetching the address\nitself. This is the boundary the whole offering\
+  \ rests on: the kernel grades a RECORD produced by the\nproject, and the project\
+  \ owns every act of reaching its own runtime.\n\n### 3. Fresh-and-failing is its\
+  \ own outcome, never collapsed into stale or missing\nThe freshness vocabulary this\
+  \ capability borrows carries fresh, stale and missing, and NONE of those\nthree\
+  \ means \"the probe ran fine and the subject is DOWN\". Left alone a down target\
+  \ normalizes to\nstale-or-missing and BAD NEWS is filed as NO DATA, so a reader\
+  \ cannot tell \"we could not see\" from\n\"we saw, and it is broken\". An adopting\
+  \ adapter's result MUST therefore carry an explicit reachability\nOUTCOME beside\
+  \ its freshness state, and the grade MUST surface a FRESH FAILING result as FAILING,\n\
+  distinct from stale, from missing, and from silence. A rendering that shows a fresh\
+  \ failure as any of\nthose three does not satisfy this spec. This is the same invariant\
+  \ its sibling states for inspection\nresults, applied to a graded capability: no-data,\
+  \ bad-news and clean are three different things, and a\nsurface that renders any\
+  \ two of them identically is false-green by construction.\n\n### 4. The named target\
+  \ — ADVISORY on edge-ness, MANDATORY on naming\nThe declaration MUST name the address\
+  \ its probe reaches, and the grade MUST record what was named.\nReaching the LIVE\
+  \ EDGE rather than an internal address is ADVISORY, not enforced. The asymmetry\
+  \ is\nstructural, not a preference: the kernel cannot verify that an address IS\
+  \ the live edge without\nREQUESTING it, and requesting is exactly what rule 2 forbids\
+  \ — so edge-ness is not merely hard to\nenforce, it is unreachable without breaking\
+  \ this spec's own boundary, and a rule that cannot be\nchecked must not be written\
+  \ as though it were.\nWhat this buys instead is LEGIBILITY: a declaration with no\
+  \ named target is REFUSED; a declaration\nnaming an internal address is ACCEPTED,\
+  \ and that address is visible to any reader of the grade. A\nprobe that quietly\
+  \ reaches past the live edge stops being invisible, which is the whole failure this\n\
+  offering exists to answer.\nWHERE THE TARGET LIVES AND WHO REFUSES. Both halves\
+  \ ride seams that already exist, so this rule adds\nno kernel validator. DECLARATION\
+  \ side, the refusal: the target is named in the freshness-section\nreference for\
+  \ this offering's adapter kind. The carrier spec already fixes what that section\
+  \ holds —\nthe declare-or-waive marker, the reference NAMING the project's adapter,\
+  \ and the observed-evidence\nstate — so this is ONE required field on that reference\
+  \ for this kind, and the refusal is the EXISTING\ndeclare-or-waive completeness\
+  \ check finding an incomplete declaration. The carrier's \"no values copied\nin\"\
+  \ discipline is about per-pipeline THRESHOLDS, which stay in the adapter; a target\
+  \ address is the\nsubject being declared, not a threshold. GRADE side, the legibility:\
+  \ the adapter reaches the address,\nso the adapter is the single source of what\
+  \ was actually reached and reports it in its normalized\nresult, which the grade\
+  \ records. The kernel does NOT compare the declared target with the reached one\n\
+  and issues no request of its own: comparison would need an equivalence judgement\
+  \ it has no basis for,\nand rule 2 forbids the only way it could check. A divergence\
+  \ is left VISIBLE to a reader rather than\nadjudicated, which is precisely the legibility\
+  \ this rule buys.\n\n### 5. Activation is kernel-local, firing is per-consumer\n\
+  This spec becoming active is a KERNEL-local act with no fleet precondition and no\
+  \ fleet gate. Being\nactive and adoptable places it in the completeness set, so\
+  \ each consumer owes a declare-or-waive at\nITS OWN next init — per-consumer fail-closed\
+  \ pressure at that consumer's own gate. A consumer's own\nrecord, never this spec's\
+  \ status, decides whether the capability FIRES for that consumer, and a\nwaive is\
+  \ a COMPLETE answer. One project's answer switches only that project.\n\n### 6.\
+  \ What this does NOT add — and the ONE thing it does\nNo monitoring subsystem, no\
+  \ new carrier section, no new event type, no new store, no new grader, and\nno kernel\
+  \ reach into a project's runtime. The capability is one more row in a mechanism\
+  \ that already\nruns, on the already-generic project-neutral grader.\nIt DOES extend\
+  \ that grader's normalized result contract by exactly ONE axis — the reachability\n\
+  OUTCOME rule 3 requires, and the aggregation that renders a FRESH FAILING result\
+  \ as FAILING. Stated\nplainly because the narrower claim «adds no grading code at\
+  \ all» is FALSE and load-bearingly so: the\nborrowed vocabulary is the closed set\
+  \ fresh|stale|miss and the aggregation treats every non-`fresh`\nstate as the alert,\
+  \ so a result carrying «probe fresh, subject DOWN» grades CLEAN and surfaces\nnothing,\
+  \ while the only states that would surface it are the two collapses rule 3 forbids.\
+  \ Rule 3 is\ntherefore unreachable on the untouched grader; one bounded axis is\
+  \ what it costs, and no reader\nshould plan against the cheaper claim.\n\n### Retirement\
+  \ — what this removes\nThe drift «availability coverage is per-project ad-hoc craft\
+  \ with no catalog home, so a project that\nHAS it and a project that LACKS it look\
+  \ identical to every kernel surface» CEASES. Once this is a\ncatalog member, an\
+  \ uncovered project is visibly undeclared at its own completeness sweep rather than\n\
+  silently uncovered. Retiring any project's OWN superseded health script is that\
+  \ project's act, never\nthe kernel's.\n\n## Parameters\n\nNone consumed. The per-project\
+  \ freshness SLA is a project declaration, not a kernel constant.\n\n## Rationale\n\
+  \nA live consumer had no standing way to know it was down: everything it ran fired\
+  \ at a seam or on a\nproducer's cadence — an inline post-deploy health gate, a per-change\
+  \ deploy-seam probe, a\nrollback-carve-out liveness gate, and a freshness adapter\
+  \ over data pipelines — and its own\nalert-routing declaration named the residual\
+  \ out loud: a backend that dies outright, a wedged worker\nor a failing deploy emit\
+  \ nothing and reach a human only when someone looks.\n\nThe sharper half is that\
+  \ this was a REGRESSION, not a never-had: a dedicated daily health cron\nexisted\
+  \ and was silenced during the v1→v2 migration as a leftover, nothing replaced it,\
+  \ and the loss\nwent unnoticed for five weeks. The nearest surviving cover reached\
+  \ the backend directly rather than\nthrough the live edge, so an edge or TLS failure\
+  \ was invisible to it — which is precisely why rule 3\nmakes the target legible.\n\
+  \nThe shape is pinned by precedent, not designed here: an existing grade-only freshness\
+  \ offering is the\nexact analog and the owner's chosen form. The demand arrived\
+  \ as a consumer's own pull-signal against a\ncatalog whose adoptable members it\
+  \ had already fully answered — this is a missing member, not a\nskipped capability.\n\
+  \n## Verification\n\n- **VP1 (grade-only boundary — the one that must not slip):**\
+  \ with the project's probe removed, the\n  kernel grades missing/stale and issues\
+  \ ZERO outbound requests from the grading path — observed, not\n  read off the code.\
+  \ Any outbound request from that path is the failing input.\n- **VP2 (freshness\
+  \ grading):** a result older than the declared SLA grades stale and surfaces in\
+  \ the\n  debt echo; a fresh one does not. The stale case must go RED before the\
+  \ implementation exists.\n- **VP3 (per-consumer switching):** flipping ONE project's\
+  \ record changes ONLY that project's\n  grading; a non-adopting project sees nothing\
+  \ fire and gates nobody else.\n- **VP4 (named target):** a declaration with NO named\
+  \ target is refused; a declaration naming an\n  internal address is accepted AND\
+  \ that address is legible in the recorded grade. Both halves must be\n  demonstrated\
+  \ — the refusal alone would leave rule 4's legibility claim unproven.\n- **VP5 (fresh-and-failing,\
+  \ rule 3):** a FRESH result reporting the target unreachable renders as\n  FAILING\
+  \ and surfaces as such. The failing inputs are the three collapses: the same result\
+  \ rendered\n  as stale, rendered as missing, or rendered as nothing at all. This\
+  \ probe carries the capability's\n  core claim — that a project which is DOWN finds\
+  \ out — so a suite that proves VP2 but not VP5 has\n  proven the plumbing and not\
+  \ the purpose.\n"
+cites:
+- SPEC-0162
+- SPEC-0110
+- SPEC-0112
+- SPEC-0101
+- SPEC-0164
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: http-reachability-as-an-adoptable-grade-only-offer
+binding:
+- code-enforced
+init_concern: null

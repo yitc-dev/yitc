@@ -1,0 +1,114 @@
+id: SPEC-1000
+title: External-installation degraded execution - a demonstrated kernel defect never
+  dead-ends adopter work, a policy refusal is never bypassed
+status: active
+created_at: 2026-09-25 17:13:36+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nSomeone installs the methodology from a published release on\
+  \ their own machine and works their\nproject with an AI. Mid-task the installed\
+  \ engine fails — a verb crashes, a shipped config is\nbroken, a capability the release\
+  \ promised is missing. The person is not technical and cannot fix\nthe engine. The\
+  \ AI tells them, in plain words, that the fault is in the installed methodology\
+  \ and\nnot in their project, keeps going with a temporary, reversible workaround\
+  \ inside the project, keeps\nevery normal project check running, records what it\
+  \ did, and reminds them to remove the workaround\nonce a verified update fixes the\
+  \ engine. Nothing is sent publicly without their consent. When a\ngate instead refuses\
+  \ their work ON PURPOSE — a failing test, a RED audit, a missing declaration —\n\
+  the AI does not call that a fault: it explains how to satisfy the gate, or asks.\n\
+  \n## Internal\n\nTHE EXTERNAL-INSTALLATION NO-DEAD-END CONTRACT. Scope: an EXTERNAL\
+  \ INSTALLATION — a project running\nan engine installed from a published release\
+  \ (<workshop-spec>), where the person cannot change that\nengine and the kernel\
+  \ fix does not depend on them. The workshop's own degraded execution stays\n`patterns/emergency-mode.md`\
+  \ unchanged; that pattern is this contract's procedure. Five rules.\n\n### 1. Eligibility\
+  \ — a kernel defect, never a policy refusal\nOn an external installation a DEMONSTRATED\
+  \ defect or missing capability in the installed kernel\nmust not dead-end project\
+  \ work. A KERNEL DEFECT is a malfunction of the installed engine or its\nshipped\
+  \ content (a crash, a corrupt shipped file, a refusal whose own stated reason is\
+  \ false) or a\ngenuine capability gap (the work needs something the release does\
+  \ not provide). A POLICY REFUSAL\nis a gate correctly refusing the work — the project's\
+  \ test fails, an audit is RED, a declaration is\ngenuinely absent, a signature does\
+  \ not verify. A policy refusal is NOT a kernel defect and is\nNEVER bypassed under\
+  \ this contract: satisfy the gate, or escalate. Entry needs CONCRETE EVIDENCE of\n\
+  the malfunction or the gap (the failing command and its output, the file and the\
+  \ fault in it) —\nnever the mere fact that something refused. Undecidable which\
+  \ one it is → treat it as a policy\nrefusal (fail-closed).\n\n### 2. The least-powerful\
+  \ escape\nUse the least-powerful escape that unblocks the work, in this order: (a)\
+  \ a GOVERNED escape the\ninstalled engine already offers (another verb, a flag,\
+  \ a documented fallback); (b) if none exists,\na REVERSIBLE workaround ONLY in the\
+  \ project realm (SPEC-0073) — a project-owned script, config or\nby-hand step inside\
+  \ the project's own paths. NEVER edit the installed engine (its code, its shipped\n\
+  specs, patterns or templates): the fix is the kernel's to ship, and an edited install\
+  \ silently\ndiverges from every later update. Replace only the mechanism demonstrably\
+  \ broken; everything else\nkeeps running normally.\n\n### 3. The non-bypassable\
+  \ floor — preserve or reproduce, never skip\nFour CATEGORIES of outcome survive\
+  \ any workaround (categories, not a whitelist — a member not named\nhere still belongs\
+  \ to its category):\n1. **Release provenance and integrity**, including signature\
+  \ verification of what is installed.\n2. **Confirmation for destructive, secret-bearing,\
+  \ and public/external actions.**\n3. **Project-realm and worktree/scope isolation.**\n\
+  4. **The adopter project's OWN tests, declared verification layers, required audits,\
+  \ and\n   closure/adoption evidence** — unless their EXISTING governed waiver applies\
+  \ (e.g. a declared\n   SPEC-0178 audit-post case).\nIf the kernel machinery that\
+  \ normally produces one of these outcomes is the broken part, the AI\nREPRODUCES\
+  \ the outcome by hand and RECORDS what it reproduced and how. It never calls such\
+  \ an\noutcome skipped, and never omits it.\n\n### 4. Reconciliation and anti-abuse\
+  \ — reuse, no new ledger\n- Every use records the KERNEL-REALM deviation: a `deviation_captured`\
+  \ marked `realm: kernel`\n  (SPEC-0085 routing) with a STABLE fingerprint for the\
+  \ defect.\n- ONE local lesson (SPEC-0090, `lessons/<slug>.md`) per workaround is\
+  \ the OPEN RECONCILIATION\n  AUTHORITY: it names the deviation fingerprint, points\
+  \ at the workaround (path or step), states\n  what was reproduced under rule 3,\
+  \ and carries the retirement condition.\n- Retirement condition, always the same\
+  \ words: **after an installed signed release proves the\n  normal path works** —\
+  \ then the workaround is removed and the lesson retired. The fixing release\n  number\
+  \ is NOT required at entry (it is unknown then).\n- Public intake is OPTIONAL and\
+  \ consent-gated: the defect MAY be proposed upstream through the\n  SPEC-0197 intake,\
+  \ carrying the same fingerprint; declining leaves the local record complete.\n-\
+  \ One escape-entry event per use, linked to that lesson (the `deviation_captured`\
+  \ above naming the\n  lesson slug). The emergency-mode frequency check applies:\
+  \ more than one use in 30 days triggers a\n  review — repeated need is a defect\
+  \ to report, not a path to lean on.\n- The release-update reminder is DERIVED from\
+  \ the open lessons (count + slugs), never from a second\n  list.\n\n### 5. What\
+  \ the AI says (plain words, localized when voiced)\nAt escape time the AI tells\
+  \ the person, in their language, the substance of: \"The installed\nmethodology\
+  \ has a fault — not your project. I'll continue with a temporary, reversible workaround\n\
+  inside this project, without changing the engine. Your normal project checks still\
+  \ run. I'm\nrecording it and will remind you to remove it after a verified update.\
+  \ Nothing is sent publicly\nwithout your consent.\"\n\n## Parameters\n\nNone consumed.\n\
+  \n## Rationale\n\nOwner rule 2026-09-25 (events.jsonl#ts= report; cue \"check with\
+  \ the external\nauditor and build it in\"): external users get the same freedom\
+  \ projects get — no 100%-blocking\nthing, because the kernel fix no longer depends\
+  \ on them. Real incidents from the v2.0.4 adopter\nrun: `init` refused on every\
+  \ install; the published auditor config was corrupted so audits could\nnot run;\
+  \ `graph query --kernel` refused for a missing index. The external consult\n(decisions/adopter-no-dead-end-consult-audit-adhoc.yaml,\
+  \ RED, 4 findings) shaped every rule: a\nblanket \"everything but a short floor\
+  \ is bypassable\" would let a correct refusal be relabelled a\nkernel problem (rules\
+  \ 1, 3); entry on any refusal contradicts refusal-is-not-breakage (rule 1,\nemergency-mode\
+  \ §Anti-pattern, CHARTER §P7); an unknown fixing release and a declined public intake\n\
+  would leave nothing to reconcile against (rule 4); a pattern plus one policy line\
+  \ is not an\nauthority for an exception with its own entry, safety and exit rules\
+  \ (this spec). No existing\nspec owned it: <workshop-spec> owns the release artifact\
+  \ and install/update, SPEC-0197 the intake.\n\n## Verification\n\n- **VP1:** `tests/test_t12951_adopter_no_dead_end_contract.py`\
+  \ — `graph query SPEC-1000` resolves;\n  the body separates kernel defect from policy\
+  \ refusal and lists all four floor categories;\n  `patterns/emergency-mode.md` and\
+  \ SPEC-0197 point here.\n- **VP2 (delivery):** discovery today runs AGENTS-SESSIONS\
+  \ §Session types → `patterns/emergency-mode.md`\n  §External installation → this\
+  \ spec. The failure-seam delivery shipped with : the\n  born-template, missing-index\
+  \ and release-stripped auditor-config refusals append\n  `textutil.kernel_defect_escape_hint`;\
+  \ policy refusals do not; `release update` lists open\n  workaround lessons joined\
+  \ to their realm:kernel deviation (`tests/test_t12952_kernel_defect_escape.py`).\n"
+cites:
+- SPEC-0197
+- SPEC-0085
+- SPEC-0090
+- SPEC-0073
+- SPEC-0178
+- patterns/emergency-mode.md
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

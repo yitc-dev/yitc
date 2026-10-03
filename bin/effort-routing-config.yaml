@@ -1,0 +1,132 @@
+# Effort-tier routing — maps a task's effort_tier to the background-dispatch worker's
+# (model, effort). SPEC-0072. The SOLE tier->model/effort source: `dispatch` reads this
+# file, never a hardcoded model id (SPEC-0072 §3 / AC2). Owner-editable DATA.
+#
+# CHARTER §P4b: provider-neutral normative text; concrete model/effort bindings live HERE,
+# not in the handbook. The task FIELD names only a tier (`normal`/`critical`) — so a
+# multi-provider future is a config edit, never a field/verb change.
+#
+# ── THE SHAPE (owner directive 2026-09-23) ───────────────────────────────────────────
+# ONE place names the worker model: the `models:` block below. `primary:` is what every tier
+# launches on; `reserve:` is the second door rule 7 opens on a non-answer. SWITCHING THE WORKER
+# MODEL IS ONE VALUE EDIT — change `models.primary` and BOTH tiers follow. There is deliberately
+# no per-tier `model:` key: an alias beside the shared value is exactly the four-exact-match-keys
+# shape this block replaced, and a tier that could disagree with the shared value would make
+# "one edit" a lie.
+#
+# EFFORT stays PER TIER — it legitimately differs (`normal` is the value default, `critical` buys
+# tail-risk insurance), and each tier's `reserve:` carries its own effort too, because a reserve
+# model may need its own level to be usable at all.
+#
+# `max_tasks_per_warm_worker` is keyed by the BARE model id, and the reader strips a trailing
+# WINDOW suffix before the lookup — so ONE row serves `<provider-model>` and `<provider-model>[1m]`.
+# It no longer demands a second spelling of the same id. Only a real window suffix (`[1m]`,
+# `[200k]`) is stripped: an unrecognised bracket segment is NOT normalized away, so an unknown
+# model spelling still hits the fail-closed refusal rather than borrowing a calibrated row.
+#
+# WHAT IS NOT DUPLICATED HERE — and why the split is deliberate. `bin/pricing-config.yaml` also
+# names model ids (`rates_per_mtok:`, `context_window:`). That is NOT a second copy of the routing
+# choice and must NOT be kept "in sync" with it: those are PER-MODEL DATA — a new model needs its
+# own prices and its own measured window whatever this file routes to, and an old model keeps
+# needing its rates long after routing moved on (the token-rollup lens prices ARCHIVED usage by
+# model id). Routing says WHICH model works; pricing says WHAT ANY model costs. Editing this file
+# does not oblige an edit there; adding a genuinely new model does — on its own merits.
+#
+# Routing is by STAKES, not difficulty (SPEC-0072 §4): bench real-pilot-1 found subjective
+# quality a tie across difficulty, so `critical -> high` buys tail-risk insurance on
+# irreversible/wide-blast changes; `normal -> low` is the value default for everything else.
+#
+# PRECEDENCE: an explicit `dispatch --model/--effort` override WINS per-field over this map
+# (SPEC-0072 §2). FAILURE MODE: a KNOWN tier (`normal`/`critical`) that this map does not
+# resolve to BOTH a model and an effort -> `dispatch` FAILS CLOSED (refuses to launch) rather
+# than silently downgrade a critical task to the provider default (SPEC-0072 §3).
+
+# RESERVE (SPEC-0072 rule 7) -- the reserve MODEL is named ONCE in `models.reserve:` below;
+# a tier opts in by declaring a `reserve:` block carrying its OWN `effort:`. The worker launches on
+# the PRIMARY; the reserve runs ONCE, and ONLY when the primary DOES NOT ANSWER -- the bootstrap dies
+# with a provider capacity/overload signature, or never comes up with no worker output at all. An
+# AUTHENTICATION failure is NOT a non-answer: it needs a human credential and a second model dies
+# identically, so it never falls back and never waits. With NO `reserve:` declared on a tier
+# (or no `models.reserve:` at all) there is NO switching for it: the dispatch WAITS and retries the
+# primary, journaling a heartbeat, instead of leaving a launch-stall for a human to notice. A
+# `dispatch --model/--effort` override wins over BOTH pairs (where the operator pinned the pair there
+# is nothing to switch to). The substitution is never silent -- the `bg_dispatch_launched` row records
+# WHICH pair the worker actually runs on. The resolution RULE is SPEC-0072 rule 7 and names no id and
+# no level; every value lives only HERE.
+# A RESERVE THAT EQUALS ITS PRIMARY IS NO SECOND DOOR -- an edit that re-points `models.primary` must
+# keep `models.reserve` distinct, or delete the reserve declarations deliberately and accept the wait.
+
+# THE ONE PLACE THE WORKER MODEL IS NAMED. Switching it is this edit and nothing else.
+models:
+  primary: claude-opus-5-5[1m]
+  # The reserve model -- the second door, shared by every tier that declares a `reserve:`
+  # block. It is the model the primary DEMOTED (owner directive 2026-09-23): a proven
+  # 1M-context opus, distinct from the primary, so the second door is a known-good judge.
+  reserve: claude-opus-5
+
+tiers:
+  normal:
+    effort: low
+    # The OPTIONAL RESERVE opt-in -- see the RESERVE block in the header above. The MODEL
+    # comes from `models.reserve:`; this block carries the tier's own EFFORT, because a reserve model
+    # may need its own effort to be usable at all. Omit the block entirely to take the wait instead.
+    reserve:
+      effort: low
+  critical:
+    effort: high
+    # The OPTIONAL RESERVE opt-in -- see the `normal` tier above. Declared PER TIER and resolved
+    # independently, so each tier names its own effort. It matters most HERE: a `critical` card is
+    # irreversible / wide-blast, so its second door must not be a weaker judge.
+    reserve:
+      effort: high
+
+# Warm-worker task-cap — per worker MODEL, the max tasks a single warm (reused) background worker
+# should be assigned in one dispatch wave (SPEC-0136 Axis-B sizing input; SPEC-0072). Keyed by
+# provider-neutral worker MODEL id (same id space as `models:` above), NOT a worker-type
+# abstraction. Calibrated by the parent plan mechanize-dispatch-queue-building-into-a-read-only
+# §Resolved: a larger-context opus worker holds ~3 tasks per warm session; a <external-auditor> worker ~1.
+# SPELL EACH MODEL ONCE: the reader (_resolve_warm_worker_cap) strips a trailing WINDOW suffix
+# before the lookup, so this single `<provider-model>` row also serves `<provider-model>[1m]` — do NOT
+# add a suffixed duplicate.
+# The reader FAILS CLOSED (refuses) on an unknown model — never a silent default (SPEC-0136 Axis-B
+# must not over-pack a warm worker off a missing calibration). Only a real window suffix is
+# stripped, so an unrecognised spelling (`<provider-model>[bogus]`) is refused, not normalized onto
+# the row below.
+max_tasks_per_warm_worker:
+  claude-opus-5-5: 3  # inherits the claude-opus-5 calibration (same 1M-context opus tier; owner
+                     # directive 2026-09-23). Serves `<provider-model>[1m]` via the suffix strip.
+  claude-opus-5: 3    # inherits the claude-opus-4-8 calibration (same 1M-context opus tier;
+                     # owner directive 2026-07-26). Recalibrate only if warm-worker
+                     # packing shows friction — no speculative bench.
+  claude-opus-4-8: 3
+  gpt-5.5: 1
+
+# Worker provider binding (SPEC-0072 rule 8) — WHICH CLI binary a dispatched worker launches
+# on, per provider (the key is the DISPATCH_PROVIDERS adapter name, selected by YITC_DISPATCH_PROVIDER).
+# binary: an ABSOLUTE path PINS the binary. A bare NAME is looked up across EVERY PATH entry
+# (deduped by realpath) — never just the first hit — and the NEWEST copy meeting the
+# model's minimum wins. (Measured: a stale copy first on PATH killed a worker at start.)
+# min_version: bare model id (the window suffix is stripped, as for the warm-cap table) -> the minimum
+# CLI version that model needs. A model with no row has no floor. When every copy is
+# older, `dispatch` REFUSES naming each copy's version and the minimum.
+# The floors below are the CLI version OBSERVED running these models on this host (2026-09-26) — a
+# conservative floor, not a vendor-published minimum; lower one only on evidence. Keep a row for EVERY
+# routed model (`models.primary` + `models.reserve`).
+# The <external-auditor> map is ALSO the governed external auditor's floor (SPEC-0202 rule 6): `audit`
+# refuses before spawn when its resolved <external-auditor> is older than the row for the model it would run. Keep a
+# row for EVERY model bin/audit-config.yaml can name (each tier's primary + reserve); each row's evidence
+# (the version it was seen working / refused on) is recorded in the card analysis.
+# A NEW provider = one adapter in DISPATCH_PROVIDERS + one entry here; nothing else changes.
+worker_providers:
+  claude:
+    binary: claude
+    min_version:
+      claude-opus-5-5: 2.1.283
+      claude-opus-5: 2.1.283
+  codex:
+    binary: codex
+    min_version:
+      gpt-6.1-sol: 0.159.2
+      gpt-6-sol: 0.159.2
+      gpt-5.6-luna: 0.146.0
+      gpt-5.5: 0.142.0

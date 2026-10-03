@@ -1,0 +1,159 @@
+id: SPEC-0166
+title: Premise-verify intake pass for imported migration cards (imported_from marker
+  + premise field + dispatchability rule)
+status: active
+created_at: 2026-07-21 15:19:31+00:00
+travels: kernel
+consumed: false
+extension: null
+implements:
+- bin/lib/task.py#_premise_markers
+- bin/lib/task.py#_premise_verify_card
+- bin/lib/task.py#_premise_dispatch_block
+- bin/lib/task.py#_premise_intake_admits
+- bin/lib/task.py#cmd_task_intake
+- bin/lib/worktree_lifecycle.py#_claim_task
+- bin/lib/worktree_lifecycle.py#cmd_worktree_new
+- bin/lib/dispatch.py#_resolve_dispatch_routing
+body: "## Scenario\nA brownfield onboarding re-files an existing backlog into v2 task\
+  \ cards — from ANY source (YITC v1, a\ndifferent methodology like Jira/Linear/another\
+  \ framework, a vibe-coding TODO dump, or a hand-migrated\nlist). Each imported card\
+  \ carries `imported_from: <source-ref>` (source-agnostic; set at import time).\n\
+  Before those cards can be dispatched, a\ncheap intake pass re-checks each card's\
+  \ PREMISE against today's code (the Stage-1 anti-reinvention\ngrep, moved to the\
+  \ cheap intake moment) and marks it `premise: verified | already-done | stale`.\n\
+  Only a `premise: verified` card (or a card with no `imported_from:`) is dispatchable;\
+  \ `already-done`\nroutes to `task update --status wont-do`, `stale` to `task update\
+  \ --status parked`, each carrying the\nfinding (a `ready` imported card, so the\
+  \ in-progress-only `task close` is not the route). The\nowner sees: no imported\
+  \ card reaches a worker for a full 9-stage run on a premise that no longer holds.\n\
+  \n**WIDENED — the same cheap check, over ANY ready card, premise-only.** The pass\
+  \ above was\nadmitted only for cards carrying `imported_from:`, so the check that\
+  \ is cheapest at intake was\nreachable only by a migration import. MEASURED (kernel,\
+  \ 2026-08-18..09-02): 64 dispatched workers\nrefused pre-claim on a FALSE PREMISE\
+  \ — each a full worker bootstrap spent to learn what this\ndeterministic classifier\
+  \ reads for free. `task intake --task`/`--all` therefore accepts ANY `ready`\ncard\
+  \ and runs the SAME verifier writing the SAME `premise:` field. For a NON-imported\
+  \ card that is\nALL it does — see the premise-only guard in §Internal. Nothing about\
+  \ the imported-card scenario\nabove changes; this is an ADDITIVE case (SPEC-0005\
+  \ rule 7 in-place amend), not a reshape.\n\n## Internal\n- **Ownership split (single-source,\
+  \ gate-trial finding 4):** the FIELD SCHEMA\n  (`imported_from:` string legacy-backlog\
+  \ ref; `premise:` enum `verified|already-done|stale`, absent\n  on a non-imported\
+  \ card) is OWNED BY **SPEC-0028** (the task-schema spec, existing parser — no new\n\
+  \  store). THIS spec (SPEC-0166) owns the BEHAVIOR that CONSUMES those fields: the\
+  \ intake pass + the\n  dispatchability rule below. It does not re-home the schema.\n\
+  - **Enum semantics (trial run 1 fold):** `verified` = premise still holds, dispatchable.\
+  \ `already-done`\n  = the WHOLE card's outcome already exists in today's code. `stale`\
+  \ = the scope PARTIALLY matches /\n  references a moved-or-retired subject → the\
+  \ card needs re-scoping, not closing.\n- **The pass is CODE-READ-ONLY but TASK-METADATA-MUTATING:**\
+  \ it reads product code without editing\n  it, and writes `premise:` via the EXISTING\
+  \ `task update` governed route (no new mutation path).\n  **Routes (trial run 1\
+  \ fold — an imported card is `ready`, NOT in-progress, so `task close` (which\n\
+  \  is in-progress-only) is not reachable):** `already-done` → **`task update --status\
+  \ wont-do`** (the\n  ready→terminal route <project> actually used for the already-fixed);\
+  \ `stale` →\n  **`task update --status parked`** (re-scope later). All via the existing\
+  \ `task update` verb.\n- **Dispatchability rule:** `dispatch` (and the picker) treat\
+  \ a card with `imported_from:` set AND\n  `premise:` != `verified` as NOT-ready\
+  \ — refuse with the exact next step (run the intake pass).\n  Derives ONLY from\
+  \ the two card fields (named carrier, existing parser, no gate ledger).\n- **Second,\
+  \ orthogonal cause on the SAME predicate ( — rule home SPEC-0133, not here):**\n\
+  \  `_premise_dispatch_block` also blocks a card carrying a PRE-CLAIM REFUSAL (`refused_at`,\
+  \ written\n  by `task refuse`), checked BEFORE the premise arm because it is the\
+  \ more specific fact and it\n  applies to EVERY card, not only imported ones. Extending\
+  \ this ONE predicate is deliberate: the\n  claim gate, the dispatch preflight and\
+  \ the picker all derive their refusal from it and nowhere\n  else, so a second cause\
+  \ reaches all three with no call site edited and cannot drift across them.\n  THIS\
+  \ SPEC'S OWN RULE IS UNCHANGED — the premise arm above still derives only from\n\
+  \  `imported_from` / `premise`; the refusal arm's contract lives single-SoT in SPEC-0133\
+  \ rule 2f.\n- EXTENDS SPEC-0133 (reactive pre-claim refusal) to the proactive intake\
+  \ seam — same\n  anti-reinvention #5 discipline, one card-at-a-time analysis burn\
+  \ replaced by a cheap batch read.\n- **WIDENED SCOPE + THE PREMISE-ONLY GUARD (ad-hoc\
+  \ consult `pre-land-friction-premises`\n  finding 2).** `task intake --task`/`--all`\
+  \ accepts ANY `ready` card, imported or not, and runs the\n  SAME verifier writing\
+  \ the SAME `premise:` field. `imported_from:` is no longer an ADMISSION test —\n\
+  \  it selects the OUTCOME arm. For a card WITHOUT `imported_from:` the pass writes\
+  \ `premise:` and\n  **NOTHING ELSE**:\n    - **no imported-card transform and NO\
+  \ status write** — `PREMISE_STATUS_ROUTE` (already-done →\n      wont-do, stale\
+  \ → parked) is consulted ONLY for an imported card. A non-imported card with a\n\
+  \      false premise is recorded `premise: stale` (or `already-done`) and **STAYS\
+  \ `ready`**. The\n      reason the routing does not travel: an import census is\
+  \ a bulk re-file nobody has re-read, so\n      a machine verdict disposing of those\
+  \ cards is the agreed design; a card someone filed by hand\n      is not that, and\
+  \ a classifier verdict is EVIDENCE about it, never a disposition of it.\n    - **no\
+  \ refusal and NO gate.** The dispatchability rule above is UNCHANGED: its premise\
+  \ arm stays\n      scoped to `imported_from`, so a non-imported card is ALWAYS dispatchable\
+  \ whatever is recorded\n      here — a recorded `premise:` on such a card can never\
+  \ block a claim, a dispatch or the picker.\n    - **`dispatch` only REPORTS.** Its\
+  \ preflight emits ONE report-only line naming the cards in the\n      wave that\
+  \ carry no `premise` record, **and still launches every one of them** — no `_die`,\
+  \ no\n      filtering, no exit code moved (CHARTER non-goal #7: filing and dispatch\
+  \ are never blocked).\n      The line is emitted AFTER the existing fail-closed\
+  \ refusals, so a genuine refusal is never\n      buried under advice, and **on STDERR**:\
+  \ dispatch's STDOUT is a contracted surface (the terminal\n      `DISPATCH: <VERDICT>`\
+  \ token, and the single-task output shape pinned as a full-output BYTE\n      EQUALITY\
+  \ whose atom is that the common path must not move), so an advisory belongs on the\n\
+  \      diagnostic channel — the same split the land verify-heartbeat already uses.\
+  \ An advisory that\n      moved a machine-readable contract would be a second cost,\
+  \ not a saving.\n  **No new store, no new gate, no new FSM.** The whole widening\
+  \ is a relaxed predicate plus one\n  guard, so the enumerated bounds above are what\
+  \ a reader must check when touching it.\n- **UNCLASSIFIABLE IS RECORDED, and the\
+  \ advisory names exactly what intake would act on (X-1511).** When the classifier\
+  \ returns no verdict (no `premise-check:` / `already-done-if-present:`\n  marker),\
+  \ the pass WRITES `premise: unclassifiable` through the same field-edit route instead\
+  \ of\n  writing nothing — so the pass is idempotent and the advisor stops re-naming\
+  \ the card. The enum\n  (owned by SPEC-0028) gains that ONE value; the classification\
+  \ arms are unchanged, it has no\n  `PREMISE_STATUS_ROUTE` entry (never moves status),\
+  \ and an imported card carrying it stays gated\n  (only `verified` is dispatchable).\
+  \ `dispatch`'s report-only line selects its cards with the SAME\n  predicate intake\
+  \ admits by — `_premise_intake_admits` (ready AND no premise recorded AND at\n \
+  \ least one premise marker in scope) — so a non-ready card is never named and the\
+  \ two cannot\n  drift (SPEC-0165).\n- **A MARKER-LESS card is not admitted (X-1524\
+  \ — completing stated intent that\n  the advisory names only cards intake can CLASSIFY).**\
+  \ A card with no `premise-check:` /\n  `already-done-if-present:` marker can only\
+  \ ever be recorded `unclassifiable`, so it is named by\n  no advisory and a default\
+  \ `task intake` skips it, writing nothing and saying which marker is\n  missing.\
+  \ `unclassifiable` is still recorded on an explicit `--recheck`, and on a card whose\
+  \ only\n  marker is inconclusive (a lone `already-done-if-present:` site that is\
+  \ absent). Still ONE\n  predicate; nothing is gated.\n\n## Rationale\n<project>\
+  \ 2026-07-13: 85 imported cards in a day, 28/31 ready-queue citing v1 ids; (OTP\
+  \ oracle)\nalready fixed in April burned a full pre-claim analysis; cited a script\
+  \ retired hours earlier.\nThe pre-claim refusal (SPEC-0133) caught them REACTIVELY,\
+  \ expensively. Moving the check to intake is\nthe same discipline at a cheaper moment.\
+  \ Full design + prior-art: plan\n`migration-import-safety-provenance-marker-premise-`.\
+  \ Origin cross X-0372.\n\n## Verification\nDifferential pinned test: a synthetic\
+  \ `imported_from:` card whose premise is stale is marked `stale`\nand REFUSED by\
+  \ dispatch; a verified one passes; a non-imported card is unaffected. Real-data\
+  \ soak:\nreplay a slice of the <project> import census; the pass flags the already-fixed\
+  \ class.\n\nWidening + premise-only guard — `tests/test_task_intake_any_ready.py`,\
+  \ three differential\ntripwires: (1) a NON-imported ready card takes `task intake\
+  \ --task` and the card is byte-identical\napart from the added `premise:` line —\
+  \ the differential failing input is the same card gaining any\nstatus/stage/imported\
+  \ transform; (2) a non-imported card whose `premise-check:` names an absent site\n\
+  is recorded `premise: stale` and its status is still `ready`, with no `bg_dispatch_halted`\
+  \ — the\nfailing input is intake mutating status; (3) `_resolve_dispatch_routing`\
+  \ over a wave holding one\npremise-less card prints the report line naming it AND\
+  \ returns routing for every task — the failing\ninput is dispatch refusing or dropping\
+  \ a task on a missing premise.\n"
+cites:
+- SPEC-0028
+- SPEC-0133
+- SPEC-0086
+- SPEC-0032
+- SPEC-0073
+- migration-import-safety-provenance-marker-premise-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: migration-import-safety-provenance-marker-premise-
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/dispatch.py#_resolve_dispatch_routing: 23a4a497a9e7aa85f950ce18b14a426ed3d1e7ebb6fb6f584c65ab5c62089fb7
+  bin/lib/task.py#_premise_dispatch_block: bc89539c4c0df4432115de067b9924c393610e854a4a966734bdb16a47185ef5
+  bin/lib/task.py#_premise_intake_admits: 0271492bba1785a23d12f7b9163c3a8c0fe201191b7216f47c6fbb3da183dc27
+  bin/lib/task.py#_premise_markers: 4dafee6f579cf488990ba04180b5512e6b28e2d70cde834486a3047ba61e0721
+  bin/lib/task.py#_premise_verify_card: 0468ca7337b0fdd66474fbdcc37bf0e2f166296b65277e16ef33c77d739f168a
+  bin/lib/task.py#cmd_task_intake: 629f95d0eb0feef62544f5a166da0bfd218ba30659c34f12051d1ecb8d3d9a6f
+  bin/lib/worktree_lifecycle.py#_claim_task: 5c17793db5f5f5525c63848b228351810ef066ec2d85b08d4785e797ef14ebd7
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 83b10011a512f2e7677441bda9e9c2ed6e227190f017ec310baf9ea46a61d20a

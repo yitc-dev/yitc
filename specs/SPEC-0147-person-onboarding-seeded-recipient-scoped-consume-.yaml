@@ -1,0 +1,251 @@
+id: SPEC-0147
+title: Person-onboarding — seeded, recipient-scoped, consume-on-encounter newcomer
+  stations
+status: active
+created_at: 2026-07-09 13:22:32+00:00
+travels: null
+consumed: true
+extension: null
+implements:
+- bin/lib/cli.py#cmd_memory_consume
+- bin/lib/memory.py#seed_pointers
+- bin/lib/cli.py#cmd_memory_seed
+- bin/lib/init.py#cmd_init
+body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and knows\
+  \ none of the vocabulary or workflow.\nInstead of a front-loaded handbook (which\
+  \ overwhelms), the system teaches each concept AT the moment\nreal work first reaches\
+  \ it, then retires that hint permanently — imposing ZERO steady-state context\n\
+  cost once the person is through. The person never runs commands or reads the raw\
+  \ material: the AI\nvoices each station in the person's own language at its moment,\
+  \ and the person just keeps working.\nA seasoned user carries no onboarding weight\
+  \ at all.\n\n## Internal\n\nTHE PERSON-ONBOARDING CONTRACT. A process/governance\
+  \ spec (SPEC-0005 rule 1) that REUSES the existing\n`MEMORY.md` buffer (SPEC-0039),\
+  \ the register-gloss rule (AGENTS §Language), and the existing lifecycle\ndelivery\
+  \ seams — it adds NO parallel onboarding FSM, store, or detector. Eight rules.\n\
+  \n### 1. Consume-on-encounter, never detect-on-mastery (the load-bearing guard)\n\
+  A station retires when its work-juncture is first REACHED and the station has been\
+  \ voiced ONCE — never\nby any inference of whether the person \"learned\" it. No\
+  \ state tracks mastery / progress / a learned\nflag. A behavioral/mastery detector\
+  \ is a CHARTER non-goal #7 and is FORBIDDEN here.\n\n### 2. Self-retiring by construction\
+  \ → zero steady-state cost\nWhile active, a person has ONE short pointer entry per\
+  \ not-yet-seen station and only the CURRENT\nstation's body is voiced. Consuming\
+  \ a station DELETES its pointer (the SPEC-0039 consume-once delete).\nWhen the last\
+  \ pointer is gone the person has zero onboarding footprint in any loaded context.\
+  \ This\nself-gating is the contract — there is no \"onboarding complete\" state\
+  \ to set or check. The pointer\nserves the FIRST delivery only; the bounded re-voicing\
+  \ after it is rule 10's journal VIEW, which\nkeeps zero steady-state cost once its\
+  \ window has passed.\n\n**Coverage note — the consume-once delete self-commits on\
+  \ main (X-0274).** Because a station\nis voiced+consumed on the MAIN checkout at\
+  \ a session-start / mid-session seam (rule 5), the pointer\ndeletion has no worktree\
+  \ batch to carry it. `memory consume` therefore SELF-COMMITS its MEMORY.md\ndeletion\
+  \ directly to `main` — a narrow sanctioned direct-to-main exception homed in SPEC-0039\
+  \ §5(b)\n(and AGENTS §Writes-happen-in-a-worktree EXCEPTION), staging MEMORY.md\
+  \ + the one journal receipt only\nand fail-closed when MEMORY.md carries preexisting\
+  \ dirt or the journal's uncommitted delta is not\na valid append-only set of parseable\
+  \ JSON event lines (X-0361 — the boundary is\nappend-only validity, not substantiveness:\
+  \ a valid append is swept, whatever its event type or\nauthoring session). This\
+  \ PRESERVES the onboarding juncture by construction: the station stays voiceable\n\
+  at its natural main-checkout seam without stranding a dirty write that would wedge\
+  \ the next land. No\nnew onboarding state — the deletion IS still the whole retirement\
+  \ (rule 1 unchanged).\n\n### 3. One storage home; MEMORY.md stays pointer-only\n\
+  Station BODIES live in ONE governed kernel companion artifact (the English SoT template\
+  \ under\n`onboarding/`); `MEMORY.md` carries ONLY short pointer entries\n(`[onboarding:<station-id>]\
+  \ [audience: user(<name>)] [until: consume-once]`), inside SPEC-0039's\nshort/consume-once\
+  \ contract. The buffer is NEVER stretched into a multi-station instructional store;\n\
+  the only thing removed on consumption is the pointer line.\n\n### 4. Recipient scoping\
+  \ via a `user(<name>)` audience (extends SPEC-0039)\nPointers are scoped to ONE\
+  \ person by a `user(<name>)` audience selector, which a session matches\nagainst\
+  \ its own provisioned user identity. SPEC-0039's audience vocabulary\n(`all | interactive\
+  \ | background | auto | session(<ref>)`) is EXTENDED by this plan with the\n`user(<name>)`\
+  \ form — a principled +1 mirroring the existing `session(<ref>)` form, not a new\n\
+  mechanism. A pointer tagged for one user is never surfaced to another.\n\n### 5.\
+  \ Delivery rides existing seams; no new detector\nEach station binds to a lifecycle\
+  \ juncture the system ALREADY emits (session-start; the `scenario`,\n`plan file`,\
+  \ `audit`, `worktree new`, `land`, `deploy`, `followup` verbs; the `init` declare-or-waive\n\
+  walk; the Recommendation-Default design-fork moment). The station-↔-seam table is\
+  \ the plan's; no new\ngate, event class, or FSM is introduced for delivery — the\
+  \ AI, holding the pointer, voices the station\nwhen it next crosses that juncture.\n\
+  \n**Topic-mention fallback (a NARROW second occasion, additive).** A station still\
+  \ pending MAY ALSO be\nvoiced at the first natural MENTION of its exact topic in\
+  \ conversation — AI-judged in exactly the way\nstation C's design-fork moment already\
+  \ is (the fallback GENERALIZES that existing verbless shape; it\ninvents no parallel\
+  \ one). This exists because a station bound to a seam the person never crosses would\n\
+  otherwise linger forever: a SEEDED person who works mostly on design may never reach\
+  \ `init` / `plan\nfile` / `audit` / `land` / `inspect`, yet those topics still come\
+  \ up in conversation. (A collaborator\nwhose registry grant is methodology-readonly\
+  \ is not seeded at all — §7 — so this fallback never\nreaches them.) The seam stays\
+  \ the PRIMARY\noccasion; the topic-mention is the narrow SECONDARY one, and a station\
+  \ is voiced before neither.\n\n**The bound (load-bearing — this allowance is TOPIC-ENCOUNTER\
+  \ based, never mastery tracking).** It adds\nNO new state, NO scanner or detector,\
+  \ NO polling, NO FSM, and NO new event class, verb, or seam-table\nrow. It is a\
+  \ rule the AI applies at voicing time, not a mechanism that watches the conversation.\
+  \ Rule 1\n(consume-on-encounter, never detect-on-mastery) is UNCHANGED and still\
+  \ governs: the station is voiced\nexactly ONCE and its pointer deleted, whichever\
+  \ occasion arrives first — the fallback changes WHEN a\nstation may be voiced, never\
+  \ WHETHER the person has learned it. VP2 (consume-once) and VP5 (no mastery\nstate)\
+  \ hold verbatim. A judgement call the AI declines to make is simply a station not\
+  \ yet voiced; it is\nnever resolved by introducing state.\n\n**Ask-first voicing\
+  \ form (the delivery SHAPE — a VOICING form, not a new trigger; additive).** At\
+  \ a\nstation's occasion the AI FIRST asks the person, in their own language, whether\
+  \ the concept is already\nfamiliar (e.g. «знакомо ли тебе X / умеешь ли применять?»).\
+  \ If the answer is YES → the AI CONSUMES the\nstation WITHOUT voicing its body (the\
+  \ person already knows it); if NO → the AI voices the body as before,\nthen consumes.\
+  \ **Station A is EXEMPT** — it is always voiced plainly, with no preceding question\
+  \ (asking\na brand-new person «знакомо ли тебе YITC» is meaningless).\n\n**Retirement\
+  \ trigger UNCHANGED (load-bearing).** The ask-first form changes only HOW a station\
+  \ is\nvoiced, never WHEN it retires: the occasion, the consume-once retirement,\
+  \ and the pointer deletion are\nexactly as in rule 1 — ONE occasion, the station\
+  \ CONSUMED whichever way the person answers, its pointer\ndeleted either way. There\
+  \ is NO re-ask loop and NO stored asked / learned / mastery / progress state of\n\
+  any kind — the question is a per-occasion voicing choice that persists nothing.\
+  \ Rule 1\n(consume-on-encounter, never detect-on-mastery), VP2 (consume-once), and\
+  \ VP5 (no mastery state) hold\nVERBATIM (a re-ask-until-mastery variant is out of\
+  \ scope precisely because it would reintroduce the\nmastery tracking rule 1 forbids).\n\
+  \n### 6. English SoT, delivered in the person's language\nThe station-copy SoT is\
+  \ authored in English (canonical, one source). It is DELIVERED in the person's\n\
+  language by localize-at-voicing (the AI voices it; the raw body is never shown),\
+  \ reusing the existing\nowner-facing-language rule (AGENTS §Language) — NOT N pre-translated\
+  \ files. Exact tokens\n(worktree/land/deploy/spec/plan/followup) stay verbatim,\
+  \ glossed in-language. Per-language curated\nvariants are deferred until pulled.\n\
+  \n### 7. Always-on safety net + seed events\nIndependently of the stations, the\
+  \ register-gloss rule stays live forever, and every station carries a\nshort \"\
+  unclear/hard → ask to explain simpler, don't freeze\" tail — the person never dead-ends.\
+  \ Seeding\nwrites the pointer set into a project's `MEMORY.md` tagged `user(<name>)`\
+  \ at two events — project `init`\n(for its owner) and access-grant / `provision-user.sh`\
+  \ (a user added to a project) — plus a manual seed\npath for owner/current-user\
+  \ testing. Person-basics and project-specific stations share the same home,\ndistinguished\
+  \ only by content.\n\n**The seed is scoped by the recipient's registry grant.**\
+  \ Before writing, the seed reads the\nrecipient's `methodology:` field in the host\
+  \ registry's `users:` block. When that value is exactly\n`readonly` or `read-only`\
+  \ (case-insensitive, whole value — NOT the loose report-only substring\nvocabulary\
+  \ of SPEC-0169's intent channel), the holder does not operate the methodology flow,\
+  \ so NO\nstation pointer is seeded: nothing is written, no `onboarding_seeded` row\
+  \ is emitted, and the verb\nprints the grant-based reason. Every other recipient\
+  \ — no `methodology:` key, any other value, an\nunregistered name, or an absent\
+  \ / unreadable registry (fail-open) — is seeded the full set exactly as\nbefore.\
+  \ The filter is all-or-nothing: the catalog marks no person-basics subset, so none\
+  \ is carved out.\nLifting the grant (removing `methodology: readonly`) makes the\
+  \ next `memory seed` seed the full set.\n\n**An `init` re-seed never resurrects\
+  \ a station.** It skips every station the journal\nshows this recipient ever CONSUMED,\
+  \ and every station it was ever SEEDED and never consumed (a pointer\nthat left\
+  \ the buffer by hand drain), naming the latter in one held line instead. `memory\
+  \ seed` stays the\ndeliberate re-seed; the init receipt carries `user` so the fold\
+  \ keys on the recipient.\n\n**A seed write on a consumer's MAIN checkout OWNS its\
+  \ commit (X-0330 / X-0331 / X-0332).** The\nseed is the SIBLING of the §5(b) consume\
+  \ self-commit, and carries the identical discipline. A seeder\nwrites a CONSUMER's\
+  \ `MEMORY.md` on its main checkout (provisioning / access-grant / a kernel station\n\
+  sweep), where there is no worktree batch to carry the write — and a dirty `MEMORY.md`\
+  \ sits in `land`'s\nNON-bookkeeping set, so an uncommitted seed ABORTS every later\
+  \ land in that consumer (the X-0274 class:\nthree consumers reported it on one day).\
+  \ So the rule is: **an onboarding-seed write to a consumer's main\ncheckout either\
+  \ rides a scoped direct-to-main commit, or it does not happen.** Concretely —\n\
+  - `memory seed` (the ONE function behind the manual, access-grant, and sweep callers\
+  \ — `-C` retargets the\n  repo, it forks no second writer) SELF-COMMITS on main:\
+  \ it stages `MEMORY.md` + the one journal receipt\n  ONLY (never `git add -A`),\
+  \ REFUSES fail-closed when MEMORY.md carries preexisting dirt or the journal\n \
+  \ delta is NOT a valid APPEND-ONLY set of parseable JSON event lines (so a refusal\
+  \ seeds NOTHING and the\n  journal is never rewritten; a VALID append is swept whatever\
+  \ its event type or authoring session —\n   / X-0361, which supersedes both the\
+  \ substantive-line refusal and the telemetry\n  carve-out), uses a deterministic\
+  \ message, and is idempotent (a re-seed adds nothing → no event, no\n  commit).\
+  \ In a real `task/`/`work/` writing worktree the write rides that batch UNCHANGED;\
+  \ in a degraded\n  (detached / unborn / non-git) checkout it is left dirty as before.\n\
+  - `init`'s in-process seed rides `init`'s OWN bootstrap commit — the write is performed\
+  \ AT that\n  commit seam, after every fail-closed sweep, so an init that aborts\
+  \ (or runs off `main`, where no commit\n  fires) strands NOTHING. This is the ordering\
+  \ half of the same rule: X-0332 was an init that seeded and\n  then died at a sweep.\n\
+  Engine-repo seeding is unaffected — engine writes ride worktree→land, which folds\
+  \ them.\n\n### 8. Plain start summary (the person reads one plain line, never the\
+  \ raw echo)\nAfter EVERY governed `session start` a person sees, the AI voices what\
+  \ the start echo means in plain\nwords — one of two shapes, carried verbatim by\
+  \ Station A: **all fine** (\"nothing needs your decision\nright now\") or **N things\
+  \ want your decision: <items>**, each item a plain phrase (no ids, verb names,\n\
+  flags, or raw echo tokens — the AGENTS §Language register rule applied to the echo).\
+  \ The raw echo lines\nare UNCHANGED and stay for the AI; this is a voicing duty,\
+  \ not a renderer, store, or new echo. The\nFIRST start additionally voices Station\
+  \ A's short how-to-work briefing (rule 1 — consume-once, it\nrides Station A's existing\
+  \ seam and adds no station). The summary itself is not a station: it is\nvoiced\
+  \ every start and retires nothing.\n\n### 9. Auditor wording follows the auditor\
+  \ binding\nEvery station passage about the auditor is conditional on the binding\
+  \ `audit status` reports (SPEC-0201):\nwith an external provider it says a different\
+  \ AI checks the work; with `same-provider` it says plainly\nthat the same AI reviews\
+  \ its own work, never calls that review independent, and names what a second\nprovider\
+  \ would add. No passage claims «a different AI» unconditionally.\n\n### 10. Spaced\
+  \ repetition — a VIEW over the journal, never a store\n«Repetition is the mother\
+  \ of learning»: a delivered station's FULL body is voiced again after a pause,\n\
+  a bounded number of times, then goes silent. **Station A voices on the very FIRST\
+  \ start** of a fresh\nconsumer project (before `init` seeds any pointer), journaled\
+  \ as one `kind: first-start` delivery so\ninit's consumed-fold never seeds A again.\
+  \ Everything after a first delivery is DERIVED from the\n`onboarding_station_consumed`\
+  \ rows already written, told apart by `data.kind` (absent = first by\npointer ·\
+  \ `first-start` · `repeat` · `known`):\n- **Due repeat.** A station is due again\
+  \ iff its first delivery lies inside\n  `ONBOARDING_REPEAT_WINDOW_DAYS`, no `known`\
+  \ row exists, it has fewer than 1 +\n  `ONBOARDING_REPEAT_COUNT` deliveries, and\
+  \ ≥ `ONBOARDING_REPEAT_PAUSE_DAYS` passed since the last one —\n  by elapsed days\
+  \ alone, for every station class. Due-ness is computed only at the session-start\n\
+  \  digest; the AI re-voices the full body at the station's next seam crossing (A:\
+  \ now; a verb seam: that\n  verb; an AI-judged seam: the recognized moment) and\
+  \ records `memory consume --station X --repeat`\n  (refused when not due).\n- **Recap.**\
+  \ The start line carries one plain «already met / next» line for stations met within\n\
+  \  `ONBOARDING_RECAP_DAYS`.\n- **«Remind me what X is»** — the AI voices the body\
+  \ on request (no verb; journaled as `--repeat` only\n  when due). **«I know it»**\
+  \ — `memory consume --station X --known`: ONE idempotent ack row (a still-held\n\
+  \  pointer is consumed with it); that station never repeats.\n- **No stored recap\
+  \ state.** No progress store, countdown, mastery score, quiz, or MEMORY.md field;\n\
+  \  nothing blocks a verb. Rule 1 holds: nothing infers understanding — only elapsed\
+  \ days and the\n  person's own words decide.\n- **Bounded cost (owner constraint).**\
+  \ The check rides the session-start `rows_memo` read scope\n  (SPEC-0190 rule 10)\
+  \ and is skipped on a receipt-only start and for a Worker. It reads ZERO journal\n\
+  \  rows when the parameters are unreadable or MEMORY.md was last written longer\
+  \ ago than the window\n  (every first delivery rewrites MEMORY.md, a first-start\
+  \ happens only while it is absent — so an older\n  buffer proves nothing can be\
+  \ due). Otherwise ONE declared typed read opens only the segments dated\n  inside\
+  \ the window (SPEC-0190 rule 4). It adds at most the one start line; a full body\
+  \ only on a due\n  crossing, at most COUNT times per station.\n\n## Parameters\n\
+  \nConsumed by `bin/lib/cli.py#_onboarding_repeat_params` (rule 10); tunable here\
+  \ without a card.\nUnreadable ⇒ no repeat and no recap (fail-closed, never a guessed\
+  \ default).\n\n- ONBOARDING_REPEAT_PAUSE_DAYS: 3\n- ONBOARDING_REPEAT_COUNT: 2\n\
+  - ONBOARDING_REPEAT_WINDOW_DAYS: 30\n- ONBOARDING_RECAP_DAYS: 7\n\nThe station catalog\
+  \ is content (the companion SoT), not a governing scalar; the audience vocabulary\n\
+  lives in SPEC-0039; the seam bindings are the plan's table.\n\n## Rationale\n\n\
+  Real driver: user-provisioning is live (`provision-user.sh`, `users.<name>` in `registry.yaml`),\
+  \ so \"a\nnew person lands on a project knowing nothing\" is a near-term reality,\
+  \ not speculation (CHARTER §P1 F4).\nPrior-art reused: the `MEMORY.md` consume-once\
+  \ buffer (SPEC-0039) already surfaces-then-retires; the\nregister-gloss rule already\
+  \ explains-in-place; SPEC-0100's seeded default catalog is the \"seed → deliver\n\
+  at the moment\" analog; lifecycle stage-entry already delivers content just-in-time.\
+  \ This spec applies\nthat same just-in-time, self-retiring model to the human audience\
+  \ (the deliberation + rejected options —\ne.g. per-user home-dir storage, a mastery-tracking\
+  \ checklist — live in the proposing plan, not here).\n\n## Verification\n\n- **VP1\
+  \ (surface-at-juncture):** in a seeded session, station A voices at first contact\
+  \ and each later\n  station voices only at its bound seam — never before (state-check\
+  \ the surfacing against the seam table).\n- **VP2 (consume-once):** a voiced station's\
+  \ pointer is deleted; a subsequent session never re-voices it\n  by pointer — the\
+  \ only re-voicing is a rule-10 due repeat, bounded by its parameters.\n- **VP3 (zero-footprint):**\
+  \ after all pointers are consumed and the rule-10 repeat window has passed, a\n\
+  \  fresh session loads NO onboarding lines.\n- **VP4 (recipient scoping):** a pointer\
+  \ tagged `user(<A>)` is never surfaced to a `user(<B>)` session.\n- **VP5 (no mastery\
+  \ state):** grep/inspection confirms no stored learned/mastery/progress field exists.\n\
+  - **VP6 (pointer-only buffer):** `MEMORY.md` holds only pointer entries; station\
+  \ bodies live solely in\n  the companion SoT.\n- **VP7 (no recap state stored):**\
+  \ repeats and recaps are recomputed from `onboarding_station_consumed`\n  rows;\
+  \ no new state file, buffer field, or payload key beyond `kind` exists\n  (tests/test_t13217_onboarding_first_start_and_repeats.py).\n\
+  - **VP8 (bounded read):** the due-check opens only window-dated segments and reads\
+  \ nothing once MEMORY.md\n  is older than the window (same test, `journal.read_counters`).\n"
+cites:
+- progressive-newcomer-onboarding-seeded-self-retiri
+- SPEC-0039
+- SPEC-0100
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: progressive-newcomer-onboarding-seeded-self-retiri
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#cmd_memory_consume: 8156ae5ecbd596191b4b23adee8837a004721df2da1684b69a9282ed8c659c0a
+  bin/lib/cli.py#cmd_memory_seed: 4d6372bca1ebe6db3a044c57ee67d6e492c195b82ede46f74435e350d572b6eb
+  bin/lib/init.py#cmd_init: e079b021407829f20d54d33c6306073b7ebd498406dc8dafa5e134bdcffa8def
+  bin/lib/memory.py#seed_pointers: 8254559bcaf18d82cc35880b110e930c60de30f87504f95233c658766b30359d

@@ -1,0 +1,131 @@
+id: SPEC-0196
+title: Override ledger — DEP-3-shaped registered divergence from an upstream-owned
+  file, drift check, delete-on-merge
+status: active
+created_at: 2026-09-04 02:43:50+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#override_entry_errors
+- bin/lib/init.py#_hook_override_ledger
+- bin/lib/release.py#ledger_drift
+- bin/lib/release.py#update
+- bin/lib/nightly.py#_check_override_ledger
+body: "## Scenario\n\nA project pinned to a released methodology sometimes needs to\
+  \ DIVERGE locally from an\nupstream-owned file — a fix it needs before upstream\
+  \ ships it, or a documented exception. Instead\nof editing the file and silently\
+  \ drifting into a shadow methodology, the project REGISTERS the\ndivergence in a\
+  \ thin ledger: which path, why, what it intends upstream, when it is reviewed, and\n\
+  that it is deleted the moment upstream carries it. The owner sees every local divergence\
+  \ in one\nplace, each with an expiry, and an update-pull tells them which entries\
+  \ are now redundant.\n\n## Internal\n\nTHE OVERRIDE LEDGER — the ONLY sanctioned\
+  \ form of local divergence from an upstream-owned file\n(release contract rule 2).\
+  \ It is a divergence RECORD, not a second methodology. Five rules.\n\n### 1. One\
+  \ ledger, DEP-3-shaped entries\nThe project keeps ONE override ledger (a section\
+  \ of its ops contract carrier `yitc-ops.yaml`,\nSPEC-0093 rule 1 — never a second\
+  \ file). Each entry carries EXACTLY: `path` (the upstream-owned\nfile diverged from);\
+  \ `rationale` (one plain sentence); `upstream_intent` — a CLOSED,\nmachine-readable\
+  \ status `temporary-patch | forwarded | accepted-exception | not-forwarded`;\n`review_trigger`\
+  \ (an ISO date OR a named artifact whose close re-opens the entry); and the implicit\n\
+  obligation of rule 4. No other fields; no free-form policy text.\n\n### 2. What\
+  \ an override may NOT be\nAn entry is a divergence of ONE existing upstream-owned\
+  \ file. It is NOT a place for new normative\ntext, a parallel rule, a local lifecycle\
+  \ stage, or a whole-directory exemption. A divergence that\ncannot be expressed\
+  \ as one path with one rationale is not an override — it is either a proposal\n\
+  upstream (the contribution policy) or a project-realm artifact of the project's\
+  \ own.\n\n### 3. Registered vs unregistered divergence\nOn update (release contract\
+  \ rule 8) a diverged upstream-owned file with a ledger entry is\nPRESERVED and re-checked;\
+  \ one WITHOUT an entry is a CONFLICT, reported and never auto-resolved.\nThe drift\
+  \ check is REPORT-ONLY and rides EXISTING surfaces by symbol — the ledger section\
+  \ is read\nby the yitc-ops concern reader (`bin/lib/init.py#_load_concern_registry`\
+  \ + the SPEC-0128\nregistry-driven `_sweep_ops_carrier` for shape and declare-or-waive),\
+  \ and its report rides the\nupdate path's divergence report and the nightly/conformance\
+  \ sweep that already carries the\nSPEC-0122 R6 adoption-completeness report (`bin/lib/nightly.py#_check_adoption_completeness`).\
+  \ A\nstandalone ledger parser or a second report path is FORBIDDEN (CHARTER §P1/§P5);\
+  \ it adds no land\ngate. It names, per entry: the path, the entry's status, whether\
+  \ the pinned release now carries\nthe change, and whether the review trigger has\
+  \ fired.\n\n### 4. Delete-on-merge, expiry, forwarding\nWhen the pinned release\
+  \ carries the divergence (the upstream fix landed and the project re-pinned),\n\
+  the entry MUST be deleted and the local edit dropped — the drift check reports the\
+  \ entry as\nREDUNDANT until it is. A `temporary-patch` entry MUST become `forwarded`\
+  \ (a proposal filed through\nthe contribution policy) or `accepted-exception` by\
+  \ its review trigger; `not-forwarded` is a\nrecorded decision with its own review\
+  \ trigger, never a default. An entry whose trigger fired and\nwas not re-reviewed\
+  \ is reported as OVERDUE.\n\n### 5. No shadow core — the ledger is visible, bounded,\
+  \ converging\nThe ledger's purpose is to keep local overrides SMALL, EXPLICIT, and\
+  \ VISIBLY diverging from the\npinned core so the pin stays a pin. It is never read\
+  \ by the kernel as methodology truth; it is a\nconsumer-owned record the update\
+  \ and drift checks read to report. Growth of the ledger is itself a\nreport-only\
+  \ signal at the project's review cadence.\n\n## Parameters\n\nNone consumed. The\
+  \ closed `upstream_intent` vocabulary is this spec's rule; review triggers are\n\
+  per-entry values.\n\n## Rationale\n\nThe highest-leverage risk of a pin-based distribution\
+  \ is internal: a project quietly accumulates\nits own quasi-methodology through\
+  \ untracked local edits and the \"pin, not fork\" claim breaks before\nany outsider\
+  \ exists. The concept consult checked the ledger for scope creep and cleared it:\
+  \ update\nconflict semantics need a durable consumer-owned record. Prior-art: Debian\
+  \ quilt + DEP-3\n(`Forwarded` / `Applied-Upstream` machine-readable headers, delete-on-merge,\
+  \ the\n`patch-not-forwarded-upstream` lint); Copier/Cruft `update` + skip-list for\
+  \ the merge shape.\nExtends SPEC-0093 (one carrier, one section per concern) and\
+  \ SPEC-0122 R2 (fix upstream, then\nre-pin) rather than adding a new store.\n\n\
+  ## Verification\n\n- **VP1 (entry shape):** an entry missing any required field,\
+  \ or carrying an `upstream_intent`\n  outside the closed vocabulary, is reported\
+  \ as MALFORMED by the drift check (state-check).\n- **VP2 (registered survives,\
+  \ unregistered conflicts):** on an update N→N+1 a path with an entry is\n  preserved\
+  \ and re-checked; a diverged path without one is reported as a conflict and left\n\
+  \  unresolved (differential — the same edit with and without its entry).\n- **VP3\
+  \ (delete-on-merge):** after re-pinning to a release that carries the divergence,\
+  \ the entry\n  is reported REDUNDANT until deleted; deleting it clears the report.\n\
+  - **VP4 (review trigger):** an entry whose trigger date passed (or whose named artifact\
+  \ closed) is\n  reported OVERDUE; re-recording the trigger clears it.\n- **VP5 (no\
+  \ new store/gate):** the ledger is a section of the existing ops carrier and the\
+  \ drift\n  check rides the existing report-only conformance surface — no new file,\
+  \ parser, or land gate\n  (grep + the SPEC-0128 concern registry row).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0093
+- SPEC-0122
+- SPEC-0128
+- off-server-release-contract-one-mechanism-for-own-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: off-server-release-contract-one-mechanism-for-own-
+concern:
+  section: overrides
+  born_order: 230
+  spec: SPEC-0196
+  declare_key: entries
+  declare_type: list
+  presence_policy: opt-in
+  update_policy: init re-seed
+  waiver_policy: loose
+  shape_hook: override_ledger_shape
+  born: "overrides:\n  # SPEC-0196 — THE OVERRIDE LEDGER: the ONLY sanctioned form\
+    \ of local divergence from an\n  # upstream-owned file of the pinned release (the\
+    \ release contract's ownership classes). Born EMPTY, which is the\n  # honest\
+    \ default: a fresh project diverges from nothing. Add an entry ONLY when this\
+    \ project\n  # must run a local edit of an upstream-owned file before upstream\
+    \ carries it.\n  #\n  # Each entry carries EXACTLY these four fields (rule 1)\
+    \ — no others, no free-form policy text:\n  # path: the upstream-owned file diverged\
+    \ from\n  # rationale: one plain sentence — why this project needs the divergence\
+    \ now\n  # upstream_intent: temporary-patch | forwarded | accepted-exception |\
+    \ not-forwarded\n  # (a CLOSED vocabulary; `not-forwarded` is a recorded decision,\
+    \ never a default)\n  # review_trigger: an ISO date (YYYY-MM-DD) OR a named artifact\
+    \ whose close re-opens the entry\n  #\n  # DELETE-ON-MERGE (rule 4): the moment\
+    \ the pinned release carries the divergence, delete the\n  # entry AND drop the\
+    \ local edit — the drift check reports the entry REDUNDANT until you do.\n  #\
+    \ The check is REPORT-ONLY and adds no land gate; it rides `update`'s divergence\
+    \ report and the\n  # nightly sweep. An UNREGISTERED edit of an upstream-owned\
+    \ file is a CONFLICT on update and is\n  # never resolved silently in either direction\
+    \ (rule 3).\n  entries: []\n"
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/init.py#_hook_override_ledger: 2537c56d5474de5b37c7933b727be8fed1ec852f6db7f84d6202a16894ab62ac
+  bin/lib/init.py#override_entry_errors: 30eb1a5a5222da33723203228acbf56079e2ec69230fa55c6bf5244a9ffb6372
+  bin/lib/nightly.py#_check_override_ledger: 0161f56cb0b47ec98c52ec17273622049a9099d79ae11b6ef317c86f153fe0b2
+  bin/lib/release.py#ledger_drift: 5c3ef6954d038ae9fdcbf14eae1468780de9d5343fb0bc4e559e945bf51850a1
+  bin/lib/release.py#update: 38468307998c361e18f8d9f4d11556fe7f8b05277c74bcfec55b260aa0cf5b61

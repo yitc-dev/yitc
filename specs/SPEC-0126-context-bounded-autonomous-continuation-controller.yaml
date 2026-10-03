@@ -1,0 +1,168 @@
+id: SPEC-0126
+title: Context-bounded autonomous continuation — Controller drives an authorized plan/batch
+  across stages without inter-stage owner stops, bounded by the context threshold
+status: active
+created_at: 2026-07-02 15:35:58+00:00
+travels: null
+consumed: false
+implements: []
+body: "## Scenario\n\nThe owner authorizes a PLAN (takes it into work) or a background\
+  \ BATCH of tasks, and then can walk\naway. The Controller drives it forward on its\
+  \ own — a plan across its FSM stages, a batch across its\ntasks — WITHOUT pausing\
+  \ for the owner at seams that carry no human decision. It pauses only to (a)\nsurface\
+  \ a genuine human decision, or (b) propose a fresh-session hand-off when the context\
+  \ window\nreaches the configured threshold, handing off cleanly with no lost work.\
+  \ For a batch, one task that\nneeds an owner answer never freezes the rest: it is\
+  \ parked with its question captured and visible,\nand the independent siblings keep\
+  \ going; the owner answers the accumulated questions on reconnect.\nThis is the\
+  \ exact analog, one level up, of a Worker not asking the human between the 9 stages\
+  \ of one\ntask — extended to plan stages and to a batch of tasks, with the context\
+  \ threshold as the added\nsafety stop.\n\n## Internal\n\nTHE CONTEXT-BOUNDED AUTONOMOUS-CONTINUATION\
+  \ DOCTRINE — a behavioral seed rule for the interactive\nController. It adds NO\
+  \ new store / verb / FSM / enforcement mechanism; it is delivered on the\nalways-loaded\
+  \ seed rail (binding:[seed]) and followed by the AI. Six rules.\n\n### 1. Scope\
+  \ — the TWO authorized situations it applies to (and nowhere else)\nAutonomous continuation\
+  \ applies to EXACTLY two owner-authorized situations:\n  (a) an authorized **plan-drive**\
+  \ — the Controller advancing a plan across its FSM stages after the\n      owner\
+  \ took that plan into work;\n  (b) an authorized **background batch** — the Controller\
+  \ running dispatched Workers over a task set\n      the owner authorized (the Orchestrate\
+  \ posture — AGENTS §Orchestrate posture).\nIt applies NOWHERE else. In particular\
+  \ it does NOT change session start: `session start` still AWAITS\nan owner cue —\
+  \ no auto-start, no auto-pick (AGENTS §Startup phases, unchanged). It grants NO\n\
+  self-fetch of work beyond the authorized plan/batch (the CHARTER §6 fence is intact).\n\
+  \n### 2. Default within scope — proceed, do not ask\nWithin (a)/(b), the Controller\
+  \ proceeds stage→stage (plan) or task→task (batch) WITHOUT pausing for\nan owner\
+  \ cue at any seam that carries no human decision. Tasks are dispatched to BACKGROUND\
+  \ Workers\nby default; the Controller self-executes a task itself only with a clear\
+  \ reason (AGENTS §Controller\nfallback). This is the plan/batch-level analog of\
+  \ the already-standing \"a session runs the 9 stages\nof one task without asking\
+  \ the human between stages\".\n\n### 3. The two STOP conditions — the ONLY stops\n\
+  The autonomous stretch stops ONLY on one of:\n  (i) a **genuine owner decision**\
+  \ — the existing AGENTS §When-to-ask-owner-vs-proceed triggers\n      (an architectural\
+  \ fork with no clear default; acceptance ambiguous in a way that changes\n     \
+  \ scope; a destructive/irreversible operation; a new mechanism proposed with no\
+  \ incident) PLUS\n      CHARTER §6(f) (a missing/ambiguous `requires:` edge → STOP\
+  \ + ask/file, never silent-plan) PLUS\n      a heavy mandatory gate returning RED/ABORT\
+  \ on an unresolved cause (CHARTER §7 — resolve or\n      escalate, do NOT blindly\
+  \ re-run);\n  (ii) the **context threshold** — when `session context` (SPEC-0115)\
+  \ reaches the configured\n      threshold, STOP at a clean seam and propose a fresh-session\
+  \ hand-off via the SPEC-1004 refresh\n      seam (interactive sessions only), with\
+  \ no lost work.\nAbsent (i) and (ii), the Controller keeps going. The threshold\
+  \ is a SAFETY bound, not an autopilot\nenabler: it ends a long autonomous stretch\
+  \ cleanly instead of running context to exhaustion.\n\n### 4. Non-blocking batch\
+  \ — an owner question never freezes the batch\nIn an authorized background batch,\
+  \ a task that raises a genuine owner question does NOT halt the\nbatch. That task\
+  \ is PARKED using its existing waiting-on-owner state — **`bin/yitc-v2 task pause\n\
+  --reason owner-wait`** (the paused-task signal: it writes `paused_at`/`paused_reason`\
+  \ + the resume\ncontract onto the in-progress card and SURFACES at session start)\
+  \ — its question captured durably\nand visibly (the existing followup/journal capture\
+  \ — NO new question store), and the Controller\nCONTINUES the other independent\
+  \ ready tasks. The owner answers the accumulated questions when they\nreconnect.\
+  \ (Distinct from a task blocked on an unmet `requires:` dependency, which waits\
+  \ on that\ndependency per the existing picker rule — QUEUE §Picker. This rule governs\
+  \ the OWNER-QUESTION block,\nnot the dependency block.)\n\n`task pause --reason\
+  \ owner-wait` is the SOLE carrier here. This rule does NOT prescribe the\n`blocked`\
+  \ status: no verb writes it (`TASK_FILING_STATUSES` — `task update --status` cannot\
+  \ reach\nit), so prescribing it would name an unreachable state. `blocked` is a\
+  \ legacy\nread-tolerated enum member only — QUEUE §Verb routes is the single home\
+  \ of that answer.\n\n### 5. Trial autonomy — AMENDS SPEC-0035\nUnder an authorized\
+  \ plan-drive, a trial-eligible plan whose baked `## Trial protocol` is provably\n\
+  NON-DESTRUCTIVE (emulation / reviewable + rollbackable manual runs only; never mutates\
+  \ production\ndata — already SPEC-0035 rules 3-4) MAY be entered AUTONOMOUSLY by\
+  \ the Controller (`plan stage\ntrial`). A trial that touches anything risky or irreversible\
+  \ STAYS owner-invoked. Eligibility and\nnon-destructiveness remain owner-authored\
+  \ in the protocol; there is NO detector (judgement, not a\nmechanism). This NARROWS\
+  \ SPEC-0035's prior unconditional \"trial entry is always OWNER-INVOKED\" — it\n\
+  does not remove owner authority, it exempts the provably-safe case under an authorized\
+  \ drive.\n\n### 6. Fence preservation — what stays forbidden\nThis doctrine adds\
+  \ NO auto-start, NO auto-pick at session start, NO self-fetch beyond the authorized\n\
+  batch/plan, NO stateful orchestrator, NO cap/queue-state machinery, NO liveness-arming\
+  \ FSM, NO\nin-process Worker fan-out (the CHARTER §6 named retirements, unchanged).\
+  \ The owner authorizes the\nbatch/plan up front and still makes every genuine decision.\
+  \ It is a behavioral seed rule, NOT a new\nenforcement FSM (CHARTER non-goal #7).\n\
+  \n### 7. Plan-drive autonomy seam-map — which plan-FSM seams AUTO-PROCEED vs STOP\
+  \ for the owner\nRule 2 says \"proceed across any seam that carries no human decision\"\
+  ; rule 3 names the two STOP\nconditions. This map APPLIES those to the concrete\
+  \ plan FSM (SPEC-0034) so an authorized plan-drive\nknows, seam by seam, where it\
+  \ keeps going and where it must stop. It adds NO new stop class — every\nSTOP below\
+  \ is an INSTANCE of rule 3(i) (a genuine owner decision) or 3(ii) (the context threshold),\n\
+  and every AUTO row is rule 2. The context-threshold stop (3(ii)) can fire at ANY\
+  \ seam and is omitted\nper-row to avoid repetition.\n\n| plan seam | default | why\
+  \ |\n|---|---|---|\n| `draft → specs` | **AUTO** unless the mandatory `gate-specs`\
+  \ returns RED/ABORT on an unresolved cause | the gate itself is autonomous; a RED/ABORT\
+  \ on an unresolved cause is a rule-3(i) STOP (CHARTER §7 — resolve or escalate,\
+  \ never blind-re-run). |\n| `specs → trial` | **STOP (owner)** by default; **AUTO**\
+  \ only when the plan is trial-eligible AND its baked `## Trial protocol` is PROVABLY\
+  \ non-destructive (rule 5 / SPEC-0035 rules 9-10) | entering a real-data trial is\
+  \ owner-invoked unless provably safe; a risky/irreversible trial STAYS owner-invoked.\
+  \ |\n| `specs → accepted` (the non-eligible SKIP) | **AUTO** | skip-trial is the\
+  \ DEFAULT — no owner decision (SPEC-0035 rule 10); a prose/docs plan just proceeds.\
+  \ |\n| `trial → accepted` | **STOP (owner)** | trial-exit convergence is the owner's\
+  \ FINAL judgement citing run-refs (SPEC-0035 rule 5); never an autonomous call.\
+  \ |\n| `accepted → decomposition` | **AUTO** unless the `plan check` / big-plan\
+  \ check returns RED/ABORT on an unresolved cause | the design-soundness gate is\
+  \ autonomous; a persistent RED is a rule-3(i) STOP. |\n| *the CUT itself (inside\
+  \ `decomposition`)* | **AUTO**, but STOP on a missing/ambiguous `requires:` edge\
+  \ OR a genuine design fork with no clear default | CHARTER §6(f) — never silent-plan\
+  \ a missing dependency; a real fork is rule-3(i). A TERRITORY mis-cut (an external/[host]\
+  \ item that cannot land as a kernel card) is a hard STOP+route, not an autonomous\
+  \ cut — SPEC-0046 §A / SPEC-0070 §5 territory-aware rule. |\n| `decomposition →\
+  \ executing` | **AUTO** unless the decomposition-fidelity gate returns RED/ABORT\
+  \ on an unresolved cause | the fidelity audit is autonomous; a persistent RED is\
+  \ a rule-3(i) STOP. |\n| *dispatching + building the cut cards (`executing`)* |\
+  \ **AUTO** (dispatch-default) — one card's owner-question park never freezes the\
+  \ batch (rule 4) | the Orchestrate posture dispatches independent ready cards; a\
+  \ card raising a genuine owner question is parked + captured, siblings continue.\
+  \ |\n| `executing → postcheck` | **AUTO** unless the aggregate `audit post --plan`\
+  \ returns RED/ABORT on an unresolved cause | the paper-level \"shipped matches plan\"\
+  \ gate is autonomous; a persistent RED is a rule-3(i) STOP. |\n| *the postcheck\
+  \ real-data soak* | **AUTO** to keep exercising + absorbing fix-tasks; STOP only\
+  \ on a genuine owner decision surfaced by the soak | the soak self-drives (fix →\
+  \ re-run → re-observe); an owner-judgement question it raises is rule-3(i). |\n\
+  | `postcheck → realized` (finalize) | **STOP (owner)** — the real-data-soak \"works\
+  \ as intended\" verdict is owner-judged | the realize verdict + the `--into` disposition\
+  \ are owner judgement (SPEC-0034 §realized); the drain-at-realize + captures-routing\
+  \ are the owner's retrospective. |\n\nThe through-line: autonomous GATES (they run\
+  \ + verdict themselves) auto-proceed on GREEN/YELLOW and\nSTOP only on a persistent\
+  \ RED/ABORT; OWNER-JUDGEMENT seams (trial entry of a risky trial, trial-exit\nconvergence,\
+  \ realize) always STOP; and the two cross-cutting STOPs — a missing/ambiguous `requires:`\n\
+  and a territory mis-cut — can interrupt the otherwise-autonomous cut. Nothing here\
+  \ grants self-start\nor self-fetch (rule 6 fence unchanged).\n\n## Rationale\n\n\
+  Removes wasted human-control time: today the Controller pauses for an owner cue\
+  \ between plan stages\nand between batch tasks even when nothing needs a decision,\
+  \ so the owner must babysit non-decision\ntransitions. The enabling FOUNDATION already\
+  \ shipped — the deterministic context sensor `session\ncontext` (SPEC-0115) + the\
+  \ continuation-seed refresh seam (<workshop-spec>, now superseded by SPEC-1004)\
+  \ — and the sensor plan\nexplicitly deferred this autopilot layer to a successor\
+  \ (its `## Autonomy frame`). Driver: owner\ndirective 2026-07-02 (`events.jsonl#ts=`)\
+  \ + the foreseen successor\n(`events.jsonl#ts=`). Full deliberation (alternatives,\
+  \ the fence analysis, the\ntrial-autonomy fork) lives in the proposing plan, not\
+  \ here (SPEC-0005 rule 3 content-boundary).\n\n## Verification\n\nBehavioral rule\
+  \ — delivered via binding:[seed], not code-enforced. Probes (journal-observed, the\n\
+  plan's postcheck block):\n- a plan advanced across ≥3 FSM stages with NO intervening\
+  \ decision-class `owner_directive`\n  (`plan_stage_entered` sequence), ending on\
+  \ a genuine decision OR a proposed continuation-seed;\n- ≥1 autonomous stretch that\
+  \ ENDED on the `session context` threshold seam (a ≥threshold reading →\n  a proposed\
+  \ refresh), not on context exhaustion;\n- a dispatched batch where one task's owner-question\
+  \ park coincided with ≥1 sibling `land_completed`\n  and no intervening owner turn.\n\
+  - **(AC4) plan-drive seam-map present:** §7 carries a table marking each plan-FSM\
+  \ seam\n  AUTO-PROCEED vs STOP-for-owner, each STOP an instance of a rule-3 condition\
+  \ (no new stop class).\n  Probe: `grep -c 'Plan-drive autonomy seam-map\\|AUTO\\\
+  |STOP (owner)' specs/SPEC-0126-*.yaml` ≥ 2.\n"
+cites:
+- CHARTER.md#principle-6
+- CHARTER.md#principle-7
+- SPEC-1004
+- SPEC-0115
+- SPEC-0035
+- SPEC-0051
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: non-stop-controller-context-bounded-autonomous-pla
+binding:
+- seed
+seed_cue: Inside an owner-authorized plan-drive or background batch, keep going across
+  seams without asking the owner, stopping only for a genuine owner decision or when
+  `session context` reaches its threshold.
+init_concern: null

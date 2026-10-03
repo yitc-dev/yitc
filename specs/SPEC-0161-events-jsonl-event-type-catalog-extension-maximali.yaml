@@ -1,0 +1,1983 @@
+id: SPEC-0161
+title: events.jsonl event-type catalog extension (maximalist-capture types) — retrieved
+  reference, split from SPEC-0025
+status: active
+created_at: 2026-07-16 20:34:27+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **§Event-type\
+  \ catalog extension ** —\nthe maximalist-capture event types (the fundamental-gap\
+  \ events, the general maximalist-capture events,\nthe retired stage entry/exit timing\
+  \ events, the LIVE `stage_entered` content-delivery event,\n`check_admission_demonstrated`,\
+  \ `spec_activated`, `test_class_executed`, and the followup-capture\nevents). NOTHING\
+  \ is moved beyond that one SPEC-0025 section. SPLIT VERBATIM under the SPEC-0120\n\
+  one-bounded-read ceiling; the parent SPEC-0025 keeps the universal schema, the required\
+  \ event\ntypes, and the normalized provider×model×effort vocabulary, and points\
+  \ here for this section. A moved\nevent that references «§Normalized provider×model×effort\
+  \ vocabulary» (e.g. `task_paused` `wait_reason`)\nstill points at that vocabulary\
+  \ in the parent SPEC-0025 — the reference is preserved verbatim.\n\n## Internal\n\
+  \n### Event-type catalog extension\nExtension of `events.jsonl` event types for\
+  \ maximalist data capture ( query layer). All added\ntypes are payload variations,\
+  \ not a new mechanism. **Compatibility rule (per F5 audit absorption):** the\nevent-types\
+  \ catalog is **append-only**; consumers MUST ignore unknown event types gracefully\
+  \ (parse as\nan opaque `{ts, type, data}` triple, not fail). A closed enum is NOT\
+  \ assumed; future additions don't\nbreak existing consumers. When typed validation\
+  \ is needed (e.g. a specific query), a consumer declares a\nversioned schema reference\
+  \ per event type — opt-in, not required by default.\n\n#### Fundamental-gap-related\
+  \ events\n**`dissonance_detected`** (per CHARTER §Principle 7) — retained legacy/manual\
+  \ pointer, **subsumed by\n`deviation_captured`** (: `kind: defect`, `relates_to:\
+  \ #7`); manual-emit-optional.\nFull prior schema in / git history. Still the named\
+  \ event when a P7 artifact contradiction is\nrecorded.\n\n**`consumer_read_evidence`**\
+  \ (per CHARTER §Principle 8 adoption strength):\n```jsonc\n{\"ts\": \"...\", \"\
+  type\": \"consumer_read_evidence\", \"task_id\": \"T-XXXX\",\n \"data\": {\"target\"\
+  : \"specs/<workshop-spec>.yaml\", \"consumer\": \"bin/yitc-v2 graph build\",\n \
+  \         \"verified_by\": \"event_emit|state_check|live_invocation\"}}\n```\n\n\
+  **`live_trigger_evidence`** (per CHARTER §Principle 8 adoption strength):\n```jsonc\n\
+  {\"ts\": \"...\", \"type\": \"live_trigger_evidence\", \"task_id\": \"T-XXXX\",\n\
+  \ \"data\": {\"mechanism\": \"<hook|cron|cli|api>\", \"trigger_event\": \"<ts>\"\
+  ,\n          \"outcome\": \"fired_as_expected|deviated|failed\"}}\n```\n\n**`task_paused`**\
+  \ (per Resume contract — LIFECYCLE):\n```jsonc\n{\"ts\": \"...\", \"type\": \"task_paused\"\
+  , \"task_id\": \"T-XXXX\",\n \"data\": {\"current_stage\": 5, \"resume_from\": \"\
+  <step>\", \"last_verified\": \"<artifact>\",\n          \"next_action\": \"<one-line>\"\
+  , \"paused_reason\": \"owner-wait|auditor-abort|session-end\"}}\n```\nMAY additionally\
+  \ carry the OPTIONAL normalized `wait_reason` (per SPEC-0135 §5 — the shared pause/block\n\
+  reason vocabulary defined at §Normalized provider×model×effort vocabulary), ALONGSIDE\
+  \ the free\n`paused_reason` detail string; additive / P5-safe.\n\n**`task_resumed`**:\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"task_resumed\", \"task_id\": \"T-XXXX\"\
+  ,\n \"data\": {\"prior_pause_event\": \"<ts of task_paused>\", \"verification_passed\"\
+  : true|false,\n          \"diff_from_pause\": \"none|<description>\"}}\n```\n\n\
+  #### General maximalist capture events\n**Retired manual-emit.** `owner_directive`,\
+  \ `ai_reasoning_note`, `failed_attempt` (plus\n`dissonance_detected` above) are\
+  \ no longer obligated for manual emission — the provider session log\ncaptures them\
+  \ durably. Schemas kept for reference + optional use; historical entries preserved.\
+  \ Cite the\nsession log for chat-derived rationale instead.\n\n**`owner_directive`**\
+  \ — chat directives durable-captured (ephemeral chat → event):\n```jsonc\n{\"ts\"\
+  : \"...\", \"type\": \"owner_directive\", \"task_id\": \"T-XXXX\",\n \"data\": {\"\
+  directive\": \"<verbatim or summary>\", \"classification\": \"approval|stop|redirect|question\"\
+  ,\n          \"captured_durable_as\": \"decisions/D-XXXX OR n/a\",\n          \"\
+  arrival\": \"<OPTIONAL — `mid_turn` when the answer ARRIVED mid-turn; ABSENT on\
+  \ a turn-opening one>\"}}\n```\n**`arrival: mid_turn` — the mid-turn ARRIVAL MARKER\
+  \ (X-1465).** A mid-turn owner answer has\nalways been materialized with its OWN\
+  \ utterance ts; what the record could not say is that it arrived\nMID-TURN — and\
+  \ that is exactly what distinguishes a row which AUTHORISES work already in flight\
+  \ from\none which merely PRECEDES it. Without it a Controller under pressure can\
+  \ cite SOME earlier owner row\nand nothing in the mechanism tells the two apart\
+  \ (the X-1465 shape). Derived at materialization from\nthe provider's own marker\
+  \ by `bin/lib/journal.py#_journal_sync`, never caller-supplied.\n`arrival` is the\
+  \ EXISTING chat-channel key (values `auto` / `commanded`), EXTENDED here rather\n\
+  than duplicated. **ADDITIVE-OPTIONAL and ASYMMETRIC BY DESIGN:** a turn-opening\
+  \ entry carries NO\n`arrival` key at all (never `false`, never a second value),\
+  \ so presence alone is the signal and old\nrows are not back-filled. Greppable via\
+  \ `journal query --grep`.\n\n**`ai_reasoning_note`** / **`failed_attempt`** — retained\
+  \ legacy/manual pointers, **subsumed by\n`deviation_captured`** (— a reasoning note\
+  \ rides as `kind: improvement`; a failed attempt\nas `kind: friction`/`defect`);\
+  \ manual-emit-optional. Full prior schemas in / git history.\n\n#### Stage entry/exit\
+  \ events (timing analytics — Day 5+ query layer)\n**Manual hand-emit RETIRED (retired-by-).**\
+  \ The MANUAL hand-emit obligation for `stage_entry`,\n`stage_exit`, and `task_picked`\
+  \ is retired — do NOT hand-emit them. The obligation lapsed ( F4:\n142 broken stage_entry/exit\
+  \ pairs + 168 manual task_picked). retired the **manual** emit ONLY; a\n**deterministic\
+  \ CLI auto-emit is the sanctioned replacement**. The three types split into two\
+  \ cases:\n  - **`stage_entry` / `stage_exit`** — NO callsite; genuinely not emitted.\
+  \ Recoverable from the\n    deterministic auto-emit chain (audit_pre_completed →\
+  \ commit_landed → audit_post_completed →\n    task_closed) + git log. Schemas below\
+  \ are kept as historical reference (append-only). If\n    stage-timing / pickup-latency\
+  \ analytics are ever needed, auto-emit via a future deterministic CLI\n    command\
+  \ ( rejected_ideas) — never re-impose the manual obligation.\n  - **`task_picked`**\
+  \ — IS auto-emitted, deterministically, by the claim path `_claim_task` — the claim\n\
+  \    that `worktree new --task` performs. This IS the -sanctioned deterministic\
+  \ CLI\n    auto-emit, NOT the retired manual emit — so it is a **live event, not\
+  \ historical**; only the\n    hand-emit obligation was retired. (`task pick` is\
+  \ a read-only inspector and does NOT emit it;\n    QUEUE.md §Picker logic describes\
+  \ the same claim-path emit — doc and code agree.)\n\n**`stage_entry`** / **`stage_exit`**\
+  \ (historical schema — retired-by-, do not hand-emit):\n```jsonc\n{\"ts\": \"...\"\
+  , \"type\": \"stage_entry\", \"task_id\": \"T-XXXX\",\n \"data\": {\"stage\": 5,\
+  \ \"stage_name\": \"Execution\", \"entered_from_stage\": 4}}\n{\"ts\": \"...\",\
+  \ \"type\": \"stage_exit\", \"task_id\": \"T-XXXX\",\n \"data\": {\"stage\": 5,\
+  \ \"stage_name\": \"Execution\", \"outcome\": \"complete|paused|aborted\",\n   \
+  \       \"duration_seconds\": 1234}}\n```\n\n#### Stage-declaration content-delivery\
+  \ event (per the stage-declaration plan, AU-2)\n**`stage_entered`** — a **LIVE,\
+  \ first-class** event (NOT the retired timing `stage_entry`/`stage_exit`\nabove).\
+  \ DISTINCT concern: `stage_entry`/`stage_exit` were *timing analytics* (duration,\
+  \ entered-from)\nand are retired; `stage_entered` records the **content bundle that\
+  \ stage-entry DELIVERED** — the\ndeclared lifecycle `stage` (reusing `current_stage`)\
+  \ plus the specs + work-verbs the\nbinding-derived delivery lens routed to that\
+  \ stage (plan §2–§3). It is the journal trace that a stage\nwas declared and its\
+  \ reads delivered. The PRODUCTION emitter is the `stage <NAME>` verb, which ships\
+  \ in\n**AU-3** (the core cutover, which `requires:` this task); this task (AU-2)\
+  \ only registers the contract +\nconfirms journal-query discoverability. Until AU-3,\
+  \ it is emittable via the generic `event` verb.\n```jsonc\n{\"ts\": \"...\", \"\
+  type\": \"stage_entered\", \"task_id\": \"T-XXXX\",\n \"data\": {\"stage\": \"Commit\"\
+  , \"delivered\": [\"SPEC-0014\"], \"delivered_verbs\": [\"task commit\"]}}\n```\n\
+  - `stage` — the declared lifecycle stage NAME (the `current_stage` semantic value;\n\
+  \  e.g. `Analysis | Plan | Audit-pre | Execution | Tests | Commit | Audit-post |\
+  \ Closure`).\n- `task_id` — the task whose stage was entered (top-level envelope\
+  \ field, as for other task events).\n- `delivered` — the spec IDs routed to this\
+  \ stage by the binding-derived lens (the reads to fetch via\n  `graph query`); MAY\
+  \ be `[]` for a stage with no bound specs.\n- `delivered_verbs` — the work-verb\
+  \ name(s) the stage bundle names for that stage; MAY be `[]`.\n- `ctx_pct` — OPTIONAL\
+  \ raw observation-loop field (per SPEC-0135 §3): the context-fullness percent\n\
+  \  (0–100 int, the `session context` gauge, SPEC-0115) at stage entry, so the loop\
+  \ can see where in a\n  task's arc context pressure builds. OMITTED when unmeasured\
+  \ ( no-fabricated-0s); a raw fact\n  only — no derived score. Additive / P5-safe.\n\
+  - `ctx_no_data` — OPTIONAL sibling of `ctx_pct`, present EXACTLY when it is absent\
+  \ (X-0588): the machine-readable REASON the gauge had no percent — `model-unmapped`\
+  \ (the session's\n  model is absent from the `context_window` map) / `config-unread`\
+  \ / `no-completed-turn`. A bare\n  omission was itself the silence the loud-failure\
+  \ doctrine forbids: a reader could not tell an\n  unmeasured session from any other\
+  \ absence, so a session whose threshold had gone dark read like\n  one comfortably\
+  \ below the bound. Still NO fabricated number — the percent stays absent (SPEC-0115\n\
+  \  §5 \"never guessed\"); only the cause is added. Never emitted alongside `ctx_pct`.\
+  \ Additive /\n  P5-safe.\n\nAppend-only + P5-safe : additive — no existing event\
+  \ type is changed or removed, and\nconsumers that don't know `stage_entered` parse\
+  \ it as an opaque `{ts,type,data}` triple. It needs **no\nper-type recognition branch**\
+  \ in `journal query`: `cmd_journal_query` + `_event_summary` are\ntype-agnostic,\
+  \ so `journal query --type stage_entered` (and `--grep` / the bare `grep events.jsonl`\n\
+  fallback) surface it through the existing generic path — discoverability is a property\
+  \ of that path,\nnot new code (anti-complexity F1/F2: extend the existing query\
+  \ path, no parallel one).\n\n#### Check-admission demonstration event (per SPEC-0156)\n\
+  **`check_admission_demonstrated`** — the recorded FAILING DEMONSTRATION that admits\
+  \ a kernel-graded\ncheck (SPEC-0156 §2). The kernel GRADES a project's declared\
+  \ checks — a `live_probe` (SPEC-0094), a\nsecurity probe (SPEC-0098), a per-class\
+  \ deploy evidence command (SPEC-0097), a `yitc-ops.yaml tests:`\nclass, a `verify.layers[].covers`\
+  \ claim — and this event is the durable answer to the differential\nquestion the\
+  \ kernel already asks of task ACs (SPEC-0060 §4 / X-0246) but never asked of what\
+  \ it grades\nitself: **\"would this check still pass if the thing under test were\
+  \ BROKEN?\"** One journaled RED run\nagainst a NAMED deliberately-broken input,\
+  \ captured once at the declaration seam.\n```jsonc\n{\"ts\": \"...\", \"type\":\
+  \ \"check_admission_demonstrated\", \"task_id\": \"T-XXXX\",\n \"data\": {\"check\"\
+  : \"security.probes[auth-required]\",\n          \"declaration\": \"yitc-ops.yaml#security.probes[auth-required]\"\
+  ,\n          \"broken_input\": \"<the named deliberately-broken input>\", \"outcome\"\
+  : \"red\",\n          \"definition_identity\": \"<16-hex of the check declaration\
+  \ subtree at demonstration time>\"}}\n```\n- `check` — WHICH declared check (surface\
+  \ + name), as the carrier names it.\n- `declaration` — the carrier locator (`yitc-ops.yaml#<section>.<key>`)\
+  \ the check is declared at.\n- `broken_input` — the deliberately-broken input the\
+  \ check was shown RED against. Naming it is what\n  makes the demonstration auditable\
+  \ rather than a claim. **REQUIRED to admit the check** (\n  audit-post finding 1):\
+  \ a RED that names no broken input records a verdict with no evidence — nothing\n\
+  \  anyone could re-run — and admitting a check on that would be the very false-green\
+  \ this contract exists\n  to end. `check`, `declaration`, `broken_input`, a RED\
+  \ `outcome` and `definition_identity` must ALL be\n  present and non-empty for a\
+  \ record to admit a check; an incomplete record simply does not clear it, so\n \
+  \ the check stays visible as UNPROVEN debt (the conservative direction — under-evidenced\
+  \ ⇒ still owed).\n- `outcome` — **must be `red` to admit the check.** A green (or\
+  \ absent, or misspelt) outcome\n  demonstrates NOTHING and admits nothing: a check\
+  \ nobody has seen FAIL is not evidence.\n- `definition_identity` — a content hash\
+  \ of the check's own declaration subtree AT demonstration time\n  (`debt._definition_identity`).\
+  \ It is what makes \"the demonstration is re-owed only when the check's\n  COMMAND/DEFINITION\
+  \ changes\" true by CONSTRUCTION: a REWIRE changes the subtree, so the identity\n\
+  \  changes, so this record stops matching and the question re-opens; a RE-RUN of\
+  \ the same check changes\n  nothing and owes nothing. No stored state is needed\
+  \ for either half.\n- It rides the EXISTING generic `event` verb (`bin/yitc-v2 event\
+  \ check_admission_demonstrated --data`)\n  — SPEC-0156 §2 admits **no new verb,\
+  \ no new emitter, no new store, and no event family** (CHARTER §P5,\n  one journal).\
+  \ The consumer is the DERIVED debt view `debt.unproven_checks`, which folds carrier\
+  \ +\n  journal at read time and surfaces every declared check with no matching RED\
+  \ demonstration as UNPROVEN\n  (report-only, never a gate — SPEC-0156 §3).\n- Append-only\
+  \ + P5-safe : additive — no existing event type changes, and a consumer that does\n\
+  \  not know this type parses it as the opaque `{ts,type,data}` triple.\n\n#### Spec-activation\
+  \ event (per GRAPH §Spec lifecycle)\n**`spec_activated`** — the recorded `proposed\
+  \ → active` flip, appended by the SOLE activation writer\n(`bin/lib/task.py#_activate_task_proposed_specs`,\
+  \ reached from `task close`) once per activated spec,\nAFTER the durable status\
+  \ write it attests. Activation is a governed write with real consequences —\n`active`\
+  \ is the ONLY normative status (GRAPH §What a spec is FOR) and the flip atomically\
+  \ supersedes\nthe target lineage — yet it was SILENT until (X-0411 / <project> :\
+  \ no activat*\nevent existed in any journal, while `bin/lib/views.py` already NAMED\
+  \ `spec_activated` as a SUBSTANTIVE\ntype nothing emitted). Without it the GRAPH\
+  \ drift-#10 check (an active spec with no activating carrier)\nhas no evidence surface,\
+  \ and a work-first spec-activating task cannot satisfy P8 from its own activation.\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"spec_activated\", \"task_id\": \"T-XXXX\"\
+  ,\n \"data\": {\"spec_id\": \"SPEC-XXXX\", \"supersedes\": \"SPEC-YYYY\", \"supersedes_status\"\
+  : \"superseded\"}}\n```\n- `task_id` — the ACTIVATING task (the closing task that\
+  \ owns the spec per SPEC-0005 §5 — work-first\n  `proposed_by == tid` or an explicit\
+  \ `activation_owner_task == tid`). The envelope slot: this event's\n  subject IS\
+  \ that task.\n- `spec_id` — the spec that reached `active`. One event per activated\
+  \ spec (a close may activate several).\n- `supersedes` / `supersedes_status` — present\
+  \ ONLY when the activation flipped a target, reporting the\n  flip that ACTUALLY\
+  \ happened: `superseded` (the target was active) or `withdrawn` (still proposed),\n\
+  \   one-active-lineage. Absent when the spec supersedes nothing.\n- Emitted from\
+  \ the ONE write, so both call paths are covered: the normal `cmd_task_close` AND\
+  \ the\n  `_recover_close_tail` crash-heal re-run. IDEMPOTENT by construction — the\
+  \ writer's `status == proposed`\n  filter skips an already-active spec, so the heal\
+  \ re-run re-emits nothing.\n- Append-only + P5-safe : additive — no existing event\
+  \ type changes, and a consumer that does\n  not know this type parses it as the\
+  \ opaque `{ts,type,data}` triple.\n\n#### Test-class execution event (per SPEC-0152\
+  \ rule 24)\n**`test_class_executed`** — the recorded LAST SUCCESSFUL EXECUTION of\
+  \ a declared test class (SPEC-0152\nrule 24). SPEC-0156 asks \"would this check\
+  \ go RED if broken?\"; this answers the sibling question \"has this\nclass ever\
+  \ actually RUN green?\". <project>'s e2e class was DECLARED but its browsers were\
+  \ never installed —\nnothing ran, nothing failed, and a class that never executed\
+  \ read as coverage (X-0375). This event is the\ndurable proof a declared class actually\
+  \ ran, recorded by whoever RAN it.\n```jsonc\n{\"ts\": \"...\", \"type\": \"test_class_executed\"\
+  , \"task_id\": \"T-XXXX\",\n \"data\": {\"class\": \"live-app-e2e\", \"outcome\"\
+  : \"pass\",\n          \"evidence\": \"<what run — a CI url / a log ref / a harness\
+  \ id>\"}}\n```\n- `class` — WHICH declared `tests.classes[]` class ran, as the carrier\
+  \ names it.\n- `outcome` — **must be `pass` to record a successful run.** A non-pass\
+  \ (or absent, or misspelt) outcome\n  records no successful run and clears nothing.\n\
+  - `evidence` — what run this attests to (a CI url / a log ref / a harness id). **REQUIRED\
+  \ to clear the\n  class** (the SPEC-0156 `broken_input` discipline): a bare \"it\
+  \ ran\" with no named run is a CLAIM anyone\n  could type, and clearing a class\
+  \ on a claim is the false-green this contract exists to end. `class`, a\n  `pass`\
+  \ `outcome`, and a non-empty `evidence` must ALL be present; an incomplete record\
+  \ does not clear it,\n  so the class stays visible as debt (the conservative direction\
+  \ — under-evidenced ⇒ still owed).\n- It rides the EXISTING generic `event` verb\
+  \ (`bin/yitc-v2 event test_class_executed --data`) — SPEC-0152\n  rule 24 admits\
+  \ **no new verb, no new emitter, no new store** (the SPEC-0156 producer precedent).\
+  \ It is\n  NOT auto-emitted from the declaration: a pinned suite pass does not positively\
+  \ observe a per-class run\n  (`land` runs `verify.layers` by layer, never per class),\
+  \ so an auto-emit would be the very false-green\n  this ends. The consumer is the\
+  \ DERIVED debt view `debt.unexecuted_test_classes`, which folds\n  carrier + journal\
+  \ at read time and surfaces every declared class with no matching record as unexecuted\n\
+  \  (report-only, never a gate).\n- Append-only + P5-safe : additive — no existing\
+  \ event type changes; a consumer that does not know\n  this type parses it as the\
+  \ opaque `{ts,type,data}` triple.\n\n#### Followup-capture events (per SPEC-0095;\
+  \ `followup_armed` + `trigger`)\nThe `followup` verb family records a lightweight\
+  \ capture + its 2-state lifecycle as append-only events;\nstate (`open` = added\
+  \ not yet promoted|dropped) is FOLDED from these, never stored (the cross\ninbox/outbox\
+  \ derived-view model). Authority for the mechanism: SPEC-0095. No new store/parser.\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"followup_added\",\n \"data\": {\"followup_id\"\
+  : \"fu_<12hex>\", \"text\": \"<the follow-up>\", \"relates_to\": \"<T-NNNN|fp|file>?\"\
+  ,\n          \"trigger\": \"<the NAMED future moment awaited>?\", \"awaits\": \"\
+  <T-NNNN, the AWAITED artifact>?\"}}\n{\"ts\": \"...\", \"type\": \"followup_armed\"\
+  ,\n \"data\": {\"followup_id\": \"fu_<12hex>\", \"trigger\": \"<named>|null\", \"\
+  awaits\": \"<T-NNNN>|null\"}}\n{\"ts\": \"...\", \"type\": \"followup_promoted\"\
+  , \"data\": {\"followup_id\": \"fu_<12hex>\", \"into\": \"T-NNNN?\"}}\n{\"ts\":\
+  \ \"...\", \"type\": \"followup_dropped\", \"data\": {\"followup_id\": \"fu_<12hex>\"\
+  , \"reason\": \"<why>?\"}}\n```\n- `followup_id` — `fu_` + a hash of the text +\
+  \ a uuid4 nonce (collision-safe; two identical captures\n  get DISTINCT ids).\n\
+  - `trigger` — the OPTIONAL armed-waiter ATTRIBUTE (SPEC-0095 §Armed): the NAMED\
+  \ future moment an open\n  followup waits for. Born on `followup_added` (`add --trigger`)\
+  \ and re-set by any later\n  `followup_armed` (`arm`); a `followup_armed` carrying\
+  \ `trigger: null` CLEARS it (`unarm`). Last write\n  wins, and an armed event against\
+  \ an unknown or already-terminal id is INERT. It is an ATTRIBUTE, NOT\n  a status:\
+  \ `followup_armed` never transitions the 2-state FSM, which stays `open -> promoted|dropped`.\n\
+  - `awaits` — the OPTIONAL AWAITED-ARTIFACT ATTRIBUTE (SPEC-0095 §Armed): the artifact\
+  \ whose\n  CLOSURE is the arrival of the awaited moment, and the SOLE key the `armed_fired`\
+  \ fire check reads.\n  Distinct from `relates_to`, which is PROVENANCE (what the\
+  \ followup is ABOUT) and is NEVER a fire key.\n  Born on `followup_added` (`add\
+  \ --awaits`) and re-set together with `trigger` by any later\n  `followup_armed`\
+  \ (`arm`); an absent/`null` value CLEARS it (`unarm`, or an `arm` that omits it).\
+  \ A\n  record with no `awaits` can never auto-fire — the pre- records, which fold\
+  \ to `awaits: null`.\n- Append-only + P5-safe: a transition for an unknown / already-terminal\
+  \ id is refused by the verb, and\n  a consumer that doesn't know these types parses\
+  \ them as the opaque `{ts,type,data}` triple.\n\n#### Frontend-error ack marker\
+  \ (per SPEC-0170 §Parameters \"TTL / ack\")\nThe ack that stops an ALREADY-JUDGED\
+  \ confirmed error cluster from nagging on every session start. It\nreuses the followup\
+  \ shape above wholesale — one append-only event, FOLDED at read time, no store,\
+  \ no\ntable, no status field, no FSM. Authority for the rule: SPEC-0170.\n```jsonc\n\
+  {\"ts\": \"...\", \"type\": \"frontend_error_acked\", \"data\": {\"fingerprint\"\
+  : \"<kind|normalized message>\"}}\n```\n- `fingerprint` — the cluster key (`kind\
+  \ | normalized message`, SPEC-0170 §Parameters), never the\n  human LABEL: the label\
+  \ is a rendering and two labels can collide, while the fingerprint is the fold's\n\
+  \  own identity. Last write wins (re-acking a RECURRED cluster moves its ack forward).\n\
+  - The ack instant is the envelope `ts` and NOT a payload field — an ack is stamped\
+  \ when it happens, so\n  it cannot be back-dated over a recurrence that already\
+  \ arrived.\n- There is no un-ack event and none is wanted: suppression is DERIVED\
+  \ (`last_seen <= acked_at`), so the\n  cluster's own next occurrence un-suppresses\
+  \ it. An ack can therefore never become a permanent mute.\n- The event is namespaced\
+  \ `frontend_error_acked` because the cross channel already owns `cross_acked`\n\
+  \  (a different mechanism on a different id space).\n\n#### Session hand-off events\
+  \ (per SPEC-1004 §4)\nThe `session handoff` verbs (`bin/lib/session.py#cmd_session_handoff`)\
+  \ record that a hand-off was\nwritten / taken / dropped / expired. The hand-off\
+  \ FILE (`<git-common-dir>/yitc/handoffs/H-<N>.md`) is\nthe sole open/closed state;\
+  \ these rows are HISTORY only and never change state. **No row ever carries\nthe\
+  \ hand-off title or text** — only the id, a hash, a size and an age. The acting\
+  \ session travels on\nthe envelope `session_ref` (never a second payload copy).\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"handoff_written\", \"data\": {\"id\": \"\
+  H-<N>\", \"sha256\": \"<64 hex>\", \"bytes\": 1234}}\n{\"ts\": \"...\", \"type\"\
+  : \"handoff_taken\", \"data\": {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\"}}\n\
+  {\"ts\": \"...\", \"type\": \"handoff_dropped\", \"data\": {\"id\": \"H-<N>\", \"\
+  sha256\": \"<64 hex>\"}}\n{\"ts\": \"...\", \"type\": \"handoff_expired\", \"data\"\
+  : {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\", \"age_days\": 8}}\n```\n- `id` —\
+  \ the hand-off id `H-<N>` (shared allocator key `handoff`; unique and increasing\
+  \ across\n  deletions and linked worktrees). Validation: `^H-[1-9][0-9]*$`.\n- `sha256`\
+  \ — SHA-256 (64 lowercase hex) over the EXACT stored `H-<N>.md` bytes (after redaction\
+  \ and\n  serialization); every terminal row hashes those same unchanged bytes, so\
+  \ a written row and its\n  taken / dropped / expired row PAIR by `id` + `sha256`.\n\
+  - `bytes` — the stored file's length in bytes (<= 32768, the file cap), `handoff_written`\
+  \ only.\n- `age_days` — whole days between the file's frontmatter `written` and\
+  \ the cleanup instant\n  (> 7 by construction — opportunistic cleanup at the next\
+  \ `write`), `handoff_expired` only.\n\n## Rationale\n\nSplit from SPEC-0025 under\
+  \ the SPEC-0120 §3 one-bounded-read ceiling (must-split: the parent was 817\nlines\
+  \ / 65649 B, over BOTH the line and the byte ceiling). The §Event-type catalog extension\
+  \ section\n re-homes VERBATIM here (SPLIT-never-delete, aggregate-neutral) at the\
+  \ document's own\ntop-level seam — the section already carried its own append-only\
+  \ compatibility preamble and is a\nstable-surface boundary (SPEC-0005 rule-6: split\
+  \ by surface, never perspective). Prior art: /\nSPEC-0153 carved the terminal-marker\
+  \ + per-dispatch sections from this same spec identically.\n\n### Catalog completeness\
+  \ reconcile (2026-07-17)\n\n**The catalog is FEDERATED — absence from SPEC-0025/SPEC-0161\
+  \ alone is NOT a gap.** Recorded because\nthree T1 sweeps (fp `spec-0025-event-catalog-lags-emitted-types`,\
+  \ 2026-06-06 + 2026-07-17 x2) measured\nthe emitted surface against SPEC-0025+SPEC-0161\
+  \ ONLY and so over-counted ~2x (110 raw \"missing\" vs 61\nreal). A type is **cataloged\
+  \ iff SOME active spec homes it**. The homes:\n- **SPEC-0025** — the universal envelope\
+  \ schema, the required event types, the normalized\n  provider x model x effort\
+  \ vocabulary.\n- **SPEC-0161** (this spec) — the maximalist-capture extension; the\
+  \ **append-only home** for a type\n  belonging to no dedicated mechanism spec.\n\
+  - **SPEC-0153** — terminal-marker + per-dispatch correlation + the observability\
+  \ events\n  (`read_gate_refused`, `external_action`, error/friction, chat-class);\
+  \ split VERBATIM from SPEC-0025\n  at.\n- **Per-mechanism homes** — a mechanism\
+  \ spec catalogs its OWN events: SPEC-0050 (`read_gate_refused`),\n  SPEC-0094 (`deploy_*`),\
+  \ SPEC-0116 (`external_action`), SPEC-0085 (`cross_*`), SPEC-0095 (`followup_*`).\n\
+  \n**Sweep method (mechanical, so the next run is reproducible).** Ground truth =\
+  \ the journal window\n(types with a `last` emission inside the window) UNION a code-grep\
+  \ of emitters in `bin/`, measured\nagainst the WHOLE `specs/` corpus — never the\
+  \ parent alone. The **discriminator** for what the catalog\nowes an entry: **does\
+  \ an emitter exist in `bin/`?** A verb-emitted type is a governed surface and is\n\
+  rostered; a hand `bin/yitc-v2 event <type>` one-shot append is not (see the defer\
+  \ marker below).\n\n**The completeness gate is judged on the DIFF, not on main's\
+  \ accumulated journal (2026-08-21).** The reconcile above says WHICH types the catalog\
+  \ owes an entry; this says WHO is\nanswerable when one is missing. `tests/test_event_catalog_completeness.py`\
+  \ used to quantify its AC1 /\nAC1-prime arms over main's whole journal, so the verdict\
+  \ was identical for every branch in the repo. On\n2026-08-21 seven `watch_verdict_recorded`\
+  \ rows reached main while their emitter sat unlanded in\n worktree; with rows present\
+  \ and no emitter the type fell into the no-emitter residual, AC1-prime\nfailed ON\
+  \ MAIN, and EVERY land in the repo was refused for roughly an hour — aborts at 04:33:54Z\n\
+  , 04:39, 04:45, 04:49, each paying a full verify to be indicted\nfor a state none\
+  \ of them created. It cleared at 05:04 only when happened to land and supply the\n\
+  emitter.\n\nThe window is STRUCTURAL, not anyone's mistake: a journal append may\
+  \ reach main with NO worktree (deliberately, so a deviation capture is never gated\
+  \ behind opening one) while code reaches main only\nthrough `land` — so a type's\
+  \ ROWS legitimately precede its EMITTER on main. Closing it by gating journal\n\
+  appends would trade a rare freeze for a permanent chill on capture, so the asymmetry\
+  \ STAYS and the\nQUANTIFIER moved instead: the gate asks whether THIS DIFF introduces\
+  \ or leaves an uncatalogued live type,\nmeasured against `git merge-base HEAD main`.\
+  \ The branch that brings a type in is then the branch that\nfails, and it can clear\
+  \ it on its own branch — self-clearing instead of repo-wide. Modeled on the\ndiff-aware\
+  \ `seed_growth_warnings` / `new_test_file_warnings` shape (CHARTER §P1 F1 — extend\
+  \ the analog).\n\n**The federated PREDICATE above is UNCHANGED by this — only the\
+  \ quantifier over it moved.** One function\n(`graph.classify_event_types`) is applied\
+  \ identically to the working tree and the merge-base tree, so\nthere is no second,\
+  \ weaker baseline catalog. homing its type in SPEC-0133 is exactly why landing\n\
+  it RESOLVED the freeze rather than repeating it, and that route is untouched. (That\
+  \ the shipped predicate\nis a raw whole-corpus substring rather than structured\
+  \ active-spec homing is a real, separate concern —\nraised at audit-pre and ruled\
+  \ out of scope by the SPEC-0124 ceiling-convergence consult,\ntracked as followup\
+  \ fu_f5305ac63f6f: a stronger predicate strictly WIDENS the failing set and so must\
+  \ be\nmeasured report-only before it is ever allowed to gate a land.)\n\n**THE NAMED\
+  \ RESIDUE — what a diff-scoped gate stops seeing, and where it is reported instead.**\
+  \ A type\nwhose rows reach main from a checkout that NEVER LANDS — the no-worktree\
+  \ append from the main\ncheckout, for a type no branch's diff ever introduces —\
+  \ is uncatalogued at the merge-base of every branch\nthat runs the gate. It is therefore\
+  \ INHERITED forever and NO branch is failed for it. That is deliberate:\nthe state\
+  \ is by construction unattributable, and a gate that cannot name a responsible party\
+  \ can only\npunish bystanders, which is the incident above. It is NOT dropped: it\
+  \ is reported by the report-only\n`uncatalogued-type:` WARN at the `graph conformance`\
+  \ seam (beside `seed-growth` and `test-new-file`),\nwhich never joins the RED set\
+  \ and never moves an exit code, plus a note printed by the gate itself so a\nreader\
+  \ of a GREEN run still sees it. Report, never gate — a fail-closed default for the\
+  \ attributable\ncase, a visible reading for the unattributable one.\n\n**Second\
+  \ run recorded — 2026-08-19.** The lenient 2-spec match fired a FOURTH time (the\
+  \ card\nread \"64 of 175 uncatalogued\"). Re-run mechanically it measures **77 of\
+  \ 194** against SPEC-0025 +\nSPEC-0161 alone, and those 77 partition EXHAUSTIVELY\
+  \ as **77 = 30 + 13 + 34**: **30** resolve by name\nto another active spec (the\
+  \ federated homes above — e.g. `canary_backstop_ran`→SPEC-0066,\n`concern_drift_surfaced`→SPEC-0143,\
+  \ `deviation_resolved`→SPEC-0085, `error_*`→SPEC-0056/<workshop-spec>,\n`blocked_on_land`→SPEC-0103/<workshop-spec>,\
+  \ `audit_*`→SPEC-0124), **13** earned a roster entry here (below),\nand **34** are\
+  \ the named no-emitter deferrals. So the raw count over-reported by ~5x, and the\
+  \ REAL\nuncatalogued set — the thing the card is about — was 13. A FIFTH firing\
+  \ on the raw 2-spec number\nresolves BY CITATION to this paragraph; only a re-run\
+  \ against the WHOLE corpus is evidence of a gap.\n\n#### Roster — verb-emitted types\
+  \ homed here ( reconcile)\nCompact roster lines, deliberately NOT per-type JSONC\
+  \ blocks: the envelope is already specified once in\nSPEC-0025 §universal schema,\
+  \ and the per-type `data` payload SoT is the emitter (see the payload-key\nmarker\
+  \ below) — full blocks would duplicate both and re-breach the SPEC-0120 §3 ceiling\
+  \ that forced\nthis spec's own split from SPEC-0025.\n\n- **`execution_started`**\
+  \ — `bin/lib/task.py` `task execute` — Stage-5 entry marker.\n- **`analysis_finalized`**\
+  \ — `bin/lib/task.py` `task analyze --finalize` — Stage-1 decision-record sealed;\
+  \ gates Plan entry.\n- **`tests_entered`** — `bin/lib/task.py` `task test` — Stage-6\
+  \ entry marker.\n- **`task_parked`** / **`task_unparked`** — `bin/lib/task.py` `task\
+  \ update --status parked|ready` — parking-lot transitions (QUEUE §Parking lot).\n\
+  - **`audit_yamls_archived`** — `bin/lib/triage.py` — audit-record archival sweep.\n\
+  - **`land_started`** — `bin/lib/worktree.py` — a land BEGAN on this branch, in this\
+  \ process: emitted at land entry immediately after the three structural branch guards\
+  \ (detached-HEAD / on-main / not-a-linked-worktree) and BEFORE the spike guard,\
+  \ the dirt guard, the land reservation, the SPEC-0132 verify-admission slot and\
+  \ `_land_integrate` — so it is above everything that can queue. Carries `branch`\
+  \ / `pid` / `ppid` / `reason`, and rides `task_id` for a `task/T-NNNN` branch; the\
+  \ `session_ref` and `ts` that place the launch act are the ordinary envelope fields\
+  \ every row carries, never re-derived in the payload. It exists because nothing\
+  \ recorded that a land had STARTED: `land_completed` is emitted only at the END\
+  \ and not at all when the land is killed, and start attribution was inferable ONLY\
+  \ from `waiting_for_land_reservation`, which exists only under admission CONTENTION\
+  \ — of 199 lands carrying a `land_completed` since 2026-08-26, 15 emitted no queue-wait\
+  \ row whatsoever, so for those nothing on record said a land had ever run. `pid`\
+  \ is load-bearing rather than decorative: four separate `task/` lands between 04:00:27Z\
+  \ and 05:16:34Z on 2026-08-27 carried the SAME `session_ref` and differed only by\
+  \ pid, so a row keyed on branch or session alone would have collapsed four launch\
+  \ acts into one — the exact ambiguity that let an owner-directed hold be lost twice\
+  \ (fu_72c83eccd466). UNCONDITIONAL over session kind, unlike its neighbour `land_process_group_escaped`,\
+  \ which is deliberately non-worker-only: every land emits this row, which is what\
+  \ makes its ABSENCE for a given land a real signal rather than missing data. The\
+  \ emit is FAIL-SOFT — it is observability, never a gate, so an unwritable journal\
+  \ announces itself on stderr and the land PROCEEDS. It records a fact and nothing\
+  \ more: it is not a hold, lock or lease, and changes nothing about admission, batching\
+  \ or the `os.setsid` escape.\n- **`waiting_for_land_reservation`** — `bin/lib/worktree.py`\
+  \ — land queued behind the land reservation (concurrency governor heartbeat, cf.\
+  \ SPEC-0132).\n- **`land_reservation_park_requeued`** — `bin/lib/worktree.py#_take_land_reservation`\
+  \ — a land EVICTED by the SPEC-0132 §1a park bound RE-ENTERED the same wait BY ITSELF,\
+  \ instead of being handed back to a human. Emitted once per automatic requeue, on\
+  \ the MAIN checkout's journal, carrying `branch` / `attempt` (1-based, this process)\
+  \ / `holders_seen` (DISTINCT reservation-holder pids watched go by during the bound\
+  \ that just fired). The requeue fires ONLY when `holders_seen >= 2` — i.e. the QUEUE\
+  \ WAS MOVING and this land was merely slow — and is capped by the GATE-class `YITC_LAND_PARK_REQUEUE_MAX`\
+  \ (default 2); a bound served out behind ONE holder is the wedged-holder case exists\
+  \ for and still STOPS, unchanged, and so does a land past the cap. Ground : on 2026-09-11\
+  \ four lands were evicted by the bound while naming DIFFERENT holders across their\
+  \ waits, were each re-run BY HAND by the Controller, and then landed on the re-run\
+  \ — the bound was reading a 9-10-deep MOVING queue as a wedge. Reading the pair:\
+  \ a `land_reservation_park_halted` row WITHOUT any preceding `land_reservation_park_requeued`\
+  \ for the branch is either a genuine wedge or a cap-0 fleet; one WITH them is a\
+  \ land that queued, requeued and still did not get through. FAIL-CLOSED on an unresolvable\
+  \ holder: `holders_seen` cannot then reach 2, so the land takes the stop.\n- **`waiting_for_venue_admission`**\
+  \ — `bin/lib/worktree.py` (relayed from the box-side leg) — a land queued behind\
+  \ the MACHINE-WIDE venue request cap (`YITC_VENUE_MAX_REQUESTS`, default 1 — SPEC-0203\
+  \ rule 4). Carries `request` / `leg` / `live` / `cap` / `waited_s` / `branch` /\
+  \ `box`. It is a THIRD queue and reports as itself: it is deliberately NOT a member\
+  \ of `journal.LAND_QUEUE_WAIT_TYPES`, because that tuple is the one source through\
+  \ which two independent readers — the SPEC-0132 admission lens and SPEC-0119 rule\
+  \ 27's abort phase-split — resolve the LOCAL per-repo wait series, and joining it\
+  \ would silently re-attribute box waits into local admission statistics (the exact\
+  \ conflation homed that tuple to prevent). The row is emitted LOCALLY, by the land,\
+  \ off a throttled line the leg prints on stderr while it waits — the box cannot\
+  \ write this journal, and the module that runs the pass writes no journal of its\
+  \ own (CHARTER §P5), so the relay is injected at the land call site that already\
+  \ owns the row.\n- **`land_retry_started`** — `bin/lib/worktree.py` — emitted AT\
+  \ THE START of every land attempt after the first: the ff-race loser is re-running\
+  \ the whole verify from scratch, and this is the row that says so WHILE it happens\
+  \ (the terminal `land_completed` `attempt_breakdown` only reports it once the cost\
+  \ is paid). Carries `branch`/`attempt`/`previous_outcome`/`previous_attempt_ms`/`previous_verify_duration_ms`,\
+  \ so the discarded attempt's cause — `retry-main-advanced` and its siblings — is\
+  \ readable without a fold. Third member of the land observable-wait family beside\
+  \ the two rows above, same shape and same reason: a working land must never read\
+  \ as a hang (SPEC-0132). A single-attempt land emits it ZERO times.\n- **`land_reservation_park_degraded`**\
+  \ — `bin/lib/worktree.py` — a parked lander hit the land-reservation park bound\
+  \ (5 verify walls) and DEGRADED to the ordinary optimistic path rather than parking\
+  \ forever behind a wedged holder; carries `waited_s`/`limit_s`/`holder` (SPEC-0132\
+  \ Rule 1a).\n- **`land_queue_jump_fired`** — `bin/lib/worktree.py` — a card's OPT-IN\
+  \ `queue_jump` mark ACTUALLY REORDERED land admission: the reservation holder handed\
+  \ the slot to that branch ahead of the cost ladder (SPEC-0184 rule 9). Carries `branch`/`reason`/`yielded_by`\
+  \ and rides `task_id`. Emitted ONLY when the mark DECIDED the handover — a mark\
+  \ that exists and changed nothing emits nothing — which is what makes the row a\
+  \ reading of real reorderings rather than a count of marks in the corpus, and what\
+  \ lets overuse be seen on the `debt` view without anyone running an audit (safeguard\
+  \ c).\n- **`land_synchronous_guard_refused`** — `bin/lib/worktree.py` — a dispatched\
+  \ worker's backgrounded `land` refused (the synchronous-to-LAND guard).\n- **`land_worker_liveness_lost`**\
+  \ — `bin/lib/worktree.py` — (SPEC-0180 rule 3 names THIS spec as the type's catalog\
+  \ home — corrected from the pre-split \"SPEC-0025\" address by before that spec\
+  \ activated; parent SPEC-0025 §Event-type catalog extension is the pointer stub,\
+  \ and the three sibling land-guard types below live here too) — an ADMITTED detached\
+  \ worker land was TERMINATED MID-FLIGHT because the worker process holding its turn\
+  \ stopped being alive; carries `worker_pid`/`liveness`/`reason` (SPEC-0180 rule\
+  \ 3). Deliberately **NOT** folded into `land_synchronous_guard_refused`: that type\
+  \ means \"admission REFUSED before anything ran\", this one means \"an admitted\
+  \ land was KILLED after it started\" — different facts, and merging them would leave\
+  \ the fleet verdict (SPEC-0133) unable to tell a refusal from a kill. The kill is\
+  \ journaled precisely so it is not a silent death (the class `blocked-on-land` (SPEC-0103\
+  \ §3) and the fleet verdict exist to remove); when the row cannot be written the\
+  \ kill still happens and says so on stderr.\n- **`land_process_group_escaped`**\
+  \ — `bin/lib/worktree.py` — a NON-WORKER (interactive / controller / CI / consumer)\
+  \ `land` LEFT the process group of whatever launched or watches it, at land entry\
+  \ and before any lock, merge or integration; carries `mechanism` (`setsid` | `setpgrp`\
+  \ | `already-leader` | `opted-out` | `unavailable`) / `pid` / `reason`. It exists\
+  \ because the four measured deaths of fingerprint `interactive-background-land-killed-in-admission-wait`\
+  \ were all group-directed kills aimed at the land's OBSERVER, and because a land\
+  \ whose lifetime is owned by its watcher cannot keep the AGENTS-SESSIONS promise\
+  \ to \"key ALL recovery off the JOURNAL, NEVER off the wrapper's process lifetime\"\
+  . The row is what makes the decoupling READABLE — it is the adoption evidence a\
+  \ later session reads to know this land could not have died with its wrapper. Deliberately\
+  \ scoped AWAY from the DISPATCHED WORKER, whose land must stay in its worker's group\
+  \ (SPEC-0103 / SPEC-0180): a worker land emits this type ZERO times, and that absence\
+  \ is meaningful, not missing data. `mechanism` is REPORTED rather than asserted\
+  \ — the escape is a hardening and fails SOFT, so `unavailable` is a real value and\
+  \ never an error.\n- **`watch_process_group_escaped`** — `bin/lib/dispatch.py` —\
+  \ a `dispatch --watch` LEFT the process group of the shell that launched it, at\
+  \ watch entry and BEFORE the poll loop blocks; carries `mechanism` (`setsid` | `setpgrp`\
+  \ | `already-leader` | `opted-out` | `unavailable`) / `pid` / `watched_tasks` /\
+  \ `watch_fleet` / `reason`. The WATCHER sibling of `land_process_group_escaped`\
+  \ above, emitted by the SAME helper (`worktree._escape_observer_process_group`,\
+  \ one mechanism and two callers) for the same measured cause: <project> X-1103 saw\
+  \ a backgrounded watcher SWEPT twice in a row while every worker it watched stayed\
+  \ healthy, because the harness kill is group-directed and the watcher shared its\
+  \ shell's group. The row is what makes the decoupling READABLE — it is how a later\
+  \ session knows this watcher could not have died with its wrapper, so a swept, timed-out\
+  \ or never-armed wrapper costs a re-arm and nothing else. It covers `--watch-fleet`\
+  \ too (that flag only widens which verdicts may WAKE the same loop), which is why\
+  \ `watch_fleet` rides the payload. `mechanism` is REPORTED rather than asserted\
+  \ — the escape is a hardening that fails SOFT, so `unavailable` is a real value\
+  \ and never an error, and the emit itself is fail-open so a broken journal never\
+  \ refuses a watch.\n- **`land_terminated_externally`** — `bin/lib/worktree.py` —\
+  \ this land was terminated by a CATCHABLE external signal (SIGTERM / SIGHUP / SIGINT);\
+  \ carries `signal` / `pid` / `reason`. The POSITIVE half of the same concern: before\
+  \ it, a land killed while queued and a land still queued and perfectly healthy left\
+  \ IDENTICAL durable state — queue-wait heartbeats and no `LAND:` token — so nothing\
+  \ on record could ever ATTRIBUTE one of these deaths to its cause. Sibling of `land_worker_liveness_lost`\
+  \ above and distinguished from it on the same axis that separates that type from\
+  \ `land_synchronous_guard_refused`: this one means \"something OUTSIDE killed this\
+  \ land\", that one means \"the kernel killed it because the worker holding its turn\
+  \ died\". SIGKILL cannot be caught, and that residual is covered NOT by this row\
+  \ but by heartbeat STALENESS against the published cadence (`_classify_queued_land_liveness`\
+  \ / `_queue_heartbeat_stale_after`) — which is why both halves exist. As with the\
+  \ liveness kill, an unwritable row does not cancel the termination: it is announced\
+  \ on stderr instead, because an unrecorded kill is a silent death.\n- **`land_auto_targeted`**\
+  \ — `bin/lib/worktree.py` — `land` resolved its target branch/task automatically.\n\
+  - **`land_backstop_admitted`** — `bin/lib/worktree.py` — the repeated-abort backstop\
+  \ was armed but ADMITTED this attempt: the declared per-assertion re-baseline covers\
+  \ every recorded pinned assertion of the counted cause (SPEC-0077 §3a — never a\
+  \ silent block-clear).\n- **`claim_refused`** — `bin/lib/worktree.py` — `worktree\
+  \ new --task` refused a claim (task not `ready` / blocked / already claimed).\n\
+  - **`worktree_swept`** — `bin/lib/worktree.py` — stale-worktree sweep removed a\
+  \ worktree.\n- **`work_batch_discarded`** — `bin/lib/worktree.py` — a `work/<slug>`\
+  \ batch torn down without landing.\n- **`work_batch_discarded` payload keys `prototype_ref`\
+  \ / `prototype_tip`** (SPEC-0205 rule 4; a payload extension of the existing type\
+  \ — `worktree park --work` has no `worktree_parked` type). Present ONLY when the\
+  \ parked batch's stamp declared `spike: true`: `prototype_ref` is the annotated\
+  \ tag `spike/<slug>` (`bin/lib/worktree_lifecycle.py#_tag_spike_prototype`) written\
+  \ on the branch tip before teardown, `prototype_tip` the commit it peels to. An\
+  \ undeclared batch's row is unchanged. Payload probe: `tests/test_t12566_spike_park_tag.py`\
+  \ parks a `--spike` batch and asserts the row's `prototype_ref == spike/x` and `git\
+  \ cat-file -t spike/x == tag`, and parks an ordinary batch asserting no key and\
+  \ no tag — failing input: a spike park that tears down without the tag, or a control\
+  \ row carrying the key.\n- **`spike_declared_late`** — `bin/lib/worktree_lifecycle.py#_declare_spike_late`\
+  \ — `worktree park --work <slug> --declare-spike` ADOPTED a legacy spike batch created\
+  \ without `--spike` (SPEC-0205 rule 8). Bound to MAIN's live journal, carries `slug`\
+  \ / `branch` / `tip` / `session_ref` (the invoking session) / `prototype_ref`; it\
+  \ is the canonical declaring row of the adopted prototype, and the annotated `spike/<slug>`\
+  \ tag's `declared_row_ts` + `declared_session_ref` + `branch` equal this row's `ts`\
+  \ + `session_ref` + `branch` (the PARKED projection, rule 2). The tag is written\
+  \ first and deleted if this append fails, so neither half survives alone. Never\
+  \ emitted for an already-declared batch or a branch whose content already landed\
+  \ (tip an ancestor of main, every changed blob already in main's tree, or the change-set\
+  \ reverse-applying to main). The same park's `work_batch_discarded` row carries\
+  \ `declared_late: true`. Payload probe: `tests/test_t12568_declare_spike_late.py`\
+  \ adopts an undeclared batch and asserts exactly one row whose `branch` / `tip`\
+  \ / `session_ref` match and whose `ts` the tag annotation resolves to — failing\
+  \ input: a merged branch adopted (asserted refused with zero rows and no tag), or\
+  \ a tag whose row is absent (the resolver is asserted to reject it).\n- **`worktree_create_failed`**\
+  \ — `bin/lib/worktree_lifecycle.py#cmd_worktree_new` — a `--spike` batch's `git\
+  \ worktree add` FAILED after its `worktree_created{spike: true}` declaration row\
+  \ was already published (SPEC-0205 rules 1-2). Bound to MAIN's journal, carries\
+  \ `branch` / `path` / `leaf` / `declared_ts` / `declared_session_ref` / `error`;\
+  \ `declared_ts` + `declared_session_ref` are the ts + session of the row it RETIRES,\
+  \ so a reader folding the canonical spike set drops that row. It is the compensating\
+  \ half of the row-before-add ordering: publication precedes the tree's existence,\
+  \ so a failed add must say the tree never came to be. No stamp exists for it — there\
+  \ is no tree to project onto. Emitted ZERO times for an ordinary (non-spike) batch,\
+  \ whose row is still appended only after a successful add. Payload probe: `tests/test_t12565_spike_declaration_and_row_order.py`\
+  \ forces the add to fail (injected rc=1) and asserts this row with the SAME `declared_ts`\
+  \ as the published row and no worktree/stamp — failing input: a failed spike add\
+  \ leaving the declaration row un-retired.\n- **`spike_content_checked`** — `bin/lib/spike_identity.py#check_spike_content`,\
+  \ called by `land` after the land reservation (SPEC-0205 rules 2/2a, REPORT-ONLY\
+  \ arm L2a). Exactly ONE per land attempt; the fold READS MAIN's live journal, the\
+  \ row is WRITTEN to the landing branch's journal (`row_events_path`) and reaches\
+  \ main with that land's bookkeeping commit — a main-checkout append duplicated rows\
+  \ across ff-race retries: `branch` · `spikes` (the canonical set folded from main's\
+  \ live journal at verdict time) · `unresolved` (projections not trusted) · `t1_hits`\
+  \ / `t1_spikes` (changed-blob identity) · `spikes_matched` / `t3_verdict` (canonical\
+  \ hunk-subset identity) · `verdict` (identity|report|none) · `share` · `ambiguous`\
+  \ · `exempt` (paths `yitc-generated` on MAIN) · `reservation_ts` · `fold_read_ts`\
+  \ (≥ reservation_ts) · `duration_ms` · `report_only: true` · `error` when the fold\
+  \ failed (the land proceeds). Payload probe: `tests/test_t12567_spike_content_identity.py`\
+  \ asserts one row per call with every key and `fold_read_ts >= reservation_ts`,\
+  \ incl. two runs with a spike declared after the reservation — failing input: a\
+  \ cached fold missing the late spike, or a second row per attempt.\n- **`spike_content_previewed`**\
+  \ — `bin/lib/spike_identity.py#preview_spike_content` — the pre-land dry run the\
+  \ audit packet cites (caller). Same payload as `spike_content_checked` plus `preview:\
+  \ true`, and it names these keys the preview row carries: `consumed_ships` (already-shipped\
+  \ cards whose `prototype_ref` consumed a folded spike, handed to the verdict as\
+  \ consumed refs) · `best_spike` (the matched spike, else the spike with the largest\
+  \ attributable hunk share; null when none) · `ambiguous_spikes` (the spikes that\
+  \ share a landing hunk with another folded spike, set when `ambiguous` is true);\
+  \ NEVER written together with a `_checked` row by the preview path. Payload probe:\
+  \ `tests/test_t12567_spike_content_identity.py` runs the preview and asserts one\
+  \ `_previewed{preview: true}` and zero new `_checked` rows — failing input: a preview\
+  \ writing `spike_content_checked`.\n- **`worktree_created` payload keys `path` /\
+  \ `spike`** (SPEC-0205 rule 1; the type itself is homed in SPEC-0025). `path` —\
+  \ the absolute worktree path, carried on every row. `spike: true` — present ONLY\
+  \ on a DECLARED spike batch (`worktree new --work spike-<slug> --spike`), and for\
+  \ that batch the row is appended to MAIN's live journal BEFORE `git worktree add`\
+  \ and carries `session_ref` but no `started_at`; the worktree stamp's `declared_row:\
+  \ {ts, session_ref}` is its projection. An undeclared `spike-*` slug is refused\
+  \ before any row. Payload probe: the same test records an injected call trace on\
+  \ `_append_event` / `_run_git_cap` and asserts the `worktree_created{spike: true,\
+  \ path}` append precedes the add while an ordinary batch stays add-first — failing\
+  \ input: an add-before-append trace (the order predicate is asserted to reject one),\
+  \ or the undeclared `spike-x` slug creating a worktree.\n- **`worker_identity_refused`**\
+  \ — `bin/yitc-v2` — dispatched-worker identity resolution failed closed (cf. SPEC-0137).\n\
+  - **`draft_filed`** / **`draft_to_idea`** — `bin/lib/plan.py` — planning-artifact\
+  \ filing + plan->idea demotion (`plans`/`ideas`).\n- **`cross_refused`** — `bin/lib/cross.py`\
+  \ — a `cross` coordination item refused (FSM edge, cf. SPEC-0085).\n- **`bg_dispatch_skipped`**\
+  \ — `bin/lib/dispatch.py` — the dispatch selector skipped a candidate task (sibling\
+  \ of the cataloged `bg_dispatch_launched`/`bg_dispatch_halted` pair).\n- **`bg_dispatch_spawned`**\
+  \ — `bin/lib/dispatch.py#_record_spawn_or_reap` — the launch-axis SPAWN receipt\
+  \ (X-1460 as corrected by X-1461): appended inside the launcher's `_attempt` as\
+  \ the first act after `spawn` returns a live pid, BEFORE the launch probe. It says\
+  \ a process EXISTS; its sibling `bg_dispatch_launched` says the launch RESOLVED,\
+  \ and readers fold BOTH as the launch AXIS (`bin/lib/journal.py#DISPATCH_LAUNCH_TYPES`)\
+  \ — wherever both exist the launched row is strictly newer and wins by ts, so a\
+  \ spawn row is authoritative only while it is the whole story. That window is the\
+  \ defect it closes: the PARENT writes the launched row, so a parent killed inside\
+  \ the spawn->launch gap left a live worker with no durable trace and a re-folding\
+  \ controller re-dispatched it. The append is part of the spawn TRANSACTION, deliberately\
+  \ NOT best-effort — one retry, then the worker is REAPED and the launch REFUSED\
+  \ (the reap journals `bg_dispatch_halted{kind: spawn_unrecordable}` best-effort,\
+  \ since by hypothesis the journal may be unwritable) — because a suppressed append\
+  \ reproduces exactly the state the row was added to eliminate.\n- **`onboarding_seeded`**\
+  \ — `bin/yitc-v2` `memory seed` — an onboarding station written to a consumer's\
+  \ MEMORY.md (SPEC-0147 §7).\n- **`consumer_init`** — `bin/lib/init.py` `-C <path>\
+  \ init` — consumer bootstrap scaffolds delivered.\n- **`engine_path_refreshed`**\
+  \ — `bin/lib/init.py` — a consumer's recorded engine path re-resolved.\n- **`retired_surface_swept`**\
+  \ — `bin/lib/init.py` — a retired surface removed from a consumer.\n- **`extension_catalog_completeness_refused`**\
+  \ — `bin/lib/init.py` — the offerings extension-catalog completeness check failed\
+  \ closed (never a silent \"adopts nothing\"; cf. SPEC-0101).\n- **`deploy_security_audit_produced`**\
+  \ — `bin/lib/deploy.py` — the deploy-seam security audit artifact was produced (cf.\
+  \ SPEC-0098).\n- **`git_maintenance_run`** — `bin/git-maintenance.sh` — one scheduled\
+  \ serialized git-maintenance window ran to completion on a repo: carries before/after\
+  \ loose-object count+bytes, pack count+bytes, the gc.log inventory across the common\
+  \ dir AND every per-worktree gitdir, the prune horizon used, and `efficacy: met|not-met`.\
+  \ It is the MECHANISM trace, deliberately distinct from the `live_trigger_evidence`\
+  \ adoption CLAIM that cites it: the P8 event asserts the mechanism works, this row\
+  \ is the run that happened. Emitted only when a yitc checkout is resolvable (the\
+  \ maintained repo itself, or an explicit `--emit-to`), so a fixture run in a test\
+  \ journals nothing — which is what keeps the SPEC-0041 host-isolation contract intact\
+  \ without a test-only suppression knob.\n- **`ceiling_decision`** — `bin/lib/audit.py`\
+  \ `audit decide` (the EMITTER lands with / C2; the payload is DEFINED here and by\
+  \ the code declarations `CEILING_DECISION_PAYLOAD_KEYS` / `validate_ceiling_payload`\
+  \ in `bin/lib/audit.py`, both landed by / C1). Mechanism home: **SPEC-0204** rule\
+  \ 2 — ONE append-only journal event per residual at the audit-loop ceiling, Controller-only,\
+  \ recording a typed disposition instead of a consult episode. The eleven rule-2\
+  \ payload keys, none omitted: `task_id` · `stage` (pre|post) · `subject_revision`\
+  \ (the audited subject — the recorded commit SHA at audit-post, the plan fingerprint\
+  \ at audit-pre) · `ceiling_ref` (the ceiling row's durable identity `<task>/<stage>/pass-<N>`,\
+  \ whose `<N>` is that row's own SPEC-0124 `passes` COUNTER and never a count of\
+  \ rows) · `finding_fingerprint` (the engine key of the residual this decision binds\
+  \ to — SPEC-0204 rule 1, `fp1:`) · `disposition` (the PER-FINDING set `fix` | `accept`\
+  \ | `defer`; a card-TERMINAL disposition is never a `ceiling_decision`) · `reason`\
+  \ (non-empty) · `directive` (the owner-directive locator `events.jsonl#ts=<ISO>`,\
+  \ RESOLVED at write) · `receiving_task` (REQUIRED for `defer`) · `evidence_revision`\
+  \ (REQUIRED for `fix`) · `decided_by` (the session ref). **Why it is rostered before\
+  \ its emitter exists (SPEC-0046 §A):** the card that BIRTHS a shared primitive owns\
+  \ its definition + validator + test, and three later cards (C2 / C3 / C4) write\
+  \ against this payload — naming it in one place first is what stops three emitters\
+  \ agreeing with each other and disagreeing with the catalog. The AC1'/no-emitter-residual\
+  \ axis of `tests/test_event_catalog_completeness.py` is unaffected: this entry IS\
+  \ the catalog resolution the axis looks for.\n- **`spike_stack_up`** / **`spike_cage_checked`**\
+  \ / **`spike_data_proved`** — the SANDBOX LIFECYCLE vocabulary. CONSUMER-EMITTED:\
+  \ the kernel emits none of them; a consumer's sandbox instruments append them through\
+  \ `bin/yitc-v2 event`, `task_id`-tied like every task-subject evidence row. `spike_stack_up`\
+  \ = a caged stack came up; `spike_cage_checked` = the declared cage was verified\
+  \ against RUNNING containers (SPEC-0172); `spike_data_proved` = the SPEC-0175 three-strand\
+  \ data proof ran. Each REQUIRES four payload keys, none omitted: `ok` (a real boolean\
+  \ — the instrument's own verdict) · `producer` (the instrument path, e.g. `bin/spike-cage-check.sh`)\
+  \ · `compose_project` (the sandbox compose project — the same name `spike_channel_grant`\
+  \ carries) · `evidence_ref` (a locator that RESOLVES in the emitting repo: a repo-relative\
+  \ file path that exists inside it, `journal#ts=<ISO>` naming a row of its journal,\
+  \ or `cross:X-NNNN`). **The `evidence_ref` is the load-bearing key, not the name**\
+  \ — the promotion consult (decisions/sandbox-practice-kernel-promotion-audit-adhoc.yaml,\
+  \ finding 2) is explicit that names without evidence linkage only rename the stdout-only\
+  \ gap. So the audit-packet fold `_ac_probe_evidence_events_for` admits such a row\
+  \ as adoption evidence ONLY when its payload validates, `ok` is `true` AND `evidence_ref`\
+  \ resolves; every other row of the three types is EXCLUDED and the packet names\
+  \ it with its reason (the X-0686 loud-exclusion shape), and the card-opt-in route\
+  \ cannot re-admit it. Membership makes a row auditor-VISIBLE only: the infra-class\
+  \ P8 gate stays `P8_EVIDENCE_TYPES`, so a consumer pays Principle 8 with a `consumer_read_evidence`\
+  \ / `live_trigger_evidence` row whose `evidence_events` cite these rows. Code declarations:\
+  \ `SANDBOX_LIFECYCLE_EVENT_TYPES` / `SANDBOX_LIFECYCLE_PAYLOAD_KEYS` / `validate_sandbox_lifecycle_payload`\
+  \ in `bin/lib/cli.py`, beside the evidence classes the fold reads. Three types and\
+  \ four keys BY DESIGN — a wider vocabulary is the accretion the consult warned against,\
+  \ and there is no spike-specific journal or evidence store (patterns/spike-mode.md\
+  \ §6).\n\n**Second reconcile run — 13 types added 2026-08-19 :** 11 with a live\
+  \ `bin/` emitter and no\nactive-spec home, plus 2 that resolved by name only as\
+  \ a passing mention. The 8 grants-family types are\n`bin/lib/grants.py` surfaces\
+  \ whose MECHANISM home is **SPEC-0169** (which catalogs none of its own\nevents)\
+  \ — pointed at explicitly here, so SPEC-0169 need not grow an event section.\n-\
+  \ **`right_exercised`** — `bin/lib/grants.py` (`TRAIL_EVENT`) — the per-exercise\
+  \ grant trail row: a named right was exercised by the acting identity. Mechanism\
+  \ home: **SPEC-0169**.\n- **`grant_trail_anchored`** — `bin/lib/grants.py` (`TRAIL_ANCHOR_EVENT`)\
+  \ — the grant trail's anchor row. Mechanism home: **SPEC-0169**.\n- **`acting_identity_derived`**\
+  \ / **`acting_identity_refused`** — `bin/lib/grants.py` + `bin/yitc-v2` — the acting\
+  \ identity resolved for this invocation, or resolution FAILED CLOSED. Mechanism\
+  \ home: **SPEC-0169**.\n- **`authorization_decided`** / **`authorization_refused`**\
+  \ — `bin/lib/grants.py` (`bin/yitc-v2`) — an authorization decision was reached\
+  \ / refused for a named right. Mechanism home: **SPEC-0169**.\n- **`grant_state_reported`**\
+  \ / **`grant_reach_reported`** — `bin/lib/grants.py` — the READ-ONLY `grants` reporter\
+  \ emitted a grant-state / grant-reach report (the verb never writes the carrier\
+  \ — SPEC-0169 rule 5). Mechanism home: **SPEC-0169**.\n- **`worktree_synced`** —\
+  \ `bin/lib/worktree.py` — `worktree sync` brought a live worktree up to date with\
+  \ `main`.\n- **`probe_settled`** — `bin/lib/task.py` — a declared probe reached\
+  \ a settled disposition at the closure seam.\n- **`audit_prompt_sent`** — `bin/lib/audit.py`\
+  \ — the external-auditor prompt was dispatched (the pre-verdict half of the audit\
+  \ pair; SPEC-0004 names it only as NOT in the adapter's output set, which is a mention,\
+  \ not an entry).\n- **`state_checked`** — hand-emitted, **READ-CONSUMED by `bin/yitc-v2`**\
+  \ (`_VERIFIER_PROBE_EVIDENCE_TYPES`) — a VERIFIER card's deterministic re-run measurement,\
+  \ surfaced as AC-probe evidence (X-0134). Rostered although it has no emitter: code\
+  \ BRANCHES on it, which is the stronger form of the governed-surface test.\n- **`test_growth_baseline`**\
+  \ — hand-emitted, **READ-CONSUMED by `bin/yitc-v2`** — the last-wins test-growth\
+  \ baseline; the reader requires `data.files` + `data.functions`, so unlike an ad-hoc\
+  \ one-shot this type carries a real key contract.\n\n#### Explicitly DEFERRED —\
+  \ the ad-hoc one-shot `event` append class (re-measured)\n**Deferred, not missing.**\
+  \ These types have **no emitter in `bin/`**: each is a one-shot hand\n`bin/yitc-v2\
+  \ event <type>` append recording a task-local probe / observation (n=1-2 each, a\
+  \ few more).\nThey are **not a governed verb surface**, and the **append-only +\
+  \ ignore-unknown-gracefully rule** at\nthe head of this section already governs\
+  \ them — a reader parses each as an opaque `{ts, type, data}`\ntriple. Giving each\
+  \ a catalog entry would freeze one task's ad-hoc vocabulary into a durable contract\n\
+  for no consumer, against CHARTER §P1 F3. **They earn an entry only if one acquires\
+  \ an emitter OR a\ncode READER starts branching on it** (the second trigger added,\
+  \ which found `state_checked`\nand `test_growth_baseline` emitter-less but read-consumed,\
+  \ and rostered them above) — that is the\nmechanical return-trigger:\n\n**The membership\
+  \ (2026-07-17, 38 types)** — still deferred, kept verbatim (these names are\nthemselves\
+  \ the disposition, so a later sweep resolves them here rather than re-flagging them):\n\
+  \n`<project>_baseline_recorded`, `<project>_snapshot_recorded`, `audit_finding_disposed`,\n\
+  `audit_residual_closed`, `bench_retention_sweep`, `bg_probe_task_done`, `block_classified`,\n\
+  `boundary_walk_completed`, `carrier_decided`, `cross_probe_evidence`, `decision_finalized`,\n\
+  `decision_withdrawn`, `delivery_control_observation`, `dispatch_outcome`, `dispatch_selection`,\n\
+  `draft_rejected`, `host_maintenance_done`, `igor_entry_path_verified`, `measurement_recorded`,\n\
+  `owner_approval_recorded`, `plan_trial_run`, `plan_trial_run_recorded`, `probe_recorded`,\n\
+  `probe_verified`, `refusal_basis_corrected`, `repro_recorded`, `session_handoff`,\n\
+  `simplification_checked`, `supersession_recorded`, `t0053_probe`, `t0562_ac3_drift_probe`,\n\
+  `test_evidence_recorded`, `triage_trial_run`, `trial_observation`, `trial_run_completed`,\n\
+  `trial_run_observed`, `trial_summary_dual_convergence_verified`, `verify_scaling_measured`.\n\
+  \n**ADDED by the 2026-08-19 re-measurement (34 further types)** — same class, same\
+  \ rule,\nsame return-trigger; this list EXTENDS the one above, it does not replace\
+  \ it:\n\n`ac_probe_pass`, `ac_probe_recorded`, `acceptance_probe_evidence`, `acceptance_walk_recorded`,\n\
+  `adoption_followup_filed`, `adoption_probe_recorded`, `analysis_finding`,\n`blocked_on_land_reason_correction`,\
+  \ `bridge_equivalence_probe`, `decision_filed`, `draft_promoted`,\n`journal_append_loss_investigated`,\
+  \ `land_budget_measured`, `ledger_broad_map_rollcall`,\n`live_trigger_observed`,\
+  \ `live_trigger_partial`, `measurement_correction`,\n`measurement_window_opened`,\
+  \ `owner_decision_recorded`, `pinned_expectation_recalibrated`,\n`plan_cut_shared_surfaces_computed`,\
+  \ `post_ship_observation_reading`, `probe_disposition_recorded`,\n`proposal_prepared`,\
+  \ `provenance_probe`, `regr2`, `regression_check`, `report_artifact_filed`,\n`session_handoff_recorded`,\
+  \ `t0048_smoke`, `test_emission`, `test_run_recorded`, `test_with_data`,\n`triage_drain_accounting`.\n\
+  \n**ADDED 2026-08-20 (1 further type)** — same class, same rule, same return-trigger;\
+  \ this\nlist EXTENDS the two above and does not replace either:\n\n`cross_outcome_note`.\n\
+  \nIts disposition, recorded because the type was born of a MISS rather than of a\
+  \ design: a\nclosure emitted it by hand to carry an AC6 outcome report + correction\
+  \ acknowledgement back to a\nconsumer (<project> X-1001 / X-1003) — n=1, no emitter\
+  \ in `bin/`, no reader branching on it. The\ncovering surface already existed (`cross\
+  \ done --note`, plus the `resolves_cross` auto-emit at land),\nso this is exactly\
+  \ the ad-hoc one-shot class this section governs and NOT a new governed vocabulary.\n\
+  It is dispositioned here rather than erased because `events.jsonl` is append-only:\
+  \ the honest fix for\na hand-append that should not have been invented is to NAME\
+  \ it, never to rewrite the journal. The\ncapture is at `deviation_captured` fingerprint\n\
+  `hand-rolled-append-where-a-governed-verb-covered-it`. Same return-trigger as every\
+  \ name above — it\nearns a roster entry only if it acquires an emitter or a code\
+  \ reader starts branching on it.\n\n**ADDED 2026-08-21 (1 further type)** — same\
+  \ class, same rule, same return-trigger; this\nlist EXTENDS the three above and\
+  \ does not replace any of them:\n\n`acceptance_probe_recorded`.\n\nIts disposition,\
+  \ recorded because — exactly like `cross_outcome_note` — the type was born of a\
+  \ MISS\nrather than of a design: a Stage-8 closure emitted it by hand as belt-and-braces\
+  \ AC4\nevidence — n=1, no emitter in `bin/`, no reader branching on it. The covering\
+  \ vocabulary already\nexisted and is rostered (`state_checked`); the probe in question\
+  \ WAS a state check, and the closure\nevidence was sufficient without the append,\
+  \ so the emit bought nothing and cost a land. It is\ndispositioned here rather than\
+  \ erased because `events.jsonl` is append-only: the honest fix for a\nhand-append\
+  \ that should not have been invented is to NAME it, never to rewrite the journal.\
+  \ Naming\nis a record of what happened, NOT an endorsement of the type — this is\
+  \ a DEFERRAL, not a roster\nentry. Same return-trigger as every name above — it\
+  \ earns a roster entry only if it acquires an\nemitter or a code reader starts branching\
+  \ on it.\n\n**ADDED 2026-08-23 (emitted, surfaced by the land block; 1 further type)**\
+  \ — same\nclass, same rule, same return-trigger; this list EXTENDS the four above\
+  \ and does not replace any:\n\n`probe_evidence_note`.\n\nIts disposition, recorded\
+  \ because — exactly like `cross_outcome_note` and `acceptance_probe_recorded`\n\
+  — the type was born of a MISS rather than of a design: a closure emitted it by hand\
+  \ as AC4\nevidence — n=1, no emitter in `bin/`, no reader branching on it. It is\
+  \ dispositioned here rather than\nerased because `events.jsonl` is append-only:\
+  \ the honest fix for a hand-append that should not have\nbeen invented is to NAME\
+  \ it, never to rewrite the journal. Naming is a record of what happened, NOT an\n\
+  endorsement of the type — this is a DEFERRAL, not a roster entry.\n\n**Recorded\
+  \ separately because this one cost more than either predecessor: it WEDGED EVERY\
+  \ LAND IN THE\nREPO.** The row sat UNCOMMITTED in the shared main checkout, and\
+  \ because `land` folds main's journal\ninto the branch, every branch inherited it\
+  \ as diff-introduced and was failed for work it never did —\nthree measured instances\
+  \ before it was cleared: self-halted;\n`work/verify-worker-ceiling-and-test-priority`\
+  \ aborted carrying only a task YAML; and\nself-halted with its build COMPLETE, both\
+  \ audits GREEN and 4/4 probes closed. None of the three had\ntouched the row. The\
+  \ lesson is narrower than \"do not hand-append\" and worth stating exactly: a\n\
+  hand-append of an UNCATALOGUED type, left UNCOMMITTED on the SHARED checkout, is\
+  \ not a local act — it\nis a repo-wide land block, and the branch that pays is never\
+  \ the one that wrote it. Capture:\n`deviation_captured` fingerprint\n`uncatalogued-event-type-in-uncommitted-main-journal-wedges-all-lands`.\
+  \ Same return-trigger as every\nname above — it earns a roster entry only if it\
+  \ acquires an emitter or a code reader starts branching\non it.\n\n**ADDED 2026-08-26\
+  \ (emitted by during its own escalation; 1 further type)** - same class,\nsame rule,\
+  \ same return-trigger; this list EXTENDS the ones above and does not replace any:\n\
+  \n`blocked_on_land_supplement`.\n\nIts disposition, and the circumstance is worth\
+  \ recording because it is unusually direct: the type was\nhand-emitted by the worker\
+  \ to SUPPLEMENT its own blocked-on-land escalation - n=1, no emitter\nin `bin/`,\
+  \ no reader branching on it. The covering vocabulary already existed: the halt itself\
+  \ is\ncarried by `bg_dispatch_halted`, whose reason field is where a supplement\
+  \ belongs. THE WORKER\nRECOGNISED THIS ITSELF at the gate and captured a deviation\
+  \ saying it had reproduced the exact\nincident class - while the card it was executing\
+  \ is the inventory of gates that fire after the\nexpensive verify. It is dispositioned\
+  \ here rather than erased because `events.jsonl` is append-only:\nthe honest fix\
+  \ for a hand-append that should not have been invented is to NAME it, never to rewrite\n\
+  the journal. Naming is a record of what happened, NOT an endorsement of the type\
+  \ - this is a\nDEFERRAL, not a roster entry. Same return-trigger as every name above\
+  \ - it earns a roster entry only\nif it acquires an emitter or a code reader starts\
+  \ branching on it.\n\n**ADDED 2026-08-26 (emitted, surfaced by its own land block;\
+  \ 1 further type)** — same\nclass, same rule, same return-trigger; this list EXTENDS\
+  \ the six above and does not replace any of\nthem:\n\n`pinned_assertion_verification`.\n\
+  \nIts disposition, recorded because — exactly like `cross_outcome_note`, `acceptance_probe_recorded`\n\
+  and `probe_evidence_note` — the type was born of a MISS rather than of a design:\
+  \ the worker\nemitted it by hand at to record its per-assertion verification of\
+  \ the two\nfailing pinned last-green assertions — n=1, no emitter in `bin/`, no\
+  \ reader branching on it. The\nverification it carries was ALSO delivered in the\
+  \ worker's own halt report, which is where the\ncontroller actually read it, so\
+  \ the append bought no reader it did not already have and cost its own\nbranch a\
+  \ land. It is dispositioned here rather than erased because `events.jsonl` is append-only:\
+  \ the\nhonest fix for a hand-append that should not have been invented is to NAME\
+  \ it, never to rewrite the\njournal. Naming is a record of what happened, NOT an\
+  \ endorsement of the type — this is a DEFERRAL,\nnot a roster entry. Same return-trigger\
+  \ as every name above — it earns a roster entry only if it\nacquires an emitter\
+  \ or a code reader starts branching on it.\n\n**ADDED 2026-08-26 (emitted, surfaced\
+  \ by its own land block; 1 further type)** - same\nclass, same rule, same return-trigger;\
+  \ this list EXTENDS the five above and does not replace any:\n\n`corpus_read_measured`.\n\
+  \nIts disposition, recorded because - exactly like `cross_outcome_note`, `acceptance_probe_recorded`\n\
+  and `probe_evidence_note` - the type was born of a MISS rather than of a design:\
+  \ while absorbing a\nStage-8 P8 finding the worker emitted the instrument machine\
+  \ record under a NEW name - n=1,\nno emitter in `bin/`, no reader branching on it.\
+  \ The covering vocabulary already existed and is\nnamed in THIS list: `measurement_recorded`,\
+  \ carried since the membership for exactly this\nad-hoc one-shot measurement class.\
+  \ The go-forward half was fixed IN SCOPE (the instrument now emits\n`measurement_recorded`,\
+  \ and the P8 adoption evidence was re-issued against it), but the row was\nalready\
+  \ committed and `events.jsonl` is append-only, so the honest fix is to NAME it.\
+  \ Naming is a\nrecord of what happened, NOT an endorsement of the type - this is\
+  \ a DEFERRAL, not a roster entry.\n\n**Owner-authorized addition, 2026-08-26 - and\
+  \ the reason it is recorded separately.** Unlike every\npredecessor above, this\
+  \ entry was NOT written by the session that emitted the row. The\nworker STOPPED\
+  \ rather than append here, judging that a unilateral edit of a frozen dated membership\n\
+  was a CHARTER Principle 7 dissonance it had no standing to resolve, and noting that\
+  \ its own card\nexpected_touch did not include `specs/`. That judgement was correct\
+  \ and is recorded because it is\nthe behaviour this section wants from a worker.\
+  \ The owner adjudicated on 2026-08-26 and authorized\nthe addition; the controller\
+  \ made the edit. Same return-trigger as every name above - it earns a\nroster entry\
+  \ only if it acquires an emitter or a code reader starts branching on it.\n\n####\
+  \ Payload-key level — the EMITTER is the per-type `data` SoT\nThe **cataloged contract\
+  \ is the ENVELOPE** (`ts` / `type` / `task_id` / `data`, SPEC-0025 §universal\n\
+  schema). A type's **`data` payload is OPEN by the append-only rule** — a consumer\
+  \ parses `data` as an\nopaque map and MUST tolerate unknown keys — so a payload\
+  \ key added by its emitter is **not** a catalog\nbreach, and the **emitter is that\
+  \ type's payload source-of-truth**. Where this spec shows a JSONC block,\nthat block\
+  \ is **illustrative of the shape, never an exhaustive closed key list**.\n\n**Explicitly\
+  \ deferred :** the 23 live types below carry payload keys absent from the spec\n\
+  corpus. Each is deferred under the rule above — the emitter governs. Read the emitter\
+  \ for the current\nkey set; a key becomes spec-carried only when it turns **governing**\
+  \ (a consumer branches on it):\n`ai_reasoning_note`, `apply_confirmed`, `audit_post_completed`,\
+  \ `audit_pre_completed`,\n`bg_dispatch_halted`, `cli_invoked`, `consumer_read_evidence`,\
+  \ `deviation_captured`,\n`dissonance_detected`, `external_audit_completed`, `inspection_completed`,\
+  \ `live_trigger_evidence`,\n`owner_directive`, `plan_draft_finalized`, `session_started`,\
+  \ `spec_edited`, `spec_reverified`,\n`startup_protocol_completed`, `task_closed`,\
+  \ `task_picked`, `task_resumed`, `tests_passed`,\n`worktree_adopted`.\n\n**PAYLOAD-KEY\
+  \ half re-run — 2026-09-05, amended 2026-09-07, the CURRENT\nreading.** Method (reproducible):\n\
+  build a type-to-`data`-keys map over the journal — every physical SEGMENT of the\
+  \ one logical history,\nnot the live file alone (SPEC-0190 rules 1+4: the window\
+  \ is historical, which is exactly the range\nrotation archives first) — then compare\
+  \ each cataloged type's key set against the whole `specs/`\ncorpus. This run read\
+  \ **96 segments** (95 `archive/events-*.jsonl` + the live `events.jsonl`), via\n\
+  `events.segment_paths` / `journal.segment_lines`. Result, measured over a FROZEN\
+  \ WINDOW so the triple\nis REPRODUCIBLE rather than time-decaying — events with\
+  \ `ts` <= ``, against a\n`specs/` corpus of digest `85b1a63fbf89` (sha256-12 of\
+  \ the corpus MINUS this measurement record):\n**218 live types; 148 cataloged types\
+  \ carry 3135 corpus-absent data keys.** Under the\nemitter-is-payload-SoT rule that\
+  \ is **not a breach** — which is why no threshold sits on that count.\nThe cutoff\
+  \ is deliberately set a day BEHIND the run rather than at it: a peer worktree that\
+  \ has not\nlanded yet still holds rows stamped with today, and a window reaching\
+  \ to now would swallow them\nretroactively the moment that peer lands, turning a\
+  \ stable equality into a moving one. This run is\ndated 2026-09-05, so that rule\
+  \ RE-DERIVES the cutoff to `` — one day later than\nthe two runs it, which both\
+  \ sat at ``. The cutoff is re-derived from\nthe rule, never inherited from the record\
+  \ it replaces.\n\n**What moved and what did not, stated plainly, because a refresh\
+  \ that only ever reports movement is\nunfalsifiable in the direction of no-change.**\
+  \ This time BOTH halves moved, which is the opposite of\nwhat the pass before it\
+  \ found, and each has a named cause rather than a shrug. The TRIPLE moved on\nits\
+  \ corpus-dependent pair — 147 / 3115 became **148 / 3135** — because the window\
+  \ itself advanced: the\na-day-behind rule put the cutoff a day later, and the segment\
+  \ set grew by one rotation (95 -> 96), so\nthis reading covers strictly more history\
+  \ than the one it. The live-type count **218 did\nNOT move**, which is the right\
+  \ shape: that count reads no corpus at all, and a day of new rows\nintroducing no\
+  \ new event type is an ordinary day. The DIGEST moved again, `7f59040ffe0b` ->\n\
+  `85b1a63fbf89`, for the same reason it moved last time — sibling cards landed `specs/`\
+  \ text in\nbetween. Re-recording it is not bookkeeping: a stale digest is precisely\
+  \ what drops `counts_sound`\nout of its equality assertion and back into the +/-10%\
+  \ band on the two corpus-dependent counts, the\ndegraded mode three prior passes\
+  \ have now called \"a fallback, not a resting place\". A record can go\nstale in\
+  \ a way that changes no number in it, which is the case a name-the-pairs-only edit\
+  \ misses —\nand it can also go stale in a way that changes two, which is this one.\n\
+  \n**The segment span, stated as a DIFFERENTIAL so it is falsifiable from the record\
+  \ alone.** The same\nfrozen window read through the LIVE FILE ONLY yields **108\
+  \ live types; 65 cataloged types carry 513\ncorpus-absent data keys** — so a live-only\
+  \ fold under-reports this window by 110 types and 2622 keys.\nThe two readings DIFFER,\
+  \ which is what makes \"every segment\" a checkable claim rather than an\nassurance;\
+  \ on a freshly-rotated journal they would legitimately coincide, and a run that\
+  \ finds them\nequal must say so out loud rather than stay silent, because silence\
+  \ there is what makes the check\nunfalsifiable.\n\nThe ACTIONABLE cut is the promotion\
+  \ trigger above (\"a consumer branches on it\"), MEASURED not judged:\nintersect\
+  \ the corpus-absent keys with the literals `bin/` reads back (`.get(\"k\")` / `[\"\
+  k\"]`) →\n**69 candidate pairs across 36 types** (the 2026-09-05 reading; **amended\
+  \ to 71 across 37** by the\n2026-09-07 pass recorded at the end of this record),\
+  \ and the recorded set below names ALL of them,\nleaving nothing unnamed. That 66\
+  \ -> 69 is not a judgement call and nothing was added by resemblance: the THREE\
+  \ pairs\nthe two prior passes named FORWARD have since landed, so the recomputation\
+  \ now finds them on `main`'s\nown journal — `nightly_run_completed.quiet_lane` and\n\
+  `live_trigger_evidence.window_start|window_end`. 66 + 3 = 69, over the same 36 types.\
+  \ The\ncount is 69 and not 70 for exactly the reason it was 66 and not 68 before:\
+  \ the one pair named FORWARD\nby THIS run, `external_audit_completed.no_data_class`,\
+  \ sits on a row that has not reached `main`, so\ncounting it would state a figure\
+  \ the recomputation cannot reproduce. Naming a pair the recomputation\ndoes not\
+  \ yet find is free; inflating the count is not. Every one carries CANDIDATE standing\
+  \ — read\nthe emitter for the authoritative key set:\n`acceptance_probe_evidence.evidence_events|failing_input`\
+  \ ·\n`acting_identity_derived.identity_source` · `adoption_evidence.evidence_events|failing_input`\
+  \ ·\n`analysis_finalized.analysis_fingerprint|derivation_accuracy` ·\n`audit_on_demand_consult.survivor_text`\
+  \ ·\n`audit_post_completed.final_verdict` · `audit_pre_completed.final_verdict`\
+  \ ·\n`audit_yamls_archived.nontask_swept|tasks_swept` ·\n`authorization_decided.identity_source|rights_held`\
+  \ ·\n`bg_dispatch_halted.confirmed_death_basis|log_tail|redispatchable` ·\n`bg_dispatch_launched.source_tier|land_regime|session_id_argv`\
+  \ · `canary_backstop_ran.verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|peak_rss_kb`\
+  \ ·\n`consumer_read_evidence.evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n`\
+  \ ·\n`deviation_captured.evidence_events` · `dispatch_outcome.land_sha` ·\n`draft_closed.reverse_linked`\
+  \ · `error_reopened.reopen_count` ·\n`error_residual_recurrence.reopen_count` ·\
+  \ `external_audit_completed.no_data_class` ·\n  `grant_reach_reported.intent_tension_actors`\
+  \ ·\n`grant_state_reported.people_with_grants|well_formed` · `inspection_completed.case_review`\
+  \ ·\n`land_audited_footprint.as_audited|closure_side_effect|merge_imports|uncovered_provenance`\
+  \ ·\n`land_completed.entry_authorization|inland_reaudit|inland_reaudit_refusal|queued_premerge|slot_yields_to|unprovenanced_commits|unprovenanced_commits_unreadable|waive_coverage_preflight`\
+  \ ·\n`land_member_verdict.conflict_auto_resolvable|conflict_blocking|superseded_assertions|superseded_test_file`\
+  \ ·\n`live_trigger_evidence.branch_count|evidence_events|failing_input|land_sha|window_end|window_start`\
+  \ ·\n`live_trigger_observed.evidence_events|failing_input` · `measurement_recorded.test_files`\
+  \ ·\n`nightly_run_completed.conformance_surfaces|quiet_lane` · `plan_stage_entered.gate_disclosure`\
+  \ ·\n`right_exercised.prev|self_sha256` ·\n`spec_edited.new_sha` · `task_amended.analysis_fingerprint`\
+  \ ·\n`tests_failed.verify_metrics` · `tests_passed.selection_discovered|selection_ran|selection_reason`\
+  \ ·\n`tests_passed.verify_metrics` ·\n`triage_run_completed.window_captures|withheld_no_fingerprint`\
+  \ ·\n`venue_published.snapshot_id|ssh_user|clone_main_sha|host_main_sha` ·\n`venue_seed_recorded.snapshot_id|clone_main_sha|recorded_at|recorded_by`\
+  \ ·\n`waiting_for_land_reservation.pid_starttime|queued_premerge` ·\n`waiting_for_venue_admission.box|cap|leg|live|request|waited_s`\
+  \ ·\n`waiting_for_verify_admission_slot.pid_starttime` ·\n`land_withdrawn.branch|wait_type|waited_s`\
+  \ ·\n`work_batch_discarded.dirt_class` ·\n`worker_parked.discarded_commit_shas|forced_over|redispatchable|status_on_main`.\n\
+  \n**THREE MORE PAIRS NAMED FORWARD — which step-4a refusal raised an abort_preflight\
+  \ row (2026-09-16).** Named here BEFORE any row carrying them has reached `main`,\
+  \ on exactly the terms the\n / / blocks use — free to name, NOT added to the count,\
+  \ because naming a pair\nthe recomputation cannot yet find is free while inflating\
+  \ the count states a figure nobody can\nreproduce. `land_completed.entry_authorization`\
+  \ (bool) · `land_completed.waive_coverage_preflight`\n(bool) · `land_completed.inland_reaudit_refusal`\
+  \ (`could-not-run` | `ceiling-refused`, a CLOSED set\nthe two refusing `_die` sites\
+  \ can raise — not a new vocabulary, and deliberately not the whole\n`inland_reaudit`\
+  \ record, which also rides the ok row for a re-audit that refused nothing). All\
+  \ three\nare GOVERNING by the promotion trigger above — `debt._abort_arm_rebaseline`\
+  \ branches on each — which\nis exactly why they are named by the branch that introduces\
+  \ them rather than discovered later by a\nrecomputation on somebody else's tree.\
+  \ NONE of the three is a new word to this corpus: all three are\nthe markers the\
+  \ `_die` sites have composed onto `abort_detail` since / /,\ncarried the last inch\
+  \ onto the row.\n\n**TWO PAIRS NAMED FORWARD — the SPEC-0191 rung on the halt row\
+  \ (2026-09-13).** Named on the\nsame terms as the block below (free to name, not\
+  \ added to the count):\n`bg_dispatch_halted.block_classification` — `rung-1|rung-2|rung-3|unclassified`,\
+  \ written by\n`blocked-on-land` from its required `--rung N` / explicit `--unclassified`\
+  \ and rendered by\n`journal query --fleet-verdict` beside each blocked-on-land halt\
+  \ (`none-recorded` on a row without\nit) · `live_trigger_evidence.block_classification`\
+  \ — the same SPEC-0191 classification literal as it\nalready rides a P8 evidence\
+  \ row. CANDIDATE: the fleet-verdict basis renders it, no reader branches\non it.\
+  \ **WIDENED (2026-09-23):** the key is now stamped on EVERY blocked-on-land halt\
+  \ at the\nONE write chokepoint (`bin/lib/cli.py#_append_event`) — the land repeated-abort\
+  \ backstop, the\naudit-loop ceiling halt (a halt carrying `residual_fingerprints`)\
+  \ and a hand-emitted `event\nbg_dispatch_halted` included: a present value wins,\
+  \ a drifted `ladder_rung` / `rung` (1..3)\nnormalizes to `rung-N`, anything else\
+  \ is written as the explicit `unclassified` — never a blank.\n`block_classified`\
+  \ is RETIRED as a classification carrier: it never had a `bin/` emitter, `event`\n\
+  now REFUSES a new append of it, and its historical rows stay read-only (listed below\
+  \ as history).\n**ONE KEY NAMED FORWARD :** `external_audit_completed.abort_cause`\
+  \ — on an ABORT task-gate\nrow only, a CLOSED enum `timeout` (rc 124) | `unavailable`\
+  \ (auditor outage: env/config fault or\nquota wall) | `malformed` (any other ABORT:\
+  \ no parseable verdict). No `refused` value is written:\nnothing in-process tells\
+  \ an auditor refusal from a malformed response, so naming it would be\ninvented\
+  \ precision. Absent on every non-ABORT row. CANDIDATE: written, no reader branches\
+  \ on it.\n`external_audit_completed.findings` (below) is carried on a YELLOW task\
+  \ record as on a RED one.\n\n**SIX MORE PAIRS NAMED FORWARD — the consult no-answer\
+  \ + packet-bound keys (2026-09-07).**\nNamed here BEFORE any row carrying them has\
+  \ reached `main`, on the same terms as the block\nbelow (free to name, not added\
+  \ to the count). Three ride `external_audit_completed` from the\n<workshop-spec>\
+  \ row-0a no-answer classification — `external_audit_completed.no_answer` (bool:\
+  \ the round\nreturned NO PAYLOAD, so it is not a malformed response) · `external_audit_completed.no_answer_count`\n\
+  (int: consecutive no-answers, reset to 0 by any round that answers) ·\n`external_audit_completed.no_answer_route`\
+  \ (`auditor-unavailable` on the SECOND consecutive one, else\nabsent). Three ride\
+  \ `audit_prompt_sent` from the SOFT, RECORDED consult packet bound —\n`audit_prompt_sent.packet_bytes`\
+  \ (int: the MEASURED assembled size, recorded on EVERY branch so the\noutcome is\
+  \ checkable from the row alone) · `audit_prompt_sent.packet_scope` (a CLOSED two-value\
+  \ enum,\n`full` | `delta-since-baseline`; there is no truncating third value, because\
+  \ a truncating scope could\nchange a verdict and would make the key gate-class)\
+  \ · `audit_prompt_sent.packet_over_bound` (bool: the\npacket was sent WHOLE and\
+  \ UNTRUNCATED while still over the bound). Six keys, none omitted.\n\n**ONE MORE\
+  \ PAIR NAMED FORWARD — the paired re-audit packet key (2026-09-28).**\n`audit_prompt_sent.packet_sha256`\
+  \ (hex sha256 of the exact packet bytes sent; the key into the\nmachine-local packet\
+  \ store under the git common dir). CANDIDATE: read only by the report-only\n`dev-utilities/audit-paired-sample.py`,\
+  \ which re-sends the identical packet to a candidate auditor;\nno gate or verdict\
+  \ branches on it. Not added to the count, on the same terms as the blocks above.\n\
+  \n**THREE MORE PAIRS NAMED FORWARD — the land-withdrawal observable (2026-09-08).**\n\
+  SPEC-0184 rule 16 introduces a new event type, `land_withdrawn` (a land that observed\
+  \ a withdrawal\nrequest for its own attempt while still queued for a verify slot,\
+  \ and withdrew itself), whose three\ndata keys — `branch` / `wait_type` / `waited_s`\
+  \ — are named in the recorded set above BEFORE any row\ncarrying them has reached\
+  \ `main`. Of the three only `wait_type` is a NEW word to this corpus;\n`branch`\
+  \ and `waited_s` are long since corpus-present, so the recomputation will find at\
+  \ most the\none pair. They are NOT added to the count, for exactly the reason the\
+  \ six and the\npair were not: naming a pair the recomputation cannot yet find is\
+  \ free, and inflating the count\nstates a figure nobody can reproduce. `wait_type`\
+  \ names WHICH of the two `_LAND_QUEUE_WAIT_TYPES`\nwaits the land withdrew from\
+  \ — a closed vocabulary already carried by the two wait rows, not a new\none — which\
+  \ is what lets a reader of a `land_withdrawn` row tell a withdrawal from a queue\
+  \ it never\nentered apart from one taken at the seam.\n\n**SEVEN MORE PAIRS NAMED\
+  \ FORWARD — the withheld post-ff tail write (2026-09-11).**\nSPEC-0188 rule 7 introduces\
+  \ a new event type, `land_tail_write_withheld` (a land's post-ff\nbookkeeping write\
+  \ that could not prove the tests reading it green, restored instead of committed),\n\
+  whose data keys — `writer` / `paths` / `reason` / `test` / `failing` / `readers`\
+  \ / `wall_ms`, plus\n`restore_errors` when a restore itself failed — are named here\
+  \ BEFORE any row carrying them has\nreached `main`, on exactly the terms the / blocks\
+  \ use. They are NOT added to the\ncount, for the same reason: naming a pair the\
+  \ recomputation cannot yet find is free, inflating the\ncount states a figure nobody\
+  \ can reproduce. This naming is not incidental to the card that adds\nthem — THE\
+  \ UNNAMED-KEY CLASS IS ONE OF THE TWO INCIDENTS THAT CARD EXISTS FOR (2026-09-11\n\
+  13:04-15:14Z, `bg_dispatch_launched.land_regime`), so a card in that class that\
+  \ shipped its own key\nunnamed would have re-run the very failure it was fixing.\n\
+  \n**SIX MORE PAIRS NAMED FORWARD, and THREE keys that this measurement structurally\
+  \ cannot see\n(2026-09-07).** The machine-wide venue request cap introduces a new\
+  \ event type,\n`waiting_for_venue_admission` (cataloged above), whose six data keys\
+  \ — `box` / `cap` / `leg` /\n`live` / `request` / `waited_s` — are named in the\
+  \ recorded set above BEFORE any row carrying them\nhas reached `main`. They are\
+  \ NOT added to the 71 count, for exactly the reason the pair was\nnot added to 69:\
+  \ naming a pair the recomputation cannot yet find is free, and inflating the count\n\
+  states a figure nobody can reproduce.\n\n**NINE MORE KEYS NAMED FORWARD — the SPEC-0204\
+  \ ceiling extension on `external_audit_completed`\n(2026-09-08).** Named here BEFORE\
+  \ any row carrying most of them has reached `main`, on\nexactly the terms the /\
+  \ blocks above use: naming a key the recomputation cannot yet\nfind is free, and\
+  \ the COUNT above is NOT inflated for them. The nine, none omitted:\n`external_audit_completed.findings`\
+  \ (the per-finding list a RED task record now carries — each entry\n`finding_fingerprint`\
+  \ + `criterion_ref`|`class_id` + `locator` + `failing_input`, plus `severity` when\n\
+  the response carried one) · `external_audit_completed.passes` (the SPEC-0124 COUNTER\
+  \ the saved record\ncarries, NEVER a count of rows — reset/merge-triggered passes\
+  \ are ledger-skipped, so the two genuinely\ndiffer; `ceiling_ref`'s `pass-<N>` reads\
+  \ this) · `external_audit_completed.finding_fingerprint` (the\nper-finding engine\
+  \ key, `fp1:` + 16 hex over the SPEC-0204 rule-1 canonical tuple; `fp1d:` is READ-TIME\n\
+  only and is never written to a row) · `external_audit_completed.basis` (`on-decisions`\
+  \ on the ONE\nbounded post-ceiling pass) · `external_audit_completed.ceiling_ref`\
+  \ (the ceiling row that pass's\ndecisions bind to) · `external_audit_completed.decisions_applied`\
+  \ ·\n`external_audit_completed.overruled_by_decision` (a residual the auditor re-argued\
+  \ that a decision had\nalready settled — recorded, never a verdict driver) · `external_audit_completed.new_findings`\
+  \ ·\n`external_audit_completed.late_findings` (rule 8's pre-existing-in-subject\
+  \ findings, never a verdict\ndriver on their own). **TWO of the nine are LIVE as\
+  \ of ** — `findings` and `passes`, written at\nthe record seam by that card — and\
+  \ the other seven land with their emitters (C2 `audit decide`, C3\n`--on-decisions`,\
+  \ C4 the delta overlay). They are named together anyway, because they are ONE contract:\n\
+  the code declaration `EXTERNAL_AUDIT_COMPLETED_CEILING_KEYS` in `bin/lib/audit.py`\
+  \ lists the same nine\nand a drift test pins this text against that tuple, so the\
+  \ catalog and the code cannot silently\ndisagree while three separate cards write\
+  \ against them. Their meaning is spec-carried by SPEC-0204\nrules 1-3 and 8, which\
+  \ is where it belongs. This introduces NO new event type — the row is the\nexisting\
+  \ `external_audit_completed` — so the event-catalog gate is untouched by that card.\n\
+  \n**ONE MORE PAIR NAMED FORWARD, and it is a NESTED one (2026-09-08).** The venue\n\
+  ref-immutability guard (SPEC-0203 rule 4) puts **`venue_refs_moved`** — the per-leg\
+  \ moved-ref sets a\nclobbered pass reports, `{}` when none did — on `land_completed`,\
+  \ but NESTED inside\n`data.verify_metrics` rather than at the top level of `data`,\
+  \ exactly like the three keys\nnamed just below. It is therefore named here on the\
+  \ same terms and for the same reason: this\nmeasurement folds TOP-LEVEL `data` keys\
+  \ only, so the key is structurally invisible to it whether or\nnot code reads it\
+  \ back — and code does (`remote_verify.venue_verify_metrics`). The COUNT above is\n\
+  NOT inflated for it. It introduces NO new event type: the row is the existing `land_completed`,\n\
+  which is why the event-catalog gate is untouched by this card. Its meaning is spec-carried\
+  \ by\nSPEC-0203 rule 4, which is where it belongs.\n**AND ITS SIBLING, named on\
+  \ the same terms :** the same `verify_metrics` fragment carries\n**`venue_refs_clobber_retry`**\
+  \ — the boolean marking a pass that took the rule-4 bounded re-attempt,\nso a reader\
+  \ of the row can tell a pass that refused from one that recovered. Same nesting,\
+  \ same\ncarrier, same absence from the COUNT above, same spec home for its meaning.\
+  \ NOTHING ELSE this card\nadds reaches a journal row: `refs_restore_proven` and\
+  \ `refs_clobber_reason` live on the executor's\nin-process result dict and `venue_refs_restored`\
+  \ is a per-leg ENVELOPE key — transport, read by the\nretry predicate, never emitted.\
+  \ They are deliberately NOT named here, because naming a non-payload\ninternal in\
+  \ a payload contract states a key this measurement can never fold.\n\n**THREE MORE\
+  \ KEYS NAMED FORWARD on the same event (2026-09-08).** The by-class venue\nadmission\
+  \ adds `class` (`land` | `stage6` — which question this request was admitted on),\n\
+  `live_stage6` (int: how many Stage-6 requests were live when it was counted) and\
+  \ `load1` (float:\nthe box loadavg the headroom test read) to `waiting_for_venue_admission`,\
+  \ beside the six above.\nNamed here BEFORE any row carrying them has reached `main`,\
+  \ on the terms — free to name,\nand NOT added to the count, because the recomputation\
+  \ cannot yet find them. `live` is UNCHANGED and\nstill means every live foreign\
+  \ request of any class; the three are added because without them a\nStage-6 wait\
+  \ is unattributable between its two possible causes (concurrency or headroom), which\
+  \ is\nexactly what the 515 s baseline this change is measured against could not\
+  \ be read for.\n\n**The FIVE keys that are named NOWHERE in the count, and would\
+  \ not be even after their rows land\n— stated so their absence reads as a property\
+  \ of the measurement rather than as an omission.**\nThe same card puts `venue_requests_waited_s`,\
+  \ `venue_max_requests` and `venue_admission_atomic` on\n`land_completed`, but NESTED\
+  \ inside `data.verify_metrics` rather than at the top level of `data`.\n adds `venue_admission_class`,\
+  \ `venue_live_stage6` and `venue_headroom_degraded` to that\nSAME nested carrier,\
+  \ on identical terms and with identical visibility — three became six, and the\n\
+  reason they are invisible to the fold did not change with them. `venue_headroom_degraded`\
+  \ carries\nTHREE states rather than a flag: the reason token (`loadavg-unreadable`\
+  \ / `loadavg-malformed`)\nwhen the box's load could not be read and the pass was\
+  \ therefore admitted in the SPEC-0203 rule-4\ndegraded mode, `false` when the load\
+  \ WAS read, and absent/None when the leg's record predates the\nfield — the same\
+  \ «we did not» vs «we do not know» distinction the three figures beside it keep.\n\
+  This measurement folds TOP-LEVEL `data` keys only, so a nested key is invisible\
+  \ to it whether or\nnot any code reads it back — and code does read all three back.\
+  \ They are recorded here because the\nhonest form of \"the recomputation will not\
+  \ move\" is to say WHY, not to stay silent and let a later\nreader mistake a structural\
+  \ blind spot for a clean result. The blind spot is not new and is not\nwidened by\
+  \ this card; it is simply now written down at the one place a reader of this record\
+  \ would\nlook for it. Their meaning is spec-carried by SPEC-0203 rule 4, which is\
+  \ where they belong.\n\n**A FOURTH key joins them, on identical terms.**\n`land_completed.data.verify_metrics.pinned_excluded_not_pinned`\
+  \ — the test files the SPEC-0077\npinned last-green leg excluded because they did\
+  \ not exist at the last-green ref. Nested inside\n`verify_metrics`, so this measurement\
+  \ cannot see it and the recomputation does NOT move; recorded\nhere for the same\
+  \ reason the three above are, so a later reader meets the blind spot as a stated\n\
+  property rather than as an omission. Its meaning is spec-carried by SPEC-0077 §3,\
+  \ which is where it\nbelongs — the spec that owns the pinned leg owns the key describing\
+  \ what that leg did not run.\nWritten by BOTH drivers under the ONE name (the routed\
+  \ leg via\n`remote_verify.envelope_excluded_not_pinned`, the local one via `_run_pinned_verify`'s\n\
+  `excluded_out`), and PRESENT-ONLY: a land whose pinned leg excluded nothing writes\
+  \ no key, so an\nabsent key reads as \"nothing was narrowed\" rather than as a reading\
+  \ that failed.\n\n**A SIXTH NESTED KEY ON THE SAME CARRIER, on identical terms.**\n\
+  `land_completed.data.verify_metrics.venue_overlap_land_s` — how many seconds a foreign\
+  \ `land`-class\nrequest held the venue box while THIS pass's legs ran, per leg in\
+  \ the envelope and folded MAX onto\nthe row. Nested inside `verify_metrics`, so\
+  \ this measurement (which folds TOP-LEVEL `data` keys\nonly) cannot see it and the\
+  \ recomputation does NOT move; recorded here for the same reason the five\nabove\
+  \ are, so a later reader meets the blind spot as a stated property rather than as\
+  \ an omission.\nIt introduces NO new event type — the row is the existing `land_completed`.\
+  \ It is `None` rather\nthan `0` when a leg could not tell (the «we did not» vs «we\
+  \ do not know» distinction every venue\nfigure beside it keeps), and its meaning\
+  \ is spec-carried by SPEC-0203 rule 4 + SPEC-0071 rule 1 —\nthe specs that own the\
+  \ venue leg and the bound it uncharges, which is where it belongs.\n**A FIFTH NESTED\
+  \ KEY ON THE SAME CARRIER, on identical terms.**\n`land_completed.data.verify_metrics.venue_routing`\
+  \ — a CLOSED single-value marker whose only\nspelling is `skipped-sandbox-repo`,\
+  \ written ONLY when a land took SPEC-0203 rule 7's sandbox\ncarve-out (the pass\
+  \ ran in a repository the host registry names no project at, so it verified\nlocally\
+  \ though a venue was published). It is named HERE because rule 7 forbids a *silent*\
+  \ local\nfallback and this key is what makes the fallback non-silent: without it\
+  \ an exempt land and an\nordinary local one are indistinguishable in the journal.\
+  \ Its MEANING is spec-carried by SPEC-0203\nrule 7, which is where it belongs; this\
+  \ catalog carries only the name. It is NESTED inside\n`data.verify_metrics` like\
+  \ the three `venue_*` keys above and is therefore invisible to the\ntop-level-only\
+  \ recomputation for exactly the reason stated there — so the COUNT above does not\n\
+  move, and that is a property of the measurement rather than an omission. Recorded\
+  \ on ONE branch by\ndesign: a key written on every local land would restate what\
+  \ the `no-venue` reason already says.\n\n**A SEVENTH NESTED KEY ON THE SAME CARRIER,\
+  \ on identical terms.**\n`land_completed.data.verify_metrics.venue_preship` — the\
+  \ parked land's PRE-SHIP record (count of\ncompleted pre-ships, admitted attempts,\
+  \ their wall, the last outcome, cap and memory refusals, a\nheal the box reported\
+  \ if any, and — on a land whose verify was ROUTED — how many pre-ships had\nCOMPLETED\
+  \ when the verify transport began and whether one was still in flight: only those\n\
+  completions can have shrunk that land's `venue_push_s`, so a reading compares them,\
+  \ never the\nplain count). Nested inside `verify_metrics`, so this measurement (which\
+  \ folds\nTOP-LEVEL `data` keys only) cannot see it and the recomputation does NOT\
+  \ move; recorded here for the\nsame reason the keys above are. It introduces NO\
+  \ new event type — the row is the existing\n`land_completed` — and it is PRESENT-ONLY:\
+  \ a land that never parked, or parked with no venue, writes\nno key, so an absent\
+  \ key reads as \"no pre-ship was attempted\". It is written by `_land_integrate`\n\
+  beside the executor's own `venue_*` keys, never through the executor's row, because\
+  \ a pre-ship is\nnot an executor run; its meaning is spec-carried by SPEC-0203 rule\
+  \ 3, which is where it belongs.\n\n**The ONE pair this run names FORWARD, before\
+  \ the row carrying it lands.**\n`external_audit_completed.no_data_class` is added\
+  \ to the recorded set above BEFORE the land that\nbrings its first row to `main`.\
+  \ It is the verb-local diagnostic that classifies WHY an\n`audit adhoc` came back\
+  \ with no data — a spent auditor pass and an empty result are the same\nverdict\
+  \ to a reader who cannot tell them apart, which is what the key exists to fix. The\
+  \ pair\nbecomes governing the moment such a row reaches `main`: the type is already\
+  \ mentioned in the\ncorpus, the key is named in no spec, and `bin/` reads the literal\
+  \ back — so that land would be\nrefused unnamed. Naming it here spends that refusal\
+  \ on the card whose job is to spend it, which is\nthe ordering the three forward\
+  \ names before it established. The COUNT above is deliberately NOT\ninflated, for\
+  \ the same reason it was not inflated for them: the recomputation cannot yet reproduce\n\
+  this pair. CANDIDATE standing, with the qualification stated rather than left to\
+  \ be assumed — the\nreadback is a WRITE-then-RENDER, not a branch: the value is\
+  \ composed once and carried onto the\nsaved verdict and the event payload, and the\
+  \ verb's own routing reads the local computation, never\nan emitted row (authoritative\
+  \ shape: `bin/lib/audit.py#adhoc_no_data_class`). The pair was found by\nrunning\
+  \ the ONE oracle once with a peer branch journal's `type_keys` folded in — a one-off\
+  \ local\nrun and NOT a pinned test, since the suite can only see its own checkout's\
+  \ journal, which is why\nthe reading is recorded on card rather than left to a probe\
+  \ that cannot reach it.\n\n**FOUR pairs on ONE NEW row, named FORWARD by the introducing\
+  \ card on identical terms.**\n`venue_seed_recorded.snapshot_id|clone_main_sha|recorded_at|recorded_by`\
+  \ — the seed record `venue seed`\nwrites (SPEC-0203 rule 1's sibling) is journaled\
+  \ WHOLE, `venue raise` reads `snapshot_id` back off\nthe persisted record and the\
+  \ bare `venue seed` renders the other three, so the readback conjunct is\nmet on\
+  \ the same footing as `venue_published.snapshot_id`. Named here BEFORE the first\
+  \ row reaches\n`main` — the rule kept rather than repaired after the fact; the COUNT\
+  \ above is NOT inflated.\n**ONE pair named FORWARD by a LATER card, on the same\
+  \ terms.**\n`venue_published.snapshot_id` is added to the recorded set above BEFORE\
+  \ the row carrying it\nreaches `main`. **A SECOND key on the SAME row, named by\
+  \ on identical terms.**\n**TWO MORE keys on the SAME row, named by (C6) as post-close\
+  \ collateral on identical terms:**\n`venue_published.clone_main_sha` + `venue_published.host_main_sha`\
+  \ — introduced by (the\nmirror ship, landed 7db4963) WITHOUT naming them; the first\
+  \ rows carrying them (venue publish /\nunpublish after that land) made the census\
+  \ RED on every later land, C6 first. Named here so the\noracle reads them as recorded;\
+  \ the rule still holds — the introducing card should have.\n**ONE MORE key on a\
+  \ DIFFERENT row, named by the Controller as filing-batch collateral on identical\n\
+  terms (2026-09-11):** `bg_dispatch_launched.land_regime` — introduced by (one land\
+  \ regime per\ndispatched brief, landed 4f49796) WITHOUT naming it; the first `bg_dispatch_launched`\
+  \ rows carrying it\nmade the census RED on every later land on the host (the batch\
+  \ attribution declined to name a culprit,\nso three sessions aborted on it the same\
+  \ afternoon — deviation events.jsonl#ts=).\nCANDIDATE standing like every name here:\
+  \ `land_regime_for_worker` READS the key back off prior rows and\nthe dispatch-status\
+  \ fold BRANCHES on it — the confirmed-reader condition — but promotion is a separate\n\
+  change with its own gate. Named here so the oracle reads it as recorded; the rule\
+  \ still holds —\nthe introducing card should have (fu_9a5cbd189e36 names the missing\
+  \ pre-land check).\n**ONE MORE key on the SAME row, named BY ITS INTRODUCING CARD\
+  \ on identical terms (<project>\nX-1573):** `bg_dispatch_launched.session_id_argv`\
+  \ — and the same key on its launch-axis sibling\n`bg_dispatch_spawned.session_id_argv`,\
+  \ named FORWARD because the two rows are written from one\nlaunch and folded as\
+  \ one axis. The launcher records whether the adapter ACTUALLY spawned declared a\n\
+  `--session-id <expected>` worker argv; `dispatch._launch_axis_class` READS it back\
+  \ and BRANCHES on it\n(only a declaring row is re-read against the fleet verdict's\
+  \ `--session-id` scan) — the\nconfirmed-reader condition. CANDIDATE standing like\
+  \ every name here; the COUNT above is NOT inflated.\n**ONE MORE key on a NEW row,\
+  \ named BY ITS INTRODUCING CARD on identical terms :**\n`held_turn_claim_adopted.adopted_from_pid`\
+  \ (and, since the row travels WHOLE, its sibling fields\n`held_turn_claim_adopted.rebound_to_pid`\
+  \ + `held_turn_claim_adopted.reason`) — `land` journals the re-bind of a dead previous\n\
+  dispatched holder's held-turn claim to the live server-resolved worker (SPEC-0180\
+  \ §Claim PROVENANCE,\nstale-previous-holder corollary). CANDIDATE standing like\
+  \ every name here; the COUNT above is NOT inflated.\n`venue_published.ssh_user`\
+  \ was missed here for exactly the reason this paragraph gives and then\ndid not\
+  \ follow through on: the record is journaled WHOLE, so EVERY field of it travels\
+  \ — not the\none field the forward name happened to think of. The first REAL publication\
+  \ (the venue\nthis card's own routing verifies on) put the row in a checkout's journal\
+  \ and the oracle\nimmediately reported the pair unnamed, which is the refusal the\
+  \ forward naming exists to spend on\nthe card that causes it. `bin/lib/venue.py`\
+  \ reads `ssh_user` back off the persisted record\n(`route` hands it to the executor\
+  \ as the ssh user), so the readback conjunct is met on the same\nfooting as `snapshot_id`.\
+  \ The COUNT above is NOT inflated for it, for the same reason. `venue publish` (the\
+  \ venue verbs, SPEC-0203 rules 1+6) journals the\npublication record WHOLE rather\
+  \ than as a hand-listed subset, so `snapshot_id` travels in the\npayload; `bin/lib/venue.py`\
+  \ reads the literal back off the persisted record, so the readback\nconjunct is\
+  \ met and the pair becomes governing the moment that row lands — which would refuse\n\
+  that land unnamed. Naming it here spends that refusal on the card that causes it,\
+  \ the ordering\nthe forward names above established. The COUNT above is deliberately\
+  \ NOT inflated, for the same\nreason it was not inflated for them: the recomputation\
+  \ cannot yet reproduce this pair on `main`'s\nown journal, and stating a higher\
+  \ figure would state something unverifiable. CANDIDATE standing —\nthe value is\
+  \ the provider snapshot the box was raised from, carried on the record and read\
+  \ back to\nrender it, with nothing branching on it (authoritative shape: `bin/lib/venue.py#build_record`).\n\
+  \n**TWO RETIRED PAIRS, and what stands in their place.** `external_audit_completed.owner_reopen`\n\
+  ( — the owner grant locator of a consult episode re-open) and `external_audit_completed.withdrawn`\n\
+  ( — the ids a rule-4 WITHDRAWAL took out of the open set) were named FORWARD here\
+  \ for rows that\nwere about to land. SPEC-0204 rule 6 retires both PRODUCERS: `audit\
+  \ consult --reopen` no longer exists,\nand the `CUT to` / `WITHDRAWN … out-of-subject`\
+  \ card markers a withdrawal was read from are refused at\naudit time. So neither\
+  \ key is written by any route, and each is REMOVED from the recorded set rather\n\
+  than left standing as a pair nothing can produce — a catalog entry for an unreachable\
+  \ key is exactly\nthe drift this roster exists to prevent. Rows already carrying\
+  \ them stay valid history and stay\nreadable; nothing re-writes them.\n\nWHAT CARRIES\
+  \ THE SAME FACTS NOW is `ceiling_decision` (rostered above): an owner grant is the\n\
+  mandatory `directive` locator on every decision, and a residual leaving this card's\
+  \ subject is a\n`defer` disposition naming its `receiving_task` — both on an APPEND-ONLY\
+  \ journal row, which is\nstrictly stronger than the property those two forward-named\
+  \ keys were introduced to buy (a record\nrewritten in place by the next adjudication\
+  \ could edit them out from under a reader). The COUNT above\nis unchanged, for the\
+  \ same reason it was never inflated for them: the recomputation could not\nreproduce\
+  \ either pair on `main`'s own journal.\n\n**ONE pair named FORWARD by a LATER card,\
+  \ on the same terms.**\n`nightly_run_completed.quiet_lane` is added to the recorded\
+  \ set above BEFORE the change that makes\nit governing lands. The key itself is\
+  \ not new — has emitted it since the quiet lane shipped\n— but it was not GOVERNING,\
+  \ because the readback conjunct was unmet: `cmd_nightly` reported the\nlane from\
+  \ a local variable and no code in `bin/` read the key back. gives a registered\n\
+  CONSUMER's declared timing tests the same lane, which means the per-project entry\
+  \ now carries its\nown `quiet_lane` and the report renderer reads it back\n(`bin/lib/nightly.py#cmd_nightly`),\
+  \ so the pair becomes governing on that land and would refuse it\nunnamed. Naming\
+  \ it here spends that refusal on the card that causes it, which is the ordering\
+  \ the\ntwo forward names below established. The COUNT above is deliberately NOT\
+  \ inflated for the same\nreason it was not inflated for them: the recomputation\
+  \ cannot yet reproduce this pair, so stating a\nhigher figure would state something\
+  \ unverifiable. CANDIDATE standing — the value is the whole\n`{verdict, readings,\
+  \ held_slots, reason}` lane result, read back to render it and nothing branching\n\
+  on it (authoritative shape: `bin/lib/nightly.py#_run_quiet_lane`).\n\n**The TWO\
+  \ pairs this run names FORWARD, before the row carrying them lands.** Both sit on\n\
+  `live_trigger_evidence`, emitted by the measurement card (journal row ``,\n`probe:\
+  \ module-freeing-cost-effect-reading`). They are named here BEFORE that row reaches\
+  \ `main`,\nwhich is the ordering this record has otherwise learned the hard way:\
+  \ the pairs were found by running\nthe ONE oracle once with the branch journal's\
+  \ `type_keys` folded in — 68 governing, 66 named,\n97%, with exactly these two unnamed\
+  \ — so the refusal that would have met land is spent here\ninstead, on a card whose\
+  \ whole job is to spend it. That fold is a one-off local run and NOT a pinned\n\
+  test: the suite can only see its own checkout's journal, which is why the reading\
+  \ is recorded on\n card rather than left to a probe that cannot reach it.\n- `live_trigger_evidence.window_start`\
+  \ and `live_trigger_evidence.window_end` — the ISO bounds of the\n  measurement\
+  \ window a post-ship reading was taken over (on the row: ``\n  to ``). They exist\
+  \ because a reading over an unnamed window is not a\n  measurement — \"the narrowed\
+  \ suite ran on 12% of lands\" is a different claim over three days than\n  over\
+  \ three weeks, and the row's sibling `window_start_basis` records WHY the start\
+  \ sits where it\n  does (there, the narrowing's own `land_completed`) rather than\
+  \ leaving the bound to look arbitrary.\n  CANDIDATE on both, and the readback conjunct\
+  \ is not a single-site accident: `bin/lib/frontend_errors.py`\n  writes both onto\
+  \ its stats block and reads them back to compose the window it reports,\n  `bin/lib/nightly.py`\
+  \ reads `window_end` back into its scan-stats payload, and `bin/lib/task.py`\n \
+  \ writes `window_start` in the verify-metrics fold — three distinct modules. Nothing\
+  \ BRANCHES on\n  either: every site RENDERS the bound into a payload or a report,\
+  \ and the window itself is computed\n  live from the invocation, never re-read from\
+  \ an emitted row.\nNote that `window_start_basis`, carried on the same row, is correctly\
+  \ NOT in the cut: no `bin/` code\nreads that literal back, so it fails the readback\
+  \ conjunct and does not govern. Recording the\nnear-miss matters — a reader who\
+  \ assumed \"same row, same treatment\" would name a pair the oracle\nnever asked\
+  \ for, and the cut is MEASURED, not judged by resemblance.\n\n**The EIGHT pairs\
+  \ the prior record left unnamed, each given its disposition here.** They\nare what\
+  \ the 2026-09-04 session-start debt echo reported as owed — the record stood at\
+  \ 58 of 66, i.e.\n88% against its own 0.80 floor, with 8 points of headroom left.\
+  \ Each is recorded with the same\nCANDIDATE standing every name above carries:\n\
+  - `tests_passed.selection_ran`, `tests_passed.selection_discovered` and\n  `tests_passed.selection_reason`\
+  \ — the selection block on the Stage-6 evidence row: how many\n  tests the narrowed\
+  \ suite RAN, how many were DISCOVERED, and the fail-closed REASON the selection\n\
+  \  took the shape it did. They exist because a `tests_passed` row that records only\
+  \ \"green\" is\n  ambiguous once the suite can be narrowed — \"green over the affected\
+  \ 12 of 340\" and \"green over all\n  340\" are different claims, and audit-post\
+  \ reads this row as the Stage-6 proof. CANDIDATE on all\n  three: `task.py` WRITES\
+  \ them on the `--run --evidence` path (and deliberately writes NONE of them\n  on\
+  \ a hand-authored `--evidence`, rather than defaulting to a scope that invocation\
+  \ never measured),\n  and nothing in `bin/` branches on them — the narrowing decision\
+  \ is taken live from\n  `selection_summary`, never from the emitted row.\n  **WHAT\
+  \ THE TWO COUNTS COUNT ON A ROUTED PASS (and the key roster is UNCHANGED — this\n\
+  \  amends the SEMANTICS of the three names above, it adds none).** Since a Stage-6\
+  \ pass may\n  run on the published venue, and there the run is TWO disjoint legs:\
+  \ the box leg, plus the\n  SPEC-0203 rule-8 narrow host-sensitive local PROBE leg.\
+  \ `remote_verify.route` invokes the local\n  runner exactly ONCE on that branch\
+  \ — for the probe leg — so the runner's `metrics_out` describes\n  the probe set\
+  \ ALONE. `selection_discovered` and `selection_ran` therefore name the WHOLE routed\n\
+  \  pass, sourced from the rule-8 PARTITION (`selection_discovered` = `partition.counts.discovered`,\n\
+  \  the same `tests/test_*.py` glob `land`'s verify runner globs; `selection_ran`\
+  \ =\n  `counts.remote + counts.local`, the two disjoint halves whose union IS the\
+  \ pass), and\n  `selection_reason` names the breadth the CALLER resolved for the\
+  \ run, never the probe leg's own\n  ladder answer. Reading them off the probe leg\
+  \ instead was the measured defect: a 1437-file\n  checkout recorded «running every\
+  \ discovered test (15 of 15)» (events.jsonl#ts=; the same string on 08:04:47Z),\
+  \ i.e. a ~1% selection\n  presented as a whole-suite reassurance — which matters\
+  \ because the owner rule of\n   makes Stage-6 and the land candidate leg TWO INDEPENDENT\
+  \ FULL passes, and a\n  Stage-6 that silently selects is not the first of the two.\
+  \ On the UNROUTED path both keys keep\n  their original source and meaning, byte-for-byte.\n\
+  - `tests_passed.verify_metrics` and `tests_failed.verify_metrics` — the routed-pass\n\
+  \  envelope on the Stage-6 rows: the `venue_*` fragment `remote_verify.venue_verify_metrics`\
+  \ already\n  composes (box, request, attempt, outcome, legs, workers and their derivation\
+  \ bound, push and leg\n  walls, the check roster's verdict, the rule-8 partition\
+  \ counts, and the `nice` ASKED beside the\n  `nice_in_effect` the leg MEASURED for\
+  \ itself on the box). They exist because routed a\n  Stage-6 pass to the venue,\
+  \ and a `tests_passed` row that does not say WHERE it ran is ambiguous\n  in exactly\
+  \ the way the selection block above was — \"green here\" and \"green on the box\
+  \ at halved\n  width and nice 19\" are different claims, and `audit post` reads\
+  \ this row as the Stage-6 proof.\n  It is the SAME fragment, under the SAME key,\
+  \ that `land_completed.data.verify_metrics` has\n  carried since — no new type and\
+  \ no second catalog. CANDIDATE on both: `task.py` WRITES\n  them only when the invocation\
+  \ actually routed (a hand-authored `--evidence` measured no pass and\n  carries\
+  \ none, the discipline), and nothing in `bin/` branches on them — the routing\n\
+  \  decision is taken live from `venue_decision`, never from the emitted row.\n-\
+  \ `bg_dispatch_halted.confirmed_death_basis` and `bg_dispatch_halted.log_tail` —\
+  \ the\n  premature-exit death evidence: what CONFIRMED the worker is gone, and the\
+  \ tail of its dispatch log.\n  They exist because that halt is the one a worker\
+  \ did NOT author, so the cause is in the log rather\n  than in this journal, and\
+  \ a reader who had to re-grep for it would be re-deriving what the emitter\n  already\
+  \ knew. CANDIDATE on both, and the qualification matters: `journal.py` DOES read\
+  \ them back\n  (at the premature-exit arm, to compose the verdict basis line and\
+  \ its last non-empty log line) —\n  but that is RENDERING, not a branch. The routing\
+  \ decision is taken from the halt `detail`, not from\n  these two keys, so neither\
+  \ has the confirmed reader that promotion requires.\n- `plan_stage_entered.gate_disclosure`\
+  \ — the disclosure of what a soak-bounding plan gate\n  CHECKED and what it did\
+  \ not, carried on the transition row as the same dict the transition PRINTS\n  (P5\
+  \ — one object, two surfaces). It exists because an empty stage bundle should be\
+  \ disclosed rather\n  than left to be noticed in the journal row later (the X-1250\
+  \ rows read `delivered:[]`). CANDIDATE:\n  `plan.py` builds it and `_print_plan_gate_disclosure`\
+  \ prints it; the admission decision is settled\n  BEFORE the disclosure is computed,\
+  \ precisely so the disclosure cannot move it.\n- `analysis_finalized.analysis_fingerprint`\
+  \ and `task_amended.analysis_fingerprint` — the\n  fingerprint of the finalized\
+  \ analysis text, carried on the two rows a finalize can produce (the\n  first finalize,\
+  \ and the `task_amended` row a RE-run records instead of a second `analysis_finalized`).\n\
+  \  It exists so a re-run is legible AS a re-run rather than as an `--amend-expected-touch`\
+  \ invocation,\n  which it is not. CANDIDATE, and the closest of these eight to a\
+  \ genuine promotion — closer than\n  `worker_parked.discarded_commit_shas` was of\
+  \ the prior seven, and it should be read with that\n  caveat attached: `_prior_analysis_fingerprints`\
+  \ READS this key off prior journal rows and\n  `cmd_task_analyze` BRANCHES on the\
+  \ result (`rerun`), which is the confirmed-reader condition the\n  promotion trigger\
+  \ names. It is recorded as CANDIDATE here rather than promoted because promotion\n\
+  \  is a separate change with its own gate — naming the pair is what this refresh\
+  \ owes; moving it into\n  spec-carried payload text is not this refresh's to make.\n\
+  \nRecording all eight rather than the two that clear the bar is deliberate, and\
+  \ it is the same\nreasoning every pass since 2026-08-21 has written down: the probe's\
+  \ coverage floor (0.80) is a DRIFT\nDETECTOR, not a target. Naming just enough would\
+  \ satisfy it arithmetically while leaving the record a\nWORSE measurement than before\
+  \ — a record kept just above its own floor has stopped measuring anything.\n\n**CONSUMER-EMITTED,\
+  \ named with its consumer provenance (<project>, X-1263).** Two\nkeys on the <project>-owned\
+  \ type `spike_channel_grant`, supplied by that consumer and recorded here\nunder\
+  \ the name of the project that emits them, per the consumer-provenance rule:\n-\
+  \ `spike_channel_grant.compose_project` — a string naming the sandbox compose project\
+  \ the grant\n  applies to. PRESENT on every row of the type.\n- `spike_channel_grant.value_digests`\
+  \ — an object mapping each granted env key to the SHA-256 of its\n  value. A DIGEST,\
+  \ NEVER THE VALUE (SPEC-0099): the row records WHICH secret was granted and lets\
+  \ a\n  later reader prove two grants carried the same value, without the row itself\
+  \ becoming a place a\n  secret is written down. PRESENT on enable rows and ABSENT\
+  \ on disable rows BY DESIGN — a revocation\n  grants no values, so an empty object\
+  \ there would assert a grant that did not happen.\nBoth carry CANDIDATE standing\
+  \ like every kernel name above. They are named for the READER, not for\nthe gate:\
+  \ `spike_channel_grant` is a CONSUMER type and does not appear in the kernel journal\
+  \ this\nrecord measures, so it contributes to none of the three counts, does not\
+  \ enter the 66-pair actionable\ncut, and moves no coverage figure. Naming it here\
+  \ is the same discipline the `worktree_synced` and\n`land_completed` paragraphs\
+  \ below follow — name a key in the change that knows about it, rather than\nleaving\
+  \ the next run to discover it as a refusal.\n\n**The SEVEN pairs the prior record\
+  \ left unnamed, each given its disposition here.** They\nare what the 2026-08-31\
+  \ session-start debt echo reported as owed — the record stood at 51 of 58, i.e.\n\
+  88% against its own 0.80 floor, with 8 points of headroom left. Each is recorded\
+  \ with the same\nCANDIDATE standing every name above carries:\n- `canary_backstop_ran.verdict_class`\
+  \ — the coarse class of the backstop run's verdict, written so a\n  later reader\
+  \ can group runs without re-deriving them from the detail. CANDIDATE: no `bin/`\
+  \ branch\n  turns on it; the backstop's own decisions come from the live verdict,\
+  \ not from the emitted row.\n- `consumer_read_evidence.no_split_n` and `consumer_read_evidence.split_n`\
+  \ — the two arms of a\n  split/no-split count carried on a P8 adoption-evidence\
+  \ row, i.e. the measurement the evidence is\n  ABOUT. CANDIDATE, and for the same\
+  \ reason its siblings `report_only` and `halt_ts` are:\n  `_p8_substantive_evidence_exists`\
+  \ opens `data` for `failing_input` / `evidence_events` and never\n  consults these.\n\
+  - `inspection_completed.case_review` — whether the inspection covered a case-file\
+  \ review.\n  CANDIDATE: recorded for the reader, with no reader branching on it.\n\
+  - `triage_run_completed.window_captures` and `triage_run_completed.withheld_no_fingerprint`\
+  \ — how\n  many captures the triage window held, and how many were withheld for\
+  \ carrying no fingerprint. The\n  second is the more interesting of the pair: it\
+  \ counts exactly the captures the deviation reflex\n  produced without the field\
+  \ that makes them matchable. CANDIDATE on both: written by the triage\n  path and\
+  \ read back only for reporting.\n- `worker_parked.discarded_commit_shas` — which\
+  \ commits a park discarded, so a park that threw work\n  away is distinguishable\
+  \ after the fact from one that had none. CANDIDATE, and the closest of these\n \
+  \ seven to a promotion, exactly as `worker_parked.status_on_main` was of the prior\
+  \ six; promoting it\n  is a separate change with its own gate, not this refresh's\
+  \ to make.\n- `commit_landed.touch_refreshed` — the paths `task commit`'s forecast\
+  \ refresh ADDED to\n  the card's `expected_touch`, derived from the committed diff.\
+  \ Named FORWARD, by the branch that\n  introduces it and in the same diff, which\
+  \ is the ordering the WARN exists to enforce —\n  so it is named here before the\
+  \ emitting row reaches `main`, and no figure above is inflated for\n  it (the recomputation\
+  \ cannot yet reproduce the pair). ABSENT — never an empty list — on a commit\n \
+  \ whose forecast already covered its diff, so a row can never claim a refresh that\
+  \ added nothing;\n  that absence is the shape, not an omission. CANDIDATE: written\
+  \ by `task commit` and read back\n  only to answer \"what did the refresh change?\"\
+  \ — nothing branches on it (the field itself is the\n  state, and its authoritative\
+  \ shape is `bin/lib/task.py#refresh_expected_touch`).\n\nRecording all seven rather\
+  \ than the one or two that clear the bar is deliberate, and it is the same\nreasoning\
+  \ every pass since 2026-08-21 has written down: the probe's coverage floor (0.80)\
+  \ is a DRIFT\nDETECTOR, not a target. Naming just enough would satisfy it arithmetically\
+  \ while leaving the record a\nWORSE measurement than before — a record kept just\
+  \ above its own floor has stopped measuring anything.\n\n**The window MOVED, so\
+  \ what the previous record called \"added after the frozen window\" is now INSIDE\n\
+  it.** The paragraphs immediately below were written against the ``\ncutoff and say\
+  \ of their keys that they \"move none of the three counts above\". Read that as\
+  \ a\nstatement about THAT window, which is what it was and where it was true: the\
+  \ current cutoff is\n``, so those rows are inside the counted range and are folded\
+  \ into the 216/146/3046\ntriple above. What has not changed is their standing —\
+  \ each is still CANDIDATE, none has acquired a\n`bin/` reader, and none of them\
+  \ appears in the 58-pair actionable cut, because that cut requires a\ncode read-back\
+  \ they still do not have. They stay NAMED. The claim about the corpus digest is\n\
+  unaffected by the window at all: the digest is taken over the corpus MINUS this\
+  \ measurement record,\nwhich is the region every one of those paragraphs sits in.\n\
+  \n**Added after the frozen window, named at emission rather than at the next run\
+  \ :**\n`worktree_synced.preflight` — the `worktree sync` pre-flight blocker set,\
+  \ journalled so a\nresumption claim can be read after the fact. Named HERE, in the\
+  \ same change that adds it, because\nthe alternative is the failure mode this record\
+  \ keeps paying for: three hard land refusals are on\nthe books for pairs added without\
+  \ being named. It does NOT move the three frozen-window counts\nabove — every row\
+  \ carrying it is stamped after the `` cutoff, so the window\ncannot see it — and\
+  \ it does not move the recorded corpus digest either, since that digest is taken\n\
+  over the corpus MINUS this measurement record, which is the region this paragraph\
+  \ sits in.\nCANDIDATE standing, like every name above: no `bin/` code branches on\
+  \ it today; it exists to be\nREAD by an operator or an after-the-fact analysis,\
+  \ which is the whole reason the key was added.\nOnly the TOP-LEVEL key can ever\
+  \ be the observed pair — `_spec0161_inputs` folds `data.keys` —\nso the nested subfields\
+  \ are invisible to the gate and are named here for the reader, not for it:\n`conflicts`\
+  \ (the unresolved merge-conflict paths phase 1 proved), `conflicts_auto_resolvable`,\n\
+  `conflicts_measured`, `re_audit_required` (phase 2's SPEC-0077 §3a currency verdict),\n\
+  `re_audit_measured`, and —, on identical terms — `census_blocked` / `census_measured`\n\
+  (phase 3, `_land_preflight_census_lines`) and `supersession_ask` / `supersession_ask_measured`\n\
+  (phase 4, the PRE-FAILURE ASK). The verb prints FOUR report-only phases and this\
+  \ record\ncarried the first two; the other two were print-and-discard, each verdict\
+  \ existing for the length\nof one stdout write — the very gap this key was added\
+  \ to close for the first pair. It mattered\nmost for the ask, whose whole purpose\
+  \ is an ADOPTION question (nobody knows to type\n`--expect-rebaseline`), and adoption\
+  \ is the one thing that cannot be measured from a line nobody\nkept. The `*_measured`\
+  \ flags are what keep an empty set honest throughout: a phase that did not run\n\
+  and a phase that ran clean both journal an empty set, and only the flag separates\
+  \ them.\nBOOLEANS, NOT THE LINES, for the two new phases: what a later reader joins\
+  \ on is WHETHER a phase\nreported a blocker — the shape `re_audit_required` already\
+  \ has — and carrying the advisory prose\nwould put freely-reworded text into an\
+  \ append-only record, where a wording change would read as a\nverdict change. This\
+  \ adds no new observed PAIR and moves no count: only the TOP-LEVEL key can ever\n\
+  be the observed pair, `worktree_synced.preflight` already exists and is already\
+  \ named above, so\nthese four subfields are invisible to the gate and are named\
+  \ here for the reader, exactly as the\nfive they join.\n\n`worktree_synced.resolved`\
+  \ + `worktree_synced.resolved_kinds` — the record of WHICH merge\nconflict paths\
+  \ `worktree sync` resolved mechanically on this run, and by which resolver class.\n\
+  Named HERE, in the change that adds them, for the same reason `worktree_synced.preflight`\
+  \ above\nwas: the alternative is a hard land refusal for a pair added without being\
+  \ named. Added AFTER the\nfrozen window, so they move none of the three counts above\
+  \ and not the corpus digest (taken over\nthe corpus MINUS this record). CANDIDATE\
+  \ standing: `worktree.py` and `worktree_lifecycle.py` WRITE\nthem and nothing in\
+  \ `bin/` branches on them — the admission decision comes from\n`_classify_land_merge_conflicts`\
+  \ live, never from the emitted row. They exist because a resolution\nthe journal\
+  \ never saw is indistinguishable from a hand merge, which is the whole defect\n\
+  removes: the governed verb's resolution has to leave a governed record or it has\
+  \ not replaced the\nmanual fallback at all. ALWAYS PRESENT on both the merged and\
+  \ the no-op arm (an empty list on a\nrun that resolved nothing), so an empty set\
+  \ means \"resolved nothing\" rather than \"an arm that\nforgot to say\" — the same\
+  \ honesty rule the `*_measured` flags above enforce for `preflight`.\n\n`land_completed.inlock_folds_absorbed`\
+  \ — the SUCCESS MARKER of the in-lock fold: how many\nmain-side advances a land\
+  \ ABSORBED in-lock (the settle-only carve-out and its E-0033\njournal-only predecessor)\
+  \ instead of discarding the attempt to `retry-main-advanced`. Named HERE,\nin the\
+  \ change that adds it, for the same reason `worktree_synced.preflight` above was:\
+  \ the\nalternative is a hard land refusal for a pair added without being named.\
+  \ Added AFTER the frozen\nwindow, so it moves none of the three counts above and\
+  \ not the corpus digest (taken over the corpus\nMINUS this record). CANDIDATE standing:\
+  \ `worktree.py` WRITES it and nothing in `bin/` branches on\nit — the land's own\
+  \ decisions come from its live accumulator, not from the row it emits. It exists\n\
+  because the mechanism was previously measurable ONLY when it FAILED: the two failure\
+  \ paths name an\nattempt outcome and the success path wrote nothing, so a folded\
+  \ land and a land that never needed a\nfold were byte-identical and own AC4 could\
+  \ not be read. ABSENT (never 0) when no fold\nhappened, which is what makes its\
+  \ presence the signal. Only the TOP-LEVEL key can ever be the\nobserved pair, so\
+  \ the sibling PER-ATTEMPT `inlock_folds` inside `attempt_breakdown[]` is invisible\n\
+  to the gate and is named here for the reader, not for it.\n\n`land_completed.preff_folds_absorbed`\
+  \ — the SUCCESS MARKER of the OTHER fold: how many\nmain-side journal advances a\
+  \ land ABSORBED in the E-0006/ PRE-FF re-fold (the in-lock fold\nrun immediately\
+  \ before the ff, which is what keeps a concurrent on-main `event` appender from\n\
+  starving land) instead of falling through silently. Named HERE, in the change that\
+  \ adds it, for\nthe same reason its sibling one paragraph above was. Added AFTER\
+  \ the frozen window, so it moves\nnone of the three counts and not the corpus digest.\
+  \ CANDIDATE standing, identically: `worktree.py`\nWRITES it and nothing in `bin/`\
+  \ branches on it. It exists because this fold too was measurable\nONLY when it FAILED\
+  \ — `refold-commit-failed` on a failed commit, `retry-ff-refused-journal-dirt`\n\
+  one site over, and nothing at all on success — so a fold that absorbed something\
+  \ and a fold that\nnever ran were byte-identical. ABSENT (never 0) when no fold\
+  \ happened, which is what makes its\npresence the signal rather than a bell that\
+  \ rings whether or not the door opened. It is a SECOND\nkey rather than a widening\
+  \ of `inlock_folds_absorbed` because the two folds absorb different\nthings and\
+  \ can both fire in one attempt; sharing would make that key assert a main-advance\n\
+  absorption that never happened. Its PER-ATTEMPT sibling `preff_folds` inside `attempt_breakdown[]`\n\
+  is, like the other, invisible to the gate and named for the reader.\n\n**The SIX\
+  \ pairs the prior record left unnamed, each given its disposition here.** They are\n\
+  what the 2026-08-25 session-start debt echo reported as owed, and each is recorded\
+  \ with the same\nCANDIDATE standing every name above carries — read the emitter\
+  \ for the authoritative key set:\n- `live_trigger_evidence.report_only` and `consumer_read_evidence.report_only`\
+  \ — the same marker on\n  the two P8 adoption-evidence types: the emitting card\
+  \ measured a surface that has NO governing\n  trigger behind it, so the row is a\
+  \ MEASUREMENT and carries no `fired`/`acted` (the sibling shape\n  `views.py` builds\
+  \ for a retired count-gate). CANDIDATE, not promoted: no reader branches on it on\n\
+  \  either type — `_p8_substantive_evidence_exists` opens `data` for `failing_input`/`evidence_events`\n\
+  \  and never consults this marker.\n- `land_completed.inland_reaudit` — set by the\
+  \ land path when the integration performed an in-land\n  re-audit. CANDIDATE: written\
+  \ by `worktree.py` into the land payload and read back for reporting;\n  the land's\
+  \ own decisions are taken from its live state, not from the row it emits.\n- `worker_parked.status_on_main`\
+  \ — what the parked task's status is ON MAIN (`ready` unless the card\n  is `done`),\
+  \ which is the field that makes an auditor-outage park re-dispatchable rather than\
+  \ an\n  orphan. CANDIDATE, and the closest of the six to a genuine promotion: `worktree_lifecycle.py`\n\
+  \  branches on it when rendering whether the worktree was \"removed\" or \"discarded\"\
+  . Promoting it is a\n  separate change with its own gate (see the CANDIDATES paragraph\
+  \ below), not this refresh's to make.\n- `adoption_evidence.evidence_events` and\
+  \ `adoption_evidence.failing_input` — the two halves of the\n  SPEC-0015 substantive-adoption\
+  \ contract (a resolvable machine reference plus a named differential\n  failing\
+  \ input), on a type that only recently began carrying them. Their MEANING is already\n\
+  \  spec-carried, on the P8 types the contract was written against; what is new here\
+  \ is the type. So\n  the reason these stay CANDIDATE is not that the keys are undocumented\
+  \ but that this type's payload\n  has no confirmed reader branching on it.\n\nRecording\
+  \ all six rather than the one that clears the bar is deliberate, and it is the same\
+  \ reasoning\nthe 2026-08-21 pass wrote down: the probe's coverage floor (0.80) is\
+  \ a DRIFT DETECTOR, not a target.\nNaming a single pair would satisfy it arithmetically\
+  \ while leaving the record a worse measurement\nthan before — a record kept just\
+  \ above its own floor has stopped measuring anything.\n\n**Superseded readings,\
+  \ kept as history — deliberately NOT written in the parsable shape above**, so\n\
+  the probe reads exactly one live triple and cannot lock onto a stale one. The 2026-08-19\
+  \ run\n(window cutoff 13:00:00Z, corpus digest 0a05f0f1168e) read 194 live types,\
+  \ 128 cataloged\ntypes and 2141 corpus-absent keys, and named 36 candidate pairs\
+  \ across 21 types. The 2026-08-21\nre-run refreshed that set to 48 pairs across\
+  \ 28 types against the corpus and journal of\nthat day. then spec-carried its own\
+  \ two new pairs in SPEC-0036, restoring 31/37.\nThe 2026-08-26 run\n(window cutoff\
+  \ ``, corpus digest 7d7af7c8d982) read 203 live types, 134\ncataloged types and\
+  \ 2461 corpus-absent keys, and named 38 candidate pairs across 20 types. The\n2026-09-01\
+  \ run (window cutoff ``, corpus digest ddcb10c28515) read 216\nlive types, 146 cataloged\
+  \ types and 3046 corpus-absent keys, and named 58 candidate pairs across 34\ntypes.\
+  \ The earlier 2026-09-04 run (window cutoff ``, corpus digest\n356fd7fc1024) read\
+  \ 218 live types, 147 cataloged types and 3115 corpus-absent keys, and named 66\n\
+  candidate pairs across 36 types — the reading the current 2026-09-04 run above.\
+  \ Its\ndigest had gone stale against the live corpus within hours of landing, which\
+  \ is the shortest such\ninterval this record has recorded and the reason the count\
+  \ half is re-measured every pass rather\nthan carried forward: staleness here is\
+  \ a function of how many peers land `specs/` text, not of how\nlong ago the run\
+  \ was. The set is\nREFRESHED at each run, never topped up to its floor; the counts\
+  \ move because the journal and the\ncorpus both grow, which is what the record exists\
+  \ to TRACK.\n\n**Pairs that GOVERNED IN AN EARLIER WINDOW and no longer do in the\
+  \ current one — kept NAMED, on\npurpose.** Refreshing the set is not the same as\
+  \ un-naming what earlier runs measured,\nand this distinction is load-bearing rather\
+  \ than tidy-minded: this record is read against MORE THAN\nONE journal window. The\
+  \ land-verify gate recomputes over the live journal, while the SPEC-0119\nrule-28\
+  \ debt probe folds a PINNED journal SLICE — an older, frozen event set that still\
+  \ yields\npairs the current window no longer does. Dropping a name because today's\
+  \ window stopped yielding it\nwould therefore re-open, against that older window,\
+  \ exactly the unnamed-pair gap this card closes.\nSo the earlier runs' names are\
+  \ retained verbatim here, with the CANDIDATE standing they were\nrecorded under;\
+  \ they are HISTORY of what governed, not a claim about the current window:\n`land_completed.abort_preflight|cause_identity_absent`\
+  \ · `audit_post_completed.final_verdict` ·\n`audit_pre_completed.final_verdict`\
+  \ · `audit_yamls_archived.nontask_swept|tasks_swept` ·\n`consumer_read_evidence.halt_ts`\
+  \ ·\n`land_audited_footprint.audit_commit|own_post_audit|mechanical_resolve` ·\n\
+  `draft_closed.reverse_linked` · `land_member_verdict.batch_ineligible` ·\n`dispatch_outcome.land_sha`\
+  \ · `error_reopened.reopen_count` ·\n`authorization_decided.identity_source|rights_held`\
+  \ · `grant_reach_reported.intent_tension_actors`.\n\nAdded to that kept-NAMED history\
+  \ by the 2026-09-01 run : three pairs that governed in the\n`` window and do NOT\
+  \ in the `` one —\n`bg_dispatch_halted.ra_key` · `consumer_read_evidence.report_only`\
+  \ ·\n`live_trigger_evidence.report_only`. They are recorded here rather than removed\
+  \ for exactly the\nreason this paragraph exists: un-naming a pair because today's\
+  \ window stopped yielding it re-opens\nthe unnamed-pair gap against every OTHER\
+  \ window this record is read against. Their dispositions from\nthe pass stand unchanged,\
+  \ and the two `report_only` markers keep the standing they were given\nthere — no\
+  \ reader branches on them on either P8 type.\n\nAdded to that kept-NAMED history\
+  \ by the 2026-09-04 run : ONE pair that governed in the\n`` window and does NOT\
+  \ in the `` one — `cli_invoked.reads`,\nthe read-amplification block (`{folds, segments,\
+  \ rows_parsed, rows, cards_parsed, cards,\nproject, realm, wall_ms}`; authoritative\
+  \ shape + the primitive set it is incremented at: SPEC-0025\n`cli_invoked`). It\
+  \ left the current window's actionable cut because the bare literal `reads` became\n\
+  corpus-carried elsewhere, NOT because the key stopped being emitted — which is exactly\
+  \ the case this\nparagraph exists for, and a reminder that the readback test is\
+  \ lenient in both directions. Its\n disposition stands unchanged: CANDIDATE, read\
+  \ back for reporting, nothing branching on it.\n\n**AMENDMENT — 2026-09-07 : the\
+  \ TWO queued-pre-merge pairs, named after the fact rather\nthan forward.** `land_completed.queued_premerge`\
+  \ and `waiting_for_land_reservation.queued_premerge`\njoin the recorded set above,\
+  \ moving the actionable cut from **69 candidate pairs across 36 types**\nto **71\
+  \ across 37** — the one new type being `waiting_for_land_reservation`, which the\
+  \ prior cut\ndid not reach at all. Both carry CANDIDATE standing on the same terms\
+  \ as every pair above: read\nthe emitter for the authoritative key set. The emitter\
+  \ is the queued pre-merge\n(`bin/lib/worktree.py#_queued_premerge_*`, commits 16fa7238e6\
+  \ + 43db264db6): `queued_premerge` is\nthe RECORDED PRE-MERGE OUTCOME a land carries\
+  \ — written onto the `land_completed` payload and onto\nthe `waiting_for_land_reservation`\
+  \ heartbeat rows a land emits while queued for a SPEC-0132\nverify-admission slot,\
+  \ so the same record surfaces both at the end of a land and throughout its\nwait.\
+  \ Its readback is the ordinary lenient one this record's closing paragraph describes.\n\
+  \n**AMENDMENT — 2026-09-07 : `measurement_recorded.test_files`, named IN the card\
+  \ that\nintroduces it.** (routed venue passes run the governed SPEC-0181 selection)\
+  \ records its AC3\noverhead measurement as a `measurement_recorded` row whose payload\
+  \ carries `test_files` (the selected\nfile list of the measured routed pass — `bin/lib/remote_verify.py`,\
+  \ the selection carrier). The pair\njoins the recorded set above with CANDIDATE\
+  \ standing (72 pairs across 38 types); read the emitter for\nthe authoritative key\
+  \ set. Unlike after-the-fact naming, this one lands in the SAME diff as\nthe key,\
+  \ which is the ordering the closing paragraph asks for.\n\n**AMENDMENT — 2026-09-16\
+  \ : `consumer_read_evidence.arming_reachability`, named FORWARD in\nthe SAME diff\
+  \ as its emitter.** (X-1440 — an orphaned `dispatch --watch` logging a healthy\n\
+  WAKE nobody reads) puts ONE additive key on the watcher's exit receipt: the ARMING\
+  \ REACHABILITY the\nwatch branch classified at entry, threaded into `bin/lib/dispatch.py#cmd_dispatch_watch`\
+  \ and written\nonto its `consumer_read_evidence` payload. The authoritative value\
+  \ set is the emitter's, as always —\n`bin/lib/dispatch.py#_watch_arming_reachability`:\
+  \ `unreachable` (PROVEN — our stdout is redirected\naway from the caller's own stream,\
+  \ so our exit re-invokes nobody) or `unproven` (everything else,\nNEVER a delivery\
+  \ attestation). The pair is GOVERNING rather than reported-only, and deliberately\
+  \ so:\n`bin/lib/debt.py#_monitoring_read_tasks` BRANCHES on it, declining the SPEC-0119\
+  \ rule-12 monitoring\ncredit for a receipt whose arming was proven unreachable —\
+  \ the mechanism that stops an orphaned\nwatcher laundering itself into the \"monitored\"\
+  \ column by merely exiting. An ABSENT key (every\npre-change receipt) and `unproven`\
+  \ both still credit, so the reader is conservative in the direction\nthat changes\
+  \ no existing path. It joins the recorded set above with the same standing as every\
+  \ pair\nthere; the arming's own durable row is the separate `watch_armed` type.\n\
+  \n**AMENDMENT — 2026-09-08 : `pid_starttime`, named FORWARD on BOTH land-queue wait\
+  \ rows, in\nthe SAME diff as the emitters.** (unit 1 of the SPEC-0046 split) puts\
+  \ ONE additive\nkey on BOTH members of `journal.LAND_QUEUE_WAIT_TYPES` — `waiting_for_verify_admission_slot`\
+  \ (the\n`on_wait` closure in `bin/lib/land_verify_legs.py#_verify_under_admission`)\
+  \ and\n`waiting_for_land_reservation` (the `_fairness_wait_event` closure inside\
+  \ `_land_integrate`). The\nvalue is the emitting attempt's own boot-relative START\
+  \ TICK, field 22 of `/proc/self/stat`, read\nthrough `bin/lib/worktree.py#_proc_starttime`\
+  \ — the authoritative shape, as always. It rides\nbeside the `pid` already put on\
+  \ both rows, and it exists because a pid ALONE is REUSABLE:\nthe row records PID\
+  \ P at starttime s1, that process exits, P is reused at s2, and a later reader\n\
+  minting `P-s2` from CURRENT /proc state addresses a DIFFERENT attempt wearing the\
+  \ same number\n(consult finding B1, class security-boundary, decisions/-audit-consult-pre.yaml).\
+  \ Recording\nthe tick AT QUEUE TIME closes that window at the root. The readback\
+  \ that makes the pair GOVERNING is\n`bin/lib/land_reservation.py#_land_queue_row_attempt_key`,\
+  \ a pure row reader with no /proc fallback by\ndesign — a row lacking the key answers\
+  \ None rather than minting one.\nNamed on BOTH types rather than one, for the reason\
+  \ every additive sibling on these rows is on both:\na land parks at either seam,\
+  \ and an attempt observable at only one is unaddressable at the other.\n\n**Named\
+  \ FORWARD, and the COUNT is deliberately NOT inflated** — the same terms the and\
+  \ blocks state. No row carrying `pid_starttime` has reached `main` at the time\n\
+  this is written, so the recomputation cannot yet reproduce these two pairs; naming\
+  \ a pair the\noracle cannot find is free, stating a count nobody can reproduce is\
+  \ not. The actionable cut\ntherefore stays as the amendment left it, and this amendment\
+  \ RE-MEASURES NOTHING: the\nfrozen-window triple, the 96-segment span, the `` cutoff\
+  \ and the corpus digest\nare all inherited from the 2026-09-05 run and were NOT\
+  \ recomputed here. `pid_starttime`\nis ONE key name across both types, so `waiting_for_verify_admission_slot`\
+  \ is the type that would\nbe new to the cut when those rows do land. CANDIDATE standing,\
+  \ like every pair above.\n\n**What this amendment did NOT re-measure, stated so\
+  \ the record is not read as a fresh run.** This\nis a targeted NAMING amendment,\
+  \ not a re-run of the PAYLOAD-KEY half. The frozen-window triple\n(218 live types;\
+  \ 148 cataloged types carrying 3135 corpus-absent data keys), the 96-segment span,\n\
+  the `` cutoff and the corpus digest `85b1a63fbf89` are ALL inherited from the\n\
+  2026-09-05 run above and were NOT recomputed here — so the digest may since have\
+  \ moved\nfor the ordinary reason it always moves (sibling cards landing `specs/`\
+  \ text), which would put the\nprobe's two corpus-dependent counts into their +/-10%\
+  \ degraded band rather than their exact mode.\nSaying that out loud is the point:\
+  \ a record that quietly presented inherited figures as freshly\nmeasured would be\
+  \ exactly the unfalsifiable-in-the-direction-of-no-change shape the run above\n\
+  warns against. What this pass DID recompute is the actionable cut alone — the ONE\
+  \ oracle\n`bin/lib/debt_spec0161.py#spec0161_payload_key_coverage` over the live\
+  \ corpus/code/journal, which returned\n71 governing pairs with these two unnamed\
+  \ at 97% coverage, and returns 71 named / 0 unnamed once\nthis amendment lands.\n\
+  \n**Why the pairs are named LATE rather than forward, and what that cost.** Every\
+  \ prior addition to\nthis record was named FORWARD — spending the refusal on the\
+  \ card whose job was to spend it, before\nthe row carrying the key reached `main`.\
+  \ did not, and the ordering rule above says why that\nmatters: the pair becomes\
+  \ governing the moment such a row reaches `main`. The first land the queued\npre-merge\
+  \ served put `queued_premerge` onto `main`'s journal at; from 10:50Z the\nland-verify\
+  \ candidate leg reddened for EVERY branch, not only for the card that introduced\
+  \ the key,\nbecause the gate reads the live journal while the record it checks against\
+  \ is a spec-corpus text\nthat only a human edit moves. Four lands aborted and two\
+  \ workers halted `blocked-on-land` before\nthis amendment. The record refreshes\
+  \ on DRIFT, not on breach — the pre-refresh state sat at 97%,\ncomfortably above\
+  \ the floor — so no threshold could have caught it either. The structural gap (a\n\
+  key-adding card has no pre-land check that this record names its new key) is captured\
+  \ as a\nfollowup rather than resolved here, deliberately: naming the pairs is what\
+  \ unblocks the queue, and\na mechanism change is not a thing to design while every\
+  \ land on `main` is red.\n\n**Naming a key HERE does not spec-carry it.** This paragraph\
+  \ is a MEASUREMENT RECORD, not a\npayload-key catalog entry — so a re-run must EXCLUDE\
+  \ it from the corpus it reads, or the measurement\nerases itself (recording 38 candidates\
+  \ makes the next run see 0). The probe\n`tests/test_event_catalog_completeness.py`\
+  \ does exactly that, via the one shared oracle\n`bin/lib/debt_spec0161.py#spec0161_payload_key_coverage`;\
+  \ a hand re-run must too.\n\n**The counts above are load-bearing, and the WINDOW\
+  \ is what makes them so.** An open-ended\n\"measured over the whole journal\" triple\
+  \ cannot be equality-pinned: the journal is APPEND-ONLY, and\nthe original open-ended\
+  \ reading (194/100/1762) had already moved to 194/128/2141 when re-measured\nwith\
+  \ the identical method later in the same 2026-08-19 session. Pinning THAT would\
+  \ be the SPEC-0046\nred-flag (e) self-invalidating temporal anchor — green now,\
+  \ permanently red after the next event\nlands. Freezing the window removes the decay\
+  \ instead of tolerating it: the set of events with\n`ts` at or below the cutoff\
+  \ does not change as the journal grows, so the recomputation is stable and\nthe\
+  \ probe asserts EXACT EQUALITY on all three counts whenever the recorded corpus\
+  \ digest still matches.\n\nThe corpus is the one mutable input left (editing any\
+  \ spec can move a key from absent to carried),\nso on a digest MISMATCH the probe\
+  \ degrades explicitly rather than failing on unrelated spec edits:\nthe live-type\
+  \ count stays an EXACT equality (it reads only the frozen event window, no corpus\
+  \ at\nall) and the two corpus-dependent counts get a tight +/-10% tolerance — a\
+  \ fixed band around a frozen\nmeasurement, which does NOT widen with time. That\
+  \ degraded mode is a fallback, not a resting place:\nthis refresh re-records the\
+  \ digest precisely so the probe is back in its EXACT mode, which the prior\nrecord\
+  \ had silently left behind once later spec edits moved the corpus.\n`tests/test_event_catalog_completeness.py`\
+  \ also carries\na MUTATION ARM against this triple: fixtures that delete, zero,\
+  \ inflate, gut, swap or off-by-one\nthese counts must EACH fail the predicate, and\
+  \ a corruption that fails to bite (because the sentence\nwas reworded out of the\
+  \ probe's reach) is reported as a survivor too. Re-measuring is the way to\nupdate\
+  \ this line — re-run the probe's method with a NEW cutoff and record the new triple\
+  \ + digest.\n\n**These are CANDIDATES, not a promotion, and the readback test is\
+  \ deliberately LENIENT** — it matches\na key literal anywhere in `bin/`, so a name\
+  \ that collides with an unrelated dict key reads as governing.\nPromoting a key\
+  \ into spec text is a separate change with its own gate; what this run OWES, and\n\
+  delivers, is the measurement and its named candidate set. A key here is promoted\
+  \ when a reader is\nconfirmed to branch on THAT event's `data`.\n\n### Who is charged\
+  \ for an unnamed payload key (2026-09-07)\n\n**The rule: a governing (event, payload-key)\
+  \ pair is named in the record above BY THE BRANCH THAT\nINTRODUCES IT, in the SAME\
+  \ diff.** Not by whoever happens to land next.\n\nTHE DEFECT THIS CLOSES, measured\
+  \ in this repo's own journal on 2026-09-07. The measurement above\nreads a SHARED,\
+  \ GROWING input — the journal's live (type, key) census — against a record that\
+  \ moves\nonly by a human edit. The CONDITION it detects is therefore repo-wide while\
+  \ the REFUSAL it issues is\nper-branch, and the two do not line up. `queued_premerge`\
+  \ reached main's journal at 10:45Z;\nfrom 10:50Z every land's candidate leg reddened\
+  \ on `tests/test_spec0161_payload_key_refresh.py` —\n7 aborted lands, 4 workers\
+  \ halted `blocked-on-land`, ~70 minutes on `queued_premerge` — none of which\nhad\
+  \ touched that emitter, until a human named the pairs at 12:01Z. Then introduced\n\
+  `measurement_recorded.test_files` and reddened its OWN land 3x the same way: the\
+  \ branch that WAS\nanswerable learned it minutes in and past the venue slot, from\
+  \ a whole-suite verify, when a\n`git diff` at the door knew it for free. Both faces\
+  \ are one defect — the failure is not ATTRIBUTED.\n\n**WHERE IT IS ENFORCED — four\
+  \ readers, ONE predicate.** `bin/lib/debt_spec0161.py#spec0161_branch_unnamed`\n\
+  is the ONE entry point (the existing `spec0161_payload_key_coverage` oracle plus\
+  \ a pure attribution\nsplit — no second oracle, per the one-oracle discipline):\n\
+  1. **`task commit` / `work commit` — a WARN** naming the introduced-but-unnamed\
+  \ pairs. Report-only,\n   stderr, exit code untouched. Stage 7 is where the diff\
+  \ exists, nothing is spent, and the fix is\n   one `spec edit` in the same commit.\n\
+  2. **that branch's `land` — a REFUSAL**, on the cheap P0 preflight beside the /\
+  \ /\n    arms: after `main_wt` resolves and BEFORE the land reservation, the SPEC-0132\n\
+  \   verify-admission slot, the merge from main and the suite. Seconds, not minutes.\
+  \ It reuses the\n   existing `abort_detail={\"preflight\": True}` row shape, so\
+  \ it is exempt from the\n   repeated-abort streak exactly as its siblings are.\n\
+  3. **the two live-corpus land-verify gates** (`tests/test_spec0161_payload_key_refresh.py`\
+  \ and the\n   coverage-floor arm of `tests/test_event_catalog_completeness.py`)\
+  \ charge THIS branch only for\n   pairs it introduced. Inherited pairs are REPORTED\
+  \ and do not fail a bystander.\nAll three paste ONE text, and that text NAMES THE\
+  \ CHARGING SITE — `<path>:<line>` of an added\nstructural occurrence, per charged\
+  \ key. A charge the charged party cannot check is a\ncharge they must re-derive\
+  \ the structural scan by hand to locate, at a gate that fires seconds\nbefore a\
+  \ venue slot; the site is carried out of the same materialiser pass that computes\
+  \ the\ncharge, so the message and the verdict cannot name different places. A pair\
+  \ charged by count 2\n(un-naming) has no code site and is listed bare — correctly:\
+  \ its charge is in the record, not in\nthe diff.\n\n**WHAT ATTRIBUTION MEANS, exactly\
+  \ — and it is STRUCTURAL, never a mention.** A branch is answerable\nfor a key on\
+  \ either of two counts:\n1. **it ADDS the key TO CODE** — the key appears on a line\
+  \ the branch adds under `bin/`, in a\n   position that actually makes it a payload\
+  \ key: `.get(\"k\")` or `[\"k\"]` (VERBATIM the two regexes\n   the oracle derives\
+  \ its own `readback` conjunct from — the same expressions, not lookalikes) or\n\
+  \   `\"k\":` (the key as a payload-dict KEY LITERAL, needed because a branch may\
+  \ add the emitting dict\n   while the readback already existed on main). Every form\
+  \ requires the key QUOTED. **AND no\n   structural occurrence of that key existed\
+  \ under `bin/` AT THE MERGE-BASE.** Adding an\n   occurrence is not the same fact\
+  \ as INTRODUCING the key: a branch that adds a SECOND readback of\n   a key main\
+  \ already reads back made nothing govern that did not govern before, so charging\
+  \ it\n   re-reads a key that governed before the branch existed. Measured — <project>\
+  \ X-1343 / ``:\n   its land was refused for `spike_channel_grant.compose_project`\
+  \ because it added\n   `meta.get(\"compose_project\")` in `bin/tests/spike_live_support.py`,\
+  \ while `bin/spike-lib.sh:46`\n   had carried `m.get(\"compose_project\")` at the\
+  \ merge-base all along. The base side is a\n   BASELINE-vs-CURRENT comparison of\
+  \ the same shape count 2 already has, and it is affordable for\n   the same reason:\
+  \ it is TARGETED. Only the FEW keys this branch added can change an answer, so\n\
+  \   one `git grep -l -F` over `<base>:bin` restricted to those literals yields a\
+  \ handful of\n   CANDIDATE files, and each candidate is read at the base rev and\
+  \ judged by the SAME structural\n   matcher the branch side is judged by — the grep\
+  \ is a FILE FILTER, never the verdict, so a\n   comment or a quoted example at the\
+  \ base can no more exempt a branch than it can charge one. The\n   earlier concession\
+  \ that this arm could not afford the family's baseline shape priced the WRONG\n\
+  \   question (the whole `bin/` tree plus the re-folded journal at base) and is retired.\
+  \ **`git grep`\n   exit status 1 is \"no match\", an ANSWER — the common case, and\
+  \ the key stays charged;** only a\n   genuine git fault is unknowable (None), because\
+  \ reading a fault as \"nothing pre-existed\" would\n   restore the over-charge at\
+  \ a refusing gate, and reading rc 1 as a fault would make every\n   genuinely-new\
+  \ key unattributable, i.e. disable this gate rather than narrow it.\n2. **it UN-NAMES\
+  \ the key** — the key was in this record's span at the merge-base and is not in\
+  \ it\n   now. That arm is a BASELINE comparison (`git show <base>:<spec>` versus\
+  \ the span on disk), which\n   is the diff-aware family's own shape and is affordable\
+  \ here because the input is one small file\n   at one rev.\n\n**NEITHER ARM IS A\
+  \ WORD SCAN, and that is load-bearing.** A bare mention — in a comment, a\ndocstring,\
+  \ a refusal message, a test name, or an unrelated `specs/` deletion that happens\
+  \ to\ncontain the literal — must NOT charge a branch, because a false positive at\
+  \ a REFUSING gate is the\nmost expensive kind of wrong. Attribution is BY KEY, not\
+  \ by (type, key): the record names keys, and\nrequiring the type in the diff too\
+  \ would let a branch add a new key to an existing type and be\ncharged nothing.\n\
+  \n**WHAT MAKES \"NEVER A MENTION\" TRUE IS TWO CONCRETE MECHANISMS, named here because\
+  \ the claim above\nis only as good as them — and BOTH were missing on the first\
+  \ pass (audit-post pass 2, findings B1\nand B2).** Each arm needs its own, because\
+  \ each reads a different text:\n- Arm 2 parses this record's own ROW GRAMMAR — the\
+  \ backtick-quoted `type.key|key` tokens that are\n  members of the `·`-separated\
+  \ enumerated set — never every identifier in the span. Under a word\n  scan, deleting\
+  \ a key-shaped word from an explanatory SENTENCE, with every recorded row untouched,\n\
+  \  charges the branch and refuses its land. Prose in this span may be freely edited;\
+  \ only removing a\n  ROW un-names a key.\n- Arm 1 derives comment/docstring status\
+  \ from the POST-IMAGE FILE, not from the added lines. The\n  three forms match just\
+  \ as happily inside a quoted code EXAMPLE (`# e.g. row.get(\"some_key\")`),\n  which\
+  \ is prose about code, not code; without the removal, a branch that added no emitter\
+  \ at all\n  is refused. The added lines ALONE cannot decide this — a line added\
+  \ INSIDE a pre-existing\n  docstring carries no opening delimiter, so a blob-level\
+  \ reading scans it as code (audit-post\n  pass 3, residual B2). So each touched\
+  \ `bin/` file's post-image is tokenised by Python's own\n  lexer, COMMENT and DOCSTRING\
+  \ tokens are blanked in place, and only THEN are this branch's added\n  LINE NUMBERS\
+  \ selected. A post-image that does not tokenise charges nothing (fail-OPEN).\nBoth\
+  \ resolve their residual ambiguity toward NOT charging, for the reason the paragraph\
+  \ above\ngives: at a refusing gate, a false positive is the expensive direction.\n\
+  \n**THE FLOOR IS NOT WEAKENED — only the numerator moves.** `SPEC0161_COVERAGE_FLOOR`\
+  \ is unchanged\nand the coverage DENOMINATOR stays the full corpus-wide governing\
+  \ set; no pair is ever dropped from\nit. A pair inherited from main is credited\
+  \ as not-chargeable-to-this-branch while remaining counted\nin the aggregate, and\
+  \ the raw corpus-wide coverage is printed beside the chargeable one on every\nrun.\
+  \ The corpus-wide net is not removed, it MOVES to where it can be acted on: per-pair\
+  \ on the\nintroducing branch (strictly stronger than an 80% aggregate), and the\
+  \ SPEC-0119 rule-28 debt echo\nstill reads the RAW figure, report-only, unchanged.\n\
+  \n**THE ATTRIBUTION BINDS EVERY ARM OF THE CHECK, NOT ONE OF THEM.** A pair no branch\
+  \ diff\nintroduces — a key first emitted by a kernel-path emitter such as a `land`\
+  \ tail, the venue runner or\na bookkeeping write — is REPORTED as inherited from\
+  \ main and is NEVER charged to the branch that\nhappens to be landing, in EVERY\
+  \ arm of `tests/test_spec0161_payload_key_refresh.py`, including the\ndifferential\
+  \ pre-refresh arm; an arm left reading the whole corpus reds every branch for a\
+  \ key none\nof them touched, which is the condition the attribution exists to end.\
+  \ Excusing an inherited pair is\nconditional on the attribution being AVAILABLE:\
+  \ on `attributable: False` every arm keeps the\nwhole-corpus bar, per the opposite-fail-safe-directions\
+  \ rule below.\n\n**THE TWO FAIL-SAFE DIRECTIONS ARE DELIBERATELY OPPOSITE.** When\
+  \ the diff cannot be computed the\nattribution is UNKNOWN — a NAMED third state\
+  \ (`attributable: False`), never an empty `introduced`\nlist. The two commit WARNs\
+  \ and the `land` preflight ADMIT on unknown: a guard whose whole purpose\nis to\
+  \ make a refusal CHEAPER must never invent one out of a fact about the checker.\
+  \ The two\nland-verify GATES fall back to the whole-corpus bar on unknown: a governance\
+  \ gate that cannot\nattribute keeps its old strictness rather than going quiet.\n\
+  \n**THE NAMED RESIDUE (the honest bound).** A pair that becomes govern-and-unnamed\
+  \ without either\ndiff mentioning the key — a row appended from the main checkout\
+  \ with no worktree, or a key\nthat becomes governing because an unrelated spec edit\
+  \ removed its only other corpus mention — reads\nas inherited on every branch, so\
+  \ no branch is failed for it. That is deliberate and is the same\ntrade `graph.uncatalogued_type_findings`\
+  \ documents one level up (the event-TYPE sibling of\nthis rule, whose incident and\
+  \ reasoning are identical): a gate that cannot name a responsible party\ncan only\
+  \ punish bystanders. The residue is not dropped — the rule-28 debt echo surfaces\
+  \ it.\n\n**RETIRED by this rule (CHARTER §P1 F3):** (a) the main-side whole-corpus\
+  \ red that charged EVERY\nbranch for a key it did not introduce; (b) the dispatch-brief\
+  \ line the Controller had been\nhand-adding to every worker brief («a NEW journal\
+  \ payload key in your diff MUST be named in the\nSPEC-0161 record in the SAME diff»)\
+  \ — it is now the verb's own message, so it reaches every branch\nthat introduces\
+  \ a key rather than only the briefs someone remembered to write it into.\n\n**THE\
+  \ NINE pairs the record left unnamed, each given its disposition here (Controller\
+  \ refresh,\n2026-09-17, work batch `spec0161-name-nine-unnamed-pairs-2026-09-17`;\
+  \ the immediate unblock exit (b)\n names — the structural fix, attributing the floor\
+  \ arm by branch, stays own).**\nMEASURED, not judged: the oracle (`bin/lib/debt_spec0161.py#spec0161_payload_key_coverage`)\
+  \ run on\n`task/` at commit 352c473430 reads **85 governing pairs, 76 named, 9 unnamed\
+  \ — 89%** against\nthe 0.80 floor; `main` reads 84 (the 85th, `measurement_recorded.all_in_wall_s`,\
+  \ arrives with any\nbranch that carries a routed venue-measurement row). That one\
+  \ pair reconstructs the pre-refresh state\nof every such branch at exactly 68/85\
+  \ = 0.80 on a strict `>` floor arm, which is why `task/`\nand `task/` both redded\
+  \ on `tests/test_spec0161_payload_key_refresh.py` for a corpus-wide\ndrift neither\
+  \ branch decided (deviation `spec0161-test-floor-arm-whole-corpus-reds-every-branch-at-\n\
+  exact-floor`, events.jsonl#ts=). Naming all nine lifts the record to 85/85 on\n\
+  that branch shape and 84/84 on `main`. Every one carries CANDIDATE standing — read\
+  \ the emitter for\nthe authoritative key set:\n`bg_dispatch_halted.audited_commit`\
+  \ · `land_audited_footprint.hand_resolved` ·\n`measurement_recorded.all_in_wall_s|isolated_attempts`\
+  \ ·\n`read_gate_refused.audited_commit|intervening_commit|latest_tests_passed_ts|named_revision`\
+  \ ·\n`task_amended.audited_commit`\n- `measurement_recorded.all_in_wall_s` — `bin/lib/remote_verify.py`:\
+  \ the routed venue pass's\n  whole-request wall seconds (`round(time.monotonic -\
+  \ started, 1)`, written onto EVERY routed\n  result, fault path included) and copied\
+  \ onto the journal row by `remote_verify_row`\n  (`result.get(\"all_in_wall_s\"\
+  )`) — that read-back is what makes the pair governing. The same key\n  rides the\
+  \ / venue-isolated classification rows. Reported, never branched on.\n- `measurement_recorded.isolated_attempts`\
+  \ — `bin/lib/verify_runner.py`: the per-attempt verdict\n  list (`[\"fail\", \"\
+  pass\"]` at most — two calls, not a loop) recorded BESIDE the scalar `isolated`\
+  \ on\n  a retry / lane isolated re-run, so a file that needed the second try is\
+  \ distinguishable from one\n  that passed first time; the land-tail entry fold reads\
+  \ only the scalar. Reported-only.\n- `land_audited_footprint.hand_resolved` — `bin/lib/rebaseline_currency.py`:\
+  \ the\n  `merge_resolved_by_hand` rows (merge commit, resolved paths, `resolved_source`)\
+  \ on this branch\n  since the audited commit, so an audited-footprint SHIFT is ATTRIBUTABLE\
+  \ — deliberately never\n  EXCUSABLE (a reader that admitted a path on this key would\
+  \ invert the rule). Fail-safe absent when\n  unmeasured; an absent key is never\
+  \ a claimed empty set.\n- `read_gate_refused.audited_commit`, `read_gate_refused.latest_tests_passed_ts`\
+  \ and\n  `read_gate_refused.intervening_commit` — `bin/lib/audit.py#stage6_evidence_gap_facts`\
+  \ :\n  the DISPLAY-ONLY facts on the `stage6-evidence-stale` / `stage6_evidence_does_not_cover_subject`\n\
+  \  refusal, so a terminal-bearing pass that finds no Stage-6 proof can NAME the\
+  \ subject, the latest\n  recorded `tests_passed` run and the commit that consumed\
+  \ it. They decide nothing — the decision is\n  `stage6_evidence_covers_subject`'s\
+  \ alone.\n- `read_gate_refused.named_revision` — `bin/lib/audit.py` (SPEC-0204 rule\
+  \ 3): on\n  a `decisions-not-for-this-revision` refusal, the revision the recorded\
+  \ decisions NAME (the `fix`\n  evidence revision, or the ceiling row's own subject\
+  \ on an empty-set admission) beside the\n  `current_subject` this pass would audit,\
+  \ so the two-arm refusal is readable off the row.\n- `task_amended.audited_commit`\
+  \ — `bin/lib/task.py` : the `expected_touch` CORRECTION\n  record's own audited\
+  \ sha, which makes the «the recorded audited commit does not move» claim\n  CHECKABLE\
+  \ from the journal rather than asserted in a docstring.\n- `bg_dispatch_halted.audited_commit`\
+  \ — NO emitter in `bin/` writes it: it rides two hand-authored\n   halt payloads\
+  \ of 2026-07-10 and reads as governing ONLY because the key NAME collides with\n\
+  \  the `audited_commit` literal the audit / task readers above read back. Named\
+  \ here so the record\n  stops charging bystander branches for a 2-row historical\
+  \ artefact; if those rows ever rotate out\n  of the corpus the pair simply stops\
+  \ being governing.\n\n**Named by the 2026-09-20 branch `task/` (X-1504) — three\
+  \ pairs this branch INTRODUCES**, on\nthe same kept-NAMED terms as the blocks above:\n\
+  `bg_dispatch_halted.refused_class|holder_session_ref|holder_worktree`\n- `bg_dispatch_halted.refused_class`\
+  \ — `bin/lib/task.py#cmd_task_refuse` : the sub-reason\n  discriminator on a `kind:\
+  \ refused` halt, whose only value is\n  `journal.REFUSED_CLASS_CLAIM_LOST` (`claim-lost-to-live-peer`).\
+  \ This one IS branched on, not\n  merely reported: `journal._terminal_detail` reads\
+  \ it to mint `refused(claim-lost)` instead of\n  `refused(pre-claim)`, and `debt_adoption._is_pre_claim_refusal`\
+  \ reads it to keep such a halt OUT\n  of the card-disposed drop. A row carrying\
+  \ no `refused_class` — every row written before\n  this key existed — keeps its\
+  \ `refused(pre-claim)` reading verbatim, so the key is additive to\n  every reader.\n\
+  - `bg_dispatch_halted.holder_session_ref` and `bg_dispatch_halted.holder_worktree`\
+  \ — same emitter:\n  WHO holds the live `task/T-XXXX` worktree that this worker\
+  \ lost the claim to, read off the\n  stamp (`session_ref`, `null` when the worktree\
+  \ is unstamped — recorded as unknown, never\n  invented) and the holder's path.\
+  \ Read back by the `--fleet-verdict` claim-lost basis so the\n  controller routes\
+  \ to the holder's land without a journal grep. Reported, never branched on.\n\n\
+  ## Verification\n\n- Size: SPEC-0025 back under the SPEC-0120 §3 ceiling (durable_docs\
+  \ metrics; over_ceiling /\n  over_ceiling_bytes no longer list it) after the section\
+  \ re-homes here; SPEC-0161 sits in-band.\n- Verbatim: the moved body text is byte-identical\
+  \ to the SPEC-0025 pre-split source (no content deleted).\n- Retrieval: `bin/yitc-v2\
+  \ graph query SPEC-0161` returns the extension catalog; the SPEC-0025\n  §Event-type\
+  \ catalog extension pointer stub names this spec id + the lookup command.\n- Graph-indexed:\
+  \ `bin/yitc-v2 graph build` indexes SPEC-0161 as a `spec` node.\n- ** (2026-08-19)\
+  \ additions:** the type sweep re-run against the WHOLE `specs/` corpus reports\n\
+  \  ZERO live-emitter types without a home, and every residual is a NAMED no-emitter\
+  \ deferral above\n  (`tests/test_event_catalog_completeness.py`). Size after the\
+  \ additions: 493 lines / 42006 B —\n  in-band on LINES, modestly over the ~40000\
+  \ B report-only byte band, well under the 63000 B\n  one-bounded-read ceiling (SPEC-0120\
+  \ §3; both axes report-only, neither a gate). Recorded rather\n  than silently passed:\
+  \ the next content addition here should cut at a coherent seam.\n"
+cites:
+- SPEC-0025
+- SPEC-0120
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

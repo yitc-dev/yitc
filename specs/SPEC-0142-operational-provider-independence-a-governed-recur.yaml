@@ -1,0 +1,132 @@
+id: SPEC-0142
+title: Operational provider-independence — a governed recurring obligation names a
+  provider-independent trigger; AI judgement is separable and non-gating
+status: active
+created_at: 2026-07-07 13:53:27+00:00
+travels: kernel
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nThe owner/AI stands up a GOVERNED recurring obligation — a nightly\
+  \ governance/health sweep, a\nsecurity-audit cadence, a freshness monitor. It MUST\
+  \ fire from provider-independent OS infrastructure\n(a system cron / systemd timer\
+  \ running a deterministic script), NEVER from the AI provider's own\nscheduler or\
+  \ runtime (e.g. a cloud-agent \"schedule this\" feature). Any AI judgement the obligation\n\
+  delegates is a SEPARABLE, downstream, NON-gating layer: the deterministic script\
+  \ produces the\nevidence/action; the AI, if used at all, only triages/classifies\
+  \ and is never the thing that FIRES or\nGATES the obligation. This is the OPERATIONAL\
+  \ sibling of CHARTER §P4b — that keeps the DOCS\nprovider-neutral; this keeps the\
+  \ OPERATION provider-independent.\n\n## Internal\n\n### 1. The rule (provider-neutral\
+  \ statement)\nA governed recurring/periodic obligation MUST name a **provider-independent\
+  \ trigger** — an OS-level\nscheduler (cron / systemd timer / equivalent) invoking\
+  \ a **deterministic script**. The AI provider's\nown scheduler or runtime is NOT\
+  \ a legitimate trigger for a governed obligation. **\"Governed\"** = an\nobligation\
+  \ the methodology relies on (a kernel cadence, a declared product cron, a freshness\
+  \ monitor, a\nsecurity-audit cadence), as opposed to an ad-hoc one-off convenience\
+  \ a person kicks off by hand.\nProvider names appear in this spec ONLY as anti-pattern\
+  \ EXAMPLES, never in the normative statement\n(CHARTER §P4b — provider-neutral normative\
+  \ text).\n\n### 2. Two separable bindings — this spec owns the TRIGGER, not the\
+  \ JUDGEMENT\nA \"cadence\" hides two provider bindings; this spec governs ONLY the\
+  \ first:\n1. **TRIGGER + invocation contract** — what fires the obligation and how\
+  \ it resolves enough\n   identity/state to run — MUST be provider-independent OS\
+  \ infra (this spec). It is not enough for the\n   TRIGGER to be OS cron if the INVOCATION\
+  \ then hard-couples to a provider/harness runtime to even run\n   (the live nightly\
+  \ break, §6) — the whole trigger→run path must resolve without the provider.\n2.\
+  \ **AI-JUDGEMENT layer** — which provider's model does any delegated thinking —\
+  \ a separable,\n   non-gating downstream step whose portability is the **role↔provider\
+  \ axis, <workshop-spec>** (NOT this\n   spec). This layer MUST be structurally SEPARABLE\
+  \ (removable without disabling the obligation) and\n   NON-GATING (the deterministic\
+  \ script's evidence, not an AI verdict, is what the obligation stands on).\n\n###\
+  \ 3. Independence axes — distinct from the L3 monitor-independence rule (P7 disambiguation)\n\
+  SPEC-0110 §3 already requires a freshness MONITOR to be independent of the PROJECT's\
+  \ own loop (a dead\nscheduler must not also kill its own alarm — single-point-of-failure).\
+  \ THIS spec adds an ORTHOGONAL\nindependence axis: the TRIGGER must be independent\
+  \ of the AI PROVIDER. Both are \"independence\"\ninvariants on governed cadences;\
+  \ neither subsumes the other, and they do not contradict (Principle 7\nchecked).\
+  \ A cadence satisfies this spec when its trigger→run path is provider-independent\
+  \ OS infra —\nand, where freshness applies, its monitor is additionally loop-independent\
+  \ per SPEC-0110.\n\n### 4. Relationship to the cadence layers (L1/L2/L3) — a cross-cutting\
+  \ invariant, no new store\nThe existing cadence machinery stands up recurring obligations\
+  \ at three layers: **L1** the methodology\nnightly (SPEC-0105), **L2** product-cron\
+  \ declaration on `yitc-ops.yaml` (SPEC-0109), **L3**\nliveness/freshness (SPEC-0110).\
+  \ This spec is NOT a fourth layer and adds NO cadence store / registry /\nparser\
+  \ (anti-complexity F2). It is the cross-cutting INVARIANT every layer's declarations\
+  \ must honor:\nwhatever declares or runs a governed cadence, its trigger→run path\
+  \ is provider-independent OS infra.\n\n### 5. Delivery — a floor-trigger at cadence\
+  \ setup (existing binding machinery, no new gate)\nDelivered via the `binding: before-scheduling-a-cadence`\
+  \ floor-trigger (the existing\nbinding→floor-trigger-map machinery — a new token\
+  \ VALUE, not a new mechanism): before standing\nup or changing a governed recurring\
+  \ obligation, read this spec. This spec adds NO lint/gate of its own.\nA mechanical\
+  \ check (does a declared cadence name an OS trigger?) is an OPTIONAL future mechanism,\
+  \ scoped\nby owner decision at the plan's SPEC-0035 fork — not built here.\n\n###\
+  \ 6. The sweep register — the canonical operational-surface classification (the\
+  \ \"sweep\" deliverable)\nThis spec carries the canonical classification of the\
+  \ kernel's governed recurring surfaces. Each\nsurface is COMPLIANT / VIOLATION /\
+  \ OUT-OF-SCOPE; **every VIOLATION names its owning task or an existing\nowner**\
+  \ — no prose-only violation, no unowned side registry (the classification lives\
+  \ HERE in the\nspec/graph, cited by the plan's closure — CHARTER §P5). Current register\
+  \ (this-session sweep):\n- **nightly / `yitc-v2-nightly` cron (L1, SPEC-0105):**\
+  \ trigger COMPLIANT (OS cron); **invocation-contract\n  VIOLATION (live)** — the\
+  \ SPEC-0137 session-identity rework coupled the headless invocation to a\n  runtime\
+  \ that fail-closes. OWNER = the SPEC-0137 postcheck plan `provider-agnostic-session-identity-v2-owned-launch`.\n\
+  - **security-audit cadence (SPEC-0128; X-0216/0217):** **VIOLATION-in-waiting**\
+  \ — the first consumer of\n  this rule; must land on OS cron + a deterministic gate\
+  \ script (`bin/v2-security-gate.sh`), AI limited\n  to triage. OWNER = a follow-up\
+  \ task cut at this plan's decomposition.\n- **`<external-auditor>-audit-watcher`\
+  \ cron:** COMPLIANT (OS cron trigger).\n- **git housekeeping / `yitc-v2-git-maintenance`\
+  \ cron ( runner trigger):** COMPLIANT\n  (added by — the register had NO entry for\
+  \ this cadence, which is how a live, working,\n  five-day-old surface stayed invisible\
+  \ to a sweep and got re-filed as \"nothing invokes it\").\n  TRIGGER: the hourly\
+  \ OS cron line `25 * * * *` on the `dev` crontab, under `<host-home>/bin/cron-notify.sh`,\n\
+  \  invoking the deterministic script `bin/git-maintenance.sh` (exit 0 = OK / exit\
+  \ 1 = efficacy-not-met).\n  No AI judgement anywhere on the trigger->run path, so\
+  \ §2's separability requirement holds by construction.\n  INVOCATION CONTRACT —\
+  \ the §2 binding-1 half, and the part that was BROKEN: the entry must carry the\n\
+  \  `session start` prefix + `YITC_SESSION_REF`, exactly as the `yitc-v2-nightly`\
+  \ and `yitc-v2-worktree-sweep`\n  entries do. Invoked BARE, the gc runs correctly\
+  \ but every `git_maintenance_run` emit dies on the\n  SPEC-0137 Rule 5 fail-closed\
+  \ gate and the script exits 0 anyway — 64 windows (2026-08-22..29) collected\n \
+  \ real garbage and left NO journal row, the silent failure was filed against. This\
+  \ is the same\n  class as the nightly's own invocation-contract violation recorded\
+  \ above: an OS trigger is NOT sufficient\n  if the invocation cannot resolve enough\
+  \ identity to run.\n- **role↔provider execution (audit=<external-auditor> / worker):**\
+  \ OUT-OF-SCOPE — <workshop-spec> owns this axis.\n- **background-worker Watcher\
+  \ (in-session completion monitor):** OUT-OF-SCOPE — a session-scoped monitor\n \
+  \ the Controller arms within ONE authorized batch, not a standing \"run periodically\"\
+  \ governed\n  obligation (resolved from the plan's CANDIDATE-C; no separate task\
+  \ needed).\n- **session-log materialization (journal sync):** OUT-OF-SCOPE — on-demand/recovery,\
+  \ not a\n  provider-scheduled cadence; already abstracts the provider-specific path\
+  \ (resolved from the\n  plan's CANDIDATE-D; no separate task needed).\n\n## Parameters\n\
+  None consumed.\n\n## Rationale\nCHARTER §P4b governs provider-neutral DOCS; the\
+  \ OPERATIONAL sibling was missing. Two real incidents this\nsession ground the rule:\
+  \ (a) a security-audit cadence about to be stood up on a provider cloud-agent\n\
+  scheduler — owner rejected it; (b) the `yitc-v2-nightly` OS cron failing exit-1\
+  \ because its invocation\ncontract coupled to a provider/harness session-identity\
+  \ runtime. Origin: cross-log X-0218 (\"think it\nthrough\"). Anti-complexity 4 filters:\
+  \ (F1) existing analog = CHARTER §P4b, EXTENDED to the operational\naxis (not a\
+  \ parallel concept); (F2) ONE spec + a floor-trigger token, no new store/parser/registry;\n\
+  (F3) REMOVES the implicit permission to trigger a governed cadence from a provider\
+  \ scheduler/runtime;\n(F4) two real incidents this session (not imagined).\n\n##\
+  \ Verification\n- **(rule active)** `bin/yitc-v2 graph query SPEC-0142` → `status:\
+  \ active` with a closed `activation_owner_task`.\n- **(delivered)** after activation,\
+  \ SPEC-0142 appears in `graph/floor-trigger-map.md` under\n  `before-scheduling-a-cadence`.\n\
+  - **(adoption — Done=Adopted)** the first cadence setup after activation (the security\
+  \ cadence,\n  X-0216/0217) CITES SPEC-0142 and lands on an OS trigger + deterministic\
+  \ script — a\n  `consumer_read_evidence` / adoption event.\n- **(sweep complete)**\
+  \ §6 register classifies every in-scope governed cadence and every VIOLATION names\n\
+  \  a task id / existing owner (no prose-only) — checkable by reading §6 against\
+  \ the crontab + cadence layers.\n"
+cites:
+- CHARTER.md#principle-4
+- SPEC-0105
+- SPEC-0109
+- SPEC-0110
+- SPEC-0137
+- SPEC-0128
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: operational-provider-independence-a-governed-recur
+binding:
+- before-scheduling-a-cadence
+init_concern: null

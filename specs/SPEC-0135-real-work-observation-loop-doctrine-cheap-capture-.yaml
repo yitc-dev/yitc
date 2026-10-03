@@ -1,0 +1,129 @@
+id: SPEC-0135
+title: Real-work observation-loop doctrine — cheap capture on existing events, rare
+  kernel aggregation, source-fact-vs-derived-cost, project measures self
+status: active
+created_at: 2026-07-04 16:09:22+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/observe.py#normalize_triple
+- bin/lib/observe.py#session_started_fields
+- bin/lib/observe.py#resource_summary
+- bin/lib/observe.py#outcome_fields
+- bin/lib/observe.py#auditor_triple
+- bin/lib/observe.py#normalize_wait_reason
+- bin/lib/views.py#_view_observation_rollup
+body: "## Scenario\n\nThe owner/AI wants to know how the methodology, the AI (worker\
+  \ + external-auditor PAIR), the\nhardware, and the human actually perform in REAL\
+  \ work across ALL projects — to steer methodology\nevolution (\"which way to move\"\
+  ), recommend a provider×model×effort PAIR to users, find where discipline\nbreaks,\
+  \ and size minimum hardware per project class. Each PROJECT measures ITSELF cheaply\
+  \ and\ncontinuously (on events that already fire); the KERNEL aggregates across\
+  \ all projects rarely, at\nread-time, at revizia cadence — the 10th inspection theme.\
+  \ The result is decision-useful NUMBERS,\nnever a scoring engine; the AI-usage data\
+  \ is a reusable byproduct (incl. marketing). This closes a\nmeasurement the CHARTER\
+  \ §Success-criteria already promises but nothing yet computes.\n\n## Internal\n\n\
+  THE REAL-WORK OBSERVATION-LOOP DOCTRINE. Seven rules. It adds NO new store / parser\
+  \ / journal /\nevent-type / daemon (CHARTER §P1): it rides the EXISTING event-emit\
+  \ path + `graph`-as-derived-view.\n\n### 1. Two modes — capture CHEAP+continuous,\
+  \ analysis RARE+read-time\nCapture rides existing emit points (a few extra raw FIELDS\
+  \ on anchor events the verbs already emit);\nit is near-zero cost and always-on.\
+  \ Unification/analysis is READ-TIME and RARE (revizia cadence) —\nits parse/aggregate\
+  \ cost is non-critical because it is paid only then.\n\n### 2. Realm — project measures\
+  \ ONLY itself; the KERNEL aggregates across ALL\nA project's own numbers are LOCAL\
+  \ to it. Cross-project rollup is KERNEL-ONLY, carried by the existing\nregistry-enumeration\
+  \ seam (SPEC-0105 nightly). A project never reads another project's numbers.\n\n\
+  **Per-project view project resolution.** `graph query observation [project]` resolves\n\
+  every `session_started` row of ONE journal to that journal's OWNER project (the\
+  \ CLI passes the\nself-project; the same resolution the kernel rollup uses) BEFORE\
+  \ the `project` filter — the stamped\n`data.project` is the worktree leaf (a task\
+  \ id / slug) inside a worktree, so keying on it dropped\nthose sessions. Legacy:\
+  \ a direct caller that passes no self-project keeps the stamped value\n(multi-project\
+  \ fixtures). Output contract: `project_resolution` names which rule ran\n(`journal\
+  \ owner ` | `stamped session_started.project`), and `attribution[project]` carries\n\
+  `sessions`, `attributed_sessions` (worker triple with no `unknown` axis) and `attributed_share`\n\
+  (3-dp, null on zero) — a count + share, report-only, never a score.\n\n### 3. Source-fact\
+  \ vs derived-view (Single-SoT, CHARTER §P5 / §P7)\nThe journal stores ONLY **raw\
+  \ facts / join keys**: identity (provider×model×effort), timing\n(`duration_ms`),\
+  \ status/outcome, host, counts. **Usage + cost are NEVER journaled** — they are\
+  \ a\nREAD-TIME DERIVED view (`token-rollup` × `pricing-config` over the archived\
+  \ transcript / audit-call\nevidence — the settled owner reroute, prior-art `observability-metrics-ai-benchmarking-data-model`).\n\
+  The kernel aggregates the DERIVED numbers, NEVER raw transcript text (privacy +\
+  \ no second truth).\n\n### 4. OBSERVE the roles that already exist — do NOT create\
+  \ a pipeline\nV2 already has a worker (executes) and, on AUDITED tasks, an external\
+  \ auditor (CHARTER §P4 — different\nproviders). This doctrine only OBSERVES those\
+  \ roles when present: it captures worker-side identity\n(`session_started`) and,\
+  \ for audited tasks, auditor-side identity (the audit events), and rolls them\n\
+  up to the **pair** for comparison. It introduces NO mandatory two-role pipeline\
+  \ / role taxonomy /\nrole for un-audited work (CHARTER §6).\n\n### 5. Every indicator\
+  \ ties to a DECISION; output is FINDINGS, not a score\nAn indicator that changes\
+  \ no decision is not captured (CHARTER §P1 F4 — no imagined-necessity\nmetrics).\
+  \ The analysis output is findings-by-severity + counts + trend + the derived binary\n\
+  `open HIGH? yes/no` — NEVER a composite quality SCORE / colour band (SPEC-0057 §4\
+  \ fence held).\n\n### 6. Additive-only + explicit NEGATIVE scope\nJustified additive\
+  \ (the CHARTER measurement gap + the realized observability program it EXTENDS).\
+  \ ONE\nreplacement: the verbatim `session_config` descriptor becomes NON-slice-source\
+  \ once the normalized\n`provider×model×effort` triple lands (the triple is the sole\
+  \ slice key; the string stays raw\nprovenance). This doctrine will NOT add: a standalone\
+  \ telemetry schema / export store; journaled\nusage/cost; a per-task token splitter;\
+  \ a composite score; a new audit-result store; a daemon/cron; a\nnew event TYPE\
+  \ (`SPEC-0025` is AMENDED, not forked).\n\n### 7. Portable vocabulary\nThe field/view\
+  \ vocabulary ALIGNS to OpenTelemetry GenAI semantic conventions for fork/tool\n\
+  portability — as an export/naming aid ONLY; the SoT stays the journal events + the\
+  \ added fields.\n\n## Rationale\n\nCHARTER §Success-criteria defines success in\
+  \ measured terms («measurably lower friction than v1») but\nnothing computes it;\
+  \ anti-recurrence (CHARTER §P1 F4) needs real data on WHERE discipline breaks.\n\
+  Prior-art reused (extend, not create): `token-rollup` / `task-scorecard` / `trend-report`\
+  \ views, the\n`nightly` registry enumeration (SPEC-0105), the `inspection` construct\
+  \ (SPEC-0057), the bench\nworker×auditor pair benchmark (<workshop-spec>), the `debt`\
+  \ views (SPEC-0119). Gate-specs convergence\nconsult confirmed rule 3 (read-time-derived\
+  \ cost) as the sole coherent Single-SoT resolution.\n\n## Verification\n\n- Capture:\
+  \ each added field emits on the next real session/land/audit (state-check on `events.jsonl`).\n\
+  - SoT probe: `events.jsonl` carries NO journaled usage/cost field (grep-absent);\
+  \ cost resolves only\n  via `token-rollup` × `pricing-config`.\n- Aggregation: the\
+  \ kernel view returns real provider×model×effort PAIR slices over ≥ 2 real\n  project-weeks,\
+  \ with sample-size/confidence shown.\n- Theme-10: an `inspection_completed` (theme-10)\
+  \ event exists AND ≥ 1 `owner_action_linked`\n  (task/followup id) cites its findings.\n\
+  - Adoption: ≥ 1 decision links a deviation-fingerprint → fix → before/after recurrence\
+  \ → owner action.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- CHARTER.md#principle-7
+- SPEC-0025
+- SPEC-0057
+- SPEC-0105
+- SPEC-0119
+- real-work-observation-loop-metrics-catalog-cheap-c
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: real-work-observation-loop-metrics-catalog-cheap-c
+binding:
+- code-enforced
+init_concern:
+  init_question: 'Does this project POPULATE its.yitc/transcript-archive (the kernel
+    Duty-1 recipe: rsync -a ~/<provider-config>/projects/ <repo>/.yitc/transcript-archive)
+    so the read-time token-rollup COST dimension (baseline $/task) is measurable?
+    Declare the population duty, or waive the cost dimension.'
+  waiver: A project that does not want per-task cost measurement may bare-waive —
+    the token-rollup then DEGRADES to the named 'archive absent' outcome (a fail-closed
+    named unavailability, never a silent zero-cost reading), and the cost dimension
+    stays n/a on that project.
+  evidence: a populated.yitc/transcript-archive feeding a non-abort `graph query token-rollup`
+    (the cost dimension resolves), or the named waiver recorded for the concern.
+  recommended: Waive for now — per-task cost then reads the named 'archive absent'
+    outcome instead of a number. Declare the population duty (the rsync recipe) later
+    if you want to measure what each task costs.
+  record_at: 'Declare: a scheduled `rsync -a ~/<provider-config>/projects/ <repo>/.yitc/transcript-archive/`.
+    Waive: nothing is written — the cost reading then shows ''archive absent''.'
+  tier: universal
+implements_signature:
+  bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310
+  bin/lib/observe.py#normalize_triple: 8cb1eeae35a6f85072ef6acee6d0e17cdb41e621a89c7d172d31abb4ad522691
+  bin/lib/observe.py#normalize_wait_reason: 0650af6886d74daf026f4cde4cfbc8edcdd1f04f9e198e25f62390ef4e1723ed
+  bin/lib/observe.py#outcome_fields: 0ce74c43bfcfe24237b80b1c52028eb4a68b75c75395cd1e461a435519d7f0a5
+  bin/lib/observe.py#resource_summary: afb9c5de45bdc166421b3abdb391ae4dce01593d137a6443b0a551650fff60f5
+  bin/lib/observe.py#session_started_fields: 8c333923382a9e20c9477429afa499357b8cdd16b3bfba866f5bf0c736374311
+  bin/lib/views.py#_view_observation_rollup: b92d89f95b8e0acb5ac0eff8529cb7b5a05f05ebaf0cc1b0b350a20c4764f991

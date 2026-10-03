@@ -1,0 +1,184 @@
+id: SPEC-0112
+title: Extension-catalog declare-or-waive completeness + forward-aware waive
+status: active
+created_at: 2026-06-27 16:49:27+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#_sweep_extension_catalog_completeness
+- bin/lib/init.py#_seed_catalog_waives
+- bin/lib/init.py#_engine_catalog_members
+body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record must,\
+  \ for every kernel capability that is\nBOTH `active` AND `adoptable` in the SPEC-0101\
+  \ derived catalog view, carry an explicit declare-OR-waive\nentry — SILENCE for\
+  \ such a member is a fail-closed ERROR at `init` / consumer-read, not a silent\n\
+  \"adopts nothing\". A waive is FORWARD-AWARE (it states the conscious choice AND\
+  \ how to flip waive→declare\nlater).\n\n## Internal\n\nTHE EXTENSION-CATALOG DECLARE-OR-WAIVE\
+  \ COMPLETENESS + FORWARD-AWARE WAIVE rules.\n\n**Ownership (honest, NOT parallel\
+  \ storage — single home per P5):** SPEC-0112 is the SINGLE HOME of the\ncatalog-set\
+  \ declare-or-waive COMPLETENESS (rule 1) + the forward-aware WAIVE semantics (rule\
+  \ 2). At THIS\nspec's activation, SPEC-0093 rule-13 is NARROWED in-place (additive,\
+  \ SPEC-0005 rule 7) to govern only\nNON-catalog opt-in extensions (`absence = adopts\
+  \ nothing`) + cross-refs here for the active+adoptable\ncatalog set; SPEC-0101's\
+  \ `adoptable|internal-only` marker is UNCHANGED + gains a one-line cross-ref. So\n\
+  the catalog-completeness obligation has EXACTLY ONE home (here), not a second copy\
+  \ alongside rule-13.\n\nThis spec EXTENDS the existing extension-catalog vocabulary\
+  \ (the SPEC-0101 `extension:` marker + the\nSPEC-0093 rule-13 `extensions:` record);\
+  \ it adds NO new store / parser / journal / node-type (CHARTER\n§P1): the completeness\
+  \ check rides the EXISTING `init --adopt-extension` / consumer-read fail-closed\n\
+  path, and the forward-aware waive REUSES the existing per-section waiver shape (SPEC-0093\
+  \ rule-6). The\ndeliberation + rejected alternatives live in the proposing PLAN,\
+  \ not here (SPEC-0005 rule 3).\n\n### 1. Bounded completeness — the catalog set\
+  \ is declare-or-waive FAIL-CLOSED\nFor the AUTHORITATIVE SET — every capability\
+  \ that is BOTH `status: active` AND `extension: adoptable`\nin the SPEC-0101 derived\
+  \ catalog view (`bin/yitc-v2 graph query --type view`) — a consumer's\n`yitc-ops.yaml\
+  \ extensions:` record MUST carry an explicit declare-OR-waive entry. A missing entry\
+  \ for a\ncatalog member is an ERROR at `init --adopt-extension` / consumer-read\
+  \ (fail-closed), NOT a silent\n\"adopts nothing\". The bound is the catalog view's\
+  \ enumerated membership, so the rule has a SINGLE\nenumerated surface and cannot\
+  \ fork into parallel interpretations. NON-members (study-map candidates,\n`internal-only`\
+  \ tools, not-yet-`active` capabilities) are NOT mandatory until they become\nactive+adoptable\
+  \ catalog members.\n**RETIREMENT (named, P1 F3):** the SPEC-0093 rule-13 reading\
+  \ \"`extensions:` is opt-in; absence = adopts\nnothing\" is NARROWED — it stays\
+  \ the rule for NON-catalog/non-adoptable capabilities, but for the bounded\nactive+adoptable\
+  \ catalog set, silence is no longer a valid state. (At activation an additive in-place\n\
+  cross-ref note is added to SPEC-0093 rule-13 + SPEC-0101 pointing here — additive\
+  \ extension, NOT a\nsupersede, per SPEC-0005 rule 7.)\n\n### 2. The waive is FORWARD-AWARE\
+  \ (the <project> lesson)\nA waive entry states the conscious choice AND how to flip\
+  \ waive→declare later — the trigger/condition\nthat would make the project adopt\
+  \ the capability. This REUSES the existing per-section waiver shape\n(SPEC-0093\
+  \ rule-6 loose policy: a non-empty reason); \"forward-aware\" means that reason\
+  \ names the\nre-entry path. **RETIREMENT:** the implicit \"absent section = unmodeled\
+  \ / forever-off\" reading is\nretired — a waive is an explicit, revisitable decision\
+  \ carrying its own re-entry path, not a silent gap.\n\n**A waive carries an `expiry:`.**\
+  \ `extensions.waives[] = {spec, reason, expiry}`, where\n`expiry` is a date-only\
+  \ ISO review-by date. The waive is REVISITABLE only if something asks for it to\
+  \ be\nrevisited, and without a date nothing does: the kernel's waiver-currency reader\
+  \ walks `expiry:` keys, so\na waive without one keeps its cell settled indefinitely.\
+  \ The revizia of 2026-09-27 measured this:\n<project> had 4 of 4 waives citing a\
+  \ pre-code premise that its current state contradicts, and\n<project> had a waive\
+  \ that stood for 68+ days while `deploy` ran 200 times. The init seeder\n(`_seed_catalog_waives`)\
+  \ writes one on every waive it seeds (90 days out). What a missing or lapsed\nexpiry\
+  \ means is REPORT-ONLY, on the SPEC-0119 concern-conformance view (`init.concern_conformance`):\n\
+  - **lapsed** (the date has passed) → listed in `expired_waivers`, the same reader\
+  \ and line every\n  concern waiver's lapsed expiry already uses;\n- **missing**\
+  \ (no expiry, or not a real ISO date) → listed in `waives_without_expiry`, named\
+  \ by path,\n  with its own debt line.\nNeither REFUSES `init`. The fail-closed completeness\
+  \ check (rule 1, and the reason-non-empty half of\nthis rule) is unchanged, so no\
+  \ carrier that complied before this paragraph fails now: a new fail-closed\nstance\
+  \ on existing carriers is an outage (SPEC-0152 rule 27). The remedy for either signal\
+  \ is to\nre-weigh the waive's premise, then declare the capability or give the waive\
+  \ a new date. Re-checking the\npremise itself against the project profile (SPEC-0198)\
+  \ would catch a contradiction sooner, but it needs\na structured premise; it is\
+  \ not part of this rule.\n\n### 3. Reuse existing declaration shapes — no new format\
+  \ (anti-cx F1)\nThe declare/waive record REUSES the existing shapes — SPEC-0093's\
+  \ `extensions:` section +\n`init --adopt-extension`, <project>'s `tool-manifest.yaml`\
+  \ `requires:` kinds, `.yitc/project.yaml`\nopt-ins — as prior-art. This spec invents\
+  \ no new declaration FILE or FORMAT; it adds only the\ncompleteness OBLIGATION (rule\
+  \ 1) + the forward-aware waive SEMANTICS (rule 2).\n\n### 4. Activation is KERNEL-LOCAL;\
+  \ the switch is PER-CONSUMER\nRules 1-3 above state the per-consumer OBLIGATION;\
+  \ this rule states the LOCALITY that obligation runs\nunder — WHEN an adoptable\
+  \ capability becomes active, and FOR WHOM it then fires. Rules 1-2 are UNCHANGED\n\
+  by this rule: the fail-closed declare-or-waive check at a consumer's OWN `init`\
+  \ / consumer-read is still\nthe only enforcement, and it is still per-consumer.\n\
+  \n**4a. Activation is kernel-local — it reads NO consumer state.** An adoptable\
+  \ offering's spec goes\n`active` at the close of its SHIP task, which IS its `activation_owner_task`\
+  \ (the work-first default,\nGRAPH §Spec lifecycle / SPEC-0005 rule 5). Activation\
+  \ is a kernel-side act with ZERO consumer\npreconditions: no consumer's declaration,\
+  \ silence, or absence can gate it, and the kernel's own verify\nnever reads another\
+  \ project's live files to decide it (the hermetic-isolation contract <workshop-spec>).\
+  \ A\ncapability therefore ships ACTIVE in ONE land. A PARKED \"activate once the\
+  \ fleet has answered\"\nactivation card is NOT a legal shape — an offering that\
+  \ is ready to ship is ready to activate.\n\n**4b. The per-consumer switch is the\
+  \ consumer's OWN record.** Whether a capability FIRES for a given\nconsumer is decided\
+  \ SOLELY by that consumer's own `yitc-ops.yaml extensions:` entry: a declare/adopt\n\
+  turns it ON for that consumer (its grade lines, debt echoes, and the capability's\
+  \ own per-consumer\nmechanics run under `-C` off that record); a WAIVE — or a not-yet-answered\
+  \ member — fires NOTHING for\nthem beyond rule 1's fail-closed pressure to answer.\
+  \ Firing is INDEPENDENT across consumers: one\nconsumer's adopt grants that consumer\
+  \ the capability immediately, and neither grants nor blocks it for\nany other. (This\
+  \ states as a RULE what the per-consumer mechanics already do — it changes no\n\
+  implementation.)\n\n**4c. Fleet completeness is a REPORT-ONLY progress view.** The\
+  \ cross-consumer picture of who has\nanswered is a derived, report-only progress\
+  \ view over the EXISTING debt-echo family — no new store,\nparser, or node-type\
+  \ (CHARTER §P1 F1/F2). It informs; it GATES nothing: not activation (4a), not any\n\
+  consumer's firing (4b), and not any other consumer's init. Fleet-wide pressure to\
+  \ answer is the SUM of\nthe per-consumer rule-1 checks, never a kernel-side wait.\n\
+  \n**4d. The ask wave FOLLOWS activation — never precedes the spec's landing.** A\
+  \ cross-request ask\nwave that names a SPEC and asks consumers to declare-or-waive\
+  \ that offering goes out ONLY AFTER the\nnamed spec is `active`/resolvable on engine\
+  \ MAIN. Asking against a spec that lives only on an\nunlanded kernel branch is an\
+  \ INVALID rollout order: the governed consumer adopt path\n(`init --adopt-extension`)\
+  \ refuses a dangling cite, so the consumer STRUCTURALLY cannot answer\nadopt — the\
+  \ ask can only produce a governed-halt or a parked intake, not a declaration. This\
+  \ is the\nORDERING complement of §4a: §4a says an offering ships active in ONE land\
+  \ (no parked \"activate once\nthe fleet answers\"); §4d says the fleet is ASKED\
+  \ only once that land has happened. The wave is a\nhand-composed cross request (no\
+  \ covering verb authors it), so this is a stated invariant on wave\nauthoring, not\
+  \ a new guard — the wave author checks the named spec is active on main before sending.\n\
+  **INCIDENT (why this is a named rule):** X-0480 (a SPEC-0162 declare-or-waive wave\
+  \ while SPEC-0162\nlived only on unlanded task) and X-0507 (SPEC-0164, same shape)\
+  \ — <project> burned a\ngoverned-halt and a parked intake because it was asked to\
+  \ adopt against a not-yet-resolvable cite.\n\n**RETIREMENT (named, P1 F3):** the\
+  \ FLEET-WAIT / DEFERRED-ACTIVATION reading — \"an adoptable capability\nstays `proposed`\
+  \ until EVERY consumer has declared-or-waived, so fleet completeness is an ACTIVATION\n\
+  precondition\" — is RETIRED. It was never this spec's text (rule 1 has always been\
+  \ scoped to a\nconsumer's OWN init); it arose as an INFERENCE from rule 1's completeness\
+  \ framing and is retired\nexplicitly here so it cannot re-form. What it cost while\
+  \ it stood: the kernel waited on un-editable\ncross-territory state, adopters got\
+  \ nothing until the slowest consumer answered, and consumers were\nasked to declare\
+  \ against a capability that was not yet active.\n\n### Orthogonal axes (clarification\
+  \ — carried from plan §A.2, no parallel meaning)\nThe SPEC-0101 marker (`adoptable\
+  \ | internal-only` — IS this capability consumer-adoptable at all) and\nthe SPEC-0093\
+  \ per-project declare/waive record (DID this project take it) stay TWO DISTINCT\
+  \ axes in\ndistinct files. This spec touches only the SECOND axis (and READS the\
+  \ first to compute the rule-1\nauthoritative set).\n\n### Deferred (NOT this spec\
+  \ — moved out per the 2026-06-27 external scope consult)\nTwo refinements once drafted\
+  \ here are DEFERRED to a later carrier, opened only at a real CATALOG-EXTENSION\n\
+  pull (not at L2/L3, which are non-catalog section-adds with their own evidence —\
+  \ see Rationale):\n- **a derived \"wired/firing\" view across catalog members**\
+  \ — deferred until ≥2 catalog members expose\n  ONE common computable evidence surface\
+  \ (else the derivation is per-extension ad-hoc, breaking P1 F2 /\n  P3); each concern\
+  \ proves its own firing through its OWN probe/journal events meanwhile;\n- **`resolves_to:\
+  \ infra|code`** — deferred until ≥2 honest infra-vs-code cases exist (one example\
+  \ does\n  not earn a new carrier axis — anti-cx F4).\nTracking home: the population\
+  \ tracker + this note (no prose-only deferral — <workshop-spec>).\n\n## Rationale\n\
+  \nThe 3-project breadth study (<project> / <project> / <project>) showed a CLASS\
+  \ of cross-cutting\ncapabilities each project re-derives, with the recurring failure\
+  \ that \"silence\" on a capability was\nambiguous (off-by-conscious-choice vs simply\
+  \ forgotten). This spec makes the catalog set's coverage\ncomplete + fail-closed\
+  \ (rule 1) and makes a waive an explicit forward-aware decision (rule 2) — by\n\
+  EXTENDING the existing catalog vocabulary, adding no new entity. The general \"\
+  is it firing\" abstraction\nand `resolves_to` were deferred (§Deferred) after a\
+  \ 2026-06-27 external scope consult: L2 (SPEC-0109) and\nL3 (SPEC-0110) are non-catalog\
+  \ `yitc-ops.yaml` section-adds (`extension: ~`) that prove their own truth\nthrough\
+  \ their OWN domain probes (L2: an observed fired-job; L3: the independent freshness\
+  \ monitor's\nevents), so a shared catalog \"wired\" status would DUPLICATE meaning,\
+  \ not simplify it. Provenance: plan\n`extension-catalog-population-from-3-project-breadt`\
+  \ §A. Predecessor vocabulary: SPEC-0093 rule-13\n(opt-in `extensions:`) + SPEC-0101\
+  \ (the catalog marker).\n\n## Verification\n\nAdoption probe (CHARTER §P3/§P8 —\
+  \ infra-class), BOTH paths required:\n- **negative path:** a real consumer MISSING\
+  \ a declare-or-waive entry for an active+adoptable catalog\n  member → `init --adopt-extension`\
+  \ / consumer-read HARD-FAILS (the fail-closed completeness fires);\n- **positive\
+  \ path:** a real consumer whose `extensions:` record covers the FULL current catalog\n\
+  \  enumeration (`graph query --type view`), with ≥1 entry exercising the forward-aware\
+  \ waive (a reason\n  naming the re-entry path).\nFAILURE-CHECK: a catalog member\
+  \ left silent that does NOT error (rule 1 not held).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0093
+- SPEC-0101
+- extension-catalog-population-from-3-project-breadt
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: extension-catalog-population-from-3-project-breadt
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/init.py#_engine_catalog_members: c409ad8388ef6dc3ad044386372edc79a9ac8f99c23e6dce0f342a742c177b20
+  bin/lib/init.py#_seed_catalog_waives: 756262756578033c3cf072eb2f5928559615f4e02222ec203da382738001f2fa
+  bin/lib/init.py#_sweep_extension_catalog_completeness: d175cf0951e6b19f0edda4274fe6da1d7a78393e83690de7332bc00f356f9335

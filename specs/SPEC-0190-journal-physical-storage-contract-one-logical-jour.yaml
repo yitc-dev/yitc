@@ -1,0 +1,923 @@
+id: SPEC-0190
+title: Journal physical storage contract — one logical journal across bounded physical
+  segments, and what a reader owes
+status: active
+created_at: 2026-08-22 12:23:15+00:00
+travels: null
+consumed: true
+extension: null
+implements:
+- bin/lib/events.py#append_event
+- bin/lib/events.py#logical_journal
+- bin/lib/events.py#rotate_journal
+- bin/lib/events.py#recombine_journal
+- bin/lib/worktree.py#rotate_branch_journal
+- bin/lib/cli.py#_iter_events
+- bin/lib/cli.py#_iter_events_tail
+- bin/lib/journal.py#tail_scan_events_covering
+- bin/lib/journal.py#archive_scan_events_covering
+- bin/lib/cli.py#_land_integrate
+- bin/lib/views.py#_standing_rotation_defer
+- bin/lib/journal.py#revision_segment_paths
+- bin/lib/journal.py#revision_segment_show_argvs
+body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and today the\
+  \ honest answer is the journal: every\ngoverned action rewrites one ever-growing\
+  \ file, so the cost of doing anything is set by how long\nthe project has been running\
+  \ rather than by what changed. Under this contract that stops being\ntrue. The journal\
+  \ is still ONE journal — one line format, one parser, one append-and-union-merge\n\
+  discipline, one history you can grep and cite — but it is stored as a series of\
+  \ bounded physical\nsegments instead of a single unbounded blob. Nothing a reader\
+  \ can observe about the history\nchanges; what changes is that writing to it, verifying\
+  \ a change against it, and garbage-collecting\nit stop growing without bound.\n\n\
+  ## Internal\n\nEleven rules (ten numbered plus rule 4b, which splits a reader CLASS\
+  \ off rule 4 rather than adding a\nnew concern — see it there). This spec owns the\
+  \ PHYSICAL storage contract for the journal and what a reader owes\nbecause of it.\
+  \ It does not restate the ENTRY schema (envelope, provenance, ordering, size cap)\
+  \ —\nthat stays SPEC-0002's, whose rotation POLICY section re-homes HERE as §Rotation\
+  \ policy below (NOT\ninto a numbered rule — the rules state this contract's own\
+  \ obligations, while the re-homed section\nis the standing rotation VERDICT and\
+  \ its trigger conditions), so rotation has exactly one home.\n\n**Rule 1 — One logical\
+  \ journal, many physical segments.** The journal is one LOGICAL append-only\nhistory\
+  \ realized as an ordered set of physical segments: exactly one LIVE segment (`events.jsonl`,\n\
+  the only appendable one) plus zero or more ARCHIVE segments. An archive segment\
+  \ is a physical unit\nof the SAME logical journal — it is NOT a second journal,\
+  \ NOT a second format, and NOT a second\nparser (CHARTER §Principle 5; the same\
+  \ reading SPEC-0084 ratified when it held \"one journal\" to\nmean one MECHANISM,\
+  \ explicitly not one physical FILE). A change that gives the archive its own\nline\
+  \ format, its own reader, or its own append discipline violates this rule even if\
+  \ it saves\ndisk.\n**The archive REUSES the in-git archive convention this repo\
+  \ already has.** SPEC-0052 already\ndisplaces a closed task's audit YAMLs out of\
+  \ the active `decisions/` directory into in-git archives\nby `git mv`, precisely\
+  \ so the active corpus stays loadable while provenance stays git-tracked —\nthe\
+  \ same shape as this archive, for the same reason. CHARTER §Principle 1 filter 1\
+  \ therefore settles\nplacement and naming by reuse: extend that convention, do not\
+  \ introduce a second unrelated notion of\n\"archive\" into a repo that already has\
+  \ one.\n\n**One logical journal means ONE LOCK IDENTITY, keyed to the logical journal\
+  \ and never to a physical\nsegment.** The advisory sidecar lock that serialises\
+  \ appends and reads derives its key from the\njournal's resolved PATH, so a second\
+  \ physical segment would get a second sidecar BY CONSTRUCTION —\nand `flock` does\
+  \ not serialise two different inodes. Rotation writes two paths at once while an\n\
+  appender holds one and a reader folds both, so per-file locking here is not a weaker\
+  \ guarantee, it\nis no guarantee. **This is a repeat, not a hypothesis:** the same\
+  \ shape has already been paid for in\nthis corpus — two processes derived two different\
+  \ sidecars for the SAME journal, which\nmade the reader lock inert for precisely\
+  \ the audience it was added for, and a partial-journal read\nfollowed 2h38m after\
+  \ that lock landed. The route differed (the key followed the environment rather\n\
+  than the path) and the failure was identical. Placing rotation at a seam that already\
+  \ holds a lock\n(rule 3) fixes WHEN it runs, never WHAT the lock covers; only this\
+  \ rule fixes that.\n\n**Rule 1b — SCOPE: this contract governs the ROOT journal\
+  \ only; the `.yitc/` hook-tail is OUT.**\nStated because the fold treats the two\
+  \ as a PAIR (`worktree.py#_is_foldable_journal` returns true for\n`events.jsonl`\
+  \ AND `.yitc/events.jsonl`), so \"the journal\" alone leaves a reader guessing which\
+  \ half\nrotates — and the guess is load-bearing: a host script reads the tail, and\
+  \ the pair is what `land`\nunions. The tail is EXCLUDED for a reason, not by omission:\
+  \ it is a per-session hook-tail whose rows\ncan never reach a committed journal\
+  \ on their own (the same property SPEC-0168 rule 1 relies on), so\nit neither grows\
+  \ without bound nor carries the history a citation resolves against. If it ever\
+  \ does\nneed rotating, that is a separate change with its own evidence — never an\
+  \ unstated extension of this\none.\n\n**Rule 2 — The boundary is AGE, never a decreed\
+  \ byte number.** A row leaves the live segment\nbecause it is older than the live\
+  \ window, not because the file crossed a size. **The boundary is\nfully specified\
+  \ or it is not a boundary:** age is measured from the NEWEST row present in the\n\
+  logical journal — never from wall-clock `now`, which would make the same corpus\
+  \ segment differently\non two machines and make a rotation unreproducible — and\
+  \ the comparison is `ts < boundary` moves to\nthe archive, `ts >= boundary` stays\
+  \ live. Both halves matter: a reader declaring a horizon EQUAL to\nthe live window\
+  \ (there are two in this corpus) sits exactly on that comparison, so an unstated\n\
+  inclusivity is an off-by-one waiting to be discovered in production rather than\
+  \ here. A byte threshold is\nforbidden as the rotation trigger: it makes the boundary\
+  \ a function of write volume, so the same\ncalendar span rotates differently under\
+  \ load than idle, and it re-creates the decreed-number\nfailure this corpus has\
+  \ already recorded elsewhere. The live window is a governing parameter\n(§Parameters),\
+  \ not a constant buried in code.\n\n**A FUTURE-DATED ROW IS NOT A VALID ANCHOR (amended,\
+  \ on measurement).** \"The newest row\npresent\" is refined here because taken literally\
+  \ it is hijackable by ONE outlier: a single row\nstamped ahead of real time drags\
+  \ the boundary with it and archives the ENTIRE live journal in a\nsingle land. That\
+  \ is measured, not hypothetical — a synthetic corpus in `tests/test_land.py`\ncarries\
+  \ `cli_invoked` rows stamped 2099-01-01 beside real ones, and the first implementation\
+  \ of\nthis rule moved the anchor 73 years and emptied the live segment of all genuine\
+  \ history in one\npass. The same shape reaches production through a skewed clock\
+  \ or a malformed row, and its\nconsequence is severe in a quiet way: nothing is\
+  \ LOST, because the rows are in the archive and the\nfold still returns them, but\
+  \ every LIVE-SEGMENT reader goes blind at once — the failure mode\nhardest to notice,\
+  \ because the journal still looks healthy.\n\nSo the anchor is the newest row present\
+  \ **whose `ts` is not in the future**; a future-dated row is\nskipped for ANCHORING\
+  \ and needs no separate keep-rule, since it is trivially `>= boundary` and the\n\
+  ordinary comparison already leaves it live. **Wall-clock is a CEILING on the anchor,\
+  \ never the\nanchor** — and that distinction is precisely what this rule forbids\
+  \ and permits. The ban above is\non MEASURING FROM `now`, because that would make\
+  \ the same corpus segment differently on two\nmachines and make a rotation unreproducible.\
+  \ A ceiling that only ever REJECTS an impossible value\nchanges nothing for any\
+  \ corpus whose rows are in the past — which is every real one — so\nreproducibility\
+  \ is preserved exactly where this rule cares about it. Enforced single-site by\n\
+  `bin/lib/events.py#rotation_boundary`.\n\n**AND THE ANCHOR IS READ FROM THE TOP-LEVEL\
+  \ ENVELOPE, PARSED — never pattern-matched.** A row's\nage is decided by its ENVELOPE\
+  \ `ts` and by nothing else: a scan for the first `\"ts\"` in the raw\nline hands\
+  \ back a NESTED `data.ts` for any row whose envelope has none, and the row is then\
+  \ filed\nunder a date describing something else entirely — moving a row this rule\
+  \ says must never move. The\nparse costs about a second and a half over a 175 MB\
+  \ journal inside a seam that already runs for\nminutes, which is the correct trade\
+  \ in the one place that decides which rows leave the live file.\nA row whose envelope\
+  \ `ts` is absent, non-string or not a REAL CALENDAR DATE is UNDATABLE and never\n\
+  moves. Calendar, not shape: a digit/hyphen check admits `2026-02-31`, which is not\
+  \ a date — and that\nis not cosmetic, because such a value sorts perfectly well,\
+  \ so the row would be moved and filed under\na day that never existed, and as the\
+  \ NEWEST row it would raise inside the boundary computation and\nSILENTLY DISABLE\
+  \ ROTATION for the whole repo from then on. One impossible timestamp is enough for\n\
+  that, so the date is parsed and rejected rather than pattern-checked — the safe\
+  \ side, since a row left live is merely not-yet-archived while a row moved on a\n\
+  guess is filed where no reader will look for it.\n\n**Rule 3 — Rotation happens\
+  \ at the land seam, and nowhere else.** The seam that already performs a\nread-modify-write\
+  \ of the journal under its existing lock — `land`'s events union+dedup — is the\n\
+  seam that rotates. This adds no cron, no daemon, no scheduled job and no liveness\
+  \ question of its\nown: rotation is a step inside an operation that already holds\
+  \ the lock and already rewrites the\nfile. A rotation path that runs outside that\
+  \ seam is out of contract, because it would need its own\nconcurrency story against\
+  \ every appending session.\n**WRITE ORDER AND CRASH-ATOMICITY — the archive is DURABLE\
+  \ before the live file is truncated.**\nRotation is a truncating rewrite of one\
+  \ file plus a write of another, and\n`patterns/atomic-state-file-writes.md` names\
+  \ this journal explicitly as a risk class: `open(path,\n\"w\")` truncates at open,\
+  \ so a process death mid-write leaves an empty or partial file and history\nsimply\
+  \ disappears. Two constraints follow and neither is optional. **(a) Order:** the\
+  \ archive segment\nis written and made durable FIRST (sibling tempfile → fsync →\
+  \ `os.replace`), and only then is the\nlive file rewritten the same way. The reverse\
+  \ order has a window in which the rows exist nowhere.\n**(b) Atomicity:** both writes\
+  \ take the tempfile-then-replace path, so a crash leaves an orphan\ntempfile and\
+  \ an untouched original rather than a truncated journal. A duplicate surviving a\
+  \ crash is\nharmless — the union+dedup collapses it; a LOST row is not recoverable\
+  \ by anything.\n\n**MIGRATION ORDER — the archive path must be ADMITTED before the\
+  \ first rotation writes it, or the\nfirst rotation wedges every land in the repo.**\
+  \ `land` refuses on any main dirt outside a\nhand-maintained allowlist (`bin/lib/cli.py#_BOOKKEEPING_ALLOWLIST`,\
+  \ an explicit frozenset of six\nliteral paths), and the archive segment is a NEW\
+  \ path. So the first rotation leaves a file the next\nland refuses on — and so does\
+  \ every land after it, until the allowlist is widened. The corpus has\nalready paid\
+  \ for this exact shape once, when a dirty `MEMORY.md` in the same non-allowlist\
+  \ position\nwedged every later land (X-0274). The widening therefore ships IN THE\
+  \ SAME CHANGE as rotation; it is\nan ordering constraint on the migration, never\
+  \ a follow-up.\n**The archive must inherit `merge=union`, and that list lives in\
+  \ GIT CONFIG, not Python.**\n`.gitattributes` carries exactly one line — `events.jsonl\
+  \ merge=union` — as a LITERAL PATH. An\narchive segment does not match it and falls\
+  \ back to the default three-way merge, so it CONFLICTS as\nsoon as two branches\
+  \ both touch it, which rotation guarantees: every landing branch rotates and each\n\
+  carries its own copy. The cost of that class is already measured in this repo —\n\
+  `merge-non-union-conflict` accounts for 62 land aborts in 7 days and 717 minutes,\
+  \ the largest\nearly-refusal class — so an archive without the attribute does not\
+  \ conflict in theory, it joins a\nknown bill. (The same file's comment independently\
+  \ states rule 5's guarantee: under parallel\nworktrees the union driver keeps both\
+  \ sides, so physical line order is no longer chronology.)\n\n**And it is a CLASS,\
+  \ not one list.** The journal is named by literal path 138 times across the\nkernel\
+  \ (worktree.py 72, cli.py 16, task.py 14, dispatch.py 13, init.py 5, journal.py\
+  \ 3, audit.py 3,\nviews.py 2). The dangerous members are the hand-maintained SETS\
+  \ and membership tests, because a\nmissed one does not raise — it silently changes\
+  \ behaviour: `worktree.py#_is_foldable_journal` (the\nfold PAIR), `audit.py#_CONSULT_BASIS_DERIVED_BOOKKEEPING_FILES`,\
+  \ `plan.py`'s scoped-commit\npathspecs, `init.py`'s consumer bootstrap presence\
+  \ checks. A reader missed returns wrong data; a\nmembership test missed wedges a\
+  \ land or silently widens a gate.\n\n**A TASK AUDIT PACKET IS BOUND BY SPEC-0168\
+  \ RULE 1, WHICH NAMES EXACTLY ONE INSTANCE.** That rule\nsays the packet counts\
+  \ evidence from the repo-root `events.jsonl` and \"nothing else: no other repo,\n\
+  no shared coordination store, no invented enumeration\". After segmentation that\
+  \ path is the LIVE\nsegment alone, so a task whose acceptance rows are older than\
+  \ the window would have its own evidence\ninvisible to its own audit packet — the\
+  \ packet reporting a criterion unproven while the evidence\nexists, which is the\
+  \ exact failure SPEC-0168 was written to prevent. Teaching the packet to fold the\n\
+  segment set is therefore an AMENDMENT to SPEC-0168, not an implementation detail\
+  \ beneath it, because\nrule 1 forbids the enumeration in its own words. **The exposure\
+  \ is ordinary, not a corner:** an\nowner-gated card routinely waits weeks — three\
+  \ of the five cards waiting at this spec's authoring had\nbeen paused longer than\
+  \ a seven-day window.\n\n**PRECONDITION — the seam must be SOUND before rotation\
+  \ is added to it.** The step-2b fold this rule\nbuilds on carries a live, recurring\
+  \ blocking-wait defect: its own test\n(`tests/test_t9801_step2b_fold_journal_lock.py`)\
+  \ was killed by the land-verify timeout seven times\nin two days, each at 300 s\
+  \ wall against 0.1 s of CPU — no work at all, the signature of a deadlock or\na\
+  \ blocked wait rather than a slow loop. Rotation adds a second, larger read-modify-write\
+  \ across TWO\npaths at that same seam, under the very lock rule 1 redefines. So\
+  \ this is a PRECONDITION, not a\nneighbouring bug to fix later: the existing stall\
+  \ is understood and resolved BEFORE rotation is added\nthere, or rotation ships\
+  \ onto a live defect and inherits its aborts. It does not change WHERE\nrotation\
+  \ belongs — only what must be true before it arrives.\n\n**ORDER IS LOAD-BEARING:\
+  \ the land seam's own journal FOLD will UNDO rotation unless it is\nsegment-aware\
+  \ and runs BEFORE it.** `land` unions main's WORKING-TREE journal into the landing\n\
+  branch's journal (`evidence_custody.py#_fold_main_journal_into_branch`), at step-2b\
+  \ and again inside the lock\nbefore the fast-forward. A rotation that truncates\
+  \ the live segment and is then followed by that\nunion gets its rows back verbatim\
+  \ — the seam chosen for rotation is the seam that reverses it. This\nis not a deduction:\
+  \ it was simulated before this plan existed and recorded on parked card —\na file\
+  \ cut to 5,000 lines returned to 201,420. So the contract is: the union folds across\
+  \ the\nSEGMENT SET (never a fixed live path), and rotation is the LAST step of the\
+  \ seam, after every union\nthat could reintroduce a row. A rotation placed anywhere\
+  \ else in the seam is out of contract even\nthough it holds the right lock, because\
+  \ holding the lock was never the whole requirement.\n\n**What \"bounded\" therefore\
+  \ means, stated exactly.** The live segment is bounded by the window on\nMAIN. On\
+  \ a BRANCH the bound is the window PLUS whatever that branch accumulated since it\
+  \ forked,\nbecause a branch that has not landed has not rotated. Cost is paid per\
+  \ COMMIT, so a merely old\nbranch costs nothing; the exposure is a branch that is\
+  \ both long-lived and actively committing. This\nqualification is not a footnote\
+  \ — boundedness is the entire promise of this change, so a reader must\nknow which\
+  \ artifact it holds for. (Measured in the authoring corpus: branches up to 60 days\
+  \ old\nexist, though the aged ones are stale.)\n**A branch that SPANS the rollout\
+  \ must reconcile across differing shapes.** A branch forked before\nrotation carries\
+  \ one unsegmented file while main carries live plus archive, so `land`'s union+dedup\n\
+  has to fold two different shapes into one. This is a real state, not a corner: at\
+  \ authoring time six\nbranches sat ahead of main, the oldest by roughly 58 days.\
+  \ Any rollout therefore has a window in\nwhich both shapes coexist, and the fold\
+  \ must be correct throughout it — a migration that assumes\nevery branch already\
+  \ knows about segments is wrong on its first day.\n\n**Rule 4 — A reader declares\
+  \ its horizon; the fold honours it.** Every journal reader either folds\nthe LIVE\
+  \ segment only, or folds live + archive. The choice is the reader's DECLARED horizon,\
+  \ not an\naccident of which file path it happened to open. A reader whose answer\
+  \ depends on history it did\nnot declare is a defect under this rule, and so is\
+  \ a reader that folds the whole archive to answer\na question about the last seven\
+  \ days.\n**THREE HORIZON CLASSES — the only legal declarations.** A reader picks\
+  \ its horizon by the\nQUESTION it answers, never by what is convenient to open,\
+  \ and there are exactly three.\n(1) **TASK-SCOPED** — a question about one card\
+  \ reads from that card's `created_at` forward; nothing\nolder than the card can\
+  \ bear on it. (2) **THE SUMMARY WINDOW** — a question about recent activity\nacross\
+  \ cards (a lens, a report, a status) reads the ONE window this spec sets in §Parameters,\
+  \ never a\nwindow each reader picks for itself: a per-reader number is the decreed-number\
+  \ failure rule 2\nalready forbids, multiplied by the number of readers. (3) **WHOLE\
+  \ HISTORY — ONLY THROUGH AN INDEX.** A\nquestion that genuinely spans all history\
+  \ (a citation lookup, a first-ever, an id allocation) is\nanswered from an index\
+  \ over the segments, never by folding every segment per invocation. A fold of\n\
+  the whole segment set is therefore no longer a legal horizon for ANY question, because\
+  \ its cost\ntracks how long the project has run rather than what was asked — measured\
+  \ 2026-09-30: 18.9 s of a\n24.8 s `audit status` was one whole-journal fold, for\
+  \ a question about recent audits. A reader that\ndoes not yet hold its class is\
+  \ out of contract and held by a dated rule-10 exemption naming the card\nthat fixes\
+  \ it, never admitted silently.\n**A declared horizon GREATER THAN OR EQUAL TO the\
+  \ live window takes the archive branch — equality\nincluded.** Equality is the case\
+  \ that looks safe and is not: at the boundary the two are the same\nlength only\
+  \ in nominal terms, and any skew, any inclusivity choice, or any row arriving during\
+  \ the\nread puts rows the reader declared outside the file it reads. Measured in\
+  \ this corpus, two journal\nreaders declare exactly the live window's length, so\
+  \ this is the common case rather than the corner.\n\n**The cross-segment fold EXTENDS\
+  \ the fold that already exists — it is not a new one.**\n`task.py#_folded_journal_events`\
+  \ already folds TWO physical journal files (a worktree's journal and\nmain's) through\
+  \ an injected dedup key, which is exactly the shape this rule needs: several physical\n\
+  carriers, one logical result, duplicates collapsed. CHARTER §Principle 1 filter\
+  \ 1 therefore settles\nthe implementation question before it is asked — extend that\
+  \ fold to take a segment SET, rather than\nauthoring a second folding path beside\
+  \ a working one. Naming it here is the difference between an\nimplementer finding\
+  \ it and an implementer reinventing it.\n\n**A reader does not move the horizon\
+  \ it reads.** `journal query` omits `cli_invoked`\nrows for `journal query` stamped\
+  \ with its OWN envelope ref, so a second read's LATEST is never the\nfirst read's\
+  \ receipt. Other sessions' receipts stay; `--type cli_invoked` returns all. Routing\
+  \ a\nforeign `-C` read's receipt out of the target: SPEC-0078 §5.\n\n**Rule 4b —\
+  \ A reader that takes the journal out of a GIT REVISION resolves the SEGMENT SET\
+  \ at that\nrevision, never a fixed filename.** Rule 4 governs readers that go through\
+  \ the shared fold; this rule\nexists because a whole CLASS of readers does not.\
+  \ Four readers in this corpus shell out to git\nagainst a path — three `git show\
+  \ <rev>:events.jsonl` and one `git grep` over the same path — and\nnever touch the\
+  \ shared iterator, so making that iterator segment-aware does not reach them. At\
+  \ a\nPOST-rotation revision the named path is the LIVE SEGMENT ALONE, and each of\
+  \ these would silently\nread a truncated journal while looking entirely healthy.\
+  \ Such a reader must therefore enumerate the\nsegments present AT that revision\
+  \ and fold them, exactly as an on-disk reader does.\n**The pre-rotation revision\
+  \ is the harmless case, not the hard one.** A revision from before\nsegmentation\
+  \ has no archive beside it because the single file IS the whole journal there; nothing\
+  \ is\nmissing and nothing needs expressing. Stated because the intuition runs the\
+  \ other way, and designing\nagainst the wrong half of this would leave the real\
+  \ gap open.\n\n**Rule 5 — The guarantee is multiset identity plus partition-stable\
+  \ order — NOT byte identity.**\nFor every reader, the set of events returned before\
+  \ and after segmentation is identical WITH\nmultiplicity, and the order within each\
+  \ segment is stable. Byte-identity of a reader's output is\nexplicitly NOT promised\
+  \ and must never be written into an acceptance criterion: rows are routinely\nappended\
+  \ out of `ts` order (union-merge makes that ordinary), so partitioning legitimately\
+  \ reorders\nthem across the boundary. A byte-identity gate would encode a test the\
+  \ design cannot pass even when\nit is correct. **Measured on the real corpus at\
+  \ a 7-day boundary:** 3.64% of rows (14,292) are\nappended out of `ts` order, and\
+  \ **1,864 rows — 0.47% — change position** under the segmented fold.\nSo the reordering\
+  \ this rule admits is neither hypothetical nor rare enough to ignore, and it is\
+  \ also\nnot large: the number is given so a reader can size the risk instead of\
+  \ guessing at it.\n\n**Rule 6 — Order-sensitive readers owe their own probe, against\
+  \ their OWN CONTRACT — not against\nidentity.** Multiset identity is the floor,\
+  \ not the ceiling. A reader whose OUTPUT depends on row\norder — a tail window,\
+  \ a latest-wins fold, a first-match scan — must carry a reader-specific probe,\n\
+  because rule 5's guarantee cannot witness order. But the probe asks whether that\
+  \ reader's own\npromise still holds, **not** whether its output is byte-for-byte\
+  \ the same, and the difference is not\nacademic: the tail reader locates its window\
+  \ by PHYSICAL position over a file that is not ts-ordered,\nso measured on the real\
+  \ corpus it misses 175 rows on the unsegmented file and misses NONE on the\nlive\
+  \ segment. Segmentation makes it strictly MORE complete — and an identity criterion\
+  \ would REJECT\nthat improvement. Its documented contract is SOUNDNESS (a tail credit\
+  \ is provably also a full\ncredit; it may miss an older anchor, it can never invent\
+  \ one), and soundness holds on both shapes.\nA reader that DOES promise identity\
+  \ is still held to identity. One rule, applied to each reader's\nown promise. Classifying\
+  \ each reader — order-sensitive or not, and to WHICH promise — is part of the\n\
+  migration, not a later discovery.\n\n**Rule 7 — A historical citation resolves across\
+  \ segments, unchanged.** Citations of the form\n`events.jsonl#ts=<ISO>` and `events.jsonl#source_ref=<locator>`\
+  \ are load-bearing in commit\ntrailers and closed cards across the entire history\
+  \ (CHARTER §Principle 2 names them as the\ndurable `from:` form). Resolution is\
+  \ a property of the LOGICAL journal: a citation authored before\nsegmentation existed\
+  \ must resolve after it, without the citer knowing which segment holds the row.\n\
+  A shape that breaks a historical citation is rejected, never migrated around.\n\n\
+  **Rule 8 — A size-derived governance bound reads the quantity its own ACTION can\
+  \ move; the\naggregate stays a REPORTED trajectory.** Any mechanism whose purpose\
+  \ is to EXPIRE a standing\ndecision by observing journal size must (a) COMPARE against\
+  \ the quantity the decision's own action\ncan change — the LIVE segment — and (b)\
+  \ keep the LOGICAL size (live + archive) VISIBLE and\nREPORTED on the same surface,\
+  \ as a trajectory carrying no trigger.\n\n**Why both halves, and why neither alone.**\
+  \ Part (b) is the original rule 8 and its concern is\nunchanged: reading the live\
+  \ segment and DROPPING the aggregate would let rotation silently disable\nthe very\
+  \ mechanism that decides whether rotation is still warranted — a bound that can\
+  \ never fire\nagain is worse than no bound, because it reports as healthy. But binding\
+  \ the TRIGGER to the\naggregate fails the mirror way, and by construction rather\
+  \ than by accident: archive segments are\nappend-only history that is never deleted,\
+  \ and SPEC-0002 §Violations forbids an in-place rewrite,\nso no action anyone is\
+  \ PERMITTED to take can reduce the aggregate. A bound that can never be\nSATISFIED\
+  \ is a permanently-lit flag — the class this corpus has already retired twice (\n\
+  report-only rows; the done-log count-gate, because counts grow with the work) and\
+  \ the exact\nshape §Rotation policy's disk-volume axis says this section must never\
+  \ become. Live-only means the\nbound can never FIRE; aggregate-only means it can\
+  \ never be SATISFIED. The two halves above take\neach design's true half: the aggregate\
+  \ stays governed by REMAINING VISIBLE, which is what part (b)\nwas protecting, while\
+  \ the trigger measures what its own action moves.\n\n**The unit is not a detail\
+  \ — it is what broke.** `ROTATION_VERDICT_REREVIEW_MB: 220` was\ncalibrated on the\
+  \ LIVE FILE before rotation existed: §Rotation policy's own Origin datum records\n\
+  `2026-08-22 — ls -l events.jsonl: 179,767,105 B = 171.44 MB`, an `ls` of the single\
+  \ live file, with\n220 as headroom above it. Measured 2026-08-30 the live segment\
+  \ was 79.3 MB (far under 220) and the\naggregate 252.62 MB (over it), so the lens\
+  \ printed `EXPIRED — re-run the review` and the standing\nDEFER stopped counting\
+  \ as `acted` — not because the journal had grown past what was reviewed, but\nbecause\
+  \ the measured UNIT changed underneath a number nobody re-set. A bound compared\
+  \ against a\nquantity it was not calibrated on reports neither health nor its absence.\n\
+  \nThis rule binds TWO named mechanisms, and a migration that fixes one and misses\
+  \ the other leaves\nthe hole open — so both are named: (1) the standing rotation\
+  \ verdict's size bound\n(`bin/lib/views.py#_standing_rotation_defer`), whose `live_mb`\
+  \ parameter is the live segment; and\n(2) the SPEC-0052 displacement-retention sweep,\
+  \ which resolves each surface's governing trigger and\nreports `fired? acted?` —\
+  \ its journal surface is TWO rows, a governed live-segment row against the\n threshold\
+  \ and a `report_only: true` aggregate trajectory row carrying no\nfired/acted/flagged_action\
+  \ keys (SPEC-0052 rule 2; the row shape). Neither bound is idling:\nmeasured 2026-08-22\
+  \ the live journal was 175.4 MB against the 220 MB re-review bound — **~8 days\n\
+  from firing** at the observed ~5.4 MB/day — and that is the reading the bound is\
+  \ FOR. What this\nrule prevents is the opposite failure from the one its first form\
+  \ feared: not a bound quietly\nretired by segmentation, but a bound quietly rendered\
+  \ unsatisfiable by it.\n\n**Rule 9 — Verifying a change must not cost what the history\
+  \ has accumulated.** A test's cost may\nnot track journal length. A test that needs\
+  \ journal input folds a PINNED historical slice, not the\nlive journal; a test that\
+  \ genuinely needs the live journal for what it asserts is exempt WITH that\nreason\
+  \ recorded, and a recorded exemption is a legitimate outcome, not a miss. This rule\
+  \ binds the\nsame property as rules 1-3 on a different axis: rotation bounds what\
+  \ a WRITE costs, this bounds\nwhat a VERIFY costs. Neither implies the other — an\
+  \ archive-folding reader still pays the whole\ncorpus, so rotation alone does not\
+  \ satisfy this rule.\n\n**The pinned slice is FIXTURE DATA and is NOT part of the\
+  \ logical journal.** The mechanism rule 9\nprescribes introduces a durable artifact,\
+  \ so its boundary is fixed here — otherwise it becomes the\nsecond journal rule\
+  \ 1 forbids, by accident rather than by decision. A pinned slice: records its own\n\
+  provenance (source journal, row range, content hash), so what it represents stays\
+  \ auditable; is\nauthoritative for TESTS ONLY; is never read by a governed verb,\
+  \ never appended to, and never\nunion-merged. It is regenerated only DELIBERATELY,\
+  \ by a named generator, when a test's subject\nchanges — never automatically and\
+  \ never on a schedule, since a self-refreshing slice would\nre-acquire the growth\
+  \ this rule removes. It is bounded and stays bounded, and it retires with the\n\
+  last test that folds it. A slice that acquires an appender, a governed reader, or\
+  \ automatic refresh\nhas stopped being a fixture and is in breach of rule 1.\n\n\
+  **Rule 9a — the CONSTRUCTION contract: how a slice is cut, what it may carry, and\
+  \ what proves it\nstill works.** The clause above fixes what the slice IS. It says\
+  \ nothing about how the slice is\nBUILT, and that omission is not neutral: an artifact\
+  \ cut under no stated rule was cut under\nsomeone's unrecorded judgement, and the\
+  \ most consequential thing about this one — that the journal\nit is cut from records\
+  \ owner directives VERBATIM — was never decided at all. The four clauses below\n\
+  are that contract.\n\n**(a) MINIMISATION — bounded by SHAPE, never by history.**\
+  \ A slice is the union of two bounded\nselections: the last N rows of EACH event\
+  \ type, which buys COVERAGE, and the last M rows\nCONTIGUOUSLY, which buys VOLUME\
+  \ and ADJACENCY. Both are re-emitted in source order. Its size is\ntherefore a function\
+  \ of the type COUNT and of M, and never of how long the project has been\nrunning\
+  \ — a selection whose size would grow with history is out of contract, because it\
+  \ would\nre-acquire the very cost rule 9 exists to remove. Neither leg is optional,\
+  \ and that is measured\nrather than assumed: a plain tail is bounded but NOT faithful\
+  \ (a 1500-row tail of this journal\ncarried 51 of its ~200 types and missed one\
+  \ entirely, so a test asserting that a surface has ever\nfired would flip from a\
+  \ true statement about history to a false one about a sampling artifact),\nwhile\
+  \ coverage alone leaves no realistic distribution for a windowed or recency fold.\n\
+  \n**(b) OWNER-AUTHORED TEXT — SCRUBBED, and the reason.** Free text in a pinned\
+  \ slice is REDACTED to a\nfixed placeholder before the slice is written. The fork\
+  \ was SCRUB (redact real text) versus\nSYNTHESISE (author fake rows), and the PREFERRED\
+  \ PROPERTY is SHAPE-FAITHFULNESS, paid for with\nprose-verbatimness. The ground:\
+  \ what a slice's readers consume is SHAPE — field names, nesting,\ntypes, the per-type\
+  \ census, row adjacency, ts-disorder, malformed lines, the absence of exact\nduplicates.\
+  \ No reader folds the natural-language VALUE of a free-text field. So redacting\
+  \ those\nvalues costs the readers nothing, whereas synthesising would destroy precisely\
+  \ what they DO\nconsume — the real distribution — which is the same ground on which\
+  \ pinning a slice from nothing is\nalready refused.\n\nThe redaction has TWO legs,\
+  \ because one is demonstrably not enough. The first is a CLOSED LIST of\ndedicated\
+  \ free-text carriers, redacted at any length. The second is a PROSE-LENGTH FLOOR:\
+  \ any string\nvalue at or above it is redacted, whatever field carries it AND AT\
+  \ WHATEVER DEPTH — payloads nest\nfreely, so a redaction that stopped at the top\
+  \ level would leave prose behind while reporting\nsuccess (measured: 456 nested\
+  \ values survived a flat pass on this corpus, one of them carrying a\nguillemet-quoted\
+  \ owner phrase). The floor exists because owner words\nmostly arrive QUOTED INSIDE\
+  \ prose the AI authored, in fields named after neither the owner nor the\nquotation\
+  \ — so a carrier list alone leaves owner text in the artifact, and no list could\
+  \ ever name\nthem all. The floor is a GOVERNING PARAMETER set by MEASUREMENT on\
+  \ the corpus, at the point where\nvalues stop being structure (ids, statuses, verdicts,\
+  \ short references) and start being prose; on the\ncorpus this rule was written\
+  \ against, that point is 80 characters. Unlike a list, a floor extends\nCORRECTLY\
+  \ to event types that do not exist yet.\n\nThe redaction is MECHANICAL and ASSERTED,\
+  \ never trusted — which is the honest answer to the\nobjection that a redaction\
+  \ is something a reader must take on faith. It is applied by the slice's\nSOLE writer,\
+  \ because a scrub performed anywhere else would be a second writer of the artifact\
+  \ and so\na breach of the clause above; and it is checked over the SHIPPED BYTES,\
+  \ in BOTH directions — that\nnothing unredacted survives, AND that the check catches\
+  \ an unredacted row, so a green verdict is\nnever vacuous. It is checked for NON-MANGLING\
+  \ as well: a sanitizer's natural test asserts only that\nthe token is GONE, and\
+  \ that assertion is green precisely when the sanitizer has destroyed its input,\n\
+  so the scrub is additionally held to IDEMPOTENCE and to STRUCTURAL INVARIANCE (no\
+  \ key, no nesting\nlevel, no value type and no value below the floor may move under\
+  \ it).\n\nNAMED RESIDUALS, so they are decisions and not omissions. Transcript LOCATORS\
+  \ and SESSION IDS are\nNOT redacted: they are not owner-authored prose, and the\
+  \ citation form rule 7 protects is built on\nthe locator, so redacting them would\
+  \ put the readers this artifact exists to feed at risk. And a\nmechanical scrub\
+  \ cannot reach owner words PARAPHRASED into AI prose below the floor — no rule can,\n\
+  and a contract claiming otherwise would be the trusted redaction this clause refuses\
+  \ to be. What the\ncontract does guarantee is that every dedicated carrier and every\
+  \ prose-length value is gone.\n\n**(c) REFRESH — on a change, by a person, and in\
+  \ two distinct shapes.** Unchanged from the clause\nabove: refresh is never automatic\
+  \ and never scheduled. This names the two shapes it takes, because\nconflating them\
+  \ silently re-selects an artifact its consumers are pinned against. A RE-CUT\nre-selects\
+  \ rows from the live journal and is warranted only when a test's SUBJECT changes;\
+  \ it moves\nthe recorded source and selection provenance with it. A RE-SCRUB re-applies\
+  \ clause (b) to the slice\nalready on disk and leaves the SELECTION untouched, so\
+  \ the recorded source and selection provenance\nstay true and the consumers keep\
+  \ the exact rows they were pinned against; it is the right shape\nwhenever what\
+  \ changed is what a row may CONTAIN rather than which rows were chosen. Either way\
+  \ a\nperson runs the named generator and commits the diff, and the provenance record\
+  \ carries the contract\nthat produced those bytes.\n\n**(d) THE DIFFERENTIAL — minimisation\
+  \ needs a floor, or it is an instruction with no bottom.** A\nslice is only safely\
+  \ minimised if the minimised artifact still EXERCISES the reader classes its\nconsumers\
+  \ drive over it. So a check states those properties, is asserted to PASS on the\
+  \ shipped\nslice, and — this is the half that keeps it from being decorative — is\
+  \ proved BY EXECUTION to FAIL\non a degraded slice that no longer reaches them.\
+  \ Each property is DERIVED from a named consumer arm\nrather than invented for the\
+  \ check: type coverage and tail adjacency from the two selection legs in\n(a); and,\
+  \ from the readers, the ts-disorder that makes the segment-boundary reordering of\
+  \ rules 5\nand 6 reachable at all, a span wide enough that rotation yields more\
+  \ than one segment (a\nsingle-segment slice makes a differential compare a world\
+  \ with itself), and the ABSENCE of\nexact-duplicate rows, on which the distinction\
+  \ between set-identity and multiset-identity rests. A\ncheck that no degradation\
+  \ can fail is not a floor; it is decoration with a green light.\n\n**Rule 10 — Every\
+  \ verb INVOCATION owns ONE read scope; the views it composes own none.** Rules 4\
+  \ and 9 bind\na SINGLE reader and a SINGLE test. Neither binds the axis on which\
+  \ this contract has actually been\nbreached three times: a verb whose tail composes\
+  \ a DOZEN individually rule-4-correct views, each\ndeclaring its horizon honestly\
+  \ and each folding the same segment set for itself. Every view passes\nrule 4; the\
+  \ seam pays the corpus once per view. That is not a defect in any of them, so no\
+  \ rule that\nlooks at readers one at a time can name it — which is why it needed\
+  \ this one.\n\n**WIDENED BY — the unit is the INVOCATION, not the composed seam.**\
+  \ Every verb invocation,\ncomposed or not, physically folds each journal segment\
+  \ it touches AT MOST ONCE and parses each card\nAT MOST ONCE, counted across the\
+  \ WHOLE invocation: the dispatch envelope (the preamble before the\nverb body and\
+  \ the invocation-record emit after it) AND the body. A verb that folds a segment\
+  \ in its\npreamble and again in its body has read it twice, whichever half one calls\
+  \ \"the verb\". And it opens\nno segment outside the horizon class rule 4 names\
+  \ for its question. The composed seam was where this\nwas first measured, not the\
+  \ only place it happens: on the 2026-09-30 measurement\n(`debt --seam-coverage`)\
+  \ `audit post` folded 15.5x per segment, `task close` 7.5x, `audit pre` and\n`task\
+  \ commit` 5.0x each — single verbs with no composition in sight — and their duration\
+  \ followed the\nnumber of passes, not host load.\n\n**A verb or seam that composes\
+  \ MORE THAN ONE journal or card view establishes exactly ONE\nrequest-scoped ReadScope,\
+  \ at the WIRING SITE.** The wiring site is where the composition is decided —\n\
+  the function that calls the views — never inside a view. That placement is the whole\
+  \ mechanism: one\nscope at `cli.py#_debt_echo_lines` is what buys every debt seam\
+  \ (session-start and the on-demand\n`debt` re-fold; the land tail was a third until\
+  \ retired it) from a single declaration,\nbecause they are callers of one composition.\
+  \ A scope pushed down into the views instead would have to be installed, and kept\
+  \ correct,\nonce per view per seam.\n\n**The ReadScope is the ONLY owner of physical\
+  \ segment folds and card scans for that request.** Within\nit: a seam-callable view\
+  \ RECEIVES rows and cards from the scope. It DECLARES its journal horizon\n(rule\
+  \ 4 — the declaration does not weaken, and a view that needs archive still says\
+  \ so) and its card\nslice, and it does NOT perform its OWN PHYSICAL read — it never\
+  \ opens a segment path or globs\n`tasks/*.yaml` for itself.\n\n**\"Receives from\
+  \ the scope\" is a property of the READ, not a restriction on which function a view\
+  \ may\ncall, and getting this distinction wrong would make the rule unimplementable.**\
+  \ A view legitimately\ngoes on calling the shared journal and card primitives —\
+  \ `segment_lines`, `fold_lines`,\n`state.load_path`; what makes those calls conformant\
+  \ is that the PRIMITIVES consult the installed\nscope and serve from it, so inside\
+  \ a scope the call costs no physical read. That is what \"the scope\nowns the folds\"\
+  \ means operationally, and it is why the obligation lands on the primitives rather\
+  \ than\non every call site: a rule requiring each view to be rewritten against a\
+  \ scope-shaped API would have\nto be adopted N times per seam and would be silently\
+  \ unadopted wherever someone forgot. THE\nCOROLLARY IS LOAD-BEARING: a primitive\
+  \ that does NOT consult the scope leaves every view built on it\noutside the rule,\
+  \ whatever the wiring site does. The first instance is exactly this — the STREAMING\n\
+  primitive `journal.segment_lines` did not consult the scope, so two views folding\
+  \ through it read\nevery segment of the corpus a second and third time INSIDE a\
+  \ correctly installed ReadScope\n. A view that reaches a segment through a scope-blind\
+  \ reader has bypassed the scope just as\nsurely as one that opened the file itself,\
+  \ and the seam's regression is what says so out loud rather\nthan leaving it to\
+  \ a profiler and a waiting human. A verb composing ONE view is bound all the same:\n\
+  it reads only through the INSTRUMENTED primitives and holds the per-invocation bound\
+  \ above — the\nformer standalone-verb carve-out is RETIRED (below).\n\n**BORN MEASURED\
+  \ — every verb's invocation leaves a measured record from its FIRST version.** Every\n\
+  parser verb leaf is registered for an invocation record, and that record carries\
+  \ the invocation's\nphysical read counts (the quantities the instrumented primitives\
+  \ tally), its wall duration and its\npeak memory. A verb added without them is not\
+  \ \"not yet instrumented\" — it is out of contract on the\nday it lands, because\
+  \ a verb nobody measures is a verb whose cost nobody sees grow (when this was\n\
+  written, 96 of 126 parser leaves carried no read counts at all). Which record field\
+  \ carries each\nquantity is implementation, homed at the emit site.\n\n**The TRIPWIRE\
+  \ (SPEC-0165) — one regression over EVERY verb, not one per seam.** A test runs\
+  \ each\nprobed verb as ONE REAL INVOCATION over a hermetic fixture whose segments\
+  \ are placed so an\nout-of-horizon open is visible without a per-verb declaration,\
+  \ and fails when any segment is folded\nmore than once, any card parsed more than\
+  \ once, or any segment opened outside the invocation's\nhorizon class; it also fails\
+  \ when a parser verb leaf is neither probed nor held by an exemption, and\nwhen\
+  \ a leaf is not born measured. A probe that never reached its verb body proves nothing\
+  \ and fails.\nThe bound — physical folds <= 1 per segment and card parses <= 1 per\
+  \ card — is stated per artifact, not as a total, because a total hides which segment\
+  \ was read\ntwice; it counts through the instrumented primitives, so it measures\
+  \ what the invocation record\nreports. The regression is DIFFERENTIAL: a planted\
+  \ double fold, a planted out-of-horizon open, a planted\nunprobed leaf and a planted\
+  \ unmeasured leaf each FAIL it, and so does the same planted breach under\nan exemption\
+  \ whose `until` has passed. It subsumes the former \"every composed seam carries\
+  \ its own\nregression\" obligation (the per-seam regressions already shipped stay\
+  \ valid): a per-seam regression\nwatched only the seams someone had already found\
+  \ slow, while a verb born after this rule is born\nprobed or held.\n\n**RETIRED\
+  \ alongside (CHARTER §Principle 1 filter 3), and this is the half that keeps rule\
+  \ 10 from\nbeing an addition.** (a) The PER-VIEW CACHE as a remedy class: the answer\
+  \ to a slow composed seam is\nthe seam's ONE scope, never a cache bolted onto each\
+  \ view — N caches have N invalidation stories, N\nlifetimes and N ways to serve\
+  \ a stale answer, and they leave the composition itself unmeasured. A\nproposal\
+  \ to add a cache to a view inside a composed seam is a proposal to skip this rule.\
+  \ (b) The\nHAND-DECLARED MEMO PATH LIST as a durable artifact: the scope declares\
+  \ the LOGICAL journal and\nresolves its own segment set, so no site maintains a\
+  \ list of physical paths that goes stale the next\ntime rotation adds one. That\
+  \ is not hypothetical — it is exactly how the first instance broke.\n(c) The STANDALONE-VERB\
+  \ CARVE-OUT : a verb composing one view was exempt from the scope\nrequirement,\
+  \ so a single verb could fold the whole corpus several times under no rule — and\
+  \ the\nmeasured multi-pass verbs above are exactly such verbs. Its removal is what\
+  \ keeps the widening from\nbeing an addition.\n\n**FIRST INSTANCES — this rule is\
+  \ DISTILLED from three, not proposed for a fourth.** : the\nsession-start debt echo\
+  \ took 383 s, of which 378 s was ~20 whole-corpus passes, because\nmemo declared\
+  \ the LIVE path literally while every migrated reader resolved the segment SET —\
+  \ the\nhand-declared path list of (b), stale the moment rotation. : a THIRD request-scoped\n\
+  memo at the SAME wiring site, for a fold defined over raw lines that could not consume\
+  \ the parsed-rows\nlane — the composition needed one more scope, and the site is\
+  \ where it went. : the same\nseam bounded on the horizon axis. Each was correct,\
+  \ each was found by a human waiting, and each was a\none-site fix under no rule.\
+  \ Rule 10 is what makes the next one a test failure instead.\n\n**The bounded EXEMPTION,\
+  \ and where it may live.** A verb or seam that genuinely cannot hold the bound\n\
+  declares it — and a declared exemption is a legitimate outcome, not a miss (the\
+  \ rule-9 posture). It\nlives in EXACTLY ONE place: the project's own `yitc-ops.yaml`,\
+  \ under `reads.exemptions[]`, each entry\na mapping carrying **all four** of `seam`\
+  \ (the verb label, e.g. `audit status`, or the wiring site\n`<file>#<symbol>` the\
+  \ exemption is about), `ratio_bound` (the\nnumber of folds-per-segment this seam\
+  \ is permitted — an exemption with no ceiling is not an\nexemption), `reason` (why\
+  \ the bound cannot be held here) and `until` (an ISO date, so the exemption is\n\
+  reviewed rather than inherited). All four are REQUIRED and the check is FAIL-CLOSED\
+  \ per SPEC-0093\ndeclare-or-waive: a malformed entry is refused with the missing\
+  \ field NAMED, never silently ignored,\nbecause an exemption nobody can read is\
+  \ indistinguishable from a breach. The section is OPT-IN and is\nborn FULLY COMMENTED\
+  \ — nothing in it is live, so an untouched carrier declares NO exemption and\nABSENCE\
+  \ reads as \"this project exempts no seam\", which is the fail-closed default and\
+  \ the state every\nproject starts in. Commented rather than absent because a hatch\
+  \ nobody can find is not a bound, it is\na trap: an operator who cannot see the\
+  \ shape declares nothing and simply misses the rule, which is\nthe outcome this\
+  \ carrier exists to replace. What is refused is PRE-GRANTING it, not documenting\
+  \ it —\nthe `startup_checks` born shape, for the same reason. The per-section shape\
+  \ is catalogued at its\nsingle home, SPEC-0160.\n**The ENGINE's one place is `tests/read-contract-exemptions.yaml`.**\
+  \ The engine carries no\n`yitc-ops.yaml` (a kernel invariant, SPEC-0077), so it\
+  \ declares its own exemptions in that ONE file,\nunder the SAME `reads: exemptions:`\
+  \ shape and validated by the SAME shape hook — still exactly one\nplace per project.\
+  \ **An entry whose `until` has passed holds NOTHING:** the tripwire judges it as\n\
+  absent, so an expired exemption fails the build rather than silently becoming permanent;\
+  \ each\nentry's `reason` names the card that removes it.\n\n### Rotation policy\n\
+  \n> **Re-homed from SPEC-0002 by — this is the SINGLE normative home for rotation.**\n\
+  > SPEC-0002 carries a pointer here and no rotation rule of its own. What did NOT\
+  \ move, and is\n> referenced across specs below because of it: SPEC-0002 §Violations,\
+  \ which still forbids a\n> second event-log file and any in-place rewrite, and still\
+  \ reserves PHYSICAL rotation to\n> explicit owner approval. The section text is\
+  \ otherwise unchanged from its SPEC-0002 form.\n\nDay 1: NONE. One file, append-only\
+  \ (~50 KB / ~330 events at 2026-05-28). Rotation is\ntriggered (each → a separate\
+  \ future decision with empirical evidence, NOT pre-built):\n- events.jsonl > 10\
+  \ MB → **REVIEW-and-decide flag, NOT a rotate prescription.** At the\n  threshold\
+  \ the SPEC-0052 displacement-retention lens FLAGS the journal for a query-perf\n\
+  \  REVIEW; it does NOT owe a rotation, and there is no \"missing covering verb\"\
+  \ — the\n  STANDING VERDICT is `ROTATION_STANDING_VERDICT: DEFER` (below) and PHYSICAL\
+  \ rotation is\n  FORBIDDEN by SPEC-0002 §Violations (no second event-log file, no\
+  \ in-place rewrite). So the governed\n  decision at 10 MB is *to review, and (twice\
+  \ affirmed) NOT to rotate* — a consumer must\n  NOT read this line as «rotation\
+  \ owed but no verb covers it». Reopen only on a REAL\n  perf-threshold crossing\
+  \ (below).\n- graph build > 5 s → consider rotation OR graph index optimization\n\
+  - a specific query degraded due to full rescan → pivot strategy\n- multi-project\
+  \ setup → per-project journal segregation may help\n- the journal's ON-DISK VOLUME,\
+  \ read as a REPORTED TRAJECTORY and never as a threshold →\n  **REVIEW-and-decide\
+  \ flag, exactly like the `> 10 MB` line above** — the reading may reopen the\n \
+  \ rotation QUESTION; it decrees no byte number at which rotation is owed. See the\
+  \ disk-volume\n  axis below for what is read, the bound on what a review may conclude,\
+  \ and why no number.\n\n**The disk-volume axis — REPORTED, never a decreed number.**\
+  \ The four conditions above\nare all SPEED conditions: they fire when the journal\
+  \ makes something SLOW. None of them fires on\nwhat the journal COSTS to store,\
+  \ so before this axis existed no amount of disk growth could reopen\nthe rotation\
+  \ question through this policy. This axis closes that gap on the storage side, and\n\
+  nothing else — speed is healthy at the sizes recorded here, and this amendment makes\
+  \ no perf claim.\n\n**What it reads** — three readings taken together, none of them\
+  \ a trigger on its own: the live\n`events.jsonl` bytes and line count; the storage\
+  \ the journal's rewrite-on-nearly-every-commit\npattern generates in git (loose-object\
+  \ count and bytes, pack bytes); and host filesystem headroom.\nThe three are read\
+  \ as a CURVE against the origin datum below, not compared to a limit.\n\n**The bound\
+  \ — a REVIEW only, and SPEC-0002 §Violations is untouched.** This axis changes WHEN\
+  \ the rotation\nquestion is reviewed; it never changes WHAT is permitted. SPEC-0002\
+  \ §Violations still forbids a second\nevent-log file alongside events.jsonl and\
+  \ any in-place rewrite of events.jsonl (CHARTER\n§Principle 5, one journal), so\
+  \ a review that concluded \"rotate\" would still have to clear\nSPEC-0002 §Violations\
+  \ AND explicit owner approval, exactly as before this axis existed. The standing\n\
+  `ROTATION_STANDING_VERDICT: DEFER` above is NOT disturbed by this axis, and neither\
+  \ are the\naffirmations that produced it. A reader of THIS section needs to follow\
+  \ no citation to see that\nbound: a disk reading, however large, authorizes a conversation\
+  \ and nothing more.\n\n**Why no number, and the shape this must never become.**\
+  \ The corpus has already ruled on this exact\nshape one level up. CHARTER §Principle\
+  \ 2 \"Byte/token axis\" (owner ruling 2026-07-17) faced\nthe identical problem —\
+  \ a line cap blind to density — and chose a REPORTED outcome plus a trajectory\n\
+  warn, with \"no second hard cap and no token number\", on the stated ground that\
+  \ a decreed number is\nvoluntaristic. This axis follows that precedent rather than\
+  \ inventing a byte threshold beside it.\nThe named failing shape this section must\
+  \ therefore NEVER carry is a trigger of the form\n`events.jsonl > N MB → rotate`:\
+  \ it would both decree a voluntaristic number and prescribe an outcome\nSPEC-0002\
+  \ §Violations forbids. (The host's `check-jsonl-size.sh`, `WARN_MB=2000`, is such\
+  \ a decreed threshold\nover a DIFFERENT directory — named here as the shape not\
+  \ copied, not as prior art.) Distinguish the\none number this section already carries:\
+  \ `ROTATION_VERDICT_REREVIEW_MB` bounds how long the standing\nDEFER counts as `acted`\
+  \ for the SPEC-0052 lens. That is a bound on a VERDICT's currency,\nnot a rotation\
+  \ prescription, and this axis adds no second number beside it.\n\n**Origin datum\
+  \ — the zero point the trajectory is a trajectory FROM** (the analog of CHARTER\n\
+  §Principle 2's own origin datum), kernel repo, each figure with the command it came\
+  \ from:\n- 2026-08-22 — `ls -l events.jsonl`: 179,767,105 B = **171.44 MB**; `wc\
+  \ -l < events.jsonl`:\n  **382,455 lines**; `git count-objects -vH`: **424 loose\
+  \ objects / 2.38 GiB**, in-pack 231,158\n  objects in **4 packs / 4.45 GiB**; `df\
+  \ -h /`: **67% full** (362G used of 564G, 180G free).\n- 2026-08-21, the preceding\
+  \ reading (recorded on the card): 170 MB / 377,619 lines;\n  82 loose objects /\
+  \ 298.94 MiB; 2 packs / 4.33 GiB; 67% full. The one-day delta between the two\n\
+  \  readings is itself the first segment of the curve, which is the point of recording\
+  \ both.\n\n**Which EXISTING surface reports the reading — and the half that has\
+  \ none.** No new store, check,\ncron line or event type is added by this axis (CHARTER\
+  \ §P1 F1/F3): the journal-bytes half is\nALREADY reported, by the SPEC-0052 displacement-retention\
+  \ lens — surface `events.jsonl size`\n(`bin/lib/views.py`, the LIVE segment, which\
+  \ also runs the standing-DEFER `acted` check) and its\n`report_only` sibling `events.jsonl\
+  \ all-segment total`, which is THIS axis's own reading: the\nlogical journal as\
+  \ a curve, carrying no trigger (rule 8) — and by the weekly digest's\n`journal_growth`\
+  \ block, whose `all_segment_size_mb` is the same trajectory. The git-object half\
+  \ is reported by the nightly's `housekeeping-blocked`\ncheck, which sizes the loose\
+  \ pile — but only WHEN `.git/gc.log` exists (deliberately one signal, no\ntuned\
+  \ floor), so it is an incident reading, not a continuous one. Host filesystem headroom\
+  \ has NO\nv2 surface at all; `git count-objects -vH` and `df` are the on-demand\
+  \ commands, run by hand. That\nlast gap is RECORDED here as the honest finding rather\
+  \ than closed by a mechanism smuggled in under\na prose amendment; it is carried\
+  \ as its own follow-up.\n\n**Where the live work on this question already sits.**\
+  \ The draft plan\n`journal-storage-shape-keep-one-logical-journal-wit` (2026-08-16,\
+  \ opened out of\n`ideas/journal-on-disk-growth-curve-does-the-repo-journal.md`)\
+  \ asks the storage-shape question at\nplan altitude and owns its design. This axis\
+  \ neither duplicates nor pre-empts it — it names, INSIDE\nthe policy, the axis on\
+  \ which that reopen actually happened, so the next one is routed by this\nsection\
+  \ instead of arriving from outside it.\n\n**First firing — RESOLVED 2026-06-07,\
+  \ verdict = INDEX-OPTIMIZE / DEFER.** The\n`> 10 MB` trigger FIRED (journal at 13.7\
+  \ MB / 29,681 lines). The empirical query-perf\nreview it mandates was run on that\
+  \ journal and found NO degradation, so rotation is NOT\nwarranted (the bytes crossed\
+  \ 10 MB but the perf the trigger protects is healthy):\n- raw full-journal `json.loads`\
+  \ of every line: **0.118 s** (linear, no full-rescan pathology);\n- `journal query`\
+  \ (type filter) **~0.33 s** total, full unfiltered scan **~0.58 s** total —\n  dominated\
+  \ by the journal-independent **~0.17 s** interpreter/import startup, not the scan;\n\
+  - `graph build` **~2.2 s** and it does NOT read events.jsonl at all (it walks\n\
+  \  `specs/`+`tasks/`+`decisions/` YAML — `graph_build_index` references no `EVENTS_PATH`),\
+  \ so\n  the `> 5 s graph build` trigger above is UNCOUPLED from journal size.\n\
+  Decision: **defer rotation; keep ONE append-only journal** (CHARTER §Principle 5\
+  \ — no parallel\narchive read-path, no second log). **SCOPED (additive amendment,\
+  \ SPEC-0084):** \"no second log\" forbids a\nsecond FORMAT / parser / discipline\
+  \ within a repo OPERATIONAL-STATE storage — NOT the kernel-owned\nSHARED coordination\
+  \ INSTANCE, which this entry schema GOVERNS IDENTICALLY (same envelope / provenance\
+  \ /\nordering / append + union-merge); its `cross_*` events EXTEND this OPEN catalog,\
+  \ so there is\nONE schema, not two. Reopen ONLY when a future measurement crosses\
+  \ a REAL perf\nthreshold (a `journal query` that is interactively slow once startup\
+  \ is netted out, OR a\n`graph build` that begins consuming the journal AND exceeds\
+  \ 5 s). The empirical basis is the\ndurable artifact `tasks/-*.yaml` `implementation_plan`\
+  \ (this note summarizes it). This\nsatisfies the / SPEC-0002 first-firing requirement\
+  \ (recorded empirical evidence) WITHOUT\nreviving the retired `decision new` class\
+  \ — the standing rule is homed HERE, its single home\n(re-homed out of SPEC-0002\
+  \ into this spec; SPEC-0002 keeps a pointer).\n\n**Re-affirmed 2026-06-23 at ~49\
+  \ MB.** The journal has since grown to ~49 MB /\n~118,900 lines and the `> 10 MB`\
+  \ trigger remains FIRED. The mandated perf review was\nRE-RUN at this size and STILL\
+  \ finds no degradation — bytes crossed 10 MB but the perf the\ntrigger protects\
+  \ is healthy:\n- raw full-journal `json.loads` of every line: **~0.42 s** (linear,\
+  \ no full-rescan pathology);\n- `journal query` (type filter) **~0.8 s** total —\
+  \ interactively fine, startup-dominated;\n- `graph build` **~3.1 s** and it STILL\
+  \ does NOT read events.jsonl (walks `specs/`+`tasks/`+\n  `decisions/` YAML only),\
+  \ so the `> 5 s graph build` trigger stays UNCOUPLED from journal size.\nThe standing\
+  \ verdict is UNCHANGED — defer rotation, keep ONE append-only journal — and is\n\
+  recorded here as a machine-readable token so the displacement-retention lens (SPEC-0052\n\
+  rule 1, where `acted` = \"a rotation/split/compaction decision on record\") recognizes\
+  \ the\ndecision-on-record disjunct WITHOUT an artificially-open follow-up task:\n\
+  \n    ROTATION_STANDING_VERDICT: DEFER # standing decision on record; reopen ONLY\
+  \ on a REAL perf-threshold crossing\n    ROTATION_VERDICT_AFFIRMED_MB: 110 # live-journal\
+  \ size at the last affirmation (2026-08-08)\n    ROTATION_VERDICT_REREVIEW_MB: 220\
+  \ # the BOUND: past this size the DEFER stops counting as acted\n\nThis is NOT physical\
+  \ rotation — SPEC-0002 §Violations still forbids a second event-log file or\nan\
+  \ in-place rewrite; full history stays intact.\n\n**A standing DEFER is BOUNDED\
+  \ — it EXPIRES BY SIZE (the rule).** The verdict\nsatisfies the SPEC-0052 rule-1\
+  \ `acted` disjunct ONLY while the live journal is at or below\nthe `ROTATION_VERDICT_REREVIEW_MB`\
+  \ bound recorded beside it. Past that bound the\ndisplacement-retention surface\
+  \ FLAGS again and the mandated perf review MUST be re-run and\nre-recorded here\
+  \ (a new affirmation moves both numbers, or the verdict changes). FAIL-CLOSED:\n\
+  a `ROTATION_STANDING_VERDICT` token carried WITHOUT a parseable bound does NOT count\
+  \ as\nacted. This retires the never-expiring token: a verdict decided at 49 MB kept\
+  \ reporting the\nsurface \"attended\" all the way to 110 MB — through the 2026-08-07\
+  \ afternoon in which four\ndispatched workers lost their builds to journal-size-amplified\
+  \ test timeouts — and would have\nkept reporting it at 1 GB. The bound is the review's\
+  \ own recheck trigger, not a rotation\nprescription. Enforced single-site by `bin/lib/views.py#_standing_rotation_defer`;\
+  \ tripwire\n`tests/test_displacement_retention.py::test_standing_rotation_defer_expires_past_rereview_bound`.\n\
+  \n**Third firing — RE-AFFIRMED 2026-08-08 at ~110 MB, now BOUNDED.** Journal at\n\
+  115,563,299 B = 110.21 MB / 257,296 lines; the `> 10 MB` trigger remains FIRED.\
+  \ The mandated\nperf review was RE-RUN at this size and STILL finds no degradation\
+  \ of the perf the trigger\nprotects:\n- raw full-journal `json.loads` of every line:\
+  \ **0.816 s** (0.118 s @13.7 MB, ~0.42 s @49 MB —\n  bytes ×8 since the first firing,\
+  \ time ×7: linear, no full-rescan pathology);\n- `journal query` (type filter) **1.56\
+  \ s**, full unfiltered dump **3.32 s** total, of which\n  ~0.35 s is journal-independent\
+  \ interpreter/import startup — interactively acceptable;\n- `grep -c owner_directive\
+  \ events.jsonl` **0.026 s** — grep-based recovery is unaffected;\n- `graph build`\
+  \ **6.06 s**, which is ABOVE the 5 s mark named above — but that leg reads\n  «a\
+  \ graph build that begins CONSUMING the journal AND exceeds 5 s», and this one is\
+  \ NOT\n  journal-driven: measured by `strace`, one build reads events.jsonl 20,597,243\
+  \ B in 14 reads\n  (a bounded ~10 MB tail, twice — not the 110 MB file), and `cProfile`\
+  \ attributes the time to\n  YAML loading + `_resolve_implements_anchor` regex (~2.9\
+  \ s in `re.search` over 442 anchors)\n  + 74 git subprocesses. Recording it as a\
+  \ literal reopen would fire the criterion on false\n  grounds; it is a real but\
+  \ journal-INDEPENDENT slowdown, routed as its own observation.\n**Who decided and\
+  \ on what basis** (the acceptance requirement): decided by the\ndispatched Worker\
+  \ executing the owner-filed card, on the basis of (i) the\nmeasurements above, (ii)\
+  \ SPEC-0002 §Violations, which reserves PHYSICAL rotation to explicit owner\napproval,\
+  \ so a worker cannot self-authorize it, and (iii) the owner's own card wording,\
+  \ which\nadmits the recorded-DEFER disjunct. The 2026-08-07 test-timeout incident\
+  \ (four lost builds)\nis NOT dismissed: it was a real size-driven incident, it was\
+  \ fixed AT SOURCE by hermetizing\nthe two offending pinned tests ( — both landed),\
+  \ and it FIRES the second\ndisjunct of the parked `return_trigger`, which is where\
+  \ the owner's rotation\noverride decision lives. That routing is this task's followup,\
+  \ not a silent defer.\n\n## Parameters\n\n| Parameter | Meaning | `consumed` |\n\
+  |---|---|---|\n| `JOURNAL_LIVE_WINDOW_DAYS` | age boundary separating the live segment\
+  \ from the archive (rule 2) | yes — read by the rotation seam |\n| `READ_SUMMARY_WINDOW_DAYS`\
+  \ | the ONE summary-question horizon (rule 4, class 2) | yes — read by the rule-10\
+  \ tripwire |\n\n**THE VALUE, as a machine-readable token the rotation seam READS.**\
+  \ `consumed: true`\nmeans code reads a governing scalar FROM this spec, so the parameter\
+  \ needs a value HERE and not a\nconstant in `bin/` — rule 2 says so in as many words:\
+  \ *the live window is a governing parameter, not\na constant buried in code.* The\
+  \ token is read by `bin/lib/worktree.py#journal_live_window_days`, the\nsame read-only\
+  \ text scan `views.py#_rotation_rereview_bound_mb` already performs on this same\
+  \ file\nfor `ROTATION_VERDICT_REREVIEW_MB` — one carrier, one idiom, no second config\
+  \ path.\n\n    JOURNAL_LIVE_WINDOW_DAYS: 7 # rule 2's live window. NOT a pick from\
+  \ the table above: 7 is the\n                                  # FLOOR the existing\
+  \ readers impose — two journal readers declare\n                               \
+  \   # a seven-day horizon and the read-gate's tail window is seven\n           \
+  \                       # days, so any shorter window puts declared rows in the\
+  \ archive on\n                                  # every ordinary read. Changing\
+  \ it is a governed spec edit.\n\nFAIL-CLOSED, and in the direction that cannot lose\
+  \ a row: a carrier or token that cannot be read\nyields no value and **rotation\
+  \ does not run**. It never falls back to a default, because a default\nwould be\
+  \ exactly the decreed number rule 2 forbids, and a rotation on a guessed window\
+  \ would move\nrows a reader had declared it would find in the live file. Not rotating\
+  \ is always recoverable.\n\n**SET BY MEASUREMENT, and its floor is set by the READERS\
+  \ — not decreed.** Sensitivity over the\nauthoring corpus, as git loose-object cost\
+  \ per commit against ~293 commits/day:\n\n| window | live rows | live raw | loose\
+  \ | GB/day | vs today |\n|---|---|---|---|---|---|\n| 1 d | 18,829 | 7.9 MB | 0.91\
+  \ MB | 0.27 | 29.1x |\n| 3 d | 41,380 | 23.2 MB | 3.55 MB | 1.04 | 7.5x |\n| **7\
+  \ d** | **82,449** | **43.3 MB** | **6.71 MB** | **1.97** | **4.0x** |\n| 14 d |\
+  \ 132,171 | 67.0 MB | 10.39 MB | 3.04 | 2.6x |\n| 30 d | 155,282 | 76.5 MB | 11.60\
+  \ MB | 3.40 | 2.3x |\n\nA shorter window buys more, so the value is NOT chosen by\
+  \ picking the best row: **two journal\nreaders declare a seven-day horizon and the\
+  \ read-gate's tail window is seven days**, so any window\nbelow that puts declared\
+  \ rows in the archive on every ordinary read. That is legal under rule 4, and\n\
+  it is also self-defeating — those readers would pay the archive read every time.\
+  \ Seven days is\ntherefore the FLOOR the existing readers impose, and 4.0x is what\
+  \ the change buys at that floor.\nRecording the whole table rather than the chosen\
+  \ row, so a later reader can see the shape of the\ntrade instead of re-deriving\
+  \ it. A different project resolves a different number from the same rule\nand the\
+  \ same method: measure the sensitivity, then take the floor its own readers impose.\n\
+  \n**The summary window, set ONCE here.** Rule 4's second horizon class reads this\
+  \ one\nnumber; no reader chooses its own. It is read by `tests/test_t13288_verb_read_contract.py`\
+  \ with the\nsame text scan as the live window above.\n\n    READ_SUMMARY_WINDOW_DAYS:\
+  \ 30 # rule 4 class 2 — the owner's figure (~30 days,\n                        \
+  \          # events.jsonl#ts=). Longer than the live\n                         \
+  \         # window, so a summary reader folds the archive segments inside\n    \
+  \                              # it, and only those. Changing it is a governed spec\
+  \ edit.\n\n## Rationale\n\nHeld to what interprets the rules (SPEC-0005 rule 3);\
+  \ the deliberation, the rejected one-off cut,\nand the ratification history live\
+  \ in the proposing plan.\n\n- Rules 1-3 exist because the cost being removed is\
+  \ git-object churn, not parse time: a full parse\n  of the whole file measured 1.45s,\
+  \ while ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git` twice\
+  \ reached tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after a\n\
+  \  clear). Read rule 2's age boundary against that: the ground for the change is\
+  \ UNBOUNDEDNESS,\n  which is why a one-off cut cannot satisfy it and why the trigger\
+  \ cannot be a size.\n- Rule 5's phrasing is the one an earlier draft got wrong,\
+  \ and the correction is the point: the\n  honest guarantee is multiset identity,\
+  \ and every downstream acceptance criterion must be phrased\n  against it rather\
+  \ than against \"identical output\".\n- Rule 8 names a real, live instance rather\
+  \ than a hypothetical: a bound whose whole purpose is to\n  expire a standing deferral\
+  \ by size, computed from a `.stat` of the journal file.\n- Rule 9 rests on measurement:\
+  \ two lands died the same day on journal-driven test timeouts (a 180s\n  subprocess\
+  \ cap, and a 300s per-file cap against a 286s measured runtime — a 5% margin), the\n\
+  \  recorded suite total is 431.7 min across 879 files with 102 files at >=60s carrying\
+  \ 63% of it,\n  and nine files grew 55-63% in one window on tests whose diffs did\
+  \ not change. The startup anchor\n  pays it too: `session start` in a fresh worktree\
+  \ measured 2m27s and blocked a governed verb\n  behind it.\n\n## Verification\n\n\
+  - **Rule 10 + rule 4's horizon classes :** `tests/test_t13288_verb_read_contract.py`\
+  \ — the\n  tripwire rule 10 names, differential in every arm (a planted double fold,\
+  \ out-of-horizon open,\n  unprobed leaf, unmeasured leaf, unreached verb body and\
+  \ expired exemption each FAIL it).\n- **Rule 4, own footprint :** two `journal query\
+  \ --limit 1` probes both return the\n  pre-probe LATEST; with no own-ref they return\
+  \ the probe's receipt (`tests/test_t12882_*`).\n- **Rule 1 / rule 7 (no second journal,\
+  \ citations survive) — phrased as a DIFFERENTIAL, because the\n  absolute is already\
+  \ false.** Measured before any segmentation: of 201 well-formed historical\n  `#ts=`\
+  \ citations sampled from the corpus, **176 resolve and 25 (12%) do not** — and every\
+  \ miss is\n  in-range, so it is genuinely absent rather than older than the journal.\
+  \ The criterion is therefore\n  **no citation that resolves TODAY may stop resolving\
+  \ after segmentation**, never \"all citations\n  resolve\": a probe written against\
+  \ the absolute fails on a pre-existing condition this change\n  neither caused nor\
+  \ promises to repair, which would make it unrunnable and eventually ignored.\n \
+  \ Differential: a citation pointing at a row now in the ARCHIVE half must resolve;\
+  \ if every sampled\n  citation happens to sit in the live window, the probe proves\
+  \ nothing (122 of the resolving 176 sit\n  in the archive half at a 7-day boundary,\
+  \ so a real sample is available).\n  **The 12% is a SEPARATE finding, not this rule's\
+  \ business** — it means some `from:` citations\n  already point at rows the journal\
+  \ does not carry. Recorded here because a reader of this rule must\n  not mistake\
+  \ the differential for a claim that the chain is whole.\n- **Rule 4 / rule 5 (identity):**\
+  \ for each reader in the census, compare pre- and post-change\n  output as MULTISETS\
+  \ over the real corpus. The differential needs BOTH directions: a deliberately\n\
+  \  DROPPED row must make the comparison fail, AND a deliberately DUPLICATED one\
+  \ must too. The second\n  half is not symmetry for its own sake — measured on the\
+  \ real corpus, the journal contains **zero\n  exact-duplicate lines**, so set-identity\
+  \ and multiset-identity coincide there today. A comparison\n  written against SETS\
+  \ therefore passes on this corpus while being blind to duplication, and no\n  natural\
+  \ input exists to catch the confusion. Plant it, or the probe cannot witness rule\
+  \ 5.\n- **Rule 6 (order-sensitive readers):** each such reader carries its own probe;\
+  \ the tail-window and\n  latest-wins readers are the named instances.\n- **Rule\
+  \ 8 (the bound reads what its action moves, and the aggregate stays visible):**\
+  \ compute the\n  governance bound after rotation and show it reads the LIVE SEGMENT,\
+  \ while the logical size is\n  still REPORTED beside it as a trajectory carrying\
+  \ no trigger. Differential: two fixtures\n  differing ONLY in live-segment size\
+  \ across the recorded bound must produce DIFFERENT verdicts\n  (a probe that only\
+  \ checks the aggregate is present cannot witness this), and an aggregate over\n\
+  \  every threshold must contribute NO flagged action — the unsatisfiable-bound failure\
+  \ is what this\n  probe exists to catch, alongside the vanished-aggregate one.\n\
+  - **Rule 9 (verify cost decoupled):** re-measure `tests/verify-durations.json` and\
+  \ show the named\n  journal-driven files flat against a journal grown by a KNOWN\
+  \ amount. This is a differential, not\n  an absolute: \"the suite got faster\" does\
+  \ not satisfy it, and an unchanged-but-decoupled suite\n  does.\n- **Rules 2-3 (bounded\
+  \ growth, no manual intervention):** one week of ordinary concurrent operation\n\
+  \  with bounded `.git` growth and no manual gc, including at least one abandoned\
+  \ branch to exercise\n  the unreachable-object path.\n"
+cites:
+- CHARTER.md#principle-N
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: journal-storage-shape-keep-one-logical-journal-wit
+binding:
+- code-enforced
+init_concern: null
+concern:
+  section: reads
+  carrier_path: reads
+  declare_key: exemptions
+  declare_type: list
+  presence_policy: opt-in
+  waiver_policy: loose
+  update_policy: init re-seed
+  shape_hook: reads_exemptions_shape
+  born_order: 100
+  born: '# reads:
+
+    # # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier
+    for a COMPOSED SEAM
+
+    # # that cannot hold the read contract (one request-scoped ReadScope; folds <=
+    1 per segment).
+
+    # # OPT-IN and born COMMENTED: absence exempts no seam. ALL FOUR fields are REQUIRED;
+    a malformed
+
+    # # entry is REFUSED with the missing field NAMED (declare-or-waive, fail-closed).
+
+    # # see SPEC-0190 §Rule 10; SPEC-0160 §25
+
+    # exemptions: # the list; each entry carries ALL FOUR fields below
+
+    # - seam: "bin/lib/debt.py#_debt_echo_lines" # the WIRING SITE, <file>#<symbol>
+
+    # ratio_bound: 2 # the POSITIVE folds-per-segment ceiling this seam is permitted
+
+    # reason: "<why this seam cannot hold folds <= 1 per segment>"
+
+    # until: 2026-12-31 # a real ISO review-by date
+
+    '
+implements_signature:
+  bin/lib/cli.py#_iter_events: 52b325c121e77eb9002c87a7e0436ba2163ce676d12fd5f8eab703b6f4146f57
+  bin/lib/cli.py#_iter_events_tail: 09aae222234dad4d3e3bc098b5b3e681fe27435d1ee0ee3af758dccb9226d087
+  bin/lib/cli.py#_land_integrate: 6392c34a32b99e3c170cfa5c131542fab2abdbe1be90e66f1f06a46bc12a2d5f
+  bin/lib/events.py#append_event: f3c9734942ca0dd192cba42932b1aa00931e12240f4f98cdc82220cda593a666
+  bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735
+  bin/lib/events.py#recombine_journal: fdb186bc5ed87c8fdbd4f1bc2cf146411e79fd762216799a5c9abf6d41ee151e
+  bin/lib/events.py#rotate_journal: 73c3778bdbe9b6d5e328dd444cdc8bfcab21ea065f5a0c448b85dc35bda6b776
+  bin/lib/journal.py#archive_scan_events_covering: dec124e360b9ffabf44d19d0754f80b66016da62c7e6bc2d0a5ed6904dd0dbd3
+  bin/lib/journal.py#revision_segment_paths: c98698f1628c3e3ce3dd3165617c45dc1e9d1db5600fdbc2189fb4ba1dab2fef
+  bin/lib/journal.py#revision_segment_show_argvs: 47de2686f66d1628bee45b358ccb91e8eca0ab8f23560c74be20e333bebe37e1
+  bin/lib/journal.py#tail_scan_events_covering: d4a787b6e33cee23ce6189971e9330b81f5b18d1b234c27b0e2f2262f2184a23
+  bin/lib/views.py#_standing_rotation_defer: 6b8e10f47876508037a39ddfb9b8c81f3a9fe3ece6143f9cb43f632b2217d86a
+  bin/lib/worktree.py#rotate_branch_journal: bfbf361b76462f1e65a371531a9c012ea1caba70e151f161b0a17b9021897f2b

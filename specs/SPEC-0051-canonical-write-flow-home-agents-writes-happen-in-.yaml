@@ -1,0 +1,80 @@
+id: SPEC-0051
+title: Canonical write-flow home — AGENTS §Writes happen in a worktree
+status: active
+created_at: 2026-06-07 08:46:03+00:00
+consumed: false
+implements:
+- bin/lib/worktree_lifecycle.py#cmd_worktree_sweep
+- bin/lib/worktree_lifecycle.py#_live_held_paths
+binding:
+- seed
+seed_cue: Before ANY source or artifact write, open a worktree with `worktree new
+  --task T-XXXX` (or `--work <slug>`) and integrate only via `land` run from the main
+  checkout — never edit on main.
+activation_owner_task: null
+proposed_by: null
+body: "## Scenario\n\nAt session start the AI sees a small generated \"stage-agnostic\
+  \ general-verb seed\" line. For the\nwrite-flow — the worktree-isolated path every\
+  \ mutating action follows — that line is a POINTER to the\nONE canonical home, AGENTS\
+  \ §\"Writes happen in a worktree\", not a second copy of the verb\nsequence. The\
+  \ reader is routed to the single home; the sequence itself is read there.\n\n##\
+  \ Internal\n\nThis is a POINTER-ONLY seed-delivery spec for the write-flow. It restates\
+  \ NO verb sequence and its only\nstanding rule is §Automated worktree terminators\
+  \ below\n(Single-SoT — CHARTER §P5 / SPEC-0005 rule 8): the write-flow SEQUENCE\
+  \ lives in EXACTLY ONE\nauthoritative home — AGENTS §\"Writes happen in a worktree\"\
+  . This spec's only job is delivery\nrouting: its `binding: [seed]` (SPEC-0007 §5a\
+  \ seed class) makes `_seed_howto` render this spec's\nTITLE into the `session start`\
+  \ seed line, and the title is a navigational pointer to that home.\n\n### Why a\
+  \ pointer, not the sequence (Single-SoT)\nA rule already canonically homed in handbook\
+  \ prose STAYS there and is NEVER duplicated into a spec\n(SPEC-0005 rule 8 — one\
+  \ home). The write-flow is such a rule (AGENTS §Writes-happen-in-a-worktree).\n\
+  So this seed carrier ROUTES to it; it does not re-encode it. The AGENTS §At-session-start\
+  \ reference\nline and this spec's title are likewise pointer-only (SPEC-0005 rule\
+  \ 8 — a navigational pointer is\nnot a standing rule and needs no governing spec\
+  \ of its own).\n\n### Post-/compact compaction-survival (SPEC-0007 §5b, option (b))\n\
+  SPEC-0007 §5b [MUST] requires that any change to what `session start` delivers either\
+  \ (a) wire the new\ncontent into the post-`/compact` re-read path, OR (b) explicitly\
+  \ justify why it survives compaction.\nThis seed line takes **option (b)**: the\
+  \ seed line is emitted ONLY by `session start` (not re-run\nafter a `/compact`),\
+  \ BUT its CONTENT is a pointer to AGENTS §\"Writes happen in a worktree\", which\
+  \ IS\nre-read in full as part of the post-`/compact` mandatory-handbook re-read\
+  \ (AGENTS.md is in the seed).\nSo the write-flow survives compaction via its handbook\
+  \ home — STRONGER than a seed that held the\nsequence itself (a sequence-bearing\
+  \ seed would vanish post-/compact; a pointer to a re-read file does\nnot). is the\
+  \ named downstream consumer of §5b generalization (the coherence invariant\nextended\
+  \ to ALL startup-delivered content).\n\n### Automated worktree terminators\nThe\
+  \ write-flow's worktree is also where un-landed authored work LIVES, so an automated,\
+  \ age-based\nterminator (`worktree sweep`, cron) MUST read live state before removing\
+  \ one — age is a proxy, the\nstate is the fact. It MUST NOT remove a worktree that\
+  \ is:\n- (a) AHEAD of `main` (unlanded commits, incl. a committed `task pause` record)\
+  \ —;\n- (b) DIRTY — uncommitted authored content, incl. an uncommitted pause record;\
+  \ reported `kept-dirty`,\n  and an UNREADABLE `git status` is fail-closed (kept);\n\
+  - (c) OCCUPIED — a live process's cwd or open-fd target is at or inside the path\
+  \ (ancestry match). An\n  argv or environment MENTION of the path is NOT occupancy\
+  \ (: a dispatch brief naming a path\n  spared it for its whole lifetime).\nThis\
+  \ is the one standing rule this spec carries; the write-flow SEQUENCE stays single-homed\
+  \ in AGENTS.\n\n## Verification\n\n- **VP1 (seed populated):** after activation,\
+  \ `bin/yitc-v2 session start` stdout shows the generated\n  seed line carrying SPEC-0051\
+  \ + its title (the write-flow pointer), NOT \"(none bound yet)\".\n- **VP2 (single-SoT,\
+  \ pointer-only):** the write-flow verb SEQUENCE appears in exactly ONE home\n  (AGENTS\
+  \ §Writes-happen-in-a-worktree); this spec body, the seed line, and the AGENTS\n\
+  \  §At-session-start reference restate NO sequence (grep — SPEC-0005 rule 8).\n\
+  - **VP3 (generated from the carrier):** `_seed_howto` derives the line SOLELY from\
+  \ binding:[seed]\n  (no hand list, P5); regenerating reproduces it (test_t0289 AC3).\n\
+  - **VP4 (compaction-survival, §5b option b):** the pointer targets AGENTS §Writes-happen-in-a-worktree\n\
+  \  which is in the post-`/compact` mandatory re-read — so no separate post-/compact\
+  \ wiring is needed.\n  - **VP5 (automated terminators):** differential tripwires\
+  \ —\n    `tests/test_worktree_sweep_unlanded_work_batch.py::test_t12845_a_dirty_work_batch_not_ahead_survives_named_kept_dirty`\n\
+  \    (dirty → kept-dirty; pause arms; unreadable → kept; neutered fence destroys)\
+  \ and\n    `tests/test_t9532_worktree_sweep_2.py::test_t12845_occupancy_not_mention`\
+  \ (argv-only / env-only\n    mention → swept; cwd / fd inside → kept; pre-change\
+  \ argv-substring arm shown to spare).\n"
+cites:
+- CHARTER.md#principle-5
+- SPEC-0005
+- SPEC-0007
+requires: []
+supersedes: null
+implements_signature:
+  bin/lib/worktree_lifecycle.py#_live_held_paths: af5173bf434c35676d96d3ba4b11f2639ca6dc2734e306b09e11c229c8535de4
+  bin/lib/worktree_lifecycle.py#cmd_worktree_sweep: e186bd01c6d5db590c7fc37ad91c9568f8ab413672efa6abc6c4261f4d8730b0

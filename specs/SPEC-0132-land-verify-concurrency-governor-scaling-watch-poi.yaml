@@ -1,0 +1,597 @@
+id: SPEC-0132
+title: Land-verify concurrency governor + scaling watch-points — resource-aware host-sharing
+  (narrowest default, metrics-gated escalation), per-land metrics, and numeric Tier-C
+  deferral triggers
+status: active
+created_at: 2026-07-03 16:58:23+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/worktree.py#_land_integrate
+- bin/lib/verify_runner.py#_run_verify_tests
+- bin/lib/land_verify_legs.py#_verify_scaling_signals
+- bin/lib/land_verify_legs.py#_verify_duration_drift_signals
+- bin/lib/verify_runner.py#_verify_dispatch_order
+- bin/lib/verify_runner.py#_load_verify_duration_table
+- bin/lib/verify_runner.py#cmd_verify_durations
+- bin/lib/worktree.py#_refresh_verify_duration_table
+- bin/lib/worktree.py#_verify_table_refresh_decision
+- bin/lib/worktree.py#_verify_median_durations
+- bin/lib/worktree.py#_verify_makespan_ms
+- bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal
+- bin/lib/views.py#_view_admission_series
+body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE machine.\
+  \ They must share the host WITHOUT\noversubscribing it into non-deterministic slowness\
+  \ or fast-forward races — and, as the suite grows\n(~3× tests projected) while cores\
+  \ grow slower (~2×), the owner/AI must KNOW — from measured numbers,\nnot a guess\
+  \ — exactly when full-suite-every-land stops paying and it is time to build affected-test\n\
+  selection. This spec fixes HOW concurrent lands share the host, WHAT every land\
+  \ measures, and the\nNUMERIC thresholds that trip the escalation — while deferring\
+  \ the heavy test-selection machinery\nuntil those thresholds actually fire.\n\n\
+  ## Internal\n\nTHE LAND-VERIFY CONCURRENCY GOVERNOR + SCALING WATCH-POINTS. Four\
+  \ rules. It EXTENDS the existing\nland critical section + subprocess-per-file runner\
+  \ + `land_completed` event (CHARTER §P1 — no new\nstore/scheduler/daemon); the governor\
+  \ is admission/allocation logic on the existing land path.\n\n### 1. Resource-aware\
+  \ governor — narrowest default first, metrics-gated escalation (A2)\nConcurrent\
+  \ lands share the host under a resource-aware governor that is **fail-closed on\
+  \ a\nmulti-resource bound** (worker count AND memory AND fd/PID AND disk/inode headroom\
+  \ — never CPU-count\nalone). The governor admits work only within that bound. **BUILD\
+  \ ONE mechanism, not three (CHARTER\n§P1 anti-overbuild):** the FIRST and only implementation\
+  \ is the **NARROWEST viable default** —\n**serialize the short ff critical section**\
+  \ (removes the ff-RACE, the actual corruption risk the\n2026-07-03 incident showed)\
+  \ while verify runs under a conservative shared worker cap within the\nmulti-resource\
+  \ bound. Do NOT build competing share/serialize/hybrid mechanisms to pick between.\n\
+  **Escalation is a metrics-gated LADDER, not a build-three-and-choose:** the fuller\
+  \ host-sharing\noptions are an ORDERED escalation — serialize-ff-only (default)\
+  \ → raise the shared verify cap →\nfull per-land core-sharing — and the **owner/plan\
+  \ moves the governor UP the ladder, after reviewing\nthe A4 metrics (Rule 2)**,\
+  \ ONLY if the current level's queueing/throughput cost crosses a stated\nthreshold\
+  \ (the Rule-4 family of numeric triggers). The escalation is owner-judged, NOT automatic\
+  \ —\nno code auto-escalates. Each step is the narrowest change that clears the measured\
+  \ cost; an unneeded\nstep is never built. **Convergence + who decides:** the default\
+  \ + any escalation is confirmed on the\n**`postcheck` real-data concurrency soak**\
+  \ (the built governor under real concurrent lands, ≥5 runs) —\nthe owner judges\
+  \ convergence on the journaled `land_completed` runs (no code auto-escalates); the\n\
+  level in effect is recorded in the plan's **postcheck record**. This spec's rule\
+  \ is the DECISION\nPROCEDURE (narrowest-first + metrics-gated ladder), not a pre-baked\
+  \ winner. **Observable admission wait :** when a land BLOCKS on a full admission-slot\
+  \ pool it emits a THROTTLED `waiting_for_verify_admission_slot` journal event (task_id-scoped;\
+  \ its identity keys are `branch`/`waited_s`/`slots`, and ADDITIVE keys ride the\
+  \ same row — each absent unless it applies, so a quiet land's row stays byte-identical\
+  \ — carrying what a PEER's batch formation cannot learn any other way: what this\
+  \ land declares about the pass it is about to run. The additive set is owned by\
+  \ the cards that add it and is deliberately NOT enumerated here, because an enumeration\
+  \ in this sentence would need a manual edit every time one is added and would silently\
+  \ fall out of date the moment one was — as it already had) at the `_verify_heartbeat_interval`\
+  \ cadence while queued — so a headless worker AND `--fleet-verdict` (SPEC-0133)\
+  \ read a queued land as ALIVE-and-landing, never a hang (the F2 worker-death class).\
+  \ The slot POLL cadence (`_ADMISSION_POLL_SEC`, ~1s) is DECOUPLED from the emit\
+  \ throttle; the event SHAPE stays the existing SPEC-0025 schema (no new store);\
+  \ `YITC_VERIFY_HEARTBEAT_SECS<=0` disables it → the original single blocking admission\
+  \ (byte-identical). **What the admitted span COVERS (X-0678):** the slot is held\
+  \ across EVERY verify-paying phase of the candidate tree — the bare `tests/` sweep\
+  \ AND the consumer verify layers the zero-probe guard executes (`verify.layers`\
+  \ commands + their `prep:`, SPEC-0152 rule 16). Naming only the sweep left the `-C`\
+  \ consumer case unslotted: on a consumer the layers ARE the verify, and on the tests-DELEGATION\
+  \ shape (a layer whose `covers:` names tests) the sweep is skipped, so such a land\
+  \ took NO slot at all while running a full suite — two parallel consumer sessions\
+  \ then collided and the loser failed on a CONTENTION flake indistinguishable from\
+  \ a real test failure. The span ORDERS lands; it is NOT a fan-out cap (owner directive\
+  \ 2026-07-18) — `slots` arithmetic is untouched and no land is refused or deferred.\
+  \ ONE slot per land still holds: the pinned last-green re-run takes its own slot\
+  \ sequentially, never nested.\n\n### 1a. The serialized span is merge->verify->ff,\
+  \ and the parked peer's wait is BOUNDED\nRule 1 says \"serialize the short ff critical\
+  \ section\". MEASUREMENT WIDENED THAT SPAN. Over 148 ok\nlands from 2026-08-13 (aggregated\
+  \ 2026-08-14): 36% were multi-attempt and **71% of the verify budget\nwas REDO**\
+  \ — 11.6h of verify wall on DISCARDED attempts against 4.6h that counted — with\
+  \ every\ndiscarded attempt carrying outcome `retry-main-advanced`. Serializing only\
+  \ the ff does not reach\nthat: correctness forbids ffing an untested A+B combination,\
+  \ so a lander whose main moved must\nRE-VERIFY, and the cost is paid in the verify,\
+  \ not the ff. **The governed span is therefore the whole\nmerge -> verify -> ff:**\
+  \ a land that has merged main must be able to finish its verify without a peer\n\
+  moving main underneath it.\n**The reservation is taken from ATTEMPT 1** (`_LAND_FAIRNESS_ATTEMPT`,\
+  \ the code carrier). Its\nPRE- value was **3** — arming only after two verifies\
+  \ were already burned, which capped the\nrepetition of the waste rather than removing\
+  \ it. **2 was raised explicitly and REFUTED on the\nnumbers:** at 2 the FIRST collision\
+  \ is still conceded and that is where the mass is — 53 of the 76\ndiscarded attempts\
+  \ survive. Do not re-open without NEW measurement. This is not a throughput tax:\
+  \ the\npark's fast path is one non-blocking flock acquire+release with no sleep,\
+  \ so an UNCONTENDED land is\nunchanged; contended peers QUEUE instead of RACE, and\
+  \ queueing beats racing when the race loser pays\na full verify.\n**The park is\
+  \ BOUNDED, and past the bound the waiter LEAVES — since, into a HALT.** The reservation\
+  \ flock auto-releases on\nprocess DEATH but NOT on process HANG, so one live-but-wedged\
+  \ holder would park every land in the\nrepo indefinitely — exotic while the reservation\
+  \ was rare, ROUTINE once every land takes it. Past a\nthreshold of **20 verify walls**\
+  \ (units of a full verify run, never a bare seconds constant, so it\ncannot silently\
+  \ become wrong as the suite grows; **~149 min at the 448.4s wall**.\n**THE COEFFICIENT\
+  \ AND THE WALL ARE TWO SEPARATELY DERIVED NUMBERS — do not read the derivation\n\
+  that follows as covering both.** What follows derives the WALL. The COEFFICIENT\
+  \ was 3,\nthen 5, and was raised 5 -> 10 -> 20 on 2026-08-19 by OWNER DIRECTIVE\
+  \ against an\nobserved jam, landed under the CHARTER §Principle 2 emergency bypass\
+  \ — which is why this rule\ntext read \"5\" for a week while the code carried 20.\
+  \ discharged that bypass and CONFIRMED\n20 BY DERIVATION rather than correcting\
+  \ it: over a window with BOTH ENDS PINNED —\n[), start inclusive and end EXCLUSIVE,\
+  \ \"closed\" in the\n sense of two fixed literals that re-run forever rather than\
+  \ in the interval-notation sense\n— n=380 real reservation waiters, a bound of 3\
+  \ walls\nwould have clipped 22.6% of them, 5 walls 13.4%, 10 walls 5.5%, while 20\
+  \ walls fired on 0.79%\n(3 `land_reservation_park_degraded` rows). **That derives\
+  \ the FLOOR only.** The CEILING cannot be\nderived from that population at all —\
+  \ the bound truncates the very waits one would measure, so\n\"nobody waited longer\"\
+  \ is a tautology — and is a COST JUDGEMENT about what a WEDGED holder costs\nits\
+  \ peers (~149 min, paid park-wide since the engine is shared). Re-derive the FLOOR\
+  \ from a fresh\nclosed window when queue depth moves; the CEILING moves only on\
+  \ that cost argument being re-made.\nFull provenance lives at the constant itself\n\
+  (`bin/lib/worktree.py#_LAND_RESERVATION_PARK_WALLS`), not restated here.\nThe WALL\
+  \ — re-derived\n2026-08-18 by from a STATED population and window: `land_completed`\
+  \ rows with\n`status: ok` carrying `verify_metrics.verify_wall_ms`, over the CLOSED\
+  \ interval\n[), all verify modes pooled, n=92, median 448.4s,\np95 614.5s — from\
+  \ the same `verify_wall_ms` series Rules 3-4 watch. **The population is part of\n\
+  the number:** the whole-journal median over the same series is 215.5s (n=1793) and\
+  \ would invert\nthe conclusion, because those lands ran against a suite that no\
+  \ longer exists. The prior reading\n(2026-08-15: pooled median 361.7s over n=155,\
+  \ matching the then-pinned 364s to within 1%) is kept\nhere so the drift is legible\
+  \ — by 2026-08-18 that pinned wall read 23% low, and 20 of the 23\nrecorded `land_reservation_park_degraded`\
+  \ rows had fired at exactly its 1820s bound, i.e. on\nHEALTHY holders. **The trade\
+  \ is recorded, not implied:** a longer wall lengthens a queued\nlander's worst-case\
+  \ starvation behind a wedged holder by ~7 min (30.3 -> 37.4). Re-derive the WALL\n\
+  from a fresh closed window when the suite moves; do NOT reach for the coefficient,\
+  \ which would\nchange the rule instead of restoring it.) the waiter STOPS PARKING,\
+  \ emitting the named\n`land_reservation_park_halted` journal row so the firing rate\
+  \ is measured after the fact rather than\nguessed — and the land then **HALTS**\
+  \ (owner decision 2026-08-28; the row was\n`land_reservation_park_degraded` and\
+  \ the land RACED before that date, which is what every dated\nmeasurement above\
+  \ counts). **STOP, NOT DEGRADE-TO-RACE:** racing after a proven loss burns shared\n\
+  verify capacity toward an outcome the branch has already failed to reach. The halt\
+  \ is the EXISTING\nland-abort escalation and nothing new — `land_completed{status:\
+  \ abort, abort_class:\nland-reservation-park-limit}` + `LAND: ABORT` — taken at\
+  \ the reservation, so **main is untouched, the\nworktree is intact and the reason\
+  \ is recorded**; and it is scoped to the land PROCESS, so a fresh\n`land` may simply\
+  \ try again (the same blast radius the degrade had). **COUNTER-EVIDENCE, RECORDED\n\
+  RATHER THAN OMITTED:** on 2026-08-28 the bound fired six times against eight in\
+  \ all prior history and\nFOUR of the FIVE branches that degraded landed anyway —\
+  \ so this rule stops attempts that would in\nfact have completed, which is exactly\
+  \ why the halt must stay recoverable and per-process. Still\n**NOT a holder-side\
+  \ timed release** (releasing a holder mid-verify would destroy the exclusivity the\n\
+  mechanism exists to buy), and — unchanged, load-bearing — **the WAITER STILL LEAVES**:\
+  \ it is the\nwaiter's departure that keeps a wedged holder from parking the repo\
+  \ forever, and the halt preserves\nit. What changed is where the waiter goes, never\
+  \ whether it goes.\n**THE BOUND IS NOT UNCONDITIONALLY TERMINAL — a MOVING queue\
+  \ earns a bounded automatic requeue\n.** The rule above is grounded in a STUCK holder;\
+  \ an eviction whose wait watched SEVERAL\nholders come and go is a different fact\
+  \ — the queue WAS serving, this land was merely 9-10 deep in\nit. Measured 2026-09-11:\
+  \ four lands ( 11:59:22Z 12:08:55Z 12:20:57Z 12:34:40Z) were evicted by the bound\
+  \ while their own `waiting_for_land_reservation` rows\nnamed DIFFERENT holder pids\
+  \ across the wait; every one was re-run BY HAND by the Controller and\nre-queued\
+  \ at the tail, and landed at 13:11:01Z on that re-run. So at the bound the land\n\
+  re-enters the SAME wait BY ITSELF when at least TWO distinct holder pids were observed\
+  \ during the\nbound, journaling `land_reservation_park_requeued` {branch, attempt,\
+  \ holders_seen} and KEEPING the\nworktree; it STOPS exactly as above — same message,\
+  \ same `abort_class` — when ONE holder held the\nreservation for the whole bound.\
+  \ The discriminator is sampled ABOVE the heartbeat early-return, so\na BEHAVIOURAL\
+  \ decision never depends on the `YITC_VERIFY_HEARTBEAT_SECS` observability switch\n\
+  (the rule); an UNRESOLVABLE holder cannot reach two, so the fail-closed direction\
+  \ is the\nstop. **BOUNDED, not unlimited:** requeues are capped per land PROCESS\
+  \ by `YITC_LAND_PARK_REQUEUE_MAX`\n— a GATE-class env bound on the same ground as\
+  \ the park limit itself (`bin/lib/machine_settings.py`:\nthe number decides whether\
+  \ the land eventually gives up and HALTS, so it is a verdict input and is\nrefused\
+  \ by `config set`), defaulting to **2** (owner's stated «потолок попыток 2-3», lower\
+  \ end);\n`0` restores today's behaviour byte-identically, and past the cap the land\
+  \ takes the same `_die`\nwith the reason EXTENDED to name attempts vs cap. Every\
+  \ property above is PRESERVED: the bound\nitself is unchanged, the WAITER STILL\
+  \ LEAVES the park on each eviction (the requeue re-enters, it\ndoes not hold through),\
+  \ main is untouched, the blast radius stays the land PROCESS, and no\nholder-side\
+  \ timed release is introduced. What is NOT in scope here: queue ORDER / aging /\
+  \ fairness\n(owner declined 2026-09-11) and the debt accounting of evictions.\n\
+  **The bound is sized by QUEUE DEPTH, not by one holder's cost :** the Nth waiter\
+  \ sits\nthrough the holder's remaining wall plus the N-1 lands ahead of it, so serving\
+  \ a 4-deep queue takes\n4 walls, and the 5th is a MARGIN wall — 4 holds only at\
+  \ the median, and one p95 land (663-686s) in\nthe chain would otherwise blow it.\
+  \ Read the bound as \"how deep a queue still waits honestly\", and\nre-size it from\
+  \ the same measured series when the fleet's queue depth moves.\n**The MARGIN reading\
+  \ held; the SIZE did not.** Read against the measured distribution,\n\"4 of depth\
+  \ + 1 of margin\" understates today's fleet by a wide margin: over\n[) the median\
+  \ waiter paid 1.09 walls but p95 paid 10.4\nand p99 paid 19.2, so the queue this\
+  \ bound actually serves is far deeper than 4 — and a 5-wall\nbound would have clipped\
+  \ 13.4% of 380 real waiters, firing on HEALTHY holders exactly as the\nparagraph\
+  \ above warns. What survives verbatim is the READING (how deep a queue still waits\n\
+  honestly) and the MARGIN principle (the top end of the distribution, not its median,\
+  \ sets the\nbound). What does not survive is the ARITHMETIC — do not re-derive a\
+  \ value from \"4 + 1\".\n**NAMED BOUND, so this is not later read as a failure of\
+  \ the rule:** the reservation is PER-REPO, so\ncross-project oversubscription is\
+  \ untouched. At most 4 projects were measured landing at once, so the\ngap is real\
+  \ in design but not currently binding; cross-project coordination stays open and\
+  \ unowned.\n\n### 1b. A retry is OBSERVABLE WHILE IT HAPPENS, not only in the final\
+  \ record\nRule 1a establishes what a discarded attempt COSTS: 71% of the verify\
+  \ budget was REDO, every\ndiscarded attempt carrying outcome `retry-main-advanced`.\
+  \ That cost was recorded only in the\nTERMINAL `land_completed` (`attempt_breakdown`)\
+  \ — i.e. after it was already\npaid. So for the whole of its second full suite run,\
+  \ an ff-race loser was indistinguishable\nfrom a HANG: no stderr surface, no per-attempt\
+  \ row. Corroborated twice on 2026-08-16 —\nre-measurement had to read attempt data\
+  \ out of terminal rows for exactly this reason, and an\ninteractive land sat ~18\
+  \ minutes across four reservation holders printing only reservation\nheartbeats.\n\
+  **The rule:** at the START of every attempt after the first, land emits ONE `land_retry_started`\n\
+  journal row + its stderr twin, carrying the attempt number and WHY the previous\
+  \ attempt was\ndiscarded (`previous_outcome` — `retry-main-advanced` and its siblings\
+  \ — plus that attempt's\nduration and verify wall). This is the THIRD member of\
+  \ the observable-wait family beside\n`waiting_for_verify_admission_slot` and `waiting_for_land_reservation`\
+  \ : the\nsame class of invisible cost, so it REUSES their shape rather than adding\
+  \ a second observability\nmechanism (CHARTER §P1 F1).\n**VISIBILITY ONLY, and BOUNDED\
+  \ to the contended path.** The retry policy, the backoff and the\nff-race semantics\
+  \ are UNCHANGED — the loser MUST re-verify, and that stays correct (never ff an\n\
+  untested A+B combination, Rule 1a). A SINGLE-ATTEMPT land emits nothing new — no\
+  \ row, no output:\nthe uncontended path is the overwhelming majority, and a row\
+  \ that fired on every land would be\nnoise rather than signal. REPORT-ONLY; nothing\
+  \ gates on it (CHARTER non-goal #7).\n\n### 2. Per-land verify metrics (A4) — the\
+  \ standing observability probe\n\nEvery `land_completed` event carries a verify-metrics\
+  \ payload: total verify wall time, queue wait,\nworker count, memory peak, tmp/inode\
+  \ usage, fd/process pressure, timeout/fail class, and serial-lane\ntime. These are\
+  \ the measurements Rule 1's selection and Rule 4's triggers CONSUME. **`SPEC-0025`\
+  \ is\nthe SINGLE home of the `events.jsonl` / `land_completed` event SCHEMA (P5):\
+  \ this rule declares the\nverify-metrics as an ADDITIVE field-set on that existing\
+  \ payload and does NOT restate/duplicate the\nschema — any change to the event SHAPE\
+  \ is amended in `SPEC-0025`, not here.** NO new log/store. A **minimal subset**\n\
+  (verify wall time, fail/timeout class, worker count) MUST emit before FINAL governor\
+  \ adoption, so the\ngovernor tunes against real numbers; the fuller payload MAY\
+  \ follow (the plan's `A2-final requires\nA4-min` ordering).\n**`flaky_retry` — an\
+  \ ADDITIVE field on this same field-set, on BOTH venues:** when a leg\nre-ran its\
+  \ failing files once in isolation it records `{rows: [{file, leg, isolated, pool_tail,\n\
+  load1}], resumed}`, and when the plan declined it records `{skipped: <reason>}`;\
+  \ a ROUTED land\nfolds the per-leg record onto the SAME unprefixed key, with the\
+  \ string `unknown` for an envelope\nthat never carried it (never `{}` or absent,\
+  \ either of which would read as \"no flakes\"). ABSENT\nwhen no retry was reached,\
+  \ so a green land never reports one it did not do.\n**The admitted budget is PUBLISHED,\
+  \ and each layer's actual CPU is RECORDED — REPORT-ONLY:**\nthe governor's admitted\
+  \ per-verify worker count reaches every consumer verify layer COMMAND, and\nStage-6\
+  \ `task test --run`, as `YITC_VERIFY_LAYER_WORKERS` — an OUTPUT, deliberately distinct\
+  \ from\nthe `YITC_VERIFY_WORKERS` machine input. `verify_metrics.layer_worker_budget`\
+  \ records the value the\nlayers received, and `verify_metrics.per_layer_cpu` records\
+  \ each executed layer's process CPU plus\nthe CPU of docker compose containers labelled\
+  \ with the land's worktree, naming two gaps instead of\ndropping or counting them:\
+  \ `unsampled_containers` (ours, but gone before any sample) and\n`unattributed_containers`\
+  \ (started in the window with no compose working_dir label). No quota,\nrefusal\
+  \ or kill reads either field.\n\n### 3. Watch-points — targeted-fix triggers (B-tier),\
+  \ report-only\nStanding numeric watch-points, evaluated report-only (never an autonomous\
+  \ action — CHARTER §6 fence):\n  - timing-test flakiness is the top recurring flaky\
+  \ class for 2 weeks → migrate those tests to a\n    fake/mockable clock;\n  - a\
+  \ serial resource-lane exceeds 10% of verify wall time OR 25 files → refactor to\
+  \ unique-resource\n    helpers. **EXTENDED to the DECLARED LOAD-SENSITIVE LANE.**\
+  \ `tests/load-sensitive.txt`\n     IS such a lane — its listed files are excluded\
+  \ from the concurrent pool and run one at\n    a time after it, on both legs — and\
+  \ it grows only by automatic entry while shrinking only by a\n    card, so the SAME\
+  \ two bounds apply to it unchanged, now as the `config`-class tunables\n    `YITC_LOAD_SENSITIVE_SHARE_PCT`\
+  \ (10) and `YITC_LOAD_SENSITIVE_MAX_FILES` (25), seeded at the\n    values this\
+  \ watch-point already states rather than at new numbers. Its wall is read from the\n\
+  \    FIXED per-file duration table (§6) — the sum of the LISTED files' recorded\
+  \ seconds\n    against the table's own total per-file work — and both numbers ride\
+  \ the SPEC-0119 debt echo's\n    rule-40 line at every seam, so nobody computes\
+  \ them by hand. OVER EITHER BOUND the obligation\n    is a DISPOSITION, not an action:\
+  \ the weekly review (`inspect record --tier weekly`, the roster's\n    T5 lens)\
+  \ must dispose a NAMED global-rework question — box-admission width, stage-6-beside-land\n\
+  \    policy, or harness isolation — with a dated line that either files that card\
+  \ or records why not\n    plus a re-check date. Another per-file card is not a disposition.\
+  \ Report-only on the same terms\n    as every watch-point here: nothing gates, nothing\
+  \ acts autonomously (CHARTER §6 fence).\n\n**RETIRED watch-point — the pinned double-verify\
+  \ cache hit-rate (X-0968).** This rule used\nto carry a third watch-point: *\"the\
+  \ pinned double-verify cache hit-rate is < 80% after warm-up →\nredesign the pinned\
+  \ trigger scope.\"* It is **DELETED, not re-tuned** — no threshold is reachable,\
+  \ so\nthe expectation was wrong rather than the number. Recorded here, with its\
+  \ evidence, because the cache\naxis had already been adjudicated three times (plan\
+  \ `land-throughput-cut-queue-occupancy-and-doomed-lan`\nslice S3) without anyone\
+  \ owning the EXPECTATION, and a reader who does not find the\nreason at the retired\
+  \ rule re-opens it a fifth time.\n\nMEASURED, kernel-side, 2026-08-17 — locator\
+  \ `events.jsonl#ts=` (a\n`measurement_recorded` event carrying the full counts +\
+  \ the measuring commit sha): over 7032\n`land_completed` rows, **1390** ran the\
+  \ pinned leg, **0** recorded `pinned_cache_hit`, and **0** were\nlayout-excused\
+  \ — so all 1390 were clean GREENs that ran `_pinned_cache_put` — while\n`.git/yitc-pinned-verify-cache`\
+  \ held **1135 markers, all 1135 distinct**. 1135 writes, zero hits: no\nkey has\
+  \ ever repeated. This also REFUTES the earlier reading (carried in own commit body\
+  \ and\nin <project> X-0934) that the 0% meant a GREEN pinned verdict was never reached\
+  \ — greens are reached and\ncached in bulk, and the rate is still 0.\n\nWHY NO FLOOR\
+  \ IS REACHABLE — two INDEPENDENT causes, either alone sufficient:\n  1. **The subject\
+  \ term defeats its own trigger.** The key's subject is the candidate `HEAD^{tree}`,\n\
+  \     and the cache is consulted ONLY when `_verify_path_touch` holds — i.e. only\
+  \ when this land's diff\n     touches the very `bin`/`tests` surfaces that guarantee\
+  \ its tree differs from every earlier land's.\n     The condition that OPENS the\
+  \ cache is the condition that BUSTS it. The only unchanged-tree case is\n     a\
+  \ retry, and `land` runs update-from-main BEFORE verify, so a retry's tree and merged\
+  \ base move too.\n  2. **The engine-code-hash term invalidates globally**, for every\
+  \ consumer at once: 438 commits touched\n     `bin/**/*.py` or `bin/yitc-v2` in\
+  \ the 7 days to 2026-08-17 — a full-cache kill roughly every 23\n     minutes, far\
+  \ shorter than the interval between two lands of any one project.\n\nWHAT IS AND\
+  \ IS NOT RETIRED. Only the EXPECTATION and its report-only emit site. The cache\
+  \ MECHANISM\n(`_pinned_verify_cache_key` / `_pinned_cache_get` / `_pinned_cache_put`)\
+  \ is UNTOUCHED and remains\ncorrect: a MISS is fail-safe (it re-runs), so the cache\
+  \ can never produce a stale green and costs only\na few git calls. `land_completed.pinned_cache_hit`\
+  \ is DELIBERATELY KEPT as the observable, so this\nfinding stays re-measurable instead\
+  \ of resting on this paragraph. Note that field is written ONLY on a\nhit, so an\
+  \ empty `grep pinned_cache_hit events.jsonl` is the EXPECTED result, not an unwired\
+  \ field —\nthe write side is observed in the marker dir instead.\n\nNOT INSTRUMENTED,\
+  \ deliberately (CHARTER §P1 F3/F4). X-0968 asked, as its smallest possible ask,\
+  \ that a\nMISS record WHICH key component differed. Declined on its merits and answered\
+  \ instead: that field\nexists to decide \"is 80% reachable\", which the 1135-distinct/0-hit\
+  \ repeat rate already decides\nWHICHEVER component moved — and once this floor is\
+  \ retired the field would have no consumer.\n\n### 4. Tier-C deferral triggers —\
+  \ when to build affected-test selection (numeric, do NOT build early)\nAffected-test\
+  \ selection + a content-addressed per-file result cache stays DEFERRED (CHARTER\
+  \ §P1 —\nbuild only on real pull) until the A4 metrics (Rule 2) show ANY of: **median\
+  \ land verify > 5 min, OR\np95 > 12 min, OR verifier queueing blocks > 25% of lands\
+  \ for 7 consecutive days.** Until a trigger\nfires, full-suite-every-land stands.\
+  \ \"Future-proof to ~2-3× growth\" means precisely that the system\nEMITS the measurements\
+  \ needed to fire this crossover at its thresholds — NOT that 3× scale is already\n\
+  solved.\n\n### 5. Relationship to SPEC-0184 batching — a DIFFERENT AXIS, not a rung\
+  \ on this ladder\nThis spec's escalation ladder is about **SHARING THE HOST**: serialize\
+  \ the merge→verify→ff span,\nthen raise the verify worker cap, then share cores\
+  \ per land. Every rung redistributes the same\nmachine among lands that each still\
+  \ pay their own full pass. SPEC-0184 batching moves along a\nDIFFERENT axis entirely:\
+  \ it **amortises ONE pass across the changes queued behind it**, leaving\nthe host\
+  \ allocation exactly as this spec set it.\n\n**The two COMPOSE, and neither substitutes\
+  \ for the other.** Stated as a rule because the\nsubstitution is tempting in both\
+  \ directions and wrong in both:\n- A host-sharing decision NEVER discharges the\
+  \ need for batching. Giving a land more cores makes\n  one pass finish sooner; it\
+  \ does nothing about five queued changes each demanding a pass of\n  their own,\
+  \ which is a COUNT problem, not a throughput one.\n- Batching NEVER licenses raising\
+  \ the cap. Amortising passes reduces how many run, not how much\n  machine each\
+  \ may take — the Rule-1 governor's metrics-gated escalation is untouched, and a\n\
+  \  batch takes ONE ordinary admission slot on identical terms, never a widened or\
+  \ extra one.\n\nConcretely: SPEC-0184's rule-1 formation reads the queue AT THIS\
+  \ SPEC'S admission seam and forms\nits batch from whoever is waiting there, so batching\
+  \ sits INSIDE this spec's slot arithmetic\nrather than beside it. The slot count,\
+  \ the escalation thresholds (Rules 3-4) and the per-land\nverify metrics (Rule 2)\
+  \ are all unchanged by it; what changes is only how many changes ride one\nadmitted\
+  \ pass. A reader tracking a scaling problem must therefore ask BOTH questions —\
+  \ is the\nhost oversubscribed, and are passes being spent one-per-change — because\
+  \ an answer to either\nleaves the other exactly where it was.\n\n### 6. Dispatch\
+  \ ORDER — longest-first against a FIXED per-repo duration table\nRules 1-5 govern\
+  \ how much MACHINE a verify pass gets and how many changes ride one pass. This rule\n\
+  governs the remaining free variable: the ORDER the discovered files are handed to\
+  \ the pool in. The\npool is a greedy list schedule, whose makespan is bounded by\
+  \ (optimum + the longest single job), so\na long file discovered late is served\
+  \ with nothing to overlap it — the bound this rule recovers.\n\n**The rule.** `_run_verify_tests`\
+  \ dispatches its files in DESCENDING recorded duration, name\nascending on ties.\
+  \ WHICH files run, their isolation, the per-file timeout, the fail-fast semantics,\n\
+  the metrics and the VERDICT are untouched — the verdict is order-independent by\
+  \ construction (pass\niff no file failed). This is a sort key, and it is the whole\
+  \ of the behavioural change.\n\n**The table is a RECORDED ARTIFACT, never a live\
+  \ measurement — and this is the load-bearing half.**\nOrder must be STABLE (a failure\
+  \ has to reproduce in the order that produced it, and the SPEC-0077\npinned-vs-candidate\
+  \ comparison is only meaningful against a fixed schedule) while durations drift\n\
+  as the suite grows. Recomputing per run satisfies NEITHER: the order would be deterministic\
+  \ given\nthe table while the table moved underneath it. So the table is a RECORDED\
+  \ artifact, rewritten under\na stated WRITE POLICY and never by the mere act of\
+  \ running; between writes the order is immobile.\nPrior-art reused wholesale — `implements_signature`:\
+  \ a recorded baseline, an explicit re-sign verb,\ndivergence SHOWN (bare `verify-durations`)\
+  \ rather than silently absorbed.\n\n**AMENDED : `--rebuild` is no longer the SOLE\
+  \ writer — a green land REFRESHES the table\nfrom its own measurement, under the\
+  \ write policy below.** What the original rule got right is kept\nin full: the order\
+  \ must not move on every run. What it did not survive is GROWTH. Test files arrive\n\
+  at ~19/day and are born unrecorded, so between explicit rebuilds the table silently\
+  \ stops naming the\nsuite — and a table that has stopped tracking the suite looks\
+  \ exactly like one that has not.\nMEASURED 2026-08-22 on the engine: 879 of 948\
+  \ files recorded, and two of the unrecorded ones were\nthe suite's two dearest files\
+  \ (164.1s and 93.7s), imputed the median and queued at positions 494 and\n484 of\
+  \ 948. Simulated against the real per-file series at the real `worker_count` 26:\
+  \ the stale\norder gave 323s, the refreshed 189s, against an ideal of 188s — the\
+  \ stale table was WORSE than\nrandom order (262s), i.e. actively harmful rather\
+  \ than merely imperfect. Confirmed on real lands at\nequal worker count afterwards:\
+  \ 338s -> 228s. The measurement was ALREADY PAID FOR and discarded:\nevery green\
+  \ land emits the complete per-file series (Rule 2's `duration_series`), and the\
+  \ runner's\nnamed `(file, wall, outcome)` data has always been available on `durations_out=`.\
+  \ This EXTENDS the\nland bookkeeping seam that already commits events and rebuilds\
+  \ the graph ( — extend the verb\nthat is before X): no new mechanism, no new store,\
+  \ no new event, no new verb.\n\n**THE WRITE POLICY (this is what keeps the order\
+  \ immobile).** Recomputing is free; WRITING is not.\nSo the two arms are asymmetric,\
+  \ and the asymmetry is the measurement — 91% of the whole win is\nCOVERAGE alone:\n\
+  \  - **(a) COVERAGE — no threshold, but never a partial table.** Any file on disk\
+  \ carrying\n    NO recorded duration ⇒ REWRITE, but ONLY when the resulting table\
+  \ (recorded ∪ re-derived)\n    records EVERY discovered file; otherwise NO WRITE\
+  \ with reason `coverage-incomplete` and the\n    unrecorded count. A narrowed land\
+  \ committed a partial table twice (fc17256 with 29 unrecorded;\n    0071976), reddening\
+  \ the committed-table completeness test on main, which the post-ff tail\n    tripwire\
+  \ (SPEC-0188 rule 7) cannot see before the commit. This arm alone moves 323s ->\
+  \ 189s with every stale VALUE left untouched, because an\n    unrecorded file is\
+  \ imputed the median however expensive it really is. It is also what makes the\n\
+  \    table self-healing: a suite growing by ~19 files a day can never again silently\
+  \ stop tracking\n    itself.\n  - **(b) ORDER-GAIN — thresholded.** Every file recorded,\
+  \ so only VALUES could have drifted: worth\n    ~12s of 189s. REWRITE only when\
+  \ the re-derived order improves the predicted makespan by MORE\n    than BOTH a\
+  \ relative floor (5%) and an absolute one (10s), both makespans scored against the\n\
+  \    re-derived durations as truth. Two floors and not one: a relative floor alone\
+  \ rewrites a small\n    suite on noise, an absolute floor alone never fires on one.\
+  \ Below either ⇒ fall to (c).\n  - **(c) WIDTH-GAIN.** Below the order-gain floors,\
+  \ REWRITE when the re-derived walls\n    change the width `remote_verify.derive_remote_w`\
+  \ derives from the table (one leg, lane\n    excluded): a stale LONGEST file barely\
+  \ moves the order yet sets the width's denominator\n    (measured: test_load_sensitive_set.py\
+  \ recorded 300.2s while running ~33s held one-leg lands at\n    27 workers where\
+  \ the measured walls give ~42). No tolerance — the width is already an integer.\n\
+  \    Width unchanged ⇒ NO WRITE, and the table is left byte-identical.\n**The statistic\
+  \ is the MEDIAN over the last N=5 green lands, never the latest single land.** Per-file\n\
+  wall was measured swinging +20% to +100% within ONE day from host load alone, so\
+  \ a single contended\nreading would jitter the order without improving it — the\
+  \ order would change every land and never\nsettle. The window is small and odd so\
+  \ the value is always an OBSERVED wall, and so the fold cannot\nkeep answering with\
+  \ the durations of a suite that no longer exists. The prior lands' per-file values\n\
+  come from their own `duration_series` rows, whose NAMES — dropped by design — are\
+  \ re-derived from\neach row's `sha` (`git ls-tree <sha> -- tests/`) and ACCEPTED\
+  \ only when the reconstructed count\nEQUALS the series' own `count`; a mismatched\
+  \ row is skipped whole, because zipping a divergent pair\nwould mis-attribute every\
+  \ duration from the divergence onward and produce a complete, plausible,\nentirely\
+  \ wrong table.\n\n**NO OSCILLATION, and it is asserted rather than hoped.** The\
+  \ table is derived from wall times\nmeasured under the order the table itself chose,\
+  \ which is a feedback loop no single-run probe can\n. The median statistic reaches\
+  \ a FIXED POINT on replayed lands carrying realistic contention\nnoise — the order\
+  \ stops changing and stays stopped — and the differential that makes that claim\
+  \ mean\nsomething is that the SAME replay fed the latest single land instead of\
+  \ the median does NOT settle.\n\n**DELEGATION IS INHERITED, NOT RE-DECIDED.** Where\
+  \ a project delegates its root `tests/` to a\ndeclared verify layer, the automatic\
+  \ refresh REFUSES on the same fail-closed predicate and for the\nsame two reasons\
+  \ that already refuse `--rebuild` (below), and RECORDS that refusal by name. It\
+  \ must:\nan automatic refresh that skipped this check would write two-orders-of-magnitude-wrong\
+  \ numbers into\nevery delegating consumer's table on EVERY land, invisibly — a wrong\
+  \ table still schedules\nsomething. Measured: across 2247 green lands in four consumers\
+  \ the per-file series is emitted ZERO\ntimes and no consumer has a table at all,\
+  \ so the refresh there is INERT, not harmful.\n\n**`--rebuild` IS NOT RETIRED.**\
+  \ It stays the way to rebuild from a MEASURING run — a cold repo, or a\ndeliberate\
+  \ suite change — and stays the only writer that refuses on a partial table. What\
+  \ is retired\nis only the claim that it is the sole writer.\n\n**RECORDED, ALWAYS.**\
+  \ Every land that measured something records its refresh decision AND its reason\n\
+  on `land_completed.verify_table_refresh` (SPEC-0025), including the NOT-WRITTEN\
+  \ case: `below-threshold`\nis the expected steady state, and a reader must be able\
+  \ to tell it apart from a refresh that silently\nnever ran — which is precisely\
+  \ the three-day blind spot this amendment closes. Nothing here touches a\nverdict,\
+  \ an exit code or an admission decision; the table is scheduling-only and stays\
+  \ so.\n\n**STALENESS IS A PERFORMANCE QUESTION, NOT A CORRECTNESS ONE.** An absent,\
+  \ partial-in-coverage or\nout-of-date table schedules slightly worse and can change\
+  \ nothing else. Hence: rebuild cadence is a\njudgement (weekly, or on reported divergence),\
+  \ never a gate; an ABSENT table is a NORMAL state for\na fresh consumer and for\
+  \ every newly-written test; and a malformed one is a report-only WARN that\ndegrades\
+  \ to name order. A gate on a scheduling hint would be a strictly worse system.\n\
+  \n**The unknown-file rule.** A file the table does not name is imputed the MEDIAN\
+  \ of the recorded\nvalues, name as tie-break. Defined and stable (so the same input\
+  \ orders identically twice — the\nproperty a live-timing implementation cannot have),\
+  \ and neither bad extreme: 0 buries a new file\nat the tail where a heavy one cannot\
+  \ overlap, +inf hands the head of the schedule to unknown cost.\nWith an EMPTY table\
+  \ every file is imputed alike and the order collapses to plain alphabetical —\n\
+  exactly the pre- behaviour, so a repo that has never rebuilt takes no risk at all.\n\
+  \n**Per-repository by construction (fu_c41560429f93).** The table's home is `<test_dir>/`,\
+  \ derived\nfrom the test dir the runner is already handed — so the engine's suite\
+  \ and each consumer's suite\neach schedule against their own numbers, with no path\
+  \ config, no kernel-side literal for a consumer\nsurface, and no cross-repo store.\
+  \ One code path serves the engine and every `-C` consumer.\n\n**The schedule that\
+  \ ran is RECORDED (`verify_metrics.dispatch`, SPEC-0025).** Rule 2's\n`duration_series`\
+  \ is published in NAME order by design — it is the alphabetical BASELINE an\noffline\
+  \ simulation reconstructs — so it cannot evidence what the runner did, and re-deriving\
+  \ the\norder by re-sorting against the table would evidence nothing either. The\
+  \ run therefore records its\nown schedule: the order in effect, the table size,\
+  \ how many dispatched files the table did not\nname, and the first files actually\
+  \ handed to the pool. Additive, report-only, and the carrier of\nthis rule's adoption\
+  \ evidence.\n\n**`--rebuild` is ALL-OR-NOTHING.** It runs `fail_fast=False` (so\
+  \ a failing file never stops its\nsiblings being launched) and REFUSES to write\
+  \ unless every discovered file carries a recorded\nattempt. A partial table is worse\
+  \ than none: the unmeasured files fall to the imputed median while\nthe measured\
+  \ keep real values, so precisely the files that failed or never ran are mis-ranked\
+  \ — and\nnothing about the resulting file looks wrong. A failing file's wall IS\
+  \ recorded (real cost; the\n downward-bias guard), and the suite verdict is reported\
+  \ but does not gate the write.\n\n**DELEGATED TESTS — `--rebuild` REFUSES, and the\
+  \ report names an existing table SUSPECT (X-1046).** Everything above this paragraph\
+  \ assumes the surface being measured is the surface the\nrunner sweeps. Where a\
+  \ project declares a verify layer whose `covers:` names the root tests dir\n(SPEC-0152\
+  \ rule 16), that assumption fails in BOTH directions, and either alone is disqualifying:\n\
+  the WRITE side measures nothing — the rebuild times `python3 <file>` on the HOST,\
+  \ and a suite that\nneeds the layer's app and database exits immediately there,\
+  \ so the table records the cost of\nfailing to START (<project>: 66 files at 0.5s\
+  \ total against a layer that takes 125s — two orders of\nmagnitude, and nothing\
+  \ about the file looks wrong); and the READ side never opens it — the table's\n\
+  only reader is the bare sweep, which is SKIPPED for exactly these projects, so even\
+  \ a perfect table\nwould schedule a run that does not happen.\n\n**The rule.** Where\
+  \ a covering layer is declared: `--rebuild` REFUSES, writing nothing and touching\n\
+  no existing table, and names the layer and both reasons. The BARE report states\
+  \ the delegation, and\nwhere a table is nonetheless present on disk it reports it\
+  \ SUSPECT BY CONSTRUCTION with its own\nnumbers, since the whole defect is that\
+  \ the number is believable — leaving a plausible file in\nplace silently is the\
+  \ failure repeating. The report stays read-only.\n\n**What this does NOT change,\
+  \ and the boundary is the point.** A repo with NO covering layer — every\nengine\
+  \ build, and every consumer that declares none — rebuilds by the bare-host route\
+  \ exactly as\nbefore: the predicate is fail-closed (engine build, unreadable carrier,\
+  \ section-level waiver,\nwaived or commandless layer all yield \"no delegation\"\
+  ), and that answer is byte-for-byte the prior\nbehaviour. This SCOPES the bare-host\
+  \ route; it does not remove it. Nor does it touch any verdict,\nexit code or admission\
+  \ decision — the table is scheduling-only and stays so.\n\n**Why refuse rather than\
+  \ build the table THROUGH the layer.** A layer `command:` is an arbitrary\nshell\
+  \ string yielding one exit code and one wall, so per-FILE durations would require\
+  \ a kernel-side\ntiming protocol imposed on every consumer — and it would still\
+  \ produce a table with no reader. An\nhonest cannot-measure-this-from-here beats\
+  \ a table of zeros: a measurement that is CONFIDENTLY\nWRONG is more expensive than\
+  \ an absent one, and here the absent one costs nothing, because nothing\nreads it.\n\
+  \n### 7. Duration CREEP — the DELTA, never the level\nRules 3-4 fire on a LEVEL:\
+  \ a measured value crosses a decreed threshold. This rule fires on\nMOVEMENT and\
+  \ decrees no level at all. It exists because made per-file test duration a\nSERIES\
+  \ and deliberately scoped OUT judging any duration; watching that series for creep\
+  \ is the\ndeferred half, and it is delivered WITHOUT reopening what declined to\
+  \ decide.\n\n**The rule.** The land-verify duration DISTRIBUTION (Rule 2's `wall_ms_pct`)\
+  \ is read report-only\nfor upward drift against its own recent past, and a drift\
+  \ is reported as a DELTA — how much it\nmoved, over what baseline. NOTHING here\
+  \ states a duration a suite may not exceed: no budget, no\ntarget, no per-file or\
+  \ per-suite limit. The reading gates nothing, triggers no build, emits no\nevent,\
+  \ stores nothing, and moves no exit code (the CHARTER §6 fence Rules 3-4 already\
+  \ hold). A\nlater editor who wants a duration LIMIT is proposing a different rule\
+  \ and should say so.\n\n**Only scope-comparable lands compare.** A land's recorded\
+  \ sample is its whole suite (its\n`sample_count` equals its `test_file_count`),\
+  \ and this project's lands run differently-SCOPED\nsuites, so percentiles from two\
+  \ arbitrary lands measure different populations. A fold that\nignores scope reports\
+  \ suite scope as creep — measured on the live series, ~+90% on p50 across one\n\
+  week from scope alone. So a land is compared only against lands that ran a comparably-sized\n\
+  suite. This is the shape-half counterpart of the tail-half's \"only comparable observations\n\
+  compare\" rule, and it is a correctness condition, not a refinement.\n\n**Two halves,\
+  \ two homes — do not re-derive one as the other.** The TAIL half (WHICH named file\n\
+  grew, or newly entered the slowest set) is already governed by SPEC-0119 rule 19.\
+  \ This\nrule is the SHAPE half — the broad creep that moves the body of the distribution\
+  \ while leaving\nthe slowest-file membership byte-identical, which a tail reading\
+  \ cannot see by construction. Each\nhalf stays in its own home; neither restates\
+  \ the other.\n\n**The fail direction is SILENCE.** Too little history, an unreadable\
+  \ record, a cohort too thin to\nhave a baseline — every uncertainty resolves to\
+  \ reporting nothing. A creep watch that fires on\nnoise is skipped within a week\
+  \ and takes its next real signal with it; a missed reading costs one\nland's delay.\
+  \ Suppressed-when-clean is therefore a property of this rule, not a display choice.\n\
+  \n## Parameters\nNone consumed. The thresholds (Rules 3-4) and the movement bars\
+  \ (Rule 7) are governance numbers\nstated in rule-text an editor reads before changing\
+  \ the policy; they are NOT runtime scalars read\nFROM this spec by code (`consumed:\
+  \ false`). A future task MAY move a threshold into a code\nconstant citing this\
+  \ spec.\n\n## Rationale\n\nReal incident + measurement: the 2026-07-03 raised-cap\
+  \ flake (oversubscription + ff-race under\nconcurrency) and the land-concurrency\
+  \ reality (concurrent lands expected; a 49%-overlap +\noversubscription measurement).\
+  \ Three external-auditor consults (land-timing mechanics /\ntest-isolation-under-high-parallelism\
+  \ / test-verify scaling strategy) converged: the FIRST durable\nwall is full-suite\
+  \ throughput, not isolation. Prior-art extended: `` (parked serialize-the-\ncritical-section\
+  \ proposal → the serialize fork), `` (contention-aware cap → the share fork),\n\
+  `SPEC-0077` (pinned double-verify), `SPEC-0071` (per-file timeout). Why measurement\
+  \ resolves the fork\nrather than a prose pick, and the full share/serialize/hybrid\
+  \ deliberation, live in the proposing plan\n(SPEC-0005 §3 content boundary — not\
+  \ restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record names\
+  \ the ladder level in effect with the A4 numbers that\n  selected it (replayable\
+  \ from the journaled trial runs); the governor's multi-resource bound is\n  fail-closed\
+  \ (a synthetic over-bound admission is refused).\n- **Rule 2:** a `land_completed`\
+  \ event carries the verify-metrics payload (grep the journal); the\n  minimal subset\
+  \ is present before governor final-adoption.\n- **Rules 3-4:** the watch-point /\
+  \ Tier-C triggers are report-only signals computed from the A4\n  metrics — a synthetic\
+  \ metric series over/under a threshold flips the reported signal (yes/no),\n  never\
+  \ an autonomous build.\n\n## Postcheck convergence soak\n\nA controlled real-data\
+  \ soak (SPEC-0035; never mutates production data) run at the plan's `postcheck`\n\
+  stage on the BUILT governor (not a pre-accept FSM `trial` on throwaway prototypes):\
+  \ run the\nnarrowest-default governor (serialize-ff + conservative shared verify\
+  \ cap) against a batch of real\nconcurrent lands at the raised concurrency, ≥5 runs,\
+  \ capturing the Rule-2 A4 metrics per run into\n`land_completed`. Convergence =\
+  \ zero oversubscription/ff-race non-determinism at an acceptable p95\nland wall\
+  \ time within the resource bound. If the A4 metrics show the default's queueing/throughput\n\
+  cost crosses a Rule-4 threshold, escalate ONE ladder step (Rule 1) and re-soak.\
+  \ The owner judges\nconvergence on the journaled runs and records the level in effect\
+  \ in the plan's **postcheck record**.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-6
+- SPEC-0025
+- SPEC-0035
+- SPEC-0071
+- SPEC-0077
+- land-verify-reliability-and-scale-test-verify-isol
+- lessons/land-critical-section-locks-every-journal-it-folds.md
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: land-verify-reliability-and-scale-test-verify-isol
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/land_verify_legs.py#_verify_duration_drift_signals: 8ac2cdbb412625dc21a0c47d7598451a16c5bc2a4be0c9b2267909863c3f5911
+  bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: 32da99cc15e2e4fb18de6eb8870876d781e3d957a04b64ac1a959e465ad8b0d7
+  bin/lib/land_verify_legs.py#_verify_scaling_signals: ea6ae9ca75096212c0d977d8b80175fb84dc2a8dc49fd9516781208e91c960ef
+  bin/lib/verify_runner.py#_load_verify_duration_table: a7e65f0f31f369f01a0c4f9622277d149d9432a1d0d9ea54af9b2d8f666038db
+  bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
+  bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
+  bin/lib/verify_runner.py#cmd_verify_durations: 73d8b1d8a0ed7ffc2aad8f64da5dfb4b2a1daf07a70f3f8cb41d591dc857391f
+  bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
+  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_refresh_verify_duration_table: 315be956d48c30a142a2b37a16115f1653b1f9096616292265ff2ec31b46e757
+  bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
+  bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52
+  bin/lib/worktree.py#_verify_table_refresh_decision: cf1682aabb2b71d5fdcab920131b3bd0252eb7d74c4fe2aed56bf0b8befdd93e

@@ -1,0 +1,32 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: discipline-ratio
+description: Kind-aware read-gate discipline metric — the read_gate_refused numerator SPLIT BY kind (a MAIN read-check ratio + sibling ratios for stage-correspondence + verification-exists), each over the attempt receipts of the verbs that kind's refusals name (T-13071); NEVER one mixed ratio (plan-check F3). Run `graph query discipline-ratio`.
+lens:
+  kind: discipline-ratio   # pure f over the journal: per kind, the cli_invoked receipts of the verbs its
+                           # refusals name are the denominator (all cli_invoked = baseline only); every
+                           # read_gate_refused is bucketed by data.kind (the legacy "stage"
+                           # literal folded into read-check) and a SEPARATE ratio is emitted per
+                           # canonical kind — the three blocking legs of the universal stage contract
+                           # (SPEC-0059) stay independently analyzable, never conflated into one figure.
+                           # Reuses the line-by-line journal reader (P1, one scan). Recomputed fresh,
+                           # writes nothing. no attempts → ratio null + reason (no fabricated 0.0).
+why: >-
+  SPEC-0059 (the universal stage contract) makes EVERY blocking refusal — read-check,
+  stage-correspondence, verification-exists — emit ONE umbrella `read_gate_refused` event carrying its
+  `kind` (the event shape owned by SPEC-0025; the kinds landed via R2/T-0596), so discipline is
+  analyzable PER kind. The lens operationalizes that: it is the read-gate discipline probe T2 of the
+  inspection roster already calls for ("доля прошедших, отказы как findings"), turning the by-hand
+  grep+count into a named, grep-resolvable view. The single load-bearing rule (plan-check F3) is that
+  the three kinds are NEVER summed into one mixed ratio — a read-check refusal (contract not fetched)
+  and a stage-correspondence refusal (verb run at the wrong stage) are different failure modes with
+  different fixes, so each carries its own ratio over the attempt receipts of the verbs its refusals name (T-13071 — the
+  shared cli_invoked count is reported only as an activity baseline). All
+  three canonical kinds are reported even at zero (fail-visible — a zero verification-exists ratio is
+  shown, never silently absent); a kind outside the locked enum surfaces in `other_kinds` rather than
+  being dropped. Report-not-block (D-0053): a non-zero ratio is a SIGNAL to investigate the verb/stage
+  behind the refusals, never a gate. `graph query discipline-ratio` emits a cli_invoked observability
+  event (T-0113) — a reviewer RUNNING the lens IS the durable P8 consumer-read adoption evidence. No
+  new store, no new command family, no new event type, no persistence (P5 — reuses the existing journal
+  readers). The view MECHANISM (lens dispatch / views/*.yaml format) is owned by SPEC-0031 + D-0053;
+  SPEC-0059 owns the kind-aware REQUIREMENT this view realizes.

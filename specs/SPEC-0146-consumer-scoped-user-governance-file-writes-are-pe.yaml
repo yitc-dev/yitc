@@ -1,0 +1,70 @@
+id: SPEC-0146
+title: Consumer scoped-user governance-file writes are permitted — readonly is not
+  FS-enforced, land does not guard governance-path writes by role
+status: active
+created_at: 2026-07-08 14:55:52+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA collaborator onboarded to a consumer project as a `methodology:readonly`\
+  \ scoped user does normal\nwork: takes notes and running context in `MEMORY.md`\
+  \ (a SPEC-0039 scratch buffer), and edits the\nproject's own governance config —\
+  \ `yitc-ops.yaml`, `yitc-verify.yaml` — when their task legitimately\nneeds it.\
+  \ These writes SUCCEED. The `readonly` label scopes what the picker/command-guard\
+  \ offers and\nthe intended posture, but it is NOT a filesystem permission wall:\
+  \ born governance files are\ngroup-readable/writable and a scoped user owns their\
+  \ own worktree copies. `land` integrates their\nchange like any other — it does\
+  \ NOT inspect the acting identity and refuse a governance-path write by\nrole. A\
+  \ future session reading this spec MUST NOT re-flag \"a scoped user can write governance\
+  \ files\"\nas a security gap: it is the recorded, owner-decided posture, not a hole.\n\
+  \n## Internal\n\nTHE STANDING RULE (owner decision 2026-07-08, no real incident\
+  \ — anti-complexity Principle-1 F4):\n\n1. `methodology:readonly` is a SCOPING label\
+  \ (picker/command-guard + intended posture), NOT a\n   filesystem-enforced permission\
+  \ class. A readonly scoped user MAY write the per-project governance\n   files `MEMORY.md`,\
+  \ `yitc-ops.yaml`, `yitc-verify.yaml` during normal work. `MEMORY.md` in\n   particular\
+  \ is a legitimate SPEC-0039 scratch buffer for ANY collaborator, readonly included.\n\
+  \n2. `land` does NOT guard governance-path writes by acting-identity role. There\
+  \ is no protected-path\n   diff guard, no chown-based repair, no FS-perm wall keyed\
+  \ to the lander. This is deliberate: the\n   0644 born-governance FS hardening is\
+  \ RETIRED, because FS/chown enforcement is unreliable\n   for an unprivileged scoped\
+  \ lander who owns their worktree files (and `land` rewrites under the\n   lander's\
+  \ umask anyway) — keeping it would be permission theater that enforces nothing real.\n\
+  \nREVISIT TRIGGER (fail-closed only on evidence, NOT pre-emptively): this posture\
+  \ is reopened ONLY by a\nREAL incident — e.g. an accidental `yitc-ops.yaml` verify-section\
+  \ corruption by a scoped user. The\nremedy THEN is a TARGETED land-time protected-path\
+  \ validator (a diff guard keyed to trusted OS\nidentity, fail-closed, over one Single-SoT\
+  \ protected-path set), per the external-auditor consult —\nNOT a role-based permission\
+  \ wall or FS-perm theater. Until such an incident, adding any enforcement\nfails\
+  \ Principle-1 F4 (no real incident, no prior-art pull) and is deferred.\n\n## Rationale\n\
+  \nOwner decision 2026-07-08 grounded in two external-auditor ad-hoc consults:\n\
+  - `decisions/methodology-readonly-enforcement-gap-audit-adhoc.yaml` (YELLOW) — FS/chown\
+  \ enforcement\n  cannot be performed by an unprivileged scoped lander; if enforcement\
+  \ is ever wanted, it must be a\n  land-time protected-path diff guard keyed to trusted\
+  \ OS identity, fail-closed, over one Single-SoT\n  protected-path set — never worktree-ownership\
+  \ or permission theater.\n- `decisions/keep-vs-retire-governance-0644-audit-adhoc.yaml`\
+  \ (GREEN) — RETIRE the 0644 hardening; it\n  enforces nothing real against a scoped\
+  \ collaborator who owns their worktree files or against `land`\n  rewriting under\
+  \ the lander/umask; revisit only on a real incident with a targeted validator.\n\
+  This resolves the Principle-7 dissonance the correct-verify plan carried (its exit-criterion\
+  \ + postcheck\nfailure-threshold treated a scoped-user governance write as a FAIL):\
+  \ this spec is the authoritative\nsource, and drops those plan clauses. Extends\
+  \ SPEC-0039 (MEMORY.md scratch-buffer legitimacy).\n\n## Verification\n\n- `bin/yitc-v2\
+  \ graph query SPEC-0146` resolves the rule at `status: active` (after close).\n\
+  - `plans/correct-verify-the-full-project-user-collaboration.md` no longer lists\
+  \ the\n  \"a readonly scoped user cannot write governance files\" exit-criterion\
+  \ nor the\n  \"a readonly-user WRITE to a governance file succeeding\" postcheck\
+  \ failure-threshold clause.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-7
+- SPEC-0039
+- methodology-readonly-enforcement-gap-audit-adhoc
+- keep-vs-retire-governance-0644-audit-adhoc
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

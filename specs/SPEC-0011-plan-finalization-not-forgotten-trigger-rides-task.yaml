@@ -1,0 +1,60 @@
+id: SPEC-0011
+title: Plan-finalization not-forgotten trigger rides task close (PUSH WARN) plus a
+  saved-view safety net (PULL)
+status: active
+created_at: 2026-06-02 07:04:51+00:00
+consumed: false
+implements:
+- bin/lib/task.py#_closing_task_pending_finalization_plans
+- bin/lib/views.py#_view_plans_pending_finalization
+binding:
+- code-enforced
+body: "## Scenario\nWhen the owner closes the last open task whose work realizes an\
+  \ accepted plan, they are reminded —\nright there, in the close output — that the\
+  \ plan itself still needs finalizing (`plan close\n--resolution realized`). They\
+  \ do not have to remember to look; the reminder rides the close. And if\na reminder\
+  \ is ever missed, a weekly Review query lists every accepted plan whose realization\
+  \ work is\ndone but which was never finalized — so a forgotten plan cannot sit unnoticed\
+  \ forever.\n\n## Internal\n**Rule (invariant):** plan finalization rides a VERB,\
+  \ never AI memory ( extend-the-verb;\nCHARTER non-goals — no cron/daemon/autopilot).\
+  \ Two layers, ONE shared citing-task computation\n(`_plan_open_citing_tasks` — reuse,\
+  \ P5 no-drift):\n\n- **PUSH (control-point = `task close`):** on close, for each\
+  \ plan the closing task `cites:` that is\n  `status: accepted`, if excluding THIS\
+  \ task leaves NO other open (ready|in-progress|blocked) citing\n  task, surface\
+  \ a NON-BLOCKING stderr HINT and record `plan_finalization_pending`\n  (`[{plan,\
+  \ citing_tasks}]`) on the EXISTING `task_closed` event — NO new event type. Computed\
+  \ with\n  `exclude_tid` so it is independent of write-ordering. Deduped ONCE per\
+  \ plan via prior `task_closed`\n  payloads (`_plans_hinted_already`) so a later\
+  \ close of a freshly-added citing task does not re-warn.\n\n- **PULL (safety net\
+  \ = the `plans-pending-finalization` saved view):** accepted plans with zero open\n\
+  \  citing tasks. Pure f over committed artifacts, recomputed fresh, no stored output.\
+  \ Plan\n  status from `index[\"plans\"]`; citing side from the canonical `cites:<plan>`\
+  \ read (the graph index\n  carries no plan→task edge by design). Run in the WEEKLY\
+  \ Review scan (QUEUE §Re-review).\n\nA plan-slug in `cites:` is discriminated by\
+  \ `PLAN_SLUG_RE` (lowercase kebab — T-/D-/SPEC-/E- ids\nnever match) plus an existing\
+  \ `plans/<slug>.md`. An editor changing `task close`, the view dispatch,\nor these\
+  \ helpers MUST preserve: non-blocking (surface, never gate — non-goal #7); the shared\n\
+  citing-task helper across both layers; once-per-plan dedup; no new event type /\
+  \ no new store.\n\n## Rationale\nReal incident (the Part F root cause): `decision\
+  \ finalize` had no auto-trigger and relied on\nAI discipline, so `plans/part-f-narrow-decision-retirement-single-authority`\
+  \ sat at `accepted` after\nits work landed — finalization was simply forgotten.\
+  \ The fix is the same doctrine that fixed the\nE-0005 adoption gap: a non-blocking\
+  \ VISIBILITY WARN on the verb that is \"before X\", recorded on the\nverb's existing\
+  \ event carrier. Mirrors `task close`'s E-0005 infra-adoption WARN\n(`adoption_evidence_seen`)\
+  \ and hygiene-excluded-surface WARN — same shape, same carrier.\n\n## Verification\n\
+  Probe (observable): closing the last open task citing an accepted plan writes a\
+  \ HINT to stderr and a\n`plan_finalization_pending` entry in the `task_closed` event,\
+  \ ONCE (a later citing-task close does\nnot re-warn) — `tests/test_plan_finalization_hint.py`.\
+  \ The saved view lists such plans via the real\nCLI `yitc-v2 graph query plans-pending-finalization`,\
+  \ whose invocation emits a `cli_invoked`\nobservability event (the Review-path read\
+  \ = AC4 live-trigger) — `tests/test_plans_pending_finalization_view.py`.\n"
+cites:
+- tasks/-plan-finalization-must-not-be-forgotten-warn-on-ta.yaml
+- errors/E-0005-infra-task-t-0168-closed-without-a-principle-8-ado.yaml
+- CHARTER.md#principle-8
+- decisions/-verb-design-doctrine-cli-verbs-as-the-ai-control-s.yaml
+requires: []
+supersedes: null
+proposed_by: null
+implements_signature:
+  bin/lib/task.py#_closing_task_pending_finalization_plans: ebac28d4e16ff04d216334b7a0bbd7693667301a5cdfc54d53957b0680a5044b

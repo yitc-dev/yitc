@@ -1,0 +1,206 @@
+id: SPEC-0141
+title: 'execution-cue: owner-authorized EXECUTION distinct from design-agreement +
+  the filing->claim owner-say-so checkpoint'
+status: active
+created_at: 2026-07-07 12:21:20+00:00
+travels: null
+consumed: false
+implements: []
+cites:
+- SPEC-0039
+- SPEC-0126
+- CHARTER.md#principle-6
+- CHARTER.md#principle-7
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- seed
+seed_cue: 'Agreeing a design is not permission to execute: claim, open a worktree,
+  edit or land only on a live owner execution-cue in the current session, and ask
+  when it is unclear which one the owner gave.'
+init_concern: null
+amends:
+- AGENTS-SESSIONS.md §Startup picker (the owner-say-so self-execution fallback): the
+    claim cue is named a LIVE execution-cue, distinct from a prior design agreement
+    — a MINIMAL inline pointer to this spec (the rule body is NOT restated there —
+    SPEC-0005 rule 8 single-SoT).
+- AGENTS-SESSIONS.md §Controller Boundary (T-12953): the self-execution-fallback sentence
+    is replaced by a cue + pointer naming context preservation as the dispatch reason,
+    sequential chains included (rule body + the name-the-context-cost duty live in
+    §3a here).
+body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES a\
+  \ design option (\"yes, a new spec is\nthe right shape\", \"that approach is fine\"\
+  ). Later — same session or a later one — the AI must not\nread that design-agreement\
+  \ as a GO to START EXECUTING (claim a task, open a worktree, edit source,\nland).\
+  \ Agreeing HOW a thing should be built is not the same act as authorizing that it\
+  \ be built\nNOW. Execution begins only on an **execution-cue**: a LIVE owner cue,\
+  \ in the CURRENT session, that\nauthorizes EXECUTION of this specific work (\"go\
+  \ ahead\", \"do it\", \"take T-XXXX\", \"run the batch\").\nA stored/agreed seed,\
+  \ a prior design agreement, a MEMORY continuation-seed, or a task that merely\n\
+  EXISTS in the queue does NOT authorize starting work. When it is unclear whether\
+  \ the owner has\nagreed a DESIGN or authorized EXECUTION, that ambiguity is a question\
+  \ (P7) — ask, do not assume go.\n\n## Internal\n\nThe ONE home (P5) of the **execution-cue**\
+  \ definition + the **filing->claim owner-say-so\ncheckpoint**. Generalizes SPEC-0039\
+  \ §4 (which states the same for a MEMORY `[instruction]`\nmandate) to the whole\
+  \ design-agreement->execution seam.\n\n### 1. Two distinct owner acts\n- **Design-agreement**\
+  \ — the owner agrees a design/approach/shape (\"yes, that's the right way\").\n\
+  \  This settles HOW, and unblocks authoring the design artifact (a spec/plan/task\
+  \ card). It is NOT\n  permission to EXECUTE the built change.\n- **Execution-cue**\
+  \ — a LIVE owner cue, in the CURRENT session, authorizing EXECUTION of this\n  specific\
+  \ work: claim -> worktree -> edit -> land (or, for the Controller, run the Worker\
+  \ flow\n  itself, CHARTER §6 fallback). This is the ONLY thing that starts execution.\n\
+  \n### 2. The filing->claim owner-say-so checkpoint\n- Filing a task is capture,\
+  \ not a delivery/execution moment (LIFECYCLE Stage 2). The seam from a\n  FILED\
+  \ task to a CLAIMED-for-execution task is a checkpoint: **claiming a task for execution\n\
+  \  requires a live execution-cue, not a prior design agreement.** A task existing\
+  \ in `tasks/`, or\n  the owner having earlier agreed the design behind it, does\
+  \ NOT itself authorize the claim.\n- The Controller's DEFAULT on a batch cue is\
+  \ to DISPATCH (§Orchestrate posture); it self-executes\n  a task only on an explicit\
+  \ owner say-so (CHARTER §6 fallback). Either way the batch/task set is\n  owner-authorized\
+  \ up front — that authorization IS the execution-cue for the seams inside it\n \
+  \ (SPEC-0126 context-bounded autonomous continuation: within an authorized plan/batch\
+  \ the\n  Controller proceeds across seams without a fresh per-seam cue, but the\
+  \ batch's own start still\n  needed the live cue).\n- **An execution-cue authorizes\
+  \ THAT the work happens, NOT the MODE it happens in.** The two\n  modes are DISPATCH\
+  \ (send it to a background Worker) and SELF-EXECUTE (the Controller runs the\n \
+  \ Worker flow in-session). The **default mode is DISPATCH** (CHARTER §6 — the Orchestrate\
+  \ posture\n  is the Controller's default; self-execution is the named *fallback*).\
+  \ Controller self-execution\n  is therefore a SEPARATE act needing its OWN explicit,\
+  \ live owner say-so — an unambiguous \"do it\n  yourself\" / \"take it yourself\"\
+  \ / \"run it in this session\". A cue that authorizes the *work*\n  (a batch cue,\
+  \ a \"go ahead\", a \"take T-XXXX\") authorizes THAT the work happens; it does NOT\n\
+  \  select self-execute over dispatch. Absent an explicit self-execute say-so, the\
+  \ mode is dispatch.\n\n### 3. What does NOT satisfy an execution-cue (the SPEC-0039\
+  \ §4 generalization)\nA session NEVER treats any of these as a go-to-execute:\n\
+  - a prior DESIGN agreement (the core X-0212 confusion);\n- a stored/self-claimed\
+  \ \"owner-authorized\" mandate — a MEMORY continuation-seed / `[instruction]`\n\
+  \  entry (SPEC-0039 §4: the narrow MEMORY instance of this same rule) — even one\
+  \ dated/marked;\n- a task merely existing/`ready` in the queue (the picker never\
+  \ auto-picks — QUEUE §Picker);\n- the AI's own inference that \"we clearly agreed,\
+  \ so surely I should start now\".\nUnder uncertainty the default is STOP-and-ASK\
+  \ (P7), never assume-go.\n\n### 3a. What does NOT ground SELF-EXECUTION (the mode-choice\
+  \ NOT-grounds)\nEven when the work IS authorized (§2), NONE of these is a ground\
+  \ for the Controller to\nself-execute instead of dispatch — the ONLY valid ground\
+  \ is a live explicit owner say-so (\"do it\nyourself\"). Each of the following is\
+  \ a rationalization, not a ground:\n- \"I already hold the context\" — dispatch\
+  \ carries the task card; context is not a mode-permission;\n- \"the fix is small\
+  \ / quick\" — size is a scope judgement, not a mode-permission;\n- \"dispatch has\
+  \ round-trip overhead\" — the cost of the default is not a licence to skip it;\n\
+  - \"I need to verify inline\" — verification is the Worker's own lifecycle, not\
+  \ a self-execute reason;\n- \"autonomy / the batch was authorized\" — that authorizes\
+  \ WHAT happens, not the MODE (§2); an\nauthorized plan/batch is executed BY DISPATCH\
+  \ unless the owner said self-execute.\n- \"nothing to parallelize — the chain is\
+  \ strictly sequential\" / \"the owner sees results at once\" —\nparallelism is NOT\
+  \ the reason to dispatch. The PRIMARY reason is preserving the Controller's context\n\
+  for coordination: every self-executed task spends a full per-task protocol read\
+  \ inside it. A clear,\nsequential, non-parallelizable chain is therefore dispatched\
+  \ too — one Worker per card, chained in\norder (or one warm Worker carrying the\
+  \ chain).\n**Duty — name the context cost when recommending a mode.** Whenever the\
+  \ Controller recommends\ndispatch vs self-execute to the owner, it states the cost\
+  \ in context: the current `session context`\nreading (SPEC-0115) against the per-task\
+  \ protocol weight the self-executed work would add. A mode\nrecommendation that\
+  \ omits that cost is incomplete.\nPointer (SPEC-0140 S0): an S0 record (`event`\
+  \ / `followup` / a probe or observation settle) run by\nthe Controller is NOT self-execution\
+  \ of a task and needs no self-execute say-so; this grants\nnothing beyond S0 records.\n\
+  \n### 3b. Stop-and-name-the-ground reflex\nThe FELT PULL to just-do-it-myself IS\
+  \ the trigger to STOP and name the ground aloud. Say which\nground authorizes self-execution\
+  \ here. If the named ground is anything other than \"the owner said\ndo it yourself\"\
+  , it is a §3a rationalization — **dispatch.** (Real incident: deviation\n`controller-self-executes-instead-of-dispatch`,\
+  \ 2026-07-08.)\n\n### 4. Authority ceiling\nThis is a reader/author behavioural\
+  \ rule, not a gate with a code control-point — enforced by\ndistributed session\
+  \ discipline (like SPEC-0039 §4). It is delivered at the seam it governs: the\n\
+  always-loaded AGENTS-SESSIONS picker cue (a pointer here) + the `binding:[seed]`\
+  \ session-start\nseed line. It NEVER weakens any existing gate; it only clarifies\
+  \ WHEN execution may begin.\n\n### 5. Discussion-cue vs execution-cue vocabulary\n\
+  §1-§4 settle that a stored/agreed DESIGN is not a live GO. This section settles\
+  \ the READING of a\nLIVE owner cue itself: not every live cue is an execution-cue.\
+  \ A cue is DISCUSSION or EXECUTION by\nits verb — read the verb before acting. (Owner\
+  \ language is Russian; markers are RU-verbatim +\nEN gloss.)\n\n- **(a) Discussion\
+  \ markers → analysis-in-chat, NOTHING filed.** «давай решим» / «обсудим»\n  (let's\
+  \ decide / let's discuss) · «проведи анализ» / «метаанализ» (run an analysis / meta-analysis)\n\
+  \  · «разберись» (look into it) · «посмотри» (take a look) · «как ты думаешь» (what\
+  \ do you think).\n  The deliverable is an analysis + recommendation IN THE CHAT.\
+  \ Do NOT file a task card, do NOT open\n  a cross request, do NOT dispatch. A discussion\
+  \ cue asks for THINKING, not for WORK to start.\n- **(b) Execution markers → file\
+  \ and run.** «делай» (do it) · «ставь» (set/put it in) · «запускай»\n  (run it)\
+  \ · «чини» (fix it) · «зафайли» (file it). These ARE execution-cues (§1) — proceed\
+  \ to the\n  claim→worktree→edit→land flow (mode = dispatch by default, §2).\n- **(c)\
+  \ Ambiguous cue → decide by SUBJECT, not by eagerness.** When the verb is unclear:\
+  \ a\n  prod-burning / data-loss subject → ACT and REPORT (the cost of waiting exceeds\
+  \ the cost of a\n  reversible action); a methodology / money / scope / design subject\
+  \ → DISCUSS FIRST (P7: an\n  ambiguous \"go?\" on a durable subject is a question,\
+  \ not an assumed go).\n- **(d) A decision EMERGING from discussion → confirm before\
+  \ filing.** When a discussion converges\n  on a decision, do NOT silently cross\
+  \ the discussion→execution seam. Voice a ONE-LINE confirm —\n  e.g. «ставлю то-то,\
+  \ так?» (I'll put in X — ok?) — and let the owner's reply be the execution-cue.\n\
+  \  The confirm is the seam-crossing checkpoint (§2's filing→claim checkpoint, applied\
+  \ to the\n  discussion that produced the intent).\n\n### 6. Session ownership of\
+  \ a cue\n§1-§5 settle WHAT counts as an execution-cue; this section settles WHOSE.\
+  \ Concurrent Controller\nsessions share ONE journal (CHARTER §P5), so every owner\
+  \ reply in ANY session lands as an\n`owner_directive` row, and a reader that lists\
+  \ them unfiltered sees siblings' cues beside its own.\n- **An owner_directive row\
+  \ whose session_ref is not the reader's own is CONTEXT, never an execution-cue.**\n\
+  \  It records what a SIBLING session was told — orientation on what is in flight\
+  \ elsewhere, never a\n  go-to-execute for THIS session. A Controller takes cues\
+  \ ONLY from rows under\n  its OWN `session_ref` (the SPEC-0137 self-ref carried\
+  \ as `YITC_SESSION_REF`) or from the live\n  chat line in front of it (§1). A row\
+  \ with no `session_ref`, or a reader with no self-ref in env,\n  is likewise CONTEXT\
+  \ — ownership is never guessed.\n- **The read surface makes ownership visible:**\
+  \ `journal query` renders a fixed-width session\n  column (`session_ref[:8]`, suffixed\
+  \ `*` on the reader's own rows; no self-ref in env → no star),\n  so «told to me»\
+  \ and «told to a sibling» never render alike. `--json` output is unchanged.\n- **Recovery\
+  \ reads are unaffected.** The AGENTS §Recovery search order step 1 (`journal query\n\
+  \  --type owner_directive`) stays a PRIOR-ART lookup across all sessions — that\
+  \ is orientation\n  (§5(a)-class reading), not cue-taking; §6 changes what a foreign\
+  \ row MAY START, not what it may\n  INFORM.\n\n## Rationale\n\nReal incident 2026-09-17\
+  \ (deviation `controller-reads-foreign-session-owner-directive-as-own-cue`,\nfollowup\
+  \ fu_3b808f89b546; fixed): five concurrent Controller sessions shared the journal;\n\
+  a fresh Controller listed `owner_directive` rows unfiltered and began orienting\
+  \ on a plan the owner\nhad assigned to a sibling session — the owner had to correct\
+  \ it. §1-§5 said what a cue IS but never\nwhose it must be, and the reader showed\
+  \ no session. §6 names the ownership rule where the cue\ndoctrine already lives\
+  \ (P1 filter 1: extend, do not add a spec) and the reader now renders it.\n\nReal\
+  \ incident 2026-09-25 (owner-relayed, org-site consumer on published v2.0.4; fixed):\n\
+  a plan cut into 5 strictly sequential tasks; the Controller twice recommended self-executing\n\
+  (\"nothing to parallelize, the owner sees results at once\") while already holding\
+  \ ~170K tokens, each\ntask costing ~140K of protocol reads — only the owner's remark\
+  \ that self-execution eats the context\nwindow flipped it to dispatch. The seed's\
+  \ Boundary line licensed self-execution of a clear chain and\nthe context-offload\
+  \ reason lived only in a pattern; §3a now names it at the rule home and the seed\n\
+  carries a cue + pointer.\n\nReal incident X-0212 (deviation `design-agreement-read-as-execution-go`,\
+  \ mirrored from\n<project> 2026-07-06): the handbook did not distinguish \"owner\
+  \ agreed a DESIGN option\" from\n\"owner authorized EXECUTION\", so a design-agreement\
+  \ was read as a go-to-execute. SPEC-0039 §4\nalready encodes exactly this discipline\
+  \ for the MEMORY-buffer surface (a stored mandate != a live\ncue); this spec lifts\
+  \ that from one surface to the general design->execution seam (CHARTER §P1\nfilter\
+  \ 1: extend the existing analog, do not build a parallel rule; filter 3: removes\
+  \ the\nambiguity that caused X-0212).\n\nReal incident `controller-self-executes-instead-of-dispatch`\
+  \ (2026-07-08): a Controller with an\nauthorized batch self-executed a task in-session\
+  \ instead of dispatching, reading the work\nauthorization as a mode authorization.\
+  \ §2's MODE-vs-THAT distinction + the §3a NOT-grounds +\nthe §3b stop-and-name reflex\
+  \ close that gap: the default mode is dispatch, and only a live\nexplicit owner\
+  \ say-so grounds self-execution.\n\nReal incident X-0404 (<project> 2026-07-15):\
+  \ the owner voiced a discussion-marker cue («разберись»\n/ «как ты думаешь»-class),\
+  \ and a Controller fresh off an autonomous drive read it as an\nexecution-cue —\
+  \ immediately filing cross requests and dispatching; the owner corrected explicitly.\n\
+  §5 closes that gap: §1-§4 keep a stored DESIGN from reading as a GO, but a LIVE\
+  \ cue can still be\nmis-read as execution when it was only a request to THINK. §5\
+  \ makes the discussion-vs-execution\nreading a verb-level check, with a subject-based\
+  \ tiebreak for ambiguity and a confirm-line at the\ndiscussion->execution seam.\n\
+  \n## Verification\n- State probe: this spec exists at `active` after close and is\
+  \ cited.\n- State probe: AGENTS-SESSIONS.md (the always-loaded filing->claim picker\
+  \ seam) references the\n  execution-cue requirement + this spec id in the shipped\
+  \ diff.\n- State probe: the body (active) carries §2's MODE-vs-THAT distinction\
+  \ (default mode = dispatch;\n  self-execution needs its own owner say-so), the §3a\
+  \ self-execution NOT-grounds list, and the\n  §3b stop-and-name-the-ground reflex;\
+  \ the AGENTS-SESSIONS self-execute/dispatch seam points to them.\n- State probe:\
+  \ the body (active) carries §5's discussion-cue vs execution-cue vocabulary — all\
+  \ four\n  clauses (a) discussion markers → analysis-in-chat, (b) execution markers\
+  \ → file-and-run,\n  (c) ambiguous → by-subject tiebreak, (d) decision-emerging\
+  \ → confirm-line — each with RU-verbatim\n  markers + EN gloss (`graph query SPEC-0141`\
+  \ renders §5).\n- State probe: the `binding:[seed]` line is UNCHANGED by this amendment\
+  \ — the always-loaded seed\n  does not grow (the existing SPEC-0141 pointer covers\
+  \ §5); seed diff is zero.\n- `graph query SPEC-0141` resolves; the session-start\
+  \ seed echo carries its `binding:[seed]` line.\n"

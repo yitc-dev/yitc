@@ -1,0 +1,321 @@
+id: SPEC-0056
+title: Nonconformity triage methodology — analysis-order, root-clustering admission,
+  null-check, four-routes + reopen-FSM, dual-track (currency classifier homed in <workshop-spec>)
+status: active
+created_at: 2026-06-07 14:18:00+00:00
+consumed: false
+implements:
+- bin/lib/cli.py#_journal_error_transition
+- bin/lib/error.py#cmd_error_resolve
+- bin/lib/triage.py#_declared_root
+- bin/lib/triage.py#_stem_family_key
+- bin/lib/triage.py#_declared_root_siblings
+- bin/lib/triage.py#_kernel_self_partition
+- bin/lib/journal.py#is_kernel_self_telemetry
+body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated `deviation_captured`\
+  \ captures, each capture\n(or root cluster) must be ROUTED to exactly one disposition,\
+  \ classified by a single into-work token,\nand — if it becomes an `errors/E-XXXX`\
+  \ case — moved through a reopen-FSM whose every transition is\njournaled. This is\
+  \ the triage METHODOLOGY: how the route is decided, what \"into-work\" means, when\
+  \ a\ncluster is a real root vs a lens, and how a case's status reflects reality\
+  \ (filed ≠ fixed). It is\nrealised in code (`_journal_error_transition` / `error\
+  \ resolve`; the into-work currency classifier\n`_suggest_route` / `_currency_status`\
+  \ is homed in <workshop-spec>, carved out);\nthe AI does not read this spec before\
+  \ a verb — the code enforces it. (The triage-run WINDOW + the\n`cites:` LINK RULE\
+  \ + discovery stem-clustering live in SPEC-0055; capture-as-reflex + the\n`deviation_captured`\
+  \ schema live in AGENTS.md. This spec is the ANALYSIS/CLUSTERING/FSM half; the\n\
+  into-work ROUTING/currency classifier is <workshop-spec>.)\n\n## Internal\n\nCarried\
+  \ from §5/§6/§7/§8 (the live-rule half; is the historical decision that\nestablished\
+  \ it — provenance, not the home). The full taxonomy framing (nonconformity = error\
+  \ /\nfriction / improvement / coherence / intent≠actual; ONE sink; capture-as-reflex)\
+  \ is in AGENTS.md +\n`patterns/error-friction-tracking.md`; this spec is the clustering\
+  \ + null-check + FSM + dual-track rules (the into-work routing/currency classifier\
+  \ is <workshop-spec>).\n\n### 1. The triage run's analysis, in order\n(1) **recurrence/reopen\
+  \ (ALIAS-AWARE)** — a recurrence reopens a resolved/waived root when its\n    fingerprint\
+  \ is EITHER that case file's canonical `fingerprint:` OR a MEMBER of its `cites:`\
+  \ list\n    (the LINK-RULE alias carrier, SPEC-0055), so a respelled-but-CITED recurrence\
+  \ of a known root is\n    not silently missed. EXCEPT a DECLARED BY-DESIGN RESIDUAL\
+  \ (§4) — there the recurrence is the\n    disposition working, so it SURFACES rather\
+  \ than reopening.\n(2) **the three analyses, THRESHOLDED** — \"how to fix\" ALWAYS;\
+  \ \"already known/fixed?\" ALWAYS (cheap);\n    \"why it occurred\" (root-cause)\
+  \ BY THRESHOLD (reopened / high-blast-radius / unclear / systemic),\n    using the\
+  \ EXISTING external auditor inside audit-pre for the thresholded subset — not a\
+  \ new role.\n(3) **root-clustering** (§2 below) — two complementary derived views\
+  \ (no new store): the CITED-ROLLUP\n    (authoritative count) and the DISCOVERY\
+  \ stem-cluster view (the uncited half — homed in SPEC-0055).\n(4) **\"null ≠ clean\"\
+  \ data-sufficiency check** (§3 below).\n(4a) **WHO captured it — read the capturer,\
+  \ don't ask for it** (extending). Every\n    capture carries a derived `actor`;\
+  \ `triage run`'s Section-A routing window surfaces it\n    SUPPRESSED-WHEN-CLEAN\
+  \ — named only when a real PERSON captured the row (`memory.py#is_named_actor`),\n\
+  \    silent for the `ai-agent` default, so the ~1000 impersonal kernel captures\
+  \ add no noise. It is\n    READ-ONLY context for the routing judgement (who hit\
+  \ this, and is one class one person's view?):\n    it is provenance ONLY — like\
+  \ `captured_via` it never enters the `fingerprint` and is never a\n    currency/route\
+  \ input, so recurrence counting is untouched. FIELD DEFINITION + derivation rules\n\
+  \    (never asked for, never caller-supplied, degrades to the default — a record,\
+  \ never a gate): the\n    payload-schema home **SPEC-0025 §deviation_captured**\
+  \ — not restated here (P5 one-home).\n(5) **check the ACTIVE QUEUE before promoting\
+  \ — STATUS-AWARELY.** Route per the status-aware into-work\n    currency classifier\
+  \ — the owner-status route table, the 5 currency tokens, recurs, and the\n    TRULY-NEW\
+  \ remedy-existence sub-check — HOMED in <workshop-spec> (`_suggest_route` / `_currency_status`).\n\
+  \    ALSO flag a stale open case here:\n      · case file OPEN | REOPENED, recurring\
+  \ N≥2, with NO owning fix-task → **STALE\n        file-or-waive-overdue** — an open\
+  \ root that recurs but never got routed has sat in limbo;\n        `triage run`\
+  \ Section B flags it `⚠ STALE file-or-waive-overdue` so the reviewer files a\n \
+  \       fix-task OR waives with a reason. Once a fix is filed the case is `investigating`\
+  \ and no\n        longer stale. NOT a gate (observability, CHARTER non-goal #7)\
+  \ — a visible advisory.\n(6) **coverage-both-ways for coherence findings** — spec→code\
+  \ dead anchors via graph build stderr;\n    code→spec via the SPEC-0005 admission\
+  \ test, NOT \"every file = a spec\".\n\n**SAME-ROOT DEDUPE BEFORE FILING — SCOPED,\
+  \ NOT BLANKET.** Before filing a NEW E-case for a\nfingerprint, check whether it\
+  \ is a RESPELLING of a PROVEN alias family — a confirmed root already\nrouted/`linked`.\
+  \ If so, route the new spelling `linked` to that root (add it to the root's `cites:`),\n\
+  do NOT open a duplicate. EXPLICITLY NOT a blanket merge: dedupe ONLY a PROVEN alias\
+  \ family, never two\nfindings that merely share a failure-CLASS (the CHARTER class\
+  \ is a §2 discovery LENS; the proven-alias\nfamily is the dedupe unit — collapsing\
+  \ distinct roots because they share a lens is the §2\nover-clustering defect).\n\
+  \n**N≥2 IS ADVISORY, NOT A VISIBILITY GATE ON A KNOWN ROOT.** The N≥2 promotion\
+  \ threshold governs\nwhether an UNOWNED fingerprint is a promotion candidate; it\
+  \ does NOT hide a KNOWN root. A known-root\nALIAS-SINGLETON (a `cites:`-member alias\
+  \ recurs once while its canonical is uncaptured) surfaces under\nthe canonical as\
+  \ linked/regressed via the cited-rollup regardless of N. Only a truly UNOWNED fp\
+  \ is\nheld to N≥2 before promotion.\n\n### 2. Root-clustering — fix the root once\n\
+  Cluster fingerprints by shared root and fix the root ONCE; member fingerprints route\
+  \ `linked` to it.\nThe CHARTER 20-class tags are a DISCOVERY LENS, NOT a causal\
+  \ ontology — a shared class is a candidate\nbucket to EXAMINE, never \"the root\"\
+  \ by itself. A real cluster exists only when a single shared cause\nis CONFIRMED\
+  \ (one 5-whys on the bucket); if none emerges, DISBAND the bucket (false roots are\n\
+  themselves a defect). Reopen the root only when a new finding hits the same causal\
+  \ hypothesis /\nroot-fix surface — NOT merely the same class.\n\n**ROOT-FIX vs FILED\
+  \ (split-status carrier).** `resolved` attests the root-fix LANDED — so a promoted\n\
+  case is `investigating` (fix filed, root not yet fixed), reaching `resolved` only\
+  \ when the landed\nroot-fix removes the recurrence. The `prevention:` field names\
+  \ that root-fix; the split-status keeps\n\"filed\" from masquerading as \"fixed\"\
+  \ (§4 reopen-FSM).\n\n**ADMISSION RULE — ONE FINGERPRINT → AT MOST ONE CONFIRMED-CAUSE\
+  \ CLUSTER (CONFIRM-CAUSE-OR-DISBAND).**\nA fingerprint belongs to at most ONE confirmed-cause\
+  \ cluster; a class-file may not silently\ndouble-claim it. A case file that asserts\
+  \ an UMBRELLA class but carries `cites: None` (rolls up NO\nmember fingerprints)\
+  \ AND `rca: None` (no 5-whys confirming a shared cause) is a LENS, not a confirmed\n\
+  root → **CONFIRM-CAUSE-OR-DISBAND**: either do the one 5-whys + cite the members\
+  \ it subsumes (making\nit a real cluster), or DISBAND it (a false root is itself\
+  \ a defect — the v1 over-layering pattern).\nThis is a TESTABLE predicate (`cites:None\
+  \ + rca:None = unconfirmed`), so over-clustering is caught at\nadmission, not after\
+  \ it accretes.\n\n**CAPTURE-TIME OFFER — the same family predicate, surfaced earlier,\
+  \ still only a candidate.**\nWhen an AUTHORED `deviation_captured` fingerprint is\
+  \ new but shares a `triage._stem_family_key`\nfamily with existing capture keys,\
+  \ `event` prints ONE report-only NOTE naming them (most-captured\nfirst, bounded)\
+  \ with the reuse / declare-`<root>:<subject>` route. The row is appended as authored:\n\
+  never a refusal, never a rewrite, never a recurrence count. The family rule has\
+  \ ONE home\n(`_stem_family_key`); `triage._capture_near_matches` only reads it.\n\
+  \n### 3. \"Null ≠ clean\" — data sufficiency\nWhen any examination finds NO cause,\
+  \ classify the null: **no-problem vs no-data (blind)**. A no-data\nresult → a `kind:\
+  \ improvement` capture, `relates_to: blind-spot`, naming the missing instrument.\n\
+  Bounded: ONE question per null result, incident-driven, closed by routing (no new\
+  \ state, no infinite\nloop). The \"blind-spot map\" is a VIEW over those captures\
+  \ — no new store.\n\n### 4. Four routes + the reopen-FSM\nEach capture/cluster routes\
+  \ to exactly one of: **event-only · linked · promote-to-fix-task ·\npromote-to-E-XXXX**\
+  \ (improvements → ideas/, incl. adoption gaps + blind-spots).\n\n**Error reopen-FSM:**\
+  \ `open → investigating → resolved ⇄ reopened`; any → `waived` (ONE status; the\n\
+  legacy double status+triage_step is collapsed). The reopen/resolved rate = the symptom-treatment\n\
+  metric (read by the inspection meta-loop lens).\n\n**BY-DESIGN RESIDUAL.** A reopen\
+  \ ASSERTS \"fixed badly\" — the recurrence contradicts the\ndisposition. Some waives\
+  \ claim the opposite: the residual REMAINS, by design, and a downstream guard\n\
+  catches it (E-0053 — SPEC-0005 sanctions-and-OBSERVES the spec-edit chokepoint,\
+  \ the land guard\ncatches the irreducible slice). For those, `error promote --waive\
+  \ --by-design-residual` records\n`resolution.by_design_residual: true`, and a later\
+  \ capture whose fingerprint matches (canonically or\nby cited alias) SURFACES as\
+  \ `error_residual_recurrence` with the case file left UNWRITTEN, instead of\nflipping\
+  \ it to `reopened`. Scope, exactly: only a case that DECLARES it; the declaration\
+  \ is\nwaive-only (a fix_task route claims the recurrence will STOP, so it cannot\
+  \ also call it by-design);\nevery other resolved/waived case keeps the §1(1) reopen\
+  \ verbatim, so a genuine regression still\nflips and still surfaces. WHY it is a\
+  \ rule and not a nicety: the flip mutated the corpus mid-capture\nand ABORTed the\
+  \ land of the UNRELATED card that merely obeyed the mandatory capture reflex (2026-08-11).\
+  \ A reflex that is punished is a reflex that quietly stops firing — which is the\
+  \ exact\nfailure the capture rule exists to prevent.\n\nBOTH SURFACES — the CLASSIFIER\
+  \ too, not only the capture path. This rule binds the\ninto-work CURRENCY CLASSIFIER\
+  \ exactly as it binds the capture path above: a capture matching a case\nthat DECLARES\
+  \ the residual is NOT `REGRESSED` and NOT into-work, and its route must NOT prescribe\
+  \ a\nreopen — it names the declaration and the `error_residual_recurrence` surface\
+  \ instead. Same scope,\nrestated because it is what makes the rule safe: keyed on\
+  \ the DECLARATION FIELD and never on a case\nid, and seated BELOW the open-owner\
+  \ branch so genuinely live work still dominates\n(`OWNED-IN-FLIGHT`); every undeclared\
+  \ resolved/waived case keeps its REGRESSED semantics verbatim.\nThe classifier itself\
+  \ stays homed in SPEC-0061 (`bin/lib/triage.py#_currency_status`) — this section\n\
+  owns the SEMANTICS it must honour, not the code anchor. WHY this is written down\
+  \ rather than left to\nfollow from the paragraph above: wired the rule to the capture\
+  \ path ONLY, so the lens went\non reporting the same recurrence as a regression\
+  \ and prescribing `confirm + reopen the root-fix` —\nthe precise act this section\
+  \ forbids. Two governed surfaces then disagreed about the LARGEST\nrecurring class\
+  \ in the corpus (E-0053, 67x across 56 respellings, 42 into-work flags) and neither\n\
+  yielded, with one of the two `done` owners driving the false REGRESSED being itself\
+  \ — the\ntask whose whole content was the ruling that this recurrence must not reopen.\
+  \ A rule wired to one of\nthe two surfaces it governs reads as settled while still\
+  \ firing a permanent false action on the\nbiggest cluster, which is how a reader\
+  \ learns to ignore the flag — and that costs the signal on\nevery OTHER cluster\
+  \ too.\n\n**SPLIT-STATUS.** `error promote --to-task` sets the case to `investigating`,\
+  \ NOT `resolved`: a\npromote FILES a fix-task; the fix has not LANDED, and `resolved`\
+  \ means a LANDED root-fix removed the\nrecurrence. So filing ≠ fixed: the case stays\
+  \ in-flight (`investigating`, route OWNED-IN-FLIGHT) until\nthe root-fix lands.\
+  \ `--waive` stays terminal `waived`. The real resolve writer is `error resolve\n\
+  E-XXXX` — it flips an in-flight (`investigating`/`reopened`) case to `resolved`\
+  \ ONLY after its\nroot-fix landed (refusing a non-in-flight case), records the `prevention:`\
+  \ root-fix, and journals\n`error_resolved`. So `resolved` always attests a landed\
+  \ fix, never a bare hand-flip.\n\n**NON-FIX_TASK LANDED-ROOT-FIX ROUTE.** The fix-task\
+  \ done-gate above assumes the root-fix\nshipped as a `promote --to-task` fix-task.\
+  \ But a root-fix can LAND via a carrier that is NOT a\npromoted fix-task: an OPEN/never-promoted\
+  \ friction fixed elsewhere (a sibling task's guard), or a\n`deferred_to_plan` case\
+  \ whose fix-PLAN realized. Such a case has no `fix_task` to gate on, so the\ndone-gate\
+  \ can never pass and `resolved` is unreachable (the verb-coverage gap). `error resolve\n\
+  E-XXXX --root-fix <ref>` closes it: `<ref>` is the EXPLICIT attestation of the landed\
+  \ carrier (a task\nid / plan slug / spec / verb change). It (a) admits `open` in\
+  \ addition to `investigating`/`reopened`\n(a never-promoted case is still `open`);\
+  \ (b) SKIPS the fix_task done-gate (there is no fix-task); and\n(c) REQUIRES `--prevention`\
+  \ naming the landed fix — so `resolved` STILL attests a landed root-fix,\nnever\
+  \ a bare hand-flip. It stamps `resolution.root_fix: <ref>` (setting `kind: root_fix_landed`\
+  \ when\nno resolution kind exists; preserving an existing `deferred_to_plan` kind)\
+  \ and journals\n`error_resolved` like the fix_task path. Terminal `resolved`/`waived`\
+  \ stay refused. This is ADDITIVE\n— the ordinary fix_task-gated path (no `--root-fix`)\
+  \ is UNCHANGED (SPEC-0005 in-place amend, not a\nsupersede). Do NOT `--waive` a\
+  \ prevented case: waive = accepted-not-prevented; a landed root-fix is\nprevention.\n\
+  \n**LINK AN EXISTING FIX CARD.** `error promote E-XXXX --to-task --existing-task\
+  \ T-XXXX`\nrecords an ALREADY-FILED card as the case's `resolution.fix_task` instead\
+  \ of filing a new one —\nthe route for a case whose fix cards were filed by hand\
+  \ before it was ever promoted (E-0059: no\n`status:` at all, its three fix cards\
+  \ done, so `resolve` refused it and a bare `--to-task` would\nhave filed a duplicate).\
+  \ It refuses a task id with no card, sets `investigating` and journals the\ntransition\
+  \ exactly like the filing route; `resolve` then gates on THAT card as it would on\
+  \ a filed one.\n\n**OWNER+DUE OPTIONAL FOR SOLO.** `error promote --to-task` does\
+  \ NOT require `--owner` / `--due`\n(QUEUE has no owner/due fields; V2 is solo-author)\
+  \ — they are recorded in `resolution:` only when\nsupplied. What prevents the ownerless\
+  \ LIMBO is NOT a forced owner field but the routing + reopen-FSM +\nthe §1(5) STALE\
+  \ open-N≥2 file-or-waive-overdue flag.\n\n**JOURNALED TRANSITIONS.** Every error-FSM\
+  \ status WRITE emits a typed event through ONE canonical\njournaling point (`_journal_error_transition`):\
+  \ `error_<to_status>` (`error_resolved` /\n`error_waived` / `error_reopened` / `error_investigating`).\
+  \ So resolve / waive / reopen each leave a\njournal line and the FSM history is\
+  \ queryable (no more hand-edited-only transitions). The umbrella\n`error_promoted`\
+  \ stays for back-compat; the typed events are additive / P5-safe (consumers ignore\n\
+  unknown types) and need no events-catalog rule change (SPEC-0025 is append-only).\n\
+  \n### 4a. Incident-narrative home — the multi-error arc (one arc = one E-case)\n\
+  A single incident sometimes spans a whole ARC — many `deviation_captured` captures\
+  \ across days,\nseveral fix-tasks, lessons, and specs (<project>'s 4-day arc: 48\
+  \ deviations / 27 followups / 9\nlessons vs 1 lifetime E-file). The NARRATIVE of\
+  \ that arc — what happened, in what order, why — has a\nsanctioned home: the **promoted\
+  \ `errors/E-XXXX.yaml` case file's BODY** (its `title` / `rca` /\n`resolution` /\
+  \ `prevention` fields, the reference-first narrative surface an E-case already carries).\n\
+  **ONE arc = ONE E-case:** promote the arc to a single case whose canonical `fingerprint:`\
+  \ names the\narc's root, and LINK its constituents — the member deviation fingerprints,\
+  \ the fix-tasks, the lessons,\nthe specs — through the EXISTING `cites:` edge (§2\
+  \ LINK RULE), never a duplicate case per member. This\nis **NOT a new doc class\
+  \ and NOT a new node type** (the promote-to-E-XXXX route of §4 + the `cites`\nedge\
+  \ already carry it): an unsanctioned `docs/incidents/` class or a per-arc parallel\
+  \ store is exactly\nthe v1 accretion CHARTER §P1 forbids. Reference-first still\
+  \ binds (§Anti-pattern \"Copying evidence into\nthe case file\"): the narrative\
+  \ HOME **cites** its arc by anchor, it does not copy evidence in.\n\n### 5. CURRENCY_STATUS\
+  \ — homed in <workshop-spec>\nThe into-work currency classifier — the status-aware\
+  \ route table (§1 step 5), the 5 currency tokens\n{ALREADY-FIXED | OWNED-IN-FLIGHT\
+  \ | REGRESSED | TRULY-NEW | ALREADY-BUILT}, INTO-WORK = TRULY-NEW +\nREGRESSED only,\
+  \ recurs semantics, and the remedy-existence 3-state — is HOMED in <workshop-spec>\n\
+  (`_currency_status` / `_suggest_route`), carved out of this spec by (a stable-surface\
+  \ split,\nSPEC-0005 §7; no behaviour change). SPEC-0061 refines it there (temporal\
+  \ recurs + fuzzy dedup).\n\n### 6. Dual-track external verification + reconciliation\
+  \ (threshold-or-owner-invoked)\nAfter the session performs the §1(5)/§4 ROUTING\
+  \ of a triage window, that routing MAY itself be\nreviewed by an INDEPENDENT external-auditor\
+  \ pass over the SAME window — judging each route\n(event-only / linked / promote\
+  \ / disband) for missed promotes, wrong disbands, un-swept remedies,\nmis-linked\
+  \ roots. This is a four-eyes overlay on the ROUTING, distinct from §1(2)'s thresholded\n\
+  root-cause consult (that escalates \"why it occurred\" for a subset; this reviews\
+  \ the disposition set).\n\n- **TRIGGER — threshold-or-owner-invoked, NOT every window.**\
+  \ Run the dual-track pass only when the\n  window meets the EXISTING §1(2) threshold\
+  \ set (a reopened / high-blast-radius / unclear / systemic\n  item is present) OR\
+  \ on explicit owner invocation (incl. occasional spot-checks). A blanket pass over\n\
+  \  every singleton-heavy window is over-engineering (the E-0012 enforcement-maximalism\
+  \ class; cf.\n  patterns/error-friction-tracking.md \"dual-running the external\
+  \ auditor on every aspect burns quota\")\n  — the marginal catch-rate does not justify\
+  \ it.\n- **INDEPENDENCE is structural (§P4a).** The pass runs via the EXISTING `audit\
+  \ adhoc` verb, which\n  invokes the external auditor — by construction a DIFFERENT\
+  \ provider than the session that performed\n  the routing. No new provider-selection\
+  \ flag is added (a flag would be a new mechanism with no\n  incident pulling for\
+  \ it, anti-cx F4); independence comes from `audit adhoc`'s standing\n  external-auditor\
+  \ binding (bin/audit-config.yaml), not from new prose.\n- **TIER:** routine by default;\
+  \ full only for the thresholded subset OR when the reconciliation itself\n  is disputed\
+  \ (bin/audit-config.yaml).\n- **RECONCILIATION (durable, narrowest carrier — no\
+  \ new store).** Reconcile the two conclusion sets:\n  agreements stand; each divergence\
+  \ is resolved one of three ways — the session ADOPTS the external\n  finding, ESCALATES\
+  \ to the owner, or RECORDS why it holds. The record is a `reconciliation:` block\
+  \ in\n  the SAME `audit adhoc` YAML, cross-referencing the window's `triage_run_completed`\
+  \ watermark (window\n  bounds + routed count). No new verb / store / parser (P5)\
+  \ — the dual-track is a DISCIPLINE over the\n  existing `audit adhoc` verb + the\
+  \ existing watermark, not a mechanism.\n\n**Kernel self-telemetry partition.** The\
+  \ engine appends rows about its OWN machinery (auditor\npair switches, live-holder\
+  \ / autopark refusals) into whatever journal `-C` targets. Those emit sites stamp\n\
+  the PROVENANCE key `subject_realm: kernel` (`journal.kernel_self_telemetry`), distinct\
+  \ from the capture-time\nROUTING key `realm` (SPEC-0085); it is a reserved `event\
+  \ --data` key, so no caller can assert it. Under a\nCONSUMER build `triage run`\
+  \ partitions such rows out of the routing window onto their own\nkernel-self-telemetry\
+  \ line — they are not the consumer's nonconformities. `--complete` DISPOSES them\
+  \ as\nrecorded routes with `target_kind: kernel-self-telemetry` (so they leave the\
+  \ window like any disposed\ncapture) and records their count as `kernel_self_telemetry`,\
+  \ never as `routed`/`linked`. The predicate keys on `subject_realm` ONLY, so a consumer\
+  \ agent's own\n`realm: kernel` capture stays in its window and keeps routing. The\
+  \ kernel's own triage is unchanged.\n\n## Parameters\n\nNone consumed. The reopen-FSM\
+  \ states and the typed transition-event names are the triage functions'\nown constants\
+  \ in `bin/yitc-v2` (single source — the code IS the home). (The route-table statuses,\
+  \ the\n5 currency tokens, and the 3-state remedy verdict are <workshop-spec>'s constants\
+  \ — homed there.)\n\n## Rationale\n\nThis is a DISCIPLINE over existing primitives\
+  \ (one journal, the `cites:` LINK RULE, the E-XXXX\nreopen-FSM): root-clustering\
+  \ fixes causes not leaves (NET de-layering — one root-guard subsumes N\nnarrow guards,\
+  \ the opposite of v1 accretion); failure-class tags are a lens, not a verdict (treating\n\
+  a class as the root would itself become a layering engine + a reopen-loop); split-status\
+  \ keeps a filed\nfix from masquerading as a shipped one (the \"0-events-vs-on-disk\"\
+  \ gap). Prior-art: ISO 9001 §10.2\nCAPA / 5-Whys / SRE postmortems are severity/recurrence-triggered,\
+  \ not blanket-every-bug. Provenance:\n (the decision that ratified the model) —\
+  \ the deliberation, rejected alternatives, and\nfinalize-evidence stay there as\
+  \ history; this spec carries only the standing rule.\n\n## Verification\n\n- **VP1–VP2\
+  \ (currency classifier) → MOVED to <workshop-spec>** ( surface split): the route-table\n\
+  \  code-enforcement (`_suggest_route` / `_currency_status` tokens; INTO-WORK = TRULY-NEW\
+  \ + REGRESSED)\n  and the remedy-existence 3-state verification now live in <workshop-spec>\
+  \ §Verification.\n- **VP3 (CONFIRM-CAUSE-OR-DISBAND):** a case asserting an umbrella\
+  \ class with `cites:None` + `rca:None`\n  is flagged unconfirmed (lens, not root)\
+  \ (tests/test_error_verbs.py / test_triage.py).\n- **VP4 (split-status + journaled\
+  \ transitions):** `error promote --to-task` → `investigating` (not\n  resolved);\
+  \ `error resolve` flips in-flight → resolved only after a landed fix and emits\n\
+  \  `error_resolved`; every FSM write emits `error_<to_status>` via `_journal_error_transition`\n\
+  \  (tests/test_error_verbs.py).\n- **VP5 (one home, P5):** the CONFIRM-CAUSE / reopen-FSM\
+  \ rule text resolves in THIS spec and is\n  ABSENT from the body (which carries\
+  \ only a forward pointer); the currency-classifier surface\n  (route-table / currency-token\
+  \ / remedy-existence) is homed ONCE in <workshop-spec> (carved out),\n  NOT duplicated\
+  \ here; `patterns/error-friction-tracking.md` CITES this spec, not, as the\n  normative\
+  \ home.\n- **VP6 (non-dangling):** non-empty `implements:` (the transition/resolve\
+  \ pair\n  `_journal_error_transition` / `cmd_error_resolve`, plus the root-clustering\
+  \ trio in\n  `bin/lib/triage.py` — `_declared_root` / `_stem_family_key` / `_declared_root_siblings`,\
+  \ anchored\n) ⇒ excluded from `dangling_specs` once active.\n- **VP7 (dual-track\
+  \ §6 is threshold/owner-invoked + independent + reconciled):** the §6 rule names\
+  \ the\n  INDEPENDENT external pass run via `audit adhoc`, its threshold-or-owner-invoked\
+  \ TRIGGER (not every\n  window), and the durable `reconciliation:` block cross-referencing\
+  \ the `triage_run_completed`\n  watermark — and adds NO new verb/store (grep-state\
+  \ on the SPEC-0056 body; the AC2 reconciliation\n  record is the live exemplar).\n\
+  - **VP8 (§4a incident-narrative home):** §4a names the promoted `errors/E-XXXX.yaml`\
+  \ BODY as the\n  multi-error incident-narrative home with the one-arc = one-E-case\
+  \ rule and the `cites`-linkage, and\n  adds NO new doc class / node type (grep-state\
+  \ on the SPEC-0056 body; reference-first preserved —\n  the narrative cites its\
+  \ arc, never copies evidence in per §Anti-pattern).\n"
+cites:
+- SPEC-0055
+- SPEC-0005
+- SPEC-0025
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- finalize-decisions-to-specs-migration-inventory-cl
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: finalize-decisions-to-specs-migration-inventory-cl
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#_journal_error_transition: 6161e0d782a4c22c6f7edb17ce4b50459b05b142c7ec07e4c909be62d0b033cf
+  bin/lib/error.py#cmd_error_resolve: beaa5edb0e75a6f6ce0163d0cb7fa5669cbe7fd0bdad16bd91a33bd97db9c109
+  bin/lib/triage.py#_declared_root: b1079f55341dd8f39f185f6de2550ca7ba6135e25281f57f2433fcddea5757ef
+  bin/lib/triage.py#_declared_root_siblings: c1473be9fcb400a5d83c3551d45a4c187947a1797e11945a14eb365c71bddf73
+  bin/lib/triage.py#_stem_family_key: 4e4f5563c1286e70032db15b98cb26fe857c9592fcb4124152db0c521eb04855

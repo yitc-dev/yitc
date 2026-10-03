@@ -1,0 +1,163 @@
+id: SPEC-0098
+title: Security live-probe contract — named security-property assertion at the deploy
+  seam (the deploy Class-S probe shape)
+status: active
+created_at: 2026-06-22 10:24:49+00:00
+travels: null
+consumed: false
+implements: []
+amends:
+- SPEC-0025: registers the two NEW event types `security_live_probe_passed` + `security_live_probe_escalated`
+    into the events catalog (its single home) — same as SPEC-0094 registered its deploy/live_probe
+    events.
+- SPEC-0094: extends the live_probe assertion GRAMMAR (§4) with header/cookie assertion
+    types (the security-property dialect) — the runner CORE is reused, the grammar
+    is extended (§1 reuse-vs-new).
+- SPEC-0028: extends the task `live_probe` declaration schema with the header/cookie
+    assertion fields.
+body: "## Scenario\n\nA deploying project ships a security/auth-surface change (Class-S\
+  \ in the deploy-autonomy policy\nSPEC-0097). It is proven safe-to-deploy-autonomously\
+  \ by a **security live-probe**: a named, read-only\nassertion at the deploy seam\
+  \ that the security PROPERTY still holds — auth still required, no CORS header\n\
+  leaked, the required security headers present, the session cookie host-only. If\
+  \ the property CANNOT be\nasserted read-only, the deploy **escalates to the owner**\
+  \ — it never silently passes. The owner/AI reads\nthe project's `security:` carrier\
+  \ section to see which security properties this project probes.\n\n## Internal\n\
+  \nTHE SECURITY LIVE-PROBE CONTRACT. **Home split (single SoT — no mechanic re-homed):**\
+  \ this spec owns ONLY\nthe security-property assertion GRAMMAR + the un-probeable→escalate\
+  \ rule + the two events. **SPEC-0093**\nowns the `security:` carrier SECTION SHAPE.\
+  \ **SPEC-0094** owns the live_probe RUNNER mechanics\n(`bin/lib/live_probe.py#cmd_live_probe`,\
+  \ the read-only GET assertion). This contract is the\n**SPEC-0097 Class-S probe\
+  \ shape** — the named thing the deploy Class-S tier binds.\n\n### 1. What a security\
+  \ live-probe IS\nA NAMED security-property assertion, run by the SPEC-0094 live-probe\
+  \ runner. It asserts a SECURITY\nproperty via an explicit security ASSERTION (the\
+  \ dialect), e.g.: no CORS header on a cross-origin\nGET; a required security header\
+  \ present (HSTS / X-Frame-Options / nosniff / Referrer-Policy); a session\ncookie\
+  \ host-only + Secure + HttpOnly.\n**Reuse-vs-new boundary (HONEST — plan-check finding\
+  \ #2).** The runner CORE is REUSED (the read-only GET\nloop + the deploy-seam invocation,\
+  \ SPEC-0094 §4). The assertion GRAMMAR is **EXTENDED** — the current\ngrammar covers\
+  \ only `url + expect_status + body_contains`; a security live-probe REQUIRES an\
+  \ explicit\n**header/cookie/CORS assertion** (the security DIALECT) — the shipped\
+  \ runner+validator key the\n`security_live_probe_passed` event on that assertion.\
+  \ A bare **status-only** check (auth-required → a 401\nwith no security assertion)\
+  \ is a GENERIC liveness probe (it emits `live_probe_passed`, NOT the security\n\
+  event), NOT a Class-S proof; a property not expressible by a read-only header/cookie/CORS\
+  \ assertion is\nun-probeable → escalate (§2). The **header/cookie** properties (no-CORS\
+  \ / security-headers / cookie-flags)\nare the dialect-asserted cases. So slice-1\
+  \ adds a **header/cookie assertion DIALECT** to the runner — a named NEW\nmechanism\
+  \ (amends SPEC-0094 §4 grammar + SPEC-0028 task live_probe schema + the runner code),\
+  \ NOT hidden\nreuse. It extends, it does not fork: one runner, one grammar, +header/cookie\
+  \ assertion types.\n\n### 2. Fail-closed — un-probeable → escalate (NEVER silent-pass)\n\
+  A security property that CANNOT be asserted by a read-only GET (a server-side authz\
+  \ invariant, an\nencryption-at-rest property, anything the seam cannot observe read-only)\
+  \ is **NOT** treated as \"safe\":\nthe deploy **escalates to the owner** (matches\
+  \ SPEC-0097 Class-S \"un-probeable → escalate\"). \"Not\nprobeable\" is NEVER \"\
+  passed\" — the contract fails closed (the security instance's default-discipline).\n\
+  \n### 3. Events (the named adoption-evidence contract — Class-S proof)\nA security\
+  \ live-probe emits at the deploy seam:\n- **`security_live_probe_passed`** `{property,\
+  \ url, project, expect, actual}` — the security property was\n  asserted and HOLDS.\n\
+  - **`security_live_probe_escalated`** `{property, project, reason}` — the property\
+  \ is un-probeable\n  read-only → escalated to the owner.\nThese ARE the Class-S\
+  \ proof events the deploy plan consumes: the deploy plan's readiness binds this\n\
+  named shape + the linked spec; its Class-S proof asserts one of these events fired.\n\
+  \n### 4. Carrier home — the SCHEMA is SPEC-0093's, the SEMANTICS are this spec's\
+  \ (airtight SoT, finding #1)\nA project DECLARES its security live-probes in the\
+  \ `security:` section of `yitc-ops.yaml`. **The SECTION\nSCHEMA — the `security:`\
+  \ key set + the per-probe declaration ENTRY shape (the `property` / `assertion`\
+  \ /\n`url` keys + the broader `authz-model` / `accepted-risks-with-expiry` / `waiver`\
+  \ keys) — is owned by\nSPEC-0093 (amended for the `security:` section).** This spec\
+  \ owns ONLY the SEMANTICS: what a security\nlive-probe MEANS (§1), the un-probeable→escalate\
+  \ rule (§2), and the two events (§3). It does NOT norm the\nschema — there is exactly\
+  \ one schema home (SPEC-0093) and one semantics home (here). Declare-or-waive +\n\
+  the compensating-control-on-waiver rule are SPEC-0093's section policy (rule 6).\n\
+  \n### 5. NOT overridable — the Class-S probe leg is outside the security-gate override\n\
+  SPEC-0155 rule 7 gives the owner a journaled override of a REJECTING pre-deploy\
+  \ security GATE (the\nevidence-report gate — a fail-closed block on an open critical/high\
+  \ FINDING, which an outage may need to\nship past). That override does **NOT** reach\
+  \ THIS spec's Class-S security PROBE (§1/§2): the probe is a\nlive assertion that\
+  \ auth is STILL ENFORCED, so a failing probe is not a findings-report judgement\
+  \ to be\nweighed — it is evidence that the security property itself is BROKEN. Its\
+  \ failure mode is EXPOSURE,\nwhich an image rollback does not undo (§2), so a failed\
+  \ or un-runnable probe stays an OWNER ESCALATION\nand is never bypassable by an\
+  \ override flag — and the deploy verb refuses it BEFORE the gate leg the\noverride\
+  \ applies to ever runs. One leg is overridable, the other is not, and this is the\
+  \ line between\nthem: named here, body in SPEC-0155 rule 7 (SPEC-0005 rule 8 — a\
+  \ pointer, not a restatement).\n\n### 6. Failing-demo at declaration — a security\
+  \ live-probe is admitted only with a recorded RED (SPEC-0156)\nA security live-probe\
+  \ is a kernel-graded check (SPEC-0156 §1 `CHECK_SURFACES` — the `security.probes`\n\
+  surface), so it is admitted only WITH one recorded FAILING DEMONSTRATION: break\
+  \ the security property the\nprobe asserts (e.g. disable the auth the probe requires,\
+  \ or add the `Access-Control-Allow-Origin` the\nprobe forbids) and the probe must\
+  \ be SEEN to go RED, journaled once as `check_admission_demonstrated`\n(outcome\
+  \ `red`, against a NAMED broken input). This is the SPEC-0060 §4 differential —\
+  \ \"would this still\npass if the property were BROKEN?\" — applied to what the\
+  \ deploy seam grades. A declared security probe\nwith no such record surfaces UNPROVEN\
+  \ in the SPEC-0119 debt echo until demonstrated — report-only, never\nrefused (SPEC-0156\
+  \ §3 adds NO gate). The EXISTING fail-closed gate is UNCHANGED: an un-probeable\
+  \ property\nstill ESCALATES to the owner (§2), never silent-passes — this leg proves\
+  \ the probe CAN fail when the\nproperty is broken, it never weakens the escalate\
+  \ rule. A property that cannot be made to fail by any\nread-only assertion is not\
+  \ a probeable check: route it per §2 (escalate), never admit it as coverage.\n\n\
+  ## Parameters\n\nNone `consumed`. The per-project probe declarations (property +\
+  \ assertion + url) are project ops config on\nthe `security:` carrier (SPEC-0093\
+  \ §Parameters), explicitly NOT kernel-read governance scalars — so\n`consumed: false`.\n\
+  \n## Rationale\n\nSPEC-0097 §2 DEFERS the Class-S security probe \"to the security\
+  \ instance, not re-invented in deploy\"; this\ncontract is that delivery. The reversibility\
+  \ axis (SPEC-0097): a security change's failure mode is\nEXPOSURE, which an image\
+  \ rollback does NOT undo — so the proof must be a FORWARD security-property\nassertion\
+  \ at the seam, not a rollback. It REUSES the SPEC-0094 runner (no new mechanism,\
+  \ CHARTER §P1).\nExternal sources (OWASP 2025 security-headers / ASVS L1 auth) inform\
+  \ the property catalog; the rule itself\nis provider-neutral (CHARTER §P4b).\n\n\
+  ## Verification\n\n- Behaviour probe: a probeable property asserted via the security\
+  \ dialect (e.g. security-headers present) emits `security_live_probe_passed`; an\n\
+  \  un-probeable property emits `security_live_probe_escalated` — NO silent pass.\n\
+  - State-check: a project's `security:` section declares ≥1 security live-probe (property\
+  \ + assertion); the\n  deploy-autonomy Class-S tier binds the named shape + the\
+  \ linked contract spec (the deploy\n  readiness met).\n- Boundary probe: a security\
+  \ property that is probeable read-only is NEVER left un-asserted; an\n  un-probeable\
+  \ property is NEVER silently passed (always escalated).\n"
+cites:
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0093
+- SPEC-0094
+- SPEC-0097
+- SPEC-0156
+requires:
+- SPEC-0093
+- SPEC-0094
+- SPEC-0097
+supersedes: null
+concern:
+  section: security
+  born_order: 60
+  born: "security:\n  # SPEC-0093 rule 8 / SPEC-0098. DECLARE security live-probes\
+    \ instead of waiving once this project has a\n  # security/auth surface: replace\
+    \ this waiver with a `probes:` list, each entry { property, assertion, url }.\n\
+    \  # The waiver is STRICT (rule 6): reason + compensating_control + a real-ISO-date\
+    \ expiry are ALL required.\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no project-specific security live-probe yet; declare a `probes:` list\
+    \ once this project has a security/auth surface.\"\n    compensating_control:\
+    \ \"Kernel always-on security baseline: prompt-injection protection, the `security-review`\
+    \ skill, secrets-out-of-git, the host-leak canary.\"\n    expiry: \"2026-12-31\"\
+    \ # review-by date — REPLACE with your real security-review date.\n"
+  carrier_path: security
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: probes
+  declare_type: list
+  waiver_policy: strict
+  shape_hook: security_shape
+activation_owner_task: null
+proposed_by: security-baseline-kernel-seed-fail-closed-ci-gate-
+binding:
+- code-enforced
+class_s_binding:
+  named_shape: security-headers
+  assertion: assert_header_present X-Frame-Options/X-Content-Type-Options/Referrer-Policy
+    + assert_header_absent Access-Control-Allow-Origin
+  contract_spec: SPEC-0098
+  deploy_policy: SPEC-0097
+  satisfies_readiness: null
+  runner: SPEC-0094
+  dialect_required: true

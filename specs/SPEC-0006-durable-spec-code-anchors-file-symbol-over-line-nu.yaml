@@ -1,0 +1,173 @@
+id: SPEC-0006
+title: 'Durable spec-code anchors: file/symbol over line numbers + report-not-block
+  resolution'
+status: active
+created_at: 2026-06-01 04:23:28+00:00
+consumed: false
+implements:
+- bin/lib/cli.py#_resolve_implements_anchor
+- bin/lib/textutil.py#anchor_file
+- bin/lib/cli.py#_anchor_drift_warning
+- bin/lib/cli.py#_anchor_content_signature
+- bin/lib/spec.py#cmd_spec_reverify
+- GRAPH.md#Schema
+- GRAPH.md#Build
+binding:
+- code-enforced
+body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and «is this\
+  \ spec→code link still valid?» and\nalways gets a truthful answer — even after the\
+  \ code has been edited and lines have shifted. A\nspec's link to code is written\
+  \ as a durable anchor (a file, or a file#symbol name), so a normal\nrefactor never\
+  \ silently breaks it; if a target genuinely disappears, `graph build` SAYS SO (a\n\
+  stderr warning) instead of echoing a stale pointer.\n\n## Internal\n\nThe graph's\
+  \ spec→code edge — the `implements:` field on a spec — MUST anchor to durable,\n\
+  drift-resistant references, never raw line numbers; and `graph build` MUST surface\
+  \ targets that no\nlonger resolve.\n\n- `implements:` entries are `<file>` (file-level)\
+  \ OR `<file>#<symbol>` (a def / class / module-const /\n  markdown-heading name;\
+  \ OR a JS/JSX/TS form — a `function` decl, a `const`/`let`/`var` arrow-const\n \
+  \ component, or a `describe`/`it`/`test` label —; OR, in a.js/.jsx/.ts/.tsx file\
+  \ ONLY, an\n  indented object-literal member `name:` — — or a TS `class`/`interface`/`type`/`enum`\n\
+  \  declaration, optionally prefixed `export`/`default`/`declare`/`abstract`/`const`)\
+  \ — **never** `<file>:<line-range>`. A `#symbol`\n  anchor into a NON-symbol-bearing\
+  \ target TYPE (a template / markup / data file — `_file_has_symbol_space`\n  is\
+  \ False) is auto-exempted rather than false-flagged stale (reuses the SPEC-0088\
+  \ atomic-target\n  posture); a symbol-bearing type still reports a genuinely-missing\
+  \ symbol.\n- `graph build` RESOLVES each anchor against the CURRENT tree at build\
+  \ time (file exists; symbol is\n  present). An anchor that no longer matches is\
+  \ REPORTED on stderr (like a parse-error surfacing) —\n  not silently echoed. This\
+  \ is a control-point inside the existing spec-walk, **report-not-\n  block**: it\
+  \ does NOT fail the build (GRAPH §«NOT a validation layer» holds).\n- **Freshness\
+  \ / possibly-stale (report-only; symbol-level since):** for an `active`\n  spec\
+  \ whose anchor RESOLVES, `graph build` ALSO checks spec↔code freshness via git provenance\
+  \ — the\n  code AS OF the spec's last-touch commit vs the CURRENT working tree (so\
+  \ an uncommitted edit counts).\n  A mismatch → the spec is flagged `possibly-stale`\
+  \ on stderr (review for drift). SAME report-not-block\n  channel (build stays exit\
+  \ 0). **Granularity matches the anchor :** a `<file>#<symbol>` anchor\n  compares\
+  \ only that SYMBOL's region (whole-file blob is the fast path — equal blobs short-circuit\
+  \ to\n  silent), so an edit ELSEWHERE in a shared monolithic file does NOT false-flag\
+  \ every spec anchored into\n  it (the 2026-06-01 5/5 incident on this one-file CLI);\
+  \ a file-level anchor (no `#symbol`) keeps\n  whole-file comparison. Silent by design\
+  \ when: the spec is uncommitted; OR the anchor file did NOT exist\n  at the spec's\
+  \ last-touch (a spec that PRE-DATES its code — B5, not a false positive); OR (symbol\n\
+  \  anchors) the symbol did not exist at the last-touch / its region is un-extractable.\
+  \ Only `active` specs\n  are checked (a non-normative spec governs nothing). (Last-touch\
+  \ verified accurate vs anchor\n  0b27e5d62: the only GRAPH.md change since was patterns/plan-lifecycle.md->SPEC-0034\n\
+  \  repoint in §Spec-lifecycle — outside this spec's §Schema/§Build-tool surface;\
+  \ a collateral\n  monolithic-doc false positive of the very class this bullet describes.\
+  \ Reviewed 2026-06-06: re-verified vs anchor 53a640322 — the only GRAPH.md change\
+  \ since is\n  `plan accept`->`plan stage accepted` rename in §Spec-lifecycle, again\
+  \ OUTSIDE §Schema/§Build-tool;\n  no drift in this spec's surface — the same file-level-anchor\
+  \ collateral false positive.)\n- **Durable content-signature baseline (E-0019 kind-B\
+  \ — the symbol-level TRUE-POSITIVE\n  durability fix):** the git last-touch baseline\
+  \ is NON-DURABLE by construction — it advances with\n  any commit that touches the\
+  \ spec file, so it BOTH re-fires on later unrelated edits to a symbol the\n  spec\
+  \ still describes accurately AND silently CLEARS a real drift when code+spec land\
+  \ together\n  (base==cur). The durable replacement: `yitc-v2 spec reverify <SPEC>`\
+  \ records, per `implements:`\n  anchor, the sha256 of its CURRENT region into the\
+  \ new OPTIONAL `implements_signature:` field — the\n  content the author just VERIFIED-ACCURATE.\
+  \ When a signature exists for an anchor, `_anchor_drift_\n  warning` compares the\
+  \ current content against THAT stored value (decoupled from git history) and\n \
+  \ fires only on real content drift; equal/un-signable → silent. An anchor with NO\
+  \ stored signature\n  keeps the last-touch path verbatim (ADDITIVE-OPTIONAL, back-compat).\
+  \ `spec reverify` is the durable\n  SUCCESSOR of the point-in-time `spec edit` re-touch\
+  \ ritual for symbol anchors — and is a SEPARATE\n  verb because re-verification\
+  \ often confirms accuracy with NO text change (which `spec edit`, a\n  non-empty\
+  \ replacement, cannot express). **The bless is SCOPED to what was actually verified\n\
+  \  :** a whole-spec re-sign silently re-baselines anchors the caller's diff never\
+  \ moved\n, so `spec reverify` refuses to re-sign an already-drifted anchor whose\
+  \ region\n  is IDENTICAL at `merge-base(HEAD, main)` — a signature comparison, hence\
+  \ SYMBOL-precise, since a\n  monolithic file hosts many anchors. `--anchor <a>`\
+  \ re-signs only the named anchor (every other\n  baseline survives byte-identical);\
+  \ `--include-untouched` is the explicit whole-spec opt-in. An\n  untouched anchor\
+  \ with NO prior signature warns but proceeds (a first baseline blesses no drift).\n\
+  \  The shared signer is unguarded by default, so `task close --reverify` is unaffected.\
+  \ A genuinely DELETED/renamed anchor symbol stays surfaced by\n  the resolve-layer\
+  \ (`symbol not found`), so the signature path's defensive silence does not hide\
+  \ it.\n- **WHEN to re-sign — after a merge that MOVES anchored code, re-sign BEFORE\
+  \ you take the audit\n.** The bullet above says WHAT `spec reverify` records and\
+  \ how narrowly it may bless;\n  this says WHEN the operator runs it. **Trigger:**\
+  \ a merge brought in code that MOVED a region an\n  `active` spec anchors — in practice\
+  \ folding `main` into a branch before landing, which is when\n  someone else's landed\
+  \ refactor arrives under your anchors. **Obligation:** before taking the\n  audit\
+  \ for that branch, re-sign the AFFECTED specs PER ANCHOR —\n  `bin/yitc-v2 spec\
+  \ reverify <SPEC-ID> --anchor '<file>#<symbol>'`, one invocation per anchor you\n\
+  \  have actually re-verified. Per-anchor is not a stylistic preference here: `--include-untouched`\n\
+  \  would blanket-bless anchors the merge never moved, which the bullet above already\
+  \ refuses, so\n  the ordering rule must never be read as a licence for the whole-spec\
+  \ re-sign. **Cost of not\n  doing it:** the audit is then taken over stale `implements_signature`\
+  \ values and REDs\n  predictably on exactly that — and an audit pass is NOT refundable,\
+  \ so a predictable RED spends a\n  pass against the SPEC-0124 audit-loop ceiling\
+  \ that the branch may then need to finish. Measured:\n  on 2026-08-24 a merge into\
+  \ `task/` moved `bin/lib/worktree.py#_land_integrate`; eight\n  active specs held\
+  \ three different stale signatures; the re-audit returned RED high-severity on\n\
+  \  that alone, burned one of only two passes plus a full external-auditor invocation,\
+  \ and the card\n  needed an owner-authorized `--owner-reset` to finish.\n  Read\
+  \ the ordering together with its sibling on the same axis: `graph build` REPORTS\
+  \ a\n  possibly-stale anchor without blocking, so nothing refuses on your behalf\
+  \ between the merge and\n  the audit — the report is the signal, and acting on it\
+  \ is this rule.\n- Reverse-index + query normalization: the code→spec index and\
+  \ `graph query <file>` lookup normalize\n  the file component for BOTH the legacy\
+  \ `<file>:<line-range>` and the durable `<file>#<symbol>` forms,\n  so `graph query\
+  \ <file>` keeps matching across the migration.\n- Coverage is a DOCUMENTARY convention,\
+  \ NOT machine-distinguishable: a spec with no single code site\n  SHOULD carry a\
+  \ human-visible note explaining why `implements:` is empty. The graph treats empty\n\
+  \  `implements` identically either way (no empty-by-decision vs empty-by-omission\
+  \ field).\n- Scope: ONLY the `implements` edge (spec→code). The other graph edges\
+  \ (cites / defined_in — the\n  surviving non-implements edges post the 6→3 edge\
+  \ cut) are ID-anchored and already drift-immune\n  — explicitly out of scope.\n\n\
+  ## Verification\n\n(Adopted from own adoption probe + AC1-AC4 — the anchor rule's\
+  \ checks, NOT the\npilot's acceptance.)\n- GRAPH §Schema documents the durable-anchor\
+  \ `implements` form (probe: grep).\n- `graph build` reports an unresolved `implements`\
+  \ anchor on stderr (probe: a synthetic broken anchor\n  → a stderr warning line,\
+  \ build still exit 0).\n- Every active spec either resolves OR carries a human-visible\
+  \ empty-note (probe: `graph build` clean\n  + grep).\n- `graph query <file>` matches\
+  \ a `<file>#<symbol>` anchor — reverse index + query normalized for both\n  `:`\
+  \ and `#` (probe: run on a migrated spec's file).\n- **Freshness :** editing an\
+  \ `active` spec's resolved anchor file makes the next `graph build`\n  flag that\
+  \ spec `possibly-stale` on stderr (in `_freshness_warnings`), build still exit 0;\
+  \ an\n  unchanged anchor stays silent (probe: tests/test_graph_freshness.py edit-then-build\
+  \ case).\n- **Durable content-signature baseline :** after `spec reverify` records\
+  \ `implements_signature`,\n  an anchor whose region content MATCHES the stored signature\
+  \ stays silent even when the spec's git\n  last-touch is stale, and a region that\
+  \ DIFFERS from it fires — AND the decisive cut: code+spec\n  committed together\
+  \ (last-touch base==cur → last-touch silent) STILL fires against the stored\n  signature\
+  \ (probe: tests/test_graph_freshness.py::test_t0506_signature_catches_what_lasttouch_silently_misses\n\
+  \  + ::test_t0506_spec_reverify_writes_field_and_emits_and_preserves_comments).\n\
+  - **Re-verified current + ANCHOR NARROWED (2026-06-07 — E-0019 root fix for the\
+  \ broad-anchor\n  false-positive class):** the GRAPH.md anchor was a whole-FILE\
+  \ anchor, so every §Spec-lifecycle edit\n  re-fired SPEC-0006 `possibly-stale` even\
+  \ though this spec governs only §Schema + §Build-tool — the\n  recurring E-0019\
+  \ false positive (point-refreshed by /, recurred each time). FIXED durably\n  by\
+  \ narrowing to `GRAPH.md#Schema` + `GRAPH.md#Build` (the two section regions it\
+  \ governs), reusing the\n  EXISTING `<file>#<symbol>` heading granularity — NO new\
+  \ mechanism. GOVERNED SURFACE\n  re-verified accurate vs the §Schema 11->6 node\
+  \ cut (scope = the `implements` spec->code edge +\n  §Schema/§Build-tool, NOT the\
+  \ full body): the `implements` edge THIS spec governs is untouched by that\n  cut\
+  \ (it dropped task/decision/commit/audit/event NODE-types + their edges, not the\
+  \ spec->code edge),\n  so SPEC-0006's rule is unchanged. (The §Scope line's stale\
+  \ dropped-edge names were tidied,\n  the audit-post hygiene follow-up.) Probe: tests/test_graph_freshness.py::test_t0499_narrowed_section_\n\
+  \  anchor_suppresses_out_of_section_edit. The kind-(B) symbol-level true-positive\
+  \ durable fix\n  (content-signature, needs a new store) is owner-Review-gated —\
+  \ see the owner-Review decision.\n\n## Rationale\n\nDurable anchors (file or symbol\
+  \ name) survive line shifts, so the drift failure class disappears at\nthe source\
+  \ (CHARTER §5) instead of being re-patched by periodic re-numbering. Symbol/section\
+  \ anchors\nmirror external prior-art (ctags, GitHub permalink-by-symbol, content-hash\
+  \ code graphs). Build-time\nresolution adds drift DETECTION without a separate validation\
+  \ layer — it runs inside the existing\nspec-walk (control-point), reports rather\
+  \ than blocks, staying within GRAPH §«NOT a\nvalidation layer». File-level is the\
+  \ cheap floor; `file#symbol` is the precise option, chosen per spec.\n"
+cites:
+- decisions/-graph-spec-code-links-durable-anchors-over-line-nu.yaml
+- GRAPH.md#schema
+- CHARTER.md#principle-5
+requires: []
+supersedes: null
+proposed_by: null
+implements_signature:
+  GRAPH.md#Build: b62802d660dc3d2d6087e044ab034fc02768d62045e53dfbc465f80d7cf3592e
+  GRAPH.md#Schema: fc80a7242389ef95552d2b15098f102ec766bbbcee949628242334a79e6347a0
+  bin/lib/cli.py#_anchor_content_signature: 8061ff36ec14bdc8cbbcd03c5c10be585141705125d7a8eed69ced32cd236487
+  bin/lib/cli.py#_anchor_drift_warning: d17e129ce47f983aa6075539c78bdc97257afa4b891a0c7db8cff0e025065edd
+  bin/lib/cli.py#_resolve_implements_anchor: 7890c1ddbed910a4bf49a7e7ba8e4aa0c6e571e00c273b30da62dc123730c506
+  bin/lib/spec.py#cmd_spec_reverify: 493acdfc371f193f4a29dc586c76e18da614e714f4300a4ecd71718426b8bf56
+  bin/lib/textutil.py#anchor_file: 7944426743aaaea6da2365d70fb87ad4773e6a8ea3c7e16063ab030ac9d97f93

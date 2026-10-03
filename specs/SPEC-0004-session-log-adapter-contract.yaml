@@ -1,0 +1,183 @@
+id: SPEC-0004
+title: Session-log adapter contract — provider log → normalized chat-class events
+status: active
+created_at: '2026-05-28'
+consumed: false
+implements:
+- bin/lib/cli.py#_append_event
+- bin/lib/cli.py#_session_log_path
+- bin/lib/textutil.py#cap_text
+- bin/lib/journal.py#_classify_cc_entry
+- bin/lib/journal.py#_attachment_injection
+- bin/lib/journal.py#_all_source_refs
+- bin/lib/journal.py#_source_refs_and_birth_ts
+- bin/lib/journal.py#_journal_sync
+- bin/lib/journal.py#cmd_journal_sync
+- bin/lib/cli.py#_auto_sync
+- bin/lib/journal.py#_governed_read_target
+- bin/lib/journal.py#_infer_directive_classification
+binding:
+- code-enforced
+body: "## Internal\n\nA **session-log adapter** materializes chat-class governance\
+  \ events from a provider's\nsession transcript into events.jsonl. The contract is\
+  \ provider-neutral (CHARTER\n§Principle 4b); each provider gets one concrete adapter.\
+  \ the AI tool is the first\nbinding. No provider name appears in this normative\
+  \ statement — only in adapter code.\n\n### INPUT (per-provider, opaque)\n\nA locally-persisted,\
+  \ append-only session transcript identified by a `session_ref`\n(resolved fail-closed\
+  \ per SPEC-0002). The adapter locates it without\ninference (the AI tool binding:\
+  \ glob `~/<provider-config>/projects/*/<session_ref>.jsonl` —\nthe session may launch\
+  \ from any cwd, so cwd-encoding is NOT used).\n\n### OUTPUT (normalized, provider-neutral)\n\
+  \nThree parser-captured event types appended via the single emission path\n(`_append_event`),\
+  \ each carrying provenance (`source_ref` populated, `agent=main`):\n\n- `owner_directive`\
+  \ — human input that is neither a command nor an injection\n- `instruction_injection`\
+  \ — context AUTO-LOADED into the AI's input (see capture shape below)\n- `slash_command`\
+  \ — a slash-command invocation\n\nEach materialized event's `ts` = the source entry's\
+  \ timestamp (UTTERANCE time, not\nthe sync moment) — second-precision ISO-Z, falling\
+  \ back to sync-time if absent.\n\n`source_ref` = a stable per-entry locator. the\
+  \ AI tool binding: `<path>#uuid:<entry-uuid>`.\n\n**`instruction_injection` capture\
+  \ shape — POINTER, not body (owner directive\n2026-05-29).** Materialized from `attachment`\
+  \ entries that carry auto-loaded context — the AI tool: `nested_memory` (<vendor-adapter>.md\
+  \ / AGENTS.md + nested memory files) and `skill_listing` (the\ncapabilities catalog).\
+  \ The row records **`target` + `size_lines` + `size_chars` + `form:\nlink_only`\
+  \ + `source: auto`** — and **NEVER the document body** (storing it would duplicate\
+  \ the\nversioned doc into the journal; the text-of-the-moment is recovered via `graph\
+  \ query --as-of`).\nParser-captured rows are **EXEMPT from the authoring-side `rationale`\
+  \ / `category` / `mandatory`\nfields** ( substantive tier) — an auto-load stores\
+  \ no «why» ON THE EVENT (importance is joined from the docs at query time — see\
+  \ §Expected-reads model, not a per-row field); deliberate\nauthoring-side injections\
+  \ keep the full schema. **Boundary:** the provider's BASE system prompt\nis not\
+  \ a per-session-log entry; the adapter captures what the durable log contains.\n\
+  \n### Expected-reads model (folded from — the historical decision that established\
+  \ it)\n\nAll information the AI is EXPECTED to read is ONE class — \"expected reads\"\
+  \ — described by two\nINDEPENDENT attributes plus a fact:\n- **arrival (moment/how):**\
+  \ a per-read TAG — `auto` (the harness silently pre-loads a doc, e.g.\n  <vendor-adapter>.md\
+  \ / AGENTS.md / the skill list — `_attachment_injection`) OR `commanded` (an instruction\
+  \ or\n  CLI verb said \"read X\", e.g. a governed-doc Read materialized by `_journal_sync`\
+  \ as `commanded_read`).\n  It is a TAG on the read, never a separate entity.\n \
+  \ **EXTENDED to the owner channel (X-1465).** The same `arrival` key — never a parallel\n\
+  \  one — also tags an **`owner_directive`** row with `mid_turn` when the owner's\
+  \ answer ARRIVED\n  mid-turn (the provider marks that entry `promptSource: \"queued\"\
+  `; `_journal_sync` reads it). The\n  attribute is unchanged in kind — still \"the\
+  \ moment/how it arrived\", still a TAG on the row and\n  never a separate entity\
+  \ — only its CHANNEL is wider: reads take `auto` / `commanded`, the owner\n  channel\
+  \ takes `mid_turn`. WHY IT IS ON THIS AXIS AND NOT A NEW ONE: an answer that arrived\n\
+  \  mid-turn is the row most likely to AUTHORISE work already in flight, and without\
+  \ the tag the\n  record cannot tell it from one that merely PRECEDES — the X-1465\
+  \ defect. ASYMMETRIC, exactly as\n  the read tag is not: a turn-opening owner row\
+  \ carries NO `arrival` key at all (never a second\n  value, never `false`), so presence\
+  \ alone is the signal and historical rows are not back-filled.\n  Catalogued at\
+  \ SPEC-0161 §`owner_directive`.\n- **importance (obligatory | by-task | optional\
+  \ | fyi):** a property of the DOCUMENTATION's own\n  framing (the four categories),\
+  \ JOINED at QUERY time from doc rule-extraction — NOT stored on\n  the event and\
+  \ NOT inferred from the arrival moment (P5 — avoids duplicating doc state into the\n\
+  \  journal). This REVERSES the earlier carve-out that exempted auto-loads from importance:\
+  \ the\n  \"why\" IS derivable, but it lives in the docs, not on the event.\n- **fact:**\
+  \ did the AI actually read it (present in the journal) — yes/no.\n\nCAPTURE: per\
+  \ read, record `target` + `size` + `arrival` + presence; capture is EXTENDED to\
+  \ COMMANDED /\nactual governed-doc reads (`_governed_read_target` gate) that were\
+  \ previously dropped as tool-result\nnoise. OWNER-DIRECTIVE channel: drop command-wrappers\
+  \ / stdout / slash-command bodies (harness\nmachinery) and keep the owner's own\
+  \ text (credential shapes redacted at write, before the SPEC-0002\ncap — SPEC-0163\
+  \ §4e); best-effort `classification` (directive | question | stop |\ncorrection)\
+  \ — a LOOSE heuristic, never strict normalization (`_classify_cc_entry` /\n`_infer_directive_classification`).\n\
+  \nThe expected↔actual COMPLIANCE VIEW (join expected reads ↔ actual reads → \"obligatory\
+  \ but NOT read\")\nis a PENDING forward capability (a query joining the journal's\
+  \ actual-reads with the docs'\nrule-extraction importance), NOT yet an active rule\
+  \ — tracked as a follow-up, not part of this\ncontract's live surface.\n\n**Classification\
+  \ is loose/best-effort** ( rejected strict normalization): the\ninjection-vs-directive\
+  \ boundary may mislabel; the governance value is durable capture\nwith provenance,\
+  \ not exact subtyping. Runtime noise is filtered aggressively (the AI tool: mode\
+  \ / permission-mode / file-history-snapshot / last-prompt / ai-title /\nqueue-operation\
+  \ / system / assistant / tool-result entries, plus non-context `attachment`\nsubtypes\
+  \ — task_reminder / deferred_tools_delta / command_permissions / edited_text_file\
+  \ /\nqueued_command — which are harness ephemera, not doc-injections).\n\n**NOT\
+  \ in this adapter's output set:** `external_audit_completed` + `audit_prompt_sent`\n\
+  are emitted by the parent CLI audit path (cmd_audit), not parser-captured.\n\n###\
+  \ ERROR modes\n\n- **Fail-closed** (raises / non-zero exit): `session_ref` undetermined;\
+  \ an explicitly\n  named session's log not found; the located log is unreadable;\
+  \ catastrophic parse.\n  Gates every fail-closed CLI verb ( fail_closed_sync_contract).\n\
+  - **Lossy** (skip + continue): a single malformed JSONL line; an unrecognized entry\n\
+  \  type; an entry with no extractable text. Never aborts the batch.\n- **Current-session\
+  \ tolerance:** when syncing the current session (no explicit ref)\n  and no log\
+  \ exists yet, sync is a no-op (0 events), not a failure.\n\n### Idempotency + recovery\n\
+  \n- Per-session checkpoint (SPEC-0003) cursor (`last_processed_uuid`) → steady-state\n\
+  \  sync reads only entries after the cursor (no dedup needed — they are necessarily\
+  \ new).\n- **Stale cursor** (recorded `last_processed_uuid` absent from the log\
+  \ — rotated /\n  truncated): treated as RECOVERY → full rescan from start, never\
+  \ skip-all-then-advance\n  (the cursor is not lost-data-silently).\n- `source_ref`\
+  \ dedup on the RECOVERY path only (first-sync / stale-cursor rescan),\n  against\
+  \ the FULL events.jsonl history → no duplicate rows for any replay size.\n  (Full\
+  \ scan is acceptable because recovery is rare; steady-state pays nothing.)\n- **Birth-anchor\
+  \ bound (privacy).** On the recovery leg of the IMPLICIT current-session\n  sync\
+  \ (the `_auto_sync` path — incl. a project's first `-C <new> init` / `session start`),\
+  \ an\n  entry is materialized ONLY if its utterance time is at/after the project's\
+  \ birth anchor: the\n  journal's earliest row `ts`, or the sync moment when the\
+  \ journal is empty (a project being born\n  now). An entry with no parseable time\
+  \ is skipped on this leg (it cannot be proven post-birth).\n  The anchor is read\
+  \ in the SAME fold as the dedup set (SPEC-0190 rule 10). The checkpoint still\n\
+  \  advances past skipped entries, so they are never revisited. The EXPLICIT `journal\
+  \ sync\n  --session-ref` replay stays unbounded (a deliberate named recovery); steady\
+  \ state is unchanged.\n- Size cap: every emitted line ≤ 3500 bytes (SPEC-0002),\
+  \ enforced inside `_append_event`\n  against the REAL serialized envelope (byte\
+  \ budget, not char count) — Unicode-safe.\n\n> **`_append_event` `events_path` param\
+  \ is IMMATERIAL to this contract (freshness\n> review).** `_append_event` later\
+  \ gained an optional `events_path: Path|None = None` arg, used by\n> `worktree new`\
+  \ to land `worktree_created` on the MAIN journal from inside a linked\n> worktree.\
+  \ It only parameterizes the TARGET journal file — it is *\"still the single emission\
+  \ path\"*\n> (function docstring). The three rules this spec pins on `_append_event`\
+  \ are unchanged: the **single\n> emission path**, the **≤3500-byte SPEC-0002 cap\
+  \ enforced inside it**, and the **envelope+provenance**.\n\n> **TEST-ONLY `YITC_EVENTS_SINK`\
+  \ is IMMATERIAL to this contract ( freshness review).**\n> `_append_event` diverts\
+  \ ALL appends to the named sink when the TEST-ONLY env `YITC_EVENTS_SINK`\n> is\
+  \ set, and `_journal_sync` is INERT under it (returns 0 — no materialization, NO\
+  \ checkpoint\n> advance; diverting materialized chat events while advancing the\
+  \ host checkpoint would silently\n> lose them — fail-closed). Child-process test\
+  \ scoping only; with the env unset — every production\n> invocation — the sync/idempotency/recovery\
+  \ contract here is unchanged.\n\n### Auto-sync hook\n\nEvery CLI verb runs the adapter\
+  \ sync for the current session BEFORE its own work\n(`_auto_sync` in `main`) — DEFAULT-ON.\
+  \ (Plus ONE mode-axis skip, not a verb exclusion:\nthe sync is skipped entirely\
+  \ under the `-C <path> --read-only` evidence mode, because the sync\nWRITES into\
+  \ `REPO_ROOT` and that mode has promised not to write to the target — rule home\n\
+  SPEC-0078 §5, invariant amendment SPEC-0010. And the zero-write views: `nightly\
+  \ --status`\nand `session pick` — amendment in SPEC-0010 /.) The ONLY verb exclusions\
+  \ are `journal sync`\n(it IS the sync — no recursion; also serves manual orphan-tail\
+  \ recovery via\n`--session-ref <id>`) and `land` (does its own events reconcile),\
+  \ both marked\n`no_autosync=True`. Read-only verbs sync too — the resulting append-only\
+  \ allowlist dirt on\nthe main checkout is folded by `land` (`_BOOKKEEPING_ALLOWLIST`),\
+  \ so it no\nlonger blocks `land` (closes step_0).\n\n### Violations\n\n- Hardcoding\
+  \ a provider name/shape in normative methodology text (use adapter code)\n- Emitting\
+  \ captured events without source_ref provenance\n- Silent inference of session_ref\
+  \ (process-tree walk / mtime) instead of fail-closed\n- Strict normalization that\
+  \ aborts on unrecognized provider entry shapes\n\n→ anti-complexity filter applies;\
+  \ requires owner approval + a D-XXXX decision.\n\n## Rationale\n\nThe adapter is\
+  \ provider-neutral (CHARTER §Principle 4b) so each provider gets one\nconcrete adapter\
+  \ without provider names leaking into normative text. Classification is\nloose/best-effort\
+  \ ( rejected strict normalization): the governance value is durable\ncapture with\
+  \ provenance, not exact subtyping. Fail-closed resolution (no inference /\nprocess-tree\
+  \ walk / mtime fallback) is chosen because a silent fallback would attribute\nevents\
+  \ to the wrong session and erode the journal's provenance guarantee.\n\n## Verification\n\
+  \n- After a fail-closed verb, events.jsonl has ≥1 owner_directive with populated\
+  \ source_ref.\n- A per-session checkpoint file appears under journal-sync-state/\
+  \ after first sync.\n- `journal sync --session-ref <prior-id>` materializes a named\
+  \ (orphan) session's tail.\n- events.jsonl contains zero runtime-noise entries (file-history-snapshot\
+  \ / mode).\n- tests/test_session_log_adapter.py exits 0 (synthetic deterministic\
+  \ fixture).\n"
+cites:
+- decisions/-own-journal-governance-sot.yaml
+- SPEC-0002
+- SPEC-0003
+- CHARTER.md#principle-4
+- CHARTER.md#principle-5
+implements_signature:
+  bin/lib/cli.py#_append_event: b0a994ba1276786f04ddc0d83afdad69392278b9b70ba3d49dc8ed191ce4db40
+  bin/lib/cli.py#_auto_sync: 1d4fd995805c222b296adb59d972398ddcd40e7158ddc7934722b9fd72ea2f23
+  bin/lib/cli.py#_session_log_path: 1e482b30962d0398cfa631ff18805a0cd867731a887cd38d3f2b7615602ccddb
+  bin/lib/journal.py#_all_source_refs: 4b9df3902f89f4af7d344eb505f55a63dfa608a13a66a6e058f397fa70887044
+  bin/lib/journal.py#_attachment_injection: c64f4a925626655a73f0d9d4075ab4d5870f01f982959de1ead284c9313b9caa
+  bin/lib/journal.py#_classify_cc_entry: 7288bc23571a397549c2b3593aca565949df1cccbf87c6cd2faa9cc280c8cfc1
+  bin/lib/journal.py#_governed_read_target: 0eb60a85601fad3bede9c0bd437bab1aabc5d6e572e483f9400b0ed8c75719a5
+  bin/lib/journal.py#_infer_directive_classification: ad052f641cfa111bfc6cc8ad632d60f2c81bc8265e527527e97a22d12d230ea1
+  bin/lib/journal.py#_journal_sync: 26f6cb1e7c439302f95898b7510b7f93662ab01302983ebff43436da99496e9d
+  bin/lib/journal.py#_source_refs_and_birth_ts: 8fbb2f609fc9975177e0f81d6cee3e106698fa5d12bb2217e20452703817d561
+  bin/lib/journal.py#cmd_journal_sync: 4ff5d71ae0a362bb1e354b76795d563caa80b66b18517d7c6f29274bed04b358
+  bin/lib/textutil.py#cap_text: bee40bd5f934c5e92b755939adc6aa90bfaff9fb29b0884460b5231d0417a2b9

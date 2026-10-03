@@ -1,0 +1,86 @@
+id: SPEC-0130
+title: Consumer v1-quiesce — the governed gate-2 v1-shutdown seam (registry active:false
+  +.no-v1-hooks)
+status: active
+created_at: 2026-07-03 05:50:00+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/v1_quiesce.py#cmd_v1_quiesce
+body: "## Scenario\n\nA brownfield consumer being migrated onto YITC v2 reaches the\
+  \ gate-2 seam where the incumbent V1\nmachinery must be SHUT DOWN for that project:\
+  \ the host (`<host-home>`) V1 AI-Team stops treating the\nproject as active, and\
+  \ the host V1 git-hook coupling stops firing on its files. Today the owner/AI\n\
+  does this BY HAND — flips the project's registry `active: false` and writes a `.no-v1-hooks`\
+  \ marker —\nwith no verb, so the action leaves no journal evidence and recurs identically\
+  \ for every v1-incumbent\nmigration (<project>, then <project>). Under this rule\
+  \ a single governed verb performs both effects\nidempotently and records the shutdown\
+  \ as a journal event, so the quiesce is visible across sessions\nand never hand-done.\n\
+  \n## Internal\n\nTHE RULE. `bin/yitc-v2 -C <consumer> quiesce` (the CLI verb TOKEN\
+  \ is lowercase-alpha `quiesce` — the\ntop-level-verb naming convention; a digit/hyphen\
+  \ token like `v1-quiesce` is not admissible — while the\nACTION is the \"v1-quiesce\"\
+  \ gate-2 v1-shutdown) is the SOLE governed path for the gate-2 v1-shutdown\nof a\
+  \ consumer. On run it MUST, idempotently:\n\n1. **Set the consumer's registry entry\
+  \ `active: false`** in the host registry (`REGISTRY_PATH`,\n   default `<host-home>/registry.yaml`;\
+  \ `YITC_REGISTRY`-overridable). The consumer is identified by the\n   registry entry\
+  \ whose resolved `path` == the session's `REPO_ROOT`. The edit is a comment-preserving\n\
+  \   in-place line edit (insert `active: false` into the entry if absent, else flip\
+  \ an existing\n   `active:` line) — the registry's human comments/formatting survive.\
+  \ This STOPS the host V1 AI-Team\n   from operating on the project; it does NOT\
+  \ remove the `methodology: yitc_v2` field, so the v2\n   nightly (`_v2_projects`)\
+  \ still enumerates the migrated consumer.\n2. **Ensure `.no-v1-hooks` is present**\
+  \ at `REPO_ROOT` (write the born marker body if absent; reuse\n   the `init` `_BORN_NO_V1_HOOKS`\
+  \ constant — one carrier). PRESENCE is the signal the host V1 hook\n   walk-up detects;\
+  \ the body is documentary. If `init` already delivered it, this is a no-op.\n3.\
+  \ **Emit one `v1_quiesced` event** carrying `{project, registry_active_set, no_v1_hooks_written,\n\
+  \   registry_already_false}` — the governed evidence the hand-edit lacked. Emitted\
+  \ on EVERY run\n   (idempotent re-run makes no duplicate writes but still records\
+  \ the action).\n\nRuntime operational seam, NOT a repo-source cross-territory write.\
+  \ Writing the host registry and the\nconsumer's own repo is the SAME operational\
+  \ class as `init` (writes the consumer's born scaffolds),\n`deploy`, and `hostapply`\
+  \ (mutate host state) — the scope-boundary governs a V2 *session's*\nsource/artifact\
+  \ writes into another repo, not a governed verb's runtime host/consumer mutation.\
+  \ The\nverb never edits ANOTHER project's source.\n\nSCOPE BOUND (honest cut). This\
+  \ spec governs EXACTLY the two effects above + the event. The\ngate-2 friction log\
+  \ (the kernel workshop's onboarding frictions log, §<project> gate-2) records\n\
+  two SIBLING gate-2 preconditions — disabling the consumer's repo-LOCAL git hooks,\
+  \ and fast-forwarding\na stale `main` off a dated auto-session branch — which are\
+  \ OUT of scope here (each is its own task if\na real migration pulls it; CHARTER\
+  \ §P1 F4 — do not build pre-emptively).\n\n## Anti-complexity — the CHARTER §Principle\
+  \ 1 four filters (written in-spec per AGENTS §When-NOT-to-add-a-mechanism)\n\n1.\
+  \ **Existing analog? PARTIAL — reuse what exists.** `init` already writes `.no-v1-hooks`\n\
+  \   (`_BORN_NO_V1_HOOKS`) — the marker-write half REUSES that constant, no parallel\
+  \ born-body. No\n   existing verb sets registry `active: false`, so that half is\
+  \ genuinely new. The verb SHAPE\n   (a `-C` consumer operational verb that mutates\
+  \ host/consumer state + emits one governed event)\n   reuses the established `init`\
+  \ / `deploy` / `hostapply` pattern — no new mechanism class.\n2. **New entity or\
+  \ new view?** A new VERB (the governed control-point — verbs are the control surface).\
+  \ No new store, format, parser, or graph node-type. One new event type, which SPEC-0025's\n\
+  \   catalog admits organically (\"Other event types emerge organically as needed.\
+  \ No upfront catalog.\").\n3. **What gets removed?** The hand-done quiesce — the\
+  \ ad-hoc `active: false` flip + hand-written\n   `.no-v1-hooks` that left NO journal\
+  \ evidence and recurred per migration. Replaced by one governed,\n   evidenced verb\
+  \ (AGENTS §Verb-execution discipline — hand-work skips the journal emit).\n4. **Real\
+  \ incident / prior-art / analog?** Real: deviation `v1-quiesce-for-gate2-migration-hand-done-no-verb`\n\
+  \   (triage 2026-07-02, 2×), recurring for the <project> gate-2 migration. Prior-art:\
+  \ `init` /\n   `deploy` / `hostapply` are the sibling consumer-operational verbs;\
+  \ the gate-2 friction log is the\n   documented migration context.\n\n## Verification\n\
+  \nPROBE ( acceptance): against a fixture consumer + fixture registry (`YITC_REGISTRY`),\n\
+  `bin/yitc-v2 -C <consumer> quiesce` (a) sets that consumer's registry entry `active:\
+  \ false`\n(state check on the registry file), (b) leaves `.no-v1-hooks` present\
+  \ at the consumer root, and\n(c) emits a `v1_quiesced` event. Idempotent re-run\
+  \ repeats the event with no duplicate writes.\nTest: `tests/test_t10009_v1_quiesce.py`.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0073
+- SPEC-0093
+- SPEC-0094
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null

@@ -1,0 +1,338 @@
+id: SPEC-0027
+title: Lifecycle stage mechanics (non-gated) — plan/execute/test detail + resume,
+  hygiene fast-path, stage-FSM
+status: active
+created_at: 2026-06-02 19:18:57+00:00
+consumed: false
+implements:
+- bin/lib/task.py#cmd_task_plan
+- bin/lib/task.py#cmd_task_execute
+- bin/lib/task.py#cmd_task_test
+- bin/lib/gates.py#stage_pointer_move
+- bin/lib/gates.py#advance_stage_pointer
+- bin/lib/audit.py#cmd_audit
+binding:
+- stage-entry:Plan
+- stage-entry:Tests
+body: "## Scenario\n\nA Build session runs a task through nine stages. The control-point\
+  \ stages (audit-pre, commit,\naudit-post, closure) carry irreversible obligations\
+  \ and are floor-delivered before the action\n(SPEC-0014 / SPEC-0015 / <workshop-spec>).\
+  \ The remaining NON-gated mechanics — how to write the plan, how\nto execute (incl.\
+  \ acting on a staged `proposed` spec), how to run tests, plus the resume contract,\n\
+  the hygiene fast-path, and the per-class stage-FSM — are reference detail consulted\
+  \ WHEN entering\nthat stage, not before a gated action. They live in the `retrieved`\
+  \ tier. The Plan + Tests\nmechanics are STAGE-DELIVERED at their stage-ENTRY (by\
+  \ `stage Plan` / `stage Tests`, the\nlifecycle delivery axis — a lighter pointer\
+  \ than a floor-trigger, since these stages are still\nNON-gated, not control-points);\
+  \ the always-loaded LIFECYCLE handbook keeps the 9-stage skeleton\n(stage names\
+  \ + goal + done-when + a pointer-stub naming this spec), and the whole body (incl.\
+  \ the\nExecution / resume / hygiene / FSM detail) is also fetched on demand via\
+  \ `graph query SPEC-0027`.\n\n## Internal\n\nTHE NON-GATED LIFECYCLE STAGE DETAIL\
+  \ — this spec is the retrieved home; LIFECYCLE keeps the 9-stage\nskeleton and points\
+  \ here (P5, one home). No floor-trigger: these are not gated control-points\n(SPEC-0007\
+  \ §5a query-only class).\n\n### Stage 3 — Plan (detail)\n- Write `implementation_plan:`\
+  \ field in task YAML.\n- Plan must name: files to touch, order of changes, test\
+  \ strategy, risks.\n- **If Analysis flagged a standing rule, Plan STAGES the `proposed`\
+  \ spec(s)** the task itself births\n  (`bin/yitc-v2 spec new --draft --proposed-by\
+  \ T-XXXX`, then the spec FSM `proposed` head — GRAPH\n  §Spec lifecycle). There\
+  \ is **NO new stage**: the merge-point into the existing flow is simply\n  «proposed\
+  \ specs exist» — Audit-pre (Stage 4) then receives them, Audit-post (Stage 8) verifies\
+  \ code\n  against them.\n- **WORK-FIRST scope (per Part C narrow):** a spec the\
+  \ task itself births has `proposed_by == this\n  task`, so it activates (`proposed\
+  \ → active`) at **THIS task's closure** (Stage 9). A\n  **plan-born** spec (`proposed_by\
+  \ ==` a plan, born by `plan accept`, Part B)\n  **cannot** be activated by this\
+  \ task's closure — re-owning a plan-born spec to its activating task\n  is deferred\
+  \ to **Part D**. So «closure activates a proposed spec» is the work-first path ONLY;\n\
+  \  it does not cover plan-born specs.\n- Plan ~45 lines is a **soft guideline, not\
+  \ a hard gate** : `task plan --finalize` **WARNs**\n  past it but proceeds. If the\
+  \ task is genuinely too big, decompose at Stage 2 — but that is a\n  judgement,\
+  \ and the ~45 measures plan verbosity, not task decomposability (a single coherent\
+  \ artifact\n  may legitimately exceed it). The threshold is **telemetry-calibrated**\
+  \ (raised from the\n  unbacked size nudge of ~30) so it fires on the genuine long\
+  \ tail rather than on normal variance —\n  a real \"notably verbose, sanity-check\
+  \ decomposition\" nudge, not alarm fatigue.\n- **REPEATED-WORK STATEMENT (advisory).**\
+  \ For any plan STEP that adds a read, a loop, a poll, a\n  remote fetch, a scan\
+  \ or a worker pass, the `implementation_plan` carries ONE line for that step:\n\
+  \  `reuses: <the neighbouring mechanism at this seam that already folds / caches\
+  \ / bounds /\n  watermarks this work>` — or `adds-first: <why no such neighbour\
+  \ exists>`. It is the Plan-stage\n  face of the Analysis REPEATED-WORK CHECK (SPEC-0032\
+  \ §Internal item 1a); the classes and detect\n  heuristics live single-home in `patterns/repeated-work-lens.md`\
+  \ and are NOT restated here\n  (SPEC-0005 rule 8). **ADVISORY, and it gates NOTHING:**\
+  \ `task plan --finalize` neither refuses nor\n  warns on its absence, and no other\
+  \ verb reads it — a plan that omits the line finalizes exactly as\n  before. The\
+  \ cue is where the cost is cheapest to remove; the enforcement, such as it is, is\
+  \ the\n  audit-pre lens question (SPEC-0036 §Universal V2 evaluation lens).\n- **For\
+  \ substantive plans** (foundational decisions, multi-file/multi-step, quantitative\
+  \ claims) —\n  consult `patterns/big-plan-checklist.md` (6-probe optional discipline).\n\
+  \n#### Plan-entry pre-flight checklist (GREEN-first)\nSelf-check these FIVE before\
+  \ `task plan --finalize` — a VIEW of the audit-pre lens shifted LEFT to\nPlan-entry,\
+  \ so the plan clears Stage-4 on the FIRST pass instead of learning the criteria\
+  \ post-hoc\nfrom the auditor. **One home (P5 / SPEC-0005 rule 8):** the lens itself\
+  \ lives in SPEC-0036 §Task\nper-stage overlays → audit-pre — this is a short pointer\
+  \ to it, NOT a second source of plan-quality\nrules; on any doubt read `bin/yitc-v2\
+  \ graph query SPEC-0036`. Pre-flight self-check, NOT a new gate\n— audit-pre (SPEC-0036)\
+  \ stays the enforcer.\n1. **PROBE PER AC** — each acceptance criterion names a concrete\
+  \ grep / command / event that PROVES\n   it (not a restatement); an infra-class\
+  \ AC names an unforgeable P8 adoption probe (CHARTER §3/§8).\n2. **COHERENCE SWEEP**\
+  \ — «where else is this rule stated?» amend the governing spec + handbook prose\n\
+  \   + any template + the derived index in the SAME change (P7 / P5 — leave no second\
+  \ drifting source).\n3. **SCOPE ASSERT** — list exactly the surfaces the plan touches,\
+  \ each within the stated task scope;\n   an adjacent edit becomes a SEPARATE filed\
+  \ task, never silent scope-creep (CHARTER §1).\n4. **TEST EXERCISES THE CHANGE**\
+  \ — a negative / edge case per AC, wired to the runner and observed\n   RED before\
+  \ the fix (a test green on un-fixed code is not a test — Slip 4).\n5. **ALL CONSUMERS**\
+  \ — grep every call-site / consumer of the changed surface (parsers / graph /\n\
+  \   readers / validators) and state per consumer how it is updated OR why it is\
+  \ unaffected.\n\n### Stage 5 — Execution (detail)\n- Edit files per plan.\n- Stay\
+  \ in scope (CHARTER #1 filter — don't expand mid-execution).\n- If discovery surfaces\
+  \ — file a separate task for it, don't grow the current one.\n- When creating a\
+  \ new artifact (decision / spec / pattern) — follow `patterns/doc-conventions.md`\n\
+  .\n- When the change will bind a scenario step to a test, shape the code so the\
+  \ step's boundary exists\n  (a function LOADS or DECIDES, never both) — `patterns/choosing-a-bound-tests-boundary.md`\
+  \ §0.\n\n**Spec mutation during Execution — the EXISTING spec FSM edges, no new\
+  \ mechanism (per Part C narrow).**\nIf the task staged a `proposed` spec in Plan\
+  \ (Stage 3), Execution may act on it. The four moves are\njust NAMES for transitions\
+  \ the spec FSM (GRAPH §Spec lifecycle) already provides — there is\n**no new verb,\
+  \ no new state, no stored taxonomy**:\n\n| Move | What it is (existing edge) |\n\
+  |---|---|\n| **confirm** | leave the spec `proposed` — no edge; it activates (`proposed\
+  \ → active`) at THIS task's closure (Stage 9, work-first scope) |\n| **correct**\
+  \ | set the proposed spec's `supersedes:` to the prior spec — atomic supersession\
+  \ (the target flips at closure) |\n| **cancel** | move the spec to terminal `withdrawn`\
+  \ / `rejected` (abandon) |\n| **birth** | create a fresh `proposed` spec via the\
+  \ existing spec-creation path (`bin/yitc-v2 spec new --draft --proposed-by T-XXXX`)\
+  \ |\n\n- **Reopen boundary — NO new guard (the EXISTING rule covers it).** Changing\
+  \ the `proposed`\n  spec SET during Execution is a plan/scope change, so it re-fingerprints\
+  \ the plan and the existing\n   rule (`task execute` requires an audit-pre bound\
+  \ to the current plan —\n  `_require_audit_pre_matches_plan`) already REFUSES until\
+  \ a fresh audit-pre re-verifies it. This adds\n  no new guard and no new fingerprint\
+  \ of its own — it just reuses that rule.\n- **Escalate-to-plan escape:** a big or\
+  \ contested spec design does NOT get crammed into the task —\n  escalate it to a\
+  \ `plans/` entry (Stage 3 / `patterns/plan-lifecycle.md`) and let the plan carry\
+  \ it.\n\n### Stage 6 — Tests (detail)\n- Run the project's own test command (`pytest`,\
+  \ `bats`, `npm test`...).\n- **V2 convention :** plain Python scripts in `tests/test_<area>.py`,\
+  \ runnable via\n  `python3 tests/test_<area>.py`; exit 0 = pass. No pytest/bats\
+  \ overhead. See `tests/README.md`.\n- **The self-check is `bin/yitc-v2 task test\
+  \ --run`, and it runs the SELECTED suite, not the whole\n  one (SPEC-0181).** `--run`\
+  \ executes land's CANDIDATE leg, and that candidate run is\n  GOVERNED by the affected-test\
+  \ selection at BOTH seams it happens — here and at `land` — through\n  the SAME\
+  \ runner entry point, so the same fail-closed-to-full ladder, the same omitted-test\n\
+  \  tripwire and the same `selection-omitted-a-test-naming-a-changed-path` capture\
+  \ apply. The run\n  prints `selection: affected (n of N)` / `selection: full (fail-closed)\
+  \ — <reason>` /\n  `selection: full (--full)` plus any omitted-and-recovered tests,\
+  \ and the `tests_passed` evidence\n  records the mode + counts — so a green row\
+  \ says WHICH suite it is green over. `--run --full` is\n  the explicit whole-enumeration\
+  \ escape. The Stage-6 set is SUPERSET-OR-EQUAL of land's, never\n  narrower (SPEC-0181\
+  \ §Stage-6 seam): Stage 6 cannot read land's two optional refinement channels,\n\
+  \  and their absence frees less and recovers more. **Unchanged:** a green here is\
+  \ still NOT the land\n  verdict — `land` verifies TWO legs (SPEC-0077) and the pinned\
+  \ last-green leg is not run here\n   — and a bare `pytest tests/` still reads FALSE-GREEN\
+  \ on script-style `__main__` tests\n.\n- Output must be visible (Evidence Rule —\
+  \ not «tests pass», but actual output).\n- **RED-GREEN — trust green only after\
+  \ seeing red** ( Slip 4 — failure class #8): a\n  behaviour-change test MUST be\
+  \ observed FAILING without the fix before its green is trusted (or it\n  asserts\
+  \ the negative case — e.g. the guard DOES block without the escape hatch, as\n \
+  \ `test_write_isolation_guard` does). A test that passes whether or not the fix\
+  \ is present gives no\n  signal (: tests went green because they ran from inside\
+  \ a worktree, not because the fix\n  worked — the fix was dead code).\n- If tests\
+  \ red → fix code or tests (not both in the same iteration — DP#17 mono-variable).\n\
+  \n### Resume contract\n**Scope clarification (per F3 absorption):** the Resume contract\
+  \ addresses **logical continuity** of a\ntask's progression across pause points\
+  \ — NOT process continuity of multiple pipeline stages or role\nhandoffs. CHARTER\
+  \ §Principle 6 (Build + Review only — no pipeline, no role-split) remains intact.\n\
+  \nResume metadata restores a **previously-authorized Build context** within the\
+  \ same AI session or a\nresumed Build session by the same AI agent. It does not\
+  \ create a new pipeline stage. It does not\nauthorize a role handoff. It restores\
+  \ prior state-of-work for continuing already-decomposed task\nlifecycle execution.\n\
+  \n**Allowed pause/resume boundaries:**\n- Same Build session pause (compact or break)\
+  \ → resume in same session.\n- Cross-session resume (owner returns next day) → new\
+  \ Build session reads task YAML state, re-runs\n  Stage 1 verification, continues.\n\
+  - Owner-wait blocking → task stays in-progress or moves to paused; resume after\
+  \ owner-input.\n\n**NOT allowed:**\n- Resume by a different AI agent or different\
+  \ owner persona — task ownership stays singular.\n- Cross-project task transfer\
+  \ — a V2 task belongs to V2; a production-project task belongs to that\n  project.\n\
+  - Stage-skip via resume — resume continues from the paused stage, not jumps to a\
+  \ later stage.\n\nA task may interrupt mid-stage (owner-wait blocking, auditor abort,\
+  \ session boundary). When the AI\nexits an incomplete task, the **task YAML records:**\
+  \ `current_stage: <N>` (1-9, which lifecycle stage\nactive); `resume_from: <step\
+  \ within stage or «start»>`; `last_verified: <ISO ts>`; `next_action:\n<one-line\
+  \ concrete next step>`; `paused_at: <ISO ts>` + `paused_reason: <one-line>`.\n\n\
+  **Resume protocol:**\n1. AI reads task YAML — finds `paused_at` + state fields.\n\
+  2. Re-runs Stage 1 (Analysis) — verifies prior context still valid.\n3. Re-verifies\
+  \ the `last_verified` artifact (file or event still exists?).\n4. Emits a `task_resumed`\
+  \ event with reference to the prior `task_paused` event.\n5. Continues from the\
+  \ `resume_from` step.\n\n**Auto-pause triggers:** session boundary (Build session\
+  \ ends), owner unavailable for a blocking\nquestion >24h, external API timeout,\
+  \ audit verdict ABORT.\n\n**Dissonance protocol (Stage 1, per CHARTER §Principle\
+  \ 7):** if the AI detects inconsistency between\nartifacts during Analysis, halt\
+  \ → file or escalate → resume after resolution. Do not silently choose\nan interpretation.\n\
+  \n### Hygiene Fast-Path\n**Eligible categories** (skip stages 2-3-4-8):\n\n| Category\
+  \ | Example |\n|---|---|\n| typo | spelling fix in comment / string |\n| formatting\
+  \ | whitespace / indent / quote-style normalization |\n| comment_update | comment\
+  \ text edit, no code change |\n| dep_bump | single-line dependency version update\
+  \ (no API change) |\n| config_bump_1line | single-value config tweak |\n| test_fixture_update\
+  \ | test fixture data refresh |\n| regen_generated_code | re-run codegen, commit\
+  \ output |\n| docs_typo | typo in markdown documentation |\n\n**Excluded** (use\
+  \ full lifecycle):\n- Multi-file mechanical refactor (> 5 files) → full lifecycle,\
+  \ audit-pre catches scope creep.\n- New file creation → full lifecycle, filing required.\n\
+  - Anything touching `core/` or `bin/lib/`, OR test LOGIC / behavioral assertions\
+  \ under `tests/`\n  (spec-bound surfaces) → full lifecycle.\n- **Fixture-category\
+  \ carve-out** (resolves the `test_fixture_update` ↔ `tests/`-exclusion tension —\n\
+  , on N=2 deviations): a mechanical `test_fixture_update` / `regen_generated_code`\n\
+  \  change CONFINED to `tests/` fixture or generated data — with NO change to the\
+  \ behavior under test —\n  STAYS fast-path eligible despite living in `tests/`.\
+  \ The `tests/` exclusion targets spec-bound test\n  *logic*, NOT fixture/data refreshes\
+  \ (established practice:). The\n  non-blocking tests/-surface WARN emitted by `task\
+  \ close --hygiene-fast-path` is the designed safety\n  net ( artifacts-as-gate);\
+  \ a borderline assertion edit that shades into test logic is a\n  judgement call\
+  \ — when in doubt, take the full lifecycle.\n\n**Fast-path flow:** Analysis → Execution\
+  \ → Tests → Commit → Closure. Five stages, not nine.\n\n### Stage FSM per class\
+  \ — current_stage semantic names\n`current_stage:` (QUEUE schema) holds a **semantic\
+  \ stage NAME**, not a number — self-documenting,\nstable across stage-set changes\
+  \ (CHARTER §Principle 5). `class:` implies which stage-FSM applies:\n\n| class |\
+  \ stage-FSM (ordered) |\n|---|---|\n| `feature` / `fix` / `refactor` / `docs` /\
+  \ `infra` (standard) | Analysis → Filing → Plan → Audit-pre → Execution → Tests\
+  \ → Commit → Audit-post → Closure |\n| `hygiene` (fast-path) | Analysis → Execution\
+  \ → Tests → Commit → Closure |\n\nA future class defines its own FSM row here. `status:`\
+  \ (QUEUE coarse lifecycle: ready/in-progress/…)\nand `current_stage:` (within-Build\
+  \ FSM position) are **two distinct fields** — the 3 lifecycle\nvocabularies stay\
+  \ 3 (CHARTER §Decision lifecycle), no new one.\n\n**`class` is the SOLE Fast-Path\
+  \ eligibility key — and it is changed ONLY by a governed verb.**\nBecause `class`\
+  \ selects the stage-FSM row above (and whether `task close --hygiene-fast-path`\
+  \ /\n`--batch-close` is admissible), reclassifying a task is a journal-marked action,\
+  \ NOT an invisible\nYAML edit: `bin/yitc-v2 task update --class <class>` flips `class`\
+  \ and emits `task_reclassified`\n({from_class,to_class}). The ungoverned class hand-edit\
+  \ (incidents) is\n**RETIRED** — the `task update` field-edit mode refuses any `--old/--new`\
+  \ change to the top-level\n`class` scalar, routing to `--class`. No second risk-judgement\
+  \ axis is added; `class` stays the one key.\n\nThe lifecycle CLI verbs ( — `worktree\
+  \ new --task` (claims: ready→in-progress, Analysis),\nthen `task execute/test/plan/commit/close`)\
+  \ do not advance `current_stage` by a per-verb SETTER (the 5 legacy setters stay\
+  \ retired). Since the pointer instead moves along the ordered row above, on the\
+  \ verb sequence itself — the **POINTER axis**, added beside the explicit stage-ENTRY\
+  \ verb, which is UNCHANGED: `stage <NAME>` remains the explicit entry and the **SOLE\
+  \ deliverer of a stage BUNDLE**, and the claim still sets Analysis. Three moves\
+  \ are admitted, and anything else REFUSES exactly as before:\n\n| move | condition\
+  \ | effect |\n|---|---|---|\n| `explicit` | `current_stage` already IS the verb's\
+  \ stage | proceed (unchanged) |\n| `advance` | the verb's stage is the SUCCESSOR\
+  \ of `current_stage` in this class's row | record the move, then proceed |\n| `absorb`\
+  \ | `current_stage` is an AUDIT stage (Audit-pre / Audit-post) and the verb's stage\
+  \ is EARLIER in the row | record the move, then proceed |\n| (refuse) | anything\
+  \ else — a forward SKIP, a backward move from a NON-audit stage, or an absent /\
+  \ numeric-legacy / unrecognized `current_stage` | the stage-correspondence refusal,\
+  \ unchanged |\n\nThe `absorb` move models the **mode-(a) absorption cycle** (LIFECYCLE\
+  \ §Stage 4 / §Stage 8) — a card legitimately returning to an earlier stage to absorb\
+  \ an audit finding — which the FSM previously had no edge for at all. It is bounded\
+  \ to a return FROM an audit seam, so backward movement is a modelled edge, not a\
+  \ free pointer.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers\
+  \ what, and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
+  \ gate / E-0043, which runs on the edge BEFORE the pointer is written, so a refusal\
+  \ leaves no half-entry), and the refusal itself. No new field, status, event type,\
+  \ verb or state machine is added — the successor relation is a READ of the row this\
+  \ section already publishes, and the write goes through the same `_write_task_transition`\
+  \ the `stage` verb uses (CHARTER non-goal #7 holds; this is not a workflow-engine\
+  \ FSM). A pointer move emits the same `stage_entered` event marked with its `from_stage`\
+  \ / `mode` / `advanced_by`, and carries NO `delivered` key — it delivers no bundle.\n\
+  \nGrounds (CHARTER §P1 filter 4): a refusal that fired on nearly every real invocation\
+  \ of these verbs was measuring its own model, not catching an error. Code: `bin/lib/gates.py#stage_pointer_move`\
+  \ + `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\n\
+  **`task pick` is a read-only inspector** (option B) — the\nclaim moved into `worktree\
+  \ new --task` so it is written in the worktree and reaches `main` only via\n`land`;\
+  \ `task pick` no longer mutates. Because that claim is UNCOMMITTED in the worktree,\
+  \ a path-scoped `git checkout` of the card silently reverts it; the recovery is\
+  \ `bin/yitc-v2 task reclaim T-XXXX` (X-1008) — admitted only inside that task's\
+  \ own worktree, with the card still `ready` on `main` and no other live worktree\
+  \ holding it, idempotent on an intact claim. It is a recovery ENTRY to the one claim\
+  \ path, never a second claim path, and hand-restoring `status` / `current_stage`\
+  \ stays forbidden. `current_stage` carries a **stage-ENTRY correspondence precondition\
+  \ — it IS read in a\nrefusal path** : a task-bound work-verb (`task plan`/`execute`/`test`/`commit`/`close`\n\
+  + `audit pre`/`post`) REFUSES when the pointer-move table above admits NO move to\
+  \ its stage — i.e.\n`current_stage` neither IS its stage, nor its predecessor on\
+  \ this class's row, nor an audit seam it\nis returning from. Run `stage <NAME>`\
+  \ explicitly whenever you want that stage's BUNDLE (it remains\nthe sole deliverer);\
+  \ you no longer need it merely to satisfy the precondition on the documented\norder.\
+  \ This is an entry/delivery check, **NOT** a\nprogression guard — distinct from\
+  \ the stage-counter retired (below); the two coexist. (Refinement — the bespoke\
+  \ `task plan --finalize` refusal for the mode-a audit-pre absorption sub-case —\
+  \ is **RETIRED by **: the `absorb` edge above represents that return, so the special-case\
+  \ refusal is DELETED from `cmd_task_plan`. Unchanged either way: `audit pre` re-fingerprints\
+  \ an edited plan and re-verifies it, and an Audit-pre stage reached by a move the\
+  \ model does not admit still falls through to the generic stage-correspondence refusal.)\
+  \ The incident that the «transition-guard\nenforcement deferred to first incident»\
+  \ note awaited DID occur ( stage-skips), and **\nretired current_stage as a guard**:\
+  \ enforcement is by **artifacts-as-gates** (a verb validates its\ninput ARTIFACT\
+  \ exists + matches — the data — e.g. `task close` requires the recorded commit +\
+  \ an\naudit-post for it; `task execute` requires an audit-pre bound to the plan),\
+  \ NOT a stage counter (that\nwould be a second progress-truth — P5 — and drift toward\
+  \ a forbidden workflow-engine FSM, non-goal\n#7). Work-verbs no longer set `current_stage`\
+  \ (the `stage` verb is the sole writer); they\nemit their stage event as a side-effect.\n\
+  \n## Rationale\n\nThese are NON-gated stages: consulted when ENTERING the stage,\
+  \ never before an irreversible\ncontrol-point — so they are stage-DELIVERED (the\
+  \ axis, a lighter mechanism) and NO\nfloor-trigger is added here. The real control-point\
+  \ stages (4/7/8/9) deliver via SPEC-0014 /\nSPEC-0015 / <workshop-spec> and are\
+  \ untouched.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing\
+  \ before the strip is trusted Slip 4; concrete\nresults live in tests/test_t0243_demote.py\
+  \ + the closure record):\n- **VP1 (fidelity, moved):** every moved section's sentinel\
+  \ phrase (\"Spec mutation during Execution\",\n  \"Auto-pause triggers\", \"Eligible\
+  \ categories\", \"regen_generated_code\", \"current_stage semantic\n  names\", \"\
+  mono-variable\") resolves in THIS spec body. Evidence: ## Internal above.\n- **VP2\
+  \ (fidelity, not-in-handbook):** each of those sentinels is ABSENT from LIFECYCLE.md\
+  \ after the\n  strip (the handbook keeps only the skeleton + pointer-stub). Evidence:\
+  \ the test's absence assertions.\n- **VP3 (stage-delivery + pointer, ratification):**\
+  \ the Plan + Tests mechanics reach moment-of-use by\n  STAGE-DELIVERY — `stage Plan`\
+  \ / `stage Tests` deliver SPEC-0027 from the `stage_to_specs` view,\n  i.e. `binding_report.stage_to_specs`\
+  \ lists SPEC-0027 under BOTH Plan and Tests and the `stage_entered`\n  event carries\
+  \ it; the remaining non-stage detail (Execution / resume / hygiene / FSM) reaches\
+  \ via the\n  LIFECYCLE pointer-stub naming SPEC-0027 + `bin/yitc-v2 graph query\
+  \ SPEC-0027`. Evidence: `binding:\n  [stage-entry:Plan, stage-entry:Tests]` + `graph\
+  \ build` binding report + the pointer-stubs.\n- **VP4 (no floor-trigger added):**\
+  \ `graph/floor-trigger-map.md` has NO before-plan / before-execute\n  entry — the\
+  \ lifecycle control-points are stage-delivered; only the stage-agnostic\n  before-rule-change\
+  \ remains a floor trigger, and this spec adds none. Evidence: the binding carries\n\
+  \  `stage-entry:` routing tokens (a stage-delivery class), NOT a `floor` token,\
+  \ so it adds no floor-trigger;\n  the floor-map's only entry stays before-rule-change.\n\
+  - **VP5 (non-dangling, honest):** active SPEC-0027 has non-empty `implements:` (the\
+  \ three lifecycle\n  verbs, the stage-pointer pair, and the `cmd_audit` anchor —\
+  \ so the SIGNED set covers\n  the WHOLE surface the §Stage FSM per class text claims,\
+  \ audit half included, rather than the task\n  half only) ⇒ excluded from `binding_report.dangling_specs`\
+  \ (SPEC-0013 code-enforced exclusion), without\n  falsely claiming a floor-trigger.\
+  \ Evidence: `graph build` binding report.\n- **VP6 (work-first activation):** `activation_owner_task:\
+  \ `; `task close ` flips this spec\n  proposed→active ( deterministic side-effect).\n\
+  \nDrift note : a `verb=` observability label on the existing\n`_require_stage_correspondence`\
+  \ entry-check call — NOT a change to this spec's governed\nmechanics. Co-anchor\
+  \ `possibly-stale` flag: false positive, refreshed last-touch.\n\nDrift note : `cmd_task_plan\
+  \ --finalize` gained an AC-COVERAGE PRECONDITION — it now\nREFUSES an `implementation_plan`\
+  \ that never NAMES one of the card's acceptance criteria (a\nwhole-word `ACn`, or\
+  \ a range/list like `AC1-AC3`; a bare number does not count), and journals the\n\
+  refusal as `plan_ac_coverage_refused`. This IS a change to the plan-finalize mechanics\
+  \ this spec\ngoverns, not merely an added gate CALL, so it is recorded here rather\
+  \ than as a false-positive\nrefresh: finalize now validates `implementation_plan`\
+  \ AND its AC coverage before emitting\n`plan_finalized`. It is the pre-flight checklist\
+  \ item 1 above (PROBE PER AC) given a MECHANICAL\nfloor at the Plan seam — a NECESSARY\
+  \ CONDITION ONLY, deliberately not a substance judgement:\naudit-pre (SPEC-0036)\
+  \ stays the enforcer of whether the plan actually SATISFIES each criterion,\nexactly\
+  \ as §Plan-entry pre-flight says. Canonical AC ids reuse `audit._ac_canonical_id`,\
+  \ so this\nseam and the audit packet's readiness rows label a criterion identically.\n\
+  \nDrift note : `cmd_task_plan` (and `cmd_stage`'s Plan branch) gained the Plan-entry\
+  \ readiness\nCALL `_require_analysis_for_plan` — an ADDED gate CALL, NOT a change\
+  \ to the plan-finalize mechanics\nthis spec governs (still: validate `implementation_plan`,\
+  \ emit `plan_finalized`). The CONCRETE\nAnalysis carrier (verb + field + the one-carrier-per-datum\
+  \ rule) is NAMED in this spec at\nSPEC-0059's activation, per SPEC-0059's deferral.\
+  \ Co-anchor `possibly-stale` flag: false positive,\nrefreshed last-touch.\n"
+cites:
+- SPEC-0007
+- SPEC-0013
+- SPEC-0036
+- LIFECYCLE.md#the-9-stages
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- part-i-b-tier-split-carving-floor-wiring-first-the
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+implements_signature:
+  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
+  bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
+  bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
+  bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
+  bin/lib/task.py#cmd_task_test: 45c6c68be2d815c105861412ddec31781fbf3ec25cb03183e1d0eed2ab4d4dab

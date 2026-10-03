@@ -1,0 +1,172 @@
+id: SPEC-1003
+title: On-server engine serving — every routed consumer run executes an immutable
+  per-sha kernel checkout; the canary advances first, the rest only on an explicit
+  promote
+status: active
+created_at: 2026-09-28 22:11:15+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/yitc-v2
+- bin/lib/engine_route.py#route
+- bin/lib/engine_route.py#served_sha
+- bin/lib/engine_route.py#running_served_sha
+- bin/lib/engine_route.py#live_engine_root
+- bin/lib/engine_route.py#canary_served
+- bin/lib/engine_route.py#prepare_checkout
+- bin/lib/engine_route.py#swap_pointer
+- bin/lib/cli.py#ENGINE_LIVE_ROOT
+- bin/lib/cli.py#_engine_live_root
+- bin/lib/events.py#_emit_cli_invoked
+- bin/lib/worktree.py#cmd_work_tag
+body: "## Scenario\nThe owner declares ONE on-server consumer the engine CANARY —\
+  \ `engine_canary: true` on its entry in\nthe host registry. From then on every registered\
+  \ consumer runs a FROZEN copy of the engine at one\nexact commit, never the live\
+  \ kernel checkout: the canary runs the copy the owner last ADVANCED it to,\nevery\
+  \ other consumer the copy the owner last PROMOTED. New engine code therefore reaches\
+  \ the canary\nfirst and the rest only when the owner promotes a commit the canary\
+  \ has already run. Every\n`cli_invoked` row a served run writes names that commit\
+  \ (`engine_sha`), so each consumer's journal\nshows which engine code it ran. With\
+  \ no canary declared nothing changes: every consumer runs the\nkernel checkout exactly\
+  \ as before.\n\n## Internal\n1. **Served checkouts are immutable.** A served engine\
+  \ is a detached kernel worktree at\n   `<kernel main>/.yitc/promoted-engines/<sha>`,\
+  \ never moved after creation. Two pointers name what\n   is served: `.yitc/canary-engine`\
+  \ (the canary) and `.yitc/promoted-engine` (every other routed\n   consumer), each\
+  \ a symlink to one such directory. The boundary is ENFORCED and VERIFIED: preparing\
+  \ a\n   copy pre-compiles its bytecode and then drops the write bits on every file\
+  \ AND directory of it, and\n   a copy serves (and stamps) only while its tree is\
+  \ clean (`git status --porcelain\n   --untracked-files=all` empty — no modified\
+  \ tracked file, no added non-ignored file); a modified or\n   extended copy is refused,\
+  \ never run. THREAT BOUND: this holds against every write that does not\n   first\
+  \ deliberately undo the mode bits. The copy's owning uid can always do that — as\
+  \ it can\n   hand-append a forged journal row — and no unprivileged mechanism prevents\
+  \ it; the stamp therefore\n   attests \"served from the per-sha copy, which no ordinary\
+  \ or automated write altered\", and a\n   deliberate owner-side tamper is outside\
+  \ that claim.\n2. **Routing — before any CLI body is imported.** The entry `bin/yitc-v2`\
+  \ calls\n   `engine_route.route` BEFORE importing `lib.cli`. A call is a CONSUMER\
+  \ call iff ALL hold: it\n   carries the global `-C`/`--directory` (the `YITC_REPO_ROOT`\
+  \ override does not bypass it); the target's git\n   common dir differs from the\
+  \ engine's (the kernel and its worktrees are never routed); the CALLER's\n   cwd\
+  \ is not inside the kernel repository (a kernel session reading a consumer stays\
+  \ where it was\n   invoked — the kernel is not a consumer); and a `methodology:\
+  \ yitc_v2` registry entry has the\n   target's git common dir (a consumer's linked\
+  \ worktree routes like its main checkout). Anything\n   else is served by the engine\
+  \ that was invoked. For a consumer call the routing STATE is decided\n   from the\
+  \ REGISTRY, never from pointer presence:\n     - **inert** — the registry declares\
+  \ ZERO `engine_canary: true` entries (a registry that does not\n       spell the\
+  \ key, or no registry file at all, declares zero): the live kernel checkout serves,\n\
+  \       byte-identical to the behaviour before this spec — the owner's off switch;\n\
+  \     - **enabled** — EXACTLY ONE entry declares it: the call is served by the per-sha\
+  \ copy its\n       role's pointer names (`canary-engine` for the canary, `promoted-engine`\
+  \ for the rest);\n     - every other state FAILS CLOSED — exit 3 and one `yitc-v2:\
+  \ engine-route:` stderr line naming\n       the cause and the repairing act, never\
+  \ a silent run of the moving live checkout: a missing,\n       dangling or non-per-sha\
+  \ pointer, several declared canaries, a registry that exists but cannot\n      \
+  \ be read or parsed, an exec error, a served copy whose tree is not clean.\n   The\
+  \ router is IDEMPOTENT: it computes the checkout that SHOULD serve the call and\
+  \ re-execs the\n   same argv into it only when that is not the code already running.\
+  \ The pointer is resolved to its\n   per-sha directory before the exec, so a later\
+  \ swap never reaches a running process; and a per-sha\n   path invoked DIRECTLY\
+  \ (a stale hint, a pasted echo) is re-routed to the current pointer, so an\n   echoed\
+  \ engine path can never pin a consumer past a later advance.\n3. **Served-engine\
+  \ provenance — true by construction.** A `cli_invoked` row carries `engine_sha`\
+  \ ONLY\n   when the code that is running was loaded from a per-sha checkout whose\
+  \ HEAD is a detached sha equal\n   to its directory name AND whose tree is clean\
+  \ — the one case in which one commit provably served the\n   whole run. The value\n\
+  \   is read from the running code's own root, never from a path a later rebind can\
+  \ move. A run of the\n   live checkout or of a task worktree carries no `engine_sha`\
+  \ key (its HEAD can move under it).\n4. **The live-root rule.** In a served process\
+  \ ENGINE_ROOT (code + committed methodology content —\n   handbook, release-view,\
+  \ specs, graph, `bin/*.yaml`) is the served copy, coherent with the served\n   code.\
+  \ Kernel RUNTIME STATE resolves at the live kernel checkout (`ENGINE_LIVE_ROOT`):\
+  \ the kernel\n   journal (the pre-`-C` default root, the read-only receipt target,\
+  \ the carrier journal), the kernel's\n   own task and error cards, and the consumer→engine\
+  \ write boundary (which therefore covers the\n   per-sha copies too). A new ENGINE_ROOT\
+  \ read decides which of the two it is by this rule.\n5. **Two explicit governed\
+  \ acts** — `bin/yitc-v2 work tag --tag <name> --sha <sha> --serve canary`\n   advances\
+  \ the canary; `… --serve promoted` promotes every other consumer. Both are engine-only,\n\
+  \   REQUIRE an explicit `--sha` (resolved ONCE and used for every step — never a\
+  \ main-HEAD default),\n   and are refused unless the sha is reachable from main\
+  \ and the registry declares exactly one canary\n   (the initialization below excepted).\
+  \ `--serve promoted` is ALSO refused unless the canary's own\n   journal (segment-aware)\
+  \ holds a `cli_invoked` row whose `engine_sha` is exactly that sha — the\n   canary\
+  \ served that commit first. That check is a read-only fold of the canary's journal\
+  \ (SPEC-0078\n   guards writes; the consumer repository is never written).\n   **Initialization**\
+  \ — `--serve canary` while BOTH pointers are ABSENT or ZERO canaries are declared\n\
+  \   installs BOTH pointers at the same sha. In both states no consumer is served\
+  \ by any pointer, so\n   this is the one promoted install without canary evidence;\
+  \ it is admitted only when that sha is\n   main HEAD at the act (the code every\
+  \ consumer ran before routing was enabled). It is the act the\n   router's no-pointer\
+  \ refusal names, and it is admitted in exactly that state. Its row carries\n   `seeded_promoted:\
+  \ true`. In EVERY other state `--serve canary` moves the canary pointer only: the\n\
+  \   promoted pointer moves only by an evidenced `--serve promoted`, which is also\
+  \ the act the router\n   names when the promoted pointer alone is missing.\n6. **Record\
+  \ before serve.** Order: prepare the served copy (serves nothing yet; an existing\
+  \ directory\n   is reused only if it is a per-sha checkout of that sha) → annotated\
+  \ tag → `release_tagged` carrying\n   `serve`, `canary`, `previous_sha`, `engine_checkout`\
+  \ → atomic pointer swap (temporary symlink +\n   rename). A failed emit deletes\
+  \ the newly created tag and leaves the pointer; a failed swap is\n   resumed by\
+  \ re-running the SAME command (a tag already AT that sha is admitted for `--serve`\
+  \ only,\n   and the re-emitted row carries `resumed: true`). A resume whose served\
+  \ copy is already prepared\n   skips the initialization's main-HEAD gate, so main\
+  \ advancing before the retry cannot strand it;\n   the initialization swaps the\
+  \ promoted pointer BEFORE the canary one, so a partial swap leaves a\n   state that\
+  \ re-derives the same act. No state serves a sha without its row.\n7. **Retention.**\
+  \ An act never deletes a served copy — a running process may still lazy-import from\n\
+  \   it. Copies no pointer names are listed by the act for a manual removal (`chmod\
+  \ -R u+w <copy> &&\n   git worktree remove --force <copy>` — the copy is read-only\
+  \ by rule 1).\n8. **Declaration is the owner's.** Which consumer is the canary,\
+  \ and when to advance or promote, are\n   owner decisions recorded in the host registry\
+  \ and by running the acts; the kernel corpus never\n   names a canary.\n9. **The\
+  \ one uncanaried surface — named, bounded.** The entry shim and `engine_route` run\
+  \ from the\n   moving live checkout on every consumer call, before the exec: something\
+  \ at the invoked path must\n   choose the checkout. They only CHOOSE a directory\
+  \ — every module the served run imports comes from\n   the per-sha copy — and a\
+  \ change to either is a `bin/**` diff, so the land's pinned last-green leg\n   (SPEC-0077)\
+  \ re-runs the last-green routing test against the candidate: a routing regression\
+  \ cannot\n   self-approve. Keep them stdlib-only and small; no served-run code may\
+  \ move into them.\n\n## Rationale\nConsumers are the engine's de-facto defect discovery\
+  \ (consumer revizia 2026-09-27), and every kernel\nland reached every consumer in\
+  \ the same instant — <project> needed an emergency land (X-1466,\nfixed). Rule 3\
+  \ is scoped to the served copy because a run of a MOVING checkout cannot be\nattributed\
+  \ to one commit: code may load across a land (the residual). Rule 2's registry-first\n\
+  state is what keeps an enabled canary from failing open to the moving checkout when\
+  \ a pointer is\nabsent (the residual). The off-server release pin (<workshop-spec>)\
+  \ moves a consumer-side pin to a\nstripped tree; on-server serving switches the\
+  \ full engine at the one kernel entry, with no\nconsumer-territory edit.\n\n## Verification\n\
+  - `tests/test_engine_canary_immutable.py` — hermetic two-consumer fixture: the canary's\
+  \ rows carry\n  the advanced sha and the other consumer's (incl. through a linked\
+  \ worktree) the promoted sha; a new\n  kernel commit moves neither until an act\
+  \ runs; a kernel-cwd caller and an undeclared canary are\n  not routed and carry\
+  \ no key; one declared canary with no pointers exits 3 with the engine-route\n \
+  \ line and loads no CLI body; a live-checkout change DURING a served run's load\
+  \ still records the\n  served sha, with every loaded module from the served copy;\
+  \ promotion is refused without the\n  canary's row for that exact sha; the record-before-serve\
+  \ rollback and resume.\n- Live: the first real `--serve promoted` row in the kernel\
+  \ journal, and\n  `git -C <kernel main>/.yitc/promoted-engine rev-parse HEAD` equal\
+  \ to its sha.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0078
+- SPEC-0025
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#ENGINE_LIVE_ROOT: 3450c9ece8371ef165242058c35caaf47eda729cfa2840eb1d32e84d01917cf5
+  bin/lib/cli.py#_engine_live_root: 866410823df602c7bea0d64e077919c0b50c131d6408bdc4424da40cc5636b63
+  bin/lib/engine_route.py#canary_served: 46782b91ba7f442466264d4c9f9c78a831399015e55cc77507fd35a5813a41a1
+  bin/lib/engine_route.py#live_engine_root: 9f81f1f9d0705d3b6981e3eeb98625882ba56fff4001726460bbd3d5c422dc13
+  bin/lib/engine_route.py#prepare_checkout: 1c798fec9bcb4eedcae53b950f55fb0f4e5ca36a9365a5be2ea2bc327fa007da
+  bin/lib/engine_route.py#route: 821d6ee2f52f2fcd6de1111875b02d3db24ecc5c25968e6f75bc14ff5eb6976a
+  bin/lib/engine_route.py#running_served_sha: 4a01375d979143f9cc87f868a4a1a5042e62fe1d3e491f722ab6687cd4cdd8c3
+  bin/lib/engine_route.py#served_sha: ac50b6264776d86f71be4d47d5e90d503c00130877f82813204f54b424a3fa32
+  bin/lib/engine_route.py#swap_pointer: 9644c2fa81e7c9bdfd7af2a3dce6900fc2b65cb55f680737af5b4add9976a7b9
+  bin/lib/events.py#_emit_cli_invoked: c5a936b389c6a76ee6480e855b5b742707b330336d3372d9e7fc195d8251c7a8
+  bin/lib/worktree.py#cmd_work_tag: 0501242bd8ccef8794459fd8bf5b9d0875fb44082abf57986c705e4ded71b9ac
+  bin/yitc-v2: bc82663b10bb4ad4808258a23c22aab938e60e91a77cf74a461c2ee48e7ed3d0

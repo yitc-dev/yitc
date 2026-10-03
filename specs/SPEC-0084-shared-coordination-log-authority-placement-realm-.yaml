@@ -1,0 +1,256 @@
+id: SPEC-0084
+title: Shared coordination log — authority, placement realm, and the CHARTER P5 one-journal
+  amendment
+status: active
+created_at: 2026-06-18 06:58:43+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/cross.py#resolve_log_path
+- bin/lib/cross.py#ensure_shared_store
+- bin/verify-backup.sh
+body: "## Scenario\n\nThe owner/AI sees ONE cross-project coordination surface — a\
+  \ single shared, append-only log that\nevery project (the kernel + each `-C` consumer)\
+  \ writes to and reads from, instead of N per-repo\n`CROSS-TASKS.md` files whose\
+  \ combined status had to be DERIVED across the repo boundary. The store\nlives OUTSIDE\
+  \ every project repo as **neutral, kernel-owned coordination infrastructure**, so\
+  \ a\nsession appending to it is NOT writing another project's territory. The owner\
+  \ can answer \"who owns\nthis store, where does it live, is it backed up, is it\
+  \ a second journal?\" deterministically — the\nstore is GOVERNED, not smuggled in\
+  \ as an implicit exception.\n\n## Internal\n\nTHE AUTHORITY CONTRACT for the shared\
+  \ coordination log — its identity, placement realm, owner,\ncanonical home, and\
+  \ its standing as ONE permitted instance of the journal mechanism. It is the\ngovernance\
+  \ home the two design consults (head-to-head A-vs-B + the pre-specs audit) named\
+  \ as the\nmust-pin-FIRST surface. The log's PROTOCOL (event FSM, kind-shapes, write\
+  \ contract, retention) is a\nSIBLING spec (supersedes <workshop-spec>); the `cross`\
+  \ VERBS are a third sibling — this spec governs only\nWHAT the store is and WHO/WHERE,\
+  \ never the data shape or the CLI. Five rules.\n\n### 1. Identity — kernel-owned\
+  \ shared coordination infrastructure\nThe coordination log is a **single shared\
+  \ append-only store** that is **kernel-OWNED coordination\ninfrastructure**: neutral\
+  \ cross-project plumbing, belonging to NO project repo. EVERY project in the\npeer-set\
+  \ (the kernel + its registered `-C` consumers) APPENDS to the ONE shared instance\
+  \ and READS\nthe whole of it; nobody owns a private copy. It is the canonical SOURCE\
+  \ OF TRUTH for cross-project\ncoordination STATE (the status of a cross-project\
+  \ item = the fold of its events by id) — NOT a\ndisposable cache reconstructable\
+  \ from any one project's `events.jsonl` (honest-SoT: archival + backup\nare therefore\
+  \ REQUIRED of it, not optional — rule 3).\n\n### 2. Placement realm — the 4th SPEC-0073\
+  \ location class (the amendment SPEC-0073 carries)\nSPEC-0073 cuts every artifact\
+  \ into three realms — `kernel` (methodology a consumer PINS; travels),\n`v2-self`\
+  \ (this repo's dev history; transfers to no project), `project` (a consumer's own\
+  \ corpus;\nborn empty). The shared coordination STORE-INSTANCE fits none: it is\
+  \ not a per-repo source artifact\nbut a SHARED RUNTIME instance every realm writes.\
+  \ So SPEC-0073 gains a **4th realm — `coordination`**:\nkernel-owned, shared, append-writable\
+  \ by the whole peer-set, single-instance, living at a canonical\nkernel path. The\
+  \ realm-DEFINITION (the taxonomy row) is added IN SPEC-0073 (its home for the cut,\
+  \ per\nSPEC-0005 §8 one-home / §7 additive-extension → in-place); this spec is the\
+  \ realm's authority home it\npoints to. DISTINCTION: the coordination CONTRACT (these\
+  \ specs) is `kernel`-realm methodology that\nTRAVELS as a pin; the coordination\
+  \ FILE-INSTANCE is `coordination`-realm and travels to no one (a\nconsumer reaches\
+  \ the ONE shared instance, it does not get its own copy).\n\n### 3. Canonical home,\
+  \ owner, archival, backup\n  - **Canonical home:** a single shared file **per INSTALLATION**\
+  \ — ONE instance per MACHINE, at a\n    fixed kernel-owned path OUTSIDE every project\
+  \ repo, shared by that machine's whole peer-set. The\n    concrete path is owner-tunable\
+  \ infrastructure config, pinned at the\n    activation task (not a normative constant\
+  \ baked here — it is deployment placement, SPEC-0005 §1\n    exclusion).\n  - **Machine\
+  \ scope — the MECHANISM travels as a PER-INSTALLATION instance; the CONTENTS never\n\
+  \    travel (the off-server release contract).** \"The one server\" above was written\
+  \ when\n    there was exactly one installation. It means, and has always meant,\
+  \ ONE INSTANCE PER MACHINE: an\n    engine installed on a second machine gets its\
+  \ OWN coordination store, anchored under THAT\n    machine's host home (`bin/lib/host_paths.py#host_home`),\
+  \ shared by THAT machine's peer-set and\n    empty of every other machine's rows.\
+  \ Rule 1's \"the WHOLE peer-set appends to THE ONE instance\"\n    is accordingly\
+  \ the peer-set OF ONE MACHINE — which is what it already enforced, since the X-0663\n\
+  \    fix made the default one value per MACHINE rather than one per uid. **No two\
+  \ instances ever\n    connect, and no network transport is built for one:** a coordination\
+  \ transport across machines\n    would be a second journal mechanism over a network,\
+  \ which CHARTER §P5 forbids. So cross-machine\n    coordination is UNAVAILABLE by\
+  \ an explicit boundary, not by an unstated assumption.\n  - **The override bound\
+  \ — what `YITC_CROSS_LOG` may and may not point at.** The path\n    stays owner-tunable\
+  \ (the bullet above), but the machine scope must not be SILENTLY defeatable:\n \
+  \   an override pointing OUTSIDE the machine — a remote URI, or a path on a network\
+  \ filesystem —\n    would quietly make two machines share one store, and the boundary\
+  \ would be nominal only. So the\n    SINGLE resolution site (`bin/lib/cross.py#resolve_log_path`)\
+  \ REFUSES such an override and NAMES\n    the target; where the target cannot be\
+  \ CLASSIFIED (the mount table is unreadable — a non-Linux\n    installation is the\
+  \ case this contract exists to enable) it is ACCEPTED with a LOUD report\n    naming\
+  \ the target, because bricking every verb on an undecidable reading is the worse\
+  \ failure.\n    A LOCAL path is accepted unchanged, and that is load-bearing: the\
+  \ MULTI-USER host — several OS\n    uids on ONE machine sharing ONE local store,\
+  \ which is exactly what rule 1 requires — is\n    untouched by this bound, having\
+  \ never been cross-machine.\n  - **Owner:** the KERNEL. The kernel governs the store's\
+  \ existence, schema, and rotation.\n  - **Archival:** the KERNEL ONLY rotates the\
+  \ store (a NON-append rewrite that moves terminal+old\n    entries to an archive\
+  \ sibling). A single archivist avoids the contention a concurrent rewrite\n    would\
+  \ cause; appends stay concurrent-safe for everyone. The rotation MECHANICS live\
+  \ in the\n    protocol sibling spec — this rule pins only WHO (kernel) and THAT\
+  \ archival is required.\n  - **Backup + recovery:** the store is canonical coordination\
+  \ state (rule 1), so it rides the existing\n    server backup the kernel repo rides\
+  \ — it is NOT disposable — AND a recovery path exists (a restore\n    round-trips\
+  \ the fold). Backup + recovery land WITH the cutover, not deferred: a store called\n\
+  \    canonical without working backup/recovery is the governance debt the accept-gate\
+  \ (finding #3)\n    flagged. Probe at activation: a backup exists + a restore reproduces\
+  \ the fold.\n\n### 4. The CHARTER §P5 one-journal amendment — a permitted SECOND\
+  \ INSTANCE, not a parallel journal\nCHARTER §P5 requires \"one journal\" — `events.jsonl`,\
+  \ append-only. The coordination log does NOT\nintroduce a NEW journal TYPE: it is\
+  \ the **SAME journal MECHANISM** — the `events.jsonl` line-format,\nthe one parser,\
+  \ the append + union-merge discipline, and the archival rotation (the model) —\n\
+  instantiated as **ONE governed shared INSTANCE at cross-project scope**. P5's real\
+  \ invariant is one\nFORMAT / PARSER / DISCIPLINE, not one physical FILE. So §P5\
+  \ carries an **explicit additive amendment**\n(owner-approved governance change,\
+  \ not a silent bypass): the shared coordination instance is a\nPERMITTED second\
+  \ instance of the one journal mechanism; \"one journal\" means one mechanism, which\
+  \ MAY\nhave a per-project instance (`<repo>/events.jsonl`) AND the one shared coordination\
+  \ instance — never a\nsecond FORMAT, parser, or discipline. The amendment TEXT is\
+  \ added in CHARTER §P5 (its home, SPEC-0005\n§8); this spec is its authority home.\
+  \ A literal second journal FORMAT/parser would still violate P5.\n\n**SPEC-0001\
+  \ + SPEC-0002 reconciliation (the corpus-coherence amendment — accept-gate finding\
+  \ #1).**\nCHARTER §P5 is NOT the only home of the one-journal invariant: **SPEC-0001**\
+  \ (floor — \"the event log =\na single `events.jsonl`; adding a SECOND event log\
+  \ file alongside it\" is the multi-storage-truth\nfailure it closed) and **SPEC-0002**\
+  \ (the `events.jsonl` entry schema) carry it too. So the SAME\nadditive amendment\
+  \ is pinned in BOTH (not just CHARTER): (a) SPEC-0001's \"no second event log\"\n\
+  invariant is SCOPED to a repo's OPERATIONAL-STATE storage (the failure was a divergent\
+  \ PARALLEL store\n+ a second PARSER path); the ONE shared coordination instance\
+  \ is the SAME mechanism (SPEC-0002 schema,\none parser, union-merge), named a permitted\
+  \ explicitly-scoped instance — it adds NO second format or\nparser path, so the\
+  \ storage-truth invariant SPEC-0001 protects stays intact. (b) SPEC-0002's schema\n\
+  GOVERNS the coordination instance identically — the `cross_*` events EXTEND its\
+  \ OPEN catalog (same\nenvelope/provenance/ordering), so there is one schema, not\
+  \ two. Both are named in `amends:` — the\ncontradiction is resolved IN THE OPEN\
+  \ (P7), never left implicit.\n\n**One-parser / one-query READ contract (accept-gate\
+  \ finding #2 — proving \"same mechanism\" operationally,\nnot just in amendment\
+  \ text).** \"Same mechanism\" must reach the READ side too, or in practice the store\n\
+  reads as a parallel journal. So: the EXISTING journal-reading surfaces — `journal\
+  \ query`, the triage /\nrecurrence machinery (SPEC-0055/0056), and recovery — read\
+  \ the shared coordination instance through the\n**SAME parser** the per-repo `events.jsonl`\
+  \ uses, selected by an explicit path/instance selector (NOT a\nseparate coordination-log\
+  \ reader). Any new read affordance MUST be declared **reuse of the existing\njournal\
+  \ parser**, never a second parser implementation. Probe (at activation): a `journal\
+  \ query` over\nthe shared instance returns its `cross_*` events via the one parser,\
+  \ with no parallel reader path.\n\n### 5. Territory — appending to the shared store\
+  \ is IN-BOUNDS (the AGENTS §Scope-boundary carve-out)\nAGENTS §Scope-boundary forbid\
+  \ a Build session writing outside its OWN repo (with the\nread-only peer-`CROSS-TASKS.md`\
+  \ carve-out). The shared coordination store is **neutral kernel-owned\ncoordination\
+  \ infrastructure, belonging to no project repo** — so APPENDING to it (via the `cross`\n\
+  verbs) is territory-IN-BOUNDS, NOT the cross-repo-write violation. This is a P7\
+  \ dissonance\nresolved IN THE OPEN, never a silent bypass: AGENTS §Scope-boundary\
+  \ gains an explicit carve-out — \"a\ngoverned append to the kernel-owned shared\
+  \ coordination store is in-bounds from any session\" — pointed\nat this spec. The\
+  \ carve-out is SCOPED: it permits appends to the ONE shared store ONLY; writing\n\
+  another project's REPO stays forbidden (own-write/peer-read on per-repo artifacts\
+  \ is unchanged). The\ncarve-out TEXT is added in AGENTS §Scope-boundary (its always-loaded\
+  \ home, SPEC-0005 §8); this spec is\nits authority home.\n\n**Write-PATH regime\
+  \ — a journal-like append, NO worktree (accept-gate finding, the one\nunambiguous\
+  \ mode).** A `cross *` append to the shared store is the SAME journal-mechanism\
+  \ append the\nreuse framing (rule 4) asserts — so it follows the SAME write-flow\
+  \ as `event` / `deviation_captured`:\nit is the ** append-only / union-merge EXCEPTION\
+  \ that needs NO worktree** (emit from anywhere,\nincl. main; folded by the next\
+  \ `land`), NOT a worktree-bound source/artifact write. This is the ONE\nregime —\
+  \ no ambiguity. Because the always-loaded write-flow home (AGENTS §Writes-happen-in-a-worktree)\n\
+  enumerates that no-worktree EXCEPTION, this contract **co-amends THAT section too**\
+  \ (adds `cross *` to\nthe journal-append exception list), not only §Scope-boundary\
+  \ — so a session knows both that the append\nis in-bounds (territory) AND that it\
+  \ rides the no-worktree journal path (write-flow). (Rationale: the\nstore is append-only\
+  \ + union-merged like `events.jsonl`; a worktree adds nothing and would break the\n\
+  one-command coordination reflex — exactly the reasoning for `event`.)\n\n**Write-posture\
+  \ discriminator — direct -C write vs the cross-log.** \"Writing another\nproject's\
+  \ REPO stays forbidden\" above is SHARPENED: a session may write a project's repo\
+  \ DIRECTLY\n**only when it has adopted that project's `-C` Build WRITE-POSTURE**\
+  \ — a `bin/yitc-v2 -C <project>`\nsession with its session-start anchor, i.e. the\
+  \ consumer authoring its OWN corpus (the sanctioned\nconsumer-operation path — how\
+  \ a `-C` migration build files the project's CHARTER / specs / tasks).\nA finding\
+  \ produced by a session NOT in that write-posture — a **read-only revizia, monitoring,\
+  \ or\nany cross-project observation** — does NOT write the observed project's repo;\
+  \ it routes via the\n**cross-log** (`cross request to:<project>`), and the project's\
+  \ OWN session picks it up and does the\n`-C` fix. The discriminator is the **write-posture,\
+  \ NOT the verb**: assessor != fixer. This keeps the\ncross-log the symmetric bidirectional\
+  \ peer channel (a consumer raises kernel gaps the same way — e.g.\n<project> ->\
+  \ kernel X-0079/X-0080). Real incident: a read-only B5 migration revizia filed a\
+  \ direct\n`-C` task for a consumer coverage finding instead of a cross request (deviation\n\
+  `kernel-readonly-revizia-finding-filed-direct-C-task-instead-of-crosslog`; re-routed\
+  \ as X-0082).\n\n## Parameters\n\nNone consumed. The canonical store path + the\
+  \ archival threshold are owner-tunable infrastructure\nconfig (rule 3), pinned at\
+  \ the activation task — NOT code-read scalar params from this spec.\n\n## Rationale\n\
+  \nTwo external consults settled design B (one shared coordination journal) over\
+  \ A (per-repo + derive),\nand a pre-specs audit ruled the draft must pin the authority\
+  \ contract FIRST — the design asserted a\nshared store the corpus did not yet permit\
+  \ (a 4th placement realm + a write-territory exception + a\nP5 second instance).\
+  \ Pinning them as explicit, named amendments (P7 — resolve a dissonance in the\n\
+  open) is what makes the store GOVERNED rather than smuggled. Prior-art for the same-mechanism\
+  \ /\nsecond-instance framing: (append-only + union-merge journal needs no worktree);\
+  \ for the\nneutral-shared-store-is-not-cross-repo-write framing: the consult's own\
+  \ territory ruling. The full\ndeliberation (A-vs-B head-to-head, the gate-specs\
+  \ RED resolution D1-D5) lives in the plan, not here\n(SPEC-0005 §3 content boundary).\n\
+  \n## Verification\n\n- **VP1 (placement realm added):** SPEC-0073's realm taxonomy\
+  \ names a 4th `coordination` realm with\n  this spec as its authority home; `_resolve_placement`\
+  \ (or the manifest) recognises it. (state-check\n  at activation)\n- **VP2 (P5 amendment\
+  \ present + honest):** CHARTER §P5 carries the explicit additive amendment naming\n\
+  \  the shared coordination instance a permitted second INSTANCE of the one journal\
+  \ mechanism (same\n  format/parser/discipline), pointing here; a literal second\
+  \ FORMAT still RED-flags. (grep CHARTER §P5)\n- **VP3 (territory carve-out present\
+  \ + scoped):** AGENTS §Scope-boundary carries the explicit carve-out\n  that a governed\
+  \ append to the shared coordination store is in-bounds, scoped to the ONE store\
+  \ (peer\n  REPO writes still forbidden), pointing here. (grep AGENTS §Scope-boundary)\n\
+  - **VP4 (honest-SoT → archival/backup required):** this body states the store is\
+  \ canonical\n  coordination SoT (not a cache) and therefore requires archival +\
+  \ backup; the protocol sibling pins\n  the rotation mechanics + the kernel-only\
+  \ archivist. (grep this spec + the protocol spec)\n- **VP6 (machine scope is real,\
+  \ not asserted):** rule 3 states the per-INSTALLATION\n  instance + the no-transport\
+  \ boundary + the override bound, and `resolve_log_path` enforces it: a\n  remote\
+  \ URI / network-mount override is REFUSED naming the target (or, where unclassifiable,\n\
+  \  accepted with a LOUD report naming it) while a LOCAL override is accepted unchanged,\
+  \ and a fresh\n  installation's default store resolves under ITS OWN host home holding\
+  \ none of this machine's rows.\n  (`tests/test_cross_log_machine_scope.py`, both\
+  \ arms differential)\n- **VP5 (amendment honesty, P7):** the `amends:` block names\
+  \ every canonical surface this contract\n  changes (SPEC-0073 realm cut / CHARTER\
+  \ §P5 / AGENTS §Scope-boundary / AGENTS §Writes-happen-in-a-worktree\n  / SPEC-0001\
+  \ / SPEC-0002) — none silently diverged.\n- **VP6 (one-journal coherence, accept-gate\
+  \ finding #1):** the one-event-log invariant is reconciled\n  in ALL its homes —\
+  \ CHARTER §P5 AND SPEC-0001 AND SPEC-0002 — with the SAME additive amendment (the\n\
+  \  coordination instance is the same mechanism/schema/parser, not a second store);\
+  \ no active spec is\n  left contradicting the supersede. (grep SPEC-0001 + SPEC-0002\
+  \ at activation)\n- **VP7 (one-parser/query + ops parity, accept-gate findings #2/#3):**\
+  \ `journal query` (triage /\n  recovery) reads the shared instance via the SAME\
+  \ parser, no parallel reader path (rule 4 read\n  contract); AND the canonical store\
+  \ has a working backup + a recovery that round-trips the fold,\n  landed WITH the\
+  \ cutover (rule 3). (probe at activation: a query over the shared instance + a\n\
+  \  backup/restore round-trip)\n"
+amends:
+- SPEC-0073: adds a 4th placement realm `coordination` (kernel-owned shared single-instance)
+    to the realm cut; the taxonomy row is added IN SPEC-0073, this spec is its authority
+    home.
+- CHARTER.md#principle-5: additive amendment — the shared coordination instance is
+    a PERMITTED second instance of the one journal mechanism (one format/parser/discipline,
+    not one file); a literal second format still violates P5.
+- AGENTS.md (Scope-boundary discipline): additive carve-out — a governed append to
+    the kernel-owned shared coordination store is territory-in-bounds from any session,
+    scoped to the ONE store (peer REPO writes stay forbidden, own-write/peer-read
+    unchanged).
+- AGENTS.md (Writes-happen-in-a-worktree): additive — `cross *` appends join the no-worktree
+    journal-append EXCEPTION list (alongside `event`/`deviation_captured`); the shared-store
+    append is journal-like, not a worktree-bound source write. (rule 5 write-path
+    regime)
+- SPEC-0001: additive amendment — the "single events.jsonl / no second event log"
+    invariant is SCOPED to a repo's operational-state storage; the ONE shared coordination
+    instance is the SAME mechanism (no second format/parser path), a permitted explicitly-scoped
+    instance. (rule 4 reconciliation)
+- SPEC-0002: additive — its events.jsonl entry schema GOVERNS the coordination instance
+    identically; the `cross_*` events extend its OPEN catalog (one schema, not two).
+    (rule 4 reconciliation)
+cites:
+- CHARTER.md#principle-5
+- SPEC-0001
+- SPEC-0002
+- CHARTER.md#principle-1
+- SPEC-0073
+- shared-coordination-log-supersede-cross-tasks-per-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: shared-coordination-log-supersede-cross-tasks-per-
+binding:
+- floor
+implements_signature:
+  bin/lib/cross.py#ensure_shared_store: f57e9a9489670c326ef6f0e40a180e584636260b0c565890f00cb9787ad21033
+  bin/lib/cross.py#resolve_log_path: f4a7a8431849656d862b54cc6d7489bf83ea8f760462cd9f950a9775380ffdc8
+  bin/verify-backup.sh: 5eb9cbda9ab60f55ec51d8778c9e03ebc5a8c4da9c6a85d4b6979290f4eaa19e

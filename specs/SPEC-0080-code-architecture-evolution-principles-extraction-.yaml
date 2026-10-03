@@ -1,0 +1,130 @@
+id: SPEC-0080
+title: Code-architecture evolution principles — extraction-not-accretion, realize
+  declared seams, report-not-block
+status: active
+created_at: 2026-06-16 17:32:09+00:00
+travels: null
+consumed: false
+implements: []
+body: "## Scenario\n\nWhen the owner/AI evolves CODE (the engine's own self-tooling\
+  \ OR a consumer project's source), the\ndecision \"extend this file or extract a\
+  \ module\" is GOVERNED, not left to taste. A file does not grow\nunbounded until\
+  \ someone happens to ask; a declared seam (a library the charter/specs already promised)\n\
+  is not deferred forever; and the judgement is SURFACED as a read-only finding, never\
+  \ enforced as a\ngate. So code architecture stays legible the way the handbook size-cap\
+  \ (§P2) keeps docs legible —\nwithout a build-time validator or a pre-commit wall.\n\
+  \n## Internal\n\nTHE CODE-ARCHITECTURE EVOLUTION PRINCIPLES. A process/governance\
+  \ spec (SPEC-0005 rule 1) — it governs\nauthoring discipline corpus-wide and adds\
+  \ NO new store / verb / gate (the report surface is the\nsibling inspection lens;\
+  \ the §P2-shaped budget rides existing review). Six principles + the trigger\nsurface.\
+  \ Each is a standing rule; the deliberation that produced them lives in the proposing\
+  \ plan\n(SPEC-0005 rule 3 content-boundary), not here.\n\n### P-A1. Code grows by\
+  \ EXTRACTION, not ACCRETION\nWhen a single code file crosses the size budget (§Trigger\
+  \ surface) OR a coherent subsystem (state\nI/O, a verb family, a prompt builder)\
+  \ is duplicated past the duplication threshold, the NEXT change\nthat touches it\
+  \ EXTRACTS the subsystem to its own module rather than appending to the existing\
+  \ file.\nThis is the code-axis mirror of §P2's doc compaction-trigger.\n\n**Complement\
+  \ — net-new code is born in its OWN module (PROACTIVE).** The trigger above is\n\
+  REACTIVE: it fires on an EXISTING file crossing the size budget OR a duplicated\
+  \ subsystem — it does\nNOT speak to NET-NEW code. So §P-A1 also carries a proactive\
+  \ rule: a NEW verb (or any net-new\ncoherent subsystem) is authored DIRECTLY in\
+  \ its own `bin/lib/<name>.py` module from the first\ncommit — as a thin injecting\
+  \ RESIDUE + argparse registration in the host, with leaf-up imports (the\nmodule\
+  \ imports only already-extracted lower leaves + stdlib, never back-imports the host)\
+  \ — never\ngrown into the host body. Why proactive and not only reactive: appending\
+  \ net-new to a\nfreshly-slimmed host re-starts accretion BELOW the reactive §Trigger\
+  \ surface (the file is not yet\nover budget, nothing is yet duplicated), so the\
+  \ monolith silently re-grows until the reactive\ntrigger eventually fires; authoring\
+  \ in-module from the start prevents the re-accretion the reactive\ntrigger cannot\
+  \ yet. (Non-normative HOW — the seam recipe + pitfalls — see-also\n`lessons/library-extraction.md`;\
+  \ this rule's required shape is stated self-contained here, P5.)\n\n### P-A2. REALIZE\
+  \ the declared seam\nA module/seam that the charter or an active spec already PROMISED\
+  \ (the canonical instance: CHARTER §P5\n\"one parser library `bin/lib/state.py`\"\
+  ) is standing architecture debt. It is BUILT at the first\nextraction that touches\
+  \ its surface — not perpetually deferred. An unrealized declared seam is a §P7\n\
+  dissonance the architecture-drift lens surfaces.\n\n### P-A3. ADMISSION TEST for\
+  \ a P-A1 extraction (not a separate rule — the test that gates P-A1)\nP-A1 says\
+  \ WHEN to extract; P-A3 is the TEST an extraction must pass to be admitted (the\
+  \ distinction:\nP-A1 is the rule, P-A3 is its gate — absorbing the structure-audit\
+  \ LOW finding). Splitting code is an\nADDITION (a new file/module), so an extraction\
+  \ earns admission ONLY if it DELETES duplication or\nreduces reasoning cost — never\
+  \ cosmetic file-shuffling. A per-verb or per-section breakup that removes\nno duplication\
+  \ and lowers no reasoning cost FAILS the test and is REJECTED (the §P1 F3 \"what\
+  \ gets\nremoved?\" filter applied to code structure). So: P-A1 triggers a candidate;\
+  \ P-A3 admits or rejects it.\n\n### P-A4. State the REAL trigger; drop the false\
+  \ one\n**Merge-conflict pressure alone is NOT sufficient justification for a split.**\
+  \ The legitimate triggers\nare: duplication count, reasoning/navigation cost, and\
+  \ process startup/parse cost. (In THIS engine's\ncontext the merge argument is moreover\
+  \ near-absent — a solo author with per-write worktree isolation — but the rule does\
+  \ not REST on that premise: even where multiple authors exist, \"we'd collide\n\
+  on one file\" is a tooling-isolation problem, not an architecture trigger.)\n\n\
+  ### P-A5. ONE authored home — ENGINE-NORMATIVE (consumer is non-normative intent\
+  \ only)\nThese principles are **normative for the ENGINE'S OWN code** (this spec,\
+  \ engine corpus) — that is the\nfull scope this spec governs TODAY. They live ONCE\
+  \ here; nothing re-authors them. **Consumer\napplicability is non-normative design\
+  \ INTENT, not a rule of this spec** (absorbing the accept-gate\nHIGH-1 — an engine-only\
+  \ spec must not embed a consumer-binding mechanism): the whole\ndistribution / adoption\
+  \ / lens-delivery MECHANISM (how a consumer ever receives or is checked against\n\
+  these principles) is NOT specified here — it is deferred and homed in\n`ideas/consumer-side-distribution-and-adoption-of-the-cod`\
+  \ (§Deferral). Until that lands and this spec\nactivates, the consumer scope is\
+  \ intent only — placement is kernel (a forward head that travels only\nonce `active`),\
+  \ which is distinct from the consumer-deployment timing the §Deferral homes.\n\n\
+  ### P-A6. REPORT, never BLOCK\nAn architecture-drift judgement is surfaced as a\
+  \ read-only finding (the sibling architecture-drift\ninspection lens, run by the\
+  \ weekly inspection), with a verdict + a candidate list. It is NEVER a\npre-commit\
+  \ gate, a build-time validator, or a land blocker (CHARTER non-goals #2/#7). Same\
+  \ posture as\nthe existing `discipline-ratio` / `canary-backstop` / `displacement-retention`\
+  \ review lenses.\n\n### Trigger surface (PROVISIONAL report-only starting heuristics\
+  \ — calibrate before hardening)\nSo a verdict is concrete, not a vibe (the principles\
+  \ must render the same call on the known monolith\nas the 2026-06-16 ad-hoc audit).\
+  \ These are **provisional starting heuristics, NOT hardened thresholds**\n(absorbing\
+  \ the structure-audit MED-2): each cites an observed-corpus basis, and the sibling\
+  \ lens's\nFIRST live run records hit-rate + false-positive behaviour — only after\
+  \ that calibration pass may a\nnumber be hardened. Tuned like the MEMORY parallelism\
+  \ knob:\n- **size budget** — starting knob **~2000 lines** (basis: reuses the §P2\
+  \ doc warn-threshold; the\n  `bin/yitc-v2` monolith is 20,347 — 10× over). Crossing\
+  \ it is a candidate, not a violation.\n- **duplication threshold** — **≥ ~5 sites**\
+  \ of a copy-pasted idiom is a candidate (basis: the 58\n  inline `yaml.safe_load`\
+  \ + the 13×/7×/6× store-glob repetition observed in `bin/yitc-v2`).\n- **declared-seam\
+  \ flag** — a charter/spec-promised seam left unrealized (P-A2) is a candidate\n\
+  \  regardless of counts (basis: §P5 `bin/lib/state.py`, never built).\n- **outcome\
+  \ shape** — REPORT-ONLY (P-A6): every trigger yields a surfaced finding, never a\
+  \ gate.\n- **calibration status (explicit)** — these numbers are **non-normative\
+  \ calibration SEEDS, not\n  policy**, until ≥3 named live applications record their\
+  \ hit-rate/false-positive behaviour. Hardening\n  a number into normative policy\
+  \ is its OWN follow-up (the sibling lens's trial soak supplies the\n  evidence);\
+  \ until then no session may cite a knob as a settled threshold.\n\n### Deferral\
+  \ (pure pointer — no consumer mechanism specified here)\nConsumer-side DISTRIBUTION\
+  \ + adoption is **OUT OF SCOPE of this spec** and tracked, with its whole\nmechanism\
+  \ + trigger, in `ideas/consumer-side-distribution-and-adoption-of-the-cod`. This\
+  \ spec\nspecifies NONE of that mechanism (no distribution path, no per-consumer\
+  \ trigger, no lens-delivery) —\nit points; the idea homes it. This spec proves ENGINE-side\
+  \ authorship + adoption only.\n\n## Rationale\n\nReal incident / prior-art (full\
+  \ deliberation in the proposing plan): `bin/yitc-v2` reached one\n20,347-line file\
+  \ with 477 commits and a never-built §P5 `bin/lib/state.py` (58 inline `yaml.safe_load`),\n\
+  caught only because the owner asked; external ad-hoc audit `monolith-split-readiness-audit-adhoc`\n\
+  = YELLOW. V2 had a size-cap for DOCS (§P2) but nothing for CODE — the gap these\
+  \ principles close.\n\n## Verification\n\n- Adoption (§P3/§P8): this spec reaches\
+  \ `active` via its `activation_owner_task` close; ≥1 downstream\n  artifact `cites`\
+  \ it.\n- Would-have-fired (honesty test): applying §Trigger surface to `bin/yitc-v2`\
+  \ flags it (≥2000-line\n  budget exceeded + `yaml.safe_load` duplication ≥5 + the\
+  \ unrealized §P5 seam) — reproducing the\n  YELLOW ad-hoc verdict from NAMED thresholds,\
+  \ not a judgement call.\n- Report-only (P-A6): the realized check is a read-only\
+  \ lens finding; no gate/validator is added\n  (state-check: no new pre-commit/land\
+  \ gate references this spec).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-2
+- CHARTER.md#principle-5
+- CHARTER.md#principle-7
+- SPEC-0073
+- define-code-architecture-evolution-principles-self
+- architecture-drift-inspection-lens-extends-spec-00
+- extract-bin-lib-state-py-to-realize-principle-5-sh
+- kernel-extraction-evidence-driven-engine-consumabi
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: define-code-architecture-evolution-principles-self
+binding:
+- query-only

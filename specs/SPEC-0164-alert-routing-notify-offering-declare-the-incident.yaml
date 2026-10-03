@@ -1,0 +1,200 @@
+id: SPEC-0164
+title: Alert-routing/notify offering — declare the incident sink and who acts on it,
+  or waive; a grade-only adoptable catalog extension
+status: active
+created_at: 2026-07-17 09:05:20+00:00
+travels: null
+consumed: false
+extension: adoptable
+implements:
+- bin/lib/init.py#_hook_alert_routing
+- bin/lib/debt.py#profile_gap_register
+- bin/lib/init.py#_alert_routing_slo_missing
+- bin/lib/debt_adoption.py#_gap_declaration_incomplete
+body: "## Scenario\n\nA project that rides the kernel answers ONE question at activation:\
+  \ when something breaks here, WHERE\ndoes the alert go — and WHO reads it and acts?\
+  \ It declares the two together in its `yitc-ops.yaml`\n`alert_routing:` section,\
+  \ or it waives with a reason. The owner/AI reads ONE file to see whether this\n\
+  project's incidents reach a human at all. A project that routes nowhere says so\
+  \ explicitly, which is\nwhat makes an unmonitored production service legible as\
+  \ a CONSCIOUS choice rather than an oversight\nnobody noticed. The offering is discovered\
+  \ from the system itself — `bin/yitc-v2 graph query\nextensions-catalog` lists it\
+  \ with its adopt-path — and adopting it is one declaration.\n\nThe kernel NEVER\
+  \ sends the alert. Routing is operator-owned: the kernel grades that the STANCE\
+  \ is\npresent and complete, exactly the SPEC-0110 grade-only shape.\n\n## Internal\n\
+  \nTHE ALERT-ROUTING/NOTIFY OFFERING — a grade-only, presence-graded declare-or-waive\
+  \ concern, packaged as\na first-class adoptable SPEC-0101 catalog extension. It\
+  \ adds NO new grading mechanism (CHARTER §P1 F2):\npresence + stance are graded\
+  \ by the ALREADY-GENERIC registry-driven sweep (`init._sweep_ops_carrier`,\nSPEC-0128\
+  \ Rule 2), which this concern joins as one more DECLARED row; the only new code\
+  \ is the small\nkernel-owned residual-shape validator this spec's `concern.shape_hook`\
+  \ names (rule 2) — the escape hatch\nSPEC-0128 Rule 2 explicitly permits. Structural\
+  \ precedent: SPEC-0163 (remote_sync), the same\npresence-only section-add shape.\
+  \ Four rules.\n\n### 1. Declare the routing stance, or waive\nA project DECLARES\
+  \ an `alert_routing:` section naming where incident alerts GO and who ACTS on them,\
+  \ or\nWAIVES it with a reason. The section is `checked-if-present`; the waiver is\
+  \ LOOSE (SPEC-0093 rule 6 — a\nnon-empty reason). A project with no alerting legitimately\
+  \ waives; silence is not a stance.\n\n### 2. A DECLARED section answers BOTH parts\
+  \ — the sink AND its receiver\n`sink:` (WHERE an incident alert is delivered) and\
+  \ `receiver:` (WHO/what reads it and acts — a named\nhuman, rota, or on-call identity)\
+  \ are ONE stance and are declared together. The generic stance sweep\ncounts the\
+  \ section DECLARED on `sink:` alone, so without this rule a section could name a\
+  \ destination\nand silently drop the receiver — and an alert nobody reads is not\
+  \ routing, it is coverage-shaped\nSILENCE: precisely the failure this concern exists\
+  \ to end. Fail-closed on a PRESENT, NON-WAIVED\ndeclaration missing `receiver:`;\
+  \ an ABSENT or WAIVED section is a stance the generic check owns (the\nhook never\
+  \ backfills, mirrors, or auto-heals it —\n`lessons/a-stance-mirror-is-only-sound-at-birth.md`).\
+  \ Enforced by `_hook_alert_routing`\n(`concern.shape_hook: alert_routing_shape`).\
+  \ Prior-art for the completeness shape: SPEC-0163 rule 4,\nwhere `remote:` alone\
+  \ was likewise insufficient without `pusher:` + `ci:`.\n\n### 3. GRADE-only — the\
+  \ kernel never touches the sink (the SPEC-0110 frame)\nThe kernel grades the PRESENCE\
+  \ and COMPLETENESS of the stance. It NEVER contacts the sink, emits a test\nalert,\
+  \ authenticates to a webhook, or judges deliverability, latency, or the sink's quality\
+  \ — the\nSPEC-0093 rule-3 boundary (the kernel checks the stance, never the command's\
+  \ correctness) and the\nSPEC-0110 rule-3 grade-only doctrine: the kernel GRADES,\
+  \ the operator RUNS. Alerting itself stays\noperator-owned and runs on its own loop,\
+  \ independent of any kernel cadence.\n\n### 4. Implementation-agnostic\nThis mandates\
+  \ NO alerting product and NO transport. `sink:` may name any destination a human\
+  \ really\nreads — a chat webhook, an email alias, a pager rota, an issue tracker,\
+  \ a log with a named reader.\n`receiver:` may name a person, a rota, or the automation\
+  \ that escalates to one. What is NOT a complete\nanswer is a sink with no receiver\
+  \ (rule 2). A project that routes nowhere WAIVES (rule 1) rather than\ndeclaring\
+  \ an empty sink.\n\n### 5. A LIVE project also says how it is WATCHED — health,\
+  \ logs, one objective\nRouting an alert answers where an incident GOES. It does\
+  \ not answer how anyone would SEE one. A\nproject carrying real users is asked three\
+  \ further things, as OPTIONAL keys on this SAME\n`alert_routing:` section (no new\
+  \ section — SPEC-0005 §7, in place):\n\n- `health:` — the endpoint a human or a\
+  \ monitor can hit to ask \"is it up?\".\n- `logs:` — the structured-log stance,\
+  \ and WHERE the logs are read.\n- `slo:` — at least ONE named objective, carrying\
+  \ BOTH `objective:` (what is promised) and\n  `target:` (the number that decides\
+  \ whether it was kept).\n\nEach is declare-or-waive LOOSE per rule 1, and each is\
+  \ GRADE-ONLY per rule 3: the kernel NEVER hits\nthe health endpoint, NEVER reads\
+  \ a log, and NEVER measures an SLO. It grades only that the stance is\nsaid out\
+  \ loud.\n\nASKED ONLY OF A LIVE PROJECT, AND ASKED PER KEY. These three are surfaced\
+  \ on the SPEC-0119 rule-39\nbrownfield gap register (`bin/lib/debt.py#profile_gap_register`)\
+  \ ONLY when SPEC-0198 resolves this\nproject's `operational_criticality` to a live\
+  \ reading — `live`, `live-critical`, or the deliberate\nWIDE `unknown` of rule 2\
+  \ — and NEVER on a POSITIVE `prototype`, which SPEC-0198 rule 7 collapses to\nthe\
+  \ constant floor. A prototype with no users is not asked how it is watched.\n\n\
+  Each key is answered BY ITSELF. The register carries one item PER KEY — `health-rollback-runbook`,\n\
+  `structured-log-stance`, `one-slo-declared` — so declaring `health:` does NOT answer\
+  \ `logs:` or\n`slo:`. That per-key granularity is the whole point of asking three\
+  \ questions instead of one: a\nsection-granular reading would let a single declared\
+  \ key clear all three, and a project that named a\nhealth endpoint would never again\
+  \ be asked what happens to its logs. A reasoned `waiver:` on the\nSECTION still\
+  \ waives all three (rule 1 is a section-level stance), and a per-key `waiver:` waives\n\
+  just its own key.\n\nFAIL-CLOSED ON EXACTLY ONE SHAPE. `health:` and `logs:` are\
+  \ free-form prose and are NEVER\nshape-refused — the kernel has no opinion about\
+  \ what a good health endpoint looks like. A present,\nnon-waived `slo:`, however,\
+  \ MUST carry BOTH a non-blank `objective:` AND a non-blank `target:`;\nEITHER missing\
+  \ is an init ERROR naming which part is absent. An objective with no target is the\
+  \ same\ncoverage-shaped silence as a sink with no receiver (rule 2): it reads as\
+  \ a promise while committing\nto nothing measurable. Absence of all three keys is\
+  \ a STANCE the register asks about, never a shape\ndefect the hook invents — so\
+  \ an existing carrier that declares only `sink:` + `receiver:` passes the\nhook\
+  \ unchanged.\n\nTHE TWO SURFACES ASK ONE QUESTION. The birth-time hook and the gap\
+  \ register must not\ndisagree about what counts as a declared SLO: a shape the hook\
+  \ REFUSES never counts as\nANSWERING `one-slo-declared` on the register either.\
+  \ Otherwise a project could close its SLO\nobligation with a promise carrying no\
+  \ number — the coverage-shaped silence this rule exists\nto end, reintroduced by\
+  \ the very mechanism meant to surface it. The completeness predicate\ntherefore\
+  \ has exactly ONE home (`bin/lib/init.py#_alert_routing_slo_missing`) and the\n\
+  register defers to it (CHARTER §P5); where it cannot be consulted the item stays\
+  \ UNMET,\nnever adopted.\n\n## Rationale\n\nReal pull: the 2026-07-04 T9 inspection\
+  \ unanimously GRADUATED incident/alert routing as a\nkernel-adoptable capability,\
+  \ and the follow-through — exposing it as a first-class ADOPTABLE catalog\noffering\
+  \ — had not landed (`t9-graduation-followthrough-stale-20260704`: \"graduation decisions\
+  \ not\nlanding as offerings\"). This is the second of that fingerprint's two graduations;\
+  \ the first shipped as\nSPEC-0162 (restore-drill freshness).\n\nPrior-art: SPEC-0163\
+  \ (remote_sync) is the structural analog — a presence-only declare-or-waive concern\n\
+  whose code anchor is its own shape hook — and supplies rule 2's completeness shape\
+  \ (a declared\ndestination without a named owner is silence: X-0346 /, where an\
+  \ auto-pusher that died with a\nretired system left a remote silently un-synced;\
+  \ the same class as an alert sink nobody reads).\nSPEC-0162 supplies the catalog-packaging\
+  \ shape; SPEC-0110 supplies the grade-only frame; SPEC-0101\nsupplies the marker\
+  \ + adopt-path; SPEC-0128 supplies the one-declaration→all-surfaces registry.\n\
+  External analog: an on-call escalation policy names a destination AND who is on\
+  \ call — never one alone.\n\nNOT mirrored from SPEC-0162: its `dev-utilities/` reference\
+  \ ADAPTER. That artifact exists because the\nSPEC-0110 freshness grader SPAWNS a\
+  \ `kind: command` adapter to grade a pipeline's last-pass age. This\noffering grades\
+  \ PRESENCE via the generic sweep, which spawns nothing — so a reference adapter\
+  \ would be\nan artifact no probe exercises and no kernel path invokes (CHARTER §P1\
+  \ F3/F4). The adopt-path artifact\nhere is the generated born template's declare-shape\
+  \ block (Verification).\n\n## Verification\n\nAdoption probe (CHARTER §P3/§P8 —\
+  \ infra-class), the faces of the ONE claim \"incident/alert routing is a\ndiscoverable,\
+  \ adoptable, grade-only offering that switches per-consumer\":\n- **catalog exposure\
+  \ (consumer-read P8):** `bin/yitc-v2 graph query extensions-catalog` lists SPEC-0164\n\
+  \  `status: active` + `adoptability: adoptable` + a non-null `adopt_path` (running\
+  \ the lens emits the\n  `cli_invoked` consumer-read evidence). Differential: a spec\
+  \ without the `extension:` marker never\n  appears; an `internal-only` one carries\
+  \ a null adopt_path.\n- **live stance grade (live_trigger P8):** the generic sweep\
+  \ (`init._sweep_ops_carrier`) grades a real\n  carrier's `alert_routing:` section:\
+  \ a complete stance PASSES; a PRESENT non-waived `sink:` with NO\n  `receiver:`\
+  \ is REFUSED by `_hook_alert_routing` naming the missing part; a waived section\
+  \ passes; an\n  absent section is checked-if-present. Differential: flip the `receiver:`\
+  \ key off and the graded result\n  flips pass→refuse — a broken hook would pass\
+  \ the incomplete stance. The kernel spawns no alert.\n- **membership is mechanical:**\
+  \ `init._engine_catalog_members` includes SPEC-0164 BECAUSE it is\n  active+adoptable\
+  \ (assert the derivation, not a pinned literal).\n- **per-consumer switch (SPEC-0112\
+  \ §4b):** a carrier WAIVING SPEC-0164 and one DECLARING it each pass\n  their OWN\
+  \ sweep independently — neither gates the other, and the kernel's verify reads no\
+  \ consumer's\n  live files (<workshop-spec> rule 4). Differential: were activation\
+  \ fleet-gated, the waiving carrier would\n  block the declaring one.\n- **born surface:**\
+  \ the GENERATED `graph/born-ops.yaml` carries the `alert_routing:` section + its\n\
+  \  declare-shape comment. Differential: absent while this spec is proposed (active-only\
+  \ registry gating).\nTest: `tests/test_t10613_alert_routing_offering.py`.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0093
+- SPEC-0101
+- SPEC-0110
+- SPEC-0112
+- SPEC-0128
+- SPEC-0162
+- SPEC-0163
+- t9-graduation-followthrough-stale-20260704
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+concern:
+  section: alert_routing
+  carrier_path: alert_routing
+  born_order: 180
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: sink
+  declare_type: string
+  waiver_policy: loose
+  shape_hook: alert_routing_shape
+  born: "alert_routing:\n  # SPEC-0164. DECLARE where incident alerts GO and WHO reads\
+    \ them and ACTS — one stance, BOTH keys\n  # required (`sink:` without `receiver:`\
+    \ is an init ERROR). Replace this waiver with:\n  # sink: \"<WHERE an incident\
+    \ alert is delivered — a chat webhook, an email alias, a pager\n  # rota, an issue\
+    \ tracker, a log a human really reads>\"\n  # receiver: \"<WHO reads it and ACTS\
+    \ — a named human, rota, or on-call identity (or the\n  # automation that escalates\
+    \ to one)>\"\n  # A LIVE project (SPEC-0198 operational_criticality) is also asked\
+    \ how it is WATCHED — optional,\n  # each answered by itself; a present `slo:`\
+    \ needs BOTH `objective:` and `target:`:\n  # health: \"<the endpoint a human\
+    \ or a monitor can hit to ask 'is it up?'>\"\n  # logs: \"<the structured-log\
+    \ stance — what is logged, in what shape, and WHERE it is read>\"\n  # slo:\n\
+    \  # objective: \"<the ONE thing promised, e.g. 'checkout responds under 500ms\
+    \ at p95'>\"\n  # target: \"<the number that decides whether it was kept, e.g.\
+    \ '99.5% of requests'>\"\n  # GRADE-ONLY — the kernel never contacts the sink;\
+    \ no alerting product is mandated (SPEC-0093 rule 3 /\n  # SPEC-0110 rule 3).\
+    \ The waiver is LOOSE — but while it stands NOTHING tells you this project is\
+    \ broken.\n  # see SPEC-0164 §1, §2, §5\n  waiver:\n    reason: \"Initialized\
+    \ via `bin/yitc-v2 init` — no alert routing declared yet. Incidents in this project\
+    \ reach a human only when someone looks. If this project gains a sink, replace\
+    \ this waiver with `sink:` (where alerts go) + `receiver:` (who reads it and acts)\
+    \ — both (SPEC-0164 rule 2).\"\n"
+init_concern: null
+implements_signature:
+  bin/lib/debt.py#profile_gap_register: 048350b595ecc4860da381d824136a8b5d50b6f7dc7e1e5cc7ae69437f7d86ee
+  bin/lib/debt_adoption.py#_gap_declaration_incomplete: 96f72318072860ab920909213331c38787b61ce686a1eaed502380eaeb641825
+  bin/lib/init.py#_alert_routing_slo_missing: ea2d7e538d5c56a2003ef5f4b35bc241064b6736290c115a29de0315c6bdace3
+  bin/lib/init.py#_hook_alert_routing: a48dd5bfbfdeadf70178b87e22a2970c3d20e98b7031ef9c8b6fa7d00d773782

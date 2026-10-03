@@ -1,0 +1,580 @@
+id: SPEC-0050
+title: must-read precondition — require-reads gate (session_ref-only evidence)
+status: active
+created_at: 2026-06-07 08:35:58+00:00
+consumed: false
+implements:
+- bin/lib/gates.py#_require_reads
+- bin/lib/gates.py#_fetched_spec_ids
+- bin/lib/gates.py#_session_started_lower_bound
+- bin/lib/gates.py#_require_seed_read
+- bin/lib/gates.py#_seed_receipt_epochs
+- bin/lib/session.py#session_epoch
+- bin/lib/events.py#_emit_cli_invoked
+- bin/lib/task.py#cmd_task_close
+- bin/lib/task.py#cmd_task_commit
+- bin/lib/audit.py#cmd_audit
+- bin/lib/spec.py#cmd_spec_new
+- bin/lib/plan.py#cmd_plan_check
+- bin/lib/dispatch.py#_worker_seed_bootstrap_events
+body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed by\
+  \ stage-entry contracts (pilot:\n`task close` — SPEC-0015/SPEC-0038; `task commit`\
+  \ — SPEC-0014), the verb REFUSES to act unless\nthe journal of the CURRENT session\
+  \ shows the governing contracts were actually fetched. The\nrefusal prints one ready\
+  \ command per missing contract — READY meaning it actually SATISFIES the\ngate that\
+  \ printed it, so the command is CORPUS-AWARE : engine self-build names\n`bin/yitc-v2\
+  \ graph query <SPEC>`, a `-C` consumer names\n`<ENGINE_ROOT>/bin/yitc-v2 -C <REPO_ROOT>\
+  \ graph query <SPEC>` (the X-0093 foreign-corpus refusal\nshape) plus a wrong-corpus\
+  \ hint. The AI runs them and re-invokes — the retry passes. The pointer-only \"\
+  read before acting\" advisory on\nthe piloted gates is RETIRED: delivery rides the\
+  \ proven in-flow channel (refusal + ready\ncommand), not a skippable link.\n\n##\
+  \ Internal\n\nONE shared precondition helper `require-reads(kind, ctx)` callable\
+  \ by ANY verb (FSM-bound or\nnot). Rules:\n\n### 1. Doc-set derivation (no new map)\n\
+  - `kind=stage` — NORMATIVE: the verb's stage-entry spec bundle on the RELEVANT axis\
+  \ — the task\n  `stage-entry:<STAGE>` bundle (`_stage_bundle_specs`, default) OR\
+  \ the plan `plan-stage-entry:<STAGE>`\n  bundle (`_plan_stage_bundle_specs`) when\
+  \ `ctx.axis==\"plan\"` ( cross-axis graduation). BOTH are\n  the SAME `binding:`-derived\
+  \ carrier as the floor trigger-map (P5) — just the task vs plan slice; the\n  axis\
+  \ SELECTS the slice, it is NOT a new kind (the seed/action expansion stays).\n-\
+  \ `kind=action` — RESERVED, non-normative (rule 6): the floor-map gated action set\n\
+  \  (before-rule-change → SPEC-0005; the existing `_consumed_contract_for` derivation).\n\
+  - `kind=seed` — RESERVED, non-normative (rule 6): the fixed SPEC-0007 §5 session\
+  \ seed (handbook\n  5 + floor-trigger-map + MEMORY.md). When, seed-check covers\
+  \ governed-DOCUMENT reads\n  ONLY — it does NOT assert the rest of the startup protocol\
+  \ (`--help` rescan, type choice) and\n  is NOT a claim of full startup/post-compact\
+  \ protocol equivalence. **STAYS RESERVED/unwired\n  :** the audience-seed floor\
+  \ is instead realized by the STANDALONE `_require_seed_read`\n  gate (§8) on the\
+  \ `_require_help_read` precedent, NOT by wiring this `kind` — so no duplicate\n\
+  \  mechanism (P1 F1/F3).\n\n### 2. Evidence (journal-only; ONE pass-granting form;\
+  \ SESSION_REF-SCOPED)\nEvidence for a doc = an event of the CURRENT `session_ref`\
+  \ with `ts >= session_started`.\n**FAIL-CLOSED anchor :** the window is anchored\
+  \ AT this session_ref's own `session_started`\n— a ref with NO `session_started`\
+  \ has NO valid evidence window, so the gate REFUSES (it never falls\nback to an\
+  \ unbounded admit-any window; the prior `\"\"` lower-bound was the external-audit\
+  \ M4 fail-OPEN\n— a stale/shared `cli_invoked` under a reused/unanchored ref could\
+  \ credit a later commit/close). The\nrefusal is deadlock-free (SPEC-0050 §3): `session\
+  \ start` writes the anchor into THIS checkout, so the\nretry anchors. A compliant\
+  \ worker always emits `session_started` (the dispatch contract).\n**EARLIEST-anchor\
+  \ across worktree hops :** one logical session emits MULTIPLE `session_started`\n\
+  rows under ONE stable `session_ref` (env:<provider-session-env> is stable across\
+  \ a provider session's\nworktrees) — one per worktree, because per-worktree `session\
+  \ start` (<workshop-spec>) re-anchors in\neach checkout. The window is therefore\
+  \ anchored at the **EARLIEST** such `session_started` — the session\nORIGIN — NOT\
+  \ the latest. Taking the latest advanced the window on every worktree hop, orphaning\
+  \ a\n`graph query <SPEC>` fetched earlier in the SAME session (e.g. on `main` /\
+  \ a decompose worktree) and\nforcing a redundant re-fetch — the SPEC-0050 §2 dissonance\
+  \ «an earlier same-session fetch should still\ncredit» (live proof: ref 20fd8cbc\
+  \ `session_started` 05:15 main + 07:03 worktree, SPEC-0046 fetched 05:37\nin between,\
+  \ wrongly excluded). EARLIEST does NOT over-credit: the window stays per-`session_ref`\
+  \ (a\nDIFFERENT ref's `session_started` never lowers this ref's bound — the cross-session\
+  \ credit forbidden\nbelow / by the wrong-ref test), and a read before the origin\
+  \ is still excluded. ORTHOGONAL to §4\npost-/compact: `/compact` emits no `session_started`,\
+  \ so earliest-vs-latest does not touch the\nre-read obligation (no in-window evidence\
+  \ still REFUSES); a future /compact marker composes with the\norigin bound (it raises\
+  \ the floor, never lowers it).\n**PER-JOURNAL candidate windows for the receipt\
+  \ gates (breadth generalized + read-consistency\nadded).** The evidence-window primitives\
+  \ (`_session_started_lower_bound` / `_fetched_spec_ids` /\n`_seed_receipt_epochs`)\
+  \ accept an ADDITIVE `events_path` selector naming WHICH journal to evaluate\n(defaults\
+  \ to the current checkout's journal — the §2 RECEIPT behavior above is UNCHANGED\
+  \ for `_require_reads`;\nits window ANCHOR alone is the earliest of this checkout's\
+  \ and the main checkout's `session_started`)\nAND an ADDITIVE `events` selector:\
+  \ a PRE-MATERIALIZED snapshot to iterate instead of\nre-reading. This lets the receipt\
+  \ gates (`_require_help_read` / `_require_seed_read`) evaluate their\nreceipt across\
+  \ a LIST of candidate journals = [current checkout, main checkout] for EVERY governed\
+  \ verb.\n`land` runs FROM main but re-execs `-C <worktree>` so its receipt may be\
+  \ in MAIN; symmetrically\na worker running a verb from a worktree may have its receipt\
+  \ only in MAIN (the launcher records it there\n— §8 co-producer). first added the\
+  \ main candidate for `land` ONLY; generalizes it to\nEVERY governed verb (the land-only\
+  \ boundary was incident scope, not a principled limit — external GREEN)\n— so ONE\
+  \ receipt (session_ref-scoped) credits that session's verbs run from any of its\
+  \ worktrees,\nremoving the per-worktree `session start` for these gates. Each candidate\
+  \ is a SEPARATE\nsession_ref-anchored window (its OWN `session_started` lower-bound)\
+  \ — NEVER a raw union across journals\n(a union would let one journal's `session_started`\
+  \ anchor another journal's receipt — the cross-checkout\nover-credit the external-consult\
+  \ flagged, decisions/land-audit-gate-tangles-audit-adhoc.yaml). The\nselectors change\
+  \ only WHICH journal is read / from WHICH snapshot; attribution stays session_ref-only\n\
+  (NOT the reverted worktree_ref axis).\n**READ-CONSISTENCY under a concurrent in-place\
+  \ rewrite.** The reconcile rewrites events.jsonl\nIN-PLACE (worktree.py `write_text`,\
+  \ NOT an atomic temp+rename), so a concurrent reader can catch a\nTRUNCATED file\
+  \ and torn-miss a durably-present receipt (the 2026-07-04 transient-miss — a READ\
+  \ artifact,\nNOT a lost append; the append durability layer E-0021 / is unchanged\
+  \ and NOT reopened). Two\nbelts on the receipt gates: (1) per candidate the anchor\
+  \ scan and the receipt scan read ONE materialized\nsnapshot (via the `events` selector),\
+  \ so a rewrite cannot interleave BETWEEN them and yield a false\n`seed_read_unfetched`/`help_inventory_unfetched`;\
+  \ (2) a would-be refusal is re-read a BOUNDED number of\ntimes (`_READ_GATE_RETRY_ATTEMPTS`,\
+  \ small backoff) before it is final — a transient torn read is\nrecovered, while\
+  \ a GENUINE miss still refuses after the attempts (retry never waves through a real\n\
+  absence). Return-on-first-credit keeps the pass path single-read; the bounded latency\
+  \ lands only on the\nrare refusal path.\nPASS-GRANTING form (the only one in the\
+  \ pilot): `cli_invoked` with `node_id` = the spec\n(verb-routed `graph query`) —\
+  \ synchronous, deterministic, canonical identity = spec-id.\nThere is NO worktree_ref\
+  \ / per-task discriminator: a session's fetch credits the gate regardless\nof which\
+  \ `task/T-XXXX` worktree the fetch was recorded under — so a fetch made earlier\
+  \ in the\nSAME session (e.g. while on a different task) still credits a later close/commit\
+  \ (no\nsolo-sequential over-reject). `instruction_injection: commanded_read` (Read-tool\
+  \ reads\nmaterialized by journal sync, SPEC-0004 §Expected-reads model — established;\
+  \ file-path identity) is OBSERVED-ONLY in the pilot —\ncollected for a post-pilot\
+  \ validation decision, never satisfying the gate (the file-path↔spec-id\nidentity\
+  \ mismatch + materialization latency are unvalidated). The refusal text always advises\
+  \ the\n`graph query` path. The primitive only READS the journal — freshness at verb\
+  \ entry is guaranteed\nby the existing pre-verb auto-sync; no new sync, store, or\
+  \ hook.\n\n**Realm-qualified credit (X-0865) — a KERNEL contract needs the KERNEL\
+  \ receipt.**\nA `node_id` names the id ASKED FOR; it does NOT name the corpus that\
+  \ ANSWERED. Under `-C` a bare\n`graph query SPEC-XXXX` resolves consumer-own-first\
+  \ (SPEC-0092), so a consumer owning an UNRELATED\nspec at a gated KERNEL id satisfied\
+  \ that kernel contract's gate by reading its own spec — silently,\nsince nothing\
+  \ in the pass or the refusal named the realm (measured: <project> 2026-08-13). So\
+  \ the\nreceipt ALSO carries `node_realm` (\"kernel\" | \"own\"), stamped by `cmd_graph_query`\
+  \ off the branch\nthat actually resolved, and the credit is realm-qualified:\n-\
+  \ The doc-set carries the realm each doc REQUIRES — the realm of the corpus whose\
+  \ `binding:` put it\nin the bundle (`_stage_bundle_specs(..., with_realms=True)`,\
+  \ which derives the own and kernel\ncorpora SEPARATELY so a consumer-owned id can\
+  \ no longer SHADOW the kernel binding out of the set).\nAn id bound at that stage\
+  \ by BOTH corpora requires the KERNEL realm: a handbook retrieved-tier\npointer\
+  \ names the kernel contract.\n- A doc carrying a required realm is credited ONLY\
+  \ by a receipt whose `node_realm` EQUALS it. A\nreceipt with NO realm stamp makes\
+  \ no realm claim and credits NOTHING — fail-closed, with no\nown-vs-kernel exception,\
+  \ and self-healing (re-issuing the fetch stamps it).\n- Realm qualification applies\
+  \ ONLY on a `-C` consumer build — the only place an id collision can\nexist (the\
+  \ positive discriminator). On the engine's own session own IS the kernel (SPEC-0092),\
+  \ so\nno doc is realm-qualified and credit stays id-only, byte-unchanged. The PLAN\
+  \ axis is own-only (no\nkernel doc can enter its doc-set) and is likewise never\
+  \ realm-qualified.\n- The refusal names the `--kernel` form for a kernel-realm doc\
+  \ — the bare form it would otherwise\nprint could not SATISFY the gate that printed\
+  \ it (the X-0416 self-defeating-instruction class, on\nthe realm axis) — and carries\
+  \ `missing_realms` in `read_gate_refused`. A SATISFIED gate prints ONE\nreport-only\
+  \ stderr line naming each credited doc + the realm that satisfied it, so a future\n\
+  mis-credit is not silent.\nThis EXTENDS the kernel-pin (which pinned the gate TEMPLATE\
+  \ resolution) to the READ-CREDIT\nhalf; it adds no store, event, flag, or parallel\
+  \ mechanism.\n\n### 3. Evidence locality (the authoritative source; explicit prerequisite)\n\
+  The authoritative evidence source = the CURRENT checkout's `events.jsonl` after\
+  \ FULL local\nmaterialization of the session transcript (per-checkout sync checkpoint)\
+  \ — pre-worktree\nreads are therefore locally visible. NOT a union-read across checkouts\
+  \ (single read-path, P5).\nPer-checkout materialization is an EXPLICIT PREREQUISITE\
+  \ DELIVERABLE, with its own probe (\"a\npre-worktree read is visible in the worktree\
+  \ journal\" — state-check) — RETAINED unchanged from\nthe <workshop-spec> model.\
+  \ Deadlock-free by construction for the pilot scope: the printed fail-commands\n\
+  execute IN the invoking checkout, so their evidence is local — the retry always\
+  \ passes (worst\ncase: one redundant re-fetch; never a deadlock).\n\n### 4. Refusal\
+  \ contract\nOn missing evidence the verb REFUSES (exit nonzero) and prints: one\
+  \ ready fetch command per\nmissing doc + the boundary line \"the gate checks delivery\
+  \ (fetch), not comprehension\". READY is\nload-bearing (X-0416): the printed command\
+  \ must land its `cli_invoked` receipt on the\nSAME corpus this gate reads, so the\
+  \ command form is corpus-aware — engine self-build prints the\nbare `bin/yitc-v2\
+  \ graph query <SPEC>`; a `-C` consumer prints\n`<ENGINE_ROOT>/bin/yitc-v2 -C <REPO_ROOT>\
+  \ graph query <SPEC>` (mirroring the X-0093\nforeign-corpus guard's refusal shape)\
+  \ plus one hint that a fetch run from the engine cwd WITHOUT\n`-C` records on the\
+  \ KERNEL journal and will not credit. A corpus-blind command cannot satisfy the\n\
+  gate that printed it: the identical list re-prints and the natural retry repeats\
+  \ the wrong-corpus\nfetch (a measured consumer loop — 3 duplicate calls per contract).\
+  \ The gate\nproves FETCH at the action moment — never understanding, and never post-compact/restart\n\
+  freshness (no /compact journal marker exists; the check is session-scoped; a future\
+  \ marker\nshifts the ts lower-bound from `session_started` to the last marker).\n\
+  \n**A DISCARDED FETCH DOES NOT GRANT A PASS (<project> X-1068).** The `cli_invoked`\
+  \ receipt\nrecords whether the fetched output was DELIVERED or went to the null\
+  \ device (the additive\n`stdout_delivered` field, `bin/lib/cli.py#_stdout_was_delivered`\
+  \ / <project> X-0842), and a\nreceipt recorded NOT delivered — the form `graph query\
+  \ <SPEC> >/dev/null 2>&1` — is EXCLUDED from\n§2's pass-granting evidence set by\
+  \ `_fetched_spec_ids`. The gate still proves FETCH and NEVER\ncomprehension: this\
+  \ narrows what counts as a fetch, and asserts nothing about whether the content\n\
+  was read, understood, or acted on. A fetch whose bytes reached no reader is not\
+  \ delivery either, so\ncrediting it missed the fetch-not-comprehension boundary\
+  \ rather than honouring it.\n\n**THREE BOUNDS, and they are the whole rule — a surface\
+  \ stating a different bound is a standing\ncontradiction (CHARTER §Principle 7),\
+  \ not a wording variation:**\n1. **The discriminator is the null device SPECIFICALLY,\
+  \ never `isatty`.** A pipe to a reader is\n   not a tty, so treating an ordinary\
+  \ `graph query <SPEC> | less` as discarded would both refuse a\n   legitimate fetch\
+  \ and make the recorded signal wrong. A terminal, a pipe, a regular file and an\n\
+  \   in-process capture all count as DELIVERED and still credit.\n2. **FAIL-SAFE\
+  \ TOWARD DELIVERED.** Only a receipt recorded exactly `False` is excluded; an ABSENT\n\
+  \   field (every pre- row, and the dispatch launcher's pre-recorded seed/help bootstrap\n\
+  \   receipts) or any value the producer could not determine still CREDITS. The unknown\
+  \ never\n   accuses a real read.\n3. **This reader ONLY.** The exclusion reaches\
+  \ `_require_reads` (contract gate) and\n   `_require_help_read` (verb-inventory\
+  \ gate), which share `_fetched_spec_ids`. The §8 seed floor\n   reads its own receipts\
+  \ (`_seed_receipt_epochs`) and is UNCHANGED; §2's window/anchor rules are\n   untouched.\n\
+  \n**HONEST BOUND, recorded so no reader over-trusts this.** The kernel cannot verify\
+  \ reading; it can\nonly decline to credit a fetch it can SEE was discarded. `> /tmp/x`\
+  \ is just as unread while looking\ndelivered, and nothing here reaches it. That\
+  \ residual is accepted deliberately — anything stronger\nis the comprehension check\
+  \ this corpus refuses to build.\n\n**THE STAGE VERB DOES NOT DISCARD SILENTLY.**\
+  \ `stage <NAME>` with fd 1 on the null device\nrecords the stage, renders NO bundle\
+  \ body, writes ONE stderr line naming the ids left uncredited and\nthe crediting\
+  \ form (the same command with stdout attached — terminal, pipe or file), and exits\
+  \ the\ndocumented distinct code `STAGE_BUNDLE_DISCARDED_EXIT` (6) — the only channel\
+  \ that survives\n`>/dev/null 2>&1`. Nothing above changes: no receipt is credited\
+  \ that was not before, the three\nbounds stand, and the session-start delivery seam\
+  \ is unaffected.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
+  \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
+  ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
+  \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
+  \ `task\ncommit` (Commit contracts), then GRADUATED (each its OWN first-connection\
+  \ step — never bulk)\nonto the remaining stage work-verbs: `audit pre`/`audit post`\
+  \ (TASK Audit-pre/post, SPEC-0036), `spec\nnew --draft` (plan `specs`, SPEC-0034),\
+  \ and `plan check` (plan `accepted`, SPEC-0034) — the latter two\non the cross-axis\
+  \ `axis==\"plan\"` derivation (§1). `kind=seed` / `kind=action` are RESERVED API\
+  \ shape ONLY — non-normative,\ncarrying NO code and NO obligation until a first-connection\
+  \ decision wires a consumer (each its\nown decision — never wired in bulk). Prerequisite\
+  \ named for the future seed wiring:\n`graph/floor-trigger-map.md` + `MEMORY.md`\
+  \ added to the materializer's GOVERNED list.\n\n**Anchor-scope (co-anchor boundary).**\
+  \ This spec's `bin/yitc-v2#cmd_task_close` anchor\ngoverns ONLY the must-read entry-gate\
+  \ PROLOGUE of that verb (the `_require_reads(\"stage\", …)`\nprecondition + its\
+  \ refusal); the rest of the close-path body (probe gating, spec activation, the\n\
+  closure-record write, and the report-only WARN family) is SPEC-0015 closure-contract\
+  \ behavior,\nNOT this spec's. A close-path symbol change that leaves the read-gate\
+  \ prologue unchanged is\ntherefore OUTSIDE this spec's governed behavior — the co-anchor\
+  \ `possibly-stale` flag is a false\npositive cleared by a last-touch refresh (the\
+  \ collateral co-anchor class; SPEC-0005\nrule-7 in-place). Instance : the SPEC-0052\
+  \ at-closure audit-YAML displacement is appended\nto the END of `cmd_task_close`\
+  \ (after the closure-record commit), leaving the read-gate prologue\nuntouched —\
+  \ no-drift for this spec; refreshed last-touch. Instance : the read_gate_refused\n\
+  observability emit is added to `_require_reads` BEFORE each `_die` refusal path,\
+  \ leaving the\ndoc-set derivation, the cli_invoked evidence window, and the stdout\
+  \ refusal text (this spec's\ngoverned behavior) UNCHANGED — additive observability\
+  \ only; no-drift, refreshed last-touch.\nInstance : the `task close --batch-close`\
+  \ preamble (the hygiene work-batch in-place close)\nis inserted into `cmd_task_close`\
+  \ BEFORE the read-gate prologue and still routes through the SAME\nunchanged `_require_reads(\"\
+  stage\", {\"stage\": \"Closure\"...})` precondition (doc-set, evidence\nwindow,\
+  \ refusal text all UNTOUCHED) — so the batch-close path is governed by this gate\
+  \ exactly like\nthe normal close; the co-anchor `possibly-stale` flag is a false\
+  \ positive, refreshed last-touch.\nInstance : `_require_reads` now passes `kind=\"\
+  read-check\"` (the SPEC-0025/SPEC-0059 locked\nrefusal-category enum value, reconciled\
+  \ from the interim `\"stage\"`) plus the already-resolved\n`session_ref` to the\
+  \ read_gate_refused emit; `cmd_task_close` / `cmd_task_commit` additionally pass\
+  \ a\n`verb=` label to the shared stage-correspondence guard. All additive observability/labelling\
+  \ — the\ndoc-set derivation, the cli_invoked evidence window, and the stdout refusal\
+  \ text (this spec's governed\nbehavior) are UNCHANGED. The co-anchor `possibly-stale`\
+  \ flag is a false positive, refreshed last-touch.\nInstance ( — GRADUATION): the\
+  \ read-check graduated onto `cmd_audit` (TASK Audit-pre/post),\n`cmd_spec_new` (--draft,\
+  \ plan `specs`), and `cmd_plan_check` (plan `accepted`). Each new verb anchor\n\
+  governs ONLY its must-read entry-gate PROLOGUE (the `_require_reads(\"stage\", …)`\
+  \ call + its refusal),\nexactly the co-anchor boundary the pilot uses for `cmd_task_close`;\
+  \ the REST of each verb (the\nauditor invocation, the spec scaffold/allocation,\
+  \ the plan-check audit body) is its OWN spec's\nbehavior, NOT this spec's. `_require_reads`\
+  \ additionally gained the cross-axis `ctx.axis` selector\n(§1) — additive: the evidence\
+  \ window, the cli_invoked window, and the read_gate_refused emit are\nUNCHANGED.\
+  \ The verb-own governing specs (SPEC-0030 / SPEC-0034 / SPEC-0046) are deliberately\
+  \ NOT edited\nto mention the gate — the read-gate has ONE home (this spec); duplicating\
+  \ it into each verb's spec is\nthe P5 violation the co-anchor model exists to avoid.\
+  \ The `ctx.axis` selector FAILS CLOSED\n(audit-post F1): an unknown axis raises\
+  \ ValueError (only an ABSENT axis defaults to \"task\"), so a\nmis-wired caller\
+  \ surfaces rather than silently routing to the task bundle. Refreshed last-touch\
+  \ on\nthe four anchors.\nInstance : the closure-time fingerprint linkage (`task\
+  \ close --closes-fp <fp>`, SPEC-0069)\nadds an OPTIONAL cites-fold + an advisory\
+  \ candidate HINT to `cmd_task_close` — the cites write, the\nlate-linkage done-re-run,\
+  \ and the report-only hint are all SPEC-0069 LINK-RULE behavior, leaving the\n`_require_reads(\"\
+  stage\", {\"stage\": \"Closure\"...})` read-gate prologue (doc-set, evidence window,\n\
+  refusal text — this spec's governed behavior) UNCHANGED. So the co-anchor `possibly-stale`\
+  \ flag is a\nfalse positive (deliberate-non-update of this spec), refreshed last-touch.\n\
+  Instance (re-verified): the at-the-moment spec-body-edit cue is appended to the\
+  \ END of\n`cmd_spec_new` as a single stdout line — printed AFTER the id is allocated\
+  \ and the scaffold written. It\nis operator-facing ergonomics, not gate behavior:\
+  \ the `_require_reads(\"stage\", …)` draft read-gate\nPROLOGUE this spec governs\
+  \ (its doc-set derivation, the cli_invoked evidence window, and the stdout\nrefusal\
+  \ text) is UNCHANGED, and the NON-draft path still carries no read-check at all.\
+  \ So the co-anchor\n`possibly-stale` flag is a false positive — reviewed against\
+  \ the code, not re-baselined blind (the\n honesty clause), and re-signed with a\
+  \ SCOPED reverify naming this one anchor.\n\nInstance : the crash-atomic closure\
+  \ ordering (`_activate_task_proposed_specs` MOVED to run\nAFTER the durable `status:\
+  \ done` write in `cmd_task_close`, with `_recover_close_tail` healing a\ncrash-between)\
+  \ is a PURE ordering change to the closure body — it leaves the\n`_require_reads(\"\
+  stage\", {\"stage\": \"Closure\"...})` read-gate prologue (doc-set, evidence window,\n\
+  refusal text — this spec's governed behavior) UNCHANGED. So the co-anchor `possibly-stale`\
+  \ flag is a\nfalse positive (deliberate-non-update of this spec), refreshed last-touch.\n\
+  \nInstance : `spec new` gains an explicit-id allocation (`--id SPEC-NNNN`, admitted\
+  \ only\nstrictly above the allocator's floor) and a report-only stderr WARN when\
+  \ a `-C` consumer's freshly\nallocated id is ALSO kernel-owned. Every edit sits\
+  \ BELOW the read-gate: the `--draft` plan-`specs`\n`_require_reads` PROLOGUE is\
+  \ byte-identical, the NON-draft path still carries no read-check at all,\nand the\
+  \ new work (id parse, the allocator kwarg, the WARN, two `spec_filed` fields) runs\
+  \ after it.\nSo this spec's governed behavior — the doc-set derivation, the `cli_invoked`\
+  \ evidence window and the\nstdout refusal text — is UNCHANGED, and the co-anchor\
+  \ `possibly-stale` flag is a false positive: the\nsame shape as the instance above,\
+  \ which likewise appended operator-facing behavior to this\nvery function. Reviewed\
+  \ against the code, not re-baselined blind (the honesty clause), and\nre-signed\
+  \ with a SCOPED reverify naming this one anchor.\n\nInstance ( — the ONE governed\
+  \ BYPASS of the audit read-gate, X-0040 non-empty-delta half):\n`audit post --reaudit-after-close`\
+  \ SKIPS the `cmd_audit` TASK Audit-post read-gate prologue\n(`_require_reads(\"\
+  stage\", {\"stage\": \"Audit-post\", …})`) AND the stage-correspondence guard —\
+  \ UNLIKE\nevery other Instance above (which leave the prologue UNCHANGED), this\
+  \ one is a deliberate, NARROW\nbypass, so it IS this spec's behavior to govern.\
+  \ WHY it is sound, not a hole: the flag re-audits a\n**status:done** task's current\
+  \ tree for a post-close `land --rebaseline`, and `stage Audit-post`\nHARD-REFUSES\
+  \ a done task (`cmd_stage`), so the bundle-read receipt the gate checks is **structurally\n\
+  unsatisfiable** post-close — enforcing it would re-create the X-0040 deadlock the\
+  \ flag exists to\nresolve. The bypass is FAIL-CLOSED by SCOPE: it fires ONLY when\
+  \ ALL of {stage==post, target==--task,\nstatus==done, the explicit `--reaudit-after-close`\
+  \ ack} hold; drop any one and the ordinary\nread-gate + stage-correspondence + in-progress-only\
+  \ path runs unchanged. The explicit flag + done-only\nscope IS the operator ack\
+  \ standing in for the unreachable stage-entry read. Invocation-contract\nsibling:\
+  \ SPEC-0036 (the in-progress-only carve-out); rebaseline-honoring sibling: SPEC-0077\
+  \ §3a.\n\n### 7. What is removed alongside (P1 F3; ordering)\nThis spec SUPERSEDES\
+  \ <workshop-spec> by **NET-REMOVAL of the worktree-attribution layer** and\nRESTORES\
+  \ the <workshop-spec> session_ref-only evidence model. Removed in code : the\n`_worktree_ref_of`\
+  \ + `_credits_under_worktree` helpers, the `worktree_ref` stamping on BOTH emit\n\
+  paths (live `_emit_cli_invoked` + the materializer `_journal_sync`), and the `current_ref`\
+  \ param\nof `_fetched_spec_ids` / its derivation in `_require_reads`. KEPT: the\
+  \ per-checkout\nmaterialization (§3) — the worktree_ref layer sat ON TOP of it and\
+  \ is the only thing removed. The\nunconditional pointer-only \"read before acting\"\
+  \ promise on the piloted gates stays retired (the\n`stage Commit` / `stage Closure`\
+  \ pointer is delivery ECHO; the OBLIGATION lives in the verb\nprecondition) — carried\
+  \ over verbatim from <workshop-spec>/<workshop-spec>. EXTENDS this retirement to\
+  \ the\ngraduated gates: the `stage Audit-pre` / `stage Audit-post` and the plan\
+  \ `specs` / `accepted`\nstage-entry pointers are likewise delivery ECHO — the OBLIGATION\
+  \ now lives in `audit pre`/`audit post`,\n`spec new --draft`, and `plan check`.\
+  \ The generic shared stage-entry echo LINE is intentionally NOT\nreworded per-stage\
+  \ (a per-stage \"is gated?\" lookup would be a new mechanism for an echo string\
+  \ — P1\nF3; faithful to the pilot, which left the echo line as-is and moved the\
+  \ obligation into the verb). <workshop-spec> → superseded on this\nspec's activation\
+  \ ( close).\n\n### 8. The audience-seed read-gate (`_require_seed_read`) — the BROAD\
+  \ anti-Forgetting floor\nA SECOND read-gate, a SIBLING of the `--help` verb-inventory\
+  \ gate (§2), realizing the\nSPEC-0007 §5 audience-seed floor. It reuses this spec's\
+  \ machinery; it adds no new store/hook/format.\n- **Receipt (producer — session\
+  \ start OWNS the primitive).** `session start` emits the audience-seed\n  READ receipt\
+  \ AFTER it delivers the seed: a `cli_invoked` row whose `data.node_id == SEED_READ_NODE_ID`\n\
+  \  (`cli:seed`) — the emit analog of the `--help` fetch-receipt. It necessarily\
+  \ post-dates the\n  `session_started` anchor emitted in the same verb, so it lands\
+  \ in-window (§2). `session start` is the\n  PRIMARY producer. **One GOVERNED co-producer\
+  \ — the dispatch bootstrap.** A dispatched\n  Worker never runs `session start`\
+  \ before its FIRST governed verb (`worktree new` — the claim), and\n  its seed only\
+  \ auto-injects on `cd` INTO the worktree that `worktree new` creates — the dispatch\n\
+  \  chicken-and-egg. So `cmd_dispatch`, at the spawn chokepoint, emits the SAME primitive\
+  \ for the\n  ASSIGNED worker session_ref into the MAIN journal BEFORE the spawn:\
+  \ a `session_started` (build)\n  anchor + the `seed_read` receipt + the `--help`\
+  \ verb-inventory receipt (session_ref override — the\n   diagnostic-emit path).\
+  \ This is the SAME `cli:seed` sentinel row, in-window under the anchor it\n  emits\
+  \ alongside — it adds NO new event/store/gate (P1 F1/F3), only a second CALL SITE\
+  \ for the\n  existing receipt. The worker's `worktree new` then finds the receipts\
+  \ present and passes; `seed_read`\n  precedes `worktree_created` by construction\
+  \ (emitted pre-spawn).\n- **Gate (`_require_seed_read`) — MIRRORS `_require_help_read`.**\
+  \ Same session_ref-anchored PER-JOURNAL\n  evidence windows (§2, no raw union),\
+  \ same FAIL-CLOSED no-anchor refusal, same `read_gate_refused`\n  observability\
+  \ emit, the same [current + main-checkout] candidate set — now on EVERY governed\
+  \ verb, not\n  just `land` ( generalized the carve-out) so a receipt recorded only\
+  \ on MAIN (a Controller's, or\n  the launcher's §Receipt co-producer) credits a\
+  \ NON-land verb run from a worktree, removing the\n  per-worktree `session start`\
+  \ for this gate — and the same single-snapshot + bounded-retry\n  read-consistency\
+  \ belt (§2). Refusal `reason`: `no_session_started_anchor` (no valid window in any\n\
+  \  candidate), `seed_read_unfetched` (window present, receipt absent), or `seed_read_stale_epoch`\
+  \ (receipt\n  present but pre-compact — §epoch below). It proves FETCH of the seed\
+  \ (the receipt), NEVER comprehension (§4).\n- **Summary-window lookback bound.**\
+  \ The receipt gates' (seed + `--help`) evidence\n  window is anchored at the EARLIEST\
+  \ `session_started` of THIS ref the preamble walk finds; the walk never\n  opens\
+  \ an ARCHIVE segment wholly older than the SPEC-0190 summary window (`READ_SUMMARY_WINDOW_DAYS`),\
+  \ for\n  a refusal and a credit alike, whatever the anchor's shape. The bound is\
+  \ SEGMENT-level: the LIVE segment is\n  read whole (rotation keeps it <=7 days in\
+  \ production); only an archive segment straddling the window\n  floor drops its\
+  \ rows older than the floor instant. A session (or a reused ref's earlier run) older\
+  \ than\n  the window is not credited — it re-anchors via `session start` / `--help`\
+  \ (fail-closed, cheap). An\n  unreadable window value falls back to the whole-history\
+  \ walk (fail-safe). Two runs of one reused ref\n  both inside the window still share\
+  \ the earliest anchor (out of scope, fu_2c91525fccd1).\n- **Coverage — GATE-BY-DEFAULT\
+  \ at ONE central chokepoint.** `main` calls the gate for EVERY resolved\n  verb,\
+  \ AFTER `_auto_sync` and BEFORE the verb runs, UNLESS the verb is in the small SEMANTIC\
+  \ allowlist:\n  (a) `session start` (PRODUCES the receipt — gating it would deadlock\
+  \ the floor); (b) `event --type\n  deviation_captured` (the from-anywhere capture\
+  \ reflex — unconditional by design); (c) pure\n  READ-ONLY verbs, identified by\
+  \ the EXISTING `cli_invoked_verb` marker (no mutating verb sets it).\n  `--help`\
+  \ exits pre-dispatch and never reaches the chokepoint. FAIL-SAFE DIRECTION: forgetting\
+  \ to\n  allowlist a read-only verb only OVER-gates it (harmless friction — the seed\
+  \ is one `session start`\n  away); a NEW/unlisted MUTATING verb is gated by default,\
+  \ so coverage never silently regresses. This is\n  the BROAD floor the 3-verb `--help`\
+  \ gate is NOT — it covers every governed/mutating verb + `dispatch`\n  + the `audit`\
+  \ paths.\n- **Relation to `kind=seed` (§1).** This realizes the seed floor via a\
+  \ standalone gate on the\n  `_require_help_read` precedent, so `_require_reads`\
+  \ `kind=seed` stays RESERVED/unwired — no duplicate\n  mechanism (P1 F1/F3).\n-\
+  \ **Epoch-scoping — post-`/compact` freshness.** The gate proves the seed was read\
+  \ for the\n  CURRENT CONTEXT EPOCH, not merely once this session. A `/compact` evicts\
+  \ the seed from context but\n  emits NO `session_started`, so a session-scoped receipt\
+  \ would keep crediting after the compaction —\n  the receipt LIES (the seed-floor\
+  \ consult's finding #2). The CONTEXT EPOCH is the count of `/compact`\n  boundaries\
+  \ in the provider transcript (`session.session_epoch`, the `compact_boundary` records\
+  \ the\n  SAME best-effort log `session context` reads): 0 at a fresh session, +1\
+  \ per compaction — a monotonic\n  integer, NOT a timestamp. `session start` STAMPS\
+  \ its seed receipt with the epoch at emit\n  (`data.epoch`); `_require_seed_read`\
+  \ reads the CURRENT epoch and credits a receipt only when its\n  stamped epoch >=\
+  \ current — else refuses `seed_read_stale_epoch` (distinct from the missing-receipt\n\
+  \  `seed_read_unfetched`). This is a receipt-STAMP compare, ORTHOGONAL to the §2\
+  \ window origin (it does\n  NOT shift the `session_started` lower-bound; the window\
+  \ still selects same-session receipts, the\n  epoch check then rejects the pre-compact\
+  \ ones). A receipt with NO epoch stamp normalizes to **0** —\n  so pre-change historical\
+  \ receipts + test seeds credit while current_epoch==0 (a fresh session / a\n  hermetic-HOME\
+  \ test with no transcript) but go stale once a compact advances it; NOT exempt-always\n\
+  \  (which would re-open the hole). FAIL-SAFE: `session_epoch` best-efforts to 0\
+  \ on any transcript\n  quirk (a log hiccup must never break a governed verb; 0 can\
+  \ only under-count → fail toward crediting\n  a present receipt, never toward a\
+  \ spurious refusal). **Producer / refresh:** the epoch-REFRESH producer stays `session\
+  \ start` (the §Receipt dispatch\n  CO-PRODUCER emits an epoch-0 bootstrap receipt,\
+  \ credited by the normalize-to-0 rule above and\n  going stale post-`/compact` like\
+  \ any other); post-`/compact` the receipt goes stale and the AI re-runs `session\
+  \ start` ONCE to\n  re-stamp the fresh epoch — SANCTIONED + SAFE (EARLIEST-anchor\
+  \ keeps the window origin), the narrow\n  exception co-designed in SPEC-0007 §5b\
+  \ (§At-session-start \"re-read seed CONTENT by re-reading files\"\n  is unchanged\
+  \ — this refreshes the RECEIPT, a different act). The refusal message self-delivers\
+  \ this.\n- **Scope bound.** Beyond epoch-scoping (above), the worker-records-before-worktree\
+  \ ordering is now\n  RESOLVED : the GOVERNED dispatch bootstrap (the §Receipt co-producer)\
+  \ records the worker's\n  receipts on MAIN before the claim, so `worktree new` is\
+  \ never a chicken-and-egg deadlock. The\n  worker's LATER worktree stage-verbs (`task\
+  \ analyze`/`audit`/`task commit`/`task close`) run\n  `_require_reads` (the STAGE-BUNDLE\
+  \ read-gate), whose RECEIPTS are CURRENT-JOURNAL-ONLY (§2; since\n   its window\
+  \ ANCHOR also reads the main checkout's `session_started`) — so the stage-bundle\n\
+  \  FETCHES must be made in THAT checkout, but a session already anchored on MAIN\
+  \ need NOT re-anchor it:\n  its main `session_started` opens the window for the\
+  \ worktree-local receipts. A per-worktree\n  `session start` (surfaced in the dispatch\
+  \ preamble) stays harmless — EARLIEST-anchor keeps the origin —\n  and is still\
+  \ required where the session has no anchor on main. ** note:** the broadened\n \
+  \ candidate set is scoped to the RECEIPT gates (`_require_seed_read` / `_require_help_read`)\
+  \ — those\n  credit the worker's seed/help receipt from MAIN; `_require_reads` reads\
+  \ its RECEIPTS from the current\n  journal only (its ANCHOR alone widens to main)\
+  \ — no contradiction, different gate.\n\n### 8a. The BOUNDED read-tolerance exception\
+  \ to the seed floor\n\nOwner-decided, externally consulted (`decisions/seedgate-read-tolerance-audit-adhoc.yaml`,\
+  \ verdict\n**extend-with-bounds**; extended to a THIRD member by `decisions/-audit-consult-on-demand.yaml`\n\
+  under the owner's standing authorization — see MEMBER 3 below). EXACTLY THREE\n\
+  verbs — **`debt`**, **`followup list`** and **`profile`** — TOLERATE a\nstale/unbacked/absent\
+  \ session ref instead of refusing: they resolve through the NON-DYING keyer twin\n\
+  (`_try_resolve_session_ref_with_source`), and on ANY would-be refusal (`session_ref_unresolved`\
+  \ /\n`no_session_started_anchor` / `seed_read_unfetched` / `seed_read_stale_epoch`)\
+  \ they emit a visible\nfallback WARNING and PROCEED (exit 0) rather than `_die`.\
+  \ All three are **pure durable-state folds** —\nread-only observers (`cmd_debt`\
+  \ / `cmd_followup_list` / `cmd_profile`: no worktree, no mutation, no\nevent of\
+  \ their own — `debt` and `profile` leave only the dispatch seam's `cli_invoked`\n\
+  INVOCATION RECEIPT, the very row every clause-(c) read verb already emits past this\
+  \ floor\nwith no gate at all, so it is not a write the floor guards) of state\n\
+  the journal already owns — so waving them through grants no write the floor was\
+  \ guarding, and they\nare the post-`/compact` re-fold surfaces the handbook itself\
+  \ tells a starved session to run\n(AGENTS §After-`/compact`). This is an **explicit\
+  \ bounded EXCEPTION, never a general weakening** of\nthe SEED-READ floor.\n\n**MEMBER\
+  \ 3 — `profile`.** SPEC-0198 declares the verb READ-ONLY in exactly the terms this\n\
+  set's membership criterion asks for — «no write, no event of its own, no worktree\
+  \ (the `debt` posture)» — and\n`cmd_profile`'s own docstring holds THE SAME POSTURE\
+  \ AS `cmd_debt`, deliberately. It is admitted\nbecause a byte-copied consumer's\
+  \ SPEC-0145 producer (`bin/security-audit`) is fired by cron/systemd\nwith NO session\
+  \ and NO anchor in its checkout, while the SPEC-0093 carrier it reads declares\n\
+  `<engine>/bin/yitc-v2 -C <repo> profile --json` as its route to the ONE derivation\
+  \ site\n(`bin/lib/profile.py#resolve_profile`). A read-only VIEW verb refusing that\
+  \ real trigger on\n`no_session_started_anchor` starved the seam entirely — the gap\
+  \ measured by audit-post. The\nextension was ratified on technical merit by the\
+  \ external consult\n`decisions/-audit-consult-on-demand.yaml` (GREEN, single survivor:\
+  \ «`profile` satisfies the\ntolerance set's existing pure-fold criterion, reuses\
+  \ the bounded exception mechanism, and enables the\nrequired session-less consumer\
+  \ seam») and decided under the owner's standing authorization. Every\nbound below\
+  \ survives unchanged: still a CLOSED enumeration, still the stderr fallback WARNING,\
+  \ still\nthe `selected_source=` / `fallback_reason=` telemetry — so the set grew\
+  \ by one measured member, and\nits shape did not change.\n\n**Homing (why HERE and\
+  \ nowhere else).** The consult said to home the exception in the\n«<workshop-spec>/SPEC-0050\
+  \ seed-read floor» rather than in a detached new rule. That family is ONE lineage:\n\
+  **<workshop-spec> → superseded by <workshop-spec> → superseded by SPEC-0050 (active)**.\
+  \ Only `active` is normative\n(GRAPH §What a spec is FOR), and `superseded` specs\
+  \ are frozen history — `spec edit` refuses them. So\nthe exception is homed in the\
+  \ ACTIVE lineage head, THIS spec, and nowhere else: <workshop-spec> and <workshop-spec>\n\
+  are deliberately left UNCHANGED and carry no pointer to it. Reading a rule off a\
+  \ superseded ancestor is\nnever correct; resolve the lineage head instead.\n\n-\
+  \ **BOUND 1 — scope (fail-closed elsewhere).** The allowlist is a CLOSED set of\
+  \ exactly those three\n  verb labels. Every **mutating, stage, seed-delivery and\
+  \ session-guidance** verb keeps the strict\n  fail-closed path VERBATIM — `followup\
+  \ drop`, the adjacent mutating sibling of a tolerated verb, is\n  the standing differential\
+  \ witness. The chokepoint's fail-safe direction is preserved: a NEW or\n  unlisted\
+  \ verb is strict BY DEFAULT, and a tolerant verb whose non-dying twin is not injected\n\
+  \  degrades to STRICT (never to open).\n- **BOUND 2 — the anti-Forgetting nudge\
+  \ survives.** A tolerated read is NEVER silent: it prints a\n  visible fallback\
+  \ WARNING to stderr naming the bypass and the remediation (`session start`).\n \
+  \ Tolerated output is **OBSERVATIONAL ONLY** — it is not a governance surface, and\
+  \ a starved\n  controller MUST NOT base an out-of-band decision on it before hitting\
+  \ a strict verb.\n- **BOUND 3 — visibly auditable.** That warning carries the machine-readable\
+  \ telemetry\n  `selected_source=` (the selector that produced the ref — `expected_contract`\
+  \ / `env:<CARRIER>` /\n  `worktree_stamp` / `runtime_record`, or `unresolved`) and\
+  \ `fallback_reason=` (which of the four\n  gate reasons WOULD have refused), reusing\
+  \ the resolution-telemetry vocabulary.\n\n**No new event type.** A tolerated PASS\
+  \ is deliberately NOT recorded as `read_gate_refused`: that\nevent is the refusal\
+  \ umbrella whose `kind` enum is LOCKED (SPEC-0025 / SPEC-0059 §enforcement-split\n\
+  splits the refusal numerator by it), so recording a pass there would poison the\
+  \ metric and make the\nname lie. The warning line is the machine-readable carrier\
+  \ — no new event, store, flag or classifier.\n\n**Freshness containment.** The allowlist\
+  \ is defined INSIDE `bin/lib/gates.py#_require_seed_read` — a\nsigned `implements:`\
+  \ anchor of this spec — not as a module-level constant. Widening the bound therefore\n\
+  necessarily changes that anchor's content signature and trips spec-freshness; the\
+  \ bound cannot drift\nsilently. (A module-level constant would sit outside every\
+  \ signed anchor — the audit-pre finding that\nreshaped this design.) The PASS path\
+  \ is untouched: a session with a fresh receipt sees no warning.\n\n## Rationale\n\
+  \nThe worktree-attribution (`worktree_ref` discriminator) was added to stop a within-fleet\n\
+  cross-credit between Agent-tool background siblings that SHARED one provider `session_ref`.\
+  \ That\nshared-ref fleet mode is no longer the operating model: dispatch is now\
+  \ SEPARATE provider\nsub-sessions, each with a DISTINCT `session_ref` (plan\n`dispatch-via-sub-sessions-only-subagents-forbidden`\
+  \ §Findings H1 = PASS, live 2026-06-07 — 3\nconcurrent `the AI provider -p` sub-sessions\
+  \ got 3 distinct session_ids natively; V2 carries no in-process\nshared-ref fleet\
+  \ code). With distinct refs the discriminator is dead weight — and it actively\n\
+  HARMED the solo-sequential case (Principle 1 F3 + a real defect fix): a `task/`-branch\n\
+  discriminator over-rejected a fetch made earlier in the SAME session under a different\
+  \ task, so a\nsession that legitimately fetched a contract was forced to re-fetch.\
+  \ Removing it is net-removal\n(fewer lines, no new mechanism — P1 F3) AND a correctness\
+  \ fix. Existing analog (P1 F1): the\n audit-pre freshness gate in `task execute`\
+  \ (same verb-precondition class). The\nsession_ref-only model is the proven, previously-shipped\
+  \ <workshop-spec> design.\n\n## Verification\n\n(1) UNIT — `_fetched_spec_ids(session_ref,\
+  \ lower_bound)` is 2-arg; a `cli_invoked{node_id}` of\nTHIS session_ref with `ts\
+  \ >= lower_bound` credits regardless of any prior task context (no\nworktree discriminator)\
+  \ → `_require_reads(\"stage\", Closure)` does NOT raise (cross-task\nsame-session\
+  \ credit, the over-reject fix). (2) STATE — `_credits_under_worktree` /\n`_worktree_ref_of`\
+  \ no longer exist on the module; `grep bin/yitc-v2 worktree_ref` → 0 hits.\n(3)\
+  \ REGRESSION — the <workshop-spec> properties hold: empty-session REFUSE with ready\
+  \ commands;\nanother session's fetch does NOT satisfy THIS session's gate; ts lower-bound\
+  \ excludes\npre-session reads; pre-worktree materialized read is credited in a fresh\
+  \ checkout.\n(4) live-trigger (P8): `task close` / `task commit` REFUSE on an empty-session\
+  \ journal in a\nsandbox checkout, then PASS after the fetch.\n(5) EARLIEST-anchor\
+  \ — `_session_started_lower_bound(ref)` returns the EARLIEST `session_started`\n\
+  of `ref`: with two anchors of the SAME ref (origin + a worktree-hop re-anchor) and\
+  \ a fetch BETWEEN\nthem, the gate PASSES (the worktree-hop credit fix); a read before\
+  \ the origin still REFUSES; and a\nDIFFERENT ref's earlier anchor neither lowers\
+  \ this ref's bound nor credits this gate (cross-ref\nnegative — no cross-session\
+  \ over-credit). Covered by `tests/test_require_reads_gate.py`\n(`test_t9243_earliest_anchor_credits_read_between_worktree_hop_anchors`,\n\
+  `test_t9243_cross_ref_session_started_does_not_lower_bound_or_credit`).\n(6) DISCARDED-FETCH\
+  \ exclusion (§4) — a DIFFERENTIAL over the receipt PRODUCER, not over\nhand-written\
+  \ rows: a `graph query <SPEC>` receipt emitted with fd 1 bound to the real null\
+  \ device\nrecords `stdout_delivered: False`, is NOT in `_fetched_spec_ids`, and\
+  \ `_require_reads` REFUSES\nnaming that contract; the SAME emit over each ordinary\
+  \ form (in-process capture, pipe, regular-file\nredirect) records delivered, IS\
+  \ credited, and the gate PASSES. Both directions are required — a\ntest asserting\
+  \ only the refusal would pass on a reader that credits nothing. Plus the two bounds:\n\
+  a receipt with NO `stdout_delivered` key still credits (back-compat + the dispatch\
+  \ bootstrap\nreceipts), and a not-delivered `session start` receipt is still read\
+  \ by `_seed_receipt_epochs`\n(the seed floor was not widened). Covered by\n`tests/test_t11411_discarded_fetch_not_credited.py`.\n\
+  \n## Drift review\n\n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`.\
+  \ edited only\nthe spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range`\
+  \ scoping for the\nWARN) — it does NOT touch the `_require_reads` precondition /\
+  \ `_fetched_spec_ids` pass-granting gate\nthis spec governs. The graph last-touch\
+  \ flag was a region shift only; no semantic drift. This\nre-touch clears the possibly-stale\
+  \ flag.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- CHARTER.md#principle-5
+- CHARTER.md#principle-8
+- SPEC-0005
+- SPEC-0007
+- SPEC-0013
+- SPEC-0014
+- SPEC-0015
+- SPEC-0038
+- SPEC-0059
+- dispatch-via-sub-sessions-only-subagents-forbidden
+- SPEC-0060
+- X-1068
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
+  bin/lib/events.py#_emit_cli_invoked: c5a936b389c6a76ee6480e855b5b742707b330336d3372d9e7fc195d8251c7a8
+  bin/lib/gates.py#_fetched_spec_ids: 4f91d79220adae801846c2a84860c2c964b1ea5445d0ad8d73acbdda2033bbd8
+  bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
+  bin/lib/gates.py#_require_seed_read: 02efe8b5f67e0e05610a0a98a305b5b790cc0da7b0c6b5ccbdcada360394d6b6
+  bin/lib/gates.py#_seed_receipt_epochs: 1fd06ce74f223c807742191c68e5d737d7cb07406effeb8cee3d396335b80779
+  bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
+  bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3
+  bin/lib/session.py#session_epoch: 9de86dd52424e7ab717de755fe7d7efd6393e5621e20a243e44cdfdd0e3b40ff
+  bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
+  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
+  bin/lib/task.py#cmd_task_commit: 82dba6d0bde3a11a313d6954ffd013dea3651b56dd8e0cf6c25b45f2472d7396

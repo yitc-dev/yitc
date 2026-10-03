@@ -1,0 +1,235 @@
+id: SPEC-0110
+title: Liveness/freshness control — declare cadence + freshness probe, independent
+  kernel-side monitor
+status: active
+created_at: 2026-06-27 09:54:20+00:00
+travels: kernel
+consumed: false
+extension: null
+implements:
+- bin/lib/nightly.py#_check_freshness
+- bin/lib/nightly.py#_default_freshness_adapter
+- bin/lib/nightly.py#_run_command_freshness_adapter
+- bin/lib/nightly.py#_load_freshness_decl
+- bin/lib/init.py#_hook_freshness
+body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay fresh\
+  \ — e.g. <project>'s parsed social\ndata) declares its expected CADENCE + a FRESHNESS\
+  \ probe on its `yitc-ops.yaml`. A bounded v2 monitor\nthen checks \"did the regular\
+  \ work actually run / is the output fresh?\" and ALERTS on a miss — and it\ndoes\
+  \ so INDEPENDENTLY of the project's own loop, so a dead scheduler cannot also kill\
+  \ its own alarm.\n\n## Internal\n\nLIVENESS / FRESHNESS CONTROL (L3 — is the project's\
+  \ output fresh). Rules:\n\n### 1. The freshness-probe SCHEMA (what a declaration\
+  \ MEANS — declare-or-waive, P5)\nFreshness is a declare-or-waive SECTION on `yitc-ops.yaml`\
+  \ (a SPEC-0093 rule-4 section-add). Rule 1\ndefines the SCHEMA / SEMANTICS the monitor\
+  \ interprets; **WHERE the per-pipeline VALUES live is rule 2\n(pointer, not copy)**\
+  \ — the rule-1/rule-2 boundary, made explicit after the cycle-1 external\nconvergence\
+  \ read flagged it. The schema: a freshness probe is a **LIST of pipelines, NOT a\
+  \ single\nprobe** (e.g. a consumer with two pipelines: discovery + tracking), and\
+  \ per pipeline the kernel monitor consumes a\n**NORMALIZED** record — a `{fresh|stale|miss}`\
+  \ state + the last-run AGE (optional `detail`) — produced\nby the project's read-only\
+  \ ADAPTER (rule 2). The adapter owns the interpretation that yields that\nnormalized\
+  \ state: the expected CADENCE, the staleness threshold, and the STATUS FILTER —\
+  \ only a\nSUCCESSFUL recent run normalizes to `fresh`; a too-old or failed run normalizes\
+  \ to `stale`/`miss`. These\nare the FIELD SEMANTICS the monitor consumes; rule 2\
+  \ governs the adapter contract that produces them. A project that has not\nyet declared\
+  \ a scheduled output WAIVES it forward-aware. This extends the slice-1 `live_probe:`\
+  \ (a single\n`GET /health`, SPEC-0094), insufficient for \"is the data fresh\".\n\
+  \n### 2. The SOURCE is a GENERIC normalized-freshness ADAPTER contract — never a\
+  \ static block premise\nThe freshness SOURCE is NOT a fixed `registry.yaml pipelines:`\
+  \ block the kernel parses (that premise\nwas WRONG: <project>'s real signal is a\
+  \ LIVE Postgres query + a docker-log heartbeat, not a static\nYAML block — external\
+  \ consult `decisions/-audit-adhoc.yaml`, verdict RED). Instead each PROJECT\nsupplies\
+  \ a **read-only freshness ADAPTER** and the KERNEL stays a generic GRADER. The adapter\
+  \ contract\nis NORMALIZED: for each pipeline it returns a `{fresh|stale|miss}` state\
+  \ + the last-run AGE (optional\n`detail`, + the optional reachability OUTCOME of\
+  \ §2a below). The adapter — not the kernel — owns reading the project's real source\
+  \ (DB / log / registry\nblock / env threshold, whatever the project already encodes)\
+  \ and the cadence/threshold/`status_ok`\ninterpretation that decides fresh-vs-stale;\
+  \ a failed or too-old run normalizes to `stale`/`miss`. The\n`yitc-ops.yaml` freshness\
+  \ section holds ONLY: (a) the declare-or-waive marker, (b) a reference NAMING\n\
+  the project's adapter (no per-pipeline threshold VALUES copied in — single-source\
+  \ discipline preserved,\nCHARTER §P5; no second threshold ledger), (c) the observed-evidence\
+  \ state. The kernel monitor CONSUMES\nthe adapter's normalized output through its\
+  \ ALREADY-INJECTABLE reader seam and embeds NO\nproject-specific format — no registry-block\
+  \ parsing, no SQL, no docker — keeping kernel code\nproject-neutral (CHARTER §P1\
+  \ + the territory boundary). An unreadable adapter source is a MISS,\nnever a silent\
+  \ skip (rule 3). **Coverage-overlap stays FREE:** the project's adapter reads the\
+  \ EXACT\nsignal its v1 watchdog reads, so during the retire-overlap window they\
+  \ cannot diverge and the no-gap\nproof is like-for-like.\n\n#### 2a. The reachability\
+  \ OUTCOME — fresh-and-failing is its own verdict (ADDITIVE)\nThe freshness STATE\
+  \ says how OLD a result is. It cannot say **\"the probe ran fine and the SUBJECT\
+  \ is\ndown\"**: `fresh` reads that record as clean, and the only two states that\
+  \ would surface it — `stale`,\n`miss` — say we could not SEE, filing BAD NEWS as\
+  \ NO DATA. So the normalized record MAY carry an\nexplicit reachability **`outcome`,\
+  \ one of `reachable` | `unreachable`**, BESIDE its `state`, and the\ngrade MUST\
+  \ render a FRESH result whose outcome is `unreachable` as **FAILING** — a project\
+  \ verdict\ndistinct from the stale/miss `alert`, from the clean `ok`, and from the\
+  \ silence of `none`. A rendering\nthat shows a fresh failure as any of those does\
+  \ not satisfy this rule. (This is the surface SPEC-0174\nrule 3 requires; that spec\
+  \ states the REQUIREMENT, this rule defines the SHAPE.)\n- **ADDITIVE — the field\
+  \ is OPTIONAL and absence is unchanged behaviour.** An adapter that reports no\n\
+  \  outcome (every declaration that predates this axis, and every project with no\
+  \ reachability target)\n  keeps EXACTLY its prior grade: `fresh` grades ok, `stale`/`miss`\
+  \ grade alert. No existing obligation\n  is reshaped — only a case the rule did\
+  \ not previously address gains an answer (SPEC-0005 rule 7,\n  in-place additive\
+  \ extension). The `concern:` born declaration template stays CORRECT as written.\n\
+  - **The `fresh` half is load-bearing.** An `unreachable` outcome carried on a `stale`\
+  \ or `miss` record\n  is itself stale news — a subject cannot be declared down from\
+  \ a reading we already know we could not\n  take — so such a record stays the ordinary\
+  \ no-data `alert` and never borrows the confirmed-failure\n  reading. Conversely\
+  \ `failing` OUTRANKS `alert` when both are present: a confirmed-down subject is\
+  \ the\n  sharper news, and every stale/miss pipeline still renders its own line\
+  \ beside it.\n- **Fail-closed, and the two absence classes differ — the line is\
+  \ KEY PRESENCE, not value-emptiness.**\n  An ABSENT outcome — the KEY is not there\
+  \ at all — is a legitimate \"this adapter reports none\". A\n  PRESENT key is the\
+  \ record failing to say what it claimed unless it carries `reachable` or\n  `unreachable`:\
+  \ at the SOURCE that is a whole-project adapter ERROR (rule 3), exactly as an unusable\n\
+  \  `state` is, and at normalization it fails closed to `miss`. **A present key carrying\
+  \ null/empty is\n  UNUSABLE, not absent** — an adapter that emitted the field and\
+  \ left it unfilled TRIED to report and\n  failed, and reading that as \"reports\
+  \ none\" would grade the record clean. It is never silently\n  dropped either —\
+  \ a dropped outcome renders the record CLEAN, the false-green this axis exists to\n\
+  \  close.\n- **Grade-only is untouched.** This axis adds NO outbound request: the\
+  \ kernel still grades only the\n  RECORD the project's adapter produced, never reaching\
+  \ the subject to verify or confirm a reported\n  failure (SPEC-0174 rule 2 — absolute,\
+  \ and asserted by this rule's suite rather than assumed).\n\n**none = NON-ADOPTED\
+  \ (the migration-gate honesty rule).** A project with NO freshness declaration,\
+  \ a\nWAIVED one, or one naming no usable adapter grades to verdict `none` — and\
+  \ `none` is **NOT freshness\ncoverage**. For a project SLATED TO RETIRE its v1 watchdog\
+  \ (<project>) a coverage/adoption\ngate MUST treat `none` as **NON-ADOPTED** and\
+  \ MUST NOT count it as a v2 replacement — only a DECLARED\nadapter actually graded\
+  \ by the monitor counts. The monitor marks each result `adopted: true|false`\naccordingly\
+  \ so the downstream gate cannot silently read an absent declaration as covered.\n\
+  \n### 3. The probe is INDEPENDENT of the project's own loop (the single-point-of-failure\
+  \ rule)\nThe kernel freshness monitor MUST NOT depend on the project's own scheduler\
+  \ to fire. <project>'s only\nfreshness alarm is its OWN `celery-beat` task — if\
+  \ the beat dies, the alarm dies with it. The v2\nmonitor runs from the bounded methodology\
+  \ nightly (L1, SPEC-0105), OUTSIDE the project's loop, so a\ndead project loop is\
+  \ exactly what it catches rather than what silences it. **Unreadable-source = MISS,\n\
+  never silent-skip (trial cycle 1 finding).** If the freshness SOURCE itself is unreadable\
+  \ (the DB /\ntable is down, the timestamp query errors), the monitor MUST treat\
+  \ that as a MISS and ALERT — NOT skip\nsilently. Otherwise a project that takes\
+  \ its own DB down silences its own alarm (the very rule-3\nfailure mode), since\
+  \ the source and the project share fate. Read-error ⇒ alert; only a successful read\n\
+  of a fresh successful run clears it.\n\n### 4. Liveness is a DERIVED freshness VIEW,\
+  \ not a new ledger (anti-complexity F2)\nThe \"is it fresh\" answer is COMPUTED\
+  \ on read from existing journal / output state (last-run\ntimestamp vs threshold),\
+  \ not stored in a new freshness ledger. No new store/parser (CHARTER §P1 F2 —\n\
+  a view over existing state beats a new entity).\n\n### 5. SEED-then-grow boundary\
+  \ + the named deferral\nL3 governs single-project output freshness; it does NOT\
+  \ own L1 (the nightly runner, SPEC-0105) nor L2\n(product-cron declaration, SPEC-0109).\
+  \ L3 activates when the first project needs a freshness alert\n— its real PULL.\
+  \ **Cross-project runtime-dependency liveness** (one consumer depending on another\
+  \ at runtime,\nstudy gap 4) is a NAMED-DEFERRED future extension point of this shape\
+  \ — recorded in the plan's deferred\nconcerns, opened on its own carrier at the\
+  \ first such consumer's migration, NOT built here.\n\n### 6. A reachability-kind\
+  \ declaration NAMES its target — unnamed REFUSED, edge-ness ADVISORY\nA freshness\
+  \ declaration may declare that its adapter reaches a live HTTP surface rather than\
+  \ — or\nbeside — a data pipeline. That REACHABILITY KIND is declared by its own\
+  \ key on the section,\n`reachability:`, because `kind:` already names how the kernel\
+  \ INVOKES the adapter (`command`|`file`,\nrule 2) and must keep meaning only that.\
+  \ A declaration carrying no `reachability:` key is NOT of this\nkind and this rule\
+  \ asks it NOTHING: the existing cohort — the kernel's own carrier and every consumer\n\
+  declaring plain pipeline freshness — validates unchanged. That non-breakage is part\
+  \ of the rule, not\na side-effect of how it happens to be checked.\nA declaration\
+  \ that IS of this kind MUST NAME the address its probe reaches, in `reachability.target`.\n\
+  An unnamed one is REFUSED by the section's existing declare-or-waive completeness\
+  \ check, through the\nconcern's registered shape hook (SPEC-0128 Rule 2) — never\
+  \ accepted-and-ignored, and never a new gate\nclass. The discriminator is the PRESENCE\
+  \ of the key, so a `reachability:` that is present but\nunusable (not a mapping,\
+  \ empty, or a blank target) is REFUSED too, rather than read as \"not of this\n\
+  kind\": a broken declaration must never disable the requirement it was written to\
+  \ satisfy.\nThis EXTENDS what rule 2 says the section holds, and does not contradict\
+  \ it. Rule 2's \"no VALUES\ncopied in\" discipline is about per-pipeline THRESHOLDS\
+  \ and SLAs, which stay owned by the adapter; a\ntarget ADDRESS is the subject being\
+  \ declared, not a threshold, and it is the same class of datum as\nthe reference\
+  \ NAMING the adapter that rule 2 already requires.\nREACHING THE LIVE EDGE rather\
+  \ than an internal address is ADVISORY and is NEVER enforced. The\nasymmetry is\
+  \ structural, not a preference: the kernel cannot confirm that an address IS the\
+  \ live edge\nwithout REQUESTING it, and requesting is precisely what the grade-only\
+  \ boundary forbids — so a rule\nthat cannot be checked must not be written as though\
+  \ it were. Therefore a declaration naming an\nINTERNAL address is ACCEPTED, and\
+  \ the named address stays readable from the parsed declaration for\nany reader of\
+  \ the grade. What the refusal buys instead is LEGIBILITY: a probe that quietly reaches\n\
+  past the live edge stops being invisible, which is the failure this naming requirement\
+  \ answers. The\nkernel judges the PRESENCE of the answer only — never the address's\
+  \ value, its reachability, or its\nedge-ness (the SPEC-0093 rule-3 boundary) — and\
+  \ it issues no request of its own. A `waiver:` on the\nsection stays the stance\
+  \ the generic declare-or-waive check owns, so a waived section is asked\nnothing\
+  \ here either.\n\n### Coverage-overlap (no freshness gap — the L3 real pull is the\
+  \ <project> migration)\nL3's real PULL is the <project> migration (`migrate-<project>-onto-yitc-v2-v1-incumbent-gat`):\n\
+  <project> is freshness-critical and its v1 `watchdog.sh` coverage is removed at\
+  \ migration. The v2\nmonitor MUST be PROVEN catching a (synthetic) freshness miss\
+  \ on <project> BEFORE the v1 watchdog is\nretired (task, parked on exactly this\
+  \ proof) — the no-gap coverage-overlap rule lives single-SoT\nin that migration\
+  \ plan's §Verification (pointer, not restated here).\n\n### Build-order — NO catalog-amendment\
+  \ prerequisite (corrected 2026-06-27)\nL3 has **no** hard dependency on the extension-catalog\
+  \ amendment (plan\n`extension-catalog-population-from-3-project-breadt` / SPEC-0112).\
+  \ The external re-check (consult\n`decisions/extcat-scope-variants-audit-adhoc.yaml`)\
+  \ confirmed L3 is a non-catalog `yitc-ops.yaml`\ndeclare-or-waive SECTION-ADD (`extension:\
+  \ ~`): its forward-aware waive is already expressible via\nSPEC-0093 rule-6, and\
+  \ its freshness truth is its OWN observed-evidence-state (rule 2c) + the independent\n\
+  monitor's events (rule 3), not the catalog `wired`/`resolves_to` vocabulary (which\
+  \ L3 does not use). So\nthe prior hard `requires:` edge is REMOVED — L3 decomposes/builds\
+  \ on its own.\n(`extension-catalog-population-...` stays an informational `cites:`\
+  \ only.)\n\n## Rationale\n\n<project> is freshness-critical and its v1 watchdog/registry-threshold\
+  \ machinery is removed by\nmigration with nothing on the v2 side to replace it;\
+  \ <project> has NO `registry.yaml pipelines:`\nblock so `watchdog.sh` skips it (a\
+  \ freshness GAP); <project>'s alarm is single-point-of-failure. The\n3-project study\
+  \ lives in the proposing plan (SPEC-0005 §3 content boundary — not restated).\n\
+  Predecessor: the withdrawn <workshop-spec> (re-authored here under the follow-on\
+  \ grow-plan; <workshop-spec>\nfrozen historical).\n\n## Verification\n\nAdoption\
+  \ probe (CHARTER §P3 + §P8 — infra-class): the v2 monitor CATCHES a (synthetic/injected)\n\
+  freshness miss on a real project (<project>), firing from the bounded nightly INDEPENDENTLY\
+  \ of the\nproject's own scheduler. FAILURE-CHECK: the monitor goes silent when the\
+  \ project's own loop dies\n(rule 3 violated) — the very condition it must detect.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0093
+- SPEC-0094
+- SPEC-0105
+- SPEC-0109
+- extension-catalog-population-from-3-project-breadt
+- migrate-<project>-onto-yitc-v2-v1-incumbent-gat
+- v2-automation-grow-l2-product-cron-governance-l3-l
+requires: []
+supersedes: null
+concern:
+- section: freshness
+  carrier_path: freshness
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: adapter
+  declare_type: string
+  waiver_policy: loose
+  shape_hook: freshness_shape
+  born_order: 160
+  born: "freshness:\n  # SPEC-0110. DECLARE this project's freshness contract if it\
+    \ PRODUCES data on a cadence (a sync /\n  # discovery / tracking pipeline that\
+    \ must keep producing fresh output). Replace this waiver with:\n  # adapter: bin/freshness-adapter.py\
+    \ # the declaration key that ANSWERS this section\n  # kind: command # the kernel\
+    \ runs it LIVE and parses its stdout JSON\n  # command: [python3, bin/freshness-adapter.py]\n\
+    \  # The source is a LIVE READ-ONLY ADAPTER the kernel invokes at grade-time,\
+    \ never a static file; it\n  # prints {\"pipelines\": [{name, state: fresh|stale|miss,\
+    \ age_hours, detail}], \"error\": null} (or\n  # {\"pipelines\": [], \"error\"\
+    : \"<detail>\"} on a source failure). Thresholds live IN the adapter, and\n  #\
+    \ the probe must be INDEPENDENT of the loop it grades. Waiver LOOSE but FORWARD-AWARE:\
+    \ say why\n  # nothing needs grading yet and how you would flip to declare.\n\
+    \  # see SPEC-0110 §1, §2, §3\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no freshness contract declared yet. This project produces no data on\
+    \ a cadence that must be graded for staleness; if it gains one (a sync / discovery\
+    \ / tracking pipeline), replace this waiver with an `adapter:` naming a read-only\
+    \ LIVE adapter command (never a static file — SPEC-0110 rule 3) that prints the\
+    \ kernel adapter-return JSON.\"\n"
+activation_owner_task: null
+proposed_by: v2-automation-grow-l2-product-cron-governance-l3-l
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/init.py#_hook_freshness: 70ef31ed885f832557faabfcd3751394fdcd5e990f6c5cbef41ff03413109da8
+  bin/lib/nightly.py#_check_freshness: 30d7a1ffe5717c3f2971af12d60bc550fb26da7beca6f1e50aa45f044846d2db
+  bin/lib/nightly.py#_default_freshness_adapter: b1992d776600690644978f2caf06221a701360ae420897d2146c584e5e99f04d
+  bin/lib/nightly.py#_load_freshness_decl: 89bafa11e0037fc9b6d1c7632ed6f9f9a4991700d8a6d5a1a91eef282dfdc475
+  bin/lib/nightly.py#_run_command_freshness_adapter: a4474c3aec33aa3d1e7985711d30c74e8192053ca5cfe16699e97cc9146820ec

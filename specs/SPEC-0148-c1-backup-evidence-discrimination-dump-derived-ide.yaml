@@ -1,0 +1,73 @@
+id: SPEC-0148
+title: C1 backup evidence discrimination — dump-derived identity + the wrong-target
+  negative replay
+status: active
+created_at: 2026-07-09 19:20:00+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/deploy.py#_parse_pgdmp_header
+- bin/lib/deploy.py#_backup_precondition
+- bin/lib/deploy.py#_parse_sqlite_backup
+- bin/lib/deploy.py#_run_c1_backup
+body: "## Scenario\n\nAfter a Class-C1 deploy the owner reads `deploy_backup_taken`\
+  \ in the journal and sees WHICH\ndatabase was dumped and from which server version\
+  \ — read out of the produced archive itself.\nA deploy whose dump lands on the WRONG\
+  \ database refuses (exit 3, artifact discarded, no event),\neven though the archive\
+  \ is fat and the command exited 0.\n\n## Internal\n\n0. SUBORDINATION (plan-check\
+  \ finding 1): SPEC-0097 REMAINS the single deploy-autonomy contract;\n   this spec\
+  \ carries ONLY the §4 evidence-identity refinement and activates as its explicit\n\
+  \   extension — on any conflict SPEC-0097 wins until this spec's activation amends\
+  \ it. Never a\n   second deploy contract (P5 one-home).\n\n1. `_run_c1_backup` parses\
+  \ the produced `pg_dump -Fc` archive HEADER (`PGDMP` magic → source\n   database\
+  \ name + server version — verified on the real <project> drill artifact 2026-07-09).\n\
+  \   Identity is read FROM the artifact the server wrote — NEVER from the carrier\
+  \ or the command\n   string (the forgeable path the consult HIGH finding names).\n\
+  2. `deploy_backup_taken` gains dump-derived `database` + `server_version` alongside\
+  \ the existing\n   `{revision, project, path, bytes, duration_seconds, budget_seconds}`\
+  \ payload.\n3. OPTIONAL carrier key `classes.C1.expected_database`: when DECLARED,\
+  \ a header that fails to\n   parse OR names a different database REFUSES the deploy\
+  \ (fail-closed, discriminating). When\n   ABSENT, identity is RECORDED, never enforced\
+  \ — back-compat: this spec must not re-block the\n   consumers unblocked (enforcement\
+  \ is opt-in per carrier).\n4. NEGATIVE REPLAY is part of the contract, not the tests\
+  \ garnish: a fixture archive whose header\n   names a different database, with the\
+  \ expectation declared, MUST refuse despite nonzero bytes.\n   A change that makes\
+  \ that fixture pass is a regression of this spec.\n5. ENGINE : OPTIONAL carrier\
+  \ key `classes.C1.engine` — `postgres` (the default when\n   absent, so every existing\
+  \ carrier is unchanged) or `sqlite`; any other value REFUSES at the\n   carrier\
+  \ boundary. The engine is DECLARED, never inferred from the artifact (an artifact\
+  \ must\n   not attest its own engine). It names the artifact and picks the identity\
+  \ reader; the bytes\n   only VERIFY it. A SQLite backup is readable ONLY on a bounded\
+  \ exact signature with a\n   structurally valid header (a database file whose header\
+  \ invariants hold, or a `sqlite3.dump`\n   text opening with its exact preamble)\
+  \ — anything else is recorded unreadable, exactly as an\n   unparseable PGDMP header\
+  \ is. A SQLite file names no database, so `sqlite` + a declared\n   `expected_database`\
+  \ REFUSES (the §3 expectation could never be verified).\n\n## Rationale\n\nbin/lib/deploy.py:394\
+  \ today records nothing identifying the dump target — a wrong-database dump\nis\
+  \ byte-for-byte indistinguishable evidence (the 2026-07-09 family, level 3: executed\
+  \ != on\ntarget). Consult HIGH finding: \"evidence identity read from the produced\
+  \ dump and checked against\nan independent expected target\". HONEST BOUND (stated,\
+  \ not hidden): `expected_database` is\ndivergence-detection between two INDEPENDENT\
+  \ declarations — a carrier lying in both is not caught.\n\n## Verification\n\nNamed\
+  \ tests: (a) real-header fixture parse yields database+version; (b) wrong-target\
+  \ fixture +\ndeclared expectation refuses, no event emitted, refusal names expected\
+  \ vs actual; (c) declared\nexpectation + matching dump emits the discriminating\
+  \ payload; (d) NO expectation declared →\nrecords identity best-effort, never refuses\
+  \ on identity.\n"
+cites:
+- SPEC-0097
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+requires:
+- SPEC-0097
+supersedes: null
+activation_owner_task: null
+proposed_by: prove-the-deploy-evidence-chain-acts-on-target-dis
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/deploy.py#_backup_precondition: 164ccf52b263d3d223872cdd48c43007faf3562e06e98f5cbd359dce73a45e26
+  bin/lib/deploy.py#_parse_pgdmp_header: 7d69e9a3a92e51a531825ac5d0688975600655dc8518595c6971e25bb0298d18
+  bin/lib/deploy.py#_run_c1_backup: e933f8d065f7a68e748fbfc590f66f7464d928f7fc49f9f7db554e33b61fc297

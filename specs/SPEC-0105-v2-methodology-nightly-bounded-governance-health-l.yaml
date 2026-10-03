@@ -1,0 +1,396 @@
+id: SPEC-0105
+title: v2 methodology-nightly — bounded governance/health/liveness automation for
+  migrated v2 projects
+status: active
+created_at: 2026-06-25 07:58:35+00:00
+travels: kernel
+consumed: false
+extension: null
+implements:
+- bin/lib/nightly.py#cmd_nightly
+body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodology`\
+  \ is `yitc_v2`) is watched by a\nBOUNDED, methodology-AWARE nightly — the v2 analog\
+  \ of the v1 night-cycle, but it runs v2 GOVERNANCE\nchecks, never a v1 auto-session.\
+  \ The owner sees ONE place where every v2 project's health is checked\non a schedule:\
+  \ queue freshness, corpus/graph integrity, backup-verify, and — delegated to the\n\
+  freshness probe (SPEC-0110) — whether the project's regular work actually ran. Since\
+  \ it\nalso sees whether each project's MAIN IS GREEN, as ONE reported line, rather\
+  \ than learning it a\nhalted worker at a time. A v2 project is NEVER\nleft to fall\
+  \ between the v1 nightly (which would run the WRONG, v1 session on it — the X-0090\n\
+  regression) and no nightly at all.\n\n## Internal\n\nTHE BOUNDED v2 METHODOLOGY-NIGHTLY\
+  \ (L1 — the seed layer). Rules:\n\n### 1. Methodology-partitioned — never a v1 auto-session\
+  \ on a v2 project\nThe v2 nightly acts ONLY on projects whose `registry.yaml` `methodology\
+  \ == yitc_v2`, running v2\nGOVERNANCE/health checks on each (read-only health: queue\
+  \ freshness, graph/corpus integrity,\nbackup-verify, + the PROJECT-VERIFY HEALTH\
+  \ check of §1a ( — the project's own declared,\nhealth-eligible verify layers run\
+  \ as a read of whether its main is green), + the liveness probe of\nSPEC-0110, +\
+  \ the BORN-WAIVER FRESHNESS hygiene check (X-0130) — surfacing a `yitc-ops.yaml`\
+  \ (SPEC-0093) born waiver whose init PLACEHOLDER marker/expiry was\nnever replaced,\
+  \ so a fail-closed default never confirmed does not sit unnoticed indefinitely).\
+  \ It\nNEVER invokes a v1 `auto-session` on a v2\nproject, and the v1 night-cycle\
+  \ MUST stop enumerating v2 projects — the two nightlies PARTITION the\nregistry\
+  \ by `methodology`. This partition is the closure of X-0090.\n\n### 1b. The per-project\
+  \ STAGE-PROFILE reading — what did each lifecycle stage cost here?\nBeside the §1\
+  \ health checks, which answer whether a project is WELL, the run takes one READING\
+  \ of\nwhat that project's work COSTS: per lifecycle stage, over the tasks CLOSED\
+  \ in the window, the n /\nmedian / p90 / sum of wall, with each stage's machine-time\
+  \ share. It is a read-only fold of that\nproject's own `events.jsonl` through the\
+  \ kernel `stage-profile` lens (SPEC-0031 §Saved views) — the\nSAME function `graph\
+  \ query stage-profile` runs, so the nightly and an on-demand query cannot report\n\
+  different numbers — and it emits NO event of its own: the reading rides the existing\n\
+  `nightly_run_completed` report (a VIEW, not a new store — CHARTER §P1 F2).\n\n**SUPPRESSED-WHEN-EMPTY,\
+  \ unlike the §1a health states.** A project that closed no task in the window\n\
+  prints NO line. This is the opposite choice from the health axis's `none` state,\
+  \ and deliberately so:\n`none` there means COVERAGE IS ABSENT and must never read\
+  \ as `ok`, whereas here an idle fortnight is\nsimply not a reading, and a row of\
+  \ nulls printed for it would be indistinguishable from a measured\nquiet period\
+  \ while adding the line every reader learns to skip. A project whose journal cannot\
+  \ be\nread says so (`alert` + the reason) rather than printing nothing — an unreadable\
+  \ journal and an idle\none are different facts.\n\n**REPORT-ONLY, and inside the\
+  \ §2 fence.** No verdict moves, no exit code moves, no threshold is\ncompared and\
+  \ nothing is flagged: a rising stage cost is a signal to look at what changed upstream,\n\
+  never a gate. It runs no command in the consumer's checkout and writes nothing there\
+  \ — it\nreads a journal, which is what §1's other checks already do.\n\n### 1c.\
+  \ The per-project SEAM-READ reading — what did this project's verbs cost to RUN?\n\
+  The sibling of §1b on the other cost axis: §1b reads what each lifecycle STAGE cost\
+  \ in wall-clock,\nthis reads what each VERB cost in physical corpus reads. One read-only\
+  \ fold of that project's own\n`events.jsonl` through the kernel `debt.seam_read_amplification`\
+  \ fold — the SAME function the\nSPEC-0119 rule-37 debt line renders, so the nightly\
+  \ and a project's own `debt` echo cannot report\ndifferent ratios for the same seam\
+  \ (one oracle, re-derived nowhere). It emits NO event of its own;\nthe reading rides\
+  \ the existing `nightly_run_completed` payload, as `results[].seam_reads` plus the\n\
+  `seam_read_amplified` / `seam_read_uninstrumented` headline counters.\n\n**THE SCOPE\
+  \ IS THE REGISTRY, AND EVERY `yitc_v2` PROJECT ANSWERS.** Coverage is not a function\
+  \ of\nwhich projects happened to adopt something — there is nothing here to adopt,\
+  \ and the check runs in\nthe same loop as every other §1 check. That is what makes\
+  \ fleet-wide read cost readable at all: it\nwas previously visible only to whoever\
+  \ ran a verb in one checkout and noticed it was slow.\n\n### 1d. THE ROW HAS A READER\
+  \ ( — cross-reference, the rule body is NOT here)\nEverything §1 records lands on\
+  \ ONE `nightly_run_completed` row per run. Until **nothing\nread that row back**\
+  \ — `grep nightly_run_completed bin/lib/debt.py` returned zero hits — so this\n\
+  spec's whole per-project report reached no seam a session opens, and the only fleet\
+  \ reading anyone\nhad was the `projects_flagged` headline, which had read 11/11\
+  \ every night since 2026-08-31 because\ntwo chronic conditions saturate it. **SPEC-0119\
+  \ rule 38** is that reader: it folds the last TWO\nrows and surfaces, on the existing\
+  \ debt echo's three seams, each project's per-check verdict\nCHANGES vs the previous\
+  \ night, with the two chronic conditions (`corpus` stale / `born_waivers`\nalert)\
+  \ excluded from the change line and given a dated line each naming a remedy. It\
+  \ is a READER\nONLY — report-only, zero stored state, no new event, no new store,\
+  \ no new verb, no new seam — so\nnothing in THIS spec's emission contract moves:\
+  \ the row, its payload and its cadence are unchanged.\nThe rule body lives single-SoT\
+  \ in SPEC-0119 rule 38 (`bin/yitc-v2 graph query SPEC-0119`); this is\na navigational\
+  \ cross-reference, never a second copy (CHARTER §P5 / SPEC-0005 rule 8).\n\n###\
+  \ 1e. A PROJECT READS ITS OWN VERDICT — `nightly --status`, read-only\nThe row lives\
+  \ in the ENGINE's journal, so a consumer's own journal holds no nightly row at all\n\
+  (<project> X-1577, measured 2026-09-24): a consumer session could not see what the\
+  \ nightly said\nabout it. `bin/yitc-v2 [-C <project>] nightly --status` is that\
+  \ project's reader — a VIEW over\nthe rows §1 already writes, never a copy of them:\n\
+  - **Source:** the ENGINE journal's `nightly_run_completed` rows, folded read-only\
+  \ through the\n  segment-aware journal reader (SPEC-0190 rule 4). The ENGINE journal\
+  \ is resolved from the engine\n  install, so `-C` never moves it.\n- **Subject:**\
+  \ the invoking project's canonical registry key (the `cross` peer identity,\n  SPEC-0086),\
+  \ so the engine and every `-C` consumer each read their OWN `results[]` entry.\n\
+  - **Latest run only.** What it prints is the latest row's verdict, latest by `ts`\
+  \ (physical order\n  is not chronology, SPEC-0190 rule 5), with that run's time.\
+  \ An OLDER row naming the project is\n  never presented as the current verdict.\n\
+  - **What it prints:** the run time, `freshness` and `project_health` with the detail\
+  \ that\n  explains a non-clean grade, every other check's verdict, and one line\
+  \ per chronic condition\n  that project carries. The chronic vocabulary and remedies\
+  \ are SPEC-0119 rule 38's, reused by\n  reference; the spell is dated from THIS\
+  \ project's own first night of it.\n- **Absence is stated, never silent:** with\
+  \ no row at all, or when the latest run did not name\n  the project, it prints `no\
+  \ nightly verdict for <name>` and the reason.\n- **ZERO writes.** No event of its\
+  \ own (not even an invocation receipt), nothing appended to\n  either journal, no\
+  \ registry read, no check run, no backup-verify. That includes the verb\n  envelope,\
+  \ even with a live caller session: the view skips the journal auto-sync (the\n \
+  \ flag-scoped opt-out amended into SPEC-0010) and is allowlisted at the seed-read\
+  \ gate, whose\n  refusal would otherwise be its one write (the `release check` precedent).\
+  \ The bare runner\n  keeps both. It exits 0 either way: a status view is not a gate.\n\
+  \n**The MIRROR was DECLINED, and why.** X-1577 asked the kernel to copy each project's\
+  \ outcome into\nthat project's journal. The nightly is CHECK + REPORT only, and\
+  \ a kernel write into another\nproject's repository is a cross-territory write (SPEC-0084).\
+  \ The view gives the consumer\nthe same reading with no second store and no write\
+  \ into its territory (CHARTER §P1 F2).\n\n**«NO COUNTERS» IS ITS OWN ANSWER AND\
+  \ IS NEVER GREEN.** The verdict is decided on the fold's\n`measured` field ALONE\
+  \ — how many seams carried usable `cli_invoked.reads` counters, counted BEFORE\n\
+  the within-bound seams are dropped. `measured == 0` grades `skip` carrying `counters:\
+  \ false` and the\nreason `no counters`; `measured > 0` with nothing over bound grades\
+  \ `ok` carrying `counters: true`.\nCollapsing those two would let a project that\
+  \ has NEVER been measured render exactly like a project\nmeasured clean, which is\
+  \ the CHARTER §P3 «presence ≠ absence» fault in the one place it would be\ninvisible\
+  \ — and reporting a ratio of 1.0 for an unmeasured project would fabricate a reading\
+  \ nobody\ntook. The run therefore reports the uninstrumented COUNT beside the amplified\
+  \ one: a fleet where\nhalf emitted no counters and the rest were clean must never\
+  \ render as a clean fleet.\n\n**REPORT-ONLY, and inside the §2 fence**, on identical\
+  \ terms to §1b. No verdict moves, no exit code\nmoves, nothing is gated and no remedy\
+  \ is applied — the remedy a reader is pointed at is the seam's\nONE request-scoped\
+  \ ReadScope at its wiring site or a narrower horizon (SPEC-0190 rule 10), never\
+  \ a\nper-view cache. Deliberately NOT folded into `projects_flagged`: an amplified\
+  \ seam is a read-cost\nreading, not a project in trouble, and folding it would make\
+  \ that flag mean two things. Each\nproject's OWN `reads.exemptions[]` is honoured,\
+  \ read from ITS carrier and never the kernel's — a\nkernel-side default would silently\
+  \ hold every consumer to a bound its own contract had widened. It\nruns no command\
+  \ in the consumer's checkout and writes nothing there.\n\n### 1f. The consumer BUGFIX-INFLOW\
+  \ reading — how often do consumers report kernel defects?\nENGINE-scoped, once per\
+  \ run (the subject is the kernel's inbox on the shared coordination log, not\nany\
+  \ one project): per consumer, the `cross_requested` rows with `kind: bugfix` addressed\
+  \ `to` the\nkernel in the last 7 days plus the trailing 4 weekly counts, normalised\
+  \ per 100 kernel\n`land_completed` rows in the same 7 days. A view over the two\
+  \ existing logs — no store, no event;\nit rides `nightly_run_completed` as `consumer_bugfix_inflow`.\
+  \ REPORT-ONLY: folded into no flag and\nno exit code. An absent or unreadable log\
+  \ prints `inflow: NO-DATA (<reason>)`, never a zero.\n\n### 2. BOUNDED — health/check/monitor\
+  \ by default, NOT an autonomous session (the §6 fence)\nThe nightly CHECKS and REPORTS/alerts.\
+  \ It does NOT start an autonomous work session, self-fetch\ntasks, or hold any stateful\
+  \ orchestration — the SAME fence as the orchestrate controller-selector\nposture\
+  \ (CHARTER §6 named retirements: no auto-launch, no self-fetch, no stateful orchestrator,\
+  \ no\ncap/queue-state machinery). Any «auto-run a bounded task» capability is opt-in\
+  \ PER PROJECT and rides\nthe deploy/work-autonomy declare-or-waive (SPEC-0097) —\
+  \ autonomy is an owner DECISION, never an\nautomation default.\n\n### 1a. The PROJECT-VERIFY\
+  \ HEALTH check — is the project's main actually green?\nEvery other §1 check is\
+  \ a FILE read: it can say the carrier is well-shaped and the graph is fresh,\nbut\
+  \ not whether the project BUILDS. The only executor of a consumer's declared `verify.layers`\
+  \ is\nthe land path, and it runs over a CANDIDATE branch at land time — so a red\
+  \ main is discovered by the\nnext worker that tries to land on it, and ONE red becomes\
+  \ N halted workers (the incident behind this\nrule: 12 halts, 20 branches of unlanded\
+  \ work over roughly a day). The nightly therefore ALSO runs a\nproject's declared\
+  \ verify layers as a HEALTH read and reports the result.\n\n**WHICH LAYERS RUN —\
+  \ per-project OPT-IN, never a kernel inference.** A health run executes exactly\n\
+  the layers the project named in `verify.health.layers` (the SPEC-0152 rule-16 field),\
+  \ an opt-in that\nSELECTS FROM the layers that project already declared. Running\
+  \ every layer nightly is not free — a\nconsumer's stack layer drives containers\
+  \ and takes minutes — and the two alternatives are rejected\nfor reasons that outlive\
+  \ this instance: a CHEAP-ONLY rule would have the kernel infer cost from\n`timeout:`,\
+  \ which is a BUDGET and not a cost, i.e. GUESS which of another project's commands\
+  \ are\nsafe to run unattended in that project's checkout — the territory boundary\
+  \ this runner\nalready refuses to cross for `graph build`; and a WHOLE-PROJECT boolean\
+  \ forces the expensive choice\n(accept the 600s container layer to get the 180s\
+  \ static one, or get nothing). The per-layer opt-in\nholds the boundary BY CONSTRUCTION:\
+  \ nothing runs in a consumer's checkout that the consumer did not\nname for this\
+  \ use.\n\n**NO SILENT PASS — the four states are kept distinct.** `fail` = a layer\
+  \ exited non-zero: the main\nis RED, and the failing layer is NAMED. `alert` = a\
+  \ BROKEN WATCH (an unreadable carrier, an opted-in\nname no layer declares, a layer\
+  \ that could not be run) — we do NOT know whether main is green, which\nis different\
+  \ news from knowing it is fine. `none` = the project opted no layer in — NOT coverage\
+  \ and\nNEVER `ok`, counted in its own non-adopted total on the SPEC-0110 r2 precedent,\
+  \ so a fleet with zero\nadopters cannot report zero failures and read as a clean\
+  \ bill of health. `ok` = every eligible layer\npassed. A layer the selection rule\
+  \ EXCLUDES is NAMED as not-run with its reason; it is never counted\namong the passing\
+  \ ones, because a layer that printed nothing would be indistinguishable from a layer\n\
+  that passed.\n\n**BOUNDED, and inside the §2 fence.** The check RUNS project-declared\
+  \ commands, so: skipped under\n`--dry-run` (the backup/conformance parity), each\
+  \ command clamped to a kernel ceiling a consumer may\nshorten but never raise, any\
+  \ runner fault reported rather than aborting the run, and a layer's\n`prep:` (a\
+  \ dependency-tree WRITE) is NOT run — a layer that cannot pass without its prep\
+  \ must not be\ndeclared health-eligible. It CHECKS and REPORTS: it never fixes,\
+  \ never opens a session, never writes\nthe consumer repo.\n\n### 2a. Bounded local-evidence\
+  \ side-effects (backup snapshot + transcript-archive) — per SPEC-0135\nThe §2 fence\
+  \ forbids an autonomous WORK session (no claim/fetch/orchestration), NOT bounded\n\
+  hygiene WRITES: the runner already writes its `nightly_run_completed` event AND\
+  \ runs the\nbackup-verify that writes/rotates snapshot files. These are local-evidence\
+  \ side-effects, not\nwork sessions. The runner MAY therefore carry ONE further such\
+  \ side-effect — the\n**transcript-archive mirror** : once per run it mirrors the\
+  \ provider's per-session\nTRANSCRIPTS from `~/<provider-config>/projects/` into\
+  \ the kernel-local archive (idempotent `rsync -a`, no\nsource deletion/transform),\
+  \ so the RAW analytics source for a per-fork/per-session token-rollup\nsurvives\
+  \ the provider's ~30-day expiry (home craft: `lessons/provider-transcript-archive.md`).\n\
+  Fail-safe: a mirror fault is reported, never aborts the run; SKIPPED under `--dry-run`\
+  \ (read-only\nparity with backup). **Two bounds on the copy, both host-axis, both\
+  \ fixed by :**\n(i) SOURCE — the mirror carries the TRANSCRIPT content class ONLY\
+  \ (`*.jsonl`), as a rsync\nWHITELIST, never a path blacklist. The provider dir also\
+  \ holds the owner's write-protected\n`memory/` stores and per-session tool-output\
+  \ caches; `rsync -a` preserves modes, so copying one\nturned the owner's protection\
+  \ into an OBSTRUCTION inside the repo — a mirrored subtree that could\nnot be removed\
+  \ (measured 2026-08-31: `worktree park` refused with Permission denied over a 556MB\n\
+  tree). The remedy is to not carry it: the source protection is CORRECT and is never\
+  \ weakened (no\n`chmod`, no `--no-perms`). Stated as a class rule so a sibling directory\
+  \ the provider adds later is\ncovered without another card. (ii) DESTINATION — ONE\
+  \ path per host, the engine's **MAIN checkout**\n`.yitc/transcript-archive/`, resolved\
+  \ from the main-worktree answer rather than from the invoking\ncheckout. The duty\
+  \ is once-per-run and outside the project loop, so a per-checkout copy is\nduplication,\
+  \ not isolation (measured: 9.1G on main plus two worktree copies).\n**Archive semantics\
+  \ (the governing contract for the location):** repo-local under `.yitc/`\n(gitignored,\
+  \ server-backed) — a server-specific craft, NOT travelling methodology (SPEC-0090\n\
+  boundary). Retention/redaction stay LOCAL: the raw transcript text is local evidence\
+  \ and is\nNEVER journaled and NEVER aggregated across projects. **Usage + cost are\
+  \ READ-TIME DERIVED ONLY**\n(`token-rollup` × `pricing-config`, SPEC-0135 §3 Single-SoT\
+  \ fence) — the archive is the raw\nsource the derived view reads at read-time; the\
+  \ kernel aggregates only the DERIVED numbers, never\nthe raw text. This admits the\
+  \ archive side-effect WITHOUT weakening the §2 autonomy fence.\n**Archive retention\
+  \ — the same duty, on the ARCHIVE copy only.** Under ONE non-blocking\narchive-maintenance\
+  \ lock (`.yitc/transcript-archive.maintenance.lock`; a held lock refuses the whole\n\
+  duty for that run) the duty runs refresh → fold → prune. A raw archived transcript\
+  \ older than its\nwindow from last modification (machine-scoped `config` knobs `lib.nightly.TRANSCRIPT_RAW_RETENTION_DAYS`\n\
+  = 45, `lib.nightly.TRANSCRIPT_TMP_RETENTION_DAYS` = 14 for `-tmp*` sandbox dirs)\
+  \ with NO digest is\nfirst folded into its <workshop-spec> digest; it is then deleted\
+  \ ONLY when that digest verifies against the\nfile re-hashed immediately before\
+  \ deletion and the file is unchanged between hash and unlink — never\nby age alone.\
+  \ A missing, stale, malformed or integrity-failed digest is a NAMED refusal with\
+  \ zero\ndeletion for that file and is never refolded-and-deleted in the same run.\
+  \ Prune runs only after an ok\nmirror, is skipped under `--dry-run`, and never touches\
+  \ the provider source. Each run's summary\n(`pruned_files`, `bytes_freed`, `folded`,\
+  \ `refused_count`, `refused`) rides\n`nightly_run_completed.transcript_prune`. Operational\
+  \ contract: `lessons/provider-transcript-archive.md`.\n\n### 2b. Bounded escalation\
+  \ side-effect (concern-drift → a governed cross request) — per SPEC-0143 Rule 4\n\
+  The §2 fence forbids an autonomous WORK session, NOT a bounded, dedup-idempotent\
+  \ COORDINATION write.\nThe nightly's concern-drift reconcile (SPEC-0143 Rule 3,\
+  \ seam (b)) is REPORT-ONLY by default. For the\nnarrow case of a drift on a concern\
+  \ a PRE-EXISTING governed BLOCKING gate already blocks on (SPEC-0143\nRule 4 — the\
+  \ deploy Class-S security gate today), or of a drift the nightly has already surfaced\n\
+  repeatedly with no owner decision (SPEC-0143 Rule 4's surfacing-count trigger),\
+  \ the runner\nMAY file ONE further bounded side-effect:\na governed `cross request`\
+  \ (kind=note, kernel → the drifting consumer) on the kernel-owned SHARED\ncoordination\
+  \ log (SPEC-0084 / SPEC-0086), via the SAME id-alloc-flock write path as the land-time\n\
+  auto-file (`cross.auto_file_concern_drift_escalations`). This is a local-evidence\
+  \ COORDINATION emit,\nNOT a work session and NOT a consumer-repo write: it starts\
+  \ no session, claims/fetches nothing, adds\nNO new blocking gate and NO stored review-request\
+  \ entity, and NEVER mutates a consumer repo (the\nSPEC-0143 Rule 5 / CHARTER §6\
+  \ fence). It is DEDUP-idempotent (one item per consumer+concern+version),\nso a\
+  \ re-run files nothing; SKIPPED under `--dry-run` (read-only parity with backup\
+  \ + archive). This\nadmits the escalation side-effect WITHOUT weakening the §2 autonomy\
+  \ fence.\n\n### 2c. The QUIET LANE for wall-clock timing instruments (SPEC-0077\
+  \ §3b)\nThe KERNEL's own instruments are a fourth bounded once-per-run duty in the\
+  \ §2a family, on identical\nterms to backup-verify and the transcript mirror: that\
+  \ leg runs OUTSIDE the project loop, its\nsubject is the engine's own repository,\
+  \ and it is a local-evidence side-effect, never a work\nsession. Its membership\
+  \ is the kernel constant `bin/lib/nightly.py#_TIMING_INSTRUMENTS`.\n\n**AND A PER-PROJECT\
+  \ LEG FOR WHAT A CONSUMER DECLARES.** A registered `yitc_v2` consumer\nMAY declare\
+  \ its own timing-sensitive tests — `tests.classes[].timing_lane`, SPEC-0160 rule\
+  \ 10 — and\nthat rule defers the question of what runs them to THIS section by name.\
+  \ So the same lane also runs\nINSIDE the project loop, once per declaring project,\
+  \ over the instruments its declaration resolves\nto. Everything below this paragraph\
+  \ — serialized, pool held, one row per instrument, the regression\nreading — governs\
+  \ BOTH legs identically, because they are the same function\n(`bin/lib/nightly.py#_run_quiet_lane`)\
+  \ called twice and not two lanes.\n\nThree bounds keep the per-project leg honest,\
+  \ and each is the answer to a way it could go wrong:\nthe pool it holds is THAT\
+  \ PROJECT'S OWN (`_quiet_lane_pool_dir` is keyed on the repo), so a\nconsumer's\
+  \ readings are excluded by a verify in ITS repo and never serialize against the\
+  \ kernel's\nadmission slots; the reading rows are appended to the ENGINE's journal\
+  \ only, never a consumer's,\nwhich preserves the runner's read-only territory rule\
+  \ AND keeps one oracle for the baseline fold;\nand a project that declares NOTHING\
+  \ registers nothing, so the leg costs it one carrier read and\nholds no slot. The\
+  \ engine's own registry entry is skipped by this leg — its instruments are the\n\
+  kernel constant above, run once per run — so nothing is measured twice into one\
+  \ baseline.\n\n**WHY THE MEMBERSHIP HAS TWO SOURCES, which is not a contradiction.**\
+  \ homed\n`_TIMING_INSTRUMENTS` as \"deliberately a KERNEL constant and not a per-project\
+  \ declaration...\nnothing here for a consumer to adopt\". That was true when written\
+  \ and stays true OF ITS SUBJECT:\nthe engine's instruments live in the engine's\
+  \ `tests/` and remain on the constant. What moved is\nthe premise its second clause\
+  \ rested on — there was then NO per-project declaration to adopt, and\n created\
+  \ one. Two sources for two different subjects, not two registries for one.\n\n**WHAT\
+  \ IT IS FOR.** A wall-clock timing instrument cannot be read honestly on the per-land\
+  \ pinned\npath — the reading there is taken inside a parallel verify on a loaded\
+  \ shared host, so it measures\nthe host (SPEC-0077 §3b, the rule home; not restated).\
+  \ The question those instruments ask is still\nworth asking. This lane is where\
+  \ it is asked: once a night, on a quiet host, with the answer\nRECORDED rather than\
+  \ gated on.\n\n**SERIALIZED, AND WITH NO CONCURRENT VERIFY.** Registered instruments\
+  \ run ONE AT A TIME — never\nconcurrently with each other, because two timing instruments\
+  \ sharing a host measure each other. And\nthe lane runs only while the repo's EXISTING\
+  \ SPEC-0132 verify-admission slot pool is FREE, holding\nit for its duration, so\
+  \ no land verify can start beside it. That reuses the admission mechanism the\n\
+  land path already owns; it introduces no second lock, no scheduler and no new state.\n\
+  \n**AND WHEN THE POOL IS BUSY IT WAITS, WITHIN A BOUNDED WINDOW.** A busy pool at\
+  \ the\nnightly's minute is evidence about that MINUTE, not about the night: the\
+  \ lane therefore re-tries\nthe same hold on a fixed interval for a bounded window\
+  \ (currently every 60 s for up to 45 min —\n`bin/lib/nightly.py#_QUIET_LANE_RETRY_INTERVAL`\
+  \ / `#_QUIET_LANE_RETRY_WINDOW`) before giving up.\nThe retry is that ONE hold re-called,\
+  \ so the no-second-lock/no-scheduler/no-new-state sentence\nabove still holds unchanged;\
+  \ a first attempt that succeeds costs no wait at all.\n\nTHIS IS WHAT MAKES THE\
+  \ READINGS ACCRUE, which is why it is a rule and not a tuning preference. The\n\
+  readings are a SERIES: the de-pin phase they exist for needs >= 7 CONSECUTIVE readings\
+  \ per\ninstrument, and against a serialized land queue that runs around the clock\
+  \ a single fixed attempt\nper night can miss indefinitely. It did — the lane's first\
+  \ two rows ever (both registered instruments) were BOTH `skipped` on exactly this\
+  \ cause, so the count stood at zero\nrather than accruing slowly.\n\nWAITING IS\
+  \ NOT MEASURING, so the fail-safe is UNCHANGED. Nothing runs while another process\
+  \ holds\nthe pool. When the window CLOSES without a free pool the lane still does\
+  \ not run and still says so:\nthe same `skipped` verdict on every registered instrument,\
+  \ the same reason, and\n`duration_ms: null`. Only WHEN the attempt happens moved.\
+  \ The wait itself is RECORDED on every\nemitted row (`pool_wait_s`, on the `ok`\
+  \ rows as well as the skipped ones) and printed beside the\nreading when it was\
+  \ non-zero — a reading taken after waiting out a land queue and one taken on an\n\
+  immediately free host were taken under different conditions and must not read alike.\n\
+  \nA SECOND CRON SLOT WAS THE ALTERNATIVE, AND IS REJECTED: it adds a scheduler surface,\
+  \ still takes\none fixed attempt per slot, and makes the quiet hour a guess about\
+  \ a queue that does not have one.\nWaiting for the condition the lane actually needs\
+  \ is strictly smaller than guessing when it holds.\n\n**HOW WIDE THE HOLD IS — the\
+  \ HOST-DERIVED width, exactly what a land would derive.** \"The pool\" is\nnot a\
+  \ number this spec sets: the lane holds the SPEC-0132 pool width computed from the\
+  \ SAME live\nhost measurement a land computes its own admission slots from (`_verify_worker_bound`\
+  \ and the\nper-verify worker governor). The nightly runner receives that width as\
+  \ an INJECTED host callable,\nbecause the runner is a leaf that never back-imports\
+  \ the module owning the derivation. Holding\nexactly what a land would take is what\
+  \ makes \"no verify starts beside the lane\" a property rather\nthan a hope.\n\n\
+  **AND IT PROBES PAST THE HOLD, AS A BELT.** The width is measured ONCE, at hold\
+  \ time, while the\nhost headroom that produced it keeps moving — so a later land\
+  \ may derive a WIDER pool and pack onto\nthe first slot past the hold. The lane\
+  \ therefore probes a bounded window beyond what it holds,\nbefore and after each\
+  \ instrument, and a held slot there means a verify IS running beside it: that\n\
+  reading is recorded `skipped` with the reason, never published as a number. Two\
+  \ callers get no\ninjected width — a direct (non-runner) caller and a host whose\
+  \ width cannot be measured — and they\nhold a fixed fallback prefix instead; the\
+  \ probe is the same belt on both paths, which is why the\nfallback is safe to be\
+  \ approximate and the injected width is not required to be eternally current.\n\n\
+  **ONE READING ROW PER INSTRUMENT — SILENCE IS NEVER THE REPORT.** Each registered\
+  \ instrument\nproduces exactly one journal row of the SPEC-0025 `timing_instrument_reading`\
+  \ type, whatever\nhappened. A non-zero exit records a `failed` reading carrying\
+  \ its exit code; a timeout records a\n`failed` reading naming the timeout; a lane\
+  \ that could not run at all records `skipped` carrying the\nreason on every registered\
+  \ instrument. An instrument that produced no row is indistinguishable from\none\
+  \ nobody registered, which is the fault this rule exists to prevent — the same «absence\
+  \ is not\nhealth» discipline §1c applies to its own `no counters` answer.\n\n**THE\
+  \ REGRESSION SIGNAL IS A READING, NEVER A GATE.** A reading more than 10% above\
+  \ the TRIMMED\nMEDIAN of that instrument's last 7 recorded readings is marked as\
+  \ a regression ON THE ROW and\nsurfaced report-only. Fewer than two prior readings\
+  \ means there is NO baseline, and the row says so\nrather than declaring a regression\
+  \ against a number nobody measured. Nothing here moves a verdict,\nan exit code\
+  \ or a land: a timing regression is a debt line for a reader, and the remedy is\
+  \ a\ndecision, not a refusal.\n\n**INSIDE THE §2 FENCE.** It starts no session,\
+  \ claims and fetches nothing, holds no orchestration\nstate, and writes nothing\
+  \ in any consumer repo. It is SKIPPED under `--dry-run`, the\nread-only parity every\
+  \ side-effect sibling holds.\n\n### 3. Declared on the project ops-contract, not\
+  \ a parallel store (P1/P5)\nA project's participation + cadence is declared on its\
+  \ `yitc-ops.yaml` (a SPEC-0093 declare-or-waive\nsection), NOT a new automation\
+  \ registry. The kernel reads the EXISTING surface; it adds no parallel\nledger.\
+  \ A project may WAIVE the nightly with a forward-aware waiver (it records how/when\
+  \ to opt in\nlater — the forward-aware declare-or-waive affordance; the sibling\
+  \ plan\n`extension-catalog-population-from-3-project-breadt` amends SPEC-0093's\
+  \ section shape/status vocabulary\nfor this). This is a `yitc-ops` SECTION, NOT\
+  \ a SPEC-0101 catalog «extension» (`init --adopt-extension`).\n\n### 4. SEED-then-grow\
+  \ boundary (what this spec does NOT own)\nThis is the SEED layer. It governs the\
+  \ bounded nightly RUNNER + the governance/health checks it runs\n+ the X-0090 partition.\
+  \ The product-cron governance (L2, <workshop-spec>) and the freshness-probe contract\n\
+  (L3, SPEC-0110) are SEPARATE specs the nightly INVOKES; each grows when a real project\
+  \ pulls it. L1\nALONE closes X-0090; it does not build L2/L3, and it is intended\
+  \ to TRAVEL to consumers (kernel realm\nat activation — re-pinned from the draft\
+  \ `v2-self` at plan-accept).\n\n## Rationale\n\nX-0090 (a live 2026-06-25 regression:\
+  \ a migrated v2 project landing on the v1 nightly, which runs a\nv1 auto-session\
+  \ on it) + v2 having NO automation of its own. The full 3-project study + the\n\
+  anti-complexity discharge live in the proposing plan (SPEC-0005 §3 content boundary\
+  \ — not restated).\n\n## Verification\n\nAdoption probe (CHARTER §P3) on NAMED event/state\
+  \ surfaces (not prose):\n- **nightly ran** — each v2-nightly run emits ONE per-run\
+  \ journal event (a `nightly_*`-class event);\n  ≥3 such events for the dogfood project\
+  \ (<project> once migrated; <project> re-onboarded).\n- **v1-partition holds (STATE\
+  \ check)** — the v1 night-cycle's enumerated project set EXCLUDES every\n  `registry.yaml\
+  \ methodology: yitc_v2` project (assertable/greppable on the v1 enumerator) — the\n\
+  \  measurable form of \"the v1 nightly no longer touches a v2 project\" (closes\
+  \ X-0090).\nExact event-type names are fixed by the implementing task against the\
+  \ SPEC-0025 catalog (named here as\nSHAPES, not pre-invented types — anti-complexity).\
+  \ Probe home: the plan's §Postcheck probe block.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-6
+- SPEC-0093
+- SPEC-0094
+- SPEC-0097
+- SPEC-0110
+- X-0090
+- X-0089
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: v2-project-automation-governance-methodology-night
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/nightly.py#cmd_nightly: 8db97c8d2cc6bd301f6d2707969896bcd828e8001c0cc9ac6acdea28db5d6739

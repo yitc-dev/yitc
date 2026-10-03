@@ -1,0 +1,133 @@
+id: SPEC-0069
+title: Triage LINK RULE + closure-time fingerprint linkage (task close --closes-fp
+  records the remediated fp into cites)
+status: active
+created_at: 2026-06-09 14:40:00+00:00
+consumed: false
+implements:
+- bin/lib/cli.py#_fingerprint_cites_index
+- bin/lib/task.py#cmd_task_close
+body: "## Scenario\n\nWhen a fix-task that remediated a captured deviation closes,\
+  \ the link between the fingerprint and its\nfix is recorded THEN — at the moment\
+  \ a human knows the task fixed it — so the next triage reads the\nproblem as OWNED\
+  \ and does not re-file a duplicate. The owner sees: \"we closed the task, noting\
+  \ what it\nfixes — and triage sees that\", without anyone hand-editing YAML or the\
+  \ triage guessing. (The triage-run\nWINDOW, batch-run journal isolation, discovery\
+  \ stem-clustering, and the v1 queue lineage are the\nOTHER surfaces — SPEC-0055.\
+  \ The into-work currency classifier is <workshop-spec>/SPEC-0061; the routing\n\
+  analysis order + reopen-FSM is SPEC-0056.)\n\n## Internal\n\nTHE LINK RULE ( §9)\
+  \ + its closure-time CREATION path. Supersedes <workshop-spec> (the\ncarve-out)\
+  \ — carries its rule forward verbatim and ADDS the creation path. The reader\n`_fingerprint_cites_index`\
+  \ is UNCHANGED — it just finds a populated `cites:`.\n\n### The LINK RULE — one\
+  \ canonical carrier\nA fix-task / decision that addresses a deviation back-references\
+  \ the fingerprint(s) it closes in its\n**`cites:`** field — the SINGLE canonical\
+  \ carrier. Readers derive linkage from `cites:`\n**EXCLUSIVELY** (no body-text parsing).\
+  \ A promoted artifact lists in `cites:` **ALL** fingerprints it\ncloses (a root-fix\
+  \ may close several — §6); order is not significant. A human-readable body\nmention\
+  \ is allowed but is never the derivation source. The SAME `cites:` carrier ALSO\
+  \ feeds the\n**cluster-aware recurrence count** : when an errors/E-XXXX case file\
+  \ cites several\nnear-synonym fingerprints of one root, `_capture_cluster_counts`\
+  \ rolls their member counts up under\nthe case file's canonical `fingerprint:`,\
+  \ so a fragmented root crosses the `N>=2` threshold instead\nof reading as many\
+  \ invisible `N=1` aliases (the undercount).\n\n### R-B. Closure-time linkage (human-asserted,\
+  \ NOT derived)\nAt `task close`, the closing author records the fingerprint(s) the\
+  \ task remediated into the task's\n**`cites:`** — the SINGLE canonical LINK-RULE\
+  \ carrier above. Mechanism: an explicit\n`task close --closes-fp <fingerprint>`\
+  \ (repeatable), folded into the task `cites:` (dedup,\norder-preserving) by the\
+  \ same atomic closure write.\n- **Human-asserted, NOT auto-derived.** The link is\
+  \ admitted because the closing author ASSERTS\n  «this task fixed this fingerprint»\
+  \ — a real remediation signal. The verb does NOT infer remediation\n  from a capture's\
+  \ `task_id` (that names «encountered during task T», not «T fixed it» — the rejected\n\
+  \  read-time derivation, RED'd at the plan's specs gate).\n- **Value validation\
+  \ — ONE shape home, shared with the readers.** Each `--closes-fp` is\n  validated\
+  \ against the fingerprint shape and the close `_die`s LOUDLY on a malformed value,\
+  \ so a typo /\n  arbitrary string can never pollute the canonical carrier. The admitted\
+  \ shape is a **whitespace-free\n  token**: letters in ANY case, digits, `.` `_`\
+  \ `-` `:`; whitespace, slashes and the empty string are\n  REFUSED. It is spelled\
+  \ ONCE (`bin/lib/triage.py#FINGERPRINT_SHAPE_RE`, aliased by the close-side\n  `_CLOSES_FP_RE`)\
+  \ — because the CAPTURE side applies no charset check at all, a close side spelled\n\
+  \  separately and more narrowly made a genuinely-remediated deviation unlinkable\
+  \ through no fault of the\n  closing card (109 of 3455 distinct captured fingerprints,\
+  \ 2026-08-12).\n- **Stored VERBATIM, never case-folded.** The asserted token is\
+  \ folded into `cites:` exactly as\n  captured. Every reader of the link — `_fingerprint_cites_index`\
+  \ and the triage route / currency /\n  cluster-rollup readers keyed off it — matches\
+  \ the journal's `data.fingerprint` by EXACT string\n  equality, so normalizing at\
+  \ write time would record an entry matching no capture: linked at close yet\n  still\
+  \ reading un-routed in the debt views, which is worse than refusing it. For the\
+  \ same reason the\n  reader-side \"is this `cites:` entry a fingerprint?\" test\
+  \ uses that ONE shape constant, and excludes\n  artifact ids by an EXPLICIT id predicate\
+  \ rather than by the shape being lowercase-only.\n- **Candidate suggestion = report-only.**\
+  \ A close WITHOUT `--closes-fp` MAY surface CANDIDATE\n  fingerprints (captures\
+  \ emitted under this task — top-level `task_id == tid`, OR `relates_to`\n  containing\
+  \ the EXACT `\\bT-NNNN\\b` token, never a bare substring) as a HINT for `--closes-fp`\
+  \ —\n  ADVISORY only, never auto-applied (no over-claim, no gate; CHARTER non-goal\
+  \ #7). The author confirms.\n- **Late linkage.** A `done` task is not re-closeable,\
+  \ but a forgotten link is still recordable:\n  `task close <tid> --closes-fp <fp>`\
+  \ on a done task folds the fp into cites + commits the amendment\n  (reusing the\
+  \ closure-record commit machinery) — closing the «link never created» gap even after\
+  \ the\n  fact. This makes recording the link a PROMPTED, recoverable closure step\
+  \ instead of a forgotten\n  manual edit — WITHOUT a new store, a new event type,\
+  \ or auto-detection of «fixed».\n\n### Surface touched (explicit, not silent — SPEC-0005\
+  \ §3 / P7)\nThe link-CREATION rule is homed here as a LINK-RULE extension (supersedes\
+  \ <workshop-spec>). The MECHANISM\nis an ADDITIVE closure side-effect in `cmd_task_close`:\
+  \ the SPEC-0015 closure contract (probe\nverification, `status: done`, audit-post-precedes-closure)\
+  \ is UNCHANGED — only an optional\n`--closes-fp` recording is added. Named explicitly\
+  \ (cites SPEC-0015) so the closure-contract surface\nis amended openly, never silently\
+  \ bypassed. SPEC-0050 (the require-reads gate) co-anchors\n`cmd_task_close` for\
+  \ its read-gate ONLY — UNTOUCHED here (deliberate-non-update).\n\n**Co-anchor collateral\
+  \ (deliberate-non-update).** The crash-atomic closure-ordering change\n(`_activate_task_proposed_specs`\
+  \ MOVED to run AFTER the durable `status: done` write in\n`cmd_task_close`) touches\
+  \ a DIFFERENT region of the verb — this spec's closure-time creation path (the\n\
+  `--closes-fp` cites-fold) stays BEFORE the done-write, UNCHANGED, and the `_fingerprint_cites_index`\n\
+  reader is UNTOUCHED. So the `cmd_task_close` co-anchor `possibly-stale` flag is\
+  \ a false positive (the\n collateral co-anchor class); refreshed last-touch.\n\n\
+  ## Parameters\n\nNone consumed. The `cites:`-derivation, the rollup, and the fingerprint-shape\
+  \ validator are the\ntriage/close functions' own logic in `bin/yitc-v2` (single\
+  \ source — the code IS the home).\n\n## Rationale\n\nReal incident: duplicate fix-tasks\
+  \ for already-closed problems (owner-directive 2026-06-09). Journal\nevidence at\
+  \ authoring: 29 of 44 recurring fingerprints are cited by NO task/decision, because\
+  \ a\nfix-task filed via plain `task file` never populated `cites:`. The SOUND place\
+  \ to create the link is\nCLOSURE (a real, human-asserted remediation act) — NOT\
+  \ read-time inference from a capture's `task_id`\n(`task_id` = «captured during\
+  \ task T», not «T fixed it»; that over-link can hide a real defect — the\nrejected\
+  \ design B, RED-flagged at the specs gate). Full deliberation + the read-time-vs-closure-time\n\
+  fork: the proposing plan `triage-dedup-against-closed-problems-temporal-deri` §B\
+  \ (SPEC-0005 rule 3).\nSupersedes <workshop-spec> (the narrow LINK-RULE carve) rather\
+  \ than the multi-rule SPEC-0055 (the\nrejected wholesale-supersede shape of the\
+  \ withdrawn <workshop-spec> draft) — one narrow home, no lineage rupture.\n\n##\
+  \ Verification\n\n- **VP1 (RED-GREEN closure-time creation):** `task close <tid>\
+  \ --closes-fp F` ⇒ `F` appears in the\n  task `cites:` ⇒ the next `triage run` reads\
+  \ `F` owned-by-a-`done`-task (linked/owned, NOT TRULY-NEW)\n  via the REAL triage\
+  \ path (`_currency_status`/`cmd_triage_run`), not merely `_fingerprint_cites_index`\n\
+  \  presence (tests/test_error_verbs.py). RED before the closure-time recording exists.\n\
+  - **VP2 (candidate suggestion is report-only):** a close WITHOUT `--closes-fp` leaves\
+  \ `cites:`\n  unchanged (no auto-apply, no over-claim); the candidate scan matches\
+  \ the EXACT task-id token, not a\n  substring (tests/test_error_verbs.py).\n- **VP3\
+  \ (closure contract regression-safe, SPEC-0015):** probe verification + `status:\
+  \ done` behave\n  exactly as before when `--closes-fp` is absent.\n- **VP4 (value\
+  \ validation):** a malformed `--closes-fp` value (whitespace / non-token) is rejected\n\
+  \  LOUDLY before any write (tests/test_error_verbs.py).\n- **VP5 (one home + non-dangling\
+  \ + supersession, P5):** the LINK RULE + R-B rule text resolves\n  in THIS spec;\
+  \ `supersedes: <workshop-spec>` (on activation <workshop-spec> → superseded atomically,\
+  \ one active\n  lineage); non-empty `implements:` ⇒ excluded from `dangling_specs`\
+  \ once active.\n\n## Drift review\n\n (2026-06-09): re-verified this body against\
+  \ `bin/yitc-v2#cmd_task_close`. edited only\nthe spec-drift-attribution block of\
+  \ `cmd_task_close` (added `_task_diff_range` scoping for the\nWARN) — it does NOT\
+  \ touch the `--closes-fp` / `_fold_closes_fp_into_cites` closure-time fingerprint\n\
+  linkage this spec governs. The graph last-touch flag was a region shift only; no\
+  \ semantic drift.\nThis re-touch clears the possibly-stale flag.\n"
+cites:
+- SPEC-0055
+- SPEC-0015
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- triage-dedup-against-closed-problems-temporal-deri
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#_fingerprint_cites_index: 3f30981c3d380305279328bd5ad08a21303ad341cf88c773b5d6c668eb55b4d4
+  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3

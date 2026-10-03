@@ -1,0 +1,618 @@
+id: SPEC-0172
+title: Spike-sandbox wiring contract — pinned bridge, declared cage checks, knowledge-not-code
+  exit
+status: active
+created_at: 2026-08-06 13:18:29+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#_hook_spike_sandbox
+- bin/lib/cage.py#_host_identity_collisions
+- bin/lib/cli.py#cmd_cage_preflight
+- bin/lib/cage.py#refusals
+body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declares\
+  \ it ONCE: which bridge release it pins,\nand that the cage checks are on. From\
+  \ then on the checks REFUSE a spike stack that breaks the cage\n— an outbound channel\
+  \ live without an explicit per-case grant, a scheduler running, a stack\nsharing\
+  \ production's identity. Nothing about the practice is re-derived by the next project,\
+  \ and\nno bridge code is copied into it. When the spike has served its purpose it\
+  \ is DISCARDED; what\nleaves it is knowledge, never code.\n\n## Internal\n\n> **SANDBOX\
+  \ FAMILY — navigation, not a rule.** `spike_sandbox` is ONE of three separately\n\
+  > named concerns that together answer a project's sandbox questions: `sandbox_entry`\
+  \ (SPEC-0169 — WHERE\n> a collaborator enters, OPT-IN), `spike_sandbox` (this spec\
+  \ — WHETHER a caged bridge exists and its\n> pinned release) and `spike_data_safety`\
+  \ (SPEC-0175 — WHAT the restored copy carries). They stay\n> DISTINCT; a reader\
+  \ who knows only one of the names sees all three via\n> `bin/yitc-v2 graph query\
+  \ sandbox-family`. Grounds: on 2026-08-13 a reader grepped THIS key name,\n> found\
+  \ none in a project that declares its sandbox under `sandbox_entry`, and concluded\
+  \ it had none\n> (X-0852). A navigational pointer (SPEC-0005 rule 8) — it changes\
+  \ nothing here.\n\n### 1. Three layers, fixed: kernel CONTRACT, library MECHANICS,\
+  \ project PIN-AND-ENABLE\nThe KERNEL carries this contract and nothing else. The\
+  \ MECHANICS live in the pinned shared library.\nThe PROJECT pins a release and enables\
+  \ the capability by declaration. **Product runtime code never\nmoves into the kernel**\
+  \ — methodology is not a place to keep an application. A change that would\nput\
+  \ bridge or product code kernel-side violates this rule rather than extending it.\n\
+  \n### 2. The declaration is a carrier SECTION, declared as a concern — never hand-written\
+  \ schema\nThe project declares its sandbox wiring in its ops-contract carrier as\
+  \ a registered concern, so\nthe born template, the declare-or-waive sweep and the\
+  \ debt lens are all GENERATED from one\ndeclaration (SPEC-0128 rule 3). No parallel\
+  \ checklist, no per-project schema editing.\n**Presence policy: DECLARE-OR-WAIVE,\
+  \ not opt-in.** Every consumer must ANSWER the bridge question —\nby declaring the\
+  \ section or by explicitly WAIVING it; answering neither is DEBT and surfaces as\n\
+  such. A waiver is cheap and is a legitimate answer, so this costs a project that\
+  \ wants no bridge\none line, not a process. This is the deliberate DIFFERENCE from\
+  \ the sibling `sandbox_entry`\nconcern (SPEC-0169), which is opt-in because an undeclared\
+  \ sandbox is already covered by the grant\ncontract naming its project; no such\
+  \ second carrier covers an undeclared BRIDGE, so silence here\nwould be invisible\
+  \ rather than merely unasked.\nA waiver may name the lightweight posture — patterns/spike-mode.md\
+  \ §Lightweight posture.\nThe concrete `concern:` block (born template, `presence_policy:\
+  \ declare-or-waive`, declare key and\nwaiver policy) is authored by build-order\
+  \ step (1)'s implementing task at `executing` — named here\nas an explicit deferral\
+  \ rather than left open (gate-specs F1).\n\n#### 2a. The waiver is REFUSABLE when\
+  \ the project's OWN declaration contradicts it\n\n**A waiver of this section is\
+  \ REFUSED when the same carrier DECLARES `spike_data_safety.data_safety`.**\nWaiving\
+  \ here asserts a FACT — that the project keeps no caged spike stack — and a declared\n\
+  `data_safety` inventory asserts the opposite fact in the project's own hand: that\
+  \ inventory exists to\ndescribe what a RESTORED PRODUCTION COPY carries, and a restored\
+  \ copy is filled INTO a spike stack.\nThe two answers cannot both be true, so the\
+  \ sweep refuses the pair rather than recording it.\n\n**Why REFUSE and not merely\
+  \ warn — the reason, stated so the disposition is answerable.** Rule 4's\ncage atoms\
+  \ are read over the project's **DECLARED** cage. A project that waives this section\
+  \ retires\nthe cage question entirely: nothing is declared, so nothing is read,\
+  \ and the cage's refusals have no\nsubject. That is not a gap the owner can see\
+  \ later — it is the silence the declare-or-waive policy\nexists to remove, arriving\
+  \ with a signature on it. A report-only line would leave the strongest\nanswer this\
+  \ contract has (rule 4) switched off by the very answer that claims it is not needed.\n\
+  The mirror direction is already refused for the sibling concern under SPEC-0175\
+  \ rule 5; the two are\nthe same shape, and an asymmetric disposition here would\
+  \ say the contradiction matters in one\nreading and not in its reverse. (Pointer,\
+  \ not a restatement — that rule's own signals stay its.)\n\n**The two honest exits,\
+  \ both cheap — the refusal names them, because a refusal without an exit is a\n\
+  trap.** Either DECLARE `bridge:` for the stack this project actually keeps — and\
+  \ `enabled: false` is\na real answer, so a project running a spike stack with no\
+  \ pinned shared bridge still has something\ntrue to write — or REMOVE the contradicting\
+  \ `data_safety` declaration if the spike sandbox is\ngenuinely gone. What is NOT\
+  \ available is keeping both.\n\n**What this refusal is NOT — stated because the\
+  \ failure mode here is OVER-refusing.** It judges the\nWAIVER, never the project.\
+  \ A section that DECLARES `bridge:` is asked nothing by it, even beside a\ndeclared\
+  \ `data_safety`. An ABSENT section is the generic mandatory-stance check's business,\
+  \ and a\nnon-mapping section likewise. A waiver with NO contradicting declaration\
+  \ is UNTOUCHED — which is the\nordinary case, and a check that refused every waiver\
+  \ would satisfy the refusal half perfectly while\nbreaking the one-line answer rule\
+  \ 2 keeps cheap for every project that runs no spike sandbox. It\nreads DECLARATIONS,\
+  \ never values: nothing here parses a path or judges whether a stack is \"really\"\
+  \ a\nspike. And §4's standing caution applies to it exactly as written — it refuses\
+  \ a declaration that\ncontradicts itself, and says NOTHING about a running stack\
+  \ whose declaration lies.\n\n**Scope, held deliberately narrow:** ONE contradiction\
+  \ shape — this section's waiver against this\nproject's own `spike_data_safety.data_safety`\
+  \ declaration. This clause is NOT a general cross-concern\nconsistency rule, and\
+  \ MUST NOT be read as licence to build one: that is a larger claim, and it would\n\
+  need its own evidence and its own spec.\n\n*Interpretive note (SPEC-0005 rule 3),\
+  \ recorded so this clause's own routing is auditable rather than\nassumed: this\
+  \ is an IN-PLACE amend, not a supersede. Rule 2 governs whether a consumer must\
+  \ ANSWER;\nit has never governed whether a given answer is TRUE. Truthfulness is\
+  \ an axis this contract did not\npreviously address, so what a consumer must do\
+  \ in every case rule 2 already covered is unchanged.*\n\n#### 2b. The channel inventory\
+  \ SHAPE — keys the kernel names, values the project owns\nA project that DECLARES\
+  \ `spike_sandbox.bridge` keeps its outbound-channel inventory in a YAML file of\n\
+  its own (conventionally `bin/spike-channels.yaml`; the filename is not the contract).\
+  \ The kernel\npublishes only the KEYS a cage-check instrument may expect to read:\n\
+  - top level: `channels` — a non-empty list;\n- each entry: `id` (the stable channel\
+  \ identifier) and `label` (its plain name).\n\nEvery other key on an entry — the\
+  \ cage kind, env keys, grant/approver, hosts, toggles — and every\nother top-level\
+  \ key stays PROJECT-LOCAL (SPEC-0073). Measured across three consumers' real files\n\
+  (2026-09-13), those keys diverge and only `id` + `label` are common to all, so naming\
+  \ more would\nnormalise values the kernel does not own. The shape names KEYS, never\
+  \ permitted channel names.\nThe kernel surface is ONE report-only advisory (`spike\
+  \ declaration shape: …`) — at the init\ndeclare-or-waive sweep and on the project's\
+  \ row of the read-only `sandbox-family` view — when the\nbridge is declared and\
+  \ no `bin/*.yaml` file matches. It is never a refusal: an inventory kept\nelsewhere\
+  \ is unfound, not wrong. *In-place additive amend (SPEC-0005 §7); rules 2, 4 and\
+  \ 5 are\nunchanged.*\n\n### 3. Pin discipline — a release ref, and NO local copy\n\
+  The project records the EXACT release ref of the bridge library it runs (SPEC-0122\
+  \ R2). Every\nneutral bridge symbol resolves from that pin: a surviving local copy\
+  \ of a neutral module is a\nviolation, not an optimisation, and is caught by the\
+  \ no-local-diff check. A needed fix goes\nUPSTREAM to the library and the project\
+  \ re-pins — it is never patched in place.\n\n### 4. The cage is DECLARED and CHECKED,\
+  \ never merely described\nA spike stack runs under a declared cage whose rules are\
+  \ machine-checked before it is usable.\n**Prose describing a cage does not constitute\
+  \ a cage.** A rule stated but not checked is outside\nthis contract.\n\n**The cage\
+  \ is FIVE ATOMIC rules, not one clause** (SPEC-0165 rule 2 — a composite clause\
+  \ is split\ninto atoms first, then each atom is checked on its own; bundled, a passing\
+  \ composite hides which\nproperty actually held). Each atom is stated as a REFUSAL\
+  \ CONDITION paired with its POSITIVE\nCONTROL, because a check that refuses everything\
+  \ satisfies the refusal half perfectly and is\nuseless:\n\n- **4a — isolated stack\
+  \ identity.** REFUSED: a spike stack sharing production's stack identity —\n  its\
+  \ compose project, any port, or any volume. PERMITTED: a stack whose identity is\
+  \ wholly its\n  own.\n- **4b — the scheduler is not started.** REFUSED: a spike\
+  \ stack with the scheduler started.\n  PERMITTED: a stack with no scheduler started.\n\
+  - **4c — outbound channels are dummy by default.** REFUSED: an outbound channel\
+  \ live without an\n  explicit per-case owner grant. PERMITTED: channels dummy by\
+  \ default, and a channel live under\n  its complete per-case grant.\n- **4d — the\
+  \ grant is recorded BEFORE the channel changes.** REFUSED: a channel enabled ahead\
+  \ of\n  its record, leaving a window in which it is live and unrecorded. PERMITTED:\
+  \ the record written\n  first, then the change. Stated on the failure asymmetry\
+  \ — a record without a change is\n  harmless, a change without a record is a live\
+  \ unrecorded channel.\n- **4e — the served source is kernel-authenticated** (SPEC-0205\
+  \ rule 3). REFUSED: a sandbox serving\n  code from anything but (i) an ACTIVE spike\
+  \ worktree whose stamp and its `worktree_created{spike:true}`\n  row agree on session\
+  \ ref + ts, whose row path IS the mounted path, on a non-`task/` branch, with no\n\
+  \  park row and no `spike/<slug>` tag; or (ii) a non-production image whose deploy\
+  \ fact names a landed\n  `main` SHA. An unstamped mount, an operator path, an env\
+  \ flag, a stamp without its row and an\n  unlanded image all refuse. PERMITTED:\
+  \ exactly those two sources. The kernel ships the predicate over\n  the declared\
+  \ source, but NO kernel verb invokes it : calling it over the declaration AND\n\
+  \  the running check both stay at the PROJECT layer (`cage_checks`).\n\nEach atom's\
+  \ refusal is read over the project's **DECLARED cage**, and a declaration that is\n\
+  missing, mal-shaped, or incomplete is REFUSED fail-closed — never read as absence\
+  \ (the\npresent-but-empty precedent, SPEC-0093 rule 23). The declared cage's concrete\
+  \ field shape is\ncode-level and lives with the validator this spec `implements:`,\
+  \ not in this rule text.\n**What a declaration check can and cannot claim:** it\
+  \ refuses a cage DECLARED in violation of an\natom; it says nothing about a running\
+  \ stack whose declaration lies. That refusal belongs to the\nPROJECT layer, and\
+  \ the table below names, per atom, every layer that carries a check.\n\n**This standard\
+  \ is CONTRACT-WIDE, and every rule NAMES THE LAYER THAT CARRIES ITS CHECK** (the\n\
+  rule-1 layers: kernel CONTRACT · library MECHANICS · project PIN-AND-ENABLE). Amended\
+  \ at the\ncycle-1 trial dwell (2026-08-07), where the standard was found stated\
+  \ for the cage and silently\nassumed for rules 5-6. Naming the layer is what makes\
+  \ \"stated but not checked\" ANSWERABLE instead\nof rhetorical: it says WHO owes\
+  \ the missing check, so a gap routes to an owner instead of being\nread as either\
+  \ an installation failure or a contract that overclaims.\n**Where the named layer\
+  \ does not carry the check YET, the rule says so plainly and is DISCIPLINE —\nrecorded\
+  \ and taught, never presented as prevention.** Interpretation note, not decorative:\
+  \ a later\nsurface MUST NOT re-inflate a DISCIPLINE rule into a claimed refusal,\
+  \ and MUST NOT delete this\nsentence to make the contract read stronger. (Same discipline\
+  \ as SPEC-0169 rules 8-9: state what\nthe mechanism may CLAIM.) DISCIPLINE is a\
+  \ truthful interim, never a resting place — each such rule\ncarries the work that\
+  \ would make it CHECKED.\n\n#### 4e. The CAGE-CHECK TABLE — the contract's own layer\
+  \ declarations, machine-read\n\nOne row per covered atom. **Covered set: 4a, 4b,\
+  \ 4c, 4d, 4e, 5, 6.** Adding a rule to the covered set\nobliges its row; a row without\
+  \ its rule, or a rule without its row, is a contract defect.\n\n| Atom | Refusal\
+  \ condition | Positive control | Check layer | Status | Evidence anchor | Closing\
+  \ work |\n|---|---|---|---|---|---|---|\n| 4a | a spike stack sharing production's\
+  \ compose project, any port or any volume | a stack whose identity is wholly its\
+  \ own comes up | KERNEL + PROJECT | CHECKED | test:tests/test_spec0172_cage_contract.py::test_stack_identity_violation_refused\
+  \ · trial:X-0693 | no kernel verb calls `cage.refusals` on a running stack (GitHub\
+  \ #29) — the PROJECT running-stack leg is DISCIPLINE, held by the consumer `cage_checks`\
+  \ instrument calling the kernel predicate or by hand |\n| 4b | a spike stack with\
+  \ the scheduler started | a stack with no scheduler started comes up | KERNEL +\
+  \ PROJECT | CHECKED | test:tests/test_spec0172_cage_contract.py::test_scheduler_started_refused\
+  \ · trial:X-0693 | no kernel verb calls `cage.refusals` on a running stack (GitHub\
+  \ #29) — the PROJECT running-stack leg is DISCIPLINE, held by the consumer `cage_checks`\
+  \ instrument calling the kernel predicate or by hand |\n| 4c | an outbound channel\
+  \ live without its complete per-case owner grant | channels dummy by default, and\
+  \ a channel live under its complete grant, come up | KERNEL + PROJECT | CHECKED\
+  \ | test:tests/test_spec0172_cage_contract.py::test_live_channel_without_grant_refused\
+  \ · trial:X-0693 | no kernel verb calls `cage.refusals` on a running stack (GitHub\
+  \ #29) — the PROJECT running-stack leg is DISCIPLINE, held by the consumer `cage_checks`\
+  \ instrument calling the kernel predicate or by hand |\n| 4d | a channel enabled\
+  \ ahead of its record | the record written first, then the change | LIBRARY MECHANICS\
+  \ | CHECKED | cross:X-0757 | — |\n| 4e | a declared served source that is not kernel-authenticated\
+  \ — an unstamped or `task/` worktree, a stamp without its agreeing `worktree_created{spike:true}`\
+  \ row, a parked spike, an operator path or env flag, an image of an unlanded SHA\
+  \ | a stamp ⇄ row active spike worktree, and a non-production image of a landed\
+  \ `main` SHA, are served | KERNEL | CHECKED | test:tests/test_t12569_cage_atom_4e.py::test_unstamped_worktree_refused\
+  \ | the PROJECT running-stack leg (the consumer's `cage_checks` run over the live\
+  \ stack) settles through |\n| 5 | an integration from a spike-named branch | an\
+  \ identical control branch differing only in name lands | KERNEL | CHECKED | test:tests/test_land.py::test_land_refuses_spike_branch\
+  \ · ledger:I8 | — |\n| 6 | a data-mutating spike admitted to a shared sandbox |\
+  \ two read-only spikes sharing one sandbox | LIBRARY MECHANICS | CHECKED | cross:X-0757\
+  \ | — |\n\n**The table is read under these conformance rules, and a row that breaks\
+  \ one is REFUSED:**\n- **C1** — every atom of the covered set has exactly ONE row.\n\
+  - **C2** — every named check layer is from the rule-1 vocabulary (KERNEL · LIBRARY\
+  \ MECHANICS ·\n  PROJECT). A row MAY name two when two layers genuinely carry a\
+  \ check: refusing a violating\n  DECLARATION and refusing a violating running STACK\
+  \ are different checks of the same atom.\n- **C3** — the status is exactly one of\
+  \ CHECKED or DISCIPLINE. There is no third, softer word.\n- **C4** — a CHECKED row\
+  \ names a refusal condition AND a positive control AND one RESOLVABLE\n  evidence\
+  \ anchor PER NAMED LAYER. An anchor resolves or it is not an anchor: `test:<path>::<name>`\n\
+  \  to a defined test, `ledger:<LABEL>` to a rule-test-ledger row, `trial:<REF>`\
+  \ to a ref carried by\n  the proposing plan, `cross:<X-NNNN>` to an item the shared\
+  \ coordination log folds to a DELIVERED\n  status — `done`, or the `closed` the\
+  \ requester's own verification advances it to (SPEC-0086). The\n  predicate is the\
+  \ delivered status SET, never one status: an item advancing `done` → `closed` is\n\
+  \  its evidence getting STRONGER, and an anchor that stopped resolving there would\
+  \ refuse a row for\n  being better attested. `requested` / `picked` do not anchor\
+  \ (the ask is not the delivery), and\n  neither do `rejected` / `withdrawn`. A kernel-layer\
+  \ claim is anchored by a test or ledger row; a\n  project-layer claim by a trial\
+  \ ref; a LIBRARY-MECHANICS claim by a cross ref — because that\n  layer's check\
+  \ lives in the pinned library's OWN repo, where no kernel-resolvable test path\n\
+  \  reaches, so the receiver's governed terminal act on the shared log is the evidence\
+  \ the kernel\n  can actually resolve. The anchor kinds are added ONE AT A TIME BY\
+  \ THE ROW THAT NEEDS ONE\n  (`cross:` arrived with row 6, 2026-08-10): a kind no\
+  \ shipped row consumes is pre-reserved\n  schema, which SPEC-0093 rule 4 forbids.\n\
+  - **C5** — a DISCIPLINE row claims NO anchor and names the closing work that would\
+  \ make it\n  CHECKED. This is what keeps DISCIPLINE a truthful interim rather than\
+  \ a resting place.\n- **C6** — the declared-cage check and the table agree about\
+  \ WHERE each cage atom's check lives,\n  and the reading is PER LAYER (the same\
+  \ way C4's anchor mapping is). A cage atom filed CHECKED\n  **naming KERNEL among\
+  \ its layers** carries a refusal predicate in the declared-cage check; one\n  filed\
+  \ DISCIPLINE carries NONE; and one filed CHECKED at ANOTHER layer carries none either.\
+  \ All\n  three directions are defects, because each is the table lying about where\
+  \ the check lives: an\n  atom filed CHECKED with nothing behind it is exactly the\
+  \ \"stated but not checked\" this rule\n  forbids, and an atom the kernel quietly\
+  \ enforces while the row names DISCIPLINE — or names some\n  other layer as its\
+  \ home — overclaims nothing but hides the check, leaving the layer that appears\n\
+  \  to owe it believing it is covered. What C6 does NOT demand is a KERNEL predicate\
+  \ from a row whose\n  check honestly lives elsewhere: rule 1 fixes three layers,\
+  \ so a cage atom checked in the pinned\n  library is an ordinary case, and requiring\
+  \ the kernel to carry it would force the contract to\n  either MISATTRIBUTE the\
+  \ check or understate it as DISCIPLINE. Understating a check that exists is\n  a\
+  \ defect of the same family as overstating one.\n\nAs of 2026-08-11 NO cage row\
+  \ is DISCIPLINE, and that is the interim ending rather than the\ndiscipline being\
+  \ abandoned. What made the interim truthful is unchanged and is what a future\n\
+  DISCIPLINE row will be held to: re-marking a row CHECKED without its anchor is refused\
+  \ by C4 —\nwhich is what makes the interpretation note above enforceable rather\
+  \ than rhetorical, so\nDISCIPLINE stays the only truthful word for a rule whose\
+  \ named layer carries no check yet, until\nan anchor exists. A row returns to it\
+  \ the moment its check stops resolving; an empty DISCIPLINE\ncolumn records that\
+  \ every covered atom is checked TODAY, never that the status has retired.\n\n**Rows\
+  \ 6 and 4d both moved DISCIPLINE → CHECKED, and the move is the interim working\
+  \ as designed,\nnot an exception to it.** The pinned library built what each rule\
+  \ needed and reported both through\nthe shared log in ONE package, X-0757 — which\
+  \ is why one item is the anchor both rows carry.\nContent (a), row 6: a spike DECLARES\
+  \ that it mutates, and a declared-mutating spike is REFUSED a\nshared sandbox. Content\
+  \ (b), row 4d: the grant record is written before the compose rewrite, and a\nfailed\
+  \ record aborts the toggle with zero container mutation — the at-the-moment property\
+  \ rule 4\nalready required.\n\n**Why the two rows moved on different dates, because\
+  \ the delay is instructive and not\nadministrative.** Row 6 re-marked on 2026-08-10,\
+  \ which is also when the LIBRARY MECHANICS\nlayer first got an anchor kind it could\
+  \ resolve — `cross:`, added by the row that needed it. Row 4d\ncould not follow\
+  \ the same day: C6 then demanded a kernel `cage.CHECKED_ATOMS` predicate of every\n\
+  CHECKED atom in 4a-4d WHATEVER layer the row named, so a CHECKED 4d was a C6 defect,\
+  \ and satisfying\nC6 by adding a kernel predicate would have claimed the check at\
+  \ a layer that does not carry it,\nwhich rule 1 forbids. The contract was cornered\
+  \ into understating a check that existed — which\n§4's own standard calls a defect\
+  \ of the same family as overstating one. removed the corner\nby conditioning C6's\
+  \ kernel-predicate demand on the row DECLARING KERNEL (the per-layer reading C4's\n\
+  anchor mapping already used), and added the third arm that stops that conditioning\
+  \ becoming a hole.\nRow 4d re-marked on 2026-08-11 against `cross:X-0757`, clearing\
+  \ a Closing-work cell that\nby then pointed at retired history: the follow-up `fu_3edb54b51e77`\
+  \ was carried into the card\n, which was absorbed as a concurrent duplicate of and\
+  \ closed wont-do. Recording the\norder is the point: 4d was never waiting on the\
+  \ library — it was waiting on THIS contract's own\nconformance, and a governance\
+  \ surface that keeps naming its closing work is what made that\ndifference legible\
+  \ instead of looking like a stalled ask.\n\n### 5. Knowledge-not-code exit — the\
+  \ spike is discarded, never landed\nA spike worktree is thrown away and its branch\
+  \ never lands. **The exit and the name rule are\nSPEC-0205's (rules 1-2 the declaration\
+  \ and content identity at land, rules 4-5 park → the\n`spike/<slug>` prototype tag\
+  \ → a `prototype_ref` card, rule 11 a partial hand-off)** — this rule\nkeeps only\
+  \ the stack-side fact that a declared spike is never integrated. Filing tasks from\
+  \ inside\nthe spike loop is out of contract: it converts a disposable exploration\
+  \ into committed work before\nthe owner has judged it.\n\n**Check layer: KERNEL\
+  \ — and as of 2026-08-07 the kernel CARRIES it, so this rule is CHECKED.**\nThe\
+  \ exit is `land`, which is kernel machinery: a project cannot enforce its own non-landing,\
+  \ so\nthis gap was never an installation failure and no consumer could have closed\
+  \ it.\n**What cycle 1 measured (both legs FAILING, kept here as the before-state\
+  \ the fix answers):**\n(a) `land` was spike-BLIND — a land from a `work/spike-*`\
+  \ branch was not refused, established\nagainst a control branch differing only in\
+  \ the name, so the result was measured rather than\ninferred from an absent message\
+  \ (independently confirmed kernel-side: `bin/lib/land.py` then\ncontained no spike\
+  \ handling at all); (b) the report-only spike-loop nudge fired on the `--task`\n\
+  claim branch only, so it was silent on `worktree new --work <slug>` — precisely\
+  \ the path that\nCREATES a spike worktree.\n**Both legs are now closed at the named\
+  \ layer:** (owner-approved, a new gate) makes `land`\nREFUSE a spike branch, required\
+  \ to name the governed discard exit so the refusal is never a trap;\n fires the\
+  \ hint on the `--work` creation path. Both landed 2026-08-07.\n\n**AMENDED 2026-08-13\
+  \ (X-0857) — the refusal reads a DECLARATION, not the branch NAME; and\nit is no\
+  \ longer a discard-or-nothing fork.** judged spike-ness from the `work/spike-`\n\
+  prefix, which is not a property of the work — it is a property of the spelling.\
+  \ Measured: a\n<project> work batch carrying one committed, audited commit plus\
+  \ two filed task cards was refused,\nand its printed exit (`worktree park` = DISCARD)\
+  \ would have destroyed that work. The collision is\nSYSTEMIC, not an unlucky name:\
+  \ this contract's own `spike_sandbox` section is emitted\n`presence_policy: mandatory`\
+  \ into every consumer's yitc-ops.yaml (with the sibling\n`spike_data_safety`), so\
+  \ a consumer ANSWERING the kernel's ask names its batch after the section —\nand\
+  \ the kernel then refused the answer. So spike-ness is now DECLARED at creation\n\
+  (`worktree new --work <slug> --spike`, recorded on the worktree's existing owner-session\
+  \ stamp —\nno new store, rule 7 intact) and `land` reads THAT. Declared → refuse;\
+  \ otherwise → land — the name is\nnot a discriminator at land (exit + name rule:\
+  \ SPEC-0205 rules 1-2).\n\n**AMENDED 2026-09-01 (owner ruling) — THE OVERRIDE IS\
+  \ REMOVED; the declared arm has NO\nadmitting flag.** had paired the refusal with\
+  \ `land --not-a-spike --not-a-spike-reason\n\"<why>\"` — a governed, recorded, work-preserving\
+  \ door for the case where the declaration turns out\nwrong. The owner ruled the\
+  \ situation that door served — «the exploration went well, so the code\nshould ship\
+  \ after all» — must not be REACHABLE: a declared spike never lands and no flag admits\n\
+  it; its exit is SPEC-0205's (the prototype tag and a `prototype_ref` card), never\
+  \ landed code, and\nif the findings are worth having the work is re-done under a\
+  \ card that pays both audits. That IS the sandbox-as-prototype model, not a cost\
+  \ of it. A declaration is a\ncommitment about what the branch IS; an exploration\
+  \ that turns out shippable was MIS-DECLARED, and\nthe remedy is to stop mis-declaring.\n\
+  \n**The TIMING objection the override answered is answered by the MESSAGE instead,\
+  \ not dismissed.**\n was right that the declaration is made at `worktree new`, BEFORE\
+  \ the exploration has\nanswered anything, and that a refusal whose only printed\
+  \ exit is a DISCARD is a trap. That trap\nno longer exists: SPEC-0205 rule 4 makes\
+  \ park of a declared spike TAG the prototype (uncommitted\nedits included), so park\
+  \ preserves the work rather than discarding it, and the refusal\nnames SPEC-0205's\
+  \ governed exit — park → `spike/<slug>` → a `prototype_ref` card that pays both\n\
+  audits — executable from the refused state (`patterns/verb-design.md` aspect 5 sub-rule\
+  \ (d)).\nNothing is lost by following the refusal verbatim, which is the X-0857\
+  \ property that must survive\nthe override's removal.\n\n**Cost of removal, measured\
+  \ before filing and stated with its bound:** `--not-a-spike` had been\nused ZERO\
+  \ times and a spike DECLARED zero times across the full logical journal of the engine\
+  \ and\n<project> (138 segments), with no live `work/spike-*` branches. That is TWO\
+  \ repos, not the fleet —\nit establishes that no live workflow was disrupted, and\
+  \ nothing more; the zero-declaration reading\nmeans either the flow is not yet in\
+  \ use or it is used without declaring.\n\n**Untouched by this amendment (the cohort\
+  \ complement):** the `--spike` declaration itself, the\nreport-only spike-named-but-undeclared\
+  \ hint, the `not-declared` and `unknown-named` arms (both\nstill land, the latter\
+  \ loudly), and every sibling land override (`--rebaseline`, `--no-tests`).\nPinned\
+  \ in `tests/test_spike_mode_hint.py` (undeclared-lands / declared-refused / the\
+  \ refusal names\na preserving exit / no flag admits a declared spike), differential\n\
+  confirmed by mutation: the two arms are RED against the pre-removal code, which\
+  \ admitted\nthe exact override input they now prove unreachable. **Standing caution,\
+  \ do not delete:** CHECKED is a claim about the kernel's\nexit path only. It says\
+  \ nothing about a project's own cage (rule 4's layer), and it must not be\nread\
+  \ as preventing an escalation-capable actor from stepping around the refusal — that\
+  \ limit is\nrule-8 discipline and applies here exactly as it does to a grant.\n\n\
+  ### 6. Sandbox sharing follows the blast radius\nRead-only spikes MAY share one\
+  \ sandbox. A spike that MUTATES data gets its own. The distinction is\nthe mutation,\
+  \ not the topic.\n\n**Check layer: LIBRARY MECHANICS (with the project declaring)\
+  \ — and as of 2026-08-10 that layer\nCARRIES it, so this rule is CHECKED.** The\
+  \ gap and its closing are both recorded here, because the\nmeasurement is what made\
+  \ the ask precise. Measured at cycle 1 by enumerating the FULL input surface — every\
+  \ flag and env knob — of\nall eleven spike instruments on the trial ground: NONE\
+  \ can express read-only-vs-mutating, and none\ncan express shared-vs-own-stack;\
+  \ the only stack knob names WHICH stack, never whether sharing it\nis permitted.\
+  \ So the violating input this rule forbids has nothing to refuse it — a stronger\n\
+  statement than \"no check exists\", since the toolchain cannot state the predicate\
+  \ at all. Its\npresent carrier is one prose line in a project craft note plus operator\
+  \ discipline. This gap IS\nclosable at its named layer, and cheaply: the spike declares\
+  \ that it mutates, and a mutating spike\nis refused a shared sandbox.\n\n**CLOSED\
+  \ 2026-08-10 at that layer, in exactly that shape** (X-0757 content (a); re-marked).\
+  \ Both halves shipped: an intrinsic mutation DECLARATION on the instruments that\
+  \ mutate\nsandbox data by construction, read single-site and raise-only, and a REFUSAL\
+  \ at the rails of the\nstack-steering instruments that fires before any container\
+  \ or database action and names this rule,\nthe selector and the own-stack exit.\
+  \ SHARED is DERIVED from the state already read for the\nspike-active check, not\
+  \ declared, so nothing new stores it (rule 7). The DEFAULT is stated with its\n\
+  fail direction: an undeclared spike reads read-only and is permitted — treating\
+  \ every undeclared\nspike as mutating is the refuse-everything check rule 4 calls\
+  \ useless — while the sharing predicate\nitself fails closed. The residue that leaves\
+  \ (a mutation performed outside every instrument) is\nnarrowed by the intrinsic\
+  \ declarations and carried as discipline; it is named here rather than\nsmoothed\
+  \ away, since CHECKED is a claim about what the mechanism refuses, never a claim\
+  \ that the\nrule cannot be stepped around.\n\n### 7. Scope bound — what this contract\
+  \ may NOT add\nNo new store, no new FSM, no new journal, no new service, no new\
+  \ parser. This contract is a\ndeclaration over an existing carrier plus checks over\
+  \ an existing pin. If an implementation\nappears to need any of the above, that\
+  \ is a dissonance to escalate (CHARTER §Principle 7), not a\nthing to add.\n\n###\
+  \ 8. The sandbox ENTRANCE — the property, and the two capabilities the mechanics\
+  \ layer owes\n\n**The property, stated plainly: RECREATING THE BACKEND INVALIDATES\
+  \ THE ROUTER'S CACHED ADDRESS.**\nThe sandbox router resolves its backend by container\
+  \ NAME and caches the address at config load, so\nthe first time the backend container\
+  \ is recreated the entrance is dead while every container reads\nHEALTHY — the SPA\
+  \ still serves 200 and only `/api/` 502s, so the symptom points at the application\n\
+  and the cause is one hop away. This is a property of the RECIPE, not of any one\
+  \ project: every\nproject building the same sandbox copy inherits it. (Source of\
+  \ record: X-0628, <project> → yitc-v2,\na real incident on 2026-08-08, fingerprint\n\
+  `spike-router-caches-stale-backend-ip-no-narrow-entrance-repair-instrument`.)\n\n\
+  **Check layer: LIBRARY MECHANICS — the kernel REQUIRES and STATES; it does not BUILD.**\
+  \ Both\ncapabilities below are instruments over a RUNNING stack, so putting them\
+  \ kernel-side would violate\nrule 1 rather than extend it. What the kernel owes\
+  \ is the REQUIREMENT, named at its layer, so that a\nmechanics implementation lacking\
+  \ either is OUT OF CONTRACT rather than merely unlucky. Neither is\ncarried at that\
+  \ layer yet, and the table below says so in its own status word: this rule is\n\
+  RECORDED AND TAUGHT, never presented as prevention, and a later surface MUST NOT\
+  \ re-read it as one.\n\n**Why the NARROW repair, rather than \"the operator can\
+  \ already fix it\":** the capability already\nEXISTS inside the full refresh — which\
+  \ carries a step for exactly this cause — but it has no door of\nits own. So the\
+  \ operator's only BLESSED exit is a DESTRUCTIVE full refresh that also re-restores\
+  \ the\nsandbox database. The destructive option is tempting precisely because it\
+  \ is the blessed one, and\nthat is not hypothetical: the original reporter took\
+  \ a hand-run container command instead — outside\nevery verb, and so unjournalled\
+  \ and unrepeatable. A missing narrow door does not make operators\nwait; it makes\
+  \ them leave.\n\n**This rule changes NO cage rule.** X-0628 does not ask for one;\
+  \ rules 4a-4d are untouched by it.\n\n#### 8a. The ENTRANCE-REQUIREMENT TABLE —\
+  \ the contract's own capability requirements, machine-read\n\nOne row per required\
+  \ capability. **Required set: E1, E2.** Adding a requirement obliges its row; a\n\
+  row without its requirement, or a requirement without its row, is a contract defect.\n\
+  \n| Req | Capability id | What the mechanics layer must provide | Owed by | Status\
+  \ | Out of contract when |\n|---|---|---|---|---|---|\n| E1 | `narrow_entrance_repair`\
+  \ | an instrument that restarts the ROUTER ALONE — no data path touched — with its\
+  \ own terminal token, journalled like the other spike instruments | LIBRARY MECHANICS\
+  \ | REQUIRED | the only blessed entrance exit is the DESTRUCTIVE full refresh, which\
+  \ also re-restores the sandbox database |\n| E2 | `stale_upstream_check` | a check\
+  \ that probes entrance health THROUGH the router (200 vs 502), wired into the existing\
+  \ cage-check / refresh self-verify | LIBRARY MECHANICS | REQUIRED | health is asserted\
+  \ at the BACKEND's own port, where a recreated backend answers perfectly while the\
+  \ hop is dead |\n\nThese rows are NOT rule-4e rows and deliberately do not join\
+  \ its covered set: a 4e row is a CAGE\nATOM, a refusal condition read over a DECLARED\
+  \ cage, whereas an entrance row is a CAPABILITY OWED by\na named layer. Merging\
+  \ them would bundle two different predicates under one status word — the\nbundling\
+  \ SPEC-0165 rule 2 forbids.\n\n**The table is read under these conformance rules,\
+  \ and a row — or an implementation — that breaks\none is REFUSED:**\n- **N1** —\
+  \ every requirement of the required set has exactly ONE row, and no row names a\
+  \ requirement\n  outside it.\n- **N2** — every row names a capability id, what the\
+  \ layer must provide, and the layer that OWES it,\n  drawn from the rule-1 vocabulary\
+  \ (KERNEL · LIBRARY MECHANICS · PROJECT).\n- **N3** — the status is exactly one\
+  \ of REQUIRED or PROVIDED. There is no third, softer word (rule\n  4's C3 standard,\
+  \ applied here).\n- **N4** — every row names the implementation shape that is OUT\
+  \ OF CONTRACT. That cell is the\n  failing input: without it the requirement cannot\
+  \ be falsified, and an unfalsifiable requirement is\n  decorative.\n- **N5** — the\
+  \ requirement is READ AGAINST A CANDIDATE mechanics implementation, not admired\
+  \ in\n  place: an implementation is OUT OF CONTRACT on every required capability\
+  \ id it does not provide,\n  and an implementation providing every id reads COMPLIANT\
+  \ in the same run. The full-refresh-only\n  implementation named in E1's out-of-contract\
+  \ cell provides NEITHER id, so it reads out of contract\n  on BOTH rows — which\
+  \ is exactly what these requirements exist to say. The positive control is half\n\
+  \  of this rule, not a courtesy: a reading that refuses every implementation satisfies\
+  \ N5's first half\n  perfectly and is useless.\n\nBuilding E1 and E2 is LIBRARY\
+  \ MECHANICS work, routed outward rather than done here (rule 1). Until\nit lands,\
+  \ this rule's whole force is that a shipped implementation missing either capability\
+  \ is\nanswerable against a stated requirement instead of being discovered by an\
+  \ operator at the moment the\nentrance dies.\n\n### 9. The HOST collision preflight\
+  \ — read the running host, refuse only the name, report the port\n\n**What atom\
+  \ 4a cannot.** 4a compares two DECLARATIONS (spike vs production); it never looks\
+  \ at\nthe host. The incidents were host collisions with a stack NEITHER declaration\
+  \ names: <project>\n2026-08-08 (a compose project-name collision → ~2.5 h downtime\
+  \ + production data loss), X-0978 (a\ntest stack's host port 5434 against a neighbour's\
+  \ compose), <project> 2026-08-17 (a smoke on\n<ip>:18080 answered by another project's\
+  \ spike router). So the contract adds ONE read-only\npreflight over the RUNNING\
+  \ host, invoked as `bin/yitc-v2 cage preflight --project <p> [--port <n>]\n[--own\
+  \ <name>]`, whose declared identity is the CALLER's arguments — it reads no consumer\
+  \ file.\n\n**The three outcomes, each fixed:**\n- **REFUSE (exit nonzero) — an exact\
+  \ compose-project-name match with a FOREIGN running stack.** A\n  running stack\
+  \ is foreign unless its project is one the caller declares its own (`--own`: its\n\
+  \  production and spike projects). Two stacks under one compose project name are\
+  \ one project to\n  docker, so bringing the declared stack up operates on the foreign\
+  \ one — the data-loss class.\n- **REPORT (report-only, exit unchanged) — a declared\
+  \ port published by a foreign running holder**\n  (a compose project, or the container\
+  \ name of an unlabelled container). Never a refusal: a port\n  race with unmanaged\
+  \ host processes cannot be closed by refusing, and refusing would false-block\n\
+  \  the legitimate parallel stacks expects.\n- **SKIPPED (exit unchanged) — the host\
+  \ cannot be read** (docker absent, unreadable, or the fold\n  raising): the verb\
+  \ prints `host preflight: skipped — <reason>`. FAIL-OPEN by design, the one\n  deliberate\
+  \ exception to this module's fail-closed default: a preflight that cannot see the\
+  \ host\n  has asserted nothing about it, and blocking a cage on a check that never\
+  \ ran would make docker's\n  availability a gate on every consumer.\n\n**Check layer:\
+  \ KERNEL, and it is a PREFLIGHT, not a cage atom.** It is not a row of the rule-4e\n\
+  table and not in `cage.CHECKED_ATOMS`: it refuses a host STATE observed at one moment,\
+  \ not a\ndeclaration, so it cannot claim a declared-cage atom (rule 1's boundary).\
+  \ A consumer runs it from its\nown cage-check script as one more declared check;\
+  \ that wiring is the consumer's.\n\n**Held inside rule 7.** No store, no registry,\
+  \ no lock or reservation of names or ports, no event of\nits own, no worktree —\
+  \ a derived view over `docker ps` recomputed on every call. It reads docker's\n\
+  own tab-delimited `--format` output (a fold over an existing tool's format, not\
+  \ a new file format).\nA persistent host-wide registry was considered and REJECTED\
+  \ (stale, stateful, blind to unmanaged\nprocesses); port ALLOCATION, a sweep, and\
+  \ reaping a foreign stack stay out of scope — a report never\nreaps.\n\n## Parameters\n\
+  \n| Parameter | Meaning | `consumed` |\n|---|---|---|\n| pinned bridge release ref\
+  \ | The exact library version the project runs. | no — a per-project ref |\n| cage\
+  \ channel inventory | Where the project's outbound-channel inventory lives. | no\
+  \ — a path |\n\nNeither is `consumed`: both are per-project refs/paths, which the\
+  \ `consumed` whitelist excludes.\n\n## Rationale\n\nThe practice this contract fixes\
+  \ was proven before it was written: a landed pilot ran the caged\nspike loop, a\
+  \ canary consumer re-pinned onto the extracted neutral bridge and DELETED its nine\n\
+  local modules with a byte-identical equivalence result and zero divergences, and\
+  \ research found no\nnamed industry analog for the declare-and-check channel pattern.\n\
+  \nRule 4's insistence on CHECKED rather than described is the load-bearing lesson,\
+  \ and it is\nincident-grounded twice over: the pilot project shipped a prose cage\
+  \ and then had to CORRECT it\ntwice, because a rule nobody checks is a rule that\
+  \ holds only while everyone remembers it.\n\nRule 3 exists because the pre-extraction\
+  \ state was a copy of the bridge in every consuming repo —\nthe duplication the\
+  \ pin retires.\n\n## Verification\n\nEach probe is DIFFERENTIAL — it names the input\
+  \ that must make it FAIL.\n\n- **V1 (rule 4) — the cage refuses a violation.** A\
+  \ spike stack with an outbound channel enabled\n  without its per-case grant, or\
+  \ with the scheduler started, is REFUSED. Failing input: exactly\n  that stack coming\
+  \ up clean — a cage that admits its own violation is decorative.\n- **V2 (rule 4)\
+  \ — the cage permits a compliant stack.** A stack meeting every declared rule comes\n\
+  \  up. Failing input: it being refused — a check that refuses everything passes\
+  \ V1 and is useless.\n- **V3 (rule 3) — the pin is real.** Every neutral bridge\
+  \ symbol resolves from the pinned release.\n  Failing input: a surviving local copy\
+  \ of any neutral module reading clean.\n- **V4 (rule 5) — a spike cannot be landed.**\
+  \ A land attempted from a spike branch is refused.\n  Failing input: such a land\
+  \ succeeding.\n- **V5 (rule 2) — declare-or-waive reaches the consumer.** A project\
+  \ that has neither declared nor\n  waived the section surfaces as DEBT on the generated\
+  \ sweep; a project that declared it, and a\n  project that explicitly waived it,\
+  \ both read clean. Failing input: a project with the section\n  absent reading clean\
+  \ — that is the silence this rule exists to remove. (CORRECTED 2026-08-06,\n  accept-gate\
+  \ plan check F3: this probe previously said an undeclared project \"is silent (opt-in)\"\
+  ,\n  which contradicted both the proposing plan's P2 and rule 2's own declare-or-waive\
+  \ framing. The\n  PLAN's semantics win — they are the gate-specs-audited intent;\
+  \ the opt-in wording was unreviewed\n  drift copied from the sibling `sandbox_entry`\
+  \ concern, whose opt-in choice rests on a rationale\n  that does not hold here.\
+  \ See rule 2.)\n- **V6 (rule 1) — no product or bridge runtime code kernel-side.**\
+  \ The kernel carries the contract\n  and nothing else. Failing input: any neutral-bridge\
+  \ or product runtime module present in the\n  kernel repo — the three-layer split\
+  \ is then a description, not a boundary.\n- **V7 (rule 4) — stack identity is isolated,\
+  \ and each channel grant is journalled.** A spike stack\n  running under production's\
+  \ compose project, ports or volumes is REFUSED; and every per-case\n  channel enablement\
+  \ leaves a journal record naming what was enabled, by whom and when. Failing\n \
+  \ input: a stack sharing production identity coming up clean, or a channel enabled\
+  \ with no record —\n  an unrecorded grant makes rule 4's \"explicit per-case owner\
+  \ grant\" unverifiable after the fact.\n- **V8 (rule 5) — the exit is SPEC-0205's,\
+  \ not a drip.** A declared spike never lands; what\n  leaves it is the prototype\
+  \ tag and, at the owner's ok-moment, a `prototype_ref` card (SPEC-0205\n  rules\
+  \ 4-5, 11 — verified there); filing tasks from inside the spike loop is out of contract.\n\
+  \  Failing input: work committed out of a spike before the owner's ok-moment — that\
+  \ is the\n  disposable exploration converting itself into committed work, which\
+  \ is precisely what rule 5\n  forbids.\n- **V9 (rule 6) — sharing follows MUTATION,\
+  \ not topic.** Two read-only spikes may share one\n  sandbox; a data-mutating spike\
+  \ is refused a shared one. Failing input: a mutating spike admitted\n  to a shared\
+  \ sandbox — the distinction collapses and one spike's writes become another's\n\
+  \  observations.\n- **V10 (rule 7) — the scope bound holds.** The shipped change\
+  \ adds no new store, FSM, journal,\n  service or parser: it is a declaration over\
+  \ an existing carrier plus checks over an existing pin.\n  Failing input: any of\
+  \ those appearing in the implementing diff — which under rule 7 is a\n  dissonance\
+  \ to escalate, not a thing to accept.\n\n**Rule coverage map** (added 2026-08-06,\
+  \ accept-gate plan check F4 — every rule names the probe\nthat can falsify it, so\
+  \ no rule is stated-but-unprovable):\nrule 1 → V6 · rule 2 → V5 · rule 3 → V3 ·\
+  \ rule 4a → V7a, V2 · rule 4b → V1, V2 · rule 4c → V1, V2 ·\nrule 4d → V7b · rule\
+  \ 4e → V11 · rule 5 → V4, V8 · rule 6 → V9 · rule 7 → V10 · rule 8 → V12 ·\nrule\
+  \ 9 → V13.\n(Rule 4's row was split when the clause was split into atoms — a single\
+  \ \"rule 4 → V1, V2, V7\" line\ncannot say which atom a probe falsifies, which is\
+  \ the same bundling SPEC-0165 rule 2 forbids. V7's\ntwo halves separate with it:\
+  \ V7a is stack identity, V7b the grant record.)\n\n- **V12 (rule 8) — the entrance\
+  \ requirements are answerable, not decorative.** A candidate\n  mechanics implementation\
+  \ whose only entrance exit is the DESTRUCTIVE full refresh reads OUT OF\n  CONTRACT\
+  \ against the rule-8a table — on both required capabilities — while an implementation\n\
+  \  providing a narrow router-only repair AND a health probe taken THROUGH the router\
+  \ reads compliant\n  in the same run; and a row that drops its capability id, its\
+  \ owed-by layer, its status word or its\n  out-of-contract cell FAILS conformance.\
+  \ Failing input: the full-refresh-only implementation\n  reading compliant, which\
+  \ would make the requirement a wish; or the compliant one being refused,\n  which\
+  \ would make the reading useless in the same way a cage that refuses everything\
+  \ is.\n- **V11 (rule 4e) — the cage-check table refuses its own defects.** A row\
+  \ that drops its refusal\n  condition or its positive control, names no check layer,\
+  \ claims CHECKED without a resolvable\n  anchor per named layer, or files as DISCIPLINE\
+  \ an atom the declared-cage check actually enforces,\n  FAILS conformance — while\
+  \ the shipped table reads clean in the same run. Failing input: any of\n  those\
+  \ mutations reading clean, which would make the layer declarations decorative.\n\
+  - **V13 (rule 9) — the host preflight refuses only a foreign NAME, reports ports,\
+  \ and fails open.**\n  Over fixtures: a declared compose project equal to a foreign\
+  \ running project is REFUSED naming it;\n  the same name declared `--own` reads\
+  \ silent (the control); a port overlap only yields a REPORT and\n  no refusal; disjoint\
+  \ reads silent; and with docker absent or the fold raising the verb prints\n  `host\
+  \ preflight: skipped — <reason>` and exits 0, while the same input with a fold that\
+  \ DOES see\n  the foreign stack exits nonzero. Failing input: an own-declared stack\
+  \ refused (the preflight\n  blocking the project's own spike), a port overlap refused,\
+  \ or a skip that refuses / a fold that\n  swallows a real collision into \"skipped\"\
+  . Probe: `tests/test_t12458_host_collision_preflight.py`.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0035
+- SPEC-0093
+- SPEC-0122
+- SPEC-0128
+- SPEC-0165
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: rework-kit-in-the-kernel-spike-mode-as-a-methodolo
+binding:
+- code-enforced
+concern:
+- section: spike_sandbox
+  born_order: 200
+  carrier_path: spike_sandbox
+  presence_policy: mandatory
+  update_policy: init re-seed
+  declare_key: bridge
+  declare_type: mapping
+  waiver_policy: loose
+  shape_hook: spike_sandbox_shape
+  born: "spike_sandbox:\n  # SPEC-0172 — the throwaway debugging SANDBOX wiring. DECLARE-OR-WAIVE:\
+    \ answering neither is DEBT.\n  #\n  # To DECLARE, replace the waiver below with\
+    \ one mapping carrying all three:\n  # bridge:\n  # pin: <exact release ref of\
+    \ the shared bridge library this project runs — rule 3>\n  # enabled: true # is\
+    \ the bridge actually in use here\n  # cage_checks: <where the machine-checked\
+    \ cage rules live — rule 4>\n  #\n  # The pin is a release ref, NEVER a local\
+    \ copy (fixes go upstream, then re-pin). `cage_checks:`\n  # points at checks\
+    \ that RUN, not prose. `enabled:` is a switch, not a permission — an outbound\n\
+    \  # channel still needs its own per-case owner grant. The waiver below is a real\
+    \ key.\n  # see SPEC-0172 §2, §3, §4\n  # Turning the full cage on later assumes\
+    \ docker compose with ports bound to <ip>.\n  # An acceptance preview needs no\
+    \ containers — patterns/spike-mode.md §Two modes.\n  waiver:\n    reason: >-\n\
+    \      no spike sandbox yet — this project runs no pinned bridge and keeps no\
+    \ caged spike stack.\n      Replace this waiver with `bridge: {pin, enabled, cage_checks}`\
+    \ when it does (SPEC-0172\n      rules 2-4); a spike is a throwaway exploration\
+    \ whose exit is knowledge, never landed code.\n"
+init_concern: null
+implements_signature:
+  bin/lib/cage.py#_host_identity_collisions: 0f697875bda732806fc56e3c513098ba25c9329bd76df0b720dc960789ab5fea
+  bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
+  bin/lib/cli.py#cmd_cage_preflight: c41d1dda892b594678baf49b24d41907e97f38cf57cf32985d7dcc592c40a567
+  bin/lib/init.py#_hook_spike_sandbox: e66bc1766f8d2fab701e85f82452d19227a7541b4dc651bd170ae0538b9db7c8

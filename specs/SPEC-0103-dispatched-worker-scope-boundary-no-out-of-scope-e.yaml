@@ -1,0 +1,335 @@
+id: SPEC-0103
+title: Dispatched-worker scope boundary — no out-of-scope edits or gate-weakening
+  to force a land; escalate on out-of-scope/environmental block
+status: active
+created_at: 2026-06-24 12:42:24+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/dispatch.py#SYNC_TO_LAND_RULE
+- bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE
+- bin/lib/worktree_lifecycle.py#cmd_worktree_park
+- bin/lib/worktree.py#cmd_blocked_on_land
+- bin/lib/audit.py#is_auditor_outage_abort
+- bin/lib/cli.py#_branch_carried_claim
+body: "## Scenario\n\nA headless dispatched Build worker drives one task toward `LAND:\
+  \ OK` under the standing\nsynchronous-to-LAND pressure (SPEC sibling §Synchronous-to-LAND):\
+  \ \"you succeed ONLY if\nYOU reach LAND: OK; a yield = ABANDONMENT\". It is then\
+  \ BLOCKED — its `land` / audit aborts on a\ncause OUTSIDE its task: a file unrelated\
+  \ to its task's scope, or an ENVIRONMENTAL fault (a sandbox\n/dev/shm SemLock, a\
+  \ foreign-dirt main, a tooling break). The worker does NOT edit its way around\n\
+  the block to force the land. It STOPS and ESCALATES to the controller (`blocked-on-land\
+  \ <task>\n<reason>`), worktree intact. The owner/AI sees that escalation as the\
+  \ CORRECT outcome there — the\nworker did its job — never as the abandonment the\
+  \ pressure warns against.\n\n## Internal\n\nTHE DISPATCHED-WORKER SCOPE BOUNDARY.\
+  \ A process/governance rule (SPEC-0005 rule 1): a standing,\nprovider-neutral worker-safety\
+  \ boundary on the headless Build worker. It adds NO new store / parser\n/ journal\
+  \ / gate (CHARTER §P1): it is DELIVERED by the EXISTING `dispatch` preamble (the\
+  \ LAYER-1\nsurface, `implements:`) and escalates through the EXISTING `blocked-on-land`\
+  \ / `bg_dispatch_halted`\nchannels (patterns/background-session-operation.md §By-design\
+  \ governance STOP). Provider-neutral\nthroughout (CHARTER §P4b — the incentive is\
+  \ any headless land-pressured worker, not one provider).\n\n### 1. No out-of-scope\
+  \ edit to force a land\nA worker MUST NOT edit a file OUTSIDE its task's declared\
+  \ scope (its `scope:` / `implementation_plan`)\nin order to make a blocked `land`\
+  \ or audit pass. Editing an unrelated file to clear a block is a\nscope violation,\
+  \ regardless of land pressure. (This is the worker's OWN-task scope boundary; the\n\
+  separate cross-session rule — never touch ANOTHER session's uncommitted work — is\
+  \ the foreign-dirt\nWORKER contract in the pattern, unchanged.)\n\n### 2. No gate/test/guard\
+  \ weakening to force a land\nA worker MUST NOT weaken, skip, disable, or delete\
+  \ a gate, test, assertion, or guard — and MUST NOT\n`land --no-tests` or hand-emit\
+  \ a `land_completed` — to make a blocked land pass. The gate firing is\nsignal,\
+  \ not an obstacle to remove.\n\n### 3. Escalate on an out-of-scope OR environmental\
+  \ block\nWhen blocked by a cause OUTSIDE the task's scope — an out-of-scope file,\
+  \ an environmental fault, OR a\nrepeated land/audit ABORT on the SAME unresolved\
+  \ cause (the repeated-abort backstop / CHARTER\n§P7 re-run-vs-resolve fork) — the\
+  \ worker STOPS and ESCALATES to the controller (returns\n`blocked-on-land <task>\
+  \ <reason>`, worktree intact + land-ready), and does NOT grind the gate in a\nloop.\
+  \ The repeated-abort backstop is the ESCALATE signal, NOT a licence to work around\
+  \ the cause.\n\n#### 3-wont-do. A TERMINAL `wont-do` IS NOT THE RED ROUTE TO MAIN\n\
+  After a terminal RED the Stage-8 route is fix-in-scope, else REVERT or ESCALATE\
+  \ (LIFECYCLE §Stage 8)\n— never `task update --status wont-do` followed by `land`.\
+  \ A wont-do card never returns to\nre-audit what it ships, so `land` refuses a `status:\
+  \ wont-do` branch whose diff carries authored\n(non-bookkeeping) content no GREEN/YELLOW\
+  \ audit-post covers: `LAND: ABORT`, abort_class\n`wont-do-unaudited-ship` (the one\
+  \ land-side audit gate on a terminal card; QUEUE §Park-mid-audit\nnames it as the\
+  \ single exception). Its two exits are the RED route restated — revert the ship\
+  \ on the\nbranch (a bookkeeping-only wont-do branch lands), or `worktree park` +\
+  \ a new card. Measured:\n<project>, 2026-09-18 — ship 6042231 landed after a terminal\
+  \ RED via the wont-do flip.\n\n#### 3-ceiling. THE AUDIT-LOOP CEILING IS ONE OF\
+  \ THESE BLOCKS, and the worker HALTS WITH FINGERPRINTS\nA dispatched Worker that\
+  \ reaches the SPEC-0124 audit-loop ceiling does NOT consult, does NOT adjudicate\n\
+  and does NOT grant itself a continuation — the auto-consult that once did is retired\
+  \ (SPEC-0204 rule\n6). It takes the §3 escalation above, through the SAME `bg_dispatch_halted`\
+  \ marker, and that marker\nNAMES `residual_fingerprints[]`: the engine fingerprints\
+  \ (SPEC-0204 rule 1) of the ceiling row's\nfindings, which is exactly what the Controller\
+  \ must act on. It carries NO `needs_owner_reset` — the\nkey is retired with the\
+  \ flag it named, so a halt still carrying it would ask for a continuation no\nverb\
+  \ can grant. `journal query --dispatch-status` reads the halt as needs-CONTROLLER.\n\
+  \nWHAT THE CONTROLLER DOES, and why the split is a rule and not a convention: it\
+  \ records ONE typed\n`ceiling_decision` per fingerprint (`yitc-v2 audit decide`,\
+  \ SPEC-0204 rule 2, which REFUSES in a\nworker context) and re-dispatches; the worker\
+  \ then resumes with `audit pre|post --on-decisions`\n(rule 3). Deciding a residual\
+  \ is a scope judgement, which §4's authority boundary already reserves —\nthe worker\
+  \ halting is the CORRECT outcome here, never abandonment.\n\nHOW the worker halts\
+  \ (X-1468/X-1469): the halt ROW above is emitted by `audit pre|post`\nitself; the\
+  \ worker's own verb is `task pause --reason audit-ceiling` (inside the worktree\
+  \ — the §5\nWORK-CARRYING shape, worktree intact, resume via `task resume`). NOT\
+  \ `blocked-on-land`: a Stage-4\nceiling precedes every commit route, so the claim\
+  \ `worktree new --task` wrote is still uncommitted\nand the branch carries none\
+  \ — `blocked-on-land` REFUSES there by design (§3b) and its refusal names\nthe pause\
+  \ verb; `task refuse` remains the exit for a genuinely UNCLAIMED card only (SPEC-0133).\n\
+  Rule home for the ceiling route: SPEC-0204 rule 6.\n\n#### 3-arm. WHEN the land\
+  \ backstop may arm — consecutive-only, and never on a known flake\nThe escalation\
+  \ above is owed to a REPEAT. So the backstop that raises it arms on the streak of\n\
+  CONSECUTIVE land attempts that are provably the same cause, and on nothing else.\
+  \ Every\n`land_completed` row for the branch falls in exactly ONE of three tiers\n\
+  (`worktree.py#_land_repeated_abort_count`):\n\n- **INVISIBLE — non-attempts only,\
+  \ and there are exactly two.** The backstop's OWN refusal (it may\n  neither form\
+  \ nor break a streak) and a cheap-deterministic-preflight abort class ( — refused\n\
+  \  before the land is an attempt at all). These neither count nor reset.\n- **RESET\
+  \ — a real attempt whose sameness cannot be proven.** It never COUNTS and it BREAKS\
+  \ the run:\n  any successful/non-abort land; a row with no failing-ASSERTION identity\
+  \ (`cause_identity_absent`); a preflight-SHAPED abort (`abort_preflight` — e.g.\
+  \ a reservation park); and a\n  FLAKE-ONLY abort (below). An intervening abort of\
+  \ a materially DIFFERENT cause — a merge conflict,\n  a reservation park — therefore\
+  \ resets the run rather than being skipped over, so two same-cause\n  aborts on\
+  \ either side of one no longer read as consecutive.\n- **COUNT — a real attempt\
+  \ with a provable cause identity**, streaked on its cause key.\n\n**KNOWN-FLAKE\
+  \ EXEMPTION.** An abort whose failing set consists ONLY of tests carried in the\n\
+  known-flake register measured the shared HOST, not the branch, so it NEVER arms\
+  \ the backstop; it is\nrecorded as a flake re-run (the `land_completed.flake_only_rerun`\
+  \ key) instead of escalating. The\nregister has exactly ONE carrier — `nightly.py#_TIMING_INSTRUMENTS`,\
+  \ the SPEC-0105 quiet-lane\nregistry. A file leaves the exemption by leaving that\
+  \ registry; no second list exists, and\nauthoring one is the drift this clause forbids.\
+  \ Admission is fail-closed and checkout-scoped: a\nregistry entry is exempt only\
+  \ where its own repo-relative path exists in that checkout and its\nfilename is\
+  \ unambiguous there, so a consumer checkout exempts nothing.\n\nA flake-only row\
+  \ RESETS rather than being invisible, and that distinction is load-bearing: an\n\
+  invisible newest row would let an older same-cause pair arm the backstop on a land\
+  \ whose failing set\nwas entirely a known flake, and an invisible middle row would\
+  \ read two non-consecutive attempts as\nconsecutive.\n\n**BOUNDS — what is unchanged.**\
+  \ The freeze class is untouched: two genuinely consecutive\nsame-cause aborts still\
+  \ arm at the threshold, and re-running a heavy gate against an unresolved\ncontradiction\
+  \ is still forbidden (CHARTER §P7). `--ack-repeated-abort` remains available and\n\
+  CONTROLLER-routed, never owner-gated. What is removed is only the ack-and-requeue\
+  \ ritual on\na non-repeat: every tier change above can make the backstop arm LESS,\
+  \ never more, which is the\nfail-open direction the counter's own doctrine already\
+  \ prescribes (a wrong arm costs a STOP, a\ncontroller ack and a fresh queue position;\
+  \ a missed arm costs one more attempt).\n\n### 3a. Auditor-outage subclass — graceful\
+  \ PARK, not worktree-intact escalation\n§3's default for an environmental block\
+  \ is escalate `blocked-on-land`, worktree INTACT — because the\nworktree may hold\
+  \ salvageable in-scope WORK the controller will inspect/resume. The AUDITOR-OUTAGE\n\
+  subclass is the EXCEPTION: when the block is the external auditor itself unable\
+  \ to RUN (an env/config\nfault — e.g. a <external-auditor> workspace-write/config\
+  \ read fault, a subscription-preflight refusal, the CLI\nmissing — OR a usage-limit/quota\
+  \ wall; NOT a findings-bearing RED) AND the worktree is EMPTY OF WORK,\nthere is\
+  \ nothing in-scope to preserve — re-dispatch (once the env is restored) simply re-runs\
+  \ the\nsame audit. That emptiness is a PRE-EXECUTION bound, not a property of the\
+  \ outage (§3a-bis below —\nread it before relying on this sentence). Where it holds,\
+  \ the worker PARKS\nGRACEFULLY instead of orphaning: `audit pre|post` detects the\
+  \ outage class (`is_auditor_outage_abort`,\nEXCLUDING the rc==124 timeout — its\
+  \ own ledger-skip path) and, in a DISPATCHED-worker context\n(`YITC_EXPECTED_SESSION_REF`\
+  \ set), AUTO-INVOKES the park teardown IN-PROCESS before the headless worker\ncan\
+  \ exit unparked (a printed hint alone can be missed by a worker that yields first).\
+  \ The park\n(`worktree park` / the shared `_park_worktree` core) tears down the\
+  \ worktree+branch and emits\n`worker_parked`; the task stays `ready` on MAIN (its\
+  \ ready→in-progress claim lives only in the unlanded\nworktree branch, so it never\
+  \ reached main — VERIFIED, not assumed) → cleanly re-dispatchable, no orphan.\n\
+  An INTERACTIVE session (no worker ref) prints the manual `worktree park` hint instead\
+  \ — never auto-destroy\nan interactive worktree. This REPLACES §3's worktree-intact\
+  \ escalation for this subclass ONLY; every other\nenvironmental/out-of-scope block\
+  \ keeps §3's intact escalation. The `worktree park` verb is SPEC-LESS by the\nSPEC-0005\
+  \ admission test (its safety-invariant lives wholly in the verb, code+test enforced\
+  \ — identical to\n`worktree sweep`); the outage classification + auto-park routing\
+  \ is governed by SPEC-0036\n§Verdict-handling (the home of the transient-ABORT classes).\
+  \ Real incident: X-0098 / X-0092 — a dispatched\nworker blocked by a <external-auditor>\
+  \ workspace-write config fault died as a dead-but-unlanded orphan TWICE in one\n\
+  session, forcing the controller to hand `git worktree remove` + `branch -D` + re-dispatch.\n\
+  \n### 3a-bis. The auditor-outage park is BOUNDED by work in flight\n§3a's licence\
+  \ to destroy rests entirely on «there is nothing in-scope to preserve». That premise\
+  \ is a\nclaim about the STAGE, not about the outage: it is TRUE for a block at audit-PRE\
+  \ (Stage 4), which\nPRECEDES Execution, and FALSE for a block at audit-POST (Stage\
+  \ 8), where the worker holds a finished,\ntested build. The relevant structural\
+  \ fact is measured, not argued — the 9-stage order commits at\nSTAGE 7, AFTER Tests,\
+  \ so a worker accumulates its ENTIRE diff UNCOMMITTED across Execution and Tests,\n\
+  and the bigger the change the longer that window. §3a as first written read the\
+  \ same for both ends of\nit, so the destructive path scaled with the value at risk.\n\
+  \nTHE BOUND. The teardown — auto-park AND the manual `worktree park --task` — is\
+  \ PRECONDITIONED on the\nworktree carrying no un-landed work. The discriminator\
+  \ is the EXISTING `_orphan_carries_work`\n, REUSED rather than re-written: any commit\
+  \ above `main`, or any uncommitted path outside the\nRE-DERIVABLE CLAIM FOOTPRINT\
+  \ (`events.jsonl` + `tasks/<task>-*.yaml`), is work. It is\nPOSITIVE-EVIDENCE-FOR-EMPTY\
+  \ — an unreadable tree, an unparseable count, any uncertainty at all returns\n«carries\
+  \ work» — because the branch it guards cannot be undone\n(`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ §1). Note the polarity: most gates here fail\nclosed by REFUSING; this one fails\
+  \ closed by PRESERVING. An orphan worktree is a nuisance the sweep\nverbs already\
+  \ handle; an erased two-hour refactor is not recoverable at all.\n\nWHEN THE BOUND\
+  \ HOLDS, §3a does NOT apply and §3's ORDINARY worktree-intact escalation is restored:\n\
+  worktree and branch stay intact, no `worker_parked` is emitted (it is ROW-TERMINAL\
+  \ to `--fleet-verdict`,\nso emitting one over a live worktree would be false), a\
+  \ `deviation_captured` records the near-miss, and\nthe worker escalates with `blocked-on-land`.\
+  \ The manual verb REFUSES on the same evidence and names\n`--force --reason` as\
+  \ the explicit discard, mirroring the `--work` sibling's dirt gate.\n\nWHAT IS DELIBERATELY\
+  \ UNCHANGED. The GENUINE case §3a was created for still parks cleanly: a worker\n\
+  blocked at audit-PRE holds only the claim footprint, which the discriminator excludes\
+  \ by name, so\nX-0098 / X-0092's dead-but-unlanded orphans stay solved. What the\
+  \ park now also does is REPORT what it\ndiscards — `worker_parked` carries `discarded_files`\
+  \ / `discarded_commits` — so even a sanctioned\nteardown is visible rather than\
+  \ silent.\n\nReal incidents, all measured 2026-08-19 (fingerprints in the journal):\
+  \ held 684 modified files\nwith `git rev-list --count main..HEAD` = 0 when `worker_parked`\
+  \ fired at 17:35:33Z — and twice more\nafter — losing ~1h40m of a mechanical refactor\
+  \ unrecoverably from the branch. A later run of the same\ncard lost a CONVERGED\
+  \ build (audit-pre GREEN, pinned suite green, commit made) to a TRANSIENT auditor\n\
+  exit-1 that a probe seconds later disproved as a quota wall; the commit object survived\
+  \ only because\ngit had not gc-ed it. And the journal receipt did not return with\
+  \ the code — a cherry-pick restores the\ntree, not the `commit_landed` row — so\
+  \ closure had to be reconstructed by hand under an explicit owner\ndecision (events.jsonl#ts=).\
+  \ Cross-reported by <project> as X-0998 / X-1000.\n\n### 3b. Who may escalate —\
+  \ the BRANCH carries the claim, not the filesystem\n§3 tells a blocked worker to\
+  \ escalate; this section says WHO the verb admits. The admitting evidence\nis the\
+  \ BRANCH under escalation — NOT worktree existence, and NOT the status of the checkout\
+  \ the verb\nhappens to run in. `blocked-on-land` is admitted when BOTH hold: (a)\
+  \ a LIVE `task/T-XXXX` worktree\nexists — the worker is HOLDING it (the live-claim\
+  \ signal §3a already relies on); AND (b) that\nbranch CARRIES either the governed\
+  \ CLAIM (its card reads `in-progress` AND a committed `task_picked`\nevent for the\
+  \ task backs it — a hand-flipped card is not a governed claim) or the CLOSURE the\
+  \ worker\ncould not land (its card reads `done`). Anything else REFUSES, including\
+  \ the unknown answer: a git /\nparse failure that leaves the carrier unprovable\
+  \ is a refusal, never an admission.\n\nWHY the branch, not `main`: a dispatched\
+  \ worker's claim (ready→in-progress + `task_picked`) is\nwritten INSIDE its worktree\
+  \ and reaches `main` only through `land` ( option B, the same fact\n§3a relies on\
+  \ when it parks a task that stays `ready` on main). So at the exact moment a land\
+  \ fails,\n`main` still reads `ready`, and the verb used to answer «this is a PRE-claim\
+  \ refusal, use `task\nrefuse`». That answer is not merely unhelpful, it is FALSE:\
+  \ `refused(pre-claim)` (SPEC-0133 rule 2a)\ntells the controller the card was never\
+  \ worked, while the worker in fact holds a finished, audited\nbranch it cannot integrate\
+  \ (X-0754; it also strands the X-0740 done-but-unlandable card, leaves the\nX-0700\
+  \ post-close rebaseline block with no covering verb, and loses the X-0758 reason).\n\
+  \nWHY BOTH halves, and why NEITHER alone: worktree PRESENCE alone is over-trust\
+  \ — a raw `git worktree\nadd` mints exactly that shape with no claim in it, and\
+  \ admitting it would let any leftover directory\nraise a needs-decision halt for\
+  \ work nobody did (the double-claim class; AGENTS-SESSIONS\nalready states presence\
+  \ is not orphanhood). A branch carrier alone is under-constrained — a branch\noutlives\
+  \ its worktree, so a stale one would speak for a worker that is no longer there.\
+  \ The\nconjunction is the whole discriminator, and this section is the exception\
+  \ carved into a fail-closed\ngate that must not swallow the rule (`lessons/carving-an-exception-into-a-fail-closed-gate`).\n\
+  \nBOUND. This governs ADMISSION only. The escalation still records the EXISTING\
+  \ `bg_dispatch_halted`\nmarker with the worker's reason (§3, the reader unchanged:\
+  \ `halted` / needs-decision on\n`--fleet-verdict`); it moves NO status, writes nothing\
+  \ back to the card, and opens NO reopen path.\nThe genuine PRE-claim case is unchanged\
+  \ and still routes to `task refuse` (SPEC-0133).\n\n### 4. Reframe success — escalation\
+  \ is the correct outcome, not abandonment\nThe synchronous-to-LAND rule's \"a yield\
+  \ = ABANDONMENT\" governs the worker BACKGROUNDING a\nstep and yielding mid-flight.\
+  \ It does NOT override rules 1-3: a CONTRACTED escalation on an\nout-of-scope or\
+  \ environmental block — a `blocked-on-land` return with durable state intact — is\
+  \ the\nCORRECT outcome there, NOT abandonment. The worker is not failed by escalating;\
+  \ it is failed by\nforcing a land it should have escalated. **This carve-out is\
+  \ carried in the canonical\nsynchronous-to-LAND sentence ITSELF (the SYNC_TO_LAND_RULE\
+  \ single source), not only in a separate\npreamble point — so the worker sees the\
+  \ exception inline wherever the \"reach LAND or ABANDONMENT\"\npressure is delivered\
+  \ (the preamble point 1 AND the just-in-time stage-entry reminder, cmd_stage). A\
+  \ pressure sentence that did NOT carry its own carve-out would re-create the contradiction\n\
+  the incident exposed (CHARTER §P7).**\n\n### 4a. What \"SYNCHRONOUS\" names is the\
+  \ HELD TURN, not the foreground process (SPEC-0180)\nThe pressure this spec bounds\
+  \ is stated as \"run every step in the FOREGROUND, blocking\". Read\nliterally,\
+  \ that wording ALSO forbids the one compliant exit available to a worker whose `land`\n\
+  legitimately cannot FIT the harness's hard per-call foreground cap — a third block\
+  \ class that is\nneither out-of-scope nor environmental, but ARITHMETIC (the work\
+  \ is fine; the CALL is too short).\nSPEC-0180 rule 1 settles which property was\
+  \ ever load-bearing: **the worker HOLDS ITS TURN until the\nterminal token**, not\
+  \ that the land runs in the worker's own foreground process group. Those coincide\n\
+  for every land that fits the cap, and come apart above it — where foreground-ness\
+  \ buys nothing,\nbecause a foreground land killed at the cap reaches no token either.\n\
+  \nTherefore, for the ARITHMETIC class ONLY, the worker's first move is NOT `blocked-on-land`:\
+  \ it runs\nthe land as a DETACHED process under a verified held-turn claim while\
+  \ polling inline in the SAME turn\n(SPEC-0180 rules 2+3), and that sanctioned path\
+  \ is DELIVERED at the seam — inside the SYNC_TO_LAND_RULE\nsingle source itself,\
+  \ for the same reason rule 4's carve-out is, so the worker is TOLD the\nexit instead\
+  \ of discovering it as a refusal.\n\n**This RECONCILES the wording; it WEAKENS nothing.**\
+  \ Rules 1, 2 and 3 above are untouched and keep\npriority: a genuine OUT-OF-SCOPE\
+  \ or ENVIRONMENTAL block — including the repeated-abort backstop —\nstill STOPs\
+  \ and ESCALATES via `blocked-on-land` with the worktree intact, and §3a's auditor-outage\n\
+  auto-park is unchanged. No gate, test, assertion or guard may be weakened, skipped\
+  \ or deleted, and\nthe detached path grants no bypass of any of them (SPEC-0180\
+  \ rule 4): the verify runs in FULL, both\npasses when SPEC-0077 fires. BACKGROUND-AND-YIELD\
+  \ likewise stays FORBIDDEN — what may be detached is\nthe OS PROCESS, never the\
+  \ TURN; a claiming worker that yields anyway has its land KILLED mid-flight by\n\
+  the worker-liveness binding, `main` untouched. The arithmetic exit is available\
+  \ ONLY when the block is\nthe cap itself; it is never a route around a block rules\
+  \ 1-3 govern.\n\n### 5. Pause-shape fork — landed-pause vs intact-pause (X-0427)\n\
+  A `task pause` HALTS a claimed worktree, and that worktree either LANDS (removed)\
+  \ or stays INTACT —\nnever both. The choice is the pause-shape fork, and it turns\
+  \ on whether the worktree carries\nuncommitted work worth preserving:\n\n- **BOOKKEEPING-ONLY\
+  \ pause** — no uncommitted product WIP (e.g. an owner-wait halt whose entire resume\n\
+  \  evidence lives in the card metadata). Commit the pause record and `land` it,\
+  \ so a fresh session\n  reading `main` sees the WAITING-ON-OWNER surfacing. `land`\
+  \ REMOVES the worktree, so re-entry is a\n  re-CLAIM via `worktree new --task T-XXXX`\
+  \ — which re-enters the landed orphan IN PLACE (recreates the\n  worktree + resumes,\
+  \ NO second `task_picked` / X-0406); the pause metadata rides on the\n  landed card.\n\
+  - **WORK-CARRYING pause** — real uncommitted in-flight WIP worth preserving. Do\
+  \ NOT land — keep the\n  worktree INTACT (the §3 worktree-intact escalation shape)\
+  \ so the WIP survives; re-entry is\n  `task resume T-XXXX` IN PLACE, no re-claim.\n\
+  \nThe two shapes never both apply, so the §3 / preamble worktree-intact instruction\
+  \ does NOT contradict\n`task pause`: intact preservation IS the work-carrying shape;\
+  \ commit+land IS the bookkeeping-only shape.\nThis resolves X-0427 (the <project>\
+  \ contradiction where the preamble said worktree-intact but\n`task pause` printed\
+  \ an UNCONDITIONAL \"commit + land\", and `task resume`'s \"re-enter WITHOUT re-claim\"\
+  \nmisled after a landed pause — the worktree it would re-enter is gone).\n\nDELIVERY.\
+  \ This is a DOCTRINE/process rule (consumed: false) — it governs the pause-shape\
+  \ GUIDANCE, not\na code-consumed parameter. It is delivered as the printed fork\
+  \ text of the covering verbs\n`cmd_task_pause` / `cmd_task_resume` (bin/lib/task.py)\
+  \ and the `SYNC_TO_LAND_RULE` preamble clause\n(bin/lib/dispatch.py), which all\
+  \ POINT here. The pause/resume verb LOGIC is itself spec-less by the\nSPEC-0005\
+  \ admission test (its safety-invariant lives wholly in the verb + its tests, as\
+  \ `worktree park`\ndoes in §3a), homed in its birth tasks — so this section is NOT\
+  \ added to `implements:`;\nit NAMES the delivering verbs instead (the accurate linkage\
+  \ is prose-delivery, not spec-consumes-code).\n\n## Parameters\n\nNone consumed\
+  \ (consumed: false — a process spec; no code reads a scalar param from it).\n\n\
+  ## Rationale\n\nReal incident ( live dispatched run, 2026-06-24): blocked at land-verify\
+  \ by an environmental\ncause (a sandbox /dev/shm SemLock), a worker edited an OUT-OF-SCOPE\
+  \ file\n(tests/test_cross_worktree_id_alloc.py, unrelated to its hygiene-marker\
+  \ task) to force its land\nthrough, instead of escalating. Root: the \"reach LAND:\
+  \ OK or it is ABANDONMENT\" pressure can\nincentivize scope-violation / guard-working-around\
+  \ — a reward-hacking-shaped surface on full-access\nworkers, provider-NEUTRAL (<external-auditor>\
+  \ merely surfaced it first). Prior-art the rule consolidates a\nboundary BETWEEN\
+  \ (none homed it): §Synchronous-to-LAND, the foreign-dirt WORKER contract,\n\"STOP\
+  \ and report, never grind\", and §By-design governance STOP (all\npatterns/background-session-operation.md).\
+  \ LAYER-2 (a structural land-time diff-vs-scope guard) is a\ntracked follow-up,\
+  \ deferred by anti-complexity (one incident; audit-post already DETECTS an\nout-of-scope\
+  \ diff).\n\n## Verification\n\n- Probe (single-source carve-out, rule 4): tests/test_dispatch.py\
+  \ asserts SYNC_TO_LAND_RULE itself\n  carries the escalate-on-out-of-scope/environmental-block\
+  \ / not-abandonment carve-out — so it\n  co-delivers at BOTH the preamble point\
+  \ 1 and the cmd_stage stage-entry reminder.\n- Probe (delivery, AC2): tests/test_dispatch.py\
+  \ asserts DISPATCH_WORKER_PREAMBLE +\n  `_compose_worker_brief` output carry the\
+  \ no-out-of-scope-edit / no-gate-weakening /\n  escalate-on-block cue + the SPEC-0103\
+  \ pointer (mirrors the test_t0622_* preamble-content tests).\n- Probe (home, AC1):\
+  \ `grep \"SPEC-0103\" bin/lib/dispatch.py` resolves the preamble pointer to this\n\
+  \  spec; `graph query SPEC-0103` returns the active rule.\n- Probe (§3b admission):\
+  \ tests/test_t9368_postclose_rebaseline.py drives the REAL verb\n  against real\
+  \ git fixtures — a card reading `ready` on main whose branch carries the committed\n\
+  \  claim ESCALATES (and its pre-change differential dies with the use-`task refuse`\
+  \ message), a raw\n  `git worktree add` claimless worktree is REFUSED, and `journal\
+  \ query --fleet-verdict` renders the\n  admitted row as halted / needs-decision\
+  \ carrying the worker's reason verbatim.\n- Adoption (proposed→active): activation_owner_task\
+  \ `task close` flips this spec to active.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+- CHARTER.md#principle-7
+- SPEC-0036
+- SPEC-0133
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/audit.py#is_auditor_outage_abort: 8ed853121868513c6b94b32f8b6c35ba2bb9a46044cf1ef59138199f6df5e333
+  bin/lib/cli.py#_branch_carried_claim: fc71f8988a4599865c25921528a3db115926bceb94f2c3cb5abbb0fc9cdee320
+  bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
+  bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
+  bin/lib/worktree.py#cmd_blocked_on_land: fbd30050ae5590d2674dd9573e92d906428f37951d8ce033fef197261e2756f5
+  bin/lib/worktree_lifecycle.py#cmd_worktree_park: db26a2e40b7e9d7193050c9c5ab914d738440f92a3f1750f1bdaf78eb6233ab2

@@ -1,0 +1,429 @@
+id: SPEC-0204
+title: Ceiling decisions — one typed Controller-recorded decision per residual, one
+  bounded re-audit, first-round delta discipline; replaces consult episodes, owner-reset
+  and withdrawal markers
+status: active
+created_at: 2026-09-08 14:31:56+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/audit.py#cmd_audit
+- bin/lib/audit.py#audit_ceiling_blocked
+- bin/lib/audit_consult.py#_consult_basis
+- bin/lib/audit_consult.py#cmd_audit_consult
+- bin/lib/audit_consult.py#consult_prompt_overlay
+- bin/lib/audit.py#locator_content_unchanged
+- bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE
+- bin/lib/audit.py#blocked_on_land_ceiling_disposition
+- bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES
+- bin/lib/cli_parser.py#build_parser
+- bin/lib/graph.py#retired_audit_flag_violations
+- bin/lib/cli.py#_audit_help_texts
+- bin/lib/audit_ceiling.py#on_decisions_matrix
+- bin/lib/audit_ceiling.py#on_decisions_admission
+- bin/lib/audit_ceiling.py#maximal_evidence_revision
+- bin/lib/audit_ceiling.py#sync_merge_subject
+- bin/lib/audit_ceiling.py#worktree_sync_merges
+- bin/lib/task.py#sync_merge_closure_custody
+- bin/lib/audit_ceiling.py#row_residual_fingerprints
+- bin/lib/audit_ceiling.py#on_decisions_absorption_grant
+- bin/lib/audit.py#plan_gate_ceiling_row_payload
+- bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row
+- bin/lib/audit.py#plan_gate_response_malformed
+- bin/lib/audit.py#contentless_findings
+- bin/lib/audit.py#unactionable_findings
+- bin/lib/audit.py#unactionable_findings_refusal
+- bin/lib/plan.py#cmd_plan_check
+- bin/lib/audit.py#findings_block_parse_failure
+- bin/lib/audit.py#unparsed_findings_refusal
+- bin/lib/audit.py#bounded_auditor_output
+- bin/lib/audit.py#plan_gate_live_terminal_reasons
+- bin/lib/plan.py#_run_plan_gate_audit
+- bin/lib/graph.py#retired_plan_gate_terminal_violations
+- bin/lib/audit.py#reship_opens_new_ceiling_row
+- bin/lib/audit.py#stage6_evidence_covers_subject
+- bin/lib/audit.py#stage6_evidence_gap_facts
+- bin/lib/audit.py#suspected_echo_findings
+- bin/lib/audit_ceiling.py#residual_finding_records
+body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ceiling\
+  \ (SPEC-0124: two absorption passes).\nNothing is consulted, re-surveyed or re-tested.\
+  \ The residuals ARE the findings of that last RED,\neach carrying an engine-computed\
+  \ fingerprint. The Controller — never a Worker — records ONE typed\ndecision per\
+  \ residual, citing the owner directive that authorizes it: `fix` (a change follows),\n\
+  `accept` (the residual stands, with the reason), or `defer` (the work rides a named\
+  \ receiving card —\nwhether parked for a successor or out of this card's subject).\
+  \ When every residual is decided, exactly ONE further audit pass runs on those\n\
+  decisions. GREEN or YELLOW-absorbed → Closure/land as today — and a NEW small (medium/low)\
+  \ finding that\npass raises is absorbed like any YELLOW (fix + one bounded re-audit\
+  \ under the same ceiling row, or a\nfollowup), never a card-burning terminal. RED\
+  \ again — a new high finding, a `fix` still open, or\na second new finding on the\
+  \ one absorption re-audit → the card's audit status\nstays RED and the only exits\
+  \ are the owner's TERMINAL dispositions that already exist. No episode,\nno finding\
+  \ ids, no retest rounds, no reset flag, no marker prose on the card.\n\n## Internal\n\
+  \nTHE CEILING-DECISION CONTRACT — the SOLE normative home of (a) what happens AFTER\
+  \ the audit-loop\nceiling is reached, for TASK audit-pre and audit-post, and (b)\
+  \ the first-round DELTA discipline that\nkeeps cards from being pushed there (rule\
+  \ 8). SPEC-0124 keeps the ceiling itself (pass\narithmetic, ledger-skips) and points\
+  \ here; SPEC-0036 keeps the invocation/verdict/lens contract and the\nper-finding\
+  \ response fields this contract reads. Eight rules.\n\n### 1. The residual list\
+  \ IS the last RED's findings — fingerprinted by the engine\nAt the ceiling there\
+  \ is no separate survey: the residuals of a (task, stage) are the `findings` of\
+  \ the\nlast `external_audit_completed` row for that task+stage (the CEILING ROW).\
+  \ A NON-DEFECT row — a finding\nwhose severity is in the closed set {pass, ok, none,\
+  \ info, green}, e.g. an auditor's «No change.» row — is NOT a\nresidual: it is skipped\
+  \ at READ time in every row shape (so an already-saved record is read the same way),\n\
+  never written into a plan-gate ceiling row, needs no decision, and is counted in\
+  \ the packet as\n`non_defect_rows_skipped` (`green` joined the set when admitted\
+  \ RED/YELLOW/GREEN as severity words). An unknown severity stays a residual (fail-closed).\
+  \ Each finding carries an\nENGINE-computed `finding_fingerprint` = `fp<v>:` + a\
+  \ hash over the canonical tuple\n{task, stage, class_id|criterion_ref, locator,\
+  \ normalized(failing_input)} — a REVISION-FREE matching key,\nstable across revisions\
+  \ of one (task, stage); the binding to a revision lives on the decision (rule 2's\n\
+  `ceiling_ref`), never inside the hash — versioned (`fp1:`), computed ONCE at record\
+  \ time and carried CANONICALLY on the `external_audit_completed`\ncompletion event\
+  \ (the journal — the one store rule 2 names); the saved verdict YAML carries the\
+  \ same\nvalues as a human-readable PROJECTION, and every reader resolves fingerprints\
+  \ from the journal ONLY\n(a hand-edited YAML value changes nothing). Never supplied\
+  \ by the auditor, never an episode-relative id. `subject_revision` is the audited\n\
+  subject: the recorded commit SHA at audit-post, the plan fingerprint at audit-pre\
+  \ (the same basis\nidentities SPEC-0036 already records) — and at audit-post that\
+  \ recorded commit is the last AUTHORED\nship, a PROVEN record-only bookkeeping self-commit\
+  \ ({`park`, `pause`, `wont-do`}) being TRANSPARENT to\ncustody while that ship has\
+  \ NOT landed (where it has, the `--repin-ship` route applies and the\nreading is\
+  \ unchanged)\n(`audit_custody_commit`; rule 3 consequently pins the ONE `--on-decisions`\
+  \ pass to that\nauthored ship, which is what the authored-content guard admits —\
+  \ see SPEC-0015 §Audit-stage\nYAMLs for the custody rule's home and the deadlock\
+  \ it closes). A fingerprint is a MATCHING key within {task, stage}: at the rule-3\
+  \ pass the\nauditor's findings are fingerprinted identically at the audited revision\
+  \ — a match against a residual of\nthe ceiling row is an ECHO of it, a non-match\
+  \ is a NEW finding (engine-side; no auditor id, no text\nsimilarity; the packet\
+  \ prints each residual's fingerprint as a reference hint only). CANONICALIZATION\
+  \ (normative, version `fp1`): the tuple {task, stage, key, locator, failing_input}\
+  \ where\nkey = `criterion_ref` reduced to its `AC<n>` token (upper-cased) if present,\
+  \ else `class_id` lower-cased;\nlocator = NFC-normalized, absolute engine/worktree\
+  \ paths made repo-relative, trailing\n`:<line>[-<line>][:<col>]` stripped (a line\
+  \ number moves with every edit); failing_input = NFC, absolute\npaths made repo-relative,\
+  \ 7-40-hex SHAs → `<sha>`, ISO timestamps → `<ts>`, typographic quotes → ASCII,\n\
+  whitespace collapsed to single spaces and trimmed; an ABSENT field is serialized\
+  \ as `null` (never\nomitted — presence is part of the key). Serialization = JSON\
+  \ with sorted keys, UTF-8, ensure_ascii off;\nhash = SHA-256 of that byte string,\
+  \ first 16 hex digits; fingerprint = `fp1:` + hash (`fp1d:` for the\ndegraded key,\
+  \ whose tuple ADDS `what` and `where` normalized the same way). Any change to the\
+  \ tuple or\nthe normalization bumps the version prefix (`fp2:`); an old-version\
+  \ fingerprint matches no current\nresidual. CONFORMANCE VECTORS: (post, AC1, `bin/lib/x.py#f`,\
+  \ `input <sha> at <ts>`) → `fp1:c1637e246dfe5fb4`;\nthe same with locator `bin/lib/x.py#g`\
+  \ → `fp1:102850aed9a917ea` (a different locator is a different finding); the first\n\
+  tuple with locator `bin/lib/x.py#f:120` or `<repo-root>/bin/lib/x.py#f` → `fp1:c1637e246dfe5fb4`\
+  \ (line\nnumbers and absolute prefixes never split a finding). THE STRUCTURED FIELDS\
+  \ ARE REQUIRED\nBELOW THE CEILING: every RED finding of the base audit-pre/post\
+  \ response carries `criterion_ref` or\n`class_id`, `locator` and `failing_input`\
+  \ (<workshop-spec> rule 3(a)'s per-finding contract, moved below the\nceiling);\
+  \ a RED finding lacking them is a MALFORMED response — refused at parse, no pass\n\
+  spent. The engine may derive `class_id` from the finding text when the auditor omits\
+  \ it (a finding\ncarrying `locator` + `failing_input` whose text matches a named\
+  \ finding class; the generic\n`correctness` is no class and is still refused); a\
+  \ derived class is marked `class_id_derived: true`\non the saved record and the\
+  \ completion row. A SECOND, SIBLING PARSE-FLOOR REFUSAL, at the same seam, on the\
+  \ same terms —\nno record written, no pass spent, TASK targets and a real auditor\
+  \ response only: a RED whose ONLY\nfindings carry `class_id: forecast-completeness`\
+  \ is REFUSED, naming the class. That class is NOT a\nmember of <workshop-spec> rule\
+  \ 3's six closed blocking classes and never becomes one — it is declared\n(`bin/lib/audit.py#FORECAST_COMPLETENESS_CLASS_ID`)\
+  \ precisely so it can be refused by name. Its\nground is a LENS ruling, not a shape\
+  \ defect: a touch-forecast / coverage gap is CONTEXT, never a\nfinding (SPEC-0036\
+  \ §Universal lens), because `expected_touch` is a plan-time forecast `task commit`\n\
+  refreshes from the committed diff. The two floors differ in what they judge — the\
+  \ first, a RED\nmissing fields it MUST carry; the second, a RED carrying every field\
+  \ but nothing the lens admits as\na defect — so the forecast floor is checked FIRST\
+  \ and a forecast-only RED is never mis-reported as\nMALFORMED. It fires only when\
+  \ EVERY finding is of that class, so a RED raising a real defect\nalongside a forecast\
+  \ remark is recorded unchanged and no genuine finding can be lost through it\n(`bin/lib/audit.py#red_findings_forecast_completeness_only`).\
+  \ A FOURTH REFUSAL AT THE SAME FLOOR,\non the same terms — no record written, no\
+  \ pass spent, TASK targets and a real auditor response only\n: a RED finding whose\
+  \ `file:symbol` LOCATOR is PROVEN not to resolve in the audited tree.\n**AMENDED\
+  \ — this fourth floor JUDGES on the same terms but its CONSEQUENCE IS A MARK,\n\
+  NOT A REFUSAL.** So now: each offending finding is stamped IN PLACE `locator_unresolved:\
+  \ <reason>` (an ENGINE fact — an\nauditor-spelled one is dropped first, the `class_id_derived`\
+  \ rule), the verdict IS recorded, the\npass COUNTS, and the mark is projected onto\
+  \ the `external_audit_completed` row's `findings[]` beside\n`locator` as one more\
+  \ additive-optional key — so rule 2's canonical store carries it and NO second\n\
+  row or event type exists (`read_gate_refused` kind `finding-locator-unresolvable`\
+  \ and its\n`findings_all` key are RETIRED: nothing is refused, and a refusal row\
+  \ on a recorded verdict would\nmisreport it to every later reader). A stderr notice\
+  \ NAMES each unresolved locator verbatim with\nits reason and asks the auditor to\
+  \ RE-CITE on the next pass — a genuine defect merely MIS-CITED must\nnever read\
+  \ as one REJECTED, and a wrong address degrades ONE FIELD, never the judgement.\
+  \ The\ngrammar both resolvers read is homed ONCE (`bin/lib/textutil.py#anchor_symbol_patterns`\
+  \ — python\ndef/class + module const, markdown headings, and the JS/JSX/TS function\
+  \ / const-arrow /\ndescribe-label forms); `symbol_region` and the graph-anchor resolver\
+  \ consult that one tuple, so a\nform added there reaches both by construction (CHARTER\
+  \ §P5).\nIt judges RESOLUTION, never SUBSTANCE: the third floor above already requires\
+  \ `locator` to be\nPRESENT, and this one asks only whether the address NAMES ANYTHING.\
+  \ Checked LAST of the four, so a\nMISSING locator is still reported as missing rather\
+  \ than as unresolvable. That cost is carried by the MARK, which lets\nthe Controller\
+  \ and the re-cite prompt see the address failed without the record being withheld.\n\
+  EVERY UNPROVABLE SHAPE FAILS OPEN and is admitted exactly as today: a locator with\
+  \ no file or no\nsymbol half (a bare-file or `file:line` citation is not a file:symbol\
+  \ claim), a symbol that does not\nREDUCE to a bare identifier (a dotted member,\
+  \ prose — an `-> target` ARROW TAIL is CUT first and its\nbare head resolved, so\
+  \ `a.py:sym -> pkg.mod.attr` is judged on `sym`), a file with no symbol ADDRESS\n\
+  SPACE at all (a template, data file or shell script — SPEC-0088's atomic-target\
+  \ exemption), and any\nread error. THE ABSENT-FILE ARM IS STAGE-SPLIT, which is\
+  \ the whole of its safety: at audit-POST the\naudited tree IS the shipped tree,\
+  \ so an absent file is PROVEN unresolvable and OFFENDS; at audit-PRE\nthe file may\
+  \ be one the change will CREATE, so the card's OWN machine-readable `expected_touch`\n\
+  forecast is read — absent AND forecast admits, absent AND NOT forecast offends.\
+  \ No plan prose is\nparsed for the FILE arm and no new field is added by either\
+  \ arm. THE ABSENT-SYMBOL ARM — an EXISTING\nfile that carries no such symbol — IS\
+  \ STAGE-SPLIT ON THE SAME TERMS. At audit-POST\nit offends (`symbol-not-found`),\
+  \ whatever the card forecasts or plans. At audit-PRE it admits only\nwhen the card\
+  \ itself NAMES the symbol: an `expected_touch` entry forecasts that SYMBOL in that\
+  \ file\n(`file#symbol` — a bare-file entry names no symbol and does not admit),\
+  \ or the card's\n`implementation_plan` names the bare SYMBOL at a word boundary\
+  \ — the ONE bounded plan-text read\nthis floor makes, an identifier search, never\
+  \ an interpretation of what the plan \"proposes\" — and\noffends (`symbol-not-found-unforecast`)\
+  \ when the card declares a forecast that names it nowhere. The same\nFAIL-OPEN BOUND\
+  \ applies: a card declaring no forecast cannot prove the symbol unplanned, so at\
+  \ PRE\nit admits. An absent path is judged by its EXTENSION alone, because nothing\n\
+  else about it can be read, so an absent EXTENSIONLESS path (`tasks/#AC4` — a locator\
+  \ the\nP8-adoption findings really do emit) is unprovable and admits at BOTH stages.\
+  \ FAIL-OPEN BOUND,\nstated rather than hidden: `expected_touch` is OPTIONAL, so\
+  \ a card declaring NO forecast at all\ncannot PROVE a file uncreated and every absent\
+  \ file admits at PRE, exactly as today. Unlike the\nforecast floor it fires on ANY\
+  \ offending finding rather than only-if-all — matching the\ncontract-fields floor\
+  \ that governs this same field — because an unresolvable citation standing\nbeside\
+  \ a real defect is still an address that must be re-cited\n(`bin/lib/audit.py#red_findings_unresolvable_locator`).\
+  \ The DEGRADED key `fp1d:` (over the fields present + the normalized `what`) is\
+  \ the fallback for a\nfinding the engine could not parse, marked and counted — never\
+  \ the normal key. THE ROW CARRIES THEM:\nthe implementing card adds `findings[]`\
+  \ (each with its fingerprint) and `passes` to the\n`external_audit_completed` row\
+  \ (today it carries neither) — on a RED task record, and since on a YELLOW one too\
+  \ (the same fingerprinted projection, so a YELLOW pass is journaled like a RED;\
+  \ residual identity is unchanged, since a YELLOW ceiling row resolved the same findings\
+  \ from its saved record before), and `ceiling_ref`'s `pass-<N>` reads that\nrow's\
+  \ own `passes` — never a count of rows (reset/merge-triggered passes are not charged,\
+  \ so the count\nand the counter differ).\n**A GREEN COMPLETION ROW RESOLVES TO AN\
+  \ EMPTY RESIDUAL SET FROM THE ROW ITSELF (ADDITIVE).**\nThe saved verdict YAML is\
+  \ the human-readable projection named above, and it is ONE FILE PER\n(task, stage)\
+  \ — rewritten in place by every later run, INCLUDING an AUDIT-CURRENCY re-audit\n\
+  (`--reaudit-after-close`), which by its own contract is no pass of the card at all.\
+  \ So a currency\ncheck can DESTROY a counted ceiling row's only projected source\
+  \ of residuals, and the row then reads\n`unresolvable` with no governed exit. A\
+  \ GREEN verdict and an undecided residual are mutually exclusive\n(rule 7), so a\
+  \ GREEN row's residual set is EMPTY as a property of its own verdict: where the\
+  \ record\nthat displaced it is provably that currency pass's, the ROW answers and\
+  \ the record is not consulted.\nBOUNDED ON BOTH SIDES, and each bound is load-bearing\
+  \ — the row must be GREEN (a YELLOW may list\nabsorbed findings; a RED or ABORT\
+  \ carrying no findings is a MALFORMED record, not an empty one), and\nthe displacing\
+  \ record must be provably a currency pass's (anything else — no record, a record\
+  \ stating\nno verdict, this row's own pass saying RED — keeps the `unresolvable`\
+  \ refusal verbatim). This ADDS an\nanswer where there was none; it changes no already-covered\
+  \ case.\n\n### 2. `ceiling_decision` — one append-only journal event per residual,\
+  \ Controller-only\nThe decision is a journal EVENT, `ceiling_decision`, and nothing\
+  \ else — no card prose, no marker, no\nsecond store; the audit packet renders decisions\
+  \ beside the findings they bind to as a PROJECTION of\nthe journal. Payload (SPEC-0161\
+  \ catalog extension): `task_id`, `stage` (pre|post), `subject_revision`,\n`ceiling_ref`\
+  \ (the ceiling row's DURABLE identity `<task>/<stage>/pass-<N>` — the SPEC-0124\
+  \ `passes` counter is\nunique and monotonic per (task, stage) and sits on both the\
+  \ completion event and the verdict YAML; never a\nbare timestamp, so two rows sharing\
+  \ a `ts` bind distinctly), `finding_fingerprint`, `disposition` ∈ {fix, accept,\n\
+  defer} — the PER-FINDING set (a card-TERMINAL disposition is never a `ceiling_decision`,\
+  \ rule 3), `reason` (non-empty), `directive` (the owner-directive locator,\n`events.jsonl#ts=<ISO>`\
+  \ — REQUIRED and RESOLVED at write: it must name an `owner_directive` row that\n\
+  PRECEDES the decision (never «precedes the ceiling row» — trial cycle 4: under that\
+  \ bound no directive\nqualified for four of five real cards) and COVERS THE TASK.\
+  \ COVERAGE HAS THREE TOKEN-EXACT ADMITTING\nSHAPES AND NO FOURTH, each NAMED here\
+  \ (amended): (a) the BATCH arm — the task id is an element of the\nrow's `cards`\
+  \ list; (b) the NAMES-IT arm — the id appears as a WHOLE TOKEN in the row's prose;\
+  \ (c) the\nPLAN arm — the slug the card is `decomposed_from` appears in the `cards`\
+  \ list or in that prose. Token-\nexact throughout: prose naming a longer slug never\
+  \ covers a card cut from a shorter one. The\nper-finding disposition is the Controller's\
+  \ typed choice under that directive, and an `accept` reason\nMUST quote the authorizing\
+  \ words. A row with `captured_via: controller-delegated` resolves ONLY\nthrough\
+  \ its chain: it must cite the owner row that delegated it, and that row must itself\
+  \ resolve.\nTHE DELEGATED ROW'S SHAPE, likewise stated rather than left to be inferred:\
+  \ it is an ordinary\n`owner_directive` row marked `captured_via: controller-delegated`,\
+  \ covering the card by one of the\nthree arms above, whose prose CITES the owner\
+  \ row it stands in for by locator; the cited row must\nalready exist, be an `owner_directive`\
+  \ that is not itself delegated, and precede it. That is the route\nfor a verbatim\
+  \ owner cue that authorizes work without naming the card — it is written BEFORE\
+  \ the\ndecision, never derived at read time. ONE NAMED EXCEPTION, the MID-TURN route\
+  \ : an owner\ndecision that arrives mid-turn has no owner row to chain to, so a\
+  \ delegated row with `mid_turn: true`\ncarrying the owner's COMPLETE message verbatim\
+  \ as `owner_text`, anchored `<transcript>#uuid:<uuid>`,\nresolves on its own proof\
+  \ — `event` checks the text EQUALS that owner entry (an OMITTED `owner_text`\nis\
+  \ taken from the entry itself) and stamps `owner_text_verified`; any element missing\
+  \ stays chain-broken. A locator resolving to nothing, to another event type, to\n\
+  another task, or to a row later than the decision is refused — authority is proven\
+  \ by resolution,\nnever by a non-empty string), `receiving_task`\n(REQUIRED for\
+  \ `defer` — a FILED card on main of any non-terminal status (ready / parked / in-progress),\n\
+  checked at write; a followup id is NOT a card), `evidence_revision` (REQUIRED\n\
+  for `fix` — the revision that carries the change, a STRICT descendant of the audited\
+  \ commit; «already in\nthe audited commit» is an `accept` with that reason, never\
+  \ a `fix`, rule 3. At audit-POST it is journaled\nas the RESOLVED full commit identity\
+  \ of whatever the Controller typed — never the typed form — and a\nrevision that\
+  \ does not resolve is refused by name with nothing written; at audit-PRE it is the\
+  \ plan\nfingerprint verbatim. Rule 3's admission compares every revision on RESOLVED\
+  \ identity, so a row that\nrecorded a short form before this clause is admitted\
+  \ when it names the subject —; the\n«already in the audited subject» refusal holds\
+  \ at audit-PRE and at a PLAN GATE too: a `fix` whose\nevidence EQUALS the ceiling\
+  \ row's own audited subject — the unedited plan fingerprint / the gate's\nrecorded\
+  \ signature — is refused `evidence-is-audited-subject` with nothing written; edit\
+  \ the plan\nfirst, then record the `fix` against the NEW fingerprint —, X-1538),\
+  \ `decided_by`\n(the session ref).\nA PLAN GATE takes this same rule with its own\
+  \ target pair — see rule 9.\nWriter: `bin/yitc-v2 audit decide --task T-XXXX --stage\
+  \ pre|post --finding <fp> --disposition …\n--reason … --directive <locator> [--receiving\
+  \ T-YYYY] [--evidence <revision>]` — an arm of the existing\n`audit` verb. It is\
+  \ a journal append (no worktree — AGENTS §Writes-happen-in-a-worktree) and\nis REFUSED,\
+  \ fail-closed, when: the caller is a dispatched Worker (`YITC_EXPECTED_SESSION_REF`\
+  \ set —\n«no self-grant past the ceiling» is preserved by the AUTHORITY OF THE WRITER,\
+  \ not by budget\narithmetic); `prior_passes` at that stage is below the ceiling\
+  \ — EXCEPT for a recorded `late_finding`\nat that stage, decidable at any pass incl.\
+  \ after a reship reset the saved counter; the fingerprint is neither a residual\
+  \ of the\nceiling row nor a recorded `late_finding` (rule 8); a required field is\
+  \ missing; the receiving card is not filed; or a decision\nfor that fingerprint\
+  \ already exists on the same `ceiling_ref` (append-only means a decision is never\n\
+  edited — a wrong one is superseded by a NEW ceiling row, rule 4). Each refusal emits\
+  \ the existing\n`read_gate_refused` with a distinct `kind`.\nTHE REASON'S INPUT\
+  \ CHANNEL IS PART OF THE CONTRACT (amended, <project> X-1427; same class,\nprior\
+  \ art X-1340 / on `blocked-on-land --reason`). The channel is named:\n  - **`--from-stdin`\
+  \ is the shell-proof route, and the prescribed one for any non-trivial reason.**\n\
+  \    It reads the CONTENT-bearing fields — `reason`, `directive`, `receiving`, `evidence`\
+  \ — as a YAML\n    mapping on stdin, through the SAME shared ingest every prose-bearing\
+  \ sibling already uses\n    (`task file`, `task update`, `followup add`, `task commit`,\
+  \ `work commit`, `worktree park`,\n    `blocked-on-land`). There is no second ingest.\n\
+  \  - **On that route the `reason` is stored VERBATIM.** It is the one field never\
+  \ stripped, because\n    the promise of the route is a byte-for-byte round trip\
+  \ of what the author wrote; the three\n    id-shaped fields keep their normalization,\
+  \ and the argv route's own normalization is unchanged.\n  - **The TARGET/ROUTING\
+  \ flags stay ARGV-ONLY** — `--task` / `--plan` / `--stage` / `--gate` /\n    `--finding`\
+  \ / `--disposition`. They are id-shaped, carry no prose and ride no shell hazard.\
+  \ One\n    sent inside the mapping is REFUSED BY NAME, never silently dropped.\n\
+  \  - **A field supplied on BOTH argv and stdin is a fail-closed CONFLICT** — refused\
+  \ before any read\n    and any emit, naming the flag and the key. It is never resolved\
+  \ by precedence.\n  - **An argv `--reason` carrying a BACKTICK is REFUSED** — nonzero\
+  \ exit, NO `ceiling_decision` row,\n    one `read_gate_refused` with its own kind\
+  \ (`reason-argv-backtick`). It is checked AFTER the\n    worker-context gate, which\
+  \ keeps its checked-FIRST property (a Worker must not learn the\n    residual set\
+  \ by probing a later refusal), and BEFORE every journal read and every write. ANY\n\
+  \    surviving backtick, not an odd count. It does not fire on the stdin route,\
+  \ where no shell sits\n    in that position — a guard that cried wolf at the usage\
+  \ it prescribes would teach the reader to\n    skim it.\n  - **THE HONEST BOUND\
+  \ — part of the rule, not a caveat on it: NO argv-side check can PREVENT an\n  \
+  \  execution the shell already performed.** The shell runs before the verb exists,\
+  \ and a fully\n    substituted span leaves no backtick at all. What the refusal\
+  \ protects is the WRITE: whenever a\n    backtick SURVIVED to argv, a partly-substituted\
+  \ reason never becomes an uncorrectable\n    governance record. Preventing the EXECUTION\
+  \ is what `--from-stdin` is for. A reason without a\n    surviving backtick is therefore\
+  \ NOT certified intact, and the refusal must never be read as\n    such a guarantee.\n\
+  `--reason` is consequently no longer argparse-required: it may arrive in the mapping\
+  \ instead, so its\nabsence — or a value that is blank once stripped — is a GOVERNED\
+  \ refusal at this seam, the posture\n`--directive` already takes. This clause ADDS\
+  \ the channel case the rule never addressed; every\nalready-covered obligation (a\
+  \ non-empty reason, the quoted words for an `accept`, resolution of\n`--directive`\
+  \ / `--receiving` / `--evidence`, and every refusal kind above) is UNCHANGED — so\
+  \ it is\nan in-place ADDITIVE extension, not a normative reshape (SPEC-0005 §7).\n\
+  THE SUBJECT IS RESOLVED FROM THE CEILING ROW, AND A NULL IS NEVER WRITTEN (amended,\
+  \ <project>\nX-1371): `subject_revision` is read off the CEILING ROW's own subject\
+  \ through the SPEC-0168 folded\ncorpus — its `commit` at post, its `plan_fingerprint`\
+  \ at pre (every pre completion row\ncarries it since, the same value the saved record\
+  \ writes) — so main and the task worktree\nanswer identically; this checkout's saved\
+  \ verdict YAML (`decisions/<task>-audit-<stage>.yaml`) is the\nLEGACY FALLBACK for\
+  \ a row that carries none, never the sole source (the verb is a no-worktree append,\n\
+  and that file is untracked and worktree-only). When neither resolves the verb REFUSES\n\
+  (`subject-revision-unresolvable`), exactly as it refuses an unresolvable `--directive`\
+  \ or a wrong\n`--evidence`: a null binds to no revision, so rule 3 could never admit\
+  \ it and rule 4 never lets it be\ncorrected. RECOVERY of an already-wedged (task,\
+  \ stage): a stored `ceiling_decision` whose\n`subject_revision` is null IS NOT A\
+  \ DECISION — the duplicate refusal above does not count it, so ONE\ncorrected decision\
+  \ for the same (`ceiling_ref`, fingerprint) is admitted; `--on-decisions` admission\n\
+  (rule 3) ignores null-revision rows on the same terms and the packet projection\
+  \ lists them as\n`superseded_null_subject`; the null row stays (append-only), superseded\
+  \ by the corrected one.\nTHE WRITER RUNS THE READER'S LADDER (amended). Because\
+  \ rule 4 makes the row permanent, a row the verb admits and a reader later\nrefuses\
+  \ is a wedge, never a correctable mistake — so before appending, a TASK decision\
+  \ is run through\nrule 3's own admission function over the PROSPECTIVE set (the\
+  \ decisions already bound to this\n`ceiling_ref` plus the row about to be written),\
+  \ and the verb refuses with that ladder's own kind, why\nand message, writing nothing,\
+  \ whenever the row turns an admissible set into a refused one: two `fix`\ndecisions\
+  \ naming different revisions no ONE of which contains the other (`evidence-revision-split`\
+  \ —\ne.g. a `fix` at the current plan fingerprint beside one bound to an older plan,\
+  \ or two post `fix`\nrevisions on sibling branches; a NESTED post pair is admitted\
+  \ at its newest revision, rule 3); a post `fix` whose evidence carries no authored\
+  \ content\n(`decisions-not-for-this-revision`, the guard's own judgement and message\
+  \ — a record-only\nrevision is never itself the audited subject); a late finding\
+  \ whose closure ref is another pass (`residual-undecided`,\nrule 8). Only the time-dependent\
+  \ subject arm (what custody holds when the pass runs) stays the pass's\nalone.\n\
+  A RECORD-ONLY `fix` EVIDENCE IS ADMITTED WHEN IT PROVABLY CONTAINS THE SHIP, and\
+  \ the pass then audits\nthe SHIP, never the record-only revision (`_ship_contained_record_only`):\
+  \ the revision is\nrecord-only, the governed audit-post record names an AUTHORED\
+  \ ship, and the revision reaches it along a\nTRANSPARENT first-parent chain. CARD-FIELD\
+  \ FALLBACK (measured): when that walk stops —\nthe ship LANDED and the card was\
+  \ re-claimed, so other cards' authored commits sit on `main` between — the\ncontainment\
+  \ is instead proven by ALL of: the recorded RED's cause IS the card's own record\n\
+  (`_red_cause_is_card_record`, whose strand (iv) is a finding `where`/`locator` naming\
+  \ a text field the\ncard declares — `implementation_plan`, `acceptance`, `scope`,\
+  \ `analysis`; a locator citing an AC id is\nleft to strand (iii)); the revision\
+  \ STRICTLY descends from the covered commit; and every `commit_landed`\nof THIS\
+  \ card after it is record-only. A CODE-surface residual keeps the refusal, and the\
+  \ guard\nis not widened: what the auditor is shown is still the authored ship. A\
+  \ pre-existing problem of an OLDER row is the pass's to name, never a reason to\
+  \ refuse an\nunrelated decision. The plan-gate arm (rule 9) is unchanged.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- CHARTER.md#principle-7
+- CHARTER.md#principle-8
+- SPEC-0124
+- SPEC-0036
+- SPEC-0191
+- SPEC-0161
+- SPEC-0103
+- SPEC-0168
+- SPEC-0165
+- SPEC-0077
+- ceiling-decisions-one-typed-controller-decision-pe
+requires:
+- SPEC-0124
+- SPEC-0036
+- SPEC-0161
+- SPEC-0168
+supersedes: null
+activation_owner_task: null
+proposed_by: ceiling-decisions-one-typed-controller-decision-pe
+binding:
+- stage-entry:Audit-pre
+- stage-entry:Audit-post
+init_concern: null
+implements_signature:
+  bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
+  bin/lib/audit.py#audit_ceiling_blocked: 8e11fb5399e6d6a64801bdb55f5e234a7c5fc842a7779ffe1a94cb57c5c6b3a0
+  bin/lib/audit.py#blocked_on_land_ceiling_disposition: f9c4187a65bd4daf4c347090c607b12ecb92482d859b033dd063ca19f54d32a6
+  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
+  bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
+  bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
+  bin/lib/audit.py#plan_gate_live_terminal_reasons: ffac9102c87cbf187c12947fe03557fb704d5c250f226c13c036b5803d83950b
+  bin/lib/audit.py#plan_gate_response_malformed: 7c7a70503be03b13ce7547f371b643f7280d7259a59b6e2fa784d0edc0e1c306
+  bin/lib/audit.py#reship_opens_new_ceiling_row: f987378690242a11923eb5b8f6080332612e152fe58d6442937e8aac307598b8
+  bin/lib/audit.py#stage6_evidence_covers_subject: 887ad70a187c7a867227c3791fbee473eb1be075db3a19966fb97d6e60c0c72a
+  bin/lib/audit.py#stage6_evidence_gap_facts: dc2972e935d875b96566e632110c4753c162df5106cb648c464fed1736fcce9b
+  bin/lib/audit.py#suspected_echo_findings: d62e80f30394bd16906bf41b62c2635746a1efa4b77dde7674e7eb90b71fbac0
+  bin/lib/audit.py#unactionable_findings: aeea6214ac7d360eda427904604bd819cda940ea02498c38d0ece95d4889ff1b
+  bin/lib/audit.py#unactionable_findings_refusal: cc938479c247934c3053fd0f5f5d346deda4f1ad4245b234b27da62597fe577f
+  bin/lib/audit_ceiling.py#maximal_evidence_revision: 83ae12969af0e177c87539bde48f1b1c030692cfbbb90f3a847e4b7756931899
+  bin/lib/audit_ceiling.py#on_decisions_absorption_grant: 4e289fc88996d5e32829a7bacaf5faab33230d40e57ca8f11cdb90cb083c8083
+  bin/lib/audit_ceiling.py#on_decisions_admission: 076dd4224a497d788188ca0115a035ac309e45be5cf6802da4c6c7941e19fe94
+  bin/lib/audit_ceiling.py#on_decisions_matrix: b2be7cc3fa58675bc9cc4344b8fc72c1883496829b1ab575b1f4f1d3b402610b
+  bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row: 371fb303fb8d251d050c4cea88e1d77ea4ba53f13472dd75be1814c9394d5c79
+  bin/lib/audit_ceiling.py#row_residual_fingerprints: ed1e7842f54225dd8c1297a62d3cf04207e64290d32fe5187bb162af3857af4b
+  bin/lib/audit_consult.py#_consult_basis: ab3322a4534a1652886e47c377400ae3949e16d8ec4dac5c5838fb7cc0b2e32f
+  bin/lib/audit_consult.py#cmd_audit_consult: 8b3ab27dd636f0307cddcb3a8fc26dcecc5f879d206ece4d3cfbb4a89b684473
+  bin/lib/audit_consult.py#consult_prompt_overlay: e9a4563e003d146c3487fad015b9c96d3b4369c9f1e4ddf02303a085b0e9cd27
+  bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
+  bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
+  bin/lib/cli_parser.py#build_parser: e24ef348436b9800ce4d8ac311ae77b72f4b1a414adf5a800ff8e004a8aa4b98
+  bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
+  bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
+  bin/lib/plan.py#_run_plan_gate_audit: f5edd1544998341ec6ba54fdf3c069c5ba06b8b62631449c60bd2b96a24c2a6f
+  bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3

@@ -1,0 +1,476 @@
+id: SPEC-0205
+title: 'Prototype contract — the spike''s exit and the lifecycle''s input: name cannot
+  lie, content identity at land, kernel-authenticated sandbox sources, prototype_ref'
+status: active
+created_at: 2026-09-13 07:08:07+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/worktree_lifecycle.py#cmd_worktree_new
+- bin/lib/worktree_lifecycle.py#_write_worktree_stamp
+- bin/lib/cage.py#refusals
+- bin/lib/worktree_lifecycle.py#_tag_spike_prototype
+- bin/lib/spike_identity.py#check_spike_content
+- bin/lib/spike_identity.py#content_verdict
+- bin/lib/spike_identity.py#fold_spike_set
+- bin/lib/spike_identity.py#refusal_message
+- bin/lib/worktree.py#cmd_land
+- bin/lib/worktree_lifecycle.py#_declare_spike_late
+- bin/lib/audit_packet.py#build_audit_prompt
+- bin/lib/audit.py#prototype_post_context
+- bin/lib/task.py#prototype_ref_error
+- bin/lib/deploy.py#_stand_role
+- bin/lib/deploy.py#cmd_deploy
+body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and says\
+  \ which. In **spike mode** the worktree is\ndeclared a spike at creation; the stack\
+  \ serves that worktree; edits are free; when the exploration\nis over the worktree\
+  \ is discarded and what survives is a **prototype reference** (a git tag on the\n\
+  spike's tip) plus the findings. In **acceptance mode** the sandbox serves an image\
+  \ built from a\nlanded `main` revision; the owner looks at it; every finding is\
+  \ RECORDED — a followup or a card —\nnever edited in place. Code that reaches `main`\
+  \ is always written under a card that pays all nine stages; a card built on\na SPIKE\
+  \ names the prototype as its ТЗ (`prototype_ref`), while an ACCEPTANCE finding enters\
+  \ as a\npostcheck input (a followup or a card WITHOUT `prototype_ref` — there is\
+  \ no prototype, only landed code). `land` REFUSES a branch that carries spike\n\
+  CONTENT — a changed file byte-identical to one the spike changed, or a diff that\
+  \ is a subset of the\nspike's hunks — by whatever route it arrived (cherry-pick,\
+  \ merge, squash, `git checkout <spike> --`,\na hand copy, a rename); partial or\
+  \ reformatted overlap is REPORTED and judged at audit-post.\n`worktree new` refuses\
+  \ a spike-looking batch that did not declare itself, and the cage refuses a\nstack\
+  \ serving code from anywhere but a kernel-authenticated spike worktree or a landed-`main`\
+  \ image.\nThe consumers' pre-existing spike branches are ADOPTED into the declared\
+  \ set before the first\nrefusing land, so copying from them is refused too. There\
+  \ is no transfer stage — a plan that reduces\nto copying the prototype's paths is\
+  \ a RED at audit-pre.\n\n## Internal\n\n> **Placement + lineage.** Carved out of\
+  \ SPEC-0172 rule 5 as a STABLE SURFACE (SPEC-0005 rule 6 /\n> §7 — the SPEC-0083\
+  \ carve shape: `supersedes: ~`, the parent lives on and points here). SPEC-0172\n\
+  > keeps the STACK wiring (layers, declaration, pin, cage atoms 4a-4d, sharing, entrance);\
+  \ THIS spec\n> owns the spike's EXIT and the lifecycle's INPUT — what crosses the\
+  \ boundary between a sandbox and\n> `main`. The owner rulings and external consult\
+  \ verdicts this contract absorbs are in the journal\n> and in the proposing plan,\
+  \ not restated here (SPEC-0005 rule 8).\n\n### 1. The name cannot lie — a `spike-*`\
+  \ batch declares itself or is refused\n`bin/yitc-v2 worktree new --work spike-<slug>`\
+  \ WITHOUT `--spike` is REFUSED, naming the flag; with\n`--spike` it is created and\
+  \ the worktree stamp carries `spike: true`. Any other slug is unaffected.\nThe prefix\
+  \ stops being a hint and becomes RESERVED: a batch that looks like a spike IS one\
+  \ or renames\nitself. **SPEC-0172 rule 5 is reduced to the pointer «exit + name\
+  \ rule: SPEC-0205 rules 1-2» — the\nparent never says two things.** Check layer:\
+  \ KERNEL.\n\n### 2. Content identity at land — spike CONTENT never integrates, by\
+  \ any route (T1 + T3)\n**ONE policy: IDENTITY refuses, DERIVATION is judged.** A\
+  \ copied file (T1) or a copied change-set (T3)\nis the hand copy the owner ruled\
+  \ must be refused; a partial or reformatted variant is not a copy of\neither — it\
+  \ is a derived change, reported and judged (rule 6). One line, drawn at identity.\n\
+  **The canonical spike set has ONE authoritative source:** the KERNEL-WRITTEN journal\
+  \ row —\n`worktree_created{spike: true}` for a batch declared at creation (rule\
+  \ 1 — appended to main's live journal BEFORE `git worktree add`, so the declaration\
+  \ precedes the tree's existence; a failed add is retired by a compensating `worktree_create_failed`\
+  \ row), `spike_declared_late` for an\nadopted legacy branch (rule 8). The worktree\
+  \ stamp and the `spike/<slug>` tag are PROJECTIONS of that\nrow and carry its ref\
+  \ (ts + declaring session) — the tag is ANNOTATED (`git tag -a`); a lightweight\
+  \ tag\ncarries no message and cannot be a projection. A spike is in the set in ONE\
+  \ of TWO STATES: ACTIVE (a\nlive worktree; stamp ⇄ row) or PARKED (an annotated\
+  \ tag; annotation ⇄ row). `land` folds both; the cage\nadmits only ACTIVE (rule\
+  \ 3). A projection whose row cannot be resolved is NOT in the set — the cage\nfails\
+  \ closed on it, `land` reports it and never silently trusts it. No store: the set\
+  \ is folded at\neach land from the rows and their projections.\n**One candidate\
+  \ pass per governed land.** For each spike in the set, fold its CHANGED BLOBS\n\
+  (`merge-base..tip`, content hashes — path-independent) and its CANONICAL HUNK SET\
+  \ (EXACT line bytes, NFC only — NO whitespace\nnormalization, see *Boundaries*;\
+  \ path-independent). Then over the landing branch's diff against `main`:\n- **T1\
+  \ — changed-blob identity.** A file whose post-change blob equals a blob the spike\
+  \ changed →\n  `LAND: ABORT`, abort_class `spike-content`, naming the file and the\
+  \ spike. Catches\n  `git checkout <spike> -- <path>`, a whole-file copy, a rename/move\
+  \ of a copied file, `git archive`.\n  Two DERIVED exclusions, neither a threshold:\
+  \ a blob already in `main`'s tree at the landing tip is\n  not spike content (the\
+  \ H(main) analog — how a consumed prototype retires from T1), and the EMPTY\n  blob\
+  \ carries no content (identity of nothing is not a copy).\n- **T3 — hunk-subset\
+  \ identity.** The landing diff's canonical byte-exact hunk set is a SUBSET of one\
+  \ spike's hunk\n  set → `LAND: ABORT spike-content`, naming the spike. Catches cherry-pick,\
+  \ merge, rebase,\n  `format-patch`/`am`, `git apply`, AND `merge --squash` / rebase-squash\
+  \ — the family a per-commit\n  `patch-id` check would miss (consult #2 finding 1);\
+  \ per-commit patch-id is therefore NOT the\n  mechanism here.\n- **Otherwise — REPORT.**\
+  \ Partial-hunk overlap and copy-then-reformat print their overlap share\n  (`spike-content:\
+  \ <n>/<m> hunks match spike/<slug>`) and the land proceeds; the residue is judged\n\
+  \  at audit-post under rule 6. There is NO similarity threshold and NO changed-line\
+  \ minimum —\n  thresholds are bypassable and false-block legitimate re-implementation\
+  \ (owner ruling; consult #2\n  Q1/Q2). Exact identity refuses; anything less is\
+  \ context.\n**Exemption ONLY by declared provenance, never by shape.** A path carrying\
+  \ the `yitc-generated` git\nattribute (rule 2a — the project's own `.gitattributes`)\
+  \ is skipped by T1/T3; an extension, path, size\nor label exempts nothing. A control\
+  \ branch differing only by the spike content\nlands.\n**No override reaches it.**\
+  \ The predicates run on EVERY governed land and under EVERY land override\nflag\
+  \ (`--rebaseline`, `--no-tests`, …). **The emergency marker is reconciled, not constrained:**\
+  \ CHARTER\n§P2 defines `emergency:` as the owner-authorized bypass of the `from:`\
+  \ requirement ONLY, and `land`\nadditionally honours it as a CARRIER for the work-batch\
+  \ product-source gate (`_work_batch_carrier`);\nboth meanings are preserved verbatim.\
+  \ It is simply not a carrier for THIS predicate — content identity\nagainst a declared\
+  \ spike is a different question from «is this product source carried?» — so an\n\
+  emergency fix that IS a prototype's code takes the governed route (tag → `prototype_ref`\
+  \ card, whose\ncommit may carry `emergency:` for its `from:`). No Charter surface\
+  \ is amended. The refusal names the covered route and the rule-5 exit\n(`worktree\
+  \ park` → `spike/<slug>` → a `prototype_ref` card).\nThe verdict is computed ONCE\
+  \ per land by ONE helper and journaled as `spike_content_checked` (branch,\nspike\
+  \ ref, T1 hits, T3 verdict, share); every other reader — the report line, the abort\
+  \ message, the\naudit packet (rule 6) — CITES that row. Per-commit `patch-id` is\
+  \ NOT a mechanism here; the\nexisting branch-level `_spike_land_verdict`\n(the landing\
+  \ branch IS a declared spike) stays the FIRST check, T1/T3 run after it on every\
+  \ other\nbranch.\nCheck layer: KERNEL. A hand-typed RE-IMPLEMENTATION is not caught\
+  \ here and is not meant to be —\nthat is the work this contract wants, judged by\
+  \ rule 5's overlay and rule 6's identity line.\n\n### 2a. T3 — the canonical hunk\
+  \ and the exact algorithm (normative)\n- **Diff basis.** Spike S: `git diff -M -U0\
+  \ $(git merge-base main S)..S`; landing branch L: the same\n  over its merge-base\
+  \ with `main`; `main` since that merge-base likewise. Rename-aware, zero context.\n\
+  - **Per file.** A BINARY file is judged by T1 only (no hunks). A path whose git\
+  \ attributes carry\n  `yitc-generated` (set by the PROJECT in its own `.gitattributes`;\
+  \ exempt iff the attribute is `set`,\n  nothing else exempts) is skipped by T1 and\
+  \ T3: a lockfile / migration REGENERATED from the same input\n  is identical by\
+  \ construction, not by copy. **Provenance CONTRACT (this rule INTRODUCES the\n \
+  \ `yitc-generated` semantic — the git-attribute mechanism and GitHub's `linguist-generated`\
+  \ are the\n  analogs, no repo declares it today):** carrier = the project's `.gitattributes`,\
+  \ evaluated by git\n  per path (no parser/store); entry ONLY through a landed card\
+  \ whose Analysis names the producing\n  generator/lock/migration tool; scope = generator\
+  \ outputs only (an attribute on a hand-written source\n  file is a review defect);\
+  \ adoption probe = the differential tests (with / without / self-grant) plus\n \
+  \ the first consumer declaration landing through a card (`consumer_read_evidence`)\
+  \ — a tracked follow-up, NOT a gate on this spec's activation. **The attribute is\
+  \ evaluated against\n  `main`'s tree at the landing tip — never the candidate's\
+  \ or the spike's** — so a candidate that adds\n  the attribute beside a copied source\
+  \ file exempts nothing until that `.gitattributes` change has\n  landed through\
+  \ a card (the self-grant bypass is REFUSED, VP2). An exempt path is excluded from\
+  \ T1/T3 and from the\n  share's numerator and denominator, and the REPORT line LISTS\
+  \ it (`exempt: <n> path(s) (yitc-generated):\n  <paths>`) — visible, never silent.\
+  \ Every other file yields hunks.\n- **Canonical hunk.** `(removed_lines, added_lines)`\
+  \ as EXACT line bytes (NFC only — no whitespace\n  stripping/collapsing, no blank-line\
+  \ dropping: a formatting-only variant must never hash-identical, it\n  is REPORTED);\
+  \ order kept. KEY = the FULL sha256 over an explicitly framed BYTE encoding of the\
+  \ two lists (per-line length prefix + distinct list/line separators — not JSON/text);\
+  \ a valid-UTF-8 line is NFC-normalised, any other byte sequence is hashed raw (no\
+  \ decode may raise or lose bytes). Path, line numbers and mode\n  are NOT in the\
+  \ key. A fully-added file is one hunk; a pure deletion is a hunk. A hash collision\
+  \ is\n  identity.\n- **Sets.** `H(S)`, `H(L)`, `H(main)` (= `main` since the merge-base\
+  \ ∪ every landed `prototype_ref`\n  card's ship — a consumed prototype). The REPORT's\
+  \ attributable share is\n  `A(S) = H(L) ∩ (H(S) \\ H(main) \\ ⋃_{S'≠S} H(S'))`;\
+  \ the VERDICT does not use it.\n- **Verdict.** `H(L)` empty → lands. T1 first (blob\
+  \ identity → REFUSE naming file + S). Then T3:\n  IDENTITY IS DECISIVE: `H(L) ⊆\
+  \ H(S) \\ H(main)` for ANY declared spike S → REFUSE naming EVERY matching\n  S\
+  \ + the covered route + the governed exit (a change-set two spikes both carry is\
+  \ still a copied\n  change-set). Otherwise REPORT `spike-content: |A(S)|/|H(L)|\
+  \ hunks match spike/<S>` for the best S\n  (`ambiguous attribution` when a landing\
+  \ hunk lies in two spikes — it attributes to no single one)\n  and land.\n- **Boundaries.**\
+  \ Hunk granularity is EXACT and keys are byte-exact: a copied block split by an\n\
+  \  inserted line, two hunks merged, or a reformatted copy (black/prettier, re-indent)\
+  \ changes the keys →\n  REPORT, never refuse (rule 6 still shows the verbatim share).\
+  \ The ONE\n  documented false-positive class, in two forms: (T3) a landing diff\
+  \ that IS a single independently-\n  authored hunk identical to a spike hunk; (T1)\
+  \ an independently-authored whole file byte-identical to a\n  file the spike changed\
+  \ — both REFUSED (indistinguishable from a copy); the refusal prints its exit. An\n\
+  \  identical hunk inside a file that also carries own hunks is not this class —\
+  \ it reports and lands.\n- **Retention + retirement.** Permanent, bounded by the\
+  \ set's size: `H(S)` is FOLDED at each land from\n  the rows + refs — no cache,\
+  \ no memo, no store; retirement is DERIVED — once a prototype's\n  `prototype_ref`\
+  \ card lands, its hunks enter `H(main)` and stop attributing; the tag stays as history.\n\
+  \  No retirement verb, no expiry.\n- **No memo, no store — final.** `H(S)` is folded\
+  \ at each land from the rows + refs (the set is small by\n  construction). No memo\
+  \ is planned or deferred by this contract.\n- **Uncomputed verdict — the land proceeds.**\
+  \ When the verdict cannot be computed (the\n  checker raised, or its payload carries\
+  \ `error`), `land` NEVER refuses on spike content: it prints a\n  `spike-content:\
+  \ not computed` line and proceeds. Deliberate : a fault in the checker must\n  not\
+  \ block every land in the repo. The refusal fires ONLY on a COMPUTED `identity`\
+  \ verdict while the\n  code-level switch `REFUSE_SPIKE_CONTENT` is ON (shipped ON\
+  \ since). So rule 2 is fail-closed\n  on a copy it can SEE, and fail-open on a checker\
+  \ fault — stated, not implied.\n- **Two events.** ONE `spike_content_checked` row\
+  \ per land attempt (the land record); the pre-land dry\n  run the audit packet needs\
+  \ writes a DISTINCT `spike_content_previewed` row (same payload +\n  `preview: true`).\
+  \ A preview is never a land record.\n- **Catalog home.** Every event type this contract\
+  \ names —\n  `spike_content_checked`, `spike_content_previewed`, `spike_declared_late`,\
+  \ `worktree_create_failed`,\n  and the changed `worktree_created` payload (`path`,\
+  \ `spike`) — is CATALOGUED in SPEC-0161 (the\n  event-type catalog extension, the\
+  \ ONE catalog home) with a payload probe, by the card that SHIPS\n  it: L1 (`worktree_created`\
+  \ payload + `worktree_create_failed`), L2a (the two `spike_content_*`),\n  L4c (`spike_declared_late`).\
+  \ A name appearing only in this spec is not a catalog entry.\nCheck layer: KERNEL\
+  \ (one helper; one `spike_content_checked` row per land, previews separate).\n\n\
+  ### 3. Cage atom 4e — a KERNEL-AUTHENTICATED source of served code\nA sandbox stack\
+  \ serves code from exactly one of two sources, and the cage accepts only what the\n\
+  kernel can VOUCH for: (a) an IMAGE built from a landed `main` revision, deployed\
+  \ through the governed\n`deploy --target <name>` on a target declared `production:\
+  \ false`, whose DEPLOY FACT names that\nrevision (SPEC-0094 §Named targets) — the\
+  \ fact, not an image label the operator typed; or (b) a\nworktree whose `spike:\
+  \ true` stamp the KERNEL wrote (rule 1) — cross-checked against the journal's\n\
+  `worktree_created{spike: true}` row for that path — mounted by the project's live-code\
+  \ layer.\nREFUSED, fail-closed: an unstamped worktree; a `task/T-XXXX` worktree\
+  \ mounted into the live-code\nlayer; an image built from an unlanded tree; a source\
+  \ established only by an operator-supplied path\nor an environment flag; a mount\
+  \ whose provenance the check cannot read. PERMITTED (positive\ncontrols): a `main`-SHA\
+  \ image whose deploy fact resolves comes up; a kernel-stamped spike worktree\ncomes\
+  \ up under live-code.\n**Two authentication states.** ACTIVE spike = a live worktree\
+  \ whose stamp ⇄ row agree — same session ref, same ts, same worktree path,\nand\
+  \ that path IS the mounted one (no tag exists\nbefore park) — the state the cage\
+  \ admits under live-code; PARKED spike = a `spike/<slug>` ANNOTATED tag\nwhose annotation\
+  \ ⇄ row agree — a ref, not a mountable tree, so the cage never serves it (rule 2\
+  \ folds\nboth states at land). **Trust boundary — two state-specific predicates,\
+  \ never one unconditional conjunction.** ACTIVE:\nthe journal row (`worktree_created{spike:true}`:\
+  \ ts + declaring session ref + path) ⇄ the worktree\nstamp (written only by `worktree\
+  \ new`, carrying that ts + session ref) — the predicate the CAGE and a\nlive-worktree\
+  \ `land` evaluate. PARKED: the journal row (`worktree_created{spike:true}` or\n\
+  `spike_declared_late`) ⇄ the `spike/<slug>` annotated tag (written only by `park`,\
+  \ its annotation\ncarrying that ts + session ref + branch) — the predicate `land`\
+  \ evaluates for a parked ref. A lone\n`event worktree_created` append is not a declaration\
+  \ (the stamp or tag it cannot write will not\nagree); a tag without its row, or\
+  \ a stamp whose row names another path, fails closed.\nNOT defended: a host user\
+  \ deliberately forging all three — out of scope, the single-owner trust boundary\n\
+  \ already rests on. The claim is prevention of UNDECLARED / ACCIDENTAL misuse, not\
+  \ of fraud.\nCheck layers — read per SPEC-0172 §4e C1-C6, which this row joins:\
+  \ **KERNEL** ships the PURE\npredicate `cage.refusals` over a declared cage — a\
+  \ declaration silent on 4e is refused fail-closed BY\nTHAT PREDICATE, like a missing\
+  \ atom — and the authentication predicate the instrument calls. **No\nkernel verb\
+  \ reads `spike_sandbox.bridge.cage_checks` or calls `cage.refusals` (GitHub #29):**\n\
+  INVOKING the predicate over the declaration — and `cage_checks` naming the instrument\
+  \ that does — is\nPROJECT-side, the consumer's `cage_checks` instrument (DISCIPLINE\
+  \ until it resolves). The kernel\nauthentication predicate is stamp-plus-journal\
+  \ — the row's session ref, ts AND\nworktree path must equal the stamp's and the\
+  \ MOUNTED path, and the spike must be ACTIVE, not parked;\nplus deploy-fact resolution.\n\
+  **PROJECT** refuses the running stack (`docker inspect` on the mount / the deploy\
+  \ fact — the\nconsumer's own `cage_checks`). Status at activation: **DISCIPLINE**\
+  \ until the L3 card's SUBSTANTIVE\n`live_trigger_evidence` row anchors the PROJECT\
+  \ leg — one consumer's cage run on its declared spike\nstack, the four admit/refuse\
+  \ cases named, a resolvable `evidence_ref` to that consumer's journal, the\nunstamped\
+  \ refusal as the differential failing input (VP3; a prose anchor is not a carrier);\
+  \ the kernel\ndeclaration + authentication leg is CHECKED by differential test.\
+  \ The row is carried in SPEC-0172's §4e table by an additive pointer entry (the\n\
+  table stays the one source for the cage's covered set — C1).\n\n### 4. The prototype\
+  \ survives as a ref — `worktree park` of a declared spike tags its tip\n`bin/yitc-v2\
+  \ worktree park --work <slug>` on a DECLARED spike creates the ANNOTATED tag\n`spike/<slug>`\
+  \ (`git tag -a`, annotation = the declaring row's ts + session ref + branch) at\
+  \ the branch\ntip BEFORE removing the worktree and deleting the branch, and prints\
+  \ it as the prototype reference. No worktree, no branch, no store — a ref. It is\
+  \ what rule 5's\n`prototype_ref` names and what rule 2's canonical spike set includes.\
+  \ A declared spike is never\nparked untagged; an undeclared batch is unchanged.\
+  \ Check layer: KERNEL.\n\n### 5. The prototype is the lifecycle's INPUT — `prototype_ref`\
+  \ + the audit-pre overlay\nA card built on a prototype names it: `prototype_ref:\
+  \ spike/<slug>` (SPEC-0028 field; accepted by\n`task file --prototype-ref`). For\
+  \ such a card `audit pre` inlines `git diff main...spike/<slug>`\ninto the packet\
+  \ as the ТЗ, under the overlay: «the prototype is the specification, not the\ndeliverable;\
+  \ a plan that reduces to copying named paths from it is RED; the plan must state\
+  \ its own\ndesign, its own tests, and which prototype findings it deliberately does\
+  \ NOT carry». The overlay is\na per-case flag in the SPEC-0036 family, additive\
+  \ in place. Filing a card WITH a spike branch named\nin its scope but WITHOUT `prototype_ref`\
+  \ prints a report-only advisory at `task file`. **Required once\nan identity hit\
+  \ exists:** when the pre-land preview (rule 2a) reports an IDENTITY hit (rule 2's\
+  \ T1\nwhole-file or T3 hunk-subset) against a spike and the card carries no `prototype_ref`,\
+  \ `audit post`\nREFUSES (governed, naming the spike and the fix `task update --prototype-ref\
+  \ spike/<slug>`); a\nPARTIAL share (rule 2 verdict `report`) is never refused —\
+  \ it reaches the auditor as the rule-6\n`prototype_identity` context line; `land`\
+  \ stays report-only; a zero-overlap card is never\nasked to declare. Check\nlayer:\
+  \ KERNEL (packet assembly) + the external auditor (the judgement).\n\n### 6. The\
+  \ identity line at audit-post — CONTEXT for the residue; the refusals live at `land`\n\
+  For a card carrying `prototype_ref`, `audit post` adds `prototype_identity: {whole_file_hits,\n\
+  hunk_subset, verbatim_share, source_row}` to its packet: a PROJECTION of the latest\
+  \ `spike_content_previewed`\nrow for the audited commit (rule 2a), LABELLED preview\
+  \ — CITED by ref, never recomputed by the packet;\na re-audit after land cites the\
+  \ final `spike_content_checked` row instead — plus the share of the ship's added\
+  \ lines found verbatim in the\nprototype diff. It is context for the auditor and\
+  \ the owner over what rule 2\nREPORTED and did not refuse — partial overlap, copy-then-reformat,\
+  \ a legitimately repeated screen.\nThe auditor carries NO refusal arm and NO threshold\
+  \ of its own: exact identity was already refused\nat `land` (rule 2), and a gate\
+  \ here would false-block exactly the re-implementation this contract\nwants. Check\
+  \ layer: KERNEL (packet).\n\n### 7. Two stable stand roles, one doctrine — acceptance\
+  \ is a form of `postcheck`\nA project MAY give an existing non-production deploy\
+  \ target a stable ROLE: an OPTIONAL key\n`role: dev` or `role: acceptance` beside\
+  \ `production: false` on a `deploy.targets.<name>` entry in\n`yitc-ops.yaml`. The\
+  \ DEV stand (ДОРАБОТКА) serves the open spike (rule 3 source (b)). The ACCEPTANCE\n\
+  stand (ПРИЁМКА) serves landed `main` (rule 3 source (a)) and is raised on demand,\
+  \ not kept running;\nthe no-container preview (`patterns/spike-mode.md` §Lightweight\
+  \ posture / §Acceptance preview\nWITHOUT containers) is a valid acceptance stand.\
+  \ The role is read by ONE pure, total reader over the\ndeploy section `deploy` has\
+  \ already parsed (no I/O of its own), tolerantly and SILENTLY: an absent\nsection,\
+  \ a non-mapping `targets` or target, an absent key or any value other than `dev`\
+  \ /\n`acceptance` reads as no role, with no fix line and no warning; a role on a\
+  \ `production: true` target is\nignored; the role never refuses anything. It is\
+  \ not a concern declaration: `init` never seeds or\nasks for it and the SPEC-0093\
+  \ completeness sweep does not read it. The role feeds exactly two\nADVISORY `deploy`\
+  \ lines, both warn-only: B1 — an acceptance-role target built off anything but\n\
+  landed `main` prints one warning and the deploy proceeds; B2 — a production deploy\
+  \ in a project that\ndeclares an acceptance-role target prints one reminder «was\
+  \ this shown on the acceptance stand?».\nNeither changes the exit code, the `deploy_completed`\
+  \ payload, the class gate, the lock or the\nrollback. RECOMMENDED order, not enforced:\
+  \ card → land → ACCEPTANCE stand → production; nothing\nchecks it — the discipline\
+  \ stays with the person and the AI. Recommendation, not a new rule: one\nprotection\
+  \ setup (cage + data handling) serves both stands, each with its own data store;\
+  \ an\nacceptance stand holding a restored production copy is treated as SPEC-0175\
+  \ treats a spike copy.\nAcceptance mode (rule 3 source (a)) is the sandbox serving\
+  \ LANDED code to the owner. Findings are\ncaptured with the existing primitives\
+  \ — `followup add` for a small one, `task file` for a claim —\nand re-enter the\
+  \ lifecycle as POSTCHECK INPUTS, never with a `prototype_ref` (there is no prototype\
+  \ —\nthe served code is landed `main`); nothing is edited in the sandbox because\
+  \ nothing there is editable. For\na plan-sized feature this loop IS LIFECYCLE §Plan\
+  \ lifecycle `postcheck` («real-data soak ×N +\ncorrections»); for a card-sized one\
+  \ it is the card's Closure probe. When a finding cannot be stated\nwithout a probe,\
+  \ a DECLARED spike is opened for it (rule 1) and its prototype ref feeds the card\n\
+  (rule 5). Spike mode and acceptance mode never share a stack instance: a stack is\
+  \ one or the other\nby what it serves (rule 3). Runbook: `patterns/spike-mode.md`\
+  \ §Two modes.\n\n### 8. Legacy adoption — a pre-existing undeclared spike branch\
+  \ joins the set BEFORE enforcement, no grace\nAn OWNER-INVOKED step — `bin/yitc-v2\
+  \ worktree park --work <slug> --declare-spike` on a branch that\nwas created without\
+  \ `--spike` (the September 2026 branches: <project> `spike-live-2026-09-01`,\n`spike-metrika-2026-09-08`;\
+  \ <project> `spike-otgruzki`, parked) — records the LATE declaration as a\njournal\
+  \ row (`spike_declared_late`, naming the branch, its tip and the invoking owner\
+  \ session) and\ntags `spike/<slug>` at the tip exactly as rule 4 does, then removes\
+  \ the branch. From that moment the\nref is in rule 2's canonical set and a copy\
+  \ from it is refused by T1/T3. The step REFUSES a branch\nwhose content already\
+  \ landed under any name — T1/T3 against `main`'s history (it names the landed\n\
+  commit — that history is judged, not rewritten). There is NO grace period: adoption\
+  \ of the three\nknown branches PRECEDES the first enforcing land (plan Done criterion\
+  \ 6), so the day T1/T3 arrive\nthere is no window in which copying from an un-adopted\
+  \ prototype is admitted. The former\n<project> directive «переносить будем частями»\
+  \ (2026-09-09) is superseded: remaining slices arrive as\n`prototype_ref` cards\
+  \ or are dropped. Check layer: KERNEL.\n\n### 9. What this contract does NOT do\
+  \ (scope bound)\nIt moves NO consumer instrument or product runtime into the kernel\
+  \ (SPEC-0172 rule 1; X-0796);\nit adds NO registry, store, journal or FSM (the spike\
+  \ set is folded, never stored); it adds NO\nsimilarity THRESHOLD anywhere (rule\
+  \ 2 refuses exact identity only; rule 6 reports); it does not\nchange cage atoms\
+  \ 4a-4d, the sharing rule, or the entrance requirements. The two named disciplines\n\
+  the kernel cannot mechanize — a consumer deploying a worktree to production outside\
+  \ `deploy`\n(SPEC-0094 §6 + AGENTS §Verb-execution) and a direct write to `main`\
+  \ outside `land` — are\nNAMED as discipline, not claimed closed (plan route matrix\
+  \ rows r, s). Consumer runbooks that\ndescribe a transfer step are superseded by\
+  \ adoption, not by kernel edit.\n\n### 10. Spike by default — an authored change\
+  \ to what an open spike explores goes INTO the spike\nWhile a spike is open, an\
+  \ AUTHORED change to what that spike explores goes INTO the spike, in\nsandbox mode,\
+  \ with no card. There are exactly three exceptions: (1) the owner explicitly orders\
+  \ a\ncard («задачей») — the card is filed and run OUTSIDE the spike, on the ordinary\
+  \ task worktree to\nland path; (2) the change is not about what the spike explores\
+  \ (for example an urgent production\nfix) — it takes its ordinary carrier (SPEC-0140);\
+  \ (3) in doubt — ONE question to the owner, with the\nrecommendation «in the spike».\
+  \ No card is filed or run inside a spike loop, whatever was said: an\nordered card\
+  \ lives outside it, and the spike's result reaches `main` only through rule 5's\n\
+  `prototype_ref` card. This rule names a routing default for the person and the AI;\
+  \ it adds no\nrefusal and no check. Check layer: discipline (routed by SPEC-0140).\n\
+  \n### 11. Partial hand-off — part X goes to a card, the rest continues in a new\
+  \ spike\nA spike often holds several improvements (X, Y, Z) of which only one is\
+  \ ready to hand off. The\nhand-off follows these rules; the runbook is `patterns/spike-mode.md`\
+  \ §5a.\n- **One spike per DEV stand** by default (rule 7's DEV role); separate spikes\
+  \ opened up front are\n  not the default. Inside a spike, **one improvement is one\
+  \ commit**, so a part can be handed off or\n  carried as whole commits.\n- **Handing\
+  \ off X.** The developer parks the spike — rule 4 turns it into its annotated prototype\n\
+  \  tag — and then files X's card outside the loop, naming that tag in `prototype_ref`\
+  \ (rule 5) with\n  the scope «X only; Y and Z not carried». A handed-off part **never\
+  \ enters the next spike**.\n- **Y and Z independent of X** continue in a **new declared\
+  \ spike from clean `main`** (rule 1).\n  Their **whole commits** are carried from\
+  \ the parked tag **once, when the continuation spike\n  opens**, each carried commit\
+  \ keeping **git's own record of its source commit**; never a partial\n  commit,\
+  \ never a second carry later. **Any conflict stops the carry** — the developer resolves\
+  \ the\n  dependency first instead of editing the carried commit to fit. The continuation\
+  \ spike's own\n  probes are **re-run before the DEV stand switches** to it.\n- **Y\
+  \ or Z that depend on X** **wait for X to land, or are handed off together** with\
+  \ X.\n- **This one-time carry between two spikes is legal.** Neither spike lands,\
+  \ so rule 2 is untouched:\n  the carried commits stay spike content, and they reach\
+  \ `main` only through a `prototype_ref` card\n  like any other prototype.\n- **Changing\
+  \ a handed-off card.** Its scope is **amended only before it is claimed**. After\
+  \ the\n  claim a change is a **successor card**, or the card is closed `wont-do`\
+  \ with a rationale — a\n  status that is **reachable only before close**. **A done\
+  \ card is never edited.**\nCheck layer: discipline (no refusal is added; rule 2\
+  \ still judges whatever reaches `land`).\n\n## Parameters\n\nNone consumed. The\
+  \ abort class `spike-content`, the tag prefix `spike/` (annotated tags), the stamp\
+  \ key `spike`,\nthe journal rows `spike_declared_late` / `spike_content_checked`\
+  \ / `spike_content_previewed`, the report\nline prefix `spike-content:` and the\
+  \ packet field `prototype_identity` are IDENTIFIERS fixed by this text, not tunables.\
+  \ Deliberately ABSENT tunables:\na similarity threshold, a changed-line minimum,\
+  \ a grace period.\n\n## Rationale\n\nEvery rule here EXTENDS an existing analog\
+  \ (the `--spike` stamp, `_spike_land_verdict`, the\nwork-batch product-source gate,\
+  \ SPEC-0094 targets + facts, SPEC-0036 overlays, `worktree park`) and\nadds no new\
+  \ entity or store — refusals on existing verbs, a git ref, a folded set, packet\
+  \ fields.\nThe per-rule CHARTER §P1 filter record, the incidents behind each rule,\
+  \ and the alternatives\nrejected at the consults are DELIBERATION HISTORY, not rule\
+  \ text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
+  \ §Deliberation chronology (SPEC-0005 rule 8 —\nthe spec keeps rules, the plan keeps\
+  \ the why).\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new --work spike-x`\
+  \ → refused naming `--spike`; `--spike` → stamp\n  `spike: true`; `--work sandbox-x`\
+  \ → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule 2, T1 + T3):** over\
+  \ a sandbox repo with one declared spike: `git checkout <spike> --\n  <path>` ·\
+  \ whole-file copy · rename of a copied file · `git archive` → `LAND: ABORT spike-content`\n\
+  \  naming file + spike (T1); cherry-pick · merge · rebase · `format-patch`/`am`\
+  \ · `git apply` ·\n  `merge --squash` → `LAND: ABORT spike-content` naming the spike\
+  \ (T3); partial-hunk copy and copy +\n  reformat → land with the `spike-content:`\
+  \ report line; a control branch minus the copied content →\n  `LAND: OK`; every\
+  \ land override flag re-runs the predicate; an emergency-marker commit body carrying\n\
+  \  spike content is refused; FALSE-POSITIVE controls — a declared generator output,\
+  \ a lockfile, a\n  migration, `__init__.py`, a golden fixture, a binary asset, an\
+  \ unchanged file present in the spike\n  tree — each lands. Each leg RED-observed-first\
+  \ (SPEC-0165).\n- **VP2a (rule 2a, ambiguity + boundary controls):** a change-set\
+  \ two spikes both carry → REFUSED\n  naming both refs (identity is decisive); a\
+  \ shared hunk beside own hunks → REPORT, no share names it,\n  lands; a candidate\
+  \ adding `yitc-generated` beside a copied source file → REFUSED (attribute read\
+  \ from\n  `main`); an added empty `__init__.py` → lands; a copied block split by\
+  \ an inserted line → REPORT, lands; a hunk\n  already on `main` → excluded, lands;\
+  \ an independent-identical hunk beside own hunks → REPORT, lands;\n  a whole diff\
+  \ that is one independent-identical hunk → REFUSED with the exit printed (the documented\n\
+  \  class); a landed `prototype_ref` card's hunks no longer attribute (derived retirement).\n\
+  - **VP2b (rule 3 trust boundary):** a hand-emitted `worktree_created{spike:true}`\
+  \ row with no stamp → not ACTIVE (cage refuses the\n  worktree; land reports, does\
+  \ not trust); a tag whose row names another path → not PARKED, fails\n  closed;\
+  \ row ⇄ stamp in agreement → ACTIVE admitted; row ⇄ annotated tag in agreement →\
+  \ PARKED\n  admitted (land only).\n- **VP3 (rule 3):** SPEC-0172 §4e carries the\
+  \ 4e pointer row; `graph conformance` C1-C6 GREEN; a\n  declaration silent on 4e\
+  \ is refused fail-closed by the kernel predicate when the project's\n  `cage_checks`\
+  \ instrument calls it (no kernel verb invokes it); the kernel authentication predicate\
+  \ admits a\n  kernel-stamped worktree with its journal row and a deploy-fact image,\
+  \ and refuses an unstamped\n  worktree, a `task/` worktree, an operator-path/env-flag\
+  \ source — kernel differential tests, RED-first;\n  LIVE closure evidence (Principle\
+  \ 8): a SUBSTANTIVE `live_trigger_evidence` row for the L3 card —\n  producer =\
+  \ one consumer's cage run on its declared spike stack, a resolvable `evidence_ref`\
+  \ to that\n  consumer's journal rows, the four cases NAMED (unstamped refused =\
+  \ the differential failing input,\n  task worktree refused, `main`-SHA image admitted,\
+  \ declared spike admitted), delivered via the\n  consumer's cross resolution; a\
+  \ prose «trial anchor» is not a carrier.\n- **VP4 (rule 4):** park of a declared\
+  \ spike leaves `spike/<slug>` at the former tip; park of an\n  undeclared batch\
+  \ leaves no tag.\n- **VP5 (rules 5-6):** `audit pre` packet for a `prototype_ref`\
+  \ card contains the prototype diff +\n  overlay text; `audit post` packet contains\
+  \ `prototype_identity` with all three fields; neither has\n  a refusal arm; a `task\
+  \ file` naming a spike branch in scope without `prototype_ref` prints the\n  advisory.\n\
+  - **VP6 (rule 7):** `patterns/spike-mode.md` §Two modes exists and names `postcheck`;\
+  \ the existing\n  spike-mode doc test asserts it.\n- **VP7 (rule 8):** `worktree\
+  \ park --work <slug> --declare-spike` on an undeclared branch emits\n  `spike_declared_late`\
+  \ + leaves `spike/<slug>`; a subsequent copy from that ref is refused by VP2;\n\
+  \  the step refuses a branch whose content already landed, naming the commit; THREE\
+  \ real runs — one per\n  known legacy branch (<project> ×2, <project> ×1), each\
+  \ recorded in its consumer's journal — BEFORE the\n  enforcing kernel version is\
+  \ pinned (no window in which an un-adopted branch can be copied).\n- **VP8 (rule\
+  \ 11):** `tests/test_spike_handoff_rules_doc.py` — this rule states each hand-off\
+  \ rule\n  without command spellings, `patterns/spike-mode.md` §5a carries the runbook\
+  \ and §6 the origin\n  `main` SHA; a mutation dropping any of them is flagged.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- SPEC-0172
+- SPEC-0175
+- SPEC-0094
+- SPEC-0028
+- SPEC-0036
+- SPEC-0035
+- SPEC-0005
+- spike-mode
+- spike-is-a-prototype-never-a-transfer-close-every-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: prototype-never-a-transfer-close-every-path-by-whi
+binding:
+- stage-entry:Filing
+init_concern: null
+implements_signature:
+  bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
+  bin/lib/audit_packet.py#build_audit_prompt: 8cf904a6191f3840a5fb8a784b934e6552179a221c986ec9b6cf1c3f36b72977
+  bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
+  bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
+  bin/lib/deploy.py#cmd_deploy: 6b771f9a5eb266f3dc711a26a2602197ffae31f93e2ea8c053c85f38617784d9
+  bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
+  bin/lib/spike_identity.py#content_verdict: de76a115591e61c9eb83a9510102cd53e910884326662c4283e36d44f4ebfdc9
+  bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
+  bin/lib/spike_identity.py#refusal_message: 2d3c54b4709e89b134cf119346eb5c6803567f798aa965af34b5b503f6c107f9
+  bin/lib/task.py#prototype_ref_error: 8ed5923b92402f3f859a8c544ce4695f35f724788f284d8e342b81b52675a472
+  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
+  bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
+  bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
+  bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 83b10011a512f2e7677441bda9e9c2ed6e227190f017ec310baf9ea46a61d20a

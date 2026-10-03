@@ -1,0 +1,171 @@
+id: SPEC-0189
+title: Review-proposed restoration of a born-permissive default
+status: active
+created_at: 2026-08-21 19:18:48+00:00
+travels: null
+consumed: true
+extension: null
+implements:
+- bin/lib/views.py#growth_window_days
+- bin/lib/views.py#project_growth
+- bin/lib/init.py#born_permissive_concerns
+- bin/lib/init.py#born_permissive_detector_violations
+- bin/lib/debt.py#restoration_proposals
+- bin/lib/views.py#_render_growth_relevance
+- bin/lib/cli.py#_born_permissive_concerns_for_echo
+- bin/lib/init.py#born_permissive_gate
+- bin/lib/init.py#record_born_permissive_ratifications
+- bin/lib/debt.py#_restoration_dispositions
+body: "## Scenario\n\nA project is born with a verification gate declined, so it does\
+  \ not pay for protection it does not\nyet need. As it grows, the periodic review\
+  \ watches for a signal that the absence has started to cost\nsomething, and — when\
+  \ one fires — NAMES the project, the surface and the observed signal, and\nproposes\
+  \ turning that gate back on. It never turns it on itself. On a project where no\
+  \ signal has\nfired, the review says nothing at all.\n\n## Internal\n\n### Rule\
+  \ 1 — No born-permissive default without a named detector\nA default may be born\
+  \ permissive ONLY if a detector for its absence is named in the same corpus. The\n\
+  pair is the unit: a permissive birth without a detector is not admitted. This binds\
+  \ at authoring\ntime, not at review time.\n\n### Rule 2 — Detection rests on signals\
+  \ emitted without a judgement call\nA qualifying signal is one the system emits\
+  \ as a by-product of ordinary work. A signal that requires\nsomeone to CLASSIFY\
+  \ something — at triage, at closure, or anywhere else — does NOT qualify, because\n\
+  an optional classification is an unmade one. Interpreting note, not deliberation:\
+  \ the nearest analog\nin this corpus, the automatic restoration of the audit-post\
+  \ exemption, is stated in CHARTER as\nINOPERATIVE wherever the defect judgement\
+  \ is not made, and that judgement has never been made across\nthree consumers' entire\
+  \ history. A detector built on the same input would be inert on arrival.\n\n###\
+  \ Rule 3 — Growth gates RELEVANCE; it never supplies EVIDENCE\nA growth reading\
+  \ (corpus size, land volume, or any other count) MAY decide whether a proposal is\n\
+  worth making now. It MUST NOT, alone, be the evidence that the absence is costing\
+  \ anything. Only the\nsurface's own rule-2 signal carries that. A proposal whose\
+  \ sole support is a count is malformed.\n\n### Rule 4 — Propose, never apply\nThe\
+  \ review PROPOSES. Restoration is always an explicit project act, performed by the\
+  \ project in its\nown contract. No review path, and no automation reachable from\
+  \ one, may write a project's\ndeclaration. A proposal states: the project, the surface,\
+  \ the observed signal, and the specific\ntightening — never a bare \"consider reviewing\
+  \ this\".\n\n### Rule 5 — The detector is named code, never a rule expressed in\
+  \ metadata\nDetection logic is CODE. This spec fixes only that boundary — a detector\
+  \ may never be expressed as a\nrule inside a declaration, because a declaration\
+  \ block is a finite table and carries no language for\none. HOW a detector is named\
+  \ from, and resolved through, the concern registry — the naming\nconvention and\
+  \ the refusal when a concern declares a permissive born value without one — is registry\n\
+  mechanics and is homed in SPEC-0128, not restated here (one home, SPEC-0005 rule\
+  \ 8).\n\n### Rule 6 — A detector is adopted only once it has spoken on real data\n\
+  Adoption requires EITHER that the detector has fired with a named proposal on a\
+  \ real project corpus,\nOR that it is demonstrated silent for a stated reason on\
+  \ a corpus that WOULD have tripped a naive\ndetector. For a report-only signal the\
+  \ differential is INDISTINGUISHABILITY, not presence: a test\nasserting only that\
+  \ a line printed does not discharge this rule. A detector that has never spoken\
+  \ on\nany real corpus is not adopted, and is not tuned until it speaks.\n\n### Rule\
+  \ 7 — Flipping a born default never flips absence\nChanging what `init` WRITES into\
+  \ a new project's contract MUST NOT change what an ABSENT declaration\nreads. The\
+  \ two are separate questions and separate code paths. A change that moves both silently\n\
+  re-declares every existing project that never opted in.\n\n### Rule 8 — A born declaration\
+  \ that RELAXES a control carries ratification provenance\nA born-written declaration\
+  \ that turns a control OFF, widens an exemption, or otherwise relaxes a\ngate is\
+  \ written ONLY against an explicit human confirmation recorded as that declaration's\n\
+  ratification provenance. A safe born default owes no such provenance and may be\
+  \ clean. Where the\nconfirmation is unavailable — any noninteractive birth — the\
+  \ declaration is NOT written and the\nsection stays absent, which reads fail-closed.\
+  \ Consequence, stated so it is not re-derived: there is\nno state in which a relaxation\
+  \ exists un-ratified, so no debt view is asked to carry one and no\nshared machinery\
+  \ is exempted to tolerate one. The axis is the VALUE'S DIRECTION, not the concern's\n\
+  identity: this rule is blind to WHICH gate is being relaxed.\n\n### Rule 9 — An\
+  \ owner disposition answers ONE firing, in the project's own contract\nThe owner's\
+  \ answer to a restoration proposal is recorded in the project's own contract, in\
+  \ the\nconcern's section, as `<section>.restoration_dispositions` — a list whose\
+  \ entries each carry\n`firing` (the identity of the firing answered), `action` (`leave`\
+  \ | `narrow` | `restore`),\n`decided_at` (a YYYY-MM-DD date) and `decided_by`. All\
+  \ four are required; `firing` and\n`decided_by` are non-empty strings. The firing\
+  \ identity is the detector's own `firing` token\nwhere it supplies one (surface\
+  \ 2 names its `<citing>:<exempted>` pair), else a hash of the\nobserved signal.\
+  \ The reader is `debt.restoration_proposals`, which reads the contract the debt\n\
+  seam has already parsed. A valid `leave` naming the CURRENT firing renders as a\
+  \ one-line\ndisposed state naming the decider and the date, not as an open proposal.\
+  \ A firing on different\nevidence renders open again, whatever was answered before\
+  \ — a disposition answers a firing,\nnever a surface. A `narrow` or `restore` leaves\
+  \ the proposal open and names the recorded\ndecision until the contract change lands.\
+  \ FAIL-OPEN TO VISIBILITY: an entry naming no current\nfiring on a surface whose\
+  \ detector ran, a malformed entry, and a firing named by more than one\nvalid entry\
+  \ (a conflict — no precedence) are each REPORTED and silence nothing. Rule 4 is\n\
+  unchanged: automation never writes this list, and nothing here removes a gate.\n\
+  \n## Parameters\n\n| parameter | value | consumed | owner |\n|---|---|---|---|\n\
+  | `growth_window_days` | 30 | yes — read by the shared growth fold | THIS spec |\n\
+  \n**THE VALUE, as a machine-readable token the fold READS.** `consumed: true` means\
+  \ code\nreads a governing scalar FROM this spec, so the parameter needs a value\
+  \ HERE and not a constant in\n`bin/`. The table above is prose for a human; this\
+  \ token is what the reader parses — the same\ncarrier/idiom `views.py#_rotation_rereview_bound_mb`\
+  \ and `worktree.py#journal_live_window_days`\nalready use on their own governing\
+  \ specs. One carrier, one idiom, no second config path.\n\n    GROWTH_WINDOW_DAYS:\
+  \ 30 # the trailing window the shared growth fold counts\n                     \
+  \        # land_completed(status=ok) rows over, per project. Changing it is a\n\
+  \                             # governed spec edit, and it changes the fold's answer\
+  \ by construction —\n                             # which is exactly the differential\
+  \ that proves the value is READ rather\n                             # than restated\
+  \ in code.\n\nFAIL-CLOSED, with NO default: a carrier or token that cannot be read\
+  \ yields no value and the fold does\nnot run. It never falls back to a number, because\
+  \ a fallback would BE the local literal this parameter\nexists to forbid — a fold\
+  \ quietly answering on a guessed window is worse than one answering nothing,\nsince\
+  \ the guess is invisible in the answer.\n\nThe growth window is a GOVERNING scalar\
+  \ and is homed here, not in the code that reads it: the fold\nconsumes this value,\
+  \ it does not define it. It is deliberately NOT per-surface — a surface's own\n\
+  governing spec owns ONLY its signal threshold and its permissive value, and no surface\
+  \ spec restates\nthis window. Everything else about a surface's numbers stays with\
+  \ that surface.\n\n## Rationale\n\nBorn-permissive defaults are cheap to grant and\
+  \ hard to revisit: the failure they permit is silent\nby construction, so nothing\
+  \ surfaces it on its own. The restoring review is therefore the whole of\nthe safety\
+  \ argument, and a restoring review that cannot fire is worse than none — it is believed\
+  \ in.\nRules 2 and 6 exist to keep that from happening again on a second generation\
+  \ of defaults.\n\n## Verification\n\n- R1: a concern declaring a permissive born\
+  \ value with no named detector fails the check that pairs\n  them (probe: `graph\
+  \ conformance` over a fixture declaring one without the other).\n- R2: a proposed\
+  \ detector whose input is a classification field is rejected at review of the\n\
+  \  concern entry (probe: the fixture names an optional `kind`-style field and is\
+  \ refused).\n- R3: a proposal assembled from a growth count alone is malformed (probe:\
+  \ assemble one; the renderer\n  refuses to emit it).\n- R4: no review code path\
+  \ writes a consumer `yitc-ops.yaml` (probe: a mechanical diff-scan over the\n  review/debt\
+  \ surfaces proves no write to a consumer contract, and FAILS on a planted write).\n\
+  - R5: a detector expressed as a rule inside a declaration is refused (probe: plant\
+  \ one in a fixture\n  concern block; the build refuses it). The naming/resolution\
+  \ probes belong to SPEC-0128.\n- R6: for each shipped detector, either a recorded\
+  \ firing on a real corpus, or a recorded silence\n  plus the named corpus that would\
+  \ have tripped a naive detector (probe: the recorded review run).\n- R7: differential\
+  \ — flip the born value written by `init`, and assert the ABSENT-declaration read\
+  \ is\n  byte-identical before and after (probe: a fixture reading an empty contract\
+  \ on both sides).\n- R8: a noninteractive birth writes NO relaxing declaration and\
+  \ the section reads fail-closed\n  (probe: run birth with no confirmation available;\
+  \ assert the section is absent and the resolved\n  value is the protective one).\
+  \ Negative control: the SAME birth WITH a confirmation writes the\n  declaration\
+  \ AND its ratification provenance — the two runs must be distinguishable.\n- R9:\
+  \ a recorded `leave` naming the current firing renders the disposed form and no\
+  \ open line; the\n  same surface firing on a different pair renders open again;\
+  \ a stale, malformed or conflicting\n  disposition is reported and silences nothing\
+  \ (probe: the arms of\n  `tests/test_restoration_proposal_render.py`, each RED against\
+  \ a reader that ignores the carrier).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- SPEC-0178
+- SPEC-0186
+- SPEC-0128
+- SPEC-0119
+- SPEC-0057
+- SPEC-0132
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: born-permissive-project-defaults-with-review-propo
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#_born_permissive_concerns_for_echo: 9a3dc9190f28d4998f47c41981a1022c079fd9a7bc17653995d8371c04c558ec
+  bin/lib/debt.py#_restoration_dispositions: f91432446da2efa12e0f9762540d32733743441f6e552d81f903833319545f0a
+  bin/lib/debt.py#restoration_proposals: 706a05d288eda49340d7c1458f93c2c6d0b017776db37cb3440f897635f906cb
+  bin/lib/init.py#born_permissive_concerns: 7588f47896fde75001a64d97f0bbba3531db166e775e6dc123267d2a563d125e
+  bin/lib/init.py#born_permissive_detector_violations: 32ee49c7e5680e995be65741f4915e00cdd3cd7eab80c258f811cfb55baded73
+  bin/lib/init.py#born_permissive_gate: 16dda58eea7ef5c96b5988f205de595a7595919afca3d49410a9abdeada0619b
+  bin/lib/init.py#record_born_permissive_ratifications: cc663c078b089f97971ba7feed13e442891ab2eafe5d7373699fb33d9b1ca9d0
+  bin/lib/views.py#_render_growth_relevance: c309bc3b04e330e068c3c1992e5b28f9d4e0b641b06828d195bd896955e22f82
+  bin/lib/views.py#growth_window_days: c4e93f98b05db0cde278340f9008105963a61bc644067b5fc1deba5f39c57780
+  bin/lib/views.py#project_growth: 08bf332e2525ae0c10d49d812d0ecc32d0589d9d13dc8818a6a876e0aed58330

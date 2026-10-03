@@ -1,0 +1,265 @@
+id: SPEC-0073
+title: Corpus-wide placement contract — every yitc artifact+code classified kernel|v2-self|project
+  at authoring
+status: active
+created_at: 2026-06-15 16:09:44+00:00
+travels: null
+consumed: false
+implements: []
+body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm — **kernel**\
+  \ (the methodology a consumer\nPINS; travels, identity-agnostic), **v2-self** (THIS\
+  \ repo's own development history; transfers to no\nproject), or **project** (a consumer's\
+  \ own corpus; born empty). The owner/AI must be able to decide\n\"kernel or not\"\
+  \ DETERMINISTICALLY at authoring — not implicitly / ad-hoc — so the kernel↔project\n\
+  boundary never blurs into a second normative core and no dev-history leaks into\
+  \ the released kernel.\nThe AI proposes a placement at authoring; the external auditor\
+  \ checks it (the audit-pre lens, rule 4\ncross-ref); the owner adjudicates a genuine\
+  \ fork.\n\n## Internal\n\nTHE CORPUS-WIDE PLACEMENT CONTRACT. Seven rules. It is\
+  \ a PROCESS/governance spec (SPEC-0005 rule 1):\nit governs authoring discipline\
+  \ corpus-wide; it adds no new store / parser / journal / node-type\n(CHARTER §P1\
+  \ — the matrix + derivation ride the EXISTING `spec new` verb + `graph`-as-derived-view).\n\
+  \n### 1. The three-way cut + the EXHAUSTIVE class-default matrix\nThree realms,\
+  \ one default per corpus class (PLUS a 4th SHARED-RUNTIME realm `coordination`,\
+  \ added by SPEC-0084 — NOT a corpus class and with no directory default; see the\
+  \ 4th bullet):\n  - **kernel** — the methodology engine a consumer pins (TRAVELS\
+  \ as a pin, identity-agnostic):\n    `bin/` (the verbs), the handbook STRUCTURE\
+  \ (CHARTER · AGENTS · LIFECYCLE · QUEUE · GRAPH · the\n    <vendor-adapter>.md vendor\
+  \ adapter), the methodology `specs/`, `patterns/`, the scaffold templates, the\n\
+  \    methodology `docs`/`examples`/`templates` classes, the engine package's own\
+  \ `requirements.txt` +\n    `LICENSE`.\n  - **v2-self** — this repo's development\
+  \ history; transfers to no project (\"the compiler's own git\n    history\"): `tasks/`\
+  \ · `decisions/` · `errors/` · this repo's `plans/` + `ideas/` · `events.jsonl`\n\
+  \    · V2's own `graph/` + `views/` · the self-tooling `tests/` · `.yitc/` + `<provider-config>/`\
+  \ (this repo's\n    operational state / session wiring) · `MEMORY.md` / `README.md`\
+  \ / `PATTERNS.md` / the dev-only\n    docs · `dev-utilities` (bench / dev scripts).\n\
+  \  - **project** — born EMPTY in the consumer; never carried from here (a consumer's\
+  \ domain specs /\n    graph / tasks / events / CHARTER · `lessons/` (per-repo local-craft\
+  \ notes, the `lesson` node-type\n    — SPEC-0090; born empty per repo, never travels,\
+  \ never enters the export slice), authored fresh in\n    its own realm).\n  - **coordination**\
+  \ (4th realm — added by SPEC-0084, its authority home) — the kernel-owned SHARED\n\
+  \    append-writable coordination STORE-INSTANCE: neutral cross-project infrastructure\
+  \ belonging to NO\n    project repo, single-instance, at a canonical kernel path\
+  \ OUTSIDE every repo; the whole peer-set\n    (kernel + its `-C` consumers) APPENDS\
+  \ to the ONE instance and READS the whole of it. It is NOT a\n    per-repo source\
+  \ artifact / corpus class, so NO directory class-default below resolves to it —\
+  \ and\n    `_resolve_placement` classifies only repo-RELATIVE tokens (kernel|v2-self|project),\
+  \ so the\n    out-of-repo store path is recognised `coordination` by THIS taxonomy\
+  \ row, not by that resolver;\n    because the store belongs to no repo, a governed\
+  \ append to it is NOT a cross-repo write\n    (AGENTS §Scope-boundary carve-out).\
+  \ DISTINCTION: the coordination CONTRACT (SPEC-0084 + protocol\n    sibling) is\
+  \ `kernel`-realm methodology that TRAVELS as a pin; the coordination FILE-INSTANCE\
+  \ is\n    `coordination`-realm and travels to no one (a consumer reaches the ONE\
+  \ shared instance, never a\n    copy). Identity / authority / archival / backup:\
+  \ SPEC-0084.\nThe default for an UNLISTED class is **v2-self** (fail-SAFE — an unclassified\
+  \ artifact is NEVER\nsilently leaked into the kernel export slice, the manifest's\
+  \ named primary failure). The\nmachine-readable matrix is the SINGLE source `bin/yitc-v2#_PLACEMENT_CLASS_DEFAULTS`;\
+  \ this rule NAMES\nthe cut, the code carries the data, and the manifest DERIVES\
+  \ from it (rule 5).\n\n### 2. Exception-capable vs hard classes + the per-item `travels:`\
+  \ field\nA class is **EXCEPTION-CAPABLE** when a member may deviate from a single\
+  \ fixed realm — exactly\n**specs + patterns**: an ACTIVE or PROPOSED spec is kernel\
+  \ by default but may be a V2-dev-specific\nspec that must NOT travel (so an honored\
+  \ `travels: v2-self` is legitimate on a committed-head spec,\nnot only on non-active\
+  \ history — `_resolve_placement` honors it on either status); a pattern may be\n\
+  methodology OR a dev-process note. (Every other class is HARD — a uniform\nrealm;\
+  \ e.g. docs/examples/templates are uniformly kernel methodology, no per-item exception.)\
+  \ A **HARD** class never\ndeviates (tasks/decisions/events/this-repo plans+ideas/graph\
+  \ = always v2-self; bin/handbook/views =\nalways kernel — views/ is kernel-derived\
+  \ methodology lenses) — its members carry NO marker. The schema field `travels:`\
+  \ (catalog SPEC-0030) carries\na per-ITEM exception ON an exception-capable artifact:\
+  \ **UNMARKED = the class-default**; a concrete\nrealm marks the exception. A marker\
+  \ on a HARD class is IGNORED (the class default wins; the lens\nflags the conflict).\n\
+  **File-level override MODEL ( — the governed exception for a HARD class).** A hard\
+  \ class carries\nno per-item `travels:` MARKER, but a SPECIFIC FILE may be reclassified\
+  \ by a code-level EXACT-PATH\nOVERRIDE — the single governed way one file deviates\
+  \ from its class default WITHOUT making its whole\nclass exception-capable. The\
+  \ override map `bin/yitc-v2#_PLACEMENT_PATH_OVERRIDES` is the SINGLE source\n(exact\
+  \ repo-relative path → realm); `_resolve_placement` consults it FIRST, before the\
+  \ class-default +\nmarker logic. This is the manifest §2 file-row exception set\
+  \ — kernel files inside a v2-self dir (the\nscaffold `_template.yaml`s, the kernel-derived\
+  \ `graph/floor-trigger-map.md`) and v2-self placeholders\ninside a kernel dir (`bin/.gitkeep`,\
+  \ `specs/.gitkeep`). It is DISTINCT from the per-item `travels:`\nmarker (which\
+  \ stays exception-capable-classes-only): the override is code-level + exact-path,\
+  \ not a\nmember marker, so a hard class stays markerless yet a named file in it\
+  \ is governably reclassified.\n\n### 3. FAIL-CLOSED at the governed authoring write-point\n\
+  The placement decision is an explicit IN-FLOW output of the governed authoring VERB\
+  \ for an\nexception-capable artifact — currently **`spec new`** (the only such verb):\
+  \ it REQUIRES `--travels\n{kernel|v2-self|project|default}` and FAILS CLOSED (actionable\
+  \ refusal, no SPEC-id burned) when\nomitted — for a NON-draft (proposed) birth.\
+  \ **A `--draft` is plan-local (SPEC-0005 §4, governs nothing): `--travels` is OPTIONAL\
+  \ and DEFAULTS to v2-self** — a draft is non-active, so §8 requires it NOT resolve\
+  \ the kernel export realm; a DEFAULTED draft realm is NOT a decision, so it is born\
+  \ carrying a draft-default marker, and the SAFEGUARD is the activation refusal:\
+  \ `task close` REFUSES to flip such a spec proposed→active, naming it and the two\
+  \ routes — re-pin to kernel, or confirm v2-self (or project) as a deliberate choice\
+  \ — until the realm is decided by removing the marker through the governed `spec\
+  \ edit` route (the gate asks for a decision, it never forces kernel, and a spec\
+  \ already active is untouched). The re-pin is never a `_birth_plan_draft_specs`\
+  \ side-effect (the §3↔§8 coherence fix), and a printed reminder at plan-accept is\
+  \ no longer the only safeguard. `default` consciously affirms the class-default\
+  \ (a NON-draft only). **ON A CONSUMER CORPUS (a `-C <path>` build, `_is_consumer_build`)\
+  \ the realm resolution is DIFFERENT, because rule 1 leaves a consumer's own specs\
+  \ exactly ONE legitimate realm: both the `--draft` default AND `--travels default`\
+  \ resolve to `project`, and an explicit `--travels kernel|v2-self` is REFUSED at\
+  \ authoring (no SPEC-id burned) — `v2-self` names the ENGINE's own development history\
+  \ and `kernel` the pinned methodology, neither of which a consumer authors locally;\
+  \ a KERNEL change is proposed via `cross request`, never by a local `travels: kernel`\
+  \ (<project> X-1335). The two sentences above describe the ENGINE's own corpus,\
+  \ whose behaviour is unchanged; the §8 guard is not reached by a consumer draft\
+  \ at all, since it fires only on a non-active spec resolving the KERNEL realm.**\
+  \ The decision is recorded DURABLY in the\n`spec_filed` journal event (`travels`\
+  \ + `travels_explicit`) for EVERY new spec — so an explicit\nauthoring choice is\
+  \ distinguishable from a legacy unmarked spec — while a body `travels:` marker is\n\
+  written ONLY for a NON-default exception (no redundant `travels: default`; unmarked\
+  \ = class-default).\n**Patterns** (hand-authored.md, no creation verb) are governed\
+  \ by the class-default + the audit-pre\nlens (rule 4 cross-ref) + the re-evaluation\
+  \ rule (rule 7); a verb-level pattern-placement enforcement\nrecords [[]]'s RESOLUTION\
+  \ (2026-06-15): the class-default + audit-pre lens + re-evaluation coverage SUFFICES\
+  \ for patterns — NO verb/graph-build gate was built, since CHARTER §P1 F4 finds\
+  \ no real incident (errors/ holds no pattern-misplacement/kernel-leak case) and\
+  \ a gate removes nothing (F3). The SAME present determination holds for ANY FUTURE\
+  \ authoring verb producing an exception-capable artifact: none exists today beyond\
+  \ `spec new` (already fail-closed), so none is built now — a future such verb MUST\
+  \ be evaluated against this contract WHEN INTRODUCED (the expectation, not yet a\
+  \ binding gate: it follows the spec-new fail-close via the `patterns/verb-design.md`\
+  \ stage-work recipe). Re-open via a NEW incident-citing task only if a real pattern-misplacement\
+  \ leak appears.\n\n### 4. Within-file placement = the F-002 release-view strip-rules\
+  \ (DERIVED, not per-line)\nA kernel file that travels today carries V2-dev provenance\
+  \ entanglement — host paths (`<host-home>`),\n`from: T-XXXX` trailers, `# ACTIVATED\
+  \ by T-XXXX`, V1-incident citations, owner-identity bakes.\nWithin-FILE placement\
+  \ is NOT a per-line marker: it is the DERIVED release-VIEW strip (F-002) — the\n\
+  released kernel view strips those dev-provenance tokens, leaving an identity-agnostic\
+  \ artifact by\nconstruction. The release-view extraction is the umbrella's gated\
+  \ design slice; THIS contract states\nthe strip-rule as the within-file placement\
+  \ model. An audit-pre LENS line carries the\n\"correctly placed kernel vs v2-self?\"\
+  \ check (`bin/yitc-v2#_build_audit_prompt` audit-pre overlay).\n\n### 5. The manifest\
+  \ §1 SPEC classification AND §2 file/code are both DERIVED + WIRED\nThe kernel-vs-self\
+  \ manifest (`kernel-vs-self-manifest.md`) is DESIGNED to be GENERATED from the\n\
+  class-default matrix (rule 1) + the per-item `travels:` markers (rule 2): this keystone\
+  \ ships the\nderivation ENGINE (the pure `_resolve_placement` primitive), naming\
+  \ NO independent rules and adding NO\nsecond parser / journal / storage (a VIEW,\
+  \ CHARTER §P5 — the P1-F1 analog is the existing\ngraph-as-derived-view). the SPEC-corpus\
+  \ generation is now WIRED : the §1 SPEC classification is regenerated from the\n\
+  class-default matrix + per-spec travels: markers via `graph build` (the placement-spec-classification\n\
+  managed GEN region in `kernel-vs-self-manifest.md`), never hand-kept — a hand edit\
+  \ that diverges fails\nthe suite. The §2 FILE/code classification is NOW ALSO DERIVED\
+  \ + WIRED : each §2 row token\nresolves through `_resolve_placement` (made file-override-aware\
+  \ by rule 2's `_PLACEMENT_PATH_OVERRIDES`\n+ the corrected class-defaults), rendered\
+  \ into the `placement-file-classification` managed GEN region\nand regenerated by\
+  \ `graph build`, drift-LOCKED by the suite. Its file-row exceptions (scaffolds /\n\
+  kernel-derived views+floor-map / gitkeep / root files / MEMORY.md / CROSS-TASKS)\
+  \ — formerly NOT\nexpressible as travels: markers (hard classes carry none) — are\
+  \ now expressed by the file-level\noverride map + the class-default matrix, so a\
+  \ hand-edit to §2's `class` column that diverges from the\nresolver FAILS the suite.\
+  \ The interim hand-state is RETIRED. The §3 SPEC↔CODE map is NOW ALSO DERIVED +\n\
+  WIRED (completing the family): it is rendered from the graph index's `specs[id].implements`\
+  \ for\nevery ACTIVE CORE-code-backed spec into the `spec-code-map` managed GEN region\
+  \ and regenerated by\n`graph build` (the index-derived sibling of §1/§2 — the SAME\
+  \ wired-GEN model, no second mechanism),\ndrift-LOCKED by the suite (test_t0874\
+  \ §3 fidelity). Closes E-0039 — formerly §3 was the one\nhand-maintained section,\
+  \ so a new code-backed spec's row surfaced late at land.\n\n### 6. Realm-qualified\
+  \ reference `<realm>:<ID>` MANDATORY at the first merged-discovery surface\nOnce\
+  \ kernel + project artifacts become discoverable through ONE graph/index surface,\
+  \ a bare id is\nstructurally ambiguous (`SPEC-0005` in two realms). So the qualified\
+  \ form **`<realm>:<ID>`** (e.g.\n`kernel:SPEC-0005`, `<project>:SPEC-0001`) is **MANDATORY\
+  \ at the first merged-discovery surface**; an\nUNQUALIFIED id means the LOCAL realm\
+  \ only; a bare id used for a FOREIGN realm is INVALID (a refusal,\nnot a heuristic\
+  \ best-guess). The merged-surface WIRING (a consumer-aware merged read path + resolver)\n\
+  is the filed follow-up [[]], NOT this keystone — this rule pins the convention it\
+  \ wires to.\n\n### 7. Re-evaluate placement on consumer-relevance edits\nPlacement\
+  \ is not creation-only: an edit that changes an artifact's AUDIENCE / consumer-relevance\
+  \ /\nsemantics RE-OPENS the placement decision (e.g. a v2-self spec that becomes\
+  \ general methodology, or a\nkernel spec that becomes V2-dev-specific). The manifest\
+  \ drift check (rule 5 / [[]]) surfaces a\nmoved or re-scoped artifact whose stored\
+  \ placement no longer matches its derived class.\n\n### 8. Active-only export slice\
+  \ — the non-active history NEVER travels (structural guard)\nRule 1 already classifies\
+  \ a non-active spec (superseded / withdrawn / rejected / draft) as V2-SELF via\n\
+  its `travels: v2-self` marker, so `_resolve_placement` returns v2-self for it. Rule\
+  \ 8 makes the\nactive-only filter an EXPLICIT extraction rule, not merely an implication\
+  \ of the marker: the export\nspec slice is computed ACTIVE-ONLY by construction\
+  \ (`_release_view_spec_ids` — `status == active` AND\nrealm == kernel), and a STRUCTURAL\
+  \ guard (`_release_spec_slice_violations`, the report-at-land\npeer of the release-view\
+  \ drift check, run in `graph conformance`) RED-flags any non-active spec NOT exempt\
+  \ as `proposed` (terminal history — superseded / withdrawn / retired / rejected\
+  \ — OR a plan-local draft, which now DEFAULTS to v2-self at authoring per §3, so\
+  \ it does not reach this guard) that\nstill resolves to the kernel realm — EXEMPTING\
+  \ `proposed`, a FORWARD kernel head legitimately excluded\nfrom the active-only\
+  \ slice BY STATUS (it becomes active and TRAVELS, so it stays kernel-realm unmarked;\n\
+  the guard fires only when `status != \"proposed\"`) — catching a forgotten `travels:\
+  \ v2-self` backfill on\na future superseded spec BEFORE it could leak into a consumer's\
+  \ pin (reconciling deviation fingerprint\nconformance-leak-check-vs-test0890-contradict-on-proposed-kernel-spec-post-T0883).\
+  \ This is the explicit input to the\nrelease-view extraction ([[]] manifest FLAGGED\
+  \ A-2): the kernel's own evolution history\nis V2-SELF and never travels. Additive\
+  \ enforcement only — it adds no new store/parser/journal and\nchanges no existing\
+  \ placement obligation (P5; SPEC-0005 §7 additive-extension → in-place).\nTWO INDEPENDENT\
+  \ axes gate the slice (a spec ships only if BOTH hold): (i) the STATUS axis —\n\
+  active-only, the concern enforced here; (ii) the TRANSPORT axis — kernel placement\
+  \ realm, the\nrule-1 concern (an active spec marked `travels: v2-self`, e.g. the\
+  \ SPEC-0041 A-1 case [[]], is\nlegitimately dropped on the transport axis, not the\
+  \ status axis). The guard `_release_spec_slice_violations`\nfires on the STATUS\
+  \ axis specifically (non-active reaching kernel transport); the transport axis is\
+  \ the\npre-existing placement classification. Keeping the two axes named keeps \"\
+  active-only\" verifiable\nindependently of placement (the probe isolates status\
+  \ on a fixed-transport set).\nPRODUCTION WIRING (audit-post F1): `_release_view_spec_ids`\
+  \ is the SINGLE production source of \"which\nspecs travel\" — the guard CONSUMES\
+  \ it (flagging `kernel-realm \\ slice` at every land via `graph\nconformance`),\
+  \ and the future spec-materializing exporter ( spec slice) calls the same helper.\n\
+  So the filter is LIVE in production, not test-only; there is no second definition\
+  \ of the export slice (P5).\n\n## Parameters\n\nNone consumed. The class-default\
+  \ matrix (`_PLACEMENT_CLASS_DEFAULTS`), the exception-capable set\n(`_PLACEMENT_EXCEPTION_CAPABLE`),\
+  \ and the spec class-default (`_SPEC_CLASS_DEFAULT = kernel`) are CODE\nconstants\
+  \ in `bin/yitc-v2`, single-source — not spec-read params.\n\n## Rationale\n\nExternal-audit\
+  \ YELLOW-validated (`decisions/placement-discipline-concept-audit-adhoc.yaml`):\
+  \ \"the core\nshape is anti-complexity-respecting … adopt only with the two hardening\
+  \ moves — explicit capture at\ngoverned write points AND an exhaustive class matrix.\"\
+  \ Both are absorbed here (rules 1+3). The design\nconverged across umbrella units\
+  \ 1-2 ([[export-slice-contract-and-core-authoring-model]] §1-4 +\n[[conformance-contract-as-one-unit]]\
+  \ §1 placement test) — a plan never governs (GRAPH\n§What-a-spec-is-FOR), so this\
+  \ spec is the standing rule those design-inputs lacked. Prior-art:\nCopier/Cruft\
+  \ + Debian quilt/DEP-3 (the three-way cut + read-only-from-upstream rule corpus).\
+  \ The\nfail-close + the exhaustive matrix are the difference the audit named between\
+  \ \"conceptually right\" and\n\"operationally real\".\n\n## Verification\n\n- **VP1\
+  \ (matrix exhaustive):** every tracked top-level corpus dir is a key in\n  `_PLACEMENT_CLASS_DEFAULTS`\
+  \ (and the named class taxonomy tests/docs/examples/templates/\n  dev-utilities\
+  \ is present); an unlisted class fails safe to v2-self. (test_t0888_placement_contract)\n\
+  - **VP2 (fail-closed write-point):** `spec new` WITHOUT `--travels` dies with an\
+  \ actionable refusal\n  and burns no SPEC-id. (test)\n- **VP3 (durable decision\
+  \ + no redundant marker):** `spec_filed` carries `travels` + `travels_explicit`\n\
+  \  for every new spec; a body `travels:` marker is written ONLY for a non-default\
+  \ exception. (test)\n- **VP4 (derivation primitive):** `_resolve_placement` is pure;\
+  \ unmarked → class-default; a realm\n  marker is honored ONLY on an exception-capable\
+  \ class, ignored on a hard class. (test)\n- **VP5 (audit-pre lens):** the `_build_audit_prompt`\
+  \ audit-pre overlay carries the\n  \"correctly placed kernel vs v2-self?\" placement\
+  \ line. (grep)\n- **VP6 (realm rule stated):** this body states `<realm>:<ID>` mandatory-at-first-merged-discovery-\n\
+  \  surface + bare-id-local-only + bare-foreign-id-INVALID, and couples [[]] for\
+  \ the wiring.\n- **VP7 (re-eval rule stated):** this body states placement re-evaluation\
+  \ on consumer-relevance edits\n  + the manifest drift check ([[]]).\n- **VP8 (active-only\
+  \ export slice; `proposed` exempt):** `_release_view_spec_ids` excludes EVERY\n\
+  \  non-active spec (it returns only active∩kernel ids), so a `proposed` kernel head\
+  \ is OUT of the slice\n  BY STATUS — but it is NOT a leak: `_release_spec_slice_violations`\
+  \ EXEMPTS `proposed` (a forward\n  kernel head that activates and travels) and RED-flags\
+  \ only a TERMINAL non-active spec\n  (superseded/withdrawn/retired/rejected/draft)\
+  \ mis-resolving to kernel (synthetic `travels: kernel` on\n  a superseded spec).\
+  \ (test_t0883_active_only_spec_filter; test_d_proposed_kernel_head_not_flagged)\n\
+  - **VP9 (file-level override + §2 derived):** `_PLACEMENT_PATH_OVERRIDES` reclassifies\
+  \ a named\n  file in a HARD class (e.g. `tasks/_template.yaml` → kernel, `bin/.gitkeep`\
+  \ → v2-self) and\n  `_resolve_placement` honors it FIRST; `_resolve_placement(token)`\
+  \ equals the audited manifest §2\n  realm for EVERY §2 row token; the committed\
+  \ `placement-file-classification` GEN region equals\n  `_render_file_placement_block`\
+  \ and regen is idempotent. (test_t0934_placement_file_override)\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0005
+- SPEC-0030
+- SPEC-0036
+- export-slice-contract-and-core-authoring-model
+- conformance-contract-as-one-unit
+- kernel-extraction-evidence-driven-engine-consumabi
+- yitc-as-distributable-methodology-contours-release
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- spec-new
+- before-project-dimension-judgement

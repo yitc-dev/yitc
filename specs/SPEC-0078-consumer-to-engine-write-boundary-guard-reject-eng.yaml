@@ -1,0 +1,207 @@
+id: SPEC-0078
+title: Consumer-to-engine write-boundary guard (reject ENGINE_ROOT writes from a -C
+  session)
+status: active
+created_at: 2026-06-16 13:33:24+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/cli.py#write_text_atomic
+body: "## Scenario\n\nA `-C <consumer>` session operates the engine CLI against a\
+  \ consumer checkout (`REPO_ROOT` =\nthe consumer, `ENGINE_ROOT` = the installed\
+  \ engine). If a mutating verb ever resolved a write\npath incorrectly, it could\
+  \ write INTO the engine's own corpus (`ENGINE_ROOT`) from a consumer\nsession —\
+  \ silently corrupting the methodology engine the consumer pins. The owner sees:\
+  \ such a\nwrite is REFUSED with a clear, stable message and a non-zero exit; nothing\
+  \ is written under\n`ENGINE_ROOT`. An engine-OWN session writing its own corpus,\
+  \ and a consumer writing under its OWN\n`REPO_ROOT`, are unaffected (the guard is\
+  \ silent on the legitimate path). This hardens the\nscope discipline from AI-behavioral\
+  \ to mechanically enforced.\n\n## Internal\n\nTHE CONSUMER→ENGINE WRITE-BOUNDARY\
+  \ GUARD. A code-enforced invariant at the corpus-write chokepoint.\n\n### 1. The\
+  \ single chokepoint + complete coverage\nEvery mutating corpus write in `bin/yitc-v2`\
+  \ routes through ONE helper — `write_text_atomic(path,\ncontent)`. The guard is\
+  \ installed there via a shared `_guard_consumer_engine_write(path)` helper. The\n\
+  TWO raw writes that bypass `write_text_atomic` are enumerated and routed through\
+  \ the SAME helper, so\ncoverage is complete by construction (not by audit memory):\
+  \ (a) the append-only journal append\n(`_append_event`) — -exempt; (b) the id-reservation\
+  \ bump (`resv_path.write_text`). No other\ncorpus-write path exists.\n\n### 2. The\
+  \ invariant (NARROW — engine-reject only, never a general REPO_ROOT containment)\n\
+  Resolve the write target's `realpath`. REFUSE (exit 1 + the FIXED stdout token\n\
+  `WRITE-BOUNDARY: REFUSED <abs-path>`) when ALL THREE hold: the session is a genuine\
+  \ CONSUMER session\nAND the target resolves under `ENGINE_ROOT` AND the target is\
+  \ NOT within the session's own `REPO_ROOT`.\nOtherwise the write proceeds silently.\n\
+  - **Consumer-detection reuses the EXISTING `_is_consumer_build`, NOT a bare\n  `REPO_ROOT\
+  \ != ENGINE_ROOT`.** A bare path-inequality mis-flags an engine LINKED WORKTREE\
+  \ as a consumer:\n  a `-C <engine-worktree>` build and a worktree→main `land` write\
+  \ both diverge the roots while still\n  being the ENGINE operating on itself. `_is_consumer_build`\
+  \ compares git COMMON-dirs — an engine\n  worktree shares the engine's common-dir\
+  \ (same repo → NOT a consumer); only a SEPARATE repository\n  (different common-dir)\
+  \ is a consumer. It short-circuits to False with no subprocess on the common\n \
+  \ engine-own path (`REPO_ROOT == ENGINE_ROOT`) and caches the rest.\n- **The `NOT\
+  \ under REPO_ROOT` clause is load-bearing:** the session's OWN corpus is always\
+  \ writable even\n  if `REPO_ROOT` is nested inside `ENGINE_ROOT` (real consumers\
+  \ are disjoint installs, but a test repo may\n  live under the engine checkout)\
+  \ — only a reach OUTSIDE `REPO_ROOT` but INTO `ENGINE_ROOT` is the breach.\n- This\
+  \ is NOT a general \"target must be under the current `REPO_ROOT`\" rule — that\
+  \ broad form would BREAK\n  sanctioned cross-checkout writes (a worktree→main `land`\
+  \ write); those are engine-own\n  (`_is_consumer_build` False) and never reach the\
+  \ path check.\n\n### 3. Not a new mechanism\nOne `realpath` assertion at an EXISTING\
+  \ chokepoint via `_guard_consumer_engine_write` — no new gate\ncascade, FSM, ledger,\
+  \ queue, or lock (CHARTER §P1 + V2 non-goals). It hardens (behavioral →\nenforced);\
+  \ is frozen history, so the standing rule is RE-HOMED here (SPEC-0005 rule 8 — the\
+  \ spec\n+ the code are the SoT). The sibling recovery runbook (`patterns/recovery-runbook.md`)\
+  \ is a how-to\nprocedure, NOT a rule surface — no standing rule lives there.\n\n\
+  ### 5. The READ-ONLY `-C` mode — the inverted boundary (resolves the breach)\n`-C\
+  \ <path>` means \"become that repo\", which is CORRECT for a consumer-OPERATING\
+  \ verb (`init` /\n`deploy` / `quiesce` / `land`): writing into the target IS the\
+  \ point there, and §2 governs it\nunchanged. What was MISSING beside it was a way\
+  \ for a kernel session to READ a consumer for\nEVIDENCE without appending to it.\
+  \ There was no such invocation shape at all: `_rebind_repo_root`\nreassigned the\
+  \ journal path unconditionally (discarding the <workshop-spec> rule-1 scope-guarded\
+  \ default),\nand `cli_invoked` is an ordinary observability row, so even a pure\
+  \ `-C <consumer> graph query` left\na row in that consumer's journal. hit this while\
+  \ gathering read-only consumer evidence and\nappended 8 events to a real consumer's\
+  \ journal ( territory breach; NOT reverted — that journal\nis append-only + union-merged,\
+  \ so rewriting it would be the larger violation).\n\n**The mode.** `--read-only`,\
+  \ only ever WITH `-C` (a bare `--read-only` is REFUSED: there is no\nforeign checkout\
+  \ to protect, and an inert flag that reads as a guarantee is worse than no flag).\
+  \ It:\n- pins the journal APPEND target to the READER's own journal, resolved at\
+  \ `ENGINE_ROOT` through the\n  SAME scope-guarded `YITC_EVENTS_PATH_DEFAULT`/`YITC_EVENTS_GUARD_ROOT`\
+  \ resolver the module-load\n  default uses — so the hermetic test sandbox is not\
+  \ escapable by asking for read-only;\n- REFUSES, at THIS helper, any write resolving\
+  \ under the `-C` target (the SAME\n  `WRITE-BOUNDARY: REFUSED <abs-path>` token\
+  \ — no new vocabulary), and then RETURNS BEFORE §2:\n  under read-only the invoking\
+  \ identity is the ENGINE, whereas §2's `_is_consumer_build` reads\n  `REPO_ROOT`\
+  \ — which IS the target — and would otherwise refuse the engine writing its own\
+  \ journal.\n  This INVERTS the boundary; it does not open a hole in it. Every write\
+  \ is still refused on exactly\n  one side, and coverage is inherited from §1's complete\
+  \ chokepoint enumeration, never from a\n  per-verb list someone has to keep current;\n\
+  - skips `_auto_sync` (it writes `journal-sync-state/` into the target and appends\
+  \ events);\n- ADMITS only a verb whose OWN parser declaration carries the `read_only_admit`\
+  \ marker —\n  no hand list: the former `READ_ONLY_ADMITTED_VERBS` named three verbs\
+  \ while the inspection\n  roster named a dozen more, so revizias lost rows or dropped\
+  \ the flag. The marker's value is the\n  REASON the verb is safe here; it is verb-scoped,\
+  \ or flag-scoped (`(<flag>, <reason>)` — it applies\n  only when that PARSED flag\
+  \ is set: `nightly --status`, `deploy --print-guard`, `triage sweep\n  --dry-run`).\
+  \ A writer the roster or a reader would reach for is REFUSED BY NAME via\n  `read_only_refuse`\
+  \ (bare `nightly`, `graph build`, `audit canary-backstop`,\n  `verify-durations\
+  \ --rebuild`, …), and the refusal prints its reason; the most specific marker\n\
+  \  wins (a set flag's, then the verb's). Fail-closed: an UNMARKED verb is refused.\
+  \ The\n  `cli_invoked_verb` read marker does NOT admit on its own — writers wear\
+  \ it too (`journal\n  redact`, `task claim-landed`, the `venue` writers), so each\
+  \ genuine read carries the admit\n  marker beside it. The admission runs UP FRONT\
+  \ so an unadmitted verb cannot do half its work and\n  then exit 1 at its first\
+  \ write. The admit reasons include the TWO that earned a name before\n  the marker\
+  \ existed :\n    * a JOURNAL-APPEND-ONLY EVIDENCE verb (`session start`, `inspect\
+  \ record`) — not marked as a\n      read BECAUSE it emits, but under read-only its\
+  \ emit is redirected to the reader's own journal\n      and it touches no file in\
+  \ the target;\n    * a verb that appends nothing OF ITS OWN and does not wear the\
+  \ read marker (`profile`).\n      SPEC-0198 rule 3 contracts `profile` as \"no write,\
+  \ no event of its own, no worktree (the\n      `debt` posture)\"; its only row is\
+  \ the `cli_invoked` invocation receipt, emitted\n      through the RECEIPT-ONLY\
+  \ marker, which carries none of the read marker's other\n      meanings (the clause-(c)\
+  \ seed bypass) — so it carries its own admit marker (RECEIPT-ONLY, like `debt`).\
+  \ Under\n      read-only that receipt goes to the reader's own journal, like the\
+  \ evidence verbs'. This is the READ\n      admission widening only; the WRITE fence\
+  \ (`_guard_consumer_engine_write`) is UNCHANGED, and a\n      genuine write resolving\
+  \ inside the target is refused exactly as before.\n  WHY `profile` HAD TO BE NAMED\
+  \ (the defect that forced it). The SPEC-0145 profile-snapshot\n  declaration routes\
+  \ both a byte-copied consumer producer and the KERNEL-side security gate through\n\
+  \  `-C <repo> profile --json`. While `profile` was unadmitted the HONEST invocation\
+  \ was refused and\n  the unsafe one succeeded, so every gate run wrote `journal-sync-state/`\
+  \ into the consumer's repo —\n  the very class §5 exists to prevent, re-entering\
+  \ through the one door §5 had left shut.\n  Measured on a fixture consumer before\
+  \ the fix: the non-read-only form rewrote\n  `journal-sync-state/<hash>.yaml`; the\
+  \ read-only form now leaves the target byte-unchanged. The\n  born declaration (SPEC-0145)\
+  \ is rendered at `--read-only` accordingly.\n\n**The READ/WRITE split is the load-bearing\
+  \ part, not the redirect.** The read-gates\n(`_require_seed_read` / `_require_help_read`)\
+  \ and the session-identity backing check\n(`_ref_current_epoch_anchored`) all resolve\
+  \ their candidate journals from the journal path, so a\nBARE redirect would leave\
+  \ a governed fetch unable to find its own receipt. So the APPEND path\n(`EVENTS_APPEND_PATH`)\
+  \ is split from the READ path (`EVENTS_PATH`): reads stay on the target, so\nevidence\
+  \ folds over its journal still work, while the reading session's own receipts are\
+  \ looked up\nwhere this session actually writes them. Outside read-only the two\
+  \ are the same path and every\nbehaviour is byte-identical.\n\n**Named invocation**\
+  \ (so a future evidence-gathering session has something to reach for instead of\n\
+  a write verb):\n\n    bin/yitc-v2 -C <consumer> --read-only inspect record --theme\
+  \ T7 --task T-XXXX\n\n**The default for a FOREIGN pure read.** The mode above was\
+  \ opt-in, so a plain\n`-C <consumer> journal query` from a kernel-side reader still\
+  \ ran `_auto_sync` into the consumer and\nleft its `cli_invoked` receipt there —\
+  \ 26 uncommitted rows across 10 consumer repos on 2026-09-23. A\npure read (the\
+  \ `cli_invoked_verb` marker) under `-C` now takes the SAME mode without the flag\
+  \ when\nits caller is FOREIGN to the target (`_foreign_pure_read`): the target is\
+  \ a separate repository\n(`_is_consumer_build` — an engine worktree is never foreign),\
+  \ the process cwd is not inside it\n(the §4 common-dir test), AND the ref this receipt\
+  \ would be stamped with has no `session_started`\nin any journal the target's read-gate\
+  \ reads (`_gate_candidate_events_paths`). The anchor arm is\nload-bearing: a consumer's\
+  \ OWN session run from another cwd keeps its `graph query` receipts —\nread-gate\
+  \ credit — in the journal that gate reads. Verbs that are not pure reads, including\
+  \ the\nones admitted by name, are unchanged (the flag stays how they request the\
+  \ mode). A test that fails\nfor any reason answers \"not foreign\" — the pre-change\
+  \ behaviour, never a refusal. The companion\nrule, that a reader's own receipts\
+  \ do not move the horizon it reads, is homed at SPEC-0190 rule 4.\n\n### 4. Symmetric\
+  \ guard — the BARE-invocation foreign-corpus refusal (resolves X-0093)\nThe §2 guard\
+  \ stops a `-C` consumer write that reaches INTO the engine. Its MIRROR closes the\
+  \ inverse\nhole: a **BARE** `yitc-v2 <verb>` (no `-C`, no YITC_REPO_ROOT) run from\
+  \ INSIDE a consumer checkout —\nwith no explicit target, REPO_ROOT resolves to the\
+  \ engine INSTALL location, so the verb silently acts\non the engine corpus + pollutes\
+  \ the KERNEL journal (X-0093 — recurrence of the 2026-06-23\n`consumer-session-verb-missing-C`\
+  \ deviation). `_guard_bare_invocation_foreign_corpus` REFUSES it at\nthe `main`\
+  \ no-`-C` branch (before `_auto_sync`). Foreign-detection reuses the **git COMMON-DIR\n\
+  comparison** (the same robust marker as `_is_consumer_build`, NOT a bare \"cwd owns\
+  \ an events.jsonl\"):\nan engine LINKED WORKTREE shares the engine common-dir →\
+  \ never refused; only a SEPARATE repo that is a\nyitc corpus → refused. REFUSE (not\
+  \ auto-bind): auto-binding would contradict the documented\nno-cwd-auto-detect rule\
+  \ and could silently act on a different repo than invoked. No new gate/FSM/ledger\n\
+  — one guard at an existing chokepoint, sibling to §2.\n\n## Rationale\n\nConsumer\
+  \ `-C` protection of the engine is currently behavioral only ( AI-discipline); nothing\n\
+  mechanically STOPS a mis-resolved engine verb from writing into `ENGINE_ROOT` from\
+  \ a consumer session.\nRelevant the moment real consumers run (Kupi Club). Source:\
+  \ the external consult\n`decisions/kernel-protection-recovery-set-audit-adhoc.yaml`\
+  \ (finding 1, HIGH, 4-filter-passed).\nReuses the F-001 REPO_ROOT/ENGINE_ROOT split\
+  \ (`plans/kernel-extraction-evidence-driven-engine-consumabi.md`);\nhardens.\n\n\
+  ## Verification\n\n- **(refusal — FIXED contract)** a `-C <consumer>` session mutating\
+  \ verb whose target `realpath` resolves\n  under `ENGINE_ROOT` → exit 1 + the exact\
+  \ stdout token `WRITE-BOUNDARY: REFUSED <abs-path>` + NO file\n  written under `ENGINE_ROOT`.\n\
+  - **(no false-refuse)** an engine-own session writing its own corpus (incl. a worktree→main\
+  \ land write),\n  and a `-C` consumer writing under its own `REPO_ROOT` → exit 0\
+  \ + the file written (guard silent).\n- **failure-threshold:** the guard false-refuses\
+  \ an engine-own / cross-checkout land write; OR a\n  corpus-write path bypasses\
+  \ `_guard_consumer_engine_write`; OR it adds a new gate cascade / ledger / FSM.\n\
+  - **(§5 read-only mode)** `-C <fixture-consumer> --read-only inspect record --theme\
+  \ T7` →\n  the SPEC-0057 inspection evidence IS produced (a real `criteria_ref`\
+  \ + a `durable_docs.swept` count\n  measured over the TARGET's docs, so a silent\
+  \ no-op cannot pass) AND recorded in the READER's\n  journal, while the target's\
+  \ `events.jsonl` is BYTE-IDENTICAL before and after and holds no\n  `cli_invoked`\
+  \ / `session_started` / `read_gate_refused` row for the reading session's ref. A\
+  \ write\n  reaching into the target under this mode → exit 1 + `WRITE-BOUNDARY:\
+  \ REFUSED <abs-path>`. A\n  non-admissible verb → refused BY NAME up front. `--read-only`\
+  \ without `-C` → refused.\n- **(§5 foreign default)** `-C <fixture-consumer> journal\
+  \ query` from a cwd outside the\n  consumer, under a session not anchored there\
+  \ → the consumer's `events.jsonl` and\n  `journal-sync-state/` BYTE-IDENTICAL and\
+  \ the `cli_invoked` receipt in the CALLER's journal; the\n  same read with cwd inside\
+  \ the consumer, or under a session anchored in it, still appends to the\n  consumer\
+  \ (`tests/test_t12882_foreign_read_receipt_routing.py`).\n- **(no false-narrow)**\
+  \ the SAME verb WITHOUT `--read-only` still appends to the target's\n  journal,\
+  \ and the §2/§4 arms above are unchanged — the read-only mode narrows nothing deliberate.\n\
+  - **failure-threshold (§5):** the target's journal changes by a single byte during\
+  \ a read-only run;\n  OR the read-only run passes while gathering NOTHING (the healthy\
+  \ arm is what forbids this); OR a\n  read-gate / the session-identity backing check\
+  \ cannot find the reading session's own receipt.\n- **(§4 symmetric guard)** a BARE\
+  \ `yitc-v2 <verb>` (no `-C`, no YITC_REPO_ROOT) from inside a\n  SEPARATE yitc corpus\
+  \ → exit != 0 + a refusal naming the X-0093 foreign-corpus cause + the kernel\n\
+  \  events.jsonl byte-unchanged; an engine-own bare call and an explicit `-C`/YITC_REPO_ROOT\
+  \ target →\n  NOT refused (guard no-ops; byte-identical).\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0044
+- kernel-extraction-evidence-driven-engine-consumabi
+- kernel-protection-recovery-set-audit-adhoc
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: consumer-engine-write-boundary-guard-recovery-runb
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#write_text_atomic: f2502a23ebf09e0c029f3155e2c965cf2610c3f14a5ba88cbf803e6d28a7d77a

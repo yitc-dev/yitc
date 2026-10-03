@@ -1,0 +1,43 @@
+id: SPEC-XXXX
+title: <short statement>
+status: proposed
+created_at: YYYY-MM-DDTHH:MM:SSZ
+travels: null
+consumed: false
+extension: null
+implements:
+- <file>#<symbol>
+body: '## Scenario
+
+  <outside-in: how the user/owner sees the process + result, human language. Omit
+  if pure infra.>
+
+
+  ## Internal
+
+  <inside-out: the rule/invariant/contract an editor must know before safe change.>
+
+
+  ## Parameters
+
+  <optional — governing param table; note which are `consumed`.>
+
+
+  ## Rationale
+
+  <why — cite the real incident / prior-art.>
+
+
+  ## Verification
+
+  <probe — command / state check.>
+
+  '
+cites:
+- CHARTER.md#principle-N
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding: []
+init_concern: null

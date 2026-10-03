@@ -1,0 +1,139 @@
+id: SPEC-0193
+title: Machine-scoped settings — the tunable two-class split and the hard gate refusal
+status: active
+created_at: 2026-09-02 08:41:24+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/machine_settings.py#INVENTORY
+- bin/lib/cli.py#cmd_config_list
+- bin/lib/machine_settings.py#ENTRYPOINTS
+- bin/lib/machine_settings.py#_refuse_gate
+- bin/lib/machine_settings.py#set_value
+- bin/lib/machine_settings.py#load
+- bin/lib/machine_settings.py#resolve_settings_path
+- bin/lib/verify_runner.py#_verify_heartbeat_interval
+body: "## Scenario\nA machine runs slower or faster than the one the engine's defaults\
+  \ were written on, and its owner\nwants the engine to poll, beat and parallelise\
+  \ to suit it. They run `bin/yitc-v2 config list`, see\nevery tunable with its CLASS,\
+  \ its effective value and — where the knob declares one — its\nadmissible BAND,\
+  \ and `config set` the ones they may. Editing that file is not a repo change: it\n\
+  needs no worktree, no land and no lifecycle, because the values belong to the MACHINE\
+  \ and not to\nany checkout.\n\nTHE BAND IS PART OF THE LISTING, not just of the\
+  \ refusal. A knob carrying `bounds=` is\nenforced at TWO doors — `set_value` refuses\
+  \ an out-of-range write, and the knob's own resolver\nignores an out-of-range value\
+  \ and stands on the default — but before this the band was visible at\nNEITHER:\
+  \ the only way to learn it was to guess wrong and read the refusal text. `config\
+  \ list`\ntherefore renders the band from the SAME `knob.bounds` tuple both doors\
+  \ read, so a listing can\nnever state a band the doors do not enforce, and a knob\
+  \ with no declared band prints nothing\nrather than an empty column. This is a rendering\
+  \ obligation on the listing, not a new field: it\nadds no second source of truth\
+  \ for a band, and a knob's admissibility is unchanged by whether it\nis printed.\n\
+  \nWhat they may NOT do is tune a value that decides whether work PASSES. `config\
+  \ set` on such a value\nrefuses, says why, and says that changing it is a task.\
+  \ There is no flag and no environment value\nthat gets past that refusal, and hand-writing\
+  \ the key into the file does not work either — readers\nignore it. So the answer\
+  \ to «why did this branch pass on your machine and abort on mine» can never\nbe\
+  \ «because of a file nobody read».\n\n## Internal\nRULE 1 — ONE INVENTORY. Every\
+  \ runtime tunable the engine reads — the `YITC_*` environment knobs and\nthe hardcoded\
+  \ module constants of the same nature — is enumerated ONCE, in\n`machine_settings.INVENTORY`,\
+  \ and each entry carries exactly one class. A knob absent from the\ninventory is\
+  \ unclassified, and an unclassified knob is the thing nobody notices.\n\nRULE 2\
+  \ — THREE CLASSES, MECHANICAL AND FAIL-CLOSED.\n  PERFORMANCE — the value changes\
+  \ how FAST or how CONCURRENTLY work runs and can never change\n                whether\
+  \ it passes: parallelism, poll intervals, batch/page sizes, heartbeat cadence.\n\
+  \  BINDING — a value the operator declares that decides WHETHER and WHICH external\
+  \ auditor\n                answers on THIS machine, never whether a judged thing\
+  \ passes (added by SPEC-0202\n                rule 1). It admits two kinds of key:\
+  \ auditor-SELECTION LOCATORS\n                (provider|binary|home|model|effort|reserve.*),\
+  \ which decide WHICH auditor judges,\n                and the per-tier NO-ANSWER\
+  \ TIMEOUT (`timeout`), which decides how long the bound\n                auditor\
+  \ may take before its run counts as a no-answer — no verdict at all,\n         \
+  \       SPEC-0202 rules 1 and 6. Neither is cadence nor a threshold a refusal reads.\
+  \ The class is a CLOSED\n                enumeration — today exactly `auditor.<tier>.provider|binary|home|model|effort|\n\
+  \                reserve.model|reserve.effort|timeout` for tier `routine` | `full`,\
+  \ sixteen keys\n                (effort + reserve added, `timeout` by — SPEC-0202\
+  \ rule 1). Every other name under `auditor.*` is\n                unclassified and\
+  \ therefore GATE.\n  GATE — the value participates in a pass/fail verdict: a verify/test\
+  \ timeout whose expiry\n                aborts a land, an audit timeout's CODE default\
+  \ and its env knob, any threshold a\n                refusal reads.\nAnything that\
+  \ cannot be confidently classified is GATE. A dynamic PREFIX STEM names an open\
+  \ family\nand therefore cannot be classified at all — it is GATE.\n\nRULE 3 — THE\
+  \ FILE CARRIES PERFORMANCE- AND BINDING-CLASS VALUES ONLY, and lives OUTSIDE any\
+  \ repo\ncheckout. Its\npath has ONE resolution site (`resolve_settings_path`): `YITC_MACHINE_SETTINGS`\
+  \ wins, else the file\nsits beside the shared coordination store, whose out-of-repo\
+  \ placement is already governed\n(SPEC-0084 rule 3). Deriving rather than restating\
+  \ means no second host-literal path exists to drift.\n\nRULE 4 — THE GATE REFUSAL\
+  \ IS HARD, ON BOTH SIDES. `set_value` REFUSES a gate-class key and writes\nnothing;\
+  \ `load`/`get_value` DROP a gate-class key that reached the file some other way.\
+  \ No bypass\nflag and no environment escape exists — `_refuse_gate` deliberately\
+  \ takes no override parameter,\nbecause a parameter there IS the second door. A\
+  \ governed write also removes inert non-performance\nkeys the file was carrying,\
+  \ and reports what it removed.\n\nRULE 5 — THE ENTRYPOINT INVENTORY. Every supported\
+  \ way to reach the setter is DECLARED as data\n(`ENTRYPOINTS`), and each declared\
+  \ entrypoint is driven with a gate-class key by the verifier.\nStated as an inventory\
+  \ on purpose: «no bypass exists» is an unfalsifiable universal negative,\nwhereas\
+  \ an unenumerated entrypoint is a findable gap.\n\nRULE 6 — ABSENT-FILE FALLBACK.\
+  \ A missing, unreadable or malformed file contributes NO overrides:\nevery reader\
+  \ observes its built-in default and nothing errors. The file is an OVERRIDE LAYER,\
+  \ never\na prerequisite — no verb may come to require it.\n\nRULE 7 — PRECEDENCE\
+  \ AT A READ SITE: environment > machine file > built-in default. The environment\n\
+  layer stays the deterministic test seam; a file that could beat it would make that\
+  \ seam unreliable.\n\nRULE 8 — A GOVERNED SET IS JOURNALLED. `config set` emits\
+  \ `config_changed` carrying key + old + new\n(class), so a later reader asking why\
+  \ behaviour changed reads the journal rather than an mtime.\n\n## Parameters\nNone\
+  \ consumed from this spec — by construction. A governing scalar read out of a spec\
+  \ would be the\nvery machine-independent/repo-coupled shape rules 2-4 exist to keep\
+  \ apart from the machine file.\n\n## Rationale\nSPEC-0132 forbids making a gate\
+  \ load- or machine-dependent: the same branch must not pass on one\nhost and abort\
+  \ on another. Owner directive 2026-09-02 makes the refusal HARD (no bypass flag,\
+  \ no\nenvironment escape) for the same reason — a bypass \"for testing\" is a bypass\
+  \ in production, and the\nverifier drives the refusal rather than evading it. The\
+  \ placement follows the shared coordination\nstore (SPEC-0084 rule 3, `cross.resolve_log_path`),\
+  \ whose reasoning — the artifact belongs to the\nmachine, not to a repo, so writing\
+  \ it is not a repo write — is exactly this file's. The entrypoint\ninventory shape\
+  \ is C1 of decisions/offserver-release-contract-concept-audit-adhoc.yaml.\n\n##\
+  \ Verification\n  bin/yitc-v2 config list # every knob: class, effective value,\
+  \ band\n  bin/yitc-v2 config set YITC_AUDIT_TIMEOUT_SECONDS 900 # REFUSES (gate-class);\
+  \ writes nothing\n  bin/yitc-v2 config set YITC_VENUE_STAGE6_WORKERS_FRACTION 1.5\
+  \ # REFUSES (outside the 0.0..1.0\n                                            \
+  \              # band) — the two-door rule above, worked\n                     \
+  \                                     # on the venue knob: the same\n          \
+  \                                                # tuple the listing renders is\
+  \ the one\n                                                          # `set_value`\
+  \ refuses on and the one\n                                                     \
+  \     # `remote_verify.venue_stage6_workers_\n                                 \
+  \                         # fraction` ignores an out-of-range\n                \
+  \                                          # value against. A knob NAME appears\
+  \ here\n                                                          # as a worked\
+  \ example only: rule 1 keeps\n                                                 \
+  \         # the enumeration single-SoT in\n                                    \
+  \                      # `machine_settings.INVENTORY`, so this\n               \
+  \                                           # section must never grow into a roster\n\
+  \                                                          # of knobs.\n  python3\
+  \ tests/test_config_inventory.py # rule 1 + rule 2 (differential)\n  python3 tests/test_config_verb.py\
+  \ # rules 4, 5, 8 (entrypoint inventory)\n  python3 tests/test_config_read_site.py\
+  \ # rules 6, 7 + the wired read site\n"
+cites:
+- SPEC-0132
+- SPEC-0084
+- SPEC-0093
+- SPEC-0165
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#cmd_config_list: 2c80248f835834cdafe06fbba797e46c1ca9c5171daac62a954f15f19b80c925
+  bin/lib/machine_settings.py#ENTRYPOINTS: 816f31d1eae99164e9ea2b172bc694a30a5b2b7a8ba21a86e0068af8599b12e1
+  bin/lib/machine_settings.py#INVENTORY: 7b4037efe0d97c811683f1e81dd340b61de6b440c96b56765523250ed2f0ccbc
+  bin/lib/machine_settings.py#_refuse_gate: ef38a62e4a6cd3ba854aee5203e1fe51cb83b456968c2852ce6452c45ce41a27
+  bin/lib/machine_settings.py#load: 3ee3050bada40482bae46bf92d7597d525413d41f81cafec68847f60e58dd1ab
+  bin/lib/machine_settings.py#resolve_settings_path: 5031380a4b5d8cf3f1624798cc7d1b8047ef1371f96169ebd5ea8caf11890307
+  bin/lib/machine_settings.py#set_value: 4ad9febbb4ea52a272f8713ad9bfe178e1140ddd318ec6763aabb834dba46561
+  bin/lib/verify_runner.py#_verify_heartbeat_interval: afde8172eece79cd6c135eba6d5299406549fbfcfab74bbbc860c2c831ec9254

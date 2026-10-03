@@ -1,0 +1,794 @@
+id: SPEC-0097
+title: Deploy-autonomy policy — reversibility/RTO-RPO A/S/C1/C2 deploy classification
+  + per-class evidence gate
+status: active
+created_at: 2026-06-22 07:15:58+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/deploy.py#_classify_deploy_gate
+- bin/lib/deploy.py#_GateDecision
+- bin/lib/deploy.py#cmd_deploy
+- bin/lib/deploy.py#_backup_precondition
+- bin/lib/deploy.py#_normalize_pg_dump
+- bin/lib/init.py#_hook_deploy_policy
+- bin/lib/deploy.py#_run_c1_backup
+- bin/lib/deploy.py#_parse_pgdmp_header
+- bin/lib/deploy.py#_security_probe_precondition
+- bin/lib/deploy.py#_run_class_s_security_probe
+- bin/lib/deploy.py#_liveness_probe_precondition
+- bin/lib/deploy.py#_liveness_verdict
+- bin/lib/deploy.py#_class_s_down_surface_carve_out
+- bin/lib/deploy.py#_property_broken_refusal
+- bin/lib/deploy.py#_rollback_capability
+- bin/lib/deploy.py#_run_post_deploy_security_probe
+- bin/lib/deploy.py#_convergence_precondition
+- bin/lib/deploy.py#_convergence_section_for_target
+- bin/lib/deploy.py#_verify_convergence
+- bin/lib/deploy.py#_service_sources_unchanged
+- bin/lib/deploy.py#_revision_converged
+- bin/lib/deploy.py#_ask_service_revision
+- bin/lib/debt.py#CHECK_SURFACES
+body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when the\
+  \ AI INVOKES the existing `deploy` verb\nafter the green lifecycle (the task is\
+  \ `done`, audit-post is GREEN, tests are green), that verb\nproceeds **without an\
+  \ extra per-deploy \"go-ahead\" ceremony** — UNLESS a real irreversibility makes\
+  \ it\nunsafe. (The policy is a GATE on the existing, explicitly-invoked `deploy`\
+  \ verb — NOT a new\nauto-trigger; §8.) The owner is asked **only** when a\ndeploy's\
+  \ worst case is not acceptably reversible within the project's stated recovery objective\n\
+  (RTO/RPO); then the AI escalates with the concrete risk, not a bare yes/no. Each\
+  \ deploy is classified\nA / S / C1 / C2 at deploy time; the class fixes what mechanism-backed\
+  \ evidence rides with the\nautonomous deploy — or that the deploy escalates instead.\
+  \ The owner reads ONE carrier file\n(`yitc-ops.yaml`) to see the project's declared\
+  \ deploy-autonomy stance.\n\n## Internal\n\nTHE DEPLOY-AUTONOMY POLICY. The A/S/C1/C2\
+  \ set is a **classification applied at deploy time**, NOT a new\nFSM / stored taxonomy\
+  \ / state machine — it adds no new store, parser, or node-type (it rides the\nexisting\
+  \ `yitc-ops.yaml` carrier (SPEC-0093) + the deploy verb + per-change live-probe\
+  \ (SPEC-0094)).\n\n**Home split vs SPEC-0094 (single source of truth, no duplicated\
+  \ home).** This spec owns ONLY the\nPOLICY layer: the class vocabulary + class semantics\
+  \ (what each class means / requires / escalates) +\nthe adoption probes. **SPEC-0094\
+  \ keeps owning the verb MECHANICS** — the `deploy` verb, its events\n(`deploy_completed`),\
+  \ the not-adopted surface, and the per-change live-probe plumbing. The deploy verb\n\
+  READS this policy at deploy time and ENFORCES it using SPEC-0094's existing live-probe\
+  \ machinery; the\nenforcement WIRING is SPEC-0094's surface, the policy it enforces\
+  \ is this spec's. No verb mechanic is\nre-homed here.\n\n### 1. Default-discipline\
+  \ (the universal rule, every deploying project)\nOwner involvement is tied to **\"\
+  worst-case NOT acceptably reversible within the project's stated\nRTO/RPO\"**, NOT\
+  \ to \"data-touching\". A deploy whose worst case IS acceptably reversible (by image\n\
+  rollback or a mechanism) fires autonomously; only a not-acceptably-reversible worst\
+  \ case escalates.\n\n### 2. The four classes\n- **Class A — code/frontend only**\
+  \ (no schema/data write change). Rollback = redeploy the prior image,\n  seconds\
+  \ — **BUT ONLY IF THE CODE IS IN THE IMAGE** (the correction below). → autonomous\
+  \ after the green\n  cycle + smoke + the per-change live-probe + the §11 convergence\
+  \ verification.\n  **Class-A reversibility is CONDITIONAL on image-carried code\
+  \ (X-0353, <project>, 3h outage).**\n  \"Rollback = redeploy the prior image\" is\
+  \ TRUE only when the running code is BAKED INTO the image. Where\n  the runtime\
+  \ MOUNTS the code into the container (a bind-mount / volume — the shape both X-0353\
+  \ and X-0374\n  ran on), the image does NOT carry the code: rolling the image back\
+  \ re-runs the SAME mounted working tree,\n  so **an image rollback reverses NOTHING**\
+  \ while presenting every appearance of having reversed it. That\n  false reversal\
+  \ is worse than no reversal — the operator believes the system is back on the old\
+  \ code and\n  stops looking. So for mounted-code delivery the real reversal path\
+  \ is the CODE CHECKOUT (revert the\n  mounted tree + restart the services), and\
+  \ a project must be able to NAME which delivery it runs; a\n  project whose reversal\
+  \ path is not actually available is not Class A at all. (The carrier declaration\
+  \ of\n  that delivery mode — `runtime_delivery` — is card; this section fixes the\
+  \ doctrinal claim that\n  made the gap invisible, and does not restate the carrier\
+  \ contract.)\n- **Class S — security/auth surface** (secrets, cookies, sessions,\
+  \ CORS, authz, public surface). The\n  failure mode is EXPOSURE, which an image\
+  \ rollback does NOT undo. → autonomous ONLY with a mandatory\n  **security live-probe**\
+  \ asserting the security property still holds (e.g. cookie host-only, no CORS\n\
+  \  header, auth still required); if the property is not probeable read-only → **escalate**.\
+  \ The Class-S\n  security probe is **DELIVERED BY THE SECURITY INSTANCE** (the cross-instance\
+  \ seam), not defined here.\n  A failing probe on a **SERVING** surface REFUSES pre-deploy,\
+  \ always; the ONE exception — a surface that\n  is provably **DOWN** — is §2a below,\
+  \ and it is an exception to the ORDERING, never to the assertion.\n\n### 2a. Class\
+  \ S on a DOWN surface — the outage-restore carve-out (X-0434)\n**The circularity\
+  \ §2 created.** The Class-S probe asserts the property against the LIVE surface\
+  \ BEFORE\ndeploying, so during an outage-RESTORE (backend crash-looping, every endpoint\
+  \ 502 / connection-refused)\nit can NEVER pass — 502 != 401 — and the deploy it\
+  \ refuses is the only thing that would bring the surface\nback up. <project> hit\
+  \ this twice on 2026-07-16.\n\n**The ruling (owner, 2026-07-16 — option 1 of the\
+  \ X-0434 candidates).** When the pre-probe target is\nprovably DOWN, the Class-S\
+  \ deploy **PROCEEDS**, the SAME declared probe runs **MANDATORILY** immediately\n\
+  post-deploy, and a post-probe failure triggers **auto-rollback** via the project-declared\
+  \ `rollback:`\ncommand (SPEC-0094 §1) **+ an owner escalation**. A **200-serving\
+  \ surface with a failing property still\nREFUSES pre-deploy — UNCHANGED.** This\
+  \ is the same deferred-evidence ordering family as LIFECYCLE Stage-8\n(a)-(d). It\
+  \ is a PARTIAL realization of the parked fork: that card's general\npost-deploy-assertion\
+  \ question stays with the owner and is NOT re-opened here.\n\n**Why this is a scope\
+  \ carve-out, not a weakening.** §2's refusal rests on EXPOSURE, and on a DOWN surface\n\
+  that premise is FALSE: a surface serving nothing exposes nothing, so the failed\
+  \ probe carries no exposure\nsignal at all — it measured the absence of a server,\
+  \ not the presence of a hole. §5's companion argument\n(a post-deploy refusal would\
+  \ break «the current-live revision is the latest `deploy_completed`») is\nanswered\
+  \ by the rollback, not waived: on a post-probe failure the prior revision is left\
+  \ live and NO\n`deploy_completed` is emitted, so the invariant stays TRUE. The invariant\
+  \ breaks only WITHOUT a rollback —\nwhich is why the ruling pairs the two, and why\
+  \ the rollback capability is a PRE-deploy precondition here.\n\n**The DOWN answer\
+  \ is DECLARED, against a vocabulary the KERNEL owns.** The kernel cannot itself\
+  \ tell a 502\nfrom a 401: the security probe is an arbitrary shell string and only\
+  \ its exit code is visible. So a project\nopts in by declaring a second read-only\
+  \ command, `classes.S.liveness_probe` (a positive\n`liveness_probe_budget_seconds`),\
+  \ consulted ONLY after the security probe has already failed:\n\n| liveness exit\
+  \ | meaning | effect |\n|---|---|---|\n| `0` | UP — the surface is serving | REFUSE\
+  \ (the property is genuinely broken — the §2 refusal, unchanged) |\n| `1` | DOWN\
+  \ — positively observed 5xx / connection-refused | the carve-out MAY open |\n| anything\
+  \ else | UNKNOWN — the probe did not answer | REFUSE |\n| timeout | UNKNOWN | REFUSE\
+  \ |\n\n«Any non-zero ⇒ DOWN» is FORBIDDEN and is the reason this vocabulary is closed:\
+  \ the runner's OWN error\ncodes are non-zero (127 command-not-found, 126 not-executable,\
+  \ 128+N signalled), so under that reading a\ntypo'd liveness command would read\
+  \ as \"the surface is down\" and would BYPASS the Class-S pre-probe\nentirely —\
+  \ the inverse of fail-closed, on a security gate, and the cheapest possible way\
+  \ to defeat it. UP\nand UNKNOWN both refuse but are reported DISTINCTLY: UP means\
+  \ fix your property, UNKNOWN means fix your\nprobe.\n\n**The carve-out opens ONLY\
+  \ on three POSITIVE conditions** (never on an absence of objections): the carrier\n\
+  DECLARED a runnable liveness probe, AND that probe answers DOWN within budget, AND\
+  \ the promised\nauto-rollback can actually run — a declared `rollback.command` PLUS\
+  \ a prior `deploy_completed` to roll back\nTO (SPEC-0094 §1). A missing rollback\
+  \ capability REFUSES: the grant exists BECAUSE of the backstop, so\nwithout the\
+  \ backstop the grant's own condition is unmet. **Opt-in:** a carrier that declares\
+  \ no\n`liveness_probe` behaves EXACTLY as before this rule — the refusal message\
+  \ is where an operator meeting the\ncircularity learns the carve-out exists.\n\n\
+  **What the auto-rollback means during an outage — the accepted trade.** The rollback\
+  \ target is the prior\nlive revision, i.e. the CRASH-LOOPING one, so an auto-rollback\
+  \ RESTORES THE OUTAGE. That is correct and\ndeliberate: a DOWN surface exposes nothing,\
+  \ an EXPOSED surface does, so down is strictly safer than\nexposed — and the escalation\
+  \ brings the owner in immediately. A rollback that ITSELF fails is never\nsilently\
+  \ claimed: `deploy_security_probe_post_failed` carries `rollback_exit` + `rollback_succeeded`,\
+  \ and\nthe verb says loudly that the revision may be live AND exposed with no kernel\
+  \ reversal available.\n- **Class C1 — expand/contract, backward-compatible migration**\
+  \ (the app tolerates old+new schema\n  during BOTH rollout and rollback; no destructive\
+  \ rewrite). → autonomous + a pre-deploy `pg_dump`\n  belt-and-suspenders + forward/back\
+  \ compatibility declared up front. Because the kernel delegates the\n  deploy COMMAND\
+  \ to the project (it never runs migrations itself), a C1 deploy ALSO emits a SOFT,\n\
+  \  non-blocking WARN reminding the operator to confirm the deploy command APPLIES\
+  \ its migrations (e.g.\n  `alembic upgrade head`) — a migration-bearing deploy that\
+  \ omits the migrate step ships schema-dependent\n  code ahead of the prod schema\
+  \ (the X-0145 near-miss). Advisory only: NO hard gate, NO new class.\n- **Class\
+  \ C2 — destructive / irreversible / long-running rewrite, OR `pg_dump` cannot meet\
+  \ the restore\n  budget.** → **escalate to owner** with the concrete RTO/RPO risk.\
+  \ This is the sole remaining real\n  owner decision.\n\nA/S/C1/C2 classify a **`kind==deploy`\
+  \ image deploy** (the app revision). A **host-level config change**\n(an nginx vhost\
+  \ / reverse-proxy topology change) is a SEPARATE, orthogonal dimension — the **host-config\n\
+  class** (§10) — never one of A/S/C1/C2: it is not an image deploy and is not image-reversible.\
+  \ Adding it\nleaves the A/S/C1/C2 classification of every non-host change UNCHANGED\
+  \ (a host change was never\n`kind==deploy`-classified — a previously-uncovered case).\n\
+  \n### 3. Delayed-corruption guard (write-path changes)\nVerification is NOT only\
+  \ smoke at t=0. A write-path change requires a **re-check after a short\nobservation\
+  \ window** (the live-probe / a data-integrity assertion re-run), because new code\
+  \ can\ncorrupt data or break a flow hours later while t=0 smoke passed. ONE delayed\
+  \ re-check — proportional,\nNOT a canary fleet.\n\n### 4. `pg_dump` preconditions\n\
+  A `pg_dump` is treated as a reversibility primitive ONLY under explicit preconditions:\
+  \ a dump-duration\nbudget + a one-time recorded **restore-drill** as evidence. A\
+  \ table too large to dump within budget,\nor a restore that cannot meet the budget\
+  \ → the deploy is **Class C2** (escalate), never assumed\nreversible by a dump.\n\
+  \n**The carrier: ONE contract, TWO accepted shapes, normalized at ONE boundary (X-0267).**\n\
+  A project declares the C1 backup in EITHER shape — they are equivalent and there\
+  \ is no third:\n- `classes.C1.pg_dump: {command: <cmd>, dump_budget_s: <positive\
+  \ int>}` (the CANONICAL nested form,\n  the one the born template seeds), or\n-\
+  \ `classes.C1.pg_dump: <cmd>` + `classes.C1.pg_dump_budget_seconds: <positive int>`\
+  \ (the accepted ALIAS).\n\nBoth are read by the SINGLE normalizing boundary `deploy.py#_backup_precondition`\
+  \ (via\n`_normalize_pg_dump`) and converge onto the one internal `_BackupPlan`.\
+  \ **No code below that boundary\nmay branch on the raw carrier shape** — the widening\
+  \ is a boundary ADAPTER, never a second behavioral\npath. Fail-closed is preserved\
+  \ identically under both: an absent/blank command, an absent/non-positive/\nbool\
+  \ budget, or an unaccepted carrier type REFUSES the deploy (`sys.exit(3)`, no `deploy_backup_taken`).\n\
+  \nBoth shapes exist because this contract was minted from the one consumer that\
+  \ happened to match it,\nafter two others had shipped the nested mapping — the kernel\
+  \ minted it, so the kernel absorbs it. The\nSAME completeness is enforced where\
+  \ a carrier is BORN: init's `deploy_policy_shape` hook refuses any\ndeclared, non-waived\
+  \ `classes.C1` that does not carry one COMPLETE accepted shape, so **a carrier that\n\
+  passes `init` can never refuse at deploy time for carrier shape**, and a third shape\
+  \ cannot appear\nsilently in production. A `waiver:`'d C1 is owner-gated, never\
+  \ autonomous, and needs no dump.\n\n### 5. Per-class evidence gate (the close/adoption\
+  \ gate)\nAn autonomous deploy of each class carries its evidence, recorded at the\
+  \ deploy seam via SPEC-0094's\nper-change live-probe (`deploy_completed` / `live_probe_passed`):\n\
+  - **A** → smoke + the per-change live-probe.\n- **S** → the security live-probe\
+  \ asserting the security property.\n- **C1** → a produced `pg_dump` + the restore-drill\
+  \ record + the delayed re-check.\n- **C2** → NO autonomous `deploy_completed`; an\
+  \ owner escalation with the RTO/RPO risk instead.\n\n**The C1 `pg_dump` evidence\
+  \ event — `deploy_backup_taken`.** The produced dump is journalled by\n`_run_c1_backup`\
+  \ BEFORE the deploy command runs, as `deploy_backup_taken` carrying `revision`,\
+  \ `project`,\n`path` (the archive), `bytes` (always > 0 — an empty archive REFUSES),\
+  \ `duration_seconds`, and\n`budget_seconds`. It is the §4 precondition evidence,\
+  \ NOT a class-proof: the C1 proof still completes only\nafter the delayed re-check\
+  \ below. Absence of this event on a Class-C1 deploy means no dump was taken and\n\
+  therefore no `deploy_completed` should exist either — the deploy REFUSES (exit 3)\
+  \ on a failed, over-budget,\nor empty dump, and discards the artifact so an invalid\
+  \ archive is never left behind to be restored from.\n**Two distinct moments — do\
+  \ NOT conflate (one event ≠ one proof):** `deploy_completed` fires on the\ndeploy\
+  \ command's exit-0 **AND the §11 convergence verification** — it means the change\
+  \ is **APPLIED\nEVERYWHERE IN SCOPE**, NOT that the class-proof is complete. (Before\
+  \ it fired on the command's\nexit-0 ALONE, which is how it came to assert a revision\
+  \ live while a service still ran the old code —\nX-0374. Exit-0 is the project command's\
+  \ REPORT; convergence is the kernel's CHECK of that report.) The\n**per-change `live_probe_passed`**\
+  \ at the seam is the immediate adoption proof; for a **Class-C1 /\nwrite-path**\
+  \ change the class-proof is **COMPLETE ONLY AFTER the DELAYED re-check** (§3 — a\
+  \ later\n`live_probe_passed` / re-check evidence, past the observation window),\
+  \ never at `deploy_completed` alone.\nSo an autonomous C1 deploy is \"applied\"\
+  \ at `deploy_completed` but only \"proven adopted\" once the delayed\nre-check lands.\n\
+  \n**The Class-S evidence event — `deploy_security_probe_passed`.** Class-S autonomy\
+  \ is granted\nONLY against a probe that actually RAN. `_run_class_s_security_probe`\
+  \ executes the carrier's declared\n`classes.S.security_probe` (with `security_probe_budget_seconds`)\
+  \ BEFORE the deploy command and journals\nthe pass as `deploy_security_probe_passed`,\
+  \ carrying `revision`, `project`, `command`, `duration_seconds`,\n`budget_seconds`\
+  \ and `phase` (`pre` — or `post` on the §2a path). Absence of this event on an autonomous\
+  \ Class-S deploy means no probe was run and\ntherefore no `deploy_completed` should\
+  \ exist either — the deploy REFUSES (exit 3) on a failing or\nover-budget probe,\
+  \ on a missing/blank `security_probe`, and on a declared `unprobeable: <reason>`\
+  \ (§2's\nescalate leg, whose reason is printed for the owner). **Which declared\
+  \ properties the probe\nproves.** The project MAY declare which of its declared\
+  \ security properties the Class-S\nprobe proves. A pass then records each one it\
+  \ can identify UNAMBIGUOUSLY — declared exactly once in\nthe carrier — bound to\
+  \ that entry's definition, and the land floor's probes atom (SPEC-0093 rule 27)\n\
+  reads it as a fresh verdict for exactly those properties. A property the declaration\
+  \ does not name,\nor cannot name unambiguously, is recorded as nothing; the declaration\
+  \ is optional and never gates\nthe deploy. Before the gate merely SELECTED the\n\
+  `classes.S` block and dropped it, so a violated or un-probeable security property\
+  \ still deployed\nautonomously — the same selected-then-dropped defect as the C1\
+  \ `pg_dump` (X-0261).\n**The §2a DOWN-surface evidence SHAPE.** A deploy that took\
+  \ the §2a carve-out carries evidence\nof a DIFFERENT shape, and the record SAYS\
+  \ so rather than looking pre-proven: its `deploy_completed` carries\na `security_probe:\
+  \ {down_surface_pre: true, pre_exit, liveness_exit, post_probe: {...}}` marker (a\
+  \ payload\nFIELD on the existing event — a view over the existing entity, never\
+  \ a second success event), and the\nmandatory post-probe's pass is journalled as\
+  \ `deploy_security_probe_passed` with `phase: post`. A FAILED\npost-probe emits\
+  \ **`deploy_security_probe_post_failed`** instead — the owner escalation — carrying\
+  \ the\nprobe's `post_exit`, the down-surface provenance (`down_surface_pre`, `pre_exit`,\
+  \ `liveness_exit`) and the\nauto-rollback's `rollback_command` / `rollback_target`\
+  \ / `rollback_exit` / `rollback_succeeded`. That last\npair is the point: a rollback\
+  \ that ITSELF failed is never silently claimed — the verb says loudly that the\n\
+  revision may be live AND exposed with no kernel reversal available. NO `deploy_completed`\
+  \ is emitted on\nthat path, which is exactly what keeps «the current-live revision\
+  \ is the latest `deploy_completed`» true\nafter the reversal.\n**Why the probe is\
+  \ PRE-deploy, and what it does NOT prove.** A kernel probe refusing AFTER the project\n\
+  command exited 0 would leave the new revision live with no `deploy_completed` —\
+  \ live state changed, the\njournal silent, breaking §5's own \"the current-live\
+  \ revision is the latest `deploy_completed`\". Post-deploy\nhealth/smoke already\
+  \ lives inside the project's deploy command, which owns auto-rollback. Repairing\
+  \ a\npost-deploy failure kernel-side would need kernel-owned rollback, and §2 forecloses\
+  \ that remedy anyway:\nClass-S's failure mode is EXPOSURE, **which an image rollback\
+  \ does not undo**. Exposure being\nunrollbackable is precisely why §2 routes an\
+  \ un-assertable property to ESCALATE — the decision belongs\nBEFORE the deploy.\
+  \ So a pass proves the declared probe is present, runnable, and HOLDING on the live\n\
+  surface immediately before the new revision ships; it does **not** prove the NEW\
+  \ revision preserves the\nproperty. That post-deploy assertion remains the per-change\
+  \ `live_probe` at the seam (SPEC-0094 §4).\n\n**The ONE exception, and why it does\
+  \ not contradict the paragraph above (§2a).** Every argument\nin that paragraph\
+  \ is conditioned on a premise a **provably DOWN** surface makes false, so §2a carves\
+  \ out\nexactly that case and nothing else. (1) «Live state changed, journal silent»\
+  \ — on the §2a path a failing\npost-probe **auto-rolls-back**, so the prior revision\
+  \ is left live and no `deploy_completed` is emitted:\nthe invariant stays TRUE.\
+  \ It would break only WITHOUT a rollback, which is why §2a pairs the two and makes\n\
+  the rollback capability a PRE-deploy precondition. (2) «Kernel-owned rollback is\
+  \ a new mechanism» — it IS\none, and the owner ruled it in on 2026-07-16, bounded\
+  \ to this case. (3) «Exposure is unrollbackable, so\ndecide BEFORE» — a DOWN surface\
+  \ serves nothing and therefore exposes nothing: the pre-probe there measured\nthe\
+  \ absence of a server, not the presence of a hole, so there is no exposure decision\
+  \ to take before the\ndeploy. Where the premise HOLDS — any serving surface — this\
+  \ paragraph governs unchanged, and the §2a\npost-probe is deliberately narrower\
+  \ than a general post-deploy assertion: it re-asserts the SAME property\nONLY because\
+  \ the pre-probe could not be measured at all. The GENERAL question (should Class-S\
+  \ assert\npost-deploy on a healthy surface too?) is the PARKED fork and remains\
+  \ the owner's — §2a does\nnot answer it and must not be read as answering it.\n\
+  The `evidence:` prose string of any class is documentation, never executable — only\
+  \ the named runnable\nkeys are (`classes.C1.pg_dump`, `classes.S.security_probe`).\
+  \ C1's `restore_drill` and its delayed re-check\nare still executed by NO code;\
+  \ they remain operator-owned.\n\n### 6. Carrier + declare-or-waive\nThe policy rides\
+  \ a **`policy:` block that is a SUBFIELD of the EXISTING `deploy:` section** of\n\
+  `yitc-ops.yaml` — autonomy is the WHEN of the deploy concern, NOT a separate top-level\
+  \ concern, so\nSPEC-0093 rule 1 (\"one section per concern\") is HONORED, not amended.\n\
+  **Authority boundary (single source of truth):** the **kernel owns the FULL class\
+  \ vocabulary\n(A/S/C1/C2) AND the escalation semantics** (which class escalates,\
+  \ what evidence each class requires) —\nthese are UNIFORM for every deploying consumer\
+  \ and are NEVER redefined per project (a per-project class\ntaxonomy would blur\
+  \ the single source of truth). The **project owns ONLY its local VALUES** — the\n\
+  `pg_dump` / restore-drill / security-probe COMMANDS + thresholds + its waivers.\
+  \ A project may declare a\nclass **NON-APPLICABLE only via the explicit waiver mechanism**\
+  \ (a `waiver: {reason}` on that class with\nthe per-class waiver policy), never\
+  \ by silently omitting or re-meaning a class.\nPer SPEC-0093 rule 3 (declare-or-waive,\
+  \ fail-closed) a project DECLARES the policy block OR\n`waiver: {reason}`; a project\
+  \ that does not deploy autonomously waives with a reason and stays\nowner-gated\
+  \ every deploy (the pre-policy default). Per-section waiver policy (SPEC-0093 rule\
+  \ 6): the\nsecurity-bearing Class-S, when waived, requires a compensating control\
+  \ + an expiry/review date.\n\n### 7. Orthogonal — these stay owner-gated ALWAYS\
+  \ (gate-BYPASSES, not deploys)\n`land --no-tests`, `audit --owner-reset`, `land\
+  \ --rebaseline`, emergency-mode skips. They are\ngate-bypasses, not deploys; this\
+  \ policy does not touch them.\n\n### 8. This is a GATE, not an auto-trigger (the\
+  \ autonomy boundary — CHARTER non-goals)\nThe policy decides ONLY whether the **existing,\
+  \ explicitly-invoked `deploy` verb** may proceed without\nan extra owner ceremony.\
+  \ It creates **NO new auto-trigger and NO new pipeline**. Named retirements —\n\
+  what the policy does NOT add: **no post-`land` auto-fire** (landing a task never\
+  \ auto-deploys), **no\nbackground autopilot / self-firing deploy loop**, **no new\
+  \ session type / role / orchestration surface**\n(CHARTER §Principle 6 stays Build+Review\
+  \ only; the deploy is still an action the AI runs deliberately).\n\"Autonomous\"\
+  \ here means \"the AI need not ask the owner per deploy\", NOT \"the system deploys\
+  \ by itself\".\n\n**Implementation binding ( — the deploy-verb gate surface).**\
+  \ Classification is EXPLICIT, never an\nauto-detector (AGENTS §\"When NOT to add\
+  \ a mechanism\" forbids a new behavioral detector; a deploy ships\nmany changes\
+  \ per SPEC-0094 §4, so the class cannot derive from one task). The surface:\n- **`deploy\
+  \ --class {A|S|C1|C2}`** names the class at deploy time; the gate (`bin/lib/deploy.py#_classify_deploy_gate`)\n\
+  \  reads `yitc-ops.yaml` `deploy.policy` and SELECTS `deploy.policy.classes.<class>`\
+  \ as that deploy's\n  evidence requirement. On a project that opted into autonomous\
+  \ deploys (declared `classes:`) a `--class`\n  is REQUIRED (fail-closed §5); a pre-policy\
+  \ / waived carrier ignores it (§9 — the verb proceeds as\n  before the policy existed).\
+  \ A class undeclared in `classes:`, or carrying a per-class `waiver:`, ⇒\n  escalate\
+  \ (§6).\n- **`deploy --owner-approved`** proceeds a **Class-C2** deploy after the\
+  \ owner took the RTO/RPO decision\n  (NOT autonomous, §5). Without it, C2 escalates\
+  \ (no `deploy_completed`).\n- **`deploy --security-override-advisory <ID> --security-override-reason\
+  \ <WHY>`** is this flag's SIBLING\n  on the SECURITY-GATE leg (X-0362/X-0363): the\
+  \ owner-invoked, journaled override of a\n  REJECTING pre-deploy security gate,\
+  \ for the outage case where a NON-prod-reachable build-time advisory\n  would otherwise\
+  \ keep the GOVERNED restore path shut. Like `--owner-approved` it is an owner\n\
+  \  ESCALATION act and NEVER autonomous — no class, policy key, or env grants it,\
+  \ and no deploy-autonomy\n  stance (§5) can make it self-serve. **Rule body homed\
+  \ in SPEC-0155 rule 7** (owner-invoked ·\n  reason-bearing · bounded to the severity-blocking\
+  \ reject class · must NAME every blocking finding ·\n  journaled as `deploy_security_gate_overridden`\
+  \ · frequency-visible via SPEC-0119 rule 14) — named\n  here, not restated (SPEC-0005\
+  \ rule 8). It does not touch this spec's class gate: an overridden\n  security gate\
+  \ still pays the full A/S/C1/C2 evidence requirement, and a Class-C2 deploy still\
+  \ needs\n  `--owner-approved` on top.\n- The gate guards **kind==deploy only** —\
+  \ a rollback is the always-available reversal (§2), never gated.\n- **Fail-closed\
+  \ on a malformed carrier (§9):** an ABSENT `deploy.policy` (None) is pre-policy\
+  \ (proceed,\n  back-compat); a PRESENT-but-malformed `deploy.policy` / `deploy.policy.classes`\
+  \ (a non-mapping —\n  a hand-corrupted carrier) ESCALATES (refuse, no `deploy_completed`)\
+  \ — a safety gate must never be\n  silently bypassed by a corrupt config. The init\
+  \ sweep (SPEC-0093 rule 3) is the other guard.\n- WIRED classification + evidence-requirement\
+  \ SELECTION (the declaration/routing layer); the\n  behavioural EXECUTION of each\
+  \ class's evidence is a SEPARATE step (the SPEC-0094 §3\n  declaration-gate-vs-execution-gate\
+  \ split). **Class C1's execution now ships** in\n  `cmd_deploy` → `_run_c1_backup`:\
+  \ the declared `pg_dump` runs BEFORE the deploy command and the deploy\n  REFUSES\
+  \ on failure, over-budget, or an empty archive (X-0261). It did not exist until\
+  \ then —\n  // were the cards nominated to carry it, and the C1 dump was selected\
+  \ into\n  `gate.evidence` and then dropped, so two live Class-C1 deploys shipped\
+  \ with no backup (<project>,\n  2026-06-22). Whether the REMAINING per-class evidence\
+  \ (the C1 restore-drill + delayed re-check, and\n  the Class-S security live-probe)\
+  \ actually executes anywhere is UNVERIFIED — audits it. Do not\n  read a nominated\
+  \ card as a shipped mechanism.\n\n### 9. Declare-or-waive is fail-closed BOTH ways\n\
+  A `deploy.policy.waiver` (the project that does NOT deploy autonomously) MUST keep\
+  \ that project in the\npre-policy **owner-gated mode**: the autonomous path is NOT\
+  \ available to a waived project — its `deploy`\nrequires the explicit owner go every\
+  \ time (the pre-policy default), and a seeded-but-unanswered policy\nblock is an\
+  \ init/sweep ERROR (SPEC-0093 rule 3 fail-closed), never a silent autonomous default.\n\
+  \n### 10. The host-config class — host nginx / vhost changes (the orthogonal dimension)\n\
+  A/S/C1/C2 (§2) classify an IMAGE deploy (the app revision); a **host-level config\
+  \ change** — an nginx\nvhost / reverse-proxy topology change living in the host\
+  \ control plane (`/etc/nginx/sites-available`),\nNOT in the app image — is a **separate,\
+  \ orthogonal class: `host-config`**. It is its OWN dimension,\nnever one of A/S/C1/C2\
+  \ (purely additive: a host change was never `kind==deploy`-classified, so adding\n\
+  it leaves every A/S/C1/C2 verdict for a non-host change UNCHANGED). Why a distinct\
+  \ class:\n- **Not image-reversible.** A host conf is not an image, so an image rollback\
+  \ (the §2 reversal that\n  makes Class A safe) cannot undo a bad host change. The\
+  \ blast radius is the SHARED host: a wrong vhost\n  can overwrite a CO-HOSTED canonical\
+  \ site, not just this project's.\n- **The worker cannot see live host state.** A\
+  \ sandboxed Build worker cannot read `/etc/nginx` or reach\n  the host control plane,\
+  \ so it cannot self-verify a host change — the app gates (verify / audit / app\n\
+  \  smoke) all pass on a change whose risk lives entirely in host topology.\n\n**Routing\
+  \ — never an autonomous image deploy.** The image `deploy` verb does NOT apply a\
+  \ host-config\nchange: `_classify_deploy_gate` recognizes `--class host-config`\
+  \ FIRST (orthogonally, regardless of the\nproject's `deploy.policy` autonomy stance)\
+  \ and REFUSES the image path (mode `host-config`, no\n`deploy_completed`), routing\
+  \ the operator to the human-apply seam (SPEC-0111) — reliability-first: the\nlifecycle\
+  \ never holds sudo on a shared host vhost, so the class STRUCTURALLY cannot repeat\
+  \ the\noverwrite-canonical-vhost failure.\n\n**Per-class evidence (the three-evidence\
+  \ set).** A host-config change's evidence — produced at the\napply seam (where a\
+  \ human / host-apply helper CAN see live), not at the sandboxed deploy seam — is:\n\
+  1. **apply-confirmation** — the repo conf was actually applied on the live host;\n\
+  2. **server-wide health sweep** — EVERY co-hosted site still serves healthy after\
+  \ the change (not just\n   this project's — the shared-host blast radius), with\
+  \ auto-rollback on a broken sweep;\n3. **reconciliation** — the live host conf matches\
+  \ the repo conf (no drift between what was reviewed\n   and what is serving).\n\
+  All THREE are MANDATORY **for an nginx-vhost change** — the kind this section classifies;\
+  \ the close gate\nREFUSES such a task lacking any of them (the fail-closed task-close\
+  \ enforcement is homed in SPEC-0094; the\napply-helper behaviour in SPEC-0111).\
+  \ A HOST change of another KIND (a cron entry, a systemd unit) is not\nan nginx\
+  \ vhost change and is gated on ITS OWN evidence — the per-kind matrix is homed in\
+  \ SPEC-0094 §3\n(X-0257); it is NOT restated here.\n\n### 11. Convergence — a deploy\
+  \ is not \"live\" until every in-scope service RUNS the deployed revision\n**The\
+  \ rule (X-0374).** After the project's `deploy:`/`rollback:` command exits 0, and\
+  \ BEFORE\n`deploy_completed` is emitted, the verb VERIFIES that every **in-scope\
+  \ running service** reports the\nrevision just deployed. Non-convergence ⇒ the deploy\
+  \ **FAILS**: no `deploy_completed`, exit **5**.\n\n**Why the exit-0 was never enough.**\
+  \ The project command IS the smoke gate (SPEC-0094 §1) — but it grades\nITSELF.\
+  \ <project>'s deploy script did \"smart affected-service detection\", skipped `celery-worker-long`,\
+  \ and\nexited 0; the worker kept running its old source-mounted container and kept\
+  \ printing the very credential\nthe deploy had just claimed to redact — while `deploy_completed`\
+  \ asserted the revision live. Every\ndownstream view (not-adopted, live-revision)\
+  \ is built on that event, so one unchecked exit code became a\nsystem-wide false\
+  \ green. **Exit-0 is the project's REPORT; convergence is the kernel's CHECK of\
+  \ it.**\n\n**The declaration is PER-TARGET, and the top-level block serves PRODUCTION\
+  \ (X-1234).** SPEC-0094\n§1 gives the verb a named-target axis, so a project serves\
+  \ more than one surface — and the services a\nproject runs are a property of the\
+  \ SURFACE, not of the project. A declared target MAY therefore carry its\nOWN `convergence:`\
+  \ block (`deploy.targets.<name>.convergence`), of exactly the SAME schema and with\n\
+  exactly the same SKIP / waiver / malformed-REFUSE outcomes as the block below; there\
+  \ is ONE schema and one\nreader, never a second. **Resolution is TARGET-FIRST, in\
+  \ four legs, one per class:**\n- no `--target` ⇒ the top-level block, with `targets:`\
+  \ not consulted at all — byte-identical to before\n  this rule, the same back-compatibility\
+  \ guarantee the target axis itself carries.\n- the target declares its OWN block\
+  \ ⇒ that block governs.\n- a **PRODUCTION** target with no own block ⇒ the top-level\
+  \ block, which has always described exactly\n  those services.\n- a **NON-PRODUCTION**\
+  \ target with no own block ⇒ **SKIP, with a printed reason NAMING the target**.\
+  \ It\n  is never silently checked against the top-level block. Verifying a sandbox\
+  \ deploy against production's\n  containers is not a weaker check but a WRONG one\
+  \ — it is X-1234, measured on <project> 2026-09-02: the\n  seam reported on services\
+  \ this deploy never touched. Fail-OPEN on an undeclared surface is §11's own\n \
+  \ discipline (below); what this leg adds is that the absence is STATED rather than\
+  \ papered over with\n  another surface's answer.\n\n**The discriminator is a POSITIVE\
+  \ declaration**, which is the whole safety of the SKIP leg: it is opened\nonly by\
+  \ `targets.<name>.production: false`, a MANDATORY boolean that REFUSES the deploy\
+  \ when absent, null\nor non-boolean (SPEC-0094 §1 property 3 / §8) — so a BROKEN\
+  \ declaration can never reach the lighter path,\nand a target's NAME is never read\
+  \ as evidence of its stance. This REMOVES no gate: every surface that was\nverified\
+  \ before is verified now, against the same declaration, and §12's \"the §11 convergence\
+  \ verification\nstill applies on a non-production target\" is preserved exactly\
+  \ — the check still runs there; it now reads\nthat target's own declaration instead\
+  \ of another surface's.\n\n**Carrier (declare-or-waive, SPEC-0093 rule 3 — a registered\
+  \ concern, `deploy.convergence`):**\n- `services: {<name>: <command PRINTING the\
+  \ revision that service RUNS>}` — the in-scope set. A service\n  may instead declare\
+  \ a mapping that names the same command PLUS the **sources it is built from**\n\
+  ; see the currency rule below.\n- A mapping-form service MAY also declare an OPTIONAL\
+  \ `health:` — a command that exits 0 and PRINTS an\n  answer when the service is\
+  \ healthy. It is asked, under the same budget, only AFTER that\n  service's revision\
+  \ passed: right revision but unhealthy (non-zero exit, timeout, empty answer) is\
+  \ NOT\n  converged, on the same fail-closed floor, and the answer rides the convergence\
+  \ payload. A service without\n  `health:` is judged exactly as before and never\
+  \ asked; a present but blank / non-string `health:`\n  REFUSES before anything is\
+  \ live. (Exit-0 is the project's REPORT of health too; this is the kernel's\n  CHECK\
+  \ of it — the non-HTTP service, e.g. a worker, that SPEC-0094's live probe cannot\
+  \ reach.)\n- `budget_seconds:` — OPTIONAL positive int (per-service ask timeout);\
+  \ absent ⇒ the kernel's hang-cap.\n- `out_of_scope: {<name>: <why it is not verified>}`\
+  \ — a service deliberately excluded NAMES itself and\n  its reason. It is never\
+  \ probed, but it IS printed and journalled: **an exemption is declared, never\n\
+  \  silent.** A blank reason is refused — that is the silent gap this key exists\
+  \ to prevent.\n\n**Verdict rules (fail-closed where it counts, fail-OPEN on absence):**\n\
+  - A service is CONVERGED iff its report prefix-matches the deployed sha in either\
+  \ direction, with a\n  minimum token length — an abbreviated sha is a legitimate\
+  \ report, but a blank one prefix-matches every\n  revision and must never read as\
+  \ a pass.\n- A service that **cannot be asked** (non-zero exit, timeout, empty answer)\
+  \ is **NOT converged**. \"We could\n  not check\" has never been evidence of a pass;\
+  \ treating it as one is the same false green one level down.\n- A service that declares\
+  \ the **sources it is built from** is converged ALSO when it reports a DIFFERENT\n\
+  \  revision whose content, over those sources alone, is IDENTICAL to the deployed\
+  \ one. This is\n  the deploy whose scope is narrower than the stack: <project>'s\
+  \ frontend-only deploy left five backend\n  services on the prior sha — identical\
+  \ backend code, simply not rebuilt — and asking them for HEAD\n  failed a stack\
+  \ that had in fact converged. The honest question is not \"did you come up on the\
+  \ deployed\n  sha\" but \"is what you run the same code the deployed revision would\
+  \ build you from\", and the\n  REPOSITORY answers it. A service that declares no\
+  \ sources is judged by STRICT equality with the\n  deployed revision, exactly as\
+  \ before — so a project that declares no scope is unchanged.\n- The narrowing is\
+  \ DERIVED, never ASSERTED, and this is the whole of why it is safe. The alternative\n\
+  \  shape — letting the deploy RUN declare which services it touched — takes the\
+  \ scope of the check from\n  the party being checked: the project command, whose\
+  \ self-grading is the thing §11 exists to check.\n  <project>'s \"smart affected-service\
+  \ detection\" would have declared the service it skipped out of scope\n  and gone\
+  \ green on X-0374 itself. A service whose OWN sources DID move and was not rebuilt\
+  \ is STALE and\n  still fails: scoping convergence is not silencing it.\n- A declared\
+  \ source set that cannot be COMPARED — an unresolvable reported revision, a source\
+  \ path that\n  escapes the repo, a declared path that names NOTHING at either compared\
+  \ revision, a git that answers\n  neither same nor differ — is NOT converged, and\
+  \ a malformed source declaration REFUSES before anything\n  is live. Same fail-closed\
+  \ floor, one level down. The nonexistent-path edge is named EXPLICITLY because\n\
+  \  it is the one that used to look like a pass (<project> X-1125): shape validation\
+  \ alone never\n  checked existence, and `git diff --quiet` treats an UNMATCHED pathspec\
+  \ as unchanged (`git diff --quiet\n  HEAD~1 HEAD -- no/such/path.txt` exits 0),\
+  \ so a TYPO read as UNCHANGED and recorded the service CURRENT\n  on a declaration\
+  \ that verified nothing — the SPEC-0148 §3 silent-disable class one level down.\n\
+  \  Existence is resolved against the COMPARED REVISIONS, never the working tree\
+  \ (a path can exist in the\n  checkout and not in the revision being diffed), and\
+  \ at EITHER of them, not both — a source tree\n  legitimately added or deleted between\
+  \ the two is still genuinely comparable.\n- A **failed** convergence must leave\
+  \ the live-revision marker (the latest `deploy_completed`, §1) at\n  what actually\
+  \ converged — never at the revision that did not. The verb emits no `deploy_completed`\
+  \ on\n  refusal, so a plain re-run still sees the diff and can recover WITHOUT anything\
+  \ being deleted by hand.\n  The reported workaround (delete the marker, force-recreate\
+  \ every service) is what that property being\n  absent looks like from the operator's\
+  \ side.\n- An **ABSENT** `convergence:` block ⇒ SKIP: the project deploys exactly\
+  \ as before this rule. A kernel\n  mechanism must not ambush every existing consumer's\
+  \ deploy at the seam the day it ships — the absence is\n  made VISIBLE instead by\
+  \ the two surfaces that own visibility: the registry-driven declare-or-waive init\n\
+  \  sweep, and SPEC-0156, which surfaces a declared-but-undemonstrated check as UNPROVEN\
+  \ debt.\n- A **PRESENT-but-MALFORMED** block ⇒ REFUSE, resolved BEFORE the command\
+  \ runs so nothing goes live. A\n  corrupt check declaration must never degrade to\
+  \ \"no convergence was wanted\" (the SPEC-0148 §3 class).\n\n**Why POST-deploy,\
+  \ and why that does not contradict §5's pre-deploy argument.** §5 argues a kernel\
+  \ probe\nmust run BEFORE the command, because refusing after exit-0 leaves the revision\
+  \ live with the journal\nsilent. That governs a probe asserting a property `deploy_completed`\
+  \ does NOT itself claim (Class-S\nexposure). Convergence is different **in kind**:\
+  \ it IS `deploy_completed`'s own claim — \"this revision is\nlive\". It therefore\
+  \ CANNOT be asked before the deploy (nothing has converged yet), and the honest\
+  \ response\nto non-convergence is not to emit a truthful-looking event but to **refuse\
+  \ the claim and record the\nrefusal**: `deploy_convergence_failed` carries the revision,\
+  \ the converged set, the stale set with what\neach service actually reported, and\
+  \ the declared out-of-scope set. So the journal is NOT silent — the\n§5 objection\
+  \ is ANSWERED, not overridden. This is the only refusal in the verb that leaves\
+  \ prod\n**MUTATED**, which is why it alone emits an event when it refuses, and why\
+  \ it exits **5** rather than the\npre-deploy 3/4: **APPLIED BUT NOT CONVERGED is\
+  \ an operator's call, not a retry.**\n\n**Both kinds — but a rollback's reversal\
+  \ always RUNS.** A rollback is verified too: one that leaves a\nservice on the bad\
+  \ code is the same false green as a deploy that does. Convergence never gates whether\
+  \ the\nrollback command RUNS (a rollback is the always-available reversal, §2) —\
+  \ only whether the verb may RECORD\nthe revision as live. This has a load-bearing\
+  \ consequence at the MALFORMED-declaration edge: a corrupt\n`deploy.convergence`\
+  \ block REFUSES a DEPLOY before it runs (nothing is live yet), but for a ROLLBACK\
+  \ it must\nNOT — the reversal runs, and only THEN, unable to verify a malformed\
+  \ declaration, the verb records\nAPPLIED-BUT-UNVERIFIED (`deploy_convergence_failed`,\
+  \ exit 5, no `deploy_completed`). A broken declaration\nthus never blocks a reversal,\
+  \ and never launders an unverifiable rollback into a green.\n\n### 12. A NON-PRODUCTION\
+  \ target carries NO class — stated, never inherited (X-1201)\nSPEC-0094 §1 gives\
+  \ the deploy verb a named-target axis (`deploy --target <name>` over\n`deploy.targets.<name>:\
+  \ {command, production}`), so a project's sandbox can earn a governed deploy\nrecord.\
+  \ That axis forces a question this spec had never been asked: **what deploy CLASS\
+  \ does a\nnon-production target carry?** Answered here, because leaving it unanswered\
+  \ is the dangerous option —\na sandbox deploy that silently inherited a production\
+  \ class would be worse than no record at all.\n\n**The ruling.** On a target declaring\
+  \ `production: false`, the §5 per-class evidence gate does NOT\napply: the class\
+  \ gate does not run, `--class` is REFUSED with such a target, and the record carries\n\
+  `deploy_completed.target.deploy_class: null`.\n\n**Why, and it is a scope fact rather\
+  \ than a leniency.** §1 ties this entire policy to a worst case\n\"NOT acceptably\
+  \ reversible within the project's stated RTO/RPO\", and every leg of §5 measures\
+  \ a\nPRODUCTION blast radius — the C1 `pg_dump` of the production database, the\
+  \ Class-S live-probe of the\npublic security surface, the C2 owner escalation carrying\
+  \ the RTO/RPO risk. A non-production surface\nhas no such worst case. The classes\
+  \ therefore do not merely PASS there; they do not DESCRIBE that\ndeploy. Applying\
+  \ them would produce a `deploy_completed` asserting evidence about production that\n\
+  nothing measured.\n\n**Why the class is stated NULL rather than omitted.** An omitted\
+  \ field cannot be told from a\nforgotten one. A `deploy_class: null` beside `production:\
+  \ false` says, on the record, that no class\nwas carried and why one could not be\
+  \ — which is what makes this answer auditable later.\n\n**Why `--class` is REFUSED\
+  \ rather than ignored.** Ignoring it would leave the null class a mere\nDEFAULT\
+  \ that a flag could quietly override. Refusing it removes the assertion path entirely:\
+  \ there is\nno way to stamp a production class onto a non-production record, which\
+  \ is what makes §12's answer\nEXPLICIT (§8) rather than inherited.\n\n**The discriminator\
+  \ is a POSITIVE declaration, and this is the whole safety of the carve-out.**\n\
+  `production:` is a MANDATORY boolean on every target entry. An absent, null or non-boolean\
+  \ value\nREFUSES the deploy; a target's NAME is never read as evidence of its stance.\
+  \ So a BROKEN declaration\ncan never open the lighter path — the bypass shape recorded\
+  \ in\n`lessons/carving-an-exception-into-a-fail-closed-gate.md`, where \"any non-zero\
+  \ exit means the surface\nis down\" let a typo'd probe disable a gate. Correspondingly,\
+  \ a deploy with NO `--target`\n(`production` undeclared, not false) takes the PRODUCTION\
+  \ path unchanged — the absence of a target is\nnot a claim about one.\n\n**What\
+  \ this does NOT remove.** No existing deploy loses a gate: the discriminator is\
+  \ a stance no\ndeploy could carry before. Every CLASS-INDEPENDENT gate runs on a\
+  \ non-production target\nexactly as on a production one — the SPEC-0094 §6 build-source\
+  \ discipline (HEAD==main, no source\ndirt), the SPEC-0155 rule-1 deploy-seam security-audit\
+  \ producer/gate, and the §11 convergence\nverification. Only the class-conditional\
+  \ block is scoped out, and the skip is PRINTED with its\nreason, never silent. Deliberately\
+  \ NOT decided here: whether §6's build-source discipline should be\nrelaxed so a\
+  \ sandbox may receive an unlanded branch. That is a rule change with its own risk,\
+  \ and\nwidening a path is never a licence to weaken a gate along the way — it is\
+  \ filed, not absorbed.\n\n## Parameters\n\nNone `consumed`. The carrier's `policy:`\
+  \ values are PER-PROJECT ops config (the per-class commands +\nthe declared/waived\
+  \ stance), explicitly NOT kernel-read governance scalars (SPEC-0093 §Parameters\
+  \ /\nSPEC-0005 §Parameters whitelist forbids per-deploy / command / path values)\
+  \ — so `consumed: false`.\n\n## Rationale\n\nSPEC-0093 §2 explicitly DEFERRED the\
+  \ A/S/C1/C2 reversibility classification out of the deploy carrier\nslice-1 to \"\
+  its own vetted step (plan tracked id)\"; this spec is that step. The reversibility/RTO-RPO\n\
+  axis (over \"data-touching\") and the C-class split by rollback-safety-by-design\
+  \ are the external-consult\nrefinement of the policy concept (the plan's Concept\
+  \ section carries the full deliberation, per\nSPEC-0005 rule 3 — not restated here).\
+  \ Real incident class: data-loss / exposure on an autonomous\ndeploy; the empty\
+  \ owner-rubber-stamp the policy removes (the <project> observation).\n\n## Verification\n\
+  \n- Convergence probe (§11, the DIFFERENTIAL — SPEC-0156 §2 «would this still pass\
+  \ if the thing under\n  test were BROKEN?»): on a fixture whose deploy command updates\
+  \ one service and SKIPS another (the\n  X-0374 shape), the deploy exits non-zero,\
+  \ emits NO `deploy_completed`, and emits\n  `deploy_convergence_failed` naming the\
+  \ stale service; the converged fixture emits `deploy_completed`\n  carrying the\
+  \ verified set; a service that cannot be ASKED is NOT converged; a declared `out_of_scope`\n\
+  \  service is never probed; and the SAME stale fixture run against the PRE-CHANGE\
+  \ verb emits\n  `deploy_completed` — the false green, reproduced against the real\
+  \ predecessor rather than described.\n  Probe: `tests/test_deploy_convergence.py`.\n\
+  - Scope-currency probe (§11 /, the DIFFERENTIAL): a frontend-only fixture whose\
+  \ backend service\n  keeps the prior sha CONVERGES with no service force-recreated,\
+  \ while the SAME situation refuses on the\n  §11-bearing predecessor in every declaration\
+  \ available to it; a targeted service whose own sources DID\n  move and was not\
+  \ rebuilt still FAILS (scoping is not silencing); a forced convergence failure leaves\n\
+  \  the live-revision marker at the prior revision and a plain re-run then proceeds;\
+  \ and a fixture\n  declaring no sources keeps today's verdict on both arms. Probe:\
+  \ `tests/test_deploy_convergence.py`.\n- Declared-path existence probe (§11 /, the\
+  \ DIFFERENTIAL): on the same two-source-tree fixture,\n  a service declaring a TYPO'd\
+  \ source path (`backendd` for the real `backend`) makes the deploy exit 5,\n  emit\
+  \ `deploy_convergence_failed` and NO `deploy_completed`, with the refusal text NAMING\
+  \ the offending\n  entry — while the identical situation with the CORRECT path still\
+  \ exits 0 and records that service\n  CURRENT on unchanged sources. The second arm\
+  \ is what makes the first mean something: it fails if the\n  refusal were satisfied\
+  \ by refusing every declaration. Probe: `tests/test_deploy_convergence.py`.\n- Behaviour\
+  \ probe (over the <project> soak): a Class-C1 deploy emits `live_probe_passed` carrying\
+  \ a\n  produced `pg_dump` + a restore-drill record + the delayed re-check; a Class-S\
+  \ deploy emits the\n  security live-probe asserting the property; a Class-C2 deploy\
+  \ does NOT emit an autonomous\n  `deploy_completed` — it escalates to the owner.\n\
+  - State-check: a deploying project's `yitc-ops.yaml` carries an explicit declared-or-waived\n\
+  \  `deploy.policy` block (declare-or-waive, SPEC-0093 rule 3).\n- Waiver fail-closed\
+  \ probe (§9): a project carrying a `deploy.policy.waiver` does NOT get the autonomous\n\
+  \  path — its `deploy` stays owner-gated (the AI asks the owner every deploy), confirmed\
+  \ by the absence of\n  an autonomous `deploy_completed` for it / an explicit owner-gated\
+  \ outcome.\n- Boundary probe: NO Class-C2 deploy fires autonomously; NO Class-A\
+  \ deploy is needlessly escalated.\n- Host-config class probe (§10): `_classify_deploy_gate(policy,\
+  \ \"host-config\", *)` returns\n  `proceed=False, mode=\"host-config\", deploy_class=\"\
+  host-config\"` for ANY policy value (declared /\n  pre-policy / waived) — the image\
+  \ verb never autonomously applies a host change; AND the A/S/C1/C2\n  classification\
+  \ of every non-host change is byte-for-byte UNCHANGED (regression state-check).\n\
+  - Retirement probe (measurable, the removed-side of anti-complexity): after a consumer\
+  \ adopts this\n  policy, it has NO separate local deploy-autonomy policy spec, NO\
+  \ manual per-deploy checklist, and NO\n  per-deploy owner-ask path — the SINGLE\
+  \ source of truth is its `deploy.policy` block + this kernel spec\n  + the deploy\
+  \ events (a grep/state-check confirms the local duplicates are gone, e.g. <project>'s\
+  \ local\n  policy spec is retired into the kernel-seeded shape).\n"
+cites:
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0093
+- SPEC-0094
+- SPEC-0098
+requires:
+- SPEC-0093
+- SPEC-0094
+supersedes: null
+concern:
+- section: deploy.policy
+  shape_hook: deploy_policy_shape
+  born_order: 20
+  born: "  policy:\n    # Deploy-AUTONOMY stance (SPEC-0097). Born WAIVED → owner-gated\
+    \ every deploy, never auto-granted.\n    # The `recommended:` template below is\
+    \ INERT (the gate reads only `policy.classes`): tune its\n    # per-class VALUES,\
+    \ then rename `recommended:` → `classes:` and remove this `waiver:`.\n    # see\
+    \ SPEC-0097 §2, §9\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no deploy-autonomy policy yet; stays owner-gated every deploy (the pre-policy\
+    \ default, never auto-granted). A recommended A/S/C1/C2 template is seeded below\
+    \ under `recommended:` — tune its per-class values, then promote it to `classes:`\
+    \ (removing this waiver) to opt into autonomous deploys (SPEC-0097).\"\n    recommended:\n\
+    \      # RECOMMENDED A/S/C1/C2 starting template — NOT an active\n      # declaration:\
+    \ it is a sibling of `waiver:` and is IGNORED by the deploy gate until promoted\
+    \ to\n      # `classes:`.\n      A: # code-only / trivially reversible: an inline\
+    \ post-deploy health gate + the per-change live-probe.\n        evidence: \"<deploy\
+    \ command's inline post-deploy gate (health 200 + containers up + smoke, auto-rollback\
+    \ on failure) + the per-change live_probe at the deploy seam (SPEC-0094 §4)>\"\
+    \n      S: # security-affecting: a read-only security probe asserts auth is STILL\
+    \ enforced.\n        # BOTH keys are REQUIRED to deploy S (the verb runs the probe;\
+    \ no budget ⇒ refused). If the\n        # property is not assertable read-only,\
+    \ declare `unprobeable: <reason>` INSTEAD (escalates).\n        security_probe:\
+    \ \"<a read-only command asserting the security property still holds — exit 0\
+    \ = holds; e.g. curl -fsS -o /dev/null -w '%{http_code}' <url> | grep -qx 401>\"\
+    \ # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition\
+    \ effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_security_probe_passed\n    \
+    \    security_probe_budget_seconds: 60 # <positive int — the probe must answer\
+    \ read-only within it> # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition\
+    \ effect=bin/lib/deploy.py#cmd_deploy:refuse\n        # OPTIONAL — uncomment to\
+    \ name which declared `security.probes[]` properties this probe PROVES (each declared\n\
+    \        # exactly once there); a pass then keeps the land floor's probe verdict\
+    \ fresh for exactly those (SPEC-0093 rule 27).\n        # security_probe_properties:\
+    \ [\"<property>\"]\n        # OPTIONAL DOWN-surface carve-out, both keys or neither:\
+    \ a probe proving the surface is\n        # POSITIVELY DOWN lets the Class-S deploy\
+    \ that would END an outage proceed (backstopped by a\n        # post-deploy security\
+    \ probe + auto-rollback). Closed vocabulary: exit 0 = serving, exit 1 =\n    \
+    \    # down (the ONLY exit that opens it), any other exit or a timeout = refuse\
+    \ — NOT «any non-zero\n        # ⇒ down», since 126/127/128+N are the runner's\
+    \ own errors.\n        # see SPEC-0097 §2a\n        # WORKED EXAMPLE — map curl's\
+    \ connection refused (7) / timeout (28) EXPLICITLY onto 1:\n        # liveness_probe:\
+    \ \"curl -fsS -o /dev/null --max-time 5 https://<host>/healthz; c=$?; \\\n   \
+    \     # [ $c -eq 0 ] && exit 0; { [ $c -eq 7 ] || [ $c -eq 28 ]; } && exit 1;\
+    \ exit 2\"\n        # liveness_probe_budget_seconds: 10\n        # REPLACE <host>\
+    \ and uncomment BOTH lines; never uncomment a placeholder verbatim.\n        #\
+    \ liveness_probe: \"<read-only; exit 0=serving / 1=down / other=unknown — see\
+    \ the worked example above>\" # ownership: kernel-executed reader=bin/lib/deploy.py#_liveness_probe_precondition\
+    \ effect=bin/lib/deploy.py#cmd_deploy:refuse\n        # liveness_probe_budget_seconds:\
+    \ 10 # <positive int — the probe must answer read-only within it> # ownership:\
+    \ kernel-executed reader=bin/lib/deploy.py#_liveness_probe_precondition effect=bin/lib/deploy.py#cmd_deploy:refuse\n\
+    \        evidence: \"<the project's declared security live-probes (the `security:`\
+    \ section below) asserting auth is still enforced after deploy; read-only so autonomous;\
+    \ if a property is not read-only probeable → escalate (SPEC-0097 §2)>\"\n    \
+    \  C1: # DB/state-changing but recoverable within RTO/RPO: pg_dump + restore-drill\
+    \ + a delayed re-check.\n        # A command + its budget are BOTH required (refused\
+    \ at deploy and at init, SPEC-0097 §4).\n        # Accepted flat alias: `pg_dump:\
+    \ \"<cmd>\"` + `pg_dump_budget_seconds: 120`.\n        pg_dump: # ownership: kernel-executed\
+    \ reader=bin/lib/deploy.py#_normalize_pg_dump effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_backup_taken\n\
+    \          command: \"<pre-deploy pg_dump of the live DB — e.g. docker exec <db>\
+    \ pg_dump -U <user> -d <db> -Fc>\"\n          dump_budget_s: 120 # <positive int\
+    \ — §4 duration budget; exceeding it ⇒ Class C2 (escalate)>\n        # expected_database:\
+    \ <the database this project's C1 deploy dumps, e.g. myapp_prod>\n        # OPTIONAL\
+    \ (SPEC-0148 §3): declared ⇒ the archive header must name this database or the\n\
+    \        # deploy REFUSES; absent ⇒ recorded, never enforced. Uncomment with a\
+    \ REAL name only.\n        # restore_drill is OPERATOR-OWNED (SPEC-0150): a real\
+    \ project command (e.g. <project>\n        # `scripts/restore-drill.sh`) whose\
+    \ PASS is journal-recorded; no kernel reader executes it.\n        restore_drill:\
+    \ \"<the restore-drill command proving the dump restores — e.g. bash bin/restore-drill.sh>\"\
+    \ # ownership: operator-owned\n        evidence: \"<the pg_dump (within budget)\
+    \ + the restore-drill record + the delayed re-check past the observation window\
+    \ — the class-proof is COMPLETE only after that later re-check (SPEC-0097 §5),\
+    \ never at deploy_completed alone>\"\n      C2: # NOT acceptably reversible within\
+    \ RTO/RPO: owner escalation, NO autonomous deploy.\n        escalate: \"owner\
+    \ decision REQUIRED with the concrete RTO/RPO risk; `deploy --class C2` escalates\
+    \ (no autonomous deploy_completed — SPEC-0097 §5)\" # ownership: operator-owned\n"
+  carrier_path: deploy.policy
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: classes
+  declare_type: mapping
+  waiver_policy: loose
+- section: deploy.convergence
+  carrier_path: deploy.convergence
+  declare_key: services
+  declare_type: mapping
+  presence_policy: checked-if-present
+  waiver_policy: loose
+  update_policy: init re-seed
+  born_order: 21
+  born: "  convergence:\n    # Post-deploy CONVERGENCE check (SPEC-0097 §11). Born\
+    \ WAIVED → this project's deploy is NOT\n    # convergence-verified: the kernel\
+    \ emits deploy_completed on the deploy command's exit-0 alone,\n    # which is\
+    \ exactly how a deploy can report OK while one service still runs the OLD code\
+    \ (X-0374:\n    # a celery worker kept leaking the credential the deploy claimed\
+    \ to have redacted, for hours).\n    # To opt in: list EVERY in-scope running\
+    \ service and a command that PRINTS the revision that\n    # service is ACTUALLY\
+    \ running, then remove this `waiver:`. Any service that reports a different\n\
+    \    # revision (or cannot be asked) FAILS the deploy — no deploy_completed, exit\
+    \ 5.\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2 init` — no convergence\
+    \ check declared yet; deploy_completed is emitted on the deploy command's exit-0\
+    \ alone, so a service left on old code would NOT be caught (X-0374). Declare `services:`\
+    \ (each with a command printing the revision it runs) to opt in (SPEC-0097 §11).\"\
+    \n    recommended:\n      # RECOMMENDED shape — INERT until promoted: rename `recommended:`\
+    \ → `services:` (and delete the\n      # `waiver:` above) once each command below\
+    \ is real for this project.\n      # <service>: <command printing the revision\
+    \ that service RUNS — exit non-zero / silence = NOT converged>\n      web: \"\
+    <e.g. docker compose exec -T web cat /app/REVISION>\"\n      # OPTIONAL per-service\
+    \ health leg — use the mapping form {command, health} for a service, where\n \
+    \     # `health` is a command that exits 0 and prints an answer when the service\
+    \ is healthy.\n      worker: \"<e.g. docker compose exec -T worker cat /app/REVISION\
+    \ — the worker is the one that gets skipped (X-0374)>\"\n    # budget_seconds:\
+    \ 120 # OPTIONAL positive int — per-service ask timeout; absent ⇒ kernel default.\n\
+    \    # out_of_scope: # DECLARE-OR-WAIVE: a service deliberately NOT verified names\
+    \ itself + WHY.\n    # nginx: \"reverse proxy — carries no app revision\" # never\
+    \ probed, but journalled: an exemption\n    # # is declared, never silent (a blank\
+    \ reason refuses).\n"
+activation_owner_task: null
+proposed_by: deploy-autonomy-policy-kernel-seed-reversibility-r
+binding:
+- code-enforced
+- before-deploy
+init_concern:
+  init_question: Does this project deploy AUTONOMOUSLY — the AI runs the governed
+    `deploy` verb without an extra per-deploy owner approval, gated only when a change's
+    worst case is not acceptably reversible within the project's RTO/RPO (the A/S/C1/C2
+    classification)? Declare the `deploy.policy` block (its per-class evidence + any
+    per-class waivers), or waive to stay owner-gated on every deploy.
+  waiver: A project that does NOT deploy autonomously bare-waives — it stays in the
+    pre-policy owner-gated mode (the AI asks the owner every deploy); a non-deploying
+    project (no `deploy:` seam) waives for that reason. A declared-then-waived security-bearing
+    Class-S requires a compensating control + an expiry (SPEC-0093 rule 6 / SPEC-0097
+    §6).
+  evidence: 'the project''s declared `deploy.policy` block in yitc-ops.yaml (declare-or-waive,
+    SPEC-0093 rule 3) + the per-class deploy evidence at the seam — A: smoke + live-probe;
+    S: the security live-probe; C1: a pg_dump + restore-drill + the delayed re-check;
+    C2: an owner escalation, no autonomous deploy_completed (SPEC-0097 §5).'
+  recommended: Waive for now — stay owner-gated, so the AI asks you before every deploy.
+    Declare a `deploy.policy` later, once deploys are routine and each change class
+    has its reversibility evidence.
+  record_at: '`yitc-ops.yaml` — the `deploy.policy:` block: the policy, or a `waiver:
+    {reason: <why>}` to stay owner-gated.'
+  tier: universal
+implements_signature:
+  bin/lib/debt.py#CHECK_SURFACES: 8e90f5fd399b10a3e1491d1e259156c983f392c2499fdbb23b900118e5610565
+  bin/lib/deploy.py#_GateDecision: de804f9640f691765e8372503b71ebe666273ccee70c141eba4369649a19f01a
+  bin/lib/deploy.py#_ask_service_revision: d472c86ff636b1801ec616060a294d990d07931ccf7401aa55b677e8fbbf71e9
+  bin/lib/deploy.py#_backup_precondition: 164ccf52b263d3d223872cdd48c43007faf3562e06e98f5cbd359dce73a45e26
+  bin/lib/deploy.py#_class_s_down_surface_carve_out: 4160325632f62dbec8e48cebd2087d93accb6de2d6005dc91261e2fb527bc612
+  bin/lib/deploy.py#_classify_deploy_gate: d350ebc66df8178a60f629a28cc8b0de87b8640a8d8a60ead7161192d72e6e83
+  bin/lib/deploy.py#_convergence_precondition: 40041a01b19038d45ca6fb2badf915c33e6673bf5498338e4944063604918e5f
+  bin/lib/deploy.py#_convergence_section_for_target: 19811be7febbc4637babcc178532bf34da645d4df67e4a5e49e098ddfe6cec82
+  bin/lib/deploy.py#_liveness_probe_precondition: 245c561e7726619d3536abcc82c6ad542e3d90f246e233710cd7ae0b53057e7e
+  bin/lib/deploy.py#_liveness_verdict: 7c8e2df203a6707c70bf73a6ec2b8bc991a5b3b1fd4fcafa67a12370040aa1e4
+  bin/lib/deploy.py#_normalize_pg_dump: 1658f51406e530252aac5d9b262f4e271417cced06eb0689cf29652328b1cb41
+  bin/lib/deploy.py#_parse_pgdmp_header: 7d69e9a3a92e51a531825ac5d0688975600655dc8518595c6971e25bb0298d18
+  bin/lib/deploy.py#_property_broken_refusal: 0570c713e7124a09e43ffe69f74881078d938499fe645c7e9fa24a5f2c39e075
+  bin/lib/deploy.py#_revision_converged: 77db009d250482410e78c177dae2a616dae1ade0b4006d771222b616ec4fde7d
+  bin/lib/deploy.py#_rollback_capability: 71660ff662b224b64c6ab37ac8860c9a1388bcd74f2ee85f1e6e05adc468c126
+  bin/lib/deploy.py#_run_c1_backup: e933f8d065f7a68e748fbfc590f66f7464d928f7fc49f9f7db554e33b61fc297
+  bin/lib/deploy.py#_run_class_s_security_probe: b8ccf21f5168edf01532d9475fa21281408aadf2c09d2c2403a03b9261094c76
+  bin/lib/deploy.py#_run_post_deploy_security_probe: 2beea96d30e9c4fa97472239c86420bb34faabeb25f2d33243a5975edbb0fe1e
+  bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
+  bin/lib/deploy.py#_service_sources_unchanged: 25bc9eba2deb2ba56cae208ac8d0a2b4a45de8f3da0702df1c2b053cd681a2ea
+  bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
+  bin/lib/deploy.py#cmd_deploy: 6b771f9a5eb266f3dc711a26a2602197ffae31f93e2ea8c053c85f38617784d9
+  bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

@@ -1,0 +1,99 @@
+id: SPEC-0008
+title: New standing governance rules are authored as specs, not decisions
+status: active
+created_at: 2026-06-01 08:13:47+00:00
+consumed: false
+implements:
+- bin/lib/cli.py#cmd_decision_new
+binding:
+- code-enforced
+body: "## Scenario\n\nWhen the owner/AI needs to establish a NEW standing governance\
+  \ rule (one that governs many future\ntasks, precedes-and-spawns them, or supersedes\
+  \ a prior rule), they author it as a SPEC — `bin/yitc-v2\nspec new` — not as a new\
+  \ decision. The existing decisions remain readable history, referenced by id;\n\
+  nothing about them breaks. Running `decision new` does not create anything: it refuses\
+  \ and points at\nthe spec route.\n\n## Internal\n\nA standing governance rule has\
+  \ ONE authoring home going forward: the **spec**. The `decision` class is\nFROZEN\
+  \ — it authors nothing new.\n\n- **`decision new` is RETIRED** — it hard-refuses\
+  \ (non-zero exit) with a message rerouting to\n  `spec new`. A new standing rule\
+  \ is a spec; a choice local to one task is a task field; the\n  deliberation/\"\
+  why\" behind a rule lives in the plan that proposed it.\n- **The existing decision\
+  \ corpus is frozen history** — kept in `decisions/`, referenced by id. The\n  `migrated_to`\
+  \ pointer + graph edge-resolution keep every `from:` / `cites` edge valid, so freezing\n\
+  \  breaks no reference.\n- **`decision accept` / `finalize` / `withdraw` are RETIRED\
+  \ ** — they were BACKLOG-ONLY,\n  kept ONLY \"until that backlog is resolved\";\
+  \ that condition is now MET (the frozen backlog was\n  drained to terminal on 2026-06-08\
+  \ — 0 non-terminal decisions), so the three subcommands were\n  removed. The whole\
+  \ `decision` class now authors and transitions nothing: `new` (refuse-only) is the\n\
+  \  sole remaining subcommand. A frozen decision's status is terminal and is not\
+  \ re-transitioned (no\n  verb; a raw YAML edit is the recovery escape hatch only).\n\
+  - **Coherence:** CHARTER §Decision lifecycle carries the operative lifecycle/verb\
+  \ detail for the\n  frozen backlog and cites this spec for the standing rule; authoring\
+  \ lane is superseded for\n  new rules by the same flip. This spec is the single\
+  \ normative home of the rule itself.\n\n### Retirement-authority — single authority\
+  \ of a migrated decision (Part F, the ONE home)\n\nThis `### Retirement-authority`\
+  \ subsection is the **single canonical home** of the rule below; no\nother artifact\
+  \ restates it (every migrated decision / handbook reference carries only a\nnon-normative\
+  \ POINTER here — P5).\n\n- **The rule.** A decision carrying `migrated_to: SPEC-XXXX`\
+  \ is **historical-only**: the **active**\n  spec named by `migrated_to` is the **SOLE\
+  \ normative authority** for that rule. The decision body\n  asserts no live rule\
+  \ — its prose is frozen deliberation/history — and **both ids resolve** for\n  `from:`\
+  \ / `cites` edge validity (the decision node + its `migrated_to` alias → the active\
+  \ spec).\n- **Allowed carriers — EXACTLY TWO existing surfaces, no third.** (i)\
+  \ the decision's own `status` +\n  a **prose disclaimer** stating it is historical-only\
+  \ and pointing at the active spec; (ii) the\n  existing **`migrated_to: SPEC-XXXX`**\
+  \ pointer + the graph's alias resolution. There is **NO third\n  carrier** — no\
+  \ new field, store, graph node, or parser branch. STOP-note (anti-complexity F4):\
+  \ if\n  a migration seems to need a third carrier, HALT and escalate / file a task\
+  \ (the pilot already\n  caught the invented `superseded_as_source` field as over-engineering\
+  \ — do not reintroduce it).\n- **Execution-time replacement (what STOPS).** The\
+  \ earlier pilot interpretation — \"single-authority\n  is NOT asserted; the two\
+  \ ids merely resolve\" ( pre-Part-F note) — STOPS being\n  used: a `migrated_to`-carrying\
+  \ decision is now authoritatively historical-only. Changing a\n  migrated rule is\
+  \ done by **editing the active spec**, never by re-asserting the rule in the frozen\n\
+  \  decision body.\n\n## Rationale\n\nPEP, ADR, and Specification-by-Example converge:\
+  \ a standing rule's normative text and its deliberation\nbelong in unified, version-controlled\
+  \ homes, not split across a separate governance class — the split\ncreates a dual-authority\
+  \ surface (two homes competing to be \"the\" rule). A separate decision class is\n\
+  redundant once the rule lives in a spec and its deliberation lives in a plan. Authoring\
+  \ this very rule\nas a spec (rather than as one more decision) is the narrowest\
+  \ proof that a standing governance rule can\nlive in a spec without recreating a\
+  \ decision inside it.\n\n## Verification\n\n- **VP1 (cut is live):** `bin/yitc-v2\
+  \ decision new` exits non-zero and prints the spec-route message;\n  `decision new\
+  \ --title X` reaches the same refuse (not an argparse error).\n- **VP2 (no new decisions):**\
+  \ after a `spec new` authoring exercise and a blocked `decision new`, the\n  `decisions/D-XXXX`\
+  \ file set is unchanged (no new id allocated).\n- **VP3 (backlog verbs retired):**\
+  \ `decision accept` / `finalize` / `withdraw` are NOT\n  subcommands — `decision\
+  \ --help` lists only `{new}`, and invoking a removed name is an argparse\n  error\
+  \ (`invalid choice`). `new` remains the sole subcommand and only refuses (VP1).\n\
+  - **VP4 (refs resolve):** an existing edge to a frozen decision still resolves —\
+  \ `graph query `\n  returns the node; a `migrated_to`-carrying decision (e.g. →\
+  \ SPEC-0006) resolves the alias.\n- **VP5 (graph-indexed):** `bin/yitc-v2 graph\
+  \ build` indexes SPEC-0008 as a `spec` node; `graph query\n  SPEC-0008` resolves.\n\
+  - **VP6 (AP-F single-authority — the EXACT observable check; the COMMAND is the\
+  \ definition,\n  `tests/test_retirement_authority.py` is a thin mirror of it).**\
+  \ For each migrated decision the\n  three conditions hold; run:\n  ```sh\n  for\
+  \ f in decisions/D-*.yaml; do\n    s=$(sed -n 's/^migrated_to:[[:space:]]*\\(SPEC-[0-9][0-9]*\\\
+  ).*/\\1/p' \"$f\"); [ -n \"$s\" ] || continue\n    [ \"$(grep -c '^status: active'\
+  \ specs/\"$s\"-*.yaml)\" = 1 ] || echo \"FAIL active $f -> $s\"\n    grep -qi 'historical-only'\
+  \ \"$f\" || echo \"FAIL disclaim $f\"\n    grep -qw \"$s\" graph/index.yaml || echo\
+  \ \"FAIL graph $s\"\n    grep -qw \"$(basename \"$f\".yaml | grep -o '^D-[0-9]*')\"\
+  \ graph/index.yaml || echo \"FAIL graph-dec $f\"\n  done\n  ```\n  PASS = the loop\
+  \ prints NO `FAIL` line (today the only migrated decision is → SPEC-0006).\n  Condition\
+  \ (a) target spec `active`; (b) the decision carries the prose token `historical-only`\n\
+  \  (carrier (i) — plain disclaimer prose, NOT a new field); (c) BOTH the `SPEC-XXXX`\
+  \ alias and the\n  `D-XXXX` node resolve in the built `graph/index.yaml`.\n- **VP7\
+  \ (ONE canonical home, P5 — structural + repo-wide uniqueness).** The rule is defined\
+  \ ONCE:\n  in THIS spec's `### Retirement-authority` subsection (the named home).\
+  \ Observable, two parts:\n  (1) repo-wide uniqueness — `grep -l 'SOLE normative\
+  \ authority' specs/*.yaml` returns **exactly one\n  file** (SPEC-0008); (2) no migrated\
+  \ decision restates it — `grep -l 'SOLE normative authority'\n  decisions/D-*.yaml`\
+  \ returns **nothing** (a migrated decision's disclaimer POINTS at the spec, it\n\
+  \  never re-asserts the authority rule).\n"
+cites:
+- CHARTER.md#decision-lifecycle
+- SPEC-0005
+- phase-1-narrow-spec-as-rule-proven-plus-cut-decisi
+requires: []
+supersedes: null
+proposed_by: null

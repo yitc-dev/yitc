@@ -1,0 +1,1395 @@
+id: SPEC-0077
+title: Pinned last-green verify for verify-path-touching lands (REPO_ROOT-relative,
+  consumer-aware)
+status: active
+created_at: 2026-06-16 13:06:14+00:00
+consumed: false
+implements:
+- bin/lib/worktree.py#_land_integrate
+- bin/lib/land_verify_legs.py#_pinned_recovery_hint
+- bin/lib/worktree.py#_run_pinned_verify
+- bin/lib/cli.py#_extract_failing_assertion
+- bin/lib/verify_runner.py#_verify_failure_excerpt
+- bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions
+- bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row
+- bin/lib/rebaseline_currency.py#_environmental_waive_bindings
+- bin/lib/rebaseline_currency.py#_pinned_touched_weakened_keys
+- bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text
+- bin/lib/rebaseline_currency.py#_rebaseline_waive_stable_token
+- bin/lib/rebaseline_currency.py#_rebaseline_waive_paste_lines
+- bin/lib/rebaseline_currency.py#_environmental_broken_refusal_text
+- bin/lib/rebaseline_currency.py#_offending_drift_is_merge_produced
+body: "## Scenario\n\nWhen a session lands a change whose diff touches the **verify-path\
+  \ of the checkout being landed**\n(its own `bin/yitc-v2`, its graph-build inputs,\
+  \ or the test-runner the verify invokes), `land`\nverifies the change with the checkout's\
+  \ **last-green `main` verifier** — the pre-change verifier —\nIN ADDITION to the\
+  \ candidate (just-changed) verifier, and integrates ONLY if BOTH pass. So a\nverifier-weakening\
+  \ change cannot self-approve: the old verifier still applies its checks to the new\n\
+  tree. A land whose diff does NOT touch the verify-path is unaffected (verified once,\
+  \ by the\ncandidate, as today). This holds REPO_ROOT-relative, so it protects the\
+  \ engine's own lands and\nevery `-C` consumer's own lands by the same code path.\n\
+  \n## Internal\n\nTHE PINNED LAST-GREEN VERIFY RULE. A standing contract on the `land`\
+  \ verify step.\n\n**WHETHER this leg runs at all is additionally gated, per project,\
+  \ by SPEC-0186** (the\n`verify_policy.pinned_last_green` declaration in a project's\
+  \ `yitc-ops.yaml`: `all` — the default and\nthe born state — or `never`). This spec\
+  \ remains the ONE normative home for WHEN the leg fires (the\ntrigger predicate\
+  \ below) and WHAT it does; SPEC-0186 governs only the per-project ON/OFF gate in\
+  \ front\nof it, is read PRE-MERGE from the base tree, and cannot reach the engine\
+  \ (a kernel invariant — the\nengine has no `yitc-ops.yaml`). Navigational pointer,\
+  \ not a second rule (SPEC-0005 rule 8).\n\n**WHICH tests this leg pins is additionally\
+  \ NARROWED, per project, by what that project DECLARES\n(`tests.classes[].timing_lane`\
+  \ in its `yitc-ops.yaml`).** The narrowing is DECLARED data — the\nproject names\
+  \ the test files whose verdict is a function of wall clock — never a kernel judgement\n\
+  about a named file. Its ONE home is SPEC-0160 rule 10 (`bin/yitc-v2 graph query\
+  \ SPEC-0160`), which\nowns that rule in full; none of its rule-text is restated\
+  \ here — read it there. Read beside the\nSPEC-0186 pointer above, the pair answers\
+  \ two different\nquestions about this leg: SPEC-0186 gates WHETHER it runs, SPEC-0160\
+  \ rule 10 narrows WHICH tests it\npins. Navigational pointer, not a second rule\
+  \ (SPEC-0005 rule 8).\n\n### 1. Trigger — `verify-implementation-touch` (NARROW;\
+  \ NOT the observable classifier)\nThe pinned re-run fires on a precise predicate:\
+  \ the diff touches the VERIFIER'S OWN executable\nsurfaces — the verify code path\
+  \ in `bin/yitc-v2`, the graph-build script, and the test files/runner\nthe verify\
+  \ executes — evaluated relative to the current `REPO_ROOT`. This is DISTINCT from\
+  \ SPEC-0064's\ninert/observable classifier, which answers \"could this diff change\
+  \ the verify RESULT at all\" (true for\n`specs/`, `patterns/`, ordinary product\
+  \ source). `observable-to-verify` and `touches-the-verifier` are\nNOT synonyms:\
+  \ a `specs/`-only or product-source land is observable but does NOT change the verifier,\
+  \ so\nthe circular-trust risk does not apply and the pinned re-run MUST NOT fire\
+  \ there. This spec §1 + the\n`land` code are the ONE canonical home of the predicate;\
+  \ the classifier's file-class knowledge may be a\nbuilding block but is not the\
+  \ trigger. Consumer-aware by construction — the same narrow predicate runs\nagainst\
+  \ each checkout's own `REPO_ROOT`.\n**File-membership source-of-truth (ONE code\
+  \ constant + helper, PLUS the project's own declaration) —**\nthe predicate's STATIC\
+  \ file set is owned by a single module-level constant + helper in `bin/yitc-v2`:\n\
+  `_VERIFY_IMPLEMENTATION_GLOBS` (the verify-path globs) consumed by\n`_is_verify_implementation_touch(changed_files)`.\
+  \ This prose POINTS at that constant and MUST NOT\nduplicate the file list (SPEC-0005\
+  \ rule 3 content-boundary) — the list lives in code so it cannot drift\nbetween\
+  \ spec and `land` (convergence target resolved, trial run #2).\n**AMENDED (X-0938)\
+  \ — a constant alone CANNOT satisfy the coverage obligation below, because\nwhere\
+  \ a project's checks LIVE is a property of that project, not of the kernel.** The\
+  \ static globs are\nROOT-LEVEL ones (named conceptually here — the pattern list\
+  \ stays code-only), so for a consumer whose checks sit elsewhere — <project> declares\n\
+  `verify.layers[backend].command: bash backend/scripts/verify.sh` with its tests\
+  \ at `backend/tests/` —\nneutering a check matched NOTHING and the pinned leg never\
+  \ armed, while §3's overlay likewise pinned no\nold check: the leg RAN and REPORTED\
+  \ `verify_mode=pinned+candidate` while applying the candidate's own\nchecks to the\
+  \ candidate's own tree (a false green, not a coverage gap). So the file set is the\
+  \ constant\nUNION the check surfaces resolved from the project's OWN `verify.layers`\
+  \ DECLARATION\n(`_declared_check_surface_globs` / `_pinned_declared_check_paths`,\
+  \ SPEC-0152 rule 16). The constant\nstays the single home of the KERNEL's static\
+  \ list — this adds a second SOURCE, not a second list, and\nthe declaration is authored\
+  \ by the project, never duplicated here.\n**AMENDED — a THIRD source, EXPLICIT and\
+  \ widen-only.** The derived source above reads a\ncheck surface out of `verify.layers[].command`\
+  \ operands, so a layer whose command reveals no path\nleft a non-root verify implementation\
+  \ outside the trigger with no way to say otherwise. The optional\n`verify.infra_globs:`\
+  \ declaration (shape + refusals: SPEC-0152 rule 16) joins the SAME union through\n\
+  the SAME reader (`_declared_check_surface_globs`), read from BOTH carriers with\
+  \ the trigger's\nfail-open bias. It can only ADD to the set — the constant is always\
+  \ applied and a subtractive form is\nrefused by name at the declaration read — so\
+  \ the coverage obligation below can only be met more\nwidely by it, never relaxed.\n\
+  **The two surfaces read the carrier with OPPOSITE bias, deliberately.** The TRIGGER\
+  \ unions BOTH\ncarriers (last-green and candidate) and fails OPEN toward arming:\
+  \ it asks whether a diff COULD touch a\ncheck surface. The §3 OVERLAY reads the\
+  \ LAST-GREEN carrier ONLY and fails CLOSED: it asks WHICH checks\napply, and reading\
+  \ the candidate's carrier would let the same commit that weakens a check also choose\n\
+  its own audit. Resolution is biased to UNDER-inclusion (a root-level command operand\
+  \ is skipped — it is\nas likely to be the SUBJECT as a check) and is NEVER SILENT:\
+  \ `land` names the overlaid surfaces, and\nnames any declared layer for which none\
+  \ resolved, so a PARTIAL pin is auditable rather than read as\nprotection.\n**Coverage\
+  \ obligation (closes the omitted-surface loophole — plan-check MEDIUM, run-accept):**\
+  \ the\nconstant MUST cover the verifier's ENTIRE OWN executable/config surface —\
+  \ not only the three named\nexamples (`bin/yitc-v2`, the graph-build script, the\
+  \ test files/runner) but EVERY executable or config\ninput the verify path actually\
+  \ reads to reach its verdict (an indirect helper module, a verify config\nfile,\
+  \ a runner the harness shells out to). An input the verify consumes but the helper\
+  \ OMITS is a\nself-approval hole. So a CONFIG/HELPER-ONLY change to the verify path\
+  \ IS verify-implementation-touch and\nDOES fire the pinned re-run (realization probe:\
+  \ a verifier-weakening confined to a config/helper surface\nstill FAILS the pinned\
+  \ verify). Adding a NEW verify input obliges adding it to the constant in the SAME\
+  \ change.\n\n### 2. The pinned source — committed `main` HEAD, \"last-green\" by\
+  \ the land invariant\nThe pinned (pre-change) verifier is the verifier at the checkout's\
+  \ CURRENT committed `main` basis,\nRE-EVALUATED ON EACH land attempt AFTER `land`'s\
+  \ update-from-main step — NOT the stale `main` the\nworktree first branched from,\
+  \ and NOT a new pinned-bootstrap store/cache/tag. **Retry / concurrency\n(plan-check\
+  \ MEDIUM, run-accept):** because `land` updates-from-main before it verifies, the\
+  \ pinned basis\non a retry is the freshly-merged `main` tip — a newer already-green\
+  \ verifier landed by a concurrent\nsession is therefore ALWAYS the basis; the rule\
+  \ never pins to an older `main` than the one being merged into.\nIts greenness is\
+  \ the EXISTING `land` invariant: a NORMAL `land` advances `main` ONLY after running\
+  \ the\nverify BEFORE its ff-only merge, so by construction every NORMALLY-landed\
+  \ `main` HEAD already passed a\nland verify. There is therefore NO separate `green`\
+  \ flag/state to track and NO new carrier — git already\nholds `main` (CHARTER §P1\
+  \ F3). **The holes, named — the ACCEPTED-BASELINE class (plan-check HIGH,\nrun-accept;\
+  \ second member added).** The qualifier **NORMALLY-landed** is load-bearing: it\
+  \ is\nexactly TWO cases where `main` advances WITHOUT a full verify. Both are the\
+  \ same **accepted-baseline\nclass** as the §5 carve-out (an owner-confirmed or born-by-construction\
+  \ baseline — surfaced, never a\nsilent gap), and NEITHER is handled by a new green-tracking\
+  \ store:\n- **(a) The owner-authorized emergency-bypass** (CHARTER §P2 — `--no-tests`\
+  \ / the `emergency:` marker),\n  surfaced + retro'd by construction (code-enforced\
+  \ by the §2a owner-gate). An emergency-bypass land of\n  the VERIFY-PATH is the\
+  \ case where the pinned source could carry an unverified verifier — handled NOT\n\
+  \  by a new store but by the EXISTING bypass accountability.\n- **(b) The CONSUMER-BOOTSTRAP\
+  \ commit**. A NEWBORN consumer's `main` HEAD was never\n  landed at all: it is `bin/yitc-v2\
+  \ -C <path> init`'s sanctioned **direct-to-`main` bootstrap commit**\n  (the AGENTS-SESSIONS\
+  \ §Writes-happen-in-a-worktree EXCEPTION — a fresh consumer cannot `land` until\n\
+  \  `init` delivers its verify contract, a chicken-and-egg the worktree→land path\
+  \ cannot resolve), so by\n  construction it NEVER ran a land verify. Therefore a\
+  \ newborn's FIRST pinned basis is the **born\n  (init-authored) verify config**\
+  \ — last-**COMMITTED**, not last-**VERIFIED**. What makes this an\n  ACCEPTED baseline\
+  \ rather than a gap is : `init` seeds the COVERING `verify.layers` into the\n  born\
+  \ carrier at the birth seam (fail-closed — any doubt seeds nothing), so the born\
+  \ config is a\n  **WORKING verifier BY CONSTRUCTION**, and the consumer's first\
+  \ land is fully gated by a verify that\n  tells the truth about its tests. The baseline\
+  \ then self-heals forward on the very next land (§5's\n  self-reinforcing property):\
+  \ once ANY normal land advances that `main`, the invariant above governs.\nSo the\
+  \ \"last-green\" property holds for every NORMALLY-landed `main`; for a newborn's\
+  \ bootstrap HEAD (b) it\nis \"born-green by construction\" rather than \"verified-green\
+  \ by a land\" — an honest distinction, not an\nequivalence. The rule does NOT derive\
+  \ a separate last-verify-green pointer for EITHER case\n(anti-complexity — git +\
+  \ the §P2 bypass record + `init`'s own bootstrap commit already carry it); neither\n\
+  member adds a green-tracking store, flag, or tag, and neither grants any new bypass\
+  \ or permission.\n\n### 2a. The owner-gate REALIZING §2's \"surfaced + retro'd by\
+  \ construction\" (in-place additive)\n§2 above ASSUMES the one hole — the `--no-tests`\
+  \ emergency-bypass — is \"surfaced + retro'd by\nconstruction.\" F-024 found it\
+  \ was NOT: `land --no-tests` was a FREE, unsurfaced agent self-clear of the\ntests-green\
+  \ gate. makes the assumption TRUE by code-enforcing the owner-gate (the mechanism\
+  \ §2\nalready relied on; this clause REALIZES it, it adds no new rule):\n- **Two\
+  \ distinct REQUIRED signals (the CHARTER §P2 emergency-marker model).** `land --no-tests`\
+  \ is\n  REFUSED (exit nonzero, `main` untouched, `abort_class=no-tests-unauthorized`)\
+  \ unless BOTH are given:\n  (i) `--owner-authorized` — the explicit, deliberate\
+  \ \"the owner sanctioned skipping tests\" marker\n  (the analog of the `emergency:`\
+  \ marker / `--ack-repeated-abort`); AND (ii) `--no-tests-reason\n  \"<text>\"` —\
+  \ a recorded justification of `>=_NO_TESTS_MIN_REASON_CHARS` (30) chars, mirroring\
+  \ the\n  emergency marker's `>=30 char` description. The marker is SEPARATE from\
+  \ the reason so authorization is\n  a distinct deliberate act, not a single self-asserted\
+  \ field.\n- **Surfaced + frequency-auditable (the accountability, not a crypto gate).**\
+  \ An authorized skip is\n  RECORDED on the EXISTING `land_completed` event as additive\
+  \ keys `no_tests: true`,\n  `owner_authorized: <bool>`, `no_tests_reason: <text>`\
+  \ (registered in SPEC-0025; no new event type).\n  So every test-skip is loud, owner-attributed,\
+  \ and queryable — `grep no_tests events.jsonl` is the\n  >1/30d frequency audit\
+  \ (CHARTER §P2). **Honest bound:** a single-owner+AI CLI cannot\n  cryptographically\
+  \ distinguish owner from agent — \"no agent self-clear\" means no SILENT/implicit\
+  \ skip,\n  exactly the emergency-marker accountability model, NOT an unfakeable\
+  \ token.\n- **Product-code WARN, NOT a hard refuse (coherence with §3).** When an\
+  \ AUTHORIZED `--no-tests` land's\n  final merged-tree delta TOUCHES TESTED PRODUCT\
+  \ CODE (the SPEC-0064 `observable` verdict, consumed —\n  never re-encoded; classifier-raise\
+  \ → fail-closed observable), `land` prints a LOUD WARN naming the\n  offending class\
+  \ + the graceful re-baseline route — then PROCEEDS. It is NOT a refuse: §3 RELIES\
+  \ on the\n  owner-authorized `--no-tests` bypass being AVAILABLE for a legitimate\
+  \ verifier-relaxation land (which\n  is ALWAYS a product-code delta), so a hard\
+  \ product-code refuse would deadlock every relaxation — incl.\n  the activating\
+  \ land of itself (its own old last-green `--no-tests` tests encode the pre-gate\n\
+  \  FREE behaviour and trip the pinned re-run; F-026). The graceful re-baseline that\
+  \ replaces the blunt\n  bypass for an AUDITED behaviour change is a separate follow-up.\n\
+  \n### 3. Semantics — IN-ADDITION, both-must-pass\nFor a verify-path-touching land,\
+  \ run the verify TWICE over the candidate tree: once with the\ncandidate (new) verifier\
+  \ — so any LEGITIMATE new/stronger checks the change introduces still\nexecute —\
+  \ and once with the pinned `main` verifier. The land integrates ONLY if BOTH are\
+  \ green.\n**The pinned set is last-green's tests EXACTLY — a test absent at the\
+  \ last-green ref is not a pinned\ncheck.** The overlay RESTORES last-green's files\
+  \ but deletes none, so a test the candidate\nADDED survives into the pinned tree\
+  \ and runs there against last-green's helpers; it is by definition\nnot an old check,\
+  \ and what it produces is an ImportError, not a verdict. BOTH drivers therefore\n\
+  exclude it — the local one by pruning candidate-added paths, the routed one by skipping\n\
+  them at discovery off the request's own last-green ref listing — and neither uses\
+  \ a manifest: the\nref's own tree IS the manifest. The narrowing is REPORTED, never\
+  \ silent (each excluded file is named\nin `land_completed.data.verify_metrics.pinned_excluded_not_pinned`),\
+  \ it is FAIL-SAFE (an underivable\nset excludes nothing, so it can only ever run\
+  \ MORE tests), and the CANDIDATE leg is untouched — a\nbranch-only test still runs\
+  \ there in full. A pinned test that EXISTS at last-green and fails refuses\nexactly\
+  \ as before; the `unrunnable-here` rebaseline round for a branch-only test simply\
+  \ becomes\nunreachable.\n**TWO FURTHER EXCLUSIONS, computed at verify time from\
+  \ durable state, never from a hand list\n.** (i) A test file whose LAST-GREEN copy\
+  \ DECLARES itself census/inventory-class — one\nopt-in marker line, `# yitc: pinned-leg:\
+  \ census`, carried in the file — is not a pinned check. A\ncensus asserts «every\
+  \ enumerated member carries a disposition», so ANY change that ADDS a member\nfails\
+  \ the last-green copy BY DEFINITION rather than as a regression signal. The declaration\
+  \ is read\nfrom the LAST-GREEN tree, never the candidate's, for the same self-approval\
+  \ reason §3 reads every\nother pinned input there: otherwise the commit that weakens\
+  \ a check could also declare it exempt.\nIt is OPT-IN and never inferred — an UNMARKED\
+  \ census stays pinned exactly as before, and\n`graph conformance` gains no check\
+  \ to hunt for unmarked ones. (ii) A test file THIS branch's own\ndiff TOUCHED is\
+  \ not re-pinned — PROVIDED its candidate copy is not a WEAKENING of the last-green\n\
+  one: the last-green copy would otherwise be asserting the behaviour the card deliberately\n\
+  , while the CANDIDATE leg runs the NEW copy in full on that same land. This half\
+  \ is read\nfrom the candidate DIFF, which is not a declaration but the fact itself\
+  \ and lives nowhere else.\nThe WEAKENING GUARD is what keeps this exclusion from\
+  \ swallowing §3's own self-approval fence: a\ncandidate that NEUTERS or DELETES\
+  \ a registered check has, by that act, «touched» it, so an\nunconditional touched-exclusion\
+  \ would let the commit that removes a check's teeth also remove the\nlast-green\
+  \ copy that would have bitten it. The exclusion therefore applies only when the\
+  \ candidate\ncopy still EXISTS on the branch AND carries no fewer `def test_` nodes\
+  \ and no fewer `assert`\nstatements than the last-green copy — two counts over two\
+  \ text blobs, with any read failure leaving\nthe file PINNED (fail-SAFE). A weakened\
+  \ or removed touched file STAYS PINNED. The guard is\ndeliberately MECHANICAL, not\
+  \ semantic: a rewrite that holds both counts while weakening what they\nassert still\
+  \ narrows, and that shape is caught where it always was — audit-post's diff review,\n\
+  which reads the edit directly, not a pin whose signal there is indistinguishable\
+  \ from the intended\nchange.\n**BOTH DRIVERS APPLY THESE TWO EXCLUSIONS, and on\
+  \ the ROUTED one the HOST is the SINGLE COMPUTER\n.** The sentence above already\
+  \ holds for the exclusion; it now holds for these two\nas well, and the routed shape\
+  \ is deliberately DIFFERENT from that sibling's. is derivable\nbox-side from the\
+  \ request's own last-green ref listing, so the routed driver computes it there.\
+  \ These\ntwo are NOT: the census marker must be read from the LAST-GREEN copy of\
+  \ each swept file and the\ntouched fact from the candidate DIFF, and the REASON\
+  \ each file was skipped (`census` | `touched`)\nhas no box-side source at all. So\
+  \ the HOST computes the selection — the same\n`pinned_leg_narrowing` the local driver\
+  \ calls, so there is exactly ONE computer and the two\ndrivers cannot drift — and\
+  \ SHIPS the names to the leg, which only APPLIES them, bound to the PINNED\nleg\
+  \ box-side rather than trusted of the caller (the mirror of the SPEC-0181 R1 selection\
+  \ bound). The\nreported skip is assembled from BOTH ends: the APPLIED set from the\
+  \ leg, which alone knows what it\nwas going to run, and the reason from the host's\
+  \ own record — so the row and the log can never\ndescribe two different narrowings.\
+  \ A shipped list that is absent, unreadable or malformed skips\nNOTHING (the leg\
+  \ runs whole), the same fail-safe direction the local driver's inputs carry. Grounds:\n\
+  the two exclusions were computed NOWHERE on a routed land before this — the local\
+  \ driver that owned\nthem is never called there — so every venue land re-ran the\
+  \ stale pinned copy and paid a full\nrebaseline round, 13 of them measured on 2026-09-10,\
+  \ the exact cost exists to remove.\nBoth exclusions are REPORTED, never silent —\
+  \ each skipped file is named with its reason\n(`census` | `touched`) in `land_completed.data.verify_metrics.pinned_skipped`\
+  \ and printed as its own\n`land[pinned/last-green]:` line — both are FAIL-SAFE (an\
+  \ unreadable file or an underivable diff\nexcludes nothing, so the leg can only\
+  \ ever run MORE), both are DROPPED entirely rather than applied\nwhen they would\
+  \ empty the selection (an empty selection reads GREEN, which would silently disable\n\
+  this leg), the CANDIDATE leg is untouched, and `--rebaseline` semantics are unchanged\
+  \ for everything\nstill pinned. Measured basis: over the journal segment 2026-09-02..09-09\
+  \ (814 `land_completed` rows,\nfolded 2026-09-09) 95 of 208 verify aborts were pinned-only,\
+  \ and 73 of those branches later landed\nvia `--rebaseline --rebaseline-kind broken`\
+  \ — the pin was stale by construction.\nReliability-first: the old verifier's checks\
+  \ cannot be silently removed by the same commit. A land\nthat LEGITIMATELY relaxes\
+  \ a check (the pinned verifier then fails on purpose) is handled by the\nEXISTING\
+  \ owner-authorized emergency-bypass (CHARTER §Principle 2), surfaced explicitly\
+  \ — NOT a new\noverride mechanism, gate cascade, ledger, or FSM. Whether intentional\
+  \ relaxation needs a STANDING\ngoverned path beyond emergency-bypass is a TRIAL-resolved\
+  \ disposition, not pre-committed: if legit\nrelaxations run ≤1/30d (the emergency-bypass\
+  \ frequency threshold) emergency-bypass suffices (no\nincident → no mechanism, §P1\
+  \ F4); a higher observed rate is the incident that pulls a distinct\ngoverned `verify-relax`\
+  \ disposition. Decided at trial exit.\n\n**Isolation mechanism — the pinned verifier\
+  \ runs SUBPROCESS-ISOLATED against a MATERIALIZED merged_base\nbin/ tree.** \"Run\
+  \ the pinned `main` verifier\" must run the merged_base verifier LOGIC + RUNNER,\n\
+  not the candidate's. The runner now lives in the layered bin/lib package, so an\
+  \ IN-PROCESS load of\nthe merged_base engine is INSUFFICIENT: its `from lib import...`\
+  \ resolves from the live process's\n`sys.modules` cache (the land already imported\
+  \ the candidate `lib.*`), silently running the LIVE\n(possibly weakened) runner\
+  \ in both passes — defeating §3 for verify-path code resident in the bin/lib\npackage.\
+  \ In-process isolation is impossible (the live land process is itself using `lib.*`).\
+  \ So `land`\nMATERIALIZES the merged_base engine tree (the engine binary + its bin/lib\
+  \ package) to a temp dir and runs\nthe pinned runner in a SUBPROCESS (fresh interpreter\
+  \ → clean `sys.modules` → merged_base `lib.*`). The\nbad-list returns over a dedicated\
+  \ result FILE (not stdout — the runner + its test subprocesses write to\nstdout/stderr\
+  \ freely). FAIL-CLOSED: a subprocess / result-parse failure is a pinned-verify failure,\
+  \ never\na silent skip. The §6b consumer/test-repo case (merged_base lacks the engine\
+  \ binary) keeps the in-process\nrunner — there the engine binary is the already-pinned,\
+  \ consumer-immutable engine, so no isolation gap\nexists. This is a MECHANISM realization\
+  \ of §3's both-must-pass (the rule is unchanged); the §1\nfile-membership trigger\
+  \ already fires for a bin/lib verify-path touch (the glob set lives only in the\n\
+  code constant, §1).\n\n### 3a. The STANDING re-baseline path (in-place additive\
+  \ — resolves §3's deferred disposition)\n§3 deferred \"whether intentional relaxation\
+  \ needs a STANDING governed path beyond emergency-bypass.\"\nThe incident RESOLVED\
+  \ it: a deliberate, AUDITED BEHAVIOUR change is structurally common (it is\nwhat\
+  \ every spec/behaviour task does), and the only prior path — `--no-tests` (now owner-gated,\
+  \ §2a) —\nis too BLUNT: it skips ALL verification, not just the superseded old-behaviour\
+  \ check. So this spec adds\na STANDING, NARROWER governed path: the governed **re-baseline**.\n\
+  - **Not-hygiene cross-ref.** A change that touches this pinned verify-path (or any\
+  \ spec /\n  always-loaded seed) is by definition **fast-path INELIGIBLE — NOT hygiene**\
+  \ (LIFECYCLE §Two flow\n  types → \"Fast-path eligibility\"), so it runs the substantive\
+  \ path and its rebaseline carries a\n  fresh audit-post (the A-prime own-homework-close\
+  \ below). The incidental-staleness carve-out there\n  is the same soft-edge this\
+  \ §3a governs.\n- **When it fires.** A verify-path-touching land whose **CANDIDATE\
+  \ verify is GREEN** (the new behaviour\n  is correct by its own tests) but whose\
+  \ **pinned LAST-GREEN check FAILS** because the old behaviour-tests\n  it overlays\
+  \ encode the behaviour the change deliberately revised (a real ASSERTION failure,\
+  \ NOT the\n  §3 additive-layout `No module named` carve-out).\n- **WHEN to DECLARE\
+  \ it — carry the declaration into the FIRST land attempt, do not discover it\n.**\
+  \ The bullet above says when the leg ARMS; this says when the OPERATOR acts on that.\n\
+  \  **Trigger:** the change's diff touches the verify path's OWN EXECUTABLE surface\
+  \ — the §1\n  `verify-implementation-touch` set, read there and not restated here\
+  \ — so the pinned last-green\n  leg WILL arm and WILL overlay old-behaviour assertions\
+  \ this change deliberately revised.\n  **Obligation:** decide that BEFORE the first\
+  \ `land`, and carry the COMPLETE declaration into it —\n  the flag plus every element\
+  \ the requirements bullet below already demands of it — rather than\n  letting the\
+  \ land tell you. **Cost of not doing it:** the land runs the FULL verify (minutes,\
+  \ plus\n  any SPEC-0132 admission wait) and only THEN refuses on bookkeeping — `abort_class`\n\
+  \  `rebaseline-unauthorized`, on either the `authorization` or the `waive-coverage`\
+  \ arm — so the ship\n  becomes a full-verify abort and the next attempt pays the\
+  \ verify again. Measured, not projected:\n  in a 7-day window ending 2026-08-24\
+  \ the session-start debt echo reported this as the LARGEST\n  reclaimable abort\
+  \ class in the repo (waive-coverage 21x/327.1min, authorization 5x/55.0min, both\n\
+  \  GROWING) — a dated reading, cited as the grounds for this rule, not as a live\
+  \ figure.\n  **AND THE FIRST ATTEMPT NO LONGER HAS TO DISCOVER IT BLIND — the step-4a\
+  \ preflight now\n  has TWO arms, and this is the second.** The rule above still\
+  \ stands unchanged: carry the\n  declaration into the first attempt. But an operator\
+  \ who could not have known WHICH assertions\n  their change superseded used to have\
+  \ exactly one way to find out — run the whole two-leg verify\n  and read the abort.\
+  \ Measured over 2026-09-03..10 that cost 151 `verify-failed` aborts at a median\n\
+  \  12.9 min apiece, and is why a rebaseline land needed a mean 3.81 attempts against\
+  \ 1.26 for a plain\n  one. So on a verify-path-touching land carrying NO `--rebaseline`,\
+  \ BEFORE the full verify and\n  before the SPEC-0132 admission slot, the pinned\
+  \ last-green copies of exactly the test files the\n  branch's own diff both TOUCHED\
+  \ and WEAKENED are run — and when one FAILS the land REFUSES there,\n  naming the\
+  \ FILE::ASSERTION token(s) and pasting the ready `--rebaseline` command, so the\
+  \ operator's\n  SECOND attempt is the declared re-baseline.\n  **THE SELECTION IS,\
+  \ READ IN THE OTHER DIRECTION.** §3's touched-exclusion drops a\n  touched-but-NOT-weakened\
+  \ file from the pinned leg entirely; what stays pinned is the WEAKENED\n  case,\
+  \ the self-approval fence, and that is precisely the set about to RED. So this arm\
+  \ runs the\n  COMPLEMENT of that exclusion and nothing else — never the whole pinned\
+  \ set, and never the\n  UNTOUCHED stale-pin class, which cannot enter a selection\
+  \ that starts from the diff. **A\n  touched-and-weakened file the FULL pinned leg\
+  \ would skip as census-class is NOT selected** —\n  decided by that leg's OWN narrowing\
+  \ (the census marker read from the LAST-GREEN copy, dropped\n  whole when it would\
+  \ empty the leg), never by a second rule. Run alone, the census exclusion\n  cannot\
+  \ apply to a one-file selection, so the copy would fail where no pinned leg ever\
+  \ reports\n  it, and the pasted token would be refused by the waive arm of a routed\
+  \ land (fed the box's\n  full leg) and by the grant alike. The skip is taken ONLY\
+  \ where the full leg's inputs\n  are provably that plain sweep — no project ops\
+  \ carrier at last-green or on the candidate, whose\n  extra sweep directories or\
+  \ timing lanes could move its guard; with one, the file is selected\n  as before.\
+  \ The venue routes kernel lands only, and the kernel declares no carrier.\n  **FOUR\
+  \ BOUNDS, each of which the arm would be wrong without:**\n  (i) **FAIL-OPEN, inherited\
+  \ not re-decided** — an unresolvable diff, an unreadable last-green blob\n     \
+  \ or an acquisition that could not be ESTABLISHED all read as ADMIT, and the land\
+  \ proceeds into\n      the full verify on a byte-identical path. This arm may make\
+  \ a refusal EARLIER and CHEAPER; it\n      may never invent one from an unestablished\
+  \ fact (the rule, unchanged).\n  (ii) **THE A-PRIME AUTHORITY BELOW IS UNTOUCHED**\
+  \ — nothing is auto-declared. The refusal PASTES a\n      command the operator must\
+  \ choose to run; `--rebaseline` remains the only waiver and still\n      requires\
+  \ its kind, its MECHANICALLY-TIED `>=30-char` reason and a fresh audit-post. What\
+  \ moves\n      is WHEN the operator learns what to declare, never WHO may declare\
+  \ it, and a refusal that\n      arrives sooner must not read as permission that\
+  \ came easier.\n  (iii) **THE REFUSAL IS DECIDED ON THE FAILING ENTRIES, NEVER ON\
+  \ TOKEN AVAILABILITY** — a failure\n      that binds no waive token is refused just\
+  \ as firmly and told the re-baseline route is\n      unavailable to it, rather than\
+  \ being handed a token that cannot bind (the X-0685 drift).\n  (iv) **ONE TEXT,\
+  \ ONE COMPOSER** — this refusal's token lines come from the SAME composer\n    \
+  \  the post-verify refusal uses, so the two cannot drift (the (iii) discipline).\n\
+  \  (v) **AN EXCUSED FAILURE IS NOT A REFUSAL** — the arm applies the SAME §3 / additive-layout\n\
+  \      classifier the full pinned leg applies. A failure the pinned leg FORGIVES\
+  \ and RECORDS\n      (`land_completed.pinned_layout_excused`) must not become a\
+  \ hard early refusal demanding a\n      declaration for a change that superseded\
+  \ no assertion: excused → admit, and the excusal record\n      is written downstream\
+  \ exactly where it is written today. The classifier is all-or-nothing, so\n    \
+  \  any set carrying a real assertion failure is still refused in full.\n  (vi) **IT\
+  \ IS A PINNED-FIRST ORDERING, AND OBEYS THE PINNED-FIRST SWITCH** — this arm moves\
+  \ the\n      pinned judgement earlier still, so `YITC_PINNED_FIRST=0` ( existing\
+  \ operator control,\n      which restores the pinned-LAST order) governs it too.\
+  \ One switch for one ordering; no second\n      knob is minted, and differential\
+  \ control keeps its meaning.\n  The full pinned leg still runs, complete and unnarrowed,\
+  \ on the declared attempt exactly as before.\n  **The obligation is SYMMETRIC —\
+  \ declare iff the leg will arm, never defensively.** An UNNEEDED\n  `--rebaseline`\
+  \ on a diff that does not touch the verify path is refused exactly as hard as a\n\
+  \  missing one; this rule buys the operator ONE decision made early, not a habit\
+  \ of declaring. When\n  the trigger genuinely does not fire, declaring nothing IS\
+  \ the compliant act.\n  (Pre-flighting the OTHER two off-queue blockers — merge\
+  \ conflicts and audit-currency — is\n  `worktree sync`'s job, a sibling on the same\
+  \ compute-it-before-you-queue axis, not this rule.)\n- **Who may authorize it —\
+  \ A-prime (the reconciled authority; resolves the SPEC-0077↔<workshop-spec>\n  dissonance\
+  \ — external consult `decisions/x0190-rebaseline-authority-audit-adhoc.yaml`, YELLOW→A-prime;\n\
+  \  real incident where a Worker self-authorized `--rebaseline` cleanly but ambiguously).**\n\
+  \  SPEC-0077 is the CANONICAL authority/flag home for `land --rebaseline` (<workshop-spec>\
+  \ only ROUTES here).\n  The re-baseline is authorized by EITHER: **(A) the owner\
+  \ ACKS**; OR **(B) a dispatched Worker\n  SELF-CLEARS** — but ONLY when ALL of these\
+  \ hold, else the Worker ESCALATES (`blocked-on-land`,\n  worktree intact — SPEC-0103,\
+  \ never forcing/weakening a gate): candidate verify GREEN; a FRESH\n  current-state\
+  \ `audit_post_completed` verdict that is **GREEN** (the Worker path narrows the\
+  \ general\n  (ii) GREEN/YELLOW to GREEN — a clean independent audit, not a self-marked\
+  \ one); `--no-tests` ABSENT;\n  a recorded `>=30-char` `--rebaseline-reason`; AND\
+  \ the stale claim **MECHANICALLY tied** — the reason\n  names the EXACT surfaced\
+  \ pinned failure(s) (the `FAILING ASSERTION(S)` diagnostic tail block, below)\n\
+  \  AND the task/spec-declared behaviour-or-harness change that obsoletes them. Free-form\
+  \ Worker judgement\n  (\"this looks stale\") is NOT sufficient — the tie must be\
+  \ mechanical, or the Worker escalates. This is\n  the minimal safeguard that lets\
+  \ a Worker clear a provably-dead pinned check WITHOUT a new owner gate:\n  a mechanical-evidence\
+  \ test plus a fresh INDEPENDENT GREEN audit replace the owner ack (external\n  consult,\
+  \ A-prime). (Enforcement rides the EXISTING code-enforced gates below — the reason\
+  \ + audit +\n  candidate-verify checks; the mechanical-tie is the Worker's behavioural\
+  \ obligation, <workshop-spec> routes\n  to it.)\n- **What it requires (all three).**\
+  \ (i) the AUTHORIZER (the owner, or a qualifying Worker per the\n  A-prime bullet\
+  \ above) invokes `land --rebaseline` + a `>=30-char`\n  `--rebaseline-reason` (the\
+  \ §2a emergency-marker accountability model); (ii) the change is AUDITED —\n  a\
+  \ GREEN/YELLOW `audit_post_completed` for THIS branch's task, tied to the CURRENT\
+  \ branch state (the\n  audited commit is an ancestor of HEAD AND no post-audit OBSERVABLE\
+  \ change landed to a file in the\n  branch's NET FOOTPRINT vs main — SCOPED staleness,\
+  \ refining the original \"post-audit delta is\n  INERT\": the footprint = every\
+  \ file whose HEAD content DIFFERS from the merged `main` tip\n  (`_merged_tree_delta_paths`),\
+  \ so it covers the task's whole multi-commit change, any post-audit branch\n  edit/new\
+  \ file, AND conflict-resolution edits made in the update-from-main merge commit\
+  \ — EXCEPT one\n  PROVEN mechanical (the exemption below), which is subtracted at\
+  \ the same seam as the closure\n  side-effects; an observable\n  change confined\
+  \ to files merged in UNRELATED from main — already-audited concurrent work, byte-identical\n\
+  \  to main — no longer invalidates (it resolves the fleet-concurrency rebaseline\
+  \ livelock). The\n  SAFETY INVARIANT is UNCHANGED: a stale audit can never legitimize\
+  \ a later change to what the audit\n  reviewed; FAIL-CLOSED — if the footprint cannot\
+  \ be derived, the original any-observable refusal holds);\n  (iii) the candidate\
+  \ verify already passed (it is never waived — only the superseded OLD-behaviour\
+  \ pinned check is).\n- **WHEN requirement (ii)'s audit is TAKEN — `land` takes it\
+  \ ITSELF, after the merge.**\n  Requirement (ii) is UNCHANGED in what it demands;\
+  \ what changed is the MOMENT it is satisfied.\n  The currency check has always run\
+  \ POST-merge (`_land_integrate` calls `_change_is_audited` with\n  the merged base,\
+  \ after update-from-main), but the audit it judged was taken PRE-QUEUE, on the\n\
+  \  pre-merge branch tree — so a post-merge question was answered from a pre-merge\
+  \ approximation,\n  and ANY peer that landed during the queue wait invalidated it.\
+  \ Measured: task/ was\n  refused three times on 2026-08-23 after three separate\
+  \ GREEN audit-posts, each refusal costing\n  an audit plus a reservation wait. The\
+  \ §3a churn exemption cannot reach this class — its\n  baseline is the ABSORBED\
+  \ main while the refusing drift arrives from commits pulled in\n  AT LAND TIME.\
+  \ So on a `--rebaseline` land whose diff touches this verify path, land now runs\n\
+  \  the EXISTING `audit post` verb over the MERGED tree — after update-from-main,\
+  \ before the verify\n  — and requirement (ii) is judged against THAT record.\n \
+  \ **THAT AUDIT IS A CURRENCY CHECK, AND IS BOUNDED AS ONE.** It asks whether the\n\
+  \  sign-off is still current for the tree that reaches `main`, on a `status: done`\
+  \ card — never\n  whether the card's absorption loop converged — so it consumes\
+  \ no SPEC-0124 ceiling pass, is\n  exempt from the ceiling and from SPEC-0204 rule\
+  \ 4 in both directions, records `basis: currency`,\n  and bounds its NEW findings\
+  \ (all medium/low → YELLOW and the land PROCEEDS; a high, an absent\n  severity,\
+  \ or an open `fix` residual keeps RED and STOPS the land for the ordinary fix route).\n\
+  \  Its verdict is recorded at the BRANCH TIP the land merged, never at the land's\
+  \ own\n  `land: bookkeeping` self-commit, which an aborting land takes back off\
+  \ the branch. Requirement\n  (ii) is UNCHANGED — a RED still refuses this land,\
+  \ and nothing here waives the audit; what is\n  bounded is what a CHECK may COST\
+  \ and END, never what it may REFUSE. Rule home: SPEC-0204 rule 3.\n  **This STRENGTHENS\
+  \ the requirement and must never be read as relaxing it.** The auditor now\n  sees\
+  \ a SUPERSET of what it saw before (the pre-merge branch tree PLUS everything main\
+  \ added),\n  i.e. exactly the tree that reaches main. Promoted followup `fu_e9edf59a86ca`\
+  \ had already ruled\n  the opposite fix OUT — a re-baseline deliberately does NOT\
+  \ get the ordinary land's\n  `merge_inherited` tolerance, because a waiver is being\
+  \ granted — and that ruling stands\n  untouched: this changes WHEN the audit is\
+  \ taken, never WHAT it must show.\n  **Bounds, all fail-closed.** The existing record\
+  \ is reused WITHOUT a second audit only on\n  TREE-LEVEL proof that it already covers\
+  \ the merged tree (a fully-INERT delta through the one\n  SPEC-0064 inert authority\
+  \ — no footprint scoping, no churn exemption, no waiver); that is \"no\n  source\
+  \ drift at all\", never \"the drift looks benign\". A RED in-land audit is refused\
+  \ by the\n  same gate as before. Whether the audit HAPPENED is proven by a new `audit_post_completed`\n\
+  \  journal row, never by the subprocess exit code (which cannot separate a YELLOW\
+  \ verdict from a\n  refusal). An audit that could not be taken at all refuses with\
+  \ its OWN diagnosis and routes to\n  the SPEC-0103 escalation, never to forcing\
+  \ the land. Bounded to ONE re-audit per land process,\n  so the optimistic-concurrency\
+  \ retry loop cannot multiply audit passes. Unchanged by this: the\n   baseline on\
+  \ the audit-side path, the inert classifier, the waive vocabulary and\n  per-assertion\
+  \ coverage rule, and the requirement that a re-baseline carry a GREEN/YELLOW\n \
+  \ audit-post at all.\n- **AND THE ORDINARY LAND'S AUDITED-DIFF GATE TAKES IT TOO,\
+  \ on PROOF the drift is merge-produced\n  (X-1153 — in-place ADDITIVE: a new admitted\
+  \ case; every case that refuses today still\n  refuses).** The rule above wired\
+  \ the in-land audit to ONE arm — a `--rebaseline` land whose diff\n  touches this\
+  \ verify path. The audited-diff currency gate, which every ORDINARY land\n  passes\
+  \ through, kept judging a record taken PRE-QUEUE on the PRE-MERGE tree, so the loop\
+  \ the\n  rule above closed for re-baselines stayed open for everyone else: re-audit\
+  \ off-queue, re-queue,\n  lose the race to the next sibling landing inside the wait,\
+  \ re-audit again. Measured by the\n  reporting consumer on 2026-08-27 (two consecutive\
+  \ aborts, the second CAUSED BY the wait — abort\n  1 cited one unaudited file, abort\
+  \ 2 cited seven after three siblings landed) and re-confirmed in\n  the kernel's\
+  \ own journal: five `audited-diff-stale` aborts in the three days to 2026-08-28.\
+  \ NO\n  AUDIT PASSES ARE BURNED by the loop ( self-classifies the churn); what it\
+  \ costs is WALL\n  CLOCK, unbounded on a repo landing several cards an hour.\n \
+  \ **The admission is a PROOF, never a tolerance, and it is UNIVERSAL over the refused\
+  \ set.** The\n  re-audit is offered ONLY when the gate is already about to refuse\
+  \ AND, for EVERY offending path,\n  NO branch commit AT ALL lies between the audit\
+  \ and the tip THIS land merged into\n  (`<audit>..<pre-merge tip> ^<main snapshot>`\
+  \ — the main side excluded so the walk is the\n  branch's own authored history).\
+  \ An empty walk proves the content can only have come from THIS\n  land's own update-from-main.\
+  \ MERGE COMMITS ARE NOT EXEMPTED BY KIND, and that bound is\n  load-bearing: a worker\
+  \ whose land died `merge-non-union-conflict` resolves it BY HAND and\n  commits\
+  \ the resolution AS A MERGE, and that is unaudited content the branch authored —\
+  \ exactly\n  what this rule refuses. A MIXED set (one merge-produced path beside\
+  \ one genuine post-audit\n  edit) is NOT admitted, so unaudited branch work can\
+  \ never ride in beside merge drift. `merge_inherited` is untouched and still never\
+  \ refuses (the settled\n  position); what this reaches is the CONFLICTED sub-case\
+  \ the queue wait manufactures, where the\n  clean re-merge cannot reproduce HEAD\
+  \ and no resolver in `_classify_land_merge_conflicts` covers\n  the conflicting\
+  \ block.\n  **The PRE-QUEUE PREDICTOR fails open on the same proof, and that is\
+  \ not a second rule.**\n  `_land_prequeue_currency_refusal` exists to raise this\
+  \ refusal cheaply, and\n  its one contract is \"this IS the verdict its own gate\
+  \ would reach\" — which is where all five\n  measured 2026-08-26..28 rows were in\
+  \ fact raised. A case the gate now clears itself must\n  therefore not be refused\
+  \ there. It consults the SAME predicate (one question, one\n  implementation) and\
+  \ can only ever ADD a fail-open, which is the polarity it is built on; the\n  fail-CLOSED\
+  \ authority downstream is untouched, so a branch whose re-audit cannot run, or comes\n\
+  \  back RED, still aborts — one queue position later. It has no pre-merge tip of\
+  \ its own, so it\n  passes the BRANCH REF: a branch that has merged at all since\
+  \ its audit is simply not proven\n  there and queues, and the gate re-asks with\
+  \ the strict tip in hand.\n  **Nothing is waived and the gate is unchanged.** A\
+  \ FRESH audit is minted over the merged tree\n  and the SAME refusal condition re-judges\
+  \ the recomputed split. A RED verdict, an audit that\n  could not run, a card that\
+  \ is not `status: done`, an unreadable pre-merge tip, or any git\n  failure all\
+  \ recompute to the same split and refuse byte-identically to today. Bounded by the\n\
+  \  EXISTING `_INLAND_REAUDIT_MAX_PER_LAND` counter, SHARED with the arm above rather\
+  \ than given a\n  second one, so no land can take two in-land audits.\n  **The in-land\
+  \ re-audit's Stage-6 packet STATES the churn-only tie (owner directive\n  2026-09-17;\
+  \ the SAME doctrine, applied to the test-evidence lens).** A `tests_passed` row\
+  \ for the\n  merge sha M the land ITSELF creates cannot pre-exist that land, so\
+  \ a re-audit read by row sha\n  alone REDs class test-evidence BY CONSTRUCTION (measured\
+  \ twice on). When — and ONLY when —\n  the seam has proved the delta from the prior\
+  \ audited head H to M churn-only by\n  `_concurrent_merge_churn_only` (the ONE churn\
+  \ classifier, SPEC-0165), `audit post\n  --reaudit-after-close` appends a CHURN-ONLY\
+  \ MERGE TIE — ORDERING NOTE to the packet's\n  `### Stage-6 test evidence` section:\
+  \ the H row is NOT relabelled as covering M; the sha gap is\n  the ORDERING of a\
+  \ land (M's own suite run is the mandatory candidate verify, downstream of this\n\
+  \  audit, which aborts the land on a failing M whatever the verdict), not missing\
+  \ proof, and is not\n  by itself a test-evidence finding; the evidence is still\
+  \ judged on its own terms. No tie → the\n  packet is byte-identical; a NON-churn\
+  \ delta gets no note and stays RED. NOTHING is waived: no\n  row is written or relabelled,\
+  \ no gate moves, and the STRICT unscoped leg is untouched.\n- **The repeated-abort\
+  \ backstop ADMITS a covering re-baseline (X-0844 — in-place ADDITIVE:\n  a new admitted\
+  \ case; every already-covered case, incl. `--ack-repeated-abort`, is unchanged).**\n\
+  \  A branch DISCOVERS it needs this §3a path BY failing the pinned check, and keeps\
+  \ failing while the\n  operator diagnoses why — so by the time the per-assertion\
+  \ waive is in hand, the land\n  repeated-abort backstop has ALWAYS already tripped.\
+  \ That backstop is evaluated BEFORE verify and\n  keys ONLY on the recorded cause\
+  \ fingerprint, never on whether the invocation MATERIALLY CHANGED, so\n  it pre-empted\
+  \ the FIRST attempt in a branch's history to carry a proper re-baseline (<project>\n\
+  \  task/, six journal rows). The only way past was `--ack-repeated-abort`, a BROAD\n\
+  \  counter-clearing bypass — so applying a NARROW owner-acked single-assertion waive\
+  \ obliged the\n  operator to ALSO invoke a broad one, teaching the blunt instrument\
+  \ as the route to the precise one.\n  **Rule:** when the backstop is armed, re-baseline\
+  \ eligibility is evaluated FIRST, and an invocation\n  carrying the ack + a valid\
+  \ kind + the `>=30-char` reason + a declaration that COVERS EVERY recorded\n  pinned\
+  \ assertion of the counted cause is ADMITTED past the backstop — it reaches verify\
+  \ with NO\n  `--ack-repeated-abort`. **What is NOT relaxed:** the admission is a\
+  \ pure pre-check (argv + the\n  journal rows the backstop already read — no git,\
+  \ no verify), the GRANT below is untouched and still\n  the sole waiver authority,\
+  \ repeat-IDENTITY keying is unchanged, and admission is refused\n  fail-closed unless\
+  \ the recorded cause is PINNED (a candidate-suite regression is a real signal a\n\
+  \  re-baseline can never waive) and provably assertion-bearing. A repeat that materially\
+  \ changed\n  NOTHING therefore still freezes. The admission is journaled (`land_backstop_admitted`)\
+  \ — never a\n  silent block-clear (<workshop-spec> §1) — and a backstop refusal\
+  \ on a pinned cause now NAMES this path\n  and pastes the bindable token.\n- **POST-CLOSE\
+  \ work-branch case (X-0040 — in-place additive).** Requirement (ii) above resolves\n\
+  \  the audit against `THIS branch's task` — but a DONE task cannot be claimed as\
+  \ a `task/T-NNNN` worktree,\n  so an owner who must re-baseline AFTER close does\
+  \ it from a `work/<slug>` branch, where there is no\n  task id to resolve. Pre-\
+  \ that hard-refused → `--rebaseline` was unreachable post-close → the only\n  escape\
+  \ was the blunt `--no-tests` (the X-0040 deadlock). The SAME inert-delta property\
+  \ closes it: on a\n  NON-task branch, accept an ANCESTOR `audit_post_completed`\
+  \ (GREEN/YELLOW, ANY task) whose recorded commit\n  is an ancestor of HEAD AND whose\
+  \ SOURCE delta `commit..HEAD` is EMPTY (inert — events/graph/closure\n  bookkeeping\
+  \ only); the current source then byte-equals that audited tree, so the audit genuinely\
+  \ covers\n  it (the task identity is incidental — what is audited is the SOURCE).\
+  \ The MOST RECENT qualifying audit is\n  honored. A NON-empty source delta therefore\
+  \ stays REFUSED (no ancestor audit has an empty delta) — the\n  real audit requirement\
+  \ is NOT loosened. Recorded as `land_completed.ancestor_audit: {task,commit}`\n\
+  \  (additive, registered in SPEC-0025), so the empty-delta acceptance is durable\
+  \ + queryable.\n  **Deterministic governed CLOSURE SIDE-EFFECT exemption (X-0821/X-0839\
+  \ — GENERALISES and\n  RETIRES the post-close-only `lessons/` carveout of /X-0133b).**\
+  \ Audit CURRENCY asks whether the\n  tree changed under its own audit. A write the\
+  \ LIFECYCLE ITSELF REQUIRES after audit-post is not such a\n  change, and treating\
+  \ it as one made the required closure unlandable: `task close` deterministically\n\
+  \  flips its owned spec `proposed → active` (and the `supersedes:` target with it)\
+  \ inside `specs/**`, and\n  prompts the closure `lessons/` note — all necessarily\
+  \ AFTER Stage 8. So at EVERY audit-currency seam —\n  the `--rebaseline` eligibility\
+  \ check on BOTH its post-close `work/<slug>` and its ordinary\n  `task/T-NNNN` leg,\
+  \ AND the pre-ff land-seam currency gate — a path PROVEN to be an exact\n  deterministic\
+  \ governed closure side-effect is subtracted before the staleness question is asked.\n\
+  \  The EMPTY-delta requirement above therefore reads \"closure bookkeeping ∪ proven\
+  \ closure side-effects\".\n\n  PROVEN means a CONJUNCTION of three axes, each carrying\
+  \ positive evidence; no axis is sufficient alone\n  and a failure on any axis leaves\
+  \ the path REFUSED:\n    (i) PATH — `lessons/<slug>.md`, or `specs/SPEC-NNNN[-slug].yaml`\
+  \ (id read from the FILENAME, never\n          from the file's own content). A `lessons/`\
+  \ note qualifies on this axis ALONE, on\n          unchanged reasoning: a flat local-craft\
+  \ NOTE (SPEC-0090) is never executable or behavioural,\n          so it cannot stale\
+  \ a CODE audit, while the verify still runs the full suite over HEAD — so\n    \
+  \      nothing is skipped. What got wrong was only its SCOPE, and that asymmetry\
+  \ is retired\n          here: the same note on a task branch used to refuse.\n \
+  \   (ii) EXACT DIFF SHAPE — ONE of the TWO shapes `task close` itself produces or\
+  \ prescribes, each\n          measured over the ENTIRE change to the spec file against\
+  \ the audited commit:\n            - the FLIP close WRITES: ONE `status:` line replaced\
+  \ by another, the pair in the CLOSED\n              vocabulary {proposed→active,\
+  \ active→superseded, proposed→withdrawn} — every flip the SOLE\n              activation\
+  \ writer can perform (GRAPH §Spec lifecycle).\n            - the BINDING DECLARATION\
+  \ close PRESCRIBES (X-0859): the top-level `binding:`\n              declaration,\
+  \ optionally together with the same closure's `proposed → active` flip, and\n  \
+  \            nothing else. This shape exists because closure does not only WRITE\
+  \ its side-effects — when\n              the spec it just activated carries no valid\
+  \ `binding:` token, `task close` PRINTS a\n              `spec edit` remedy plus\
+  \ a pre-land `work commit` route and calls that manual edit \"part of\n        \
+  \      the ACCEPTED closure contract\". Refusing it here meant two governed rules\
+  \ issuing OPPOSITE\n              instructions for one sequence, exitable only by\
+  \ a full re-audit for a residency token that\n              changes no behaviour.\
+  \ Confinement is checked TWICE, independently, and BOTH must hold:\n           \
+  \   TEXTUALLY (delete the `binding:` block and the `status:` line from each blob;\
+  \ the remainder\n              must be byte-identical line for line) and SEMANTICALLY\
+  \ (parsed as YAML, the differing keys\n              are a subset of {binding, status}\
+  \ and CONTAIN `binding`; a differing `status` must be\n              exactly proposed→active\
+  \ — narrower than the vocabulary above, because a binding token is\n           \
+  \   prescribed only for the spec the close ACTIVATED, never for a `supersedes:`\
+  \ target).\n          A body edit, a second changed line, an added/deleted file,\
+  \ a comment change outside the\n          declaration, or any failure to read or\
+  \ parse either blob fails this axis.\n    (iii) GOVERNED-VERB PROVENANCE — a `spec_activated`\
+  \ row (SPEC-0161) in THIS task's id slot naming\n          THIS spec. Provenance\
+  \ is safer than path-only ONLY IF IT IS NOT A TRUST FLAG: it is applied\n      \
+  \    LAST, as a necessary conjunct over a shape already proven mechanically. A hand-emitted\
+  \ row\n          never admits a path whose shape failed (ii), and a genuine flip\
+  \ whose row is missing is\n          refused.\n\n  WHAT THIS IS NOT. It does NOT\
+  \ widen the SPEC-0064 global inert allowlist — `specs/**` and `lessons/**`\n  stay\
+  \ verify-OBSERVABLE there (a test may assert their content), exactly as kept them;\
+  \ the\n  subtraction is LOCAL to the currency consumers, which then re-classify\
+  \ the REDUCED path set through\n  the ONE classifier (the one-authority invariant\
+  \ holds). It adds NO closure mode, flag or waive\n  to `land`. Its binding-token\
+  \ boundary is PRECISE (narrowing this sentence rather than deleting\n  it): admitted\
+  \ is a binding declaration on a spec THIS close ACTIVATED — proven by the `spec_activated`\n\
+  \  row in this task's id slot — whose whole file change is confined to the declaration\
+  \ (plus at most that\n  close's own proposed→active flip). Any OTHER binding edit\
+  \ still refuses: a binding change to a spec this\n  close did not activate, one\
+  \ riding with a body/rule edit, or one carrying any other content. The point\n \
+  \ is not that binding tokens are harmless; it is that this exact edit is the one\
+  \ closure ITSELF prescribes,\n  and a governed instruction must not be refused by\
+  \ the governed verb that follows it. And it does NOT\n  touch `merge_inherited`,\
+  \ which still never refuses\n  on its own (the position, preserved). Every other\
+  \ observable post-audit path — bin / tests /\n  patterns / root-md, and any `specs/**`\
+  \ path failing (ii) or (iii) — stays observable → still REFUSED.\n\n  **PROVEN MECHANICAL\
+  \ CONFLICT-RESOLUTION exemption (the SECOND exemption at this seam, on the\n  SAME\
+  \ conjunction standard).** The footprint clause above covers \"conflict-resolution\
+  \ edits made in the\n  update-from-main merge commit\" — and that read every resolution,\
+  \ HAND-made or MECHANICAL, as content\n  the audit never saw. But `_classify_land_merge_conflicts`\
+  \ is the ONE admission authority for what\n  `update-from-main` resolves WITHOUT\
+  \ a human, and its output is a DETERMINISTIC FUNCTION of the two\n  sides. So the\
+  \ gate demanded that an external auditor review a string the tool itself produced\
+  \ and can\n  re-derive — and the auditor is a system-wide single point of failure,\
+  \ so every avoidable re-audit is an\n  avoidable dependency on it. On a hot file\
+  \ the chain does not converge at all: a fresh conflict\n  re-authors content on\
+  \ every attempt (measured 2026-08-19 — task/ needed five land attempts over\n  ~3h,\
+  \ task/ walked conflict → resolution → currency refusal → re-audit → land). The\
+  \ claim is the\n  same SHAPE as the closure exemption's: the merge the lifecycle\
+  \ REQUIRES cannot be the thing that makes\n  the lifecycle unauditable.\n\n  PROVEN\
+  \ means a CONJUNCTION of three axes, each carrying positive evidence; no axis is\
+  \ sufficient alone\n  and a failure on any axis leaves the path REFUSED:\n    (i)\
+  \ CONFLICT-MARKED in `merge-tree --write-tree <audit_commit> <merged_base>` — the\
+  \ gate's OWN\n          comparison, so no second oracle is introduced. This is positive\
+  \ evidence that a conflict\n          existed AT ALL: a path whose re-merge is CLEAN\
+  \ and whose HEAD nevertheless differs is a\n          post-audit EDIT, never a resolution.\n\
+  \    (ii) RESOLVED BY THE ONE AUTHORITY to a TEXT payload — `_classify_land_merge_conflicts`,\
+  \ asked over\n          that same stream through the index-free stage-read seam\
+  \ built. Two ways to fail: the\n          authority leaves the path unresolved,\
+  \ or it returns a kind carrying NO text payload, which\n          means \"resolvable\"\
+  \ to the merge path but \"no content to compare\" to THIS reader. That\n       \
+  \   missing-value judgement is made at the use site, never pushed into the shared\
+  \ authority.\n    (iii) CONTENT IDENTITY — HEAD's content for the path is BYTE-IDENTICAL\
+  \ to that re-derived text. THE\n          LABEL IS NEVER TRUSTED: no marker, commit\
+  \ subject or recorded claim that a resolution happened\n          is read. This\
+  \ axis is also what makes a separate hand-made EXCLUSION unnecessary and unsound\
+  \ to\n          add — a hand-typed string byte-equal to the mechanical output IS\
+  \ the mechanical output, and any\n          hand resolution differing by one byte\
+  \ fails here.\n\n  THE DID-NOT-ANSWER VALUE IS A REFUSAL, STRUCTURALLY. The subtraction\
+  \ is computed as a SUBSET of the\n  already-blocking set, so \"did not answer\"\
+  \ and \"no\" are the same value and there is no third value to\n  route (`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ §1). An un-runnable git, an unparsable\n  merge-tree stream, an authority that\
+  \ raised, an absent injection, an unreadable HEAD blob — each leaves\n  the path\
+  \ exactly where the pre-exemption code left it.\n\n  WHAT THIS IS NOT. It does not\
+  \ change the gate's POLARITY, add any flag or waive, or touch\n  `merge_inherited`\
+  \ or the reserved did-not-answer bucket, which must never be re-classified by a\
+  \ helper\n  that also could not answer. A resolution whose re-derivation DIFFERS\
+  \ from HEAD — because the branch\n  merged main more than once, or carries its own\
+  \ post-audit edit to the same file — is a MISSED\n  exemption, never a false admission:\
+  \ it stays refused, which is the pre-exemption outcome. And it widens\n  nothing\
+  \ in SPEC-0064: the subtraction is LOCAL to the currency consumers, exactly as the\
+  \ closure\n  exemption's is.\n- **NON-empty post-close delta — the re-audit-after-close\
+  \ path (X-0040's other half).** The\n  empty-delta bullet above covers a post-close\
+  \ re-baseline whose source is BYTE-IDENTICAL to an\n  ancestor audited tree. It\
+  \ does NOT cover the SIBLING case: a worker makes LEGITIMATE post-audit-post\n \
+  \ SOURCE changes (recovery test-fixes), so the current source is NO LONGER the audited\
+  \ tree (a NON-empty\n  delta) — the empty-delta scan correctly refuses, and a DONE\
+  \ task previously could not re-audit, so the\n  only escape was again the blunt\
+  \ `--no-tests` (the deadlock live-hit on). RESOLVED WITHOUT a new\n  honoring path:\
+  \ `audit post --reaudit-after-close --task T-XXXX` (SPEC-0036's in-progress-only\
+  \ carve-out\n  — that rule is now TOUCHED, superseding this bullet's earlier \"\
+  needs NO re-audit-after-close path\"\n  statement) records a FRESH GREEN/YELLOW\
+  \ `audit_post_completed` at the CURRENT tree (HEAD). The\n  `_change_is_audited`\
+  \ gate then honors it by the SAME inert-delta test already specified above (the\n\
+  \  fresh audit's recorded commit IS HEAD, so its delta to HEAD is empty → audited);\
+  \ on a `task/T-NNNN`\n  branch the task-path picks it as the LATEST audit, on a\
+  \ `work/<slug>` branch the empty-delta scan\n  accepts it. So this is purely an\
+  \ audit-INVOCATION extension (SPEC-0036) + read-gate carve-out\n  (SPEC-0050) —\
+  \ the §3a honoring logic here is UNCHANGED. A non-empty delta with NO fresh re-audit\
+  \ still\n  stays REFUSED (the real audit requirement is NOT loosened — the re-audit\
+  \ is the way to satisfy it,\n  never to bypass it).\n- **Why it is NOT a self-approval\
+  \ hole.** The candidate verify STILL runs green (the new checks gate),\n  and an\
+  \ INDEPENDENT external audit reviewed the change — so a verifier-WEAKENING (candidate\
+  \ green only\n  because the check was removed from code + new tests) is caught by\
+  \ the auditor, not waved through. The\n  baseline RESETS by construction: the next\
+  \ land's pinned source is THIS now-green `main` HEAD (§2) — no\n  new store/tag/FSM\
+  \ (CHARTER §P1 F3).\n- **The waive is PER-ASSERTION, scoped to what the DECLARATION\
+  \ names ( — in-place, the code\n  catching up to this §'s own \"waives ONLY the\
+  \ superseded old-behaviour check\").** The eligibility\n  gate above (ack + `>=30-char`\
+  \ reason + `_change_is_audited`) gates the PATH; it does NOT decide\n  WHICH assertions\
+  \ the waive covers. Until the grant was ALL-OR-NOTHING — the whole failing\n  pinned\
+  \ set was recorded as superseded, whatever was in it — so any unrelated flake or\
+  \ regression\n  failing in the same run rode in on an authorization given for a\
+  \ different check, and §2's\n  re-pinning then absorbed it into the new last-green\
+  \ baseline (the REAL incident: the land,\n  2026-08-06, waived an unrelated `test_audit_consult.py`\
+  \ UnicodeDecodeError alongside the named\n  layout guard; fingerprint `rebaseline-waives-pinned-failures-its-reason-never-named`).\
+  \ So: the\n  authorizer DECLARES each waived assertion with the repeatable `--rebaseline-waive`\
+  \ flag, and any\n  failing pinned assertion the declaration does NOT cover keeps\
+  \ the land REFUSED on the EXISTING\n  `rebaseline-unauthorized` abort class (no\
+  \ new abort taxonomy). The `--rebaseline-reason` stays\n  PROSE — coverage is never\
+  \ derived from how a sentence happens to be worded, and there is NO\n  implicit,\
+  \ derived, or fallback coverage source: the operator's token is the only positive\
+  \ evidence.\n  **Assertion-SCOPED, over a closed three-class vocabulary** (the file\
+  \ alone is not the unit — this\n  runner is not pytest, so no node id exists and\
+  \ the surfaced assertion TEXT is the only sub-file\n  identity the pipeline has):\
+  \ an ASSERTION-BEARING failure is covered only by a QUALIFIED token\n  `<key>::<substring\
+  \ of the surfaced assertion>` — where `<key>` is the name the failing check is\n\
+  \  REPORTED under, NOT necessarily a test file (X-0846: naming this slot `<test-file>`\
+  \ here\n  and on the operator-facing surfaces made a reader compose a token from\
+  \ a REAL test file and a REAL\n  assertion that the matcher then refused `no-match`,\
+  \ because that consumer's failure is keyed by its\n  verify LAYER — see the two-runner\
+  \ rule below, which this wording now matches instead of\n  contradicting); a bare\
+  \ `<key>` token is accepted ONLY\n  for a provably FILE-LEVEL entry (the runner\
+  \ captured no assertion text at all); an UNKEYED entry —\n  a pinned setup / pinned-engine-subprocess\
+  \ / consumer-SETUP fault — is NEVER coverable, because an\n  infrastructure fault\
+  \ is not a superseded old-behaviour check. **Two runners are KEYED, one per\n  sweep\
+  \ (X-0634):** the kernel sweep keys on the test FILE (`test failed: <file>`), and\
+  \ a\n  consumer that DELEGATES `tests/` to a declared verify layer (SPEC-0152 rule\
+  \ 16) keys on the LAYER\n  NAME (`land(consumer): verify layer '<name>' FAILED (exit\
+  \ N): …`) — the layer name is the only\n  identity that runner has, and without\
+  \ it EVERY pinned failure in such a consumer was UNKEYED BY\n  CONSTRUCTION, so\
+  \ `--rebaseline-waive` (REQUIRED with `--rebaseline` since) could never\n  bind\
+  \ and the A-prime option-(B) Worker self-clear above had no reachable path. That\
+  \ widening is\n  over what can be KEYED, NEVER over what counts as COVERED: a keyed\
+  \ layer failure still needs its\n  QUALIFIED `<layer>::<substring>` token, and the\
+  \ exact-shape parse leaves every neighbouring\n  consumer-guard entry (a `prep:`\
+  \ fault, a layer TIMEOUT, a malformed `verify.layers[i]` contract)\n  UNKEYED. One\
+  \ asymmetry is deliberate and belongs to the READER, not the parse: a keyed entry\
+  \ with\n  NO captured text is a provably file-level failure for the ONE-file kernel\
+  \ subprocess (C2, bare\n  token) but proves NOTHING for a whole layer harness, so\
+  \ a consumer layer entry that captured\n  nothing stays UNKEYED-in-effect (C3) and\
+  \ refuses. FAIL-CLOSED on every axis: a token\n  binding to nothing, binding ambiguously,\
+  \ or bare against an assertion-bearing failure is REJECTED\n  (a declaration that\
+  \ does not bind is not an ack, never a silent no-op). Realized by\n  `_rebaseline_waive_coverage`\
+  \ / `_pinned_failure_test_file` in `bin/lib/worktree.py`.\n**THE DECLARATION TARGET\
+  \ IS THE COMPLETE FAILING SET — no fail-fast on the pinned pass.**\nThe per-assertion\
+  \ declaration above is matched ENTRY BY ENTRY and is fail-closed in BOTH directions:\n\
+  an uncovered failure refuses, and a token that binds nothing refuses as `no-match`.\
+  \ That is a usable\npath ONLY if the set it is declared against is the SAME set\
+  \ on the next attempt. The pinned test\nrunner used to stop at the FIRST observed\
+  \ failure, so over a real multi-failure state it reported a\nrun-varying SUBSET\
+  \ and the required declaration MOVED between attempts — a coin flip no quiescence\n\
+  settles (measured: 8 land aborts on across two sessions in one day; those same journal\
+  \ rows\nwere first misread as on-disk CONTAMINATION of the pinned tree, a reading\
+  \ an external auditor\nretired — derived artifacts are GENERATED from live sources,\
+  \ so their presence proved nothing).\nSo the pinned pass RUNS EVERY CHECK AND REPORTS\
+  \ EVERY FAILURE before any waive matching is applied:\nthe kernel sweep asks its\
+  \ runner for the complete set (`fail_fast=False`), and the consumer leg\nalready\
+  \ ran every declared layer. This is a REPORTING rule, not a gate change — the verdict\
+  \ stays\npass-iff-empty, no check is skipped, reset or weakened, and SPEC-0071's\
+  \ per-file timeout bound +\ngroup-kill are UNTOUCHED (only the whole-RUN early exit\
+  \ is given up, and only on a FAILING pinned\nrun: a green run already ran every\
+  \ file). **SCOPE of that sentence — it is a claim about THIS\nfail_fast reporting\
+  \ change, not about the leg as a whole.** \"No check is skipped, reset or weakened\"\
+  \nsays that giving up the early exit neither drops a check from the run nor softens\
+  \ a verdict; it is\nNOT a claim that every test a project owns enters the pinned\
+  \ set in the first place. Which tests\nENTER it is the separate, DECLARED question\
+  \ answered by the `timing_lane` pointer above (home:\nSPEC-0160 rule 10) — so a\
+  \ reader of this paragraph alone should not read it as a whole-spec\nguarantee that\
+  \ the pinned set is never narrowed. The CANDIDATE verify keeps its fast abort —\
+  \ it is judged\nas a verdict, never matched token-by-token. TRANSITIONAL BY §1's\
+  \ OWN DESIGN: the pinned runner on an\nengine self-land IS merged_base code, so\
+  \ the driver asks for the complete set only when the\nlast-green runner carries\
+  \ the parameter (capability-probed, never blindly — an unknown kwarg would\nbe a\
+  \ fail-closed pinned ABORT on every land), and the rule therefore takes effect from\
+  \ the land\nAFTER the one that ships it. Realized by `_run_pinned_verify` / `_PINNED_VERIFY_DRIVER`\
+  \ /\n`_run_verify_tests` in `bin/lib/worktree.py`.\n**THE SUGGESTED TOKEN IS THE\
+  \ BOUND TOKEN — a round-trip INVARIANT (X-0685 / X-0683 /\nX-0660).** The refusal\
+  \ above PASTES a ready `--rebaseline-waive` line per uncovered entry, and that\n\
+  paste is normative, not decorative: the token the refusal suggests, copied VERBATIM\
+  \ through a shell,\nMUST bind the entry it was suggested for. It did not — the paste\
+  \ was composed inline in the refusal\nwhile the binding rule lived in the matcher,\
+  \ so the two drifted, and a non-ASCII assertion (pasted\nbackslash-u escaped) or\
+  \ a consumer verify-LAYER name containing `/` (path-mangled by the matcher)\nwas\
+  \ rejected `no-match` by the very message that offered it. With `--rebaseline-waive`\
+  \ REQUIRED\nsince, an operator who cannot form a binding token has NO sanctioned\
+  \ path at all: <project>,\nafter 4 refused attempts on, neutralized the superseded\
+  \ test directly on main — the\ngovernance bypass this § exists to make unnecessary.\
+  \ So the token is built in ONE place\n(`_rebaseline_waive_suggested_token`) from\
+  \ the SAME entry records the matcher judges, and is quoted\nfor a real shell paste\
+  \ (literal text; `$` and backtick escaped). **And it is STABLE ACROSS RUNS of\n\
+  the same failing state:** the qualifier is compared — on BOTH sides, and emitted\
+  \ already-normalized\n— as its `_waive_qualifier_key`, which collapses an ENUMERATED\
+  \ set of run-varying spans (ISO-8601\ntimestamps, wall clocks, `0x…` handles, durations,\
+  \ temp paths, hex ids carrying both a letter and a\ndigit, and a `-`/`_`-delimited\
+  \ digit run inside a word that CONTAINS a letter) to `*`. Without that,\na Docker-wrapped\
+  \ verify layer whose captured tail names a per-run container pid + hash yields a\n\
+  token that cannot be written before the run and differs on every retry — X-0683,\
+  \ where a fully\nbuilt, tested and audited-GREEN consumer task could not integrate\
+  \ at all. The normalization governs\nonly HOW a qualifier is COMPARED: the C1/C2/C3\
+  \ vocabulary, the mandatory qualifier for an\nassertion-bearing entry, and every\
+  \ fail-closed axis above are UNCHANGED, and the\nletter-bearing-word condition keeps\
+  \ an assertion's own numeric VALUE (`assert '200-000' ==\n'200-000-000'`) exact\
+  \ — a token naming a different number still does not bind.\n**THAT STABILITY IS\
+  \ SCOPED TO RUN-VARYING SPANS, AND A SECOND AXIS EXISTS — MAIN-VARYING VALUES\n\
+  .** The normalizer above stabilizes a token against what one RUN differs from the\
+  \ next by.\nIt deliberately does NOT touch a plain number, because the letter-bearing-word\
+  \ condition just named\nis what keeps an assertion's own numeric VALUE exact — and\
+  \ that exactness must not be traded away.\nBut a pinned assertion can carry a value\
+  \ that is MAIN-varying rather than run-varying: a count or\nroster the CORPUS itself\
+  \ keeps moving (`expected 29 concern born blocks, got 30` read 29, then 30,\nthen\
+  \ 31 within one day as concerns were added). A token minted on one `main` is then\
+  \ `no-match` on\nthe next, and because the refusal instructs the operator to paste\
+  \ it VERBATIM, the refusal pastes a\nFRESH count-bearing token and re-arms the identical\
+  \ staleness — a re-mint-and-re-queue loop costing\none land attempt and one queue\
+  \ position per turn (the measured incident: task/, whose single refusal shows both\
+  \ halves — three rejected count-bearing tokens\nand three fresh count-bearing suggestions).\n\
+  **The remedy is on the OFFER side, and the MATCHER IS UNCHANGED.** The waive matcher\
+  \ already tests\nthe qualifier by SUBSTRING containment, so a digit-free span of\
+  \ the assertion ALREADY binds across\nthe moving value; what was missing is that\
+  \ no sanctioned surface ever OFFERED such a span, leaving\nthe volatile token as\
+  \ the only one an operator could paste. So every refusal composed in\n`bin/lib/rebaseline_currency.py`\
+  \ now pastes a SECOND, CLASS-SHAPED token BESIDE the exact one:\n`<key>::<the assertion's\
+  \ STABLE IDENTIFYING SPAN>` — its FIRST digit-free run of at least 2\nwhitespace-delimited\
+  \ words and 12 characters, derived from the exact token's own output so every\n\
+  existing guard (C3 → no token, C2 → the bare key, the wrap repair, the 60-char truncation)\
+  \ applies\nin ONE place and cannot drift. FIRST run, not longest: the leading run\
+  \ is the assertion's identifying\nHEAD, whereas the longest is as likely to be its\
+  \ moving data TAIL.\n**THE COARSENESS FLOOR IS PART OF THE RULE, not a tuning detail**,\
+  \ and there is NO fallback to a\nshorter run — an entry that clears nothing is offered\
+  \ NO stable token at all. Without the floor the\nspan for `FAIL test_ac2_...`, whose\
+  \ first digit-bearing word is the TEST NAME, would be the bare word\n`FAIL` — as\
+  \ coarse as the bare-key token this § already refuses for a C1 entry. For the same\
+  \ reason\nthe span is NOT the exception TYPE: `<key>::AssertionError` matches EVERY\
+  \ assertion in that file,\nwhich is precisely the over-broadening the span exists\
+  \ to avoid (measured over the three real\n assertions, all `AssertionError:` — the\
+  \ type token covers all three, each span token covers\nits own and refuses both\
+  \ siblings).\n**BOUND — this widens only WHAT IS OFFERED.** The C1/C2/C3 vocabulary,\
+  \ the mandatory qualifier for\nan assertion-bearing entry, the mechanical tie required\
+  \ of `--rebaseline-reason`, the fresh\nGREEN/YELLOW audit-post condition, and every\
+  \ fail-closed axis above are UNCHANGED: it narrows which\nTEXT identifies a failure,\
+  \ never WHO may clear it or WHEN. Binding is guaranteed BY CONSTRUCTION\nrather\
+  \ than by a second matcher — the exact qualifier is a prefix of the entry key, so\
+  \ a stripped\ncontiguous run of it is a contiguous substring of that key.\n**NAMED\
+  \ RESIDUAL, stated rather than papered over:** two DISTINCT numeric assertions in\
+  \ the SAME file\ncould share an identifying head. The runner appends AT MOST ONE\
+  \ entry per file per run, so at most one\ncan be present in the failing set a declaration\
+  \ is judged against; were two ever present, the\nEXISTING `ambiguous` axis refuses\
+  \ the token. No new fail-open path is introduced. Realized by\n`_rebaseline_waive_stable_token`\
+  \ / `_rebaseline_waive_paste_lines` in `bin/lib/rebaseline_currency.py`;\nthe uncovered-entry\
+  \ scope refusal in `bin/lib/worktree.py` still composes its own exact-only line\
+  \ and\nis tracked as an open followup.\n- **Surfaced, never silent.** Records `land_completed.rebaselined:\
+  \ true` + `rebaseline_kind`\n  ( — WHY, below) + `rebaseline_reason` +\n  `pinned_superseded`\
+  \ (the waived old-behaviour assertions) + `rebaseline_waived` ( — each\n  waived\
+  \ assertion PAIRED with the declaration that covered it, so the journal shows exactly\
+  \ what\n  the ack bought, not only what was given up); `verify_mode=rebaselined+candidate`\n\
+  \  (§Verification; registered in SPEC-0025). A `--rebaseline` ack without a current-state\
+  \ audit is\n  REFUSED (the land aborts). The blunt `--no-tests` bypass remains for\
+  \ the genuinely non-audited case\n  (a non-task branch with NO ancestor audit covering\
+  \ the current source — the POST-CLOSE bullet above\n  now covers the empty-delta\
+  \ non-task case that previously fell to `--no-tests`).\n- **The waive carries a\
+  \ KIND — *broken* and *unrunnable-here* stop sharing one record (X-0739, <project>).**\
+  \ Everything above records WHAT a re-baseline waived and WHO was entitled to\n \
+  \ it; nothing recorded **WHY**. So a check waived because its failure is REAL here\
+  \ and a check\n  waived because it is HEALTHY BUT CANNOT RUN here landed in the\
+  \ identical `rebaselined: true`\n  shape, and the only carrier that could separate\
+  \ them was `rebaseline_reason` — which this §\n  itself declares to be PROSE, never\
+  \ load-bearing. The measured case: a consumer whose verify is a\n  heavy full-stack\
+  \ script cannot satisfy the §3 two-leg verify AT ALL once its diff touches\n  `tests/`\
+  \ or the verify script, so its only sanctioned recovery waives a demonstrably healthy\n\
+  \  check and the record then says the same thing it says about a broken one. So\
+  \ the AUTHORIZER\n  DECLARES the kind, alongside the per-assertion declaration it\
+  \ already must pass:\n  - `--rebaseline-kind broken` — the pinned failure is REAL\
+  \ in this checkout: the superseded\n    old-behaviour assertion the change obsoletes\
+  \ (the ordinary §3a case), or a genuinely broken\n    check.\n  - `--rebaseline-kind\
+  \ unrunnable-here` — the pinned check is HEALTHY but cannot RUN in this\n    checkout\
+  \ at all. Waiving it asserts NOTHING about whether it would pass.\n  - `--rebaseline-kind\
+  \ environmental` ( — the THIRD value, ADDITIVE) — the pinned check is\n    HEALTHY\
+  \ and RUNNABLE here but FAILED under the FULL-run load. The waive attributes the\
+  \ FULL-run\n    failure to LOAD, not to the check. This is the LOAD-FLAKE case,\
+  \ and it is the one value that is\n    not purely a label — it selects a BINDING\
+  \ MODE (the two-part conjunction below).\n  **THE ISOLATED RE-RUN NOW HAPPENS AUTOMATICALLY,\
+  \ INSIDE THE FIRST ATTEMPT.** Part (i)\nbelow — every named file re-run alone in\
+  \ a single subprocess OUTSIDE the contended pool — is no\nlonger reachable only\
+  \ by declaring a SECOND land. When a leg the CURRENT runner executes stops on\n\
+  failures and the failing set is within `YITC_VERIFY_RETRY_MAX_FILES`, the runner\
+  \ re-runs each\nfailing file once in isolation on the SAME tree; ALL pass -> the\
+  \ leg RESUMES over its not-yet-run\nfiles and the land reaches its own verdict,\
+  \ ANY fails -> the abort is exactly as it was, and\neither way `land_completed.verify_metrics.flaky_retry`\
+  \ records what happened. `--rebaseline-kind\nenvironmental` is UNCHANGED and stays\
+  \ the remedy for what the automatic retry does not reach: an\nOVER-BOUND or TIMEOUT-CLASS\
+  \ failing set, and the LOCAL PINNED leg — which by this spec's own\nconstruction\
+  \ executes LAST-GREEN engine code, so it acquires the retry one green land later,\
+  \ as\nit would any runner change. Nothing here moves the verdict gate, the A-prime\
+  \ authority, or either\nconjunct below: a file is still cleared only by PASSING\
+  \ alone, which is the same fact part (i)\nhas always required.\n**THE SERIALIZED\
+  \ TAIL IS PART OF THE LEG'S VERDICT.** A file listed in the committed\n`tests/load-sensitive.txt`\
+  \ runs AFTER the leg's concurrent pool, alone, on both legs, and its pass\nor fail\
+  \ decides that leg exactly as a pool result does — the declared set moves WHERE\
+  \ a file runs,\nnever WHETHER it counts, so neither conjunct above is weakened by\
+  \ it.\n**THE `environmental` TWO-PART BINDING — fail-closed on EACH part.** Under\
+  \ this kind,\n  and ONLY under it, a `--rebaseline-waive` token binds when BOTH\
+  \ hold:\n  (i) the ISOLATED preflight run of EVERY named-and-runnable file PASSES,\
+  \ AND (ii) the token's key\n  is named in the `failing_assertions` of THIS branch's\
+  \ most recent RECORDED land abort (the\n  recorded full-run failure; read back through\
+  \ the SAME fail-closed\n  `_recorded_pinned_waive_records` classifier the land backstop's\
+  \ admission pre-check uses, never\n  a fresh string match) AND that row yields a\
+  \ LOCATOR. Neither part alone is evidence: (i) alone is\n  just a green file, and\
+  \ (ii) alone is a failure with no proof it is environmental.\n  **THE LOCATOR IS\
+  \ PART OF (ii), NOT DECORATION.** A recorded row carrying no timestamp yields no\n\
+  \  locator, and a grant made on it would record a `waive_binding` that cannot be\
+  \ traced back to the\n  evidence justifying it — which is exactly the accountability\
+  \ this kind's record exists to\n  provide. So an unlocatable row binds NOTHING and\
+  \ the token stays `no-match`: a locator is\n  evidence, and an absent timestamp\
+  \ is not evidence of a row.\n  **(i) IS EVALUATED FIRST AND IS ALL-OR-NOTHING.**\
+  \ A file that FAILS its isolated run is `broken`,\n  not environmental, and it REFUTES\
+  \ THE KIND for the WHOLE declaration — the land is REFUSED naming\n  `broken` as\
+  \ the honest kind, and NO sibling token is cleared either, not even one a recorded\
+  \ prior\n  abort would otherwise have bound. A declaration is judged as a whole,\
+  \ so a multi-token ack can\n  never smuggle a prior-abort clearance past a provably\
+  \ broken file. A token failing (ii) alone\n  stays `no-match` and leaves its siblings\
+  \ unaffected — that asymmetry is deliberate: (i) refutes\n  the KIND, (ii) merely\
+  \ fails to find evidence for ONE token. An acquisition that could not be\n  ESTABLISHED\
+  \ clears nothing AND refuses nothing (the preflight's own fail-open rule,\n  unchanged\
+  \ — this arm may make a refusal reachable or cheaper, never invent one from an\n\
+  \  unestablished fact).\n  **THE WAIVED FILE IS STILL RUN, AND ITS RESULT RECORDED.**\
+  \ The waive moves the VERDICT gate only,\n  never what runs: the full pinned verify's\
+  \ file set is untouched (the narrowed `only` selection\n  belongs to the preflight\
+  \ alone). That is what keeps a flake COUNTED rather than hidden — the\n  cross-branch\
+  \ debt echo and any de-flake card's post-ship observation both read those runs.\
+  \ The\n  grant records `rebaseline_kind: environmental` plus, per token,\n  `land_completed.waive_binding:\
+  \ {token, key, mode: prior-abort, locator, isolated, full_run}` —\n  the locator\
+  \ of the recorded abort it bound to, the isolated verdict that proved the check\
+  \ healthy\n  here, and what the full run actually said about that file. Accountability\
+  \ grep:\n  `grep rebaseline_kind events.jsonl`, the shape the §2a `--no-tests` marker\
+  \ already uses.\n  **It does NOT reintroduce the coin flip.** That rule requires\
+  \ a token not to \"move between\n  runs\". Both conjuncts are STABLE facts about\
+  \ this branch — a recorded journal row that does not\n  change, and an isolated\
+  \ verdict taken in a single subprocess OUTSIDE the contended pool. Neither\n  is\
+  \ the re-rolled full-run outcome whose instability is the problem being solved.\
+  \ The\n  / exact-both-directions matching for the other two kinds is UNTOUCHED.\n\
+  \  **REQUIRED at grant, NEVER inferred.** A `--rebaseline` with no kind is REFUSED\
+  \ on the EXISTING\n  `rebaseline-unauthorized` abort class (no new taxonomy), and\
+  \ the refusal NAMES every kind and\n  what each MEANS. There is deliberately no\
+  \ default: a defaulted kind would recreate the exact\n  conflation the declaration\
+  \ removes, with a label on top. The vocabulary is CLOSED and\n  kernel-owned — ONE\
+  \ code constant, `worktree_mod.REBASELINE_KINDS`, read by the flag's `choices`,\n\
+  \  by both required-at-grant refusals and by the record, so prose and code cannot\
+  \ drift (the §1\n  file-membership idiom; this prose POINTS at the constant and\
+  \ does not duplicate it) — with\n  NOT-DECLARED as the reserved state that routes\
+  \ to refuse\n  (`lessons/carving-an-exception-into-a-fail-closed-gate` §1: a vocabulary\
+  \ narrower than its\n  reality is how a silent default gets in).\n  **THE KIND IS\
+  \ A LABEL, NOT A DISCRIMINATOR — it opens NOTHING. AMENDED IN SCOPE BY, and\n  the\
+  \ amendment is stated here rather than left as a standing contradiction (CHARTER\
+  \ §P7).** This\n  is the load-bearing negative clause, and it is UNCHANGED for the\
+  \ two values it was written about:\n  no gate reads `broken` or `unrunnable-here`;\
+  \ `unrunnable-here` buys no eligibility that `broken`\n  does not, and neither buys\
+  \ any that the pre- kindless grant did not.\n  **What changes is the clause's SCOPE,\
+  \ not its force.** `environmental` (the third value)\n  IS a discriminator: it selects\
+  \ a BINDING MODE, and it is the ONE value that changes what a token\n  may bind\
+  \ to. Naming that plainly is the point — the clause forbade *reading* the old text\
+  \ as\n  permitting such a value, and the sanctioned route for one is to AMEND, which\
+  \ this is.\n  **The widening is real, and it is bounded — state both.** It is real:\
+  \ a token that today refuses\n  `no-match` at the isolated preflight can now BIND.\
+  \ It is bounded by four things, each\n  named above and none optional: the two-part\
+  \ fail-closed conjunction; the ALL-OR-NOTHING refutation\n  that makes one isolated\
+  \ FAILURE refuse the whole declaration (so the value can also REFUSE where\n  nothing\
+  \ refused before — it is not purely a relaxation); the still-runs rule, which leaves\
+  \ the\n  verify's file set untouched so nothing is hidden; and the per-token `waive_binding`\
+  \ record, which\n  makes every such grant reconstructible from the journal.\n  **What\
+  \ NO kind may do, including this one — the surviving force of this clause.** WHO\
+  \ may\n  authorize a re-baseline (the A-prime bullet), the `>=30-char` reason, the\
+  \ current-state audit\n  requirement, the per-assertion `--rebaseline-waive` coverage\
+  \ requirement and every fail-closed\n  axis of the C1/C2/C3 token vocabulary are\
+  \ UNCHANGED, and apply identically to ALL THREE values. A\n  change that let a declared\
+  \ kind widen WHO MAY WAIVE, or that let one waive an assertion no\n  declaration\
+  \ NAMES, remains the harm this clause exists to forbid and is not a permitted future\n\
+  \  reading of this §. A future value that widens the binding mode must, like this\
+  \ one, amend this\n  clause explicitly and carry its own fail-closed conjunction\
+  \ — it may not arrive by reading the\n  text as already permitting it.\n  **NO RETRO\
+  \ RE-KEYING, and absence is not a value.** `rebaseline_kind` is written from the\n\
+  \  DECLARATION only, on the land that makes it. A row recorded before carries no\
+  \ kind and\n  is left exactly as it was: absence means *nothing was declared*, and\
+  \ MUST NOT be read as\n  `broken`, as `unrunnable-here`, as `environmental`, or\
+  \ as any default. Nothing backfills, re-keys\n  or re-interprets an existing row\
+  \ (the shape — a fix must not reach backwards). The same\n  holds one layer down\
+  \ for the `waive_binding` record: it is written only by the land that\n  made the\
+  \ binding, and its ABSENCE on a row means no such binding was made — never a default\
+  \ mode.\n  **What this does NOT do — the honest bound, carried in the rule itself.**\
+  \ It does NOT make an\n  unrunnable verify runnable. A consumer whose diff touches\
+  \ `tests/` or its verify script still\n  cannot satisfy the §3 two-leg verify and\
+  \ still needs the waiver; what changes is that the waiver\n  stops being indistinguishable\
+  \ from *this check is broken*. Reachability is UNSOLVED and is\n  recorded as unsolved\
+  \ (plan `give-a-healthy-but-unrunnable-consumer-verify-a-re` §Trial summary,\n \
+  \ four journaled cycles: no steady-state oracle can refuse a trivially-green declared\
+  \ verify, so a\n  consumer-declared verify profile was REJECTED and nothing here\
+  \ touches SPEC-0152 profile fields\n  or §1 leg selection). Any reading of this\
+  \ clause as reachability is a misreading.\n- **Diagnostic (the tail filter).** So\
+  \ the owner can SEE which old-behaviour assertion failed (and decide\n  to re-baseline),\
+  \ the verify-fail abort LEADS with a `FAILING ASSERTION(S)` block extracted from\
+  \ the\n  test-output tail (`_surface_failing_assertions`) instead of the blind last-N-chars\
+  \ that drowned it.\n  **EVERY verify-layer SHAPE, not only a bare pytest invocation\
+  \ ( — X-0680/X-0687/X-0658; in-place,\n  the extractor catching up to this bullet's\
+  \ own obligation).** This block is what the A-prime option-(B)\n  MECHANICAL TIE\
+  \ above is defined AGAINST (\"the reason names the EXACT surfaced pinned failure(s)\"\
+  ), so a\n  block that renders log noise makes the sanctioned self-clear UNSATISFIABLE\
+  \ from the surfaced evidence\n  even where staleness is provable by inspection —\
+  \ and the reachability of the whole §3a path depends on\n  this rendering. The extraction\
+  \ therefore normalizes each tail line through pytest's failure GUTTER\n  (`_degutter_verify_line`)\
+  \ before its scans and returns the de-guttered text: a BARE pytest run prints\n\
+  \  its traceback at column 0, but a SCRIPT/Docker-WRAPPED layer (SPEC-0152 rule\
+  \ 16 `tests/` delegation)\n  renders the failure BODY in the `E ` gutter, so the\
+  \ pre- column-0 scans matched nothing there\n  and fell through to the last-non-empty-line\
+  \ fallback — container/migration/teardown noise (the real\n  incident: main tests\
+  \ pin `placeholder=200-000` while the candidate template serves `200-000-000`, the\n\
+  \  assertion sits in the captured blob, and the block showed `[docker] container\
+  \ exited with code 1`).\n  Pytest's short-summary `FAILED <nodeid> - <msg>` line\
+  \ joins the priority order (after the traceback\n  verdict, before the bare `assert`\
+  \ source line) for the truncated-tail case. The priority ORDER is\n  UNCHANGED (the\
+  \ last-non-empty FALLBACK was RETIRED later — see the paragraph below), so\n  extraction\
+  \ is never worse for any input; a gutter-free line\n  normalizes to ITSELF, so the\
+  \ bare-pytest surfaced text is byte-for-byte as before. This governs only\n  WHAT\
+  \ TEXT is surfaced — the KEYING of an entry (`_consumer_verify_layer_key`) and the\
+  \ waive\n  COVERAGE vocabulary above are untouched.\n  **The PRODUCER half — the\
+  \ excerpt preserves the failure through truncation, and the block names ALL\n  failing\
+  \ assertions (the CANDIDATE-tree sibling of, same bullet, in place).** The\n  extractor\
+  \ can only rescue what SURVIVES the recorded excerpt, and `_verify_failure_excerpt`\
+  \ truncated\n  POSITIONALLY (first line + trailing chars, middle elided). The V2\
+  \ print-runner prints `FAIL: <fn>` +\n  its traceback INLINE and KEEPS GOING, printing\
+  \ the remaining `PASS:` lines after it — so whenever the\n  failing test is not\
+  \ the last one in its file, the failure sits in the ELIDED MIDDLE while head and\n\
+  \  tail are passing lines, and extraction correctly falls through to its last-non-empty-line\
+  \ fallback\n  and names an assertion that PASSED. Live 2026-08-09 on the land: the\
+  \ block named\n  `PASS: / — _terminal_detail splits the blocked-on-land detail by\
+  \ escalation target`\n  while the real failure was `test_t10818_done_but_unlanded_task_can_escalate`\
+  \ (12 passed, 1 failed,\n  and the block named one of the 12) — a confident, plausible,\
+  \ WRONG diagnosis that nothing fails\n  closed on, and worse than a missing label\
+  \ because a missing one prompts a direct test run. So: the\n  excerpt RESCUES the\
+  \ failure-identity lines out of the span it elides (POSITIVE discriminators homed\n\
+  \  once in `bin/lib/worktree.py` and read by both halves; budgeted, and a clip is\
+  \ STATED), and the\n  extractor keys off the FAIL MARKER ahead of the positional\
+  \ rules, naming EVERY failure it finds.\n  Naming ALL of them is load-bearing, not\
+  \ cosmetic: the waive COVERAGE vocabulary above scopes a C1\n  ack to a qualified\
+  \ token whose substring occurs in THAT entry's surfaced assertion, so a failure\
+  \ this\n  block does not name escapes the operator's ack and is absorbed into the\
+  \ next baseline by §2's\n  re-pinning — the defect one layer up. Both of the excerpt's\
+  \ passthroughs (`<= bound` and\n  near-bound) stay byte-identical and the extractor's\
+  \ rules 1/1b/2 keep their order, so nothing\n  already-correct moves.\n  **A SELF-REPORTED\
+  \ `FAILED` SUMMARY IS A BINDABLE IDENTITY (live,\n  batch bat-610872eb3db6 — in\
+  \ place, additive).** Every discriminator above keys off a RAISED failure\n  or\
+  \ a runner/pytest line, so a test that CATCHES its own failures and prints its OWN\
+  \ summary defeats\n  all of them: its whole output carries no matchable marker,\
+  \ the block renders `(no assertion\n  captured)`, and the SPEC-0184 red-isolation\
+  \ oracle correctly declines `entry-names-no-assertion` —\n  the attribution machinery\
+  \ works and its INPUT is unreadable. Live: a three-member batch requeued\n  every\
+  \ member with nobody evicted, because `tests/test_event_catalog_completeness.py`\
+  \ surfaced\n  nothing while its own `FAILED (1): AC1 — …` sat in the captured tail.\
+  \ So a summary that NAMES the\n  failing criteria — the `FAILED` verdict marker,\
+  \ a colon, a non-empty payload — is bound as the\n  assertion identity, all of them,\
+  \ by the same name-them-ALL discipline the rules above carry.\n  **The bound, which\
+  \ is the rule and not a caveat:** a COUNT-ONLY summary (`FAILED (3 check(s))`,\n\
+  \  `FAILED — 2 failure(s)`, `2 FAILED`, `3/5 FAILED`, or a colon with an empty payload)\
+  \ is NOT bound —\n  it states THAT something failed and never WHICH, and promoting\
+  \ it into the assertion position is\n  exactly the noise-as-assertion defect the\
+  \ paragraph below retired. Silence stays the honest\n  answer there, and the oracle\
+  \ still declines. **Qualified by — the count-only header may\n  OPEN AN ENUMERATED\
+  \ LIST, and the LIST is bound where it exists.** Several of this repo's own test\n\
+  \  files print such a banner and then one `- <criterion>` bullet per failure, so\
+  \ the criterion IS\n  named one line below the header the rule above rightly refuses;\
+  \ the extractor's rule 2c reads that\n  contiguous run of bullets and returns the\
+  \ ENTRIES. The bound above is UNWEAKENED, not carved into:\n  the HEADER is still\
+  \ never bound, never returned, and a count-only summary with nothing enumerated\n\
+  \  beneath it still yields silence. What changed is that \"the file surfaces nothing\"\
+  \ no longer follows\n  from \"the header names nothing\" — where the file enumerated\
+  \ its failures, they are now named, which\n  moves such an entry from the file-scoped\
+  \ C2 waive class to the assertion-scoped C1 one. Contiguity\n  is the discriminator:\
+  \ one non-bullet line closes the run, so this is not the retired last-non-empty\n\
+  \  fallback and a log line cannot reach the assertion position however the tail\
+  \ ends.\n  The discriminator is POSITIVE and anchored at line\n  start, homed once\
+  \ in `bin/lib/worktree.py` beside its three siblings and read by BOTH halves (the\n\
+  \  extractor's scans and the excerpt's rescue). It is placed LAST in the extractor's\
+  \ order,\n  immediately before the no-assertion return, so it can fire ONLY where\
+  \ the answer was already\n  none: no input that already extracted correctly changes\
+  \ answer, and a raised exception still binds\n  by the traceback rule exactly as\
+  \ before.\n  **What this does NOT cover — the honest bound (measured, not asserted).**\
+  \ Of the 197 test files\n  that print a self-reported summary, 74 were already bindable\
+  \ by an existing rule, 52 become\n  bindable here, and 71 remain bound by nothing:\
+  \ chiefly the bare `FAIL <label>` per-check dialect\n  with no colon (the largest\
+  \ remaining shape, which belongs to the RUNNER discriminator, not to this\n  rule)\
+  \ and the count-only shapes excluded above. And a NAME-ONLY identity carries LESS\
+  \ than an\n  exception's text — it says WHICH criterion failed, not what broke inside\
+  \ it. For the SPEC-0184\n  pair-match oracle that is sufficient: it asks whether\
+  \ two runs failed the SAME thing, and a\n  criterion label answers that. For the\
+  \ §3a A-prime MECHANICAL TIE it is sufficient only when the\n  criterion label is\
+  \ itself specific; where a file's labels are bare ordinals (`AC1`), the operator\n\
+  \  still has to read the test to know what broke. That residue is real and is not\
+  \ closed here.\n  **THE BLOCK NAMES AN ASSERTION OR SAYS IT HAS NONE — the last-non-empty\
+  \ FALLBACK is RETIRED (X-0736/X-0732/X-0698, <project>).** Two measured gaps remained,\
+  \ and they compound. First, the pytest\n  short-summary discriminator REQUIRED a\
+  \ ` - <msg>` half, but under `--tb=no` — an ordinary consumer\n  harness setting\
+  \ — pytest prints the summary BARE (`FAILED <nodeid>`). A consumer layer records\n\
+  \  `(stdout + stderr)[-500:]` and alembic logs to STDERR, so the log lines land\
+  \ LAST: every scan missed\n  the bare summary lines and the fallback promoted `INFO\
+  \ [alembic.runtime.migration] Running upgrade …`\n  into the assertion position,\
+  \ while 9 real failures across 3 layers sat unnamed in the SAME tail\n  (X-0736).\
+  \ The ` - <msg>` half is therefore OPTIONAL now, in the ONE homed discriminator\
+  \ both halves\n  read. Second, and independently: where NO failure-identity marker\
+  \ occurs anywhere in the tail, the\n  extractor returns NOTHING and the block STATES\
+  \ that it captured no assertion, rendering the tail's\n  last line behind that marker\
+  \ as explicitly-labelled CONTEXT. It is never again presented AS the\n  assertion.\
+  \ Silence is the honest answer here and a plausible wrong answer is the defect:\
+  \ this block is\n  what the A-prime MECHANICAL TIE is made against, so a log line\
+  \ in the assertion position makes a tie\n  to it clear the `>=30-char` reason check\
+  \ while meaning nothing (X-0698), and an excerpt of migration\n  logs naming no\
+  \ failure at all costs a full land cycle to diagnose (X-0732). Nothing is lost from\
+  \ the\n  record — a verify TIMEOUT entry's most informative line is exactly that\
+  \ last line, and it still\n  prints, just not as an assertion.\n  **What an UNNAMED\
+  \ entry is COVERABLE by splits by key kind — reader-judgement rule, applied\n  to\
+  \ the honest marker rather than to bare absence.** A kernel `test failed: <file>`\
+  \ entry runs ONE file\n  as ONE subprocess, so \"no failure marker\" is a PROVABLY\
+  \ file-level failure: it stays C2, covered by the\n  BARE token, and a QUALIFIED\
+  \ token binds NOTHING against it — that is what refuses a reason tied to a\n  line\
+  \ the block did not present as an assertion. A consumer verify LAYER is a whole\
+  \ harness behind one\n  name, where file scope proves nothing and the captured line\
+  \ is the ONLY sub-layer identity the\n  pipeline has; it keeps binding on that line\
+  \ (identity unchanged), because refusing it outright is\n  exactly what re-opens\
+  \ X-0683/X-0685 — no bindable token at all, and the measured outcome was a check\n\
+  \  neutralized on main by hand. Captured NOTHING at all remains C3.\n  **And the\
+  \ token BINDS AS PASTED (X-0753).** `_waive_qualifier_key` collapses a RUN of\n\
+  \  whitespace to one space — on both sides and in the emitted token. The operator\
+  \ copies the token off\n  `land`'s contracted FINAL line, which `_land_terminal_signal`\
+  \ whitespace-collapses BY CONTRACT (the\n  single-final-line parser contract owns\
+  \ that collapse and is not relaxed here), while the matcher\n  compared it against\
+  \ the RAW assertion text: an alembic line's DOUBLE space made the verb's own\n \
+  \ suggestion bounce `no-match` on paste. The matcher is the side that yields; the\
+  \ key stays idempotent,\n  so the token is still emitted already-normalized and\
+  \ binds either form. The C1/C2/C3 vocabulary and\n  every fail-closed axis above\
+  \ are untouched.\n  **BOTH runner dialects are recognised, or the failure has no\
+  \ name at all (the\n  deadlock).** The `FAIL` marker above is written two ways in\
+  \ this suite: `FAIL: <msg>` by the\n  collect-and-report `check` helper, and `FAIL\
+  \ <test_name>: <msg>` by a file's own `__main__` runner.\n  Only the first was matched,\
+  \ so a file printing the second was invisible to BOTH halves at once — the\n  excerpt\
+  \ rescued none of its FAIL lines out of the elided span, the extractor found no\
+  \ marker, and the\n  entry surfaced as `(no assertion captured)`, i.e. C2. That\
+  \ is not merely a poorer diagnostic: it made\n  a LEGAL re-baseline UNREACHABLE,\
+  \ because the qualified tokens the operator declared (both naming a\n  real failing\
+  \ test) returned `no-match` while the bare file token is refused BY DESIGN for an\n\
+  \  assertion-bearing failure — measured on the land, 2026-08-11, journal\n  `abort_class=rebaseline-unauthorized`.\
+  \ The single homed discriminator now carries a second, DISJOINT\n  branch for the\
+  \ named dialect (identifier name token — no space, no colon — so it stays POSITIVE\
+  \ and\n  does not degenerate into a `^FAIL` prefix scan; the message is optional\
+  \ there because the NAME is\n  already the identity, while a bare `FAIL:` still\
+  \ requires text after it). The first branch is\n  byte-identical, so no input that\
+  \ matched before changes answer. This widens only WHAT IS RECOGNISED\n  as a failure\
+  \ line: the C1/C2/C3 vocabulary, the bare-file-token refusal, the A-prime authority,\
+  \ the\n  `>=30-char` reason and the current-state audit-post requirement are all\
+  \ untouched — the fix is to the\n  DATA the guard reads, never to the guard.\n \
+  \ **The controller-facing recovery line names them too.** `_land_abort_suffix` renders\
+  \ the ONE inline\n  surface a controller reads for a pending abort and named only\
+  \ the failing TEST(S), though the row has\n  carried `failing_assertions` since\
+  \ — so it said which FILE failed and never WHAT. It now names\n  the assertion(s)\
+  \ as well, bounded (first 3, de-duplicated, clipped count STATED).\n  **An OVER-BUDGET\
+  \ line in the ELIDED SPAN is QUOTED, never reported as no assertion at all (the\
+  \ reader half left undone).** When the elided span holds failure lines but NONE\
+  \ fits the\n  rescue budget, `_verify_failure_excerpt` records the first one's clipped\
+  \ HEAD inside its `[......]`\n  marker. That placement is deliberate and is NOT\
+  \ relaxed — marker recognition does not widen and the\n  hint is still not a rescued\
+  \ line — but the extractor now READS THAT RECORD BACK (rule 2d) and returns\n  the\
+  \ head as the entry's failing assertion. The distinction from the honest silence\
+  \ above is EVIDENCE,\n  not preference: rule 3's silence is correct when nothing\
+  \ in the tail names a failure, whereas here the\n  producer MATCHED a failure line\
+  \ and refused it for LENGTH alone, so `(no assertion captured)` is a\n  claim it\
+  \ holds evidence against. Measured: the land was parked ~3h on a false \"order/state\n\
+  \  interaction\" diagnosis while `AssertionError: expected 36 concern born blocks,\
+  \ got 37` sat printed one\n  line below the mute headline (fingerprint\n  pinned-failure-record-elides-assertion-under-budget-misreads-as-no-assertion-captured).\
+  \ The head is\n  returned as the producer clipped it — no second clip, no ranking\
+  \ by content — and the elided-span note\n  STAYS in the tail as provenance, so a\
+  \ reader still learns how many lines were found and that none was\n  quoted in full.\
+  \ This moves the entry from C2 to a NAMED, bindable identity; no verdict, gate,\
+  \ kind or\n  waive vocabulary changes.\n  **RECOVERY HINT — the born-concern INVENTORY\
+  \ shape is an ORDINARY `broken` re-baseline.** A branch\n  that ADDS a concern to\
+  \ the registry supersedes the pinned copies of the tests that assert the\n  inventory:\
+  \ `tests/test_t10038_born_generation.py`, `tests/test_t10175_concern_active_only.py`,\n\
+  \  `tests/test_t10041_concern_multiblock.py` and `tests/test_born_defaults_surface4.py`.\
+  \ Their pinned\n  failure is the superseded old-behaviour assertion the change obsoletes\
+  \ — the ordinary §3a case — so\n  the kind is `broken`, not `unrunnable-here` and\
+  \ not `environmental`, and nothing about the shape\n  makes it special. **The bindable\
+  \ token is WHAT THE ABORT PRINTS, pasted as printed**: take it off\n  `land`'s own\
+  \ recovery line rather than composing one from the file list here — some of these\
+  \ files\n  surface a per-node identity and their token therefore carries a `::<node>`\
+  \ suffix, and a\n  hand-composed bare file token is refused BY DESIGN for an assertion-bearing\
+  \ failure. The A-prime\n  AUTHORITY is unchanged by this hint: naming the shape\
+  \ does not pre-authorize the waive.\n- **The printed recovery text yields to <workshop-spec>,\
+  \ never the reverse (X-0658 — message-only).**\n  The abort's `--rebaseline` RECOVERY\
+  \ hint read as an UNCONDITIONAL self-serve step, so a Worker standing\n  under <workshop-spec>'s\
+  \ `default-under-uncertainty = STOP` saw the print tell it that the escalation the\n\
+  \  default compels was unnecessary. The DEFAULT is the correct side; the TEXT was\
+  \ wrong. The hint now\n  names the A-prime AUTHORITY (owner ack, or the option-(B)\
+  \ self-clear under ALL of its conditions incl.\n  the mechanical tie) AND states\
+  \ that escalating (`blocked-on-land`, worktree intact) is the CORRECT\n  outcome\
+  \ when the tie cannot be made. No gate, flag, or abort-class changes — SPEC-0077\
+  \ remains the\n  canonical authority home and <workshop-spec> keeps only its route\
+  \ here.\n\n**Additive engine-LAYOUT carve-out ( — NOT a check-relaxation).** The\
+  \ pinned re-run overlays the\nlast-green `tests/` over the candidate tree (§1).\
+  \ Those OLD tests carry deployment-shape FIXTURES (helpers\nthat COPY the engine\
+  \ to simulate a deployment) coupled to the OLD layout. A purely-ADDITIVE engine-layout\n\
+  change — a NEW required module under `bin/` the candidate's own (green) verify already\
+  \ covers (the\nincident: extract `bin/lib/state.py`, CLI 1-file → file+lib) — makes\
+  \ the STALE last-green fixture fail with\n`No module named '<new-module>'`, because\
+  \ it cannot provision a module that did not exist when it was\nwritten. That is\
+  \ a fixture LAYOUT-MISMATCH, NOT a check-relaxation, so it MUST NOT force an\nemergency-bypass.\
+  \ The pinned re-run EXCUSES such a failure iff the excuse is DIRECTIONAL + ALL-OR-NOTHING:\n\
+  EVERY pinned failure's TERMINAL exception line is EXACTLY `ModuleNotFoundError:\
+  \ No module named '<X>'`\n(exact-shape, NOT a loose mention of the phrase anywhere\
+  \ in the failure text — a non-import failure that\nmerely contains it is not excused)\
+  \ AND every `<X>` resolves to a module the candidate ADDS under `bin/`\n(present\
+  \ at HEAD, ABSENT at merged_base). The instant ANY pinned failure is a non-import\n\
+  failure (an ASSERTION — a genuine check-relaxation manifests here) OR names a REMOVED/renamed/non-bin\n\
+  surface (a deletion-weakening), nothing is excused and the land ABORTS as before.\
+  \ This preserves the §3\ncircular-trust guard intact (reliability-first): a verifier-WEAKENING\
+  \ never presents only as\n`No module named '<candidate-added-bin-module>'`. The\
+  \ excusal is NEVER silent — it records\n`land_completed.pinned_layout_excused: [<modules>]`\
+  \ (§Verification) + an operator stdout note. It is NOT\nsurfaced as a `deviation_captured`:\
+  \ an excusal is EXPECTED behaviour, not a friction (so the friction\nstream stays\
+  \ signal); recurrence is queried via `grep pinned_layout_excused events.jsonl`.\n\
+  \n### 3b. A WALL-CLOCK TIMING INSTRUMENT IS NOT PINNED\nA pinned check may assert\
+  \ anything EXCEPT elapsed WALL TIME. An assertion whose SUBJECT is a\nwall-clock\
+  \ reading — \"this took under N ms\", \"arm A separated from arm B by more than\
+  \ N ms\" — does\nnot belong on the per-land pinned path, and is not put there.\n\
+  \nThe reason is a property of the path, not of any one instrument: the pinned path\
+  \ (§3) runs the\nverify TWICE, inside a parallel suite, on a host shared with concurrent\
+  \ lands. A wall-clock reading\ntaken in that environment measures the HOST at that\
+  \ moment together with the subject, and the host\nterm is not bounded by anything\
+  \ the branch controls. So the reading is not a loose measurement of\nthe right quantity;\
+  \ it is a measurement of a different one. A branch that touches neither the\ninstrument\
+  \ nor the code it guards can be REFUSED by it, and widening the bound does not repair\
+  \ that\n— it keeps the same load-coupled quantity and buys quiet by going blind\
+  \ (SPEC-0165).\n\n**THE INSTRUMENT IS SPLIT, NEVER REMOVED.** Every assertion of\
+  \ the instrument that is CLOCK-FREE —\nreport parsing, structural shape, a registry\
+  \ naming its own subjects, a synthetic bite-proof whose\nverdict does not read a\
+  \ clock, a CPU-time or other load-invariant statistic — STAYS PINNED and is\nunchanged\
+  \ by this rule. What moves is the wall-clock leg alone, and it moves to a place\
+  \ where the\nreading can be taken honestly: the SPEC-0105 quiet lane, which runs\
+  \ registered timing instruments\nSERIALIZED with no concurrent verify and records\
+  \ each reading rather than gating on it. So the\ncoverage the pinned path keeps\
+  \ is the coverage a pinned path can actually deliver, and the timing\nquestion is\
+  \ still asked — nightly, on a quiet host, with the answer recorded.\n\n**A REGRESSION\
+  \ IN A MOVED LEG IS A DEBT LINE, NOT A GATE.** Nothing about this rule converts\
+  \ a\nslow reading into a land refusal by another route. The lane reports; the reader\
+  \ decides.\n\n**ORDER (the de-pin is never the first commit).** A wall-clock leg\
+  \ is DE-PINNED only after its\nquiet-lane replacement has produced readings in PARALLEL\
+  \ with the still-pinned leg, and those\nreadings are recorded on the card that de-pins\
+  \ it. Registering the instrument and removing the\npinned assertion in one step\
+  \ would leave a window in which neither surface is watching, which is\nthe one outcome\
+  \ this rule must not produce.\n\n### 4. Scope guard (the negative contract)\nThe\
+  \ pinned re-run fires ONLY for verify-path-touching diffs; a normal source/doc land\
+  \ is verified\nonce, as today — no scope creep into a blanket double-verify gate.\n\
+  \n### 5. Bootstrap cutover — the trusted starting base (forward-looking, probe-shaped)\n\
+  The rule is forward-looking. The activating land (which INTRODUCES the mode — itself\
+  \ a\nverify-implementation-touch) is NOT self-affirming: its pinned source is the\
+  \ PRE-MODE `main` verifier,\nwhich already carries every existing real check (it\
+  \ merely lacks the new pinned-re-run feature), so the\nold verifier still gates\
+  \ the activating change. The one-time bootstrap exception is explicit +\nprobe-shaped:\
+  \ (i) verify the activating land with the pre-mode `main` verifier; (ii) an owner-authorized\n\
+  adoption probe — the deliberately-weakened-verifier test must FAIL that pre-mode\
+  \ verifier on the\nactivating tree (the gate works from land #1); (iii) record the\
+  \ bootstrap evidence on an EXISTING\ncarrier — the activating task's closure adoption-probe\
+  \ evidence (the journaled probe-(ii) run-ref: the\npre-mode `main` verifier FAILS\
+  \ a deliberately-weakened activating tree), together with that land's\nstandard\
+  \ `land_completed.verify_mode=pinned+candidate` field — NOT a new standalone note\
+  \ / store / tag\n(CHARTER §P1 F3 — git + the existing closure/event carriers already\
+  \ hold it; convergence target\nresolved, trial run #2). From there every subsequent\
+  \ `main` HEAD is trusted by the pinned+candidate\ngate (self-reinforcing forward).\
+  \ EXPLICITLY out of scope (the accepted-baseline class, §2): a verifier already\
+  \ weakened on `main`\nBEFORE the mode existed, OR a verifier change landed via an\
+  \ owner-authorized emergency-bypass (CHARTER\n§P2, `--no-tests`) — the rule cannot\
+  \ retroactively detect a pre-mode compromise or re-judge an\nowner-accepted bypass,\
+  \ and does not claim to. Both are owner-confirmed baselines (the bypass is surfaced\
+  \ +\nretro'd), not silent gaps.\n\n### 6. Consumer surfaces (no hidden second mode)\n\
+  The pinned source is ALWAYS the committed `main` HEAD verify-path of the checkout\
+  \ being landed, under\nthat checkout's `REPO_ROOT`: (a) engine self-build → the\
+  \ engine's own `main` HEAD verify-path; (b) a\n`-C` consumer land → the consumer's\
+  \ OWN `main` HEAD verify inputs, while the ENGINE binary running its\n`-C` verify\
+  \ is the consumer's PINNED engine version (a fixed, already-trusted reference the\
+  \ consumer\ndoes not edit per-land — kernel is pinned, not consumer-mutable); (c)\
+  \ a pre-extraction / kernel-provided\nconsumer runs engine-resolved content it does\
+  \ not edit, so nothing consumer-side is\npinned beyond the engine's already-pinned\
+  \ version. One rule, surfaces named.\n\n## Rationale\n\nA self-modifying engine\
+  \ has a circular-trust gap: the same CLI/graph-build code being changed is\nalso\
+  \ the code that decides whether the land is valid, so a wrong-but-passing verifier\
+  \ change can\nsilently weaken the chokepoint. V2 dispatches autonomous workers that\
+  \ edit `bin/yitc-v2` + the\ngraph-build, and real `-C` consumers arrive next — each\
+  \ consumer's `-C land` verifies its own code\nwith its own (possibly-just-changed)\
+  \ verifier, the SAME risk at the project level. Source: the\nexternal consult `decisions/kernel-protection-recovery-set-audit-adhoc.yaml`\
+  \ (finding 2, HIGH,\n4-filter-passed). Classic bootstrap / verifier self-hosting\
+  \ risk (incident count zero;\nprior-art-grounded). EXTENDS the existing `land` chokepoint\
+  \ + the SPEC-0064/SPEC-0065\nre-verify machinery; adds no new subsystem.\n\n## Verification\n\
+  \n- **observed:** a deliberately-weakened verifier change FAILS the pinned (last-green)\
+  \ verify even\n  though it would pass its own candidate verify — on BOTH an engine\
+  \ land and a `-C` consumer land.\n- **observed (one authoritative adoption signal):**\
+  \ `land_completed.verify_mode` (registered in the\n  events.jsonl schema home **SPEC-0025**\
+  \ — the new field is added there, not silently — plan-check MEDIUM) is the SOLE\n\
+  \  authoritative adoption signal — a NEW FIELD on the EXISTING `land_completed`\
+  \ event (not a new event):\n  `verify_mode=pinned+candidate` on a verify-implementation-touch\
+  \ land, `verify_mode=candidate` on any\n  other land (the negative probe — proves\
+  \ no blanket-gate scope creep). A terminal stdout marker MAY\n  accompany it but\
+  \ is operator-facing CONVENIENCE only, never a second source of truth (Single-SoT).\n\
+  - **observed (additive-layout carve-out):** a purely-ADDITIVE engine-layout change\
+  \ (a new\n  required `bin/` module the candidate's own verify covers) whose STALE\
+  \ last-green fixture fails with\n  `No module named '<new-module>'` LANDS WITHOUT\
+  \ an emergency-bypass — `land_completed.pinned_layout_excused`\n  lists the excused\
+  \ module(s) (never silent) + an operator stdout note. `pinned_layout_excused` is\
+  \ an\n  ADDITIVE land_completed key (registered in **SPEC-0025**), PRESENT ONLY\
+  \ on an excused land. (No\n  `deviation_captured` — an excusal is expected behaviour,\
+  \ not a friction.)\n- **observed (waive KIND):** two re-baseline lands granted with\
+  \ the SAME reason prose but\n  DIFFERENT `--rebaseline-kind` values record DISTINGUISHABLE\
+  \ evidence — their `land_completed` rows\n  differ on `rebaseline_kind` (`broken`\
+  \ vs `unrunnable-here` vs `environmental`), and with that key\n  suppressed they\
+  \ are indistinguishable, which IS the defect X-0739 reported. A `--rebaseline` with\n\
+  \  NO kind is REFUSED (`abort_class=rebaseline-unauthorized`) and the refusal NAMES\
+  \ every kind —\n  never defaulted. A row recorded before carries no kind and is\
+  \ unchanged: nothing\n  backfills it.\n- **observed (the `environmental` binding):**\
+  \ an `environmental` grant records, per token,\n  `land_completed.waive_binding{mode:\
+  \ prior-abort, locator, isolated, full_run}` — so the grant is\n  reconstructible\
+  \ from the journal alone (WHICH recorded abort it bound to, that the file passed\n\
+  \  ISOLATED, and what the FULL run said about the file it still ran). Differential:\
+  \ with the\n  `waive_binding` key suppressed, an environmental grant is indistinguishable\
+  \ from a `broken` one\n  that happened to declare a different label, which is the\
+  \ whole thing this value exists to separate.\n- **failure-threshold (waive KIND,\
+  \ as amended):** a kindless `--rebaseline` LANDS\n  (silently defaulted); OR `broken`\
+  \ / `unrunnable-here` change ANY eligibility outcome — who may\n  authorize, the\
+  \ reason-length gate, the current-state audit requirement, or which pinned assertions\n\
+  \  the `--rebaseline-waive` declaration covers (those two ARE labels, so an eligibility\
+  \ difference\n  between them, or between either and the pre- kindless grant, is\
+  \ a widened gate); OR\n  `environmental` widens anything BEYOND its declared two-part\
+  \ binding — it changes who may\n  authorize, or waives an assertion no declaration\
+  \ NAMES, or binds with only ONE conjunct proven, or\n  clears a sibling token when\
+  \ a named file FAILED isolated (the all-or-nothing rule), or causes the\n  waived\
+  \ file to be SKIPPED in the full verify, or grants without recording `waive_binding`;\
+  \ OR an\n  existing kindless row is re-keyed; OR the record is claimed to make an\
+  \ unrunnable verify runnable\n  (reachability is UNSOLVED).\n- **failure-threshold:**\
+  \ the pinned verify fires on a NON-verify-path land (scope creep); OR it is\n  engine-only\
+  \ (consumer lands not covered); OR it adds a new gate cascade / ledger / FSM; OR\
+  \ the\n  additive-layout carve-out excuses a NON-import (assertion) failure or an\
+  \ import error for a\n  REMOVED/renamed/non-`bin/` module (a genuine check-relaxation\
+  \ self-approving — the carve-out is NOT\n  directional + all-or-nothing).\n\n**Pinned-suite-edit\
+  \ guards — axis (d) deferred ONLY in the declaring card's Stage-6 run.**\n`tests/_pinned_suite_edit.py`\
+  \ admits a DECLARED pinned-suite edit on four axes; axis (d)\nrequires a GREEN/YELLOW\
+  \ audit-post whose commit carries the declared blob. No audit-post can exist\nbefore\
+  \ Stage 8, so the declaring guards were RED in that card's own Stage-6 run and the\
+  \ audit-post\nthen REDed the card for that evidence (twice, each broken by an owner\
+  \ accept). `task test\n--run` therefore exports `YITC_PINNED_SUITE_EDIT_PREAUDIT=<card\
+  \ id>`; with it the helper admits a\ndeclaration PENDING AUDIT-POST only when axes\
+  \ (a)-(c) — exact suite, this guard named, exact\ncandidate blob — all hold AND\
+  \ the declaring card IS the named id. `land` scrubs the marker at entry\nand the\
+  \ routed land leg never exports it (SPEC-0203), so axis (d) stays strict at land\
+  \ in BOTH the\ncandidate and pinned legs. Probe: `tests/test_t13226_pinned_edit_audit_post_ordering.py`.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-2
+- SPEC-0064
+- SPEC-0065
+- kernel-protection-recovery-set-audit-adhoc
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: harden-engine-pinned-verify-for-engine-lands-consu
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#_extract_failing_assertion: 0d089df5b265d5ed5316fc741553cd14152ebd9b79f7f8cfb3b23a17127aa198
+  bin/lib/land_verify_legs.py#_pinned_recovery_hint: 68fe10ba27b2781cdab95da7d4760fffcde042aeab89a93b55e5fd80f4cd4688
+  bin/lib/rebaseline_currency.py#_environmental_broken_refusal_text: 203d51d231c5262397ca1fb96f085b7b182d0835fb06fef1d3a2122a9139b658
+  bin/lib/rebaseline_currency.py#_environmental_waive_bindings: 7b83c8add92401ab004c2864e439be1111c65deacaf3e13921ef350a833206cb
+  bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text: 891be361dd007b7641dcab62e00efafa6f4c7ac699e46b5f48ae8af8812f903b
+  bin/lib/rebaseline_currency.py#_offending_drift_is_merge_produced: 4ea70f441f97e9508f7cf2c4d88154657088f6f257c4033b5368db4609ad9ec3
+  bin/lib/rebaseline_currency.py#_pinned_touched_weakened_keys: 781cd657bbb74e5af8430ba57767f9a1e3701aab799a5d2ea0911e17f4d45370
+  bin/lib/rebaseline_currency.py#_rebaseline_waive_paste_lines: d7e3f472bc1f82a53e525031fa41776c9e250067608df41481c9e5bc87102951
+  bin/lib/rebaseline_currency.py#_rebaseline_waive_stable_token: aaa1246318df7b61a98be775459a63bbbb6a20ef5f26a932376493bcff80afa1
+  bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
+  bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
+  bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
+  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

@@ -1,0 +1,68 @@
+id: SPEC-0014
+title: 'Commit format and from: discipline — the retrieved commit-rules contract'
+status: active
+created_at: 2026-06-02 12:16:22+00:00
+consumed: false
+implements: []
+binding:
+- stage-entry:Commit
+body: "## Scenario\n\nBefore the AI commits a change, it must shape the commit so\
+  \ the change is durably GROUNDED — every\ncommit cites the artifact that justifies\
+  \ it (`from:`), uses the agreed type/subject/body shape, and\nnever hand-stages\
+  \ files. The owner/AI never has to remember these rules from memory: the obligation\
+  \ lives in the\n`task commit` verb precondition — the require-reads gate (<workshop-spec>)\
+  \ REFUSES the commit unless this\ncontract was fetched in the current session, then\
+  \ prints the ready `graph query` command. The Commit\nstage-entry pointer (`stage-entry:Commit`\
+  \ — by `stage Commit`; the `task test` forward-pointer)\nis a delivery ECHO of that\
+  \ obligation, not the guarantee on its own (<workshop-spec> §7). Get it wrong and\
+  \ the\ngraph loses a `from:` edge or a stray file is mis-staged.\n\n## Internal\n\
+  \nTHE COMMIT CONTRACT — this spec is the retrieved home for the commit rules; AGENTS\
+  \ §Commit format points here.\n\n### Format\n```\n<type>(<task-id>): <subject>\n\
+  \n<body>\n\nfrom: <durable artifact reference>\n```\nAllowed types: `feat / fix\
+  \ / chore / refactor / test / docs / perf / ci / style`.\n\n### `from:` — the durable\
+  \ grounding (CHARTER §Principle 2)\n`from:` cites the durable artifact grounding\
+  \ this action:\n- task YAML (`tasks/T-XXXX`), decision YAML (`decisions/D-XXXX`),\
+  \ spec YAML (`specs/SPEC-XXXX`)\n- handbook section (`CHARTER §principle-N`, `AGENTS\
+  \ §audit-contract`, etc.)\n- project-side documentation (when working on production\
+  \ projects: `<project>/BACKLOG.md§B-XXX`,\n  `<project>/docs/concept.md`, etc.)\n\
+  - a materialized journal entry (`events.jsonl#source_ref=<locator>` / `events.jsonl#ts=<ISO>`)\
+  \ — NOT the raw provider session log.\n\n**Chat instructions don't qualify as durable**\
+  \ — capture as a task first, or, when it establishes a NEW standing rule, a spec\
+  \ (`spec new`).\n\n**Resolution at commit.** On the two operator-argv seams — an\
+  \ explicit `task commit --from`\nand `work commit --from` — a CHECKABLE ref must\
+  \ resolve before anything is committed: a journal\nlocator (`events.jsonl#ts=` /\
+  \ `#source_ref=`) must name an existing journal row, and a repo-path ref\n(its first\
+  \ segment is an entry of this repo's tree; an extension-less `tasks/T-XXXX` shorthand\n\
+  resolves as a prefix of a staged file) must exist in the STAGED tree being committed,\
+  \ so a\nfile added by the same commit counts. Ids, handbook `§` sections, project-side\
+  \ documents and URLs pass\nunchanged; refs the kernel computes itself (the default\
+  \ card path, internal commits) are not checked.\nAn unresolvable ref refuses: nothing\
+  \ is committed and the message names a runnable re-run command.\n\nMutated artifacts\
+  \ are visible in the diff — no separate `to:` field.\n\n### Staging is owned by\
+  \ `task commit`\nIn the Build flow you MUST NOT hand-stage files or run `git add`\
+  \ / `git add -A` / pathspec-exclude\nresets — `task commit` runs `git add -A` in\
+  \ the worktree itself (safe because makes one\nworktree == one task). This removes\
+  \ the manual staging step that mis-staged 3× (the\ngit-pathspec-exclude gotcha:\
+  \ v1 B-722).\n\n### Emergency bypass\nIf the action is urgent and no prior `from:`\
+  \ artifact exists:\n- Use `emergency: <description ≥ 30 chars including incident\
+  \ context>` in the body.\n- Owner-authorized (chat OK in the emergency itself; the\
+  \ commit message records the marker).\n- Required: within 72 hours, write a retro-doc\
+  \ + file a post-incident task.\n- Frequency check: > 1 use per 30 days triggers\
+  \ a Review-session audit.\n\n### Trailer\nEnd each commit body with:\n```\nCo-Authored-By:\
+  \ AI Agent <noreply@example.com>\n```\n(Substitute the actual model identifier if\
+  \ different.)\n\n## Rationale\n\nThe commit rules live in the `retrieved` tier (reached\
+  \ through `binding:`, SPEC-0013) rather than in\nalways-loaded prose, so the seed\
+  \ budget shrinks without losing obligation-driven delivery.\n\n## Verification\n\
+  \n- Bound: `bin/yitc-v2 graph build` maps `Commit → SPEC-0014` in `binding_report.stage_to_specs`\n\
+  \  (the stage-entry delivery axis) once this spec is `active`; `stage Commit` delivers\
+  \ it.\n- Pointer: `bin/yitc-v2 task test T-XXXX` prints the commit-rules forward-pointer\
+  \ (element #2).\n- Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded\
+  \ from `dangling_specs`.\n"
+cites:
+- part-i-a-retrieval-delivery-mechanism
+- SPEC-0013
+- AGENTS.md#commit-format
+- CHARTER.md#principle-2
+requires: []
+supersedes: null
+proposed_by: null

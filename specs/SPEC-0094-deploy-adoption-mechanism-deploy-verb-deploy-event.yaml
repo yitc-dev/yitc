@@ -1,0 +1,997 @@
+id: SPEC-0094
+title: Deploy adoption mechanism — deploy verb, deploy event, not-adopted surface,
+  live-probe close-gate
+status: active
+created_at: 2026-06-20 10:28:40+00:00
+travels: null
+consumed: false
+extension: adoptable
+implements:
+- bin/lib/deploy.py#cmd_deploy
+- bin/lib/deploy.py#_resolve_deploy_target
+- bin/lib/deploy.py#_resolve_rollback_target
+- bin/lib/deploy.py#_DeployTarget
+- bin/lib/deploy.py#_DeployRunRecorder
+- bin/lib/views.py#_view_not_adopted
+- bin/lib/task.py#_project_is_deploying
+- bin/lib/task_closure_evidence.py#_live_probe_declaration_error
+- bin/lib/task.py#_all_touched_non_runtime_surface
+- bin/lib/task.py#_host_config_evidence_missing
+- bin/lib/task.py#_host_config_kind_of
+- bin/lib/task.py#_host_config_refusal
+- bin/lib/live_probe.py#cmd_live_probe
+- bin/lib/task_closure_evidence.py#_live_probe_attested_grammar_error
+- bin/lib/task_card_io.py#_parse_settle_live_probe_attested
+- bin/lib/task_closure_evidence.py#_card_status_on_main
+- bin/lib/task_closure_evidence.py#_closure_is_on_main
+- bin/lib/task_closure_evidence.py#_live_probe_attested_outcome_unresolved
+- bin/lib/task_closure_evidence.py#_live_probe_attested_result
+- bin/lib/views.py#_view_overdue_recheck
+- bin/lib/audit.py#cmd_audit
+body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE with\
+  \ one governed verb — `deploy` — the\ndeploy-side analog of `land`. The kernel records\
+  \ WHICH revision is live (a `deploy_completed` event),\nshows the owner WHICH shipped\
+  \ changes are not yet live (a derived \"not-adopted\" surface), and REFUSES\nto\
+  \ close a user-facing task that has not declared HOW its change will be probed live.\
+  \ \"Done\" for a\ndeploying project means the change is verifiably running in production,\
+  \ not merely committed —\nCHARTER §P3 \"done = adopted\" made real for serve-and-deploy\
+  \ work.\n\n## Internal\n\nTHE DEPLOY ADOPTION MECHANISM (slice-1 of the seed-and-grow\
+  \ capability; rides the SPEC-0093 carrier).\nThis spec is the deploy ADOPTION MECHANISM\
+  \ only (the HOW: verb / event / surface / probe / close-gate).\nThe deploy AUTONOMY\
+  \ POLICY (WHEN a deploy may fire without the owner — the reversibility/RTO-RPO\n\
+  A/S/C1/C2 classification) is a SEPARATE concern, deferred to its own vetted step\
+  \ (the plan's tracked\nid), NOT shipped in slice-1: it is a normative autonomy/permission\
+  \ taxonomy whose merit must be judged\non its own (gate-specs plan-check finding\
+  \ #1, anti-complexity «no new taxonomy»). **That deferred step\nis now SPEC-0097**\
+  \ (the deploy-autonomy policy + the per-class evidence gate): the `--class` /\n\
+  `--owner-approved` WHEN-gate on `bin/lib/deploy.py#cmd_deploy` is governed by SPEC-0097,\
+  \ which\nre-homes NO mechanic from here — this spec keeps owning the verb/event/surface/probe\
+  \ MECHANICS, and\nSPEC-0097 reads them to enforce its policy (the home split, SPEC-0097\
+  \ §\"Home split vs SPEC-0094\").\n\n### 1. The `deploy` verb + the `deploy_completed`\
+  \ event (snake_case + explicit payload — SPEC-0025)\n`bin/yitc-v2 deploy` runs the\
+  \ project-declared `deploy:` command (from `yitc-ops.yaml`, SPEC-0093). The\nproject\
+  \ `deploy:` command IS the executable deploy-seam gate: it runs the project's own\
+  \ smoke/health\ncheck inline and exits non-zero if the new revision is not actually\
+  \ serving — so a broken revision is\nnever RECORDED live (X-1149: RECORDED, not\
+  \ «left». The kernel's reach at this seam is the\nRECORD. On a gate failure it withholds\
+  \ the event and exits; it does not roll back, and it does not\nobserve what is serving\
+  \ — so whether the revision is still RUNNING depends on the PROJECT's phase\norder,\
+  \ which the kernel neither reads nor controls. A project that recreates its containers\
+  \ BEFORE it\ngates has already served the new code, and a failed gate leaves it\
+  \ live-but-unrecorded — the X-0366\nclass. The kernel must therefore never tell\
+  \ an operator the revision is not serving; the gate-failure\nmessage states the\
+  \ record as fact and the runtime as unknown) (prior-art: every surveyed project\
+  \ gates\nthe executable check HERE, at deploy, NEVER at\ntask-close — <project>\
+  \ `scripts/deploy.sh` smoke curls, <project>'s 3 blocking gates, <project>'s\npost-deploy\
+  \ gate). On exit-0 the verb emits a `deploy_completed` journal event — but exit-0\
+  \ is\nNECESSARY, NOT SUFFICIENT: it is the project command's REPORT, and the emit\
+  \ rides the kernel's OWN\npost-exit-0 CHECKS of that report. Two of them can withhold\
+  \ it: the SPEC-0097 §11 CONVERGENCE\nverification (a service still reporting a stale\
+  \ revision ⇒ `deploy_convergence_failed`, exit 5, NO\n`deploy_completed` — /X-0374,\
+  \ where a command exited 0 having skipped a service that kept\nrunning old code),\
+  \ and — on the SPEC-0097 §2a DOWN-surface path ONLY — the MANDATORY post-deploy\n\
+  security probe (a failure auto-rolls-back ⇒ `deploy_security_probe_post_failed`,\
+  \ exit 3, NO\n`deploy_completed` — /X-0434). Both PRESERVE the invariant below rather\
+  \ than qualifying it:\nno event ⇒ the kernel's RECORD of what is live is unchanged\
+  \ — it still names the prior revision, and\nthe un-recorded one has no governed\
+  \ provenance. (What is RUNNING is a separate question the kernel does\nnot answer\
+  \ here; the §2a security-probe path is the one leg that actually reverts, and it\
+  \ can say so\nbecause it ran the rollback itself.) Those emit-CONDITION rules are\
+  \ owned single-source by\nSPEC-0097 §5 (the «two distinct moments — do NOT conflate»\
+  \ home) / §11 / §2a; this section records\nonly that the verb's emit rides them,\
+  \ and re-homes no mechanic either way (§Internal, the home\nsplit). The event TYPE\
+  \ is\n`deploy_completed` (snake_case, conforming to SPEC-0025); the PAYLOAD is\n\
+  `{ revision: <git-sha left live + verified>, project: <slug>, kind: \"deploy\" |\
+  \ \"rollback\" }`. It is\nemitted on EVERY deploy AND on every rollback (a rollback\
+  \ is a deploy of the prior revision, recorded\n`kind: \"rollback\"`) — so the current-live\
+  \ revision is always the latest `deploy_completed` event's\n`revision`. A `--rollback`\
+  \ takes an operator-supplied TARGET `<rev>` (the revision to roll back TO): it is\
+  \ resolved to a sha, passed positionally to the project `rollback:` command, AND\
+  \ recorded as the event `revision` (the rolled-to target left live — NOT HEAD, the\
+  \ X-0062 fix); a `--rollback` with no `<rev>` is refused with a usage error and\
+  \ emits no event. Hand-running the deploy command without the verb is the forbidden\
+  \ hand-work (AGENTS\n§Verb-execution discipline).\n\n**A STARTED deploy leaves exactly\
+  \ ONE terminal row — `deploy_failed` when no other terminal row records\nhow it\
+  \ ended (X-1847).**\nFrom the moment the project command is LAUNCHED, the verb leaves\
+  \ exactly one terminal journal row for\nthe run, whatever ends it: `deploy_completed`\
+  \ on the success path above; an existing post-command\nrefusal row (`deploy_convergence_failed`\
+  \ / `deploy_security_probe_post_failed`) where SPEC-0097 already\ndefines one; and\
+  \ otherwise `deploy_failed` — when the command exits non-zero, when it dies by a\
+  \ signal,\nor when the verb itself is interrupted by a catchable signal (SIGTERM\
+  \ / SIGHUP / SIGINT) at any point\nafter the launch. The row names the revision,\
+  \ the project, the kind, the target when one was named, the\nLAST STEP the verb\
+  \ knows it entered (the command, the post-deploy probe, the convergence check, or\
+  \ the\nrecord write), and EITHER the exit code OR the signal together with whether\
+  \ the verb or the command\nreceived it. Why it exists: a project that changes production\
+  \ BEFORE its gate runs may leave the\nrevision serving, and a silent journal reads\
+  \ the same as a death mid-flight or a deploy that never ran\n— the <project> 45973e2e\
+  \ case, where a peer re-deployed the same revision on exactly that misreading.\n\
+  Four bounds, each load-bearing:\n(i) A deploy REFUSED BEFORE THE LAUNCH (every resolution,\
+  \ gate, dump and probe refusal above) writes NO\n    `deploy_failed`. Production\
+  \ was not touched, and that silence is what keeps \"never started\"\n    distinguishable\
+  \ from \"started and failed\". The start boundary is decided once the launch call\
+  \ has\n    returned, never before it: an interruption during a launch that fails\
+  \ writes no row.\n(ii) EXACTLY ONE. A signal that arrives while a terminal row is\
+  \ being written is deferred until that row\n    is written, and no terminal row\
+  \ is ever followed by another — so `deploy_failed` never follows a\n    `deploy_completed`,\
+  \ and never doubles an existing post-command refusal row.\n(iii) `deploy_failed`\
+  \ is NEVER adoption evidence. It satisfies no deploy gate and names no live\n  \
+  \  revision; the current-live revision is still the latest `deploy_completed` alone\
+  \ (§2 reads that and\n    nothing else). It records that a run STARTED and did not\
+  \ complete — whether the revision is serving\n    stays UNKNOWN to the kernel, exactly\
+  \ as the gate-failure message says.\n(iv) What stays silent, named rather than implied:\
+  \ an UNCATCHABLE kill (SIGKILL, the OOM killer) and a\n    crash of the verb itself\
+  \ leave no row, as they do for `land`. The verb neither forwards an\n    interruption\
+  \ to the project command nor detaches from it — a command still running after the\
+  \ verb\n    was interrupted is the project's to account for.\nThe verb's exit code,\
+  \ its exit disposition on a signal, and the gate-failure message's RECORD / RUNTIME\n\
+  / NEXT statements are unchanged; the message gains one line naming the row it wrote.\n\
+  \n**Named deploy TARGETS — one verb, many surfaces (X-1201).** A project that serves\
+  \ more than\none surface (a production stack AND a sandbox) declared only ONE `deploy.command`,\
+  \ so the ONLY governed\npath resolved to whatever that command addresses — in practice\
+  \ PRODUCTION. The consequence is not\ncosmetic: SPEC-0094 evidence existed for the\
+  \ surface deployed RARELY and carefully, and none for the one\ndeployed OFTEN and\
+  \ casually, which is also where a collaborator's change lands FIRST. The carrier\n\
+  therefore admits an OPTIONAL named-target block on the `deploy:` section:\n\n  \
+  \  deploy:\n      command: <the default command — unchanged, still what a bare `deploy`\
+  \ runs>\n      targets:\n        <name>:\n          command: <the command for this\
+  \ surface> # mandatory, non-blank\n          production: true|false # MANDATORY,\
+  \ an explicit boolean\n          convergence: {...} # OPTIONAL — this surface's\
+  \ OWN SPEC-0097 §11\n                                                      # convergence\
+  \ block (same schema as the top-level\n                                        \
+  \              # one). The RULE — target-first resolution, and\n               \
+  \                                       # why a non-production target with no block\
+  \ of\n                                                      # its own SKIPs instead\
+  \ of falling back to the\n                                                     \
+  \ # production services — is homed in SPEC-0097 §11\n                          \
+  \                            # (X-1234), not restated here.\n\n`bin/yitc-v2 deploy\
+  \ --target <name>` resolves that entry and runs its command. Four properties, each\n\
+  load-bearing:\n1. **ABSENT `--target` never reads the block.** The default `command:`\
+  \ resolves exactly as before and\n   the record's shape does not move, so every\
+  \ existing consumer — and every consumer declaring no\n   `targets:` at all — is\
+  \ untouched. This is the back-compatibility guarantee, not a courtesy.\n2. **An\
+  \ unknown name REFUSES; it NEVER falls back to `command:`.** Resolution happens\
+  \ BEFORE any side\n   effect (no gate, no dump, no probe, no command has run), so\
+  \ an unresolvable name emits no\n   `deploy_completed`. A fallback here would deploy\
+  \ PRODUCTION on a typo — the inverse of fail-closed.\n3. **`production:` is POSITIVELY\
+  \ DECLARED, never inferred.** A missing or non-boolean value REFUSES; a\n   target's\
+  \ NAME is a string, not a proof, and an absent stance is not read as non-production.\
+  \ This is\n   SPEC-0097 §8 (classification is EXPLICIT, never an auto-detector)\
+  \ applied to the target axis, and it\n   is what stops a broken declaration from\
+  \ opening the lighter path.\n4. **A named ROLLBACK opens for a NON-PRODUCTION target\
+  \ only (X-1841).** `deploy --rollback\n   <rev> --target <name>` is admitted ONLY\
+  \ when the target is positively declared `production: false`\n   AND declares its\
+  \ own reversal (`targets.<name>.rollback: {command: <cmd>}`); it runs THAT command\n\
+  \   with the rolled-to sha and NEVER the carrier's top-level `rollback:`. Every\
+  \ other input REFUSES\n   before any side effect, with no `deploy_completed`: an\
+  \ unknown name, a target declaring no\n   rollback (falling back to the top-level\
+  \ command would reverse PRODUCTION while a sandbox was\n   named), a malformed rollback\
+  \ declaration, and every entry properties 2-3 already refuse. A\n   `production:\
+  \ true` target is refused too: a production rollback has exactly ONE governed path,\n\
+  \   the unflagged `deploy --rollback <rev>`, which this property leaves unchanged.\
+  \ The record is a\n   `kind: rollback` `deploy_completed` carrying the same `target`\
+  \ field below.\n\n**The `deploy_completed` payload gains an OPTIONAL `target` field**\
+  \ — `{name, production,\ndeploy_class}` — present only when a target was named,\
+  \ absent entirely otherwise (a payload FIELD on\nthe existing event, never a second\
+  \ success event — CHARTER §P1 F2). `deploy_class` is the SPEC-0097\nclass this deploy\
+  \ carried, and it is `null` on a non-production target and SAYS SO rather than being\n\
+  omitted: an omitted class cannot be told from a forgotten one, while a null class\
+  \ states that none was\ncarried (the class decision itself is homed in SPEC-0097\
+  \ §12, not restated here). With the name on the\nrecord, the journal can finally\
+  \ tell two surfaces apart — which is the whole ask.\n\n**What this does NOT relax.**\
+  \ Every CLASS-INDEPENDENT gate runs on a named target exactly as on a\ndefault one:\
+  \ the §6 build-source discipline, the SPEC-0155 rule-1 deploy-seam security-audit\n\
+  producer/gate, and the SPEC-0097 §11 convergence verification. The one scoped-out\
+  \ block is the\nclass-conditional one, and SPEC-0097 §12 owns that decision.\n\n\
+  **Host-config surface read (informational, NON-behavioral — SPEC-0093 rule 14).**\
+  \ Beyond the\n`deploy:` command, the verb READS the project's declared `deploy.host_config`\
+  \ block from the SAME\n`yitc-ops.yaml` carrier (the owned vhost file(s) + host `live_base_url`\
+  \ + apply recipe) as PROJECT ops\nconfig and SURFACES it informationally before\
+  \ running. This read does NOT gate, refuse, or alter the\ndeploy/rollback outcome\
+  \ — it is purely a heads-up that a host-level config surface exists; the apply\n\
+  ACTION that CONSUMES these values is the host-config apply seam (SPEC-0111), not\
+  \ this verb. (Stays\n`consumed: false`: host_config is per-project config, never\
+  \ a kernel governance scalar.)\n\n**Deploy-seam security-audit freshness gate (SPEC-0145\
+  \ §1/§6 — the SLA-consumption sibling).** The\ndeploy-seam security-audit evidence\
+  \ gate (`bin/v2-security-gate`) consumes its freshness window from the\nproject's\
+  \ `security.audit.freshness_sla` carrier — the SAME `yitc-ops.yaml` the audit scheduler\
+  \ reads\nfor `cadence`. One SLA, ONE source: the deploy gate has NO separate freshness\
+  \ threshold of its own\n(SPEC-0145 §1 retirement #3); the kernel default (`DEFAULT_FRESH_DAYS`)\
+  \ applies only when the carrier\ndeclares none, and a declared-but-invalid SLA fails\
+  \ closed. This binds the periodic-audit freshness gate\nto the deploy family here;\
+  \ it reuses the security concern's carrier + the SPEC-0098 security-probe\nsurface\
+  \ — no parallel event is minted. The freshness SLA / evidence schema are owned single-source\
+  \ by\nSPEC-0145; this section only records the deploy-family consumption point.\n\
+  \n### 2. Not-adopted surface — DERIVED, never stored\n\"Which shipped changes are\
+  \ not yet live\" is computed at read time from commit ancestry between the\ncurrent-live\
+  \ revision (latest `deploy_completed` event) and `main` HEAD. It is a derived VIEW\
+  \ (a saved query /\nsession-start surface), NOT a stored status field (SPEC-0093\
+  \ rule 7 / P5). Zero new persisted state.\nThe BASELINE that ancestry is measured\
+  \ from is the `deploy_completed` proxy here, and a declared\nlive-revision adapter\
+  \ REPLACES it — including, since / X-1142, with ONE REVISION PER DEPLOYED\nSURFACE,\
+  \ in which case each commit is judged against the surface its paths belong to and\
+  \ the range\nabove is the union of the per-surface ranges. The adapter contract\
+  \ (its stdout forms, its fail-closed\nnamed degrade, the unowned-path and unresolvable-revision\
+  \ postures) is owned SINGLE-SoT by SPEC-0160\nrule 23; everything this section says\
+  \ about the ancestry read and its deployable-path scoping applies\nUNCHANGED whichever\
+  \ baseline shape it runs on.\n\n**DEPLOYABLE-PATH SCOPING (X-0580) — the ancestry\
+  \ range is the candidate set, not the\ncount.** A commit in that range counts as\
+  \ not-adopted ONLY if it touches at least one DEPLOYABLE\npath: the classifier is\
+  \ §3's OWN non-runtime allowlist, read a third time (the live_probe close-gate\n\
+  reads it at §3, the build-source gate at §6) — ONE declaration of \"is this deployable?\"\
+  , never a\nsecond (P5; no new store, no new declaration surface). Both directions\
+  \ of the signal depend on this:\ncounting the whole range made a pure-governance\
+  \ range read as production debt (a controller read 33\nand recommended a deploy\
+  \ that would have shipped zero code change) and — the worse harm, since\ngovernance\
+  \ commits accumulate continuously — buried a GENUINE undeployed code change inside\
+  \ a\npermanently-large count, so the number was loudest exactly when it meant least.\
+  \ Classification is\nFAIL-CLOSED toward counting: an unrecognised path counts, and\
+  \ a commit with no path evidence (an\nempty commit; a merge whose first-parent diff\
+  \ is empty) counts — a project whose runtime layout the\nkernel does not recognise\
+  \ keeps the un-scoped behaviour and the lens can never silently read zero.\nThe\
+  \ scoping applies where a deploy BASELINE exists; the `no-deploy-recorded` branch\
+  \ (nothing is known\nlive, so the range is the repo's whole history) stays UN-scoped\
+  \ — its count is status-gated out of\nevery reader anyway, and classifying full\
+  \ history costs ~40x the read on a real corpus, paid at every\nsession start and\
+  \ land tail. That degrade is DEFENSIVE, not the normal path: a MERGE is classified\
+  \ by what it brought onto main\n(`--diff-merges=first-parent`), because blanket-counting\
+  \ merges re-buries the genuine code commits\nthis scoping exists to surface — on\
+  \ the real corpus that first probe measured, merges were HALF the\nsurviving count.\
+  \ And if the path-carrying read itself FAILS, the lens falls back to the un-scoped\n\
+  commit walk and counts everything: a broken classifier must never present itself\
+  \ as \"nothing to\ndeploy\". The excluded commits are REPORTED, never dropped (`governance_only_count`\
+  \ /\n`governance_only`), so any delta in the count is explainable without diffing\
+  \ the range by hand. The\n§Amends map's other readings of this surface are unchanged:\
+  \ the debt echo (SPEC-0119 rule 3) prints\nthe scoped count report-only, and the\
+  \ reverse runtime-delivery reading (SPEC-0093 rule 22) consumes\nTHIS view's output,\
+  \ so it narrows with it rather than re-deriving a second answer.\n\n### 3. Close-gate\
+  \ — a DECLARATION gate, not an execution gate (the two seams are distinct)\nThe\
+  \ executable probe runs at the DEPLOY seam (§1, §4), NEVER at close — the prior-art\
+  \ shape (no\nsurveyed project blocks task-close on a passing prod probe; the executable\
+  \ check lives at deploy). So\nfor a project that declares a `deploy:` section, `task\
+  \ close` REFUSES unless the task DECLARES a\n`live_probe` — a probe assertion, an\
+  \ explicit `none` + reason, or (per §4b) an ATTESTED declaration\nnaming a live\
+  \ proof the project itself runs (fail-closed, STATIC; it does NOT call production\
+  \ at\nclose time, and an attested declaration needs no reading yet to satisfy this\
+  \ gate). This is the adoption-DECLARATION gate (the discipline shape \"new\nuser-facing\
+  \ change → declare its live check\") — deliberately NOT a hard \"no close without\
+  \ a PASSING\nprobe\" gate: that would dead-end legitimate deploys whose probe cannot\
+  \ run at close (feature-flag still\noff, owner-gated cutover, data not yet present)\
+  \ and breed the close-time work-arounds V2 exists to\navoid (P1).\n**User-facing\
+  \ `none` is NOT a free pass — the P3 honesty floor (plan-check #3).** A `none` waiver\
+  \ on a\nUSER-FACING change requires a reason AND a `recheck_by:` date; the change\
+  \ then STAYS on the not-adopted\nsurface (§2) — a VISIBLE, dated debt — until a\
+  \ real per-change `live_probe` passes against prod at the\ndeploy seam. This is\
+  \ how P3 (\"done = adopted\") is honored: by VISIBILITY of the declared non-adoption,\n\
+  not by blocking close. The v1 failure was SILENT shipped-but-uninvoked work; a declared\
+  \ + surfaced +\ndated non-adoption is the opposite of silent. A NON-user-facing\
+  \ change (internal job, no live surface)\ntakes a bare reasoned `none`. A project\
+  \ with no `deploy:` section is unaffected.\n**Prefer the ATTESTED form over a waiver\
+  \ whenever a real proof exists (§4b).** A `none` waiver is\nthe honest answer only\
+  \ when the change genuinely has NO live proof. When the project already runs\none\
+  \ at its own gate — an authenticated probe, a browser gate, a served-bundle marker\
+  \ — declare it\n`attested:` and record its reading; filing \"no data\" for a proof\
+  \ that ran is not a waiver, it is an\ninaccuracy. The `settled_by` discharge below\
+  \ remains the route for a waiver already authored.\nSECOND CARRIER ON THE SAME LENS\
+  \ (SPEC-0036 / X-0710). The `overdue-recheck` lens folds a\nSECOND dated deferred-proof\
+  \ carrier alongside the `live_probe` waiver: a task's `post_ship_observation:\n\
+  {observation, due_by}` — the declaration the Stage-8 `--post-ship-observation` carve-out\
+  \ requires when an\nacceptance proof is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION.\
+  \ Structurally the SAME debt (closed but\nnot proven, carried by a task-YAML field,\
+  \ dated, discharged only by naming where the proof landed), so it\nextends this\
+  \ lens rather than adding a parallel one (CHARTER §P1 F1/F2); it reports on its\
+  \ OWN keys\n(`observations` / `observations_count` / `observations_overdue_count`),\
+  \ leaving the waiver keys' meaning\nuntouched. TWO deliberate differences: an unsettled\
+  \ observation is listed from DECLARATION (not only once\noverdue — `state: pending|overdue`),\
+  \ so a deferred proof is visible for its whole life; and TIME PASSING\nnever discharges\
+  \ it — it only moves pending→overdue. TWO EXITS, AND ONLY THOSE TWO ( — until it,\n\
+  there was only the first, so an observation whose reading could never arrive had\
+  \ no terminal state at\nall and sat on this lens forever): a `settled_by` LOCATOR\
+  \ naming where the recorded reading landed, or\nthe SAME terminal pair this section\
+  \ defines for the waiver — `settled_by: {result: unreachable|falsified,\nreason:\
+  \ <non-empty why>}`, one closed vocabulary across all three carriers. A terminal-discharged\n\
+  observation leaves the ACTIONABLE `observations_*` counts for its OWN counted set\n\
+  (`unreachable_observations` / `falsified_observations`), never folded into them\
+  \ and never merged with\nthe probe or waiver sets — the two ask for different remedies,\
+  \ an authoring fix versus reading a real\nfinding — and, like every terminal here,\
+  \ it NEVER satisfies CHARTER §Principle 8 adoption evidence.\n\nTHE SETTLED DISCHARGE\
+  \ — `settled_by` (X-0575). A `recheck_by` date says \"still owed\". It has\nno counterpart\
+  \ saying \"PAID\", so a waiver whose debt was genuinely discharged by a REAL non-GET\
+  \ probe\n(docker-exec import, prod SQL invariant, served-bundle marker, live-container\
+  \ differential) could leave\nthe overdue-recheck lens only by being RE-DATED as\
+  \ if still owed, or by the dishonest `user_facing:\nfalse`. Disposing 26 probed\
+  \ items on <project> forced the re-date work-around on every one — the\nhonesty\
+  \ floor turned into a lie generator. So a waiver MAY carry `settled_by: {evidence,\
+  \ probed_at,\nmethod}`; a grammar-VALID one discharges the debt and drops the `recheck_by`\
+  \ requirement, and the\noverdue lens skips it. THE EVIDENCE IS NAMED, NEVER ASSERTED\
+  \ — a free-text \"we checked\" would reproduce\nthe defect in a new spelling: `evidence`\
+  \ MUST be the MATERIALIZED-JOURNAL locator of the probe run\nitself (`events.jsonl#ts=<ISO-instant>`\
+  \ or `events.jsonl#source_ref=<ref>` — the citation form\nalready mandated for a\
+  \ load-bearing rationale, REUSED, not a new address space). A bare `T-NNNN` or a\n\
+  commit sha is REJECTED: it names WORK, never the probe RUN. `probed_at` is an ISO\
+  \ date (WHEN), `method`\nnon-empty text (HOW). TWO-SEAM ENFORCEMENT, because a syntactically\
+  \ valid locator is still an assertion\nuntil it resolves: the GRAMMAR half is pure\
+  \ and runs wherever the declaration is validated (so the\nclose-gate declaration\
+  \ check stays STATIC, carrying no host deps), while RESOLUTION runs AT THE\nCLOSE-GATE,\
+  \ which already reads the journal — it refuses a locator resolving to NO event,\
+  \ and refuses\none resolving to an event that is not PROBE EVIDENCE (`live_probe_passed`\
+  \ /\n`security_live_probe_passed` / `live_trigger_evidence` / `consumer_read_evidence`;\
+  \ resolving to an\nARBITRARY event would let any waiver settle against any journal\
+  \ line). The fold is cross-instance\n(worktree UNION main, SPEC-0168 rule 7), so\
+  \ an evidence line emitted from the main checkout still\nresolves. `task close`\
+  \ is the ONLY door into the landed corpus the overdue lens reads, so an\nunresolvable\
+  \ settle can never reach main — which is why the lens itself stays read-time and\
+  \ PURE. An\nABSENT `settled_by` leaves the fail-closed `recheck_by` floor above\
+  \ byte-for-byte unchanged; a\nMALFORMED one is a grammar ERROR, never a silent settle.\n\
+  \nTHE TWO HONEST TERMINALS — `settled_by: {result, reason}` (X-1163). `settled_by`\
+  \ above is\nDISCHARGE-BY-PROOF, and <project> MEASURED (2026-08-27) that this is\
+  \ not always reachable:\nof twenty overdue waivers drained in one authenticated\
+  \ reading of prod, sixteen settled cleanly and\nFOUR could not, STRUCTURALLY — a\
+  \ differential needing a WRITE against production (an outbound letter\nno URL returns;\
+  \ two concurrent POSTs to a real operator's article; a real invitation minted),\
+  \ or data\nthat does not exist on prod (an article carrying both a nine-digit series\
+  \ and a drawn Y axis). For\nthose, the only remaining exits were the two this section\
+  \ calls dishonest — re-dating forever, or\n`user_facing: false`. So a waiver MAY\
+  \ INSTEAD carry `settled_by: {result, reason}` where `result` is\none of the CLOSED\
+  \ vocabulary **`unreachable`** (a proof that can NEVER arrive) or **`falsified`**\
+  \ (a\nreading that ARRIVED and came back negative), and `reason` is MANDATORY non-empty\
+  \ free text — the\nreason IS the record, and an empty one discharges the debt while\
+  \ saying nothing, so it is refused\nbefore any write. THE SAME SHAPE AND BOUNDS\
+  \ SETTLED for the acceptance-probe carrier, one\nlevel up, and deliberately not\
+  \ a second dialect. THE TWO SHAPES ARE MUTUALLY EXCLUSIVE: a discharge\ncarrying\
+  \ BOTH a terminal and any proof key (`evidence`/`probed_at`/`method`) is a grammar\
+  \ ERROR —\nit cannot at once name the run that proved the debt and record that no\
+  \ such run can exist. A terminal\nnames no locator, so the RESOLUTION seam above\
+  \ does not apply to it (there is no run to resolve).\nWHAT A TERMINAL DOES AND DOES\
+  \ NOT BUY: it leaves the ACTIONABLE overdue-recheck set and lands in its\nOWN counted\
+  \ set on that lens (`unreachable_waivers` / `falsified_waivers` — two sets, never\
+  \ merged,\nnever folded into the actionable count), reported as a PERMANENT FLOOR\
+  \ rather than as a backlog; and\nit NEVER satisfies CHARTER §Principle 8 adoption\
+  \ evidence — least of all `falsified`, which records\nthat the adoption reading\
+  \ came back NEGATIVE and is the OPPOSITE of adoption evidence, not a weaker\nform\
+  \ of it. That bound holds BY CONSTRUCTION: the P8 readers read journal EVIDENCE\
+  \ EVENTS, and a\nterminal discharge writes none. AUTHORED BY VERB, never by hand-editing\
+  \ governed YAML:\n`task update --live-probe-settled-terminal/--live-probe-settled-reason`\
+  \ before closure, and\n`task close --settle-live-probe-terminal/--settle-live-probe-reason`\
+  \ on an already-done card. This\ndoes NOT weaken the `recheck_by` floor: a waiver\
+  \ with no discharge at all is judged exactly as before.\nThis ADDS a deploy-conditional\
+  \ precondition to closure — see §Amends (it does NOT change closure for\na non-deploying\
+  \ project).\n**The live_probe DEFAULT — derived from TOUCHED RUNTIME SURFACES.**\
+  \ Requiring a hand waiver on\nEVERY deploying-project task erodes the gate (5 <project>\
+  \ spec-activation tasks each needed one —\na hand-waiver habit). So an ABSENT `live_probe`\
+  \ is not an automatic refusal: the gate first DERIVES the\ndefault from the change's\
+  \ TOUCHED SURFACES (the recorded-commit diff). A task whose ENTIRE touched set\n\
+  is a non-runtime methodology/paperwork surface — the explicit ALLOWLIST: any `*.md`\
+  \ doc, the\n`events.jsonl` journal, or a file under `tasks/ specs/ decisions/ plans/\
+  \ ideas/ graph/ patterns/\nlessons/ tests/` — carries NO live serving risk and AUTO-WAIVES\
+  \ (closes with no hand waiver). ANY touched path\nOUTSIDE the allowlist — consumer\
+  \ runtime code, runtime/deploy config (incl. `yitc-ops.yaml`), a hook,\nscheduler,\
+  \ or startup path — keeps the explicit declare-or-waive above. The default keys\
+  \ off TOUCHED\nSURFACES, **NEVER a task/spec CLASS or a 'migration' label** (the\
+  \ external-audit HIGH finding: a class\nshortcut could SILENTLY waive a real deploy-risk\
+  \ change). Fail-closed: an EMPTY touched set (a\ndiff-fetch miss / no recorded commit)\
+  \ does NOT auto-waive — the explicit declare-or-waive stands. The\ndefault reuses\
+  \ the EXISTING live_probe close-gate path (`_all_touched_non_runtime_surface` over\n\
+  `_task_diff_files` of the recorded commit) — no new gate, no new verb.\n**Host-config\
+  \ extension — the per-KIND evidence close-gate (SPEC-0111; kind-discriminated by\n\
+  \ / X-0257).** A task that opts into the host-config class (the `host_config: true`\
+  \ marker,\nSPEC-0028) carries a SEPARATE, ADDITIVE close precondition: `task close`\
+  \ REFUSES (fail-closed) unless the\nevidence required by that change's host-surface\
+  \ KIND (`host_config_kind`, SPEC-0028) has been recorded,\ntask-scoped. The matrix\
+  \ — this section is its HOME:\n- **`nginx-vhost`** (the DEFAULT when no kind is\
+  \ declared — the class's own definition per SPEC-0097 §10\n  is an nginx vhost change,\
+  \ so every card predating the discriminator is unchanged): ALL THREE evidences\n\
+  \  the SPEC-0111 apply seam records — `apply_confirmed` (the owner human-apply confirmation),\n\
+  \  `host_health_sweep_passed` (the server-wide health sweep), and `host_reconciliation_recorded`\n\
+  \  (repo-conf == live-conf) — each carrying the PROVENANCE TAG `data.emitter ==\
+  \ \"hostapply\"`, the ONE\n  vetted helper owning that surface. Never waivable by\
+  \ an owner attestation (SPEC-0111 §5).\n- **`cron` / `systemd-unit` / `other`**:\
+  \ `apply_confirmed` ALONE, carrying a NON-EMPTY `data.emitter`\n  naming who applied\
+  \ it. The sweep and the reconciliation probe the SHARED NGINX CONTROL PLANE\n  (SPEC-0111\
+  \ §3 sweeps `registry.yaml` domains; §4 reconciles via `nginx -T`) — they are not\
+  \ merely\n  unavailable for a crontab or a unit file, they are INAPPLICABLE, and\
+  \ `hostapply` is nginx-only\n  end-to-end, so their tagged events are structurally\
+  \ UNPRODUCIBLE for such a change. Demanding them of\n  every marked task made an\
+  \ honest non-nginx marker non-waivably unclosable, whose only escape was to\n  OMIT\
+  \ the marker — i.e. to lie, returning the change to the ungoverned X-0097 class\
+  \ this gate exists to\n  prevent (X-0257, captured twice in the consumer, 2026-07-06).\
+  \ No vetted helper owns those surfaces\n  yet, so the tag records the APPLIER rather\
+  \ than pinning one helper.\n`apply_confirmed` is UNIVERSAL across kinds: a host\
+  \ change never reaches `done` unproven-applied. An\nABSENT or UNRECOGNIZED kind\
+  \ resolves to the STRICTEST (`nginx-vhost`) set — fail-closed, a typo never\nbuys\
+  \ a leaner gate — and `task close` REFUSES an unrecognized kind outright. The refusal\
+  \ message MUST\nname the kind and the evidence that kind expects, and MUST route\
+  \ a mis-kinded card to `task update`,\nnever toward dropping the marker.\nGuarantee,\
+  \ stated to the actual trust model: a host-config task CANNOT close on ABSENT or\
+  \ INCIDENTAL\n(wrong-type / stray) evidence — in normal governed operation ONLY\
+  \ the SPEC-0111 helper emits these three\ntypes with the tag. It is NOT forgery-resistant:\
+  \ like EVERY line in the append-only, operator-trusted V2\njournal (CHARTER §P5),\
+  \ a deliberately hand-appended tag is out of scope BY DESIGN — per-event anti-forgery\n\
+  is a NEW mechanism with no real incident (CHARTER §P1) and is deliberately NOT added.\
+  \ The owner's\nhuman-apply confirmation is the FORM evidence (1) takes on the manual\n\
+  path and NEVER substitutes for (2)/(3) — the server-wide sweep + reconciliation\
+  \ are the safety guarantees\nand are never waivable by an owner attestation (SPEC-0111\
+  \ §5). Same STRUCTURAL fail-closed shape as the\nlive_probe declaration gate above\
+  \ (`bin/lib/task.py#_host_config_evidence_missing`); a task WITHOUT the\nmarker\
+  \ is byte-for-byte unchanged (the gate is dormant). The marker's governed write-paths\
+  \ are\n`task file --host-config` (filing-time) and `task update --old/--new` (the\
+  \ journal-marked field-edit) —\nnever a hand-edit. This is ORTHOGONAL to the live_probe\
+  \ declaration gate: a host-config task is subject to\nBOTH (it is still a deploying-project\
+  \ task).\n\n**Audit-post carve-out — the mirror at Stage 8 (X-0117).** Because those\
+  \ three evidences are\nrecorded by the apply seam at Stage-9 Closure (AFTER audit-post),\
+  \ they legitimately do NOT exist yet at\nthe diff-only Stage-8 audit-post — so the\
+  \ base audit-post overlay false-REDs \"adoption missing\" on a\nhost-config ship\
+  \ by design. `audit post --task --host-config` adds a carve-out overlay (the FOURTH\n\
+  SIBLING of the §5 serve-deploy / §7 external-action / event-emit-only deferred-adoption\
+  \ carve-outs)\ntelling the auditor the 3-evidence absence at audit-post is EXPECTED\
+  \ for a host-config ship, never a\nfinding; the durable verdict YAML records `host_config:\
+  \ true`. Same `--task`-post-only + non-task-reject\nscoping as the sibling flags\
+  \ (`bin/lib/audit_packet.py#build_audit_prompt`, `#cmd_audit`).\n\n### 4. Declarative\
+  \ read-only live_probe runner — ONE home, no parallel SoT\nA `live_probe` is a declarative\
+  \ read-only assertion (an HTTP GET asserting status / body-contains) run\nby the\
+  \ kernel — never an arbitrary script, never a write. **The home split is fixed (one\
+  \ SoT each,\nplan-check finding #4):** the `yitc-ops.yaml` carrier holds the PROJECT-LEVEL\
+  \ defaults a probe needs —\n`live_base_url` + the probe dialect/shape — while the\
+  \ PER-CHANGE probe declaration (this task's\nassertion) lives on the TASK YAML.\
+  \ The carrier never stores a per-task probe; the task YAML never\nre-declares the\
+  \ base url/dialect. A change is live-adopted when its own per-change live_probe\
+  \ passes\nagainst PRODUCTION (never inferred from a generic smoke or from deploy-command\
+  \ exit-0). **Seam (resolves\nthe close-vs-prod question):** this per-change GET\
+  \ runs at the DEPLOY seam — at/after `deploy`, the\nmoment the change is live —\
+  \ and clearing the not-adopted surface (§2) is its effect; it does NOT run at\n\
+  `task close` (§3 is a static declaration check). So close never blocks on prod availability,\
+  \ yet real\nadoption is still proven by an executed GET — just at the deploy seam,\
+  \ where the prior-art puts it.\n**Keying — the GOVERNING task, not \"a consumer\
+  \ task\" (X-0343).** The per-change probe is keyed\non the task that GOVERNS the\
+  \ change. That card is USUALLY the deploying project's own; it is NOT always\nso:\
+  \ a consumer deploy may be governed by a KERNEL task card (the <project> migration-day\
+  \ prod deploy, run\nunder kernel task, had NO consumer-side task — so `liveprobe\
+  \ --task <kernel-id>` in the `-C`\nconsumer session found no card, refused, and\
+  \ the operator fell back to hand curls: the live evidence went\nunrecorded). The\
+  \ `--task` id is therefore resolved in TWO realms, in this order (the SPEC-0092\
+  \ order): the\nSESSION's OWN corpus first (`REPO_ROOT/tasks` — the consumer's own\
+  \ card WINS whenever it exists), then, in\na `-C` consumer session ONLY (`_is_consumer_build`\
+  \ — the common-dir test, so one of the engine's\nOWN linked worktrees is NOT a consumer),\
+  \ the KERNEL corpus (`ENGINE_ROOT/tasks`) — a\nconsumer→engine READ, never a write\
+  \ (SPEC-0078 guards writes). Absent from BOTH realms → REFUSE,\nfail-closed and\
+  \ unchanged, naming both corpora searched; an engine-self session is byte-identical\
+  \ to\nbefore (its own corpus IS the kernel's — there is no second realm to consult).\
+  \ Everything downstream is\nunchanged: the GET still resolves against the CONSUMER\
+  \ carrier's `live_base_url` and the event still\nrecords `project: <consumer>` —\
+  \ the deploy SEAM is the consumer's, only the governing CARD is the\nkernel's. A\
+  \ PASS resolved via the kernel realm records `task_realm: \"kernel\"` on its `live_probe_passed`,\n\
+  so the evidence never silently implies a consumer card that does not exist. NO deploy-scoped\
+  \ probe is\nminted: a per-deploy probe would fork the home-split above into a second\
+  \ per-change SoT (CHARTER §P1 F2)\n— the per-change assertion stays on the governing\
+  \ TASK YAML, wherever that card lives. The SECURITY\nenvelopes (`security_live_probe_passed`\
+  \ / `security_live_probe_escalated`) are owned by SPEC-0098 §2/§3\nand are UNCHANGED\
+  \ by this rule — a security probe on a kernel-governed card resolves by the same\
+  \ order,\nit simply carries no realm mark (widening another spec's envelope has\
+  \ no incident behind it).\n\n**Invocation model ( build, audit-pre F1):** the runner\
+  \ is a STANDALONE governed verb\n(`bin/yitc-v2 liveprobe --task T-XXXX`), invoked\
+  \ AT the seam — by the deploying operator/controller\nimmediately after a successful\
+  \ `deploy` — NOT auto-fired from inside the `deploy` verb. This is\ndeliberate,\
+  \ not a gap: `deploy` is per-REVISION (one deploy ships many changes) while a `live_probe`\n\
+  is per-CHANGE (per task), so auto-dispatch would require a commit→task mapping AND\
+  \ an auto-trigger\ndecision — the latter is exactly the deploy AUTONOMY POLICY this\
+  \ spec DEFERS (§Internal, the plan's\ntracked id). Slice-1 ships the runner as the\
+  \ executable per-change proof; wiring WHEN it auto-fires is\nthe deferred autonomy\
+  \ step. A passing run emits `live_probe_passed{task, revision, project, url,\nexpect_status,\
+  \ actual_status}` — the per-change adoption proof (the §2 ancestry surface is cleared\
+  \ by\nthe `deploy_completed` advance; this proof is the per-change confirmation,\
+  \ not a second SoT for §2).\n\n**Security-property DIALECT (header/cookie assertions,\
+  \ SPEC-0098 §1; the named extension — one runner,\none grammar).** The assertion\
+  \ grammar is EXTENDED (not forked) so a probe can prove a named SECURITY\nproperty\
+  \ at the seam. A security assertion is a `url`-form GET that ALSO carries: `property:\
+  \ <name>`\n(REQUIRED — the event label) + any of `assert_header_present: <name |\
+  \ [name]>` (a required security\nheader is present, e.g. HSTS / X-Frame-Options\
+  \ / nosniff / Referrer-Policy), `assert_header_absent:\n<name | [name]>` (a header\
+  \ must be ABSENT, e.g. no `Access-Control-Allow-Origin` leaked), or\n`assert_cookie_flags:\
+  \ {<cookie>: [Secure|HttpOnly|HostOnly]}` (the `Set-Cookie` for that cookie carries\n\
+  the flags; `HostOnly` = no `Domain=` attribute). A security assertion emits `security_live_probe_passed`\n\
+  (NOT the generic `live_probe_passed`) on PASS; a PROBEABLE property that does NOT\
+  \ hold FAILS closed (no\nevent, exit non-zero — the security violation blocks adoption,\
+  \ SPEC-0098 §2). A THIRD top-level form —\n`{property: <name>, unprobeable: <reason>}`\
+  \ — declares a property the seam CANNOT assert read-only: the\nrunner emits `security_live_probe_escalated`\
+  \ and exits non-zero (escalate to the owner, NEVER silent-pass;\nSPEC-0098 §2).\
+  \ The semantics + the two events are owned by SPEC-0098 (§2/§3); this grammar is\
+  \ their FORM\nhome + the runner extension. The runner stays GET-only/read-only throughout.\n\
+  \n**No-follow / redirect DIALECT (immediate-3xx + Location assertion; the X-0096\
+  \ fix — one runner,\none grammar).** The default GET FOLLOWS redirects, so a genuine\
+  \ 3xx change (e.g. a host/path redirect)\nresolves to the final 200 and a probe\
+  \ declaring `expect_status: 301` FAILs (the incident: a real\n301 on the kupi.club\
+  \ mirror saw 200 → FAIL, so a whole change-class — host redirects — was un-provable\n\
+  and stayed formally not-adopted). The assertion grammar is EXTENDED (not forked)\
+  \ so a redirect is\nprovable AT the seam: when `expect_status` is a Location-bearing\
+  \ redirect status (301/302/303/307/308)\nthe runner issues the GET through a NO-FOLLOW\
+  \ opener and asserts the IMMEDIATE 3xx — and an OPTIONAL\n`expect_location: <str>`\
+  \ (valid only with such a redirect `expect_status`) asserts the immediate\nresponse's\
+  \ `Location` header. A non-redirect `expect_status` keeps the follow default (no\
+  \ regression). On\nPASS it emits the SAME `live_probe_passed` event, with the matched\
+  \ `location` added to the payload (the\nper-change adoption proof records the immediate\
+  \ 3xx + Location). The runner stays GET-only/read-only.\n\n### 4b. Attested form\
+  \ — the kernel GRADES a live proof the PROJECT already runs (X-1130)\n§4 models\
+  \ the per-change probe as a declarative read-only ANONYMOUS GET the KERNEL runs.\
+  \ For a\nproject whose user-facing surfaces answer an anonymous GET with a shell\
+  \ and a 401 behind it, nearly\nevery meaningful change is honestly un-provable that\
+  \ way — so it is waived under §3, takes a dated\n`recheck_by`, and that recheck\
+  \ falls due with no better instrument than the one that did not exist\nat closure.\
+  \ Meanwhile a REAL live proof may already run at that project's own deploy gate\
+  \ — an\nauthenticated probe, a headless-browser gate against the live origin, a\
+  \ served-bundle-marker fetch\nproving the shipped code is what production serves\
+  \ — each STRONGER evidence than the GET modelled\nabove, and each with nowhere to\
+  \ be recorded. The waivers are individually correct and collectively\na mechanism-shape\
+  \ mismatch.\n\nA FOURTH declaration FORM closes it. The `live_probe` grammar (§3/§4)\
+  \ gains a flat `attested:` form\nalongside `url:` / `none:` / `unprobeable:`, mutually\
+  \ exclusive with them, naming a live proof the\nPROJECT itself performs: WHICH instrument\
+  \ (`attested`), WHERE it is gated (`runs_at`), and WHAT it\nasserts (`asserts`)\
+  \ — all three REQUIRED and non-empty, because a declaration that names none of\n\
+  them is a `none` waiver in a different key, which is the state this form exists\
+  \ to leave rather\nthan to re-spell.\n\n**THE BOUND — the kernel GRADES what the\
+  \ project produces; it NEVER issues an outbound request of\nits own on this path.**\
+  \ This is what makes the form an extension rather than a second runner: the\n§4\
+  \ runner stays GET-only and read-only, unchanged, and the attested path issues no\
+  \ request at all\nrather than a wider one. The grading seam is `bin/yitc-v2 liveprobe\
+  \ --task T-XXXX --report\npass|fail`: the project runs its instrument at its own\
+  \ gate, the operator reports the reading, and\nthe kernel records and judges it.\
+  \ `--report` is ATTESTED-ONLY and is refused on every other form,\nchecked BEFORE\
+  \ any form branch — otherwise it would fall through to the §4 GET runner on a `url`\n\
+  assertion, so a flag whose whole contract is that no request is issued would issue\
+  \ one, and a reading\nthe operator meant to REPORT would be silently replaced by\
+  \ a kernel GET.\n\n**THE FAILING ARM — a declaration whose named proof did NOT pass\
+  \ records FAILING; never missing,\nnever stale.** This is the load-bearing half\
+  \ and the easy one to get backwards. `--report fail`\nemits `live_probe_failed`\
+  \ and exits non-zero; the reading is then recorded on the card as\n`outcome.result:\
+  \ failing`, and that card STAYS on the overdue-recheck lens marked `failing`,\n\
+  UNCONDITIONALLY — with no date test, because time is irrelevant to a known negative\
+  \ and gating a\nreal failure's visibility on a `recheck_by` would hide it until\
+  \ a date passed. A design that\ncollapsed a failed probe into absence would be WORSE\
+  \ than the gap this closes, because it would\nturn permanent silence into a health\
+  \ signal. `live_probe_failed` is therefore never adoption\nevidence and discharges\
+  \ nothing — it is the opposite of adoption evidence, not a weaker form of it.\n\n\
+  **ONLY `passing` DISCHARGES.** The reading is recorded as `outcome: {result, evidence,\
+  \ probed_at,\ndetail?}`, where `evidence` is the SAME materialized-journal locator\
+  \ `settled_by` uses (§3), named\nand never asserted, resolved at the SAME close-gate\
+  \ seam against the same worktree-UNION-main fold.\nResolution is DIRECTIONAL and\
+  \ NARROW, and the narrowness is load-bearing. It resolves to EXACTLY\nONE event\
+  \ type per result — the row THIS grading seam emitted — deliberately NOT the wider\n\
+  probe-evidence set a `settled_by` accepts. The two fields answer different questions:\
+  \ a `settled_by`\nsays «this waiver's debt was discharged by SOME real probe», so\
+  \ any probe-evidence type can honestly\ndischarge it, whereas an attested outcome\
+  \ says «THIS declared instrument was run and here is what it\nread». Admitting the\
+  \ wider set would let a generic adoption row — a `live_trigger_evidence` or\n`consumer_read_evidence`,\
+  \ types minted for unrelated reasons and often present on the very same card\n—\
+  \ certify a reading that never happened, which is named-never-asserted collapsing\
+  \ back into an\nassertion. Type-matching alone is likewise insufficient: the resolving\
+  \ row MUST be a REPORTED one, MUST\nECHO this declaration's instrument, gate and\
+  \ assertion, and MUST BELONG TO THIS CARD. The echo is\nneeded because a `live_probe_passed`\
+  \ also comes from the §4 kernel-GET path and a card may carry\nseveral readings\
+  \ over its life. The IDENTITY bound is needed because the echo alone does not\n\
+  distinguish cards: a project's deploy gate runs the SAME instrument for every change\
+  \ it ships, so two\ncards routinely declare an identical instrument/gate/assertion\
+  \ triple and would cross-certify. The\nemit writes the card id in TWO carriers,\
+  \ and the row is this card's only if NEITHER CONTRADICTS it —\nstricter than first-non-empty,\
+  \ because a row that disagrees WITH ITSELF about whose reading it is\ncannot honestly\
+  \ certify either card. The check FAILS CLOSED in all three directions: a contradictory\n\
+  row is refused, a row carrying no id at all is refused rather than passed, and a\
+  \ resolver called\nwithout the card id REFUSES rather than skipping the check —\
+  \ an identity check that quietly does\nnothing is worse than none, because it reads\
+  \ as enforced. And the direction\nholds both ways: a `passing` outcome citing a\
+  \ `live_probe_failed` row is REFUSED, and a `failing`\noutcome citing a pass row\
+  \ likewise — a failure may never certify a pass, and a pass may never stand\nin\
+  \ for a reported failure.\n\n**`outcome` is OPTIONAL at declaration, so §3 stays\
+  \ a DECLARATION gate.** An attested declaration\nis legal before its proof has run\
+  \ — the close-gate performs no host call and remains static. An\nUNGRADED user-facing\
+  \ attested declaration keeps the §3 fail-closed `recheck_by` floor byte-for-byte:\n\
+  it is a dated debt exactly as a waiver is. What changes is that the debt now has\
+  \ a REAL exit —\nrecord the reading — instead of a recheck with no better instrument.\n\
+  \n**WHAT THIS RETIRES (CHARTER §P1 F3):** the `none` waiver ceases to be the only\
+  \ exit for a project\nthat HAS a live proof. Filing \"no data\" for a proof that\
+  \ ran is no longer the honest answer, because\na truthful one now exists.\n\n**Trust\
+  \ model, stated plainly rather than over-claimed.** A reported reading rides the\
+  \ same\nappend-only, operator-trusted journal as every other evidence type in this\
+  \ spec (see §3's host-config\nparagraph, which says the same about its three evidences):\
+  \ per-event anti-forgery is a new mechanism\nwith no incident behind it and is deliberately\
+  \ NOT added. What the form buys over the status quo is\nthat the instrument, its\
+  \ gate, its assertion and its dated reading are all NAMED and gradeable on the\n\
+  card, where a `none` waiver carried only free text — strictly more auditable, and\
+  \ not a claim of\nunforgeability.\n\n**THE DECLARATION WRITER for a card whose closure\
+  \ has LANDED —\n`task close --settle-live-probe-attested` (<project> X-1331 / X-1351).**\
+  \ Everything above\ndescribes what happens once a card CARRIES an attested declaration.\
+  \ This names how a LANDED card\ngets one, which is the half that was missing: the\
+  \ reading path shipped whole while no verb wrote the\ndeclaration, so a card closed\
+  \ under a `none` waiver could reach the attested form only by\nhand-editing governed\
+  \ YAML — the QUEUE §ANTI-PATTERN, which skips the emit and leaves the change\ninvisible\
+  \ across sessions. That is not a marginal population: it is EVERY closed card on\
+  \ a\nconsumer's overdue-recheck lens, i.e. exactly the population this section was\
+  \ written for. X-1351 is\nthe same gap seen from the waiver side — a project keeps\
+  \ taking dated `none` waivers while a real\nlive proof runs at its deploy gate with\
+  \ nowhere to be DECLARED, so the next card in the same shape\nstarts from the waiver\
+  \ again and the retirement below never actually takes effect.\n\nThe arm takes `--attested\
+  \ <instrument> --runs-at <where> --asserts <what> --recheck-by <ISO-date>`\nand\
+  \ writes the four keys. It is the SEVENTH member of the `task close` late-linkage\
+  \ family and takes\nthat family's bounds unchanged (`--settle-probe` /, `--settle-live-probe-*`,\n\
+  `--live-probe-outcome-*` above, `--settle-observation`): a scoped self-commit staging\
+  \ the\ncard plus its one journal receipt and never `git add -A`; a fail-closed refusal\
+  \ on preexisting card\ndirt; an idempotent no-op on an identical re-run; deferral\
+  \ to the ordinary in-worktree path inside a\nwriting worktree, where it writes no\
+  \ commit and rides that batch. It is NOT a reopen —\n`status`, `commit`, `closed_at`,\
+  \ `probes` and `probe_passed` are untouched.\n\n**ADMISSION IS DERIVED, NEVER ASSERTED,\
+  \ AND IT IS NOT THE NEGATION OF ITS SIBLING.** The arm is\nadmitted only on a `done`\
+  \ card whose closure `main` itself SAYS is there. The determination reads\n`main:<card>`\
+  \ through the one shared reader `_closure_is_on_main` and fails CLOSED in every\n\
+  undeterminable direction — no `main` ref, a git or parse failure, a card absent\
+  \ from `main` all\nREFUSE. The distinction from `_closure_is_unlanded` is load-bearing\
+  \ rather than stylistic:\nthat predicate reads an unreadable state as LANDED, because\
+  \ the act it protects is reopening a card\nthat might have. Here the protected act\
+  \ is the opposite — writing a governed declaration on\nthe strength of a landing\
+  \ — so `not _closure_is_unlanded` would ADMIT every undeterminable\ncase, inverting\
+  \ the safety of exactly the states nobody can check. Two predicates, one git read,\n\
+  opposite fail-closed directions.\n\n**WHICH PRIOR FORM MAY BE REPLACED — enumerated,\
+  \ because this arm REPLACES a form rather than\ngrowing a field.** An absent declaration\
+  \ is written. An UNSETTLED `none` waiver is CONVERTED: that\nis the X-1331 / X-1351\
+  \ case, and it is what finally makes the retirement below reachable. Everything\n\
+  else is refused BY NAME with nothing written: a SETTLED waiver (replacing it would\
+  \ ERASE a recorded\ndischarge and re-open a debt that was honestly paid — strictly\
+  \ trading a proven fact for an unproven\none), a `url` assertion or an `unprobeable`\
+  \ escalation (each already names how the change is proven,\non terms the kernel\
+  \ handles itself), and a DIFFERENT attested declaration (the family's\nno-back-dating\
+  \ bound — a different instrument is a different proof and belongs to a new card).\
+  \ An\nIDENTICAL declaration, graded or not, is an idempotent no-op.\n\n**DECLARING\
+  \ AND GRADING ARE SEPARATE ACTS, and the verb enforces it.** This arm and\n`--live-probe-outcome-*`\
+  \ are MUTUALLY EXCLUSIVE, as are this arm and `--settle-live-probe-*`. Run\ntogether,\
+  \ the order in which they took effect would decide the result, and a caller could\
+  \ declare\nand grade in one act with no reading ever reported to the grading seam\
+  \ — which would make the whole\nnamed-never-asserted discipline above bypassable\
+  \ by argv order. So the arm writes an UNGRADED\ndeclaration and nothing more: the\
+  \ card keeps its dated `recheck_by` debt, exactly as the waiver it\nreplaced did,\
+  \ until the project runs its instrument and the reading is recorded through\n`liveprobe\
+  \ --report` + `--live-probe-outcome-*`. The §3 honesty floor is not weakened by\
+  \ the\nconversion; what changes is that the debt now has a real exit.\n\n### 4a.\
+  \ Critical-user-path leg — /healthz is process-liveness, NEVER product-health (X-0371,\
+  \ SPEC-0156)\nA live_probe exists to prove the change is live in the PRODUCT sense\
+  \ — so the per-change assertion (§4)\nMUST exercise the project's CRITICAL USER\
+  \ PATH: the one user flow whose failure means the product is\nDOWN (an authenticated\
+  \ product call, a real read of product state), not a bare process ping. A\n`/healthz`-class\
+  \ PROCESS-liveness endpoint proves only that the web PROCESS answers; it is NEVER\
+  \ accepted\nas the product-health probe. Real incident X-0371: <project>'s live_probe\
+  \ was GET /healthz, which returned\n200 through 8h of TOTAL prod-auth death — a\
+  \ dead product passed its own liveness probe. A process-liveness\nping MAY be declared\
+  \ as a supplementary liveness leg, but it can never STAND IN for the critical-user-path\n\
+  assertion.\n**Differential AT DECLARATION (SPEC-0156 — the anti-false-green admission\
+  \ doctrine).** The live_probe is\na kernel-graded check (SPEC-0156 §1 `CHECK_SURFACES`\
+  \ — the `live_probe` surface), so it is admitted only\nWITH one recorded FAILING\
+  \ DEMONSTRATION: break the product (e.g. disable auth) and the critical-user-path\n\
+  probe must be SEEN to go RED, journaled once as `check_admission_demonstrated` (outcome\
+  \ `red`, against a\nNAMED broken input). This is the SPEC-0060 §4 differential —\
+  \ \"would this still pass if the thing under\ntest were BROKEN?\" — made concrete\
+  \ for the probe. A /healthz probe CANNOT honestly produce that RED (a\ndead product\
+  \ still returns 200 from /healthz), so it records no demonstration and stays UNPROVEN\
+  \ in the\nSPEC-0119 debt echo — report-only, never refused (SPEC-0156 §3 adds NO\
+  \ gate; this leg never weakens one).\n**Un-probeable routes per the EXISTING rule.**\
+  \ A change whose critical user path genuinely cannot be\nasserted read-only routes\
+  \ per §3's un-probeable rule — the `none` waiver + `reason` + `recheck_by` (the\n\
+  declared, dated non-adoption on the not-adopted surface, §2/§3) — never a new gate,\
+  \ never a weakened one.\n\n### 5. Audit-post live path — adoption deferred to Closure\
+  \ (X-0039)\nA live deploy is an ACTION, not a code diff, so the diff-only audit-post\
+  \ must NOT RED-flag \"adoption\nmissing\": for a serve/deploy task, audit-post treats\
+  \ live-adoption as deferred to Stage-9 Closure\n(where the live_probe evidence is\
+  \ recorded), the same category as the event-emit-only edge case\n(LIFECYCLE §Stage\
+  \ 8). This removes the owner-reset / ceiling-burn the diff-only audit forced. This\n\
+  REFINES the audit-post interpretation for serve/deploy tasks — see §Amends.\n\n\
+  ### 6. Build-source discipline — a forward deploy builds the landed `main` line\n\
+  A forward `deploy` builds the WORKING TREE, so that tree MUST be the landed+audited\
+  \ `main` line. Before\nrunning the project `deploy:` command, the verb ASSERTS that\
+  \ HEAD is on `main` AND the working tree has\nno un-landed RUNTIME-SOURCE changes;\
+  \ otherwise it REFUSES fail-closed (no `deploy_completed` — the unsafe\nsource is\
+  \ never recorded live), naming the branch + cleanliness reason. The \"clean\" test\
+  \ REUSES §3's own\nnon-runtime allowlist (`_path_is_non_runtime_surface`): non-runtime\
+  \ methodology/paperwork surfaces\n(`tasks/ specs/ decisions/ plans/ ideas/ graph/\
+  \ patterns/ lessons/ tests/` + `*.md` + `events.jsonl`) are\nNOT deployed runtime,\
+  \ so — exactly as §3 auto-waives the live_probe for them — they do NOT block a deploy;\n\
+  neither does transient operational churn the system folds/gitignores everywhere\
+  \ (`.yitc/` session state +\nthe root `journal-sync-state/` cursor cache). Only\
+  \ un-landed RUNTIME source (consumer code, runtime/deploy\nconfig such as `yitc-ops.yaml`,\
+  \ a hook/scheduler/startup path) — or a non-`main`/detached HEAD — refuses.\nThis\
+  \ keeps the deploy gate consistent with the live_probe gate (both read §3's allowlist)\
+  \ and with the\ndeployed-vs-main drift notion (§2). A `--rollback` is NEVER gated\
+  \ (it redeploys a prior image —\nthe always-available reversal, §1), so the discipline\
+  \ is forward-deploy-only. The governed path to\ndeploy un-landed work is to `land`\
+  \ it first — there is no override flag (CHARTER §P1, no new mechanism).\n\n**The\
+  \ MAIN-LINE half is scoped BY DEPLOY TARGET (X-1261) — the DIRT half is not.** The\n\
+  landed-`main`-line assertion above states a PRODUCTION discipline, and it is asserted\
+  \ for a\nPRODUCTION target and for a target-less deploy only. For a target positively\
+  \ declared\n`targets.<name>.production: false` (§1) it is SKIPPED, and the deploy\
+  \ may build the branch it exists\nto prove. This is not a licence: it is the resolution\
+  \ of a standing contradiction — a non-production\ntarget exists precisely to exercise\
+  \ code that is not yet on `main`, while <workshop-spec> rule 3 requires\nthat sandbox\
+  \ be deployed THROUGH this governed verb, so the two rules together made a change\n\
+  unprovable end-to-end before landing (measured on <project>: closed with both live\
+  \ probes\nDEFERRED for exactly this reason).\nThree bounds, all load-bearing:\n\
+  (i) The discriminator is POSITIVELY DECLARED and never inferred — `production:`\
+  \ is a mandatory\n    boolean on every target entry, so an absent or non-boolean\
+  \ value REFUSES at target resolution\n    rather than reading as non-production,\
+  \ and a deploy with no `--target` (stance undeclared) keeps\n    the assertion VERBATIM.\
+  \ Nothing that refused before this scoping is admitted by an omission.\n(ii) ONLY\
+  \ the main-line half is scoped. The un-landed-RUNTIME-SOURCE dirt half of this section\
+  \ still\n    refuses on a non-production target, as do every other gate (the SPEC-0155\
+  \ security-audit gate,\n    the SPEC-0097 §11 convergence verification, the close-gate\
+  \ of §3). An un-landed COMMIT is the\n    reviewable artifact a sandbox is meant\
+  \ to prove; an uncommitted working tree names nothing that\n.\n(iii) The record\
+  \ SAYS WHICH — `deploy_completed` carries `build_source: \"main\" | \"branch\"`\
+  \ on a\n    forward deploy that NAMED a target, beside that target's own declared\
+  \ stance in\n    `target.production` (§1). A scoped gate whose record could not\
+  \ be read for \"did this ship the\n    landed line?\" would trade a refusal for\
+  \ an invisible one. The field is present exactly where\n    the answer is not already\
+  \ implied: a rollback is never build-source gated, and a TARGET-LESS\n    deploy\
+  \ always takes the unscoped assertion, so it cannot have built anything but `main`\
+  \ or it\n    would have been refused. Stating that constant would move a record\
+  \ shape §1 deliberately holds\n    byte-identical for a consumer that declares no\
+  \ targets.\nThis is a per-target SCOPE of an existing discipline, reusing the same\
+  \ discriminator SPEC-0097 §12\nreads one block below — NOT an override flag, of\
+  \ which this section still has none.\nReal incident: the <project> gate-2 migration\
+  \ left the live code on a non-`main` auto-session branch\nwhile `main` silently\
+  \ drifted 186 commits, and `deploy` built the working tree with no branch guard.\n\
+  \n### 7. Audit-post external-action path — owner-confirmation deferred to Closure\
+  \ (X-0099)\nThe THIRD sibling of the deferred-adoption audit-post carve-out family\
+  \ (§5 serve/deploy; the\nevent-emit-only carve-out in patterns/event-emit-only-audit-post.md),\
+  \ for a task whose ship is an\nEXTERNAL OWNER ACTION — a webmaster/registrar panel\
+  \ action, a DNS-TXT verification, any owner-side\nstep that produces NO code diff\
+  \ (the case: register kupi.club in Yandex.Webmaster + GSC). Its\nproof is an OWNER-CONFIRMATION\
+  \ probe recorded at Stage-9 Closure, so the acceptance-probe RESULTS\nlegitimately\
+  \ do not exist at the diff-only Stage-8 audit-post. Without a carve-out the substantive\n\
+  audit-post RED-flags \"AC probe results not in the diff\" BY DESIGN — and that finding\
+  \ survived the\n--event-emit-only overlay and then hit the passes=2 audit-loop ceiling,\
+  \ forcing an owner-gated\nStage-9 hand-edit (the X-0099 incident). The `audit post\
+  \ --task <id> --external-action` opt-in\nappends an overlay telling the auditor\
+  \ the probe-results-absent / not-in-diff category here is\nEXPECTED for an external-action\
+  \ ship, NEVER a finding; everything else (diff-drift, any AC not\ndepending on the\
+  \ deferred external action, coherence) is judged unchanged. Scoping mirrors §5:\n\
+  registered ONLY on the `post` subparser, `--task`-only (rejected for --decision\
+  \ / --plan), with a\ndurable `external_action: true` trail in the saved verdict.\
+  \ This REFINES the audit-post interpretation\nfor external-action tasks — same family\
+  \ as §5 (see §Amends).\n\n**Closure proof — REUSE, no new mechanism (CHARTER §P1).**\
+  \ The owner-confirmation proof rides the\nEXISTING acceptance-probe mechanism: `task\
+  \ close --probe owner-confirmed:pass` records the owner's\nconfirmation as the acceptance\
+  \ result, persisted into the task YAML `probes:` map AND the canonical\n`task_closed`\
+  \ journal event (both already persist every probe generically) — THAT is the durable\n\
+  closure record of the proof, not merely the audit verdict YAML. It MAY additionally\
+  \ be backed by a\n`live_trigger_evidence` P8 event (the existing §Principle-8 adoption\
+  \ carrier) for an infra-class\nexternal action. No new event type and no new closure\
+  \ code are introduced — the only gap this task\ncloses is the audit-post false-RED.\
+  \ (The `external_action` opt-in is, like its two siblings\n`--serve-deploy`/`--event-emit-only`,\
+  \ a per-invocation owner/session TRUST SIGNAL at the `audit post`\nverb — NOT a\
+  \ persisted task-class field; the audit-post overlay is the only place the class\
+  \ matters.)\n\n**Filing-time hint (no new gate).** Such a task's acceptance criteria\
+  \ MUST NOT assume a host artifact\nthe external action does not produce — e.g. AC3\
+  \ \"curl verification URL -> 200\" is N/A for a\nDNS-TXT verification, which leaves\
+  \ no served URL. Author the AC around the owner-confirmation signal\nitself, not\
+  \ around a fetched artifact. This is authoring guidance, not an enforced gate (P1).\n\
+  \n### 8. Concurrent `deploy` invocations against one project are SERIALIZED (X-1436/X-1437)\n\
+  \nA PERFORMING `deploy` holds a **per-project mutual exclusion for the WHOLE verb**\
+  \ — the grants-trail\nappend, the pre-phases (the Class-C1 pg_dump, the Class-S\
+  \ security probe, the security-audit seam),\nthe project command, and the post-phases\
+  \ (the post-deploy probe, the convergence check). A\nconsumer-side flock in its\
+  \ own `deploy.sh` cannot cover the pre/post phases for ANY consumer, because\nthose\
+  \ run OUTSIDE the project command; that is why this is the kernel's.\n\n**The key\
+  \ is the TARGET's git COMMON dir** (`git rev-parse --git-common-dir`), which is\
+  \ the main\ncheckout's `.git` for the main checkout AND for every worktree of it\
+  \ — so one key holds across all of\nthem and is per-project by construction. Deploys\
+  \ against DIFFERENT projects still run concurrently:\nthe lock is per-project, never\
+  \ global. The lockfile sits INSIDE that common dir, so it can never read\nas working-tree\
+  \ dirt.\n\n**Every NON-ACQUIRED outcome REFUSES fail-closed, exit 3, and WHAT THE\
+  \ REFUSAL NAMES DEPENDS ON THE\nOUTCOME** — the two arms are stated separately because\
+  \ they have different facts available:\n- **`contended`** — another deploy holds\
+  \ the lock. The refusal NAMES the holder: pid, start time,\n  target, revision,\
+  \ checkout. This is the load-bearing half (X-1436): a loser's symptoms (a container\n\
+  \  mid-recreate, a redirect to login) read as GATE BUGS, and the first diagnosis\
+  \ went to an e2e gate\n  that was working correctly. What the operator must see\
+  \ is «another deploy is running».\n- **`unavailable`** — the lockfile could not\
+  \ be opened or created (permissions, descriptor\n  exhaustion, an I/O error). There\
+  \ is NO holder to name: the failure precedes any flock owner ever\n  existing. It\
+  \ names the lockfile PATH and the failure REASON instead, and still REFUSES — a\n\
+  \  serialization gate with a reachable fail-open is not a gate.\n\n**Publication\
+  \ is guaranteed by a SECOND lock, not a timeout.** A publication lock (`L_pub`)\
+  \ is taken\nBLOCKING by both parties and released by the winner only after its holder\
+  \ record is written and\nfsynced, so a contender cannot even attempt the deploy\
+  \ lock (`L_run`) until that record exists. The\n«winner descheduled between its\
+  \ flock and its write» race is therefore UNREACHABLE rather than\nmerely unlikely\
+  \ — no poll, no deadline, no dependence on scheduler behaviour. `L_pub` is never\
+  \ held\nduring the deploy, so it cannot become a second serialization point.\n\n\
+  **A NON-PERFORMING invocation takes no lock** — `deploy --print-guard` builds nothing\
+  \ and replaces\nnothing (the same `NON_PERFORMING_FLAGS` scoping the SPEC-0169 gate\
+  \ consults; one home).\n\n**Staleness is the KERNEL's to resolve, never a pid check.**\
+  \ The flock is released by the kernel when\nthe holder process dies, so a lockfile\
+  \ whose recorded pid is gone is simply acquirable. The pid is\nnever READ to decide\
+  \ admission — only to report. There is consequently NO reaper, NO timeout and NO\n\
+  stale-sweep here to get wrong.\n\n**The deliberate NON-rule: there is no bypass\
+  \ flag.** A serialization gate with an off-switch is not\none.\n\n**The SHARED-JOURNAL\
+  \ half (X-1437) is NOT this rule's — see SPEC-0169 rule 9.** The grants gate runs\n\
+  BEFORE the `-C` rebind, so the `right_exercised` record lands in the ENGINE journal\
+  \ whatever project\nis targeted: two deploys of DIFFERENT projects append to ONE\
+  \ file, which a per-project lock cannot\nserialize without violating the per-project\
+  \ bound above. That collision is a property of the TRAIL\nWRITER and applies to\
+  \ every caller exercising a right, so the rule closing it is homed with the\ntrail\
+  \ — **SPEC-0169 rule 9 (concurrent appenders are serialized)** — and is cited, not\
+  \ restated,\nhere. Note only the interaction, which is what a reader of THIS rule\
+  \ needs: serializing trail\nappenders does NOT serialize deploys of different projects,\
+  \ so the per-project bound above stands\nunchanged.\n\n## Amends (explicit replacement\
+  \ map — plan-check findings #2/#5; SPEC-0005 §3 / P7)\n\n**Amend-dependency policy\
+  \ (finding #4) — why `requires:` stays SPEC-0093-only.** This spec\nAMENDS SPEC-0028/0025/0015/0036,\
+  \ yet its `requires:` names ONLY SPEC-0093. That is deliberate, not an\nomission:\
+  \ `requires:` encodes an ACTIVATION/BUILD-ORDER prerequisite (the carrier SPEC-0093\
+  \ must exist\nfor the deploy verb + the live_probe home to be real), NOT every surface\
+  \ this spec amends. An AMENDMENT\nis a coherence relationship — recorded HERE in\
+  \ §Amends (with the explicit replacement map) and realized\nby the activating task's\
+  \ wiring — not a lifecycle-ordering edge. Folding the amend targets into\n`requires:`\
+  \ would (a) misuse `requires:` (it gates ordering, and SPEC-0028/0015 already exist\
+  \ — there is\nnothing to wait on), and (b) manufacture a false ordering coupling\
+  \ that the FSM would then enforce. So\nthe amend set lives in §Amends; `requires:`\
+  \ carries only the genuine prerequisite (SPEC-0093).\n**Build-ordering note :**\
+  \ the close-gate CODE + the SPEC-0028 `live_probe` field + the SPEC-0015\nin-place\
+  \ refinement SHIP at (work-first), while THIS umbrella spec activates (`proposed\
+  \ → active`)\nlater at its `activation_owner_task` — the amendments become NORMATIVE\
+  \ at that activation; the code\nis coherent in the interim because each amended\
+  \ home carries the framing at ship time.\n\nThis spec ADDS deploy-conditional behaviour\
+  \ to FOUR existing homes; it does NOT silently rewrite them.\nEvery amendment is\
+  \ CONDITIONAL on the project declaring a `deploy:` section (or, for the schema/catalog\n\
+  additions, an ADDITIVE optional field/type) — a non-deploying project's closure\
+  \ + audit-post + task\nschema are UNCHANGED. The full set of authoritative surfaces\
+  \ this mechanism touches:\n- **SPEC-0028 (task YAML schema):** ADDS one OPTIONAL\
+  \ `live_probe` task field. Grammar: an assertion\n  `{ url: <path-or-abs>, expect_status:\
+  \ <int>, body_contains: <text?>, expect_location: <text?> }` (the\n  GET runs against\
+  \ the carrier `live_base_url`, §4; `expect_location` is the no-follow/redirect dialect\
+  \ —\n  valid only with a redirect `expect_status`) OR `none` + `reason: <text>`\
+  \ (`recheck_by: <ISO-date>`\n  REQUIRED when the change is user-facing, §3). Additive\
+  \ optional — a non-deploying project's tasks never carry it.\n- **SPEC-0025 (events\
+  \ catalog):** ADDS the `deploy_completed` event type with payload\n  `{ revision,\
+  \ project, kind: \"deploy\"|\"rollback\" }` (§1) AND the `live_probe_passed` event\
+  \ with\n  payload `{ task, revision, project, url, expect_status, actual_status\
+  \ }` (§4 — the per-change\n  adoption proof; the no-follow/redirect dialect ALSO\
+  \ adds an OPTIONAL `location` recording the matched\n  immediate-redirect Location;\
+  \ the kernel-realm keying ALSO adds an OPTIONAL `task_realm: \"kernel\"`,\n  present\
+  \ ONLY when the governing card resolved from the KERNEL corpus — §4 keying). Additive\
+  \ — no\n  existing event changes, and the two SPEC-0098 security envelopes are untouched.\
+  \ ADDS the\n  `deploy_failed` event — the terminal row of a STARTED deploy that\
+  \ did not complete (§1) — which the\n  SPEC-0025 `deploy_completed` entry names;\
+  \ additive too, `deploy_completed` is unchanged.\n- **SPEC-0015 (Closure contract)\
+  \ + CHARTER §Principle 3 (closure-interpretation — EXPLICIT refinement,\n  NOT a\
+  \ silent weakening; plan-check #1):** §3 adds ONE deploy-conditional precondition\
+  \ to `task close`\n  (a DECLARED `live_probe`, fail-closed, static). This is an\
+  \ EXPLICIT, owner-sanctioned REFINEMENT of how\n  CHARTER P3 (\"without adoption\
+  \ probe passing, task does NOT close\") applies to DEPLOY-closure — named\n  here,\
+  \ not buried. **Merit-first rationale (why deferred-but-visible adoption honors\
+  \ P3, not weakens it):**\n  P3's target is SILENT shipped-but-uninvoked work (the\
+  \ v1 failure class). For deploy work the EXECUTABLE\n  adoption proof lives at the\
+  \ DEPLOY seam (§1/§4) — where ALL surveyed prior-art puts it\n  (<project>/<project>/<project>),\
+  \ never at close. So requiring a PASSING probe AT CLOSE would (i) place\n  the proof\
+  \ at the wrong seam, (ii) dead-end legitimate deploys whose probe cannot run at\
+  \ close (flag-off,\n  owner-gated cutover, data absent), and (iii) breed the close-time\
+  \ work-arounds P3 exists to prevent.\n  P3's SPIRIT is honored instead by making\
+  \ any non-adoption DECLARED + VISIBLE + DATED (the\n  `none + reason + recheck_by`\
+  \ debt on the not-adopted surface, §2/§3) — the OPPOSITE of silent. The\n  literal\
+  \ \"passing probe before close\" reading is consciously refined for deploy-closure\
+  \ ONLY; a\n  non-deploying project's closure is UNCHANGED, and no other closure\
+  \ precondition is altered.\n  ADDITIVE-conditional.\n- **SPEC-0036 / the audit-post\
+  \ interpretation (LIFECYCLE §Stage 8):** §5 adds a serve/deploy case to\n  the existing\
+  \ event-emit-only edge-case family — live-adoption is deferred to Closure rather\
+  \ than\n  RED-flagged at the diff-only audit-post. It reuses the existing deferred-adoption\
+  \ category; it does\n  not change audit-post for a code-diff task.\nInit-seeding\
+  \ of the carrier `deploy:`/`rollback:`/`live_probe:` sections is owned by SPEC-0093\
+  \ (the\ncarrier) + the `init` verb, not amended here. At activation the SPEC-0028/0025/0015/0036\
+  \ amendments\nbecome real (the activating task carries the `supersedes:`/amendment\
+  \ wiring); as a DRAFT this section\nis the declared intent.\n\n## Parameters\n\n\
+  Per-project values — the deploy/rollback commands, `live_base_url` + probe dialect\
+  \ (carrier), and a\ntask's per-change `live_probe` assertion (task YAML) — are project\
+  \ config, not kernel scalars here.\n\n## Rationale\n\nReal incident: the <project>\
+  \ pilot shipped tasks done-but-not-live, closed live only\n2026-06-19; the diff-only\
+  \ audit-post burned the audit ceiling on a deploy task (the X-0039 friction).\n\
+  Design + 5 external consults: <project> `docs/deploy-adoption-concept.md`. Full\
+  \ deliberation + the\ndecision to defer the autonomy policy: plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`.\n\
+  \n## Verification\n\n- a real <project> deploy emits `deploy_completed` with the\
+  \ live SHA; a rollback emits a new one.\n- `task close` on a deploying project REFUSES\
+  \ a user-facing task with no declared `live_probe` (the\n  fail-closed gate — state\
+  \ check); a NON-deploying project's close is unchanged (no new precondition).\n\
+  - the per-change `live_probe` GET (task YAML) passes against production using the\
+  \ carrier `live_base_url`;\n  the not-adopted surface reads 0 after deploy.\n- a\
+  \ serve/deploy task's audit-post does NOT RED-flag adoption-missing (the X-0039\
+  \ path).\n- grep: no per-task probe stored in the carrier; no base_url/dialect re-declared\
+  \ on a task YAML (one SoT each).\n- a forward `deploy` from a non-`main` checkout\
+  \ OR with uncommitted SOURCE dirt REFUSES (exit non-zero, no `deploy_completed`);\
+  \ a deploy from clean `main` proceeds; journal/derived/`.yitc/` dirt alone does\
+  \ NOT block (the §6 build-source gate).\n- a STARTED deploy leaves exactly ONE terminal\
+  \ row: one whose command exits non-zero, dies by a signal, or whose verb is interrupted\
+  \ by a catchable signal before any other terminal row was written leaves exactly\
+  \ ONE `deploy_failed` (revision + exit code or signal) and NO `deploy_completed`;\
+  \ a signal inside a terminal write is deferred, never lost or doubled; a deploy\
+  \ refused before its launch leaves none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
+cites:
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0093
+- SPEC-0015
+- SPEC-0025
+- SPEC-0028
+- SPEC-0156
+- SPEC-0030
+- SPEC-0096
+requires:
+- SPEC-0093
+supersedes: null
+concern:
+- section: deploy
+  born_order: 10
+  born: "deploy:\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no\
+    \ deploy command yet; replace with `command: <cmd>` once a deploy exists.\"\n"
+  carrier_path: deploy
+  presence_policy: mandatory
+  update_policy: init re-seed
+  declare_key: command
+  declare_type: string
+  waiver_policy: loose
+- section: rollback
+  born_order: 40
+  born: "rollback:\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` —\
+    \ no rollback command yet; replace with `command: <cmd>` once a rollback exists.\"\
+    \n"
+  carrier_path: rollback
+  presence_policy: mandatory
+  update_policy: init re-seed
+  declare_key: command
+  declare_type: string
+  waiver_policy: loose
+- section: live_probe
+  born_order: 50
+  born: "live_probe:\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
+    \ — no live probe yet; replace with `live_base_url:` + `dialect:` once a deploy\
+    \ target exists.\"\n"
+  carrier_path: live_probe
+  presence_policy: mandatory
+  update_policy: init re-seed
+  declare_key: live_base_url
+  declare_type: string
+  waiver_policy: loose
+activation_owner_task: null
+proposed_by: seed-and-grow-kernel-capability-and-yitc-ops-carri
+binding:
+- code-enforced
+init_concern:
+  init_question: Does this project deploy a change to a live serving surface — and
+    if so, what is its governed `deploy:` command, and how is each user-facing change
+    probed live before close (the per-change live_probe)? Declare the deploy seam
+    + live-probe, or waive.
+  waiver: A non-deploying project (no live serving surface) may bare-waive — omitting
+    the `deploy:` command and the live_probe declaration. A deploying project that
+    waives the per-change live_probe must record a compensating control + a `recheck_by`
+    expiry (the overdue-recheck debt then falls due — SPEC-0094 §3/§4).
+  evidence: the `deploy_completed` event (the current-live revision, SPEC-0094 §1)
+    + the per-change `live_probe` soak at the deploy seam (SPEC-0094 §4).
+  recommended: 'If the project serves users live: declare `deploy:` with the one command
+    you already run to ship, plus a live_probe of one user-facing URL checked after
+    each deploy. If it serves nothing live yet (a library, a CLI, a prototype): waive
+    with reason "no live serving surface yet" and revisit when it starts serving.'
+  record_at: '`yitc-ops.yaml` — the `deploy:`, `rollback:` and `live_probe:` sections:
+    each carries the declaration, or a `waiver: {reason: <why>}`.'
+  tier: universal
+implements_signature:
+  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
+  bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
+  bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
+  bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
+  bin/lib/deploy.py#cmd_deploy: 6b771f9a5eb266f3dc711a26a2602197ffae31f93e2ea8c053c85f38617784d9
+  bin/lib/live_probe.py#cmd_live_probe: d13ecdaf6be4909c71a08ddfe16101e98bdef9a066dfcd1449b9eed06644e9eb
+  bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9
+  bin/lib/task.py#_host_config_evidence_missing: bb47f1985dc98581492cee6722750f3458f43a5226d5cce3218592a5f3ef41fd
+  bin/lib/task.py#_host_config_kind_of: 4301a6e0ea93758189bbb8f820ec7017ceb07296bf051a1004c51a3ca97b6a97
+  bin/lib/task.py#_host_config_refusal: 390f46d152484d9abb791acacdd9549f95e403cfd2022cbd3f39e60a29c97b63
+  bin/lib/task.py#_project_is_deploying: d6c9696adf435674d42328220df1d2711ac528705c44bd41e8bbebdd2191636a
+  bin/lib/task_card_io.py#_parse_settle_live_probe_attested: 8ec94d04001efc8f8bec62bb28fb159575ac732d63a993808537ed07557c6b3c
+  bin/lib/task_closure_evidence.py#_card_status_on_main: 640e895037c903cd0452ad3397822f2371d1d78f24710381a11d147ad98ce29e
+  bin/lib/task_closure_evidence.py#_closure_is_on_main: b207a8bc1a3c78404466c750a791f0927cac8c78be2be0ef68809ae3d10006e8
+  bin/lib/task_closure_evidence.py#_live_probe_attested_grammar_error: af7e3a0e104370679bcbb96c07770faeb02bd12540c185d8ae0fe8d35a2fa82e
+  bin/lib/task_closure_evidence.py#_live_probe_attested_outcome_unresolved: cde510cf45d68eb81e7c667575cf87b28764e8b3d06dc457a1e6e9a76bdd8dc1
+  bin/lib/task_closure_evidence.py#_live_probe_attested_result: d0752d82e0279b41b97d79698b0a141036e26a3d981bd298f0b2c8f1446cb230
+  bin/lib/task_closure_evidence.py#_live_probe_declaration_error: 0bbe24cfd0f1c6ffa2064dcf6be52d4956c3153a819e92ca7eac036bba78860e
+  bin/lib/views.py#_view_not_adopted: 7a9cf5b3acd160cbc0392be7e368c808d559c7de08cd0289b70a080ede423955
+  bin/lib/views.py#_view_overdue_recheck: 59238f4ff22a4581bf6e8e3344550f5f13de3bbbfb8e4138da7a02e5253e295c

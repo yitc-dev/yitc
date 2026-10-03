@@ -1,0 +1,1305 @@
+id: SPEC-0093
+title: yitc-ops.yaml project ops-contract carrier — sections, declare-or-waive, slice-1
+  boundary
+status: active
+created_at: 2026-06-20 10:28:37+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/init.py#cmd_init
+- bin/lib/init.py#_hook_runtime_delivery
+- bin/lib/worktree.py#_any_author_land_floor
+- bin/lib/init.py#_hook_tests
+- bin/lib/init.py#_ops_born_nested_fragment
+- bin/lib/init.py#_inject_nested_subfield
+body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OPS\
+  \ config in ONE file at its repo root —\n`yitc-ops.yaml` — with one SECTION per\
+  \ concern. At `init` the kernel seeds the file and, for each\nconcern it knows,\
+  \ forces the project to take an explicit stance: **declare** a command/contract\
+  \ OR\n**waive** it with a reason. There is never a silent-empty concern. The owner/AI\
+  \ reads ONE file to\nsee how this project deploys, rolls back, probes liveness —\
+  \ and (as instances are added) tests,\nstyles, secures, migrates. Other instances\
+  \ do NOT each add a new file; they add a section here.\n\n## Internal\n\nTHE PROJECT\
+  \ OPS-CONTRACT CARRIER. Rules:\n\n> **Split (SPEC-0120 §3, aggregate-neutral SPLIT-never-delete).**\
+  \ The land-verify / coverage /\n> startup-observability cluster — **rule 5** (`verify.layers`\
+  \ authoritative home), **rule 15**\n> (`coverage:` section), **rule 16** (`verify:`\
+  \ section), **rule 17** (`startup_checks:` section) —\n> was RE-HOMED VERBATIM to\
+  \ **SPEC-0152** (with their `implements:` anchors and verification bullets).\n>\
+  \ Those rule NUMBERS are retained there; a bare `rule 5/15/16/17` ref in code or\
+  \ prose now points at\n> SPEC-0152. This spec keeps every carrier-wide rule (1-4,\
+  \ 6-14, 18-20), the generic `init.py#cmd_init`\n> seed/sweep anchor, AND — deliberately\
+  \ — the `concern:` registry blocks for verify/coverage/\n> startup_checks: born-ops\
+  \ generation is active-gated (SPEC-0128), so a concern block cannot\n> live on the\
+  \ proposed SPEC-0152 — the concern registry stays SINGLE-SoT here on the active\
+  \ carrier.\n\n> **Split #2 (SPEC-0120 §3, aggregate-neutral SPLIT-never-delete).**\
+  \ The DECLARATIVE\n> per-concern section-schema catalog — **rule 8** (`security:`),\
+  \ **rule 9** (`ui:`), **rule 10**\n> (`tests:`), **rule 12** (`inspection:`), **rule\
+  \ 13** (`extensions:`), **rule 14**\n> (`deploy.host_config:`), **rule 20** (`security.audit:`),\
+  \ **rule 21** (`migrations:`), **rule 23**\n> (`deploy.live_revision:`), **rule\
+  \ 24** (`outcome_invariants:`) — was RE-HOMED VERBATIM to **SPEC-0160**.\n> Those\
+  \ rule NUMBERS are retained there; a bare `rule N` for N in that set now points\
+  \ at SPEC-0160. This\n> spec keeps the carrier FRAMEWORK rules (1-4, 6, 7, 11, 18,\
+  \ 19), the two code-enforced anchors\n> (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\
+  \ so **rule 22** stays with its\n> anchor), AND the whole `concern:` born-ops registry\
+  \ (active-gated/SPEC-0128 — it stays\n> SINGLE-SoT here on the active carrier; the\
+  \ born placeholder comments keep their historical\n> `# SPEC-0093 rule N` text).\
+  \ The split moved NO anchor and re-signed NO signature.\n\n\n### 1. One file, one\
+  \ section per concern (P5)\nA project's cross-cutting ops config rides ONE file,\
+  \ `yitc-ops.yaml`, at the repo root. Each concern\nis a top-level SECTION key. A\
+  \ concern MUST NOT spawn a second per-concern config file (the v1 sprawl\nthis retires:\
+  \ scattered `scripts/verify.sh` + `deploy/live-probes.yaml` + a per-project secrets\n\
+  inventory). The kernel owns the section SHAPE (the schema); the project owns the\
+  \ section VALUES.\n\n### 2. Slice-1 LIVE sections (the only sections shipped as\
+  \ a carrier norm now)\nExactly three sections are NORMATIVE in this slice — they\
+  \ are what the deploy mechanism (SPEC-0094)\nreads: `deploy:` (the deploy command),\
+  \ `rollback:` (the rollback command), `live_probe:` (the\nPROJECT-LEVEL probe defaults\
+  \ — `live_base_url` + the probe dialect; the per-CHANGE probe assertion is\nNOT\
+  \ here, it lives on the task YAML — SPEC-0094 §4, one SoT each). `verify:` is NOT\
+  \ moved into the\ncarrier in slice-1 — it stays in its existing home `yitc-verify.yaml`\
+  \ (rule 5). NO other section name\nis shipped as a reserved carrier norm (rule 4).\
+  \ The deploy AUTONOMY POLICY (the A/S/C1/C2\nreversibility classification) was deferred\
+  \ out of slice-1 to its own vetted step (plan tracked id);\nthat step is now realized\
+  \ — it lands as the `deploy.policy` SUBFIELD of the `deploy:` section\n(a subfield\
+  \ of an existing section, NOT a new top-level concern — rule 1 honored), with its\
+  \ full\nschema + declare-or-waive + fail-closed semantics governed by SPEC-0097\
+  \ (the deploy-autonomy\npolicy). The carrier seed/sweep for that subfield is implemented\
+  \ here at `cmd_init`.\n\n### 3. Declare-or-waive, fail-closed (per-section)\nEvery\
+  \ section the kernel seeds demands an explicit stance: a `command:`/contract OR\
+  \ a\n`waiver: { reason: <text>... }`. A seeded-but-unanswered section is an init/sweep\
+  \ ERROR, never a\nsilent skip (the carrier's adoption-discipline floor). The kernel\
+  \ seeds + checks the stance; it does\nNOT judge the command's correctness.\n\n###\
+  \ 4. Future concerns are TRACKED IDS, not pre-reserved schema (the slice-1 boundary)\n\
+  Concerns beyond slice-1 (ui / tests / security / config / observability / migrations\
+  \ / onboarding)\nare NOT shipped as reserved-but-empty section norms in this carrier.\
+  \ Each is carried as its OWN\ntracked plan/task id and adds its section to the schema\
+  \ only when ITS instance is authorized + built\n(gate-specs finding #1/#2: a reserved-but-empty\
+  \ schema is platform-creep). The carrier is therefore\nEXTENSIBLE by construction\
+  \ (new concern → new section, same file) without pre-declaring sections\nwhose instance\
+  \ does not yet exist. **First exercise of this extension point: `security:`** —\
+  \ the\nsecurity instance's slice-1 (plan `security-baseline-kernel-seed-fail-closed-ci-gate-`)\
+  \ authorizes +\nbuilds its section, so `security:` adds its schema HERE (rule 8)\
+  \ and its init seed — exactly the\nrule-4 path (a concern adds its section when\
+  \ its instance lands, not before). Its live-probe SEMANTICS\n+ events live in the\
+  \ paired contract spec SPEC-0098 (one home each — this rule owns only the SHAPE).\n\
+  **Further exercises of this extension point: `ui:` (rule 9) + `tests:` (rule 10)\
+  \ + `inspection:` (rule\n12) + `extensions:` (rule 13)** — ordered by (plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`;\n\
+  pulls cross X-0050 UI / X-0053 tests), the unify-revizia plan (rule 12), and the\
+  \ extensions plan\n`extensions-as-a-first-class-installable-capability` (rule 13),\
+  \ each adding its section schema HERE + its\ninit seed at its work-moment, the SAME\
+  \ rule-4 path as security. Unlike `security:` these are PURE declared\nconfig (rule\
+  \ 7) with no kernel runner/events, so they need NO paired contract spec — shape-only\
+  \ sections\nowned wholly here. **`extensions:` (rule 13) is OPT-IN for NON-catalog\
+  \ capabilities** (absence = adopts\nnothing) **but declare-or-waive fail-closed\
+  \ for the active+adoptable CATALOG set** (SPEC-0112) — see rule 13.\n**A further\
+  \ exercise: `coverage:` (rule 15)** — the B5 coverage-admission carrier (pulls cross\n\
+  X-0129), OPT-IN like `extensions:` (absent/empty = no tracking, never fail-closed)\
+  \ — see rule 15.\n**A further exercise: `verify:` (rule 16)** — the per-layer land-verify\
+  \ policy (pulls cross\nX-0140): the slice-1 `verify` single-home MIGRATED from `yitc-verify.yaml`\
+  \ to the carrier `verify.layers`\n(rule 5), declare-or-waive fail-closed PER LAYER\
+  \ + a report-only verify-layer coverage WARN — see rule 16.\n**A further exercise:\
+  \ `migrations:` (rule 21)** — the schema-migration stance (pulled by the\n<project>\
+  \ migration: 133 alembic versions upgraded inside `scripts/deploy.sh`), declare-or-waive\
+  \ with the\nLOOSE rule-6 waiver (lifespan-DDL is the clean waive case) — see rule\
+  \ 21. **The reserved-id list at the\nhead of this rule is thereby SPENT DOWN to\
+  \ `config` + `onboarding`:** `migrations` is no longer a\ntracked-but-unbuilt id,\
+  \ it is a REAL section. (P1 F3 — what this concern's landing REMOVES: the silent\n\
+  default where a project's schema-migration stance was legible only inside its deploy\
+  \ shell script.)\n\n**A further exercise: `spike_sandbox:` (SPEC-0172 rules 2-4)**\
+  \ — the spike-sandbox BRIDGE/CAGE wiring\n(plan `rework-kit-in-the-kernel-spike-mode-as-a-methodolo`):\
+  \ which bridge release the project\npins, whether the bridge is `enabled`, and where\
+  \ its `cage_checks` live — carried as ONE `bridge:`\nmapping so a half-written section\
+  \ cannot read as declared. Declare-or-waive with the LOOSE rule-6\nwaiver (a project\
+  \ that keeps no caged spike stack answers in one reasoned line). Its `concern:`\
+  \ block\nis co-located on **SPEC-0172**, NOT restated here — rule 18 / SPEC-0128\
+  \ rule 2 give one declaration\nper concern and a copy on this spec would be the\
+  \ second carrier both forbid; this entry is the\nREGISTRY row that makes the section\
+  \ discoverable to a reader enumerating this carrier's declarable\nsections, not\
+  \ a second declaration. SPEC-0172 is `proposed` at the time of writing, so the concern\n\
+  registers on the GENERATED surfaces (`graph/concern-registry.json`, `graph/born-ops.yaml`,\
+  \ the\ndeclare-or-waive sweep) only at that spec's activation (activation_owner_task)\
+  \ — the same\nrule-4 path as every section above, read at its work-moment rather\
+  \ than pre-reserved. The runbook a\nreader reaches from this row is `patterns/spike-mode.md`.\n\
+  \n### 6. Per-section waiver policy (declare-or-waive is NOT uniformly loose)\nEach\
+  \ section declares its OWN waiver policy when it is added: what a waiver may omit,\
+  \ the required\nreason shape, and — where a bare waiver is unsafe (e.g. a security\
+  \ or observability section, when\nthose instances land) — a mandatory **compensating\
+  \ control + an expiry/review date**. The clean\nunconditional-waive case is a project\
+  \ legitimately refusing a concern it does not have (e.g.\nlifespan-DDL instead of\
+  \ a migration tool) — that section's policy permits a bare reasoned waiver.\n\n\
+  ### 7. Derived surfaces only — the carrier stores NO computed status (P5 / non-goal\
+  \ #2)\nThe carrier holds DECLARED config (commands / urls / waivers), never a COMPUTED\
+  \ fact. Adherence /\ndrift / not-adopted / coverage are DERIVED at read time from\
+  \ the journal + git + the carrier — never\npersisted back into the file, never a\
+  \ dashboard / CI gate / upgrade-report layer (that would cross\ninto the umbrella's\
+  \ gated distribution machinery — coherence boundary, the plan §Coherence).\n\n###\
+  \ 11. The UPDATE path — pull a missing kernel section into an EXISTING carrier (X-0005)\n\
+  Rule 4 makes the carrier EXTENSIBLE by construction; this rule is how an EXISTING\
+  \ consumer — init'd\nBEFORE a section was added — RECEIVES that section. Re-running\
+  \ `init` is the update: for an existing\ncarrier it delivers any MISSING extensible\
+  \ top-level section the kernel has since added, born\ndeclare-or-waive (rule 3),\
+  \ NON-DESTRUCTIVELY. There is NO separate `update` verb — `init` is idempotent\n\
+  TOWARD THE CURRENT KERNEL SCHEMA (CHARTER §P1 F1: extend the existing bootstrap\
+  \ verb, not a parallel\none). Bounds:\n- **SCOPE = post-slice-1 EXTENSIBLE sections\
+  \ only** (security/ui/tests — every born top-level section\n  that is NOT one of\
+  \ the slice-1 mandatory three). The slice-1 three (deploy/rollback/live_probe) stay\n\
+  \  MANDATORY: a missing one is the rule-3 fail-closed ERROR, NEVER auto-added.\n\
+  - **A COMMENT-ONLY arm also delivers into a section the consumer ALREADY HAS ( —\
+  \ additive).**\n  Both bullets above key on section PRESENCE: they deliver a section\
+  \ the carrier LACKS. So a change\n  to the CONTENT of a section every consumer already\
+  \ carries reaches nobody, which is how\n  `combined_candidate_safe` (SPEC-0152)\
+  \ stayed invisible to the projects it gated. The update path\n  therefore also injects\
+  \ the GENERATED declaration-gated-capability stanza (SPEC-0128 Rule 2) at the\n\
+  \  end of each PRESENT top-level section that lacks it. It is bounded to what makes\
+  \ it safe: the\n  stanza is entirely `#` comments — no declared value can change\
+  \ and no answered stance can be\n  overwritten — and it is marker-keyed, so a re-run\
+  \ is byte-identical. It carries DISCLOSURE only,\n  never a new obligation: nothing\
+  \ is swept, nothing fails closed, and the section's stance is\n  untouched.\n- **MANDATORY\
+  \ sections are BACKFILLED by a dedicated delivery-only mode, never by an ordinary\
+  \ `init`\n  ( — additive; the bullet above is UNCHANGED).** The bullet above assumed\
+  \ a mandatory section\n  is present from BIRTH. That held only while the mandatory\
+  \ SET never grew — SPEC-0172 / SPEC-0175 grew\n  it, so nine existing consumers\
+  \ carried a mandatory section re-running `init` could never hand them.\n  The delivery\
+  \ is therefore an OPT-IN mode of the same verb, `init --backfill-mandatory`, bounded\
+  \ as:\n  - **A SEPARATE SEAM, and why it must be.** The mode delivers and EXITS\
+  \ — it runs NEITHER fail-closed\n    sweep. It cannot ride the ordinary path: wraps\
+  \ both sweeps so ANY refusal calls\n    `_restore_pre_sweep_delivery`, and a section\
+  \ delivered UNANSWERED makes the sweep refuse BY\n    CONSTRUCTION, so the rollback\
+  \ would ALWAYS rewind it (measured on a sandbox consumer 2026-08-12 —\n    carrier\
+  \ byte-identical, tree clean). Atomicity is untouched: a mode that runs no sweep\
+  \ has nothing\n    to roll back, and a REFUSED ordinary init still leaves the carrier\
+  \ byte-identical.\n  - **UNANSWERED, never the born answer.** What is delivered\
+  \ is the born GUIDANCE with the born ANSWER\n    (the `waiver:` block, or a born\
+  \ declare-key block) STRIPPED, plus a banner and a VALUELESS\n    `<declare_key>:`.\
+  \ The born filled waiver is honest only AT BIRTH; back-delivered to an EXISTING\n\
+  \    project it is an unverified factual claim about that project — demonstrably\
+  \ false for at least one\n    consumer (X-0798) — so delivering it would auto-answer\
+  \ a mandatory question on nine projects'\n    behalf. This is `lessons/a-stance-mirror-is-only-sound-at-birth`\
+  \ one altitude down.\n  - **DELIVERY-ONLY — not a second successful meaning of `init`.**\
+  \ No scaffold, no sweep, no bootstrap\n    commit, nothing answered. A zero exit\
+  \ does NOT mean conformant: the NEXT ORDINARY `init` still\n    REFUSES, now naming\
+  \ the section AND the key to answer (`<declare_key>: present but empty …`)\n   \
+  \ instead of `missing`. That refusal is the contract. The mode says so on stdout\
+  \ AND in the banner it\n    writes into the carrier, because a terminal line scrolls\
+  \ away and the carrier does not.\n  - **NON-DESTRUCTIVE + IDEMPOTENT**, on the same\
+  \ PRESENCE key as the bullets above: a section already\n    in the carrier is never\
+  \ rewritten whatever its stance (declared, waived, or already backfilled), so\n\
+  \    a re-run delivers nothing and leaves the carrier byte-identical.\n  - **Registry-DERIVED\
+  \ (rule 18 / SPEC-0128 Rule 2)** — the deliverable set is the `presence_policy:\n\
+  \    mandatory` concerns with a TOP-LEVEL `carrier_path`, and each block renders\
+  \ from the generated born\n    template. No hand list, no second template, no parallel\
+  \ parser; a concern that BECOMES mandatory is\n    backfillable with no code edit.\
+  \ A DOTTED mandatory concern is OUT of scope (the nested injection\n    above owns\
+  \ that seam) and stays the rule-3 fail-closed error.\n- **Nested born SUBFIELDS\
+  \ ARE now delivered too (closing).** After the top-level pass,\n  a MISSING born\
+  \ nested subfield (a DOTTED registry concern — `deploy.policy` / `deploy.host_config`)\n\
+  \  whose PARENT section is PRESENT and a MAPPING but whose leaf key is absent is\
+  \ TEXT-injected at the end\n  of the parent's block, born declare-or-waive, non-destructively\
+  \ (a present-but-non-mapping parent is\n  left to the sweep to fail closed; a candidate\
+  \ that would break the YAML is aborted). The set of\n  missing sections+subfields\
+  \ is computed ONCE by `init._consumer_carrier_skew`, the SAME detector the\n  report-only\
+  \ per-consumer born-schema-skew self-check uses (SPEC-0119 rule 8 — `session.born_skew_check_line`;\n\
+  \  each project self-surfaces its own skew, not a kernel-side registry sweep) —\
+  \ ONE SoT, so the\n  report can never claim a skew this update would not deliver.\n\
+  \  - **The nested delivery is DEPTH-GENERIC — the dotted path may be of ANY depth.**\
+  \ The\n    original seam was written when every dotted concern was depth 2, and\
+  \ hard-bound the rule to a\n    2-space split: the parent was the path's FIRST segment\
+  \ and the leaf its last. A depth-3 concern\n    (`security.audit.profile_snapshot`)\
+  \ therefore matched NOTHING — it was flagged by no skew report\n    and delivered\
+  \ by no init pass, so it would simply never have reached a consumer. That was an\n\
+  \    UNSTATED CEILING, not a decision, so it is removed rather than documented:\
+  \ the PARENT is now the\n    path's IMMEDIATE parent (`rsplit`, resolved by `_ops_navigate`\
+  \ at any depth), the born fragment is\n    resolved by descending segment by segment\
+  \ at each depth's own indent\n    (`init._ops_born_nested_fragment`), and the injection\
+  \ descends the same way, each segment\n    NARROWING the search window to its own\
+  \ block so a deeper descent can never run past its parent\n    into an unrelated\
+  \ section (`init._inject_nested_subfield`). Every DEPTH-2 behaviour is unchanged\n\
+  \    BY CONSTRUCTION — a depth-2 path walks exactly one iteration — which is the\
+  \ bound this\n    generalization is held to: it enlarges the reachable set, it moves\
+  \ no existing delivery. The\n    present-and-a-MAPPING parent precondition, the\
+  \ non-destructive presence key, and the YAML\n    round-trip abort all hold verbatim\
+  \ at every depth.\n- **NON-DESTRUCTIVE** — keyed on section PRESENCE: a section\
+  \ key already in the carrier is left\n  untouched (a declared/waived value is never\
+  \ overwritten; an unanswered-but-present section is left for\n  the sweep to fail-closed).\
+  \ A fresh/current carrier gains nothing → re-run stays byte-identical.\nThe PRIMARY-DESIGN\
+  \ intake (X-0054) rides this same shape: the `ui:` section (rule 9) IS the onboarding\n\
+  \"primary design?\" intake (declare-or-waive, no interactive walk) — greenfield\
+  \ declares a baseline/\narchetype up front (rules->code), brownfield DERIVES it\
+  \ from existing UI code (the design-from-outside\ncode->rules inversion). The born\
+  \ `ui:` guidance names both modes, and `init` delivers it to an existing\nconsumer\
+  \ via this update path.\n\n### 18. The born section template + the declare-or-waive\
+  \ sweep are GENERATED from the concern registry (SPEC-0128)\nThe per-section born\
+  \ `yitc-ops.yaml` guidance and the GENERIC declare-or-waive fail-closed sweep this\n\
+  spec's carrier rides are no longer hand-maintained lists — they are DERIVED at `graph\
+  \ build` from the\n**concern registry** (SPEC-0128, the cross-surface invariant\
+  \ \"one declaration → all surfaces\ngenerated\"). The registry declarations are\
+  \ the `concern:` blocks co-located ON this spec (and on each\nconcern's own governing\
+  \ spec): each block carries the FINITE per-concern metadata (`section` /\n`carrier_path`\
+  \ / `presence_policy` / `declare_key` / `waiver_policy` + the optional `shape_hook`)\
+  \ plus\nits `born:`/`born_order:` companion. `graph build` renders `graph/concern-registry.json`\
+  \ (the\nkernel-KNOWN concern set the sweep ITERATES — a set, NEVER a closed whitelist,\
+  \ so a project's own\nextra carrier section is ignored, not rejected — rule 3) and\
+  \ `graph/born-ops.yaml` (the born template\n`init` reads). The hand-maintained `_OPS_CARRIER_SECTIONS`,\
+  \ the per-section `_BORN_OPS_YAML` literals,\nand the generic per-section stance/XOR\
+  \ branch ladder in `_sweep_ops_carrier` are RETIRED (CHARTER §P1\nF3): the registry's\
+  \ `declare_key` + `waiver_policy` now generate that dispatch, and a concern whose\n\
+  residual shape is richer than the generic stance check NAMES a kernel-owned `shape_hook`\
+  \ the generated\nsweep dispatches to after the generic check. Adding or evolving\
+  \ a carrier section is therefore ONE\ngoverned act — author/edit the `concern:`\
+  \ block; the surfaces follow at the next `graph build` (no\nparallel `init.py` edit).\
+  \ This rule states only that THIS carrier's surfaces are registry-generated;\nthe\
+  \ cross-surface invariant + the malformed/orphan/duplicate conformance signals are\
+  \ owned by SPEC-0128.\n\n### 19. The `adoption:` section — a per-concern adoption\
+  \ record, written only through the `-C` init op (SPEC-0143 Rule 2)\nA consumer records,\
+  \ PER kernel concern, an adoption entry in its OWN carrier `adoption:` section —\n\
+  a block list of `{concern: <section>, status: adopt|waive|na, version: <the adopted\
+  \ concern-version>,\nowner, at}`. The `version` is the DERIVED per-concern registry\
+  \ version (SPEC-0143 Rule 1 / the\nregistry `version` field), so a committed adoption\
+  \ always records the concern-version it was\nmade against; a later kernel version\
+  \ bump then surfaces as drift (SPEC-0143 Rule 3, report-only).\n**Written ONLY through\
+  \ the EXISTING `-C` init op** behind the OPT-IN `init --adopt-concern\nSECTION:STATUS:OWNER`\
+  \ flag — the same init-extension write-path as `extensions:` (rule 13), the\n`lessons/governed-consumer-config-write-via-init-extension`\
+  \ pattern — NEVER a new verb, NEVER a new\nfile, NEVER a kernel push, NEVER a raw\
+  \ cross-repo edit. The op RESOLVES the concern section +\nreads its registry version\
+  \ at WRITE-time (refusing an unknown section / bad status / mal-shaped owner —\n\
+  a committed adoption never dangles) and UPSERTS idempotently (a re-record at the\
+  \ same status/version/\nowner is a no-op — no spurious commit). **OPT-IN-shaped,\
+  \ NOT declare-or-waive:** a concern with NO\nadoption entry reads as not-yet-adopted\
+  \ (surfaced later as drift), not a fail-closed error — so\n`adoption:` is NOT a\
+  \ concern-registry concern and the fail-closed sweep (rule 3) ignores it as a\n\
+  project extra. The section is machine-owned (only this op writes it; no owner prose),\
+  \ so the writer\nregenerates the whole block on each upsert while leaving the rest\
+  \ of the carrier byte-stable.\n\n### 22. The `deploy.runtime_delivery:` subfield\
+  \ schema (rule-4 subfield-add — HOW code reaches the runtime; / X-0370)\nThe `deploy.runtime_delivery:`\
+  \ subfield declares the ONE fact the whole deploy mechanism silently\nASSUMED and\
+  \ never asked: **how does code actually reach this project's runtime?** SPEC-0094\
+  \ §1 treats\nthe `deploy` verb as the SOLE path to prod — it runs the declared command\
+  \ and emits\n`deploy_completed{revision}`, and every downstream surface reads that\
+  \ event as \"what is live\". That is\nTRUE for an image-baked project and FALSE\
+  \ for a BIND-MOUNTED one, where the container mounts the source\ntree and any `docker\
+  \ compose up` / recreate ships whatever sits on `main` — with no gate, no class\n\
+  check, and no `deploy_completed`. X-0370 is that gap cashing in: a container recreate\
+  \ shipped HALF a\npaired change (backend from the mounted source, frontend still\
+  \ the stale baked image) → 8h outage. The\nkernel could not even NAME the bypass,\
+  \ because nothing declared the delivery model. This subfield makes\nit SAYABLE.\
+  \ A DOTTED subfield of the existing `deploy:` section (rule 1 honored — no new top-level\n\
+  concern), the `deploy.policy` (rule 19 / SPEC-0097) + `deploy.host_config` (rule\
+  \ 14 / SPEC-0111)\nprecedent. PURE declared config (rule 7): no kernel runner, no\
+  \ new event, no new gate — so, like `ui:`\n(rule 9) / `tests:` (rule 10) / `migrations:`\
+  \ (rule 21), it needs no paired contract spec. DECLARE-OR-WAIVE,\nfail-closed, checked\
+  \ ONLY IF PRESENT (the backward-compat precedent — a pre-rule-22 carrier still passes).\n\
+  \n**DECLARE — a non-empty `model:` string from a CLOSED enum** (the declaration\
+  \ key that ANSWERS the\nsubfield). The four models, and what each one asserts about\
+  \ the deploy verb:\n- `image-baked` — the runtime runs an ARTIFACT built at deploy\
+  \ time (a baked image / compiled bundle).\n  The deploy verb IS the only path to\
+  \ prod: the kernel's one-path assumption HOLDS, and the SPEC-0094 §2\n  not-adopted\
+  \ view's reading (\"shipped but NOT yet live\") is TRUE.\n- `source-mounted` — the\
+  \ runtime reads the SOURCE TREE (a bind mount / volume). A container recreate\n\
+  \  ships `main` WITHOUT the verb. **The deploy verb is BYPASSABLE.**\n- `hot-reload`\
+  \ — the running process re-reads source on change (a watcher / `--reload`). Same\
+  \ bypass,\n  without even a recreate. **BYPASSABLE.**\n- `hybrid` — some surfaces\
+  \ baked, others mounted (X-0370's real shape: a mounted backend beside a baked\n\
+  \  frontend). The half that is mounted is bypassable, and the two halves can ship\
+  \ SEPARATELY — which is\n  precisely how half a paired change reached prod. **BYPASSABLE.**\n\
+  An unknown/typo'd model is NOT a declaration: the `runtime_delivery_shape` hook\
+  \ (SPEC-0128 Rule 2)\nfails it CLOSED, because a mis-spelt model that silently read\
+  \ as declared would re-open the exact\nsilence this rule exists to end. OPTIONAL\
+  \ companion, informational, NOT a shape gate: `note:` (free\ntext — e.g. WHICH surfaces\
+  \ are mounted vs baked under `hybrid`).\n\n**WAIVE — the LOOSE per-section waiver\
+  \ policy (rule-6 instance: a bare reasoned waiver).** A project\nwith no runtime\
+  \ at all (a library, a CLI, the engine kernel itself) legitimately has no delivery\
+  \ model\nto declare, and demanding a compensating control for a project that ships\
+  \ no prod surface would be the\nceremony CHARTER §P1 forbids. **The BORN waiver\
+  \ is NOT that answer** (the X-0088 / X-0130\nsilent-born-waiver class): `init` seeds\
+  \ this subfield born-WAIVED carrying the BORN_WAIVER_MARKER\nplaceholder, and a\
+  \ born placeholder is an UNANSWERED question wearing a waiver's clothes. So the\n\
+  standing surface (SPEC-0119 rule 16) treats a born-placeholder waiver as UNANSWERED,\
+  \ and only a\nHUMAN-authored waiver silences it.\n\n**Exclusivity (fail-closed,\
+  \ mirrors rules 8/10/21).** BOTH a `model:` and a `waiver:` → ERROR (EITHER\ndeclared\
+  \ OR waived). Neither → ERROR (declare-or-waive is fail-closed, rule 3).\n\n**BYPASSABLE\
+  \ = {source-mounted, hot-reload, hybrid} — the kernel-owned reading of the declaration**\n\
+  (the one place this set is named; SPEC-0119 rule 16 CONSUMES it, never re-defines\
+  \ it). Declaring a\nbypassable model does NOT gate anything and is NOT a defect\
+  \ to fix — bind-mounting is a legitimate\ndeployment choice. What it DOES is make\
+  \ the kernel's own not-adopted reading honest: under a bypassable\nmodel, the commits\
+  \ between the last `deploy_completed` revision and `main` are NOT \"shipped-but-not-live\"\
+  \n— they are ALREADY LIVE and passed NO deploy gate. That REVERSE reading is surfaced\
+  \ report-only at the\nexisting debt seams (SPEC-0119 rule 16 — the standing surface;\
+  \ this rule owns only the SHAPE, rule 3's\nboundary held: the kernel checks the\
+  \ STANCE, never the VALUES, and never inspects the running container).\n\nNORMATIVE\
+  \ DEFAULT + WAIVER CONTRACT (the doctrine — X-0448, owner-ratified 2026-07-16).\
+  \ The two\nGREEN owner-ratified consults settle the DOCTRINE the bare declaration\
+  \ above does not: (a)\n`decisions/runtime-delivery-fleet-standard-audit-adhoc.yaml`\
+  \ — image-baked is the normative\nproduction default for Docker consumers (the fleet\
+  \ is already 8/9 baked); (b)\n`decisions/x0448-restart-coherence-fork-audit-adhoc.yaml`\
+  \ — for a mounted runtime the X-0367\nrestart-coherence guard's fail-closed REFUSE\
+  \ is the intended failure mode (never-half-deploy holds),\nthe structural snapshot-runtime\
+  \ fix filed SEPARATELY. So: a `model:` from BYPASSABLE\n(`source-mounted` / `hot-reload`\
+  \ / `hybrid`) for a PRODUCTION docker consumer is not merely a\nlegitimate choice\
+  \ — it is an explicit WAIVER off the image-baked default, valid ONLY when it names\n\
+  its compensating controls: (1) the `runtime_delivery` declaration itself (this subfield),\
+  \ (2) X-0367\ncoherence-guard coverage, and (3) a documented restart / recovery\
+  \ procedure (the one-command\ngoverned-deploy re-pin — `patterns/deploy-coherence.md`).\
+  \ This is a value call — deploy + restart\ncoherence over raw deploy tempo — NOT\
+  \ a new hard gate: rule 3's boundary still holds (the kernel checks\nthe STANCE,\
+  \ never inspects the container), the report-only surface stays SPEC-0119 rule 16,\
+  \ and the\ninit/debt report-only advisory for an executable-code prod mount is a\
+  \ SEPARATE follow-up. The\nprescribed migration target for a bypassable prod consumer\
+  \ (e.g. one running a snapshot-mount deploy) is to BAKE the image with\nDocker layer-cache\
+  \ optimization; the custom snapshot-mount construct survives only after MEASURED\n\
+  build-time evidence proves the bake incompatible (measure-first — `patterns/deploy-coherence.md`).\
+  \ The\nstandard dev/prod shape is the <project> split: a clean prod compose with\
+  \ dev mounts isolated in\n`docker-compose.dev.yaml` (worked example in the pattern\
+  \ doc).\n**What the kernel reads as your PRODUCTION compose (X-0711).** The report-only\
+  \ detector behind\nthis stance (SPEC-0119 rule 16, both evidence arms) draws its\
+  \ claim ONLY from the compose that runs in\nproduction — a source bind living only\
+  \ in a dev overlay is the split above, not a bypass, and is silent.\nProduction\
+  \ is resolved DECLARATION-FIRST off THIS carrier, with NO field added for it: the\
+  \ compose files\nnamed by the `-f` / `--file` operands of your `deploy.command`\
+  \ (and any `deploy.policy.classes[*].command`)\nARE the production set — whatever\
+  \ they are NAMED (`stack.deploy.yml` is read fine; the kernel checks that\nthe file\
+  \ EXISTS, not that its name looks like a compose file). That is how a project whose\
+  \ compose files\nare named unconventionally corrects the reading — say what you\
+  \ deploy, in the field you already fill in. When the deploy command names no compose\n\
+  file — or names one that no longer exists, since a stale operand must never narrow\
+  \ the prod set to\nnothing — the kernel falls back to the filename convention (a\
+  \ `dev` / `development` / `override` / `local`\nsegment is a dev overlay; anything\
+  \ else reads PROD — a false nag is visible and correctable, a false\nsilence is\
+  \ not). Rule 3's boundary is untouched: this reads DECLARED text + the repo's own\
+  \ compose files,\nnever a running container.\n\n### 26. CROSS-SECTION CORRESPONDENCE\
+  \ + the COVERING WAIVER — a waiver that DEFERS must name and prove its coverer (REPORT-ONLY)\n\
+  Rules 3 and 6 make each section answer for ITSELF: a section takes a stance, and\
+  \ a waiver's required\nshape is set per-section. Both are blind to a waiver that\
+  \ DEFERS — one whose reason answers the\nconcern by pointing at ANOTHER declared\
+  \ unit. There, declare-or-waive is formally satisfied while the\nthing the carrier\
+  \ exists to make legible — what is actually verified, and how narrowly — is not.\n\
+  THE REAL INCIDENT (<project>, measured 2026-08-13): its `tests:` section declares\
+  \ FIVE classes at\n`moment: verify` while `verify.layers` carries TWO entries —\
+  \ `default`, a single MONOLITHIC\n`bash scripts/verify.sh` (~251s), and `frontend`,\
+  \ waived «Covered by the default layer». Every\nper-section stance check passes;\
+  \ verification is nonetheless ALL-OR-NOTHING, and the fleet shows what\nthat costs\
+  \ — the member carrying per-layer `subject_globs` on every layer lands at a ~0.9s\
+  \ median,\nwhile this one carries a 386.7s p90 / 790.5s max tail (journal `trial_run_recorded`\n\
+  ). This rule makes the deferral SAYABLE, in the carrier that already owns both\n\
+  sections. It is a CARRIER-FRAMEWORK rule (the rule-3 / rule-6 altitude), not either\
+  \ section's SHAPE:\nthe `tests:` shape stays SPEC-0160 rule 10 and the `verify:`\
+  \ shape stays SPEC-0152 rule 16, so this\nadds no second home for either.\n\n**(a)\
+  \ CORRESPONDENCE — every `moment: verify` test class is ANSWERED by a land-verify\
+  \ layer.** For\neach `tests.classes[]` entry declaring `moment: verify` (SPEC-0160\
+  \ rule 10), the carrier's\n`verify.layers` (SPEC-0152 rule 16) ANSWERS it in exactly\
+  \ one of two ways: an entry for that class's\nlayer that is DECLARED (a non-empty\
+  \ `command:`), OR an entry that is WAIVED by a waiver NAMING THE\nCOVERING LAYER.\
+  \ **ABSENCE IS NOT AN ANSWER** — a verify-moment class that no layer entry declares\
+  \ and\nno covering waiver names is an UNANSWERED CORRESPONDENCE. This is rule 16's\
+  \ own\ndeclare-or-waive-THEN-GROW layer-PRESENCE sub-rule read off a DIFFERENT DETECTOR:\
+  \ there the detector\nis a filesystem MARKER proving a source layer exists in the\
+  \ tree; here it is the project's OWN\nDECLARED taxonomy, which is a stronger signal\
+  \ — the project already said this class runs at the\nverify moment. Same posture,\
+  \ no new mechanism. The answer is recorded on the `verify.layers` SIDE and\nthe\
+  \ `tests.classes[]` entry stays purely descriptive, so SPEC-0160 rule 10's NON-STRADDLE\
+  \ is\nuntouched: no executable command moves into `tests:`.\n\n**(b) A COVERING\
+  \ WAIVER MUST PROVE ITS COVERAGE — a bare covered-by reason does not.** A **COVERING\n\
+  WAIVER** is a `verify.layers[]` per-layer waiver whose `reason:` answers the layer\
+  \ by pointing at\nANOTHER declared layer. Under rule 6 (declare-or-waive is NOT\
+  \ uniformly loose) its reason-shape is\nNOT the loose bare reason the ordinary per-layer\
+  \ waiver takes. It must state all three:\n1. **The COVERING LAYER, NAMED** — which\
+  \ `layer:` id actually runs this surface. A coverer that is\n   not named cannot\
+  \ be checked by a reader, and cannot be found again when it changes.\n2. **The SHARED-SETUP-COST\
+  \ basis** — why the covered surface cannot be its own layer WITHOUT paying\n   that\
+  \ layer's setup a second time (a container bring-up, a database, a dependency install,\
+  \ a build).\n   «The covering layer's command happens to run it too» is NOT a reason:\
+  \ it restates the deferral. The\n   reason exists to say what the MERGE BUYS, so\
+  \ that a reader can tell a deliberate economy from an\n   accident of history.\n\
+  3. **That the named covering layer itself carries `subject_globs:`** (the SPEC-0152\
+  \ rule 16\n   sub-field) — OR, where it does not, a **MEASURED** basis for why narrower\
+  \ skipping is impossible\n   for it. Without one of these two the merge is not a\
+  \ shared-setup economy; it is an all-or-nothing\n   verify wearing a waiver's clothes:\
+  \ EVERY diff pays the whole covering layer, and the class the\n   waiver folded\
+  \ in can neither be skipped nor run on its own. \"Measured\" means a recorded reading,\n\
+  \   not an estimate — the same evidence standard the rest of this carrier's declarations\
+  \ take.\n\n**REPORT-ONLY. THIS RULE IS NOT A GATE.** It adds nothing to any failure\
+  \ set, moves no exit code,\nchanges no sweep, and changes nothing about `init` or\
+  \ `land`: a carrier that does not conform passes\nEXACTLY as it did before this\
+  \ rule existed. Its enforcement is legibility — the posture of rule 16's\nown report-only\
+  \ coverage WARN and layer-PRESENCE prompt. Per rule 3 the kernel checks the STANCE\
+  \ +\nSHAPE and never the VALUES, so this rule prescribes WHAT a reason must SAY\
+  \ and nothing greps\nfree-text prose to judge whether it said it (a value judgement\
+  \ any string defeats — the\nNORMATIVE-only stance rule 16 already takes for its\
+  \ grow-trigger). And a signal ABOUT a declaration\nfails safe the OPPOSITE way to\
+  \ a gate (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate`):\n\
+  under ANY doubt — an absent, unreadable or section-waived carrier, an unresolvable\
+  \ correspondence —\nthis rule makes NO finding. A missed detection leaves only the\
+  \ silence that already existed; one\nfalse accusation gets the whole signal skimmed.\n\
+  \n**BOUNDARIES (CHARTER §Principle 7) — stated here so no later reader can re-read\
+  \ this rule as an\nauthority it is not:**\n- **SPEC-0152 rule 16 remains the SOLE\
+  \ AUTHORITATIVE DECIDER of WHICH LAYERS RUN.** `verify.layers`\n  is the layer universe,\
+  \ the land RUN reads it, `subject_globs` decides a skip, `covers:` decides the\n\
+  \  tests-sweep delegation, and `prep:` / `boundary:` / `timeout:` stay entirely\
+  \ rule 16's. This rule\n  DECIDES NOTHING about execution — it reads two DECLARED\
+  \ sections and reports a correspondence or a\n  justification gap. It can never\
+  \ add, remove, skip or unskip a layer, and it never softens rule 16's\n  fail-closed\
+  \ defaults (an ABSENT `subject_globs` still means that layer ALWAYS runs).\n- **NO\
+  \ SECOND DECIDER is created.** Nothing here is a parallel source of truth for the\
+  \ land-layer\n  universe. A reader asking \"what runs at land?\" reads `verify.layers`,\
+  \ exactly as before.\n- **SPEC-0077 PINNED-SURFACE SUPREMACY IS UNWEAKENED.** This\
+  \ rule licenses NO skip whatsoever. The\n  only skip authority stays rule 16's `subject_globs`,\
+  \ whose own text already forces the full run —\n  including the pinned re-run —\
+  \ for a diff touching the SPEC-0077 pinned set, `tests/**`,\n  `yitc-ops.yaml`,\
+  \ or the land/verify implementation. Rule 26 pushes only in the SAFE direction:\
+  \ it\n  asks a monolithic layer either to JUSTIFY the merge or to declare NARROWER\
+  \ subjects, so its effect\n  on what gets verified can only ever be to increase\
+  \ it, never to license less.\n\n### 27. The `verify.floor` section — the ANY-AUTHOR\
+  \ land floor's CARRIER SCHEMA\n`verify.layers` (rule 16, SPEC-0152) is what a project\
+  \ DECLARES. `verify.floor` is the sibling\nsection for the layer a project may NOT\
+  \ drop: `land` runs a kernel-provided floor for EVERY branch\nregardless of AUTHOR,\
+  \ and this section is where a project declares HOW its atoms run — never\nWHETHER\
+  \ the floor exists. SPEC-0163 §4a is the POLICY home for that rule; this rule is\
+  \ the SHAPE, so\nno key, default or refusal of the section is single-homed in code\
+  \ (CHARTER §P2).\n\nTHE THREE ATOMS, each optional to declare and none optional\
+  \ to run:\n- `verify.floor.secrets.command` — OPTIONAL. Runs BESIDE the kernel's\
+  \ named-shape credential scan.\n`verify.floor.secrets.journal_allowlist` — OPTIONAL\
+  \ list of `{sha256, reason, date, rotation}`\nmappings naming journal rows ALREADY\
+  \ on `main` the kernel scan admits; semantics, validation and\nbounds are SPEC-0163\
+  \ §4d (the POLICY home). Read from the candidate carrier, unlike a `command`.\n\
+  - `verify.floor.dependencies.command` — REQUIRED whenever a dependency MANIFEST\
+  \ is present in the\n  tree (`package.json`, `pyproject.toml`, `Gemfile`, `Cargo.toml`,\
+  \ `go.mod`, `mix.exs`,\n  `composer.json`). It carries the frozen install + advisory\
+  \ audit. Its ABSENCE is ITS OWN REFUSAL,\n  not a silent pass: the kernel cannot\
+  \ run a frozen install or query an advisory database inside a\n  land verify (F-025\
+  \ hermeticity), so for this leg the project's command IS the implementation, and\n\
+  \  a leg delegated to a command nobody declared is a gate that does not exist. A\
+  \ non-zero exit is the\n  unwaived critical/high advisory refusal. The kernel's\
+  \ OWN half of this atom is lockfile presence:\n  a manifest with no committed lockfile\
+  \ is refused. Discovery, what \"committed\" means, when a\n  `requirements.txt`\
+  \ counts as its own lock, and the ONE narrow dependency-free exemption are\n  stated\
+  \ under THE DEPENDENCY ATOM'S KERNEL HALF below.\n- `verify.floor.probes.command`\
+  \ — OPTIONAL, additive. `verify.floor.probes.max_age_days` — OPTIONAL\n  positive\
+  \ int, DEFAULT 30: the freshness bound on the latest recorded verdict for each declared\n\
+  \  `security.probes[]` entry (rule 8). A malformed value is REFUSED, never silently\
+  \ replaced by the\n  default the project declared the key to override. STRICTLY\
+  \ A POSITIVE, NON-BOOLEAN INTEGER: a\n  boolean, a numeric STRING, or a fraction\
+  \ is malformed and refuses. Coercing them would read\n  `true` as a one-day bound\
+  \ and truncate a fraction the project wrote deliberately — adjacent\n  values the\
+  \ declaration did not state, which is the fail-open direction on a freshness bound.\n\
+  \nADDITIVE, NEVER REPLACING. A declared `verify.floor.<atom>.command` runs BESIDE\
+  \ the kernel check,\non every branch and under every profile. It can never replace\
+  \ or relax it — a command exiting 0\nrescues nothing the kernel atom has already\
+  \ refused. A replaceable kernel check is not a floor.\n\nA FLOOR COMMAND IS READ\
+  \ ONLY FROM THE TRUSTED BASE — the `yitc-ops.yaml` at the MERGE-BASE with\n`main`\
+  \ (the landed main), never from the candidate branch's copy. A candidate branch\
+  \ can therefore\nneither ADD nor ALTER a `verify.floor.<atom>.command`; a change\
+  \ to the floor commands themselves\nlands through its OWN reviewed path — a card\
+  \ whose diff is this floor section, audited like any\nother, landing on main first,\
+  \ after which the next land trusts it. The candidate's copy of the\nsection is IGNORED\
+  \ for EXECUTION, and any difference between the candidate's and the base's floor\n\
+  commands is REPORTED: a report-only WARN naming the keys (ADDED / ALTERED / REMOVED),\
+  \ never a\nrefusal, so a legitimate floor change is visible rather than silently\
+  \ dropped. An UNREADABLE base\ntrusts NOTHING and says so — no command runs and\
+  \ the absence is stated, never inferred from silence.\nAND ITS BYTES, NOT ONLY ITS\
+  \ NAME. The floor runs a declared command with the CANDIDATE worktree as\ncwd, so\
+  \ a base-declared in-repo script would otherwise execute the candidate's copy of\
+  \ that script.\nA floor-declared program named by a PATH resolving INSIDE the repo\
+  \ is therefore MATERIALIZED FROM\nTHE BASE (`git show <merge-base>:<path>` into\
+  \ a temp file outside the worktree) and that copy is\nwhat runs; a path ABSENT from\
+  \ the base is a REFUSAL, never a fallback to the candidate's copy. A\nbare program\
+  \ NAME is a `PATH` lookup — host tooling, not candidate-authored — and passes through.\n\
+  ONE RESOLVER NAMES THE PROGRAM : argv[0] when it is a path inside the repo, else\
+  \ argv[1]\nwhen argv[0] is one of a CLOSED interpreter vocabulary (`sh`, `bash`,\
+  \ `dash`, `zsh`, `python`,\n`python3`, `node`, `perl`, `ruby`) — so `bash bin/x.sh`\
+  \ materializes `bin/x.sh` from the base\nexactly as `./bin/x.sh` does; every other\
+  \ token is an ARGUMENT, and at most ONE program is ever\nnamed per command. RESIDUAL:\
+  \ a trusted-base script may itself invoke an in-repo target and so reach\ncandidate\
+  \ bytes; that reach is decided by BASE-REVIEWED code, which a candidate branch cannot\n\
+  introduce.\nTHE BOUND IS THE EXECUTABLE ONLY. Everything in this section that is\
+  \ NOT a command still reads from\nthe CANDIDATE, because reading it there can only\
+  \ TIGHTEN: the declaration refusals below (a\ncandidate declaring a waiver is refused\
+  \ on its own branch), the REQUIREMENT that a repo carrying a\ndependency manifest\
+  \ declare `verify.floor.dependencies.command` — so the bootstrap card that first\n\
+  declares the command satisfies its own duty and lands, its command then running\
+  \ from the NEXT land\n— and `verify.floor.probes.max_age_days`. The POLICY home\
+  \ of this rule is SPEC-0163 §4b (owner\nruling 2026-09-06); this section carries\
+  \ the SHAPE.\nTHE FIRST DECLARATION RIDES WITH ITS PROGRAM — the NAMED BOOTSTRAP\
+  \ CARVE-OUT (X-1466).\n«Satisfies its own duty and lands» silently assumed the declaration\
+  \ was landable, and it was not\nwhen the declared command needs an in-repo SCRIPT:\
+  \ the work-batch carrier gate refuses the script\nas uncarried product source, and\
+  \ the covered route — land the filing alone — is refused by this\nvery requirement,\
+  \ so a consumer that has never declared the floor could land NOTHING without the\n\
+  CHARTER §P2 emergency lane (measured on <project>, 2026-09-16). The carve-out is\
+  \ DERIVED from\ndurable state, never declared: a land is a BOOTSTRAP iff the trusted\
+  \ base is READABLE and declares\nNO `verify.floor` KEY at all (an explicit `verify.floor:\
+  \ {}` is a declared floor — steady state;\nan unreadable base is never bootstrap)\
+  \ AND the candidate declares at least one\n`verify.floor.<atom>.command`. On a bootstrap\
+  \ land: (a) the in-repo program the ONE resolver names\nfor each command MUST be\
+  \ tracked on the branch — a declaration whose program is missing is REFUSED\nnaming\
+  \ the program, never passed; (b) execution stays SKIPPED for that one land (the\
+  \ command runs\nfrom the NEXT land, per the trusted-base bound) and the admission\
+  \ is named on stdout; (c) the\nexisting `land_completed` row carries `floor_bootstrap:\
+  \ {atoms, programs, executed: false}` — no\nnew event type; (d) the work-batch carrier\
+  \ gate admits a batch whose product paths are ALL AMONG\nthose programs — a SUBSET,\
+  \ never a path beyond them (a program the base already tracks need not\nbe in the\
+  \ batch) — under a third carrier, `floor-bootstrap`, beside card and emergency —\
+  \ the\nprogram is what the floor will execute on every later land, so it reaches\
+  \ main under the\ndeclaration that names it. A base that declares ANY floor yields\
+  \ no carve-out: the steady-state refusal is never\nwidened, and a command naming\
+  \ no in-repo program (host tooling, a shell wrapper) carries nothing.\nSymmetric\
+  \ with the `-C init` direct-to-main bootstrap carve-out (AGENTS-SESSIONS §Writes\
+  \ EXCEPTION).\nTHE CWD/MOUNT CONTRACT OF A MATERIALIZED PROGRAM (X-1486). A declared\
+  \ command runs with the\nCANDIDATE WORKTREE ROOT as its working directory — whatever\
+  \ the launching process's cwd — and an\nin-repo program runs DETACHED from a trusted-base\
+  \ copy at a temp path OUTSIDE the repo. The contract\na script may rely on is therefore\
+  \ CWD, never its own path: a script that resolves the repo root from\n`$0` / `BASH_SOURCE[0]`\
+  \ resolves outside the repo, and a `docker run -v \"$PWD\":/w` issued after such\n\
+  a `cd` mounts the wrong tree (<project>'s `uv` reported «No pyproject.toml found»\
+  \ from inside its own\ncontainer on every land). Anchor on cwd. A materialized program\
+  \ that FAILS has this contract\nappended to its refusal, so the abort names the\
+  \ cause rather than leaving it to be re-diagnosed.\nA BROKEN LEG CAN LAND ITS OWN\
+  \ REPAIR — the NAMED REPAIR CARVE-OUT (X-1486), the bootstrap's\nsibling. The trusted-base\
+  \ bound runs main's copy of a floor program on EVERY branch, including the\nbranch\
+  \ carrying its repair, so a base leg that fails made every land in the repo unlandable\
+  \ — the\ncard route is blocked by the same leg, and the only exit was a raw emergency\
+  \ commit to main. The\ncarve-out is DERIVED from durable state, never declared:\
+  \ on a land where the materialized base\nprogram FAILS and the candidate ALTERS\
+  \ that leg — its copy of the program exists with DIFFERENT\nbytes (`program-altered`),\
+  \ or its command string for the atom differs and the in-repo program it\nresolves\
+  \ to (if any) exists on the branch (`command-altered`) — (a) the atom's execution\
+  \ is SKIPPED\nfor that ONE land, the candidate's bytes NEVER run (the ruling's option\
+  \ A intact), and the admission\nis named on stdout; (b) the existing `land_completed`\
+  \ row carries `floor_repair: {atoms, programs,\nbase_exit, kinds, executed: false}`\
+  \ — no new event type; (c) the NEXT land runs the repaired program\nfrom main; (d)\
+  \ the work-batch carrier gate admits a batch whose product paths are ALL AMONG the\n\
+  in-repo programs the TRUSTED BASE's floor commands name — plus, when a command string\
+  \ differs, the\ncandidate's replacement program and the carrier file itself — under\
+  \ a fourth carrier, `floor-repair`,\nchecked after `floor-bootstrap`, by the bootstrap's\
+  \ own rationale. BOUNDS: a candidate that leaves\nthe failing leg UNTOUCHED is refused\
+  \ exactly as before; a DELETED program under an unchanged\ndeclaration is NOT a\
+  \ repair (the next land would still name a missing program) and is refused\nnaming\
+  \ that shape; a command swap whose replacement program is absent is refused; a PASSING\
+  \ base\nleg yields no carve-out (an altered passing program is steady state — it\
+  \ runs from the next land).\nA PASSING DECLARED COMMAND IS RECORDED ON THE LAND\
+  \ ROW. When at least one trusted-base\n`verify.floor.<atom>.command` ran and exited\
+  \ 0 on a land whose floor passed, the existing\n`land_completed.consumer_verify_layers`\
+  \ trail carries ONE row `{layer: kernel-floor, outcome: passed,\natoms: [{atom,\
+  \ command, exit: 0}...]}` naming each command that ran — so a consumer can prove\n\
+  (CHARTER §P8) its declared floor actually executed. A land where no declared command\
+  \ ran (none\ndeclared, bootstrap, repair-skipped, unreadable base) keeps NO kernel-floor\
+  \ row; a failing floor\nkeeps its `{layer: kernel-floor, outcome: failed}` row unchanged.\
+  \ No new event type or key.\n\nA DECLARED COMMAND IS AN ARGV, RUN WITH NO SHELL\
+  \ AND A SCRUBBED ENVIRONMENT — retained as DEFENCE\nIN DEPTH beneath the trusted-base\
+  \ bound above, never instead of it. The command string is\nparsed with POSIX word-splitting\
+  \ into an argument vector and executed directly: shell syntax —\npipes, `&&`, `;`,\
+  \ redirects, command substitution, globbing — is NOT interpreted, and a\nmetacharacter\
+  \ is an ARGUMENT rather than syntax. An UNPARSEABLE command is REFUSED, never handed\n\
+  to a shell as a fallback, because a fallback would make the shell reachable by writing\
+  \ a\ndeclaration that fails to parse. A project needing shell composition declares\
+  \ a SCRIPT, which is\nalso the form a reviewer of the branch can read. The child's\
+  \ environment is the land's own minus\nthe launching SESSION'S state carriers (its\
+  \ session/thread refs, journal bindings and repo-root\noverride), the auditor knobs,\
+  \ and the HOME-rooted tooling overrides — the same criterion the\nverify runner's\
+  \ hermetic child env applies, for the same reason: what a candidate-declared command\n\
+  can read must not depend on WHO started the land. `PATH`/`PYTHONPATH` and the remaining\
+  \ ambient\nenv are inherited, since they are how the command reaches its own toolchain.\
+  \ A command naming a\nprogram that does not exist, or that cannot be executed, is\
+  \ a REFUSAL — an atom that could not be\njudged is never a pass. THIS BOUND MATTERS\
+  \ MORE HERE THAN FOR `verify.layers`: a floor command runs\non EVERY branch regardless\
+  \ of author, so on a shared repo it is a candidate-authored string the\nkernel has\
+  \ promised to execute.\n\nTHE DEPENDENCY ATOM'S KERNEL HALF — DISCOVERY, \"COMMITTED\"\
+  , AND THE ONE EXEMPTION.\n- DISCOVERY IS THE TRACKED-TREE WALK, ROOT AND NESTED\
+  \ ALIKE. Manifests are found by enumerating\n  the project's TRACKED files, so `frontend/package.json`\
+  \ counts exactly as a root one does; the\n  walk is bounded by the index and honours\
+  \ `.gitignore` for free. The lock question is asked PER\n  MANIFEST DIRECTORY —\
+  \ a lockfile beside `frontend/package.json` pins it, and a root lockfile does\n\
+  \  not. The `dependencies.command` obligation is per PROJECT and fires on ANY discovered\n\
+  \  dependency-declaring manifest, root or nested: a repo whose only manifest is\
+  \ nested owes the\n  frozen install + advisory audit exactly as a root-manifest\
+  \ repo does.\n- THE WORKSPACE-ROOT CASE. A pnpm / npm / yarn WORKSPACE commits ONE\
+  \ lockfile at its\n  root, so a nested `package.json` is ALSO pinned when a STRICT\
+  \ ancestor directory is a workspace\n  root whose lockfile AND declaration are BOTH\
+  \ tracked there and the declaration lists the member:\n  pnpm = `pnpm-lock.yaml`\
+  \ + `pnpm-workspace.yaml` `packages`; npm / yarn = `package-lock.json`,\n  `npm-shrinkwrap.json`\
+  \ or `yarn.lock` + that directory's `package.json` `workspaces` (a list, or a\n\
+  \  mapping's `packages`). A `!`-negated pattern excludes. The glob reading is a\
+  \ STATED CONSERVATIVE\n  BOUNDARY — `./` prefix, `**`, `*`, `?`, `[...]` classes\
+  \ and non-nested `{a,b}` braces of two or more alternatives; any other\n  construct\
+  \ matches NOTHING. FAIL-CLOSED throughout: a member the declaration does not list,\
+  \ a root\n  lock or declaration that is untracked, or a declaration that will not\
+  \ parse leaves the member\n  needing its own lockfile beside it, exactly as before.\n\
+  - COMMITTED MEANS TRACKED, NOT MERELY PRESENT ON DISK. A lockfile satisfies this\
+  \ leg only when it\n  is in the SAME tracked-file snapshot the manifests were discovered\
+  \ from. An ignored or simply\n  un-added `package-lock.json` does not: it reaches\
+  \ no other checkout and no reviewer of the\n  branch, so it vouches for nothing.\
+  \ ONE enumeration answers both questions, so there is no window\n  in which a file\
+  \ counts as tracked for one and not the other.\n- A `requirements.txt` IS ITS OWN\
+  \ LOCK exactly when it is itself TRACKED and every requirement\n  line is `==`-pinned.\
+  \ A LEADING-`-` LINE IS A DIRECTIVE, and a directive that can pull in more of\n\
+  \  the dependency set — `-r`/`--requirement`, `-c`/`--constraint`, `-e`/`--editable`\
+  \ — makes the\n  file NOT self-sufficient, so it does not vouch. Only directives\
+  \ bringing no requirement of their\n  own (index / link / format / hash-policy knobs\
+  \ such as `--index-url`, `--find-links`,\n  `--require-hashes`) are ignored. Includes\
+  \ are NOT resolved recursively: the claim this predicate\n  makes is about ONE file,\
+  \ and a project whose set spans several files commits a real lockfile or\n  declares\
+  \ the command instead.\n- DEPENDENCY-FREE MANIFEST — THE ONE NARROW EXEMPTION, DECLARED\
+  \ HERE RATHER THAN HELD IN CODE. A\n  `package.json` declaring NO dependency set\
+  \ at all (none of `dependencies`, `devDependencies`,\n  `optionalDependencies`,\
+  \ `peerDependencies` non-empty) has no set to pin, and is exempt from BOTH\n  the\
+  \ lockfile leg and the `dependencies.command` leg. The shape this exists for is\
+  \ the ordinary\n  local `file:` sub-package (`frontend/dep/package.json`) that became\
+  \ reachable only when\n  discovery went nested; refusing it would be a false positive,\
+  \ and a false positive on a security\n  floor is how the floor gets disabled. UNDERSTOOD\
+  \ NARROWLY AND FAIL-CLOSED: it applies to\n  `package.json` alone, read as JSON,\
+  \ and a manifest of any other ecosystem — or one that will not\n  parse — is NEVER\
+  \ exempt.\n\nTHE SECRETS ATOM SCANS FILE CONTENT AT THE CANDIDATE, NEVER PATCH TEXT.\
+  \ Both scopes — this ship's\nchanged files, and the widened whole tracked tree —\
+  \ read the FILES and match the named shapes\nagainst their decoded content. The\
+  \ diff-scoped leg asks git only WHICH PATHS this ship added or\nmodified AND WHICH\
+  \ LINES it added to them: it reads the `diff --git` / `+++` path headers and the\n\
+  `@@` hunk headers, never a `+` content line, so what the diff contributes is a set\
+  \ of line NUMBERS\nand every scanned byte still comes from the file at the candidate.\
+  \ A change git renders as `Binary\nfiles... differ`, or whose `.gitattributes` mark\
+  \ suppresses the diff, therefore has exactly the\ncontent-visibility a text one\
+  \ does — such a path has no resolvable added-line view and is scanned\nWHOLE. There\
+  \ is NO content exclusion of any kind, AND NO SIZE BOUND: the scan STREAMS each\
+  \ file, so\nthere is no per-file refusal cap and a file's size decides nothing about\
+  \ whether it is scanned. What\nstill REFUSES is a file that could not be READ —\
+  \ an unreadable path, or a tracked tree that could\nnot be enumerated — never a\
+  \ silent skip, because a clean verdict over a partially-read scope is a\nclaim about\
+  \ files nobody scanned. The retired cap was itself that defect one layer up: it\
+  \ refused\nevery land on every active consumer, whose tracked journal segment is\
+  \ legitimately larger than any\nfixed number, while offering the project no declarable\
+  \ remedy.\n\nA BRANCH IS ANSWERABLE FOR THE LINES IT WROTE — THE DIFF-SCOPED LEG\
+  \ MATCHES ITS ADDED LINES ONLY. A\nshape sitting on an UNTOUCHED line of a file\
+  \ this ship merely touched is already on `main`, landed\nand audited, and re-arming\
+  \ it on every later ship refuses branches that added no credential at all.\nThat\
+  \ is not hypothetical: every governed ship modifies `events.jsonl`, so one such\
+  \ shape quoted\ninside one journal row refused EVERY land in a consumer, with no\
+  \ consumer-side relief available\n(rule 4a makes the atom unwaivable). Reaching\
+  \ a credential the ship did NOT write is the\n`shared-repo-floor` lens's job, and\
+  \ that WIDENED leg is unchanged: it reads the whole tracked tree\nregardless of\
+  \ what the diff touched. FAIL-CLOSED, ALWAYS WIDER: a path whose added-line view\
+  \ cannot\nbe resolved — an unparseable hunk header, a path the parser will not name,\
+  \ a diff that failed or\nwould not decode — is scanned WHOLE, and an unresolvable\
+  \ diff widens the whole leg as before. The\nrefusal NAMES the matched line (`path:line:\
+  \ <shape>`), so what it reports is provably a line the\nbranch wrote.\n\nAN INTERPOLATION\
+  \ IS NOT A CREDENTIAL. A matched secret token that is WHOLLY a template\ninterpolation\
+  \ — `${VAR}`, `$VAR`, `{{var}}`, `%(var)s`, `<placeholder>` — is not a hit: there\
+  \ is\nnothing to remove and nothing to rotate, so the refusal's own remedy is unsatisfiable,\
+  \ and a\nsecurity gate that refuses a configuration template is the false positive\
+  \ that gets the gate\ndisabled. WHOLE-TOKEN AND FAIL-CLOSED: a token that merely\
+  \ CONTAINS an interpolation still carries a\nliteral fragment (`hunter2${SUFFIX}`)\
+  \ and is NOT exempt, so a real secret can never be hidden by\nconcatenating a variable\
+  \ onto it. The exemption is a NAMED NEGATIVE CLAUSE on the secret token, not\na\
+  \ loosening of any literal shape: a pattern opts in by declaring its secret group,\
+  \ and a shape whose\nliteral prefix cannot admit an interpolation character declares\
+  \ none and is untouched.\n\nTIMESTAMPS ARE COMPARED AS INSTANTS, NEVER AS STRINGS.\
+  \ Every freshness and ordering comparison in\nthe floor parses its operands into\
+  \ timezone-aware UTC instants first. RFC3339 is not lexically\nordered across offsets\
+  \ — `git log --format=%cI` keeps the committer's own offset — so a string\ncomparison\
+  \ put a chronologically LATER negative-offset carrier commit BEFORE a UTC probe\
+  \ row, and\na redefined probe then read as still vouched. A timestamp that is absent,\
+  \ malformed, or\nimplausibly far in the future is UNUSABLE, not \"very new\": such\
+  \ values sort above every real one,\nso treating them as strings let them both win\
+  \ the latest-verdict selection and pass the age check.\nAn unusable timestamp REFUSES.\n\
+  \nA NEWLY DECLARED PROBE IS ADMITTED, NOT REFUSED. A probe guarding code this very\
+  \ branch\nships can pass only AFTER the land deploys that code, so the binding below\
+  \ would close a loop no\nbranch can exit. When the TRUSTED BASE is READABLE and\
+  \ does NOT declare the entry's `property`, an\nentry the binding would refuse is\
+  \ instead ADMITTED as AWAITING ITS FIRST POST-DEPLOY CHECK, named on\nstdout at\
+  \ the land and listed by the SPEC-0119 rule-44 debt row until a vouching pass exists.\
+  \ Four\nbounds keep it narrow: an unreadable base admits nothing; ONLY an ALLOWLIST\
+  \ of evidence-absence\nreasons is admitted (no verdict, a stale one, one bound to\
+  \ a different or since-changed definition)\nand only for a STRUCTURALLY COMPLETE\
+  \ entry (non-empty `url` and `assertion`) — an unusable\ntimestamp, an unreadable\
+  \ history or any other refusal stays a refusal; a latest\n`security_live_probe_escalated`\
+  \ row is never admitted (a recorded negative is evidence, not\nabsence); and a property\
+  \ ALREADY on the base keeps the full refusal — so once the admitting branch lands,\
+  \ EVERY later land is refused until\nthe probe passes. The admission therefore never\
+  \ outlives one land.\n\nHOW A PROBE VERDICT IS BOUND TO THE CANDIDATE. The probes\
+  \ atom is a hermetic read of the durable\nrecord the SPEC-0098 probe runner already\
+  \ writes — no network call happens inside a land verify. A\nrecorded pass counts\
+  \ ONLY when it is DEFINITION-BOUND as well as fresh, so a pass cannot vouch for\
+  \ a\nprobe definition it never exercised:\n- `security_live_probe_passed` rows carry\
+  \ `definition_digest` — an ADDITIVE-OPTIONAL sha256 over the\n  sorted-key canonical\
+  \ JSON of the declared `security.probes[]` entry (property + assertion + url +\n\
+  \  any further scalar keys), written by the probe runner. When the latest row carries\
+  \ it, the check\n  is ONE equality against the candidate's own digest and NO history\
+  \ is read. This is the steady\n  state; the fallback below decays as rows are re-earned.\n\
+  - A row written BEFORE the watermark existed has no digest. For those properties\
+  \ only, the floor\n  falls back to ROW-EQUALITY against the candidate's declaration\
+  \ AND the entry not having changed\n  since the row — read from ONE bounded `git\
+  \ log` traversal over the carrier per land, shared by\n  all such properties and\
+  \ bounded to the freshness window (beyond it the age bound already\n  refuses).\
+  \ A pass predating the change reads NOT-PASSED. An unreadable history REFUSES, and\
+  \ so\n  does an UNREADABLE COMMIT WITHIN it: the claim being made is about EVERY\
+  \ commit in the window, so\n  a single failed per-commit read or unparseable carrier\
+  \ is fail-closed, never skipped.\n- ROW-EQUALITY IS TWO CONJUNCTS, NOT ONE. The\
+  \ row's recorded `url` must equal the candidate's\n  declared `url`; AND, WHEN the\
+  \ candidate entry DECLARES an `expect`, the row's recorded `expect`\n  must equal\
+  \ it. The `expect` half is CONDITIONAL on the candidate declaring one, and that\n\
+  \  condition is the contract rather than an implementation detail: the row's `expect`\
+  \ is DERIVED by\n  the probe runner from the entry's `assertion`, and the kernel\
+  \ cannot re-derive it inside a\n  hermetic verify (F-025) — so an entry declaring\
+  \ only a free-text `assertion` has its change\n  caught by the history conjunct\
+  \ instead, while an entry that DOES declare `expect` is compared\n  here, where\
+  \ the comparison is real. A declared-`expect` mismatch REFUSES exactly as a `url`\n\
+  \  mismatch does.\n- THE WATERMARK PROVES EXECUTION, NOT MERELY SELECTION. The probe\
+  \ runner emits\n  `definition_digest` ONLY when the entry it digests is the one\
+  \ the run ACTUALLY EXERCISED: the\n  carrier entry is chosen among those declaring\
+  \ the run's `property`, but what the runner executes is the task card's\n  own `live_probe`,\
+  \ so the entry's declared `url` (resolved through the same absolute/relative +\n\
+  \  `live_base_url` join) must equal the fetched target, AND it must DECLARE an `expect`\
+  \ equal to\n  what was asserted. A DECLARED `expect` IS REQUIRED HERE, not merely\
+  \ compared when present (r4\n  consult finding): the entry's `assertion` is free\
+  \ text the runner never executes, so at one url\n  two different assertions are\
+  \ indistinguishable at this seam — minting the digest anyway would\n  hand the floor\
+  \ an equality proof that SUPPRESSES the legacy leg, the one leg whose history\n\
+  \  conjunct catches an assertion change. An `assertion`-only entry is therefore\
+  \ unprovable here and\n  is left to that leg, exactly as an entry with no `url`\
+  \ is. On ANY mismatch, for an entry\n  declaring no `url`, and for one declaring\
+  \ no `expect`, the watermark is OMITTED rather than the\n  probe failed: the probe\
+  \ genuinely passed, what cannot be\n  claimed is that it exercised THIS definition.\
+  \ Omission is the fail-closed direction — the floor\n  then takes the row-equality\
+  \ leg below, which refuses on exactly that disagreement.\n- A PROBE IS IDENTIFIED\
+  \ BY (`property`, `url`), NOT BY `property` ALONE. One property\n  MAY be declared\
+  \ on several urls; each entry then needs its OWN fresh, definition-bound pass. The\n\
+  \  runner watermarks with the entry it actually exercised, and the floor assigns\
+  \ every verdict row\n  to AT MOST ONE declared entry of its property — the entry\
+  \ whose current digest the row carries,\n  else the entry whose `url` the row names\
+  \ — so one row never vouches for two declarations, and the\n  carrier-history conjunct\
+  \ is keyed the same way. A property declared once behaves exactly as before.\n-\
+  \ A GOVERNED-DEPLOY SECURITY PROBE PASS IS A VERDICT TOO, BUT ONLY FOR WHAT IT NAMES.\
+  \ A\n  passing Class-S deploy probe (SPEC-0097 §2) refreshes this atom for EXACTLY\
+  \ the declared properties\n  its record explicitly identifies, each under the definition\
+  \ digest it was proved under — a fresh\n  pass decided by the same one equality\
+  \ as a watermarked runner row. A deploy pass that identifies\n  no property, or\
+  \ identifies one under a DIFFERENT digest, refreshes NOTHING: it is no verdict for\n\
+  \  that entry, so it neither satisfies it nor shadows an older verdict that does,\
+  \ and it never\n  reaches the row-equality fallback.\n- THE VERDICT RECORD IS READ\
+  \ FAIL-CLOSED, PER SOURCE AND PER ROW. A journal locus that cannot be\n  read, a\
+  \ line naming a probe verdict that will not parse, and a verdict row carrying no\
+  \ `ts` each\n  REFUSE the atom. They are not skipped: the question is \"what is\
+  \ the NEWEST verdict for this\n  property\", and a partial read answers it with\
+  \ the older row underneath — the very row the\n  unreadable newer one exists to\
+  \ supersede. A locus that simply does not exist held no rows and is\n  not a read\
+  \ failure.\n- No row, a latest `security_live_probe_escalated`, a digest / `url`\
+  \ / declared-`expect` mismatch,\n  a pass predating a definition change, an unreadable\
+  \ verdict record, or an expired pass ALL\n  REFUSE.\nSTATED BOUND: what this certifies\
+  \ is DEFINITION-BOUND HISTORICAL LIVENESS EVIDENCE, not a live\nre-probe at land\
+  \ time — the kernel cannot fire a URL inside a hermetic verify (F-025).\n\nUNWAIVABLE,\
+  \ AND REFUSED AT THE DECLARATION READ. A `waiver:` at `verify.floor` or under any\
+  \ atom is\nREFUSED before any atom runs — an attempt to waive the floor's EXISTENCE\
+  \ fails where it is written,\nrather than quietly producing a land with no floor.\
+  \ The layer name `kernel-floor` is RESERVED: a\n`verify.layers` entry wearing it\
+  \ is refused, because a project layer with the floor's name would\nread as the floor\
+  \ without being it. This is the ONE place in this carrier where rule 3's\ndeclare-or-waive\
+  \ does NOT apply, and the exception is the point of the section.\n\nPROFILE ONLY\
+  \ WIDENS. With the SPEC-0198 `shared-repo-floor` lens active (`collaborator_rights:\n\
+  named-collaborators`, or the `collaborator_proof` evidence key) the secrets atom's\
+  \ scan scope widens\nfrom this ship's added lines to the WHOLE TRACKED TREE — on\
+  \ a repo with named human collaborators a\ncredential may sit on a path this ship\
+  \ never touched, where the SPEC-0100 AI-authored floor triggers\nnever looked. The\
+  \ gate only ever WIDENS: an unresolved profile, or an unreadable diff, yields the\n\
+  every-branch scope or wider, never a narrower one.\n\n### 28. `verify.layers` FAILURE\
+  \ OUTPUT — a non-zero layer NAMES the failed check with a kernel-recognised marker\n\
+  A `verify.layers[]` entry (rule 16, SPEC-0152) declares a COMMAND; this rule is\
+  \ the contract on what\nthat command PRINTS when it fails. When a layer's command\
+  \ exits non-zero, its captured output MUST\ninclude a failure marker the kernel\
+  \ recognises, and that marker MUST NAME the failed assertion or\ncheck (a test node\
+  \ id, a criterion id, a raised error verdict) — never only THAT something failed.\n\
+  The kernel reads the marker out of the layer's captured tail at land and records\
+  \ it as the layer's\nfailing assertion (`FAILING ASSERTION(S):` in the land ABORT,\
+  \ `failing_assertions` on the record).\n\nTHE RECOGNISED SHAPES ARE HOMED ONCE,\
+  \ IN CODE, NOT HERE. What counts as a recognised marker is the\ntuple `bin/lib/worktree.py#_VERIFY_FAILURE_MARKER_RES`\
+  \ (plus the enumerated-list reader that same\nextractor applies beneath a count-only\
+  \ header). This rule NAMES that home and deliberately\ndoes NOT restate the shapes\
+  \ (SPEC-0005 rule 8 — one home): a layer author reads the tuple, not a\nparaphrase\
+  \ that would drift from it. The tuple's own comment block records each shape's bound\
+  \ and why\nit is POSITIVE and anchored — that is the layer author's reading, and\
+  \ this rule adds no list beside\nit. The simplest conformance for a shell-delegated\
+  \ layer is to let the underlying tool's own failure\nline reach the captured output\
+  \ unfiltered, or to print one line of a shape the tuple recognises,\nitself naming\
+  \ the check.\n\nABSENCE IS RECORDED, NOT GATED — BY THE LAND'S EXISTING SURFACING.\
+  \ A layer that exits non-zero with\nNO recognised marker in its captured output\
+  \ is recorded by `_surface_failing_assertions` as\n`unmarked-layer-failure:<id>`\
+  \ — a stable digest of the normalized output — followed by the\nhonest context `\
+  \ — no failure marker in the captured output; last output line: <line>`. The\nland\
+  \ still ABORTs on the non-zero exit exactly as before; this rule adds NO new gate,\
+  \ refusal, report,\nevent or flag. What the unmarked record means for the project:\
+  \ the failure is IDENTIFIED (a\n`--rebaseline-waive` token can be built from the\
+  \ id) but NOT DIAGNOSED — nobody reading the ABORT\nlearns WHICH check failed, and\
+  \ a same-revision flake is indistinguishable from a real regression\n(measured:\
+  \ <project>, 14 `unmarked-layer-failure` land aborts 2026-09-07..11 across three\
+  \ layers, three\nof them same-revision backend flakes no one could name — X-1398\
+  \ is the project-side fix request).\n\nTHE ADAPTATION BELONGS TO THE LAYER, NEVER\
+  \ TO THE KERNEL'S RECOGNITION. A layer prints in whatever\nformat its tool chose;\
+  \ enumerating those formats in the kernel is an open-ended chase that ALSO risks\n\
+  promoting a log line into the assertion position (the X-0698 defect closed), which\
+  \ is why\n deliberately did not widen recognition and why this contract exists:\
+  \ the project brings its\nlayer's output to the recognised shapes (a wrapper that\
+  \ forwards the tool's failure line, or a\n`FAIL: <check>` line of its own), not\
+  \ the other way round. A proposal to widen the tuple for one\nconsumer's format\
+  \ is the SIXTH-widening case the tuple's own comment names as decisive AGAINST.\n\
+  \n### 29. `ui.surfaces:` — the project's DECLARED user surfaces (OPT-IN subfield\
+  \ of `ui:`)\nA project MAY declare, under its existing `ui:` section (rule 9), a\
+  \ LIST of repo-relative PATH\nPREFIXES that are its user surfaces — the files a\
+  \ user path runs through\n(e.g. `surfaces: [frontend/src/pages/, frontend/src/components/]`).\
+  \ It is a rule-4 SUBFIELD of an\nexisting section, NOT a new top-level concern (rule\
+  \ 1), and it is **OPT-IN, declare-or-silence**\n(the `coverage:` / `extensions:`\
+  \ shape, rule 15): ABSENT = NO signal, never a guess; `ui: waiver`\nalready answers\
+  \ the project that has no UI. Only a list of relative prefixes is read (an absolute\n\
+  or `..`-bearing entry is ignored); test-shaped paths under a prefix are never a\
+  \ surface. Pure\ndeclared config (rule 7): the kernel DERIVES from it, each time,\
+  \ the uncovered-user-surface signal\n(SPEC-0076 §6c, the code→scenario direction)\
+  \ and one debt row (SPEC-0119 rule 43) — it stores\nnothing back. Born templates\
+  \ are UNCHANGED (no init seed, no sweep): the subfield is the project's\nchoice\
+  \ to opt into a report-only signal. Candidate prefixes and the measured precision\
+  \ per consumer\n(strict false-positive rate <project> 0.200 / <project> 0.144, owner-accepted\
+  \ 2026-09-22 —\n`events.jsonl#ts=`): `dev-utilities/uncovered-surface-precision-.md`.\n\
+  Reader: `bin/lib/debt.py#user_surface_prefixes`.\n\n## Parameters\n\nThe carrier's\
+  \ values are PER-PROJECT ops config — commands, base URLs, probe dialects,\nwaiver\
+  \ reasons. They are explicitly NOT kernel-read governance scalars (the SPEC-0005\
+  \ §Parameters\nwhitelist FORBIDS env/secret/per-deploy/path/flag values) — so this\
+  \ spec is `consumed: false`.\n\n## Rationale\n\nPrior-art (extend, not create —\
+  \ CHARTER §P1 F1): the kernel ALREADY seeds — but as a REPEATED PATTERN,\nnot one\
+  \ shared file. A 3-project survey (accurate, 2026-06-21): <project> consumes the\
+  \ shared\n`<host-home>/projects/<project>/bin/lib/deploy-common.sh` + `<host-home>/bin/check-release-gate.sh`\n\
+  + `check-production-gate.sh`; <project> and <project> each carry their OWN `scripts/deploy.sh`\
+  \ (deploy +\ninline smoke/health gate + rollback) — the SAME deploy.sh + smoke-gate\
+  \ + rollback SHAPE reproduced\nper project, NOT one consumed library. The genuinely-shared\
+  \ `<host-home>/lib/*` libs are the test/safety\nones (`pytest-fastapi-db/`, `<project>/`),\
+  \ not a deploy seed. `init` already delivers `yitc-verify.yaml`\nborn-empty (the\
+  \ declare-or-waive prior-art). One carrier formalizes that recurring deploy SHAPE\
+  \ onto one\ngoverned file. The slice-1 boundary (rule 4) is the gate-specs YELLOW\
+  \ absorption (platform-creep). Full\ndeliberation: plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`.\n\
+  \n## Verification\n\n- `init` on a fresh consumer creates `yitc-ops.yaml` with the\
+  \ slice-1 sections seeded declare-or-waive;\n  an unanswered seeded section fails\
+  \ closed (state check).\n- <project> carries a `yitc-ops.yaml` whose `deploy:`/`rollback:`/`live_probe:`\
+  \ sections are declared,\n  read by the deploy verb (SPEC-0094) on a real deploy\
+  \ (journal `deploy_completed` event).\n- grep proves no second per-concern config\
+  \ file is reintroduced for a slice-1 concern (no parallel SoT).\n- `init` on a fresh\
+  \ consumer seeds the `ui:` (rule 9) + `tests:` (rule 10) sections declare-or-waive\n\
+  \  (born WAIVED); an unanswered/malformed `ui:`/`tests:` section fails closed; a\
+  \ `ui:` `baseline:` +\n  `waiver:` (or `tests:` `classes:` + `waiver:`) together\
+  \ is an exclusivity ERROR; a pre-`ui:`/`tests:`\n  carrier still passes (checked-if-present)\
+  \ — state checks in tests/test_t9373_*.py.\n- the rule-4 registry lists the `spike_sandbox:`\
+  \ section and names SPEC-0172 as its owning spec, so a\n  reader enumerating this\
+  \ carrier's declarable sections reaches it BEFORE that spec activates; the same\n\
+  \  enumeration over a rule-4 text without the entry does NOT return it, while still\
+  \ returning the\n  incumbent sections (differential state check, tests/test_t10036_concern_registry.py\
+  \ §). The\n  same probe pins that this spec carries NO `spike_sandbox` `concern:`\
+  \ block — the registry row is a\n  pointer, never the second declaration rule 18\
+  \ / SPEC-0128 rule 2 forbid.\n- the `tests:` section does NOT duplicate the land-verify\
+  \ gate: `verify` stays single-home in\n  `yitc-verify.yaml` (rule 5) — grep proves\
+  \ no carrier `verify:` section was added by this rule.\n- rule 28 : `tests/test_verify_layer_failure_marker_contract.py`\
+  \ — AC1 asserts the failure-output\n  rule in THIS body and that it names `_VERIFY_FAILURE_MARKER_RES`\
+  \ as the single home (failing input: the\n  body with the rule removed); AC2 DIFFERENTIAL\
+  \ drives the REAL layer runner with a stub `verify.layers`\n  entry that exits 1\
+  \ — printing a recognised marker, the surfaced record names the failed check; printing\n\
+  \  none, it reads `unmarked-layer-failure:<id>` + the no-marker context line (the\
+  \ failing input) — with the\n  layer outcome `failed` in both arms (no gate moved).\n\
+  - the UPDATE path (rule 11): re-running `init` on an EXISTING carrier missing an\
+  \ extensible top-level\n  section (e.g. a pre-`ui:`/pre-`tests:` consumer) PULLS\
+  \ it in born declare-or-waive (state check on the\n  carrier file), non-destructively\
+  \ (a declared value survives); a missing slice-1 section still fails\n  closed (never\
+  \ auto-added); a fresh/current carrier re-run stays byte-identical — state checks\
+  \ in\n  tests/test_t9375_*.py. The born `ui:` guidance carries the X-0054 primary-design\
+  \ (greenfield/brownfield)\n  intake, delivered to an existing consumer via this\
+  \ path.\n- the MANDATORY-section BACKFILL (rule 11): `init --backfill-mandatory`\
+  \ on that same carrier\n  DELIVERS the missing mandatory section and the delivery\
+  \ PERSISTS after the command exits (the\n  differential: a BARE init on the identical\
+  \ fixture delivers nothing and refuses `missing`); a re-run\n  is a byte-identical\
+  \ no-op; and — the load-bearing leg — the NEXT ORDINARY `init` over the backfilled\n\
+  \  carrier still REFUSES, naming the section, WITH the scaffold still on disk (BOTH\
+  \ asserted: presence\n  alone is green for a born-waiver delivery, refusal alone\
+  \ is green for the rollback that motivated the\n  separate seam). An already-DECLARED\
+  \ and an already-WAIVED carrier both come back byte-identical, and\n  a FRESH init\
+  \ still carries the born filled waiver — state checks in tests/test_t9375_*.py.\n\
+  - the `extensions:` section (rule 13) is OPT-IN: `init` on a fresh consumer seeds\
+  \ it born adopts-nothing\n  (`adopts: []`); an ABSENT or empty `extensions:` PASSES\
+  \ the sweep (not fail-closed); a malformed\n  `adopts` entry (not a mapping / missing-or-empty\
+  \ `spec:`) FAILS closed; `init --adopt-extension SPEC-0094`\n  on a consumer adopts+cites\
+  \ it (idempotent), refuses a missing / non-`adoptable` spec, and the cited spec\n\
+  \  RESOLVES via `graph query SPEC-0094` (target-existence, no stored ops→spec edge)\
+  \ — state checks in\n  tests/test_t9490_*.py. <project> carries an `extensions:`\
+  \ block declaring+citing SPEC-0094 (the adopt-exercise).\n- the `deploy.host_config:`\
+  \ subfield (rule 14) is checked-if-present declare-or-waive: `init` on a\n  fresh\
+  \ consumer seeds it born WAIVED; an unanswered (empty) block, a declaration missing\
+  \ any of\n  `vhost_files`/`live_base_url`/`apply`, and a declaration+waiver together\
+  \ each FAIL closed; a\n  pre-`host_config:` carrier still passes; bin/lib/deploy.py\
+  \ READS the declared host_config block as\n  PROJECT ops config (a non-behavioral\
+  \ informational read, never a kernel governance scalar) —\n  state checks in tests/test_t9592_host_config_carrier.py.\n\
+  - the `security.audit:` subfield (rule 20, pairs with SPEC-0145) is a nested `security.audit`\n\
+  \  carrier surface owned SHAPE-only here (declare `cadence`+`freshness_sla`+`runner`\
+  \ OR a STRICT\n  waiver; SPEC-0145 owns the cadence/SLA/evidence-schema/waiver SEMANTICS).\
+  \ It is registry-DERIVED\n  (rule 18 / SPEC-0128) and ACTIVE-GATED — the born/sweep\
+  \ surfaces seed only when SPEC-0145\n  ACTIVATES, so no init-seed test ships here\
+  \ yet; the concern-block derivation is proven by a\n  force-active projection (`_concern_registry_entries`\
+  \ includes `security_audit`\n  {carrier_path security.audit, declare_key cadence,\
+  \ waiver_policy strict}) while the live\n  concern-registry EXCLUDES it (proposed)\
+  \ — the init-seed/sweep state checks land with the activation card.\n- the `deploy.runtime_delivery:`\
+  \ subfield (rule 22 / X-0370) is checked-if-present\n  declare-or-waive: `init`\
+  \ on a fresh consumer seeds it born WAIVED (born_order 35 — INSIDE the\n  `deploy:`\
+  \ block); a declared `model:` from the CLOSED enum passes; an UNKNOWN model (`baked`,\n\
+  \  `source_mounted`, a typo) FAILS closed via the `runtime_delivery_shape` hook\
+  \ — a mis-spelt model must\n  never read as a declaration; a `model:` + `waiver:`\
+  \ together, and an empty block, each FAIL closed; a\n  pre-rule-22 carrier still\
+  \ passes (backward-compat). DIFFERENTIAL state checks in\n  tests/test_t10511_runtime_delivery.py\
+  \ — each asserts BOTH that the surface fires for the bypass it\n  exists to catch\
+  \ AND that it stays silent for the near-miss it must not nag about (SPEC-0156 /\
+  \ SPEC-0060 §4).\n- the `outcome_invariants:` section (rule 24 / X-0419) is checked-if-present\
+  \ declare-or-waive:\n  `init` on a fresh consumer seeds it born WAIVED (born_order\
+  \ 150 — the last top-level section); a\n  declared `invariants:` list passes; `invariants:`\
+  \ + a `waiver:` together, and an empty/answer-less\n  section, each FAIL closed\
+  \ via the GENERIC registry-driven stance/XOR sweep (no bespoke shape_hook is\n \
+  \ minted — the rule-21 `migrations:` precedent); a pre-rule-24 carrier still passes\
+  \ (backward-compat).\n  The per-entry residual shape is fail-VISIBLE at the READER\
+  \ rather than fail-closed at the sweep: a\n  malformed entry (no usable `probe:`,\
+  \ an unknown probe kind, a missing `id`) surfaces as a DEGRADED\n  debt line (SPEC-0119\
+  \ rule 17) instead of passing as coverage — for a surface whose whole purpose is\
+  \ to\n  be read, that is the stronger guarantee. DIFFERENTIAL state checks in\n\
+  \  tests/test_t10554_outcome_invariants.py — each asserts BOTH that the surface\
+  \ fires for the break it\n  exists to catch AND that it stays silent for the near-miss\
+  \ it must not nag about (SPEC-0156 /\n  SPEC-0060 §4). The READING half (broken/degraded/unproven)\
+  \ is verified by SPEC-0119 rule 17's own\n  `## Verification` — verification travels\
+  \ with the rule (SPEC-0005 rule 8), and this rule owns only the\n  SHAPE.\n- the\
+  \ CROSS-SECTION CORRESPONDENCE + COVERING-WAIVER rule (rule 26) is REPORT-ONLY and\n\
+  \  reader-applied, so its guard is a DIFFERENTIAL tripwire rather than a sweep state-check\n\
+  \  (SPEC-0165: one tripwire per silently-breakable atomic rule).\n  `tests/test_t11079_covering_waiver_correspondence.py`\
+  \ reads rule 26's REQUIRED TOKENS OUT OF THIS\n  SPEC BODY at runtime — so excising\
+  \ the rule turns the probe RED instead of leaving it asserting a\n  constant — and\
+  \ applies the rule to carrier fixtures: a COVERING WAIVER whose reason is a BARE\n\
+  \  covered-by claim (no shared-setup-cost basis, coverer without `subject_globs`)\
+  \ is FLAGGED, while\n  the SAME carrier once the setup-cost basis is stated and\
+  \ the coverer carries `subject_globs` is\n  SILENT. Both legs run in ONE pass with\
+  \ the POSITIVE CONTROL alongside them (a conforming\n  declared-layer carrier stays\
+  \ silent; an UNANSWERED `moment: verify` class is flagged), so a reader\n  that\
+  \ resolves nothing fails loudly instead of passing vacuously. The differential is\
+  \ verified\n  MECHANICALLY, not by construction: mutating the conforming fixture's\
+  \ reason back to a bare\n  covered-by claim turns the leg RED, and restoring it\
+  \ turns it GREEN. The rule's NO-GATE half is\n  verified by the ABSENCE of any sweep\
+  \ / `init` / `land` change in the shipping diff — no `concern:`\n  block, no `shape_hook`,\
+  \ no exit path moved.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0073
+- SPEC-0039
+- SPEC-0101
+- SPEC-0094
+- SPEC-0128
+requires: []
+supersedes: null
+concern:
+- section: ui
+  born_order: 70
+  born: "ui:\n  # SPEC-0093 rule 9 (X-0050). DECLARE this project's UI baseline once\
+    \ it has a UI surface: replace this\n  # waiver with `baseline: <named design-system>`\
+    \ (optional styleguide/tokens/lint/archetype). The ui:\n  # waiver is LOOSE (rule\
+    \ 6): a bare `reason:` — a CLI-only/library/headless project legitimately has\
+    \ no UI.\n  #\n  # PRIMARY-DESIGN intake (X-0054) — onboarding asks \"primary\
+    \ design?\" alongside \"first scenarios?\". This\n  # section IS that intake (declare-or-waive,\
+    \ no separate interactive walk). Two inbound modes:\n  # * GREENFIELD (rules->code):\
+    \ no UI code yet — DECLARE the chosen `baseline:` + `archetype:` (the\n  # inception-fixed\
+    \ UI archetype / design-template + responsive posture) up front.\n  # * BROWNFIELD\
+    \ / design-from-outside (code->rules INVERSION): UI code ALREADY exists — DERIVE\
+    \ the\n  # baseline/archetype FROM the existing surfaces (read the code, name\
+    \ the de-facto design) and record\n  # it here, rather than imposing a fresh one.\n\
+    \  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no UI baseline\
+    \ yet; declare a `baseline: <named design-system>` (`archetype:`) once this project\
+    \ has a UI surface — greenfield: declare up front; brownfield: derive it from\
+    \ existing UI code (the design-from-outside inversion, X-0054).\"\n"
+  carrier_path: ui
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: baseline
+  declare_type: string
+  waiver_policy: loose
+  shape_hook: ui_shape
+  authoring_floor:
+    trigger: before-authoring-UI
+    specs:
+    - SPEC-0100
+- section: tests
+  born_order: 80
+  born: "tests:\n  # SPEC-0093 rule 10. DECLARE this project's test class×moment TAXONOMY\
+    \ once it has tests: replace\n  # this waiver with a `classes:` list, each { class,\
+    \ moment } (optional command). It is the\n  # INVENTORY, not the land-verify gate\
+    \ (that is `verify.layers`); the waiver is LOOSE (bare `reason:`).\n  # TIMING-SENSITIVE\
+    \ tests (SPEC-0160 rule 10): a class MAY carry `timing_lane:` globs; those files\
+    \ are\n  # refused a pin in the last-green leg. Pin one anyway via a sibling\n\
+    \  # `timing_lane_waiver: { globs: [...], reason: \"<who accepted the flake risk,\
+    \ and why>\" }`.\n  # TEST-CLASS intake — \"what are your test classes, and what\
+    \ does each one DEPEND ON?\" — in TWO passes:\n  # PASS 1 — NAME THE CLASSES here.\
+    \ PASS 2 — name what each DEPENDS ON (a container, a database, a\n  # browser,\
+    \ a bundle, an install — or nothing). That is the `verify.layers` cut rule:\n\
+    \  # CLASSES THAT SHARE AN ENVIRONMENT STAY IN ONE LAYER (a split pays that SETUP\
+    \ COST a second\n  # time); a class with its OWN dependency earns its own layer\
+    \ + `subject_globs:`.\n  # GREENFIELD — declare the classes you intend; BROWNFIELD\
+    \ — DERIVE them from what runs today.\n  # Both passes answered = a carrier that\
+    \ already satisfies rule 26 (cross-section correspondence).\n  # see SPEC-0160\
+    \ §10; SPEC-0093 §26\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
+    \ — no test taxonomy declared yet; declare a `classes:` list (each {class, moment})\
+    \ once this project runs tests. The executable land-verify gate lives in the carrier\
+    \ `verify.layers` (SPEC-0152 rule 16).\"\n"
+  carrier_path: tests
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: classes
+  declare_type: list
+  waiver_policy: loose
+  shape_hook: tests_shape
+  born_stance: permissive
+  detector: declared-test-regime-false-skip
+- section: verify
+  born_order: 90
+  born: "verify:\n  # SPEC-0152 rule 16. The per-layer LAND-VERIFY carrier — `verify.layers`\
+    \ is the AUTHORITATIVE\n  # land-layer universe. DECLARE a `layers:` list (each\
+    \ { layer: <id>, command: <hermetic land cmd> }\n  # OR { layer: <id>, waiver:\
+    \ {reason} }; optional `covers:` globs) OR WAIVE the whole concern (a\n  # LOOSE\
+    \ bare `reason:`). A legacy yitc-verify.yaml is folded into this section at init.\n\
+    \  # HERMETIC — `land` runs each `command:` on the LIVE host — isolated project,\
+    \ ephemeral ports, never\n  # mutating prod/host state (no shared DB, no fixed\
+    \ host ports, no `down -v` on a live stack); a\n  # non-hermetic command makes\
+    \ `land` destructive.\n  # Optional `subject_globs:` lets a land whose diff is\
+    \ DISJOINT from them skip the layer (absent ⇒\n  # always runs). Author them from\
+    \ a DEPENDENCY AUDIT of the layer's command (its real reads, mounts,\n  # sub-scripts)\
+    \ — NOT by copying `covers:`; declare a SUPERSET of it.\n  # Container shape —\
+    \ choose it KNOWINGLY and write the reason in the layer comment:\n  # - THROWAWAY:\
+    \ each probe brings up and tears down its own container (`compose run --rm`).\n\
+    \  # - EXEC: the layer brings a stack up ONCE and each probe runs inside it (`compose\
+    \ exec`).\n  # see SPEC-0152 §16; SPEC-0093 §3\n  # TIMEOUT (X-0204). Per layer\
+    \ `timeout: <seconds>` and/or section `timeout_seconds:`;\n  # in precedence order:\
+    \ the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · the 300s\n\
+    \  # default;\n  # a malformed value fails the land CLOSED.\n  # HOW TO CHOOSE\
+    \ THE NUMBER: SPEC-0208 (`bin/yitc-v2 graph query SPEC-0208`) — measure p95 by\
+    \ nearest\n  # rank (n >= 20) under the tuple you land under, declare inside [2\
+    \ x p95, 4 x p95], record it here.\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no land-verify layer declared yet; declare a `layers:` list (each {layer,\
+    \ command} or per-layer {layer, waiver:{reason}}) as this project's land-verify\
+    \ layers settle (SPEC-0152 rule 16).\"\n"
+  carrier_path: verify
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: layers
+  declare_type: list
+  waiver_policy: loose
+  shape_hook: verify_shape
+  born_stance: permissive
+  detector: declared-test-regime-false-skip
+  gated_capabilities:
+  - key: combined_candidate_safe
+    example: 'true'
+    spec: SPEC-0152
+    summary: 'land-verify BATCHING — several queued lands verified TOGETHER, in ONE
+      pass over a combined candidate, instead of a full verify per land. Declare it
+      only if your layers isolate one change from another: a shared fixture, port,
+      database or build cache can make one member''s failure indistinguishable from
+      a peer''s, which is why the kernel cannot infer this.'
+    absent: every land is verified alone — batches of one, whatever the queue depth.
+  - key: independent_layers
+    example: '[static, frontend-unit]'
+    spec: SPEC-0152
+    summary: 'CONCURRENT land-verify layers — the layers named here run OVERLAPPED
+      in one land instead of one after another (the wall drops from their sum towards
+      their longest). Name only layers that share nothing with EACH OTHER: no host
+      port, compose project, database, build cache or tree write, their `prep:` included
+      — a pairwise claim the kernel cannot infer. Fail-fast, per-layer timeouts and
+      the per-layer rows are unchanged; a name matching no declared layer fails the
+      land closed.'
+    absent: every declared layer runs serially, in declaration order — the verify
+      wall is their sum.
+  - key: layer_worker_shares
+    example: '{static: 0.1, frontend-unit: 0.6, stack: 0.2, sandbox: 0.1}'
+    spec: SPEC-0152
+    summary: 'HOW YOU SPLIT the land''s worker allotment across your layers — a mapping
+      of layer name to that layer''s FRACTION (a number in (0, 1], never a core count,
+      so a change to the kernel''s allotment re-splits automatically and nothing here
+      is rewritten). The kernel declares the form, validates it, records each share
+      beside the CPU that layer actually consumed, and keeps publishing the WHOLE
+      allotment in YITC_VERIFY_LAYER_WORKERS; it computes nothing and publishes no
+      per-layer number. YOU split it and scale your own runners — only you know what
+      your layers do. The sum is deliberately unchecked: there is no over-allocation
+      guard, and a share that floors at one worker is your arithmetic.'
+    absent: every layer reads the whole allotment — unsplit, as today.
+- section: coverage
+  carrier_path: coverage
+  presence_policy: opt-in
+  update_policy: init re-seed
+  declare_key: load_bearing
+  declare_type: list
+  waiver_policy: loose
+  born_order: 120
+  born: "coverage:\n  # SPEC-0152 rule 15 (X-0129) — the B5 COVERAGE-ADMISSION carrier:\
+    \ WHICH load-bearing code\n  # surfaces are REASONED spec-less (a deliberate exclusion)\
+    \ vs a genuine NEW orphan. OPT-IN (the\n  # extensions rule-13 model): an ABSENT\
+    \ section, OR an empty `load_bearing:`, means NO coverage-\n  # admission tracking\
+    \ — a clean default, never fail-closed. `graph build` diffs this project's live\n\
+    \  # load-bearing surfaces (the `load_bearing:` globs) against spec coverage (the\
+    \ `implements` edge) +\n  # the `admitted:` list, and report-only WARNs any load-bearing\
+    \ surface that is NEITHER spec-covered\n  # NOR admitted (a candidate new orphan).\
+    \ To opt in, DECLARE:\n  # load_bearing: # globs naming the load-bearing surface\
+    \ universe (repo-relative)\n  # - \"bin/lib/*.py\"\n  # admitted: # reasoned spec-less\
+    \ surfaces NOT flagged — each needs surface + reason\n  # - surface: \"bin/lib/legacy.py\"\
+    \n  # reason: \"<why this is a deliberate spec-less exclusion, not an orphan>\"\
+    \n  # An admission entry missing a non-empty `surface` OR `reason` does NOT suppress\
+    \ (fail-OPEN: an\n  # evidence-less admission can never silently hide a new orphan).\
+    \ OR waive the whole concern:\n  # waiver: { reason: \"<why this project tracks\
+    \ no coverage admission>\" }\n  load_bearing: []\n  admitted: []\n"
+- section: startup_checks
+  carrier_path: startup_checks
+  presence_policy: opt-in
+  update_policy: init re-seed
+  declare_key: startup_checks
+  declare_type: list
+  waiver_policy: loose
+  born_order: 130
+  born: '# startup_checks:
+
+    # # SPEC-0152 rule 17 (X-0191) — OPTIONAL, report-only project startup checks.
+    Uncomment + declare
+
+    # # your own; each { label, command, detail }. `command` runs cheaply at each
+    session-start / land;
+
+    # # a NON-ZERO exit means the check FLAGS. The flagged checks are aggregated into
+    ONE report-only
+
+    # # `startup-check: …` line (count + `label (detail)`), suppressed when all pass.
+    OPT-IN — leaving
+
+    # # this section absent/commented declares no checks (never fail-closed, never
+    swept).
+
+    # - label: pending-proposals
+
+    # command: "test $(ls proposals/*.draft 2>/dev/null | wc -l) -eq 0"
+
+    # detail: "see proposals/ — drafts awaiting review"
+
+    '
+- section: product_source
+  carrier_path: product_source
+  presence_policy: opt-in
+  update_policy: init re-seed
+  declare_key: globs
+  declare_type: list
+  waiver_policy: loose
+  born_order: 135
+  born: "product_source:\n  # SPEC-0152 rule 27. DECLARE which code surfaces this\
+    \ repo actually SHIPS — the\n  # AUTHORITATIVE answer to «what is this project's\
+    \ product source?». The work-batch carrier gate\n  # (an uncarried `work/<slug>`\
+    \ batch, no card and no emergency marker) reads `product_source.globs`\n  # and\
+    \ NOTHING ELSE. In particular it no longer reads `verify.layers[].covers`: that\
+    \ field SCOPES\n  # which verify layers run for a diff, where NARROW is good —\
+    \ and the same narrowing, read as a\n  # product-source declaration, is bad. One\
+    \ field, two purposes, opposite incentives; two fields\n  # with one purpose each\
+    \ is the fix.\n  # TWO ANSWERS, and only these two silence the report-only migration\
+    \ note:\n  # globs: [ \"app/**\", \"frontend/src/**\" ] # the trees this repo\
+    \ actually ships\n  #...or, for a repo that genuinely ships none of its own:\n\
+    \  # waiver: { reason: \"<why this repo ships no product source of its own>\"\
+    \ }\n  # OPT-IN and effect-free while unanswered: an empty `globs:` reads exactly\
+    \ as an ABSENT section —\n  # recognition falls to the kernel floor alone, and\
+    \ a `bin/**` touch is refused with or without a\n  # declaration either way. So\
+    \ leaving this empty is a legitimate answer, as long as it is a KNOWING\n  # one.\
+    \ `globs:` and `waiver:` together is a contradiction; a glob is repo-relative\
+    \ (no leading `/`,\n  # no `../`).\n  globs: []\n"
+- section: live_revision
+  carrier_path: deploy.live_revision
+  presence_policy: opt-in
+  declare_key: kind
+  declare_type: string
+  waiver_policy: loose
+  shape_hook: live_revision_shape
+- section: migrations
+  carrier_path: migrations
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: command
+  declare_type: string
+  waiver_policy: loose
+  born_order: 140
+  born: "migrations:\n  # SPEC-0093 rule 21. DECLARE how this project evolves its\
+    \ persistent SCHEMA: replace this\n  # waiver with a non-empty `command:` — the\
+    \ upgrade command that brings a database to the current\n  # schema (e.g. `alembic\
+    \ upgrade head`). OPTIONAL companions (informational, not a shape gate):\n  #\
+    \ tool: alembic # the named migration tool\n  # versions: backend/alembic/versions\
+    \ # where the revision history lives\n  # applied_at: deploy # WHERE the upgrade\
+    \ actually fires — `deploy` when the deploy\n  # # script runs it (a deploy-coupled\
+    \ schema change: say so out\n  # # loud rather than bury it in a shell script),\
+    \ or `manual`.\n  # The kernel checks the STANCE + shape, NEVER the values — it\
+    \ never runs a migration (rule 3).\n  # The migrations: waiver is LOOSE (rule\
+    \ 6): a bare `reason:`. That is the clean unconditional-waive case\n  # — a project\
+    \ with NO migration tool: lifespan-DDL (schema created at app startup), an ORM\
+    \ create_all, a\n  # schema-less store, or no persistent schema at all. A project\
+    \ with no schema history has no hole to\n  # compensate for, so no compensating\
+    \ control / expiry is demanded.\n  # EITHER declared OR waived, never both (fail-closed\
+    \ exclusivity).\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` —\
+    \ no schema-migration stance declared yet; declare a `command:` (e.g. `alembic\
+    \ upgrade head`, + optional tool/versions/applied_at) once this project migrates\
+    \ a persistent schema, or keep this waiver if it legitimately has none (lifespan-DDL\
+    \ / ORM create_all / schema-less).\"\n"
+- section: outcome_invariants
+  carrier_path: outcome_invariants
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: invariants
+  declare_type: list
+  waiver_policy: loose
+  born_order: 150
+  born: "outcome_invariants:\n  # SPEC-0093 rule 24. DECLARE the standing PRODUCT-OUTCOME\
+    \ invariants of long-lived subsystems no\n  # single card owns (adoption evidence\
+    \ is framed on the DIFF, so such a subsystem has no outcome probe).\n  # X-0419:\
+    \ five remediation cards closed GREEN over three days while the product stayed\
+    \ broken —\n  # and the owner was the only monitor.\n  # Replace this waiver with\
+    \ an `invariants:` list; each entry needs FOUR keys:\n  # invariants:\n  # - id:\
+    \ stats-nonzero # the project-local invariant name (English slug)\n  # subsystem:\
+    \ stats\n  # invariant: \"the stats page reports a non-zero row count for the\
+    \ last 24h\" # prose for a human\n  # probe: # READ-ONLY — stdout {\"ok\": true|false,\
+    \ \"detail\": \"<why>\"}\n  # kind: command\n  # command: [\"python3\", \"scripts/probe_stats_nonzero.py\"\
+    ]\n  # Surfaced report-only at the debt seams (SPEC-0119 rule 17): BROKEN · DEGRADED\
+    \ · UNPROVEN (no\n  # recorded RED `check_admission_demonstrated` for the probe's\
+    \ current definition). Waiver LOOSE;\n  # one entry may carry its own `waiver:\
+    \ {reason}`. EITHER declared OR waived, never both.\n  # see SPEC-0160 §24; SPEC-0093\
+    \ §3\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no standing\
+    \ outcome-invariant declared yet; declare an `invariants:` list (each {id, subsystem,\
+    \ invariant, probe}) for any long-lived subsystem no single card owns, or keep\
+    \ this waiver if this project legitimately has none (a library / CLI / no product\
+    \ surface). Adoption evidence is framed on the DIFF, so an unowned subsystem has\
+    \ NO outcome probe and cannot be observed broken (X-0419: five cards closed green\
+    \ over three days while the product stayed broken; the owner was the only monitor).\"\
+    \n"
+- section: runtime_delivery
+  carrier_path: deploy.runtime_delivery
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: model
+  declare_type: string
+  waiver_policy: loose
+  shape_hook: runtime_delivery_shape
+  born_order: 35
+  born: "  runtime_delivery:\n    # SPEC-0093 rule 22. DECLARE how code reaches this\
+    \ project's RUNTIME — replace this waiver with ONE\n    # `model:` from the CLOSED\
+    \ enum (an unknown model FAILS CLOSED; optional `note:`):\n    # model: image-baked\
+    \ # a built artifact runs — the deploy verb IS the only path to prod\n    # model:\
+    \ source-mounted # bind-mounted source — a recreate ships main WITHOUT the verb\
+    \ (BYPASSABLE)\n    # model: hot-reload # re-reads source on change — BYPASSABLE\n\
+    \    # model: hybrid # some baked, some mounted — BYPASSABLE; the halves can ship\
+    \ separately\n    # A bypassable model gates nothing; commits past the last deploy_completed\
+    \ then read as ALREADY\n    # LIVE, not \"shipped-but-not-live\" (SPEC-0119 rule\
+    \ 16). Waiver LOOSE — the born placeholder is not\n    # an answer.\n    # see\
+    \ SPEC-0093 §22\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2 init`\
+    \ — no runtime-delivery model declared yet; declare a `model:` (image-baked |\
+    \ source-mounted | hot-reload | hybrid) once this project has a runtime, or keep\
+    \ this waiver if it legitimately has none (a library / CLI / no prod surface).\
+    \ A BIND-MOUNTED runtime makes the deploy verb BYPASSABLE — a container recreate\
+    \ ships main with no gate and no deploy_completed (X-0370: half a paired change,\
+    \ 8h outage).\"\n"
+activation_owner_task: null
+proposed_by: seed-and-grow-kernel-capability-and-yitc-ops-carri
+binding:
+- code-enforced
+- before-project-dimension-judgement
+implements_signature:
+  bin/lib/init.py#_hook_runtime_delivery: e0c6fa9fca99bceea855db55be7086b3a5e6a0cdfb31ef16b3382a427e5566a3
+  bin/lib/init.py#_hook_tests: 3796c282504dc47c844e21f1681ee7f72fca15172b927a776df3c139793d65c5
+  bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
+  bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
+  bin/lib/init.py#cmd_init: e079b021407829f20d54d33c6306073b7ebd498406dc8dafa5e134bdcffa8def
+  bin/lib/worktree.py#_any_author_land_floor: 0ccef3b9d02eddb4af0e242d5431675ad828d44714e51d35bb94dc16249e7592

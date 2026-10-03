@@ -1,0 +1,145 @@
+id: SPEC-0101
+title: Extension capability — the cross-cutting concept, marker semantics, and derived
+  catalog
+status: active
+created_at: 2026-06-24 06:06:59+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/graph.py#graph_build_index
+- bin/lib/graph.py#cmd_graph_query
+- bin/lib/views.py#_view_extensions_catalog
+amends:
+- SPEC-0093: OWNS the adopt/cite "install" contract — the `yitc-ops.yaml` `extensions:`
+    section schema + the governed `init --adopt-extension` verb (its rule 13, landed).
+    This spec's §4 DELEGATES to it; §4 here contributes ONLY the adoptability STATE
+    (rule 1) that gates the adopt path.
+- SPEC-0073: OWNS realm/placement + the promotion boundary (kernel-isolation; a project-born
+    extension becomes shared only via an EXTRACTED artifact + a governed dimension-change).
+    This spec's §5 DELEGATES to it; UNCHANGED this slice (promotion deferred).
+body: "## Scenario\n\nA reusable engineering capability a project adopts — an add-on\
+  \ / extension (e.g. the AI-bench\nstand, the deploy capability) — is a FIRST-CLASS,\
+  \ discoverable thing. The owner/AI can answer, from\nthe system itself, \"what reusable\
+  \ extensions exist and how a project adopts one\" WITHOUT a\nserver-wide search:\
+  \ a capability-spec declares it is an extension, the set of such specs is surfaced\n\
+  as a derived catalog, and a consumer adopts one by declaring + citing it in its\
+  \ own governed contract.\n\n## Terminology — «extension» carries THREE distinct\
+  \ senses in this corpus\n\n- **extension / add-on** (THIS spec) = a SHARED, runnable\
+  \ CAPABILITY a project plugs in — catalogued\n  in the extensions catalog, adopted\
+  \ via `init --adopt-extension`. Inaugural: deploy (SPEC-0094,\n  `adoptable`), bench\
+  \ (<workshop-spec>, `internal-only`).\n- **≠ a `yitc-ops` SECTION** = per-project\
+  \ DECLARED config (`deploy:`/`ui:`/`tests:`/… — SPEC-0093): a\n  section is config\
+  \ a project FILLS IN; an add-on is a shared capability.\n- **≠ SPEC-0093 «rule-4\
+  \ section-add»** = growing the ops-contract SCHEMA with a new SECTION (the carrier\n\
+  \  extension POINT). Same word, schema-growth — NOT an add-on.\n\n## Internal\n\n\
+  The FIRST-SLICE contract — concept + marker + catalog (the adopt/cite + promotion\
+  \ portions are DELEGATED, rules 4-5). Each rule is a standing invariant; design\
+  \ provenance + the\nrejected wider scope live in the proposing PLAN, not here (SPEC-0005\
+  \ §3 content boundary).\n\n1. **Marker + adoptability state.** A capability that\
+  \ is a reusable extension is declared by an\n   explicit MARKER on its capability-spec\
+  \ — a field on the existing `spec` node, NOT a new graph\n   node-type (the GRAPH\
+  \ node-count bound holds; CHARTER §P1 F2 prefers a field/view over a new\n   entity).\
+  \ The marker carries an ADOPTABILITY state (discoverable ≠ installable):\n   `adoptable`\
+  \ (a consumer-installable shared capability — has an adopt-path) OR `internal-only`\n\
+  \   (a kernel-OWN tool, catalogued for discoverability but NOT consumer-adoptable\
+  \ — no install-path).\n   Inaugural: SPEC-0094 (the deploy capability) = `adoptable`;\
+  \ <workshop-spec> (the AI-bench stand,\n   `travels: v2-self`) = `internal-only`.\n\
+  \n2. **Catalog = derived view.** The extensions catalog is a DERIVED saved view\
+  \ (the query-lens\n   mechanism) over the marked specs — recomputed on read, never\
+  \ a hand-maintained list, surfacing each\n   entry's adoptability state — discoverable\
+  \ via `graph query --type view` (the canonical \"look here\n   first\" surface).\n\
+  \n3. **Single source of truth — and an OFF-MACHINE extension is a PINNED REPO, never\
+  \ a registry.** The\n   SPEC CORPUS is the source of truth; the catalog view is\
+  \ DERIVED from it. There is exactly one\n   source. An extension that lives on ANOTHER\
+  \ MACHINE does not weaken that: it is referenced as a\n   PINNED REPO — an EXACT,\
+  \ IMMUTABLE release ref (a release tag resolved to its peeled commit; a\n   moving\
+  \ ref such as a branch is REFUSED) — so the source of truth is the SPEC CORPUS of\
+  \ that pinned\n   checkout, one source exactly as this rule requires. Therefore\
+  \ NO external shared registry exists\n   and none is built: the registry direction\
+  \ is RETIRED BY REMOVAL (plan\n   `off-server-release-contract-one-mechanism-for-own-`\
+  \ §Named retirements (b); closed\n   `wont-do`), not deferred. This rule states\
+  \ its own requirement and holds on its own;\n   <workshop-spec> rule 3 is named\
+  \ ONLY as the home where that pin's resolution + integrity-verification\n   MECHANICS\
+  \ are settled — a provenance pointer, NOT the authority this rule leans on.\n\n\
+  4. **Adopt / cite (\"install\") — DELEGATED to SPEC-0093 rule 13 (the settled amends-map).**\
+  \ The adopt/\n   cite \"install\" contract — the `yitc-ops.yaml` `extensions:` adopt-declaration\
+  \ section schema + the\n   governed `init --adopt-extension` path — is OWNED by\
+  \ SPEC-0093 rule 13 (landed), NOT re-homed\n   here (SPEC-0005 rule 8 — one home;\
+  \ the §4 anchor is kept stable for SPEC-0093/<project> citations).\n   THIS spec\
+  \ contributes ONLY the adoptability STATE that gates it (rule 1): an `adoptable`\
+  \ extension\n   has an adopt-path; an `internal-only` one does not. See SPEC-0093\
+  \ rule 13.\n\n5. **Promotion boundary — DELEGATED to SPEC-0073 (the settled amends-map).**\
+  \ The realm/placement +\n   promotion boundary (kernel-isolation : a project-born\
+  \ extension becomes shared ONLY via an\n   EXTRACTED artifact + a governed dimension-change;\
+  \ the kernel never reads project-local state nor\n   absorbs a consumer artifact\
+  \ ad hoc; the consumer cites the SHARED artifact, never mutates kernel\n   truth\
+  \ directly) is OWNED by SPEC-0073, NOT re-homed here (SPEC-0005 rule 8 — one home).\
+  \ UNCHANGED\n   this slice — promotion is deferred. See SPEC-0073.\n\n6. **Scope\
+  \ bound.** This spec governs ONLY the cross-cutting extension CONCEPT + marker semantics\
+  \ + the\n   derived catalog (rules 1-3); the adopt/cite \"install\" path is OWNED\
+  \ by SPEC-0093 rule 13 (rule 4\n   above) and the promotion boundary by SPEC-0073\
+  \ (rule 5 above). The per-consumer DECLARE-OR-WAIVE\n   COMPLETENESS over the active+adoptable\
+  \ catalog set (every catalog member must be declared or\n   forward-aware-waived,\
+  \ fail-closed) is OWNED by **SPEC-0112** — a DISTINCT axis from this spec's\n  \
+  \ `adoptable | internal-only` MARKER (the marker = is-this-capability-adoptable-at-all;\
+  \ SPEC-0112 =\n   did-this-project-take-it), two distinct fields in distinct files.\
+  \ The bottom-up publish/promote\n   TRANSACTION, trust/provenance/publish-authority\
+  \ and version/conflict semantics are\n   explicitly OUT of this spec. The external\
+  \ registry is a DIFFERENT case and is no longer a deferral:\n   it is RETIRED BY\
+  \ REMOVAL — no registry exists and none is built (rule 3; closed `wont-do`).\n\n\
+  ## Parameters\n\nNone consumed.\n\n## Rationale\n\nReal incident: locating the bench\
+  \ needed a server-wide search (deviation\n`reusable-tool-bench-not-discoverable-no-registry-or-graph-pointer`).\
+  \ Extensions will be used\nintensively and become part of a consumer's own corpus\
+  \ (CHARTER §P1 scale-aware refinement). The\nsubstrate already exists (capability=spec,\
+  \ `yitc-ops` adoption, saved-views) — this draft connects it\ninto a first-class\
+  \ concept without a new node-type. Full design provenance: plan\n`extensions-as-a-first-class-installable-capability`\
+  \ (cited).\n\n## Verification\n\n- State check (OWNED — marker): a capability-spec\
+  \ carrying the `extension:` marker is surfaced by the\n  extensions catalog view\
+  \ with its adoptability state (`adoptable` | `internal-only`); an unmarked spec\n\
+  \  is not. Inaugural: SPEC-0094=adoptable + <workshop-spec>=internal-only both reachable\
+  \ via the view.\n- State check (OWNED — derived catalog, rules 2/3): the catalog\
+  \ is DISCOVERABLE via `graph query --type\n  view` and recomputed on read from the\
+  \ spec corpus (never a hand-list). The adopt-path's own\n  verification (a consumer\
+  \ declaring + citing a shared extension) is SPEC-0093 rule 13's contract — the\n\
+  \  end-to-end concept proof (<project> adopting SPEC-0094) is recorded by THIS spec's\
+  \ activation owner.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0073
+- SPEC-0093
+- SPEC-0094
+requires: []
+supersedes: null
+concern:
+  section: extensions
+  born_order: 110
+  born: "extensions:\n  # SPEC-0093 rule 13 (realizes SPEC-0101 §4) + SPEC-0112 (catalog-set\
+    \ completeness). The SHARED extensions\n  # (the project's declared extensions)\
+    \ this project ADOPTS — reusable capabilities (e.g. the deploy capability, SPEC-0094)\n\
+    \  # installed by CITING, never copy/fork. NON-catalog opt-in is unchanged (absence\
+    \ = adopts nothing, rule-13).\n  # BUT for the ACTIVE+ADOPTABLE catalog set (SPEC-0101\
+    \ rule-2 view), every member is now DECLARE-OR-WAIVE,\n  # fail-closed (SPEC-0112\
+    \ rule-1): silence on a catalog member is an ERROR at init / consumer-read. To\n\
+    \  # DECLARE, use the GOVERNED path `__YITC_CLI__ init --adopt-extension SPEC-XXXX`\
+    \ (it refuses a\n  # missing / non-`adoptable` spec and appends `- spec: SPEC-XXXX`\
+    \ under `adopts:`). To WAIVE, carry a\n  # forward-aware `waives:` entry {spec,\
+    \ reason} whose reason names the waive->declare re-entry path\n  # (SPEC-0112\
+    \ rule-2). init SEEDS this section born-COMPLETE (a forward-aware waive per catalog\
+    \ member);\n  # discover the catalog via `__YITC_CLI__ graph query extensions-catalog`.\n\
+    \  adopts: []\n"
+  carrier_path: extensions
+  presence_policy: opt-in
+  update_policy: init re-seed
+  declare_key: adopts
+  declare_type: list
+  waiver_policy: loose
+  shape_hook: extensions_shape
+activation_owner_task: null
+proposed_by: extensions-as-a-first-class-installable-capability
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/graph.py#cmd_graph_query: edd6ee0059524cda18499c3c629b762442f42e6928cfd3dbb4c15525431bfc50
+  bin/lib/graph.py#graph_build_index: 0ad6c2c3a87d64530bff481e450588a68d8b99972fc1da7c00c8352dd53dc443
+  bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

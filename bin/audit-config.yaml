@@ -1,0 +1,135 @@
+# External auditor configuration — provider bindings for AGENTS.md §audit contract.
+# CHARTER §P4b: provider-neutral normative text; concrete bindings live here.
+#
+# SUBSCRIPTION-ONLY : the V2 external auditor runs ONLY via ChatGPT subscription
+# auth (<external-auditor> auth_mode=chatgpt) — NEVER an API key. _invoke_codex preflight refuses launch
+# when OPENAI_API_KEY is set or auth.json is in apikey mode (would bill per-token).
+#
+# Usage (Day 1-2 manual fallback):
+# routine: <external-auditor> exec -c "model=$ROUTINE_MODEL" - <<'EOF'... EOF (ROUTINE_MODEL = this file's
+# routine.model; read it with python3 -c "import yaml;print(yaml.safe_load(open('bin/audit-config.yaml'))['routine']['model'])" — yq is NOT installed on the host)
+# full: <external-auditor> exec - <<'EOF'... EOF (default model = full)
+#
+# Per-tier auditor selection. Each tier may set THREE knobs (plus the optional `reserve:` pair) — the auditor is fully
+# provider-abstracted (AUDIT_PROVIDERS, CHARTER §P4b: provider bindings live here, not in handbook):
+# `provider:` which adapter runs the audit — one of the AUDIT_PROVIDERS keys (bin/lib/cli.py); the
+# shipped default is the value on each tier's own `provider:` line below (: a
+# comment names no adapter value, because the release strip would rewrite it into one
+# no adapter accepts — the value lines themselves travel byte-identical).
+# model: a model id the chosen provider accepts (e.g. the `model:` values below for the default).
+# effort: per-invocation reasoning effort (low|medium|high|xhigh|max). Honored by BOTH adapters:
+# the AI provider adapter passes the AI provider `--effort <lvl>`; the <external-auditor> adapter passes the
+# `-c model_reasoning_effort="<lvl>"` config-override (<external-auditor> has no native flag — the knob is
+# the CODEX_HOME `model_reasoning_effort` key, default medium). Absent `effort:` => no flag /
+# no override => the provider's own config-default (<external-auditor> stays medium, byte-identical).
+# reserve: the OPTIONAL fallback PAIR (`model:` + `effort:`) this tier switches to when the
+# PRIMARY `model:`/`effort:` above DOES NOT ANSWER — a capacity refusal, a timeout, a
+# transport failure. A verdict that ARRIVES is an answer and NEVER falls back, even a
+# RED or malformed one. Absent `reserve:` => NO switching: the run waits on the primary
+# and retries it with a journaled heartbeat. YITC_AUDIT_MODEL still wins over BOTH pairs
+#. The resolution rule is SPEC-0202 rule 6; the values here are the SHIPPED
+# DEFAULTS — a machine overrides any half per tier with `bin/yitc-v2 config set
+# auditor.<tier>.effort|reserve.model|reserve.effort <v>` (`config list` shows it).
+# After a STREAK of primary non-answers the tier's breaker runs the reserve FIRST until a
+# cool-down lapses, then probes the primary again (SPEC-0202 rule 6) — so the
+# reserve is used not only after THIS run's primary missed, but after a recent streak.
+# Both routine + full keep the default adapter below (unchanged). To audit cross-provider (e.g. the
+# provider-independence sweep), point a tier at the OTHER AUDIT_PROVIDERS key: set that tier's
+# `provider:` line to it, its `model:` to a model id that adapter accepts, and `effort:` as needed.
+# SUBSCRIPTION-ONLY applies to the AI provider too ( mirror): the AI provider adapter refuses launch when
+# ANTHROPIC_API_KEY / <provider-session-env> / <provider-session-env> is set (per-token billing).
+#
+# <external-auditor> binary + auth home — <external-auditor>-adapter-wide (NOT per-tier; both tiers share them).
+#
+# THIS FILE TRAVELS IN EVERY PUBLISHED RELEASE, so it must not carry any ONE machine's absolute
+# paths: an adopter inherits them and every `audit pre|post` ABORTs on a path that exists only on
+# the authoring host (measured on the v2.0.0 mirror snapshot, 2026-09-06). A host-literal
+# tripwire now FAILS the suite if a `/home/<user>` path reappears below
+# (tests/test_engine_code_host_path_guard.py).
+#
+# codex_binary: the <external-auditor> EXECUTABLE the governed auditor invokes. Resolved PER MACHINE, most
+# explicit first — YITC_CODEX_AUDIT_BIN > `<external-auditor>` on PATH > this key > a NAMED
+# refusal telling the operator how to bind an auditor. The KEY IS ABSENT BELOW and
+# should stay that way: an ordinary auditor-CLI install puts `<external-auditor>` on PATH, which
+# binds every machine with no configuration. For an auditor deliberately installed
+# off PATH use YITC_CODEX_AUDIT_BIN, NOT this key: a per-user path (home/<you>/...)
+# is rejected by the host-literal tripwire, and anything host-specific here is
+# inherited by every adopter. The key remains readable as a last resort, for a
+# genuinely machine-independent path (a fleet-standard /opt install).
+# An EXPLICIT binary (anything but bare "<external-auditor>") is preflighted to resolve to
+# an executable BEFORE spawn (refuse, never a silent ambient fallback — mirrors the
+# worker's YITC_CODEX_WORKER_BIN).
+# CAPABILITY NOTE: the auditor models configured below need the OFFICIAL unconfined
+# <external-auditor>; the minimum version per model is ENFORCED before spawn from
+# bin/effort-routing-config.yaml `worker_providers.<external-auditor>.min_version`.
+# codex_home: the CODEX_HOME the auditor's <external-auditor> runs under, so <external-auditor> finds the ChatGPT
+# *subscription* auth (auth.json). `~`-expanded — home-relative, never a host
+# absolute path. Env override: an already-set CODEX_HOME wins (and is used as
+# given). A configured home that DOES NOT EXIST on this machine resolves to None
+# rather than being handed to <external-auditor>: pointing <external-auditor> at a missing directory makes it
+# create a fresh empty home with no auth, failing worse than naming none. Absent or
+# non-existent => CODEX_HOME unset (<external-auditor>'s own default ~/.<external-auditor>, where a plain
+# `<external-auditor> login` puts its auth — the clean-machine route).
+# The unconfined <external-auditor> needs a working bubblewrap sandbox (`-s read-only`); host prereq bwrap +
+# /etc/apparmor.d/bwrap installed.
+codex_home: ~/snap/codex/current
+
+# Routine audit-pre/post — small changes, quick verdict, absorption iterations.
+# Routine tier = the primary model at LOW effort (the sweet spot for the high-frequency
+# per-task path). Model choice history: (primary moved) (reserve pair added) (primary gpt-6.1-sol, reserve gpt-6-sol).
+# Requires the unconfined <external-auditor> (codex_binary above).
+routine:
+  provider: codex
+  model: gpt-6.1-sol
+  effort: low
+  # The OPTIONAL RESERVE pair (SPEC-0202 rule 6) — the pair this tier switches to when the
+  # PRIMARY above DOES NOT ANSWER (a capacity refusal / a timeout / a transport failure). A PAIR, not
+  # a bare model: a reserve model may need its own effort to be usable at all. A verdict that ARRIVES
+  # never falls back, even a RED one. Delete the block and this tier simply WAITS on its primary.
+  # After a streak of primary misses the breaker runs THIS pair first until its cool-down lapses.
+  reserve:
+    model: gpt-6-sol
+    effort: low
+  use_when:
+    - audit-pre on single-task scope (< 200 lines plan)
+    - audit-post on single-task diff
+    - absorption pass verdict (max 2 per ceiling)
+
+# Full-capability — big-plan validation, architectural, coherence, multi-file.
+# Full tier = the SAME primary model as routine at XHIGH effort: the tiers differ by EFFORT, not by
+# model (SPEC-0202 rule 6 — owner decision recorded on). Requires the unconfined <external-auditor>.
+# WALL-CLOCK per tier (SPEC-0202 rule 1): a gate audit's hang guard resolves env
+# YITC_AUDIT_TIMEOUT_SECONDS -> the machine key `bin/yitc-v2 config set auditor.<tier>.timeout <secs>`
+# -> the shipped default (routine 300 s, full 900 s); `bin/yitc-v2 audit status` shows the value and layer.
+# xhigh runs longer: a CONSULT / adhoc run is capped by AUDIT_INSPECTION_TIMEOUT_SECONDS (a SPEC-0193
+# performance key — raise it per machine with `bin/yitc-v2 config set
+# lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS <secs>`), not the GATE audits' AUDIT_TIMEOUT_SECONDS.
+#
+# RESERVE PAIRS (SPEC-0202 rule 6): each tier's optional `reserve:` runs ONLY when the primary
+# DOES NOT ANSWER, and never silently — the saved verdict records which pair answered. With NO reserve
+# a tier waits on its primary and retries it, heartbeat-journaled. A reserve BELONGS to its tier's
+# `provider:` above: when the tier resolves to ANOTHER provider (env override, or the SPEC-0201
+# same-provider admission on a machine without this provider) the reserve is DROPPED and `audit
+# status` says so — a model id declared for one provider is never run on another.
+# A RESERVE THAT EQUALS ITS PRIMARY IS NO SECOND DOOR — an edit that re-points a tier must keep the pair
+# distinct, or delete the reserve block deliberately and accept the wait. `capacity_retry_hint`
+# (bin/lib/audit.py) reads THIS file for the reserve id it names in a capacity refusal.
+full:
+  provider: codex
+  model: gpt-6.1-sol
+  effort: xhigh
+  # The OPTIONAL RESERVE pair (SPEC-0202 rule 6) — see the routine tier's block above. The
+  # reserve is declared PER TIER and resolves independently, so each tier may name its own effort.
+  reserve:
+    model: gpt-6-sol
+    effort: xhigh
+  use_when:
+    - big-plan validation (> 200 lines, foundational decisions)
+    - architectural / coherence audits
+    - multi-task scope OR cross-project review
+    - when routine model context window insufficient
+
+# Convention source: owner-confirmed 2026-05-26 ( Build session).
+# Prior art: MEMORY.md feedback <external-auditor>-full-model-for-planning.
+# <external-auditor> CLI on ChatGPT account: o3-mini/o4-mini/gpt-4.1-mini NOT supported;
+# gpt-5.4-mini IS supported as of 2026-05-26.

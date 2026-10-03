@@ -1,0 +1,517 @@
+id: SPEC-0007
+title: Always-loaded / system-files organization — mandatory vs retrieved tier, the
+  3 content-types, project MEMORY.md buffer
+status: active
+created_at: 2026-06-01 05:26:43+00:00
+consumed: false
+implements: []
+binding:
+- floor
+activation_owner_task: null
+amends:
+- SPEC-0005 rule 8 (homing): refines the "third home" (handbook / pattern prose as
+    a SEPARATE home) into ONE class (the spec) + a `mandatory`/`retrieved` TIER attribute
+    — the handbook = the mandatory-tier specs. A simplification (a view, not a new
+    entity), not a contradiction; both are `proposed` in the same plan.
+- D-0034: amends the "sessions do NOT scan at startup" stance — the MANDATORY tier
+    auto-loads in full; the RETRIEVED tier is delivered at stage-entry / on demand,
+    NOT scanned at startup (the original startup count-nudge was retired). The picker
+    is unchanged (it still reads `tasks/` only).
+- D-0008 (instruction-injection protocol): the tier attribute is a VIEW over the existing
+    injection categories (MUST_READ_NOW / SHOULD_READ_TASK / REF_AVAILABLE) — NO new
+    field; it reuses that axis.
+- D-0026 (V2 isolation / territory): re-states the territory split as the per-project
+    binding of the always-loaded core (a project's own core vs the platform-owned
+    global surfaces).
+- D-0044 / D-0047 (spec model / FSM): inherits spec identity + the `proposed` non-authoritative
+    status; adds NO new spec field (the tier is a derived view, residency is never
+    stored on the rule node).
+body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-loaded into\
+  \ the AI's context at session start —\nare not a special pile with bespoke rules.\
+  \ They are organized by ONE discipline: a standing rule\nlives in a SPEC, and whether\
+  \ it is always-loaded or fetched-on-demand is a TIER attribute on its\nhome. The\
+  \ owner/AI sees a small, governed always-loaded core (the handbook = the mandatory-tier\n\
+  specs) plus a larger corpus pulled precisely when a surface is touched. The core\
+  \ stays small because\nthe placement default is \"retrieved\"; it stays alive because\
+  \ it is under the same admission /\ncontent-boundary / currency / retirement discipline\
+  \ as any spec. A project carries a familiar\nproject-local `MEMORY.md` as a short,\
+  \ drainable scratch buffer — never a second source of truth.\n\n## Internal\n\n\
+  This is a PROCESS spec for organizing the always-loaded tier. It is NORMATIVE about\
+  \ organization\ndiscipline; it adds no tooling and no new schema field. Seven rules\
+  \ + a worked self-adoption + a guard.\n\n### 1. One class, two tiers\nA standing\
+  \ rule lives in ONE class — the **spec**. Its always-loaded-ness is a **tier attribute**:\n\
+  `mandatory` (auto-loaded in full at session start) vs `retrieved` (pulled from the\
+  \ graph when its\nsurface is in scope). The **handbook = the mandatory-tier specs**,\
+  \ under the FULL spec discipline\n(admission test, content boundary, two-bound volume,\
+  \ currency, retirement) — NOT a separate class.\nThe handbook size cap is therefore\
+  \ the **token budget of the mandatory tier**, not a special\nhandbook-only rule.\
+  \ (Refines SPEC-0005 rule 8: the \"third home\" collapses into mandatory-tier specs.)\n\
+  **The tiering UNIT is the spec, not the file.** A tier is carried by ONE spec, and\
+  \ each spec is\nuniform-tier. A large current handbook FILE is not \"half mandatory,\
+  \ half retrieved\" — it DECOMPOSES\n(SPEC-0005 rule 6, split-by-surface) into MULTIPLE\
+  \ specs, each with a single tier; the file may then\nmap to both mandatory and retrieved\
+  \ specs, but no single spec mixes tiers.\n\n### 2. The tier is a VIEW over the injection\
+  \ category — no new field\nTwo ORTHOGONAL axes, do not conflate:\n  - **Normative\
+  \ FORCE** = rule severity (`[MUST]` / `[SHOULD]` / `[MAY]`) — how binding once known.\n\
+  \    A MUST rule can be `retrieved` (binding but surface-specific). So tier ≠ severity.\n\
+  \  - **Context RESIDENCY** = the tier — the SAME axis as the injection categories.\
+  \ Mapping:\n    `mandatory` = standing-default `MUST_READ_NOW` (session start);\
+  \ retrieved-situational =\n    `SHOULD_READ_TASK` (loaded when its surface is in\
+  \ scope); retrieved-on-demand = `REF_AVAILABLE`\n    (explicit query / saved lens).\
+  \ `JUST_FYI` is ambient, not a rule-home.\n**The PATTERNS catalog (`patterns/*`)\
+  \ is reference-tier — a query-only reference, not a delivery-judgment class.** A\
+  \ pattern is reached through the §5a **query-only reference** class (the always-loaded\
+  \ handbook pointer-stub + `bin/yitc-v2 graph query` / a saved lens) OR a pointer\
+  \ surfaced by an EXISTING stage / seed / verb binding — NEVER a standalone \"read\
+  \ patterns when relevant\" delivery judgment (that judgment is the \"available if\
+  \ remembered\" gap rule 5a exists to close). Patterns are non-normative (CHARTER\
+  \ §P2 handbook-cap exclusion; not restated here per SPEC-0005 rule 8), and therefore\
+  \ NEVER `mandatory` and NEVER ambient-actionable: a STANDING normative rule lives\
+  \ in a bound spec (rule 1), never in a pattern \"consulted when relevant\". The\
+  \ catalog thus has ONE residency path — query-only reference — not a sixth delivery\
+  \ class beside the §5a five.\nA retrieved rule MAY escalate to `MUST_READ_NOW` for\
+  \ the specific action that touches its surface\n(standing default vs per-injection\
+  \ realization — one vocabulary, two scopes). **Residency is NEVER\nstored on the\
+  \ `rule` node** (the node carries severity only); the per-act injection category\
+  \ is\nDERIVED at load time from the home's tier + the load-trigger, and recorded\
+  \ on the injection event as\ntoday. The tier attribute is a view over the injection\
+  \ category, not a stored entity (P5/P1).\n\n### 3. The always-loaded tier holds\
+  \ 3 content-types + a territory split\n\"System files\" is a TIER (always-loaded),\
+  \ not a class; it holds three content-types, each with its\nown discipline:\n  -\
+  \ **rules** (handbook / AGENTS-style protocol) → full spec discipline (rule 1).\n\
+  \  - **plumbing** (vendor adapters like `<vendor-adapter>.md`, hooks / settings)\
+  \ → a **thinness rule**: stay\n    minimal, provider-bindings only, NO normative\
+  \ content leaks in. The thinness rule is itself\n    spec-able; plumbing is not\
+  \ rule-extracted into the graph.\n  - **memory-index** (project `MEMORY.md`) → NOT\
+  \ a rule-home; an index of recalled facts. Discipline =\n    dedup + retire stale\
+  \ pointers + drain (rule 6).\n**Territory split :** a project governs only ITS OWN\
+  \ always-loaded core (its handbook + its\nprotocol doc + its adapter). Platform-owned\
+  \ global surfaces (a global `<vendor-adapter>.md`, a global memory)\nare non-normative\
+  \ to the project and cannot be reshaped from inside a project session (scope-guard).\n\
+  **Sharpening — startup-read ≠ mandatory-normative:** a file read at startup as cross-phase\
+  \ context\n(an operating plan, a pattern catalog) is NOT thereby in the capped normative\
+  \ tier. `mandatory` marks\n\"normative AND counted against the budget\", distinct\
+  \ from merely \"read at startup\".\n\n### 4. Placement test + the bootstrap-floor\n\
+  **Placement test (default = `retrieved`):** a rule is `mandatory` ONLY if it must\
+  \ be held to act\nsafely AT ALL — foundational / bootstrap. It is `retrieved` if\
+  \ it governs a SPECIFIC surface, pulled\nwhen analysis reaches that surface (the\
+  \ admission-test analysis-scope criterion). When in doubt,\n`retrieved` — the mandatory\
+  \ tier is held to its budget by demoting, never by raising the cap.\n**Bootstrap-floor\
+  \ (the irreducible always-loaded seed):** the smallest mandatory set = what you\
+  \ need\nto start safely AND to know how to fetch the rest — you cannot retrieve\
+  \ the instructions for\nretrieving. It holds: the session-start protocol (read-order\
+  \ + CLI scan); the core anchors\n(anti-complexity + deviation-capture); the retrieval\
+  \ meta-model (\"rules live in specs; the mandatory\ntier is always-loaded; the retrieved\
+  \ tier is graph-queried when a surface is in scope; here is the\nentrypoint\");\
+  \ the minimal safety floor (session-type choice + worktree/land + scope/territory);\
+  \ the\nfetch entrypoint. Everything else — the per-stage detail, the schema catalogs,\
+  \ the audit contract,\nthe injection-protocol schema — is `retrieved` when its surface\
+  \ is touched.\n**Demotion-safety (the anti-Forgetting gate on a DEMOTE — placing\
+  \ a NEW rule uses the default above;\nthis governs MOVING an already-always-loaded\
+  \ body OUT).** A rule body may leave the always-loaded tier\nONLY when it names\
+  \ an ACTIVE delivered trigger — a spec / verb / stage-entry / floor binding (§5a)\
+  \ —\nthat fires at the rule's moment of use, WITH: the exact retrieval lookup (incl.\
+  \ the `--kernel` form\nwhere `-C`-relevant, §Kernel-prefixed retrieval), journaled\
+  \ read evidence that the demoted body is\nfetched live at that trigger, and revert-on-unread.\
+  \ A prose pointer or a frozen decision is NOT a\nsufficient trigger — an \"available\
+  \ if remembered\" pointer is exactly the gap §5a's delivery classes\nclose. This\
+  \ operationalizes \"demote, never raise the cap\": the cap is held by SAFE demotion,\
+  \ so a\ndemotion whose trigger does not demonstrably fire is NOT performed — the\
+  \ body STAYS always-loaded\n(when in doubt on a demote, keep it in).\n\n### 5. Startup\
+  \ re-surface + topological delivery order\n  - **Startup re-surface:** the **mandatory\
+  \ tier auto-loads in full** at session start; the\n    **retrieved tier is NOT auto-loaded**\
+  \ — it is delivered deterministically at stage-entry (rule 5a, `stage <NAME>`)\n\
+  \    or fetched on demand (`graph query`); no startup count-nudge (retired). (Amends\
+  \ no-startup-scan stance — stage-delivered / on-demand, not\n    scanned at startup;\
+  \ the picker still reads `tasks/` only.)\n  - **Topological delivery (parent-first):**\
+  \ any multi-spec slice — the whole mandatory tier OR a\n    retrieved-under-situation\
+  \ slice — is delivered in **topological order, foundational/parent before\n    dependent**,\
+  \ over `requires` / `supersedes` / scenario-parent edges. ONE mechanism across both\n\
+  \    tiers. The mandatory tier is the degenerate case (slice = all-mandatory) and\
+  \ additionally allows\n    an explicit **pedagogical tie-break pin** where the DAG\
+  \ is ambiguous (e.g. principles before the\n    protocol that uses them); the bootstrap-floor\
+  \ reads FIRST.\n  - Two retrieval modes share this order rule: **on-demand / by-query**\
+  \ (explicit query / saved lens)\n    → order is a presentation SORT (name / severity),\
+  \ low-stakes; **under-situation** (analysis pulls\n    the governing slice for the\
+  \ surface touched) → order is load-bearing topological.\n\n### 5a. Retrieved-tier\
+  \ delivery classes — how a retrieved rule reaches its moment-of-use\nDemoting a\
+  \ rule to `retrieved` is SAFE only if its moment-of-use delivery is NAMED — otherwise\
+  \ the\nrule becomes \"available if remembered\" (the exact gap this model exists\
+  \ to close). A `mandatory`\nspec auto-loads (rule 5); a `retrieved` spec carries\
+  \ EXACTLY ONE delivery class:\n  - **stage-delivered** ( — the delivery axis for\
+  \ LIFECYCLE-scoped content) — auto-delivered at\n    the ENTRY of its lifecycle\
+  \ stage by the `stage <NAME>` verb (which records `current_stage` +\n    delivers\
+  \ the stage bundle from the `stage_to_specs` view + emits `stage_entered`). The\
+  \ declared\n    STAGE replaces the AI's \"is this relevant now?\" judgment with\
+  \ a deterministic per-stage bundle. The\n    proven lifecycle control-point contracts\
+  \ moved HERE: SPEC-0014 (Commit) / SPEC-0015 (Closure) /\n    <workshop-spec> (Audit-pre\
+  \ + Audit-post) / <workshop-spec> (Analysis + Filing) / SPEC-0032 (Analysis) — NOT\
+  \ a\n    before-* floor trigger. Carrier: a `stage-entry:<STAGE>` binding token\
+  \ (SPEC-0013).\n  - **floor-triggered** — auto-delivered before a **GATED, STAGE-AGNOSTIC**\
+  \ action (a control-point that\n    is NOT a lifecycle stage). NARROWED the set\
+  \ to the single proven stage-agnostic control-point\n    `before-rule-change` (`spec-new`\
+  \ / `spec-edit` — spec authoring is not a lifecycle stage). The\n    lifecycle control-points\
+  \ (`before-commit` / `before-audit` / `before-closure`) and `before-analysis`\n\
+  \    were RETIRED from the floor as the stage-delivered class above; their content\
+  \ is delivered at\n    stage-entry now. Adding a new floor trigger is **obligation-set\
+  \ EXPANSION = mechanism creep**\n    (anti-cx F4) — a non-control-point / un-gated\
+  \ action does NOT earn one; a LIFECYCLE-scoped contract\n    is stage-delivered,\
+  \ never floor-triggered.\n  - **seed** (cue-and-pointer since) — always-loaded,\
+  \ GENERATED cue-and-pointer content\n    for STAGE-AGNOSTIC general verbs, from\
+  \ the `binding: [seed]` carrier into the session-start seed\n    how-to (single\
+  \ carrier, P5 — NOT a hand list). Each spec carrying `binding: [seed]` supplies\
+  \ a\n    REQUIRED one-sentence `seed_cue` stating its startup-relevant TRIGGER and\
+  \ FIRST REQUIRED ACTION,\n    derived from its own normative rule (the body stays\
+  \ authoritative; a title paraphrase is not a\n    cue). Session start delivers the\
+  \ id, title, cue and a body-retrieval pointer per spec. The full\n    body is read\
+  \ when its surface becomes relevant, BEFORE the governed action — listing a spec\
+  \ does\n    NOT require reading its body at startup. A seed spec without a cue is\
+  \ refused by `graph\n    conformance` and is never rendered as a bare title. For\
+  \ general-verb guidance that belongs in the\n    seed yet is neither a lifecycle\
+  \ stage nor a single before-X floor gate.\n  - **verb/local-pointered** — surfaced\
+  \ by an **EXISTING** command / help / control-point output the\n    operator already\
+  \ runs at the natural moment-of-use (no floor obligation, no new trigger).\n  -\
+  \ **query-only reference** — discovered via the always-loaded handbook **pointer-stub**\
+  \ (names the\n    spec ID + lookup path) + `bin/yitc-v2 graph query <SPEC>` / a\
+  \ saved lens. The **DEFAULT** for\n    SITUATIONAL reference prose (schema catalogs,\
+  \ field tables, query-layer docs) consulted WHEN\n    authoring/validating that\
+  \ surface — not before a control-point.\n**Ratification probe (per non-floor-triggered\
+  \ retrieved spec):** name BOTH (a) the exact surviving\npointer surface AND (b)\
+  \ the exact lookup command for its moment-of-use. **Cannot name both → the rule\n\
+  is NOT delivered → do not demote.** A pointer-stub is POINTER-ONLY (no normative\
+  \ restatement — P5).\n**Mixed-surface unit** (one carrying BOTH a control-point\
+  \ contract AND reference prose) → SPLIT into\ntwo specs (rule 1, split-by-surface);\
+  \ never reconcile by adding a trigger.\n\n### 5b. Start/compact reading-map coherence\
+  \ invariant (close-the-door)\nThe mandatory tier is re-loaded at TWO moments from\
+  \ ONE list: session start (rule 5) and after a\n`/compact`. A `/compact` is a context-eviction\
+  \ event — it may evict ANY mandatory-tier file — so the\npost-`/compact` re-read\
+  \ restores the WHOLE of the reader's OWN-AUDIENCE seed (`core`+`worker` for a dispatched\
+  \ Worker, `core`+`controller` for the interactive Controller — the three-tier model\
+  \ in §5c), NEVER a smaller sub-subset of it. The\nsession-start seed list and the\
+  \ post-`/compact` re-read list are therefore ONE map realized twice;\nthey MUST\
+  \ stay identical.\n**Invariant [MUST] — the file set (the leading case):** any change\
+  \ to the always-loaded / system\n**file set** — adding OR removing a file from the\
+  \ startup seed — MUST, in the **same change**, update\nthe post-`/compact` **re-read\
+  \ list** (the canonical homes: `AGENTS.md §After /compact` and its twin\n`<provider-config>/commands/yitc.md\
+  \ §After /compact`), so the **full-seed reading-map** and the **post-compact\nreading-map**\
+  \ stay the linked pair that **cannot diverge**. (Worked counter-example this closes:\
+  \ the\nAfter-/compact list read CHARTER+LIFECYCLE while the seed had grown to the\
+  \ 5-file handbook — QUEUE/GRAPH\nsilently un-reloaded under a contract-compliant\
+  \ session.)\n**Invariant [MUST] — generalized to ALL startup-delivered content :**\
+  \ the file set is only ONE\nkind of startup-delivered content. `session start` ALSO\
+  \ delivers non-file content — the `binding:[seed]`\ngeneral-verb **seed how-to**\
+  \ (`_seed_howto`), the `session_start` **type-dispatch**, and any other line\nadded\
+  \ to the **`session start` echo**. The SAME coherence invariant binds ALL of it:\
+  \ any change that\nADDS or CHANGES what `session start` delivers MUST, in the **same\
+  \ change**, either (a) **wire** that\ncontent into the post-`/compact` re-read path\
+  \ (`AGENTS.md §After /compact` + its twin), or (b)\n**explicitly justify** why it\
+  \ survives compaction (e.g. in-context abort / help text re-delivered at the\npoint\
+  \ of use). **Default = fail-closed: unwired startup-delivered content is assumed\
+  \ FORGOTTEN\npost-`/compact`.** Rationale: `session start` is NOT re-run after a\
+  \ `/compact`, so startup-only content\nis evicted and never re-delivered — the exact\
+  \ anti-Forgetting (#1) failure the seed exists to prevent.\n(Live incident: — a\
+  \ write-flow `seed` how-to that, emitted only by `session start`, would vanish\n\
+  post-`/compact` unless its re-delivery is co-designed in the same change.)\n**Exception\
+  \ [narrow] — the epoch-stamped seed_read RECEIPT is refreshed by a sanctioned\n\
+  post-`/compact` re-run of `session start`.** The audience-seed read-gate's `session\
+  \ start`-emitted\nreceipt (SPEC-0050 §8) is epoch-SCOPED: a `/compact` advances\
+  \ the context epoch, so the pre-compact\nreceipt goes stale and a governed verb\
+  \ refuses `seed_read_stale_epoch` until a FRESH receipt exists. Its\nSOLE producer\
+  \ is `session start`, so the route-(a) co-design is: post-`/compact` the AI re-runs\n\
+  `bin/yitc-v2 session start` ONCE to re-stamp the receipt for the new epoch (the\
+  \ refusal message\nself-delivers this). This is the ONE sanctioned case where `session\
+  \ start` IS re-run post-`/compact`,\nand it is a NARROW exception to the \"`session\
+  \ start` is NOT re-run\" rule above, NOT a reversal:\n(i) it refreshes the RECEIPT\
+  \ only — restoring seed CONTENT is still done by re-reading the seed FILES\n(§At-session-start),\
+  \ never by `session start` (which only echoes pointers); (ii) it is SAFE — the\n\
+  §2 window is EARLIEST-anchored, so a second `session_started` does not move the\
+  \ origin, and the\nepoch check (a receipt-stamp compare) is orthogonal to that window.\
+  \ The AGENTS §After-/compact +\n`<provider-config>/commands/yitc.md` twin carry\
+  \ the operational re-run bullet (the derived seed surfaces).\n**The `binding:[seed]`\
+  \ cue line rides that same re-run.** The sanctioned receipt refresh\nre-prints the\
+  \ generated seed line, so the post-`/compact` session gets back each seed spec's\
+  \ CUE and\nretrieval pointer from the same carrier as at start — that is the route-(a)\
+  \ re-delivery of the seed\nline. Its seed BODIES are NOT re-fetched unconditionally:\
+  \ as at session start, a seed body is read\nwhen its surface becomes relevant, before\
+  \ the governed action (§5a). The separately-required STATE\nre-folds (`cross outbox`/`cross\
+  \ inbox`, `debt`, `session handoff list`, `frontend-errors`, `audit\nstatus`) are\
+  \ unchanged — they restore start-time state, not seed rules.\n**The start report\
+  \ states its own end and each line's class.** `session start` ends with\nONE startup-done\
+  \ line — the last AGENT-facing line, printed immediately before the unchanged SPEC-0125\n\
+  rule 2c person-facing start line, which stays the final line. It names the one startup\
+  \ step left (the\nsession-tied `--help` scan) and the posture's next move (the Controller\
+  \ awaits the owner cue; a Worker\ncontinues its claimed task), and says nothing\
+  \ else is to be opened at startup. Every OTHER echo line\nthat names a verb, a file\
+  \ or an artifact id carries exactly one class marker as a suffix —\n`[report-only]`\
+  \ (no action at startup), `[owner-cued]` (act only on the owner's cue) or\n`[on-demand:\
+  \ <trigger>]` — and the seed lines (the startup read itself, incl. the `binding:[seed]`\n\
+  line) carry none. Startup is done when the seed is read, `session start` has run\
+  \ and its `--help`\nscan is done. Post-`/compact` (route (a)): the done line rides\
+  \ the same sanctioned receipt-refresh\nre-run as the seed line; the markers ride\
+  \ each echo's existing re-fold verb. Verification: the AC1/AC2\narms of tests/test_t0861_consumer_session_start_echo.py\
+  \ (the last-agent-line differential and the\nAST-enumerated marker check over the\
+  \ start builders).\n**Invariant [MUST] — STAGE-ENTRY-delivered bundles :** `session\
+  \ start` is not the only delivery\nmoment a `/compact` evicts — the per-stage bundle\
+  \ delivered at stage-entry (the task `stage <NAME>` and\nplan `plan stage <NAME>`\
+  \ bundles, the rule 5a stage-delivered class) is evicted too, and `session start`\n\
+  is NOT re-run to restore it. The SAME co-design invariant binds it: any change that\
+  \ ADDS or CHANGES a\nstage's delivered bundle MUST, in the same change, co-design\
+  \ that bundle's post-`/compact` re-delivery via\nthe **stage-bundle-freshness discipline**\
+  \ (the same canonical homes — `AGENTS.md §After /compact` + its\ntwin). The two\
+  \ axes re-deliver ASYMMETRICALLY: the TASK axis re-RUNS the non-mutating\n`stage\
+  \ <current_stage> --task` verb; the PLAN axis CANNOT — `plan stage <NAME>` is a\
+  \ one-step FSM ADVANCER\n(re-running it on the stage already entered is an illegal\
+  \ edge), so a session dwelling in a plan stage\nre-FETCHES that stage's `plan-stage-entry:<NAME>`\
+  \ bundle by `graph query` on its specs, never by re-running\nthe verb. **Worked\
+  \ instance — the `decomposition` plan-stage (SPEC-0070):** it is a genuine DWELL\
+  \ stage\n(the cut into task cards spans turns), so a `/compact` mid-cut evicts the\
+  \ cut-rules bundle while the\nexecuting-leg read-gate's receipt (session-scoped,\
+  \ on disk) SURVIVES — the gate would then pass on an\nEMPTY-context cut (the anti-Forgetting\
+  \ #1 failure this invariant exists to prevent). Its co-design (wired\nin this change):\
+  \ a session mid-`decomposition` re-fetches the `plan-stage-entry:decomposition`\
+  \ cut-rules\nbundle, starting at `graph query SPEC-0070` (whose §8 names the full\
+  \ bundle), AND re-orients to its POSITION in the plan (current stage + next gate\
+  \ + the cards cut so far) via `plan show <slug>` — the AGENTS §After-/compact PLAN\
+  \ axis wires BOTH steps, complementary not a replacement (`plan show` = where-am-I;\
+  \ SPEC-0070 = the cutting rules).\n**Realized — the read-order surfaces are generation-backed.**\
+  \ The canonical session-start\nread-order (CHARTER → AGENTS → AGENTS-SESSIONS →\
+  \ AGENTS-PROTOCOL → LIFECYCLE → QUEUE → GRAPH — the AGENTS protocol split into read-order-served\
+  \ parts per SPEC-0120, all rendered from the one carrier; the topological order\
+  \ + pedagogical pin of\nrule 5) is the authoritative home for this datum, and is\
+  \ RENDERED from a SINGLE carrier\n(`HANDBOOK_READ_ORDER` in `bin/yitc-v2`) into\
+  \ EVERY surface that states it: the `AGENTS.md`\n`<!--GEN:read-order:…-->` managed\
+  \ regions (§At-session-start numbered list + §Bootstrap-floor +\n§After-/compact\
+  \ + §Three-phase), regenerated by `graph build` (`_regen_handbook_read_order` →\n\
+  `_render_read_order`), AND the `session start` echo (`_render_read_order`). Those\
+  \ surfaces are\nGENERATED, not hand-restated, so they CANNOT diverge — the §5b coherence\
+  \ invariant realized BY\nCONSTRUCTION for this datum (was hand-restated in 4 spots,\
+  \ the \"shared verbatim\" hazard).\nNon-divergence is ENFORCED report-at-land: `_read_order_drift`\
+  \ rides the `graph conformance` RED set\nand the land-verify suite asserts the canonical\
+  \ corpus conformance-GREEN + aborts land on failure\n(so a divergent surface cannot\
+  \ land). The CHECK never rewrites prose; the explicit `graph build`\nregenerates\
+  \ — the SPEC-0033 handbook-prose-drift model; regen stays OUT of the land/`_auto_rebuild_graph`\n\
+  path because `AGENTS.md ∉ _BOOKKEEPING_ALLOWLIST`.\n**Consumer (`-C`) read-order\
+  \ delivery.** For a `-C <consumer>` session the read-order DATUM\n(the sequence\
+  \ above) is UNCHANGED — only its PATH PREFIX is consumer-resolved: the consumer\
+  \ lacks the\nhandbook locally (pre-extraction), so the `session start` echo renders\
+  \ each seed file at the ENGINE\ninstall path (the engine-content resolution, `_kernel_content_file`\
+  \ own-wins-else-engine) + a\n`kernel-provided (pre-extraction)` note. This is a\
+  \ path-resolution LAYER over the single carrier, NOT a\nsecond datum (`_render_read_order`\
+  \ + the AGENTS GEN regions stay bare filenames; the engine self-build\necho is byte-unchanged).\
+  \ Its §5b co-design: a consumer session re-reads the seed FROM THE ENGINE paths\n\
+  at BOTH the primary startup (§At-session-start) and post-`/compact` re-read — the\
+  \ latter resolves the\nengine paths directly WITHOUT re-running `session start`\
+  \ (which would re-emit startup side-effects).\nThis is an AUTHORING / coherence\
+  \ DISCIPLINE — close-the-door, like the SPEC-0005 §7 declare-the-binding\nstep :\
+  \ it binds the editor's attention AT EDIT TIME and is verified by the audit / coherence\n\
+  pass, NOT by a new gate, hook, parser, or detector (CHARTER §P1 — nothing accreted;\
+  \ this is one\ninvariant on the spec that already governs the always-loaded tier).\n\
+  **Already-attached handbook part.** A handbook part whose full text the AI tool\
+  \ has already\nattached IN THE CURRENT CONTEXT counts as read and is not read again;\
+  \ the remaining parts are read in\norder. After a `/compact` an earlier attachment\
+  \ no longer counts, so every part is re-read — the §5b\npost-`/compact` re-read\
+  \ is unchanged, not narrowed. The `-C` read-order echo restates this clause;\nAGENTS.md\
+  \ carries only a cue + pointer here. Provider-neutral.\n**Consumer (`-C`) echo extension.**\
+  \ The same `session start` consumer echo ADDITIONALLY\nsurfaces, after the read-order\
+  \ line: (a) the consumer's OWN backbone when present (its product\n`CHARTER.md`\
+  \ = separate project-context, NOT the methodology seed), and (b) the consumer verb-invocation\
+  \ form\n`<engine>/bin/yitc-v2 -C <path> <verb>` on the `--help` rescan line — a\
+  \ consumer has NO local\n`bin/yitc-v2`, so the bare engine-relative form is command-not-found.\
+  \ (Per the active-spec COUNT is NO LONGER echoed at every start — obtainable ON-DEMAND\
+  \ via `graph query --type spec`.) These are CONVENIENCE surfaces\nover durable on-disk\
+  \ state (the consumer's own `CHARTER.md` / `specs/` + the engine `-C` invocation),\n\
+  NOT a new datum or rule; their §5b co-design (route (b) justify): they re-derive\
+  \ directly post-`/compact`\n(re-read the consumer's own backbone + re-count via\
+  \ the engine `-C` `graph query`), never by re-running\n`session start`. The engine\
+  \ self-build echo (`REPO_ROOT == ENGINE_ROOT`) is byte-unchanged. The born\nconsumer\
+  \ `MEMORY.md` template (SPEC-0039) renders its `graph query SPEC-0039` example in\
+  \ the SAME\nengine `-C` form for the same reason; it is a durable file, so it survives\
+  \ `/compact` unaided.\n**Newer-release notice.** A consumer that PINS its engine\
+  \ (<workshop-spec> rule 3) ALSO gets, at\nmost once a UTC day, ONE report-only,\
+  \ suppressed-when-current line naming a newer published release\n(installed vs newest\
+  \ + the moved digit's rule-10 meaning); silent on any failure, it never delays or\n\
+  fails the start. It is an ECHO, not a seed line: its post-`/compact` re-fold is\
+  \ `release check`.\n\n### 5c. The seed is delivered in THREE audience tiers (amended\
+  \ by the trim-dispatched-worker plan)\nThe always-loaded seed is NO LONGER one undifferentiated\
+  \ whole loaded identically by EVERY session\n(that delivery model is RETIRED — SPEC-0127\
+  \ §7). It is partitioned into THREE audience tiers, and\neach session reads ONLY\
+  \ its own audience's union:\n  - **`core`** — read by EVERY session: the anti-Forgetting\
+  \ / safety / write-flow floor a session of\n    ANY posture must hold. FAIL-SAFE\
+  \ default (SPEC-0127 §2): an untagged seed section resolves to\n    `core`, so a\
+  \ section is withheld from a Worker ONLY by an explicit `controller` tag, never\
+  \ by\n    omission.\n  - **`controller`** — the interactive Controller supplement,\
+  \ read IN ADDITION to `core` by the\n    Controller ONLY: the orchestrate / dispatch-selector\
+  \ governance, the queue picker + bucket caps +\n    weekly-review triggers, the\
+  \ plan-lifecycle FSM + plan routing, the controller startup\n    dispatch/resume-or-await\
+  \ + cross-coord echoes, and the owner-facing Recommendation-Default /\n    register\
+  \ rules. A dispatched Worker never dispatches, never runs the picker, never authors/stages\n\
+  \    plans — so this tier is dead weight in its bootstrap and is NOT loaded by a\
+  \ Worker.\n  - **`worker`** — the dispatched-Worker subset. A `--type build` Worker\
+  \ reads `core` + `worker`; the\n    interactive Controller reads `core` + `controller`.\n\
+  **Per-audience post-`/compact` re-delivery (the §5b invariant re-stated per-audience,\
+  \ NOT weakened).**\nA `/compact` restores the WHOLE of the reader's OWN-audience\
+  \ seed — `core`+`worker` for a Worker,\n`core`+`controller` for a Controller — never\
+  \ a sub-subset of it. Each audience's seed is ONE map\nrealized twice (session start\
+  \ + post-`/compact`); the two MUST stay identical PER AUDIENCE. This is\nthe SAME\
+  \ anti-Forgetting close-the-door as §5b, scoped to the reader's own view: a Worker\
+  \ is never\nstarved of a rule it needs, a Controller still restores everything.\n\
+  **Prior-art (CHARTER §P1 F1):** the MEMORY worker-exemption (SPEC-0039 §0 `audience:\
+  \ background`) already proves an audience-scoped worker read-set is legitimate;\
+  \ this extends it from ONE\nfile to the SECTION level. **Mechanism home (one-home,\
+  \ P5):** the section-level audience tag + the\nthree generated views (worker seed\
+  \ / controller supplement / startup inventory) are homed in\nSPEC-0127; THIS §5c\
+  \ is the CONTRACT (what each audience reads + the per-audience re-delivery), and\n\
+  SPEC-0127 supplies the tagged-source generator the contract points at.\n\n**The\
+  \ worker KEEP-LIST — what STAYS `core`/`worker`, pinned so relocation does not over-trim.**\
+  \ A\ndispatched Worker DOES need these mid-task, so they are `core`/`worker` and\
+  \ NEVER `controller`:\n  - the **Filing rule** — a Worker files an adjacent task\
+  \ instead of growing the current scope;\n  - **`cross request`** — a Worker HALTS\
+  \ + routes a cross-project need, never edits another repo;\n  - **scope / block\
+  \ escalation** — SPEC-0103 (`blocked-on-land`, scope-boundary) + <workshop-spec>\n\
+  \    (block-classification: what a Worker may self-clear vs must STOP on); a Worker\
+  \ must know when to\n    escalate rather than force a land;\n  - **task-state semantics**\
+  \ — the QUEUE state transitions (`ready` / `in-progress` / `blocked` /\n    `done`,\
+  \ `task pause`) a Worker moves its OWN task through;\n  - **cited-plan orientation**\
+  \ — a Worker executing a card must be able to orient to the plan the\n    card `decomposed_from`.\n\
+  This keep-list is the guard against over-trimming: the plan's postcheck soak RED-fails\
+  \ if any Worker\nis blocked by a rule wrongly relocated to `controller`. SPEC-0127\
+  \ §6 defers WHICH sections carry\nWHICH tag to tagging time; THIS keep-list is the\
+  \ pinned floor that tagging MUST honour.\n\n**Single-read-safety governs the GENERATED\
+  \ read surface, not only source files ( — Axis-1).**\nThe SPEC-0120 one-bounded-read\
+  \ ceiling governs **every read surface an audience ACTUALLY reads at\nstartup**\
+  \ — a GENERATED view included. A generated surface that exceeds one bounded read\
+  \ (the real\nincident: the assembled `graph/worker-seed.md` at ~1300 lines / ~52K\
+  \ tokens forced 3-4 paginated\npartial reads on every Controller start) violates\
+  \ this contract even when every SOURCE file is\nin-band. Delivery per audience:\n\
+  \  - **The interactive Controller reads the SOURCE parts DIRECTLY** — its audience\
+  \ union = ALL\n    sections = exactly the `HANDBOOK_READ_ORDER` files, each within\
+  \ the SPEC-0120 band, so\n    source-direct needs NO assembled monolith and every\
+  \ startup read is one bounded read. The\n    assembled worker-seed + controller-supplement\
+  \ are NOT the Controller's runtime read (the\n    supplement stays a derived reference\
+  \ view — SPEC-0127 §3). Post-`/compact` the Controller\n    re-reads the SAME source\
+  \ parts (the per-audience re-delivery above, unchanged in scope).\n    Under `-C`\
+  \ the source parts resolve from the engine's identity-agnostic release-view\n  \
+  \  (SPEC-0074 §7), which carries all 7 files.\n  - **A dispatched Worker reads the\
+  \ generated worker-seed PART CHAIN** — `graph/worker-seed.md` (part 1)\n    AND\
+  \ every continuation part it chains to (`graph/worker-seed-<n>.md`) — its filtered\
+  \ `core`+`worker`\n    view (reading 7 files to use ~60% of them would defeat the\
+  \ SPEC-0127 audience split), and that\n    generated surface is governed by THIS\
+  \ clause: it must itself be single-read-safe. It was NOT: the\n    single assembled\
+  \ file measured 1275 lines / 50,775 reader-tokens / 4 read-calls, and the reader\n\
+  \    truncated it (the D2 measurement). It is therefore emitted as SIZE-BOUNDED\
+  \ PARTS cut at the\n    source-doc seam (the D3 remediation; mechanism home SPEC-0127\
+  \ §3a) — each part loads in ONE\n    bounded read. **The CHAIN is the Worker's seed,\
+  \ not part 1.** Reading part 1 alone is a sub-subset,\n    which the per-audience\
+  \ re-delivery invariant above forbids; so every delivery surface names EVERY\n \
+  \   part (SPEC-0127 §4), each part names its next hop, and post-`/compact` the Worker\
+  \ re-reads the whole\n    chain. Under `-C` the parts resolve from the engine release-view\
+  \ (SPEC-0074 §7), which carries them all.\n\n### 6. Project MEMORY.md — a governed,\
+  \ drainable buffer (homed in SPEC-0039)\nThe MEMORY-buffer rule is homed in **SPEC-0039**\
+  \ (split out of this §6 by — rule-6\nsplit-by-surface; the buffer is a distinct\
+  \ surface from \"always-loaded files org\"): the base\ncontract (non-authoritative\
+  \ drainable buffer, auto-read at startup, mandatory drain, distinct\nlanes, P4 provider\
+  \ stance) + the temporary-instruction extension (two entry kinds,\naudience/lifetime\
+  \ axes, authority ceiling, three-layer GC). One home (P5) — not restated here;\n\
+  read it via `bin/yitc-v2 graph query SPEC-0039`.\n\n### 7. Rule-extraction across\
+  \ homes — the resolved direction (staged)\nThe graph treats rule-homes unevenly:\
+  \ handbook prose is rule-EXTRACTED into first-class `rule` nodes;\nspec bodies are\
+  \ NOT (their rule-text sits in the body). The RESOLVED DIRECTION: unify on the **`rule`\n\
+  node as the cross-cutting layer** — extraction covers BOTH handbook prose AND spec\
+  \ bodies, so every\nstanding rule is first-class regardless of tier/home, and the\
+  \ `graph query --type rule` bloat-audit\ncapability keeps working as the homes converge\
+  \ onto specs. `mandatory`/`retrieved` stays an attribute\nof the rule's HOME (rule\
+  \ 2 — derived, not stored on the node). Plumbing stays un-indexed; project\n`MEMORY.md`\
+  \ stays out (its content enters the graph only after the drain promotes an item\
+  \ into a real\nartifact). **This rule states the chosen DIRECTION only — the `graph\
+  \ build` extraction-from-spec-bodies\nCODE is downstream materialization, NOT authored\
+  \ by this proposed spec** (a `proposed` spec governs\nnothing — SPEC-0005 rule 4).\n\
+  \n### V2 self-adoption (worked example — file→spec(s) mapping; line-level demotion\
+  \ is materialization work)\nApplying the rules to V2's OWN always-loaded files.\
+  \ \"decomposes\" means the file splits into multiple\nuniform-tier specs (rule 1,\
+  \ the tiering unit is the spec) — NOT that one spec mixes tiers:\n\n| File | Content-type\
+  \ | Tier(s) of its spec(s) |\n|---|---|---|\n| `CHARTER.md` | rules | **decomposes**:\
+  \ the 8 principles + non-goals → **mandatory** (bootstrap-floor frame); the decision-lifecycle\
+  \ + AI-failure-classes table → **retrieved** specs (pulled when operating the frozen-decision\
+  \ backlog / reasoning about a failure class) |\n| `AGENTS.md` | rules | **decomposes**:\
+  \ session-start protocol + anchors → a **mandatory** spec (bootstrap-floor); the\
+  \ reference-grade contracts (event-schema catalog, auditor-invocation contract [**realized\
+  \ — <workshop-spec> active, Part I-A**], injection-protocol schema, reverse-mapping\
+  \ queries) → **retrieved** specs (pulled when emitting an event / running an audit\
+  \ / reasoning about injections) |\n| `LIFECYCLE.md` | rules | **decomposes**: the\
+  \ 9-stage contract frame → **mandatory** (held to act safely); the per-stage detail\
+  \ → **retrieved** specs (pulled when entering that stage) |\n| `QUEUE.md` | rules\
+  \ | **mandatory** (picker + state transitions); the full YAML field catalog → a\
+  \ **retrieved** spec candidate |\n| `GRAPH.md` | rules | **decomposes**: node/edge\
+  \ schema + spec lifecycle → **mandatory**; the query-layer / reverse-mapping catalog\
+  \ → **retrieved** |\n| `<vendor-adapter>.md` | plumbing | **thinness rule** — 5-line\
+  \ vendor adapter, no normative content (already conformant) |\n| project `MEMORY.md`\
+  \ | memory-index | non-authoritative drainable buffer (rule 6) — V2 does not yet\
+  \ keep one; this rule introduces it as the governed project-local surface |\n\n\
+  The mandatory tier auto-loads in full (topo + the pedagogical pin: CHARTER before\
+  \ the protocol that\nuses it); the retrieved slices load when their surface is touched.\
+  \ **Delivery class of each retrieved\ndemote (rule 5a):** the AGENTS reference contracts\
+  \ (event-schema, injection-protocol, reverse-mapping),\nthe CHARTER decision-lifecycle\
+  \ + failure-class table, the LIFECYCLE per-stage detail (stages without a\ncontrol-point:\
+  \ plan/execute/test/resume/hygiene/stage-FSM), and the QUEUE YAML-schema + GRAPH\n\
+  query-layer/spec-schema are **query-only reference** (pointer-stub + `graph query`)\
+  \ — NOT floor-\ntriggered (those actions are not gated control-points; a `before-event`/`before-plan`\
+  \ trigger would be\ncreep). The lifecycle control-point contracts (SPEC-0014/0015/0016\
+  \ + the analysis/file specs) are\n**stage-delivered** (rule 5a — delivered at stage-entry\
+  \ by `stage <NAME>`, via a `stage-entry:<STAGE>`\nbinding), NOT floor-triggered\
+  \ ( retired the lifecycle before-* floor triggers). The ONLY\nfloor-triggered retrieved\
+  \ demote is the stage-AGNOSTIC `before-rule-change` (SPEC-0005 — spec\nauthoring\
+  \ is not a lifecycle stage); a LIFECYCLE stage rule is delivered at its stage-entry,\
+  \ the rest\nare query-only.\n\n### Inheritable scope (cross-project recommendation)\n\
+  This is the system-files organization recommendation for ANY YITC-adopting project,\
+  \ not V2-only. The\nrules are stated generically (\"a project's always-loaded tier…\"\
+  ); V2 is the worked example. The ONLY\nper-project binding is the **territory split**\
+  \ (each project owns its own core; the platform owns the\nglobal surfaces). A future\
+  \ project inherits the tier model, the placement test, the bootstrap-floor,\nthe\
+  \ topo-delivery order, and the `MEMORY.md` buffer discipline unchanged.\n\n### Guard\
+  \ — anti-bloat default\nThe broadened \"handbook = mandatory specs\" risks normalizing\
+  \ \"everything is mandatory\" — the very\nbloat this escapes. So the placement test\
+  \ (rule 4) DEFAULTS to `retrieved`; a rule earns `mandatory`\nonly by the held-to-act-safely\
+  \ / bootstrap floor, and the mandatory tier is held to its token budget\nby DEMOTING\
+  \ surface-specific rules, never by raising the cap.\n\n## Parameters\n\nNone consumed.\
+  \ The mandatory-tier token budget = the handbook cap (2500, CHARTER §P2) — referenced,\n\
+  living in its own home, NOT duplicated or `consumed:` here.\n\n## Rationale\n\n\
+  Self-hosting prior-art: PEP-1 is itself a PEP (the process doc lives in the process's\
+  \ own form), and\nSPEC-0005 already makes a process rule live in a spec — this spec\
+  \ applies that doctrine to the\nalways-loaded tier. The always-resident-core-plus-on-demand-retrieval\
+  \ split is the standard shape of\nRAG / agent-memory / code-indexing systems: a\
+  \ small always-loaded seed + precise pull beats bulk\nalways-load. Living-docs survive\
+  \ only with currency + retrieval precision, never by loading\neverything; an ungoverned\
+  \ always-loaded memory surface bloats precisely because it has no drain. One\nclass\
+  \ + a tier VIEW (the injection category) avoids a parallel entity (P1/P5).\n\n##\
+  \ Verification\n\nProbe CONTRACTS (not one-time results — those are history per\
+  \ SPEC-0005 rule 8):\n- **VP1 (admission, self):** this spec satisfies the SPEC-0005\
+  \ rule-2 admission test — a cross-task,\n  durable, analysis-shaping process rule\
+  \ (criteria 1, 3, 4, 5, 7); delete-test: removing it materially\n  worsens always-loaded-tier\
+  \ change analysis. Evidence: ## Internal states standing rules, not one\n  function's\
+  \ control flow.\n- **VP2 (content boundary, dogfood):** grep this body — no rejected-alternatives\
+  \ narrative, no\n  approval/ratification chronology, no dated audit-finding refs;\
+  \ only concise interpreting provenance\n  remains (SPEC-0005 rule-3 ALLOWED set).\
+  \ The body self-applies the boundary the model states.\n- **VP3 (non-authoritative):**\
+  \ `status: proposed` + `consumed: false` — governs nothing; removing this\n  spec\
+  \ changes no live behaviour.\n- **VP4 (graph-indexed):** `bin/yitc-v2 graph build`\
+  \ indexes SPEC-0007 as a `spec` node (the spec NODE\n  — NOT the staged spec-body\
+  \ rule-extraction of rule 7, which is downstream). Evidence: `graph query\n  SPEC-0007`\
+  \ resolves.\n- **VP5 (tier classification, dogfood):** the V2 self-adoption table\
+  \ classifies the 5 handbook files +\n  plumbing + project `MEMORY.md` under the\
+  \ tier attribute + the 3 content-types. Evidence: the table\n  in ## Internal.\n\
+  - **VP6 (amendment honesty, P7):** the `amends:` block names every canonical surface\
+  \ this spec\n  deliberately changes (SPEC-0005 rule 8).\n- **VP7 (inheritable):**\
+  \ the rules read generically; only the territory split is per-project. Evidence:\n\
+  \  ## Internal §Inheritable scope.\n- **VP8 (one home, P5):** no rule here is also\
+  \ duplicated as a standing rule in handbook prose; a\n  handbook-homed rule is referenced\
+  \ (`cites`), never restated.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-2
+- CHARTER.md#principle-4
+- CHARTER.md#principle-5
+- SPEC-0005
+- doc-model-rework-retire-decision-unify-on-spec-spe
+requires: []
+supersedes: null
+proposed_by: doc-model-rework-retire-decision-unify-on-spec-spe

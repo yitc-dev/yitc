@@ -1,0 +1,165 @@
+id: SPEC-0199
+title: Production-readiness dimension carriers — environments, data obligation, cost,
+  dependency cadence, runbook as declare-or-waive yitc-ops sections
+status: active
+created_at: 2026-09-04 17:49:17+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#_hook_runbook
+body: "## Scenario\n\nWhen a project grows into a live product, the questions a production-readiness\
+  \ review asks beyond\nsecurity — where does config come from and is staging like\
+  \ prod; what personal data do we hold and\nfor how long; what does this project\
+  \ cost and when does that become a task; how do dependencies get\nupdated; where\
+  \ are the logs, how do we roll back, who do we call at 3 a.m. — each has ONE declared\
+  \ home\nin `yitc-ops.yaml`. A project answers each with a stance or a reasoned waiver.\
+  \ The kernel never\njudges the answer's correctness; it grades that a stance exists,\
+  \ and the SPEC-0198 profile decides\nWHEN the question is asked (a prototype is\
+  \ not asked about PII retention).\n\n## Internal\n\nFIVE shape-only sections, one\
+  \ concern block each (SPEC-0128 rule 1 — a spec may host several). All are\nDECLARED\
+  \ config (SPEC-0093 rule 7 — no computed status is ever stored), born declare-or-waive,\
+  \ delivered\nto existing carriers by the `init` update path (SPEC-0093 rule 11),\
+  \ and profile-gated for activation\n(SPEC-0198 §6): the born stance is a waiver;\
+  \ the section's question is ASKED (surfaced on the gap\nregister) only when the\
+  \ profile dimension that needs it resolves.\n\n1. **`environments:`** — config-from-environment\
+  \ stance + staging/prod parity stance (12-factor);\n   declare `config_source:`\
+  \ + `staging:` (present | absent + why) — or LOOSE waiver. Asked at\n   `operational_criticality:\
+  \ live*`.\n2. **`data_obligation:`** — PII classification (which stores hold what),\
+  \ retention, deletion-on-request\n   stance; declare `classification:` + `retention:`\
+  \ + `deletion:`. BORN as the DECLARATION\n   `classification: none` (a project storing\
+  \ no PII declares that — a stance, not a waiver, so a fresh\n   init is valid with\
+  \ no placeholder); the STRICT waiver (reason + compensating control + a REAL dated\n\
+  \   expiry, SPEC-0093 rule 6) applies only to a project that holds PII and defers\
+  \ the obligation. Asked at\n   `data_sensitivity: pii|sensitive`.\n3. **`cost:`**\
+  \ — the infra + AI spend threshold at which spend becomes a task; declare `threshold:`\
+  \ +\n   `reading:` (where the number is read) — LOOSE waiver. Asked at `money: present`\
+  \ or `live*`.\n4. **`dependency_cadence:`** — pin + lockfile + the update rhythm;\
+  \ declare `rhythm:` + `lockfile:` —\n   LOOSE waiver. Asked always (constant floor)\
+  \ — this is the one section a prototype is asked too.\n5. **`runbook:`** — where\
+  \ the logs are, how to roll back, who to contact; declare `logs:` + `rollback:`\n\
+  \   + `contact:` — LOOSE waiver. Asked at `live*`. (Placement decided against a\
+  \ subfield of\n   `alert_routing`: SPEC-0164 answers WHO reads an alert; a runbook\
+  \ answers WHAT to do — the\n   SPEC-0005 delete-test keeps them separable.)\n\n\
+  ## Parameters\nNone consumed. Key names and the born text are the concern blocks\
+  \ below (single source).\n\n## Rationale\nIndustry prior-art (Google SRE Production\
+  \ Readiness Review, AWS Well-Architected, 12-factor) names\nthese as the questions\
+  \ a live service must answer; the kernel had homes for none of them. Real\nincidents:\
+  \ <project> X-0345 (rotation with no ciphertext-surface map, 5h outage — a runbook\
+  \ question);\nthe consumers' identical security shape regardless of stage. Adjudicated:\n\
+  `decisions/production-readiness-derived-profile-self-activating-audit-adhoc.yaml`\
+  \ (seed now:\nenvironments, runbook, data obligation; light: cost, dependency cadence).\
+  \ Anti-complexity: shape-only\nsections on the existing carrier via the rule-4 path\
+  \ (the `ui:`/`tests:` precedent), NO runner, NO\nevent, and NO validator beyond\
+  \ the generic declare-or-waive sweep plus ONE registry-declared\nSPEC-0128 Rule-2\
+  \ shape hook (`runbook_shape`) — the existing narrow escape hatch, named here\n\
+  because VP2 requires a half-declared runbook to ERROR and the generic stance check\
+  \ reads only the\nsingle `declare_key` ( audit-pre, 2026-09-05).\n\n## Verification\n\
+  - **VP1 (registry round-trip, SPEC-0128):** after `graph build`, all five sections\
+  \ appear in\n  `graph/concern-registry.json` + `graph/born-ops.yaml` with NO edit\
+  \ to `init.py`; a fresh `init` on a\n  fixture consumer is born with all five as\
+  \ waivers; the update path delivers them to a carrier that\n  lacks them and leaves\
+  \ an answered one untouched (byte-identical re-run).\n- **VP2 (declare-or-waive,\
+  \ differential):** the born `data_obligation:` DECLARATION passes the sweep on a\n\
+  \  fresh init (no placeholder anywhere in born-ops.yaml — grep); a `data_obligation:`\
+  \ WAIVER missing\n  `expiry` or carrying a non-date is an init/sweep ERROR (strict);\
+  \ a bare-reason `cost:` waiver passes\n  (loose); a half-declared `runbook:` (logs\
+  \ without contact) is an ERROR.\n- **VP3 (profile-gated asking):** on a prototype\
+  \ fixture only `dependency_cadence` renders on the gap\n  register; on a live+pii\
+  \ fixture all five do.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0093
+- SPEC-0128
+- SPEC-0198
+- SPEC-0164
+- SPEC-0100
+- production-readiness-by-derived-profile-a-project-
+requires:
+- SPEC-0198
+supersedes: null
+activation_owner_task: null
+proposed_by: production-readiness-by-derived-profile-a-project-
+binding:
+- code-enforced
+concern:
+- section: environments
+  carrier_path: environments
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: config_source
+  declare_type: string
+  waiver_policy: loose
+  born_order: 190
+  born: "environments:\n  # SPEC-0199 (production-readiness carriers) — WHERE config\
+    \ comes from and whether a staging\n  # environment mirrors prod. Asked by the\
+    \ kernel once the project is live (SPEC-0198). Replace with:\n  # config_source:\
+    \ \"<env | secrets store | file — and that no prod-only code path exists>\"\n\
+    \  # staging: \"<present: <how it mirrors prod> | absent: <why that is acceptable\
+    \ now>>\"\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no environments\
+    \ stance declared yet.\"\n"
+- section: data_obligation
+  carrier_path: data_obligation
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: classification
+  declare_type: string
+  waiver_policy: strict
+  born_order: 191
+  born: "data_obligation:\n  # SPEC-0199 — WHAT personal/sensitive data this project\
+    \ holds, for HOW LONG, and how it is DELETED\n  # on request. Asked once the profile\
+    \ resolves PII (SPEC-0198). BORN AS A DECLARATION, not a waiver:\n  # a project\
+    \ that stores no PII legitimately DECLARES that; the STRICT waiver (reason +\n\
+    \  # compensating_control + expiry, SPEC-0093 rule 6) is for a project that HOLDS\
+    \ PII and defers the\n  # obligation — write it only then, with a REAL date. Replace\
+    \ the born values with:\n  # classification: \"<which stores hold PII / sensitive\
+    \ data>\"\n  # retention: \"<how long, and what enforces it>\"\n  # deletion:\
+    \ \"<how a deletion request is honoured end-to-end>\"\n  classification: \"none\
+    \ — no personal or sensitive data is stored (re-declared at the first PII-shaped\
+    \ migration; SPEC-0198 asks then)\"\n  retention: \"n/a — nothing to retain\"\n\
+    \  deletion: \"n/a — nothing to delete\"\n"
+- section: cost
+  carrier_path: cost
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: threshold
+  declare_type: string
+  waiver_policy: loose
+  born_order: 192
+  born: "cost:\n  # SPEC-0199 — the spend (infra + AI) at which cost becomes a task,\
+    \ and where the number is read.\n  # Asked once money or a live deploy is present\
+    \ (SPEC-0198). Replace with:\n  # threshold: \"<amount per period at which a cost\
+    \ task is filed>\"\n  # reading: \"<where the current figure is read — a billing\
+    \ page, an export, a metric>\"\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no cost threshold declared yet.\"\n"
+- section: dependency_cadence
+  carrier_path: dependency_cadence
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: rhythm
+  declare_type: string
+  waiver_policy: loose
+  born_order: 193
+  born: "dependency_cadence:\n  # SPEC-0199 — pinned manifest + lockfile + the rhythm\
+    \ dependencies are updated on. Part of the\n  # CONSTANT floor: every project\
+    \ is asked, prototype included (SPEC-0198 §7). Replace with:\n  # rhythm: \"<e.g.\
+    \ monthly review of advisories + quarterly upgrade window>\"\n  # lockfile: \"\
+    <path — and that installs are frozen to it>\"\n  waiver:\n    reason: \"Initialized\
+    \ via `bin/yitc-v2 init` — no dependency cadence declared yet.\"\n"
+- section: runbook
+  carrier_path: runbook
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: logs
+  shape_hook: runbook_shape
+  declare_type: string
+  waiver_policy: loose
+  born_order: 194
+  born: "runbook:\n  # SPEC-0199 — what to do when it breaks: where the logs are,\
+    \ how to roll back, who to contact.\n  # Asked once the project is live (SPEC-0198).\
+    \ Distinct from alert_routing (WHO is told) — this is\n  # WHAT they do. Replace\
+    \ with:\n  # logs: \"<where a human reads them>\"\n  # rollback: \"<the command\
+    \ or the pointer to yitc-ops rollback: — and how long it takes>\"\n  # contact:\
+    \ \"<who to call, in what order>\"\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no runbook declared yet.\"\n"
+init_concern: null

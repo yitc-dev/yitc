@@ -1,0 +1,266 @@
+id: SPEC-0207
+title: Resource-ownership declaration — a falsifiable conflict-domain contract replacing
+  a bare layer-independence claim
+status: active
+created_at: 2026-09-16 08:35:13+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA project that wants its land-verify layers to run concurrently\
+  \ must first answer a question nothing\nin the corpus asks today: **what does each\
+  \ layer OWN?** Until this contract, the only available answer\nwas an assertion\
+  \ — \"these layers are independent\" — backed by whatever evidence the author happened\
+  \ to\nthink of. An assertion of that shape cannot be checked, cannot be shown wrong,\
+  \ and surfaces its first\nfalsehood as a flaky verify rather than as a broken declaration.\n\
+  \nUnder this contract a layer instead DECLARES its conflict domains: for each resource\
+  \ class, which\ndomains it owns, on what terms, and — for every one of them — the\
+  \ probe that would DISPROVE the claim.\nIndependence stops being something a project\
+  \ promises and becomes something a reader derives from\ndeclarations that can each\
+  \ be individually falsified. What a layer does not declare, it does not own,\nand\
+  \ a resource nobody owns is not evidence of safety — it is the reason the layer\
+  \ is not admitted.\n\n## Internal\n\nTHE RESOURCE-OWNERSHIP DECLARATION CONTRACT\
+  \ — the sole normative home of what a verify layer declares\nabout the resources\
+  \ it owns, and of the fail-closed default for everything it does not. Eight rules.\n\
+  \nThe CARRIER SHAPE line (that `owns:` is an optional sub-field of a `verify.layers[]`\
+  \ entry) is\nsingle-homed in SPEC-0152 rule 16 with the sibling sub-fields `covers:`\
+  \ / `boundary:` /\n`subject_globs:`; that spec points HERE for the contract and\
+  \ this spec does not restate the carrier's\nown rules (SPEC-0005 rule 8; SPEC-0093\
+  \ rule 3's stance-and-shape-never-value discipline governs the\nfield exactly as\
+  \ it governs its siblings).\nThe TEST-AUTHORING sibling of this contract is **SPEC-0041\
+  \ §1c** (a mutable resource a test OWNS\ntakes a run-unique name): §1c owns how\
+  \ a TEST IS WRITTEN so that a layer-independence claim can be\ntrue, this spec owns\
+  \ what a PROJECT DECLARES in order to make that claim. The two are one pair read\n\
+  from two ends — §1c points here for the declaration, this points there for the authoring\
+  \ — and\nneither restates the other's rules.\n\n### 1. A bare independence claim\
+  \ is not an admissible carrier — this is what is REMOVED\nA declaration that ASSERTS\
+  \ independence — a boolean, a flag, or prose to the effect that layers do not\n\
+  conflict — is a **false attestation**: it states a conclusion while carrying nothing\
+  \ that could\ncontradict it, so it reads identically whether it is true or false.\
+  \ Such a claim is **NOT an admissible\ncarrier of concurrency eligibility** and\
+  \ MUST NOT be introduced on any carrier surface. Concretely\nRETIRED-IN-ROLE by\
+  \ this rule:\n  - an `independent: true`-shaped per-layer or section-level key.\
+  \ It is refused by name, and the\n    narrowing-to-a-boolean direction is not a\
+  \ future extension of this contract;\n  - the standing of **ports, compose-project\
+  \ names and databases as \"the evidence for independence\"**.\n    Those three are\
+  \ DEMOTED to what they are: examples falling inside two of the seven classes of\n\
+  \    rule 2 (`services`, `processes`). They remain perfectly good declarations;\
+  \ what they cease to be is\n    a sufficient answer, because a layer pair may differ\
+  \ on all three and still both rewrite one build\n    cache, one coverage file, one\
+  \ generated artifact or one temporary path.\nEligibility is **DERIVED from declared\
+  \ ownership, never asserted**. There is no key by which a project\nstates the conclusion\
+  \ directly.\n\n### 2. The declaration — `owns:`, over seven resource classes\nA\
+  \ `verify.layers[]` entry MAY carry an OPTIONAL `owns:` mapping. Its keys are drawn\
+  \ from exactly these\n**seven resource classes**, which are the CLOSED set this\
+  \ contract addresses:\n\n| class | what it covers |\n|---|---|\n| `mutable_files`\
+  \ | any path in the tree or on the host this layer WRITES (build outputs, generated\
+  \ artifacts, coverage files, fixtures, lockfiles) |\n| `caches` | any store kept\
+  \ ACROSS runs to make a later run cheaper (package caches, build caches, image layers,\
+  \ compiled-artifact dirs) |\n| `temp_paths` | any scratch location created for the\
+  \ run (`/tmp` entries, scratch dirs, mount points, download staging) |\n| `services`\
+  \ | anything reached over an address (host ports, containers, databases, message\
+  \ brokers, HTTP endpoints, external APIs) |\n| `locks` | any mutual-exclusion primitive\
+  \ (lockfiles, flocks, advisory DB locks, semaphores, named mutexes) |\n| `processes`\
+  \ | process- and container-namespace identity (compose project names, container\
+  \ names, process groups, PID-keyed identifiers) |\n| `shared_sinks` | any destination\
+  \ MORE THAN ONE writer appends to by design (the journal, an aggregated report,\
+  \ a metrics endpoint, a shared log) |\n\nEach class holds a LIST of **boundary entries**.\
+  \ A boundary entry is a mapping:\n\n    owns:\n      <class>:\n      - domain: <the\
+  \ conflict domain this layer owns> # required, non-empty\n        mode: exclusive\
+  \ | shared-synchronized | serial # required (rule 6)\n        probe: <the check\
+  \ that FAILS when this boundary is violated> # required (rule 4)\n        sync:\
+  \ <the one synchronized write path> # required IFF mode is shared-synchronized (rule\
+  \ 5)\n\n`domain:` is the conflict-domain identifier in the class's own address space\
+  \ — a repo-relative glob for\nthe path-shaped classes, a name or name-pattern for\
+  \ `services` / `locks` / `processes`, an individually\nnamed sink for `shared_sinks`\
+  \ (rule 5). It is read as a **conflict domain**, not as a path list: two\nlayers\
+  \ conflict when their domains can resolve to the same underlying resource, which\
+  \ is why a\nPID-keyed or run-keyed domain (`<project>-verify-$$`) is a legitimate\
+  \ exclusive domain while the fixed\nname it replaces is not.\n\n**DECLARING THAT\
+  \ A CLASS IS UNUSED IS ITSELF A FALSIFIABLE CLAIM — a bare empty list is REFUSED.**\n\
+  \"This layer touches no resource of this class\" is a strong claim about a whole\
+  \ class, and rule 4 binds\nit exactly as it binds any other boundary: it MUST carry\
+  \ the probe that would disprove it. A bare\n`caches: []` carries none, so it would\
+  \ be the one shape in this contract that asserts something\nnothing can contradict\
+  \ — rule 1's defect, re-entering through the class that is easiest to leave out.\n\
+  A class the layer genuinely does not use is therefore declared with the **unused-class\
+  \ boundary**:\n\n      caches:\n      - domain: none # the reserved domain naming\
+  \ \"no resource of this class\"\n        mode: exclusive\n        probe: \"! find.\
+  \ -name '.build-cache' -newer.verify-start -print -quit | grep -q.\"\n\nThe probe\
+  \ of an unused-class boundary is the check that **FINDS such a resource**, and it\
+  \ fails when\none appears. An EMPTY LIST is REFUSED (rule 3) — it is not a shorthand\
+  \ for this shape.\n\n**Every class is addressable, and the seven are the closed\
+  \ set.** A resource that does not fall in any\nof the seven classes is by rule 3\
+  \ undeclared, and therefore refused — it never falls through as\npermitted. Adding\
+  \ an eighth class is a normative reshape of this rule (SPEC-0005 rule 7 supersede),\n\
+  never a local carrier extension.\n\n### 3. Fail-closed default — undeclared means\
+  \ REFUSED, never permitted\n**The default for an undeclared resource is refusal,\
+  \ not permission.** Each of the following makes a\nlayer INELIGIBLE for concurrent\
+  \ admission:\n  - the layer carries no `owns:` at all;\n  - `owns:` is present but\
+  \ OMITS a class — an omitted class declares nothing about that class, and\n    \"\
+  nothing declared\" reads as CONFLICT, never as \"no conflict exists\";\n  - a class\
+  \ is present as a BARE EMPTY LIST — an unfalsifiable class-wide claim; a genuinely\
+  \ unused\n    class takes the probe-carrying unused-class boundary of rule 2 (`domain:\
+  \ none`) instead;\n  - any boundary carries `mode: serial` — a correct declaration\
+  \ that ROUTES the layer to the serial\n    lane (rule 6), so it is not admitted\
+  \ concurrently;\n  - a boundary entry is malformed — a missing or empty `domain:`,\
+  \ an unknown `mode:`, a missing\n    `probe:` (rule 4), a `shared-synchronized`\
+  \ entry missing `sync:` (rule 5). A malformed entry is\n    treated as ABSENT, so\
+  \ a typo can never read as a declaration;\n  - two admitted layers declare domains\
+  \ that can resolve to the same resource under any mode other\n    than the ones\
+  \ rule 6 permits for sharing.\n**SCOPE BOUND, stated so the rule is not read wider\
+  \ than it is.** What is refused is **CONCURRENT\nADMISSION** — the layer runs, as\
+  \ it runs today, in the existing serial order. This contract therefore\nadds NO\
+  \ gate to any land as it stands: a project that declares nothing keeps exactly its\
+  \ current\nbehaviour, and the only thing it cannot do is claim eligibility for a\
+  \ concurrency it has not shown it\ncan survive. Consistent with CHARTER §Project-declared\
+  \ audit-post exemption — automation may only\nRESTORE a gate, never remove one.\n\
+  \n### 4. FALSIFIABILITY — every boundary names the probe that would disprove it\n\
+  NORMATIVE: **every boundary entry MUST carry a `probe:`, the named check that FAILS\
+  \ when that boundary\nis violated — including the rule-2 unused-class boundary.**\
+  \ There is no boundary shape exempt from it. This is what separates a declaration\
+  \ from a claim: the declaration states what is owned AND\nhands the reader the instrument\
+  \ that would catch it being wrong.\n  - A boundary entry with no `probe:` is **undeclared**\
+  \ (rule 3), not a weaker declaration.\n  - The probe must be able to FAIL. A probe\
+  \ that passes under every state — including the violation it\n    names — proves\
+  \ nothing and is not a probe. (The differential discipline is homed in SPEC-0156\
+  \ and\n    is cited, not restated: a check never seen to fail proves nothing.)\n\
+  \  - The probe is stated as a concrete check a reader can run — a command, or a\
+  \ named script in the\n    project's tree. Like every other value on this carrier,\
+  \ the kernel reads it as SHAPE and never\n    judges its content (SPEC-0093 rule\
+  \ 3).\n  - The probe belongs to the BOUNDARY, not to the layer: a layer declaring\
+  \ six boundaries names six\n    probes. A single per-layer probe cannot discriminate\
+  \ which boundary broke, which is the property\n    that makes a violated declaration\
+  \ diagnosable instead of merely red.\n\n### 5. The shared-synchronized allowlist\
+  \ is BOUNDED — individually named, mechanism named, probe carried\nSome sinks are\
+  \ shared by design and are safe because every writer reaches them through one synchronized\n\
+  path. Such a sink MAY be allowlisted with `mode: shared-synchronized`, under three\
+  \ conditions, ALL\nrequired:\n  1. **Named INDIVIDUALLY.** `domain:` must be a LITERAL\
+  \ name of ONE sink. A **blanket allowlist is\n     REFUSED BY NAME**: a glob, a\
+  \ wildcard, a prefix-with-`*`, a bare `all` / `any` / `*`, an empty\n     name,\
+  \ or a directory standing in for its contents. The refusal is structural, at the\
+  \ declaration\n     read — there is no reason string that admits a blanket entry,\
+  \ because a blanket allowlist would\n     re-create precisely the unfalsifiable\
+  \ claim rule 1 removes, one level down.\n  2. **The SYNCHRONIZATION MECHANISM is\
+  \ named** in `sync:` — the ONE write path every concurrent writer\n     goes through,\
+  \ and every writer to that sink MUST name the SAME one. Naming the mechanism is\
+  \ the\n     substance of the exemption; a sink asserted to be \"synchronized\" without\
+  \ naming what synchronizes\n     it is a rule-1 claim and is refused, and two writers\
+  \ naming DIFFERENT paths for one sink conflict.\n  3. **It carries its own `probe:`**\
+  \ like any other boundary (rule 4) — the check that fails when a\n     writer reaches\
+  \ the sink OUTSIDE the named path.\nA sink QUALIFIES only when every concurrent\
+  \ writer reaches it through that one path; if any writer can\nreach it directly,\
+  \ it does not qualify however well-behaved the others are. Worked instance: the\n\
+  engine's `events.jsonl`, written by every session through the governed `event` append\
+  \ (append-only +\nunion-merge), which is the shape <project>'s green-exit test-class\
+  \ record already uses.\n\n**THE ONE PATH MUST BE THE SAME ONE: layers naming DIFFERENT\
+  \ `sync:` values for the SAME sink CONFLICT.**\nThe exemption rests on there being\
+  \ a single serializing path, so two writers to one sink that name two\ndifferent\
+  \ paths have not described a synchronized sink at all — they have described an unsynchronized\n\
+  one twice. This is a CONFLICT (rule 3's last clause), not a pair of valid declarations,\
+  \ and it is the\nfailure mode an allowlist is likeliest to hide: each declaration\
+  \ is individually well-formed and only\ntheir COMPARISON is wrong.\n\n### 6. Three\
+  \ dispositions, and there is no fourth\nEvery resource a layer touches resolves\
+  \ to exactly one of:\n  - **ISOLATE** (`mode: exclusive`) — the layer owns the domain\
+  \ alone; no other admitted layer's domain\n    can resolve to it. The ordinary answer,\
+  \ and the one a per-run key (a PID-keyed compose project, an\n    ephemeral port,\
+  \ a run-scoped scratch dir) is for.\n  - **ALLOWLIST** (`mode: shared-synchronized`)\
+  \ — a shared sink meeting all three conditions of rule 5.\n  - **SERIAL** (`mode:\
+  \ serial`) — the resource cannot be isolated and does not qualify for the\n    allowlist,\
+  \ so the subject runs in the **existing serial lane** rather than concurrently.\
+  \ That lane\n    is `tests/load-sensitive.txt` and its two bounds are SPEC-0132\
+  \ §3's watch-point; this rule\n    ROUTES to that existing lane and creates no second\
+  \ serialization mechanism.\n    **A `serial` boundary is a ROUTING answer, never\
+  \ a concurrency one: a layer carrying ANY `serial`\n    boundary is NOT admitted\
+  \ to a concurrent lane** — it is declared correctly and routed to the serial\n \
+  \   lane. Reading `serial` as an admissible mode would let a layer be concurrently\
+  \ admitted on the\n    strength of a declaration whose own content says it must\
+  \ not run concurrently.\nAnything that resolves to none of the three stays INELIGIBLE\
+  \ under rule 3. A fourth disposition — an\noverride, an accepted-risk marker, a\
+  \ \"shared but we checked\" — is deliberately absent: it would be rule\n1's claim\
+  \ under a new name.\n\n### 7. Worked example — <project>'s four layers, filled in\n\
+  The four declared layers (`static`, `sandbox`, `frontend-unit`, `stack`) were the\
+  \ corpus's only\nindependence evidence, offered as prose. Filled into this contract,\
+  \ that prose becomes checkable —\nand the filling is what shows the prose was incomplete:\n\
+  \n    - layer: stack\n      command: bash scripts/verify-stack.sh\n      owns:\n\
+  \        processes:\n        - domain: \"<project>-verify-$$\" # compose project\
+  \ keyed to this shell's pid\n          mode: exclusive\n          probe: \"docker\
+  \ compose ls --format json | jq -e '[.[]|select(.Name==\\\"<project>-verify-\\\"\
+  +env.TESTPID)]|length==1'\"\n        services:\n        - domain: \"APP_PORT=0 DB_PORT=0\"\
+  \ # ephemeral ports; the fixed 5434 is what this replaces\n          mode: exclusive\n\
+  \          probe: \"grep -q 'APP_PORT=0' scripts/verify-stack.sh && ! ss -ltn |\
+  \ grep -q ':5434 '\"\n        temp_paths:\n        - domain: \"/tmp/<project>-verify-$$/**\"\
+  \n          mode: exclusive\n          probe: \"test -z \\\"$(find /tmp -maxdepth\
+  \ 1 -name '<project>-verify-*' -not -name \\\"*-$$\\\")\\\"\"\n        mutable_files:\
+  \ # DECLARED-UNUSED, and falsifiable: the mount is read-only\n        - domain:\
+  \ none\n          mode: exclusive\n          probe: \"! docker inspect <project>-verify-$$\
+  \ -f '{{range.Mounts}}{{.RW}}{{end}}' | grep -q true\"\n        caches: # the unused-class\
+  \ probe is the one that FINDS such a resource\n        - domain: none\n        \
+  \  mode: exclusive\n          probe: \"test -z \\\"$(find. -name '.cache' -o -name\
+  \ 'node_modules/.cache' -print -quit)\\\"\"\n        locks:\n        - domain: none\n\
+  \          mode: exclusive\n          probe: \"test -z \\\"$(find /tmp -maxdepth\
+  \ 1 -name '<project>-*.lock' -print -quit)\\\"\"\n        shared_sinks:\n      \
+  \  - domain: \"events.jsonl\" # named INDIVIDUALLY (rule 5.1)\n          mode: shared-synchronized\n\
+  \          sync: \"bin/yitc-v2 event — the governed append-only + union-merged write\
+  \ path\"\n          probe: \"! git log -p --since=30.days -- events.jsonl | grep\
+  \ -q '^+.*\\\"hand_appended\\\"'\"\n\n**THE ANTI-EXAMPLE — the failing input this\
+  \ contract exists for.** Two layers declare independence\nbecause their ports, compose\
+  \ projects and databases all differ, and both rewrite one build cache. Under\nrule\
+  \ 1 that pair was admissible: every stated fact was true. Under this contract it\
+  \ is refused, and the\nrefusal is locatable — `caches` is either OMITTED by both\
+  \ (rule 3: an omitted class reads as conflict)\nor DECLARED by both with domains\
+  \ resolving to the same cache (rule 3's last clause). The class that\ncatches it,\
+  \ `caches`, is one neither of the three demoted evidence examples reaches. The declaration\n\
+  does not have to be clever to catch this; it only has to be complete, which is what\
+  \ rule 3 enforces.\n\n### 8. What this contract does NOT do\nIt does not run any\
+  \ layer concurrently, does not admit anything to a concurrent lane, and adds no\n\
+  kernel reader, gate, event, store, section or concern. It states what a project\
+  \ must be able to SAY\nbefore concurrency is a question that can be answered; the\
+  \ admission mechanism that CONSUMES these\ndeclarations is the sibling work ( and\
+  \ its siblings), and no part of that is authorized here.\nA project changes nothing\
+  \ today: `owns:` is optional and its absence is the current behaviour.\n\n## Parameters\n\
+  \nNone consumed. The serial lane's two bounds (`YITC_LOAD_SENSITIVE_SHARE_PCT`,\n\
+  `YITC_LOAD_SENSITIVE_MAX_FILES`) are SPEC-0132 §3's and are referenced, never duplicated\
+  \ here.\n\n## Rationale\n\nThe real incident is the external consult recorded at\n\
+  `decisions/parallel-layer-timeout-consult-audit-adhoc.yaml` (RED, 2026-09-14), whose\
+  \ finding 3\n(`false-attestation`, high) named the defect precisely — \"a bare independence\
+  \ declaration is a false\nattestation because ports, Compose names, and databases\
+  \ are evidence examples rather than a closed\nresource contract\" — with the failing\
+  \ input rule 7's anti-example reproduces, and whose Q3 named the\nremedy this spec\
+  \ implements: a falsifiable resource-ownership and conflict declaration with probes,\n\
+  synchronized sinks allowlisted, everything else isolated or placed in the existing\
+  \ serial lane.\n\nThe seven classes are that finding's own enumeration, adopted\
+  \ as a closed set rather than re-derived.\nThe per-layer sub-field shape is the\
+  \ established idiom of SPEC-0152 rule 16's `covers:` / `boundary:` /\n`subject_globs:`\
+  \ — optional, opt-in, shape-checked, value-blind, fail-closed on malformation —\
+  \ extended\nrather than paralleled (CHARTER §P1 F1/F2). What the addition REMOVES\
+  \ is named in rule 1 (F3): the bare\nindependence claim ceases to be a legitimate\
+  \ carrier, and three pieces of evidence prose lose their\nstanding as a sufficient\
+  \ answer.\n\n## Verification\n\n- **VP1 (AC1 — shape + fail-closed default):** `tests/test_spec0207_resource_ownership.py`\
+  \ asserts all\n  SEVEN classes of rule 2 are addressable in this body, and that\
+  \ the reference admissibility predicate\n  returns REFUSE for an absent `owns:`,\
+  \ for an omitted class, and for a malformed entry — i.e. that the\n  default for\
+  \ an undeclared resource is refusal, not permission.\n- **VP2 (AC2 — falsifiability):**\
+  \ the same self-test asserts a probe-less boundary entry is refused, and\n  EXECUTES\
+  \ rule 7's worked-example probe against a compliant fixture (passes) and a violating\
+  \ fixture\n  (FAILS) — the probe is demonstrated to fail when the boundary is violated,\
+  \ not merely required in prose.\n- **VP3 (AC3 — bounded allowlist):** the self-test\
+  \ asserts an individually-named synchronized sink with\n  a named `sync:` is admitted,\
+  \ while a glob / wildcard / bare `all` / empty sink name is REFUSED, and a\n  shared\
+  \ sink with no `sync:` is refused.\n- **VP4 (delivery, not dangling):** SPEC-0152\
+  \ rule 16's body names the `owns:` sub-field and resolves to\n  `SPEC-0207`, so\
+  \ a reader of the authoritative `verify.layers[]` schema surface is routed to this\n\
+  \  contract; asserted by the self-test so the pointer cannot silently rot.\n"
+cites:
+- SPEC-0152
+- SPEC-0132
+- SPEC-0093
+- SPEC-0156
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

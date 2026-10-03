@@ -1,0 +1,328 @@
+id: SPEC-0188
+title: Placement of a non-test land check — earliest governed point whose subject
+  contains the facts, with the five-element future-author test
+status: active
+created_at: 2026-08-20 21:35:55+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/worktree.py#_corpus_integrity_verdict
+- bin/lib/worktree.py#_land_tail_tripwire_verdict
+- bin/lib/worktree.py#_land_tail_withhold
+- bin/lib/worktree.py#_land_tail_marker_path
+- bin/lib/worktree.py#_land_tail_marker_span
+- bin/lib/worktree.py#_land_tail_marker_write
+- bin/lib/worktree.py#_land_tail_marker_clear
+- bin/lib/worktree.py#_land_tail_marker_live_covering
+- bin/lib/worktree.py#_await_land_tail_marker
+- bin/lib/batch_landing.py#_land_form_batch
+- bin/lib/worktree.py#_land_integrate
+body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity guard,\
+  \ an authorization preflight, a\nprovenance check — has to run SOMEWHERE on the\
+  \ land path. Historically each one was appended to\nthe END, next to the check written\
+  \ before it, and the cost of that habit was paid by branches that\nhad done nothing\
+  \ wrong: on 2026-08-20 two batches ten minutes apart died on one member's off-path\n\
+  spec edit, and three innocent branches paid a full merge, the full suite and a 15-30\
+  \ minute queue\nwait for someone else's diff. This spec says where a non-test land\
+  \ check belongs, and\ngives the next author a five-answer test to apply before writing\
+  \ one.\n\n## Internal\n\n### Rule 1 — The placement rule\n**Place each non-test\
+  \ land check at the EARLIEST GOVERNED POINT whose SUBJECT CONTAINS ALL FACTS\nNEEDED\
+  \ TO ANSWER IT; do not place it later unless a LATER MUTATION CAN INVALIDATE the\
+  \ earlier\nresult.**\n\nTwo clauses, and both are load-bearing. The first forbids\
+  \ running a question later than the first\nplace it can be answered — later costs\
+  \ more and, on a shared land path, that cost falls on peers.\nThe second is the\
+  \ ONLY licence for a later placement, and it is a positive obligation: NAME the\n\
+  mutation that invalidates the earlier answer. \"Governed point\" means a point on\
+  \ the land path the\nsystem already owns — a formation walk, a merge seam, a verify\
+  \ boundary — never a new one invented\nto host the check (CHARTER §P1 filter 3).\n\
+  \n### Rule 2 — The five-element future-author test\nBefore placing a non-test land\
+  \ check, ANSWER ALL FIVE. An unanswered element means the placement is\nnot yet\
+  \ decided; a placement that ships with one blank is incomplete whichever four are\
+  \ filled.\n\n1. **(1) SUBJECT** — WHAT the check runs against: one branch alone,\
+  \ the assembled candidate tree,\n   the final tree after a retry. Naming the subject\
+  \ is what decides the placement, because a point\n   is eligible only if its subject\
+  \ holds the facts of element 2.\n2. **(2) REQUIRED FACTS** — WHICH facts the check\
+  \ must read to answer at all. A point whose subject\n   lacks one of them cannot\
+  \ host the check, however cheap it is there.\n3. **(3) LATER INVALIDATORS** — WHAT\
+  \ later mutation could make an earlier answer wrong. This is the\n   rule-1 second\
+  \ clause in question form: an empty answer means the check belongs at the earliest\n\
+  \   eligible point and nowhere else; a non-empty one names, per mutation, which\
+  \ later point must\n   re-ask and why.\n4. **(4) EXPECTED COST** — WHAT the check\
+  \ costs where you are placing it, and — the half that\n   matters on a shared path\
+  \ — WHO PAYS IT. The same sub-second check is nearly free before the\n   queue and\
+  \ expensive after it, because after it the price includes a merge, a suite and an\n\
+  \   admission wait paid by every peer.\n5. **(5) RECIPIENT OF FAILURE** — WHO IS\
+  \ TOLD when the check fails, ON THEIR OWN CHANNEL. This is a\n   REQUIREMENT, not\
+  \ presentation: a verdict that reaches only an aggregate process leaves the\n  \
+  \ branch that must act unable to diagnose itself. Measured : a batch rejection was\n\
+  \   delivered to the batch HEAD's process while the violating member's own log read\
+  \ only \"WAITING\n   for the land reservation\", and the cause sat on its journal\
+  \ row undelivered — zero remedial\n   events in the following 20 minutes; all five\
+  \ members simply re-queued.\n\n### Rule 3 — Placement vocabulary: reuse the existing\
+  \ key, add no parallel one\nA placement is named with the EXISTING row-shape key\
+  \ **`land_completed.abort_preflight`**\n— \"raised before the admission slot and\
+  \ the suite\". Do NOT introduce a parallel placement enum,\nconstant, taxonomy or\
+  \ event type for the same distinction.\n\nThe key is a row SHAPE and deliberately\
+  \ not an abort CLASS, because a class is not a reliable proxy\nfor placement: `rebaseline-unauthorized`\
+  \ spans BOTH the cheap §3a authorization preflight (already\nearly — nothing to\
+  \ move) AND the waive-coverage refusal raised from the pinned run, which\nCANNOT\
+  \ move, since deciding whether a failure is waivable requires knowing what failed.\
+  \ A new\nvocabulary keyed on the class would re-open exactly that ambiguity.\n\n\
+  ### Rule 4 — Anti-duplication: one implementation, thin wrappers\nA check placed\
+  \ at more than one point has ONE implementation, reached from each point by placement\n\
+  metadata or a thin per-point wrapper (typically a parameterised subject — the same\
+  \ body pointed at\na branch or at a merged tree). DUPLICATING CHECK LOGIC ACROSS\
+  \ POINTS IS PROHIBITED: hand-maintained\ncopies drift, and a future author edits\
+  \ one of them.\n\n### Rule 5 — No general final-tree placement point (a bucket is\
+  \ refused)\nThere is **no standing third placement point on the final tree.** A\
+  \ re-check after the assembled\nbatch is TRIGGER-SPECIFIC — today, `retry-main-advanced`\
+  \ re-merging `main` into the candidate — and\neach such placement must PROVE that\
+  \ the retry changes THAT check's inputs (rule 2 element 3, filled\nand named). \"\
+  Anything re-derived after a retry\" is a bucket, and buckets are refused: they\n\
+  reintroduce append-to-the-END under a rule-shaped name.\n\n### Rule 7 — A post-ff\
+  \ bookkeeping WRITE re-asks the readers of what it wrote, or it is withheld\n**A\
+  \ land's post-ff bookkeeping write is ADMITTED only on positive proof that the tests\
+  \ which READ\nthe artifact it wrote are green on the written tree; every other outcome\
+  \ WITHHOLDS the write,\nrestores the tree the fast-forward published, and records\
+  \ the withholding.**\n\nThis is rule 1's second clause applied to a mutation the\
+  \ rule's original two placements did not\ncover: the verified subject is the CANDIDATE\
+  \ tree, and a tail write mutates `main` AFTER that\nsubject was judged. The write\
+  \ IS the named invalidator, so re-asking is licensed; what is re-asked\nis bounded\
+  \ to that artifact's own readers, which is why this is not the rule-5 bucket (\"\
+  anything\nre-derived after the ff\"). A tail write nothing reads re-asks nothing\
+  \ and costs nothing.\n\nThree bounds, each load-bearing:\n1. **THE UNIT IS THE WRITER'S\
+  \ WHOLE TRANSACTION.** A writer that produces several paths is judged\n   over the\
+  \ UNION of their readers and its paths are admitted or withheld TOGETHER. A per-path\n\
+  \   check admits a green path beside an unproven sibling written in the same breath.\n\
+  2. **THE READER SET IS DERIVED FROM THE CORPUS, NEVER DECLARED.** A hand-maintained\
+  \ writer→test\n   map is complete when written and wrong afterwards: the tripwire\
+  \ that caught the incident in\n   §Worked example 2 did not exist when the writer\
+  \ that broke it. Over-inclusion is harmless\n   (an extra green file costs its own\
+  \ bounded wall); under-inclusion is the defect.\n3. **WITHHOLDING IS THE FAIL-CLOSED\
+  \ DEFAULT, AND IT IS FREE ONLY BECAUSE THE WRITE IS\n   RE-DERIVABLE.** Red, timeout,\
+  \ budget, runner error — anything that is not positive proof\n   withholds. That\
+  \ is affordable precisely because every writer this rule governs recomputes its\n\
+  \   write from scratch on the next land, so a withheld write is DEFERRED, never\
+  \ lost. **A tail\n   write that is NOT re-derivable may not use this rule to skip\
+  \ itself** — it must be moved into\n   the verified candidate or else not be a tail\
+  \ write at all.\n\nThe five elements, filled (rule 2), for the seam this rule governs:\n\
+  - (1) SUBJECT — the tree ON `main` AFTER the fast-forward AND after this one writer's\
+  \ paths are\n  written; nothing earlier holds those bytes.\n- (2) REQUIRED FACTS\
+  \ — the written paths and the tests that read them. Unanswerable before the\n  write\
+  \ exists, which is what places the check here and not at either rule-2 point.\n\
+  - (3) LATER INVALIDATORS — none within the land: the check runs inside the same\
+  \ ff lock as the\n  write and the bookkeeping commit, so nothing mutates between\
+  \ the verdict and the commit.\n- (4) EXPECTED COST — the readers of ONE artifact,\
+  \ run in parallel under a wall budget, paid by\n  the LANDING land only and only\
+  \ when a write actually happened. Measured on this repo: ~11.4s\n  for the lane\
+  \ carrier's 5 readers, ~13.3s for the duration table's 13, against a measured\n\
+  \  incident cost of ~2.5h of serialized reservation, >15 parked lands and two halted\
+  \ workers.\n  The budget is also the deadlock bound — a reader that hangs against\
+  \ the held lock expires into\n  a withhold rather than wedging it.\n- (5) RECIPIENT\
+  \ OF FAILURE — the WRITER, not a branch: no branch caused this and none is refused.\n\
+  \  The `land_tail_write_withheld` row names the writer, its withheld paths and the\
+  \ failing reader,\n  and the derived debt view surfaces a run of them — which is\
+  \ the real signal, since one\n  withholding is a deferral and a repeated one means\
+  \ the writer and its readers genuinely\n  disagree.\n\n**What this rule does NOT\
+  \ license:** it is not a general post-ff re-verify (rule 5 stands — the\nfull candidate\
+  \ suite is NOT re-run), it gates no branch, it refuses no land, and it never makes\
+  \ a\nland that already integrated fail. Its only power is to decline to COMMIT a\
+  \ bookkeeping write.\n\n#### Rule 7's in-flight marker — how the tail's own write\
+  \ avoids being read as foreign dirt\nA tail write mutates `main` while a CONCURRENT\
+  \ land is running its earliest foreign-dirt check\nagainst that same shared checkout.\
+  \ For the window between the write and the bookkeeping commit (or\na withhold restore),\
+  \ the writer's paths are UNCOMMITTED on `main` — and they are indistinguishable,\n\
+  to a reader, from a human's stray work. MEASURED 2026-09-13 ( inside the tail):\
+  \ the\nconcurrent land's earliest arm read them as foreign work and ABORTED a healthy\
+  \ branch.\n\n**The tail NAMES what it is about to write, and the concurrent check\
+  \ WAITS on dirt that naming\ncovers — bounded — instead of refusing it.** This is\
+  \ not a separate rule: it exists only so rule 7's\nown write does not trip the foreign-dirt\
+  \ refusal, so it is stated with the write it serves. Six\nelements, each load-bearing:\n\
+  \n1. **FILE LOCATION.** ONE file, `land-tail-inflight`, in the EXISTING off-tree\
+  \ verify sidecar for\n   the main checkout — no new store (rule 3). OFF-TREE is\
+  \ load-bearing, not tidiness: a marker\n   inside the working tree would itself\
+  \ be uncommitted dirt, i.e. the very thing it exists to\n   classify.\n2. **LIFECYCLE.**\
+  \ Armed by the tail writer BEFORE its first write and inside the SAME ff lock as\n\
+  \   the write and the bookkeeping commit; cleared when the arming span exits — after\
+  \ the commit,\n   after a withhold restore, and on a raise alike, so no exit path\
+  \ leaks a marker. The write is\n   ATOMIC (a reader never sees a half-written marker).\
+  \ A failure to arm leaves NO marker, which is\n   exactly the un-marked behaviour:\
+  \ the concurrent land refuses. The mechanism therefore degrades\n   to the status\
+  \ quo ante, never to a weaker one.\n3. **HOLDER-PID LIVENESS.** The marker records\
+  \ the arming process's pid, and it covers only while\n   that pid is ALIVE; a clear\
+  \ removes only the holder's OWN marker, never another holder's. A\n   crashed or\
+  \ killed tail thus grants no standing waiver — its leftover marker covers nothing\
+  \ from\n   the moment it dies, so a stale file cannot silently suppress a real refusal.\n\
+  4. **EXACT/GLOB PATH COVERAGE.** Coverage requires EVERY foreign path to match one\
+  \ of the marker's\n   named entries, exact or glob. Globs are necessary, not convenient:\
+  \ some of the tail's written\n   paths carry ids ALLOCATED DURING the write and\
+  \ cannot be named in advance. Over-breadth is\n   bounded by DIRECTION — a genuinely\
+  \ foreign path an over-broad glob happens to cover costs a\n   bounded WAIT and\
+  \ then the same refusal; it never earns an admit.\n5. **THE BOUNDED WAIT.** On covered\
+  \ dirt the concurrent check re-classifies `main` on a poll until\n   the dirt clears,\
+  \ the covering live marker is gone, or the bound elapses. It takes NO budget of\n\
+  \   its own: it reuses the wall budget rule 7's element (4) already names\n   (`YITC_LAND_TAIL_TRIPWIRE_BUDGET_S`)\
+  \ — one knob, no parallel parameter (rule 3) — counted ONCE\n   PER TRIPWIRED TAIL\
+  \ WRITER, because the tail runs those writers one after the other (two today:\n\
+  \   the duration table, then the load-sensitive entry) and a waiter may arrive at\
+  \ the first one's\n   start. MEASURED : a tail held its marker ~148 s against a\
+  \ 120 s budget. When the marker\n   disappears between the classification and the\
+  \ coverage read, the answer is ONE more read, never\n   the stale one: the holder's\
+  \ commit or restore may have landed in between.\n6. **THE ADMISSION INVARIANT —\
+  \ the refusal is UNCHANGED.** Stated as what may be ADMITTED, never as\n   \"the\
+  \ refusal is merely delayed\": **the marker NEVER admits while foreign dirt REMAINS.**\
+  \ What it\n   defers is the CLASSIFICATION, not the verdict. Absent, unparseable,\
+  \ dead-holder or uncovered\n   skips the wait entirely; an EXPIRED wait returns\
+  \ the STILL-DIRTY verdict, so the caller refuses\n   exactly as before. On the success\
+  \ path the tail commits or restores, the re-classification comes\n   back CLEAN,\
+  \ and the land proceeds on the ORDINARY no-dirt admission — no refusal was owed\
+  \ and\n   none was suppressed. So the marker converts no dirty verdict into an admit,\
+  \ gates no branch and\n   weakens no guard; what it removes is a refusal issued\
+  \ against dirt that was never foreign.\n\n### Rule 6 — What this spec does NOT do\n\
+  It relocates no check (that work is, landed), adds no gate, verb, event type or\
+  \ store, and\nchanges nothing about WHAT any guard considers a violation. It governs\
+  \ WHERE a check is asked, WHO\nis removed, and WHO is told.\n\n## Worked example\
+  \ — the two placements made, in this rule's terms\n\nThe example a next author copies.\
+  \ Both entries fill all five elements; an entry with a blank\nelement is not a worked\
+  \ example of this rule (rule 2), and the element measured missing in\nproduction\
+  \ is element 5.\n\n**POINT 1 — SELECTION** (`bin/lib/batch_landing.py#_land_form_batch`,\
+  \ the per-candidate corpus-integrity\npredicate consulted inside the existing formation\
+  \ walk):\n- (1) SUBJECT — one candidate BRANCH ALONE, diffed against the current\
+  \ land base\n  (`base..<branch>`), before any batch exists and before anything queues\
+  \ behind it.\n- (2) REQUIRED FACTS — that branch's own diff over the protected corpus\
+  \ paths, plus the new journal\n  events THAT BRANCH carries (its `spec_edited` /\
+  \ rationale receipts). Both are readable from the\n  branch alone; nothing about\
+  \ peers or about a merged tree is needed.\n- (3) LATER INVALIDATORS — the land's\
+  \ journal union-merge can ADD a peer's receipt, so a branch\n  that violates ALONE\
+  \ may be clean on the merged tree. That is why per-branch checking is STRICTER\n\
+  \  than merged checking and why point 2 is a DIFFERENT subject rather than the same\
+  \ check repeated.\n  `main` advancing moves the base.\n- (4) EXPECTED COST — a few\
+  \ `git` reads per candidate, sub-second, paid by the forming land only:\n  no merge,\
+  \ no suite, no admission slot, and nothing paid by a peer.\n- (5) RECIPIENT OF FAILURE\
+  \ — the candidate branch itself. The skip is recorded as its own\n  `queue_excluded`\
+  \ row, keyed to that branch, carrying the guard's own message as `cause`; NO row\n\
+  \  is written for an innocent peer, so no peer is told it caused anything. A violating\
+  \ HEAD, which\n  cannot be skipped because it holds the land slot, instead DISENGAGES\
+  \ formation\n  (`head-corpus-violation`) and lands solo — it is then told by its\
+  \ own abort at point 2.\n\n**POINT 2 — ASSEMBLED BATCH** (`bin/lib/worktree.py#_land_integrate`,\
+  \ on the merged candidate tree\nBEFORE `_verify_under_admission`):\n- (1) SUBJECT\
+  \ — the MERGED candidate tree: every admitted member's diff plus the union-merged\n\
+  \  journal, judged as one corpus.\n- (2) REQUIRED FACTS — the merged diff and the\
+  \ union-merged receipts. Only the assembled tree holds\n  them, so this question\
+  \ is UNANSWERABLE at point 1; and point 1 admits on `error` (an error is a\n  fact\
+  \ about the checker, never a verdict on a branch), so a member whose per-branch\
+  \ check could\n  not run genuinely arrives here.\n- (3) LATER INVALIDATORS — `retry-main-advanced`\
+  \ re-merges `main` into the candidate AFTER this\n  point, so the retained post-suite\
+  \ run judges a tree this point never saw. That NAMED invalidator\n  is what licenses\
+  \ the later call under rule 1; it licenses no general third point (rule 5).\n- (4)\
+  \ EXPECTED COST — one runner pass on an already-merged tree, sub-second, still ahead\
+  \ of the\n  verify admission slot and the full suite. Placed unconditionally at\
+  \ that seam, a SOLO land pays\n  the identical call and gets the identical early\
+  \ answer.\n- (5) RECIPIENT OF FAILURE — every member record carries the cause (`corpus_violation`),\
+  \ the way\n   marks `red_assertions`, so each member's own row states what killed\
+  \ the batch. It claims\n  nothing about WHOSE change it was — attributing a merged\
+  \ tree's violation across members is\n  exactly the guess the failing-assertion\
+  \ attributor refuses to make. The abort carries the\n  existing `abort_preflight`\
+  \ row shape (rule 3).\n\n## Worked example 2 — the post-ff tail write (rule 7),\
+  \ in this rule's terms\n\n**`bin/lib/worktree.py#_land_tail_tripwire_verdict`, consulted\
+  \ by each withholdable tail writer in\n`_land_integrate` between its write and the\
+  \ `git add` that stages it.** The five elements are\nfilled in rule 7 itself rather\
+  \ than repeated here; what this example adds is the INCIDENT and the\ntwo writers\
+  \ it governs today.\n\nMEASURED 2026-09-11, two fleet-wide main-red incidents of\
+  \ one class. The second is this rule's\nsubject: at 16:20-17:53Z the load-sensitive\
+  \ tail (`_load_sensitive_entry_at_land_tail`) re-entered\na lane line the landing\
+  \ card's own ship diff had just removed, contradicting that card's own\ntripwire\
+  \ — a test file that did not exist when the writer. Every land aborted for 93\n\
+  minutes: >15 parked lands, six aborted verifies, two halted workers, and a cause\
+  \ that read as each\nsuccessive branch's failure rather than as the tail's.\n\n\
+  The two writers under rule 7 today, both re-derivable and so both withholdable:\n\
+  `_refresh_verify_duration_table` (`tests/verify-durations.json`) and\n`_load_sensitive_entry_at_land_tail`\
+  \ (the lane carrier plus each auto-filed card — ONE transaction,\nbound 1).\n\n\
+  A THIRD post-ff writer is NAMED HERE AS OUT OF SCOPE, because silence would read\
+  \ as coverage: the\nland's own JOURNAL appends (`land_completed` and its siblings)\
+  \ are verdict-affecting too — a new\npayload key on one of them can red the payload-key\
+  \ census — but they are NOT withholdable: the\njournal is append-only (CHARTER §P5)\
+  \ and `land_completed` is the land's terminal record. Rule 7\ndoes not reach them,\
+  \ and their remedy is branch-side detection, not withholding.\n\n## Delivery\n\n\
+  `binding: [code-enforced]` with non-empty `implements:` — the anchors ARE the delivery:\
+  \ an author\nabout to place a land check touches those sites, and the Stage-1 spec-coverage\
+  \ reverse lookup\n(SPEC-0032 step 5, `graph query <file>`) hands them this spec\
+  \ before they edit. The token names the\nDELIVERY CLASS and nothing more: NO code\
+  \ enforces this rule against a future author, and no floor\ntrigger is added — a\
+  \ new `before-*` surface would mean a new FLOOR_TRIGGERS row and surface\nconstant\
+  \ in the CLI, which is precisely the new gate this rule's own card refused to add.\n\
+  \n## Rationale\n\nThe rule is the external auditor's wording, from the third consult\
+  \ on\n(`decisions/check-placement-rule-audit-adhoc.yaml`, YELLOW/2) — recorded here\
+  \ because it interprets\nthe rule, not to narrate the deliberation (SPEC-0005 rule\
+  \ 3). Two of its findings are rules 5 and 4\nabove. The incident that makes this\
+  \ worth a standing rule rather than one relocation is stated in\n§Scenario: every\
+  \ non-test check on the land path had been appended to the END, and the measured\n\
+  bill for that habit was three innocent branches per burst — one of them, task/,\
+  \ spending\n735s + 1906s + 2495s across three lands, two of the aborts caused by\
+  \ other branches' off-path spec\nedits.\n\n## Verification\n\n- **VP1 (the rule\
+  \ is normative):** this spec resolves and is `active` — a `proposed` spec governs\n\
+  \  nothing (SPEC-0005 §4), so the status is asserted independently of the body.\n\
+  \  PROBE: `tests/test_t11367_check_placement_rule.py`.\n- **VP2 (all five elements):**\
+  \ §Internal rule 2 carries all five named elements. PROBE: the same\n  file asserts\
+  \ each of the five INDEPENDENTLY and names which one is missing on failure — never\
+  \ one\n  aggregate match, because a four-element author is exactly the failure mode.\n\
+  - **VP3 (vocabulary reuse):** the body names `land_completed.abort_preflight` and\
+  \ declares no\n  parallel placement enum or constant. PROBE: the same file asserts\
+  \ the key is named, that every\n  placement token this spec declares already resolves\
+  \ in the land implementation, and that no new\n  placement constant exists in `bin/lib/`.\n\
+  - **VP4 (adoption — CHARTER §P8, infra-class):** the rule is CONSUMED — §Worked\
+  \ example\n  re-describes both placements with all five elements FILLED, and a `consumer_read_evidence`\n\
+  \  event for names this spec, the placement and the five filled values. PROBE: the\
+  \ same file\n  checks the event, and its DIFFERENTIAL arm rejects the same evidence\
+  \ with the RECIPIENT OF FAILURE\n  value blanked.\n- **VP5 (no third placement point):**\
+  \ rule 5 states the refusal and rule 2 element 3 carries the\n  obligation that\
+  \ licenses any later placement. PROBE: grep this body.\n- **VP6 (rule 7 — the tail\
+  \ write is admitted only on proof):** a post-ff write whose reader goes\n  red is\
+  \ restored rather than committed, and the writer's paths move together. PROBE:\n\
+  \  `tests/test_land_tail_write_withheld.py` — three arms, each asserting unconditionally\
+  \ on its\n  own differential: a red reader withholds and restores; a green reader\
+  \ is admitted byte-for-byte\n  (the DIFFERENTIAL that rejects a gate which simply\
+  \ never writes); and a transaction whose\n  carrier is green but whose sibling card\
+  \ is red withholds BOTH (bound 1). Its fourth arm proves\n  the reader set is DERIVED\
+  \ (bound 2) by finding a tripwire written after the writer and NOT\n  selecting\
+  \ a test that names a different artifact.\n- **VP7 (rule 7's in-flight marker is\
+  \ HOMED):** §Internal rule 7's marker subsection states all\n  six elements — file\
+  \ location, lifecycle, holder-pid liveness, exact/glob path coverage, the\n  bounded\
+  \ wait, and the unchanged admission invariant — and `implements:` anchors the six\
+  \ symbols\n  that carry them, so the graph resolves rule→code in both directions.\
+  \ PROBE: `graph query\n  SPEC-0188` renders the six elements, and the reverse point-lookup\
+  \ `graph query\n  bin/lib/worktree.py#_await_land_tail_marker` resolves to this\
+  \ spec. TEST-NOT-APPLICABLE, stated\n  rather than omitted: this element is a SPEC-TEXT\
+  \ addition over behaviour that already ships and\n  is unchanged by it, so its verification\
+  \ is the graph read plus the audit — an executable test\n  here would assert the\
+  \ presence of prose, which is the mechanism rule 6 and the authoring card's\n  own\
+  \ bound refuse to add. The BEHAVIOUR under these six elements keeps its existing\
+  \ probes.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0005
+- SPEC-0032
+- SPEC-0054
+- SPEC-0132
+- SPEC-0165
+- SPEC-0184
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
+  bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
+  bin/lib/worktree.py#_land_integrate: a7bac1f9fc28eb1050f557e9fdd7f1f52f47d14caa093750820732e45146093a
+  bin/lib/worktree.py#_land_tail_marker_clear: 85489248e561e106b0438265d508544048970b2d70fb9fa6933319d478984622
+  bin/lib/worktree.py#_land_tail_marker_live_covering: c78923ecb142409a171904f32dd3a256c86c3eb0458a0fc84d4071337a6f8f66
+  bin/lib/worktree.py#_land_tail_marker_path: f67d3b61e2ed71a18bc0342bae34ac04b0fb0f69cbcf6c2ec93469e3dc692b9e
+  bin/lib/worktree.py#_land_tail_marker_span: 923d463bb3f6ce024702cf3ab92f985047947ced05395aa338891a5b497020fb
+  bin/lib/worktree.py#_land_tail_marker_write: 465a6cd8b49e6cc478bdfaa91a1a38fadf04734c850052260b9a99ee42c2902b
+  bin/lib/worktree.py#_land_tail_tripwire_verdict: b7e3f2e3dba0e7453f20abc5fb3a17c5155731cec8919d7ab98e6084a71bdb64
+  bin/lib/worktree.py#_land_tail_withhold: fa352bbd6d31099fd7dfa477d9f358bbfcc2eadf31bbc5bf1675fcf775f5fa26

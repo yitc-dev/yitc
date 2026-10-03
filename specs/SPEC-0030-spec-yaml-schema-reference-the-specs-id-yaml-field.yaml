@@ -1,0 +1,319 @@
+id: SPEC-0030
+title: Spec YAML schema reference — the specs/<id>.yaml field catalog and index
+status: active
+created_at: 2026-06-02 19:21:08+00:00
+consumed: false
+implements:
+- specs/_template.yaml
+binding:
+- query-only
+body: "## Scenario\n\nWhen the AI authors or edits a spec, it needs the exact field\
+  \ catalog for `specs/<id>.yaml`: what\neach field means, which are blocking, how\
+  \ `implements:` / `cites:` / `requires:` / `supersedes:` /\n`activation_owner_task:`\
+  \ / `proposed_by:` / `binding:` / `consumed:` work. This is situational\nreference\
+  \ consulted WHEN authoring/validating a spec, fetched via `bin/yitc-v2 graph query\
+  \ SPEC-0030`\n(the GRAPH.md pointer-stub names this spec). The always-loaded GRAPH\
+  \ core keeps the node/edge schema\n+ the Spec lifecycle FSM. `specs/_template.yaml`\
+  \ is the scaffold DERIVED from this catalog.\n\n## Internal\n\nTHE SPEC YAML SCHEMA\
+  \ (the field catalog). Faithfully carried from GRAPH.md §Schema for specs/<id>.yaml\n\
+  (the always-loaded copy until demoted it to this retrieved home). NORMATIVE field\
+  \ catalog;\n`specs/_template.yaml` is the derived scaffold. The Spec lifecycle FSM\
+  \ (proposed→active→…) stays\nMANDATORY in GRAPH.md §Spec lifecycle — this spec is\
+  \ the field reference, not the lifecycle rule.\n\n```yaml\nid: <workshop-spec>\n\
+  title: All operational state is YAML\n# `class:` REMOVED — a spec carries BOTH layers\
+  \ as body sections (Scenario +\n# Internal); a flat rule|scenario|invariant label\
+  \ no longer discriminates.\nstatus: active # proposed | active | superseded | retired\
+  \ (terminal\n                               # withdrawn | rejected). `active` =\
+  \ the ONLY normative status\n                               #; `proposed` = design-grade\
+  \ head ( B1) — see\n                               # GRAPH §Spec lifecycle. `proposed`\
+  \ ⇒ `consumed: false` (a non-\n                               # authoritative spec\
+  \ must never be code-consumed).\ncreated_at: ''\ntravels: ~ # placement realm —\
+  \ kernel | v2-self | project (the corpus-wide\n                               #\
+  \ placement contract, SPEC-0073). UNMARKED (`~`) = the class-default\n         \
+  \                      # (specs default to kernel). A concrete realm marks an EXCEPTION\
+  \ on an\n                               # exception-capable class (specs/patterns);\
+  \ written by `spec new\n                               # --travels` ONLY for a non-default\
+  \ exception, decision recorded durably\n                               # in the\
+  \ spec_filed event for every spec. HARD classes carry no marker.\nconsumed: false\
+  \ # — `true` ONLY for an active/documentary distinction:\n                     \
+  \          # code READS a governing scalar param FROM this spec (single-source,\n\
+  \                               # drift-impossible). HARD whitelist: stable, global,\
+  \ non-local,\n                               # deliberately-changed scalar governance\
+  \ params ONLY. NEVER\n                               # env-specific / secrets /\
+  \ per-deploy / runtime-state / feature-flags\n                               # /\
+  \ resource-sizes / paths. Read by an EXISTING control-point — no\n             \
+  \                  # new parser / \"spec runtime\" / config framework. Default false.\n\
+  extension: ~ # OPTIONAL (added; the RULE + semantics owned by SPEC-0101\n      \
+  \                         # rule 1, this is the field's SCHEMA home). The EXTENSION\
+  \ marker — set\n                               # ONLY on a capability-spec that\
+  \ IS a reusable extension. A field on\n                               # the existing\
+  \ spec node, NOT a new graph node-type (the node-count\n                       \
+  \        # bound holds; CHARTER §P1 F2 prefers a field/view over a new entity).\n\
+  \                               # Value = the ADOPTABILITY state (discoverable ≠\
+  \ installable):\n                               # adoptable — a consumer-installable\
+  \ shared capability (adopt-\n                               # path: consumer declares+cites\
+  \ it, SPEC-0093).\n                               # internal-only — a kernel-OWN\
+  \ tool, catalogued for discoverability\n                               # but NOT\
+  \ consumer-adoptable (no install-path).\n                               # UNMARKED\
+  \ (`~`/absent) = not an extension. `graph build` carries the\n                 \
+  \              # marker onto the node; `graph query --type spec --extension` lists\
+  \ the\n                               # marker-bearing specs + state; the derived\
+  \ catalog view\n                               # surfaces it. No validation layer\
+  \ (GRAPH «what graph is NOT»).\nseed_cue: ~ # REQUIRED on an active `binding: [seed]`\
+  \ spec, else absent (added\n                               #; the RULE + semantics\
+  \ owned by SPEC-0007 §5a, this is the\n                               # field's\
+  \ SCHEMA home). ONE sentence: the startup-relevant trigger + the\n             \
+  \                  # first required action, derived from the spec's own rule (the\
+  \ body stays\n                               # authoritative). `graph build` carries\
+  \ it onto the node; `_seed_howto`\n                               # renders it into\
+  \ the session-start seed line; `graph conformance`\n                           \
+  \    # refuses a seed-bound spec without one.\nimplements: # = the Anchors layer.\
+  \ durable anchors : `<file>` OR\n                               # `<file>#<symbol>`\
+  \ — NOT line ranges (they drift). `graph build`\n                              \
+  \ # resolves each against the tree + REPORTS stale ones (report-not-\n         \
+  \                      # block). A spec with no code site (design-phase / documentary)\n\
+  \                               # keeps `implements: []` + a human-visible note.\n\
+  \  - bin/lib/task.py#cmd_task_file # symbol: a def/class/module-const/markdown-heading\
+  \ name\n  - bin/lib/state.py # file-level: whole file enforces the spec\nimplements_signature:\
+  \ # OPTIONAL, machine-managed (E-0019 kind-B). A mapping\n                     \
+  \          # {<implements-anchor>: <sha256-hex>} recording the content each\n  \
+  \                             # anchor was last VERIFIED-ACCURATE against — written\
+  \ ONLY by\n                               # `yitc-v2 spec reverify`, never by hand.\
+  \ The freshness detector\n                               # (`_anchor_drift_warning`)\
+  \ uses a present entry as the DURABLE\n                               # baseline\
+  \ (fires only on real content drift vs this signature),\n                      \
+  \         # instead of the non-durable git last-touch. Additive-optional:\n    \
+  \                           # an absent field / absent key → the legacy last-touch\
+  \ path\n                               # (back-compat). Symbol anchors hash `_symbol_region`;\
+  \ file-level\n                               # anchors hash the whole file.\nbody:\
+  \ | # — fixed minimal section shape (split by stable\n                         \
+  \      # surface/boundary, never by perspective; keep small):\n  ## Scenario\n \
+  \ <outside-in: how the user/owner sees the process + result, human language. Omit\
+  \ if purely\n   internal infra with no user-facing behavior.>\n\n  ## Internal\n\
+  \  <inside-out: the rule / invariant / contract — what an editor must know before\
+  \ safe change.\n   Operational state lives in YAML, not markdown; decisions/tasks/specs\
+  \ all per-entry YAML.>\n\n  ## Parameters\n  <optional — governing param table;\
+  \ mark which are `consumed` (code-read single-source).>\n\n  ## Rationale\n  <why\
+  \ — cite the real incident / prior-art. V1 split storage caused 200-tool-call debugging.>\n\
+  \n  ## Verification\n  <probe — `find. -name '*.md' -path '*/tasks/*'` returns nothing,\
+  \ etc.>\ncites: # informational any→any refs ( B2: spec↔spec, scenario→spec,\n \
+  \ - CHARTER.md#principle-5 # any→any). Non-blocking, non-authoritative, NOT a new\
+  \ edge type\n  - DECISIONS.md# # (the 3-edge bound holds). SUPPRESSED in default\
+  \ views (opt-in,\n                               # not noise). `requires`/`supersedes`\
+  \ below stay narrow + blocking.\n                               # cites is INFORMATIONAL\
+  \ ONLY — it is NOT an activation carrier. (The\n                               #\
+  \ \"dual cites <plan>+<spec> derives the activating task\" reading\n           \
+  \                    # is RETIRED : activation ownership is carried EXPLICITLY by\n\
+  \                               # `activation_owner_task` below — SPEC-0005 §5,\
+  \ the single authority —\n                               # never derived from cites.\
+  \ The incident (a docs task citing a\n                               # plan + spec\
+  \ informationally mis-activated PILOT SPEC-0007 via the\n                      \
+  \         # cites-both derive) proved the derived read unsafe; an explicit marker\n\
+  \                               # is required, no hidden carrier.)\nrequires: []\
+  \ # spec-level BLOCKING ordering ( B6) — list spec/decision IDs\n              \
+  \                 # that must land first. Used to requires-order concurrent proposed\n\
+  \                               # children of one spec (see GRAPH §Spec lifecycle\
+  \ concurrent invariant).\nsupersedes: ~ # spec-level replacement ( B6) — the SPEC-XXXX\
+  \ this proposed\n                               # spec replaces; on activation (by\
+  \ the activation_owner_task's closure)\n                               # the superseded\
+  \ spec → status: superseded.\nactivation_owner_task: ~ # THE SINGLE ACTIVATION CARRIER\
+  \ (SPEC-0005 §5, the authority). Names the\n                               # ONE\
+  \ task `T-XXXX` whose `task close` activates this proposed spec\n              \
+  \                 # (proposed→active) and atomically flips any `supersedes:` target.\
+  \ Singular\n                               # at all times; transferable only by\
+  \ explicit mutation; other implementing\n                               # tasks\
+  \ merely `cite` the spec. Forbidden while `draft`; REQUIRED for\n              \
+  \                 # proposed→active (a proposed spec may sit briefly without one,\
+  \ but cannot\n                               # activate without one). Set EXPLICITLY\
+  \ — never derived from cites/proposed_by.\n                               # • work-first\
+  \ : the activating task IS this task.\n                               # • plan-born\
+  \ (`plan accept`, Part B): the decomposition SETS this to the\n                \
+  \               # ONE decomposed task chosen to activate the spec (patterns/plan-lifecycle.md).\n\
+  proposed_by: ~ # PROVENANCE / CORPUS carrier — who BIRTHED this proposed spec; NOT\
+  \ the\n                               # activation owner (that is `activation_owner_task`\
+  \ above). Value:\n                               # • work-first : the authoring\
+  \ task `T-XXXX`.\n                               # • plan-born (`plan accept`):\
+  \ the PLAN slug — so the plan's proposed_by-keyed\n                            \
+  \   # corpus + the aggregate finalization gate (Part B) keep seeing the spec (P5).\n\
+  \                               # The ownership VALUE is never in `cites` (B2).\
+  \ proposed_by answers \"born by\n                               # what?\"; activation_owner_task\
+  \ answers \"activated by which task's closure?\".\nbinding: [] # (Part I-A) — retrieval\
+  \ binding: which gating verb/stage FETCHES\n                               # this\
+  \ `retrieved` spec before acting. Tokens from {commit, close,\n                \
+  \               # audit-pre, audit-post, spec-new, plan-close}; reserved `floor`\
+  \ =\n                               # always-loaded. Empty = unbound. `graph build`\
+  \ inverts it into the\n                               # verb→section map + floor\
+  \ trigger-map + bidirectional report. An active\n                              \
+  \ # spec with an EMPTY binding = DANGLING, whatever its implements: ( —\n      \
+  \                         # a code-enforced spec declares `code-enforced`). See\
+  \ SPEC-0013.\ninit_concern: ~ # OPTIONAL (added; the DERIVATION + semantics are\
+  \ owned by\n                               # SPEC-0096, this is the field's SCHEMA\
+  \ home). Set ONLY on a CONCERN\n                               # spec that should\
+  \ surface at project activation. A mapping; `graph\n                           \
+  \    # build` DERIVES two views from it into graph/activation-checklist.md\n   \
+  \                            # (the init-walk SET + a human doc-checklist), exactly\
+  \ as the floor\n                               # trigger-map is derived from `binding:`.\
+  \ FAIL-CLOSED: a concern is\n                               # surfaced ONLY when\
+  \ `init_concern` is a mapping with a non-empty\n                               #\
+  \ `init_question` string (a non-mapping value or a missing/empty\n             \
+  \                  # init_question is skipped — lands in NEITHER view). Keys:\n\
+  \                               # init_question: <the activation prompt — the surfacing\
+  \ key>\n                               # waiver: <what a bare waiver may omit /\
+  \ compensating note>\n                               # evidence: <pointer to governed\
+  \ adoption-evidence>\n                               # tier: universal # minimal\
+  \ first-ship tier marker\n                               # recommended: <the default\
+  \ answer the person is SHOWN and only\n                               # confirms\
+  \ or changes — never written for them;\n                               # REQUIRED\
+  \ on a `tier: universal` concern (SPEC-0096\n                               # rule\
+  \ 1)>\n                               # record_at: <WHERE the person's answer (declaration\
+  \ or waiver)\n                               # is written, derived from the concern's\
+  \ own\n                               # answer mechanism — shown on every sweep\
+  \ row\n                               # >\nconcern: ~ # OPTIONAL (added; the DERIVATION\
+  \ + INVARIANT are owned by\n                               # SPEC-0128, this is\
+  \ the field's SCHEMA home). The seed-and-grow CONCERN\n                        \
+  \       # REGISTRY entry — the ONE authoritative declaration of a cross-cutting\n\
+  \                               # concern (deploy/tests/ui/security/verify/…). Set\
+  \ on the concern's OWN\n                               # governing spec; `graph\
+  \ build` DERIVES graph/concern-registry.json from\n                            \
+  \   # every `concern:` block (the same derive-from-declaration model as\n      \
+  \                         # init_concern → activation-checklist). MULTI-BLOCK (SPEC-0128\n\
+  \                               # Rule 1): `concern:` is a single mapping OR a LIST\
+  \ of mappings — ONE spec MAY\n                               # host SEVERAL concerns\
+  \ (deploy/rollback/live_probe on SPEC-0094; ui/tests/\n                        \
+  \       # verify on SPEC-0093); \"declared exactly once\" binds the CONCERN, not\
+  \ the\n                               # spec. FAIL-CLOSED: a block is registered\
+  \ ONLY when it is a mapping carrying\n                               # a non-empty\
+  \ `section` string; a present-but-MALFORMED `concern:` (a\n                    \
+  \           # non-mapping value/element, or a block missing a non-empty `section`)\
+  \ is a\n                               # conformance RED (`concern-malformed`) —\
+  \ never a silent skip. FINITE\n                               # metadata (no shape-DSL\
+  \ — the\n                               # registry is a table, not a language; SPEC-0128\
+  \ Rule 5):\n                               # section: <the yitc-ops.yaml top-level\
+  \ carrier section name — e.g. deploy>\n                               # carrier_path:\
+  \ <dotted path to this concern's carrier block — the\n                         \
+  \      # section name, or a nested subfield e.g. deploy.policy /\n             \
+  \                  # deploy.host_config>\n                               # presence_policy:\
+  \ mandatory | checked-if-present | opt-in # how the\n                          \
+  \     # carrier sweep treats absence (fail-closed / brownfield-\n              \
+  \                 # tolerant / adopt-nothing default)\n                        \
+  \       # update_policy: <how an evolved concern is re-delivered — free text,\n\
+  \                               # e.g. \"init re-seed\" / \"SPEC-0123 migration-plan\
+  \ step\">\n                               # declare_key: <the section-appropriate\
+  \ declaration key that ANSWERS\n                               # the section — e.g.\
+  \ command / baseline / layers>\n                               # declare_type: string\
+  \ | list | mapping # the declaration's expected\n                              \
+  \ # TYPE — the generic sweep counts a declaration ONLY when\n                  \
+  \             # non-empty AND of this type, so a wrong-typed declare_key\n     \
+  \                          # fails closed. Absent = type-generic non-empty.\n  \
+  \                             # waiver_policy: loose | strict # a bare `reason:`\
+  \ (loose) vs\n                               # reason+compensating_control+expiry\
+  \ (strict, e.g. security)\n                               # shape_hook: <OPTIONAL\
+  \ — the NAME of a small kernel-owned deep-shape\n                              \
+  \ # validator the generated sweep invokes for this concern's\n                 \
+  \              # residual shape (after the generic stance/XOR check).\n        \
+  \                       # Referenced from EXACTLY ONE concern block (SPEC-0128\n\
+  \                               # Rule 2); `graph build` WARNs on a missing / orphan\
+  \ /\n                               # duplicate hook. Absent = no deep-shape validator.>\n\
+  \                               # born: <OPTIONAL (SPEC-0128 Rule 2 + born decision\n\
+  \                               # (i)) — the VERBATIM born block for this concern's\n\
+  \                               # yitc-ops.yaml section (the per-section born-guidance\n\
+  \                               # PROSE relocated here): `# ` comments + the section's\n\
+  \                               # declare-or-waive YAML stub, indentation as it\
+  \ renders\n                               # (a nested subfield's born is indented,\
+  \ e.g. ` policy:`\n                               # under deploy). `graph build`\
+  \ renders graph/born-ops.yaml\n                               # = the file preamble\
+  \ + each concern's `born` in\n                               # `born_order` (RENDER-ONLY\
+  \ concat, no shape-DSL). A\n                               # concern with no `born`\
+  \ renders no section (surfaced by\n                               # the concern-surface\
+  \ check).>\n                               # born_order: <OPTIONAL int — this concern's\
+  \ position in the rendered\n                               # born template (ascending;\
+  \ missing → last). Independent\n                               # of the registry\
+  \ sort; interleaves a nested subfield\n                               # right after\
+  \ its parent section.>\n                               # authoring_floor: <OPTIONAL\
+  \ mapping {trigger, specs} (SPEC-0128\n                               # Rule 2)\
+  \ — the registry-DERIVED before-authoring-<concern>\n                          \
+  \     # floor-trigger row. `trigger`: the floor-trigger name\n                 \
+  \              # (e.g. before-authoring-UI); `specs`: the delivery\n           \
+  \                    # spec id(s) surfaced in graph/floor-trigger-map.md at the\n\
+  \                               # at-the-moment authoring moment. Generated — NO\
+  \ hand-added\n                               # FLOOR_TRIGGERS row. Fail-closed:\
+  \ a non-mapping value, a\n                               # missing/empty `trigger`,\
+  \ or no valid delivery spec →\n                               # no row. Absent =\
+  \ the concern has no authoring floor.>\n                               # born_stance:\
+  \ <OPTIONAL — permissive | protective (# SPEC-0189 rules 1+8). Declares the DIRECTION\
+  \ of\n                               # this concern's born value: `permissive` =\
+  \ the born\n                               # declaration RELAXES a control, `protective`\
+  \ = it\n                               # does not. A CLOSED two-word vocabulary\
+  \ — rule 8\n                               # fixes the axis as the value's direction\
+  \ and is\n                               # blind to WHICH gate is relaxed, so there\
+  \ is no\n                               # third stance and no language here. Any\
+  \ other value\n                               # is SKIPPED (fail-closed: the concern\
+  \ then reads as\n                               # declaring no stance). Absent =\
+  \ no stance declared.>\n                               # detector: <OPTIONAL — the\
+  \ NAME of the detector that watches\n                               # for this concern's\
+  \ permissive absence starting to\n                               # cost something\
+  \ (SPEC-0189 rule 1; the\n                               # naming/refusal mechanics\
+  \ are SPEC-0128's per rule\n                               # 5). REQUIRED whenever\
+  \ `born_stance: permissive` —\n                               # the PAIR is the\
+  \ unit of admission, and a permissive\n                               # born value\
+  \ with no named detector is a conformance\n                               # RED\
+  \ (`concern-permissive-born-no-detector`), never\n                             \
+  \  # a warning. Resolved through the kernel detector\n                         \
+  \      # registry (bin/lib/debt.py). Absent = none named.>\n```\n\n**Derived registry\
+  \ `version` (SPEC-0143 / SPEC-0128 extension) — NOT an authored field.**\n`graph\
+  \ build` derives graph/concern-registry.json from every `concern:` block above,\
+  \ and stamps each\nregistry entry with a `version:` = a short (12-hex) content-hash\
+  \ of the entry's FINITE metadata table\nONLY (`section` / `carrier_path` / `presence_policy`\
+  \ / `declare_key` / `declare_type` / `update_policy` /\n`waiver_policy` / `shape_hook`\
+  \ / `spec`). The `born` guidance block is DELIBERATELY EXCLUDED — born is\nPROSE,\
+  \ so hashing it would bump every consumer's adopted version on a whitespace/wording\
+  \ edit that never\nchanged the contract (a trial finding); `authoring_floor` is\
+  \ likewise excluded (a floor-map derivation,\nnot the carrier contract). `born_stance`\
+  \ / `detector` are excluded for the same reason: which\ndetector watches a concern\
+  \ is kernel-side review machinery and moves no key, type or stance in any\nconsumer's\
+  \ carrier, so hashing it would bump every consumer's adopted version for a change\
+  \ that never\ntouched their contract. A version bump therefore means the pinned\
+  \ CONTRACT moved — the propagation-\ndetection signal SPEC-0143 consumes. You never\
+  \ write `version:` by hand; it is generated output.\n\n**Big-feature hierarchy (\
+  \ B3):** a `## Scenario` MAY live as its own **scenario-parent** spec\nlinking down\
+  \ (via `cites`) to child specs — but a node ONLY when the feature is multi-spec;\
+  \ a small\nconcern stays sections-in-one-spec.\n\n**Schema for tasks (cross-ref):**\
+  \ tasks reference specs via `cites:`; the build tool indexes these\ntoo (though\
+  \ tasks aren't really «implementing» specs, they cite them as context). The full\
+  \ task field\ncatalog lives in SPEC-0028 (`graph query SPEC-0028`).\n\n## Rationale\n\
+  \nDemoted to the retrieved tier (SPEC-0007 §5a query-only): the full spec field\
+  \ catalog is situational\nreference consulted only when authoring/validating a spec\
+  \ — not a rule held before a gated\ncontrol-point — so the always-loaded GRAPH core\
+  \ stays small (node/edge schema + Spec lifecycle FSM).\n`specs/_template.yaml` is\
+  \ DERIVED from this catalog (the template's maintenance comment points here).\n\n\
+  ## Verification\n\n- **Fidelity (RED-GREEN):** a substantive field-comment phrase\
+  \ (e.g.\n  `a non-authoritative spec must never be code-consumed`) resolves in THIS\
+  \ spec and is ABSENT from\n  GRAPH.md after the demote. RED before strip, GREEN\
+  \ after.\n- **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0030` resolves;\
+  \ the GRAPH.md pointer-stub\n  names `SPEC-0030` + lookup command. NO floor-trigger.\n\
+  - **Non-dangling:** non-empty `implements:` (specs/_template.yaml; cmd_spec_new\
+  \ is a pure scaffold + cmd_graph_build is anchored by SPEC-0031 — both dropped,\
+  \ named in prose) ⇒\n  excluded from `dangling_specs` once active.\n- **Boundary:**\
+  \ the normative Spec lifecycle FSM stays MANDATORY in GRAPH.md (grep: §Spec lifecycle\n\
+  \  still present there).\n- **Re-verified current (2026-06-05, post-):** the spec-YAML\
+  \ field catalog is UNAFFECTED by\n  the derived-index JSON switch — `cmd_graph_build`\
+  \ changed only its index serialization\n  (graph/index.json), not what it reads\
+  \ from spec YAML. Anchor refreshed by this touch.\n- **Re-verified current :** the\
+  \ field catalog (13 fields) confirmed `==` the\n  `specs/_template.yaml` field set;\
+  \ the anchors `cmd_spec_new` + `cmd_graph_build` regions\n  re-checked against the\
+  \ working tree — no body drift. The freshness flag was the cosmetic\n  `cmd_graph_build`\
+  \ change (floor-map path derivation), which carries no schema impact. Anchor\n \
+  \ refreshed by this touch (advances the spec last-touch baseline).\n"
+cites:
+- GRAPH.md#schema-for-specs-id-yaml
+- SPEC-0005
+- SPEC-0007
+- SPEC-0013
+- SPEC-0006
+- part-i-b-tier-split-carving-floor-wiring-first-the
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+implements_signature:
+  specs/_template.yaml: 79902373d6beb2d0d3f4e3e9d2cce7a89d943bc938d22921d0f26ba464c8cbf4

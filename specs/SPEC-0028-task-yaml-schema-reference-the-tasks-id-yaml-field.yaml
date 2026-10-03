@@ -1,0 +1,677 @@
+id: SPEC-0028
+title: Task YAML schema reference — the tasks/<id>.yaml field catalog
+status: active
+created_at: 2026-06-02 19:21:02+00:00
+consumed: false
+implements:
+- tasks/_template.yaml
+- bin/lib/vocab.py#TASK_CLASSES
+- bin/lib/vocab.py#TASK_PRIORITIES
+- bin/lib/task.py#TASK_CREATED_BY
+- bin/lib/memory.py#resolve_actor
+- bin/lib/vocab.py#TASK_FILING_STATUSES
+- bin/lib/task.py#PREMISE_VALUES
+binding:
+- query-only
+body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact field\
+  \ catalog for `tasks/<id>.yaml`: which\nfields are required, which are optional,\
+  \ what each means, and which are filled at which lifecycle\nstage. This is SITUATIONAL\
+  \ reference prose — consulted WHEN authoring/parsing a task — not a rule\nheld before\
+  \ a gated control-point. It is fetched on demand via `bin/yitc-v2 graph query SPEC-0028`\n\
+  (the QUEUE.md pointer-stub names this spec); the always-loaded QUEUE core keeps\
+  \ only the picker +\nstate transitions. `tasks/_template.yaml` is the illustrative\
+  \ copy DERIVED from this schema.\nThis spec is the field CATALOG/schema only; the\
+  \ task-AUTHORING doctrine — what a good card\nFRONT-LOADS (scope + acceptance-with-probe)\
+  \ — is homed in SPEC-0060 (the SPEC-0043 analog), which\nPOINTS back here for the\
+  \ field rules. (Fold pointer added; no schema rule moved.)\n\n## Internal\n\nTHE\
+  \ TASK YAML SCHEMA (one task per file). Faithfully carried from QUEUE.md §YAML schema\
+  \ (the\nalways-loaded copy until demoted it to this retrieved home). This spec is\
+  \ now the NORMATIVE\nsource; `tasks/_template.yaml` is the derived illustrative\
+  \ copy (drift between them = a bug, fix here).\n\n```yaml\nid: # sequential\ntitle:\
+  \ Add metric for X # one line, imperative\nclass: feature # feature | fix | refactor\
+  \ | docs | infra | hygiene. Keys the stage-FSM /\n                             \
+  \  # Fast-Path eligibility (SPEC-0027). CHANGED ONLY via `task update --class`\n\
+  \                               # (governed, emits task_reclassified) — the hand-edit\
+  \ is retired;\n                               # the field-edit mode refuses a `class`\
+  \ change, routing to the verb.\npriority: medium # high | medium | low\nstatus:\
+  \ ready # see QUEUE.md §State transitions\ncreated_at: ''\ncreated_by: ai-agent\
+  \ # ai-agent | owner | external | a PROVISIONED ACTOR NAME (e.g. <collaborator>)\n\
+  \                             # WHO authored the card. DERIVED, never asked for\
+  \ (owner\n                             # directive 2026-07-11 — attribution costs\
+  \ the human ZERO added input):\n                             # `task file` stamps\
+  \ it from the launch context via\n                             # `lib/memory.py#resolve_actor`\
+  \ over the host registry `users:` block —\n                             # the OWNER-role\
+  \ host user (the one the primary AI agent runs as) keeps\n                     \
+  \        # the historical `ai-agent`; any OTHER provisioned user (<collaborator>,\
+  \ role\n                             # developer) stamps THEIR OWN NAME. An unknown\
+  \ user / empty identity /\n                             # unreadable registry falls\
+  \ back to `ai-agent`. An EXPLICIT --created-by\n                             # always\
+  \ WINS (`owner` / `external` stay hand-authorable).\n                          \
+  \   # VOCABULARY IS FAIL-CLOSED: the enum ∪ the registry's provisioned users\n \
+  \                            # — free text can never reach this field. Attribution\
+  \ is a RECORD, not a\n                             # gate: a resolution failure\
+  \ degrades to the default, never blocks the\n                             # write.\
+  \ Surfaced by `task show` (always) and by `task list` (a BY column\n           \
+  \                  # ONLY when a listed card carries a real person — suppressed-when-clean).\n\
+  \                             # Sibling stamps on the other two authoring verbs:\
+  \ the `followup_added`\n                             # (SPEC-0095) + `cross_requested`\
+  \ (SPEC-0086) payload `actor` key.\nscope: # bulleted list, ≤ 5 items typically\n\
+  \  - Add counter event_type to events.jsonl writer\n  - Wire counter to dashboard\
+  \ view\nacceptance: # MUST include probe evidence per Principle 3\n  - AC1: events.jsonl\
+  \ contains 'metric_x_emitted' event when X happens (probe: synthetic trigger fires\
+  \ event)\n  - AC2: dashboard view shows counter (probe: curl /dashboard returns\
+  \ updated count)\ncites: # task IDs / spec IDs / decision IDs — INFORMATIONAL refs\
+  \ (non-blocking)\n  - SPEC-005\n  -\nrequires: [] # task IDs (T-XXXX) — the ONLY\
+  \ BLOCKING deps\n                               # task target: blocks if status\
+  \ != done\n                               # decision target (D-XXXX): NON-BLOCKING\
+  \ — the decision-resolution\n                               # branch was retired\
+  \ by (gated-safe by the sweep:\n                               # 0 non-terminal\
+  \ tasks depended on decision-unblock semantics).\n                             \
+  \  # A decision is a cites-only reference, never a lifecycle-blocking\n        \
+  \                       # prerequisite — same as a spec. Use `cites:` for decision\
+  \ deps.\n                               # specs NOT allowed here — use `cites:`\
+  \ for spec refs (specs = reference artifacts, not lifecycle-blocking)\n        \
+  \                       # Picker excludes this task only if a `requires:` TASK target\
+  \ is not done.\n                               # Distinct from `cites:` (informational).\n\
+  \                               # FILING refuses a T-XXXX entry with no card in\
+  \ this checkout :\n                               # an edge on a task that does\
+  \ not exist can never be satisfied. File the\n                               # dependency\
+  \ first (a batch files in order). `cites:` stays unchecked.\nimplementation_plan:\
+  \ | # Stage 3 — filled before Stage 4\n  1. Edit bin/lib/state.py — add emit_metric_event\n\
+  \  2. Edit bin/lib/dashboard.py — read events.jsonl, count metric_x_emitted\n  3.\
+  \ Test: tests/test_metric_x.bats\nclosed_at: null # filled at Stage 9\ncommit: null\
+  \ # SHA, filled at Stage 9\nprobe_passed: null # THREE-STATE at Stage 9, filled\
+  \ only after probe verification\n                             # : `true` when every\
+  \ probe is `pass`; `deferred` when the\n                             # close gate\
+  \ passed but at least one probe is still recorded\n                            \
+  \ # `deferred`, so a done card never claims a proof it does not have.\n        \
+  \                     # STRING-VALUED in that second case — a consumer holding the\
+  \ older\n                             # boolean-only contract must widen (`deferred`\
+  \ is TRUTHY, so a bare\n                             # bool silently reads it as\
+  \ `true`). `task close --settle-probe`\n                             # flips it\
+  \ to `true` when the LAST deferred probe is discharged.\n                      \
+  \       # Rule home: SPEC-0015 §`probe_passed` is THREE-STATE; the done-card\n \
+  \                            # required-field reading is QUEUE §Done log.\nprobe_moments:\
+  \ {} # OPTIONAL sibling of `probes:` — the FIRING MOMENT of each\n             \
+  \                  # probe recorded `deferred` at closure, so the SPEC-0119 rule-3\
+  \ debt\n                               # echo can headline only the DUE ones. ONE\
+  \ mapping, AC -> ONE of two\n                               # forms, both already\
+  \ in the corpus (no third grammar):\n                               # probe_moments:\
+  \ {AC2: {due_by: '2026-09-20'}}\n                               # an ISO date —\
+  \ the post_ship_observation shape.\n                               # probe_moments:\
+  \ {AC2: {awaits: ''}} # or X-0042\n                               # probe_moments:\
+  \ {AC2: {awaits: 'events.jsonl#type=<t>@after=<ISO>'}}\n                       \
+  \        # the SPEC-0095 §Armed shape; the ref is admitted by the SAME\n       \
+  \                        # grammar the followup fire predicate reads (followup.awaits_kind\n\
+  \                               # / arrived_ids / event_after_arrived), so a moment\
+  \ the close door\n                               # accepts is one the read side\
+  \ can decide, by construction.\n                               # probe_moments:\
+  \ {AC2: {awaits: 'events.jsonl#type=<t>@after=land'}}\n                        \
+  \       # the first row of <t> AFTER THIS CARD'S OWN land —\n                  \
+  \             # its latest successful `land_completed` on `task/<id>`, resolved\n\
+  \                               # from the journal at read time and ordered by (ts,\
+  \ journal\n                               # position); unlanded -> pending. Probe\
+  \ moments only (a followup\n                               # has no own land, so\
+  \ `followup arm` still refuses it).\n                               # Written by\
+  \ `task close --probe-deferred <AC>:<moment>`, which\n                         \
+  \      # REFUSES a bare key at every close-time door onto `probes:`. The\n     \
+  \                          # RESULT stays the authoritative discriminator in `probes:`\
+  \ (where the\n                               # settle writes it and views.py keys\
+  \ the discharge); this says only\n                               # WHEN a deferral\
+  \ comes back. Absent / no entry for a deferred key =\n                         \
+  \      # a LEGACY key-only deferral, which the lens reads DUE.\nparked_reason: null\
+  \ # filled if status=parked (written by `task file --status parked` / `task update\
+  \ --status parked`)\nreturn_trigger: null # optional, when parked\nparked_awaits:\
+  \ null # — optional, verb-owned (`task update --status parked --awaits <ref>`):\n\
+  \                               # the DECLARED awaited artifact of a park, in the\
+  \ same grammar as\n                               # paused_awaits (followup.awaits_kind).\
+  \ Set or cleared on every park,\n                               # cleared on unpark\
+  \ / wont-do. Session start lists the parked card\n                             \
+  \  # (UNPARKABLE) ONLY once the ref has arrived; prose return_trigger is\n     \
+  \                          # never parsed for it (declared, never inferred).\nunparked_note:\
+  \ null # optional — written at the parked→ready unpark (`task update --status ready\
+  \ --note …`; prior-art / hand-edits). parked_reason/return_trigger are RETAINED\
+  \ as history.\nwont_do_reason: null # rationale, written at any-active→wont-do (`task\
+  \ update --status wont-do --reason …`; prior-art)\namend_notes: [] # optional —\
+  \ timestamped amendment notes appended by `task update --note …` (no --status),\
+  \ each emitting task_amended\n\n# Optional fields ( — fill if applicable):\npost_verification:\
+  \ null # optional — authored at Stage 9 (Closure): {criterion, signal} mapping\n\
+  \                               # OR explicit waive {none: <reason>} (mutually exclusive);\
+  \ hygiene\n                               # auto-waives. Rule home: SPEC-0038 (admitted\
+  \ exception, see guard below).\ndescription: null # multi-line context — why this\
+  \ task, who interested. Distinct from title (one-line).\nsuccess_metric: null #\
+  \ measurable improvement (distinct from acceptance which = test conditions)\nblockers:\
+  \ [] # explicit blockers (vs cites which mixes context + blockers)\nestimate_tier:\
+  \ null # small | medium | large (per quantitative-claim discipline)\nexpected_touch:\
+  \ [] # OPTIONAL forecast — coarse touch units this task is expected to\n       \
+  \                        # touch: a file path | a doc#section | a test-target bucket\
+  \ | a\n                               # hand-NAMED function (e.g. bin/yitc-v2#_run_view).\
+  \ A FILING-TIME\n                               # FORECAST consumed ONCE at queue-building\
+  \ / dispatch-selection\n                               # (collision-screen on the\
+  \ REAL surface — symbols, not output-file\n                               # names).\
+  \ ADVISORY: NEVER updated after Analysis (implementation_plan\n                \
+  \               # is the precise successor); a wrong forecast that caused a mis-dispatch\n\
+  \                               # is a deviation_captured data point, NOT a field-maintenance\
+  \ bug.\n                               # Absent = no forecast (selection stays conservative).\
+  \ List of non-empty\n                               # strings; hand-NAMING a function\
+  \ is allowed (a declaration, not analysis\n                               # — the\
+  \ AST/auto-derivation prohibition stands).\ndecomposed_from: null # OPTIONAL cut-membership\
+  \ marker (SPEC-0070 §5). The plan-slug\n                               # this card\
+  \ was cut FROM by the decomposition cut. The NARROW structural\n               \
+  \                # relation \"member of the audited cut\" — the SPEC-0070 §5 claim-block\
+  \ reads\n                               # it (a card is refused while its plan is\
+  \ pre-`executing`). The SOLE\n                               # authoritative writer\
+  \ is the cut path (`task file --decomposed-from`);\n                           \
+  \    # NON-SUBSTITUTABLE for `cites:`, which is BROAD informational linkage\n  \
+  \                             # (the finalization corpus). A cut card carries BOTH\
+  \ (it cites its\n                               # plan for the corpus AND is decomposed_from\
+  \ it for membership). Absent =\n                               # not a cut card\
+  \ (the common case). Additive + optional (no drift #10).\neffort_tier: normal #\
+  \ OPTIONAL filing-time STAKES tier (SPEC-0072): normal (default)\n             \
+  \                  # | critical. `dispatch` maps it to the worker (model, effort)\
+  \ via\n                               # bin/effort-routing-config.yaml. Set ONLY\
+  \ when != normal (omit-when-\n                               # default — absent\
+  \ reads as normal everywhere, incl. dispatch routing;\n                        \
+  \       # legacy cards stay valid). A TIER, never a model id (provider-neutral,\n\
+  \                               # P4b). Additive + optional (no drift #10).\n\n\
+  live_probe: # OPTIONAL per-change deploy live-probe declaration (SPEC-0094\n   \
+  \                            # §3/§4). Present ONLY for a task whose project DEPLOYS\
+  \ (a yitc-ops.yaml\n                               # `deploy:` section declares\
+  \ a command, SPEC-0093); a DEPLOYING project's\n                               #\
+  \ `task close` REFUSES unless this is DECLARED (fail-closed, STATIC — it\n     \
+  \                          # does NOT call prod at close; the executable GET runs\
+  \ at the DEPLOY seam,\n                               # SPEC-0094 §4). THREE mutually-exclusive\
+  \ forms. `assertion` / `waiver` / `escalation`\n                               #\
+  \ are FORM NAMES, not mapping keys: there is NO nesting level under `live_probe:`\
+  \ —\n                               # every key below sits FLAT, one level down,\
+  \ and the FLAT key named on each line is\n                               # what\
+  \ SELECTS that form (`_live_probe_declaration_error` discriminates on it).\n   \
+  \                            # FORM assertion — selected by the FLAT key `url`:\n\
+  \                               # live_probe: {url: <path|abs>, expect_status: <int>,\
+  \ body_contains: <str?>,\n                               # expect_location: <str?>}\n\
+  \                               # — a read-only GET vs the carrier `live_base_url`\
+  \ (SPEC-0093) at deploy.\n                               # `expect_location` is\
+  \ the NO-FOLLOW dialect (SPEC-0094 §4): valid only with a\n                    \
+  \           # redirect `expect_status` (301/302/303/307/308), it asserts the immediate\n\
+  \                               # redirect's `Location` header instead of following\
+  \ it (the X-0096 fix).\n                               # A SECURITY assertion (SPEC-0098\
+  \ §1 dialect) ALSO carries property: <name>\n                               # (REQUIRED\
+  \ label) + any of assert_header_present: <name|[name]> /\n                     \
+  \          # assert_header_absent: <name|[name]> / assert_cookie_flags:\n      \
+  \                         # {<cookie>: [Secure|HttpOnly|HostOnly]} — proves a named\
+  \ security property\n                               # at the seam; emits security_live_probe_passed\
+  \ (not live_probe_passed).\n                               # FORM waiver — selected\
+  \ by the FLAT key `none`:\n                               # live_probe: {none: <reason>,\
+  \ user_facing: <bool?>, recheck_by: <ISO-date?>}\n                             \
+  \  # — an explicit reasoned waiver. `user_facing` defaults TRUE (fail-closed):\n\
+  \                               # a user-facing waiver REQUIRES `recheck_by:` (a\
+  \ dated, surfaced\n                               # non-adoption debt — the P3 honesty\
+  \ floor); a NON-user-facing change\n                               # (no live surface)\
+  \ sets `user_facing: false` and may omit recheck_by.\n                         \
+  \      # FORM attested — selected by the FLAT key `attested` (SPEC-0094 §4b):\n\
+  \                               # live_probe: {attested: <instrument>, runs_at:\
+  \ <where gated>, asserts: <what>,\n                               # user_facing:\
+  \ <bool?>, recheck_by: <ISO-date?>,\n                               # outcome: {result:\
+  \ passing|failing, evidence: <journal locator>,\n                              \
+  \ # probed_at: <ISO-date>, detail: <str?>}}\n                               # —\
+  \ a live proof the PROJECT itself runs at its own gate (an authenticated probe,\
+  \ a\n                               # headless-browser gate, a served-bundle marker).\
+  \ The kernel GRADES the reported\n                               # reading and issues\
+  \ NO outbound request of its own. The three naming fields are all\n            \
+  \                   # REQUIRED. `outcome` is OPTIONAL at declaration (so the close-gate\
+  \ stays a static\n                               # DECLARATION check) and is written\
+  \ by `task close --live-probe-outcome-*` from the\n                            \
+  \   # locator `liveprobe --report pass|fail` printed. ONLY `result: passing` discharges;\n\
+  \                               # `failing` is a RECORDED negative reading — never\
+  \ missing, never stale — and keeps\n                               # the card on\
+  \ the overdue-recheck lens unconditionally. An UNGRADED user-facing\n          \
+  \                     # declaration keeps the same fail-closed `recheck_by` floor\
+  \ as a waiver.\n                               # FORM escalation — selected by the\
+  \ FLAT key `unprobeable`:\n                               # live_probe: {property:\
+  \ <name>, unprobeable: <reason>} — a security property\n                       \
+  \        # the seam CANNOT assert read-only; emits security_live_probe_escalated\
+  \ +\n                               # escalates to the owner, never silent-pass\
+  \ (SPEC-0098 §2).\n                               # The per-CHANGE probe lives HERE;\
+  \ the project-level base url/dialect live\n                               # on the\
+  \ carrier (one SoT each, SPEC-0094 §4). Absent = no declaration (a\n           \
+  \                    # non-deploying project's tasks never carry it). Additive +\
+  \ optional.\n\npost_ship_observation: # OPTIONAL deferred-proof declaration (SPEC-0036\
+  \ §POST-SHIP\n                               # OBSERVATION / X-0710) — the trust\
+  \ anchor of the Stage-8 `audit post\n                               # --post-ship-observation`\
+  \ carve-out, for an acceptance whose probe is a\n                              \
+  \ # MULTI-DAY POST-SHIP PRODUCTION OBSERVATION (e.g. «the daily count is flat\n\
+  \                               # or falling over 7 days»): the reading cannot exist\
+  \ at the pre-land,\n                               # diff-only audit-post because\
+  \ its window opens only AFTER the ship. ONE\n                               # form,\
+  \ both keys REQUIRED (two OPTIONAL):\n                               # post_ship_observation:\
+  \ {observation: <what will be read>, due_by: '2026-08-18'}\n                   \
+  \            # post_ship_observation: {observation:..., due_by:..., settled_by:\
+  \ 'events.jsonl#ts=<ISO>'}\n                               # post_ship_observation:\
+  \ {observation:..., due_by:..., settled_by: {result: unreachable|falsified, reason:\
+  \ <why>}}\n                               # post_ship_observation: {observation:...,\
+  \ due_by:..., sensitivity: <evidence the predicate FIRES>}\n                   \
+  \            # `observation` = the concrete reading that will prove the AC; `due_by`\
+  \ = the\n                               # ISO date the window closes; `settled_by`\
+  \ = the OPTIONAL discharge, in one of\n                               # TWO shapes\
+  \ (the shape the `live_probe` waiver already has): a LOCATOR\n                 \
+  \              # string naming where the RECORDED reading landed, or the TERMINAL\
+  \ pair\n                               # {result: unreachable|falsified, reason:\
+  \ <non-empty why>} recording that the\n                               # reading\
+  \ can NEVER arrive (the specimen is gone, the baseline was never recorded,\n   \
+  \                            # the attribution is pre-empted) or that it ARRIVED\
+  \ and came back NEGATIVE. The\n                               # terminal vocabulary\
+  \ is the kernel's ONE closed set (`_SETTLE_TERMINAL_RESULTS`,\n                \
+  \               #), the reason is MANDATORY and refused empty before any write,\
+  \ and NEITHER\n                               # terminal ever satisfies CHARTER\
+  \ §Principle 8 adoption evidence — a discharged\n                              \
+  \ # observation leaves the ACTIONABLE overdue counts for its own counted set on\
+  \ the\n                               # `overdue-recheck` lens, which is a permanent\
+  \ floor / a real finding, not a payment. Requiring the WHAT + the WHEN is\n    \
+  \                           # what keeps the carve-out from being a blanket «my\
+  \ proof is in the future»\n                               # excuse: the overlay\
+  \ entry AND the `task close` seam both refuse a card that\n                    \
+  \           # declares neither, and the `overdue-recheck` debt lens surfaces the\
+  \ pending\n                               # observation from declaration until `settled_by`\
+  \ is recorded — time passing\n                               # moves it pending→overdue\
+  \ but never clears it. Absent = no deferred\n                               # observation\
+  \ (the ordinary case). Additive + optional (no drift #10).\n                   \
+  \            # SENSITIVITY — the DISCIPLINE this class was missing (X-1126). A declaration\n\
+  \                               # states the READING **and names the historical\
+  \ evidence that its predicate FIRES when\n                               # the defect\
+  \ IS present** — carried in the OPTIONAL `sensitivity:` key. WHY: an\n         \
+  \                      # observation is settled by READING A PREDICATE, and a predicate\
+  \ that can never match\n                               # ANYTHING reads EMPTY —\
+  \ which is byte-identical to «the defect is absent». So a vacuous\n            \
+  \                   # predicate settles on the strength of having measured nothing,\
+  \ and nothing anywhere\n                               # notices. Measured by <project>\
+  \ 2026-08-26: TWO cards sat 8 days overdue and would have\n                    \
+  \           # been settled on exactly that VACUOUS ZERO. This was the ONE acceptance-proof\
+  \ class with\n                               # no sensitivity requirement — a SPEC-0165\
+  \ tripwire must be shown to FAIL when its rule is\n                            \
+  \   # broken, while an observation was held to no such bar. Name a PAST occurrence\
+  \ the\n                               # predicate would have caught (a dated incident,\
+  \ a journal locator, an earlier reading that\n                               # WAS\
+  \ non-empty), never an argument that it ought to work.\n                       \
+  \        # THE BOUND, as load-bearing as the requirement: this is a DISCIPLINE surfaced\
+  \ as a PROMPT.\n                               # `sensitivity:` is OPTIONAL and\
+  \ deliberately UNVALIDATED — the grammar above neither\n                       \
+  \        # requires it nor checks its content, no seam REFUSES a declaration for\
+  \ omitting it, and no\n                               # exit code moves. `audit\
+  \ post --post-ship-observation` prints a report-only reminder when\n           \
+  \                    # it is absent; the SPEC-0036 variant-(e) overlay names the\
+  \ evidence to the auditor when it\n                               # is present and\
+  \ states that its absence is an authoring prompt, NEVER a RED on its own. NO\n \
+  \                              # gate and NO predicate analyser was added (CHARTER\
+  \ non-goals #2/#7) — the reporter framed\n                               # the cheap\
+  \ fix as a discipline and it stays one.\n\nanswers: # OPTIONAL SPEC-0197 rule-4\
+  \ LINK-BACK — a YAML list of the outside\n                               # proposal\
+  \ ids this card answers (issue refs in the `#N` form, no host\n                \
+  \               # literal). Read by `release.collect_answered_proposals` at the\
+  \ release\n                               # commit into the published notes. Written\
+  \ by `task file --from-stdin` or\n                               # `task update\
+  \ --set-field answers --from-file`; both refuse an id failing\n                \
+  \               # `release.ANSWER_ID_RE` or carrying a host path, and an explicit\
+  \ null.\n                               # The ONE terminal-card carve-out of --set-field:\
+  \ answers is release\n                               # metadata, not the card's\
+  \ shipped claim, and a fix card is normally done\n                             \
+  \  # before the release that ships it is cut — so answers (and no other\n      \
+  \                         # field) is settable on a done/wont-do card; its task_amended\
+  \ row carries\n                               # `post_close: true`.\n\nresolution_excludes:\
+  \ # OPTIONAL closure-honesty declaration (X-1179) — what this\n                \
+  \               # task's fix STRUCTURALLY CANNOT REACH, in the resolver's own words.\n\
+  \                               # Read by exactly ONE consumer: the derived cross\
+  \ closure note\n                               # (`bin/lib/cross.py#resolution_note_for_close`),\
+  \ which appends it to the\n                               # `auto_note` the receiver's\
+  \ auto-`cross_done` carries — so a coordination\n                              \
+  \ # item closed by a fix that excludes the REPORTED INSTANCE says so on the\n  \
+  \                             # surface the requester reads. Form — a plain string:\n\
+  \                               # resolution_excludes: ', the reported card: the\
+  \ axis is fail-closed on the prior record'\n                               # WHY\
+  \ (measured, X-1179): X-1124's auto-closure read `resolved by :\n              \
+  \                 #...` and nothing else, although the fix reached only cards audited\
+  \ after\n                               # it landed. The requester acted on that\
+  \ plain resolution — unparked the\n                               # reported card,\
+  \ re-claimed it and spent an external auditor invocation\n                     \
+  \          # before the guard correctly refused — then had to write the divergence\n\
+  \                               # themselves, on their own close, after paying for\
+  \ it.\n                               # DECLARED, NEVER INFERRED (the SPEC-0095\
+  \ discipline): no code judges\n                               # reach; the resolver\
+  \ states it or the note is unchanged.\n                               # WRITTEN\
+  \ like `analysis:` — authored on the card by the resolving\n                   \
+  \            # session (no verb owns it), and admitted by `task file --from-stdin`\n\
+  \                               # (`task.py#_STDIN_EXTRA_SCHEMA_KEYS`) for a filer\
+  \ who already knows.\n                               # ABSENT = the ordinary case,\
+  \ and deliberately so — a closure whose fix DOES\n                             \
+  \  # reach the reported instance emits the identical note it always did, with no\n\
+  \                               # added ceremony. Taxing every closure to describe\
+  \ the rare one is exactly\n                               # what this field exists\
+  \ to avoid. Additive + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL\
+  \ declaration (X-1166) — an acceptance differential\n                          \
+  \     # that was MEASURED ANOTHER WAY because the instrument the card planned\n\
+  \                               # could not run before the ship landed. Rendered\
+  \ to the auditor by the\n                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
+  \ so evidence\n                               # taken by the substitute is not read\
+  \ as evidence MISSING. ONE form, both\n                               # keys REQUIRED:\n\
+  \                               # substituted_instrument: {instrument: <what was\
+  \ run instead>, reason: <why the planned one was unavailable pre-land>}\n      \
+  \                         # `instrument` = the measurement actually taken (e.g.\
+  \ «a direct call of the\n                               # same detector functions\
+  \ the nightly runs»); `reason` = why the planned\n                             \
+  \  # instrument was structurally unavailable at this pre-land, diff-only stage\n\
+  \                               # (e.g. «the nightly reads LANDED state, and this\
+  \ change has not landed»).\n                               # WHY BOTH: an instrument\
+  \ with no reason is the blanket «I measured\n                               # something\
+  \ else»; a reason naming no instrument is the ABSENT differential\n            \
+  \                   # this must never license. Neither is admitted — a malformed\
+  \ declaration\n                               # renders NOTHING, exactly as an absent\
+  \ one does, so it can never present\n                               # itself to\
+  \ the auditor as a valid substitution.\n                               # NOT a deferred-adoption\
+  \ overlay and deliberately NOT one: every member of\n                          \
+  \     # that family EXEMPTS AN ABSENCE, and here nothing is absent — the\n     \
+  \                          # measurement WAS taken. So this EXEMPTS NOTHING. The\
+  \ requirement that a\n                               # differential exist is unchanged,\
+  \ and whether the substitute actually\n                               # measures\
+  \ the criterion it stands in for stays the auditor's judgement (a\n            \
+  \                   # substitute that does not is still RED). No CLI flag and no\
+  \ fail-closed\n                               # guard were added: the declaration\
+  \ itself is the trigger (the\n                               # card-field-rendering\
+  \ precedent). Grammar home:\n                               # `bin/lib/task.py#_substituted_instrument_declaration_error`.\
+  \ Absent = the\n                               # ordinary case. Additive + optional\
+  \ (no drift #10).\n\nforeign_audit_subject: # OPTIONAL declaration (X-1487) — an\
+  \ ALREADY-LANDED commit this\n                               # card did NOT author,\
+  \ declared as its Stage-8 audit-post SUBJECT. The\n                            \
+  \   # carrier of the CHARTER §P2 emergency-bypass RETRO-AUDIT: a post-incident\n\
+  \                               # card whose whole deliverable is to put the bypassed\
+  \ commit through the\n                               # audit-post it skipped. ONE\
+  \ form, both keys REQUIRED:\n                               # foreign_audit_subject:\
+  \ {commit: <7-40 hex sha>, reason: <>= 30 chars, why THIS card audits THAT commit>}\n\
+  \                               # WHY: every audit-post custody leg answers «which\
+  \ of THIS card's ships is\n                               # the subject», so `audit\
+  \ post --commit <foreign>` was refused by and\n                               #\
+  \ the reporter's workaround greened WITHOUT an auditor (X-1488). ADMISSION\n   \
+  \                            # IS BY DECLARATION, NEVER BY FLAG — there is no `--foreign-subject`\
+  \ flag;\n                               # a card that has NOT declared one cannot\
+  \ audit an arbitrary commit (the\n                               # ordinary rule\
+  \ is byte-identical). `audit post` on a declaring card\n                       \
+  \        # admits the declared commit ONLY when it resolves AND is an ancestor of\n\
+  \                               # `main` (already-landed), and `--commit` if given\
+  \ must name it; the saved\n                               # verdict records `foreign_subject:\
+  \ true` + the commit / reason / landing\n                               # trail\
+  \ so a later reader sees which route was taken. `task close`\n                 \
+  \              # RE-DERIVES the admission from the live declaration and pins closure\
+  \ to\n                               # the declared commit (its second control point,\
+  \ the `custody_repin`\n                               # shape). The auditor is told\
+  \ the diff is a declared foreign retro-audit\n                               # subject\
+  \ — «not authored under this card» is never a finding, the\n                   \
+  \            # foreign diff is judged fully on the universal lens. The reason floor\n\
+  \                               # mirrors the §P2 `emergency:` marker (>= 30 chars).\
+  \ Governed write-path:\n                               # `task file --from-stdin`\
+  \ (filing) — never a hand-edit. Grammar home:\n                               #\
+  \ `bin/lib/task.py#foreign_audit_subject_declaration_error`. Absent = the\n    \
+  \                           # ordinary case. Additive + optional (no drift #10).\n\
+  \nactivation_gated_radius: # OPTIONAL deferred-proof declaration (rule home SPEC-0176)\
+  \ —\n                               # the carrier of the Stage-8 `audit post --activation-gated-radius`\n\
+  \                               # carve-out, for a card whose OWN CLOSURE flips\
+  \ a `proposed` spec that\n                               # registers a CONCERN.\
+  \ The concern registry and the activation checklist\n                          \
+  \     # answer only for ALREADY-ACTIVE specs, so the fixtures that activation\n\
+  \                               # invalidates are structurally invisible until the\
+  \ flip — and the flip is\n                               # performed by this card's\
+  \ closure ( burned 4 audit passes, 2 owner\n                               # resets\
+  \ and a convergence consult arguing about that impossible\n                    \
+  \           # forecast). ONE form, both keys REQUIRED:\n                       \
+  \        # activation_gated_radius: {declaration: <why the radius is hidden>, reconciliation:\
+  \ [tests/test_x.py, graph/index.json]}\n                               # `declaration`\
+  \ = the up-front ADMISSION TICKET; `reconciliation` = the\n                    \
+  \           # MEASURED paths the activation actually reached — LITERAL paths, since\n\
+  \                               # a measurement ENUMERATES: a glob or bare directory\
+  \ is refused here even\n                               # when it would match (one\
+  \ `*` would swallow the whole diff), unlike\n                               # `expected_touch`,\
+  \ where a pattern is legitimate. It is NOT a waiver of\n                       \
+  \        # scope fidelity and NOT taken on the card's word — the guard proves an\n\
+  \                               # OBJECTIVE STRUCTURAL eligibility predicate (the\
+  \ card must really own\n                               # such a proposed spec),\
+  \ still REQUIRES a non-empty `expected_touch`, and\n                           \
+  \    # VERIFIES the reconciliation against the real diff. The three sets\n     \
+  \                          # PARTITION the ship: `expected_touch` keeps ordinary\
+  \ enforcement,\n                               # `reconciliation` is the whole of\
+  \ the exemption, and a touched path in\n                               # neither\
+  \ is refused. Absent = ordinary scope fidelity (the common case).\n\npinned_suite_edit:\
+  \ # OPTIONAL anti-tamper admission declaration — the carrier\n                 \
+  \              # that lets a sibling PINNED-suite guard admit THIS card's edit to\
+  \ the\n                               # suite it pins. Several suites re-run a pinned\
+  \ suite as their proof\n                               # that the judgement did\
+  \ not move, and pair it with \"and it was not\n                               #\
+  \ edited\" — the load-bearing half, since running it green would pass\n        \
+  \                       # either way if an assertion inside it had been relaxed.\
+  \ That pairing\n                               # made a card whose AUDITED, IN-SCOPE\
+  \ DELIVERABLE *is* the pinned suite\n                               # unlandable\
+  \ by construction, with no honest route out: `--rebaseline`\n                  \
+  \             # there would re-sign a claim about the diff (\"this card did not\
+  \ edit\n                               # the suite\") that is FALSE, and relaxing\
+  \ the assertion would disarm\n                               # another card's guard\
+  \ (measured on, halted blocked_on_land\n                               # 2026-08-27;\
+  \ the dirt is written by the SPEC-0077 pinned leg's OWN\n                      \
+  \         # `tests/` overlay over a candidate HEAD that carries the edit).\n   \
+  \                            # The remedy makes the guard DISCRIMINATE, never blinds\
+  \ it: an\n                               # UNDECLARED edit fails exactly as it always\
+  \ has. ONE form:\n                               # pinned_suite_edit:\n        \
+  \                       # declaration: <why this card must edit the pinned suite>\n\
+  \                               # edits:\n                               # - suite:\
+  \ tests/test_x.py\n                               # blob: <40-hex `git rev-parse\
+  \ HEAD:tests/test_x.py`>\n                               # guards: [tests/test_guard_a.py,\
+  \ tests/test_guard_b.py]\n                               # NOT taken on the card's\
+  \ word — the reader (tests/_pinned_suite_edit.py)\n                            \
+  \   # requires POSITIVE evidence on FOUR axes, all of them: (a) `suite`\n      \
+  \                         # matches the dirty path LITERALLY (no glob, no basename\
+  \ match —\n                               # a measurement enumerates, as with `activation_gated_radius`\
+  \ above);\n                               # (b) `guards` names the asking guard\
+  \ literally, so a declaration\n                               # admits the guards\
+  \ it was written against and no others;\n                               # (c) `blob`\
+  \ equals the suite's CANDIDATE HEAD blob, asked of git —\n                     \
+  \          # ONE side, never an OR, because in the pinned leg the WORKING TREE is\n\
+  \                               # the last-green overlay, so accepting either side\
+  \ would let a\n                               # declaration pin the OLD content\
+  \ and admit a candidate edit that was\n                               # never pinned\
+  \ at all; (d) a GREEN/YELLOW `audit post` for this card\n                      \
+  \         # whose recorded `commit:` CARRIES that blob (an audit-PRE never\n   \
+  \                            # counts — it judges a plan, before any code exists,\
+  \ so it cannot\n                               # cover an implemented edit; and\
+  \ a bare GREEN without the blob tie\n                               # would vouch\
+  \ for content the audit never saw).\n                               # This is the\
+  \ `activation_gated_radius` \"measured, never the author's\n                   \
+  \            # word\" discipline applied on the CONTENT axis instead of the path\n\
+  \                               # axis, so it CANNOT become a blanket waiver: a\
+  \ declaration admits ONE\n                               # byte-state of ONE file\
+  \ to named guards, and edit the suite again and\n                              \
+  \ # the sha stops matching — the ticket is spent, not standing. Coverage\n     \
+  \                          # is likewise self-expiring: a post-audit edit breaks\
+  \ the blob tie\n                               # until a fresh `audit post` re-pins\
+  \ it. FAIL-CLOSED throughout — a\n                               # failed git call,\
+  \ an unreadable card, a malformed declaration or an\n                          \
+  \     # absent audit record each REFUSE, so a BROKEN declaration can never\n   \
+  \                            # disable the guard. Absent = the ordinary case (no\
+  \ pinned suite is\n                               # this card's deliverable).\n\
+  \                               # Additive + optional (no drift #10).\n\nresolves_cross:\
+  \ [] # OPTIONAL structured task→cross link. The coordination item(s)\n         \
+  \                      # (X-NNNN, SPEC-0085) this task RESOLVES. At `task close`\
+  \ the receiver\n                               # auto-emits `cross_done` for each\
+  \ linked item it owns (self==item.to) +\n                               # that is\
+  \ `picked` (SPEC-0085 §3 receiver path) — so a shipped fix never\n             \
+  \                  # leaves its cross request dangling (the manual-reconcile class).\
+  \ ALSO the\n                               # intake-staleness signal: `cross pick`\
+  \ REFUSES picking an item a DONE task\n                               # already\
+  \ resolves (SPEC-0086 pick guard). Written by `task file\n                     \
+  \          # --resolves-cross`; list of X-NNNN ids. Absent = the task resolves no\n\
+  \                               # coordination item (the common case). Additive\
+  \ + optional (no drift #10).\nhost_config: true # OPTIONAL host-config-class opt-in\
+  \ marker (SPEC-0094 §3 / SPEC-0111).\n                               # Boolean-only\
+  \ — present ONLY as `true` (a HOST-level config change, outside\n              \
+  \                 # the app image); ABSENT = not a host-config task (the common\
+  \ case; `false` is\n                               # just absence — omit it). When\
+  \ `true`, `task close` REFUSES the task until the\n                            \
+  \   # evidence required by its `host_config_kind` has been recorded (the per-KIND\n\
+  \                               # matrix is homed in SPEC-0094 §3). Governed write-paths:\
+  \ `task file\n                               # --host-config` (filing) / `task update\
+  \ --old/--new` (journal-marked\n                               # field-edit) — never\
+  \ a hand-edit. Additive (no drift #10).\nhost_config_kind: nginx-vhost # OPTIONAL\
+  \ host-surface KIND discriminator (X-0257; SPEC-0094 §3).\n                    \
+  \           # One of: nginx-vhost | cron | systemd-unit | other. Meaningful ONLY\
+  \ beside\n                               # `host_config: true` (a kind without the\
+  \ marker is REFUSED at filing — the\n                               # marker is\
+  \ the class opt-in; the kind only selects WHICH evidence closure\n             \
+  \                  # demands). ABSENT ⇒ `nginx-vhost`, the class's own definition\
+  \ (SPEC-0097 §10)\n                               # and the STRICTEST evidence set\
+  \ — so a card filed before this field existed is\n                             \
+  \  # unchanged, and a typo'd kind never buys a leaner gate (it is refused).\n  \
+  \                             # Governed write-paths: `task file --host-config-kind`\
+  \ (filing) / `task update\n                               # --old/--new` — never\
+  \ a hand-edit. Additive (no drift #10).\n\nqueue_jump: # OPTIONAL emergency place\
+  \ in the LAND-ADMISSION ORDER (reason: <the blockage> # SPEC-0184 rule 9). Mapping\
+  \ with ONE required key, `reason` — the\n                               # blockage\
+  \ this card clears, in words. ABSENT = ordinary arrival\n                      \
+  \         # order (the common case). A queued branch whose card carries a LIVE\n\
+  \                               # mark wins the rule-9 yield scan outright, ahead\
+  \ of the cost ladder;\n                               # it changes ORDER OF SERVICE\
+  \ ONLY — batch membership, solo-ness and\n                               # every\
+  \ other rule-9 invariant are untouched. THREE safeguards are\n                 \
+  \              # part of the field, not advice about it: (a) a reasonless mark is\n\
+  \                               # REFUSED at write time; (b) the mark EXPIRES with\
+  \ its card — a\n                               # terminal card (`done` / `wont-do`)\
+  \ grants no precedence, derived at\n                               # read time so\
+  \ there is no second store to go stale (the ATOM3\n                            \
+  \   # lesson); (c) a firing that actually reorders admission emits\n           \
+  \                    # `land_queue_jump_fired` and shows on `bin/yitc-v2 debt`.\
+  \ Governed\n                               # write-paths: `task update --queue-jump\
+  \ <reason>` /\n                               # `--queue-jump-clear` — never a hand-edit.\
+  \ Additive (no drift #10).\n\n# ── Migration-provenance fields (SPEC-0028 schema\
+  \ carrier / SPEC-0166 + SPEC-0167 behaviour) ──\n# All three OPTIONAL + additive\
+  \ (absent = unchanged behaviour, no drift #10). This card ships the\n# SCHEMA ONLY\
+  \ — the mechanisms that CONSUME these fields ship in the sibling cards (the SPEC-0166\n\
+  # premise-verify pass + dispatch gate, and the SPEC-0167 product-gate). Nothing\
+  \ here forks behaviour.\nimported_from: null # OPTIONAL migration-provenance ref\
+  \ : the legacy-backlog id/link\n                               # this card was imported\
+  \ FROM. A FREE scalar reference (NOT a plan slug —\n                           \
+  \    # so NO existence/dangling check, unlike decomposed_from). Governed\n     \
+  \                          # write-path: `task file --imported-from` (filing) /\
+  \ stdin key\n                               # `imported_from`. Stored ONLY when\
+  \ given (absent = not an imported card,\n                               # the common\
+  \ case). Surfaced in the task_filed event.\nprototype_ref: null # OPTIONAL prototype\
+  \ reference (SPEC-0205 rule 5): `spike/<slug>` —\n                             \
+  \  # an ANNOTATED refs/tags/spike/* tag (written by `worktree park`) whose\n   \
+  \                            # annotation names a declaring spike row; anything\
+  \ else (a branch name,\n                               # a lightweight tag, a missing\
+  \ ref, an orphan tag) is REFUSED before any\n                               # write.\
+  \ Governed write-path: `task file --prototype-ref` / stdin key\n               \
+  \                # `prototype_ref`, and `task update --prototype-ref` (own mode,\
+  \ idempotent,\n                               # no silent overwrite, task_amended(field_edit)).\
+  \ Readers: `audit pre`\n                               # (inlines the prototype\
+  \ diff + overlay), `audit post` (prototype_identity\n                          \
+  \     # line), spike_identity.consumed_prototype_ships. Absent = not built on a\
+  \ spike.\npremise: null # OPTIONAL premise-verify marker : one of\n            \
+  \                   # verified | already-done | stale | unclassifiable — the outcome\
+  \ of the SPEC-0166\n                               # premise check (`unclassifiable`\
+  \ = the card carries no premise markers;\n                               # recorded\
+  \ so the pass is idempotent). FAIL-CLOSED enum (an out-of-enum value is a\n    \
+  \                           # schema/type error — the SPEC-0165 named loud mechanism).\
+  \ Governed\n                               # write-path: `task update --old/--new`\
+  \ (the field-edit route validates\n                               # the enum), never\
+  \ a hand-edit. Absent = premise not yet recorded.\nproduct_dispatch_owner_ack: null\
+  \ # OPTIONAL product-dispatch owner-ack ref : a reference to the\n             \
+  \                  # owner acknowledgement the SPEC-0167 product-gate consumes.\
+  \ A FREE scalar\n                               # ref. Governed write-path: `task\
+  \ update --old/--new`. Absent = no ack\n                               # recorded\
+  \ (the common case). SCHEMA carrier only — the gate ships in SPEC-0167.\n\n# Resume\
+  \ contract fields ( — populated on task_paused):\n# — a transition to done / wont-do\
+  \ REMOVES resume_from / next_action / paused_at /\n# paused_reason / paused_awaits\
+  \ (task.py#PAUSE_BLOCK_FIELDS); the history stays in task_paused.\ncurrent_stage:\
+  \ null # semantic stage NAME (e.g. Execution); class implies the FSM (LIFECYCLE\
+  \ §Stage FSM). Set by lifecycle CLI verbs / on pause.\n                        \
+  \       # ADVISORY ONLY — no verb gates on it (retired as a guard; enforcement is\
+  \ artifacts-as-gates, not a stage counter).\nresume_from: null # step within stage\
+  \ or «start»\nlast_verified: null # ISO ts — last verified artifact/state\nnext_action:\
+  \ null # one-line concrete next step\npaused_at: null # ISO ts when paused\npaused_reason:\
+  \ null # the trigger-typed halt reason (vocab.PAUSE_REASONS, the enum home):\n \
+  \                              # owner-wait | audit-ceiling | auditor-abort | batch-remainder\
+  \ |\n                               # session-end | land-conflict | controller-wait\
+  \ | artifact-wait.\n                               # artifact-wait = a wait on a\
+  \ DECLARED item whose arrival a\n                               # reader can DECIDE;\
+  \ it REQUIRES paused_awaits below.\npaused_awaits: null # — the awaited artifact\
+  \ whose arrival ENDS this pause, in the\n                               # ONE awaits\
+  \ grammar (followup.awaits_kind): T-NNNN | X-NNNN |\n                          \
+  \     # events.jsonl#type=<t>[@after=<ISO>]. DECLARED, never inferred from\n   \
+  \                            # next_action prose. REQUIRED with paused_reason: artifact-wait,\n\
+  \                               # ALLOWED with owner-wait, refused with any other\
+  \ reason. Written ONLY\n                               # by `task pause --awaits`\
+  \ (verb-owned — never filing-time authored)\n                               # and\
+  \ cleared by `task resume`. The session-start echo RESOLVES it\n               \
+  \                # rather than asserting the wait: while the item is open it prints\n\
+  \                               # WAITING-ON-<OWNER|ARTIFACT> … awaits <ref> (open),\
+  \ and once the item\n                               # is terminal it prints RESUMABLE.\
+  \ A card carrying no paused_awaits\n                               # renders byte-identically\
+  \ to the pre- owner-wait line.\nrefused_at: null # — ISO ts of a PRE-CLAIM refusal\
+  \ (`task refuse`); verb-owned,\n                               # never filing-time\
+  \ authored. A card carrying it is NOT dispatchable\n                           \
+  \    # (task.py#_premise_dispatch_block) and is awaiting a DISPOSITION;\n      \
+  \                         # the status is UNTOUCHED (`ready`), because the verb\
+  \ records the\n                               # refusal and never chooses the disposition.\
+  \ Cleared by a terminal\n                               # disposition or `task refuse\
+  \ --clear`. Rule home: SPEC-0133 rule 2f.\nrefused_reason: null # — verbatim WHY\
+  \ the card was refused, readable off the card\n                               #\
+  \ without querying the journal. Verb-owned (`task refuse`).\n```\n\n**No other top-level\
+  \ fields.** If a field seems necessary, anti-complexity check (CHARTER §P1) +\n\
+  Review approval first. **Admitted exceptions:** `post_verification` — admitted by\
+  \ SPEC-0038 (the\npost-verification observation instrument; its `amends:` names\
+  \ this guard explicitly — amended, not\nbypassed); and `expected_touch` — the OPTIONAL\
+  \ filing-time dispatch-selection forecast,\ndefined in the Optional-fields block\
+  \ above (forecast-not-promise semantics; carve-out picker input,\nplan `parallel-work-preparation-carve-out-picker`\
+  \ §C4/§DEFERRED); and `decomposed_from` — the OPTIONAL\ncut-membership marker, the\
+  \ SPEC-0070 §5 claim-block carrier, written ONLY by the decomposition\ncut; and\
+  \ `effort_tier` — the OPTIONAL filing-time STAKES tier (SPEC-0072), mapped to the\
+  \ dispatch worker's (model, effort) via bin/effort-routing-config.yaml; and `resolves_cross`\
+  \ — the OPTIONAL structured task→cross link, the receiver-side close-the-loop carrier\
+  \ (auto cross-done at close + the `cross pick` intake-staleness signal, SPEC-0085\
+  \ §3 / SPEC-0086); and `live_probe` — the OPTIONAL per-change deploy live-probe\
+  \ declaration (SPEC-0094 §3/§4), the deploy-conditional close-gate carrier; and\
+  \ `imported_from` / `premise` / `product_dispatch_owner_ack` — the OPTIONAL migration-provenance\
+  \ fields (SPEC-0028 schema carrier; consumed by SPEC-0166 premise-verify + SPEC-0167\
+  \ product-gate): a legacy-backlog import ref, a fail-closed premise-verify enum\
+  \ {verified, already-done, stale, unclassifiable}, and a product-dispatch owner-ack\
+  \ ref. All nine are additive + optional (absent = unchanged behaviour, no drift\
+  \ #10).\n\n**Filename convention:** `tasks/<id>.yaml` is shorthand; canonical on-disk\
+  \ form is\n`tasks/T-NNNN-<slug>.yaml`, `<slug>` = title kebab-cased (first 50 chars,\
+  \ lowercase, non-alnum → `-`),\nallocated by `bin/yitc-v2 task file` per `_template.yaml`.\n\
+  \n## Rationale\n\nSingle-source-of-truth (CHARTER §P5): one task format, one parser,\
+  \ one directory (`tasks/`). The\nillustrative `tasks/_template.yaml` is DERIVED\
+  \ from this schema — any schema change updates the\ntemplate too (the template's\
+  \ own maintenance comment points here). Demoted to the retrieved tier\n(SPEC-0007\
+  \ §5a query-only) because the full field catalog is situational reference consulted\
+  \ only\nwhen authoring/parsing a task — not a rule held before a gated control-point\
+  \ — so the always-loaded\nQUEUE core stays small (picker + state transitions only).\n\
+  \n## Verification\n\n- **Fidelity (RED-GREEN):** a substantive field-comment phrase\
+  \ (e.g. `semantic stage NAME `)\n  resolves in THIS spec and is ABSENT from QUEUE.md\
+  \ after the demote ( test). RED before strip\n  (phrase still in QUEUE.md), GREEN\
+  \ after.\n- **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0028` resolves\
+  \ this spec; the QUEUE.md\n  pointer-stub names `SPEC-0028` + the lookup command.\
+  \ NO floor-trigger (not a gated control-point).\n- **Non-dangling:** non-empty `implements:`\
+  \ (tasks/_template.yaml + the four TASK_* enum consts; cmd_task_file is the enforcing\
+  \ scaffold, named in prose — anchor retuned) ⇒ excluded from\n  `binding_report.dangling_specs`\
+  \ once active.\n"
+cites:
+- QUEUE.md#yaml-schema-one-task-per-file
+- SPEC-0007
+- SPEC-0013
+- CHARTER.md#principle-5
+- part-i-b-tier-split-carving-floor-wiring-first-the
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+implements_signature:
+  bin/lib/memory.py#resolve_actor: 611ec5ef3c2744206cdafee6541811ab4d68d517ca22a409924d950ce3e44e30
+  bin/lib/task.py#PREMISE_VALUES: a0679994e93e069b67f9f51d2403a46991ef4996ae54b0bd0de89583ecc7e711
+  bin/lib/task.py#TASK_CREATED_BY: 29c750ab5b0efb8e0636353712eb608b346edf018846b4a7fa7deecd98baa452
+  bin/lib/vocab.py#TASK_CLASSES: ee6f546d6976f100eb7a7210649b881cf0272a047ab1866ab54c4f3dd228c6dd
+  bin/lib/vocab.py#TASK_FILING_STATUSES: a3f438ac70ae0ffb2c30813c12532aafe7e07a0af1396706e2a37bfcfb1ae44e
+  bin/lib/vocab.py#TASK_PRIORITIES: c9e55aa7764415938acd55d1c1310d05aa36e285be560fde67a0dc1007093a7f
+  tasks/_template.yaml: ba4ee34607f6f52caf0a8b4f446ad99655ea3fd5036ada42be650e91121c5597

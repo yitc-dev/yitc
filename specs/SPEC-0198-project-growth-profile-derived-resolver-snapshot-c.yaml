@@ -1,0 +1,236 @@
+id: SPEC-0198
+title: Project growth profile — derived resolver, snapshot + check-set hash, conservative
+  defaults, owner override, and the seam-bound lens-activation contract
+status: active
+created_at: 2026-09-04 17:48:55+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/profile.py#resolve_profile
+- bin/lib/profile.py#required_check_set
+- bin/lib/profile.py#profile_snapshot
+- bin/lib/profile.py#check_set_hash
+- bin/lib/profile.py#second_derivation_sites
+- bin/lib/cli.py#cmd_profile
+- bin/lib/views.py#_render_debt_echo
+body: "## Scenario\n\nA project on yitc-v2 is never asked to describe itself. At every\
+  \ seam that already runs — session\nstart, `debt`, the deploy gate, an authoring\
+  \ floor trigger — the kernel RESOLVES the\nproject's growth profile from what the\
+  \ checkout and its journal already show (routes, auth code,\npayment SDKs, PII-shaped\
+  \ fields, external keys, migrations, deploy class, collaborators) and reads\nthe\
+  \ lenses that profile requires. When the project crosses a threshold — its first\
+  \ public route, its\nfirst PII table, its first payment SDK, its first collaborator\
+  \ — the matching questions ACTIVATE by\nthemselves: the right SPEC-0100 items start\
+  \ arriving at the authoring moment, the cron audit's\nrequired scope widens so the\
+  \ last report reads stale, the debt echo shows that dimension's gap\nregister, and\
+  \ the gap items are auto-filed as followups. The owner sees questions, never a prompt\
+  \ to\n\"update the profile\"; nothing is executed, dispatched, audited or deployed\
+  \ from a crossing — the owner\nstill authorizes every batch. A prototype with no\
+  \ users hears only the constant floor.\n\n## Internal\n\nTHE PROJECT GROWTH PROFILE\
+  \ + LENS-ACTIVATION CONTRACT. One derived declaration, one resolver, many\nreaders.\
+  \ Eight rules.\n\n### 1. Ten dimensions, each load-bearing\n`surface` (public |\
+  \ internal | unknown) · `input_trust` (untrusted | trusted | unknown) ·\n`data_sensitivity`\
+  \ (pii | sensitive | none | unknown) · `money` (present | absent | unknown) ·\n\
+  `users_roles_tenancy` (multi | single | none | unknown) · `external_integrations`\
+  \ (present | absent |\nunknown) · `statefulness` (stateful | stateless | unknown)\
+  \ · `operational_criticality` (live-critical |\nlive | prototype | unknown) · `traffic_scale`\
+  \ (declared only) · `collaborator_rights` (declared or\nprovider-backed only). A\
+  \ dimension exists ONLY if at least one derived check changes with its value;\n\
+  a dimension that changes nothing is removed, not kept \"for later\" (CHARTER §P1\
+  \ F3).\n\n### 2. Derivation table — cheap, reliable, checkout+journal only\nEach\
+  \ derivable dimension names its SIGNALS (read from the repo tree, `yitc-ops.yaml`,\
+  \ the migrations/ORM\nschema, dependency manifests, and this repo's journal) and\
+  \ its CONSERVATIVE DEFAULT when no signal\nresolves: surface→public/unknown activates\
+  \ public-boundary checks; input_trust→untrusted if public or\nunknown; data_sensitivity→pii-candidate\
+  \ for a stateful public app; money→present on any payment signal;\nusers→multi-user\
+  \ candidate when auth is seen; external→present on a provider/key signal; statefulness→\n\
+  stateful when mutable endpoints or a live app; criticality→live-critical-candidate\
+  \ for public+PII/money/\nauth. `traffic_scale` and `collaborator_rights` are NOT\
+  \ derived from the checkout (a commit-author count\nis not a permission proof);\
+  \ they stay owner-declared or provider-backed and read `unknown` otherwise.\nSignals\
+  \ that are NEVER sufficient alone: README claims, comments/TODOs, UI copy, package\
+  \ popularity,\ngeneric HTTP-client usage, uncommitted dashboards. The table is CODE\
+  \ (one module), this rule names it.\n\n### 3. One resolver, one snapshot, one hash\n\
+  Exactly ONE kernel library resolves the profile; every seam CALLS it, none re-derives.\
+  \ It returns\n`{dimensions, signal-per-dimension, snapshot_hash, check_set_hash}`;\
+  \ `snapshot_hash` covers the resolved\nvalues (overrides), `check_set_hash` covers\
+  \ the derived required check-set. A consumer of the profile\n(a SPEC-0145 audit\
+  \ report, an inspection record, a gap-register row) RECORDS the hash it acted under;\
+  \ a\nreader COMPARES against the current resolution. The read-only verb `bin/yitc-v2\
+  \ [-C <repo>] profile`\nprints the resolution (and, as a report-only `DEGRADED`\
+  \ line, each LATCHED dimension resolving `unknown`\nfrom the default whose rule-6\
+  \ lens is therefore NOT in the check-set, naming the lens left off and the\noverride\
+  \ that would settle it — readout only, it moves no hash and no activation); it writes\n\
+  nothing and emits no event of its own (the `debt` posture) — the one\njournal row\
+  \ is the dispatch seam's `cli_invoked` INVOCATION RECEIPT (: a receipt-only\nmarker,\
+  \ emitted after the body, never read by it; under `--read-only` it lands in the\
+  \ reader's journal).\n**The MACHINE form of that read is `profile --json`, and its\
+  \ payload is a CONTRACT.** A\ndeterministic non-AI consumer — a byte-copied SPEC-0145\
+  \ producer with no `bin/lib/` beside it — reaches\nthis one derivation site only\
+  \ by EXECUTING the engine, so the JSON it parses is a stable surface, not\nincidental\
+  \ output. `--json` prints ONE line: `json.dumps` of the dict the resolution ALREADY\
+  \ returns,\nsorted keys. It is a second RENDER of an existing public value — the\
+  \ resolver is not touched, so the one\nderivation site is preserved rather than\
+  \ forked.\nREQUIRED FIELDS, each of which a reader MAY fail closed on: **`snapshot_hash`**\
+  \ and **`check_set_hash`**,\neach a 64-character lowercase-hex string; **`check_set`**,\
+  \ a non-empty list of non-empty strings. The\nresolution's other keys (`dimensions`,\
+  \ `evidence`) travel too and are NOT part of the required set — a\nreader must tolerate\
+  \ their presence and must not depend on them. **A reader validates the required\
+  \ set in\nFULL before acting on any of it**: there is no partial-success state,\
+  \ and a payload missing or\nmistyping ANY required field is a DEGRADE, never a partial\
+  \ read (SPEC-0145 owns what a degrade looks\nlike in a report).\n**The command is\
+  \ a DERIVED value, never a stance.** Where a consumer's carrier holds this invocation\n\
+  (SPEC-0145's `security.audit.profile_snapshot.command`, rendered by `init`), that\
+  \ value is computed by\nthe kernel, not answered by a human — so it is ratified\
+  \ BY CONSTRUCTION and owes no unratified-adoption\ndebt (SPEC-0119 rule 13 exclusion\
+  \ (v)). A derived value is never asked as a question.\n**It runs SESSION-LESS by\
+  \ contract.** The real trigger of a consumer's security audit is cron/systemd,\n\
+  which carries no session, so `profile` is a member of the SPEC-0050 §8a bounded\
+  \ read-only tolerance set:\nit resolves and prints under a sessionless environment\
+  \ while every GOVERNED verb still fails closed\nthere. The warning it emits on that\
+  \ path goes to STDERR, so the JSON on stdout stays parseable.\n\n### 4. Owner override\
+  \ wins, and is shown as such\nThe `profile:` section of `yitc-ops.yaml` (concern\
+  \ block below) carries ONLY `override:` values and an\noptional loose `waiver:`;\
+  \ a present override replaces the derived value and is rendered as `override`.\n\
+  Absent/stale/unparseable section = derived profile, conservative. Nothing in the\
+  \ kernel ever asks the\nowner to maintain this section; the derivation is the default\
+  \ path.\n\n### 5. Activation is SEAM-BOUND SURFACING — the CHARTER §6 line\nResolution\
+  \ runs ONLY inside verbs that are already running (session start, `debt`, deploy\n\
+  gate, floor trigger, cron audit, `profile` — the land tail no longer runs it: SPEC-0119\
+  \ rule 2(b)\nretired that seam, and its rule-5/rule-7 writers had never persisted\
+  \ from it). A crossing (a dimension moving to a wider value than the\nlast recorded\
+  \ snapshot at that seam) may: deliver the dimension's SPEC-0100 items at the authoring\n\
+  floor; widen the SPEC-0145 required scope; render the dimension's gap register on\
+  \ the debt echo;\nAUTO-FILE followups for the gap items (armed on a nameable artifact\
+  \ where one exists, else actionable —\nthe shape). It may NOT: watch continuously,\
+  \ classify runtime behaviour, fetch external provider\nstate without an owner command,\
+  \ dispatch a worker, run an audit, open a PR, deploy, or mutate code.\nExecution\
+  \ of any surfaced item is owner-authorized (a batch), exactly as before.\n\n###\
+  \ 6. The activation table\nfirst public route or public deploy → surface/input_trust\
+  \ → floor trigger + session-start debt + land\ntail + cron scope (deploy gate if\
+  \ live) → followup per missing public-boundary item; a TASK only for a\ndeploy-blocking\
+  \ live gap. · first request body/form/upload/webhook → input_trust → authoring floor\
+  \ + land\ntail → validation/rate-limit/CSRF/log-redaction followups. · first PII/auth/user\
+  \ table → data_sensitivity/\nusers → SPEC-0100 delivery + gap register + cron widening\
+  \ → retention/deletion/classification followups;\na task for live unhandled PII.\
+  \ · first payment SDK/key/webhook → money/external_integrations →\nbefore-adding-a-dependency\
+  \ + debt + cron + deploy gate for live payments → webhook verification / key\nrotation\
+  \ / cost-threshold items. · first DB/migration/storage → statefulness → migration\
+  \ stance, tests\ntaxonomy, deploy probe, debt → backup/restore + migration-test\
+  \ items. · first live deploy class →\noperational_criticality → deploy gate + session-start\
+  \ debt + the monthly active-project review →\nhealth/rollback/runbook/alert gaps.\
+  \ · a load-test/SLO artifact appears → traffic_scale → perf lens + debt.\n· collaborator\
+  \ proof/declaration → collaborator_rights → land-time shared floor + debt → CI/branch-\n\
+  protection/human-author floor. The table is the ONE home; SPEC-0100 / SPEC-0119\
+  \ / SPEC-0145 / SPEC-0164\npoint here.\n\n### 7. Bounds — no flood, no flap, no\
+  \ prototype drowned\nPrototype/live status gates which lenses may activate at all\
+  \ (a `prototype` criticality receives only\nthe constant floor: secrets, dependency\
+  \ hygiene). Stable dedupe keys (dimension + item id) — one followup\nper gap item,\
+  \ ever. Followups before tasks. Hysteresis: a dimension widens on one crossing and\
+  \ NARROWS\nonly by an explicit owner override (latch-until-owner-downgrade for surface\
+  \ / money / data_sensitivity /\nusers). The latch is held by a durable record: each\
+  \ seam that resolves the profile appends a\n`profile_snapshot_recorded` row (idempotent\
+  \ per snapshot hash), and the next resolution folds the newest\none as its prior\
+  \ snapshot. Per-project per-run cap on what the monthly review files: one profile-mismatch\
+  \ item + the top\ntwo risk items; the aggregate rollup across projects renders first.\n\
+  \n### 8. The \"does this edit raise the profile?\" first question\nAt each birth\
+  \ trigger (SPEC-0100 `before-authoring-public-boundary` / `before-adding-a-dependency`)\
+  \ the\nfirst delivered line asks whether THIS edit creates a higher-profile surface;\
+  \ if yes, the prospective\nhigher check-set applies to the edit now, and the next\
+  \ seam re-resolves — so an edit that itself\nchanges the profile is never checked\
+  \ against the pre-edit profile.\n\n## Parameters\nNone consumed. The dimension vocabulary,\
+  \ the signal table and the caps are CODE constants in the\nresolver module (single\
+  \ source); this spec names the contract. The cap values (1 mismatch + 2 risk per\n\
+  project per monthly run; hysteresis latch set) are stated in rule 7 as the contract\
+  \ a reader can\nverify, not as tunables.\n\n## Rationale\nReal incidents (CHARTER\
+  \ §P1 F4): <project> X-0369 / X-0345 (auth + secrets retrofitted LIVE); the\nforgotten\
+  \ security plan (deviation `plan-parked-in-draft-on-unnameable-pull-trigger-forgotten`);\
+  \ nine\nconsumers carrying one identical `security.audit` shape regardless of stage.\
+  \ External adjudication:\n`decisions/production-readiness-derived-profile-self-activating-audit-adhoc.yaml`\
+  \ (YELLOW — seam-bound\nsurfacing only; one resolver; cut every slice) + the two\
+  \ sibling consults. Prior-art: SPEC-0128 (one\ndeclaration → all surfaces), SPEC-0119\
+  \ (report-only debt seams) (auto-filed carrier at a seam),\nthreat-model-as-code,\
+  \ OWASP ASVS levels as check-set libraries. Anti-complexity: +1 concern on the\n\
+  existing registry, +1 read-only verb, one library; NO new store, event type, FSM,\
+  \ detector or gate.\nWhat it removes: every instruction that depends on the owner\
+  \ remembering to update a profile; the\nsecurity-local profile carrier; deploy-only\
+  \ production-gap surfacing.\n\n## Verification\n- **VP1 (derivation, differential):**\
+  \ a fixture checkout with planted signals resolves each dimension per\n  rule 2;\
+  \ removing a signal drops that dimension to its conservative default; `traffic_scale`\
+  \ /\n  `collaborator_rights` read `unknown` with no declaration (test file named\
+  \ by the S0 task).\n- **VP2 (one resolver, one hash):** two resolutions of an unchanged\
+  \ checkout are byte-identical; every\n  seam that renders a profile-derived line\
+  \ calls the resolver (an AST/grep tripwire names any second\n  derivation site).\n\
+  - **VP3 (override wins + shown):** a `profile.override.surface: internal` on a public-signal\
+  \ fixture\n  renders `internal (override)`; a malformed section reads derived-conservative.\n\
+  - **VP4 (fence, by absence):** a fixture crossing yields `followup_added` rows and\
+  \ NO `bg_dispatch_*` /\n  `deploy_completed` / `land_completed` / audit row caused\
+  \ by it.\n- **VP5 (bounds):** a prototype fixture activates only the constant floor;\
+  \ a toggled signal keeps the\n  latched value; the per-run cap holds on a fixture\
+  \ with 10 gap items.\n- **VP6 (adoption, CHARTER §P8):** on ≥ 3 live consumers the\
+  \ session-start echo carries the snapshot hash\n  + activated lens set, and ≥ 1\
+  \ real crossing produced an auto-filed followup with no owner cue (journal).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-6
+- CHARTER.md#principle-8
+- SPEC-0128
+- SPEC-0093
+- SPEC-0119
+- SPEC-0100
+- SPEC-0145
+- SPEC-0164
+- SPEC-0095
+- SPEC-0169
+- SPEC-0126
+- production-readiness-by-derived-profile-a-project-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: production-readiness-by-derived-profile-a-project-
+binding:
+- code-enforced
+concern:
+  section: profile
+  carrier_path: profile
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: override
+  declare_type: mapping
+  waiver_policy: loose
+  born_order: 185
+  born: "profile:\n  # SPEC-0198 (project growth profile). This section is DERIVED\
+    \ by the kernel from what the\n  # checkout and journal show (routes, auth, payment\
+    \ SDKs, PII fields, keys, migrations, deploy\n  # class) — you do NOT maintain\
+    \ it. Read the current resolution with `__YITC_CLI__ profile`.\n  # Declare here\
+    \ ONLY what the kernel cannot derive, or an OVERRIDE you want shown as yours:\n\
+    \  # override:\n  # traffic_scale: \"<low | medium | high — the kernel cannot\
+    \ read real traffic from a checkout>\"\n  # collaborator_rights: \"<solo | named-collaborators\
+    \ — a commit-author count is not a proof>\"\n  # surface: \"<internal — ONLY if\
+    \ you know this project is never publicly reachable>\"\n  # money: \"<present\
+    \ — spend moved through a third-party API (ad bids, price writes, marketplace\
+    \ calls) the kernel cannot derive>\"\n  # An absent override keeps the derived\
+    \ value; an unknown dimension reads CONSERVATIVE\n  # (wider checks), never narrower.\
+    \ Widening happens by itself at the next seam; NARROWING a\n  # latched high-risk\
+    \ dimension (surface / money / data_sensitivity / users) is an explicit act HERE.\n\
+    \  #\n  # BORN WAIVED, like `deploy.policy` and `security` — and here the waiver\
+    \ is the literally true\n  # statement, not a placeholder: this section is DERIVED,\
+    \ so a fresh project owes it nothing.\n  # It is seeded as a waiver rather than\
+    \ as an empty `override: {}` because the SPEC-0093 rule-3\n  # stance reader reads\
+    \ an empty declare-key as UNANSWERED, which made every born consumer carry\n \
+    \ # a permanent conformance issue and failed a fresh `init` (caught by the land\
+    \ verify).\n  waiver:\n    reason: \"Born with no override: the growth profile\
+    \ is DERIVED by the kernel from this checkout and its journal, so nothing is owed\
+    \ here. Replace this waiver with an `override:` mapping only to declare what the\
+    \ kernel cannot derive (traffic_scale / collaborator_rights) or to narrow a latched\
+    \ dimension deliberately.\"\n"
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#cmd_profile: d0df6b596257342abe8efaef491da70cf7f791d6a051fe274c3d718e70703f84
+  bin/lib/profile.py#check_set_hash: 4bd9c4f1acec0927a50b1fa4879784c57ed4292af56f427abbdf3818b5366f07
+  bin/lib/profile.py#profile_snapshot: 3e51def17898497c220b35cfa5240581097799fd01abd6bfa7a8d51fc843e4f7
+  bin/lib/profile.py#required_check_set: 0c48cde590be15b085207cca55f507dc59938e10b2b31ff5af09c7eeef752c2b
+  bin/lib/profile.py#resolve_profile: bccb545615b89bd1d57454b1035ce80300006de598d39f47d393908ae5c77653
+  bin/lib/profile.py#second_derivation_sites: aa77d3aa412aea4e1ed2b71990b3f2309888d4372b21d1860a2ca9ba3e146372
+  bin/lib/views.py#_render_debt_echo: 5a8a92d8276f6e1465f994ec81b4b1699df79ca343c6ffdf81495188f6eed654

@@ -1,0 +1,422 @@
+id: SPEC-0013
+title: Per-spec binding field — the retrieval-delivery contract (which gating verb
+  fetches a retrieved spec)
+status: active
+created_at: null
+consumed: false
+implements:
+- bin/lib/cli.py#BINDING_VERB_SURFACES
+- bin/lib/cli.py#BINDING_QUERY_ONLY_TOKEN
+- bin/lib/graph.py#_build_binding_views
+- bin/lib/graph.py#_render_floor_trigger_map
+- bin/lib/cli.py#STAGE_AXIS_NAMES
+- bin/lib/graph.py#_is_valid_stage_entry
+- bin/lib/graph.py#_is_valid_plan_stage_entry
+- bin/lib/graph.py#cmd_graph_conformance
+- bin/lib/cli.py#BINDING_SEED_TOKEN
+- bin/lib/cli.py#SURFACE_TO_STAGE
+- bin/lib/cli.py#_seed_howto
+binding:
+- code-enforced
+body: "## Scenario\n\nWhen a standing rule lives in the `retrieved` tier (fetched\
+  \ on demand, not always-loaded), the AI must\nreliably receive it at the moment\
+  \ it is needed — before the gated action it governs. The owner/AI never\nhand-maintains\
+  \ a \"what to read before X\" list: each retrieved spec DECLARES which gating verb/stage\n\
+  fetches it (its `binding:`), and `graph build` derives the verb->section map, the\
+  \ always-loaded floor\ntrigger-map, and a completeness report from that one declaration.\
+  \ A rule that should be fetched but\ndeclares no binding is surfaced (dangling),\
+  \ so it cannot silently fail to reach the AI.\n\n## Internal\n\nTHE BINDING CONTRACT\
+  \ (the single canonical carrier of retrieval-delivery — Part I-A element #5).\n\n\
+  ### Field\n- **Name:** `binding:` — a per-spec key on the spec YAML, alongside `implements:`\
+  \ / `cites:` /\n  `proposed_by:`. It is the ONE authority; the verb->section map,\
+  \ the floor trigger-map, and the\n  bidirectional report are DERIVED-ONLY outputs\
+  \ of `graph build` (never a hand-maintained duplicate —\n  plan-check finding 1).\
+  \ A second maintained copy of any of those is a P5 violation -> STOP + file.\n-\
+  \ **Value:** a YAML LIST of surface tokens. Empty or absent = unbound. A NON-list\
+  \ (a bare scalar\n  like `binding: commit`) is INVALID — `graph build` records it\
+  \ in `binding_report.malformed_binding`\n  (report-only shape drift) and treats\
+  \ the spec as unbound; it is never iterated character-by-character.\n- **Cardinality:**\
+  \ many-to-many. A spec MAY bind several surfaces (a rule needed before more than\
+  \ one\n  gated action); a surface MAY be served by several specs (e.g. audit pulls\
+  \ both the contract and the\n  eval lens). The inversion is `surface -> sorted[spec-id]`.\n\
+  \n### Allowed tokens (controlled vocabulary)\n- Verb surfaces: the canonical set\
+  \ is the code constant `bin/lib/cli.py#BINDING_VERB_SURFACES` — the\n  single SoT,\
+  \ and it is deliberately NOT re-listed here (the same P5 rule §Delivery-classes\
+  \ states\n  for this vocabulary). This is a STANDING ban, not an omission to be\
+  \ helpfully repaired: the prose\n  copy that used to sit here silently lagged the\
+  \ constant by two tokens for ~1 month, and the next\n  author documented the lag\
+  \ inline rather than fixing it, which is what a second copy always earns\n  ( →\
+  \ → deleted). Read the constant; do not mirror it.\n  A verb-surface token names\
+  \ a \"before X\" gated moment — either a CLI verb or a\n  BEHAVIORAL, non-CLI-verb\
+  \ moment (both kinds live in the one constant; the kind is not a second\n  axis,\
+  \ see the ⊥ residency bullet below). For ONE token's own meaning + carrier, read\
+  \ the spec that\n  BINDS it; the derived surface→specs rendering is `graph/floor-trigger-map.md`\
+  \ (`graph build`).\n- **Behavioral floor surface ⊥ residency token.** A BEHAVIORAL\
+  \ floor surface (`before-authoring-interaction`,\n  `before-project-dimension-judgement`)\
+  \ is a VERB-SURFACE token, NOT a residency token, so it is\n  ORTHOGONAL to a spec's\
+  \ residency token and MAY co-exist on one spec: a spec keeps its DEFAULT\n  delivery\
+  \ (e.g. `query-only` on-demand reference, `code-enforced`) AND is ALSO pulled at\
+  \ one specific\n  behavioral moment — the §Field many-to-many design (\"a spec MAY\
+  \ bind several surfaces\"). This mirrors\n  the residency⊥stage-routing orthogonality\
+  \ the one-source check already encodes (a lone stage-entry +\n  ONE residency is\
+  \ not flagged). It is NOT a second residency token (the \"EXACTLY ONE residency\
+  \ token\"\n  rule is unaffected): `_build_binding_views` honors both (the residency\
+  \ `continue` AND the verb-surface\n  append), and `_one_source_delivery_check` flags\
+  \ residency/verb co-presence ONLY alongside a\n  stage-entry token (absent here).\
+  \ So the bundle's `query-only`/`code-enforced` specs stay\n  conformance-GREEN while\
+  \ ALSO rendering under the behavioral floor trigger.\n- Reserved residency token:\
+  \ `floor` — marks a mandatory-tier, ALWAYS-LOADED rule that is NOT fetched on\n\
+  \  a verb. A `floor` spec is excluded from the verb->section inversion AND from\
+  \ the dangling check.\n  `floor` is DOMINANT: if a spec's binding contains `floor`,\
+  \ it is floor-resident and excluded from the\n  inversion ENTIRELY — even if it\
+  \ also lists verb tokens (a redundant/contradictory mix; floor wins).\n- Reserved\
+  \ residency token: `query-only` — the SECOND residency marker, the SPEC-0007 §5a\n\
+  \  \"query-only reference\" delivery class. Marks an active RETRIEVED spec delivered\
+  \ via an always-loaded\n  handbook pointer-stub + `graph query` (reference catalogs\
+  \ consulted on demand, NOT before a gated\n  verb). Like `floor` it is excluded\
+  \ from the verb->section inversion AND from the dangling check (so an\n  intentionally-pointer-delivered\
+  \ reference is not false-flagged dangling). It DIFFERS from `floor` in\n  TIER:\
+  \ `query-only` is RETRIEVED (its body is still rule-extracted into the `spec` domain),\
+  \ whereas\n  `floor` is MANDATORY (its body is NOT — its rules belong to the handbook\
+  \ domain; graph_build_index\n  spec_bodies cutover). A spec carries EXACTLY ONE\
+  \ residency token; do not mix `floor`, `query-only`, `code-enforced`, `seed`.\n\
+  - Reserved residency token: `code-enforced` — the THIRD residency marker, the EXPLICIT\
+  \ token for\n  a purely CODE-ENFORCED spec: its `implements:` anchors ARE its delivery\
+  \ (the enforcing code), so the AI\n  does not fetch it before a verb. Like `floor`/`query-only`\
+  \ it is excluded from the verb->section inversion\n  AND from the dangling check.\
+  \ It REPLACES the prior IMPLICIT excuse (a non-empty `implements:` auto-excused\n\
+  \  a spec from the dangling check) — THE HOLE that hid <workshop-spec> (implements-bearing\
+  \ yet governing an\n  UNDELIVERED control-point) from door. Code-enforcement is\
+  \ now DECLARED per spec, never assumed.\n- Reserved residency token: `seed` — the\
+  \ FOURTH residency marker, the always-loaded SEED\n  content for STAGE-AGNOSTIC\
+  \ general verbs (spec authoring / plan-close / etc. — verbs that are NOT a\n  lifecycle\
+  \ stage, so are not routed by the stage-entry delivery axis). The session-start\
+  \ seed how-to\n  is GENERATED SOLELY from the specs carrying this token (`binding_report.seed_specs`,\
+  \ the single\n  canonical carrier — P5; NOT a hand-maintained general-verb list).\
+  \ **Rendered format :** the generated seed line renders EACH seed spec WITH its\
+  \ title inline — `<SPEC-ID> — <title>` (the title IS the navigational pointer: intent->home\
+  \ routing, e.g. the write-flow pointer to AGENTS §Writes-happen-in-a-worktree carried\
+  \ by the seed-bound SPEC-0051), not a bare id; the title is read from the same derived\
+  \ index (`specs[<id>].title`), still generated SOLELY from binding:[seed] (no hand\
+  \ list, P5). A legitimately-empty seed set still renders a generated line (\"(none\
+  \ bound yet)\"). **Consumer session :** under `-C` the line renders the kernel ∪\
+  \ consumer seed set (kernel ids from the engine index, fetched `--kernel` per SPEC-0092;\
+  \ own ids tagged project-own) — the same union the Filing reference takes from `_stage_bundle_specs(include_kernel=True)`.\
+  \ **Cue-and-pointer format (SPEC-0007 §5a):** each item now renders `<SPEC-ID> —\
+  \ <title> — <seed_cue> — details before the applicable action: `graph query [--kernel]\
+  \ <SPEC-ID>``: the spec's own one-sentence `seed_cue` (trigger + first required\
+  \ action) sits between the title and a PER-ITEM retrieval pointer, which replaces\
+  \ the former line-level fetch tail; a seed spec with no cue renders a loud `seed_cue\
+  \ MISSING` marker (never a bare-title fallback) and is listed in `binding_report.seed_cue_missing`,\
+  \ which `graph conformance` refuses. Like the other residency markers it\n  is excluded\
+  \ from the verb->section inversion AND from the dangling check.\n- Stage-axis routing\
+  \ token: `stage-entry:<STAGE>` — routes a lifecycle-scoped retrieved\n  spec to\
+  \ the ENTRY of a lifecycle stage (the plan-`stage-declaration` single delivery axis).\
+  \ `<STAGE>`\n  is one of the 9 canonical /LIFECYCLE stage names (Analysis, Filing,\
+  \ Plan, Audit-pre, Execution,\n  Tests, Commit, Audit-post, Closure). Recognized\
+  \ as a valid routing class — excluded from the\n  verb->section inversion AND from\
+  \ the dangling check (non-empty binding), like a residency marker.\n  THE LIFECYCLE\
+  \ DELIVERY AXIS ( — the relocation is DONE): SPEC-0014 (Commit) / SPEC-0015\n  (Closure)\
+  \ / <workshop-spec> (Audit-pre + Audit-post) and the analysis/file specs <workshop-spec>\
+  \ (Analysis +\n  Filing) / SPEC-0032 (Analysis) are ALL bound here — `_build_binding_views`\
+  \ inverts them into the\n  `stage_to_specs` map consumed by the `stage <NAME>` verb.\
+  \ Lifecycle-scoped retrieved content is\n  delivered at STAGE-ENTRY, NOT via a before-*\
+  \ floor trigger (those lifecycle floor triggers were\n  RETIRED; only the stage-AGNOSTIC\
+  \ before-rule-change trigger remains floor). An INVALID\n  stage suffix is NOT a\
+  \ valid token -> it surfaces in `unknown_tokens` (the conformance self-test\n  turns\
+  \ that RED).\n- Plan-axis routing token: `plan-stage-entry:<PLAN_STAGE>` — the PLAN-lifecycle\
+  \ analog of\n  `stage-entry:<STAGE>`, a COMPLETE MIRROR (external-consult verdict\
+  \ 2026-06-05). Routes a\n  plan-lifecycle-scoped retrieved spec to the ENTRY of\
+  \ a plan stage; `<PLAN_STAGE>` is one of the\n  linear PLAN_STAGE_SEQUENCE names\
+  \ (the AUTHORITATIVE source is that code constant — currently draft, specs, trial,\
+  \ accepted, decomposition, executing, postcheck, realized; trial added, decomposition\
+  \ SPEC-0070, so this list TRACKS the constant and is not hand-maintained here —\
+  \ the same\n  vocabulary as a plan's `status` stage). Recognized as a valid routing\
+  \ class — excluded from the\n  verb->section inversion AND from the dangling check\
+  \ (non-empty binding), like `stage-entry:` — and\n  INVERTED by `_build_binding_views`\
+  \ into the `plan_stage_to_specs` map consumed by the `plan stage`\n  verb (`_plan_stage_bundle_specs`\
+  \ reads THROUGH that derived view — ONE derivation from this single\n  `binding:`\
+  \ carrier, no second scan, P5). A DISTINCT token from the task `stage-entry:` axis\
+  \ ON\n  PURPOSE: the task validator restricts `stage-entry:` to the 9 task stages,\
+  \ so a plan stage bound on\n  it would route to `bad_stage_entries` -> RED. An INVALID\
+  \ plan-stage suffix is NOT a valid token ->\n  it surfaces in `unknown_tokens` (the\
+  \ conformance self-test turns that RED).\n  PATTERN CARRIER (AU-5b): the `stage-entry:<STAGE>`\
+  \ token MAY ALSO be carried by the\n  `binding:` field of a PATTERN (`patterns/*.md`\
+  \ frontmatter), not only a spec. A discipline pattern\n  is a `retrieved` artifact\
+  \ too, so it routes to a stage by the SAME axis: `stage <NAME>` delivers the\n \
+  \ bound patterns (`_stage_bundle_patterns`) alongside the bound specs (`delivered_patterns`\
+  \ in the\n  `stage_entered` event). This is ADDITIVE + bounded — pattern bindings\
+  \ are NOT in the spec-only\n  `_build_binding_views` inversion, dangling check,\
+  \ or `graph conformance` self-test (those stay\n  spec-scoped by design). It folds\
+  \ the retired AGENTS §SHOULD_READ_TASK doc-conventions judgment-\n  conditional\
+  \ (e.g. doc-conventions binds stage-entry:Filing + stage-entry:Execution).\n- An\
+  \ UNKNOWN token is report-not-block: `graph build` records it in `binding_report.unknown_tokens`\n\
+  \  (a drift signal) and never crashes. An unknown token is NOT a verb surface, but\
+  \ it IS a non-empty\n  binding — so a spec whose only token is unknown is NEVER\
+  \ dangling (dangling requires an EMPTY\n  binding); it surfaces ONLY in `unknown_tokens`.\n\
+  \n### Introducing a NEW binding-token class is ONE atomic claim\nAdding a NEW token\
+  \ to the controlled vocabulary above — a new residency marker OR a new routing axis\n\
+  (e.g. how `plan-stage-entry:` was added) — is a SINGLE cross-cutting claim with\
+  \ FOUR inseparable\nhalves: **define** (the token + its §Allowed-tokens entry) +\
+  \ **deliver** (the READER that routes or\nexcludes it — the `_build_binding_views`\
+  \ inversion + the stage bundle reader) + **VALIDATE** (the\nrecognition DOOR: `_is_valid_*`\
+  \ + `_delivery_classes` + `cmd_graph_conformance` /\n`_one_source_delivery_check`)\
+  \ + **test**. NEVER split the validator half across a producer/consumer\ntask pair:\
+  \ a token whose delivery READER ships without its conformance-DOOR recognition is\
+  \ a\nHALF-SYSTEM — the first REAL active spec that binds it goes conformance-RED\
+  \ at `land`. Real incident:\n shipped the `plan-stage-entry:` verb + `_plan_stage_bundle_specs`\
+  \ READER but NOT door\nrecognition; the validator half fell in the seam, so (first\
+  \ active `plan-stage-entry:` spec)\nwent conformance-RED at land — fixed by (door\
+  \ recognizer + derived view + this vocab token).\nThis EXTENDS §Allowed-tokens +\
+  \ §Conformance self-test; it adds NO new token, node, edge, parser, or\ngate — it\
+  \ is authoring DISCIPLINE for HOW a future token class is introduced.\n\n### Exact\
+  \ rule per spec (the dangling discriminator — scoped per the 2026-06-02 dry-run)\n\
+  Evaluated over `active` specs ONLY (a proposed/superseded/retired spec governs nothing,\
+  \ so it never\nenters the inversion, the floor, or the dangling set):\n| case |\
+  \ condition | effect |\n|---|---|---|\n| floor-resident | `binding` contains `floor`\
+  \ | excluded from inversion + from dangling |\n| query-only reference | `binding`\
+  \ contains `query-only` (no verb token, not `floor`) | excluded from inversion +\
+  \ from dangling (pointer-delivered retrieved reference) |\n| code-enforced | `binding`\
+  \ contains `code-enforced` | excluded from inversion + from dangling — the spec's\
+  \ `implements:` IS its delivery, declared by an EXPLICIT token (NOT the old implicit\
+  \ implements-excuse that hid <workshop-spec>) |\n| seed-resident | `binding` contains\
+  \ `seed` | excluded from inversion + from dangling — stage-agnostic always-loaded\
+  \ seed content for general verbs; the single carrier of the generated seed how-to\
+  \ |\n| stage-axis routing | `binding` contains a valid `stage-entry:<STAGE>` (the\
+  \ lifecycle delivery axis) | excluded from inversion + from dangling; INVERTED into\
+  \ `stage_to_specs` (consumed by `stage <NAME>` and, for a claimed card's recorded\
+  \ `current_stage`, by an in-worktree `session start` — one inversion, two INVOCATION\
+  \ seams, not a second delivery axis) |\n| plan-stage-axis routing | `binding` contains\
+  \ a valid `plan-stage-entry:<PLAN_STAGE>` (the plan-lifecycle delivery axis) | excluded\
+  \ from inversion + from dangling; INVERTED into `plan_stage_to_specs` (consumed\
+  \ by `plan stage`) |\n| verb-bound | `binding` has >=1 verb surface | mapped into\
+  \ `verb_to_specs`; NOT dangling |\n| unbound rule | active AND empty `binding` (NO\
+  \ token at all — `implements:` alone no longer excuses) | **DANGLING** (reported)\
+  \ |\n\n### Derived views (all produced by `_build_binding_views`, `graph build`)\n\
+  - **`verb_to_specs`** — the inversion: each verb surface -> the active specs bound\
+  \ to it. This is the\n  per-verb precision the file-level `code_to_specs` / `verb-map`\
+  \ view cannot give (it returns\n  the same governing set for every verb — verified\
+  \ live: 37 verbs -> 1 spec set).\n- **`floor_trigger_map`** — the mandatory-on-entry\
+  \ triggers grouped from the verb surfaces.\n  RETIRED the lifecycle control-point\
+  \ triggers (`before-audit` / `before-commit` / `before-closure`)\n  AND `before-analysis`\
+  \ — those lifecycle contracts are now delivered on the STAGE-ENTRY axis\n  (`stage_to_specs`,\
+  \ consumed by `stage <NAME>`), NOT a before-* floor trigger. Only the\n  stage-AGNOSTIC\
+  \ control-point remains: `before-rule-change <- {spec-new, spec-edit}` (spec-edit\
+  \ added\n   — in-place spec mods gate too). Membership is held PER INDIVIDUAL SURFACE\
+  \ (`{spec-new: [...],\n  spec-edit: [...]}`), never a unioned label — so per-verb\
+  \ precision is preserved. Rendered to the\n  committed `graph/floor-trigger-map.md`\
+  \ (`_render_floor_trigger_map`) — a GENERATED, derived-only\n  always-loaded artifact\
+  \ (DO NOT hand-edit), one line PER surface (keyed by the individual verb).\n  **Consumer\
+  \ build (F-001):** a CONSUMER build (REPO_ROOT != ENGINE_ROOT) prepends a\n  kernel-provided\
+  \ ATTRIBUTION header note to the rendered `graph/floor-trigger-map.md` (the triggers/\n\
+  \  surfaces come from the engine FLOOR_TRIGGERS / verb-surface constants, not the\
+  \ consumer's own specs).\n  : the consumer map ALSO points at the ENGINE's release-view\
+  \ floor map (where every kernel-bound row lives, fetched `--kernel`, SPEC-0092)\
+  \ and OMITS the hollow «no spec bound yet» rows the consumer's own index cannot\
+  \ fill — never a header over empty rows; rows the consumer's OWN specs bind still\
+  \ render. Both the write site and\n  the `_floor_map_drift` freshness check pass\
+  \ the SAME `_is_consumer_build` signal, so committed ==\n  regenerated stays byte-equal\
+  \ per checkout (the floor-map-drift invariant holds; engine self-build\n  carries\
+  \ no note or pointer; its body is unchanged).\n- **`binding_report`** — BIDIRECTIONAL\
+  \ completeness (report-not-block, element #4): `unmapped_gating_verbs`\n  (a gating\
+  \ verb with no active bound spec — the AI would act with no fetched rule) + `dangling_specs`\n\
+  \  (the discriminator above) + `unknown_tokens`. Neither side can hide silently\
+  \ -> the binding field is\n  self-healing (you cannot forget to rebuild; the gap\
+  \ shows in the report).\n  **Door property ( — assert-or-allowlist, now COMPLETE):**\
+  \ `dangling_specs` lists ONLY\n  UNEXPLAINED active read-rules (empty binding —\
+  \ NO token at all). Every intentional residency is an\n  EXPLICIT committed per-spec\
+  \ token — `floor` (mandatory), `query-only` (retrieved pointer-delivered), or\n\
+  \  `code-enforced` (delivered by its own `implements:` code) — the distributed allowlist\
+  \ (single\n  canonical carrier = the `binding:` field, P5; NO separate allowlist\
+  \ store). CLOSED the last gap:\n  a non-empty `implements:` no longer IMPLICITLY\
+  \ excuses a spec from the dangling check (that implicit\n  excuse was THE HOLE that\
+  \ hid <workshop-spec> — implements-bearing yet governing an undelivered control-point\n\
+  \  — from own door). So steady-state `dangling_specs` is empty; a NEW unbound active\
+  \ spec (INCL.\n  an implements-bearing one) is the lone entry, no longer lost in\
+  \ chronic report-noise. This closed the\n  prior 6-spec chronic dangling list AND\
+  \ the implements-excuse hole.\n\n### Conformance self-test — the DEDICATED validating\
+  \ surface\n`binding_report` above is REPORT-ONLY: `graph build` prints it to stderr\
+  \ and NEVER fails on binding\ncontent (the GRAPH non-goal \"the graph is NOT a validation\
+  \ layer\" holds). The PASS/FAIL verdict lives\nin a SEPARATE on-demand surface —\
+  \ `bin/yitc-v2 graph conformance` (`cmd_graph_conformance`) — which\nfreshly loads\
+  \ the corpus, reuses `_build_binding_views` (the single derivation, P5), and exits\
+  \ RED\n(non-zero) iff ANY of SIXTEEN violation classes is non-empty; GREEN otherwise.\
+  \ The FOUR per-spec\nbinding-coverage checks run over ACTIVE specs (a single bad\
+  \ token turns the spec RED even alongside a\nco-present valid one): (1) `dangling`\
+  \ — an active spec with an EMPTY binding (no token at all); (2)\n`unknown` — an\
+  \ invalid token (not a verb surface, not a residency marker, not a valid `stage-entry:`\n\
+  or `plan-stage-entry:` suffix — a malformed `stage-entry:` suffix folds in here);\
+  \ (3) `malformed` — a\nnon-list binding shape (treated as unbound, never iterated\
+  \ char-by-char); (4) `delivery_viol` — the\none-source delivery invariant (`_one_source_delivery_check`:\
+  \ a stage-bound action must have EXACTLY\nONE delivery source). The remaining TWELVE\
+  \ are corpus-level REPORT-AT-LAND drift checks, run\nONLY on the canonical corpus\
+  \ (a partial test sandbox with a monkeypatched `SPECS_DIR` skips them, so it\nnever\
+  \ false-REDs): (5) `bundle_viol` — a relocated task gating-stage or plan delivery-stage\
+  \ with no\nbound spec (`_stage_bundle_coverage_violations`); (6) `dup_viol` — handbook\
+  \ routing prose asserting a\nsurface none of whose specs are backed by the binding-derived\
+  \ map (`_handbook_routing_duplication`);\n(7) `drift_viol` — the committed `graph/floor-trigger-map.md`\
+  \ out of sync with a fresh render\n(`_floor_map_drift`); (8) `ac_viol` — the committed\
+  \ activation-checklist out of sync with the live\n`init_concern:` declarations (`_activation_checklist_drift`,\
+  \ SPEC-0096); (9) `cr_viol` — the committed\nconcern-registry JSON out of sync with\
+  \ the live `concern:` declarations (`_concern_registry_drift`,\nSPEC-0128); (10)\
+  \ `cm_viol` — a present-but-MALFORMED `concern:` declaration\n(`_concern_malformed_violations`\
+  \ — a storage-format contract check, so a typo'd concern cannot\nsilently drop from\
+  \ the registry); (11) `bo_viol` — the committed `graph/born-ops.yaml` out of sync\n\
+  with the live concern `born:`/`born_order:` declarations (`_born_ops_drift`); (12)\
+  \ `verb_viol` — a CLI\nverb named in the handbook that the parser does not accept\
+  \ (`_handbook_verb_drift`); (13)\n`underlist_viol` — a handbook binding-map MIRROR\
+  \ that under-lists a backed spec\n(`_handbook_binding_mirror_underlist`); (14) `read_order_viol`\
+  \ — a handbook read-order surface\ndiverging from `render` of HANDBOOK_READ_ORDER\
+  \ (`_read_order_drift`, SPEC-0007 §5b); (15) `av_viol`\n— an audience-scoped seed\
+  \ view (worker seed / controller supplement / worker-startup inventory)\ndiverging\
+  \ from a fresh render over the seed-doc audience markers (`_audience_views_drift`,\
+  \ SPEC-0127\n§3, engine-only); (16) `rv_viol` — the committed release-view out of\
+  \ sync with the re-derived view\nPLUS the active-only export-slice guard (`_release_view_drift`\
+  \ + `_release_spec_slice_violations`,\nSPEC-0074 §6 / SPEC-0073 §8). Three further\
+  \ surfaces are REPORT-ONLY and NEVER part of the RED/GREEN\nverdict (they do not\
+  \ affect the exit code): the SPEC-0070 §5 unmarked-cut-card advisory, the\nSPEC-0085\
+  \ dangling-resolved-coordination advisory, and the SPEC-0005 §4/§5 phantom-activation-owner\n\
+  advisory ( — a `proposed` spec whose `activation_owner_task` names no local task:\
+  \ it governs\nnothing and can never activate, so the advisory names both terminal\
+  \ routes; the route is a SEMANTIC\nchoice no check can synthesize, hence report-only).\
+  \ This keeps the validating verdict OUT of `graph build` BY DESIGN (plan §8 \"ONE\n\
+  graph self-test\"); it is an on-demand self-test, NOT a build/commit pipeline gate.\n\
+  \n### Unmapped-check scope (explicit, not silent)\n`UNMAPPED_CHECK_SURFACES` is\
+  \ now EMPTY (``). The four formerly-in-scope gating verbs (`commit`,\n`close`, `audit-pre`,\
+  \ `audit-post`) NO LONGER carry their before-X delivery on the verb surface — their\n\
+  contracts (SPEC-0014/0015/0016) were RELOCATED to the stage-entry delivery axis,\
+  \ so a \"gating\nverb with no bound spec\" is the EXPECTED, correct state, not a\
+  \ gap. Lifecycle delivery is asserted by\nthe stage axis instead (every stage-bound\
+  \ spec resolves via `graph conformance`). `spec-new` /\n`spec-edit` (floor-mandatory\
+  \ before-rule-change) and `plan-close` (code-enforced via SPEC-0011) stay\nout of\
+  \ the unmapped check (consistency, not omission). Widen the tuple only if a NEW\n\
+  verb-surface-delivered control-point is added — do not add a parallel check.\n\n\
+  ### Anti-complexity posture\nNo new node, no new edge, no new parser, no pipeline\
+  \ gate (the `graph conformance` self-test is\na SEPARATE on-demand surface — it\
+  \ does NOT block build/commit; `graph build` stays report-only). The field is one\
+  \ key on the existing spec schema; the\nviews reuse the existing `graph build` walk\
+  \ and the `code_to_specs` index SHAPE. All output is\nreport-not-block on the existing\
+  \ stderr channel (mirrors the `implements:` anchor warnings).\n\n### Delivery-observability\
+  \ — the journal mirror of the binding\nThe `binding:` above is the PROMISED side:\
+  \ it declares which contract a gating verb is obliged to\nconsume before its action.\
+  \ This subsection adds the OBSERVABILITY side — the standing\ncommand-authoring\
+  \ rule that makes the promise checkable from the journal alone:\n\n**Rule (invariant):**\
+  \ at a floor-gated verb's action-moment, the before-X contract that GOVERNS the\
+  \ gate — emitted as the journal field `governing_contract` ( HONEST NAME: it records\
+  \ WHICH contract governs the gate, a binding-derived PROJECTION, NOT read-evidence\
+  \ that the AI consumed/read it) — MUST\nbe JOURNAL-OBSERVABLE, so a journal-only\
+  \ delivery-coherence analysis reads \"which contract governed\nthis gate\" WITHOUT\
+  \ scraping the transient transcript (the journal-blind class — finding-1, N=2; the\n\
+  method is `plans/inspection-enhancement-content-delivery-control-in`).\n\n- **Scope\
+  \ is GENERIC, never a restated per-verb list.** The obligation binds the whole `FLOOR_TRIGGERS`\n\
+  \  set / the derived `graph/floor-trigger-map.md`; every floor-gated surface inherits\
+  \ it by construction.\n  No verb→spec pair is restated here — that mapping's SINGLE\
+  \ canonical carrier is the per-spec `binding:`\n  field + its derived map (restating\
+  \ it would be the very P5 duplicate this spec forbids). *(Non-normative\n  illustration\
+  \ only: the commit / closure / audit / rule-change gates each have such a contract.)*\n\
+  - **Form: a deterministic P5-honoring PROJECTION, not a second fact.** The signal\
+  \ MUST be derivable —\n  by joining the synced invocation (SPEC-0010 auto-sync /\
+  \ SPEC-0004) × this binding map, OR a verb-emitted\n  field set deterministically\
+  \ FROM the binding and reconcilable to the invocation — NEVER a fakeable\n  AI-self-reported\
+  \ independent fact (the `ideas/cli-invoked-…` build-constraint: normalized projection,\n\
+  \  not duplicate provenance).\n- **Scope LIMIT (honest):** this proves the contract\
+  \ was IN FORCE at the gate (the journal column). It\n  does NOT prove the AI READ\
+  \ it — that is the transcript/log column, a distinct check by design.\n  Delivery-observability\
+  \ ≠ comprehension-proof.\n- **Realization:** stated here ahead of full code ( B5);\
+  \ partly realized already (the graph-query\n  `cli_invoked` node_id) and completed\
+  \ for the commit/close gates.\n\n## Parameters\n\n| param | value | consumed? |\n\
+  |---|---|---|\n| verb surfaces | see §Allowed-tokens for the canonical enumeration\
+  \ (= `bin/lib/cli.py#BINDING_VERB_SURFACES`, the single SoT) — NOT re-listed here,\
+  \ to avoid a 2nd drift-prone copy (P5) | no (structural vocab) |\n| residency token\
+  \ | floor, query-only, code-enforced, seed | no |\n| stage-axis token | stage-entry:<STAGE>\
+  \ (lifecycle delivery axis — Commit/Closure/Audit-pre/Audit-post/Analysis/Filing)\
+  \ | no |\n| plan-stage-axis token | plan-stage-entry:<PLAN_STAGE> (plan-lifecycle\
+  \ delivery axis — PLAN_STAGE_SEQUENCE, currently draft/specs/trial/accepted/decomposition/executing/postcheck/realized;,\
+  \ trial, decomposition SPEC-0070) | no |\n| unmapped-check scope | empty — lifecycle\
+  \ delivery is asserted by the stage axis | no |\n| floor triggers | before-rule-change\
+  \ (stage-agnostic; lifecycle floor triggers retired) | no |\n\n## Rationale\n\n\
+  The obligation set (external audit 2026-06-02, YELLOW) requires retrieval to be\
+  \ obligation-driven, not\n\"available if remembered\": four fetches must happen\
+  \ on time — before audit, before commit, before\nclosure, before changing a standing\
+  \ rule. **Update (post-pilot):** the binding-derived POINTER\nalone is NOT, on its\
+  \ own, obligation-driven on the COMMIT and CLOSURE gates — the must-read pilot proved\n\
+  the stage-entry pointer is skipped there (run5-f2 Closure 5/5; prompt-dependent\
+  \ at Commit). On those two\npiloted gates the obligation now lives in the verb precondition\
+  \ — the require-reads gate (<workshop-spec>)\nREFUSES `task commit` / `task close`\
+  \ until the contract was fetched this session; the binding-derived\nstage-entry\
+  \ pointer stays as the delivery ECHO (<workshop-spec> §7). The binding field below\
+  \ remains the single\ncanonical carrier the gate DERIVES its required doc-set from\
+  \ — the gate strengthens delivery, it does not\nreplace this contract. The 2026-06-02\
+  \ dry-run proved deriving the map from existing\n`implements:` anchors alone covers\
+  \ 0/6 of those gating verbs (anchors point at internal helpers, a\ndifferent relation\
+  \ than verb->governing-rule) — so the explicit binding field fills a real void,\
+  \ it is not\nredundant. Prior-art: the declare-a-binding-then-derive-a-map shape\
+  \ IS the shipped `code_to_specs` /\n`verb-map` inversion; the per-spec \"which process\
+  \ touches this rule\" hook mirrors PEP/ADR and\nKiro/Spec-Kit per-spec hooks. The\
+  \ field's removal is paid in-scope (option B): the four gating-verb rule\nsections\
+  \ demote from always-loaded handbook prose to `retrieved` specs reached through\
+  \ this binding\n — Filter 3 satisfied inside I-A.\n\n## Verification\n\nProbe CONTRACTS\
+  \ (RED-GREEN — observed failing before the fix is trusted Slip 4; the concrete\n\
+  results live in tests/test_binding_inversion.py + the closure record, not restated\
+  \ here):\n- **VP1 (inversion):** a seeded active spec with `binding: [commit]` ->\
+  \ `verb_to_specs[\"commit\"]` contains\n  exactly that spec; remove the binding\
+  \ -> it is absent. (AP1 mechanism.)\n- **VP2 (unmapped fires):** with the seeded\
+  \ `commit` binding removed and no other spec bound to `commit`,\n  `binding_report.unmapped_gating_verbs`\
+  \ contains `commit`; restore -> it clears. (AP1.)\n- **VP3 (dangling fires):** a\
+  \ seeded active spec with no `implements:` and no `binding:` is in\n  `binding_report.dangling_specs`;\
+  \ add any verb binding -> it clears. (AP2.)\n- **VP4 (floor artifact):** `_render_floor_trigger_map`\
+  \ output contains a line KEYED by the `commit`\n  surface naming the seeded spec\
+  \ when it binds `commit`; removing the binding drops the line. (AP3.)\n- **VP5 (exclusions\
+  \ honest):** a seeded code-enforced spec (`implements:` non-empty, no binding) is\
+  \ NOT\n  dangling; a `floor`-token spec is NOT dangling and NOT in the inversion.\n\
+  - **VP6 (unknown token):** a seeded spec with an unknown binding token surfaces\
+  \ in\n  `binding_report.unknown_tokens` and does not crash the build.\n- **VP7 (work-first\
+  \ activation):** `proposed_by: `; `task close ` flips this spec\n  proposed->active\
+  \ ( deterministic side-effect).\n- **VP8 (query-only residency):** a seeded active\
+  \ spec with `binding: [query-only]` (no\n  implements) is NOT in `binding_report.dangling_specs`,\
+  \ NOT in any `verb_to_specs` surface, and NOT in\n  `unknown_tokens`; remove the\
+  \ token -> it is dangling. (tests/test_t0263_query_only.py.)\n- **VP9 (delivery-observability\
+  \ doctrine):** the `## Internal` §Delivery-observability states,\n  GENERICALLY\
+  \ against `FLOOR_TRIGGERS` (no restated per-verb list), that a floor-gated verb's\
+  \ consumed\n  contract MUST be a journal-observable deterministic projection (not\
+  \ a fakeable self-reported fact, not\n  a comprehension-proof); `bin/yitc-v2 graph\
+  \ query SPEC-0013` returns this rule. Doctrine probe — the\n  code realization for\
+  \ the commit/close gates is.\n- **VP10 (code-enforced residency + door COMPLETE):**\
+  \ a seeded active spec with `implements:`\n  non-empty and EMPTY `binding` IS in\
+  \ `binding_report.dangling_specs` (the implicit implements-excuse is\n  REMOVED\
+  \ — the <workshop-spec> hole closed); adding `binding: [code-enforced]` clears it\
+  \ AND keeps it out of\n  every `verb_to_specs` surface (symmetric to `query-only`).\
+  \ The full active corpus reports 0 dangling /\n  0 unmapped / 0 unknown. (tests/test_t0278_inventory_door.py\
+  \ + test_binding_inversion.test_exclusions.)\n- **Boundary — conformance certifies\
+  \ WIRING, not body-freshness :** `graph conformance`\n  validates binding-COVERAGE\
+  \ (every active spec carries a valid binding — the dangling/unknown door\n  above)\
+  \ + the one-source delivery invariant + handbook-routing match + floor-map sync\
+  \ (SPEC-0033).\n  It does NOT validate spec-BODY freshness against the anchored\
+  \ code; body-staleness is surfaced\n  SEPARATELY by `graph build`'s possibly-stale\
+  \ WARN (WARN-only). So a GREEN conformance\n  certifies delivery WIRING, not that\
+  \ spec bodies are current.\n"
+cites:
+- part-i-a-retrieval-delivery-mechanism
+- SPEC-0005
+- SPEC-0006
+- SPEC-0007
+- SPEC-0010
+- inspection-enhancement-content-delivery-control-in
+- CHARTER.md#principle-1
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+requires: []
+supersedes: null
+proposed_by: null
+implements_signature:
+  bin/lib/cli.py#BINDING_QUERY_ONLY_TOKEN: 5f6b5370d89143db7c0bc900a10521ffeee721eef3ed504e46e143fb45e18783
+  bin/lib/cli.py#BINDING_SEED_TOKEN: 7aada1e1acf49631333820170f41b09f999089d731efcecef3e1fa09dbb47f47
+  bin/lib/cli.py#BINDING_VERB_SURFACES: f5c50abf9839a7b4cdcc3e19eafd5f60ff009332a68110b2878045ad0126f526
+  bin/lib/cli.py#STAGE_AXIS_NAMES: 3d4fd0eb5f7aef35c3dded92047f55346b57c14f3aed26be3b1bc4cf2c42617f
+  bin/lib/cli.py#SURFACE_TO_STAGE: a29540cd76e9a3ab5c292e2b09ce7cf3007bcfd367130e9ad7107b03886ad07f
+  bin/lib/cli.py#_seed_howto: 5df617dba9e2095eed4abb94a003ccffb31d58f825b3e3f9cdd48d5f565cdaeb
+  bin/lib/graph.py#_build_binding_views: 4c015297df752835fad12861da7070cd2845b388134357c4660932af76065463
+  bin/lib/graph.py#_is_valid_plan_stage_entry: 43a7a97650e342a684a76ad6656d8a92a932ee9855f234f37fa19663356153c8
+  bin/lib/graph.py#_is_valid_stage_entry: 50a523c1942de7d1f9d3999efc0ac22d9ad4fb482cedfc36fece9869e9664940
+  bin/lib/graph.py#_render_floor_trigger_map: 749c26a8fe1a722ebf2008d2b6db7c8b00069b4071a0da46c3b0e5dc70bf77ac
+  bin/lib/graph.py#cmd_graph_conformance: 692b91101d4de81e67b34c76effee977a1c3c4d93e789cae586deb6f500b7c0b

@@ -1,0 +1,115 @@
+id: SPEC-0201
+title: 'Auditor independence is recommended and stamped, never a wall: same-provider
+  audits are admitted, marked auditor_independence, and reminded against'
+status: active
+created_at: 2026-09-06 09:27:19+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/audit.py#stamp_auditor_verdict
+- bin/lib/audit.py#primary_ai_provider
+- bin/lib/audit.py#auditor_independence
+- bin/lib/audit.py#resolve_audit_provider
+body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool — the\
+  \ primary AI — and works a real task.\nAt Stage 4 and Stage 8 the audit runs anyway:\
+  \ with no external auditor bound, the primary AI's own\nprovider audits, and the\
+  \ saved verdict says so in one field (`auditor_independence: same-provider`).\n\
+  Nothing waits, nothing is refused. At SESSION START — and only there — one line\
+  \ recommends a second,\ndifferent provider and names where to bind it; it prints\
+  \ until one is bound, and the audits\nthemselves stay silent (owner decision 2026-09-06\
+  \ «только на старте», rule 3). The\nmoment an external provider is bound, the line\
+  \ goes silent and the next verdict reads `external`.\nThe owner can always tell,\
+  \ from any verdict, whether a different mind checked the work.\n\n## Internal\n\n\
+  ### Rule 1 — Independence is RECOMMENDED, not required (amends CHARTER §Principle\
+  \ 4a)\nCHARTER §4a today: «Internal AI (primary) + external auditor MUST be different\
+  \ providers». This spec\namends it to: the external auditor SHOULD be a different\
+  \ provider; a same-provider audit is ADMITTED\non every gate, STAMPED (rule 2) and\
+  \ REMINDED AGAINST (rule 3). There is NO gate that is\nexternal-only and NO refusal\
+  \ arm anywhere — owner directive 2026-09-06: «если человек не хочет или не\nможет\
+  \ использовать другого провайдера - не запрещать работу». Independence is a recommendation\
+  \ the\nsystem keeps voicing, never a wall. §4a's OTHER half (§4b, provider-neutral\
+  \ methodology text) is\nuntouched.\n\n### Rule 2 — Every verdict is STAMPED; a same-provider\
+  \ audit is journaled\nEvery saved audit verdict (SPEC-0036 §Saved audit result —\
+  \ task pre/post, plan gates, ad-hoc,\nconsult) carries TWO additive fields: `auditor_independence:\
+  \ external | same-provider` and\n`auditor_model: <the model id the adapter actually\
+  \ ran>` (beside the existing `auditor_provider`).\n`same-provider` = the auditor's\
+  \ resolved provider equals the primary AI's provider for this\nsession (the primary\
+  \ is what the harness reports; when it cannot be determined the stamp is\n`same-provider`,\
+  \ fail-closed toward the honest reading). Each same-provider verdict ALSO emits\
+  \ ONE\njournal event `audit_self_provider_used`, whose payload is exactly SEVEN\
+  \ keys — `target_kind`,\n`target_id`, `stage`, `tier`, `provider`, `model`, `primary_provider`.\
+  \ That event's SCHEMA has ONE\nhome, the catalog (SPEC-0025 §Required event types);\
+  \ this rule NAMES the fields so the stamp and the\nrow are read as one record, and\
+  \ points there for the key-by-key semantics. The stamp and the row\nare written\
+  \ by ONE canonical saved-verdict writer helper — `bin/lib/audit.py#stamp_auditor_verdict`\n\
+  — that EVERY verdict-record path routes through immediately before serializing its\
+  \ record (task\npre/post, ad-hoc, consult, the plan gates), and only on a path that\
+  \ actually invoked an auditor (a\ncarry-forward / consult-governed record ran none\
+  \ and has no independence to state); the invocation\nchokepoint `_invoke_auditor`\
+  \ itself has no target/stage/tier/record context and writes nothing\n(fidelity-audit\
+  \ finding 2). No second writer. «Does an EXTERNAL provider resolve?» is\ndecided\
+  \ at `resolve_audit_provider` alone: the configured provider (env → binding → repo\
+  \ config)\nthat does not resolve on this machine is replaced by the primary AI's\
+  \ own registered adapter.\n\n### Rule 3 — The reminder, at ONE seam (session start),\
+  \ suppressed when clean\nWhile NO external provider resolves for the routine tier\
+  \ (resolution order homed in SPEC-0202 /\n — env → binding file → PATH → repo config\
+  \ default), the system prints ONE report-only line\nat `session start` (engine and\
+  \ `-C` consumer) — the SESSION-START SEAM ONLY. There is NO per-audit\nreminder:\
+  \ the former clause (b) («at each same-provider `audit pre|post|adhoc`») is DROPPED\
+  \ per owner\ndecision 2026-09-06 «только на старте» (events.jsonl#ts=). One seam,\
+  \ one line.\nText (provider-neutral): «external auditor: not bound — this audit\
+  \ ran on the same provider as the\nprimary AI (N same-provider verdicts so far);\
+  \ a different provider catches this one's blind spots —\nbind one: <SPEC-0202 pointer\
+  \ / bootstrap doc §6>». Nothing gated, nothing refused. Silent the moment\nan external\
+  \ provider resolves. Post-`/compact` re-fold: `bin/yitc-v2 audit status` (SPEC-0202).\n\
+  \n### Rule 4 — The ceiling and every other audit rule are UNCHANGED\nA same-provider\
+  \ pass counts against the SPEC-0124 audit-loop ceiling exactly as an external pass;\n\
+  verdict handling (GREEN/YELLOW/RED/ABORT), tiers, overlays and the consult are unchanged.\
+  \ This spec\nchanges WHO may audit and HOW it is recorded — nothing about WHAT is\
+  \ judged.\n\n### Rule 5 — Disposition of <workshop-spec> rule 2 (the draft «strict\
+  \ cross-provider, the change WAITS»)\n<workshop-spec> (draft, plan-local to `provider-independence-learn-provider-portability-o`,\
+  \ in trial) rule 2\n+ VP2 state the opposite of rule 1 for OPERATION. On this spec's\
+  \ activation that clause is DEMOTED to\na pointer: «operation: per SPEC-0201 — same-provider\
+  \ admitted + stamped + reminded against»; its\nrule 1 (binding is a configurable\
+  \ variable), rule 3 (the bench same-provider carve-out, measurement\nonly) and rules\
+  \ 4-5 are UNTOUCHED and remain that plan's. Done by a card of THIS plan editing\
+  \ the\ndraft file (a draft is hand-edited by construction — `spec edit` serves active/proposed\
+  \ only), cited\nfrom both plans; a Principle-7 dissonance resolved by naming ONE\
+  \ authoritative home, not silently.\n\n## Parameters\nNone consumed (the reminder\
+  \ text and the stamp values are code constants, not governing scalars).\n\n## Rationale\n\
+  Real incident: the v2.0.0 adopter probe (2026-09-05) — on a clean machine every\
+  \ audit\nABORTs with no exit; the trial host would be blocked on day one. Prior-art\
+  \ (CHARTER §P1 F1):\n`invoke_claude` and `YITC_AUDIT_PROVIDER` already exist (SPEC-0036\
+  \ §Auditor selection) — the\nMECHANISM to audit on any provider is present; only\
+  \ the doctrine forbade it. What is REMOVED (F3):\nthe hard ABORT-with-no-exit and\
+  \ §4a's MUST. What stays: the ceiling, the tiers, the bench carve-out.\nOwner directives\
+  \ 2026-09-06 (verbatim in the plan body) are the basis.\n\n## Verification\n  bin/yitc-v2\
+  \ audit pre --task T-XXXX # with no external provider bound: runs, verdict YAML\
+  \ carries\n                                           # auditor_independence: same-provider\
+  \ + auditor_model; one\n                                           # audit_self_provider_used\
+  \ row; the audit itself is SILENT\n  bin/yitc-v2 session start # the ONE reminder\
+  \ seam: the report-only line prints here\n  # bind an external provider (SPEC-0202)\
+  \ → the same commands: auditor_independence: external, no line\n  # tripwire: a\
+  \ saved verdict WITHOUT the two fields fails the test; the reminder printed at session\n\
+  \  # start while an external provider resolves fails the test, and a reminder printed\
+  \ by an AUDIT at\n  # all fails it (differential both ways, plus the dropped per-audit\
+  \ seam)\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+- SPEC-0036
+- SPEC-0124
+- SPEC-0202
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: external-auditor-on-a-clean-machine-same-provider-
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/audit.py#auditor_independence: c261de632daa4c0c126a5288078015dce0dbf73291fd1eb6ca39f9c8a7221af9
+  bin/lib/audit.py#primary_ai_provider: 0b2a1fc538eab7832601d4c7df732b512a43a5e43c8a13f1bd42233c44646392
+  bin/lib/audit.py#resolve_audit_provider: 30abe5bd75660bb4925b7d9bdaf89deff28000a1e6cb4fdc77ffed1906ba228f
+  bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695

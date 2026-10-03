@@ -1,0 +1,852 @@
+id: SPEC-0133
+title: §6-safe controller observability verb — evidence/verdict field contract + the
+  §6 compliance test
+status: active
+created_at: 2026-07-04 10:54:25+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/journal.py#worker_fit
+- bin/lib/journal.py#measured_verify_cores
+- bin/lib/journal.py#recommended_worker_count
+- bin/lib/journal.py#cmd_journal_fleet_verdict
+- bin/lib/journal.py#DISPATCH_CLASS_VOCAB
+- bin/lib/journal.py#_halt_resolution
+- bin/lib/dispatch.py#_journal_redispatch_state
+- bin/lib/dispatch.py#cmd_dispatch
+- bin/lib/dispatch.py#_readiness_advisory_block
+- bin/lib/dispatch.py#_watch_row_in_scope
+- bin/lib/dispatch.py#_watch_wake_decision
+- bin/lib/journal.py#_dispatch_status_landed_pause
+- bin/lib/dispatch.py#cmd_dispatch_watch
+body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monitoring\
+  \ prose to judge its in-flight workers.\nIt calls ONE read-only verb that returns,\
+  \ for every in-flight worker, that worker's class + the\ndead / alive / needs-decision\
+  \ **evidence** + a non-mutating **verdict** — and NO recommended mutating\naction.\
+  \ The verb answers only «what is observable NOW, and what human decision (if any)\
+  \ is needed»,\nfrom the current journals + processes + worktrees. It never remembers,\
+  \ waits, schedules, mutates a\nprocess/task/git, re-invokes the AI, or kills / respawns\
+  \ / lands / adopts. The controller reads the\nverdict and decides; the reliability\
+  \ of the read no longer depends on the controller hand-rolling a\nliveness grep.\n\
+  \n## Internal\n\nTHE §6-SAFE CONTROLLER-OBSERVABILITY VERB — a process/governance\
+  \ spec (SPEC-0005 rule 1). It adds NO\nnew store / parser / journal / node-type:\
+  \ it EXTENDS the existing `journal query --dispatch-status`\nreader with a fleet-verdict\
+  \ surface, and it homes a standing §6-compliance TEST for read-only\ndetection verbs.\
+  \ Provider-neutral throughout (CHARTER §P4b — the target is any observability verb,\
+  \ not\none provider). Five rules.\n\n### 1. The §6-compliance test (the standing\
+  \ rule — the reusable acceptance criterion)\nA detection / observability verb stays\
+  \ §6-safe (CHARTER §Principle 6 — NOT the forbidden orchestrator)\n**iff** it ONLY\
+  \ answers «what is observable NOW + what human decision is needed», derived from\
+  \ the\nCURRENT journals / proc table / worktrees, and does **NONE** of:\n  - **remember**\
+  \ — persist state across invocations (a status ledger, a liveness registry, an FSM);\n\
+  \  - **wait / sleep / loop** — block, poll-until, or run a watch loop of its own;\n\
+  \  - **schedule** — arm a timer / cron / callback;\n  - **mutate** — change a process,\
+  \ task status/stage, git, or worktree;\n  - **re-invoke the AI** — spawn / respawn\
+  \ / dispatch a session;\n  - **kill / respawn / land / adopt** — act on a worker\
+  \ or its worktree;\n  - **choose queue movement** — pick / order / claim / release\
+  \ a task.\nThe moment it does ANY of these it is the forbidden orchestrator (CHARTER\
+  \ §6 named retirements). The\nverb is a pure function of current observable state\
+  \ → a report. Precedents already INSIDE the fence\n(stateless helpers the controller\
+  \ invokes): the `journal query --dispatch-status` reader, the\nland-flock guard\
+  \ (E-0035), `worktree adopt --confirm-dead`, `worktree park`, `debt` / `cross`\n\
+  fold-views. This test is the reusable rule any future observability verb is checked\
+  \ against — not a\none-off for this verb.\n\n### 2. The evidence/verdict field contract\
+  \ (what the verb returns — per in-flight worker)\nOutput is keyed on **session-ref**\
+  \ (the canonical liveness discriminator — rule 4), one record per\nin-flight worker,\
+  \ each carrying:\n  - `session_ref` — the worker's session identity;\n  - `task_ids`\
+  \ — the task SEQUENCE this worker holds (a warm worker drains several — rule 4);\n\
+  \  - `class` — the existing `--dispatch-status` class (working / closed_pending_land\
+  \ / blocked_on_land / …),\n    PLUS `halted` — a RECENT unresolved self-halt (rule\
+  \ 2a) the base classes do not cover;\n  - `evidence` — the RAW observables the verdict\
+  \ rests on, so the controller never re-greps: last\n    journal-event ts + type,\
+  \ proc-alive (ps-by-ref), the presence/kind of an active CHILD proc\n    (auditor\
+  \ / test / land — the slow-≠-hung discriminator), and worktree land-readiness; INCLUDING\
+  \ a fresh `waiting_for_verify_admission_slot` heartbeat (SPEC-0132) — the JOURNAL\
+  \ analog of the active child-proc: a land BLOCKED waiting for a verify-admission\
+  \ slot heartbeats it while queued, so a FRESH one keeps the worker classified working/landing\
+  \ via the EXISTING recency machinery (NO new classifier state), while a STALE one\
+  \ correctly ages to silent_stop/hang_suspect (a worker that died mid-admission is\
+  \ never a false-alive);\n  - `verdict` ∈ { **alive**, **dead**, **needs-decision**\
+  \ } — a non-mutating classification;\n  - `verdict_basis` — the one-line reason\
+  \ tying verdict to evidence.\n**NO `recommended_action` field** (external-audit\
+  \ finding): the verb reports state + the fact that a\nhuman decision is needed;\
+  \ it does NOT prescribe the mutating act (kill / adopt / re-dispatch). Choosing\n\
+  the act stays the controller's (a human-in-the-loop) call — a `recommended_action`\
+  \ would be the verb\nreaching toward queue-movement, crossing rule 1.\n\n**2a. Self-HALTED\
+  \ worker inclusion — a RECENT unresolved halt is `halted` / `needs-decision`.**\n\
+  A worker that emits `bg_dispatch_halted` and exits BEFORE claiming a worktree (a\
+  \ PRE-claim self-halt at\nanalysis) is never in-flight by proc / child / non-terminal\
+  \ task, so the IN-FLIGHT filter USED to DROP it\n— the explicit self-halt was silently\
+  \ ABSENT from the fleet verdict, and a watcher keyed on it missed the\nhalt. So\
+  \ a RECENT (within the `--dispatch-status` normal staleness window) TERMINAL halt\n\
+  (`bg_dispatch_halted`, detail `halt`, EITHER blocked-on-land reading `blocked_on_land(needs-controller)`\
+  \ / `blocked_on_land(needs-owner)`, or `refused(pre-claim)` — the blocked-on-land\
+  \ PAIR splits by ESCALATION TARGET, not by occasion : the SPEC-0103 §3 escalation\
+  \ and the land repeated-abort backstop stamp `blocked_on_land` and read needs-CONTROLLER\
+  \ (their continuation `land --ack-repeated-abort` is not owner-gated, so the controller\
+  \ decides), while the audit-loop ceiling stamps `needs_owner_reset` and keeps needs-OWNER\
+  \ (its `audit --owner-reset` continuation is a genuine owner clause). Both are `needs-decision`;\
+  \ only the addressee differs, and collapsing them sent controllers to the owner\
+  \ for a decision the owner does not own — the third detail is the /X-0271 GOVERNED\
+  \ PRE-CLAIM REFUSAL a worker records via `task refuse`: a principled decline distinct\
+  \ from a dead bootstrap, so the remedy is a DECISION on the refusal reason, never\
+  \ a blind re-dispatch that would loop it; and since that third detail is itself\
+  \ a PAIR splitting on `refused_class` — a bare `kind: refused` keeps `refused(pre-claim)`,\
+  \ while `refused_class: claim-lost-to-live-peer` reads `refused(claim-lost)`, the\
+  \ worker that lost a double-dispatch claim race to a LIVE peer worktree rather than\
+  \ refusing any premise, whose remedy is the HOLDER's land and neither a re-dispatch\
+  \ nor a disposition) that is UNRESOLVED — still\nclassified TERMINAL(halt), i.e.\
+  \ no later claim ( live-claim override), successful land (\nland_ok reconcile),\
+  \ re-dispatch ( newest-launch segmentation), or POSITIVE worker LIVENESS\n( live-land\
+  \ override — below) reclassified it away, AND the journal does not record the halt's\n\
+  OWN CAUSE as cleared (rule 2d below — the FIFTH reclassifier: those four are all\
+  \ about the\nDISPATCH moving on, and none of them notices the HALT's own story finishing)\
+  \ — is KEPT\nin-flight and reported as `class: halted` + `verdict: needs-decision`,\
+  \ with the halt REASON (from the\n`bg_dispatch_halted` event) as `verdict_basis`.\
+  \ This is the JOURNAL analog of the admission-slot heartbeat\nabove: it reuses the\
+  \ EXISTING recency machinery (NO new store / classifier state / event), and a STALE\n\
+  halt correctly AGES OUT of the window (a controller live decision window, not a\
+  \ permanent orphan). It\ncarries NO `recommended_action` — the controller escalates\
+  \ the named blocker to the owner and, once\nresolved, re-dispatches a fresh worker\
+  \ (no worktree to adopt — the halt was pre-claim).\n**Post-claim halt, held worktree\
+  \ (X-1479):** a halted worker that LEFT a verify-started\nserver in its worktree\
+  \ (PPID 1, cwd inside it) is still `halted` / needs-decision here — and the\nre-dispatch\
+  \ is ADMITTED: the in-flight guard classes that cwd holder as the terminally-over\n\
+  session's ORPHAN, not a live holder. The rule (three positive conjuncts; `live`/`unknown`\
+  \ still\nrefuse) is homed at <workshop-spec> rule 2's additive carve-out, not restated\
+  \ here; a re-dispatch admitted\nthat way keeps its worktree, so the fresh worker's\
+  \ launch can never fold to `launch-stall` (that\nclass is conjunctive on NO live\
+  \ claim) — it re-reads as relaunchable through the same guard.\n\n### Rule 2b —\
+  \ the LIVE-LAND override: a `blocked_on_land` detail is a TRANSIENT while the worker\
+  \ lives\n\nA `blocked_on_land` detail names a SETTLED stop — the SPEC-0103 §3 land\
+  \ repeated-abort backstop\n(needs-controller, cleared by resolving the cause or\
+  \ by `--ack-repeated-abort`) or the audit-loop\nceiling (needs-owner, `audit --owner-reset`).\
+  \ But the worker EMITS that marker and then, per the\nsynchronous-to-LAND discipline,\
+  \ RE-INVOKES `land` INLINE — so the marker sits in the chain while the\nworker is\
+  \ merely MID-LAND. Read literally, the classifier flashed `TERMINAL(blocked_on_land)`\n\
+  for a worker that was still working: 3 live false-transients on 2026-07-10/11 (\
+  \ ×2),\neach disambiguated only by a MANUAL proc check, and a watcher acting on\
+  \ one would have escalated a\nNON-decision to the owner — the exact class of hand-grep\
+  \ this verb exists to abolish (rule 1).\n\nSo the detail may surface ONLY once the\
+  \ worker is gone. When the chain's terminal carries that detail AND\nthe worker's\
+  \ own proc (`_session_proc_alive`, the rule-4 session-ref liveness) OR its land\
+  \ child\n(`_land_proc_alive`, the same active-CHILD evidence rule 2's `evidence`\
+  \ already reports) is POSITIVELY\nalive, the row classifies **working / detail `landing`**\
+  \ — the SAME class+detail rule 2 already gives the\nadmission-slot heartbeat case,\
+  \ reached on the proc axis instead of the journal axis (one doctrine, two\nevidences;\
+  \ NO new class token, NO new store / classifier state / event).\n\n**FAIL-CLOSED\
+  \ — the reader owns what absence means.** Both probes confirm POSITIVELY only (False\
+  \ on a\ndead, unscannable, or unconfirmable proc), and the override fires only on\
+  \ a positive read: no liveness\nevidence leaves the pre-existing `TERMINAL(blocked_on_land)`\
+  \ intact, so a REAL settled stop is\nnever masked (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`).\
+  \ SCOPED to the blocked-on-land\nPAIR (both readings ride the same self-land retry\
+  \ loop, so the override cannot key on the addressee): `halt` / `wont-do` / `done`\
+  \ / `refused(pre-claim)` / `refused(claim-lost)` are land-INDEPENDENT terminals\
+  \ and stay\nTERMINAL even under a live proc. Consequent, no extra wiring: a `working(landing)`\
+  \ row is not a TERMINAL\nhalt, so it carries no `_dispatch_cause_tag` and rule 2a's\
+  \ `halted` filter no longer surfaces the\ntransient as `needs-decision`.\n\n###\
+  \ Rule 2b′ — a CONSUMER-LOCUS worker is folded ALIVE before silent_stop→dead\n\n\
+  The recency signal keys `working` vs `silent_stop`/`dead` off the newest KERNEL-locus\
+  \ journal event.\nBut a kernel-dispatched worker whose WORK rides a `-C` CONSUMER\
+  \ project runs `bin/yitc-v2 -C <consumer>`,\nso its stage/land events land in THAT\
+  \ consumer's `events.jsonl`, and it emits NOTHING to the kernel\njournal `_dispatch_status_events`\
+  \ reads (EVENTS_PATH + main + the live task/ worktrees — all kernel-locus)\nwhile\
+  \ it is alive. Its kernel recency clock therefore ages to stale and — proc gone\
+  \ / no live claim — it\nreads `dead`: three false CONFIRMED-DEAD reads on 2026-07-12\
+  \ (deviation `` class).\n\nSo liveness gains ONE more positive-only evidence source,\
+  \ a SUBORDINATE of `_session_proc_alive`\n(rule 4) — see rule 2b″, which BOUNDS\
+  \ this: the fold may CORROBORATE liveness, it may not OVERRIDE a\ndirect process\
+  \ reading that was taken and came back negative — and a peer of\nthe `_land_proc_alive`\
+  \ child (rule 2b): a FRESH line (within the same recency window keying silent_stop)\n\
+  under the worker's session-ref in any registry yitc_v2 CONSUMER journal. The reader\
+  \ folds those journals\nONCE (`_consumer_live_refs`, tail-read; the consumer set\
+  \ is the read-only `nightly._v2_projects` scan the\nnightly already shares — SPEC-0105\
+  \ §2), and a worker in that set classifies **alive / basis names the\nconsumer locus**,\
+  \ NOT dead. This is §6-safe (rule 1): a PURE read that only WIDENS the reader's\
+  \ journal\nset to the consumer locus — the exact shape of the live-worktree union\
+  \ — with NO new store / event\n/ classifier state / FSM. FAIL-CLOSED toward no false\
+  \ liveness: an empty enumerator disables the fold, a\nmissing/unparseable line is\
+  \ skipped, and a future-dated ts (past the clock-skew tolerance, mirroring\n) is\
+  \ NOT counted fresh — so a dead worker's OLD consumer lines stay stale and never\
+  \ revive it.\n\n### Rule 2b″ — the consumer fold CORROBORATES liveness, it never\
+  \ OVERRIDES a direct reading\n\nRule 2b′ folded the consumer line in as a PEER of\
+  \ the process reading. They are not peers. A process\nreading is a statement about\
+  \ NOW; a journal line is the RECORD OF A PAST ACT — exactly what a dead\nworker\
+  \ leaves behind — so a fold that treats them as peers cannot distinguish a worker\
+  \ that IS working\nfrom one that worked and died, for the whole recency window.\
+  \ Measured (<project>, 2026-08-31): worker\n580b7aa8 exited 13:24:36 and a ~13:36\
+  \ `--fleet-verdict` returned alive/hang_suspect with\n`proc_alive=false` PRINTED\
+  \ BESIDE IT. That is not cosmetic: `patterns/background-session-monitoring.md`\n\
+  makes `alive` AUTHORITATIVE and forbids asserting dead against it, so a false alive\
+  \ instructs the\ncontroller to STAND DOWN — recovery was held off for 19 minutes.\n\
+  \nSo a negative process reading only counts against liveness when it is DEFINITE\
+  \ — and definiteness is\nanswered SEPARATELY from the reading itself, as a property\
+  \ of the HOST rather than of any one worker's\nref. `_proc_scan_is_takeable` asks\
+  \ whether an exhaustive `--session-id` scan can be taken on this host\nright now,\
+  \ and the reader folds it ONCE per run. It answers NO — so a no-match cannot rule\
+  \ any worker\nout — when there is no procfs at all (a non-Linux host), when the\
+  \ scan RAISED (hidepid / sandbox /\nrestricted `/proc`), or when at least one candidate's\
+  \ cmdline was UNREADABLE (a scan with doors it could\nnot open is not exhaustive).\
+  \ A vanished-pid ENOENT is ordinary churn and does NOT make the scan\nun-takeable\
+  \ — that pid is gone, which is exactly what an exhaustive scan is entitled to observe.\n\
+  \n`_session_proc_alive` is UNCHANGED: it stays the standalone fail-closed boolean\
+  \ it always was, True only\non positive confirmation and False on both not-found\
+  \ and any scan failure. It is NOT a projection of a\ntri-state, and the reader takes\
+  \ NO per-ref reading dependency — deliberately. A per-ref tri-state was\ntried first\
+  \ and rejected on measurement: every hermetic sandbox stubs only the boolean, so\
+  \ a required\nper-ref dep made those callers fall through to the real host `/proc`\
+  \ and report their synthetic live\nworkers as gone — a required-argument break wearing\
+  \ the costume of a behaviour regression. Keeping\ndefiniteness host-level is what\
+  \ leaves every existing caller genuinely unchanged.\n\nThe two are combined AT THE\
+  \ USE SITE: a reading is a DEFINITE NEGATIVE only when the row HAS a\nsession_ref,\
+  \ the boolean came back false, AND the host scan was takeable. Absent any of the\
+  \ three, the\nreading is indeterminate and rule 2b″'s bound below does not fire.\n\
+  \n*(Corrected. The shape above was settled, which shipped this host-level design\n\
+  after the per-ref one was measured to break sandbox callers, and updated the code\
+  \ and the tests but not\nthis body — leaving it naming a carrier that never existed.\
+  \ Spec follows design; the rule INTENT was\nnever in doubt.)*\n\n**The bound:**\
+  \ rule 2b′'s fold PROMOTES a row to `alive` only where the reading is NOT a taken-and-negative\n\
+  one — i.e. exactly where rule 2b′'s OWN rationale applies, a reader BLIND to the\
+  \ worker's locus. Where the\nreading WAS takeable, the reader was not blind, and\
+  \ a trailing journal line does not outrank it.\n\n**What this does NOT touch — rule\
+  \ 2b′ is BOUNDED, not retired.** The fold's other three uses are\nUNCHANGED and\
+  \ still carry the case: the in-flight filter (a consumer-locus row is never DROPPED)\n\
+  and the stranded / halted guards (never MIS-CLASSED) keep the RAW fold. Only the\
+  \ alive VERDICT narrows.\nA row whose fold was present but DEMOTED states so in\
+  \ its basis and NAMES the negative reading, so a\ncontroller reads why it is not\
+  \ alive instead of reading it as \"no consumer signal at all\".\n\n### Rule 2c —\
+  \ a CONTROLLER STOP is quiet: the stop IS the decision\n\nRule 2a surfaces an unresolved\
+  \ halt as `needs-decision` because a WORKER self-halt asks the controller\nfor a\
+  \ decision it has not yet made. A `dispatch --stop` terminal (`bg_dispatch_halted`,\
+  \ `kind:\ncontroller_stop`) is the OPPOSITE: the controller ITSELF stopped that\
+  \ worker, so the decision is already\nmade and recorded. Surfacing it back as `needs-decision`\
+  \ re-asks a settled question and RE-WAKES armed\nwatchers for the whole recency\
+  \ window; when the stopped id is a phantom/nonexistent task, NO re-dispatch\ndecision\
+  \ can ever consume the echo, so it re-fires until it ages out (live incident 2026-07-11,\
+  \ deviation\n`controller-stop-halted-echo-rewakes-watcher-no-quiet-path-for-phantom`).\n\
+  \nSo a controller stop takes its OWN terminal detail — `stopped(controller)` — and\
+  \ that detail is NOT a\nmember of the halt-details-needing-decision set rule 2a\
+  \ filters on. Consequences, all off EXISTING\nmachinery (NO new store / classifier\
+  \ state / event / class token): the rule-2a `halted` fold skips it;\nthe proc-gone,\
+  \ child-less, claim-less worker is then DROPPED by the ordinary IN-FLIGHT filter\
+  \ as a\nRELEASED SLOT — the same quiet path an auto-parked worker already takes\
+  \ (`worker_parked`); and\nit carries no `_dispatch_cause_tag` (there is no block\
+  \ to route). The stop stays fully OBSERVABLE — the\n`--dispatch-status` row still\
+  \ reads `TERMINAL(stopped(controller))` and the `bg_dispatch_halted` event is\n\
+  untouched — it is merely non-ACTIONABLE. Quiet is not hidden.\n\n**The policy is\
+  \ UNCONDITIONAL — every controller stop is quiet, real-ready task and phantom id\
+  \ alike.**\nThe alternative (keep `needs-decision` while the stopped task still\
+  \ exists and is `ready`, as a\nre-dispatch reminder) is REJECTED: a `ready` task\
+  \ is already visible on the QUEUE's own surface (the\npicker / `task list`), so\
+  \ the reminder is redundant; conditioning on it would put a main-status disk read\n\
+  inside a pure fold; and fleet-verdict is a WORKER-centric IN-FLIGHT view — a stopped\
+  \ worker's slot IS\nreleased, so the row does not belong in it at all. Re-dispatching\
+  \ a stopped task is a FRESH controller\ndecision taken from the queue, never an\
+  \ echo consumed from the fleet view.\n\n### Rule 2e — the halt's ROUTING KEY is\
+  \ DERIVED from the machine record, never from worker free text\n\nRules 2a/2d read\
+  \ a halt's `cause` and its needs-controller/needs-owner arm as THE routing key a\n\
+  controller acts on INSTEAD of opening the halt body. Both were authored by the halting\
+  \ WORKER as free\ntext against a small fixed vocabulary, with no derivation from\
+  \ any machine record — and a fixed small\nvocabulary asked to carry causes it has\
+  \ no member for turns its loosest member into a catch-all.\n\n**MEASURED, not inferred\
+  \ — six mislabels in ~24h across five cards** (deviation fingerprints\n`bg-dispatch-halt-cause-mislabelled-verify-flake-and-owner-gated-block-routed-as-needs-controller`,\
+  \ and `halt-cause-label-misroutes-controller-verify-flake-catch-all`). and labelled\
+  \ verify-flake; labelled needs-controller\nwhile it needed an owner-gated `audit\
+  \ post --owner-reset`; and both read\n`cause=verify-flake` while their newest recorded\
+  \ `land_completed` abort was `rebaseline-unauthorized`,\nwhich re-fails identically\
+  \ forever. **Nothing flaked in any of the six.** Two costs, both evidenced:\na controller\
+  \ routing on \"may self-resolve on retry\" re-runs an 8-11 minute verify against\
+  \ a cause a\nprior pass already surfaced (the CHARTER §Principle 7 freeze class\
+  \ the repeated-abort backstop exists\nto stop), and the label crosses the AUTHORITY\
+  \ boundary in both directions.\n\nThe same truth was already in the journal. `land_completed`\
+  \ carries **`abort_class`** over a closed\nmachine vocabulary stamped at the `_die`\
+  \ origin, and the audit-loop ceiling records its own\nowner-gated STOP machine-side\
+  \ as `bg_dispatch_halted{needs_owner_reset: true}`. So:\n\n1. **The CAUSE is DERIVED**\
+  \ (`_derived_halt_cause`), in priority order: the newest UNRESOLVED\n   `land_completed`\
+  \ abort for branch `task/<id>` (read through the EXISTING `_last_land_abort`, which\n\
+  \   a later ok land already clears) → its `abort_class`; else an unresolved owner\
+  \ gate →\n   `audit-ceiling`; else `unknown`.\n2. **The AUTHORITY arm is DERIVED\
+  \ on the same evidence** (`_recorded_owner_gate`): an unresolved\n   machine-recorded\
+  \ owner gate renders the needs-OWNER reading even when a LATER worker-authored halt\n\
+  \   carries `blocked_on_land`. This is the exact shape all four measured pairs have\
+  \ — the ceiling's\n   machine halt, then the worker's hand `blocked-on-land` 30-90s\
+  \ later, which used to WIN because the\n   reader took the latest halt only. Cleared\
+  \ strictly-after by a GREEN granted pass or an ok land;\n   **fail-closed** in every\
+  \ other direction, because over-escalating is recoverable and\n   under-escalating\
+  \ an owner gate is not.\n3. **The worker free text is DEMOTED to a non-routing DETAIL**\
+  \ — never dropped. It keeps its evidence\n   value (often the only place the worker\
+  \ says what it tried) and loses only its authority as the\n   routing key; `--fleet-verdict`\
+  \ renders it beside the derived cause so a reader can see them\n   disagree.\n4.\
+  \ **The vocabulary is WIDENED and CLOSED.** Members: `audit-ceiling`, the eight\
+  \ `abort_class`\n   literals the five cited branches actually recorded (`verify-failed`,\
+  \ `verify-timeout`,\n   `rebaseline-unauthorized`, `repeated-abort-backstop`, `merge-non-union-conflict`,\n\
+  \   `audited-diff-stale`, `corpus-integrity`, `uncommitted-dirt`), and two STRUCTURAL\
+  \ members —\n   `unknown` (no blocker recorded) and `unmapped` (a class recorded\
+  \ but outside the measured bound,\n   with the raw literal rendered beside it).\
+  \ The widening deliberately EXCLUDES every other\n   `abort_class` the engine can\
+  \ stamp that no measured case produced (`on-main`, `self-land`,\n   `spike-branch`,\
+  \ `detached-head`, `not-worktree`, `no-main-worktree`, `rebaseline-policy-off`,\n\
+  \   `bookkeeping-fold-failed` and their peers): admitting a member no measured case\
+  \ needed is the\n   speculative widening CHARTER §P1 F4 defers. **RETIRED** (the\
+  \ P1 F3 removal): `verify-flake` — it\n   won on a bare \"verify\"/\"test\" substring\
+  \ of prose and absorbed everything unnamed; and `owner-gate`\n   — the residual\
+  \ bucket whose own note already recorded that its name misdescribed who\n   authorizes,\
+  \ and whose question is now answered by the derived arm.\n\n**NOTHING ELSE MOVES.**\
+  \ This changes neither what the land gate nor what the audit gate DECIDE, nor\n\
+  the needs-controller/needs-owner ladder itself (<workshop-spec> rule 5). It adds\
+  \ no store, event type, verb\nor config key, and it retro-labels nothing: the derivation\
+  \ is computed at READ time over facts already\nin the append-only journal, so halts\
+  \ already journalled simply read correctly from now on. Like rule\n2d, it is a member\
+  \ of the reader's existing derived-reconcile family, not a new mechanism\n(CHARTER\
+  \ §P1 F1/F2).\n\n### Rule 2d — a RESOLVED halt reads as resolved: the halt's own\
+  \ cause, cleared on the record\n\nRule 2a's operative word is UNRESOLVED, but nothing\
+  \ ever marked a `bg_dispatch_halted` resolved when\nits cause was CLEARED, and the\
+  \ four reclassifiers 2a enumerates are all about the DISPATCH moving on\n(a later\
+  \ claim / a land the `land_ok` reconcile honours / a re-dispatch / a live proc).\
+  \ None notices\nthe HALT's own story finishing — so a halt whose resolution the\
+  \ journal fully records still read as an\nopen owner-gated block. Incident: **,\
+  \ 2026-08-06** — halted 16:09:19 (`needs_owner_reset`,\nauto-consult RED at the\
+  \ ceiling), a second consult CONVERGED GREEN 16:11:44, the granted pass went\nGREEN\
+  \ 16:11:53 (a08dc26), land ok 16:16:54 — every step recorded, and TWO later sessions\
+  \ still\nreconstructed the timeline BY HAND before concluding nothing was wrong\
+  \ (the 2026-08-06 hand-off\ncarried it forward as an open forensic item). Measured\
+  \ over the real journal: of 266 halts, **80** are\nresolved by exactly this recorded\
+  \ path and leave no trace of it.\n\nSo a halt gains a **RESOLUTION READING, DERIVED**\
+  \ — no superseding event, no new store, no new emit\nsite (which rule 2a's producers\
+  \ must not gain): every resolving fact is ALREADY in the append-only\njournal, so\
+  \ this is a fifth member of the reader's existing derived-reconcile family, not\
+  \ a new\nmechanism (CHARTER §P1 F1/F2). A halt is RESOLVED when, **strictly after\
+  \ the newest halt for that id**,\nANY ONE arm holds (arms (i)/(ii) apply to every\
+  \ halt; arm (iii) only to a MAIN-attributed one):\n- **(i) LAND** — a `land_completed{status:\
+  \ ok}` for branch `task/<id>`. This is NOT the\n  `land_ok` reconcile restated:\
+  \ that one is last-outcome-wins AND re-claim-gated, so it reads False\n  when a\
+  \ LATER unrelated abort follows the ok land — exactly a shape that leaves a resolved\
+  \ halt\n  reading `halted`. `land_completed` carries no `task_id` (only `data.branch`),\
+  \ so this arm matches BY\n  BRANCH and its readers must fold the UNSCOPED stream.\n\
+  - **(ii) CONSULT + GRANTED PASS** — the DESIGNED audit-loop-ceiling continuation\
+  \ (SPEC-0124): a\n  CONVERGED consult (`external_audit_completed`, `stage` = `consult-pre`|`consult-post`,\
+  \ verdict\n  GREEN) followed AT-OR-AFTER by THAT stage's granted GREEN pass (`audit_pre_completed`\
+  \ /\n  `audit_post_completed`). **Both halves are required** — a converged consult\
+  \ alone only GRANTS the\n  continuation; the granted pass may still come back RED.\n\
+  \n- **(iii) MAIN WENT GREEN ** — for a **MAIN-ATTRIBUTED** halt ONLY: ANY\n  `land_completed{status:\
+  \ ok}`, on ANY branch. Nothing recorded that a red main, once fixed, resolves\n\
+  \  the halts that NAMED it, so an outage halting N workers left N manual dispositions\
+  \ behind it, each\n  already moot. Incident: **2026-08-28**, the fleet still reported\
+  \ needs-decision on evidence\n  from 06:32:24Z whose cause — main's own pinned verify\
+  \ RED — was cleared at 07:45 when landed;\n  the session-start `9 worker halt(s)\
+  \ with no recorded resolution` line was that same population.\n  WHERE THE ATTRIBUTION\
+  \ COMES FROM, measured before the arm was written (2026-08-29, 242 halts): the\n\
+  \  `bg_dispatch_halted` payload carries NO structured attribution — a MAIN cause\
+  \ appears only as PROSE\n  in `data.reason`, which this arm does NOT read. The structured\
+  \ fact is ONE ROW EARLIER, on the land\n  the worker halted over: `land_completed.data.failure_attribution.outcome`,\
+  \ computed by the land\n  verify against the merge-base (census: `undecidable` 159,\
+  \ `branch` 36, `main` 27). Nobody types it,\n  so it is EVIDENCE, not a claim —\
+  \ the standard `needs_owner_reset` meets for rule 2e. The halt is\n  MAIN-attributed\
+  \ when the NEWEST `land_completed` for `task/<id>` AT-OR-BEFORE the halt is a non-ok\n\
+  \  land whose outcome is the literal `main`; `branch`, `undecidable`, a missing\
+  \ or unreadable\n  attribution, and an absent land row ALL leave it UNRESOLVED (SPEC-0165\
+  \ item 11; the arm does not admit).\n  ANY branch on purpose: the point is that\
+  \ whoever fixes main clears it for all N workers, and the\n  halted branch is by\
+  \ definition not landing. GATED ON THE ATTRIBUTION, never on the green event\n \
+  \ alone — a branch-attributed halt reads needs-decision however many green lands\
+  \ follow it. Nothing\n  ages out on TIME: SPEC-0119 rule 18 is untouched and stays\
+  \ true.\n\n- **(iv) THE CARD WAS DISPOSED ** — a `task_parked` / `task_wont_do`\
+  \ / `task_closed` for THIS\n  task, with no `task_unparked` after it. A card the\
+  \ journal records as parked, retired or done is\n  AWAITING NO DECISION, and a halt's\
+  \ whole subject is a decision still owed. Written for the shape no\n  other arm\
+  \ can EVER reach: a **PRE-CLAIM REFUSAL** (`kind: refused` / SPEC-0166) never\n\
+  \  claims, so `task/<id>` never exists and arm (i) is unsatisfiable *forever*; it\
+  \ runs no audit stage,\n  so arm (ii) is too; it is not main-attributed, so arm\
+  \ (iii) is gated off. Unresolvable BY\n  CONSTRUCTION, not by delay. Incident:,\
+  \ halted (`kind: refused`,\n  `pre_claim: true`), `task_parked` 06:06:03Z, zero\
+  \ land rows on its branch and there never will be —\n  measured 2026-09-04, still\
+  \ the kernel's oldest unresolved halt at 6d. The two views of one engine\n  DISAGREED\
+  \ (CHARTER P7): `--dispatch-status` read it TERMINAL(`refused(pre-claim)`), while\
+  \ the\n  SPEC-0119 rule-18 debt line called the same halt still awaiting a terminal\
+  \ decision — and every\n  remedy that line offered was wrong for the shape (re-dispatch\
+  \ is REFUSED for a pre-claim refusal per\n  SPEC-0166; `resolve` needs the very\
+  \ owner decision the park IS; closing would be false). Putting the\n  arm HERE,\
+  \ in the ONE predicate both views read, is what makes them agree; a reader-side\
+  \ check could\n  not.\n  **THE ONE STRUCTURAL DIFFERENCE, and it is deliberate:**\
+  \ this arm is decided at END OF SCAN rather\n  than returning eagerly like (i)/(ii)/(iii),\
+  \ so a LATER `task_unparked` CANCELS it — an un-parked\n  card is awaiting a decision\
+  \ again, and an eager return could not express that. The eager arms\n  therefore\
+  \ keep PRIORITY: a halt that landed ok and was later closed still reads `land-ok`,\
+  \ the more\n  specific answer. **NOT a duplicate of the reader-side card cross-check**\
+  \ in\n  `debt.unresolved_worker_halts`, and the two cannot overlap: that one covers\
+  \ a disposition\n  **PRE-DATING** the halt (measured — card closed 08:58:45Z, land\
+  \ 08:59:32Z, halt 09:00:38Z),\n  which a forward-only predicate cannot see BY CONSTRUCTION\
+  \ and which therefore belongs to the use\n  site; this arm covers the strictly-AFTER\
+  \ case, in the same ts direction as every arm above. No new\n  event type, no new\
+  \ store, no new emit site — the disposition rows are already in the append-only\n\
+  \  journal, so this stays a member of the derived-reconcile family (CHARTER §P1\
+  \ F1/F2). Nothing ages\n  out on TIME here either: SPEC-0119 rule 18 is untouched\
+  \ and stays true.\n\n**TRIGGER, not VIEW (`lessons/scope-the-trigger-not-the-view`).**\
+  \ A resolved halt still KEEPS its\nworker in-flight — the IN-FLIGHT filter admits\
+  \ it exactly as an unresolved one does — and it carries a\nreport-only `halt_detail`\
+  \ naming the halt and HOW the journal shows it cleared (the exact sibling of\nthe\
+  \ `pause_detail` key: an OPTIONAL key emitted only on a POSITIVE read, carrying\
+  \ no\n`recommended_action`). What changes is ONLY that it no longer drives `class:\
+  \ halted` /\n`verdict: needs-decision`. Nothing that is visible today becomes invisible;\
+  \ a cleared halt merely\nstops being a call to action, and the reader stops having\
+  \ to re-derive the timeline by hand.\n\n**FAIL-CLOSED, deliberately asymmetric**\
+  \ (rule: SPEC-0165 item 11; surface-specific here are the\nDIRECTION and the enumerated\
+  \ inputs). Suppressing a LIVE halt is worse than leaving a resolved one\nvisible,\
+  \ so every uncertainty reads UNRESOLVED: a non-dict row, a missing or mistyped verdict,\
+  \ a\nnon-task consult key (a plan's `consult-finalization`), a foreign branch, a\
+  \ non-ok land status, or any\nout-of-order ts — the predicate stays FAITHFUL to\
+  \ what the journal says\n(`lessons/fail-closed-belongs-to-the-reader-not-the-parser`).\n\
+  \n**ONE NARRATOR TOO — the narration names the arm that FIRED.** The predicate's\
+  \ arms are\nonly half the contract; the other half is how a resolution is REPORTED.\
+  \ The rule: a surface renders\nthe resolution by the arm `resolved_by` actually\
+  \ names, an arm the narrator does not recognise falls\nto a FALLBACK that states\
+  \ the raw recorded value, and **no branch may assert another arm's evidence\nor\
+  \ state an ABSENT value as a recorded fact**. That last half is held UNIFORMLY ACROSS\
+  \ EVERY ARM,\nnot at one arm: each arm names a MOMENT as the fact that cleared the\
+  \ halt, so each renders only when\nits OWN required timestamp is present (`resolved_ts`\
+  \ for land-ok and card-disposed, `main_green_ts`\nfor main-green, BOTH `consult_ts`\
+  \ and `pass_ts` for the consult) and otherwise falls to the\nfallback, which itself\
+  \ suppresses its `@ <ts>` clause when there is no ts to state. Guarding one arm\n\
+  while the contract claims all of them is the same over-claim in prose that the render\
+  \ chain was in\ncode — caught at audit-post on this very change, 2026-09-08. Both\
+  \ readers below take this from ONE\nnarrator\n(`journal._halt_resolution_how`),\
+  \ for the same reason they take the reading itself from one\npredicate. Incident:\
+  \ **, 2026-09-08** — halted 10:30:29Z (`kind: refused`, `pre_claim: true`;\nno consult\
+  \ ever ran and no pass was ever granted) and its card PARKED 10:56:42Z, so arm (iv)\n\
+  resolved it correctly as `card-disposed:parked`. Both readers nonetheless carried\
+  \ their OWN copy of\nan `if land-ok / elif main-green / ELSE consult` chain, and\
+  \ arm (iv) had shipped to the PREDICATE\nwith no render branch in either — so both\
+  \ fell through to the `else` and reported «the ceiling\ncontinuation ran — consult\
+  \ CONVERGED GREEN @ None, granted pass GREEN @ None». The Controller read\nthat\
+  \ fabricated sentence and cut a card against the MATCHER, so the defect was paid\
+  \ for twice. The\narm-exhaustive fallback is what forecloses the same gap for a\
+  \ future arm (v); the duplicated chain\nis what let the two copies drift apart in\
+  \ the first place, which is the E-0001 class this rule's\nsibling paragraph already\
+  \ forecloses for the reading.\n\n**A PRE-CLAIM REFUSAL IS NEVER ELIGIBLE FOR ARM\
+  \ (ii).** A halt the worker recorded as a\npre-claim refusal (`kind: refused` /\
+  \ `pre_claim`, SPEC-0133) names a FALSE PREMISE as its\ncause, not an audit ceiling.\
+  \ The ceiling continuation is the designed remedy for a ceiling; it is\nnot a remedy\
+  \ for a premise, so no converged consult and granted GREEN pass clears such a halt\n\
+  HOWEVER GREEN — the card was never claimed, and any audit rows following the refusal\
+  \ belong to a\nlater, different attempt. The exclusion gates BOTH halves of the\
+  \ arm, so a refusal never even\nRECORDS a `consult_ts` for a downstream reader to\
+  \ narrate. **SCOPED to arm (ii) alone:** arms (i)\nland-ok, (iii) main-green and\
+  \ (iv) card-disposed still resolve a refusal on their own recorded\nground — arm\
+  \ (iv) exists FOR this shape — so this narrows one arm, it does not re-open the\n\
+  unresolvable-by-construction problem closed.\n\n**ONE predicate, BOTH readers.**\
+  \ The same function serves `--fleet-verdict` AND the re-dispatch\nbrief's JOURNAL-VERIFIED\
+  \ PRIOR STATE block (X-0429), where an unresolved halt renders as LIVE\nprior state\
+  \ and a resolved one gets a RESOLVED-HALT ADVISORY in the same report-only shape\
+  \ the\nstale-pause advisory already has. A reader of the JOURNAL and a reader of\
+  \ the FLEET VIEW therefore get\nthe same corrected reading — a second implementation\
+  \ is exactly the divergence class E-0001 /\nforecloses. §6-safe (rule 1): a PURE\
+  \ read, mutating and persisting nothing. UNCHANGED by this rule —\nWHEN a halt is\
+  \ emitted, the audit-loop ceiling, the owner-reset gate, and every other class\n\
+  (`closed_pending_land` / `stranded` / `launch-stall` / `silent_stop` / `hang_suspect`).\n\
+  \n**Recency-robustness — far-future rows are excluded, never clamped-to-fresh.**\
+  \ The\nrecency signal that keys `working` vs `silent_stop`/`hang_suspect` (rule\
+  \ 2 last-journal-ts evidence)\nis computed from the newest event whose ts is at/before\
+  \ now (a small clock-skew tolerance), NOT the\nraw newest ts. A spurious FAR-FUTURE\
+  \ journal row (e.g. a 2098/2099 sentinel ts) would otherwise make\n`now - last_ts`\
+  \ NEGATIVE → falsely fresh → a truly dead worker masked as settling/working (the\
+  \ F3b\nMISSED-TRUE-DEATH class). Future-dated rows are EXCLUDED from the recency\
+  \ signal (NOT clamped to `now`\n— a clamp still reads fresh at age 0, so it would\
+  \ ALSO mask the death); the last REAL event then ages\nto stale and the death surfaces.\
+  \ An all-future chain fails CLOSED (reads stale/dead, never masks).\nThis is the\
+  \ verdict-side complement to the sentinel-isolation test hardening —\ndefense-in-depth,\
+  \ not a duplicate.\n\n### 2f. A worker that DIES authoring no terminal is RECORDED,\
+  \ not inferred\nEvery halt detail rule 2a surfaces is one the worker AUTHORED before\
+  \ yielding — a ceiling escalation,\na `blocked-on-land`, a pre-claim `task refuse`,\
+  \ a controller `--stop`. There is one it cannot author:\na dispatched worker is\
+  \ a headless one-shot, so yielding the turn EXITS the process, and a worker that\n\
+  simply stops writes nothing at all. Its death then surfaced only as journal staleness,\
+  \ and its CAUSE\nwas recoverable only by hand-reading `.yitc/dispatch-logs/<task>-<ref>.log`\
+  \ — the same hole\nnamed when it gave an ALIVE-enough-to-speak worker a voice (\"\
+  which no fleet-verdict surface reads\").\nTwo measured incidents: <project> 2026-08-31\
+  \ worker 580b7aa8 ended its turn mid-Stage-6 with\nall work uncommitted, no halt\
+  \ row, surfacing 19 minutes later; and the 2026-08-12 four-worker wave\nkilled by\
+  \ a provider account session limit, whose own capture recorded verbatim that «the\
+  \ CAUSE was\nvisible only by reading the dispatch log».\n\nSo a CONFIRMED-dead launched\
+  \ worker that authored no terminal of its own is RECORDED, once, as\n`bg_dispatch_halted{kind:\
+  \ premature_exit}` → detail `premature_exit(worker-died)`, a member of the\nneeding-decision\
+  \ set, which mints the EXISTING `halted` / `needs-decision` reading (rule 2a\nvocabulary\
+  \ UNCHANGED — no new class, no new event type, no new store). Its `verdict_basis`\
+  \ says\nplainly that the worker DIED rather than stopped, names the confirmed-death\
+  \ basis, and carries the\ndispatch log's final line, so the cause is readable off\
+  \ the verdict without opening the log by hand.\n\n**WHO records it, and why it is\
+  \ the watcher.** Not the launcher for a death AFTER the launch:\n`dispatch` is fire-and-forget\
+  \ by contract and `_spawn_detached_from_caller_tree`\ndeliberately reparents the\
+  \ worker onto init so a descendant-tree kill cannot reach it — no waiter\nexists\
+  \ anywhere, and adding one would be the forbidden launcher-orchestration. Not\n\
+  `--fleet-verdict`: rule 1 makes it a pure read. It is `dispatch --watch`, the controller's\
+  \ armed\nobserver, which already learns of the death and already appends to the\
+  \ journal.\n**The ONE launcher case — a death the launch itself WATCHED (<project>\
+  \ X-1546 / X-1555).**\nThe launch already probes each fresh spawn for a bounded\
+  \ window (SPEC-0072 rule 7) — no\nnew waiter, poll or window. When that probe returns\
+  \ ANSWERED but the pid is PROVABLY gone\n(ProcessLookupError only; every doubt reads\
+  \ alive) and the worker's log EXISTS (a missing log is\nno observation, never a\
+  \ death), `dispatch` records this same row with `phase: bootstrap` and the\nlog\
+  \ tail, writes NO `bg_dispatch_launched` over it (a newer launch row would segment\
+  \ the halt away\nand read `working(still-booting)` for the whole bootstrap grace),\
+  \ and reports the id\n`refused(reason=bootstrap-died)`. Measured: a host client\
+  \ that rejected the requested model left\nthat death readable only in the dispatch\
+  \ log while `dispatch` printed LAUNCHED and exited 0. The\nwatcher's own admission\
+  \ is unchanged, and it never duplicates this row (its predicate needs a\nlaunch\
+  \ row and no halt).\n\n**Four bounds, all load-bearing:**\n  - **Still §6-safe (rule\
+  \ 1)**, on rule 5b's own terms: a journal APPEND through the SAME injected\n   \
+  \ emitter, never read back by the watcher, with nothing crossing invocations. It\
+  \ remembers\n    nothing, schedules nothing, and acts on no worker or worktree —\
+  \ it writes down what it saw.\n  - **FAIL-CLOSED admission.** A row is written only\
+  \ from a JOURNAL-STALE non-terminal reading\n    (`silent_stop` / `hang_suspect`\
+  \ / `launch-stall`) with proc-alive false and no live child. The\n    \"proc gone\
+  \ but last event recent — settling\" reading is DELIBERATELY EXCLUDED: it is not\
+  \ yet a\n    death, and because `bg_dispatch_halted` is a dispatch terminal, a spurious\
+  \ row would mark a live\n    worker's task re-dispatchable. The liveness judgement\
+  \ is the fleet reader's own — no second\n    classifier path (rule 5).\n  - **The\
+  \ TRIGGER is scoped, not the VIEW** (`lessons/scope-the-trigger-not-the-view`):\
+  \ a\n    row is written only for a worker in the watcher's WATCHED set, so a watcher\
+  \ never records halts\n    for workers another controller owns. `--watch-fleet`\
+  \ widens both together, as it already does\n    for waking. Idempotence is the predicate's:\
+  \ it returns nothing once a halt exists for the task.\n  - **The EXIT STATUS is\
+  \ unavailable, and the row SAYS SO.** Because the worker is nobody's child,\n  \
+  \  no waiter can read its exit code. The payload therefore carries `exit_status:\
+  \ null` WITH\n    `exit_status_unavailable` naming why, beside the death evidence\
+  \ that IS observable (pid,\n    proc_alive, the confirmed-death basis, observed_at)\
+  \ and the log tail. Recording the\n    impossibility is strictly more than the silence\
+  \ it replaces; omitting the field, or\n    synthesising a code, would each be worse.\
+  \ This bound is stated because a reader who expects an\n    exit code and finds\
+  \ a null must be able to tell \"not recorded\" from \"not recordable\".\n\n**In-place\
+  \ amend, not a supersede** (SPEC-0005 rule 5 — the rule-4a / 5a / 5c precedent):\
+  \ rule 2a\nsaid which halts are surfaced, and was silent on the halt nobody writes.\
+  \ This names it. Nothing\nabove changes: every authored halt keeps its own finer,\
+  \ self-reported label, checked first.\n\n### 3. Heartbeat-derivable (bounds MISSED-TRUE-DEATH\
+  \ latency) — layer 1 only\nEvery field in rule 2 is re-derivable from CURRENT state\
+  \ alone, with NO triggering event — so the\nverdict can run on a periodic HEARTBEAT\
+  \ that re-derives each in-flight worker's verdict every tick,\nindependent of any\
+  \ class-change signal. A worker can die / hang WITHOUT a class change (already\n\
+  `closed_pending_land`, then its proc dies) → an event-driven watcher never wakes;\
+  \ a heartbeat bounds\nmax detection-latency to ONE tick. **This spec delivers LAYER\
+  \ 1 only** — the stateless verdict verb +\nthe field contract that MAKES a heartbeat\
+  \ possible, plus the in-session discipline «run the verb on a\ntick». The **TIMER**\
+  \ (an OS cron, ~5 min — provider-neutral, survives session death; `nightly` /\n\
+  `worktree sweep` precedent) and the **NOTIFY** (the sole provider-specific bit →\
+  \ a durable marker +\nowner ping) are a tracked FOLLOW-ON host-config task (`fu_1fc75a6d363e`),\
+  \ designed but scoped OUT of\nthis spec (CHARTER §P1 — the verb must exist + be\
+  \ proven before a cron is worth wiring). The cron, if\nbuilt, is REPORT-ONLY (`nightly`\
+  \ posture — CHECK+REPORT, never auto-kill/respawn/land — the moment it\nauto-recovers\
+  \ it crosses rule 1).\n\n### 4. Worker-centric (session-ref), not task-centric\n\
+  The verdict + heartbeat key on **session-ref** (already the canonical liveness discriminator),\
+  \ with the\ntask sequence as a sub-view — because the batch-drain pattern maps one\
+  \ session-ref → a SEQUENCE of\ntasks → MULTIPLE lands (a warm worker). So a task\
+  \ reaching **TERMINAL(done) does NOT extinguish a\nstill-alive worker**. A NEW state\
+  \ — the warm worker **IDLE between lands** (landed task A, not yet\nclaimed task\
+  \ B) — is discriminated from **hung-between-tasks** by session-ref liveness + journal\n\
+  recency (an alive proc with a recent event = picking-up-next; a gone proc / stale\
+  \ journal =\nhung/dead). This closes the FALSE-DEAD failure mode for warm workers.\n\
+  \n**4a. WHICH session-ref — the worker's own, from the moment of dispatch.** Rule\
+  \ 4 keys the\nrow on session-ref; a DISPATCHED task has TWO refs in play, and `bg_dispatch_launched`\
+  \ carries both:\nits ENVELOPE `session_ref` is the DISPATCHER's own ref C, its `data.expected`\
+  \ is the assigned WORKER\nref E. The row keys on **E, from the moment of dispatch**\
+  \ — including the PRE-ANCHOR window\nbetween `dispatch` and the worker's first task-tagged\
+  \ emit, where the task-scoped chain holds ONLY the\ndispatcher's launch event (a\
+  \ worker's `session_started` / `seed_read` / help-scan carry no task_id).\nTwo invariants\
+  \ follow, and neither is optional:\n  - **a worker row is keyed on E, never on C**\
+  \ — keying on C points the liveness probe at the\n    always-alive controller (a\
+  \ live worker reads `proc_alive=false`);\n  - **a DISPATCHER-owned event NEVER supplies\
+  \ a worker row's evidence** — `last_event_ts` /\n    `last_event_type` are drawn\
+  \ only from events carrying E. Pre-anchor, when the worker has journaled\n    nothing,\
+  \ the evidence line reports the row's own task-chain ts with a NULL `last_event_type`\
+  \ (an\n    honest «no worker event yet»), never a borrowed dispatcher event.\nBoth\
+  \ hold BY CONSTRUCTION once the row is keyed on E — the evidence filter IS the session-ref\
+  \ filter;\nno separate allow/deny list exists (or should be added). The PRE-ANCHOR\
+  \ state is named by the class\nvocabulary that already carries it — `working(still-booting,age=Nm)`\
+  \ in `DISPATCH_CLASS_VOCAB` (the\nsingle carrier) — NOT by a second vocabulary.\
+  \ Real incident: (2026-07-09) was keyed to\nthe dispatcher, borrowed the controller's\
+  \ unrelated `land_completed`, and read `needs-decision /\nproc_alive=false / basis:\
+  \ proc gone but last event recent` while the worker was ALIVE (pid up, 11 events\n\
+  under E); the controller nearly declared a live worker dead and re-dispatched it.\
+  \ This verb exists\nprecisely so a raw journal grep does not mis-read healthy workers\
+  \ as actionable — so the verb itself\nmust not. **In-place amend, not a supersede**\
+  \ (SPEC-0005 rule 5): rule 4 was SILENT on which of the two\nrefs a pre-anchor row\
+  \ keys on, and post-anchor E *is* the worker's own ref — so no already-covered\n\
+  case's required behaviour changes; this adds an explicit answer to a case the rule\
+  \ did not address.\n\n### 5. Scope bound + the 4 anti-complexity filters (written\
+  \ down — AGENTS §When NOT to add)\n- **F1 existing analog?** YES — the `journal\
+  \ query --dispatch-status` reader. EXTEND it (a\n  `--fleet-verdict` surface on\
+  \ the same reader), do NOT add a new subsystem (external-audit finding).\n- **F2\
+  \ new entity or new view?** A VIEW — a read-only verdict surface over the existing\
+  \ reader + a\n  field contract; NO new store, node-type, edge, event-emit, or gate.\
+  \ The §6-test is a standing RULE,\n  not a mechanism.\n- **F3 what gets removed?**\
+  \ The ~880 lines of hand-executed 3-part-dead / fleet-sweep / NUL-safe-proc\n  PROSE\
+  \ in `patterns/background-session-monitoring.md` is RETIRED in favour of the verb\
+  \ (the verb is\n  the replacement, not a parallel path) — the transform is a decomposed\
+  \ doc task in this plan.\n- **F4 real incident?** YES — ~30 captured deviations\
+  \ + E-0022 / E-0028 / E-0035 all on this\n  reader/liveness/watcher surface; and\
+  \ THIS session's hand-rolled watcher false-fired TWICE despite the\n  rules known\
+  \ (a single-poll flapping-pid exit + an 11-poll ps-by-ref false-gone while the reader\n\
+  \  correctly read `working`). Direct evidence the rulebook is not hand-executable\
+  \ reliably.\n\n### 5a. A watcher wakes to its WATCHED set\nA watcher is ARMED OVER\
+  \ a task set (the ids the controller passes it) and answers FOR that set. Its\n\
+  default WAKE scope is therefore exactly that set: an actionable verdict (rule 2)\
+  \ may wake it only if\nthe verdict's row holds at least one WATCHED task. Because\
+  \ a row is worker-centric (rule 4 — `task_ids`\nis a warm worker's DRAIN SEQUENCE,\
+  \ not one task), the scope test is an INTERSECTION of the row's tasks\nwith the\
+  \ watched set, never an equality: a worker draining a watched task ALONGSIDE others\
+  \ still wakes\nits watcher. An out-of-scope row is dropped BEFORE the confirmation\
+  \ streak accumulates, so a foreign\nverdict cannot even build toward the threshold.\n\
+  \n**FAIL-CLOSED on an unattributable row.** A row that names no tasks cannot be\
+  \ attributed to the watched\nset, so by default it does not wake. That judgement\
+  \ belongs to the WATCHER (the reader that knows the\nwatched set), NOT to the `--fleet-verdict`\
+  \ reader, which stays faithful and FLEET-WIDE by design (rule\n3 — the heartbeat\
+  \ re-derives EVERY in-flight worker; that is what makes a fleet sweep possible at\
+  \ all).\n`lessons/fail-closed-belongs-to-the-reader-not-the-parser`: fail-closed\
+  \ is a property of a use site, not\nof a parse result. No signal is lost by scoping\
+  \ — a watched task's own death is still proven by the\nfail-closed per-task ALL_TERMINAL\
+  \ leg and bounded by the never-silent TIMEOUT.\n\n**Fleet-wide waking survives as\
+  \ an EXPLICIT opt-in, never the silent default** (the concrete flag\nspelling is\
+  \ an interface detail — it lives in the verb's `--help` + the watcher cue, not in\
+  \ this rule).\n\n**SCOPE vs REPORT — two different questions, and only the first\
+  \ is scoped.** «Whose verdict may WAKE\nme» is scoped to the watched set (this rule).\
+  \ «What do I SEE once woken» is NOT: a wake still reports\nthe WHOLE fleet, so the\
+  \ controller never abandons siblings and can re-arm over the survivors.\nOut-of-scope\
+  \ actionable rows are additionally COUNTED on the watcher's per-tick line — a suppression\
+  \ is\nvisible, never silent (the never-silent posture). ALL_TERMINAL / TIMEOUT semantics\
+  \ for the\nwatched set are UNCHANGED by this rule.\n\n**In-place amend, not a supersede**\
+  \ (SPEC-0005 rule 5 — the rule-4a precedent): rule 2 said WHICH\nverdicts are actionable\
+  \ and was SILENT on WHOSE verdicts a given watcher may act on. The shipped\nwatcher\
+  \ read that silence as «any row in the fleet», so an armed watch woke on workers\
+  \ it was\nnot watching: 7 phantom wakes on 2026-07-11, every one on a synthetic\
+  \ non-watched row while watching\nreal tasks, each burning the batch monitor + a\
+  \ controller turn. No already-covered case's required\nbehaviour changes; this answers\
+  \ a case the rule did not address.\n\n### 5b. The watcher's terminal VERDICT is\
+  \ DURABLE — journal row beside the stdout token\nRule 5's watcher spoke its terminal\
+  \ verdict on STDOUT ALONE: `cmd_dispatch_watch` had exactly ONE\nemit site for it,\
+  \ the final `WATCH: <token> <reason>` print. So a watcher whose WRAPPER OUTPUT was\n\
+  lost came back with NO surviving answer to the question it was armed for — reported\
+  \ as <project>\nX-1026, and settled by X-1038 with a same-session controlled comparison:\
+  \ four poll loops armed\nidentically, each PRINTING PER TICK, returned 544 / 3770\
+  \ / 4014 / 1581 bytes with every line intact\nwhile the watcher returned 22 (the\
+  \ bare exit line). The harness preserves stdout; that watcher never\nwrote a verdict\
+  \ to preserve. The general property worth keeping: a loop that prints on EVERY tick\n\
+  cannot come back mute, because its output exists before any terminal condition —\
+  \ a watcher that\nspeaks only at the END has nothing to preserve if it ends without\
+  \ speaking.\n\nSo on reaching ANY terminal (WAKE / ALL_TERMINAL / TIMEOUT) the watcher\
+  \ ALSO writes ONE\n`watch_verdict_recorded` journal row carrying the token, the\
+  \ reason and the watched task ids, and\nrecovery keys off the JOURNAL — which is\
+  \ what X-0843's capture-wide/gate-narrow rule already\nrequires and what this surface\
+  \ alone did not honour. Three bounds:\n  - **The stdout token contract is UNCHANGED**\
+  \ — byte-identical for all three terminals, so a caller\n    already parsing `^WATCH:\
+  \ (WAKE|ALL_TERMINAL|TIMEOUT)\\b` keeps working untouched. This ADDS a\n    durable\
+  \ record BESIDE the token; it replaces nothing.\n  - **Written BEFORE the print,\
+  \ and FAIL-OPEN.** Before, because the record must survive the case\n    where the\
+  \ stdout does not, so it must already exist when the token is spoken. Fail-open,\
+  \ because\n    durability is an addition and never a gate: a broken journal must\
+  \ never swallow the token a\n    caller is blocked on (the sibling posture of rule\
+  \ 6's `consumer_read_evidence` receipt).\n  - **Still §6-safe (rule 1).** It is\
+  \ a journal APPEND — the sanctioned no-worktree capture,\n    through the SAME injected\
+  \ emitter the adoption receipt already uses, never read back by the\n    watcher.\
+  \ It does not REMEMBER: no state crosses invocations, and the loop stays a pure\
+  \ function\n    of current observable state.\nOut of scope, requester-agreed: nothing\
+  \ that verifies a controller ARMED a watcher at all — that is\nharness-shaped. This\
+  \ closes the half / left: those remove the controller's DEPENDENCE\non the watcher\
+  \ for death detection, while a watcher that cannot answer its own question is a\
+  \ loss\neven when nothing died.\n\n### 5c. Per-worker terminality is an OPT-IN exit,\
+  \ never the default\nRule 5's watcher exits on exactly three conditions, and a worker\
+  \ that finishes CLEANLY is none of\nthem: it carries no actionable verdict (rule\
+  \ 2), so under rule 3's no-abandon-siblings guarantee its\ncompletion never ends\
+  \ a multi-task watch. Control is therefore all-at-once. That is CORRECT for the\n\
+  case rule 3 was written for and stays the DEFAULT — but it cannot express an **N-slot\
+  \ refill queue**,\nwhere the operating mode is «start a replacement AS EACH worker\
+  \ lands, not in waves» (owner ask,\n2026-08-29, 7 continuously-running workers).\
+  \ One watcher over the N ids would report only when all N\nfinished, so the only\
+  \ expressible shape was N single-task watchers — one wrapper process per worker,\n\
+  each hand-re-armed after every land.\n\nSo the watcher gains ONE opt-in exit condition\
+  \ (the concrete flag spelling is an interface detail —\nit lives in the verb's `--help`\
+  \ + the watcher cue, not in this rule, per the rule-5a precedent):\nwhen NOT every\
+  \ watched task is terminal but at least one reads a POSITIVE class=TERMINAL(done)\n\
+  confirmed across the SAME `--watch-confirm-ticks`, the watcher exits with a token\
+  \ NAMING that task.\nAn early terminal whose `detail` is recovery-bearing (halt\
+  \ / wont-do / blocked_on_land) exits WAKE\ninstead — the per-task echo of rule 3's\
+  \ unclean-detail rule, not a new judgement.\n\n**Four bounds. This changes WHEN\
+  \ the watcher reports, never WHAT it reports and never what it may do:**\n  - **The\
+  \ unflagged contract is UNCHANGED, byte-for-byte.** ALL_TERMINAL still requires\
+  \ every watched\n    task terminal, WAKE still fires only on a confirmed actionable\
+  \ verdict, TIMEOUT is untouched. OFF\n    is the default and the flag never fires\
+  \ implicitly.\n  - **The early exit REPORTS THE WHOLE FLEET** — rule 3 / is not\
+  \ relaxed. A report narrowed to\n    the finished task would let a controller re-arm\
+  \ over an incomplete set with nothing failing, so\n    the SAME fleet-wide exit\
+  \ report serves this exit as serves a WAKE.\n  - **Nothing else in the policy moves.**\
+  \ The rule-1 actionable WAKE still runs FIRST and wins;\n    terminality is still\
+  \ proven POSITIVELY per rule 2, never by absence; the confirm-ticks rule, the\n\
+  \    heartbeat re-derivation, the interval defaults and the dispatch launcher are\
+  \ all out of scope.\n    The per-task confirmation DECAYS when a task stops reading\
+  \ terminal, exactly as a verdict streak\n    does, so a flap cannot exit.\n  - **Still\
+  \ §6-safe (rule 1).** One added exit condition on an existing read-only poll: no\
+  \ new verb,\n    no store, no scheduler, no state across invocations. The watcher\
+  \ still mutates nothing and never\n    kills / adopts / lands / respawns (CHARTER\
+  \ §6, SPEC-0133 rule 1).\n\n**In-place amend, not a supersede** (SPEC-0005 rule\
+  \ 5 — the rule-4a / 5a precedent, and its\nadditive-extension fork): rules 3 and\
+  \ 5 said what ends an all-at-once watch and were SILENT on a\nfleet whose members\
+  \ must be answered for individually. No already-covered case's required behaviour\n\
+  changes — an unflagged watcher behaves identically to before; this answers a case\
+  \ the rule did not\naddress.\n\n### 5d. A landed PAUSE is not TERMINAL(done) — the\
+  \ card decides\nA task paused awaiting a decision whose pause record LANDED carries\
+  \ a successful land for its\nbranch, and the land reconcile reads any landed branch\
+  \ as TERMINAL(done). So `--dispatch-status`\nread «done» while the card read in-progress/paused,\
+  \ and the watcher — whose per-task terminal proof\nIS that row — exited its rule-5c\
+  \ per-worker token on a task waiting on a decision (<project> X-1563;\nmeasured\
+  \ on this kernel 2026-09-24 paused owner-wait).\n\nSo the `--dispatch-status` row\
+  \ RE-READS a TERMINAL(done) reconcile against the CARD on main — the\nSAME card\
+  \ cross-check `--fleet-verdict` already reads for its `pause_detail`, not a second\n\
+  reader: a card still `in-progress` AND paused reads `paused(<reason>)`, the reason\
+  \ being the one the\ncard records. A `done` card — a genuine closure — keeps TERMINAL(done),\
+  \ and an absent or unreadable\ncard never fabricates a pause (fail-open toward the\
+  \ prior reading).\n\n**The watcher reads `paused` as POSITIVELY over but NEVER clean.**\
+  \ Rule 2 is untouched — terminality\nis still proven positively, never by absence\
+  \ — but a paused row is the per-task echo of rule 3's\nunclean-detail rule: it WAKES,\
+  \ it never satisfies the rule-5c per-worker exit, and it never counts\ntoward a\
+  \ clean all-terminal exit. A decision is pending; a clean completion is not.\n\n\
+  **The recovery is REASON-SPECIFIC, never a blanket resume.** The row's recovery\
+  \ names the route for\nits recorded reason — a controller-cued stop relaunches from\
+  \ its recorded contract; an audit-loop\nceiling pause takes one typed decision per\
+  \ residual (SPEC-0204) before the ordinary relaunch; any\nother reason is resolved\
+  \ as that reason names, then relaunched — so no reader treats a pause as a\nfinished\
+  \ task or as one resumable command.\n\n**Bounds.** `--fleet-verdict` keeps its own\
+  \ reading (class TERMINAL + the report-only `pause_detail`), the shared dispatch\
+  \ classifier is not changed, and the dispatch in-flight guard keeps its\nsettled-pause\
+  \ override. Still §6-safe (rule 1): one more read of a field already on main,\n\
+  no store, no event, no new class token.\n\n**In-place amend, not a supersede** (SPEC-0005\
+  \ rule 5 — the additive-extension fork, as rule 5c):\nrules 2, 3 and 5c were SILENT\
+  \ on a landed pause; a genuinely closed task, a halt, and every other\nalready-covered\
+  \ case read exactly as before. This answers a case the rule did not address.\n\n\
+  ### 6. The dispatch-readiness advisor is REPORT-ONLY, and `dispatch` self-serves\
+  \ it in the decision frame\nThe sibling wave-sizing advisor `journal query --dispatch-readiness`\
+  \ is a pure current-state\nread under rule 1 — `headroom` / `live_worker_count`\
+  \ / `recommended_wave_ceiling` / `sole_controller` /\n`in_flight_land`. Two bounds\
+  \ are NORMATIVE and neither is optional:\n  - **REPORT-ONLY, FOREVER (the anti-drift\
+  \ bound).** The advisory is telemetry the controller reads;\n    it MUST NOT refuse,\
+  \ queue, clamp, delay, auto-resize, or require compliance with\n    `recommended_wave_ceiling`.\
+  \ The moment it caps/gates/paces a dispatch it is the forbidden\n    orchestrator\
+  \ (CHARTER §Principle 6). `recommended_wave_ceiling` is an integer the controller\
+  \ MAY\n    ignore; wave size stays a controller JUDGEMENT bound (patterns/background-session-operation.md\n\
+  \    §Dispatch), never a coded cap.\n  - **`dispatch` DELIVERS it in the pre-launch\
+  \ DECISION FRAME.** The `dispatch` launcher runs\n    the readiness fold ITSELF\
+  \ and PRINTS the advisory BEFORE the first launch line — fold → visible\n    advisory\
+  \ → launch — so wave sizing is decided against LIVE fleet-width, not memory or a\
+  \ separate\n    manual pre-wave read (the missed-read failure the consult verdict\
+  \ A-with-bounds closed,\n    `decisions/dispatch-readiness-delivery-audit-adhoc.yaml`).\
+  \ The self-read emits ONE\n    `consumer_read_evidence` receipt tied to the advisor\
+  \ surface, which by journal ordering PRECEDES\n    the wave's `bg_dispatch_launched`.\
+  \ This delivery adds NO admission control: there is deliberately\n    NO branch\
+  \ in `dispatch` that skips/returns/resizes on a poor ceiling — the launch proceeds\n\
+  \    unchanged, poor headroom or not (the §6 fence, held by the differential test).\n\
+  \  - **The frame MAY carry a MEMORY line, on the SAME report-only terms (<project>\
+  \ X-1556).**\n    The headroom above is CPU-only, yet the measured failure was memory\
+  \ — swap exhaustion killed\n    controller background watchers. So `dispatch` also\
+  \ reads host `MemAvailable` and the measured\n    peak RSS of its own invocation,\
+  \ and prints ONE memory line naming both numbers ONLY while\n    MemAvailable is\
+  \ below the wave's projected need (wave width x that per-invocation RSS); with\n\
+  \    ample memory, or an unreadable reading, the frame is unchanged. It INHERITS\
+  \ both bounds above\n    verbatim: nothing reads the line back, and it refuses,\
+  \ queues, clamps, delays or resizes nothing.\n    The `journal query --dispatch-readiness`\
+  \ report and its five fields are untouched.\n\n## Parameters\nNone consumed (`consumed:\
+  \ false`). The §6-test criteria are governance rules an author/reviewer reads\n\
+  before shipping an observability verb; they are NOT a runtime scalar read FROM this\
+  \ spec by code.\n\n## Rationale\nMeta-analysis 2026-07-04 (owner-requested, on the\
+  \ live →→ concurrent-land\nexample) + the external adhoc audit (YELLOW → this narrowed\
+  \ direction),\n`decisions/worker-observability-coupling-audit-adhoc.yaml`. Root\
+  \ cause: observability CLASSIFICATION is\nmechanized (the reader) but the WATCH-LOOP\
+  \ + death-confirmation + fleet-sweep remain hand-executed\nprose — the controller\
+  \ is an unreliable runtime for that rulebook, and each incident added prose\ninstead\
+  \ of closing the loop with a mechanism (the prose-instead-of-mechanism accretion\
+  \ CHARTER §6\nexists to prevent, displaced from hooks into the monitoring pattern).\n\
+  \n## Verification\n- **§6-test (rule 1):** a reviewer applies the 7-clause checklist\
+  \ to the shipped verb — a synthetic\n  verb that persists state / loops / mutates\
+  \ FAILS the test (the test discriminates yes/no); the\n  shipped `--fleet-verdict`\
+  \ PASSES (pure current-state → report).\n- **pre-claim refusal leaves a CARD trace\
+  \ (rule 2f):** `task refuse T-XXXX --reason <why>`\n  is no longer journal-only.\
+  \ It writes `refused_at` + `refused_reason` VERBATIM onto the card, and\n  `task.py#_premise_dispatch_block`\
+  \ — the ONE dispatchability predicate the claim gate, the\n  dispatch preflight\
+  \ and the read-only picker all derive their refusal from — blocks on\n  `refused_at`,\
+  \ so the card stops reading as plain ready work. MEASURED 2026-08-26: three of nine\n\
+  \  workers launched in one shift refused at pre-claim and all three cards were still\
+  \ `status: ready` afterwards, so the next dispatch re-bought the identical\n  investigation;\
+  \ the refuser even wrote the correct disposition and the system returned the\n \
+  \ card to the queue. THE VERB STILL CHOOSES NO DISPOSITION — the same two fields\
+  \ are written\n  whatever the reason says, nothing branches on the reason text and\
+  \ no status is written, because\n  the four refusal kinds want four different outcomes\
+  \ (duplicate → wont-do, unarrived trigger\n  → parked, owner-only → the owner, false\
+  \ premise → re-authored acceptance) and choosing\n  among them is an owner or controller\
+  \ call. The governed EXITS are a terminal disposition or\n  `task refuse --clear\
+  \ --reason <what changed>`, which returns the card to plain ready work; the\n  SPEC-0119\
+  \ rule-18 debt fold drops the halt row on EITHER, reader-side, with no change to\n\
+  \  `journal._halt_resolution`. Verification (differential): after a refusal the\
+  \ card is not offered\n  while an untouched ready card still is; the reason reads\
+  \ back off the card without the journal;\n  two refusals with different reasons\
+  \ reach the identical card state.\n**BOUNDED by the CLAIM-LOST arm (X-1504/X-1505).**\
+  \ The card write above is the PREMISE\nrefusal's, and only its. When a LIVE FOREIGN\
+  \ `task/T-XXXX` worktree already holds the card — the\nworker lost a double-dispatch\
+  \ claim race — `task refuse` writes NOTHING to the card and owns no\nself-commit:\
+  \ it records the halt with `refused_class: claim-lost-to-live-peer` plus the holder's\n\
+  session ref and worktree path, and the reading splits (`refused(claim-lost)`, still\n\
+  `halted` / needs-decision, rule 2a vocabulary unchanged). The exclusion is not tidiness\
+  \ on two\ncounts. (1) The card's premise is NOT in question — writing `refused_at`\
+  \ onto it would block a\nperfectly good card AND, because the holder's branch was\
+  \ cut from the pre-refusal HEAD, force the\nholder to merge a divergent copy of\
+  \ its own card, which is how a refusing worker injected a merge\nconflict into an\
+  \ innocent sibling's live land (X-1504). (2) A later reader could not tell that\n\
+  refusal from a genuine false-premise one (X-1505's compounding half). Detection\
+  \ REUSES the\nlive-foreign-hold helpers `worktree new` / `task pick` / `task resume`\
+  \ already consume, keyed on a\nLIVE WORKTREE rather than a bare branch and fail-closed\
+  \ to FOREIGN on an unstamped\none. An OWN-stamped hold, and no hold at all, take\
+  \ the card-write path above UNCHANGED.\nConsequent on the rule-18 fold: `debt_adoption._is_pre_claim_refusal`\
+  \ excludes the sub-class, since\na claim-lost halt writes no card fields by construction\
+  \ and would otherwise be dropped as\n\"disposed\" from its first moment — the exclusion\
+  \ only ever KEEPS a row.\n- **field contract (rule 2):** the verb output names the\
+  \ live `session_ref`, carries `evidence` +\n  `verdict` + `verdict_basis`, and has\
+  \ NO `recommended_action` key (grep the output shape).\n- **worker-centric (rule\
+  \ 4):** a synthetic warm worker (session-ref with task A `done` + task B not\n \
+  \ yet claimed, proc alive) reads `verdict: alive` (IDLE-between-lands), NOT `dead`.\n\
+  - **adoption (P8, infra-class):** a real controller watcher tick CONSUMES the verdict\
+  \ (a\n  `consumer_read_evidence` event ties the tick to the verb), replacing the\
+  \ hand-rolled 3-part\n  computation.\n\n**Project/host worker fit.** The wave-sizing\
+  \ advisor also relates THIS project to THIS host:\n`journal.worker_fit` reads the\
+  \ current repo's own journal (`<repo>/events.jsonl`, the per-project\ninstance —\
+  \ under `-C` the consumer's, never a peer's), takes the median over its last 10\n\
+  `land_completed` rows of sum(`verify_metrics.per_layer_cpu.layers[].cpu_ms`)/`verify_wall_ms`\
+  \ as the\nCPUs one verify keeps busy, and recommends max(1, (nproc-2) // ceil(that))\
+  \ parallel workers (nproc-2\nwhen unmeasured). Delivery: a consumer's main-checkout\
+  \ `session start` prints the one\n`workers: this host fits …` line (re-delivered\
+  \ by any later start, e.g. post-/compact; skipped on a\nreceipt-only worktree start);\
+  \ `journal query --dispatch-readiness` re-folds it on demand; `dispatch`\nadds an\
+  \ advisory line naming both numbers when live workers + the wave exceed it. REPORT-ONLY\n\
+  FOREVER, same §6 fence: it never refuses, queues, clamps or resizes a launch. The\
+  \ session-start line\nis an echo, not a SPEC-0050 read obligation or gate.\n"
+cites:
+- CHARTER.md#principle-6
+- SPEC-0025
+- SPEC-0103
+- SPEC-0132
+- mechanize-controller-worker-observability-into-rea
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: mechanize-controller-worker-observability-into-rea
+binding:
+- query-only
+init_concern: null
+implements_signature:
+  bin/lib/dispatch.py#_journal_redispatch_state: 20cb7b6ca98e9bdd26cd1ce15fd5bcb7320d857c3a8f4c4eaaef06e082106748
+  bin/lib/dispatch.py#_readiness_advisory_block: 72c30ed51648c25e1bbdaf75982a5f3f6fd9aece5a63231bcfc45e641c2149ec
+  bin/lib/dispatch.py#_watch_row_in_scope: 6b2db2d58c6c0b324a807e774049574564e25c9e899725882874e4b1aaa45175
+  bin/lib/dispatch.py#_watch_wake_decision: 67e322d6600fd21bace80c62325f083eb93aa5ccb817e259b0a39150aa27ef45
+  bin/lib/dispatch.py#cmd_dispatch: 18efcb2642f40405e2f55844f495a717597874c9c675d5ec8717e56fae5893e7
+  bin/lib/dispatch.py#cmd_dispatch_watch: a13c6c8415bb2bbd3cd5673614938bc5a02dbd7a6feeaf2c60847b4850e8bea1
+  bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 6152d15fee2386f0ce522a19fe440083648b57125d3ba6b86ac102f3509f6586
+  bin/lib/journal.py#_dispatch_status_landed_pause: ce76f65f58e887e873287dea5132abc4272b3a94c1803258433b3961bb4da060
+  bin/lib/journal.py#_halt_resolution: d83afc21f135863e4a6515a6ad07f9c76502005cdaefa490dd157507335ac3c6
+  bin/lib/journal.py#cmd_journal_fleet_verdict: cfa08f6cca3d7b69ab1afa0ad1b7d499c3fa2b669938eb2ac4d450d5339e5f01
+  bin/lib/journal.py#measured_verify_cores: 641e25dc3baa269c56cf83afcbac1b374636e73b429c501cdc30e37153c41d6b
+  bin/lib/journal.py#recommended_worker_count: cb6d0babb3ca8dab06eaaf4a2245a5879416472d2ab7f021852062af3329032d
+  bin/lib/journal.py#worker_fit: e3eeb55541bbfc58e0d35df67ffb13b6ac7b304fc6f3c537b60a98a5facf7438

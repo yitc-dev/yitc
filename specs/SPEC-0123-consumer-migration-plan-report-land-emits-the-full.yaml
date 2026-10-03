@@ -1,0 +1,107 @@
+id: SPEC-0123
+title: Consumer migration-plan report — land emits the full ordered pending-migration
+  plan up front (read-only, never auto-apply)
+status: active
+created_at: 2026-07-02 08:07:33+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/worktree.py#_consumer_zero_probe_guard
+- bin/lib/worktree.py#_consumer_pending_migrations
+- bin/lib/worktree.py#_render_consumer_migration_plan
+body: "## Scenario\n\nA consumer (a `-C <consumer>` repo pinning the kernel) that\
+  \ landed cleanly days ago suddenly cannot\n`land` a routine record, because the\
+  \ kernel has moved and the consumer is now BEHIND on one or more\nrequired migrations.\
+  \ Today it discovers them ONE AT A TIME: `land` aborts on the first blocker, the\n\
+  consumer fixes it, re-lands, hits the second, fixes, re-lands, … — a version-skew\
+  \ tax paid\nmid-incident. Under this rule the consumer instead sees, at the FIRST\
+  \ blocked `land`, the WHOLE\nordered path: every pending migration, in order, each\
+  \ with what changed and the concrete action to\nadopt it. The consumer reads the\
+  \ full plan once and executes it BY ITS OWN ACTION, in order — `land`\nnever applies\
+  \ a migration for it.\n\n## Internal\n\nTHE RULE. When a consumer `land` detects\
+  \ the consumer is behind on one or more required kernel\nmigrations (a migration-skew\
+  \ block), it MUST:\n\n1. **Enumerate + report the FULL ordered pending-migration\
+  \ plan UP FRONT**, in ONE run — not\n   abort-and-fall-silent on only the first\
+  \ blocker. The report is an ORDERED list; each item names\n   (a) what changed in\
+  \ the kernel, (b) the concrete consumer action to adopt it, (c) its\n   order/dependency\
+  \ relative to the others.\n2. **Stay READ-ONLY. NEVER auto-apply.** `land` reports\
+  \ the plan; it does not mutate the consumer's\n   repo to migrate it. Each step\
+  \ is executed by the consumer's own governed action (e.g.\n   `bin/yitc-v2 -C <repo>\
+  \ init`, declaring `verify.layers`, …). This preserves consumer mutation\n   autonomy\
+  \ — a consumer controls every write to its own repo — and keeps `land` within the\n\
+  \   cross-repo write boundary.\n3. **Suppress-when-clean.** No pending migration\
+  \ ⇒ no report (the derived-report discipline of the\n   `debt` echo / `cross` folds\
+  \ — SPEC-0119 / SPEC-0086). The report is a derived VIEW over land's\n   existing\
+  \ skew detection, carrying no stored state.\n\nThe report is ADVISORY-then-blocking\
+  \ in the same sense land's verify already is: a migration-blocked\nland still ABORTs\
+  \ (the block is real), but the ABORT now carries the whole ordered plan instead\
+  \ of a\nsingle first-blocker message. Ordering: where a later migration is only\
+  \ DETECTABLE after an earlier\none is applied (a masked step), the report enumerates\
+  \ every independently-detectable pending\nmigration in dependency order and states\
+  \ plainly that further steps may surface after the named ones\n— it never silently\
+  \ implies the list is exhaustive when masking prevents it.\n\nIMPLEMENTATION NOTE\
+  \ (recommendation, not a locked sub-choice — decides). Prefer the LIGHTEST\npath\
+  \ (CHARTER §P1): make the existing detector (`_consumer_zero_probe_guard`, bin/lib/worktree.py)\n\
+  ENUMERATE all independently-detectable pending migrations rather than short-circuit\
+  \ on the first, and\nrender them as the ordered report. Add a declarative ordered\
+  \ migration MANIFEST (a new artifact) ONLY\nif masking proves a real gap in practice\
+  \ (P1 F4 — defer until an incident pulls it); do not build one\npre-emptively.\n\
+  \n## Anti-complexity — the CHARTER §Principle 1 four filters (written in-spec per\
+  \ AGENTS §When-NOT-to-add-a-mechanism)\n\n1. **Existing analog? YES — extend, don't\
+  \ create.** `land` ALREADY detects consumer migration\n   blockers and reports them\
+  \ (the `_consumer_zero_probe_guard` ABORT reason strings). This rule only\n   changes\
+  \ that surface from first-blocker-only to full-ordered-plan. The report-only, derived,\n\
+  \   suppressed-when-clean SHAPE reuses the established `debt` echo (SPEC-0119) and\
+  \ `cross`\n   outbox/inbox fold (SPEC-0086) prior-art. No parallel mechanism.\n\
+  2. **New entity or new view? A VIEW.** The plan is a derived report over land's\
+  \ existing skew\n   detection — no new store, journal, format, or graph node-type.\
+  \ (View preferred over new data\n   structure — P1 F2.)\n3. **What gets removed?**\
+  \ The serial one-blocker-at-a-time discovery loop — the version-skew tax\n   (re-run\
+  \ `land` N times to discover N blockers). See §Retirements.\n4. **Real incident?**\
+  \ YES — X-0147 / <project> 2026-07-01: `yitc-verify.yaml` retired → land\n   block\
+  \ → `init` → adopt SPEC-0094 → re-land, one blocker at a time.\n\n## Retirements\
+  \ (named — replacement, not accretion, P1 F3)\n\n- RETIRED: the serial \"abort on\
+  \ the FIRST migration blocker, silent about the rest\" land behaviour in\n  the\
+  \ consumer migration-skew context — replaced by the up-front full-ordered-plan report.\n\
+  - FORBIDDEN (explicitly rejected): AUTO-APPLYING migrations. `land` never mutates\
+  \ the consumer's repo\n  to migrate it; the plan is read-only and executed by consumer\
+  \ action.\n\n## Rationale\n\nReal incident (P1 F4): X-0147 — a <project> consumer\
+  \ chased a migration CASCADE mid-incident,\npaying re-land after re-land to uncover\
+  \ one blocker at a time. Origin design task: (this\nspec's `proposed_by`); owner\
+  \ approval + external-consult verdict are recorded durably in the journal\nand on\
+  \ (per rule 3, ratification chronology is NOT restated in this body).\n\nREJECTED\
+  \ ALTERNATIVE (concise interpret-provenance — why the rule is a read-only REPORT,\
+  \ not\nauto-apply): the alternative was ONE-SHOT / auto-applied migration (the kernel\
+  \ mutates the consumer\nrepo to migrate it automatically). Rejected because it removes\
+  \ consumer mutation autonomy (a consumer\nmust control writes to its own repo) and\
+  \ collides with the cross-repo write boundary. The\nexternal consult (Decision 3)\
+  \ agreed the full ordered report \"removes cascade pain while preserving\nconsumer\
+  \ mutation autonomy\", and warned against the anti-complexity trap of turning consumer\
+  \ pain\ninto a new privileged bypass instead of a report/view — which this rule\
+  \ follows.\n\nBEHAVIORAL-BASELINE ALIGNMENT (SPEC-0100): read-only-not-auto-apply\
+  \ honours the cross-project default\nof never firing an autonomy-removing action\
+  \ automatically.\n\n## Verification\n\n- (active — the accepted rule) `graph query\
+  \ SPEC-0123` resolves the active spec.\n- (code adoption, owned) after implementation\
+  \ + `task close`, `graph query SPEC-0123`\n  carries `implements:` naming the land\
+  \ control-point; and a synthetic multi-blocker\n  consumer `land` emits the FULL\
+  \ ordered migration list in ONE run, applying nothing (read-only).\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0073
+- SPEC-0093
+- SPEC-0094
+- SPEC-0119
+- SPEC-0086
+- SPEC-0100
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null
+implements_signature:
+  bin/lib/worktree.py#_consumer_pending_migrations: 2b597c8dc26954b7b14b1b2d27f6981bb747b937ed9f4d8af90f0a726da532ff
+  bin/lib/worktree.py#_consumer_zero_probe_guard: f1561d24bbfdbe2ca20a2fe834457c24318236b6d60f3b067b6e8ebb297ef20e
+  bin/lib/worktree.py#_render_consumer_migration_plan: 5bcf0db938d0ff0adcd779b27a9cf19c15b8121146ae9926253c737f9929fbf4

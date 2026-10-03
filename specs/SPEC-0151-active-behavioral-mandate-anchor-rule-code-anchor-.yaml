@@ -1,0 +1,65 @@
+id: SPEC-0151
+title: Active behavioral mandate anchor rule — code anchor, delivered human obligation,
+  or explicit not-executed
+status: active
+created_at: 2026-07-09 19:20:31+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/spec.py#anchor_rule_violation
+- bin/lib/spec.py#_warn_anchor_rule
+- bin/lib/cli.py#_anchor_rule_warnings
+- bin/lib/plan.py#_birth_plan_draft_specs
+body: "## Scenario\n\nAn ACTIVE spec that tells the system to BEHAVE somehow always\
+  \ answers \"who executes this?\" —\na code anchor, a delivered human obligation,\
+  \ or an honest \"not executed\". A reader can no longer\nmistake a closed task id\
+  \ for a shipped mechanism.\n\n## Internal\n\n1. An ACTIVE spec whose body carries\
+  \ a behavioral mandate MUST name at least one of:\n   (a) an `implements:` code\
+  \ anchor covering the mandate;\n   (b) a `binding:`-delivered HUMAN obligation (the\
+  \ rule reaches a person at a moment of use);\n   (c) an explicit execution-status\
+  \ marker DECLARATION in the body — a line-anchored\n  `execution: not-executed`\
+  \ or `execution: operator-owned`. A prose MENTION of those\n  tokens is NOT a marker:\
+  \ this spec was its own first false-negative, silencing the check\n  on itself merely\
+  \ by DESCRIBING satisfier (c). Same class as SPEC-0150's \"a log mention\n  is not\
+  \ a read site\" (deviation prose-mention-satisfies-structural-marker-check).\n2.\
+  \ Task ids are PROVENANCE, never execution carriers: `status: done` proves a card\
+  \ closed, not\n   that a mechanism runs (lessons/proof-card-after-wiring-card.md).\n\
+  3. Enforcement starts REPORT-ONLY: a WARN at spec-new/spec-edit + a graph-conformance\
+  \ sweep line\n   (anti-complexity — no new hard gate until the WARN provably fails;\
+  \ hardening is its own\n   follow-up with its own incident). Documentary/binding-only\
+  \ specs are OUT of scope by\n   construction (the consult: \"overbroad for documentary\
+  \ specs\" — scoped to behavioral mandates).\n4. A FOURTH disposition satisfies (c):\
+  \ the line-anchored declaration `execution: documentary`\n   FOLLOWED BY a non-empty\
+  \ reason on the same line (e.g. `execution: documentary — <reason>`) —\n   the machine-recognizable\
+  \ form of SPEC-0005 §7 empty-implements mode (a). A bare documentary\n   declaration\
+  \ with no reason does NOT satisfy (an unexplained opt-out is the silence this rule\n\
+  \   forbids), and a prose mention stays not-a-marker as in (c). Separately, the\
+  \ check has an\n   explicit ALL-SPECS evaluation scope that drops the mandate-scoping\
+  \ of §3 and judges every spec\n   in scope: the mandate detection is an English\
+  \ modal-verb set, so a body written in another\n   natural language is otherwise\
+  \ never evaluated. The default scope is unchanged; the all-specs\n   scope is report-only\
+  \ too and is used only by the seams that opt into it.\n\n## Rationale\n\nSPEC-0097\
+  \ §5 said \"execution lives in tasks /17/18\"; the tasks closed; no code existed\n\
+  (level 1-2 of the 2026-07-09 family). The consult refined the blunt \"active spec\
+  \ needs\nimplements:\" into exactly this three-way rule.\n\n## Verification\n\n\
+  Named tests: (a) an anchor-less active behavioral-mandate fixture draws the WARN\
+  \ + the sweep\nline; (b) each of the three satisfiers silences it; (c) a documentary\
+  \ spec with no mandate is\nnever flagged; (d) a task-id-only \"anchor\" still WARNs\
+  \ (provenance is not execution).\n"
+cites:
+- SPEC-0005
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: prove-the-deploy-evidence-chain-acts-on-target-dis
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#_anchor_rule_warnings: a5461ecd23b90abaff2c0b903334e66057ff46380a6ae0b5c1f9c369c91408b5
+  bin/lib/plan.py#_birth_plan_draft_specs: 66cfd74ced72e6278232fd8af0aa71ea363332de73c9123972803db23db8f3df
+  bin/lib/spec.py#_warn_anchor_rule: a6ed93c5fffea5d633b9735e3df8ae2afdd09643a224e060b98a24da7689e940
+  bin/lib/spec.py#anchor_rule_violation: 796a8322b83b917679b3328ccdc076b3385cacce14863ef2619b44c786738782

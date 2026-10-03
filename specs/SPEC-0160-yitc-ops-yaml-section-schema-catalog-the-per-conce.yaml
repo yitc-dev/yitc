@@ -1,0 +1,737 @@
+id: SPEC-0160
+title: yitc-ops.yaml section-schema catalog — the per-concern section shapes (split
+  from SPEC-0093)
+status: active
+created_at: 2026-07-16 19:48:06+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc-ops.yaml`\
+  \ ops-contract carrier\n(SPEC-0093). The owner/AI reads ONE carrier file to see\
+  \ how this project declares each concern; this\nspec holds the concrete SHAPE (schema)\
+  \ of the individual concern sections — `security:`, `ui:`,\n`tests:`, `inspection:`,\
+  \ `extensions:`, `deploy.host_config:`, `security.audit:`, `migrations:`,\n`deploy.live_revision:`,\
+  \ `outcome_invariants:` — the declarative section catalog that grew the\ncarrier\
+  \ past the one-bounded-read ceiling and was SPLIT OUT (SPEC-0120 §3, aggregate-neutral\n\
+  SPLIT-never-delete) so each part loads in one read. The carrier FRAMEWORK (one-file/one-section,\n\
+  declare-or-waive fail-closed, the waiver policy, the born-ops concern registry that\
+  \ GENERATES these\nsections, the update path) stays on SPEC-0093; this part is the\
+  \ concrete per-section shape catalog.\n\n## Internal\n\nA SPLIT-OUT part of SPEC-0093\
+  \ (the yitc-ops.yaml project ops-contract carrier). It carries TEN of\nthat carrier's\
+  \ rules VERBATIM — the PURE-DECLARATIVE section-schema catalog (rules with NO `implements:`\n\
+  code anchor): **rule 8** (`security:` section), **rule 9** (`ui:` section), **rule\
+  \ 10** (`tests:`\nsection), **rule 12** (`inspection:` section), **rule 13** (`extensions:`\
+  \ section), **rule 14**\n(`deploy.host_config:` subfield), **rule 20** (`security.audit:`\
+  \ subfield), **rule 21** (`migrations:`\nsection), **rule 23** (`deploy.live_revision:`\
+  \ subfield), **rule 24** (`outcome_invariants:` section). It ALSO carries **rule\
+  \ 25** (`reads:` section), which was NOT moved: authored it directly here, because\
+  \ a pure-declarative section schema is exactly this part's surface now that the\
+  \ split seam exists — a new one is born here rather than landing on SPEC-0093 and\
+  \ being relocated later.\n\n**Split seam (SPEC-0005 rule 6 anti-oversize — split\
+  \ by a STABLE SURFACE, never by perspective).** The\nboundary is CODE-BACKED vs\
+  \ DECLARATIVE. SPEC-0093 retains the carrier FRAMEWORK rules (1-4, 6, 7, 11,\n18,\
+  \ 19), the two code-enforced anchors (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\n\
+  so **rule 22** `deploy.runtime_delivery` stays with its anchor), AND — deliberately\
+  \ — the whole\n`concern:` born-ops registry (born generation is active-gated/SPEC-0128,\
+  \ so the registry stays\nSINGLE-SoT on the active carrier). This part receives ONLY\
+  \ the declarative per-section SHAPE prose,\nwhich has no code anchor to re-home\
+  \ — so the split moves NO anchor and re-signs NO signature.\n\n**Shared rule numbers\
+  \ across the split pair.** Rule NUMBERS are RETAINED (the carrier already numbers\n\
+  non-contiguously), so moved text stays byte-identical and an in-code/prose `rule\
+  \ N` ref changes only its\nSPEC id, not its number. A bare `rule N` for N in {8,9,10,12,13,14,20,21,23,24,25}\
+  \ refers to THIS spec; any\nother bare `rule N` refers to SPEC-0093. Cross-body\
+  \ refs to non-moved rules stay verbatim. The `concern:`\nborn-placeholder comments\
+  \ on SPEC-0093 keep their historical `# SPEC-0093 rule N` text (changing generated\n\
+  born output is out of scope — the born text is byte-compared by the init tests).\n\
+  \n### 8. The `security:` section schema (the first non-slice-1 concern to land —\
+  \ pairs with SPEC-0098)\nThe `security:` top-level section declares a project's\
+  \ security live-probes — the named, read-only\nproperty assertions a Class-S deploy\
+  \ (SPEC-0097) binds. This rule owns the section SHAPE ONLY; the\nlive-probe SEMANTICS\
+  \ (what each assertion MEANS, the un-probeable→escalate rule, the\n`security_live_probe_passed`/`_escalated`\
+  \ events) are owned by the contract spec SPEC-0098 (hard SoT\nsplit). The section\
+  \ is DECLARE-OR-WAIVE, fail-closed (rule 3), with the STRICT per-section waiver\n\
+  policy below (the rule-6 instance: a security waiver is NOT a bare reason).\n\n\
+  **DECLARE — a `probes:` list** (the runner reads these; SPEC-0098/SPEC-0094 execute\
+  \ them). Each entry\nis a mapping carrying the per-probe declaration ENTRY shape\
+  \ — three required keys:\n- `property:` — the named security property, e.g. `auth-required`\
+  \ | `no-cors` | `security-headers` |\n  `cookie-host-only`.\n- `assertion:` — the\
+  \ read-only assertion to make, e.g. `status:401` | `header-absent:Access-Control-Allow-Origin`.\n\
+  - `url:` — the endpoint the probe GETs.\n\n**Canonical Class-S deploy-readiness\
+  \ shape (a dialect-asserted security probe).** A security live-probe\nREQUIRES an\
+  \ explicit security ASSERTION via the SPEC-0094 header/cookie/CORS dialect — the\
+  \ shipped\nrunner+validator key the `security_live_probe_passed` event on that assertion;\
+  \ a bare STATUS-ONLY\n`auth-required`/`status:401` check emits the GENERIC `live_probe_passed`,\
+  \ NOT the Class-S security\nevent, so it is NOT a sufficient Class-S proof. A project\
+  \ unblocks an autonomous Class-S deploy\n(SPEC-0097 §2) with a dialect-asserted\
+  \ security probe, e.g. the `security-headers` shape proven on\n<project> 2026-06-22:\n\
+  \n    security:\n      probes:\n        - property: security-headers # the named\
+  \ security property (event label)\n          assert_header_present: [X-Frame-Options,\
+  \ X-Content-Type-Options, Referrer-Policy]\n          assert_header_absent: [Access-Control-Allow-Origin]\n\
+  \          url: https://<host>/<endpoint> # a live route\n\nThis dialect-asserted\
+  \ shape is THE named probe shape the deploy-autonomy Class-S tier binds, linked\
+  \ to\nthe contract spec **SPEC-0098** (the SPEC-0097 §2 \"delivered by the security\
+  \ instance\" deliverable; it\nMEETS the deploy plan readiness bar = a named probe\
+  \ shape + a linked contract spec). A security\nproperty not expressible by a read-only\
+  \ header/cookie/CORS assertion is un-probeable → escalate\n(SPEC-0098 §2), NEVER\
+  \ silently passed. (External audit security-probe-status-only-vs-dialect-required,\n\
+  option A, 2026-06-22 — aligns the contract to the shipped dialect-required runner.)\n\
+  \n**Broader OPTIONAL section keys** (present iff the project declares them):\n-\
+  \ `authz_model:` — free-text description of the project's authorization model (a\
+  \ non-empty string).\n- `accepted_risks:` — a list of risks the project knowingly\
+  \ accepts MEANWHILE; each entry is a mapping\n  carrying a `risk:` description,\
+  \ a `compensating_control:`, and a REQUIRED `expiry:` (an ISO date to\n  re-review)\
+  \ — \"accepted-risks-WITH-EXPIRY\": no open-ended accepted risk (fail-closed).\n\
+  \n**WAIVE — the STRICT waiver policy (rule-6 instance, NOT a bare waiver).** A `security:`\
+  \ waiver is a\nmapping REQUIRING all three: a non-empty `reason:`, a non-empty `compensating_control:`\
+  \ (what protects\nthe security property meanwhile — e.g. the kernel's always-on\
+  \ baseline: prompt-injection protection,\nthe `security-review` skill, secrets-out-of-git,\
+  \ the host-leak canary), and a `expiry:` that is a real\nISO date (the review-by\
+  \ date). A waiver missing the compensating control OR the expiry — or carrying a\n\
+  non-date expiry — FAILS CLOSED (init/sweep ERROR), never silently accepted.\n\n\
+  **Exclusivity (fail-closed, mirrors the deploy.policy classes+waiver rule, SPEC-0097\
+  \ §9).** A\n`security:` section MUST NOT carry BOTH a `probes:` declaration AND\
+  \ a `waiver:` — a section is EITHER\ndeclared OR waived, never both. Raw `waiver`-key\
+  \ presence alongside a declaration is the contradiction\n→ ERROR (so a malformed\
+  \ waiver cannot fall through to a declared-but-also-waived state).\n\n**Shape, not\
+  \ value (rule-3 boundary held).** The kernel checks the declared STANCE + the structural\n\
+  SHAPE (key presence + type + the expiry date-FORMAT) — it does NOT judge VALUES\
+  \ (URL reachability,\nwhether an assertion is meaningful, whether an expiry is still\
+  \ in the FUTURE). Currency (an expiry that\nhas PASSED) is a DERIVED, report-only\
+  \ read-time view (the overdue-recheck surface, SPEC-0094 §3), never\njudged by the\
+  \ carrier sweep (rule 7 — no computed status stored).\n\n### 9. The `ui:` section\
+  \ schema (rule-4 section-add — UI baseline; X-0050)\nThe `ui:` top-level section\
+  \ declares a project's UI baseline contract — the named design-system /\nbaseline\
+  \ the project's surfaces ride (cross X-0050: a stack-appropriate UI baseline the\
+  \ kernel seeds\nand the project fills + grows). This rule owns the section SHAPE\
+  \ ONLY (declared config, rule 7); the\nkernel judges the STANCE + structural shape,\
+  \ never the VALUES (rule 3). DECLARE-OR-WAIVE, fail-closed\n(rule 3), checked ONLY\
+  \ IF PRESENT (the deploy.policy / security backward-compat precedent — a\npre-`ui:`\
+  \ carrier still passes).\n\n**DECLARE — a non-empty `baseline:` string** (the named\
+  \ UI baseline / design-system, e.g.\n`tailwind-token-contract`). Broader OPTIONAL\
+  \ keys (validated only IF PRESENT, shape not value — each\na non-empty string):\
+  \ `styleguide:` (the styleguide route/path), `tokens:` (where the design tokens\n\
+  live), `lint:` (the raw-hex / token-conformance lint command), `archetype:` (the\
+  \ UI archetype /\ndesign-template the project selected).\n\n**WAIVE — the LOOSE\
+  \ per-section waiver policy (rule-6 instance: a bare reasoned waiver).** A `ui:`\n\
+  waiver is a mapping carrying a non-empty `reason:`. This is the clean unconditional-waive\
+  \ case\n(rule 6): a project legitimately has NO UI surface (a CLI-only / library\
+  \ / headless project) and\nrefuses the concern with a reason — no compensating control\
+  \ / expiry required (a UI baseline absence\nis not a standing safety risk, unlike\
+  \ `security:`).\n\n**Exclusivity (fail-closed, mirrors rule 8).** A `ui:` section\
+  \ MUST NOT carry BOTH a `baseline:`\ndeclaration AND a `waiver:` — EITHER declared\
+  \ OR waived, never both → ERROR.\n\n### 10. The `tests:` section schema (rule-4\
+  \ section-add — test taxonomy; X-0053)\nThe `tests:` top-level section declares\
+  \ a project's TEST CLASS×MOMENT TAXONOMY — the inventory of\nwhich test classes\
+  \ the project runs and at which lifecycle moment (cross X-0053: the unified\nclass×moment\
+  \ carrier the project's scattered test files collapse into). This rule owns the\
+  \ section\nSHAPE ONLY (declared config, rule 7); the kernel judges the STANCE +\
+  \ structural shape, never the\nVALUES (rule 3 — it does not run the tests or judge\
+  \ coverage). DECLARE-OR-WAIVE, fail-closed,\nchecked ONLY IF PRESENT (the backward-compat\
+  \ precedent).\n\n**NON-STRADDLE with `verify` (rules 5/16 held — the SoT boundary).**\
+  \ The `tests:` section is the\ndeclared test-class taxonomy INVENTORY; it is NOT\
+  \ the executable land-verify GATE. The executable land\ncommands live SINGLE-HOME\
+  \ in the carrier `verify.layers` (rule 16 — the migrated `verify` home, rule 5).\n\
+  So `tests:` carries the taxonomy map (orientation: \"how does this project test?\"\
+  ), NOT a copy of any\nexecutable verify command. Concretely: a `tests.classes[].command`\
+  \ for `moment: verify` is FORBIDDEN\nonce the carrier `verify:` section lands (rule\
+  \ 16) — there is no second command home; an executable\nland-verify command belongs\
+  \ in `verify.layers`, and `tests:` stays purely descriptive at the `verify`\nmoment.\n\
+  \n**DECLARE — a non-empty `classes:` list.** Each entry is a mapping carrying two\
+  \ required non-empty\nstrings — `class:` (the test-class name, e.g. `domain-unit`\
+  \ | `integration-db` | `live-app-e2e` |\n`deploy-gate-smoke` | `post-deploy-live-probe`)\
+  \ + `moment:` (the lifecycle moment it runs at, e.g.\n`verify` | `deploy-gate` |\
+  \ `post-deploy`). An OPTIONAL `command:` (a non-empty string, the\nhow-to-run) MAY\
+  \ be present for a moment NOT already owned by another single-home — but NEVER for\n\
+  `moment: verify` once the carrier `verify:` section lands (rule 16 owns the executable\
+  \ land command,\nP5); it is a taxonomy pointer for the OTHER moments, not the land-gate\
+  \ SoT (rules 5/16).\n\n**OPTIONAL per-class `globs:` — WHERE that class's test FILES\
+  \ live (added by X-1235; the rule this\nserves is SPEC-0185 half (c)).** An entry\
+  \ MAY carry a `globs:` key: a NON-EMPTY list of NON-EMPTY,\nREPO-RELATIVE glob strings\
+  \ naming the files that class comprises (e.g.\n`frontend/src/**/*.test.{js,ts}`).\
+  \ A glob MUST NOT be absolute (no leading `/`) and MUST NOT\ntraverse upward (no\
+  \ `..` segment) — a test class lives inside the repo that declares it, and a\ndeclaration\
+  \ reaching outside it is REFUSED rather than resolved. This is the field that lets\
+  \ a\nproject SAY what the kernel would otherwise GUESS from a filename pattern:\
+  \ before it, `tests:` could\nname a class and its moment but not where the class's\
+  \ files ARE, so a kernel-carried filename regex\nwas the only recognizer there was.\n\
+  \n**DATA, never a second command home (rule 16 untouched).** `globs:` is inert declared\
+  \ data a kernel\nreader may resolve; it executes nothing, and it is NOT a coverage\
+  \ claim, a subject-glob, or a verify\nlayer. The NON-STRADDLE with `verify` above\
+  \ is UNCHANGED and this field does not weaken it:\n`verify.layers[].covers` describes\
+  \ the SUBJECTS a layer covers and may legitimately include non-test\nsource, while\
+  \ `globs:` names TEST FILES — different questions, so neither answers the other\
+  \ and\nneither is derived from the other.\n\n**OPTIONAL, and checked ONLY IF PRESENT.**\
+  \ Absence is a STANCE, not a defect: a carrier with no\n`globs:` is fully conforming\
+  \ and reads exactly as it did before this field existed (the same\nbackward-compat\
+  \ precedent this section already follows). Declaring `globs:` neither satisfies\
+  \ nor\nsubstitutes for the declare-or-waive stance, and the classes-XOR-waiver exclusivity\
+  \ below is\nunchanged — a WAIVED `tests:` section declares no classes, and therefore\
+  \ no globs.\n\n**OPTIONAL per-class `timing_lane:` — WHICH of that class's tests\
+  \ are TIMING-SENSITIVE, and the\nONE thing the kernel does with the answer.** An\
+  \ entry MAY carry a `timing_lane:` key: a\nNON-EMPTY list of NON-EMPTY, REPO-RELATIVE\
+  \ glob strings naming the test files whose verdict is a\nfunction of WALL CLOCK\
+  \ — a duration assertion, a rate, a timeout margin. Its glob shape is the\n`globs:`\
+  \ shape above, VERBATIM and for the same reasons: non-empty list, non-empty strings,\
+  \ NOT\nabsolute, NO upward `..` traversal, checked ONLY IF PRESENT, absence a STANCE\
+  \ and not a defect.\nThis field does not widen `globs:` and is not derived from\
+  \ it — a class may declare either, both,\nor neither.\n\n**What it BUYS, stated\
+  \ as the one rule it drives: a declared timing test is NOT PINNED.** The\nSPEC-0077\
+  \ pinned last-green leg re-runs a project's OLD checks against the NEW tree, inside\
+  \ a land,\nbeside every other land's verify. A wall-clock check run there is measuring\
+  \ the HOST, so its\nverdict is a coin flip that aborts the land and re-queues it\
+  \ — the class that caused 8 of 15\nverify-aborts on 2026-09-04. So the kernel REFUSES\
+  \ to pin a test the project has DECLARED\ntiming-sensitive, and says so out loud:\
+  \ the refusal names the MATCHING GLOB and the WAIVER ROUTE\nbelow, never a silent\
+  \ omission (the never-silent partial-pin discipline this leg already holds).\nThe\
+  \ file is not deleted, not skipped elsewhere, and not exempted from anything else\
+  \ — it still\nruns in the ordinary candidate verify. Only the PINNED leg declines\
+  \ it.\n\n**WAIVE THE REFUSAL — per-class `timing_lane_waiver: {globs, reason}` (the\
+  \ rule-6 LOOSE waiver\nshape, reused).** A project that WANTS a declared timing\
+  \ test pinned anyway says so explicitly: a\nmapping carrying a non-empty `globs:`\
+  \ list (repo-relative, same shape) naming what the waiver\ncovers, plus a non-empty\
+  \ `reason:` recording who accepted the flake risk and why. A waiver naming\na glob\
+  \ RE-ADMITS the tests it matches to the pinned set. A waiver with a missing, empty\
+  \ or\nnon-list `globs:`, or a missing/empty `reason:`, is an INVALID declaration:\
+  \ it waives nothing and\nthe refusal stands (fail-closed, the direction every other\
+  \ waiver in this catalog fails).\n\n**Read from the LAST-GREEN carrier, never the\
+  \ candidate's.** Which tests the pinned leg declines\nis resolved from the `yitc-ops.yaml`\
+  \ at the last-green base, exactly as the declared check-surface\noverlay beside\
+  \ it is. Otherwise the same commit that declares a lane would\nalso choose which\
+  \ checks apply to it — the self-approval SPEC-0077 §3 exists to stop. A newly\n\
+  declared `timing_lane` therefore takes effect on the land AFTER the one that declares\
+  \ it.\n\n**DATA, never a second command home (rule 16 untouched).** `timing_lane:`\
+  \ and its waiver are inert\ndeclared data a kernel reader resolves; they execute\
+  \ nothing and name no command. What a declared\ntiming test should be run BY instead\
+  \ — a quiet lane, on a host with no verify beside it — is\nSPEC-0105 §2c's concern,\
+  \ not this section's; this rule owns only the declaration and the pinning\nrefusal\
+  \ it drives.\n\n**WAIVE — the LOOSE per-section waiver policy (rule-6 instance:\
+  \ a bare reasoned waiver).** A `tests:`\nwaiver is a mapping carrying a non-empty\
+  \ `reason:` — the clean unconditional-waive case (a project\nwith no test taxonomy\
+  \ to declare yet). No compensating control / expiry required.\n\n**Exclusivity (fail-closed,\
+  \ mirrors rule 8).** A `tests:` section MUST NOT carry BOTH a `classes:`\ndeclaration\
+  \ AND a `waiver:` — EITHER declared OR waived, never both → ERROR.\n\n### 12. The\
+  \ `inspection:` section schema (rule-4 section-add — local inspection themes; the\
+  \ unify-revizia plan)\nThe `inspection:` top-level section declares a project's\
+  \ LOCAL inspection themes — the named,\nproject-local observation lenses a consumer\
+  \ grows ON TOP of the kernel's traveling T1–T10 themes\n(`patterns/inspection-criteria-roster.md`).\
+  \ This rule owns the section SHAPE ONLY (declared config, rule 7);\nthe kernel judges\
+  \ the STANCE + structural shape, never the VALUES (rule 3 — it does not run the\
+  \ lens or\njudge findings). DECLARE-OR-WAIVE, fail-closed (rule 3), checked ONLY\
+  \ IF PRESENT (the deploy.policy /\nsecurity / ui / tests backward-compat precedent\
+  \ — a pre-`inspection:` carrier still passes).\n\n**Pure declared config — NO kernel\
+  \ RUNNER, NO kernel EVENTS (like `ui:`/`tests:`, rule 7).** The inspection\nRUN\
+  \ stays MANUAL via the existing `patterns/inspection-triage-launch-runbook.md` (SPEC-0057\
+  \ §2 manual-first);\nthe kernel adds NO runner / aggregator / event-emitter. The\
+  \ ONLY code is `init` SEEDING the section shape,\nand the declare-or-waive / XOR\
+  \ / unanswered-section FAIL-CLOSED check is the EXISTING SPEC-0093 carrier\nSWEEP\
+  \ — the SAME init/sweep that already fail-closes `ui:`/`tests:` (rule 3); `inspection:`\
+  \ RIDES it,\nadding NO new validator. (External consult `unify-revizia-execution-fork`,\
+  \ 2026-06-23: Option A —\ndeclarative, manual-first; so this section needs NO paired\
+  \ contract spec — shape owned wholly here.)\n\n**DECLARE — a non-empty `themes:`\
+  \ list.** Each entry is a mapping carrying three required keys:\n- `theme:` — the\
+  \ project-local theme name (a non-empty English slug).\n- `probe:` — a mapping declaring\
+  \ EXACTLY ONE probe KIND, `view:` XOR `sweep:` — carrying BOTH is a\n  contradiction\
+  \ ERROR, carrying NEITHER is an ERROR (fail-closed, mirrors the rule-8 declare-XOR-waive\n\
+  \  exclusivity):\n  - `view:` — a `bin/yitc-v2 -C <path> graph query <view>` lens\
+  \ name (a non-empty string). A `view:`\n    REUSES the existing `graph query <view>`\
+  \ lens surface, adding ZERO new execution surface\n    (anti-complexity P1) — for\
+  \ an ENGINE-realm theme whose check IS a graph/journal query.\n  - `sweep:` — a\
+  \ non-view PRODUCT-realm sweep shape, DERIVED from the existing `security.probes[]`\n\
+  \    declare-shape (rule 8): a mapping carrying two REQUIRED keys — `surfaces:`\
+  \ (a non-empty string, the\n    glob of local-canon surfaces to sweep) and `checks:`\
+  \ (a non-empty list of non-empty strings, the\n    named hand-run assertions — the\
+  \ `security.probes[]` analog) — plus an OPTIONAL `against:` (a\n    non-empty string,\
+  \ the canon reference adherence is audited against). A malformed `sweep` (missing/\n\
+  \    empty `surfaces` OR `checks`) is REFUSED fail-closed. A `sweep` only DECLARES\
+  \ how to inspect; a run\n    still emits the EXISTING `inspection_completed` event\
+  \ (SPEC-0057 §6 schema UNCHANGED) — it adds NO\n    new event kind, NO runner/cron,\
+  \ NO classifier, NO second finding-sink (the `checks` are named\n    assertions\
+  \ a human runs, exactly as `security.probes[]` are hand-verified).\n  (A `command:`\
+  \ run-an-arbitrary-shell-probe branch stays DEFERRED out of slice-1 — add it only\
+  \ when a\n  concrete theme can be expressed as NEITHER a `view:` nor a `sweep:`,\
+  \ naming the incident + the\n  rejected simpler option, the SPEC-0005 admission\
+  \ test.)\n- `cadence:` — one of the cadence-tier values `weekly | monthly | quarterly`.\n\
+  \nConcrete pinned shape (the kernel pins the SHAPE precisely, like `ui:`/`tests:`):\n\
+  \n    inspection:\n      themes: # DECLARE: a non-empty list — XOR with `waiver:`\
+  \ (exactly one, fail-closed)\n      - theme: <slug> # required — the project-local\
+  \ theme name (English id)\n        probe: # required — EXACTLY ONE of `view:` XOR\
+  \ `sweep:`\n          view: <view-name> # KIND 1: a `graph query <view>` lens name\
+  \ (engine-realm query themes)\n        cadence: weekly|monthly|quarterly # required\
+  \ — one of the cadence-tier values\n      - theme: design-canon-health # a PRODUCT-realm\
+  \ sweep theme (not a graph-query view)\n        probe:\n          sweep: # KIND\
+  \ 2: the non-view probe (derived from security.probes[], rule 8)\n            surfaces:\
+  \ \"design/*.dc.html\" # required — glob of the local-canon surfaces to sweep\n\
+  \            against: docs/design-canon.md # OPTIONAL — the canon reference adherence\
+  \ is audited against\n            checks: # required — a non-empty list of named\
+  \ hand-run assertions\n            - design-token-consistency\n            - mobile-first-adherence\n\
+  \        cadence: monthly\n      # waiver: { reason: <text> } # WAIVE (XOR with\
+  \ `themes:`): «kernel themes T1–T10 only»; `reason` required\n\n**WAIVE — the LOOSE\
+  \ per-section waiver policy (rule-6 instance: a bare reasoned waiver).** An `inspection:`\n\
+  waiver is a mapping carrying a non-empty `reason:` — the clean unconditional-waive\
+  \ case (a project that\nrides the kernel themes T1–T10 only and declares no local\
+  \ themes yet). No compensating control / expiry\nrequired (a missing local-theme\
+  \ roster is not a standing safety risk, unlike `security:`).\n\n**Exclusivity (fail-closed,\
+  \ mirrors rule 8) — REFINED by the ONE kernel-owned entry.** An\n`inspection:` section\
+  \ MUST NOT carry BOTH a PROJECT-OWN `themes:` declaration AND a `waiver:` —\nproject-own\
+  \ `themes:` (non-empty) XOR `waiver:`, never both AND never neither → ERROR. What\
+  \ the XOR\nranges over is the project's OWN themes: a project `waiver:` is the project's\
+  \ stance on the themes it\ndeclares FOR ITSELF, so it does not reach the kernel-owned\
+  \ entry below, and a `waiver:` standing beside\na `themes:` list holding NOTHING\
+  \ BUT that entry is the NORMAL born state of every consumer — not a\ncontradiction.\
+  \ The moment a project declares a theme of its OWN beside a waiver, the contradiction\
+  \ is\nreal again and the section is an ERROR exactly as before. Every already-declaring\
+  \ and every waived\nproject's obligations are UNCHANGED by this refinement; it only\
+  \ answers a state the rule did not\npreviously address.\n\n**The ONE kernel-owned\
+  \ SEEDED entry — `repeated-work`, baseline in every consumer, NO opt-out\n(owner\
+  \ directive 2026-09-04, journal `owner_directive`).** Unlike every other entry in\
+  \ this\nsection, ONE theme is not the project's to declare or to remove. `init`\
+  \ SEEDS it into every consumer\ncarrier — fresh AND existing, idempotently, preserving\
+  \ the carrier's comments (the governed\nTEXT-append path, never a yaml round-trip)\
+  \ — and flips the `concern: inspection` stance to declare:\n\n    inspection:\n\
+  \      themes:\n      - theme: repeated-work # the KERNEL-OWNED baseline entry —\
+  \ seeded by init, not project-owned\n        owner: kernel # REQUIRED — its absence\
+  \ is not an opt-out, it is an ERROR\n        probe:\n          sweep:\n        \
+  \    surfaces: <the project's product-code globs — a sensible default the project\
+  \ MAY NARROW>\n            checks: <the seven class labels of the lens>\n      \
+  \      against: patterns/repeated-work-lens.md # the checklist's single home — POINTED\
+  \ at, never restated\n        cadence: monthly\n      # waiver: { reason: <text>\
+  \ } # the project's stance on its OWN themes — it never covers the entry above\n\
+  \nGrounds: AI-authored code systematically produces this class (10 HIGH findings\
+  \ across two consumers in\none read-only pass, 2026-09-04), so the owner ruled it\
+  \ a default mechanism rather than a declare-or-waive\nchoice. This is the ONE place\
+  \ rule 12 admits a no-waiver shape, scoped to THIS entry — rule 12 in\ngeneral is\
+  \ unchanged, and the section stays PURE DECLARED CONFIG: no kernel runner, no new\
+  \ event, no\ngate, and the RUN stays manual (SPEC-0057 2).\n\n**No opt-out, fail-closed.**\
+  \ A carrier whose seeded entry is ABSENT, whose `owner: kernel` has been\nSTRIPPED,\
+  \ or whose entry has been moved OUT of `themes[]` (e.g. wrapped inside the `waiver:`)\
+  \ is an\ninit/sweep ERROR naming both `repeated-work` and `patterns/repeated-work-lens.md`.\
+  \ The project MAY\nnarrow `surfaces:` to its own layout; it may not remove the entry.\n\
+  \n**Seeding is not tamper-repair.** `init` seeds only a NEVER-SEEDED section: the\
+  \ slug is absent from the\n`inspection:` section text AND the consumer's own append-only\
+  \ journal records no prior seed. A carrier\nthat was already seeded and later had\
+  \ the entry removed, disowned or moved is NOT re-seeded — it fails\nclosed in the\
+  \ sweep instead. Without this bound the seed (which runs before the sweep) would\
+  \ silently\nrepair every tampered carrier a moment before the sweep could refuse\
+  \ it, and \"no opt-out\" would enforce\nnothing. Same absent-vs-present discipline\
+  \ as the SPEC-0112 catalog-waive seed: seed a never-answered\nsection, never backfill\
+  \ a present one.\n\nThe previously-seeded marker is the JOURNAL row, not the carrier:\
+  \ the carrier cannot show an entry that\nwas deleted, whereas `init` records `themes_declared:\
+  \ [repeated-work]` on the `consumer_init` event and\nthat row is append-only. It\
+  \ is read segment-aware (SPEC-0190 rule 4) and fails closed — an unreadable\njournal\
+  \ reads as already-seeded, since declining to seed is recoverable by a re-run while\
+  \ a wrongly\npermitted re-seed silently repairs tampering. NOTE what is deliberately\
+  \ NOT the marker: the\n`concern: inspection` ADOPTION STANCE. It proves a prior\
+  \ seed only for a carrier born WAIVED; a project\nthat declares themes of its OWN\
+  \ reads `adopt` because of its own declaration, so keying on it would\nrefuse the\
+  \ baseline to exactly the consumers already using the section. Eligibility is therefore\
+  \ NOT\nconditioned on the section being waived or on a `themes:` key: a consumer\
+  \ with its own themes has simply\nnever been seeded, and is as much the rollout\
+  \ target as a born-waived one.\n\n### 13. The `extensions:` section schema (rule-4\
+  \ section-add — OPT-IN adopt-declaration; realizes SPEC-0101 §4)\nThe `extensions:`\
+  \ top-level section declares the SHARED extensions a project ADOPTS — the\nreusable\
+  \ engineering capabilities (e.g. the deploy capability, SPEC-0094) it installs by\
+  \ **citing**, never\ncopying/forking. This rule OWNS the section SHAPE; the cross-cutting\
+  \ extension CONCEPT + the\n`adoptable | internal-only` marker + the derived catalog\
+  \ are owned by SPEC-0101 (rules 1–3; hard SoT split).\nThis section is the realization\
+  \ of SPEC-0101 §4 (the adopt/cite \"install\" path), homed here as a SPEC-0093\n\
+  schema amendment, NOT a parallel new file-purpose. ADDITIVE — it RETIRES nothing\
+  \ in the existing ops-contract.\n\n**OPT-IN / OPTIONAL for NON-catalog extensions\
+  \ — NOT declare-or-waive, NOT fail-closed (the distinguishing\nrule).** Unlike every\
+  \ prior section (`deploy:`/`rollback:`/`live_probe:`/`security:`/`ui:`/`tests:`/\n\
+  `inspection:`), `extensions:` does NOT demand an explicit stance for a NON-catalog\
+  \ / non-adoptable\ncapability: **an ABSENT section, OR a present section with an\
+  \ empty/absent `adopts:`, means the project\nadopts NO such optional extensions**\
+  \ — a legitimate, silent-clean default, never an error. Adoption of a\nnon-catalog\
+  \ capability is voluntary (a project owes nothing to it), so there is no «neither\
+  \ → ERROR» branch\nand no waiver: forcing one would be needless fail-closed friction\
+  \ (CHARTER §P1 F4 — no incident pulls for\nit). The kernel checks the section's\
+  \ SHAPE ONLY IF PRESENT (the deploy.policy / security / ui / tests /\ninspection\
+  \ backward-compat precedent), never its presence.\n\n**NARROWED for the ACTIVE+ADOPTABLE\
+  \ CATALOG SET — declare-or-waive fail-closed (SPEC-0112 rule-1).**\nThe \"absence\
+  \ = adopts nothing\" reading above is NARROWED (additive in-place, SPEC-0005 rule\
+  \ 7): for the\nBOUNDED authoritative set — every capability BOTH `status: active`\
+  \ AND `extension: adoptable` in the\nSPEC-0101 rule-2 catalog view (`graph query\
+  \ extensions-catalog`) — a consumer's `extensions:` record MUST\ncarry an explicit\
+  \ DECLARE (`adopts: - spec: SPEC-XXXX`) OR a FORWARD-AWARE WAIVE (a `waives:` entry\n\
+  {spec, reason} with a non-empty reason naming the waive→declare re-entry path).\
+  \ SILENCE on a catalog member\nis a fail-closed ERROR at `init` / consumer-read\
+  \ — that completeness obligation + the forward-aware-waive\nsemantics live single-home\
+  \ in **SPEC-0112** (this rule keeps only the non-catalog opt-in default + the\n\
+  section SHAPE). BROWNFIELD COMPAT: a pre-SPEC-0112 carrier with NO `extensions:`\
+  \ section is backfilled\nborn-COMPLETE on re-`init` (the rule-11 update precedent\
+  \ — born `adopts: []` + a forward-aware waive per\ncatalog member); a PRESENT-but-incomplete\
+  \ section is NEVER auto-healed — it fails closed (owner decides).\n\n**DECLARE (opt-in)\
+  \ — an `adopts:` list.** The opt-in default (adopts nothing) is the `adopts:` key\
+  \ ABSENT\n(or the whole section absent). When PRESENT, `adopts:` MUST be a list\
+  \ (`adopts: []` = none); a present-but-\nnull/scalar `adopts:` is a malformed declaration\
+  \ and FAILS closed (the contract is absent-OR-list, never a\nbare-null widening).\
+  \ Each list entry is a mapping carrying ONE required key:\n- `spec:` — a `SPEC-XXXX`-shaped\
+  \ id citing the adopted extension's capability-spec. The cited spec MUST be\n  an\
+  \ `adoptable` extension (SPEC-0101 rule 1); an `internal-only` extension has no\
+  \ adopt-path. This\n  adoptability is ENFORCED at write-time by the governed adopt\
+  \ verb (below), NOT re-validated by the\n  fail-closed carrier SWEEP — the sweep\
+  \ checks only the per-entry SHAPE (a non-empty `SPEC-XXXX` `spec:`),\n  keeping\
+  \ the sweep graph-free (it never reads the corpus/graph). The «cite resolves» guarantee\
+  \ is the\n  write-verb's job; the sweep's job is shape-integrity of whatever is\
+  \ present.\n\nConcrete pinned shape (the kernel pins the SHAPE; empty = adopts nothing):\n\
+  \n    extensions:\n      adopts: [] # OPT-IN: empty OR absent = adopts NO optional\
+  \ extensions (NOT fail-closed)\n      # adopts: # to adopt, list each shared extension's\
+  \ capability-spec (cite, never copy):\n      # - spec: SPEC-0094 # each entry needs\
+  \ a non-empty SPEC-XXXX `spec:` citing an `adoptable` extension\n\n**The governed\
+  \ adopt path — `init --adopt-extension SPEC-XXXX` (extend the verb that is \"before\
+  \ X\").**\nA project adopts an extension through the EXISTING carrier-lifecycle\
+  \ verb `init` (which already seeds + the\nrule-11 update path), given an opt-in\
+  \ `--adopt-extension SPEC-XXXX` flag: it (a) RESOLVES the cited spec at\nthe engine\
+  \ + refuses a missing or non-`adoptable` one (so a committed adoption's cite always\
+  \ RESOLVES to a\nreal adoptable node — the cite is never dangling), then (b) idempotently\
+  \ appends `{spec: SPEC-XXXX}` to\n`extensions.adopts`, preserving the carrier's\
+  \ comments. NO new verb, NO new file-purpose. There is NO stored\n`yitc-ops → spec`\
+  \ graph EDGE — a queryable adoption edge is OUT of SPEC-0101 §6 first-slice scope;\
+  \ «the cite\nresolves in the graph» means its TARGET is a real adoptable extension\
+  \ node (`graph query <spec>`), enforced\nat write-time, not a new graph edge.\n\n\
+  ### 14. The `deploy.host_config:` subfield schema (rule-4 subfield-add — the HOST\
+  \ deploy surface; pairs with SPEC-0111 apply / SPEC-0097 host class)\nThe `deploy.host_config:`\
+  \ SUBFIELD declares a project's HOST-level config surface — the host\nreverse-proxy\
+  \ / nginx vhost topology a host-config CHANGE applies + verifies-on-live (the X-0097\n\
+  near-miss: a 301 redirect whose real home was the host nginx vhost, outside every\
+  \ governed seam). It\nis a SUBFIELD of `deploy:`, NOT a new top-level section —\
+  \ the host-config facet is part of the deploy\nconcern (rule 1 honored), exactly\
+  \ like the `deploy.policy` autonomy subfield. This rule owns the\nsubfield SHAPE\
+  \ ONLY; the apply MECHANISM (auto-backup · `nginx -t` over the EFFECTIVE config\
+  \ ·\nshared/foreign-vhost collision REFUSE · server-wide health sweep · reconciliation-at-apply)\
+  \ is owned\nby SPEC-0111, and the host change CLASS + its per-class evidence by\
+  \ SPEC-0097 (hard SoT split).\nDECLARE-OR-WAIVE, fail-closed BOTH ways, checked\
+  \ ONLY IF PRESENT (the deploy.policy / security\nbackward-compat precedent — a pre-`host_config:`\
+  \ carrier still passes). The kernel checks the declared\nSTANCE + structural SHAPE,\
+  \ never the VALUES (rule 3 — it does not judge a path's existence or a URL's\nreachability).\
+  \ `host_config` is PURE per-project ops config the deploy/apply verbs READ as project\n\
+  config — NEVER a kernel-read governance scalar (the §Parameters non-whitelist; this\
+  \ spec stays\n`consumed: false`).\n\n**DECLARE — a mapping carrying THREE required\
+  \ keys:**\n- `vhost_files:` — a non-empty list of the host vhost file path(s) THIS\
+  \ project EXCLUSIVELY owns (each\n  a non-empty string). The apply helper (SPEC-0111)\
+  \ REFUSES touching a shared/foreign vhost, so the\n  project names the file(s) it\
+  \ owns up front (the X-0097 shared-vhost-overwrite guard).\n- `live_base_url:` —\
+  \ a non-empty string: the host live base URL the server-wide health sweep +\n  repo-conf-vs-live\
+  \ reconciliation probe targets (SPEC-0111 / the SPEC-0094 live_probe runner).\n\
+  - `apply:` — a non-empty string: the human-gated apply recipe (the command/steps\
+  \ that install the\n  owned vhost on the host — run under the SPEC-0111 safety rails,\
+  \ never silently autonomous).\n\n**WAIVE — the LOOSE per-section waiver policy (rule-6\
+  \ instance: a bare reasoned waiver).** A\n`host_config` waiver is a mapping carrying\
+  \ a non-empty `reason:` — the clean unconditional-waive case\n(a docker-only app\
+  \ that owns NO host nginx vhost). No compensating control / expiry required (a\n\
+  project legitimately without a host-config surface is not a standing safety risk).\n\
+  \n**Exclusivity (fail-closed, mirrors deploy.policy / security).** A `host_config`\
+  \ subfield MUST NOT\ncarry BOTH a declaration (raw `vhost_files`-key presence) AND\
+  \ a `waiver:` — EITHER declared OR waived,\nnever both → ERROR (a malformed waiver\
+  \ cannot fall through to a declared-but-also-waived state).\nNeither (an empty /\
+  \ answer-less block) → ERROR (declare-or-waive is fail-closed, rule 3).\n\n### 20.\
+  \ The `security.audit:` subfield schema (rule-4 subfield-add — the security-audit\
+  \ cadence surface; pairs with SPEC-0145)\nThe `security.audit:` SUBFIELD declares\
+  \ a project's SECURITY-AUDIT CADENCE — the provider-independent\nsystem-trigger\
+  \ schedule, the gate freshness window, and the deterministic runner that produces\
+  \ the\nevidence report a deploy gate checks for freshness AND completeness. It is\
+  \ a SUBFIELD of the `security:`\nsection (nested `security.audit`), NOT a new top-level\
+  \ section — the audit-cadence facet is part of the\nsecurity concern (rule 1 honored),\
+  \ exactly like the `deploy.policy` / `deploy.host_config` nested\nsubfields. This\
+  \ rule owns the subfield SHAPE ONLY; the CADENCE + FRESHNESS-SLA + EVIDENCE(report)\
+  \ SCHEMA\n+ WAIVER SEMANTICS are owned by SPEC-0145 (hard SoT split — this rule\
+  \ owns only the key set). It is the\ncadence SIBLING of the per-deploy `security.probes`\
+  \ live-probe (rule 8 / SPEC-0098) — same `security:`\ncarrier home, distinct concern\
+  \ (periodic audit freshness vs a deploy-seam property assertion).\nDECLARE-OR-WAIVE,\
+  \ fail-closed BOTH ways, checked ONLY IF PRESENT (the security / deploy.policy /\n\
+  host_config backward-compat precedent — a pre-`security.audit:` carrier still passes).\
+  \ The kernel checks\nthe declared STANCE + structural SHAPE, never the VALUES (rule\
+  \ 3 — it does not run the audit or judge a\nschedule). `security.audit` is PURE\
+  \ per-project ops config the scheduler/deploy gate READ — never a\nkernel-read governance\
+  \ scalar (the §Parameters non-whitelist; this spec stays `consumed: false`).\n\n\
+  **DECLARE — a mapping carrying THREE required keys** (SPEC-0145 §6 declaration shape):\n\
+  - `cadence:` — a non-empty string: the provider-independent SYSTEM-trigger schedule\
+  \ (cron/systemd) the\n  deterministic audit runs on.\n- `freshness_sla:` — a non-empty\
+  \ string: the gate freshness window a report must be fresh within (a\n  cadence\
+  \ tighter than the window leaves recovery room for one missed run — SPEC-0145 §6).\n\
+  - `runner:` — a non-empty string: the deterministic audit command that produces\
+  \ the evidence report.\nA declaration MISSING any of the three is INCOMPLETE and\
+  \ REJECTED by the §4/§5 completeness contract the\ngate ALREADY applies (SPEC-0145\
+  \ §6) — NOT silently accepted; NO new per-concern shape hook is minted\n(anti-complexity,\
+  \ rule 3 — the completeness contract already carries this).\n\n**WAIVE — the STRICT\
+  \ waiver policy (rule-6 instance, mirrors the `security:` rule-8 waiver / SPEC-0145\n\
+  §7).** A `security.audit` waiver is a mapping REQUIRING all three: a non-empty `reason:`,\
+  \ a non-empty\n`compensating_control:`, and an `expiry:` that is a real ISO date\
+  \ (the review-by date). A waiver missing\nthe compensating control OR the expiry\
+  \ — or carrying a non-date expiry — FAILS CLOSED, never silently\naccepted (an overdue\
+  \ expiry falls due as recheck debt, SPEC-0119).\n\n**Exclusivity (fail-closed, mirrors\
+  \ deploy.policy / security).** A `security.audit` subfield MUST NOT\ncarry BOTH\
+  \ a declaration (raw `cadence`-key presence) AND a `waiver:` — EITHER declared OR\
+  \ waived, never\nboth → ERROR. Neither (an empty / answer-less block) → ERROR (declare-or-waive\
+  \ is fail-closed, rule 3).\n\n### 21. The `migrations:` section schema (rule-4 section-add\
+  \ — the schema-migration stance; / the <project> pull)\nThe `migrations:` top-level\
+  \ section declares HOW a project evolves its persistent SCHEMA — the migration\n\
+  tool + the upgrade command, and WHERE that command runs. It is the rule-4 extension\
+  \ point exercised by a\nREAL evidence pull (CHARTER §P1 F4): the <project> migration\
+  \ onto the kernel (plan\n`migrate-<project>-onto-yitc-v2-v1-incumbent-heavies`)\
+  \ carries **133 alembic versions** whose upgrade runs\ninside `scripts/deploy.sh`\
+  \ before the health gate — a stance that today lives only inside a deploy shell\n\
+  script (or in nobody's head) and is invisible to the carrier. This rule owns the\
+  \ section SHAPE ONLY —\nPURE declared config (rule 7) with no kernel runner/events,\
+  \ exactly like `ui:` (rule 9) / `tests:`\n(rule 10), so it needs NO paired contract\
+  \ spec. The kernel checks the STANCE + structural shape, never\nthe VALUES (rule\
+  \ 3 — it NEVER runs a migration; applying schema change stays the project's deploy).\n\
+  DECLARE-OR-WAIVE, fail-closed, checked ONLY IF PRESENT (the backward-compat precedent\
+  \ — a\npre-`migrations:` carrier still passes).\n\n**DECLARE — a non-empty `command:`\
+  \ string** (the declaration key that ANSWERS the section): the upgrade\ncommand\
+  \ the project runs to bring a database to the current schema (e.g. `alembic upgrade\
+  \ head`).\nOPTIONAL companions, informational, NOT a shape gate: `tool:` (the named\
+  \ migration tool, e.g. `alembic`),\n`versions:` (the path holding the migration\
+  \ revisions — where the history lives), and `applied_at:`\n(WHERE the upgrade actually\
+  \ fires — e.g. `deploy` when the project's deploy script runs it before its\nhealth\
+  \ gate, or `manual`). `applied_at:` is the honest carrier of the fact the <project>\
+  \ evidence\nsurfaced: a migration that runs INSIDE deploy is a deploy-coupled schema\
+  \ change, and the carrier should\nsay so out loud rather than leave it buried in\
+  \ a shell script.\n\n**WAIVE — the LOOSE per-section waiver policy (rule-6 instance:\
+  \ a bare reasoned waiver).** A\n`migrations:` waiver is a mapping carrying a non-empty\
+  \ `reason:`. This is THE clean unconditional-waive\ncase rule 6 already names by\
+  \ example: a project that legitimately has no migration tool — **lifespan-DDL**\n\
+  (schema created at app startup), an ORM `create_all`, a schema-less store, or no\
+  \ persistent schema at\nall. No compensating control / expiry required: a project\
+  \ with no schema history has no hole to\ncompensate for, and demanding one would\
+  \ be exactly the ceremony CHARTER §P1 forbids.\n\n**Exclusivity (fail-closed, mirrors\
+  \ rule 8 / rule 10).** A `migrations:` section MUST NOT carry BOTH a\n`command:`\
+  \ declaration AND a `waiver:` — EITHER declared OR waived, never both → ERROR. Neither\
+  \ (an\nempty / answer-less section) → ERROR (declare-or-waive is fail-closed, rule\
+  \ 3). NO shape hook\n(SPEC-0128 Rule 2) is minted: the generic registry-driven stance/XOR\
+  \ sweep fully covers\ncommand-XOR-waiver — there is no deeper residual shape to\
+  \ validate, so adding a validator would remove\nnothing (§P1 F3).\n\n**NON-STRADDLE\
+  \ with `deploy:` (one stance, one home — the boundary against a second migration\
+  \ home).**\n`init` ALREADY sniffs a project's migrations DIRECTORY (`_detect_migrations_dir`\
+  \ / X-0145) and,\nwhen it finds one, flips the born `deploy:` waiver reason to a\
+  \ migration-AWARE placeholder — because the\n<project> near-miss shipped a v2-native\
+  \ deploy path with no `alembic upgrade` step and left prod ~10\nmigrations behind\
+  \ code. That detector and THIS section are COMPLEMENTARY, not two homes for one\
+  \ fact:\n`deploy:` owns the command that APPLIES migrations at ship time (a deploy\
+  \ concern — SPEC-0094), while\n`migrations:` owns the project's schema-evolution\
+  \ STANCE (the tool + the upgrade command + where the\nrevision history lives). The\
+  \ bridge between them is the OPTIONAL `applied_at:` key: a project whose\ndeploy\
+  \ applies its migrations says `applied_at: deploy` HERE, so the coupling is declared\
+  \ out loud in\nthe carrier instead of being re-derived by sniffing a directory.\
+  \ Neither surface is retired by the\nother, and no `migrations.command` is copied\
+  \ into `deploy:` (P5 — no second command home).\n\n### 23. The `deploy.live_revision:`\
+  \ subfield schema (rule-4 subfield-add — an OPTIONAL declared live-revision adapter;\
+  \ / X-0376)\nRule 22 named the bypass; this subfield lets a project TELL the kernel\
+  \ what is ACTUALLY running. The\nSPEC-0119 rule-16 reverse-coherence reading proxies\
+  \ \"live\" by the latest `deploy_completed` revision\n(SPEC-0094 §1). Under a bypassable\
+  \ model that proxy is BLIND to a container recreate / bind-mount that\nships `main`\
+  \ with no `deploy_completed` — X-0376 is that blindness cashing in: <project>'s\
+  \ containers were\nrecreated 16.8h after the last `deploy_completed`, running `main`,\
+  \ while the kernel still read the last\nDEPLOY as live. A project can close that\
+  \ by DECLARING a read-only adapter that reports the actually-running\nrevision;\
+  \ that revision REPLACES the `deploy_completed` proxy as the live baseline in the\
+  \ not-adopted view\n(`_view_not_adopted`), which the reverse-coherence fold consumes\
+  \ (P5: ONE live-revision source, ONE git\nancestry walk — no re-derivation).\n\n\
+  **OPT-IN (the rule-13 `extensions:` model — declare-or-waive, NOT fail-closed).**\
+  \ An ABSENT\n`deploy.live_revision:` section means the proxy stands unchanged —\
+  \ a clean default, never swept, never\nseeded born. A project that mounts its source\
+  \ and wants the honest live reading DECLARES:\n`deploy.live_revision: { kind: command,\
+  \ command: [<argv…>] }` — a read-only command (list form, NO shell,\nbounded timeout,\
+  \ cwd = repo) whose stdout is `{\"revision\": \"<sha>\"}`. Precedent: the SPEC-0110\
+  \ L3 freshness\nadapter shape (the kernel stays a generic GRADER — it runs a DECLARED\
+  \ command and reads a NORMALIZED\ncontract, embedding no project source format).\
+  \ OR waive the whole concern with a bare reasoned `waiver:`.\n\n**ONE REVISION PER\
+  \ DEPLOYED SURFACE, when a project has more than one (X-1142).** The\n`{\"revision\"\
+  : …}` stdout above is the WHOLE contract for a project that deploys ONE artifact,\
+  \ and is\nunchanged. A project whose surfaces advance INDEPENDENTLY (<project>:\
+  \ a backend and a frontend image,\nthe frontend NEWER) has no single running revision,\
+  \ and a contract of cardinality one cannot express\nit: reporting the newest surface\
+  \ under-counts real debt on the older one, reporting the oldest counts\na change\
+  \ that IS live as debt — unclearable short of an unnecessary rebuild of the other\
+  \ surface. So\nthe adapter's stdout may INSTEAD be `{\"surfaces\": {\"<name>\":\
+  \ {\"revision\": \"<sha>\", \"paths\": [<repo-\nrelative prefix>…]}}}`, and the\
+  \ not-adopted fold judges each commit against THE SURFACE ITS PATHS\nBELONG TO.\
+  \ Same declaration (`kind: command`) and same shape hook — the cardinality lives\
+  \ in the\nadapter's OUTPUT, where the runtime truth is, so no carrier grammar changes.\
+  \ The counting posture is\nthe fail-closed one the lens already takes: a path NO\
+  \ declared surface claims is judged against EVERY\nsurface (an unrecognised runtime\
+  \ layout keeps today's behaviour — counted, never a silent zero), and a\nsurface\
+  \ revision absent from the checkout surfaces `live-revision-not-found` naming it.\
+  \ Every\nmalformed `surfaces` shape is a NAMED degrade under the paragraph below,\
+  \ exactly as the\nsingle-revision failure modes are.\n\n**REPORT-ONLY, fail-closed\
+  \ to the proxy with a NAMED degrade (never silent).** An adapter that ERRORS\n(bad\
+  \ argv, spawn/timeout, non-zero exit, non-JSON, adapter-reported error, or no revision)\
+  \ does NOT zero\nthe debt: the live baseline falls back to the `deploy_completed`\
+  \ proxy AND a named `live-revision adapter\ndegraded …` line surfaces at the debt\
+  \ seams — a broken adapter is itself visible debt, never a silent\npass. No new\
+  \ gate, no new event: the `live_revision_shape` hook (SPEC-0128 Rule 2) shape-checks\
+  \ a PRESENT\nsection (a `kind: command` decl must name a usable `command`) and fails\
+  \ a malformed one closed; an absent\nsection passes (opt-in). The subfield is PURE\
+  \ declared config (rule 7): the kernel reads the STANCE + runs\nthe declared read-only\
+  \ adapter, never inspects the running container itself.\n\n### 24. The `outcome_invariants:`\
+  \ section schema (rule-4 section-add — the standing product-outcome contract; /\
+  \ X-0419; pairs with SPEC-0119 rule 17 + SPEC-0156)\nThe `outcome_invariants:` top-level\
+  \ section declares a project's STANDING PRODUCT-OUTCOME invariants —\nthe named,\
+  \ one-line \"this is what it means for this subsystem to still WORK\" statements,\
+  \ each with a\nread-only PROBE the kernel can run to ask. It is the rule-4 extension\
+  \ point exercised by a REAL evidence\npull (CHARTER §P1 F4): X-0419 (<project>,\
+  \ 2026-07-15) — P3/P8 adoption evidence is framed on the DIFF,\nso each card proves\
+  \ only ITS OWN change adopted, and a long-lived SUBSYSTEM that no card owns has\
+  \ NO\noutcome probe and cannot be observed broken. Five remediation tasks closed\
+  \ green over three days while\nthe product stayed broken; 34 cards rode that one\
+  \ surface and not one owned \"does it still work?\"; the\nOWNER stayed the only\
+  \ monitor. Nothing in the carrier could even NAME the standing outcome. This section\n\
+  makes it SAYABLE. Its SHAPE reuses the declared-probe sections beside it — the `security:`\
+  \ probes (rule 8\n/ SPEC-0098) and the SPEC-0110 read-only freshness adapter — rather\
+  \ than inventing a probe dialect.\nDECLARE-OR-WAIVE, fail-closed, checked ONLY IF\
+  \ PRESENT (the backward-compat precedent — a pre-rule-24\ncarrier still passes).\n\
+  \n**DECLARE — a non-empty `invariants:` list** (the declaration key that ANSWERS\
+  \ the section). Each entry is\na mapping carrying FOUR keys — the exact per-entry\
+  \ shape the cutting card names:\n- `id:` — the invariant's project-local name (a\
+  \ non-empty English slug); the label its SPEC-0156\n  demonstration is recorded\
+  \ against.\n- `subsystem:` — the long-lived subsystem this invariant covers (a non-empty\
+  \ string) — the unowned\n  surface that motivated the concern.\n- `invariant:` —\
+  \ the ONE-LINE phrasing of the standing outcome, in product terms (e.g. \"the stats\
+  \ page\n  reports a non-zero row count for the last 24h\"). Prose FOR A HUMAN: the\
+  \ kernel never parses it.\n- `probe:` — the read-only adapter that ASKS: a mapping\
+  \ `{kind: command, command: [<argv…>]}` — list form,\n  NO shell, bounded timeout,\
+  \ cwd = repo — whose stdout is `{\"ok\": true|false, \"detail\": \"<why>\"}`. The\n\
+  \  SPEC-0110 L3 / rule-23 adapter precedent: the kernel stays a generic GRADER that\
+  \ runs a DECLARED command\n  and reads a NORMALIZED contract, embedding no project\
+  \ source format. The probe MUST be READ-ONLY: the\n  kernel runs it at every debt\
+  \ seam, so a mutating probe would make an informational surface destructive\n  (the\
+  \ `verify.layers` hermeticity contract, same reasoning). A probe that cannot produce\
+  \ a verdict is\n  DEGRADED, never silently green (SPEC-0119 rule 17).\n\nConcrete\
+  \ pinned shape (the kernel pins the SHAPE precisely, like `ui:`/`tests:`/`inspection:`):\n\
+  \n    outcome_invariants:\n      invariants: # DECLARE: a non-empty list — XOR with\
+  \ `waiver:` (exactly one)\n      - id: stats-nonzero # required — the project-local\
+  \ invariant name (English slug)\n        subsystem: stats # required — the long-lived\
+  \ subsystem this covers\n        invariant: \"the stats page reports a non-zero\
+  \ row count for the last 24h\" # required — one line\n        probe: # required\
+  \ — a read-only {kind: command} adapter\n          kind: command\n          command:\
+  \ [\"python3\", \"scripts/probe_stats_nonzero.py\"] # stdout: {\"ok\": true|false,\
+  \ \"detail\": …}\n      # waiver: { reason: <text> } # WAIVE (XOR with `invariants:`);\
+  \ `reason` required\n\n**WAIVE — the LOOSE per-section waiver policy (rule-6 instance:\
+  \ a bare reasoned waiver).** An\n`outcome_invariants:` waiver is a mapping carrying\
+  \ a non-empty `reason:` — the clean unconditional-waive\ncase (rule 6): a project\
+  \ with no long-lived unowned subsystem to speak for — a library, a CLI, a fresh\n\
+  greenfield with no product surface yet, or one whose subsystems are each genuinely\
+  \ owned by a live card.\nNo compensating control / expiry required: unlike `security:`,\
+  \ a missing outcome-invariant is not a\nstanding THREAT, and demanding a compensating\
+  \ control for a project that has no unowned subsystem would\nbe exactly the ceremony\
+  \ CHARTER §P1 forbids. A waiver at the SECTION level declares no invariants at all;\n\
+  a single ENTRY may also carry its own `waiver:` (the `verify.layers[]` per-entry\
+  \ precedent), dropping just\nthat one — an answered question either way.\n\n**Shape,\
+  \ not value (rule-3 boundary held).** The kernel checks the declared STANCE + the\
+  \ structural SHAPE.\nIt NEVER judges whether the declared invariant is the RIGHT\
+  \ one, whether its phrasing matches its probe,\nor whether the subsystem deserves\
+  \ one — an invariant is the PROJECT's claim about its own product, and a\nkernel\
+  \ that graded that claim would be judging VALUES (rule 3). The kernel only runs\
+  \ what was declared and\nreports what came back.\n\n**Its standing surface is SPEC-0119\
+  \ rule 17 (hard SoT split — this rule owns only the SHAPE).** The\nREADING of the\
+  \ declaration — the broken / degraded / unproven fold, the report-only debt line,\
+  \ the\nsuppressed-when-clean discipline, and the rule that only the DECLARED set\
+  \ may interrupt — is owned by\nSPEC-0119 rule 17. The ADMISSION half (an invariant's\
+  \ probe owes ONE recorded failing demonstration\nbefore its green means anything)\
+  \ is owned by SPEC-0156 and REUSED verbatim — `check_admission_demonstrated`,\n\
+  no new event type. Declaring an invariant gates NOTHING: it adds no new gate class\
+  \ anywhere.\n\n**Exclusivity (fail-closed, mirrors rules 8/10/21/22).** BOTH an\
+  \ `invariants:` declaration and a `waiver:`\n→ ERROR (EITHER declared OR waived).\
+  \ Neither (an empty / answer-less section) → ERROR (declare-or-waive is\nfail-closed,\
+  \ rule 3). NO shape hook (SPEC-0128 Rule 2) is minted: the generic registry-driven\
+  \ stance/XOR\nsweep fully covers invariants-XOR-waiver, and the per-entry residual\
+  \ shape needs no fail-closed validator\nbecause the READING surface already fails\
+  \ VISIBLE — a malformed entry (no usable `probe:`, an unknown\nprobe kind, a missing\
+  \ `id`) surfaces as a DEGRADED debt line rather than passing as coverage, so a\n\
+  validator here would remove nothing (§P1 F3, the rule-21 `migrations:` precedent).\
+  \ Fail-visible at the\nreader is the stronger guarantee than fail-closed at the\
+  \ sweep for a surface whose whole purpose is to\nbe read.\n\n### 25. The `reads:`\
+  \ section schema (rule-4 section-add — the composed-seam read-contract exemption;\
+  \ SPEC-0190 rule 10)\n\nThe carrier for the ONE bounded exemption SPEC-0190 rule\
+  \ 10 admits. Rule 10 requires every composed\nseam — a verb or seam that composes\
+  \ more than one journal or card view — to establish ONE\nrequest-scoped ReadScope\
+  \ at its wiring site, and to carry a regression asserting physical folds <= 1\n\
+  per segment in scope and card parses <= 1 per card in scope. A seam that genuinely\
+  \ cannot hold that\nbound DECLARES it here rather than quietly missing it; the rule\
+  \ body is SPEC-0190's and is not\nrestated (SPEC-0005 rule 8).\n\n**OPT-IN, and\
+  \ born FULLY COMMENTED — the stance, stated because the default is the load-bearing\n\
+  half.** The section is `presence_policy: opt-in` and its `born:` block is entirely\
+  \ COMMENTED: not one\nlive key is written into any project's carrier. ABSENCE therefore\
+  \ means \"this project exempts no\nseam\", which is the fail-closed reading and\
+  \ the state every project starts in.\n\nThis is the `startup_checks` born shape\
+  \ (a commented opt-in example), NOT the rule-13 `extensions:`\nmodel of a seeded-but-LIVE-and-empty\
+  \ section, and the difference is the point: `extensions:` is\ndeclare-or-waive across\
+  \ a catalog, so silence there is an error; here silence is the ANSWER. Commented\n\
+  rather than absent-altogether because an escape hatch nobody can find is not a bound\
+  \ but a trap — an\noperator who cannot see the shape declares nothing and simply\
+  \ misses the rule, which is precisely the\noutcome this carrier exists to replace.\
+  \ What CHARTER §Principle 1 refuses is PRE-GRANTING an\nexemption, not documenting\
+  \ the shape of one; a commented block grants nothing and costs each carrier\nonly\
+  \ the text.\n\n**DECLARE — an `exemptions:` list.** Each entry is a mapping carrying\
+  \ **all four** of:\n\n- `seam:` — a non-empty string naming the WIRING SITE the\
+  \ exemption is about (`<file>#<symbol>`).\n  The exemption is about a composition,\
+  \ so it names the site where the composition is decided; a\n  view name would not\
+  \ identify what is exempted.\n- `ratio_bound:` — a POSITIVE number: the folds-per-segment\
+  \ this seam is permitted. Required\n  because an exemption with no ceiling is not\
+  \ an exemption, it is a repeal — the seam would be\n  released from the bound entirely\
+  \ rather than held to a wider one.\n- `reason:` — a non-empty string: why the bound\
+  \ cannot be held at this seam. What is being accepted\n  has to be readable by whoever\
+  \ reviews it, and a bare `until` date carries none of it.\n- `until:` — a real ISO\
+  \ date (YYYY-MM-DD). The review-by date, so an exemption is reviewed rather\n  than\
+  \ inherited. It is the same shape (and the same reason) as the strict-waiver `expiry:`\
+  \ of rule\n  8 and the `security.audit:` cadence of rule 20.\n\n**FAIL-CLOSED, and\
+  \ the message NAMES the missing field.** A malformed entry is REFUSED — not\nskipped,\
+  \ not silently ignored — by the kernel-owned shape hook `reads_exemptions_shape`\n\
+  (`init.py#_hook_reads_exemptions`), and the refusal names WHICH of the four is missing\
+  \ or malformed.\nThe naming is not ergonomics: an exemption nobody can read is indistinguishable\
+  \ from a breach of\nrule 10, so a half-registered entry would be strictly worse\
+  \ than an absent one — the seam would\nappear exempted while nothing recorded what\
+  \ was accepted, by whom, or until when. A hook is minted\nhere (unlike rule 24's\
+  \ `outcome_invariants:`, which relies on a fail-VISIBLE reader) precisely\nbecause\
+  \ this surface has no reader that fails visibly: nothing renders an exemption back\
+  \ to a human,\nso an unvalidated entry would be inert and invisible at once.\n\n\
+  **Shape, not value (rule-3 boundary held).** The kernel checks that the four fields\
+  \ are present and\nwell-shaped. It does NOT judge whether the `seam` names a real\
+  \ symbol, whether the `ratio_bound` is\ngenerous, or whether the `reason` is a good\
+  \ one — those are the project's values, and rule 3 keeps\nthem there.\n\n**Exclusivity\
+  \ (fail-closed, mirrors rules 8/10/21/22).** As an OPT-IN section it carries NO\n\
+  declare-or-waive stance: absence is the answer, so there is nothing to waive. A\
+  \ section present with\nBOTH an `exemptions:` declaration and a `waiver:` is still\
+  \ a contradiction and errors — the carrier\ndeclaring and refusing the same thing\
+  \ at once (the rule-13 per-member idiom, at section altitude).\n\n## Parameters\n\
+  \nNone new — this part carries no governing scalar. The section SHAPES it documents\
+  \ are enforced by the\ncarrier's declare-or-waive born-ops sweep (`init.py#cmd_init`)\
+  \ and the `concern:` registry, both homed\non SPEC-0093 (single-SoT). `consumed:\
+  \ false`.\n\n## Rationale\n\nSPEC-0093 grew to 1046 lines / 88KB — the worst over-ceiling\
+  \ durable doc (SPEC-0120 §3 must-split,\nfingerprint `durable-docs-over-ceiling-7-must-split`,\
+  \ revizia 2026-07-16). This is the SECOND coherent\nsplit of the carrier (the first,\
+  \ re-homed the land-verify/coverage/startup cluster to SPEC-0152).\nThe declarative\
+  \ section-schema catalog is the honest surface to move: it has no code anchor, so\
+  \ the split\nis aggregate-neutral prose relocation with zero anchor/signature churn.\
+  \ SPEC-0120 §3 prefers a balanced\nsplit at a real seam; both parts land under both\
+  \ one-bounded-read ceilings.\n\n## Verification\n\n- **Size:** `wc -l`/`wc -c` on\
+  \ BOTH `specs/SPEC-0093-*.yaml` and `specs/SPEC-0160-*.yaml` are each\n  under the\
+  \ SPEC-0120 §3 ceilings (<800 lines AND <63000 bytes); the T7 `durable_docs` sweep\
+  \ no longer\n  lists SPEC-0093 in `over_ceiling` / `over_ceiling_bytes`.\n- **Aggregate-neutral:**\
+  \ the ten moved rule blocks reproduce the pre-split SPEC-0093 rule text\n  byte-for-byte\
+  \ (relocation, not an edit).\n- **Graph:** `graph build` + `graph conformance` GREEN\
+  \ — every cite resolves, no anchor moved.\n"
+cites:
+- SPEC-0093
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0073
+- SPEC-0128
+- SPEC-0094
+- SPEC-0098
+- SPEC-0097
+- SPEC-0111
+- SPEC-0145
+- SPEC-0112
+- SPEC-0101
+- SPEC-0100
+- SPEC-0119
+- SPEC-0156
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+implements_signature: {}

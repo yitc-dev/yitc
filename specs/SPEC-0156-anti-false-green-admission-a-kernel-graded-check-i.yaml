@@ -1,0 +1,183 @@
+id: SPEC-0156
+title: Anti-false-green admission — a kernel-graded check is admitted only with a
+  recorded failing demonstration
+status: active
+created_at: 2026-07-13 05:41:55+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/debt_adoption.py#unproven_checks
+- bin/lib/debt_adoption.py#declared_checks
+- bin/lib/debt.py#_definition_identity
+- bin/lib/views.py#_render_debt_echo
+- bin/lib/debt.py#_debt_echo_lines
+body: "## Scenario\n\nWhen a project declares a check the kernel will GRADE — a live\
+  \ probe, a security probe, a deploy-class\nevidence command, a declared test class,\
+  \ a verify layer's `covers` claim — the declaration is admitted\ntogether with ONE\
+  \ recorded FAILING DEMONSTRATION: the check shown RED against a deliberately broken\
+  \ input,\nonce, at declaration time, stored as durable journal evidence. A check\
+  \ with no recorded RED is surfaced as\nUNPROVEN in the debt echo until demonstrated\
+  \ — visible dated debt, never silently counted as coverage. So\na green means \"\
+  this check has been seen to fail when its subject is broken\", not \"nothing ran,\
+  \ nothing failed\".\n\n## Internal\n\nTHE ADMISSION INVARIANT (one rule, applied\
+  \ at the declaration seam of every kernel-graded check):\n\n### 1. Scope — what\
+  \ \"kernel-graded check\" means\nA check the kernel runs or grades on a project's\
+  \ declaration: the SPEC-0094 `live_probe` (including its\ncritical-user-path leg),\
+  \ the SPEC-0098 security live-probe, a SPEC-0097 per-class deploy evidence command,\n\
+  a SPEC-0097 §11 `deploy.convergence` service check ( — class-INDEPENDENT, unlike\
+  \ the per-class\nevidence beside it), a `yitc-ops.yaml tests:` class, a `verify.layers[].covers`\
+  \ coverage claim. The\noperative roster is `bin/lib/debt.py#CHECK_SURFACES`, an\
+  \ ALLOWLIST: a new graded surface is admitted\nthere deliberately, by the task that\
+  \ makes the kernel grade it, and this sentence names the same set. The rule binds\
+  \ the ADMISSION\nseam (declaration / registration / init), never the run seam —\
+  \ run-time contracts stay in each surface's\nown spec.\n\n### 2. The recorded failing\
+  \ demonstration (the differential rule, promoted)\nThis is the SPEC-0060 §4 / X-0246\
+  \ differential question — \"would this criterion still pass if the thing\nunder\
+  \ test were BROKEN?\" — promoted from task-acceptance-only scope to every kernel-graded\
+  \ check. The\ndemonstration is the recorded ANSWER: one journaled RED run against\
+  \ a NAMED broken input, captured as\ndurable evidence alongside the declaration.\
+  \ The DURABLE EVENT SHAPE (plan-check absorb, finding 2): ONE\nnew event type `check_admission_demonstrated`\
+  \ added to the SPEC-0025 events catalog by the implementing\ntask (additive to the\
+  \ one journal — CHARTER §P5; NO new store, NO event family), whose `data` carries\
+  \ the\nminimal fields the debt-clearing fold needs:\n  `check` (which declared check\
+  \ — surface + name), `declaration` (the carrier locator — e.g.\n  yitc-ops.yaml\
+  \ section/key), `broken_input` (the named deliberately-broken input), `outcome`\
+  \ (\"red\" —\n  anything else does not clear), `definition_identity` (a hash/locator\
+  \ of the check's command/definition\n  at demonstration time — what a rewire invalidates),\
+  \ `ts`.\nOne-time cost per check; the demonstration is re-owed only when the check's\
+  \ COMMAND/DEFINITION changes —\ni.e. when the CURRENT definition no longer matches\
+  \ the recorded `definition_identity` (a rewire re-opens\nthe question; a re-run\
+  \ does not).\n\nA MISMATCH IS A REWIRE ONLY IF THE RECORDED IDENTITY WAS EVER REAL\
+  \ (consumer report X-1095).\nA recorded identity that does not match the current\
+  \ one has TWO possible causes, and they call for\nDIFFERENT work: the declaration\
+  \ CHANGED after the demonstration (a genuine REWIRE — the old RED proved\nthe old\
+  \ check, so a fresh demonstration is owed), or the payload recorded a hash that\
+  \ was never an\nidentity of this declaration at all (a WRONG-KEY payload — the author\
+  \ hashed something else, typically\nthe check's TEST FILES rather than its declaration;\
+  \ nothing is owed but a corrected re-emit). The fold\nMUST NOT report the second\
+  \ as the first: reading REWIRED sends the next author to redo a demonstration\n\
+  when the defect was the payload key, which is the more expensive of the two mistakes.\n\
+  The two are told apart IN-FOLD, adding NO stored field and NO new state: the carrier\
+  \ is\nversion-controlled, so the fold replays the carrier's own history and asks\
+  \ whether the recorded hash was\nEVER an identity of that declaration. If it was,\
+  \ the check is `rewired`, dated by the demonstration the\nrewire superseded; if\
+  \ it never was, that row supersedes NOTHING and the check reads `never` — the\n\
+  honest state, since it has indeed never been demonstrated — with no date it did\
+  \ not earn.\nWHERE HISTORY CANNOT BE READ (a carrier outside any repo, no git),\
+  \ the fold ABSTAINS and labels the row\nexactly as it did before this rule. Deliberate\
+  \ direction: the discriminator may only ever REMOVE a label\nit can PROVE wrong,\
+  \ never manufacture one from an absence.\n\nWHAT IS NOT PART OF THE DEFINITION —\
+  \ THE SCOPING KEYS (named here so a reader learns what re-owes a\ndemonstration\
+  \ without reading code;, consumer reports X-0875 / X-0876; widened to the coverage\n\
+  keys, consumer report X-1084). The identity covers a check's declaration MINUS its\
+  \ SCOPING\nkeys.\n\nTHE MEMBERSHIP TEST IS THE RULE'S PURPOSE, NOT ITS FIRST EXAMPLE.\
+  \ A declaration key is SCOPING iff\nediting it cannot change what a recorded demonstration\
+  \ PROVED. The demonstration is one journaled RED of\nthe check's `command:` against\
+  \ a named broken input, so a key belongs IN the identity iff it participates\nin\
+  \ THAT. Two families qualify, and the excluded set is exactly these three keys:\n\
+  \  `subject_globs` — the diff paths a verify layer is ABOUT (SPEC-0152 rule 16):\
+  \ WHICH SUBJECTS TRIGGER\n                      the check, consumed only by a run-or-skip\
+  \ predicate over the candidate diff.\n  `covers` — what the layer DESCRIPTIVELY\
+  \ claims to verify. Report-only at the land RUN (SPEC-0152\n                   \
+  \   rule 16: \"like `covers:`, the runner ignores it\"); it feeds only the report-only\n\
+  \                      coverage WARN.\n  `covers_classes` — the consumer-declared\
+  \ pointer at the `tests.classes[]` a layer carries. Read by no\n               \
+  \       kernel gate; descriptive metadata for other folds.\nEverything else in the\
+  \ declaration is definition-bearing and DOES re-owe: the `command`, a probe's `url`\n\
+  / `assertion`, a deploy class's `evidence`, `timeout` / `moment` (execution envelope),\
+  \ `out_of_scope`\n(which narrows what the check ASSERTS). Adding, editing or removing\
+  \ a scoping key is a re-TARGETING or a\nre-DESCRIPTION of an unchanged check, so\
+  \ it must not re-open a settled question — the prior wording made\na scope-only\
+  \ edit read as a rewire, which PENALISED the very `subject_globs` adoption the kernel\
+  \ asks\nconsumers to perform.\n\nTHE `covers` CORRECTION, recorded because this\
+  \ paragraph previously said the opposite (X-1084).\nIt read: \"a verify layer's\
+  \ `covers` (the graded coverage CLAIM this spec's §1 names as the thing being\n\
+  demonstrated)\" — and so excluded `covers` from the scoping set. That conflated\
+  \ WHICH SURFACE is graded\nwith WHAT the demonstration exercises. §1 names the verify-layer\
+  \ ENTRY as the graded check; the thing\nshown RED is that entry's `command:`, never\
+  \ its `covers:` list. Narrow or widen `covers` (or\n`covers_classes`) and the SAME\
+  \ command still goes RED against the SAME broken input: the recorded RED is\nnot\
+  \ stale, and re-owing it buys no evidence. MEASURED on <project>'s real history\
+  \ with the kernel's own\n`_definition_identity`: `verify.layers[frontend-unit]`\
+  \ moved 7f4041231fae911a -> 213f00e2823da3b0\n(`covers:` narrowed) and -> b101161b52cb7dbc\
+  \ (`covers_classes:` added), `verify.layers[stack]` moved three\ntimes on the same\
+  \ two keys and `verify.layers[static]` once — with `command:` UNCHANGED in every\
+  \ one of\nthose commits. The fold reported 3 REWIRED and charged three break-and-restore\
+  \ demonstrations this §2\ndoes not ask for. It is the SAME conflation corrected\
+  \ once for `subject_globs`, and it falls on\nexactly the consumers who follow the\
+  \ kernel's advice to declare their coverage.\n\nThe set is a DENYLIST, deliberately:\
+  \ an unrecognised future key stays IN the identity, so the failure\nmode is one\
+  \ visible report-only over-charge rather than a silent, permanent under-charge —\
+  \ the same\nconservative direction §2 already takes on incomplete evidence. The\
+  \ widening above does not touch that\npolarity: it NAMES three keys whose non-participation\
+  \ in the demonstration is shown, and leaves every\nUNKNOWN key IN. Widening the\
+  \ set is a rule change and is made HERE, not in code.\n\n### 3. Unproven surfaces,\
+  \ it does not refuse (report-only, fail-visible)\nAn absent demonstration does NOT\
+  \ block the declaration (no new hard-gate class — CHARTER non-goal #7):\nthe check\
+  \ is admitted UNPROVEN and surfaces as a dated report-only line in the SPEC-0119\
+  \ debt echo until\nits demonstration is recorded. Where an existing contract already\
+  \ fails closed (SPEC-0098 un-probeable →\nescalate; the SPEC-0097 Class-S probe\
+  \ requirement), that stricter rule STANDS — this spec never weakens\na gate. A check\
+  \ that CANNOT be made to fail (no expressible broken input) is not a check: route\
+  \ it per\nits surface's un-probeable rule (escalate / waive-with-reason), never\
+  \ admit it as coverage.\n\n### 4. Where the per-surface rules live (pointers — this\
+  \ spec owns ONLY the admission invariant)\nThe surface-specific consequences are\
+  \ homed in their own specs and cut as this plan's implementing tasks:\ncritical-user-path\
+  \ liveness + /healthz-is-not-product-health → SPEC-0094; deploy convergence before\n\
+  `deploy_completed` → SPEC-0097; `runtime_delivery:` declaration + bypassable-deploy\
+  \ WARN → SPEC-0093\n(the ops-contract CARRIER home) with the reverse coherence view\
+  \ in SPEC-0119; test-class\nlast-successful-execution recording + verify-layer coverage\
+  \ boundary → SPEC-0152 (the land-verify /\ncoverage / startup-check home split out\
+  \ of SPEC-0093 — plan-check absorb, finding 1: SPEC-0093 keeps only\nthe remaining\
+  \ carrier concerns). This spec is what they cite for WHY a demonstration is owed.\n\
+  \n### Retirement / centralization (what this removes)\nRemoves the task-AC-only\
+  \ SCOPING of the differential rule (SPEC-0060 §4 keeps its authoring-prompt role\n\
+  and now POINTS here for the kernel-graded-check application) and the three per-surface\
+  \ re-derivations of\n\"what makes a declared check proven\" (declare-only probe\
+  \ admission in SPEC-0098, liveprobe acceptance in\nSPEC-0094, bare test-class declarations\
+  \ in yitc-ops) — ONE admission rule, cited by all. Entity\nconsolidation, not a\
+  \ new rule layer.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nReal incident:\
+  \ <project> 2026-07-13, an 8h total prod-auth outage during which SIX independently\n\
+  kernel-accepted checks read green (X-0373 and siblings X-0371/X-0374/X-0375/X-0370;\
+  \ <project> X-0353):\na /healthz live probe that a dead product passes, a 401-assertion\
+  \ a broken auth also satisfies, a deploy\nreported OK with one service on old code,\
+  \ a source-only secret scan green while a token streamed to logs,\nan owner-environment-only\
+  \ verify layer, and an e2e class whose browsers were never installed — nothing\n\
+  ran, so nothing failed. The kernel already states the differential rule for task\
+  \ ACs (SPEC-0060 §4,\nX-0246); this spec applies the kernel's own rule to what the\
+  \ kernel itself grades. Deliberation and\nalternatives: the proposing plan (proposed_by).\n\
+  \n## Verification\n\nDifferential, both directions: (a) declare a fixture check\
+  \ WITHOUT a demonstration → `bin/yitc-v2 debt`\nrenders its unproven line (and the\
+  \ line names the check + its declaration LOCATOR — the carrier holds no\nper-check\
+  \ declaration DATE, and §3's zero-stored-state rule forbids inventing one; the line\
+  \ is dated\nwhere a date genuinely exists, i.e. a REWIRED check names the ts of\
+  \ the demonstration its rewire\nsuperseded —, dissonance captured + resolved at\
+  \ implementation); (b) record the demonstration\nevent for it → the line clears\
+  \ on the next fold; (c) the demonstration event itself must carry a named\nbroken\
+  \ input and a RED outcome — an event with outcome green/absent does not clear the\
+  \ line.\n"
+cites:
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0025
+- SPEC-0060
+- SPEC-0094
+- SPEC-0097
+- SPEC-0098
+- SPEC-0093
+- SPEC-0119
+- SPEC-0152
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: anti-false-green-doctrine-differential-proven-chec
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/debt.py#_debt_echo_lines: 1f1aceeac54e812ccf27695f53846a809866bfb7ba3248ad5a2f92824e2c2eeb
+  bin/lib/debt.py#_definition_identity: d172419d6f8a6c5ce60de6456b05dfab4bf91cdaaaad7a02d4d5a25a0eb66539
+  bin/lib/debt_adoption.py#declared_checks: 131afdf370418aadde6decbf8af04e69bdb471fd72adaae4c354970f91e7c48d
+  bin/lib/debt_adoption.py#unproven_checks: 98a43409e07035b0a4f61ea5be9c3b2832381ab0f943e5f834faf84215a27e79
+  bin/lib/views.py#_render_debt_echo: 5a8a92d8276f6e1465f994ec81b4b1699df79ca343c6ffdf81495188f6eed654

@@ -1,0 +1,112 @@
+id: SPEC-0157
+title: Capture-routing — the situation→home saved view naming where each capture goes
+  (graph query capture-routing)
+status: active
+created_at: 2026-07-15 06:33:14+00:00
+consumed: false
+implements:
+- bin/lib/views.py#_view_capture_routing
+- bin/lib/cli.py#_run_view
+binding:
+- seed
+seed_cue: At the moment of any capture (a deviation, an environment fact, a practice,
+  a rule, a cross-project ask, a worker escalation), look up its home with `graph
+  query capture-routing` and write it there.
+activation_owner_task: null
+proposed_by: null
+body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned about\
+  \ the environment, a reusable practice,\na standing rule, an incident arc, a cross-project\
+  \ ask, a worker escalation — the AI must know WHERE\nthat capture goes WITHOUT re-deriving\
+  \ it from nine scattered specs. The `capture-routing` saved view\n(`bin/yitc-v2\
+  \ graph query capture-routing`) is that one-glance situation→home table: each row\n\
+  names the SITUATION, its HOME (the artifact/node/store), and the OWNING SPEC where\
+  \ the rule actually\nlives. The AI reads the row, then routes to the named home.\
+  \ A terse pointer to this view rides the\nsession-start seed line (this spec's title),\
+  \ so the routing surface is discoverable from token 0.\n\nThis closes X-0402 G3\
+  \ (the routing map lived ONLY scattered across SPEC-0056/0090/0005/0076/0095/\n\
+  0140/0084-86/0039 — nobody could read it at the moment of writing, which is how\
+  \ <project> invented an\nunsanctioned `docs/incidents/` class and an ad-hoc baseline\
+  \ file, X-0403 sub-class 1).\n\n## Internal\n\n### 1. The view is a DERIVED discovery\
+  \ surface, not a new store (no-new-entity)\n`capture-routing` is a saved query-lens\
+  \ (`views/capture-routing.yaml` → the `capture-routing`\n`_run_view` dispatch branch\
+  \ → `views._view_capture_routing`). It renders the situation→home table\nROWS, each\
+  \ ANCHORED to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055,\
+  \ SPEC-0095,\nSPEC-0090, SPEC-0005, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039,\
+  \ SPEC-0093) — so the rule text\nis NEVER duplicated (SPEC-0005 rule 8, one home);\
+  \ the view ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER\
+  \ §P1 F2), adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2.\
+  \ The E-case incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the\
+  \ multi-error incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
+  \ BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a. This is the\n\
+  row the sibling card blessed; the view sources it from the amended spec.\n\n###\
+  \ 3. Worker escalation-doc convention (R3) — the de-facto home, NOW named\nA dispatched\
+  \ worker that halts on a blocked land/audit (SPEC-0103 `blocked-on-land`) records\
+  \ its\nrationale in a **`decisions/<task>-escalation.md`** doc. This convention\
+  \ was DE-FACTO (used in\npractice, homed nowhere). This spec NAMES it as the sanctioned\
+  \ home and the `capture-routing` view\nsurfaces it as a row, so a worker no longer\
+  \ invents an ad-hoc escalation surface. It is a NAMING\nconvention over the EXISTING\
+  \ `decisions/` store — no new store/node (CHARTER §P1).\n\n### 4. Environment-facts\
+  \ flavors (X-0403) — route to EXISTING homes, named explicitly\nA \"fact about the\
+  \ environment\" is NOT a methodology practice and NOT a standing rule; the view\
+  \ names\nits flavors and their existing homes so they stop landing in an ad-hoc\
+  \ baseline file:\n- **neighbor-contracts / data-quirks / glossary** (human-read\
+  \ facts) → a **fact-flavored\n  `lessons/<slug>.md`** (the existing per-repo local-craft\
+  \ node, SPEC-0090). A lesson is exactly the\n  local/non-traveling counterpart these\
+  \ facts need.\n- **machine-read baselines** (startup_checks, verify/test rows, deploy\
+  \ policy, declared config) → the\n  **`yitc-ops.yaml`** carrier (SPEC-0093). These\
+  \ are the project's machine-consumed contract, not prose.\nBoth are EXISTING homes;\
+  \ the view only NAMES the routing (X-0403), it adds no new fact store.\n\n### 5.\
+  \ Pointer-only seed line (Single-SoT + seed budget)\nThis spec restates NO rule\
+  \ its rows point at (SPEC-0005 rule 8). Its `binding:[seed]` makes\n`_seed_howto`\
+  \ render its TITLE as ONE session-start seed line — a cue+pointer to the view, NOT\
+  \ the\ntable (the table is the view's job; putting it in the seed would blow the\
+  \ CHARTER §P2 budget). Exactly\nthe SPEC-0051 write-flow-pointer shape.\n\n### 6.\
+  \ Post-/compact compaction-survival (SPEC-0007 §5b, option (b))\nThe seed line is\
+  \ emitted ONLY by `session start` (not re-run after `/compact`), BUT its CONTENT\
+  \ is a\npointer to a DERIVED VIEW re-runnable on demand (`graph query capture-routing`)\
+  \ — the same\nre-derivation posture as the SPEC-0086 `cross-coord:` echo and the\
+  \ SPEC-0119 `debt` echo. So no\nseparate post-/compact wiring is needed: the routing\
+  \ surface is re-fetchable any time, never stale.\n\n## Rationale\n\nX-0402 G3 +\
+  \ X-0403 (owner-confirmed package): the situation→home routing lived only scattered\
+  \ across\nnine specs, unreadable at the moment of writing — the real incident that\
+  \ drove <project>'s\ncontroller to invent `docs/incidents/` (X-0402) and an ad-hoc\
+  \ baseline file (X-0403). A saved view is\nthe answer to \"what governs X?\" answered\
+  \ on demand (prior-art: consumer-dimension-bundle,\nextensions-catalog, journal-hygiene).\
+  \ CHARTER §P1: a view over existing homes, no new store/node/edge;\nthe escalation-doc\
+  \ + env-facts flavors route to existing stores (`decisions/`, `lessons/`,\n`yitc-ops.yaml`),\
+  \ naming conventions that already exist de-facto.\n\n## Verification\n\n- **VP1\
+  \ (view renders):** `bin/yitc-v2 graph query capture-routing` renders the situation→home\
+  \ table\n  INCLUDING the E-case incident-narrative row (SPEC-0056 §4a), the escalation-doc\
+  \ convention row\n  (`decisions/<task>-escalation.md`), and the environment-facts\
+  \ flavors (lessons/ vs yitc-ops).\n- **VP2 (discoverable):** `bin/yitc-v2 graph\
+  \ query --type view` lists `capture-routing` with its\n  description (the catalog\
+  \ line).\n- **VP3 (seed pointer):** after activation, `bin/yitc-v2 session start`\
+  \ renders the generated seed\n  line carrying SPEC-0157 + its title (the capture-routing\
+  \ pointer), via `_seed_howto` derived SOLELY\n  from binding:[seed] (P5, no hand\
+  \ list).\n- **VP4 (single-SoT):** each row's rule text lives in its OWNING spec,\
+  \ NOT restated in this spec body\n  or the view (grep — SPEC-0005 rule 8); the view\
+  \ ROUTES, the specs GOVERN.\n- **VP5 (no new store):** the change adds `views/capture-routing.yaml`\
+  \ + the lens fn + this pointer\n  spec ONLY — no new node-type/edge/store; escalation-doc\
+  \ → `decisions/`, env-facts → `lessons/` /\n  `yitc-ops.yaml` (all existing homes).\n"
+cites:
+- SPEC-0056
+- SPEC-0055
+- SPEC-0095
+- SPEC-0090
+- SPEC-0005
+- SPEC-0076
+- SPEC-0084
+- SPEC-0085
+- SPEC-0086
+- SPEC-0140
+- SPEC-0039
+- SPEC-0093
+- SPEC-0007
+- SPEC-0101
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+requires: []
+supersedes: null
+implements_signature:
+  bin/lib/cli.py#_run_view: adbb82608f307b3907eeffbc22af434693cda98ea87d1182b515da4f1a678f0a
+  bin/lib/views.py#_view_capture_routing: 459c419c51c14628344bb682d52693f17c61b9e94a8918bb1912e67b2bd3d16b

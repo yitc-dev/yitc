@@ -1,0 +1,112 @@
+id: SPEC-0089
+title: Reusable craft-lesson reflection at closure and realize
+status: active
+created_at: 2026-06-19 06:06:31+00:00
+travels: kernel
+consumed: false
+implements: []
+body: "## Scenario\n\nAt the end of a substantive unit of work, the AI is asked one\
+  \ report-only question: did this work\nteach a REUSABLE craft lesson — a transferable\
+  \ \"how to do work of this class well\" insight (where to\nstart, what to watch,\
+  \ what not to skip), positive OR negative — that is NOT a one-off deviation? If\n\
+  yes, the lesson is recorded as a concise entry in the class-appropriate lessons\
+  \ catalog, so the next\nsimilar work's Analysis consults it and is easier. An empty\
+  \ answer is normal and costs nothing.\n\n## Internal\n\nA standing process rule.\
+  \ It adds NO new store, format, journal, parser, or blocking gate — it is a\nreport-only\
+  \ reflection PROMPT delivered on existing surfaces, writing into the existing catalog.\n\
+  **Single home + single delivery surface (gate-trial #3 — no spread):** THIS spec\
+  \ is the ONE\nnormative home of the rule; the ONE delivery surface is the existing\
+  \ **stage-entry bundle** —\n`stage-entry:Closure` for the task reflection and `plan-stage-entry:realized`\
+  \ for the plan synthesis\n(the SAME stage-entry delivery mechanism, one axis, two\
+  \ entries). No other home, no second\nsurface; every other mention is pointer-only.\n\
+  \n### 1. Trigger (report-only, never blocking)\nThe reflection is prompted at two\
+  \ EXISTING seams; neither blocks the transition:\n  - **PRIMARY — task Stage-9 Closure**\
+  \ of a SUBSTANTIVE task. **\"Substantive\" = a non-hygiene task**\n    (the LIFECYCLE\
+  \ §Two-flow-types split: a task that ran the full 9 stages, not the hygiene\n  \
+  \  fast-path). A hygiene task does not prompt.\n  - **SECONDARY — plan `postcheck\
+  \ → realized`**: a whole-plan synthesis pass across the plan + its\n    tasks +\
+  \ its scenarios as a unit.\nIt is a PROMPT, not a gate: a \"no transferable lesson\"\
+  \ answer is valid and the transition proceeds.\n**\"Later similar task\" (the loop-closes\
+  \ probe term, gate-trial #2):** a subsequent task whose\nStage-1 Analysis prior-art\
+  \ sweep (SPEC-0032) resolves the SAME class — operationally, a task whose\nsweep\
+  \ surfaces the `patterns/`/`lessons/` file the lesson landed in (its `applies_to`\
+  \ matches). The\nconsult is \"that catalog file was read at a later task's Analysis\"\
+  , not a subjective similarity call.\n\n### 2. What qualifies (the layer boundary)\n\
+  A LESSON here is reusable CRAFT / approach knowledge for a CLASS of work (\"how\
+  \ to split a monolith\",\n\"how to compose a spec corpus\"). It is DISTINCT from\
+  \ the adjacent lanes and MUST NOT be conflated:\n  - a nonconformity / friction\
+  \ / time-cost → `deviation_captured` → `errors/E-XXXX` (NOT this rule);\n  - a rejected/withdrawn\
+  \ METHODOLOGY option + why → `patterns/methodology-lessons.md` (NOT this rule).\n\
+  Positive lessons (\"this approach worked, reuse it\") are IN SCOPE here — they have\
+  \ no home in the\ndeviation lane.\n\n### 3. Storage routing (where the lesson lands\
+  \ — the anti-bloat rule)\n  - **File-per-class-of-work, never one file.** A lesson\
+  \ EXTENDS the class-appropriate catalog file\n    (e.g. an extraction lesson → `library-extraction.md`);\
+  \ a new class opens a new file. No single\n    file is a catch-all. **WHICH catalog\
+  \ the file routes to — and the route-by-purpose lane that\n    selects it — is NOT\
+  \ homed here:** a captured lesson routes per **<workshop-spec> Rule 2** (the single\n\
+  \    normative home of the route-by-purpose lane; `graph query <workshop-spec>`),\
+  \ whose\n    patterns(general)/lessons(local) boundary defers in turn to **SPEC-0090\
+  \ §2** (the decidable test).\n    This rule only requires that a captured lesson\
+  \ lands in the class-appropriate file in whichever\n    catalog that routing selects\
+  \ (P5 — routing/read-surface text lives only in <workshop-spec>; not restated here).\n\
+  \  - **Distill, do not log.** A lesson is a concise reusable rule + pitfall, NOT\
+  \ a per-run narrative\n    (per-run history lives in git / the journal).\n  - **Bloat\
+  \ is bounded by the EXISTING discipline** — `patterns/doc-conventions.md` (soft-limit\
+  \ +\n    split-by-surface) + `patterns/retirement-procedure.md` for superseded lessons.\
+  \ No new cap.\n  - **Stale-lesson lifecycle (a lesson CAN rot — correct OR annul,\
+  \ no new mechanism).** A lesson is a\n    `patterns/`/`lessons/` entry, so it obeys\
+  \ the EXISTING pattern/lesson lifecycle: **CORRECT in-place** (a pattern is a\n\
+  \    non-normative living doc — edit it directly for a sharpening/erratum, no FSM\
+  \ ceremony); **ANNUL /\n    retire** via `patterns/retirement-procedure.md` — that\
+  \ pattern is the SINGLE SoT for HOW a dead\n    pattern retires (retire-with-trace,\
+  \ never `rm`; the exact tombstone-vs-trace form is its file-type\n    rule, NOT\
+  \ restated here — P5); a lesson whose craft GRADUATES into a normative rule is\n\
+  \    superseded-by-spec (it points at the spec, or retires). **Caught** by the weekly\
+  \ Review retire-candidate sweep\n    OR the moment a Stage-1 consult finds a lesson\
+  \ wrong (a dissonance → `deviation_captured`, then\n    correct/retire). No new\
+  \ staleness mechanism — the lesson rides the pattern corpus's existing\n    correction\
+  \ + retirement discipline.\n\n### 4. Feedback loop — read-surface rule homed in\
+  \ <workshop-spec> (one home, not restated here)\nThe «captured lessons are CONSULTED\
+  \ at a later Stage-1 Analysis (plan-draft + the design-judging\naudits)» read-surface\
+  \ claim is NOT homed here — it is retired/superseded into **<workshop-spec> Rule\
+  \ 1**\n(Lessons read-surfaces), the SINGLE normative home of the read-surface rule\
+  \ (`graph query <workshop-spec>`).\nSPEC-0089 keeps ONLY the PRODUCER/capture discipline;\
+  \ the read-back loop has ONE active home\n(<workshop-spec>), not two. (The loop\
+  \ still reuses the EXISTING prior-art sweep mechanics — SPEC-0032 at\nStage-1 —\
+  \ but the RULE that lessons must be read there lives in <workshop-spec>, not duplicated\
+  \ here.)\n\n## Rationale\nThe stores (`patterns/` + `lessons/`), the content type\
+  \ (reusable craft) and the Analysis feedback loop\n(SPEC-0032) already exist; the\
+  \ missing piece is a TRIGGER so the reflection is systematic. A\nreport-only prompt\
+  \ on existing seams reuses all three (CHARTER §P1 F1) and adds no mechanism; it\n\
+  produces a distilled catalog entry, not a per-phase retro artifact (`patterns/error-friction-tracking.md`\n\
+  §Problem).\n\n**Delete-test — why a NEW spec, not an extension of SPEC-0015 (CHARTER\
+  \ §P1 F1/F3).** SPEC-0015 is the\nBLOCKING closure contract; this rule is a REPORT-ONLY\
+  \ prompt that ALSO fires at the plan\n`postcheck → realized` seam, which SPEC-0015\
+  \ does not own — folding it in would couple a prompt to a\ngate and split the home.\
+  \ SPEC-0015 stays the blocking closure contract and merely `cite`s this one.\n\n\
+  ## Verification\n- adoption: ≥1 lesson captured via this discipline AND ≥1 later\
+  \ Stage-1 Analysis consults a captured\n  lesson (the loop closes end-to-end) —\
+  \ evidenced in the journal + the resulting `patterns/`/`lessons/` entry.\n- **substantive-evidence\
+  \ rule (single home):** only a task classified SUBSTANTIVE (non-hygiene) AT its\n\
+  \  closure counts toward the adoption min-runs; a hygiene-origin task that reshapes\
+  \ is SUPPLEMENTAL\n  evidence (shape/loop-close), never counted toward the substantive\
+  \ minimum.\n- **activation basis:** activated on the trial evidence already gathered;\
+  \ no additional soak required.\n- non-blocking: a closure / realize with a \"no\
+  \ lesson\" answer proceeds unchanged (no gate added).\n- design convergence: the\
+  \ proposing plan's `trial` (SPEC-0035) exercises the prompt on real closures\n \
+  \ + a real realize + retrospective passes over already-realized plans before activation.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0032
+- SPEC-0015
+- SPEC-0034
+- SPEC-0090
+- systematic-reusable-craft-lesson-capture-at-closur
+- consumer-local-lessons-home-and-lessons-taxonomy-c
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: systematic-reusable-craft-lesson-capture-at-closur
+binding:
+- stage-entry:Closure
+- plan-stage-entry:realized

@@ -1,0 +1,227 @@
+id: SPEC-0120
+title: Durable-doc governance — English-only kernel docs + 400-500-line size band
+  + revizia delivery
+status: active
+created_at: 2026-07-02 05:35:40+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nThe owner and AI see ONE durable-doc corpus. A **durable doc**\
+  \ — a normative/teaching prose\nartifact (the handbook, a spec, a pattern, a lesson,\
+  \ a scenario) — is held to two standing\nproperties so it stays legible and loadable:\n\
+  - it is written in **English** (kernel), and\n- it stays **small enough to load\
+  \ in one read** (the 400–500-line target band).\n\nWhen a durable doc drifts from\
+  \ either property, the **revizia** (the periodic inspection) SURFACES\nit as a report-only\
+  \ finding — never a commit/land block. A consumer inherits both the rule and the\n\
+  check through the engine via `-C`; it sets nothing up of its own.\n\n## Internal\n\
+  \nA governance spec (SPEC-0005 rule 1). Adds NO new store / verb / gate — the check\
+  \ rides the existing\nrevizia (SPEC-0057 roster theme T7), report-only, exactly\
+  \ as the code Architecture-drift lens rides\nit (SPEC-0080/0081). Four rules + the\
+  \ consumer-reach clause.\n\n### 1. The governed set — what a \"durable doc\" IS\
+  \ (and what is EXEMPT)\n\n**DURABLE (governed):** normative/teaching prose — the\
+  \ handbook (`CHARTER.md`, `AGENTS.md`,\n`LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md` and\
+  \ any file the handbook read-order lists), `specs/*`,\n`patterns/*`, `lessons/*`,\
+  \ `scenarios/*`.\n\n**MEASURED carrier (size axes only, report-only).** A project's\
+  \ root ops-contract carrier\n`yitc-ops.yaml` (SPEC-0093) is swept by the durable-doc\
+  \ scan in EVERY realm when present: its lines and\nbytes are reported and flagged\
+  \ on the §3 line/byte bands like any durable doc, never a gate. It is not\nhandbook\
+  \ prose, so the §2 language rule does not bind it.\n\n**EXEMPT (temporary / operational\
+  \ / fidelity-bound records — NOT governed by this spec):**\n`MEMORY.md` (the consume-once\
+  \ buffer, SPEC-0039); the journal `events.jsonl` (esp. `owner_directive`,\nwhich\
+  \ captures the owner's wording VERBATIM — translating it would corrupt the record);\
+  \ deviation /\nfriction briefs; the free-form working bodies of `tasks/*` and `plans/*`;\
+  \ `decisions/*-audit-*.yaml`\nnotes. Owner-facing CHAT is unaffected — it stays\
+  \ Russian (AGENTS §Language governs chat; this spec\ngoverns stored durable docs,\
+  \ a distinct axis).\n\n### 2. Language rule — kernel durable docs are English-only\n\
+  \nA KERNEL durable doc (realm `kernel` — SPEC-0073) carries **English only**: no\
+  \ Cyrillic in its prose.\nThis is a DISTINCT axis from CHARTER §Principle 4b (provider-neutral\
+  \ text — no brand names) and from\nAGENTS §Language (which language the AI writes\
+  \ CHAT / commits in); it governs the stored language of\ndurable methodology docs.\n\
+  \n**Exact-identifier escape (report-only, narrow).** The language probe is a mechanical\
+  \ Cyrillic scan\n(report-only, not a gate). Where an EXACT immutable token or a\
+  \ quoted historical name must stay\nnon-English in durable prose, the durable text\
+  \ transliterates it where possible; where it genuinely\ncannot (an exact identifier\
+  \ that must be reproduced verbatim), a tiny explicit report-only allow-list\ncovers\
+  \ it — never a silent pass. Owner-facing quoted cues (e.g. the owner cue «obnovim\
+  \ sessiyu» (\"refresh session\"))\nreproduced verbatim as an identifier are the\
+  \ canonical example.\n\n**Consumer variant — English-only is a KERNEL-realm rule\
+  \ (relaxed by /X-0208 variant B).**\nEnglish-only binds a durable doc by REALM (SPEC-0073),\
+  \ not merely by directory. In a consumer\n(realm `project`) the consumer's OWN methodology\
+  \ docs it authors (its `specs/` `patterns/`\n`lessons/` `scenarios/`) are **owner-language-allowed\
+  \ while project-local** — they are NON-traveling\nproject-realm docs, so the language\
+  \ probe does NOT flag their Cyrillic. (Their SIZE is still scanned\nin every realm\
+  \ — legibility/loadability is realm-agnostic; only the LANGUAGE axis is realm-gated.)\n\
+  The consumer's PRODUCT / management docs are likewise owner-language-allowed. So\
+  \ in a `-C` consumer\nNOTHING is language-flagged — the earlier \"consumer methodology\
+  \ docs follow the same English-only\nrule\" binding is REMOVED; English-only is\
+  \ a KERNEL-realm rule, not a project-realm one.\n\n**Promotion-time English gate.**\
+  \ English-only re-binds the moment a doc CROSSES into the\ntraveling/kernel realm\
+  \ — when a consumer's lesson/pattern/spec is PROMOTED into a kernel pattern or\n\
+  a kernel spec (the doc becomes engine-resident, `REPO_ROOT == ENGINE_ROOT`, and\
+  \ travels to every\nconsumer via `-C`). At that destination the language probe scans\
+  \ it exactly as any other kernel\ndurable doc, so a promoted doc carrying Cyrillic\
+  \ is a language CANDIDATE at the promotion\ndestination. This closes the informal-manual-promotion\
+  \ bypass (the auditor's sole residual risk):\nthe gate is the engine-self language\
+  \ scan itself — no new mechanism, English is part of the\npromotion/destination\
+  \ acceptance check by construction. The methodology-vs-product PATH boundary\n(gate-specs\
+  \ finding-2) still governs WHICH docs the handbook side scans engine-self; the\n\
+  NEW axis here is REALM: only kernel-realm methodology docs are language-flagged.\
+  \ Realised in code by\nthe `durable_doc_metrics` `cyrillic` bucket populating ONLY\
+  \ when `REPO_ROOT == ENGINE_ROOT`\n(bin/lib/inspection.py); the size axis is untouched\
+  \ in every realm. If a legitimately-kernel doc\nhits a false-positive on an exact\
+  \ identifier, the report-only allow-list escape above covers it\n(CHARTER §P1 F4:\
+  \ add on a real incident) — not before.\n**THE DECLARED ALLOW-LIST.** The escape\
+  \ above is instantiated HERE, its single home. Four\nGROUNDS, each an instance of\
+  \ a category this rule already names — not an extension of it. A\nCyrillic-bearing\
+  \ line that fits NONE of them is TRANSLATED, never added. Standing since 2026-08-30,\n\
+  enacting the owner-locked 2026-07-02 language boundary this spec carries; report-only\
+  \ throughout, so\nthe T7 probe keeps reporting every doc below and a reader resolves\
+  \ the report against this list. That\nis deliberate: a code-enforced filter would\
+  \ hide a NEW violation inside an old exemption.\n\n- **G1 — the probe's own character\
+  \ class** (category: an exact identifier reproduced verbatim). A doc\n  quoting\
+  \ the scan pattern `[А-Яа-яЁё]` it describes; transliterating it would make the\
+  \ doc MISSTATE the\n  code. Covers `SPEC-0120` itself (§2 + §Verification) and `patterns/inspection-criteria-roster.md`\n\
+  \  (the T7 language-probe row). This is why the rule carrier trips its own rule\
+  \ — unremovable by\n  construction, and now covered by ground rather than by silence.\n\
+  - **G2 — owner-CUE lexicons the AI must match LITERALLY** (category: owner-facing\
+  \ quoted cues\n  reproduced verbatim as identifiers — the canonical example named\
+  \ above). Transliterating breaks the\n  match the lexicon exists to perform, so\
+  \ \"where possible\" does not reach these. Covers `SPEC-0141`\n  (the discussion/execution\
+  \ marker lexicon), `SPEC-0039`, `SPEC-1004` (the\n  refresh-session cue whose own\
+  \ worked instance appears in the escape paragraph above), and its\n  non-active\
+  \ lineage `<workshop-spec>` / `<workshop-spec>` (superseded history, retained verbatim).\n\
+  - **G3 — owner-FACING output templates stored verbatim** (same identifier ground,\
+  \ held by the\n  owner-facing-chat carve-out above). These are the exact text the\
+  \ AI EMITS to the owner; translating\n  a template would make the AI address the\
+  \ owner in English, breaking AGENTS §Language. Covers\n  `SPEC-1004` (the hand-off-saved\
+  \ / take-cue owner lines), its lineage `<workshop-spec>` / `<workshop-spec>`,\n\
+  \  `SPEC-0147`, `specs/<PROJECT>-rule-test-ledger.md` (each repo's own ledger; the\
+  \ per-row owner probe\n  question).\n- **G4 — verbatim quoted historical records**\
+  \ (category: a quoted historical name; same fidelity\n  ground §1 gives the journal,\
+  \ where translating would CORRUPT the record). Covers\n  `patterns/onboarding-onto-yitc-runbook.md`\
+  \ (a quoted owner directive),\n  `patterns/legacy-docs-assessment-and-migration.md`\
+  \ (the recorded per-claim verdict identifiers, the\n  literal LEGACY banner text\
+  \ inserted into files, and a grep marker-token list), `<workshop-spec>` (a\n  journal\
+  \ search term whose documented NULL result is reproducible only with the exact term).\n\
+  \n**Maintenance.** The list is a DECLARATION, never a silent pass and never a freeze:\
+  \ a new\nCyrillic-bearing line is a report-only CANDIDATE until it is either translated\
+  \ or placed under a\nnamed ground here, and the owner may retire or narrow any ground\
+  \ at any time — nothing downstream\ndepends on an entry persisting. Docs NOT listed\
+  \ here carry no Cyrillic; the 2026-08-30 census cleared\n`AGENTS.md`, `SPEC-0057`,\
+  \ `SPEC-0101`, `SPEC-0135` and\n`patterns/inspection-criteria-roster-navigation-map.md`\
+  \ by transliterating glosses (the spec's own\ntitle already uses \"revizia\"), which\
+  \ is the \"where possible\" arm doing its work.\n\n### 3. Size rule — the 400–500-line\
+  \ target band, split at a coherent seam\n\nEvery durable doc AIMS for the **400–500-line\
+  \ target band**. This is a split-TRIGGER, not a hard\nguillotine. **Vocabulary (one\
+  \ set, gate-specs finding):** *over-band* = >500 lines = a report-only\nsplit CANDIDATE\
+  \ (never a fail); *over-ceiling* = beyond one bounded read (~800+ lines) = must-split.\n\
+  The revizia reports the two counts SEPARATELY:\n- A doc modestly over 500 with no\
+  \ clean coherent seam MAY stay — real headroom exists up to the\n  functional ceiling:\
+  \ **a durable doc must be loadable in ONE BOUNDED READ** (provider-neutral wording,\n\
+  \  CHARTER §P4b). The concrete tool limit that grounds the band — a single read\
+  \ page of ~25K tokens\n  ≈ ~1000 dense lines — is implementation EVIDENCE for why\
+  \ the band sits at 400–500, NOT the rule's\n  name. Between 500 and the ceiling\
+  \ = \"split at the next coherent seam\", not urgent.\n- When a doc IS split, cut\
+  \ at the nearest **coherent seam** and aim each resulting part into the\n  ~400–500\
+  \ band with headroom — prefer a balanced 400+200 at a real seam over a mechanical\
+  \ 500+100\n  that hugs the ceiling and orphans a tiny remainder. A spec split reuses\
+  \ the SPEC-0005 rule-6\n  anti-oversize discipline (split by stable surface/boundary,\
+  \ NEVER by perspective).\n- **SPLIT, never delete content.** Splitting relocates\
+  \ content into sibling files; it removes nothing.\n- **Measured on TWO axes — LINES\
+  \ and BYTES (additive extension).** LINES stay the primary,\n  trivially-measured\
+  \ axis (`wc -l`). A deterministic BYTE axis (`wc -c`, no tokenizer) is measured\n\
+  \  ALONGSIDE it, because line-count ALONE under-reads a DENSE doc against the one-bounded-read\n\
+  \  ceiling: the band above is grounded on ~25 tok/line, but live-measured ~39.8\
+  \ tok/line on\n  the generated worker seed and measured a 1.7x density spread ACROSS\
+  \ the seed docs\n  (CHARTER ~102 B/line vs AGENTS ~163 B/line). So a doc can sit\
+  \ in-band on LINES while its token\n  weight nears the reader's page cap — line-clean,\
+  \ yet single-read-UNSAFE, exactly the property this\n  rule exists to protect. Calibration:\
+  \ ~2.52 bytes/token (from live reader measurement),\n  so the byte CEILING = 25000\
+  \ tokens x 2.52 = 63000 B, and the byte BAND mirrors the line band's\n  proportion\
+  \ of its own ceiling (500/800 = 0.625) at ~40000 B. The reported `est_tokens` is\
+  \ a\n  DERIVED report figure, never a gate input.\n  - The two axes are INDEPENDENT\
+  \ and reported SEPARATELY (four disjoint buckets: over-band /\n    over-ceiling,\
+  \ per axis). A doc is a CANDIDATE if EITHER axis trips; a doc flagged on the BYTE\n\
+  \    axis alone is the dense doc the line-only probe silently called in-band.\n\
+  \  - Both axes stay REPORT-ONLY — neither is a gate (CHARTER non-goal #2), unchanged\
+  \ from the\n    line-only reading: no already-covered doc's obligation changes,\
+  \ the byte axis only gives an\n    explicit answer where the rule was previously\
+  \ silent.\n  - Note de-Cyrillic-ing a file (rule 2) shrinks TOKENS/BYTES — which\
+  \ the BYTE axis now sees — but\n    still not LINES, so it does not by itself bring\
+  \ a file under the LINE band.\n- Composes with, does not replace, CHARTER §Principle\
+  \ 2's AGGREGATE handbook cap (the two are\n  orthogonal: per-doc band here vs total-handbook\
+  \ cap there).\n\n**Seed-file split serves all parts at startup.** When a split file\
+  \ is part of the always-loaded seed\n(e.g. `AGENTS.md` → `AGENTS.md` + `AGENTS-<topic>.md`),\
+  \ the startup read-order lists EVERY part. The\nread-order derives from the ONE\
+  \ `HANDBOOK_READ_ORDER` carrier (AGENTS §Bootstrap-floor), so adding\nparts is an\
+  \ extension of that generated list — not a divergent second order. Serving two-or-more\n\
+  files in place of one `AGENTS.md` is expected and correct.\n\n**Spec-file split\
+  \ — the `.partN.yaml` chain shape.** The seed-file rule above is the\nMARKDOWN case;\
+  \ a SPEC splits with the same SPLIT-never-delete discipline but a different on-disk\n\
+  shape, named here so a reader knows what a split spec looks like. The BASE keeps\
+  \ everything that\nidentifies the spec — the filename `specs/SPEC-XXXX-<slug>.yaml`,\
+  \ the `id:`, the frontmatter and the\n`binding:` — and the overflow moves into ordered\
+  \ CONTINUATION PARTS beside it:\n`specs/SPEC-XXXX-<slug>.part<N>.yaml`, `N >= 2`,\
+  \ ordered numerically. A part is NOT a spec of its\nown: it carries no id and no\
+  \ binding, it is EXCLUDED from the canonical spec scan, and it reads only\nas the\
+  \ tail of its base. The chain is DISCOVERED off the sibling files, never declared\
+  \ in a list, so\nadding a part needs no second registry to keep in step (the seed-file\
+  \ read-order analog above). Every\nreader that serves a spec BODY serves base +\
+  \ chain as one body — the delivery side is homed in\nSPEC-0031 §Build tool (point-lookup\
+  \ source-append), this line is the SHAPE.\n\n**GENERATED startup read surfaces are\
+  \ governed by the same one-bounded-read ceiling.** A\ngenerated view an audience\
+  \ actually reads at startup (e.g. `graph/worker-seed.md`) is subject to the\n§3\
+  \ functional ceiling exactly as a source doc — being derived does not exempt it.\
+  \ The clause is\nOWNED by SPEC-0007 §5c (the seed contract; per-audience delivery\
+  \ + enforcement live there) — this\nline is the reconcile pointer, not a second\
+  \ home.\n\n### 4. Revizia delivery + consumer-reach — how the check reaches everyone\n\
+  \nThe check is a report-only revizia probe, homed in the SPEC-0057 roster (theme\
+  \ T7), delivered by an\nEDIT to `patterns/inspection-criteria-roster.md`, NOT by\
+  \ any new mechanism:\n- **Size probe** — extend the existing T7 doc-size probe from\
+  \ handbook-only to the whole DURABLE set;\n  flag each over-band doc as a split\
+  \ CANDIDATE (report-only, per SPEC-0080 P-A6 posture).\n- **Language probe** — a\
+  \ new T7 (or T1) probe row: mechanical Cyrillic scan (`grep -P '[А-Яа-яЁё]'`)\n\
+  \  over the DURABLE set; consumer-aware per rule 2 — LANGUAGE is a KERNEL-realm\
+  \ axis, so the probe\n  flags a doc's Cyrillic ONLY engine-self (`REPO_ROOT == ENGINE_ROOT`).\
+  \ A `-C` consumer's OWN\n  methodology docs are owner-language-allowed and are NOT\
+  \ language-flagged; a promoted doc is\n  flagged at its kernel destination (the\
+  \ promotion gate). The SIZE probe is UNCHANGED — it scans the\n  methodology set\
+  \ in EVERY realm. Report-only candidate findings.\n- **Consumer-reach.** The revizia\
+  \ construct + roster + probes are KERNEL-owned and TRAVEL to a\n  consumer via `-C`:\
+  \ a consumer runs `<engine>/bin/yitc-v2 -C <consumer> inspect …` and the same\n\
+  \  probe measures the CONSUMER's own docs. A consumer sets up NOTHING per-project\
+  \ — the check arrives\n  with the engine. Cadence is manual-first (SPEC-0057 §2):\
+  \ the probe surfaces at the consumer's next\n  owner-invoked revizia, not automatically\
+  \ in the background.\n\n## Rationale\n\nGrounding incidents (2026-07-02 startup\
+  \ review of consumer sessions): (a) the engine `AGENTS.md`\n(~28.7K tokens) exceeded\
+  \ the single-read page cap, so two fresh consumer sessions silently under-read\n\
+  it (`deviation_captured` fingerprint\n`consumer-session-start-agents-md-read-truncated-at-25k-cap-not-paginated`);\
+  \ (b) the kernel handbook\n+ specs + patterns are heavily bilingual. Folds in cross\
+  \ request X-0149 (handbook density). The\n\"split like code\" model is prior-art\
+  \ SPEC-0080 (code line budget ~2000; docs are denser and\ncross-referenced, so a\
+  \ tighter per-doc band is warranted). The band (not a hard number) exists so a\n\
+  split lands on a coherent seam rather than a mechanical line.\n\n## Verification\n\
+  \n- **Language probe:** `grep -rlP '[А-Яа-яЁё]'` over the kernel DURABLE set returns\
+  \ empty (0 files)\n  after remediation.\n- **Size probe:** no kernel durable doc\
+  \ exceeds the functional ceiling; over-band docs are either\n  split or explicitly\
+  \ noted; the revizia T7 report lists candidates, blocks nothing.\n- **Consumer-reach:**\
+  \ `bin/yitc-v2 -C <consumer> inspect` runs the SAME size+language probe over the\n\
+  \  consumer's docs with no per-project setup (the probe code is engine-resident).\n\
+  - **Deviation closure:** a consumer `session start` reads each `AGENTS.md` part\
+  \ with no truncation.\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-2
+- SPEC-0005
+- SPEC-0057
+- SPEC-0073
+- SPEC-0080
+- doc-governance-kernel-english-only-per-doc-size-ca
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: doc-governance-kernel-english-only-per-doc-size-ca
+binding:
+- query-only
+init_concern: null

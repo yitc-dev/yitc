@@ -1,0 +1,110 @@
+id: SPEC-0109
+title: Product-cron governance — declare a project's scheduler on yitc-ops.yaml, single-source
+  imported never hand-entered
+status: active
+created_at: 2026-06-27 09:54:14+00:00
+travels: kernel
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA project that runs its OWN scheduled work (e.g. a `celery-beat`\
+  \ `beat_schedule`) DECLARES it on its\n`yitc-ops.yaml` so v2 KNOWS and GOVERNS that\
+  \ work — it is never invisible. v2 does NOT run the\nproject's cron (the project's\
+  \ deploy does); it GOVERNS it: the owner reads one file to see what the\nproject\
+  \ schedules, and the kernel can prove the cron actually fires, not just that it\
+  \ was declared.\n\n## Internal\n\nPRODUCT-CRON GOVERNANCE (L2 — the project's own\
+  \ scheduled work). Rules:\n\n### 1. Declare-or-waive on the project ops-contract\
+  \ (P5 — one section, not a new store)\nProduct cron is a declare-or-waive SECTION\
+  \ on `yitc-ops.yaml` (a SPEC-0093 rule-4 section-add), NOT a\nnew automation registry.\
+  \ A project DECLARES \"I have a scheduler\" (pointer to its definition) OR\nWAIVES\
+  \ it with a forward-aware waiver (no scheduled work yet; how to flip waive→declare\
+  \ later).\n\n### 2. Single-source-of-truth — IMPORTED, never hand-re-entered\nThe\
+  \ project's existing scheduler definition (`celery-beat` `beat_schedule` / equivalent)\
+  \ REMAINS the\nsingle source of truth for the job set. Any kernel-side inventory\
+  \ surface is DERIVED / IMPORTED from\nthat definition, NEVER hand-re-entered — there\
+  \ is NO parallel cron ledger (CHARTER §P5). If an\nimport-gap ever forces a temporary\
+  \ manual entry, it is a TRACKED, retiring carve-out (named with an\nowner + a retire-trigger),\
+  \ never a standing hand-maintained copy.\n\n### 3. \"Governed\" is an OBSERVABLE,\
+  \ not a declaration\nA declared scheduler is GOVERNED only when BOTH hold: (a) its\
+  \ job inventory is VISIBLE in\n`yitc-ops.yaml` (imported per rule 2), AND (b) ≥1\
+  \ OBSERVED fired-job / journaled run proves the cron\nactually runs. `declared`\
+  \ alone ≠ `governed`. This observable is L2's OWN evidence — its imported\n`beat_schedule`\
+  \ view (rule 2) + its own fired-job / journaled-run events — NOT a shared catalog\n\
+  `wired`-status abstraction (the 2026-06-27 external re-check: L2 is a non-catalog\
+  \ `yitc-ops.yaml`\nsection-add that proves its own truth, so it does not depend\
+  \ on the extension-catalog vocabulary).\n(The X-0089 / lesson: a scheduled mechanism\
+  \ must prove it FIRES, not just unit-pass.)\n\n### 4. The single governed home for\
+  \ a fragile host-only cron\nA cron that today lives only in one host's crontab (e.g.\
+  \ a consumer's payment\nsafety-net, silently lost on redeploy) is declared in THIS\
+  \ section like any other scheduled work — so\nit has a single governed home and\
+  \ cannot be silently lost. No separate carrier.\n\n### 5. SEED-then-grow boundary\
+  \ + the named L2 retirement\nL2 governs the project's own scheduled work; it does\
+  \ NOT own the methodology nightly (L1, SPEC-0105)\nnor the freshness probe (L3,\
+  \ SPEC-0110). L2 activates when a real project DECLARES a scheduler\n— not speculatively\
+  \ (a project that has not yet declared a scheduler waives it).\nRETIREMENT (CHARTER\
+  \ §P1 F3): ad-hoc / manual scheduler-inventory tracking is RETIRED in favor of the\n\
+  DERIVED `beat_schedule` view (rule 2) — no parallel cron inventory permitted.\n\n\
+  ### Build-order — NO catalog-amendment prerequisite (corrected 2026-06-27)\nL2 has\
+  \ **no** hard dependency on the extension-catalog amendment (plan\n`extension-catalog-population-from-3-project-breadt`\
+  \ / SPEC-0112). The external re-check (consult\n`decisions/extcat-scope-variants-audit-adhoc.yaml`)\
+  \ confirmed L2 is a non-catalog `yitc-ops.yaml`\ndeclare-or-waive SECTION-ADD (`extension:\
+  \ ~`): its forward-aware waive is already expressible via\nSPEC-0093 rule-6, and\
+  \ its \"governed\" truth is its OWN observable (rule 3), not the catalog\n`wired`/`resolves_to`\
+  \ vocabulary. So the prior hard `requires:` edge is REMOVED — L2 decomposes/builds\n\
+  on its own. (`extension-catalog-population-...` stays an informational `cites:`\
+  \ only.)\n\n## Rationale\n\nAll three large v1-incumbents (<project> / <project>\
+  \ / <project>) DECLARE a `celery-beat` scheduler\n— product cron is near-universal\
+  \ among mature products — yet v2 had no declaration home, and the only\nsource of\
+  \ truth was each project's `beat_schedule`. The 3-project study + the corrected\
+  \ declare/waive\nframing live in the proposing plan (SPEC-0005 §3 content boundary\
+  \ — not restated). Predecessor: the\nwithdrawn <workshop-spec> (re-authored here\
+  \ under the follow-on grow-plan; <workshop-spec> frozen historical).\n\n## Verification\n\
+  \nAdoption probe (CHARTER §P3 + §P8 — infra-class): the first project to pull L2\
+  \ (<project>) has its\nscheduler inventory VISIBLE in its `yitc-ops.yaml` (imported,\
+  \ not hand-entered) AND ≥1 fired-job /\njournaled run proves the governed cron actually\
+  \ runs (the rule-3 observable). FAILURE-CHECK: a\n`declared` cron with no `wired`/observed\
+  \ evidence read as \"governed\".\n\nADOPTION EVIDENCE (probe SATISFIED — activated):\
+  \ <project> pulled L2 and closed\n with all four probes passing incl. the differential\
+  \ leg (AC1 a falsified inventory entry\nFAILS the check; AC2 state-check; AC3 fired-job;\
+  \ AC4 P8), commit 2f5d15f; cross X-0200 author-closed\n2026-07-10 with a live `product-cron-inventory\
+  \ --check` OK (10 jobs) — the rule-3 observable\n(inventory VISIBLE + ≥1 observed\
+  \ fired-job) holds on a real consumer.\n"
+cites:
+- CHARTER.md#principle-5
+- SPEC-0093
+- SPEC-0105
+- SPEC-0110
+- X-0089
+- extension-catalog-population-from-3-project-breadt
+- v2-automation-grow-l2-product-cron-governance-l3-l
+requires: []
+supersedes: null
+concern:
+- section: product_cron
+  carrier_path: product_cron
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: scheduler
+  declare_type: string
+  waiver_policy: loose
+  born_order: 150
+  born: "product_cron:\n  # SPEC-0109. DECLARE this project's OWN scheduled work so\
+    \ v2 GOVERNS it (it never runs it; the\n  # project's deploy does). Replace this\
+    \ waiver with:\n  # scheduler: celery-beat # the declaration key that ANSWERS\
+    \ this section\n  # source: backend/app/tasks/celery_app.py # the beat_schedule\
+    \ literal — the SOLE source of truth\n  # inventory: [...] # a DERIVED view of\
+    \ the job set\n  # The scheduler definition stays the SOLE source of truth — any\
+    \ inventory here is DERIVED from it,\n  # never hand-entered. Declared != governed:\
+    \ governed needs a visible inventory AND an observed\n  # fired run. A host-only\
+    \ crontab job is declared HERE too. Waiver LOOSE but FORWARD-AWARE.\n  # see SPEC-0109\
+    \ §1, §2, §3, §4\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
+    \ — no product scheduler declared yet. This project runs no scheduled work of\
+    \ its own; if it gains one (a celery-beat schedule, a host cron), replace this\
+    \ waiver with `scheduler:` + `source:` (the definition that stays the sole source\
+    \ of truth) + a DERIVED `inventory:` (rendered from that source, never hand-entered\
+    \ — SPEC-0109 rule 2).\"\n"
+activation_owner_task: null
+proposed_by: v2-automation-grow-l2-product-cron-governance-l3-l
+binding:
+- query-only
+init_concern: null

@@ -1,0 +1,61 @@
+name: Bug report or proposal
+description: Report a defect in, or propose a change to, the release you installed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nothing is merged from here: your report is re-authored in the workshop, and the release
+        that ships it links back to this issue. See CONTRIBUTING.md.
+  - type: input
+    id: release-version
+    attributes:
+      label: Release version
+      description: The exact release you have installed (the tag your pin names)
+    validations: {required: true}
+  - type: input
+    id: tree-digest
+    attributes:
+      label: Tree digest
+      description: The `tree_digest` from the installed release-manifest.yaml, if you have it
+    validations: {required: false}
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, and how you installed (release install / clone / pinned engine)
+    validations: {required: true}
+  - type: input
+    id: affected
+    attributes:
+      label: Affected path(s) or rule id(s)
+      description: What the report is about — a file path, a SPEC id, a rule
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran, in order
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations: {required: true}
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behaviour
+      description: What actually happens today, concretely enough to reproduce
+    validations: {required: true}
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed change or fix
+      description: What you think should happen instead
+    validations: {required: true}
+  - type: input
+    id: contact
+    attributes:
+      label: Contact for the link-back
+      description: Where to reach you when the change ships, or is declined
+    validations: {required: true}

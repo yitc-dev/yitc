@@ -1,0 +1,158 @@
+id: SPEC-0092
+title: Kernel-prefixed spec retrieval — graph query --kernel resolves the KERNEL spec
+  under -C when a consumer owns the same id
+status: active
+created_at: 2026-06-20 05:09:40+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/cli.py#_find_spec_path
+- bin/lib/cli.py#_find_error_yaml
+- bin/lib/graph.py#_node_source_path
+- bin/lib/graph.py#cmd_graph_query
+- bin/lib/spec.py#spec_id_zone
+- bin/lib/spec.py#cmd_spec_new
+body: "## Scenario\nA `-C <consumer>` session reads a handbook retrieved-tier pointer\
+  \ — e.g. «Read it via\n`bin/yitc-v2 graph query SPEC-0014`» — which names a KERNEL\
+  \ contract by its bare id. If that\nconsumer happens to own its OWN spec at the\
+  \ SAME id (SPEC-0014 is the kernel commit contract,\nbut a consumer may have authored\
+  \ an unrelated SPEC-0014), a bare `graph query SPEC-0014`\nresolves the CONSUMER's\
+  \ own spec — the session silently gets the WRONG body (X-0038). To fetch\nthe KERNEL\
+  \ spec unambiguously the session adds `--kernel`:\n\n    bin/yitc-v2 graph query\
+  \ --kernel SPEC-0014\n\nwhich ALWAYS returns the kernel (engine) spec node + body,\
+  \ regardless of a consumer collision.\nA bare `graph query SPEC-XXXX` is UNCHANGED\
+  \ — consumer-own still wins (a consumer-only id and\nthe consumer's own intended\
+  \ specs resolve exactly as before).\n\n**Same collision, second node type — the\
+  \ `error` case file (cross X-0583).** The error\ncorpus collides the same way and\
+  \ worse: the kernel's `errors/E-0002` is «AI hand-allocated a\ndecision id instead\
+  \ of using the verb», while <project>'s own `E-0002` is an unrelated 2026-07-12\n\
+  stats-pipeline incident — and consumer artifacts cite those ids BARE. Recurrence-matching\
+  \ («have\nwe hit this before?») is the entire reason the `error` node type exists,\
+  \ so a bare\n`graph query E-0002` answering from whichever corpus the reader stands\
+  \ in returns a PLAUSIBLE\nWRONG answer in EITHER direction. The realm-explicit escape\
+  \ is THE SAME ONE — no second\nmechanism:\n\n    bin/yitc-v2 graph query --kernel\
+  \ E-0002\n\nreturns the KERNEL case-file node + body regardless of a consumer collision.\
+  \ A bare\n`graph query E-XXXX` is likewise UNCHANGED (consumer-own wins), and now\
+  \ SELF-DISCLOSES the\ncollision (§Internal) so a sweep resolving against one corpus\
+  \ alone can no longer report CLEAN\nover it.\n\n## Internal\nResolution precedence\
+  \ (the rule an editor must preserve):\n- **bare lookup (default):** consumer-own\
+  \ wins per id, else the engine fallback\n  (`_find_spec_path(sid, engine_fallback=True)`\
+  \ / the `cmd_graph_query` spec branch's\n  `elif _is_consumer_build and nid in _engine_index`).\
+  \ Resolution UNTOUCHED by this spec.\n  **Self-disclosure safeguard (X-0551):**\
+  \ the bare lookup, when it resolves a SPEC-id the\n  `-C` consumer OWNS ON DISK\
+  \ (`_find_spec_path(nid)` own-only) while the kernel owns the SAME id (a\n  collision),\
+  \ prints a REPORT-ONLY stderr line naming the resolved project (`_cross_self`) +\
+  \ the\n  `--kernel` escape — so a reader following a bare KERNEL pointer that silently\
+  \ mis-resolved is TOLD.\n  Report-only (stderr, never the stdout node); resolution\
+  \ semantics are unchanged. A consumer-only id\n  (no kernel counterpart) and the\
+  \ engine's own session stay SILENT (no collision to disclose).\n- **`--kernel` (the\
+  \ kernel-prefixed path):** FORCE the engine spec — INVERT the precedence so\n  the\
+  \ consumer-own copy is bypassed even when present. On a consumer build (`_is_consumer_build`)\n\
+  \  the node is read from `_engine_index` and the body from `ENGINE_ROOT/specs` via\n\
+  \  `_find_spec_path(sid, force_engine=True)`. On the engine's OWN session (REPO_ROOT\
+  \ == ENGINE_ROOT)\n  `--kernel` is a no-op refinement — own IS the kernel, so it\
+  \ resolves the own spec.\n- `force_engine` is a NEW keyword on `_find_spec_path`\
+  \ / `_node_source_path`: when set it resolves\n  ONLY from the engine specs dir\
+  \ (consumer build) — never own-first. It is orthogonal to and takes\n  precedence\
+  \ over `engine_fallback`.\n- **Composition guard:** `--kernel` composes ONLY with\
+  \ a spec-id point-lookup. It is REJECTED with\n  `--type` / `--projected` / `--carve-out`\
+  \ / `--recurring` / `--as-of`, with a view-name, and with a\n  missing id — those\
+  \ forms have no kernel-vs-consumer ambiguity, so the flag is fail-closed there.\n\
+  - **The resolution is now RECORDED, not just performed (X-0865 — pointer, the rule\
+  \ lives in\n  SPEC-0050 §2).** A point-lookup of a SPEC / E id stamps the REALM\
+  \ that answered onto the fetch receipt\n  (`cli_invoked data.node_realm` = \"kernel\"\
+  \ | \"own\"), read off the branch that resolved above — using the\n  SAME own-only\
+  \ ownership predicate the / disclosures use, never index membership. The\n  precedence\
+  \ THIS spec homes is UNCHANGED; what changes is that a downstream reader can tell\
+  \ which corpus\n  answered. Its consumer is the SPEC-0050 read-gate, which now requires\
+  \ the KERNEL receipt for a kernel\n  contract instead of crediting any same-id fetch\
+  \ — the credit rule is homed there, not restated here.\n- **Doc convention:** a\
+  \ handbook retrieved-tier pointer is authored bare (`graph query SPEC-XXXX`).\n\
+  \  A `-C` reader that hits a consumer-id collision re-issues it with `--kernel`.\
+  \ The handbook prose\n  is NOT rewritten per pointer — the convention is the reader's\
+  \ escape hatch for the collision case.\n- **`error` node type (X-0583) — the SAME\
+  \ rules, one node type wider.** `--kernel` routes\n  by id shape: an `E-` id resolves\
+  \ the kernel `errors` node (`_engine_index` on a consumer build,\n  the own index\
+  \ on the engine's own session — own IS the kernel) and dies loudly when the KERNEL\n\
+  \  corpus has no such case; every other id keeps the spec path above, byte-identical.\
+  \ The appended\n  source body comes from `_find_error_yaml(eid, force_engine=True)`\
+  \ — a verbatim mirror of\n  `_find_spec_path`'s `force_engine` (kernel-only on a\
+  \ consumer build, `ERRORS_DIR` on the engine's\n  own session). The composition\
+  \ guard is unchanged in KIND (point-lookup only), widened in the id\n  set it accepts:\
+  \ SPEC or E.\n  **Bare error lookup is UNCHANGED and now SELF-DISCLOSES:** consumer-own\
+  \ still wins and NO engine\n  fallback is added for errors (a kernel-only E-id in\
+  \ a consumer still reports not-found, exactly\n  as before — X-0583 is about the\
+  \ reader having no realm-explicit way to ASK, not about bare\n  resolution picking\
+  \ the wrong side). When that bare lookup resolves an E-id the consumer OWNS ON\n\
+  \  DISK while the kernel owns the SAME id, it prints the report-only stderr disclosure\
+  \ naming the\n  resolved project + the `--kernel` escape — the safeguard applied\
+  \ to the error corpus, and\n  what makes the collision DETECTABLE rather than merely\
+  \ resolvable. Ownership is tested by the\n  consumer's OWN case FILE (`_find_error_yaml`\
+  \ own-only), never index membership — a blank\n  consumer's index IS the engine's,\
+  \ so membership would false-positive on a kernel-only id. A\n  consumer-ONLY id\
+  \ and the engine's own session stay SILENT (no collision to disclose).\n\n### Allocation\
+  \ zones (X-1525)\nThe `--kernel` escape above resolves collisions that ALREADY exist;\
+  \ this rule stops NEW ones being\nminted. A new spec id comes from the allocating\
+  \ repo's ZONE, in the same 4-digit `SPEC-NNNN` shape:\n- **kernel** (the engine's\
+  \ own corpus): SPEC-1000..<workshop-spec>.\n- **every consumer**, each on its OWN\
+  \ counter: <workshop-spec>..<workshop-spec>. Equal numbers in two consumers\n  are\
+  \ harmless — no consumer reads another's specs; kernel↔consumer is the only pair\
+  \ that meets.\n- **legacy band SPEC-0001..<workshop-spec> — CLOSED to new ids.**\
+  \ Every existing id there stays valid and is\n  never renamed; a historical kernel↔consumer\
+  \ collision in it keeps the resolution above (bare =\n  consumer-own, `--kernel`\
+  \ = the kernel).\nThe role is the authoritative repo context (`_is_consumer_build`:\
+  \ a different git common-dir than\nthe engine), never a guess from the corpus. ONE\
+  \ policy table (`bin/lib/spec.py#spec_id_zone`) serves\nboth the sequential allocation\
+  \ and `spec new --id`: an `--id` outside the caller's zone is refused\n(`spec-id-outside-zone`),\
+  \ and a zone with no id left is refused (`spec-id-zone-exhausted`) — each\nbefore\
+  \ the reservation bump, so a refusal writes nothing and burns no id. Allocation\
+  \ stays the\nexisting atomic flock + cross-worktree reservation; the zone only lifts\
+  \ the next id to at least the\nzone start. With disjoint zones a new consumer id\
+  \ can never be kernel-owned, so the\nallocation-time collision WARN is retired (the\
+  \ lookup-time disclosure is unchanged).\n**Cross-project reference convention (doc\
+  \ rule).** In the shared coordination log and any other\ncross-project text, a bare\
+  \ `SPEC-NNNN` means the SENDER's own spec; another project's spec is\nwritten `project:SPEC-NNNN`\
+  \ (e.g. `<project>:<workshop-spec>`, `yitc-v2:SPEC-0092`).\n\n## Rationale\nOwner-locked\
+  \ decision 2026-06-20 (cross X-0038, <project>→yitc-v2): a kernel-PREFIXED retrieval\
+  \ path,\nNOT id renumbering/namespacing — renumbering would break every existing\
+  \ `from:` / `cites:` citation\nacross the corpus. Build on the EXISTING engine-content\
+  \ fallback rather than a parallel\nmechanism (CHARTER §Principle 1 — reuse the seam).\
+  \ The defect is real: under -C the handbook's\nretrieved-tier refs all name kernel\
+  \ specs by bare id, so a colliding consumer id silently mis-resolves\na governance\
+  \ contract.\n\n## Verification\n- AC1: under a genuine `-C` consumer that owns its\
+  \ own SPEC-0014, `graph query --kernel SPEC-0014`\n  returns the KERNEL body (probe:\
+  \ tests/test_t9363_kernel_prefixed_spec_retrieval.py).\n- AC2: a bare `graph query\
+  \ SPEC-0014` under that consumer still returns the consumer's own spec, and a\n\
+  \  consumer-only id is unaffected (same test).\n- `_find_spec_path(\"SPEC-0014\"\
+  , force_engine=True)` under that consumer resolves the ENGINE path;\n  bare `_find_spec_path(\"\
+  SPEC-0014\")` resolves the consumer path.\n- AC3 (X-0583 — the `error` node type):\
+  \ with the SAME id defined in BOTH corpora,\n  `graph query --kernel E-0002` returns\
+  \ the KERNEL case file and a bare `graph query E-0002`\n  returns the CONSUMER's,\
+  \ and the two are asserted to be DIFFERENT documents (probe:\n  tests/test_t10748_error_realm_retrieval.py).\n\
+  - AC4 : that bare lookup prints the collision disclosure on STDERR only (never stdout),\n\
+  \  while a consumer-ONLY E-id and the engine's own session stay SILENT (same test)\
+  \ — the collision\n  is DETECTABLE, so a one-corpus sweep cannot report clean over\
+  \ it.\n- AC5 : SPEC-id resolution is byte-identical before and after — asserted\
+  \ by\n  tests/test_t9363_kernel_prefixed_spec_retrieval.py + tests/test_t10700_collision_disclosure.py\n\
+  \  staying green UNMODIFIED.\n- AC6 (X-1525 — allocation zones): a kernel with max\
+  \ SPEC-0209 allocates SPEC-1000 then\n  <workshop-spec>; a consumer with legacy\
+  \ max <workshop-spec> allocates <workshop-spec> then <workshop-spec>; an empty consumer\n\
+  \  starts at <workshop-spec>; an out-of-zone `--id` is refused for both roles; exhaustion\
+  \ at <workshop-spec> /\n  <workshop-spec> is the named refusal (probe: tests/test_x1525_spec_id_zones.py).\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0073
+- SPEC-0005
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+implements_signature:
+  bin/lib/cli.py#_find_error_yaml: 62732ccbfc16280fbcb1376489c69e5991c18a857253b95178d8eea632f7b844
+  bin/lib/cli.py#_find_spec_path: 10c38f01ca507ce79cac9a2f777c625c788873fcf6e89f9a5e3d319793f9aca9
+  bin/lib/graph.py#_node_source_path: 09cc8af62f98803e375ca4665f47da39e399591d1438142edc4b978228342738
+  bin/lib/graph.py#cmd_graph_query: edd6ee0059524cda18499c3c629b762442f42e6928cfd3dbb4c15525431bfc50
+  bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
+  bin/lib/spec.py#spec_id_zone: bd518d1b7370110d676b6bc50fc17cb02ca888e2ec27e3cb0dc79e53868a436c

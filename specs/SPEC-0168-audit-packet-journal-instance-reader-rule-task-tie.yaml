@@ -1,0 +1,296 @@
+id: SPEC-0168
+title: Audit-packet journal-instance reader rule — task-tied cross-instance evidence
+  with declared provenance
+status: active
+created_at: 2026-08-06 05:29:27+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/cli.py#_ac_probe_evidence_events_for
+- bin/lib/cli.py#_p8_evidence_events_for
+- bin/lib/task_closure_evidence.py#_p8_evidence_events_for
+- bin/lib/evidence_custody.py#_fold_main_journal_into_branch
+- bin/lib/task.py#_folded_journal_events
+- bin/lib/task.py#_packet_evidence_record
+- bin/lib/audit_packet.py#build_audit_prompt
+- bin/lib/cross.py#card_tied_items
+- bin/lib/cross.py#card_evidence_section
+- bin/lib/cross.py#_cross_evidence_section_for
+body: "## Scenario\n\nA session emits a task's acceptance-probe evidence with `bin/yitc-v2\
+  \ event` from wherever it\nhappens to be standing — the task worktree OR the main\
+  \ checkout, as promises — and that\ntask's audit-post packet renders the evidence\
+  \ EITHER WAY. Rows that came from an instance other\nthan the one the audit runs\
+  \ in are visibly marked as such, so the auditor reads \"present, sourced\nfrom main,\
+  \ not yet landed\" instead of honestly reporting the criterion unproven. And a task\n\
+  cannot permanently pass audit-post on evidence that never actually lands.\n\n##\
+  \ Internal\n\nTHE AUDIT-PACKET JOURNAL-INSTANCE READER RULE. Seven rules. This is\
+  \ a READER rule: it says which\njournal instances a task audit packet may aggregate\
+  \ and how the aggregation is shown. It adds no\nstore, no parser, no journal, and\
+  \ no node-type — it REUSES the union+dedup fold the write side\nalready performs\
+  \ (CHARTER §P1 F1/F2).\n\n### Rule 1 — The evidence set is the LANDABLE journal\
+  \ instance, on both checkouts\nA task audit packet counts evidence from EXACTLY\
+  \ ONE journal instance per checkout — the repo-root\njournal — resolved on BOTH\
+  \ the checkout the audit runs in AND that repo's MAIN checkout.\nNothing else: no\
+  \ other repo, no shared coordination store, no invented enumeration. An instance\n\
+  that is absent on a given side is ORDINARY: skip it, never treat it as a fault and\
+  \ never as an\nempty-evidence signal.\n**AMENDED (SPEC-0190 rules 1+4) — that ONE\
+  \ instance is the root journal's SEGMENT SET, not\nthe file `events.jsonl`.** SPEC-0190\
+  \ stores the journal as one LOGICAL append-only history realized\nas an ordered\
+  \ set of physical segments: exactly one LIVE segment (`events.jsonl`) plus zero\
+  \ or more\nARCHIVE segments. The instance a packet reads is therefore that whole\
+  \ set, folded in segment order\nand resolved by `bin/lib/events.py#segment_paths`\
+  \ — never a literal filename.\n*Why this is an AMENDMENT and not an implementation\
+  \ detail:* the original wording named a literal\npath and forbade \"invented enumeration\"\
+  \ in its own words, so widening it had to be done HERE or not\nat all. And it is\
+  \ not optional. After rotation the literal path is the LIVE SEGMENT ALONE, so a\
+  \ card\nwhose acceptance rows are older than the live window would have its own\
+  \ evidence invisible to its\nown audit packet — the packet reporting a criterion\
+  \ unproven while the proof exists, which is\nEXACTLY the X-0558 failure this spec\
+  \ was written to end, re-entered by another route.\n*Three properties keep this\
+  \ from GROWING, and each is what stops the widening becoming the\nenumeration the\
+  \ rule forbids:*\n  - It is still **ONE instance per checkout**, not two. An archive\
+  \ segment is a physical unit of the\n    SAME logical journal — same line format,\
+  \ same parser, same append+union-merge discipline\n    (CHARTER §P5; the reading\
+  \ SPEC-0084 already ratified, that \"one journal\" means one MECHANISM and\n   \
+  \ explicitly not one physical FILE). So rule 3's dedupe identity and rule 4's set-membership\
+  \ mark\n    are UNCHANGED: a row is cross-instance iff it is absent from the audit\
+  \ side's SET, and the fold\n    of that side now simply spans more physical files.\n\
+  \  - The **`.yitc/` hook-tail is still excluded**, for its own unchanged reason\
+  \ (gitignored, never\n    tracked, structurally unlandable — rule 5 mode (c)) and\
+  \ additionally because SPEC-0190 rule 1b\n    puts the tail outside the segment\
+  \ contract entirely. Segmentation reaches the ROOT journal only.\n  - The **provenance\
+  \ mark names the LOGICAL journal**, never a segment filename. Which physical\n \
+  \   segment a row happens to sit in is a storage fact, not a custody fact, and rule\
+  \ 4's mark exists\n    to answer \"landed or not yet landed\" — a question segmentation\
+  \ does not touch.\n*The lock is unchanged and is taken ONCE, on the logical journal*\
+  \ — never one per segment (SPEC-0190\nrule 1: \"ONE LOCK IDENTITY, keyed to the\
+  \ logical journal and never to a physical segment\"). Rule 6's\ndiscipline below\
+  \ therefore reads exactly as before.\n**Why the root journal and not the write side's\
+  \ whole fold set.** `land`'s fold\n(`_is_foldable_journal`) unions a PAIR — the\
+  \ root `events.jsonl` AND the `.yitc/events.jsonl`\nhook-tail. That pair is the\
+  \ reader's PROVENANCE story: it is why no third enumeration is invented\nand why\
+  \ the reader never maintains a list that could drift from the write side (CHARTER\
+  \ §P5). It\nis NOT the evidence set. `.yitc/` is gitignored and has never been tracked,\
+  \ so a row living only\nin the hook-tail can NEVER reach a committed journal — counting\
+  \ it as evidence would trip Rule 5's\ncustody check forever, on a row that is unlandable\
+  \ by construction. What the packet may COUNT is\ntherefore scoped to instances that\
+  \ can actually land; what it may CITE as its provenance model is\nthe fold.\n\n\
+  ### Rule 2 — Task-id exactness (the fold is never a bulk merge)\nA row is folded\
+  \ ONLY when its `task_id` equals the AUDITED task id. **The carrier is PLURAL and\
+  \ the\nreader MUST check EVERY carrier, IN PRECEDENCE ORDER (trial run 1, 2026-08-06;\
+  \ amended,\n2026-08-14):** `task_id` at the row's TOP LEVEL, then `data.task_id`,\
+  \ then `data.task`. All three\nare present in the live corpus. A reader checking\
+  \ only one carrier silently drops evidence — which\nis precisely the X-0558 failure\
+  \ this rule exists to end. An event carrying a different\ntask id, or no task id\
+  \ at all, is NEVER folded — including one an unrelated concurrent session\nappended\
+  \ to main's tail while this audit ran. The packet aggregates evidence FOR ONE TASK;\
+  \ it\nnever becomes a view of main's uncommitted state.\n\n**The third carrier `data.task`\
+  \ is CLOSED, LAST-PRECEDENCE and FROZEN — and the rule states all\nthree properties\
+  \ because each is what keeps the carrier list from growing again (X-0868).**\n \
+  \ - CLOSED: no code path emits the shape. `task` is\n    now a RESERVED `--data`\
+  \ key on that verb, redirecting to `--task`, so no NEW row can take this\n    form.\
+  \ The reader clause is thus a bounded read of a FROZEN population, not an open third\
+  \ ingress.\n  - WHY A READER AT ALL, rather than a backfill: the journal is append-only\
+  \ (one flock `O_APPEND`\n    chokepoint), so those 217 landed rows cannot be made\
+  \ canonical by emission — a reader is the only\n    thing that can ever reach them.\n\
+  \  - LAST-PRECEDENCE, and this is load-bearing: rows exist whose `data.task` DISAGREES\n\
+  \    with their own canonical carrier, naming a RELATED task rather than the row's\
+  \ subject. They all\n    carry a canonical carrier, so they never reach the fallback;\
+  \ a clause placed first would have\n    mis-tied every one of them.\nA FOURTH carrier\
+  \ is not admissible under this rule: close the shape at the emitter instead.\n\n\
+  ### Rule 3 — Dedupe identity is the write side's identity\nAn event present in BOTH\
+  \ instances renders EXACTLY ONCE, deduped by the SAME identity `land`'s\nunion+dedup\
+  \ uses (`_dedup_events`) — canonical-JSON full-object identity, keep-first,\norder-preserving.\
+  \ A second identity function would let the same event count twice on one path and\n\
+  once on another — the drift Rule 1 exists to prevent. **Reuse it through the EXISTING\
+  \ INJECTION\nSEAM, not an import (trial run 1, 2026-08-06):** the identity `_event_dedup_key`\
+  \ lives in\n`bin/yitc-v2`, the top-level CLI SCRIPT (no `.py` extension, not importable),\
+  \ while the readers this\nrule governs live in `bin/lib/task.py` and take host deps\
+  \ by injection — the same shape\n`worktree_mod._dedup_events(lines, _event_dedup_key=…)`\
+  \ already uses. An implementer who cannot\nimport it MUST take it by injection;\
+  \ RE-IMPLEMENTING the key is the drift this rule forbids.\n\n### Rule 4 — Provenance\
+  \ is rendered, never silent\nEvery row sourced from an instance OTHER than the checkout\
+  \ the audit runs in carries a visible\nmark naming its source path AND its unlanded\
+  \ status. A row sourced from the audit checkout itself\ncarries NO mark — so the\
+  \ mark is a real discriminator, not an unconditional decoration. The\nauditor must\
+  \ be able to tell \"landed evidence\" from \"evidence still only in main's tail\"\
+  \ without\ninferring it.\n**The mark is decided by SET MEMBERSHIP, never by first-seen\
+  \ read order.** Rule 3's dedupe is keep-first and order-preserving, so under a naive\n\
+  implementation the mark falls out of WHICH INSTANCE HAPPENS TO BE READ FIRST. So\
+  \ a row is cross-instance iff it is ABSENT from every audit-side instance, computed\
+  \ as\na membership test over the audit side; it is NOT \"whichever source the dedupe\
+  \ kept first\". A reader\nMAY still read audit-side first for determinism, but correctness\
+  \ must not REST on that order.\n\n**AMENDED (X-0695) — the mark ALSO covers a task-tied\
+  \ row sourced from the SHARED\ncoordination store.** The store is kernel-owned and\
+  \ deliberately OUTSIDE every repo (SPEC-0084\nrule 5), so a card whose acceptance\
+  \ PROBE **is** a filed coordination item had its artifact in a\nplace rule 1's evidence\
+  \ set can never reach: the section rendered empty and the auditor honestly\nreported\
+  \ the criterion unmet, on an artifact that provably existed.\nThe two designs are\
+  \ individually right and jointly broken, so the repair is on the RENDER side, not\n\
+  the store side: such a row is rendered in its OWN packet section carrying this rule's\
+  \ provenance\nmark — naming the store path as its source and stating that it is\
+  \ NOT in this repo's journal — and\nthe mark is a discriminator exactly as above\
+  \ (a card that ties to nothing renders no section at\nall). Its TIE is the card-opt-in\
+  \ shape one axis over, and since it runs in BOTH\ndirections — either is a NAMED,\
+  \ deliberate link between one card and one item, never a proximity\nguess, and the\
+  \ store must carry the item in both cases:\n  (a) CARD → ITEM : the audited card's\
+  \ OWN acceptance text NAMES the item id.\n  (b) ITEM → CARD (X-1152): the item's\
+  \ own birth meta names the card it was filed in\n      service of (`cross request\
+  \ --task`). Route (a) cannot serve an OUTBOUND request EVEN IN\n      PRINCIPLE\
+  \ — the item's id does not exist when the acceptance is written.\nBoth routes render\
+  \ into the ONE section, cited first then filed-for, deduped — a card that ties by\n\
+  route (a) alone renders byte-identically to before. An item tied by NEITHER is never\
+  \ rendered,\nbecause an untied artifact is some other card's proof. AND THE MARK\
+  \ MUST NOT OVERSTATE ITSELF: a\nrendered row proves the item exists and is LINKED\
+  \ to this card, NOT that the card's acceptance text\nnamed it — under route (b)\
+  \ it cannot have.\nWhat this does NOT do, and must not grow into: it does NOT fold\
+  \ the store into `events.jsonl`\n(SPEC-0084 rule 5 stands — one store, outside the\
+  \ repos), and it does NOT widen rule 1's COUNTED\nset. **ADMISSION-SIDE EXCEPTION,\
+  \ stated explicitly (X-1400):** the rendered section IS what\nthe auditor reads,\
+  \ so the audit-post unchanged-HEAD flip guard compares a DIGEST of it\n(`cross_section_fingerprint`,\
+  \ the `cross_section` changed-input axis) and admits ONE re-audit on\nthe SAME commit\
+  \ when it changed (a tied item moved picked -> done, or gained its note). That is\
+  \ an\nadmission input only — the digest is captured through its own sink, never\
+  \ the counted evidence sink,\nso no cross row enters rule 1's counted set or rule\
+  \ 5's custody record, and the admitted pass still\ncounts against the audit-loop\
+  \ ceiling. A cross row can never land in THIS repo, so entering it into the rule-5\
+  \ custody set would fire\nthat check forever on a row unlandable by construction\
+  \ — the rule-5 mode (c) reader-set defect,\nverbatim. Report-only: it renders text,\
+  \ changes no verdict, no gate and no counted set, and it\nfail-opens to nothing\
+  \ when the store is absent or unreadable (an absent instance is ORDINARY,\nrule\
+  \ 1).\n\n### Rule 5 — Custody: counted-but-unlanded evidence is provisional\nCross-instance\
+  \ rows are PROVISIONAL until they land. The land-side reconciliation **LOUDLY REPORTS**\n\
+  when evidence the packet counted is ABSENT after the union merge. Report-only is\
+  \ the REQUIRED FLOOR;\nescalating to a REFUSAL is PERMITTED but NOT required, and\
+  \ must not be adopted before the check's\nfalse-positive rate is measured. This\
+  \ is what keeps\nRule 4's \"not yet landed\" honest: the packet may credit unlanded\
+  \ evidence to unblock the audit,\nbut the system still verifies the evidence actually\
+  \ arrives. A task does not permanently pass\naudit-post on evidence that never landed.\n\
+  **THREE distinct non-landing modes, with different remedies.** The check must not\
+  \ collapse them into one \"missing\":\n(a) **land ABORTed** — the row is still ON\
+  \ DISK in main's tail, merely not committed. RECOVERABLE:\nre-land. Report, do not\
+  \ refuse.\n(b) **main's dirt was discarded** before land (e.g. `git checkout --\
+  \ events.jsonl`) — the row is\ngone from disk. A genuine LOSS: the audit counted\
+  \ evidence that no longer exists anywhere.\n(c) **the row came from a structurally\
+  \ unlandable instance** (the hook-tail) — on disk forever,\ncommittable never. Rule\
+  \ 1 as CORRECTED removes this case at the source by scoping the evidence set\nto\
+  \ landable instances; if a reader ever counts such a row anyway, custody must name\
+  \ it as a\nREADER-SET defect, not as lost evidence — otherwise the check fires forever\
+  \ and gets muted.\n**Detection signal:** a set difference of the counted rows' dedupe\n\
+  keys (Rule 3's identity) against the post-land committed journal's keys; the on-disk\
+  \ presence of a\nmissing key then discriminates (a) from (b).\n**TWO SEAMS, and\
+  \ each proves a DIFFERENT thing — do not read either as covering both.**\nThe wording\
+  \ above (\"the counted rows\") is satisfied by two different sets, and conflating\
+  \ them made\nthis rule read as if one seam could answer everything:\n- **The LAND-TIME\
+  \ snapshot** (`bin/lib/evidence_custody.py#_custody_counted_keys`, taken inside\
+  \ the pre-ff\n  critical section and compared after the ff) recomputes the counted\
+  \ set FROM THE JOURNAL AS IT\n  STANDS WHEN THE LAND BEGINS. It therefore observes\
+  \ destruction **DURING** a land — a row present\n  at the snapshot and absent from\
+  \ the post-ff committed journal — and that is the whole of what it\n  can prove.\
+  \ It CANNOT observe destruction **BEFORE** the land began: a row destroyed earlier\
+  \ is\n  already missing when the snapshot is taken, so it is never in the set the\
+  \ comparison runs over,\n  and the check is silent about it. Mode (a) and mode (c)\
+  \ are fully reachable from this seam;\n  mode (b) is reachable from it ONLY in its\
+  \ during-a-land form.\n- **The RECORDED PACKET SET** (`bin/lib/task.py#_packet_evidence_record`,\
+  \ written onto the task's\n  audit-post record at the moment the packet counts,\
+  \ from the key the fold already derived per\n  Rule 3) is what makes the BEFORE-the-land\
+  \ case answerable at all. Audit-post is the only moment\n  the packet-time set exists;\
+  \ nothing downstream can reconstruct it, so without this record the\n  question\
+  \ \"did evidence this task passed audit-post on survive to the land?\" has no instrument\
+  \ —\n  and silence would read as \"never happens\" when it means \"cannot be seen\"\
+  .\nRecording is **OBSERVATION ONLY**: it changes no audit verdict, no land exit\
+  \ status and no gate,\nand it cannot raise into its caller — the same report-only\
+  \ floor this rule sets for the land side.\nThe land-side COMPARISON against the\
+  \ recorded set is **NOT yet required by this rule**: it stays\ndeliberately unbuilt\
+  \ until the recorded data shows the before-the-land case is real, because a\ndetector\
+  \ for a case never once observed is a mechanism without an incident (CHARTER §P1\
+  \ F4). The\nrecording is the prerequisite that makes that evidence obtainable, not\
+  \ half of a shipped detector.\n\n**A COUNTED ROW IS NOT NECESSARILY A RENDERED ONE\
+  \ — and this rule runs over the COUNTED\nset.** Since the assembled audit packet\
+  \ gained a TOTAL byte ceiling, the adoption block is one of the\nsections that ceiling\
+  \ may TRIM, so what an auditor SEES can be a bounded SUBSET of what this rule\n\
+  COUNTS. The two are captured at different moments: the counted set is taken when\
+  \ the packet COUNTS\nthe evidence, BEFORE assembly; the bound is applied to the\
+  \ ASSEMBLED text, AFTER it. Nothing about\ncustody weakens as a result — Rule 5\
+  \ reconciles the FULL counted set, and Rule 3's identity is\ncomputed over the same\
+  \ set — but a reader must NOT infer the converse, that every counted row appears\n\
+  in the packet, nor read a short adoption block as a short counted set. WHERE THE\
+  \ BOUND IS DISCLOSED:\nin the packet itself, never silently — a trimmed packet carries\
+  \ an ELISION MANIFEST naming every cut\nsection, and each cut section carries its\
+  \ own marker inline; an untrimmed packet is byte-identical to\nan unbounded one\
+  \ and carries neither. So the discrepancy is always visible AT THE POINT OF READING,\n\
+  and this paragraph exists so it is also visible to a reader of the SPEC.\n\n###\
+  \ Rule 6 — The cross-instance read must not race the fold's critical section\nThe\
+  \ reader takes no path that read-modify-writes a foldable journal, and it must not\
+  \ interleave\nwith `land`'s pre-ff critical section (the E-0021 shared `journal_lock`\
+  \ that covers BOTH foldable\njournals). The reader is READ-ONLY by construction;\
+  \ where it must observe an instance the fold is\nmutating, it observes under the\
+  \ same lock discipline rather than inventing a second one.\n**This is LOAD-BEARING,\
+  \ not defensive decoration — the hazard is a TRUNCATE window.** A journal rewritten\
+  \ with a plain `Path.write_text` — TRUNCATE then rewrite a multi-MB\nfile, NOT an\
+  \ atomic rename — lets a reader inside that window observe an EMPTY or PREFIX journal.\n\
+  The consequence is the reason this\nrule exists: an unlocked reader that lands in\
+  \ the window concludes \"evidence absent\" and emits\nEXACTLY the false RED this\
+  \ spec was written to eliminate — the naive fix RE-CREATES X-0558 by\nanother route\
+  \ — and it would also trip Rule 5's custody check spuriously. A reader MUST therefore\n\
+  not read a foldable journal outside the lock discipline while a fold may be in flight.\n\
+  **AMENDED — what the ENGINE now does, and why the rule still stands.** The fold\n\
+  (`_fold_main_journal_into_branch`) no longer truncate-rewrites: every rewrite of\
+  \ a foldable journal\nland performs is now ATOMIC (`write_text_atomic` — temp file\
+  \ + `os.replace`, atomic within a\ndirectory on POSIX), so for the engine's OWN\
+  \ writes even an UNLOCKED reader sees either the complete\npre-fold or the complete\
+  \ post-fold content. That does NOT retire the lock discipline above, for two\nreasons.\
+  \ (a) MAIN's journal is rewritten during the pre-ff critical section by GIT — `checkout\
+  \ HEAD\n--` and `merge --ff-only` — which no engine-side atomicity can make atomic;\
+  \ only a lock the reader\ngenuinely shares covers it. (b) A lock is only a lock\
+  \ if every party resolves the SAME sidecar:\n`_journal_lock_path` derived a persistent\
+  \ journal's sidecar from `tempfile.gettempdir`, which\nhonours TMPDIR, while <workshop-spec>\
+  \ Rule 1 gives every land-verify test child a PRIVATE TMPDIR — so this\nrule's reader\
+  \ lock was INERT for exactly that audience.\nThe sidecar's identity is now a pure\
+  \ function of the JOURNAL, never of the reading process's\nenvironment. Atomicity\
+  \ and the lock are complementary: neither alone satisfies this rule.\n\n### Rule\
+  \ 7 — What this does NOT change (the boundary)\nThe exception is UNCHANGED and un-narrowed:\
+  \ an `event` append still needs no worktree and\nis still legal from the main checkout.\
+  \ This rule makes that promise KEEPABLE at audit time; it\ndoes not replace it with\
+  \ an author obligation to emit inside the worktree.\n\n## Parameters\n\nNone consumed.\n\
+  \n## Rationale\n\nReal incident: <project> X-0558 — acceptance evidence present\
+  \ only in main's uncommitted tail was\ninvisible to a `task/T-XXXX` worktree's audit\
+  \ packet, so a criterion with existing proof read\nunproven (the fourth structural\
+  \ false-RED class in the family of the LIFECYCLE §Stage 8\ndeferred-adoption variants\
+  \ (a)-(d)). The rule EXTENDS existing doctrine rather than re-inventing it:\nthe\
+  \ union+dedup fold is already doctrinal (`_land_integrate`), and CHARTER §P5 as\
+  \ amended by\nSPEC-0084 already reads \"one journal\" as one MECHANISM with permitted\
+  \ INSTANCES.\n\n## Verification\n\nDifferential probes (each names the input that\
+  \ must make it FAIL):\n- **P1 cross-instance render** — an event tied to the audited\
+  \ task id, present ONLY in main's\n  uncommitted tail, appears in the packet. FAILING\
+  \ INPUT: the same packet built while that event\n  is absent from BOTH instances\
+  \ must render no such row.\n- **P2 provenance marking** — every cross-instance row\
+  \ carries source path + unlanded status.\n  FAILING INPUT: a row sourced from the\
+  \ audit worktree itself must NOT carry the mark.\n- **P3 no double-count** — an\
+  \ event present in BOTH instances renders exactly once. FAILING\n  INPUT: the same\
+  \ event duplicated across instances.\n- **P4 task-id exactness** — a foreign-task\
+  \ event in main's tail is NOT folded. FAILING INPUT: an\n  unrelated concurrent\
+  \ session's event in main's tail.\n- **P5 custody** — the land reconciliation refuses\
+  \ or loudly reports when packet-counted evidence\n  is absent after the union merge.\
+  \ FAILING INPUT: a packet-counted event removed before land.\n"
+cites:
+- CHARTER.md#principle-N
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: audit-packet-journal-instance-reader-rule-task-tie
+binding:
+- stage-entry:Audit-post
+init_concern: null
+implements_signature:
+  bin/lib/audit_packet.py#build_audit_prompt: 8cf904a6191f3840a5fb8a784b934e6552179a221c986ec9b6cf1c3f36b72977
+  bin/lib/cli.py#_ac_probe_evidence_events_for: 8ba7bcd03323e756b80592b07be3855802ab6660e77371a62bca7dd5aa3315f0
+  bin/lib/cli.py#_p8_evidence_events_for: bc0670a73cdfe69c153e2af0090d2d74318de157d427dc6d1b81465e870ca672
+  bin/lib/cross.py#_cross_evidence_section_for: 48527cf6b2feb92a999d6626cf67d8d82fe0603b2d410ad7f96244d57d00200a
+  bin/lib/cross.py#card_evidence_section: 64008b7ccce6de727d27d2ba1297e6625ab64a504697366f3b00376a3d31d9e9
+  bin/lib/cross.py#card_tied_items: c00b22876562efb8938b25a4c9d08a67296a7ddc87ab4fd6a6f126c4ce27f0cd
+  bin/lib/evidence_custody.py#_fold_main_journal_into_branch: 685c81bee552f53969bc36c63f1087634fdd208e213cdf2c1d2aa989b9a47d8c
+  bin/lib/task.py#_folded_journal_events: 016471c427756c577de15fa5cf35c47431b8f5caae0f2e2202a806cdfb03e0bd
+  bin/lib/task.py#_packet_evidence_record: 908cfa04f65f881784014d21c0926accd8f10980f7e33e7db6a5098a1c4f78a8
+  bin/lib/task_closure_evidence.py#_p8_evidence_events_for: add6c4b7b8fb4e79a1b8d387bc78cdda319ca6cec90166da175200bdec25bccb

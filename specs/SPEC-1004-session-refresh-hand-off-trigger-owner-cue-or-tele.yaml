@@ -1,0 +1,191 @@
+id: SPEC-1004
+title: Session refresh hand-off — trigger (owner cue or telemetry) plus a per-project
+  ephemeral hand-off store with journal pointers, taken by owner pick (interactive
+  sessions only)
+status: active
+created_at: 2026-09-29 16:07:33+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/session.py#handoff_store_dir
+- bin/lib/session.py#open_handoff_store
+- bin/lib/session.py#load_handoff_entries
+- bin/lib/session.py#cmd_session_handoff
+- bin/lib/session.py#handoff_start_echo_lines
+body: "## Scenario\n\nIn a long INTERACTIVE session the context fills up. The session\
+  \ learns \"time to refresh\" from the\nowner's cue («обновим сессию» / «refresh\
+  \ session») or from a data-driven telemetry crossing. Either\nway it WRITES one\
+  \ hand-off into the project's hand-off store and tells the owner one line:\n«Передача\
+  \ H-N сохранена — в новой сессии скажи «берём H-N»». The owner opens a new session\
+  \ in the\nSAME project (the kernel, or a consumer via its `-C` start); the startup\
+  \ report lists the open\nhand-offs. The owner says «берём H-N»; the session takes\
+  \ it — the text is loaded, the stored file is\ndeleted, and the journal keeps only\
+  \ a pointer that it happened. No copy-paste. The AI never reloads,\nnever starts\
+  \ a session, and never takes a hand-off on its own.\n\n## Internal\n\nA suggest-only\
+  \ session-hygiene rule plus the contract of its carrier. Six clauses, all mandatory\n\
+  together. It is NOT a gate: nothing blocks on it.\n\n### 1. Trigger — an OWNER CUE\
+  \ or a DATA-DRIVEN telemetry threshold (the AI never self-estimates)\nThe trigger\
+  \ fires from EITHER source: **(a) owner cue** — «обновим сессию» / «refresh session»\
+  \ or a\nnatural variant (the universal path; needs no telemetry); **(b) data-driven\
+  \ telemetry** — the\n`session context` sensor (SPEC-0115) reads the provider's logged\
+  \ per-turn usage and reports a crossing\nof the configured threshold. AI SELF-ESTIMATION\
+  \ stays RETIRED: absent a crossing the AI stays silent\nabout context; where no\
+  \ telemetry adapter exists, source (b) is absent and the rule falls back to (a).\n\
+  \n### 2. Where — only at a clean, state-committed seam\nWrite/offer ONLY at the\
+  \ nearest clean seam: after `land`, at a stage boundary using the resume\ncontract,\
+  \ or after a closed sub-question. NEVER mid-step, mid-edit, or with a half-applied\
+  \ change. If\nthe seam is ambiguous → stay silent (source (b): wait for the next\
+  \ clean seam).\n\n### 3. Fire-once (per cue / per crossing)\nONE hand-off per trigger.\
+  \ A telemetry crossing is proposed ONCE at the first clean seam after it; a\ndeclined\
+  \ proposal is not repeated. No AI-held re-offer counter.\nWhen the owner keeps working\
+  \ in the session after a hand-off was written, the hand-off is NOT\nre-written (no\
+  \ drop + write to keep it current): it stands until the owner's next refresh cue,\
+  \ whose\nhand-off replaces it.\n\n### 4. The carrier — a minimal, best-effort per-project\
+  \ hand-off store\n**Content contract (unchanged):** pointers / IDs / paths FIRST,\
+  \ a short summary SECOND. The hand-off\nis EPHEMERAL and NON-AUTHORITATIVE — it\
+  \ points at durable state (task / worktree / plan ids, the\nresume contract), never\
+  \ restates it, and is never cited as a source of truth.\n\n**Best-effort by design.**\
+  \ A hand-off is a convenience cache of pointers, not data. The store gives\nno delivery\
+  \ confirmation and keeps nothing after a take. A lost hand-off loses no work: it\
+  \ is\nreconstructed from the durable state it pointed at (tasks / plans / the journal,\
+  \ e.g. `task list\n--status in-progress`, `plan list`, `journal query --session\
+  \ <ref>`). The owner MAY additionally reopen\nthe old session with the provider's\
+  \ own tooling — a convenience, not a guaranteed recovery path.\n\n**Store.** `<git-common-dir>/yitc/handoffs/`\
+  \ of the project the session is anchored in (the engine,\nor a `-C` consumer): shared\
+  \ by every linked worktree of that repo, never in the working tree, never\ncommitted.\
+  \ One file per hand-off, `H-<N>.md`: YAML frontmatter (`id`, `title`, `author_session_ref`,\n\
+  `written`) + a markdown body (the hand-off text) — the existing frontmatter-markdown\
+  \ format, read\nthrough the existing frontmatter helper. Dirs and files take the\
+  \ checkout's sharing mode (the one\nderivation the audit packet store uses): under\
+  \ a default POSIX ACL created 0777/0666 and never\nchmod-ed, so the ACL mask survives;\
+  \ otherwise the shared-git-dir mode, else private 0700 / 0600 set\non the temp inode\
+  \ before the rename. An OWNER reopening a store whose mask was zeroed restores it\n\
+  . It is\nNOT `MEMORY.md` and never a buffer entry (SPEC-0039 §0).\n\n**What is state.**\
+  \ The hand-off FILES are the sole open/closed lifecycle state: a file present =\n\
+  open. The allocator reservation is id bookkeeping only; journal rows are history\
+  \ only and never\nchange state.\n\n**Journal rows — never the title or text.** `sha256`\
+  \ is SHA-256 over the exact stored `H-<N>.md`\nbytes (after redaction and final\
+  \ serialization) and `bytes` is their length; every terminal row\nhashes those same\
+  \ unchanged bytes before the rename/delete, so written and taken rows pair by\n\
+  id + sha256. `handoff_written {id, sha256, bytes}` ·\n`handoff_taken {id, sha256}`\
+  \ · `handoff_dropped {id, sha256}` · `handoff_expired {id, sha256,\nage_days}`;\
+  \ the acting session travels on the resolved event envelope (`session_ref`).\n\n\
+  **Guards.** `write` / `take` / `drop` require the strict fail-closed governance-key\
+  \ resolver\n(SPEC-0137) — an absent or ambiguous identity is refused. `author_session_ref`\
+  \ is durable v2\nprovenance usable for journal filtering, NOT a guaranteed provider-session\
+  \ locator. `take` / `drop` admit only `^H-[1-9][0-9]*$`; the resolved path's parent\
+  \ must be\nexactly the anchored store; a non-regular file or a symlink is refused.\
+  \ The title must be non-blank (non-empty after stripping whitespace),\nat most 120\
+  \ UTF-8 bytes, one line, with no CR/LF or control characters, and\ncarry NO credential\
+  \ (a title the credential-redaction boundary would change is REFUSED, not\nredacted).\
+  \ The body must be non-blank after redaction\n(original bytes preserved); credentials\
+  \ in the body are REDACTED and\ncounted. The whole file is at most 32 KiB. Any refusal\
+  \ leaves no file and no row — never truncated.\nAll verbs are refused in a dispatched-worker\
+  \ context.\n\n**One shared entry loader** serves list, session start, cleanup, take\
+  \ and drop: `lstat` first; the\ncanonical `H-<N>.md` name; the exact resolved parent;\
+  \ a regular non-symlink file; valid UTF-8 and\nfrontmatter schema; frontmatter `id`\
+  \ equal to the filename; a valid `written` timestamp. An invalid\nentry is surfaced\
+  \ and skipped — never followed, never mutated outside the store, and never able\
+  \ to\nabort `session start`.\n\n**Verbs** (the existing `session` group; engine\
+  \ and `-C <repo>`):\n  - `session handoff write --title \"<one line>\"` — text on\
+  \ stdin → title checks (refuse) → body redaction → limits → id from the\n    shared\
+  \ allocator (`_alloc_under_lock`, key `handoff`, reservation required: unique and\n\
+  \    increasing across deletions and worktrees) → private temp file + atomic rename\
+  \ →\n    `handoff_written` → then OPPORTUNISTIC cleanup: open files older than 7\
+  \ days are deleted, each\n    with `handoff_expired`. There is no wall-clock deletion\
+  \ guarantee: cleanup runs only at the next\n    `write`. Stdout: «Передача H-N сохранена\
+  \ — в новой сессии скажи «берём H-N»», plus «(скрыто\n    секретов: K)» only when\
+  \ K > 0, then one line telling the agent not to re-write the hand-off while\n  \
+  \  work continues in this session (the owner's next refresh cue replaces it, §3).\
+  \ The `write` help\n    names the admitted triggers (§1/§6) and one hand-off per\
+  \ trigger.\n  - `session handoff list` — open files: id, title, short author ref,\
+  \ age. Also the post-`/compact`\n    re-fold of the start echo (consumer form: `<engine>/bin/yitc-v2\
+  \ -C <repo> session handoff list`).\n  - `session handoff take <id>` — atomic rename\
+  \ to a private sibling name in the same directory\n    (exactly one caller wins;\
+  \ any other is told the hand-off is already taken or absent) → print the\n    body\
+  \ → delete → `handoff_taken`.\n  - `session handoff drop <id>` — delete → `handoff_dropped`.\n\
+  \n**No worktree.** These verbs write only the anchored repo's `<git-common-dir>/yitc/handoffs/`\
+  \ — never\na source or artifact file — so they run from any checkout, like a journal\
+  \ append (the exception is\nnamed in the write-flow home, AGENTS-SESSIONS §Writes\
+  \ happen in a worktree).\n\n**Session-start delivery.** In an interactive Controller\
+  \ session, `session start` (engine and `-C`)\nprints a report-only, suppressed-when-empty,\
+  \ bounded line: the open count + up to 5 newest\n`H-N «title» (<age>)` + the `session\
+  \ handoff list` pointer. It never changes the store and never\ntakes. A taken hand-off\
+  \ no longer exists, so it is never shown. The global project picker does not\nshow\
+  \ hand-offs.\n\n**Emergency fallback.** Only when the verb itself is unavailable\
+  \ (emergency mode,\n`patterns/emergency-mode.md`) the AI prints the hand-off in\
+  \ chat for the owner to paste, in the same\ncontent shape.\n\n### 5. Audience —\
+  \ interactive owner-facing sessions ONLY\nApplies ONLY in an interactive owner-facing\
+  \ session. A dispatched / background / cron worker never\nwrites, proposes, or takes\
+  \ a hand-off (no owner to confirm). A condition in this rule, not a delivery\nfilter:\
+  \ the seed line reaches every session; a worker does not act on it.\n\n### 6. Offer,\
+  \ write on the owner's go — never auto-refresh, never auto-take\nOn an OWNER CUE\
+  \ the cue itself is the go: the AI writes the hand-off at the clean seam and reports\n\
+  the one line. On a TELEMETRY crossing the AI only PROPOSES — «Контекст ~N% окна\
+  \ — предлагаю обновить\nсессию на этом шве. Go?» (N from the sensor, never invented)\
+  \ — and writes the hand-off only after the\nowner's live «go»; a declined proposal\
+  \ leaves no file and no row. The OWNER decides whether to open a\nnew session. The\
+  \ AI never compacts in place, never starts a session, and never takes a hand-off\n\
+  without a LIVE owner cue in the taking session («берём H-N») — a listed hand-off\
+  \ is not an owner cue\n(SPEC-0039 §4 / SPEC-0141).\n\n### Delivery + survival\n\
+  `binding: [seed]` renders this title into the session-start seed line. The post-`/compact`\
+  \ survival\npointers (AGENTS.md §After /compact + `<provider-config>/commands/yitc.md`\
+  \ §After /compact) are re-pointed to\nthis spec at activation, and gain the re-fold\
+  \ pointer `session handoff list` for the start echo\n(SPEC-0007 §5b co-design).\n\
+  \n### Provider-neutral\nThe rule names no vendor and no host path beyond the repo's\
+  \ own git common-dir; the telemetry parse\nlives behind SPEC-0115's provider-adapter\
+  \ seam.\n\n## Parameters\n\nNone consumed. Size cap 32 KiB, expiry age 7 days, start-echo\
+  \ bound 5 — implementation constants in\nthe verb, stated here for interpretation\
+  \ only.\n\n## Rationale\n\nThe predecessor made the hand-off a copy-paste chat block\
+  \ to keep a continuation seed from lingering\nin `MEMORY.md`. The owner then pasted\
+  \ hand-offs by hand several times a day across the kernel and\nconsumer projects\
+  \ — friction and loss risk. This carrier keeps the reason for the old ban (no\n\
+  long-lived text, no buffer bloat, no committed file) and removes the manual copy:\
+  \ the text lives in a\nmachine-local, per-project store with opportunistic cleanup,\
+  \ deleted on take; the journal records only that it\nhappened. It reuses the journal\
+  \ event mechanism, the shared id allocator, the redaction boundary and\nthe git-common-dir\
+  \ placement of machine-local state (the graph result cache) — no new journal, parser\n\
+  or committed store.\n\n## Verification\n\n- **VP1 (seed delivered):** after activation,\
+  \ `session start` stdout carries a seed line with THIS id.\n- **VP2 (survival re-pointed):**\
+  \ AGENTS.md §After /compact and `<provider-config>/commands/yitc.md` §After\n  /compact\
+  \ name THIS id and `session handoff list` → grep both.\n- **VP3 (no text in the\
+  \ journal):** a canary string in a hand-off's title and text appears in no\n  journal\
+  \ row (segment-aware `journal query --grep`).\n- **VP4 (single taker):** two concurrent\
+  \ `take` of one id → exactly one prints; one `handoff_taken`.\n- **VP5 (gone after\
+  \ take):** after `take` no file for that id exists in the store.\n- **VP5a (guards):**\
+  \ a traversal / malformed / symlinked id; a blank (empty or whitespace-only) /\n\
+  \  oversize / multiline / control-char / credential-bearing title; a blank body;\
+  \ a malformed or\n  symlinked store entry met by list / session start / cleanup\
+  \ (skipped, never followed, start never\n  aborts); and an absent identity are each\
+  \ refused\n  with no file and no row; a credential in the body is redacted and counted;\
+  \ the created file's mode\n  is 0o600 when no ACL or shared mode applies; written/taken\
+  \ rows of one hand-off carry the same sha256 of the stored bytes.\n- **VP6 (two-phase\
+  \ telemetry):** a declined telemetry proposal leaves no file and no row.\n- **VP7\
+  \ (per project):** under `-C <consumer>` the file lands in THAT repo's git common-dir\
+  \ and the\n  rows in THAT repo's journal; a hand-off written from a linked worktree\
+  \ lists from the main checkout.\n- **VP8 (supersession honest):** `supersedes: <workshop-spec>`;\
+  \ on activation <workshop-spec> → superseded.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0007
+- SPEC-0039
+- SPEC-0115
+- SPEC-0141
+- SPEC-0073
+- session-refresh-hand-off-store-per-project-ephemer
+requires:
+- SPEC-0115
+supersedes: null
+activation_owner_task: null
+proposed_by: session-refresh-hand-off-store-per-project-ephemer
+binding:
+- seed
+seed_cue: In an interactive session, on the owner's «обновим сессию» / «refresh session»
+  cue or a `session context` threshold crossing, write ONE hand-off at the next clean
+  seam — never self-estimate context, and take a hand-off only on the owner's «берём
+  H-N».
+init_concern: null
+implements_signature:
+  bin/lib/session.py#cmd_session_handoff: d7bb4b3849e4d2f1b07f64f5e9d36ddbc4f82eaea1f6abf69f50bd7624dc6e53
+  bin/lib/session.py#open_handoff_store: abaf7d092cb5cbf7db2883b42d18aa6a7fe9d555f7e33b807f5e975b50cd3710

@@ -1,0 +1,621 @@
+id: SPEC-0175
+title: Spike-sandbox data floor — a restored production copy is the sanctioned source,
+  treated on three strands before the stack is usable
+status: active
+created_at: 2026-08-11 12:36:34+00:00
+travels: kernel
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA spike sandbox is worth having because it holds REAL data —\
+  \ real volumes, real edge cases, real\nforeign-key tangles. So the sanctioned way\
+  \ to fill one is to take a static copy of production and\nrestore it into the sandbox.\
+  \ That is permitted, and it is the point.\n\nWhat is NOT permitted is the spike\
+  \ RUNTIME touching the live production system, and what is not\nSAFE is working\
+  \ in a copy that still carries live values. A restored copy is not made safe by\n\
+  living in a sandbox: it arrives carrying webhook URLs that still route, tokens that\
+  \ still\nauthenticate, people's addresses that are harmful the moment they are read,\
+  \ and outbox rows that\nwill send the moment a worker starts.\n\nSo the owner/AI\
+  \ answers five questions the same way every reader would:\n\n1. May I restore a\
+  \ production copy into my spike sandbox? — **Yes. That is the sanctioned source.**\n\
+  2. May the refresh step read live production to make that copy? — **Yes, read-only,\
+  \ and only that step.**\n3. What is forbidden? — **The spike runtime connecting\
+  \ to the live production system.**\n4. What must I do to the copy before the stack\
+  \ is usable? — **Treat all three strands: neutralize\n   what can reach, handle\
+  \ what discloses, defuse what would do work — and PROVE it.**\n5. Who may touch\
+  \ a production-derived artifact before that proof passes? — **Only the export step,\n\
+  \   the restore, the treatment step and the probes — and the artifact chain outside\
+  \ the sandbox\n   (the dump, its temp files, logs and backups) is destroyed, not\
+  \ left lying.**\n\nAnd the owner can ask any adopting project *\"prove nothing live,\
+  \ nothing pending, and nothing\nprivate beyond what you explicitly accepted and\
+  \ recorded, is in your spike copy\"* and get a machine\nanswer with controls, not\
+  \ a reassurance.\n\n## Internal\n\n> **SANDBOX FAMILY — navigation, not a rule.**\
+  \ `spike_data_safety` is ONE of three\n> separately named concerns that together\
+  \ answer a project's sandbox questions: `sandbox_entry`\n> (SPEC-0169 — WHERE a\
+  \ collaborator enters, OPT-IN), `spike_sandbox` (SPEC-0172 — WHETHER a caged\n>\
+  \ bridge exists and its pinned release) and `spike_data_safety` (this spec — WHAT\
+  \ the restored copy\n> carries). They stay DISTINCT; a reader who knows only one\
+  \ of the names sees all three via\n> `bin/yitc-v2 graph query sandbox-family`. Grounds:\
+  \ on 2026-08-13 a reader grepped `spike_sandbox`,\n> found none in a project that\
+  \ declares its sandbox under `sandbox_entry`, and concluded it had none\n> (X-0852).\
+  \ A navigational pointer (SPEC-0005 rule 8) — it changes nothing here, and it creates\
+  \ NO\n> concern-to-concern dependency: declaring a sandbox does not, by this pointer,\
+  \ make anything owed.\n\nTHE SPIKE-SANDBOX DATA FLOOR. Eight rules. It is the DATA\
+  \ sibling of SPEC-0172: that contract's\natoms are predicates over the STACK a spike\
+  \ declares (identity, scheduler, outbound channels, grant\norder); these are predicates\
+  \ over what the COPY carries. Separate spec because the surface,\nthe detectors\
+  \ and the declaring evidence are different (SPEC-0005 rule 6 lower bound); it adds\
+  \ no\nstore, FSM, journal, service or parser (rule 8).\n\n### 1. The axis is the\
+  \ LIVE SYSTEM, not \"production data\"\nThe boundary this floor draws is **live\
+  \ production system vs a static copy derived from it** — NOT\nproduction-data vs\
+  \ not. A production-DERIVED static copy is the **sanctioned** data source of a\n\
+  spike sandbox.\n**Why this rule exists as a rule and not as a wording preference:**\
+  \ the production-data-vs-not axis\nputs the practice's own subject matter on the\
+  \ forbidden side, and every downstream failure followed\nfrom that. Under it, a\
+  \ restored copy became \"the sandbox's own data\" the moment it landed, so the\n\
+  floor read SATISFIED while the copy carried live values (X-0798), and whether the\
+  \ restore was\npermitted at all was undecidable from the text (X-0799 — the owner\
+  \ of the pilot project hit this\npersonally). A later surface MUST NOT restate the\
+  \ floor on the production-data axis.\n\n### 2. THE ACTOR SPLIT — stated, never inferred\n\
+  Two actors, two different permissions. Both halves are normative, and neither may\
+  \ be left to a\nreader's inference:\n\n- **The named refresh/export STEP MAY read\
+  \ the live production system READ-ONLY**, for the sole\n  purpose of producing a\
+  \ static copy. It writes nothing there, changes nothing there, and it is the\n \
+  \ ONLY actor holding this permission.\n- **The spike RUNTIME NEVER connects to the\
+  \ live production system.** No process inside the spike\n  stack is pointed at it,\
+  \ tunnelled to it, reading from it, or writing to it.\n\nA floor that states only\
+  \ \"a spike never touches production\" collapses these two actors into one and\n\
+  is therefore defective by this rule — that collapse is what killed the first replacement\
+  \ wording,\nand it is why the split is a RULE rather than a clarifying sentence.\n\
+  \n### 3. THREE STRANDS — three different dangers, each with its OWN verbs\nA restored\
+  \ copy carries three kinds of danger. They are not degrees of one danger, and a\
+  \ strand\nanswered with another strand's verb is **not answered**.\n**Classification\
+  \ is MANY-TO-MANY, and this is the common case, not an edge.** One surface may sit\n\
+  in two strands or all three, and EVERY applicable strand must be treated and proven\
+  \ for it. A\ncustomer email address is DISCLOSURE (it identifies a person) and REACHABILITY\
+  \ (mail sent to it\narrives at a real inbox); accepting it under disclosure says\
+  \ nothing about whether it can still be\nwritten to. Filing a surface under one\
+  \ strand does not discharge the others.\n\n- **REACHABILITY — can this value cause\
+  \ a LIVE side effect?**\n  The class is anything that can **route, authenticate,\
+  \ identify, schedule or trigger**: webhook\n  URLs, tokens, bot credentials, redirect\
+  \ targets, addressable contacts — **and** external resource\n  IDs and object keys,\
+  \ which route just as surely as a URL does.\n  Verb: **NEUTRALIZE** — replace the\
+  \ value with one that cannot reach.\n  **NO-ACCEPT SCOPES TO WHAT CAME OUT OF THE\
+  \ COPY — a row SEEDED AFTER the treatment is OUTSIDE\n  this rule, not an exception\
+  \ to it.** The absence of an accept verb here governs values that\n  ORIGINATED\
+  \ IN THE PRODUCTION COPY: an ACCEPT would leave one of THOSE reachable, and that\
+  \ is\n  what is refused. A sandbox-owned row written AFTER neutralization — the\
+  \ admin a bring-up seeds\n  so that anyone can sign in at all, whose hash must be\
+  \ real because a hash nobody can use is the\n  same as no account — was never in\
+  \ the copy, so it is not an ACCEPT and needs none; its\n  credential is a sandbox\
+  \ credential, not a production one under another name. This is spelled\n  out because\
+  \ \"no credential anyone can use\" reads as ABSOLUTE, and a reader meeting a detector\n\
+  \  exclusion on the ONE strand with no accept verb will otherwise read it as an\
+  \ accept smuggled\n  in — a consumer already had to write that reinterpretation\
+  \ in its own territory. This is a\n  SCOPE statement, never a general reachability\
+  \ exception: for anything that DID come out of the\n  copy, NEUTRALIZE remains the\
+  \ only verb.\n  **AND AN EXCLUSION FOR SUCH A ROW IS KEYED TO PROVEN POST-TREATMENT\
+  \ PROVENANCE, NEVER TO A BARE\n  ADDRESS.** A detector exclusion keyed only on an\
+  \ identifying value says \"skip this address\",\n  which is also what a SURVIVING\
+  \ PRODUCTION CREDENTIAL at that address looks like — so an\n  address-keyed exclusion\
+  \ does NOT satisfy this rule, however carefully the address is declared.\n  What\
+  \ must be proven, at a DECLARED uniqueness scope: the excluded row is the post-treatment\n\
+  \  seeded one and there is EXACTLY ONE of it; no copied row holds the identifying\
+  \ value; and the\n  detector compares the identity in the SAME NORMALIZED form the\
+  \ database stores it in. The\n  shapes that defeat a careless exclusion are named\
+  \ so they can be checked for: a uniqueness\n  scope narrower or wider than the one\
+  \ the identity is really unique at, a normalization mismatch\n  between comparison\
+  \ and storage, bad ordering, and a LATER import re-introducing a copied row at\n\
+  \  that address after the proof passed.\n  **ORDERING is part of the rule:** seed\
+  \ AFTER the treatment — earlier and the treatment\n  neutralizes the hash — and\
+  \ BEFORE the proof, or the one row nothing inspected is the excluded\n  one.\n \
+  \ **Two conditions that are commonly OVERSTATED, in their correct strength.** Declaring\
+  \ the\n  seeded identity as a single value in the same carrier as the sentinels\
+  \ (rule 5) is\n  TRACEABILITY — it keeps the value out of hard-coding and out of\
+  \ naming-convention inference —\n  and is NOT itself a safety property; it proves\
+  \ nothing about what the copy contains. And \"it is\n  structurally impossible for\
+  \ a copied row to hold that identifying value\" holds ONLY where a\n  DATABASE CONSTRAINT\
+  \ enforces it AND a proof runs over the NORMALIZED identity at the declared\n  uniqueness\
+  \ scope; asserted from the treatment's rewrite alone, the claim is stronger than\
+  \ the\n  mechanism delivers.\n- **DISCLOSURE — is this content harmful merely by\
+  \ being READABLE?**\n  Personal data, financial records, anything privacy-bearing\
+  \ or regulated. Neutralizing a webhook\n  URL does not neutralize a person's address,\
+  \ and no length of neutralize-list ever will: the\n  danger is not that the value\
+  \ reaches something, it is that a reader sees it.\n  Verbs: **MASK, MINIMIZE, EXCLUDE,\
+  \ or explicitly ACCEPT.**\n  **ACCEPT is a BOUNDED exception, not a fourth free\
+  \ option.** It is a named human approval —\n  recorded BEFORE any accepted residual\
+  \ is read, emitted or exposed to anyone outside rule 4's\n  permitted set, and in\
+  \ any case before the proof can pass. (Never \"before the copy is worked with\"\
+  \ —\n  rule 4 forbids that phrasing by name.) It records four things: the class\
+  \ accepted, the PURPOSE it is\n  accepted for, WHO may read it, and WHEN it is destroyed.\
+  \ It is machine-visible as a residual —\n  the proof REPORTS every accepted class\
+  \ rather than passing silently over it, so \"accepted\" never\n  reads the same\
+  \ as \"absent\". Silence is not acceptance, and a blanket acceptance of every class\
+  \ is\n  not an answer to this strand — it is the strand going unanswered with a\
+  \ signature on it.\n- **OPERATIONAL STATE — will this copied state make WORK HAPPEN?**\n\
+  \  Outbox rows, queued jobs and scheduler entries are the obvious members, but the\
+  \ class is defined\n  by the EFFECT, not by the moment or the storage shape: **any\
+  \ copied state that can cause work\n  when ANYTHING consumes it** — a worker, a\
+  \ scheduler, a request handler, a database trigger, a\n  stored procedure, a replication\
+  \ or change-data-capture subscription, an installed extension, or\n  an external\
+  \ callback arriving later — **regardless of WHEN that happens.** A job that fires\n\
+  \  tomorrow, or only after a user acts, is in this class; so is executable schema\
+  \ that ships inside\n  the copy and calls out the moment it is restored.\n  Verb:\
+  \ **DEFUSE** — the state is drained, cancelled, disabled or marked terminal before\
+  \ anything\n  can consume it.\n  *Two readings this wording exists to refuse:* \"\
+  it does not fire at startup, so it is not\n  operational state\", and \"a trigger\
+  \ is schema, not a row, so no strand covers it\".\n\n### 4. THE UNTREATED ARTIFACT\
+  \ — from the first exported byte to destruction\nThe obligation attaches to the\
+  \ **production-derived ARTIFACT**, not only to the restored database.\nIt begins\
+  \ at the FIRST EXPORTED BYTE and ends when that artifact is treated-and-proven or\n\
+  destroyed. **A STREAMED export is the preferred shape, and the rule covers both.**\
+  \ Where the export can be\npiped straight into the restore with no host-side dump\
+  \ file at all — the shape the pilot project's\nreal refresh uses — there is simply\
+  \ less untreated artifact to govern, and that is the safer\narrangement rather than\
+  \ merely a permitted one. Where a dump IS staged, everything below applies to\n\
+  it. In scope for the whole of that interval: the dump or export itself (when one\
+  \ exists), its temporary files,\nany CI artifact or object-store copy it was staged\
+  \ through, every backup of it, the restored copy —\n**and the OUTPUTS of every step\
+  \ that handles it**: the logs, console output, traces, and the\nbefore/after or\
+  \ redaction REPORTS produced by the export, the restore, the treatment step and\
+  \ the\nprobes. A treatment step that writes the values it just removed into its\
+  \ own report has moved the\ndata, not removed it; those outputs are untreated artifacts\
+  \ and carry the same emission limits and\nthe same destruction obligation as the\
+  \ dump. Naming only the restored copy would\nleave the rawest form of the data —\
+  \ the dump — governed by nothing, which is the hole this rule\ncloses.\n\n- **WHO\
+  \ may touch an untreated artifact:** only the **export step, the restore, the treatment\
+  \ step\n  and the probes** — **plus a person holding a rule-3 recorded acceptance,\
+  \ strictly within the scope\n  that acceptance names.** That last clause is not\
+  \ a loosening; without it the emission rule's own\n  escape (\"needs the rule-3\
+  \ recorded acceptance first\") is DEAD, because no actor the list admits\n  is a\
+  \ person who could hold one. A rule that grants a permission no admitted actor can\
+  \ exercise\n  has not been strict, it has been incoherent. Application workers,\
+  \ schedulers, request handlers and networked processes stay\n  OFF until the proof\
+  \ passes; during that window the environment holding the artifact denies\n  outbound\
+  \ egress and keeps executable schema (triggers, stored procedures, subscriptions,\n\
+  \  extensions) disabled — otherwise the copy acts before anyone has judged it.\n\
+  \  **Executable schema is made inert AS PART OF the restore, never disabled afterwards.**\
+  \ The\n  restore is INSIDE this window, and a naive restore creates-and-ARMS the\
+  \ schema as it goes — a\n  copied trigger can enqueue a live-shaped call on the\
+  \ very insert that populates the copy, with no\n  worker, no scheduler and no application\
+  \ running. A rule that says \"disable it during the window\"\n  is already too late\
+  \ by the time it is read; the copy must arrive inert.\n- **WHAT A PROBE MAY EMIT\
+  \ — a PROPERTY, never a list of permitted shapes.** A probe is allowed\n  inside\
+  \ the window precisely because it is supposed to be blind, and blindness is a property\
+  \ of\n  the EFFECT of its output, not of the output's format. **The test has TWO\
+  \ limbs, and an emission\n  must pass BOTH:** it may not (a) increase what its reader\
+  \ learns about any identifiable person,\n  account or tenant in the copy, and it\
+  \ may not (b) reveal, reconstruct or link any value that can\n  route, authenticate,\
+  \ identify, schedule, trigger or reach an external resource. Limb (b) is not\n \
+  \ redundant: a live webhook URL or an object key is about no person at all, so a\
+  \ person-centric\n  test alone would wave it through. Anything that does not clearly\
+  \ pass BOTH limbs is treated as\n  failing and needs the rule-3 recorded acceptance\
+  \ first — the permission to touch is not a\n  permission to look.\n  The following\
+  \ are ILLUSTRATIONS of the test, not the rule, and no list here may be read as a\n\
+  \  whitelist:\n  - *Passes:* the schema; a coarse detector total over the whole\
+  \ copy; pass/fail; the hash of a\n    control value the probe itself planted.\n\
+  \  - *Fails:* a production value. A deterministic hash of one — where the value\
+  \ space is small or\n    enumerable (an email, a phone number, a customer id) a\
+  \ hash is that value in another encoding,\n    reversible by dictionary and linkable\
+  \ across runs even when it is not. A count keyed by a\n    sensitive predicate,\
+  \ a tenant, a person or a small cohort — `hiv_diagnosis_rows: 1` names a\n    person\
+  \ as surely as the row does. Anything transmitted off the host, or written into\
+  \ logs,\n    transcripts, an AI context, or test output.\n    **The PROOF'S OWN\
+  \ REPORT is a permitted emission — and saying so is not an exception to the\n  \
+  \  property, it is the property applied.** Rule 6 obliges the proof to report its\
+  \ controls, its\n    completeness disposition and the NAMES of accepted residual\
+  \ classes; each passes both limbs by\n    construction (a pass/fail, a coarse total,\
+  \ a control outcome, a disposition, a class name).\n    Read without this sentence,\
+  \ the failing example above — which is aimed at raw VALUES leaking\n    into output\
+  \ — forbids the very report rule 6 requires, so a compliant proof could not state\n\
+  \    that it had passed. Where an accepted class is scoped so narrowly that naming\
+  \ it would\n    identify a person, the NAME is bounded exactly as the acceptance\
+  \ is — and a report naming a\n    class whose acceptance restricts its readers may\
+  \ not be written to a channel that does not\n    respect that restriction. A permitted\
+  \ emission is still addressed to somebody.\n    **THE ACCEPTANCE ESCAPE IS DISCLOSURE-ONLY.**\
+  \ An emission that fails limb (a) may be licensed by\n    a rule-3 acceptance, because\
+  \ disclosure is the strand that HAS an accept verb. An emission that\n    fails\
+  \ limb (b) may NOT: reachability has no ACCEPT — its only verb is NEUTRALIZE — so\
+  \ a value\n    that can route, authenticate, schedule or trigger is emitted only\
+  \ blind (a count, a property) or\n    already neutralized. Acceptance never discharges\
+  \ reachability, and the escape must not be read\n    as though it did.\n  **Build\
+  \ detectors to this property by DEFAULT, not by memory.** A detector written the\
+  \ obvious\n  way — \"show me what you found\" — echoes the live-shaped value it\
+  \ matched and breaks limb (b) on\n  its first run; leg 1 hit exactly that. The default\
+  \ output of a detector is its COUNT.\n  *A whitelist of shapes cannot bound disclosure.\
+  \ Do not convert this rule back into one.*\n- **DESTRUCTION is part of the rule,\
+  \ not hygiene after it.** Every untreated artifact outside the\n  sandbox is destroyed\
+  \ once the copy is restored; a surviving raw dump, staging copy or backup is a\n\
+  \  violation of this floor, not an untidy leftover.\n- **AND WHAT BECOMES PERMITTED\
+  \ WHEN THE PROOF PASSES — stated, because two independent readers both\n  named\
+  \ this the hardest thing to answer here.** Once the proof passes, the treated copy\
+  \ is ordinary\n  sandbox data: the spike stack may run against it, and it is governed\
+  \ from then on by the ordinary\n  spike cage (SPEC-0172), not by this rule. Two\
+  \ things do NOT end at that moment: an accepted\n  disclosure residual stays bounded\
+  \ by the purpose, readers and destruction date its rule-3 record\n  names, and the\
+  \ copy is still never a route to the live production system (rule 2). This floor\n\
+  \  stated when its obligation ENDS and left what becomes ALLOWED to inference —\
+  \ and an unresolved\n  inference at exactly this seam is the failure this whole\
+  \ contract exists to remove.\n\nPhrasings that place the obligation \"before the\
+  \ copy is worked with\" are forbidden by this rule:\nthey name no actor and no moment,\
+  \ so they hide exactly this interval.\n\n### 5. DECLARE the classes — in the existing\
+  \ carrier, as a registered concern\n**The CANDIDATES are DERIVED from the live schema;\
+  \ only the DECISION is declared.** A project does\nnot hand-keep a list of its own\
+  \ tables and columns — that list rots exactly the way this methodology\nforbids\
+  \ elsewhere. It enumerates candidate surfaces MECHANICALLY from the schema itself,\
+  \ and\ndeclares, per candidate, the DECISION: which strand(s) it carries, or none-of-the-three\
+  \ with a\nreason. A candidate is a guess, never a finding. This is the shape the\
+  \ pilot project independently\nshipped (its probe derives candidates from `information_schema`\
+  \ and its declaration carries the\nper-column decision) — two parties reaching it\
+  \ from opposite ends, which is why it is stated as the\nrule rather than as one\
+  \ project's habit. The travel boundary (rule 7) is UNCHANGED: the derivation\nMECHANISM\
+  \ travels, the resulting inventory stays local.\n\nA project DECLARES, per strand,\
+  \ which of its own surfaces hold which class — **plus, as a FOURTH\nkey, the surfaces\
+  \ it answers as NONE of the three, each with a reason.** That fourth key is what\n\
+  makes the rule-6b fail-closed sweep usable instead of permanently failing: an honest\
+  \ first pass over\na real schema leaves many surfaces (primary keys, numeric foreign\
+  \ keys, a filename) in no strand at\nall, and without a place to say \"none of the\
+  \ three, because it is an internal row id\" a project must\neither stuff id columns\
+  \ into a strand list or never pass. Fail-closed then refuses **silence**,\nwhich\
+  \ is the thing worth refusing, rather than refusing **completeness**, which is unreachable.\n\
+  The declaration lives\nin the ops-contract carrier as a registered concern (SPEC-0128\
+  \ rule 1), so the born template, the\ndeclare-or-waive sweep and the debt lens are\
+  \ all GENERATED from one declaration. No parallel\nchecklist, no per-project schema\
+  \ editing, no second store — the same shape SPEC-0172 rule 2 uses,\nin its OWN carrier\
+  \ section: a section is owned by exactly one governing spec, so this floor declares\n\
+  `spike_data_safety` beside the wiring contract's `spike_sandbox` rather than reaching\
+  \ into it.\n**Presence policy: DECLARE-OR-WAIVE — and the waiver is REFUSABLE, not\
+  \ a free pass.** Every project\nthat answers the bridge question also answers this\
+  \ one; a project running no spike sandbox waives in\none line, exactly as it waives\
+  \ the bridge. But a waiver ASSERTS a fact — \"this project fills no\nsandbox from\
+  \ a production-derived copy\" — and that assertion is checkable against what the\
+  \ project\nalready declares elsewhere: a waiver standing beside an enabled bridge,\
+  \ a declared refresh/export\nstep, or recorded evidence of a restored copy is REFUSED,\
+  \ not accepted. A waiver that cannot be\ncontradicted by anything is a silence with\
+  \ a signature on it — which is the state rule 5 exists to\nremove.\n**THAT REFUSAL\
+  \ IS PERFORMED — and here is exactly what it reads, so no reader has to\ninfer what\
+  \ \"contradicts\" means.** The concern names a residual shape hook\n(`shape_hook:\
+  \ spike_data_safety_shape`, dispatched by the same registry-driven declare-or-waive\n\
+  sweep every other concern rides — SPEC-0128 rule 2, no second mechanism). When,\
+  \ and only when, this\nsection is WAIVED, the sweep reads THREE signals off the\
+  \ project's own already-parsed carrier and\nREFUSES the waiver on any one of them,\
+  \ naming the contradicting path:\n\n| Signal | Read from | Contradiction when |\n\
+  |---|---|---|\n| (a) an enabled spike bridge | `spike_sandbox.bridge.enabled` |\
+  \ truthy |\n| (b) a declared refresh/export step | `spike_sandbox.bridge.refresh`\
+  \ · `spike_sandbox.bridge.export` · `spike_sandbox.refresh` · `spike_sandbox.export`\
+  \ | declared non-empty |\n| (c) recorded evidence of a restored copy | `spike_sandbox.restored_copy`\
+  \ · `spike_data_safety.restored_copy` | declared non-empty |\n\nSignal (a) is boolean-shaped;\
+  \ (b) and (c) are read TYPE-GENERICALLY (a command string, a list of\nsteps and\
+  \ a mapping all count; `~`, `\"\"`, `[]` and `{}` do not), so a project cannot evade\
+  \ the\nrefusal by declaring its refresh step in a different shape.\n\n**What this\
+  \ refusal is NOT, stated because the failure mode here is over-refusing.** It judges\
+  \ the\nWAIVER, never the project: a section that DECLARES `data_safety:` is not\
+  \ touched by this hook even\nbeside an enabled bridge (that project answered the\
+  \ question), an ABSENT section is the generic\nstance check's business, and a bridge\
+  \ declared `enabled: false` is a real answer rather than a\ncontradiction. A check\
+  \ that refused every waiver would break the declare-or-waive contract for\nevery\
+  \ project that legitimately runs no spike sandbox — which is the honest answer this\
+  \ floor\nkeeps cheap (one line), exactly as the bridge question does. The two asks\
+  \ are deliberately issued\nin ONE pass rather than staged, so a project answers\
+  \ both keys in a single sitting instead of a\nsecond round-trip.\n\n#### 5a. The\
+  \ decision FILE shape — keys the kernel names, values the project owns\nA project\
+  \ that keeps its per-surface decisions in a file beside the carrier (conventionally\n\
+  `bin/spike-data-classes.yaml`; the filename is not the contract) holds them in this\
+  \ KEY shape, which\nthe rule-6 proof may expect to read:\n- `surfaces` — a non-empty\
+  \ mapping keyed `schema.table.column`; each entry carries EITHER\n  `none: <reason>`\
+  \ (the fourth key above) OR `strands` + `verb` (its strand decision per rule 3 and\n\
+  \  the treatment verb), never both;\n- `detectors` — a list whose every entry carries\
+  \ `id` (the pointer a proof names).\n\nDetector bodies, treatments, the executable\
+  \ schema, any render script and the inventory itself stay\nlocal (rule 7; SPEC-0073).\
+  \ The kernel surface is the same report-only advisory as SPEC-0172 §2b\n(`spike\
+  \ declaration shape: …`, at the init sweep and in the read-only `sandbox-family`\
+  \ view) when a\ndeclared bridge has no `bin/*.yaml` file of this shape — never a\
+  \ refusal. *In-place additive amend\n(SPEC-0005 §7); the travel boundary is unchanged.*\n\
+  \n**Declaring BY REFERENCE to that file satisfies rule 5.** A project that keeps\
+  \ its\nper-surface decisions in the §5a file does NOT restate them in the carrier:\
+  \ rule 5's \"the\ndeclaration lives in the ops-contract carrier\" is met by a `data_safety:`\
+  \ mapping whose strand keys\nname that file instead of listing surfaces inline —\
+  \ e.g. `data_safety: {decisions:\nbin/spike-data-classes.yaml, proof: <where the\
+  \ proof runs>}`. The file stays the ONE authored\nsource; **no in-carrier projection\
+  \ of it is required**, and a generated copy of the file rendered\ninto the carrier\
+  \ is a second store this rule never asked for. Nothing kernel-side reads per-surface\n\
+  entries in the carrier: the declare-or-waive sweep checks only that `data_safety`\
+  \ is a declared\nmapping (`bin/lib/init.py#_ops_declared`), and the rule-6 proof\
+  \ reads the §5a file. Silence stays\nrefused — an empty section is still unanswered.\
+  \ *In-place additive amend (SPEC-0005 §7).*\n\n### 6. PROVE the treatment by querying\
+  \ the copy — two obligations, both fail-closed\nA declaration is not a proof. The\
+  \ treatment is proven by querying the treated copy, under two\nobligations that\
+  \ are what keep the proof from being satisfied on paper:\n\n- **(a) A CONTROL PER\
+  \ DETECTOR.** Each detector is demonstrated to catch a planted value **of its\n\
+  \  own class**, on a copy seeded with that value, and to pass after treatment. One\
+  \ generic planted\n  value proves ONE detector and says nothing about the others.\n\
+  - **(b) SCOPE COMPLETENESS, FAIL-CLOSED.** The proof NAMES every copied surface\
+  \ — columns, JSON and\n  free-text payloads, attachments, caches, encrypted blobs,\
+  \ executable schema, and any other copied\n  store — and **fails closed on a surface\
+  \ it can neither classify nor dispose of**, rather than\n  passing silently. Silence\
+  \ is a REFUSAL, never an omission.\n  **The enumeration covers DERIVED surfaces\
+  \ and executable schema, not only base tables.** An\n  enumeration keyed on tables\
+  \ silently misses views, materializations and triggers, so the\n  fail-closed half\
+  \ would be evaded by construction rather than by omission — leg 1 confirmed a\n\
+  \  table-keyed sweep passing over both a view and a trigger that carried live values.\n\
+  \  **An UNQUERYABLE surface is disposed of, not merely reported.** A binary attachment\
+  \ or an\n  encrypted blob cannot be read by a text detector, so a rule that only\
+  \ refuses it means a project\n  with one binary column can never pass. Its legitimate\
+  \ dispositions are exactly two: **EXCLUDE it\n  from the copy** (it is not copied\
+  \ at all), or **explicitly ACCEPT it** under rule 3's recorded\n  disclosure acceptance.\
+  \ The proof fails closed only when it is NEITHER.\n  **But ACCEPT discharges the\
+  \ DISCLOSURE strand ONLY, and an unqueryable surface is exactly where\n  that matters\
+  \ most.** An encrypted blob or a binary attachment may carry tokens (reachability)\
+  \ or\n  queued work (operational state) that nobody can see precisely BECAUSE it\
+  \ is unqueryable. Accepting\n  it as a disclosure risk says nothing about those,\
+  \ so an unqueryable surface that could carry either\n  is **EXCLUDED** unless those\
+  \ strands are separately answered — treated by their own verbs, or\n  recorded as\
+  \ none-of-the-three with a reason. Disposing of an unreadable surface with the one\
+  \ verb\n  that only covers readability is how a live token rides into the sandbox\
+  \ unexamined.\n  **The enumeration is taken over the SOURCE of the copy, and a surface\
+  \ REMOVED by treatment is\n  RECORDED as disposed.** Enumerating the TREATED copy\
+  \ instead lets treatment-by-deletion vanish: a\n  surface dropped to satisfy the\
+  \ inert-on-restore rule above simply stops being a candidate, so the\n  sweep passes\
+  \ with no record that it ever existed. A project could drop every trigger, pass\
+  \ cleanly,\n  and the proof could not tell TREATED from NEVER-EXISTED. Same family\
+  \ as (c) below: the proof must\n  distinguish treated from absent, and silence is\
+  \ not evidence of either.\n  **That source enumeration is CAPTURED BY THE EXPORT\
+  \ STEP and TRAVELS WITH THE COPY.** The proof\n  runs inside the sandbox after the\
+  \ restore, and rule 2 gives live-read permission to the named\n  refresh/export\
+  \ step ALONE — so the proof may NOT reach back to the live system to build the\n\
+  \  enumeration itself. The export step, which is permitted, captures it as a manifest\
+  \ that travels\n  with the copy, and the proof reads that. Stated because the first\
+  \ version of this rule obliged the\n  proof to do something rule 2 forbids it to\
+  \ do: a rule nobody may obey is not a stricter rule, it is\n  an unenforceable one.\n\
+  \  **The manifest is DELIVERED AS ITS OWN OUTPUT of the export step, never attached\
+  \ to a dump file** —\n  the preferred streamed shape has no host-side file to attach\
+  \ anything to, so \"travels with the\n  copy\" means delivered alongside it, not\
+  \ embedded in it.\n  **The manifest is SUBJECT TO THE SAME TWO-LIMB TEST as any\
+  \ other emission — \"schema only\" is not a\n  safety class.** A surface NAME can\
+  \ carry the payload: a per-tenant schema named after the customer,\n  or a table\
+  \ whose name states a sensitive predicate about the people in it, discloses without\
+  \ a\n  single value being read. Where a name does that, the manifest carries a stable\
+  \ opaque alias and the\n  real name lives in an acceptance-bound annex.\n  **THAT\
+  \ ANNEX IS NOT A NEW ARTIFACT — it IS the rule-3 acceptance record, and it may not\
+  \ become a\n  side file.** A real name that discloses is disclosed CONTENT, so the\
+  \ only thing permitted to hold it\n  is the acceptance that licenses it: the annex\
+  \ is a field OF that record and inherits its terms\n  unchanged — the PURPOSE the\
+  \ name is kept for, WHO may read it, WHEN it is destroyed — and it dies\n  WITH\
+  \ the acceptance rather than living the manifest's longer life. Three consequences,\
+  \ stated\n  because an alias otherwise merely MOVES the disclosure it was meant\
+  \ to remove: the annex NEVER\n  travels with the copy and is never an export output\
+  \ (only the aliased manifest is); a manifest whose\n  aliases resolve for a reader\
+  \ the acceptance does not admit has failed limb (a) exactly as a clear\n  name would;\
+  \ and a project with no channel able to respect those reader controls does not get\
+  \ an\n  annex — it EXCLUDES the surface instead. No new store, no new parser, no\
+  \ second record: if the\n  acceptance cannot hold the name, the name is not kept.\
+  \ **And, so qualified, the manifest SURVIVES the\n  destruction sweep.** Destruction\n\
+  \  covers step outputs that carry VALUES; a list of surface NAMES carries none,\
+  \ passes both emission\n  limbs, and is precisely what the proof must read AFTER\
+  \ the restore — destroying it at restore time\n  would delete the evidence the next\
+  \ rule depends on. Any export output that does carry values is\n  destroyed as before.\n\
+  \  **The METADATA around an unqueryable surface is its own surface.** `attachments.filename\
+  \ =\n  passport-scan.jpg` discloses without the blob ever being read; classifying\
+  \ the blob and\n  forgetting its filename is the leg-1 miss this sentence exists\
+  \ to prevent.\n- **(c) ACCEPTED RESIDUALS ARE REPORTED, never absorbed.** A pass\
+  \ that rests on a rule-3 disclosure\n  acceptance says so, naming each accepted\
+  \ class. A proof whose output cannot tell \"this class was\n  treated\" from \"\
+  this class was accepted\" is not a proof of this floor — it is the reassurance the\n\
+  \  floor exists to replace.\n\n### 7. What travels and what does not\nThe **RULES\
+  \ travel** — the three strands, the actor split, the declare obligation and the\n\
+  prove-by-querying obligation are kernel-realm methodology a consumer pins.\nThe\
+  \ **CLASS INVENTORY does not travel** — which tables, columns and stores hold which\
+  \ class is\nper-schema and irreducibly local (project realm, SPEC-0073). A kernel\
+  \ artifact that starts listing\na project's columns has crossed that line.\n\n###\
+  \ 8. Layer + status honesty, and the scope bound\nThis floor inherits SPEC-0172\
+  \ rule 4's standard verbatim, and it is not decoration: **every rule\nhere NAMES\
+  \ the layer that carries its check** (kernel CONTRACT · library MECHANICS · project\n\
+  PIN-AND-ENABLE), and **where the named layer does not carry the check yet, the rule\
+  \ says so plainly\nand is DISCIPLINE — recorded and taught, never presented as prevention.**\
+  \ A later surface MUST NOT\nre-inflate a DISCIPLINE rule into a claimed refusal,\
+  \ and MUST NOT delete this sentence to make the\nfloor read stronger. DISCIPLINE\
+  \ is a truthful interim, never a resting place: each such rule\ncarries the work\
+  \ that would make it CHECKED.\n\n#### 8a. The per-obligation layer table — this\
+  \ floor's own declaration, machine-read\n\nOne row per obligation. A rule without\
+  \ its row, or a row without its rule, is a contract defect.\n\n**The conformance\
+  \ set this table is read under — stated explicitly, because a partial import leaves\n\
+  the rest dead-lettered.** SPEC-0172 rule 4e's C1, C2, C3 and C5 are imported VERBATIM:\
+  \ one row per\nobligation; the layer comes from the rule-1 vocabulary; the status\
+  \ is exactly CHECKED or DISCIPLINE\nwith **no third, softer word**; and a DISCIPLINE\
+  \ row claims NO anchor and names the closing work.\n**C4 is imported in ADAPTED\
+  \ form and C6 is NOT imported, and here is why** — 4e's table is\nper-ATOM, with\
+  \ its own refusal-condition and positive-control columns, so C4 can demand an anchor\n\
+  PER NAMED LAYER and C6 can compare the row against the kernel cage-check predicate.\
+  \ This table is\nper-OBLIGATION and carries neither column, because the refusal\
+  \ conditions and controls are the rule\nbodies above and restating them here would\
+  \ be a second home for them. So: **a CHECKED row here names\nONE resolvable evidence\
+  \ anchor** (C4 adapted), and **C6 has no subject in this contract** — there is\n\
+  no cage-check predicate for a data obligation to correspond to. Nothing is silently\
+  \ dropped.\n\n| Obligation | Check layer | Status | Evidence anchor (CHECKED) /\
+  \ closing work (DISCIPLINE) |\n|---|---|---|---|\n| 1 — the axis is the live system,\
+  \ not \"production data\" | KERNEL | DISCIPLINE | definitional; a wording-conformance\
+  \ check over the floor text is the only thing that could carry it — cut at decomposition\
+  \ or accept permanently as taught |\n| 2 — the actor split (refresh reads read-only;\
+  \ runtime never connects) | PROJECT | DISCIPLINE | a detector proving the spike\
+  \ stack's resolved config reaches no production endpoint |\n| 3 — three strands,\
+  \ many-to-many, per-strand verbs | PROJECT | DISCIPLINE | the adopting project's\
+  \ per-strand detectors, built in its own realm (a detector queries that project's\
+  \ schema, so it is never a kernel artifact — rule 7 / SPEC-0073); the kernel's own\
+  \ release ask comes AFTER its enablers, never before them |\n| 4 — the untreated\
+  \ artifact: window, emission limits, destruction | PROJECT + LIBRARY MECHANICS |\
+  \ DISCIPLINE | egress-denied + executable-schema-disabled restore rails in the pinned\
+  \ library; a destruction check over the artifact chain |\n| 5 — declare the classes\
+  \ in the carrier | KERNEL | CHECKED | test:tests/test_t9389_ops_carrier_seed.py::test_unanswered_section_fails_closed\
+  \ — the flip this row itself reserved for ACTIVATION: closing registered `spike_data_safety`\
+  \ as a `presence_policy: mandatory` concern (SPEC-0128 rule 2), so the generated\
+  \ declare-or-waive sweep now REFUSES silence on it exactly as the named test proves\
+  \ for the sweep's other mandatory sections — one anchor, resolvable, per §8a C4-adapted.\
+  \ The REFUSABLE-waiver half of rule 5 is a SEPARATE obligation with its own anchor\
+  \ — row 5b, so neither half rides the other's evidence |\n| 5b — the waiver is REFUSABLE:\
+  \ a waived section contradicted by the project's own declarations is refused | KERNEL\
+  \ | CHECKED | test:tests/test_spec0175_waiver_contradiction.py::test_ac1_waiver_beside_an_enabled_bridge_is_refused\
+  \ — shipped the contradiction-refusal hook this row previously carried as its closing\
+  \ work: the concern names `shape_hook: spike_data_safety_shape`, so the SAME registry-driven\
+  \ declare-or-waive sweep now reads rule 5's three signal paths off the project's\
+  \ own carrier and REFUSES a waiver standing beside any of them, naming the contradicting\
+  \ path. `waiver_policy: loose` is unchanged and still accepts an UNcontradicted\
+  \ reasoned waiver — the named test's own complement legs pin that, so the row claims\
+  \ a refusal that discriminates rather than one that refuses everything |\n| 6 —\
+  \ prove by querying: control per detector, fail-closed scope, reported residuals\
+  \ | PROJECT | DISCIPLINE | the proof runner + its per-detector controls |\n| 7 —\
+  \ rules travel, class inventory does not | KERNEL | CHECKED | test:tests/test_t0888_placement_contract.py::test_matrix_exhaustive_over_corpus\
+  \ — the placement contract already refuses a kernel artifact carrying project data\
+  \ (SPEC-0073); a bare spec id is NOT an anchor kind, which is why this row now names\
+  \ a resolving test |\n| 8/8a — layer + status honesty | KERNEL | DISCIPLINE | a\
+  \ conformance check over THIS table, the sibling of SPEC-0172's C1-C6 |\n\n*A correction's\
+  \ explanation belongs here rather than in a cell: this table declares itself\nmachine-read,\
+  \ and a cell quoting a forbidden token is a false positive waiting for the first\n\
+  checker that reads it.*\n\n**Read this table as the honest state, not as a disappointment.**\
+  \ Most of this floor is DISCIPLINE\ntoday, and saying so is the whole point of rule\
+  \ 8: a floor that claimed prevention it does not have\nis precisely the defect that\
+  \ produced this plan. The detectors are what turn these rows CHECKED, and\nthey\
+  \ are cut before any policy or release work.\n**Scope bound:** no new store, no\
+  \ new FSM, no new journal, no new service, no new parser. If an\nimplementation\
+  \ appears to need one, that is a dissonance to escalate (CHARTER §Principle 7).\n\
+  \n## Parameters\n\nNone consumed. The per-strand class inventory is PROJECT-realm\
+  \ data (rule 7), never a kernel\nparameter.\n\n## Rationale\n\nTwo coordination\
+  \ items from the pilot project, both against the SHIPPED floor text and both\nreproduced\
+  \ on the ground it was written from: X-0798 (a restored copy reads as \"the sandbox's\
+  \ own\ndata\" while carrying live webhook URLs, tokens and contact values — and\
+  \ the covering neutralization\nstep was declared in that project's plan and never\
+  \ built) and X-0799 (whether the restore itself is\npermitted is undecidable from\
+  \ the wording — the pilot's own owner read it and asked).\n\nThree of the four failures\
+  \ survived a pass whose whole purpose was de-ambiguating this floor. The\nfourth\
+  \ is the decisive one: the first proposed REPLACEMENT re-created the undecidability\
+  \ in new\nwords, caught by an adversarial wording consult run before spec composition\
+  \ (RED, six findings,\n`decisions/floor-wording-hidden-cases-audit-adhoc.yaml`).\
+  \ That is why the actor split (rule 2), the\ndisclosure verbs (rule 3), the unsafe\
+  \ window (rule 4) and the fail-closed scope completeness (rule\n6b) are stated as\
+  \ RULES with their own refusal conditions rather than as careful prose: careful\n\
+  prose is precisely what lost, four readings out of four.\n\nThe same consult was\
+  \ then re-run against THIS drafted text (round 2, RED, five findings, all\nabsorbed).\
+  \ It is why rule 4 governs the ARTIFACT from the first exported byte rather than\
+  \ the\nrestored database (the raw dump was governed by nothing), why a probe's output\
+  \ is bounded\n(permission to touch is not permission to look), why operational state\
+  \ is defined by EFFECT rather\nthan by the startup moment (executable schema and\
+  \ a job that fires tomorrow both escaped), and why\nACCEPT is a bounded, reported\
+  \ exception rather than a fourth free verb (a blanket acceptance passed\nwhile the\
+  \ promise said \"nothing private\"). Recording that round 2 also came back RED is\
+  \ the point:\na text this floor's readers keep defeating does not get to be trusted\
+  \ because it was rewritten\ncarefully — only because it was attacked again.\n\n\
+  Prior-art (CHARTER §P1 F1): no data-neutralization rule exists anywhere in the corpus,\
+  \ so this\nEXTENDS nothing and Filter 1 honestly answers \"no analog\". SPEC-0100's\
+  \ security defaults govern a\ndifferent moment (authoring code that handles a secret),\
+  \ not treating a restored copy.\n\n## Verification\n\n- **VP1 (five-question reader\
+  \ agreement).** Two independent readers, given this floor alone, answer\n  all five\
+  \ §Scenario questions identically. Re-uses the two-reader probe SHAPE that surfaced\
+  \ the\n  original divergence, not a new invention.\n- **VP2 (actor split is normative,\
+  \ not prose).** Rule 2 states BOTH halves — the read-only refresh\n  permission\
+  \ AND the runtime prohibition — as obligations. Probe: grep this body for `READ-ONLY`\n\
+  \  and `NEVER connects`; a floor carrying only one half fails.\n- **VP3 (per-strand\
+  \ verbs are distinct).** Rule 3 gives disclosure its own verbs (mask / minimize\
+  \ /\n  exclude / accept) and does NOT fold it into the neutralize list. Probe: grep\
+  \ for `MASK, MINIMIZE,\n  EXCLUDE`; a body where disclosure's treatment is \"neutralize\"\
+  \ fails.\n- **VP4 (control per detector — the differential).** Each detector catches\
+  \ a planted value of its\n  OWN class and passes after treatment; a run where one\
+  \ detector's control fails to catch its\n  planted value is NOT a pass. Differential:\
+  \ a detector that passes on a copy seeded with its own\n  class's violating value\
+  \ is not detecting.\n- **VP5 (scope completeness fails closed).** A proof run over\
+  \ a copy carrying a surface the\n  declaration does not classify REFUSES. Differential:\
+  \ if that run passes, the fail-closed half is\n  not wired and the proof is satisfiable\
+  \ on paper.\n- **VP6a (the artifact chain is governed, not just the restored copy).**\
+  \ A raw dump, staging copy or\n  backup surviving after the restore is a REFUSAL.\
+  \ Differential: a run that treats the restored\n  database perfectly while leaving\
+  \ the dump on disk must FAIL — if it passes, rule 4's scope is\n  wording, not a\
+  \ rule. Probe: grep this body for `FIRST EXPORTED BYTE` and `DESTRUCTION`.\n- **VP6b\
+  \ (a probe cannot disclose — the PROPERTY, not the shape).** A probe emission that\
+  \ increases\n  what its reader learns about an identifiable subject is a REFUSAL\
+  \ absent a recorded rule-3\n  acceptance, whatever its format. THREE differentials,\
+  \ because the shape-based reading passed the\n  first two: (i) seed a copy with\
+  \ a known personal value — the value must not appear in any probe\n  output; (ii)\
+  \ nor may a deterministic hash of it; (iii) nor may a count keyed to a sensitive\n\
+  \  predicate or a cohort small enough to identify someone. A rule that passes (i)\
+  \ and (ii) but not\n  (iii) has been rewritten back into a shape whitelist.\n- **VP6c\
+  \ (accepted residuals are visible).** A proof run resting on an acceptance names\
+  \ the accepted\n  class in its output. Differential: if a run with an acceptance\
+  \ is byte-identical to a run without\n  one, the residual is invisible and rule\
+  \ 6(c) is unwired.\n- **VP6d (the source manifest is real, aliased, and survives).**\
+  \ The export-captured source\n  enumeration rule 6b requires is exercised on THREE\
+  \ differentials, because it is the one input the\n  proof cannot rebuild for itself:\
+  \ (i) **ALIASING** — a surface whose NAME carries the payload\n  appears under a\
+  \ stable opaque alias, its real name reachable only through the acceptance-bound\n\
+  \  annex; a manifest carrying such a name in clear is a REFUSAL. (ii) **SURVIVAL**\
+  \ — the manifest is\n  still readable by the proof AFTER the destruction sweep has\
+  \ run; a sweep that destroys it fails\n  this probe, and, in the other direction,\
+  \ an export output carrying VALUES that survives that sweep\n  fails it too. (iii)\
+  \ **DISPOSED SURFACES** — a surface removed by treatment appears in the manifest\n\
+  \  with its disposal recorded; a run in which a dropped trigger leaves no record\
+  \ passes the sweep\n  blind and is NOT a pass.\n- **VP7 (adoption, infra-class —\
+  \ CHARTER §P8).** Consumer-read or live-trigger evidence from at\n  least one adopting\
+  \ project: a declared `spike_data_safety` block — the registered carrier section\n\
+  rule 5 names, a SIBLING of `spike_sandbox` and never nested inside it — plus a recorded\
+  \ proof run.\n- **VP8 (named non-goal).** Nothing here weakens SPEC-0172's CHECKED\
+  \ stack-identity atom or its\n  DISCIPLINE dial-out half. This floor closes IN ADDITION\
+  \ to them, never by redistributing their\n  weight. Probe: SPEC-0172 rules 4a-4d\
+  \ and their table rows are unchanged by this plan's diff.\n- **VP9 (internal coherence\
+  \ — whole-artifact, which is why it is not a VP6* probe).** No passage in\n  this\
+  \ spec or in the rewritten `patterns/spike-mode.md` presupposes an operation another\
+  \ forbids, and\n  the artifact carve-out is written around the rule-1 distinction\
+  \ (production-derived copies allowed /\n  live-system contact not) rather than contrasting\
+  \ artifacts with \"production data\". Numbered VP9, and\n  moved here, because VP6a-VP6d\
+  \ are the probes of RULE 6 specifically; a coherence probe over the whole\n  contract\
+  \ sharing that label made probe references ambiguous for decomposition and audit.\n"
+cites:
+- SPEC-0172
+- SPEC-0093
+- SPEC-0128
+- SPEC-0073
+- SPEC-0165
+- SPEC-0100
+- SPEC-0035
+- CHARTER.md#principle-1
+- CHARTER.md#principle-7
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: close-the-spike-mode-safety-floor-to-data-carried-
+binding:
+- before-restoring-a-production-copy
+init_concern: null
+concern:
+- section: spike_data_safety
+  born_order: 210
+  carrier_path: spike_data_safety
+  presence_policy: mandatory
+  update_policy: init re-seed
+  declare_key: data_safety
+  declare_type: mapping
+  waiver_policy: loose
+  shape_hook: spike_data_safety_shape
+  born: "spike_data_safety:\n  # SPEC-0175 — what a RESTORED production copy in a\
+    \ spike sandbox carries (the sibling of\n  # `spike_sandbox`, which is the stack's\
+    \ wiring). To DECLARE, replace the waiver below with:\n  # data_safety:\n  # reachability:\
+    \ <your surfaces holding values that can route, authenticate, identify,\n  # schedule\
+    \ or trigger — incl. external resource IDs and object keys>\n  # disclosure: <your\
+    \ surfaces holding content harmful merely by being READ —\n  # an ACCEPTED class\
+    \ names its purpose, readers and destruction>\n  # operational_state: <your surfaces\
+    \ holding state that DOES WORK when anything consumes it\n  # — outbox, queued\
+    \ jobs, schedulers, triggers, procedures, CDC>\n  # none_of_the_three: <surfaces\
+    \ you answer as carrying NO strand, each with a reason —\n  # the sweep refuses\
+    \ SILENCE, not incompleteness>\n  # proof: <where the querying proof RUNS — it\
+    \ must carry a control PER DETECTOR,\n  # cover derived surfaces + executable\
+    \ schema, and fail closed>\n  # OR declare BY REFERENCE when the decisions live\
+    \ in a §5a decision file — no in-carrier copy:\n  # `data_safety: {decisions:\
+    \ bin/spike-data-classes.yaml, proof: <where the proof RUNS>}`\n  # Strand verbs\
+    \ differ: reachability NEUTRALIZED · disclosure MASKED/MINIMIZED/EXCLUDED/ACCEPTED\
+    \ ·\n  # operational state DEFUSED. The obligation starts at the FIRST EXPORTED\
+    \ BYTE. A probe emission must\n  # pass BOTH limbs of SPEC-0175 rule 4 — counts\
+    \ and schema are not safe by\n  # shape: they pass only when both limbs pass,\
+    \ and a reading that asks only whether the output\n  # teaches something about\
+    \ a real person lets a live routable value through. The column\n  # inventory\
+    \ stays yours (SPEC-0073); the waiver below is a real key, not commentary.\n \
+    \ # see SPEC-0175 §3, §4, §5, §6\n  waiver:\n    reason: >-\n      no restored\
+    \ production copy — this project runs no spike sandbox filled from a production\n\
+    \      dump. Replace this waiver with `data_safety: {reachability, disclosure,\
+    \ operational_state,\n      none_of_the_three, proof}` when it does (SPEC-0175\
+    \ rules 5-6).\n"

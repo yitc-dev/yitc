@@ -1,0 +1,194 @@
+id: SPEC-0153
+title: events.jsonl terminal-marker + per-dispatch correlation section contracts (incl.
+  the per-dispatch/observability events read_gate_refused / external_action / error-friction
+  / chat-class) — retrieved reference, split from SPEC-0025
+status: active
+created_at: 2026-07-10 19:16:43+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nTwo SPEC-0025 event-schema sections, re-homed VERBATIM: (1)\
+  \ **§Terminal-marker contract** — the single\nterminal marker every DISPATCHED session\
+  \ ends on (`task_closed` | `bg_dispatch_halted`); and (2)\n**§Per-dispatch correlation\
+  \ (every event)** — the per-dispatch correlation fields that segment events\nby\
+  \ their launch, PLUS the per-dispatch / observability event contracts that section\
+  \ documents in-source\n(`read_gate_refused`, `external_action`, the error/friction\
+  \ protocol pointer, and the parser-captured\nchat-class events). NOTHING is moved\
+  \ beyond those two SPEC-0025 sections — the observability events live\nINSIDE §Per-dispatch\
+  \ correlation in the source. SPLIT VERBATIM under the SPEC-0120 one-bounded-read\n\
+  ceiling; the parent SPEC-0025 keeps the universal schema, the required event types,\
+  \ the\nnormalized vocabulary, and the event-type catalog extension, and points here\
+  \ for these two sections.\n\n## Internal\n\n### Terminal-marker contract (dispatched\
+  \ sessions)\nA dispatched session ends in exactly one **terminal event** — `task_closed`\
+  \ (done) OR\n`bg_dispatch_halted` (halt). So that ONE scoped query finds the terminal\
+  \ regardless of which kind, both\nobey one keying + one location rule:\n- **KEY\
+  \ (always):** a terminal event MUST carry a **top-level `task_id`** (the universal\
+  \ envelope field,\n  set via `event --task T-XXXX` / written by `task close`), **AND**\
+  \ the **dispatch tag in `data.dispatch`**.\n  Never key a terminal ONLY by `data.task`\
+  \ — a reader scoped to top-level `task_id` then gets a FALSE\n  NEGATIVE (the run-9\
+  \ incident: emitted `bg_dispatch_halted` with only `data.task`, while\n  carried\
+  \ top-level `task_id`; a `task_id`-scoped reader missed the halt). The combined\
+  \ key lets\n  ONE query select a terminal by `task_id` AND filter the whole dispatch\
+  \ by `data.dispatch`.\n- **LOCATION (one canonical write path for BOTH kinds):**\
+  \ the dispatched sessions OWN **worktree\n  journal** — where all its lifecycle\
+  \ events go — folded to main at `land`. A **self-halt before land**\n  (the worker\
+  \ never lands) MUST be emitted FROM the worktree so it lands in the worktree journal,\
+  \ NOT the\n  main checkout: `( cd <worktree> && bin/yitc-v2 event bg_dispatch_halted\
+  \ --task T-XXXX --data {...})`\n  or `bin/yitc-v2 -C <worktree> event …`. Writing\
+  \ a halt to the main checkout journal is the run-9 defect —\n  the per-worktree\
+  \ sweeper reads each worktrees own journal and a main-only halt reads as a false\n\
+  \  `SILENT_STOP`. (`task_closed` is already worktree-resident — `task close` runs\
+  \ in the worktree.)\n\nThis contract closes the `data.task`-vs-`task_id` false-negative\
+  \ AND the halt-location variance with one\nrule. Append-only / P5-safe : adding\
+  \ the `bg_dispatch_halted` type + this keying rule changes no\nexisting event; consumers\
+  \ ignore unknown keys.\n\n**Reader-recognized task-status terminal.** Beyond the\
+  \ two EMITTED dispatch markers\nabove, the dispatch-status READER (`journal query\
+  \ --dispatch-status`) ALSO treats a **task-status\nterminal reached WITHOUT a dispatch\
+  \ marker — `task_wont_do`** (a worker correctly declining a\nsuperseded / self-unsatisfiable\
+  \ task via `task update --status wont-do`, which carries a top-level\n`task_id`)\
+  \ — as a dispatch TERMINAL, labelled `TERMINAL(wont-do)`. Rationale: the dispatch\
+  \ is over,\nso a polling controller must not read a FINISHED dispatch as a live\
+  \ worker, and `quiescent` reflects\nterminal (incident: read `working`, 2026-06-08).\
+  \ This is **additive and reader-only**: it adds\nNO new emitted marker and changes\
+  \ nothing an emitter must DO — the two-marker emission contract above\nis unchanged.\
+  \ (Code: `DISPATCH_TERMINAL_TYPES` / `DISPATCH_TERMINAL_DETAIL` in the reader.)\n\
+  \n**Stale terminal does not mask a live worker (the converse of).** When the\nworktree+main\
+  \ journals are UNIONED, an OLDER terminal marker from a SUPERSEDED/dead\nworker\
+  \ must NOT mask the progress of a LIVE worker on the SAME `task_id`. So the reader\
+  \ does NOT\nclassify TERMINAL when a LIVE worktree claim is held by a session DIFFERENT\
+  \ from the terminal AND\nthe latest event of that claim-session in the unioned chain\
+  \ is non-terminal and newer than the\nterminal — it classifies the live worker instead\
+  \ (working | silent_stop | hang_suspect). A\nSAME-session live claim (a worker that\
+  \ closed its own task) does not un-terminalize. Incident:\n read TERMINAL(halt)\
+  \ from a dead redundant worker while the live worker progressed, poisoning\na controller\
+  \ monitor. Like this is **reader-only / additive**: no new emitted marker, and\n\
+  nothing an emitter must DO changes. (Code: the supersession check in `_classify_dispatch`.)\n\
+  \n**Closed-but-not-landed is NOT Done=Adopted.** A `task_closed` is the done MARKER,\n\
+  but CHARTER §P3 (Done=Adopted) is satisfied only when the work is INTEGRATED on\
+  \ main — and `main`\nadvances ONLY via `land`, which fast-forwards main then REMOVES\
+  \ the `task/T-XXXX`\nworktree on success. So the dispatch-status READER labels a\
+  \ `task_closed` `TERMINAL(done)` ONLY\nwhen the task has LANDED — i.e. no live `task/T-XXXX`\
+  \ worktree claim remains; a `task_closed`\nwhose worktree is STILL LIVE has not\
+  \ integrated and is labelled a distinct, NON-terminal\n**`closed_pending_land`**\
+  \ state (a worker that closed in-worktree then died before land, or is\nmid-land).\
+  \ A controller must then LAND it — never read it as a finished success (incident:\n\
+  `dispatched-worker-died-after-closure-before-land-ffstorm`). `bg_dispatch_halted`\
+  \ (halt) /\n`task_wont_do` (wont-do) are land-INDEPENDENT terminals — a halted /\
+  \ declined worker never\nclaimed done — so this carve-out is scoped to `task_closed`\
+  \ ONLY. Like / this is\n**reader-only / additive** (SPEC-0005 rule 7 in-place additive\
+  \ extension): no new emitted marker,\nand nothing an emitter must DO changes — closure\
+  \ (SPEC-0015) still writes `status: done` IN the\nworktree, which is correct under\
+  \ worktree isolation. Quiescence is inapplicable to\n`closed_pending_land` (the\
+  \ recovery is LAND it, not respawn-adopt → `quiescent: null`). (Code:\nthe `closed_pending_land`\
+  \ branch in `_classify_dispatch`.)\n\n### Per-dispatch correlation (every event)\n\
+  The **per-EVENT correlation key** for a dispatched session is the envelope **`session_ref`**\
+  \ — NOT a\nper-event `data.dispatch` stamp. `_append_event` auto-stamps `session_ref`\
+  \ on EVERY event, and a\ndispatched background session is ONE session => ONE `session_ref`,\
+  \ so its WHOLE lifecycle chain is\nalready filterable as one unit:\n- **ONE filter**\
+  \ — `bin/yitc-v2 journal query --session <session_ref>` — returns the full ordered\
+  \ chain\n  `startup_protocol_completed -> task_picked -> … -> tests_passed -> <terminal>`\
+  \ (terminal =\n  `task_closed` | `bg_dispatch_halted`, the §Terminal-marker contract).\
+  \ Order by `ts` (SPEC-0002).\n- **`data.dispatch` is the HUMAN boundary-tag, NOT\
+  \ the per-event key.** It is carried on the BOUNDARY\n  events only — the startup\
+  \ proof (`startup_protocol_completed`) and the terminal (`bg_dispatch_halted`\n\
+  \  / `task_closed`) — as a readable label a controller chooses (e.g. `wave-317`).\
+  \ It is the convenience\n  handle the §Terminal-marker contract uses to scope a\
+  \ terminal; it is NOT stamped on mid-lifecycle\n  events and MUST NOT be — duplicating\
+  \ the correlation key onto every event would be a PARALLEL\n  second source of truth\
+  \ alongside `session_ref` (CHARTER §P5 violation; §P1-F2 prefers a view over a\n\
+  \  new per-event field). The run-evidence gap \"mid-lifecycle events are not filterable\
+  \ per dispatch\" is\n  closed by `session_ref`, which was always there.\n- **Why\
+  \ `session_ref` and not a new field:** it already uniquely identifies the dispatched\
+  \ session\n  (the correlation unit), is on every event with zero new emission code,\
+  \ and union-merges/dedups under\n  the existing SPEC-0002 rules. The terminals `data.dispatch`\
+  \ + `session_ref` together let a reader\n  pivot from a known dispatch tag to the\
+  \ whole `session_ref` chain.\n\nAppend-only / P5-safe : this standardizes an EXISTING\
+  \ field as the correlation key; it adds no\nper-event field and changes no existing\
+  \ event.\n\n**Error/friction protocol pointer.** The full procedure — 5 routine\
+  \ aspect-audits, the\nfriction→promote→case-file path, the 4 gap probes, two-opinion-at-promotion\
+  \ — lives in\n`patterns/error-friction-tracking.md` (extends `patterns/verification-protocol.md`);\
+  \ governance in\n`decisions/`. The graph indexes `errors/E-XXXX.yaml` as the 11th\
+  \ node type (GRAPH.md); `graph\nquery --type error --recurring` lists N≥2 fingerprints\
+  \ (the promotion threshold).\n\n**read_gate_refused** ( — the OBSERVABILITY trace\
+  \ of a blocking read-gate /\nstage-guard refusal; emitted before `_die`, so a DENIED\
+  \ work-verb is visible in the journal instead\nof dying silently). ONE umbrella\
+  \ event for ALL blocking refusal KINDS — NO second event name\n(SPEC-0059 §enforcement-split;\
+  \ plan D2). Best-effort + P5-safe: a journal write error never masks the\nrefusal\
+  \ (the `_die` runs unconditionally afterward).\n```jsonc\n{\"ts\": \"...\", \"type\"\
+  : \"read_gate_refused\",\n \"data\": {\"verb\": \"task close\", \"action\": \"closure\"\
+  , \"kind\": \"read-check\", \"stage\": \"Closure\",\n          \"reason\": \"no_session_started_anchor\
+  \ | contracts_unfetched\",\n          \"missing\": [\"SPEC-0015\", \"SPEC-0038\"\
+  ]}}\n```\n- `kind` — the LOCKED refusal-category enum (the SPEC-0059 three blocking\
+  \ legs; the discipline lens\n  splits the `read_gate_refused` numerator BY this\
+  \ field — SPEC-0059 §enforcement-split, R9):\n  - `read-check` — `_require_reads`\
+  \ block: the governing stage-entry contracts were not fetched this\n    session\
+  \ (or there is no session anchor). `reason ∈ {no_session_started_anchor, contracts_unfetched}`.\n\
+  \    The SIBLING seed-read floor (`_require_seed_read`, SPEC-0050 §8) emits the\
+  \ SAME `read-check` kind with\n    `reason ∈ {no_session_started_anchor, seed_read_unfetched,\
+  \ seed_read_stale_epoch}` (—\n    `seed_read_stale_epoch` = a receipt exists but\
+  \ its stamped context epoch predates the current\n    `/compact` epoch); `--help`\
+  \ (`_require_help_read`) likewise emits `help_inventory_unfetched`. Additive\n \
+  \   reasons P5-safe.\n    `missing` = the unfetched contract spec ids (only on `contracts_unfetched`).\
+  \ `task_id` null (the\n    read-gate carries no task id at the refusal moment; the\
+  \ envelope `session_ref` correlates it).\n    Reconciled from the interim `kind:\
+  \ \"stage\"` literal by — historical rows carry\n    `\"stage\"` (append-only),\
+  \ so a kind-aware reader maps the legacy value to `read-check`.\n  - `stage-correspondence`\
+  \ — `_require_stage_correspondence` block : a stage work-verb invoked\n    at the\
+  \ wrong `current_stage`. `reason: stage_mismatch`; `stage` = the EXPECTED stage,\n\
+  \    `current_stage` = the ACTUAL stage; `task_id` = the task. No `missing`.\n \
+  \ - `verification-exists` — RESERVED (enum-locked here; the emit is build-deferred\
+  \ — its gate, a stage\n    work-verb refusing when its required verification artifact\
+  \ is absent, is built downstream).\n- `missing` — the unfetched governing-contract\
+  \ spec ids; `read-check`/`contracts_unfetched` only.\n  Additive, consumers ignore\
+  \ unknown keys. Surfaced by `journal query --type read_gate_refused`.\n\n**external_action**\
+  \ (per SPEC-0116; emitted via the generic `bin/yitc-v2 event` — NO dedicated verb)\
+  \ —\nthe FALLBACK capture FLOOR for a SUBSTANTIVE outbound external mutation (a\
+  \ write / side-effect to a\nsystem OUTSIDE every repo — a design project, a chat\
+  \ service, a third-party write API) that LACKS a\ndedicated capturing verb. Named\
+  \ external interactions that DO have a dedicated verb stay governed by\nTHAT verb\
+  \ (deploy → `deploy_completed`, SPEC-0094; `cross` → `cross_requested`, SPEC-0085/0086;\
+  \ the\nshared-store append, SPEC-0084) — this floor covers the un-verbed remainder\
+  \ ONLY, never an escape from\na covering verb (§Verb-execution discipline holds).\
+  \ READS / trivial calls emit NOTHING. Shape: the\n`deviation_captured` analog —\
+  \ a generic, no-worktree, fire-from-anywhere journal event. Required `data`\nfields:\
+  \ `channel` (HOW — e.g. `mcp:<server>` / `harness-tool:<name>` / `bash:<cmd>`),\
+  \ `target` (WHAT\nexternal object changed), `action` (WHAT was done), `from` (the\
+  \ durable basis — a task/plan/spec id or\na journal locator).\n```jsonc\n{\"ts\"\
+  : \"...\", \"type\": \"external_action\", \"task_id\": \"T-XXXX | null\",\n \"data\"\
+  : {\"channel\": \"mcp:design\", \"target\": \"design-project:c95f02ff\", \"action\"\
+  : \"write_files\",\n          \"from\": \"T-XXXX | <plan-slug> | events.jsonl#ts=<ISO>\"\
+  }}\n```\n\nOther event types emerge organically as needed. No upfront catalog.\n\
+  \n**Parser-captured chat-class events.** The chat-class events\n`owner_directive`\
+  \ + `instruction_injection` are now **parser-captured** — the adapter reads the\n\
+  source session log, materializes into events.jsonl with populated provenance fields\
+  \ (`source_ref`,\n`session_ref`, `agent`). AI manual-emit obligation REMAINS retired\
+  \ (preserved from) but the\nreason updated: the parser captures structurally, not\
+  \ from AI memory. The other retired\nchat-class events — `dissonance_detected`,\
+  \ `failed_attempt`, `ai_reasoning_note` — REMAIN\nmanual-emit-optional per the original\
+  \ rationale (the parser does not extract these specifically —\ndefer until an incident\
+  \ requires).\n\nHistorical entries remain valid (append-only). Cite materialized\
+  \ journal entries\n(`events.jsonl#source_ref=...`), NOT the raw session log. CLI-emitted\
+  \ events above\n(`audit_pre_completed` / `task_closed` / etc.) are RETAINED — they\
+  \ fire deterministically from\n`bin/yitc-v2`, not from AI memory.\n\n## Rationale\n\
+  \nSPEC-0025 grew past the SPEC-0120 §3 must-split ceiling (800 lines / 63000 bytes).\
+  \ Split by stable\nSURFACE/boundary (SPEC-0005 rule 6/7): the two self-contained\
+  \ dispatched-session contracts\n(terminal-marker; per-dispatch correlation) re-home\
+  \ VERBATIM here\n(SPLIT-never-delete, aggregate-neutral). No rule-node of the moved\
+  \ sections was cited anywhere and\nno active doc pointed at these sections, so the\
+  \ split perturbs no anchor ( analysis).\n\n## Verification\n\n- Size: SPEC-0025\
+  \ back under the SPEC-0120 §3 ceiling (durable_docs metrics; over_ceiling / over_ceiling_bytes\n\
+  \  no longer list it) after the two sections re-home here.\n- Verbatim: the moved\
+  \ body text is byte-identical to the SPEC-0025 pre-split source (no content deleted).\n\
+  - Retrieval: `bin/yitc-v2 graph query SPEC-0153` returns the two contracts; SPEC-0025\
+  \ §Terminal-marker /\n  §Per-dispatch pointer stubs name this spec id.\n"
+cites:
+- SPEC-0025
+- SPEC-0120
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

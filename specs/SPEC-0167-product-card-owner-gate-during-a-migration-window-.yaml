@@ -1,0 +1,52 @@
+id: SPEC-0167
+title: Product-card owner-gate during a migration window (dispatch refuses product-touch
+  cards without owner-ack while a migration plan is executing)
+status: active
+created_at: 2026-07-21 15:19:40+00:00
+travels: kernel
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\nWhile a brownfield migration is under way, \"migrating the methodology\"\
+  \ must not silently become\n\"changing the product.\" So while a migration-window\
+  \ plan is `executing`, dispatching a card that\ntouches PRODUCT code refuses unless\
+  \ the owner has explicitly authorized THAT card. The owner sees a\nrefusal that\
+  \ names the exact token to add; nothing product-touching ships in a migration window\n\
+  without their say-so.\n\n## Internal\n- **Window carrier (existing FSM — no new\
+  \ marker/ledger; SOURCE-AGNOSTIC):** the migration window IS\n  an active brownfield-onboarding\
+  \ plan in `executing` (the `real-project-integration-onto-v2-phased-migration-`\n\
+  \  class / runbook Branch B). The window is defined by the TARGET (onboarding onto\
+  \ v2), NOT the source\n  methodology — so it covers a migration from YITC v1, from\
+  \ a different methodology, OR from pure\n  vibe-coding (a vibe-coded project onboarding\
+  \ is still a Branch B brownfield migration; the gate is\n  most valuable there,\
+  \ no test safety net). No separate window flag — the plan's own status is the window.\n\
+  - **Owner-ack carrier (existing parser):** a per-card OPTIONAL field\n  `product_dispatch_owner_ack:\
+  \ <ref>` set via the EXISTING `task update` route — reuses the\n  cross-request\
+  \ kind:task owner-gate shape, no new gate cascade.\n- **PRODUCT-touch test (mechanical,\
+  \ fail-closed):** a card whose `expected_touch` reaches any path\n  OUTSIDE the\
+  \ governance/docs path set (tasks/ specs/ decisions/ plans/ patterns/ lessons/\n\
+  \  scenarios/ *.md graph/ events.jsonl) is product-touching. When in doubt → product-touching.\n\
+  - **The gate:** while a migration-window plan is `executing`, `dispatch` of a product-touching\
+  \ card\n  REFUSES unless it carries `product_dispatch_owner_ack:`. Out of a window,\
+  \ or for a\n  governance-only card, unchanged. Report-with-the-fix: the refusal\
+  \ prints the exact token to add.\n\n## Rationale\n<project> 2026-07-13: two imported\
+  \ PRODUCT cards ( CSRF) were dispatched inside what the\nowner understood as a migration/revizia\
+  \ context; the CSRF one took prod auth down. The owner's\nexpectation \"a migration\
+  \ does not touch product code\" was encoded nowhere. This gate encodes it.\nFull\
+  \ design: plan `migration-import-safety-provenance-marker-premise-`. Origin cross\
+  \ X-0372.\n\n## Verification\nDifferential pinned test: with a migration plan `executing`,\
+  \ dispatch of a synthetic\nproduct-touching card REFUSES without the ack and SUCCEEDS\
+  \ with it; a governance-only card is\nunaffected; out of a window the product card\
+  \ dispatches freely.\n"
+cites:
+- SPEC-0028
+- SPEC-0166
+- SPEC-0073
+- migration-import-safety-provenance-marker-premise-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: migration-import-safety-provenance-marker-premise-
+binding:
+- code-enforced
+init_concern: null

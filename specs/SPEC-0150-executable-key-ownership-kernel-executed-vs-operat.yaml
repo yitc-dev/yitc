@@ -1,0 +1,47 @@
+id: SPEC-0150
+title: Executable-key ownership — kernel-executed vs operator-owned vs documentary
+  on every carrier key
+status: active
+created_at: 2026-07-09 19:20:21+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/cli.py#_carrier_key_markers
+- bin/lib/cli.py#_ownership_chain_break
+- bin/lib/cli.py#_key_ownership_violations
+body: "## Scenario\n\nEvery key a carrier may declare is honest about WHO executes\
+  \ it: the registry says\n`kernel-executed`, `operator-owned` or `documentary`. `graph\
+  \ conformance` names any key that\nCLAIMS kernel execution but has no reader — so\
+  \ a promise seeded at birth with zero readers\n(the restore_drill class) is a NAMED\
+  \ failing check, not ambient trust.\n\n## Internal\n\n1. Ownership metadata on every\
+  \ concern-registry-declared carrier key:\n   `kernel-executed | operator-owned |\
+  \ documentary`. Prose `evidence:` fields are documentary BY\n   TYPE (they can never\
+  \ masquerade as executable again).\n2. Conformance checks ONLY `kernel-executed`\
+  \ keys, and requires a read-to-EFFECT chain — the\n   reading symbol plus a named\
+  \ emitting-or-refusing site — NOT a bare grep hit (the consult:\n   a read-site\
+  \ test \"is partly theatre; it would have been GREEN on the very defect that\n \
+  \  spawned it\" — the gate read pg_dump and dropped it).\n3. Fail-closed for NEW\
+  \ keys: registering a key without ownership refuses. Existing keys are\n   swept\
+  \ once at adoption (the sweep is the activating task's deliverable).\n4. BORN FAILING\
+  \ CASE: `classes.C1.restore_drill` — seeded as if kernel-executed, zero readers\n\
+  \   (deviation born-ops-seed-declares-restore-drill-no-kernel-reader-promise-at-birth).\
+  \ The\n   check must FLAG it until it is relabeled or gains a reader — and stop\
+  \ flagging after.\n\n## Rationale\n\nLevel 1 of the 2026-07-09 family (declared\
+  \ != read) made mechanically visible, scoped exactly\nas the consult prescribed\
+  \ (ownership metadata first, chain-check not grep-hit).\n\n## Verification\n\nNamed\
+  \ tests: (a) restore_drill flagged on the current corpus; (b) relabeling it operator-owned\n\
+  un-flags it; (c) a kernel-executed key WITH a full read-to-event chain passes; (d)\
+  \ a key with a\nread site but NO emit/refuse effect still FAILS (the selected-then-dropped\
+  \ detector).\n"
+cites:
+- SPEC-0128
+- SPEC-0097
+- CHARTER.md#principle-8
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: prove-the-deploy-evidence-chain-acts-on-target-dis
+binding:
+- code-enforced
+init_concern: null

@@ -1,0 +1,106 @@
+id: SPEC-0140
+title: Self-applied carrier decision procedure — mechanically route a change to plan|task|followup|record
+  from its own properties, no human adjudication
+status: active
+created_at: 2026-07-07 12:05:49+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA change arises (from an owner cue, a cross-log intake, a mid-work\
+  \ realization). Before ANY\nwork the AI must pick its CARRIER — plan, one-or-a-few\
+  \ tasks, a staged followup, or a plain\nrecord. LIFECYCLE §Routing describes the\
+  \ fork narratively, but the AI reads it as a JUDGEMENT\nto adjudicate rather than\
+  \ a procedure to RUN — so it pauses and poses the fork to the owner\n(\"plan or\
+  \ task?\"). That is a false ask: the answer is fully determined by the change's\
+  \ OWN\nproperties, which the AI can already. This spec makes the fork a MECHANICAL\
+  \ self-applied\nsieve: the AI runs it and proceeds; it escalates to the owner only\
+  \ a genuine decision (an\nambiguous SCOPE, a real trade-off), NEVER the carrier\
+  \ choice itself.\n\n## Internal\n\nTHE CARRIER SIEVE — ordered, first-match-wins,\
+  \ LIGHTEST-first. Each branch's condition is\nanswerable from the change's own properties\
+  \ (no human input). Run top to bottom; take the\nfirst branch whose condition holds.\n\
+  \n- **S0 — Record-only?** Does the change only RECORD an already-true fact — a probe\
+  \ that already\n  passed, a journal state that already holds — authoring NOTHING\
+  \ new? → the carrier is a\n  **no-worktree capture** (`event` / `followup` / by-record\
+  \ evidence), **NOT a task at all**\n  (nothing authored ⇒ no audit applies). (The\
+  \ mis-routing: a \"record the cron graded X\"\ntask paid 2 audits + 9 stages for\
+  \ a pure record.)\n*Worked example — the due-reading settle.* The late-linkage SETTLE\
+  \ of a deferred acceptance\nprobe or of a post-ship observation is an S0 carrier,\
+  \ and TAKING the due reading is part of\nthat record, so it gets **no task card**.\n\
+  A card is warranted\nonly when the reading needs a NEW instrument or a code change.\
+  \ Settle semantics are owned by\nSPEC-0015 (pointer only, not restated here). Counter-examples:\
+  \ (a whole task for one\npost-ship reading) and the 2026-09-26 drain routed through\
+  \ six cards.\n\n- **Open-spike change?** Is this an AUTHORED change to what an open\
+  \ spike is exploring? → it goes\nINTO the spike (no carrier), unless a SPEC-0205\
+  \ rule 10 exception applies (the exceptions live\nthere, not here). A record-only\
+  \ change still takes S0 first.\n\n- **S1 — Plan-warranted?** Does the change need\
+  \ AT LEAST ONE of these three (each self-checkable)?\n    (a) a **new or changed\
+  \ standing-rule SPEC corpus** (SPEC-0005) — not a one-off edit but a\n        rule\
+  \ others will read;\n    (b) a **coordinated multi-task cut** whose slicing must\
+  \ be fidelity-audited (SPEC-0070 /\n        SPEC-0034 / SPEC-0046) — several interdependent\
+  \ tasks that must land as one shaped set;\n    (c) **design-convergence on real\
+  \ data** — the answer is not yet known and must be found by\n        trialling against\
+  \ live data (the `trial` stage, SPEC-0035).\n  If YES → **PLAN** (it adds the heavy\
+  \ plan-only cascade — gate-specs, draft `plan check`,\n  decomposition-fidelity\
+  \ audit, aggregate `audit post --plan`). If a change proves ONE claim and\n  establishes\
+  \ no new spec corpus, S1 is NO — it is a task, never a plan. Never route a\n  tiny/presentational\
+  \ change through a plan (the X-0074 ~8-10-audit cascade).\n\n- **S2 — Default →\
+  \ one, or a few, bare TASKS.** Everything else. A bare task carries 0 external\n\
+  \  audits (hygiene fast-path) or 2 (substantive: audit-pre + audit-post). A few\
+  \ related changes →\n  a few tasks ordered by `requires:` (SPEC-0046). A mid-work\
+  \ dodelka not yet worth the full\n  lifecycle → `followup add` (SPEC-0095) as the\
+  \ **staging buffer**, drained later into a task —\n  a followup is a FORM of the\
+  \ task branch (a deferred task), NOT a fourth carrier.\n\n- **Authored reference\
+  \ note realized mid-work (a `lesson` SPEC-0090, a `patterns/` note) —\n  capture\
+  \ cheap, author BATCHED.** An authored reference artifact is neither S0 record-only\
+  \ (it\n  authors new content) nor an S2 dodelka/task, so it has no lightweight sieve\
+  \ branch of its own —\n  and paying a full worktree->land cycle PER note at the\
+  \ moment of realization is the X-0148\n  ceremony-per-lesson pain. Instead: capture\
+  \ the insight IMMEDIATELY with `followup add`\n  (SPEC-0095 — no worktree, nothing\
+  \ lost), then DRAIN accumulated notes by authoring the files\n  together in ONE\
+  \ `work/<slug>` worktree and landing once (many notes, one land). ** is\n  UNCHANGED**\
+  \ — the authored FILE still rides a worktree (isolation protects a graph-indexed\n\
+  \  durable artifact); only the AT-REALIZATION capture is worktree-free, exactly\
+  \ as a followup is.\n  This removes the ceremony-per-note cost WITHOUT a new no-worktree\
+  \ authoring verb or a\n  carve-out (the lightweight path is the composition of two\
+  \ existing rails, not a fourth carrier).\n\n**Self-applied discipline (the point\
+  \ of this spec).** Running the sieve REPLACES the reflex\n\"when unsure, ask the\
+  \ owner plan-or-task\". Uncertainty about the CARRIER is resolved by the\nsieve,\
+  \ not by an ask. What IS escalated (P7 dissonance / AGENTS §when-to-ask) is a genuine\
+  \ owner\ndecision — an ambiguous or contested SCOPE, a real product trade-off —\
+  \ never which carrier a\nwell-specified change takes. When two branches seem to\
+  \ both fit, the ORDER decides: lightest\nwins (S0 before S1 before S2), because\
+  \ a heavier carrier is not \"safer\", it only pays audits the\nchange does not need.\n\
+  \n## Rationale\n\nReal incident (the self-case): **X-0213** — the plan-vs-task carrier\
+  \ choice kept being posed to\nthe owner instead of self-resolved. Live incident\
+  \ **2026-07-07**: during a cross-log intake the\nController hesitated on plan-vs-task\
+  \ for **X-0216 / X-0217 / X-0218** and asked the owner rather\nthan running the\
+  \ fork — the owner identified this as X-0213's OWN motivating case. Prior-art: the\n\
+  fork already lived as narrative in LIFECYCLE §Routing (SPEC-0046 decomposition,\
+  \ SPEC-0034 plan\nlifecycle, SPEC-0072 effort-tier on a different axis) but was\
+  \ not framed as a mechanical\nself-answerable procedure, so it read as an adjudication.\
+  \ This spec is the ONE home of the\nprocedure body; LIFECYCLE §Routing keeps only\
+  \ a cue+pointer (SPEC-0005 rule 8).\n\n## Verification\n\n- State-probe: `bin/yitc-v2\
+  \ graph query SPEC-0140` resolves this spec + body (query-only tier).\n- State-probe:\
+  \ LIFECYCLE §Routing contains a cue+pointer naming SPEC-0140 (reachable at the\n\
+  \  routing moment) — grep `SPEC-0140` in LIFECYCLE.md.\n- Adoption (live-trigger):\
+  \ the next carrier choice runs the sieve and proceeds without posing\n  the fork\
+  \ to the owner (the X-0213 recurrence closes).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-7
+- LIFECYCLE.md#routing-which-carrier
+- SPEC-0046
+- SPEC-0034
+- SPEC-0072
+- SPEC-0035
+- SPEC-0070
+- SPEC-0095
+- X-0213
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

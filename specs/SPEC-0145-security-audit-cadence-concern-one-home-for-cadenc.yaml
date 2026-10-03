@@ -1,0 +1,490 @@
+id: SPEC-0145
+title: Security-audit cadence concern — one home for cadence policy, evidence-based
+  freshness SLA, report/evidence schema, and waiver rules, consumed by both scheduler
+  and deploy gate
+status: active
+created_at: 2026-07-07 16:26:12+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/security-audit
+- bin/v2-security-gate#evaluate_report
+- bin/v2-security-gate#_carrier_freshness_days
+- bin/lib/init.py#_deliver_cadence_scaffold
+body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at deploy\
+  \ — that a real security audit has run\nrecently enough AND produced VALID evidence.\
+  \ A deterministic audit script runs on a provider-\nindependent SYSTEM schedule\
+  \ and writes an evidence-rich report to the consumer's in-place findings\nstore.\
+  \ Before a deploy (and on demand) a gate checks that a report exists that is FRESH\
+  \ by this\nconcern's SLA and COMPLETE by its evidence schema — and REJECTS a stale-or-incomplete\
+  \ report even\nif its date is current. No AI sits in the cadence loop: AI, if used\
+  \ at all, only triages findings\nafter the fact. Retiring an AI role can NEVER orphan\
+  \ the gate, because the producer is a script on\na system trigger, not a role. The\
+  \ owner/AI reads the project's `security.audit` carrier subsection\nto see the cadence,\
+  \ the SLA, and the evidence home.\n\n## Internal\n\nTHE SECURITY-AUDIT CADENCE CONCERN\
+  \ — ONE normative home for four parts that MUST NOT be separable\n(their separability\
+  \ was the <project> orphaning). **Home split (single SoT — no mechanic\nre-homed):**\
+  \ this spec owns the CADENCE + FRESHNESS-SLA + EVIDENCE(report) SCHEMA + WAIVER\
+  \ SEMANTICS.\n**SPEC-0093** owns the `security.audit` carrier SECTION SHAPE (the\
+  \ key set). **SPEC-0128** owns the\none-declaration→all-surfaces invariant (this\
+  \ spec carries the `concern:` block below). It is the\ncadence SIBLING of the per-deploy\
+  \ SPEC-0098 security live-probe — distinct concern (periodic audit\nfreshness vs\
+  \ deploy-seam property assertion), same `security:` carrier home. Nine rules.\n\n\
+  ### 1. The four parts live together (no separable policy)\nCadence policy, gate\
+  \ freshness SLA, valid-report (evidence) schema, and waiver rules are ONE concern,\n\
+  consumed by BOTH the scheduler AND the gate. Neither the scheduler nor the gate\
+  \ may read a second,\nprivate copy of any of the four — one source (CHARTER §P5).\
+  \ Splitting them apart is the exact drift\nthis concern exists to forbid.\n**Retirements\
+  \ — the four behaviours this concern RETIRES (each a real prior-art failure, none\
+  \ may\nsurvive activation):**\n1. **Date-only gate behaviour** — a gate that accepts\
+  \ a report because its `date:` is current, without\n   verifying the evidence checks\
+  \ actually ran. RETIRED: date is necessary, never sufficient (§4).\n2. **Provider/AI-role\
+  \ cadence dependency** — a cadence loop whose producer is an AI role (or the AI\n\
+  \   provider's own scheduler), so retiring the role orphans the gate (incident).\
+  \ RETIRED: the\n   producer is a deterministic script on a SYSTEM trigger, no AI\
+  \ in the accept path (§2/§3).\n3. **Any duplicate freshness-threshold copy** — a\
+  \ second, private freshness/SLA value the deploy gate\n   reads separately from\
+  \ the scheduler. RETIRED: one SLA, one source; the deploy gate consumes the SAME\n\
+  \   threshold — there is no deploy-side copy (§1/§6).\n4. **The `items` findings-key\
+  \ read-path** — a gate that reads the findings list under `items` while the\n  \
+  \ runner writes `findings`, silently defeating the blocking path (trial-confirmed\
+  \ 2026-07-08). RETIRED:\n   `findings` is the ONE canonical key, read/written by\
+  \ runner + gate + validator alike (§5).\n\n### 2. Deterministic-first — no AI in\
+  \ the cadence loop\nThe evidence PRODUCER is a MECHANICAL script (deterministic,\
+  \ provider-independent). AI is a SEPARABLE,\nNON-GATING layer limited to triage\
+  \ / new-vs-recurring classification / narrative judgement. The gate's\naccept/reject\
+  \ decision NEVER depends on an AI judgement or an AI-role being alive. (Incident\
+  \ : a\nretired AI role must never be able to orphan the gate.)\n\n### 3. Provider-independent\
+  \ trigger\nThe cadence runs on a SYSTEM trigger (cron/systemd), NEVER the AI provider's\
+  \ own scheduler/runtime.\nThis concern CONFORMS to the general operational-provider-independence\
+  \ rule (its own plan, X-0218) —\nit is bound by it, it does not author it.\n\n###\
+  \ 4. Evidence-based freshness, NOT date-based (the load-bearing rule)\nA report\
+  \ is FRESH only if it carries VALID EVIDENCE that the checks ACTUALLY RAN with the\
+  \ claimed\nscope — the required fields (§5) present AND internally consistent. The\
+  \ gate REJECTS a report that is\nstale-by-SLA OR incomplete/inconsistent-by-evidence\
+  \ **even if its date is current**. \"Evidence\" has\nTEETH: the gate verifies the\
+  \ checks ran and covered the required input scope — a fields-present-but-\nempty\
+  \ / zero-checks / scope-mismatched report is REJECTED, not rubber-stamped. Date\
+  \ is necessary, never\nsufficient. (Consult finding #1, high; the owner's central\
+  \ requirement.)\n\n**Scope-CURRENCY — the declared scope must still be the CURRENT\
+  \ one (additive).** The scope\ncheck above asks whether the report COVERED what\
+  \ it declared. This asks the further question a date\ncannot: was what it declared\
+  \ still what the project OWES? A project that grows a payment surface or a\npublic\
+  \ boundary owes MORE checks than it did last week (SPEC-0198), so a report whose\n\
+  `profile_snapshot.check_set_hash` covers a STRICT SUBSET of the CURRENT required\
+  \ check-set is NOT\nFRESH however current its date — the profile widened underneath\
+  \ it. The comparison is SUBSET-shaped,\nnot mere inequality: a report covering a\
+  \ SUPERSET of the current set is not narrower and PASSES.\n**It runs ONLY for a\
+  \ report whose snapshot CLAIMS a profile (`status: present`).** A report carrying\n\
+  no `profile_snapshot` — every report produced before the annotation existed — and\
+  \ one carrying\n`status: unavailable` are read EXACTLY as before: no comparison,\
+  \ verdict unchanged. So no\nalready-covered case changes its compliance (§5 pins\
+  \ the per-state reading).\n**FAIL-CLOSED on an uncheckable claim.** When the CURRENT\
+  \ resolution is unobtainable — the\n`security.audit.profile_snapshot.command` declaration\
+  \ absent, or the command missing / nonzero /\ntimed out / unparseable / contract-failing\
+  \ — a `present` claim is REJECTED (`profile-unresolvable`).\nThat is the deliberate\
+  \ INVERSION of the skip above and not an inconsistency with it: an ABSENT claim\n\
+  skips because there is nothing to compare, while a PRESENT claim that cannot be\
+  \ compared would\notherwise be declared fresh-by-scope having compared nothing.\
+  \ The gate ALSO judges a `present`\nsnapshot's two halves against EACH OTHER before\
+  \ reaching for any resolver — a missing\n`check_set_hash` or `check_set` is INCOMPLETE,\
+  \ and a `check_set_hash` that does not hash its own\nrecorded `check_set` is TAMPERED\
+  \ — which is judgeable from the report alone.\n**HONEST RESIDUAL, stated rather\
+  \ than hidden:** the resolution is computed on the host the gate runs\non. A consumer\
+  \ whose CADENCE host can reach the resolver but whose DEPLOY host cannot will see\n\
+  `profile-unresolvable` at the deploy seam — correctly fail-closed, but the cause\
+  \ is host reachability,\nnot a stale report. Reaching the ONE derivation site is\
+  \ the consumer's declaration to make\n(SPEC-0198 rule 3); this rule does not paper\
+  \ over a host that cannot.\n\n### 5. The evidence/report schema\nA valid report\
+  \ MUST carry: check-IDs; command/tool versions; timestamps; exit codes; scanned\
+  \ paths\n(the input scope); dependency-lockfile hash(es); prior-baseline reference;\
+  \ findings-fingerprint\nderivation; run/agent identity; a **report content-hash**\
+  \ over the report body (for the §4 tamper /\ninternal-consistency check); and the\
+  \ findings list under the **ONE canonical key `findings`** — the\nschema's named\
+  \ key that BOTH the PRODUCER and the GATE read (a producer-writes-`findings`/gate-reads-\n\
+  `items` divergence silently defeats the whole blocking path, so the key `findings`\
+  \ is single-sourced\nHERE and every implementing task — runner, gate, schema-validator\
+  \ — reads/writes `findings`, never\n`items`, P5).\nThe gate applies COMPLETENESS\
+  \ + internal-CONSISTENCY checks over these (§4): every required field\npresent AND\
+  \ non-empty (a fields-present-but-empty or empty-findings report is INCOMPLETE),\
+  \ and the\nreport content-hash MUST recompute to the stored value (a mismatch is\
+  \ a TAMPERED report → REJECT).\n*(Trial-confirmed, mode-A runs 1-2 2026-07-08: the\
+  \ reference gate lacked BOTH checks — a report\nstripped to only `date:` passed,\
+  \ and the runner's `findings:` were invisible under the gate's `items:`\nread; a\
+  \ §4/§5 prototype rejected thin/empty/stale/tampered correctly. Journal: `trial_run`\
+  \ events.)*\n**Pinned concrete schema ( — single-sourced HERE; the runner, the gate,\
+  \ and any validator\nread THIS one form).** The consumer-proof found a fresh, complete\
+  \ runner report REJECTED by\nthe gate on TWO divergences; both are resolved by pinning\
+  \ ONE canonical form (P5 — neither prior side\nwas pre-canonical):\n- **Exact top-level\
+  \ field NAMES (the one set both sides read):** `date`; `run_at`; `run_identity`\n\
+  \  (run/agent identity); `tool_versions` (a mapping); `checks` (a list — each carries\
+  \ `id` + `exit_code`\n  + `ran_at`); `scanned_paths` (a LIST of scanned root paths\
+  \ — the input scope the gate coverage-checks);\n  `required_scope` (a LIST — the\
+  \ required input scope the report declares; the gate's scope source when\n  `SECURITY_REQUIRED_SCOPE`\
+  \ is unset); `dependency_lockfile_hashes` (a MAPPING `{path: sha256_16}` — the 16-hex-char\
+  \ sha256 prefix the runner emits);\n  `prior_baseline`; `fingerprint_derivation`;\
+  \ `findings` (the ONE canonical key — a list; each finding\n  carries `check_id`\
+  \ + `severity` + `status` + `fingerprint` + `what`); and `report_hash` as the FINAL\n\
+  \  line. EACH is gate-completeness-REQUIRED present-AND-non-empty (§4) — INCLUDING\
+  \ `required_scope`: a\n  report dropping it is INCOMPLETE even when the env scope\
+  \ is set (else a thinned report slips the scope\n  check). The retired divergent\
+  \ spellings `run_id`, a `scanned_paths_count`-scalar-only scope, and\n  `dependency_lockfiles`-as-a-list\
+  \ MUST NOT be the canonical carriers. A report MAY ALSO carry\n  SUPPLEMENTAL evidence\
+  \ fields BEYOND this required set — e.g. `hash_input` (the declared\n  hash-contract\
+  \ string), `agent_identity`, `scan_source`, `scanned_paths_count`, `head`, and `commit_identity`\
+  \ (the full commit hash of the scanned checkout — the code-identity partner of `dependency_lockfile_hashes`,\
+  \ joined into the report by the producer, consumed ONLY at the deploy-seam identity-match\
+  \ judgement) — which the\n  gate IGNORES (present-but-NOT-completeness-required);\
+  \ ONLY the fields listed above are the canonical\n  set both sides read AND the\
+  \ gate enforces.\n  **`profile_snapshot` is one such SUPPLEMENTAL field, with a\
+  \ pinned shape and TWO states.**\n  It ANNOTATES the report with the SPEC-0198 derived\
+  \ growth profile, so a report can be told apart from\n  one produced under a different\
+  \ risk profile. It is NOT gate-completeness-required, and WHETHER IT BLOCKS\n  depends\
+  \ on WHICH state it is in (NARROWED by — the earlier unqualified «NEVER blocks»\n\
+  \  predated the §4 scope-currency comparison and would now contradict it):\n  a\
+  \ report WITHOUT `profile_snapshot`, or carrying `status: unavailable`, is never\
+  \ blocked by it\n  and is read EXACTLY as before — a degrade stays visible-but-non-blocking,\
+  \ which is what the\n  degrade is FOR. A report carrying `status: present` makes\
+  \ a CLAIM about the profile it was\n  produced under, and SUBMITS its `check_set_hash`\
+  \ to the §4 scope-currency comparison. It sits INSIDE the hashed body, so it is\
+  \ covered by\n  the same `report_hash` chain as every other field. Its states are\
+  \ exhaustive and DISTINGUISHABLE —\n  which is the rule, because only ONE of them\
+  \ may be silent:\n  - **ABSENT / WAIVED declaration — the intentional opt-out.**\
+  \ No `profile_snapshot:` key at all, and\n    the body is BYTE-IDENTICAL to a report\
+  \ produced before this field existed. This is the ONLY silent\n    state.\n  - **`status:\
+  \ present` — success.** Carries `snapshot_hash` + `check_set_hash` (each 64-hex)\
+  \ and\n    `check_set` (a non-empty list of strings), taken VERBATIM from the SPEC-0198\
+  \ `profile --json`\n    contract. The producer validates that contract in FULL before\
+  \ writing this block, so there is no\n    partial-success shape: a partially valid\
+  \ payload degrades instead.\n  - **`status: unavailable` — a VISIBLE degrade, never\
+  \ a silent fall-through.** Written when the\n    declared command is missing, exits\
+  \ nonzero, exceeds its timeout, prints unparseable JSON, or fails\n    the SPEC-0198\
+  \ contract in any field. Carries `reason:` and the declared `command:`, and is\n\
+  \    ACCOMPANIED by an OPEN `SEC-PROFILE-SNAPSHOT` finding (severity `info`) counted\
+  \ into `open_count`.\n    A degrade report is therefore never byte-identical to\
+  \ the opt-out report — that inequality is what\n    keeps a broken declaration from\
+  \ masquerading as a deliberate decline.\n  **The §4 scope-currency comparison, and\
+  \ its SOFTNESS BY DEPLOY CLASS (owner ruling\n  2026-09-06 option A).** A `status:\
+  \ present` snapshot is the ONLY state that is compared; the other\n  two take the\
+  \ legacy path above. The comparison and its fail-closed bound are §4's; what is\
+  \ pinned\n  HERE is how a scope-stale verdict lands at the SPEC-0108 pre-deploy\
+  \ gate:\n  - **Deploy classes S, C1 and C2 — REFUSE.** The deploy does not run.\n\
+  \  - **Deploy class A — WARN and PROCEED.** Class A is code-only and trivially reversible\
+  \ (SPEC-0097\n    §2), so a profile that widened is a reason to refresh the report,\
+  \ not to hold a reversible ship.\n    The gate emits a stderr line and the deploy\
+  \ seam journals ONE `security_audit_scope_stale` row\n    `{class, report_hash,\
+  \ current_check_set_hash}` (catalogued in SPEC-0025). The row's PRESENCE is\n  \
+  \  the signal — a class-A deploy that proceeded over a narrower-than-current check-set.\n\
+  \  - **The CADENCE path — REFUSE, regardless of class.** A gate run WITHOUT a deploy\
+  \ candidate\n    (no `SECURITY_DEPLOY_COMMIT`, hence no class — SPEC-0155 §4) reports\
+  \ scope-stale unconditionally:\n    there is no reversible-ship argument to make\
+  \ when nothing is being deployed, and the cadence run\n    is exactly where a widened\
+  \ profile should become visible. No second cron-side checker exists or\n    is to\
+  \ be invented — the cadence timer runs the PRODUCER, and this gate run is the checker.\n\
+  \  The class is carried to the gate by the deploy verb as `SECURITY_DEPLOY_CLASS`,\
+  \ the same env-seam\n  idiom as `SECURITY_DEPLOY_COMMIT`; its ABSENCE IS the cadence\
+  \ path, so the binding cannot be faked\n  into softness by omission.\n  The degrade\
+  \ is deliberately `info`-severity and does NOT take §9's whole-report REFUSAL path:\
+  \ a hook\n  is a findings CONTRIBUTOR whose silent loss would hide security findings,\
+  \ whereas an unreachable\n  profile resolver costs only this annotation — refusing\
+  \ the whole report on it would let one broken\n  engine path disarm every consumer's\
+  \ audit, a strictly worse failure than a visible open finding.\n  **Where the command\
+  \ comes from:** the declare-or-waive carrier subfield\n  `security.audit.profile_snapshot.command`\
+  \ (the concern block below), born ACTIVE and already RENDERED\n  by `init` to this\
+  \ project's engine invocation. It is a DERIVED value, not a project stance — a\n\
+  \  byte-copied producer has no `bin/lib/` beside it, so executing the engine is\
+  \ its only route to the ONE\n  derivation site — so it is ratified by construction\
+  \ and owes no unratified-adoption debt (SPEC-0198 /\n  SPEC-0119 rule 13 exclusion\
+  \ (v)). A project opts OUT by replacing `command:` with a `waiver:`. **Deploy-seam\
+  \ delegation (SPEC-0155, additive):** the deploy-seam identity-match rule — which\
+  \ PROVES a report covers the deploy candidate and REFUSES a mismatched commit/lockfile\
+  \ identity at the deploy-seam judgement — is homed in SPEC-0155 §4, not here; this\
+  \ spec stays the ONE schema authority, SPEC-0155 homes only the seam-judgement rule.\n\
+  - **Exact hash CANONICALIZATION:** `report_hash = sha256(H)[:16]`, where H is the\
+  \ report TEXT with\n  EVERY top-level `report_hash:` line removed AND trailing newline(s)\
+  \ stripped — with NO trailing\n  newline re-added. The producer computes the hash\
+  \ over H and appends `report_hash: <hash>` as the\n  final line; the gate strips\
+  \ that line back off and recomputes over the identical H. It hashes TEXT\n  (not\
+  \ a re-serialized mapping) so it is order-stable AND insensitive to a trailing-newline\
+  \ difference\n  — the exact drift that shipped the bug (the runner had hashed the\
+  \ body WITH its trailing newline\n  while the gate rstripped it, a false TAMPER\
+  \ on every fresh report).\n**Dependency findings — the dependency-audit output shape\
+  \ (<workshop-spec> rule 6, X-0306; ADDITIVE —\nnothing above is changed).** A dependency\
+  \ scanner's output (npm audit / pip-audit / equivalent)\nenters the report as FIRST-CLASS\
+  \ FINDINGS in the ONE canonical `findings:` list — NEVER as a probe\nSCALAR. A bare\
+  \ scalar (`npm_audit: \"5 vulnerabilities (1 moderate, 4 high)\"`, the <project>\n\
+  incident) carries no fingerprint to waive, no severity to block on and no status\
+  \ to age, so it can\nenter NO waiver (§7), NO gate (§8) and NO debt machinery (SPEC-0119)\
+  \ — it is evidence that reads as\ncoverage while being unactionable. Each such finding\
+  \ carries the SAME required finding fields as any\nother (`check_id` + `severity`\
+  \ + `status` + `fingerprint` + `what`), plus:\n- **Unit = ONE finding PER ADVISORY**\
+  \ (per ecosystem+package+advisory), never per package: one\n  package can be affected\
+  \ by several advisories, and collapsing them loses findings AND destabilizes\n \
+  \ the fingerprint when the scanner reorders its advisory list.\n- **Identity in\
+  \ the TITLE** — `Vulnerable dependency: <package> (<tag>, <advisory-id>)`, where\n\
+  \  `<tag>` is `<ecosystem>` for the ROOT lockfile and `<ecosystem>:<lockdir>` for\
+  \ a NON-ROOT one\n  (X-0311 / — a multi-lockfile repo must not collapse a same-advisory\
+  \ finding from two\n  directories into one identity; the root path stays byte-identical\
+  \ to the pre- form, so a\n  root-only repo's titles and fingerprints do not move).\
+  \ The title carries ONLY this stable identity,\n  so the §5 `fingerprint_derivation`\
+  \ (sha256(check_id LF title)[:16]) is stable across runs and a\n  waiver keeps matching\
+  \ — but note a waiver written against a NON-ROOT finding is keyed to its\n  lockdir,\
+  \ and moving that lockfile re-keys the fingerprint; the churny facts (installed\n\
+  \  version, affected range, fix availability, reported severity) live in `what`/`evidence`.\n\
+  - **Severity is MAPPED onto this schema's vocabulary, never passed through raw.**\
+  \ The vocabulary is\n  fixed by its two consumers — the deploy gate BLOCKS on an\
+  \ open `critical`/`high` (§8), and the\n  SPEC-0119 debt view counts an aged open\
+  \ sub-critical (`warning`/`info`). A scanner's own dialect\n  (`moderate`, `low`,\
+  \ unranked pip advisories) belongs to NEITHER set, so an unmapped severity falls\n\
+  \  into the gap and is silently uncountable by BOTH. Mapping: critical→`critical`,\
+  \ high→`high`,\n  moderate|medium→`warning`, low→`info`, and anything unrecognized\
+  \ or unranked→`warning` (visible as\n  debt, never dropped out of both consumers).\n\
+  - **`status: open`** — a reported vulnerability IS open. Status is re-derived from\
+  \ the live surface\n  on every run and never carried forward (§2 determinism): a\
+  \ remediated dependency simply stops\n  appearing, which is what honestly restarts\
+  \ a regression's age clock in the SPEC-0119 view.\n- **Scope honesty (two levels).**\
+  \ Where the ecosystem is OUT of scope (no lockfile of that\n  ecosystem), the scanner\
+  \ is NOT APPLICABLE and nothing is recorded. Where the ecosystem IS in scope\n \
+  \ but the scanner could not run (absent/timed-out), the check IS recorded with its\
+  \ exit code and an\n  `unavailable` result — an in-scope check that did not run\
+  \ must SAY SO (§4: date is necessary,\n  never sufficient), and silence there would\
+  \ be the same false coverage the scalar was.\n- **The scanner-ABSENT case additionally\
+  \ emits a BLOCKING finding (X-0724).** Recording an\n  unrun probe on the CHECK\
+  \ alone was not enough, because the gate judges FINDINGS, not check strings:\n \
+  \ a report whose applicable scanner was never INSTALLED carried zero dependency\
+  \ findings and was\n  ACCEPTED — indistinguishable from a clean scan. So where the\
+  \ ecosystem is in scope and the scanner\n  is ABSENT from the host (exit 127), the\
+  \ run ALSO emits the pinned `SEC-DEP-SCANNER-MISSING` finding\n  — severity `high`,\
+  \ status `open`, naming the missing tool(s) and the lockfile that made the probe\n\
+  \  applicable. The check record above is KEPT unchanged; the finding is ADDED to\
+  \ it, never swapped for\n  it. **Why this BLOCKS where the SPEC-0155 rule-3 advisory-outage\
+  \ degrade deliberately does not:**\n  an advisory-service outage is EXTERNAL and\
+  \ TRANSIENT, so fail-closing a deploy on it would be\n  flakiness; a MISSING SCANNER\
+  \ is host configuration inside the operator's control, is not transient,\n  and\
+  \ yields ZERO coverage rather than degraded coverage — the remedy is to install\
+  \ the tool. It rides\n  the gate's EXISTING open-critical/high rule (§8): no new\
+  \ gate, no new severity, no new config key.\n  **Bounds.** Exit 126 (in ecosystem\
+  \ scope but no scanner-auditable target — e.g. a poetry.lock-only\n  repo, which\
+  \ pip-audit cannot read) emits NO such finding: that is an honest out-of-reach TARGET,\
+  \ not\n  an absent TOOL, and installing the scanner would not change it. An OUT-of-ecosystem\
+  \ repo is\n  untouched at both levels — no check, no finding, no alert; the legitimate\
+  \ skip stays a skip.\n\n**Store classification (P5 single-source guard):** the report\
+  \ store `.yitc/findings/` is a\nGATE-CONSUMED EVIDENCE HOME, NOT a journal — in-place\
+  \ per-checkout, gitignored, does NOT travel via\n`land`, with its own retention;\
+  \ it is DISTINCT from `events.jsonl` (the append-only journal) and holds\nno governance\
+  \ state beyond its reports. REUSE the existing YAML parser (no new parser path).\
+  \ The SLA +\nschema are single-sourced in this concern, never re-encoded in the\
+  \ store.\n\n### 6. Freshness SLA + cadence values\nThe kernel owns the SLA CONTRACT\
+  \ + a sane DEFAULT whose cadence is TIGHTER than the freshness window so\na single\
+  \ missed run still has recovery room (e.g. audit every 3 days against a 7-day freshness\
+  \ gate —\nconsult Q3). The project declares its concrete cadence/values in the `security.audit`\
+  \ carrier. The\nDEPLOY gate consumes the SAME SLA — there is no separate deploy-side\
+  \ freshness threshold (§1).\n**Declaration shape (all three required).** A valid\
+  \ `security.audit` declaration is the mapping\n`{cadence, freshness_sla, runner}`\
+  \ — `cadence` (the system-trigger schedule) + `freshness_sla` (the\ngate window)\
+  \ + `runner` (the deterministic audit command). **Each of the three VALUES is a\
+  \ STRING**\n(`cadence: \"0 3 */3 * *\"` — a cron/system-trigger schedule, exactly\
+  \ as the init-delivered\n`bin/security-audit.trigger` template shows; `freshness_sla:\
+  \ \"P3D\"`; `runner: \"./bin/security-audit\"`).\nThe mapping is the DECLARATION;\
+  \ it is not the type of any one key. The registry pair is therefore\n`declare_key:\
+  \ cadence` + **`declare_type: string`** — `declare_type` types the declare_key's\
+  \ VALUE\n(SPEC-0030), so a `mapping` there would demand `cadence:` itself be a mapping\
+  \ and would fail-close\nevery consumer that followed the scaffold (X-0250, fixed).\
+  \ A declaration MISSING any of the\nthree is INCOMPLETE and is REJECTED by the §4/§5\
+  \ completeness contract (which the gate ALREADY applies),\nNOT silently accepted\
+  \ by the registry's generic key-presence check — the STRICT waiver (§7) is the only\n\
+  sanctioned alternative to declaring all three. NO new per-concern shape hook is\
+  \ added (anti-complexity,\nCHARTER §P1 F3): the completeness contract already carries\
+  \ this; an implementing task adds the three-key\nfixtures, it does not mint a `security_audit_shape`\
+  \ mechanism.\n\n### 7. Waiver rules (STRICT)\nA project with no relevant security\
+  \ surface MAY waive the cadence, but the waiver is STRICT (SPEC-0093\nrule 6, mirroring\
+  \ the SPEC-0098 security waiver): `reason` + `compensating_control` + a real-ISO-date\n\
+  `expiry`. An overdue expiry falls due as recheck debt (SPEC-0119). A waiver NEVER\
+  \ silently satisfies\nthe gate.\n\n### 8. Gate consumption is fail-closed\nThe deploy\
+  \ gate (and the on-demand check) consume this concern: NO fresh-AND-valid report\
+  \ within the\nSLA → the gate BLOCKS with the reason surfaced (fail-closed), exactly\
+  \ the deploy-family shape. A\nmissing producer must fail VISIBLY, never silently\
+  \ pass — and, per §2, is never unblocked by an AI in\nthe loop.\n\n### 9. Producer\
+  \ ownership — the generic scaffold never takes a foreign producer's path\nThe kernel\
+  \ ships a GENERIC scaffold producer (the `init`-delivered runner) so a fresh consumer\
+  \ starts\nwith a working cadence. A consumer may instead own its OWN security producer\
+  \ writing the SAME findings\npath. Where the two meet, the generic scaffold NEVER\
+  \ silently takes that path.\nA report is **FOREIGN** when its self-declared producer\
+  \ is anything OTHER than the generic kernel\nscaffold — **absent included** (an\
+  \ unattributable report is treated as foreign, never as the scaffold's\nown: fail-closed,\
+  \ per §8). The rule is **DIRECTION-AWARE**: scaffold-over-foreign REFUSES;\nforeign-over-scaffold\
+  \ is the project TAKING OWNERSHIP — permitted, and it self-disables this rule,\n\
+  because a producer that is not the generic scaffold is not bound by (b).\nThree\
+  \ seams carry the ONE invariant:\na. **INSTALL** — `init` MUST NOT deliver the generic\
+  \ runner, nor its trigger template, into a consumer\n   whose findings path (or\
+  \ whose declared `runner:`) a foreign producer already owns. It refuses that\n \
+  \  delivery VISIBLY, records the refusal, and still delivers every OTHER scaffold:\
+  \ a brownfield consumer\n   keeping its own producer is the CORRECT outcome, so\
+  \ `init` does not hard-fail. **Ownership is judged by\n   CURRENT state** — the\
+  \ LATEST-by-date findings report's `produced_by` (the `<date>-security.yaml`\n \
+  \  naming convention) plus the declared `runner:` — NOT by any historical report:\
+  \ an older foreign report\n   beneath a newer core-owned latest is history, not\
+  \ ownership, and no longer blocks delivery FOREVER\n   (X-0321 — the <project> propagation\
+  \ stall). This mirrors the ACCEPT seam (c), which already selects\n   the newest\
+  \ report; fail-closed keeps its bite where the LATEST report is foreign/absent,\
+  \ or where the\n   declared `runner:` is foreign (the X-0239/X-0097 protection is\
+  \ undiminished).\n   **The INSTALL seam is also STANCE-GATED :** `init` delivers\
+  \ — and `--refresh-scaffolds`\n   refreshes — the runner and its trigger template\
+  \ ONLY where the consumer's `security.audit` stance is\n   DECLARED (SPEC-0093 rule\
+  \ 3; read by the one stance reader over the `security_audit` concern). On a\n  \
+  \ waived or absent stance it withholds both VISIBLY, naming the stance and the adopt\
+  \ route (declare\n   `security.audit.cadence` + `runner:`, record the stance with\
+  \ `init --adopt-concern\n   security_audit:adopt:<owner>`, then re-run `init`),\
+  \ and records the reason on the existing\n   `consumer_init` event. Since a fresh\
+  \ consumer is born WAIVED, \"starts with a working cadence\" above\n   means: once\
+  \ it DECLARES. Files already present are never deleted or refreshed — reported DORMANT.\n\
+  b. **RUN** — the generic runner MUST NOT write over a foreign report. It refuses\
+  \ to run, writes nothing,\n   and exits non-zero, naming the offending report and\
+  \ its producer.\nc. **ACCEPT** — the gate MUST NOT accept a generic-scaffold report\
+  \ as evidence while a foreign\n   producer's report is present in the same findings\
+  \ store. It REJECTS, fail-closed, reason surfaced (§8).\nA refusal is NEVER waivable\
+  \ into a silent pass. The remedy is to KEEP your producer, or to retire it and\n\
+  declare the scaffold as your `runner:`.\n**Third remedy — the COMPOSITION SEAM (additive\
+  \ pointer, <workshop-spec>).** Fork-vs-scaffold is no longer the\nonly fork in the\
+  \ road. A consumer needing its OWN project-specific probe may keep the unmodified\
+  \ kernel\nscaffold as its sole producer and declare a read-only contributor HOOK\
+  \ on the `security.audit` carrier:\nthe core stays the sole report assembler, schema\
+  \ authority and hash signer, folds the hook's findings\ninto the one report, and\
+  \ records the adapter block (`adapter_id` / command / version-hash /\n`required_scope`\
+  \ / `exit_code` / stdout-hash) INSIDE the report before `report_hash` — so a kernel\
+  \ probe\nimprovement reaches the consumer at its next `init` with no re-fork and\
+  \ no hand-merge. That seam's full\ncontract — the hook contributor contract, its\
+  \ fail-closed policy, and the `produced_by` mode\ndiscriminator (a report produced\
+  \ by a FOREIGN producer is legacy full-producer mode, where the hook\nmachinery\
+  \ is entirely INERT) — is homed in **<workshop-spec>** (`graph query <workshop-spec>`),\
+  \ not restated here.\nThis paragraph is a POINTER ONLY: every refusal behaviour\
+  \ above (a/b/c) is unchanged, and copy-extend-\nrename (fork-as-full-ownership)\
+  \ stays legal.\n**Bound (what this rule does NOT touch).** It adds NO field to the\
+  \ §5 evidence schema, changes NO §4\nfreshness window, and changes NO §6 cadence/SLA\
+  \ value. It meets §5 at exactly one seam, resolved here as\nan interpreting note\
+  \ (SPEC-0005 rule 3) rather than by a schema change: §5's \"supplemental evidence\n\
+  fields... which the gate IGNORES\" scopes the **COMPLETENESS** contract (`evaluate_report`)\
+  \ — such a\nfield is never completeness-REQUIRED — and does NOT forbid reading a\
+  \ report's provenance at report\n**SELECTION**, which runs before and outside that\
+  \ contract. §5's required set is unchanged.\nRationale: cross X-0239 — the kernel\
+  \ scaffold silently overwrote a consumer's real gate evidence, and the\ngate then\
+  \ accepted the generic report. That defeats §4's \"the checks ACTUALLY RAN with\
+  \ the claimed scope\"\nguarantee not by a thin report but by provenance-blind selection,\
+  \ so a deploy gate could pass on\nfabricated evidence. Prior-art reused: SPEC-0111\
+  \ §2c's foreign-owner apply refusal (incident X-0097).\n\n## Parameters\n\nNone\
+  \ `consumed`. Per-project cadence / SLA value / findings path are project ops config\
+  \ on the\n`security.audit` carrier (SPEC-0093 §Parameters), NOT kernel-read governance\
+  \ scalars. The SLA DEFAULT\nis a documented contract value read by the gate from\
+  \ the concern/carrier, not a spec-embedded scalar.\n\n## Rationale\n\nIncident :\
+  \ v1 auto-team retirement stopped the nightly security role → no fresh report →\
+  \ the\ndeploy gate blocked permanently (<project>). Root cause: cadence + SLA +\
+  \ schema + waiver were\nSEPARABLE and role-dependent. Prior-art REUSED: the SPEC-0094\
+  \ deploy concern family (seed-and-grow,\ncode-enforced, fail-closed), the SPEC-0098\
+  \ security live-probe (the per-deploy security sibling), the\nSPEC-0128 concern\
+  \ registry (one declaration → all surfaces). Design basis: the external-auditor\
+  \ consult\n(YELLOW, 4 findings) + the gate-specs audit (YELLOW, 3 findings) — deliberation\
+  \ lives in the proposing\nplan, not here (SPEC-0005 §3). Provider-neutral rule text\
+  \ (CHARTER §P4b).\n\n## Verification\n\n- `graph conformance` GREEN with the `security_audit`\
+  \ concern present on ALL generated surfaces\n  (registry↔surface skew = 0) — at\
+  \ ACTIVATION (a draft concern does not register).\n- a scheduled SYSTEM-trigger\
+  \ run produces an evidence-complete report → the gate ACCEPTS it.\n- the gate REJECTS\
+  \ a deliberately STALE report AND a deliberately THINNED/tampered\n  (fields-present-but-empty\
+  \ / zero-checks) report — the honest-freshness proof (§4).\n- retiring an AI role\
+  \ does NOT change gate behavior (no AI in the accept path — §2).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- CHARTER.md#principle-8
+- SPEC-0128
+- SPEC-0093
+- SPEC-0094
+- SPEC-0097
+- SPEC-0098
+- SPEC-0105
+- SPEC-0119
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: security-audit-cadence-as-a-seed-and-grow-kernel-c
+binding:
+- code-enforced
+concern:
+- section: security_audit
+  born_order: 70
+  born: "  audit:\n    # SECURITY-AUDIT CADENCE (SPEC-0145, pairs with SPEC-0093 rule\
+    \ for the `security.audit` shape).\n    # A DETERMINISTIC audit script (no AI\
+    \ in the loop) runs on a SYSTEM trigger (cron/systemd — NOT a\n    # provider\
+    \ scheduler) and writes an evidence-rich report to `.yitc/findings/`; the deploy\
+    \ gate\n    # rejects a report that is stale-by-SLA OR incomplete-by-evidence,\
+    \ even if its date is fresh.\n    # DECLARE `cadence:` (the system-trigger schedule)\
+    \ + `freshness_sla:` (the gate window) + `runner:`\n    # (the deterministic audit\
+    \ command) once this project has a security surface, OR keep this STRICT\n   \
+    \ # waiver. The waiver is STRICT (SPEC-0093 rule 6): reason + compensating_control\
+    \ + a real-ISO-date\n    # expiry are ALL required.\n    waiver:\n      reason:\
+    \ \"Initialized via `bin/yitc-v2 init` — no project-specific security-audit cadence\
+    \ yet; declare `cadence:` + `freshness_sla:` + `runner:` once this project has\
+    \ a security surface (SPEC-0145).\"\n      compensating_control: \"Kernel always-on\
+    \ security baseline: prompt-injection protection, the `security-review` skill,\
+    \ secrets-out-of-git, the host-leak canary.\"\n      expiry: \"2026-12-31\" #\
+    \ review-by date — REPLACE with your real security-review date.\n"
+  carrier_path: security.audit
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: cadence
+  declare_type: string
+  waiver_policy: strict
+- section: security_audit_profile_snapshot
+  born_order: 70
+  born: "    profile_snapshot:\n      # PROFILE SNAPSHOT (SPEC-0198, delivered by\
+    \ for the SPEC-0145 report).\n      # ACTIVE AT BIRTH — and there is no stance\
+    \ here for you to take. The security-audit report\n      # annotates itself with\
+    \ this project's DERIVED growth profile — `snapshot_hash` +\n      # `check_set_hash`\
+    \ + the derived check set — so a report can be told apart from one produced\n\
+    \      # under a different risk profile. You do NOT maintain the profile: the\
+    \ kernel derives it from\n      # this checkout and its journal (read it any time\
+    \ with `__YITC_CLI__ profile`).\n      #\n      # `command:` below is NOT an answer\
+    \ you were asked for — it is a DERIVED VALUE the kernel\n      # RENDERS at init:\
+    \ the route from a byte-copied producer (no `bin/lib/` beside it) to the ONE\n\
+    \      # derivation site, `bin/lib/profile.py#resolve_profile`. A derived value\
+    \ is never asked as a\n      # question (SPEC-0198), so a section whose every\
+    \ value is kernel-rendered is ratified BY\n      # CONSTRUCTION and owes no unratified-adoption\
+    \ debt (SPEC-0119 rule 13's narrow exclusion).\n      #\n      # TO OPT OUT: replace\
+    \ `command:` with a `waiver:` whose `reason:` says why. The report is then\n \
+    \     # byte-identical to an unannotated one. A DECLARED-BUT-BROKEN command is\
+    \ never silent: the\n      # report degrades VISIBLY, carrying `profile_snapshot.status:\
+    \ unavailable` plus an open\n      # `SEC-PROFILE-SNAPSHOT` finding — so a broken\
+    \ declaration can never be mistaken for that\n      # deliberate opt-out.\n  \
+    \    command: \"__YITC_CLI__ --read-only profile --json\"\n"
+  carrier_path: security.audit.profile_snapshot
+  presence_policy: checked-if-present
+  update_policy: init re-seed
+  declare_key: command
+  declare_type: string
+  waiver_policy: loose
+init_concern:
+  init_question: Does this project have a security surface that must be audited on
+    a cadence — and if so, what is its provider-independent system trigger (`cadence:`),
+    its gate freshness window (`freshness_sla:`), and the deterministic `runner:`
+    that produces the evidence report? Declare `security.audit`, or waive (STRICT).
+  waiver: 'A project with no relevant security surface may waive — but STRICTLY: reason
+    + compensating_control + a real-ISO-date expiry (an overdue expiry falls due as
+    recheck debt, SPEC-0119). A waiver never silently satisfies the gate.'
+  evidence: a scheduled system-trigger run producing an evidence-complete report the
+    gate ACCEPTS, plus a demonstrated gate REJECT of a stale/thinned report (the honest-freshness
+    proof, SPEC-0145 §Verification).
+  recommended: 'If the project handles users, payments or other private data: declare
+    `security.audit` with a monthly `cadence:`, a matching `freshness_sla:` and the
+    scanner you already run as `runner:`. Otherwise waive with reason "no security
+    surface yet" and revisit when one appears.'
+  record_at: '`yitc-ops.yaml` — the `audit:` block under `security:` (`security.audit`),
+    not a top-level `security_audit:` section (nothing reads one; `security_audit`
+    is only the concern name for `init --adopt-concern security_audit:<stance>:<owner>`):
+    `cadence:`, `freshness_sla:` and `runner:`, or a strict `waiver:` (reason, compensating
+    control, expiry).'
+  tier: universal
+implements_signature:
+  bin/lib/init.py#_deliver_cadence_scaffold: 11a6228093dab9ee4bc50a4109cb0c04e4f9fac931cc88d4e1aa54211d585491
+  bin/security-audit: 56d4a827beb18fbc3d062fdd2872ad74e9e94e8d656445d0f0fb62387bb7be76
+  bin/v2-security-gate#_carrier_freshness_days: 89d51c6ce3b816f8d0f2f6a880abb8bde620cadff9d564831004cd8fd7d7bb1d
+  bin/v2-security-gate#evaluate_report: fbb86ae2786d0b327bf4d814780aa339239f8ba728ccf991aa65bfcd1774799c

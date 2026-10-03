@@ -1,0 +1,121 @@
+id: SPEC-0197
+title: Contribution policy — release mirror plus proposal intake over forge-neutral
+  primitives, re-authored through the workshop, linked back
+status: active
+created_at: 2026-09-04 02:44:09+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/release.py#render_contribution_policy
+- bin/lib/release.py#collect_answered_proposals
+- bin/lib/release.py#render_release_notes
+- bin/lib/release.py#attach_contribution_surfaces
+- bin/lib/views.py#_view_extensions_catalog
+body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, or the\
+  \ owner's own trial host treated as\none — finds a defect or wants a change in the\
+  \ methodology they installed. They can tell, from the\npublished repository alone\
+  \ and in plain words, what happens to a proposal they send: it is\nreceived through\
+  \ a public intake, it is NOT merged as-is, it is re-authored inside the governed\n\
+  workshop through the ordinary lifecycle, and when it ships the release links back\
+  \ to their\nproposal so they see where it landed. The same channel carries what\
+  \ the trial host reports\noutward, so observing the trial and receiving contributions\
+  \ are one mechanism.\n\n## Internal\n\nTHE CONTRIBUTION POLICY — how change flows\
+  \ UP from an installation to the workshop, over a\nboundary with no shared `main`.\
+  \ Seven rules.\n\n### 1. The public repository is a release MIRROR plus a proposal\
+  \ INTAKE\nThe published repository holds the release artifacts (release contract\
+  \ rules 1 and 5) and accepts\nPROPOSALS. It is NOT a second writable source of the\
+  \ methodology: no change is merged into it\ndirectly, and it is regenerable from\
+  \ the workshop at any time. The mirror states this policy in\nplain words at its\
+  \ top level, so an outside reader never experiences it as a bait-and-switch.\n\n\
+  ### 2. Proposals over forge-NEUTRAL primitives\nA proposal is an issue, a merge\
+  \ request, or a patch mail carrying a MINIMAL named field set: the\ninstalled release\
+  \ version; the affected path(s) or rule id(s); the observed behaviour; the\nproposed\
+  \ change or fix; and the proposer's contact for the link-back. The hosting service\
+  \ used\nfirst is documented as an ADAPTER and worked example in the pattern/runbook\
+  \ that accompanies this\npolicy — never as the normative mechanism. A kernel defect\
+  \ met on an external installation is\nworked around under SPEC-1000 (the external-installation\
+  \ no-dead-end contract), which owns the\nescape, its floor and its reconciliation;\
+  \ this policy owns ONLY that defect's consented intake and\nlink-back — the proposal\
+  \ is optional, needs the person's consent, and carries SPEC-1000's stable\ndeviation\
+  \ fingerprint so the link-back can retire the local workaround lesson.\n\n### 3.\
+  \ Re-authored through the workshop, never merged as-is\nEvery accepted proposal\
+  \ is RE-AUTHORED in the workshop through the EXISTING governed filing routes\n—\
+  \ the carrier sieve (LIFECYCLE §Routing / SPEC-0140): a task, one-or-a-few tasks,\
+  \ or a plan, each\nthrough its own stages and audits — and ships in a later signed\
+  \ release. A proposal is an INTAKE,\nnot an incident: a `deviation_captured` is\
+  \ emitted only when the proposal EXPOSES something in the\nworkshop that is not\
+  \ as it should be (the ordinary reflex), never as the intake path itself. Submitted\n\
+  content is never executed and is treated as DATA under the instruction-injection\
+  \ protocol\n(SPEC-0026), never as instructions. The proposer is not granted write\
+  \ access by contributing.\n\n### 4. Link-back\nWhen a re-authored change ships,\
+  \ the release notes (a manifest-adjacent file, release contract\nrule 5) name the\
+  \ proposal it answers, and the proposal is answered with the release version that\n\
+  carries it — or with the reasoned decline. A proposal is never silently closed.\n\
+  \n### 5. Three destinations keep the funnel small\nA local need has THREE legitimate\
+  \ homes before it becomes a kernel proposal: (a) a registered\nOVERRIDE in the project's\
+  \ ledger (the override-ledger spec) for a divergence the project owns; (b)\nan EXTENSION\
+  \ the project authors and pins as its own repo (SPEC-0101 — an off-machine extension\
+  \ is\na pinned-repo reference, never a registry entry); (c) a KERNEL proposal, RARE\
+  \ — admitted only when\nthe anti-complexity filters pass (CHARTER §P1) and the need\
+  \ recurs (rule-of-three across\ninstallations or across time). The policy names\
+  \ all three so that the kernel is the last resort,\nnot the first.\n\n### 6. Extensions\
+  \ are not endorsements; pins are exact\nThe published catalog of extensions states\
+  \ that listing is not endorsement and that third-party\nextensions are runnable\
+  \ code the installer must review. An extension pin names an EXACT version;\na moving\
+  \ ref is refused (release contract rule 3).\n\n### 7. The workshop sorts what arrives\n\
+  Rules 1-6 govern how a proposal flows UP; this rule governs how the WORKSHOP sorts\
+  \ it on\narrival. The sorting classes and the default disposition are the cross-log\
+  \ triage block of\nSPEC-0086 §7 — they are homed there and NOT restated here (SPEC-0005\
+  \ rule 8). Applied to this\nintake: a DEFECT reproduced on the published release\
+  \ becomes a card; a PROVEN NEED — the rule-5\nrecurrence, or a block on the newcomer\
+  \ path — becomes a card or a plan; a want, a one-off or a\nfriction-only report\
+  \ is answered with a reasoned decline (naming the class and the filter that\nfailed)\
+  \ or kept as an idea; a duplicate is linked to the existing card. Every proposal\
+  \ is\nanswered (rule 4), whichever way it is sorted. Worked example: the v2.0.4\
+  \ trial report\n(`events.jsonl#ts=`) — twelve DEFECT cards, two items\nalready fixed\
+  \ on main, one duplicate linked to.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\
+  \nThe position consult predicted the failure a mirror-only public repository produces:\
+  \ outside\ncontributors experience it as bait-and-switch unless it says, in plain\
+  \ words, that proposals are\nre-authored into the governed source. Its third shape\
+  \ — mirror + intake + re-author + link-back —\nis this policy. The forge-neutral\
+  \ rule absorbs the consult's provider-dependency finding (CHARTER\n§P4b applied\
+  \ to hosting mechanics). Rule 5 keeps the contribution funnel from reaching the\
+  \ kernel\nby default (the pre-commit one-maintainer shape: documented contract,\
+  \ distributed by git refs,\nno registry, no governance board). Prior-art: OSS fork+PR/RFC\
+  \ across trust boundaries; PEP/ADR\nproposal shape; Debian upstream-first for the\
+  \ destinations ladder.\n\n## Verification\n\n- **VP1 (plain-words policy):** the\
+  \ published repository's top-level policy text states rules 1,\n  3 and 4 in plain\
+  \ language (an outside reader can answer \"what happens to my proposal?\" from it\n\
+  \  alone).\n- **VP2 (round trip):** one proposal filed from an installation through\
+  \ the public intake is\n  re-authored in the workshop, ships in a signed release,\
+  \ is pulled back by that installation,\n  and its local patch is deleted; the release\
+  \ notes name the proposal and the proposal names the\n  release (journal + mirror\
+  \ state-check).\n- **VP3 (no direct merge):** the mirror's history contains no commit\
+  \ authored outside the\n  workshop's publish step (state-check over the mirror).\n\
+  - **VP4 (data, not instructions):** proposal text reaches the workshop only as quoted\
+  \ data in a\n  capture/task body; no path executes or auto-applies submitted content\
+  \ (grep + the SPEC-0026\n  protocol).\n- **VP5 (forge-neutral):** this spec's body\
+  \ names no hosting provider; the adapter/example lives in\n  the accompanying pattern\
+  \ (grep).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+- CHARTER.md#principle-5
+- SPEC-0196
+- SPEC-0101
+- SPEC-0026
+- off-server-release-contract-one-mechanism-for-own-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: off-server-release-contract-one-mechanism-for-own-
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/release.py#attach_contribution_surfaces: b6e9c7fef5e5cb75a4e3ae53045278b0e35ee74ce310a5d7ed45d4d099ecc887
+  bin/lib/release.py#collect_answered_proposals: f61c39f22f8928b0aceb5ae9c3d0d7a157e109edd7601cbc1ec5db4b630e0794
+  bin/lib/release.py#render_contribution_policy: 5e0ab9e75ddcf38cafe1db0b2269fa0f80b7db7e10ebafe54c59dfb23c2cd9b7
+  bin/lib/release.py#render_release_notes: 33cd45f809222d40f8f2555db068c0cd430d1bc12cb08a12adb37c78e57cd8d4
+  bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

@@ -1,0 +1,150 @@
+id: SPEC-0149
+title: Post-deploy proof obligation — a journal-derived debt view, no stored obligation
+  state
+status: active
+created_at: 2026-07-09 19:20:12+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/deploy.py#_parse_recheck_window
+- bin/lib/deploy.py#_recheck_window
+- bin/lib/deploy.py#cmd_deploy
+- bin/lib/events.py#cmd_event
+- bin/lib/debt_adoption.py#open_proof_obligations
+- bin/lib/views.py#_render_debt_echo
+body: "## Scenario\n\nA deploy that owes a later proof (a C1 write-path re-check after\
+  \ the observation window; a\nClass-S post-deploy property assertion) and never got\
+  \ it SHOWS UP as a line in the existing\n`bin/yitc-v2 debt` echo — without anyone\
+  \ remembering to look. Closing the proof silences it.\n\n## Internal\n\n1. DERIVED\
+  \ VIEW ONLY — the obligation is computed by folding the journal: a\n   `deploy_completed`/`deploy_backup_taken`\
+  \ carrying an obligation window (a carrier-declared\n   `recheck_within` or the\
+  \ class default) with NO matching later recheck event by the deadline\n   ⇒ one\
+  \ line in the SPEC-0119 debt echo (suppressed-when-clean preserved). ONE WINDOW\
+  \ RULE\n (plan-check finding 2 — no dual source): the fold reads ONLY the window\
+  \ value STAMPED INTO the\n deploy event at deploy time; the STAMPING step (deploy\
+  \ verb) resolves the carrier's declaration\n — including any class default — INTO\
+  \ that recorded value. The fold itself NEVER applies a\n default. A deploy event\
+  \ with no stamped window creates NO obligation, so HISTORY is never\n retro-charged\n\
+  \ (trial finding 2026-07-09: a default window over the real journals retro-created\
+  \ 39 debt lines\n across 3 consumers — noise that buries the echo).\n1a. THE SECOND\
+  \ DISCHARGE — AN EXPIRED OBLIGATION IS CLOSED BY A RECORDED MISS (<project>\n  \
+  \ X-0923; owner decision 2026-08-16). Rule 1 above defines exactly ONE silencing\
+  \ path — a matching\n   LATER recheck — so an obligation whose window has ALREADY\
+  \ EXPIRED has no honest exit: the only\n   mechanical move left is to emit the recheck\
+  \ late, which RECORDS A PROOF NOBODY PERFORMED. That is\n   an ASYMMETRY in this\
+  \ spec's own care, visible in rule 1's own text: rule 1 refuses to retro-charge\n\
+  \   history with a default window and names the disproof that bought the refusal,\
+  \ while an obligation\n   correctly charged and then MISSED was left with a false\
+  \ assertion as its only close. (Measured on\n   <project> 2026-08-15: 7 open, six\
+  \ stamped `recheck_within: 24h` on 2026-08-09/10 and days overdue\n   against revisions\
+  \ six later deploys had superseded. A 24-hour re-check run on day six is not the\n\
+  \   re-check the window meant.)\n   So a SECOND discharge exists: a `deploy_recheck_missed`\
+  \ event carrying `{project, revision,\n   judgement}`. It rides the SAME generic\
+  \ `event` verb as the recheck — no new verb, no new emitter —\n   and rule 2's boundary\
+  \ is UNTOUCHED: the discharge is a journal FACT the existing fold reads, never a\n\
+  \   stored record. Its shape is `task close --settle-probe` on a different axis\
+  \ (a proof owed,\n   its moment passed, closed by an explicit NAMED record rather\
+  \ than by a silent flag or a false\n   assertion). Three conditions govern it:\n\
+  \   (a) JUDGEMENT REQUIRED, FAIL-CLOSED (owner refinement (a)). The event must state\
+  \ WHY a late re-check\n       is or is not meaningful here. A bare flag would decay\
+  \ into a \"remove the line\" button; the\n       judgement is what makes the discharge\
+  \ a decision on record. Enforced at the WRITE\n       (`bin/lib/events.py#cmd_event`\
+  \ refuses a judgement-less event) and held again by the fold, which\n       discharges\
+  \ nothing for a judgement-less row whatever route put it there.\n   (b) ONLY AN\
+  \ ALREADY-EXPIRED WINDOW CAN BE MISSED. The miss is admitted only when it post-dates\
+  \ BOTH\n       its carrier event AND that carrier's stamped deadline. While the\
+  \ window is still open the\n       obligation is live and re-checkable, so there\
+  \ is nothing to be honest about yet — and a miss\n       recorded then matches nothing\
+  \ later either. Without this gate the discharge would be a general\n       MUTE\
+  \ BUTTON for any obligation at all, which is the failure mode this rule exists to\
+  \ avoid.\n   (c) THE MISS STAYS COUNTABLE (owner refinement (b)). That windows are\
+  \ systematically not met is the\n       most valuable signal in this data and must\
+  \ not vanish with the line it silenced. So the same\n       fold DERIVES, over a\
+  \ rolling window, how many obligations were closed as MISSED versus PROVEN,\n  \
+  \     and the debt echo carries one suppressed-when-clean line for it. Derived from\
+  \ the same journal\n       facts — no counter, no tally file (rule 2 again). The\
+  \ counts follow the DISCHARGE, not the\n       event: a miss that silenced nothing\
+  \ (an early one, a key that never deployed, one predating its\n       redeploy)\
+  \ counts nothing, or the number would tally intentions instead of obligations closed.\n\
+  1b. SUPERSESSION IS NOT A DISCHARGE — IT IS THE OBLIGATION NEVER BECOMING OWED (<project>\n\
+  \   X-1162; the CAUSE half of the same measurement rule 1a fixed the EXIT of). An\
+  \ obligation asks for\n   a proof ON A REVISION. When a LATER deploy of the SAME\
+  \ project with a DIFFERENT revision replaced\n   it BEFORE its own deadline, the\
+  \ revision the obligation names had already stopped serving, and no\n   proof performable\
+  \ at that deadline would have meant what the window meant. Charging it is charging\n\
+  \   a debt nobody can pay, which is the alarm-erosion class this spec exists to\
+  \ avoid. So an obligation\n   superseded before its own deadline is NOT OWED and\
+  \ never reaches the echo. (Measured on <project>\n   over their whole logical journal,\
+  \ 2026-08-28: 145 deploy events, 17 carrying a stamped deadline,\n   6 proven and\
+  \ 11 missed — and every miss was SUPERSESSION, never neglect. Minutes each stamped\n\
+  \   revision actually served: 13, 32, 39, 39, 50, 51, 88, 89, 99, 184, 191, 220,\
+  \ 263, 556, 774, 859,\n   1305 — median 99, max 1305; every one shorter than its\
+  \ own window.) Three conditions govern it:\n   (a) AN INTERVAL CHANGE IS NOT THE\
+  \ ANSWER, and this was TESTED rather than assumed: a 30-minute\n       interim makes\
+  \ 16 of 17 measured cases takeable against 0 of 17 at 24 hours, but the minimum\n\
+  \       observed service life is 13 minutes — no FIXED window survives a project\
+  \ that deploys faster\n       than it. The rule has to be derived per-obligation,\
+  \ not tuned.\n   (b) STRICTLY BEFORE THE DEADLINE, which is the direction that matters.\
+  \ A replacement dated AT or\n       AFTER the deadline does NOT drop the obligation:\
+  \ it was genuinely owed the whole time its\n       revision served. Without that\
+  \ end the view degrades into a way of WAITING OUT a proof — deploy\n       again\
+  \ eventually and the debt evaporates — the same mute-button failure rule 1a(b) guards.\n\
+  \       Symmetrically, a redeploy of the SAME revision supersedes nothing (it opens\
+  \ a fresh obligation,\n       as it always did), and one project's deploy never\
+  \ supersedes another's (the key is a pair).\n   (c) IT READS ONLY ROWS THE JOURNAL\
+  \ ALREADY HOLDS. Supersession is derivable from the carrier events\n       the fold\
+  \ already parses — a later same-project deploy of a different revision, dated before\
+  \ the\n       deadline — so there is NO new event type and NO new stored field,\
+  \ and rule 2's boundary is\n       untouched. The drop is COUNTED in the same derived\
+  \ pass (`superseded_count`), for rule 1a(c)'s\n       reason: an obligation that\
+  \ stops being owed must not vanish unobservably.\n2. ACCEPTANCE BOUNDARY (fails\
+  \ the card if crossed): NO stored obligation record, NO new FSM, NO\n   new store\
+  \ — the journal facts ARE the state (the consult medium finding, verbatim).\n3.\
+  \ Serves BOTH pending halves with ONE surface: C1 `delayed_recheck` (which cannot\
+  \ gate the\n   deploy seam — the prior consult) AND the Class-S post-deploy assertion\
+  \ per the owner ruling\n   recorded on (2026-07-09): a failed post-deploy S assertion\
+  \ = immediate owner\n   escalation + an OPEN obligation — NEVER auto-rollback (SPEC-0097\
+  \ §2: exposure is not undone\n   by an image rollback).\n4. `restore_drill` freshness,\
+  \ when it gains a reader, keys to COMPATIBILITY (schema change,\n   restore tooling,\
+  \ dump format, major DB version) — never raw age.\n\n## Rationale\n\nDeclared-and-never-executed\
+  \ C1 evidences (restore_drill, delayed re-check: zero kernel readers,\ngrep-proven\
+  \ 2026-07-09) + the fork. Reuses the debt echo — no new mechanism (P1 F1/F2).\n\n\
+  ## Verification\n\nNamed tests: (a) a deploy event with a window and no recheck\
+  \ by deadline yields exactly one debt\nline; (b) the closing recheck event silences\
+  \ it; (c) clean journal prints nothing; (d) a\ngrep/test asserting no obligation\
+  \ state file exists anywhere (the boundary probe). Rule 1a\n adds: (e) a miss for\
+  \ an ALREADY-EXPIRED window silences the line, while a miss recorded\nINSIDE an\
+  \ open window silences nothing — the differential that separates an honest discharge\
+  \ from a\ngeneral mute button; (f) a judgement-less miss is REFUSED at the write\
+  \ and appends nothing; (g) over a\nfixture carrying both a proven and a missed discharge\
+  \ the two are distinguishable in the derived counts;\nand (d) above is re-run unchanged\
+  \ over a journal containing a miss — still no state file anywhere.\nRule 1b adds:\
+  \ (h) over an inline fixture PAIR — one obligation superseded before its\ndeadline,\
+  \ one still serving at its deadline — the first is not reported as owed and the\
+  \ second still\nis, asserted independently and as a DIFFERENTIAL against the pre-change\
+  \ judgement, so a fixture that\nmerely describes an always-true state reddens; (i)\
+  \ a replacement dated at or after the deadline does\nNOT drop the obligation, and\
+  \ neither a same-revision redeploy nor another project's deploy supersedes\nanything;\
+  \ (j) the proven and honestly-missed counts of rule 1a survive a superseded carrier\
+  \ unchanged;\nand (k) a state-check over the diff shows no new event type and no\
+  \ new stored field (rule 1b(c)).\n"
+cites:
+- SPEC-0119
+- SPEC-0097
+- CHARTER.md#principle-1
+requires:
+- SPEC-0148
+supersedes: null
+activation_owner_task: null
+proposed_by: prove-the-deploy-evidence-chain-acts-on-target-dis
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/debt_adoption.py#open_proof_obligations: 975b27595826f7e8d74c6ef7c07e56fea088cadda05b44955e03479e47caef8a
+  bin/lib/deploy.py#_parse_recheck_window: 8cc5248f79c635f33277da252360566783f727209a6f6ef7d22bd295799d54f6
+  bin/lib/deploy.py#_recheck_window: a195dbbff318ac6cce847a753e7e7722ace7967420fc82aab101eba34ba2b544
+  bin/lib/deploy.py#cmd_deploy: 6b771f9a5eb266f3dc711a26a2602197ffae31f93e2ea8c053c85f38617784d9
+  bin/lib/events.py#cmd_event: 142f15771e46ffc621c9c5a3c5232ed3c3fad625c549173aea1e35ed41ae0c11
+  bin/lib/views.py#_render_debt_echo: 5a8a92d8276f6e1465f994ec81b4b1699df79ca343c6ffdf81495188f6eed654

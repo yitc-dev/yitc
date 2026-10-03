@@ -1,0 +1,248 @@
+id: SPEC-0072
+title: Effort-tier routing — filing sets a task's effort tier; dispatch maps tier
+  to model/effort via config
+status: active
+created_at: 2026-06-12 06:55:22+00:00
+consumed: false
+implements:
+- bin/effort-routing-config.yaml
+- bin/lib/vocab.py#EFFORT_TIERS
+- bin/lib/cli.py#_resolve_effort_routing
+- bin/lib/dispatch.py#cmd_dispatch
+- bin/lib/task.py#cmd_task_file
+- bin/lib/task.py#cmd_task_update
+- bin/lib/cli.py#_resolve_effort_reserve
+- bin/lib/cli.py#_resolve_config_model
+- bin/lib/cli.py#_strip_model_window_suffix
+- bin/lib/cli.py#_resolve_warm_worker_cap
+- bin/lib/dispatch.py#classify_launch_answer
+- bin/lib/dispatch.py#launch_worker_with_pair
+- bin/lib/cli.py#_resolve_worker_binary
+body: "## Scenario\n\nWhen a task is FILED, its author records an effort TIER — the\
+  \ one judgment they already make while\nsizing the change: is it irreversible /\
+  \ wide-blast-radius / critical? When that task is later\nDISPATCHED to a background\
+  \ worker, `dispatch` reads the tier and AUTO-selects the worker's\nmodel + effort\
+  \ from a config map — no human chooses a model at launch. Default tier (`normal`)\
+  \ →\nthe cheap disciplined model; `critical` → the thorough model. The dispatcher\
+  \ may still override per\nrun. INTERACTIVE sessions are out of scope of the auto-map:\
+  \ the owner picks the model directly there.\n\n## Internal\n\n1. **The tier is a\
+  \ TASK FIELD written at filing by the FILING AUTHOR — normally the AI authoring\
+  \ the\n   card** (the owner when the owner files it): `effort_tier: normal | critical`\
+  \ (default `normal`).\n   It is ONE MORE authoring field alongside `class` / `expected_touch`,\
+  \ written as part of the\n   change-sizing the author ALREADY does at Filing/Analysis\
+  \ (SPEC-0046 blast-radius + the\n   `expected_touch` forecast): the AI assesses\
+  \ reversibility + blast-radius + criticality of the\n   change it is describing\
+  \ and records the tier, exactly as it records the class and the touch\n   forecast.\
+  \ Captured as TRANSPARENT, owner-reviewable, OVERRIDABLE data on the card.\n   **This\
+  \ is AUTHORING JUDGMENT, NOT the banned standing runtime auto-classifier (CHARTER\
+  \ non-goal\n   #7):** the field is set ONCE at card creation and is NEVER re-inferred\
+  \ at dispatch — `dispatch`\n   does a deterministic config LOOKUP of the already-written\
+  \ field, no inference, no detector. The\n   owner can change the field on the card\
+  \ at any time — via `task update --effort-tier <tier>`, the governed\n post-filing\
+  \ writer, whose CLOSED vocabulary is the one this spec's `Parameters` table\n names.\
+  \ \"At any time\" is bounded by the card's NON-TERMINAL life: a `done` / `wont-do`\
+  \ card is\n frozen history and its tier is INERT there, because rule 2 resolves\
+  \ a tier only for a card\n `dispatch` is about to launch and a terminal card is\
+  \ never launched. `critical` when the change is irreversible /\n   wide-blast /\
+  \ critical — knowable in advance because it is a property of the change being described,\n\
+  \   not discovered mid-work.\n\n2. **`dispatch` maps tier → (model, effort) deterministically,\
+  \ at launch, with NO human in the loop.**\n   The map is a lookup, not inference.\
+  \ WHICH pair each tier maps to is DATA, named only in\n   `bin/effort-routing-config.yaml`\
+  \ — this rule states the mapping's SHAPE (tier → one (model,\n   effort) pair, plus\
+  \ the optional reserve pair of rule 7), never an id or a level (CHARTER §P4b).\n\
+  \   An explicit `--model` / `--effort` passed to `dispatch` OVERRIDES the map (the\
+  \ escape hatch). The\n   resolved (model, effort) + the tier it came from are recorded\
+  \ on the dispatch event (probeable).\n\n3. **The tier→model/effort map is CONFIG,\
+  \ not hardcode** (a small `bin/effort-routing-config.yaml`,\n   the existing `*-config.yaml`\
+  \ pattern — `pricing-config` / `audit-config`). So the default model can\n   change,\
+  \ and a MULTI-PROVIDER future is a config edit, not a field/verb change. The FIELD\
+  \ is\n   provider-neutral by construction — it names a TIER, never a model id (CHARTER\
+  \ §P4b).\n\n4. **Routing is by STAKES (the tier), NOT by difficulty/class.** The\
+  \ bench (v4 / v5 / real-pilot-1)\n   found subjective quality a TIE across all difficulty\
+  \ types (panel within judge-noise; objective\n   floor uniform). So a difficulty→effort\
+  \ matrix buys no quality and is rejected (anti-complexity).\n   the `critical` tier\
+  \ buys TAIL-RISK insurance (marginal thoroughness) on irreversible/wide changes,\n\
+  \   where paying the higher cost is justified; `normal` is the value default for\
+  \ everything else.\n   WHICH concrete pair realises either tier is config data,\
+  \ not stated here.\n\n5. **Scope = the autonomous launcher only.** The auto-map\
+  \ governs `dispatch` (the control chokepoint). Interactive model choice stays the\
+  \ owner's (`/model`); the tier is guidance there, not a\n   gate. No new routing\
+  \ verb, no classifier — the verb that is \"before running a worker\" is EXTENDED.\n\
+  \n6. **Analysis-stage escalation — asymmetric, UPWARD only.** A dispatched worker\
+  \ that, during\n   Analysis (Stage 1 — where the true blast-radius actually surfaces,\
+  \ SPEC-0046), judges its task\n   UNDER-tiered (assigned `normal` but the change\
+  \ is in fact irreversible / wide-blast / critical)\n   does NOT build on the wrong\
+  \ model. It: (a) bumps `effort_tier: critical` on the card — the governed\n route\
+  \ is `bin/yitc-v2 task update <task> --effort-tier critical`, never a hand-edit\
+  \ or a\n `--old/--new` text replace of the key, both of which the verb now refuses\
+  \ — (b) emits\n   an escalation HALT — **REUSE `bg_dispatch_halted` with `reason:\
+  \ tier-escalation`** (no new event),\n   and STOPS. The **CONTROLLER** then re-dispatches\
+  \ on the new tier; the worker NEVER\n   self-redispatches (subagent-role: a build\
+  \ worker is one-shot — more build work is a fresh\n   controller-launched session,\
+  \ per the dispatch preamble). This is the worker's own judgment while\n   analyzing\
+  \ the task it is about to build, mediated by an explicit controller-acted halt —\
+  \ NOT a\n   standing runtime classifier (rule 1's non-goal-#7 boundary holds).\n\
+  \   **DE-escalation is NOT done mid-flight:** a worker already on the `critical`\
+  \ tier that finds the\n   task trivial simply FINISHES it — aborting a running worker\
+  \ + re-dispatching is queue churn with\n   no safety gain. An over-tier is corrected\
+  \ on the CARD for future similar tasks (recalibration via\n   the discipline lens),\
+  \ never by a mid-flight abort. The asymmetry is deliberate: escalate only on\n \
+  \  the safety-relevant direction. **Best-effort, not a guarantee:** a weaker model\
+  \ may not recognise\n   it is out of depth (Dunning-Kruger), so the filing-time\
+  \ tier (rule 1) stays the PRIMARY signal and\n   this escalation is the second-layer\
+  \ net that catches part of the under-estimates.\n\n7. **Each tier declares a PRIMARY\
+  \ pair and an OPTIONAL RESERVE pair.** A provider-side\n   SATURATION of the bound\
+  \ model blocks EVERY worker at that tier: the launch dies in the bootstrap,\n  \
+  \ the fleet reads `launch-stall`, and its `transient-overload` detail's remedy is\
+  \ a HUMAN «wait,\n   then re-dispatch the same task unchanged» — no second door.\
+  \ So a tier MAY OPT IN to a reserve,\n   and the reserve is still a PAIR (model\
+  \ AND effort — a reserve model may need its own effort to\n   be usable at all):\
+  \ the MODEL half is the config's ONE shared reserve-model value, the EFFORT\n  \
+  \ half is declared by the opting-in tier ( — see §Config-file contract). A tier\
+  \ that\n   declares no reserve has none, even where the shared reserve model is\
+  \ named: naming a reserve\n   model arms no tier that did not opt in. The resolution\
+  \ is:\n   - the worker launches on the PRIMARY;\n   - **the RESERVE runs ONCE, and\
+  \ ONLY on a NON-ANSWER** — the bootstrap died carrying a provider\n     CAPACITY/OVERLOAD\
+  \ signature, or never came up at all with no worker output. The trigger is\n   \
+  \  narrow and is the whole rule;\n   - **an AUTHENTICATION failure is NOT a non-answer.**\
+  \ It never falls back and never waits: the\n     credential needs a HUMAN and a\
+  \ second model would die identically. A bootstrap that died of\n     anything else\
+  \ UNRECOGNISED likewise never falls back and never waits — every fall-through is\n\
+  \     toward «it answered», so the wait arm is only ever entered by a cause a retry\
+  \ can actually\n     clear. A death the probe WATCHED (pid provably gone, log present)\
+  \ is still not written as a\n     launch: it is recorded as SPEC-0133 rule 2f's\
+  \ bootstrap-phase premature_exit halt;\n   - **NO reserve declared ⇒ NO switching.**\
+  \ The dispatch WAITS and retries the PRIMARY, journaling\n     a heartbeat, so a\
+  \ waiting dispatch is VISIBLY waiting rather than leaving a launch-stall for a\n\
+  \     human to notice. No retry budget: a budget that expires would be that stall\
+  \ again.\n   **Never silent:** the `bg_dispatch_launched` row records WHICH pair\
+  \ the worker actually runs on,\n   so a card's effort tier and the model that did\
+  \ the work can never silently disagree.\n   **Unchanged:** the per-field `--model`/`--effort`\
+  \ override still wins over BOTH pairs (rule 2\n   PRECEDENCE — where the operator\
+  \ pinned the pair there is nothing to switch to and no wait to\n   enter), a tier\
+  \ resolving to neither a model nor an effort still FAILS CLOSED, and the\n   fleet-verdict\
+  \ classes are untouched (this adds a door BEFORE a stall is recorded; it reclassifies\n\
+  \   none). **This rule names NO model id and NO effort level** — every value is\
+  \ owner-editable data in\n   `bin/effort-routing-config.yaml` (CHARTER §P4b). Sibling\
+  \ rule for the AUDITOR tiers: SPEC-0202\n   rule 6 — same doctrine, other seam.\n\
+  \n8. **The worker's provider BINARY is resolved through the PROVIDER BINDING.**\
+  \ Which CLI a\n   dispatched worker launches on is config data beside the routing\
+  \ map — per provider, a binary that is\n   either PINNED (an absolute path) or a\
+  \ name looked up across EVERY copy on the worker's PATH — never a\n   provider name\
+  \ hardcoded in the launcher and never the FIRST PATH hit. Each provider ADAPTER\
+  \ declares\n   how its CLI version is read; the MINIMUM version a model needs is\
+  \ config data; the newest copy that\n   meets it is launched, resolved once per\
+  \ model per dispatch. When every copy is older, `dispatch`\n   REFUSES before any\
+  \ spawn, naming each copy's version AND the minimum. Measured: an external adopter\n\
+  \   host carried two copies, a stale one first on PATH, and a worker launched seconds\
+  \ after an\n   auto-update died at start too old for its model while the watcher\
+  \ said only «proc gone» — so a worker\n   that dies in its start window also has\
+  \ its log TAIL printed (launch probe + watcher). Adding a\n   provider is one adapter\
+  \ plus one binding entry, nothing else. Like rule 7 this names NO binary, NO\n \
+  \  version and NO model id (CHARTER §P4b).\n\n## Parameters\n\n| param | home |\
+  \ values | consumed |\n|---|---|---|---|\n| `effort_tier` | task YAML (set at `task\
+  \ file`, changed after filing by `task update --effort-tier`) | `normal` (default)\
+  \ \\| `critical` | n/a — task field |\n| tier→(model,effort) map | `bin/effort-routing-config.yaml`\
+  \ | ONE shared primary model + one EFFORT per tier, + an OPTIONAL per-tier reserve\
+  \ opt-in over one shared reserve model (rule 7) — every id/level lives THERE, never\
+  \ here | false (read by dispatch from config) |\n\n## Config-file contract (bin/effort-routing-config.yaml)\n\
+  \n- **Schema:** `models: { primary: <id>, reserve?: <id> }` + `tiers: { <tier>:\
+  \ { effort: <level>,\n  reserve?: { effort: <level> } } }` — the worker MODEL is\
+  \ named ONCE in `models:` and every tier\n  reads it, so re-pointing the fleet at\
+  \ another model is a SINGLE value edit; the EFFORT\n  is per tier, because it legitimately\
+  \ differs between tiers. There is deliberately NO per-tier\n  model key: an alias\
+  \ beside the shared value would let a tier disagree with it, which is the\n  repeated-exact-match-key\
+  \ shape this schema replaced. One `tiers:` entry per effort tier\n  (`normal`, `critical`).\
+  \ The reserve is OPTIONAL per rule 7 and still BOTH-HALVES-or-nothing —\n  the halves\
+  \ being `models.reserve` and the tier's own `reserve.effort`: with either absent\
+  \ the\n  tier resolves NO reserve at all (the wait arm), never a half-pair launched\
+  \ at the adapter's\n  default — a malformed or partial reserve must not become a\
+  \ silent switch, and must not refuse a\n  dispatch whose primary is healthy. Owner-editable\
+  \ DATA; the SOLE tier→(model,effort) source (no\n  model id is hardcoded in the\
+  \ dispatch routing path — AC2).\n- **Warm-worker cap keys — one row per model, window-suffix-insensitive.**\
+  \ The\n  `max_tasks_per_warm_worker` map is keyed by the BARE model id, and its\
+  \ reader strips a trailing\n  CONTEXT-WINDOW suffix before the lookup, so a single\
+  \ row serves a model whether or not the\n  routing spells it with its window suffix\
+  \ — the config never restates one id to satisfy the\n  reader. The stripping is\
+  \ NARROW: only a real window suffix is removed, so an unrecognised\n  bracket spelling\
+  \ is never normalized onto a calibrated row and still takes the fail-closed\n  refusal\
+  \ below (the guard is the point; it is never softened into a default).\n- **Not\
+  \ duplicated: per-model DATA lives elsewhere and is NOT kept in sync with this choice.**\
+  \ The\n  pricing/window config names model ids too, but as per-model data (rates,\
+  \ measured window) that a\n  model needs regardless of what routing selects — and\
+  \ that an old model keeps needing after\n  routing moves on. Routing says WHICH\
+  \ model works; that config says WHAT ANY model costs. A\n  routing edit obliges\
+  \ no edit there.\n- **Precedence:** an explicit `dispatch --model/--effort` override\
+  \ WINS PER-FIELD over the map (the\n  escape hatch); the map supplies any field\
+  \ the override leaves unset.\n- **Failure mode (FAIL-CLOSED):** `dispatch` resolves\
+  \ every task's routing in a PREFLIGHT before any\n  spawn (all-or-nothing). A KNOWN\
+  \ tier that does not resolve to BOTH a model and an effort (config\n  missing/incomplete\
+  \ and no override), or a card carrying a non-whitelisted `effort_tier` value,\n\
+  \  REFUSES the launch (`_die`) rather than silently downgrade a critical task to\
+  \ the provider default.\n  An ABSENT `effort_tier` reads as `normal` (legacy-safe;\
+  \ no backfill).\n\n## Rationale\n\nBench real-pilot-1 (v4/v5): quality is a tie\
+  \ across difficulty → route by STAKES, not difficulty;\nand `dispatch` was confirmed\
+  \ UNABLE to vary model/effort (`--task`/`--brief` only) — the bench had to\nbypass\
+  \ it with raw `the AI provider -p --model --effort` (a documented sanctioned exception,\
+  \ §6a). This spec\ncloses that gap. The stakes judgment is knowable at filing because\
+  \ it = the blast-radius sizing\nFiling/Analysis already does. Owner directive 2026-06-12\
+  \ (\"if filing determines it, dispatch should\ndecide automatically without a human\"\
+  , with its per-tier pair named in that directive and now\nRECORDED IN THE CONFIG\
+  \ rather than quoted here — the directive's own verbatim wording stays in the\n\
+  journal, which is where a reader should fetch it (AC5: this spec carries no id and\
+  \ no level). The\ndeliberation (why that default rather than a cheaper pair; the\
+  \ effort-level tie evidence) lives in\nplan ai-bench-operation-accumulating-tables-and-model-r\
+  \ (content-boundary: not restated here).\n\n**Removed alongside (anti-complexity\
+  \ F3):** the bench raw-`the AI provider -p` sanctioned exception (dispatch\nnow\
+  \ varies model/effort itself); and the per-LAUNCH human routing judgment for background\
+  \ workers\n(the decision now travels from filing). **Not added:** no difficulty→effort\
+  \ matrix, no routing verb,\nno stakes auto-classifier.\n\n## Verification\n\n- Probe:\
+  \ a task filed `effort_tier: critical` → `dispatch --task` launches its worker on\
+  \ the pair the\n  config maps `critical` to; a `normal` (or unset) task → the pair\
+  \ it maps `normal` to; with NO human\n  model choice at launch. The dispatch event\
+  \ records the resolved model+effort AND the source tier.\n- Probe (rule 6 escalation):\
+  \ a `normal`-dispatched worker that escalates at Analysis flips the card to\n  `effort_tier:\
+  \ critical` + emits `bg_dispatch_halted reason=tier-escalation` + stops (no self-redispatch);\n\
+  \  the controller re-dispatch lands the task on the `critical` pair. State-check:\
+  \ card tier flipped + the\n  escalation halt event + the re-dispatch resolved on\
+  \ the new tier. (No DE-escalation path exists.)\n- Probe: an explicit `dispatch\
+  \ --task T --effort high` overrides the map (escape hatch honoured).\n- Probe (rules\
+  \ 1 + 6 reachability): `task update <task> --effort-tier critical` on an\n  EXISTING\
+  \ non-terminal card flips the field and emits `task_amended(field_edit, field:\n\
+  \  effort_tier)` carrying from/to; an out-of-vocabulary value is REFUSED with the\
+  \ card unchanged;\n  `--effort-tier normal` REMOVES the key (omit-when-default);\
+  \ a `--old/--new` text replace of the\n  key is refused and routed to the flag.\
+  \ State-check: field + journal row + the refusal exits.\n- State-check: `bin/effort-routing-config.yaml`\
+  \ exists and is the sole tier→model source (no hardcode).\n- Probe (rule 8): `tests/test_t12986_worker_binary_binding.py`\
+  \ — with a stale same-named CLI\n  FIRST on PATH, a real `dispatch` launches each\
+  \ provider's newer absolute copy; with the minimum above\n  every copy it refuses\
+  \ naming the versions and spawns nothing; the launch path carries no provider-name\n\
+  \  literal; a start-window death prints its log tail.\n- The bench raw-`the AI provider\
+  \ -p` exception is retired from the bench harness / §6a (dispatch varies model).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+- SPEC-0046
+- SPEC-0060
+- ai-bench-operation-accumulating-tables-and-model-r
+- ai-configuration-benchmarking-same-task-different-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+implements_signature:
+  bin/effort-routing-config.yaml: 0a8a96b1caea36e3da7effdb489ce2fe4e43e7ca08adc188370d45159c562150
+  bin/lib/cli.py#_resolve_config_model: d0f349afb9f3372a9804fa2207a17416e64790201f6d3d780a20c68ef5a8369d
+  bin/lib/cli.py#_resolve_effort_reserve: ab4275aeaa40693b9a3a3364c6e1d8ee2a8d016726721f2fd3f19fad4d821ec1
+  bin/lib/cli.py#_resolve_effort_routing: 82c34dc05fc3d7fc9bbb4ea4d06e8970ca952b96c6cdebd31193d85e2b2c81c8
+  bin/lib/cli.py#_resolve_warm_worker_cap: aefc2e51cad053ff361818be4b28cb3b5b7363c4587db66edb4affd05ac53b1a
+  bin/lib/cli.py#_resolve_worker_binary: 15c4e30a31bd509a9705a546ea7375b1e361aad288e59649d23d26f889e1fa3e
+  bin/lib/cli.py#_strip_model_window_suffix: 01955b91ac353e9e62c496d299ea60c4714b596774915502aff25a3af9f1760b
+  bin/lib/dispatch.py#classify_launch_answer: ced5162cbc089e9466079dd9b9babf88f370ac7efafaa88ca24703a2355698c7
+  bin/lib/dispatch.py#cmd_dispatch: 18efcb2642f40405e2f55844f495a717597874c9c675d5ec8717e56fae5893e7
+  bin/lib/dispatch.py#launch_worker_with_pair: 059484f698a9a14f34ce9813c9ffdf0952911a4649c2500fe9d1f4530a6f10d1
+  bin/lib/task.py#cmd_task_file: a2448377e68efc1d0223bf442d465f96b5f5f71d29867ba800e11ab1c1a65f11
+  bin/lib/task.py#cmd_task_update: fd38bc430c7885c001ae27b7abf2daaa96eaae9524849b7fe8b548ee6961bc0d
+  bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

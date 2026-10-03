@@ -1,0 +1,147 @@
+id: SPEC-0115
+title: Context-window utilization sensor verb (session context) — deterministic per-model
+  fill percent + configurable refresh threshold
+status: active
+created_at: 2026-06-30 10:45:40+00:00
+travels: null
+consumed: false
+implements:
+- bin/lib/session.py#cmd_session_context
+- bin/lib/views.py#usage_token_classes
+binding:
+- code-enforced
+activation_owner_task: null
+proposed_by: context-window-utilization-sensor-verb-data-driven
+supersedes: null
+requires: []
+body: "## Scenario\n\nThe owner or the AI can ask, deterministically, \"how full is\
+  \ THIS session's context window?\" —\n`bin/yitc-v2 session context` reads the already-logged\
+  \ per-turn token usage of the current\nprimary-provider session, divides it by the\
+  \ model's context window, and prints the occupancy:\n\n    context: 294K / 1000K\
+  \ tokens (29.4%) — ok (threshold 55%)\n\nIt is read-only, computes nothing the provider\
+  \ did not already log, and never reloads or mutates\nanything. The SAME measurement\
+  \ is surfaced — as a one-line tail — by a curated set of seam verbs (the\nverbs\
+  \ that already mark a clean workflow seam), so a long interactive session learns\
+  \ \"context is N%\nfull → refresh due\" at the moment a refresh would be safe, without\
+  \ anyone watching a gauge. This\nsensor is the deterministic SOURCE that feeds the\
+  \ data-driven refresh trigger (SPEC-1004 §1 source (b)).\n\n## Internal\n\nTHE CONTEXT-WINDOW\
+  \ UTILIZATION SENSOR. A read-only deterministic measurement verb + a curated\nseam-surfacing\
+  \ set. It adds NO new store / journal / parser-framework / config file (CHARTER\
+  \ §P1) —\nit reuses the existing per-provider transcript, the existing config home,\
+  \ and the existing seam verbs.\n\n### 1. The verb — `bin/yitc-v2 session context`\
+  \ (the SINGLE parse+compare home, P5)\nUnder the `session` namespace (groups with\
+  \ `session start`; bare `context` is overloaded). Read-only,\ndeterministic, exits\
+  \ 0. It is the ONE home of (a) the usage parse and (b) the threshold compare — every\n\
+  other surface CALLS it, NEVER re-implements the parse (CHARTER §P5). Output names:\
+  \ `occupied`,\n`window`, `pct`, and a `verdict` (under/over the configured threshold).\n\
+  \n### 2. The parse (provider-adapter seam — primary-provider adapter first)\nOccupancy\
+  \ = the LAST COMPLETED turn's token `usage` of the current session transcript —\
+  \ the sum of the\ninput-side token classes the provider logs (prompt input + cache-creation/write\
+  \ + cache-read), which\ntogether are what occupies the window — NOT the cumulative\
+  \ output. The transcript path, the exact\n`usage` field-shape, and how the \"current\
+  \ session / last turn\" is located are PROVIDER-SPECIFIC, so\nthey live behind a\
+  \ thin per-provider ADAPTER: the **primary-provider adapter ships first**; additional\n\
+  provider adapters are later opt-in `+1` additions (an existing separate provider-side\
+  \ rate-limit-window\nreader is prior-art for a SEPARATE window — see §6 — not this\
+  \ one; the concrete twin is named in the\nplan, kept out of this normative body),\
+  \ built only if an incident pulls them (P1 F4). Provider\nbrands/paths live in `bin/`\
+  \ + config + task text, never in normative methodology text (CHARTER §P4b).\n\n\
+  ### 3. Lag nuance (named honestly)\nThe transcript flushes only COMPLETED turns,\
+  \ so the sensor reads occupancy as of the LAST COMPLETED\nturn — it is at most one\
+  \ turn stale. This is fine for a SEAM check (a seam is itself after a completed\n\
+  turn), but the rule names it so a reader never mistakes the number for mid-turn-live.\n\
+  **No-completed-turn case (deterministic, quiet — plan-check finding-3).** When there\
+  \ is NO completed\nturn yet — the live case is a FRESH session at `session start`,\
+  \ which calls the sensor before any turn\nhas flushed — the verb prints `context:\
+  \ unavailable — no completed turn` (no pct, no verdict, exit 0).\nNever an error,\
+  \ never a guessed number; the seam-tail at `session start` is simply quiet until\
+  \ there is\nsomething to measure.\n\n### 4. The threshold (config, % of window —\
+  \ ONE knob for v1)\nThe verb compares `pct` against a configured refresh threshold\
+  \ and reports under/over. Units = **% of\nthe window** (survives a model/window\
+  \ change), NOT absolute tokens. ONE threshold for v1, start at\n**55%** (owner band\
+  \ 50–60), tunable in config. A two-stage warn/hard pair is DEFERRED — added only\
+  \ if a\ntrial shows the single soft line is ignored too long (anti-complexity: one\
+  \ knob until an incident pulls\nthe second; NOT an obligation of this spec).\n\n\
+  ### 5. Config home — the EXISTING pricing/model-config, no new file\nBoth data points\
+  \ live in `bin/pricing-config.yaml` (the existing owner-editable model-config —\
+  \ the same\nhome as the rate tables):\n  - a per-model **`context_window:`** field\
+  \ (window size in tokens) alongside each model's rate block;\n  - a single **`context_refresh_threshold_pct:`**\
+  \ knob (default 55).\nNo new config file is minted (CHARTER §P1 F1/F2 — extend the\
+  \ existing config). A model ABSENT from the\n`context_window` config is reported\
+  \ as `window: unknown` (verdict suppressed) — NEVER guessed, mirroring\nthe pricing\
+  \ table's \"unpriced → null, never guessed\" discipline.\n\n### 6. Two DISTINCT\
+  \ \"windows\" — do not conflate\nThis sensor measures the **context window** (the\
+  \ per-conversation token budget). It is NOT the\nsubscription **rate-limit window**\
+  \ (the 5h/7d quota — <workshop-spec> rule 11, which has its own separate\nprovider-side\
+  \ reader). Same word, different budget; this spec is the CONTEXT analog and EXTENDS\
+  \ the\nwindow-utilization family without merging the two meanings.\n\n### 7. Seam-set\
+  \ surfacing — a curated set CALLS the sensor (not a hook, not every verb)\nThe verbs\
+  \ that already mark a clean seam each CALL the sensor and print a one-line tail\n\
+  `context N% — refresh due / ok`: **`land`, `task close`, `plan stage`, `plan check`,\
+  \ `session start`**.\nThe plan-phase verbs (`plan stage` / `plan check`) are included\
+  \ because a long plan-agreement\nconversation runs no `land`, so land-only would\
+  \ fire too rarely — the plan-phase transitions ARE its\nseams. NOT every verb: `graph\
+  \ query` / `task list` are not seams (surfacing there would be noise). This\nis\
+  \ the \"extend the verb that is at the seam\" model — NOT a new hook or daemon.\n\
+  **Recursion guard (no bootstrap noise within the `session` namespace).** The sensor\
+  \ is a LEAF:\n`session context` NEVER calls a seam verb — in particular it never\
+  \ calls `session start`. A seam verb\n(incl. `session start`) MAY call `session\
+  \ context` and print the one-line tail ONCE; when invoked as\nthat sensor subcall,\
+  \ `session context` returns the measurement and SUPPRESSES its own seam-tail, so\n\
+  there is no recursion and no double-print. `session start` surfaces the tail exactly\
+  \ once at startup.\n\n### 8. Print-only — NO event by default (resolves the probe-carrier\
+  \ question)\nThe sensor is PRINT-ONLY: it emits NO `context_checked` journal event\
+  \ (CHARTER §P1 — do not add a\njournal line nobody reads). The adoption PROBE for\
+  \ the data-driven refresh (SPEC-1004) is the\nDOWNSTREAM refresh that the signal\
+  \ CAUSES — the hand-off + the new session's `session_started` event,\nwhich are\
+  \ ALREADY journaled — so no sensor-read event is needed and the print-only-vs-journal-probe\n\
+  contradiction is removed. A `context_checked` event is added ONLY if a future consumer\
+  \ genuinely needs\nit (P1: deferred until pulled).\n**Capturing the crossing when\
+  \ the owner declines (plan-check finding-3).** Print-only means a\nthreshold crossing\
+  \ leaves no journal line of its own; so an owner DECLINING the proposed refresh\
+  \ would\notherwise be invisible to verification. The TRIAL evidence carrier closes\
+  \ this: the seam-verb STDOUT\nline (`context N% — refresh due`) is captured in a\
+  \ journaled **`trial_run`** event (the SPEC-0035 rule-6\nraw-trial-observation carrier\
+  \ in `events.jsonl`) — recording that the signal FIRED regardless of the\nowner's\
+  \ answer — while the downstream refresh events carry the CONFIRMED-refresh evidence.\
+  \ So a decline\nis still observable, and no NEW sensor event type (`context_checked`)\
+  \ is minted — the existing\n`trial_run` carrier suffices.\n\n## Parameters\n\n|\
+  \ name | home | consumed? | note |\n|-------------------------------|--------------------------|-----------|------|\n\
+  | `context_window` (per model) | bin/pricing-config.yaml | no | window size in tokens;\
+  \ absent → `unknown`, never guessed |\n| `context_refresh_threshold_pct` | bin/pricing-config.yaml\
+  \ | no | default 55; units = % of window |\n\nThese are CONFIG DATA (owner-editable),\
+  \ not spec-read governing scalars — `consumed: false` (GRAPH\nwhitelist excludes\
+  \ sizes/per-deploy config).\n\n## Rationale\n\nThe owner pays a MONITORING cost\
+  \ today (watch the gauge, cue a refresh) for a signal that is now\nMEASURABLE: the\
+  \ provider transcript already logs per-turn `usage` (verified 2026-06-29 on a live\n\
+  session: ~294K/1000K = 29.4% via a plain parse). Prior-art (CHARTER §P1 F1): an\
+  \ existing provider-side\nrate-limit-window reader is the structural twin for the\
+  \ SEPARATE rate-limit window (the concrete twin is\nnamed in the plan, kept out\
+  \ of this normative body per P4b) — this is its CONTEXT-window sibling, so the\n\
+  family is extended, not reinvented. Anti-complexity: reuses\nthe existing transcript\
+  \ + the existing `pricing-config.yaml` + the existing seam verbs — no\nnew store,\
+  \ journal, hook, or config file. The verb is the single parse+compare home (P5)\
+  \ so the seam\nverbs never duplicate the parse.\n\n## Verification\n\n- **VP1 (verb\
+  \ measures):** `bin/yitc-v2 session context` prints `occupied / window (pct%)` +\
+  \ a\n  threshold verdict for the current session; a model absent from `context_window`\
+  \ prints\n  `window: unknown` and suppresses the verdict (never a guessed number).\n\
+  - **VP2 (single home, P5):** the seam verbs (`land` / `task close` / `plan stage`\
+  \ / `plan check` /\n  `session start`) print the one-line tail by CALLING the sensor\
+  \ — grep shows one parse implementation,\n  not five.\n- **VP3 (print-only):** a\
+  \ `session context` run (and a seam-verb run) appends NO `context_checked`\n  event\
+  \ to `events.jsonl` (probe = grep the journal after a run — none).\n- **VP4 (config\
+  \ field, no new file):** `bin/pricing-config.yaml` carries per-model `context_window:`\
+  \ +\n  one `context_refresh_threshold_pct:`; no new config file exists (grep the\
+  \ repo).\n- **VP5 (provider-neutral body, P4b):** this normative body names no vendor\
+  \ brand and no host transcript\n  path (the provider parse + path live in the bin/\
+  \ adapter + config) — grep, none.\n- **VP6 (lag named):** §3 states occupancy is\
+  \ as-of-the-last-completed-turn (≤ one turn stale).\n"
+cites:
+- CHARTER.md#principle-1
+- CHARTER.md#principle-5
+- SPEC-0073
+- SPEC-1004
+- context-window-utilization-sensor-verb-data-driven
+implements_signature:
+  bin/lib/session.py#cmd_session_context: d7a49e8be6a731ab59b4c95f2bd6c12f585cb1cbcf9325c5a270df3583ab59f3
+  bin/lib/views.py#usage_token_classes: a4f67164df3e4c1e6acd25575a888930ae54eb6551c7aad50b05c6c53a17ceec

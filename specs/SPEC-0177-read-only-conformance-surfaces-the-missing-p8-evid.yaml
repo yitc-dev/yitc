@@ -1,0 +1,90 @@
+id: SPEC-0177
+title: Read-only conformance surfaces — the missing P8 evidence vocabulary, and why
+  kernel closure prefers a scheduled run
+status: active
+created_at: 2026-08-13 01:52:00+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/task.py#cmd_task_close
+- bin/lib/task.py#_infra_adoption_seen
+- bin/lib/task_closure_evidence.py#_READ_ONLY_CONFORMANCE_SURFACES
+- bin/lib/task_closure_evidence.py#_resolve_exit_status_evidence_ref
+- bin/lib/task_closure_evidence.py#_resolve_scheduled_run_ref
+- bin/lib/task_closure_evidence.py#_p8_adoption_verdict
+- bin/lib/nightly.py#_check_conformance_surfaces
+body: "## Scenario\n\nSome mechanisms' production surface is a verb that only LOOKS:\
+  \ it reads current state, reports,\nand by design writes nothing — no journal row,\
+  \ no stored state. That non-emission is what makes\nsuch a verb a safe observer.\
+  \ But Principle 8 asks for adoption evidence that resolves to a\ndurable machine\
+  \ record, so these mechanisms had nothing to point at and could not close on the\n\
+  kernel at all.\n\nThis spec gives them a vocabulary for what they CAN prove, and\
+  \ states plainly which proof\nactually counts as adoption.\n\n## Internal\n\n**Rule\
+  \ 1 — the missing vocabulary: read-only-production-surface exit/status evidence.**\
+  \ An\nadoption-evidence payload MAY name the conformance verb's EXIT STATUS as its\
+  \ machine evidence,\nprovided it carries a DIFFERENTIAL: a seeded violation makes\
+  \ the verb exit non-zero, and a clean\ntree makes it exit zero. Without the differential\
+  \ it is a smoke check, not a probe\n(CHARTER §P3).\n\n**Rule 2 — exit-status evidence\
+  \ is NOT, by itself, adoption.** It proves SURFACE FIDELITY: that\nthe production\
+  \ path is wired end to end — CLI dispatch, discovery, inputs, the read-only\nobservation\
+  \ path, failure reporting, exit semantics. That is strictly more than a test node\n\
+  proves (selected code and fixtures behaving), and the difference is principled.\
+  \ But BOTH are run\nby the author, at authoring time. Admitting exit status alone\
+  \ as closure evidence would be\n\"tests green = done\" wearing a CLI-shaped wrapper\
+  \ — the precise failure Principle 8 exists to\nrefuse. External consult 2026-08-13\n\
+  (`decisions/p8-read-only-conformance-evidence-audit-adhoc.yaml`), which corrected\
+  \ the\ncontroller's original position on exactly this point.\n\n**Rule 3 — for KERNEL\
+  \ closure, prefer SCHEDULED-RUN evidence.** The strongest available proof is\nthe\
+  \ bounded methodology-nightly (SPEC-0105) exercising the real verb: a DIFFERENT\
+  \ actor, at a\nDIFFERENT time than the authoring session, resolving one durable\
+  \ `nightly_run_completed`. That\nis what \"adopted\" means — behaviour exercised\
+  \ OUTSIDE the session that authored it. The closure\nLATENCY this imposes (the card\
+  \ waits for a nightly) is NOT a defect to engineer around; it is\nthe price of proving\
+  \ adoption rather than intent.\n\n**Rule 4 — the ranking, so a later reader does\
+  \ not re-derive it.** (1) scheduled-run evidence —\nstrongest, preferred for kernel\
+  \ closure; (2) exit-status evidence — the valid vocabulary for\nthese surfaces,\
+  \ supporting pre-land review and deferred-proof linkage, never REPLACING\nindependent\
+  \ adoption where it exists; (3) `test:<path>::<node>` — supporting evidence, acceptable\n\
+  for narrow consumer-local mechanics, weak for kernel closure because it is a proxy\
+  \ for the\nproduction surface; (4) making the read-only verb EMIT a journal row\
+  \ — REJECTED: it changes the\nproduction invariant to satisfy the evidence contract,\
+  \ which is backwards (SPEC-0133 rule 1).\n\n**Rule 5 — the BOUNDARY.** This applies\
+  \ ONLY to read-only observability/conformance verbs whose\nproduction contract is\
+  \ non-emission with no stored state, and ONLY with a named differential\nfailing\
+  \ input. It must NEVER become general permission for ordinary infrastructure cards\
+  \ to\nclose on author-run tests, author-run commands, or prose assertions.\n\n##\
+  \ Rationale\n\nRecorded bind, fingerprint `read-only-conformance-guard-cannot-satisfy-substantive-p8-on-kernel`\n\
+  (from SPEC-0015): the `test:<path>::<node>` in-process spelling is\nconsumer-only,\
+  \ so a kernel mechanism whose surface emits nothing had no admissible evidence and\n\
+  could not close. The asymmetry between consumer and kernel was itself put to the\
+  \ consult; the\nanswer is that the weaker proxy should NOT simply be widened, because\
+  \ widening the weaker\nspelling everywhere is the cheapest answer and also the one\
+  \ that quietly lowers the bar.\n\n## Verification\n\n- An exit-status evidence payload\
+  \ WITHOUT a named differential failing input is refused.\n- A kernel infra card\
+  \ closing solely on author-run exit-status evidence, where a scheduled run\n  could\
+  \ have exercised the guard, is flagged — closure prefers the nightly record.\n-\
+  \ The evidence vocabulary is unavailable to a card whose production surface DOES\
+  \ emit a journal\n  row (that card uses the ordinary contract; rule 5's class bound).\n\
+  - A read-only conformance verb still emits nothing after this spec — no verb is\
+  \ taught to write\n  in order to satisfy the contract (rule 4, option 4 stays rejected).\n"
+cites:
+- CHARTER.md#principle-8
+- SPEC-0015
+- SPEC-0105
+- SPEC-0133
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/nightly.py#_check_conformance_surfaces: 15a564006c9c22eb3443ce90c200c9c8bd8d1218414477b7d13e21c9b7184893
+  bin/lib/task.py#_infra_adoption_seen: 0748114aafe6969e92860df047ae55c6266f82029083450503a419618d35172b
+  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
+  bin/lib/task_closure_evidence.py#_READ_ONLY_CONFORMANCE_SURFACES: c00e8b292d6d0c54739a030151785112b63b81d05ff99574a036e5178765cf1c
+  bin/lib/task_closure_evidence.py#_p8_adoption_verdict: 1872da309216634e39d7078351e51cd7be99da59680f9b8104fe8119bcd04dfb
+  bin/lib/task_closure_evidence.py#_resolve_exit_status_evidence_ref: 479927d513753038ce8898a0f00ede032dd09e70ab02b85097434be8045ab29c
+  bin/lib/task_closure_evidence.py#_resolve_scheduled_run_ref: 32a3bf809e9bea0b064e8758d61f7eceab96e21f774f289d5f87b3139c6f9cb1

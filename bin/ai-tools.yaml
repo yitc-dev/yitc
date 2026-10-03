@@ -1,0 +1,49 @@
+# AI tools the start command is installed for (SPEC-0086 rule 6f(d)).
+# CHARTER §P4b: provider-neutral normative text; the concrete tool bindings live here.
+#
+# `release install`, `release update` and `init` write the start command for every tool below that is
+# present on the machine; an existing file is replaced only when it holds text an engine wrote (a file a
+# person edited is never touched), and the printed next step
+# names each present tool's invocation. When no listed tool is detected, the row with `default: true`
+# is written (the pre- behaviour).
+#
+# ADD A TOOL ON ONE MACHINE WITHOUT A KERNEL CHANGE: put rows of the same shape in
+# ~/.config/yitc/ai-tools.yaml. A row there is merged over the row of the same key here field by
+# field; a new key adds a tool. A malformed local file is reported and ignored.
+#
+# Fields per tool (`{name}` is the start command's name):
+# label the tool's name as printed to the person
+# present_dirs folders under HOME whose existence means the tool is installed
+# present_commands executables on PATH whose existence means the tool is installed
+# command_path where the user-level command file goes, relative to HOME
+# format markdown = the instructions as a plain file;
+# skill = the same text under a `name` + `description` front matter block
+# invoke what the person types in the tool to run the command
+# clear_session what the person types to clear an open session before starting
+# prerequisites host programs the tool needs: {command, platform (optional), note};
+# a missing one is reported at install, never fatal
+# default true on the one row written when no tool is detected
+tools:
+  claude-code:
+    label: Claude Code
+    present_dirs: [.claude]
+    present_commands: [claude]
+    command_path: .claude/commands/{name}.md
+    format: markdown
+    invoke: /{name}
+    clear_session: /clear
+    prerequisites: []
+    default: true
+  codex:
+    label: Codex
+    present_dirs: [.codex]
+    present_commands: [codex]
+    # <external-auditor> keeps user commands as skills (~/.<external-auditor>/skills/<name>/SKILL.md), run as $<name>.
+    command_path: .codex/skills/{name}/SKILL.md
+    format: skill
+    invoke: ${name}
+    clear_session: /new
+    prerequisites:
+      - command: bwrap
+        platform: linux
+        note: bubblewrap (the Codex sandbox on Linux)

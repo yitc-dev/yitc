@@ -1,0 +1,156 @@
+id: SPEC-0038
+title: Post-verification observation instrument — per-task soak criterion authored
+  at Closure
+status: active
+created_at: 2026-06-05 13:48:04+00:00
+consumed: false
+implements:
+- bin/lib/task.py#cmd_task_close
+- bin/lib/task_closure_evidence.py#_post_verification_gap
+- tasks/_template.yaml
+amends:
+- SPEC-0028: adds ONE optional top-level task field `post_verification` to the catalog
+    (an explicitly admitted exception to its "No other top-level fields" guard — anti-cx
+    checked in the parent plan). The catalog carries the one-line field entry + a
+    pointer HERE (one home).
+- SPEC-0015: adds the Closure authoring step (fill `post_verification` or explicitly
+    waive) + the E-0005-pattern WARN to the closure contract, as a pointer to THIS
+    spec (one home).
+- inspection T8 lens (SPEC-0057 — the inspection construct; established by D-0087): gains
+    the observation SUB-lens (reads per-task criteria, RECORDS observations — no verdicts).
+    NOT a 9th theme — the roster stays capped at 8.
+body: "## Scenario\n\nWhen the AI closes a task, it writes down — at the moment of\
+  \ best understanding — what \"it worked\nin real operation\" will look like for\
+  \ THIS task: a positive, observable criterion + the signal\nthat proves it. Later,\
+  \ the owner-invoked inspection (Theme T8 Adoption) and the plan-level\n`postcheck`\
+  \ soak READ those criteria and RECORD what was actually observed — signal seen,\
+  \ never\nexercised, or a deviation citing the task. The task stays `done` throughout:\
+  \ the soak window is\nobservation, never a queue-holding gate. Acting on the observations\
+  \ (graduation to \"settled\",\nnegative-path routing) is a SEPARATE instrument (the\
+  \ PART-2 plan) — this spec only makes the\nlatent-defect class VISIBLE.\n\n## Internal\n\
+  \nTHE OBSERVATION INSTRUMENT — phase 1 of the soak pair (observation only; action\
+  \ policy is OUT of\nscope, carved to `plans/post-verification-action-policy-graduation-settled`).\n\
+  \n### 1. The field (B1) — `post_verification` on the task YAML\nONE optional top-level\
+  \ field (catalog home: SPEC-0028; this spec is the rule home it points to):\n```yaml\n\
+  post_verification: # optional; authored at Closure (rule 2) or explicitly waived\
+  \ (rule 3)\n  criterion: <what counts as \"it worked\" in real operation — positive\
+  \ + observable>\n  signal: <event / state / measurable that proves it — SAME grammar\
+  \ as acceptance probes / P8\n              live_trigger_evidence (post-dated, not\
+  \ a new probe vocabulary — P5)>\n  # NO threshold field in phase 1 — threshold is\
+  \ an ACTION-policy parameter (PART-2 plan),\n  # calibrated from the observations\
+  \ this instrument accumulates; never guessed.\nnone: <reason> # the explicit-waive\
+  \ alternative shape (rule 3) — mutually exclusive\n                            \
+  \  # with criterion/signal.\n```\n`signal` MUST be non-trivial (NOT \"any invocation\"\
+  ) — interpreting note: any future action policy\nover these observations (PART-2\
+  \ scope, not this rule) can only be as honest as the signal authored\nhere, so THIS\
+  \ authoring moment carries all the judgement.\n\n### 2. Authoring moment (B2) —\
+  \ Closure, Stage 9\nThe field is filled at `task close` time by the task author\
+  \ (closure contract home: SPEC-0015\npoints here). Rationale-as-interpretation:\
+  \ the closer holds maximum context about what correct\noperation looks like; the\
+  \ inspection must never have to GUESS what \"settled\" means per task.\nWhere the\
+  \ task is plan-born and the plan ran a `trial` (SPEC-0035), the trial's observed\n\
+  success-signature SEEDS the criterion (one-way enrichment — the instrument never\
+  \ REQUIRES a trial;\nwork-first tasks author from the closer's understanding alone).\n\
+  \n### 3. Fill-or-explicit-waive at `task close` — FAIL-CLOSED (B3, amended)\nAt\
+  \ `task close`: field filled OR explicit `none: <reason>` → quiet; ABSENT without\
+  \ a waive →\nthe close is **REFUSED**. The waive MUST be explicit — silent absence\
+  \ is indistinguishable from\n\"forgot\", which is exactly the blindness (F-#2) this\
+  \ instrument closes. `class: hygiene`\nauto-waives (mirrors the fast-path skipping\
+  \ audits).\n\n**The refusal always has an escape, and it is the shape that already\
+  \ exists.** The closer supplies\nEITHER `--pv-criterion` + `--pv-signal` (the fill)\
+  \ OR `--pv-waive <reason>` (the explicit waive) on\nthe same `task close` invocation\
+  \ — the carrier flags; no new field, store or flag. The refusal\nis JOURNAL-VISIBLE:\
+  \ it emits `read_gate_refused` carrying `post-verification-fill` as its kind (the\n\
+  existing umbrella refusal event, SPEC-0059), so the skip rate stays measurable,\
+  \ and the §5 T8\nsub-lens reads the historical `post_verification_gap` markers,\
+  \ the refusal rows and the waive share.\nReason QUALITY stays un-judged by machine\
+  \ — the gate raises the FLOOR, it does not grade the answer.\nThe refusal is placed\
+  \ BEFORE the `status: done` write, so a refused close writes nothing.\n\n**Amendment\
+  \ scope — exactly ONE path changes.** The fail-closed disposition governs the FORWARD\n\
+  `task close` path only. Both siblings keep the NON-BLOCKING WARN + the `post_verification_gap`\
+  \ marker:\n- `task update --status wont-do` — carries the same three setter flags\
+  \ (routed through the\n  SAME `_author_post_verification` helper into the SAME `_post_verification_gap`\
+  \ predicate), so the\n  WARN is actionable; it stays non-blocking because a wont-do\
+  \ task never. Making this path\n  fail-closed is a SEPARATE later decision that\
+  \ needs its own measured evidence.\n- `_recover_close_tail` — completes an ALREADY-`done`\
+  \ task's event/graph tail; contractually a\n  no-re-gate path.\n\n**Why this is\
+  \ not the forbidden gate (CHARTER §P7 — the amendment is named, not silent).** The\n\
+  original \"Closure ALWAYS proceeds — no new gate\" clause is RETIRED for the forward\
+  \ close path (see\nthe Rationale section). No FSM, classifier or drift counter (non-goal\
+  \ #7), and no hook or gate cascade\n(non-goal #2): one in-verb refusal in the refusal\
+  \ family `cmd_task_close` already runs.\n\n### 4. Class selector — who soaks (reuses\
+  \ the existing class taxonomy; no new flag)\n| class | soak? | signal type |\n|---|---|---|\n\
+  | hygiene | no (auto-waive) | — |\n| infra | yes (P8 already demands stronger adoption\
+  \ proof) | active: clean live-trigger observations, recorded (count/threshold semantics\
+  \ = PART-2 scope) |\n| other substantive | optional / risk-based at Closure | passive:\
+  \ window with no deviation citing the task — MUST distinguish \"clean\" from \"\
+  never exercised\" (F-#2: null ≠ clean) |\n\n### 5. The reading lens (B6) — T8 sub-lens,\
+  \ observations only\nThe consumer is the owner-invoked inspection, Theme T8 Adoption\
+  \ (SPEC-0057; established) — a SUB-lens, not a 9th\ntheme. For PLAN-BORN work it\
+  \ reads the per-task criteria WITHIN the plan's `postcheck` window\n(SPEC-0034 —\
+  \ `postcheck` IS the existing plan-level soak; this field SHARPENS its aggregate\n\
+  \"works as intended\" with per-task granularity, it does not parallel it). For WORK-FIRST\
+  \ tasks\n(no plan → no postcheck → today NO soak at all — the coverage gap this\
+  \ instrument closes) the\nsame sub-lens reads them standalone. Output = ACCUMULATED\
+  \ OBSERVATIONS per task: signal seen ×N /\nnever exercised (blind, F-#2) / deviations\
+  \ citing the task. NO verdicts, NO graduation, NO\nstatus writes (the accumulate-don't-force-resolve\
+  \ discipline; acting is PART-2).\n\n### 6. What this instrument is NOT (anti-complexity\
+  \ bounds)\n- NOT a new state machine, store, daemon, or soak-timer — one optional\
+  \ field + one authoring\n  check + one reading lens over EXISTING surfaces.\n- NOT\
+  \ a SOAK gate: a soaking task is `done`; nothing holds the queue. The soak has never\
+  \ gated and\n  still does not. (Distinct from the §3 authoring check, which IS fail-closed\
+  \ as of — one\n  in-verb refusal at the authoring moment, with the `--pv-waive`\
+  \ escape. The two are different\n  moments: §3 governs whether the criterion gets\
+  \ WRITTEN, this bullet governs whether the\n  OBSERVATION window holds anything\
+  \ up. It does not.)\n- NOT a re-audit: no auditor invocation per done task.\n- NOT\
+  \ a stored \"settled\"/soak-state — any settled view is DERIVED (P5), and even that\
+  \ view is\n  phase-2 scope.\n\n## Rationale\n\nPrior-art (CHARTER P1 F4): V1 — shipped\
+  \ infrastructure whose hook silently did not fire\nfor 14 ships; the documented\
+  \ origin of CHARTER P3+P8. Existing-analog check (F1): the soak mechanism\nitself\
+  \ already exists as the plan FSM `postcheck` stage — this spec only adds the per-task\
+  \ criterion\nfeeding it + work-first coverage.\n\n### The §3 fail-closed amendment\
+  \ — CHARTER §P1 four filters\n\n1. **Existing analog?** YES — `cmd_task_close` already\
+  \ fails closed on its own contract, and the\n   escape flags already existed. The\
+  \ amendment EXTENDS that refusal family.\n2. **New entity or new view?** NEITHER\
+  \ — the SAME `_post_verification_gap` boolean changes\n   DISPOSITION, on one path.\n\
+  3. **What gets removed?** The forward-path WARN branch, and the ambiguous \"absent\"\
+  \ state for new\n   closures (\"forgot\" and \"deliberately none\" stop being indistinguishable).\n\
+  4. **Real incident?** Measured: 53.0% of non-hygiene closures (2026-06-05..2026-08-06)\
+  \ closed with\n   `post_verification_gap: true` although the delivery remedy had;\
+  \ a non-blocking WARN could\n   not make §3's own \"the waive MUST be explicit\"\
+  \ true.\n\nNamed residual risk: a fail-closed check can convert an invisible skip\
+  \ into a reflexive low-value\nwaive — accepted, because a waive carries a READABLE\
+  \ reason and the substitution is measurable.\n\n## Verification\n\n- **Field + fail-closed\
+  \ check (live-trigger, amended):** a `task close` on a non-hygiene\n  task WITHOUT\
+  \ `post_verification` and WITHOUT a waive is REFUSED (nothing written, no\n  `task_closed`);\
+  \ with the field filled (or `none:` given, or `class: hygiene`) it closes quiet.\n\
+  \  Probe = the differential tripwire in `tests/test_close_post_verification_warn.py`\
+  \ asserting BOTH\n  legs (SPEC-0165 §3), plus one real closure. The two CARVE-OUT\
+  \ paths (`task update --status\n  wont-do`, `_recover_close_tail`) still emit the\
+  \ WARN + the `post_verification_gap` marker — the\n  marker therefore remains a\
+  \ live signal on those paths and in the historical corpus.\n- **Catalog/contract\
+  \ coherence:** SPEC-0028 lists the field with a pointer here; SPEC-0015 names\n\
+  \  the authoring step with a pointer here (grep both — one home, no restatement).\n\
+  - **Reading lens (adoption, P8):** the first inspection run after activation RECORDS\
+  \ at least one\n  per-task observation block sourced from `post_verification` criteria\
+  \ (consumer-read evidence).\n"
+cites:
+- CHARTER.md#principle-3
+- CHARTER.md#principle-8
+- SPEC-0028
+- SPEC-0015
+- SPEC-0034
+- SPEC-0035
+- SPEC-0057
+- task-burn-in-soak-period-post-closure-observation-
+- post-verification-action-policy-graduation-settled
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: task-burn-in-soak-period-post-closure-observation-
+binding:
+- stage-entry:Closure
+implements_signature:
+  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
+  bin/lib/task_closure_evidence.py#_post_verification_gap: 80836ae11dd9ceadd8a1fbc5a57cca0ea0f8b888e45b447f49c843aeed3df502
+  tasks/_template.yaml: ba4ee34607f6f52caf0a8b4f446ad99655ea3fd5036ada42be650e91121c5597
