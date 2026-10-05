@@ -102,7 +102,7 @@ rows, which live entirely in an archive segment.
 Every number here is folded from **production rows written by real lands** — no bench, no
 re-run under a profiler (`lessons/a-measurement-taken-outside-its-harness-measures-the-harness.md`).
 The reconstruction script is a WORKSHOP instrument (`dev-utilities/`, a surface a release does not
-carry — <workshop-spec> rule 1a): it folds the workshop's own journal, so it is named here as the
+carry — SPEC-0195 rule 1a): it folds the workshop's own journal, so it is named here as the
 provenance of these figures, not offered as a tool that travels with this pattern. The method it
 implements is stated in full above, which is what makes the figures re-derivable on any journal.
 

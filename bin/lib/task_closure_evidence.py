@@ -296,6 +296,7 @@ def p8_ref_horizon(refs, task_floor) -> tuple:
     live (an archive segment holds the rows of exactly ONE UTC day — `events.segment_label`'s writer
     contract — and the live segment is always read):
       * `test:` — a FILE, no journal row;
+      * `<project>:<form>` (T-13477) — a row of a registered CONSUMER's journal, none of this one;
       * bare `TYPE` — a row of TYPE carrying this task's id: the task horizon;
       * `TYPE@ts`, `exit:<verb>#seeded=<ts>&clean=<ts>` (cli_invoked), `nightly_run_completed@ts#surface=`,
         `land_completed@ts#branch=` / `#refused=` — rows PINNED by ts: that ts's day;
@@ -328,6 +329,8 @@ def p8_ref_horizon(refs, task_floor) -> tuple:
                 elif ts:
                     whole = True
             continue
+        if _split_consumer_journal_ref(ref) is not None:
+            continue          # T-13477 — `<project>:<form>` names a row of ANOTHER journal: nothing here
         etype, _, rest = ref.partition("@")
         ts, sep, layer = rest.partition("#")
         etype, ts, layer = etype.strip(), ts.strip(), layer.strip()
@@ -1202,6 +1205,65 @@ _CLI_INVOKED_EVIDENCE_TYPE = "cli_invoked"    # the harness receipt an exit-stat
 # The SCHEDULED-RUN row (SPEC-0105) + its selector: `nightly_run_completed@<iso-ts>#surface=<verb>`.
 _SCHEDULED_RUN_EVIDENCE_TYPE = "nightly_run_completed"
 _SCHEDULED_RUN_SELECTOR_PREFIX = "surface="
+# ── T-13477 — the CONSUMER-JOURNAL ref `<project>:<form>` ─────────────────────────────────────────
+# THE CLASS: a KERNEL mechanism whose only production run happens on a registered consumer, so the
+# row that proves it sits in THAT project's journal and nothing in this one can be cited (measured:
+# T-12589 — 0 kernel `land_completed` rows carry `verify_metrics.layer_worker_budget`, every <project>
+# land row does; T-13112 and T-12792 are the same class). It is a PREFIX on the existing forms, not a
+# second grammar: `<project>` picks WHICH journal the form is read from, and the form's own resolver
+# then applies its correlation conditions UNCHANGED to that journal's rows.
+#
+# THREE BOUNDS, all fail-closed:
+#   * `<project>` is a registry KEY — a bare name matched against the host registry's `yitc_v2`
+#     entries by the injected reader, never a path. A path-shaped prefix does not even parse as one
+#     (`_CONSUMER_PROJECT_NAME_RE` admits no `/` and no `.`), so it can never reach a filesystem join.
+#   * `<form>` is one of forms (2)-(6) only (`_consumer_journal_form_admitted`). The others stay
+#     kernel-only: (1) ties on THIS task's id, which a consumer row never carries; (7) is the kernel
+#     nightly; (8) is an author-run receipt pair; (9) is a file in THIS repo; (10) needs the citing
+#     task's own land in the same journal.
+#   * the read is the injected `_consumer_journal_rows` — read-only, segment-aware, lock-free (see
+#     `task._p8_consumer_journal_rows`). Un-injected, or in a realm not PROVEN to be the kernel, the
+#     arm is DARK: the prefix resolves nothing.
+_CONSUMER_JOURNAL_REF_SHAPE = "<project>:"      # the author-facing spelling the grammar must render
+_CONSUMER_JOURNAL_REF_SEPARATOR = _CONSUMER_JOURNAL_REF_SHAPE[-1]
+_CONSUMER_PROJECT_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+
+
+def _split_consumer_journal_ref(ref: str):
+    """T-13477 — `(project, form)` when `ref` is spelled `<project>:<form>`, else None. PURE.
+
+    The head before the FIRST `:` must be a bare project name. That is what keeps every pre-existing
+    spelling out of this arm: a `TYPE@<iso-ts>` ref meets `@` before its first `:` (the one inside the
+    timestamp), a bare type carries no `:` at all, and the `test:` / `exit:` prefixes are refused by
+    name — they are forms of their own, never a project."""
+    if ref.startswith((_IN_PROCESS_EVIDENCE_PREFIX, _EXIT_STATUS_EVIDENCE_PREFIX)):
+        return None
+    head, sep, form = ref.partition(_CONSUMER_JOURNAL_REF_SEPARATOR)
+    if not sep or not _CONSUMER_PROJECT_NAME_RE.match(head):
+        return None
+    return head, form.strip()
+
+
+def _consumer_journal_form_admitted(form: str) -> bool:
+    """T-13477 — is `form` one of the forms (2)-(6), the only ones a consumer journal may answer? PURE.
+
+    Decided on the SPELLING, before any journal is opened: a pinned `TYPE@<ts>` (form 2), or a
+    `land_completed@<ts>#<selector>` whose selector is not `gate=` (forms 3-6). Everything else —
+    a bare type (1), the scheduled-run selector (7), `exit:` (8), `test:` (9), `#gate=` (10), a
+    second prefix — is refused here, so a kernel-only form can never be answered by a consumer row."""
+    if form.startswith((_IN_PROCESS_EVIDENCE_PREFIX, _EXIT_STATUS_EVIDENCE_PREFIX)):
+        return False
+    if _split_consumer_journal_ref(form) is not None:
+        return False
+    etype, _, rest = form.partition("@")
+    ts, sep, selector = rest.partition("#")
+    etype, ts, selector = etype.strip(), ts.strip(), selector.strip()
+    if not etype or not ts:
+        return False
+    if not sep:
+        return True
+    return bool(selector) and etype == _LAYER_ROW_EVIDENCE_TYPE \
+        and not selector.startswith(_GATE_ROW_SELECTOR_PREFIX)
 # A surface RAN under the scheduled runner only on these verdicts. `skip` (not the engine / paths
 # absent) and `error` (a runner fault) mean it never executed, so they witness nothing — fail-closed.
 _SCHEDULED_RUN_RAN_VERDICTS = frozenset({"ok", "fail"})
@@ -1316,7 +1378,7 @@ def _resolve_scheduled_run_ref(surface: str, ts: str, events: list) -> bool:
 # (above, beside `P8_EVIDENCE_PAYLOAD_CUE`). ADD A FORM HERE => ADD ITS LINE THERE: the surfaces
 # that tell an author how to write a ref read that constant and nothing else.
 def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
-                          _is_consumer_build=None, REPO_ROOT=None, _resolve_abort_row_ref, _resolve_exit_status_evidence_ref, _resolve_gate_row_ref, _resolve_in_process_evidence_ref, _resolve_layer_row_ref, _resolve_metric_row_ref, _resolve_scheduled_run_ref, _resolve_verify_refusal_row_ref) -> bool:
+                          _is_consumer_build=None, REPO_ROOT=None, _consumer_journal_rows=None, _resolve_abort_row_ref, _resolve_exit_status_evidence_ref, _resolve_gate_row_ref, _resolve_in_process_evidence_ref, _resolve_layer_row_ref, _resolve_metric_row_ref, _resolve_scheduled_run_ref, _resolve_verify_refusal_row_ref) -> bool:
     """T-10282 — does `ref` RESOLVE to a real, non-circular, correlated journal event?
 
     CORRELATION is the point (audit-pre F2): "an event of this type exists SOMEWHERE in the journal" is
@@ -1363,6 +1425,10 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
     required in either realm, so an un-injected / isolated caller reads exactly what it read before
     (the established `_event_dedup_key` / `_main_events_path` injection precedent).
 
+    (T-13477) The CONSUMER-JOURNAL spelling `<project>:<form>` reads forms (2)-(6) from a registered
+    consumer's journal instead of `events`, through the injected `_consumer_journal_rows` — bounds in
+    the block beside `_CONSUMER_JOURNAL_REF_SHAPE`.
+
     Pure function of (ref, tid, events) for the journal spellings — no I/O, so both call-sites share one
     honest computation (P5); only the consumer arm reads the repo, and only when it is admitted."""
     if not isinstance(ref, str) or not ref.strip():
@@ -1398,6 +1464,36 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
         # kernel, and what the kernel asks of it EXTRA — the scheduled run — is asked at the adoption
         # verdict (`_infra_adoption_seen`), never by making the ref itself unresolvable here.
         return _resolve_exit_status_evidence_ref(ref, events)
+    consumer = _split_consumer_journal_ref(ref)
+    if consumer is not None:
+        # (T-13477) the CONSUMER-JOURNAL form `<project>:<form>` — bounds in the block beside
+        # `_CONSUMER_JOURNAL_REF_SHAPE`. Checked BEFORE the `@`/`#` partition for the same reason as
+        # the two prefixes above: the head is not an event type. `events` (THIS repo's corpus) is
+        # deliberately NOT consulted — the form is answered by the named project's journal and nowhere
+        # else, so a row here can never stand in for one there. The realm must be PROVEN kernel: an
+        # un-injected or consumer `_is_consumer_build` refuses (the stricter reading of an unknown
+        # realm — a consumer session has no business reading a sibling project's journal).
+        project, form = consumer
+        if (_consumer_journal_rows is None or _is_consumer_build is None or _is_consumer_build()
+                or not _consumer_journal_form_admitted(form)):
+            return False
+        pin = form.partition("@")[2][:10]
+        types, since = p8_ref_horizon([form], pin if _ISO_DAY.match(pin) else None)
+        rows = _consumer_journal_rows(project, types, since)
+        if rows is None:
+            return False                          # not a registered `yitc_v2` consumer, or unreadable
+        # The form's OWN resolver, over the consumer's rows. `REPO_ROOT` and the reader are withheld,
+        # so nothing below can reach this repo's tree or open a second journal.
+        return _resolve_evidence_ref(
+            form, tid, rows, _is_consumer_build=_is_consumer_build, REPO_ROOT=None,
+            _consumer_journal_rows=None, _resolve_abort_row_ref=_resolve_abort_row_ref,
+            _resolve_exit_status_evidence_ref=_resolve_exit_status_evidence_ref,
+            _resolve_gate_row_ref=_resolve_gate_row_ref,
+            _resolve_in_process_evidence_ref=_resolve_in_process_evidence_ref,
+            _resolve_layer_row_ref=_resolve_layer_row_ref,
+            _resolve_metric_row_ref=_resolve_metric_row_ref,
+            _resolve_scheduled_run_ref=_resolve_scheduled_run_ref,
+            _resolve_verify_refusal_row_ref=_resolve_verify_refusal_row_ref)
     etype, _, rest = ref.partition("@")
     ts, sep, layer = rest.partition("#")
     etype, ts, layer = etype.strip(), ts.strip(), layer.strip()

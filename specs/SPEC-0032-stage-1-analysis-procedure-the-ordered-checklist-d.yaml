@@ -183,8 +183,8 @@ proposed_by: null
 binding:
 - stage-entry:Analysis
 implements_signature:
-  bin/lib/cli.py#_analysis_procedure_reminder: 79ff1b2a5dda1d4da8aa14374174737b046f3322927620af76e714fa5c3485f5
+  bin/lib/cli.py#_analysis_procedure_reminder: 1769c89ad8d64248cef4e8d182b82b1e64bf40e77db15d22809b0fb01de5078d
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
   bin/lib/cli.py#_print_cross_territory_routing_hint: 3178b489c3bbc6306346b1d27fc90e49053be940a358e70190c6b00babbf5f13
-  bin/lib/cli.py#_stage_sequence_skeleton: b02900d7eaa3f50bc89a1bdb27266bf8f7b02b683bdab4012a2fecf516ae133d
+  bin/lib/cli.py#_stage_sequence_skeleton: 07f49145ed1063905565a71547d0987b99c22a9dd9082425a43825548cfeee70
   bin/lib/worktree_lifecycle.py#cmd_worktree_new: 83b10011a512f2e7677441bda9e9c2ed6e227190f017ec310baf9ea46a61d20a

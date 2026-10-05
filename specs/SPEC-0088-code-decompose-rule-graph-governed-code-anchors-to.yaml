@@ -177,6 +177,6 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/cli.py#_file_has_symbol_space: dadfe76d7b5b1b2fb53d836c278d87781ca2901324b35a4a487ddff414179e22
+  bin/lib/cli.py#_file_has_symbol_space: 38c069d3bc1d12cbad9591a0fcb18feeafdf3ee67e6a97fb5f91c17ae12f8e99
   bin/lib/graph.py#_file_granular_anchor_warning: ecba78f3506c7561ef652b184ce4b1673171c5530beea3bcf3524d4c8e63ca8e
   bin/lib/graph.py#cmd_graph_build: 6807128a31ce7d22d208da3219b23e1c9c0a76bad72fa3d2074d23bb669b493c

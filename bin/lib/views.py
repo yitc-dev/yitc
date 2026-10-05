@@ -6239,12 +6239,24 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _by = _tw.get("writers") if isinstance(_tw.get("writers"), dict) else {}
             _named = ", ".join(f"{k} x{v}" for k, v in sorted(_by.items()))
             _last = _tw.get("latest") if isinstance(_tw.get("latest"), dict) else {}
+            # T-13579: a withholding whose RESTORE failed is not one the sentence below may call
+            # restored. The clause is HISTORICAL — a row says what happened at that land, not what
+            # main holds now, and the write may have been cleared since — so the refusal it names is
+            # conditional on the write still being there. Absent when none failed, so the line is
+            # byte-identical to before for every row that carries no error.
+            _rf = _n(_tw.get("restore_failed")) or 0
+            _rf_errs = _tw.get("latest_restore_errors")
+            _rf_errs = [str(e) for e in _rf_errs] if isinstance(_rf_errs, list) else []
             lines.append(
                 f"debt: {tw} post-ff tail write(s) WITHHELD in the last "
                 f"{_n(_tw.get('window_days')) or 7}d — a land's bookkeeping write could not prove "
                 f"the tests that read it green, so it was restored instead of committed and `main` "
                 f"stayed green (SPEC-0188 rule 7)"
                 f"{': ' + _named if _named else ''}."
+                + (f" EXCEPT {_rf} whose restore FAILED at that land: the write was not committed "
+                   f"and was left on main uncommitted, where a later land refuses it for as long as "
+                   f"it stays there" + (f" (last: {'; '.join(_rf_errs)})" if _rf_errs else "") + "."
+                   if _rf > 0 else "")
                 + (f" Last: {_last.get('reason')}"
                    + (f" on {_last.get('test')}" if _last.get('test') else "") + "."
                    if _last else "")

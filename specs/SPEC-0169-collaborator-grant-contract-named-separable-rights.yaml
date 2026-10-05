@@ -365,3 +365,5 @@ concern:
     \ `entry: <address>` when one exists\n      (SPEC-0169 rule 1a; the grant contract,\
     \ not this section, is what admits a person to a\n      project at all).\n"
 init_concern: null
+implements_signature:
+  bin/lib/cli.py#_run_git_cap: 80cebd1508bded6f8edc3e1d5a10837443244e583f4bd928e62c55353def10dc

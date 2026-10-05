@@ -139,69 +139,79 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ is every plan part / accept-unit mapped to exactly ONE card, with no plan part\n\
   \  unmapped and no card outside the plan's scope?\n- One provable claim per card\
   \ (SPEC-0046) — does any card BUNDLE two concerns, or carry an\n  acceptance OVERLAPPING\
-  \ a sibling card's claim, instead of one provable accept-unit?\n- `requires:` ordering\
-  \ encoded, not prose — is every intended precedence (a «first» / «before» /\n  verifier-after-settled\
-  \ relationship) carried by a `requires:` edge, so no later writer can legally\n\
-  \  run before a card it depends on? (A named-first card with NO outgoing dependency\
-  \ edge is the defect.)\n- Singular activation — does each `proposed` spec have EXACTLY\
-  \ ONE `activation_owner_task` across its\n  sibling cards (the others `cite` it)\
-  \ — never zero, never two? Answer this ONLY from the\n  `## Proposed-spec activation`\
-  \ block appended to the card set (X-0707) — it is the\n  AUTHORITATIVE evidence\
-  \ and the ONLY evidence: in V2 the activation owner is a spec→task POINTER on\n\
-  \  the SPEC yaml, NOT a per-card field, so a card's `cites:` is NOT a proxy for\
-  \ ownership and MUST NOT\n  be read as one. The block lists every spec with `proposed_by\
-  \ ==` this plan, resolving each\n  `activation_owner_task` against the cut. The\
-  \ DEFECT SHAPES are exactly two: a spec reading\n  `NO activation_owner_task — UNOWNED`\
-  \ (zero owners — nothing in the cut will ever activate it), and a\n  spec whose\
-  \ owner reads `NOT a member of this cut` (the cut cannot deliver the activation\
-  \ it\n  promises). A spec reading `owner: T-NNNN — IN this cut` is CORRECT and must\
-  \ NOT be reported, and the\n  explicit `(no spec is born of this plan …)` line means\
-  \ the question is ANSWERED-CLEAN — NOT\n  unchecked — so it must NOT be reported\
-  \ either. A blocking RED must rest only on findings that can be verified.\n- Anchor\
-  \ wiring carried by the cut (SPEC-0070 §3) — for each `proposed` plan spec in the\n\
-  \  `## Proposed-spec activation` block, does its `activation_owner_task` card either\
-  \ CARRY the\n  code-anchor wiring work itself OR `requires:` the card that does\
-  \ (a predecessor may wire it), OR\n  does the spec declare a SPEC-0151 `execution:`\
-  \ disposition — and is the owner card `requires:`-ordered\n  after every implementing\
-  \ card? The DEFECT SHAPE: an owner card whose scope wires no anchor, with no\n \
-  \ `requires:` edge to a card that does and no `execution:` disposition — the spec\
-  \ would activate\n  anchor-less.\n- Probe quality — is each card's acceptance probe\
-  \ satisfiable AND journalable AT THAT task's OWN\n  closure (no future-bound / soak-dependent\
-  \ / luck-only probe), and does a promised invariant carry\n  an explicit probe rather\
-  \ than only a prose promise?\n- No reopened settled choice — does any card REOPEN\
-  \ a design choice the plan/specs already settled\n  (e.g. a «confirm-or-revise»\
-  \ embedded in the card instead of implementing the accepted unit)?\n- Touch-forecast\
-  \ present + plausible — does each card carry an `expected_touch` naming the\n  concrete\
-  \ files/symbols its scope implies, and is that plausibly the cut's blast-radius\
-  \ (present,\n  non-empty, not obviously mismatched vs the card's scope)? An empty\
-  \ `expected_touch` on a decomposed\n  card is a cut-fidelity gap (SPEC-0046 §Persist-the-enumerated-blast-radius)\
-  \ — the cutter already\n  enumerated the touch to size the cut, so a blank forecast\
-  \ is reason-then-discard, not \"unknown yet\".\n- Set-level semantic coherence over\
-  \ a SHARED SURFACE (X-0593) — do any two cards in this\n  cut WRITE or KEY the same\
-  \ named surface, and if so does the cut state which definition GOVERNS?\n  Read\
-  \ the `## Shared surfaces` block appended to the card set: it lists every surface\
-  \ named by >=2\n  cards (grouped by the `expected_touch` path, so `a.py` and `a.py#sym`\
-  \ count as one surface) with\n  the sharing cards' COMMON `cites:` resolved against\
-  \ the corpus. A shared surface whose line reads\n  `(no ACTIVE governing spec cited\
-  \ in common)` is the DEFECT SHAPE: two independent workers can then\n  each implement\
-  \ a self-consistent reading, and nothing before the merge land verify compares them.\n\
-  \  Ask it card-to-card, not card-to-plan: are the two cards' acceptance/scope readings\
-  \ of that surface\n  mutually satisfiable? The cut must either cite the ACTIVE spec\
-  \ that governs the surface, or name\n  ONE card as its definer and `requires:`-order\
-  \ the other after it.\n- Fidelity to intent — taken as a whole, does the cut faithfully\
-  \ realize the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n\
-  \n**`--focus \"<text>\"` — the composable append (on `plan check` / `audit post\
-  \ --plan`):** appends an\nowner/session-specific question block AFTER the stage\
-  \ template (the ad-hoc form made composable —\nit never REPLACES the template).\
-  \ The appended text is recorded VERBATIM in the saved verdict\n`notes` field — **`notes`\
-  \ IS the single verbatim carrier** (full text, byte-equal);\n`prompt_excerpt` stays\
-  \ a ~200-char excerpt and is NEVER the carrier. No new schema field.\n\n**Verdict\
-  \ recording (ONE canonical schema — P5):** every plan-gate verdict saves to the\
-  \ canonical\naudit-result schema (AGENTS §Saved audit result) extended by TWO additive\
-  \ fields:\n`stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`,\
-  \ `gate-trial`,\n`gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory\
-  \ | mandatory-blocking`). The legacy\ndraft-check shape (`draft:`/`kind:`/`content_hash`)\
-  \ is NORMALIZED onto this schema — its\nfreshness extras (`content_hash`/`accept_freshness_hash`)\
+  \ a sibling card's claim, instead of one provable accept-unit?\n- Declared grouping\
+  \ preference (SPEC-0046 §A) — where the cut material (the plan body or\n  a card)\
+  \ names a project-declared task-grouping preference, whether a grouping FOLLOWS\
+  \ it or the\n  cutter DECLINED it, are that preference's SOURCE and RATIONALE named\
+  \ there (for a declined one,\n  with the reason it was not followed)? And does any\
+  \ card rest on the preference to hold MORE than\n  one provable claim? A preference\
+  \ only PROPOSES a cut: it never justifies more than one provable\n  claim per card,\
+  \ and items of one type, or items that would receive one combined verdict, are not\n\
+  \  thereby one claim. A cut that names NO preference is ANSWERED-CLEAN — it is judged\
+  \ by SPEC-0046\n  §A alone and must NOT be reported for lacking a declaration.\n\
+  - `requires:` ordering encoded, not prose — is every intended precedence (a «first»\
+  \ / «before» /\n  verifier-after-settled relationship) carried by a `requires:`\
+  \ edge, so no later writer can legally\n  run before a card it depends on? (A named-first\
+  \ card with NO outgoing dependency edge is the defect.)\n- Singular activation —\
+  \ does each `proposed` spec have EXACTLY ONE `activation_owner_task` across its\n\
+  \  sibling cards (the others `cite` it) — never zero, never two? Answer this ONLY\
+  \ from the\n  `## Proposed-spec activation` block appended to the card set (X-0707)\
+  \ — it is the\n  AUTHORITATIVE evidence and the ONLY evidence: in V2 the activation\
+  \ owner is a spec→task POINTER on\n  the SPEC yaml, NOT a per-card field, so a card's\
+  \ `cites:` is NOT a proxy for ownership and MUST NOT\n  be read as one. The block\
+  \ lists every spec with `proposed_by ==` this plan, resolving each\n  `activation_owner_task`\
+  \ against the cut. The DEFECT SHAPES are exactly two: a spec reading\n  `NO activation_owner_task\
+  \ — UNOWNED` (zero owners — nothing in the cut will ever activate it), and a\n \
+  \ spec whose owner reads `NOT a member of this cut` (the cut cannot deliver the\
+  \ activation it\n  promises). A spec reading `owner: T-NNNN — IN this cut` is CORRECT\
+  \ and must NOT be reported, and the\n  explicit `(no spec is born of this plan …)`\
+  \ line means the question is ANSWERED-CLEAN — NOT\n  unchecked — so it must NOT\
+  \ be reported either. A blocking RED must rest only on findings that can be verified.\n\
+  - Anchor wiring carried by the cut (SPEC-0070 §3) — for each `proposed` plan spec\
+  \ in the\n  `## Proposed-spec activation` block, does its `activation_owner_task`\
+  \ card either CARRY the\n  code-anchor wiring work itself OR `requires:` the card\
+  \ that does (a predecessor may wire it), OR\n  does the spec declare a SPEC-0151\
+  \ `execution:` disposition — and is the owner card `requires:`-ordered\n  after\
+  \ every implementing card? The DEFECT SHAPE: an owner card whose scope wires no\
+  \ anchor, with no\n  `requires:` edge to a card that does and no `execution:` disposition\
+  \ — the spec would activate\n  anchor-less.\n- Probe quality — is each card's acceptance\
+  \ probe satisfiable AND journalable AT THAT task's OWN\n  closure (no future-bound\
+  \ / soak-dependent / luck-only probe), and does a promised invariant carry\n  an\
+  \ explicit probe rather than only a prose promise?\n- No reopened settled choice\
+  \ — does any card REOPEN a design choice the plan/specs already settled\n  (e.g.\
+  \ a «confirm-or-revise» embedded in the card instead of implementing the accepted\
+  \ unit)?\n- Touch-forecast present + plausible — does each card carry an `expected_touch`\
+  \ naming the\n  concrete files/symbols its scope implies, and is that plausibly\
+  \ the cut's blast-radius (present,\n  non-empty, not obviously mismatched vs the\
+  \ card's scope)? An empty `expected_touch` on a decomposed\n  card is a cut-fidelity\
+  \ gap (SPEC-0046 §Persist-the-enumerated-blast-radius) — the cutter already\n  enumerated\
+  \ the touch to size the cut, so a blank forecast is reason-then-discard, not \"\
+  unknown yet\".\n- Set-level semantic coherence over a SHARED SURFACE (X-0593) —\
+  \ do any two cards in this\n  cut WRITE or KEY the same named surface, and if so\
+  \ does the cut state which definition GOVERNS?\n  Read the `## Shared surfaces`\
+  \ block appended to the card set: it lists every surface named by >=2\n  cards (grouped\
+  \ by the `expected_touch` path, so `a.py` and `a.py#sym` count as one surface) with\n\
+  \  the sharing cards' COMMON `cites:` resolved against the corpus. A shared surface\
+  \ whose line reads\n  `(no ACTIVE governing spec cited in common)` is the DEFECT\
+  \ SHAPE: two independent workers can then\n  each implement a self-consistent reading,\
+  \ and nothing before the merge land verify compares them.\n  Ask it card-to-card,\
+  \ not card-to-plan: are the two cards' acceptance/scope readings of that surface\n\
+  \  mutually satisfiable? The cut must either cite the ACTIVE spec that governs the\
+  \ surface, or name\n  ONE card as its definer and `requires:`-order the other after\
+  \ it.\n- Fidelity to intent — taken as a whole, does the cut faithfully realize\
+  \ the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n\n**`--focus\
+  \ \"<text>\"` — the composable append (on `plan check` / `audit post --plan`):**\
+  \ appends an\nowner/session-specific question block AFTER the stage template (the\
+  \ ad-hoc form made composable —\nit never REPLACES the template). The appended text\
+  \ is recorded VERBATIM in the saved verdict\n`notes` field — **`notes` IS the single\
+  \ verbatim carrier** (full text, byte-equal);\n`prompt_excerpt` stays a ~200-char\
+  \ excerpt and is NEVER the carrier. No new schema field.\n\n**Verdict recording\
+  \ (ONE canonical schema — P5):** every plan-gate verdict saves to the canonical\n\
+  audit-result schema (AGENTS §Saved audit result) extended by TWO additive fields:\n\
+  `stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`, `gate-trial`,\n\
+  `gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory | mandatory-blocking`).\
+  \ The legacy\ndraft-check shape (`draft:`/`kind:`/`content_hash`) is NORMALIZED\
+  \ onto this schema — its\nfreshness extras (`content_hash`/`accept_freshness_hash`)\
   \ join as additive fields; no second\nverdict format survives.\n\n**Retirement (what\
   \ this head removes):** (a) hand-authored free-form external-auditor prompts for\n\
   plan-stage questions are DEMOTED to the documented manual fallback ONLY (CLI unavailable\

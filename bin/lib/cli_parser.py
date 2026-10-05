@@ -1302,7 +1302,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                    f"{_PROSE_STEER_FOR('task update')}")
     tu.add_argument("--old", help="FIELD-EDIT mode (T-1164): exact existing text in the card to "
                                   "replace (scope/acceptance/requires/any field); mirrors `spec edit`; "
-                                  "mutually exclusive with --status/--note; 0 or >1 match dies")
+                                  "mutually exclusive with --status/--note; 0 or >1 match dies. "
+                                  "A --new that SUPERSETS --old ADDS a field — this is the governed "
+                                  "post-filing route for the host-config marker (T-13573): --old "
+                                  "'<a line the card has>' --new '<that line>' plus the new lines "
+                                  "`host_config: true` and, optionally, `host_config_kind: <kind>`; "
+                                  "the result passes the same three checks the filing seam applies")
     tu.add_argument("--new", help="FIELD-EDIT mode: replacement text (needs --old)")
     tu.add_argument("--replace-all", dest="replace_all", action="store_true",
                     help="FIELD-EDIT mode: replace ALL occurrences of --old (default: unique match)")
@@ -1339,7 +1344,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "keys must name this card's criteria — T-13247) or resolves_cross (a YAML list of X-NNNN "
                          "ids — ADD-only; each added id must exist, be addressed to this project and not be "
                          "linked to another live card — T-13339); every verb-owned field (status, class, "
-                         "effort_tier, id, …) is refused. Emits ONE task_amended(field_edit). Its own "
+                         "effort_tier, id, …) is refused — host_config / host_config_kind too: their "
+                         "route is the --old/--new superset above. Emits ONE task_amended(field_edit). Its own "
                          "mode; refused on done/wont-do cards EXCEPT for answers.")
     tu.add_argument("--from-file", dest="from_file", metavar="PATH",
                     help="with --replace-acceptance / --set-field ONLY: read the value from PATH "
@@ -1879,16 +1885,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                              # T-11165's help-honesty scan: `--absorb` is registered on the `pre`
                              # parser ONLY, so naming it in the `post` help would recommend a flag
                              # that verb does not accept.
-                             + (" or --absorb" if stage_name == "pre" else "")
+                             + (" or --absorb" if stage_name == "pre" else " or --followup")
                              + " (T-11407, X-1060)")
         # SPEC-0204 rule 6 (T-12290) — `--owner-reset` is RETIRED on `audit pre|post` and is therefore
         # NOT registered here: an owner grant is no longer how a pass past the audit-loop ceiling is
         # admitted. Its replacement is `--on-decisions` directly below, whose basis is the Controller's
         # recorded `ceiling_decision` rows (`yitc-v2 audit decide`). The literal token is caught by the
         # PRE-PARSE shim in `main()` (`audit.retired_audit_surface_refusal`), so a caller holding a
-        # pre-retirement brief gets the route rather than argparse's `unrecognized arguments`. The
-        # separately-registered `plan stage --owner-reset` (the plan-GATE reset, T-9286) and
-        # `task commit --absorb --owner-reset` (E-0030) are OUTSIDE this retirement and unchanged.
+        # pre-retirement brief gets the route rather than argparse's `unrecognized arguments`. Of the
+        # two separately-registered flags of the same name, `task commit --absorb --owner-reset`
+        # (E-0030) is OUTSIDE this retirement and still admitted at the commit door, while `plan stage
+        # --owner-reset` (the plan-GATE reset, T-9286) was retired AFTER this comment was written, by
+        # the plan-gate arm of the same rule (T-12335): it stays registered only as a refusal shim.
         # T-12289 (SPEC-0204 rules 3-5) — the DECISION-GOVERNED continuation, registered BESIDE
         # `--owner-reset` on BOTH stages because it is that flag's SIBLING: the same ONE bounded pass
         # past the audit-loop ceiling, admitted on a DIFFERENT basis. `--owner-reset` is an OWNER
@@ -1951,6 +1959,27 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                  # T-11993 (X-1229) — the naming line, consumed from its one home so
                                  # the help and the two refusals cannot drift apart.
                                  + _SELF.PLAN_ACCEPT_GATE_NAMING)
+        if stage_name == "post":
+            # T-13542 (LIFECYCLE Stage 8 / SPEC-0036 §Saved audit result) — the FOLLOW-UP RECORD route,
+            # the post-side sibling of `--absorb` above. Stage 8 closes a YELLOW as «file follow-up
+            # task for findings, proceed» and the saved verdict carries `followups:` for those ids,
+            # but the audit writers only ever wrote the empty list — so the record the doctrine names
+            # was reachable by hand-editing a governed YAML alone. POST-ONLY BY CONSTRUCTION, the
+            # mirror of `--absorb` being pre-only: structurally absent on `pre`, never merely
+            # rejected there. REPEATABLE (`append`, the T-12734 lesson: `store` keeps the last value
+            # and drops the rest silently); values are normalized in `audit.py#followup_ids`.
+            ap.add_argument("--followup", dest="followup", metavar="ID", action="append",
+                            help="RECORD A FILED FOLLOW-UP (LIFECYCLE Stage 8): add the id of the "
+                                 "follow-up filed for a residual YELLOW finding — a task id (T-NNNN) "
+                                 "or a followup id (fu_ + 12 hex) — to the EXISTING saved audit-post "
+                                 "record's followups: — a field-edit, not an audit. --task only. Runs "
+                                 "NO auditor, leaves verdict:/passes:/commit: untouched "
+                                 "(ceiling-neutral) and emits audit_finding_absorbed (mode: followup) "
+                                 "so the record is journal-visible cross-session. Refused when there "
+                                 "is no saved record, the verdict is not YELLOW, or the id does not "
+                                 "resolve, with nothing written. REPEATABLE: every id is recorded, in "
+                                 "order; an id already recorded is skipped. Not combinable with any "
+                                 "audit-run flag. `task close` does not require it (T-13542)")
         ap.set_defaults(func=cmd_audit, cli_invoked_receipt=f"audit {stage_name}")  # T-13071: attempt receipt
     # T-0361: open-form (ad-hoc) consult — one verb instead of hand-reconstructed codex invocations.
     aa = audit_sub.add_parser("adhoc",
@@ -1982,6 +2011,21 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "fails LOUD so a -C external blind pass never silently returns NO-DATA on "
                          "journal/git-grounded themes. Inlined as raw DATA, not the primary track's "
                          "findings (SPEC-0057 §1(c) independence).")
+    # T-13495 (SPEC-0124 §Audit-loop ceiling) — the AD-HOC arm of the mode-(b) absorption field edit,
+    # the third registration beside `audit pre --task` (T-10770) and `audit pre --plan --gate`
+    # (T-11167). `append` for the T-12734 reason: `store` keeps the last of two values and drops the
+    # first silently; the values are normalized in the same one home, `audit.py#absorb_texts`.
+    aa.add_argument("--absorb", dest="absorb", metavar="TEXT", action="append",
+                    help="MODE-(b) ABSORPTION: record a finding of the SAVED ad-hoc consult for "
+                         "--slug as absorbed — a field-edit of that record's absorbed:/notes:, not a "
+                         "consult. Runs NO auditor, leaves verdict:/passes:/findings: untouched and "
+                         "emits audit_finding_absorbed (target_kind adhoc), so a later audit reading "
+                         "the record sees what was absorbed. Finds the record in decisions/ or in "
+                         "its archive. Refused, with nothing written, when there is no saved record "
+                         "for the slug, the record does not parse, or its verdict is not YELLOW. "
+                         "REPEATABLE: every occurrence is recorded, in order, as its own entry. Not "
+                         "combinable with --prompt, -f/--from-file, --routine, --read-corpus or "
+                         "--sweep-file (T-13495)")
     aa.set_defaults(func=cmd_audit_adhoc)
     # T-0429: ceiling-convergence triage consult (SPEC-0124 §Audit-loop ceiling) — a NAMED audit
     # subcommand mechanizing the pass-3 triage. Refuses below the ceiling; saves a structured
@@ -2782,7 +2826,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="filter by task_id (exact match). REPEATABLE: pass --task once per id — "
                          "with --dispatch-status each requested id gets its own section (an id with "
                          "no dispatch rows is NAMED as unanswerable, never silently omitted)")
-    jq.add_argument("--session", help="filter by envelope session_ref (exact match)")
+    # T-13571 — the table prints `session_ref[:8]`, so the value a reader copies is a PREFIX.
+    jq.add_argument("--session",
+                    help="filter by envelope session_ref: a FULL ref (exact match), or a PREFIX of one "
+                         "— e.g. the 8 characters the table prints. A prefix must name exactly ONE "
+                         "ref; one shared by several is REFUSED with the full refs listed (never "
+                         "their union). Both are judged on the journal segments THIS query reads "
+                         "(its --since/--until/--task horizon), not the whole history — a ref with "
+                         "no row there is read as a prefix")
     jq.add_argument("--grep", help="case-insensitive substring over the decoded event (cross-language safe)")
     jq.add_argument("--since", help="keep events with ts >= this ISO string")
     jq.add_argument("--until", help="keep events with ts <= this ISO string")
@@ -2812,7 +2863,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "vocabulary [" + _SELF._dispatch_class_vocab_prose() + "]. Discriminates a "
                          "warm-worker IDLE-between-lands (proc alive, task done) from a hung/dead one. "
                          "Pure current-state → report: no state/loop/mutate/re-invoke/kill/land/adopt. "
-                         "--since/--until bound the window (default last 24h). Honors --json.")
+                         "--since/--until bound the window (default last 24h). Honors --json. "
+                         "With --task (repeatable): ONLY the worker records whose task_ids include a "
+                         "requested id (a warm worker's WHOLE record), and each requested id no "
+                         "in-flight worker record holds is NAMED — --json: an object carrying "
+                         "held_by_in_flight_worker=false; text: one line pointing at "
+                         "--dispatch-status --task <id>. Without --task: the whole fleet.")
     jq.add_argument("--dispatch-readiness", dest="dispatch_readiness", action="store_true",
                     help="dispatch-readiness / wave-sizing ADVISOR (SPEC-0133 CARD-2, §6-safe "
                          "read-only): emit {headroom (nproc/loadavg/free_slots), live_worker_count "
@@ -3860,7 +3916,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                "attestation (a bare `&` inherits your stdout and is still orphaned). Wakes on an "
                                "actionable verdict (dead / needs-decision) OF A WATCHED TASK only once "
                                "CONFIRMED across --watch-confirm-ticks consecutive ticks (never a single "
-                               "transient snapshot); NEVER wakes on a `working` heartbeat; NEVER wakes on "
+                               "transient snapshot); ALSO wakes on a PAUSED card: a watched task reading "
+                               "`paused(<reason>)` is over but never a clean completion (SPEC-0133 rule "
+                               "5d), so it turns the all-terminal exit into WAKE and never exits "
+                               "ANY_TERMINAL — an `artifact-wait` pause waits on the artifact its card "
+                               "declares, any other on the decision its reason names; "
+                               "NEVER wakes on a `working` heartbeat; NEVER wakes on "
                                "a worker OUTSIDE the --task set (that is another watcher's business — "
                                "T-10402; use --watch-fleet to opt in); proves completion "
                                "POSITIVELY off each task's parsed class=TERMINAL token, never off a "
@@ -3889,7 +3950,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                "exit contract (ALL_TERMINAL / WAKE / TIMEOUT) is unchanged. The early "
                                "exit still REPORTS the whole fleet, so siblings are never abandoned "
                                "(T-0680); an early terminal whose detail is recovery-bearing (halt / "
-                               "wont-do / blocked_on_land) exits WAKE instead, as it does today.")
+                               "wont-do / blocked_on_land / a paused card) exits WAKE instead, as it "
+                               "does today.")
     dispatch_watch.add_argument("--watch-interval", dest="watch_interval", type=int,
                           default=journal_mod.WATCH_POLL_INTERVAL_SECS, metavar="SEC",
                           help=f"[--watch] seconds between ticks (default {journal_mod.WATCH_POLL_INTERVAL_SECS}, "
@@ -4114,6 +4176,42 @@ def _warn_help_receipt_uncredited() -> None:
         f"    {SELF_REF_ENV}=<ref printed above> {shlex.join(argv)}",
     ]
     print("\n".join(lines), file=sys.stderr)
+
+
+# T-13520 (public issue #16) — what `task test --run` executes for a CONSUMER (`-C`). The engine text
+# inside `build_parser` describes the engine's own run (its tests/ sweep) and stays byte-unchanged;
+# a consumer's run is its DECLARED verify layers, so its help says that instead.
+TASK_TEST_RUN_CONSUMER_HELP = (
+    "run land's CANDIDATE verify leg only, for this project: every verify layer its yitc-ops.yaml "
+    "declares under `verify.layers` — each layer's command, one after another unless the project "
+    "names them under `verify.independent_layers`; a layer whose `subject_globs` match none of this "
+    "working tree's changes against the merge-base with main is SKIPPED, the skip `land` decides on "
+    "the same diff, and any doubt runs every layer (SPEC-0152 rule 16) — plus the project's test "
+    "sweep (its test directory's test_*.py, each via python3, exit 0 = pass) where such a directory "
+    "exists and no declared layer covers it. The result line names the layers that ran and the ones "
+    "skipped or waived. A green here is NOT the land verdict: `land` reaches its own, and it also "
+    "runs the SPEC-0077 pinned last-green leg unless the project's "
+    "`verify_policy.pinned_last_green` is `never` (SPEC-0186); composes with --evidence "
+    "(run-then-record)")
+
+
+def install_consumer_help(parser) -> bool:
+    """T-13520 — put `TASK_TEST_RUN_CONSUMER_HELP` on the `task test --run` flag of a BUILT parser.
+    Called by the host ONLY for a parser built for a consumer `-C` root (`cli.py#_build_cli_parser`),
+    so `build_parser` and the engine's help are untouched. Returns whether the flag was found; a
+    parser without it is left as built (help text must never break a parse)."""
+    def _sub(p, name):
+        for act in p._actions:
+            if isinstance(act, argparse._SubParsersAction) and name in act.choices:
+                return act.choices[name]
+        return None
+    task = _sub(parser, "task")
+    test = _sub(task, "test") if task is not None else None
+    for act in (test._actions if test is not None else ()):
+        if "--run" in act.option_strings:
+            act.help = TASK_TEST_RUN_CONSUMER_HELP
+            return True
+    return False
 
 
 # The keyword-only inject roster of `build_parser`, DERIVED from its signature — the host residue reads

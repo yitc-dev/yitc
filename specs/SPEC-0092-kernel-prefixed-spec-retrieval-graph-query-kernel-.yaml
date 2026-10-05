@@ -153,6 +153,6 @@ implements_signature:
   bin/lib/cli.py#_find_error_yaml: 62732ccbfc16280fbcb1376489c69e5991c18a857253b95178d8eea632f7b844
   bin/lib/cli.py#_find_spec_path: 10c38f01ca507ce79cac9a2f777c625c788873fcf6e89f9a5e3d319793f9aca9
   bin/lib/graph.py#_node_source_path: 09cc8af62f98803e375ca4665f47da39e399591d1438142edc4b978228342738
-  bin/lib/graph.py#cmd_graph_query: edd6ee0059524cda18499c3c629b762442f42e6928cfd3dbb4c15525431bfc50
+  bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
   bin/lib/spec.py#spec_id_zone: bd518d1b7370110d676b6bc50fc17cb02ca888e2ec27e3cb0dc79e53868a436c

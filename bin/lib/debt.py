@@ -7703,9 +7703,17 @@ def land_tail_writes_withheld(events_path, now=None,
                               window_days: int = TAIL_WITHHELD_WINDOW_DAYS) -> dict:
     """Fold the journal → the post-ff tail writes WITHHELD in the window (T-12420).
 
-    Returns `{count, writers: {<writer>: <n>}, latest: {writer, test, reason, ts}, window_days}`.
+    Returns `{count, writers: {<writer>: <n>}, latest: {writer, test, reason, ts}, window_days,
+    restore_failed, latest_restore_errors}`.
     The count is of WITHHOLDINGS, not distinct writers: one writer withheld nine times is the
     recurrence this view exists to make visible, and collapsing it would hide it.
+
+    T-13579 — `restore_failed` counts the withholdings whose row carries `restore_errors`: the land
+    declined to commit the write AND could not put it back, so it was left on `main`, uncommitted.
+    That is a fact about THAT land — the fold reads rows, never the checkout, and cannot say whether
+    the write is still there. `latest_restore_errors` is the newest such row's own list. A
+    withholding is counted either way (the write was not committed); what this keeps the line from
+    doing is calling it restored.
 
     Never raises: an unreadable / missing / malformed journal folds to `count: 0` — a REPORT-ONLY
     surface must never nag on, or die of, an unknown (the rule-9 fold's contract, reused)."""
@@ -7716,6 +7724,7 @@ def land_tail_writes_withheld(events_path, now=None,
     writers: dict = {}
     latest = None
     count = 0
+    restore_failed, latest_restore_errors = 0, None
     try:
         for event in journal.segment_rows_since(
                 events_path, _window_segment_floor(now, days=span), types=(TAIL_WITHHELD_EVENT,)):
@@ -7730,9 +7739,15 @@ def land_tail_writes_withheld(events_path, now=None,
             count += 1
             latest = {"writer": writer, "test": data.get("test"),
                       "reason": data.get("reason"), "ts": event.get("ts")}
+            errs = data.get("restore_errors")
+            if isinstance(errs, list) and errs:
+                restore_failed += 1
+                latest_restore_errors = [str(e) for e in errs]
     except Exception:                     # noqa: BLE001 — see docstring
-        return {"count": 0, "writers": {}, "latest": None, "window_days": int(window_days)}
-    return {"count": count, "writers": writers, "latest": latest, "window_days": int(window_days)}
+        return {"count": 0, "writers": {}, "latest": None, "window_days": int(window_days),
+                "restore_failed": 0, "latest_restore_errors": None}
+    return {"count": count, "writers": writers, "latest": latest, "window_days": int(window_days),
+            "restore_failed": restore_failed, "latest_restore_errors": latest_restore_errors}
 
 
 # ── T-11799 (SPEC-0119 rule 33) — the PRE-QUEUE KNOWN-BROKEN REFUSAL view ─────────────────────────
@@ -9481,7 +9496,7 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None) -> dic
 # A project DECLARES its user surfaces as path prefixes (`ui.surfaces:` in yitc-ops.yaml, OPT-IN —
 # absent = no signal, never a guess). A surface FILE is covered when ANY non-retired scenario's
 # `covers` names it (whole-file or `file#symbol`, the file is what counts). Test-shaped paths are
-# never a surface. ONE home for the whole derivation: the Analysis/Closure line (cli
+# never a surface. ONE home for the whole derivation: the Analysis line (cli
 # `_print_uncovered_surface_warn`) and the debt row below both read it. Derived each time from the
 # carrier + the graph index + git — no store, no event, no gate. Precision measured before shipping:
 # dev-utilities/uncovered-surface-precision-T-12788.md (strict FP 0.200 <project> / 0.144 <project>).

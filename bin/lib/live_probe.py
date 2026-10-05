@@ -316,7 +316,19 @@ def cmd_live_probe(args: argparse.Namespace, *, REPO_ROOT, ENGINE_ROOT, _append_
             print(f"live-probe: {tid} ATTESTED FAIL — {lp['attested']!r} (run at {lp.get('runs_at')!r}) "
                   f"reported NOT passing; {etype} emitted. This is a RECORDED FAILING reading, never "
                   f"missing and never stale (SPEC-0094 §4b).")
-        if locator:
+        # T-13568 — the hint is STATUS-AWARE. `task close --live-probe-outcome-*` records a reading
+        # onto a DONE card only and refuses every other status, so printing that command for an open
+        # card handed the operator a call the kernel then refuses. The status is the card's own, the
+        # same field `task close` reads. This verb stays a grader: it never writes the card.
+        _status = str(task.get("status") or "")
+        if _status != "done":
+            _where = (f"the locator {locator}" if locator else
+                      f"the row (`bin/yitc-v2 journal query --type {etype} --task {tid}`)")
+            print(f"  NOT recorded on the card yet: {tid} is {_status!r}, and a reading is written "
+                  f"onto a card only once it is done (SPEC-0094 §4b). Keep {_where} — after the card "
+                  f"is closed, record this {result} reading with the attested-outcome flags of "
+                  f"`task close`. The close itself needs the declaration, not a reading (SPEC-0094 §3).")
+        elif locator:
             print(f"  record it on the card:  bin/yitc-v2 task close {tid} "
                   f"--live-probe-outcome-result {result} "
                   f"--live-probe-outcome-evidence {locator} "

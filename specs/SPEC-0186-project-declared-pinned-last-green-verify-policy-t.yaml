@@ -105,96 +105,102 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ one. This is what makes the rule-9 \"one authority, two call sites\" requirement\
   \ concrete\nrather than aspirational, and it is the probe that carries the otherwise-weak\
   \ F3 removal claim:\nif a second reader or a second value list appears, the change\
-  \ has ADDED machinery, not reused it.\nProbed at Verification 7.\n\n### Rule 4 —\
-  \ The policy is read PRE-MERGE, from the old tree\nA land resolves the policy from\
-  \ the **base/main** tree it is landing onto, never from the merged\ncandidate. A\
-  \ diff that sets `never` therefore still pays the leg on its OWN land; the new value\
-  \ takes\neffect only from the next land. Reading post-merge would let the diff that\
-  \ disables the layer exempt\nitself from the layer — the self-reference hole this\
-  \ rule closes. Unresolvable policy → `all`\n(fail-closed), the same direction as\
-  \ the existing `_verdict = \"observable\"` classifier fallback.\n\n### Rule 5 —\
-  \ The guard sits on the DECLARATION, not on the diff\nTurning the leg off is governed\
-  \ by making the DECLARATION expensive and visible, not by re-checking\nevery diff.\
-  \ `yitc-ops.yaml` is inside the SPEC-0077 pinned-test surface, so it is fast-path\n\
-  INELIGIBLE at any diff size (LIFECYCLE §Two flow types): any edit to it — including\
-  \ this section —\nmechanically takes the substantive path with BOTH audits, and\
-  \ the `reason` is mandatory and non-empty\nor the declaration is invalid.\n\nCarrying\
-  \ SPEC-0178's governance-surface guard over verbatim was MEASURED and REJECTED:\
-  \ it catches\n82.3% of the 1168 lands on which the leg actually ran, leaving the\
-  \ switch effective on 17.7% — a\ndecorative switch. That guard is broad because\
-  \ its exemption is per-case and `match`-patterned, so a\ncase can be CRAFTED to\
-  \ cover exactly the dangerous diff. A binary repo-level switch has no `match`\n\
-  and nothing to craft, so the defence it imports is against a capability this construction\
-  \ lacks.\n\n### Rule 6 — The engine is switchable by declaration, on the same terms\n\
-  The engine may make the same declaration a project makes, through rule 2's carrier,\
-  \ and rules 1, 4,\n5, 7, 8 and 9 then hold for it exactly as for a project. Nothing\
-  \ here is engine-specific: the engine\ngets no value, default or exemption a project\
-  \ does not have.\n\nWhat the engine declares there is its own verify policy and\
-  \ nothing else. The engine is not a\nconsumer of its own ops contract, so every\
-  \ sweep that judges a repository AS a consumer of that\ncontract excludes the engine\
-  \ by IDENTITY, never by whether a file exists. Wherever this corpus says\nthe engine\
-  \ has «no carrier» or «no ops contract», it is the CONSUMER ops contract that is\
-  \ meant.\n\nThe engine's declaration is this repository's own: it is never part\
-  \ of a release, so a release\ncarries this rule and never the engine's choice, and\
-  \ no adopter inherits that choice as a default.\n\n(Amended by : this rule previously\
-  \ forbade an engine declaration, on the ground that the\nengine had no carrier.\
-  \ Why that was lifted lives in the task record and its plan, not here.)\n\n### Rule\
-  \ 7 — A distinct verify outcome, never a reuse of `candidate`\nA land that skips\
-  \ the leg by policy records `verify_mode: candidate_policy_off`. This is a new value\n\
-  in the EXISTING `land_completed.verify_mode` value set — SPEC-0025 (the `events.jsonl`\
-  \ schema home) is\namended in the same change; no new event type, no second schema\
-  \ home.\n\nNot cosmetic. Conflating \"did not run\" with \"ran and passed\" already\
-  \ corrupted analysis of this very\nlayer: 15 of 30 decisive cases were misread as\
-  \ \"the tree later passed the pinned check\" when the leg\nhad simply not run. Shipping\
-  \ the switch without this value poisons every future measurement at source.\n\n\
-  **The value marks a POLICY SKIP, not merely a project's policy**. It is recorded\
-  \ when the land\nDID touch the verifier surface — i.e. the leg would have run —\
-  \ and the declaration stopped it. A land\nthat touched nothing records plain `candidate`\
-  \ under either policy, because nothing was skipped there;\nreading `candidate_policy_off`\
-  \ as \"this project has the leg off\" instead of \"this land skipped the leg\"\n\
-  would re-introduce the same conflation in the other direction.\n\n### Rule 8 — `--rebaseline`\
-  \ refuses when the leg did not run\nA re-baseline waives a superseded pinned check.\
-  \ Where the leg did not run there is nothing to waive,\nso `--rebaseline` REFUSES\
-  \ with that reason. Additive and orthogonal to, which left the\nrebaseline gate\
-  \ (`_change_is_audited`) unchanged and altered only the refusal message.\n\n###\
-  \ Rule 9 — Batch formation consults the same resolver, and lands FIRST\nThe three-class\
-  \ batch formation must read the policy through the SAME resolver a land uses — one\n\
-  authority, every call site — or formation and verify disagree. When the policy resolves\
-  \ to `never`,\nwhat is INERT for class assignment is EVERYTHING that describes the\
-  \ unrun leg: the pinned-supersession\nkey (a member carrying it is not forced into\
-  \ the isolate-alone class for a check that will not run)\nAND the cost ladder's\
-  \ two-pass rung itself, which exists only to say «this member pays the pinned leg\n\
-  as well». A member is otherwise isolated for a second pass that does not happen\
-  \ — the residual\nleft when it wired this resolver into the key alone, closed. All\
-  \ three inputs (repo policy,\nthe card's audit-post presence, the diff paths) are\
-  \ readable at the formation instant, and the rung\nmeanings themselves are SPEC-0184\
-  \ rule 9's business, not this spec's: this rule supplies the policy\ninput, that\
-  \ rule owns the ladder.\n\n**Ordering:** the formation-side read must land BEFORE\
-  \ `never` is reachable. shipped the\nthree-class formation with no notion of this\
-  \ policy, so until then a declaring project would still\nhave its keyed cards isolated\
-  \ for an unrun check.\n\n### Rule 10 — The Stage-6 credit is ON by default, and\
-  \ a project may opt out here\nSPEC-0065 §Bound lets a land take its CANDIDATE-leg\
-  \ verdict from the task's own Stage-6 run instead of\nrepeating it, when the land\
-  \ itself proves five conditions: (1) `main` has not moved since the run;\n(2) its\
-  \ candidate tree is the tested tree apart from inert paths; (3) the row is the runner's\
-  \ own\ngreen, full-breadth, marked row — never a red, partial or hand-recorded one;\
-  \ (4) the run's set covers\nthe land's set; (5) the any-author floor and the host-leak\
-  \ check still run, and the pinned leg runs\nexactly as rules 1-9 here say. That\
-  \ rule and its conditions are homed there\n(`bin/yitc-v2 graph query SPEC-0065`);\
-  \ THIS rule owns only the per-project switch.\n\n`verify_policy.stage6_credit` takes\
-  \ `allowed` or `never`. **Absence reads `allowed`** — the credit is ON\nfor a project\
-  \ that declares nothing, and for the engine on the same terms (rule 6). `never`\
-  \ switches\nit off: every land of that project then runs its candidate verify, as\
-  \ before the credit existed.\n\n**It fails toward VERIFYING.** An unrecognised value,\
-  \ a section that is not a mapping and a carrier\nnobody can parse all read `never`\
-  \ — the same direction rule 1 fails in, since here it is `never` that\nkeeps the\
-  \ check. For that reason NO `reason:` is owed (opting out removes no verification),\
-  \ and the\nkey is not a relaxation for SPEC-0189's purposes. It sits beside `pinned_last_green`,\
-  \ which a PRESENT\nsection must still declare (rule 1).\n\n**The two keys do not\
-  \ compose.** The credit never decides whether the pinned leg runs, and the pinned\n\
-  policy never decides whether the candidate leg may be credited: a land whose candidate\
-  \ leg is\ncredited runs the pinned leg, or records `candidate_policy_off`, exactly\
-  \ as rules 1, 4 and 7 say.\n\n**Read PRE-MERGE, from the base tree (rule 4's reading).**\
+  \ has ADDED machinery, not reused it.\nProbed at Verification 7.\n\n**A reader CALL\
+  \ that decides nothing.** The Stage-6 `task test --run` result line asks\nthis same\
+  \ reader, of the same main tree rule 4 names, whether to print its pinned-leg sentence.\n\
+  That is wording only: no verdict, leg or class assignment reads the answer, and\
+  \ every doubt\nprints the sentence.\n\n### Rule 4 — The policy is read PRE-MERGE,\
+  \ from the old tree\nA land resolves the policy from the **base/main** tree it is\
+  \ landing onto, never from the merged\ncandidate. A diff that sets `never` therefore\
+  \ still pays the leg on its OWN land; the new value takes\neffect only from the\
+  \ next land. Reading post-merge would let the diff that disables the layer exempt\n\
+  itself from the layer — the self-reference hole this rule closes. Unresolvable policy\
+  \ → `all`\n(fail-closed), the same direction as the existing `_verdict = \"observable\"\
+  ` classifier fallback.\n\n### Rule 5 — The guard sits on the DECLARATION, not on\
+  \ the diff\nTurning the leg off is governed by making the DECLARATION expensive\
+  \ and visible, not by re-checking\nevery diff. `yitc-ops.yaml` is inside the SPEC-0077\
+  \ pinned-test surface, so it is fast-path\nINELIGIBLE at any diff size (LIFECYCLE\
+  \ §Two flow types): any edit to it — including this section —\nmechanically takes\
+  \ the substantive path with BOTH audits, and the `reason` is mandatory and non-empty\n\
+  or the declaration is invalid.\n\nCarrying SPEC-0178's governance-surface guard\
+  \ over verbatim was MEASURED and REJECTED: it catches\n82.3% of the 1168 lands on\
+  \ which the leg actually ran, leaving the switch effective on 17.7% — a\ndecorative\
+  \ switch. That guard is broad because its exemption is per-case and `match`-patterned,\
+  \ so a\ncase can be CRAFTED to cover exactly the dangerous diff. A binary repo-level\
+  \ switch has no `match`\nand nothing to craft, so the defence it imports is against\
+  \ a capability this construction lacks.\n\n### Rule 6 — The engine is switchable\
+  \ by declaration, on the same terms\nThe engine may make the same declaration a\
+  \ project makes, through rule 2's carrier, and rules 1, 4,\n5, 7, 8 and 9 then hold\
+  \ for it exactly as for a project. Nothing here is engine-specific: the engine\n\
+  gets no value, default or exemption a project does not have.\n\nWhat the engine\
+  \ declares there is its own verify policy and nothing else. The engine is not a\n\
+  consumer of its own ops contract, so every sweep that judges a repository AS a consumer\
+  \ of that\ncontract excludes the engine by IDENTITY, never by whether a file exists.\
+  \ Wherever this corpus says\nthe engine has «no carrier» or «no ops contract», it\
+  \ is the CONSUMER ops contract that is meant.\n\nThe engine's declaration is this\
+  \ repository's own: it is never part of a release, so a release\ncarries this rule\
+  \ and never the engine's choice, and no adopter inherits that choice as a default.\n\
+  \n(Amended by : this rule previously forbade an engine declaration, on the ground\
+  \ that the\nengine had no carrier. Why that was lifted lives in the task record\
+  \ and its plan, not here.)\n\n### Rule 7 — A distinct verify outcome, never a reuse\
+  \ of `candidate`\nA land that skips the leg by policy records `verify_mode: candidate_policy_off`.\
+  \ This is a new value\nin the EXISTING `land_completed.verify_mode` value set —\
+  \ SPEC-0025 (the `events.jsonl` schema home) is\namended in the same change; no\
+  \ new event type, no second schema home.\n\nNot cosmetic. Conflating \"did not run\"\
+  \ with \"ran and passed\" already corrupted analysis of this very\nlayer: 15 of\
+  \ 30 decisive cases were misread as \"the tree later passed the pinned check\" when\
+  \ the leg\nhad simply not run. Shipping the switch without this value poisons every\
+  \ future measurement at source.\n\n**The value marks a POLICY SKIP, not merely a\
+  \ project's policy**. It is recorded when the land\nDID touch the verifier surface\
+  \ — i.e. the leg would have run — and the declaration stopped it. A land\nthat touched\
+  \ nothing records plain `candidate` under either policy, because nothing was skipped\
+  \ there;\nreading `candidate_policy_off` as \"this project has the leg off\" instead\
+  \ of \"this land skipped the leg\"\nwould re-introduce the same conflation in the\
+  \ other direction.\n\n### Rule 8 — `--rebaseline` refuses when the leg did not run\n\
+  A re-baseline waives a superseded pinned check. Where the leg did not run there\
+  \ is nothing to waive,\nso `--rebaseline` REFUSES with that reason. Additive and\
+  \ orthogonal to, which left the\nrebaseline gate (`_change_is_audited`) unchanged\
+  \ and altered only the refusal message.\n\n### Rule 9 — Batch formation consults\
+  \ the same resolver, and lands FIRST\nThe three-class batch formation must read\
+  \ the policy through the SAME resolver a land uses — one\nauthority, every call\
+  \ site — or formation and verify disagree. When the policy resolves to `never`,\n\
+  what is INERT for class assignment is EVERYTHING that describes the unrun leg: the\
+  \ pinned-supersession\nkey (a member carrying it is not forced into the isolate-alone\
+  \ class for a check that will not run)\nAND the cost ladder's two-pass rung itself,\
+  \ which exists only to say «this member pays the pinned leg\nas well». A member\
+  \ is otherwise isolated for a second pass that does not happen — the residual\n\
+  left when it wired this resolver into the key alone, closed. All three inputs (repo\
+  \ policy,\nthe card's audit-post presence, the diff paths) are readable at the formation\
+  \ instant, and the rung\nmeanings themselves are SPEC-0184 rule 9's business, not\
+  \ this spec's: this rule supplies the policy\ninput, that rule owns the ladder.\n\
+  \n**Ordering:** the formation-side read must land BEFORE `never` is reachable. shipped\
+  \ the\nthree-class formation with no notion of this policy, so until then a declaring\
+  \ project would still\nhave its keyed cards isolated for an unrun check.\n\n###\
+  \ Rule 10 — The Stage-6 credit is ON by default, and a project may opt out here\n\
+  SPEC-0065 §Bound lets a land take its CANDIDATE-leg verdict from the task's own\
+  \ Stage-6 run instead of\nrepeating it, when the land itself proves five conditions:\
+  \ (1) `main` has not advanced since the run —\nthe base the run recorded is its\
+  \ merge-base with `main`, and ANY later advance of `main`, an inert\nbookkeeping\
+  \ land included, ends the credit;\n(2) its candidate tree is the tested tree apart\
+  \ from inert paths; (3) the row is the runner's own\ngreen, full-breadth, marked\
+  \ row — never a red, partial or hand-recorded one; (4) the run's set covers\nthe\
+  \ land's set; (5) the any-author floor and the host-leak check still run, and the\
+  \ pinned leg runs\nexactly as rules 1-9 here say. That rule and its conditions are\
+  \ homed there\n(`bin/yitc-v2 graph query SPEC-0065`); THIS rule owns only the per-project\
+  \ switch.\n\n`verify_policy.stage6_credit` takes `allowed` or `never`. **Absence\
+  \ reads `allowed`** — the credit is ON\nfor a project that declares nothing, and\
+  \ for the engine on the same terms (rule 6). `never` switches\nit off: every land\
+  \ of that project then runs its candidate verify, as before the credit existed.\n\
+  \n**It fails toward VERIFYING.** An unrecognised value, a section that is not a\
+  \ mapping and a carrier\nnobody can parse all read `never` — the same direction\
+  \ rule 1 fails in, since here it is `never` that\nkeeps the check. For that reason\
+  \ NO `reason:` is owed (opting out removes no verification), and the\nkey is not\
+  \ a relaxation for SPEC-0189's purposes. It sits beside `pinned_last_green`, which\
+  \ a PRESENT\nsection must still declare (rule 1).\n\n**The two keys do not compose.**\
+  \ The credit never decides whether the pinned leg runs, and the pinned\npolicy never\
+  \ decides whether the candidate leg may be credited: a land whose candidate leg\
+  \ is\ncredited runs the pinned leg, or records `candidate_policy_off`, exactly as\
+  \ rules 1, 4 and 7 say.\n\n**Read PRE-MERGE, from the base tree (rule 4's reading).**\
   \ A diff that turns the credit back ON still\npays its own candidate verify; the\
   \ new value takes effect from the next land.\n\n**One reader, still (rule 3).**\
   \ The switch is answered off the SAME read of the carrier that serves\n`pinned_last_green`\
@@ -292,4 +298,4 @@ implements_signature:
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
   bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
-  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
+  bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3

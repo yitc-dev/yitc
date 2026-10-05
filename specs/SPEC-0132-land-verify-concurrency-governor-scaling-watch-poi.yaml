@@ -398,25 +398,38 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ (recorded ∪ re-derived)\n    records EVERY discovered file; otherwise NO WRITE\
   \ with reason `coverage-incomplete` and the\n    unrecorded count. A narrowed land\
   \ committed a partial table twice (fc17256 with 29 unrecorded;\n    0071976), reddening\
-  \ the committed-table completeness test on main, which the post-ff tail\n    tripwire\
-  \ (SPEC-0188 rule 7) cannot see before the commit. This arm alone moves 323s ->\
-  \ 189s with every stale VALUE left untouched, because an\n    unrecorded file is\
-  \ imputed the median however expensive it really is. It is also what makes the\n\
-  \    table self-healing: a suite growing by ~19 files a day can never again silently\
-  \ stop tracking\n    itself.\n  - **(b) ORDER-GAIN — thresholded.** Every file recorded,\
-  \ so only VALUES could have drifted: worth\n    ~12s of 189s. REWRITE only when\
-  \ the re-derived order improves the predicted makespan by MORE\n    than BOTH a\
-  \ relative floor (5%) and an absolute one (10s), both makespans scored against the\n\
-  \    re-derived durations as truth. Two floors and not one: a relative floor alone\
-  \ rewrites a small\n    suite on noise, an absolute floor alone never fires on one.\
-  \ Below either ⇒ fall to (c).\n  - **(c) WIDTH-GAIN.** Below the order-gain floors,\
-  \ REWRITE when the re-derived walls\n    change the width `remote_verify.derive_remote_w`\
-  \ derives from the table (one leg, lane\n    excluded): a stale LONGEST file barely\
-  \ moves the order yet sets the width's denominator\n    (measured: test_load_sensitive_set.py\
+  \ the committed-table completeness test on main, which judges a table only\n   \
+  \ once it is committed (the written table has had a reader of its own since — THE\n\
+  \    WRITTEN SET, below). This arm alone moves 323s -> 189s with every stale VALUE\
+  \ left untouched, because an\n    unrecorded file is imputed the median however\
+  \ expensive it really is. It is also what makes the\n    table self-healing: a suite\
+  \ growing by ~19 files a day can never again silently stop tracking\n    itself.\n\
+  \  - **(b) ORDER-GAIN — thresholded.** Every file recorded, so only VALUES could\
+  \ have drifted: worth\n    ~12s of 189s. REWRITE only when the re-derived order\
+  \ improves the predicted makespan by MORE\n    than BOTH a relative floor (5%) and\
+  \ an absolute one (10s), both makespans scored against the\n    re-derived durations\
+  \ as truth. Two floors and not one: a relative floor alone rewrites a small\n  \
+  \  suite on noise, an absolute floor alone never fires on one. Below either ⇒ fall\
+  \ to (c).\n  - **(c) WIDTH-GAIN.** Below the order-gain floors, REWRITE when the\
+  \ re-derived walls\n    change the width `remote_verify.derive_remote_w` derives\
+  \ from the table (one leg, lane\n    excluded): a stale LONGEST file barely moves\
+  \ the order yet sets the width's denominator\n    (measured: test_load_sensitive_set.py\
   \ recorded 300.2s while running ~33s held one-leg lands at\n    27 workers where\
   \ the measured walls give ~42). No tolerance — the width is already an integer.\n\
-  \    Width unchanged ⇒ NO WRITE, and the table is left byte-identical.\n**The statistic\
-  \ is the MEDIAN over the last N=5 green lands, never the latest single land.** Per-file\n\
+  \    Width unchanged ⇒ NO WRITE, and the table is left byte-identical.\n**THE WRITTEN\
+  \ SET.** Whichever arm writes, the written table names EXACTLY the test files\n\
+  the tree discovers. A discovered file the window did not re-measure keeps its recorded\
+  \ value; a\nname the tree no longer has is dropped from BOTH the kept table and\
+  \ the re-derived values, since\nthe median reads prior lands whose own trees may\
+  \ still have carried a since-deleted file (measured\n2026-10-04: 2084 recorded,\
+  \ 2086 re-derived, 2084 discovered, 2086 written; every full-suite land\nthen aborted\
+  \ on the committed-table completeness test for 7.5 hours). SPEC-0188 rule 7 still\n\
+  admits the write, and one of its readers now asks the completeness question of the\
+  \ table AS\nWRITTEN, in both directions, so a write naming a dead file or leaving\
+  \ a discovered file unrecorded\nis withheld. A committed table that a LATER landing\
+  \ makes diverge from the live tree is unchanged\nby this rule: the next write corrects\
+  \ it and the bare report shows the divergence meanwhile.\n**The statistic is the\
+  \ MEDIAN over the last N=5 green lands, never the latest single land.** Per-file\n\
   wall was measured swinging +20% to +100% within ONE day from host load alone, so\
   \ a single contended\nreading would jitter the order without improving it — the\
   \ order would change every land and never\nsettle. The window is small and odd so\
@@ -641,8 +654,8 @@ implements_signature:
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
   bin/lib/verify_runner.py#cmd_verify_durations: 73d8b1d8a0ed7ffc2aad8f64da5dfb4b2a1daf07a70f3f8cb41d591dc857391f
   bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
-  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
-  bin/lib/worktree.py#_refresh_verify_duration_table: 315be956d48c30a142a2b37a16115f1653b1f9096616292265ff2ec31b46e757
+  bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3
+  bin/lib/worktree.py#_refresh_verify_duration_table: fab9c3d40799a122489b253f03246ff9eb08586b6a26bf51dc4cb32c6d8410bd
   bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
   bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52
   bin/lib/worktree.py#_verify_table_refresh_decision: cf1682aabb2b71d5fdcab920131b3bd0252eb7d74c4fe2aed56bf0b8befdd93e

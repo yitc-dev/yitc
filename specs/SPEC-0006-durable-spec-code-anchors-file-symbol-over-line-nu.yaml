@@ -168,6 +168,6 @@ implements_signature:
   GRAPH.md#Schema: fc80a7242389ef95552d2b15098f102ec766bbbcee949628242334a79e6347a0
   bin/lib/cli.py#_anchor_content_signature: 8061ff36ec14bdc8cbbcd03c5c10be585141705125d7a8eed69ced32cd236487
   bin/lib/cli.py#_anchor_drift_warning: d17e129ce47f983aa6075539c78bdc97257afa4b891a0c7db8cff0e025065edd
-  bin/lib/cli.py#_resolve_implements_anchor: 7890c1ddbed910a4bf49a7e7ba8e4aa0c6e571e00c273b30da62dc123730c506
+  bin/lib/cli.py#_resolve_implements_anchor: 3504ac7206262e80c1262fb16aa7fd09cc5be18eb3252e41802b08d669c6377d
   bin/lib/spec.py#cmd_spec_reverify: 493acdfc371f193f4a29dc586c76e18da614e714f4300a4ecd71718426b8bf56
   bin/lib/textutil.py#anchor_file: 7944426743aaaea6da2365d70fb87ad4773e6a8ea3c7e16063ab030ac9d97f93

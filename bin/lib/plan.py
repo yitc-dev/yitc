@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+import time
 
 from lib import audit as audit_lib   # T-11299: the shared timeout-ABORT classifier + its reported face.
                                     # ALIASED on purpose — cmd_plan_check binds a LOCAL name `audit` to
@@ -2422,6 +2423,16 @@ def _plan_gate_engine_context(slug: str, audit_path, content_hash: str, od_packe
     return "".join(parts)
 
 
+def _auditor_guard_note(full: bool) -> str:
+    """T-13574 — the hang guard a plan audit is about to run under, in the form `audit status`
+    prints: the resolved seconds and the layer that answered (env, machine binding or shipped
+    default). Read through the ONE resolution the adapter arms its wall from, so the line follows
+    an override instead of quoting the constant."""
+    secs, layer = audit_lib.audit_timeout_resolution(
+        audit_lib.AUDIT_FULL_CONSULT_CLASS if full else None)
+    return f"timeout={secs}s [{layer}]"
+
+
 def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_policy: str,
                          *, blocking: bool, card_set_fp: "str | None" = None,
                          extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> str:
@@ -2439,6 +2450,10 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     audit_finding_absorbed, which is what makes the absorption visible to a later session; it burns no
     ceiling pass (SPEC-0124 §Audit-loop ceiling mode-b)."""
     import yaml
+    # T-13574 — the anchor `duration_ms` on this gate's rows is measured from (SPEC-0025 §Required
+    # `duration_ms` field set). It starts here and is RE-anchored where the prompt is handed to the
+    # auditor, so a path that saves without invoking one still records a real wall.
+    _gate_t0 = time.monotonic()
     audit_path = DECISIONS_DIR / f"{slug}-audit-{template}.yaml"
     prior = (_read_yaml(audit_path) or {}) if audit_path.exists() else {}
     # passes: 0 (a prior ABORT burned no pass) must stay 0 — only a genuinely ABSENT field on a
@@ -2711,9 +2726,10 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         if not isinstance(rt, dict) or rt.get("target_id") != slug or rt.get("target_kind") != "plan":
             _die("SPEC-0001 self-test failed: plan-gate audit YAML did not round-trip")
         write_text_atomic(audit_path, content)
+        _dur = audit_lib._audit_duration_ms(_gate_t0)   # T-13574 — ONE reading for both rows below
         _append_event("draft_checked", None, {
             "slug": slug, "verdict": audit["verdict"], "findings_count": len(audit["findings"]),
-            "stage_template": template, "gate_policy": gate_policy,
+            "stage_template": template, "gate_policy": gate_policy, "duration_ms": _dur,
             "saved_to": str(audit_path.relative_to(REPO_ROOT))})
         # ── C-A (T-12335) — THE CEILING ROW A PLAN GATE NEVER HAD ───────────────────────────────
         # Until now a plan gate emitted `draft_checked` ONLY: no `findings[]`, no `passes`, and never an
@@ -2732,6 +2748,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                 slug, gate_id, template, audit,
                 saved_to=str(audit_path.relative_to(REPO_ROOT)), repo_root=[REPO_ROOT])
             _row.update(_auditor_row_fields)   # T-12857 — same triple as the task row
+            _row["duration_ms"] = _dur         # T-13574 — REQUIRED on this row type (SPEC-0025)
             if _od_row_fields:
                 _row.update(_od_row_fields)
                 # THE WRITE-SITE VALIDATOR (SPEC-0046 §A) — C1's shared validator, scoped to the keys
@@ -2813,8 +2830,9 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                                           _od["packet"] if _od is not None else None,
                                           bool(prior)))
     print(f"# Invoking external auditor: {provider}/{model} (full) — {template} gate "
-          f"({gate_policy}) on plan {slug}...", file=sys.stderr)
+          f"({gate_policy}) on plan {slug}; {_auditor_guard_note(True)}...", file=sys.stderr)
     _answered_pair: dict = {}      # T-12606 — INVOCATION-scoped: which pair answered THIS gate audit
+    _gate_t0 = time.monotonic()    # T-13574 — the prompt hand-off: the rows' duration anchor
     rc, stdout, stderr = audit_lib.invoke_auditor_tiered(
         _invoke_auditor, provider, prompt, model, full=True, effort=effort,   # T-12350 / T-12606
         _resolve_audit_reserve=_resolve_audit_reserve, append_event=_append_event,   # T-12606
@@ -2938,6 +2956,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         _append_event("draft_checked", None, {
             "slug": slug, "verdict": verdict, "findings_count": 0,
             "stage_template": template, "gate_policy": gate_policy, "saved_to": None,
+            "duration_ms": audit_lib._audit_duration_ms(_gate_t0),   # T-13574
             "no_data": True, "prior_verdict_retained": _retained, "cause": parse_notes})
         print(f"{slug} {template} gate ({gate_policy}): {verdict} (no verdict produced) -> "
               f"{audit_path.relative_to(REPO_ROOT)} NOT overwritten — prior {_retained} retained "
@@ -3228,8 +3247,8 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
             "plan_slug": slug, "reason": "draft-specs-exceed-corpus-budget"})
         _die(_overflow)
     print(f"# Invoking external auditor: {provider}/{model} ({'full' if full else 'routine'}) "
-          f"on draft {slug} ({n_lines} body lines{'; LARGE → big-plan-checklist' if large else ''})...",
-          file=sys.stderr)
+          f"on draft {slug} ({n_lines} body lines{'; LARGE → big-plan-checklist' if large else ''}); "
+          f"{_auditor_guard_note(full)}...", file=sys.stderr)
     # T-0226 — structural pre-pass: deterministic, local, REPORT-NOT-BLOCK. Computed regardless of
     # the auditor outcome (even on ABORT) so the grep-able subset is ALWAYS recorded + cannot be
     # skipped like the T-0188 manual memo. WARN-level: does NOT flip the auditor `verdict`.
@@ -3242,6 +3261,7 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     if sf:
         structural += sf["structural"]
     _answered_pair: dict = {}      # T-12606 — INVOCATION-scoped: which pair answered THIS gate audit
+    _check_t0 = time.monotonic()   # T-13574 — the prompt hand-off: the row's duration anchor
     rc, stdout, stderr = audit_lib.invoke_auditor_tiered(
         _invoke_auditor, provider, prompt, model, full=full, effort=effort,   # T-12350 / T-12606
         _resolve_audit_reserve=_resolve_audit_reserve, append_event=_append_event,   # T-12606
@@ -3383,6 +3403,7 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                "findings_count": len(findings),
                "structural_findings_count": len(structural), "large": large,
                "stage_template": stage_template, "gate_policy": gate_policy,
+               "duration_ms": audit_lib._audit_duration_ms(_check_t0),   # T-13574
                "saved_to": str(audit_path.relative_to(REPO_ROOT))}
     if _retained:
         _dc_row.update({"no_data": True, "prior_verdict_retained": _retained, "saved_to": None,

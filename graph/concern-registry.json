@@ -163,6 +163,17 @@
    "waiver_policy": "loose"
   },
   {
+   "carrier_path": "kernel",
+   "declare_key": "engine",
+   "declare_type": "mapping",
+   "presence_policy": "checked-if-present",
+   "section": "kernel",
+   "spec": "SPEC-0195",
+   "update_policy": "init re-seed",
+   "version": "c74c2a0f28c3",
+   "waiver_policy": "loose"
+  },
+  {
    "carrier_path": "live_probe",
    "declare_key": "live_base_url",
    "declare_type": "string",

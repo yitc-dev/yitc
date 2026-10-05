@@ -243,6 +243,6 @@ implements_signature:
   bin/lib/dispatch.py#classify_launch_answer: ced5162cbc089e9466079dd9b9babf88f370ac7efafaa88ca24703a2355698c7
   bin/lib/dispatch.py#cmd_dispatch: 6a32412c4641be150c448fc1288b84905a79b0fd0eebaab4fac273838e831f23
   bin/lib/dispatch.py#launch_worker_with_pair: 059484f698a9a14f34ce9813c9ffdf0952911a4649c2500fe9d1f4530a6f10d1
-  bin/lib/task.py#cmd_task_file: a2448377e68efc1d0223bf442d465f96b5f5f71d29867ba800e11ab1c1a65f11
-  bin/lib/task.py#cmd_task_update: fd38bc430c7885c001ae27b7abf2daaa96eaae9524849b7fe8b548ee6961bc0d
+  bin/lib/task.py#cmd_task_file: e95ef07da93d6783f833cda1747a1831d7761178687fb0dbba85c16a258dd145
+  bin/lib/task.py#cmd_task_update: e5719c353ef13be74a5c770f9fbe560e12a00c556de2eb0849ff4bc0d1788f6f
   bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

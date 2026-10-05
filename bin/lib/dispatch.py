@@ -1999,7 +1999,12 @@ ARM A WATCHER (MANDATORY — controller duty, system-driven detection per §Watc
 
     WATCH: WAKE ...          an actionable verdict (dead / needs-decision) OF A WATCHED TASK, CONFIRMED
                              across >=2 ticks, or every dispatch TERMINAL with a recovery-bearing detail
-                             (halt / wont-do / blocked_on_land). YOU choose the act — the verb prescribes
+                             (halt / wont-do / blocked_on_land / a PAUSED card). A watched card reading
+                             `paused(<reason>)` is over but never a clean completion (SPEC-0133 rule 5d):
+                             it turns the all-terminal exit into WAKE and never exits ANY_TERMINAL. An
+                             `artifact-wait` pause waits on the artifact its card declares
+                             (`paused_awaits`), not on a decision; any other pause waits on the
+                             decision its reason names. YOU choose the act — the verb prescribes
                              none (SPEC-0133 rule 2). A confirmed-dead `closed_pending_land` (built+closed,
                              land lost to a turn-yield) is recovered by the governed `bin/yitc-v2 worktree
                              recover-land --task T-XXXX` (T-10139 — fail-closed + idempotent; the
@@ -2334,7 +2339,10 @@ def _watch_wake_decision(rows: "list[dict]", statuses: "dict[str, dict | None]",
     are recovery-bearing and a controller must decide on them. This also covers the halt that has aged
     out of the fleet-verdict recency window (SPEC-0133 rule 2a) and so no longer appears in `rows`.
     A `paused(<reason>)` status row (T-12916, SPEC-0133 rule 5d — incl. a pause whose record LANDED) is
-    read the same way: positively over, never clean, so it WAKES and never satisfies ANY_TERMINAL."""
+    read the same way: positively over, never clean, so it WAKES and never satisfies ANY_TERMINAL.
+    T-13575 — the wake TEXT is reason-aware, the action is not: `paused(artifact-wait)` waits on the
+    artifact its card declares (`task pause --awaits`), so its wake text names that wait instead of
+    asking for a controller decision. Every other detail keeps its text byte for byte."""
     # (0) SCOPE FIRST (T-10402) — a foreign worker's verdict never reaches the streak machinery at all,
     # so it cannot accumulate toward `confirm` (dropping it only at the threshold would still let a
     # long-lived foreign row sit one tick away from waking us).
@@ -2372,6 +2380,15 @@ def _watch_wake_decision(rows: "list[dict]", statuses: "dict[str, dict | None]",
                             f"class={row.get('class')} tasks={','.join(row.get('task_ids') or [])} "
                             f"confirmed across {confirm} consecutive ticks — "
                             f"basis: {row.get('verdict_basis') or '-'}")
+
+    # T-13575 — wording only. An `artifact-wait` pause waits on the artifact its card DECLARES, not on
+    # a decision, so the two terminal-leg wakes below name that wait for it. The status row carries the
+    # reason and not the awaited ref, and this function reads nothing, so the text names the card
+    # field; every other non-clean detail keeps the decision wording unchanged.
+    artifact_wait = "paused(artifact-wait)"
+    artifact_txt = ("an artifact-wait pause waits on the artifact its card declares (`paused_awaits`), "
+                    "not on a decision — relaunch it once that artifact has arrived (the session-start "
+                    "echo then reads RESUMABLE)")
 
     # (2) POSITIVE terminal — every watched task's parsed class token must read TERMINAL. Fail closed on
     # a missing/unparseable row: absence is NOT evidence of completion (the false-ALL_TERMINAL class).
@@ -2416,6 +2433,10 @@ def _watch_wake_decision(rows: "list[dict]", statuses: "dict[str, dict | None]",
                 continue
             detail = terminal_details[task]
             still = sorted(t for t in tasks if t not in terminal_details)
+            if detail == artifact_wait:
+                return ("wake", f"{task}=TERMINAL({detail}) confirmed across {confirm} consecutive "
+                                f"ticks — not a clean completion: {artifact_txt}; still "
+                                f"working: {', '.join(still) or '-'}")
             if detail != _WATCH_CLEAN_TERMINAL_DETAIL:
                 return ("wake", f"{task}=TERMINAL({detail}) confirmed across {confirm} consecutive "
                                 f"ticks — recovery-bearing, a controller decision is needed; still "
@@ -2435,8 +2456,13 @@ def _watch_wake_decision(rows: "list[dict]", statuses: "dict[str, dict | None]",
     unclean = {t: d for t, d in terminal_details.items() if d != _WATCH_CLEAN_TERMINAL_DETAIL}
     if unclean:
         detail_txt = ", ".join(f"{t}=TERMINAL({d})" for t, d in sorted(unclean.items()))
+        waiting = sorted(t for t, d in unclean.items() if d == artifact_wait)
+        if len(waiting) == len(unclean):
+            return ("wake", f"all watched dispatches TERMINAL but {detail_txt} — not a clean "
+                            f"completion: {artifact_txt}")
         return ("wake", f"all watched dispatches TERMINAL but {detail_txt} — recovery-bearing, "
-                        f"a controller decision is needed (not a clean completion)")
+                        f"a controller decision is needed (not a clean completion)"
+                        + (f"; {', '.join(waiting)}: {artifact_txt}" if waiting else ""))
     return ("all_terminal", "every watched task reads a POSITIVE class=TERMINAL(done) "
                             f"across {confirm} consecutive ticks: {', '.join(sorted(tasks))}")
 
@@ -4595,14 +4621,27 @@ def _watch_holder_text(row: dict) -> str:
 # than the window is a recorded fallback answered by its own read. The window is the dispatch wave window
 # the readers ask (`_WATCH_DEDUP_WINDOW_SEC` — a mismatch costs reads, never correctness) plus the tail
 # margin plus the watch's own lifetime, since each poll's `since` slides forward from the walk.
+#
+# T-13462 — TWO THINGS THAT SCOPE DID NOT HOLD, both measured on the kernel 2026-10-04 (every 2026-10-03
+# watch receipt still folded 6x-90x per artifact, growing with the watch's lifetime):
+#   (i)  A STALE SCOPE STAYED STALE. `land` replaces main's live segment several times an hour; the
+#        first one inside a watch left every later poll reading main for itself. The scope is now
+#        RENEWED — `_arm_watch` asks `renew()` before each reader, and a scope that can no longer serve
+#        is closed and re-opened: main is walked once more per rewrite, not once per reader per poll.
+#   (ii) THE OTHER LEGS WERE NEVER IN IT. The fleet verdict and the per-task status union every live
+#        worktree journal and every registry consumer journal, each read per call (~42 folds per poll
+#        with main's scope fresh). `journal.WatchReads` carries a catch-up cursor per such leg.
+# Both live in `journal.WatchReads`; this function only declares the main scope's window.
 def _watch_read_scope(main_wt, timeout_sec: int):
-    """The watch-loop ReadScope over `main_wt`'s journal (see the block above). Not a cache: it is
-    released when the loop ends and serves nothing a later invocation reads."""
+    """The watch-loop ReadScope over `main_wt`'s journal and the watch's other legs (see the block
+    above). Not a cache: it is released when the loop ends and serves nothing a later invocation reads."""
     window = _WATCH_DEDUP_WINDOW_SEC + journal._TAIL_WINDOW_MARGIN_SEC + max(0, int(timeout_sec))
-    since = (datetime.datetime.now(datetime.timezone.utc)
-             - datetime.timedelta(seconds=window)).strftime("%Y-%m-%d")
-    return journal.scan_scope(Path(main_wt) / "events.jsonl", window_sec=window, since=since,
-                              catch_up=True)
+
+    def _declare():
+        since = (datetime.datetime.now(datetime.timezone.utc)
+                 - datetime.timedelta(seconds=window)).strftime("%Y-%m-%d")
+        return {"window_sec": window, "since": since, "catch_up": True}
+    return journal.WatchReads(Path(main_wt) / "events.jsonl", _declare)
 
 
 def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append_event,
@@ -4620,7 +4659,19 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
     _timeout = journal.WATCH_MAX_RUNTIME_SECS if _timeout_raw is None else max(0, int(_timeout_raw))
     # T-13396 — the WHOLE arming (the live-watcher dedup read and the loop) runs inside ONE
     # watch-lifetime ReadScope (block above `_watch_read_scope`).
-    with _watch_read_scope(main_wt, _timeout):
+    with _watch_read_scope(main_wt, _timeout) as _reads:
+        # T-13462 — each reader the loop runs first lets the scope re-establish itself after a rewrite
+        # of main's live segment. `_reads` is None under a no-op context (a test double): no renewal.
+        _renew = getattr(_reads, "renew", None)
+
+        def _renewing(fn):
+            if fn is None or _renew is None:
+                return fn
+
+            def _call(*a, **k):
+                _renew()
+                return fn(*a, **k)
+            return _call
         live, unanswered = _live_watchers_over(
             tasks, main_wt=main_wt, _dispatch_status_events=_dispatch_status_events,
             _pid_alive=_pid_alive, _proc_start_token=_proc_start_token, _utc_now=_utc_now)
@@ -4734,10 +4785,10 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
             watch_fleet=bool(getattr(args, "watch_fleet", False)),   # T-10402 — explicit fleet opt-in
             any_terminal=bool(getattr(args, "watch_any_terminal", False)),   # T-11829 — per-worker exit
             arming_reachability=_arm_reach,          # T-12641 — carried into the rule-6 receipt
-            _fleet_rows=_watch_fleet_rows, _status_row=_watch_status_row,
+            _fleet_rows=_renewing(_watch_fleet_rows), _status_row=_renewing(_watch_status_row),
             # T-11926 — the premature-exit finder (injected like every other watch dep, so the loop
             # stays hermetic). None disables the recording entirely: the acceptance differential.
-            _premature_findings=_watch_premature_findings,
+            _premature_findings=_renewing(_watch_premature_findings),
             _sleep=_watch_sleep, _now=_watch_now,
             _emit=lambda t, tid, d: _append_event(t, tid, d, events_path=main_wt / "events.jsonl"))
         return rc

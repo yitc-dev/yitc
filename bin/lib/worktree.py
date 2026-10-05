@@ -7486,7 +7486,7 @@ def _main_dirt_verdict(main_wt, branch_wt, *, _run_git_cap, _BOOKKEEPING_ALLOWLI
     fold consumes what was already computed rather than recomputing it."""
     empty = {"main_dirty": set(), "capture_reopen": set(), "yitc_state": set(),
              "archive_dirt": set(), "foreign": [], "ownership": None}
-    st = _run_git_cap(["status", "--porcelain"], main_wt)
+    st = _run_git_cap(["status", "--porcelain"], main_wt)   # no index lock: the runner (T-13586)
     if getattr(st, "returncode", 0) != 0:
         return dict(empty, verdict="error",
                     error=(getattr(st, "stderr", "") or getattr(st, "stdout", "") or "").strip())
@@ -18848,11 +18848,17 @@ def _refresh_verify_duration_table(main_wt: Path, current: "list", workers: int,
     report.update(stats)
     if not write:
         return report
-    # The written table keeps every value the derivation did not re-measure: a file present in the old
-    # table but absent from this window (deleted, or simply not started) must not vanish, because
-    # dropping it would shift the imputed median for every unrecorded file. Merge, never replace.
-    merged = dict(existing)
-    merged.update(derived)
+    # T-13556: the written table names ONLY the files this tree discovers. A discovered file the
+    # window did not re-measure keeps its existing value (a narrowed land must not lose it); a name
+    # the tree no longer has is dropped from BOTH sources. Both, because `derived` is a median over
+    # this land AND the prior lands' journaled series, whose names are re-derived from each sampled
+    # land's own tree — so a file deleted inside the window still has samples, and filtering only
+    # the kept table would write it straight back (measured: c239ab594c, recorded 2084, derived
+    # 2086, discovered 2084, written 2086). A dead entry shifts the imputed median for every
+    # unrecorded file and reddens the table's completeness readers on main.
+    live = set(discovered)
+    merged = {n: v for n, v in existing.items() if n in live}
+    merged.update((n, v) for n, v in derived.items() if n in live)
     unit = _VERIFY_DURATION_SERIES_UNIT_MS
     payload = {"unit_ms": unit,
                "files": {n: max(1, (merged[n] + unit // 2) // unit) for n in sorted(merged)}}
@@ -19041,7 +19047,7 @@ def _await_live_land_tail_dirt(main_wt, *, _run_git_cap) -> None:
     the COVERED paths are waited on, so foreign dirt beside them is still refused by the fold's own
     check, with its own text, once the tail is gone. An unreadable status waits on nothing."""
     def covered() -> dict:
-        st = _run_git_cap(["status", "--porcelain"], main_wt)
+        st = _run_git_cap(["status", "--porcelain"], main_wt)   # no index lock: the runner (T-13586)
         if getattr(st, "returncode", 1) != 0:
             return {"verdict": "error", "foreign": []}
         cov = sorted(p for p in textutil.git_porcelain_paths(st.stdout)
@@ -19193,6 +19199,12 @@ STAGE6_RUN_KEY = "stage6_run"
 #: NEWEST decides whether a task's Stage-6 verdict is a runner-marked green.
 STAGE6_CREDIT_REASON = "stage6-credit"
 _STAGE6_VERDICT_TYPES = ("tests_passed", "tests_failed")
+#: T-13576 — the `_land_stage6_credit` refusals under which NO credit was possible: the project opted
+#: out, the branch is no task branch, or the task's NEWEST Stage-6 verdict row is absent, red or
+#: unmarked. Every other refusal (bar an `error:`) refused a runner-marked green row, and only such a
+#: refusal is recorded (`land_completed.stage6_credit_refused`, SPEC-0025).
+_STAGE6_CREDIT_NOT_POSSIBLE = frozenset({
+    "policy-opt-out", "not-a-task-branch", "no-stage6-row", "newest-stage6-row-red", "row-not-runner-marked"})
 _STAGE6_SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -19292,7 +19304,9 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
                         ) -> "tuple[bool, str, dict | None]":
     """T-13532 (SPEC-0065 §Bound) — MAY this land take its CANDIDATE-leg verdict from the task's own
     Stage-6 run instead of re-running it? `(True, "stage6-credit", ref)` on proof, else
-    `(False, why, None)` — one reason per refusal, and the caller runs the candidate verify.
+    `(False, why, None)` — one reason per refusal, and the caller runs the candidate verify. The ONE
+    exception to the `None`: a `main-moved` refusal carries `{class, paths}` — main's own advance since
+    the run, classified (T-13588) — which the caller only records.
 
     The land proves each part itself; nothing the worker asserts is trusted:
       (0) POLICY — the project has not opted out (`verify_policy.stage6_credit`, read from the BASE tree).
@@ -19335,7 +19349,16 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         if not all(isinstance(v, str) and _STAGE6_SHA.fullmatch(v) for v in (tree, base)):
             return False, "row-tree-unrecorded", None
         if base != merged_base:
-            return False, "main-moved", None
+            # T-13588: WHAT main's own advance since the run touched — `base..merged_base`, never the
+            # branch delta — classified by the ONE SPEC-0064 authority. Recorded, never acted on: the
+            # credit stays refused (owner decision 2026-10-05, card T-13576). Any fault reads
+            # «unknown», never «inert».
+            try:
+                moved = _diff_name_paths(W, base, merged_base, _run_git_cap=_run_git_cap)
+                delta = {"class": _classify_inert_paths(moved)[0], "paths": len(moved)}
+            except Exception:                              # noqa: BLE001 — unknown, never a guess
+                delta = {"class": "unknown", "paths": None}
+            return False, "main-moved", delta
         t = _run_git_cap(["cat-file", "-t", tree], W)
         if t.returncode != 0 or (t.stdout or "").strip() != "tree":
             return False, "row-tree-unresolvable", None
@@ -19450,23 +19473,48 @@ def _land_tail_withhold(main_wt, writer: str, artifacts, verdict: dict, *, _run_
 
     A tracked path is restored from `HEAD` (the tree the ff published, i.e. the VERIFIED one); a path
     that did not exist before the write is removed. Neither can fail the land: the work is already on
-    `main`, and the worst case of a failed restore is dirt the next land folds. The ONE
-    `land_tail_write_withheld` row names the writer, the withheld paths and the failing reader, so
-    the debt view can surface it and the next land can re-derive the write."""
+    `main`. The ONE `land_tail_write_withheld` row names the writer, the withheld paths and the
+    failing reader, so the debt view can surface it and the next land can re-derive the write.
+
+    T-13579 — THE ROW SAYS WHAT GIT ANSWERED. A path is listed under `paths` only when its undo
+    HAPPENED: the restore exited 0, or the never-tracked file is gone. Any other path goes under
+    `restore_errors` — the git step, its exit code and git's first stderr line — and NOT under `paths`.
+    Until this card the restore's exit was not read, so a restore that died (measured by T-13566:
+    exit 128, `Unable to create '.git/index.lock': File exists`, when another git process holds
+    main's index lock) was recorded as restored. And a failed restore is not harmless: the paths
+    this undoes have no fold policy, so the withheld bytes stay on `main` as uncommitted work that
+    every later land refuses until it is cleared — the row is what tells that dirt from a
+    stranger's.
+
+    TRACKED-OR-NEW IS THREE-VALUED (SPEC-0165 item 11). `ls-files --error-unmatch` exits 0 for a
+    tracked path, 1 for one git does not know, and anything else when it could not answer at all
+    (128 on an unreadable index, a negative code when the child was killed). Only 1 means «new». A
+    path git could not answer for is left exactly as it is and recorded as an error — read as «new»
+    it was UNLINKED, which removed a TRACKED file from main's working tree."""
     withheld, restore_errors = [], []
     for rel in artifacts:
         if not rel:
             continue
         try:
-            tracked = _run_git_cap(["ls-files", "--error-unmatch", str(rel)], main_wt).returncode == 0
-            if tracked:
+            step, res = "ls-files", _run_git_cap(["ls-files", "--error-unmatch", str(rel)], main_wt)
+            if res.returncode == 0:
                 # HEAD, explicitly — NOT the bare `checkout -- <path>`, which restores from the
                 # INDEX. The tree this must return to is the one the ff PUBLISHED, and an index
                 # that already carries the write would restore the very bytes being withheld.
-                _run_git_cap(["checkout", "HEAD", "--", str(rel)], main_wt)
-            else:
+                step, res = "checkout", _run_git_cap(["checkout", "HEAD", "--", str(rel)], main_wt)
+                undone = res.returncode == 0
+            elif res.returncode == 1:
                 (Path(main_wt) / rel).unlink(missing_ok=True)
-            withheld.append(str(rel))
+                undone = True
+            else:
+                undone = False
+            if undone:
+                withheld.append(str(rel))
+            else:
+                said = next((ln.strip() for ln in str(getattr(res, "stderr", "") or "").splitlines()
+                             if ln.strip()), "")
+                restore_errors.append(f"{rel}:{step} exit {res.returncode}"
+                                      + (f": {said[:200]}" if said else ""))
         except Exception as exc:                           # noqa: BLE001 — never fail a landed land
             restore_errors.append(f"{rel}:{type(exc).__name__}")
     payload = {"writer": writer, "paths": withheld, "reason": verdict.get("reason"),
@@ -19479,7 +19527,11 @@ def _land_tail_withhold(main_wt, writer: str, artifacts, verdict: dict, *, _run_
                   events_path=Path(main_wt) / "events.jsonl")
     print(f"land: tail write WITHHELD ({writer}) — {payload['reason']}"
           + (f", first failing reader {payload['test']}" if payload.get("test") else "")
-          + f"; {len(withheld)} path(s) restored, re-derived on the next land", file=sys.stderr)
+          + f"; {len(withheld)} path(s) restored, re-derived on the next land"
+          + (f"; {len(restore_errors)} restore(s) FAILED ({'; '.join(restore_errors)}) — a write left "
+             f"unrestored stays on main, uncommitted, and later lands refuse it until it is cleared"
+             if restore_errors else ""),
+          file=sys.stderr)
     return payload
 
 
@@ -21559,6 +21611,12 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # fail. Empty until an attempt's batch branch fills it, which is exactly what makes a pre-loop
     # abort's row byte-identical to today's (same argument as `attempt_attribution`'s None).
     _members_removed: "list[dict]" = []
+    # T-13567 (SPEC-0184 rule 9): RANKED RUNG 0 AND PAID. Declared here for the same reason as the
+    # sink above — the `_die` wrapper reads it at CALL time. `None` until an attempt of this land,
+    # answered as free by the rule-9 rank, HAS RUN its candidate verify; then the reason it paid,
+    # and NEVER reset: a land that paid in one attempt has paid, whichever attempt its terminal row
+    # comes from.
+    _rung0_paid = None
 
     def _release_land_reservation():
         """T-11117 — END OF THE SERIALIZED SPAN: hand the reservation to the next lander.
@@ -21747,6 +21805,16 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             if _members_removed:
                 _detail = dict(getattr(_se, "yitc_abort_detail", None) or {})
                 _detail["members_removed"] = _members_removed
+                _se.yitc_abort_detail = _detail
+            # T-13567 (SPEC-0184 rule 9) — `rung0_paid` RIDES THE ABORT ROW TOO, on the same channel
+            # and terms as the sink above. A land ranked free whose verify ran and then failed or
+            # timed out paid exactly as one that landed, and this row is the only terminal row it
+            # gets. The carrier is set only AFTER a candidate verify has run (below, where both legs
+            # are done), so its presence is the evidence: an abort raised before the suite started —
+            # an admission refusal, a preflight — finds it unset and stays byte-identical.
+            if _rung0_paid is not None:
+                _detail = dict(getattr(_se, "yitc_abort_detail", None) or {})
+                _detail["rung0_paid"] = _rung0_paid
                 _se.yitc_abort_detail = _detail
             # T-12150 (plan step 6) — the queued pre-merge record + AC2's named
             # `reservation_disposition`, on the SAME existing `yitc_abort_detail` channel and on the
@@ -22355,6 +22423,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # step 2c and reset at each attempt's top, so a row reports the attempt that closed the land.
     _aproof = {"ctx": None}
     own_verified = False   # T-13344: has ANY attempt of this land run the test verify? Lever B leans on it.
+    _stage6_refused = None  # T-13576: why step 4d refused a runner-marked green Stage-6 row — the LAND's,
+                            # kept across attempts (a retry of a refused land is not asked again)
+    _stage6_main_delta = None  # T-13588: on a `main-moved` refusal, main's advance since the run, classified
 
     def _close_attempt(n, outcome):
         # Close the CURRENT attempt into a part. Reads the enclosing locals at CALL time, so the
@@ -24023,6 +24094,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 W, main_wt, merged_base, branch, _classify_inert_paths=_classify_inert_paths,
                 _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
                 _consumer_tests_delegation=_consumer_tests_delegation)
+            if not _s6_ok and _s6_why not in _STAGE6_CREDIT_NOT_POSSIBLE and not _s6_why.startswith("error:"):
+                _stage6_refused = _s6_why
+                _stage6_main_delta = _s6_ref if _s6_why == "main-moved" else None
             if _s6_ok:
                 _stage6_credit = _s6_ref
                 reverify_skipped = True
@@ -26235,6 +26309,22 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         # on which no layer failed folds nothing and its metrics are byte-unchanged.
         for _lr_leg, _lr_rec in layer_retry_records:
             _fold_layer_flaky_retry(verify_metrics, _lr_rec, _lr_leg)
+        # T-13567 (SPEC-0184 rule 9) — RANKED RUNG 0 AND PAID, recorded HERE for the same reason as
+        # the fold above: the legs have run and the outcome has not branched, so ONE site feeds the
+        # ok payload and the abort row alike. `do_test_verify and not _stage6_credit` is the
+        # condition under which THIS attempt ran its own candidate verify (the T-13344 backstop's
+        # own); a refusal raised before this line ran no suite and leaves the carrier unset. The
+        # land is one the rank answers as free when its OWN delta is all-inert on the tree it lands
+        # — the verdict step 4b took from the one inert authority this attempt, where unknown reads
+        # observable, so an unreadable delta is never called a cohort member — under the
+        # kernel-authored engagement; a project's rung 0 is its declared layers' answer, never this
+        # record's. The reason says WHY it paid: the first-attempt proof's own refusal when that
+        # proof was asked, else that the proof was not open to this attempt (its entry guard
+        # excludes a declared rebaseline). The FIRST paying attempt is kept.
+        if (do_test_verify and not _stage6_credit and _rung0_paid is None
+                and _sup_verdict == "inert"
+                and _land_batch_engagement(W)[1] == "kernel-authored-verify"):
+            _rung0_paid = _fa_why if _first_proof_open else "first-attempt-proof-not-open"
         if bad:
             # T-0678 (AC3): a per-file TIMEOUT-kill is a HARD, DISTINCT abort — categorically NOT the soft
             # ff-race retry. Verify failures already short-circuit the `for attempt` loop here (this `_die`
@@ -27229,11 +27319,27 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 payload["verify_table_refresh"] = _vtr
             if reverify_skipped:
                 payload["reverify_skip_reason"] = reverify_skip_reason
+            if _rung0_paid is not None:
+                # T-13567 (SPEC-0184 rule 9): RANKED RUNG 0 AND PAID — set once a candidate verify of
+                # this land has run, in this attempt or an earlier one; the value is why it paid.
+                # ABSENT on a land that paid nothing, on a land carrying any observable path, and on
+                # every project-declared verify — so every other row is byte-unchanged.
+                payload["rung0_paid"] = _rung0_paid
             if _stage6_credit:
                 # T-13532 (SPEC-0065 §Bound): WHICH Stage-6 row stood in for the candidate leg —
                 # {task, ts, tree, base}, resolvable as `events.jsonl#ts=<ts>` on that task's
                 # `tests_passed` row. Present only on a credited land.
                 payload["stage6_credit"] = _stage6_credit
+            if _stage6_refused:
+                # T-13576: WHY this land's candidate verify ran although the task's newest Stage-6 row
+                # was a runner-marked green — the reason `_land_stage6_credit` gave (`main-moved`, …).
+                # Absent on a credited land and wherever no credit was possible.
+                payload["stage6_credit_refused"] = _stage6_refused
+                if _stage6_main_delta:
+                    # T-13588: was main's advance since the run inert-only? {class: inert|observable|
+                    # unknown, paths} — measured for the owner's decision on condition (1); it changes
+                    # nothing about the credit. Present only beside `main-moved`.
+                    payload["stage6_credit_main_delta"] = _stage6_main_delta
             if consumer_verify_mode:
                 # T-0864: additive consumer-verify telemetry (SPEC-0025 §land_completed additive
                 # keys, P5-safe). PRESENT ONLY on a CONSUMER land (probes|waiver|layers|missing|…) —

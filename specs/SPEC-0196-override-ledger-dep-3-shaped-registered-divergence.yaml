@@ -84,11 +84,13 @@ body: "## Scenario\n\nA project pinned to a released methodology sometimes needs
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
+- SPEC-0195
 - SPEC-0093
 - SPEC-0122
 - SPEC-0128
 - off-server-release-contract-one-mechanism-for-own-
-requires: []
+requires:
+- SPEC-0195
 supersedes: null
 activation_owner_task: null
 proposed_by: off-server-release-contract-one-mechanism-for-own-

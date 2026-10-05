@@ -3421,9 +3421,10 @@ def _selection_coverage_map(tests_dir=None, *, _SELECTION_COVERAGE_MAP=None, _SE
     returns the floor unchanged rather than an empty or partial map, so the worst case is exactly
     today's behaviour.
 
-    CACHED per resolved tests dir: the scan costs ~20 s on today's tree (T-12133 measured 21.7 /
-    21.0 s; the T-13407 filing baseline), paid ONCE per process and ONLY past `_shadow_select`'s
-    fail-closed edge (T-13407) — an edge-decided run never pays it. It is deliberately NOT computed at import — this module is
+    CACHED per resolved tests dir: the scan costs ~14 s on today's tree (T-13557 took it from 21.5 to
+    13.8 s of CPU over 2107 files without changing what it returns; before that T-12133 measured
+    21.7 / 21.0 s, the T-13407 filing baseline), paid ONCE per process and ONLY past
+    `_shadow_select`'s fail-closed edge (T-13407) — an edge-decided run never pays it. It is deliberately NOT computed at import — this module is
     imported by every `bin/yitc-v2` invocation, and a second of CLI startup for a shadow record
     that governs nothing would be a plain regression."""
     if tests_dir is None:
@@ -3483,7 +3484,10 @@ def _selection_derive_readers(tests_dir, *, _selection_analyse=None, _selection_
         for name, text in src.items():
             if not name.startswith("test_") or text is None:
                 continue
-            if re.search(rf'\b(?:import|from)\s+{stem}\b', text):
+            # T-13557 — the pattern ends in the escaped stem and is searched with no flags, so a match
+            # CONTAINS the stem literally: the substring test is false only where the search cannot
+            # match. It spares one regex scan of every test source per reading helper.
+            if helper[:-3] in text and re.search(rf'\b(?:import|from)\s+{stem}\b', text):
                 for k in fams:
                     fam.setdefault(k, set()).add(name)
                 if is_corpus or undecidable:
@@ -3963,29 +3967,38 @@ def _selection_strip_prose(src):
     today's stricter (more always-run) classification rather than becoming silently hermetic.
     Blanking in place — rather than deleting — keeps line and column offsets identical, so the
     caller's per-line scan is unaffected by the strip itself."""
-    try:
-        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
-    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
-        return src                                  # unparseable → analyse the raw text, as before
-    rows = [list(line) for line in src.splitlines(keepends=True)]
+    # T-13557 — the same strip, cheaper: each row stays a STRING and a prose span is blanked by
+    # slicing (not one list element per source character), and tokens are read as they are produced
+    # (not first materialised). The tokenizer's exceptions are caught at `next()` and NOWHERE else,
+    # so the loop body stays outside the `try` as it always was; a failure part-way returns `src`,
+    # the rows touched so far being local to this call.
+    toks = tokenize.generate_tokens(io.StringIO(src).readline)
+    rows = src.splitlines(keepends=True)
     # A docstring is a STRING token that OPENS a logical line; a path literal in an expression
     # (`REPO_ROOT / "specs"`) never does, so family resolution keeps every literal it reads today.
     opener = (tokenize.NEWLINE, tokenize.NL, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING)
     prev = tokenize.NEWLINE
-    for tok in toks:
+    while True:
+        try:
+            tok = next(toks)
+        except StopIteration:
+            break
+        except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
+            return src                              # unparseable → analyse the raw text, as before
         prose = tok.type == tokenize.COMMENT or (tok.type == tokenize.STRING and prev in opener)
         if prose:
             (r1, c1), (r2, c2) = tok.start, tok.end
             for r in range(r1, min(r2, len(rows)) + 1):
                 row = rows[r - 1]
                 lo = c1 if r == r1 else 0
-                hi = c2 if r == r2 else len(row)
-                for i in range(lo, min(hi, len(row))):
-                    if row[i] != "\n":
-                        row[i] = " "
+                hi = min(c2 if r == r2 else len(row), len(row))
+                if lo < hi:
+                    # every character of the span but a newline becomes one space
+                    rows[r - 1] = (row[:lo] + "\n".join(" " * len(p) for p in row[lo:hi].split("\n"))
+                                   + row[hi:])
         if tok.type not in (tokenize.COMMENT, tokenize.NL):
             prev = tok.type
-    return "".join("".join(row) for row in rows)
+    return "".join(rows)
 
 def _selection_file_anchors(src, rel, inline=None):
     """T-11848 (SPEC-0181) — one test source + its repo-relative path → `{local name: prefix parts}`
@@ -4090,8 +4103,11 @@ def _selection_file_anchors(src, rel, inline=None):
             return list(got) if got is not None else None
         return None
 
+    # T-13557 — ONE traversal, read by both passes below. Neither pass mutates the tree, so the second
+    # `ast.walk(tree)` this replaces yielded this same sequence in this same order.
+    nodes = list(ast.walk(tree))
     assigned = set()                # T-12497 — ids of the nodes that already became a named anchor
-    for node in ast.walk(tree):
+    for node in nodes:
         if not isinstance(node, ast.Assign) or len(node.targets) != 1:
             continue
         target = node.targets[0]
@@ -4108,7 +4124,7 @@ def _selection_file_anchors(src, rel, inline=None):
         # so a bare `Path(__file__).read_text()` (the file reading ITSELF) contributes nothing. A join
         # that IS a name assignment's value is skipped: that anchor is a read only when the name is
         # USED again (the T-11883 `> 1` rule), and harvesting it here would turn a mention into a read.
-        for node in ast.walk(tree):
+        for node in nodes:
             is_join = ((isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div))
                        or (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                            and node.func.attr == "join" and len(node.args) > 1))
@@ -4195,8 +4211,18 @@ def _shadow_select(diff_paths, test_files, verify_globs, coverage_map=None,
         if not matched:
             return (names, [], f"unresolved-path:{p}")                         # R3
         for tglobs in matched:
+            # T-13550 — the derived map's targets are exact FILE NAMES (85,468 of 85,468 on the real
+            # map, 2026-10-04), and a target carrying none of fnmatch's metacharacters matches a name
+            # iff the two are equal once both are `normcase`d — which is all `fnmatch.fnmatch` does
+            # with it. So those are one set lookup per name; only a real glob still scans the names.
+            # Same selection, without an fnmatch call per name per target (45.8 s -> 0.06 s measured
+            # over every family of the real map).
+            _exact = {os.path.normcase(tg) for tg in tglobs if not any(c in tg for c in "*?[")}
+            if _exact:
+                selected.update(n for n in names if os.path.normcase(n) in _exact)
             for tg in tglobs:
-                selected.update(n for n in names if fnmatch.fnmatch(n, tg))
+                if any(c in tg for c in "*?["):
+                    selected.update(n for n in names if fnmatch.fnmatch(n, tg))
         # T-11474 — the SELF half of the tests/ union (see the R4 rung in the docstring). Guarded by
         # the SAME enumeration membership rung R1 frees a leaf test by, so a delete or a rename's
         # vanished old path adds nothing here — but neither ever reaches R4, since both still fire

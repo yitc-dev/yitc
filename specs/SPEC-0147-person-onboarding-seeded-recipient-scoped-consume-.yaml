@@ -101,31 +101,53 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   \ Rule 1\n(consume-on-encounter, never detect-on-mastery), VP2 (consume-once), and\
   \ VP5 (no mastery state) hold\nVERBATIM (a re-ask-until-mastery variant is out of\
   \ scope precisely because it would reintroduce the\nmastery tracking rule 1 forbids).\n\
-  \n### 6. English SoT, delivered in the person's language\nThe station-copy SoT is\
-  \ authored in English (canonical, one source). It is DELIVERED in the person's\n\
-  language by localize-at-voicing (the AI voices it; the raw body is never shown),\
-  \ reusing the existing\nowner-facing-language rule (AGENTS §Language) — NOT N pre-translated\
-  \ files. Exact tokens\n(worktree/land/deploy/spec/plan/followup) stay verbatim,\
-  \ glossed in-language. Per-language curated\nvariants are deferred until pulled.\n\
-  \n### 7. Always-on safety net + seed events\nIndependently of the stations, the\
-  \ register-gloss rule stays live forever, and every station carries a\nshort \"\
-  unclear/hard → ask to explain simpler, don't freeze\" tail — the person never dead-ends.\
-  \ Seeding\nwrites the pointer set into a project's `MEMORY.md` tagged `user(<name>)`\
-  \ at two events — project `init`\n(for its owner) and access-grant / `provision-user.sh`\
-  \ (a user added to a project) — plus a manual seed\npath for owner/current-user\
-  \ testing. Person-basics and project-specific stations share the same home,\ndistinguished\
-  \ only by content.\n\n**The seed is scoped by the recipient's registry grant.**\
-  \ Before writing, the seed reads the\nrecipient's `methodology:` field in the host\
-  \ registry's `users:` block. When that value is exactly\n`readonly` or `read-only`\
-  \ (case-insensitive, whole value — NOT the loose report-only substring\nvocabulary\
-  \ of SPEC-0169's intent channel), the holder does not operate the methodology flow,\
-  \ so NO\nstation pointer is seeded: nothing is written, no `onboarding_seeded` row\
-  \ is emitted, and the verb\nprints the grant-based reason. Every other recipient\
-  \ — no `methodology:` key, any other value, an\nunregistered name, or an absent\
-  \ / unreadable registry (fail-open) — is seeded the full set exactly as\nbefore.\
-  \ The filter is all-or-nothing: the catalog marks no person-basics subset, so none\
-  \ is carved out.\nLifting the grant (removing `methodology: readonly`) makes the\
-  \ next `memory seed` seed the full set.\n\n**An `init` re-seed never resurrects\
+  \n**Voicing frame (how a voiced body is SET APART — a VOICING form, not a new trigger;\
+  \ additive).** A\nstation body is never voiced as running text inside the reply.\
+  \ Each time a body is voiced — a first\nvoicing, a due repeat (rule 10), an on-request\
+  \ «remind me» voicing, and Station A alike — it is voiced\ninside one fixed frame,\
+  \ in this order:\n- **(i) its own block, after the working part of the reply** —\
+  \ never inside the answer on the\n  person's task, and never between its lines;\n\
+  - **(ii) a constant opening label line**, localized at voicing like the body (rule\
+  \ 6) — Russian\n  reference wording «Справка по работе в системе: <тема>», where\
+  \ `<тема>` is the station's topic;\n- **(iii) one line** saying that this explains\
+  \ how the system works and is not part of the answer on\n  the current task;\n-\
+  \ **(iv) the body**, with any advice about the person's CURRENT work set apart from\
+  \ the general\n  explanation (its own marked line), never blended into it;\n- **(v)\
+  \ a closing line that states what, if anything, is asked of the person** — the station's\n\
+  \  «you say» cue and the rule-7 «unclear → ask to explain simpler» tail live there;\
+  \ when nothing is\n  asked, the line says so.\n\nThe ask-first question stays outside\
+  \ the frame: only a voiced body is framed, so a station consumed\non a «yes» voices\
+  \ no frame. The frame changes only HOW a body is set apart — never WHEN a station\
+  \ is\nvoiced or retires: the occasion, the consume-once retirement, the pointer\
+  \ deletion and the rule-10\nrepetition are exactly as before, `memory consume` neither\
+  \ reads nor records the frame, and no state\nis added. **Delivery:** the frame reaches\
+  \ the voicing session on the one surface every occasion takes\na body from — the\
+  \ station catalog (rule 3), whose reading contracts carry it — so a session that\n\
+  never opened this spec still voices inside the frame.\n\n### 6. English SoT, delivered\
+  \ in the person's language\nThe station-copy SoT is authored in English (canonical,\
+  \ one source). It is DELIVERED in the person's\nlanguage by localize-at-voicing\
+  \ (the AI voices it; the raw body is never shown), reusing the existing\nowner-facing-language\
+  \ rule (AGENTS §Language) — NOT N pre-translated files. Exact tokens\n(worktree/land/deploy/spec/plan/followup)\
+  \ stay verbatim, glossed in-language. Per-language curated\nvariants are deferred\
+  \ until pulled.\n\n### 7. Always-on safety net + seed events\nIndependently of the\
+  \ stations, the register-gloss rule stays live forever, and every station carries\
+  \ a\nshort \"unclear/hard → ask to explain simpler, don't freeze\" tail — the person\
+  \ never dead-ends. Seeding\nwrites the pointer set into a project's `MEMORY.md`\
+  \ tagged `user(<name>)` at two events — project `init`\n(for its owner) and access-grant\
+  \ / `provision-user.sh` (a user added to a project) — plus a manual seed\npath for\
+  \ owner/current-user testing. Person-basics and project-specific stations share\
+  \ the same home,\ndistinguished only by content.\n\n**The seed is scoped by the\
+  \ recipient's registry grant.** Before writing, the seed reads the\nrecipient's\
+  \ `methodology:` field in the host registry's `users:` block. When that value is\
+  \ exactly\n`readonly` or `read-only` (case-insensitive, whole value — NOT the loose\
+  \ report-only substring\nvocabulary of SPEC-0169's intent channel), the holder does\
+  \ not operate the methodology flow, so NO\nstation pointer is seeded: nothing is\
+  \ written, no `onboarding_seeded` row is emitted, and the verb\nprints the grant-based\
+  \ reason. Every other recipient — no `methodology:` key, any other value, an\nunregistered\
+  \ name, or an absent / unreadable registry (fail-open) — is seeded the full set\
+  \ exactly as\nbefore. The filter is all-or-nothing: the catalog marks no person-basics\
+  \ subset, so none is carved out.\nLifting the grant (removing `methodology: readonly`)\
+  \ makes the next `memory seed` seed the full set.\n\n**An `init` re-seed never resurrects\
   \ a station.** It skips every station the journal\nshows this recipient ever CONSUMED,\
   \ and every station it was ever SEEDED and never consumed (a pointer\nthat left\
   \ the buffer by hand drain), naming the latter in one held line instead. `memory\
@@ -231,7 +253,11 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   \ repeats and recaps are recomputed from `onboarding_station_consumed`\n  rows;\
   \ no new state file, buffer field, or payload key beyond `kind` exists\n  (tests/test_t13217_onboarding_first_start_and_repeats.py).\n\
   - **VP8 (bounded read):** the due-check opens only window-dated segments and reads\
-  \ nothing once MEMORY.md\n  is older than the window (same test, `journal.read_counters`).\n"
+  \ nothing once MEMORY.md\n  is older than the window (same test, `journal.read_counters`).\n\
+  - **VP9 (voicing frame delivered):** the catalog text every occasion reads a body\
+  \ from — its reading\n  contracts, ahead of the first station — carries all five\
+  \ frame elements, the reference label\n  wording and the four occasions, word-for-word\
+  \ with rule 5, and `memory consume` does not depend on\n  the frame (tests/test_t13577_onboarding_voicing_frame.py).\n"
 cites:
 - progressive-newcomer-onboarding-seeded-self-retiri
 - SPEC-0039
@@ -247,5 +273,5 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#cmd_memory_consume: 8156ae5ecbd596191b4b23adee8837a004721df2da1684b69a9282ed8c659c0a
   bin/lib/cli.py#cmd_memory_seed: 4d6372bca1ebe6db3a044c57ee67d6e492c195b82ede46f74435e350d572b6eb
-  bin/lib/init.py#cmd_init: 30ab5f396c0e2fcc38fc922c226341595407a2fbbb1ac3bff9f238c98b2783e8
+  bin/lib/init.py#cmd_init: 1871d67c1293afc63b488c78770346209a7ff22888cf5731993ce76450b3406b
   bin/lib/memory.py#seed_pointers: 8254559bcaf18d82cc35880b110e930c60de30f87504f95233c658766b30359d

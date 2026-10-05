@@ -213,23 +213,28 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \ user surfaces (`ui.surfaces:` path prefixes, SPEC-0093 rule 29\n— absent = silent,\
   \ never a guess), a task whose paths touch a non-test file under a prefix that no\n\
   non-retired scenario's `covers` names gets ONE line per surface: `diff touches <surface>\
-  \ no scenario\ncovers (<files>) → author one (scenario new) or state why not`. EARLY\
+  \ no scenario\ncovers (<files>) → author one (scenario new) or state why not`. Delivered\
   \ at Analysis (claim + `stage\nAnalysis`) from the SAME touch forecast audit-pre\
-  \ reads (`expected_touch` ∪ the plan's path tokens);\nLATE at Closure from the task's\
-  \ real recorded diff. Report-only, same rule as (c): no gate at close\nor land,\
-  \ no store, no validator on the graph. It keys on the CREATE question only — a touched\n\
-  COVERED file is not a key (the \"update\" reading fired on 79.5% of UI tasks). Its\
-  \ precision was\nmeasured before it shipped (strict false-positive rate 0.200 <project>\
-  \ / 0.144 <project>,\n`dev-utilities/uncovered-surface-precision-.md`) and owner-accepted.\
-  \ **Retires (P1 F3):** the\nmanual \"name the scenario you touched/created\" Worker-brief\
-  \ line — the lens now says it at the seam.\nIts standing count is the SPEC-0119\
-  \ rule-43 debt row; both read one derivation.\n**Placed on EXISTING lifecycle stages,\
-  \ no new FSM state / gate / parallel lifecycle (B-0 bound):**\nAnalysis = impact-WARN,\
-  \ write-time = structural hard-error (b), Tests = regression-block (a),\nclaim +\
-  \ Analysis + Audit-post + Closure = staleness-WARN (c) — delivered EARLY as well\
-  \ as late,\nbecause a stale citation surfaced only after the editing is done is\
-  \ a finding nobody can act on in\nthe pass that raised it. At PLAN altitude the\
-  \ `draft→specs` / `accepted→decomposition`\ncoherence check is transition-VALIDATION\
+  \ reads (`expected_touch` ∪ the plan's path tokens).\nIt is NOT delivered at Closure:\
+  \ that leg (the same line, off the task's real recorded diff) was\nRETIRED by on\
+  \ a measured reading — AC4 («does the Closure line make people author\nscenarios?»)\
+  \ was settled FALSIFIED on 2026-10-03: the line printed at Closure in at least 33\
+  \ real\nconsumer sessions (2026-09-28..10-03) and none authored a covering scenario\
+  \ or recorded why not\n(owner decision `events.jsonl#ts=`). Do not re-add a Closure\
+  \ print without a new\nreading. Report-only, same rule as (c): no gate at close\n\
+  or land, no store, no validator on the graph. It keys on the CREATE question only\
+  \ — a touched\nCOVERED file is not a key (the \"update\" reading fired on 79.5%\
+  \ of UI tasks). Its precision was\nmeasured before it shipped (strict false-positive\
+  \ rate 0.200 <project> / 0.144 <project>,\n`dev-utilities/uncovered-surface-precision-.md`)\
+  \ and owner-accepted. **Retires (P1 F3):** the\nmanual \"name the scenario you touched/created\"\
+  \ Worker-brief line — the lens now says it at the seam.\nIts standing count is the\
+  \ SPEC-0119 rule-43 debt row; both read one derivation.\n**Placed on EXISTING lifecycle\
+  \ stages, no new FSM state / gate / parallel lifecycle (B-0 bound):**\nAnalysis\
+  \ = impact-WARN, write-time = structural hard-error (b), Tests = regression-block\
+  \ (a),\nclaim + Analysis + Audit-post + Closure = staleness-WARN (c) — delivered\
+  \ EARLY as well as late,\nbecause a stale citation surfaced only after the editing\
+  \ is done is a finding nobody can act on in\nthe pass that raised it. At PLAN altitude\
+  \ the `draft→specs` / `accepted→decomposition`\ncoherence check is transition-VALIDATION\
   \ folded into the existing `plan stage` transition — NOT a new\nverb/review-loop/approval\
   \ gate.\n\n### 7. Drift-resistance (the design is sound only if all three hold)\n\
   A scenario is drift-RESISTANT iff: (1) zero-normatives (rule 2) — it restates no\

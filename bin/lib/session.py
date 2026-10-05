@@ -121,7 +121,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
                       REPO_ROOT, ENGINE_ROOT, RELEASE_VIEW_DIR, HANDBOOK_READ_ORDER,
                       CROSS_LOG_PATH, _cross_linked_ids=None, _cross_peer_aliases=None,
                       _read_yaml=None,
-                      _debt_echo_lines=None, _receipt_only=False,
+                      _debt_echo_lines=None, _receipt_only=False, _seed_held_refs=None,
                       _write_runtime_record=None, _provider_kind=None, _provider_session_id=None,
                       _controller_acting_holder=None,
                       _kernel_is_local_peer=None, _project_name=None,
@@ -157,6 +157,16 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # unaffected); a worker whose resolved ref != launcher-assigned expected (or a blank expected)
     # ABORTs here, emitting worker_identity_refused from the pre-claim state.
     _worker_identity_self_check(args, resolved_ref, source_kind)
+    # T-13580: a RECEIPT-ONLY start (a worktree) by a session that ALREADY received this start block in
+    # the CURRENT context epoch prints the receipt, what this checkout adds and the one remaining step —
+    # not the seed line, the filing doctrine, the owner-cued lines and the other pointers its context
+    # already holds. `_seed_held_refs` is a host-built VALUE (a set the residue's identity wrapper fills
+    # for this start's ref — see `cli._seed_cues_held_this_epoch` for what "already received" requires),
+    # REFERENCED here and never called, so this body gains no bare-name Call (D-0052 F5). A caller that
+    # omits it, a main-checkout start, a first start and a start after a `/compact` (a new epoch — the
+    # sanctioned seed-cue re-delivery, SPEC-0007 §5b) all leave `_seed_held` False: the full block.
+    # What is STAMPED never depends on it — the anchor above the print and the `cli:seed` receipt.
+    _seed_held = _receipt_only and _seed_held_refs is not None and resolved_ref in _seed_held_refs
     # T-9698: the Build|Review interactive type CHOICE is retired (T-9697 / CHARTER §6). `--type` is
     # now OPTIONAL: omitted => the interactive Controller posture; `--type build` => the dispatched
     # Worker's flow (set by `bin/yitc-v2 dispatch`). Record the durable session TYPE as the posture
@@ -278,13 +288,13 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # T-12868: every OTHER start path (a dispatched worker's frozen YITC_EXPECTED, an env carry, an explicit
     # arg) RESOLVED its ref instead of minting/adopting — print it too, so no worker re-runs `session start`
     # just to learn its own ref. Exactly one self-ref line per start, on every path.
-    elif resolved_ref:
+    elif resolved_ref and not _seed_held:   # T-13580: a ref the caller itself carried is not news
         print(_kq(f"session self-ref (SPEC-0137): RESOLVED from {source_kind} — carry  "
                   f"YITC_SESSION_REF={resolved_ref}  as an env prefix on EVERY `bin/yitc-v2 …` call." + " " + ON_DEMAND_EVERY_CALL))
     # T-13203 — the per-session scratch root: THE place for scratch logs, clones and probes.
     from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy, leaf-order
     _scratch = _dispatch.ensure_session_scratch_root(resolved_ref)
-    if _scratch is not None:
+    if _scratch is not None and not _seed_held:   # T-13580: same ref, same root — still ensured above
         print(_kq(f"session scratch root: {_scratch} — put scratch logs, clones and probes HERE, never a "
                   "bare /tmp name; a dispatched worker's land/park removes it, `worktree sweep` reclaims "
                   "it once this session is dead and past the age floor." + " " + ON_DEMAND_SCRATCH))
@@ -304,6 +314,8 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # echo below STAYS — it carries genuinely-new engine-resolved paths the consumer lacks.) Re-deliver
     # co-design: SPEC-0007 §5b (AGENTS §At-session-start + §After-/compact + the yitc.md twins carry the consumer clause).
     if _is_consumer_build():
+        _eng_cli = f"{ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT}"
+    if _is_consumer_build() and not _seed_held:
         # T-0996 (F-002): the methodology handbook seed resolves ENGINE-ALWAYS via _kernel_handbook_file
         # (NOT _kernel_content_file's own-wins) — a consumer's own CHARTER.md is its PRODUCT charter and
         # must NOT shadow the methodology CHARTER. The label is explicit (audit-pre finding 1). This stays
@@ -349,7 +361,6 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         # `AGENTS.md` was silently told NOTHING about its own rules (the exists()-guard swallowed the
         # line), so its project rules went unread. Absence is now STATED, never silent and never a
         # made-up filename.
-        _eng_cli = f"{ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT}"
         _home, _home_basis = init.declared_neutral_home(REPO_ROOT)
         if _home is not None:
             print(_kq(f"project context (this consumer's OWN — separate from the methodology seed above): its "
@@ -374,6 +385,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         print(_kq(cross.kernel_reflex_echo(
             _kernel_is_local_peer,
             graph.spec_query_hint('SPEC-0085', is_consumer=True, cli=_eng_cli)) + " " + ON_DEMAND_DEVIATION))
+    if _is_consumer_build():
         # T-13048: a stale kernel-delivered scaffold is named at EVERY consumer start, not only on an
         # `init` re-run (<project>'s drifted bin/security-audit refused its cron 3/3 with nothing naming
         # it). Report-only: the same pending set + renderer init uses; nothing written, nothing gated.
@@ -408,7 +420,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # lines keep their own re-derivation). A `-C` CONSUMER is DIFFERENT: it has NONE of the handbook
     # locally, so these lines carry genuinely-NEW engine-resolved info — they STAY, scoped to the
     # consumer branch (the consumer read-order echo above is already its own `if` block, untouched).
-    if _is_consumer_build():
+    if _is_consumer_build() and not _seed_held:
         # T-9469: a consumer has NO local bin/yitc-v2 — show the engine `-C` verb-invocation form.
         # T-11409 (X-1049): SHOW the session-ref carry this line mandates. The `--help` fetch-receipt
         # is SESSION-TIED (credited only inside a window anchored by THIS session's `session_started`,
@@ -443,11 +455,12 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
               "(the STAGE-AGNOSTIC before-rule-change trigger — read before authoring/editing a spec)"))
         print(_kq("lifecycle-scoped content is delivered at STAGE-ENTRY (T-0289): run `yitc-v2 stage <NAME> "
               "--task T-XXXX` to receive that stage's bundle (specs + work-verbs); re-run after /compact" + " " + ON_DEMAND_STAGE))
-    print(_kq(_seed_howto()))
+    if not _seed_held:
+        print(_kq(_seed_howto()))
     # T-0602 (SPEC-0059 Filing carve-out): the Filing-stage authoring-doctrine REFERENCE (availability,
     # no gate) — Filing has no `stage` entry verb, so its doctrine surfaces here for BOTH session types
     # (filing happens in Build decomposition AND Review). The `task file` read-check is the CHECK leg.
-    _filing_ref = _filing_reference_howto()
+    _filing_ref = "" if _seed_held else _filing_reference_howto()
     if _filing_ref:
         print(_kq(_filing_ref + " " + ON_DEMAND_FILING))
         # T-11845: the ONE clause the reference was missing — WHERE the fetch receipt is recorded.
@@ -512,6 +525,12 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
               "SKIPPED here; this checkout's own receipt is still stamped and the seed floor is "
               "unchanged. Neither echo gates anything, and "
               "both re-fold on demand: `bin/yitc-v2 debt` / `bin/yitc-v2 cross outbox` / `cross inbox`." + " " + REPORT_ONLY))
+    if _seed_held:
+        print(_kq("session start: SAME-EPOCH REPEAT — this session already received the seed line, the filing "
+              "doctrine, the owner-cued lines and the other start pointers at its main-checkout start in THIS "
+              "context epoch, so they are not repeated: the lines here are the receipt, what this checkout "
+              "adds and the one remaining step. They come back in full with the `session start` re-run after "
+              "a `/compact`, and a `session start` run on the main checkout always prints the whole block." + " " + REPORT_ONLY))
     try:
         _coord_events = [] if _receipt_only else cross.read_events(CROSS_LOG_PATH, _cross_peer_aliases)
     except OSError as _coord_err:
@@ -607,8 +626,16 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # dispatched Worker (build-framed resume-or-await); NO `--type` is the interactive Controller
     # (the SAME resume-or-await, framed as controller + a lean posture line). Reads/reports only;
     # never changes task status/stage (the FSM/enforcement creep CHARTER non-goal #7 forbids).
+    # T-13580: on a same-epoch repeat only the outcomes derived from THIS checkout are reported — the
+    # own-stamp resume, the acting-in line and the FOREIGN-HOLD BLOCK. The keyword is passed only then,
+    # so every other start calls the two dispatches exactly as before.
     if args.type == "build":
-        _session_build_dispatch()
+        if _seed_held:
+            _session_build_dispatch(checkout_only=True)
+        else:
+            _session_build_dispatch()
+    elif _seed_held:
+        _session_controller_dispatch(acting_holder=_acting_holder, checkout_only=True)
     else:
         _session_controller_dispatch(acting_holder=_acting_holder)
     # T-10246: hand the AUTHORITATIVE id back to the caller. The host residue passes it straight to the
@@ -851,7 +878,7 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
                             REPO_ROOT, _read_worktree_stamp, _stamp_is_own, _print_task_resume,
                             _main_worktree, EVENTS_PATH, _foreign_hold_report,
                             label="build", show_posture=False, acting_holder=None,
-                            skipped=None, held=None) -> None:
+                            skipped=None, held=None, checkout_only=False) -> None:
     """NON-MUTATING resume-or-await startup report (per D-0052 Phase 3 + T-0510; concurrency-aware
     per D-0083 §4). T-9698: ONE resume-or-await body serves BOTH postures — `label` frames every
     line ("build" for the dispatched Worker, "controller" for the interactive Controller) and
@@ -907,7 +934,10 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
     # indistinguishable from active concurrent work — run-9 gap, parent plan to-fix #8).
     # T-13526: a row for a card a LIVE foreign session holds arrives already `[report-only]` (the
     # held line) — it is not an owner-cued row, so it takes no owner-cued tag.
-    wait_lines = _waiting_on_owner_lines()
+    # T-13580: `checkout_only` — a same-epoch repeat start in a worktree. The waiting rows and the
+    # count-based resume/await lines below are read off the task corpus and were printed at this
+    # session's main-checkout start; only the branch-identified outcomes are THIS checkout's own.
+    wait_lines = [] if checkout_only else _waiting_on_owner_lines()
     for ln in wait_lines:
         print(f"{label}:" + ln + ("" if ln.endswith(REPORT_ONLY) else " " + OWNER_CUED))
     # Branch-identified resume (D-0083 §4): cwd-independent read of THIS checkout's branch.
@@ -944,6 +974,8 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
             print("  (read-only report — the verb did NOT resume/mutate; do not continue this task here)")
             return
         # branch's task not in-progress / not found → fall through to the count logic (rare edge).
+    if checkout_only:
+        return
     if len(in_progress) == 1:
         # T-13526: the one in-progress card may be held by a LIVE foreign session (a dispatched
         # worker in its worktree). Offering its resume contract here invites this session into work
@@ -1061,6 +1093,74 @@ def session_epoch(session_ref, *, _session_log_path, unknown=0):
         return n
     except Exception:
         return unknown
+
+
+def start_block_in_context(session_ref, main_root, *, _session_log_path) -> bool:
+    """T-13580 — was THIS conversation shown a main-checkout `session start` of the repository whose
+    main checkout is `main_root`, since its last compaction? Read off the provider transcript the
+    way `session_epoch` reads it: one pass, a substring pre-filter, json-validate only the candidate
+    lines. A record counts when ONE `tool_result` block of a user record (a tool output the
+    conversation was shown) carries the start report's first line — the
+    `session_started emitted: ... anchored-in=<root> ...` line `cmd_session_start` prints — naming
+    `main_root` exactly, AND the seed line, the filing-doctrine line and the closing startup-done
+    line of the same report: the whole block, never its head alone (a main-checkout start is never
+    receipt-only, so that line always heads the full block). Not counted: ordinary user text and the assistant's own records (quoting the line is not
+    being shown it), any other or unknown record shape,
+    a start anchored in any other checkout (a worktree's trimmed report, another repository), and
+    everything before the last `compact_boundary` (evicted with the rest of the context).
+
+    FAIL-SAFE TOWARD False (the caller then prints the full block): no transcript, an unreadable
+    one, an unknown provider format, any exception."""
+    try:
+        path = _session_log_path(session_ref)
+        if path is None or not Path(path).exists():
+            return False
+        head, anchored = "session_started emitted: ", f"anchored-in={main_root} "
+        shown = False
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if '"compact_boundary"' not in line and head not in line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if rec.get("type") == "system" and rec.get("subtype") == "compact_boundary":
+                    shown = False
+                    continue
+                # Only a TOOL RESULT is a delivery: a user record whose content carries a
+                # `tool_result` block (the Claude Code transcript format). Ordinary user text that
+                # quotes the line, the assistant's own records and any other or unknown record
+                # shape never count — the doubt falls toward the full block (audit-pre pass 2).
+                msg = rec.get("message") if rec.get("type") == "user" else None
+                content = msg.get("content") if isinstance(msg, dict) else None
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not (isinstance(block, dict) and block.get("type") == "tool_result"):
+                        continue
+                    body = block.get("content")
+                    texts = [body] if isinstance(body, str) else [
+                        b.get("text") for b in (body if isinstance(body, list) else [])
+                        if isinstance(b, dict) and b.get("type") == "text"]
+                    # The WHOLE block, not its head alone (audit-post pass 1): the one tool result
+                    # must also carry the seed line, the filing-doctrine line and the closing
+                    # startup-done line, so a start whose output was cut (`| head -1`) or filtered
+                    # down to its receipt line proves nothing. The markers are the start report's
+                    # own literal openings; were that wording to change they stop matching and the
+                    # read falls toward the full block.
+                    shown_text = "\n".join(x for x in texts if isinstance(x, str))
+                    if all(m in shown_text for m in (
+                            head, anchored, "stage-agnostic general-verb seed",
+                            "filing-stage authoring doctrine",
+                            "startup done once you run the one remaining step")):
+                        shown = True
+                        break
+        return shown
+    except Exception:
+        return False
 
 
 def _context_measure(path, cfg):

@@ -126,15 +126,23 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \  and their absence frees less and recovers more. **Unchanged:** a green here is\
   \ still NOT the land\n  verdict — `land` verifies TWO legs (SPEC-0077) and the pinned\
   \ last-green leg is not run here\n   — and a bare `pytest tests/` still reads FALSE-GREEN\
-  \ on script-style `__main__` tests\n.\n- Output must be visible (Evidence Rule —\
-  \ not «tests pass», but actual output).\n- **RED-GREEN — trust green only after\
-  \ seeing red** ( Slip 4 — failure class #8): a\n  behaviour-change test MUST be\
-  \ observed FAILING without the fix before its green is trusted (or it\n  asserts\
-  \ the negative case — e.g. the guard DOES block without the escape hatch, as\n \
-  \ `test_write_isolation_guard` does). A test that passes whether or not the fix\
-  \ is present gives no\n  signal (: tests went green because they ran from inside\
-  \ a worktree, not because the fix\n  worked — the fix was dead code).\n- If tests\
-  \ red → fix code or tests (not both in the same iteration — DP#17 mono-variable).\n\
+  \ on script-style `__main__` tests\n.\n- **A consumer project's run (`-C`).** There\
+  \ `--run` executes the project's DECLARED\n  `verify.layers` (SPEC-0152 rule 16)\
+  \ — each layer's command, one after another unless the project\n  names them under\
+  \ `verify.independent_layers`, a layer whose `subject_globs` are disjoint from the\n\
+  \  working tree's changes against the merge-base with `main` skipped exactly as\
+  \ `land` skips it —\n  plus the project's test sweep where a test directory exists\
+  \ and no declared layer covers it; the\n  result line names the layers that ran\
+  \ and the ones skipped or waived, and it states the\n  pinned-leg bound only where\
+  \ the project's `verify_policy` has its `land` run that leg (SPEC-0186).\n- Output\
+  \ must be visible (Evidence Rule — not «tests pass», but actual output).\n- **RED-GREEN\
+  \ — trust green only after seeing red** ( Slip 4 — failure class #8): a\n  behaviour-change\
+  \ test MUST be observed FAILING without the fix before its green is trusted (or\
+  \ it\n  asserts the negative case — e.g. the guard DOES block without the escape\
+  \ hatch, as\n  `test_write_isolation_guard` does). A test that passes whether or\
+  \ not the fix is present gives no\n  signal (: tests went green because they ran\
+  \ from inside a worktree, not because the fix\n  worked — the fix was dead code).\n\
+  - If tests red → fix code or tests (not both in the same iteration — DP#17 mono-variable).\n\
   \n### Resume contract\n**Scope clarification (per F3 absorption):** the Resume contract\
   \ addresses **logical continuity** of a\ntask's progression across pause points\
   \ — NOT process continuity of multiple pipeline stages or role\nhandoffs. CHARTER\
@@ -330,9 +338,9 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 58301348f06fbf68c078147cd57f91b7a5f31579fef69514eea5913c15c83c24
+  bin/lib/audit.py#cmd_audit: 1b75f41b1711752f4e93106f23b15bff44030bbd65d720ef565273ba9a16f087
   bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 55a894991520c4547cb3476d9d575f37585e354ed12da0cb4228102f39e1462e
+  bin/lib/task.py#cmd_task_test: f1ac3dc60398580d8914697dabb437c4111f60143200e39298a6753cae6739c1

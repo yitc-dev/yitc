@@ -18,6 +18,7 @@ implements:
 - bin/lib/worktree.py#_await_land_tail_marker
 - bin/lib/batch_landing.py#_land_form_batch
 - bin/lib/worktree.py#_land_integrate
+- bin/lib/cli.py#_git_child_env
 body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity guard,\
   \ an authorization preflight, a\nprovenance check — has to run SOMEWHERE on the\
   \ land path. Historically each one was appended to\nthe END, next to the check written\
@@ -179,27 +180,71 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \ and the land proceeds on the ORDINARY no-dirt admission — no refusal was owed\
   \ and\n   none was suppressed. So the marker converts no dirty verdict into an admit,\
   \ gates no branch and\n   weakens no guard; what it removes is a refusal issued\
-  \ against dirt that was never foreign.\n\n### Rule 6 — What this spec does NOT do\n\
-  It relocates no check (that work is, landed), adds no gate, verb, event type or\
-  \ store, and\nchanges nothing about WHAT any guard considers a violation. It governs\
-  \ WHERE a check is asked, WHO\nis removed, and WHO is told.\n\n## Worked example\
-  \ — the two placements made, in this rule's terms\n\nThe example a next author copies.\
-  \ Both entries fill all five elements; an entry with a blank\nelement is not a worked\
-  \ example of this rule (rule 2), and the element measured missing in\nproduction\
-  \ is element 5.\n\n**POINT 1 — SELECTION** (`bin/lib/batch_landing.py#_land_form_batch`,\
-  \ the per-candidate corpus-integrity\npredicate consulted inside the existing formation\
-  \ walk):\n- (1) SUBJECT — one candidate BRANCH ALONE, diffed against the current\
-  \ land base\n  (`base..<branch>`), before any batch exists and before anything queues\
-  \ behind it.\n- (2) REQUIRED FACTS — that branch's own diff over the protected corpus\
-  \ paths, plus the new journal\n  events THAT BRANCH carries (its `spec_edited` /\
-  \ rationale receipts). Both are readable from the\n  branch alone; nothing about\
-  \ peers or about a merged tree is needed.\n- (3) LATER INVALIDATORS — the land's\
-  \ journal union-merge can ADD a peer's receipt, so a branch\n  that violates ALONE\
-  \ may be clean on the merged tree. That is why per-branch checking is STRICTER\n\
-  \  than merged checking and why point 2 is a DIFFERENT subject rather than the same\
-  \ check repeated.\n  `main` advancing moves the base.\n- (4) EXPECTED COST — a few\
-  \ `git` reads per candidate, sub-second, paid by the forming land only:\n  no merge,\
-  \ no suite, no admission slot, and nothing paid by a peer.\n- (5) RECIPIENT OF FAILURE\
+  \ against dirt that was never foreign.\n\n#### Rule 7's reader discipline — a read\
+  \ of the shared checkout takes no index lock\nThe marker stops a concurrent land\
+  \ MISREADING the tail's write. This is the other half of the same\nseam: the read\
+  \ must not KILL that write. A git status takes the checkout's index lock only to\
+  \ save\nthe stat data it refreshed, and a git write that meets that lock fails outright.\
+  \ MEASURED :\n28 of 1200 tail restores died under a polling reader — and a restore\
+  \ that dies leaves its dirt in\nplace for every later land.\n\n**Every git child\
+  \ the engine's two git runners spawn runs with git's optional locks switched off.**\n\
+  ONE implementation, used by both runners (rule 4): the child's environment is a\
+  \ COPY of the\ncaller's — a supplied one keeps every key and is never written —\
+  \ with the switch FORCED off, so a\ncaller's own setting cannot turn an engine read\
+  \ back into a lock taker. The concrete form lives at\nthe anchor `bin/lib/cli.py#_git_child_env`\
+  \ and nowhere else. It sits at the runners, on every\nchild, because the reader\
+  \ of a shared checkout is not one call site: freeing the two polled reads\nleft\
+  \ every other engine read taking the lock. REQUIRED locks are untouched — a checkout,\
+  \ an add, a\ncommit, a merge and an explicit index update lock exactly as before.\n\
+  \nThree bounds, each load-bearing:\n1. **NOTHING SAVES THE REFRESH.** A read still\
+  \ refreshes in memory and answers the same; it no\n   longer writes the refreshed\
+  \ stat data back. A tracked file whose bytes are unchanged but whose\n   stat moved\
+  \ therefore stays \"to be re-checked\" until a WRITE persists the index. So **an\
+  \ engine\n   cleanliness decision is a content-aware read — a status or a diff —\
+  \ and never a stat-only read\n   of the saved index**: the stat-only form answers\
+  \ \"dirty\" for that unchanged file, and used to\n   answer \"clean\" only because\
+  \ some earlier status had saved its refresh. A stat-only read is\n   admissible\
+  \ only where a wrong \"dirty\" is harmless by construction: it may cost a re-read,\
+  \ never\n   decide a verdict.\n2. **AN EXPLICIT REFRESH HAS ONE OWNER: THE WRITER\
+  \ THAT HOLDS THE LAND RESERVATION**, inside the\n   same ff lock as the write and\
+  \ the bookkeeping commit. No reader refreshes, no poll does, and\n   there is no\
+  \ periodic refresh — each would be one more index writer on the shared checkout,\
+  \ which\n   is the collision this clause removes. NONE IS ADDED TODAY, because the\
+  \ land's own required\n   writes already persist a full refresh at that boundary\
+  \ on every land: the fast-forward and the\n   bookkeeping commit. MEASURED (10,000\
+  \ tracked files, 12 concurrent readers): warm, and\n   with up to 100 stat-only\
+  \ files, a read costs the same with the switch off as on; with EVERY\n   entry stat-different\
+  \ or racy each read repeats the content check (about 0.54 s a read,\n   against\
+  \ 0.03 s warm) until one ordinary commit, after which it is back at the warm figure.\
+  \ Add\n   an explicit refresh only on a measurement showing a read cost those writes\
+  \ do not clear.\n3. **THIS REMOVES A COLLISION; IT DOES NOT MAKE A READ ATOMIC.**\
+  \ A read concurrent with a write\n   may see the tree before, during or after it.\
+  \ And the clause reaches the two runners only: a git\n   launched past them takes\
+  \ the lock as before; and git's own diff — unlike its status — still\n   saves the\
+  \ refresh it makes on meeting such a file, whatever the switch says (measured on\
+  \ git\n   2.43.0). A diff therefore remains an occasional lock taker: only when\
+  \ it meets a stat-only\n   file, and its own save ends that — where a status took\
+  \ the lock on every call.\n\n### Rule 6 — What this spec does NOT do\nIt relocates\
+  \ no check (that work is, landed), adds no gate, verb, event type or store, and\n\
+  changes nothing about WHAT any guard considers a violation. It governs WHERE a check\
+  \ is asked, WHO\nis removed, and WHO is told.\n\n## Worked example — the two placements\
+  \ made, in this rule's terms\n\nThe example a next author copies. Both entries fill\
+  \ all five elements; an entry with a blank\nelement is not a worked example of this\
+  \ rule (rule 2), and the element measured missing in\nproduction is element 5.\n\
+  \n**POINT 1 — SELECTION** (`bin/lib/batch_landing.py#_land_form_batch`, the per-candidate\
+  \ corpus-integrity\npredicate consulted inside the existing formation walk):\n-\
+  \ (1) SUBJECT — one candidate BRANCH ALONE, diffed against the current land base\n\
+  \  (`base..<branch>`), before any batch exists and before anything queues behind\
+  \ it.\n- (2) REQUIRED FACTS — that branch's own diff over the protected corpus paths,\
+  \ plus the new journal\n  events THAT BRANCH carries (its `spec_edited` / rationale\
+  \ receipts). Both are readable from the\n  branch alone; nothing about peers or\
+  \ about a merged tree is needed.\n- (3) LATER INVALIDATORS — the land's journal\
+  \ union-merge can ADD a peer's receipt, so a branch\n  that violates ALONE may be\
+  \ clean on the merged tree. That is why per-branch checking is STRICTER\n  than\
+  \ merged checking and why point 2 is a DIFFERENT subject rather than the same check\
+  \ repeated.\n  `main` advancing moves the base.\n- (4) EXPECTED COST — a few `git`\
+  \ reads per candidate, sub-second, paid by the forming land only:\n  no merge, no\
+  \ suite, no admission slot, and nothing paid by a peer.\n- (5) RECIPIENT OF FAILURE\
   \ — the candidate branch itself. The skip is recorded as its own\n  `queue_excluded`\
   \ row, keyed to that branch, carrying the guard's own message as `cause`; NO row\n\
   \  is written for an innocent peer, so no peer is told it caused anything. A violating\
@@ -298,7 +343,16 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \ is the graph read plus the audit — an executable test\n  here would assert the\
   \ presence of prose, which is the mechanism rule 6 and the authoring card's\n  own\
   \ bound refuse to add. The BEHAVIOUR under these six elements keeps its existing\
-  \ probes.\n"
+  \ probes.\n- **VP8 (rule 7's reader discipline):** a git child of either runner\
+  \ sees the optional-locks\n  switch off whatever the caller passed, a supplied environment\
+  \ reaches it whole and unwritten,\n  and ONE function serves both runners; a status\
+  \ reader HELD mid-scan holds the index lock and\n  kills a concurrent restore under\
+  \ plain git, and holds none and kills nothing under each runner;\n  every cleanliness\
+  \ read shape the engine issues is right on a never-refreshed index for an\n  unchanged-bytes/altered-stat\
+  \ file, a real worktree change and a staged change, while the\n  stat-only form\
+  \ is shown wrong there; no engine source issues a stat-only read or a refresh\n\
+  \  beyond the reviewed set; required writes still write. PROBE:\n  `tests/test_t12509_land_tail_marker_preflight.py`\
+  \ — the arms named for in its header.\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0005
@@ -316,13 +370,14 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/cli.py#_git_child_env: e43f14b4ac074e409d006dfaeb21c42c63cf6449bc7f4d3f98bb41c1eb2f91c1
   bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
-  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
+  bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3
   bin/lib/worktree.py#_land_tail_marker_clear: 85489248e561e106b0438265d508544048970b2d70fb9fa6933319d478984622
   bin/lib/worktree.py#_land_tail_marker_live_covering: c78923ecb142409a171904f32dd3a256c86c3eb0458a0fc84d4071337a6f8f66
   bin/lib/worktree.py#_land_tail_marker_path: f67d3b61e2ed71a18bc0342bae34ac04b0fb0f69cbcf6c2ec93469e3dc692b9e
   bin/lib/worktree.py#_land_tail_marker_span: 923d463bb3f6ce024702cf3ab92f985047947ced05395aa338891a5b497020fb
   bin/lib/worktree.py#_land_tail_marker_write: 465a6cd8b49e6cc478bdfaa91a1a38fadf04734c850052260b9a99ee42c2902b
   bin/lib/worktree.py#_land_tail_tripwire_verdict: b7e3f2e3dba0e7453f20abc5fb3a17c5155731cec8919d7ab98e6084a71bdb64
-  bin/lib/worktree.py#_land_tail_withhold: fa352bbd6d31099fd7dfa477d9f358bbfcc2eadf31bbc5bf1675fcf775f5fa26
+  bin/lib/worktree.py#_land_tail_withhold: c2cb66ad39bc6f5a13f04570a68fb202a110e3e7c6ff4110c0028e70872cc3d3

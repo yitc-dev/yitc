@@ -164,7 +164,7 @@ and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budg
 
 > **Retrieved — SPEC-0027 — stage-DELIVERED at Tests entry** : `bin/yitc-v2 stage Tests --task T-XXXX` delivers SPEC-0027 in its stage bundle (same delivery axis as Stage 3 Plan — a lighter pointer, NOT a floor-trigger; stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-0027`.
 
-**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not moved since the run; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, full-breadth, marked row — never a red, partial or hand-recorded one; (4) the run's set covers the land's set; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
+**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. For a consumer project (`-C`) that run executes the project's declared `verify.layers` — a layer whose `subject_globs` are disjoint from the working tree's changes is skipped, as at `land` — plus its test sweep where a test directory exists and no layer covers it, and its `land` runs the pinned leg only as the project's `verify_policy` says (SPEC-0186). The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not advanced since the run — the base the run recorded is its merge-base with `main`, and ANY later advance of `main`, an inert bookkeeping land included, ends the credit; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, full-breadth, marked row — never a red, partial or hand-recorded one; (4) the run's set covers the land's set; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
 
 ### Stage 7 — Commit
 
@@ -192,7 +192,7 @@ and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budg
 - **Manual fallback (emergency only)**: as Stage 4 (emergency-mode `patterns/emergency-mode.md`; the verb is the obligatory path per AGENTS §Verb-execution discipline), plus diff context in the hand-authored prompt.
 - Verdict: GREEN / YELLOW / RED / ABORT
 - **GREEN** = proceed to Stage 9
-- **YELLOW** = file follow-up task for findings, proceed — OR absorb INLINE (mode-a): fix +
+- **YELLOW** = file follow-up task for findings, proceed (its id goes onto the verdict's `followups:` via `bin/yitc-v2 audit post --task T-XXXX --followup <T-NNNN|fu_…>` — a field edit: no auditor, no ceiling pass, never a hand-edit) — OR absorb INLINE (mode-a): fix +
   `task commit --absorb` + re-audit of the new commit (counts a pass against the §audit-loop ceiling)
 - **RED** = STOP. Never silent-pass. Fix the named cause IN SCOPE and re-audit the new commit
   (`task commit --fix-red` —, admitted only on a commit carrying authored content; when the RED's ONLY fix is the card's own record, its `--card-repair` arm —, admitted instead on proof the audited ship it rides on exists), else revert or escalate (`blocked-on-land`, SPEC-0103) when the cause is out-of-scope or environmental. AT the audit-loop ceiling the route is **SPEC-0204**, not a consult or a reset (§Stage 4 ceiling).
@@ -215,7 +215,7 @@ own: the ORDERING half is covered by whichever member above matches the ship (`h
 false-RED is a card missing its declaration — and re-recording the evidence is a bookkeeping-only fix,
 which is `task commit --fix-red --card-repair` (SPEC-0015 §Internal).
 
-**Done when:** audit verdict GREEN or YELLOW-with-followup-filed.
+**Done when:** audit verdict GREEN or YELLOW-with-followup-filed (ids recorded by `audit post --followup`; `task close` does not gate on it).
 
 **Leave the audit-post YAML dirty — `task close` commits it, NOT a standalone `task commit`.**
 After `audit post` writes `decisions/<task>-audit-post.yaml`, do NOT run a standalone `task commit` on

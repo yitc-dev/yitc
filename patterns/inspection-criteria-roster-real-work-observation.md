@@ -64,7 +64,8 @@ follows is the list of fields that CARRY A DECISION in this checklist; the pre-2
 three of them. Per pair: its `worker` and `auditor` identity triples, `sample_size`,
 `project_count` + `projects`, `sessions`, raw `verdicts`, `verdict_mix_claimed` (a
 `verdict_mix_not_claimed` reason when below floor), and the THREE complete marginals
-`by_effort_tier` / `by_task_class` / `by_project`. At payload level: `pair_count` (the figure the
+`by_effort_tier` / `by_task_class` / `by_project`, plus the calendar marginal `by_window` (the ISO week
+of each audit row — the recency carrier of the `retired-thin` arm below). At payload level: `pair_count` (the figure the
 one-population rule recomputes) and the COVERAGE keys `project_count` + `projects_scanned` — which
 name how many and WHICH projects the fold actually read, and are the carrier for the all-projects
 check; do not confuse those two with a PAIR's own `project_count`/`projects`, which count only the
@@ -177,7 +178,8 @@ class alone has not controlled for the confound. **State the bucket you compared
 occupancy** — a bucket comparison whose occupancy is not reported cannot be told apart from one that
 had nothing to discriminate. Occupancy is reported POST-disqualification, over the surviving pairs —
 a figure taken from the payload's full pair list is pre-filter and must not be quoted here. (c) pairs BELOW the floor are recorded as «insufficient data» with their n, and are
-never ranked, compared or steered on; (d) surface cross-project DIFFERENCES (a pair reading better in
+never ranked, compared or steered on — each is then read as `retired-thin` or as a soak obligation by
+the recency arm below; (d) surface cross-project DIFFERENCES (a pair reading better in
 one project than another) as DESCRIPTIVE OBSERVATIONS — never as a discipline/environment finding or a
 steer, for the reason stated under §A CROSS-PROJECT DIFFERENCE below: `by_project` pools across effort
 tiers, so a project comparison is uncontrolled for the very confound arm (b) makes mandatory. Cost is NOT in this rollup (cross-project cost needs each
@@ -197,6 +199,59 @@ a pooled n does not transfer to a bucket's n. A BUCKET is judged on its own `sam
 a thin bucket is a thin finding. The below-floor COUNT is likewise post-disqualification: at the
 2026-09-20 reading 3 of the 25 surviving pairs, where the payload's own «5 of 28» is pre-filter —
 two of those five ARE the sentinel pairs, so quoting it re-admits exactly what P7 excluded.
+**The floor says HOW MUCH was observed, never WHEN.** Whether a below-floor pair can still grow is a
+separate reading — the recency arm directly below — and that arm leaves the floor, the stamp and the
+report-only posture exactly as stated here.
+
+**A THIN PAIR WHOSE CONFIGURATION HAS LEFT USE IS `retired-thin` — REPORTED, NEVER SOAKED.**
+A soak follow-up waits for a sample to grow, and a sample grows only while BOTH sides of the pair are
+still being run. With no time axis the floor cannot tell «thin so far» from «thin for good»: the
+2026-09-23 run re-read three thin pairs unchanged and recorded that one of them, on an auditor
+configuration it read as no longer running, «can now never leave thin status» (finding
+`t10-top-confidence-pairs-are-a-retired-auditor-config-no-recency-axis`). The arm is DECLARED in four
+parts, so two runs on the same rows classify identically:
+- **CARRIER — the rollup's own `by_window`; no new instrument.** Each pair's `by_window` partitions its
+  sample by the ISO week (`YYYY-Www`, UTC) of each audit row. A side's LAST-SEEN is the latest dated
+  week in which that exact triple (provider/model/effort) appears in the `by_window` of ANY surviving
+  pair: the worker's is taken over every surviving pair carrying that worker triple, the auditor's
+  likewise. It is read over the post-disqualification population (the one-population rule above). The
+  `unknown` bucket dates nothing — a side whose observations ALL sit in `unknown` has last-seen UNKNOWN.
+- **WINDOW — declared: three ISO weeks, the week the run is taken in plus the two before it.** Week
+  resolution, because that is the resolution the carrier has; three, because the scan is periodic and
+  one quiet week must not read as retirement. Revisit the width on evidence, never per run.
+- **CLASSIFICATION.** A below-floor surviving pair is `retired-thin` when its worker's OR its
+  auditor's last-seen is DATED and falls before the window's first week. One side is enough: the pair
+  cannot gain an observation without both. UNKNOWN is not «before»: a side with no dated week can
+  never establish retirement by itself, and it does not cancel the OTHER side's dated last-seen when
+  that one falls before the window. A pair that neither side retires stays an ordinary thin pair, so
+  the uncertainty resolves toward the soak obligation, never away from it.
+- **CONSEQUENCE.** A `retired-thin` pair is still listed as «insufficient data» with its n — arm (c)
+  and the floor are untouched — and the run records, per pair: the canonical key (below), the window
+  as its first and last ISO week, each side's last-seen, and which side fell outside. It is NOT a soak
+  obligation: no soak follow-up is filed for a `retired-thin` key, whatever the lookup returns. An
+  OPEN item the lookup matches to a `retired-thin` key is DROPPED through the followup seam's own
+  drop verb (`followup drop <id>`), with that reading as its reason (key, window, both last-seen
+  weeks), and the run carries the dropped id. Like the filing below it is a WRITE the run makes from
+  its own checkout, never one of the read-only probes this roster spells as a runnable command. The
+  drop needs no listing of its own: it reads the one pre-filing listing the soak arm already takes.
+
+**What the recency arm leaves alone, and what it does not claim.** The floor, the
+`verdict_mix_claimed` stamp and the canonical key are unchanged, and a pair at or above the floor is
+read exactly as before. The run states every observed side's last-seen ONCE — it is the table the
+classification reads — and for an at-or-above-floor pair that line is a description of the record,
+never a steer. `retired-thin` is a READING recomputed by each run, not a stored state: once a later
+run finds NEITHER side dated before its window — the configuration that had left use is observed
+again and the other side still is — the pair is an ordinary thin pair again, the lookup finds no
+item, and the filing rule below applies. One side returning while the other is still dated before the
+window changes nothing: the pair stays `retired-thin`. That costs one drop and one re-file per
+genuine return, against one dead item re-read on every scan. And last-seen is true of the ATTRIBUTED window
+only (the mandatory qualifier above): a configuration running solely in the unattributed remainder
+reads as unseen, so the run words the class as «no attributed observation inside the window» and
+never as «no longer in use». Worked at the 2026-10-05 reading, so the classification is demonstrated
+and not merely required — run week 2026-W41, window 2026-W39..W41, 6 below-floor pairs of 45
+surviving: three share ONE worker configuration last seen 2026-W38 (their auditors 2026-W40) and are
+`retired-thin`; the other three have both sides at 2026-W40 or W41 and stay soak obligations. Read
+without this arm, the same rows give no `retired-thin` pair and six obligations.
 
 **A SOAK FOLLOW-UP IS RE-USED, NEVER RE-FILED EACH SCAN.** A thin pair is thin for as long as it stays
 thin, so «file a soak follow-up» on a periodic scan would file the same item every cycle. The lookup
@@ -214,12 +269,13 @@ never one per pair, which is an N+1 over an unchanged population
 (`patterns/repeated-work-lens.md`). Stating it as a flat «one listing» would contradict the round-trip
 evidence rule below, which cannot be satisfied from a listing taken before the filing existed. Before filing, the run runs that lookup
 for each below-floor surviving pair and CARRIES THE RESULT into the run record — the matched item's
-id, or an explicit NO-MATCH line for that key. **A recorded NO-MATCH OBLIGES a filing — for EVERY
-surviving thin pair, not a chosen one.** «May file» leaves the arm fail-open from the other end: a run
+id, or an explicit NO-MATCH line for that key. A match on a `retired-thin` key is dropped, not
+re-used, and a NO-MATCH on one files nothing (the recency arm above). **A recorded NO-MATCH OBLIGES a
+filing — for EVERY surviving thin pair that is not `retired-thin`, not a chosen one.** «May file» leaves the arm fail-open from the other end: a run
 can record three NO-MATCHes, file one, and present the arm as discharged while two pairs stay
 untracked and re-NO-MATCH forever. So the run files for each NO-MATCH key, then takes ONE post-batch
 listing and carries exactly one matching id and key per newly filed item. It states explicitly when
-there was nothing to file (every key matched). **AND THE FILING SIDE CARRIES THE KEY, or the dedup fails open:** a
+there was nothing to file (every key that is not `retired-thin` matched). **AND THE FILING SIDE CARRIES THE KEY, or the dedup fails open:** a
 newly filed thin-pair followup MUST embed the exact canonical key verbatim in the text `followup list`
 returns, because a lookup that matches on a key nothing stores returns NO-MATCH forever and re-files
 the same pair every scan — a dedup rule that reads as working while never matching. Matching and

@@ -3,7 +3,7 @@
 Governing contract: **SPEC-0147** (person-onboarding — seeded, recipient-scoped, consume-on-encounter).
 Placement: **kernel** — this is kernel-provided seed CONTENT that travels to consumers (SPEC-0073).
 
-This file is the ONE home for the station bodies. Three reading contracts govern every use of it:
+This file is the ONE home for the station bodies. Four reading contracts govern every use of it:
 
 1. **English SoT, delivered in the person's language** (SPEC-0147 rule 6). The bodies below are the
    canonical single source, authored in English. At runtime the AI reads the body whose seam it has just
@@ -14,6 +14,22 @@ This file is the ONE home for the station bodies. Three reading contracts govern
    sentence (precise token, plain sentence — AGENTS §Language register rule).
 3. **`MEMORY.md` stays pointer-only** (SPEC-0147 rule 3 / VP6). The buffer carries ONLY a short
    consume-once pointer line per not-yet-seen station; the bodies live solely here.
+4. **Every voiced body sits inside a fixed frame** (SPEC-0147 rule 5, the voicing frame). A station body
+   is never voiced as running text inside the reply. Each time you voice one — a first voicing, a due
+   repeat, an on-request «remind me» voicing, and Station A alike — voice it in this order:
+   - **its own block, after the working part of the reply** — never inside the answer on the person's
+     task, and never between its lines;
+   - **the constant opening label line**, in the person's language — Russian reference wording
+     «Справка по работе в системе: <тема>», where `<тема>` is the station's topic;
+   - **one line** saying that this explains how the system works and is not part of the answer on the
+     current task;
+   - **the body**, with any advice about the person's CURRENT work set apart from the general
+     explanation (its own marked line), never blended into it;
+   - **a closing line that states what, if anything, is asked of the person** — the station's
+     "You say" cue and its "unclear or hard" tail go there; when nothing is asked, the line says so.
+
+   The ask-first question stays outside the frame — only a voiced body is framed. The frame changes
+   how a body is set apart, never when a station is voiced or retired.
 
 **Delivery.** A station is first voiced when its seam is first reached, and its pointer is then deleted —
 consume-on-encounter, never detect-on-mastery (SPEC-0147 rule 1). Station A is voiced on the very first
@@ -64,7 +80,8 @@ pointer, the AI then does exactly two things, once:
 1. **Ask first, then voice** (the ask-first form, SPEC-0147 rule 5). At the station's occasion the AI
    FIRST asks the person, in their own language, whether the concept is already familiar (e.g. «знакомо ли
    тебе X / умеешь ли применять?»). If **yes** → skip the body (the person already knows it); if **no** →
-   **voice** the station's body below in the **person's language** (localize-at-voicing, rule 6) — never
+   **voice** the station's body below in the **person's language** (localize-at-voicing, rule 6),
+   inside the frame of reading contract 4 — never
    paste the raw English body, never voice a station before its occasion has arrived, never several at
    once. **Station A is EXEMPT** — it is always voiced plainly, with no preceding question (asking a
    brand-new person whether YITC is already familiar is meaningless).

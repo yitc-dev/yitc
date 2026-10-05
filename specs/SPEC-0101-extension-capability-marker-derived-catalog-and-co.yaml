@@ -58,10 +58,10 @@ body: "## Scenario\n\nA reusable engineering capability a project adopts — an 
   \ NO external shared registry exists\n   and none is built: the registry direction\
   \ is RETIRED BY REMOVAL (plan\n   `off-server-release-contract-one-mechanism-for-own-`\
   \ §Named retirements (b); closed\n   `wont-do`), not deferred. This rule states\
-  \ its own requirement and holds on its own;\n   <workshop-spec> rule 3 is named\
-  \ ONLY as the home where that pin's resolution + integrity-verification\n   MECHANICS\
-  \ are settled — a provenance pointer, NOT the authority this rule leans on.\n\n\
-  4. **Adopt / cite (\"install\") — DELEGATED to SPEC-0093 rule 13 (the settled amends-map).**\
+  \ its own requirement and holds on its own;\n   SPEC-0195 rule 3 is named ONLY as\
+  \ the home where that pin's resolution + integrity-verification\n   MECHANICS are\
+  \ settled — a provenance pointer, NOT the authority this rule leans on.\n\n4. **Adopt\
+  \ / cite (\"install\") — DELEGATED to SPEC-0093 rule 13 (the settled amends-map).**\
   \ The adopt/\n   cite \"install\" contract — the `yitc-ops.yaml` `extensions:` adopt-declaration\
   \ section schema + the\n   governed `init --adopt-extension` path — is OWNED by\
   \ SPEC-0093 rule 13 (landed), NOT re-homed\n   here (SPEC-0005 rule 8 — one home;\
@@ -140,6 +140,6 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/graph.py#cmd_graph_query: edd6ee0059524cda18499c3c629b762442f42e6928cfd3dbb4c15525431bfc50
+  bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
   bin/lib/graph.py#graph_build_index: 0ad6c2c3a87d64530bff481e450588a68d8b99972fc1da7c00c8352dd53dc443
   bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

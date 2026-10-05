@@ -868,89 +868,84 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ `live_trigger_evidence`,\n`owner_directive`, `plan_draft_finalized`, `session_started`,\
   \ `spec_edited`, `spec_reverified`,\n`startup_protocol_completed`, `task_closed`,\
   \ `task_picked`, `task_resumed`, `tests_passed`,\n`worktree_adopted`.\n\n**PAYLOAD-KEY\
-  \ half re-run — 2026-09-05, amended 2026-09-07, the CURRENT\nreading.** Method (reproducible):\n\
-  build a type-to-`data`-keys map over the journal — every physical SEGMENT of the\
-  \ one logical history,\nnot the live file alone (SPEC-0190 rules 1+4: the window\
-  \ is historical, which is exactly the range\nrotation archives first) — then compare\
-  \ each cataloged type's key set against the whole `specs/`\ncorpus. This run read\
-  \ **96 segments** (95 `archive/events-*.jsonl` + the live `events.jsonl`), via\n\
-  `events.segment_paths` / `journal.segment_lines`. Result, measured over a FROZEN\
-  \ WINDOW so the triple\nis REPRODUCIBLE rather than time-decaying — events with\
-  \ `ts` <= ``, against a\n`specs/` corpus of digest `85b1a63fbf89` (sha256-12 of\
-  \ the corpus MINUS this measurement record):\n**218 live types; 148 cataloged types\
-  \ carry 3135 corpus-absent data keys.** Under the\nemitter-is-payload-SoT rule that\
-  \ is **not a breach** — which is why no threshold sits on that count.\nThe cutoff\
-  \ is deliberately set a day BEHIND the run rather than at it: a peer worktree that\
-  \ has not\nlanded yet still holds rows stamped with today, and a window reaching\
-  \ to now would swallow them\nretroactively the moment that peer lands, turning a\
-  \ stable equality into a moving one. This run is\ndated 2026-09-05, so that rule\
-  \ RE-DERIVES the cutoff to `` — one day later than\nthe two runs it, which both\
-  \ sat at ``. The cutoff is re-derived from\nthe rule, never inherited from the record\
-  \ it replaces.\n\n**What moved and what did not, stated plainly, because a refresh\
-  \ that only ever reports movement is\nunfalsifiable in the direction of no-change.**\
-  \ This time BOTH halves moved, which is the opposite of\nwhat the pass before it\
-  \ found, and each has a named cause rather than a shrug. The TRIPLE moved on\nits\
-  \ corpus-dependent pair — 147 / 3115 became **148 / 3135** — because the window\
-  \ itself advanced: the\na-day-behind rule put the cutoff a day later, and the segment\
-  \ set grew by one rotation (95 -> 96), so\nthis reading covers strictly more history\
-  \ than the one it. The live-type count **218 did\nNOT move**, which is the right\
-  \ shape: that count reads no corpus at all, and a day of new rows\nintroducing no\
-  \ new event type is an ordinary day. The DIGEST moved again, `7f59040ffe0b` ->\n\
-  `85b1a63fbf89`, for the same reason it moved last time — sibling cards landed `specs/`\
-  \ text in\nbetween. Re-recording it is not bookkeeping: a stale digest is precisely\
-  \ what drops `counts_sound`\nout of its equality assertion and back into the +/-10%\
-  \ band on the two corpus-dependent counts, the\ndegraded mode three prior passes\
-  \ have now called \"a fallback, not a resting place\". A record can go\nstale in\
-  \ a way that changes no number in it, which is the case a name-the-pairs-only edit\
-  \ misses —\nand it can also go stale in a way that changes two, which is this one.\n\
-  \n**The segment span, stated as a DIFFERENTIAL so it is falsifiable from the record\
-  \ alone.** The same\nfrozen window read through the LIVE FILE ONLY yields **108\
-  \ live types; 65 cataloged types carry 513\ncorpus-absent data keys** — so a live-only\
-  \ fold under-reports this window by 110 types and 2622 keys.\nThe two readings DIFFER,\
-  \ which is what makes \"every segment\" a checkable claim rather than an\nassurance;\
-  \ on a freshly-rotated journal they would legitimately coincide, and a run that\
-  \ finds them\nequal must say so out loud rather than stay silent, because silence\
-  \ there is what makes the check\nunfalsifiable.\n\nThe ACTIONABLE cut is the promotion\
-  \ trigger above (\"a consumer branches on it\"), MEASURED not judged:\nintersect\
-  \ the corpus-absent keys with the literals `bin/` reads back (`.get(\"k\")` / `[\"\
-  k\"]`) →\n**69 candidate pairs across 36 types** (the 2026-09-05 reading; **amended\
-  \ to 71 across 37** by the\n2026-09-07 pass recorded at the end of this record),\
-  \ and the recorded set below names ALL of them,\nleaving nothing unnamed. That 66\
-  \ -> 69 is not a judgement call and nothing was added by resemblance: the THREE\
-  \ pairs\nthe two prior passes named FORWARD have since landed, so the recomputation\
-  \ now finds them on `main`'s\nown journal — `nightly_run_completed.quiet_lane` and\n\
-  `live_trigger_evidence.window_start|window_end`. 66 + 3 = 69, over the same 36 types.\
-  \ The\ncount is 69 and not 70 for exactly the reason it was 66 and not 68 before:\
-  \ the one pair named FORWARD\nby THIS run, `external_audit_completed.no_data_class`,\
-  \ sits on a row that has not reached `main`, so\ncounting it would state a figure\
-  \ the recomputation cannot reproduce. Naming a pair the recomputation\ndoes not\
-  \ yet find is free; inflating the count is not. Every one carries CANDIDATE standing\
-  \ — read\nthe emitter for the authoritative key set:\n`acceptance_probe_evidence.evidence_events|failing_input`\
+  \ half re-run — 2026-10-05, the CURRENT reading.** Method:\nbuild a type-to-`data`-keys\
+  \ map over every physical SEGMENT of the journal, not the live file alone\n(SPEC-0190\
+  \ rules 1+4), then compare each cataloged type's key set against the whole `specs/`\
+  \ corpus.\nThis run read **126 segments** (125 `archive/events-*.jsonl` + the live\
+  \ `events.jsonl`), via\n`events.segment_paths` / `journal.segment_lines`. Result,\
+  \ over a FROZEN WINDOW so the triple is\nREPRODUCIBLE rather than time-decaying\
+  \ — events with `ts` <= ``,\nagainst a `specs/` corpus of digest `44bd4357be67`\
+  \ (sha256-12 of the corpus MINUS this record):\n**245 live types; 167 cataloged\
+  \ types carry 3929 corpus-absent data keys.** Not a breach, under the\nemitter-is-payload-SoT\
+  \ rule, so no threshold sits on that count. The cutoff sits a day BEHIND the\nrun\
+  \ date, so a peer worktree's still-unlanded rows cannot enter the window later;\
+  \ it is re-derived\nat every run, never inherited.\n\n**What moved, and the reading\
+  \ this one replaces.** The 2026-09-05 run (amended;\nwindow cutoff 2026-09-04, digest\
+  \ 85b1a63fbf89) read 218 live types, 148 cataloged types and 3135\ncorpus-absent\
+  \ keys, and named 71 candidate pairs across 37 types. All three moved because the\n\
+  window advanced thirty days. Recomputed on 2026-10-05 at ITS OWN cutoff that record\
+  \ read\n218 / 147 / 3110: the live-type count held and the corpus-dependent pair\
+  \ sat inside the +/-10% band\n`counts_sound` drops to once the digest stops matching;\
+  \ re-recording the digest restores the\nequality assertion. BOUND: the digest hashes\
+  \ `specs/` in the filesystem's directory order, so a\ncheckout elsewhere may read\
+  \ this record in the +/-10% mode with no spec edited (capture\n`spec0161-corpus-digest-depends-on-directory-enumeration-order`).\n\
+  \n**The segment span, as a DIFFERENTIAL falsifiable from the record alone.** The\
+  \ same frozen window\nread through the LIVE FILE ONLY yields 114 live types, with\
+  \ 70 cataloged types carrying 343\ncorpus-absent keys — a live-only fold under-reports\
+  \ it by 131 types and 3586 keys.\n\nThe ACTIONABLE cut is the promotion trigger\
+  \ above (\"a consumer branches on it\"), MEASURED not judged:\nintersect the corpus-absent\
+  \ keys with the literals `bin/` reads back (`.get(\"k\")` / `[\"k\"]`) →\n**109\
+  \ candidate pairs across 49 types** in the window (114 across 50 over the whole\
+  \ journal on the\nrun date, the SPEC-0119 rule-28 figure). This record names ALL\
+  \ of them, in the set below or the\nnamed-forward blocks after it; the set is wider\
+  \ than the count because it keeps pairs named forward\nand pairs that governed in\
+  \ an earlier window. All are CANDIDATES — the emitter is authoritative:\n`acceptance_probe_evidence.evidence_events|failing_input`\
   \ ·\n`acting_identity_derived.identity_source` · `adoption_evidence.evidence_events|failing_input`\
   \ ·\n`analysis_finalized.analysis_fingerprint|derivation_accuracy` ·\n`audit_on_demand_consult.survivor_text`\
   \ ·\n`audit_post_completed.final_verdict` · `audit_pre_completed.final_verdict`\
   \ ·\n`audit_yamls_archived.nontask_swept|tasks_swept` ·\n`authorization_decided.identity_source|rights_held`\
   \ ·\n`bg_dispatch_halted.confirmed_death_basis|log_tail|redispatchable` ·\n`bg_dispatch_launched.source_tier|land_regime|session_id_argv`\
-  \ · `canary_backstop_ran.verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|content_sha|peak_rss_kb`\
-  \ ·\n`consumer_read_evidence.evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n`\
+  \ · `canary_backstop_ran.partial_coverage|verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|content_sha|peak_rss_kb`\
+  \ ·\n`consumer_read_evidence.cost_usd|evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n`\
   \ ·\n`deviation_captured.evidence_events` · `dispatch_outcome.land_sha` ·\n`draft_closed.reverse_linked`\
   \ · `error_reopened.reopen_count` ·\n`error_residual_recurrence.reopen_count` ·\
-  \ `external_audit_completed.no_data_class` ·\n  `grant_reach_reported.intent_tension_actors`\
-  \ ·\n`grant_state_reported.people_with_grants|well_formed` · `inspection_completed.case_review`\
-  \ ·\n`land_audited_footprint.as_audited|closure_side_effect|merge_imports|uncovered_provenance`\
-  \ ·\n`land_completed.entry_authorization|inland_reaudit|inland_reaudit_refusal|queued_premerge|slot_yields_to|unprovenanced_commits|unprovenanced_commits_unreadable|waive_coverage_preflight`\
-  \ ·\n`land_member_verdict.conflict_auto_resolvable|conflict_blocking|superseded_assertions|superseded_test_file`\
+  \ `external_audit_completed.auditor_pair|no_data_class` ·\n`git_maintenance_run.loose_bytes|loose_objects`\
+  \ · `grant_reach_reported.intent_tension_actors` ·\n`grant_state_reported.people_with_grants|well_formed`\
+  \ · `inspection_completed.case_review` ·\n`land_audited_footprint.as_audited|closure_side_effect|merge_imports|uncovered_provenance`\
+  \ ·\n`land_completed.entry_authorization|inland_reaudit|inland_reaudit_refusal|queued_premerge|reservation_queued|reservation_released_at_exit|slot_yields_to|unprovenanced_commits|unprovenanced_commits_unreadable|waive_coverage_preflight`\
+  \ ·\n`land_member_verdict.conflict_auto_resolvable|conflict_blocking|red_isolation_decline|superseded_assertions|superseded_test_file`\
   \ ·\n`live_trigger_evidence.branch_count|evidence_events|failing_input|land_sha|window_end|window_start`\
   \ ·\n`live_trigger_observed.evidence_events|failing_input` · `measurement_recorded.test_files`\
-  \ ·\n`nightly_run_completed.conformance_surfaces|quiet_lane` · `plan_stage_entered.gate_disclosure`\
-  \ ·\n`right_exercised.prev|self_sha256` ·\n`spec_edited.new_sha` · `task_amended.analysis_fingerprint`\
-  \ ·\n`tests_failed.verify_metrics` · `tests_passed.selection_discovered|selection_ran|selection_reason`\
+  \ ·\n`nightly_run_completed.conformance_surfaces|generated_at|quiet_lane` · `plan_stage_entered.gate_disclosure`\
+  \ ·\n`read_gate_refused.cited_ts` · `right_exercised.prev|self_sha256` ·\n`spec_edited.new_sha|part_of`\
+  \ · `task_amended.analysis_fingerprint` ·\n`tests_failed.verify_metrics` · `tests_passed.selection_discovered|selection_ran|selection_reason`\
   \ ·\n`tests_passed.verify_metrics` ·\n`triage_run_completed.window_captures|withheld_no_fingerprint`\
-  \ ·\n`venue_published.snapshot_id|ssh_user|clone_main_sha|host_main_sha` ·\n`venue_seed_recorded.snapshot_id|clone_main_sha|recorded_at|recorded_by`\
-  \ ·\n`waiting_for_land_reservation.pid_starttime|queued_premerge` ·\n`waiting_for_venue_admission.box|cap|leg|live|request|waited_s`\
+  \ ·\n`venue_published.snapshot_id|ssh_user|clone_main_sha|host_main_sha` ·\n`venue_seed_candidate_recorded.recorded_at|recorded_by|snapshot_id`\
+  \ ·\n`venue_seed_recorded.snapshot_id|clone_main_sha|recorded_at|recorded_by` ·\n\
+  `waiting_for_land_reservation.pid_starttime|queued_premerge` ·\n`waiting_for_venue_admission.box|cap|leg|live|request|waited_s`\
   \ ·\n`waiting_for_verify_admission_slot.pid_starttime` ·\n`land_withdrawn.branch|wait_type|waited_s`\
-  \ ·\n`work_batch_discarded.dirt_class` ·\n`worker_parked.discarded_commit_shas|forced_over|redispatchable|status_on_main`.\n\
-  \n**THREE MORE PAIRS NAMED FORWARD — which step-4a refusal raised an abort_preflight\
+  \ · `watch_process_group_escaped.timeout_sec` ·\n`work_batch_discarded.dirt_class`\
+  \ ·\n`worker_parked.discarded_commit_shas|forced_over|redispatchable|status_on_main`.\n\
+  \n**The FIFTEEN pairs the prior record left unnamed, each with its disposition.**\
+  \ The last\nis newer than the cutoff: named, not counted. `canary_backstop_ran.partial_coverage`\
+  \ —\n`{budget_secs, run, total, not_run}` from the canary's coverage report ·\n\
+  `consumer_read_evidence.cost_usd` — a USD usage figure on two evidence rows (2026-09-23/24);\
+  \ no\n`bin/` emitter composes it here, so it is a candidate by the LENIENT readback\
+  \ only ·\n`external_audit_completed.auditor_pair` — `primary` | `reserve`, which\
+  \ auditor of the pair\nanswered; the auditor-breaker fold branches on it · `git_maintenance_run.loose_objects|loose_bytes`\n\
+  — loose-object count and bytes in the common object store; the git-maintenance debt\
+  \ fold reads the\ncount · `land_completed.reservation_queued` — bool, whether this\
+  \ land QUEUED for the reservation,\nbeside `reservation_wait_ms` · `land_completed.reservation_released_at_exit`\
+  \ — true,\npresent-only, on a merge-conflict abort row, beside `reservation_disposition`\
+  \ ·\n`land_member_verdict.red_isolation_decline` — `{outcome, reason}`, why red-isolation\
+  \ declined to\nevict; absent means the analysis was not handed over · `nightly_run_completed.generated_at`\
+  \ — ISO\ntime the nightly report was generated · `read_gate_refused.cited_ts` —\
+  \ on a delegation-chain-broken\nrefusal, the owner-row timestamps the delegated\
+  \ row cited · `spec_edited.part_of` — on an edit of a\nsplit PART, the path of the\
+  \ spec it continues ·\n`venue_seed_candidate_recorded.snapshot_id|recorded_at|recorded_by`\
+  \ — the seed-candidate record\n, the same three words `venue_seed_recorded` carries\
+  \ ·\n`watch_process_group_escaped.timeout_sec` — the watch window in seconds; first\
+  \ row\n.\n\n**THREE MORE PAIRS NAMED FORWARD — which step-4a refusal raised an abort_preflight\
   \ row (2026-09-16).** Named here BEFORE any row carrying them has reached `main`,\
   \ on exactly the terms the\n / / blocks use — free to name, NOT added to the count,\
   \ because naming a pair\nthe recomputation cannot yet find is free while inflating\

@@ -173,26 +173,72 @@ def _stem_family_key(fingerprints: list) -> dict:
         if ra != rb:
             parent[max(ra, rb)] = min(ra, rb)   # deterministic root = lexicographically smaller
 
-    # O(n^2) pairwise test over the (tens-of-fingerprints) open set — bounded by design
-    # (D-0086 §4: clustering depth is measured in FINGERPRINTS, not events).
-    for i, a in enumerate(fps):
-        for b in fps[i + 1:]:
-            # (3) DECLARED ROOT first — an exact declaration outranks the two heuristics below, and
-            # testing it first keeps the cheap case cheap. `is not None` is load-bearing: a colonless
-            # fingerprint has root None, and `None == None` would merge every colonless spelling.
-            if droot[a] is not None and droot[a] == droot[b]:
+    # T-13550 — the SAME three predicates, WITHOUT visiting every pair. The open set is not «tens of
+    # fingerprints»: the real discovery input measured 8,604 (2026-10-04), i.e. 37.0 M pairs and 18 s
+    # in the all-pairs loop this replaces. A family is a CONNECTED COMPONENT and its key is that
+    # component's smallest member (`union` above), so the output depends only on WHICH pairs satisfy
+    # a predicate — never on the order they are met, nor on which predicate is tried first. Each
+    # predicate below therefore gets a generator that reaches every pair satisfying it:
+
+    # (3) DECLARED ROOT — every member of one root is same-family with every other, so joining each
+    # to the first member of its root joins them all. `is not None` is load-bearing: a colonless
+    # fingerprint has root None, and grouping on None would merge every colonless spelling.
+    first_of_root: dict = {}
+    for f in fps:
+        root = droot[f]
+        if root is not None:
+            if root in first_of_root:
+                union(first_of_root[root], f)
+            else:
+                first_of_root[root] = f
+
+    # (1) TOKEN-PREFIX — a's whole token run opens b's exactly when a IS one of b's proper token
+    # prefixes re-joined (split and join on "-" are inverses), so each prefix is looked up among the
+    # fingerprints instead of comparing b against every one of them.
+    present = set(fps)
+    for b in fps:
+        tb = toks[b]
+        for k in range(1, len(tb)):
+            a = "-".join(tb[:k])
+            if a in present:
                 union(a, b)
-                continue
-            ta, tb = toks[a], toks[b]
-            short, long_ = (ta, tb) if len(ta) <= len(tb) else (tb, ta)
-            if long_[: len(short)] == short:      # (1) one token-sequence is a prefix of the other
+
+    # (2) SIGNIFICANT-TOKEN OVERLAP — the predicate itself is UNCHANGED (the same two expressions
+    # judge every candidate below); only the candidates are found through an index. Two sets that
+    # share >= N tokens share, in particular, their SMALLEST common token under any one fixed order
+    # of tokens, and that token has at least N-1 common tokens after it in each set — so it lies
+    # within the first (len - N + 1) tokens of BOTH. Indexing each set by exactly that many of its
+    # tokens (rarest first, so the long posting lists stay out of it) therefore meets every pair the
+    # all-pairs test would pass, and none is missed. Measured on the real input: 1.2 M candidates.
+    def _overlap_candidates():
+        if _STEM_SHARED_MIN < 1:               # no minimum: a pair sharing NOTHING could qualify, and
+            for i, a in enumerate(fps):        # an index over shared tokens cannot see such a pair
+                for b in fps[i + 1:]:
+                    yield a, b
+            return
+        freq: dict = {}
+        for f in fps:
+            for t in sig[f]:
+                freq[t] = freq.get(t, 0) + 1
+        index: dict = {}
+        for a in fps:
+            if len(sig[a]) < _STEM_SHARED_MIN:
+                continue                       # too few tokens to share the minimum with anything
+            ranked = sorted(sig[a], key=lambda t: (freq[t], t))
+            seen: set = set()
+            for t in ranked[: len(ranked) - _STEM_SHARED_MIN + 1]:
+                posting = index.setdefault(t, [])
+                seen.update(posting)
+                posting.append(a)
+            for b in seen:
+                yield a, b
+
+    for a, b in _overlap_candidates():
+        shared = sig[a] & sig[b]              # (2) order-independent significant-token overlap
+        if len(shared) >= _STEM_SHARED_MIN:
+            denom = len(sig[a] | sig[b])
+            if denom and len(shared) / denom >= _STEM_JACCARD_MIN:
                 union(a, b)
-                continue
-            shared = sig[a] & sig[b]              # (2) order-independent significant-token overlap
-            if len(shared) >= _STEM_SHARED_MIN:
-                denom = len(sig[a] | sig[b])
-                if denom and len(shared) / denom >= _STEM_JACCARD_MIN:
-                    union(a, b)
     families: dict = {}
     for f in fps:
         families.setdefault(find(f), []).append(f)

@@ -1,7 +1,7 @@
 ---
 name: contribution-intake-adapter
 class: runbook
-sourced_from: SPEC-0197 rule 2 (proposals over forge-neutral primitives) + <workshop-spec> rule 5 (the manifest-adjacent release notes)
+sourced_from: SPEC-0197 rule 2 (proposals over forge-neutral primitives) + SPEC-0195 rule 5 (the manifest-adjacent release notes)
 applies_to: standing up — or moving — the public intake of the release mirror, on one concrete hosting service
 ---
 
@@ -120,6 +120,6 @@ the first person to stand up a second mirror re-derives it differently.
 ## Refs
 
 - `bin/yitc-v2 graph query SPEC-0197` — the contribution policy (the rules; names no provider)
-- `bin/yitc-v2 graph query <workshop-spec>` — the release contract (rule 5: the manifest-adjacent notes)
+- `bin/yitc-v2 graph query SPEC-0195` — the release contract (rule 5: the manifest-adjacent notes)
 - `bin/lib/release.py` — the section: the policy text, the link-back derivation, `ANSWER_ID_RE`
 - `tests/test_contribution_policy_publish.py` — the forge-neutrality probe with its positive control

@@ -48,6 +48,9 @@ probe_moments: {}              # DECLARE HERE, AT FILING, any acceptance criteri
                                # probe_moments: {AC5: {due_by: '2026-09-20'}} # ISO date
                                # probe_moments: {AC5: {awaits: ''}} # or X-0042
                                # probe_moments: {AC5: {awaits: 'events.jsonl#type=<t>@after=<ISO>'}}
+                               # probe_moments: {AC5: {awaits: 'events.jsonl#type=<t>@after=land'}}
+                               # ^ PREFER this for a first-real-use-after-landing criterion: the first row
+                               # of <t> after THIS card's own land (an ISO written at filing predates it).
                                # Also say `task close --settle-probe` in the criterion's own text — that
                                # is the verb that discharges it. Declaring buys ONLY that the absence is
                                # read as the declared ordering; every other finding is judged as usual.
@@ -213,6 +216,30 @@ effort_tier: normal            # OPTIONAL filing-time STAKES tier (T-0733; SPEC-
                                # blob: <40-hex `git rev-parse HEAD:tests/test_x.py`>
                                # guards: [tests/test_guard_a.py, tests/test_guard_b.py]
                                # Absent = the ordinary case (no pinned suite is this card's deliverable).
+
+# refusal_set_change:... # OPTIONAL refusal-set admission declaration (schema home
+                               # SPEC-0028) — REQUIRED by, and only meaningful for, a card whose
+                               # audited in-scope deliverable MOVES the rebaseline refusal set that
+                               # AC5 freeze pins against the merge-base: a refusal site or
+                               # its guard, a decision / guard-read helper body, or an admission
+                               # verdict. Undeclared, the freeze fails exactly as before and prints
+                               # the entry to declare. Each entry names ONE moved thing literally and
+                               # pins the sha256 the freeze measured; admission additionally requires
+                               # a GREEN/YELLOW `audit post` of this card whose recorded commit is this
+                               # branch's own and carries that state. Reader:
+                               # tests/_pinned_suite_edit.py. Form:
+                               # refusal_set_change:
+                               # declaration: <why this card must move the refusal set>
+                               # changes:
+                               # - site: bin/lib/worktree.py
+                               # guard: _entry_ceiling
+                               # change: added
+                               # digest: <sha256>
+                               # - helper: _change_is_audited
+                               # digest: <sha256>
+                               # - verdict: work_batch_disarm
+                               # digest: <sha256>
+                               # Absent = the ordinary case (this card moves no refusal site).
 
 # Filled at Stage 9 (Closure) or on pause:
 closed_at: null

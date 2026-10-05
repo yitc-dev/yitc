@@ -3996,8 +3996,8 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ seams — session start\n    and the `debt` re-fold — with no new view type, store,\
   \ event or seam.\n    SUPPRESSED-WHEN-CLEAN and SILENT WITHOUT A DECLARATION (the\
   \ engine itself declares none).\n    Best-effort: any failure yields no row. It\
-  \ is the STANDING count of the same gap the per-task\n    Analysis/Closure line\
-  \ names (SPEC-0076 §6c) — both read ONE derivation,\n    `bin/lib/debt.py#uncovered_surface_files`.\
+  \ is the STANDING count of the same gap the per-task\n    Analysis line names (SPEC-0076\
+  \ §6c) — both read ONE derivation,\n    `bin/lib/debt.py#uncovered_surface_files`.\
   \ **What it retires (CHARTER §P1 F3):** the ad-hoc\n    history sweep (`dev-utilities/uncovered-surface-precision-sweep-.py`)\
   \ as the ONLY way to\n    see this gap. **Out:** no gate, no numeric scenario target,\
   \ no \"update\" row (a covered-anchor\n    touch fired on 79.5% of UI tasks in the\
@@ -4199,7 +4199,7 @@ implements_signature:
   bin/lib/init.py#concern_conformance: 819343d1d921cd17db13205ed90cef5c62afa36c18ca231c1d19f63a032ffc78
   bin/lib/init.py#unratified_adoptions: dcef8224b31e53d31e2c711c95b98fbb14acdf5bf307866d6fe663a605e4e17b
   bin/lib/journal.py#HALT_RESOLUTION_INPUT_TYPES: 7795f42ff4364f6f09cbff43004383437a46172d7aecfe9d75d6c3167ec58854
-  bin/lib/land_abort.py#_emit_land_abort: 72a0219dbc1b15e11cc0c77c56225430f4bf8116e51e79b67dcfa359fcc21b53
+  bin/lib/land_abort.py#_emit_land_abort: 7cce56de95975b5d3d0c207afaa821cad9793346db568cf8a5ba7250e7cf066e
   bin/lib/land_verify_legs.py#_registry_names_file: 85426b25d567d463c9debede36c118666df3b881341b97f249dca6a6eb0e9884
   bin/lib/nightly.py#_check_concern_conformance: 6c0bbe2b0976df16f31c764b48edf6c95af046b3cd094d33456080c86d05a6e1
   bin/lib/nightly.py#_check_unratified_adoptions: 2da20549af6874ea9b0cfbc9b53a191e5159c78027986bfeeb826f8bc16908be
@@ -4207,13 +4207,13 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 6c2d6c6f268f600c92431291932c807dd706ddb844c1b6271fc58447c3fdd822
   bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: be6b8f1c4fbde1afbcd678e9878909b0d0e967e387809d4baa05ea888be7a482
+  bin/lib/session.py#cmd_session_start: 2536d44a2d5a932ab630b74c77f3ab7d0fa5fe9f3811d8954691738c22ed4cba
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
-  bin/lib/task.py#cmd_task_update: fd38bc430c7885c001ae27b7abf2daaa96eaae9524849b7fe8b548ee6961bc0d
+  bin/lib/task.py#cmd_task_update: e5719c353ef13be74a5c770f9fbe560e12a00c556de2eb0849ff4bc0d1788f6f
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: dada8dc2b5eab6744367377ddab7db9372f8a0d4de9c0f07c1cf85c2d256f781
+  bin/lib/views.py#_render_debt_echo: 24212938c3eab52ee31493b7e24a3f077aa400a968ec87fb2db33eeb5dac1f55
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

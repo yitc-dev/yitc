@@ -8,6 +8,7 @@ consumed: false
 extension: null
 implements:
 - bin/lib/nightly.py#cmd_nightly
+- bin/lib/nightly.py#_declared_dormancy
 body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodology`\
   \ is `yitc_v2`) is watched by a\nBOUNDED, methodology-AWARE nightly — the v2 analog\
   \ of the v1 night-cycle, but it runs v2 GOVERNANCE\nchecks, never a v1 auto-session.\
@@ -29,70 +30,98 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ so a fail-closed default never confirmed does not sit unnoticed indefinitely).\
   \ It\nNEVER invokes a v1 `auto-session` on a v2\nproject, and the v1 night-cycle\
   \ MUST stop enumerating v2 projects — the two nightlies PARTITION the\nregistry\
-  \ by `methodology`. This partition is the closure of X-0090.\n\n### 1b. The per-project\
-  \ STAGE-PROFILE reading — what did each lifecycle stage cost here?\nBeside the §1\
-  \ health checks, which answer whether a project is WELL, the run takes one READING\
-  \ of\nwhat that project's work COSTS: per lifecycle stage, over the tasks CLOSED\
-  \ in the window, the n /\nmedian / p90 / sum of wall, with each stage's machine-time\
-  \ share. It is a read-only fold of that\nproject's own `events.jsonl` through the\
-  \ kernel `stage-profile` lens (SPEC-0031 §Saved views) — the\nSAME function `graph\
-  \ query stage-profile` runs, so the nightly and an on-demand query cannot report\n\
-  different numbers — and it emits NO event of its own: the reading rides the existing\n\
-  `nightly_run_completed` report (a VIEW, not a new store — CHARTER §P1 F2).\n\n**SUPPRESSED-WHEN-EMPTY,\
-  \ unlike the §1a health states.** A project that closed no task in the window\n\
-  prints NO line. This is the opposite choice from the health axis's `none` state,\
-  \ and deliberately so:\n`none` there means COVERAGE IS ABSENT and must never read\
-  \ as `ok`, whereas here an idle fortnight is\nsimply not a reading, and a row of\
-  \ nulls printed for it would be indistinguishable from a measured\nquiet period\
-  \ while adding the line every reader learns to skip. A project whose journal cannot\
-  \ be\nread says so (`alert` + the reason) rather than printing nothing — an unreadable\
-  \ journal and an idle\none are different facts.\n\n**REPORT-ONLY, and inside the\
-  \ §2 fence.** No verdict moves, no exit code moves, no threshold is\ncompared and\
-  \ nothing is flagged: a rising stage cost is a signal to look at what changed upstream,\n\
-  never a gate. It runs no command in the consumer's checkout and writes nothing there\
-  \ — it\nreads a journal, which is what §1's other checks already do.\n\n### 1c.\
-  \ The per-project SEAM-READ reading — what did this project's verbs cost to RUN?\n\
-  The sibling of §1b on the other cost axis: §1b reads what each lifecycle STAGE cost\
-  \ in wall-clock,\nthis reads what each VERB cost in physical corpus reads. One read-only\
-  \ fold of that project's own\n`events.jsonl` through the kernel `debt.seam_read_amplification`\
-  \ fold — the SAME function the\nSPEC-0119 rule-37 debt line renders, so the nightly\
-  \ and a project's own `debt` echo cannot report\ndifferent ratios for the same seam\
-  \ (one oracle, re-derived nowhere). It emits NO event of its own;\nthe reading rides\
-  \ the existing `nightly_run_completed` payload, as `results[].seam_reads` plus the\n\
-  `seam_read_amplified` / `seam_read_uninstrumented` headline counters.\n\n**THE SCOPE\
-  \ IS THE REGISTRY, AND EVERY `yitc_v2` PROJECT ANSWERS.** Coverage is not a function\
-  \ of\nwhich projects happened to adopt something — there is nothing here to adopt,\
-  \ and the check runs in\nthe same loop as every other §1 check. That is what makes\
-  \ fleet-wide read cost readable at all: it\nwas previously visible only to whoever\
-  \ ran a verb in one checkout and noticed it was slow.\n\n### 1d. THE ROW HAS A READER\
-  \ ( — cross-reference, the rule body is NOT here)\nEverything §1 records lands on\
-  \ ONE `nightly_run_completed` row per run. Until **nothing\nread that row back**\
-  \ — `grep nightly_run_completed bin/lib/debt.py` returned zero hits — so this\n\
-  spec's whole per-project report reached no seam a session opens, and the only fleet\
-  \ reading anyone\nhad was the `projects_flagged` headline, which had read 11/11\
-  \ every night since 2026-08-31 because\ntwo chronic conditions saturate it. **SPEC-0119\
-  \ rule 38** is that reader: it folds the last TWO\nrows and surfaces, on the existing\
-  \ debt echo's three seams, each project's per-check verdict\nCHANGES vs the previous\
-  \ night, with the two chronic conditions (`corpus` stale / `born_waivers`\nalert)\
-  \ excluded from the change line and given a dated line each naming a remedy. It\
-  \ is a READER\nONLY — report-only, zero stored state, no new event, no new store,\
-  \ no new verb, no new seam — so\nnothing in THIS spec's emission contract moves:\
-  \ the row, its payload and its cadence are unchanged.\nThe rule body lives single-SoT\
-  \ in SPEC-0119 rule 38 (`bin/yitc-v2 graph query SPEC-0119`); this is\na navigational\
-  \ cross-reference, never a second copy (CHARTER §P5 / SPEC-0005 rule 8).\n\n###\
-  \ 1e. A PROJECT READS ITS OWN VERDICT — `nightly --status`, read-only\nThe row lives\
-  \ in the ENGINE's journal, so a consumer's own journal holds no nightly row at all\n\
-  (<project> X-1577, measured 2026-09-24): a consumer session could not see what the\
-  \ nightly said\nabout it. `bin/yitc-v2 [-C <project>] nightly --status` is that\
-  \ project's reader — a VIEW over\nthe rows §1 already writes, never a copy of them:\n\
-  - **Source:** the ENGINE journal's `nightly_run_completed` rows, folded read-only\
-  \ through the\n  segment-aware journal reader (SPEC-0190 rule 4). The ENGINE journal\
-  \ is resolved from the engine\n  install, so `-C` never moves it.\n- **Subject:**\
-  \ the invoking project's canonical registry key (the `cross` peer identity,\n  SPEC-0086),\
-  \ so the engine and every `-C` consumer each read their OWN `results[]` entry.\n\
-  - **Latest run only.** What it prints is the latest row's verdict, latest by `ts`\
-  \ (physical order\n  is not chronology, SPEC-0190 rule 5), with that run's time.\
-  \ An OLDER row naming the project is\n  never presented as the current verdict.\n\
+  \ by `methodology`. This partition is the closure of X-0090.\n\n**OWNER-DECLARED\
+  \ DORMANCY — the born-waiver check, and only it, grades `dormant`.** An\nowner MAY\
+  \ declare a registry project's DEVELOPMENT dormant on that project's entry in the\
+  \ host\nregistry, stating a reason. For a project so declared, the born-waiver freshness\
+  \ check grades\nstale placeholders `dormant` instead of `alert`: nobody is developing\
+  \ the project, so nobody will\nreplace them, and an alert that cannot be acted on\
+  \ only saturates the fleet reading. NOTHING IS\nERASED: the run's row for that project\
+  \ still names every stale placeholder and carries the\ndeclared reason, and the\
+  \ fleet total still counts those placeholders, with the declared-dormant\nshare\
+  \ reported beside it. What moves is that the project is not FLAGGED for them and\
+  \ — because\nSPEC-0119 rule 38 reads its chronic verdict as an exact match — it\
+  \ leaves the chronic born-waiver\nline.\n**It silences nothing else.** Every other\
+  \ §1 check runs and grades a dormant project exactly as it\ngrades any project:\
+  \ dormant development does not stop production, so freshness (SPEC-0110),\nproject\
+  \ health, frontend errors, repo storage and corpus integrity still report and still\
+  \ flag. A\ncarrier that cannot be read still alerts (what cannot be read cannot\
+  \ be called dormant); a dormant\nproject with nothing stale grades `ok`, never `dormant`;\
+  \ an undeclared project holding stale\nplaceholders alerts as before. The V1-shutdown\
+  \ flag of SPEC-0130 is NOT this declaration: a\nconsumer fully alive on v2 carries\
+  \ it, and it has no effect on this check.\n**A declaration that states no reason\
+  \ is not honoured, and the run says so.** The project is\ngraded exactly as an undeclared\
+  \ one, and the run names the unusable declaration on that project's\nown entry —\
+  \ whatever its checks grade — so the owner is told why nothing changed. Withdrawing\
+  \ a\ndeclaration is removing it.\n**The declaration is the owner's.** The kernel\
+  \ only READS it (the SPEC-1003 rule 8 posture: which\nproject carries one is an\
+  \ owner decision recorded in the host registry); no verb writes it, and\nthe session\
+  \ that edits the registry on the owner's word records that edit as an external action\n\
+  (SPEC-0116). Reversal is removing the declaration: the next run alerts again. The\
+  \ declaration's\nconcrete form is homed with its one reader in the code (`bin/lib/nightly.py#_declared_dormancy`),\n\
+  not here.\n\n### 1b. The per-project STAGE-PROFILE reading — what did each lifecycle\
+  \ stage cost here?\nBeside the §1 health checks, which answer whether a project\
+  \ is WELL, the run takes one READING of\nwhat that project's work COSTS: per lifecycle\
+  \ stage, over the tasks CLOSED in the window, the n /\nmedian / p90 / sum of wall,\
+  \ with each stage's machine-time share. It is a read-only fold of that\nproject's\
+  \ own `events.jsonl` through the kernel `stage-profile` lens (SPEC-0031 §Saved views)\
+  \ — the\nSAME function `graph query stage-profile` runs, so the nightly and an on-demand\
+  \ query cannot report\ndifferent numbers — and it emits NO event of its own: the\
+  \ reading rides the existing\n`nightly_run_completed` report (a VIEW, not a new\
+  \ store — CHARTER §P1 F2).\n\n**SUPPRESSED-WHEN-EMPTY, unlike the §1a health states.**\
+  \ A project that closed no task in the window\nprints NO line. This is the opposite\
+  \ choice from the health axis's `none` state, and deliberately so:\n`none` there\
+  \ means COVERAGE IS ABSENT and must never read as `ok`, whereas here an idle fortnight\
+  \ is\nsimply not a reading, and a row of nulls printed for it would be indistinguishable\
+  \ from a measured\nquiet period while adding the line every reader learns to skip.\
+  \ A project whose journal cannot be\nread says so (`alert` + the reason) rather\
+  \ than printing nothing — an unreadable journal and an idle\none are different facts.\n\
+  \n**REPORT-ONLY, and inside the §2 fence.** No verdict moves, no exit code moves,\
+  \ no threshold is\ncompared and nothing is flagged: a rising stage cost is a signal\
+  \ to look at what changed upstream,\nnever a gate. It runs no command in the consumer's\
+  \ checkout and writes nothing there — it\nreads a journal, which is what §1's other\
+  \ checks already do.\n\n### 1c. The per-project SEAM-READ reading — what did this\
+  \ project's verbs cost to RUN?\nThe sibling of §1b on the other cost axis: §1b reads\
+  \ what each lifecycle STAGE cost in wall-clock,\nthis reads what each VERB cost\
+  \ in physical corpus reads. One read-only fold of that project's own\n`events.jsonl`\
+  \ through the kernel `debt.seam_read_amplification` fold — the SAME function the\n\
+  SPEC-0119 rule-37 debt line renders, so the nightly and a project's own `debt` echo\
+  \ cannot report\ndifferent ratios for the same seam (one oracle, re-derived nowhere).\
+  \ It emits NO event of its own;\nthe reading rides the existing `nightly_run_completed`\
+  \ payload, as `results[].seam_reads` plus the\n`seam_read_amplified` / `seam_read_uninstrumented`\
+  \ headline counters.\n\n**THE SCOPE IS THE REGISTRY, AND EVERY `yitc_v2` PROJECT\
+  \ ANSWERS.** Coverage is not a function of\nwhich projects happened to adopt something\
+  \ — there is nothing here to adopt, and the check runs in\nthe same loop as every\
+  \ other §1 check. That is what makes fleet-wide read cost readable at all: it\n\
+  was previously visible only to whoever ran a verb in one checkout and noticed it\
+  \ was slow.\n\n### 1d. THE ROW HAS A READER ( — cross-reference, the rule body is\
+  \ NOT here)\nEverything §1 records lands on ONE `nightly_run_completed` row per\
+  \ run. Until **nothing\nread that row back** — `grep nightly_run_completed bin/lib/debt.py`\
+  \ returned zero hits — so this\nspec's whole per-project report reached no seam\
+  \ a session opens, and the only fleet reading anyone\nhad was the `projects_flagged`\
+  \ headline, which had read 11/11 every night since 2026-08-31 because\ntwo chronic\
+  \ conditions saturate it. **SPEC-0119 rule 38** is that reader: it folds the last\
+  \ TWO\nrows and surfaces, on the existing debt echo's three seams, each project's\
+  \ per-check verdict\nCHANGES vs the previous night, with the two chronic conditions\
+  \ (`corpus` stale / `born_waivers`\nalert) excluded from the change line and given\
+  \ a dated line each naming a remedy. It is a READER\nONLY — report-only, zero stored\
+  \ state, no new event, no new store, no new verb, no new seam — so\nnothing in THIS\
+  \ spec's emission contract moves: the row, its payload and its cadence are unchanged.\n\
+  The rule body lives single-SoT in SPEC-0119 rule 38 (`bin/yitc-v2 graph query SPEC-0119`);\
+  \ this is\na navigational cross-reference, never a second copy (CHARTER §P5 / SPEC-0005\
+  \ rule 8).\n\n### 1e. A PROJECT READS ITS OWN VERDICT — `nightly --status`, read-only\n\
+  The row lives in the ENGINE's journal, so a consumer's own journal holds no nightly\
+  \ row at all\n(<project> X-1577, measured 2026-09-24): a consumer session could\
+  \ not see what the nightly said\nabout it. `bin/yitc-v2 [-C <project>] nightly --status`\
+  \ is that project's reader — a VIEW over\nthe rows §1 already writes, never a copy\
+  \ of them:\n- **Source:** the ENGINE journal's `nightly_run_completed` rows, folded\
+  \ read-only through the\n  segment-aware journal reader (SPEC-0190 rule 4). The\
+  \ ENGINE journal is resolved from the engine\n  install, so `-C` never moves it.\n\
+  - **Subject:** the invoking project's canonical registry key (the `cross` peer identity,\n\
+  \  SPEC-0086), so the engine and every `-C` consumer each read their OWN `results[]`\
+  \ entry.\n- **Latest run only.** What it prints is the latest row's verdict, latest\
+  \ by `ts` (physical order\n  is not chronology, SPEC-0190 rule 5), with that run's\
+  \ time. An OLDER row naming the project is\n  never presented as the current verdict.\n\
   - **What it prints:** the run time, `freshness` and `project_health` with the detail\
   \ that\n  explains a non-clean grade, every other check's verdict, and one line\
   \ per chronic condition\n  that project carries. The chronic vocabulary and remedies\
@@ -373,7 +402,16 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ check)** — the v1 night-cycle's enumerated project set EXCLUDES every\n  `registry.yaml\
   \ methodology: yitc_v2` project (assertable/greppable on the v1 enumerator) — the\n\
   \  measurable form of \"the v1 nightly no longer touches a v2 project\" (closes\
-  \ X-0090).\nExact event-type names are fixed by the implementing task against the\
+  \ X-0090).\n- **owner-declared dormancy (§1)** — `tests/test_nightly_dormant_born_waivers.py`:\
+  \ over a\n  fixture registry, two projects with identical stale placeholders grade\
+  \ `dormant` (declared) and\n  `alert` (undeclared) and only the undeclared one is\
+  \ flagged; a declared project's stale\n  freshness source still flags; the V1-shutdown\
+  \ flag alone still alerts; a declaration stating no\n  reason is named on the project's\
+  \ entry whatever its checks grade; and the debt echo's chronic\n  born-waiver record\
+  \ names the alerting project alone. Failing input: a reader that ignores the\n \
+  \ declaration (both alert), one that skips a dormant project (its freshness reading\
+  \ is lost), or\n  a lens that counts `dormant` as afflicted (the old two-project\
+  \ spell).\nExact event-type names are fixed by the implementing task against the\
   \ SPEC-0025 catalog (named here as\nSHAPES, not pre-invented types — anti-complexity).\
   \ Probe home: the plan's §Postcheck probe block.\n"
 cites:
@@ -393,4 +431,5 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/nightly.py#cmd_nightly: 5f7df9824d58e151773c5b1312534fa1f5b1d367be8c4c254a061b715c12253b
+  bin/lib/nightly.py#_declared_dormancy: 37414b9ee67dd395160489503baa1f4aad79c3ee17ced3bb6d213651a7da45ae
+  bin/lib/nightly.py#cmd_nightly: 7ec6a9094b5bd3b69d0bfc9f06832524de3260d32b604d891fdd9dd1dd280388

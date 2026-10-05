@@ -6456,6 +6456,8 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         # a post-cut snapshot does not). NEVER graft current YAML onto it — that would report present
         # task state against a past graph (D-0046). So the live-node graft below is applied to the
         # CURRENT index ONLY.
+        def _live_index() -> dict:
+            return index
     else:
         # T-0491: re-source the task/decision node maps from authored YAML for the CURRENT-index readers
         # (carve-out / projected / point-lookup) — the graph-slim cut dropped those build sections. Thread
@@ -6464,6 +6466,12 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         # _parse_errors report), not only blocking-by-omission. The blocking semantics are unchanged (a
         # malformed file is still omitted → unknown/blocked for safety readers); this ADDS the report.
         # T-0503: report via the shared `_report_graft_parse_errors` helper (one home for the report shape).
+        # T-13584: the graft is LAZY — `_live_index()` runs it (and its report) once, on first call, and
+        # only the branches that read `tasks`/`decisions` call it: --projected, --carve-out, a saved view,
+        # and a point-lookup that reaches the task-membership test (T-/D-, and every non-spec id, since
+        # that test precedes them). A spec point-lookup (own, --kernel, -C engine fallback), an error
+        # --kernel lookup, --type and --recurring read no grafted section and skip the 4,800-card read;
+        # a malformed card stays loud on the grafting branches and at `graph build` (exit 2, land block).
         if GRAPH_PATH.exists():
             base_index = _read_yaml(GRAPH_PATH) or {}
         elif _is_consumer_build() and _engine_index():
@@ -6477,9 +6485,15 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
             _die("graph/index.json missing — run `yitc-v2 graph build` first"
                  + ("\n" + textutil.kernel_defect_escape_hint()
                     if want_kernel and _is_consumer_build() else ""))
-        _query_parse_errors: list = []
-        index = _with_live_nodes(base_index, errors=_query_parse_errors)
-        _report_graft_parse_errors(_query_parse_errors)
+        index = base_index
+        _grafted: list = []
+
+        def _live_index() -> dict:
+            if not _grafted:
+                _query_parse_errors: list = []
+                _grafted.append(_with_live_nodes(base_index, errors=_query_parse_errors))
+                _report_graft_parse_errors(_query_parse_errors)
+            return _grafted[0]
 
     if getattr(args, "projected", False):
         # Mode contract (T-0091 audit-pre F0): --projected is a whole-graph view — mutually
@@ -6487,7 +6501,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         # (the chosen index was loaded above). Reject incompatible combinations loudly.
         if args.type or getattr(args, "recurring", False) or args.id:
             _die("--projected is mutually exclusive with --type / --recurring / id (composes only with --as-of)")
-        print(state.dump(_graph_query_projected(index, getattr(args, "include_draft", None))).rstrip())
+        print(state.dump(_graph_query_projected(_live_index(), getattr(args, "include_draft", None))).rstrip())
         return
 
     if getattr(args, "carve_out", False):
@@ -6502,7 +6516,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
             _die("--carve-out is mutually exclusive with --type / --recurring / id / --as-of "
                  "(strictly current-state: it reads the LIVE worktree frontier + ready set, so a "
                  "historical --as-of index would mix a past graph with present dispatch state)")
-        print(state.dump(_carve_out_selection(index)).rstrip())
+        print(state.dump(_carve_out_selection(_live_index())).rstrip())
         return
 
     if getattr(args, "recurring", False):
@@ -6553,7 +6567,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
             until = _parse_iso_utc(getattr(args, "until", None))
         except ValueError as exc:
             _die(f"--since/--until must be ISO date or timestamp: {exc}")
-        _run_view(view_path, index, getattr(args, "arg", None), since, until)   # T-0395 arg + T-0396 window
+        _run_view(view_path, _live_index(), getattr(args, "arg", None), since, until)   # T-0395 arg + T-0396 window
         return
 
     result: dict = {}
@@ -6609,7 +6623,9 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         result["implemented_by_code"] = [loc for loc, sp in eidx.get("code_to_specs", {}).items() if nid in sp]
         result["cited_by_tasks"] = eidx.get("tasks_citing", {}).get(nid, [])
         _attach_superseded_by(result, eidx, nid)
-    elif nid in index.get("tasks", {}):
+    elif nid in (index := _live_index()).get("tasks", {}):
+        # T-13584: the graft runs HERE, so this branch and every branch after it read the grafted
+        # index exactly as before; the spec branches above never reach it.
         # T-0491: the task node now re-sourced from authored YAML (the graft above). The graph-slim
         # cut dropped the commit/event/audit_verdict node-types + the from/emitted_by/audited edges,
         # so commits_from / events / audits are NO LONGER graph-queryable (Option A — no filesystem

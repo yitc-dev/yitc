@@ -193,14 +193,18 @@ body: '## Scenario
   a skip WITHOUT that backstop must add its own reader check (SPEC-0065 §Bound, condition
   (d)).
 
-  **Exact paths.** The classifier judges each path EXACTLY as git names it — only
-  a stray
+  **Exact paths.** The classifier judges each path EXACTLY as git names it — no decoded
 
-  line terminator is dropped, never other whitespace — so `" tasks/x.py"` (an unknown
-  top-level dir)
+  filename character is stripped, whitespace and line terminators included; only a
+  leading `./` is
 
-  is OBSERVABLE, never the inert `tasks/x.py`; its delta callers enumerate with renames
-  off.
+  normalised — so `" tasks/x.py"` (an unknown top-level dir) is OBSERVABLE, never
+  the inert
+
+  `tasks/x.py`, and a decoded name that ends in a line feed is never the inert journal;
+  its delta
+
+  callers enumerate with renames off.
 
 
   ## Parameters

@@ -720,22 +720,43 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ rule 5 — the additive-extension fork, as rule 5c):\nrules 2, 3 and 5c were SILENT\
   \ on a landed pause; a genuinely closed task, a halt, and every other\nalready-covered\
   \ case read exactly as before. This answers a case the rule did not address.\n\n\
-  ### 6. The dispatch-readiness advisor is REPORT-ONLY, and `dispatch` self-serves\
-  \ it in the decision frame\nThe sibling wave-sizing advisor `journal query --dispatch-readiness`\
-  \ is a pure current-state\nread under rule 1 — `headroom` / `live_worker_count`\
-  \ / `recommended_wave_ceiling` / `sole_controller` /\n`in_flight_land`. Two bounds\
-  \ are NORMATIVE and neither is optional:\n  - **REPORT-ONLY, FOREVER (the anti-drift\
-  \ bound).** The advisory is telemetry the controller reads;\n    it MUST NOT refuse,\
-  \ queue, clamp, delay, auto-resize, or require compliance with\n    `recommended_wave_ceiling`.\
-  \ The moment it caps/gates/paces a dispatch it is the forbidden\n    orchestrator\
-  \ (CHARTER §Principle 6). `recommended_wave_ceiling` is an integer the controller\
-  \ MAY\n    ignore; wave size stays a controller JUDGEMENT bound (patterns/background-session-operation.md\n\
-  \    §Dispatch), never a coded cap.\n  - **`dispatch` DELIVERS it in the pre-launch\
-  \ DECISION FRAME.** The `dispatch` launcher runs\n    the readiness fold ITSELF\
-  \ and PRINTS the advisory BEFORE the first launch line — fold → visible\n    advisory\
-  \ → launch — so wave sizing is decided against LIVE fleet-width, not memory or a\
-  \ separate\n    manual pre-wave read (the missed-read failure the consult verdict\
-  \ A-with-bounds closed,\n    `decisions/dispatch-readiness-delivery-audit-adhoc.yaml`).\
+  ### 5e. A caller-named task set narrows what ONE read reports — the default stays\
+  \ fleet-wide\nThe reader is fleet-wide by default (rule 3, rule 5a) and stays so:\
+  \ a read that names no task reports\nevery in-flight worker, exactly as before.\
+  \ A caller that DOES name tasks is asking about those tasks,\nso the read answers\
+  \ for them: it keeps the worker records whose `task_ids` INTERSECT the requested\
+  \ set\n— rule 5a's scope test, intersection never equality, so a warm worker draining\
+  \ a requested task\nalongside others is reported as its WHOLE record (rule 4) —\
+  \ and it NAMES every requested id that no\nkept record holds, in the order asked,\
+  \ in both output forms. A named id is not a worker record: it\ncarries none of rule\
+  \ 2's fields, because «no in-flight worker record holds it» says nothing about the\n\
+  task's own dispatch, which the dispatch-status reader answers. (The flag spelling\
+  \ is an interface\ndetail and lives in the verb's help, per the rule-5a precedent.)\n\
+  \nThe scope is applied AFTER classification. No class, verdict, evidence line or\
+  \ in-flight membership\ndepends on what was asked, so a scoped read and a fleet-wide\
+  \ read agree on every record both emit.\nRule 5a's fail-closed judgement is untouched\
+  \ and still the watcher's: the watcher names no task to\nthis reader and keeps reading\
+  \ the whole fleet.\n\n**In-place amend, not a supersede** (SPEC-0005 rule 5 — the\
+  \ rule-4a / 5a precedent): rule 2 said what\na record carries and was SILENT on\
+  \ a caller-named subset. The shipped reader read that silence as\n«ignore the request»,\
+  \ so a one-task question returned twelve unrelated records with no word that the\n\
+  request was not applied (measured 2026-10-05). No already-covered case's required\
+  \ behaviour changes.\n\n### 6. The dispatch-readiness advisor is REPORT-ONLY, and\
+  \ `dispatch` self-serves it in the decision frame\nThe sibling wave-sizing advisor\
+  \ `journal query --dispatch-readiness` is a pure current-state\nread under rule\
+  \ 1 — `headroom` / `live_worker_count` / `recommended_wave_ceiling` / `sole_controller`\
+  \ /\n`in_flight_land`. Two bounds are NORMATIVE and neither is optional:\n  - **REPORT-ONLY,\
+  \ FOREVER (the anti-drift bound).** The advisory is telemetry the controller reads;\n\
+  \    it MUST NOT refuse, queue, clamp, delay, auto-resize, or require compliance\
+  \ with\n    `recommended_wave_ceiling`. The moment it caps/gates/paces a dispatch\
+  \ it is the forbidden\n    orchestrator (CHARTER §Principle 6). `recommended_wave_ceiling`\
+  \ is an integer the controller MAY\n    ignore; wave size stays a controller JUDGEMENT\
+  \ bound (patterns/background-session-operation.md\n    §Dispatch), never a coded\
+  \ cap.\n  - **`dispatch` DELIVERS it in the pre-launch DECISION FRAME.** The `dispatch`\
+  \ launcher runs\n    the readiness fold ITSELF and PRINTS the advisory BEFORE the\
+  \ first launch line — fold → visible\n    advisory → launch — so wave sizing is\
+  \ decided against LIVE fleet-width, not memory or a separate\n    manual pre-wave\
+  \ read (the missed-read failure the consult verdict A-with-bounds closed,\n    `decisions/dispatch-readiness-delivery-audit-adhoc.yaml`).\
   \ The self-read emits ONE\n    `consumer_read_evidence` receipt tied to the advisor\
   \ surface, which by journal ordering PRECEDES\n    the wave's `bg_dispatch_launched`.\
   \ This delivery adds NO admission control: there is deliberately\n    NO branch\
@@ -808,13 +829,17 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ NO `recommended_action` key (grep the output shape).\n- **worker-centric (rule\
   \ 4):** a synthetic warm worker (session-ref with task A `done` + task B not\n \
   \ yet claimed, proc alive) reads `verdict: alive` (IDLE-between-lands), NOT `dead`.\n\
-  - **adoption (P8, infra-class):** a real controller watcher tick CONSUMES the verdict\
-  \ (a\n  `consumer_read_evidence` event ties the tick to the verb), replacing the\
-  \ hand-rolled 3-part\n  computation.\n\n**Project/host worker fit.** The wave-sizing\
-  \ advisor also relates THIS project to THIS host:\n`journal.worker_fit` reads the\
-  \ current repo's own journal (`<repo>/events.jsonl`, the per-project\ninstance —\
-  \ under `-C` the consumer's, never a peer's), takes the median over its last 10\n\
-  `land_completed` rows of sum(`verify_metrics.per_layer_cpu.layers[].cpu_ms`)/`verify_wall_ms`\
+  - **caller scope (rule 5e):** on a fixture of two in-flight workers, a read naming\
+  \ one task of the\n  warm worker returns exactly that worker's fleet-wide record\
+  \ and nothing for the other; a requested\n  id nobody holds is named in both output\
+  \ forms; a read naming no task equals the fleet-wide read.\n  Differential: the\
+  \ pre-change reader returns both workers and names nothing.\n- **adoption (P8, infra-class):**\
+  \ a real controller watcher tick CONSUMES the verdict (a\n  `consumer_read_evidence`\
+  \ event ties the tick to the verb), replacing the hand-rolled 3-part\n  computation.\n\
+  \n**Project/host worker fit.** The wave-sizing advisor also relates THIS project\
+  \ to THIS host:\n`journal.worker_fit` reads the current repo's own journal (`<repo>/events.jsonl`,\
+  \ the per-project\ninstance — under `-C` the consumer's, never a peer's), takes\
+  \ the median over its last 10\n`land_completed` rows of sum(`verify_metrics.per_layer_cpu.layers[].cpu_ms`)/`verify_wall_ms`\
   \ as the\nCPUs one verify keeps busy, and recommends max(1, (nproc-2) // ceil(that))\
   \ parallel workers (nproc-2\nwhen unmeasured). Delivery: a consumer's main-checkout\
   \ `session start` prints the one\n`workers: this host fits …` line (re-delivered\
@@ -840,13 +865,13 @@ implements_signature:
   bin/lib/dispatch.py#_journal_redispatch_state: 20cb7b6ca98e9bdd26cd1ce15fd5bcb7320d857c3a8f4c4eaaef06e082106748
   bin/lib/dispatch.py#_readiness_advisory_block: 9b41912fdefae4995cfa56e882bb474e99af0883df061b7288929c8b18011274
   bin/lib/dispatch.py#_watch_row_in_scope: 6b2db2d58c6c0b324a807e774049574564e25c9e899725882874e4b1aaa45175
-  bin/lib/dispatch.py#_watch_wake_decision: 67e322d6600fd21bace80c62325f083eb93aa5ccb817e259b0a39150aa27ef45
+  bin/lib/dispatch.py#_watch_wake_decision: 809242e0063386cb679f42b6d8ea5e1b55613afe7f714117909ac9ae0381b5ab
   bin/lib/dispatch.py#cmd_dispatch: 6a32412c4641be150c448fc1288b84905a79b0fd0eebaab4fac273838e831f23
   bin/lib/dispatch.py#cmd_dispatch_watch: a13c6c8415bb2bbd3cd5673614938bc5a02dbd7a6feeaf2c60847b4850e8bea1
-  bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 6152d15fee2386f0ce522a19fe440083648b57125d3ba6b86ac102f3509f6586
+  bin/lib/journal.py#DISPATCH_CLASS_VOCAB: a40e794a0deeb38ffa5ae50048aa7c3674234198a8cbbdd6d03c9efe751965cc
   bin/lib/journal.py#_dispatch_status_landed_pause: ce76f65f58e887e873287dea5132abc4272b3a94c1803258433b3961bb4da060
   bin/lib/journal.py#_halt_resolution: d83afc21f135863e4a6515a6ad07f9c76502005cdaefa490dd157507335ac3c6
-  bin/lib/journal.py#cmd_journal_fleet_verdict: cfa08f6cca3d7b69ab1afa0ad1b7d499c3fa2b669938eb2ac4d450d5339e5f01
+  bin/lib/journal.py#cmd_journal_fleet_verdict: b3dba891d819b7b7292bb83ac92e4f596c68a3831296774fb4fe12750f46087b
   bin/lib/journal.py#measured_verify_cores: 641e25dc3baa269c56cf83afcbac1b374636e73b429c501cdc30e37153c41d6b
   bin/lib/journal.py#recommended_worker_count: cb6d0babb3ca8dab06eaaf4a2245a5879416472d2ab7f021852062af3329032d
   bin/lib/journal.py#worker_fit: e3eeb55541bbfc58e0d35df67ffb13b6ac7b304fc6f3c537b60a98a5facf7438

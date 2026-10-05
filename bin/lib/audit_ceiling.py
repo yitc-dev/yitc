@@ -3,12 +3,15 @@ admission/bind/matrix/projection/residual readers, the residual-fingerprint + fi
 the owner-directive resolvers and the card-record RED-cause reader), extracted byte-identical from
 `bin/lib/audit.py` (T-12706, card C7b of plan `extract-the-13-over-budget-bin-lib-modules-into-le`).
 
-WHAT IS IN HERE. The FROZEN manifest of the plan's §Extraction map C7b — 24 top-level defs:
+WHAT IS IN HERE. The manifest of the plan's §Extraction map C7b — 25 top-level defs (the 24 frozen at
+the extraction plus `residual_finding_records`, which T-13169 added to the list):
 `cmd_audit_decide, on_decisions_admission, on_decisions_absorption_grant, on_decisions_bind, on_decisions_matrix, on_decisions_packet_block, on_decisions_projection, on_decisions_residuals, on_decisions_row_absorbable, on_decisions_row_problems, _on_decisions_row_is_real, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, _red_cause_is_card_record, _ac_named_verifier_paths, _accept_reason_quotes_directive, _currency_finding_index, residual_finding_records, _directive_covers_task, _directive_row_text, _late_finding_index, _prose_names_token, _repo_path_tokens, _resolve_owner_directive`.
 NOT IN HERE: `cmd_audit` / `cmd_audit_pre|post|adhoc|run|status|canary_backstop`, the gates, the
 `_invoke_*` / `_resolve_*` provider families, the ceiling COUNTERS (`terminal_ceiling_row`,
 `_ceiling_row_of`, `validate_ceiling_payload`, `finding_fingerprint`, …) and the packet / consult
 families (their own leaves, C7a / C6) — those stay in the host or their own module.
+LATER CARDS ADDED DEFS BEYOND THE C7b MANIFEST: the list above records the extraction, it is not
+the module's current inventory (read that off the file).
 
 SEAM (the T-9340 / T-9341 / T-11519 / T-12696 / T-12701 full inject-residue shape,
 `lessons/library-extraction.md` §AST-freeze generator): every body and signature below is spliced
@@ -537,7 +540,13 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
         # stay exactly as wedged as they are. It is NOT a backfill: nothing is appended, and the row is
         # a pure f(record) carrying `synthesized_from`. A TASK target keeps source (1) alone, unchanged.
         _gate_record = None
-        ceiling_row = _ceiling_row_of(stage_rows) if stage_rows else None
+        # T-13561 — the task arm's saved record, read ONCE here (it was read just below, for the
+        # `passes` fallback) so the selection can rank a counterless GREEN row by its own record's
+        # counter — the SAME selection the `--on-decisions` pass makes, so the two bind one row —
+        # and handed to the residual read too, which until now read the same file a second time.
+        local_record = (None if is_plan
+                        else prior_audit_record(tid, stage, decisions_dir=Path(DECISIONS_DIR)))
+        ceiling_row = _ceiling_row_of(stage_rows, record=local_record) if stage_rows else None
         if ceiling_row is None and is_plan:
             if _plan_consult_gate_audit_record is None:
                 _die("audit decide --plan: `_plan_consult_gate_audit_record` is not wired at this call "
@@ -556,7 +565,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     + (" and no saved gate-audit record to resolve one from" if is_plan else "")
                     + " — there is no ceiling row to bind a decision to (SPEC-0204 rule 2).")
         residual = row_residual_fingerprints(ceiling_row, repo_root=[REPO_ROOT],
-                                             decisions_dir=DECISIONS_DIR, record=_gate_record,
+                                             decisions_dir=DECISIONS_DIR,
+                                             record=(_gate_record if is_plan else local_record),
                                              # T-12370 — same reader, same seam: a decision must not
                                              # be refused `unresolvable` for a subject that was
                                              # merely rolled back.
@@ -566,13 +576,12 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
         # it — the `passes` fallback and the «does this checkout hold a record at all?» test. Taking
         # it twice would let the two disagree under a concurrent write. For a PLAN GATE the record is
         # the gate's own saved gate-audit YAML (resolved by its gate→template map, T-12335), never
-        # the task-shaped `decisions/<id>-audit-<stage>.yaml` address.
+        # the task-shaped `decisions/<id>-audit-<stage>.yaml` address. The TASK arm's was taken above,
+        # before the selection (T-13561).
         if is_plan:
             local_record = _gate_record
             if local_record is None and _plan_consult_gate_audit_record is not None:
                 local_record = _plan_consult_gate_audit_record(plan_slug_arg, gate) or None
-        else:
-            local_record = prior_audit_record(tid, stage, decisions_dir=Path(DECISIONS_DIR))
         passes = residual.get("passes")
         if passes is None:
             # The SAME resolution chain C1 documents (the row's own value first, the saved record's
@@ -2228,7 +2237,10 @@ def on_decisions_packet_block(projection) -> str:
             lines.append(f"  {i}. `{r.get('finding_fingerprint')}`\n")
             for k in RESIDUAL_RECORDED_FIELDS:
                 if k in rec:
-                    lines.append(f"     {k}: {' '.join(str(rec[k]).split())}\n")
+                    # T-13483 — VERBATIM means the recorded text itself: an inner newline or a
+                    # doubled space is kept (the rule-1 key normalizes whitespace on its own side,
+                    # so a copied field keys the same either way).
+                    lines.append(f"     {k}: {rec[k]}\n")
     lines.append(
         "\nWhat each disposition asks of YOU on this pass:\n"
         "  * `fix`    — VERIFY it at the subject above. Is the defect actually closed, and what is "

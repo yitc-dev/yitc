@@ -46,9 +46,25 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ multiple claims, not because it is long.\n  A single coherent artifact may legitimately\
   \ be long (cf. LIFECYCLE §Stage 3 — the ~30-line plan\n  guideline is a WARN, not\
   \ a gate). When a unit feels too big, ask \"how many claims is it proving?\"\n \
-  \ — split only if the answer is >1.\n\n**audit-pre RED red-flag catalog** — a unit\
-  \ is mis-cut (expect audit-pre RED/strong-YELLOW) when:\n- **(a) >1 claim in one\
-  \ unit** — two independent invariants/contracts bundled.\n- **(b) contradiction\
+  \ — split only if the answer is >1.\n\n**Project-declared task-grouping preference\
+  \ — a project may PROPOSE its grouping; §A still decides\n.** A project MAY declare\
+  \ a task-grouping preference in its SPEC-0125 provider-neutral\nproject-context\
+  \ home (the ONE declared home that spec names); where an existing project spec owns\n\
+  the preference, that home holds only a pointer to it. At decomposition, use the\
+  \ preference to\nPROPOSE a cut, and identify its SOURCE and RATIONALE in the existing\
+  \ decomposition-fidelity audit\ninput — the plan body or the cut cards the SPEC-0070\
+  \ §3 gate is already handed; a preference the\ncutter considered and DECLINED is\
+  \ named there the same way, with the reason it was not followed.\nThe preference\
+  \ cannot override §A or make item count a cutting criterion: items of one type,\
+  \ or\nitems that would receive one combined verdict, are not thereby one provable\
+  \ claim. Without a\ndeclaration, apply §A; approving one cut does not establish\
+  \ a standing convention. The preference\nis read from the project context a session\
+  \ has already loaded — it adds no read, store, field,\nevent or gate, and neither\
+  \ a `lessons/` note (zero-normative, SPEC-0090) nor the project\nops-contract carrier\
+  \ is a home for it. The reviewer of the boundary is the fidelity gate; its\nquestion\
+  \ is asked in the SPEC-0083 P5 template.\n\n**audit-pre RED red-flag catalog** —\
+  \ a unit is mis-cut (expect audit-pre RED/strong-YELLOW) when:\n- **(a) >1 claim\
+  \ in one unit** — two independent invariants/contracts bundled.\n- **(b) contradiction\
   \ / dissonance with an already-accepted artifact** (CHARTER §Principle 7).\n- **(c)\
   \ under-specified mechanism** — the claim is stated but how it holds is hand-waved.\
   \ This INCLUDES an AC/probe written as an IDEAL not calibrated to the system's OBSERVED\
@@ -334,13 +350,25 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ State check: `grep -c 'Territory-aware decomposition\\|territory that can LAND\\\
   |territory seam' specs/SPEC-0046-*.yaml` ≥ 2. SPEC-0070 §5 carries the\n  matching\
   \ POINTER (single home here, pointer there — P5). Added in-place per SPEC-0005 rule\
-  \ 7.\n"
+  \ 7.\n- **VP13 (project-declared grouping preference present).** §A carries the\
+  \ **Project-declared\n  task-grouping preference** clause with its five elements:\
+  \ a project MAY declare the preference\n  in its SPEC-0125 home (a pointer there\
+  \ where a project spec owns it); the cut uses it to PROPOSE\n  and names its source\
+  \ and rationale in the decomposition-fidelity audit input; it cannot override\n\
+  \  §A nor make item count a criterion; without a declaration §A alone applies; approving\
+  \ one cut\n  establishes no standing convention. State check: `graph query SPEC-0046`.\
+  \ The SPEC-0083 P5\n  template carries the matching QUESTION — `tests/test_decomposition_fidelity_gate.py`\
+  \ reads it\n  from the real template and from the prompt the real gate hands the\
+  \ auditor. Added in-place per\n  SPEC-0005 rule 7.\n"
 cites:
 - SPEC-0103
 - SPEC-0005
 - SPEC-0008
 - SPEC-0013
 - SPEC-0044
+- SPEC-0125
+- SPEC-0090
+- SPEC-0083
 - QUEUE.md#picker-logic
 - CHARTER.md#principle-1
 - CHARTER.md#principle-7
@@ -353,5 +381,5 @@ activation_owner_task: null
 proposed_by: null
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
-  bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3
-  bin/lib/task.py#cmd_task_file: a2448377e68efc1d0223bf442d465f96b5f5f71d29867ba800e11ab1c1a65f11
+  bin/lib/plan.py#cmd_plan_check: e18aee98679bf1bc1a086578da0cec06a4c64e1cee12fc260723664e3c0899cd
+  bin/lib/task.py#cmd_task_file: e95ef07da93d6783f833cda1747a1831d7761178687fb0dbba85c16a258dd145

@@ -432,7 +432,7 @@ implements_signature:
   bin/lib/task.py#_case_match: 90e154158a6e80973365751157c24d3732570b3fbe7154ee4fbfabfe132c0a9e
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
+  bin/lib/task.py#cmd_task_close: 2e45dc77f3ce5744747144d9bf3abd1546378770e2006899ace13c1d48056746
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: 51d90ca81e2415a311299373b722134914a8a5bf27e298daf649ce9cb763a2f5
   bin/lib/task_closure_evidence.py#_case_covered_share: f49ddb205b5a97055766baddadc62919fcedc47af50f5d2bccaa1577b6da18d8

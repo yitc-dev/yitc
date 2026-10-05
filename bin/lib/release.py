@@ -47,7 +47,6 @@ from typing import NamedTuple
 from lib import engine_route
 from lib import graph as graph_lib
 from lib import state
-from lib import state
 
 # The manifest is the SIGNATURE TARGET (SPEC-0195 rule 5): signing one small file covers the whole
 # artifact through the digest it carries. The sign/verify card writes a detached signature over
@@ -3067,13 +3066,23 @@ def collect_answered_proposals(source_sha: str, *, main: Path, _die) -> tuple:
     blob reads for a field almost none of them have, which is the repeated-work shape this seam has
     no reason to introduce.
 
-    FAIL-CLOSED on every arm. A card whose `answers:` will not parse, an id that fails
-    `ANSWER_ID_RE`, and an issue reference that names no tracker (`unqualified_answer_id`, T-13484)
-    all REFUSE the publish naming the card. Skipping any would drop a proposal from the link-back
-    silently, or publish a number that points at a different issue once the intake repo is
+    ONLY A CARD THAT IS `done` AT THE COMMIT COUNTS (T-13564). Rule 4 names a proposal "when a
+    re-authored change ships"; a card that is ready, parked, in progress or declined at the source
+    commit has shipped nothing in the release cut from it, so its ids stay out. The `status` is read
+    from the SAME blob that is already parsed for `answers:` — no second read. A proposal named by
+    several cards is listed once, as soon as one of them is done.
+
+    FAIL-CLOSED on every arm. A card whose `answers:` will not parse, and on a done card an id that
+    fails `ANSWER_ID_RE` or an issue reference that names no tracker (`unqualified_answer_id`,
+    T-13484), all REFUSE the publish naming the card. Skipping any would drop a proposal from the
+    link-back silently, or publish a number that points at a different issue once the intake repo is
     re-created — which is precisely the "never silently closed" promise the policy above makes,
-    broken by the code that is supposed to keep it. The ids fold into a SET, so two trackers' `#1`
-    stay two entries only because each carries its tracker.
+    broken by the code that is supposed to keep it. The parse refusal stands WHATEVER the card's
+    state, because a card that does not parse has no readable `status` to excuse it. The id checks
+    apply to a done card ONLY: an invalid id on a card that is not done goes with the card — it
+    contributes nothing to these notes, so it can neither drop nor mis-name a proposal here, and it
+    is judged at the release whose commit carries the card done. The ids fold into a SET, so two
+    trackers' `#1` stay two entries only because each carries its tracker.
     """
     rp = subprocess.run(["git", "-C", str(main), "grep", "-l", "-E", r"^answers:", source_sha,
                          "--", "tasks/"], capture_output=True, text=True)
@@ -3102,6 +3111,11 @@ def collect_answered_proposals(source_sha: str, *, main: Path, _die) -> tuple:
             return ()
         raw = data.get("answers")
         if raw is None:
+            continue
+        # Only a card that is `done` AT THIS COMMIT has shipped in the release cut from it. One that
+        # is ready, parked, in progress or declined has shipped nothing here, so its ids are neither
+        # listed nor judged; a proposal several cards name is listed as soon as one of them is done.
+        if data.get("status") != "done":
             continue
         if not isinstance(raw, (list, tuple)):
             raw = [raw]

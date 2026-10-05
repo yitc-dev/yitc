@@ -13,6 +13,7 @@ implements:
 - bin/lib/observe.py#outcome_fields
 - bin/lib/observe.py#auditor_triple
 - bin/lib/observe.py#normalize_wait_reason
+- bin/lib/views.py#_view_observation
 - bin/lib/views.py#_view_observation_rollup
 body: "## Scenario\n\nThe owner/AI wants to know how the methodology, the AI (worker\
   \ + external-auditor PAIR), the\nhardware, and the human actually perform in REAL\
@@ -126,4 +127,5 @@ implements_signature:
   bin/lib/observe.py#outcome_fields: 0ce74c43bfcfe24237b80b1c52028eb4a68b75c75395cd1e461a435519d7f0a5
   bin/lib/observe.py#resource_summary: afb9c5de45bdc166421b3abdb391ae4dce01593d137a6443b0a551650fff60f5
   bin/lib/observe.py#session_started_fields: 8c333923382a9e20c9477429afa499357b8cdd16b3bfba866f5bf0c736374311
+  bin/lib/views.py#_view_observation: 0f611c95bba45f078a8e62eed56fb6efed96905aa4a108ef96399a651a8b2f54
   bin/lib/views.py#_view_observation_rollup: b92d89f95b8e0acb5ac0eff8529cb7b5a05f05ebaf0cc1b0b350a20c4764f991

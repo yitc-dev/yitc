@@ -25,7 +25,7 @@ at half its time — is **not reachable by trimming tests**, and §6 says what i
 ### 2a. Three recorded inputs and one reading
 
 The instrument and its three recorded inputs live in this repository's workshop instruments directory
-— a surface a release does not carry (<workshop-spec> rule 1a) — so they are named here as the provenance
+— a surface a release does not carry (SPEC-0195 rule 1a) — so they are named here as the provenance
 of these figures, not as tools that travel with this pattern. The method is stated in full below.
 
 | # | Input | What it gives | How it was produced |

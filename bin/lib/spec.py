@@ -200,6 +200,90 @@ def _body_flow_quote(text: str) -> str | None:
 _flow_encode_variants = textutil.flow_encode_variants
 
 
+# ── T-13581 — a quoted body WRAPPED across physical lines (GitHub issue #11, follow-up) ──────────
+# The T-11109 encoder above renders a candidate on ONE line, so it can never equal text a generic
+# YAML dump stored wrapped at 80 columns: one parsed line of 1-3 kB spans some thirty physical
+# lines, and "narrow `old` to a single line" is then no route at all. No kernel writer produces
+# that form (`spec new` scaffolds a literal block, and the status flips are single-line edits) —
+# it arrives with a whole-segment replacement written outside these verbs.
+#
+# T-11109 rejected re-serialising the parsed body AS THE GENERAL ROUTE, because it rewrites the
+# whole scalar where a narrow splice exists. That stays true and stays the primary path. These two
+# helpers serve ONLY the case with no narrow splice — the one the verb used to refuse: the edit is
+# applied to the parsed text and the scalar is re-emitted as a literal `|` block, the form every
+# kernel-written spec already has, accepted only when the result reparses to the expected record.
+
+
+def _literal_block_blocker(value: str) -> str | None:
+    """The character class that keeps `value` from being stored as a literal block without changing
+    a character, or None when nothing does. Named, because the refusal has to say WHICH.
+
+    Deliberately conservative on whitespace: a literal block CAN carry a trailing space, but only
+    until the next editor or formatter strips it, and then the body changes with no diff a reader
+    would notice — PyYAML's own emitter declines the block style for such text for that reason. A
+    tab where a line starts sits where YAML reads indentation. Both stay in the quoted form."""
+    for ch in value:
+        o = ord(ch)
+        if ch in "\r\x85\u2028\u2029":
+            return f"a line-break character other than LF (U+{o:04X})"
+        if not (ch in "\t\n" or 0x20 <= o <= 0x7e or 0xa0 <= o <= 0xd7ff
+                or 0xe000 <= o <= 0xfffd or o >= 0x10000):
+            return f"a control character (U+{o:04X})"
+    for i, ln in enumerate(value.split("\n"), 1):
+        if ln != ln.rstrip(" \t"):
+            return f"trailing whitespace (body line {i})"
+        if ln.startswith("\t"):
+            return f"a tab-led line (body line {i})"
+    return None
+
+
+def _quoted_body_as_literal_block(text: str, value: str) -> str | None:
+    """`text` with its top-level QUOTED `body:` scalar replaced by `value` as a literal block, or None
+    when the file does not have that shape. Every byte outside the scalar is kept as it is.
+
+    The chomping indicator carries the body's own ending (`|` one final newline, `|-` none, `|+`
+    several) and an indentation indicator is added when the first content line starts with a space,
+    so the block needs no change to the text to be read back — an empty body is `|-` with no line,
+    a body of newlines alone is `|+` over that many blank lines. A comment trailing the closing
+    quote moves onto the block header. The one byte that can be ADDED outside the scalar is a final
+    newline, when the scalar ended a file that had none: a block's last line needs its line end.
+    The CALLER verifies the reparse."""
+    import yaml
+    try:
+        root = yaml.compose(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+    except Exception:                                # noqa: BLE001 — unparseable → not this case
+        return None
+    node = None
+    if isinstance(root, yaml.MappingNode):
+        for key, val in root.value:
+            if isinstance(key, yaml.ScalarNode) and key.value == "body":
+                node = val
+    if not isinstance(node, yaml.ScalarNode) or node.style not in ('"', "'"):
+        return None
+    if not value.strip("\n"):
+        # No content line at all: nothing to clip, so the newlines are kept or there are none.
+        header, block = ("|+" if value else "|-"), value
+    else:
+        if value.endswith("\n\n"):
+            chomp, content = "+", value[:-1]
+        elif value.endswith("\n"):
+            chomp, content = "", value[:-1]
+        else:
+            chomp, content = "-", value
+        lines = content.split("\n")
+        first = next(ln for ln in lines if ln)
+        header = "|" + ("2" if first.startswith(" ") else "") + chomp
+        block = "".join(("  " + ln if ln else "") + "\n" for ln in lines)
+    # The rest of the scalar's last physical line. YAML admits only blanks and a comment there, and
+    # a block header may carry both, so it moves up beside the header byte for byte.
+    tail = text[node.end_mark.index:]
+    eol = tail.find("\n")
+    rest, tail = (tail, "") if eol < 0 else (tail[:eol], tail[eol + 1:])
+    if rest.strip(" \t") and not rest.lstrip(" \t").startswith("#"):
+        return None
+    return text[:node.start_mark.index] + header + rest + "\n" + block + tail
+
+
 # ── T-12839 / X-1525 — spec-id ALLOCATION ZONES (rule home: SPEC-0092 §Allocation zones) ────────
 # Every repo used to allocate own-max+1, so the kernel and each consumer walked the SAME number line and
 # the kernel's next ids collided with ids consumers already held (<project> SPEC-0206..0214 vs kernel
@@ -825,7 +909,41 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                           f"escaped form before matching (T-11109).")
                     old, new, n = cand_old, cand_new, cand_n
                     break
+    # T-13581 — the quoted body no candidate could reach (line-WRAPPED, or escaped by a setting
+    # the encoder does not reproduce). `old` is demonstrably text of the parsed body, so apply the
+    # edit THERE and store the result as a literal block. Reached only where the verb used to refuse:
+    # a one-line quoted body the encoder matches keeps its narrow splice above, byte for byte.
+    wrapped_fix = None
     if n == 0:
+        body = rec.get("body")
+        if _body_flow_quote(text) and isinstance(body, str) and orig_old in body:
+            hits = body.count(orig_old)
+            if hits > 1 and not replace_all:
+                _die(f"`old` matches {hits} times in the parsed body of {path.name} — make it unique, "
+                     f"or replace every occurrence with `bin/yitc-v2 spec edit {sid} --replace-all "
+                     f"--from-file <payload.yaml>`. The file is untouched.")
+            want = body.replace(orig_old, orig_new)
+            blocker = _literal_block_blocker(want)
+            if blocker:
+                _die(f"refusing to write — `old` is text of the parsed body of {path.name}, whose "
+                     f"`body:` is a quoted scalar this verb could not match in its stored form, so "
+                     f"the edit can only be applied by re-emitting the body as a literal `|` block — "
+                     f"and the edited body cannot be one without changing a character: it carries "
+                     f"{blocker} (T-13581). Take that out first with a raw replacement — copy `old` "
+                     f"and `new` from `{path.name}` in its stored, escaped form and re-run "
+                     f"`bin/yitc-v2 spec edit {sid} --from-file <payload.yaml>`. The file is untouched.")
+            fixed = _quoted_body_as_literal_block(text, want)
+            try:
+                fixed_rec = state.load_str(fixed) if fixed is not None else None
+                base_rec = state.load_str(text)
+            except Exception:                        # noqa: BLE001 — an unusable re-emission
+                fixed_rec = base_rec = None
+            # Accepted only on proof: the WHOLE record must read as before with the body alone
+            # replaced. Anything else falls through to the refusal below, the file untouched.
+            if isinstance(fixed_rec, dict) and isinstance(base_rec, dict) \
+                    and fixed_rec == {**base_rec, "body": want}:
+                wrapped_fix = (fixed, fixed_rec, hits)
+    if n == 0 and wrapped_fix is None:
         # T-11109 defect (2) — the diagnostic is COMPUTED from the file in hand, not a fixed string.
         # The old wording asserted a block-scalar indentation trap unconditionally, so a flow-scalar
         # body (and a plainly absent `old`) both sent the reader to debug indentation that was never
@@ -889,7 +1007,8 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     _block_body = not _flow_quote and bool(_body_block_indent(text))
     _pre_body = rec.get("body")
     _expected_body = None
-    if (_flow_quote or _block_body) and isinstance(_pre_body, str) and orig_old in _pre_body:
+    if wrapped_fix is None and (_flow_quote or _block_body) and isinstance(_pre_body, str) \
+            and orig_old in _pre_body:
         _expected_body = (_pre_body.replace(orig_old, orig_new) if replace_all
                           else _pre_body.replace(orig_old, orig_new, 1))
     _FLOW_REENCODE_NOTE = (
@@ -1014,6 +1133,15 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                  f"file is untouched.")
         updated, updated_rec = flow_retried
         print(_FLOW_REENCODE_NOTE)
+    if wrapped_fix is not None:
+        # T-13581 — nothing above touched the text (`old` is absent from the raw file, so the raw
+        # replace was a no-op and no repair branch ran); the verified re-emission is the write.
+        updated, updated_rec, count = wrapped_fix
+        print(f"note: `old` matched the parsed body, not the raw file — the `body:` is a quoted "
+              f"scalar whose stored form could not be matched (most likely line-wrapped), so the "
+              f"edit was applied to the parsed body and the body is now stored as a literal `|` "
+              f"block. Every other field reads as before; the diff of this edit is the whole "
+              f"`body:` segment (T-13581).")
     write_text_atomic(path, updated)
     is_part = path != base_path
     # T-10298 (SPEC-0151) — report-only anchor-rule WARN on the POST-edit record (reusing the record the

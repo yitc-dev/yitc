@@ -20,8 +20,8 @@ body: "## Scenario\n\nSomeone installs the methodology from a published release 
   the AI does not call that a fault: it explains how to satisfy the gate, or asks.\n\
   \n## Internal\n\nTHE EXTERNAL-INSTALLATION NO-DEAD-END CONTRACT. Scope: an EXTERNAL\
   \ INSTALLATION — a project running\nan engine installed from a published release\
-  \ (<workshop-spec>), where the person cannot change that\nengine and the kernel\
-  \ fix does not depend on them. The workshop's own degraded execution stays\n`patterns/emergency-mode.md`\
+  \ (SPEC-0195), where the person cannot change that\nengine and the kernel fix does\
+  \ not depend on them. The workshop's own degraded execution stays\n`patterns/emergency-mode.md`\
   \ unchanged; that pattern is this contract's procedure. Five rules.\n\n### 1. Eligibility\
   \ — a kernel defect, never a policy refusal\nOn an external installation a DEMONSTRATED\
   \ defect or missing capability in the installed kernel\nmust not dead-end project\
@@ -88,8 +88,8 @@ body: "## Scenario\n\nSomeone installs the methodology from a published release 
   \ §Anti-pattern, CHARTER §P7); an unknown fixing release and a declined public intake\n\
   would leave nothing to reconcile against (rule 4); a pattern plus one policy line\
   \ is not an\nauthority for an exception with its own entry, safety and exit rules\
-  \ (this spec). No existing\nspec owned it: <workshop-spec> owns the release artifact\
-  \ and install/update, SPEC-0197 the intake.\n\n## Verification\n\n- **VP1:** `tests/test_t12951_adopter_no_dead_end_contract.py`\
+  \ (this spec). No existing\nspec owned it: SPEC-0195 owns the release artifact and\
+  \ install/update, SPEC-0197 the intake.\n\n## Verification\n\n- **VP1:** `tests/test_t12951_adopter_no_dead_end_contract.py`\
   \ — `graph query SPEC-1000` resolves;\n  the body separates kernel defect from policy\
   \ refusal and lists all four floor categories;\n  `patterns/emergency-mode.md` and\
   \ SPEC-0197 point here.\n- **VP2 (delivery):** discovery today runs AGENTS-SESSIONS\
@@ -99,6 +99,7 @@ body: "## Scenario\n\nSomeone installs the methodology from a published release 
   \ policy refusals do not; `release update` lists open\n  workaround lessons joined\
   \ to their realm:kernel deviation (`tests/test_t12952_kernel_defect_escape.py`).\n"
 cites:
+- SPEC-0195
 - SPEC-0197
 - SPEC-0085
 - SPEC-0090

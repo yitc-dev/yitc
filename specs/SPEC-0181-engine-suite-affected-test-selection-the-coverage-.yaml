@@ -827,5 +827,5 @@ implements_signature:
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0
-  bin/lib/verify_runner.py#_shadow_select: de2d23bdeecf2ddbbb16ce319fa0c93792a075ee2a508fc40c6d30566bb91e84
+  bin/lib/verify_runner.py#_shadow_select: 628730f15c2f65f73f7fa4ab55d2a13d7228774519faa44ec33422b4edf256f9
   bin/lib/verify_runner.py#governed_selection: cea15af5b8c5d8ddd19594b1062d030f0dc38e85ac329616aaf960e7c8c1d20c

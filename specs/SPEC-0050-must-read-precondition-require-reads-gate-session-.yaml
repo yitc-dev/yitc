@@ -599,7 +599,7 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 58301348f06fbf68c078147cd57f91b7a5f31579fef69514eea5913c15c83c24
+  bin/lib/audit.py#cmd_audit: 1b75f41b1711752f4e93106f23b15bff44030bbd65d720ef565273ba9a16f087
   bin/lib/cli.py#_deliver_stage_bundle_contracts: bc03fe81c903fc48ae82a8f604632810aa542d9c654e06eee6cdff99d1a2ecef
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
   bin/lib/events.py#_emit_cli_invoked: 83fa38666a44a4f694dbb219f4863e661550d724cd3c0eb31aecac56f774854e
@@ -608,8 +608,8 @@ implements_signature:
   bin/lib/gates.py#_require_seed_read: 02efe8b5f67e0e05610a0a98a305b5b790cc0da7b0c6b5ccbdcada360394d6b6
   bin/lib/gates.py#_seed_receipt_epochs: 1fd06ce74f223c807742191c68e5d737d7cb07406effeb8cee3d396335b80779
   bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
-  bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3
+  bin/lib/plan.py#cmd_plan_check: e18aee98679bf1bc1a086578da0cec06a4c64e1cee12fc260723664e3c0899cd
   bin/lib/session.py#session_epoch: 09738dbd94ed367566655e76f73370e87e2775a935acc00a6c40df3edc7d15d0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
+  bin/lib/task.py#cmd_task_close: 2e45dc77f3ce5744747144d9bf3abd1546378770e2006899ace13c1d48056746
   bin/lib/task.py#cmd_task_commit: d52e5309b3dd543695f7834278495eb8a091b878fa5ba01f9c47f7e28f25300f

@@ -331,213 +331,241 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ tests, this body carries the rule). ONE constant is consumed verbatim by the `task\
   \ close`\nE-0005 WARN, the Execution/Closure stage cue and the SPEC-0119 rule-31\
   \ debt remedy, so no surface\ncan spell the grammar differently from the resolver\
-  \ that enforces it.\n\n#### The GATE class — a kernel land-verify gate that journals\
-  \ nothing on PASS\nA KERNEL-side gate runs inside the pinned verify suite at every\
-  \ land and writes nothing when it\nPASSES, so none of the forms above can cite it.\
-  \ A ref may therefore name the GATE'S TEST FILE against\nan exact, pinned `land_completed`\
-  \ row — spelled `land_completed@<iso-ts>#gate=<test-file>`, and the\nKERNEL arm\
-  \ of the observation form below is spelled `test:<repo-relative test path>::<node>&contrast=<node>`.\n\
-  Those two spellings are the ONLY concrete forms this body states, and they are not\
-  \ a second grammar:\neach is a verbatim substring of the one author-facing constant\
-  \ the code homes and every surface\nconsumes, pinned that way by a test. The FULL\
-  \ rendered list stays in that constant (SPEC-0005 §3).\n\nIt resolves only when\
-  \ that row is a REAL POST-SHIP reading: the land SUCCEEDED, ran on a branch OTHER\n\
-  than the citing task's own AND LATER than that task's own last successful land,\
-  \ and (a) the named\npath matches the VERIFY RUNNER'S OWN discovery rule, the flat\
-  \ `tests/test_*.py` glob; (b) that file\nEXISTS AT THE CITED ROW'S LANDED REVISION;\
-  \ and (c) the row is a FULL, FAIL-CLOSED RUN — it carries a\n`verify_mode` saying\
-  \ the verify actually ran and was not the policy-off leg, it carries NO\n`verify_metrics.selection_ran_tests`\
-  \ (checked INDEPENDENTLY of the counts, and REFUSING whatever they\nsay), and its\
-  \ `verify_metrics.test_file_count` EQUALS the number of `tests/test_*.py` files\n\
-  discoverable at that same revision. A SELECTED or partial run, a narrowed-run marker,\
-  \ a count\nmismatch, a missing `verify_mode`/`test_file_count`, or an unresolvable\
-  \ sha resolves NOTHING, and the\nreader says which of these failed. A citing task\
-  \ with no landed ship of its own resolves nothing.\n\nNO NEW PAYLOAD WAS ADDED TO\
-  \ `land` TO CARRY THIS. HONEST BOUND: it proves the gate FILE ran inside a\nverify\
-  \ that passed, never that one assertion inside it did — close checks the claim is\
-  \ CHECKABLE,\naudit-post checks it is TRUE.\n\n#### The CONSUMER arm — a mechanism\
-  \ that emits no journal line at all (X-0730)\nConsumer PRODUCT code emits IN-PROCESS\
-  \ events to a listener, observed by its test run, never a yitc\njournal line — so\
-  \ the event carrier is unsatisfiable by construction for a consumer product task\n\
-  (`lessons/kernel-consumer-boundary-evidence.md`; the `_is_consumer_build` branch).\
-  \ The same holds\non the KERNEL for a narrower class: a report-only STDOUT view,\
-  \ or a reading whose carrier is a\ncommitted artifact (SPEC-0119 rule 31 records\
-  \ the class from the debt view's side).\n\nON THE KERNEL THE ARM IS ADMITTED UNDER\
-  \ A STRICTLY STRONGER BOUND: the ref must ALSO name a second,\nDISTINCT RED-CONTRAST\
-  \ node, and BOTH nodes must be real DEFINITIONS in the one named test surface —\n\
-  not merely text occurring somewhere in it. An UNKNOWN realm takes the kernel reading.\
-  \ It proves the\ntwo nodes EXIST as definitions; it does not prove either RAN, nor\
-  \ that the contrast produced the\nopposite outcome — close checks the claim is CHECKABLE,\
-  \ audit-post checks it is TRUE.\n\nON A CONSUMER INSTANCE the arm carries its ORIGINAL,\
-  \ WEAKER bound: a machine-evidence ref may name the\nexecutable TEST NODE that OBSERVED\
-  \ the in-process emission — ONE node, with no red-contrast node\nrequired. It resolves\
-  \ only against a real test SURFACE that EXISTS in the repo and carries that node;\n\
-  an arbitrary repo file, an absent file, or a half-spelled ref resolves nothing (fail-closed).\
-  \ The two\narms are ONE form read at two strengths, NOT a consumer-exclusive permission;\
-  \ a contrast node named\non a consumer ref is CHECKED rather than swallowed.\n\n\
-  **The FORM widens; the REQUIREMENT does not.** The named differential failing input\
-  \ stays mandatory,\nand the demand for a resolvable machine reference stays. It\
-  \ is NOT a re-admission of `tests_passed`\n(an aggregate earned alike by every task);\
-  \ this names ONE node asserting the mechanism's OWN\nemission. The concrete ref\
-  \ spelling lives in the code + its tests (SPEC-0005 §3).\n\n**What this blocklist\
-  \ does NOT reach — an AC's NAMED VERIFIER.** It governs ONE slot — what\nmay appear\
-  \ inside a P8 event's evidence payload — never the executable test SPEC-0060 §4\
-  \ asks each AC\nto name, which stays entirely legitimate. A criterion WRITTEN to\
-  \ demand that its own P8 payload cite\nits own test run is unsatisfiable by construction;\
-  \ the authoring rule against it is homed at SPEC-0060\n§4 (P5).\n\n**The honest\
-  \ BOUND of this predicate.** It rejects prose and circularity and forces the closer\
-  \ to\nNAME a resolvable machine event plus the differential; it CANNOT judge whether\
-  \ that event is\nSEMANTICALLY the right evidence — that belongs to the audit-post\
-  \ differential-probe lens (SPEC-0036\n§audit-post overlay). Close checks the claim\
-  \ is CHECKABLE, audit-post checks it is TRUE. Neither is a\nhard gate.\n\n#### The\
-  \ payload contract is DELIVERED at composition time, not first at the WARN (X-0342)\n\
-  The two keys the predicate above demands are CUED to the composer BEFORE the event\
-  \ is written — at the\n`stage` Execution and Closure entries of a `class: infra`\
-  \ task. The cue string is single-SoT in code and CONSUMED by BOTH the\nstage-entry\
-  \ print and the E-0005 WARN, so the WARN can never again be the FIRST surface to\
-  \ name the\nkeys, and the two surfaces cannot drift apart. This is a DELIVERY-point\
-  \ rule (print-only, on an\nexisting verb — no gate, no detector, no new field);\
-  \ the concrete key spelling stays in the code +\nits tests (SPEC-0005 §3).\n\n###\
-  \ Event-based P8 adoption evidence: emit during Execution, BEFORE the first audit-post\
-  \ (E-0008 sub-cause 2)\nWhen the P8 carrier is an EVENT (`consumer_read_evidence`\
-  \ / `live_trigger_evidence`) rather than a\nprobe/state-check, emit that event DURING\
-  \ Execution (Stage 5) — BEFORE running the first audit-post\n(Stage 8) — NOT as\
-  \ Stage-9 closure work. Emission is a SESSION ACTION (the session runs\n`bin/yitc-v2\
-  \ event consumer_read_evidence / live_trigger_evidence`); V2 has NO automated emitter\
-  \ code\npath and this rule adds none (CHARTER non-goal #7 — no enforcement detector).\
-  \ The event is emitted\nONCE, at Execution; Stage 9 then merely\nVERIFIES the already-present\
-  \ evidence (the auto-detect above reads it) — it does NOT re-emit it, so\nthere\
-  \ is no duplicate Stage-9 emission. Rationale: audit-post surfaces the task's P8\
-  \ events from the\njournal (the `### Adoption evidence` prompt section); an event\
-  \ deferred to Stage 9 is absent there,\ncan false-RED, and burns an audit-loop ceiling\
-  \ pass on sound work. (An ORDERING clarification — no\nnew mechanism, field, or\
-  \ flag.)\n\n### Infra adoption probe MUST exercise the CONSUMER round-trip, not\
-  \ just producer-emit\nAn infra-class adoption probe (CHARTER §Principle 8) must\
-  \ drive a REAL active artifact through the\nWHOLE consumer round-trip — every validator\
-  \ + `land` — NOT merely the producer emitting an event or a\ntest asserting the\
-  \ EMPTY pre-consumer state (`delivered == [] until <future task>` is a HALF-SYSTEM\n\
-  GREEN, a RED FLAG). This EXTENDS the CHARTER §P8 evidence definitions (no new mechanism,\
-  \ field, or\ngate). The authoring-side mirror is homed in SPEC-0013 §\"Introducing\
-  \ a NEW binding-token class is\nONE atomic claim\".\n\n### Report-only print-class\
-  \ adoption: the carrier is a real-subprocess test-probe, NOT a journal event\nA\
-  \ REPORT-ONLY PRINT-CLASS mechanism is an advisory stdout prompt that emits NO journal\
-  \ event BY\nDESIGN, so §The EVENT carrier is structurally unsatisfiable for it.\
-  \ The STANDING RULE :\n**for a report-only print-class mechanism the P8 adoption\
-  \ carrier is a NAMED TEST-PROBE that drives a\nREAL `-C <verb>` subprocess (e.g.\
-  \ `-C <consumer> init`) and asserts the print APPEARS on stdout,\npaired with its\
-  \ DIFFERENTIAL — a mutation that SILENCES or mis-emits the print flips the assertion\n\
-  RED.** Requiring such a prompt to EMIT a correlated journal event instead is declined\
-  \ (CHARTER §P1\nF1/F2). This does NOT resurrect the RETIRED probe-KEY carrier: the\
-  \ evidence is an EXECUTING\nsubprocess round-trip plus a mutation differential,\
-  \ never a probe's name.\n\n### Land-emitted verify-layer ships: the carrier is a\
-  \ layer-row-scoped `land_completed` ref\nA LAND-EMITTED VERIFY-LAYER SHIP is a task\
-  \ whose deliverable is a `verify.layers` wiring (SPEC-0093\nrule 16): its only mechanism\
-  \ trace is the per-layer outcome `land` records on its own land event —\nthe record\
-  \ §The EVENT carrier refuses as closure bookkeeping. Stage 8 already sanctions the\
-  \ same\nabsence (SPEC-0036 variant (d), `audit post --land-emitted-event`).\n\n\
-  **The STANDING RULE.** For a land-emitted verify-layer ship the P8 adoption carrier\
-  \ is a P8 event\nwhose machine-evidence reference is a LAYER-ROW REFERENCE — it\
-  \ names the land record AND the one\nverify layer the ship, rather than the land\
-  \ record alone. It reads as adoption ONLY with the\ncorrelation a bare land record\
-  \ lacks — ALL FOUR: (i) the named land record exists; (ii) it shows that\nlayer\
-  \ PASSING (a failed / timed-out / waived / malformed outcome is the broken-subject\
-  \ half of the\nprobe, never adoption); (iii) the land is the SHIP'S OWN (a land\
-  \ record carries no task id — the\nbranch it does carry is the correlation); and\
-  \ (iv) THIS SHIP is what put THIS command behind THIS\nlayer name. The differential\
-  \ failing input stays demanded independently, so the carve-out cannot\nre-admit\
-  \ prose.\n\n**Condition (iv) has TWO proofs — the layer is NEW, or this ship REWIRED\
-  \ it.** NOVELTY — no\nearlier land ran that layer; or REWIRE — the layer already\
-  \ existed and THIS SHIP'S DIFF changed the\nDEFINITION behind its name. **The definition\
-  \ is the layer's command AND its declared time bound\n** — the bound the project's\
-  \ ops contract declares for that layer: the layer's own, else the\nproject-level\
-  \ default it inherits (SPEC-0152 rule 16 owns both declarations). So a ship whose\
-  \ whole\nchange is a layer's declared bound is a rewire on the same terms as one\
-  \ that changes its command;\nbefore only the command counted, and such a ship had\
-  \ no resolvable reference. The per-host\nenvironment override of that bound is NOT\
-  \ part of the definition: it is a property of the machine a\nland ran on, never\
-  \ of the ship's diff. A layer that declares no bound at either level, on both sides\n\
-  of the diff, is judged on its command alone, exactly as before.\n\n**The rewire\
-  \ proof is RECORDED BY LAND, never inferred by the reader.** Land compares the layer's\n\
-  declared definition in the ship's tree against the commit it integrates onto and\
-  \ records the verdict\non that layer's row. Each row of a layer that executed also\
-  \ records the bound it actually ran under\nand which rung supplied it, so the land\
-  \ that ships a declared bound shows that bound in\nforce — a report-only reading\
-  \ beside the verdict, which no gate reads. The reader must NOT infer a rewire by\
-  \ comparing rows across lands. FAIL-CLOSED: an\nabsent or non-affirmative record\
-  \ is UNKNOWN, never «changed».\n\nConditions (iii) + (iv) are what make this EVIDENCE:\
-  \ an ordinary task citing a PRE-EXISTING, UNCHANGED\nlayer row on its own land is\
-  \ still refused. A BARE land-record reference (and one that pins a land\nbut names\
-  \ no layer) stays REFUSED, here and everywhere; the layer-scoped form is the ONE\
-  \ sanctioned\nexception. The reference spelling and the rewire-verdict row field\
-  \ live in the code + its tests\n(SPEC-0005 §3).\n\n**ORDERING.** The row is LAND-emitted,\
-  \ so the ship's own pre-land close legitimately still WARNs; the\ncarrier is read\
-  \ at a POST-land seam (the post-land P8 emit, and any later recovery / re-close\
-  \ / audit\nread). It does not manufacture adoption before the land that proves it.\n\
-  \n### Verify-refusal ships: the carrier is a refusal-row-scoped `land_completed`\
-  \ ref\nA VERIFY-REFUSAL SHIP is a task whose shipped MECHANISM IS THE LAND-VERIFY\
-  \ GATE: its running is the\ngate REFUSING an integration, and its only trace is\
-  \ the land record's own abort row.\n\n**The STANDING RULE.** For a verify-refusal\
-  \ ship the P8 adoption carrier is a P8 event whose\nmachine-evidence reference is\
-  \ a REFUSAL-ROW REFERENCE — it names the land record, the branch, AND the\ncheck\
-  \ whose failure the gate refused on. It reads as adoption ONLY with ALL FIVE: (i)\
-  \ the named land\nrecord exists; (ii) it is an ABORT — a SUCCESS-status record is\
-  \ the closure bookkeeping the refusal\nexists to be distinguished from, and is never\
-  \ adoption; (iii) the abort is a VERIFY REFUSAL from the\nreal verify run — an abort\
-  \ raised before the gate ran (a preflight / dirty-tree / wrong-checkout\nrefusal)\
-  \ witnesses nothing, and an untagged record fails closed; (iv) the branch is the\
-  \ CLOSING\nTASK'S OWN — a land record carries no task id, the branch is the correlation\
-  \ it does carry, and\nbinding it to the closing task is what refuses another task's\
-  \ genuine refusal record; and (v) the\nrecord NAMES the check the reference names.\
-  \ The differential failing input stays demanded\nindependently.\n\n**Condition (v)\
-  \ is the load-bearing one.** Status and branch alone would give every task whose\
-  \ own\nland ever aborted on a failed verify a citable record (the «ordinary closure\
-  \ bookkeeping becomes\ncitable evidence» outcome); naming the check ties the record\
-  \ to the mechanism.\n\n**The sibling refusal is NOT re-opened.** A bare verify-refusal\
-  \ record carrying no named check stays\nREFUSED, as does a BARE land-record reference;\
-  \ the spelling lives in the code + its tests (SPEC-0005\n§3). The record is LAND-emitted,\
-  \ so it is read at a POST-land seam.\n\n### Work-first spec-activating (bootstrap)\
-  \ tasks: two-layer acceptance + the no-self-blocked-consumer topology rule\nA WORK-FIRST\
-  \ spec-activating task (its own `activation_owner_task` — `task close` is the SOLE\
-  \ writer of\nits spec's `proposed → active` flip, GRAPH §Spec-lifecycle / SPEC-0005\
-  \ rule 5) has acceptance that\nsplits across TWO lifecycle layers, verified at DIFFERENT\
-  \ stages:\n  - **Layer 1 — pre-close deliverables** (the spec body / wiring / the\
-  \ diff): verified by Stage-4\n    audit-pre + Stage-8 audit-post, like any substantive\
-  \ ship.\n  - **Layer 2 — post-close activation / adoption** (the spec reaching `active`;\
-  \ the CHARTER §P3/§P8\n    adoption probe): verified AT closure as a Stage-9 probe,\
-  \ because `task close` ITSELF performs the\n    activation. **At that write, `task\
-  \ close` reports (ACTIONABLE non-blocking WARN + honest-only\n    `dangling_activated_specs`\
-  \ / `dangling_check_failed` in `task_closed`) any just-activated spec the\n    land\
-  \ conformance predicate would flag as dangling/unknown-bound, naming the `spec edit\
-  \ <SPEC>`\n    remedy.** Refreshing that spec's `binding:` via `spec edit` BEFORE\
-  \ `land` is the\n    ACCEPTED recovery for a binding not declared on the proposed\
-  \ head before audit-post (SPEC-0005 §7)\n    — NOT a defect; `task close` neither\n\
-  \    auto-writes the token nor gates closure on it (SPEC-0005 §7 / CHARTER non-goal\
-  \ #7).\nSo **audit-pre / audit-post MUST NOT RED-flag a spec merely because it is\
-  \ not yet active** — its\nactivation is structurally Stage-9 work that FOLLOWS Stage-8.\
-  \ A missing or invalid `binding:` on the\nproposed head IS an audit target (SPEC-0005\
-  \ §7: the declaration precedes audit-post), so audit-post MAY\nflag it; only the\
-  \ not-yet-happened activation itself is off-limits (the event-emit-only category\
-  \ mismatch,\n`patterns/event-emit-only-audit-post.md`). The auditor evaluates Layer\
-  \ 1; the Layer-2 activation probe\nis a closure check, not an audit target.\n\n\
-  **No-AC-on-self-blocked-consumer (topology).** An adoption / AC probe MUST NOT depend\
-  \ on a downstream\nconsumer that THIS SAME task hard-blocks (the consumer's `requires:`\
-  \ includes this task) — that is\nCIRCULAR: the consumer cannot run until this task\
-  \ closes, yet this task cannot close until the\nconsumer demonstrates adoption.\
-  \ Instead EITHER (a) file a SEPARATE, independently CLAIMABLE probe\ntask (not `requires:`-ed\
-  \ on this one), OR (b) rely on the CHARTER §P8 inaugural-codification exemption\n\
-  + the FIRST real downstream claim as `live_trigger_evidence`. (ACs are authored\
-  \ by ONE provable claim\nper accept-unit — homed in <workshop-spec> §A; this clause\
-  \ adds only the topology constraint.)\n\n### Crash-atomic ordering\nThe Layer-2\
-  \ `proposed → active` activation write runs AFTER the durable `status: done` write,\
-  \ NOT\nbefore it (the atomic-closure ordering — `cmd_task_close`). The close is\
-  \ therefore a single atomic\noutcome: a crash ANYWHERE before the done-write leaves\
-  \ NOTHING flipped (specs stay `proposed`, the\ntask stays `in-progress` — a clean\
-  \ idempotent re-run); a crash BETWEEN the done-write and the\nactivation leaves\
-  \ a `done` task with un/partly-activated specs, healed idempotently by\n`_recover_close_tail`\
-  \ re-running the activation on the next `task close` (its `status==proposed` scan\n\
-  flips only what is still proposed). Pure ordering — no new mechanism; it reuses\
-  \ the existing\nidempotent-resume + `_recover_close_tail` recovery path.\n\n> **This\
-  \ body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
+  \ that enforces it.\n\n**A reference may name a row in a REGISTERED CONSUMER's journal\
+  \ — the `<project>:<form>` spelling\n.** An engine mechanism whose only production\
+  \ run happens on a consumer leaves its proof\nin THAT project's journal, where no\
+  \ reference could reach it (measured on : no engine land\nrow carries the payload\
+  \ key its mechanism writes; every land row of the consumer that runs it\ndoes).\
+  \ So a pinned event reference, or a land-row selector reference, may be prefixed\
+  \ with the\nproject's KEY in the host registry. The named project's journal — its\
+  \ archive and live segments —\nis then the ONLY corpus that reference is resolved\
+  \ against, under the conditions the form carries\nwithout the prefix, unchanged;\
+  \ this repository's journal cannot answer it, and that journal cannot\nanswer an\
+  \ unprefixed one.\nBOUNDS, each fail-closed. The prefix is the registry key of a\
+  \ project registered under this\nmethodology — never a path, and never the engine's\
+  \ own entry. The forms that are tied to THIS\nrepository take no prefix: the bare\
+  \ type (its tie is this task's id, which a consumer row never\ncarries), the scheduled\
+  \ run, the exit-status pair, the in-process test node and the gate row. The\ntwo\
+  \ land-row forms that bind the citing card's own branch keep that binding, so over\
+  \ a consumer\njournal they resolve only on a branch carrying that same task number;\
+  \ the pinned-event, abort-row\nand payload-key forms are the ones a card can use.\
+  \ The spelling is admitted only in a session\nPROVEN to be the engine's: a consumer\
+  \ session, or one whose realm is unknown, resolves nothing.\nAnd the read is READ-ONLY\
+  \ — no journal lock is taken on the consumer's side, nothing is written\nunder its\
+  \ tree, and no row is copied into this journal — the same read class as the\nregistry-enumerated\
+  \ folds the cross-project rollup (SPEC-0135 §2) and the serve gate (SPEC-1003\n\
+  rule 5) already make.\nThis is NOT an acceptance-criterion address. A kernel card\
+  \ still may not carry a criterion whose\nevidence is produced in a repository it\
+  \ cannot write to (SPEC-0060, the external-territory probe\ncue): the P8 payload\
+  \ row is written to THIS journal and resolved HERE, at read time. An in-place\n\
+  ADDITIVE extension (SPEC-0005 §additive-extension): it adds an answer for a class\
+  \ the rule left\nwith none, and alters no already-covered reference.\n\n#### The\
+  \ GATE class — a kernel land-verify gate that journals nothing on PASS\nA KERNEL-side\
+  \ gate runs inside the pinned verify suite at every land and writes nothing when\
+  \ it\nPASSES, so none of the forms above can cite it. A ref may therefore name the\
+  \ GATE'S TEST FILE against\nan exact, pinned `land_completed` row — spelled `land_completed@<iso-ts>#gate=<test-file>`,\
+  \ and the\nKERNEL arm of the observation form below is spelled `test:<repo-relative\
+  \ test path>::<node>&contrast=<node>`.\nThose two spellings are the ONLY concrete\
+  \ forms this body states, and they are not a second grammar:\neach is a verbatim\
+  \ substring of the one author-facing constant the code homes and every surface\n\
+  consumes, pinned that way by a test. The FULL rendered list stays in that constant\
+  \ (SPEC-0005 §3).\n\nIt resolves only when that row is a REAL POST-SHIP reading:\
+  \ the land SUCCEEDED, ran on a branch OTHER\nthan the citing task's own AND LATER\
+  \ than that task's own last successful land, and (a) the named\npath matches the\
+  \ VERIFY RUNNER'S OWN discovery rule, the flat `tests/test_*.py` glob; (b) that\
+  \ file\nEXISTS AT THE CITED ROW'S LANDED REVISION; and (c) the row is a FULL, FAIL-CLOSED\
+  \ RUN — it carries a\n`verify_mode` saying the verify actually ran and was not the\
+  \ policy-off leg, it carries NO\n`verify_metrics.selection_ran_tests` (checked INDEPENDENTLY\
+  \ of the counts, and REFUSING whatever they\nsay), and its `verify_metrics.test_file_count`\
+  \ EQUALS the number of `tests/test_*.py` files\ndiscoverable at that same revision.\
+  \ A SELECTED or partial run, a narrowed-run marker, a count\nmismatch, a missing\
+  \ `verify_mode`/`test_file_count`, or an unresolvable sha resolves NOTHING, and\
+  \ the\nreader says which of these failed. A citing task with no landed ship of its\
+  \ own resolves nothing.\n\nNO NEW PAYLOAD WAS ADDED TO `land` TO CARRY THIS. HONEST\
+  \ BOUND: it proves the gate FILE ran inside a\nverify that passed, never that one\
+  \ assertion inside it did — close checks the claim is CHECKABLE,\naudit-post checks\
+  \ it is TRUE.\n\n#### The CONSUMER arm — a mechanism that emits no journal line\
+  \ at all (X-0730)\nConsumer PRODUCT code emits IN-PROCESS events to a listener,\
+  \ observed by its test run, never a yitc\njournal line — so the event carrier is\
+  \ unsatisfiable by construction for a consumer product task\n(`lessons/kernel-consumer-boundary-evidence.md`;\
+  \ the `_is_consumer_build` branch). The same holds\non the KERNEL for a narrower\
+  \ class: a report-only STDOUT view, or a reading whose carrier is a\ncommitted artifact\
+  \ (SPEC-0119 rule 31 records the class from the debt view's side).\n\nON THE KERNEL\
+  \ THE ARM IS ADMITTED UNDER A STRICTLY STRONGER BOUND: the ref must ALSO name a\
+  \ second,\nDISTINCT RED-CONTRAST node, and BOTH nodes must be real DEFINITIONS in\
+  \ the one named test surface —\nnot merely text occurring somewhere in it. An UNKNOWN\
+  \ realm takes the kernel reading. It proves the\ntwo nodes EXIST as definitions;\
+  \ it does not prove either RAN, nor that the contrast produced the\nopposite outcome\
+  \ — close checks the claim is CHECKABLE, audit-post checks it is TRUE.\n\nON A CONSUMER\
+  \ INSTANCE the arm carries its ORIGINAL, WEAKER bound: a machine-evidence ref may\
+  \ name the\nexecutable TEST NODE that OBSERVED the in-process emission — ONE node,\
+  \ with no red-contrast node\nrequired. It resolves only against a real test SURFACE\
+  \ that EXISTS in the repo and carries that node;\nan arbitrary repo file, an absent\
+  \ file, or a half-spelled ref resolves nothing (fail-closed). The two\narms are\
+  \ ONE form read at two strengths, NOT a consumer-exclusive permission; a contrast\
+  \ node named\non a consumer ref is CHECKED rather than swallowed.\n\n**The FORM\
+  \ widens; the REQUIREMENT does not.** The named differential failing input stays\
+  \ mandatory,\nand the demand for a resolvable machine reference stays. It is NOT\
+  \ a re-admission of `tests_passed`\n(an aggregate earned alike by every task); this\
+  \ names ONE node asserting the mechanism's OWN\nemission. The concrete ref spelling\
+  \ lives in the code + its tests (SPEC-0005 §3).\n\n**What this blocklist does NOT\
+  \ reach — an AC's NAMED VERIFIER.** It governs ONE slot — what\nmay appear inside\
+  \ a P8 event's evidence payload — never the executable test SPEC-0060 §4 asks each\
+  \ AC\nto name, which stays entirely legitimate. A criterion WRITTEN to demand that\
+  \ its own P8 payload cite\nits own test run is unsatisfiable by construction; the\
+  \ authoring rule against it is homed at SPEC-0060\n§4 (P5).\n\n**The honest BOUND\
+  \ of this predicate.** It rejects prose and circularity and forces the closer to\n\
+  NAME a resolvable machine event plus the differential; it CANNOT judge whether that\
+  \ event is\nSEMANTICALLY the right evidence — that belongs to the audit-post differential-probe\
+  \ lens (SPEC-0036\n§audit-post overlay). Close checks the claim is CHECKABLE, audit-post\
+  \ checks it is TRUE. Neither is a\nhard gate.\n\n#### The payload contract is DELIVERED\
+  \ at composition time, not first at the WARN (X-0342)\nThe two keys the predicate\
+  \ above demands are CUED to the composer BEFORE the event is written — at the\n\
+  `stage` Execution and Closure entries of a `class: infra` task. The cue string is\
+  \ single-SoT in code and CONSUMED by BOTH the\nstage-entry print and the E-0005\
+  \ WARN, so the WARN can never again be the FIRST surface to name the\nkeys, and\
+  \ the two surfaces cannot drift apart. This is a DELIVERY-point rule (print-only,\
+  \ on an\nexisting verb — no gate, no detector, no new field); the concrete key spelling\
+  \ stays in the code +\nits tests (SPEC-0005 §3).\n\n### Event-based P8 adoption\
+  \ evidence: emit during Execution, BEFORE the first audit-post (E-0008 sub-cause\
+  \ 2)\nWhen the P8 carrier is an EVENT (`consumer_read_evidence` / `live_trigger_evidence`)\
+  \ rather than a\nprobe/state-check, emit that event DURING Execution (Stage 5) —\
+  \ BEFORE running the first audit-post\n(Stage 8) — NOT as Stage-9 closure work.\
+  \ Emission is a SESSION ACTION (the session runs\n`bin/yitc-v2 event consumer_read_evidence\
+  \ / live_trigger_evidence`); V2 has NO automated emitter code\npath and this rule\
+  \ adds none (CHARTER non-goal #7 — no enforcement detector). The event is emitted\n\
+  ONCE, at Execution; Stage 9 then merely\nVERIFIES the already-present evidence (the\
+  \ auto-detect above reads it) — it does NOT re-emit it, so\nthere is no duplicate\
+  \ Stage-9 emission. Rationale: audit-post surfaces the task's P8 events from the\n\
+  journal (the `### Adoption evidence` prompt section); an event deferred to Stage\
+  \ 9 is absent there,\ncan false-RED, and burns an audit-loop ceiling pass on sound\
+  \ work. (An ORDERING clarification — no\nnew mechanism, field, or flag.)\n\n###\
+  \ Infra adoption probe MUST exercise the CONSUMER round-trip, not just producer-emit\n\
+  An infra-class adoption probe (CHARTER §Principle 8) must drive a REAL active artifact\
+  \ through the\nWHOLE consumer round-trip — every validator + `land` — NOT merely\
+  \ the producer emitting an event or a\ntest asserting the EMPTY pre-consumer state\
+  \ (`delivered == [] until <future task>` is a HALF-SYSTEM\nGREEN, a RED FLAG). This\
+  \ EXTENDS the CHARTER §P8 evidence definitions (no new mechanism, field, or\ngate).\
+  \ The authoring-side mirror is homed in SPEC-0013 §\"Introducing a NEW binding-token\
+  \ class is\nONE atomic claim\".\n\n### Report-only print-class adoption: the carrier\
+  \ is a real-subprocess test-probe, NOT a journal event\nA REPORT-ONLY PRINT-CLASS\
+  \ mechanism is an advisory stdout prompt that emits NO journal event BY\nDESIGN,\
+  \ so §The EVENT carrier is structurally unsatisfiable for it. The STANDING RULE\
+  \ :\n**for a report-only print-class mechanism the P8 adoption carrier is a NAMED\
+  \ TEST-PROBE that drives a\nREAL `-C <verb>` subprocess (e.g. `-C <consumer> init`)\
+  \ and asserts the print APPEARS on stdout,\npaired with its DIFFERENTIAL — a mutation\
+  \ that SILENCES or mis-emits the print flips the assertion\nRED.** Requiring such\
+  \ a prompt to EMIT a correlated journal event instead is declined (CHARTER §P1\n\
+  F1/F2). This does NOT resurrect the RETIRED probe-KEY carrier: the evidence is an\
+  \ EXECUTING\nsubprocess round-trip plus a mutation differential, never a probe's\
+  \ name.\n\n### Land-emitted verify-layer ships: the carrier is a layer-row-scoped\
+  \ `land_completed` ref\nA LAND-EMITTED VERIFY-LAYER SHIP is a task whose deliverable\
+  \ is a `verify.layers` wiring (SPEC-0093\nrule 16): its only mechanism trace is\
+  \ the per-layer outcome `land` records on its own land event —\nthe record §The\
+  \ EVENT carrier refuses as closure bookkeeping. Stage 8 already sanctions the same\n\
+  absence (SPEC-0036 variant (d), `audit post --land-emitted-event`).\n\n**The STANDING\
+  \ RULE.** For a land-emitted verify-layer ship the P8 adoption carrier is a P8 event\n\
+  whose machine-evidence reference is a LAYER-ROW REFERENCE — it names the land record\
+  \ AND the one\nverify layer the ship, rather than the land record alone. It reads\
+  \ as adoption ONLY with the\ncorrelation a bare land record lacks — ALL FOUR: (i)\
+  \ the named land record exists; (ii) it shows that\nlayer PASSING (a failed / timed-out\
+  \ / waived / malformed outcome is the broken-subject half of the\nprobe, never adoption);\
+  \ (iii) the land is the SHIP'S OWN (a land record carries no task id — the\nbranch\
+  \ it does carry is the correlation); and (iv) THIS SHIP is what put THIS command\
+  \ behind THIS\nlayer name. The differential failing input stays demanded independently,\
+  \ so the carve-out cannot\nre-admit prose.\n\n**Condition (iv) has TWO proofs —\
+  \ the layer is NEW, or this ship REWIRED it.** NOVELTY — no\nearlier land ran that\
+  \ layer; or REWIRE — the layer already existed and THIS SHIP'S DIFF changed the\n\
+  DEFINITION behind its name. **The definition is the layer's command AND its declared\
+  \ time bound\n** — the bound the project's ops contract declares for that layer:\
+  \ the layer's own, else the\nproject-level default it inherits (SPEC-0152 rule 16\
+  \ owns both declarations). So a ship whose whole\nchange is a layer's declared bound\
+  \ is a rewire on the same terms as one that changes its command;\nbefore only the\
+  \ command counted, and such a ship had no resolvable reference. The per-host\nenvironment\
+  \ override of that bound is NOT part of the definition: it is a property of the\
+  \ machine a\nland ran on, never of the ship's diff. A layer that declares no bound\
+  \ at either level, on both sides\nof the diff, is judged on its command alone, exactly\
+  \ as before.\n\n**The rewire proof is RECORDED BY LAND, never inferred by the reader.**\
+  \ Land compares the layer's\ndeclared definition in the ship's tree against the\
+  \ commit it integrates onto and records the verdict\non that layer's row. Each row\
+  \ of a layer that executed also records the bound it actually ran under\nand which\
+  \ rung supplied it, so the land that ships a declared bound shows that bound in\n\
+  force — a report-only reading beside the verdict, which no gate reads. The reader\
+  \ must NOT infer a rewire by comparing rows across lands. FAIL-CLOSED: an\nabsent\
+  \ or non-affirmative record is UNKNOWN, never «changed».\n\nConditions (iii) + (iv)\
+  \ are what make this EVIDENCE: an ordinary task citing a PRE-EXISTING, UNCHANGED\n\
+  layer row on its own land is still refused. A BARE land-record reference (and one\
+  \ that pins a land\nbut names no layer) stays REFUSED, here and everywhere; the\
+  \ layer-scoped form is the ONE sanctioned\nexception. The reference spelling and\
+  \ the rewire-verdict row field live in the code + its tests\n(SPEC-0005 §3).\n\n\
+  **ORDERING.** The row is LAND-emitted, so the ship's own pre-land close legitimately\
+  \ still WARNs; the\ncarrier is read at a POST-land seam (the post-land P8 emit,\
+  \ and any later recovery / re-close / audit\nread). It does not manufacture adoption\
+  \ before the land that proves it.\n\n### Verify-refusal ships: the carrier is a\
+  \ refusal-row-scoped `land_completed` ref\nA VERIFY-REFUSAL SHIP is a task whose\
+  \ shipped MECHANISM IS THE LAND-VERIFY GATE: its running is the\ngate REFUSING an\
+  \ integration, and its only trace is the land record's own abort row.\n\n**The STANDING\
+  \ RULE.** For a verify-refusal ship the P8 adoption carrier is a P8 event whose\n\
+  machine-evidence reference is a REFUSAL-ROW REFERENCE — it names the land record,\
+  \ the branch, AND the\ncheck whose failure the gate refused on. It reads as adoption\
+  \ ONLY with ALL FIVE: (i) the named land\nrecord exists; (ii) it is an ABORT — a\
+  \ SUCCESS-status record is the closure bookkeeping the refusal\nexists to be distinguished\
+  \ from, and is never adoption; (iii) the abort is a VERIFY REFUSAL from the\nreal\
+  \ verify run — an abort raised before the gate ran (a preflight / dirty-tree / wrong-checkout\n\
+  refusal) witnesses nothing, and an untagged record fails closed; (iv) the branch\
+  \ is the CLOSING\nTASK'S OWN — a land record carries no task id, the branch is the\
+  \ correlation it does carry, and\nbinding it to the closing task is what refuses\
+  \ another task's genuine refusal record; and (v) the\nrecord NAMES the check the\
+  \ reference names. The differential failing input stays demanded\nindependently.\n\
+  \n**Condition (v) is the load-bearing one.** Status and branch alone would give\
+  \ every task whose own\nland ever aborted on a failed verify a citable record (the\
+  \ «ordinary closure bookkeeping becomes\ncitable evidence» outcome); naming the\
+  \ check ties the record to the mechanism.\n\n**The sibling refusal is NOT re-opened.**\
+  \ A bare verify-refusal record carrying no named check stays\nREFUSED, as does a\
+  \ BARE land-record reference; the spelling lives in the code + its tests (SPEC-0005\n\
+  §3). The record is LAND-emitted, so it is read at a POST-land seam.\n\n### Work-first\
+  \ spec-activating (bootstrap) tasks: two-layer acceptance + the no-self-blocked-consumer\
+  \ topology rule\nA WORK-FIRST spec-activating task (its own `activation_owner_task`\
+  \ — `task close` is the SOLE writer of\nits spec's `proposed → active` flip, GRAPH\
+  \ §Spec-lifecycle / SPEC-0005 rule 5) has acceptance that\nsplits across TWO lifecycle\
+  \ layers, verified at DIFFERENT stages:\n  - **Layer 1 — pre-close deliverables**\
+  \ (the spec body / wiring / the diff): verified by Stage-4\n    audit-pre + Stage-8\
+  \ audit-post, like any substantive ship.\n  - **Layer 2 — post-close activation\
+  \ / adoption** (the spec reaching `active`; the CHARTER §P3/§P8\n    adoption probe):\
+  \ verified AT closure as a Stage-9 probe, because `task close` ITSELF performs the\n\
+  \    activation. **At that write, `task close` reports (ACTIONABLE non-blocking\
+  \ WARN + honest-only\n    `dangling_activated_specs` / `dangling_check_failed` in\
+  \ `task_closed`) any just-activated spec the\n    land conformance predicate would\
+  \ flag as dangling/unknown-bound, naming the `spec edit <SPEC>`\n    remedy.** Refreshing\
+  \ that spec's `binding:` via `spec edit` BEFORE `land` is the\n    ACCEPTED recovery\
+  \ for a binding not declared on the proposed head before audit-post (SPEC-0005 §7)\n\
+  \    — NOT a defect; `task close` neither\n    auto-writes the token nor gates closure\
+  \ on it (SPEC-0005 §7 / CHARTER non-goal #7).\nSo **audit-pre / audit-post MUST\
+  \ NOT RED-flag a spec merely because it is not yet active** — its\nactivation is\
+  \ structurally Stage-9 work that FOLLOWS Stage-8. A missing or invalid `binding:`\
+  \ on the\nproposed head IS an audit target (SPEC-0005 §7: the declaration precedes\
+  \ audit-post), so audit-post MAY\nflag it; only the not-yet-happened activation\
+  \ itself is off-limits (the event-emit-only category mismatch,\n`patterns/event-emit-only-audit-post.md`).\
+  \ The auditor evaluates Layer 1; the Layer-2 activation probe\nis a closure check,\
+  \ not an audit target.\n\n**No-AC-on-self-blocked-consumer (topology).** An adoption\
+  \ / AC probe MUST NOT depend on a downstream\nconsumer that THIS SAME task hard-blocks\
+  \ (the consumer's `requires:` includes this task) — that is\nCIRCULAR: the consumer\
+  \ cannot run until this task closes, yet this task cannot close until the\nconsumer\
+  \ demonstrates adoption. Instead EITHER (a) file a SEPARATE, independently CLAIMABLE\
+  \ probe\ntask (not `requires:`-ed on this one), OR (b) rely on the CHARTER §P8 inaugural-codification\
+  \ exemption\n+ the FIRST real downstream claim as `live_trigger_evidence`. (ACs\
+  \ are authored by ONE provable claim\nper accept-unit — homed in <workshop-spec>\
+  \ §A; this clause adds only the topology constraint.)\n\n### Crash-atomic ordering\n\
+  The Layer-2 `proposed → active` activation write runs AFTER the durable `status:\
+  \ done` write, NOT\nbefore it (the atomic-closure ordering — `cmd_task_close`).\
+  \ The close is therefore a single atomic\noutcome: a crash ANYWHERE before the done-write\
+  \ leaves NOTHING flipped (specs stay `proposed`, the\ntask stays `in-progress` —\
+  \ a clean idempotent re-run); a crash BETWEEN the done-write and the\nactivation\
+  \ leaves a `done` task with un/partly-activated specs, healed idempotently by\n\
+  `_recover_close_tail` re-running the activation on the next `task close` (its `status==proposed`\
+  \ scan\nflips only what is still proposed). Pure ordering — no new mechanism; it\
+  \ reuses the existing\nidempotent-resume + `_recover_close_tail` recovery path.\n\
+  \n> **This body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
   > (SPEC-0120 §3 split) — §Audit-stage YAMLs … §Verification. `graph query SPEC-0015`\
   \ serves both.\n"
 cites:

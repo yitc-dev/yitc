@@ -235,10 +235,46 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ as at session start, a seed body is read\nwhen its surface becomes relevant, before\
   \ the governed action (§5a). The separately-required STATE\nre-folds (`cross outbox`/`cross\
   \ inbox`, `debt`, `session handoff list`, `frontend-errors`, `audit\nstatus`) are\
-  \ unchanged — they restore start-time state, not seed rules.\n**The start report\
-  \ states its own end and each line's class.** `session start` ends with\nONE startup-done\
-  \ line — the last AGENT-facing line, printed immediately before the unchanged SPEC-0125\n\
-  rule 2c person-facing start line, which stays the final line. It names the one startup\
+  \ unchanged — they restore start-time state, not seed rules.\n**A receipt-only start\
+  \ repeats nothing the same context epoch already holds.** A `session\nstart` run\
+  \ in a linked worktree is receipt-only (SPEC-0119 rule 2 / SPEC-0086 rule 4). When\
+  \ the SAME\nsession already ran `session start` on the main checkout in the CURRENT\
+  \ context epoch — so its\ncontext holds the start block — that run prints only:\
+  \ the line naming the checkout its anchor was\nwritten to; the receipt-only line;\
+  \ one line saying the block is not repeated; what THIS checkout\nadds — the posture\
+  \ report derived from this checkout's own branch and worktree stamp (the own-task\n\
+  resume, the acting-in line, and the foreign-hold report naming the holder, which\
+  \ is a safety line\nand is never trimmed), a consumer's stale-scaffold and newer-release\
+  \ notices, and the in-worktree\nstage-contract delivery under its own SPEC-0050\
+  \ §4 rule; and the closing lines, ending in the\nstartup-done line and the person-facing\
+  \ line. It does NOT repeat the `binding:[seed]` line, the\nfiling-doctrine reference,\
+  \ the owner-cued lines read off the task corpus and the hand-off store, the\nself-ref\
+  \ and scratch-root lines of a ref the caller itself carried, or a consumer's read-order,\n\
+  project-context, kernel-reflex, rescan, buffer, floor-map and stage-entry pointers.\
+  \ What the run\nSTAMPS is unchanged: its `session_started` anchor and its per-checkout\
+  \ seed receipt (SPEC-0050 §8)\nare written exactly as on a full start. \"Already\
+  \ holds\" is decided only on positive proof —\nthe provider transcript of THIS conversation\
+  \ carries, since its last compaction, a tool result\nholding the whole output of\
+  \ a main-checkout `session start` of this repository (its head line, the\nseed line,\
+  \ the filing-doctrine line and the startup-done line — never the head line alone),\
+  \ and the newest seed receipt of the session on the\nmain checkout's journal is\
+  \ stamped with an epoch not older than the current — and every other state prints\
+  \ the full block: a session's\nfirst start (in a worktree or not), a dispatched\
+  \ Worker's first worktree start (the launcher's\npre-recorded receipt delivered\
+  \ nothing to its context), a start whose output was discarded, a ref carried into\n\
+  another conversation, and every main-checkout start. Post-`/compact` (route (a)):\
+  \ a\n`/compact` advances the epoch, so the sanctioned receipt-refresh re-run prints\
+  \ the full block again\nfrom the same carrier, in a worktree as on main — the seed-line\
+  \ and done-line re-delivery above is\nunchanged. Code home: `bin/lib/cli.py#_seed_cues_held_this_epoch`.\
+  \ Verification:\ntests/test_t13580_receipt_only_start_output.py — the repeat start\
+  \ prints none of the repeated lines\nand still writes its receipt; its differential\
+  \ arms (a first start in the worktree, a start after\nthe epoch advanced, a launcher-pre-recorded\
+  \ receipt, a discarded-output start, no transcript,\nanother provider session, the\
+  \ same ref carried into a second conversation) each print the full block; a foreign-held\
+  \ task worktree still names its\nholder.\n**The start report states its own end\
+  \ and each line's class.** `session start` ends with\nONE startup-done line — the\
+  \ last AGENT-facing line, printed immediately before the unchanged SPEC-0125\nrule\
+  \ 2c person-facing start line, which stays the final line. It names the one startup\
   \ step left (the\nsession-tied `--help` scan) and the posture's next move (the Controller\
   \ awaits the owner cue; a Worker\ncontinues its claimed task), and says nothing\
   \ else is to be opened at startup. Every OTHER echo line\nthat names a verb, a file\
@@ -330,21 +366,21 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ is byte-unchanged. The born\nconsumer `MEMORY.md` template (SPEC-0039) renders\
   \ its `graph query SPEC-0039` example in the SAME\nengine `-C` form for the same\
   \ reason; it is a durable file, so it survives `/compact` unaided.\n**Newer-release\
-  \ notice.** A consumer that PINS its engine (<workshop-spec> rule 3) ALSO gets,\
-  \ at\nmost once a UTC day, ONE report-only, suppressed-when-current line naming\
-  \ a newer published release\n(installed vs newest + the moved digit's rule-10 meaning);\
-  \ silent on any failure, it never delays or\nfails the start. It is an ECHO, not\
-  \ a seed line: its post-`/compact` re-fold is `release check`.\n\n### 5c. The seed\
-  \ is delivered in THREE audience tiers (amended by the trim-dispatched-worker plan)\n\
-  The always-loaded seed is NO LONGER one undifferentiated whole loaded identically\
-  \ by EVERY session\n(that delivery model is RETIRED — SPEC-0127 §7). It is partitioned\
-  \ into THREE audience tiers, and\neach session reads ONLY its own audience's union:\n\
-  \  - **`core`** — read by EVERY session: the anti-Forgetting / safety / write-flow\
-  \ floor a session of\n    ANY posture must hold. FAIL-SAFE default (SPEC-0127 §2):\
-  \ an untagged seed section resolves to\n    `core`, so a section is withheld from\
-  \ a Worker ONLY by an explicit `controller` tag, never by\n    omission.\n  - **`controller`**\
-  \ — the interactive Controller supplement, read IN ADDITION to `core` by the\n \
-  \   Controller ONLY: the orchestrate / dispatch-selector governance, the queue picker\
+  \ notice.** A consumer that PINS its engine (SPEC-0195 rule 3) ALSO gets, at\nmost\
+  \ once a UTC day, ONE report-only, suppressed-when-current line naming a newer published\
+  \ release\n(installed vs newest + the moved digit's rule-10 meaning); silent on\
+  \ any failure, it never delays or\nfails the start. It is an ECHO, not a seed line:\
+  \ its post-`/compact` re-fold is `release check`.\n\n### 5c. The seed is delivered\
+  \ in THREE audience tiers (amended by the trim-dispatched-worker plan)\nThe always-loaded\
+  \ seed is NO LONGER one undifferentiated whole loaded identically by EVERY session\n\
+  (that delivery model is RETIRED — SPEC-0127 §7). It is partitioned into THREE audience\
+  \ tiers, and\neach session reads ONLY its own audience's union:\n  - **`core`**\
+  \ — read by EVERY session: the anti-Forgetting / safety / write-flow floor a session\
+  \ of\n    ANY posture must hold. FAIL-SAFE default (SPEC-0127 §2): an untagged seed\
+  \ section resolves to\n    `core`, so a section is withheld from a Worker ONLY by\
+  \ an explicit `controller` tag, never by\n    omission.\n  - **`controller`** —\
+  \ the interactive Controller supplement, read IN ADDITION to `core` by the\n   \
+  \ Controller ONLY: the orchestrate / dispatch-selector governance, the queue picker\
   \ + bucket caps +\n    weekly-review triggers, the plan-lifecycle FSM + plan routing,\
   \ the controller startup\n    dispatch/resume-or-await + cross-coord echoes, and\
   \ the owner-facing Recommendation-Default /\n    register rules. A dispatched Worker\

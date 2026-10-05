@@ -187,4 +187,4 @@ binding:
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
   bin/lib/plan.py#_plan_accept_freshness_hash: 0571aad078c3e832c44ccb982039b5dee82a376c602af785fe6f15bc996d5890
-  bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3
+  bin/lib/plan.py#cmd_plan_check: e18aee98679bf1bc1a086578da0cec06a4c64e1cee12fc260723664e3c0899cd

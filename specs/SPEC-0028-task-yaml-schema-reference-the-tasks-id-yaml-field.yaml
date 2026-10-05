@@ -515,7 +515,28 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \     # absent audit record each REFUSE, so a BROKEN declaration can never\n   \
   \                            # disable the guard. Absent = the ordinary case (no\
   \ pinned suite is\n                               # this card's deliverable).\n\
-  \                               # Additive + optional (no drift #10).\n\nresolves_cross:\
+  \                               # Additive + optional (no drift #10).\n\nrefusal_set_change:\
+  \ # OPTIONAL — admits THIS card's deliberate move of the\n                     \
+  \          # rebaseline refusal set past AC5 freeze (a STANDING guard\n        \
+  \                       # over every refusal site + guard, decision / guard-read\
+  \ helper body\n                               # and admission verdict, against the\
+  \ merge-base). It carries a reason\n                               # and one entry\
+  \ per moved thing; layout: `tasks/_template.yaml`. The\n                       \
+  \        # reader (tests/_pinned_suite_edit.py, called by BOTH freeze tests)\n \
+  \                              # needs ALL FOUR admission legs per entry: (a) it\
+  \ names the moved\n                               # thing LITERALLY — kind, name,\
+  \ and for a site its guard and direction\n                               # (equality;\
+  \ no glob, prefix or basename); (b) its pinned state equals\n                  \
+  \             # the state the freeze MEASURED, so it admits one state, never a name;\n\
+  \                               # (c) a non-empty reason; (d) a GREEN/YELLOW `audit\
+  \ post` of this card\n                               # whose recorded commit is\
+  \ an immutable full commit id, is this\n                               # branch's\
+  \ own (reachable from HEAD, not from the merge-base) and whose\n               \
+  \                # tree, re-measured, carries that state. Only (d) is deferred,\
+  \ for the\n                               # declaring card, in its own Stage-6 run\
+  \ (SPEC-0077 marker); land\n                               # enforces it. An unnamed\
+  \ move fails as before; a landed declaration is\n                              \
+  \ # spent; anything unreadable or unmeasurable REFUSES. Absent = ordinary.\n\nresolves_cross:\
   \ [] # OPTIONAL structured task→cross link. The coordination item(s)\n         \
   \                      # (X-NNNN, SPEC-0085) this task RESOLVES. At `task close`\
   \ the receiver\n                               # auto-emits `cross_done` for each\
@@ -703,4 +724,4 @@ implements_signature:
   bin/lib/vocab.py#TASK_CLASSES: ee6f546d6976f100eb7a7210649b881cf0272a047ab1866ab54c4f3dd228c6dd
   bin/lib/vocab.py#TASK_FILING_STATUSES: a3f438ac70ae0ffb2c30813c12532aafe7e07a0af1396706e2a37bfcfb1ae44e
   bin/lib/vocab.py#TASK_PRIORITIES: c9e55aa7764415938acd55d1c1310d05aa36e285be560fde67a0dc1007093a7f
-  tasks/_template.yaml: 0d09b591ad21060fb5c44722489647ec4b8932bfae96671faf31ad330c8dae6d
+  tasks/_template.yaml: b83bd8443360055a218a7293a18c2fc80cf23c286f6dfe8b33ae656ea57ec7a3

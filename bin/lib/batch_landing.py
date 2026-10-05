@@ -3190,8 +3190,8 @@ def _land_batch_paying_members(members: "list[dict]", *, _changed_paths=None,
     "this member would have skipped its suite" conflated the inert CLASS with a skip that is in fact
     gated on `attempt > 1`, so a first-attempt bookkeeping land — the cheapest and most frequent
     class — was reported as saving nothing while it paid a full pass. `_classify_inert_paths` is
-    still the ONE inert authority and is still consumed, but only for the retry cohort that genuinely
-    skips.
+    still the ONE inert authority and is still consumed by the predicate — since T-13567 for a first
+    attempt as well as a retry, because T-13344 gave the first attempt a skip of its own.
 
     WHY THIS MUST BE SEPARABLE FROM `len(members)`. A batch of 4 that carries 1 paying member reads
     as "4.0 lands per pass" on the member count alone while it actually saved ONE pass. Reporting the
@@ -3549,8 +3549,9 @@ def _land_cost_class(member: dict, *, _changed_paths, _verify_touch,
     name only. Both ends of the old ladder were wrong about the cost they claimed to describe:
 
     RUNG 0 IS "THE SUITE WOULD NOT RUN", NEVER "THE PATHS CLASSIFY INERT". The old rung 0 read
-    `_classify_inert_paths(paths) == "inert"` directly, but the inert skip is LEVER B, gated on
-    `attempt > 1` — so a FIRST-attempt inert land runs the FULL suite and only its canary is skipped.
+    `_classify_inert_paths(paths) == "inert"` directly, but the only inert skip was then LEVER B,
+    gated on `attempt > 1` — so a FIRST-attempt inert land ran the FULL suite and only its canary
+    was skipped.
     Measured 2026-08-18: work/pinned-layer-project-switch ranked 0 while running a verify of
     422129 ms (reverify_skipped false, attempt_count 1) — ranked the cheapest thing in the repo while
     paying the most frequent full pass, so the slot was yielded TO the expensive branch. The question
@@ -3558,12 +3559,18 @@ def _land_cost_class(member: dict, *, _changed_paths, _verify_touch,
     pre-bound as `_would_run_suite`; this function no longer touches the inert authority at all (the
     predicate consumes it, for the retry cohort that genuinely skips).
 
-    IN THE KERNEL RUNG 0 IS NEARLY EMPTY BY CONSTRUCTION, and saying so is part of the rule. The
-    predicate answers attempt 1 as paying: T-13344 lets it skip only on a proof that needs the merged
-    tree, which this pre-merge rank cannot see, so the free kernel lands it can name are a RETRY whose
-    delta is inert and a land running no tests at all. The populated cheap rung lives on CONSUMERS, where a diff disjoint from every
-    declared layer's `subject_globs` really does run nothing. Reporting rung 0 as a populated cheap
-    class on both sides would be the same over-claim the retired inert proxy made.
+    IN A KERNEL-SUITE REPO RUNG 0 IS THE CODE-LESS COHORT (T-13567, owner directive 2026-10-05).
+    Since T-13344 a land none of whose attempts has verified skips the suite when its tree differs
+    from a GREEN tested tree only by inert paths no test names, so the predicate answers a member
+    whose OWN delta is all-inert as non-paying on attempt 1 as well as on a retry. A branch carrying
+    only cards, journal rows, audit and decision records therefore ranks 0: it batches with its own
+    kind and is scanned ahead of a live queue-jump mark (cohort < marked < paying). The answer is
+    taken PRE-merge, from the queue's own read of the branch's delta, and the skip it expects is
+    proven on the MERGED tree — so it can be wrong in one direction only: a member ranked 0 whose
+    proof then refuses pays its verify. That land says so on its terminal `land_completed` row, ok
+    or abort (`rung0_paid`, naming why it paid), which keeps the 2026-08-18 inversion COUNTABLE instead of
+    ruling it out by answering every first attempt as paying. On CONSUMERS rung 0 is populated as
+    before, through the declared layers a diff does not reach.
 
     RUNG 2 COLLAPSES TO RUNG 1 WHERE THE PINNED LEG IS OFF. Rung 2 is a SECOND pass, so it is only
     real if that pass will happen: SPEC-0186 lets a project declare `verify_policy.pinned_last_green:
@@ -4793,9 +4800,10 @@ def _land_member_would_run_suite(member: dict, *, engagement_reason, attempt, no
 
     ENGAGEMENT DECIDES WHOSE SUITE IT IS, and the question is authorship, never repo identity — the
     same predicate `_land_batch_engagement` already answers, consumed here rather than re-derived:
-      * `kernel-authored-verify` — the pinned suite. Attempt 1 is counted as PAYING (its T-13344 inert
-        skip is proven only on the merged tree, so "pays" is the fail-safe answer); a retry
-        pays only when its delta is not inert (lever B, skip reason `inert-retry-delta`).
+      * `kernel-authored-verify` — the pinned suite. A member pays only when its OWN delta is not
+        inert by the one SPEC-0064 authority — on attempt 1 and on a retry alike (T-13567). A retry
+        skips on lever B (`inert-retry-delta`); a first attempt skips on the T-13344 proof
+        (`inert-first-attempt-delta`).
       * `project-declared-combined-candidate-safe` — the project's own layers. The member pays only
         if some declared layer would actually RUN for its paths, asked through the SAME
         `subject_globs` authority the verify seam skips on — never through `covers:`, which names a
@@ -4804,11 +4812,22 @@ def _land_member_would_run_suite(member: dict, *, engagement_reason, attempt, no
         over-count it.
       * anything else — NOT ENGAGED, so no batch exists to attribute a saving to: None.
 
-    NOTE THE HONEST CONSEQUENCE. In the kernel every diffable member landing alone is attempt 1, and
-    attempt 1 pays — so kernel `paying` converges to kernel `members`. That is not the metric going
-    degenerate; it is this repo really paying a full pass per land, which is the cost the batching
-    exists to amortise. The separation between "lands per pass" and "paying per pass" carries its
-    discriminating power on CONSUMERS, and must not be reported as a kernel-side distinction."""
+    T-13567 (owner directive 2026-10-05) — A FIRST-ATTEMPT ALL-INERT MEMBER IS ANSWERED BY ITS OWN
+    DELTA. The 2026-08-18 measurement above was true while attempt 1 always verified. T-13344 ended
+    that, and answering attempt 1 as paying regardless then kept every code-less land — a filed
+    card, a pause or wont-do record, an audit record — out of rung 0: behind a live queue-jump mark
+    and inside paying batches. Measured 2026-10-05: 46 of 47 batch members counted paying, while the
+    four lands that took the first-attempt skip verified in 7-13 s after waiting 2-4739 s on the
+    reservation. WHAT THIS READ CANNOT SEE is whether the T-13344 proof will hold — that is decided
+    on the MERGED tree (the anchor, the net delta since it, the test readers). So "does not pay" is
+    the EXPECTED answer for such a member, not a proven one, and the land whose proof refuses pays
+    as before and records it (`land_completed.rung0_paid`) — never a silent rank-0-that-paid.
+
+    NOTE THE HONEST CONSEQUENCE. In a kernel-suite repo an OBSERVABLE member pays on every attempt,
+    so among code lands `paying` still converges to `members` — this repo really pays a full pass
+    per code land, which is the cost the batching exists to amortise. What the two numbers now
+    separate here is the code-less cohort; the layer-by-layer separation stays a CONSUMER-side
+    distinction."""
     # ── STEP 0 — READ FIRST. No paying verdict is reachable above this line. ──────────────────────
     try:
         paths = list(_changed_paths(member) or [])
@@ -4821,13 +4840,13 @@ def _land_member_would_run_suite(member: dict, *, engagement_reason, attempt, no
     if attempt is None:
         return None                            # unknown attempt: refuse to guess (the rollout window)
     if engagement_reason == "kernel-authored-verify":
-        if attempt <= 1:
-            return True                        # attempt 1 pays: its T-13344 inert skip needs the merged
-                                               # tree, unseen here — "pays" is the fail-safe answer
         try:
             verdict, _reason = _classify_inert_paths(paths)
-        except Exception:                      # noqa: BLE001 — classifier unavailable: UNKNOWN
-            return None
+        except Exception:                      # noqa: BLE001 — classifier unavailable: a first attempt
+            return True if attempt <= 1 else None   # keeps its fail-safe "pays", a retry stays UNKNOWN
+        # T-13567: ONE answer for attempt 1 and a retry — the member's OWN delta. A first attempt's
+        # skip (T-13344) is proven on the merged tree, unseen here; a land ranked free on this answer
+        # whose proof refuses pays and says so on its row (`rung0_paid`).
         # KNOWN UNDER-COUNT (T-13344, audit-post finding fp1:714ab8894f0bfc8c): lever B now needs an
         # attempt that actually verified, so an inert retry after a step-4c first-attempt skip may
         # still pay — the queue facts carry no such evidence yet, so it reads free here (follow-up filed).
@@ -8907,10 +8926,14 @@ def _land_yield_target(self_class: "int | None", queue, *, _marked, _class_of,
     The paying/non-paying distinction is `_land_cost_class`'s own rung 0 ("this member's own land
     would not run the suite") — the SAME answer `_land_batch_paying_members` counts. No second
     predicate, no new field and no new store: a parallel encoding is what CHARTER §P1 forbids.
-    WHERE THE PAYOFF LIVES, so its near-absence here is not read as failure: bookkeeping lands are 0
-    of 294 batch members in the kernel and 173 of 293 (59%) in the <project> consumer (both folded
-    read-only from the respective journals, 2026-08-27). This is nearly inert in the kernel and is the
-    majority case on a consumer.
+    WHERE THE PAYOFF LIVES. When this shipped, bookkeeping lands were 0 of 294 batch members in the
+    kernel and 173 of 293 (59%) in the <project> consumer (both folded read-only from the respective
+    journals, 2026-08-27) — the kernel rank then answered every first attempt as paying. Since
+    T-13567 a first-attempt all-inert branch ranks 0 in a kernel-suite repo too, so the same two
+    terms serve the code-less cohort here: cohort, then a live mark, then the paying classes. There
+    «seconds, never a verify» is a measured ~143 s of the cohort land's own work, and a cohort land
+    whose first-attempt proof refuses costs the branch behind a full pass — the recorded
+    `rung0_paid` case.
 
     EVERY RULE-9 INVARIANT SURVIVES LITERALLY, which is why the pass sits INSIDE the existing entry
     conditions rather than above them:

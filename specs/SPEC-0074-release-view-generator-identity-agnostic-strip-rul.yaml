@@ -131,9 +131,9 @@ body: "## Scenario\n\nA consumer project adopts the methodology by PINNING the r
   \ never reads as \"nothing to protect\"); a readable `projects: {}` is the one explicit\n\
   \       judged-nothing input.\n     - REPRODUCIBILITY — the operands are host-derived\
   \ exactly as rule 5(a)'s home-path operands are,\n       so the published bytes\
-  \ are a function of the tag AND the workshop registry. <workshop-spec> rule 5\n\
-  \       states that rebuild input; `release_published` journals the operand counts\
-  \ and fingerprint\n       (`release.project_identity_fingerprint` — never the names),\
+  \ are a function of the tag AND the workshop registry. SPEC-0195 rule 5\n      \
+  \ states that rebuild input; `release_published` journals the operand counts and\
+  \ fingerprint\n       (`release.project_identity_fingerprint` — never the names),\
   \ so a rebuild proves it used the same.\n\n5. THE STRIP RULESET (`_release_view_strip`)\
   \ — ordered, pure, deterministic passes:\n   (a) host paths → abstracted placeholders\
   \ (`<repo-root>` / `<host-home>`);\n   (b) host tokens (IPv4 / `<host-token>\n \

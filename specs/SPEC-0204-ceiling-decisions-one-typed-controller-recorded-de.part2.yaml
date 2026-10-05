@@ -171,9 +171,9 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   ceiling row — the two sides agree BY CONSTRUCTION rather than by the coincidence\
   \ that the currency row\ncopied the number; with no ceiling row at all the ref stays\
   \ unresolved and the finding stays\nundecided, fail-closed. WHEN THE CEILING ROW\
-  \ STATES NO COUNTER EITHER (ADDITIVE — a GREEN\ncounted row carries none), the pass\
-  \ is named by the saved record's EXPLICIT counter — rule 2's\nsecond carrier of\
-  \ the same number — on the WRITE side (`audit decide`) and the READ side (Closure's\n\
+  \ STATES NO COUNTER EITHER (ADDITIVE — a\npre- GREEN row has none), the pass is\
+  \ named by the saved record's EXPLICIT counter — rule 2's\nsecond carrier of the\
+  \ same number — on the WRITE side (`audit decide`) and the READ side (Closure's\n\
   late-finding gate and this rule's admission) alike, so the ref a decision is bound\
   \ at is the ref\nClosure requires. A record that states no counter names no pass:\
   \ with none on the row, the ceiling\nrow or the record, the write is refused and\

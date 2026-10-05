@@ -7794,8 +7794,22 @@ engine (the methodology handbook named by `session start`'s read-order echo, rea
 """
 
 
+# T-13570 — the three causes `_restamp` rewrites an existing adapter/home for, each with the words the
+# rewrite line prints. One table, so the applied line and the off-main SKIPPED line cannot disagree.
+ADAPTER_REWRITE_CAUSES = {
+    "title-placeholder": "title placeholder replaced with the real project name",
+    "start-block-inserted": "start-on-entry block inserted",
+    "start-block-replaced": "stale start-on-entry block replaced",
+}
+
+
+def _render_adapter_rewrite_causes(rel: str, causes: dict) -> str:
+    """T-13570 — `<rel>: <cause>[; <cause>]` for one rewritten adapter/home, in the order applied."""
+    return f"{rel}: " + "; ".join(ADAPTER_REWRITE_CAUSES[c] for c in causes.get(rel, ()))
+
+
 def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
-                                    *, project_name, refresh=False) -> tuple:
+                                    *, project_name, refresh=False, causes_out=None) -> tuple:
     """SPEC-0125 (consumer vendor-adapter doctrine) — born a THIN consumer `CLAUDE.md` (adapter-only)
     and ensure the ONE declared neutral home EXISTS so the adapter pointer always resolves: the product
     `CHARTER.md` if present, else a born project `AGENTS.md` stub (Rule 1). If-absent + idempotent
@@ -7820,7 +7834,11 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
     The re-stamp WRITE is deferred (not done here) because it MODIFIES a tracked file: doing it early would
     strand a dirty CLAUDE.md/AGENTS.md if init then ran off-main or aborted at a sweep (the X-0332 hazard,
     the same discipline the baked-engine-path refresh follows). Fresh CREATE writes stay early — a new
-    untracked file never wedges a later land."""
+    untracked file never wedges a later land.
+
+    T-13570: `causes_out`, when the caller passes a dict, is filled `{rel: [cause key, ...]}` for every
+    re-stamped AND pending path (keys of `ADAPTER_REWRITE_CAUSES`), so the caller can name what a
+    rewrite changed instead of one fixed reason. The return shape is unchanged."""
     created: list = []
     restamped: list = []
     pending: list = []
@@ -7838,8 +7856,10 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
         except Exception:  # noqa: BLE001 — an undecodable existing file is out of scope for a re-stamp
             return
         new_body = body
+        applied: list = []
         if _placeholder_in_heading(new_body):
             new_body = new_body.replace(ADAPTER_TITLE_PLACEHOLDER, project_name)
+            applied.append("title-placeholder")
         # T-12955: a pre-fix born ADAPTER (born signature present, start block absent) gains the
         # start-on-entry block — inserted before the neutral-home pointer, else appended. Never on a
         # consumer-authored file (no born signature) and never on the AGENTS.md home.
@@ -7850,11 +7870,15 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
                 new_body = new_body.replace(ADAPTER_PRE_START_ANCHOR, block + "\n" + ADAPTER_PRE_START_ANCHOR, 1)
             else:
                 new_body = new_body.rstrip("\n") + "\n\n" + block
+            applied.append("start-block-inserted")
         elif rel == "CLAUDE.md" and _adapter_start_block_stale(new_body):
             # T-13236: an OLDER born start block (e.g. pre-T-13183, no verbatim-relay line) is refreshed.
             new_body = _replace_adapter_start_block(new_body, _render_adapter_start_block(cli_form))
+            applied.append("start-block-replaced")
         if new_body == body:
             return
+        if causes_out is not None:
+            causes_out[rel] = applied
         if refresh:
             restamp_writes[path] = new_body
             restamped.append(rel)
@@ -10706,12 +10730,14 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     adapter_restamped: list = []
     adapter_pending: list = []
     adapter_restamp_writes: dict = {}
+    adapter_rewrite_causes: dict = {}   # T-13570: {rel: [cause key, ...]} — what each rewrite changes
     if _is_consumer_build():
         _adapter_refresh = bool(getattr(args, "refresh_scaffolds", False))
         adapter_created, adapter_restamped, adapter_pending, adapter_restamp_writes = (
             _ensure_consumer_vendor_adapter(
                 REPO_ROOT, _cli_form, write_text_atomic,
-                project_name=REPO_ROOT.name, refresh=_adapter_refresh))
+                project_name=REPO_ROOT.name, refresh=_adapter_refresh,
+                causes_out=adapter_rewrite_causes))
         created.extend(adapter_created)
 
     # UPDATE the ops-contract carrier (T-9375 / SPEC-0093 rule 11) — the "pull a new kernel section into
@@ -11252,6 +11278,18 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # computed by the real body. Render the plan and stop: no journal emit, no staging, no bootstrap
     # commit, no success wording. `would_bootstrap` mirrors the gate on the very next line.
     if dry:
+        # T-13569 (public issue #36) — the three DEFERRED writes sit BELOW this exit, at the
+        # bootstrap-commit seam, so the plan never named them while `material_delivery` above already
+        # counted them and the commit line printed. Replay them through the recorder (`write_text_atomic`
+        # IS the recorder on this arm) under the gate that seam applies, in its order; off `main` the
+        # seam writes none of them, and neither does the plan. Recorded, never performed.
+        if on_main and material_delivery:
+            if onboarding_seeded:
+                write_text_atomic(memory_path, _onboarding_seeded_text)
+            for _rpath, _rtext in _refresh_writes.items():
+                write_text_atomic(_rpath, _rtext)
+            for _apath, _atext in adapter_restamp_writes.items():
+                write_text_atomic(_apath, _atext)
         plan.render(untracked_paths=untracked_paths,
                     retired_swept=retired_surfaces_swept,
                     legacy_removed=(legacy_verify_migrated or {}).get("removed"),
@@ -11311,11 +11349,14 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         # would strand it dirty and wedge the next land. SKIP + report; the next on-main `init
         # --refresh-scaffolds` re-computes and applies the identical re-stamp (idempotent — nothing lost).
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
+        # T-13570: name what the skipped rewrite WOULD change — the same cause words the applied line prints.
+        _skipped_rewrites = " | ".join(_render_adapter_rewrite_causes(rel, adapter_rewrite_causes)
+                                       for rel in adapter_restamped)
         adapter_restamped = []
         adapter_restamp_writes = {}
-        print(f"consumer init ({REPO_ROOT.name}): adapter re-stamp SKIPPED — HEAD is not on `main`, so "
-              f"init's bootstrap commit cannot carry the write (T-10690/X-0332). Re-run "
-              f"`init --refresh-scaffolds` on `main` to re-stamp the adapter with the real project name.",
+        print(f"consumer init ({REPO_ROOT.name}): adapter rewrite SKIPPED ({_skipped_rewrites}) — HEAD is "
+              f"not on `main`, so init's bootstrap commit cannot carry the write (T-10690/X-0332). Re-run "
+              f"`init --refresh-scaffolds` on `main` to apply it.",
               file=sys.stderr)
 
     if on_main and material_delivery:
@@ -11352,11 +11393,12 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             # names writes actually applied this run, never a notice the off-main gate then contradicts).
             import sys   # module-local idiom: init.py imports sys per-function, never at module level
             for rel in adapter_restamped:
-                print(f"  ↻ {rel} re-stamped with the real project name (SPEC-0125, T-10690/X-0528)",
+                # T-13570: the line names the cause(s) this rewrite applied, never one fixed reason.
+                print(f"  ↻ {_render_adapter_rewrite_causes(rel, adapter_rewrite_causes)} (SPEC-0125)",
                       file=sys.stderr)
             _append_event("adapter_restamped", None, {
                 "path": str(REPO_ROOT),
-                "scaffolds": adapter_restamped,   # adapter/home whose leaked `<project>` title was re-stamped
+                "scaffolds": adapter_restamped,   # adapter/home rewritten this run (any cause)
                 "project_name": REPO_ROOT.name,
             })
 

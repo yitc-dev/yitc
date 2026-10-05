@@ -2091,22 +2091,22 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         _lp_err = _live_probe_declaration_error(live_probe)
         if _lp_err:
             _die(f"live_probe is malformed — {_lp_err} (SPEC-0094 §3/§4 grammar; SPEC-0028 schema).")
-    if host_config is not None:
-        if host_config is not True:
-            _die("host_config must be the boolean `true` (the host-config-class opt-in marker, "
-                 "SPEC-0028 / SPEC-0111); omit it for a non-host-config task.")
     # T-10261 (X-0257): the kind rides the marker — it is meaningless (and a silent close-gate no-op)
     # without it, so a kind WITHOUT the marker is refused rather than written. Fail-closed on an
     # unknown kind at the filing seam too, so a typo cannot reach the close-gate at all.
-    if host_config_kind is not None:
-        kind = host_config_kind.strip() if isinstance(host_config_kind, str) else host_config_kind
-        if kind not in HOST_CONFIG_KINDS:
-            _die(f"host_config_kind must be one of {', '.join(HOST_CONFIG_KINDS)} (SPEC-0028 schema / "
-                 f"SPEC-0094 §3 host-config gate); got {host_config_kind!r}.")
-        if host_config is not True:
-            _die("host_config_kind requires the `host_config: true` marker (the class opt-in) — the "
-                 "kind only selects WHICH evidence the close-gate demands (SPEC-0094 §3). File with "
-                 "--host-config, or omit the kind.")
+    # T-13573: the three checks themselves live in `_host_config_declaration_fault`, shared with the
+    # `task update --old/--new` field-edit; only the wording below is this seam's own.
+    _hc_fault = _host_config_declaration_fault(host_config, host_config_kind)
+    if _hc_fault == "marker-not-true":
+        _die("host_config must be the boolean `true` (the host-config-class opt-in marker, "
+             "SPEC-0028 / SPEC-0111); omit it for a non-host-config task.")
+    if _hc_fault == "kind-not-in-vocabulary":
+        _die(f"host_config_kind must be one of {', '.join(HOST_CONFIG_KINDS)} (SPEC-0028 schema / "
+             f"SPEC-0094 §3 host-config gate); got {host_config_kind!r}.")
+    if _hc_fault == "kind-without-marker":
+        _die("host_config_kind requires the `host_config: true` marker (the class opt-in) — the "
+             "kind only selects WHICH evidence the close-gate demands (SPEC-0094 §3). File with "
+             "--host-config, or omit the kind.")
     if activation_gated_radius is not None:
         _agr_err = _activation_gated_radius_declaration_error(activation_gated_radius)
         if _agr_err:
@@ -4334,10 +4334,18 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
             _die(f"task update: {_mode} needs --from-file PATH (`-` = stdin) carrying the value. "
                  f"Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
         if _set_key is not None and _set_key not in STRUCTURED_EDIT_FIELDS:
+            # T-13573: the host-config marker HAS a governed post-filing route (SPEC-0094 §3) — name it
+            # here, where a reader reaching for --set-field looks, instead of leaving a hand-edit.
+            _hc_route = ("" if _set_key not in ("host_config", "host_config_kind") else
+                         f" The host-config marker has its own governed route — the FIELD-EDIT superset: "
+                         f"`bin/yitc-v2 task update {tid} --old 'requires: []' --new $'requires: []\\n"
+                         f"host_config: true\\nhost_config_kind: cron'` (--new repeats --old and adds the "
+                         f"lines; anchor --old on a line the card really has; validated like `task file "
+                         f"--host-config`).")
             _die(f"task update: --set-field {_set_key!r} is refused — only "
                  f"{', '.join(STRUCTURED_EDIT_FIELDS)} are settable here. Verb-owned fields keep "
                  f"their own routes (status: `task update --status` / `worktree new --task` / "
-                 f"`task close`; class: `--class`; effort_tier: `--effort-tier`). Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+                 f"`task close`; class: `--class`; effort_tier: `--effort-tier`).{_hc_route} Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
         cur = task.get("status")
         # T-13221: `answers` is release LINK-BACK metadata, not the card's shipped claim — a fix card
         # is normally done before the release that ships it is cut — so --set-field answers (ONLY)
@@ -4655,6 +4663,52 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # field of frozen history. Compare the same-loader parse of the original vs the replaced text
         # (apples-to-apples, not the transition-loader `task`).
         orig_parsed = state.load_str(text)
+        # HOST-CONFIG MARKER guard (T-13573, SPEC-0028 / SPEC-0094 §3): this field-edit is the marker's
+        # governed post-filing write-path, and until now it applied none of the three checks the
+        # filing seam applies — so `host_config: "true"` or a kind with no marker was written, and the
+        # close gate (which keys on `host_config is True`) stayed off without a word. Validate the
+        # round-tripped pair with the SAME checks and refuse BEFORE any write. Like the premise guard
+        # above it judges the card the edit would LEAVE, so a pair mistyped earlier (a hand-edit)
+        # surfaces at the next edit instead of at no point at all; the refusal then names the repair,
+        # which needs the remove-then-add form because the node-type guard below refuses an in-place
+        # `'true'` -> `true` retype. NON-TERMINAL cards only: on a done/wont-do card the carve-out
+        # router below fences the changed set to `acceptance` or `decomposed_from` alone, so the pair
+        # cannot change there, its close gate has already run, and re-judging frozen history would
+        # refuse an un-cut that has no repair route.
+        if cur not in ("done", "wont-do"):
+            # the round-tripped CARD is read here, so key PRESENCE is passed beside the value: a key
+            # holding null is on the card and is judged, never read as absent.
+            _hc_seen = lambda _card, _k: (_k in _card, _card.get(_k))        # noqa: E731
+            _hc_fault = _host_config_declaration_fault(
+                rt.get("host_config"), rt.get("host_config_kind"),
+                marker_present="host_config" in rt, kind_present="host_config_kind" in rt)
+            if _hc_fault:
+                _hc_show = lambda _v: "null" if _v is None else repr(_v)     # noqa: E731
+                _hc_why = {
+                    "marker-not-true": (f"the card would carry `host_config: "
+                                        f"{_hc_show(rt.get('host_config'))}`, and "
+                                        f"the marker must be the boolean `true`, written unquoted — any "
+                                        f"other value leaves the host-config close gate off"),
+                    "kind-not-in-vocabulary": (f"the card would carry `host_config_kind: "
+                                               f"{_hc_show(rt.get('host_config_kind'))}`, which is not one of "
+                                               f"{', '.join(HOST_CONFIG_KINDS)}"),
+                    "kind-without-marker": ("the card would carry a `host_config_kind` with no "
+                                            "`host_config: true` marker beside it — the kind only selects "
+                                            "which evidence closure demands, so alone it gates nothing"),
+                }[_hc_fault]
+                _hc_prior = ("" if any(_hc_seen(orig_parsed, _k) != _hc_seen(rt, _k)
+                                       for _k in ("host_config", "host_config_kind")) else
+                             " This edit did not write that — it was ALREADY on the card, and no edit "
+                             "is admitted until it is repaired: remove the malformed line with one "
+                             "field-edit (--old the line with its line break, --new the empty string) — "
+                             "taking the `host_config_kind` line out in the SAME edit when the card "
+                             "carries one beside the marker, since a kind left alone is refused too — "
+                             "then add the declaration back well-formed.")
+                _die(f"field-edit refused ({_hc_fault}): {_hc_why} (SPEC-0028 schema / SPEC-0094 §3 — the "
+                     f"same three checks `task file --host-config` applies).{_hc_prior} A well-formed "
+                     f"marker is added by a superset edit, e.g. `bin/yitc-v2 task update {tid} --old "
+                     f"'requires: []' --new $'requires: []\\nhost_config: true\\nhost_config_kind: cron'` "
+                     f"— anchor --old on a line the card really has. The file is untouched.")
         # NODE-TYPE guard (T-11998, X-1236; <project> T-0597 measured at
         # events.jsonl#ts=2026-09-02T15:20:16Z) — the sibling of the status / class / effort_tier /
         # premise refusals above, and the leg T-11990 could not reach. This route substitutes RAW
@@ -6875,7 +6929,7 @@ def _card_repair_staged_card(tid: str, *, _worktree_dirty_paths, _zero_ship_diff
 
 
 # ── T-12021 (X-1245) — THE REF GRAMMAR, rendered where an author meets it ────────────────────────
-# `_resolve_evidence_ref` below accepts TEN spellings (NINE when T-12021 wrote this) and, until that
+# `_resolve_evidence_ref` below accepts ELEVEN spellings (NINE when T-12021 wrote this) and, until that
 # card, NO surface rendered
 # them. The two surfaces that PRESCRIBE writing a ref — the SPEC-0119 rule-31 debt remedy and the
 # `task close` E-0005 WARN — said only "refs to journal rows the MECHANISM emitted", and the cue
@@ -6947,6 +7001,12 @@ P8_EVIDENCE_REF_GRAMMAR = (
     "EQUAL to the number of `tests/test_*.py` files discoverable at that revision, so every "
     "discoverable file ran and the named one was among them. A SELECTED run, a count mismatch, a "
     "missing `verify_mode`/`test_file_count`, or an unresolvable sha does NOT resolve it. "
+    "(11) `<project>:<form>` — ENGINE cards only: one of forms (2)-(6) read from the journal of a "
+    "REGISTERED consumer instead of this one, for an engine mechanism whose only production run is on "
+    "that consumer, e.g. `<project>:land_completed@2026-09-03T05:58:57Z#metric=cache_hit_rate`. "
+    "`<project>` is that project's KEY in the host registry (a `yitc_v2` entry) — never a path — and "
+    "the form keeps every condition it has without the prefix, applied to THAT journal's rows. Forms "
+    "(1) and (7)-(10) take no prefix, and the read is read-only. "
     "NOT this grammar, and the look-alike that burns emissions (X-1245): the CHARTER §Principle-2 "
     "COMMIT locator `events.jsonl#ts=<ISO>` / `events.jsonl#source_ref=<locator>`. That spelling is "
     "correct for a `from:` trailer and resolves NOTHING here — it names no event type, so it can "
@@ -7562,12 +7622,58 @@ _resolve_exit_status_evidence_ref = closure_evidence._resolve_exit_status_eviden
 _resolve_scheduled_run_ref = closure_evidence._resolve_scheduled_run_ref  # re-export alias (T-12697)
 
 
+_CONSUMER_JOURNAL_REF_SHAPE = closure_evidence._CONSUMER_JOURNAL_REF_SHAPE  # T-13477: the `<project>:<form>` prefix
+
+
+def _p8_registered_consumer_root(project: str):
+    """T-13477 — the checkout root of the registered consumer NAMED `project`, else None.
+
+    `project` is looked up as a KEY among the host registry's `yitc_v2` entries
+    (`nightly._v2_projects` — the enumeration the nightly and the SPEC-0135 rollup already use) and
+    is never joined into a path, so the only roots reachable are the ones the registry itself names.
+    The engine's own entry is refused: its journal is the corpus every unprefixed form already reads.
+    A missing or unreadable registry answers None."""
+    try:
+        from lib import cli as _cli          # local import: `lib.cli` imports this module
+        from lib import nightly as _nightly
+        engine_repo = _nightly._engine_repo_root(_cli.ENGINE_ROOT)
+        for entry in _nightly._v2_projects(_cli.REGISTRY_PATH, _cli.ENGINE_ROOT, _cli.KERNEL_NAME):
+            if entry["name"] != project:
+                continue
+            root = Path(entry["path"])
+            return None if project == _cli.KERNEL_NAME or root.resolve() == engine_repo else root
+    except Exception:                        # noqa: BLE001 — unreadable => the ref does not resolve
+        return None
+    return None
+
+
+def _p8_consumer_journal_rows(project: str, types, since, *, _root_of=None):
+    """T-13477 — the rows of `types` in the journal of the registered consumer NAMED `project`, from
+    the segments `since` admits (None = its whole history); None when there is no such consumer.
+
+    The ONE read behind the `<project>:<form>` evidence ref. Which projects exist is
+    `_p8_registered_consumer_root`'s answer (`_root_of` is its injection seam for a driver).
+
+    READ-ONLY, and that is the bound this rests on: `journal.segment_rows_since` with a declared
+    type set is a plain bounded walk of the archive + live segments — no journal lock (a lock would
+    create a sidecar on the consumer's side), no scope, no write. The same read class as
+    `engine_route.canary_served`. An unreadable journal answers None, so the ref does not resolve."""
+    root = (_root_of or _p8_registered_consumer_root)(project)
+    if root is None:
+        return None
+    try:
+        return journal_mod.segment_rows_since(Path(root) / "events.jsonl", since, types=types)
+    except Exception:                        # noqa: BLE001 — unreadable => the ref does not resolve
+        return None
+
+
 # T-12021 — the AUTHOR-FACING render of every form accepted below is `P8_EVIDENCE_REF_GRAMMAR`
 # (above, beside `P8_EVIDENCE_PAYLOAD_CUE`). ADD A FORM HERE => ADD ITS LINE THERE: the surfaces
 # that tell an author how to write a ref read that constant and nothing else.
 @functools.wraps(closure_evidence._resolve_evidence_ref)
 def _resolve_evidence_ref(*args, **kw):
-    kw = {**{"_resolve_abort_row_ref": _resolve_abort_row_ref,
+    kw = {**{"_consumer_journal_rows": _p8_consumer_journal_rows,
+            "_resolve_abort_row_ref": _resolve_abort_row_ref,
             "_resolve_exit_status_evidence_ref": _resolve_exit_status_evidence_ref,
             "_resolve_gate_row_ref": _resolve_gate_row_ref,
             "_resolve_in_process_evidence_ref": _resolve_in_process_evidence_ref,
@@ -8023,6 +8129,38 @@ HOST_CONFIG_EVIDENCE_BY_KIND = {
     "systemd-unit": ("apply_confirmed",),
     "other": ("apply_confirmed",),
 }
+
+
+def _host_config_declaration_fault(host_config, host_config_kind, *, marker_present=None,
+                                   kind_present=None):
+    """Which of the three host-config declaration checks a (marker, kind) pair fails, or None. PURE.
+    The one home of the checks for BOTH governed write-paths of the marker (SPEC-0094 §3): `task file
+    --host-config` and the `task update --old/--new` field-edit (T-13573). An ABSENT value is legal
+    for either. In the order the filing seam has always applied them:
+      marker-not-true         a present marker that is not the boolean `true` — the close gate keys on
+                              `is True`, so any other value leaves it off without a word;
+      kind-not-in-vocabulary  a present kind outside HOST_CONFIG_KINDS;
+      kind-without-marker     a kind with no `true` marker beside it (alone it gates nothing).
+    PRESENT IS NOT THE SAME AS NON-NULL. A caller reading a STORED card passes `marker_present` /
+    `kind_present` — whether the key is on the card at all — so a key holding null (`host_config:
+    null`, `host_config: ~`, a bare `host_config:`) is judged as what it is, a marker that is not
+    `true` or a kind outside the vocabulary, instead of being read as absent (T-13573 audit-post
+    finding 1). The filing seam passes neither: it holds VALUES, not a card, and writes the marker
+    only as `true` and the kind only as a vocabulary word, so for it a null value IS absence.
+    Each caller words its own refusal."""
+    if marker_present is None:
+        marker_present = host_config is not None
+    if kind_present is None:
+        kind_present = host_config_kind is not None
+    if marker_present and host_config is not True:
+        return "marker-not-true"
+    if kind_present:
+        kind = host_config_kind.strip() if isinstance(host_config_kind, str) else host_config_kind
+        if kind not in HOST_CONFIG_KINDS:
+            return "kind-not-in-vocabulary"
+        if host_config is not True:
+            return "kind-without-marker"
+    return None
 
 
 def _host_config_kind_of(task: dict) -> str:
@@ -9476,6 +9614,19 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
                 if _live_probe_settled_terminal({"settled_by": lp_settled}) else
                 f"--live-probe-settled-evidence {lp_settled['evidence']} --live-probe-settled-probed-at "
                 f"{lp_settled['probed_at']} --live-probe-settled-method \"{lp_settled['method']}\"`."))
+    # T-13568 — the ATTESTED OUTCOME leg is the same DONE-card route: its only consumer sits in the
+    # done branch below. On a still-open card the triple was parsed and then dropped at a zero exit, so
+    # the caller read success while no reading was recorded (the E-0057 silent-drop shape). Refuse
+    # beside the two siblings above, before anything is written, naming the route that does record it.
+    if lp_outcome and current_status != "done":
+        _die(f"{tid} status={current_status!r} — --live-probe-outcome-result/-evidence/-probed-at "
+             f"record the reading of an ATTESTED live proof onto an ALREADY-DONE card (T-11674, "
+             f"SPEC-0094 §4b). This card is not closed yet, so this call would record nothing. The "
+             f"reading is recorded AFTER the close: close the card without these flags — the "
+             f"close-gate needs the declaration, not a reading (SPEC-0094 §3) — then run "
+             f"`bin/yitc-v2 task close {tid} --live-probe-outcome-result {lp_outcome['result']} "
+             f"--live-probe-outcome-evidence {lp_outcome['evidence']} "
+             f"--live-probe-outcome-probed-at {lp_outcome['probed_at']}`. Nothing was written.")
     # T-11529 — POST-SHIP-OBSERVATION SETTLEMENT. Parsed + grammar-validated UP FRONT alongside the two
     # settlements above and for the identical reason: the locator grammar is a property of the FLAG, not
     # of the card, so a citation that could never prove a reading dies before any write and on ANY status.
@@ -12243,6 +12394,62 @@ def _stage6_layer_scope(cguard) -> str:
     return " Verify " + "; ".join(parts) + "."
 
 
+def _stage6_pinned_leg_runs(root, cguard, *, _main_worktree=None) -> bool:
+    """T-13520 — does this project's `land` run the SPEC-0077 pinned last-green leg? Read for the
+    Stage-6 PASS line's wording ONLY; it gates nothing and moves no verdict.
+
+    True unless there is POSITIVE proof it does not: the answer is `_verify_policy_pinned_last_green`
+    — the ONE carrier reader (SPEC-0186 rules 1+4), never a second parse — asked of the MAIN checkout,
+    the tree `land` itself passes it (SPEC-0186 rule 4: a branch that edits the policy does not
+    change what its own land runs). The engine's own build (empty guard mode), a harness that wires
+    no `_main_worktree`, no main checkout, and any exception all answer True, so the PASS line
+    keeps its pinned-leg sentence whenever the leg could run."""
+    if not (cguard or {}).get("mode") or _main_worktree is None or root is None:
+        return True
+    try:
+        main_wt = _main_worktree(Path(root))
+        if main_wt is None:
+            return True
+        return _verify_policy_pinned_last_green(
+            Path(main_wt), ops_contract=init.CONSUMER_OPS_CONTRACT) != "never"
+    except Exception:                           # noqa: BLE001 — every doubt states the leg
+        return True
+
+
+def _stage6_pass_claim(cguard, *, have_tests, suite_scope, pinned_leg_runs) -> str:
+    """T-13520 — what the non-delegated Stage-6 PASS line claims between «PASS — » and the layer
+    clause (`_stage6_layer_scope`). PURE; decides nothing.
+
+    The engine's own build (empty guard mode) returns the pre-T-13520 sentence byte for byte. On a
+    CONSUMER the same sentence was false twice over (public issue #16): a layers-only project swept
+    no subprocess suite, and a project declaring `verify_policy.pinned_last_green: never` has no
+    pinned leg at its land. So there the scope names what ran — the test sweep only when one ran
+    (`have_tests`), the declared layers only when at least one of them ran (the layer clause that
+    follows names which) — and the pinned-leg sentence is printed only when `pinned_leg_runs`."""
+    pinned = ("NOT the land verdict — land also verifies the SPEC-0077 pinned last-green leg, "
+              "which is not run here.")
+    gmode = (cguard or {}).get("mode") or ""
+    if not gmode:
+        return f"{suite_scope}: land's CANDIDATE leg. {pinned}"
+    if gmode == "layers":
+        # «green» is claimed only over layers that RAN: a skipped or waived layer verified nothing.
+        # (A run on which neither a sweep nor a layer ran prints no PASS line at all —
+        # `_stage6_ran_nothing` — but this function stays truthful for that input too.)
+        ran = any(isinstance(r, dict) and r.get("outcome") == "passed"
+                  for r in (cguard.get("layers") or []))
+        layers = ("every declared verify layer that ran is green" if ran
+                  else "no declared verify layer ran")
+        if have_tests:
+            what = f"{suite_scope}, and {layers}" if ran else f"{suite_scope}; {layers}"
+        else:
+            what = (f"{layers} (no tests/ sweep ran — the project has no test directory for the "
+                    f"kernel to sweep)")
+    else:
+        what = suite_scope
+    tail = pinned if pinned_leg_runs else "NOT the land verdict — `land` reaches its own."
+    return f"{what}: land's CANDIDATE leg. {tail}"
+
+
 def _stage6_layer_retry_metrics(cguard) -> dict:
     """T-13545 — the Stage-6 `verify_metrics` fragment for the guard's isolated layer re-run record:
     `{"flaky_retry": {...}}` in the SAME shape `land_completed.verify_metrics` carries for the
@@ -12583,7 +12790,7 @@ def _stage6_venue_wait_relay(_append_event, tid, box):
 
 
 @_pinned_suite_edit_preaudit_marker
-def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None) -> None:
+def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None) -> None:
     """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
     writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
     ACs as a manual checklist). With --evidence: RECORD the Stage-6 result durably — emit a
@@ -13359,9 +13566,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                       if (selection_summary or {}).get("selection") != "affected"
                       else "affected subprocess suite green (SPEC-0181 selection — see the "
                            "`selection:` line above for what ran)")
-            print(f"{tid} task test --run: PASS — {_scope}: land's CANDIDATE leg. "
-                  f"NOT the land verdict — land also verifies the SPEC-0077 pinned last-green leg, "
-                  f"which is not run here." + _layer_scope)
+            # T-13520 — the claim is DERIVED for a consumer (what ran; the pinned-leg sentence only
+            # where the project's land runs that leg); the engine's line is byte-unchanged.
+            _claim = _stage6_pass_claim(
+                cguard, have_tests=_have_tests, suite_scope=_scope,
+                pinned_leg_runs=_stage6_pinned_leg_runs(root, cguard, _main_worktree=_main_worktree))
+            print(f"{tid} task test --run: PASS — {_claim}" + _layer_scope)
         if not getattr(args, "evidence", None):
             # pure self-check (no --evidence) — done; record the pass separately with --evidence.
             print(_post_action_hint(f"record the pass: `yitc-v2 task test {tid} --evidence ...` (or re-run with --run --evidence)"))

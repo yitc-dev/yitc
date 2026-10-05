@@ -62,43 +62,44 @@ body: "### Saved audit result\nEvery invocation saves the result to `decisions/<
   \ narrowed successor in plan\n                    # `frozen-defect-baseline-at-the-audit-loop-ceiling-d`.\
   \ The CONSULT record\n                    # carries the same field — see SPEC-0124\
   \ §Ceiling-convergence triage.\nabsorbed: [] # finding indices absorbed inline this\
-  \ commit\nfollowups: [] # follow-up task IDs filed for residual findings\n# OPTIONAL\
-  \ markers — the ceiling-skip / re-audit markers (tooling_absence_abort · timeout_abort\
-  \ ·\n# unchanged_fp_reaudit · concurrent_merge_reaudit · task_lens_reaudit · passable_absorption_reaudit\
-  \ ·\n# consult_governed) each mark a no-real-outcome re-audit whose `passes` is\
-  \ NOT advanced (the\n# ledger-skip); `lens_version` is instead the ordinary version\
-  \ field recording which lens a verdict\n# was rendered under (PLAN audit-post).\
-  \ Per-marker presence + pass-count semantics are homed in\n# SPEC-0124 §Audit-loop\
-  \ ceiling. Absent on every normal run. `bin/yitc-v2 graph query SPEC-0124`\nauditor_provider:\
-  \ <abstract identifier — not a provider brand>\nauditor_independence: external |\
-  \ same-provider\n                    # REQUIRED on every saved verdict (task pre/post,\
-  \ plan gates, ad-hoc, consult).\n                    # `external` = the auditor's\
-  \ resolved provider differs from the primary AI's\n                    # provider\
-  \ for this session; `same-provider` = it does NOT, or the primary\n            \
-  \        # cannot be determined (fail-closed toward the honest reading). A\n   \
-  \                 # `same-provider` verdict is ADMITTED on every gate — never refused,\
-  \ never a\n                    # wait — and ALSO journals one `audit_self_provider_used`\
-  \ row (SPEC-0025).\n                    # Written at the ONE invocation chokepoint,\
-  \ no second writer.\n                    # Rule home: `bin/yitc-v2 graph query SPEC-0201`.\n\
-  auditor_model: <the model id the adapter actually ran>\n                    # REQUIRED\
-  \ beside the stamp above: which model produced this verdict, as the\n          \
-  \          # adapter actually invoked it (never the configured default re-stated).\
-  \ What\n                    # makes a bound non-default model honest rather than\
-  \ silent. Same rule home.\nverdict_producer: # — WHO PRODUCED THIS VERDICT (task\
-  \ pre/post). Derived, never declared.\n  kind: auditor | carry-forward | none\n\
-  \  fresh_invocation: true | false\n  from: <prior record path> # carry-forward only\
-  \ — the record the verdict was read from\n  auditor: {pair, model, effort} # the\
-  \ auditor the verdict ROOTS in (fresh, or copied from `from`)\n  auditor_root: unrecorded\
-  \ # carry-forward from a LEGACY UNSTAMPED source only — in place\n             \
-  \                        # of `auditor`; the root is unknown, not absent\n  reason:\
-  \ <why none> # kind none only\n                    # §Verdict producer (the rule):\
-  \ `auditor` is rooted SOLELY in the INVOCATION\n                    # RECEIPT the\
-  \ adapter seam writes AFTER the adapter callable returns — never in\n          \
-  \          # verdict / stdout / rc / duration state. A CARRIED verdict (the SPEC-0124\
-  \ /\n                    # unchanged-fingerprint re-run) is judged THREE ways on\
-  \ its SOURCE\n                    # record (owner decision 2026-09-19 — ABSENCE\
-  \ OF A STAMP IS NOT PROOF NO\n                    # AUDITOR RAN, a record written\
-  \ before the stamp existed is unstamped for that\n                    # reason alone):\
+  \ commit\nfollowups: [] # follow-up ids (T-NNNN task or fu_ followup) filed for\
+  \ residual findings; recorded per LIFECYCLE §Stage 8\n# OPTIONAL markers — the ceiling-skip\
+  \ / re-audit markers (tooling_absence_abort · timeout_abort ·\n# unchanged_fp_reaudit\
+  \ · concurrent_merge_reaudit · task_lens_reaudit · passable_absorption_reaudit ·\n\
+  # consult_governed) each mark a no-real-outcome re-audit whose `passes` is NOT advanced\
+  \ (the\n# ledger-skip); `lens_version` is instead the ordinary version field recording\
+  \ which lens a verdict\n# was rendered under (PLAN audit-post). Per-marker presence\
+  \ + pass-count semantics are homed in\n# SPEC-0124 §Audit-loop ceiling. Absent on\
+  \ every normal run. `bin/yitc-v2 graph query SPEC-0124`\nauditor_provider: <abstract\
+  \ identifier — not a provider brand>\nauditor_independence: external | same-provider\n\
+  \                    # REQUIRED on every saved verdict (task pre/post, plan gates,\
+  \ ad-hoc, consult).\n                    # `external` = the auditor's resolved provider\
+  \ differs from the primary AI's\n                    # provider for this session;\
+  \ `same-provider` = it does NOT, or the primary\n                    # cannot be\
+  \ determined (fail-closed toward the honest reading). A\n                    # `same-provider`\
+  \ verdict is ADMITTED on every gate — never refused, never a\n                 \
+  \   # wait — and ALSO journals one `audit_self_provider_used` row (SPEC-0025).\n\
+  \                    # Written at the ONE invocation chokepoint, no second writer.\n\
+  \                    # Rule home: `bin/yitc-v2 graph query SPEC-0201`.\nauditor_model:\
+  \ <the model id the adapter actually ran>\n                    # REQUIRED beside\
+  \ the stamp above: which model produced this verdict, as the\n                 \
+  \   # adapter actually invoked it (never the configured default re-stated). What\n\
+  \                    # makes a bound non-default model honest rather than silent.\
+  \ Same rule home.\nverdict_producer: # — WHO PRODUCED THIS VERDICT (task pre/post).\
+  \ Derived, never declared.\n  kind: auditor | carry-forward | none\n  fresh_invocation:\
+  \ true | false\n  from: <prior record path> # carry-forward only — the record the\
+  \ verdict was read from\n  auditor: {pair, model, effort} # the auditor the verdict\
+  \ ROOTS in (fresh, or copied from `from`)\n  auditor_root: unrecorded # carry-forward\
+  \ from a LEGACY UNSTAMPED source only — in place\n                             \
+  \        # of `auditor`; the root is unknown, not absent\n  reason: <why none> #\
+  \ kind none only\n                    # §Verdict producer (the rule): `auditor`\
+  \ is rooted SOLELY in the INVOCATION\n                    # RECEIPT the adapter\
+  \ seam writes AFTER the adapter callable returns — never in\n                  \
+  \  # verdict / stdout / rc / duration state. A CARRIED verdict (the SPEC-0124 /\n\
+  \                    # unchanged-fingerprint re-run) is judged THREE ways on its\
+  \ SOURCE\n                    # record (owner decision 2026-09-19 — ABSENCE OF A\
+  \ STAMP IS NOT PROOF NO\n                    # AUDITOR RAN, a record written before\
+  \ the stamp existed is unstamped for that\n                    # reason alone):\
   \ ROOTED, a producer stamp is present → `carry-forward`, the\n                 \
   \   # stamp copied (the auditor DID run, earlier, on that exact unchanged subject,\n\
   \                    # so the carried verdict keeps its authority and `fresh_invocation:\

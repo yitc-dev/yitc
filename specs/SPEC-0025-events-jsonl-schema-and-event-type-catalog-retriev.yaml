@@ -151,16 +151,25 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   `external_audit_completed` row at all (rule 9 / C4.2).\n\n**`duration_ms` — REQUIRED\
   \ on EVERY audit completion row.** It is present on\n`audit_pre_completed`, `audit_post_completed`\
   \ and `external_audit_completed` alike, on every emit\npath — the pre/post gate,\
-  \ the ad-hoc consult, the ceiling-convergence consult and the aspect audit —\nand\
-  \ it has exactly ONE definition across all of them: **the monotonic wall in ms since\
-  \ that path's\nown `audit_prompt_sent`**, or since the invocation's monotonic start\
-  \ on a path that sends no prompt\n(a consult-governed or unchanged-fingerprint carry-forward\
-  \ invokes no auditor). Source: the single\n`_audit_duration_ms(started)` helper\
-  \ in `bin/lib/audit.py`, called at each completion emit.\n\n**This SUPERSEDES the\
-  \ narrower pre- reading** (§Auditor-side observation fields, where the\nkey meant\
-  \ the `_invoke_auditor` call wall alone). That reading held on ONE path: 0 of 558\n\
-  ad-hoc and 0 of 752 consult rows carried the key at all, so an audit stage's wall\
-  \ could not be split\ninto machine time and worker time (deviation `audit-duration-ms-absent-on-adhoc-and-consult-paths`,\n\
+  \ the ad-hoc consult, the ceiling-convergence consult, the aspect audit and\nthe\
+  \ plan gate — and it has exactly ONE definition across all of them: **the monotonic\
+  \ wall in ms\nsince that path's own `audit_prompt_sent`**, or since the invocation's\
+  \ monotonic start on a path\nthat sends no prompt (a consult-governed or unchanged-fingerprint\
+  \ carry-forward invokes no auditor).\nSource: the single `_audit_duration_ms(started)`\
+  \ helper in `bin/lib/audit.py`, called at each\ncompletion emit.\n\n**The plan gate's\
+  \ anchor.** A plan-gate audit — a plan check, or a gate a plan-stage\nadvance asks\
+  \ — journals no prompt row of its own, so neither arm above names it. Its anchor\
+  \ is the\nmoment the prompt is handed to the auditor, the same moment the task paths\
+  \ journal theirs; the wall\ntherefore covers the reserve's run as well where the\
+  \ primary did not answer. A plan-gate save that\ninvokes no auditor reads from the\
+  \ invocation's start, as above. The plan lifecycle's own gate row,\n`draft_checked`,\
+  \ carries the same reading as an ADDITIVE key — where one run writes both rows they\n\
+  state one value. That type is not on the required roster above: a row written before\
+  \ this clause\ncarries none and is not a violation.\n\n**This SUPERSEDES the narrower\
+  \ pre- reading** (§Auditor-side observation fields, where the\nkey meant the `_invoke_auditor`\
+  \ call wall alone). That reading held on ONE path: 0 of 558\nad-hoc and 0 of 752\
+  \ consult rows carried the key at all, so an audit stage's wall could not be split\n\
+  into machine time and worker time (deviation `audit-duration-ms-absent-on-adhoc-and-consult-paths`,\n\
   retired). The call wall survives as an internal measurement and is no longer journaled;\n\
   one field defined one way beats a per-path reading. **Recovering a duration by pairing\n\
   `audit_prompt_sent` → completion rows is now a READ-ONLY FALLBACK for PRE- rows\
@@ -494,36 +503,36 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   : \"<slug>\"}}\n```\nAppend-only, P5-safe (consumers ignore unknown keys). Its presence\
   \ is what distinguishes a\nGOVERNED release-via-verb from an off-path raw `git tag\
   \ -a` (which leaves no `release_tagged` — the\nX-0354 untracked-release gap) — AGENTS\
-  \ §Verb-execution discipline.\n\n**release_published** (per <workshop-spec> rule\
-  \ 5; emitted by `bin/yitc-v2 work publish`) — the\nrelease PUBLISH record: the SPEC-0073\
-  \ kernel-realm slice was cut at a governed tag's peeled commit and\nwritten, with\
-  \ its manifest, into a destination checkout as one history-free commit. `task_id`\
-  \ null (a\nrelease is project-level, not task-tied), so a P8 reference to it takes\
-  \ the\n`release_published@<iso-ts>` pinned form.\n```jsonc\n{\"ts\": \"...\", \"\
-  type\": \"release_published\",\n \"data\": {\"tag\": \"<the source release tag>\"\
-  , \"source_sha\": \"<full sha of the peeled commit>\",\n          \"tree_digest\"\
-  : \"<sha256 of the artifact tree, EXCLUDING the manifest>\",\n          \"destination\"\
-  : \"<absolute path of the destination checkout>\",\n          \"file_count\": <files\
-  \ in the cut>}}\n```\nThe pair `release_tagged` -> `release_published` is a release's\
-  \ journal-visible provenance: the first\nsays WHICH commit was blessed, the second\
-  \ says what was actually cut from it and to what digest.\nBecause the cut is a pure\
-  \ function of the peeled commit, re-publishing the same tag emits a row\ncarrying\
-  \ the SAME `tree_digest` — so a differing digest for one tag is a real signal, not\
-  \ noise.\n\n**release_verified** / **release_installed** (per <workshop-spec> rules\
-  \ 6+7; emitted by `bin/yitc-v2\nrelease verify` and `release install`) — the CONSUMER-side\
-  \ half of the same provenance:\nwhere the two rows above record what the publisher\
-  \ CUT, these record what an installation actually\nCHECKED, and against which out-of-band\
-  \ anchor. `task_id` null (an install is project-level), so a\nP8 reference takes\
-  \ the `release_verified@<iso-ts>` pinned form.\n```jsonc\n{\"ts\": \"...\", \"type\"\
-  : \"release_verified\",\n \"data\": {\"destination\": \"<the published release directory>\"\
-  ,\n          \"anchor\": \"<the OUT-OF-BAND trust-root fingerprint the adopter pinned>\"\
-  ,\n          \"ok\": <true|false>, \"signing_key\": \"<SHA256:... or null>\",\n\
-  \          \"tag\": \"<the manifest's source_ref, or null>\",\n          \"reasons\"\
-  : [\"<refusal reason>\", \"...\"]}}\n```\n`release_installed` carries the same keys\
-  \ plus `into` (the directory the verified release was\ninstalled into).\n\n**release_updated**\
-  \ (per <workshop-spec> rule 8; emitted by `bin/yitc-v2 release update` — the emit\n\
-  shipped with, the verb reached the CLI with) — the THIRD adopter-side entrypoint's\n\
-  row, on the same terms as the two above: `task_id` null, emitted on refusal as well\
+  \ §Verb-execution discipline.\n\n**release_published** (per SPEC-0195 rule 5; emitted\
+  \ by `bin/yitc-v2 work publish`) — the\nrelease PUBLISH record: the SPEC-0073 kernel-realm\
+  \ slice was cut at a governed tag's peeled commit and\nwritten, with its manifest,\
+  \ into a destination checkout as one history-free commit. `task_id` null (a\nrelease\
+  \ is project-level, not task-tied), so a P8 reference to it takes the\n`release_published@<iso-ts>`\
+  \ pinned form.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_published\",\n \"\
+  data\": {\"tag\": \"<the source release tag>\", \"source_sha\": \"<full sha of the\
+  \ peeled commit>\",\n          \"tree_digest\": \"<sha256 of the artifact tree,\
+  \ EXCLUDING the manifest>\",\n          \"destination\": \"<absolute path of the\
+  \ destination checkout>\",\n          \"file_count\": <files in the cut>}}\n```\n\
+  The pair `release_tagged` -> `release_published` is a release's journal-visible\
+  \ provenance: the first\nsays WHICH commit was blessed, the second says what was\
+  \ actually cut from it and to what digest.\nBecause the cut is a pure function of\
+  \ the peeled commit, re-publishing the same tag emits a row\ncarrying the SAME `tree_digest`\
+  \ — so a differing digest for one tag is a real signal, not noise.\n\n**release_verified**\
+  \ / **release_installed** (per SPEC-0195 rules 6+7; emitted by `bin/yitc-v2\nrelease\
+  \ verify` and `release install`) — the CONSUMER-side half of the same provenance:\n\
+  where the two rows above record what the publisher CUT, these record what an installation\
+  \ actually\nCHECKED, and against which out-of-band anchor. `task_id` null (an install\
+  \ is project-level), so a\nP8 reference takes the `release_verified@<iso-ts>` pinned\
+  \ form.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_verified\",\n \"data\"\
+  : {\"destination\": \"<the published release directory>\",\n          \"anchor\"\
+  : \"<the OUT-OF-BAND trust-root fingerprint the adopter pinned>\",\n          \"\
+  ok\": <true|false>, \"signing_key\": \"<SHA256:... or null>\",\n          \"tag\"\
+  : \"<the manifest's source_ref, or null>\",\n          \"reasons\": [\"<refusal\
+  \ reason>\", \"...\"]}}\n```\n`release_installed` carries the same keys plus `into`\
+  \ (the directory the verified release was\ninstalled into).\n\n**release_updated**\
+  \ (per SPEC-0195 rule 8; emitted by `bin/yitc-v2 release update` — the emit\nshipped\
+  \ with, the verb reached the CLI with) — the THIRD adopter-side entrypoint's\nrow,\
+  \ on the same terms as the two above: `task_id` null, emitted on refusal as well\
   \ as on success.\nIt carries the `release_installed` keys (`destination` / `into`\
   \ / `anchor` / `ok` / `signing_key` /\n`tag` / `reasons`) and adds the update's\
   \ OWN outcome — `from_ref` / `to_ref` (the release moved\nFROM and TO), the per-class\
@@ -1058,13 +1067,39 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ due: the row then carries `verify_mode: pinned+candidate`, whose\ncandidate half\
   \ is the credited run). Such a land additionally carries `stage6_credit: {task,\
   \ ts, tree,\nbase}` — WHICH Stage-6 row it credited, resolvable as that task's `tests_passed`\
-  \ row at\n`events.jsonl#ts=<ts>`; ADDITIVE, present only on a credited land. Reading\
-  \ the bool as \"an inert retry\" is therefore\nwrong; key off the reason. An extinguished\
-  \ (lever-C) land additionally carries\n`superseded_extinguished: true` + `verify_slot_taken:\
-  \ false` + `land_reservation_taken` (bool) —\nthree keys rather than one because\
-  \ the boundaries saved are separate, and a land that skipped its\nverify but had\
-  \ already taken the land reservation saved one of them, not both. All ADDITIVE,\
-  \ present\nonly on that path, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN\
+  \ row at\n`events.jsonl#ts=<ts>`; ADDITIVE, present only on a credited land. Its\
+  \ counterpart is\n`stage6_credit_refused` (str) = WHY the credit was REFUSED to\
+  \ a runner-marked green newest\nStage-6 row of the task — the one reason of the\
+  \ SPEC-0065 §Bound condition that failed (`main-moved`,\n`tree-differs:<class>`,\
+  \ `read-by:<test>`, `run-narrowed`, `layer-not-covered:<layer>`,\n`row-tree-unrecorded`,\
+  \ `row-tree-unresolvable`, …), so what each condition costs is foldable from\nthe\
+  \ journal. Present ONLY on an ok land that asked for the credit and refused such\
+  \ a row; ABSENT on a\ncredited land and wherever no credit was possible (no Stage-6\
+  \ row, a red or an unmarked newest row,\nan opted-out project, a non-task branch,\
+  \ an error inside the proof, a land step 4d is not asked on) —\nit never reads as\
+  \ «no credit». It is the LAND's, not one attempt's: a retry that is not asked again\n\
+  keeps it. ADDITIVE, REPORT-ONLY. Beside `main-moved` ONLY it is joined by `stage6_credit_main_delta`\n\
+  \ = main's OWN advance between the run's recorded base and this land's merge base,\n\
+  classified by the one SPEC-0064 authority as inert, observable or unknown, with\
+  \ its path count —\nunknown (no count) whenever that delta cannot be read, never\
+  \ inert. A measurement for the owner's\ndecision on condition (1), never a grant:\
+  \ the credit stays refused. Reading the bool as \"an inert\nretry\" is therefore\n\
+  wrong; key off the reason. An extinguished (lever-C) land additionally carries\n\
+  `superseded_extinguished: true` + `verify_slot_taken: false` + `land_reservation_taken`\
+  \ (bool) —\nthree keys rather than one because the boundaries saved are separate,\
+  \ and a land that skipped its\nverify but had already taken the land reservation\
+  \ saved one of them, not both. All ADDITIVE, present\nonly on that path, REPORT-ONLY.\
+  \ The OPPOSITE case has its own key (SPEC-0184 rule 9):\n`rung0_paid: <reason>`\
+  \ rides the terminal row — `ok` or `abort` — of a land that RAN its test\nverify\
+  \ although the land-admission rank answered it as free: a kernel-suite land whose\
+  \ own delta\nwas all-inert. The value says why it paid — the inert first-attempt\
+  \ proof's own refusal (e.g.\n`observable-since-anchor:tests`), or `first-attempt-proof-not-open`\
+  \ where that proof was not open\nto the attempt (a declared rebaseline). It is a\
+  \ fact about the LAND, recorded once a candidate\nverify of it has run and kept\
+  \ across attempts, so it can sit beside a skip reason on a row whose\nlanding attempt\
+  \ skipped, and it rides an abort row only when the suite ran before the abort.\n\
+  Without it such a row is indistinguishable from an ordinary paying land. ADDITIVE,\
+  \ present only\non that land, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN\
   \ both-must-pass verify signal (SPEC-0077 §Verification,\nthe SOLE authoritative\
   \ adoption signal): `\"pinned+candidate\"` iff this land touched the verifier surface\n\
   (the verify-implementation-touch predicate fired) so the pinned last-green verifier\
@@ -2028,22 +2063,32 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ tests that READ what it wrote were not proven green on the\nwritten tree. `data:\
   \ {writer, paths[], reason, test, failing[], readers[], wall_ms,\nrestore_errors[]?}`.\
   \ `writer` names the tail writer as a stable token (`verify_duration_table` /\n\
-  `load_sensitive_entry`), `paths` is the writer's WHOLE transaction — restored together,\
-  \ never\npartially (a green path may not ride past the gate beside an unproven sibling)\
-  \ — `readers` is the\nDERIVED set of test files that read those paths and `failing`\
-  \ each one's `{test, why}`, where `why`\nis `exit:<n>` / `timeout` / `over-budget`\
-  \ / `error:<Type>`. `reason` is the verdict class\n(`reader-failed` / `timeout`\
-  \ / `over-budget` / `error:<Type>`); it is NEVER `green`, since a green\nverdict\
-  \ emits no row at all. Emitted by `land` post-ff, in-lock, before the `git add`\
-  \ that would\nhave staged the write, and folded into the fresh bookkeeping commit\
-  \ when another carrier was\nwritten, else into the NEXT land's (a withheld write\
-  \ writes no carrier, so it forces no commit of\nits own) — so the record of the\n\
-  refusal lands even though the write did not. THE DIFFERENTIAL A READER MUST HOLD:\
-  \ this row is NOT\na failed land and NOT a failing test on `main` — the land is\
-  \ GREEN and `main` carries exactly the\nverified tree; what the row says is that\
+  `load_sensitive_entry`). The writer's WHOLE transaction is withheld together, never\
+  \ partially (a\ngreen path may not ride past the gate beside an unproven sibling),\
+  \ and the row says per path what\nthe undo did: `paths` lists the paths that were\
+  \ put back (a tracked path restored from the\npublished tree, a never-tracked one\
+  \ removed), and `restore_errors` — present only when a restore\nfailed — lists each\
+  \ remaining path with what stopped it (the git step, its exit code and git's\nfirst\
+  \ stderr line, or the exception type). A path under `restore_errors` is never also\
+  \ under\n`paths`. `readers` is the\nDERIVED set of test files that read those paths\
+  \ and `failing` each one's `{test, why}`, where `why`\nis `exit:<n>` / `timeout`\
+  \ / `over-budget` / `error:<Type>`. `reason` is the verdict class\n(`reader-failed`\
+  \ / `timeout` / `over-budget` / `error:<Type>`); it is NEVER `green`, since a green\n\
+  verdict emits no row at all. Emitted by `land` post-ff, in-lock, before the `git\
+  \ add` that would\nhave staged the write, and folded into the fresh bookkeeping\
+  \ commit when another carrier was\nwritten, else into the NEXT land's (a withheld\
+  \ write writes no carrier, so it forces no commit of\nits own) — so the record of\
+  \ the\nrefusal lands even though the write did not. THE DIFFERENTIAL A READER MUST\
+  \ HOLD: this row is NOT\na failed land and NOT a failing test on `main` — the land\
+  \ is GREEN and `main` carries exactly the\nverified tree; what the row says is that\
   \ a re-derivable bookkeeping write was DEFERRED to the next\nland. One row is a\
   \ deferral; a run of them for one `writer` means that writer and its readers\ngenuinely\
-  \ disagree (the SPEC-0119 rule-42 debt line reports exactly that shape).\n\n**land_batch_formed**\
+  \ disagree (the SPEC-0119 rule-42 debt line reports exactly that shape). The one\
+  \ exception\nis a row carrying `restore_errors`: that land's commit was still the\
+  \ verified tree, but the write\nit could not put back was left in the working tree\
+  \ of `main`, where a later land refuses it as\nuncommitted work for as long as it\
+  \ remains. Such a row records that moment, never the present\nstate of `main`; the\
+  \ debt line names it as a failed restore instead of calling it restored.\n\n**land_batch_formed**\
   \ (SPEC-0184 rules 1-2 + the realization exit criterion) — ONE row per\nFORMED batch,\
   \ recording what the batch was and what it actually SAVED.\n`data: {members, paying_members,\
   \ batch_max, branches[], batch_id?, engagement?}`.\n`members` is the member COUNT\

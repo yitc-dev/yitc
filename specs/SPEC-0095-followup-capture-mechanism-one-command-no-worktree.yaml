@@ -712,4 +712,4 @@ implements_signature:
   bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
   bin/lib/followup.py#split_event_awaits: a4941eda4fcf12b7aa53f9ce49de38163c99767d7aac16b848591d2565ceb8ff
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
-  bin/lib/task.py#cmd_task_file: a2448377e68efc1d0223bf442d465f96b5f5f71d29867ba800e11ab1c1a65f11
+  bin/lib/task.py#cmd_task_file: e95ef07da93d6783f833cda1747a1831d7761178687fb0dbba85c16a258dd145

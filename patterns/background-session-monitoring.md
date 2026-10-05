@@ -123,7 +123,7 @@ incidents on 2026-07-09 came straight out of that: a **false ALL_TERMINAL** read
 
 ```
 bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monitor, key off the token
-    [--watch-interval 60] [--watch-timeout 3600] [--watch-confirm-ticks 2]
+    [--watch-interval 60] [--watch-timeout 1500] [--watch-confirm-ticks 2]
 ```
 
 - **NESTING — a wrapper's timeout MUST EXCEED `--watch-timeout`, or the token is destroyed by its own
@@ -138,6 +138,12 @@ bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monito
   applies to any wrapped token-emitting verb, `land` included: **the wrapper must outlive the verb it
   wraps.** This is the transport-side companion of "key ALL recovery off the JOURNAL, never off the
   wrapper's process lifetime" below — the journal saves you when this is violated, it does not excuse it.
+  **WRAPPER CEILING — 1800 s (30 min)** is the smallest wrapper bound this section names: the harness
+  Monitor primitive caps its own deadline there. The DEFAULT `--watch-timeout` is DERIVED from that
+  figure : the default plus one `--watch-interval` sits strictly below it — the verb checks its
+  bound after a tick, so it may run one interval past `--watch-timeout` — and the bare verb therefore
+  fits under that wrapper with no flag. Pass a LONGER `--watch-timeout` only under a wrapper that can
+  hold it.
 - **HOW you arm it decides whether the wake can reach you — and the verb now says so OUT LOUD (RULE / X-1440).** There are two arming forms and only one can deliver. Under the harness's own
   background primitive the watcher's EXIT re-invokes the controller, so the wake is delivered. Armed as a
   plain shell background job inside a foreground call with its output redirected away from yours
@@ -167,6 +173,16 @@ bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monito
   refill that one slot and re-arm over the rest. It still prints the WHOLE fleet, so siblings are never
   abandoned; an early terminal with a recovery-bearing detail exits `WAKE` as it always did; and unflagged,
   the exit contract is byte-for-byte what it was.
+- **A PAUSED card wakes the watcher — over, never clean (SPEC-0133 rule 5d).** A
+  watched task whose status row reads `paused(<reason>)` is positively terminal but never a clean
+  completion: it turns the all-terminal exit into `WAKE`, and under `--watch-any-terminal` its own exit is
+  `WAKE`, never `ANY_TERMINAL`. The read comes from the card and the journal, not from the worker process,
+  so the wake does not wait for the pausing worker to exit. What the pause waits for is reason-specific, and
+  the wake text and the row's recovery hint say so: `controller-wait` — the Controller's recorded
+  `next_action`, then `dispatch --resume`; `audit-ceiling` — one `audit decide` per residual; **`artifact-wait`
+  — no decision is pending: the task waits on the artifact its card declares (`paused_awaits`), and is
+  relaunched once that artifact has arrived (the session-start echo then reads RESUMABLE)**; any other
+  reason — the decision it names.
 - **The exit IS the re-invoke — but run it under Monitor, or it may never reach that exit (2026-08-12).** The
   verb simply *exits* with its token and your harness's completion notification wakes you; re-invoking the AI
   stays a harness capability the provider-neutral CLI cannot perform (CHARTER §P4b) and the observability verb

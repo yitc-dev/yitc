@@ -214,8 +214,10 @@ The order is fixed: **session start → init → recommended answers → first-s
    ```
 
    Session start comes first, so everything after it is recorded. `init` needs no worktree — it is
-   the sanctioned bootstrap commit. It writes `yitc-ops.yaml`; pin the engine release there under
-   `kernel:`:
+   the sanctioned bootstrap commit. It writes `yitc-ops.yaml`, and that file already holds a
+   `kernel:` section carrying a `waiver:` — the answer for a project with no pinned release. To pin
+   the engine release, REPLACE that whole section with this one (the file holds `kernel:` once; a
+   second `kernel:` block added below the first is not read as a pin):
 
    ```yaml
    kernel:
@@ -227,6 +229,16 @@ The order is fixed: **session start → init → recommended answers → first-s
    in full as `/home/<user>/yitc`, with no `~`. It is never the mirror's web address: a URL, a `~`
    path or a relative path is refused, and then every `-C` command for the project stops, `--help`
    included. The pin reads the release tag out of that clone, so the clone must be kept (I3).
+
+   Then record the change. `init` noted the waiver in the project's `adoption:` list as well, and
+   it refuses to run again while that note and the `kernel:` section disagree:
+
+   ```bash
+   <engine-dir>/bin/yitc-v2 -C <project> init --adopt-concern kernel:adopt:<owner>
+   ```
+
+   `<owner>` is the short name of the person who decided to pin — the same kind of name the
+   `--confirm-born-permissive` flag in step 2 takes.
 2. **Recommended answers.** Where init asks questions, the AI offers the recommended answer for each,
    in plain words, and the person agrees or changes it. An AI has no terminal to answer prompts in,
    so init asks nothing: it prints a **born-permissive block** instead — each concern that starts

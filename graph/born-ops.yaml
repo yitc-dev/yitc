@@ -674,6 +674,43 @@ verify_policy:
     pinned last-green leg from day one; the periodic review watches for the absence starting to cost
     something and PROPOSES turning it back on (SPEC-0189). Restoration is this project's own explicit
     act — set `pinned_last_green: all` here."
+kernel:
+  # SPEC-0195 — WHICH ENGINE + WHICH CONTENT this project runs, pinned. Rule 3: a consumer PINS
+  # the release, it never copies or forks it. ONE pin CONTRACT with TWO CARRIERS, because
+  # executable code and regenerable content need different checks.
+  #
+  # To DECLARE, replace the waiver below with:
+  # engine: # the EXECUTABLE dependency (rule 3, first carrier)
+  # release_repo: <absolute path to the local clone of the published release mirror>
+  # release: <the EXACT release TAG — e.g. v0.5.0>
+  # anchor: <OPTIONAL — the out-of-band trust-root fingerprint (rule 7); when declared, the
+  # pinned tree is verified against the signed manifest before it is used>
+  # content: # OPTIONAL — this project's own RECORD of the content pin (rule 3,
+  # # second carrier). The carrier itself is the installed tree's
+  # # signed manifest, moved by `release update`; no kernel reader
+  # # consumes this mapping.
+  # release: <the release tag the installed content was cut from>
+  # answers: <OPTIONAL — where this project keeps its own init answers, if it keeps any, or ~;
+  # no update reads it>
+  #
+  # THE REF IS EXACT AND IMMUTABLE, never a moving one. A release TAG is resolved to its PEELED
+  # COMMIT and the bytes read are that commit's — a branch name is REFUSED, and a tag that does
+  # not exist in `release_repo:` is a LOUD `pin-unresolved`, never a silent fall-through to
+  # whatever engine happened to invoke the command. That silence is exactly what rule 4 retires:
+  # `-C <project>` resolves the engine FROM this pin, not from an absolute host path baked into
+  # a launcher, a doc, or a default.
+  #
+  # THE BORN STANCE IS A WAIVER, and it is a real key rather than commentary (the
+  # lesson, `lessons/a-stance-mirror-is-only-sound-at-birth.md`): this section is EMITTED for
+  # every project, so it is PRESENT — and a comment-only block declares NOTHING, so under
+  # declare-or-waive every freshly-`init`ed project would fail its own born template.
+  waiver:
+    reason: >-
+      Initialized via `bin/yitc-v2 init` — no pinned kernel release yet; this project runs the
+      engine it was invoked with, from the
+      workshop it lives beside. Replace this waiver with `engine: {release_repo, release}` once a
+      release is published and this project installs from the artifact rather than the shared
+      filesystem (SPEC-0195 rules 3-4).
 overrides:
   # SPEC-0196 — THE OVERRIDE LEDGER: the ONLY sanctioned form of local divergence from an
   # upstream-owned file of the pinned release (the release contract's ownership classes). Born EMPTY, which is the

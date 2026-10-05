@@ -238,4 +238,4 @@ implements_signature:
   bin/lib/nightly.py#_check_concern_drift: 93a814359365b620afd514c591edf9bde587de9d7e24d131771d2f0aabf794c2
   bin/lib/nightly.py#_concern_drift_escalations: 2cc935f1774709c64f2bbefdf0d5b810ea8c75253a3ba6b0a9994b2e2d3548a8
   bin/lib/nightly.py#_concern_surfacing_counts: 8ca2ec3bd620094b21b0cabf790ae431d0584c9465023ca021d579d0311cef4f
-  bin/lib/nightly.py#cmd_nightly: 5f7df9824d58e151773c5b1312534fa1f5b1d367be8c4c254a061b715c12253b
+  bin/lib/nightly.py#cmd_nightly: 7ec6a9094b5bd3b69d0bfc9f06832524de3260d32b604d891fdd9dd1dd280388

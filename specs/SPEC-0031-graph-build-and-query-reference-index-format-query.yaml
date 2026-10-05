@@ -490,7 +490,7 @@ proposed_by: null
 implements_signature:
   bin/lib/graph.py#_regen_manifest_managed_regions: 57c4a9252b57e07fdaaec5fc111ba3b675bc4edc23b6bad582a147a4f8e98e01
   bin/lib/graph.py#cmd_graph_build: 6807128a31ce7d22d208da3219b23e1c9c0a76bad72fa3d2074d23bb669b493c
-  bin/lib/graph.py#cmd_graph_query: edd6ee0059524cda18499c3c629b762442f42e6928cfd3dbb4c15525431bfc50
+  bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
   bin/lib/graph.py#graph_cache_report_lines: f6531ec48ac729e790ee9020b118372b073deb54446b84c94c5b5d69633c1d24
   bin/lib/graph.py#index_cache_lookup: cbeab808408aae3ddc3bf0deb7a33d9e4aff6b9e601d71a04257213f7c2cb6ba
   bin/lib/graph.py#index_cache_store: 92c5c9bc9a8b8260f9cf13827d67f52514db4c3ef6b5902d820f6a72e5a6b1b2

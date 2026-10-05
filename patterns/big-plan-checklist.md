@@ -9,14 +9,11 @@ applies_to: substantive plans (foundational decisions, multi-step proposals, pla
 
 Seven probes for a substantive plan/proposal. AI consults before finalizing a big plan.
 
-> **Status (owner-directed 2026-06-04 — the «later» trigger fired).** This checklist stops being purely
-> an «optional reference»: its formal integration via SPEC + LIFECYCLE is being **codified** in the
-> plan-lifecycle stage-model — for a **big** plan the big-plan discipline becomes MANDATORY at
-> `plan check`, which gates entry into the `executing` stage (a filled `checklist_pass` + a fresh `plan check
-> --full` + a dry-run if the rules are new). Design + deliverable:
-> `plans/plan-lifecycle-delivery-parity-redesign-lifecycle-` §Stage model. Until that plan is
-> realized, the rule stays advisory; `plan check --full` already auto-applies this checklist for big
-> plans (`big_plan_checklist: true` in the verdict) + a structural pre-pass mechanizes P7.
+> **Status.** For a LARGE plan (the «When to apply» criteria below) this checklist is MANDATORY at the
+> gate that admits the plan to `decomposition`: a filled `checklist_pass` + a fresh `plan check --full` +
+> a dry-run when the plan's rules are novel. Rule home: SPEC-0034 §Mandatory big-plan check
+> (`bin/yitc-v2 graph query SPEC-0034`) — not restated here. `plan check --full` auto-applies this
+> checklist for big plans (`big_plan_checklist: true` in the verdict) + a structural pre-pass mechanizes P7.
 
 Adapted from v1 §21.
 
@@ -224,6 +221,53 @@ Missing any probe = the plan is not final.
 ## Anti-pattern
 
 «I'm a good AI, I already know what needs checking» — the checklist exists precisely because without mechanical traversal probes get skipped systematically. This discipline is not for smart agents, but for **complete agents** (smart + disciplined).
+
+## How to run a plan's gate audit (advisory)
+
+**Advice, not a rule.** This section is ADVISORY and applies to substantive plans (the «When to apply»
+criteria above). It adds no step to `checklist_pass`, no gate, no record and no verb, and it changes
+nothing about when a plan gate passes. Why it exists: a large plan can return RED at its gate many
+times in a row, and the later findings tend to sit in text written to answer the round before. The
+advice below aims at fewer, better-prepared full checks. It makes no claim of demonstrated savings or
+of preserved review quality.
+
+**1. Before the check.** Run the seven probes above first. When a finding could be answered either way,
+prefer narrowing or removing a promise over adding a mechanism. Compose the `implementation_plan` and the
+realization-exit body block BEFORE `plan check`, in the order SPEC-0034 §accepted «Work — ORDER» gives:
+editing the plan BODY after the check stales its verdict, while the `implementation_plan` frontmatter
+field does not.
+
+**2. After a RED.** Fix structural findings before local ones, using what you know about which findings
+interact — a structural fix often moves or retires local ones. Record a disposition for EVERY open
+finding; not every disposition is a text edit (some are accepted or deferred with a reason).
+
+**3. A YELLOW is a separate case.** A residual can be absorbed onto an existing, FRESH YELLOW accept-gate
+verdict with `bin/yitc-v2 plan check --absorb "<text>" <slug>` (SPEC-0034 §accepted «A YELLOW residual
+is absorbed ONTO the verdict»). Never on a RED or ABORT, and never after the audited body changed — the
+verb refuses both. A fresh `plan check` does not carry earlier absorbed entries forward.
+
+**4. Ask the full check to rank.** Ask the full check to rank its findings and mark the ones that
+interact. Do not limit it to a top-N list and do not narrow its lens — ranking helps you order the fixes,
+it must not shrink what the check looks at.
+
+**5. Optional: a fix-only consult between two full checks.** After a RED, you MAY show the external
+auditor only the fixes, through `bin/yitc-v2 audit adhoc`, before paying for the next full check.
+- **What to show.** Start from the last FULL check's recoverable baseline (its saved record and the body
+  it judged) and show the CUMULATIVE repairs since then — deletions and interacting changes included —
+  plus the unchanged context those repairs need.
+- **What to ask.** Per finding: CLOSED / NOT CLOSED / INSUFFICIENT CONTEXT; any new gap a fix opens; and
+  «full check next | fix first».
+- **How to read the answer.** «CLOSED» means closed within the context you showed, and «no new gap» has
+  the same limit. Its conclusions are provisional inputs for you, never established facts to hand to the
+  next full reviewer.
+- **When it fits.** Only for local repairs. A rough screen: the repairs touch about 10% or less of any
+  affected body — an UNVALIDATED screening heuristic, never proof that a change is local or safe.
+  Reassess if relevant corpus text changed since the last full check.
+- **When to stop.** About two consults in a row is a suggested stopping point, not a limit.
+- **What it is not.** A consult does not satisfy or refresh a gate verdict, does not supersede a RED, and
+  does not authorize another round. The next full check stays subject to the existing round-admission
+  contract — SPEC-0204 rule 9 (`bin/yitc-v2 graph query SPEC-0204`), cited here, not restated — and
+  reviews the whole assembled package with the full lens (SPEC-0034 «Audit posture: FULL»).
 
 ## Dry-run rehearsal — survives the plan contact with real material? (complementary method)
 

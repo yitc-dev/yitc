@@ -138,10 +138,42 @@ def _engine_repo_root(engine_root: Path) -> Path:
     return fallback
 
 
+# T-13498 (SPEC-0105 §1): the registry key an OWNER sets on a project entry to declare that
+# project's DEVELOPMENT dormant — `dormant: <reason>`. It is read by the born-waiver check ALONE.
+# Deliberately NOT `active:`: that key is the SPEC-0130 V1-shutdown flag, which a migrated consumer
+# carries while fully alive on v2, so reading it here would call every quiesced project dormant.
+def _declared_dormancy(meta: dict) -> dict:
+    """One registry entry → the keys its `dormant:` declaration adds to the project record (T-13498):
+    `{"dormant": <reason>}`, `{"dormant_ignored": <why>}`, or `{}`.
+
+    A DECLARATION IS A NON-EMPTY REASON STRING, and nothing else. The reason is the declaration: it
+    is what the nightly row carries beside the stale-waiver count, so a reader of the row can tell
+    WHY a project holding stale placeholders is not alerting. ONE RULE FOR EVERYTHING ELSE, with no
+    carve-out: a key that is PRESENT with any other value (`true`, `false`, a number, a mapping, a
+    blank string, nothing after the colon) states no reason, so it is NOT honoured — the project is
+    graded exactly as an undeclared one — and `dormant_ignored` names the value. The caller puts
+    that note on the project's own entry of the run, whatever its checks grade, so an owner who
+    wrote `dormant: true` is told why nothing changed instead of being left to guess.
+
+    Only an ABSENT key adds nothing: `{}`. So the record of a project that declares nothing is
+    `{name, path}` exactly as it was before this key existed, for every caller of the enumerator.
+    Withdrawing a declaration is deleting the key."""
+    if "dormant" not in meta:
+        return {}
+    raw = meta["dormant"]
+    if isinstance(raw, str) and raw.strip():
+        return {"dormant": raw.strip()}
+    return {"dormant_ignored": (f"registry `dormant:` is {raw!r} — a declaration is a non-empty "
+                                f"reason string, so this one is not honoured")}
+
+
 def _v2_projects(registry_path: Path, engine_root: Path, kernel_name: str) -> list:
     """Read registry_path (read-only) and return the ordered list of v2 projects:
     [{name, path}] for every entry whose `methodology == 'yitc_v2'`. A missing/invalid `path` is
-    skipped (a malformed entry never aborts the run).
+    skipped (a malformed entry never aborts the run). An entry that declares dormancy ALSO carries
+    `dormant` (the owner's reason) or `dormant_ignored` (a present-but-unusable declaration) —
+    `_declared_dormancy`, T-13498 — passed through unjudged: the nightly loop decides what they
+    mean, and an entry declaring nothing is `{name, path}` as before.
 
     Path resolution (T-9796): a `path` is resolved to an ABSOLUTE canonical path — a RELATIVE entry is
     resolved against the registry FILE's directory (`registry_path.parent`), NOT the process cwd, so the
@@ -191,7 +223,7 @@ def _v2_projects(registry_path: Path, engine_root: Path, kernel_name: str) -> li
             path = resolved
         else:
             continue
-        out.append({"name": name, "path": path})
+        out.append({"name": name, "path": path, **_declared_dormancy(meta)})
     return out
 
 
@@ -1421,7 +1453,7 @@ def _reads_exemptions_for(proj_path: Path) -> list:
         return []
 
 
-def _check_born_waiver_freshness(proj_path: Path) -> dict:
+def _check_born_waiver_freshness(proj_path: Path, *, dormant=None) -> dict:
     """OPERATIONAL-HYGIENE check (SPEC-0105 rule 1 / X-0130): surface a project's `yitc-ops.yaml` born
     waivers whose init PLACEHOLDER was never replaced — they sit as legitimate-looking fail-closed
     defaults indefinitely (observed on <project>: deploy.policy/security/inspection still verbatim
@@ -1438,6 +1470,16 @@ def _check_born_waiver_freshness(proj_path: Path) -> dict:
     (`lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`): `state.load_path` stays faithful,
     and this reader decides what a broken carrier means for IT. An EMPTY carrier parses to `{}` and still
     grades `ok` — that is absence of waivers, not corruption.
+
+    T-13498: OWNER-DECLARED DORMANCY. `dormant` is the reason the project's registry entry declares
+    (`_declared_dormancy`), or None. With it, stale placeholders grade `dormant` instead of `alert`:
+    nobody is developing the project, so nobody will replace them, and an alert that cannot be acted
+    on only saturates the fleet reading. NOTHING IS ERASED — the row keeps every stale path (so the
+    count is still read off it) and carries the declared reason. It replaces the STALE-PLACEHOLDER
+    alert and that arm only: an UNREADABLE carrier still alerts (what cannot be read cannot be
+    called dormant), and `ok` / `skip` are what they were. A declaration that was present but
+    unusable never reaches this function — the loop grades that project as undeclared and names
+    the declaration on the project's entry.
     Read-only; nothing persisted (the §6 fence)."""
     from lib import init  # lazy — avoids coupling nightly's top-level imports to init (the marker SoT)
     ops_path = proj_path / CONSUMER_OPS_CONTRACT
@@ -1454,8 +1496,12 @@ def _check_born_waiver_freshness(proj_path: Path) -> dict:
     stale = _born_waiver_stale_paths(ops, (init.BORN_WAIVER_MARKER, init.BORN_CATALOG_WAIVE_MARKER),
                                      init.BORN_WAIVER_PLACEHOLDER_EXPIRY)
     if stale:
-        return {"verdict": "alert", "stale_waivers": stale,
-                "reason": f"{len(stale)} born-waiver(s) still carry the init placeholder (never replaced)"}
+        reason = f"{len(stale)} born-waiver(s) still carry the init placeholder (never replaced)"
+        if dormant:
+            return {"verdict": "dormant", "stale_waivers": stale, "dormant_reason": dormant,
+                    "reason": f"{reason} — graded dormant, not alert: the registry entry declares "
+                              f"this project dormant ({dormant})"}
+        return {"verdict": "alert", "stale_waivers": stale, "reason": reason}
     return {"verdict": "ok", "stale_waivers": []}
 
 
@@ -3667,6 +3713,11 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         ppath = proj["path"]
         present = ppath.is_dir()
         entry = {"name": proj["name"], "path": str(ppath), "present": present}
+        if proj.get("dormant_ignored"):
+            # T-13498: a dormancy declaration that states no reason is NOT honoured. The note sits
+            # on the project's ENTRY, not inside one check's row, so it is recorded and printed
+            # whatever the checks grade — a clean, an unreadable or an absent project included.
+            entry["dormant_ignored"] = proj["dormant_ignored"]
         if present:
             # T-13464: every per-project call below goes through `_contained`, so a check that
             # raises records {verdict: fault} for itself and the rest of the run still happens.
@@ -3682,7 +3733,10 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
                 # key order, and no drift row is appended for it below.
                 entry.update(_engine_own_contract_rows())
             else:
-                entry["born_waivers"] = _contained(_check_born_waiver_freshness, ppath)
+                # T-13498: the owner-declared dormancy reaches THIS check and no other — every
+                # other check below grades a dormant project exactly as it grades any project.
+                entry["born_waivers"] = _contained(
+                    _check_born_waiver_freshness, ppath, dormant=proj.get("dormant"))
                 entry["concern_conformance"] = _contained(_check_concern_conformance, ppath, now=now)
                 entry["concern_drift"] = _contained(_check_concern_drift, ppath)
                 entry["unratified_adoptions"] = _contained(_check_unratified_adoptions, ppath)
@@ -3849,6 +3903,11 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
     # alert): a single project with several unreplaced born waivers contributes each one (audit-post
     # finding-0). Projects-flagged is the separate `flagged` counter below.
     stale_born_waivers = sum(len(r["born_waivers"].get("stale_waivers") or []) for r in results)
+    # T-13498: the SUBSET of that total held by declared-dormant projects. The total above is left
+    # counting every stale placeholder on the fleet (a dormant project's are still there), and this
+    # is reported beside it so the two can be told apart — `total - dormant` is what still alerts.
+    dormant_born_waivers = sum(len(r["born_waivers"].get("stale_waivers") or []) for r in results
+                               if r["born_waivers"].get("verdict") == "dormant")
     # T-12037 (SPEC-0105 §1 / SPEC-0119 rule 37): seam-read amplification — the number of amplified
     # SEAM items across all projects (each project's amplified (project, verb) seams), the
     # item-count convention its siblings hold. Reported BESIDE the projects that could not be
@@ -3977,6 +4036,7 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         "freshness_failing": freshness_failing,        # T-10798 (SPEC-0174 rule 3) — the fresh-and-failing subset
         "freshness_non_adopted": freshness_non_adopted,
         "stale_born_waivers": stale_born_waivers,
+        "dormant_born_waivers": dormant_born_waivers,   # T-13498 — the declared-dormant subset
         "seam_read_amplified": seam_read_amplified,   # T-12037 (SPEC-0119 rule 37)
         "seam_read_uninstrumented": seam_read_uninstrumented,   # measured NOTHING — never read as clean
         "concern_conformance_issues": concern_conformance_issues,
@@ -4057,7 +4117,8 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
           f" | freshness-failing: {freshness_failing}"   # T-10798 — a DOWN subject is never folded into the total alone
           f" | freshness-non-adopted: {freshness_non_adopted}"
           f" | stale-born-waivers: {stale_born_waivers}"
-          f" | concern-conformance-issues: {concern_conformance_issues}"
+          + (f" ({dormant_born_waivers} on declared-dormant projects)" if dormant_born_waivers else "")
+          + f" | concern-conformance-issues: {concern_conformance_issues}"
           f" | concern-drift-items: {concern_drift_items}"
           f" | unratified-adoptions: {unratified_adoptions}"
           f" | adoption-gaps: {adoption_gaps}"
@@ -4203,6 +4264,8 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         q, c, f = r["queue"], r["corpus"], r["freshness"]
         if not r["present"]:
             print(f"  - {r['name']}: (path absent — {r['path']})")
+            if r.get("dormant_ignored"):      # T-13498 — named for an absent project too
+                print(f"      ! dormancy NOT honoured — {r.get('dormant_ignored')}")
             continue
         qline = (f"queue={q['verdict']} ready={q.get('ready', '?')}"
                  + (" OVER-CAP" if q.get("ready_over_cap") else "")
@@ -4231,7 +4294,11 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         fec = r.get("frontend_errors", {})
         phe = r.get("project_health", {})
         print(f"  - {r['name']}: {qline} | {cline} | freshness={f['verdict']}"
-              f" | born-waivers={bw.get('verdict')} | concern-conformance={cc.get('verdict')}"
+              f" | born-waivers={bw.get('verdict')}"
+              # T-13498: a dormant grade names its count and the declared reason on the line itself
+              + (f" ({len(bw.get('stale_waivers') or [])} stale, dormant: {bw.get('dormant_reason')})"
+                 if bw.get("verdict") == "dormant" else "")
+              + f" | concern-conformance={cc.get('verdict')}"
               f" | concern-drift={cdr.get('verdict')} | unratified-adoptions={ua.get('verdict')}"
               f" | adapter={adp.get('verdict')} | adoption-completeness={acp.get('verdict')}"
               f" | override-ledger={ovl.get('verdict')}"
@@ -4243,6 +4310,10 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
               # T-11359 (SPEC-0105 §1a) — appended LAST so the frontend-errors count stays attached
               # to the field it qualifies (a suffix that drifts onto the next field misreads).
               + f" | project-health={phe.get('verdict')}")
+        # T-13498: a `dormant:` value that is not a reason string was NOT honoured — say so, or
+        # the owner who wrote it sees an unchanged grade and no explanation.
+        if r.get("dormant_ignored"):
+            print(f"      ! dormancy NOT honoured — {r.get('dormant_ignored')}")
         # T-13464: one FAULT line per check that raised — the check did not report, so the line
         # says so in words instead of leaving `=fault` to be read as one more verdict.
         for _chk in _check_faults(r):

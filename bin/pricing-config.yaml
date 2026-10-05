@@ -221,8 +221,10 @@ context_refresh_threshold_pct: 55
 # 165534 — below 200K, proving nothing either way. Re-measured the same day at Execution: 259441, now
 # ABOVE 200K, so the ordinary method above independently corroborates 1M;.)
 # (<provider-model>: OWNER-SET 1M on 2026-09-23 per owner directive events.jsonl#ts=
-# — NOT a calibration; entered with no transcript reading of the model on file. Re-check
-# when the first reading above 200K arrives.)
+#, entered with no transcript reading of the model on file. The first reading above 200K
+# has since arrived: 792,046 tokens max input-side occupancy at (transcript
+# <session-id>, a <provider-model> worker session), so the ordinary
+# method above independently corroborates 1M;.)
 context_window:
   claude-opus-4-8: 1000000
   claude-opus-4-7: 1000000
@@ -230,4 +232,4 @@ context_window:
   claude-fable-5: 1000000
   claude-opus-5: 1000000
   claude-fable-5-1: 1000000
-  claude-opus-5-5: 1000000   # OWNER-SET 2026-09-23 (T-12826), not calibrated
+  claude-opus-5-5: 1000000   # owner-set 2026-09-23 (T-12826); corroborated by a 792,046-token reading 2026-09-29T00:19:37Z (T-13482)

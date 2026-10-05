@@ -4586,7 +4586,11 @@ def inland_on_decisions_admission(tid, *, stage="post", _iter_events, events_pat
         view = _decide_journal_view(tid, stage, _iter_events=_iter_events, events_path=events_path)
         stage_rows = [r for r in view["stage_rows"]
                       if _on_decisions_row_is_real(r, view["stage_rows"], view["rows"], tid, stage)]
-        ceiling_row = _ceiling_row_of(stage_rows)
+        # T-13561 — the saved record, read ONCE for both readers below: a counterless GREEN row
+        # ranks by its own record's counter, and the residual read of the selected row reuses it.
+        record = (prior_audit_record(tid, stage, decisions_dir=Path(decisions_dir))
+                  if decisions_dir is not None else None)
+        ceiling_row = _ceiling_row_of(stage_rows, record=record)
         if ceiling_row is None:
             return {"admitted": False, "ceiling_ref": None, "residual_count": 0,
                     "decisions_applied": 0,
@@ -4598,7 +4602,7 @@ def inland_on_decisions_admission(tid, *, stage="post", _iter_events, events_pat
                     }}
         res = on_decisions_residuals(ceiling_row, stage_rows, tid, stage,
                                      repo_root=repo_root, decisions_dir=decisions_dir,
-                                     commit_reachable=commit_reachable)
+                                     record=record, commit_reachable=commit_reachable)
         passes = res.get("passes")
         if passes is None:
             # `ceiling_ref` IS `pass-<N>` read off that counter, and C1 warns that no caller may treat
@@ -5503,7 +5507,43 @@ def suspected_echo_findings(findings, stage_rows, decisions, *, tid, stage) -> l
         return []
 
 
-def _ceiling_row_of(stage_rows):
+def counterless_green_row_passes(row, record):
+    """T-13561 — the SPEC-0124 counter of a GREEN completion row that STATES NONE, read from ITS OWN
+    saved record's explicit `passes` — or None.
+
+    Until T-13561 the write site stamped `passes` only on a row that also carried `findings[]`, so a
+    real GREEN pass that followed a RED one wrote a counterless row and `_ceiling_row_of` ranked it
+    below the RED it superseded (measured on T-13461, 2026-10-05: RED `passes: 1`, then GREEN with no
+    counter beside a record stating GREEN `passes: 2`). Those rows stay in the append-only journal, so
+    the reader resolves them rather than anything rewriting them.
+
+    THE RECORD MUST BE THIS ROW'S RECORD — the T-12319 doctrine `row_residual_fingerprints` holds,
+    applied to the counter: both sides GREEN, the record not a currency pass's (it is no pass of the
+    card, T-12422), and the subject agreeing wherever BOTH sides state one (`plan_fingerprint` at
+    pre, verbatim; at post the record's `commit` starting with the row's short one). Silence on
+    either side is not a contradiction. GREEN ONLY, and that bound is load-bearing: a rule-5 no-answer
+    ABORT row is counterless BY DESIGN and must keep ranking below every counted row. A row that
+    states its own counter is never re-read. Pure; never raises."""
+    data = (row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {})
+    if isinstance(data.get("passes"), int) or not isinstance(record, dict):
+        return None
+    stage = str(data.get("stage") or "").strip().lower()
+    if stage not in ("pre", "post"):
+        return None
+    if (str(data.get("verdict") or "").strip().upper() != "GREEN"
+            or str(record.get("verdict") or "").strip().upper() != "GREEN"):
+        return None
+    if record.get("reaudit_after_close") is True or str(record.get("basis") or "") == CURRENCY_BASIS:
+        return None
+    key = "plan_fingerprint" if stage == "pre" else "commit"
+    row_subject, rec_subject = str(data.get(key) or "").strip(), str(record.get(key) or "").strip()
+    if row_subject and rec_subject and not (row_subject == rec_subject if stage == "pre"
+                                            else rec_subject.startswith(row_subject)):
+        return None
+    return explicit_record_passes(record)
+
+
+def _ceiling_row_of(stage_rows, record=None):
     """THE ceiling row of a (task, stage) — the row a decision binds to — or None.
 
     Selected by the HIGHEST recorded `passes`, never by physical journal position. The journal is
@@ -5532,13 +5572,19 @@ def _ceiling_row_of(stage_rows):
     fallback: the stage has recorded no counted pass, so there is no ceiling row for a decision to
     bind to, and every caller already treats None as exactly that (`no_completion_row` ->
     `below-ceiling`). Falling back to the unfiltered maximum here would re-admit the very row this
-    filter exists to exclude, and would do it silently."""
+    filter exists to exclude, and would do it silently.
+
+    `record` (T-13561) — the saved audit record of this (task, stage), INJECTED by the task-arm
+    seams that hold one. It answers ONLY for a GREEN row that states no counter, and only when it is
+    that row's own record (`counterless_green_row_passes`); omitted, every row ranks as before."""
     if not stage_rows:
         return None
 
     def _rank(row):
         data = row.get("data") if isinstance(row.get("data"), dict) else {}
         passes = data.get("passes")
+        if not isinstance(passes, int):
+            passes = counterless_green_row_passes(row, record)
         return (int(passes) if isinstance(passes, int) else -1,
                 str(row.get("ts") or ""),
                 json.dumps(row, sort_keys=True, ensure_ascii=False, default=str))
@@ -8504,6 +8550,149 @@ def absorb_into_audit_record(tid: str, stage: str, text: str, *, decisions_dir: 
           f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
 
 
+#: T-13542 — the two id shapes a filed follow-up carries: a task card (`T-NNNN`) or a followup
+#: (`fu_` + 12 lowercase hex, SPEC-0095). The same pair `task close --prop-follow-up` accepts.
+_FOLLOWUP_TASK_ID_RE = re.compile(r"^T-\d{4,}$")
+_FOLLOWUP_FU_ID_RE = re.compile(r"^fu_[0-9a-f]{12}$")
+
+
+def followup_ids(raw, *, _die) -> "list[str] | None":
+    """T-13542 — what a repeated `audit post --followup` means: an ORDERED list of follow-up ids,
+    every occurrence kept (the `absorb_texts` shape, T-12734).
+
+    `None` → `None` (flag absent — presence stays the caller's branch); a bare `str` → `[str]`; a
+    list → the same order, each stripped, a repeat of an earlier value dropped (keep-first). REFUSES
+    BEFORE ANY WRITE, naming the 1-based position, when an occurrence is empty or is neither a
+    `T-NNNN` task id nor a `fu_` + 12-hex followup id — so «two ids → both recorded, or nothing»
+    is exact. Shape only: whether the id RESOLVES is `record_followups_into_audit_record`'s."""
+    if raw is None:
+        return None
+    values = [raw] if isinstance(raw, str) else list(raw)
+    ids: list = []
+    for i, v in enumerate(values, 1):
+        fid = v.strip() if isinstance(v, str) else ""
+        if not (_FOLLOWUP_TASK_ID_RE.match(fid) or _FOLLOWUP_FU_ID_RE.match(fid)):
+            where = f"occurrence {i} of {len(values)}" if len(values) > 1 else "the value"
+            _die(f"--followup takes the id of a FILED follow-up — a task id (T-NNNN) or a followup id "
+                 f"(`fu_` + 12 lowercase hex, the shape `yitc-v2 followup add` prints; find one with "
+                 f"`yitc-v2 followup list`) — {where} is {fid!r}; nothing was recorded (T-13542)")
+        if fid not in ids:
+            ids.append(fid)
+    return ids
+
+
+def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, repo_root: Path,
+                                       find_task_yaml, events_paths, _die, _append_event,
+                                       write_text_atomic, _governing_contract_for=None) -> None:
+    """T-13542 — record FILED follow-up ids into the saved YELLOW audit-post verdict's `followups:`.
+
+    LIFECYCLE Stage 8 closes a YELLOW audit-post as «file follow-up task for findings, proceed», and
+    the saved-verdict schema (SPEC-0036 §Saved audit result) carries `followups:` for those ids — but
+    the audit writers only ever wrote the empty list, so the record the doctrine names was reachable
+    by a hand-edit of a governed YAML alone (journal-invisible; AGENTS §Verb-execution discipline).
+    This is the post-side sibling of `absorb_into_audit_record`: the same field-edit shape — resolve
+    the EXISTING record, refuse what must not be edited, mutate ONE field, emit.
+
+    CEILING-NEUTRAL BY CONSTRUCTION: only `followups:` is written. `passes:` (the sole field the
+    ceiling reads), `verdict:`, `commit:` (D-0082 custody), `findings:`, `absorbed:` and `notes:` are
+    never touched, and the caller branches here BEFORE any auditor invocation.
+
+    ALL-OR-NOTHING: every refusal below fires before the one write, so a call naming one resolvable
+    id and one unknown id records neither. Refused:
+      - no saved audit-post record, or one that does not parse to a mapping;
+      - a verdict that is not EXACTLY `YELLOW` — a GREEN has no residual finding to follow up, and a
+        RED/ABORT is a STOP that a filed follow-up must never read as discharging;
+      - the audited task named as its own follow-up;
+      - an id that does not RESOLVE: a `T-` id with no card in this checkout, or a `fu_` id absent
+        from the followup fold of `events_paths` (this checkout's journal plus the main checkout's —
+        the SPEC-0168 instance pair `task file --promotes` reads, T-11208). Any status resolves: a
+        follow-up that has since closed or been promoted was still filed.
+    An id the record ALREADY carries is reported and skipped — a re-run writes nothing and emits
+    nothing. One `audit_finding_absorbed` row (`mode: followup`) per id newly recorded: the existing
+    record of how a YELLOW finding was disposed of, extended by a mode as T-12726 extended it."""
+    path = audit_yaml_path(tid, "post", decisions_dir=decisions_dir)
+    if path is None:
+        _die(f"no saved audit-post record for {tid} — --followup records a filed follow-up INTO an "
+             f"existing verdict (decisions/{tid}-audit-post.yaml). Run `yitc-v2 audit post --task "
+             f"{tid}` first.")
+    try:
+        rec = state.load_str(path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001 — unparseable governed record: refuse, never overwrite
+        _die(f"cannot parse {path}: {e} — nothing was recorded. Restore the record "
+             f"(`git checkout -- {path.name}` when it is committed) or re-run "
+             f"`yitc-v2 audit post --task {tid}`, then retry")
+    if not isinstance(rec, dict):
+        _die(f"{path} is not a mapping — refusing to field-edit a malformed audit record. Re-run "
+             f"`yitc-v2 audit post --task {tid}` to write a well-formed one, then retry")
+    verdict = normalized_verdict(rec)
+    if verdict != "YELLOW":
+        _die(f"{tid} audit-post verdict is {verdict or '(none)'} — --followup records the follow-up "
+             f"filed for a YELLOW residual ONLY (LIFECYCLE Stage 8). GREEN carries no residual to "
+             f"follow up (proceed: `yitc-v2 task close {tid}`); RED/ABORT = STOP: fix in scope "
+             f"(`yitc-v2 task commit {tid} --fix-red`), revert or escalate — a filed follow-up never "
+             f"discharges one. This route never rewrites a verdict.")
+    fu_items = None
+    for fid in ids:
+        if fid == tid:
+            _die(f"--followup {fid}: a task is not its own follow-up — name the card or followup "
+                 f"FILED for the residual finding (`yitc-v2 task file` / `yitc-v2 followup add` "
+                 f"print its id); nothing was recorded")
+        if _FOLLOWUP_TASK_ID_RE.match(fid):
+            if find_task_yaml(fid) is None:
+                _die(f"--followup {fid}: no such task card in this checkout — file it first "
+                     f"(`yitc-v2 task file`), or, when it was filed on main after this worktree "
+                     f"branched, run `yitc-v2 worktree sync --task {tid}`; nothing was recorded")
+            continue
+        if fu_items is None:                      # ONE fold, and only when a `fu_` id is named
+            from lib import followup as _followup   # noqa: PLC0415 — leaf, imports no host module
+            fu_items = _followup._fold(events_paths)
+        if fu_items.get(fid) is None:
+            _die(f"--followup {fid}: unknown followup id — nothing in this checkout's journal NOR the "
+                 f"main checkout's ever captured it (see `yitc-v2 followup list`); nothing was recorded")
+
+    followups = rec.get("followups")
+    if not isinstance(followups, list):
+        followups = []
+    record = str(path.relative_to(repo_root)) if str(path).startswith(str(repo_root)) else str(path)
+    added = [fid for fid in ids if fid not in followups]
+    for fid in ids:
+        if fid not in added:
+            print(f"{tid} audit-post: follow-up {fid} already recorded in {record} — nothing to do")
+    if not added:
+        return
+    counts = []
+    for fid in added:
+        followups.append(fid)
+        counts.append(len(followups))
+    rec["followups"] = followups
+
+    content = state.dump(rec)
+    # SPEC-0001 self-test — a field edit must not be the thing that corrupts the governed record, and
+    # must leave the two fields the ceiling and the closure gate read exactly as they were.
+    roundtrip = state.load_str(content)
+    if (not isinstance(roundtrip, dict) or roundtrip.get("verdict") != rec.get("verdict")
+            or roundtrip.get("passes") != rec.get("passes") or roundtrip.get("followups") != followups):
+        _die(f"SPEC-0001 self-test failed: audit YAML with the recorded follow-up did not round-trip "
+             f"— nothing was written. Capture it (`yitc-v2 event deviation_captured`) and retry "
+             f"`yitc-v2 audit post --task {tid} --followup <id>`")
+    write_text_atomic(path, content)
+
+    for fid, count in zip(added, counts):
+        data = {
+            "stage": "post",
+            "mode": "followup",
+            "record": record,
+            "verdict": verdict,
+            "followup": fid,
+            "followups_count": count,
+        }
+        if _governing_contract_for is not None:
+            data["governing_contract"] = _governing_contract_for("audit-post")
+        _append_event("audit_finding_absorbed", tid, data)
+    print(f"{tid} audit-post: recorded follow-up {', '.join(added)} → {record} "
+          f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
+
+
 # ── T-12726 — the ORDINARY finding's OUTCOME, derived from commit evidence, never asked ──────────────
 #: The three-valued outcome vocabulary a recorded `audit_finding_absorbed mode=inline` row carries. Mirrors
 #: the three-valued shape the P8 predicate already uses (T-12725): a case the evidence cannot decide is
@@ -8781,6 +8970,97 @@ def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_d
     _append_event("audit_finding_absorbed", None, data)
     print(f"{slug} {gate}: absorbed mode-(b) residual → {data['record']} "
           f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
+
+
+def absorb_into_adhoc_record(slug: str, text: str, *, decisions_dir: Path, repo_root: Path,
+                             _die, _append_event, _utc_now_iso, write_text_atomic) -> None:
+    """T-13495 — the AD-HOC sibling of `absorb_into_audit_record` / `absorb_into_plan_gate_record`.
+
+    SPEC-0124 §Audit-loop ceiling makes a mode-(b) absorption verb-only and forbids hand-editing a
+    verdict YAML, but only the task audit-pre verdict (T-10770) and the plan-gate verdict (T-11167)
+    had a route. `cmd_audit_adhoc` writes `absorbed: []` on every saved consult and nothing wrote it
+    afterwards, so a consult whose findings were all absorbed into the plan it reviewed kept saying
+    nothing was. MEASURED (public issue #16, release v2.0.6): 16 findings of a YELLOW consult
+    absorbed into a plan body; the next gate auditor read `absorbed: []` beside the plan's «all
+    absorbed» and reported the pair as a contradiction.
+
+    Differs from the two siblings in EXACTLY the two ways the shape allows (CHARTER P1 F1): WHICH
+    record it resolves, and WHAT the entry and the row carry.
+      - The record is `<slug>-audit-adhoc.yaml`, resolved through `audit_yaml_path` — the active
+        decisions/ directory first, then both archives. The archive leg is load-bearing here, not a
+        courtesy: a free-slug consult is terminal by definition for `archive_terminal_nontask_audits`,
+        so once its own batch has landed the record lives in the archive, which is where the reported
+        case found it.
+      - The row carries `target_kind: adhoc` and the slug. It is keyed by the slug, the same key the
+        consult's own `external_audit_completed` row carries, so the two read together.
+
+    Same refusals as the siblings, each before any write: no text; no saved record (this route never
+    CREATES one — that would be a verdict no auditor gave); a record that does not parse or is not a
+    mapping; a verdict that is not EXACTLY YELLOW, refused NAMING it. RED/ABORT is a stop and GREEN
+    carries no accepted finding. The route takes a note only, so no verdict can be rewritten through
+    it; `verdict:`, `passes:` and `findings:` are never touched and no auditor is invoked."""
+    text = (text or "").strip()
+    if not text:
+        _die(f"--absorb requires the absorbed finding TEXT to record (the mode-(b) record IS that "
+             f"text) — nothing was written. Re-run `yitc-v2 audit adhoc --slug {slug} --absorb "
+             f"\"<text>\"`.")
+    path = audit_yaml_path(slug, "adhoc", decisions_dir=decisions_dir)
+    if path is None:
+        _die(f"no saved ad-hoc consult record for {slug} (decisions/{slug}-audit-adhoc.yaml, or its "
+             f"archived copy) — mode-(b) absorption records a finding INTO an existing record and "
+             f"never creates one. Check the slug, or run the consult first: `yitc-v2 audit adhoc "
+             f"--slug {slug} --prompt \"<request>\"`.")
+    shown = str(path.relative_to(repo_root)) if str(path).startswith(str(repo_root)) else str(path)
+    try:
+        rec = state.load_str(path.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001 — unparseable governed record: refuse, never overwrite
+        _die(f"cannot parse {shown}: {e} — nothing was written. Find its last readable version with "
+             f"`git log --oneline -- {shown}`.")
+    if not isinstance(rec, dict):
+        _die(f"{shown} is not a mapping — refusing to field-edit a malformed ad-hoc consult record; "
+             f"nothing was written. Find its last readable version with `git log --oneline -- "
+             f"{shown}`.")
+    verdict = normalized_verdict(rec)
+    if verdict != "YELLOW":
+        _die(f"{slug} ad-hoc consult verdict is {verdict or '(none)'} — mode-(b) absorption applies "
+             f"to a YELLOW record ONLY (SPEC-0124 §Audit-loop ceiling). RED/ABORT = STOP: rework and "
+             f"consult again, never absorb; GREEN carries no accepted finding to absorb. This route "
+             f"never rewrites a verdict and nothing was written. To consult again run `yitc-v2 audit "
+             f"adhoc --slug <new-slug> --prompt \"<request>\"`.")
+
+    now = _utc_now_iso()
+    absorbed = rec.get("absorbed")
+    if not isinstance(absorbed, list):
+        absorbed = []
+    absorbed.append({"mode": "b", "at": now, "what": text})
+    rec["absorbed"] = absorbed
+    prior_notes = str(rec.get("notes") or "").rstrip()
+    rec["notes"] = (prior_notes + "\n\n" if prior_notes else "") + \
+        f"--- absorbed mode-(b) {now} (yitc-v2 audit adhoc --slug {slug} --absorb) ---\n{text}"
+
+    content = state.dump(rec)
+    # SPEC-0001 self-test — the round-trip proof the original write performs, re-run because this is
+    # a SECOND write of the same governed record (a field edit must not be what corrupts it).
+    roundtrip = state.load_str(content)
+    if (not isinstance(roundtrip, dict) or roundtrip.get("verdict") != rec.get("verdict")
+            or roundtrip.get("passes") != rec.get("passes")
+            or roundtrip.get("target_id") != rec.get("target_id")):
+        _die(f"SPEC-0001 self-test failed: the absorbed ad-hoc consult YAML did not round-trip — "
+             f"nothing was written. Capture it with `yitc-v2 event deviation_captured`.")
+    write_text_atomic(path, content)
+
+    _append_event("audit_finding_absorbed", slug, {
+        "target_kind": "adhoc",
+        "slug": slug,
+        "stage": "ad-hoc",
+        "mode": "b",
+        "record": shown,
+        "verdict": verdict,
+        "absorbed_count": len(absorbed),
+        "what": text,
+    })
+    print(f"{slug} audit-adhoc: absorbed mode-(b) finding → {shown} "
+          f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no auditor run)")
 
 
 def _passes_recorded(rec: dict) -> int:
@@ -12484,7 +12764,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
               _file_has_symbol_space=None,   # T-12623 — SPEC-0088 symbol-space test for the locator-resolution floor; un-injected ⇒ silent (fail-closed)
               _red_cause_is_card_record=None,   # T-12026 — the shared card-repair cause predicate; un-injected ⇒ fail-closed
               P8_EVIDENCE_TYPES=None, _event_task_id=None,   # T-11247 — injected, fail-closed when absent
-              _commit_worktree=None, _in_writing_worktree=None, _worktree_dirty_paths=None, _archive_task_audits=None, _git_mv_tracked=None, AUDIT_NO_READ_TOOLING_RETRIES, AUDIT_PASS_CEILING, PLANS_DIR, PLAN_FINALIZATION_LENS_VERSION, TASK_AUDIT_LENS_VERSION, REPO_ROOT, TASK_ID_RE, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _audit_ceiling_blocked, _auto_rebuild_graph, _build_audit_prompt, _classify_inert_paths, _consult_basis, _count_audit_passes, _decision_realization_block, _die, _find_decision_yaml, _find_task_yaml, _get_audit_post_diff, _git_resolve_sha, _governing_contract_for, _governing_rule_pointer, _invoke_auditor, _is_no_read_tooling_abort, _load_draft, _parse_audit_verdict, _parse_consult_result, _plan_content_hash, _plan_corpus_signature, _plan_fsm_line, _plan_gate_recorded_signature, _plan_realization_block, _plan_task_carrier, _print_scenario_staleness_warn, _prior_audit_record, _read_consult_adjudication, _recorded_commit_sha, _recorded_commit_kind, _recorded_commit_landed, _reject_id_shaped_plan_slug, _custody_commit_landed=None, _task_commit_landed_chain=None, _BOOKKEEPING_COMMIT_KINDS=(), _require_plan_finalized, _require_reads, _require_stage_correspondence, _require_writing_worktree, _require_zero_ship_diff, _require_ship_custody_repin, _ship_custody_repin_check, _governed_land_evidence=None, _require_preshipped_deliverable, _require_settlement_sweep, _require_post_ship_observation, _require_land_emitted_event, _require_activation_gated_radius, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _write_task_transition=None, _plan_target_scenario_lines=None) -> None:
+              _commit_worktree=None, _in_writing_worktree=None, _worktree_dirty_paths=None, _archive_task_audits=None, _git_mv_tracked=None, AUDIT_NO_READ_TOOLING_RETRIES, AUDIT_PASS_CEILING, PLANS_DIR, PLAN_FINALIZATION_LENS_VERSION, TASK_AUDIT_LENS_VERSION, REPO_ROOT, TASK_ID_RE, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _audit_ceiling_blocked, _auto_rebuild_graph, _build_audit_prompt, _classify_inert_paths, _consult_basis, _count_audit_passes, _decision_realization_block, _die, _find_decision_yaml, _find_task_yaml, _get_audit_post_diff, _git_resolve_sha, _governing_contract_for, _governing_rule_pointer, _invoke_auditor, _is_no_read_tooling_abort, _load_draft, _parse_audit_verdict, _parse_consult_result, _plan_content_hash, _plan_corpus_signature, _plan_fsm_line, _plan_gate_recorded_signature, _plan_realization_block, _plan_task_carrier, _print_scenario_staleness_warn, _prior_audit_record, _read_consult_adjudication, _recorded_commit_sha, _recorded_commit_kind, _recorded_commit_landed, _reject_id_shaped_plan_slug, _custody_commit_landed=None, _task_commit_landed_chain=None, _BOOKKEEPING_COMMIT_KINDS=(), _require_plan_finalized, _require_reads, _require_stage_correspondence, _require_writing_worktree, _require_zero_ship_diff, _require_ship_custody_repin, _ship_custody_repin_check, _governed_land_evidence=None, _require_preshipped_deliverable, _require_settlement_sweep, _require_post_ship_observation, _require_land_emitted_event, _require_activation_gated_radius, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _write_task_transition=None, _plan_target_scenario_lines=None,
+              _main_events_path=None) -> None:   # T-13542 — the SPEC-0168 main-journal resolver the --followup fold reads
     """Run audit pre либо post via external auditor (codex). Per AGENTS.md §External auditor invocation contract."""
     # T-0399 / E-0014: an audit verb WRITES decisions/<id>-audit-<stage>.yaml — a substantive
     # artifact write, so it is bound by the D-0037/D-0051 write-isolation guard (mirror of
@@ -12717,6 +12998,66 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 decisions_dir=REPO_ROOT / "decisions", repo_root=REPO_ROOT,
                 _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
                 write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
+        return
+
+    # T-13542 (LIFECYCLE Stage 8 / SPEC-0036 §Saved audit result) — the FOLLOW-UP RECORD field-edit
+    # route, the post-side sibling of the `--absorb` branch above and placed beside it for the same
+    # reason: BEFORE any target loading, prompt build or auditor invocation, so no auditor runs and
+    # no pass can be generated. `_require_writing_worktree()` above already governs the write. The
+    # flag is registered on the `post` parser only; the getattr shape keeps a hand-built Namespace
+    # without it working, and `followup_ids` refuses a malformed value before anything is written.
+    followup_ids_list = followup_ids(getattr(args, "followup", None), _die=_die)
+    if followup_ids_list:
+        if stage != "post":
+            _die("--followup is valid only on `yitc-v2 audit post --task T-XXXX --followup <id>` — it "
+                 "records the follow-up filed for a YELLOW audit-POST residual (LIFECYCLE Stage 8). "
+                 "An audit-pre residual is recorded with `yitc-v2 audit pre --task T-XXXX --absorb "
+                 "\"<text>\"` (LIFECYCLE Stage 4).")
+        if plan_slug or decision_id:
+            _die("--followup is --task-only: it records a filed follow-up into a TASK's saved "
+                 "audit-post verdict (decisions/<T-XXXX>-audit-post.yaml), not a plan or decision "
+                 "one — `yitc-v2 audit post --task T-XXXX --followup <id>`.")
+        # NO audit-run surface may ride along: this route must have nothing that could re-invoke the
+        # auditor, re-point the audited commit or select an overlay — it edits ONE field of a record
+        # an earlier run wrote.
+        for _flag, _dest in (("--preview", "preview"), ("--on-decisions", "on_decisions"),
+                             ("--full", "full"), ("--commit", "commit"),
+                             ("--prompt-extra", "prompt_extra"), ("--from-file", "from_file"),
+                             ("--event-emit-only", "event_emit_only"), ("--serve-deploy", "serve_deploy"),
+                             ("--external-action", "external_action"), ("--host-config", "host_config"),
+                             ("--land-emitted-event", "land_emitted_event"),
+                             ("--preshipped-deliverable", "preshipped_deliverable"),
+                             ("--post-ship-observation", "post_ship_observation"),
+                             ("--activation-gated-radius", "activation_gated_radius"),
+                             ("--settlement-sweep", "settlement_sweep"),
+                             ("--zero-ship-diff", "zero_ship_diff"),
+                             ("--evidence-locator", "evidence_locator"),
+                             ("--reaudit-after-close", "reaudit_after_close"),
+                             ("--repin-ship", "repin_ship")):
+            if getattr(args, _dest, None):
+                _die(f"--followup is a FIELD EDIT of the saved audit-post record, not an audit run — "
+                     f"it invokes no auditor and re-pins nothing, so {_flag} is meaningless with it. "
+                     f"Drop {_flag} (`yitc-v2 audit post --task T-XXXX --followup <id>`), or run a "
+                     f"real `yitc-v2 audit post --task T-XXXX` without --followup.")
+        _fu_tid = (getattr(args, "task", None) or "").strip()
+        if not _FOLLOWUP_TASK_ID_RE.match(_fu_tid):
+            _die("--followup requires --task T-XXXX — the task whose saved audit-post verdict "
+                 "records the follow-up: `yitc-v2 audit post --task T-XXXX --followup <id>`")
+        # SPEC-0050 §6 read-gate parity with the `--absorb` branch: the route WRITES the governed
+        # audit record, so it is held to the Audit-post stage-bundle read-check. Stage-CORRESPONDENCE
+        # is deliberately not required — a follow-up is typically filed after Stage 8 has been left.
+        _require_reads("stage", {"stage": "Audit-post", "verb": "audit post --followup",
+                                 "action": "audit-post-followup"})
+        # The followup fold reads the SPEC-0168 instance pair — this checkout's journal plus the main
+        # checkout's (a followup captured on main with no worktree is the sanctioned order, T-11208).
+        _fu_main = _main_events_path() if callable(_main_events_path) else _main_events_path
+        record_followups_into_audit_record(
+            _fu_tid, followup_ids_list,
+            decisions_dir=REPO_ROOT / "decisions", repo_root=REPO_ROOT,
+            find_task_yaml=_find_task_yaml,
+            events_paths=[p for p in (EVENTS_PATH, _fu_main) if p],
+            _die=_die, _append_event=_append_event,
+            write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
         return
 
     if plan_slug:
@@ -13919,10 +14260,16 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # resolution could disagree with this one. Fail-SOFT on its own: an unresolvable row leaves the
         # carrier empty and the halt simply names no fingerprints; the rule-3 arm below keeps its OWN
         # hard refusals over the same object, so nothing this hoist does can admit a pass.
-        _od_ceiling_row = _ceiling_row_of(_od_stage_rows)
+        # T-13561 — the saved record is read ONCE here and serves BOTH readers below: the ceiling-row
+        # selection (a GREEN row written before the write site stamped every counted row carries no
+        # counter, and ranks by its own record's) and the residual read of the row it selects.
+        _od_record = (prior_audit_record(tid, stage, decisions_dir=REPO_ROOT / "decisions")
+                      if target_kind == "task" else None)
+        _od_ceiling_row = _ceiling_row_of(_od_stage_rows, record=_od_record)
         _od_res = (on_decisions_residuals(_od_ceiling_row, _od_stage_rows, tid, stage,
                                           repo_root=[REPO_ROOT],
                                           decisions_dir=REPO_ROOT / "decisions",
+                                          record=_od_record,
                                           # T-12370 — the reachability reader that tells a
                                           # ROLLED-BACK subject (T-12315) apart from a different
                                           # pass's record. Fail-closed when it cannot answer.
@@ -16949,6 +17296,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # sits on `_currency_clear_red_row` — kept short HERE so `duration_ms` stays in the emit window).
     if findings_row_fields and not _currency_row:
         findings_row_fields["passes"] = audit["passes"]
+    # T-13561 — and on every other COUNTED task row (a GREEN one above all), so the row that
+    # supersedes a RED outranks it in `_ceiling_row_of`. Never a ledger-skipped or currency row.
+    elif target_kind == "task" and stage in ("pre", "post") and not (ledger_skip or _currency_row):
+        findings_row_fields = {"passes": audit["passes"]}
     # T-12288 (rule 8) — the same stamp for the late-finding half: ONE counter, `audit["passes"]`.
     # T-12422 — the SAME currency guard, which this sibling stamp was missing (the long form sits on
     # `_currency_clear_red_row`, kept short HERE so `duration_ms` stays in the emit window).
@@ -17387,6 +17738,30 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     if not ADHOC_SLUG_RE.match(slug):
         _die(f"--slug {slug!r} must be filename-safe kebab/ID form ([A-Za-z0-9][A-Za-z0-9-]*) — "
              "it names decisions/<slug>-audit-adhoc.yaml")
+
+    # T-13495 (SPEC-0124 §Audit-loop ceiling) — the MODE-(b) ABSORPTION field-edit route, branched
+    # BEFORE the request is assembled (so stdin is never read as a prompt) and before any auditor
+    # call: no consult runs and no verdict is parsed here. `_require_writing_worktree()` above already
+    # governs the write. `absorb_texts` is the one home for what N values mean (T-12734); None means
+    # the flag is absent, and an empty occurrence dies inside it before a single write.
+    absorb_texts_list = absorb_texts(getattr(args, "absorb", None), _die=_die)
+    if absorb_texts_list is not None:
+        for _flag, _val in (("--prompt", getattr(args, "prompt", None)),
+                            ("--from-file", getattr(args, "from_file", None)),
+                            ("--routine", getattr(args, "routine", False)),
+                            ("--read-corpus", getattr(args, "read_corpus", False)),
+                            ("--sweep-file", getattr(args, "sweep_file", None))):
+            if _val:
+                _die(f"--absorb is a FIELD EDIT of the saved ad-hoc consult record, not a consult — "
+                     f"it invokes no auditor, so {_flag} is meaningless with it and nothing was "
+                     f"written. Drop {_flag} (`yitc-v2 audit adhoc --slug {slug} --absorb "
+                     f"\"<text>\"`), or run a new consult without --absorb.")
+        for _text in absorb_texts_list:
+            absorb_into_adhoc_record(
+                slug, _text, decisions_dir=REPO_ROOT / "decisions", repo_root=REPO_ROOT,
+                _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
+                write_text_atomic=write_text_atomic)
+        return
 
     # Assemble the free-form request: --prompt, then -f/--from-file (REPO_ROOT-only fail-closed
     # resolution — _resolve_prompt_file, T-0131/T-0364), then stdin fallback when neither flag

@@ -1,6 +1,6 @@
-# Release v2.3.0
+# Release v2.4.0
 
-Source commit: `47e7c012daee70023a86378780f328d88184f540`
+Source commit: `887367dfc05d0ae33ccd3f0e2b4ae26f23996eef`
 
 ## Proposals this release answers
 
@@ -31,7 +31,17 @@ answers:
   - 'yitc-dev/yitc#28'
   - 'yitc-dev/yitc#29'
   - 'yitc-dev/yitc#3'
+  - 'yitc-dev/yitc#31'
+  - 'yitc-dev/yitc#32'
+  - 'yitc-dev/yitc#33'
+  - 'yitc-dev/yitc#34'
+  - 'yitc-dev/yitc#35'
+  - 'yitc-dev/yitc#36'
+  - 'yitc-dev/yitc#37'
+  - 'yitc-dev/yitc#38'
+  - 'yitc-dev/yitc#39'
   - 'yitc-dev/yitc#4'
+  - 'yitc-dev/yitc#40'
   - 'yitc-dev/yitc#5'
   - 'yitc-dev/yitc#6'
   - 'yitc-dev/yitc#7'
@@ -90,70 +100,45 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## What changed
 
-62 task(s) closed since the previous release tag, in close order:
+37 task(s) closed since the previous release tag, in close order:
 
-- T-13486 — Make session pick show a project whose folder is gone as missing and refuse it with a plain message (fix) — events.jsonl#ts=2026-10-03T20:25:41Z
-- T-13488 — Install the home picker command with a stable engine path, never a linked-worktree engine's (fix) — events.jsonl#ts=2026-10-03T20:33:35Z
-- T-13491 — Make the home picker command ask in plain chat text and say which language to use before the person writes (fix) — events.jsonl#ts=2026-10-03T20:43:17Z
-- T-13485 — Let the adopter release verbs run from any checkout without letting a bare call journal into the kernel (fix) — events.jsonl#ts=2026-10-03T21:08:38Z
-- T-13484 — Repo-qualify every answers id and refuse a bare (fix) — events.jsonl#ts=2026-10-03T21:24:29Z
-- T-13487 — Resolve the capture-routing view's owning specs against the kernel in a -C consumer session and mark them (fix) — events.jsonl#ts=2026-10-03T21:32:41Z
-- T-13490 — Move the MCP reconcile from session start to before the first MCP use, and report extras instead of disabling them (fix) — events.jsonl#ts=2026-10-03T21:50:08Z
-- T-13489 — Make the followup pair fold drop repeated archive lines by exact digest lookup, so task file with promotes stops burning ~24 min of CPU (fix) — events.jsonl#ts=2026-10-03T21:52:33Z
-- T-13465 — Refuse abbreviated long options on every SPEC-0209 guarded verb (fix) — events.jsonl#ts=2026-10-03T22:15:01Z
-- T-13454 — Read only production-target deploy_completed rows as the live revision in the not-adopted lens and the auto-rollback target (fix) — events.jsonl#ts=2026-10-03T22:33:24Z
-- T-13460 — Resolve a same-second owner-directive locator by coverage, never by file order, in audit decide --directive and hostapply --confirmed-by (fix) — events.jsonl#ts=2026-10-03T22:46:24Z
-- T-13457 — Revive the t11451 journal-coupling instrument in the nightly quiet lane and surface a failing quiet-lane instrument on the debt echo (fix) — events.jsonl#ts=2026-10-03T23:19:55Z
-- T-13492 — Ship the release-view AGENTS part under a name the AI tool does not auto-attach, so a consumer start loads it once (fix) — events.jsonl#ts=2026-10-04T01:13:59Z
-- T-13459 — Keep the audit evidence fold one-pass for audit consult, audit pre --on-decisions and an audit post that a land overlaps (7.7-10.4 GB peaks) (refactor) — events.jsonl#ts=2026-10-04T06:59:30Z
-- T-13463 — Guard the graph conformance, live-node graft and debt-echo card walks with one shared card-shape check (fix) — events.jsonl#ts=2026-10-04T07:13:04Z
-- T-13504 — Tell the person how to come back once, through the Start station, not at every picker start (fix) — events.jsonl#ts=2026-10-04T07:16:04Z
-- T-13458 — Let worktree park retire a done card's worktree whose only commits ahead of main are merges of main and land bookkeeping (fix) — events.jsonl#ts=2026-10-04T07:28:08Z
-- T-13479 — Derive worktree-leg archive identity from the `_verified_archive_blobs` shape, keeping linked-worktree admission (fix) — events.jsonl#ts=2026-10-04T07:29:40Z
-- T-13456 — Make the remaining main-checkout self-commits commit by pathspec so another session's staged entry is never swept in (fix) — events.jsonl#ts=2026-10-04T07:53:59Z
-- T-13467 — Make the read-contract exemption and skip-count reports truthful (fix) — events.jsonl#ts=2026-10-04T08:29:54Z
-- T-13503 — Make the start report's owner-cued lines say "show and wait", so a fresh session stops after its rules, commands and debt (fix) — events.jsonl#ts=2026-10-04T08:35:15Z
-- T-13475 — Carry journal-edge selection narrowing to main with a live-read class that requires a resolved journal read (infra) — events.jsonl#ts=2026-10-04T09:02:23Z
-- T-13512 — Stop the echoed audit packet from labelling an auditor ABORT an outage (fix) — events.jsonl#ts=2026-10-04T09:20:50Z
-- T-13507 — Clear the ended pause's resume_from and next_action when a task is resumed (fix) — events.jsonl#ts=2026-10-04T09:39:53Z
-- T-13508 — Warn at emit when a task-tied event will not reach the audit packet, from one shared fold rule (fix) — events.jsonl#ts=2026-10-04T09:40:48Z
-- T-13509 — Make spec edit refuse or correct a block-body edit whose written result means something other than the asked edit (fix) — events.jsonl#ts=2026-10-04T10:00:35Z
-- T-13505 — Ship every continuation part of a split spec with its base, and refuse a publish that would drop one (fix) — events.jsonl#ts=2026-10-04T10:24:12Z
-- T-13513 — Keep an auditor ABORT's failure cause readable after the next pass rewrites the verdict file (fix) — events.jsonl#ts=2026-10-04T11:04:35Z
-- T-13506 — Make release update remove an engine path the new release dropped, and name it in the update report (fix) — events.jsonl#ts=2026-10-04T12:38:20Z
-- T-13391 — Stream the auto-sync RECOVERY source-ref fold instead of materialising every journal line (refactor) — events.jsonl#ts=2026-10-04T12:41:33Z
-- T-13515 — Classify a code land into a cost zone per changed function, with the cheap allowlist and the L/N/R gate-class knobs — not wired into land (infra) — events.jsonl#ts=2026-10-04T12:43:56Z
-- T-13501 — Stop tests/_read_gate.py storing the live journal path so the events.jsonl selection family stops covering its 483 importers (infra) — events.jsonl#ts=2026-10-04T12:45:56Z
-- T-13464 — Contain a raise from any per-project nightly check, and grade corpus staleness by content instead of file mtimes (fix) — events.jsonl#ts=2026-10-04T12:56:09Z
-- T-13511 — Record each consumer verify layer's timeout in force, and count a timeout change as a rewired layer (fix) — events.jsonl#ts=2026-10-04T13:19:07Z
-- T-13516 — Freeze the cost-zone cohort floor — the global baseline and census tests plus a derived verb-to-tests mapping (infra) — events.jsonl#ts=2026-10-04T13:35:57Z
-- T-13510 — Deliver a stage's contract bodies once per context epoch, and stop telling the reader to fetch them again (fix) — events.jsonl#ts=2026-10-04T13:51:25Z
-- T-13514 — Run the declared pre-deploy dump on an owner-approved Class C2 deploy and say so when none is declared (feature) — events.jsonl#ts=2026-10-04T14:10:11Z
-- T-13519 — Let a local candidate verify anchor the inert first-attempt land skip, keeping the any-author floor on every skipped land (fix) — events.jsonl#ts=2026-10-04T15:12:45Z
-- T-13525 — Make the pinned last-green verify leg switchable for the engine like for a project, and switch it off (infra) — events.jsonl#ts=2026-10-04T15:28:56Z
-- T-13528 — Let a yitc-ops.yaml change that leaves the verification sections equal stop disabling every layer's subject skip at land (fix) — events.jsonl#ts=2026-10-04T16:10:56Z
-- T-13526 — Show a card held by a live dispatched worker as held at session start, not as waiting on the owner or as an own-resume (fix) — events.jsonl#ts=2026-10-04T16:18:17Z
-- T-13524 — Add a third pass to the born test-class intake — split a heavy, narrow-subject group into its own subject-scoped layer (docs) — events.jsonl#ts=2026-10-04T17:03:39Z
-- T-13523 — Ask about the opt-in verify capabilities at the stage where a card declares or changes verify.layers (fix) — events.jsonl#ts=2026-10-04T17:45:55Z
-- T-13527 — Name the moment to send the start line — as its own message right after session start returns, before the read (fix) — events.jsonl#ts=2026-10-04T17:50:20Z
-- T-13522 — Signal a consumer verify layer's duration growth at the land tail, from the per-layer durations land already records (fix) — events.jsonl#ts=2026-10-04T17:55:06Z
-- T-13533 — Skip a consumer's subject-disjoint verify layers at Stage 6 as land does, against the base land will use (fix) — events.jsonl#ts=2026-10-04T18:15:18Z
-- T-13517 — Record the cost-zone shadow decision on every code land's land_completed row, acting on nothing (infra) — events.jsonl#ts=2026-10-04T18:51:27Z
-- T-13531 — Let a consumer tests/** change force only the verify layers that own it, keeping shared test files on the full run (fix) — events.jsonl#ts=2026-10-04T19:49:23Z
-- T-13538 — Render every task-tied tests_passed row since the claim in the audit-post packet's Stage-6 section, not only the latest (fix) — events.jsonl#ts=2026-10-04T20:19:27Z
-- T-13541 — Follow an npm run <script> layer command into the package.json script text in the verify-layer registry resolver (fix) — events.jsonl#ts=2026-10-04T20:36:00Z
-- T-13536 — Point a worker's scratch logs at a directory that exists: $YITC_SCRATCH_DIR first, the worktree's.yitc/ only after mkdir -p (fix) — events.jsonl#ts=2026-10-04T20:45:00Z
-- T-13535 — Measure what the heaviest test files spend their time on and say per file what can go without weakening the check (docs) — events.jsonl#ts=2026-10-04T20:46:27Z
-- T-13543 — Remove the cost-zone shadow machinery of the cancelled risk-cohort plan from the land path (refactor) — events.jsonl#ts=2026-10-04T20:53:10Z
-- T-13539 — Name the arming session and time of a live watcher in the duplicate-watch refusal, and list the hand-off author's live watchers at session handoff take (fix) — events.jsonl#ts=2026-10-04T21:01:24Z
-- T-13532 — Count a runner-produced Stage-6 green on the same tree as the land's candidate verdict when main has not moved (feature) — events.jsonl#ts=2026-10-04T21:11:15Z
-- T-13540 — Count a re-dispatch into an existing task worktree once in the dispatch-readiness workers line (fix) — events.jsonl#ts=2026-10-04T21:13:45Z
-- T-13544 — State in SPEC-0207 and SPEC-0152 that verify.independent_layers is the project's own declared risk judgement, admissible without owns: (docs) — events.jsonl#ts=2026-10-04T21:56:05Z
-- T-13545 — Re-run a failed consumer verify layer once alone and record it as a flaky retry instead of aborting the land (infra) — events.jsonl#ts=2026-10-04T22:29:25Z
-- T-13537 — Halt a dispatched worker at a terminal --on-decisions RED with the terminal exits, and point its audit-ceiling pause and recovery hint at those exits (fix) — events.jsonl#ts=2026-10-04T22:53:27Z
-- T-13471 — Make audit decide and task close derive a late finding's ceiling_ref from the same carrier, so a finding on a counterless post row can be decided (fix) — events.jsonl#ts=2026-10-05T07:46:42Z
-- T-13470 — Stop three debt lines over-reporting: late findings that block no close, overdue observations on wont-do cards, and interactive holders read as not seen (fix) — events.jsonl#ts=2026-10-05T08:06:21Z
-- T-13468 — Give an event-class awaits one row predicate so unrelated rows of the awaited type stop firing followups and probe moments (fix) — events.jsonl#ts=2026-10-05T08:20:55Z
+- T-13520 — Say truthfully what a consumer's Stage-6 test run covers, in task test help, its result line and SPEC-0027 (fix) — events.jsonl#ts=2026-10-05T10:30:23Z
+- T-13560 — Make `journal query --fleet-verdict` answer for the requested `--task` ids instead of silently printing the whole fleet (fix) — events.jsonl#ts=2026-10-05T10:36:39Z
+- T-13564 — Name a proposal in the release notes link-back only when a card answering it is done at the source commit (fix) — events.jsonl#ts=2026-10-05T11:12:43Z
+- T-13482 — Fix four small kernel leftovers: a never-run test, a duplicate import, the probe_moments template form and the opus-5-5 window label (hygiene) — events.jsonl#ts=2026-10-05T11:18:34Z
+- T-13477 — Let a kernel card's P8 evidence cite a row in a registered consumer's journal (feature) — events.jsonl#ts=2026-10-05T11:24:38Z
+- T-13473 — Give the T10 thin-pair arm a recency axis so retired worker/auditor configurations stop holding soak followups (docs) — events.jsonl#ts=2026-10-05T11:26:12Z
+- T-13461 — Cut the 5 GB peak of the fresh-minted `session start` that the yitc-v2 cron lines run three times an hour (refactor) — events.jsonl#ts=2026-10-05T11:48:23Z
+- T-13495 — Give audit adhoc a governed mode-b absorb route so a consult record can say which findings were absorbed (feature) — events.jsonl#ts=2026-10-05T12:03:20Z
+- T-13566 — Make test_t12509_land_tail_marker_preflight.py pass first time in the concurrent pool by removing the cause of its isolated-pass retries, and return it from the serial lane (fix) — events.jsonl#ts=2026-10-05T12:13:33Z
+- T-13496 — Retire the Closure-time uncovered-user-surface line and keep its Analysis line and debt row (refactor) — events.jsonl#ts=2026-10-05T12:36:53Z
+- T-13565 — Remove the remaining engine hot paths of test-cost group I3: one corpus read in the stage-bundle byte measure, and the per-file causes the study names (refactor) — events.jsonl#ts=2026-10-05T12:52:35Z
+- T-13576 — Record why a land refused the Stage-6 credit, and make the handbook texts state the credit's main-moved condition as SPEC-0065 does (fix) — events.jsonl#ts=2026-10-05T12:56:10Z
+- T-13569 — List every deferred write of `init --refresh-scaffolds` in its `--dry-run` write set (fix) — events.jsonl#ts=2026-10-05T13:00:48Z
+- T-13571 — Let `journal query --session` take the short ref its own table prints, refusing an ambiguous one (fix) — events.jsonl#ts=2026-10-05T13:25:12Z
+- T-13568 — Refuse `task close --live-probe-outcome-*` on a card that is not done, and stop `liveprobe --report` handing that command to an open card (fix) — events.jsonl#ts=2026-10-05T13:26:40Z
+- T-13480 — Give SPEC-0195 a live activation-owner card, reconcile its rules with release.py, and activate it (docs) — events.jsonl#ts=2026-10-05T13:45:50Z
+- T-13577 — Voice every onboarding station inside a fixed frame: its own block, a constant opening label, and a closing line saying what is asked of the person (docs) — events.jsonl#ts=2026-10-05T14:05:13Z
+- T-13497 — Replace the hard-coded admission in refusal-set freeze with a declaration the changing card carries (refactor) — events.jsonl#ts=2026-10-05T14:05:18Z
+- T-13578 — Let a project declare a task-grouping preference in its project-context home and have the cut name it, without relaxing the one-claim rule (docs) — events.jsonl#ts=2026-10-05T14:11:20Z
+- T-13570 — Make the adapter rewrite line of `init --refresh-scaffolds` name what it actually changed (fix) — events.jsonl#ts=2026-10-05T14:14:45Z
+- T-13567 — Serve code-less lands as their own cohort ahead of queue-jump and paying lands in a repo running the kernel suite (fix) — events.jsonl#ts=2026-10-05T14:17:38Z
+- T-13572 — Set the `dispatch --watch` default runtime below the wrapper ceiling its own nesting rule demands (fix) — events.jsonl#ts=2026-10-05T14:29:18Z
+- T-13483 — Correct eight stale texts so each matches the code it describes (SPEC-0124 part 2, SPEC-0135, SPEC-1003 rule 6, SPEC-0064, the commit WARN, two audit_ceiling texts, a shadowed test helper) (docs) — events.jsonl#ts=2026-10-05T14:44:39Z
+- T-13498 — Let the nightly grade an owner-declared dormant consumer's born waivers as dormant instead of alerting (infra) — events.jsonl#ts=2026-10-05T14:48:19Z
+- T-13579 — Make the land-tail withhold read the result of its restore: a restore that failed is recorded as an error, never as restored (fix) — events.jsonl#ts=2026-10-05T15:18:35Z
+- T-13581 — Let `spec edit` reach a body stored as a line-wrapped quoted scalar by its parsed text, and store an edited body as a literal block when the text allows (fix) — events.jsonl#ts=2026-10-05T15:26:35Z
+- T-13574 — Record how long a plan check's auditor run took, and print the full-tier hang guard before it starts (fix) — events.jsonl#ts=2026-10-05T15:28:30Z
+- T-13575 — Say in the `dispatch --watch` help and wake text that a paused card wakes the watcher, and what an artifact-wait pause is waiting for (fix) — events.jsonl#ts=2026-10-05T15:38:18Z
+- T-13585 — Give the two _PY_DEF_RE patterns in cli.py separate names so the symbol-space probe reads its own pattern (fix) — events.jsonl#ts=2026-10-05T15:39:05Z
+- T-13573 — Validate the host-config marker on the `task update` field-edit route and name that route where a reader looks for it (fix) — events.jsonl#ts=2026-10-05T15:47:19Z
+- T-13583 — Split each block once in journal.stream_lines instead of once more per line, with the yielded line sequence proven identical (refactor) — events.jsonl#ts=2026-10-05T16:58:01Z
+- T-13588 — Record on a `main-moved` Stage-6 credit refusal whether main's advance since the run was inert-only, so the owner can decide on measured rows (fix) — events.jsonl#ts=2026-10-05T17:35:05Z
+- T-13589 — Add advisory guidance «How to run a plan's gate audit» to the big-plan checklist, with an optional fix-only consult between full checks (docs) — events.jsonl#ts=2026-10-05T17:35:11Z
+- T-13580 — Print only the receipt, the checkout-specific lines and the remaining step when `session start` runs RECEIPT-ONLY for a session that already started here (fix) — events.jsonl#ts=2026-10-05T17:49:43Z
+- T-13586 — Run every git child of the two engine git runners with optional index locks off, so a read of a shared checkout cannot kill a concurrent write there (fix) — events.jsonl#ts=2026-10-05T18:16:10Z
+- T-13584 — Graft task and decision nodes in graph query only on the query branches that read them (refactor) — events.jsonl#ts=2026-10-05T18:18:22Z
+- T-13592 — Replace the registered project name in the P8 consumer-ref example of `bin/lib/task.py` with a placeholder, unblocking the v2.4.0 release (fix) — events.jsonl#ts=2026-10-05T18:52:00Z
 
 ## Trust surfaces
 

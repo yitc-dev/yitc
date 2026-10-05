@@ -456,6 +456,12 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # Additive / P5-safe; DIAGNOSTIC and NON-TERMINAL, never a member verdict.
             if abort_detail.get("members_removed"):
                 data["members_removed"] = abort_detail["members_removed"]
+            # T-13567 (SPEC-0184 rule 9): RANKED RUNG 0 AND PAID, composed by the same `_die` wrapper
+            # and handed here on the same channel — the SAME key the OK payload carries, so a land
+            # the rank answered as free whose verify ran and then failed says so on the one terminal
+            # row it gets. Present only on that land; every other abort row is byte-for-byte today's.
+            if abort_detail.get("rung0_paid"):
+                data["rung0_paid"] = abort_detail["rung0_paid"]
             # T-13345 — the T-12150 queued pre-merge record + its `reservation_disposition`, which
             # the `_die` wrapper already composes onto `abort_detail` and this allow-list dropped:
             # the T-13324 census found every race-while-queued abort row without them although the

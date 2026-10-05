@@ -108,33 +108,36 @@ body: "## Scenario\nThe owner declares ONE on-server consumer the engine CANARY 
   \ → atomic pointer swap (temporary symlink +\n   rename). A failed emit deletes\
   \ the newly created tag and leaves the pointer; a failed swap is\n   resumed by\
   \ re-running the SAME command (a tag already AT that sha is admitted for `--serve`\
-  \ only,\n   and the re-emitted row carries `resumed: true`). A resume whose served\
-  \ copy is already prepared\n   skips the initialization's main-HEAD gate, so main\
-  \ advancing before the retry cannot strand it;\n   the initialization swaps the\
-  \ promoted pointer BEFORE the canary one, so a partial swap leaves a\n   state that\
-  \ re-derives the same act. No state serves a sha without its row.\n7. **Retention.**\
-  \ An act never deletes a served copy — a running process may still lazy-import from\n\
-  \   it. Copies no pointer names are listed by the act for a manual removal (`chmod\
-  \ -R u+w <copy> &&\n   git worktree remove --force <copy>` — the copy is read-only\
-  \ by rule 1).\n8. **Declaration is the owner's.** Which consumer is the canary,\
-  \ and when to advance or promote, are\n   owner decisions recorded in the host registry\
-  \ and by running the acts; the kernel corpus never\n   names a canary.\n9. **The\
-  \ one uncanaried surface — named, bounded.** The entry shim and `engine_route` run\
-  \ from the\n   moving live checkout on every consumer call, before the exec: something\
-  \ at the invoked path must\n   choose the checkout. They only CHOOSE a directory\
-  \ — every module the served run imports comes from\n   the per-sha copy — and a\
-  \ change to either is a `bin/**` diff, so the land's pinned last-green leg\n   (SPEC-0077)\
-  \ re-runs the last-green routing test against the candidate: a routing regression\
-  \ cannot\n   self-approve. Keep them stdlib-only and small; no served-run code may\
-  \ move into them.\n\n## Rationale\nConsumers are the engine's de-facto defect discovery\
-  \ (consumer revizia 2026-09-27), and every kernel\nland reached every consumer in\
-  \ the same instant — <project> needed an emergency land (X-1466,\nfixed). Rule 3\
-  \ is scoped to the served copy because a run of a MOVING checkout cannot be\nattributed\
-  \ to one commit: code may load across a land (the residual). Rule 2's registry-first\n\
+  \ only,\n   and the re-emitted row carries `resumed: true`). A resume skips the\
+  \ initialization's main-HEAD\n   gate ONLY when the tag already sits at that sha\
+  \ AND the journal already holds a `release_tagged`\n   row for exactly that tag,\
+  \ sha and serve role — the recorded serve attempt — so main advancing\n   before\
+  \ the retry cannot strand it; a tag and a prepared copy WITHOUT that row meet the\
+  \ gate again;\n   the initialization swaps the promoted pointer BEFORE the canary\
+  \ one, so a partial swap leaves a\n   state that re-derives the same act. No state\
+  \ serves a sha without its row.\n7. **Retention.** An act never deletes a served\
+  \ copy — a running process may still lazy-import from\n   it. Copies no pointer\
+  \ names are listed by the act for a manual removal (`chmod -R u+w <copy> &&\n  \
+  \ git worktree remove --force <copy>` — the copy is read-only by rule 1).\n8. **Declaration\
+  \ is the owner's.** Which consumer is the canary, and when to advance or promote,\
+  \ are\n   owner decisions recorded in the host registry and by running the acts;\
+  \ the kernel corpus never\n   names a canary.\n9. **The one uncanaried surface —\
+  \ named, bounded.** The entry shim and `engine_route` run from the\n   moving live\
+  \ checkout on every consumer call, before the exec: something at the invoked path\
+  \ must\n   choose the checkout. They only CHOOSE a directory — every module the\
+  \ served run imports comes from\n   the per-sha copy — and a change to either is\
+  \ a `bin/**` diff, so the land's pinned last-green leg\n   (SPEC-0077) re-runs the\
+  \ last-green routing test against the candidate: a routing regression cannot\n \
+  \  self-approve. Keep them stdlib-only and small; no served-run code may move into\
+  \ them.\n\n## Rationale\nConsumers are the engine's de-facto defect discovery (consumer\
+  \ revizia 2026-09-27), and every kernel\nland reached every consumer in the same\
+  \ instant — <project> needed an emergency land (X-1466,\nfixed). Rule 3 is scoped\
+  \ to the served copy because a run of a MOVING checkout cannot be\nattributed to\
+  \ one commit: code may load across a land (the residual). Rule 2's registry-first\n\
   state is what keeps an enabled canary from failing open to the moving checkout when\
-  \ a pointer is\nabsent (the residual). The off-server release pin (<workshop-spec>)\
-  \ moves a consumer-side pin to a\nstripped tree; on-server serving switches the\
-  \ full engine at the one kernel entry, with no\nconsumer-territory edit.\n\n## Verification\n\
+  \ a pointer is\nabsent (the residual). The off-server release pin (SPEC-0195) moves\
+  \ a consumer-side pin to a\nstripped tree; on-server serving switches the full engine\
+  \ at the one kernel entry, with no\nconsumer-territory edit.\n\n## Verification\n\
   - `tests/test_engine_canary_immutable.py` — hermetic two-consumer fixture: the canary's\
   \ rows carry\n  the advanced sha and the other consumer's (incl. through a linked\
   \ worktree) the promoted sha; a new\n  kernel commit moves neither until an act\
@@ -148,6 +151,7 @@ body: "## Scenario\nThe owner declares ONE on-server consumer the engine CANARY 
   \ to its sha.\n"
 cites:
 - CHARTER.md#principle-1
+- SPEC-0195
 - SPEC-0078
 - SPEC-0025
 requires: []

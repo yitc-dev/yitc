@@ -308,46 +308,54 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ alone, and it is carried as its OWN key because `members` by itself\nreads as\
   \ \"N lands per pass\" whether or not any pass was actually amortised. The test\
   \ is the ACTUAL\nquestion, answered per engagement (rule 2): on a KERNEL-AUTHORED\
-  \ verify a first attempt always\nverifies and therefore PAYS, and only a RETRY whose\
-  \ delta is inert skips — the inert class is that\nskip's PRECONDITION, never the\
-  \ skip itself; on a PROJECT-AUTHORED verify a member pays only when some\ndeclared\
-  \ layer would actually RUN for its changed paths, since a change every layer skips\
-  \ runs\nnothing. A land running no tests pays nothing whatever its diff.\n\n**THE\
-  \ PROJECT-AUTHORED HALF IS ASKED THROUGH `subject_globs`, NEVER `covers:`.** They\
-  \ are different\ndeclarations with OPPOSITE defaults, and confusing them inverts\
-  \ the answer on real projects: `covers:`\nnames the test surface a layer OWNS (SPEC-0152\
-  \ delegation), while `subject_globs:` is what the verify\nseam actually skips on\
-  \ — and a layer declaring NO `subject_globs` runs ALWAYS. A layer may therefore\n\
-  own `tests/**` by `covers:` while its subject spans `app/**`, so a change under\
-  \ `app/` really runs it\nand PAYS although no `covers:` glob matches. The question\
-  \ is put to the SAME authority the seam skips\non, so this metric and the gate that\
-  \ decides what a land pays cannot answer differently; a WAIVED or\ncommandless layer\
-  \ runs for nothing whatever its globs say, and a carrier declaring nothing runnable\
-  \ at\nall is UNDECIDABLE rather than free — inventing a saving out of an unusable\
-  \ declaration is the same\nlie in the other direction.\n\n**UNKNOWN IS NOT PAYING,\
-  \ and the direction is the point.** An unreadable or undiffable member, an\nunknown\
-  \ attempt, or an undecidable engagement is never counted, so the number under-claims\
-  \ rather\nthan over-claims: this metric exists to expose a repo assumed to benefit\
-  \ while saving nothing, and\none that guessed upward would manufacture the very\
-  \ reassurance it is meant to withhold. Reading the\ninert CLASS as the answer instead\
-  \ conflates it with a skip gated on `attempt > 1`, which reports zero\nsaving on\
-  \ the cheapest and most frequent class of land — the mechanism then reads as worthless\n\
-  exactly where it works.\n\n**Read the kernel consequence honestly.** Where every\
-  \ queued land really does pay a full pass — this\nrepo — `paying_members` converges\
-  \ to `members`. That is the repo's true cost, not the metric going\ndegenerate,\
-  \ and it must not be reported as a preserved kernel-side distinction: the separation\n\
-  between the two numbers does its discriminating work on projects whose declared\
-  \ layers cover only\npart of the tree.\n\n**BESIDE THE TWO MEMBER COUNTS, THE ROW\
-  \ REPORTS WHAT A PASS COST** (owner direction\nrecorded 2026-08-25). `members` and\
-  \ `paying_members` are both counts of MEMBERS; neither is a\nprice. Batching amortises\
-  \ exactly ONE pass, so the benefit of forming a batch is that pass's price\ntimes\
-  \ the members who would otherwise each have paid it — and the row carried both factors\
-  \ of that\nproduct except the one that decides its size. `verify_wall_ms_median`\
-  \ (with\n`verify_wall_ms_median_n`, the sample it rests on) is folded READ-ONLY\
-  \ from completed lands' own\nrecorded `land_completed.data.verify_duration_ms` over\
-  \ a bounded journal tail. Why it matters here\nand not merely as telemetry: the\
-  \ narrowing shipped made a kernel pass materially cheaper,\nwhich MOVES the value\
-  \ of every batch this spec forms — measured on this repo 2026-08-29, the median\n\
+  \ verify a member pays when its OWN\ndelta carries any path outside SPEC-0064's\
+  \ inert set, on a first attempt and on a retry alike — a\nretry whose delta is all-inert\
+  \ skips on SPEC-0065's lever B, and a first attempt whose delta is\nall-inert skips\
+  \ on SPEC-0065 §Bound's own proof (rule 9's rung-0 clause states the bound\nof that\
+  \ answer); on a PROJECT-AUTHORED verify a member pays only when some\ndeclared layer\
+  \ would actually RUN for its changed paths, since a change every layer skips runs\n\
+  nothing. A land running no tests pays nothing whatever its diff.\n\n**THE PROJECT-AUTHORED\
+  \ HALF IS ASKED THROUGH `subject_globs`, NEVER `covers:`.** They are different\n\
+  declarations with OPPOSITE defaults, and confusing them inverts the answer on real\
+  \ projects: `covers:`\nnames the test surface a layer OWNS (SPEC-0152 delegation),\
+  \ while `subject_globs:` is what the verify\nseam actually skips on — and a layer\
+  \ declaring NO `subject_globs` runs ALWAYS. A layer may therefore\nown `tests/**`\
+  \ by `covers:` while its subject spans `app/**`, so a change under `app/` really\
+  \ runs it\nand PAYS although no `covers:` glob matches. The question is put to the\
+  \ SAME authority the seam skips\non, so this metric and the gate that decides what\
+  \ a land pays cannot answer differently; a WAIVED or\ncommandless layer runs for\
+  \ nothing whatever its globs say, and a carrier declaring nothing runnable at\n\
+  all is UNDECIDABLE rather than free — inventing a saving out of an unusable declaration\
+  \ is the same\nlie in the other direction.\n\n**UNKNOWN IS NOT PAYING, and the direction\
+  \ is the point.** An unreadable or undiffable member, an\nunknown attempt, or an\
+  \ undecidable engagement is never counted, so the number under-claims rather\nthan\
+  \ over-claims: this metric exists to expose a repo assumed to benefit while saving\
+  \ nothing, and\none that guessed upward would manufacture the very reassurance it\
+  \ is meant to withhold. Reading the\ninert CLASS alone as the answer is wrong wherever\
+  \ the skip it stands for cannot be assumed — an\nunknown attempt, a project-authored\
+  \ verify — which is why the question stays «would the suite run»,\nanswered per\
+  \ engagement, and never a bare path test.\n\n**Read the kernel consequence honestly.**\
+  \ In a repo running the kernel-authored suite every member\ncarrying an observable\
+  \ path pays a full pass, so among code lands `paying_members` converges to\n`members`\
+  \ — that is the repo's true cost, not the metric going degenerate. The members the\
+  \ two\nnumbers separate there are the code-less ones (rule 9's cohort), and since\
+  \ those batch only with\ntheir own kind a formed batch reads all-paying or none-paying;\
+  \ the layer-by-layer separation does\nits discriminating work on projects whose\
+  \ declared layers cover only part of the tree. A batch is\nformed only by a land\
+  \ about to run its test verify, so a cohort batch exists only where its head's\n\
+  first-attempt proof REFUSED: it reports zero paying members while one pass runs\
+  \ for it. The count\nunder-claims there by design (the direction above), and the\
+  \ head's own row says the pass was paid\n(`rung0_paid`, rule 9).\n\n**BESIDE THE\
+  \ TWO MEMBER COUNTS, THE ROW REPORTS WHAT A PASS COST** (owner direction\nrecorded\
+  \ 2026-08-25). `members` and `paying_members` are both counts of MEMBERS; neither\
+  \ is a\nprice. Batching amortises exactly ONE pass, so the benefit of forming a\
+  \ batch is that pass's price\ntimes the members who would otherwise each have paid\
+  \ it — and the row carried both factors of that\nproduct except the one that decides\
+  \ its size. `verify_wall_ms_median` (with\n`verify_wall_ms_median_n`, the sample\
+  \ it rests on) is folded READ-ONLY from completed lands' own\nrecorded `land_completed.data.verify_duration_ms`\
+  \ over a bounded journal tail. Why it matters here\nand not merely as telemetry:\
+  \ the narrowing shipped made a kernel pass materially cheaper,\nwhich MOVES the\
+  \ value of every batch this spec forms — measured on this repo 2026-08-29, the median\n\
   fell from about 7.4 min to about 3.0 min post-narrowing (n=715 since 2026-08-25),\
   \ i.e. roughly 2.5x\ncheaper rather than the six-fold the direction predicted. The\
   \ benefit therefore fell by about that\nfactor while the fate-binding cost is UNCHANGED,\
@@ -1436,65 +1444,114 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ that describes anything other than cost hands the road to whoever is cheapest\
   \ in\nname only.\n\n**Rung 0 is asked of the rule-1 paying predicate, NEVER of the\
   \ inert-path proxy.** The original rung 0\nread SPEC-0064's inert verdict directly,\
-  \ but the inert skip is SPEC-0065's lever B, gated on\n`attempt > 1` — so a FIRST-attempt\
-  \ inert land runs the full suite and only its canary is skipped.\nMeasured 2026-08-18:\
-  \ an inert-path branch on attempt 1 ranked 0 while paying a verify of 422129 ms\n\
-  (`reverify_skipped` false, `attempt_count` 1) — ranked the cheapest thing in the\
-  \ repo while paying the\nmost frequent full pass, so the slot was yielded TO the\
-  \ expensive branch, the inverse of what this rule\nwas built to do. The question\
+  \ while the only inert skip was SPEC-0065's lever B, gated on\n`attempt > 1` — so\
+  \ a FIRST-attempt inert land then ran the full suite and only its canary was skipped.\n\
+  Measured 2026-08-18: an inert-path branch on attempt 1 ranked 0 while paying a verify\
+  \ of 422129 ms\n(`reverify_skipped` false, `attempt_count` 1) — ranked the cheapest\
+  \ thing in the repo while paying the\nmost frequent full pass, so the slot was yielded\
+  \ TO the expensive branch, the inverse of what this rule\nwas built to do. The question\
   \ is now the SAME one rule 1's paying metric asks — «would this member's own\nland\
   \ actually have run the suite?» — consumed from that one predicate, never answered\
-  \ a second time.\n**Honest consequence, stated rather than implied:** in a repo\
-  \ running the kernel-authored suite rung 0 is\nnearly EMPTY by construction, because\
-  \ the rank counts attempt 1 as paying (the inert first-attempt\nskip, SPEC-0065\
-  \ §Bound, is proven only on the merged tree this pre-merge rank cannot see — \"\
-  pays\" is\nthe fail-safe answer) — only a RETRY with an inert delta or a land running\
-  \ no tests is free. The populated cheap rung lives on CONSUMERS, where a diff disjoint\
-  \ from\nevery declared layer's subject really does run nothing, and rule 1's own\
-  \ consumer clause governs how that\nis asked (through the declaration the verify\
-  \ seam skips on, never through the test-ownership declaration).\n\n**Rung 2 collapses\
-  \ to rung 1 where the pinned leg is OFF.** Rung 2 is a SECOND pass, so it is only\
-  \ real\nif that pass will happen: SPEC-0186 lets a project declare the pinned last-green\
-  \ leg off, and there a\nverify-surface touch buys nothing and must not isolate a\
-  \ member for a pass that does not exist. The\npolicy is read through SPEC-0186's\
-  \ ONE resolver over the BASE tree (its rule 4) — the same authority the\npinned-supersession\
-  \ key narrowing above already consults, so formation reads ONE answer, not two.\n\
-  FAIL-CLOSED both ways, in the direction each error costs least: an UNKNOWN paying\
-  \ answer (an unresolved\nattempt, an unreadable declaration, an oracle that could\
-  \ not be asked) never reaches rung 0 but falls\nthrough to the observable ladder,\
-  \ and an unresolved policy leaves the rank at 2 — isolating a member that\ndid not\
-  \ need it costs one unamortised pass, while batching one that DID need the pinned\
-  \ leg is a false\ngreen.\n\n**THE YIELD READS THE SUPERSESSION MARKS, and tests\
-  \ them FIRST.** A land must never hand the slot to\na branch whose rule-8 marker\
-  \ is set: that branch has nothing to integrate and would take the slot\nonly to\
-  \ exit. So a marked branch is never even ranked. The read is READ-ONLY — consuming\
-  \ a peer's\nmarker here would destroy the evidence that peer is parked waiting to\
-  \ read; consumption stays the\nmarked branch's own act.\n\n**IT PROMISES A RELEASE,\
-  \ NOT A HANDOFF — and the distinction is the rule, not a caveat.** The\nreservation\
-  \ is a first-come flock, so after a yield the slot may be taken by the queued cheaper\n\
-  candidate, by a third lander, or by the YIELDER ITSELF re-contending on equal terms.\
-  \ A DETERMINISTIC\nhandoff would require the yielder to WAIT until someone else\
-  \ holds the lock, and the owner withdrew\nthat shape (2026-08-18). Convergence to\
-  \ the cheapest queued candidate is therefore PROBABILISTIC and\nis MEASURED, not\
-  \ asserted: `land_completed` carries `slot_yields` on any land that yielded (absent\n\
-  otherwise, so a quiet repo's row is byte-identical), and that count is what keeps\
-  \ the claim honest.\n\n**WHAT MAKES IT WORK IS THAT LOSING IS CHEAP, not that the\
-  \ race is biased.** `_LAND_RESERVATION_POLL_SEC`\ndrops 1.0 -> 0.1, so a parked\
-  \ peer notices the freed window, and a yielder that re-takes its own slot\nre-decides,\
-  \ within a tenth of a second. The race stays fair; only the cost of a wrong grab\
-  \ falls. The\nyielder is never made to wait — it is only made to stop HOLDING while\
-  \ it re-reads the queue, and that\nunlocked read IS the window. An earlier owner\
-  \ amendment prescribing a skip-a-tick back-off was\nWITHDRAWN (2026-08-18) and must\
-  \ not be reintroduced.\n\n**NO NEW BOUND — and what actually terminates a mutual\
-  \ yield is MEASURED, not assumed.** No deferral\ncounter and no yield cap. Two things\
-  \ keep the yield from cycling. First, under the shipped ranking a\nmutual yield\
-  \ is UNREACHABLE: a strict order cannot hold A<B and B<A. Second, within one attempt\
-  \ a\ncandidate is offered the slot ONCE — the yielder skips the branches it has\
-  \ already yielded to, so a\ncandidate that is queued but never contends cannot hold\
-  \ it in a release/re-take spin. That is\nidempotence over a queue the read already\
-  \ bounds, not a counter: it names no number and expires\nnothing.\n\n**The founding\
-  \ directive's stated backstop does NOT hold, and the correction is recorded rather\
-  \ than\nquietly relied on** (measured 2026-08-18, deviation `t11275-park-limit-does-not-terminate-mutual-yield`).\n\
+  \ a second time.\n\n**IN A REPO RUNNING THE KERNEL-AUTHORED SUITE, RUNG 0 IS THE\
+  \ CODE-LESS COHORT (owner\ndirective 2026-10-05).** The directive: lands that carry\
+  \ no code form their own cohort, are grouped\namong themselves and land first —\
+  \ before the queue-jump mark — then the marked branches, then the\nrest by the rules\
+  \ of this spec. It re-states the order ratified on 2026-08-27 (cohort < marked <\n\
+  paying, below) and asks that it hold in this repo, where it did not: the rank answered\
+  \ every first\nattempt as paying. Since SPEC-0065 §Bound a land none of whose attempts\
+  \ has verified skips the suite\nwhen its tree differs from a GREEN tested tree only\
+  \ by inert paths no test names, so the predicate\nnow answers a member whose OWN\
+  \ delta is all-inert by SPEC-0064's one authority — cards, journal\nrows, audit\
+  \ and decision records — as non-paying on a first attempt as well as on a retry.\
+  \ Such a\nbranch ranks 0, and three consequences follow from the rank alone, with\
+  \ no new mark, field or store:\n* **served first** — the scan below takes a rung-0\
+  \ candidate before a live queue-jump mark, and a\n  rung-0 holder yields to no paying\
+  \ branch, marked or not;\n* **grouped with its own kind** — a batch holds one cost\
+  \ class, the head's, so cohort members batch\n  together and never ride with a paying\
+  \ member, and a paying head never carries one;\n* **`BATCH_MAX` bounds a cohort\
+  \ batch exactly as any other, and bounds nothing where no batch\n  forms.** A batch\
+  \ is formed only by a land about to run its test verify. A cohort land whose\n \
+  \ first-attempt proof holds runs no verify and forms no batch: it lands alone in\
+  \ seconds, and the\n  cohort is served as a run of such lands one after another,\
+  \ with nothing for a cap to bound. A\n  cohort land whose proof refuses verifies,\
+  \ and the batch it forms — cohort members only — is\n  capped at `BATCH_MAX` for\
+  \ the reason the cap exists (§Parameters: the cost of diagnosing a red\n  batch).\n\
+  \n**THE ANSWER IS TAKEN BEFORE THE MERGE, AND ITS ONE ERROR IS RECORDED, NEVER SILENT.**\
+  \ The rank reads\nthe branch's own delta against `main` as the queue read sees it;\
+  \ the skip it expects is proven\nlater, on the merged tree — the tested-tree anchor,\
+  \ the net delta since it, the test readers.\nSPEC-0065 §Bound owns those conditions\
+  \ and this rule changes none of them. So the answer can be\nwrong in one direction\
+  \ only: a member ranked 0 whose proof then refuses. Measured 2026-10-05: the\nrefusals\
+  \ traced were `observable-since-anchor` — an observable path newer on `main` than\
+  \ the last\ntested tree, in the cases traced the suite duration table a verified\
+  \ land's own bookkeeping had\nrewritten. That land pays its verify exactly as before,\
+  \ and its terminal `land_completed` row —\n`ok` OR `abort` — carries `rung0_paid`,\
+  \ whose value says why it paid: the proof's own refusal, or\n`first-attempt-proof-not-open`\
+  \ where the proof was not open to the attempt at all (its entry\nguard excludes\
+  \ a declared rebaseline). The record is the LAND's, taken from its OWN facts once\
+  \ an\nattempt's candidate verify has actually RUN — after the verify legs, before\
+  \ the outcome branches:\nthe kernel-authored engagement, and an own delta the one\
+  \ inert authority calls all-inert on the\ntree being landed. So it depends neither\
+  \ on which holder ranked the branch, nor on whether this\nland ever held the reservation,\
+  \ nor on the proof having been asked; it is kept across attempts,\nso a land that\
+  \ paid in one attempt and landed on a later, skipping one still says so; and because\n\
+  it exists only after a run, it rides the abort row of a land whose suite ran — a\
+  \ verify that\nfailed or timed out — and never one refused before the suite started.\
+  \ It is absent on a land that\nskipped or was credited in every attempt, on a land\
+  \ carrying any observable path, and on every\nproject-declared verify: every other\
+  \ row is\nunchanged. This is the 2026-08-18 inversion again — a branch ranked cheapest\
+  \ while paying a full\npass — admitted on purpose and made COUNTABLE: `rung0_paid`\
+  \ rows against\n`inert-first-attempt-delta` skips is the rate at which the cohort's\
+  \ place is spent on a land that\npaid, and the grounds on which this answer is to\
+  \ be re-judged. FAIL-CLOSED as before for\neverything the read cannot decide: an\
+  \ undiffable branch, an unknown attempt, a classifier or an\noracle that fails never\
+  \ ranks 0.\n\nOn CONSUMERS rung 0 is populated as it always was: a diff disjoint\
+  \ from every declared layer's\nsubject really does run nothing, and rule 1's own\
+  \ consumer clause governs how that is asked (through\nthe declaration the verify\
+  \ seam skips on, never through the test-ownership declaration). A project\ndeclaring\
+  \ its own layers is answered through them alone; its rank does not move.\n\n**Rung\
+  \ 2 collapses to rung 1 where the pinned leg is OFF.** Rung 2 is a SECOND pass,\
+  \ so it is only real\nif that pass will happen: SPEC-0186 lets a project declare\
+  \ the pinned last-green leg off, and there a\nverify-surface touch buys nothing\
+  \ and must not isolate a member for a pass that does not exist. The\npolicy is read\
+  \ through SPEC-0186's ONE resolver over the BASE tree (its rule 4) — the same authority\
+  \ the\npinned-supersession key narrowing above already consults, so formation reads\
+  \ ONE answer, not two.\nFAIL-CLOSED both ways, in the direction each error costs\
+  \ least: an UNKNOWN paying answer (an unresolved\nattempt, an unreadable declaration,\
+  \ an oracle that could not be asked) never reaches rung 0 but falls\nthrough to\
+  \ the observable ladder, and an unresolved policy leaves the rank at 2 — isolating\
+  \ a member that\ndid not need it costs one unamortised pass, while batching one\
+  \ that DID need the pinned leg is a false\ngreen.\n\n**THE YIELD READS THE SUPERSESSION\
+  \ MARKS, and tests them FIRST.** A land must never hand the slot to\na branch whose\
+  \ rule-8 marker is set: that branch has nothing to integrate and would take the\
+  \ slot\nonly to exit. So a marked branch is never even ranked. The read is READ-ONLY\
+  \ — consuming a peer's\nmarker here would destroy the evidence that peer is parked\
+  \ waiting to read; consumption stays the\nmarked branch's own act.\n\n**IT PROMISES\
+  \ A RELEASE, NOT A HANDOFF — and the distinction is the rule, not a caveat.** The\n\
+  reservation is a first-come flock, so after a yield the slot may be taken by the\
+  \ queued cheaper\ncandidate, by a third lander, or by the YIELDER ITSELF re-contending\
+  \ on equal terms. A DETERMINISTIC\nhandoff would require the yielder to WAIT until\
+  \ someone else holds the lock, and the owner withdrew\nthat shape (2026-08-18).\
+  \ Convergence to the cheapest queued candidate is therefore PROBABILISTIC and\n\
+  is MEASURED, not asserted: `land_completed` carries `slot_yields` on any land that\
+  \ yielded (absent\notherwise, so a quiet repo's row is byte-identical), and that\
+  \ count is what keeps the claim honest.\n\n**WHAT MAKES IT WORK IS THAT LOSING IS\
+  \ CHEAP, not that the race is biased.** `_LAND_RESERVATION_POLL_SEC`\ndrops 1.0\
+  \ -> 0.1, so a parked peer notices the freed window, and a yielder that re-takes\
+  \ its own slot\nre-decides, within a tenth of a second. The race stays fair; only\
+  \ the cost of a wrong grab falls. The\nyielder is never made to wait — it is only\
+  \ made to stop HOLDING while it re-reads the queue, and that\nunlocked read IS the\
+  \ window. An earlier owner amendment prescribing a skip-a-tick back-off was\nWITHDRAWN\
+  \ (2026-08-18) and must not be reintroduced.\n\n**NO NEW BOUND — and what actually\
+  \ terminates a mutual yield is MEASURED, not assumed.** No deferral\ncounter and\
+  \ no yield cap. Two things keep the yield from cycling. First, under the shipped\
+  \ ranking a\nmutual yield is UNREACHABLE: a strict order cannot hold A<B and B<A.\
+  \ Second, within one attempt a\ncandidate is offered the slot ONCE — the yielder\
+  \ skips the branches it has already yielded to, so a\ncandidate that is queued but\
+  \ never contends cannot hold it in a release/re-take spin. That is\nidempotence\
+  \ over a queue the read already bounds, not a counter: it names no number and expires\n\
+  nothing.\n\n**The founding directive's stated backstop does NOT hold, and the correction\
+  \ is recorded rather than\nquietly relied on** (measured 2026-08-18, deviation `t11275-park-limit-does-not-terminate-mutual-yield`).\n\
   The directive said mutual yielding was \"already terminated by the EXISTING land-reservation\
   \ park\nlimit\". It is not: that limit bounds a contender WAITING on a reservation\
   \ somebody else HOLDS, and a\nmutual yield never waits — each side releases and\
@@ -1544,38 +1601,45 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ cost ladder above — «this member's own land would not run the suite» — the same\n\
   answer rule 1's paying metric counts. A second predicate, a new field or a new store\
   \ would be the\nparallel encoding CHARTER §P1 forbids.\n\n**WHERE THE PAYOFF LIVES,\
-  \ so its near-absence in the kernel is not read as failure.** Bookkeeping\nlands\
-  \ are 0 of 294 batch members in the kernel and 173 of 293 (59%) in the <project>\
-  \ consumer, both\nfolded read-only from the respective journals on 2026-08-27. In\
-  \ a repo running the kernel-authored\nsuite rung 0 is nearly empty BY CONSTRUCTION\
-  \ (the rung-0 clause above says why), so this narrowing\nis nearly INERT here and\
-  \ is the MAJORITY case on a consumer. Nothing is measured in the kernel to\nprove\
-  \ it, and nothing should be.\n\n**THE OBSERVATION THAT MADE IT CONCRETE.** On 2026-08-27\
-  \ the mark fired repeatedly for task/\n— a branch whose own land had ABORTED on\
-  \ a pinned verify failure at 11:19:22Z — while the admission\nqueue grew to 10 and\
-  \ the oldest waiter sat at 3629 s. A mark that outranks EVERYTHING hands a\nfailing\
-  \ branch repeated priority over branches that would have cleared, including ones\
-  \ that would\nhave cleared for free.\n\n**IT IS ORDER OF SERVICE, AND — SINCE —\
-  \ IT ALSO MAKES THE CARD SOLO.** A branch whose card\ncarries a LIVE mark is batch-INELIGIBLE\
-  \ for as long as the mark lives: an ineligible HEAD forms a\nbatch of ONE, an ineligible\
-  \ PEER is dropped before the cap (rule 4's existing membership seam,\nreused unchanged).\
-  \ Owner decision 2026-08-27, and it OVERTURNS this paragraph's former reading\n\
-  («it does not make a card solo — being verified alone is ALREADY derived where it\
-  \ belongs and needs\nno second carrier»). The grounds: order of service alone does\
-  \ not deliver what the mark is FOR. A\nmarked card is served first and then verified\
-  \ INSIDE a batch, so its land is hostage to every peer\nin it — a red raised by\
-  \ any member dissolves the batch and the urgent card waits another full\nround.\
-  \ Serving it first and then making it wait on peers is the same delay wearing a\
-  \ different\nname.\n\n**ONE HOME, TWO SOURCES — the design, and why it is not a\
-  \ second carrier.** There is no stored solo\nFIELD, here or anywhere: batch-ineligibility\
-  \ is DERIVED in\n`bin/lib/batch_landing.py#_land_batch_ineligible_branches`. That\
-  \ ONE predicate now answers from TWO\nsources — the rule-4 red-batch history, and\
-  \ a live rule-9 mark — so every existing consumer of\nbatch-ineligibility keeps\
-  \ working unchanged and nothing new is stored. In particular a mark\nwrites NO journal\
-  \ row: synthesising a `requeued-after-red-batch` verdict to fake ineligibility would\n\
-  record a red batch that never happened in an append-only history, which is the one\
-  \ thing that must\nstay true.\n\n**THE TWO SOURCES HAVE DELIBERATELY DIFFERENT LIFETIMES,\
-  \ and this is the rule rather than an\nartefact.** The red-batch source is ONE ROUND\
+  \ AND WHAT IT COSTS THE BRANCH BEHIND.** When this narrowing,\nbookkeeping lands\
+  \ were 0 of 294 batch members in the kernel and 173 of 293 (59%) in the <project>\n\
+  consumer, both folded read-only from the respective journals on 2026-08-27 — the\
+  \ kernel rank then\nanswered every first attempt as paying, so the narrowing was\
+  \ nearly inert there. Since (the\nrung-0 clause above) a first-attempt all-inert\
+  \ branch ranks 0 in a repo running the kernel-authored\nsuite as well, so the same\
+  \ two halves serve the code-less cohort in both: cohort, then a live mark,\nthen\
+  \ the paying classes. The «seconds, never a verify» above describes a rung-0 land\
+  \ that really\nruns no suite; for the kernel cohort the figure is measured, not\
+  \ assumed — on 2026-10-05 nine such\nlands ran a 7-27 s verify step inside a median\
+  \ 143 s of their own work (merge, journal fold, graph\nrebuild, bookkeeping), against\
+  \ a median 571 s for a paying land the same day — and the one case\nwhere the branch\
+  \ behind gives up a full pass is the recorded `rung0_paid` land.\n\n**THE OBSERVATION\
+  \ THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/\n—\
+  \ a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z —\
+  \ while the admission\nqueue grew to 10 and the oldest waiter sat at 3629 s. A mark\
+  \ that outranks EVERYTHING hands a\nfailing branch repeated priority over branches\
+  \ that would have cleared, including ones that would\nhave cleared for free.\n\n\
+  **IT IS ORDER OF SERVICE, AND — SINCE — IT ALSO MAKES THE CARD SOLO.** A branch\
+  \ whose card\ncarries a LIVE mark is batch-INELIGIBLE for as long as the mark lives:\
+  \ an ineligible HEAD forms a\nbatch of ONE, an ineligible PEER is dropped before\
+  \ the cap (rule 4's existing membership seam,\nreused unchanged). Owner decision\
+  \ 2026-08-27, and it OVERTURNS this paragraph's former reading\n(«it does not make\
+  \ a card solo — being verified alone is ALREADY derived where it belongs and needs\n\
+  no second carrier»). The grounds: order of service alone does not deliver what the\
+  \ mark is FOR. A\nmarked card is served first and then verified INSIDE a batch,\
+  \ so its land is hostage to every peer\nin it — a red raised by any member dissolves\
+  \ the batch and the urgent card waits another full\nround. Serving it first and\
+  \ then making it wait on peers is the same delay wearing a different\nname.\n\n\
+  **ONE HOME, TWO SOURCES — the design, and why it is not a second carrier.** There\
+  \ is no stored solo\nFIELD, here or anywhere: batch-ineligibility is DERIVED in\n\
+  `bin/lib/batch_landing.py#_land_batch_ineligible_branches`. That ONE predicate now\
+  \ answers from TWO\nsources — the rule-4 red-batch history, and a live rule-9 mark\
+  \ — so every existing consumer of\nbatch-ineligibility keeps working unchanged and\
+  \ nothing new is stored. In particular a mark\nwrites NO journal row: synthesising\
+  \ a `requeued-after-red-batch` verdict to fake ineligibility would\nrecord a red\
+  \ batch that never happened in an append-only history, which is the one thing that\
+  \ must\nstay true.\n\n**THE TWO SOURCES HAVE DELIBERATELY DIFFERENT LIFETIMES, and\
+  \ this is the rule rather than an\nartefact.** The red-batch source is ONE ROUND\
   \ and self-clearing — its clearing signal is the\nmember's own individual verdict\
   \ (rule 4: «one round, not a quarantine»). The mark source is\nPERSISTENT: it holds\
   \ while the mark holds and ends when the mark ends, which per safeguard (b)\nbelow\
@@ -2131,36 +2195,39 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ materially, `BATCH_MAX` is the parameter to\nre-tune, and it is a code constant\
   \ precisely so that costs nothing to change.\n\nProbes belong AT and OVER the cap:\
   \ a queue of exactly `BATCH_MAX` forms one batch; a queue of\n`BATCH_MAX + 1` forms\
-  \ a full batch plus a remainder that waits, never an oversized batch.\n\n## Rationale\n\
-  \nMeasured, not assumed (2026-08-16):\n\n- **Verify cost is FIXED, not proportional\
-  \ to the change.** Regression over 165 (audited-files,\n  verify-seconds) pairs\
-  \ gives ~515s base and −1.0s per file — the slope is zero. audited 53\n  files in\
-  \ 438s; a 2-file land took 460s. So per-change cost cannot be reduced by making\
-  \ changes\n  smaller; only the NUMBER of passes can fall.\n- **That fixed cost now\
-  \ exceeds what a worker survives.** August median land verify 325s (n=743), p95\n\
-  \  743s, against a ~590s harness per-call cap; on 2026-08-15, 22% of dispatched\
-  \ workers halted\n  `blocked-on-land`. SPEC-0132 Rule 4's Tier-C triggers (median\
-  \ >5min OR p95 >12min) have both fired.\n- **Test selection is unavailable as a\
-  \ lever here.** 70% of the 830-file corpus asserts on kernel\n  SOURCE TEXT rather\
-  \ than executing it; the union of executed lines across a traced sample covers only\n\
-  \  6.1% of `worktree.py`. Coverage cannot observe those dependencies and selection\
-  \ on it would produce\n  a false green. The suite can be amortised but not shortened.\n\
-  - **Queueing is deliberate and correct.** serialized merge→verify→ff after measuring\
-  \ 71% of\n  the verify budget as redo (11.6h discarded against 4.6h that counted,\
-  \ all `retry-main-advanced`).\n  Racing is worse. What that change did not provide\
-  \ is a way to survive the queue it created.\n\nPrior art extended rather than replaced:\
-  \ SPEC-0132 (governor + ladder) (serialized span),\nSPEC-0077 (doubled verify) (pinned-verdict\
-  \ cache, keyed on the whole candidate tree so it\nonly hits on a repeated attempt\
-  \ of the SAME branch — it does not amortise across different changes).\nIndustry\
-  \ precedent for this exact shape: Bors / GitHub merge queue (batch then bisect),\
-  \ Zuul\n(speculative chains).\n\n## Verification\n\n- **Rule 15 (the queued pre-merge\
-  \ — four differentials, `tests/test_t12150_queued_land_branch_freshness.py`):**\n\
-  \  (a) FRESHNESS — a branch parked on a real held reservation gains main's commit\
-  \ WHILE STILL\n  PARKED and the merge path is invoked exactly ONCE across the whole\
-  \ land; with\n  `YITC_LAND_QUEUED_PREMERGE=0` the same fixture leaves the branch\
-  \ untouched during the wait and\n  merges only after acquisition. (b) WATERMARK\
-  \ — a persistent blocking conflict costs exactly ONE\n  attempt across many throttle\
-  \ intervals and then leaves the queue (`tests/test_t13345_queued_conflict_leaves_queue.py`:\
+  \ a full batch plus a remainder that waits, never an oversized batch.\n\n**`BATCH_MAX`\
+  \ and the code-less cohort (rule 9).** The cap is not re-tuned and gets no\nsecond\
+  \ value. A cohort batch exists only where a cohort land verifies, and there the\
+  \ cap means what\nit means for any batch; a cohort land that runs no suite forms\
+  \ no batch, so there is nothing for a\ncap to bound.\n\n## Rationale\n\nMeasured,\
+  \ not assumed (2026-08-16):\n\n- **Verify cost is FIXED, not proportional to the\
+  \ change.** Regression over 165 (audited-files,\n  verify-seconds) pairs gives ~515s\
+  \ base and −1.0s per file — the slope is zero. audited 53\n  files in 438s; a 2-file\
+  \ land took 460s. So per-change cost cannot be reduced by making changes\n  smaller;\
+  \ only the NUMBER of passes can fall.\n- **That fixed cost now exceeds what a worker\
+  \ survives.** August median land verify 325s (n=743), p95\n  743s, against a ~590s\
+  \ harness per-call cap; on 2026-08-15, 22% of dispatched workers halted\n  `blocked-on-land`.\
+  \ SPEC-0132 Rule 4's Tier-C triggers (median >5min OR p95 >12min) have both fired.\n\
+  - **Test selection is unavailable as a lever here.** 70% of the 830-file corpus\
+  \ asserts on kernel\n  SOURCE TEXT rather than executing it; the union of executed\
+  \ lines across a traced sample covers only\n  6.1% of `worktree.py`. Coverage cannot\
+  \ observe those dependencies and selection on it would produce\n  a false green.\
+  \ The suite can be amortised but not shortened.\n- **Queueing is deliberate and\
+  \ correct.** serialized merge→verify→ff after measuring 71% of\n  the verify budget\
+  \ as redo (11.6h discarded against 4.6h that counted, all `retry-main-advanced`).\n\
+  \  Racing is worse. What that change did not provide is a way to survive the queue\
+  \ it created.\n\nPrior art extended rather than replaced: SPEC-0132 (governor +\
+  \ ladder) (serialized span),\nSPEC-0077 (doubled verify) (pinned-verdict cache,\
+  \ keyed on the whole candidate tree so it\nonly hits on a repeated attempt of the\
+  \ SAME branch — it does not amortise across different changes).\nIndustry precedent\
+  \ for this exact shape: Bors / GitHub merge queue (batch then bisect), Zuul\n(speculative\
+  \ chains).\n\n## Verification\n\n- **Rule 15 (the queued pre-merge — four differentials,\
+  \ `tests/test_t12150_queued_land_branch_freshness.py`):**\n  (a) FRESHNESS — a branch\
+  \ parked on a real held reservation gains main's commit WHILE STILL\n  PARKED and\
+  \ the merge path is invoked exactly ONCE across the whole land; with\n  `YITC_LAND_QUEUED_PREMERGE=0`\
+  \ the same fixture leaves the branch untouched during the wait and\n  merges only\
+  \ after acquisition. (b) WATERMARK — a persistent blocking conflict costs exactly\
+  \ ONE\n  attempt across many throttle intervals and then leaves the queue (`tests/test_t13345_queued_conflict_leaves_queue.py`:\
   \ the land aborts while the holder still\n  holds; with the kill switch it is still\
   \ parked at release), and an unproven behind-count is\n  recorded as a non-consumable\
   \ `error`, never as a consumable `current`. (c) FAIL-OPEN — an injected exception\n\
@@ -2176,29 +2243,31 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ rows — and specifically NO per-member attribution row, per\n  rule 5's N=1 clause);\
   \ a queue of depth N>1 produces ONE verify for N members.\n- **Rule 1 (the `paying`\
   \ metric — a DIFFERENTIAL, never an assertion):** over one fixture family,\n  a\
-  \ FIRST-attempt member whose paths are inert is counted as paying while a RETRY\
-  \ carrying the same\n  inert delta is not, and a member whose paths cannot be read\
-  \ is counted on neither. A rule that\n  simply counted every member would satisfy\
-  \ the first half and MUST fail the second; a rule that\n  kept the inert-path proxy\
-  \ fails the first. The consumer cohort is probed in the same family: a\n  member\
-  \ whose paths every declared layer would SKIP stays non-paying while one some layer\
-  \ RUNS\n  for pays, so one classifier is proven to give opposite answers in a kernel-authored\
-  \ and a\n  project-authored repo. That half is probed against `subject_globs` on\
-  \ a REAL declared shape\n  whose `covers:` and `subject_globs:` DISAGREE — a layer\
-  \ owning `tests/**` while its subject\n  spans `app/**` — because a probe where\
-  \ the two coincide cannot tell the carriers apart, and a\n  `covers:`-read passes\
-  \ it while inverting the live answer. A layer declaring NO `subject_globs`\n  runs\
-  \ always, and that default is probed too.\n- **Rule 2 (declaration half):** a project\
-  \ without the declaration never forms a batch of 2+,\n  asserted with the declaration\
-  \ present and absent over the same queue.\n- **Rule 2 (kernel half — combined-candidate\
-  \ blame is VALID on the kernel's own suite)** (plan-check\n  finding 2, 2026-08-16).\
-  \ Rule 2 engages batching for the kernel with NO declaration, on the grounds\n \
-  \ that the kernel owns its suite's isolation properties. That is an ASSERTION until\
-  \ probed, and the\n  entire red-path safety argument rests on it — an unprobed assertion\
-  \ here is exactly the shape that\n  lets a red change ride a green batch. So it\
-  \ is probed directly, on the kernel suite:\n  a red combined candidate lands NO\
-  \ member and dissolves the batch back into the queue, and each\n  re-queued member\
-  \ is then verified ALONE. Blame is not computed and is not needed (plan-check finding\n\
+  \ FIRST-attempt member carrying an observable path is counted as paying while one\
+  \ whose OWN delta\n  is all-inert is not — on a first attempt and on a retry alike\
+  \ — and a member whose paths cannot be\n  read, or whose attempt is unknown, is\
+  \ counted on neither. A rule that simply counted every member,\n  or that answered\
+  \ every first attempt as paying, satisfies the first half and MUST fail the second;\n\
+  \  a rule that read the inert class alone fails on the unknown attempt. The consumer\
+  \ cohort is probed in the same family: a\n  member whose paths every declared layer\
+  \ would SKIP stays non-paying while one some layer RUNS\n  for pays, so one classifier\
+  \ is proven to give opposite answers in a kernel-authored and a\n  project-authored\
+  \ repo. That half is probed against `subject_globs` on a REAL declared shape\n \
+  \ whose `covers:` and `subject_globs:` DISAGREE — a layer owning `tests/**` while\
+  \ its subject\n  spans `app/**` — because a probe where the two coincide cannot\
+  \ tell the carriers apart, and a\n  `covers:`-read passes it while inverting the\
+  \ live answer. A layer declaring NO `subject_globs`\n  runs always, and that default\
+  \ is probed too.\n- **Rule 2 (declaration half):** a project without the declaration\
+  \ never forms a batch of 2+,\n  asserted with the declaration present and absent\
+  \ over the same queue.\n- **Rule 2 (kernel half — combined-candidate blame is VALID\
+  \ on the kernel's own suite)** (plan-check\n  finding 2, 2026-08-16). Rule 2 engages\
+  \ batching for the kernel with NO declaration, on the grounds\n  that the kernel\
+  \ owns its suite's isolation properties. That is an ASSERTION until probed, and\
+  \ the\n  entire red-path safety argument rests on it — an unprobed assertion here\
+  \ is exactly the shape that\n  lets a red change ride a green batch. So it is probed\
+  \ directly, on the kernel suite:\n  a red combined candidate lands NO member and\
+  \ dissolves the batch back into the queue, and each\n  re-queued member is then\
+  \ verified ALONE. Blame is not computed and is not needed (plan-check finding\n\
   \  1, 2026-08-16 — the earlier wording probed bisection, which this spec no longer\
   \ scopes): dissolution\n  is SELF-CORRECTING. A genuinely red member fails again\
   \ on its own candidate leg and is caught; a\n  PEER-DEPENDENT red — one that fails\
@@ -2274,7 +2343,28 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ contend on a real reservation flock\n  through the shipped acquire/yield path;\
   \ the older waiter is granted first. With the age pass\n  disabled (`_older=None`)\
   \ the same fixture grants a newer contender first. Complement: a\n  strictly cheaper\
-  \ younger branch still goes first, and an undatable age triggers no handover.\n"
+  \ younger branch still goes first, and an undatable age triggers no handover.\n\
+  - **Rule 9 (the code-less cohort) — DIFFERENTIALS against the pre-change predicate,\
+  \ kept\n  whole (`tests/test_t13567_bookkeeping_land_cohort.py`):** (a) RANK — a\
+  \ first-attempt branch\n  carrying only a card, journal rows and an audit record\
+  \ ranks 0, and ranked 1 before; one\n  observable path, an unreadable diff, an unknown\
+  \ attempt and a failing classifier never rank 0.\n  (b) ORDER — the shipped scan,\
+  \ fed the shipped rank and the shipped mark reader, addresses the\n  all-inert branch\
+  \ first, then the marked one, then the unmarked paying one; before, the marked\n\
+  \  branch was addressed first. (c) GROUPING — formation over an interleaved queue\
+  \ forms a batch of\n  cohort members only, reporting zero paying members, and the\
+  \ paying branches then form their own;\n  before, the first batch mixed both in\
+  \ queue order and counted every member paying. (d) THE\n  COUNTABLE ERROR — a real\
+  \ land of a card-only branch on a `main` with no tested-tree anchor runs\n  its\
+  \ verify and its row carries `rung0_paid`; so does the same land when that verify\
+  \ fails or\n  times out (its abort row, written by the land verb), when it verifies\
+  \ because a rebaseline is\n  declared, and when it pays in one attempt and lands\
+  \ on a skipping retry. Controls: the same\n  land with the proof holding, or with\
+  \ its candidate leg credited, carries none; an ordinary\n  paying land carries none,\
+  \ landed or aborted; a cohort land refused before its suite started\n  carries none;\
+  \ a declared-layers project's land carries none — a rule marking every paying\n\
+  \  land, every rung-0 land, or every abort fails one of them.\n  (e) A project declaring\
+  \ its own layers ranks identically before and after, branch by branch.\n"
 cites:
 - SPEC-0132
 - SPEC-0152
@@ -2301,7 +2391,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_clear_yield_offer: b24ed066be5706662defcd7727513b012113c9729411a9ae871f1565f8a5e7be
   bin/lib/batch_landing.py#_land_consume_yield_offer: a687199e81e30ea75f2d7166a354252a6edf56fe8dbea2949c36bf67e4e3a53a
   bin/lib/batch_landing.py#_land_contamination_advisory: 8a2e579619bc31f82fb19cd5dcc1844b0d09bbbea05138cb722438d22cf3b93a
-  bin/lib/batch_landing.py#_land_cost_class: 20533262dea5e5c5a8355670cb5cbb585254af72e3ac4d851afb7c5d79b0e93d
+  bin/lib/batch_landing.py#_land_cost_class: 32ee657f0890d48f1721819c7deee1f4773c5734082ba59f46adbc6ce45183a0
   bin/lib/batch_landing.py#_land_dissolve_batch: 712c4651e9041421c1c4ecf468843afbbeef22e416317de855b0e680d5322c17
   bin/lib/batch_landing.py#_land_drop_dead_members: f43df5e723e0251634593a0c55330004c16ccb30bfbac0d89b9cf73270004437
   bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
@@ -2330,12 +2420,12 @@ implements_signature:
   bin/lib/batch_landing.py#_land_yield_loop: 9a5306cd7d2bfdae8091f03c28e097e22b01e5fb3b7c1b03aa23478bd990887a
   bin/lib/batch_landing.py#_land_yield_offer_blocks: 2bf5572ed5a139febe89642ee0bb808bde8b7ccb53c8cbb4fc64f6e348187bf5
   bin/lib/batch_landing.py#_land_yield_offer_path: 974d38b701dc6d407c31437434e34975f1b73914e7fd398643a0e9f84ecf28f8
-  bin/lib/batch_landing.py#_land_yield_target: 833ed7b557c4bc2855156c2236aee7c98f02b5df8cf15baf77ebbff15a53a5c9
+  bin/lib/batch_landing.py#_land_yield_target: 4c0c3a183de2f76cb13656cf88276c11e0c43d388f780ac3328933425e814675
   bin/lib/land_reservation.py#_land_queue_jump_reason: 50d33022fd12ceb82eba47204472eaee304d66cdd8a20efa4ba6375b02aec17f
   bin/lib/land_reservation.py#_premerge_consumable: af6c740cdf9d4b517cd1dcd274163beacecfb6d4953dcacb6f9302300f0297ae
   bin/lib/land_reservation.py#_premerge_reservation_disposition: 8e439b9fd44ff3f9e447b8c4385ea718b33d7a5718c138be5ec23df05f0e2f26
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
+  bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3
   bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280

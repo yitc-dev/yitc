@@ -45,3 +45,5 @@ proposed_by: prove-the-deploy-evidence-chain-acts-on-target-dis
 binding:
 - code-enforced
 init_concern: null
+implements_signature:
+  bin/lib/cli.py#_ownership_chain_break: 676f163861b64fa3170d6470e3d4e2810ab9da6142f9cb00c6bfe2513aead7fe

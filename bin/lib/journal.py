@@ -6,6 +6,7 @@ caller / monkeypatch keeps resolving. The module is a clean lower leaf: imports 
 extracted lib leaves (state, events) + stdlib, never back-imports the host."""
 from __future__ import annotations
 import argparse
+import bisect
 import contextlib
 import datetime as _dt
 import fnmatch
@@ -526,8 +527,8 @@ DISPATCH_CLASS_VOCAB = (
      "`own|foreign|unknown-stamp`. A land process ALIVE on that branch keeps the "
      "`closed_pending_land(…,land-alive)` reading — a running land is left alone whatever the regime"),
     ("paused",
-     "the DISPATCH is over, the TASK is NOT done: it waits on the pending decision its RECORDED pause "
-     "reason names. Detail: that reason. TERMINAL and NOT `working` (the process is over, nothing is "
+     "the DISPATCH is over, the TASK is NOT done: it waits on what its RECORDED pause reason names — "
+     "a pending decision, or for `artifact-wait` the artifact its card declares. Detail: that reason. TERMINAL and NOT `working` (the process is over, nothing is "
      "settling), NOT `halted` (no gate refused it), and NEVER a clean completion — the watcher wakes "
      "on it and never counts it TERMINAL(done). Two sources mint it, one class: (a) a "
      "CONTROLLER-CUED CLEAN STOP (T-12304) — the worker\'s brief ended in «STOP and report», it "
@@ -540,7 +541,9 @@ DISPATCH_CLASS_VOCAB = (
      "re-reads the landed branch\'s TERMINAL(done) against the card on main. The route is "
      "REASON-SPECIFIC, never a blanket resume: `--resume` serves controller-wait ONLY; "
      "`audit-ceiling` = one `audit decide` per residual fingerprint (SPEC-0204), then the ordinary "
-     "`dispatch --task` relaunch; any other reason (owner-wait, …) = resolve the decision it names, "
+     "`dispatch --task` relaunch; `artifact-wait` = no decision is pending, relaunch the same way "
+     "once the artifact its card declares (`paused_awaits`) has arrived; any other reason "
+     "(owner-wait, …) = resolve the decision it names, "
      "then the ordinary `dispatch --task` relaunch (a paused card launches in resume mode, T-12332). "
      "The row\'s `recovery` line names the route for its reason"),
     ("halted",
@@ -2303,7 +2306,14 @@ def _tail_window_start(path, cutoff, *, block=_TAIL_WINDOW_BLOCK, confirm_bytes=
     COLLECTION ORDER IS THE SCAN's, NOT THE FILE's — the walk goes BACKWARD in blocks (ascending
     within a block, descending across them), so entries carry their byte offset and a caller that
     wants file order sorts by it. Stating this here rather than sorting for the caller keeps the
-    primitive doing one thing; `_iter_events_tail` sorts."""
+    primitive doing one thing; `_iter_events_tail` sorts.
+
+    T-13462 — a sink MAY carry `strict_line(offset, line, value, ok)` instead: the scan then hands it
+    EVERY non-empty line it walks — the stripped bytes, and its own parse of them (`ok` False when
+    `json.loads` rejected the line) — and does not call `append`. A caller that takes its window from
+    this scan INSTEAD of a strict utf-8 text re-read of it uses that to reproduce the text reading
+    exactly, error included (`_StrictLineSink`). The scan's own behaviour — its return value, what it
+    skips, its counters — is unchanged, and a sink without the attribute is unaffected."""
     # T-12034: a physical-read counter site, and the one that makes the PER-VERB FLOOR visible. This
     # scan is not reached through `_fold_lines_uncached` — it seeks backward in fixed byte blocks and
     # json.loads each line itself — so it must report its own read, and it is paid by EVERY gated verb:
@@ -2319,6 +2329,7 @@ def _tail_window_start(path, cutoff, *, block=_TAIL_WINDOW_BLOCK, confirm_bytes=
     old_bytes = 0        # purely-old bytes accumulated (scanning back) since the last in-window line
     pos = size
     carry = b""          # bytes AFTER this block that complete its last (straddling) line
+    _strict = getattr(collect, "strict_line", None)
     with path.open("rb") as f:
         while pos > floor:
             bstart = max(floor, pos - block)
@@ -2362,8 +2373,12 @@ def _tail_window_start(path, cutoff, *, block=_TAIL_WINDOW_BLOCK, confirm_bytes=
                         obj = json.loads(ln)
                     except ValueError:
                         ts = ""
+                        if _strict is not None:      # T-13462 — see `strict_line` in the docstring
+                            _strict(off, ln, None, False)
                     else:
-                        if collect is not None:
+                        if _strict is not None:
+                            _strict(off, ln, obj, True)
+                        elif collect is not None:
                             collect.append((off, obj))
                         try:
                             ts = obj.get("ts") or ""
@@ -2809,6 +2824,35 @@ class JournalRowsMemo:
         # set, `lines` of a segment this memo has NOT folded returns a ONE-SHOT WALK that streams it
         # and keeps it PACKED, instead of folding it into a list of decoded lines.
         self.walk_once = False
+        # T-13461 — set by a seam whose composed walks would otherwise fold every segment they touch
+        # INTO this memo as decoded lines AND parsed rows (session start: 5.2 GB on the kernel). An ISO
+        # date/ts: a forcing `_FoldLineSource` walk then STREAMS a segment this memo has not folded
+        # and keeps it PACKED only when it is the live segment or an archive that floor admits
+        # (`packs`); an older segment is retained nowhere. None (default): nothing changes.
+        self.pack_since = None
+        self._pack_keys = {}    # logical journal key -> keys of the segments `pack_since` admits
+
+    def packs(self, path) -> bool:
+        """True iff a walk under `pack_since` keeps `path` packed: the live segment, or an archive
+        `events.segment_paths_since` admits at that floor (resolved once per logical journal)."""
+        live = events.logical_journal(path)
+        lkey = self._key(live)
+        keys = self._pack_keys.get(lkey)
+        if keys is None:
+            keys = self._pack_keys[lkey] = {
+                self._key(s) for s in events.segment_paths_since(live, self.pack_since)}
+        return self._key(path) in keys
+
+    def adopt_packed(self, path, store, lossy) -> None:
+        """File a COMPLETED streamed fold of `path` (its lines in `store`, a `_LineStore`) in the
+        packed lane — what `_stream_packed` records at its end, for a walk that streamed the segment
+        itself (T-13461)."""
+        key = self._key(path)
+        store._flush()
+        self.folds += 1
+        self._packed[key] = store
+        if lossy:
+            self._lossy.add(key)
 
     @staticmethod
     def _key(path) -> str:
@@ -3096,7 +3140,7 @@ def stream_lines(fh, *, _chunk=_SEGMENT_CHUNK_BYTES):
 
     THE LINE SHAPE IS `str.splitlines()`, EXACTLY — not `for line in fh`. That is deliberate and is
     the reason this is a splitter rather than a loop over the handle: `splitlines` breaks on line
-    boundaries file iteration does not (`\x0b`, `\x0c`, `\u2028`, `\u2085`), so iterating the handle
+    boundaries file iteration does not (`\x0b`, `\x0c`, `\x85`, `\u2028`), so iterating the handle
     would silently NARROW the admitted line set. The carry-over keeps a trailing UNTERMINATED part
     until the next block confirms it, which is why a block boundary cannot invent or lose a line;
     universal-newline decoding buffers a pending `\r` in the incremental decoder, so a `\r\n` split
@@ -3116,22 +3160,32 @@ def stream_lines(fh, *, _chunk=_SEGMENT_CHUNK_BYTES):
     `raw.splitlines()`, which is what the debt seam's one-pass scan must reproduce. The carry simply
     starts as the first block's own type. One difference is inherent to a binary stream and harmless
     to every caller: a `\\r\\n` split across two blocks yields an extra EMPTY line (text mode's
-    decoder hides it), and every binary caller skips empty lines exactly as the whole-file read did."""
+    decoder hides it), and every binary caller skips empty lines exactly as the whole-file read did.
+
+    T-13583 — EACH BLOCK IS SPLIT ONCE. The body used to split a block into its lines and then split
+    every line again to strip its terminator; it now takes the stripped lines from the one split.
+    Nothing above moved: the yielded sequence, the reads it is yielded between, the carry and the
+    memory bound are those of the two-split body, which is kept whole as the reference in
+    tests/test_t13530_dispatch_reads_one_pass.py and compared there on the real journal and on
+    generated inputs."""
     carry = None
     while True:
         block = fh.read(_chunk)
         if not block:
             break
         carry = block if carry is None else carry + block
-        parts = carry.splitlines(keepends=True)
-        # A part is TERMINATED iff stripping its terminator shortens it. The last part of a
-        # block is the only one that can be an unterminated fragment; carry it forward.
-        if parts and len(parts[-1]) == len(parts[-1].splitlines()[0]):
-            carry = parts.pop()
+        # ONE split per block (T-13583): `splitlines()` already hands back the lines without their
+        # terminators, so no line is split a second time to strip one. Only the LAST line can be an
+        # unterminated fragment, and it is one iff the block's final character is not a line
+        # boundary — asked of `splitlines` itself on that one character (a boundary splits to an
+        # empty line), so the boundary set is never spelled here. Carry the fragment forward.
+        lines = carry.splitlines()
+        if carry[-1:].splitlines()[0]:
+            carry = lines.pop()
         else:
             carry = carry[:0]
-        for part in parts:
-            yield part.splitlines()[0]
+        for line in lines:
+            yield line
     if carry:
         yield carry.splitlines()[0]
 
@@ -3212,15 +3266,6 @@ def segment_lines(path, *, encoding="utf-8", errors=None, _chunk=_SEGMENT_CHUNK_
         finally:
             # `finally`, so an abandoned generator (GeneratorExit) still records the read it paid for.
             note_fold(seg, seen, time.monotonic() - t0)
-
-
-def _stream_region_lines(path, start):
-    """Yield the text lines of `path` from byte offset `start` — `read().decode("utf-8").splitlines()`
-    of that region, streamed (T-13139)."""
-    import io as _io
-    with Path(path).open("rb") as raw:
-        raw.seek(start)
-        yield from stream_lines(_io.TextIOWrapper(raw, encoding="utf-8"))
 
 
 def _linked_worktree_of(leg_root, main_root):
@@ -3710,7 +3755,9 @@ class _FoldLineSource:
     the logical journal as `seg_idx` so a collector can place each row.
 
     A segment an OUTER `rows_memo` holds is served from it (the memo reads it once, for every reader of
-    the enclosing seam); any other is streamed. Lines containing a declared NEEDLE are captured with
+    the enclosing seam); any other is streamed. Under a memo that sets `pack_since` (T-13461) a held
+    segment is streamed by this walk instead and handed to the memo packed — see `__iter__`.
+    Lines containing a declared NEEDLE are captured with
     their position among the segment's lines, and a segment that dropped an undecodable line is marked
     LOSSY — the two facts `segment_text` needs to serve a strict text reader without a second read.
 
@@ -3769,17 +3816,23 @@ class _FoldLineSource:
             dropped: list = []
             obs = None
             pos: dict = {}
-            if memo is not None and memo.holds(seg) and (self.force_rows or memo.has_lines(seg)):
+            pack = None
+            held = memo is not None and memo.holds(seg)
+            # T-13461 — under a `pack_since` memo a forcing walk never folds INTO the memo's lines /
+            # rows lanes: a segment it has not folded is streamed below (hashed when observed, so an
+            # archive's summary still publishes) and, inside the horizon only, kept packed.
+            walk_only = held and self.force_rows and memo.pack_since is not None
+            if held and ((self.force_rows and not walk_only) or memo.has_lines(seg)):
                 src = memo.lines(seg)
                 if memo.lossless_lines(seg) is None:
                     dropped.append(0)
                 # The enclosing scope PARSES these lines too (its rows lane — session start's other
                 # readers take it): hand the walk those parsed values instead of parsing twice, when
                 # the two lanes are index-aligned (no unparseable line dropped from the rows lane).
-                rows = memo.rows(seg) if self.force_rows else memo.parsed_rows(seg)
+                rows = memo.rows(seg) if (self.force_rows and not walk_only) else memo.parsed_rows(seg)
                 if rows is not None and len(rows) == len(src):
                     src = zip(src, rows)
-            elif memo is not None and memo.holds(seg) and memo.has_packed(seg):
+            elif held and memo.has_packed(seg):
                 # T-13391 — a share-only walk over a segment the enclosing scope holds PACKED (the
                 # adopted auto-sync recovery fold): walked from there, so no second physical read and
                 # nothing inflated into the memo.
@@ -3790,10 +3843,14 @@ class _FoldLineSource:
                 self.streamed[idx] = self.streamed.get(idx, 0) + 1
                 obs = {"algo": self.observe[idx]} if idx in self.observe else None
                 src = _stream_fold_lines(seg, dropped, pos, obs)
+                if walk_only and memo.packs(seg):
+                    pack = _LineStore()
             runs = set() if obs is not None else None
             k = 0
             for item in src:
                 line = item[0] if isinstance(item, tuple) else item
+                if pack is not None:
+                    pack.append(0, 0, line)
                 if runs is not None:
                     runs.update(_HEX_RUN.findall(line))
                 if self.on_line is not None:
@@ -3803,6 +3860,8 @@ class _FoldLineSource:
                 self.cur_k = k
                 k += 1
                 yield item
+            if pack is not None:      # only a walk that reached the segment's end is adopted
+                memo.adopt_packed(seg, pack, bool(dropped))
             self.line_counts[idx] = k
             if dropped:
                 self.lossy.add(idx)
@@ -5046,6 +5105,39 @@ class _SegmentRecord:
         self.window_nonstr = False
 
 
+# T-13332 / T-13462 — the RESUME PROOF a catch-up reader makes before it reads only appended bytes.
+# One proof, two callers: `JournalScan._catch_up` (the scope's live segment) and `_WatchLegs` (a
+# watch's worktree / consumer legs). Extracted here so the second caller cannot drift from the first.
+# The compared tail's length is `JournalScan._TAIL`, where it has always lived.
+def _resume_identity(fh, end):
+    """What a reader that stopped at byte `end` of the file open at `fh` records: the file's device
+    and inode (a rotation or a rewrite-by-replace renames it away) and the bytes just before `end`."""
+    st = os.fstat(fh.fileno())
+    fh.seek(max(0, end - JournalScan._TAIL))
+    return (st.st_dev, st.st_ino, fh.read(min(end, JournalScan._TAIL)))
+
+
+def _resume_refusal(fh, start, ident):
+    """`(why, size)` — why the bytes before `start` of the file open at `fh` can NOT be proven to be
+    the ones a reader holding `ident` (`_resume_identity`) read, or None when they can. `size` is the
+    file's size on that same handle, so the caller reads `[start, size)` from the file it proved."""
+    st = os.fstat(fh.fileno())
+    size = st.st_size
+    tail = b""
+    if 0 < start <= size:
+        fh.seek(max(0, start - JournalScan._TAIL))
+        tail = fh.read(min(start, JournalScan._TAIL))
+    if ident is None or ident[:2] != (st.st_dev, st.st_ino):
+        return "rotated", size
+    if size < start:
+        return "shrunk", size
+    if start > 0 and tail != ident[2]:
+        return "rewritten", size
+    if start > 0 and not tail.endswith(b"\n"):
+        return "misaligned", size
+    return None, size
+
+
 class JournalScan:
     """ONE pass over the logical journal at `path`, serving the typed projections, the all-types window,
     the reducers and the needle lines its seam DECLARED (see the block comment above).
@@ -5698,19 +5790,7 @@ class JournalScan:
         with lock:
             try:
                 with Path(seg).open("rb") as fh:
-                    st = os.fstat(fh.fileno())
-                    size = st.st_size
-                    tail = self._read_tail(fh, start) if 0 < start <= size else b""
-                    if self._live_id is None or self._live_id[:2] != (st.st_dev, st.st_ino):
-                        why = "rotated"
-                    elif size < start:
-                        why = "shrunk"
-                    elif start > 0 and tail != self._live_id[2]:
-                        why = "rewritten"
-                    elif start > 0 and not tail.endswith(b"\n"):
-                        why = "misaligned"
-                    else:
-                        why = None
+                    why, size = _resume_refusal(fh, start, self._live_id)
                     if why is not None:
                         self._go_stale(why, seg)
                         return
@@ -6738,6 +6818,12 @@ def _bounded_superset_lines(path, tokens, *, start=0, max_bytes=None, drop_fragm
     have the bound applied — they are spliced in where `raw` would have landed, so the filter below is
     the SAME one every other caller runs (no second matcher, no parallel path). `start` still governs
     `drop_fragment` only.
+
+    NOT A COUNTED FOLD (T-13461, owner decision events.jsonl#ts=2026-10-05T06:29:25Z): this prescan
+    calls `note_fold` on NO branch. `reads.folds` counts segment folds (T-13365), which a bounded
+    byte-substring prescan is not; and where a caller pairs it with the prefix probe or the window
+    seek, that read of the same artifact is the counted one — counting this too would report a
+    second fold of an artifact folded once (T-12205).
     """
     if _raw is None and tokens is not None:
         # T-13139 — the FILTERED read STREAMS: the bounded region is split block by block through the
@@ -7285,8 +7371,12 @@ def _journal_span_size(path, *, _opener=None) -> int:
 # The owner's standing directive of 2026-09-06 («своевременно пускай другие в работу») prices that
 # latency above the fold. `--watch-interval` remains the per-call override for a genuinely slow fleet.
 WATCH_POLL_INTERVAL_SECS = 60     # `dispatch --watch` poll cadence
-WATCH_MAX_RUNTIME_SECS = 1800     # `dispatch --watch` max runtime; on expiry the watcher exits with a
-                                  # reassess-and-rearm cue, NEVER silent (was the ad-hoc hardcoded 3600s)
+WATCH_MAX_RUNTIME_SECS = 1500     # `dispatch --watch` max runtime; on expiry the watcher exits with a
+                                  # reassess-and-rearm cue, NEVER silent (was the ad-hoc hardcoded 3600s).
+                                  # DERIVED (T-13572): this default plus one poll interval sits strictly
+                                  # below the WRAPPER CEILING stated once in patterns/background-session-
+                                  # monitoring.md §Watcher — the watcher checks its bound after a tick, so
+                                  # it may run one interval past it. Move the two together, by a card.
 MAX_FLEET_WIDTH = 8               # per-server owner bound on concurrent workers (replaces the ad-hoc ~5
                                   # guidance); the dispatch-readiness advisor ECHOES this as a SUGGESTED
                                   # bound the controller judges against — it is NEVER used to clamp
@@ -8068,7 +8158,10 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
     names the terminal exits instead. The reading is `audit.terminal_ceiling_stage` — the ONE shared
     predicate (T-12613), never a second copy here — over the list the caller ALREADY holds (no
     journal read is added). `events=None`, a list without the row (a bounded tail may not hold it)
-    and any read failure all return the decide route exactly as before."""
+    and any read failure all return the decide route exactly as before.
+
+    T-13575 — `paused(artifact-wait)` has its own arm: that pause waits on the artifact its card
+    declares, so the hint names the wait and the relaunch instead of a decision to resolve."""
     t = task_id or "T-XXXX"
     if cls == "paused":
         # T-12916 — the route depends on the RECORDED pause reason, never a blanket resume: the dispatch
@@ -8090,6 +8183,14 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
             return (f"paused at the audit-loop ceiling — record one `bin/yitc-v2 audit decide` per residual "
                     f"fingerprint (SPEC-0204), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
                     f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`)")
+        if detail == "artifact-wait":
+            # T-13575 — no decision is pending here: `task pause --reason artifact-wait` REQUIRES the
+            # awaited item (`--awaits`, stored as `paused_awaits`, T-12407), and the session-start echo
+            # reports its arrival. The row carries the reason only, so the hint names the card field.
+            return (f"paused (artifact-wait) — the task is NOT done and waits on an ARTIFACT, the one its "
+                    f"card declares (`paused_awaits`): once that artifact has arrived (the session-start "
+                    f"echo then reads RESUMABLE), `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
+                    f"card launches in resume mode, `task resume`)")
         return (f"paused ({detail or 'unknown'}) — the task is NOT done: resolve the decision the pause "
                 f"reason names, then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused card "
                 f"launches in resume mode, `task resume`)")
@@ -8383,6 +8484,33 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
             cutoff = None
     seen, out = set(), []
     whole_folded = set()        # T-13108 — legs this call folded over their WHOLE segment set
+
+    def _wanted(e):
+        """The reader's row tests that depend on the ROW ALONE — everything before the identity dedup.
+        ONE body (CHARTER §P5), read twice: by the loop below, and by the window scan's sink
+        (T-13462), so the scan keeps exactly the rows this reader would keep and nothing else."""
+        if not isinstance(e, dict):
+            return False
+        if include_types is not None and e.get("type") not in include_types:
+            return False                                  # T-10858 — the exact narrowing (the prescan
+                                                          # only ever over-admits, never under-admits)
+        if e.get("type") in DISPATCH_EXCLUDED_TYPES:      # kill (b) — anchored type, not substring
+            return False
+        ts = e.get("ts") or ""
+        if since and ts < since:
+            return False
+        if until and ts > until:
+            return False
+        if task_id is not None and _dispatch_task_of(e) != task_id:   # kill (a)+(c) scoping
+            return False
+        return True
+
+    legs = _watch_legs()        # T-13462 — a watch's catch-up cursors; None outside a watch
+    main_served = False         # T-13462 — set once main's leg is served by the installed scope
+    try:
+        _main_key = Path(main_ref).resolve() if main_ref is not None else None
+    except OSError:
+        _main_key = None
     for j in journals:
         if not j or not Path(j).exists():
             continue
@@ -8434,29 +8562,68 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
         mb_tail = None      # T-12208 — the bytes above `mb`, read on the prefix probe's OWN handle
         live_empty = False  # T-13311 — the seek proved the LIVE segment holds no in-window row
         live_rows = None    # T-13311 — or read it WHOLE: its in-window rows, in file order
-        if (cutoff is not None or include_types is not None) \
-                and main_ref is not None and p in wt_journal_set and not held:
+        window_rows = None  # T-13462 — a BOUNDED window's rows, from the one scan that located it
+        leg_rows = None     # T-13462 — this leg's rows from the watch's catch-up cursor
+        narrowable = False
+        if main_ref is not None and p in wt_journal_set and not held:
             try:
                 narrowable = p.resolve() not in narrow_exempt
             except OSError:
                 narrowable = False                 # unresolvable — fail open, read from byte 0
-            if narrowable:
-                # T-12208 (SPEC-0190 rule 10) — ONE PHYSICAL OPEN PER ARTIFACT. `_shared_prefix_start`
-                # opens this leg to VERIFY the shared frontier; both branches below then opened it a
-                # SECOND time to read the span above that frontier. Measured 2026-09-07 inside one
-                # scoped `session start`: 64 + 17 + 14 repeat opens over the same live-worktree legs,
-                # so the request folded more artifacts than it read — the exact bound this card's AC1
-                # is stated over, still violated INSIDE a single call after the seam's ReadScope
-                # collapsed the repeats ACROSS calls. `with_tail=True` hands the span over from the
-                # handle that is already open. The bytes are the leg's un-landed tail (the rows it
-                # exists to contribute), never the ~99.9% below the frontier, and every fail-open exit
-                # hands over no bytes — which is byte-for-byte today's from-zero path.
-                mb = _leg_prefix_start(p, main_ref)
-                # `.tail` via getattr, never attribute access: a test double that substitutes a
-                # plain `0` for the offset hands over no bytes, which is the fail-open path.
-                mb_tail = getattr(mb, "tail", None)
+        # T-13462 (SPEC-0190 rule 10) — INSIDE A WATCH a non-main leg is read ONCE and then caught up.
+        # A watch polls this reader two or three times every interval for an hour; measured on the
+        # kernel 2026-10-04, each poll folded 16 worktree legs twice (a prefix probe per reader, a
+        # window parse on the three legs older than main's last rotation) — ~32 folds per poll that the
+        # T-13396 scope, which holds main's journal only, never saw. `_WatchLegs` holds, per leg, what
+        # its ONE read produced plus a proven resume point, and each later request reads only the
+        # complete lines appended since (see `_WatchLegs` for the proof and for why a remembered
+        # shared-prefix offset survives a rewrite of main). Three bounds keep it exact:
+        #   * a BOUNDED request only, whose window lies inside the live segment — the cursor addresses
+        #     the live segment, exactly as the two branches it stands in for do;
+        #   * never the MAIN leg (the watch's `scan_scope` owns that one) and never a scope-held leg;
+        #   * what it hands back is what the branch it stands in for reads, in file order — `_wanted`
+        #     and the dedup below decide membership, as they do for every other source of rows.
+        # None (no watch, or a cursor that declines — it answers exactly or not at all) => the branches
+        # below, unchanged.
+        # TWO consult points, each at the branch it stands in for: HERE, before the prefix probe, for a
+        # leg the reader narrows by its shared prefix (and for any leg that already has a cursor); and
+        # in the tail-window branch below, which is reached only once the archive-overlap test above
+        # it has said the window lies inside the live segment.
+        leg_eligible = False
+        if legs is not None and not explicit_locus and cutoff is not None and _main_key is not None:
+            try:
+                is_main = p.resolve() == _main_key
+            except OSError:
+                is_main = None
+            if is_main and scope_rows is not None:
+                main_served = True      # main's rows come from the watch's scope in this call
+            leg_eligible = is_main is False and not held
+        no_prefix = False       # the cursor's own probe found no shared prefix: do not probe again
+        if leg_eligible and narrowable:
+            leg_rows = legs.prefix_rows(p, main_ref, DISPATCH_EXCLUDED_TYPES, main_served=main_served,
+                                        cutoff=cutoff, since=since)
+            if leg_rows is _NO_SHARED_PREFIX:
+                leg_rows, no_prefix = None, True
+        if leg_rows is None and not no_prefix \
+                and (cutoff is not None or include_types is not None) and narrowable:
+            # T-12208 (SPEC-0190 rule 10) — ONE PHYSICAL OPEN PER ARTIFACT. `_shared_prefix_start`
+            # opens this leg to VERIFY the shared frontier; both branches below then opened it a
+            # SECOND time to read the span above that frontier. Measured 2026-09-07 inside one
+            # scoped `session start`: 64 + 17 + 14 repeat opens over the same live-worktree legs,
+            # so the request folded more artifacts than it read — the exact bound this card's AC1
+            # is stated over, still violated INSIDE a single call after the seam's ReadScope
+            # collapsed the repeats ACROSS calls. `with_tail=True` hands the span over from the
+            # handle that is already open. The bytes are the leg's un-landed tail (the rows it
+            # exists to contribute), never the ~99.9% below the frontier, and every fail-open exit
+            # hands over no bytes — which is byte-for-byte today's from-zero path.
+            mb = _leg_prefix_start(p, main_ref)
+            # `.tail` via getattr, never attribute access: a test double that substitutes a
+            # plain `0` for the offset hands over no bytes, which is the fail-open path.
+            mb_tail = getattr(mb, "tail", None)
         if held:
             start = 0
+        elif leg_rows is not None:
+            start = 0            # T-13462 — the cursor's rows are this leg's read; nothing to seek
         elif mb > 0:
             # T-12205 (SPEC-0190 rule 10) — ONE PHYSICAL READ PER ARTIFACT: when the shared frontier
             # is known, START THERE and do NOT seek-scan this leg a SECOND time. `_shared_prefix_start`
@@ -8483,6 +8650,9 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
             # byte 0, and the whole-set branch would then fold it again. Byte 0 is a superset of any
             # start the seek could return; the in-loop ts tests still decide membership exactly.
             start = 0
+        elif cutoff is not None and leg_eligible and \
+                (leg_rows := legs.window_rows(p, cutoff, since, DISPATCH_EXCLUDED_TYPES)) is not None:
+            start = 0            # T-13462 — a leg with no shared prefix: the cursor's tail-window read
         elif cutoff is not None:
             try:
                 # Bounded twice over: by the journal count (kernel + live worktrees), and because this
@@ -8492,7 +8662,10 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
                 # DIFFERENT journal and there is nothing to hoist.
                 # T-12205 — this branch is now the `mb == 0` case only (no shared frontier was taken,
                 # or the probe found none), so it is this artifact's FIRST physical read, not a second.
-                seen_recent = _SawRowSince(cutoff, since)
+                # T-13462 — the sink keeps only rows `_wanted` admits. T-13311 measured a kept set of
+                # every row at or after `since` at 1.3-1.45 GB: it held the excluded types too, which
+                # this reader drops. Filtered, what is kept is what `out` is about to hold anyway.
+                seen_recent = _SawRowSince(cutoff, since, admit=_wanted)
                 # inloop-journal-read: per-FILE — `p` is the loop variable (see the block above).
                 start = _tail_window_start(p, cutoff, floor=mb, collect=seen_recent)
                 # T-13311 (SPEC-0190 rule 10) — a scan that took its BOF exit having PARSED rows has read
@@ -8504,9 +8677,31 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
                 if start == 0 and seen_recent.parsed > 0:
                     live_empty = not seen_recent.hit
                     live_rows = None if live_empty else seen_recent.rows_in_file_order()
-                seen_recent = None    # release the kept rows now: on a bounded answer they are unused
+                elif start > 0 and seen_recent.parsed > 0 and include_types is None:
+                    # T-13462 (SPEC-0190 rule 10) — A BOUNDED ANSWER IS SERVED BY THE SCAN THAT FOUND
+                    # IT. The scan json-parsed every line from EOF back past the boundary; this branch
+                    # then dropped those rows and re-read + re-parsed the same window through a stream
+                    # that called neither `note_fold` nor `note_rows_parsed` — every window row parsed
+                    # twice, the second time invisibly (155 single-id reads on 2026-10-03: median
+                    # 16.0 s, 1,039,819 rows reported, as many again unreported). EXACT: a kept row has
+                    # `ts >= since >= cutoff`, so it sits at or after the boundary the scan returned
+                    # (the LOWEST offset of any walked line at or after `cutoff`), and the scan walked
+                    # every line from there to EOF — the kept rows at or after it, in file order, ARE
+                    # that window after `_wanted`. THE READING IS KEPT TOO: the stream read the window
+                    # as strict UTF-8 text, so the sink reproduces that reading line by line
+                    # (`_StrictLineSink`) — an invalid byte raises, a text-only line break splits.
+                    # UNFILTERED READS ONLY: a type-narrowed bounded read never took the stream — it
+                    # takes the byte prescan below, which SKIPS an undecodable line — and is untouched.
+                    window_rows = seen_recent.window_rows(start)
+                seen_recent = None    # release the sink; what it kept is held by the two names above
             except OSError:
                 start = 0
+        # T-13462 — a bounded offset with NOTHING read at it (no prefix-probe bytes, no scan rows: a
+        # substituted primitive that answered an offset without reading) is not a window this reader
+        # holds. Byte 0 is the fail-closed superset; `_wanted` and the dedup decide membership.
+        if start > 0 and include_types is None and window_rows is None \
+                and not (mb_tail is not None and start == mb):
+            start = 0
         # T-12129 — the UNBOUNDED-but-type-narrowed branch has no `cutoff` to bound it, so the offset
         # IS its bound. `_bounded_superset_lines` takes a line-aligned `start` already (T-10939).
         if start == 0 and mb > 0 and include_types is not None:
@@ -8514,6 +8709,10 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
         if scope_rows is not None:
             events_iter = scope_rows
             whole_folded.add(p.resolve())
+        elif leg_rows is not None:
+            events_iter = leg_rows       # T-13462 — the watch's cursor: one read, then appended bytes
+        elif window_rows is not None:
+            events_iter = window_rows    # T-13462 — the bounded window, parsed once by the scan above
         elif start == 0 and rows_memo_holds(p):
             # T-11453 — this journal is already folded ONCE for this request (the local EVENTS_PATH,
             # the file the debt echo was folding fifteen times), so take the parsed rows instead of
@@ -8558,17 +8757,9 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
                     continue              # an undecodable line was never a parseable event
             lines_iter = candidates
         elif start > 0:
-            if mb_tail is not None and start == mb:
-                # T-12208 — same single-open property as the prescan branch above.
-                lines_iter = mb_tail.decode("utf-8").splitlines()
-            else:
-                # T-13139 — the tail region is STREAMED through the shared `stream_lines` splitter on a
-                # strict utf-8 text handle positioned at `start`: the SAME lines `read().decode()
-                # .splitlines()` produced (that splitter's contract), without holding the region, its
-                # decoded copy and its line list at once (the main leg's ~48 h region, ~3x over). A
-                # bad byte still raises `UnicodeDecodeError` out of this reader, as the whole-region
-                # decode did.
-                lines_iter = _stream_region_lines(p, start)
+            # T-12208 — same single-open property as the prescan branch above. (`start > 0` with no
+            # scan rows means `start == mb` with the probe's bytes — see the guard above.)
+            lines_iter = mb_tail.decode("utf-8").splitlines()
         else:
             # SPEC-0190 rule 4 — the WHOLE journal (T-11649). This is the UNBOUNDED read (no `cutoff`
             # window, no type prescan), and its declared horizon is the root journal's SEGMENT SET,
@@ -8621,24 +8812,14 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
         if events_iter is None:
             events_iter = _parsed_lines(lines_iter)
         for e in events_iter:
-            if not isinstance(e, dict):
+            if not _wanted(e):
                 continue
-            if include_types is not None and e.get("type") not in include_types:
-                continue                                  # T-10858 — the exact narrowing (the prescan
-                                                          # only ever over-admits, never under-admits)
-            if e.get("type") in DISPATCH_EXCLUDED_TYPES:   # kill (b) — anchored type, not substring
-                continue
-            ts = e.get("ts") or ""
-            if since and ts < since:
-                continue
-            if until and ts > until:
-                continue
-            if task_id is not None and _dispatch_task_of(e) != task_id:   # kill (a)+(c) scoping
-                continue
-            ident = (ts, e.get("type"), _dispatch_task_of(e), e.get("session_ref"))
+            ident = (e.get("ts") or "", e.get("type"), _dispatch_task_of(e), e.get("session_ref"))
             if ident in seen:
                 continue
             seen.add(ident)
+            if leg_rows is not None and p not in wt_journal_set:
+                e = dict(e)      # T-13462 — a cursor's rows outlive this call; never hand out its own
             if p in wt_journal_set:
                 # T-11352 — un-landed branch provenance, stamped on a SHALLOW COPY. The rows reaching
                 # here may be the request-scoped fold's OWN dicts (T-11453 `fold_rows`), shared with
@@ -8651,33 +8832,773 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
     return out
 
 
-class _SawRowSince:
+# T-13462 — the TWO READINGS of a journal line, and when they agree.
+# The window scan (`_tail_window_start`) reads a line as BYTES: split on b"\n", `bytes.strip`,
+# `json.loads(bytes)`. The stream this card removed read the same window as STRICT UTF-8 TEXT: decode
+# (an invalid byte raises), `str.splitlines` (which also breaks on \r, \v, \f, \x1c-\x1e, \x85, U+2028
+# and U+2029), `str.strip`, `json.loads(str)`. For an ordinary journal line the two give one identical
+# value. They differ on a line that is not valid UTF-8 (`json.loads(bytes)` even accepts UTF-16), that
+# carries one of those extra breaks, a NUL or a leading BOM, or that begins or ends with non-ASCII
+# whitespace. `_reads_alike` is that test; a sink that stands in for the text read applies it per line.
+_TEXT_ONLY_BREAKS = re.compile("[\x00\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]")
+
+
+def _reads_alike(ln) -> bool:
+    """True iff the scan's BYTES reading of the stripped, non-empty line `ln` and a strict UTF-8 TEXT
+    reading of it see the same single value (see the block above)."""
+    try:
+        text = ln.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return not (text[0].isspace() or text[-1].isspace() or text[0] == "\ufeff"
+                or _TEXT_ONLY_BREAKS.search(text))
+
+
+class _StrictLineSink:
+    """A `_tail_window_start(collect=)` sink that can stand in for a STRICT UTF-8 TEXT read of the
+    window the scan walked. The scan hands every non-empty line to `strict_line`; a subclass's
+    `take(off, value, as_scan, as_text)` receives each value the SCAN's reading produced — with
+    `as_text` True for a line the two readings agree on (the scan's own parse is reused — no second
+    parse), False for a line they do not. `unlike` counts such lines.
+
+    THE TEXT READING OF A LINE THE TWO DISAGREE ON IS NOT TAKEN DURING THE SCAN (T-13530 audit-post
+    pass 1, fp1:b1a3442b30b9d240). The scan walks BELOW the window it returns — its confirm run — and
+    the text read it stands in for began at the window's start: it never decoded, split, parsed or
+    judged a line below it. So such a line is only HELD here, by offset, and `text_values(start)`
+    reads the ones at or after `start` once the scan has answered; `raise_undecodable(start)` raises
+    what the text read of `[start, EOF)` raised on an invalid byte. Neither looks below `start`."""
+
+    def __init__(self):
+        self._bad = []          # (offset, UnicodeDecodeError) — lines a strict utf-8 read cannot decode
+        self._odd = []          # (offset, text) — decodable lines the two readings disagree on
+        self.unlike = 0
+
+    def take(self, off, value, as_scan, as_text):
+        raise NotImplementedError
+
+    def strict_line(self, off, ln, obj, ok):
+        if _reads_alike(ln):
+            if ok:
+                self.take(off, obj, True, True)
+            return
+        self.unlike += 1
+        if ok:
+            self.take(off, obj, True, False)
+        try:
+            self._odd.append((off, ln.decode("utf-8")))
+        except UnicodeDecodeError as exc:
+            self._bad.append((off, exc))
+
+    def text_values(self, start):
+        """`(offset, value)` the strict text reading yields from each held line at or after `start`,
+        in file order (a line holding a text-only break yields one value per fragment). Parsed HERE,
+        and counted."""
+        out, n = [], 0
+        for off, text in sorted((o for o in self._odd if o[0] >= start), key=lambda o: o[0]):
+            for frag in text.splitlines():
+                frag = frag.strip()
+                if not frag:
+                    continue
+                n += 1
+                try:
+                    out.append((off, json.loads(frag)))
+                except json.JSONDecodeError:
+                    continue
+        note_rows_parsed(n)
+        return out
+
+    def raise_undecodable(self, start):
+        """Raise the lowest-offset undecodable line's error if one sits at or after `start`."""
+        at = [b for b in self._bad if b[0] >= start]
+        if at:
+            raise min(at, key=lambda b: b[0])[1]
+
+
+class _SawRowSince(_StrictLineSink):
     """T-13311 — a `_tail_window_start(collect=)` sink recording how many rows the scan parsed (`parsed`),
     whether one was a dict at or after `cutoff` (`hit`), and KEEPING only the dict rows at or after
     `since` (the rows the dispatch reader would keep from this segment anyway). `parsed == 0` proves
     nothing (an empty or unparseable file, or a substituted scan that walked nothing), so a caller reads
-    "no in-window row" only from `parsed > 0 and not hit` on a scan that returned its BOF exit."""
+    "no in-window row" only from `parsed > 0 and not hit` on a scan that returned its BOF exit.
 
-    def __init__(self, cutoff, since=None):
+    `admit` (T-13462) — the reader's own row predicate: a row it rejects is counted and tested for
+    `hit` as before, and NOT kept. TWO answers come out of one scan (see `_StrictLineSink`):
+    `rows_in_file_order()` is the scan's own reading of everything it walked (the T-13311 BOF exit,
+    unchanged); `window_rows(start)` is the strict text reading of `[start, EOF)` — what the removed
+    stream produced, error included.
+
+    WHAT IS JUDGED DURING THE SCAN, AND WHAT IS NOT. `take` sees the scan's own values only, and
+    compares `ts` exactly where the scan itself does on its next line — so it raises on a row whose
+    `ts` is not a string when, and only when, the scan would. A row only the TEXT reading yields is
+    judged in `window_rows`, at or after `start`, by the reader's own predicate: the stream handed
+    the reader those rows and no others, so a numeric `ts` there raises the reader's TypeError and
+    the same row below the window is never looked at (fp1:b1a3442b30b9d240). BOUND, stated: when one
+    window holds BOTH an undecodable line and a text-only row the reader's tests raise on, the
+    stream raised whichever its block order met first; this read raises the decoding error."""
+
+    def __init__(self, cutoff, since=None, admit=None):
+        super().__init__()
         self.cutoff = cutoff or ""
         self.since = since or ""
         self.hit = False
         self.parsed = 0
-        self._rows = []
+        self._admit = admit
+        self._rows = []         # (offset, row) both readings agree on
+        self._scan_only = []    # … the scan's reading alone
+
+    def _keeps(self, value):
+        """The reader's own tests on one row — `admit` when given, which checks everything itself in
+        its own order; else the `ts >= since` test alone."""
+        if self._admit is not None:
+            return self._admit(value)
+        return isinstance(value, dict) and (value.get("ts") or "") >= self.since
+
+    def take(self, off, value, as_scan, as_text):
+        is_row = isinstance(value, dict)
+        ts = (value.get("ts") or "") if is_row else ""
+        self.parsed += 1
+        if is_row and ts >= self.cutoff:
+            self.hit = True
+        if is_row and ts >= self.since and (self._admit is None or self._admit(value)):
+            # only rows the reader's own tests keep
+            (self._rows if as_text else self._scan_only).append((off, value))
 
     def append(self, item):
-        self.parsed += 1
-        off, v = item
-        if isinstance(v, dict):
-            ts = v.get("ts") or ""
-            if ts >= self.cutoff:
-                self.hit = True
-            if ts >= self.since:      # only rows the reader's own `ts < since` test keeps
-                self._rows.append((off, v))
+        """The plain T-12209 sink protocol — a scan that hands back parsed values only."""
+        self.take(item[0], item[1], True, True)
 
     def rows_in_file_order(self):
-        """The kept rows in FILE order (the scan walks backward across blocks)."""
-        return [v for _off, v in sorted(self._rows, key=lambda x: x[0])]
+        """The scan's reading of every row it kept, in FILE order (the scan walks backward across blocks)."""
+        return [v for _off, v in sorted(self._rows + self._scan_only, key=lambda x: x[0])]
+
+    def window_rows(self, start):
+        """The strict text reading of `[start, EOF)`, in file order; raises as that read raised."""
+        self.raise_undecodable(start)
+        text_only = [(off, v) for off, v in self.text_values(start) if self._keeps(v)]
+        # stable: a line's fragments keep their order, and no offset is in both lists
+        return [v for off, v in sorted(self._rows + text_only, key=lambda x: x[0]) if off >= start]
+
+
+# ── T-13462 (SPEC-0190 rule 10) — the WATCH's non-main legs: read ONCE, then caught up ──────────────
+# `dispatch --watch` polls `_dispatch_status_events` and `_consumer_live_refs` two or three times every
+# interval for up to an hour. T-13396 gave the watch ONE `scan_scope` over main's journal; every other
+# leg those readers union was still read per call. Measured on the kernel 2026-10-04 (3 polls, the cli
+# wiring's own readers): 16 worktree legs folded twice per poll and 10 registry consumer journals once
+# — ~42 folds per poll with main's scope FRESH — which is the whole of the 6x-90x folds-per-artifact
+# the 2026-10-03 watch receipts show, growing with the watch's lifetime.
+#
+# WHAT A CURSOR IS. Per leg: what its ONE physical read produced, the byte offset that read ended at,
+# and the T-13332 resume identity at that offset. A later request re-proves the identity (same device
+# and inode, not shorter, the 64 bytes before the offset unchanged, newline-aligned — `_resume_refusal`,
+# the proof `JournalScan._catch_up` makes) and reads ONLY the complete lines appended since. A resume
+# point that cannot be proven DROPS the cursor and the leg is read again — one fold per rewrite of that
+# leg, and none otherwise.
+#
+# THE CONTRACT: A CURSOR ANSWERS EXACTLY WHAT THE READER'S OWN READ WOULD ANSWER, OR IT DECLINES and
+# the reader reads as it always did. It never approximates. Three things make that hold:
+#   * ONLY LINES BOTH READINGS AGREE ON (`_reads_alike`). The reader reads a leg as text on one branch
+#     and as bytes on another; a cursor that has only ever answered from lines the two agree on owes
+#     no answer to the question of which branch a later poll would take. A PREFIX leg with one line
+#     they disagree on is declined for the rest of the watch: the reader's shared-prefix branch reads
+#     every row above the prefix, so that line is always inside what it reads. A WINDOW leg is
+#     declined only for the polls in which such a line sits INSIDE the reader's own read (T-13530,
+#     below).
+#   * AN UNTERMINATED FINAL ROW is declined for that poll: the reader would read the fragment, and
+#     the cursor cannot hold a line that is still being written.
+#   * A WINDOW LEG'S START IS RE-DERIVED, NOT REMEMBERED. Which rows a tail-window read returns
+#     depends on where `_tail_window_start` cuts, and that moves with the cutoff and with EOF. A window
+#     cursor's one read indexes the WHOLE live segment — the offset and `ts` of every in-window line —
+#     and each poll re-runs the scan's own boundary arithmetic over that index
+#     (`_emulated_window_start`, pinned to the real scan by a randomized differential test). So an
+#     unchanged leg is never read again, however far the cutoff advances past its last in-window row.
+#   * A WINDOW LEG DECLINES PER POLL, BY WHERE THE LINE SITS (T-13530). Indexing the whole segment
+#     meets lines the reader's bounded scan never reaches, and a line the reader does not read must
+#     not cost the leg its cursor (T-13462 audit-post pass 3, fp1:fb4f66fdd9652ce1: an invalid byte
+#     near byte 0 of an unchanged consumer journal declined the leg for good, and it was then folded
+#     on every poll). So the index keeps the OFFSET of each line the cursor cannot answer for, in
+#     two kinds, and each poll tests them against that poll's own window:
+#       - `unlike` — the two readings disagree on it. The reader returns the TEXT reading of
+#         `[start, EOF)` and raises a decoding error only for a line at or after `start`; below
+#         `start` the line contributes nothing. Declined iff one sits at or after `start`.
+#       - `unwalkable` — the SCAN itself does not walk it as the arithmetic assumes: a row whose `ts`
+#         is not a string (the scan's `ts >= cutoff` raises on it) or a line as long as a scan block
+#         (the scan's carry-only arm). That matters wherever the scan WALKS, which reaches below
+#         `start` by the confirm run. Declined iff one sits above `reach`, the first byte of the
+#         lowest block the scan walks.
+#     `start` is computed from the scan's own BYTES reading, so the index holds that reading for
+#     unlike lines too. A declined poll keeps the cursor: the reader reads for itself, as it always
+#     did, and the leg is served again once the line has fallen below its window.
+#
+# NOT A PER-VIEW CACHE (SPEC-0190 rule 10 retirement (a)). The store is owned by the watch's one
+# request scope (`WatchReads`, installed at the wiring site `dispatch._arm_watch`), is consulted by the
+# two PRIMITIVES rather than by any view, is never keyed by a request's filters, and dies with the
+# watch. It is the T-13371 `_LEG_SPANS_TLS` store (a request's leg spans) given the T-13332 catch-up,
+# because a watch's request outlives the bytes it first read. Outside a watch `_watch_legs()` is None
+# and both primitives read exactly as before.
+#
+# A SHARED-PREFIX LEG AFTER MAIN MOVES. A worktree leg's prefix cursor holds the rows above the offset
+# `_shared_prefix_start` VERIFIED against main's live segment at its first read. That offset is not
+# stable: every `land` rewrites main's tail (the union fold puts the landed branch's rows before
+# main's later ones), so on a later poll the reader's own probe finds a SHORTER shared prefix and reads
+# more of the leg — and after a rotation it finds none and reads the leg's tail window instead. What
+# it reads beyond the cursor's rows are copies of MAIN's rows, and the answers come to the same rows on
+# three conditions the cursor checks or is built on:
+#   * the reader took MAIN's rows from the watch's scope in this same call (`main_served`). The
+#     scope's all-types window holds every main row at or after `since`, main's leg precedes every
+#     worktree leg, so each copy the leg carries is admitted from main and dropped by the dedup. The
+#     logical main journal never loses a row (rotation moves rows into an archive — SPEC-0190 rule 3;
+#     SPEC-0002 forbids an in-place rewrite), which is what this rests on;
+#   * a tail-window read of the leg cannot cut above one of the leg's OWN in-window rows
+#     (`_own_rows_inside_any_window`);
+#   * the leg's own lines read alike (above). The lines it copies from main are main's to answer for:
+#     they are `json.dumps` output, valid UTF-8 by construction.
+_WATCH_LEGS_TLS = threading.local()
+_NO_SHARED_PREFIX = object()    # `_WatchLegs.prefix_rows`: this leg shares no prefix with main
+
+
+def _watch_legs():
+    """The installed watch's leg cursors, or None outside a watch (`WatchReads`)."""
+    return getattr(_WATCH_LEGS_TLS, "legs", None)
+
+
+class _NoCutoff:
+    """A cutoff no `ts` is at or after, whatever its type: the scan's `ts >= cutoff` falls to this
+    reflected test. A window cursor's one whole-segment read passes it, so the scan walks to byte 0,
+    judges nothing itself and cannot raise on a non-string `ts` (T-13530) — the sink does the judging."""
+
+    def __le__(self, other):
+        return False
+
+
+def _emulated_window(size, cutoff, offs, tss, *, block, confirm_bytes):
+    """`(start, reach)` of `_tail_window_start(path, cutoff, block=block, confirm_bytes=confirm_bytes)`
+    for a file of `size` bytes whose in-window candidate lines start at the ascending offsets `offs`
+    with timestamps `tss` (EVERY such line of the file — the caller indexed it whole). `start` is what
+    the scan returns. `reach` is how far down it WALKS: it parses exactly the lines starting above
+    `reach` — the first byte of the lowest block it reads on a bounded answer, -1 when it reads to
+    byte 0.
+
+    The scan's own arithmetic, over line offsets instead of bytes: it walks blocks backward from EOF;
+    a block's iteration judges the lines STARTING in `(bstart, pos]` (`[0, pos]` for the block at byte
+    0 — a line starting exactly at a block's first byte is completed by the block below it); a block
+    with an in-window line resets the old-byte count, any other block below the boundary adds its
+    length, and `confirm_bytes` of them return the boundary; reaching byte 0 returns 0. PRECONDITION,
+    the caller's: no line as long as `block` ends above the `reach` returned here, so no block the
+    scan walks is one unbroken line (its carry-only arm) — the caller holds such lines by offset and
+    tests them against this very `reach`."""
+    boundary, old_bytes, pos = None, 0, size
+    while pos > 0:
+        bstart = max(0, pos - block)
+        lo = bisect.bisect_right(offs, bstart) if bstart > 0 else 0
+        hi = bisect.bisect_right(offs, pos)
+        saw = False
+        for k in range(lo, hi):
+            if tss[k] >= cutoff:
+                saw = True
+                if boundary is None or offs[k] < boundary:
+                    boundary = offs[k]
+        if saw:
+            old_bytes = 0
+        elif boundary is not None:
+            old_bytes += pos - bstart
+            if old_bytes >= confirm_bytes:
+                # the block at byte 0 has no straddling first line: the scan parses offset 0 too
+                return boundary, (bstart if bstart > 0 else -1)
+        pos = bstart
+    return 0, -1
+
+
+def _emulated_window_start(size, cutoff, offs, tss, *, block, confirm_bytes):
+    """`_emulated_window`'s `start` alone — what the real scan returns."""
+    return _emulated_window(size, cutoff, offs, tss, block=block, confirm_bytes=confirm_bytes)[0]
+
+
+class _WindowIndex:
+    """The sink of a watch cursor's one whole-segment read (run with `_NoCutoff`): every walked
+    line's start; the `(offset, ts)` of each in-window candidate by the scan's own BYTES reading,
+    whether or not the text reading agrees; the `(offset, item)` of each row `item(row)` keeps, from
+    lines both readings agree on; and the offsets of the lines the cursor cannot answer for —
+    `unlike` (the two readings disagree) and `unwalkable` (a non-string `ts`)."""
+
+    def __init__(self, cutoff, item):
+        self.cutoff = cutoff
+        self._item = item
+        self.starts, self.recent, self.items = [], [], []
+        self.unlike, self.unwalkable = [], []
+
+    def strict_line(self, off, ln, obj, ok):
+        self.starts.append(off)
+        alike = _reads_alike(ln)
+        if not alike:
+            self.unlike.append(off)
+        if ok and isinstance(obj, dict):
+            ts = obj.get("ts") or ""
+            if not isinstance(ts, str):
+                self.unwalkable.append(off)     # the reader's scan raises on it when it walks it
+                return
+            if ts >= self.cutoff:
+                self.recent.append((off, ts))
+            if alike:
+                item = self._item(obj)
+                if item is not None:
+                    self.items.append((off, item))
+
+
+class _RefTsSink(_StrictLineSink):
+    """The sink of `_consumer_ref_pairs`: `(offset, session_ref, ts)` of each row the text reading
+    yields that carries a session_ref — all `_consumer_live_refs` reads of a row."""
+
+    def __init__(self):
+        super().__init__()
+        self.rows = []
+
+    def take(self, off, value, as_scan, as_text):
+        if as_text and isinstance(value, dict) and value.get("session_ref"):
+            self.rows.append((off, value.get("session_ref"), value.get("ts")))
+
+    def rows_from(self, start):
+        """The rows at or after `start`, in file order — with the text reading of the held lines."""
+        odd = [(off, v.get("session_ref"), v.get("ts")) for off, v in self.text_values(start)
+               if isinstance(v, dict) and v.get("session_ref")]
+        return sorted([r for r in self.rows if r[0] >= start] + odd, key=lambda r: r[0])
+
+
+def _ref_pair(row):
+    return (row.get("session_ref"), row.get("ts")) if row.get("session_ref") else None
+
+
+def _consumer_ref_pairs(p, cutoff):
+    """`(session_ref, ts)` of every row of consumer journal `p` at or after its tail window for
+    `cutoff` — ONE read: the window scan parses each line once and its sink reproduces the strict text
+    reading of the window (T-13462; the pair it replaces scanned for the offset, then streamed and
+    parsed the same region again). An invalid UTF-8 line at or after the window start raises
+    `UnicodeDecodeError`, as the stream did."""
+    sink = _RefTsSink()
+    start = _tail_window_start(p, cutoff, collect=sink)
+    sink.raise_undecodable(start)
+    return [(sref, ts) for _off, sref, ts in sink.rows_from(start)]
+
+
+_UNPARSED = object()            # a caught-up line the scan's `json.loads` rejects
+
+
+class _LegCursor:
+    """One leg's cursor. `kind` "prefix": `items` are the rows above the shared prefix `base`.
+    `kind` "window": `items` are `(offset, item)`, with the scan index beside them, and `unlike` /
+    `unwalkable` the ascending offsets of the lines the cursor cannot answer for (T-13530)."""
+
+    def __init__(self, kind, path, end, ident, items, *, excluded=frozenset(), base=0, cutoff=None,
+                 floor=None, item=None, offs=None, tss=None, last_start=0, block=0, unlike=None,
+                 unwalkable=None):
+        self.kind, self.path, self.end, self.ident, self.items = kind, path, end, ident, items
+        self.excluded, self.base = excluded, base
+        self.cutoff, self.floor, self.item = cutoff, floor, item
+        self.offs, self.tss = offs or [], tss or []
+        self.last_start, self.block = last_start, block
+        self.unlike, self.unwalkable = unlike or [], unwalkable or []
+
+
+class _WatchLegs:
+    """One watch's leg cursors (see the block above). `reads` counts physical (re-)reads, `caught_up`
+    the appended-bytes reads, `dropped` each `(path, why)` a cursor was given up for, `declined_polls`
+    the polls a KEPT window cursor left to the reader's own read (T-13530). `scan_block` /
+    `scan_confirm` are the window scan's block and confirm sizes — by default the scan's own defaults."""
+
+    def __init__(self, *, scan_block=None, scan_confirm=None):
+        self._cur = {}
+        self._declined = set()      # legs read as before for the rest of the watch (prefix legs)
+        self._no_prefix = {}        # leg key -> (device, inode) it was probed at and shared no prefix
+        self._block, self._confirm = scan_block, scan_confirm
+        self.reads = 0
+        self.caught_up = 0
+        self.declined_polls = 0
+        self.dropped = []
+
+    # ── shared mechanics ─────────────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _key(kind, p):
+        try:
+            return (kind, str(Path(p).resolve()))
+        except OSError:
+            return None
+
+    @staticmethod
+    def _stat(p):
+        st = os.stat(p)
+        return (st.st_dev, st.st_ino, st.st_size)
+
+    def _scan_sizes(self):
+        """`(block, confirm_bytes)` the reader's window scan runs with, or None when they cannot be
+        known (a substituted scan) — then no window cursor is taken and the reader reads as before."""
+        if self._block and self._confirm:
+            return self._block, self._confirm
+        kw = getattr(_tail_window_start, "__kwdefaults__", None) or {}
+        block, confirm = kw.get("block"), kw.get("confirm_bytes")
+        if isinstance(block, int) and isinstance(confirm, int) and block > 0 and confirm > 0:
+            return block, confirm
+        return None
+
+    def _settled(self, p, before, end):
+        """The resume identity at `end` of `p`, iff `p` is still the file `before` (`_stat`) described
+        and `end` is newline-aligned — else None, and the read is served without a cursor."""
+        try:
+            with Path(p).open("rb") as fh:
+                ident = _resume_identity(fh, end)
+        except OSError:
+            return None
+        if ident[:2] != before[:2] or (end > 0 and not ident[2].endswith(b"\n")):
+            return None
+        return ident
+
+    def _give_up(self, key, cur, why, *, decline=False):
+        self._cur.pop(key, None)
+        self.dropped.append((str(cur.path), why))
+        if decline:
+            self._declined.add(key)
+
+    def _advance(self, key, cur, feed, unlike=None):
+        """Feed `cur` the complete lines appended since its resume point. Returns "ok" (the cursor
+        holds the leg up to its last newline, which is EOF), "reread" (the resume point could not be
+        proven — the cursor is gone), or "decline" (the reader must read for itself this poll: an
+        unterminated final row, or a line the cursor cannot hold — then the cursor is gone too).
+        `unlike(cur, off, ln)`, when given, takes a line the two readings disagree on instead of the
+        cursor being given up for it (a window cursor records where it sits — T-13530)."""
+        data = b""
+        try:
+            with Path(cur.path).open("rb") as fh:
+                why, size = _resume_refusal(fh, cur.end, cur.ident)
+                if why is None and size > cur.end:
+                    fh.seek(cur.end)
+                    data = fh.read(size - cur.end)
+        except OSError:
+            why = "unreadable"
+        if why is not None:
+            self._give_up(key, cur, why)
+            return "reread"
+        cut = data.rfind(b"\n") + 1
+        if cut:
+            block = data[:cut]
+            off = cur.end
+            for raw in block.split(b"\n")[:-1]:
+                ln = raw.strip()
+                if ln:
+                    if not _reads_alike(ln):
+                        if unlike is None:
+                            self._give_up(key, cur, "unlike-line", decline=True)
+                            return "decline"
+                        unlike(cur, off, ln)
+                        off += len(raw) + 1
+                        continue
+                    # Parsed through the ONE event-line parser, which counts it (T-12034).
+                    parsed = _rows_from_lines((ln,))
+                    if not feed(cur, off, parsed[0] if parsed else _UNPARSED):
+                        self._give_up(key, cur, "not-holdable", decline=True)
+                        return "decline"
+                off += len(raw) + 1
+            cur.end += cut
+            cur.ident = cur.ident[:2] + ((cur.ident[2] + block)[-JournalScan._TAIL:],)
+            self.caught_up += 1
+        return "decline" if len(data) > cut else "ok"
+
+    # ── a worktree leg that shares a prefix with main ────────────────────────────────────────────
+    @staticmethod
+    def _feed_prefix(cur, off, value):
+        cur.last_start = off
+        if isinstance(value, dict):
+            ts = value.get("ts") or ""
+            if not isinstance(ts, str):
+                return False             # the reader's own `ts` tests would raise on it
+            if ts >= cur.cutoff:
+                cur.offs.append(off)
+                cur.tss.append(ts)
+            if ts >= cur.floor and value.get("type") not in cur.excluded:
+                cur.items.append(value)
+        return True
+
+    @staticmethod
+    def _own_rows_inside_any_window(cur, cutoff, block) -> bool:
+        """True iff no tail-window scan of this leg can cut ABOVE one of its own in-window rows: from
+        the lowest such row to EOF there is no stretch of `block` bytes without an in-window line
+        START, so the scan meets no block it would count as purely old there."""
+        prev = None
+        for off, ts in zip(cur.offs, cur.tss):
+            if ts >= cutoff:
+                if prev is not None and off - prev >= block:
+                    return False
+                prev = off
+        return prev is None or cur.end - prev < block
+
+    def prefix_rows(self, p, main_ref, excluded, *, main_served, cutoff, since):
+        """The rows of worktree leg `p` above the prefix it shares with `main_ref` — what the reader's
+        shared-prefix branch reads, minus `excluded` types (and, from a cursor, rows older than its
+        first `since`). `_NO_SHARED_PREFIX` when the leg shares none (the reader then takes its window
+        branch, and `window_rows`); None when the cursor declines and the reader reads for itself.
+        `main_served`: the reader took main's rows from the watch's scope in this call (see the block
+        above)."""
+        key = self._key("dispatch", p)
+        sizes = self._scan_sizes()
+        if key is None or key in self._declined or sizes is None:
+            return None
+        excluded = frozenset(excluded or ())
+        since = since or ""
+        cur = self._cur.get(key)
+        if cur is not None and cur.kind == "window":
+            return _NO_SHARED_PREFIX
+        try:
+            before = self._stat(p)
+        except OSError:
+            return None
+        if cur is None and self._no_prefix.get(key) == before[:2]:
+            return _NO_SHARED_PREFIX
+        self._no_prefix.pop(key, None)
+        if cur is not None:
+            if cur.excluded != excluded or not main_served or cutoff < cur.cutoff or since < cur.floor:
+                return None
+            state = self._advance(key, cur, self._feed_prefix)
+            if state == "decline":
+                return None
+            if state == "ok":
+                if not self._own_rows_inside_any_window(cur, cutoff, sizes[0]):
+                    self._give_up(key, cur, "own-rows-gap", decline=True)
+                    return None
+                return cur.items
+            try:
+                before = self._stat(p)          # "reread": the leg was rewritten — probe it again
+            except OSError:
+                return None
+        self.reads += 1
+        ps = _shared_prefix_start(p, main_ref, with_tail=True)
+        tail = getattr(ps, "tail", None)
+        if not (int(ps) > 0 and tail is not None):
+            self._no_prefix[key] = before[:2]
+            return _NO_SHARED_PREFIX
+        alike = all(_reads_alike(raw.strip()) for raw in tail.split(b"\n") if raw.strip())
+        if not alike or (tail and not tail.endswith(b"\n")):
+            # THIS poll's answer is the reader's own expression over the same bytes — exact as
+            # written. No cursor: an unterminated row is retried next poll, an unlike line is not.
+            lines = tail.decode("utf-8").splitlines()
+            note_rows_parsed(sum(1 for l in lines if l.strip()))
+            if not alike:
+                self._declined.add(key)
+            return [e for e in _parsed_lines(lines)
+                    if isinstance(e, dict) and e.get("type") not in excluded]
+        # Every line reads alike and the tail ends on a newline: ONE bytes parse serves this poll's
+        # answer (every row above the prefix) and builds the cursor (its rows from `since` on).
+        new = _LegCursor("prefix", p, int(ps) + len(tail), None, [], excluded=excluded, base=int(ps),
+                         cutoff=cutoff, floor=since, last_start=int(ps))
+        rows, holdable, off, n = [], True, int(ps), 0
+        for raw in tail.split(b"\n")[:-1]:
+            ln = raw.strip()
+            if ln:
+                n += 1
+                try:
+                    value = json.loads(ln)
+                except ValueError:
+                    value = _UNPARSED
+                if isinstance(value, dict) and value.get("type") not in excluded:
+                    rows.append(value)
+                holdable = self._feed_prefix(new, off, value) and holdable
+            off += len(raw) + 1
+        note_rows_parsed(n)
+        if not holdable or not self._own_rows_inside_any_window(new, cutoff, sizes[0]):
+            self._declined.add(key)
+            return rows
+        new.ident = self._settled(p, before, new.end)
+        if new.ident is not None and new.ident[2].endswith(tail[-JournalScan._TAIL:]) and main_served:
+            self._cur[key] = new
+        return rows
+
+    # ── a leg read by its tail window (no shared prefix; a consumer journal) ─────────────────────
+    @staticmethod
+    def _feed_window(cur, off, value, *, alike=True):
+        """Index one caught-up line starting at `off`: `value` is the scan's BYTES reading of it
+        (`_UNPARSED` when `json.loads` rejects it). A line the cursor cannot answer for is RECORDED
+        by offset, never a reason to give the cursor up (T-13530)."""
+        if off - cur.last_start >= cur.block:
+            cur.unwalkable.append(off - 1)   # the line before this one is as long as a scan block
+        cur.last_start = off
+        if isinstance(value, dict):
+            ts = value.get("ts") or ""
+            if not isinstance(ts, str):
+                cur.unwalkable.append(off)   # the reader's scan raises on it when it walks it
+                return True
+            if ts >= cur.cutoff:
+                cur.offs.append(off)
+                cur.tss.append(ts)
+            if alike:
+                item = cur.item(value)
+                if item is not None:
+                    cur.items.append((off, item))
+        return True
+
+    @classmethod
+    def _feed_window_unlike(cls, cur, off, ln):
+        """A caught-up line the two readings disagree on: its offset, and the scan's own reading of
+        it for the boundary arithmetic — never an item."""
+        cur.unlike.append(off)
+        parsed = _rows_from_lines((ln,))     # the ONE event-line parser, which counts it (T-12034)
+        cls._feed_window(cur, off, parsed[0] if parsed else _UNPARSED, alike=False)
+
+    def _window_read(self, key, p, cutoff, item, floor, excluded, block):
+        """The ONE physical read of a window leg: the WHOLE live segment, through the scan primitive
+        with a cutoff nothing is at or after (`_NoCutoff`), so the scan walks to byte 0, every line is
+        indexed and every later window start is derivable (an unchanged leg is never read again,
+        however far the cutoff advances). A line the cursor cannot answer for is indexed by offset and
+        judged per poll (`_window`) — it never declines the leg here (T-13530). Returns the installed
+        cursor — holding the leg up to the size it had BEFORE the read, so rows appended while the
+        read ran are picked up by the catch-up that follows — or None when no cursor can be taken."""
+        try:
+            before = self._stat(p)
+        except OSError:
+            return None
+        sink = _WindowIndex(cutoff, item)
+        self.reads += 1
+        try:
+            _tail_window_start(p, _NoCutoff(), block=block, collect=sink)
+        except OSError:
+            return None
+        end = before[2]
+        ident = self._settled(p, before, end)
+        if ident is None:
+            return None                  # replaced while it was read, or it ended mid-row
+        starts = sorted(o for o in sink.starts if o < end)
+        unwalkable = [o for o in sink.unwalkable if o < end]
+        prev = 0
+        for o in starts:
+            if o - prev >= block:
+                unwalkable.append(o - 1)  # the line before `o` is as long as a scan block
+            prev = o
+        recent = sorted(r for r in sink.recent if r[0] < end)
+        items = sorted((it for it in sink.items if it[0] < end), key=lambda x: x[0])
+        cur = _LegCursor("window", p, end, ident, items, excluded=excluded, cutoff=cutoff, floor=floor,
+                         item=item, offs=[o for o, _t in recent], tss=[t for _o, t in recent],
+                         last_start=prev, block=block, unlike=sorted(o for o in sink.unlike if o < end),
+                         unwalkable=sorted(unwalkable))
+        self._cur[key] = cur
+        return cur
+
+    def _window(self, kind, p, cutoff, item, *, floor=None, excluded=frozenset()):
+        """`(offset, item)` of each kept row the reader's tail-window read of `p` at `cutoff` returns
+        — every row from the window's start (`_tail_window_start`'s own answer) to EOF — or None when
+        the cursor declines. A poll whose window holds a line the cursor cannot answer for is declined
+        with the cursor KEPT (T-13530): `unlike` at or after the window's start, `unwalkable` above
+        the scan's reach, or a final line as long as a scan block."""
+        key = self._key(kind, p)
+        sizes = self._scan_sizes()
+        if key is None or key in self._declined or sizes is None:
+            return None
+        block, confirm = sizes
+        cur = self._cur.get(key)
+        if cur is not None and cur.kind != "window":
+            return None
+        for _attempt in (0, 1):          # the second: a leg found REWRITTEN is read again, once
+            if cur is None:
+                cur = self._window_read(key, p, cutoff, item, floor, excluded, block)
+                if cur is None:
+                    return None
+            elif cutoff < cur.cutoff or cur.excluded != excluded \
+                    or (cur.floor is not None and (floor is None or floor < cur.floor)):
+                return None              # earlier than the cursor holds: the reader's own read
+            state = self._advance(key, cur, self._feed_window, self._feed_window_unlike)
+            if state == "decline":
+                self.declined_polls += 1         # an unterminated final row: retried next poll
+                return None
+            if state == "ok":
+                start, reach = _emulated_window(cur.end, cutoff, cur.offs, cur.tss,
+                                                block=block, confirm_bytes=confirm)
+                if (cur.unlike and cur.unlike[-1] >= start) \
+                        or (cur.unwalkable and cur.unwalkable[-1] > reach) \
+                        or cur.end - cur.last_start >= block:
+                    self.declined_polls += 1
+                    return None
+                return [it for it in cur.items if it[0] >= start]
+            cur = None
+        return None
+
+    def window_rows(self, p, cutoff, since, excluded):
+        """A leg's tail-window rows for `_dispatch_status_events` (the leg shares no prefix with main,
+        or carries the shared region itself): the rows its bounded read returns, minus `excluded`
+        types and rows older than the cursor's first `since`. None = the reader reads for itself."""
+        excluded = frozenset(excluded or ())
+        floor = since or ""
+
+        def item(row, _excluded=excluded, _floor=floor):
+            return row if row.get("type") not in _excluded and (row.get("ts") or "") >= _floor else None
+        got = self._window("dispatch", p, cutoff, item, floor=floor, excluded=excluded)
+        return None if got is None else [row for _off, row in got]
+
+    def consumer_pairs(self, p, cutoff):
+        """`_consumer_ref_pairs(p, cutoff)`, read once per watch and then caught up. Raises what that
+        read raises (OSError, UnicodeDecodeError)."""
+        got = self._window("consumer", p, cutoff, _ref_pair)
+        if got is None:
+            return _consumer_ref_pairs(p, cutoff)
+        return [pair for _off, pair in got]
+
+
+class WatchReads:
+    """T-13462 — the ONE request scope of a `dispatch --watch`, for the watch's whole lifetime: the
+    T-13396 `scan_scope` over main's journal, made RENEWABLE, plus the leg cursors above.
+
+    WHY RENEWABLE. A catch-up scope that cannot prove its resume point goes STALE and serves nothing
+    more (T-13332) — the safe answer, and for a watch a permanent one: `land` replaces main's live
+    segment several times an hour, so the first land inside a watch left every later poll's readers
+    reading main for themselves (measured 2026-10-04: stale `rotated` at the second poll). `renew()`
+    asks the scope whether it may still serve (`JournalScan.fresh`, T-13365 — the pending catch-up
+    runs there) and, when it may not, closes it and opens a new one: main is walked once more per
+    rewrite, never once per reader per poll. `declare` is called per (re)walk, so each walk's window
+    is anchored at its own clock."""
+
+    def __init__(self, path, declare):
+        self._path = Path(path)
+        self._declare = declare
+        self._cm = None
+        self.scope = None
+        self.legs = _WatchLegs()
+        self.rewalks = 0
+        self._prior_legs = None
+
+    def _open(self):
+        self._cm = scan_scope(self._path, **self._declare())
+        self.scope = self._cm.__enter__()
+
+    def _close(self):
+        cm, self._cm, self.scope = self._cm, None, None
+        if cm is not None:
+            cm.__exit__(None, None, None)
+
+    def __enter__(self):
+        self._prior_legs = _watch_legs()
+        _WATCH_LEGS_TLS.legs = self.legs
+        try:
+            self._open()
+        except BaseException:
+            _WATCH_LEGS_TLS.legs = self._prior_legs
+            raise
+        return self
+
+    def __exit__(self, *exc):
+        try:
+            self._close()
+        finally:
+            _WATCH_LEGS_TLS.legs = self._prior_legs
+        return False
+
+    def renew(self) -> bool:
+        """Re-establish main's scope iff it can no longer serve the journal as it is now. True when a
+        new scope was opened. Called before each reader the watch runs."""
+        scope = self.scope
+        if scope is None:
+            return False
+        try:
+            if scope.fresh():
+                return False
+        except Exception:                  # noqa: BLE001 — an unanswerable scope is not a fresh one
+            pass
+        self._close()
+        self._open()
+        self.rewalks += 1
+        return True
 
 
 _NO_FLOOR = object()   # T-13366 — `DispatchEventsMemo.floor` unset
@@ -8882,11 +9803,13 @@ def _consumer_live_refs(consumer_journals, now, window, _parse_iso_ts):
     future-dated ts (beyond the clock-skew tolerance) is NOT counted fresh (mirrors the recency-robustness
     of `_classify_dispatch`, so a 2099-sentinel consumer row cannot resurrect a dead worker), and a line
     with no session_ref/ts contributes nothing. Reads only the journal TAIL past the recency cutoff
-    (`_tail_window_start`) so a large (~85MB) consumer journal is not parsed from byte 0."""
+    (`_tail_window_start`) so a large (~85MB) consumer journal is not parsed from byte 0 — and reads
+    it ONCE (`_consumer_ref_pairs`, T-13462)."""
     live = set()
     if not consumer_journals:
         return live
     cutoff = (now - _dt.timedelta(seconds=window + _TAIL_WINDOW_MARGIN_SEC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    legs = _watch_legs()        # T-13462 — a watch reads each consumer journal once, then appended bytes
     for j in consumer_journals:
         p = Path(j)
         if not p.exists():
@@ -8896,36 +9819,23 @@ def _consumer_live_refs(consumer_journals, now, window, _parse_iso_ts):
             # fold of the file.
             # inloop-journal-read: per-FILE — `p` is the loop variable (one consumer journal per
             # iteration), so there is nothing to hoist.
-            start = _tail_window_start(p, cutoff)
-        except OSError:
-            start = 0
-        # T-13139 — the region is STREAMED (`_stream_region_lines`: the same lines the whole-region
-        # `decode().splitlines()` produced) and this journal's refs join `live` only once it has been
-        # read to the end, so an I/O error mid-read still discards the whole journal, as before.
-        found = set()
-        try:
-            for line in _stream_region_lines(p, max(0, start)):
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    e = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if not isinstance(e, dict):
-                    continue
-                sref = e.get("session_ref")
-                if not sref or sref in live or sref in found:
-                    continue
-                ts = _parse_iso_ts(e.get("ts"))
-                if ts is None:
-                    continue
-                age = (now - ts).total_seconds()
-                # fresh = within the recency window AND not future-dated past the skew tolerance
-                if -_DISPATCH_FUTURE_SKEW_SEC <= age <= window:
-                    found.add(sref)
+            # T-13462 — ONE read: the window scan hands back the (session_ref, ts) of the rows it
+            # parsed, where it used to answer an offset the region was then streamed and parsed
+            # again from. A journal that cannot be read contributes nothing, as before.
+            pairs = legs.consumer_pairs(p, cutoff) if legs is not None else _consumer_ref_pairs(p, cutoff)
         except OSError:
             continue
+        found = set()
+        for sref, raw_ts in pairs:
+            if sref in live or sref in found:
+                continue
+            ts = _parse_iso_ts(raw_ts)
+            if ts is None:
+                continue
+            age = (now - ts).total_seconds()
+            # fresh = within the recency window AND not future-dated past the skew tolerance
+            if -_DISPATCH_FUTURE_SKEW_SEC <= age <= window:
+                found.add(sref)
         live |= found
     return live
 
@@ -10509,11 +11419,34 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
             records[-1]["death_cause"] = limit_death["cause"]
             records[-1]["limit_resets"] = limit_death.get("resets")
     records.sort(key=lambda r: r["session_ref"])
+    # T-13560 (rule 5e) — the CALLER's `--task` scope, applied AFTER classification at the render
+    # seam. The shared `journal query` parser accepts `--task`, and this surface used to ignore it:
+    # a caller asking about one task got the whole fleet back with no word that its filter was not
+    # applied. A record is kept iff its `task_ids` INTERSECT the requested set (the rule-5a scope
+    # test — a warm worker draining a requested id alongside others is reported as its WHOLE
+    # record, rule 4), and a requested id no kept record holds is NAMED, never dropped (the
+    # `--dispatch-status` contract, T-11743). Opt-in by construction: `_requested_task_ids` reads
+    # through getattr, so the in-process `dispatch --watch` readers — whose namespace carries NO
+    # `task` — and a None or empty request stay fleet-wide and byte-identical. Nothing ABOVE this
+    # line reads the scope: no class, verdict or in-flight membership depends on what was asked.
+    asked = _requested_task_ids(args)
+    unheld = []
+    if asked:
+        records = [r for r in records if set(asked).intersection(r["task_ids"])]
+        held = {t for r in records for t in r["task_ids"]}
+        unheld = [t for t in asked if t not in held]
     if getattr(args, "json", False):
         for rec in records:
             print(json.dumps(rec, ensure_ascii=False))
+        # An unheld id is NOT a worker record: it shares no key with one (no session_ref / class /
+        # verdict), so a reader keyed on those can never mistake «nobody in flight holds it» for a
+        # verdict about the task. Its dispatch state is the sibling reader's answer, named in `see`.
+        for tid in unheld:
+            print(json.dumps({"task_id": tid, "held_by_in_flight_worker": False,
+                              "detail": "no in-flight worker record in this window holds this task",
+                              "see": f"journal query --dispatch-status --task {tid}"}, ensure_ascii=False))
         return
-    if not records:
+    if not records and not unheld:
         print("(no in-flight workers)")
         return
     for rec in records:
@@ -10532,6 +11465,9 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYP
         if rec.get("death_cause"):    # T-13200 — the usage-limit death + when to re-dispatch
             print(f"    limit: {rec['death_cause']} — re-dispatch after "
                   f"{rec.get('limit_resets') or 'the reset (time not stated in the log)'}")
+    for tid in unheld:   # T-13560 — one line per requested id no reported record holds
+        print(f"{tid}: held by no in-flight worker record in this window — its own dispatch state: "
+              f"`journal query --dispatch-status --task {tid}`")
 
 def _dispatch_readiness_report(args, *, DISPATCH_WAVE_WINDOW_SEC, _cpu_count, _load_avg, _dispatch_status_events, _live_land_frontier, _live_claimed_task_ids, _land_proc_alive, _session_proc_alive, _work_land_proc_alive=_work_land_proc_alive):
     """PURE fleet-width computation for `--dispatch-readiness` (SPEC-0133) — extracted (T-10178) so the
@@ -11744,6 +12680,103 @@ def _own_session_ref():
     return os.environ.get("YITC_SESSION_REF") or None
 
 
+class _SessionFilter:
+    """T-13571 — `journal query --session <value>`, resolved INSIDE the query's one read.
+
+    The table prints `session_ref[:8]` (SPEC-0141 §6), so the value a reader copies is a PREFIX, and
+    the exact-match filter answered `(no events match)` for it. The rule: `value` is EXACT when some
+    row this query reads carries it as its whole `session_ref` — refs are not one shape, and a full
+    ref may itself be the prefix of a longer one — else it is a PREFIX that must name exactly ONE ref
+    among those rows; several is `ambiguous` (the caller refuses, never the union) and none matches
+    nothing.
+
+    "The rows this query reads" is EVERY row it parses, before its other filters — a `--type` that
+    hides a full ref's rows must not turn it into a prefix of its neighbour. That is seen without a
+    second fold (SPEC-0190 rule 10): `watch` rides the local arm's own line walk and `note` sits in
+    `_admit` (the coordination arm and the T-12915 worktree fold, whose type prescan is widened by
+    `leg_tokens` so it keeps every line that can carry such a ref), each recording a ref that starts
+    with `value`. The collector seat (`add`) meanwhile holds the admitted rows of the exact ref and
+    of the ONE other ref admitted so far, each bounded like the `TailCollector` it stands in for;
+    `result()` reads the answer off both once the read is over."""
+
+    def __init__(self, value, limit):
+        self.value = value
+        self.refs = set()
+        self._needle = f'"{value}' if _PREFILTER_SAFE.fullmatch(value) else None
+        self._limit = limit
+        self._seq = 0
+        self._exact = TailCollector(limit)
+        self._other = None            # (ref, TailCollector); (None, None) once a second ref is admitted
+
+    def note(self, e):
+        ref = e.get("session_ref")
+        if isinstance(ref, str) and ref.startswith(self.value):
+            self.refs.add(ref)
+
+    def watch(self, lines):
+        """`lines` in order, each line this parsed handed on as a `(line, value)` pair so
+        `scan_journal` does not parse it again — a malformed one as `(line, None)`, which that
+        walk drops as it drops any non-dict. The `_prefilter_needle` proof, for a string that
+        STARTS with `value`: a line holding neither the verbatim `"<value` nor any `\\u` cannot
+        carry one, so it is passed through unparsed."""
+        parsed = 0
+        try:
+            for line in lines:
+                if self._needle is not None and self._needle not in line and "\\u" not in line:
+                    yield line
+                    continue
+                parsed += 1
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    e = None              # malformed: handed on as parsed-to-nothing, never re-parsed
+                if isinstance(e, dict):
+                    self.note(e)
+                yield line, e
+        finally:
+            note_rows_parsed(parsed)
+
+    def leg_tokens(self, type_tokens):
+        """The prescan tokens of a folded worktree leg (`_bounded_superset_lines`): the type tokens
+        PLUS this filter's needle, so a row of ANOTHER type that carries a ref starting with `value`
+        still reaches `note` on the leg's one read — else a full ref living only on such a row would
+        go unseen and the query would answer with its longer neighbour's rows. None (keep every
+        line) when `value` has no needle."""
+        if self._needle is None:
+            return None
+        return set(type_tokens) | {self._needle, "\\u"}
+
+    def admits(self, e) -> bool:
+        ref = e.get("session_ref")
+        return isinstance(ref, str) and ref.startswith(self.value)
+
+    def add(self, seq, row):
+        """Rows arrive in logical order from one caller at a time, so the seat keeps its own
+        sequence — the worktree fold's rows then rank after the journal's, as `matched += extra` did."""
+        self._seq += 1
+        ref = row.get("session_ref")
+        if ref == self.value:
+            self._exact.add(self._seq, row)
+        elif self._other is None:
+            self._other = (ref, TailCollector(self._limit))
+            self._other[1].add(self._seq, row)
+        elif self._other[0] == ref:
+            self._other[1].add(self._seq, row)
+        else:
+            self._other = (None, None)
+
+    @property
+    def ambiguous(self) -> list:
+        return sorted(self.refs) if self.value not in self.refs and len(self.refs) > 1 else []
+
+    def result(self) -> list:
+        if self.value in self.refs:
+            return self._exact.result()
+        if len(self.refs) == 1 and self._other and self._other[0] in self.refs:
+            return self._other[1].result()
+        return []
+
+
 def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, cmd_journal_dispatch_status, cmd_journal_fleet_verdict, cmd_journal_dispatch_readiness, cmd_journal_lifecycle_integrity, cmd_journal_dispatch_plan, _die=None, own_receipt_ref=None, _live_task_worktrees=None, REPO_ROOT=None, _task_horizon=None) -> None:
     """Read-only query over events.jsonl (the one journal SoT), peer to `graph query`
     (D-0039). Reuses the per-line json.loads reader (Principle 1). Un-parseable lines are
@@ -11816,6 +12849,8 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
             return None
         if not isinstance(e, dict):
             return None
+        if sess is not None:
+            sess.note(e)   # T-13571: BEFORE the other filters — the resolver's domain is every row read
         if args.type and e.get("type") != args.type:
             return None
         if (skip_own_ref and e.get("type") == "cli_invoked" and e.get("session_ref") == skip_own_ref
@@ -11824,7 +12859,7 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
         if want_tasks and e.get("task_id") not in want_tasks:
             return None
         # session_ref is an envelope-level writer-metadata field (per _append_event), NOT data.*
-        if args.session and e.get("session_ref") != args.session:
+        if sess is not None and not sess.admits(e):
             return None
         ts = e.get("ts") or ""
         if args.since and ts < args.since:
@@ -11844,7 +12879,9 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
     # EVERY matched row, so when it applies the collector is unbounded (a type+task-narrow set).
     limit = getattr(args, "limit", 50)
     unlanded_fold = not coordination and want_tasks and args.type
-    collector = TailCollector(0 if unlanded_fold else limit)
+    # T-13571 — with --session the collector seat is the resolver (`_SessionFilter`): one read, both arms.
+    sess = _SessionFilter(args.session, 0 if unlanded_fold else limit) if args.session else None
+    collector = sess or TailCollector(0 if unlanded_fold else limit)
     if coordination:
         for seq, line in enumerate(src.read_text(encoding="utf-8").splitlines()):
             e = _admit(line)
@@ -11857,7 +12894,7 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
             if (skip_own_ref and e.get("type") == "cli_invoked" and e.get("session_ref") == skip_own_ref
                     and isinstance(e.get("data"), dict) and e["data"].get("verb") == "journal query"):
                 return False
-            if args.session and e.get("session_ref") != args.session:
+            if sess is not None and not sess.admits(e):
                 return False
             return grep is None or grep in json.dumps(e, ensure_ascii=False).lower()
 
@@ -11869,19 +12906,37 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
         # membership decider. No floor and no --until => the whole set, exactly as before.
         floor = _plain_query_floor(args.since, want_tasks, _task_horizon)
         lines = None
+        skip = frozenset()
         if floor or args.until:
             keep = set(events.segment_paths_since(src, floor, until=args.until))
             skip = frozenset(s for s in events.segment_paths(src) if s not in keep)
-            if skip:
-                lines = (s for s in (raw.strip() for raw in segment_lines(src, skip=skip)) if s)
+        if skip or sess is not None:
+            lines = (s for s in (raw.strip() for raw in segment_lines(src, skip=skip)) if s)
+        if sess is not None:
+            lines = sess.watch(lines)
         matched = scan_journal(src, collector=collector, types={args.type} if args.type else None,
                                tasks=want_tasks or None, since=args.since, until=args.until, pred=_pred,
                                lines=lines)
     # T-12915 — BEFORE the sort + --limit tail, so folded rows obey the one ordering rule below.
     if unlanded_fold:
-        matched += _unlanded_task_branch_rows(src, want_tasks, {args.type}, _admit, matched,
-                                              _live_task_worktrees=_live_task_worktrees,
-                                              REPO_ROOT=REPO_ROOT)
+        leg_tokens = {args.type} if sess is None else sess.leg_tokens({args.type})
+        extra = _unlanded_task_branch_rows(src, want_tasks, leg_tokens, _admit, matched,
+                                           _live_task_worktrees=_live_task_worktrees,
+                                           REPO_ROOT=REPO_ROOT)
+        if sess is None:
+            matched += extra
+        else:               # T-13571: a folded row can settle, or unsettle, which ref the value names
+            for e in extra:
+                sess.add(0, e)
+            matched = sess.result()
+    if sess is not None and sess.ambiguous:
+        shown = sess.ambiguous[:20]      # the refusal lists at most 20 full refs
+        more = len(sess.ambiguous) - len(shown)
+        (_die or _fallback_die)(
+            f"journal query: --session {args.session!r} is the prefix of {len(sess.ambiguous)} session "
+            f"refs among the rows this query read — refusing rather than returning their union. Pass "
+            f"one of them in full (`--json` prints full refs):\n  " + "\n  ".join(shown)
+            + (f"\n  ... and {more} more — give a longer prefix" if more else ""))
 
     matched.sort(key=lambda e: e.get("ts") or "")
     if limit and limit > 0:
