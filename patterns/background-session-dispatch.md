@@ -509,10 +509,13 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   PER-REPO, so `ap.log` / `tt2.log` / `suite2.log` are names several runs pick independently. Four
   times the path already existed owned by another session or user: the redirect was **denied, the verb
   never ran at all**, and the `tail` printed a FOREIGN task's audit verdict or suite failures as this
-  run's. Put the file under your **worktree** (`.yitc/` there is
-  gitignored, so it can never surface as land-blocking dirt) or under your **session scratch root**
-  `$YITC_SCRATCH_DIR` (`<tempdir>/yitc-scratch-<session_ref>/`, echoed by `session start`, exported by
-  `dispatch`). Clones and probes go there too: nothing owns a hand-spelled /tmp name, so
+  run's. Put the file under your **session scratch root**
+  `$YITC_SCRATCH_DIR` (`<tempdir>/yitc-scratch-<session_ref>/`, echoed by `session start`, created and
+  exported by `dispatch`), which already exists when a worker starts. The other route is your
+  **worktree's** `.yitc/` (gitignored, so it can never surface as land-blocking dirt) — but a fresh
+  worktree does not carry that directory, so run `mkdir -p.yitc` before the first redirect there: a
+  redirect into a missing directory fails and the verb behind it never runs. Clones and
+  probes go under the scratch root too: nothing owns a hand-spelled /tmp name, so
   nothing ever reclaimed one (~44 GB measured 2026-09-28). The root is RECLAIMED when its owner ends —
   a dispatched worker's `land`/`worktree park` removes it, and `worktree sweep` removes any root whose
   session is not alive, past the age floor and held by no live process. The engine's own detached

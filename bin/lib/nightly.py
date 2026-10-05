@@ -18,7 +18,8 @@ write the runner makes is the ONE `nightly_run_completed` append to the ENGINE's
 ANTI-COMPLEXITY (CHARTER §P1 — reuse, do not invent parallel checks):
   * queue freshness  — REUSES lib.state.scan_tasks (read-only) + the QUEUE.md ready-queue cap (≤50).
   * corpus integrity — READS the EXISTING graph/index.json artifact (no parallel index) and compares
-    its mtime against every corpus root `graph build` consumes (the audit-pre finding-0 freshness set).
+    its CONTENT with what the ONE index builder (`lib.graph.graph_build_index`) derives, in memory,
+    from the project's corpus roots (T-13464). Nothing is written and no `graph build` is run.
   * frontend-errors  — FOLDS each project's ALREADY-DECLARED SPEC-0170 source through the EXISTING
     lib.frontend_errors conveyor (T-10803). The cadence obligation needed a provider-independent OS
     trigger (SPEC-0142); this runner already has one, so it costs one read-only check instead of a
@@ -80,20 +81,26 @@ _GATE_BACKED_CONCERNS = frozenset({"security"})
 # (`_concern_surfacing_counts`), never stored; a version move restarts it (the key carries `current`).
 _CONCERN_DRIFT_ESCALATE_AFTER = 7
 
-# The corpus roots `graph build` consumes (graph.py: scan_specs/tasks/patterns/errors/scenarios/
-# lessons/plans/decisions) — the freshness set for the corpus-integrity staleness check (audit-pre
-# finding 0). If the index is OLDER than the newest file under any of these, the graph is stale.
-_CORPUS_GLOBS = {
-    "specs": "SPEC-*.yaml",
-    "tasks": "T-*.yaml",
-    "patterns": "*.md",
-    "errors": "E-*.yaml",
-    "scenarios": "*.md",
-    "lessons": "*.md",
-    "plans": "*.md",
-    "ideas": "*.md",
-    "decisions": "D-*.yaml",
+# T-13464: the index sections the corpus-integrity check compares, each with the corpus root it is
+# built from — the sections `graph build` derives from the project's own corpus files alone. The
+# spec-body rules and the parse errors are compared beside them (`_corpus_differences`).
+_CORPUS_SECTIONS = (
+    ("specs", "specs"),
+    ("patterns", "patterns"),
+    ("plans", "plans"),          # plans/ and ideas/ share this section; the node's `kind` names the root
+    ("errors", "errors"),
+    ("scenarios", "scenarios"),
+    ("lessons", "lessons"),
+    ("tasks_citing", "tasks"),
+)
+# Node fields that are NOT a function of the project's corpus files: they depend on whether a code
+# anchor resolves or on the kernel's spec corpus, neither of which this read-only rebuild consults.
+_CORPUS_SKIP_FIELDS = {
+    "specs": frozenset({"cites_unresolved"}),
+    "scenarios": frozenset({"covers", "covers_unresolved", "cites_unresolved", "cites_all_active"}),
 }
+# How many named differences one `stale` verdict carries (the count is always the full number).
+_CORPUS_DIFF_LIMIT = 10
 
 
 def _engine_repo_root(engine_root: Path) -> Path:
@@ -309,21 +316,6 @@ def register_project(registry_path: Path, name: str, path: Path, *, _replace=os.
     return {"action": action, "name": name, "path": str(proj)}
 
 
-def _newest_mtime(directory: Path, pattern: str) -> float:
-    """Newest mtime among `pattern` files directly under `directory` (read-only); 0.0 if none."""
-    if not directory.is_dir():
-        return 0.0
-    newest = 0.0
-    for p in directory.glob(pattern):
-        try:
-            m = p.stat().st_mtime
-        except OSError:
-            continue
-        if m > newest:
-            newest = m
-    return newest
-
-
 def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
     """Read-only queue-freshness check: status counts + ready-cap + oldest-ready age.
 
@@ -383,29 +375,141 @@ def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
             "malformed": malformed}
 
 
+def _corpus_index(proj_path: Path) -> dict:
+    """T-13464: what `graph build` would derive from this project's corpus files, built IN MEMORY.
+
+    The ONE index builder (`lib.graph.graph_build_index`) is called over the project's own dirs, so
+    this check holds no second definition of what the index is built from. Read-only: nothing is
+    written, no git is run, and the graph result cache (which stores into the target's git dir) is
+    not consulted. Code-anchor resolution, anchor drift, the binding views and the handbook rules are
+    NOT computed — they depend on inputs outside the corpus roots and `_corpus_differences` does not
+    compare them. The result is passed through the index writer's own JSON serializer, so it is
+    compared in the same shape the committed file has."""
+    from lib import graph, textutil  # noqa: PLC0415 — lazy leaves (stdlib + lib.state), the `cross` idiom
+
+    def _read_yaml(path, errors=None):
+        return state.load_path(path, errors=errors, rel_root=proj_path)
+
+    def _frontmatter(path, errors=None):
+        text = path.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            return {}
+        end = text.find("\n---", 3)
+        if end == -1:
+            return {}
+        try:
+            return state.load_str(text[3:end]) or {}
+        except Exception as exc:  # noqa: BLE001 — a malformed frontmatter is recorded, like the host reader
+            if errors is not None:
+                errors.append({"path": str(path.relative_to(proj_path)), "error": str(exc)[:300]})
+            return {}
+
+    index = graph.graph_build_index(
+        SPECS_DIR=proj_path / "specs", TASKS_DIR=proj_path / "tasks",
+        DECISIONS_DIR=proj_path / "decisions", PATTERNS_DIR=proj_path / "patterns",
+        PLANS_DIR=proj_path / "plans", IDEAS_DIR=proj_path / "ideas",
+        ERRORS_DIR=proj_path / "errors", SCENARIOS_DIR=proj_path / "scenarios",
+        LESSONS_DIR=proj_path / "lessons", REPO_ROOT=proj_path,
+        BINDING_FLOOR_TOKEN="floor", CANONICAL_DOCS=(), KERNEL_NAME="", KERNEL_DERIVED_LAYERS=(),
+        _read_yaml=_read_yaml, _resolve_implements_anchor=lambda loc: None,
+        _anchor_drift_warning=lambda *a, **k: None, _anchor_file=textutil.anchor_file,
+        _id_from_artifact_ref=textutil.id_from_artifact_ref, _pattern_frontmatter=_frontmatter,
+        _is_consumer_build=lambda: False, _build_binding_views=lambda specs: ({}, {}, {}))
+    return json.loads(json.dumps(index, default=graph._json_default))
+
+
+def _corpus_node(section: str, node):
+    """One index node reduced to the fields that are a function of the project's corpus files."""
+    if not isinstance(node, dict):
+        return node
+    out = {k: v for k, v in node.items() if k not in _CORPUS_SKIP_FIELDS.get(section, ())}
+    if section == "scenarios":
+        # which anchors RESOLVE depends on the code; which anchors are DECLARED does not
+        out["covers"] = sorted({*(str(a) for a in node.get("covers") or []),
+                                *(str(a) for a in node.get("covers_unresolved") or [])})
+    return out
+
+
+def _corpus_value_pair(index_value, corpus_value) -> dict:
+    """The two sides of one difference, bounded: two lists are reported as what each side has that
+    the other lacks (first 5), anything else as a short string."""
+    if isinstance(index_value, list) and isinstance(corpus_value, list):
+        a, b = [str(x) for x in index_value], [str(x) for x in corpus_value]
+        return {"index_only": sorted(set(a) - set(b))[:5], "corpus_only": sorted(set(b) - set(a))[:5]}
+    return {"index": str(index_value)[:120], "corpus": str(corpus_value)[:120]}
+
+
+def _corpus_differences(committed: dict, rebuilt: dict) -> list:
+    """Every difference between the committed index and the in-memory rebuild, over the sections
+    built from the project's corpus files. Each entry names its `section`, the corpus `root` that
+    section is built from, the node `id`, the `field` where one field differs, and both sides."""
+    absent = "absent"
+    diffs: list = []
+    for section, root in _CORPUS_SECTIONS:
+        a = committed.get(section) if isinstance(committed.get(section), dict) else {}
+        b = rebuilt.get(section) if isinstance(rebuilt.get(section), dict) else {}
+        for ident in sorted(set(a) | set(b), key=str):
+            na, nb = _corpus_node(section, a.get(ident)), _corpus_node(section, b.get(ident))
+            node_root = root
+            if section == "plans" and "idea" in ((na or {}).get("kind"), (nb or {}).get("kind")):
+                node_root = "ideas"
+            base = {"section": section, "root": node_root, "id": str(ident)}
+            if ident not in a or ident not in b:
+                diffs.append({**base, "index": absent if ident not in a else "present",
+                              "corpus": absent if ident not in b else "present"})
+            elif isinstance(na, dict) and isinstance(nb, dict):
+                for field in sorted(set(na) | set(nb), key=str):
+                    if na.get(field, absent) != nb.get(field, absent):
+                        diffs.append({**base, "field": str(field),
+                                      **_corpus_value_pair(na.get(field, absent), nb.get(field, absent))})
+            elif na != nb:
+                diffs.append({**base, **_corpus_value_pair(na, nb)})
+
+    def _spec_rules(index) -> dict:
+        return {str(r.get("id")): r for r in index.get("rules") or []
+                if isinstance(r, dict) and str(r.get("source_doc") or "").startswith("specs/")}
+
+    ra, rb = _spec_rules(committed), _spec_rules(rebuilt)
+    for ident in sorted(set(ra) | set(rb)):
+        if ra.get(ident) != rb.get(ident):
+            diffs.append({"section": "rules", "root": "specs", "id": ident,
+                          "index": absent if ident not in ra else "present",
+                          "corpus": absent if ident not in rb else "present"})
+
+    def _error_paths(index) -> set:
+        return {str(e.get("path")) for e in index.get("_parse_errors") or [] if isinstance(e, dict)}
+
+    pa, pb = _error_paths(committed), _error_paths(rebuilt)
+    for path in sorted(pa ^ pb):
+        diffs.append({"section": "_parse_errors", "root": path.split("/", 1)[0], "id": path,
+                      "index": "present" if path in pa else absent,
+                      "corpus": "present" if path in pb else absent})
+    return diffs
+
+
 def _check_corpus_integrity(proj_path: Path) -> dict:
     """Read-only corpus/graph integrity: the EXISTING graph/index.json present + parseable, and
-    not staler than the newest corpus file `graph build` consumes (the finding-0 freshness set)."""
+    equal IN CONTENT to what the index builder derives from the project's corpus files now.
+
+    T-13464: graded by content, not by file times. A card rewritten after the last build (a closure
+    record, a status change) touches nothing the index carries and grades `ok`; `stale` means a
+    `graph build` in that project would change the index, and it NAMES what differs — `differences`
+    (the first `_CORPUS_DIFF_LIMIT`), `difference_count` (all of them) and `stale_root` (the corpus
+    root of the first one, the field the rule-38 chronic line already reads). An index of any age is
+    judged by the same compare. NOT judged, by construction of `_corpus_index`: fields that depend on
+    code-anchor resolution or on the kernel's spec corpus, the handbook rules and the binding views."""
     index = proj_path / "graph" / "index.json"
     if not index.exists():
         return {"verdict": "missing", "reason": "graph/index.json absent"}
     errors: list = []
     parsed = state.load_path(index, errors=errors)
-    if errors or not parsed:
+    if errors or not parsed or not isinstance(parsed, dict):
         return {"verdict": "error", "reason": "graph/index.json unparseable"}
-    try:
-        index_mtime = index.stat().st_mtime
-    except OSError:
-        return {"verdict": "error", "reason": "graph/index.json unstat-able"}
-    newest = 0.0
-    newest_root = None
-    for root, pattern in _CORPUS_GLOBS.items():
-        m = _newest_mtime(proj_path / root, pattern)
-        if m > newest:
-            newest, newest_root = m, root
-    stale = newest > index_mtime
-    return {"verdict": "stale" if stale else "ok",
-            "stale_root": newest_root if stale else None}
+    diffs = _corpus_differences(parsed, _corpus_index(proj_path))
+    if not diffs:
+        return {"verdict": "ok", "stale_root": None}
+    return {"verdict": "stale", "stale_root": diffs[0]["root"],
+            "difference_count": len(diffs), "differences": diffs[:_CORPUS_DIFF_LIMIT]}
 
 
 def _check_backup(backup_verify_sh: Path, *, dry_run: bool, _run) -> dict:
@@ -1466,6 +1570,30 @@ def _check_concern_drift(proj_path: Path) -> dict:
         return {"verdict": "alert", "drifts": cd.get("drifts") or [],
                 "reason": f"{cd.get('count')} concern(s) behind the kernel registry version"}
     return {"verdict": "ok", "drifts": []}
+
+
+_ENGINE_OWN_CONTRACT_REASON = ("the engine's own repository — not a consumer of its own ops contract "
+                               "(SPEC-0186 rule 6)")
+
+
+def _engine_own_contract_rows() -> dict:
+    """T-13525 (SPEC-0186 rule 6): the four per-project checks that judge a registry row AS a
+    consumer of the ops contract, answered for the ENGINE's own row — `skip`, in each check's own
+    row shape. The engine's root `yitc-ops.yaml` is the kernel's verify-policy declaration, not a
+    consumer contract, so these checks exclude it BY IDENTITY (the loop's `_engine_own_paths`),
+    never by whether the file exists.
+
+    Exactly the four whose VERDICT would otherwise move once that file exists (skip -> alert for the
+    two concern checks, skip -> ok for the other two) — and with them the nightly's own
+    `concern_drift_surfaced` append. `carrier_shape` and `frontend_errors` read a section the engine
+    does not declare and stay `skip` on their own, so they are not here."""
+    return {
+        "born_waivers": {"verdict": "skip", "reason": _ENGINE_OWN_CONTRACT_REASON},
+        "concern_conformance": {"verdict": "skip", "reason": _ENGINE_OWN_CONTRACT_REASON},
+        "concern_drift": {"verdict": "skip", "drifts": [], "reason": _ENGINE_OWN_CONTRACT_REASON},
+        "unratified_adoptions": {"verdict": "skip", "records": [],
+                                 "reason": _ENGINE_OWN_CONTRACT_REASON},
+    }
 
 
 def _concern_surfacing_counts(rows) -> dict:
@@ -3469,6 +3597,25 @@ def _print_quiet_lane_readings(lane: dict) -> None:
               + (f" — {rd['reason']}" if rd.get("reason") else ""))
 
 
+def _contained(check, *args, **kwargs) -> dict:
+    """T-13464: run ONE per-project check; a raise costs that check's verdict, not the run.
+
+    `Exception` only — SystemExit and KeyboardInterrupt are not caught, so an interrupt or a
+    deliberate exit still ends the run. The verdict `fault` is its own word on purpose: the check did
+    not report, so it is neither `ok` nor any finding the check itself would have named."""
+    try:
+        return check(*args, **kwargs)
+    except Exception as exc:  # noqa: BLE001 — one check's fault never costs every project its row
+        first = (str(exc).strip().splitlines() or [""])[0]
+        return {"verdict": "fault", "error": f"{type(exc).__name__}: {first}"[:300]}
+
+
+def _check_faults(entry: dict) -> list:
+    """The names of the checks of one project entry that raised (`_contained`), in entry order."""
+    return [name for name, val in entry.items()
+            if isinstance(val, dict) and val.get("verdict") == "fault"]
+
+
 def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_NAME,
                 BACKUP_VERIFY_SH, _append_event, _die, _utc_now_iso, _run=subprocess.run,
                 _freshness_adapter=_default_freshness_adapter,
@@ -3521,39 +3668,51 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         present = ppath.is_dir()
         entry = {"name": proj["name"], "path": str(ppath), "present": present}
         if present:
-            entry["queue"] = _check_queue(ppath, now=now)
-            entry["corpus"] = _check_corpus_integrity(ppath)
-            entry["freshness"] = _check_freshness(ppath, now=now, adapter=_freshness_adapter)
-            entry["born_waivers"] = _check_born_waiver_freshness(ppath)
-            entry["concern_conformance"] = _check_concern_conformance(ppath, now=now)
-            entry["concern_drift"] = _check_concern_drift(ppath)
-            entry["unratified_adoptions"] = _check_unratified_adoptions(ppath)
-            entry["adapter"] = _check_adapter_conformance(ppath)
-            entry["adoption_completeness"] = _check_adoption_completeness(ppath)
+            # T-13464: every per-project call below goes through `_contained`, so a check that
+            # raises records {verdict: fault} for itself and the rest of the run still happens.
+            entry["queue"] = _contained(_check_queue, ppath, now=now)
+            entry["corpus"] = _contained(_check_corpus_integrity, ppath)
+            entry["freshness"] = _contained(_check_freshness, ppath, now=now,
+                                            adapter=_freshness_adapter)
+            if ppath in _engine_own_paths:
+                # T-13525 (SPEC-0186 rule 6): the engine's own row is not judged as a consumer of
+                # the ops contract — by identity, decided BEFORE the four checks, which are never
+                # invoked for it (they walk the concern registry the moment a carrier exists). The
+                # rows read as they did before the engine carried a root declaration, in the same
+                # key order, and no drift row is appended for it below.
+                entry.update(_engine_own_contract_rows())
+            else:
+                entry["born_waivers"] = _contained(_check_born_waiver_freshness, ppath)
+                entry["concern_conformance"] = _contained(_check_concern_conformance, ppath, now=now)
+                entry["concern_drift"] = _contained(_check_concern_drift, ppath)
+                entry["unratified_adoptions"] = _contained(_check_unratified_adoptions, ppath)
+            entry["adapter"] = _contained(_check_adapter_conformance, ppath)
+            entry["adoption_completeness"] = _contained(_check_adoption_completeness, ppath)
             # T-12046 (SPEC-0196 rule 3): the override-ledger drift leg, riding the SAME per-project
             # report-only sweep its neighbour above does. Deliberately NOT folded into `flagged`
             # below — rule 3 makes the check report-only, so it moves no verdict and no exit code.
-            entry["override_ledger"] = _check_override_ledger(ppath)
-            entry["no_local_diff"] = _check_no_local_diff(ppath)
-            entry["carrier_shape"] = _check_carrier_shape(ppath)
-            entry["repo_storage"] = _check_repo_storage(ppath)   # T-11063 (SPEC-0105 §1)
-            entry["frontend_errors"] = _check_frontend_errors(
-                ppath, as_of=now, fe=_frontend_errors, read_rows=_fe_reader)
+            entry["override_ledger"] = _contained(_check_override_ledger, ppath)
+            entry["no_local_diff"] = _contained(_check_no_local_diff, ppath)
+            entry["carrier_shape"] = _contained(_check_carrier_shape, ppath)
+            entry["repo_storage"] = _contained(_check_repo_storage, ppath)   # T-11063 (SPEC-0105 §1)
+            entry["frontend_errors"] = _contained(
+                _check_frontend_errors, ppath, as_of=now, fe=_frontend_errors, read_rows=_fe_reader)
             # T-11359 (SPEC-0105 §1): the PROJECT-HEALTH axis — does this project's main actually
             # build? Every other check above is a file read; this is the one that can see a red main,
             # and seeing it HERE is what turns one red into one reported line instead of N halted
             # workers. Runs only the layers the project opted in (see `_check_project_health`).
-            entry["project_health"] = _check_project_health(ppath, dry_run=dry_run, _run=_run)
+            entry["project_health"] = _contained(_check_project_health, ppath, dry_run=dry_run,
+                                                 _run=_run)
             # T-12008 (SPEC-0105 §1): the per-project STAGE-PROFILE reading — what each lifecycle
             # stage cost here over the window. Read-only fold of this project's own journal through
             # the kernel `stage-profile` lens; report-only, and printed only when the project actually
             # closed something (see the report below).
-            entry["stage_profile"] = _check_stage_profile(ppath, now=now)
+            entry["stage_profile"] = _contained(_check_stage_profile, ppath, now=now)
             # T-12037 (SPEC-0105 §1 / SPEC-0119 rule 37): the per-project SEAM-READ reading —
             # which of this project's verbs read more of its corpus than they composed. Read-only
             # fold of this project's own journal through the SAME kernel fold the `debt` echo
             # renders; report-only, and `no counters` is reported as its own answer, never as green.
-            entry["seam_reads"] = _check_seam_read_amplification(ppath, now=now)
+            entry["seam_reads"] = _contained(_check_seam_read_amplification, ppath, now=now)
             # T-12097 (SPEC-0160 rule 10 → SPEC-0105 §2c): the CONSUMER quiet lane — this project's
             # OWN declared timing-sensitive tests, run through the SAME `_run_quiet_lane` the engine
             # lane uses, on THIS repo's own SPEC-0132 admission pool. Not a second lane: one more
@@ -3585,11 +3744,13 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
                     "reason": "the engine's own repository — its instruments are the kernel constant "
                               "`_TIMING_INSTRUMENTS`, run once per run outside the project loop"}
             else:
-                entry["quiet_lane"] = _run_quiet_lane(
+                # T-13464: the instrument resolution is evaluated INSIDE the contained call, so a
+                # raise from reading the project's declaration is contained like the lane itself.
+                entry["quiet_lane"] = _contained(lambda: _run_quiet_lane(
                     ppath, dry_run=dry_run, _run=_run, _append_event=_append_event,
                     events_path=Path(ENGINE_ROOT) / "events.jsonl",
                     instruments=_consumer_timing_instruments(ppath, proj["name"]),
-                    _verify_pool_width=_verify_pool_width)
+                    _verify_pool_width=_verify_pool_width))
         else:
             entry["queue"] = {"verdict": "skip", "reason": "project path absent"}
             entry["corpus"] = {"verdict": "skip", "reason": "project path absent"}
@@ -3780,8 +3941,12 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         1 for r in results if r.get("project_health", {}).get("verdict") == "fail")
     project_health_non_adopted = sum(
         1 for r in results if r["present"] and r.get("project_health", {}).get("verdict") == "none")
+    # T-13464: a check that RAISED reported nothing, so its project is flagged whatever the check
+    # is (including the report-only ones) — an unknown verdict is never read as a clean one.
+    check_faults = sum(len(_check_faults(r)) for r in results)
     flagged = sum(1 for r in results
-                  if r["queue"].get("verdict") in ("warn",)
+                  if _check_faults(r)
+                  or r["queue"].get("verdict") in ("warn",)
                   or r["corpus"].get("verdict") in ("stale", "missing", "error")
                   or _freshness_flags(r["freshness"])   # T-10798 — alert OR failing, via the one predicate
                   or r["born_waivers"].get("verdict") == "alert"
@@ -3807,6 +3972,7 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
         "registry": str(registry_path),
         "projects_checked": len(results),
         "projects_flagged": flagged,
+        "check_faults": check_faults,                  # T-13464 — per-project checks that raised
         "freshness_alerts": freshness_alerts,
         "freshness_failing": freshness_failing,        # T-10798 (SPEC-0174 rule 3) — the fresh-and-failing subset
         "freshness_non_adopted": freshness_non_adopted,
@@ -3903,6 +4069,7 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
           f" | project-health-failures: {project_health_failures}"   # T-11359 (SPEC-0105 §1) — RED mains
           f" | project-health-non-adopted: {project_health_non_adopted}"
           f" | unreadable-ops-carriers: {unreadable_ops_carriers}"
+          f" | check-faults: {check_faults}"   # T-13464 — checks that raised instead of reporting
           f" | frontend-error-sources: {frontend_error_sources_adopted}"   # T-10803 (SPEC-0170)
           f" | frontend-error-clusters: {frontend_error_clusters}"
           f" | backup-verify: {backup.get('verdict')}"
@@ -4041,8 +4208,15 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
                  + (" OVER-CAP" if q.get("ready_over_cap") else "")
                  + (f" oldest-ready={q['oldest_ready_age_days']}d" if q.get("oldest_ready_age_days") else "")) \
             if q.get("verdict") != "skip" else f"queue=skip ({q.get('reason')})"
+        _cd = (c.get("differences") or [None])[0]
         cline = (f"corpus={c['verdict']}"
                  + (f" (stale root: {c['stale_root']})" if c.get("stale_root") else "")
+                 # T-13464: a `stale` names what differs between the index and the corpus
+                 + (f" — differs: {_cd.get('section')} {_cd.get('id')}"
+                    + (f".{_cd['field']}" if _cd.get("field") else "")
+                    + (f" (+{c['difference_count'] - 1} more)"
+                       if (c.get("difference_count") or 0) > 1 else "")
+                    if isinstance(_cd, dict) else "")
                  + (f" — {c['reason']}" if c.get("reason") else ""))
         bw = r["born_waivers"]
         cc = r["concern_conformance"]
@@ -4069,6 +4243,11 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
               # T-11359 (SPEC-0105 §1a) — appended LAST so the frontend-errors count stays attached
               # to the field it qualifies (a suffix that drifts onto the next field misreads).
               + f" | project-health={phe.get('verdict')}")
+        # T-13464: one FAULT line per check that raised — the check did not report, so the line
+        # says so in words instead of leaving `=fault` to be read as one more verdict.
+        for _chk in _check_faults(r):
+            print(f"      ! FAULT {_chk}: {r[_chk].get('error')} — this check raised, so its verdict "
+                  f"for this project is unknown tonight; the remaining checks and projects ran")
         # T-12008 (SPEC-0105 §1): the per-project STAGE-PROFILE line — what each lifecycle stage
         # cost here over the window, with each stage's machine-time share reported over the rows that
         # actually carry a duration. SUPPRESSED-WHEN-EMPTY: a project that closed no task in the

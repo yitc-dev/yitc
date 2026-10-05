@@ -146,7 +146,7 @@ seed_cue: In an adopting consumer, act on the session-start frontend-error line 
   a /compact re-fold it with a bare `frontend-errors`.
 init_concern: null
 implements_signature:
-  AGENTS.md#compact: 53cb1cb517de20cba0a52050adbd3e05e365ae4f51adf672debd437e7ed86695
+  AGENTS.md#compact: bd969d649359d59c12080cdbd2b8da9f11f8ba5c427851b6b71969f8c8d29884
   bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
   bin/lib/cli.py#cmd_frontend_errors: bb0908d968e3dada8a5ab7a98f43f9b80b407e0c59cf06a65c1f3f16b6f379e6
   bin/lib/frontend_errors.py#declared_source: fc76f919bd81c16f0aedb7c5f001b3e642a534a65e83cc4eb1a459deb39eac53

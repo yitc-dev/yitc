@@ -1644,6 +1644,7 @@ CMD_EVENT_INJECTS = (
     "_resolve_owner_directive_source_ref",
     "_uncatalogued_emit_refusal",
     "_near_synonym_emit_warning",
+    "_packet_fold_emit_warning",
     "_utc_now_iso",
     "_extract_text",
     "_validated_explicit_source_ref",
@@ -1658,7 +1659,7 @@ CMD_EVENT_INJECTS = (
 )
 
 
-def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_REALMS, REPO_ROOT, RESERVED_DATA_KEYS, RESERVED_DATA_KEY_REDIRECT, SANDBOX_LIFECYCLE_PAYLOAD_KEYS, SOURCE_REF_REQUIRED_TYPES, TASK_ID_RE, TRIAGE_CONTENT_EVENT_TYPES, _actor, _append_event, _auto_file_kernel_deviations, _capture_fingerprint_counts, _classify_cc_entry, _die, _extract_text, _git_resolve_sha, _pre_claim_refuse_hint, _reopen_resolved_error, _resolve_owner_directive_source_ref, _uncatalogued_emit_refusal, _near_synonym_emit_warning, _utc_now_iso, _validated_explicit_source_ref, audit, cross, debt_mod, events, journal, observe, validate_sandbox_lifecycle_payload, P8_EVIDENCE_TYPES=("consumer_read_evidence", "live_trigger_evidence")) -> None:
+def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_REALMS, REPO_ROOT, RESERVED_DATA_KEYS, RESERVED_DATA_KEY_REDIRECT, SANDBOX_LIFECYCLE_PAYLOAD_KEYS, SOURCE_REF_REQUIRED_TYPES, TASK_ID_RE, TRIAGE_CONTENT_EVENT_TYPES, _actor, _append_event, _auto_file_kernel_deviations, _capture_fingerprint_counts, _classify_cc_entry, _die, _extract_text, _git_resolve_sha, _pre_claim_refuse_hint, _reopen_resolved_error, _resolve_owner_directive_source_ref, _uncatalogued_emit_refusal, _near_synonym_emit_warning, _packet_fold_emit_warning, _utc_now_iso, _validated_explicit_source_ref, audit, cross, debt_mod, events, journal, observe, validate_sandbox_lifecycle_payload, P8_EVIDENCE_TYPES=("consumer_read_evidence", "live_trigger_evidence")) -> None:
     # Boundary note (T-0048 audit, per D-0030): this generic verb + every other
     # _append_event callsite in this file emit LIFECYCLE / diagnostic events only
     # (task_filed/closed/parked/wont_do, audit_{stage}_completed,
@@ -2309,6 +2310,14 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
     if _premise_hint:
         print(_premise_hint, file=sys.stderr)
 
+    # T-13508: will this task-tied row be folded OUT of its task's audit-post packet by the card
+    # opt-in? Report-only and fail-open — contract in `_packet_fold_emit_warning`; this stays a call
+    # site. Same family and same placement as the hints above: BEFORE the `--check` early return, so a
+    # validation run prints it exactly as a real emit does.
+    _fold_warn = _packet_fold_emit_warning(event_type, args.task, data)
+    if _fold_warn:
+        print(_fold_warn, file=sys.stderr)
+
     # T-11666 (X-1120, <project>): the NO-WRITE validation mode. THE flag is one early return placed
     # HERE — at the single append site, below every pre-append check — and that placement is the whole
     # design. Everything above runs UNCHANGED, so `--check` does not have a validation path of its own
@@ -2450,7 +2459,9 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
                       duration_ms: "int | None" = None,
                       session_ref: "str | None" = None,
                       source_kind: "str | None" = None, reads_since: "dict | None" = None,
-                      events_path: "Path | None" = None, *, EVENTS_PATH, KERNEL_NAME, REPO_ROOT, SELF_REF_ENV, TASKS_DIR, _append_event, _cli_invoked_shape, _cross_self, _is_consumer_build, _lookup_identity_env, _resolve_session_ref_for_envelope_with_source, _session_epoch, _stdout_was_delivered, _try_resolve_session_ref, _try_resolve_session_ref_with_source, _warn_stdout_discarded, events, gates, journal_mod, state) -> None:
+                      events_path: "Path | None" = None,
+                      content_sha: "str | None" = None, epoch: "int | None" = None,
+                      *, EVENTS_PATH, KERNEL_NAME, REPO_ROOT, SELF_REF_ENV, TASKS_DIR, _append_event, _cli_invoked_shape, _cross_self, _is_consumer_build, _lookup_identity_env, _resolve_session_ref_for_envelope_with_source, _session_epoch, _stdout_was_delivered, _try_resolve_session_ref, _try_resolve_session_ref_with_source, _warn_stdout_discarded, events, gates, journal_mod, state) -> None:
     """Emit the cli_invoked observability event for one of the 6 read/query verbs (T-0113, draft §3).
     Append-only, D-0009-safe; task_id=null. session_ref is resolved upstream by _auto_sync, but since
     T-0304 a read verb fail-OPENS on an unwritable journal, so this emit is best-effort (its own
@@ -2468,7 +2479,14 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
     (re-deriving is exactly what split the two gate-bearing ids in T-10246). `session start` passes the
     class `_session_start_identity` returned (`arg` | `env:<carrier>` | `worktree_stamp` |
     `minted_self_ref`). Pass a `session_ref` WITHOUT a `source_kind` and the row records `explicit` — the
-    honest label for a direct/synthetic caller supplying a ref of undeclared provenance."""
+    honest label for a direct/synthetic caller supplying a ref of undeclared provenance.
+
+    `content_sha` + `epoch` (T-13510) ride a `graph query` POINT-LOOKUP receipt only. `epoch` is the
+    context-epoch stamp the seed receipt already carries (SPEC-0050 §8): the caller's value when it
+    established one, else `_session_epoch()`. `content_sha` is the sha256 of the bytes the lookup
+    rendered, recorded ONLY when the caller measured it (the stage deliverer does) — it is what lets
+    that deliverer tell "this epoch already holds this exact render" from "deliver it". Both are
+    additive, D-0009 P5-safe keys: no gate reads either, and read-gate credit stays session-scoped."""
     # T-12840 — FREEZE the measured span FIRST, before this function resolves the session identity:
     # that resolution (`_try_resolve_session_ref`, `_session_epoch`, the envelope resolver below) can
     # fold the whole journal — the T-10115 bounded retry on an unbacked carry measured 684 folds — and
@@ -2605,6 +2623,12 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
         # through to the stamp. Keep the carried reader visible on the row.
         if carried_ref and bootstrap_sref and bootstrap_sref != carried_ref:
             data["carried_session_ref_unbacked"] = carried_ref
+        # T-13510: the point-lookup receipt gains the epoch stamp the seed receipt already has (a
+        # receipt without one reads as epoch 0), plus the render's fingerprint when the caller took it.
+        data["epoch"] = (epoch if isinstance(epoch, int) and not isinstance(epoch, bool)
+                         else _session_epoch())
+        if content_sha:
+            data["content_sha"] = content_sha
     # T-10081 (SPEC-0042 §seed floor): `session start` records the audience-seed READ receipt the SAME
     # ADDITIVE way — a cli_invoked row whose node_id is the seed sentinel, so `_require_seed_read` credits
     # it via the existing `_fetched_spec_ids` reader (NO new event/store, P1 F1; the exact analog of the

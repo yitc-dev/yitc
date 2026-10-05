@@ -318,7 +318,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
   bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
-  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
+  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
   bin/lib/worktree.py#_land_tail_marker_clear: 85489248e561e106b0438265d508544048970b2d70fb9fa6933319d478984622
   bin/lib/worktree.py#_land_tail_marker_live_covering: c78923ecb142409a171904f32dd3a256c86c3eb0458a0fc84d4071337a6f8f66
   bin/lib/worktree.py#_land_tail_marker_path: f67d3b61e2ed71a18bc0342bae34ac04b0fb0f69cbcf6c2ec93469e3dc692b9e

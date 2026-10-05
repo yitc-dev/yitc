@@ -15,6 +15,8 @@ implements:
 - bin/lib/session.py#_resolve_declared_executable
 - bin/lib/session.py#_capability_executable
 - bin/lib/audit.py#subscription_auth_present
+- bin/lib/debt.py#late_findings_per_pass
+- bin/lib/debt_landing.py#holder_liveness
 - bin/lib/debt.py#_debt_echo_lines
 - bin/lib/session.py#cmd_session_start
 - bin/lib/worktree.py#cmd_land
@@ -119,6 +121,8 @@ implements:
 - bin/lib/land_verify_legs.py#_registry_names_file
 - bin/lib/debt_adoption.py#unresolved_worker_halts
 - bin/lib/debt.py#nightly_verdict_changes
+- bin/lib/debt.py#_nightly_quiet_lane_failed
+- bin/lib/debt.py#_nightly_quiet_lane_map
 - bin/lib/debt.py#NIGHTLY_CHRONIC_CHECKS
 - bin/lib/debt.py#NIGHTLY_CHRONIC_REMEDY
 - bin/lib/debt.py#NIGHTLY_CHRONIC_VERDICT
@@ -280,7 +284,17 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ it is\n   late is exactly how deferred adoption becomes never-adopted. It adds\
   \ NO new collaborator and NO new\n   call site — the clause reads the view the echo\
   \ already folds — and clears only when the card's\n   `settled_by` names where the\
-  \ recorded reading landed.\n   **DEFERRED ACCEPTANCE PROBES — a FIFTH clause, UNFLOORED,\
+  \ recorded reading landed.\n   **AN OBSERVATION ON A `wont-do` CARD THAT NEVER SHIPPED\
+  \ IS NOT OWED, AND IS COUNTED APART\n.** The clause above counts an obligation on\
+  \ a SHIPPED change. A card that went\n   `wont-do` with no recorded `commit` shipped\
+  \ nothing, so its declared observation has no subject\n   — and no verb can settle\
+  \ it, since `task close --settle-observation` admits a `done` card only.\n   Such\
+  \ an observation leaves the pending / overdue counts and is reported on its OWN\
+  \ named,\n   counted set, each row carrying its task id. It is MOVED, never dropped:\
+  \ the echo names the\n   group beside the observation line, and alone when the group\
+  \ is all that is left. A `wont-do`\n   card that DID record a `commit` is a partial\
+  \ ship with something to observe and stays counted;\n   every other status is counted\
+  \ exactly as before.\n   **DEFERRED ACCEPTANCE PROBES — a FIFTH clause, UNFLOORED,\
   \ off the SAME `_view_overdue_recheck`\n   call (SPEC-0015 / <project> X-1066).**\
   \ The overdue-recheck view folds a THIRD\n   deferred-proof carrier: a card's own\
   \ `probes: {ACx: deferred}` — a proof the CLOSURE recorded as\n   owed. The state\
@@ -410,10 +424,11 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ host residue (`_debt_echo_lines`) that rule 7 uses, so it is STRUCTURALLY wired\
   \ into\n   all debt seams (session-start / `debt` re-fold) and is SUPPRESSED-WHEN-CLEAN,\n\
   \   report-only, NO gate/event/auto-apply (CHARTER §6) — rules 2/3/5. The engine's\
-  \ OWN repo has no\n   `yitc-ops.yaml`, so the line is suppressed there (the inverse\
-  \ of rule 7's engine-empty note); a `-C`\n   consumer's session rebinds REPO_ROOT\
-  \ to the consumer before any verb runs, so the self-check reads\n   the consumer's\
-  \ own carrier at that consumer's seams. A pre-init / unreadable / non-mapping carrier\
+  \ OWN repo is excluded\n   by identity — it is not a consumer of its own ops contract\
+  \ (SPEC-0186 rule 6) — so the line is\n   suppressed there (the inverse of rule\
+  \ 7's engine-empty note); a `-C`\n   consumer's session rebinds REPO_ROOT to the\
+  \ consumer before any verb runs, so the self-check reads\n   the consumer's own\
+  \ carrier at that consumer's seams. A pre-init / unreadable / non-mapping carrier\
   \ is\n   NOT a schema-skew row (fail-open, skipped) — a different, pre-init condition.\
   \ Because the check is\n   over THIS repo ONLY, it needs no registry enumeration\
   \ and carries NONE of the retired sweep's\n   engine-only / registry-resident host-leak\
@@ -430,13 +445,14 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ whether it passed). Computed by\n   `init.concern_conformance(ops_path)` and injected\
   \ as an OPTIONAL collaborator of `_render_debt_echo`\n   (DISTINCT from rule 8's\
   \ skew line, which is a host-residue APPEND — this one is a per-repo carrier\n \
-  \  check on THIS repo, engine or consumer); count 0 (incl. the no-carrier engine\
-  \ kernel itself) ⇒ CLEAN\n   ⇒ suppressed. It rides rules 2/3/5 verbatim — the SAME\
-  \ seams (session-start / `debt`\n   re-fold), SUPPRESSED-WHEN-CLEAN, REPORT-ONLY,\
-  \ never a gate, NO new store, NO new event type (the debt\n   echo helper gains\
-  \ one OPTIONAL injected collaborator; P1). The SAME source ALSO feeds the nightly\n\
-  \   runner (SPEC-0105, `_check_concern_conformance`) so a repo no session has opened\
-  \ is still checked.\n   This REALIZES SPEC-0128 Rule 2's \"the standing conformance/skew\
+  \  check on THIS repo); count 0 ⇒ CLEAN ⇒ suppressed. The engine kernel itself is\
+  \ not judged by it:\n   it is excluded by identity, not a consumer of its own ops\
+  \ contract (SPEC-0186 rule 6).\n   It rides rules 2/3/5 verbatim — the SAME seams\
+  \ (session-start / `debt`\n   re-fold), SUPPRESSED-WHEN-CLEAN, REPORT-ONLY, never\
+  \ a gate, NO new store, NO new event type (the debt\n   echo helper gains one OPTIONAL\
+  \ injected collaborator; P1). The SAME source ALSO feeds the nightly\n   runner\
+  \ (SPEC-0105, `_check_concern_conformance`) so a repo no session has opened is still\
+  \ checked.\n   This REALIZES SPEC-0128 Rule 2's \"the standing conformance/skew\
   \ views ride SPEC-0119's `debt` echo\".\n   **(c) CARRIER COMMENT-CONTRACT (X-0401)\
   \ — a THIRD signal on this SAME view, with its OWN\n   report-only line.** The `yitc-ops.yaml`\
   \ carrier delivers much of its kernel contract THROUGH its\n   COMMENTS (the declare-or-waive\
@@ -780,62 +796,64 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ silence this view exists to end; only the honest exits\n    clear it. It rides\
   \ rules 2/3/5 verbatim — the SAME seams (session-start / `debt`\n    re-fold), SUPPRESSED-WHEN-CLEAN,\
   \ REPORT-ONLY, never a gate, NO new store / event / verb / knob (one\n    more OPTIONAL\
-  \ injected collaborator; P1). A repo with no carrier (the engine kernel itself)\
-  \ ⇒\n    `no-carrier` ⇒ count 0 ⇒ suppressed.\n    **Its RATIFIED complement rides\
-  \ the SAME walk.** The `checked` result also carries\n    `ratified: {section: owner}`\
-  \ — every concern whose stance (the same `_mirror_adoption_status`) is\n    live\
-  \ (not `na`) and whose record carries that stance under a NAMED owner. It adds no\
-  \ row, changes no\n    count and no trigger above; it exists so `init` can tell\
-  \ an already-ratified born-permissive\n    concern (SPEC-0189 rule 8) from an unconfirmed\
-  \ one WITHOUT a second carrier reader, and is read for\n    DISPLAY only. The `no-carrier`\
-  \ / `unreadable` shapes are unchanged (no key; readers default to empty).\n    **The\
-  \ SAME source ALSO feeds the nightly runner** (SPEC-0105, `_check_unratified_adoptions`)\
-  \ so a\n    repo no session has opened is still checked — the leg rule 9's sibling\n\
-  \    (`_check_concern_conformance`) has held since, added here because an unratified\
-  \ adoption is\n    the SAME class of STANDING carrier condition, not an activity-triggered\
-  \ one: nothing about it depends\n    on someone opening a session, so nothing about\
-  \ its surfacing should either. The nightly REUSES this\n    same one source (CHARTER\
-  \ §P5 — no parallel stance logic), so the two surfaces can never disagree.\n   \
-  \ **The unreadable-carrier answer belongs to each READER, not to the source**\n\
-  \    (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`: fail-closed is\
-  \ a property of a use site,\n    not of a parse result). The VIEW stays faithful\
-  \ — an unreadable/malformed carrier ⇒ count 0, and the\n    debt echo never nags\
-  \ on it (the SPEC-0093 init sweep owns malformed-carrier errors, and in a repo with\n\
-  \    a live session that sweep will run). The NIGHTLY reader has the opposite duty\
-  \ — it exists precisely to\n    check repos NOBODY opens, where no sweep ever runs\
-  \ — so it FAILS CLOSED and alerts on a broken\n    carrier, the rule its 3 sibling\
-  \ checks already hold (collapsing ABSENT and CORRUPTED into one\n    `skip` makes\
-  \ a broken carrier read as health exactly when the check matters most). It names\
-  \ no items\n    on that arm (the counts stay total-safe) and neither re-prints the\
-  \ UNREADABLE cause nor re-counts the\n    broken carrier: counts the carrier once,\
-  \ and it is one fault on one file.\n\n14. **Recent security-gate overrides (SPEC-0155\
-  \ rule 7, X-0362/X-0363).** An OPTIONAL injected\n    report-only view (`debt.recent_gate_overrides`,\
-  \ collaborator of `_render_debt_echo`) over THIS\n    repo's journal: the governed\
-  \ deploys that OVERRODE a REJECTING pre-deploy security gate within the\n    reading\
-  \ window (30d), each surfacing its reason, the advisories it named, and how many\
-  \ findings it\n    bypassed.\n    **The gap it closes.** SPEC-0155 rule 7 opens\
-  \ the ONE governed way past a fail-closed security\n    gate (owner-invoked, reason-bearing,\
-  \ class-bounded, every blocked finding NAMED, journaled). That\n    escape hatch\
-  \ is legitimate only while it stays RARE and VISIBLE: an override nobody ever reads\
-  \ back\n    is indistinguishable from a gate quietly switched off — and the findings\
-  \ it bypassed are still OPEN\n    in the deployed code. This line is the override's\
-  \ ONE mandatory reading moment, and it is the half\n    of rule 7 that keeps the\
-  \ bypass honest over time.\n    **The trigger is ENUMERATED, never prose:** one\
-  \ row per `deploy_security_gate_overridden` event\n    whose `ts` falls inside the\
-  \ window. It is a dated ACT, not an obligation — nothing \"discharges\" it;\n  \
-  \  it ages out of the window. The bypassed findings' own openness belongs to rule\
-  \ 11 (the sub-critical\n    fold) — one concern per view, never two readers of the\
-  \ same fact.\n    UNFLOORED, on the same ground as rules 11/12/13: a SINGLE deliberate\
-  \ gate bypass is precisely what\n    must never be count-hidden. The line names\
-  \ the fix (the findings are still open — fix each or record\n    an accepted-risk\
-  \ waiver, then re-run the producer) AND the meta-signal: a REPEATING override means\n\
-  \    the BLOCKING RULE, not the deploy, is what needs to change. It rides rules\
-  \ 2/3/5 verbatim — the SAME\n    seams (session-start / `debt` re-fold), SUPPRESSED-WHEN-CLEAN,\
-  \ REPORT-ONLY, never a\n    gate, NO new store / event / verb / knob (one more OPTIONAL\
-  \ injected collaborator; P1 — it folds the\n    event rule 7 already emits). A repo\
-  \ that never overrode the gate ⇒ count 0 ⇒ suppressed.\n\n15. **Per-user capability\
-  \ preflight (SPEC-0093, X-0364).** A report-only line\n    (`session.capability_preflight_lines`,\
-  \ APPENDED by the `_debt_echo_lines` host residue exactly as\n    the rule-7 `startup_check_lines`\
+  \ injected collaborator; P1). A repo with no carrier ⇒ `no-carrier` ⇒ count 0 ⇒\n\
+  \    suppressed; the engine kernel itself is not judged by it at all — excluded\
+  \ by identity, not a\n    consumer of its own ops contract (SPEC-0186 rule 6).\n\
+  \    **Its RATIFIED complement rides the SAME walk.** The `checked` result also\
+  \ carries\n    `ratified: {section: owner}` — every concern whose stance (the same\
+  \ `_mirror_adoption_status`) is\n    live (not `na`) and whose record carries that\
+  \ stance under a NAMED owner. It adds no row, changes no\n    count and no trigger\
+  \ above; it exists so `init` can tell an already-ratified born-permissive\n    concern\
+  \ (SPEC-0189 rule 8) from an unconfirmed one WITHOUT a second carrier reader, and\
+  \ is read for\n    DISPLAY only. The `no-carrier` / `unreadable` shapes are unchanged\
+  \ (no key; readers default to empty).\n    **The SAME source ALSO feeds the nightly\
+  \ runner** (SPEC-0105, `_check_unratified_adoptions`) so a\n    repo no session\
+  \ has opened is still checked — the leg rule 9's sibling\n    (`_check_concern_conformance`)\
+  \ has held since, added here because an unratified adoption is\n    the SAME class\
+  \ of STANDING carrier condition, not an activity-triggered one: nothing about it\
+  \ depends\n    on someone opening a session, so nothing about its surfacing should\
+  \ either. The nightly REUSES this\n    same one source (CHARTER §P5 — no parallel\
+  \ stance logic), so the two surfaces can never disagree.\n    **The unreadable-carrier\
+  \ answer belongs to each READER, not to the source**\n    (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`:\
+  \ fail-closed is a property of a use site,\n    not of a parse result). The VIEW\
+  \ stays faithful — an unreadable/malformed carrier ⇒ count 0, and the\n    debt\
+  \ echo never nags on it (the SPEC-0093 init sweep owns malformed-carrier errors,\
+  \ and in a repo with\n    a live session that sweep will run). The NIGHTLY reader\
+  \ has the opposite duty — it exists precisely to\n    check repos NOBODY opens,\
+  \ where no sweep ever runs — so it FAILS CLOSED and alerts on a broken\n    carrier,\
+  \ the rule its 3 sibling checks already hold (collapsing ABSENT and CORRUPTED into\
+  \ one\n    `skip` makes a broken carrier read as health exactly when the check matters\
+  \ most). It names no items\n    on that arm (the counts stay total-safe) and neither\
+  \ re-prints the UNREADABLE cause nor re-counts the\n    broken carrier: counts the\
+  \ carrier once, and it is one fault on one file.\n\n14. **Recent security-gate overrides\
+  \ (SPEC-0155 rule 7, X-0362/X-0363).** An OPTIONAL injected\n    report-only view\
+  \ (`debt.recent_gate_overrides`, collaborator of `_render_debt_echo`) over THIS\n\
+  \    repo's journal: the governed deploys that OVERRODE a REJECTING pre-deploy security\
+  \ gate within the\n    reading window (30d), each surfacing its reason, the advisories\
+  \ it named, and how many findings it\n    bypassed.\n    **The gap it closes.**\
+  \ SPEC-0155 rule 7 opens the ONE governed way past a fail-closed security\n    gate\
+  \ (owner-invoked, reason-bearing, class-bounded, every blocked finding NAMED, journaled).\
+  \ That\n    escape hatch is legitimate only while it stays RARE and VISIBLE: an\
+  \ override nobody ever reads back\n    is indistinguishable from a gate quietly\
+  \ switched off — and the findings it bypassed are still OPEN\n    in the deployed\
+  \ code. This line is the override's ONE mandatory reading moment, and it is the\
+  \ half\n    of rule 7 that keeps the bypass honest over time.\n    **The trigger\
+  \ is ENUMERATED, never prose:** one row per `deploy_security_gate_overridden` event\n\
+  \    whose `ts` falls inside the window. It is a dated ACT, not an obligation —\
+  \ nothing \"discharges\" it;\n    it ages out of the window. The bypassed findings'\
+  \ own openness belongs to rule 11 (the sub-critical\n    fold) — one concern per\
+  \ view, never two readers of the same fact.\n    UNFLOORED, on the same ground as\
+  \ rules 11/12/13: a SINGLE deliberate gate bypass is precisely what\n    must never\
+  \ be count-hidden. The line names the fix (the findings are still open — fix each\
+  \ or record\n    an accepted-risk waiver, then re-run the producer) AND the meta-signal:\
+  \ a REPEATING override means\n    the BLOCKING RULE, not the deploy, is what needs\
+  \ to change. It rides rules 2/3/5 verbatim — the SAME\n    seams (session-start\
+  \ / `debt` re-fold), SUPPRESSED-WHEN-CLEAN, REPORT-ONLY, never a\n    gate, NO new\
+  \ store / event / verb / knob (one more OPTIONAL injected collaborator; P1 — it\
+  \ folds the\n    event rule 7 already emits). A repo that never overrode the gate\
+  \ ⇒ count 0 ⇒ suppressed.\n\n15. **Per-user capability preflight (SPEC-0093, X-0364).**\
+  \ A report-only line\n    (`session.capability_preflight_lines`, APPENDED by the\
+  \ `_debt_echo_lines` host residue exactly as\n    the rule-7 `startup_check_lines`\
   \ append) naming which DECLARED lifecycle commands the CURRENT user\n    cannot\
   \ RUN. It reads the commands the lifecycle ALREADY declares — `yitc-ops.yaml`\n\
   \    `verify.layers[].command` (the land-verify gate) + `tests.classes[].command`\
@@ -1901,12 +1919,23 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ presence count, three-valued (alive / not-seen /\n    undetermined), per `lessons/a-presence-count-is-not-a-liveness-probe`:\
   \ a boolean that ORs a\n    cheap presence proxy with a real probe takes the proxy's\
   \ answer. The view adopts nothing,\n    re-stamps nothing, cleans nothing up and\
-  \ acts on nothing it finds.\n    **UNCERTAINTY DIRECTION — silent, never accusing.**\
-  \ The reader IS the predicate: a raise or a\n    non-list folds the WHOLE view to\
-  \ a clean zero. And when the READING session's own identity\n    cannot be resolved,\
-  \ NOTHING can be proved foreign, so the view goes silent rather than reporting\n\
-  \    every holder — the fail-safe direction for a signal about someone else\n  \
-  \  (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate`).\n\
+  \ acts on nothing it finds.\n    **WHICH OF THE THREE STATES A HOLDER GETS — the\
+  \ probe is told what it can.** The\n    probe matches the launch argv that only\
+  \ a DISPATCHED worker carries, and a worker's launch\n    record declares that it\
+  \ does. So a holder reads `alive` when the probe finds its process;\n    `not-seen`\
+  \ ONLY when the probe does not find it AND a launch record declares that argv for\n\
+  \    this exact stamp — the probe could have seen it and did not; and `undetermined`\
+  \ in every\n    other case: a holder no such record names (an interactive controller\
+  \ never carries the\n    argv), or a journal that cannot be read. Not-found is never\
+  \ reported about a holder the probe\n    cannot see by construction. The declaration\
+  \ is read in the SAME pass over the launch records\n    the attribution above already\
+  \ makes, and — unlike attribution — from ANY launcher's record:\n    it silences\
+  \ nothing, it only chooses between two advisory wordings.\n    **UNCERTAINTY DIRECTION\
+  \ — silent, never accusing.** The reader IS the predicate: a raise or a\n    non-list\
+  \ folds the WHOLE view to a clean zero. And when the READING session's own identity\n\
+  \    cannot be resolved, NOTHING can be proved foreign, so the view goes silent\
+  \ rather than reporting\n    every holder — the fail-safe direction for a signal\
+  \ about someone else\n    (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate`).\n\
   \    **SEAM SET — session-start + the `debt` re-fold, and the land tail is WITHHELD\
   \ (rule 21's\n    detached-not-conditioned discipline, reused; moot since retired\
   \ the land-tail seam).** Every sibling view here is a JOURNAL or carrier\n    fold,\
@@ -3617,46 +3646,84 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ The check half is not hypothetical: on the night\n    landed, its newly-shipped\
   \ `seam_reads` check appeared on all 11 projects at once — a union\n    comparison\
   \ reported 11 changed projects, which is a RELEASE NOTE wearing the costume of an\n\
-  \    incident. With fewer than two rows the view says NOTHING: a first night has\
-  \ no yesterday, and\n    the honest answer to «what changed» is silence, never «everything».\n\
-  \    **IT READS THROUGH THE INSTRUMENTED PRIMITIVE AND PROPOSES NO CACHE.** `journal.segment_rows`\n\
-  \    is the segment-aware fold (rule 4 of SPEC-0190 — the WHOLE logical journal;\
-  \ a raw read of the\n    journal PATH sees the live segment alone and would report\
-  \ an older night as absent) and is one\n    of the two readers a request-scoped\
-  \ ReadScope serves (SPEC-0190 rule 10), so inside the wiring\n    site's scope this\
-  \ view performs NO physical read of its own. Only the VERDICT MAP of each night\n\
-  \    is retained, plus the raw `results` of the last two rows for the chronic detail\
-  \ — holding 111\n    nights of full payload to answer a question about the last\
-  \ one would be the very amplification\n    the sibling rule 37 reports. A cache\
-  \ on a view inside a composed seam is a proposal to skip\n    rule 10, so this view\
-  \ must never appear to suggest one.\n    **NO WINDOW, DELIBERATELY** — unlike its\
-  \ windowed siblings this fold compares the last two rows\n    whenever they were\
-  \ written. A fleet whose nightly STOPPED RUNNING therefore keeps reporting the\n\
-  \    last real comparison rather than going quiet exactly when something is wrong;\
-  \ a 7-day window\n    would convert a broken scheduler into silence, which is the\
-  \ failure mode this rule exists to\n    end rather than to reproduce.\n    **POSTURE.**\
-  \ Rides rules 2/3/5 verbatim: suppressed-when-clean, report-only, ZERO stored state,\n\
-  \    NO new event type, no new store, no new verb, no new seam, no knob, no exit\
-  \ code, no gate. The\n    per-project count and the chronic lines are INDEPENDENT:\
-  \ a fleet where nothing moved but the\n    chronic conditions persist still says\
-  \ so, and a fleet that is wholly clean says nothing at all.\n    **CHARTER §P1 FILTER\
-  \ 3, STATED PLAINLY.** What this removes is the standing condition that\n    `nightly_run_completed`\
-  \ is written-and-unread, and with it the 11/11 flag as the only fleet\n    reading\
-  \ anyone had. No further deletion is invented to make the filter look stronger.\n\
-  \    Unit tests (`tests/test_nightly_reader_debt_line.py`): all three closure-provable\
-  \ ACs, each\n    DIFFERENTIAL — one project moving out of three (identical nights\
-  \ and a single-row journal both\n    printing NOTHING); the two chronic lines dated\
-  \ from a spell that starts mid-fixture (a night\n    pair carrying neither condition\
-  \ printing neither line, and a project flipping ONLY `corpus`\n    stale→ok staying\
-  \ OUT of the change line — the leg that catches a split that merely renamed the\n\
-  \    chronic checks); and the wiring asserted in the residue's own source slice,\
-  \ where a fold wired\n    only into `debt` would not appear.\n\n39. **THE BROWNFIELD\
-  \ GAP REGISTER — what this project's own derived profile REQUIRES and its own\n\
-  \    carrier does not answer (SPEC-0198 rules 5+7).** An OPTIONAL injected report-only\n\
-  \    fold (`debt.profile_gap_register`), wired at the ONE shared host residue like\
-  \ every sibling\n    and riding all seams (session-start / the `debt` re-fold).\n\
-  \    **SUBJECT — ONE DATED ROW per profile-required baseline item the project does\
-  \ not meet.** The\n    required set is DERIVED, never asked for: the lenses `profile.required_check_set`\
+  \    incident. With fewer than two rows the change line and the chronic lines say\
+  \ NOTHING: a first\n    night has no yesterday, and the honest answer to «what changed»\
+  \ is silence, never «everything».\n    **IT READS THROUGH THE INSTRUMENTED PRIMITIVE\
+  \ AND PROPOSES NO CACHE.** `journal.segment_rows`\n    is the segment-aware fold\
+  \ (rule 4 of SPEC-0190 — the WHOLE logical journal; a raw read of the\n    journal\
+  \ PATH sees the live segment alone and would report an older night as absent) and\
+  \ is one\n    of the two readers a request-scoped ReadScope serves (SPEC-0190 rule\
+  \ 10), so inside the wiring\n    site's scope this view performs NO physical read\
+  \ of its own. Only the VERDICT MAP of each night\n    is retained, plus the raw\
+  \ `results` of the last two rows for the chronic detail — holding 111\n    nights\
+  \ of full payload to answer a question about the last one would be the very amplification\n\
+  \    the sibling rule 37 reports. A cache on a view inside a composed seam is a\
+  \ proposal to skip\n    rule 10, so this view must never appear to suggest one.\n\
+  \    **NO WINDOW, DELIBERATELY** — unlike its windowed siblings this fold compares\
+  \ the last two rows\n    whenever they were written. A fleet whose nightly STOPPED\
+  \ RUNNING therefore keeps reporting the\n    last real comparison rather than going\
+  \ quiet exactly when something is wrong; a 7-day window\n    would convert a broken\
+  \ scheduler into silence, which is the failure mode this rule exists to\n    end\
+  \ rather than to reproduce.\n    **A `failed` ENGINE QUIET-LANE READING GETS A DATED\
+  \ LINE OF ITS OWN (ADDITIVE).**\n    The same row carries the engine quiet lane's\
+  \ readings (SPEC-0105 §2c — the wall-clock\n    instruments SPEC-0077 §3b moved\
+  \ off the per-land verify), and that block had no reader either:\n    the nightly\
+  \ reported a failed reading on its own stdout and nowhere a session looks. Measured\n\
+  \    on the engine's own journal: the journal-length-coupling instrument recorded\
+  \ `failed` on every\n    night from 2026-09-13 to 2026-10-02 and reached no seam.\
+  \ So this view ALSO reports, per engine\n    quiet-lane instrument whose LATEST\
+  \ reading is `failed`, ONE line naming the instrument, the\n    FIRST NIGHT of its\
+  \ CURRENT UNBROKEN failed spell, the night count, and the FIRST LINE of the\n  \
+  \  reason that night recorded. The spell is dated by the SAME backwards walk as\
+  \ a chronic\n    condition, so a spell that cleared and returned is dated from its\
+  \ RETURN.\n    WHAT `failed` MEANS, AND WHAT THE LINE MAY CLAIM. `failed` is the\
+  \ lane's verdict for an\n    instrument that exited non-zero, was killed at the\
+  \ lane's bound, or could not be run. It\n    therefore covers TWO different facts\
+  \ — an instrument that never measured, and one that\n    measured and failed its\
+  \ own assertion — and the line asserts NEITHER: it says the timing\n    assertion\
+  \ has had no passing reading for the spell, and leaves the telling-apart to the\n\
+  \    recorded reason it quotes. (The measured spell above was the first kind: it\
+  \ raised before\n    measuring.) Either fact is worth the line, because this lane\
+  \ is the only place that assertion\n    runs.\n    `failed` IS AN EXACT MATCH, on\
+  \ the terms of the chronic verdict above: a `skipped` reading (the\n    host was\
+  \ not quiet, so nothing was measured) and a night carrying no reading for the instrument\n\
+  \    are UNMEASURED nights — each ENDS a spell and neither starts one. SUPPRESSED\
+  \ the first night the\n    latest reading is anything but `failed`: the line reports\
+  \ a current failed reading, not a\n    history. IT NEEDS NO YESTERDAY — unlike the\
+  \ change line, it prints on a single row, because a\n    `failed` reading is a fact\
+  \ about that night and not a comparison. OUT OF THIS LINE,\n    deliberately: an\
+  \ `ok` reading flagged `regression` (a passing run slower than its baseline — a\n\
+  \    different verdict) and the per-project lanes (a different subject on the same\
+  \ row). It reads\n    the rows the fold already iterates — no further read, no cache\
+  \ — and names no remedy, because\n    the remedy for a failed reading is whatever\
+  \ its recorded reason says.\n    **POSTURE.** Rides rules 2/3/5 verbatim: suppressed-when-clean,\
+  \ report-only, ZERO stored state,\n    NO new event type, no new store, no new verb,\
+  \ no new seam, no knob, no exit code, no gate. The\n    per-project count, the chronic\
+  \ lines and the quiet-lane lines are INDEPENDENT: a fleet where\n    nothing moved\
+  \ but the chronic conditions persist still says so, and a fleet that is wholly clean\n\
+  \    says nothing at all.\n    **CHARTER §P1 FILTER 3, STATED PLAINLY.** What this\
+  \ removes is the standing condition that\n    `nightly_run_completed` is written-and-unread,\
+  \ and with it the 11/11 flag as the only fleet\n    reading anyone had. No further\
+  \ deletion is invented to make the filter look stronger.\n    Unit tests (`tests/test_nightly_reader_debt_line.py`):\
+  \ all three closure-provable ACs, each\n    DIFFERENTIAL — one project moving out\
+  \ of three (identical nights and a single-row journal both\n    printing NOTHING);\
+  \ the two chronic lines dated from a spell that starts mid-fixture (a night\n  \
+  \  pair carrying neither condition printing neither line, and a project flipping\
+  \ ONLY `corpus`\n    stale→ok staying OUT of the change line — the leg that catches\
+  \ a split that merely renamed the\n    chronic checks); and the wiring asserted\
+  \ in the residue's own source slice, where a fold wired\n    only into `debt` would\
+  \ not appear. The quiet-lane line, likewise DIFFERENTIAL: one\n    `ok` night then\
+  \ three `failed` nights rendering exactly ONE line that names the instrument,\n\
+  \    the first failed night, the count and the reason's first line (the pre-change\
+  \ reader rendering\n    none); a latest night reading `ok` rendering none; a spell\
+  \ broken by an `ok` night dated from\n    its return; and a `skipped` or absent\
+  \ reading ending a spell without starting one.\n\n39. **THE BROWNFIELD GAP REGISTER\
+  \ — what this project's own derived profile REQUIRES and its own\n    carrier does\
+  \ not answer (SPEC-0198 rules 5+7).** An OPTIONAL injected report-only\n    fold\
+  \ (`debt.profile_gap_register`), wired at the ONE shared host residue like every\
+  \ sibling\n    and riding all seams (session-start / the `debt` re-fold).\n    **SUBJECT\
+  \ — ONE DATED ROW per profile-required baseline item the project does not meet.**\
+  \ The\n    required set is DERIVED, never asked for: the lenses `profile.required_check_set`\
   \ activates\n    (SPEC-0198) name the SPEC-0100 baseline items, and each item names\
   \ the SPEC-0093 concern\n    section whose answer would meet it — and, where the\
   \ item is one of several asked of the SAME\n    section, the KEY within it (`carrier_key`).\
@@ -3679,52 +3746,53 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ fold counted it adopted, so the obligation\n  vanished while the declaration was\
   \ still broken. A concern that cannot be\n  consulted leaves the item UNMET, never\
   \ adopted — the same fail-SAFE direction every other\n  reading here takes. A repo\
-  \ with NO `yitc-ops.yaml` registers NOTHING — the engine kernel itself folds\n \
-  \   to 0 and stays silent, the `declared_checks` no-retro-nag discipline (SPEC-0149\
-  \ §1).\n    **NO NEW STORE. The row's carrier is the EXISTING followup/task link.**\
-  \ The dedupe key\n    (`dimension + item id`, SPEC-0198 rule 7) rides the followup's\
-  \ existing `fingerprint` field\n; the row's DATE is the `ts` of its own `followup_added`\
-  \ event. Nothing here adds a\n    store, an event type, an FSM, a schedule or a\
-  \ gate.\n    **TERMINAL STATES — `adopted | adapted | waived | out-of-scope | task-linked`.**\
-  \ A row in ANY\n    of them LEAVES the count. The first four are read from the carrier's\
-  \ own words (a declaration\n    is `adopted`, a declaration naming its own divergence\
-  \ is `adapted`, a waiver is `waived`, or\n    `out-of-scope` when its reason says\
-  \ the surface does not exist). `task-linked` REQUIRES A\n    RESOLVABLE T-id — an\
-  \ absent, malformed or unresolvable id is NOT terminal and the row keeps\n    its\
-  \ place. That direction is deliberate: a register whose rows may leave the count\
-  \ pointing at\n    a task nobody can open is where obligations go to disappear.\n\
-  \    **TRIAGE WINDOW — HALF-OPEN [0, 14) DAYS.** A filed row aged under 14 days\
-  \ is `within-triage`;\n    at or beyond it, `overdue-triage`, named in ONE trailing\
-  \ clause on the same line. An UNFILED\n    item has no date and is never overdue.\
-  \ The window informs; it gates nothing.\n    **THE LINE IS CAPPED, AND THE CAP IS\
-  \ THE RULE.** ONE summary line: the count, the TOP TWO\n    labels by the single\
-  \ deterministic order (`debt.gap_rank` — risk-ordered lens, `item_id`\n    tie-break),\
-  \ and a pointer. NEVER one line per item. A project with twenty gaps costs the same\n\
-  \    two lines of attention as one with three; an uncapped register is what made\
-  \ the design this\n    rule replaces unusable. Suppressed-when-clean like every\
-  \ sibling.\n    **A LONE `task:` POINTER IS NOT AN ANSWER — it is what makes the\
-  \ armed fork reachable.** A\n    carrier section whose only content is `task: T-NNNN`\
-  \ says \"we have NOT met this yet; that\n    card is doing it\": the item STAYS\
-  \ in the register, and the writer arms its followup on that\n    id. Counting the\
-  \ pointer as a declaration would close the row on a promise and leave nothing\n\
-  \    waiting for the card. The id is read STRUCTURALLY, from that one key, never\
-  \ mined out of the\n    section's prose.\n    **AUTO-FILING IS PART OF THIS RULE,\
-  \ AND SO IS ITS FENCE.** At the same seams, the host files\n    ONE followup per\
-  \ unmet item through `followup add`'s OWN body (the carrier shape) —\n    deduped\
-  \ FOREVER by the key, bounded per RUN by `debt.GAP_AUTOFILE_CAP`, born ARMED only\
-  \ when\n    the carrier section names a resolvable task id and ACTIONABLE otherwise\
-  \ (SPEC-0095 §Armed).\n    It FILES AND NOTHING ELSE: no dispatch, no audit, no\
-  \ deploy, no PR, no code mutation\n    (SPEC-0198 rule 5 / CHARTER §6). Fail-open\
-  \ but NEVER silent — a writer that cannot write names\n    itself on stderr, because\
-  \ \"nothing was owed\" and \"the writer is broken\" must not read alike.\n    **UNDER\
-  \ `--read-only` THE FOLD FILES NOTHING.** When the fold runs read-only\n    (`READ_ONLY_ROOT`\
-  \ set), this writer and the SPEC-0198 rule-7 snapshot writer are SKIPPED and the\n\
-  \    render is unchanged: their appends would land in the READER's journal while\
-  \ the dedupe/latch\n    folds read the TARGET's, so a read-only fold must stay write-free.\n\
-  \    **CHARTER §P1 FILTER 3, STATED PLAINLY.** What this removes is the identical\
-  \ security question\n    asked of every project regardless of stage — the standalone\
-  \ `security` subject of the T6\n    inspection theme, retired into the profile-gated\
-  \ production-readiness lens row\n    (`patterns/inspection-criteria-roster*.md`)\
+  \ with NO `yitc-ops.yaml` registers NOTHING, the `declared_checks`\n    no-retro-nag\
+  \ discipline (SPEC-0149 §1); the engine kernel itself registers nothing either —\
+  \ it is\n    excluded by identity, not a consumer of its own ops contract (SPEC-0186\
+  \ rule 6).\n    **NO NEW STORE. The row's carrier is the EXISTING followup/task\
+  \ link.** The dedupe key\n    (`dimension + item id`, SPEC-0198 rule 7) rides the\
+  \ followup's existing `fingerprint` field\n; the row's DATE is the `ts` of its own\
+  \ `followup_added` event. Nothing here adds a\n    store, an event type, an FSM,\
+  \ a schedule or a gate.\n    **TERMINAL STATES — `adopted | adapted | waived | out-of-scope\
+  \ | task-linked`.** A row in ANY\n    of them LEAVES the count. The first four are\
+  \ read from the carrier's own words (a declaration\n    is `adopted`, a declaration\
+  \ naming its own divergence is `adapted`, a waiver is `waived`, or\n    `out-of-scope`\
+  \ when its reason says the surface does not exist). `task-linked` REQUIRES A\n \
+  \   RESOLVABLE T-id — an absent, malformed or unresolvable id is NOT terminal and\
+  \ the row keeps\n    its place. That direction is deliberate: a register whose rows\
+  \ may leave the count pointing at\n    a task nobody can open is where obligations\
+  \ go to disappear.\n    **TRIAGE WINDOW — HALF-OPEN [0, 14) DAYS.** A filed row\
+  \ aged under 14 days is `within-triage`;\n    at or beyond it, `overdue-triage`,\
+  \ named in ONE trailing clause on the same line. An UNFILED\n    item has no date\
+  \ and is never overdue. The window informs; it gates nothing.\n    **THE LINE IS\
+  \ CAPPED, AND THE CAP IS THE RULE.** ONE summary line: the count, the TOP TWO\n\
+  \    labels by the single deterministic order (`debt.gap_rank` — risk-ordered lens,\
+  \ `item_id`\n    tie-break), and a pointer. NEVER one line per item. A project with\
+  \ twenty gaps costs the same\n    two lines of attention as one with three; an uncapped\
+  \ register is what made the design this\n    rule replaces unusable. Suppressed-when-clean\
+  \ like every sibling.\n    **A LONE `task:` POINTER IS NOT AN ANSWER — it is what\
+  \ makes the armed fork reachable.** A\n    carrier section whose only content is\
+  \ `task: T-NNNN` says \"we have NOT met this yet; that\n    card is doing it\":\
+  \ the item STAYS in the register, and the writer arms its followup on that\n   \
+  \ id. Counting the pointer as a declaration would close the row on a promise and\
+  \ leave nothing\n    waiting for the card. The id is read STRUCTURALLY, from that\
+  \ one key, never mined out of the\n    section's prose.\n    **AUTO-FILING IS PART\
+  \ OF THIS RULE, AND SO IS ITS FENCE.** At the same seams, the host files\n    ONE\
+  \ followup per unmet item through `followup add`'s OWN body (the carrier shape)\
+  \ —\n    deduped FOREVER by the key, bounded per RUN by `debt.GAP_AUTOFILE_CAP`,\
+  \ born ARMED only when\n    the carrier section names a resolvable task id and ACTIONABLE\
+  \ otherwise (SPEC-0095 §Armed).\n    It FILES AND NOTHING ELSE: no dispatch, no\
+  \ audit, no deploy, no PR, no code mutation\n    (SPEC-0198 rule 5 / CHARTER §6).\
+  \ Fail-open but NEVER silent — a writer that cannot write names\n    itself on stderr,\
+  \ because \"nothing was owed\" and \"the writer is broken\" must not read alike.\n\
+  \    **UNDER `--read-only` THE FOLD FILES NOTHING.** When the fold runs read-only\n\
+  \    (`READ_ONLY_ROOT` set), this writer and the SPEC-0198 rule-7 snapshot writer\
+  \ are SKIPPED and the\n    render is unchanged: their appends would land in the\
+  \ READER's journal while the dedupe/latch\n    folds read the TARGET's, so a read-only\
+  \ fold must stay write-free.\n    **CHARTER §P1 FILTER 3, STATED PLAINLY.** What\
+  \ this removes is the identical security question\n    asked of every project regardless\
+  \ of stage — the standalone `security` subject of the T6\n    inspection theme,\
+  \ retired into the profile-gated production-readiness lens row\n    (`patterns/inspection-criteria-roster*.md`)\
   \ — and the unbounded gap register the cancelled\n    plan `kernel-security-baseline-seeded-into-the-spec-0100`\
   \ designed. No further deletion is\n    invented to make the filter look stronger.\n\
   \    Unit tests (`tests/test_t12085_gap_register.py`): the capped line (6 unmet\
@@ -3946,7 +4014,28 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ UNFLOORED, best-effort, never gates — the gate is the floor itself, which refuses\
   \ every later\n    land until the probe passes. **What it retires (CHARTER §P1 F3):**\
   \ the closed loop in which a\n    branch shipping protected code could not also\
-  \ declare its probe. Tests:\n    `tests/test_t12982_new_probe_admitted_pending.py`.\n"
+  \ declare its probe. Tests:\n    `tests/test_t12982_new_probe_admitted_pending.py`.\n\
+  \n45. **LATE AUDIT FINDINGS — recorded history, and a closure blocker ONLY where\
+  \ the close gate says\n    so.** The line SPEC-0204 rule 8 asks for («late findings\
+  \ per pass are\n    counted»): an OPTIONAL injected report-only fold over the audit\
+  \ completion rows inside a\n    trailing window, UNFLOORED, suppressed-when-clean.\
+  \ Its COUNT is recorded history — the measured\n    cost of an incomplete pass-1\
+  \ survey — and includes findings already decided and findings on\n    cards already\
+  \ closed; nothing is ever dropped from it. What the line says about CLOSURE is not\n\
+  \    its own judgement: it is the close gate's (SPEC-0204 rule 8 — the judgement\
+  \ `task close`\n    refuses on), joined to the card's status. A finding is named\
+  \ a blocker ONLY when that judgement\n    lists it undecided AND its card is not\
+  \ terminal (`done` / `wont-do` have no close left to\n    block). When the judgement\
+  \ could not be made the finding is named UNJUDGED — never a blocker,\n    and never\
+  \ read as cleared; «none blocks a close» is said only when every finding in the\
+  \ window\n    was judged. The card is read first and only a non-terminal card is\
+  \ judged. The judgement is\n    fed from the fold's OWN declared read, never a second\
+  \ walk of the journal (SPEC-0190 rule 10),\n    so its corpus is the reading checkout's\
+  \ journal: on the main checkout that is what the gate\n    reads; in a task worktree\
+  \ a decision recorded on main is not yet in that journal, so the\n    on-demand\
+  \ re-fold there may still name that worktree's own decided finding — erring toward\n\
+  \    visible, with `task close` the authority. The gate itself is unchanged by this\
+  \ rule. Tests:\n    `tests/test_t13470_debt_lines_state_backed.py`.\n"
 cites:
 - SPEC-0165
 - SPEC-0152
@@ -4012,10 +4101,12 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e11c375e30f1a5ec49e5abf080ea7f7f8d938ec277ca145318829f970b65d8c9
-  bin/lib/debt.py#_debt_echo_lines: 1f1aceeac54e812ccf27695f53846a809866bfb7ba3248ad5a2f92824e2c2eeb
+  bin/lib/debt.py#_debt_echo_lines: c50309a08b776288178b34d1cd019f55e2d5d72fcd72ebecb5f722f2e15eb9a2
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
+  bin/lib/debt.py#_nightly_quiet_lane_failed: 190418df6ce7d15465e6e7e61fd88bbecbe0de3131ecd806a037c1e9b25f0cdf
+  bin/lib/debt.py#_nightly_quiet_lane_map: 7035acc60b38501acc3e661b76b5b9de8a1e3245fd5d75b3249f21974917deb9
   bin/lib/debt.py#_nightly_verdict_map: 864469813cc23f35cc7fb875cb997850f6e18344c0fcdc1b6ea580e2c8a77a62
   bin/lib/debt.py#_plan_cut_cards: ec951a7ecf68ba00a634cc59591f6646fb248498e64d274c2b7e9ca51abc10bc
   bin/lib/debt.py#_plan_frontmatter_status: 0dc243c369efdf4bd2889fb7cc17db8543ad467801d28c073bcb0d07aa43882e
@@ -4031,11 +4122,12 @@ implements_signature:
   bin/lib/debt.py#debt_row_count: 98596646068d57b194ae99fd9488dcaa35de5fe4bde0af7a044c15c9944bd260
   bin/lib/debt.py#debt_row_verb: ca9f0835c8b2c4f611ec33e8002a7a8b3a8f39bb7dd94eba2598e79c24f6ee6c
   bin/lib/debt.py#declared_outcome_invariants: 6403345f9db56dc3df67a97976c2ae9510406cbe8fb481a92ac2c68eba96d747
+  bin/lib/debt.py#late_findings_per_pass: 5e45863430cb1c0bd3d50731a2f4d9d926e75586aa9955fe302573823bb1f0d1
   bin/lib/debt.py#load_sensitive_carded: 7a1d5555ed45ecd299ca1d9f97d361c38f7012cce622983ba54f99900209f19f
   bin/lib/debt.py#load_sensitive_fingerprint: 136fee48b1b0dab262584ed8976538bb0ad08525529b4a29fc4e89ca1f37667a
   bin/lib/debt.py#load_sensitive_ratification: b23f594e4b0fb5ac7fdf9e030e3bcb18067d4798af1cf647eeb8ef5282dff365
   bin/lib/debt.py#load_sensitive_uncarded: 554997a6b5a9e9534052076c41d0cdec027e571d73ececa9db194b2f930302cc
-  bin/lib/debt.py#nightly_verdict_changes: 15238541825347a71052f1d221ed2db9779892ea1c2f703fa5c7183baab7d99b
+  bin/lib/debt.py#nightly_verdict_changes: 3abef6813f2bdad9ce9bd6fe2afa5c814553dea15563f303225ddec7b08247f9
   bin/lib/debt.py#nonterminal_plan_census: 90a7ab1c1ec320c616ecc84f0a8ecaeef2c758d51d3a95599d0ffa4fc439d704
   bin/lib/debt.py#prequeue_known_broken_refusals: 650d18dd78a57e07aede37209820c72e1e3e4da30857eb99c266a2fa2ce8144d
   bin/lib/debt.py#profile_gap_register: 048350b595ecc4860da381d824136a8b5d50b6f7dc7e1e5cc7ae69437f7d86ee
@@ -4044,7 +4136,7 @@ implements_signature:
   bin/lib/debt.py#selection_rollback: 873068ffcd3c7f45d3de1314cb5866964f1797704c8d677dbaa569603693a214
   bin/lib/debt.py#source_mount_evidence: 74a23e0a40baf495c15743b110a887a86c4174c39dadd9a846d5804180aad704
   bin/lib/debt.py#unmonitored_dispatches: cf84cb437afea4b677956328d86553151c008132c72f83f394391d47127af6b0
-  bin/lib/debt.py#unpickable_ready_cards: f54d81b985deb8ee56f6639077dc00b2775e65f7afcd38afa86c27b4ec4875e5
+  bin/lib/debt.py#unpickable_ready_cards: 6f52bef0f93cfd773c262911a5cf607fe3af0b1508c08a7e854ff6ee0145a0cf
   bin/lib/debt_adoption.py#P8_ADOPTION_EVENT_TYPES: 0839882dca70b529cfcdb88caa797e23d87a6db5d5ec90c040e8f618d46fd511
   bin/lib/debt_adoption.py#P8_CARRIER_MARKER: 7ca55ce542f77dd391b2275602802e4ccc49e04a911f5771769e1d6dc69de71a
   bin/lib/debt_adoption.py#_gap_waiver_answer: deae6fdfb0beeba647a616e65b463af8c65d75a1c4a92793e026e2bfc79ce212
@@ -4092,6 +4184,7 @@ implements_signature:
   bin/lib/debt_landing.py#behind_work_branches: a9229e1639e44982fac4168785489353f6a552902965e35f18fea91c38074266
   bin/lib/debt_landing.py#branch_unlanded_attempt_burn: 2f65d49b234e8e17a853a2524348e78796355d0bf92772d9561876925b281533
   bin/lib/debt_landing.py#dead_lands: 4e05d52f06ecaa95f7734fed48b31e8ffad6b3383fa24215d26fdffc1e5db11f
+  bin/lib/debt_landing.py#holder_liveness: da5915e8f4908e6d781b874a737c028c8af184f82fca1b1b8fa0db7fc119b4e8
   bin/lib/debt_landing.py#land_abort_cause_breadth: aad1870b9809322b13f1783fe48eea6bb3f653b7c8d8d40235cce0a8d84009e0
   bin/lib/debt_landing.py#remote_lag: 9598c29685d65d9f341d5c2aa4b9b3a7a821abaf967b2bcfbe48053dcfe5af11
   bin/lib/debt_landing.py#slowest_decile_changes: 96df46981ba22005df72ac808aa219a8a27782d0d4bcc46a09a83912a1306491
@@ -4114,13 +4207,13 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 6c2d6c6f268f600c92431291932c807dd706ddb844c1b6271fc58447c3fdd822
   bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: 6aa2ecb83595002f1be9d42ac304a0f376d0bb7db07128ffc7545f8323b57832
+  bin/lib/session.py#cmd_session_start: be6b8f1c4fbde1afbcd678e9878909b0d0e967e387809d4baa05ea888be7a482
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
   bin/lib/task.py#cmd_task_update: fd38bc430c7885c001ae27b7abf2daaa96eaae9524849b7fe8b548ee6961bc0d
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 1169d24eda22e5021dc6dc7ea0b02485a0333a0cad0f97018e196bbdb4efed89
+  bin/lib/views.py#_render_debt_echo: dada8dc2b5eab6744367377ddab7db9372f8a0d4de9c0f07c1cf85c2d256f781
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

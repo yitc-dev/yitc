@@ -112,28 +112,37 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \                               # from the journal at read time and ordered by (ts,\
   \ journal\n                               # position); unlanded -> pending. Probe\
   \ moments only (a followup\n                               # has no own land, so\
-  \ `followup arm` still refuses it).\n                               # Written by\
-  \ `task close --probe-deferred <AC>:<moment>`, which\n                         \
-  \      # REFUSES a bare key at every close-time door onto `probes:`. The\n     \
-  \                          # RESULT stays the authoritative discriminator in `probes:`\
-  \ (where the\n                               # settle writes it and views.py keys\
-  \ the discharge); this says only\n                               # WHEN a deferral\
-  \ comes back. Absent / no entry for a deferred key =\n                         \
-  \      # a LEGACY key-only deferral, which the lens reads DUE.\nparked_reason: null\
-  \ # filled if status=parked (written by `task file --status parked` / `task update\
-  \ --status parked`)\nreturn_trigger: null # optional, when parked\nparked_awaits:\
-  \ null # — optional, verb-owned (`task update --status parked --awaits <ref>`):\n\
-  \                               # the DECLARED awaited artifact of a park, in the\
-  \ same grammar as\n                               # paused_awaits (followup.awaits_kind).\
-  \ Set or cleared on every park,\n                               # cleared on unpark\
-  \ / wont-do. Session start lists the parked card\n                             \
-  \  # (UNPARKABLE) ONLY once the ref has arrived; prose return_trigger is\n     \
-  \                          # never parsed for it (declared, never inferred).\nunparked_note:\
-  \ null # optional — written at the parked→ready unpark (`task update --status ready\
-  \ --note …`; prior-art / hand-edits). parked_reason/return_trigger are RETAINED\
-  \ as history.\nwont_do_reason: null # rationale, written at any-active→wont-do (`task\
-  \ update --status wont-do --reason …`; prior-art)\namend_notes: [] # optional —\
-  \ timestamped amendment notes appended by `task update --note …` (no --status),\
+  \ `followup arm` still refuses it).\n                               # probe_moments:\
+  \ {AC2: {awaits: 'events.jsonl#type=<t>&<key>=<value>@after=land'}}\n          \
+  \                     # ONE row predicate: only a row of <t> that ALSO matches\n\
+  \                               # arrives the moment. `task_id` is the row's envelope\
+  \ task id; any\n                               # other snake_case key is a top-level\
+  \ string `data` value. EXACT\n                               # equality, ONE predicate,\
+  \ the KERNEL journal only, and only on the\n                               # event\
+  \ classes the parse home (followup.py#split_event_awaits)\n                    \
+  \           # declares. It rides either event form above (`@after=<ISO>` or\n  \
+  \                             # `@after=land`). Rule home: SPEC-0095 §Armed.\n \
+  \                              # Written by `task close --probe-deferred <AC>:<moment>`,\
+  \ which\n                               # REFUSES a bare key at every close-time\
+  \ door onto `probes:`. The\n                               # RESULT stays the authoritative\
+  \ discriminator in `probes:` (where the\n                               # settle\
+  \ writes it and views.py keys the discharge); this says only\n                 \
+  \              # WHEN a deferral comes back. Absent / no entry for a deferred key\
+  \ =\n                               # a LEGACY key-only deferral, which the lens\
+  \ reads DUE.\nparked_reason: null # filled if status=parked (written by `task file\
+  \ --status parked` / `task update --status parked`)\nreturn_trigger: null # optional,\
+  \ when parked\nparked_awaits: null # — optional, verb-owned (`task update --status\
+  \ parked --awaits <ref>`):\n                               # the DECLARED awaited\
+  \ artifact of a park, in the same grammar as\n                               # paused_awaits\
+  \ (followup.awaits_kind). Set or cleared on every park,\n                      \
+  \         # cleared on unpark / wont-do. Session start lists the parked card\n \
+  \                              # (UNPARKABLE) ONLY once the ref has arrived; prose\
+  \ return_trigger is\n                               # never parsed for it (declared,\
+  \ never inferred).\nunparked_note: null # optional — written at the parked→ready\
+  \ unpark (`task update --status ready --note …`; prior-art / hand-edits). parked_reason/return_trigger\
+  \ are RETAINED as history.\nwont_do_reason: null # rationale, written at any-active→wont-do\
+  \ (`task update --status wont-do --reason …`; prior-art)\namend_notes: [] # optional\
+  \ — timestamped amendment notes appended by `task update --note …` (no --status),\
   \ each emitting task_amended\n\n# Optional fields ( — fill if applicable):\npost_verification:\
   \ null # optional — authored at Stage 9 (Closure): {criterion, signal} mapping\n\
   \                               # OR explicit waive {none: <reason>} (mutually exclusive);\
@@ -305,51 +314,65 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ non-goals #2/#7) — the reporter framed\n                               # the cheap\
   \ fix as a discipline and it stays one.\n\nanswers: # OPTIONAL SPEC-0197 rule-4\
   \ LINK-BACK — a YAML list of the outside\n                               # proposal\
-  \ ids this card answers (issue refs in the `#N` form, no host\n                \
-  \               # literal). Read by `release.collect_answered_proposals` at the\
-  \ release\n                               # commit into the published notes. Written\
-  \ by `task file --from-stdin` or\n                               # `task update\
-  \ --set-field answers --from-file`; both refuse an id failing\n                \
-  \               # `release.ANSWER_ID_RE` or carrying a host path, and an explicit\
-  \ null.\n                               # The ONE terminal-card carve-out of --set-field:\
-  \ answers is release\n                               # metadata, not the card's\
-  \ shipped claim, and a fix card is normally done\n                             \
-  \  # before the release that ships it is cut — so answers (and no other\n      \
-  \                         # field) is settable on a done/wont-do card; its task_amended\
-  \ row carries\n                               # `post_close: true`.\n\nresolution_excludes:\
-  \ # OPTIONAL closure-honesty declaration (X-1179) — what this\n                \
-  \               # task's fix STRUCTURALLY CANNOT REACH, in the resolver's own words.\n\
-  \                               # Read by exactly ONE consumer: the derived cross\
-  \ closure note\n                               # (`bin/lib/cross.py#resolution_note_for_close`),\
-  \ which appends it to the\n                               # `auto_note` the receiver's\
-  \ auto-`cross_done` carries — so a coordination\n                              \
-  \ # item closed by a fix that excludes the REPORTED INSTANCE says so on the\n  \
-  \                             # surface the requester reads. Form — a plain string:\n\
-  \                               # resolution_excludes: ', the reported card: the\
-  \ axis is fail-closed on the prior record'\n                               # WHY\
-  \ (measured, X-1179): X-1124's auto-closure read `resolved by :\n              \
-  \                 #...` and nothing else, although the fix reached only cards audited\
-  \ after\n                               # it landed. The requester acted on that\
-  \ plain resolution — unparked the\n                               # reported card,\
-  \ re-claimed it and spent an external auditor invocation\n                     \
-  \          # before the guard correctly refused — then had to write the divergence\n\
-  \                               # themselves, on their own close, after paying for\
-  \ it.\n                               # DECLARED, NEVER INFERRED (the SPEC-0095\
-  \ discipline): no code judges\n                               # reach; the resolver\
-  \ states it or the note is unchanged.\n                               # WRITTEN\
-  \ like `analysis:` — authored on the card by the resolving\n                   \
-  \            # session (no verb owns it), and admitted by `task file --from-stdin`\n\
-  \                               # (`task.py#_STDIN_EXTRA_SCHEMA_KEYS`) for a filer\
-  \ who already knows.\n                               # ABSENT = the ordinary case,\
-  \ and deliberately so — a closure whose fix DOES\n                             \
-  \  # reach the reported instance emits the identical note it always did, with no\n\
-  \                               # added ceremony. Taxing every closure to describe\
-  \ the rare one is exactly\n                               # what this field exists\
-  \ to avoid. Additive + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL\
-  \ declaration (X-1166) — an acceptance differential\n                          \
-  \     # that was MEASURED ANOTHER WAY because the instrument the card planned\n\
-  \                               # could not run before the ship landed. Rendered\
-  \ to the auditor by the\n                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
+  \ ids this card answers, no host literal. An ISSUE REFERENCE\n                 \
+  \              # NAMES ITS TRACKER — `owner/repo#N`, never a bare `#N` or a number\
+  \ alone\n                               #. THE HAZARD: an intake repo that is archived\
+  \ and re-created\n                               # restarts its numbering at 1,\
+  \ so a bare number stops naming the issue\n                               # the\
+  \ card answered and starts naming whatever the new tracker filed\n             \
+  \                  # under it, and two trackers' `#1` merge into one release-notes\
+  \ entry.\n                               # An archived tracker is written under\
+  \ its ARCHIVE name. A proposal slug\n                               # carrying no\
+  \ `#` is not an issue number and stays admitted. Read by\n                     \
+  \          # `release.collect_answered_proposals` at the release commit into the\n\
+  \                               # published notes. Written by `task file --from-stdin`\
+  \ or `task update\n                               # --set-field answers --from-file`;\
+  \ those two writers AND the publish\n                               # read refuse\
+  \ an id failing `release.ANSWER_ID_RE`, carrying a host path\n                 \
+  \              # or naming no tracker (`release.unqualified_answer_id`), the publish\n\
+  \                               # naming the card; the writers also refuse an explicit\
+  \ null. Notes\n                               # signed before keep their bare ids\
+  \ — a published release is\n                               # immutable — and are\
+  \ still read as written.\n                               # The ONE terminal-card\
+  \ carve-out of --set-field: answers is release\n                               #\
+  \ metadata, not the card's shipped claim, and a fix card is normally done\n    \
+  \                           # before the release that ships it is cut — so answers\
+  \ (and no other\n                               # field) is settable on a done/wont-do\
+  \ card; its task_amended row carries\n                               # `post_close:\
+  \ true`.\n\nresolution_excludes: # OPTIONAL closure-honesty declaration (X-1179)\
+  \ — what this\n                               # task's fix STRUCTURALLY CANNOT REACH,\
+  \ in the resolver's own words.\n                               # Read by exactly\
+  \ ONE consumer: the derived cross closure note\n                               #\
+  \ (`bin/lib/cross.py#resolution_note_for_close`), which appends it to the\n    \
+  \                           # `auto_note` the receiver's auto-`cross_done` carries\
+  \ — so a coordination\n                               # item closed by a fix that\
+  \ excludes the REPORTED INSTANCE says so on the\n                              \
+  \ # surface the requester reads. Form — a plain string:\n                      \
+  \         # resolution_excludes: ', the reported card: the axis is fail-closed on\
+  \ the prior record'\n                               # WHY (measured, X-1179): X-1124's\
+  \ auto-closure read `resolved by :\n                               #...` and nothing\
+  \ else, although the fix reached only cards audited after\n                    \
+  \           # it landed. The requester acted on that plain resolution — unparked\
+  \ the\n                               # reported card, re-claimed it and spent an\
+  \ external auditor invocation\n                               # before the guard\
+  \ correctly refused — then had to write the divergence\n                       \
+  \        # themselves, on their own close, after paying for it.\n              \
+  \                 # DECLARED, NEVER INFERRED (the SPEC-0095 discipline): no code\
+  \ judges\n                               # reach; the resolver states it or the\
+  \ note is unchanged.\n                               # WRITTEN like `analysis:`\
+  \ — authored on the card by the resolving\n                               # session\
+  \ (no verb owns it), and admitted by `task file --from-stdin`\n                \
+  \               # (`task.py#_STDIN_EXTRA_SCHEMA_KEYS`) for a filer who already knows.\n\
+  \                               # ABSENT = the ordinary case, and deliberately so\
+  \ — a closure whose fix DOES\n                               # reach the reported\
+  \ instance emits the identical note it always did, with no\n                   \
+  \            # added ceremony. Taxing every closure to describe the rare one is\
+  \ exactly\n                               # what this field exists to avoid. Additive\
+  \ + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL declaration (X-1166)\
+  \ — an acceptance differential\n                               # that was MEASURED\
+  \ ANOTHER WAY because the instrument the card planned\n                        \
+  \       # could not run before the ship landed. Rendered to the auditor by the\n\
+  \                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
   \ so evidence\n                               # taken by the substitute is not read\
   \ as evidence MISSING. ONE form, both\n                               # keys REQUIRED:\n\
   \                               # substituted_instrument: {instrument: <what was\
@@ -584,52 +607,58 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ (the common case). SCHEMA carrier only — the gate ships in SPEC-0167.\n\n# Resume\
   \ contract fields ( — populated on task_paused):\n# — a transition to done / wont-do\
   \ REMOVES resume_from / next_action / paused_at /\n# paused_reason / paused_awaits\
-  \ (task.py#PAUSE_BLOCK_FIELDS); the history stays in task_paused.\ncurrent_stage:\
-  \ null # semantic stage NAME (e.g. Execution); class implies the FSM (LIFECYCLE\
-  \ §Stage FSM). Set by lifecycle CLI verbs / on pause.\n                        \
-  \       # ADVISORY ONLY — no verb gates on it (retired as a guard; enforcement is\
-  \ artifacts-as-gates, not a stage counter).\nresume_from: null # step within stage\
-  \ or «start»\nlast_verified: null # ISO ts — last verified artifact/state\nnext_action:\
-  \ null # one-line concrete next step\npaused_at: null # ISO ts when paused\npaused_reason:\
-  \ null # the trigger-typed halt reason (vocab.PAUSE_REASONS, the enum home):\n \
-  \                              # owner-wait | audit-ceiling | auditor-abort | batch-remainder\
-  \ |\n                               # session-end | land-conflict | controller-wait\
-  \ | artifact-wait.\n                               # artifact-wait = a wait on a\
-  \ DECLARED item whose arrival a\n                               # reader can DECIDE;\
-  \ it REQUIRES paused_awaits below.\npaused_awaits: null # — the awaited artifact\
-  \ whose arrival ENDS this pause, in the\n                               # ONE awaits\
-  \ grammar (followup.awaits_kind): T-NNNN | X-NNNN |\n                          \
-  \     # events.jsonl#type=<t>[@after=<ISO>]. DECLARED, never inferred from\n   \
-  \                            # next_action prose. REQUIRED with paused_reason: artifact-wait,\n\
-  \                               # ALLOWED with owner-wait, refused with any other\
-  \ reason. Written ONLY\n                               # by `task pause --awaits`\
-  \ (verb-owned — never filing-time authored)\n                               # and\
-  \ cleared by `task resume`. The session-start echo RESOLVES it\n               \
-  \                # rather than asserting the wait: while the item is open it prints\n\
-  \                               # WAITING-ON-<OWNER|ARTIFACT> … awaits <ref> (open),\
-  \ and once the item\n                               # is terminal it prints RESUMABLE.\
-  \ A card carrying no paused_awaits\n                               # renders byte-identically\
-  \ to the pre- owner-wait line.\nrefused_at: null # — ISO ts of a PRE-CLAIM refusal\
-  \ (`task refuse`); verb-owned,\n                               # never filing-time\
-  \ authored. A card carrying it is NOT dispatchable\n                           \
-  \    # (task.py#_premise_dispatch_block) and is awaiting a DISPOSITION;\n      \
-  \                         # the status is UNTOUCHED (`ready`), because the verb\
-  \ records the\n                               # refusal and never chooses the disposition.\
-  \ Cleared by a terminal\n                               # disposition or `task refuse\
-  \ --clear`. Rule home: SPEC-0133 rule 2f.\nrefused_reason: null # — verbatim WHY\
-  \ the card was refused, readable off the card\n                               #\
-  \ without querying the journal. Verb-owned (`task refuse`).\n```\n\n**No other top-level\
-  \ fields.** If a field seems necessary, anti-complexity check (CHARTER §P1) +\n\
-  Review approval first. **Admitted exceptions:** `post_verification` — admitted by\
-  \ SPEC-0038 (the\npost-verification observation instrument; its `amends:` names\
-  \ this guard explicitly — amended, not\nbypassed); and `expected_touch` — the OPTIONAL\
-  \ filing-time dispatch-selection forecast,\ndefined in the Optional-fields block\
-  \ above (forecast-not-promise semantics; carve-out picker input,\nplan `parallel-work-preparation-carve-out-picker`\
-  \ §C4/§DEFERRED); and `decomposed_from` — the OPTIONAL\ncut-membership marker, the\
-  \ SPEC-0070 §5 claim-block carrier, written ONLY by the decomposition\ncut; and\
-  \ `effort_tier` — the OPTIONAL filing-time STAKES tier (SPEC-0072), mapped to the\
-  \ dispatch worker's (model, effort) via bin/effort-routing-config.yaml; and `resolves_cross`\
-  \ — the OPTIONAL structured task→cross link, the receiver-side close-the-loop carrier\
+  \ (task.py#PAUSE_BLOCK_FIELDS); the history stays in task_paused.\n# — a RESUME\
+  \ (`task resume`, or the `worktree new --task` orphan re-entry) ends the\n# pause\
+  \ the same way: paused_at / paused_reason / paused_awaits are nulled and resume_from\
+  \ /\n# next_action are REMOVED from the card, after the resume echo prints them.\
+  \ They describe the\n# ENDED pause, not the card's state, so a resumed card carries\
+  \ neither; current_stage stays.\ncurrent_stage: null # semantic stage NAME (e.g.\
+  \ Execution); class implies the FSM (LIFECYCLE §Stage FSM). Set by lifecycle CLI\
+  \ verbs / on pause.\n                               # ADVISORY ONLY — no verb gates\
+  \ on it (retired as a guard; enforcement is artifacts-as-gates, not a stage counter).\n\
+  resume_from: null # step within stage or «start»\nlast_verified: null # ISO ts —\
+  \ last verified artifact/state\nnext_action: null # one-line concrete next step\n\
+  paused_at: null # ISO ts when paused\npaused_reason: null # the trigger-typed halt\
+  \ reason (vocab.PAUSE_REASONS, the enum home):\n                               #\
+  \ owner-wait | audit-ceiling | auditor-abort | batch-remainder |\n             \
+  \                  # session-end | land-conflict | controller-wait | artifact-wait.\n\
+  \                               # artifact-wait = a wait on a DECLARED item whose\
+  \ arrival a\n                               # reader can DECIDE; it REQUIRES paused_awaits\
+  \ below.\npaused_awaits: null # — the awaited artifact whose arrival ENDS this pause,\
+  \ in the\n                               # ONE awaits grammar (followup.awaits_kind):\
+  \ T-NNNN | X-NNNN |\n                               # events.jsonl#type=<t>[&<key>=<value>][@after=<ISO>]\
+  \ (the row predicate\n                               # is the shape — SPEC-0095\
+  \ §Armed). DECLARED, never inferred from\n                               # next_action\
+  \ prose. REQUIRED with paused_reason: artifact-wait,\n                         \
+  \      # ALLOWED with owner-wait, refused with any other reason. Written ONLY\n\
+  \                               # by `task pause --awaits` (verb-owned — never filing-time\
+  \ authored)\n                               # and cleared by `task resume`. The\
+  \ session-start echo RESOLVES it\n                               # rather than asserting\
+  \ the wait: while the item is open it prints\n                               # WAITING-ON-<OWNER|ARTIFACT>\
+  \ … awaits <ref> (open), and once the item\n                               # is\
+  \ terminal it prints RESUMABLE. A card carrying no paused_awaits\n             \
+  \                  # renders byte-identically to the pre- owner-wait line.\nrefused_at:\
+  \ null # — ISO ts of a PRE-CLAIM refusal (`task refuse`); verb-owned,\n        \
+  \                       # never filing-time authored. A card carrying it is NOT\
+  \ dispatchable\n                               # (task.py#_premise_dispatch_block)\
+  \ and is awaiting a DISPOSITION;\n                               # the status is\
+  \ UNTOUCHED (`ready`), because the verb records the\n                          \
+  \     # refusal and never chooses the disposition. Cleared by a terminal\n     \
+  \                          # disposition or `task refuse --clear`. Rule home: SPEC-0133\
+  \ rule 2f.\nrefused_reason: null # — verbatim WHY the card was refused, readable\
+  \ off the card\n                               # without querying the journal. Verb-owned\
+  \ (`task refuse`).\n```\n\n**No other top-level fields.** If a field seems necessary,\
+  \ anti-complexity check (CHARTER §P1) +\nReview approval first. **Admitted exceptions:**\
+  \ `post_verification` — admitted by SPEC-0038 (the\npost-verification observation\
+  \ instrument; its `amends:` names this guard explicitly — amended, not\nbypassed);\
+  \ and `expected_touch` — the OPTIONAL filing-time dispatch-selection forecast,\n\
+  defined in the Optional-fields block above (forecast-not-promise semantics; carve-out\
+  \ picker input,\nplan `parallel-work-preparation-carve-out-picker` §C4/§DEFERRED);\
+  \ and `decomposed_from` — the OPTIONAL\ncut-membership marker, the SPEC-0070 §5\
+  \ claim-block carrier, written ONLY by the decomposition\ncut; and `effort_tier`\
+  \ — the OPTIONAL filing-time STAKES tier (SPEC-0072), mapped to the dispatch worker's\
+  \ (model, effort) via bin/effort-routing-config.yaml; and `resolves_cross` — the\
+  \ OPTIONAL structured task→cross link, the receiver-side close-the-loop carrier\
   \ (auto cross-done at close + the `cross pick` intake-staleness signal, SPEC-0085\
   \ §3 / SPEC-0086); and `live_probe` — the OPTIONAL per-change deploy live-probe\
   \ declaration (SPEC-0094 §3/§4), the deploy-conditional close-gate carrier; and\
@@ -674,4 +703,4 @@ implements_signature:
   bin/lib/vocab.py#TASK_CLASSES: ee6f546d6976f100eb7a7210649b881cf0272a047ab1866ab54c4f3dd228c6dd
   bin/lib/vocab.py#TASK_FILING_STATUSES: a3f438ac70ae0ffb2c30813c12532aafe7e07a0af1396706e2a37bfcfb1ae44e
   bin/lib/vocab.py#TASK_PRIORITIES: c9e55aa7764415938acd55d1c1310d05aa36e285be560fde67a0dc1007093a7f
-  tasks/_template.yaml: ba4ee34607f6f52caf0a8b4f446ad99655ea3fd5036ada42be650e91121c5597
+  tasks/_template.yaml: 0d09b591ad21060fb5c44722489647ec4b8932bfae96671faf31ad330c8dae6d

@@ -15,7 +15,9 @@ the new revision is not actually serving — so a broken revision is NEVER left 
 exit-0 the verb emits a `deploy_completed` journal event (SPEC-0025 catalog) carrying
 `{revision, project, kind}` — emitted on EVERY deploy AND every rollback (a rollback is a deploy of the
 prior revision, recorded `kind: "rollback"`), so the current-live revision is always the latest
-`deploy_completed` event's `revision`. A non-zero command exit leaves NO `deploy_completed` (the broken
+PRODUCTION `deploy_completed` event's `revision` (`is_production_live_record`: a record on a
+`production: false` target names that surface's revision, never production's — T-13454). A non-zero
+command exit leaves NO `deploy_completed` (the broken
 revision is not recorded live); since T-13398 a deploy whose command STARTED leaves exactly ONE terminal
 row, and when it ended non-zero or was interrupted by a catchable signal with no other terminal row
 written that row is a `deploy_failed`, so the journal can tell it from a deploy that never started
@@ -33,6 +35,7 @@ import fcntl
 import os
 import json
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -169,6 +172,11 @@ def _classify_deploy_gate(policy, deploy_class, owner_approved) -> _GateDecision
     For Class S it lives in `cmd_deploy` → `_run_class_s_security_probe` (the pre-deploy security probe,
     T-10279 — same selected-then-dropped shape: nothing executed the probe, so a violated or un-probeable
     security property still deployed autonomously).
+    For an OWNER-APPROVED Class C2 it lives in `cmd_deploy` → `_owner_approved_backup` → `_run_c1_backup`
+    (T-13514 / X-1856): the SAME declared dump, read from `classes.C1`, runs before the deploy — the
+    third instance of that shape, since this branch selected `classes.C2` and executed nothing. The
+    block this gate SELECTS for C2 is unchanged (`classes.C2`, the escalation text); the dump
+    declaration is read by that helper, not selected here.
 
     STILL NOT EXECUTED ANYWHERE (T-10279's audit, grep-proven — do not assume otherwise): C1's
     `restore_drill` and its delayed re-check. Those remain declaration-only; a follow-up task carries them.
@@ -250,7 +258,9 @@ def _classify_deploy_gate(policy, deploy_class, owner_approved) -> _GateDecision
             return _GateDecision(True, "owner-approved", "C2", classes.get("C2"),
                                  "Class C2 (destructive / irreversible) deploy proceeding under explicit "
                                  "--owner-approved — the owner took the RTO/RPO decision. NOT autonomous "
-                                 "(SPEC-0097 §5).")
+                                 "(SPEC-0097 §5). cmd_deploy runs the carrier's declared pre-deploy dump "
+                                 "first (the `classes.C1` declaration) and refuses if it fails; with none "
+                                 "declared the deploy proceeds and says so.")
         return _GateDecision(False, "escalate", "C2", classes.get("C2"),
                              "Class C2 (destructive / irreversible / cannot meet restore budget) — NOT "
                              "deployable autonomously (SPEC-0097 §2/§5). ESCALATE to the owner with the "
@@ -429,6 +439,13 @@ PG_DUMP_SHAPES = ("`classes.C1.pg_dump: {command: <cmd>, dump_budget_s: <positiv
                   "`classes.C1.pg_dump: <cmd>` + `classes.C1.pg_dump_budget_seconds: <positive int>`")
 
 
+# Every carrier key that belongs to the dump DECLARATION: the two accepted shapes' own keys plus the two
+# that qualify a dump. «No dump is declared» means NONE of them is PRESENT — judged by key membership,
+# never by value: `pg_dump:` left empty parses to a present key holding null, and that is a broken
+# declaration, not an absent one (T-13514 audit-pre; the lighter path opens only on positive absence).
+_DUMP_DECLARATION_KEYS = ("pg_dump", "pg_dump_budget_seconds", "expected_database", "engine")
+
+
 def _positive_budget(value) -> bool:
     """The ONE budget predicate, shared by the deploy boundary and init's birth guard (CHARTER §P5).
     `bool` is an `int` subclass — `True` must never read as a 1-second budget."""
@@ -457,7 +474,7 @@ def _normalize_pg_dump(evidence: dict):
                         f"carrier shape — declare {PG_DUMP_SHAPES}")
 
 
-def _backup_precondition(evidence) -> _BackupPlan:
+def _backup_precondition(evidence, *, absent_ok: bool = False) -> "_BackupPlan | None":
     """PURE — extract the Class-C1 `pg_dump` command + its duration budget from the carrier block the
     gate SELECTED into `_GateDecision.evidence` (SPEC-0097 §4 «pg_dump preconditions»).
 
@@ -468,9 +485,22 @@ def _backup_precondition(evidence) -> _BackupPlan:
     FAIL CLOSED. A C1 deploy without a runnable backup is not a C1 deploy: an absent/blank command or a
     missing/non-positive budget REFUSES, it never degrades to «no backup was wanted». The budget is what
     makes §4's «a dump over budget ⇒ Class C2 (escalate), never assumed reversible» enforceable, so a
-    dump with no budget cannot be run at all — there would be nothing to exceed."""
+    dump with no budget cannot be run at all — there would be nothing to exceed.
+
+    `absent_ok` (T-13514) is how a READER states what ABSENCE means to it — the parser still decides
+    nothing (`lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`). The default is the Class-C1
+    reader's answer, unchanged: a block with no dump is an error and refuses. The owner-approved
+    Class-C2 reader (`_owner_approved_backup`) passes `absent_ok=True` and gets `None` back for a mapping
+    in which NO dump-declaration key is PRESENT — «this project declares no dump» — while every
+    declared-but-unusable shape still returns its fail-closed error. It lives HERE because only this
+    boundary may read the raw carrier keys (the T-10286 invariant)."""
     if not isinstance(evidence, dict):
         return _BackupPlan(None, None, "the carrier declares no `classes.C1` block to back up from")
+    # ABSENT is KEY MEMBERSHIP over every dump-declaration key, never a value test. A present key holding
+    # null (`pg_dump:` left empty), a budget or an `expected_database` with no command beside it — each
+    # is HALF a declaration, i.e. a broken one, and falls through to the refusal ladder below.
+    if absent_ok and not any(key in evidence for key in _DUMP_DECLARATION_KEYS):
+        return None
     command, budget, shape_error = _normalize_pg_dump(evidence)
     if shape_error:
         return _BackupPlan(None, None, shape_error)
@@ -506,6 +536,29 @@ def _backup_precondition(evidence) -> _BackupPlan:
                                        "check it against — the SPEC-0148 §3 expectation could never be "
                                        "verified, so it refuses rather than pretend")
     return _BackupPlan(command.strip(), budget, None, expected.strip() if expected else None, engine)
+
+
+def _owner_approved_backup(classes) -> "_BackupPlan | None":
+    """PURE — the pre-deploy dump an OWNER-APPROVED Class-C2 deploy runs (SPEC-0097 §5, T-13514 / X-1856).
+
+    It reads the declaration the carrier ALREADY makes — `classes.C1` — through the SAME boundary the
+    Class-C1 path uses, so no carrier needs a new key and there is no second dump contract. Three
+    outcomes, and the caller (`cmd_deploy`) acts on each:
+
+      None                 — NO dump is declared: `classes.C1` is absent/null, carries a per-class
+                             `waiver:` (§6 — the project declared C1 non-applicable), or is a mapping
+                             in which no dump-declaration key is PRESENT (`_DUMP_DECLARATION_KEYS`).
+                             The deploy proceeds and SAYS no backup is taken.
+      a plan, error unset  — run it before the project command.
+      a plan, error set    — a dump IS declared but is unusable (or `classes.C1` is present and not a
+                             mapping). REFUSE: a broken declaration must never open the «none declared»
+                             path — the discriminator for the lighter path is a POSITIVE absence of any
+                             dump key, never «the declaration could not be read»
+                             (`lessons/carving-an-exception-into-a-fail-closed-gate.md` §1)."""
+    c1 = classes.get("C1") if isinstance(classes, dict) else None
+    if c1 is None or (isinstance(c1, dict) and "waiver" in c1):
+        return None
+    return _backup_precondition(c1, absent_ok=True)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -884,13 +937,64 @@ def _parse_sqlite_backup(artifact: Path) -> dict:
                                          "TRANSACTION;` preamble)"}
 
 
-def _run_c1_backup(plan: _BackupPlan, *, revision, project, REPO_ROOT, deploy_env, _append_event) -> None:
-    """Execute the declared Class-C1 pre-deploy `pg_dump` (SPEC-0097 §4/§5) BEFORE the project deploy
-    command runs — a backup taken after the deploy is worthless. On success emit `deploy_backup_taken`.
+# The owner-approved Class-C2 dump's HANG-CAP (SPEC-0097 §5, T-13514). It is NOT the §4 budget: on that
+# path the declared budget is REPORTED, never enforced (§4 makes the budget the C1-vs-C2 classifier, and
+# an owner-approved C2 deploy is already classified and already escalated). This only stops a dump that
+# never returns from holding the deploy seam — and the per-project deploy lock (SPEC-0094 §8) — forever.
+# The effective bound is max(declared budget, this cap), so a carrier that declared a longer budget is
+# never cut short by it. Same env-override shape as `_SECURITY_AUDIT_SEAM_BUDGET_S` /
+# `_CONVERGENCE_BUDGET_S` below.
+_C2_BACKUP_HANG_CAP_S = int(os.environ.get("YITC_C2_BACKUP_HANG_CAP_S", "3600"))
+
+
+def _run_dump_in_own_process_group(command, *, cwd, env, stdout, timeout) -> subprocess.CompletedProcess:
+    """Run the owner-approved Class-C2 dump so that the hang-cap can END it (T-13514, audit-post finding
+    fp1:fe5da1c935d7bac2).
+
+    `subprocess.run(shell=True, timeout=…)` kills only the SHELL on expiry. A compound dump command —
+    `a; b`, a pipeline — does its work in a CHILD of that shell, and that child survives: the dump keeps
+    running after the deploy was refused, and it keeps every descriptor it inherited open, so a caller
+    capturing the verb's output waits for as long as the dump does. That is the hang the cap exists to
+    end. So the dump is started in its OWN session — hence its own process group — and expiry kills the
+    GROUP, then reaps the shell.
+
+    HONEST BOUND: this reaches every process that STAYS in that group. A dump that moves itself into
+    another session, or whose work runs outside this host's process tree (inside a container, on a
+    remote server), is out of reach of any local kill; the verb still returns and still refuses.
+
+    Raises `subprocess.TimeoutExpired` as `subprocess.run` does, and ends the group on ANY interruption
+    of the wait (as `run` kills its child on any exception), so the caller's refusal path is shared with
+    the Class-C1 run."""
+    proc = subprocess.Popen(command, cwd=cwd, shell=True, env=env, stdout=stdout, start_new_session=True)
+    try:
+        proc.wait(timeout=timeout)
+    except BaseException:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass   # the whole group is already gone
+        proc.wait()
+        raise
+    return subprocess.CompletedProcess(command, proc.returncode)
+
+
+def _run_c1_backup(plan: _BackupPlan, *, revision, project, REPO_ROOT, deploy_env, _append_event,
+                   owner_approved_c2: bool = False) -> None:
+    """Execute the declared pre-deploy `pg_dump` (SPEC-0097 §4/§5) BEFORE the project deploy command
+    runs — a backup taken after the deploy is worthless. On success emit `deploy_backup_taken`.
 
     Any failure REFUSES the deploy: over budget (the §4 ⇒ Class C2 rule), a non-zero exit, or an empty
     archive on exit 0. Every refusal discards the artifact and exits 3 (the gate-refusal exit code), so
     the project deploy command never runs and no `deploy_completed` is emitted.
+
+    TWO CALLERS, one runner (T-13514). The default is the autonomous Class-C1 path, unchanged. With
+    `owner_approved_c2=True` it is the owner-approved Class-C2 path (SPEC-0097 §5), which differs in
+    exactly the budget reading and nothing else: the dump is bounded by the hang-cap instead of the
+    declared budget (and the cap ENDS the dump's whole process group, not only its shell —
+    `_run_dump_in_own_process_group`), an over-budget finish is REPORTED rather than refused, and the
+    row carries `deploy_class: "C2"` so a duration above `budget_seconds` reads as what it is. Every
+    other refusal — non-zero exit, empty archive, the SPEC-0148 identity check — is the same branch for
+    both callers.
 
     Same `subprocess.run(..., cwd, shell=True, env=deploy_env)` shape as the project-command run below;
     the ONE difference is that the declared dump writes its archive to STDOUT (`pg_dump -Fc`), so stdout
@@ -900,18 +1004,38 @@ def _run_c1_backup(plan: _BackupPlan, *, revision, project, REPO_ROOT, deploy_en
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     artifact, fd = _create_new_artifact(backups, revision, stamp, plan.engine)
 
-    print(f"deploy: Class C1 — taking the declared pre-deploy backup (budget {plan.budget_seconds}s), "
-          f"the deploy does NOT run until it succeeds:")
+    if owner_approved_c2:
+        bound = max(plan.budget_seconds, _C2_BACKUP_HANG_CAP_S)
+        print(f"deploy: Class C2 (owner-approved) — taking the declared pre-deploy backup "
+              f"(`deploy.policy.classes.C1`); the deploy does NOT run until it succeeds. Its "
+              f"{plan.budget_seconds}s budget is REPORTED on this path, not enforced (hang-cap {bound}s):")
+    else:
+        bound = plan.budget_seconds
+        print(f"deploy: Class C1 — taking the declared pre-deploy backup (budget {plan.budget_seconds}s), "
+              f"the deploy does NOT run until it succeeds:")
     print(f"  $ {plan.command}")
     print(f"  → {artifact}")
 
     started = time.monotonic()
     try:
         with os.fdopen(fd, "wb") as fh:
-            result = subprocess.run(plan.command, cwd=str(REPO_ROOT), shell=True, env=deploy_env,
-                                    stdout=fh, timeout=plan.budget_seconds)
+            if owner_approved_c2:
+                result = _run_dump_in_own_process_group(plan.command, cwd=str(REPO_ROOT), env=deploy_env,
+                                                        stdout=fh, timeout=bound)
+            else:
+                result = subprocess.run(plan.command, cwd=str(REPO_ROOT), shell=True, env=deploy_env,
+                                        stdout=fh, timeout=bound)
     except subprocess.TimeoutExpired:
         _discard_backup_artifact(artifact)
+        if owner_approved_c2:
+            # Its OWN complete message — never the Class-C1 text with a suffix: «this makes it a Class
+            # C2 deploy, escalate» is meaningless on a deploy that is already C2 and already approved.
+            print(f"deploy: REFUSED — the pre-deploy pg_dump did not finish within the {bound}s hang-cap "
+                  f"on the owner-approved Class-C2 path (SPEC-0097 §5), so NO backup was produced. It is "
+                  f"the hang-cap that refused this, not the declared {plan.budget_seconds}s budget, which "
+                  f"is only reported here. Fix the dump, or set YITC_C2_BACKUP_HANG_CAP_S for a dump "
+                  f"known to take longer. The deploy did NOT run; no deploy_completed.", file=sys.stderr)
+            sys.exit(3)
         print(f"deploy: REFUSED — the pre-deploy pg_dump exceeded its {plan.budget_seconds}s budget "
               f"(SPEC-0097 §4). A dump that cannot meet the restore budget makes this a Class C2 deploy: "
               f"it is never assumed reversible. Escalate to the owner "
@@ -979,6 +1103,11 @@ def _run_c1_backup(plan: _BackupPlan, *, revision, project, REPO_ROOT, deploy_en
     if not identity["readable"]:
         # No expectation declared (an expectation would have refused above) ⇒ record, never enforce.
         payload["identity_unreadable"] = identity["reason"]
+    if owner_approved_c2:
+        # Present ONLY on the owner-approved Class-C2 path, so no Class-C1 row's shape moves (absent ⇒
+        # C1, the only path that existed before T-13514). It is what makes a `duration_seconds` above
+        # `budget_seconds` readable: on this path the budget was reported, not enforced (SPEC-0097 §5).
+        payload["deploy_class"] = "C2"
     _append_event("deploy_backup_taken", None, payload)
     if retention["pruned"]:
         print(f"deploy: retention — pruned {retention['pruned']} older pre-deploy dump(s) "
@@ -1002,6 +1131,11 @@ def _run_c1_backup(plan: _BackupPlan, *, revision, project, REPO_ROOT, deploy_en
               + ("" if plan.engine == "sqlite" else
                  " (declare `classes.C1.expected_database` to make this a refusal)")
               + "; deploy_backup_taken emitted.")
+    if owner_approved_c2 and duration > plan.budget_seconds:
+        print(f"deploy: NOTE — the dump took {duration:.1f}s, OVER its declared {plan.budget_seconds}s "
+              f"budget. On the owner-approved Class-C2 path that is reported, not refused (SPEC-0097 §5): "
+              f"the budget decides whether a deploy is Class C1 or C2, and the owner has already taken "
+              f"this one as C2. The backup above is complete and recorded.")
 
 
 class _SecurityProbePlan(NamedTuple):
@@ -1138,10 +1272,32 @@ def _liveness_verdict(returncode: "int | None") -> str:
     return "unknown"
 
 
+def is_production_live_record(data) -> bool:
+    """PURE — is this `deploy_completed` payload a PRODUCTION live-revision record (SPEC-0094 §1)?
+
+    True iff `target` is ABSENT (no `--target` was named: the default command, and every consumer
+    declaring no targets) or `target.production` is literally `True`. This is the ONE predicate both
+    readers of "which revision is live in production" apply before taking the latest by ts —
+    `_rollback_capability` below and `views.py#_view_not_adopted` — so a `production: false` record
+    (a sandbox deploy since T-11932, a sandbox rollback since T-13340) is never read as production's
+    revision by one of them and not the other (T-13454).
+
+    An absent `target` and an absent `production:` INSIDE a target mean opposite things, as they do
+    in `_resolve_deploy_target`: the first is the default production deploy, the second is a named
+    surface whose stance was never positively declared. So a PRESENT target of any other shape —
+    `production` false, missing, null or non-boolean, or a `target` that is not a mapping — is NOT a
+    production record. The verb cannot write those shapes (`production:` is a mandatory boolean at
+    resolution); a hand-emitted row can, and it is never handed to production as its revision."""
+    target = data.get("target")
+    if target is None:
+        return True
+    return isinstance(target, dict) and target.get("production") is True
+
+
 class _RollbackCapability(NamedTuple):
     """The auto-rollback the DOWN-surface carve-out PROMISES, resolved BEFORE anything ships (T-10582)."""
     command: "str | None"
-    target: "str | None"        # the revision to roll back TO = the latest deploy_completed (SPEC-0094 §1)
+    target: "str | None"        # the revision to roll back TO = the latest PRODUCTION deploy_completed (SPEC-0094 §1)
     error: "str | None"
 
 
@@ -1154,10 +1310,14 @@ def _rollback_capability(ops, *, project, _iter_events) -> _RollbackCapability:
     is UNMET — proceeding would grant autonomy without the safety net that justified it. So this resolves
     before the deploy command, and a missing capability REFUSES (never «proceed and hope»).
 
-    THE TARGET is the latest `deploy_completed` revision for this project (SPEC-0094 §1: «the current-live
-    revision is the latest deploy_completed»; a rollback is itself a `deploy_completed`, so the latest
-    record is always the live one — the same fold as `views.py#_view_not_adopted`, done locally because
-    this module back-imports NOTHING and reads the journal ONLY through the injected `_iter_events`).
+    THE TARGET is the latest PRODUCTION `deploy_completed` revision for this project (SPEC-0094 §1: «the
+    current-live revision is the latest production deploy_completed»; a rollback is itself a
+    `deploy_completed`, so the latest production record is always the live one — the same fold as
+    `views.py#_view_not_adopted`, done locally because this module back-imports NOTHING and reads the
+    journal ONLY through the injected `_iter_events`). PRODUCTION is `is_production_live_record`: a
+    record on a `production: false` target is skipped, because the carve-out this resolves for is a
+    PRODUCTION deploy's (SPEC-0097 §12 — a non-production target never reaches the Class-S gate) and
+    rolling production back to a sandbox's revision would ship code production never ran (T-13454).
 
     Note what the target MEANS during an outage-restore, because it looks wrong until you name the trade:
     the prior revision is the CRASH-LOOPING one, so an auto-rollback RESTORES THE OUTAGE. That is correct.
@@ -1177,13 +1337,16 @@ def _rollback_capability(ops, *, project, _iter_events) -> _RollbackCapability:
         d = e.get("data") or {}
         if d.get("project") != project:
             continue
+        if not is_production_live_record(d):
+            continue
         ts = e.get("ts") or ""
         if target_ts is None or ts >= target_ts:   # latest by ts (ties → later in file wins; append-order)
             target_ts, target = ts, d.get("revision")
     if not target:
         return _RollbackCapability(None, None,
-                                   f"no prior `deploy_completed` is on record for `{project}`, so there "
-                                   f"is no revision to roll back TO (SPEC-0094 §1)")
+                                   f"no prior PRODUCTION `deploy_completed` (one naming no target, or a "
+                                   f"`production: true` one) is on record for `{project}`, so there is "
+                                   f"no production revision to roll back TO (SPEC-0094 §1)")
     return _RollbackCapability(command.strip(), target, None)
 
 
@@ -3355,6 +3518,38 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                     _run_c1_backup(backup, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
                                    deploy_env=deploy_env, _append_event=_append_event)
 
+            # The SAME dump on the OWNER-APPROVED Class-C2 path (SPEC-0097 §5, T-13514 / X-1856). Until
+            # now this branch selected `classes.C2` and ran nothing: the destructive class proceeded
+            # with LESS backup than C1 and the verb said nothing about it (<project>, 2026-10-03 — the
+            # sibling of the selected-then-dropped C1 dump, X-0261; `lessons/proof-card-after-wiring-
+            # card.md` §Generalise across the sibling branches). It runs the dump the carrier ALREADY
+            # declares under `classes.C1` — no new key — BEFORE the project deploy command; every
+            # refusal exits 3 from inside, so the command never runs and no deploy_completed is emitted.
+            #
+            # Keyed on gate.mode, like its two neighbours: `owner-approved` is reachable ONLY for Class
+            # C2 on a carrier that declared `classes:`. A pre-policy / waived carrier given the same flags
+            # is `pre-policy` and proceeds exactly as before, no dump demanded (§8/§9, T-10284); C2
+            # without --owner-approved was already refused at the gate above.
+            if gate.mode == "owner-approved":
+                backup = _owner_approved_backup(section.get("policy").get("classes"))
+                if backup is None:
+                    print("deploy: Class C2 (owner-approved) — NO pre-deploy backup is taken: this "
+                          "carrier declares no dump (`deploy.policy.classes.C1.pg_dump`), so the verb "
+                          "has none to run (SPEC-0097 §5). The deploy proceeds WITHOUT a kernel backup — "
+                          "take one by hand first if this change needs it.")
+                elif backup.error:
+                    print(f"deploy: REFUSED — an owner-approved Class-C2 deploy runs the pre-deploy "
+                          f"backup this carrier declares, but that declaration is unusable: "
+                          f"{backup.error} (SPEC-0097 §4/§5). A broken dump declaration refuses; it is "
+                          f"never read as «no dump declared». Fix `deploy.policy.classes.C1` in "
+                          f"{CONSUMER_OPS_CONTRACT}. The deploy did NOT run; no deploy_completed emitted.",
+                          file=sys.stderr)
+                    sys.exit(3)
+                else:
+                    _run_c1_backup(backup, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
+                                   deploy_env=deploy_env, _append_event=_append_event,
+                                   owner_approved_c2=True)
+
             # EXECUTE the Class-S evidence the gate SELECTED, instead of selecting-then-dropping it (T-10279).
             # SPEC-0097 §2 grants Class-S autonomy ONLY against a mandatory security live-probe, and routes an
             # un-probeable property to ESCALATE. Until now the gate checked only that classes.S was DECLARED
@@ -3443,9 +3638,12 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         if ev_dirty:
             print(f"deploy: journal-aware rollback — {plan.reason}.")
         if plan.fold:
-            _run_git_cap(["add", "--", ev_rel], REPO_ROOT)
+            # BY PATHSPEC (T-13456): the fold commits the journal ALONE. A separate `git add` followed
+            # by a pathspec-less commit carried whatever another session had staged in the shared
+            # index under this message.
             rv = _run_git_cap(["commit", "-q", "-m",
-                               "chore: fold journal dirt before rollback checkout (T-10633)"], REPO_ROOT)
+                               "chore: fold journal dirt before rollback checkout (T-10633)",
+                               "--", ev_rel], REPO_ROOT)
             if rv.returncode != 0:
                 # NEVER fatal — see above. The reversal proceeds; if the dirt does block the project's
                 # checkout, its own non-zero exit reports that honestly (no deploy_completed).

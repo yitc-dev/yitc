@@ -265,7 +265,7 @@ def _session_started_lower_bound(session_ref: str, *, _iter_events, events_path=
 
 
 def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, events_path=None, events=None,
-                      realms_out=None, discarded_out=None) -> set:
+                      realms_out=None, discarded_out=None, deliveries_out=None) -> set:
     """The spec/node ids this session has FETCHED — the PASS-GRANTING evidence of the SPEC-0042 read-gate
     (the pilot's ONLY form): a `cli_invoked` event (the verb-routed `graph query` emitter, T-0260) of
     THIS session_ref with ts >= lower_bound, carrying data.node_id. `commanded_read` (Read-tool reads
@@ -315,7 +315,16 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
     sites can tell «no scan at all» from «a scan whose bytes reached the null device» and SAY which:
     X-1101 measured a reader that ran the refusal's own prescribed cure in a redirected shell and was
     refused identically, because the message named neither DELIVERY nor the flag. Default None keeps
-    every existing caller byte-identical — still ONE reader over ONE journal, no second scan (P5)."""
+    every existing caller byte-identical — still ONE reader over ONE journal, no second scan (P5).
+
+    `deliveries_out` (T-13510, additive OUT-param — the shape of `realms_out`): when a dict is passed it is
+    filled `node_id -> [{"epoch", "content_sha", "node_realm"}]`, one entry per CREDITING receipt — the
+    facts the stage deliverer needs to tell "this context epoch already holds this exact render" from
+    "deliver it". `epoch` is read as `_seed_receipt_epochs` reads it (an absent / non-int stamp = 0, the
+    pre-change receipt); `content_sha` / `node_realm` are the receipt's own values or None. A receipt
+    this scan SKIPS (`stdout_delivered is False`) never enters it. It REPORTS, it grants nothing: the
+    returned set still decides credit alone, and that credit stays SESSION-scoped — the epoch decides
+    re-RENDERING only (SPEC-0050 §2). Default None keeps every existing caller byte-identical."""
     fetched = set()
     for e in (events if events is not None else _iter_events(events_path)):
         if e.get("type") != "cli_invoked" or e.get("session_ref") != session_ref:
@@ -338,6 +347,12 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
             fetched.add(nid)
             if realms_out is not None and data.get("node_realm"):
                 realms_out.setdefault(nid, set()).add(data["node_realm"])
+            if deliveries_out is not None:
+                ep = data.get("epoch")
+                deliveries_out.setdefault(nid, []).append({
+                    "epoch": ep if isinstance(ep, int) and not isinstance(ep, bool) else 0,
+                    "content_sha": data.get("content_sha") or None,
+                    "node_realm": data.get("node_realm") or None})
     return fetched
 
 

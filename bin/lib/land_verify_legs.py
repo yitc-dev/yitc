@@ -44,6 +44,8 @@ their `implements:` anchors here.
 from __future__ import annotations
 
 import ast
+import datetime
+import fnmatch
 import json
 import math
 import os
@@ -105,6 +107,23 @@ _VERIFY_DRIFT_PERCENTILES = ("p50", "p90")  # WHICH percentiles are read, in rep
                                            # the tail that T-11125 already watches by name. p99/max
                                            # are deliberately NOT read: they ARE that tail, so reading
                                            # them here would say the sibling's thing again, less well.
+# T-13522 (SPEC-0132 Rule 7, second subject) — the per-LAYER creep reading's parameters. Same shape
+# and the same fence as the block above: every bar is on a DELTA, none is a duration level.
+_VERIFY_LAYER_DRIFT_WINDOW = 10            # lands per SIDE, as above and for the same reason.
+_VERIFY_LAYER_DRIFT_GROWTH_RATIO = 0.25    # the RELATIVE bar — the two siblings' value, on purpose.
+_VERIFY_LAYER_DRIFT_MIN_GROWTH_MS = 5000   # the ABSOLUTE noise floor, sized for a LAYER and not for a
+                                           # file percentile. A layer is a whole command (a runner
+                                           # boot, often a container), and its run-to-run jitter is
+                                           # seconds: measured 2026-10-04 on the 12 real layer series
+                                           # with >= 20 ok lands (<project> + <project> journals), the
+                                           # median consecutive-land delta of one layer is 0.06-19 s.
+                                           # Replaying this rule over every 20-land tail of those
+                                           # series: at 5000 ms <project> is silent on 154 of 154 and
+                                           # <project> speaks on 31 of 716, all inside one episode in
+                                           # which four layers slowed together; at 2000 ms an 8 s
+                                           # layer starts speaking on jitter. The 250 ms above guards
+                                           # a ~1 s percentile and would be noise here.
+_LAYER_DRIFT_TS_RE = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\Z")   # the journal's row stamp: it sorts as text
 # ── T-12358 — the declared load-sensitive set: the two entry thresholds + the land-tail entry ──────
 # Both are `config`-class PERFORMANCE tunables (SPEC-0193 / T-11967), SEEDED at the card's MEASURED
 # fold and not at a hypothesis: over the 14 days to 2026-09-10 this repo's journal held 22 files that
@@ -250,7 +269,32 @@ def _declared_verify_infra_globs(ops: "dict | None", *, CONSUMER_OPS_CONTRACT, V
     return sorted(globs), refusals
 
 
-def _declared_check_surface_globs(W: Path, merged_base: str, *, _run_git_cap, CONSUMER_OPS_CONTRACT, _load_ops_carrier_text, _declared_verify_infra_globs, _pinned_declared_check_paths) -> list:
+def _declared_check_surface_globs_of(ops: "dict | None", *, _declared_verify_infra_globs, _pinned_declared_check_paths) -> set:
+    """The check-surface globs ONE parsed carrier declares — the per-carrier half of
+    `_declared_check_surface_globs` below, factored out by T-13531 so that the reader which decides
+    whether a changed test path may leave the full-run edge (`_owned_test_freed_paths`) excludes
+    EXACTLY the set the declaration-aware rung would still run in full. Pure; `ops` may be None."""
+    paths: set = set()
+    # T-12587 — the project's EXPLICIT `verify.infra_globs` declaration joins the SAME union, from
+    # BOTH carriers (the trigger's fail-OPEN-toward-arming bias, unchanged). Taken verbatim: an
+    # explicit glob is the project's stated intent, so the root-level exclusion below — written for
+    # DERIVED command operands, which are as likely the subject as a check — does not apply to it;
+    # over-firing is the safe side (SPEC-0077 §1). Refused (subtractive) entries contribute nothing
+    # here; they are REFUSED BY NAME at the declaration read (`_floor_declaration_refusals`).
+    paths.update(_declared_verify_infra_globs(ops)[0])
+    for p in _pinned_declared_check_paths(ops):
+        if len(Path(p).parts) < 2:
+            # The SAME root-level exclusion the overlay applies (see `_run_pinned_verify`): a
+            # root-level operand is as likely to be the SUBJECT as a check. Keeping it out here too
+            # is what stops the trigger OVER-firing on an ordinary product change — SPEC-0077's own
+            # failure-threshold names «fires on a NON-verify-path land» as a defect of this gate.
+            continue
+        paths.add(p)
+        paths.add(f"{p}/**")
+    return paths
+
+
+def _declared_check_surface_globs(W: Path, merged_base: str, *, _run_git_cap, CONSUMER_OPS_CONTRACT, _load_ops_carrier_text, _declared_check_surface_globs_of) -> list:
     """T-11184 (SPEC-0077 §1 coverage obligation) — the TRIGGER half of the same defect.
 
     §1 requires the verify-implementation-touch predicate's file set to cover the verifier's ENTIRE own
@@ -273,23 +317,10 @@ def _declared_check_surface_globs(W: Path, merged_base: str, *, _run_git_cap, CO
         (lambda r: (r.stdout if r.returncode == 0 else None))(
             _run_git_cap(["show", f"{merged_base}:{CONSUMER_OPS_CONTRACT}"], W)),
     ):
-        ops = _load_ops_carrier_text(text)
-        # T-12587 — the project's EXPLICIT `verify.infra_globs` declaration joins the SAME union, from
-        # BOTH carriers (the trigger's fail-OPEN-toward-arming bias, unchanged). Taken verbatim: an
-        # explicit glob is the project's stated intent, so the root-level exclusion below — written for
-        # DERIVED command operands, which are as likely the subject as a check — does not apply to it;
-        # over-firing is the safe side (SPEC-0077 §1). Refused (subtractive) entries contribute nothing
-        # here; they are REFUSED BY NAME at the declaration read (`_floor_declaration_refusals`).
-        paths.update(_declared_verify_infra_globs(ops)[0])
-        for p in _pinned_declared_check_paths(ops):
-            if len(Path(p).parts) < 2:
-                # The SAME root-level exclusion the overlay applies (see `_run_pinned_verify`): a
-                # root-level operand is as likely to be the SUBJECT as a check. Keeping it out here too
-                # is what stops the trigger OVER-firing on an ordinary product change — SPEC-0077's own
-                # failure-threshold names «fires on a NON-verify-path land» as a defect of this gate.
-                continue
-            paths.add(p)
-            paths.add(f"{p}/**")
+        # The per-carrier set (the `verify.infra_globs` union + the derived command operands, with the
+        # root-level exclusion) is `_declared_check_surface_globs_of` — one definition, shared with the
+        # owned-test reader (T-13531).
+        paths.update(_declared_check_surface_globs_of(_load_ops_carrier_text(text)))
     return sorted(paths)
 
 
@@ -303,6 +334,379 @@ def _declared_check_surface_touch(changed_files, W: Path, merged_base: str, *, _
     if not globs:
         return False
     return _is_verify_implementation_touch(changed_files, _VERIFY_IMPLEMENTATION_GLOBS=globs)
+
+
+#: T-13528 (SPEC-0152 rule 16) — the ops-carrier sections that decide WHAT a land verifies: the layer
+#: universe and its per-layer policy (`verify`), the pinned-leg gate (`verify_policy`) and the declared
+#: test taxonomy the sweep / delegation / timing lanes read (`tests`). A carrier change that leaves all
+#: three PARSED-equal cannot change which layers exist, what they run or how they are bounded.
+_OPS_CARRIER_VERIFY_SECTIONS = ("verify", "verify_policy", "tests")
+_OPS_CARRIER_SECTION_ABSENT = ("absent",)   # distinct from an explicit null (`verify:` with no value)
+_YAML_MERGE_TAG = "tag:yaml.org,2002:merge"
+
+
+def _ops_carrier_duplicate_key(text: str) -> bool:
+    """T-13528 — True when the carrier TEXT carries a duplicate key at ANY depth; RAISES on text the
+    loader cannot compose (the caller treats both as «cannot prove equal»).
+
+    WHY THE READER OWNS THIS AND THE PARSER DOES NOT. `state.load_ops_str` refuses a duplicate
+    TOP-LEVEL key and nothing deeper, and the safe loader silently LAST-WINS a nested one — so a
+    candidate writing `timeout_seconds: 1` and then `timeout_seconds: 300` inside `verify` parses to the
+    base's `300` and would compare EQUAL (audit-pre finding 1). For every other carrier reader the
+    last-wins value is simply the value; for a comparison that RELAXES a land gate an ambiguous text is
+    a doubt, and a doubt is «changed» (lessons/fail-closed-belongs-to-the-reader-not-the-parser).
+
+    ONE structural walk of the composed node graph, same loader class as the one parser. Three shapes
+    answer True: two keys of one mapping that CONSTRUCT equal (exactly the collapse the loader performs
+    — so `1` beside `true` is caught and a mere spelling difference is not), two merge keys, and a
+    non-scalar key (whose equality this walk cannot judge). A node reached through an alias is visited
+    once, by identity, so a self-referential alias terminates."""
+    import yaml
+    loader = state.yaml_loader()(text)
+    try:
+        root = loader.get_single_node()
+        seen: set = set()
+        stack = [root] if root is not None else []
+        while stack:
+            node = stack.pop()
+            if id(node) in seen:
+                continue
+            seen.add(id(node))
+            if isinstance(node, yaml.MappingNode):
+                keys: set = set()
+                for key_node, value_node in node.value:
+                    if not isinstance(key_node, yaml.ScalarNode):
+                        return True
+                    key = (_YAML_MERGE_TAG,) if key_node.tag == _YAML_MERGE_TAG \
+                        else loader.construct_object(key_node, deep=True)
+                    if key in keys:
+                        return True
+                    keys.add(key)
+                    stack.append(value_node)
+            elif isinstance(node, yaml.SequenceNode):
+                stack.extend(node.value)
+        return False
+    finally:
+        loader.dispose()
+
+
+#: The EXACT value types a compared carrier section may be built from. A CLOSED vocabulary, not an
+#: open «anything with a repr»: the safe loader also constructs tuples (`!!pairs`, `!!omap`) and sets
+#: (`!!set`), and a canonical form that folded a tuple into a list would call `!!pairs [{k: v}]` and
+#: `[[k, v]]` equal while a reader of the parsed value sees two different types (audit-post finding 1).
+_OPS_CARRIER_SCALAR_TYPES = (str, int, float, bool, type(None), bytes, datetime.date, datetime.datetime)
+
+
+def _ops_carrier_section_canon(value):
+    """T-13528 — a TYPE-STRICT, ORDER-PRESERVING canonical form of one parsed carrier value. Python
+    equality is too loose to stand behind a skip: `1 == True`, `1 == 1.0` and a mapping compares equal
+    to its own re-ordering. Here a scalar carries its type name and a mapping keeps document order, so
+    every difference a reader COULD observe is a difference.
+
+    THE VOCABULARY IS CLOSED, and a value outside it is not compared at all: exactly a plain mapping, a
+    plain list, and the scalar types of `_OPS_CARRIER_SCALAR_TYPES`, judged by EXACT type (a subclass
+    is a different type). Anything else — a tuple, a set, any other constructed object — RAISES, which
+    the caller reads as «changed». Refusing is deliberate rather than giving each exotic type a tag of
+    its own: a section built from tagged constructs is rare enough that the full run costs nothing
+    worth an open-ended canonical form. May also raise RecursionError on a self-referential structure."""
+    kind = type(value)
+    if kind is dict:
+        return ("map", tuple((_ops_carrier_section_canon(k), _ops_carrier_section_canon(v))
+                             for k, v in value.items()))
+    if kind is list:
+        return ("list", tuple(_ops_carrier_section_canon(v) for v in value))
+    if kind in _OPS_CARRIER_SCALAR_TYPES:
+        return (kind.__name__, repr(value))
+    raise TypeError(f"carrier value of type {kind.__name__} is outside the compared vocabulary")
+
+
+def _ops_carrier_strict_doc(text) -> dict:
+    """The carrier TEXT parsed for a reader that RELAXES a land gate — the mapping, or a RAISE.
+
+    The strict parse `_ops_carrier_freed_paths` has always applied (T-13528), factored out by T-13531
+    so the owned-test reader below parses by the SAME rules rather than a second copy of them: the
+    text is a non-blank string, carries no duplicate key at ANY depth (`_ops_carrier_duplicate_key`),
+    and parses through `state.load_ops_str` — the ONE carrier parser — to a MAPPING. Every other state
+    raises; both callers turn a raise into «nothing is freed», which is the behaviour without them."""
+    if not (isinstance(text, str) and text.strip()):
+        raise ValueError("carrier text is absent or blank")
+    if _ops_carrier_duplicate_key(text):
+        raise ValueError("carrier text carries a duplicate key")
+    doc = state.load_ops_str(text)
+    if not isinstance(doc, dict):
+        raise ValueError("carrier document is not a mapping")
+    return doc
+
+
+def _ops_carrier_freed_paths(diff_paths, base_text, cand_text, *, CONSUMER_OPS_CONTRACT,
+                             _declared_verify_infra_globs) -> "frozenset | None":
+    """T-13528 (SPEC-0152 rule 16) — the `reachability_freed` set a carrier touch EARNS, or None.
+
+    THE QUESTION. `yitc-ops.yaml` is in the verify-implementation glob set, so any change to it used to
+    disable every layer's `subject_globs` skip — a card editing `audit_scrutiny:` paid the same full
+    layer run as one rewriting `verify.layers`. This answers «did the change leave what a land VERIFIES
+    untouched?» over the two carrier TEXTS, and returns `frozenset({<carrier>})` — the set the existing
+    T-11463 seam frees at rung 4 — ONLY ON POSITIVE PROOF. PURE: no git, no filesystem.
+
+    EVERY condition must hold, and each failure is the SAME answer, None — which is «changed», i.e.
+    the behaviour before this function existed. There is no third value to route
+    (lessons/carving-an-exception-into-a-fail-closed-gate §1):
+      • the carrier is IN the diff (`./`-normalised) — otherwise there is nothing to free;
+      • both texts are non-blank strings (a carrier absent at either side — born, deleted, renamed
+        away — is not a comparison);
+      • neither text carries a duplicate key at any depth (`_ops_carrier_duplicate_key`);
+      • each parses through `state.load_ops_str` (the ONE carrier parser — it raises on malformed YAML
+        and on a duplicate top-level key; aliases and merge keys are resolved by its constructor, so an
+        anchor aliased INTO `verify` changes the parsed `verify`) to a MAPPING;
+      • NEITHER carrier declares the carrier itself as verify infrastructure: an accepted
+        `verify.infra_globs` glob matching the carrier path, or ANY refused entry of that key, withholds
+        the freeing. This is the project's shipped opt-out, honoured INSIDE the one answer the skip, the
+        attribution and the false-skip replay all read — so none of them can free what the land's
+        declaration-aware rung (`_declared_check_surface_touch`) would still run in full;
+      • the canonical forms of `verify`, `verify_policy` and `tests` are equal on both sides, where an
+        ABSENT section is distinct from an explicit null.
+    Any exception (a constructor error, a RecursionError on a self-referential alias) is None too."""
+    carrier = str(CONSUMER_OPS_CONTRACT)
+    try:
+        paths = {str(p).strip()[2:] if str(p).strip().startswith("./") else str(p).strip()
+                 for p in (diff_paths or ())}
+        if carrier not in paths:
+            return None
+        canon: list = []
+        for text in (base_text, cand_text):
+            doc = _ops_carrier_strict_doc(text)        # raises on every doubt → None below
+            globs, refusals = _declared_verify_infra_globs(doc, CONSUMER_OPS_CONTRACT=carrier)
+            if refusals or any(fnmatch.fnmatch(carrier, g) for g in globs):
+                return None
+            canon.append(tuple(
+                _ops_carrier_section_canon(doc[key]) if key in doc else _OPS_CARRIER_SECTION_ABSENT
+                for key in _OPS_CARRIER_VERIFY_SECTIONS))
+        return frozenset({carrier}) if canon[0] == canon[1] else None
+    except Exception:                          # noqa: BLE001 — any doubt is «changed»
+        return None
+
+
+def _ops_carrier_live_texts(worktree: Path, base_ref: str, *, _run_git_cap,
+                            CONSUMER_OPS_CONTRACT) -> "tuple | None":
+    """`(merge-base carrier text, candidate carrier text)` for a LIVE land, or None on any read doubt.
+
+    The acquisition `_ops_carrier_verify_freed` has always performed (T-13528), factored out by T-13531
+    so the owned-test reader takes the SAME two texts by the same reads. The base text is
+    `git show <base_ref>:<carrier>`; the candidate text is the WORKING-TREE file — exactly what the
+    layer runner loads its layers from — and that file must ALSO be BYTE-IDENTICAL to HEAD's blob,
+    because the diff is `base..HEAD`: the carrier the runner loads and the carrier the land
+    fast-forwards have to be one file. The identity is taken on OBJECT IDS — the unfiltered hash of the
+    working file against `HEAD:<carrier>` — never on decoded text, which would call a CRLF working copy
+    equal to an LF blob. None on: no base ref or git runner, a carrier absent at the base, in the tree
+    or at HEAD, a symlinked or non-UTF-8 candidate, a working copy that differs from HEAD by so much as
+    a line ending, any git failure. May raise on an unreadable file; both callers treat that as None."""
+    carrier = str(CONSUMER_OPS_CONTRACT)
+    if not base_ref or _run_git_cap is None:
+        return None
+    cand = Path(worktree) / carrier
+    if cand.is_symlink() or not cand.is_file():
+        return None
+    # BYTE identity with HEAD, by object id. `--no-filters` hashes the file exactly as it sits on
+    # disk (no clean/eol conversion), so equal ids mean equal bytes; the git runner captures TEXT,
+    # which is why the comparison is never made on its decoded output.
+    work_oid = _run_git_cap(["hash-object", "--no-filters", "--", carrier], worktree)
+    head_oid = _run_git_cap(["rev-parse", "--verify", "--quiet", f"HEAD:{carrier}"], worktree)
+    if work_oid.returncode != 0 or head_oid.returncode != 0:
+        return None
+    if not work_oid.stdout.strip() or work_oid.stdout.strip() != head_oid.stdout.strip():
+        return None
+    cand_text = cand.read_text(encoding="utf-8")
+    base = _run_git_cap(["show", f"{base_ref}:{carrier}"], worktree)
+    if base.returncode != 0:
+        return None
+    return (base.stdout, cand_text)
+
+
+def _ops_carrier_verify_freed(worktree: Path, base_ref: str, diff_paths, *, _run_git_cap,
+                              CONSUMER_OPS_CONTRACT, _ops_carrier_freed_paths) -> "frozenset | None":
+    """T-13528 — `_ops_carrier_freed_paths` for a LIVE land: the merge-base carrier against the
+    candidate tree's. The ONE reader the per-layer skip and the land attribution both call, with the
+    same inputs, so the two cannot disagree about one land.
+
+    LAZY: it reads nothing unless the diff lists the carrier, so a land that does not touch
+    `yitc-ops.yaml` pays no git call (and nothing here runs at session start). The base text is
+    `git show <base_ref>:<carrier>`; the candidate text is the WORKING-TREE file — exactly what the
+    layer runner loads its layers from — and that file must ALSO be BYTE-IDENTICAL to HEAD's blob,
+    because the diff is `base..HEAD`: the carrier the runner loads and the carrier the land
+    fast-forwards have to be one file. The identity is taken on OBJECT IDS — the unfiltered hash of the
+    working file against `HEAD:<carrier>` — never on decoded text, which would call a CRLF working copy
+    equal to an LF blob (audit-post finding 2). FAIL-CLOSED to None on every read doubt: no base ref or
+    git runner, a carrier absent at the base, in the tree or at HEAD, a symlinked or non-UTF-8
+    candidate, a working copy that differs from HEAD by so much as a line ending, any git failure, any
+    exception."""
+    carrier = str(CONSUMER_OPS_CONTRACT)
+    try:
+        if not base_ref or _run_git_cap is None or not diff_paths:
+            return None
+        if not any((str(p).strip()[2:] if str(p).strip().startswith("./") else str(p).strip()) == carrier
+                   for p in diff_paths):
+            return None
+        # The two texts come from the ONE acquisition the owned-test reader also uses (T-13531).
+        texts = _ops_carrier_live_texts(worktree, base_ref, _run_git_cap=_run_git_cap,
+                                        CONSUMER_OPS_CONTRACT=carrier)
+        if texts is None:
+            return None
+        return _ops_carrier_freed_paths(diff_paths, texts[0], texts[1])
+    except Exception:                          # noqa: BLE001 — any doubt is «changed»
+        return None
+
+
+#: T-13531 (SPEC-0152 rule 16) — the member of the kernel verify-infrastructure glob set whose OWNED
+#: paths the per-layer skip frees. It names WHICH floor member is narrowed, nothing more: what a test
+#: file IS comes from the project's own `tests.classes[].globs`, never from a pattern held here.
+_OWNED_TEST_KERNEL_GLOB = "tests/**"
+
+
+def _owned_test_layer_claims(doc: dict) -> tuple:
+    """`({layer: subject_globs | None}, {layer: [covers globs]})` of one strictly-parsed carrier, or a
+    RAISE (T-13531). The layer half of the owned-test proof, read with the missing-value judgement of
+    THIS use site (lessons/fail-closed-belongs-to-the-reader-not-the-parser): the per-layer judge
+    `_subject_globs_would_skip` answers False for a MALFORMED glob list because its caller wants «run
+    the layer», and read here that same False would say «this layer owns the path». So a `verify` that
+    is not a mapping, a `layers` that is not a non-empty list, a layer that is not a mapping, a name
+    that is not a non-blank string or is DUPLICATED, a present `subject_globs` that is not a non-empty
+    list of non-blank strings, and a present `covers` that is not a list of strings all raise. An
+    ABSENT (or null) `subject_globs` is None — a layer that always runs and claims nothing."""
+    ver = doc.get("verify")
+    layers = ver.get("layers") if isinstance(ver, dict) else None
+    if not (isinstance(layers, list) and layers):
+        raise ValueError("no usable verify.layers")
+    subjects: dict = {}
+    covers: dict = {}
+    for ly in layers:
+        if not isinstance(ly, dict):
+            raise ValueError("a verify layer is not a mapping")
+        name = ly.get("layer")
+        if not (isinstance(name, str) and name.strip()):
+            raise ValueError("a verify layer has no usable name")
+        name = name.strip()
+        if name in subjects:
+            raise ValueError("duplicate verify layer name")
+        sg = ly.get("subject_globs")
+        if sg is None:
+            subjects[name] = None
+        elif isinstance(sg, list) and sg and all(isinstance(g, str) and g.strip() for g in sg):
+            subjects[name] = list(sg)
+        else:
+            raise ValueError("malformed subject_globs")
+        cv = ly.get("covers")
+        if cv is None:
+            covers[name] = []
+        elif isinstance(cv, list) and all(isinstance(c, str) for c in cv):
+            covers[name] = [c.strip() for c in cv if c.strip()]
+        else:
+            raise ValueError("malformed covers")
+    return subjects, covers
+
+
+def _owned_test_freed_paths(diff_paths, base_text, cand_text, *, CONSUMER_OPS_CONTRACT,
+                            _declared_verify_infra_globs, _declared_check_surface_globs_of,
+                            _declared_test_globs, _subject_globs_would_skip) -> "frozenset | None":
+    """T-13531 (SPEC-0152 rule 16) — the changed TEST paths the layers that own them answer for, or None.
+
+    THE QUESTION. `tests/**` is in the verify-implementation glob set, so a diff touching ANY test file
+    used to disable every layer's `subject_globs` skip — a card adding one backend test paid a full run
+    of every declared layer. This answers «is this changed test path provably one layer's own?» over
+    the two carrier TEXTS and returns the set the existing T-11463 seam frees at rung 4. A freed path
+    is then judged like any other: the layers whose `subject_globs` claim it run, the rest are judged
+    by their own globs. PURE: no git, no filesystem.
+
+    A path is freed ONLY ON POSITIVE PROOF ON EVERY AXIS, and each failure is the SAME answer —
+    «not freed», the behaviour before this function existed
+    (lessons/carving-an-exception-into-a-fail-closed-gate §1):
+      (a) DECLARED TEST FILE — it matches the UNION of the project's own `tests.classes[].globs` at
+          BOTH carriers (`_declared_test_globs`, the one reader of that declaration). A project that
+          declares none frees nothing. The kernel carries no filename convention here: on a surface
+          that gates, what a test file IS is the project's declaration (SPEC-0185 §1(c), §2a(ii));
+      (b) both texts parse strictly (`_ops_carrier_strict_doc`) and neither carries a REFUSED
+          `verify.infra_globs` entry;
+      (c) it matches no declared check-surface glob of EITHER carrier — `verify.infra_globs`, which is
+          how a project lists SHARED test files, or a layer command operand
+          (`_declared_check_surface_globs_of`) — so nothing is freed here that the declaration-aware
+          rung would still run in full;
+      (d) `verify.layers` is well-formed (`_owned_test_layer_claims`) and the per-layer subject and
+          covers maps are EQUAL at both carriers;
+      (e) at least one glob-declaring layer CLAIMS it, where «claims» is the per-layer judge itself
+          (`not _subject_globs_would_skip([path], globs)`) — so a freed path always forces a layer;
+      (f) at least one glob-declaring layer does NOT claim it — a path every scoped layer claims is
+          not freed;
+      (g) no glob-declaring layer whose `covers:` matches it fails to claim it — a layer that says it
+          verifies a path and also says the path cannot affect it has contradicted itself.
+    A malformed `tests.classes` entry contributes no glob, so it can only shrink the freed set. Any
+    exception is None. Only paths under the kernel `tests/**` glob are considered: every other
+    verify-infrastructure path in the diff still fires rung 4."""
+    carrier = str(CONSUMER_OPS_CONTRACT)
+    try:
+        tests: set = set()
+        for raw in (diff_paths or ()):
+            p = str(raw).strip()
+            if p.startswith("./"):
+                p = p[2:]
+            if fnmatch.fnmatch(p, _OWNED_TEST_KERNEL_GLOB):
+                tests.add(p)
+        if not tests:
+            return None
+        claims = None
+        surface: set = set()
+        declared: list = []
+        for text in (base_text, cand_text):
+            doc = _ops_carrier_strict_doc(text)                                    # (b)
+            if _declared_verify_infra_globs(doc, CONSUMER_OPS_CONTRACT=carrier)[1]:
+                return None                                                        # (b) refused entry
+            surface.update(_declared_check_surface_globs_of(doc))                  # (c)
+            cur = _owned_test_layer_claims(doc)                                    # (d)
+            if claims is not None and cur != claims:
+                return None
+            claims = cur
+            declared.append(list(_declared_test_globs(doc)))                       # (a)
+        subjects, covers = claims
+        scoped = {name: globs for name, globs in subjects.items() if globs is not None}
+        freed: set = set()
+        for p in sorted(tests):
+            if not all(any(fnmatch.fnmatch(p, g) for g in globs) for globs in declared):
+                continue                                                           # (a)
+            if any(fnmatch.fnmatch(p, g) for g in surface):
+                continue                                                           # (c)
+            owners = {name for name, globs in scoped.items() if not _subject_globs_would_skip([p], globs)}
+            if not owners or owners == set(scoped):
+                continue                                                           # (e), (f)
+            if any(name not in owners and any(fnmatch.fnmatch(p, c) for c in covers.get(name, ()))
+                   for name in scoped):
+                continue                                                           # (g)
+            freed.add(p)
+        return frozenset(freed) or None
+    except Exception:                          # noqa: BLE001 — any doubt frees nothing
+        return None
+
+
+def _owned_test_verify_freed(worktree: Path, base_ref: str, diff_paths, *, _run_git_cap,
+                             CONSUMER_OPS_CONTRACT, _owned_test_freed_paths) -> "frozenset | None":
+    """T-13531 — `_owned_test_freed_paths` for a LIVE land or Stage-6 run: the merge-base carrier
+    against the candidate tree's. The ONE reader the per-layer skip and the land attribution both call,
+    with the same inputs, so the two cannot disagree about one land.
+
+    LAZY: it reads nothing unless the diff lists a path under the kernel `tests/**` glob. The two texts
+    come from `_ops_carrier_live_texts` — the acquisition the section-aware carrier reader uses, with
+    its conditions unchanged (the working carrier is a regular file byte-identical to HEAD's blob).
+    FAIL-CLOSED to None on every read doubt and on any exception."""
+    try:
+        if not base_ref or _run_git_cap is None or not diff_paths:
+            return None
+        if not any(fnmatch.fnmatch(str(p).strip()[2:] if str(p).strip().startswith("./") else str(p).strip(),
+                                   _OWNED_TEST_KERNEL_GLOB) for p in diff_paths):
+            return None
+        texts = _ops_carrier_live_texts(worktree, base_ref, _run_git_cap=_run_git_cap,
+                                        CONSUMER_OPS_CONTRACT=CONSUMER_OPS_CONTRACT)
+        if texts is None:
+            return None
+        return _owned_test_freed_paths(diff_paths, texts[0], texts[1])
+    except Exception:                          # noqa: BLE001 — any doubt frees nothing
+        return None
 
 
 def _pinned_declared_check_paths(ops: "dict | None", *, _pinned_declared_check_paths_by_layer) -> list:
@@ -1339,6 +1743,135 @@ def _declared_layer_worker_shares(sec: dict, layers) -> dict:
     return out
 
 
+_SHELL_ASSIGNMENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+_SHELL_CHDIR_WORD_RE = re.compile(r"(?<![\w./-])(?:cd|pushd|popd)(?![\w./-])")
+
+
+def _plain_command_words(command: str) -> "list | None":
+    """T-13541 — the words of a layer `command:` that is ONE PLAIN simple command, else None.
+
+    Returns `(word, plain_len)` pairs, where `plain_len` is how many leading characters of the word
+    were written unquoted — what tells a real `NAME=value` assignment from a quoted word that merely
+    looks like one. Single quotes, double quotes and backslash escapes are honoured.
+
+    None — «not one plain command» — on ANYTHING the shell would treat as more than words: an unquoted
+    `;` `|` `&` `(` `)` `<` `>` `#` or newline (a list, a pipeline, a redirection, a subshell, a
+    comment), a `$` or a backtick outside single quotes (an expansion or substitution), an unbalanced
+    quote, a trailing backslash. That is deliberately the WHOLE grammar: three audit passes on this
+    card each found one more way a wider reading credited an `npm` the shell does not run
+    (`echo npm run e2e`, `echo ok > npm run e2e`, bash's `echo ok &> out npm run e2e`), and shells
+    disagree on some of them. A command with no operator at all has one reading in every shell.
+    Pure: no I/O, no expansion, nothing executed."""
+    words, word, plain, frozen, quote = [], None, 0, False, None
+    i, n = 0, len(command)
+    while i < n:
+        ch = command[i]
+        if quote == "'":
+            if ch == "'":
+                quote = None
+            else:
+                word += ch
+        elif ch in "$`":
+            return None
+        elif quote == '"':
+            if ch == '"':
+                quote = None
+            elif ch == "\\" and i + 1 < n and command[i + 1] in '"\\\n':
+                i += 1
+                if command[i] != "\n":
+                    word += command[i]
+            else:
+                word += ch
+        elif ch == "\\":
+            if i + 1 >= n:
+                return None
+            i += 1
+            frozen = True
+            if command[i] != "\n":
+                word = (word or "") + command[i]
+        elif ch in "'\"":
+            quote, frozen = ch, True
+            word = word or ""
+        elif ch in ";|&()<>#\n":
+            return None
+        elif ch in " \t":
+            if word is not None:
+                words.append((word, plain))
+                word, plain, frozen = None, 0, False
+        else:
+            word = (word or "") + ch
+            if not frozen:
+                plain += 1
+        i += 1
+    if quote is not None:
+        return None
+    if word is not None:
+        words.append((word, plain))
+    return words
+
+
+def _npm_run_script(command: str) -> "tuple | None":
+    """T-13541 — the package script a layer `command:` PROVABLY runs, as `(dir | None, name)` (`None`
+    = the worktree root, where a layer command runs — `_run_layer_command`), else None.
+
+    A CLOSED allow-list, never a skip-what-I-do-not-know scan, because its caller turns a hit into
+    «this layer has a reader»: an unread script is only the miss that already existed, a wrongly read
+    one would absolve a share nobody reads. The layer command must be, in full:
+
+        [NAME=value ...] npm [-w <dir> | --workspace <dir> | --workspace=<dir>] run|run-script <name> [args] [-- args]
+
+      - ONE plain simple command (`_plain_command_words`): no list, pipeline, redirection, subshell,
+        substitution, expansion or comment. `npm ci && npm run e2e` is NOT followed.
+      - `npm` is its command word, after real leading `NAME=value` assignments; an `npm_config_*`
+        name anywhere in the command refuses it (it can point npm at another directory).
+      - before a bare `--`: at most ONE workspace selector, and ANY other `-flag` (`--prefix`, `-C`,
+        `--workspaces`, …) refuses — an unknown flag is never skipped. The first plain word is `run` |
+        `run-script`, the next is the script name; later plain words and everything after `--` are
+        the script's own arguments.
+      - a name or dir carrying a glob / brace / tilde character is not a literal and is refused.
+
+    BOUND, stated: `-w <dir>` is read as a DIRECTORY; whether it is a declared workspace is npm's own
+    check, and npm refuses loudly when it is not. Pure + total."""
+    try:
+        # surrounding blank space is not an operator (a YAML block scalar ends in a newline)
+        words = None if "npm_config_" in command.lower() else _plain_command_words(command.strip())
+    except Exception:
+        return None
+    if not words:
+        return None
+    k = 0
+    while k < len(words):
+        m = _SHELL_ASSIGNMENT_RE.match(words[k][0])
+        if not m or m.end() > words[k][1]:
+            break
+        k += 1
+    rest = [w for w, _plain in words[k:]]
+    if not rest or rest[0] != "npm":
+        return None
+    dirs, plain = [], []
+    args = iter(rest[1:])
+    for tok in args:
+        if tok == "--":
+            break
+        if tok in ("-w", "--workspace"):
+            val = next(args, None)
+            if val is None or val.startswith("-"):
+                return None
+            dirs.append(val)
+        elif tok.startswith("--workspace="):
+            dirs.append(tok[len("--workspace="):])
+        elif tok.startswith("-"):
+            return None
+        else:
+            plain.append(tok)
+    if len(dirs) > 1 or len(plain) < 2 or plain[0] not in ("run", "run-script"):
+        return None
+    rel_dir, name = (dirs[0] if dirs else None), plain[1]
+    if rel_dir == "" or any(c in part for part in (name, rel_dir or "") for c in "*?[]{}~"):
+        return None
+    return (rel_dir, name)
+
+
 def _registry_text(worktree: Path, command: str, *, _DELEG_REGISTRY_MAX_DEPTH, _DELEG_REGISTRY_MAX_BYTES=_DELEG_REGISTRY_MAX_BYTES, _DELEG_REGISTRY_MAX_FILES=_DELEG_REGISTRY_MAX_FILES) -> str:
     """T-11172 — ONE layer's REGISTRY TEXT: its `command:` PLUS the in-worktree script(s) it names,
     TRANSITIVELY to `_DELEG_REGISTRY_MAX_DEPTH` levels. Extracted verbatim from
@@ -1352,11 +1885,50 @@ def _registry_text(worktree: Path, command: str, *, _DELEG_REGISTRY_MAX_DEPTH, _
     then the suites are named two levels down and a depth-1 read accuses every one of them. So the walk
     goes level by level, bounded FOUR ways: the depth cap, the file cap (it counts across levels, not
     per level), an empty frontier, and a `seen` set of resolved paths so a cycle reads each file once
-    and stops. Pure + total: every read is bounded and every exception swallowed."""
+    and stops. Pure + total: every read is bounded and every exception swallowed.
+
+    T-13541 (GitHub issue 28) — a PACKAGE SCRIPT is an in-repo script too. For
+    `npm run e2e:browser` no command token is a file, so the walk read nothing and a share the runner
+    does read was reported as read by nobody. When the layer command IS one plain `npm run <name>`
+    invocation (`_npm_run_script` — the whole command, a closed flag grammar), that script's text from
+    `<dir>/package.json` `scripts[name]` joins LEVEL 0: it is added to the text. The manifest read
+    sits inside the SAME bounds as any other — no absolute or `..` dir, realpath containment, the byte
+    cap, one read against the file cap, the `seen` set — and every failure (unreadable, oversized,
+    escaping, bad JSON, no such script) adds nothing, which is exactly the pre-change text.
+
+    The FILES that script names are followed (it joins the first frontier) ONLY where the walk's own
+    resolution base is the directory the script runs in: a ROOT package script whose text names no
+    `cd` / `pushd` / `popd` anywhere (quoted or not). The walk resolves every token against the
+    worktree root, so following a WORKSPACE script's `-c e2e/pw.config.ts` would read the ROOT's
+    unrelated `e2e/pw.config.ts` and credit it as this layer's reader; such a script contributes its
+    own text and nothing more."""
     text = command
     reads = 0
     seen = set()
     frontier = [command]                # level 0: the command string itself
+    npm_run = _npm_run_script(command)
+    if npm_run is not None:
+        rel_dir, name = npm_run
+        try:
+            # the walk's own rule: absolute paths and any escaping path are never read
+            if rel_dir is None or not (rel_dir.startswith("/") or ".." in rel_dir):
+                root = worktree.resolve()
+                cand = (((worktree / rel_dir) if rel_dir is not None else worktree) / "package.json").resolve()
+                # containment by realpath (a symlinked dir leaving the tree is refused) + the byte cap
+                if (root in cand.parents and reads < _DELEG_REGISTRY_MAX_FILES and cand.is_file()
+                        and cand.stat().st_size <= _DELEG_REGISTRY_MAX_BYTES):
+                    body = cand.read_text(encoding="utf-8", errors="replace")
+                    seen.add(cand)
+                    reads += 1
+                    data = json.loads(body)
+                    scripts = data.get("scripts") if isinstance(data, dict) else None
+                    script = scripts.get(name) if isinstance(scripts, dict) else None
+                    if isinstance(script, str) and script:
+                        text += "\n" + script
+                        if rel_dir is None and not _SHELL_CHDIR_WORD_RE.search(script):
+                            frontier.append(script)     # runs in the root: the files it names are read below
+        except Exception:
+            pass    # unreadable manifest / bad JSON -> contributes nothing; never an accusation
     for _depth in range(_DELEG_REGISTRY_MAX_DEPTH):
         nxt = []
         for chunk in frontier:
@@ -2070,22 +2642,147 @@ def _verify_duration_drift_signals(series: "list", *, window: int = _VERIFY_DRIF
     return signals
 
 
+def _verify_layer_duration_drift_signals(series: "list", *, window: int = _VERIFY_LAYER_DRIFT_WINDOW,
+                                         growth_ratio: float = _VERIFY_LAYER_DRIFT_GROWTH_RATIO,
+                                         min_growth_ms: int = _VERIFY_LAYER_DRIFT_MIN_GROWTH_MS) -> "list":
+    """T-13522 (SPEC-0132 Rule 7, second subject) — PURE, REPORT-ONLY: has a declared CONSUMER verify
+    layer's own duration crept upward across lands? The sibling above reads the kernel sweep's
+    per-file walls; a project whose verify is its declared layers (SPEC-0152 rule 16) has none of
+    those, and its layer durations — recorded on every land since T-11200 — had no reader for growth
+    (measured on a consumer: one layer went 18 s → 278 s over 35 lands unnoticed). Same input as the
+    sibling (the projected `land_completed` payloads; ordered HERE by each row's own `ts`, so the
+    caller's order is not relied on), same contract: it reads one in-memory list, writes nothing,
+    emits nothing and moves no exit code.
+
+    A LAYER-RECORDING LAND is a payload whose `verify_metrics` carries a `per_layer_durations` key at
+    all — whatever is under it. AN OBSERVATION is narrower: one `layers[]` entry of such a land with a
+    positive int `duration_ms`, whose name appears ONCE in that land, on a land that also carries an
+    int `layer_worker_budget`. The two are kept apart on purpose (audit-post finding, T-13522): which
+    land is NEWEST is decided over the layer-recording lands, and what may be REPORTED is decided
+    over that newest land's observations. Deciding "newest" over observations instead lets a newest
+    land whose record is unreadable or ambiguous fall out of sight, and the reading then re-reports
+    an older land's creep as if it were current.
+
+    ONLY A LAYER THE NEWEST LAYER-RECORDING LAND OBSERVED is judged. So a layer removed from the
+    carrier is not re-reported from its last rows at every later land, and a newest land that
+    recorded layers without a usable budget, or recorded this layer twice or with no usable
+    duration, says nothing about it.
+
+    THE BUDGET COHORT — SPEC-0208 rule 5 applied to a reading. The worker budget a layer was handed is
+    part of the regime its duration was measured under, so durations under two budgets are not one
+    series. A layer is judged ONLY over its observations that share the newest land's budget; rows
+    under any other budget are never compared against them.
+
+    THE DELTA, NEVER THE LEVEL, and THE FAIL DIRECTION IS SILENCE — both inherited from the sibling,
+    unchanged: no duration is judged, only movement of the recent-window median over the older-window
+    median, past a relative bar AND an absolute floor; fewer than two windows of history says
+    nothing. Silence also covers ORDER: a layer-recording land whose `ts` (`_row_ts`, put there by
+    `_scaling_series_projection`) is missing or not the journal's canonical UTC stamp cannot be
+    placed, so which land is newest is unknown and the whole reading says nothing; and lands tied on
+    the newest `ts` report only what every one of them observed, under one budget.
+
+    Each line CITES THE ROWS IT READ — the first and last `events.jsonl#ts=` of the older window and
+    of the recent window. The windows are contiguous in the cohort, so the four locators bound them.
+
+    Returns a list of `str`, one per drifting layer, in layer-name order. PURE: nothing is mutated."""
+    def _median(values: "list") -> int:
+        ordered = sorted(values)
+        n = len(ordered)
+        return ordered[n // 2] if n % 2 else (ordered[n // 2 - 1] + ordered[n // 2]) // 2
+
+    try:
+        window = max(1, int(window))
+        ratio = float(growth_ratio)
+        floor_ms = int(min_growth_ms)
+    except (TypeError, ValueError):
+        return []
+
+    observations: dict = {}        # layer name -> [(ts, budget, duration_ms), ...]
+    newest_ts = ""                 # the greatest ts among the layer-recording lands
+    newest_observed: set = set()   # the layers EVERY land at that ts observed
+    newest_budgets: set = set()    # the budgets of the lands at that ts (None = no usable budget)
+    for payload in series or []:
+        if not isinstance(payload, dict):
+            continue
+        metrics = payload.get("verify_metrics")
+        if not isinstance(metrics, dict) or "per_layer_durations" not in metrics:
+            continue          # not a layer-recording land ⇒ it says nothing about layers either way
+        ts = payload.get("_row_ts")
+        if not isinstance(ts, str) or not _LAYER_DRIFT_TS_RE.match(ts):
+            return []         # a layer-recording land that cannot be placed ⇒ "newest" is unknown
+        budget = metrics.get("layer_worker_budget")
+        if isinstance(budget, bool) or not isinstance(budget, int):
+            budget = None
+        record = metrics.get("per_layer_durations")
+        rows = record.get("layers") if isinstance(record, dict) else None
+        seen: dict = {}
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            name, ms = row.get("layer"), row.get("duration_ms")
+            if not isinstance(name, str) or not name:
+                continue
+            ok = not isinstance(ms, bool) and isinstance(ms, int) and ms > 0
+            seen[name] = None if name in seen or not ok else ms   # twice in one land ⇒ ambiguous
+        observed = ({name: ms for name, ms in seen.items() if ms is not None}
+                    if budget is not None else {})
+        if ts > newest_ts:
+            newest_ts, newest_observed, newest_budgets = ts, set(observed), {budget}
+        elif ts == newest_ts:
+            newest_observed &= set(observed)
+            newest_budgets.add(budget)
+        for name, ms in observed.items():
+            observations.setdefault(name, []).append((ts, budget, ms))
+
+    if len(newest_budgets) != 1 or None in newest_budgets:
+        return []             # no layer-recording land, or the newest one's regime is not one budget
+    budget = next(iter(newest_budgets))
+
+    signals = []
+    for name in sorted(newest_observed):
+        cohort = sorted((ts, ms) for ts, b, ms in observations[name] if b == budget)
+        if len(cohort) < 2 * window:
+            continue          # no baseline under this budget to have moved from ⇒ silent
+        compared = cohort[-2 * window:]
+        older, recent = compared[:window], compared[window:]
+        base = _median([ms for _ts, ms in older])
+        now = _median([ms for _ts, ms in recent])
+        delta = now - base
+        if base > 0 and delta >= floor_ms and now >= base * (1.0 + ratio):
+            signals.append(
+                f"[report-only] layer duration creep: verify layer `{name}` is {now/1000.0:.1f}s, "
+                f"+{int(round(100.0 * delta / base))}% over the median of its previous {window} lands "
+                f"under the same worker budget ({budget}) ({base/1000.0:.1f}s) — rows "
+                f"events.jsonl#ts={older[0][0]} .. events.jsonl#ts={older[-1][0]} against "
+                f"events.jsonl#ts={recent[0][0]} .. events.jsonl#ts={recent[-1][0]}; SPEC-0132 Rule 7. "
+                f"The DELTA, never the level: this names no duration limit and gates nothing.")
+    return signals
+
+
 # T-13138 (X-1687) — THE FIELDS the two scaling-signal folds below read from each land's `data`, and
 # nothing else. The land tail keeps only this projection of every ok `land_completed` row: measured on
 # the kernel checkout, the full `data` of its 7,798 ok land rows is ~30 MB of JSON (~150 MB parsed —
 # `selection_ran_tests` alone is 13.6 MB) while these fields are 1.6 MB. A signal that reads a NEW field
 # must add it here; `tests/test_t13138_land_journal_memory.py` pins projected == full on every field.
-_SCALING_METRICS_FIELDS = ("verify_wall_ms", "queue_wait_ms", "serial_lane_ms", "serial_lane_files")
+_SCALING_METRICS_FIELDS = ("verify_wall_ms", "queue_wait_ms", "serial_lane_ms", "serial_lane_files",
+                           "layer_worker_budget")   # T-13522: the per-layer creep reading's cohort key
 _SCALING_PER_FILE_FIELDS = ("wall_ms_pct", "sample_count")
+_SCALING_PER_LAYER_FIELDS = ("layers",)             # T-13522: `{layer, duration_ms}` per executed layer
 
 
-def _scaling_series_projection(d):
-    """`d` (one land's `data`) reduced to what `_verify_scaling_signals` + `_verify_duration_drift_signals`
-    read — the same values, the same key presence, and a non-dict left AS IS so every `isinstance` test
-    in the folds takes the same branch it took on the full row (T-13138)."""
+def _scaling_series_projection(d, ts=None):
+    """`d` (one land's `data`) reduced to what `_verify_scaling_signals` and its two duration-drift
+    siblings read — the same values, the same key presence, and a non-dict left AS IS so every
+    `isinstance` test in the folds takes the same branch it took on the full row (T-13138).
+
+    `ts` (T-13522) is the ROW's own timestamp — it lives on the event, not in `data`, so the caller
+    passes it — kept as `_row_ts` for the one fold that cites the rows it read. Omitted or not a `str`,
+    nothing is added."""
     if not isinstance(d, dict):
         return d
     out = {}
+    if isinstance(ts, str) and ts:
+        out["_row_ts"] = ts
     if "verify_duration_ms" in d:
         out["verify_duration_ms"] = d["verify_duration_ms"]
     if "verify_metrics" in d:
@@ -2096,6 +2793,10 @@ def _scaling_series_projection(d):
                 pf = vm["per_file_durations"]
                 kept["per_file_durations"] = ({k: pf[k] for k in _SCALING_PER_FILE_FIELDS if k in pf}
                                               if isinstance(pf, dict) else pf)
+            if "per_layer_durations" in vm:
+                pl = vm["per_layer_durations"]
+                kept["per_layer_durations"] = ({k: pl[k] for k in _SCALING_PER_LAYER_FIELDS if k in pl}
+                                               if isinstance(pl, dict) else pl)
             vm = kept
         out["verify_metrics"] = vm
     return out
@@ -2124,7 +2825,12 @@ def _verify_scaling_signals(series: "list", *, _verify_duration_drift_signals, _
     at all — it names no budget, no target and no duration a suite may not exceed (T-11124 scoped out
     judging any duration, and this function did not reopen that). It reports only that the distribution
     MOVED, against its own recent past, among lands that ran a comparably-sized suite. A future editor
-    adding a duration threshold here should know it belongs to neither rule."""
+    adding a duration threshold here should know it belongs to neither rule.
+
+    Rule 7 has a SECOND subject (T-13522): a declared consumer verify LAYER's own duration, read by
+    `_verify_layer_duration_drift_signals` on the same terms — a delta, among lands under one worker
+    budget, citing its rows. It orders by each payload's `_row_ts`, so this function stays
+    order-independent."""
     def _wall(d):
         vm = d.get("verify_metrics")
         w = vm.get("verify_wall_ms") if isinstance(vm, dict) else None
@@ -2208,6 +2914,10 @@ def _verify_scaling_signals(series: "list", *, _verify_duration_drift_signals, _
     # the level-crossover lines above keep their existing order byte-for-byte, and concatenated rather
     # than interleaved so a reader can tell the two kinds apart by position as well as by wording.
     signals.extend(_verify_duration_drift_signals(series))
+    # Rule 7, second subject (T-13522): the per-LAYER creep lines, after the per-file ones so every
+    # earlier line keeps its position. Called directly — it was born in this leaf, not extracted from
+    # the host, so it has no host residue to arrive through.
+    signals.extend(_verify_layer_duration_drift_signals(series))
     return signals
 
 

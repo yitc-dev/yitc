@@ -8,16 +8,18 @@ consumed: false
 extension: null
 implements:
 - bin/lib/task.py#_verify_policy_pinned_last_green
+- bin/lib/task.py#_verify_policy_stage6_credit
 - bin/lib/init.py#_hook_verify_policy_pinned_last_green
 - bin/lib/batch_landing.py#_land_batch_members
 - bin/lib/worktree.py#_land_integrate
+- bin/lib/debt.py#_consumer_carrier_posture
 body: "## Scenario\n\nA project decides it will not pay the pinned last-green verify\
   \ leg, and says so out loud, with a\nreason, in its own operating contract. From\
   \ the next land onward that project's lands do not run the\nleg, and its cards stop\
   \ being isolated one-at-a-time for a supersession nothing will check. Every\nother\
-  \ project is untouched, and the engine cannot be switched at all. Turning it off\
-  \ is not a flick\nof a toggle: the declaration is itself an audited change that\
-  \ names who accepted the risk and why.\n\n## Internal\n\n### Rule 1 — Two states,\
+  \ project is untouched; the engine is one more declarant, on the same terms. Turning\
+  \ it off is not\na flick of a toggle: the declaration is itself an audited change\
+  \ that names who accepted the risk and why.\n\n## Internal\n\n### Rule 1 — Two states,\
   \ and only two; `reason` is required IFF `never`\n`verify_policy.pinned_last_green`\
   \ takes exactly `all` or `never`. **`all` is the READ default** —\nabsence of a\
   \ declaration means `all`, fail-closed.\n\n**What a project is BORN with is a separate\
@@ -123,75 +125,120 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ its exemption is per-case and `match`-patterned, so a\ncase can be CRAFTED to\
   \ cover exactly the dangerous diff. A binary repo-level switch has no `match`\n\
   and nothing to craft, so the defence it imports is against a capability this construction\
-  \ lacks.\n\n### Rule 6 — The engine is not switchable (KERNEL INVARIANT)\nNo reachable\
-  \ declaration turns the leg off in the engine repo. This is stated as an invariant,\
-  \ not\ninferred from the ten-case sample: the engine has no `yitc-ops.yaml`, so\
-  \ it has no carrier for a\ndeclaration, and it is where every demonstrated catch\
-  \ lives.\n\n### Rule 7 — A distinct verify outcome, never a reuse of `candidate`\n\
-  A land that skips the leg by policy records `verify_mode: candidate_policy_off`.\
-  \ This is a new value\nin the EXISTING `land_completed.verify_mode` value set —\
-  \ SPEC-0025 (the `events.jsonl` schema home) is\namended in the same change; no\
-  \ new event type, no second schema home.\n\nNot cosmetic. Conflating \"did not run\"\
-  \ with \"ran and passed\" already corrupted analysis of this very\nlayer: 15 of\
-  \ 30 decisive cases were misread as \"the tree later passed the pinned check\" when\
-  \ the leg\nhad simply not run. Shipping the switch without this value poisons every\
-  \ future measurement at source.\n\n**The value marks a POLICY SKIP, not merely a\
-  \ project's policy**. It is recorded when the land\nDID touch the verifier surface\
-  \ — i.e. the leg would have run — and the declaration stopped it. A land\nthat touched\
-  \ nothing records plain `candidate` under either policy, because nothing was skipped\
-  \ there;\nreading `candidate_policy_off` as \"this project has the leg off\" instead\
-  \ of \"this land skipped the leg\"\nwould re-introduce the same conflation in the\
-  \ other direction.\n\n### Rule 8 — `--rebaseline` refuses when the leg did not run\n\
-  A re-baseline waives a superseded pinned check. Where the leg did not run there\
-  \ is nothing to waive,\nso `--rebaseline` REFUSES with that reason. Additive and\
-  \ orthogonal to, which left the\nrebaseline gate (`_change_is_audited`) unchanged\
-  \ and altered only the refusal message.\n\n### Rule 9 — Batch formation consults\
-  \ the same resolver, and lands FIRST\nThe three-class batch formation must read\
-  \ the policy through the SAME resolver a land uses — one\nauthority, every call\
-  \ site — or formation and verify disagree. When the policy resolves to `never`,\n\
-  what is INERT for class assignment is EVERYTHING that describes the unrun leg: the\
-  \ pinned-supersession\nkey (a member carrying it is not forced into the isolate-alone\
-  \ class for a check that will not run)\nAND the cost ladder's two-pass rung itself,\
-  \ which exists only to say «this member pays the pinned leg\nas well». A member\
-  \ is otherwise isolated for a second pass that does not happen — the residual\n\
-  left when it wired this resolver into the key alone, closed. All three inputs (repo\
-  \ policy,\nthe card's audit-post presence, the diff paths) are readable at the formation\
-  \ instant, and the rung\nmeanings themselves are SPEC-0184 rule 9's business, not\
-  \ this spec's: this rule supplies the policy\ninput, that rule owns the ladder.\n\
-  \n**Ordering:** the formation-side read must land BEFORE `never` is reachable. shipped\
-  \ the\nthree-class formation with no notion of this policy, so until then a declaring\
-  \ project would still\nhave its keyed cards isolated for an unrun check.\n\n## Rationale\n\
-  \nThe external audit `decisions/groupland-strategy-audit-adhoc.yaml` returned RED,\
-  \ finding 3: audit the\nhistorical pinned failures, classify unique real catches\
-  \ versus audit-covered ones, then trial a\nnarrowed or removed leg behind a reversible\
-  \ gate.\n\nThat classification was done (`events.jsonl#ts=`) over 496 aborts on\
-  \ 301 kernel\nbranches, whole history. Because audit-post runs at Stage 8 and closure\
-  \ at Stage 9, every pinned\nfailure at land is BY CONSTRUCTION a diff the external\
-  \ auditor had already passed GREEN/YELLOW — a\nnatural experiment, not a proxy.\
-  \ Ten branches answered the pinned objection by changing the tree\nrather than blessing\
-  \ it; five touched production `bin/`. So the leg is not removable.\n\nIt is also\
-  \ not universally worth its price: it runs on 27% of kernel lands, 21% <project>,\
-  \ 9% <project>,\nand costs the suite a second time (2.93 s scaffold, then 3284.8\
-  \ cpu-s over 792 files). In\n<project> 61 of 62 firings are the untouched-file drift\
-  \ class and zero are catches. Hence a per-project\ndecision rather than a global\
-  \ one.\n\nDesign fork consulted before this spec existed:\n`decisions/pinned-layer-project-switch-audit-adhoc.yaml`\
+  \ lacks.\n\n### Rule 6 — The engine is switchable by declaration, on the same terms\n\
+  The engine may make the same declaration a project makes, through rule 2's carrier,\
+  \ and rules 1, 4,\n5, 7, 8 and 9 then hold for it exactly as for a project. Nothing\
+  \ here is engine-specific: the engine\ngets no value, default or exemption a project\
+  \ does not have.\n\nWhat the engine declares there is its own verify policy and\
+  \ nothing else. The engine is not a\nconsumer of its own ops contract, so every\
+  \ sweep that judges a repository AS a consumer of that\ncontract excludes the engine\
+  \ by IDENTITY, never by whether a file exists. Wherever this corpus says\nthe engine\
+  \ has «no carrier» or «no ops contract», it is the CONSUMER ops contract that is\
+  \ meant.\n\nThe engine's declaration is this repository's own: it is never part\
+  \ of a release, so a release\ncarries this rule and never the engine's choice, and\
+  \ no adopter inherits that choice as a default.\n\n(Amended by : this rule previously\
+  \ forbade an engine declaration, on the ground that the\nengine had no carrier.\
+  \ Why that was lifted lives in the task record and its plan, not here.)\n\n### Rule\
+  \ 7 — A distinct verify outcome, never a reuse of `candidate`\nA land that skips\
+  \ the leg by policy records `verify_mode: candidate_policy_off`. This is a new value\n\
+  in the EXISTING `land_completed.verify_mode` value set — SPEC-0025 (the `events.jsonl`\
+  \ schema home) is\namended in the same change; no new event type, no second schema\
+  \ home.\n\nNot cosmetic. Conflating \"did not run\" with \"ran and passed\" already\
+  \ corrupted analysis of this very\nlayer: 15 of 30 decisive cases were misread as\
+  \ \"the tree later passed the pinned check\" when the leg\nhad simply not run. Shipping\
+  \ the switch without this value poisons every future measurement at source.\n\n\
+  **The value marks a POLICY SKIP, not merely a project's policy**. It is recorded\
+  \ when the land\nDID touch the verifier surface — i.e. the leg would have run —\
+  \ and the declaration stopped it. A land\nthat touched nothing records plain `candidate`\
+  \ under either policy, because nothing was skipped there;\nreading `candidate_policy_off`\
+  \ as \"this project has the leg off\" instead of \"this land skipped the leg\"\n\
+  would re-introduce the same conflation in the other direction.\n\n### Rule 8 — `--rebaseline`\
+  \ refuses when the leg did not run\nA re-baseline waives a superseded pinned check.\
+  \ Where the leg did not run there is nothing to waive,\nso `--rebaseline` REFUSES\
+  \ with that reason. Additive and orthogonal to, which left the\nrebaseline gate\
+  \ (`_change_is_audited`) unchanged and altered only the refusal message.\n\n###\
+  \ Rule 9 — Batch formation consults the same resolver, and lands FIRST\nThe three-class\
+  \ batch formation must read the policy through the SAME resolver a land uses — one\n\
+  authority, every call site — or formation and verify disagree. When the policy resolves\
+  \ to `never`,\nwhat is INERT for class assignment is EVERYTHING that describes the\
+  \ unrun leg: the pinned-supersession\nkey (a member carrying it is not forced into\
+  \ the isolate-alone class for a check that will not run)\nAND the cost ladder's\
+  \ two-pass rung itself, which exists only to say «this member pays the pinned leg\n\
+  as well». A member is otherwise isolated for a second pass that does not happen\
+  \ — the residual\nleft when it wired this resolver into the key alone, closed. All\
+  \ three inputs (repo policy,\nthe card's audit-post presence, the diff paths) are\
+  \ readable at the formation instant, and the rung\nmeanings themselves are SPEC-0184\
+  \ rule 9's business, not this spec's: this rule supplies the policy\ninput, that\
+  \ rule owns the ladder.\n\n**Ordering:** the formation-side read must land BEFORE\
+  \ `never` is reachable. shipped the\nthree-class formation with no notion of this\
+  \ policy, so until then a declaring project would still\nhave its keyed cards isolated\
+  \ for an unrun check.\n\n### Rule 10 — The Stage-6 credit is ON by default, and\
+  \ a project may opt out here\nSPEC-0065 §Bound lets a land take its CANDIDATE-leg\
+  \ verdict from the task's own Stage-6 run instead of\nrepeating it, when the land\
+  \ itself proves five conditions: (1) `main` has not moved since the run;\n(2) its\
+  \ candidate tree is the tested tree apart from inert paths; (3) the row is the runner's\
+  \ own\ngreen, full-breadth, marked row — never a red, partial or hand-recorded one;\
+  \ (4) the run's set covers\nthe land's set; (5) the any-author floor and the host-leak\
+  \ check still run, and the pinned leg runs\nexactly as rules 1-9 here say. That\
+  \ rule and its conditions are homed there\n(`bin/yitc-v2 graph query SPEC-0065`);\
+  \ THIS rule owns only the per-project switch.\n\n`verify_policy.stage6_credit` takes\
+  \ `allowed` or `never`. **Absence reads `allowed`** — the credit is ON\nfor a project\
+  \ that declares nothing, and for the engine on the same terms (rule 6). `never`\
+  \ switches\nit off: every land of that project then runs its candidate verify, as\
+  \ before the credit existed.\n\n**It fails toward VERIFYING.** An unrecognised value,\
+  \ a section that is not a mapping and a carrier\nnobody can parse all read `never`\
+  \ — the same direction rule 1 fails in, since here it is `never` that\nkeeps the\
+  \ check. For that reason NO `reason:` is owed (opting out removes no verification),\
+  \ and the\nkey is not a relaxation for SPEC-0189's purposes. It sits beside `pinned_last_green`,\
+  \ which a PRESENT\nsection must still declare (rule 1).\n\n**The two keys do not\
+  \ compose.** The credit never decides whether the pinned leg runs, and the pinned\n\
+  policy never decides whether the candidate leg may be credited: a land whose candidate\
+  \ leg is\ncredited runs the pinned leg, or records `candidate_policy_off`, exactly\
+  \ as rules 1, 4 and 7 say.\n\n**Read PRE-MERGE, from the base tree (rule 4's reading).**\
+  \ A diff that turns the credit back ON still\npays its own candidate verify; the\
+  \ new value takes effect from the next land.\n\n**One reader, still (rule 3).**\
+  \ The switch is answered off the SAME read of the carrier that serves\n`pinned_last_green`\
+  \ — no second function opens the ops contract for it.\n\n## Rationale\n\nThe external\
+  \ audit `decisions/groupland-strategy-audit-adhoc.yaml` returned RED, finding 3:\
+  \ audit the\nhistorical pinned failures, classify unique real catches versus audit-covered\
+  \ ones, then trial a\nnarrowed or removed leg behind a reversible gate.\n\nThat\
+  \ classification was done (`events.jsonl#ts=`) over 496 aborts on 301 kernel\nbranches,\
+  \ whole history. Because audit-post runs at Stage 8 and closure at Stage 9, every\
+  \ pinned\nfailure at land is BY CONSTRUCTION a diff the external auditor had already\
+  \ passed GREEN/YELLOW — a\nnatural experiment, not a proxy. Ten branches answered\
+  \ the pinned objection by changing the tree\nrather than blessing it; five touched\
+  \ production `bin/`. So the leg is not removable.\n\nIt is also not universally\
+  \ worth its price: it runs on 27% of kernel lands, 21% <project>, 9% <project>,\n\
+  and costs the suite a second time (2.93 s scaffold, then 3284.8 cpu-s over 792 files).\
+  \ In\n<project> 61 of 62 firings are the untouched-file drift class and zero are\
+  \ catches. Hence a per-project\ndecision rather than a global one.\n\nDesign fork\
+  \ consulted before this spec existed:\n`decisions/pinned-layer-project-switch-audit-adhoc.yaml`\
   \ (YELLOW, no RED blocker).\n\n## Verification\n\nDifferential probes, one per silently-breakable\
   \ rule (SPEC-0165):\n1. R1/R4 — `never` declared → leg does not run and the land\
   \ records `candidate_policy_off`; policy\n   removed → same tree runs it.\n2. R4\
   \ — a diff that SETS `never` still pays the leg on its own land; the next land does\
   \ not.\n3. R9 — with `never`, a member carrying the supersession key is not forced\
   \ to the isolate-alone\n   class; with `all`, it is.\n4. R8 — `--rebaseline` refuses\
-  \ when the leg did not run.\n5. R6 — no reachable declaration turns the leg off\
-  \ in the engine.\n6. R2 — an `audit_scrutiny` case does not change the pinned leg,\
-  \ and a `verify_policy` declaration\n   does not change audit-post (non-composition,\
-  \ both directions).\n7. R3 — the born template entry and the declare-or-waive sweep\
-  \ are GENERATED, and BOTH runtime call\n   sites (land verify, batch formation)\
-  \ resolve the value through the ONE existing ops-contract\n   parser: no second\
-  \ reader, no second enum table. This probe carries the F3 removal claim.\n8. R1\
-  \ — a `never` declaration whose `reason` is missing, null, or whitespace-only is\
-  \ INVALID and the\n   project reads `all`; the same declaration with a non-empty\
-  \ reason takes effect. `all` with an\n   absent/null reason is VALID (the born default),\
-  \ so the probe must assert both directions.\n"
+  \ when the leg did not run.\n5. R6 — an engine declaration switches the engine's\
+  \ leg exactly as a project's does, read from the\n   base tree in both directions;\
+  \ and the engine is excluded from the consumer-posture sweeps by\n   identity —\
+  \ with that exclusion removed, the same tree shows the consumer readings.\n6. R2\
+  \ — an `audit_scrutiny` case does not change the pinned leg, and a `verify_policy`\
+  \ declaration\n   does not change audit-post (non-composition, both directions).\n\
+  7. R3 — the born template entry and the declare-or-waive sweep are GENERATED, and\
+  \ BOTH runtime call\n   sites (land verify, batch formation) resolve the value through\
+  \ the ONE existing ops-contract\n   parser: no second reader, no second enum table.\
+  \ This probe carries the F3 removal claim.\n8. R1 — a `never` declaration whose\
+  \ `reason` is missing, null, or whitespace-only is INVALID and the\n   project reads\
+  \ `all`; the same declaration with a non-empty reason takes effect. `all` with an\n\
+  \   absent/null reason is VALID (the born default), so the probe must assert both\
+  \ directions.\n9. R10 — with no declaration a land that meets SPEC-0065 §Bound's\
+  \ five conditions is credited (no\n   candidate verify); the same land under `stage6_credit:\
+  \ never` on the base tree runs it. An\n   unrecognised value, a non-mapping section\
+  \ and an unparseable carrier each read `never`; a section\n   declaring both keys\
+  \ validates under the rule-3 hook; and under a verify-path touch the credited\n\
+  \   land still runs the pinned leg (policy `all`) or records `candidate_policy_off`\
+  \ (policy `never`).\n"
 cites:
 - SPEC-0077
 - SPEC-0093
@@ -223,7 +270,7 @@ concern:
     \ weakened inside a branch whose own suite stays green is then caught\n  # by\
     \ audit-post alone. `reason:` is MANDATORY for `never`, or the declaration is\
     \ INVALID.\n  # Editing this is an AUDITED act (this file is pinned-test surface);\
-    \ unrelated to `audit_scrutiny`;\n  # the ENGINE cannot declare it (SPEC-0186\
+    \ unrelated to `audit_scrutiny`;\n  # the ENGINE declares it the same way (SPEC-0186\
     \ rule 6).\n  # see SPEC-0186 §Rule 1, §Rule 5\n  # The keys are COMMENTED by\
     \ design — uncomment one to make a real choice:\n  # pinned_last_green: all\n\
     \  # reason: ~\n  #\n  # BORN-PERMISSIVE DECLARATION (SPEC-0189): the fragment\
@@ -241,6 +288,8 @@ concern:
 init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_batch_members: c1ff77b8f4f667eea07e3e4526109cfe1ad1d5df8ea94d77ea60eaff9c4b1422
+  bin/lib/debt.py#_consumer_carrier_posture: c3077d7ce2a6f81e3f5aa9f4f6321a00b2ea7e7c008b37c5d0c6f50c5153c391
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
-  bin/lib/task.py#_verify_policy_pinned_last_green: ca1681a267547beba68c784f648f65e8e91089a69d513fe45ac2ef5eecc170e9
-  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
+  bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
+  bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
+  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe

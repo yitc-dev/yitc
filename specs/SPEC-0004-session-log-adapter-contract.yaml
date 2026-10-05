@@ -179,6 +179,6 @@ implements_signature:
   bin/lib/journal.py#_governed_read_target: 0eb60a85601fad3bede9c0bd437bab1aabc5d6e572e483f9400b0ed8c75719a5
   bin/lib/journal.py#_infer_directive_classification: ad052f641cfa111bfc6cc8ad632d60f2c81bc8265e527527e97a22d12d230ea1
   bin/lib/journal.py#_journal_sync: 26f6cb1e7c439302f95898b7510b7f93662ab01302983ebff43436da99496e9d
-  bin/lib/journal.py#_source_refs_and_birth_ts: 8fbb2f609fc9975177e0f81d6cee3e106698fa5d12bb2217e20452703817d561
+  bin/lib/journal.py#_source_refs_and_birth_ts: ce07e4d5d367cf340203f82bc0c007bb4d3577c19110b905620668ce34be8c67
   bin/lib/journal.py#cmd_journal_sync: 4ff5d71ae0a362bb1e354b76795d563caa80b66b18517d7c6f29274bed04b358
   bin/lib/textutil.py#cap_text: bee40bd5f934c5e92b755939adc6aa90bfaff9fb29b0884460b5231d0417a2b9

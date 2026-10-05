@@ -2333,6 +2333,36 @@ def concurrent_session_holds(_holders, own_ref, *, own_fleet_refs=None, now=None
 
 
 
+def holder_liveness(probe_alive, argv_carrier) -> "bool | None":
+    """Rule 25's THREE liveness states, decided from the two facts the host can supply (T-13470).
+
+    THE PROBE CAN SEE ONE KIND OF PROCESS. `journal._session_proc_alive` matches argv
+    `--session-id <ref>` and nothing else. A DISPATCHED worker carries that argv, and its launch
+    record says so (`bg_dispatch_launched.session_id_argv: true` beside the worker ref `expected`).
+    An INTERACTIVE controller never carries it — so for such a holder «not found» is true BY
+    CONSTRUCTION and is no evidence about whether the session is alive. Measured 2026-10-03T14:00Z:
+    the line read «holder process NOT seen» for controller session 0449f6ba while that session's own
+    `dispatch` process was running.
+
+      True  — the probe FOUND the process. A find is positive evidence whatever any record says.
+      False — the probe did not find it AND a launch record declares the argv for this exact ref:
+              the probe could have seen it and did not. Still advisory — presence is not proof of
+              death (T-0351).
+      None  — everything else: not found with no such launch record (an interactive holder, a
+              pre-`session_id_argv` launch row, an adapter that declared no argv, an unreadable
+              journal), or a probe that gave no definite answer. UNDETERMINED, never an accusation.
+
+    Both arguments are matched on IDENTITY (`is True` / `is False`), never on truthiness: a
+    could-not-tell probe value or a truthy-but-not-True carrier flag must not be promoted to a claim.
+    Pure; never raises."""
+    if probe_alive is True:
+        return True
+    if probe_alive is False and argv_carrier is True:
+        return False
+    return None
+
+
+
 def _hold_task_of(branch: str) -> "str | None":
     """The task id a `task/T-XXXX` branch names, else None (a `work/<slug>` batch names no task).
     Kept beside the fold so the branch→id vocabulary has ONE home in this view."""
@@ -2365,7 +2395,12 @@ def _concurrent_holds_result(now, holders: list, own_fleet: "list | None" = None
                 "POSITIVE proof and never suppresses on a maybe: an unattributable holder stays "
                 "FOREIGN. Liveness is ADVISORY and separate from presence (T-0351, "
                 "`lessons/a-presence-count-is-not-a-liveness-probe`) — presence is never proof the "
-                "holder is alive. Report-only: it refuses nothing, adopts nothing and selects nothing.",
+                "holder is alive. It is THREE-valued, and the probe is told what it can see: it "
+                "matches the `--session-id` argv only a dispatched worker carries, so `alive: false` "
+                "(not seen) is claimed ONLY for a ref whose own launch record declares that argv "
+                "(`bg_dispatch_launched.session_id_argv`), and a holder no such record names — an "
+                "interactive controller — reads `alive: null` (undetermined), never not-seen "
+                "(T-13470). Report-only: it refuses nothing, adopts nothing and selects nothing.",
         "now": now.isoformat().replace("+00:00", "Z"),
         "count": len(holders),
         "worktrees": worktrees,

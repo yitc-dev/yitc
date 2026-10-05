@@ -251,7 +251,8 @@ The order is fixed: **session start → init → recommended answers → first-s
     after reconnecting (the day-two return path in I0);
   - no secrets in chat (see the privacy note below).
 - **What to check — the first start:** after the start command started the project, the session shows
-  the visible start line — "Working in YITC mode — project <name>." — and your first message quotes it.
+  the visible start line — "Working in YITC mode — project <name>." — and your first message quotes it,
+  sent as a message of its own as soon as `session start` returns, before the handbook read.
   If that line does not appear, the start did not happen; run the start command again and pick the
   project (inside a project, the fallback phrase "start the project" runs the same start).
 - **The install receipt names the start shortcut.** `release install` (I3) — and `init` again — has
@@ -380,7 +381,8 @@ with the right move. None of it is a new step: the stages above stay the order.
   rotate it at its issuer, then hand the new one over the safe way (§Secrets — how to hand one over
   safely). Never repeat it back.
 - **The start line.** Quote it exactly as `session start` printed it — "Working in YITC mode — project
-  <name>." — in your first message after the start.
+  <name>." — in your first message after the start: a message of its own, sent as soon as `session start`
+  returns and before you read the handbook; later progress notes are separate messages.
 
 ## Privacy note
 

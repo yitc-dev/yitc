@@ -1430,7 +1430,11 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
                 _now = time.time() if now is None else now
                 # T-13293 — `breaker_rows` (the one-pass scope's windowed typed rows) serves the STATE
                 # read; `_breaker_append` below keeps the injected FRESH reader (it must see a peer).
-                st = auditor_breaker_state((breaker_rows or iter_events)(), tier=tier, provider=provider, model=model,
+                # T-13459 — a caller passing none (the consult, ad-hoc) gets the same scope-or-reader
+                # form: served when a scope holding `events_path` covers the window, else `iter_events()`.
+                _rows = breaker_rows or (_scope_breaker_rows(events_path, iter_events)
+                                         if events_path is not None else iter_events)
+                st = auditor_breaker_state(_rows(), tier=tier, provider=provider, model=model,
                                            effort=primary_effort, now=_now)
                 threshold, cooldown = auditor_breaker_threshold(full), auditor_breaker_cooldown_seconds()
                 if st["tripped_at"] is not None:
@@ -2044,8 +2048,9 @@ def auditor_status(*, config_path: Path, iter_events, env=None,
     reads even the count only when the routine tier is NOT external. So under `hint_only` the rate is
     not folded (`no_answer` is None), and when the routine tier is external the journal is not read
     at all (`same_provider_count` is None) — the hint is [] there whatever the count. The remaining
-    count is a WHOLE-HISTORY reader with no index (routed to T-13288); `iter_events` should then be a
-    declared typed read of `audit_self_provider_used`."""
+    count is a WHOLE-HISTORY reader; `iter_events` should then be a declared typed read of
+    `audit_self_provider_used`. T-13467: `audit status` serves it through the T-13356 index (its
+    wiring site, `cli.py#cmd_audit_status`); the session-start hint still reads it by a typed walk."""
     env = os.environ if env is None else env
     quiet = lambda *_a, **_k: None          # noqa: E731 — a non-exiting die: status never aborts
     primary = primary_ai_provider(env)
@@ -4148,7 +4153,32 @@ def late_findings_row_problems(row_data) -> list:
     return [p for p in problems if p in owned]
 
 
-def late_finding_required_refs(rows, tid, *, repo_root=None) -> list:
+def explicit_record_passes(record):
+    """T-13471 — the `passes` counter a saved audit record STATES, or None. The ONE expression the
+    write side (`audit decide`) and the read side (`late_finding_required_refs`) take the record step
+    of a `ceiling_ref` through. EXPLICIT only — never `_passes_recorded`, whose legacy default of 1 for
+    an absent field is a real ceiling value and would name a pass the record never stated. Pure."""
+    passes = record.get("passes") if isinstance(record, dict) else None
+    return passes if isinstance(passes, int) and not isinstance(passes, bool) else None
+
+
+def late_finding_record_passes(tid, *, decisions_dir) -> dict:
+    """T-13471 — `{stage: explicit_record_passes(<the saved audit record of (tid, stage)>)}`: the
+    value the seams INJECT into `late_finding_required_refs` as `record_passes`, read through the one
+    record reader (`prior_audit_record`, active path or archive). The read lives HERE so the
+    derivation itself stays a pure f(rows, injected value). An absent or unreadable record is None for
+    that stage, which leaves the derivation's answer as it was. Never raises."""
+    out = {}
+    for stage in ("pre", "post"):
+        try:
+            out[stage] = explicit_record_passes(
+                prior_audit_record(tid, stage, decisions_dir=Path(decisions_dir)))
+        except Exception:      # noqa: BLE001 — an unreadable record names no pass
+            out[stage] = None
+    return out
+
+
+def late_finding_required_refs(rows, tid, *, repo_root=None, record_passes=None) -> list:
     """T-12542 (SPEC-0204 rule 8) — EVERY recorded late finding of this card with the ONE
     `ceiling_ref` a decision must carry for closure to count it: `[{"stage", "finding_fingerprint",
     "ceiling_ref", "pass"}]`, one entry per (row, finding), undeduped and unordered.
@@ -4158,8 +4188,17 @@ def late_finding_required_refs(rows, tid, *, repo_root=None) -> list:
     out so the WRITE seam (`audit decide`) and the rule-3 pass read the same answer closure reads,
     through `late_finding_refs_by_fp`. Before it, decide bound a late finding at the CEILING row's ref
     whatever row it sat on, and a late finding on any other pass was written decided and read
-    undecided forever. Pure f(rows); never raises."""
+    undecided forever.
+
+    `record_passes` (T-13471) — `{stage: int|None}`, the saved record's EXPLICIT counter, INJECTED
+    (`late_finding_record_passes`). It is the LAST step of the chain and the one `audit decide` has
+    always taken: the row's own counter, else the ceiling row's own counter, else the record's. It is
+    consulted only where the first two name no pass AND a ceiling row exists, so every row that
+    derived a ref before derives the same one. Omitted, naming no int for the stage, or with no
+    ceiling row at all, the ref stays None (fail-closed).
+    Pure f(rows, record_passes); never raises."""
     out = []
+    record_passes = record_passes if isinstance(record_passes, dict) else {}
     for stage in ("pre", "post"):
         stage_rows = list(_stage_audit_rows(rows, tid, stage))
         # T-12422 — THE FALLBACK REF FOR A ROW THAT STATES NO PASS NUMBER. A `basis: currency` row
@@ -4181,6 +4220,14 @@ def late_finding_required_refs(rows, tid, *, repo_root=None) -> list:
             passes = data.get("passes")
             if not isinstance(passes, int) and isinstance(_ceiling_passes, int):
                 passes = _ceiling_passes
+            # T-13471 — NEITHER ROW STATES A COUNTER (a GREEN counted row and a currency row carry
+            # none): the saved record's explicit counter names the pass, exactly where `audit decide`
+            # takes it from, so the ref closure requires is the ref the verb binds. ONLY beside a
+            # ceiling row: with none the verb refuses `no_completion_row` and binds nothing, so a
+            # ref named here would be one no decision could ever carry.
+            if (not isinstance(passes, int) and isinstance(_ceiling, dict)
+                    and isinstance(record_passes.get(stage), int)):
+                passes = record_passes[stage]
             ceiling_ref = (f"{tid}/{stage}/pass-{passes}" if isinstance(passes, int) else None)
             for f in late:
                 f = f if isinstance(f, dict) else {}
@@ -4190,18 +4237,19 @@ def late_finding_required_refs(rows, tid, *, repo_root=None) -> list:
     return out
 
 
-def late_finding_refs_by_fp(rows, tid, stage, *, repo_root=None) -> dict:
+def late_finding_refs_by_fp(rows, tid, stage, *, repo_root=None, record_passes=None) -> dict:
     """`{finding_fingerprint: {ceiling_ref, ...}}` for ONE stage — the `late_refs` shape
     `on_decisions_admission` reads. A view over `late_finding_required_refs`, never a second
-    derivation. Pure; never raises."""
+    derivation; `record_passes` is passed through to it. Pure; never raises."""
     out = {}
-    for e in late_finding_required_refs(rows, tid, repo_root=repo_root):
+    for e in late_finding_required_refs(rows, tid, repo_root=repo_root,
+                                        record_passes=record_passes):
         if e["stage"] == stage:
             out.setdefault(e["finding_fingerprint"], set()).add(e["ceiling_ref"])
     return out
 
 
-def undecided_late_findings(rows, tid, *, repo_root=None) -> list:
+def undecided_late_findings(rows, tid, *, repo_root=None, record_passes=None) -> list:
     """SPEC-0204 rule 8 — the late findings of THIS card that no `ceiling_decision` has decided yet.
 
     Returns `[{"stage", "finding_fingerprint", "ceiling_ref", "pass"}]`, ordered by (stage, pass,
@@ -4211,9 +4259,10 @@ def undecided_late_findings(rows, tid, *, repo_root=None) -> list:
     A late finding is DECIDED when a `ceiling_decision` row exists for this task carrying BOTH its
     `finding_fingerprint` AND the `ceiling_ref` of the ROW THE LATE FINDING SITS ON — or, for a row
     that states NO pass number of its own (a `basis: currency` row, T-12422), the ref of the (task,
-    stage) CEILING ROW, which is where `audit decide` binds such a decision. A row with no counter
-    and no ceiling row to fall back on stays `ceiling_ref: None` and therefore UNDECIDED,
-    fail-closed. Both halves are
+    stage) CEILING ROW, which is where `audit decide` binds such a decision — or, when that row
+    states none either, the saved record's explicit counter the caller injects as `record_passes`
+    (T-13471). A row with no counter on any of the three, or with no ceiling row at all, stays
+    `ceiling_ref: None` and therefore UNDECIDED, fail-closed. Both halves are
     required, and by rule 2's own construction: `ceiling_ref` is `<task>/<stage>/pass-<N>` read off
     that row's `passes`, and rule 4 makes a decision bind to ONE (ceiling_ref, fingerprint) pair — a
     decision recorded against a different pass of the same stage decided a different occurrence.
@@ -4224,12 +4273,13 @@ def undecided_late_findings(rows, tid, *, repo_root=None) -> list:
     and refuse a card that IS decided. Reading the fold is therefore not an optimisation — it is the
     difference between this gate and a deadlock.
 
-    Pure f(rows); never raises."""
+    Pure f(rows, record_passes); never raises."""
     decided = set()
     for row in _ceiling_decision_rows(rows, tid):
         data = row.get("data") if isinstance(row.get("data"), dict) else {}
         decided.add((data.get("ceiling_ref"), data.get("finding_fingerprint")))
-    out = [e for e in late_finding_required_refs(rows, tid, repo_root=repo_root)
+    out = [e for e in late_finding_required_refs(rows, tid, repo_root=repo_root,
+                                                 record_passes=record_passes)
            if (e["ceiling_ref"], e["finding_fingerprint"]) not in decided]
     # DEDUPED on the full identity, then ordered: the same (stage, ref, fingerprint) can appear on two
     # rows only if the journal carries a duplicate, and a refusal must not name it twice.
@@ -4591,7 +4641,11 @@ def inland_on_decisions_admission(tid, *, stage="post", _iter_events, events_pat
                                    else repo_root))),
             # T-12542 — the closure binding is revision-independent, so it holds on this route too;
             # `subject_refusal` stays unset because this route audits HEAD, not a named revision.
-            late_refs=late_finding_refs_by_fp(view["rows"], tid, stage, repo_root=repo_root),
+            late_refs=late_finding_refs_by_fp(
+                view["rows"], tid, stage, repo_root=repo_root,
+                # T-13471 — the record's counter names the pass of a late finding no row counts.
+                record_passes=(late_finding_record_passes(tid, decisions_dir=decisions_dir)
+                               if decisions_dir is not None else None)),
         )
         return {"admitted": refusal is None, "ceiling_ref": ceiling_ref,
                 "residual_count": len(residual_keys), "decisions_applied": len(bound),
@@ -6100,17 +6154,19 @@ def is_no_read_tooling_abort(verdict: str, findings: list, stdout: str, stderr: 
 ABORT_CAUSES = ("timeout", "unavailable", "malformed")
 
 
-def abort_cause(verdict, findings, rc, stdout="", stderr="") -> "str | None":
+def abort_cause(verdict, findings, rc, stdout="", stderr="", *, sent="") -> "str | None":
     """T-12844 — WHY an auditor pass ABORTed, for the completion row: `timeout` (rc 124,
     `is_timeout_abort`) | `unavailable` (`is_auditor_outage_abort` — env/config fault or quota wall)
     | `malformed` (any other ABORT: no parseable canonical verdict). None for every non-ABORT verdict.
     DERIVED from the two existing predicates, never a re-decision of them. No `refused` value: nothing
-    in-process tells an auditor refusal from a malformed response. Pure; never raises."""
+    in-process tells an auditor refusal from a malformed response. Pure; never raises.
+    `sent` (T-13512) — the packet the run sent, forwarded to `is_auditor_outage_abort` so the auditor's
+    echo of it can never label the row `unavailable`."""
     if (verdict or "").strip().upper() != "ABORT":
         return None
     if is_timeout_abort(verdict, findings, rc):
         return "timeout"
-    if is_auditor_outage_abort(verdict, findings, rc, stdout, stderr):
+    if is_auditor_outage_abort(verdict, findings, rc, stdout, stderr, sent=sent):
         return "unavailable"
     return "malformed"
 
@@ -6962,7 +7018,12 @@ def is_trend_convergence_grant(prior_record: "dict | None") -> bool:
 # T-9583 — auditor-OUTAGE ABORT signatures: the external auditor genuinely COULD NOT RUN here (an
 # environment/config fault or a usage-limit/quota wall), distinct from a TIMEOUT (rc==124, its own
 # is_timeout_abort path) and from a substantive ABORT (the auditor ran + refused with content). The
-# class an env fix or a re-dispatch clears — NOT a plan/diff defect. Matched in stderr+stdout, narrow.
+# class an env fix or a re-dispatch clears — NOT a plan/diff defect. Matched in stderr+stdout, narrow —
+# and, since T-13512, only in what the auditor ITSELF reported: the auditor echoes the whole packet to
+# stderr (the reason `_AUDITOR_CAPACITY_LINE_RE` / `_AUDITOR_TRANSPORT_LINE_RE` are line-anchored), so
+# the lines of the packet the run SENT are removed before this search (`_without_sent_lines`). It is
+# NOT line-anchored like those two: measured outage output carries no fixed prefix (`Error loading
+# config.toml: …` with unprefixed detail lines; the kernel's own pre-spawn refusals are bare text).
 _AUDITOR_OUTAGE_RE = re.compile(
     r"usage limit|usage-limit|quota|rate.?limit|too many requests|\b429\b|"
     r"subscription preflight|apikey mode|bill per-token|"
@@ -6971,7 +7032,25 @@ _AUDITOR_OUTAGE_RE = re.compile(
 )
 
 
-def is_auditor_outage_abort(verdict: str, findings: list, rc: int, stdout: str = "", stderr: str = "") -> bool:
+def _without_sent_lines(text, sent) -> str:
+    """T-13512 — `text` minus every line the run itself SENT: a line whose stripped form equals a
+    stripped non-empty line of `sent` (the audit packet) is the auditor's ECHO of that packet, not
+    something the auditor reported. Line-wise, never one substring cut, so it holds whatever framing
+    the auditor puts around the echo (a banner and a `user` line before it, its own lines after).
+    `sent` empty/None → `text` unchanged. Pure f(args); never raises."""
+    try:
+        text = str(text or "")
+        sent_lines = {ln.strip() for ln in str(sent or "").splitlines()}
+        sent_lines.discard("")
+        if not sent_lines:
+            return text
+        return "\n".join(ln for ln in text.splitlines() if ln.strip() not in sent_lines)
+    except Exception:   # noqa: BLE001 — a classifier's reader must never raise on the error path
+        return str(text or "")
+
+
+def is_auditor_outage_abort(verdict: str, findings: list, rc: int, stdout: str = "", stderr: str = "",
+                            *, sent: str = "") -> bool:
     """T-9583 — True ONLY for an auditor-OUTAGE ABORT: the auditor could not RUN (env/config fault OR a
     quota/usage-limit wall), so there is NOTHING in-scope to fix — re-dispatch (after the env is restored)
     will just re-run the audit. This is the class a dispatched worker GRACEFULLY PARKS on (teardown + clean
@@ -6982,14 +7061,22 @@ def is_auditor_outage_abort(verdict: str, findings: list, rc: int, stdout: str =
       (c) rc in {126, 127} (subscription-preflight refusal / codex CLI missing — both pure env/config faults)
           OR an `_AUDITOR_OUTAGE_RE` signature in stderr/stdout (quota/usage-limit/auth/workspace-write/config).
     Deliberately EXCLUDES rc==124 (timeout) — that is the transient is_timeout_abort path, retried/ledger-skip;
-    an outage does not clear on an in-session retry, it needs an env fix or a re-dispatch. Pure f(args)."""
+    an outage does not clear on an in-session retry, it needs an env fix or a re-dispatch. Pure f(args).
+
+    T-13512 — `sent`: the packet the run sent. The signature in (c) is matched only against what the
+    auditor ITSELF reported, never against that packet echoed back: a card whose own prose says «429» or
+    «quota» is not an outage (<project> X-1855 — two ABORTs labelled `unavailable`, GREEN on the same
+    packet minutes later). rc 126/127 are decided before any text is read, so they are unaffected.
+    RESIDUAL, the refusing direction: a genuine outage line byte-equal (after strip) to a packet line is
+    removed with it and reads as a plain ABORT — which STOPs and escalates worktree-intact, tearing
+    nothing down. With `sent=""` (the default) the result is byte-identical to the pre-T-13512 one."""
     if verdict != "ABORT":
         return False
     if findings:  # a real ABORT/RED with findings is a substantive outcome — never an outage
         return False
     if rc in (126, 127):
         return True
-    blob = f"{stderr or ''}\n{stdout or ''}"
+    blob = f"{_without_sent_lines(stderr, sent)}\n{_without_sent_lines(stdout, sent)}"
     return bool(_AUDITOR_OUTAGE_RE.search(blob))
 
 
@@ -8172,6 +8259,93 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
         + (f" Run it as: {ceiling_decide_route(tid, stage, worktree)}." if worktree else "")
         + _residual_suffix
     ]
+
+
+# T-13537 — the bases whose RED row ENDS a (task, stage): the SAME three `terminal_ceiling_row`
+# matches (rule-3 pass, its ONE absorption re-audit, the post-GREEN merge-integration pass). The
+# writer below keys on this set so it emits the terminal halt for exactly the rows the readers
+# (`task pause`, the dispatch recovery hint) will later read as terminal;
+# tests/test_ceiling_decisions_on_decisions.py pins the two against each other.
+CEILING_TERMINAL_HALT_BASES = (ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS,
+                               audit_ceiling.MERGE_INTEGRATION_BASIS)
+
+
+def ceiling_terminal_exits(tid) -> str:
+    """T-13537 — SPEC-0204 rule 3's TERMINAL exits, worded ONCE for the three surfaces this card
+    adds: the terminal halt row, the `audit-ceiling` pause default and the dispatch recovery hint
+    all read this, so they cannot name different exits. The rule-4 refusal in `cmd_audit` keeps the
+    same words as a LITERAL in its own `_die` — the refusal-names-a-route tripwire reads a refusal's
+    message statically — and tests/test_ceiling_decisions_on_decisions.py pins the two together."""
+    return (f"`yitc-v2 task update --status parked|wont-do {tid}`, `yitc-v2 worktree park`, or a "
+            f"NEW card carrying the remaining work")
+
+
+def terminal_ceiling_stage(rows, tid, stages=("post", "pre")) -> "str | None":
+    """T-13537 — the stage (`pre` / `post`) of task `tid` that a rule-4 TERMINAL row has ended, or
+    None. A VIEW over `terminal_ceiling_row` — the ONE shared predicate (T-12613) — for the two
+    readers that hold plain journal rows rather than the at-ceiling fold: `task pause --reason
+    audit-ceiling` and the dispatch recovery hint. Pure f(rows); opens no journal; never raises
+    (an unreadable row set answers None, so both callers keep the decide route)."""
+    try:
+        rows = [r for r in rows or () if isinstance(r, dict)]
+        for stage in stages:
+            if terminal_ceiling_row("task", _stage_audit_rows(rows, tid, stage), rows, tid,
+                                    stage) is not None:
+                return stage
+    except Exception:   # noqa: BLE001 — a derived route hint never breaks its caller
+        return None
+    return None
+
+
+def ceiling_terminal_halt_disposition(tid, stage, passes, worker_ref, emit_fn, *,
+                                      basis=None, ceiling_ref=None) -> "list[str]":
+    """T-13537 / SPEC-0204 rule 6 — what a TERMINAL RED says AT THE VERDICT, not on the next call.
+
+    The pass that just recorded RED was the rule-3 `--on-decisions` pass, its ONE absorption
+    re-audit or the post-GREEN merge-integration pass, so rule 4 has ENDED this (task, stage). Until
+    this card the session learned that only from the `ceiling-terminal` refusal of its NEXT `audit`
+    call, and a dispatched worker — which halts after a RED rather than calling again — left no halt
+    row at all: the fleet reader saw a silent stop, and the worker's pause named the `audit decide`
+    route that this stage refuses.
+
+    DISPATCHED worker (`worker_ref` truthy): ONE `bg_dispatch_halted` row in the EXISTING
+    blocked-on-land shape (`worktree.cmd_blocked_on_land`'s keys, plus `passes` as the ceiling halt
+    carries) — read by the unchanged `journal._terminal_detail` as
+    `blocked_on_land(needs-controller)`. It carries NO `residual_fingerprints`: nothing is left to
+    decide, and that key is what routes a reader to `audit decide`. No new halt kind, no new
+    payload key. INTERACTIVE session: no row (it is not a dispatch), the stderr line only.
+    Returns the stderr lines to print. Sibling of `blocked_on_land_ceiling_disposition`, which
+    stays the halt for REACHING the ceiling."""
+    exits = ceiling_terminal_exits(tid)
+    _basis = str(basis or "")
+    label = ("post-GREEN merge-integration pass" if _basis == audit_ceiling.MERGE_INTEGRATION_BASIS
+             else "absorption re-audit" if _basis == ON_DECISIONS_ABSORPTION_BASIS
+             else "`--on-decisions` pass")
+    ref = f" ({ceiling_ref})" if ceiling_ref else ""
+    lines = [
+        f"# {tid} audit-{stage}: TERMINAL — the {label}{ref} came back RED, which ENDS "
+        f"audit-{stage} for this card (SPEC-0204 rules 3-4): no further `audit {stage}` pass runs "
+        f"here, with or without `--on-decisions`, and `audit decide` records nothing against it. "
+        f"The exits are the EXISTING terminals, each an owner disposition cited to a directive — "
+        f"{exits}. Land eligibility (SPEC-0077) is unchanged."]
+    if not (worker_ref and emit_fn is not None):
+        return lines
+    emit_fn("bg_dispatch_halted", tid, {
+        "task": tid, "dispatch": tid, "blocked_on_land": True, "stage": stage, "passes": passes,
+        "worktree_intact": True,
+        "reason": (
+            f"audit-{stage} TERMINAL — the {label}{ref} came back RED (SPEC-0204 rules 3-4): no "
+            f"further audit pass and no `audit decide` is admitted at this stage, so there is "
+            f"nothing to decide and nothing to resume. The exits are the terminal dispositions, "
+            f"cited to an owner directive: {exits}")})
+    lines.append(
+        f"# {tid} audit-{stage}: emitted bg_dispatch_halted (blocked_on_land, needs-decision) "
+        f"naming those exits — it carries NO residual fingerprints, because nothing is left to "
+        f"decide. Halt with `yitc-v2 task pause {tid} --reason audit-ceiling` INSIDE the worktree "
+        f"(work-carrying shape, worktree INTACT): its default next_action records the same exits. "
+        f"Do NOT re-run the audit and do NOT ask the Controller for `audit decide` "
+        f"(SPEC-0204 rule 6).")
+    return lines
 
 
 # escalation classifier inputs (SPEC-0052 rule 4) — the saved-YAML fields that route an audit
@@ -12038,7 +12212,7 @@ def audit_task_horizon(card: dict) -> "str | None":
 
 @contextlib.contextmanager
 def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), main_events_path=None,
-                         spike_journal=None, evidence_factory=None):
+                         spike_journal=None, evidence_factory=None, consult=False):
     """Install audit pre's ONE-PASS ReadScope (the block above) for a TASK `audit pre` (incl. `--preview`);
     a pass-through yielding None for every other target and stage.
 
@@ -12051,10 +12225,20 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
         T-13288 (the spike rows, the verifier-subject evidence, the pre-filing spec-subject count) and
         are served from this ONE pass: reducer `evidence`, the spike types kept whole.
     Audit on main (no distinct MAIN): ONE unfloored scope carries every duty. No `created_at`: no
-    task horizon (whole history, one pass) and the routing line."""
+    task horizon (whole history, one pass) and the routing line.
+
+    T-13459 — `consult` (`audit consult --task`, wired through `cli._cmd_audit_dispatch`) takes that
+    same POST-shaped pair: its packet's evidence fold, its followup fold, its breaker read and the
+    task rows its journal state reads were five whole folds of this checkout plus one of MAIN.
+    And MAIN's scope of that pair is RE-ESTABLISHED when its catch-up can no longer prove its resume
+    point (a land replaced or rewrote MAIN's live segment mid-run): the yielded scope carries
+    `audit_main_renew`, which closes the stale scope and opens a new one with the SAME declaration —
+    archives served from the index, the changed live segment folded once — where every evidence
+    read used to fall back to both journals whole (`task._evidence_pairs_served`). One scope per
+    journal state, land's `worktree._LandReadScopes.use` shape; never a cache (SPEC-0190 rule 10)."""
     tid = getattr(args, "task", None)
-    action = getattr(args, "audit_action", None)
-    post = action == "post" and evidence_factory is not None
+    action = "consult" if consult else getattr(args, "audit_action", None)
+    post = action in ("post", "consult") and evidence_factory is not None
     if ((action != "pre" and not post) or not tid or events_path is None
             or getattr(args, "decision", None) or getattr(args, "plan", None)):
         yield None
@@ -12102,7 +12286,9 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
                 # needles absent is served without a fold (T-13356 / T-13309). T-13419 — installed even
                 # with no session ref: the RED exit's echo report declares the task id here LATE
                 # (`_scoped_ceiling_decisions`), so a path that never asks never pays for it.
-                stack.enter_context(journal_mod.scan_scope(main, needles=refs, index=True))
+                # T-13459 — walked under MAIN's SPEC-0168 rule-6 lock: the `--on-decisions` admission
+                # reads the card's `ceiling_decision` rows from it (`cli._ceiling_decision_events_for`).
+                stack.enter_context(journal_mod.scan_scope(main, needles=refs, index=True, lock=True))
             scope = stack.enter_context(journal_mod.scan_scope(
                 events_path, keep=keep, needles=needles, since=since, remainder=refs or False))
             scope.audit_pre_main = main   # T-13419 — `_scoped_ceiling_decisions` reads MAIN's leg
@@ -12120,6 +12306,7 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
         spike = None
     spike_keep = {t: None for t in _si._FOLD_TYPES}
     with contextlib.ExitStack() as stack:
+        main_stack = stack.enter_context(contextlib.ExitStack())   # T-13459 — MAIN's scope, re-openable
         if main is not None:
             # T-13381 — MAIN's whole-history walk is INDEXED (T-13356): an archived segment whose summary
             # covers this declaration is served from it. The evidence reducer replays its candidates
@@ -12127,9 +12314,12 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
             # tied to the audited card captured by the tid NEEDLE — so the answer is the fold's.
             main_keep = dict(spike_keep) if _same(spike, main) else {}
             main_keep.update({t: None for t in getattr(ev_factory(), "replay_types", ())})
-            stack.enter_context(journal_mod.scan_scope(
-                main, keep=main_keep, needles=(str(tid),) + tuple(refs), index=True,
-                reducers={"evidence": ev_factory}, lock=True, catch_up=True))
+
+            def _open_main():
+                return main_stack.enter_context(journal_mod.scan_scope(
+                    main, keep=main_keep, needles=(str(tid),) + tuple(refs), index=True,
+                    reducers={"evidence": ev_factory}, lock=True, catch_up=True))
+            _open_main()
         else:
             since = None   # this one scope also answers the whole-history (routed) readers
         # `commit_landed` whole: the custody readers (`_recorded_commit_landed`, the commit chain) read
@@ -12141,6 +12331,15 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
             events_path, keep=audit_keep, needles=needles, since=since, remainder=refs or False,
             reducers={"evidence": ev_factory, "followup": _followup.FoldReducer},
             lock=True, catch_up=True, task=str(tid)))
+        if main is not None:
+            def _renew_main():
+                """MAIN's scope while it still reads MAIN as it is now, else a new one (T-13459)."""
+                held = journal_mod.scope_of(main)
+                if held is not None and held.fresh():
+                    return held
+                main_stack.close()
+                return _open_main()
+            scope.audit_main_renew = _renew_main
         yield scope
 
 
@@ -12176,6 +12375,18 @@ def _scoped_ceiling_decisions(events_path, tid, event_task_id) -> "list | None":
             if ev.get("type") == "ceiling_decision" and event_task_id(ev) == tid]
 
 
+def _fold_ceiling_decisions(artifact, _ceiling_decision_events_for, _ac_probe_evidence_events_for) -> list:
+    """The card's `ceiling_decision` rows of the SPEC-0168 fold — the corpus SPEC-0204 rule 3's
+    admission binds decisions from. Through the host's reader when it is injected (T-13459,
+    `cli._ceiling_decision_events_for`: the same fold over a declared slice inside audit pre's scope),
+    else the packet fold filtered to the type, exactly as before."""
+    if _ceiling_decision_events_for is not None:
+        return list(_ceiling_decision_events_for(artifact))
+    return [ev for ev in (_ac_probe_evidence_events_for(artifact)
+                          if _ac_probe_evidence_events_for is not None else ())
+            if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"]
+
+
 def _scoped_latest_event_for(events_path, fallback):
     """`_latest_event_for` served from the scope's task rows (the SAME last-match predicate), else
     `fallback` unchanged."""
@@ -12194,14 +12405,20 @@ def _scoped_latest_event_for(events_path, fallback):
     return _latest
 
 
-def _scoped_task_iter(events_path, tid, fallback):
+def _scoped_task_iter(events_path, tid, fallback, explicit=False):
     """An `_iter_events`-shaped reader for `_decide_journal_view`: the scope's task rows when it holds
-    `events_path`, else `fallback` (the injected full reader) unchanged."""
+    `events_path`, else `fallback` (the injected full reader) unchanged.
+
+    `explicit` (T-13459, the consult's reader): serve ONLY a call that NAMES `events_path` — the
+    consult's journal state (`audit_consult.consult_journal_state`), whose every consumer keys on the
+    target id. The no-argument form is the auditor breaker's reader there (`invoke_auditor_tiered`),
+    which needs every task's rows and keeps `fallback`."""
     if fallback is None:
         return None
 
     def _it(path=None):
-        rows = _scope_task_rows(events_path, tid) if path in (None, events_path) else None
+        asked = path == events_path if explicit else path in (None, events_path)
+        rows = _scope_task_rows(events_path, tid) if asked else None
         return iter(rows) if rows is not None else fallback(path)
     return _it
 
@@ -12260,6 +12477,7 @@ def _warn_preauthored_delta(tid, *, preview, prior_pre, _zero_ship_diff_extra_pa
 
 
 def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _capacity_retry_hint=None, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _ac_probe_evidence_events_for=None,   # T-12289 — the SPEC-0168 fold the rule-3 admission reads decisions through
+              _ceiling_decision_events_for=None,   # T-13459 — that fold's `ceiling_decision` rows, read as a declared slice inside audit pre's scope; un-injected ⇒ the fold, filtered
               _file_followup=None, _plan_gate_lens=None, _audit_scrutiny_spend_note=None,   # T-11581 — SPEC-0178 read at the spend seam; un-injected ⇒ silent (fail-closed)
               _packet_evidence_record=None, _auditor_outage_park=None, _work_batch_next_hint=None,
               _zero_ship_diff_extra_paths=None, _latest_event_for=None,   # T-13118 — report-only pre-authored-delta warning; un-injected ⇒ silent
@@ -12953,10 +13171,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # (T-13430) and shared by the T-12614 redirect guard below and the T-13256 block.
             _t13256_fix = []
             if on_decisions and stage == "post" and _iter_events is not None:
-                _t13256_decs = [ev for ev in (_ac_probe_evidence_events_for(artifact)
-                                              if _ac_probe_evidence_events_for is not None else ())
-                                if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"
-                                and str((ev.get("data") or {}).get("stage") or "") == "post"]
+                _t13256_decs = [ev for ev in _fold_ceiling_decisions(
+                                    artifact, _ceiling_decision_events_for, _ac_probe_evidence_events_for)
+                                if str((ev.get("data") or {}).get("stage") or "") == "post"]
                 _t13256_ref = (str((_t13256_decs[-1].get("data") or {}).get("ceiling_ref") or "")
                                if _t13256_decs else "")
                 _t13256_fix = [str(d.get("evidence_revision") or "").strip()
@@ -13825,9 +14042,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # decision appended on MAIN with no worktree (D-0049) visible to a pass running in the
             # card's worktree — read it any other way and this gate deadlocks the very cards it exists
             # to unblock (SPEC-0168 rule 1).
-            _od_decisions = [ev for ev in (_ac_probe_evidence_events_for(artifact)
-                                           if _ac_probe_evidence_events_for is not None else ())
-                             if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"]
+            # T-13459 — read as the fold's `ceiling_decision` slice (`_fold_ceiling_decisions`): inside
+            # audit pre's scope that is the card's own lines of both journals, never both journals whole.
+            _od_decisions = _fold_ceiling_decisions(
+                artifact, _ceiling_decision_events_for, _ac_probe_evidence_events_for)
             on_decisions_by_fp = on_decisions_bind(_od_decisions, on_decisions_ceiling_ref)
             # T-12383 — the null-subject rows the bind set aside, rendered in the packet (X-1371).
             _od_superseded = null_subject_decisions(_od_decisions, on_decisions_ceiling_ref)
@@ -13897,7 +14115,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 # T-12542 — the two arms `audit decide` also runs at WRITE time, through this same
                 # function: the closure's late-finding binding and the T-11405 authored-content
                 # judgement (with THIS run's overlay flags, exactly as the guard below applies them).
-                late_refs=late_finding_refs_by_fp(_od_view["rows"], tid, stage, repo_root=[REPO_ROOT]),
+                late_refs=late_finding_refs_by_fp(
+                    _od_view["rows"], tid, stage, repo_root=[REPO_ROOT],
+                    record_passes=late_finding_record_passes(   # T-13471
+                        tid, decisions_dir=REPO_ROOT / "decisions")),
                 # T-12614 — the SAME predicate the subject redirect above used, so the subject the
                 # pass audits and the revision arm 1 compares against are derived ONCE.
                 ship_of_record_only=(lambda _r: _ship_contained_record_only(
@@ -13978,10 +14199,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 on_decisions_residual_keys = list(_od_abs_res.get("keys") or ())
                 on_decisions_decidable_keys = list(_od_abs_res.get("decidable")
                                                    or on_decisions_residual_keys)
-                _od_abs_decisions = [ev for ev in (_ac_probe_evidence_events_for(artifact)
-                                                   if _ac_probe_evidence_events_for is not None
-                                                   else ())
-                                     if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"]
+                _od_abs_decisions = _fold_ceiling_decisions(
+                    artifact, _ceiling_decision_events_for, _ac_probe_evidence_events_for)
                 on_decisions_by_fp = on_decisions_bind(_od_abs_decisions, absorption_ceiling_ref)
                 on_decisions_packet = on_decisions_projection(
                     tid=tid, stage=stage, ceiling_ref=absorption_ceiling_ref,
@@ -14018,9 +14237,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             elif (currency_reaudit and _od_res is not None and not _od_res.get("unresolvable")
                   and _od_res.get("passes") is not None):
                 _cur_ref = f"{tid}/{stage}/pass-{_od_res.get('passes')}"
-                _cur_decisions = [ev for ev in (_ac_probe_evidence_events_for(artifact)
-                                                if _ac_probe_evidence_events_for is not None else ())
-                                  if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"]
+                _cur_decisions = _fold_ceiling_decisions(
+                    artifact, _ceiling_decision_events_for, _ac_probe_evidence_events_for)
                 _cur_by_fp = on_decisions_bind(_cur_decisions, _cur_ref)
                 if _cur_by_fp:
                     currency_decisions_bound = True
@@ -14536,6 +14754,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # T-0084, `--from-file <diff>` silently discarded). The flag is a RE-LENS OVERLAY again — it falls
     # through to the real invocation below with the ZERO-SHIP-DIFF paragraph in the packet.
     short_circuit_no_auditor = (consult_adjudication is not None or unchanged_fp_reaudit)
+    # T-13512 — the packet handed to the auditor on THIS run; "" on the two carry-forward paths below,
+    # which invoke none. The outage classifier's two readers pass it so the echo is never matched.
+    sent_packet = ""
     if preview and short_circuit_no_auditor:
         _governing = ("consult-governed carry-forward (T-0522)" if consult_adjudication is not None
                       else "unchanged-fingerprint carry-forward (T-0544)")
@@ -14662,6 +14883,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # T-12590 — the rendered rule-4 cross section, held for the flip guard's `cross_section` axis.
         # A SEPARATE sink on purpose: nothing in it is counted evidence (SPEC-0168 rule 1 / rule 5).
         cross_section_sink = [] if (target_kind == "task" and stage == "post") else None
+        # T-13508 — the event TYPES the packet excluded by the card opt-in, filled on the assembler's
+        # own single pass, so this verb can name them in its output. Never counted, never a gate.
+        optin_excluded_sink = [] if (target_kind == "task" and stage == "post") else None
         # T-11977 (SPEC-0036 §Packet preview) — the readiness sink, supplied ONLY on the preview
         # path, so an ordinary audit's assembly is byte-unchanged. The D2 journal fact is computed
         # HERE (the assembler is pure and reads no journal) with the SAME
@@ -14718,9 +14942,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                      churn_tie=churn_tie,   # T-12718: the churn-only merge tie (H, M)
                                      evidence_sink=packet_evidence_sink,
                                      cross_section_sink=cross_section_sink,
+                                     optin_excluded_sink=optin_excluded_sink,
                                      readiness_sink=packet_readiness_sink,
                                      readiness_journal_silent=bool(_silence))
         prompt_excerpt = prompt[:200]   # opens at the fixed lens — the focus block is unreachable (T-0350 F3)
+        sent_packet = prompt
 
         # T-11328 (AC2) — REPORT the packet, always. The size of the assembled packet was observable
         # through no governed surface at all: T-11319 died on a 936KB packet and the dominant section
@@ -14738,6 +14964,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             print("# audit packet BOUNDED — sections shown only in part (named in-packet too): "
                   + ", ".join(f"{e['label'][:48]} kept {e['kept_bytes']}/{e['total_bytes']}B"
                               for e in packet_elisions), file=sys.stderr)
+        # T-13508 — NAME the task-tied event types the packet excluded by the card opt-in, in ONE
+        # line. Above the preview return on purpose: a preview and the real run both say it, and the
+        # preview is where it is still free to act on. STDERR, like the report lines above — stdout
+        # carries the packet and nothing else.
+        _optin_line = audit_packet.packet_optin_exclusion_line(optin_excluded_sink)
+        if _optin_line:
+            print(_optin_line, file=sys.stderr)
 
         # T-11407 (SPEC-0036 §Packet preview / X-1060) — MAIN ARM of the preview, and the whole of
         # it: the packet is assembled, the T-11328 size/section report above has already run, and
@@ -15398,7 +15631,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # signature; verdict==ABORT, no findings). NOT a plan/diff defect: a dispatched worker GRACEFULLY
     # PARKS on it (teardown + clean re-dispatch) instead of orphaning — computed here so the final
     # ABORT branch can route to auto-park/hint. Excludes rc==124 (the timeout_abort path above).
-    auditor_outage_abort = is_auditor_outage_abort(verdict, findings, rc, stdout, stderr)
+    auditor_outage_abort = is_auditor_outage_abort(verdict, findings, rc, stdout, stderr, sent=sent_packet)
     # T-9543 — a CONCURRENT-MERGE-CHURN re-audit does NOT advance the ledger: it re-verified a tree
     # whose only drift was already-landed-and-audited sibling commits, a benign concurrent-merge
     # re-pin, NOT an absorption pass (the analog of the T-0486 plan-freshness ledger-skip). AMENDED
@@ -16499,6 +16732,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # NOT a second authority (P5). `plan close --resolution realized` re-derives + compares this for
         # task-side freshness (membership + status regression).
         audit["tasks"] = _plan_task_carrier(tid)
+    # T-13513 — the note a nonzero auditor exit leaves, bound ONCE for its two homes: the record's
+    # `notes` below and the completion row's `abort_cause_text`. None when the auditor exited 0.
+    _cause = None
     if rc != 0:
         _cause = auditor_failure_cause(rc, stderr, label='codex',   # T-12582
                                        capacity_hint=_capacity_hint_via(_capacity_retry_hint, model, provider))   # T-12603
@@ -16749,8 +16985,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # the axis: recorded, never a gate.
         "findings_complete": findings_complete,
         # T-12844 (SPEC-0161) — an ABORT row says WHY; absent on every other verdict.
-        **({"abort_cause": abort_cause(verdict, findings, rc, stdout, stderr)}
+        **({"abort_cause": abort_cause(verdict, findings, rc, stdout, stderr, sent=sent_packet)}
            if str(verdict or "").strip().upper() == "ABORT" else {}),
+        # T-13513 (SPEC-0161) — and the bounded failure note itself, when the auditor exited nonzero.
+        # The record's `notes` hold the same text only until the next pass rewrites that file; the
+        # row keeps it. Absent on every other row, including an ABORT whose auditor exited 0.
+        **({"abort_cause_text": _cause}
+           if _cause and str(verdict or "").strip().upper() == "ABORT" else {}),
         **({"commit": recorded_sha(sha, repo_root=REPO_ROOT)} if sha else {}),
         # T-12383 (SPEC-0204 rule 2) — the PRE row's own audited subject, the sibling of `commit`
         # above: the SAME value the saved record writes (one source, two homes — the T-11580 shape),
@@ -16774,6 +17015,20 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         **_auditor_fields,
         **carry_forward_row_fields,
     })
+
+    # T-13537 (SPEC-0204 rule 6) — A TERMINAL RED SAYS SO AT THE VERDICT. The row just appended ended
+    # this (task, stage) when its own `basis` is one `terminal_ceiling_row` matches and the RECORDED
+    # verdict is RED. A dispatched worker gets its halt row here, after the completion row it is
+    # about; an interactive session gets the stderr line and no row. A currency row and a
+    # carried-forward row never carry these bases, so neither can reach this.
+    if (target_kind == "task" and str(verdict or "").strip().upper() == "RED"
+            and str(on_decisions_row_fields.get("basis") or "") in CEILING_TERMINAL_HALT_BASES):
+        for _ln in ceiling_terminal_halt_disposition(
+                tid, stage, audit["passes"],
+                os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip(), _append_event,
+                basis=on_decisions_row_fields.get("basis"),
+                ceiling_ref=on_decisions_row_fields.get("ceiling_ref")):
+            print(_ln, file=sys.stderr)
 
     # T-12726 — RECORD THE PRIOR PASS'S FINDING OUTCOME, derived from commit evidence, never asked.
     # The `audit_finding_absorbed` record (mode-b, T-10770) is extended to the ORDINARY case: on a real

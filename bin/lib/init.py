@@ -25,6 +25,159 @@ def _journal_pathspecs(journal_path, root) -> list:
     from lib import events as _events
     return _events.journal_pathspecs(journal_path, root)
 
+
+def _commit_only_paths(repo_root, paths, msg, _run_git_cap, label) -> bool:
+    """Commit exactly `paths` on the checked-out branch BY PATHSPEC — the scoped commit of the pure
+    carrier-write `init` modes (T-13456). True iff a commit was made.
+
+    The five carrier writers each ran `git add -- <paths>` with the return code discarded, judged
+    "anything to commit" over the WHOLE index, and committed with no pathspec — so an entry another
+    session had staged in the consumer's shared index rode the carrier commit under its message.
+    `git commit -- <paths>` (--only) stages those paths and commits them under one hold of the
+    index lock, leaving every other index entry as it was. The shape is `_scoped_selfcommit`'s
+    (bin/lib/cli.py, T-13264), minus its rollback: `git add --dry-run` first, which writes nothing
+    but takes the index lock and resolves the pathspecs; a real `git add` only for a path absent
+    from HEAD, because `--only` can name only a path git already knows; "anything to commit" judged
+    over these paths alone.
+
+    A failed add or commit unstages what this call added and SAYS SO on stderr (these sites were
+    silent): the carrier write is already on disk, and a dirty carrier on `main` wedges the next
+    land, so the reader needs the cause and the route. The exit code is not moved."""
+    import sys
+    paths = list(paths)
+    if not paths:
+        return False
+    new = [p for p in paths
+           if _run_git_cap(["cat-file", "-e", f"HEAD:{p}"], repo_root).returncode != 0]
+    step = "staging (`git add`)"
+    res = _run_git_cap(["add", "--dry-run", "--", *paths], repo_root)
+    if res.returncode == 0 and new:
+        res = _run_git_cap(["add", "--", *new], repo_root)
+    if res.returncode == 0:
+        dirty = _run_git_cap(["status", "--porcelain", "--", *paths], repo_root)
+        if dirty.returncode == 0 and not (dirty.stdout or "").strip():
+            return False                             # nothing of this call's to commit
+        step = "the commit"
+        res = _run_git_cap(["commit", "-q", "-m", msg, "--", *paths], repo_root)
+        if res.returncode == 0:
+            return True
+    if new:
+        _run_git_cap(["reset", "-q", "--", *new], repo_root)             # best-effort
+    print(f"consumer init ({repo_root.name}): {label} — the scoped commit did NOT happen: {step} "
+          f"failed ({(res.stderr or res.stdout).strip() or 'no git output'}). The write is on disk "
+          f"but uncommitted, and a dirty carrier on `main` blocks the next land: clear the cause, "
+          f"then run `git -C {repo_root} commit -m \"{msg.splitlines()[0]}\" -- "
+          f"{' '.join(paths)}`.", file=sys.stderr)
+    return False
+
+
+def _commit_from_scoped_index(repo_root, present, removal_specs, msg, _run_git_cap, seed=None,
+                              entries=None) -> "tuple[bool, str]":
+    """Create ONE commit carrying exactly a named set of index entries (plus this caller's own
+    staged removals) on top of a SEED commit, and move HEAD to it only while HEAD is still that
+    seed. Returns `(committed, why)`: `(True, "")` on a commit, `(False, "")` when there is nothing
+    to commit, `(False, <reason>)` when it could not be made. Never raises on a git failure.
+
+    WHY NOT `git commit` (T-13456). A pathspec-less commit takes the whole shared index, so an
+    entry another session staged rides it. A pathspec commit (`git commit -- <paths>`) fixes that
+    but CANNOT record an index-only removal of a file still on disk — it re-adds every named path
+    that exists in the worktree — and `init` makes exactly such removals (`git rm --cached` of the
+    churn a `.gitignore` now covers). And a plain commit on a private index takes whatever HEAD is
+    at commit time as its parent, so a commit another session made after the tree was built would
+    be reverted by it.
+
+    So the TREE is built in a throwaway index (`GIT_INDEX_FILE`, the `_run_git_cap(env=)` seam):
+    the seed commit's tree, then the entries for `present` copied from the REAL index (index
+    ENTRIES, never a re-read of the worktree — so what is committed is what the caller staged and
+    scanned, whatever was appended since), then the real index's staged DELETIONS that fall inside
+    `removal_specs`. A caller that has its blobs in hand passes them as `entries` — `(mode, sha,
+    path)` tuples — instead of `present` being read from the index. The COMMIT is plumbing:
+    `git commit-tree <tree> -p <seed>`, then `git update-ref HEAD <new> <seed>`, which moves HEAD
+    only while it still equals the seed.
+
+    A refused ref update means HEAD moved. With no `seed` argument the helper rebuilds from the new
+    HEAD, at most three attempts. WITH a `seed` it makes exactly one: the caller verified its
+    content against that commit, so a moved HEAD must refuse, never rebuild.
+
+    CONSEQUENCES, named: plumbing runs no commit hook and does not apply `commit.gpgsign`, so a
+    project's own hooks do not run on a commit made here (the kernel installs none). `commit-tree`
+    is in `_COMMIT_CREATING_GIT_SUBCOMMANDS`, so an identity-less host still commits. Refused while
+    MERGE_HEAD / CHERRY_PICK_HEAD / REVERT_HEAD exists: moving HEAD under an operation in progress
+    would corrupt it."""
+    import os
+    import tempfile
+
+    def _why(step, res):
+        return f"{step}: {(res.stderr or res.stdout or '').strip() or 'git exited ' + str(res.returncode)}"
+
+    for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"):
+        if _run_git_cap(["rev-parse", "-q", "--verify", marker], repo_root).returncode == 0:
+            return (False, f"{marker} is present — an operation is in progress, and moving HEAD "
+                           f"under it would corrupt it. Finish or abort it, then re-run.")
+    subject = (msg.splitlines() or [""])[0]
+    why = ""
+    for _attempt in range(1 if seed else 3):
+        if seed:
+            h0 = seed
+        else:
+            cur = _run_git_cap(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], repo_root)
+            h0 = cur.stdout.strip() if cur.returncode == 0 else ""   # "" on an unborn branch
+        with tempfile.TemporaryDirectory() as scratch:
+            env = {**os.environ, "GIT_INDEX_FILE": os.path.join(scratch, "index")}
+            if h0:
+                res = _run_git_cap(["read-tree", h0], repo_root, env=env)
+                if res.returncode != 0:
+                    return (False, _why("reading the seed commit's tree failed", res))
+            if entries is not None:
+                info = "".join(f"{mode} {sha} 0\t{rel}\0" for mode, sha, rel in entries)
+            elif present:
+                res = _run_git_cap(["ls-files", "-s", "-z", "--", *present], repo_root)
+                if res.returncode != 0:
+                    return (False, _why("reading the staged entries failed", res))
+                info = res.stdout or ""
+            else:
+                info = ""
+            if info:
+                res = _run_git_cap(["update-index", "-z", "--index-info"], repo_root, env=env,
+                                   input=info)
+                if res.returncode != 0:
+                    return (False, _why("composing the commit's entries failed", res))
+            if h0 and removal_specs:
+                res = _run_git_cap(["diff", "--cached", "--name-only", "--diff-filter=D", "-z", h0,
+                                    "--", *removal_specs], repo_root)
+                if res.returncode != 0:
+                    return (False, _why("reading the staged removals failed", res))
+                if res.stdout:
+                    res = _run_git_cap(["update-index", "--force-remove", "-z", "--stdin"],
+                                       repo_root, env=env, input=res.stdout)
+                    if res.returncode != 0:
+                        return (False, _why("composing the commit's removals failed", res))
+            res = _run_git_cap(["write-tree"], repo_root, env=env)
+            if res.returncode != 0:
+                return (False, _why("writing the commit's tree failed", res))
+            tree = res.stdout.strip()
+        if h0:
+            base = _run_git_cap(["rev-parse", "--verify", "--quiet", f"{h0}^{{tree}}"], repo_root)
+            if base.returncode == 0 and base.stdout.strip() == tree:
+                return (False, "")                   # nothing to commit over the seed
+        elif not info:
+            return (False, "")                       # an unborn branch and nothing to carry
+        res = _run_git_cap(["commit-tree", tree, *(["-p", h0] if h0 else []), "-F", "-"], repo_root,
+                           input=msg)
+        new = res.stdout.strip() if res.returncode == 0 else ""
+        if not new:
+            return (False, _why("creating the commit object failed", res))
+        res = _run_git_cap(["update-ref", "-m",
+                            f"commit{'' if h0 else ' (initial)'}: {subject}", "HEAD", new, h0],
+                           repo_root)
+        if res.returncode == 0:
+            return (True, "")
+        now = _run_git_cap(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], repo_root)
+        if now.returncode == 0 and now.stdout.strip() == new:
+            return (True, "")                        # the ref moved although git exited non-zero
+        why = _why(f"HEAD moved away from the commit this was built on ({h0[:12] or 'unborn'})", res)
+    return (False, why)
+
 # ── yitc-ops.yaml ops-contract carrier (SPEC-0093) — MODULE-LEVEL, NOT host-injected ───────────────
 # These are pure DATA + a self-contained read/fail-closed, kept local to init.py ON PURPOSE: the seed
 # is born declare-or-waive and the deps it would otherwise need (_read_yaml / _die) are host helpers
@@ -5855,17 +6008,13 @@ def _declare_theme_only(repo_root, args, *, _append_event, _run_git_cap, write_t
         present = [p for p in (CONSUMER_OPS_CONTRACT,
                                *_journal_pathspecs(repo_root / "events.jsonl", repo_root))
                    if (repo_root / p).exists()]
-        if present:
-            _run_git_cap(["add", "--", *present], repo_root)
-        if _run_git_cap(["diff", "--cached", "--quiet"], repo_root).returncode != 0:
-            _run_git_cap(["commit", "-q", "-m", (
-                "chore: declare/update inspection theme(s) (yitc-v2 init --declare-theme)\n\n"
-                "Governed ops-carrier write — a SURGICAL TEXT append that preserves every existing byte,\n"
-                "incl. the kernel contract delivered through the carrier's comments (never a YAML\n"
-                "round-trip, which gutted 436 comment lines in X-0401). Stages the carrier + journal\n"
-                "ONLY; delivers no scaffold (T-10535).\n\n"
-                "from: SPEC-0093 rule 12 — the inspection themes[] declaration\n")],
-                repo_root)
+        _commit_only_paths(repo_root, present, (
+            "chore: declare/update inspection theme(s) (yitc-v2 init --declare-theme)\n\n"
+            "Governed ops-carrier write — a SURGICAL TEXT append that preserves every existing byte,\n"
+            "incl. the kernel contract delivered through the carrier's comments (never a YAML\n"
+            "round-trip, which gutted 436 comment lines in X-0401). Stages the carrier + journal\n"
+            "ONLY; delivers no scaffold (T-10535).\n\n"
+            "from: SPEC-0093 rule 12 — the inspection themes[] declaration\n"), _run_git_cap, "--declare-theme")
 
     parts = ([f"declared inspection theme(s) {', '.join(declared)}"] if declared else []) + \
             ([f"updated inspection theme(s) in place {', '.join(updated)}"] if updated else [])
@@ -5919,16 +6068,12 @@ def _rehome_contract_comments_only(repo_root, args, *, _append_event, _run_git_c
         present = [p for p in (CONSUMER_OPS_CONTRACT,
                                *_journal_pathspecs(repo_root / "events.jsonl", repo_root))
                    if (repo_root / p).exists()]
-        if present:
-            _run_git_cap(["add", "--", *present], repo_root)
-        if _run_git_cap(["diff", "--cached", "--quiet"], repo_root).returncode != 0:
-            _run_git_cap(["commit", "-q", "-m", (
-                "chore: re-home stale kernel contract-comment citations "
-                "(yitc-v2 init --rehome-contract-comments)\n\n"
-                "Comment-only ops-carrier write: rewrites a citation left on a kernel spec's old home to\n"
-                "its current home. No prose restored, no value changed.\n\n"
-                "from: SPEC-0119 rule 8 — the contract-comment re-home candidate (T-12475)\n")],
-                repo_root)
+        _commit_only_paths(repo_root, present, (
+            "chore: re-home stale kernel contract-comment citations "
+            "(yitc-v2 init --rehome-contract-comments)\n\n"
+            "Comment-only ops-carrier write: rewrites a citation left on a kernel spec's old home to\n"
+            "its current home. No prose restored, no value changed.\n\n"
+            "from: SPEC-0119 rule 8 — the contract-comment re-home candidate (T-12475)\n"), _run_git_cap, "--rehome-contract-comments")
 
     print(f"consumer init ({repo_root.name}): RE-HOMED kernel contract-comment citation(s) — "
           + "; ".join(applied))
@@ -6014,19 +6159,15 @@ def _backfill_mandatory_only(repo_root, args, *, _append_event, _run_git_cap, wr
         present = [p for p in (CONSUMER_OPS_CONTRACT,
                                *_journal_pathspecs(repo_root / "events.jsonl", repo_root))
                    if (repo_root / p).exists()]
-        if present:
-            _run_git_cap(["add", "--", *present], repo_root)
-        if _run_git_cap(["diff", "--cached", "--quiet"], repo_root).returncode != 0:
-            _run_git_cap(["commit", "-q", "-m", (
-                "chore: backfill newly-mandatory ops section(s) UNANSWERED "
-                "(yitc-v2 init --backfill-mandatory)\n\n"
-                "Governed ops-carrier write — delivers a section that became MANDATORY after this\n"
-                "consumer was init'ed, as the born GUIDANCE without the born ANSWER. The born waiver is\n"
-                "deliberately NOT delivered: back-delivered to an existing project it is an unverified\n"
-                "factual claim about that project. Delivery-only: no scaffold, no sweep, nothing\n"
-                "answered. The next ordinary init REFUSES until each section is answered.\n\n"
-                "from: SPEC-0093 rule 11 — the UPDATE path, mandatory-section carrier-backfill (T-10982)\n")],
-                repo_root)
+        _commit_only_paths(repo_root, present, (
+            "chore: backfill newly-mandatory ops section(s) UNANSWERED "
+            "(yitc-v2 init --backfill-mandatory)\n\n"
+            "Governed ops-carrier write — delivers a section that became MANDATORY after this\n"
+            "consumer was init'ed, as the born GUIDANCE without the born ANSWER. The born waiver is\n"
+            "deliberately NOT delivered: back-delivered to an existing project it is an unverified\n"
+            "factual claim about that project. Delivery-only: no scaffold, no sweep, nothing\n"
+            "answered. The next ordinary init REFUSES until each section is answered.\n\n"
+            "from: SPEC-0093 rule 11 — the UPDATE path, mandatory-section carrier-backfill (T-10982)\n"), _run_git_cap, "--backfill-mandatory")
 
     print(f"consumer init ({repo_root.name}): BACKFILLED mandatory ops section(s) UNANSWERED — "
           + ", ".join(delivered))
@@ -6402,15 +6543,11 @@ def _adopt_concern_only(repo_root, args, *, _append_event, _run_git_cap, write_t
         present = [p for p in (CONSUMER_OPS_CONTRACT,
                                *_journal_pathspecs(repo_root / "events.jsonl", repo_root))
                    if (repo_root / p).exists()]
-        if present:
-            _run_git_cap(["add", "--", *present], repo_root)
-        if _run_git_cap(["diff", "--cached", "--quiet"], repo_root).returncode != 0:
-            _run_git_cap(["commit", "-q", "-m", (
-                "chore: record per-concern adoption (yitc-v2 init --adopt-concern)\n\n"
-                "Governed per-consumer adoption record — the only sanctioned writer of the ops-carrier\n"
-                "`adoption:` block. Stages the carrier + journal ONLY; delivers no scaffold (T-10265).\n\n"
-                "from: SPEC-0143 Rule 2 — per-consumer adoption record, written only by the consumer\n")],
-                repo_root)
+        _commit_only_paths(repo_root, present, (
+            "chore: record per-concern adoption (yitc-v2 init --adopt-concern)\n\n"
+            "Governed per-consumer adoption record — the only sanctioned writer of the ops-carrier\n"
+            "`adoption:` block. Stages the carrier + journal ONLY; delivers no scaffold (T-10265).\n\n"
+            "from: SPEC-0143 Rule 2 — per-consumer adoption record, written only by the consumer\n"), _run_git_cap, "--adopt-concern")
 
     print(f"consumer init ({repo_root.name}): recorded concern adoption(s) " + ", ".join(recorded))
 
@@ -6511,16 +6648,12 @@ def _adopt_extension_only(repo_root, args, *, ENGINE_ROOT, _append_event, _run_g
         present = [p for p in (CONSUMER_OPS_CONTRACT,
                                *_journal_pathspecs(repo_root / "events.jsonl", repo_root))
                    if (repo_root / p).exists()]
-        if present:
-            _run_git_cap(["add", "--", *present], repo_root)
-        if _run_git_cap(["diff", "--cached", "--quiet"], repo_root).returncode != 0:
-            _run_git_cap(["commit", "-q", "-m", (
-                "chore: adopt kernel extension(s) (yitc-v2 init --adopt-extension)\n\n"
-                "Governed ops-carrier write — a SURGICAL TEXT append under `extensions.adopts` that\n"
-                "preserves every existing byte (never a YAML round-trip). Stages the carrier + journal\n"
-                "ONLY; delivers no scaffold and pulls no born section (T-11189).\n\n"
-                "from: SPEC-0093 rule 13 / SPEC-0101 §4 — the consumer extension-adoption record\n")],
-                repo_root)
+        _commit_only_paths(repo_root, present, (
+            "chore: adopt kernel extension(s) (yitc-v2 init --adopt-extension)\n\n"
+            "Governed ops-carrier write — a SURGICAL TEXT append under `extensions.adopts` that\n"
+            "preserves every existing byte (never a YAML round-trip). Stages the carrier + journal\n"
+            "ONLY; delivers no scaffold and pulls no born section (T-11189).\n\n"
+            "from: SPEC-0093 rule 13 / SPEC-0101 §4 — the consumer extension-adoption record\n"), _run_git_cap, "--adopt-extension")
 
     if adopted:
         print(f"consumer init ({repo_root.name}): adopted extension(s) " + ", ".join(adopted))
@@ -7602,8 +7735,10 @@ project's PROVIDER-NEUTRAL home, NOT here — see `__NEUTRAL_HOME__`.
 # born first-line signature but not the marker) gains the block ONLY under `init --refresh-scaffolds`.
 # T-13418: the marker line also exempts a session's read-only helpers/subagents (never a dispatched worker) —
 # folded into that line, not a new one, so the born adapter keeps its 15-line thinness cap.
+# T-13527: the same line names WHEN the start line is relayed — a message of its own as soon as `session start`
+# returns, before the scan and the handbook read (a progress note sent first carried no line). Wording only.
 _BORN_ADAPTER_START_BLOCK = """\
-START ON ENTRY: before any other work run `__YITC_CLI__ session start`, then the verb scan carrying the ref it prints, `YITC_SESSION_REF=<that ref> __YITC_CLI__ --help`, then read the kernel handbook files it names, in its read-order; your FIRST message to the person quotes word for word the visible start line `session start` printed last ("Working in YITC mode — project <name>."), never only into a scratch file. A read-only helper or subagent spawned inside an already-started session (it was handed a task by that session, not a person's request) skips this routine and runs no yitc-v2 verbs; a dispatched build worker is NOT such a helper — it is its own session and follows its dispatch brief.
+START ON ENTRY: before any other work run `__YITC_CLI__ session start`; as soon as it returns, send the person a message of its own — your FIRST message to the person — that quotes word for word the visible start line `session start` printed last ("Working in YITC mode — project <name>."), never only into a scratch file; only then run the verb scan carrying the ref it prints, `YITC_SESSION_REF=<that ref> __YITC_CLI__ --help`, and read the kernel handbook files it names, in its read-order — later progress notes are separate messages. A read-only helper or subagent spawned inside an already-started session (it was handed a task by that session, not a person's request) skips this routine and runs no yitc-v2 verbs; a dispatched build worker is NOT such a helper — it is its own session and follows its dispatch brief.
 If the session did not start by itself, the one phrase a person needs is "start the project" — on hearing it, run this same routine.
 A tool-specific start command MAY expose the same routine; there is no second way to start.
 """
@@ -9765,10 +9900,13 @@ def _staged_secret_hits(REPO_ROOT, _run_git_cap):
     """T-13181 (SPEC-0163 §4e) — the SECRETS floor over what init's bootstrap commit would carry.
 
     `[(path, lineno, label)]` for every floor-shaped credential on an ADDED line of the STAGED diff,
-    or `_STAGED_SCAN_UNREADABLE`. The WHOLE index, not the managed paths: the bootstrap commit is a
-    pathspec-less `git commit`, so `git diff --cached` IS its snapshot — a narrower scan would let a
-    pre-staged file ride into the commit unscanned. Only ADDED lines, as at land (SPEC-0163 rule 4a's
-    branch-added scope): a credential already committed on HEAD is `main`'s, not this commit's.
+    or `_STAGED_SCAN_UNREADABLE`. The WHOLE shared index, not the managed paths: everything the
+    bootstrap commit carries is in `git diff --cached`, so nothing reaches that commit unscanned.
+    Since T-13456 the commit carries only init's own entries, which makes this scan a strict
+    SUPERSET of it — deliberately left that wide: a credential staged beside init's paths still
+    refuses the bootstrap, and narrowing a secrets floor is not a refactor's call. Only ADDED lines,
+    as at land (SPEC-0163 rule 4a's branch-added scope): a credential already committed on HEAD is
+    `main`'s, not this commit's.
 
     The hunk bodies are walked by their HEADER COUNTS, so a content line that itself begins `+++` or
     `@@` is read as content, never as a header. The shapes, the template opt-out and the one-hit-per-
@@ -9817,6 +9955,22 @@ def _staged_secret_hits(REPO_ROOT, _run_git_cap):
                                           _floor_is_interpolation=land_floors._floor_is_interpolation)
 
 
+def _is_linked_worktree(path) -> bool:
+    """T-13444 / T-13488 — True when `path` is inside a LINKED git worktree: `git rev-parse --git-dir`
+    there differs from `--git-common-dir`. A main checkout, a folder outside any repository, a missing
+    folder and a git fault all read False (fail-soft: nothing changes off a linked worktree)."""
+    import subprocess
+    from pathlib import Path
+    try:
+        r = subprocess.run(["git", "rev-parse", "--git-dir", "--git-common-dir"], cwd=str(path),
+                           capture_output=True, text=True)
+    except OSError:
+        return False
+    dirs = r.stdout.split("\n")[:2] if r.returncode == 0 else []
+    return len(dirs) == 2 and all(dirs) and \
+        (Path(path) / dirs[0]).resolve() != (Path(path) / dirs[1]).resolve()
+
+
 def _register_in_host_registry(REPO_ROOT) -> bool:
     """T-12956 — add REPO_ROOT to the host registry (nightly.register_project). Returns True on FAILURE
     (after printing the cause), False otherwise.
@@ -9831,7 +9985,6 @@ def _register_in_host_registry(REPO_ROOT) -> bool:
     git worktree (its git-dir differs from the common dir) is never registered — the main checkout is
     the project, and a worktree's entry would dangle once land removes it."""
     import os
-    import subprocess
     import sys   # module-local idiom: init.py imports sys per-function, never at module level
     import tempfile
     from pathlib import Path
@@ -9839,14 +9992,7 @@ def _register_in_host_registry(REPO_ROOT) -> bool:
     named = os.environ.get("YITC_REGISTRY")
     if not named and os.environ.get("YITC_TEST_JOURNAL_GUARD"):
         return False
-    try:
-        r = subprocess.run(["git", "rev-parse", "--git-dir", "--git-common-dir"], cwd=str(REPO_ROOT),
-                           capture_output=True, text=True)
-        dirs = r.stdout.split("\n")[:2] if r.returncode == 0 else []
-    except OSError:
-        dirs = []
-    if len(dirs) == 2 and all(dirs) and \
-            (Path(REPO_ROOT) / dirs[0]).resolve() != (Path(REPO_ROOT) / dirs[1]).resolve():
+    if _is_linked_worktree(REPO_ROOT):
         print(f"  consumer init ({REPO_ROOT.name}): not added to the host project list — it is a linked "
               f"worktree; the main checkout is the project")
         return False
@@ -9885,10 +10031,14 @@ _NEW_PROJECT_NAME_RE = r"^[a-z0-9][a-z0-9-]{0,39}$"
 def _home_picker_body(engine_root) -> str:
     cli = f"{engine_root}/bin/yitc-v2"
     return ("Show the projects on this machine and enter the one the person chooses.\n\n"
-            "Answer the person in the language the person writes in — every message, this one included.\n\n"
+            "Answer the person in the language the person writes in — every message, this one included. "
+            "If the person has written nothing yet except this command, use the language their own "
+            "user-level AI instructions name (the ones already loaded in this session — open no file for "
+            "this); if they name none, stay in the language of this text until the person writes.\n\n"
             "1. Run this and show its list to the person:\n\n"
             f"```\n{cli} session pick\n```\n\n"
-            "2. Ask which project they want, then run (with their number or name):\n\n"
+            "2. Ask which project they want as plain text in the chat — never a form, a menu or buttons; "
+            "the person answers with a number or a name. Then run (with their number or name):\n\n"
             f"```\n{cli} session pick <number or name>\n```\n\n"
             "3. Continue in THIS session and follow the start block that command printed (its commands carry "
             "`-C <folder>`) — no restart, no new window, no change of folder.\n\n"
@@ -9902,14 +10052,16 @@ def _home_picker_body(engine_root) -> str:
             "(I4) of the engine's `onboarding/bootstrap-order.md`: recommended answers, then the "
             "first-scenario interview.\n\n"
             "4. Your first message to the person after the chosen project's session starts quotes, word for word, "
-            "the visible start line `session start` printed last (\"Working in YITC mode — project <name>.\").\n\n"
-            "Finally, tell the person this one line:\n\n"
-            "Next time, to restart or to come back: open the AI tool in any folder (or clear the session "
-            "already open), run this command again and pick the project.\n")
+            "the visible start line `session start` printed last (\"Working in YITC mode — project <name>.\"). "
+            "Send it as a message of its own as soon as that `session start` returns — before you read the "
+            "handbook files it names; later progress notes are separate messages.\n")
 
 
 # T-13429 — sha256 of every EARLIER body `_home_picker_body` wrote, normalised by `_home_picker_normalised`
-# (git history: 797489755f T-13182, 4c5f8ddda3 T-13183, 5a0de2a7e4 = v2.2.0, e5e8c01b5c T-13384/T-13385).
+# (git history: 797489755f T-13182, 4c5f8ddda3 T-13183, 5a0de2a7e4 = v2.2.0, e5e8c01b5c T-13384/T-13385,
+# 7bd9967738 = the T-13386 body T-13491 replaced, 549f8b4126 = the T-13491 body T-13504 replaced — the last
+# one that told the AI to say the come-back line at every start; station [A] Start says it once now;
+# the T-13504 body T-13527 replaced — its step 4 said "first message" and named no moment).
 # A command file matching one of these (or the current body) is engine-written and is refreshed on install;
 # anything else is a person's and is left. When `_home_picker_body` changes, add the outgoing body's digest.
 _HOME_PICKER_ENGINE_DIGESTS = frozenset({
@@ -9917,6 +10069,9 @@ _HOME_PICKER_ENGINE_DIGESTS = frozenset({
     "f9f380abdb0a6a738af21840bd112f58ec60a1e1f447684bcb957d0c1efbfc61",
     "dc178b8386d14ec1f0ba1afed8354e14ac049d1278872d7f08a36ca916cda72b",
     "010e6372164119151db565d59e38f524dd8ff0019e2a803ce80ee058a39d2b8c",
+    "5577c3318d2e449ecab66a49ea86a0dccae5a366fe98db5ac10a7aff4dd933f6",
+    "7c8891caea470c7c2d25e63bb1d38d33e7c63dfeb145be57420065461b91b3f0",
+    "4205c0c9dcef3701a51b6c4cb2427a69fb1a9b032084193ef2830dc1825b7a20",
 })
 
 
@@ -10016,7 +10171,9 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     (T-13429 — `_home_picker_engine_written`, so a host updated past an old body loses its old text), and
     a file a person edited is reported and never touched. A project under the
     temp dir installs nothing unless HOME itself is under the temp dir (a sandboxed HOME), and an armed
-    test harness never writes into a HOME outside the temp dir. A write fault is reported, never fails
+    test harness never writes into a HOME outside the temp dir. T-13488: an engine running from a linked
+    git worktree installs and refreshes nothing and says so in one line — the command body names the
+    engine's absolute path, and `land` removes a worktree. A write fault is reported, never fails
     init — the command is a convenience. Returns `(label, invocation)` for each tool that has the
     command afterwards (written now or already there), for the printed next step."""
     import os
@@ -10029,6 +10186,11 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     home_sandboxed = tmp in home.parents
     if not home_sandboxed and (tmp in Path(REPO_ROOT).resolve().parents
                                or os.environ.get("YITC_TEST_JOURNAL_GUARD")):
+        return []
+    if _is_linked_worktree(engine_root):
+        print(f"  = start command /{_HOME_PICKER_NAME} not installed — this engine runs from a linked "
+              f"worktree ({engine_root}), which is removed once its work lands; run init with the main "
+              f"checkout's engine to install it")
         return []
     tools = _load_ai_tools(engine_root, home)
     chosen = [(k, r) for k, r in tools.items() if _ai_tool_present(r, home)] \
@@ -11065,8 +11227,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # paths (NEVER `git add -A`, which would sweep the consumer's own files / transient churn into the
     # methodology bootstrap commit) + the already-staged `git rm --cached` untrack removals; staging the
     # `.gitignore` here COMMITS the `.yitc/` + journal-sync-state/ ignore contract on main so a subsequent
-    # `land` does not refuse on that transient churn (deviation #4 / AC bullet 3). Commit IFF the index
-    # then differs from HEAD.
+    # `land` does not refuse on that transient churn (deviation #4 / AC bullet 3). The commit CARRIES
+    # exactly those entries and removals and nothing else staged in the shared index (T-13456,
+    # `_commit_from_scoped_index`), and is made IFF they differ from HEAD.
     bootstrapped = False
     bootstrap_refused = False   # T-13181: a staged credential refused the bootstrap commit (exit 1)
     material_delivery = bool(created or gitignore_added or gitattributes_added or untracked or seeded_main
@@ -11205,8 +11368,8 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             })
 
         # NOTE: yitc-verify.yaml is RETIRED (T-9719) — no longer seeded, so it is NOT in `managed`; a
-        # legacy one's DELETION is already staged by `_migrate_legacy_verify_yaml` (git rm --cached), so
-        # the `git diff --cached` below picks it up and the bootstrap commit records the removal.
+        # legacy one's DELETION is already staged by `_migrate_legacy_verify_yaml` (git rm --cached), and
+        # the bootstrap commit records it as one of init's REMOVAL CLASSES (`_removal_specs` below).
         # T-10498 — the REFRESH-CLASS paths (the two scaffolds init may re-derive from the engine) are
         # staged ONLY when THIS run actually wrote them. They used to be staged unconditionally-if-present,
         # which was harmless only because init ALWAYS rewrote them; now that a drifted one is merely
@@ -11227,16 +11390,28 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                    f"{_BORN_SCRATCH_DIR}/.gitkeep",   # T-11308: tracked, so the dir exists in every worktree
                    *(p for p in _refresh_class if p in _written)]
         present = [p for p in managed if (REPO_ROOT / p).exists()]
+        _add_failed = ""
         if present:
-            _run_git_cap(["add", "--", *present], REPO_ROOT)
+            _added = _run_git_cap(["add", "--", *present], REPO_ROOT)
+            if _added.returncode != 0:
+                _add_failed = (_added.stderr or _added.stdout).strip() or "no git output"
         # T-13181 (SPEC-0163 §4e) — the SECRETS floor over what this commit would carry, BEFORE it is
         # made. The land floor never sees this commit (it is not a land), so without this a credential
         # the owner pasted into chat rode the journal straight onto the consumer's `main`. A hit — or a
         # staged diff this could not read — REFUSES: no commit, no registration below, exit 1. The
         # refusal names file:line and the shape, never the value.
         has_staged = _run_git_cap(["diff", "--cached", "--quiet"], REPO_ROOT).returncode != 0
-        staged_hits = _staged_secret_hits(REPO_ROOT, _run_git_cap) if has_staged else []
-        if staged_hits:
+        staged_hits = (_staged_secret_hits(REPO_ROOT, _run_git_cap)
+                       if has_staged and not _add_failed else [])
+        if _add_failed:
+            # T-13456: the staging return code used to be discarded, so a part-way `git add` was
+            # committed as if it were the whole bootstrap. Now it is reported and nothing is committed.
+            import sys   # module-local idiom: init.py imports sys per-function, never at module level
+            print(f"consumer init ({REPO_ROOT.name}): bootstrap commit SKIPPED — staging the scaffolds "
+                  f"failed ({_add_failed}), so a commit now would carry a partial set. The scaffolds "
+                  f"are on disk; clear the cause (e.g. a held .git/index.lock) and re-run init.",
+                  file=sys.stderr)
+        elif staged_hits:
             import sys   # module-local idiom: init.py imports sys per-function, never at module level
             bootstrap_refused = True
             print(f"consumer init ({REPO_ROOT.name}): bootstrap commit REFUSED — credential-shaped "
@@ -11259,8 +11434,23 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                 "also lets a subsequent land ignore the transient .yitc/ + journal-sync-state/ churn).\n\n"
                 "from: SPEC-0051 — canonical write-flow + its no-worktree exceptions "
                 "(AGENTS §Writes-happen-in-a-worktree EXCEPTION); consumer-bootstrap exception, T-9463\n")
-            if _run_git_cap(["commit", "-q", "-m", _bootstrap_msg], REPO_ROOT).returncode == 0:
+            # T-13456 — the commit carries init's OWN entries only: `present` as staged above, minus
+            # the staged deletions inside init's removal classes — the churn it untracks (T-9310), the
+            # migrated legacy verify contract (T-9719) and the swept retired cross log (T-9610). The
+            # removals are read off the INDEX, not off this run's memory of them: a bootstrap refused
+            # on a staged credential is healed by a RE-RUN, in which the first run's `git rm --cached`
+            # is already staged and no longer re-derived. Anything else staged in the shared index —
+            # another session's entry — stays staged and out of this commit.
+            _removal_specs = [*_churn_specs, CONSUMER_VERIFY_CONTRACT, "CROSS-TASKS.md"]
+            _committed, _why_not = _commit_from_scoped_index(
+                REPO_ROOT, present, _removal_specs, _bootstrap_msg, _run_git_cap)
+            if _committed:
                 bootstrapped = True
+            elif _why_not:
+                import sys   # module-local idiom: init.py imports sys per-function, never at module level
+                print(f"consumer init ({REPO_ROOT.name}): bootstrap commit did NOT happen — "
+                      f"{_why_not}. The scaffolds stay staged; clear the cause and re-run init.",
+                      file=sys.stderr)
 
     if created or gitignore_added or gitattributes_added or untracked or seeded_main or bootstrapped or bootstrap_refused or rematerialized or ops_sections_pulled or ops_capability_disclosures or catalog_waived or concerns_preseeded or born_permissive_ratified or retired_surfaces_swept or onboarding_seeded or refreshed or adapter_restamped:
         parts = []

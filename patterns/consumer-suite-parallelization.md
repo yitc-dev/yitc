@@ -27,9 +27,11 @@ have removed. See §How your probes invoke their container. It is a question to 
 to hit.
 
 **If you are on the split lever, read §What shape of saving the split actually buys BEFORE you plan
-around it.** The savings are real and large, but they arrive all-or-nothing rather than as the cheap
-partial runs most readers assume — and that shape decides which realization criterion you can even
-state. Reading it after you have designed your measurement is reading it too late.
+around it.** The savings are real and large, but for most cards they arrive all-or-nothing rather than
+as the cheap partial runs most readers assume — whether a partial run is reachable at all depends on
+how your own globs scope your tests and your specs — and that shape decides which realization
+criterion you can even state. Reading it after you have designed your measurement is reading it too
+late.
 
 ## Precondition — hermetic first, parallel second
 
@@ -161,26 +163,43 @@ plausibility; only the replay reads them for coverage.
 **Scope bound:** this is a documented MANUAL procedure, deliberately not a verb. A check verb for it
 would need its own card and its own evidence of recurrence (CHARTER §Principle 1 filter 4).
 
-## What shape of saving the split actually buys — all-or-nothing, by construction
+## What shape of saving the split actually buys — all-or-nothing, unless your globs scope the test and the spec
 
 Read this before you plan around the split's payoff. **The saving is large. It is simply not the
 shape most readers assume.** A reader arriving at subject scoping expects "cheap partial runs" — a
 land that runs two of five layers and skips three. For a consumer whose build rule ships a behaviour
-change together with its TEST and its SPEC in ONE change, **an ordinary substantive card can never
-produce a partial run, BY CONSTRUCTION.** Plan for all-or-nothing: either every skip is cancelled and
-you pay a full run, or the whole diff is disjoint from every layer and you pay ~nothing.
+change together with its TEST and its SPEC in ONE change, **an ordinary substantive card produces a
+partial run only when BOTH companions are scoped to the layer the change belongs to.** Where either
+one reaches every layer, plan for all-or-nothing: either every skip is cancelled and you pay a full
+run, or the whole diff is disjoint from every layer and you pay ~nothing.
 
-**The cause, and it has two independent legs — either one alone is sufficient** (<project> X-0931,
+**The cause has two independent legs — either one alone cancels every skip** (<project> X-0931,
 accepted by the kernel):
 
 - **The test leg.** The companion test lands under `tests/`, which hits the kernel's HARDCODED
   verify-infra floor — `_SUBJECT_VERIFY_INFRA_GLOBS = ("bin/**", "tests/**", "yitc-ops.yaml")` in
   `bin/lib/worktree.py`. A path matching the floor takes the SPEC-0077 supremacy edge: full run, no
-  layer skipped, regardless of any `subject_globs` you declared.
+  layer skipped, regardless of any `subject_globs` you declared. Two members are conditional (the
+  rule is SPEC-0152 rule 16, `bin/yitc-v2 graph query SPEC-0152`): a `yitc-ops.yaml` change that
+  leaves the carrier's verification sections equal is judged by your `subject_globs` like any other
+  path; and a changed test file forces ONLY the layers that own it when that ownership is PROVEN —
+  it is one of the test files you DECLARE (`tests.classes[].globs`), at least one layer's
+  `subject_globs` claim it, and at least one layer's do not. So this leg cancels every skip only for
+  a test path that is NOT such an owned declared test file: one no declared class glob names (which
+  includes every project that declares no test-file globs), one no layer claims, one every scoped
+  layer claims, one you listed under `verify.infra_globs`, or one a layer's `command:` names.
 - **The spec leg.** The companion spec lands under `specs/`, which hits whatever layers THAT consumer
-  declared `specs/**` on. This leg is the consumer's own glob breadth, not the kernel's floor.
+  declared `specs/**` on. This leg is the consumer's own glob breadth, not the kernel's floor, and
+  nothing in the kernel changes it.
 
-Either leg alone cancels every skip, so a card carrying both cannot be partial even in principle.
+So a card carrying an unowned test, or a spec every layer globs, cannot be partial even in principle;
+a card whose test is an owned declared test AND whose spec glob is scoped to the same layer runs
+that layer and skips the rest on the candidate leg.
+
+**The figures below were measured BEFORE the test leg became ownership-aware, when ANY
+`tests/` touch cancelled every skip.** They are kept as measured — they are the history that earned
+the rule — and are not a description of current behaviour for a consumer that declares its test
+files and scopes them per layer.
 
 **Measured over <project>'s post-split window** (X-0931, 45 lands, re-measured 2026-08-16): of the 10
 full-run lands, **6 touch the kernel floor** (all 6 via `tests/**`, one also `yitc-ops.yaml`) and the
@@ -195,20 +214,24 @@ real, and a consumer that narrowed only its own `specs/**` globs would still hav
 all-skip. What you buy is a large majority of near-free lands, not a cheaper full run.
 
 **Scope bound, so the claim stays falsifiable:** the same window does contain **5 partial runs** out
-of 45. Partial runs exist in the mechanism — they are reachable for lands that are not ordinary
-substantive cards. The claim above is about the card class you will actually be writing under a
-test-ships-with-the-change rule, and for that class it holds by construction. **The consequence to
-act on: do not design your rollout, your budget, or your success criterion around partial runs.**
+of 45. Partial runs exist in the mechanism — in that window they were reachable only for lands that
+were not ordinary substantive cards. Since an ordinary card reaches one too, but only under
+the two conditions above (an owned declared test, a layer-scoped spec glob). **The consequence to act
+on: do not design your rollout, your budget, or your success criterion around partial runs until you
+have replayed your own globs and seen that your cards actually meet both conditions.**
 
 ### The realization criterion that follows
 
 **Do NOT hand a consumer "every tier observed running ALONE at least once" as a realization gate.**
-Under the rule above it is **unsatisfiable without a deliberate violation of that consumer's own
-build discipline**: selecting one expensive layer alone requires shipping a behaviour change WITHOUT
-its test and WITHOUT its spec, and a `tests/` touch would force a full run regardless. This is worth
-stating out loud because **a consumer derived this criterion independently and carried it for two
-days** before retiring it (X-0931) — it is a trap a careful reader walks into unaided, not one that
-has to be handed over.
+For a consumer whose tests or specs reach every layer it is **unsatisfiable without a deliberate
+violation of that consumer's own build discipline**: selecting one expensive layer alone requires
+shipping a behaviour change WITHOUT its test and WITHOUT its spec. It is reachable only where the
+companion test is an owned declared test file and the companion spec's glob is scoped to the same
+layer (the two conditions of the section above) — a property of that consumer's globs, which the
+gate would then be measuring instead of the split. This is worth stating out loud because **a
+consumer derived this criterion independently and carried it for two days** before retiring it
+(X-0931, when a `tests/` touch still forced a full run regardless) — it is a trap a careful reader
+walks into unaided, not one that has to be handed over.
 
 **The reachable replacement, which the kernel ALREADY asks for, is FORWARD SAME-COMMIT RE-RUNS.** It
 is what the unsatisfiable version was reaching for, and the only route that can supply it: X-0871
@@ -219,9 +242,11 @@ the rejection whenever you send either, so a reader cannot take away only the ha
 
 ### Noted: a floor touch is TWO effects, not one
 
-Purely informational sizing, and **the floor is NOT being changed** — but a consumer costing a
-`tests/` touch should know it pays twice. A floor touch (a) cancels every skip, as above, AND (b)
-adds the **SPEC-0077** pinned last-green re-run on top. Measured (<project> X-0931): a floor-touching
+Purely informational sizing — but a consumer costing a `tests/` touch should know it can pay twice.
+A floor touch (a) cancels every skip — for a test path, only when it is not an owned declared test
+file, as above — AND (b) adds the **SPEC-0077** pinned last-green re-run on top, wherever the project
+runs that leg. Effect (b) is NOT conditional: the pinned trigger fires on ANY `tests/` change, owned
+or not, and that leg runs every layer. Measured (<project> X-0931, before): a floor-touching
 full run at **557s median** against **316s** for a non-floor full run — about **241s per land**,
 roughly **1450s of their 5762s window**. Size a `tests/` touch as two effects, not one.
 
@@ -237,8 +262,14 @@ that are not there. Before drawing ANY conclusion from per-land numbers:
    `_merged_tree_delta_paths` as `base_ref`, so the range sweeps in unrelated concurrent branches and
    **MANUFACTURES contamination that never existed**.
 2. **Replay the engine's own skip predicate over the reconstructed diffs** — `_subject_globs_would_skip`
-   (`bin/lib/worktree.py`) plus the `_SUBJECT_VERIFY_INFRA_GLOBS` supremacy edge. Not a re-derivation
-   of what the globs "should" mean: the predicate the engine actually ran.
+   (`bin/lib/worktree.py`) plus the `_SUBJECT_VERIFY_INFRA_GLOBS` supremacy edge — including the two
+   answers that decide whether a floor touch takes that edge at all, each computed by the ENGINE's own
+   function over the carrier at the two revisions (SPEC-0152 rule 16): for a diff that lists
+   `yitc-ops.yaml`, the section comparison (`_ops_carrier_freed_paths`); for a diff that lists a path
+   under `tests/`, the ownership proof (`_owned_test_freed_paths`). Hand the UNION of the two freed
+   sets to the edge, as the land does. A replay that omits either one reconstructs a full run the
+   engine did not take, and cannot reach the 100% of step 3. Not a re-derivation of what the globs
+   "should" mean: the predicate the engine actually ran.
 3. **Pass condition: 100% reproduction of the recorded per-layer decisions.** Every layer, every land
    in the window. <project> reproduces **45/45**. Below 100%, you have not earned any conclusion yet —
    fix the reconstruction first.
@@ -270,17 +301,21 @@ from here rather than re-derived:
 > the union of the replacements, and require that at least one layer RUNS for each.** Run on
 > <project>'s own set this found two real coverage holes that two audits had already passed.
 >
-> **What the split buys you is ALL-OR-NOTHING savings, not cheap partial runs — and that is the
-> expected shape, not a disappointment.** If your build rule ships a change with its TEST and its
-> SPEC, an ordinary substantive card can never run partially: the test leg hits the kernel's
-> hardcoded `tests/**` floor and the spec leg hits whatever layers you declared `specs/**` on, and
-> either alone cancels every skip (measured on <project>: 73% of verify wall removed anyway — 5762s
-> against a 21239s all-ran counterfactual). **So do not adopt "every tier observed running ALONE at
-> least once" as your realization gate — it is unsatisfiable without violating your own build
-> discipline.** The reachable criterion is forward SAME-COMMIT re-runs (X-0871; AC3), and
-> before you trust any per-land attribution, replay the engine's predicate over a `base_ref`
-> reconstructed as the main-side parent of the last merge-of-main and require 100% reproduction of
-> the recorded decisions.
+> **What the split buys you is mostly ALL-OR-NOTHING savings, not cheap partial runs — and that is
+> the expected shape, not a disappointment.** If your build rule ships a change with its TEST and its
+> SPEC, an ordinary substantive card runs partially only when BOTH are scoped to the layer the change
+> belongs to: the test must be one of the test files you declare (`tests.classes[].globs`) that some
+> layers' `subject_globs` claim and others do not — any other `tests/` path hits the kernel's
+> `tests/**` floor — and the spec must land under a glob you did not give to every layer. Either
+> companion reaching every layer cancels every skip (measured on <project> before the test leg became
+> ownership-aware: 73% of verify wall removed anyway — 5762s against a 21239s all-ran
+> counterfactual). **So do not adopt "every tier observed running ALONE at least once" as your
+> realization gate — unless your globs meet both conditions it is unsatisfiable without violating
+> your own build discipline, and where they do it measures your globs, not the split.** The reachable
+> criterion is forward SAME-COMMIT re-runs (X-0871; AC3), and before you trust any per-land
+> attribution, replay the engine's predicate — with BOTH of its freed answers, the carrier section
+> comparison and the test-ownership proof — over a `base_ref` reconstructed as the main-side parent
+> of the last merge-of-main and require 100% reproduction of the recorded decisions.
 
 ---
 
@@ -427,7 +462,7 @@ the kernel precedent); this section asserts nothing about which runs may write i
 <project>'s rebuild moved 45 chunks / 137.4s declared to 58 / 476.1s.
 
 **3. Trial serial-then-concurrent on the REAL host, across repeated lands.** The conflict-domain
-contract and its closed class set live in SPEC-0207 — read it there. What SPEC-0207 does NOT cover,
+contract and its closed class set live in SPEC-1007 — read it there. What SPEC-1007 does NOT cover,
 and this step exists for: **host-accumulating** resources (docker networks, volumes, address pools)
 are a CAPACITY axis OUTSIDE its seven pairwise classes. They accumulate across lands instead of
 conflicting between a pair, so a clone-based pairwise trial cannot see them. Evidence: the kernel's
@@ -438,7 +473,10 @@ default pool). Route the preflight for such a resource to the project's OWN laye
 
 **4. Only then declare `independent_layers` + `layer_worker_shares` — and ship the reader of the
 share.** The fields' shape and the kernel/project division of responsibility are governed by
-SPEC-0152 rule 16; this step prescribes none of it. Its own content is one measured fact:
+SPEC-0152 rule 16; this step prescribes none of it. The `independent_layers` declaration is YOUR
+project's own risk judgement — what that standing is, that an `owns:` declaration is not required
+for it, and the resource classes to walk over each pair before you declare are SPEC-1007 rules 1
+and 2 — read them there. Its own content is one measured fact:
 <project>'s audit-pre REDDED a share that nothing read, and that RED was right. And one report
 of what <project>'s own acceptance asked for — offered as a method others MAY copy, not a requirement
 — per-layer durations summing ABOVE the wall (272.1s of layers inside a 133.1s wall, 2.04x), because
@@ -525,8 +563,10 @@ container). **Hygiene, no wall-clock:** run artefacts never pruned (917MB under 
   `subject_globs:` schema contract these procedures operate on. The kernel grades stance and
   structural shape there, never glob COVERAGE — which is why the replay above is yours to run.
 - **SPEC-0077** (`bin/yitc-v2 graph query SPEC-0077`) — "Pinned last-green verify for
-  verify-path-touching lands"; the supremacy edge that makes a floor touch cancel every skip, and the
-  pinned re-run that is its SECOND effect (§Noted: a floor touch is TWO effects).
+  verify-path-touching lands"; the supremacy edge that makes a floor touch cancel every skip — except
+  the two conditional members SPEC-0152 rule 16 homes (a section-equal carrier change; an owned
+  declared test file) — and the pinned re-run that is its SECOND, unconditional effect (§Noted: a
+  floor touch is TWO effects).
 - ** AC3** (`bin/yitc-v2 graph query `) and the ask it answers, **X-0871** — the
   kernel's ACTUAL realization criterion (offline replay over historical would-skip decisions plus a
   clean same-commit sample re-run, zero false skips), which is the reachable replacement above.

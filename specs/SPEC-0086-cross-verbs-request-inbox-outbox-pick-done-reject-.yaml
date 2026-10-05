@@ -772,65 +772,74 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ is a member of the zero-write-view clause beside `nightly --status` (no auto-sync,\
   \ no\n      seed-gate refusal row) — a newcomer runs it before any session exists.\
   \ The only writes are those\n      of the chosen project's own `session start`,\
-  \ in that project.\n  (c) **One start path.** The chosen project is started by the\
-  \ same `session start` a person would\n      type (`-C <folder>` form), so its visible\
-  \ start line (SPEC-0125) is the one they.\n  (d) **Reachable from the home folder.**\
-  \ `release install` (after a verified copy, ending\n      with one plain next-step\
-  \ line naming the command) and `init`, at the host-registration seam, install ONE\n\
-  \      user-level command `/yitc-projects` in the adopter's AI tool (a provider-adapter\
-  \ table in\n      `bin/lib/init.py` maps each tool to its command folder), ONLY\
-  \ if absent — an existing file is\n      reported and left byte-identical — and\
-  \ under the registry write's own test/temp-dir guards. Its\n      body runs `<engine-absolute>/bin/yitc-v2\
-  \ session pick`, then the chosen project's start in the same\n      session, tells\
-  \ the AI to answer in the person's language, and ends with the ONE start order\n\
-  \      : to start, restart or come back, open the AI tool in any folder (or clear\
-  \ the open\n      session) and run the command again — never a relaunch in the project\
-  \ folder, which the engine does\n      not need (it finds the session record by\
-  \ session id in any folder). The\n      non-interactive hint names the engine-absolute\
-  \ path. No in-project command, no hooks.\n\n### 7. Receiver-side premise review\
-  \ — before any pick / resolves_cross association\nThe intake hygiene of rule 1 checks\
-  \ a request's SHAPE (already-addressed staleness · wrong-address\nrelevance). Its\
-  \ central CLAIM is checked by nothing: X-0297 arrived asserting a parity gap the\
-  \ kernel\nhad ALREADY closed (pre-report), and only ad-hoc Controller discipline\
-  \ caught it\n(deviation `cross-intake-lacks-receiver-side-premise-review`). This\
-  \ rule closes that gap.\n\n**The trigger is the SEMANTIC transition, not a command\
-  \ list.** BEFORE any operation that creates a\ncross **pick** or a **`resolves_cross`\
-  \ association**, the RECEIVER verifies the request's central claim\nagainst its\
-  \ OWN CURRENT state. The request TEXT is the FROZEN original ask — evidence of what\
-  \ a peer\nbelieved when they filed it, never evidence of what is true now. Naming\
-  \ the transition (not the verbs)\nis deliberate: a future attachment path inherits\
-  \ the duty automatically. CURRENT named implementations:\n**`cross pick`** and the\
-  \ **`task file` `resolves_cross` filing**.\n\n**Default disposition at triage —\
-  \ DECLINE unless DEFECT or PROVEN NEED (owner directive\n`events.jsonl#ts=`, refined\
-  \ `#ts=`).** The premise review\nabove asks \"is the claim TRUE?\"; this block asks\
-  \ the question that comes FIRST at cross-log triage:\n\"should the receiver take\
-  \ this at all?\" — and its answer is NO by default. Before choosing an\noutcome\
-  \ below, the receiver CLASSIFIES every `to:me` item into exactly ONE of three classes:\n\
-  \  - **DEFECT** — a MEASURED wrong behaviour of the receiver's own system (kind\
-  \ `bugfix`: a\n    reproduced misbehaviour, not an opinion about one). → TAKE (outcome\
-  \ (a) or (b)).\n  - **PROVEN NEED** — the ask carries MEASURED evidence (a count,\
-  \ a recurrence, a reproducible\n    cost) AND passes the four CHARTER §P1 filters\
-  \ (existing analog? · view over entity? · what is\n    removed? · real incident\
-  \ or prior-art?) — the four answers are WRITTEN DOWN in the pick note\n    (`cross\
-  \ pick` / the `resolves_cross` card's analysis). → TAKE (outcome (a) or (b)).\n\
-  \  - **WANT or ONE-OFF** — everything else: a preference, a convenience, a proposal\
-  \ that would\n    change an established working order for one case, or a SINGLE\
-  \ occurrence with no measurement\n    and no recurrence. → DECLINE via `cross reject\
-  \ --reason` (outcome (c)), the reason naming the\n    CLASS, the P1 filter that\
-  \ FAILED, and the project-side remedy (the fix the requester applies\n    locally).\
-  \ **NO card and NO followup is filed for a one-off — the reject note IS the whole\n\
-  \    record**, the same single-instance rule the kernel applies to its own additions\
-  \ (CHARTER §P1\n    F4: purely imagined or single-instance necessity → defer).\n\
-  Every pick or reject note NAMES the class it assigned, so the disposition is auditable\
-  \ from the\nshared log alone. A declined item is not closed forever: it may be RE-FILED\
-  \ with measured proof,\nor is re-classified on RECURRENCE — a second item of the\
-  \ same shape from ANY project — and\nrecurrence is read from the cross log itself\
-  \ (the shared store is the counter; no new counter,\nstatus, score or detector —\
-  \ CHARTER §6 non-goal). **Worked example (pre-dated, not adoption\nevidence):**\
-  \ X-1471 (a consumer project, 2026-09-17) asked for a `land --with <peer>` argument;\
-  \ filed first as\na feature card, on review it was a decomposition defect on the\
-  \ project side (SPEC-0046 one-unit\nrule), failed all four P1 filters, and would\
-  \ have changed a working land discipline for one\nmis-cut — class WANT-or-ONE-OFF,\
+  \ in that project. An entry whose folder is not an existing directory stays listed\
+  \ at its own number, marked `(folder missing)`; choosing it starts nothing, writes\
+  \ nothing and exits non-zero with one plain line.\n  (c) **One start path.** The\
+  \ chosen project is started by the same `session start` a person would\n      type\
+  \ (`-C <folder>` form), so its visible start line (SPEC-0125) is the one they.\n\
+  \  (d) **Reachable from the home folder.** `release install` (after a verified copy,\
+  \ ending\n      with one plain next-step line naming the command) and `init`, at\
+  \ the host-registration seam, install ONE\n      user-level command `/yitc-projects`\
+  \ in the adopter's AI tool (a provider-adapter table in\n      `bin/lib/init.py`\
+  \ maps each tool to its command folder), ONLY if absent — an existing file is\n\
+  \      reported and left byte-identical — and under the registry write's own test/temp-dir\
+  \ guards. **An\n      engine running from a linked git worktree installs nothing\
+  \ :** the body names the engine\n      by absolute path and `land` removes a worktree,\
+  \ so when `git rev-parse --git-dir` in the engine\n      folder differs from `--git-common-dir`\
+  \ the installer creates and refreshes no command file and\n      says so in one\
+  \ line; an engine in a main checkout or an installed release is unchanged. Its\n\
+  \      body runs `<engine-absolute>/bin/yitc-v2 session pick`, then the chosen project's\
+  \ start in the same\n      session, tells the AI to answer in the person's language,\
+  \ and ends with the start-line relay — it\n      does not repeat the return order\
+  \ at every run. The ONE start order stands:\n      to start, restart or come back,\
+  \ open the AI tool in any folder (or clear the open session) and\n      run the\
+  \ command again — never a relaunch in the project folder, which the engine does\
+  \ not need\n      (it finds the session record by session id in any folder); the\
+  \ person is told it once, at the\n      first start, by station [A] Start (SPEC-0147).\
+  \ The\n      non-interactive hint names the engine-absolute path. No in-project\
+  \ command, no hooks.\n\n### 7. Receiver-side premise review — before any pick /\
+  \ resolves_cross association\nThe intake hygiene of rule 1 checks a request's SHAPE\
+  \ (already-addressed staleness · wrong-address\nrelevance). Its central CLAIM is\
+  \ checked by nothing: X-0297 arrived asserting a parity gap the kernel\nhad ALREADY\
+  \ closed (pre-report), and only ad-hoc Controller discipline caught it\n(deviation\
+  \ `cross-intake-lacks-receiver-side-premise-review`). This rule closes that gap.\n\
+  \n**The trigger is the SEMANTIC transition, not a command list.** BEFORE any operation\
+  \ that creates a\ncross **pick** or a **`resolves_cross` association**, the RECEIVER\
+  \ verifies the request's central claim\nagainst its OWN CURRENT state. The request\
+  \ TEXT is the FROZEN original ask — evidence of what a peer\nbelieved when they\
+  \ filed it, never evidence of what is true now. Naming the transition (not the verbs)\n\
+  is deliberate: a future attachment path inherits the duty automatically. CURRENT\
+  \ named implementations:\n**`cross pick`** and the **`task file` `resolves_cross`\
+  \ filing**.\n\n**Default disposition at triage — DECLINE unless DEFECT or PROVEN\
+  \ NEED (owner directive\n`events.jsonl#ts=`, refined `#ts=`).** The premise review\n\
+  above asks \"is the claim TRUE?\"; this block asks the question that comes FIRST\
+  \ at cross-log triage:\n\"should the receiver take this at all?\" — and its answer\
+  \ is NO by default. Before choosing an\noutcome below, the receiver CLASSIFIES every\
+  \ `to:me` item into exactly ONE of three classes:\n  - **DEFECT** — a MEASURED wrong\
+  \ behaviour of the receiver's own system (kind `bugfix`: a\n    reproduced misbehaviour,\
+  \ not an opinion about one). → TAKE (outcome (a) or (b)).\n  - **PROVEN NEED** —\
+  \ the ask carries MEASURED evidence (a count, a recurrence, a reproducible\n   \
+  \ cost) AND passes the four CHARTER §P1 filters (existing analog? · view over entity?\
+  \ · what is\n    removed? · real incident or prior-art?) — the four answers are\
+  \ WRITTEN DOWN in the pick note\n    (`cross pick` / the `resolves_cross` card's\
+  \ analysis). → TAKE (outcome (a) or (b)).\n  - **WANT or ONE-OFF** — everything\
+  \ else: a preference, a convenience, a proposal that would\n    change an established\
+  \ working order for one case, or a SINGLE occurrence with no measurement\n    and\
+  \ no recurrence. → DECLINE via `cross reject --reason` (outcome (c)), the reason\
+  \ naming the\n    CLASS, the P1 filter that FAILED, and the project-side remedy\
+  \ (the fix the requester applies\n    locally). **NO card and NO followup is filed\
+  \ for a one-off — the reject note IS the whole\n    record**, the same single-instance\
+  \ rule the kernel applies to its own additions (CHARTER §P1\n    F4: purely imagined\
+  \ or single-instance necessity → defer).\nEvery pick or reject note NAMES the class\
+  \ it assigned, so the disposition is auditable from the\nshared log alone. A declined\
+  \ item is not closed forever: it may be RE-FILED with measured proof,\nor is re-classified\
+  \ on RECURRENCE — a second item of the same shape from ANY project — and\nrecurrence\
+  \ is read from the cross log itself (the shared store is the counter; no new counter,\n\
+  status, score or detector — CHARTER §6 non-goal). **Worked example (pre-dated, not\
+  \ adoption\nevidence):** X-1471 (a consumer project, 2026-09-17) asked for a `land\
+  \ --with <peer>` argument; filed first as\na feature card, on review it was a decomposition\
+  \ defect on the project side (SPEC-0046 one-unit\nrule), failed all four P1 filters,\
+  \ and would have changed a working land discipline for one\nmis-cut — class WANT-or-ONE-OFF,\
   \ rejected the same day, remedy: re-cut the project's card.\n\n**Four outcomes —\
   \ each on an EXISTING mechanism (no new verb, event, state, or store):**\n  (a)\
   \ **Accept as-is** — the claim holds; proceed (`cross pick` / file the linked card).\n\
@@ -964,7 +973,7 @@ implements_signature:
   bin/lib/cross.py#unregistered_sender_rows: 7e5fd7f7c1f10e92a8140cebec1f7f0d6f70116728c6230dfac3a478b123ef2b
   bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
   bin/lib/nightly.py#register_project: 3395a47dbab142e6e2163567cce2ce366b00dc7fdee0d1e9437731e00cf0ef2f
-  bin/lib/session.py#cmd_session_pick: bb6a986f6a572c5289240bdb44cc2a740fe84b36530f1afe3d6d53218e4160a6
-  bin/lib/session.py#cmd_session_start: 6aa2ecb83595002f1be9d42ac304a0f376d0bb7db07128ffc7545f8323b57832
+  bin/lib/session.py#cmd_session_pick: 71f4aa00368cee90587a968097653a668725d12104d4342edb54b8908bf4ba74
+  bin/lib/session.py#cmd_session_start: be6b8f1c4fbde1afbcd678e9878909b0d0e967e387809d4baa05ea888be7a482
   bin/lib/task.py#_auto_cross_pick_for_file: 7ec08e2e7cc2ab9cc1959d08476bbab10176dcf91906541c7274acb97def07c2
   bin/lib/task.py#cmd_task_file: a2448377e68efc1d0223bf442d465f96b5f5f71d29867ba800e11ab1c1a65f11

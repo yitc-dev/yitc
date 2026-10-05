@@ -142,6 +142,32 @@ def _reindent(s: str, indent: str) -> str:
     return "\n".join(indent + ln if ln.strip() else ln for ln in s.split("\n"))
 
 
+# ── T-13509 — the two READINGS of a block-body edit (GitHub issue #11) ─────────────────────
+# A mid-line `old` with a multi-line `new` can be read two ways: as RAW FILE TEXT (the continuation
+# lines land at the column they were typed at, in the file) or as an edit of the PARSED BODY (they
+# land at the nesting they were typed at, in the body). When the two disagree the verb must say so in
+# the author's terms, in the corrective note and in the refusal alike — one wording, built here.
+
+def _body_reading_diff(raw_body, asked_body: str, added_keys) -> str:
+    """One clause naming BOTH readings: the first body line where the raw write and the asked edit
+    differ, plus any top-level key the raw write would have added."""
+    got = raw_body.split("\n") if isinstance(raw_body, str) else []
+    want = asked_body.split("\n")
+    clause = (f"as raw file text the body would carry {len(got) - len(want)} more line(s) than as an "
+              f"edit of the parsed body")
+    for i, w in enumerate(want):
+        g = got[i] if i < len(got) else None
+        if g != w:
+            raw_side = repr(g) if g is not None else "nothing (the body ends before it)"
+            clause = (f"body line {i + 1} would read {raw_side} as raw file text, but {w!r} as an "
+                      f"edit of the parsed body")
+            break
+    if added_keys:
+        clause += ("; the raw write would also add top-level key(s) "
+                   + ", ".join(f"`{k}`" for k in added_keys))
+    return clause
+
+
 # ── T-11109 — the FLOW-SCALAR sibling of the indentation trap (X-0882) ───────────────────────────
 # A spec `body:` need not be a BLOCK scalar. <project>'s SPEC-0042 stores it as a double-quoted FLOW
 # scalar: one physical line whose interior newlines are carried as literal `\n` escapes. There
@@ -855,12 +881,15 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # AUTHOR asked for, and `new` is re-encoded to the scalar's stored form when the verbatim
     # insertion does not round-trip. Verification-driven, never a guess: a candidate is accepted only
     # if the reparsed body equals the expected body EXACTLY, so a wrong encoding cannot slip through.
-    # Scoped to this storage style on purpose — block-scalar bodies keep the T-10321/T-10920
-    # handling unchanged (widening that is a separate change with its own evidence).
+    # T-13509 — the SAME judgement now covers a BLOCK-scalar body (the evidence this comment used to
+    # wait for is GitHub issue #11): there too a raw insertion can parse and mean something
+    # else, so the expected body is computed for both storage styles and the two differ only in how a
+    # mismatch is repaired (re-encode `new` for a flow scalar; re-emit the block for a block scalar).
     _flow_quote = _body_flow_quote(text)
+    _block_body = not _flow_quote and bool(_body_block_indent(text))
     _pre_body = rec.get("body")
     _expected_body = None
-    if _flow_quote and isinstance(_pre_body, str) and orig_old in _pre_body:
+    if (_flow_quote or _block_body) and isinstance(_pre_body, str) and orig_old in _pre_body:
         _expected_body = (_pre_body.replace(orig_old, orig_new) if replace_all
                           else _pre_body.replace(orig_old, orig_new, 1))
     _FLOW_REENCODE_NOTE = (
@@ -871,7 +900,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     def _flow_reencode_retry():
         """Retry the replacement with `new` encoded into the flow scalar's stored form. Returns
         `(updated_text, record)` only when the retry round-trips to the expected body, else None."""
-        if _expected_body is None:
+        if _expected_body is None or not _flow_quote:
             return None
         for cand_new in _flow_encode_variants(new, _flow_quote):
             if cand_new is None:
@@ -943,7 +972,38 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # "it means the same". Judge the reparsed body against the author's intent and re-encode `new`
     # when it does not match; refuse if no encoding reproduces it, rather than writing a body that
     # quietly folded a newline into a space.
-    if _expected_body is not None and isinstance(updated_rec, dict) \
+    if _block_body and _expected_body is not None and isinstance(updated_rec, dict) \
+            and updated_rec.get("body") != _expected_body:
+        # T-13509 (GitHub issue #11) — the BLOCK-scalar sibling of the check below. `old` is
+        # text of the parsed body, yet the raw write would NOT produce the body the author asked for:
+        # a continuation line typed as nested lands as a sibling, or a `key: value` line at column 0
+        # ends the block and becomes a new top-level key. Both parse, so the YAML guard above is blind
+        # to them. The repair is gated on that mismatch — an edit whose raw write already means what
+        # was asked never reaches here and stays byte-identical — and it proves its own output: the
+        # shared literal-block editor (`task update`'s, T-12920) applies the edit to the PARSED body,
+        # re-emits the block at its own indent, and returns a text only if it reparses to the expected
+        # record EXACTLY. Anything it cannot hold (a folded `>` body, an ambiguous `old`) is refused
+        # naming both readings, never written as the raw one.
+        readings = _body_reading_diff(updated_rec.get("body"), _expected_body,
+                                      sorted(set(updated_rec) - set(rec)))
+        fixed, fixed_n = textutil.literal_block_field_edit(
+            text, state.load_str(text), orig_old, orig_new, replace_all=replace_all)
+        fixed_rec = state.load_str(fixed) if fixed is not None else None
+        if not isinstance(fixed_rec, dict) or fixed_rec.get("body") != _expected_body:
+            _die(f"refusing to write — `old` is text of the parsed body of {path.name}, but replacing "
+                 f"it in the raw file text would not write the body you asked for: {readings}. The "
+                 f"edit could not be re-applied to the parsed body either (the `body:` is not a "
+                 f"literal `|` block this verb can re-emit, or `old` is ambiguous there) (T-13509). "
+                 f"For a raw replacement, copy `old` and every line of `new` WITH the file's own "
+                 f"indentation from `{path.name}` and re-run `bin/yitc-v2 spec edit {sid} --from-file "
+                 f"<payload.yaml>`. The file is untouched.")
+        updated, updated_rec, count = fixed, fixed_rec, fixed_n
+        print(f"note: `old` is text of the parsed body, and inserting `new` verbatim into the raw "
+              f"file would have written a body that means something else — {readings}. Applied as an "
+              f"edit of the parsed body instead: the `body:` block was re-emitted at its own indent so "
+              f"it reads exactly as `new` says (T-13509). For a raw replacement, copy `old` and every "
+              f"line of `new` WITH the file's own indentation.")
+    elif _expected_body is not None and isinstance(updated_rec, dict) \
             and updated_rec.get("body") != _expected_body:
         flow_retried = _flow_reencode_retry()
         if flow_retried is None:

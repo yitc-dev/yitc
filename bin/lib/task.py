@@ -492,7 +492,9 @@ def _probe_moments_value_error(value, acceptance):
             # Not `_probe_moment_refusal`: that wording names the CLOSE-time door (`--probe-deferred`).
             return None, (f"{label}: {entry[slots[0]]!r} is not a `{slots[0]}` moment any reader can "
                           f"decide — use `due_by: <ISO date>`, or `awaits:` a task/cross id (T-1234 / "
-                          f"X-0042) or `events.jsonl#type=<t>[@after=<ISO ts>|@after=land]`")
+                          f"X-0042) or `events.jsonl#type=<t>[&<key>=<value>][@after=<ISO ts>|@after=land]` "
+                          f"(the row predicate `&<key>=<value>` is admitted on: "
+                          f"{', '.join(sorted(_followup_predicate_types()))})")
         out[label] = decl
     return out, None
 
@@ -500,20 +502,26 @@ def _probe_moments_value_error(value, acceptance):
 def _answers_error(value):
     """T-13221: why an `answers:` value (SPEC-0197 rule 4 link-back) cannot be written, else None.
 
-    The SAME two checks `release.collect_answered_proposals` fails closed on at publish — the id
-    grammar `ANSWER_ID_RE` and no host absolute path — applied at the WRITE doors, so a bad id is
-    refused when it is authored rather than when a release is cut. Pure; the regexes stay homed in
-    release.py (imported lazily, release.py never imports this module)."""
+    The SAME three checks `release.collect_answered_proposals` fails closed on at publish — the id
+    grammar `ANSWER_ID_RE`, no host absolute path, and (T-13484) an issue reference that names its
+    tracker — applied at the WRITE doors, so a bad id is refused when it is authored rather than
+    when a release is cut. Pure; the regexes and the predicate stay homed in release.py (imported
+    lazily, release.py never imports this module)."""
     from lib import release
     if not (isinstance(value, list) and value):
-        return "needs a non-empty YAML LIST of proposal ids (e.g. ['#8'])"
+        return "needs a non-empty YAML LIST of proposal ids (e.g. ['yitc-dev/yitc#8'])"
     for item in value:
         aid = str(item).strip() if isinstance(item, (str, int)) else None
         if not aid or not release.ANSWER_ID_RE.match(aid):
             return (f"id {item!r} fails the link-back id grammar (release.ANSWER_ID_RE: one line, "
-                    f"<=64 chars, e.g. '#8')")
+                    f"<=64 chars, e.g. 'yitc-dev/yitc#8')")
         if release.HOST_PATH_RE.search(aid):
             return f"id {item!r} contains a host absolute path — a release is host-clean"
+        if release.unqualified_answer_id(aid):
+            return (f"id {item!r} is an issue reference that names no tracker — write it as "
+                    f"`{release.QUALIFIED_ISSUE_REF_FORM}` (e.g. 'yitc-dev/yitc#8'; an archived "
+                    "tracker under its archive name). A re-created intake repo restarts its "
+                    "numbering, so a bare number ends up pointing at a different issue")
     return None
 UPDATE_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("reason",         "--reason",         "reason",         None),
@@ -2649,43 +2657,12 @@ def _acceptance_route_hint(tid: str, rec, old: str) -> str:
             f"(stdin = the whole acceptance list as YAML).")
 
 
-def _leaf_occurrences(rec, old: str) -> int:
-    """Occurrences of `old` across every STRING LEAF of a parsed card, in document order.
-
-    This is the count the AUTHOR sees, and therefore the count ambiguity is judged on (AC3). Mapping
-    KEYS are deliberately not searched: a key is never wrapped, so the raw path already matches it."""
-    if isinstance(rec, str):
-        return rec.count(old)
-    if isinstance(rec, dict):
-        return sum(_leaf_occurrences(v, old) for v in rec.values())
-    if isinstance(rec, list):
-        return sum(_leaf_occurrences(v, old) for v in rec)
-    return 0
-
-
-def _replace_in_leaves(rec, old: str, new: str, remaining: list):
-    """The parsed card with `old` → `new` applied to its string leaves, at most `remaining[0]` times
-    (`None` = unlimited), walking leaves in document order. `remaining` is a one-element mutable box
-    so the budget is shared across the whole recursion.
-
-    This builds the EXPECTED parse — what the author asked for, expressed on the parsed side. The raw
-    splice is accepted only if it reparses to exactly this, so a wrong encoding or a mislocated span
-    cannot slip through: acceptance is verification-driven, never a guess (the T-11109 posture)."""
-    if isinstance(rec, str):
-        if remaining[0] is None:
-            return rec.replace(old, new)
-        if remaining[0] <= 0:
-            return rec
-        take = min(rec.count(old), remaining[0])
-        if take <= 0:
-            return rec
-        remaining[0] -= take
-        return rec.replace(old, new, take)
-    if isinstance(rec, dict):
-        return {k: _replace_in_leaves(v, old, new, remaining) for k, v in rec.items()}
-    if isinstance(rec, list):
-        return [_replace_in_leaves(v, old, new, remaining) for v in rec]
-    return rec
+# T-13509 — the parsed-record helpers and the literal-block editor further down now live in
+# `lib/textutil.py`, the shared stored-form home: `spec edit` needs the same block re-emission for
+# a `body: |` edit, so they were MOVED there, not copied. These names are thin aliases to the moved
+# functions (the T-11166 `flow_encode_variants` precedent) — behaviour here is unchanged.
+_leaf_occurrences = textutil.leaf_occurrences
+_replace_in_leaves = textutil.replace_in_leaves
 
 
 def _stored_form_pairs(old: str, new: str):
@@ -2850,60 +2827,7 @@ def quoted_field_reencode(text: str, parsed, old: str, new: str, *, replace_all:
     return final
 
 
-def literal_block_field_edit(text: str, parsed, old: str, new: str, *, replace_all: bool) -> tuple:
-    """T-12920 (<project> X-1569) — the LITERAL-BLOCK sibling of `wrapped_field_edit`: a multi-line
-    `--old` inside a `|` block scalar (`implementation_plan` / `analysis`, which `state.dump_state`
-    stores that way) misses the raw text because every raw line carries the block indent, and no
-    flow-scalar form models that. So match `--old` against each block's PARSED value, replace there,
-    and re-emit the whole block: header line verbatim, content at the block's own indent.
-
-    Same return contract as `wrapped_field_edit` — `(None, 0)` not this case, `(None, k)` ambiguous,
-    `(text', k)` accepted — and the same acceptance guard: the spliced text must reparse to the
-    expected record EXACTLY, so an indent the re-emission cannot hold fails closed."""
-    import yaml
-    n_logical = _leaf_occurrences(parsed, old)
-    if n_logical == 0:
-        return None, 0
-    if n_logical > 1 and not replace_all:
-        return None, n_logical
-    try:
-        root = yaml.compose(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
-    except Exception:                                # noqa: BLE001 — unparseable → not this case
-        return None, 0
-    sites, stack = [], [root]
-    while stack:
-        node = stack.pop()
-        if isinstance(node, yaml.ScalarNode):
-            if node.style == "|" and old in node.value:
-                sites.append(node)
-        elif isinstance(node, yaml.SequenceNode):
-            stack.extend(node.value)
-        elif isinstance(node, yaml.MappingNode):
-            for k, v in node.value:
-                stack.extend((k, v))
-    # Every logical occurrence must live in a literal block, else leaf order ≠ block order.
-    if sum(s.value.count(old) for s in sites) != n_logical:
-        return None, 0
-    out = text
-    for node in sorted(sites, key=lambda s: s.start_mark.index, reverse=True):
-        raw = text[node.start_mark.index:node.end_mark.index]
-        header, sep, body = raw.partition("\n")
-        content = [ln for ln in body.split("\n") if ln.strip()]
-        if not sep or not content:
-            return None, 0
-        indent = min(len(ln) - len(ln.lstrip(" ")) for ln in content)
-        value = node.value.replace(old, new)
-        if not header.split("#", 1)[0].rstrip().endswith("-") and value.endswith("\n"):
-            value = value[:-1]                       # clip/keep: the final newline is the block's own
-        block = "".join((" " * indent + ln if ln else "") + "\n" for ln in value.split("\n"))
-        out = out[:node.start_mark.index] + header + "\n" + block + out[node.end_mark.index:]
-    expected = _replace_in_leaves(parsed, old, new, [None])
-    try:
-        if state.load_str(out) != expected:
-            return None, 0
-    except Exception:                                # noqa: BLE001 — any parse failure = unusable
-        return None, 0
-    return out, n_logical
+literal_block_field_edit = textutil.literal_block_field_edit    # T-13509: moved, see above
 
 
 def _splice_each(text: str, spans: list, reps: list, old: str) -> str:
@@ -5323,9 +5247,9 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
 # T-13083 — the FIVE keys `task pause` writes onto the card (paused_at / paused_reason /
 # paused_awaits / resume_from / next_action). A terminal transition (done / wont-do) strips them, so a
 # closed card never reads as paused; the history stays in the journal's `task_paused` row. `parked` is
-# NOT terminal — its pause context is still live — so neither the park write nor the resume core
-# (cli.py#_apply_task_resume, which clears only the first three and RETAINS resume_from/next_action)
-# calls this.
+# NOT terminal — its pause context is still live — so the park write does not call this. The resume
+# core (cli.py#_apply_task_resume) clears the same five itself (T-13507): it nulls the first three,
+# keeping those keys visible, and pops resume_from / next_action after reading them for its echo.
 PAUSE_BLOCK_FIELDS = ("paused_at", "paused_reason", "paused_awaits", "resume_from", "next_action")
 
 
@@ -5335,7 +5259,7 @@ def _clear_pause_block(task: dict) -> None:
         task.pop(k, None)
 
 
-def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commit_worktree, _die, _in_writing_worktree, _load_task_for_transition, _require_writing_worktree, _utc_now_iso, _write_task_state) -> None:
+def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commit_worktree, _die, _in_writing_worktree, _load_task_for_transition, _require_writing_worktree, _utc_now_iso, _write_task_state, _iter_events=None, EVENTS_PATH=None) -> None:
     """`task pause T-XXXX --reason <PAUSE_REASONS> [--resume-from S] [--next-action A]` (T-0381).
 
     Records the HALT as a queryable MOMENT, not a hand-edit: writes the resume-contract metadata
@@ -5408,9 +5332,31 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
         # T-13211 — default to the runnable decide route, rooted at this worktree.
         from lib import audit as _audit
         _st = "pre" if stage in ("Plan", "Audit-pre") else "post"
-        next_action = ("Controller: " + _audit.ceiling_decide_route(tid, _st, REPO_ROOT)
-                       + f" (per fingerprint); then worker: task resume + audit {_st} --task {tid} "
-                       f"--on-decisions")
+        # T-13537 (SPEC-0204 rule 6) — UNLESS a rule-4 RED has ENDED this stage: `audit decide` and
+        # every further pass are refused there (`ceiling-terminal`), so the decide route would record
+        # a next step nobody can take. Read through the ONE shared predicate, over the rows of
+        # `audit._decide_journal_view` — the EXISTING admission-ladder view, already an enumerated
+        # and covered entry of the SPEC-0190 journal-reader census, so this adds no reader of its own.
+        # An unwired reader or any read failure keeps the decide route (fail-open to T-13211).
+        _terminal = None
+        if _iter_events is not None:
+            try:
+                _view = _audit._decide_journal_view(
+                    tid, _st, _iter_events=_iter_events, events_path=EVENTS_PATH,
+                    types=("external_audit_completed", "audit_prompt_sent"))
+                _terminal = _audit.terminal_ceiling_stage(_view["rows"], tid, stages=(_st,))
+            except Exception:   # noqa: BLE001 — a default text never blocks the pause
+                _terminal = None
+        if _terminal:
+            next_action = (f"Controller/owner: audit-{_st} is TERMINAL for {tid} (SPEC-0204 rules "
+                           f"3-4) — no further audit pass and no ceiling decision is admitted; take "
+                           f"ONE terminal disposition, cited to an owner directive: "
+                           + _audit.ceiling_terminal_exits(tid)
+                           + ". Do NOT re-dispatch for another pass.")
+        else:
+            next_action = ("Controller: " + _audit.ceiling_decide_route(tid, _st, REPO_ROOT)
+                           + f" (per fingerprint); then worker: task resume + audit {_st} --task {tid} "
+                           f"--on-decisions")
     task["paused_at"] = _utc_now_iso()
     task["paused_reason"] = reason
     if awaits:
@@ -5523,9 +5469,10 @@ def cmd_task_resume(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _apply_
     that re-claim path rather than pretending an in-place resume is still possible.
 
     Validates the worktree own/orphan stamp per T-0362 (a FOREIGN- or un-stamped worktree is NEVER
-    auto-resumed — presence ≠ orphanhood). Clears `paused_at` / `paused_reason` (the rest of the
-    resume-contract — resume_from / next_action / current_stage — is RETAINED as continue-from
-    history); emits `task_resumed` referencing the prior pause. No status change — the task is
+    auto-resumed — presence ≠ orphanhood). Clears the pause block — `paused_at` / `paused_reason` /
+    `paused_awaits`, and (T-13507) the ended pause's `resume_from` / `next_action`, which this verb
+    PRINTS as it clears them (the `task_paused` row keeps them); `current_stage` is RETAINED as
+    continue-from. Emits `task_resumed` referencing the prior pause. No status change — the task is
     already `in-progress` (resume is re-entry, not a claim). A WRITE → requires a writing worktree."""
     import os
     yaml, path, task = _load_task_for_transition(args.task)
@@ -5555,11 +5502,15 @@ def cmd_task_resume(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _apply_
         main_wt = _main_worktree(REPO_ROOT)
         journals = [EVENTS_PATH, (main_wt / "events.jsonl") if main_wt else None]
         _die(_foreign_hold_report(tid, stamp, journals, REPO_ROOT))
-    prior_reason, prior_paused_at = _apply_task_resume(yaml, path, task)   # T-9317: shared resume core
+    prior_reason, prior_paused_at, ended = _apply_task_resume(yaml, path, task)   # T-9317: shared resume core
     print(f"{tid} resumed (was {prior_reason} since {prior_paused_at}) | {path.relative_to(REPO_ROOT)}")
+    # T-13507: the ended pause's resume_from / next_action are printed HERE and no longer kept on the card.
     print(f"  continue from current_stage={task.get('current_stage') or '?'}"
-          + (f", resume_from={task.get('resume_from')}" if task.get("resume_from") else "")
-          + (f"; next: {task.get('next_action')}" if task.get("next_action") else ""))
+          + (f", resume_from={ended['resume_from']}" if ended.get("resume_from") else "")
+          + (f"; next: {ended['next_action']}" if ended.get("next_action") else ""))
+    if ended.get("resume_from") or ended.get("next_action"):
+        print("  (the ended pause's resume_from / next_action — cleared from the card; "
+              "the task_paused row keeps them)")
 
 #: T-12762 (X-1504) — the sub-reason key a CLAIM-LOST refusal stamps on its `bg_dispatch_halted`
 #: row, beside the unchanged `kind: refused` discriminator. An ALIAS, not a second definition: the
@@ -7210,9 +7161,25 @@ class EvidenceReducer:
         self._pieces = self._pieces or older._pieces
 
 
+def _renew_seam_main(audit_path) -> None:
+    """T-13459 — ask the audit seam to RE-ESTABLISH MAIN's scope when its catch-up went stale: the
+    scope holding `audit_path` carries `audit_main_renew` (`audit.audit_pre_read_scope`, post/consult),
+    which opens a new indexed scope over MAIN's journal as it is now. No seam scope, a fresh MAIN
+    scope, or any failure: nothing happens and the caller reads exactly as before."""
+    try:
+        renew = getattr(journal_mod.scope_of(audit_path) if audit_path else None, "audit_main_renew", None)
+        if renew is not None:
+            renew()
+    except Exception:   # noqa: BLE001 — a read optimisation never fails the audit it serves
+        pass
+
+
 def _evidence_pairs_served(audit_path, main_path, *, tid, cites):
     """`(audit_pairs, main_pairs, ts_index)` from the seam's evidence reducers, or None — not served
     (no scope / no reducer / another card / a lossy instance): the caller then reads as before.
+
+    T-13459 — MAIN's scope is renewed first when a land rewrote MAIN's live segment under it
+    (`_renew_seam_main`): a stale MAIN scope declined here, and the read fell back to both journals whole.
 
     The AUDIT instance under a horizon is completed, IN SEGMENT ORDER, with its unwalked archive
     segments: one the T-12494 primitive verifies identical to MAIN's contributes MAIN's reducer rows
@@ -7226,6 +7193,8 @@ def _evidence_pairs_served(audit_path, main_path, *, tid, cites):
         if red is None or red.tid != tid or red.cites != frozenset(cites or ()) or scope.lossy():
             return None
         return red
+    if main_path:
+        _renew_seam_main(audit_path)
     a_red = _reducer(audit_path)
     if a_red is None:
         return None
@@ -8098,7 +8067,13 @@ def _undecided_late_findings(tid: str, *, EVENTS_PATH, _event_dedup_key=None,
                 path, LATE_FINDING_READ_TYPES, since=journal_mod.task_floor(path, tid), lock=True))
     except (OSError, UnicodeDecodeError):
         return []
-    return audit.undecided_late_findings(rows, tid, repo_root=repo_root)
+    # T-13471 — the saved record's explicit counter, read from THIS checkout, names the pass of a late
+    # finding no row counts (the step `audit decide` binds such a decision through). No repo root =
+    # nothing injected = the reader answers from the rows alone, as before.
+    record_passes = (audit.late_finding_record_passes(tid, decisions_dir=Path(repo_root) / "decisions")
+                     if repo_root else None)
+    return audit.undecided_late_findings(rows, tid, repo_root=repo_root,
+                                         record_passes=record_passes)
 
 
 # T-13330 — the two event types `audit.undecided_late_findings` reads (its `late_finding_required_refs`
@@ -8797,7 +8772,7 @@ def _colon_bearing_probe_key_error(probe_keys) -> "str | None":
 #
 # TWO FORMS, BOTH ALREADY IN THE CORPUS — this introduces NO third grammar (CHARTER §P1 F1/F2):
 #   * `due_by`  — an ISO date, the `post_ship_observation` shape (SPEC-0028).
-#   * `awaits`  — a `T-NNNN` / `X-NNNN` / `events.jsonl#type=<t>[@after=<ISO ts>|@after=land]` ref, the
+#   * `awaits`  — a `T-NNNN` / `X-NNNN` / `events.jsonl#type=<t>[&<key>=<value>][@after=<ISO ts>|@after=land]` ref, the
 #                 SPEC-0095 §Armed shape. ADMISSION IS `followup.awaits_kind` ITSELF, imported and
 #                 called — never a regex re-spelling of it — so a moment this door accepts is one
 #                 the READ side's fire predicate (`followup.arrived_ids` / `event_after_arrived`,
@@ -8840,6 +8815,14 @@ def _probe_moment_declaration(value) -> "dict | None":
     return {"awaits": v} if _followup.awaits_kind(v) is not None else None
 
 
+def _followup_predicate_types():
+    """The event classes an awaits row predicate is admitted on (T-13468) — read off the ONE home,
+    `followup.AWAITS_PREDICATE_TYPES`, function-local-imported like the delegations beside it, so the
+    two refusal texts that name the set can never list a different one."""
+    from lib import followup as _followup
+    return _followup.AWAITS_PREDICATE_TYPES
+
+
 def _awaits_kind_of(awaits):
     """The resolvable KIND of a declared `awaits` ref, for the pause's journal payload + cue (T-12407).
 
@@ -8873,6 +8856,11 @@ def _probe_moment_refusal(subject: str) -> str:
             f"that already happened\n"
             f"  <AC>:events.jsonl#type=<t>@after=land        ...the first one AFTER THIS CARD'S OWN "
             f"LAND (its land_completed, resolved from the journal — T-12851)\n"
+            f"  <AC>:events.jsonl#type=<t>&<key>=<value>[@after=<ISO ts>|@after=land]\n"
+            f"                                               ...only a row that ALSO matches ONE exact "
+            f"predicate: <key> task_id = the row's envelope task id, any other snake_case <key> = a "
+            f"top-level string `data` value (T-13468; classes: "
+            f"{', '.join(sorted(_followup_predicate_types()))})\n"
             f"WHY this is refused rather than defaulted: a deferral with no moment can only be read "
             f"as due NOW, so it headlines the session-start debt echo from the day it is recorded "
             f"until someone settles it — which is how 94 cards came to surface readings nobody could "
@@ -12182,17 +12170,145 @@ def _stage6_changed_paths(root, *, _run_git_cap=None):
 _STAGE6_RAN_NOTHING_OUTCOMES = frozenset({"skipped-disjoint-subject", "waived"})
 
 
+_STAGE6_SKIPPED_OUTCOME = "skipped-disjoint-subject"   # the guard's own row outcome (SPEC-0152 rule 16)
+_STAGE6_SUBJECT_BASE_RE = re.compile(r"[0-9a-f]{40,64}")
+
+
+def _stage6_subject_base(root, *, _run_git_cap=None, _is_consumer_build=None):
+    """T-13533 (SPEC-0152 rule 16 `subject_globs`, the Stage-6 seam) — the base a consumer's Stage-6
+    subject skip is judged against: the merge-base of this branch with `main`, i.e. the commit the
+    land will measure this branch's own changes from. Returns `(sha | None, why | None)`.
+
+    `(None, None)` — nothing to say: a harness that wires neither collaborator (the verb then keeps
+    its base-less call shape, so a one-argument guard stub still works), and the engine's OWN build,
+    where the guard is inert and a git call would buy nothing.
+    `(sha, None)` — a base, on POSITIVE proof only: `git merge-base HEAD main` exited 0 and printed
+    one full object id.
+    `(None, why)` — a consumer build whose base did not resolve. The caller passes NO base, so every
+    declared layer runs, and prints `why` so that full run is not mistaken for a decision that no
+    layer was skippable. Never raises: any exception is a `why`."""
+    if _run_git_cap is None or _is_consumer_build is None or root is None:
+        return None, None
+    try:
+        if not _is_consumer_build():
+            return None, None
+        mb = _run_git_cap(["merge-base", "HEAD", "main"], root)
+        if getattr(mb, "returncode", 1) != 0:
+            return None, "this branch has no merge-base with `main`"
+        base = (mb.stdout or "").strip()
+        if not _STAGE6_SUBJECT_BASE_RE.fullmatch(base):
+            return None, "`git merge-base HEAD main` did not name one commit"
+        return base, None
+    except Exception as exc:                    # noqa: BLE001 — every doubt runs every layer
+        return None, f"the merge-base with `main` could not be read ({type(exc).__name__})"
+
+
+def _stage6_layer_outcome(cguard, name):
+    """The guard's recorded outcome for the declared layer `name`, or None when it has no row."""
+    for row in (cguard or {}).get("layers") or []:
+        if isinstance(row, dict) and str(row.get("layer")) == str(name):
+            return row.get("outcome")
+    return None
+
+
+def _stage6_layer_scope(cguard) -> str:
+    """T-13533 — the clause the Stage-6 PASS line carries about a consumer's declared layers: which
+    RAN, which were SKIPPED and why, which are waived. PURE; reads the guard's own rows and decides
+    nothing. Empty for every guard mode but `layers` (the engine's build, a probes-only or
+    section-waived consumer), so those PASS lines are byte-identical.
+
+    It exists because a skip is never silent (SPEC-0152 rule 16): since T-13533 a green Stage-6 run
+    may have executed a SUBSET of the declared layers, and a PASS line that did not say which would
+    read as «every layer is green»."""
+    if (cguard or {}).get("mode") != "layers":
+        return ""
+    rows = [r for r in cguard.get("layers") or [] if isinstance(r, dict)]
+    ran = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed"]
+    skipped = [str(r.get("layer")) for r in rows if r.get("outcome") == _STAGE6_SKIPPED_OUTCOME]
+    waived = [str(r.get("layer")) for r in rows if r.get("outcome") == "waived"]
+    parts = [f"layers ran: {', '.join(ran) if ran else 'none'}"]
+    if skipped:
+        parts.append(f"skipped: {', '.join(skipped)} (each one's subject_globs are disjoint from this "
+                     f"working tree's changes against the merge-base with main — the skip `land` "
+                     f"decides on the same diff, SPEC-0152 rule 16)")
+    if waived:
+        parts.append(f"waived: {', '.join(waived)}")
+    # T-13545: a layer whose `passed` came from its isolated re-run is NAMED — a PASS line that hid
+    # the first-run failure would read as «green on the first try» (SPEC-0152 rule 16).
+    retried = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed" and r.get("retried")]
+    if retried:
+        parts.append(f"retried: {', '.join(retried)} (failed its first run and passed its isolated "
+                     f"re-run, alone in this verify — recorded as a flaky retry with the first-run "
+                     f"failure excerpt, SPEC-0152 rule 16)")
+    return " Verify " + "; ".join(parts) + "."
+
+
+def _stage6_layer_retry_metrics(cguard) -> dict:
+    """T-13545 — the Stage-6 `verify_metrics` fragment for the guard's isolated layer re-run record:
+    `{"flaky_retry": {...}}` in the SAME shape `land_completed.verify_metrics` carries for the
+    candidate leg (rows stamped `leg: cand`, a decline under `layers_skipped`), or `{}` when the
+    guard recorded none — so a run on which no layer failed adds no key to the row it writes."""
+    record = (cguard or {}).get("flaky_retry") if isinstance(cguard, dict) else None
+    if not isinstance(record, dict):
+        return {}
+    from lib import worktree as _wt
+    out: dict = {}
+    _wt._fold_layer_flaky_retry(out, record, "cand")
+    return out
+
+
+def _stage6_layer_retry_lines(tid, metrics) -> list:
+    """T-13545 — one `task test --run` line per layer the guard re-ran (or declined to), read from the
+    fragment above. PURE; [] when the fragment is empty. Printed on PASS and FAIL alike: the run's
+    output names what was retried whatever the verdict."""
+    rec = (metrics or {}).get("flaky_retry") if isinstance(metrics, dict) else None
+    if not isinstance(rec, dict):
+        return []
+    out: list = []
+    for r in rec.get("rows") or []:
+        if not isinstance(r, dict) or not r.get("layer"):
+            continue
+        _load = f"host load1 {r['load1']}" if "load1" in r else "host load not measurable"
+        if r.get("isolated") == "pass":
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
+                       f"(exit {r.get('first_exit')}) and PASSED its isolated re-run (alone in this "
+                       f"verify, {_load}) — a FLAKY RETRY: the run stays green on that layer and the "
+                       f"first-run failure excerpt is recorded under verify_metrics.flaky_retry.")
+        else:
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
+                       f"(exit {r.get('first_exit')}) AND its isolated re-run (attempt 2 of 2, alone "
+                       f"in this verify, {_load}) — the failure stands.")
+    for d in rec.get("layers_skipped") or []:
+        if isinstance(d, dict):
+            out.append(f"{tid} task test --run: isolated re-run NOT attempted for failed verify "
+                       f"layer(s) {', '.join(str(n) for n in d.get('layers') or [])} — "
+                       f"{d.get('reason')} (SPEC-0152 rule 16).")
+    return out
+
+
 def _stage6_ran_nothing(cguard, *, delegated, have_tests):
     """T-13170 — WHY this Stage-6 run executed nothing, or None when something ran. The two shapes
     `_stage6_leg_summary` names «ran nothing»: every declared layer skipped/waived, or the
-    section-level verify.waiver. PURE; the one reader both the summary and the verdict use."""
-    if delegated or have_tests:
+    section-level verify.waiver. PURE; the one reader both the summary and the verdict use.
+
+    T-13533 — the kernel's own tests/ sweep ran iff a tests dir exists AND the sweep was not
+    DELEGATED to a layer. Only that answers «something ran» without looking at the layer rows. A
+    delegated run used to short-circuit here too, which held only while a delegated layer could not
+    be skipped: at Stage 6 it now can be, and a run whose every layer — the delegated one included —
+    was skipped executed nothing at all."""
+    if have_tests and not delegated:
         return None
     layers = [r for r in (cguard or {}).get("layers") or [] if isinstance(r, dict)]
     gmode = (cguard or {}).get("mode") or ""
     if gmode == "layers" and layers and all(
             r.get("outcome") in _STAGE6_RAN_NOTHING_OUTCOMES for r in layers):
         names = ", ".join(str(r.get("layer")) for r in layers)
+        if any(r.get("outcome") == _STAGE6_SKIPPED_OUTCOME for r in layers):
+            # T-13533: a skipped layer is not one `land` is about to run — land takes the same skip.
+            return (f"ran nothing on this host: every declared layer was skipped or waived — a "
+                    f"skipped layer's subject_globs are disjoint from the changes judged, the skip "
+                    f"`land` decides on the same diff; `land` judges the declared verify.layers "
+                    f"({names}) against the candidate diff")
         return (f"ran nothing on this host; `land` runs the declared verify.layers "
                 f"({names}) against the candidate diff")
     if gmode == "waiver":
@@ -12535,6 +12651,18 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     # convert a routine evidence recording into a traceback. None means "this invocation ran no
     # suite", which is exactly what the recorder must not describe as a selection mode.
     selection_summary = None
+    # T-13533 — the consumer guard's result for the `--run` this invocation made, read by the
+    # `--evidence` recorder. Function-scoped for the same reason as `selection_summary` above: a bare
+    # `task test --evidence` never enters the `--run` branch, and must record no layer rows at all.
+    _stage6_guard = None
+    _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
+    # T-13532 (SPEC-0065 §Bound) — what the `--run` branch learns about the tree it tested, read by the
+    # `--evidence` recorder. Function-scoped for the same reason as the two above: a bare
+    # `task test --evidence` ran nothing and must record no `stage6_run` mark at all.
+    _s6_root = None
+    _s6_tree_before = None
+    _s6_routed = False
+    _s6_venue_tree = None
     # T-11975 — THE STALE-ANCHOR REPORT, delivered to the WORKER at Stage 6.
     #
     # The audit packet already computes, per touched file, which governing `implements:` anchors read
@@ -12654,6 +12782,22 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # helper is OPTIONAL (skip-if-None, like `_auto_rebuild_graph` above) so a harness driving this
         # fn directly degrades to the note alone, never a wiring abort — it is an advisory, not a dep.
         delegated = (_consumer_tests_delegation(root) if _consumer_tests_delegation is not None else None)
+        # T-13532 (SPEC-0065 §Bound) — THE TREE THIS RUN IS ABOUT TO TEST: the tree git would commit
+        # from the files on disk (T-13519's `_worktree_disk_tree` — a Stage-6 worktree is dirty by
+        # construction, the work is not committed yet), taken AFTER the pre-verify graph rebuild above
+        # and BEFORE anything runs — and BEFORE the T-12007 timer just below starts, so the wall that
+        # timer measures stays the RUN's own and never includes this read. Only on the run-then-record
+        # form: a bare `--run` writes no row, so it has nothing to stamp. The lazy import is the one
+        # this function already makes further
+        # down (worktree.py imports this module, never the reverse at module level). A harness that
+        # wires no git runner, and every failure, leave it None — and None records nothing.
+        _s6_root = root
+        if _run_git_cap is not None and getattr(args, "evidence", None):
+            try:
+                from lib import worktree as _wt_s6
+                _s6_tree_before = _wt_s6._worktree_disk_tree(root, _run_git_cap)
+            except Exception:                  # noqa: BLE001 — absent, never a guess
+                _s6_tree_before = None
         # T-12007 — THE VERB TIMES ITS OWN SUBPROCESS RUN. Until this change `tests_passed` carried a
         # duration only when the caller hand-passed `--duration-ms` (the T-0375 author-reported group)
         # and `tests_failed` carried none at all, so a Tests-stage wall could not be split into machine
@@ -12968,11 +13112,44 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             print(_stage6_selection_note(selection_summary))
         # T-12589 (SPEC-0132 Rule 2): Stage-6 publishes the governor's W (0 included) to consumer
         # layers on the same terms land does; an unwired harness keeps the one-arg call.
-        cguard = (_consumer_zero_probe_guard(root, workers=_verify_worker_governor())
-                  if _verify_worker_governor is not None else _consumer_zero_probe_guard(root))
+        #
+        # T-13533 (SPEC-0152 rule 16 `subject_globs`, the Stage-6 seam) — a CONSUMER's run takes the
+        # land's subject-skip decision. Until this card the guard was called here with NO base, and
+        # the skip needs one, so every declared layer ran at Stage 6 whatever the diff while the land
+        # skipped the subject-disjoint ones: the T-10108 / T-10290 / T-10379 parity, broken toward
+        # running MORE (the field-study consumer re-paid every layer on every run, 378-568 s, 1-4
+        # runs per card). The base is the merge-base with `main` — what the land measures this
+        # branch's own changes from — and `working_tree=True` judges the WORKING TREE's changes
+        # against it (committed + uncommitted + staged + untracked), because Stage 6 runs before the
+        # commit. The decision itself is not made here: it is the guard's, by the ONE function the
+        # land calls. FAIL-CLOSED: an unresolvable base passes NO base — every layer runs — and says
+        # so; a harness that wires no git runner keeps the base-less call shapes below untouched.
+        _s6_base, _s6_why = _stage6_subject_base(root, _run_git_cap=_run_git_cap,
+                                                 _is_consumer_build=_is_consumer_build)
+        if _s6_why:
+            print(f"{tid} task test --run: subject_globs skip NOT applied — {_s6_why}; every declared "
+                  f"verify layer runs (fail-closed, SPEC-0152 rule 16)")
+        _guard_kw: dict = {}
+        if _verify_worker_governor is not None:
+            _guard_kw["workers"] = _verify_worker_governor()
+        if _s6_base:
+            cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True, **_guard_kw)
+        else:
+            cguard = _consumer_zero_probe_guard(root, **_guard_kw)
+        _stage6_guard = cguard   # T-13533: the `--evidence` recorder below reads the rows this run produced
+        # T-13545 (SPEC-0152 rule 16): the guard re-ran a sole failed layer once, alone — the SAME
+        # decision `land` takes, by the same function. Its record becomes this run's `verify_metrics`
+        # fragment (read by both row writers below) and its lines are printed on PASS and FAIL alike.
+        _stage6_retry_metrics = _stage6_layer_retry_metrics(cguard)
+        for _line in _stage6_layer_retry_lines(tid, _stage6_retry_metrics):
+            print(_line)
         # T-12007 — the run is over; close the wall BEFORE the pass/fail fork so both rows are
         # written from the SAME measurement (a red run's minutes cost exactly what a green one's do).
         _measured_run_ms = max(0, int((time.monotonic() - _run_t0) * 1000))
+        # T-13532: was the pass ROUTED, and which tree does the box say it tested (`venue_cand_tree`,
+        # the envelope's own identity). Both names are bound on every path to here (T-12324).
+        _s6_routed = _venue_result is not None
+        _s6_venue_tree = (_venue_metrics or {}).get("venue_cand_tree")
         # T-11935 (SPEC-0152 rule 16 §stage-6-reads-a-working-tree, X-1209) — the never-silent half of
         # the bound corrected above. AFTER the layers have run and BEFORE the pass/fail branch, name any
         # path with UNCOMMITTED content inside a declared layer's OWN surface: a layer reading committed
@@ -13116,7 +13293,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     "duration_ms": _fail_ms,
                     "counts_source": "harness_measured",
                     "leg": "candidate",
-                    **({"verify_metrics": _venue_metrics} if _venue_metrics else {}),
+                    # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
+                    **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics}}
+                       if (_venue_metrics or _stage6_retry_metrics) else {}),
                 })
                 print(f"{tid} tests_failed recorded ({len(_layers)} layer(s)) — "
                       f"`yitc-v2 journal query --type tests_failed --task {tid}` reads it back")
@@ -13146,15 +13325,22 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                   f"evidence with `yitc-v2 task test {tid} --evidence ...` (no --run).")
             print(_test_run_token(False, f"{tid} nothing ran — {_nothing}", word="NONE"))
             return
+        # T-13533 — which declared layers ran and which were skipped, on BOTH PASS shapes below.
+        _layer_scope = _stage6_layer_scope(cguard)
         if delegated:
             _unrun = len((gap or {}).get("covered") or [])
             _gapn = len((gap or {}).get("missing") or [])
+            # T-13533: the delegated layer can now be SKIPPED at Stage 6. «exited 0» would then be a
+            # claim about a command that never ran — the same false-scope wording T-11073 removed.
+            _deleg_did = ("exited 0" if _stage6_layer_outcome(cguard, delegated) != _STAGE6_SKIPPED_OUTCOME
+                          else "was SKIPPED (its subject_globs are disjoint from this working tree's "
+                               "changes), so NOTHING verified tests/ in this run")
             print(f"{tid} task test --run: PASS (QUALIFIED) — the declared verify layer '{delegated}' "
-                  f"exited 0. The kernel did NOT sweep tests/"
+                  f"{_deleg_did}. The kernel did NOT sweep tests/"
                   f"{f' ({_unrun} file(s))' if _unrun else ''}; that surface is DELEGATED and its "
                   f"execution is the layer's declaration, not kernel-verified (see the note above)."
                   + (f" {_gapn} covered file(s) are named NOWHERE in that layer's execution registry."
-                     if _gapn else ""))
+                     if _gapn else "") + _layer_scope)
         else:
             # T-11393 — name the LEG. `--run` runs the worktree's own tests = land's CANDIDATE leg
             # alone; `land` verifies TWO legs (SPEC-0077 — the pinned last-green leg runs main's
@@ -13175,7 +13361,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                            "`selection:` line above for what ran)")
             print(f"{tid} task test --run: PASS — {_scope}: land's CANDIDATE leg. "
                   f"NOT the land verdict — land also verifies the SPEC-0077 pinned last-green leg, "
-                  f"which is not run here.")
+                  f"which is not run here." + _layer_scope)
         if not getattr(args, "evidence", None):
             # pure self-check (no --evidence) — done; record the pass separately with --evidence.
             print(_post_action_hint(f"record the pass: `yitc-v2 task test {tid} --evidence ...` (or re-run with --run --evidence)"))
@@ -13206,6 +13392,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # or fabricated one (the T-0358 discipline this row already follows for `duration_ms`).
         if locals().get("_venue_metrics"):
             data["verify_metrics"] = _venue_metrics
+        # T-13545 — and the isolated layer re-run record, on the SAME key and in the SAME shape
+        # `land_completed.verify_metrics.flaky_retry` carries, so a green row that needed a re-run
+        # says which layer, with its first-run failure excerpt. Present only when THIS invocation's
+        # guard recorded one; a hand-authored `--evidence` and a first-try green carry no key.
+        if _stage6_retry_metrics:
+            data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_retry_metrics}
         # T-12007 — the HARNESS-MEASURED wall of the run this same invocation just made
         # (`--run --evidence`). Written FIRST so the T-0375 author-reported group below still
         # overwrites it when the caller passed one explicitly. A hand-authored `--evidence` with no
@@ -13220,6 +13412,17 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # Present ONLY on the `--run --evidence` path — a hand-authored `--evidence` with no run
         # attached carries no selection keys at all, rather than a default that would assert a
         # scope this invocation never measured.
+        # T-13533 — THE EVIDENCE SAYS WHICH LAYERS IT IS EVIDENCE OF. A consumer's green Stage-6 run
+        # may now have executed a SUBSET of its declared layers (the rest skipped as subject-disjoint),
+        # so the row carries the guard's own mode and per-layer rows — the SAME two keys, in the SAME
+        # shape, that `land_completed` carries for its candidate leg, so a later reader compares like
+        # with like. Present only when THIS invocation ran a consumer guard (`--run --evidence`):
+        # absent on the engine's own build (inert guard, mode '') and on a hand-authored `--evidence`,
+        # which measured nothing (the T-0358 discipline the keys around it follow).
+        if isinstance(_stage6_guard, dict) and _stage6_guard.get("mode"):
+            data["consumer_verify"] = _stage6_guard["mode"]
+            if _stage6_guard.get("layers"):
+                data["consumer_verify_layers"] = list(_stage6_guard["layers"])
         if selection_summary:
             data["selection"] = selection_summary["selection"]
             data["selection_ran"] = selection_summary["ran"]
@@ -13245,8 +13448,42 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         if provided:
             data.update(provided)
             data["counts_source"] = "author_reported"
+        # T-13532 (SPEC-0065 §Bound) — THE RUNNER-ONLY MARK. `stage6_run: {tree, base}` says WHICH tree
+        # this green run tested and which main commit it sat on, so the land can recompute — itself,
+        # from git — whether its candidate tree is that tree apart from inert paths and main has not
+        # moved, and then take this run as its candidate-leg verdict instead of repeating it. Written
+        # ONLY here: by the invocation that RAN the suite (`--run --evidence`), after it came back
+        # green with something run. A hand-authored `--evidence` ran nothing and stamps nothing (the
+        # T-0358 discipline of the keys above), and the key is RESERVED at the hand route — `event
+        # --data` refuses it (`RESERVED_DATA_KEY_REDIRECT`) — so no governed verb but this one can
+        # write it. The decision what to record is `worktree._stage6_run_record`'s (one home, beside
+        # the tree reader it uses); anything it cannot establish records NOTHING, and says why.
+        _s6_note = None
+        if getattr(args, "run", False):
+            _s6_rec, _s6_why = None, "no git runner is wired"
+            if _run_git_cap is not None and _s6_root is not None:
+                try:
+                    from lib import worktree as _wt_s6
+                    _s6_rec, _s6_why = _wt_s6._stage6_run_record(
+                        _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
+                        _run_git_cap=_run_git_cap)
+                    _s6_key = _wt_s6.STAGE6_RUN_KEY
+                except Exception as _e:        # noqa: BLE001 — a recording fault never fails a green run
+                    _s6_rec, _s6_why = None, f"the record could not be taken ({type(_e).__name__})"
+            if _s6_rec:
+                data[_s6_key] = _s6_rec
+                _s6_note = (f"{tid} stage6_run recorded (tree {_s6_rec['tree'][:12]}, base "
+                            f"{_s6_rec['base'][:12]}) — the land may take this run as its CANDIDATE leg "
+                            f"while main stays at that base and its tree is this one apart from inert "
+                            f"paths (SPEC-0065 §Bound); it decides that itself, and still runs the "
+                            f"floor, the host-leak check and the pinned leg when due.")
+            else:
+                _s6_note = (f"{tid} stage6_run NOT recorded — {_s6_why}; the land runs its candidate "
+                            f"verify as usual (SPEC-0065 §Bound).")
         _append_event("tests_passed", tid, data)
         print(f"{tid} tests_passed recorded ({len(evidence)} chars) — audit-post will read it")
+        if _s6_note:
+            print(_s6_note)
         print(_post_action_hint(f"`yitc-v2 task commit {tid} --message ...`"))   # T-0297 post-action hint
         print(_governing_rule_pointer("commit"))   # element #2 — the verb BEFORE commit (T-0232)
         # T-12431 — the terminal token for the RUN-THEN-RECORD form (`--run --evidence`), the
@@ -14095,7 +14332,7 @@ def _delivery_proof_row(tid: str, events_path) -> "dict | None":
 #: journal receipt THIS VERB JUST WROTE. Anything else dirty in the tree REFUSES (AC3) — including a
 #: PREEXISTING events.jsonl delta, which is refused BEFORE any write, so the journal delta this commit
 #: carries is exactly this verb's own receipt. Stricter than
-#: `error file`'s main-checkout preflight (T-10452), which refuses only on a MERGE_HEAD because it
+#: `error file`'s main-checkout preflight (T-10452), which tolerates a valid journal append because it
 #: writes a brand-new file: this route rewrites a TRACKED card, so a foreign edit swept into its scoped
 #: commit would reach `main` mislabeled as a claim record.
 _CLAIM_LANDED_STAGEABLE = ("events.jsonl",)
@@ -14104,10 +14341,15 @@ _CLAIM_LANDED_STAGEABLE = ("events.jsonl",)
 def _claim_landed_dirt(rel_task: str, *, REPO_ROOT, _run_git_cap) -> "tuple[list, str]":
     """T-11305 — the AC3 bound: `(foreign_dirty_paths, blocker)` for the no-worktree claim self-commit.
 
-    `foreign_dirty_paths` is every dirty path that is NOT the card being claimed and NOT the journal;
-    `blocker` names a non-dirt reason the tree is unsafe to commit from (an in-progress merge — the one
-    genuinely ambiguous state, the `error file` precedent). Fail-closed: an unreadable `git status` is
-    reported as a blocker, never as a clean tree. Pure read; never raises."""
+    `foreign_dirty_paths` is EVERY dirty path — the card being claimed included (T-13456). The card
+    used to be exempt, so an uncommitted edit of a still-`ready` card rode the claim commit under the
+    claim's message; AGENTS-SESSIONS §Writes states the task-card self-commit verbs "refuse on
+    preexisting card dirt", and the failed-commit rollback restores the card to its HEAD bytes, which
+    are its pre-write bytes only when it was clean. `blocker` names a non-dirt reason the tree is
+    unsafe to commit from (an in-progress merge — the one genuinely ambiguous state, the `error file`
+    precedent). Fail-closed: an unreadable `git status` is reported as a blocker, never as a clean
+    tree. Pure read; never raises. `rel_task` is no longer consulted; it stays in the signature
+    because its callers pass it."""
     if _run_git_cap(["rev-parse", "-q", "--verify", "MERGE_HEAD"], REPO_ROOT).returncode == 0:
         return ([], "an in-progress merge (MERGE_HEAD present) makes the tree ambiguous")
     st = _run_git_cap(["status", "--porcelain"], REPO_ROOT)
@@ -14121,18 +14363,16 @@ def _claim_landed_dirt(rel_task: str, *, REPO_ROOT, _run_git_cap) -> "tuple[list
     # AC3 says "preexisting unrelated dirt". The remedy is cheap and named in the refusal: land the
     # pending journal appends first. The same clean journal is ALSO what proves the admission read
     # `main` (see `_deliverable_landed_on_main`), so the two bounds hold each other up.
-    allowed = {rel_task}
     # T-12014: the slice / rename-destination / quotepath decode is asked of the ONE home
-    # (`textutil.git_porcelain_paths`) instead of re-spelled here. The local `.strip('"')` this
-    # replaces removed the QUOTES but left the octal escapes, so a Cyrillic-named card read as a
-    # DIFFERENT path than `rel_task` and was reported as foreign dirt blocking its own claim.
-    foreign = [p for p in textutil.git_porcelain_paths(st.stdout) if p not in allowed]
-    return (sorted(set(foreign)), "")
+    # (`textutil.git_porcelain_paths`) instead of re-spelled here, so a Cyrillic-named card reads as
+    # the SAME path as `rel_task` in the caller's message.
+    return (sorted(set(textutil.git_porcelain_paths(st.stdout))), "")
 
 
 def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _append_event, _die,
                           _load_task_for_transition, _run_git_cap, _selfcommit_posture,
-                          _write_task_transition) -> None:
+                          _write_task_transition, _scoped_selfcommit_rollback,
+                          _commit_from_scoped_index) -> None:
     """`task claim-landed T-XXXX` (T-11305, X-1002) — write `ready -> in-progress` + its `task_picked`
     for a card whose deliverable is DEMONSTRABLY ALREADY ON `main`, WITHOUT creating a worktree.
 
@@ -14155,12 +14395,32 @@ def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _
 
     THE WRITE IS THE `memory consume` / `error file` SHAPE the reporter named (T-10307 / T-10452, and
     the terminal task pause/park/wont-do self-commits T-9320/T-0614/T-9622): a SCOPED direct-to-main
-    commit of the task YAML plus the journal receipt ONLY — never `git add -A` — refusing on any other
-    preexisting dirt, and idempotent on re-run (a card already `in-progress` is reported and left
-    alone: no second event, no empty commit).
+    commit of the task YAML plus the journal receipt ONLY — never `git add -A` — refusing on any
+    preexisting dirt, the card's own included, and idempotent on re-run (a card already `in-progress`
+    is reported and left alone: no second event, no empty commit).
+
+    THE COMMIT CARRIES A FROZEN SNAPSHOT, NOT WHATEVER THE INDEX OR THE JOURNAL HOLDS AT COMMIT TIME
+    (T-13456). The old shape — `git add` with its return code discarded, then a pathspec-less commit —
+    swept any entry another session staged after the dirt check. The order now is: read the seed
+    commit; append the receipt; snapshot the journal as a blob (`git hash-object -w`, the journal
+    append lock held for that ONE call — it runs no hook); require that blob to add EXACTLY this
+    receipt over the seed's journal and remove nothing, else refuse with the card not yet written
+    (the T-11305 AC3 one-receipt bound, now enforced on the bytes that are committed); write the
+    card; commit seed + card blob + journal blob through `_commit_from_scoped_index`, bound to the
+    seed. Two shapes that were tried and are NOT this one, so the next reader does not re-derive
+    them: a check followed by `git commit -- <paths>` re-reads the journal, so a row appended after
+    the check rides in; holding the append lock across a native commit deadlocks as soon as a commit
+    hook appends to the journal. A row appended after the snapshot is simply not in the blob, a HEAD
+    that moved since the seed fails the ref update, and plumbing runs no commit hook. A commit that
+    does not happen takes `_scoped_selfcommit_rollback`: both index entries reset, the card back at
+    its HEAD bytes, the receipt kept journaled — a card left dirty `in-progress` would read
+    "already in-progress — nothing to do" on the re-run and never be committed by anything.
 
     Runs from the MAIN checkout by design (that is the point); inside a writing worktree it defers to
     the ordinary in-worktree claim rather than growing a second posture."""
+    # Read the seed FIRST, so everything read below is at or after it (the commit is bound to it).
+    _seed = _run_git_cap(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], REPO_ROOT)
+    head0 = _seed.stdout.strip() if _seed.returncode == 0 else ""
     yaml, path, task = _load_task_for_transition(args.task)
     tid = task.get("id")
     status = str(task.get("status") or "")
@@ -14193,37 +14453,54 @@ def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _
     if foreign:
         _die(f"{tid}: REFUSED before any write — the tree carries preexisting dirt this claim record "
              f"must not sweep onto `main`: {', '.join(foreign[:8])}"
-             f"{' …' if len(foreign) > 8 else ''}. This route stages the card + its journal receipt "
-             f"ONLY (the `memory consume` / `error file` bound, T-10307 / T-10452). Land or discard "
-             f"that work first, then re-run.")
-    task["status"] = "in-progress"
-    _write_task_transition(yaml, path, task, task.get("current_stage") or "Analysis")
-    _append_event("task_picked", tid, {"route": "claim-landed", "no_worktree": True,
-                                       "signal": signal, "status": "in-progress"})
-    print(f"{tid} ready -> in-progress (no worktree) | {rel_task}")
-    print(f"  admitted by DERIVED signal: {signal}")
+             f"{' …' if len(foreign) > 8 else ''}. This route commits the card + its journal receipt "
+             f"ONLY (the `memory consume` / `error file` bound, T-10307 / T-10452), and an uncommitted "
+             f"edit of the card itself counts. Land or discard that work first, then re-run "
+             f"`yitc-v2 task claim-landed {tid}`.")
+    receipt = {"route": "claim-landed", "no_worktree": True, "signal": signal, "status": "in-progress"}
     if posture != "main":
         # Degraded (detached / unborn / non-git): the transition is written and journaled, but there is
         # no repo to self-commit into — say so rather than report a phantom commit.
+        task["status"] = "in-progress"
+        _write_task_transition(yaml, path, task, task.get("current_stage") or "Analysis")
+        _append_event("task_picked", tid, receipt)
+        print(f"{tid} ready -> in-progress (no worktree) | {rel_task}")
+        print(f"  admitted by DERIVED signal: {signal}")
         print("  NOT self-committed: this checkout is degraded (detached / unborn / non-git), so the "
               "card + receipt stay dirty for whatever governed write covers them next.")
         return
-    _run_git_cap(["add", "--", rel_task, *_CLAIM_LANDED_STAGEABLE], REPO_ROOT)
-    # The journal was PROVEN clean before the write, so the staged journal delta must be exactly the
-    # one receipt this verb appended. Verified, not assumed (audit-post F2): a concurrent append
-    # landing in the window between the write and the commit would otherwise ride into a commit
-    # labelled as this card's claim record. On violation the commit is REFUSED — the card write and
-    # the receipt stay on disk for the next governed write to carry, and re-running is safe.
-    added = [ln for ln in _run_git_cap(["diff", "--cached", "-U0", "--", *_CLAIM_LANDED_STAGEABLE],
-                                       REPO_ROOT).stdout.splitlines()
-             if ln.startswith("+") and not ln.startswith("+++")]
+    jrel = _CLAIM_LANDED_STAGEABLE[0]
+    # (i) the receipt, then (ii) the journal FROZEN as a blob. The append lock is held for that one
+    # `hash-object` and nothing else, so no append can tear the snapshot and no commit runs under it.
+    _append_event("task_picked", tid, receipt)
+    with events.journal_lock(EVENTS_PATH):
+        snap = _run_git_cap(["hash-object", "-w", "--", jrel], REPO_ROOT)
+    jb = snap.stdout.strip() if snap.returncode == 0 else ""
+    # (iii) The journal was PROVEN clean before the write, so the snapshot must add exactly the one
+    # receipt this verb appended over the seed's journal. Verified on the bytes that will be
+    # committed (T-11305 AC3 / audit-post F2): a concurrent append landing in the window would
+    # otherwise ride into a commit labelled as this card's claim record.
+    delta = (_run_git_cap(["diff", "-U0", f"{head0}:{jrel}", jb], REPO_ROOT)
+             if head0 and jb else None)
+    lines = (delta.stdout or "").splitlines() if delta is not None and delta.returncode == 0 else []
+    added = [ln for ln in lines if ln.startswith("+") and not ln.startswith("+++")]
+    removed = [ln for ln in lines if ln.startswith("-") and not ln.startswith("---")]
     foreign_rows = [ln for ln in added if '"task_picked"' not in ln or f'"{tid}"' not in ln]
-    if len(added) != 1 or foreign_rows:
-        _die(f"{tid}: REFUSED at the commit — the staged journal delta is not exactly this claim's "
-             f"own receipt ({len(added)} added line(s); {len(foreign_rows)} foreign). Something "
-             f"appended to the journal between this verb's write and its commit, and a scoped claim "
-             f"commit must not carry another verb's record (T-11305 AC3). Nothing was committed; the "
-             f"card + receipt are on disk and this verb is idempotent.")
+    if delta is None or delta.returncode != 0 or len(added) != 1 or foreign_rows or removed:
+        _die(f"{tid}: REFUSED before the card was written — the journal delta is not exactly this "
+             f"claim's own receipt ({len(added)} added line(s), {len(foreign_rows)} foreign, "
+             f"{len(removed)} removed"
+             f"{'' if delta is not None and delta.returncode == 0 else '; the delta could not be read'}"
+             f"). Something else wrote the journal between this verb's admission and its snapshot, "
+             f"and a scoped claim commit must not carry another verb's record (T-11305 AC3). Nothing "
+             f"was committed, nothing is staged and the card is untouched; the receipt this attempt "
+             f"appended stays journaled. Land the pending journal appends (any `yitc-v2 land` folds "
+             f"them), then re-run `yitc-v2 task claim-landed {tid}`.")
+    # (iv) the card, and its blob.
+    task["status"] = "in-progress"
+    _write_task_transition(yaml, path, task, task.get("current_stage") or "Analysis")
+    print(f"{tid} ready -> in-progress (no worktree) | {rel_task}")
+    print(f"  admitted by DERIVED signal: {signal}")
     msg = (
         f"chore({tid}): claim a card whose deliverable is already on main (no worktree)\n\n"
         f"Admitted by the DERIVED signal {signal} — `main`'s own record that this card's\n"
@@ -14235,11 +14512,35 @@ def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _
         f"wont-do T-0614 / park T-9622).\n\n"
         f"from: SPEC-0051 + AGENTS §Writes-happen-in-a-worktree EXCEPTION."
     )
-    rv = _run_git_cap(["commit", "-q", "-m", msg], REPO_ROOT)
-    if rv.returncode != 0:
-        _die(f"{tid}: the direct-to-main self-commit FAILED — refusing fail-closed (T-11305): "
-             f"{(rv.stderr or rv.stdout).strip()}. The card write is on disk; re-run once the repo "
-             f"accepts a commit (this verb is idempotent).")
+    modes = {}
+    for rec in (_run_git_cap(["ls-files", "-s", "-z", "--", rel_task, jrel], REPO_ROOT).stdout
+                or "").split("\0"):
+        meta, tab, tracked = rec.partition("\t")
+        if tab:
+            modes[tracked] = meta.split(" ", 1)[0]
+    card_blob = _run_git_cap(["hash-object", "-w", "--", rel_task], REPO_ROOT)
+    cb = card_blob.stdout.strip() if card_blob.returncode == 0 else ""
+    entries = [(modes.get(rel_task, "100644"), cb, rel_task), (modes.get(jrel, "100644"), jb, jrel)]
+    staged: "list[str]" = []
+    failed = ""
+    if not cb:
+        failed = f"hashing the card failed: {(card_blob.stderr or card_blob.stdout).strip()}"
+    else:
+        # (v) both blobs into the shared index, so the index equals the commit once it lands; then
+        # (vi) the commit itself, built from the seed + these two blobs and bound to the seed.
+        staged = [rel_task, jrel]
+        cacheinfo = [a for mode, sha, rel in entries for a in ("--cacheinfo", f"{mode},{sha},{rel}")]
+        st = _run_git_cap(["update-index", *cacheinfo], REPO_ROOT)
+        if st.returncode != 0:
+            failed = f"staging (`git update-index`) failed: {(st.stderr or st.stdout).strip()}"
+        else:
+            committed, why = _commit_from_scoped_index(REPO_ROOT, [rel_task, jrel], [], msg,
+                                                       _run_git_cap, seed=head0, entries=entries)
+            if not committed:
+                failed = f"the commit failed: {why or 'the tree it built equals the seed commit'}"
+    if failed:
+        _scoped_selfcommit_rollback(f"task claim-landed {tid}", [rel_task], [], staged, head0, jrel,
+                                    failed)
     sha = _run_git_cap(["rev-parse", "--short", "HEAD"], REPO_ROOT).stdout.strip()
     print(f"  self-committed to main ({sha}): scoped to {rel_task} + its journal receipt — no "
           f"worktree created, no land needed.")
@@ -16497,7 +16798,7 @@ def _audit_scrutiny_cases(repo_root, *, ops_contract) -> list:
     return list(cases) if isinstance(cases, list) else []
 
 
-def _verify_policy_pinned_last_green(repo_root, *, ops_contract) -> str:
+def _verify_policy_pinned_last_green(repo_root, *, ops_contract, section_out=None) -> str:
     """SPEC-0186 rules 1+4 (T-11280) — the `verify_policy.pinned_last_green` CARRIER READER. Returns
     exactly `"all"` or `"never"`. TOTAL and tolerant — never raises, never gates.
 
@@ -16507,9 +16808,9 @@ def _verify_policy_pinned_last_green(repo_root, *, ops_contract) -> str:
     mechanism is removed, only an obligation", and the ONLY thing that makes that honest is that this
     change reuses the existing read path instead of growing a parallel one.
 
-    THE FAIL-CLOSED DEFAULT IS `"all"` — the state every project is born in and the one the ENGINE is
-    permanently in (it declares no ops contract at all, which is why SPEC-0186 rule 6 can state
-    engine-unswitchability as an invariant rather than enforce it). An absent file, an absent section,
+    THE FAIL-CLOSED DEFAULT IS `"all"` — what an ABSENT declaration reads, for a project and for the
+    ENGINE alike. The engine is one more declarant on the same terms (SPEC-0186 rule 6, T-13525): this
+    reader has no engine branch, and none is to be added. An absent file, an absent section,
     a mis-shaped section, an unparseable carrier, and any unrecognised value ALL resolve `"all"`.
     Deliberately: a contract nobody can parse must never be able to REMOVE a verification layer. This
     is the same direction as `_classify_inert_paths`' `_verdict = "observable"` fallback at the land
@@ -16531,15 +16832,29 @@ def _verify_policy_pinned_last_green(repo_root, *, ops_contract) -> str:
     land the base value is the governing one (SPEC-0186 rule 4 — otherwise the diff that disables a
     verification layer would exempt itself from it). That is also why there is NO
     "does this diff touch yitc-ops.yaml" detector: reading base UNCONDITIONALLY is already correct in
-    both cases, so a detector would be strictly more code for identical behaviour."""
+    both cases, so a detector would be strictly more code for identical behaviour.
+
+    `section_out` (T-13532, optional) — a dict this reader fills with WHAT IT READ, so the section's
+    second key (`stage6_credit`, SPEC-0186 rule 10) is answered off this ONE open of the carrier
+    rather than by a second reader beside it: `carrier` is `absent` (no file), `unreadable` (it
+    raised, or did not parse to a mapping) or `read`, and on `read` `section` is the `verify_policy`
+    value exactly as parsed (None when absent or all-commented). It changes nothing this function
+    returns; a caller passing none is byte-identical."""
     try:
         path = repo_root / ops_contract
         if not path.exists():
+            if section_out is not None:
+                section_out["carrier"] = "absent"
             return "all"
         ops = state.load_ops(path)
     except Exception:
+        if section_out is not None:
+            section_out["carrier"] = "unreadable"
         return "all"                           # unparseable carrier ⇒ run the leg (fail-closed)
     policy = ops.get("verify_policy") if isinstance(ops, dict) else None
+    if section_out is not None:
+        section_out["carrier"] = "read" if isinstance(ops, dict) else "unreadable"
+        section_out["section"] = policy
     value = policy.get("pinned_last_green") if isinstance(policy, dict) else None
     if value != "never":
         return "all"
@@ -16549,6 +16864,46 @@ def _verify_policy_pinned_last_green(repo_root, *, ops_contract) -> str:
     except Exception:
         return "all"                       # validator unreachable ⇒ run the leg (fail-closed)
     return "all" if invalid else "never"
+
+
+def _verify_policy_stage6_credit(repo_root, *, ops_contract) -> bool:
+    """SPEC-0186 rule 10 (T-13532) — the `verify_policy.stage6_credit` switch: MAY a land of this
+    project take its candidate-leg verdict from the task's own Stage-6 run (SPEC-0065 §Bound)?
+    TOTAL and tolerant — never raises, never gates.
+
+    NOT A SECOND CARRIER READER. It opens nothing itself: `_verify_policy_pinned_last_green` above is
+    the ONE reader of this section, and this function asks it for what it read (`section_out`), so
+    the two keys of one section are answered off one read path (the T-11280 one-reader probe holds —
+    it counts the functions that open the carrier). Same caller rule as its sibling: a land passes
+    the BASE tree (`main_wt`), so a diff that turns the credit back ON cannot benefit on its own land.
+
+    ON BY DEFAULT, and the default is ABSENCE: no carrier, no `verify_policy:` section (or the born
+    one whose keys are commented, which parses to None) and no `stage6_credit:` key all read True.
+    `stage6_credit: allowed` says the same thing out loud.
+
+    EVERYTHING ELSE READS False — `never` (the opt-out), any unrecognised value, a section that is
+    not a mapping, a carrier that cannot be read. That is the fail-closed direction HERE: False means
+    the land RUNS its candidate verify, so a contract nobody can parse can only ADD verification —
+    the direction its sibling fails in too. No `reason:` is owed for the same reason (opting out
+    removes no check), and the sibling's `all`/`never` answer is deliberately not consulted: the two
+    keys do not compose."""
+    seen: dict = {}
+    try:
+        _verify_policy_pinned_last_green(repo_root, ops_contract=ops_contract, section_out=seen)
+    except Exception:                          # the reader is total; belt for a broken injection
+        return False
+    if seen.get("carrier") == "absent":
+        return True
+    if seen.get("carrier") != "read":
+        return False                           # unreadable carrier ⇒ run the candidate verify
+    section = seen.get("section")
+    if section is None:
+        return True                            # no section, or the born all-commented one
+    if not isinstance(section, dict):
+        return False
+    if "stage6_credit" not in section:
+        return True
+    return section.get("stage6_credit") == "allowed"
 
 
 def _case_exempt_refusal(case) -> "str | None":

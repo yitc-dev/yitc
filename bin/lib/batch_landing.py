@@ -3957,6 +3957,7 @@ _BASE_LAYER_EXIT_RE = re.compile(r"^land\(consumer\): verify layer .+? FAILED \(
 
 def _land_attribution_unreachable_layers(base_tree: "Path | None", layer_names: list, diff_paths, *,
                                          diff_inert: "bool | None" = None,
+                                         reachability_freed=None,
                                          _is_verify_implementation_touch=None,
                                          _subject_globs_would_skip=None) -> set:
     """T-13449 — the failing layer names this land's diff provably CANNOT reach. Pure over its inputs
@@ -3965,7 +3966,19 @@ def _land_attribution_unreachable_layers(base_tree: "Path | None", layer_names: 
     which is today's behaviour. (a) a wholly inert diff (`diff_inert is True`, the caller's verdict
     from the SPEC-0064 authority) reaches no layer; (b) otherwise a layer is
     unreachable only when the diff touches no verify implementation AND its base-declared
-    `subject_globs` are disjoint from the diff — an undeclared glob list is never disjoint."""
+    `subject_globs` are disjoint from the diff — an undeclared glob list is never disjoint.
+
+    T-13528 — `reachability_freed` is the section-aware ops-carrier answer the CALLER computed with the
+    same reader the per-layer skip used (`_ops_carrier_verify_freed`): the carrier path, freed at the
+    verify-implementation test ONLY when its `verify` / `verify_policy` / `tests` sections are proven
+    equal to the merge-base's. None — the default, and the answer on every doubt, including a project
+    that declares the carrier under `verify.infra_globs` — keeps the whole-file veto exactly as before.
+    Freed, the carrier is judged like any other path: a layer whose `subject_globs` LIST it is still
+    reachable. T-13531 — the set may ALSO carry changed `tests/` paths the caller's
+    `_owned_test_verify_freed` proved owned (declared test files some scoped layers claim and others do
+    not): the layers claiming such a path stay reachable through their own globs, and a red in a layer
+    that does not claim it is not this branch's. This function reads no second carrier and re-derives
+    nothing (T-11281)."""
     if not layer_names or not isinstance(diff_paths, (list, tuple)) or not diff_paths:
         return set()
     paths = [str(p) for p in diff_paths]
@@ -3973,7 +3986,12 @@ def _land_attribution_unreachable_layers(base_tree: "Path | None", layer_names: 
         if diff_inert is True:
             return set(layer_names)
         if (base_tree is None or _is_verify_implementation_touch is None
-                or _subject_globs_would_skip is None or _is_verify_implementation_touch(paths)):
+                or _subject_globs_would_skip is None):
+            return set()
+        # The kwarg is passed ONLY when a freed set exists, so an injected predicate that takes the
+        # paths alone (every pre-T-13528 caller and stub) is called exactly as before.
+        if (_is_verify_implementation_touch(paths, reachability_freed=reachability_freed)
+                if reachability_freed else _is_verify_implementation_touch(paths)):
             return set()
         ops = state.load_str((Path(base_tree) / _host_apply.CONSUMER_OPS_CONTRACT)
                              .read_text(encoding="utf-8")) or {}
@@ -3996,6 +4014,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                                     _consumer_verify_layer_key=None, _run_layer_at_base=None,
                                     batch_branches: "list | None" = None,
                                     diff_paths: "list | None" = None, diff_inert: "bool | None" = None,
+                                    reachability_freed=None,
                                     _is_verify_implementation_touch=None,
                                     _subject_globs_would_skip=None) -> dict:
     """T-11464 — WHOSE failure is this red: MAIN's, or this branch's? Returns a RECORD; decides
@@ -4259,6 +4278,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                     continue
         unreachable_layers.update(_land_attribution_unreachable_layers(
             wt, [_l[1] for _l in _layer_reds], diff_paths, diff_inert=diff_inert,
+            reachability_freed=reachability_freed,
             _is_verify_implementation_touch=_is_verify_implementation_touch,
             _subject_globs_would_skip=_subject_globs_would_skip))
         present = [n for n in failing_files

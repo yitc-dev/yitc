@@ -383,8 +383,13 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
                 new. X-0339's own evidence is this shape («the 2 lands before recorded 3 layers; this
                 land is the first with the release-label-gate row»).
               * REWIRE — the layer already existed, and the ship's OWN row says `definition_changed`:
-                land compared the layer's declared command against the commit it integrated onto and
-                recorded that THIS ship's diff changed it. Novelty alone was the pre-T-10504 test, and
+                land compared the layer's declared DEFINITION — its command and (T-13511) its declared
+                bound, the layer's own `timeout:` else the section's `timeout_seconds:` — against the
+                commit it integrated onto and recorded that THIS ship's diff changed it. A bound-only
+                change is a rewire on the same terms as a command change (GitHub intake #13: a card
+                whose whole deliverable was a `timeout:` had no resolvable ref); the reader is
+                unchanged, since what counts as the definition is land's to decide, not this
+                function's. Novelty alone was the pre-T-10504 test, and
                 it fails BY CONSTRUCTION for a rewire — X-0368 (<project> T-0092: 6 prior rows for the
                 layer, conditions (i)-(iii) all held, and real machine evidence was refused).
             The provenance is READ from the ship's own row, never INFERRED by diffing rows across

@@ -284,8 +284,8 @@ binding:
 - stage-entry:Audit-post
 init_concern: null
 implements_signature:
-  bin/lib/audit_packet.py#build_audit_prompt: 8cf904a6191f3840a5fb8a784b934e6552179a221c986ec9b6cf1c3f36b72977
-  bin/lib/cli.py#_ac_probe_evidence_events_for: 8ba7bcd03323e756b80592b07be3855802ab6660e77371a62bca7dd5aa3315f0
+  bin/lib/audit_packet.py#build_audit_prompt: ee9a71c3ac1595a208eee77c2ed25c1c8f860169b1260689f9e482b257f49957
+  bin/lib/cli.py#_ac_probe_evidence_events_for: 49f39e49fad32eb7a786226bb39940e18653e96dfafe90bc6cec7ee2f427a90b
   bin/lib/cli.py#_p8_evidence_events_for: bc0670a73cdfe69c153e2af0090d2d74318de157d427dc6d1b81465e870ca672
   bin/lib/cross.py#_cross_evidence_section_for: 48527cf6b2feb92a999d6626cf67d8d82fe0603b2d410ad7f96244d57d00200a
   bin/lib/cross.py#card_evidence_section: 64008b7ccce6de727d27d2ba1297e6625ab64a504697366f3b00376a3d31d9e9

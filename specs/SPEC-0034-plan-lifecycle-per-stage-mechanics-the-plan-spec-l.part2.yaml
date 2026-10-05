@@ -1,0 +1,78 @@
+body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loop\
+  \ ceiling = 2; the big-plan apply-when criteria;\nthe corpus = born ∪ task-activated)\
+  \ live in their OWN specs/patterns — NOT duplicated or\n`consumed:` here. The shim-removal\
+  \ threshold (≥10 lands + zero old-verb journal events) is carried, not this spec.\n\
+  \n## Rationale\n\nThe plan lifecycle was assembled piecemeal from ≥6 surfaces while\
+  \ the TASK lifecycle is held cold in a\ndedicated always-loaded `LIFECYCLE.md` +\
+  \ retrieved per-stage specs delivered at stage-entry — a real\ndelivery asymmetry\
+  \ (the gating audit [[plan-lifecycle-documentation-audit-delivery-parity]] §A; the\n\
+  incident grounding CHARTER §P1 F4). The fix MIRRORS the CURRENT task model (post-):\
+  \ a skeleton in\nthe always-loaded doc + retrieved per-stage detail delivered at\
+  \ stage-ENTRY by the `plan stage` verb —\nNOT a new floor-trigger axis for plans\
+  \ (that two-carrier framing was dropped, parent plan §2b). The\nnecessity of THIS\
+  \ spec (vs a pattern) is symmetry with the task stage-entry specs: a pattern is\
+  \ not a\nstage-entry delivery target (the verb delivers `plan-stage-entry:`-bound\
+  \ SPECS), so the spec is the right\nhost, on the SAME ground as SPEC-0027. Prior-art\
+  \ (PEP/ADR): the lifecycle of an artifact class is\ndocumented at the same altitude\
+  \ as the artifacts themselves, in ONE entry doc (PEP-1 documents the PEP\nprocess;\
+  \ ADR keeps the process doc beside the ADRs); and the PEP **Provisional → Final**\
+  \ shape is the\n`postcheck → realized` real-data-proof boundary. Parent plan: [[plan-lifecycle-delivery-parity-redesign-lifecycle-]].\n\
+  \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before trusted\
+  \ Slip 4; concrete results in\ntests/test_t0317_plan_lifecycle_spec.py + the closure\
+  \ record):\n- **VP1 (per-stage delivery axis):** this spec's `binding:` is EXACTLY\
+  \ the 8 linear plan-stage-entry\n  tokens (draft/specs/trial/accepted/decomposition/executing/postcheck/realized)\
+  \ and each passes `_is_valid_plan_stage_entry`;\n  `_build_binding_views` inverts\
+  \ them into `plan_stage_to_specs`, so `plan stage <NAME>` (active spec)\n  delivers\
+  \ SPEC-0034's slice. Remove a token → it drops from delivery. (No terminal token\
+  \ — conformance\n  stays GREEN.)\n- **VP2 (linkage view, AC3):** the `## Internal`\
+  \ carries the §\"plan↔spec linkage chain (born → activate\n  → finalize)\" consolidated\
+  \ VIEW (the chain diagram + per-edge homes), ONE home, no duplicate normative\n\
+  \  rule (P5). Probe: grep the spec body for the chain section.\n- **VP3 (mandatory\
+  \ big-plan check, AC3):** the `## Internal` carries the §\"Mandatory big-plan check\
+  \ at\n  the `accepted → decomposition`-gate\" with the 3 LARGE-plan requirements\
+  \ (filled `checklist_pass` +\n  `plan check --full` + dry-run when rules are novel).\
+  \ Probe: grep the spec body.\n- **VP4 (non-dangling, honest):** active SPEC-0034\
+  \ has non-empty `implements:` (the plan verbs) AND a\n  valid routing binding ⇒\
+  \ excluded from `binding_report.dangling_specs`; `graph conformance` exits GREEN\n\
+  \  with it present (no unknown/malformed token). Evidence: `graph build` + `graph\
+  \ conformance`.\n- **VP5 (work-first activation, AC1):** `activation_owner_task:\
+  \ `; `task close ` flips this\n  spec `proposed → active` ( deterministic side-effect)\
+  \ — the SOLE activation path.\n- **VP6 (delivery observable on EXISTING surfaces,\
+  \ AC2):** a journaled `plan_stage_entered` transition\n  event is present in `events.jsonl`\
+  \ (the live `plan stage` surface) AND post-close SPEC-0034 is\n  `active` with its\
+  \ 8 plan-stage-entry bindings (`graph query SPEC-0034`); together they prove the\n\
+  \  delivery axis fires AND this spec is wired into it. A live-trigger event (this\
+  \ spec appearing in a\n  `plan stage` transition's `delivered` set) is OPTIONAL\
+  \ extra evidence.\n- **VP7 (postcheck entry-vs-exit task model):** the §postcheck\
+  \ Entry gate states all linked\n  tasks `done` EXCEPT retire-on-proof tasks (a `parked`\
+  \ task linked by `decomposed_from` OR `cites`\n  with a `return_trigger` is EXIT\n\
+  \  payload, not an entry prerequisite), and the §realized gate states `realized`\
+  \ = new-proven AND\n  old-retired — every retire-on-proof task resolved to a terminal\
+  \ close (done|wont-do) at EXIT\n  (`_require_plan_retire_on_proof_resolved`). Probe:\
+  \ `plan stage postcheck` exits 0 on a plan whose\n  only open cited task is a `parked`+`return_trigger`\
+  \ one; `plan stage realized` refuses (nonzero)\n  while it is unresolved (tests/test_t0326_postcheck_entry_exit.py).\n\
+  - **VP8 (realized captures-routed clause):** the §realized gate carries the THIRD\
+  \ \"captures\n  routed\" clause AND the §\"retrospective routing table\" is present\
+  \ (AC2). `plan stage realized` WARNs (advisory — does NOT block / Option B) but\
+  \ PROCEEDS\n  (with the un-routed count REPORTED, status -> realized) on a postcheck\
+  \ plan while an un-routed `deviation_captured` exists since\n  the last triage watermark,\
+  \ and PROCEEDS whether or not `triage run --complete` has recorded the watermark\
+  \ (advisory only) — reading\n  the SAME window `triage run` drains, no new store/verb/detector\
+  \ (AC1/AC3,\n  tests/test_t0327_realized_captures_routed.py). Probe: grep the spec\
+  \ body + run the test.\n- **VP9 (plan-TYPES view / AC1):** the `## Internal` carries\
+  \ the §\"Plan TYPES — the axes\n  that change a plan's FSM path / gate weight\"\
+  \ table covering ALL FOUR axes (spec-bearing vs\n  spec-free · trial-eligible vs\
+  \ not · plan vs bare-cards S1/S2 · big vs small), each row naming what\n  it CHANGES\
+  \ + its home. Probe: `grep -c 'Plan TYPES\\|spec-bearing vs spec-free\\|plan vs\
+  \ bare-cards\\|big vs small' specs/SPEC-0034-*.yaml` ≥ 2.\n- **VP10 (specs-stage\
+  \ = mandatory gate-specs CHECK / AC2):** the §specs stage carries the\n  reframe\
+  \ bullet stating the stage IS the mandatory gate-specs CHECK every plan transits\
+  \ (NOT \"compose\n  draft specs\") AND that a SPEC-FREE plan does NOT skip it, citing\
+  \ the live 6-finding correct-verify\n  proof. Probe: `grep -c 'mandatory gate-specs\
+  \ CHECK\\|spec-free plan STILL transits\\|does NOT skip it' specs/SPEC-0034-*.yaml`\
+  \ ≥ 1.\n- **VP11 (discovery-grown + bring-order + piecemeal-from-draft / AC3):**\
+  \ §Planning-artifact\n  handling carries the Piecemeal-from-draft anti-pattern +\
+  \ the Discovery-grown plan handling guidance\n  (record growth / out-of-band capture\
+  \ / freeze-before-build) + the Bring-order take-into-work\n  reconciliation pass.\
+  \ Probe: `grep -c 'Discovery-grown\\|Bring-order\\|Piecemeal-from-draft' specs/SPEC-0034-*.yaml`\
+  \ ≥ 3.\n"

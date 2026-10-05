@@ -112,11 +112,17 @@ body: "## Scenario\n\nAn author passes prose to a verb on the command line — a
   \ verbs that write nothing non-rewritable, which\n    is the set where the damage\
   \ is recoverable by definition.\n(e) SPELLINGS. The flag scan is EXACT-TOKEN, so\
   \ it sees only the spellings a row lists. A row whose\n    flag has a SHORT form\
-  \ lists it (`-m`, with argparse's `-mV` / `-m=V`), and its subparser takes\n   \
-  \ `allow_abbrev=False`, so every spelling argparse ACCEPTS is one the seam scans.\
-  \ Done for the\n    two commit rows; the other guarded rows still accept abbreviations\
-  \ (`--pv-crit=`) —\n    a pre-existing gap, filed as followup fu_e1ac30843b2d.\n\
-  (f) The post-commit eaten-span WARN in `cli._commit_worktree` STAYS, as the programmatic-caller\n\
+  \ lists it (`-m`, with argparse's `-mV` / `-m=V`), and EVERY guarded row's\n   \
+  \ subparser takes `allow_abbrev=False`, so every spelling argparse ACCEPTS is one\
+  \ the seam scans:\n    a prefix of a guarded flag (`--pv-crit=`) is a parser error,\
+  \ exit 2, before any verb runs. The\n    set of subparsers is DERIVED from `ARGV_PROSE_SEAMS`\
+  \ when the parser is built, so a row added\n    to the registry is covered by construction.\
+  \ Where a guarded verb's parser carries a\n    variadic positional that would absorb\
+  \ an unrecognised token as text (`blocked-on-land`'s reason\n    words), a token\
+  \ that is a prefix of one of the row's guarded flags is refused at the same point\n\
+  \    rather than recorded; any other unrecognised token there keeps its existing\
+  \ treatment, and the\n    positional form itself stays bound (b)'s.\n(f) The post-commit\
+  \ eaten-span WARN in `cli._commit_worktree` STAYS, as the programmatic-caller\n\
   \    fallback — the bound (c) shape: the seam covers argv, the WARN covers a caller\
   \ with no argv.\n\n## Rationale\n\nMeasured, not inferred. `argv_backtick_span`\
   \ landed with (from X-1427) and had exactly ONE\ncall site in the whole engine.\
@@ -141,14 +147,21 @@ body: "## Scenario\n\nAn author passes prose to a verb on the command line — a
   \ derived from\n  `build_parser` and every one is guarded or exempt-with-a-reason.\
   \ The 4(b) differential:\n  `cross close --resolution` added to the parser alone\
   \ fails that probe and nothing else.\n- AC3 — `task file --title`, `task update\
-  \ --note` and `graph query` with a backtick are untouched.\n- — `task commit -m`\
-  \ with eaten-span residue, end-to-end through `cli.main` in a real git\n  worktree:\
-  \ exit 2, HEAD unchanged, tree still dirty, journal unchanged, names `--from-stdin`\
-  \ /\n  `message:`; the differential commits the damage with the residue check neutralised.\
-  \ A surviving\n  backtick via `-m` and `--message` refuses; the same text via `--from-stdin`\
-  \ commits with its\n  backticks verbatim. `--mess=` is an argparse error on both\
-  \ commit verbs. The cohort complement\n  (ordinary prose, a sentence double-space\
-  \ after `.`) commits through `work commit` in\n  `tests/test_t10547_shell_substitution_artifact.py`.\n"
+  \ --note` and `graph query` with a backtick are untouched.\n- Bound (e) for every\
+  \ row — driven OFF `ARGV_PROSE_SEAMS`: each row's subparser has\n  abbreviation\
+  \ off, and a prefix of its first guarded flag carrying a backticked value is an\n\
+  \  argparse error (exit 2) through the real CLI with the journal and the shared\
+  \ cross log\n  byte-identical; every guarded flag's full spelling (the commit rows'\
+  \ `-m` included) still\n  parses onto its dest. Differential: with the pre-change\
+  \ parser state restored for the row, the\n  prefix resolves to the guarded dest\
+  \ while the seam returns no refusal for it.\n- — `task commit -m` with eaten-span\
+  \ residue, end-to-end through `cli.main` in a real git\n  worktree: exit 2, HEAD\
+  \ unchanged, tree still dirty, journal unchanged, names `--from-stdin` /\n  `message:`;\
+  \ the differential commits the damage with the residue check neutralised. A surviving\n\
+  \  backtick via `-m` and `--message` refuses; the same text via `--from-stdin` commits\
+  \ with its\n  backticks verbatim. `--mess=` is an argparse error on both commit\
+  \ verbs. The cohort complement\n  (ordinary prose, a sentence double-space after\
+  \ `.`) commits through `work commit` in\n  `tests/test_t10547_shell_substitution_artifact.py`.\n"
 cites:
 - CHARTER.md#principle-1
 requires: []
@@ -159,8 +172,8 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#main: a90b07009a3da221f3899f0fc55d93983155127809f2ca1fff31dc933ad3c774
-  bin/lib/cli_parser.py#build_parser: e24ef348436b9800ce4d8ac311ae77b72f4b1a414adf5a800ff8e004a8aa4b98
+  bin/lib/cli.py#main: 9d094ff57034b68dc6c7bb5835a9d336baed0d9e56933f5acfa00cd4486c0f72
+  bin/lib/cli_parser.py#build_parser: 82a4a7bd2d21581ff79563698358214ab86d6285b5c16b82bb7631f0b1548537
   bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS: a14357dce8243c42484f7ceb2fcfa9f9cc57ca3d19b446ea91ce501c75ff1de3
   bin/lib/textutil.py#ARGV_PROSE_SEAMS: 4b5e7099a6d1f87fb3ae82d7be6ca49092966b7485373ca299277036ab68c757
   bin/lib/textutil.py#ARGV_PROSE_WAIVED: 315b572b5864e608df514228107852dbfcfc30e05e9030bfea31f00e1d43d979

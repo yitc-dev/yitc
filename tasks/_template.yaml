@@ -64,7 +64,10 @@ cites:                         # task IDs / spec IDs / decision IDs — INFORMAT
   - T-XXXX
 
 answers: []                    # SPEC-0197 rule 4 LINK-BACK: the outside proposal ids this card answers
-                               # (issue refs in the `#N` form, no host literal). Release notes list them
+                               # (no host literal). An issue reference NAMES ITS TRACKER — `owner/repo#N`,
+                               # never a bare `#N`: a re-created intake repo restarts its numbering, so a
+                               # bare number ends up naming a different issue (refused at filing and at
+                               # publish; field rule in SPEC-0028). Release notes list them
                                # (release.collect_answered_proposals). Later: `task update --set-field
                                # answers --from-file` (admitted on a done card too).
 

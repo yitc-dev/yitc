@@ -52,10 +52,21 @@ home of the form; it is not restated here.
 
 **Channel state.** Issues are enabled on the mirror and are the intake; Discussions are off.
 
-**The proposal id.** The issue number (`#417`) is the id recorded on the re-authoring task card's
-`answers:` field, which is what the publish step reads to build the release notes' link-back list.
-It must satisfy the conservative id grammar in `bin/lib/release.py` (`ANSWER_ID_RE`) — a GitHub
-issue reference does, both as `#417` and as `owner/repo#417`.
+**The proposal id.** The issue reference, written WITH its tracker — `owner/repo#417`, never a bare
+`#417` — is the id recorded on the re-authoring task card's `answers:` field, which is what the
+publish step reads to build the release notes' link-back list. It must satisfy the conservative id
+grammar in `bin/lib/release.py` (`ANSWER_ID_RE`) and name its tracker (`unqualified_answer_id`);
+`task file`, `task update --set-field answers` and the publish step all refuse a bare number. The
+field rule lives in SPEC-0028 (`answers`).
+
+**Repo-reuse hazard — why the tracker is part of the id.** GitHub issue numbers are per-repository
+and restart at 1 when a repository is archived and re-created under the same name. A bare `#417` on
+a card then stops naming the issue the card answered and starts naming whatever the new tracker
+filed under that number; and because the link-back list is a set, the same number from two trackers
+collapses into one entry, so a release tells adopters to drop a workaround for an issue it never
+fixed. When the intake repository is archived, cards that answered it are written under the
+ARCHIVE's name (`owner/repo-archive-<date>#417`), and the live repository keeps `owner/repo#N` for
+its own issues. Release notes already published keep the ids they were signed with.
 
 **Pull requests.** GitHub will let anyone open one against the mirror. That is not a second path:
 per SPEC-0197 rule 3 nothing is merged into the mirror, and the mirror is regenerated from the

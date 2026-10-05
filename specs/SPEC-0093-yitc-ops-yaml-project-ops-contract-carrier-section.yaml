@@ -1026,13 +1026,20 @@ concern:
     \ are\n  # refused a pin in the last-green leg. Pin one anyway via a sibling\n\
     \  # `timing_lane_waiver: { globs: [...], reason: \"<who accepted the flake risk,\
     \ and why>\" }`.\n  # TEST-CLASS intake — \"what are your test classes, and what\
-    \ does each one DEPEND ON?\" — in TWO passes:\n  # PASS 1 — NAME THE CLASSES here.\
-    \ PASS 2 — name what each DEPENDS ON (a container, a database, a\n  # browser,\
-    \ a bundle, an install — or nothing). That is the `verify.layers` cut rule:\n\
+    \ does each one DEPEND ON?\" — in THREE passes:\n  # PASS 1 — NAME THE CLASSES\
+    \ here. PASS 2 — name what each DEPENDS ON (a container, a database, a\n  # browser,\
+    \ a bundle, an install — or nothing). That is the FIRST `verify.layers` cut rule:\n\
     \  # CLASSES THAT SHARE AN ENVIRONMENT STAY IN ONE LAYER (a split pays that SETUP\
     \ COST a second\n  # time); a class with its OWN dependency earns its own layer\
-    \ + `subject_globs:`.\n  # GREENFIELD — declare the classes you intend; BROWNFIELD\
-    \ — DERIVE them from what runs today.\n  # Both passes answered = a carrier that\
+    \ + `subject_globs:`.\n  # PASS 3 — INSIDE a class, name the GROUPS that are HEAVY\
+    \ AND NARROW IN SUBJECT (a few files that\n  # hold most of the class's run time\
+    \ while exercising one small part of the project). That is\n  # the SECOND cut\
+    \ rule, and for such a group it outweighs the first: give each ITS OWN LAYER +\n\
+    \  # `subject_globs:` naming that narrow subject — a second setup costs SECONDS,\
+    \ a heavy group run\n  # on every land costs MINUTES. MEASURE both before you\
+    \ split; a group that is light, or whose\n  # subject is the whole project, stays\
+    \ where it is.\n  # GREENFIELD — declare the classes you intend; BROWNFIELD —\
+    \ DERIVE them from what runs today.\n  # Passes 1 and 2 answered = a carrier that\
     \ already satisfies rule 26 (cross-section correspondence).\n  # see SPEC-0160\
     \ §10; SPEC-0093 §26\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
     \ — no test taxonomy declared yet; declare a `classes:` list (each {class, moment})\
@@ -1098,11 +1105,15 @@ concern:
     spec: SPEC-0152
     summary: 'CONCURRENT land-verify layers — the layers named here run OVERLAPPED
       in one land instead of one after another (the wall drops from their sum towards
-      their longest). Name only layers that share nothing with EACH OTHER: no host
-      port, compose project, database, build cache or tree write, their `prep:` included
-      — a pairwise claim the kernel cannot infer. Fail-fast, per-layer timeouts and
-      the per-layer rows are unchanged; a name matching no declared layer fails the
-      land closed.'
+      their longest). YOU decide, and you bear the risk: naming layers here is your
+      project''s own risk judgement. The kernel checks the shape of the list only
+      and never polices independence, so a wrong declaration costs only your own verify.
+      Before declaring, check each named pair, their `prep:` included, against every
+      resource class two layers can collide on: mutable_files, caches, temp_paths,
+      services, locks, processes, shared_sinks. A per-layer `owns:` declaration is
+      an optional aid for that check, never a requirement. Fail-fast, per-layer timeouts
+      and the per-layer rows are unchanged; a name matching no declared layer fails
+      the land closed.'
     absent: every declared layer runs serially, in declaration order — the verify
       wall is their sum.
   - key: layer_worker_shares
@@ -1301,5 +1312,5 @@ implements_signature:
   bin/lib/init.py#_hook_tests: 3796c282504dc47c844e21f1681ee7f72fca15172b927a776df3c139793d65c5
   bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
-  bin/lib/init.py#cmd_init: e079b021407829f20d54d33c6306073b7ebd498406dc8dafa5e134bdcffa8def
+  bin/lib/init.py#cmd_init: 30ab5f396c0e2fcc38fc922c226341595407a2fbbb1ac3bff9f238c98b2783e8
   bin/lib/worktree.py#_any_author_land_floor: 0ccef3b9d02eddb4af0e242d5431675ad828d44714e51d35bb94dc16249e7592

@@ -77,7 +77,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/audit.py#cmd_audit: 58301348f06fbf68c078147cd57f91b7a5f31579fef69514eea5913c15c83c24
   bin/lib/cli.py#_activation_gated_specs: f34498993c6613edcefb3f7e387fb0447b76e62135e8099d7a233d430596caaf
   bin/lib/cli.py#_require_activation_gated_radius: 52c55fd9fcc6e781063b904d6b8154b72f5697bb24155fd06ceeda7c36499e80
   bin/lib/task.py#_activation_gated_radius_declaration_error: 137fdd5ec749ed15b6a926c93b7eae3fa2174fc674982019515698ef34d2c2e6

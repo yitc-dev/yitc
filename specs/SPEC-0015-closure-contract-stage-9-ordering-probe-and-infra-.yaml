@@ -447,43 +447,55 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ failing input stays demanded independently, so the carve-out cannot\nre-admit\
   \ prose.\n\n**Condition (iv) has TWO proofs — the layer is NEW, or this ship REWIRED\
   \ it.** NOVELTY — no\nearlier land ran that layer; or REWIRE — the layer already\
-  \ existed and THIS SHIP'S DIFF changed the\ncommand behind its name.\n\n**The rewire\
+  \ existed and THIS SHIP'S DIFF changed the\nDEFINITION behind its name. **The definition\
+  \ is the layer's command AND its declared time bound\n** — the bound the project's\
+  \ ops contract declares for that layer: the layer's own, else the\nproject-level\
+  \ default it inherits (SPEC-0152 rule 16 owns both declarations). So a ship whose\
+  \ whole\nchange is a layer's declared bound is a rewire on the same terms as one\
+  \ that changes its command;\nbefore only the command counted, and such a ship had\
+  \ no resolvable reference. The per-host\nenvironment override of that bound is NOT\
+  \ part of the definition: it is a property of the machine a\nland ran on, never\
+  \ of the ship's diff. A layer that declares no bound at either level, on both sides\n\
+  of the diff, is judged on its command alone, exactly as before.\n\n**The rewire\
   \ proof is RECORDED BY LAND, never inferred by the reader.** Land compares the layer's\n\
-  declared command in the ship's tree against the commit it integrates onto and records\
-  \ the verdict on\nthat layer's row. The reader must NOT infer a rewire by comparing\
-  \ rows across lands. FAIL-CLOSED: an\nabsent or non-affirmative record is UNKNOWN,\
-  \ never «changed».\n\nConditions (iii) + (iv) are what make this EVIDENCE: an ordinary\
-  \ task citing a PRE-EXISTING, UNCHANGED\nlayer row on its own land is still refused.\
-  \ A BARE land-record reference (and one that pins a land\nbut names no layer) stays\
-  \ REFUSED, here and everywhere; the layer-scoped form is the ONE sanctioned\nexception.\
-  \ The reference spelling and the rewire-verdict row field live in the code + its\
-  \ tests\n(SPEC-0005 §3).\n\n**ORDERING.** The row is LAND-emitted, so the ship's\
-  \ own pre-land close legitimately still WARNs; the\ncarrier is read at a POST-land\
-  \ seam (the post-land P8 emit, and any later recovery / re-close / audit\nread).\
-  \ It does not manufacture adoption before the land that proves it.\n\n### Verify-refusal\
-  \ ships: the carrier is a refusal-row-scoped `land_completed` ref\nA VERIFY-REFUSAL\
-  \ SHIP is a task whose shipped MECHANISM IS THE LAND-VERIFY GATE: its running is\
-  \ the\ngate REFUSING an integration, and its only trace is the land record's own\
-  \ abort row.\n\n**The STANDING RULE.** For a verify-refusal ship the P8 adoption\
-  \ carrier is a P8 event whose\nmachine-evidence reference is a REFUSAL-ROW REFERENCE\
-  \ — it names the land record, the branch, AND the\ncheck whose failure the gate\
-  \ refused on. It reads as adoption ONLY with ALL FIVE: (i) the named land\nrecord\
-  \ exists; (ii) it is an ABORT — a SUCCESS-status record is the closure bookkeeping\
-  \ the refusal\nexists to be distinguished from, and is never adoption; (iii) the\
-  \ abort is a VERIFY REFUSAL from the\nreal verify run — an abort raised before the\
-  \ gate ran (a preflight / dirty-tree / wrong-checkout\nrefusal) witnesses nothing,\
-  \ and an untagged record fails closed; (iv) the branch is the CLOSING\nTASK'S OWN\
-  \ — a land record carries no task id, the branch is the correlation it does carry,\
-  \ and\nbinding it to the closing task is what refuses another task's genuine refusal\
-  \ record; and (v) the\nrecord NAMES the check the reference names. The differential\
-  \ failing input stays demanded\nindependently.\n\n**Condition (v) is the load-bearing\
-  \ one.** Status and branch alone would give every task whose own\nland ever aborted\
-  \ on a failed verify a citable record (the «ordinary closure bookkeeping becomes\n\
-  citable evidence» outcome); naming the check ties the record to the mechanism.\n\
-  \n**The sibling refusal is NOT re-opened.** A bare verify-refusal record carrying\
-  \ no named check stays\nREFUSED, as does a BARE land-record reference; the spelling\
-  \ lives in the code + its tests (SPEC-0005\n§3). The record is LAND-emitted, so\
-  \ it is read at a POST-land seam.\n\n### Work-first spec-activating (bootstrap)\
+  declared definition in the ship's tree against the commit it integrates onto and\
+  \ records the verdict\non that layer's row. Each row of a layer that executed also\
+  \ records the bound it actually ran under\nand which rung supplied it, so the land\
+  \ that ships a declared bound shows that bound in\nforce — a report-only reading\
+  \ beside the verdict, which no gate reads. The reader must NOT infer a rewire by\
+  \ comparing rows across lands. FAIL-CLOSED: an\nabsent or non-affirmative record\
+  \ is UNKNOWN, never «changed».\n\nConditions (iii) + (iv) are what make this EVIDENCE:\
+  \ an ordinary task citing a PRE-EXISTING, UNCHANGED\nlayer row on its own land is\
+  \ still refused. A BARE land-record reference (and one that pins a land\nbut names\
+  \ no layer) stays REFUSED, here and everywhere; the layer-scoped form is the ONE\
+  \ sanctioned\nexception. The reference spelling and the rewire-verdict row field\
+  \ live in the code + its tests\n(SPEC-0005 §3).\n\n**ORDERING.** The row is LAND-emitted,\
+  \ so the ship's own pre-land close legitimately still WARNs; the\ncarrier is read\
+  \ at a POST-land seam (the post-land P8 emit, and any later recovery / re-close\
+  \ / audit\nread). It does not manufacture adoption before the land that proves it.\n\
+  \n### Verify-refusal ships: the carrier is a refusal-row-scoped `land_completed`\
+  \ ref\nA VERIFY-REFUSAL SHIP is a task whose shipped MECHANISM IS THE LAND-VERIFY\
+  \ GATE: its running is the\ngate REFUSING an integration, and its only trace is\
+  \ the land record's own abort row.\n\n**The STANDING RULE.** For a verify-refusal\
+  \ ship the P8 adoption carrier is a P8 event whose\nmachine-evidence reference is\
+  \ a REFUSAL-ROW REFERENCE — it names the land record, the branch, AND the\ncheck\
+  \ whose failure the gate refused on. It reads as adoption ONLY with ALL FIVE: (i)\
+  \ the named land\nrecord exists; (ii) it is an ABORT — a SUCCESS-status record is\
+  \ the closure bookkeeping the refusal\nexists to be distinguished from, and is never\
+  \ adoption; (iii) the abort is a VERIFY REFUSAL from the\nreal verify run — an abort\
+  \ raised before the gate ran (a preflight / dirty-tree / wrong-checkout\nrefusal)\
+  \ witnesses nothing, and an untagged record fails closed; (iv) the branch is the\
+  \ CLOSING\nTASK'S OWN — a land record carries no task id, the branch is the correlation\
+  \ it does carry, and\nbinding it to the closing task is what refuses another task's\
+  \ genuine refusal record; and (v) the\nrecord NAMES the check the reference names.\
+  \ The differential failing input stays demanded\nindependently.\n\n**Condition (v)\
+  \ is the load-bearing one.** Status and branch alone would give every task whose\
+  \ own\nland ever aborted on a failed verify a citable record (the «ordinary closure\
+  \ bookkeeping becomes\ncitable evidence» outcome); naming the check ties the record\
+  \ to the mechanism.\n\n**The sibling refusal is NOT re-opened.** A bare verify-refusal\
+  \ record carrying no named check stays\nREFUSED, as does a BARE land-record reference;\
+  \ the spelling lives in the code + its tests (SPEC-0005\n§3). The record is LAND-emitted,\
+  \ so it is read at a POST-land seam.\n\n### Work-first spec-activating (bootstrap)\
   \ tasks: two-layer acceptance + the no-self-blocked-consumer topology rule\nA WORK-FIRST\
   \ spec-activating task (its own `activation_owner_task` — `task close` is the SOLE\
   \ writer of\nits spec's `proposed → active` flip, GRAPH §Spec-lifecycle / SPEC-0005\

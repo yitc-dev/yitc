@@ -2540,7 +2540,7 @@ _CAPTURE_ROUTING_ROWS = [
      "SPEC-0039", "NEVER a durable rule home — route by purpose (SPEC-0091)."),
 ]
 
-def _view_capture_routing(index: dict) -> dict:
+def _view_capture_routing(index: dict, *, engine_index: "dict | None" = None) -> dict:
     """capture-routing lens (T-10539 / SPEC-0157, D-0053 saved view): the situation->home routing table
     — at the MOMENT of a capture, WHERE does it go? Each row names the SITUATION, its HOME (the
     artifact/node/store), and the OWNING SPEC that homes the rule; the rule text is NEVER duplicated
@@ -2550,14 +2550,24 @@ def _view_capture_routing(index: dict) -> dict:
     Sources rows from the owning specs (X-0402 G3 closed): each row's `owning_spec` is enriched with its
     live title/status from `index["specs"]`, so a renamed/removed/retired owning spec surfaces here
     rather than drifting silently (the E-case narrative row is SPEC-0056 §4a, T-10537). Names the
-    de-facto worker escalation-doc convention (R3) and the environment-facts flavors (X-0403)."""
-    specs_tbl = (index or {}).get("specs") or {}
+    de-facto worker escalation-doc convention (R3) and the environment-facts flavors (X-0403).
+
+    engine_index (T-13487, GitHub yitc-dev/yitc#3): the ENGINE's index, passed by the host ONLY on a -C
+    consumer build (else None → the engine-self output is byte-unchanged). The row ids are KERNEL
+    constants, so own-only resolution printed `[!unresolved]` on every row for a consumer owning none
+    of them, and the CONSUMER's title, unmarked, where it owns a same-id spec (SPEC-0092). On a
+    consumer each owning spec therefore resolves from the ENGINE table ONLY — kernel-first as T-10239,
+    with no own-table fallback: an own spec at a kernel row id is a different spec by construction — a
+    resolved id is marked `(kernel)`, `[!unresolved]` is kept for an id the engine table lacks, and
+    the `next` pointer names the kernel-prefixed lookup (a bare one is consumer-own-wins)."""
+    kernel = engine_index is not None
+    specs_tbl = ((engine_index if kernel else index) or {}).get("specs") or {}
     rows = []
     for situation, home, sid, note in _CAPTURE_ROUTING_ROWS:
         meta = specs_tbl.get(sid) or {}
         title = (meta.get("title") or "").strip()
         status = (meta.get("status") or "").strip()
-        owning = f"{sid} — {title}" if title else sid
+        owning = (f"{sid} (kernel) — {title}" if kernel else f"{sid} — {title}") if title else sid
         if status and status not in ("active", "proposed"):
             owning += f"  [!{status}]"   # surface a retired/superseded owning spec (drift signal)
         elif not title:
@@ -2581,7 +2591,8 @@ def _view_capture_routing(index: dict) -> dict:
             "incident_narrative": "a multi-error arc -> the promoted errors/E-XXXX.yaml BODY, one arc = one E-case (SPEC-0056 §4a)",
         },
         "next": ("read the row for your situation, then route to its HOME; the OWNING SPEC holds the "
-                 "actual rule (`graph query <SPEC>`). Unsure plan vs task vs followup? -> SPEC-0140."),
+                 f"actual rule (`graph query {'--kernel ' if kernel else ''}<SPEC>`). "
+                 "Unsure plan vs task vs followup? -> SPEC-0140."),
     }
 
 def _window_predicate(since, until, *, _ev_dt=None):
@@ -3549,13 +3560,19 @@ def _view_not_adopted(events_path: "Path | None" = None, project: "str | None" =
                       _live_revision_adapter=_UNSET) -> dict:
     """not-adopted lens (T-9392 / SPEC-0094 §2): the DERIVED "which shipped changes are not yet live"
     surface. Computed at READ time from commit ancestry between the current-live revision (the latest
-    `deploy_completed` event's `revision`, SPEC-0094 §1) and `main` HEAD. ZERO new persisted state
+    PRODUCTION `deploy_completed` event's `revision`, SPEC-0094 §1) and `main` HEAD. ZERO new persisted state
     (SPEC-0093 rule 7 / P5) — a saved query, recomputed fresh every run, writes nothing (D-0053 view
     family). Reuses the ONE journal reader (`_iter_events`, Principle 1 — no second parse path) for the
     deploy record + a read-only `git rev-list` for the ancestry; no new store/hook/flag/event.
 
-    The current-live revision = the latest `deploy_completed` event by `ts` (a rollback is itself a
-    `deploy_completed`, kind="rollback", so the latest record is always the live one — SPEC-0094 §1).
+    The current-live revision = the latest PRODUCTION `deploy_completed` event by `ts` (a rollback is
+    itself a `deploy_completed`, kind="rollback", so the latest production record is always the live
+    one — SPEC-0094 §1). PRODUCTION is `deploy.is_production_live_record` — a record naming no target,
+    or a `production: true` one; a record on a `production: false` target (a sandbox deploy or
+    rollback) says nothing about what production runs and is skipped, here exactly as in the
+    SPEC-0097 §2a rollback-target fold that shares the predicate (T-13454). A journal holding only
+    such records therefore reads `no-deploy-recorded`. This is the PROXY baseline: it stands when no
+    live-revision adapter is declared AND when a declared one errors (`adapter-degraded`).
     An optional `project` filter selects deploy records for that project only. Not-adopted = the
     DEPLOYABLE-PATH commits in `(live, HEAD]` — i.e. shipped (committed to main), not yet covered by a
     deploy, AND carrying runtime content (T-10747 / X-0580 / SPEC-0094 §2). Counting the whole range
@@ -3580,7 +3597,10 @@ def _view_not_adopted(events_path: "Path | None" = None, project: "str | None" =
     events_path = events_path if events_path is not None else EVENTS_PATH
     repo_root = repo_root if repo_root is not None else REPO_ROOT
 
-    # 1. Current-live revision = the LATEST deploy_completed (by ts), optionally project-filtered.
+    # 1. Current-live revision = the LATEST PRODUCTION deploy_completed (by ts), optionally
+    #    project-filtered. The ONE production-record predicate lives beside the record's writer
+    #    (T-13454); deploy.py back-imports nothing, so this lazy import cannot cycle.
+    from lib import deploy as _deploy   # lazy: the one production-record predicate (P5)
     live = None
     live_kind = None
     live_ts = None
@@ -3590,6 +3610,8 @@ def _view_not_adopted(events_path: "Path | None" = None, project: "str | None" =
             continue
         d = e.get("data") or {}
         if project is not None and d.get("project") != project:
+            continue
+        if not _deploy.is_production_live_record(d):
             continue
         ts = e.get("ts") or ""
         if live_ts is None or ts >= live_ts:   # latest by ts (ties → later in file wins; append-order)
@@ -3716,7 +3738,8 @@ def _view_not_adopted(events_path: "Path | None" = None, project: "str | None" =
 
     base = {
         "lens": "not-adopted (SPEC-0094 §2 / T-9392) — shipped changes (committed to main) NOT yet live, "
-                "DERIVED at read time from ancestry between the latest deploy_completed revision and HEAD, "
+                "DERIVED at read time from ancestry between the latest PRODUCTION deploy_completed revision "
+                "(a record naming no target, or a `production: true` one — T-13454) and HEAD, "
                 "SCOPED to commits touching DEPLOYABLE paths (T-10747 / X-0580 — a governance-only commit "
                 "carries no production risk, so counting it made the number mean nothing in either "
                 "direction). Zero stored state (SPEC-0093 r7 / P5); recomputed fresh.",
@@ -4288,6 +4311,22 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     from lib.task import (_live_probe_settled_grammar_error, _live_probe_waiver_settled,
                           _live_probe_attested_grammar_error, _live_probe_attested_result,
                           _live_probe_settled_terminal)
+    # T-13463 — the ONE shared card-shape check (homed beside the graph build's task walk). A card
+    # that cannot be read (non-UTF-8) or that the check faults DROPS ONLY ITSELF from this lens, and
+    # nothing is reported here — `graph build` / `land` already name a malformed card (T-13266).
+    # Without this, one such card raised out of the SPEC-0119 echo's shared try and blanked every
+    # debt line. The injected reader keeps its ONE-ARGUMENT call shape (callers inject plain
+    # `path -> tree` readers), so the non-UTF-8 raise is caught here rather than routed to an
+    # errors list the reader would have to accept.
+    from lib.graph import _task_card_shape_fault
+
+    def _card(p):
+        try:
+            d = _read_yaml(p)
+        except UnicodeDecodeError:
+            return None
+        return None if _task_card_shape_fault(d) else d
+
     today = today if today is not None else _dt.date.today()
     if isinstance(today, str):
         today = _dt.date.fromisoformat(today.strip())
@@ -4318,8 +4357,8 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     falsified_waivers = []
     if TASKS_DIR is not None and TASKS_DIR.exists():
         for p in sorted(TASKS_DIR.glob("T-*.yaml")):
-            d = _read_yaml(p)
-            if not isinstance(d, dict):
+            d = _card(p)
+            if d is None:
                 continue
             lp = d.get("live_probe")
             if not isinstance(lp, dict):
@@ -4478,6 +4517,7 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     # a discharge the view still counted as work owed would not be a discharge at all.
     unreachable_observations = []
     falsified_observations = []
+    wont_do_observations = []            # T-13470 — unsettled, on a wont-do card that never shipped
     # T-11657 — the two HONEST NON-PASS TERMINALS a deferred probe can now reach. They ride this SAME
     # single pass for the same reason leg (b) does (a third glob+parse over ~2.7k cards buys nothing),
     # and they are collected into TWO SEPARATE sets rather than one merged non-pass set BECAUSE THE
@@ -4491,8 +4531,8 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     _citers: dict = {}                   # T-12842 — cited task id -> ids of the non-wont-do cards citing it
     if TASKS_DIR is not None and TASKS_DIR.exists():
         for p in sorted(TASKS_DIR.glob("T-*.yaml")):
-            d = _read_yaml(p)
-            if not isinstance(d, dict):
+            d = _card(p)
+            if d is None:
                 continue
             # T-11408 leg (b) rides this SAME pass rather than opening a third glob+parse over
             # `tasks/` — at ~2.7k cards a third read-every-card sweep cost this lens ~50% more wall
@@ -4589,6 +4629,24 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             due = _as_date(pso.get("due_by"))
             if due is None:
                 continue           # unreachable for a grammar-valid declaration; tolerant by construction
+            # T-13470 — an unsettled observation on a `wont-do` card that NEVER SHIPPED is not owed:
+            # the card recorded no `commit`, so no change went out and there is nothing to observe,
+            # and no verb could discharge it either (`task close --settle-observation` refuses a
+            # non-done card, T-11529). Measured 2026-10-03: 5 of the 6 overdue rows were exactly this.
+            # It MOVES to its own named, counted set and is never dropped (the T-11657 rule: what
+            # leaves a count arrives somewhere a reader can see). A wont-do card that DID record a
+            # commit is a partial ship with something to observe, so it stays counted below.
+            if (str(d.get("status") or "").strip() == "wont-do"
+                    and not str(d.get("commit") or "").strip()):
+                wont_do_observations.append({
+                    "task": d.get("id") or p.stem,
+                    "observation": str(pso.get("observation") or "").strip(),
+                    "due_by": due.isoformat(),
+                    "state": "overdue" if due < today else "pending",
+                    "days_overdue": max(0, (today - due).days),
+                    "status": d.get("status"),
+                })
+                continue
             observations.append({
                 "task": d.get("id") or p.stem,
                 "observation": str(pso.get("observation") or "").strip(),
@@ -4598,7 +4656,7 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                 "status": d.get("status"),
             })
     observations.sort(key=lambda r: r["due_by"])   # nearest/oldest due first
-    for _b in (unreachable_observations, falsified_observations):
+    for _b in (unreachable_observations, falsified_observations, wont_do_observations):
         _b.sort(key=lambda r: (str(r.get("due_by") or ""), r["task"]))     # oldest due first, as above
     observations_overdue = [r for r in observations if r["state"] == "overdue"]
 
@@ -4775,6 +4833,17 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             "never satisfies CHARTER Principle 8."
             if falsified_observations else
             "no post-ship observation is discharged falsified — no negative-reading observation debt."),
+        "wont_do_observations": wont_do_observations,
+        "wont_do_observations_count": len(wont_do_observations),
+        "wont_do_observations_note": (
+            "post-ship observations DECLARED on a `wont-do` card that recorded NO `commit` (T-13470) — "
+            "the card never shipped, so there is no shipped change to observe and nothing is owed. "
+            "They are listed here, on their own counted set, instead of in `observations`: no verb can "
+            "settle one (`task close --settle-observation` refuses a non-done card), so counting them "
+            "as overdue reported work nobody can do. A wont-do card that DID record a `commit` is a "
+            "partial ship and stays in `observations`. Never adoption evidence (CHARTER Principle 8)."
+            if wont_do_observations else
+            "no post-ship observation sits on a wont-do card that never shipped."),
         "observations": observations,
         "observations_count": len(observations),
         "observations_overdue_count": len(observations_overdue),
@@ -4813,7 +4882,10 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                 "`falsified_observations`, each on its own counted set, neither folded into the "
                 "actionable observation counts nor merged with the probe or waiver sets — an "
                 "observation whose specimen is gone, or whose baseline was never recorded, could "
-                "otherwise only sit on this lens forever. All three of the first group are deferred-proof "
+                "otherwise only sit on this lens forever. PLUS (T-13470) `wont_do_observations`: an "
+                "unsettled observation on a `wont-do` card that recorded no `commit` — nothing "
+                "shipped, nothing to observe, and no verb can settle it — counted on its own set and "
+                "never in the actionable observation counts. All three of the first group are deferred-proof "
                 "debts; the first two are dated, the third is not, which is why it could go quiet "
                 "forever. DERIVED at read time from the task-YAML live_probe / post_ship_observation / "
                 "probes carriers + today; "
@@ -5762,7 +5834,27 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # by making 44 declared obligations silently vanish, which is precisely the failure this rule
     # guards against. The `_obs > 0` guard is UNCHANGED, so suppressed-when-clean still holds: a
     # repo with no declared observation at all prints nothing.
+    # THE WONT-DO GROUP RIDES A TAIL, NEVER THE HEADLINE (T-13470). An unsettled observation on a
+    # `wont-do` card that never shipped left `observations` for its own counted set (see the lens):
+    # nothing shipped, so nothing is owed and no verb could settle it. The echo NAMES the group —
+    # count plus task ids — beside whichever observation line prints, and prints it alone when it is
+    # the only thing left, so the number moves slot and never just disappears. Absent group ⇒ both
+    # lines below are byte-identical to before.
     _obs = _n(_or_view.get("observations_count"))
+    _wd = _n(_or_view.get("wont_do_observations_count")) or 0
+    _wd_tail = ""
+    if _wd > 0:
+        _wd_rows = _or_view.get("wont_do_observations")
+        _wd_ids = [str(r.get("task")) for r in (_wd_rows if isinstance(_wd_rows, list) else [])
+                   if isinstance(r, dict) and r.get("task")]
+        _WD_CAP = 6
+        _wd_named = (" (" + ", ".join(_wd_ids[:_WD_CAP])
+                     + (f" +{len(_wd_ids) - _WD_CAP} more" if len(_wd_ids) > _WD_CAP else "") + ")"
+                     ) if _wd_ids else ""
+        _wd_tail = (
+            f"{_wd} further declared observation(s) sit on wont-do card(s) that never shipped"
+            f"{_wd_named} — no change went out, so there is nothing to observe and no verb settles "
+            f"them; counted apart, not owed (SPEC-0119 rule 3).")
     if _obs and _obs > 0:
         _obs_over = _n(_or_view.get("observations_overdue_count")) or 0
         _obs_pending = max(0, _obs - _obs_over)
@@ -5770,16 +5862,21 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             "settle the card with `bin/yitc-v2 task close <T-XXXX> --settle-observation <locator>` "
             "(T-11529), which writes `post_ship_observation.settled_by` and is the ONLY thing that "
             "clears it (T-10916, SPEC-0036). See `bin/yitc-v2 graph query overdue-recheck`.")
+        _wd_sep = (" SEPARATELY: " + _wd_tail) if _wd_tail else ""
         if _obs_over > 0:
             _pending_tail = (f" (+{_obs_pending} more declared, not yet due)" if _obs_pending else "")
             lines.append(
                 f"debt: {_obs_over} post-ship observation(s) PAST due_by and NOT yet recorded"
-                f"{_pending_tail} — take the reading and record it, then {_settle_tail}")
+                f"{_pending_tail} — take the reading and record it, then {_settle_tail}{_wd_sep}")
         else:
             lines.append(
                 f"debt: no post-ship observation is PAST due_by — {_obs_pending} declared and awaiting "
                 f"their reading, none actionable yet. Nothing is owed today; when a due_by arrives, "
-                f"take the reading and {_settle_tail}")
+                f"take the reading and {_settle_tail}{_wd_sep}")
+    elif _wd_tail:
+        lines.append(
+            f"debt: no post-ship observation awaits a reading — nothing is owed. {_wd_tail} "
+            f"See `bin/yitc-v2 graph query overdue-recheck`.")
     # DEFERRED ACCEPTANCE PROBES (T-11408 / SPEC-0119 rule 3 / <project> X-1066) — a FIFTH clause, off the
     # SAME `_view_overdue_recheck` call (no new collaborator, no new call site). Its own line for the
     # same reason the observations clause has one: the remedy differs (settle the probe with the
@@ -5997,11 +6094,21 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # LATE-FINDINGS view (SPEC-0204 rule 8 / SPEC-0119, T-12288): the OPTIONAL injected collaborator
     # returns {count, passes, window_days, findings} — defects the auditor raised at a pass >= 2 as
     # `pre-existing-in-subject`, i.e. ones its own pass-1 survey missed. UNFLOORED, like the
-    # gate-override line above and for the same reason: each one is an un-adjudicated defect that
-    # BLOCKS its card's closure until a `ceiling_decision` is recorded, so a single one is worth
-    # naming and count-hiding it would hide a closure blocker. Report-only, suppressed-when-clean
-    # (a repo whose audits surface nothing late → 0 → silent), NEVER gates — owner ruling D8 settled
-    # that the auditor's completeness is RECORDED, never a gate, and this is the recording read back.
+    # gate-override line above: a single one may be a closure blocker, and count-hiding it would
+    # hide that. Report-only, suppressed-when-clean (a repo whose audits surface nothing late → 0 →
+    # silent), NEVER gates — owner ruling D8 settled that the auditor's completeness is RECORDED,
+    # never a gate, and this is the recording read back.
+    #
+    # WHAT THE LINE SAYS ABOUT CLOSURE COMES FROM THE PAYLOAD, NEVER FROM THE COUNT (T-13470). It used
+    # to say «each BLOCKS its card's `task close`» of every finding; measured 2026-10-03 that was 22
+    # findings on 18 cards — every card done, 20 already decided, 0 closes blocked. The fold now
+    # carries the close gate's own judgement, and the line has THREE endings and no fourth:
+    #   (i)   `blocking_count` > 0  → names exactly those cards as blockers;
+    #   (ii)  `unjudged_count` > 0  → names what could NOT be judged, beside (i) when both hold —
+    #         a fold that could not judge has not been told the finding is clear;
+    #   (iii) both zero             → says none blocks a close.
+    # A payload carrying neither key (an older fold) gets NO closure sentence in either direction:
+    # the count is history, and a claim the payload does not support is the defect this fixed.
     if _late_findings is not None:
         _lf = _late_findings() or {}
         lf = _n(_lf.get("count")) if isinstance(_lf, dict) else None
@@ -6011,12 +6118,34 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _CAP = 4
             _named = (" — " + ", ".join(_tasks[:_CAP]) +
                       (f" +{len(_tasks) - _CAP} more" if len(_tasks) > _CAP else "")) if _tasks else ""
+            _blk, _unj = _lf.get("blocking_count"), _lf.get("unjudged_count")
+            _judged = all(isinstance(v, int) and not isinstance(v, bool) for v in (_blk, _unj))
+
+            def _ids(key):
+                ids = _lf.get(key)
+                ids = [str(t) for t in ids] if isinstance(ids, list) else []
+                return (": " + ", ".join(ids[:_CAP])
+                        + (f" +{len(ids) - _CAP} more" if len(ids) > _CAP else "")) if ids else ""
+            _closure = ""
+            if _judged:
+                if _blk > 0:
+                    _closure += (
+                        f" {_blk} of them BLOCK{'S' if _blk == 1 else ''} a `task close` — undecided, "
+                        f"on a card that is still open{_ids('blocking_tasks')}. Record fix/accept/defer "
+                        f"with `yitc-v2 audit decide`.")
+                if _unj > 0:
+                    _closure += (
+                        f" {_unj} could NOT be judged — the close-gate judgement was "
+                        f"unavailable{_ids('unjudged_tasks')}; not confirmed either way.")
+                if _blk == 0 and _unj == 0:
+                    _closure = (
+                        " NONE blocks a `task close`: every one is already decided or sits on a card "
+                        "that is already done / wont-do — recorded history, not owed work.")
             lines.append(
                 f"debt: {lf} late audit finding(s) across {_n(_lf.get('passes')) or 0} pass(es) in the "
                 f"last {_lf.get('window_days')}d{_named} — raised at a pass >= 2 with `causality: "
                 f"pre-existing-in-subject`, so the pass-1 whole-subject survey MISSED them (SPEC-0204 "
-                f"rule 8). Each was recorded and drove NO verdict, and each BLOCKS its card's "
-                f"`task close` until `yitc-v2 audit decide` records fix/accept/defer. A rising count "
+                f"rule 8). Each was recorded and drove NO verdict.{_closure} A rising count "
                 f"on one stage means the pass-1 PACKET needs the change, not the auditor. "
                 f"Report-only (SPEC-0119).")
     # REVIEW-DUE view (SPEC-0119 / T-10134): the OPTIONAL injected activity-gated periodic-review
@@ -6519,6 +6648,31 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                       f"so it reads as a standing debt with a first night rather than a permanent flag. "
                       f"Remedy: {_ch.get('remedy')}. This line NAMES that remedy and does not perform "
                       f"it; doing so is its own card. Report-only (SPEC-0119 rule 38 / SPEC-0105).")
+            # THE ENGINE QUIET LANE (SPEC-0105 §2c, T-13457) — the same row's `data.quiet_lane`. One
+            # line per instrument whose LATEST reading is `failed`, DATED in the chronic shape above
+            # and for the same reason. `failed` is the lane's own verdict for an instrument that
+            # exited non-zero, was killed at the lane's bound or could not be run — so it covers BOTH
+            # an instrument that never measured and one whose own assertion failed, and the line
+            # claims neither: the recorded reason says which. Either way the wall-clock assertion
+            # SPEC-0077 §3b moved off the per-land verify has no passing reading, and the nightly
+            # said so on its own stdout only.
+            for _ql in (_nv.get("quiet_lane") or []):
+                if not isinstance(_ql, dict) or not _ql.get("instrument"):
+                    continue
+                lines.append(
+                    f"debt: nightly QUIET-LANE — instrument `{_ql.get('instrument')}` recorded a "
+                    f"`failed` reading every night since {str(_ql.get('since') or '')[:10]} "
+                    f"({_ql.get('nights')} night(s) unbroken)"
+                    + (f": {_ql.get('reason')}" if _ql.get("reason") else "")
+                    + f". `failed` is the instrument exiting non-zero, being killed at the lane's "
+                      f"bound, or not running at all — it could not measure, OR its own assertion "
+                      f"failed; the recorded reason says which. Either way the timing assertion it "
+                      f"carries, which runs only in this lane and not on any land (SPEC-0077 §3b), has "
+                      f"had no passing reading for that whole spell. The full reason is on the "
+                      f"latest `nightly_run_completed` row (`data.quiet_lane.readings`). The line "
+                      f"clears the first night the reading is anything but `failed`. Report-only: "
+                      f"nothing here re-runs the instrument or moves an exit code (SPEC-0119 rule 38 "
+                      f"/ SPEC-0105 §2c). See `bin/yitc-v2 debt`.")
     if _prequeue_known_broken_refusals is not None:
         # T-11841: the DEFAULT window is read from the fold's own constant, never re-typed here. A
         # fallback carrying its own copy of the number is a stale-number carrier by construction —

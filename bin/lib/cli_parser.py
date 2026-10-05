@@ -30,6 +30,7 @@ repoint their `implements:` anchors here.
 from __future__ import annotations
 
 import argparse
+import functools
 import inspect
 import shlex
 import sys
@@ -407,7 +408,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "(a production rollback is the unflagged `deploy --rollback <rev>`).")
     dep.add_argument("--owner-approved", dest="owner_approved", action="store_true",
                      help="the owner took the escalation decision — proceed a Class-C2 deploy (NOT "
-                          "autonomous; SPEC-0097 §5). No effect on A/S/C1 or a pre-policy/waived project.")
+                          "autonomous; SPEC-0097 §5). The verb first runs the pre-deploy dump the "
+                          "carrier declares under `deploy.policy.classes.C1` and REFUSES if it fails; "
+                          "with no dump declared it proceeds and prints that no backup is taken. "
+                          "No effect on A/S/C1 or a pre-policy/waived project.")
     # T-10502 / SPEC-0155 rule 7 (X-0362/X-0363) — the OWNER-INVOKED, JOURNALED override of a security-gate
     # REJECT. The sibling of --owner-approved above (same owner-invoked, journaled escalation shape),
     # applied to the security-gate leg: during a live prod outage a build-time dep advisory that is not
@@ -1130,9 +1134,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tpl.add_argument("--finalize", action="store_true", help="finalize the plan (Stage 3 → Audit-pre)")
     tpl.set_defaults(func=cmd_task_plan, cli_invoked_receipt="task plan")  # T-13071: attempt receipt
     # T-13103: no long-option ABBREVIATION — the SPEC-0209 argv seam scans exact tokens, so an accepted
-    # `--mess=...` would carry the message past it. Exact spellings only makes the seam total here.
-    tcm = task_sub.add_parser("commit", help="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), callable ×N",
-                              allow_abbrev=False)
+    # `--mess=...` would carry the message past it. Set for EVERY guarded row at the end of this
+    # function, derived from the seam registry (T-13465), not per subparser here.
+    tcm = task_sub.add_parser("commit", help="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), callable ×N")
     tcm.add_argument("task", help="T-NNNN id")
     # T-10720 (E-0054): no longer argparse-`required` — a `--from-stdin` caller supplies the message in
     # the stdin mapping instead; presence is re-checked AFTER ingest, so an omitted message still refuses.
@@ -1330,7 +1334,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="STRUCTURED-EDIT mode (T-13172): SET a list/multiline field to the YAML value "
                          "read from --from-file. KEY is one of scope/acceptance/cites/requires/"
                          "expected_touch/answers (a YAML list of strings; answers = SPEC-0197 "
-                         "link-back ids like '#8', also settable on a done card — T-13221) or description/analysis/"
+                         "link-back ids like 'yitc-dev/yitc#8', also settable on a done card — T-13221) or description/analysis/"
                          "implementation_plan (a string) or probe_moments (a mapping {ACn: {awaits|due_by: <moment>}}, "
                          "keys must name this card's criteria — T-13247) or resolves_cross (a YAML list of X-NNNN "
                          "ids — ADD-only; each added id must exist, be addressed to this project and not be "
@@ -3462,10 +3466,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                 "task stays cleanly re-dispatchable; `wont-do` (T-10565, the card DIED under "
                                 "the worker) → the claim is moot, so the worktree is DISCARDED; `done` "
                                 "(T-11414, the LANDED-DONE retirement — claim, diff and closure all reached "
-                                "main and the worktree is clean + 0 ahead, so nothing can adopt/resume/land "
-                                "it) → RETIRED, and REFUSED without a `--force` option if that worktree "
-                                "still carries un-landed work; any other status is refused; emits "
-                                "worker_parked. "
+                                "main and the worktree holds nothing un-landed: clean, and 0 ahead or "
+                                "(T-13458) ahead only by merges of main and journal / own-card "
+                                "bookkeeping, which the worker_parked row then names — so nothing can "
+                                "adopt/resume/land it) → RETIRED, and REFUSED without a `--force` option "
+                                "if that worktree still carries un-landed work; any other status is "
+                                "refused; emits worker_parked. "
                                 "--work <slug> (T-10589): DISCARD a work/<slug> batch (the duplicate-"
                                 "discovered-post-filing exit, X-0438) — refuses on UNCOMMITTED SUBSTANTIVE "
                                 "dirt unless --force --reason; emits work_batch_discarded. Own-stamp only "
@@ -3536,9 +3542,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     work = sub.add_parser("work", help="Non-task work-batch operations (D-0051)")
     work_sub = work.add_subparsers(dest="work_action", required=True)
-    # T-13103: no long-option abbreviation — see `task commit` above (the SPEC-0209 seam is exact-token).
-    wc = work_sub.add_parser("commit", help="Commit a non-task write batch (shares task commit's staging core)",
-                             allow_abbrev=False)
+    wc = work_sub.add_parser("commit", help="Commit a non-task write batch (shares task commit's staging core)")
     wc.add_argument("--from", dest="from_ref", required=True, help="durable artifact for from: (CHARTER §Principle 2)")
     # T-10720 (E-0054) — the same shell-proof escape as `task commit` (same message field, same core).
     wc.add_argument("-m", "--message",
@@ -3939,9 +3943,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                              formatter_class=argparse.RawDescriptionHelpFormatter,
                              epilog=f"cue (T-10159): {_SELF.SPEC_BODY_EDIT_CUE}")
     se.add_argument("id", help="SPEC-NNNN id of the spec to edit (must be active or proposed)")
-    se.add_argument("--old", help="exact existing text to replace (0 or >1 match dies). CLI mode; "
-                                  "mutually exclusive with --from-file/--from-stdin")
-    se.add_argument("--new", help="replacement text (CLI mode; needs --old)")
+    se.add_argument("--old", help="exact existing text to replace, matched against the RAW file text "
+                                  "first (0 or >1 match dies). Text that reads as the parsed body "
+                                  "(what `graph query` prints, without the block indent) is found "
+                                  "too, and is then edited AS body text. CLI mode; mutually "
+                                  "exclusive with --from-file/--from-stdin")
+    se.add_argument("--new", help="replacement text (CLI mode; needs --old). When --old is text of "
+                                  "the parsed body, write --new as it should read in the body: its "
+                                  "lines land at the nesting you type, and the verb refuses rather "
+                                  "than write a body that means something else (T-13509). When "
+                                  "--old is copied WITH the file's own indentation, the edit is a "
+                                  "raw replacement and every line of --new must carry that "
+                                  "indentation itself")
     se.add_argument("--from-file", dest="from_file",
                     help="read the edit as a YAML mapping {old, new, replace_all?} from this file — "
                          "carries multi-line/full-section body replacements the flat --old/--new cannot "
@@ -3976,8 +3989,49 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "Assert this only after re-reading the spec against ALL its anchored code")
     sr.set_defaults(func=cmd_spec_reverify)
 
+    # T-13465 (SPEC-0209 bound (e)) — every GUARDED verb takes exact option spellings only. The seam's
+    # flag scan is exact-token, so a prefix argparse resolved (`task close --pv-crit=...`) would carry
+    # the prose past it. Derived from the seam registry, read through the host at call time, so a row
+    # added there is covered here by construction — no second list of guarded verbs to keep in step.
+    for verb_tokens, flags, *_ in _SELF.textutil.ARGV_PROSE_SEAMS:
+        guarded = p
+        for tok in verb_tokens:
+            guarded = next(a for a in guarded._actions
+                           if isinstance(a, argparse._SubParsersAction)).choices[tok]
+        guarded.allow_abbrev = False
+        # A variadic positional swallows what argparse would otherwise reject (`blocked-on-land`'s
+        # reason words, T-11058), so there the prefix would be RECORDED as text rather than refused.
+        if any(a.nargs in ("*", "+", argparse.REMAINDER) for a in guarded._actions if not a.option_strings):
+            _refuse_guarded_flag_prefixes(guarded, [f for f, _key in flags if f.startswith("--")])
+
     _stamp_derived_receipts(p)
     return p
+
+
+def _refuse_guarded_flag_prefixes(parser: argparse.ArgumentParser, flags: list) -> None:
+    """T-13465 — on `parser`, a `--token` that is no registered option but IS a prefix of one of the
+    guarded `flags` is a parser error (exit 2), checked BEFORE the parse so a variadic positional
+    cannot absorb it as text. Narrow on purpose: any other unknown token is left to the parser, so
+    `blocked-on-land`'s accepted consequence (a mistyped flag becomes reason text, T-11058) stands
+    for every token that never resolved to a guarded flag. Tokens after a bare `--` are positional."""
+    inner = parser.parse_known_args
+
+    @functools.wraps(inner)
+    def parse_known_args(args=None, namespace=None):
+        for tok in (sys.argv[1:] if args is None else args):
+            if tok == "--":
+                break
+            name = tok.split("=", 1)[0]
+            if not name.startswith("--") or name in parser._option_string_actions:
+                continue
+            full = [f for f in flags if f.startswith(name)]
+            if full:
+                parser.error(f"abbreviated option {name}: spell {' / '.join(full)} in full — this verb "
+                             f"takes exact option spellings only (SPEC-0209), or send the value via "
+                             f"--from-stdin")
+        return inner(args, namespace)
+
+    parser.parse_known_args = parse_known_args
 
 
 # The leaves that take NO derived receipt, each with its reason (T-13305):

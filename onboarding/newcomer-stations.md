@@ -111,6 +111,10 @@ Each time we start, I tell you in one line whether anything needs you. It reads 
 Each item is a short plain phrase such as "a finished change is waiting for your OK". The system's own
 start lines stay for me; you never have to read them.
 
+To come back next time — or to restart — the order is always the same: open your AI tool in any folder
+(or clear the session already open), run the start command again (the one that shows your projects) and
+pick the project.
+
 -> You say: what shall we start with — what's the product?
 
 (unclear or hard — say "explain it simpler"; no need to get stuck. Want it again later — say "remind me what X is"; already know it — say "I know it" and I won't repeat it)

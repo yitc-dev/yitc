@@ -69,7 +69,7 @@ Read-only actions require `from:` only if substantive (e.g. analysis-time prior-
 - Required: within 72 hours, write retro-doc capturing the new protocol + file post-incident task
 - Frequency check: > 1 use per 30 days triggers a Controller review-audit
 
-**Canonical handbook = the generated `HANDBOOK_READ_ORDER` set** (the single carrier in `bin/yitc-v2`, from which every read-order surface is generated). A file is a handbook member iff it is in that read-order — canonical is the SET, not a fixed file COUNT. Current members: `CHARTER.md`, the AGENTS protocol (split across `AGENTS.md` + `AGENTS-SESSIONS.md` + `AGENTS-PROTOCOL.md` for single-Read safety, SPEC-0120), `LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md`. Per SPEC-0120 an over-ceiling handbook doc SPLITS into read-order-served parts (all parts served at startup), so the member list grows by splitting — the old fixed "5 files" count is RETIRED (replacement: the generated set).
+**Canonical handbook = the generated `HANDBOOK_READ_ORDER` set** (the single carrier in `bin/yitc-v2`, from which every read-order surface is generated). A file is a handbook member iff it is in that read-order — canonical is the SET, not a fixed file COUNT. Current members: `CHARTER.md`, the AGENTS protocol (split across `AGENTS-STARTUP.md` + `AGENTS-SESSIONS.md` + `AGENTS-PROTOCOL.md` for single-Read safety, SPEC-0120), `LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md`. Per SPEC-0120 an over-ceiling handbook doc SPLITS into read-order-served parts (all parts served at startup), so the member list grows by splitting — the old fixed "5 files" count is RETIRED (replacement: the generated set).
 
 **Size budget:**
 - Hard cap: ≤ 2500 lines total across the FULL generated `HANDBOOK_READ_ORDER` set — every split
@@ -107,7 +107,7 @@ Read-only actions require `from:` only if substantive (e.g. analysis-time prior-
   aggregate itself approaches the cap.
 
 **Excluded from canonical handbook (not counted in the cap):**
-- `<vendor-adapter>.md` — 5-line vendor-tool adapter pointing to `AGENTS.md`
+- `<vendor-adapter>.md` — 5-line vendor-tool adapter pointing to `AGENTS-STARTUP.md`
 - `PATTERNS.md` — reference catalog for migrated patterns + methodology lessons (rejected/withdrawn methodological options + the why-rationale — the role orphaned when the `decision new` class retired; see `patterns/methodology-lessons.md`) (not normative)
 - `README.md` — repo entry point for humans (not normative)
 - `specs/*.yaml`, `tasks/*.yaml`, `decisions/*.yaml` — operational state, not normative handbook

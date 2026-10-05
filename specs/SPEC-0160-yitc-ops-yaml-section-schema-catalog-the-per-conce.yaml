@@ -664,14 +664,15 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ What CHARTER §Principle 1 refuses is PRE-GRANTING an\nexemption, not documenting\
   \ the shape of one; a commented block grants nothing and costs each carrier\nonly\
   \ the text.\n\n**DECLARE — an `exemptions:` list.** Each entry is a mapping carrying\
-  \ **all four** of:\n\n- `seam:` — a non-empty string naming the WIRING SITE the\
-  \ exemption is about (`<file>#<symbol>`).\n  The exemption is about a composition,\
-  \ so it names the site where the composition is decided; a\n  view name would not\
-  \ identify what is exempted.\n- `ratio_bound:` — a POSITIVE number: the folds-per-segment\
-  \ this seam is permitted. Required\n  because an exemption with no ceiling is not\
-  \ an exemption, it is a repeal — the seam would be\n  released from the bound entirely\
-  \ rather than held to a wider one.\n- `reason:` — a non-empty string: why the bound\
-  \ cannot be held at this seam. What is being accepted\n  has to be readable by whoever\
+  \ **all four** of:\n\n- `seam:` — a non-empty string naming what the exemption is\
+  \ about: the VERB LABEL (e.g.\n  `journal query` — the whole invocation of that\
+  \ verb), or the WIRING SITE (`<file>#<symbol>`)\n  where a composition is decided.\
+  \ A view name would not identify what is exempted. Rule home:\n  SPEC-0190 rule\
+  \ 10.\n- `ratio_bound:` — a POSITIVE number: the folds-per-segment this seam is\
+  \ permitted. Required\n  because an exemption with no ceiling is not an exemption,\
+  \ it is a repeal — the seam would be\n  released from the bound entirely rather\
+  \ than held to a wider one.\n- `reason:` — a non-empty string: why the bound cannot\
+  \ be held at this seam. What is being accepted\n  has to be readable by whoever\
   \ reviews it, and a bare `until` date carries none of it.\n- `until:` — a real ISO\
   \ date (YYYY-MM-DD). The review-by date, so an exemption is reviewed rather\n  than\
   \ inherited. It is the same shape (and the same reason) as the strict-waiver `expiry:`\

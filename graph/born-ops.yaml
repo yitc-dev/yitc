@@ -95,6 +95,11 @@ deploy:
         restore_drill: "<the restore-drill command proving the dump restores — e.g. bash bin/restore-drill.sh>"   # ownership: operator-owned
         evidence: "<the pg_dump (within budget) + the restore-drill record + the delayed re-check past the observation window — the class-proof is COMPLETE only after that later re-check (SPEC-0097 §5), never at deploy_completed alone>"
       C2:  # NOT acceptably reversible within RTO/RPO: owner escalation, NO autonomous deploy.
+        # Once the owner approves (`deploy --class C2 --owner-approved`) the verb FIRST runs the dump
+        # declared under `C1:` above — there is NO C2 dump key. A failed / empty / wrong-database dump
+        # REFUSES the deploy; its budget is only REPORTED on this path (a kernel hang-cap bounds it).
+        # With NO dump declared under `C1:` the deploy proceeds and prints that no backup is taken.
+        # see SPEC-0097 §5
         escalate: "owner decision REQUIRED with the concrete RTO/RPO risk; `deploy --class C2` escalates (no autonomous deploy_completed — SPEC-0097 §5)"   # ownership: operator-owned
   convergence:
     # Post-deploy CONVERGENCE check (SPEC-0097 §11). Born WAIVED → this project's deploy is NOT
@@ -208,13 +213,19 @@ tests:
   # TIMING-SENSITIVE tests (SPEC-0160 rule 10): a class MAY carry `timing_lane:` globs; those files are
   # refused a pin in the last-green leg. Pin one anyway via a sibling
   # `timing_lane_waiver: { globs: [...], reason: "<who accepted the flake risk, and why>" }`.
-  # TEST-CLASS intake — "what are your test classes, and what does each one DEPEND ON?" — in TWO passes:
+  # TEST-CLASS intake — "what are your test classes, and what does each one DEPEND ON?" — in THREE passes:
   # PASS 1 — NAME THE CLASSES here. PASS 2 — name what each DEPENDS ON (a container, a database, a
-  # browser, a bundle, an install — or nothing). That is the `verify.layers` cut rule:
+  # browser, a bundle, an install — or nothing). That is the FIRST `verify.layers` cut rule:
   # CLASSES THAT SHARE AN ENVIRONMENT STAY IN ONE LAYER (a split pays that SETUP COST a second
   # time); a class with its OWN dependency earns its own layer + `subject_globs:`.
+  # PASS 3 — INSIDE a class, name the GROUPS that are HEAVY AND NARROW IN SUBJECT (a few files that
+  # hold most of the class's run time while exercising one small part of the project). That is
+  # the SECOND cut rule, and for such a group it outweighs the first: give each ITS OWN LAYER +
+  # `subject_globs:` naming that narrow subject — a second setup costs SECONDS, a heavy group run
+  # on every land costs MINUTES. MEASURE both before you split; a group that is light, or whose
+  # subject is the whole project, stays where it is.
   # GREENFIELD — declare the classes you intend; BROWNFIELD — DERIVE them from what runs today.
-  # Both passes answered = a carrier that already satisfies rule 26 (cross-section correspondence).
+  # Passes 1 and 2 answered = a carrier that already satisfies rule 26 (cross-section correspondence).
   # see SPEC-0160 §10; SPEC-0093 §26
   waiver:
     reason: "Initialized via `bin/yitc-v2 init` — no test taxonomy declared yet; declare a `classes:` list (each {class, moment}) once this project runs tests. The executable land-verify gate lives in the carrier `verify.layers` (SPEC-0152 rule 16)."
@@ -256,11 +267,15 @@ verify:
   #
   # independent_layers: [static, frontend-unit] # (SPEC-0152)
   # turns on: CONCURRENT land-verify layers — the layers named here run OVERLAPPED in one land
-  # instead of one after another (the wall drops from their sum towards their longest). Name
-  # only layers that share nothing with EACH OTHER: no host port, compose project, database,
-  # build cache or tree write, their `prep:` included — a pairwise claim the kernel cannot
-  # infer. Fail-fast, per-layer timeouts and the per-layer rows are unchanged; a name matching
-  # no declared layer fails the land closed.
+  # instead of one after another (the wall drops from their sum towards their longest). YOU
+  # decide, and you bear the risk: naming layers here is your project's own risk judgement.
+  # The kernel checks the shape of the list only and never polices independence, so a wrong
+  # declaration costs only your own verify. Before declaring, check each named pair, their
+  # `prep:` included, against every resource class two layers can collide on: mutable_files,
+  # caches, temp_paths, services, locks, processes, shared_sinks. A per-layer `owns:`
+  # declaration is an optional aid for that check, never a requirement. Fail-fast, per-layer
+  # timeouts and the per-layer rows are unchanged; a name matching no declared layer fails the
+  # land closed.
   # while absent: every declared layer runs serially, in declaration order — the verify wall is
   # their sum.
   #
@@ -351,13 +366,13 @@ inspection:
   waiver:
     reason: "Initialized via `bin/yitc-v2 init` — no project-local inspection themes declared yet; for its own project revizii it MAY use the kernel T1–T10 lens APPROACHES as adaptation examples (the METHOD travels, the engine themes do not). Declare a `themes:` list (each {theme, probe, cadence}, where `probe` is EXACTLY ONE KIND — `view:` XOR `sweep:`, per SPEC-0093 rule 12) once this project grows local revizia lenses."
 # reads:
-# # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier for a COMPOSED SEAM
+# # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier for a verb or seam
 # # that cannot hold the read contract (one request-scoped ReadScope; folds <= 1 per segment).
 # # OPT-IN and born COMMENTED: absence exempts no seam. ALL FOUR fields are REQUIRED; a malformed
 # # entry is REFUSED with the missing field NAMED (declare-or-waive, fail-closed).
 # # see SPEC-0190 §Rule 10; SPEC-0160 §25
 # exemptions: # the list; each entry carries ALL FOUR fields below
-# - seam: "bin/lib/debt.py#_debt_echo_lines" # the WIRING SITE, <file>#<symbol>
+# - seam: "bin/lib/debt.py#_debt_echo_lines" # the VERB LABEL (e.g. journal query), or the WIRING SITE <file>#<symbol>
 # ratio_bound: 2 # the POSITIVE folds-per-segment ceiling this seam is permitted
 # reason: "<why this seam cannot hold folds <= 1 per segment>"
 # until: 2026-12-31 # a real ISO review-by date
@@ -641,7 +656,7 @@ verify_policy:
   # never — skip it; a test weakened inside a branch whose own suite stays green is then caught
   # by audit-post alone. `reason:` is MANDATORY for `never`, or the declaration is INVALID.
   # Editing this is an AUDITED act (this file is pinned-test surface); unrelated to `audit_scrutiny`;
-  # the ENGINE cannot declare it (SPEC-0186 rule 6).
+  # the ENGINE declares it the same way (SPEC-0186 rule 6).
   # see SPEC-0186 §Rule 1, §Rule 5
   # The keys are COMMENTED by design — uncomment one to make a real choice:
   # pinned_last_green: all

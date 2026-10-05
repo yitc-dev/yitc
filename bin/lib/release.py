@@ -138,9 +138,13 @@ ENTRYPOINT_INVENTORY = (
      "Move an EXISTING install at <path> from release N to N+1. The gate reaches its verdict BEFORE "
      "<path> is opened, so a refused update writes NOTHING into <path> and leaves it byte-identical "
      "(SPEC-0195 rule 6, 'BEFORE any write', read literally). On the SUCCESS path only "
-     "upstream-owned and template-owned paths are written: consumer-owned paths — every path the "
-     "release does not ship — are reported and never written, and a template-owned file both sides "
-     "moved is reported as a CONFLICT rather than guessed (rule 8). (If <path> already has a "
+     "upstream-owned and template-owned paths are written: consumer-owned paths — the project's own "
+     "files, which no release shipped — are reported and never written, and a template-owned file "
+     "both sides moved is reported as a CONFLICT rather than guessed (rule 8). A path the PREVIOUS "
+     "release shipped and this one no longer carries is REMOVED when the `--from-release` tree "
+     "verifies against the same anchor and the installed copy is still that release's bytes; it is "
+     "KEPT and named when it was changed locally or that tree does not verify, and with no "
+     "`--from-release` nothing is removed. (If <path> already has a "
      "journal, one `release_updated` provenance row is appended there, on refusal as well as on "
      "success; the release being updated FROM is never written to.)"),
 )
@@ -864,6 +868,15 @@ def peel_tag(tag: str, *, _run_git_cap, main: Path):
     return (out or "").strip() or None
 
 
+def _spec_part_base(rel: str) -> "str | None":
+    """The base spec's rel path when `rel` is a `specs/` continuation part, else None — the one
+    base↔part name rule (`state._SPEC_PART_RE` + `state.is_spec_part`, what `state.spec_part_paths`
+    walks on disk) applied to a commit's path list, which that disk walker cannot read."""
+    if not rel.startswith("specs/") or not state.is_spec_part(rel):
+        return None
+    return f"specs/{state._SPEC_PART_RE.match(Path(rel).name).group(1)}.yaml"
+
+
 def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_placement,
                      raw_handbook_docs, _die) -> tuple:
     """The kernel-realm slice at `source_sha`, as `(tree, exec_paths)`.
@@ -889,9 +902,12 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
          This is the `_release_view_spec_ids()` predicate (`status == active` ∧ placement == kernel,
          SPEC-0073 rule 8) applied to commit content instead of disk: the kernel's own evolution
          history — superseded / withdrawn / retired / rejected / draft — never travels.
+         A SPEC-0120 §3 CONTINUATION PART (`SPEC-…partN.yaml`) is not a spec of its own — it carries
+         no status and no `travels:` — so it is never judged on its own content: it travels exactly
+         when its BASE travels (T-13505), linked by the one name rule `state.spec_part_paths` walks.
       3. RAW HANDBOOK SOURCE — every doc in `raw_handbook_docs` is dropped. Those files resolve
          `kernel` by class default, but a release carries the handbook RELEASE VIEW, never the
-         dev-entangled source (SPEC-0195 rule 1); publishing both would ship the stripped twin beside
+         workshop-entangled source (SPEC-0195 rule 1); publishing both would ship the stripped twin beside
          the thing it was stripped from. The names come from the single `_release_view_docs()` carrier,
          so a doc added to the handbook is excluded here and published as its release-view twin with
          no second list to keep in sync (CHARTER §P5).
@@ -917,6 +933,7 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
         if rel:
             modes[rel] = meta.split()[0]
     exec_paths = set()
+    parts = {}
     for rel in sorted(modes):
         if rel in excluded_docs:
             continue
@@ -924,6 +941,10 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
             continue
         blob = _git_blob(main, source_sha, rel)
         if blob is None:
+            continue
+        # T-13505 — a continuation part has no status to judge; its base decides (after the loop).
+        if _spec_part_base(rel):
+            parts[rel] = blob
             continue
         # A template-owned scaffold is not a spec: its illustrative `status: proposed` must not strip
         # it (T-12979 — `spec new` on an install found no specs/_template.yaml).
@@ -963,6 +984,14 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
         tree[rel] = blob
         if modes[rel] == "100755":
             exec_paths.add(rel)
+    for rel, blob in parts.items():
+        if _spec_part_base(rel) not in tree:
+            continue
+        tree[rel] = blob
+        if modes[rel] == "100755":
+            exec_paths.add(rel)
+    if parts:
+        tree = {rel: tree[rel] for rel in sorted(tree)}   # a part sorts before its base
     return tree, exec_paths
 
 
@@ -1039,6 +1068,21 @@ def dead_published_paths(tree: dict) -> dict:
                     continue
                 dead.setdefault(path, set()).add(rel)
     return {path: sorted(rels) for path, rels in sorted(dead.items())}
+
+
+# T-13505 — the COMPLETENESS sibling of the two closures above. v2.2.2 shipped six split specs as
+# their base alone (the tester report this card answers): each base body ends in a pointer to a part
+# the release lacked. So every continuation part the SOURCE carries for a base the release ships must
+# be a file of the release.
+def missing_spec_parts(tree: dict, source_paths) -> dict:
+    """{shipped base: sorted parts the source has and `tree` lacks}. A base that does not ship owes
+    no part."""
+    missing = {}
+    for rel in source_paths:
+        base = _spec_part_base(rel)
+        if base and base in tree and rel not in tree:
+            missing.setdefault(base, set()).add(rel)
+    return {base: sorted(rels) for base, rels in sorted(missing.items())}
 
 
 def tree_digest(tree: dict, *, excludes=None) -> str:
@@ -1499,6 +1543,26 @@ def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree,
         _die(f"work publish: published spec(s) name file path(s) the release does NOT carry — an adopter "
              f"following the path finds no file. Fix the path at source (`bin/yitc-v2 spec edit <SPEC>`) "
              f"or ship the file. Nothing was written. Missing:\n  {rows}")
+        return
+
+    # T-13505 — refuse a release that ships a split spec's base without one of its continuation parts.
+    source_specs = _git_out(_run_git_cap, main, ["ls-tree", "-r", "--name-only", source_sha, "specs/"])
+    if source_specs is None:
+        _die(f"work publish: could not list specs/ at {source_sha[:12]} — refusing to publish a release "
+             "whose split specs cannot be checked for completeness. Nothing was written. Confirm the "
+             f"tag still resolves (`git rev-parse {tag}^{{commit}}`), then re-run "
+             f"`bin/yitc-v2 work publish --tag {tag} --dest {dest}`.")
+        return
+    lost_parts = missing_spec_parts(tree, [ln.strip() for ln in source_specs.splitlines()])
+    if lost_parts:
+        rows = "\n  ".join(f"{part}  ← continues {base}" for base, rels in lost_parts.items()
+                           for part in rels)
+        _die(f"work publish: the release ships a split spec WITHOUT its continuation part(s) — the base "
+             f"body ends in a pointer to a file an adopter would not have (SPEC-0120 §3: a part travels "
+             f"with its base). Nothing was written. The cut admits a part with its base by "
+             f"construction, so this is a defect of the cut, not of the source: confirm the file is in "
+             f"the tagged commit (`git ls-tree -r --name-only {tag} specs/`) and do not publish this "
+             f"tag until the cut carries it. Missing:\n  {rows}")
         return
 
     # T-12043 — the TRUST + POLICY surfaces join the cut HERE, between the strip and the whole-tree
@@ -2863,6 +2927,27 @@ ADAPTER_PATTERN = "patterns/contribution-intake-adapter.md"
 # escaping inside single quotes), and the quoting is what makes admitting `#` safe.
 ANSWER_ID_RE = re.compile(r"\A[A-Za-z0-9#][A-Za-z0-9._/#+-]{0,63}\Z")
 
+# T-13484: an ISSUE REFERENCE must name its tracker. An intake repo that is archived and re-created
+# restarts its numbering at 1, so a bare `#417` (or `417`) stops naming the issue the card answered
+# and starts naming whatever the new tracker filed under that number — and two trackers' `#1` fold
+# into ONE entry of the link-back set. The grammar above stays as it is: `release_notes_answers`
+# must keep reading the bare ids in notes that were signed before this rule and cannot be re-cut.
+# What is refused is WRITING and PUBLISHING one, at the two doors that call the predicate below.
+QUALIFIED_ISSUE_REF_RE = re.compile(r"\A[A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+\Z")
+QUALIFIED_ISSUE_REF_FORM = "owner/repo#N"
+
+
+def unqualified_answer_id(aid: str) -> bool:
+    """True when `aid` is an issue reference that does not say WHICH tracker (T-13484).
+
+    Two shapes: an id carrying `#` that is not exactly `owner/repo#N`, and a number alone. A slug
+    with no `#` (`proposal-2026-09`) is not an issue number, cannot collide across a re-created
+    tracker, and stays admitted. Pure; the caller has already matched `ANSWER_ID_RE`.
+    """
+    if "#" in aid:
+        return not QUALIFIED_ISSUE_REF_RE.match(aid)
+    return aid.isdigit()
+
 
 def render_contribution_policy() -> str:
     """The mirror's top-level contribution policy, in plain words (SPEC-0197 rules 1-6).
@@ -2982,10 +3067,13 @@ def collect_answered_proposals(source_sha: str, *, main: Path, _die) -> tuple:
     blob reads for a field almost none of them have, which is the repeated-work shape this seam has
     no reason to introduce.
 
-    FAIL-CLOSED on both arms. A card whose `answers:` will not parse, and an id that fails
-    `ANSWER_ID_RE`, both REFUSE the publish naming the card. Skipping either would drop a proposal
-    from the link-back silently — which is precisely the "never silently closed" promise the policy
-    above makes, broken by the code that is supposed to keep it.
+    FAIL-CLOSED on every arm. A card whose `answers:` will not parse, an id that fails
+    `ANSWER_ID_RE`, and an issue reference that names no tracker (`unqualified_answer_id`, T-13484)
+    all REFUSE the publish naming the card. Skipping any would drop a proposal from the link-back
+    silently, or publish a number that points at a different issue once the intake repo is
+    re-created — which is precisely the "never silently closed" promise the policy above makes,
+    broken by the code that is supposed to keep it. The ids fold into a SET, so two trackers' `#1`
+    stay two entries only because each carries its tracker.
     """
     rp = subprocess.run(["git", "-C", str(main), "grep", "-l", "-E", r"^answers:", source_sha,
                          "--", "tasks/"], capture_output=True, text=True)
@@ -3036,6 +3124,14 @@ def collect_answered_proposals(source_sha: str, *, main: Path, _die) -> tuple:
                      "proposal id (a single line of letters, digits and `. _ / # + -`, 64 chars "
                      "max). The notes render these as a list, so an id with a newline or a "
                      "YAML-significant character would corrupt them. Fix the card and re-tag.")
+                return ()
+            if unqualified_answer_id(aid):
+                _die(f"work publish: {rel} carries the link-back id {aid!r}, an issue reference "
+                     f"that names no tracker. Write it as `{QUALIFIED_ISSUE_REF_FORM}` (an archived "
+                     "tracker under its archive name): an intake repo that is re-created restarts "
+                     "its numbering, so a bare number would publish a link-back to a different "
+                     "issue. Fix the card (`bin/yitc-v2 task update <id> --set-field answers "
+                     "--from-file <file>`) and re-tag.")
                 return ()
             ids.add(aid)
     return tuple(sorted(ids))
@@ -3771,12 +3867,13 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
 
     Then, per class (rule 2):
 
-      * CONSUMER-OWNED — every held path the release does not ship — is never WRITTEN. It is listed
-        in the report and nothing more. This is the class the whole verb exists to protect.
+      * CONSUMER-OWNED — every held path NO release shipped (not the new one, and not the verified
+        release N) — is never WRITTEN. It is listed in the report and nothing more. This is the
+        class the whole verb exists to protect.
         Say it as WRITTEN, not "opened", because the weaker word is the true one and the stronger one
         would be a claim this function does not keep: `_held_tree` reads the destination through the
         SAME reader the gate uses, so a consumer-owned file's bytes ARE read. They have to be —
-        "consumer-owned" is not a property of a path, it is `held minus what the release ships`, so
+        "consumer-owned" is not a property of a path, it is `held minus what the releases ship`, so
         the only way to know a path belongs to that class is to enumerate what the destination holds.
         The read is CLASSIFICATION-ONLY and terminates there: those bytes are compared against
         nothing, never enter `writes`, and the path appears in the report by NAME alone. What
@@ -3792,6 +3889,24 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
         edit nobody recorded.
       * TEMPLATE-OWNED is three-way merged against `base`, the pristine release-N tree: untouched
         locally → take the new one; unchanged upstream → keep the local one; both moved → CONFLICT.
+      * DROPPED — a path release N shipped and release N+1 no longer carries (T-13506) — is REMOVED,
+        but only on proof, because this is the one arm that deletes. The proof has two halves and
+        both are required: `base` itself passes `verify_release` against the SAME anchor (so "release
+        N shipped this path" is read from the tree its signed manifest's digest covers, never from
+        whatever directory the operator pointed at — an unverified base may be a copy of the project,
+        and then every project file equal to it would look dropped), and the held bytes EQUAL the
+        release-N bytes (so nothing the project wrote is lost). Held bytes that differ → KEPT and
+        named. A base that does not verify → nothing removed, each candidate KEPT and named with the
+        reason. No base → no removal at all. Before this arm such a path fell into `skipped` and was
+        reported as consumer-owned, so a file a release renamed stayed installed beside its
+        replacement and the report read "no divergence".
+        The base is NOT required to be the release the install's own manifest records: an install
+        that an earlier engine already moved forward WITHOUT this arm still holds the stale files,
+        and re-running the update with the release they came from is how they get cleaned up. The
+        byte-equality with a VERIFIED release tree is what makes a removal safe, not the label.
+        Removals are applied BEFORE writes, and a path that changed kind between the releases
+        (file <-> directory) is settled at decision time: a write blocked by something this
+        function will not delete is a `path-kind-collision` CONFLICT, never a mid-write exception.
 
     `base` IS WHAT MAKES ANY OF THIS DECIDABLE, and it is worth saying plainly. A divergence is
     `held != release N`, never `held != release N+1` — read the second way, every file N+1 changes
@@ -3813,6 +3928,7 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
     report = {
         "ok": False, "reasons": [], "destination": str(dest), "into": str(into),
         "replaced": [], "merged": [], "preserved": [], "skipped": [], "conflicts": [],
+        "removed": [], "kept": [],
         "ledger": {"status": "not-read", "findings": []},
         "from_ref": None, "to_ref": None, "base": str(base) if base else None,
     }
@@ -3939,18 +4055,116 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
     for rel in sorted(registered - set(new_tree)):
         redundant_paths.append(rel)
 
+    # ── DROPPED — release N shipped it, release N+1 does not (T-13506) ──────────────────────────
+    # The one arm that DELETES, so it decides on the VERIFIED release-N snapshot (`base_verdict.tree`,
+    # the gate's own read) and never on `base_tree`, which is whatever the operator's directory holds.
+    removals: list = []
+    proven_kept: set = set()
+    if base is not None:
+        base_verdict = verify_release(Path(base), anchor, now=now)
+        if base_verdict.ok:
+            old_tree = base_verdict.tree or {}
+            for rel in sorted(set(old_tree) - set(new_tree)):
+                ours = held.get(rel)
+                if ours is None:
+                    continue                                 # already gone — nothing to decide
+                if ours == old_tree[rel]:
+                    removals.append(rel)
+                    report["removed"].append(rel)
+                else:
+                    proven_kept.add(rel)
+                    report["kept"].append({
+                        "path": rel,
+                        "why": "the previous release shipped this path and the new one dropped it, "
+                               "but it was changed locally — kept, not deleted"})
+        else:
+            unverified = "; ".join(base_verdict.reasons) or "no reason given"
+            for rel in sorted(set(base_tree or {}) - set(new_tree)):
+                if rel in held:
+                    report["kept"].append({
+                        "path": rel,
+                        "why": "the --from-release tree did not verify against the anchor, so it "
+                               "cannot prove the previous release shipped this path — kept, not "
+                               f"deleted ({unverified})"})
+    # Only a path the VERIFIED release-N tree proves was shipped leaves `skipped`. Under an
+    # unverified base nothing is proven, so those candidates are NAMED in `kept` and still counted
+    # where they were — a project's own file is never re-labelled on the word of an unverified tree.
+    dropped = set(removals) | proven_kept
+
+    # ── A PATH THAT CHANGED KIND between releases (file <-> directory) — decided HERE, never met as
+    # an exception half-way through the writes. A release may drop the file `docs` and ship
+    # `docs/index.md`, or the reverse. The removals below run BEFORE the writes, so an unchanged
+    # dropped file (or a directory holding only such files) is already out of the way. What is NOT
+    # out of the way is something this function will not delete: a dropped path that was KEPT, or
+    # a project's own file. A write that would need to go through one of those is a CONFLICT —
+    # reported, not written, and every other path of the update still lands.
+    removal_set = set(removals)
+
+    def _kind_collision(rel: str) -> "str | None":
+        parts = rel.split("/")
+        for i in range(1, len(parts)):
+            anc = "/".join(parts[:i])
+            p = into / anc
+            if (p.is_symlink() or p.exists()) and not p.is_dir() and anc not in removal_set:
+                return (f"the new release ships this path under `{anc}/`, but `{anc}` is a FILE "
+                        "here that this update will not delete")
+        p = into / rel
+        if p.is_dir() and not p.is_symlink():
+            for q in p.rglob("*"):
+                if q.is_dir() and not q.is_symlink():
+                    continue
+                if q.relative_to(into).as_posix() not in removal_set:
+                    return ("the new release ships this path as a FILE, but it is a DIRECTORY here "
+                            f"holding `{q.relative_to(into).as_posix()}`, which this update will "
+                            "not delete")
+        return None
+
+    for rel in sorted(writes):
+        blocked = _kind_collision(rel)
+        if blocked:
+            del writes[rel]
+            for key in ("replaced", "merged"):
+                if rel in report[key]:
+                    report[key].remove(rel)
+            report["conflicts"].append({
+                "path": rel, "kind": "path-kind-collision",
+                "detail": f"{blocked} — left unwritten rather than forced (SPEC-0195 rule 8). Move "
+                          "or remove what is in the way, then re-run the update."})
+
     report["skipped"] = sorted(rel for rel in held
-                               if rel not in new_tree and rel not in template_owned)
+                               if rel not in new_tree and rel not in template_owned
+                               and rel not in dropped)
 
     report["ledger"] = ledger_drift(
         into / "yitc-ops.yaml", now=now, tasks_dir=into / "tasks",
         redundant_paths=redundant_paths, conflicts=unregistered)
 
-    # THE ONLY WRITES IN THIS FUNCTION, and they happen after every decision is made. Nothing is
+    # THE ONLY MUTATIONS IN THIS FUNCTION, and they happen after every decision is made. Nothing is
     # written for a path the loop above classified as preserved, conflicted or consumer-owned — the
     # skip is structural (such a path never enters `writes`), not a cleanup pass.
+    #
+    # REMOVALS FIRST, THEN WRITES (T-13506). The order is load-bearing: a path that changed kind
+    # between the releases needs the old file (or the old directory's files) gone before the new
+    # path can be created. A directory a removal emptied goes with it (never `into` itself); one
+    # still holding anything — a project file included — makes `rmdir` fail and is left as it is.
+    for rel in removals:
+        gone = into / rel
+        gone.unlink(missing_ok=True)
+        parent = gone.parent
+        while parent != into:
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
     for rel in sorted(writes):
         out = into / rel
+        if out.is_dir() and not out.is_symlink():
+            # `_kind_collision` admitted this write, so no file is left under it — only empty
+            # directories the pruning above did not reach. They hold nothing; clear them.
+            for d in sorted((q for q in out.rglob("*")), reverse=True):
+                d.rmdir()
+            out.rmdir()
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(writes[rel])
 
@@ -4038,12 +4252,15 @@ def cmd_release_update(args, *, _append_event, _die, _install_start_command=None
               "out-of-date file. Every differing path will be REPORTED and left untouched; supply "
               "the pinned release-N tree to actually update.")
     report = update(dest, into, anchor, base=Path(base).expanduser() if base else None)
+    # T-13506: the two dropped-path lists, read once and tolerantly — a refused update carries none.
+    removed, kept = report.get("removed") or [], report.get("kept") or []
     _append_event("release_updated", None, {
         "destination": str(dest), "into": str(into), "anchor": anchor, "ok": report["ok"],
         "from_ref": report.get("from_ref"), "to_ref": report.get("to_ref"),
         "replaced": len(report["replaced"]), "merged": len(report["merged"]),
         "preserved": len(report["preserved"]), "skipped": len(report["skipped"]),
         "conflicts": len(report["conflicts"]),
+        "removed": len(removed), "kept": len(kept),
         # The ledger drift rides the EXISTING event rather than emitting a second one (CHARTER §P1
         # F2): "did this update happen, and what did it find" has one answer and one row.
         "ledger_status": report["ledger"].get("status"),
@@ -4062,11 +4279,22 @@ def cmd_release_update(args, *, _append_event, _die, _install_start_command=None
     print(f"  replaced {len(report['replaced'])} upstream-owned | merged {len(report['merged'])} "
           f"template-owned | preserved {len(report['preserved'])} | "
           f"skipped {len(report['skipped'])} consumer-owned (never written)")
+    # T-13506: a path the previous release shipped and this one dropped is named either way — one
+    # line per path, so a removal is never silent and a kept file is never mistaken for a current one.
+    if removed or kept:
+        print(f"  removed {len(removed)} dropped by this release | "
+              f"kept {len(kept)} dropped but not deleted")
+    for rel in removed:
+        print(f"  REMOVED {rel}: the previous release shipped it, this release no longer does, and "
+              "the installed copy was unchanged")
+    for k in kept:
+        print(f"  KEPT {k['path']}: {k['why']}")
     for c in report["conflicts"]:
         print(f"  CONFLICT [{c['kind']}] {c['path']}: {c['detail']}")
     for f in report["ledger"].get("findings") or []:
         print(f"  LEDGER {f['kind'].upper()} {f['path']}: {f['detail']}")
-    if not report["conflicts"] and not (report["ledger"].get("findings") or []):
+    if (not report["conflicts"] and not kept
+            and not (report["ledger"].get("findings") or [])):
         print("  no divergence and no ledger drift — every consumer-owned path untouched")
     print(RESTART_REMINDER)   # T-13258 — unconditional, no session named, no liveness check
     # T-13429: the home start command an earlier engine wrote is refreshed with this release's text (a

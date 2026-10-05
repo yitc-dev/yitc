@@ -439,8 +439,9 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ SPEC-0097) records how it ended, that\nrow is a **deploy_failed** (revision, project,\
   \ kind, the last step reached, and the exit code or caught\nsignal; `task_id` null)\
   \ — never adoption evidence; its record contract is homed in SPEC-0094 §1\n. Emitted\
-  \ on EVERY deploy AND every rollback, so the\ncurrent-live revision is always the\
-  \ LATEST `deploy_completed` event's `revision`. `task_id` null (a\ndeploy is project-level,\
+  \ on EVERY deploy AND every rollback, so the\njournal names the current-live revision\
+  \ — WHICH record that is (the latest PRODUCTION one) is the\nrule of SPEC-0094 §1,\
+  \ pointed at here and not restated. `task_id` null (a\ndeploy is project-level,\
   \ not task-tied).\n```jsonc\n{\"ts\": \"...\", \"type\": \"deploy_completed\",\n\
   \ \"data\": {\"revision\": \"<git-sha left live + gate-verified>\", \"project\"\
   : \"<slug>\",\n          \"kind\": \"deploy\" | \"rollback\"}}\n```\nAppend-only,\
@@ -527,24 +528,27 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ / `anchor` / `ok` / `signing_key` /\n`tag` / `reasons`) and adds the update's\
   \ OWN outcome — `from_ref` / `to_ref` (the release moved\nFROM and TO), the per-class\
   \ counts `replaced` / `merged` / `preserved` / `skipped` / `conflicts`\n(rule 8's\
-  \ four classes plus the undecidable ones), and the SPEC-0196 override-ledger reading\n\
-  `ledger_status` / `ledger_findings`. Those last two RIDE THIS ROW rather than emitting\
-  \ a second\none (CHARTER §P1 F2): \"did this update happen, and what did it find\"\
-  \ has one answer and one row.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_updated\"\
-  ,\n \"data\": {\"destination\": \"<the published release N+1 directory>\",\n   \
-  \       \"into\": \"<the existing install being moved forward>\",\n          \"\
-  anchor\": \"<the OUT-OF-BAND trust-root fingerprint>\", \"ok\": <true|false>,\n\
-  \          \"from_ref\": \"<the release moved FROM, or null when no base was supplied>\"\
+  \ four classes plus the undecidable ones), the dropped-path counts `removed` / `kept`\n\
+  (paths the previous release shipped and the new one no longer carries — deleted,\
+  \ or left in place\nand named), and the SPEC-0196 override-ledger reading\n`ledger_status`\
+  \ / `ledger_findings`. Those last two RIDE THIS ROW rather than emitting a second\n\
+  one (CHARTER §P1 F2): \"did this update happen, and what did it find\" has one answer\
+  \ and one row.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_updated\",\n \"\
+  data\": {\"destination\": \"<the published release N+1 directory>\",\n         \
+  \ \"into\": \"<the existing install being moved forward>\",\n          \"anchor\"\
+  : \"<the OUT-OF-BAND trust-root fingerprint>\", \"ok\": <true|false>,\n        \
+  \  \"from_ref\": \"<the release moved FROM, or null when no base was supplied>\"\
   ,\n          \"to_ref\": \"<the release moved TO>\",\n          \"replaced\": <upstream-owned>,\
   \ \"merged\": <template-owned>, \"preserved\": <n>,\n          \"skipped\": <consumer-owned,\
-  \ never written>, \"conflicts\": <n>,\n          \"ledger_status\": \"<the SPEC-0196\
-  \ override-ledger reading>\",\n          \"ledger_findings\": <n>,\n          \"\
-  reasons\": [\"<refusal reason>\", \"...\"]}}\n```\n\nALL THREE ROWS ARE EMITTED\
-  \ ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a\nrefused verification\
-  \ is the security-relevant event, so a journal that recorded only successes\nwould\
-  \ be silent about exactly the attempts worth reading. `ok: false` rows carry the\
-  \ `reasons` the\noperator saw — a tampered artifact, a trust root that failed against\
-  \ the anchor, a revoked signing\nkey named with its revocation.\n\n**live_probe_passed**\
+  \ never written>, \"conflicts\": <n>,\n          \"removed\": <dropped by the new\
+  \ release, deleted>, \"kept\": <dropped, left in place>,\n          \"ledger_status\"\
+  : \"<the SPEC-0196 override-ledger reading>\",\n          \"ledger_findings\": <n>,\n\
+  \          \"reasons\": [\"<refusal reason>\", \"...\"]}}\n```\n\nALL THREE ROWS\
+  \ ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a\nrefused\
+  \ verification is the security-relevant event, so a journal that recorded only successes\n\
+  would be silent about exactly the attempts worth reading. `ok: false` rows carry\
+  \ the `reasons` the\noperator saw — a tampered artifact, a trust root that failed\
+  \ against the anchor, a revoked signing\nkey named with its revocation.\n\n**live_probe_passed**\
   \ (per SPEC-0094 §4; emitted by `bin/yitc-v2 liveprobe`) — the\nper-change live-adoption\
   \ PROOF. Emitted ONLY when a task's declarative read-only `live_probe` GET\n(the\
   \ SPEC-0028 task-YAML assertion) returns the expected status (optional body-contains)\
@@ -921,15 +925,39 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ evidence, acceptance, duration_ms}` +\nOPTIONAL author-reported run numbers :\
   \ `duration_ms` + `passed` + `failed` — an\nALL-OR-NOTHING flag group (a partial\
   \ set is refused, never written), always accompanied by\n`counts_source: \"author_reported\"\
-  `.\n\n**`duration_ms` is REQUIRED on this row ** — `task test --run` TIMES ITS OWN\
-  \ SUBPROCESS\nRUN (the delegated-layer leg and the tests/ sweep alike) and writes\
-  \ the measured wall in ms, so the\nTests-stage wall splits into machine time and\
-  \ worker time without inference. An explicitly passed\n`--duration-ms` still WINS\
-  \ (and still stamps `counts_source: \"author_reported\"`). THE ONE EXEMPT\nSHAPE,\
-  \ stated so the requirement is honest rather than aspirational: a hand-authored\
-  \ `--evidence`\nwith NO run attached measured nothing, so it carries the field only\
-  \ via the author-reported group —\nnever a fabricated 0 (the discipline). Before\
-  \ the field was author-reported-only and\n25 of 511 kernel rows in 2026-08-19..09-02\
+  `.\n\n**`consumer_verify` + `consumer_verify_layers` — which declared layers a consumer's\
+  \ run executed\n.** OPTIONAL, and present ONLY on a `--run --evidence` row whose\
+  \ run engaged the consumer\nverify: ABSENT on the engine's own build and on a hand-authored\
+  \ `--evidence`, which ran nothing\n(never a fabricated value — the discipline).\
+  \ `consumer_verify` is the verify mode;\n`consumer_verify_layers` is the per-layer\
+  \ outcome trail — the SAME rows, in the SAME shape, that\n`land_completed.consumer_verify_layers`\
+  \ carries for the land's candidate leg (described under\n`land_completed` below;\
+  \ not restated here). They ride this row because a consumer's Stage-6 run\nmay skip\
+  \ a subject-disjoint layer (rule home: SPEC-0152 rule 16 `subject_globs`), so a\
+  \ green row\nhas to say WHICH layers it is green over, and a reader setting a Stage-6\
+  \ pass beside a land\ncompares like with like.\n**`verify_metrics.flaky_retry` on\
+  \ this row — a layer the run had to re-run.** OPTIONAL,\npresent ONLY when THIS\
+  \ run's layer guard re-ran (or declined to re-run) a failed verify layer: the\n\
+  SAME record, in the SAME shape, as `land_completed.verify_metrics.flaky_retry` (its\
+  \ LAYER ROWS\nparagraph below; not restated here), so a green row that needed a\
+  \ re-run names the layer and keeps\nthe first-run failure excerpt. ABSENT on a first-try\
+  \ green and on a hand-authored `--evidence`.\n\n**`stage6_run` — the RUNNER's mark:\
+  \ which tree this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence`\
+  \ row: `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
+  \ which the run left unchanged apart from the journal) and the `main` commit that\n\
+  tree sat on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever\
+  \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
+  \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
+  \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
+  \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\n\n**`duration_ms` is REQUIRED\
+  \ on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the delegated-layer\
+  \ leg and the tests/ sweep alike) and writes the measured wall in ms, so the\nTests-stage\
+  \ wall splits into machine time and worker time without inference. An explicitly\
+  \ passed\n`--duration-ms` still WINS (and still stamps `counts_source: \"author_reported\"\
+  `). THE ONE EXEMPT\nSHAPE, stated so the requirement is honest rather than aspirational:\
+  \ a hand-authored `--evidence`\nwith NO run attached measured nothing, so it carries\
+  \ the field only via the author-reported group —\nnever a fabricated 0 (the discipline).\
+  \ Before the field was author-reported-only and\n25 of 511 kernel rows in 2026-08-19..09-02\
   \ carried one.\n\n**tests_failed** — the RED half of `tests_passed`, emitted by\
   \ `task test --run` when the Stage-6\nself-check FAILS. It exists because a green\
   \ run had a home and a red one had none: the run\nhappened, cost its minutes, and\
@@ -1014,7 +1042,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ / the worker command cap) was a guess;\nthe only estimate available was counting\
   \ `waiting_for_verify_admission_slot` heartbeats. REPORT-ONLY.\n`duration_ms` =\
   \ whole-land wall; `reverify_skipped` (bool) = re-verify skip telemetry — True iff\
-  \ this ok land's ff'ing attempt skipped the code/test\nre-verify. It has THREE producers,\
+  \ this ok land's ff'ing attempt skipped the code/test\nre-verify. It has FOUR producers,\
   \ and the discriminator is `reverify_skip_reason` (str), which rides\nonly when\
   \ True: `inert-retry-delta` = lever B (SPEC-0065 §Verification), a concurrency retry\
   \ whose\ninert merged-tree delta made re-verifying redundant; `superseded-nothing-to-integrate`\
@@ -1022,19 +1050,27 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ typically a batch member\nwhose content the head already fast-forwarded; `inert-first-attempt-delta`\
   \ = the inert first-attempt\nskip (SPEC-0065 §Bound), a land none of whose attempts\
   \ verified whose tree differs from the\nvenue-GREEN tested tree of main's newest\
-  \ verified land only by inert paths no test names. Reading the bool as \"an inert\
-  \ retry\" is therefore\nwrong; key off the reason. An extinguished (lever-C) land\
-  \ additionally carries\n`superseded_extinguished: true` + `verify_slot_taken: false`\
-  \ + `land_reservation_taken` (bool) —\nthree keys rather than one because the boundaries\
-  \ saved are separate, and a land that skipped its\nverify but had already taken\
-  \ the land reservation saved one of them, not both. All ADDITIVE, present\nonly\
-  \ on that path, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN both-must-pass\
-  \ verify signal (SPEC-0077 §Verification,\nthe SOLE authoritative adoption signal):\
-  \ `\"pinned+candidate\"` iff this land touched the verifier surface\n(the verify-implementation-touch\
-  \ predicate fired) so the pinned last-green verifier re-ran IN ADDITION to\nthe\
-  \ candidate; `\"candidate\"` otherwise (the negative/scope probe — no blanket-gate\
-  \ creep);\n`\"candidate_policy_off\"` (SPEC-0186 rule 7) iff the land DID touch\
-  \ the verifier surface but the\nproject declares `verify_policy.pinned_last_green:\
+  \ verified land only by inert paths no test names; `stage6-credit` = the\nStage-6\
+  \ credit (SPEC-0065 §Bound), a land whose CANDIDATE leg was not run because the\
+  \ land\nproved the task's own runner-recorded green Stage-6 run tested this tree\
+  \ on this `main` — the one\nproducer that applies to an OBSERVABLE delta, and the\
+  \ one under which a verify leg may still have\nrun (the SPEC-0077 pinned leg, when\
+  \ due: the row then carries `verify_mode: pinned+candidate`, whose\ncandidate half\
+  \ is the credited run). Such a land additionally carries `stage6_credit: {task,\
+  \ ts, tree,\nbase}` — WHICH Stage-6 row it credited, resolvable as that task's `tests_passed`\
+  \ row at\n`events.jsonl#ts=<ts>`; ADDITIVE, present only on a credited land. Reading\
+  \ the bool as \"an inert retry\" is therefore\nwrong; key off the reason. An extinguished\
+  \ (lever-C) land additionally carries\n`superseded_extinguished: true` + `verify_slot_taken:\
+  \ false` + `land_reservation_taken` (bool) —\nthree keys rather than one because\
+  \ the boundaries saved are separate, and a land that skipped its\nverify but had\
+  \ already taken the land reservation saved one of them, not both. All ADDITIVE,\
+  \ present\nonly on that path, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN\
+  \ both-must-pass verify signal (SPEC-0077 §Verification,\nthe SOLE authoritative\
+  \ adoption signal): `\"pinned+candidate\"` iff this land touched the verifier surface\n\
+  (the verify-implementation-touch predicate fired) so the pinned last-green verifier\
+  \ re-ran IN ADDITION to\nthe candidate; `\"candidate\"` otherwise (the negative/scope\
+  \ probe — no blanket-gate creep);\n`\"candidate_policy_off\"` (SPEC-0186 rule 7)\
+  \ iff the land DID touch the verifier surface but the\nproject declares `verify_policy.pinned_last_green:\
   \ never` in its `yitc-ops.yaml`, so the leg was SKIPPED\nBY POLICY rather than run.\
   \ A THIRD value in this one set, never a reuse of `\"candidate\"`: \"did not run\"\
   \nand \"ran and passed\" are different facts, and conflating them already misread\
@@ -1293,9 +1329,30 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ never reports one it did not do and the\npre- payload of such a land is byte-unchanged\
   \ (additive / P5-safe). Report-only, on the\n`per_file_durations` precedent: no\
   \ new event type, no second metrics path, no new store. It gates\nNOTHING — a file\
-  \ is cleared only by PASSING alone, and this key merely records that it did.\n`failed_output_tail`\
-  \ (dict) = THE LAST OUTPUT OF EVERY FILE THE RUN STILL FAILS ON. For\neach file\
-  \ named by the run's returned failures: the last <=40 lines of that file's raw combined\n\
+  \ is cleared only by PASSING alone, and this key merely records that it did.\n`flaky_retry`\
+  \ LAYER ROWS (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER\
+  \ verify whose layer guard re-ran a sole failed verify layer. A row in `rows[]`\
+  \ then names a\n`layer` INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit,\
+  \ first_duration_ms?,\nfirst_failure_excerpt, first_output_log?, retry_outcome,\
+  \ retry_exit?, retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`.\
+  \ `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host\
+  \ 1-minute load read just before the re-run (ABSENT when unmeasurable,\nnever a\
+  \ fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
+  \ and is\npresent on a RESCUED row too, which is its purpose; `retry_outcome` is\
+  \ the re-run's own outcome\n(`passed` / `failed` / `timed-out`). A DECLINED layer\
+  \ plan records `layers_skipped: [{leg, reason,\nlayers, bound?}]`, `reason` being\
+  \ `timeout-class` / `prep-failed` / `over-bound` — on its OWN key,\nbecause a consumer\
+  \ with kernel-swept test files may carry the runner's FILE record (`skipped` +\n\
+  `files`) on this same field. Layer rows and `layers_skipped` are MERGED beside the\
+  \ runner's record,\nnever over it. The rescued layer's `consumer_verify_layers[]`\
+  \ row reads `outcome: passed` plus\n`retried: true`, its measurements staying the\
+  \ first run's; a layer that failed both runs keeps its\nrow unchanged. A Stage-6\
+  \ run carries the same record on `tests_passed.verify_metrics.flaky_retry`\n(and\
+  \ on `tests_failed.verify_metrics.flaky_retry` when both attempts failed). ABSENT\
+  \ on a verify\nwhere no layer's run failed. Report-only: the rescue is decided by\
+  \ the re-run's exit code, and\nthis key records it.\n`failed_output_tail` (dict)\
+  \ = THE LAST OUTPUT OF EVERY FILE THE RUN STILL FAILS ON. For\neach file named by\
+  \ the run's returned failures: the last <=40 lines of that file's raw combined\n\
   stdout+stderr, each line clipped to 200 chars — a failure with EMPTY output records\
   \ `[]`, never an\nabsent entry, and a timeout kill records the partial output drained\
   \ before it. A file its isolated\nretry cleared records nothing. ONE aggregate bound:\
@@ -1325,17 +1382,25 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ ABSENT\n— never an empty dict — when the carrier lists nothing, so a repo without\
   \ a set reports\nnothing it did not do and its payload is byte-unchanged (additive\
   \ / P5-safe). Report-only, on the\n`flaky_retry` precedent: no new event type, no\
-  \ second metrics path, no new store.\n\n`per_file_durations` (dict) = the BOUNDED\
-  \ PER-FILE duration record — the sub-payload that\nmakes test-duration GROWTH observable\
-  \ at all. Before it, `verify_metrics` carried AGGREGATES ONLY\n(measured: 1527 rows,\
-  \ the complete key union being worker_count / test_file_count / verify_wall_ms /\n\
-  queue_wait_ms / mem_peak_kb / fail_class + the four selection_* keys) — not one\
-  \ per-file duration in\nthe journal's whole history, so nothing downstream could\
-  \ watch duration creep: there was no SERIES,\nonly one-off measurement campaigns.\
-  \ The runner necessarily HAS the datum (each test file is its own\nsubprocess under\
-  \ the SPEC-0071 per-file wall clock) and simply discarded it. PRESENT whenever at\n\
-  least one test file STARTED; ABSENT — never an empty dict, never a fabricated 0\
-  \ — on a run\nthat measured nothing (a no-test-files verify), so the pre- payload\
+  \ second metrics path, no new store.\n`cost_zone` (dict) is RETIRED by (2026-10-04)\
+  \ and is NEVER WRITTEN AGAIN. It was the\nrecord-only shadow of a cost-zone verify\
+  \ policy that was cancelled before it governed anything\n(draft <workshop-spec>,\
+  \ withdrawn): what that policy WOULD have decided for the land, written\nbeside\
+  \ a verify that ran exactly as it does without the key. It stays READ-TOLERATED\
+  \ on the rows\nthat carry it — the lands of 2026-10-04, plus any land that had already\
+  \ loaded the pre-removal\nengine when the removal reached `main` — so a reader folding\
+  \ that window still resolves it; no\nreader may require it, no writer may emit it,\
+  \ and no sub-key schema is registered for it any\nlonger.\n\n`per_file_durations`\
+  \ (dict) = the BOUNDED PER-FILE duration record — the sub-payload that\nmakes test-duration\
+  \ GROWTH observable at all. Before it, `verify_metrics` carried AGGREGATES ONLY\n\
+  (measured: 1527 rows, the complete key union being worker_count / test_file_count\
+  \ / verify_wall_ms /\nqueue_wait_ms / mem_peak_kb / fail_class + the four selection_*\
+  \ keys) — not one per-file duration in\nthe journal's whole history, so nothing\
+  \ downstream could watch duration creep: there was no SERIES,\nonly one-off measurement\
+  \ campaigns. The runner necessarily HAS the datum (each test file is its own\nsubprocess\
+  \ under the SPEC-0071 per-file wall clock) and simply discarded it. PRESENT whenever\
+  \ at\nleast one test file STARTED; ABSENT — never an empty dict, never a fabricated\
+  \ 0 — on a run\nthat measured nothing (a no-test-files verify), so the pre- payload\
   \ of such a run is\nbyte-unchanged (additive / P5-safe). Four keys — three from,\
   \ plus `duration_series`\n(described below): `slowest_files` (list[dict] —\n`{file:str,\
   \ wall_ms:int, outcome:str}`, DESCENDING by wall, AT MOST `_VERIFY_SLOWEST_FILES_N`\
@@ -1461,33 +1526,45 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ are byte-unchanged (additive / P5-safe). The peer row on `consumer_verify_layers`\
   \ carries\nthe same `duration_ms` per layer; a row for a layer that executed NOTHING\
   \ (waived / malformed /\nskipped-disjoint-subject) carries no such field at all.\
-  \ REPORT-ONLY, and this is a fence rather\nthan an omission: no exit code, verdict,\
-  \ outcome, or admission decision reads any recorded\nduration — what, if anything,\
-  \ the fleet should DO about verify shape is a separate question\n and is explicitly\
-  \ not derivable from one project's measurement.\n\n`verify_cache` (dict / <workshop-spec>)\
-  \ = the CONTENT-KEYED PER-TEST result cache's own record\nfor this run — `hit` /\
-  \ `miss` / `non_keyable` / `unkeyed` (ints, the four ways a test file can be\ndispositioned,\
-  \ together accounting for the WHOLE enumeration), `saved_ms` (int, the summed recorded\n\
-  wall of the files that were skipped) and `land_class` (str: `entry-script` | `bin-lib`\
-  \ | `neither`\n— the axis the hit rate varies along by an order of magnitude, so\
-  \ a blended figure would average\nthe dominant case away). ADDITIVE, on the `per_file_durations`\
-  \ precedent: one key on the payload\nthe land already writes, no new event type\
-  \ and no second metrics store. PRESENT only when the\ncache was in play (`YITC_VERIFY_CACHE=0`,\
-  \ a non-git checkout, a named-subset run and every\nnon-land driver stand down)\
-  \ — ABSENT rather than a fabricated zero, so those payloads are\nbyte-unchanged.\
-  \ Its land-tail line is REPORT-ONLY but deliberately NOT suppressed-when-clean:\
-  \ a 0%\nrate PRINTS, because the failure this record exists to prevent is precisely\
-  \ the one where a dead\ncache and a working one look identical from outside ( wrote\
-  \ 1185 markers, read none across\n1390 lands, and stayed invisible until someone\
-  \ went looking).\n**RETIRED 2026-08-26 (<workshop-spec> §Retirement) — the field\
-  \ STOPS APPEARING on new lands.**\nThe cache is now off unless `YITC_VERIFY_CACHE=1`\
-  \ asks for it, so a land ordinarily has no\nverify-cache state to report and this\
-  \ key is ABSENT — which the paragraph above already defines as\nthe correct rendering\
-  \ of \"not in play\", so no reader-facing rule changes. The HISTORICAL rows keep\n\
-  their meaning in full and stay valid: they are exactly the population the retirement\
-  \ decision was\nmeasured on (430 lands, 2026-08-20..2026-08-25 — 6.5% of lands hit,\
-  \ 63.0% inert, the class that\nclosed at 85.2% reading 0.89%). Catalogued rather\
-  \ than deleted, because a reader meeting an absent\nkey on new lands and a populated\
+  \ That SAME executed-layer row also carries\nTWO BOUND fields — the per-layer peers\
+  \ of the kernel tests leg's\n`verify_test_timeout_s` / `verify_test_timeout_source`\
+  \ above: `timeout_s` (float) = the wall bound\nthe layer's prep and command ran\
+  \ under, and `timeout_source` (str, one of `env` | `layer` |\n`section` | `default`)\
+  \ = which rung of the SPEC-0152 rule-16 chain supplied it — the\nYITC_VERIFY_TEST_TIMEOUT\
+  \ escape hatch, the layer's own `timeout:`, the section's\n`timeout_seconds:`, or\
+  \ the global default. Report-only and additive, on the `duration_ms` terms:\nnothing\
+  \ gates on them, they are ABSENT on a row whose layer executed nothing, and `timeout_source`\n\
+  alone is absent when the injected resolver reports no rung (never a guessed one).\
+  \ The row's\n`definition_changed` is true when THIS ship's diff changed the layer's\
+  \ command or its\nDECLARED bound (the layer's own, else the section's —; rule home\
+  \ SPEC-0015). REPORT-ONLY, and this is a fence rather\nthan an omission: no exit\
+  \ code, verdict, outcome, or admission decision reads any recorded\nduration — what,\
+  \ if anything, the fleet should DO about verify shape is a separate question\n and\
+  \ is explicitly not derivable from one project's measurement.\n\n`verify_cache`\
+  \ (dict / <workshop-spec>) = the CONTENT-KEYED PER-TEST result cache's own record\n\
+  for this run — `hit` / `miss` / `non_keyable` / `unkeyed` (ints, the four ways a\
+  \ test file can be\ndispositioned, together accounting for the WHOLE enumeration),\
+  \ `saved_ms` (int, the summed recorded\nwall of the files that were skipped) and\
+  \ `land_class` (str: `entry-script` | `bin-lib` | `neither`\n— the axis the hit\
+  \ rate varies along by an order of magnitude, so a blended figure would average\n\
+  the dominant case away). ADDITIVE, on the `per_file_durations` precedent: one key\
+  \ on the payload\nthe land already writes, no new event type and no second metrics\
+  \ store. PRESENT only when the\ncache was in play (`YITC_VERIFY_CACHE=0`, a non-git\
+  \ checkout, a named-subset run and every\nnon-land driver stand down) — ABSENT rather\
+  \ than a fabricated zero, so those payloads are\nbyte-unchanged. Its land-tail line\
+  \ is REPORT-ONLY but deliberately NOT suppressed-when-clean: a 0%\nrate PRINTS,\
+  \ because the failure this record exists to prevent is precisely the one where a\
+  \ dead\ncache and a working one look identical from outside ( wrote 1185 markers,\
+  \ read none across\n1390 lands, and stayed invisible until someone went looking).\n\
+  **RETIRED 2026-08-26 (<workshop-spec> §Retirement) — the field STOPS APPEARING on\
+  \ new lands.**\nThe cache is now off unless `YITC_VERIFY_CACHE=1` asks for it, so\
+  \ a land ordinarily has no\nverify-cache state to report and this key is ABSENT\
+  \ — which the paragraph above already defines as\nthe correct rendering of \"not\
+  \ in play\", so no reader-facing rule changes. The HISTORICAL rows keep\ntheir meaning\
+  \ in full and stay valid: they are exactly the population the retirement decision\
+  \ was\nmeasured on (430 lands, 2026-08-20..2026-08-25 — 6.5% of lands hit, 63.0%\
+  \ inert, the class that\nclosed at 85.2% reading 0.89%). Catalogued rather than\
+  \ deleted, because a reader meeting an absent\nkey on new lands and a populated\
   \ one on old lands needs to be able to tell a retirement from a\nregression — and\
   \ this catalog is where that question is asked.\n`outcome` is the COHORT-COMPLETENESS\
   \ field. Every file that STARTED is recorded WITH its outcome —\n`passed` | `failed`\

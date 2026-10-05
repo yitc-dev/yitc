@@ -296,10 +296,47 @@ AWAITS_EVENT_PREFIX = "events.jsonl#type="
 # would fire on the wrong rows and do it invisibly. Fail-closed, like every other admission here.
 AWAITS_AFTER_SEP = "@after="
 
+# ── T-13468 — ONE ROW PREDICATE: `events.jsonl#type=<t>&<key>=<value>[@after=…]` ─────────────────────
+# THE GAP. Both event shapes above decide arrival by TYPE alone, so ANY row of the awaited class
+# arrives the moment. Measured on the kernel 2026-10-03: of 3,240 `consumer_read_evidence` rows since
+# 2026-09-11, 3,201 were `dispatch`'s own self-serve receipts — and three deferred-probe moments read
+# DUE on them with no evidence for their own card; a followup awaiting «the first `work tag --serve
+# promoted`» read FIRED on four plain `release_tagged` rows that carry no `serve` key at all.
+#
+# WHAT THE PREDICATE ADDS. One exact-equality test on the row: `<key>` = `task_id` names the row's
+# ENVELOPE task_id; any other snake_case `<key>` names a top-level `data` value that is a STRING.
+# Only a matching row arrives. It is a SUFFIX ON THE CLASS inside the one declared value — the T-12057
+# precedent — so `awaits` stays one field with one parse home and nothing new is stored.
+#
+# HOW IT IS DECIDED: THE PREDICATE TRAVELS INSIDE THE ARRIVAL KEY. `split_event_awaits` returns
+# `<t>&<key>=<value>` as the class half of the pair it already returns, and the fold marks that same
+# string beside the bare type for every row that matches it (`predicate_arrival_keys`). So the three
+# arrival tests — membership (`arrived_ids`), `@after=<ISO>` (`event_after_arrived`) and `@after=land`
+# (`land_anchored_arrived`) — read the SAME maps under that key, unchanged, and a reader can never
+# re-parse the predicate differently from the fold that matched it.
+#
+# WHY THE TYPE SET IS DECLARED (`AWAITS_PREDICATE_TYPES`). The fold cannot be handed the awaited
+# predicates: a followup's awaits lives only in rows this same single pass folds, and an archived
+# segment is answered from a cached per-segment summary. So the keys must be marked for every row that
+# COULD be awaited. Measured 2026-10-04 on the kernel journal (1,193,219 lines): marking them for every
+# row costs +7.1 s on a 2.0 s reducer pass and 314,069 keys; marking them for the three classes the
+# incidents above name costs 2,197 keys over 8,919 rows, inside the walk already being made. A
+# predicate on any other class is REFUSED at the write door, naming the set — never admitted and left
+# unfireable. Widening the set is one entry here; it rides in `FoldReducer.summary_key`, so cached
+# summaries built under the old set are re-derived rather than read as complete.
+#
+# THE VALUE SHAPE (`_AWAITS_PREDICATE_VALUE_RE`) is what makes the key unambiguous: 1-64 characters of
+# `[A-Za-z0-9._:/-]`, the first alphanumeric — so a value can hold no `&`, `=`, `@` or space, a second
+# predicate cannot hide inside one, and a row value outside the shape is simply never awaitable.
+AWAITS_PREDICATE_SEP = "&"
+AWAITS_PREDICATE_TASK_KEY = "task_id"
+AWAITS_PREDICATE_TYPES = frozenset({"consumer_read_evidence", "live_trigger_evidence", "release_tagged"})
+
 _AWAITS_TASK_RE = re.compile(r"T-\d{4,}\Z")
 _AWAITS_CROSS_RE = re.compile(r"X-\d{4,}\Z")
 _AWAITS_EVENT_TYPE_RE = re.compile(r"[a-z][a-z0-9_]*\Z")
 _AWAITS_AFTER_TS_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+_AWAITS_PREDICATE_VALUE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}\Z")
 
 AWAITS_GRAMMAR_HELP = (
     "`--awaits` must be a DECLARED reference whose ARRIVAL a reader can decide — one of:\n"
@@ -318,17 +355,65 @@ AWAITS_GRAMMAR_HELP = (
     "                              the NEXT occurrence of a class the journal already carries. The\n"
     "                              timestamp is the journal's own spelling and nothing else:\n"
     "                              YYYY-MM-DDTHH:MM:SSZ (e.g. events.jsonl#type=cross_done"
+    "@after=2026-09-04T08:25:51Z)\n"
+    "  events.jsonl#type=<type>&<key>=<value>[@after=<ISO ts>]\n"
+    "                              ONE ROW PREDICATE: only a row of that type that ALSO matches\n"
+    "                              arrives, so unrelated rows of the class do not fire it. <key>\n"
+    "                              `task_id` is the row's envelope task id; any other snake_case\n"
+    "                              <key> is a top-level `data` value that is a string. Exact equality,\n"
+    "                              one predicate, <value> 1-64 chars of [A-Za-z0-9._:/-]. Admitted on\n"
+    "                              these classes only: " + ", ".join(sorted(AWAITS_PREDICATE_TYPES)) + "\n"
+    "                              (e.g. events.jsonl#type=consumer_read_evidence&task_id=T-1234"
     "@after=2026-09-04T08:25:51Z)")
 
 
-def split_event_awaits(awaits):
-    """Split an EVENT-class awaits into `(event_type, after_ts_or_None)`, else None (T-12057). PURE.
+def predicate_arrival_keys(etype, envelope_task_id, data) -> list:
+    """The predicate ARRIVAL KEYS one journal row answers to, beside its bare type (T-13468). PURE.
 
-    THE SINGLE PARSE HOME of the event grammar — both its shapes. `awaits_kind` classifies through it
+    `<etype>&task_id=<envelope task id>` plus `<etype>&<key>=<value>` for each top-level `data` item
+    whose key is snake_case and whose value is a STRING of the awaitable shape — exactly the strings
+    `split_event_awaits` returns for a predicated awaits, so a key the write door admits is a key this
+    marks, by construction. Empty for a class outside `AWAITS_PREDICATE_TYPES`.
+
+    THE ENVELOPE OWNS `task_id`: a `data` item of that name is skipped, so the one key has one meaning
+    and a row cannot answer for a task its envelope does not name. A non-string value (a bool, a
+    number, a list) is not matchable — the comparison is string equality, and coercing one would make
+    `true` and `"true"` the same fact.
+    """
+    if etype not in AWAITS_PREDICATE_TYPES:
+        return []
+    keys = []
+    if isinstance(envelope_task_id, str) and _AWAITS_PREDICATE_VALUE_RE.match(envelope_task_id):
+        keys.append(f"{etype}{AWAITS_PREDICATE_SEP}{AWAITS_PREDICATE_TASK_KEY}={envelope_task_id}")
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if (key != AWAITS_PREDICATE_TASK_KEY and isinstance(key, str) and isinstance(value, str)
+                    and _AWAITS_EVENT_TYPE_RE.match(key) and _AWAITS_PREDICATE_VALUE_RE.match(value)):
+                keys.append(f"{etype}{AWAITS_PREDICATE_SEP}{key}={value}")
+    return keys
+
+
+def split_event_awaits(awaits):
+    """Split an EVENT-class awaits into `(arrival_key, after_ts_or_None)`, else None (T-12057). PURE.
+
+    THE SINGLE PARSE HOME of the event grammar — every shape of it. `awaits_kind` classifies through it
     and the fire predicate reads through it, so the write door and the read side can never disagree
     about what a suffixed awaits means (`lessons/subtract-on-a-declared-key-never-on-a-provenance-
     field`, corollary 1: name the shape once). Returning the PARTS rather than a bool is what lets the
     fire branch stay one predicate: the caller needs the type and the anchor, not a re-parse.
+
+    T-13468 — THE FIRST PART IS THE ARRIVAL KEY: the bare event type for an awaits with no row
+    predicate (byte-identical to before), and `<type>&<key>=<value>` for a predicated one. That string
+    is what the fold marks for a matching row (`predicate_arrival_keys`) and what every arrival test
+    looks up, so the predicate is parsed HERE and nowhere else. A predicated form is admitted only
+    when the type is in `AWAITS_PREDICATE_TYPES`, the key is snake_case and the value has the awaitable
+    shape; the refusals below are the malformed ones:
+      - an empty key or an empty value            — nothing to compare.
+      - `&` with no `=`                            — a predicate with no value side.
+      - a second predicate (`&a=b&c=d`)            — its `&`/`=` fall inside the value, which the
+                                                     value shape cannot hold. ONE predicate.
+      - a key that is not snake_case               — no `data` key is spelled that way.
+      - a class outside the declared set           — no reader marks its rows, so it could never fire.
 
     None means "no reader can decide this reference's arrival" — the same fail-closed answer
     `awaits_kind` has always given, for the same reason (accepting an unresolvable reference removes
@@ -359,8 +444,17 @@ def split_event_awaits(awaits):
     # `@after=`/stray `@` in the anchor is refused rather than truncated away by the partition above.
     if "@" in rest or (after is not None and "@" in after):
         return None
-    if not _AWAITS_EVENT_TYPE_RE.match(rest):
+    etype, pred_sep, predicate = rest.partition(AWAITS_PREDICATE_SEP)
+    if not _AWAITS_EVENT_TYPE_RE.match(etype):
         return None
+    if pred_sep:
+        # T-13468 — the row predicate. Split ONCE on each separator and validated whole: a second
+        # `&` or `=` lands in `value` and fails its shape, so two predicates are refused, never
+        # truncated to the first.
+        key, eq, value = predicate.partition("=")
+        if (not eq or etype not in AWAITS_PREDICATE_TYPES or not _AWAITS_EVENT_TYPE_RE.match(key)
+                or not _AWAITS_PREDICATE_VALUE_RE.match(value)):
+            return None
     return (rest, after)
 
 
@@ -386,14 +480,18 @@ def event_after_arrived(awaits, latest_event_ts=None) -> bool:
 
     STRICTLY later (`>`), never `>=`: the operator anchors on a moment that HAS happened, so a row at
     exactly that instant belongs to what they anchored PAST. Lexicographic comparison IS chronological
-    here because `split_event_awaits` admits only the journal's fixed-width UTC spelling."""
+    here because `split_event_awaits` admits only the journal's fixed-width UTC spelling.
+
+    T-13468 — the key looked up is the ARRIVAL KEY the parser returns: the bare type, or
+    `<type>&<key>=<value>` for a predicated awaits, whose maximum the fold keeps over MATCHING rows
+    only. So a later row of the class that does not match the predicate moves nothing here."""
     parts = split_event_awaits(awaits)
     if parts is None:
         return False
-    etype, after = parts
+    arrival_key, after = parts
     if after is None:
         return False
-    return (latest_event_ts or {}).get(etype, "") > after
+    return (latest_event_ts or {}).get(arrival_key, "") > after
 
 
 # ── T-12851 — the LAND anchor: `events.jsonl#type=<t>@after=land` (deferred-probe moments ONLY) ──────
@@ -417,7 +515,8 @@ AWAITS_AFTER_LAND = "land"
 
 
 def split_land_anchored_awaits(awaits):
-    """The event TYPE of a land-anchored awaits (`events.jsonl#type=<t>@after=land`), else None. PURE.
+    """The ARRIVAL KEY of a land-anchored awaits (`events.jsonl#type=<t>@after=land`), else None. PURE.
+    The key is the event type, or `<t>&<key>=<value>` when the awaits carries a row predicate (T-13468).
 
     Admits exactly the literal suffix `@after=land` over a bare prefix the ONE event grammar
     (`split_event_awaits`) already decides — so the type half can never be looser than the shape every
@@ -576,6 +675,10 @@ def arrived_ids(terminal_ids=frozenset(), terminal_cross_ids=frozenset(), seen_e
     marker's population as a side effect of a change to the FIRE key — the exact ADD-vs-SUBTRACT
     blurring T-10335 and `lessons/subtract-on-a-declared-key-never-on-a-provenance-field` separated
     three cards apart. Two parameters, two claims.
+
+    T-13468 — `seen_event_types` also holds the PREDICATE arrival keys the fold marks
+    (`<type>&<key>=<value>`, `predicate_arrival_keys`), so a bare predicated awaits is a member exactly
+    when a MATCHING row exists, by the same expression and with no second set.
 
     An event class ARRIVES the moment a row of that type EXISTS in the journal — membership, no
     ordering check. A class that already has rows at arm time therefore fires IMMEDIATELY, and that
@@ -996,6 +1099,11 @@ def _fold_uncached(events_path, _segment_lines=None, seen_event_types=None, clos
     existence, so the bare membership grammar is untouched. Every existing caller passes nothing and is
     byte-identical.
 
+    T-13468 — for a row of a class in `AWAITS_PREDICATE_TYPES`, `seen_event_types`, `latest_event_ts`
+    and `latest_event_order` ALSO receive that row's predicate arrival keys (`predicate_arrival_keys`:
+    `<type>&task_id=<envelope id>` and `<type>&<data key>=<string value>`), on the same terms as its
+    type key. They are extra entries in the same three maps; a type key's value never changes.
+
     `closing_sessions` (T-12019) is a SECOND out-parameter of exactly the same shape and for exactly
     the same reason: pass a dict and this fold fills it with `task id -> set of session refs that
     CLOSED that task and landed the closure` — the `session_ref` of its `task_closed` row, and the
@@ -1079,6 +1187,18 @@ class _DigestSet:
                 return False
             i = (i + 1) & mask
 
+    def __contains__(self, digest) -> bool:
+        """T-13489 — exact membership (all 16 bytes compared, `add`'s own probe); inserts nothing."""
+        hi = int.from_bytes(digest[:8], "little")
+        lo = int.from_bytes(digest[8:16], "little")
+        H, L, U, mask = self._hi, self._lo, self._used, self._mask
+        i = hi & mask
+        while U[i]:
+            if H[i] == hi and L[i] == lo:
+                return True
+            i = (i + 1) & mask
+        return False
+
     def _grow(self) -> None:
         H, L, U = self._hi, self._lo, self._used
         cap = 2 * len(H)
@@ -1101,17 +1221,6 @@ def _at_mark(marks: dict, key, ts, pos) -> None:
         marks[key] = [ts, [pos]]
     elif ts == cur[0]:
         cur[1].append(pos)
-
-
-def _digest_in(digest: bytes, blobs) -> bool:
-    """T-13309 — True iff `digest` is one of the 16-byte records of any blob in `blobs` (aligned)."""
-    for blob in blobs:
-        i = blob.find(digest)
-        while i != -1:
-            if i % 16 == 0:
-                return True
-            i = blob.find(digest, i + 1)
-    return False
 
 
 class FoldReducer:
@@ -1150,7 +1259,8 @@ class FoldReducer:
     value, which already holds that ts at the original's earlier position. Dict outputs keep the fold's
     first-seen key order (stored as pair lists — the index sorts JSON object keys)."""
 
-    _SUMMARY_VERSION = 1
+    # v2 (T-13468): the arrival maps also carry the predicate keys of `AWAITS_PREDICATE_TYPES` rows.
+    _SUMMARY_VERSION = 2
 
     def __init__(self):
         self._followup: list = []
@@ -1220,6 +1330,21 @@ class FoldReducer:
             self._seen.add(et)
             if isinstance(ts, str) and _AWAITS_AFTER_TS_RE.match(ts) and ts > self._latest.get(et, ""):
                 self._latest[et] = ts
+            if et in AWAITS_PREDICATE_TYPES:
+                # T-13468 — the row's PREDICATE arrival keys, marked exactly as its type key is above:
+                # membership always, the three dated maps only for the journal's own `ts` shape. They
+                # are ordinary entries of the same maps, so `summary` / `load_summary` / `_merge_chain`
+                # carry them with no branch of their own.
+                _dated = isinstance(ts, str) and bool(_AWAITS_AFTER_TS_RE.match(ts))
+                for _key in predicate_arrival_keys(et, ev.get("task_id"), raw_data):
+                    self._seen.add(_key)
+                    if _dated:
+                        if ts > self._latest.get(_key, ""):
+                            self._latest[_key] = ts
+                        _pair = (ts, seq)
+                        if _key not in self._latest_order or _pair > self._latest_order[_key]:
+                            self._latest_order[_key] = _pair
+                        _at_mark(self._at, _key, ts, seq)
         data = raw_data if isinstance(raw_data, dict) else {}
         _sref = ev.get("session_ref")
         if isinstance(_sref, str) and _sref:
@@ -1237,7 +1362,9 @@ class FoldReducer:
 
     # ── T-13309 — the summary protocol (see the class docstring) ───────────────────────────────────────
     def summary_key(self):
-        return {"v": self._SUMMARY_VERSION}
+        # T-13468 — the predicate type set is configuration that changes the answer, so it is part of
+        # the identity: a summary built under another set is re-derived, never read as complete.
+        return {"v": self._SUMMARY_VERSION, "predicate_types": sorted(AWAITS_PREDICATE_TYPES)}
 
     def summary(self):
         if self._unfed or self._chain or self._merged:
@@ -1275,29 +1402,35 @@ class FoldReducer:
 
     def _merge_chain(self) -> None:
         chain, self._chain = self._chain + [self], []
-        # The common case has NO repeat (measured: 0 in 1.1M kernel lines): prove it with one sorted
-        # pass over the 8-byte digest prefixes (no hash table), and only otherwise build the set below.
+        # The common case has NO repeat (measured: 0 in 1.1M kernel lines): one sorted pass over the
+        # 8-byte digest prefixes proves it, with no hash table. T-13489 — the same pass yields `twice`,
+        # the prefixes that occur more than once: only a line carrying one can be a repeat, or the
+        # original of one. Those CANDIDATES are looked up exactly (all 16 bytes) in ONE table of the
+        # earlier instances' candidates — one lookup per line, never a scan of the earlier digest blobs
+        # (the SPEC-0168 pair repeats every landed line: 933,337 over 123 instances was ~24 min of scans).
         heads_all = sorted(memoryview(b"".join(bytes(memoryview(i._dg).cast("Q")[::2]) for i in chain))
                            .cast("Q"))
-        unique = all(a != b for a, b in zip(heads_all, itertools.islice(heads_all, 1, None)))
+        twice = {a for a, b in zip(heads_all, itertools.islice(heads_all, 1, None)) if a == b}
         heads_all = None
-        prefixes: set = set()
-        blobs: list = []
+        held = _DigestSet() if twice else None
         offset = 0
         followup, seen, latest, closing, order, land, bad = [], set(), {}, {}, {}, {}, None
         for inst in chain:
             dg = inst._dg
             n = len(dg) // 16
-            heads = memoryview(dg).cast("Q")[::2]
+            cand: list = []
             rep: list = []
-            if not unique:
-                if prefixes and not prefixes.isdisjoint(heads):
-                    for k in range(n):
-                        if heads[k] in prefixes and _digest_in(dg[16 * k:16 * k + 16], blobs):
-                            rep.append(k)
-                prefixes.update(heads)
-                blobs.append(dg)
+            if twice:
+                heads = memoryview(dg).cast("Q")[::2]
+                if not twice.isdisjoint(heads):
+                    cand = [k for k in range(n) if heads[k] in twice]
+                    # `held` is the EARLIER instances' alone here: this one's are added below
+                    rep = [k for k in cand if dg[16 * k:16 * k + 16] in held]
+                heads = None
             repset = frozenset(rep)
+            for k in cand:
+                if k not in repset:
+                    held.add(dg[16 * k:16 * k + 16])
 
             def g(k, _o=offset, _r=rep):
                 return _o + k - bisect.bisect_left(_r, k)
@@ -1324,8 +1457,6 @@ class FoldReducer:
         self._latest_order, self._land_order, self._bad = order, land, bad
         self._at = {k: [v[0], [v[1]]] for k, v in order.items()}
         self._lat = {k: [v[0], [v[1]]] for k, v in land.items()}
-        heads = None
-        prefixes.clear()
         # a merged instance is a whole-history answer, never a summary: its digests are not kept
         self._dg, self._pos = bytearray(), offset - 1
         self._merged = True

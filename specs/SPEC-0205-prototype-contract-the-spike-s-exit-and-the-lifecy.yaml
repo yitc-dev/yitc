@@ -460,10 +460,10 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: 8cf904a6191f3840a5fb8a784b934e6552179a221c986ec9b6cf1c3f36b72977
+  bin/lib/audit_packet.py#build_audit_prompt: ee9a71c3ac1595a208eee77c2ed25c1c8f860169b1260689f9e482b257f49957
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 6b771f9a5eb266f3dc711a26a2602197ffae31f93e2ea8c053c85f38617784d9
+  bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
   bin/lib/spike_identity.py#content_verdict: de76a115591e61c9eb83a9510102cd53e910884326662c4283e36d44f4ebfdc9
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86

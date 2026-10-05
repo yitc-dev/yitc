@@ -245,30 +245,39 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ or an artifact id carries exactly one class marker as a suffix —\n`[report-only]`\
   \ (no action at startup), `[owner-cued]` (act only on the owner's cue) or\n`[on-demand:\
   \ <trigger>]` — and the seed lines (the startup read itself, incl. the `binding:[seed]`\n\
-  line) carry none. Startup is done when the seed is read, `session start` has run\
-  \ and its `--help`\nscan is done. Post-`/compact` (route (a)): the done line rides\
-  \ the same sanctioned receipt-refresh\nre-run as the seed line; the markers ride\
-  \ each echo's existing re-fold verb. Verification: the AC1/AC2\narms of tests/test_t0861_consumer_session_start_echo.py\
-  \ (the last-agent-line differential and the\nAST-enumerated marker check over the\
-  \ start builders).\n**Invariant [MUST] — STAGE-ENTRY-delivered bundles :** `session\
-  \ start` is not the only delivery\nmoment a `/compact` evicts — the per-stage bundle\
-  \ delivered at stage-entry (the task `stage <NAME>` and\nplan `plan stage <NAME>`\
-  \ bundles, the rule 5a stage-delivered class) is evicted too, and `session start`\n\
-  is NOT re-run to restore it. The SAME co-design invariant binds it: any change that\
-  \ ADDS or CHANGES a\nstage's delivered bundle MUST, in the same change, co-design\
-  \ that bundle's post-`/compact` re-delivery via\nthe **stage-bundle-freshness discipline**\
-  \ (the same canonical homes — `AGENTS.md §After /compact` + its\ntwin). The two\
-  \ axes re-deliver ASYMMETRICALLY: the TASK axis re-RUNS the non-mutating\n`stage\
-  \ <current_stage> --task` verb; the PLAN axis CANNOT — `plan stage <NAME>` is a\
-  \ one-step FSM ADVANCER\n(re-running it on the stage already entered is an illegal\
-  \ edge), so a session dwelling in a plan stage\nre-FETCHES that stage's `plan-stage-entry:<NAME>`\
-  \ bundle by `graph query` on its specs, never by re-running\nthe verb. **Worked\
-  \ instance — the `decomposition` plan-stage (SPEC-0070):** it is a genuine DWELL\
-  \ stage\n(the cut into task cards spans turns), so a `/compact` mid-cut evicts the\
-  \ cut-rules bundle while the\nexecuting-leg read-gate's receipt (session-scoped,\
-  \ on disk) SURVIVES — the gate would then pass on an\nEMPTY-context cut (the anti-Forgetting\
-  \ #1 failure this invariant exists to prevent). Its co-design (wired\nin this change):\
-  \ a session mid-`decomposition` re-fetches the `plan-stage-entry:decomposition`\
+  line) carry none. **An `[owner-cued]` line is SHOW AND WAIT :** the marker is followed,\
+  \ on\nthe line itself, by what the session does now — name it to the person in its\
+  \ reply, then wait, and\nact only when the person says so — and the line, with the\
+  \ rows under it, carries NO runnable\ncommand: the echo prints none, and a CLI invocation\
+  \ quoted from card data (a title, a next step, a\nreturn trigger, a hand-off title)\
+  \ is shown without its runnable prefix, its verb words kept. The\nstartup-done line\
+  \ is the legend that names the three classes, not an owner-cued line. Startup is\n\
+  done when the seed is read, `session start` has run and its `--help` scan is done.\
+  \ Post-`/compact` (route (a)): the done line rides the same sanctioned receipt-refresh\n\
+  re-run as the seed line; the markers ride each echo's existing re-fold verb. Verification:\
+  \ the AC1/AC2\narms of tests/test_t0861_consumer_session_start_echo.py (the last-agent-line\
+  \ differential and the\nAST-enumerated marker check over the start builders), and\
+  \ its arm (12) for show-and-wait (a consumer\nController start whose hand-off title\
+  \ and paused card quote a CLI command; differential: the\npre- hand-off head and\
+  \ the raw quoted step are caught by the same pattern).\n**Invariant [MUST] — STAGE-ENTRY-delivered\
+  \ bundles :** `session start` is not the only delivery\nmoment a `/compact` evicts\
+  \ — the per-stage bundle delivered at stage-entry (the task `stage <NAME>` and\n\
+  plan `plan stage <NAME>` bundles, the rule 5a stage-delivered class) is evicted\
+  \ too, and `session start`\nis NOT re-run to restore it. The SAME co-design invariant\
+  \ binds it: any change that ADDS or CHANGES a\nstage's delivered bundle MUST, in\
+  \ the same change, co-design that bundle's post-`/compact` re-delivery via\nthe\
+  \ **stage-bundle-freshness discipline** (the same canonical homes — `AGENTS.md §After\
+  \ /compact` + its\ntwin). The two axes re-deliver ASYMMETRICALLY: the TASK axis\
+  \ re-RUNS the non-mutating\n`stage <current_stage> --task` verb; the PLAN axis CANNOT\
+  \ — `plan stage <NAME>` is a one-step FSM ADVANCER\n(re-running it on the stage\
+  \ already entered is an illegal edge), so a session dwelling in a plan stage\nre-FETCHES\
+  \ that stage's `plan-stage-entry:<NAME>` bundle by `graph query` on its specs, never\
+  \ by re-running\nthe verb. **Worked instance — the `decomposition` plan-stage (SPEC-0070):**\
+  \ it is a genuine DWELL stage\n(the cut into task cards spans turns), so a `/compact`\
+  \ mid-cut evicts the cut-rules bundle while the\nexecuting-leg read-gate's receipt\
+  \ (session-scoped, on disk) SURVIVES — the gate would then pass on an\nEMPTY-context\
+  \ cut (the anti-Forgetting #1 failure this invariant exists to prevent). Its co-design\
+  \ (wired\nin this change): a session mid-`decomposition` re-fetches the `plan-stage-entry:decomposition`\
   \ cut-rules\nbundle, starting at `graph query SPEC-0070` (whose §8 names the full\
   \ bundle), AND re-orients to its POSITION in the plan (current stage + next gate\
   \ + the cards cut so far) via `plan show <slug>` — the AGENTS §After-/compact PLAN\
@@ -306,77 +315,72 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ it binds the editor's attention AT EDIT TIME and is verified by the audit / coherence\n\
   pass, NOT by a new gate, hook, parser, or detector (CHARTER §P1 — nothing accreted;\
   \ this is one\ninvariant on the spec that already governs the always-loaded tier).\n\
-  **Already-attached handbook part.** A handbook part whose full text the AI tool\
-  \ has already\nattached IN THE CURRENT CONTEXT counts as read and is not read again;\
-  \ the remaining parts are read in\norder. After a `/compact` an earlier attachment\
-  \ no longer counts, so every part is re-read — the §5b\npost-`/compact` re-read\
-  \ is unchanged, not narrowed. The `-C` read-order echo restates this clause;\nAGENTS.md\
-  \ carries only a cue + pointer here. Provider-neutral.\n**Consumer (`-C`) echo extension.**\
-  \ The same `session start` consumer echo ADDITIONALLY\nsurfaces, after the read-order\
-  \ line: (a) the consumer's OWN backbone when present (its product\n`CHARTER.md`\
-  \ = separate project-context, NOT the methodology seed), and (b) the consumer verb-invocation\
-  \ form\n`<engine>/bin/yitc-v2 -C <path> <verb>` on the `--help` rescan line — a\
-  \ consumer has NO local\n`bin/yitc-v2`, so the bare engine-relative form is command-not-found.\
-  \ (Per the active-spec COUNT is NO LONGER echoed at every start — obtainable ON-DEMAND\
-  \ via `graph query --type spec`.) These are CONVENIENCE surfaces\nover durable on-disk\
-  \ state (the consumer's own `CHARTER.md` / `specs/` + the engine `-C` invocation),\n\
-  NOT a new datum or rule; their §5b co-design (route (b) justify): they re-derive\
-  \ directly post-`/compact`\n(re-read the consumer's own backbone + re-count via\
-  \ the engine `-C` `graph query`), never by re-running\n`session start`. The engine\
-  \ self-build echo (`REPO_ROOT == ENGINE_ROOT`) is byte-unchanged. The born\nconsumer\
-  \ `MEMORY.md` template (SPEC-0039) renders its `graph query SPEC-0039` example in\
-  \ the SAME\nengine `-C` form for the same reason; it is a durable file, so it survives\
-  \ `/compact` unaided.\n**Newer-release notice.** A consumer that PINS its engine\
-  \ (<workshop-spec> rule 3) ALSO gets, at\nmost once a UTC day, ONE report-only,\
-  \ suppressed-when-current line naming a newer published release\n(installed vs newest\
-  \ + the moved digit's rule-10 meaning); silent on any failure, it never delays or\n\
-  fails the start. It is an ECHO, not a seed line: its post-`/compact` re-fold is\
-  \ `release check`.\n\n### 5c. The seed is delivered in THREE audience tiers (amended\
-  \ by the trim-dispatched-worker plan)\nThe always-loaded seed is NO LONGER one undifferentiated\
-  \ whole loaded identically by EVERY session\n(that delivery model is RETIRED — SPEC-0127\
-  \ §7). It is partitioned into THREE audience tiers, and\neach session reads ONLY\
-  \ its own audience's union:\n  - **`core`** — read by EVERY session: the anti-Forgetting\
-  \ / safety / write-flow floor a session of\n    ANY posture must hold. FAIL-SAFE\
-  \ default (SPEC-0127 §2): an untagged seed section resolves to\n    `core`, so a\
-  \ section is withheld from a Worker ONLY by an explicit `controller` tag, never\
-  \ by\n    omission.\n  - **`controller`** — the interactive Controller supplement,\
-  \ read IN ADDITION to `core` by the\n    Controller ONLY: the orchestrate / dispatch-selector\
-  \ governance, the queue picker + bucket caps +\n    weekly-review triggers, the\
-  \ plan-lifecycle FSM + plan routing, the controller startup\n    dispatch/resume-or-await\
-  \ + cross-coord echoes, and the owner-facing Recommendation-Default /\n    register\
-  \ rules. A dispatched Worker never dispatches, never runs the picker, never authors/stages\n\
-  \    plans — so this tier is dead weight in its bootstrap and is NOT loaded by a\
-  \ Worker.\n  - **`worker`** — the dispatched-Worker subset. A `--type build` Worker\
-  \ reads `core` + `worker`; the\n    interactive Controller reads `core` + `controller`.\n\
-  **Per-audience post-`/compact` re-delivery (the §5b invariant re-stated per-audience,\
-  \ NOT weakened).**\nA `/compact` restores the WHOLE of the reader's OWN-audience\
-  \ seed — `core`+`worker` for a Worker,\n`core`+`controller` for a Controller — never\
-  \ a sub-subset of it. Each audience's seed is ONE map\nrealized twice (session start\
-  \ + post-`/compact`); the two MUST stay identical PER AUDIENCE. This is\nthe SAME\
-  \ anti-Forgetting close-the-door as §5b, scoped to the reader's own view: a Worker\
-  \ is never\nstarved of a rule it needs, a Controller still restores everything.\n\
-  **Prior-art (CHARTER §P1 F1):** the MEMORY worker-exemption (SPEC-0039 §0 `audience:\
-  \ background`) already proves an audience-scoped worker read-set is legitimate;\
-  \ this extends it from ONE\nfile to the SECTION level. **Mechanism home (one-home,\
-  \ P5):** the section-level audience tag + the\nthree generated views (worker seed\
-  \ / controller supplement / startup inventory) are homed in\nSPEC-0127; THIS §5c\
-  \ is the CONTRACT (what each audience reads + the per-audience re-delivery), and\n\
-  SPEC-0127 supplies the tagged-source generator the contract points at.\n\n**The\
-  \ worker KEEP-LIST — what STAYS `core`/`worker`, pinned so relocation does not over-trim.**\
-  \ A\ndispatched Worker DOES need these mid-task, so they are `core`/`worker` and\
-  \ NEVER `controller`:\n  - the **Filing rule** — a Worker files an adjacent task\
-  \ instead of growing the current scope;\n  - **`cross request`** — a Worker HALTS\
-  \ + routes a cross-project need, never edits another repo;\n  - **scope / block\
-  \ escalation** — SPEC-0103 (`blocked-on-land`, scope-boundary) + <workshop-spec>\n\
-  \    (block-classification: what a Worker may self-clear vs must STOP on); a Worker\
-  \ must know when to\n    escalate rather than force a land;\n  - **task-state semantics**\
-  \ — the QUEUE state transitions (`ready` / `in-progress` / `blocked` /\n    `done`,\
-  \ `task pause`) a Worker moves its OWN task through;\n  - **cited-plan orientation**\
-  \ — a Worker executing a card must be able to orient to the plan the\n    card `decomposed_from`.\n\
-  This keep-list is the guard against over-trimming: the plan's postcheck soak RED-fails\
-  \ if any Worker\nis blocked by a rule wrongly relocated to `controller`. SPEC-0127\
-  \ §6 defers WHICH sections carry\nWHICH tag to tagging time; THIS keep-list is the\
-  \ pinned floor that tagging MUST honour.\n\n**Single-read-safety governs the GENERATED\
+  **Consumer (`-C`) echo extension.** The same `session start` consumer echo ADDITIONALLY\n\
+  surfaces, after the read-order line: (a) the consumer's OWN backbone when present\
+  \ (its product\n`CHARTER.md` = separate project-context, NOT the methodology seed),\
+  \ and (b) the consumer verb-invocation form\n`<engine>/bin/yitc-v2 -C <path> <verb>`\
+  \ on the `--help` rescan line — a consumer has NO local\n`bin/yitc-v2`, so the bare\
+  \ engine-relative form is command-not-found. (Per the active-spec COUNT is NO LONGER\
+  \ echoed at every start — obtainable ON-DEMAND via `graph query --type spec`.) These\
+  \ are CONVENIENCE surfaces\nover durable on-disk state (the consumer's own `CHARTER.md`\
+  \ / `specs/` + the engine `-C` invocation),\nNOT a new datum or rule; their §5b\
+  \ co-design (route (b) justify): they re-derive directly post-`/compact`\n(re-read\
+  \ the consumer's own backbone + re-count via the engine `-C` `graph query`), never\
+  \ by re-running\n`session start`. The engine self-build echo (`REPO_ROOT == ENGINE_ROOT`)\
+  \ is byte-unchanged. The born\nconsumer `MEMORY.md` template (SPEC-0039) renders\
+  \ its `graph query SPEC-0039` example in the SAME\nengine `-C` form for the same\
+  \ reason; it is a durable file, so it survives `/compact` unaided.\n**Newer-release\
+  \ notice.** A consumer that PINS its engine (<workshop-spec> rule 3) ALSO gets,\
+  \ at\nmost once a UTC day, ONE report-only, suppressed-when-current line naming\
+  \ a newer published release\n(installed vs newest + the moved digit's rule-10 meaning);\
+  \ silent on any failure, it never delays or\nfails the start. It is an ECHO, not\
+  \ a seed line: its post-`/compact` re-fold is `release check`.\n\n### 5c. The seed\
+  \ is delivered in THREE audience tiers (amended by the trim-dispatched-worker plan)\n\
+  The always-loaded seed is NO LONGER one undifferentiated whole loaded identically\
+  \ by EVERY session\n(that delivery model is RETIRED — SPEC-0127 §7). It is partitioned\
+  \ into THREE audience tiers, and\neach session reads ONLY its own audience's union:\n\
+  \  - **`core`** — read by EVERY session: the anti-Forgetting / safety / write-flow\
+  \ floor a session of\n    ANY posture must hold. FAIL-SAFE default (SPEC-0127 §2):\
+  \ an untagged seed section resolves to\n    `core`, so a section is withheld from\
+  \ a Worker ONLY by an explicit `controller` tag, never by\n    omission.\n  - **`controller`**\
+  \ — the interactive Controller supplement, read IN ADDITION to `core` by the\n \
+  \   Controller ONLY: the orchestrate / dispatch-selector governance, the queue picker\
+  \ + bucket caps +\n    weekly-review triggers, the plan-lifecycle FSM + plan routing,\
+  \ the controller startup\n    dispatch/resume-or-await + cross-coord echoes, and\
+  \ the owner-facing Recommendation-Default /\n    register rules. A dispatched Worker\
+  \ never dispatches, never runs the picker, never authors/stages\n    plans — so\
+  \ this tier is dead weight in its bootstrap and is NOT loaded by a Worker.\n  -\
+  \ **`worker`** — the dispatched-Worker subset. A `--type build` Worker reads `core`\
+  \ + `worker`; the\n    interactive Controller reads `core` + `controller`.\n**Per-audience\
+  \ post-`/compact` re-delivery (the §5b invariant re-stated per-audience, NOT weakened).**\n\
+  A `/compact` restores the WHOLE of the reader's OWN-audience seed — `core`+`worker`\
+  \ for a Worker,\n`core`+`controller` for a Controller — never a sub-subset of it.\
+  \ Each audience's seed is ONE map\nrealized twice (session start + post-`/compact`);\
+  \ the two MUST stay identical PER AUDIENCE. This is\nthe SAME anti-Forgetting close-the-door\
+  \ as §5b, scoped to the reader's own view: a Worker is never\nstarved of a rule\
+  \ it needs, a Controller still restores everything.\n**Prior-art (CHARTER §P1 F1):**\
+  \ the MEMORY worker-exemption (SPEC-0039 §0 `audience: background`) already proves\
+  \ an audience-scoped worker read-set is legitimate; this extends it from ONE\nfile\
+  \ to the SECTION level. **Mechanism home (one-home, P5):** the section-level audience\
+  \ tag + the\nthree generated views (worker seed / controller supplement / startup\
+  \ inventory) are homed in\nSPEC-0127; THIS §5c is the CONTRACT (what each audience\
+  \ reads + the per-audience re-delivery), and\nSPEC-0127 supplies the tagged-source\
+  \ generator the contract points at.\n\n**The worker KEEP-LIST — what STAYS `core`/`worker`,\
+  \ pinned so relocation does not over-trim.** A\ndispatched Worker DOES need these\
+  \ mid-task, so they are `core`/`worker` and NEVER `controller`:\n  - the **Filing\
+  \ rule** — a Worker files an adjacent task instead of growing the current scope;\n\
+  \  - **`cross request`** — a Worker HALTS + routes a cross-project need, never edits\
+  \ another repo;\n  - **scope / block escalation** — SPEC-0103 (`blocked-on-land`,\
+  \ scope-boundary) + <workshop-spec>\n    (block-classification: what a Worker may\
+  \ self-clear vs must STOP on); a Worker must know when to\n    escalate rather than\
+  \ force a land;\n  - **task-state semantics** — the QUEUE state transitions (`ready`\
+  \ / `in-progress` / `blocked` /\n    `done`, `task pause`) a Worker moves its OWN\
+  \ task through;\n  - **cited-plan orientation** — a Worker executing a card must\
+  \ be able to orient to the plan the\n    card `decomposed_from`.\nThis keep-list\
+  \ is the guard against over-trimming: the plan's postcheck soak RED-fails if any\
+  \ Worker\nis blocked by a rule wrongly relocated to `controller`. SPEC-0127 §6 defers\
+  \ WHICH sections carry\nWHICH tag to tagging time; THIS keep-list is the pinned\
+  \ floor that tagging MUST honour.\n\n**Single-read-safety governs the GENERATED\
   \ read surface, not only source files ( — Axis-1).**\nThe SPEC-0120 one-bounded-read\
   \ ceiling governs **every read surface an audience ACTUALLY reads at\nstartup**\
   \ — a GENERATED view included. A generated surface that exceeds one bounded read\
@@ -391,22 +395,24 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ view — SPEC-0127 §3). Post-`/compact` the Controller\n    re-reads the SAME source\
   \ parts (the per-audience re-delivery above, unchanged in scope).\n    Under `-C`\
   \ the source parts resolve from the engine's identity-agnostic release-view\n  \
-  \  (SPEC-0074 §7), which carries all 7 files.\n  - **A dispatched Worker reads the\
-  \ generated worker-seed PART CHAIN** — `graph/worker-seed.md` (part 1)\n    AND\
-  \ every continuation part it chains to (`graph/worker-seed-<n>.md`) — its filtered\
-  \ `core`+`worker`\n    view (reading 7 files to use ~60% of them would defeat the\
-  \ SPEC-0127 audience split), and that\n    generated surface is governed by THIS\
-  \ clause: it must itself be single-read-safe. It was NOT: the\n    single assembled\
-  \ file measured 1275 lines / 50,775 reader-tokens / 4 read-calls, and the reader\n\
-  \    truncated it (the D2 measurement). It is therefore emitted as SIZE-BOUNDED\
-  \ PARTS cut at the\n    source-doc seam (the D3 remediation; mechanism home SPEC-0127\
-  \ §3a) — each part loads in ONE\n    bounded read. **The CHAIN is the Worker's seed,\
-  \ not part 1.** Reading part 1 alone is a sub-subset,\n    which the per-audience\
-  \ re-delivery invariant above forbids; so every delivery surface names EVERY\n \
-  \   part (SPEC-0127 §4), each part names its next hop, and post-`/compact` the Worker\
-  \ re-reads the whole\n    chain. Under `-C` the parts resolve from the engine release-view\
-  \ (SPEC-0074 §7), which carries them all.\n\n### 6. Project MEMORY.md — a governed,\
-  \ drainable buffer (homed in SPEC-0039)\nThe MEMORY-buffer rule is homed in **SPEC-0039**\
+  \  (SPEC-0074 §7), which carries all 7 parts — a part whose source name an AI tool\
+  \ would attach\n    on its own is published there under its release-view name, and\
+  \ the echo names that file.\n  - **A dispatched Worker reads the generated worker-seed\
+  \ PART CHAIN** — `graph/worker-seed.md` (part 1)\n    AND every continuation part\
+  \ it chains to (`graph/worker-seed-<n>.md`) — its filtered `core`+`worker`\n   \
+  \ view (reading 7 files to use ~60% of them would defeat the SPEC-0127 audience\
+  \ split), and that\n    generated surface is governed by THIS clause: it must itself\
+  \ be single-read-safe. It was NOT: the\n    single assembled file measured 1275\
+  \ lines / 50,775 reader-tokens / 4 read-calls, and the reader\n    truncated it\
+  \ (the D2 measurement). It is therefore emitted as SIZE-BOUNDED PARTS cut at the\n\
+  \    source-doc seam (the D3 remediation; mechanism home SPEC-0127 §3a) — each part\
+  \ loads in ONE\n    bounded read. **The CHAIN is the Worker's seed, not part 1.**\
+  \ Reading part 1 alone is a sub-subset,\n    which the per-audience re-delivery\
+  \ invariant above forbids; so every delivery surface names EVERY\n    part (SPEC-0127\
+  \ §4), each part names its next hop, and post-`/compact` the Worker re-reads the\
+  \ whole\n    chain. Under `-C` the parts resolve from the engine release-view (SPEC-0074\
+  \ §7), which carries them all.\n\n### 6. Project MEMORY.md — a governed, drainable\
+  \ buffer (homed in SPEC-0039)\nThe MEMORY-buffer rule is homed in **SPEC-0039**\
   \ (split out of this §6 by — rule-6\nsplit-by-surface; the buffer is a distinct\
   \ surface from \"always-loaded files org\"): the base\ncontract (non-authoritative\
   \ drainable buffer, auto-read at startup, mandatory drain, distinct\nlanes, P4 provider\

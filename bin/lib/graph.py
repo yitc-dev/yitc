@@ -48,6 +48,30 @@ GRAPH_DIR = "graph"
 # Release-view consts (SPEC-0074; graph-only home — RELEASE_VIEW_DIR is re-exported to the host for
 # cmd_graph_release_view). The single value home is here, T-9249.
 RELEASE_VIEW_DIR = "release-view"
+# T-13492 (SPEC-0074 §7): the release view publishes NO file under a name an AI tool auto-attaches
+# (`AGENTS.md` / the vendor adapter) — such a file is attached on the first Read inside its directory,
+# so a `-C` session that reads the seed parts got that part twice. A handbook SOURCE doc listed here is
+# written — and resolved, echoed and named in the view's own text — under its release-view name. The
+# ONE map; SOURCE names (`HANDBOOK_READ_ORDER`) never change.
+RELEASE_VIEW_NAME_MAP = {"AGENTS.md": "AGENTS-STARTUP.md"}
+
+
+def release_view_name(doc: str) -> str:
+    """The name a release-view source doc is PUBLISHED under (identity for an unmapped doc)."""
+    return RELEASE_VIEW_NAME_MAP.get(doc, doc)
+
+
+# A mapped SOURCE name as a whole file name in running text: not the tail of a longer name or path
+# (`AGENTS-SESSIONS.md` never matches `AGENTS.md`), and not the one mention that names a CONSUMER's own
+# file — "the project `AGENTS.md`" is its SPEC-0125 operating-context home, a different document.
+_RV_SOURCE_NAME_RE = re.compile(
+    r"(?<!project `)(?<![\w/.-])(" + "|".join(re.escape(n) for n in RELEASE_VIEW_NAME_MAP) + r")(?![\w-])")
+
+
+def _release_view_part_names(text: str) -> str:
+    """Rewrite in-text mentions of a mapped SOURCE name to its release-view name, so the read-order a
+    `-C` session reads names files the view carries. Pure, deterministic, idempotent."""
+    return _RV_SOURCE_NAME_RE.sub(lambda m: release_view_name(m.group(1)), text)
 RELEASE_VIEW_BANNER = (
     "<!-- GENERATED — identity-agnostic release view of the methodology handbook. "
     "Single source; regenerate via `yitc-v2 graph release-view`, do not edit. -->\n\n"
@@ -989,7 +1013,8 @@ def _build_release_view(*, ENGINE_ROOT, _die, _release_view_docs) -> list:
         content = RELEASE_VIEW_BANNER + _release_view_strip(src.read_text(encoding="utf-8"))
         if doc == f"{GRAPH_DIR}/floor-trigger-map.md":
             content = _release_view_floor_kernel_explicit(content)   # T-10766 — kernel-explicit rows
-        out.append((f"{RELEASE_VIEW_DIR}/{doc}", content))
+        content = _release_view_part_names(content)                  # T-13492 — the published part names
+        out.append((f"{RELEASE_VIEW_DIR}/{release_view_name(doc)}", content))
     return out
 
 
@@ -1510,14 +1535,21 @@ def graph_cache_report_lines(rows) -> list:
 _YAML_TYPE_NAMES = {"dict": "mapping", "list": "sequence", "str": "string"}
 
 
-def _task_card_shape_fault(d) -> str | None:
+def _task_card_shape_fault(d, *, also_iterable=(), hashable_entries=()) -> str | None:
     """T-13266: name the first card shape the task walk below cannot index, or None. Each is a shape
     that RAISED out of the build before (so land failed without naming the card): a non-mapping top
     level, a truthy non-string `id:` (unhashable, or unsortable beside string ids, in the tasks_citing
     dedupe — whether it crashes depends on OTHER cards' cites, so it is named unconditionally), and a
     truthy non-iterable `cites:`. Shapes that do not raise today (a falsy top level — load_path already
     turns it into {} —, a string or mapping `cites:`, non-string cite entries) are deliberately NOT
-    named here: naming them would make land refuse cards it accepts today."""
+    named here: naming them would make land refuse cards it accepts today.
+
+    T-13463: the ONE shape check the other card walks share (the live-node graft, dispatch-plan, graph
+    conformance's cut-card advisory, the debt-echo views). The DEFAULTS are the graph_build_index
+    contract above, unchanged. A walk that reads MORE of a card names only the fields IT reads:
+    `also_iterable` — fields it iterates beside `cites` (a truthy non-iterable value is named);
+    `hashable_entries` — fields whose ENTRIES it uses as set / dict keys (an unhashable entry of a
+    list value is named). So what a walk skips never widens what the build refuses."""
     def _t(v):
         return _YAML_TYPE_NAMES.get(type(v).__name__, type(v).__name__)
     if not isinstance(d, dict):
@@ -1525,12 +1557,21 @@ def _task_card_shape_fault(d) -> str | None:
     tid = d.get("id")
     if tid and not isinstance(tid, str):
         return f"task card `id:` is a {_t(tid)}, expected a string"
-    cites = d.get("cites")
-    if cites:
-        try:
-            iter(cites)
-        except TypeError:
-            return f"task card `cites:` is a {_t(cites)}, expected a sequence"
+    for field in ("cites", *also_iterable):
+        value = d.get(field)
+        if value:
+            try:
+                iter(value)
+            except TypeError:
+                return f"task card `{field}:` is a {_t(value)}, expected a sequence"
+    for field in hashable_entries:
+        value = d.get(field)
+        if isinstance(value, (list, tuple)):
+            for entry in value:
+                try:
+                    hash(entry)
+                except TypeError:
+                    return f"task card `{field}:` holds a {_t(entry)} entry, expected a string"
     return None
 
 
@@ -5366,7 +5407,7 @@ def _stage_bundle_coverage_violations(report: dict, *, _is_consumer_build, _plan
     return sorted(viols, key=lambda v: (v["kind"], v["stage"]))
 
 
-def _unmarked_cut_card_flags(*, PLANS_DIR, TASKS_DIR, _read_yaml, _split_frontmatter) -> list:
+def _unmarked_cut_card_flags(errors: list | None=None, *, PLANS_DIR, TASKS_DIR, _read_yaml, _split_frontmatter) -> list:
     """SPEC-0070 §5 report-only invariant (T-0685). Surface cards that LOOK like decomposition cut members
     of a plan currently being cut but lack the `decomposed_from` marker — so the AI can either mark a true
     cut card the cut path (`task file --decomposed-from`) forgot, or confirm a deliberate informational cite.
@@ -5384,7 +5425,13 @@ def _unmarked_cut_card_flags(*, PLANS_DIR, TASKS_DIR, _read_yaml, _split_frontma
     done/wont-do — a closed card is frozen history, not claimable), and lacks `decomposed_from == that plan`.
     REPORT-ONLY (D-0040 report-not-block): `cites:` is overloaded so this is advisory disambiguation, NEVER a
     hard gate / never affects an exit code. Returns sorted [{"task": tid, "plan": slug}]. Best-effort:
-    read failures are skipped (an advisory must never crash a verb)."""
+    read failures are skipped (an advisory must never crash a verb).
+
+    T-13463: a card that cannot be read or walked — unparseable, non-UTF-8, or faulted by the shared
+    `_task_card_shape_fault` (incl. an unhashable `cites:` entry, which `slug in cutting` cannot test)
+    — is SKIPPED and NAMED, never raised: recorded as {path, error} in `errors` when the caller threads
+    a list, else printed on one report-only stderr line. The return value and every exit code are
+    unchanged."""
     cutting = set()
     try:
         for p in state.scan_plans(PLANS_DIR):
@@ -5399,14 +5446,23 @@ def _unmarked_cut_card_flags(*, PLANS_DIR, TASKS_DIR, _read_yaml, _split_frontma
     if not cutting:
         return []
     out = []
+    skipped: list = errors if errors is not None else []
     for tp in state.scan_tasks(TASKS_DIR):   # T-* glob excludes _template.yaml
-        d = _read_yaml(tp)
-        if not isinstance(d, dict) or d.get("status") in ("done", "wont-do"):
+        d = _read_yaml(tp, errors=skipped)
+        fault = _task_card_shape_fault(d, hashable_entries=("cites",))
+        if fault:
+            skipped.append({"path": state._err_relpath(tp, TASKS_DIR.parent), "error": fault})
+            continue
+        if d.get("status") in ("done", "wont-do"):
             continue
         marker = d.get("decomposed_from")
         for slug in (d.get("cites") or []):
             if slug in cutting and marker != slug:
                 out.append({"task": d.get("id") or tp.stem, "plan": slug})
+    if errors is None:
+        for rec in skipped:
+            print(f"ADVISORY (SPEC-0070 §5, report-only): skipped malformed card {rec.get('path')}: "
+                  f"{' '.join(str(rec.get('error')).split())}", file=sys.stderr)
     return sorted(out, key=lambda x: (x["task"], x["plan"]))
 
 
@@ -5442,6 +5498,12 @@ def _write_release_view(*, ENGINE_ROOT, _build_release_view, write_text_atomic) 
         for _stale in _rv_graph.glob("worker-seed-*.md"):
             if f"{RELEASE_VIEW_DIR}/graph/{_stale.name}" not in _published:
                 _stale.unlink()
+    # T-13492: prune the retired SOURCE-named copy of a mapped doc (a checkout that still holds the
+    # pre-map file, or a merge that brought it back, would otherwise publish the part under both names).
+    for _src in RELEASE_VIEW_NAME_MAP:
+        _old = ENGINE_ROOT / RELEASE_VIEW_DIR / _src
+        if f"{RELEASE_VIEW_DIR}/{_src}" not in _published and _old.is_file():
+            _old.unlink()
     return files
 
 
@@ -5464,7 +5526,16 @@ def _yaml_task_decision_nodes(errors: list | None=None, *, DECISIONS_DIR, TASKS_
     readers then treat it as BLOCKING/unknown — `_requires_incomplete_in_index` returns BLOCKED for a
     `requires:` target that is absent from the map ("task not in index"), and an unparseable READY
     candidate never enters the ready set so it is never dispatched. This MIRRORS the disk picker
-    `_requires_incomplete`'s not-found=blocked posture — same posture, no new behavior."""
+    `_requires_incomplete`'s not-found=blocked posture — same posture, no new behavior.
+
+    T-13463: a card the walk cannot index — non-UTF-8, or faulted by the shared
+    `_task_card_shape_fault` (non-mapping top level, non-string id, non-iterable cites / requires /
+    expected_touch) — is OMITTED the same way and recorded as {path, error}, never raised. A
+    non-mapping decision file likewise. When the caller threads NO list, the records are reported
+    through `_report_graft_parse_errors` (stderr), so a no-list caller never reads an unreadable card
+    as an absent one in silence (SPEC-0165 item 11)."""
+    seen: list = errors if errors is not None else []
+    rel_root = TASKS_DIR.parent
     # Node shape: the SAME fields the pre-cut build emitted on the task/decision node (audit-post F1 —
     # so a `graph query T-/D-` point-lookup keeps returning the full authored node, no silent field
     # narrowing), PLUS the dispatch fields the carve-out/requires readers need (status/requires/
@@ -5473,7 +5544,11 @@ def _yaml_task_decision_nodes(errors: list | None=None, *, DECISIONS_DIR, TASKS_
     tasks: dict = {}
     if TASKS_DIR.exists():
         for p in state.scan_tasks(TASKS_DIR):
-            d = _read_yaml(p, errors=errors)
+            d = _read_yaml(p, errors=seen)
+            fault = _task_card_shape_fault(d, also_iterable=("requires", "expected_touch"))
+            if fault:
+                seen.append({"path": state._err_relpath(p, rel_root), "error": fault})
+                continue
             if not d.get("id"):
                 continue
             tasks[d["id"]] = {
@@ -5493,7 +5568,13 @@ def _yaml_task_decision_nodes(errors: list | None=None, *, DECISIONS_DIR, TASKS_
     decisions: dict = {}
     if DECISIONS_DIR.exists():
         for p in state.scan_decisions(DECISIONS_DIR):
-            d = _read_yaml(p, errors=errors)
+            d = _read_yaml(p, errors=seen)
+            if not isinstance(d, dict):
+                seen.append({"path": state._err_relpath(p, rel_root),
+                             "error": f"decision top level is a "
+                                      f"{_YAML_TYPE_NAMES.get(type(d).__name__, type(d).__name__)}, "
+                                      "expected a mapping"})
+                continue
             if not d.get("id"):
                 continue
             decisions[d["id"]] = {
@@ -5504,6 +5585,8 @@ def _yaml_task_decision_nodes(errors: list | None=None, *, DECISIONS_DIR, TASKS_
                 "requires": sorted(str(r) for r in (d.get("requires") or [])),
                 "cites": sorted(str(c) for c in (d.get("cites") or [])),
             }
+    if errors is None:
+        _report_graft_parse_errors(seen)
     return {"tasks": tasks, "decisions": decisions}
 
 

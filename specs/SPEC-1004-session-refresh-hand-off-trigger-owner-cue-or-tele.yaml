@@ -104,67 +104,77 @@ body: "## Scenario\n\nIn a long INTERACTIVE session the context fills up. The se
   \ -C <repo> session handoff list`).\n  - `session handoff take <id>` — atomic rename\
   \ to a private sibling name in the same directory\n    (exactly one caller wins;\
   \ any other is told the hand-off is already taken or absent) → print the\n    body\
-  \ → delete → `handoff_taken`.\n  - `session handoff drop <id>` — delete → `handoff_dropped`.\n\
-  \n**No worktree.** These verbs write only the anchored repo's `<git-common-dir>/yitc/handoffs/`\
-  \ — never\na source or artifact file — so they run from any checkout, like a journal\
+  \ → delete → `handoff_taken` → then, REPORT-ONLY, one line per `dispatch` watcher\n\
+  \    (SPEC-0133) the hand-off AUTHOR's session armed that is still running — who\
+  \ armed it, when,\n    and when it ends at the latest — and nothing when there is\
+  \ none. The take never ends or\n    takes over such a watcher, and a watcher read\
+  \ that fails is said aloud, never read as\n    «none» and never a failed take.\n\
+  \  - `session handoff drop <id>` — delete → `handoff_dropped`.\n\n**No worktree.**\
+  \ These verbs write only the anchored repo's `<git-common-dir>/yitc/handoffs/` —\
+  \ never\na source or artifact file — so they run from any checkout, like a journal\
   \ append (the exception is\nnamed in the write-flow home, AGENTS-SESSIONS §Writes\
   \ happen in a worktree).\n\n**Session-start delivery.** In an interactive Controller\
-  \ session, `session start` (engine and `-C`)\nprints a report-only, suppressed-when-empty,\
-  \ bounded line: the open count + up to 5 newest\n`H-N «title» (<age>)` + the `session\
-  \ handoff list` pointer. It never changes the store and never\ntakes. A taken hand-off\
-  \ no longer exists, so it is never shown. The global project picker does not\nshow\
-  \ hand-offs.\n\n**Emergency fallback.** Only when the verb itself is unavailable\
-  \ (emergency mode,\n`patterns/emergency-mode.md`) the AI prints the hand-off in\
-  \ chat for the owner to paste, in the same\ncontent shape.\n\n### 5. Audience —\
-  \ interactive owner-facing sessions ONLY\nApplies ONLY in an interactive owner-facing\
-  \ session. A dispatched / background / cron worker never\nwrites, proposes, or takes\
-  \ a hand-off (no owner to confirm). A condition in this rule, not a delivery\nfilter:\
-  \ the seed line reaches every session; a worker does not act on it.\n\n### 6. Offer,\
-  \ write on the owner's go — never auto-refresh, never auto-take\nOn an OWNER CUE\
-  \ the cue itself is the go: the AI writes the hand-off at the clean seam and reports\n\
-  the one line. On a TELEMETRY crossing the AI only PROPOSES — «Контекст ~N% окна\
-  \ — предлагаю обновить\nсессию на этом шве. Go?» (N from the sensor, never invented)\
-  \ — and writes the hand-off only after the\nowner's live «go»; a declined proposal\
-  \ leaves no file and no row. The OWNER decides whether to open a\nnew session. The\
-  \ AI never compacts in place, never starts a session, and never takes a hand-off\n\
-  without a LIVE owner cue in the taking session («берём H-N») — a listed hand-off\
-  \ is not an owner cue\n(SPEC-0039 §4 / SPEC-0141).\n\n### Delivery + survival\n\
-  `binding: [seed]` renders this title into the session-start seed line. The post-`/compact`\
-  \ survival\npointers (AGENTS.md §After /compact + `<provider-config>/commands/yitc.md`\
-  \ §After /compact) are re-pointed to\nthis spec at activation, and gain the re-fold\
-  \ pointer `session handoff list` for the start echo\n(SPEC-0007 §5b co-design).\n\
-  \n### Provider-neutral\nThe rule names no vendor and no host path beyond the repo's\
-  \ own git common-dir; the telemetry parse\nlives behind SPEC-0115's provider-adapter\
-  \ seam.\n\n## Parameters\n\nNone consumed. Size cap 32 KiB, expiry age 7 days, start-echo\
-  \ bound 5 — implementation constants in\nthe verb, stated here for interpretation\
-  \ only.\n\n## Rationale\n\nThe predecessor made the hand-off a copy-paste chat block\
-  \ to keep a continuation seed from lingering\nin `MEMORY.md`. The owner then pasted\
-  \ hand-offs by hand several times a day across the kernel and\nconsumer projects\
-  \ — friction and loss risk. This carrier keeps the reason for the old ban (no\n\
-  long-lived text, no buffer bloat, no committed file) and removes the manual copy:\
-  \ the text lives in a\nmachine-local, per-project store with opportunistic cleanup,\
-  \ deleted on take; the journal records only that it\nhappened. It reuses the journal\
-  \ event mechanism, the shared id allocator, the redaction boundary and\nthe git-common-dir\
-  \ placement of machine-local state (the graph result cache) — no new journal, parser\n\
-  or committed store.\n\n## Verification\n\n- **VP1 (seed delivered):** after activation,\
-  \ `session start` stdout carries a seed line with THIS id.\n- **VP2 (survival re-pointed):**\
-  \ AGENTS.md §After /compact and `<provider-config>/commands/yitc.md` §After\n  /compact\
-  \ name THIS id and `session handoff list` → grep both.\n- **VP3 (no text in the\
-  \ journal):** a canary string in a hand-off's title and text appears in no\n  journal\
-  \ row (segment-aware `journal query --grep`).\n- **VP4 (single taker):** two concurrent\
-  \ `take` of one id → exactly one prints; one `handoff_taken`.\n- **VP5 (gone after\
-  \ take):** after `take` no file for that id exists in the store.\n- **VP5a (guards):**\
-  \ a traversal / malformed / symlinked id; a blank (empty or whitespace-only) /\n\
-  \  oversize / multiline / control-char / credential-bearing title; a blank body;\
-  \ a malformed or\n  symlinked store entry met by list / session start / cleanup\
-  \ (skipped, never followed, start never\n  aborts); and an absent identity are each\
-  \ refused\n  with no file and no row; a credential in the body is redacted and counted;\
-  \ the created file's mode\n  is 0o600 when no ACL or shared mode applies; written/taken\
-  \ rows of one hand-off carry the same sha256 of the stored bytes.\n- **VP6 (two-phase\
-  \ telemetry):** a declined telemetry proposal leaves no file and no row.\n- **VP7\
-  \ (per project):** under `-C <consumer>` the file lands in THAT repo's git common-dir\
-  \ and the\n  rows in THAT repo's journal; a hand-off written from a linked worktree\
-  \ lists from the main checkout.\n- **VP8 (supersession honest):** `supersedes: <workshop-spec>`;\
+  \ session, `session start` (engine and `-C`)\nprints an owner-cued, suppressed-when-empty,\
+  \ bounded block: the open count + up to 5 newest\n`H-N «title» (<age>)`. It is SHOW\
+  \ AND WAIT : the session names the open hand-offs to the\nperson in its reply and\
+  \ waits — it takes one only on the person's «берём H-N» (§6), and the head\nline\
+  \ says so. The block carries NO runnable command — the list / take / drop verbs\
+  \ above are not a\nstartup step, and a command quoted in a hand-off title is shown\
+  \ without its runnable prefix\n(SPEC-0007 §5b). The read is read-only: it never\
+  \ changes the store and never takes. A taken\nhand-off no longer exists, so it is\
+  \ never shown. The global project picker does not show hand-offs.\n\n**Emergency\
+  \ fallback.** Only when the verb itself is unavailable (emergency mode,\n`patterns/emergency-mode.md`)\
+  \ the AI prints the hand-off in chat for the owner to paste, in the same\ncontent\
+  \ shape.\n\n### 5. Audience — interactive owner-facing sessions ONLY\nApplies ONLY\
+  \ in an interactive owner-facing session. A dispatched / background / cron worker\
+  \ never\nwrites, proposes, or takes a hand-off (no owner to confirm). A condition\
+  \ in this rule, not a delivery\nfilter: the seed line reaches every session; a worker\
+  \ does not act on it.\n\n### 6. Offer, write on the owner's go — never auto-refresh,\
+  \ never auto-take\nOn an OWNER CUE the cue itself is the go: the AI writes the hand-off\
+  \ at the clean seam and reports\nthe one line. On a TELEMETRY crossing the AI only\
+  \ PROPOSES — «Контекст ~N% окна — предлагаю обновить\nсессию на этом шве. Go?» (N\
+  \ from the sensor, never invented) — and writes the hand-off only after the\nowner's\
+  \ live «go»; a declined proposal leaves no file and no row. The OWNER decides whether\
+  \ to open a\nnew session. The AI never compacts in place, never starts a session,\
+  \ and never takes a hand-off\nwithout a LIVE owner cue in the taking session («берём\
+  \ H-N») — a listed hand-off is not an owner cue\n(SPEC-0039 §4 / SPEC-0141).\n\n\
+  ### Delivery + survival\n`binding: [seed]` renders this title into the session-start\
+  \ seed line. The post-`/compact` survival\npointers (AGENTS.md §After /compact +\
+  \ `<provider-config>/commands/yitc.md` §After /compact) are re-pointed to\nthis\
+  \ spec at activation, and gain the re-fold pointer `session handoff list` for the\
+  \ start echo\n(SPEC-0007 §5b co-design).\n\n### Provider-neutral\nThe rule names\
+  \ no vendor and no host path beyond the repo's own git common-dir; the telemetry\
+  \ parse\nlives behind SPEC-0115's provider-adapter seam.\n\n## Parameters\n\nNone\
+  \ consumed. Size cap 32 KiB, expiry age 7 days, start-echo bound 5 — implementation\
+  \ constants in\nthe verb, stated here for interpretation only.\n\n## Rationale\n\
+  \nThe predecessor made the hand-off a copy-paste chat block to keep a continuation\
+  \ seed from lingering\nin `MEMORY.md`. The owner then pasted hand-offs by hand several\
+  \ times a day across the kernel and\nconsumer projects — friction and loss risk.\
+  \ This carrier keeps the reason for the old ban (no\nlong-lived text, no buffer\
+  \ bloat, no committed file) and removes the manual copy: the text lives in a\nmachine-local,\
+  \ per-project store with opportunistic cleanup, deleted on take; the journal records\
+  \ only that it\nhappened. It reuses the journal event mechanism, the shared id allocator,\
+  \ the redaction boundary and\nthe git-common-dir placement of machine-local state\
+  \ (the graph result cache) — no new journal, parser\nor committed store.\n\n## Verification\n\
+  \n- **VP1 (seed delivered):** after activation, `session start` stdout carries a\
+  \ seed line with THIS id.\n- **VP2 (survival re-pointed):** AGENTS.md §After /compact\
+  \ and `<provider-config>/commands/yitc.md` §After\n  /compact name THIS id and `session\
+  \ handoff list` → grep both.\n- **VP3 (no text in the journal):** a canary string\
+  \ in a hand-off's title and text appears in no\n  journal row (segment-aware `journal\
+  \ query --grep`).\n- **VP4 (single taker):** two concurrent `take` of one id → exactly\
+  \ one prints; one `handoff_taken`.\n- **VP5 (gone after take):** after `take` no\
+  \ file for that id exists in the store.\n- **VP5a (guards):** a traversal / malformed\
+  \ / symlinked id; a blank (empty or whitespace-only) /\n  oversize / multiline /\
+  \ control-char / credential-bearing title; a blank body; a malformed or\n  symlinked\
+  \ store entry met by list / session start / cleanup (skipped, never followed, start\
+  \ never\n  aborts); and an absent identity are each refused\n  with no file and\
+  \ no row; a credential in the body is redacted and counted; the created file's mode\n\
+  \  is 0o600 when no ACL or shared mode applies; written/taken rows of one hand-off\
+  \ carry the same sha256 of the stored bytes.\n- **VP6 (two-phase telemetry):** a\
+  \ declined telemetry proposal leaves no file and no row.\n- **VP7 (per project):**\
+  \ under `-C <consumer>` the file lands in THAT repo's git common-dir and the\n \
+  \ rows in THAT repo's journal; a hand-off written from a linked worktree lists from\
+  \ the main checkout.\n- **VP8 (supersession honest):** `supersedes: <workshop-spec>`;\
   \ on activation <workshop-spec> → superseded.\n"
 cites:
 - CHARTER.md#principle-1
@@ -187,5 +197,6 @@ seed_cue: In an interactive session, on the owner's «обновим сесси�
   H-N».
 init_concern: null
 implements_signature:
-  bin/lib/session.py#cmd_session_handoff: d7bb4b3849e4d2f1b07f64f5e9d36ddbc4f82eaea1f6abf69f50bd7624dc6e53
+  bin/lib/session.py#cmd_session_handoff: 5fa9b65a1f28d17cdcccb8b278fa7f88662a749cff648fce54360e3f335f0969
+  bin/lib/session.py#handoff_start_echo_lines: 80236ceea6384556eba618551e490c4ce1eac0c9b6cc6a1d307521321d6504c6
   bin/lib/session.py#open_handoff_store: abaf7d092cb5cbf7db2883b42d18aa6a7fe9d555f7e33b807f5e975b50cd3710

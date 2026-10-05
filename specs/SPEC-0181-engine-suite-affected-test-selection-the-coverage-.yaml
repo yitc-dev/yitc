@@ -96,24 +96,27 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ requires editing its implementation, and both files that hold it\n     still fire\
   \ this rung. A periphery module's edit changes what THAT module does, never what\n\
   \     the selector omits for something else. The freeing rides the SAME opt-in channel\
-  \ as\n     (`reachability_freed`), whose only caller is the land's candidate sweep\
-  \ — so the SPEC-0077\n     pinned-verify trigger, the declared-check-surface predicate\
-  \ and the per-layer `subject_globs`\n     sibling all pass None and are byte-identical,\
-  \ and SPEC-0077 section 1's constant is NOT\n     narrowed by this rule. HONEST\
-  \ BOUND, not laundered: freeing a path narrows NOTHING by\n     itself — it hands\
-  \ the question back to ordinary reachability through the `bin/*` family\n     below,\
-  \ which may still select many tests.\n   - THE `tests/**` HALF IS NARROWED TO WHAT\
-  \ THE RUNNER DOES NOT COLLECT. A changed\n       path that IS one of the test files\
-  \ this run enumerates — a LEAF test, added or edited —\n       no longer fires this\
-  \ rung. MEASURED: of 751 commits touching `tests/` since 2026-08-01,\n       97.6%\
-  \ touched ONLY leaf test files, so the blanket form refused ~99 times in 100 on\
-  \ a\n       change that cannot invalidate the map for any OTHER test. What still\
-  \ fires it: shared test\n       infrastructure (conftest, fixtures, helper modules,\
-  \ test data — anything affecting\n       COLLECTION), and DELETES and RENAMES. Those\
-  \ are KEPT because one shared fixture can alter\n       many tests at once, so freeing\
-  \ them would be unsound. The self-guard argument above is\n       UNWEAKENED: escaping\
-  \ the selector still requires editing its implementation under `bin/**`\n      \
-  \ or its collection surface, both of which still fire this rung — a leaf tripwire's\
+  \ as\n     (`reachability_freed`), and THIS rule's freed set has one caller, the\
+  \ land's candidate sweep —\n     so the SPEC-0077 pinned-verify trigger and the\
+  \ declared-check-surface predicate pass None and\n     are byte-identical, the per-layer\
+  \ `subject_globs` sibling never receives this allowlist (what\n     it hands that\
+  \ channel is its own: the section-aware ops-carrier answer and the\n     ownership-aware\
+  \ `tests/**` answer, whose rules are homed in SPEC-0152 rule 16 and not\n     restated\
+  \ here), and SPEC-0077 section 1's constant is NOT\n     narrowed by this rule.\
+  \ HONEST BOUND, not laundered: freeing a path narrows NOTHING by\n     itself —\
+  \ it hands the question back to ordinary reachability through the `bin/*` family\n\
+  \     below, which may still select many tests.\n   - THE `tests/**` HALF IS NARROWED\
+  \ TO WHAT THE RUNNER DOES NOT COLLECT. A changed\n       path that IS one of the\
+  \ test files this run enumerates — a LEAF test, added or edited —\n       no longer\
+  \ fires this rung. MEASURED: of 751 commits touching `tests/` since 2026-08-01,\n\
+  \       97.6% touched ONLY leaf test files, so the blanket form refused ~99 times\
+  \ in 100 on a\n       change that cannot invalidate the map for any OTHER test.\
+  \ What still fires it: shared test\n       infrastructure (conftest, fixtures, helper\
+  \ modules, test data — anything affecting\n       COLLECTION), and DELETES and RENAMES.\
+  \ Those are KEPT because one shared fixture can alter\n       many tests at once,\
+  \ so freeing them would be unsound. The self-guard argument above is\n       UNWEAKENED:\
+  \ escaping the selector still requires editing its implementation under `bin/**`\n\
+  \       or its collection surface, both of which still fire this rung — a leaf tripwire's\
   \ own edit\n       changes what that ONE test asserts, never what the selector omits\
   \ for another. Leafness is\n       judged by MEMBERSHIP in the runner's enumeration,\
   \ never by a filename shape: the collector\n       defines what a test is, which\
@@ -507,18 +510,90 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ wrong; a firing is a map defect only when the recovered test genuinely READS the\
   \ changed path.\n  That residual class is carried by as its own card, because it\
   \ is a question about the\n  ORACLE's granularity rather than about the map, and\
-  \ both routes above are recorded refused there.\n\nA DISAGREEMENT IS A DEFECT, NOT\
-  \ A PARAMETER. If a recorded would-omit set is ever found to\ncontain a test that\
-  \ would have failed, the coverage MAP is wrong and is fixed at the map. It is\n\
-  never absorbed as an acceptable miss rate and never tuned away by relaxing this\
-  \ contract.\n\nTHE ARTEFACT CARVE-OUT IS WITHDRAWN — OWNER RULING 2026-08-23, recorded\
-  \ at\n`events.jsonl#ts=` (event `owner_directive`, task_id, carrying the\nruling\
-  \ and the owner's verbatim wording). This is stated HERE, where the threshold is\
-  \ defined and\nwhere a reader of the exposure figure meets it, because the figure\
-  \ and the threshold both used to\nrest on it.\n\n  WHAT WAS WITHDRAWN. The miss\
-  \ threshold formerly excluded load artefacts by the recorded\n  `fail_class`. That\
-  \ classifier is demonstrably unreliable — on 2026-08-23 a real, reproducible\n \
-  \ breakage was labelled `verify-flake` — so a threshold resting on it rested on\
+  \ both routes above are recorded refused there.\n\nTHE events.jsonl FAMILY — NARROWED\
+  \ BY REMOVING ITS CAUSE, NOT BY A PROOF. Every land's diff carries `events.jsonl`\
+  \ (its own journal receipts), so this family is\nthe FLOOR of every selected land:\
+  \ whatever it selects, a bookkeeping land pays for.\n  - THE RULE THAT HOLDS THE\
+  \ WIDTH. A tests/ helper's families are handed to every test that\n    imports it\
+  \ (the derivation above), so a helper that HOLDS a live-root path makes each of\
+  \ its\n    importers a member of that path's family. The read-gate seed helper `tests/_read_gate.py`\n\
+  \    therefore STORES NO JOURNAL PATH: its seed guard builds the path it protects\
+  \ inside\n    the call, and refuses a seed by RESOLVED-path equality on both sides,\
+  \ as it always did — only\n    WHEN the protected side is resolved moved, from import\
+  \ to the call. An importer then takes\n    nothing from the helper that it could\
+  \ not compute from its own file, and is judged on its OWN\n    source like every\
+  \ other test. A cause was removed: no selection predicate was added, and none\n\
+  \    of the derivation's code changed for it.\n  - WIDTH, MEASURED THROUGH `governed_selection`\
+  \ for an events.jsonl-only diff. Before :\n    726 of 2071 test files selected,\
+  \ 735 executed (the figures the governed lands of 2026-10-04\n    recorded). After:\
+  \ 275 of 2072 selected, 287 executed. The always class is 233 on both sides.\n \
+  \   455 tests left the family — 387 that import the helper and 68 that import a\
+  \ sibling test which\n    held the family only through it — and 4 joined through\
+  \ the allowlist registration below. The\n    number moves with the tree; what holds\
+  \ it down is the helper storing no path, and\n    tests/test_t13501_read_gate_no_stored_journal.py\
+  \ holds THAT: it turns red when the path is\n    bound at module level again, when\
+  \ the selector's analysis of the helper yields the family\n    again, and when the\
+  \ guard is weakened from resolved-path equality.\n  - WHO IS IN IT, ROW BY ROW,\
+  \ is the measurement's to say, not this text's:\n    `dev-utilities/measure-journal-delta-readers-.py`\
+  \ (output\n    `dev-utilities/journal-delta-readers-.json`, re-runnable at any HEAD)\
+  \ lists every test\n    the selector returns with the reason it is held. No tests/\
+  \ helper carries the family.\n  - WHAT THIS DOES NOT CLAIM. Nothing is proven about\
+  \ the tests that left, and no proof is owed:\n    nothing EXCLUDES them — the helper\
+  \ stopped INCLUDING them. A test among them that reads the\n    live journal by\
+  \ a route its own source does not show carries the exposure every test outside\n\
+  \    the family has always carried, and is answered the same way: a recorded disagreement\
+  \ is a\n    defect of the map (below) and counts toward the auto-rollback.\n  -\
+  \ `_REAL_STORE_ALLOWLIST` IS A REGISTERED FLOOR READER OF THIS FAMILY. A member\
+  \ of that\n    allowlist keeps the REAL repo journal (or the real shared coordination\
+  \ store) as its default\n    under the hermetic child environment, a live read no\
+  \ scan of its source can. The\n    events.jsonl floor row carries the allowlist\
+  \ itself, so a member added there is selected here\n    with no second edit.\n \
+  \ - THE CLASSES ARE PROOFS, NOT MENTIONS. A row is `live` only when its own source\
+  \ holds a read\n    call — `.read_text`, `.read_bytes`, `.open(<read mode>)`, the\
+  \ builtin\n    `open(<path>, <read mode>)` — whose receiver or path argument FOLDS,\
+  \ every step typed and\n    proven, to `<checkout root>/events.jsonl`, in a module\
+  \ written entirely in a closed READ-ONLY\n    subset of Python (default-deny on\
+  \ its syntax, imports, names, attributes and source text), the\n    facts about\
+  \ the file being taken from the RESOLVED tests directory. A read verb and the journal\n\
+  \    anchor sharing a line prove nothing (`journal.name == \"events.jsonl\" and\
+  \ (ROOT /\n    \"fixture.txt\").read_text` reads another file; a lock-directory\
+  \ glob beside the journal path\n    reads no journal content). The two non-reader\
+  \ classes, `fixture-only` and `none`, need the\n    opposite proof — that a test\
+  \ CANNOT read the live journal — and none is held, so both are\n    empty. Every\
+  \ row is therefore `live` or `undecidable`: a registered reader is kept by its\n\
+  \    REGISTRATION, audited at its own card and not re-proven here, and a read call\
+  \ that folds in a\n    module OUTSIDE the subset is reported and counted, never\
+  \ a proof (8 today). No real test lies\n    inside the subset, so `live` is 0 at\
+  \ this HEAD; the positive arm is the hermetic fixture in\n    tests/test_t13452_journal_family_narrowing.py.\
+  \ A label carries NO selection consequence.\n  - REFUSED: NARROWING BY A STATIC\
+  \ NON-REACH PROOF. The candidate rule — a helper anchor whose\n    every use is\
+  \ a path-identity comparison is not a read, and the withheld family returns only\
+  \ to\n    an importer that could extract the anchor — measured 723 -> 459 and is\
+  \ NOT adopted. The\n    external audit found, on each full pass, a further route\
+  \ by which an importer extracts the\n    anchor or by which the comparison itself\
+  \ reads (an extraction function imported under an\n    alias, a nested format-spec\
+  \ field, a second sibling hop, a helper replacing `Path.__eq__`), and\n    a list\
+  \ of known routes never closes dynamic extraction. An exclusion is a proof obligation\n\
+  \    (above); a non-reach proof over ARBITRARY test sources was not met, and none\
+  \ is relied on now:\n    the importers left because the anchor is gone (the rule\
+  \ above), not because a proof excused\n    them. The measurement is evidence for\n\
+  \    plans/risk-cohort-test-selection-for-code-lands-backed-b.md.\n  - WHAT IS UNCHANGED.\
+  \ R1/R2/R3 and the pinned leg (SPEC-0077); the floor-union fail-safe (a\n    derivation\
+  \ error returns the floor); every family; the always class (233: 90 corpus-wide,\
+  \ 78\n    unresolvable live-root reads, 65 propagated). The SPEC-0064 §2/§5 dissonance\
+  \ (events.jsonl\n    called inert while it has live content readers) stays RECORDED\
+  \ at the `bin/lib/worktree.py`\n    carrier comment, not resolved here.\n\nA DISAGREEMENT\
+  \ IS A DEFECT, NOT A PARAMETER. If a recorded would-omit set is ever found to\n\
+  contain a test that would have failed, the coverage MAP is wrong and is fixed at\
+  \ the map. It is\nnever absorbed as an acceptable miss rate and never tuned away\
+  \ by relaxing this contract.\n\nTHE ARTEFACT CARVE-OUT IS WITHDRAWN — OWNER RULING\
+  \ 2026-08-23, recorded at\n`events.jsonl#ts=` (event `owner_directive`, task_id,\
+  \ carrying the\nruling and the owner's verbatim wording). This is stated HERE, where\
+  \ the threshold is defined and\nwhere a reader of the exposure figure meets it,\
+  \ because the figure and the threshold both used to\nrest on it.\n\n  WHAT WAS WITHDRAWN.\
+  \ The miss threshold formerly excluded load artefacts by the recorded\n  `fail_class`.\
+  \ That classifier is demonstrably unreliable — on 2026-08-23 a real, reproducible\n\
+  \  breakage was labelled `verify-flake` — so a threshold resting on it rested on\
   \ nothing. EVERY\n  recorded disagreement now counts as a real miss, and no `fail_class`-based\
   \ exclusion appears\n  anywhere the miss count is computed. The differential\n \
   \ `tests/test_t11462_selection_coverage_differential.py` goes RED if one reappears.\n\

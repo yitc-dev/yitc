@@ -674,9 +674,17 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ and it does not weaken anything above —\nthe head is still never evicted, and\
   \ a release still costs nobody a punished requeue. It sharpens\nWHEN the release\
   \ fires, so a reader does not infer from \"the proven culprit is the head\" that\
-  \ a\nhead-containing set suffices.\n\nSo on that ONE decline reason the land RELEASES\
-  \ its peers and re-forms ALONE. Nobody lands on this\npass either — this de-escalates\
-  \ the batch, it does not rescue it — but the head then fails or passes\nON ITS OWN,\
+  \ a\nhead-containing set suffices.\n\n**A head whose candidate leg is CREDITED forms\
+  \ a batch of ONE on this same seam (ADDITIVE).**\nA land that takes its candidate-leg\
+  \ verdict from its task's Stage-6 run (SPEC-0065 §Bound) and still\nowes the pinned\
+  \ leg forms ALONE through the same head short-circuit: merging queued members into\
+  \ it\nwould change the very tree that run tested, so a credit and a batch never\
+  \ share an attempt. Nothing\nis released, marked or requeued by it — the queued\
+  \ peers are recorded on the formation row under the\nexisting head-solo reason and\
+  \ form the next batch. A credited land that owes no pinned leg runs no\nverify pass\
+  \ and forms nothing.\n\nSo on that ONE decline reason the land RELEASES its peers\
+  \ and re-forms ALONE. Nobody lands on this\npass either — this de-escalates the\
+  \ batch, it does not rescue it — but the head then fails or passes\nON ITS OWN,\
   \ which makes its next verdict unambiguously its own, and the released peers form\
   \ the NEXT\nbatch without it. This is deliberately NOT the deferred carry-the-survivors\
   \ design (landing the peers\nPAST a red head), which would need a different ff target\
@@ -2329,5 +2337,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
+  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
   bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280

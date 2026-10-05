@@ -474,6 +474,13 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "resume` + `audit pre|post --on-decisions`). At audit-POST, for a residual you fix in scope: "
     "`task commit --fix-red` FIRST and name its sha in the pause next_action (the Controller's "
     "`audit decide --disposition fix --evidence` must be a strict descendant of the audited commit). "
+    "TERMINAL RED (SPEC-0204 rules 3-4 / T-13537) — the route above is for REACHING the ceiling. When "
+    "the `--on-decisions` pass ITSELF (or its one absorption re-audit) comes back RED, the stage is "
+    "OVER: the verb emits a bg_dispatch_halted(blocked_on_land) row naming the terminal exits "
+    "(`task update --status parked|wont-do`, `worktree park`, or a new card) and NO "
+    "residual_fingerprints — there is NO `audit decide` and NO further pass to ask for. You still "
+    "halt with `task pause <task> --reason audit-ceiling`; its recorded next_action then names those "
+    "exits, which are the owner's to take. "
     "Do NOT run `blocked-on-land` for a ceiling reached "
     "before your first commit: the claim `worktree new --task` wrote is still UNCOMMITTED there, so "
     "the branch carries none and the verb REFUSES by design (T-10894) — its refusal names the pause "
@@ -696,7 +703,9 @@ your life: when you yield the turn, your process EXITS. Therefore:
      run to its own exit. PREVIEW FIRST, and do NOT go shopping for a deferred-adoption overlay flag:
      run `{invoke} audit pre|post --task <id> --preview` BEFORE each auditor pass, read the packet
      readiness block and fix what it names (report-only, T-11977) — a spent auditor pass is the
-     expensive thing, reading the block is free. The verb DERIVES the deferred-adoption overlay from
+     expensive thing, reading the block is free. Before an `--on-decisions` pass the preview is
+     `--preview` ALONE: the two flags are not combinable (the verb refuses the pair), so preview
+     first, then run the pass with `--on-decisions`. The verb DERIVES the deferred-adoption overlay from
      your CARD's own declaration (T-11978); pass an overlay flag ONLY to OVERRIDE what it derived, never
      to pick one yourself.
    - REAL LAND: integrate via `{invoke} land` and reach the `LAND: OK <sha>` token — NEVER hand-emit a
@@ -781,11 +790,14 @@ names who may occupy it — being re-dispatched is not being granted the right).
      more than one user. Four times the path already existed owned by someone else: the redirect was
      denied, THE VERB NEVER RAN, and the `tail` printed a FOREIGN task's audit verdict or suite
      failures as if they were this run's (T-11991, T-11981, T-11978, T-11647). Put the file under
-     YOUR WORKTREE (`.yitc/` there is gitignored, so it can never show as land-blocking dirt), or
-     under YOUR SESSION SCRATCH ROOT `$YITC_SCRATCH_DIR` (engine-named, per session — T-13203) — e.g.
-     `$YITC_SCRATCH_DIR/T-XXXX-<job>.log`; a name outside it still carries `<sessionref>-<task>`
-     (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go there too, never a bare /tmp name:
-     your land/park REMOVES that root, and `worktree sweep` reclaims a dead session's. The engine's
+     YOUR SESSION SCRATCH ROOT `$YITC_SCRATCH_DIR` (engine-named, per session, ALREADY CREATED for
+     you by dispatch — T-13203) — e.g. `$YITC_SCRATCH_DIR/T-XXXX-<job>.log`. The other route is YOUR
+     WORKTREE's `.yitc/` (gitignored, so it can never show as land-blocking dirt) — but a fresh
+     worktree does NOT carry that directory: run `mkdir -p .yitc` BEFORE the first redirect there,
+     or the redirect fails and THE VERB NEVER RUNS (T-13536). A name outside both still carries
+     `<sessionref>-<task>` (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go under the scratch
+     root too, never a bare /tmp name: your land/park REMOVES that root, and `worktree sweep`
+     reclaims a dead session's. The engine's
      own detached land/test log+pid (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`, T-11294 off
      the same false-GREEN class) stay OUTSIDE it by design — a poller reads them past land's teardown.
    - **A RE-LAND POLL IS ANCHORED TO THIS ATTEMPT'S BYTES.** The start-detach land log
@@ -1234,7 +1246,7 @@ def _memory_advisory_line(mem: "dict | None", width: int) -> "str | None":
 
 def _readiness_advisory_block(report: "dict", n_tasks: int, cards=None,
                               today: "str | None" = None, mem: "dict | None" = None,
-                              fit: "dict | None" = None) -> str:
+                              fit: "dict | None" = None, reused=()) -> str:
     """Render the pre-launch dispatch-readiness advisory (SPEC-0133 §6 / T-10354) IN THE DECISION FRAME —
     the block `cmd_dispatch` PRINTS before the first launch line so the controller sizes/confirms the
     wave against LIVE fleet-width, not memory (the consult verdict-A requirement, fold → visible advisory
@@ -1252,16 +1264,25 @@ def _readiness_advisory_block(report: "dict", n_tasks: int, cards=None,
 
     T-12913 — when `mem` (a `_wave_memory_reading`) is supplied, the block ALSO carries ONE memory line
     beside the CPU headroom line, but only while MemAvailable is short of the wave's projected need
-    (`_memory_advisory_line`). Same contract: telemetry, no refusal/queue/clamp/delay/resize."""
+    (`_memory_advisory_line`). Same contract: telemetry, no refusal/queue/clamp/delay/resize.
+
+    T-13540 — `reused` is the wave ids that ALREADY hold a `task/` worktree (a re-dispatch into a
+    preserved dead-holder worktree, or an id the in-flight guard will skip). `live_worker_count`
+    counts every `task/` worktree (T-10010, deliberate), so such an id is already inside it: the
+    worker-fit wave is live + n_tasks - reused, and the live line says how many are re-used. Clamped
+    to the wave and to the live count; an empty `reused` renders byte-identically. The report fields
+    and the ceiling are untouched — this corrects one printed sum, nothing reads it back."""
     h = report["headroom"]
     ceiling = report["recommended_wave_ceiling"]
     pre_lines = (_card_precondition_lines(_card_precondition_report(cards, today or ""))
                  if cards is not None else [])
     mem_line = _memory_advisory_line(mem, n_tasks)
+    live = int(report.get("live_worker_count") or 0)
+    n_reused = max(0, min(len(set(reused or ())), n_tasks, live))   # T-13540 — counted once, not twice
     # T-13237 — project/host worker fit: advisory only when the wave would exceed it, never a refusal.
     fit_line = None
     if fit and isinstance(fit.get("recommended"), int):
-        wave = int(report.get("live_worker_count") or 0) + n_tasks
+        wave = live + n_tasks - n_reused
         if wave > fit["recommended"]:
             fit_line = (f"  workers: this wave would run {wave} parallel worker(s); this host fits "
                         f"{fit['recommended']} for this project — advisory, launching anyway")
@@ -1270,7 +1291,8 @@ def _readiness_advisory_block(report: "dict", n_tasks: int, cards=None,
         f"  recommended_wave_ceiling: {ceiling}  (advisory — size/confirm your wave against it; never enforced)",
         f"  server bounds (T-10386, SUGGESTED — never a coded cap): max_fleet_width={journal.max_fleet_width()}  "
         f"watch_poll_interval={journal.WATCH_POLL_INTERVAL_SECS}s  watch_max_runtime={journal.WATCH_MAX_RUNTIME_SECS}s",
-        f"  live_worker_count (all sessions task/+work/): {report['live_worker_count']}",
+        f"  live_worker_count (all sessions task/+work/): {report['live_worker_count']}"
+        + (f"  ({n_reused} re-used by this launch)" if n_reused else ""),
         f"  free_slots: {h['free_slots']}  (headroom: nproc={h['nproc']} "
         f"loadavg={h['loadavg1']}/{h['loadavg5']}/{h['loadavg15']})",
         *([mem_line] if mem_line else []),
@@ -2756,7 +2778,124 @@ def _orphan_holder_liveness(wt, *, _read_worktree_stamp, _session_proc_alive,
     return (True, ref, "", [])
 
 
-def _orphan_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, str]":
+def _in_claim_footprint(path: str, task: str) -> bool:
+    """Is `path` inside the RE-DERIVABLE CLAIM FOOTPRINT — `events.jsonl` or the task's own card?
+
+    The ONE definition of that footprint (`_orphan_carries_work`'s docstring is its rule home), read
+    by the uncommitted-path loop there AND by the landed-done commit proof below, so a committed and
+    an uncommitted path can never be judged against two different footprints (CHARTER §P5)."""
+    return path == "events.jsonl" or bool(_claim_card_re(task).fullmatch(path))
+
+
+def _git_z_paths(stdout) -> "list[str]":
+    """The paths of a `-z` git listing: NUL-split, empty records dropped. `-z` output is never
+    quoted, so a non-ASCII path arrives as itself (SPEC-0185 §2a(i))."""
+    return [p for p in (stdout or "").split("\0") if p]
+
+
+# T-13458 — the ONE spelling of «list the paths a tree diff changes» for the landed-done proof, so
+# no read can be configured into hiding a path. PLUMBING (`diff-tree`), never porcelain `git diff`:
+# porcelain honours the reader's `diff.*` UI configuration, and `diff.ignoreSubmodules=all` makes a
+# committed submodule (gitlink) update vanish from its output with rc 0 — an empty list that reads
+# «nothing changed» (audit-post finding on this card; measured). `--ignore-submodules=none` is
+# spelled as well, because plumbing still honours a `.gitmodules` / `submodule.<name>.ignore = all`
+# and the explicit flag is the one thing that overrides both. `--no-commit-id` keeps a commit header
+# out of the records (see the docstring below); `-z` keeps every path verbatim.
+_PROOF_DIFF_PATHS = ("diff-tree", "-r", "--name-only", "--no-commit-id", "--ignore-submodules=none", "-z")
+
+
+def _landed_done_ahead_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, str]":
+    """T-13458 — on a card that is `done` on main, do the commits AHEAD of main hold anything a
+    teardown would lose? `(carries_work, why)`; `(False, "")` only on a complete positive proof.
+
+    WHY THIS EXISTS. `_orphan_carries_work` reads ANY commit ahead of main as work. That is right for
+    a claim that never landed, and it wedged the landed-done retirement (T-11414): a batch-landed
+    card's own land-retry loop keeps merging main into its branch and committing journal
+    bookkeeping, so the branch sits N ahead while holding nothing — and no governed verb could
+    remove it (measured 2026-10-03: task/T-13402, six merges of main; task/T-13373, two merges plus
+    one `land: bookkeeping` commit).
+
+    A COMMIT AHEAD CARRIES NO WORK when it is
+      (i)  a MERGE whose every non-first parent is already an ancestor of main AND which itself
+           authors nothing outside the claim footprint — its dense combined diff, i.e. the paths
+           whose result differs from EVERY parent (a hand resolution; a union-merged journal lands
+           here too, inside the footprint); or
+      (ii) a ONE-PARENT commit whose changed paths all lie inside the claim footprint;
+    AND the branch as a whole holds no content main lacks: exactly ONE merge base with main, and the
+    diff from that base to HEAD confined to the footprint. The per-commit proof alone would wave
+    through an `-s ours` merge that silently keeps an old version of a main file; the net-content
+    proof alone would wave through authored content a later merge cancelled out.
+
+    POSITIVE EVIDENCE ON EVERY AXIS, with a reserved «did not answer»
+    (`lessons/carving-an-exception-into-a-fail-closed-gate` §1): `merge-base --is-ancestor` answers
+    0 = on main and 1 = not on main, and EVERY other exit — like every other failed read here, a
+    parentless commit, and zero or several merge bases — reads «carries work». The branch this
+    guards cannot be undone.
+
+    `--no-commit-id` on the combined-diff read is LOAD-BEARING: without it `diff-tree` prints the
+    merge's own sha as its first record, which is no footprint path and would preserve every allowed
+    merge (audit-pre finding on this card; pinned by the union-merge arm of the AC2 test).
+
+    NO READ HERE MAY BE CONFIGURED INTO SILENCE. Every path list comes from `_PROOF_DIFF_PATHS` —
+    plumbing with `--ignore-submodules=none` — because an empty list is this proof's «nothing to
+    lose», and a reader whose configuration can empty the list has a configuration that opens the
+    teardown (audit-post finding on this card: `diff.ignoreSubmodules=all` hid a committed gitlink
+    update from the porcelain reads first written here; pinned by the gitlink arms of the test).
+
+    Pure read (git plumbing only, bounded by the commits ahead); no state, no event, no mutation."""
+    listed = _run_git_cap(["rev-list", "--parents", "main..HEAD"], wt)
+    if listed.returncode != 0:
+        return (True, f"could not list the commits ahead of main ({(listed.stderr or '').strip()}) — "
+                      f"refusing to treat an unreadable worktree as empty")
+    rows = [ln.split() for ln in (listed.stdout or "").splitlines() if ln.strip()]
+    if not rows:
+        return (False, "")
+    for sha, *parents in rows:
+        short = sha[:12]
+        if not parents:
+            return (True, f"un-landed commit {short} has no parent — a root commit that is not on main")
+        if len(parents) == 1:
+            changed = _run_git_cap([*_PROOF_DIFF_PATHS, "--no-renames", parents[0], sha], wt)
+            if changed.returncode != 0:
+                return (True, f"could not read what commit {short} changes "
+                              f"({(changed.stderr or '').strip()}) — refusing to treat it as empty")
+            for path in _git_z_paths(changed.stdout):
+                if not _in_claim_footprint(path, task):
+                    return (True, f"un-landed commit {short} touches {path}, outside the re-derivable "
+                                  f"claim footprint")
+            continue
+        for parent in parents[1:]:
+            on_main = _run_git_cap(["merge-base", "--is-ancestor", parent, "main"], wt)
+            if on_main.returncode == 1:
+                return (True, f"un-landed merge {short} brings in {parent[:12]}, which is NOT on main")
+            if on_main.returncode != 0:
+                return (True, f"could not establish whether {parent[:12]} (merged by {short}) is on "
+                              f"main ({(on_main.stderr or '').strip()}) — refusing to treat it as landed")
+        authored = _run_git_cap([*_PROOF_DIFF_PATHS, "--cc", sha], wt)
+        if authored.returncode != 0:
+            return (True, f"could not read what merge {short} authors "
+                          f"({(authored.stderr or '').strip()}) — refusing to treat it as empty")
+        for path in _git_z_paths(authored.stdout):
+            if not _in_claim_footprint(path, task):
+                return (True, f"un-landed merge {short} authors {path}, outside the re-derivable "
+                              f"claim footprint")
+    bases = _run_git_cap(["merge-base", "--all", "main", "HEAD"], wt)
+    base_shas = [ln.strip() for ln in (bases.stdout or "").splitlines() if ln.strip()]
+    if bases.returncode != 0 or len(base_shas) != 1:
+        return (True, f"could not establish ONE merge base with main (git answered {len(base_shas)}; "
+                      f"{(bases.stderr or '').strip()}) — refusing to judge the branch's content")
+    net = _run_git_cap([*_PROOF_DIFF_PATHS, "--no-renames", base_shas[0], "HEAD"], wt)
+    if net.returncode != 0:
+        return (True, f"could not read the branch's content against main "
+                      f"({(net.stderr or '').strip()}) — refusing to treat it as empty")
+    for path in _git_z_paths(net.stdout):
+        if not _in_claim_footprint(path, task):
+            return (True, f"the branch differs from main at {path}, outside the re-derivable claim "
+                          f"footprint")
+    return (False, "")
+
+
+def _orphan_carries_work(wt, task: str, *, _run_git_cap, landed_done: bool = False) -> "tuple[bool, str]":
     """T-11289 — would tearing THIS orphan worktree down DESTROY anything a fresh claim cannot
     re-derive? `(carries_work, why)`.
 
@@ -2787,18 +2926,31 @@ def _orphan_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, str]":
     NOT `_classify_inert_paths` (CHARTER §P1 F1 considered + rejected, deliberately): that classifier
     answers "is this change observable enough to need an audit?" and its allowlist holds `decisions/`
     INERT — the exact opposite polarity for this question. Reusing it would have declared T-11247's
-    audit records worthless. Pure read (two git plumbing calls); no state, no event, no mutation."""
-    ahead = _run_git_cap(["rev-list", "--count", "main..HEAD"], wt)
-    if ahead.returncode != 0:
-        return (True, f"could not count commits ahead of main ({(ahead.stderr or '').strip()}) — "
-                      f"refusing to treat an unreadable worktree as empty")
-    try:
-        n_ahead = int((ahead.stdout or "").strip() or "0")
-    except ValueError:
-        return (True, f"unparseable commit count {(ahead.stdout or '').strip()!r} — "
-                      f"refusing to treat an unreadable worktree as empty")
-    if n_ahead > 0:
-        return (True, f"{n_ahead} un-landed commit(s) on the branch")
+    audit records worthless. Pure read (two git plumbing calls); no state, no event, no mutation.
+
+    `landed_done` (T-13458) — passed True by ONE caller, `worktree park`'s landed-done arm, and by
+    no other. There «any commit beyond main carries» is REPLACED by the per-commit proof
+    `_landed_done_ahead_carries_work`: a card whose claim, diff and closure are ALL on main can sit
+    ahead of it by merges of main and journal bookkeeping alone, and counting those by sha left its
+    worktree with no governed exit. With the keyword absent — the dispatch confirmed-dead teardown
+    and park's `ready` / `wont-do` arms — this function behaves exactly as it did before the keyword
+    existed: any commit ahead is work. The uncommitted-path check below is shared by both reads."""
+    if landed_done:
+        ahead_carries, ahead_why = _landed_done_ahead_carries_work(wt, task, _run_git_cap=_run_git_cap)
+        if ahead_carries:
+            return (True, ahead_why)
+    else:
+        ahead = _run_git_cap(["rev-list", "--count", "main..HEAD"], wt)
+        if ahead.returncode != 0:
+            return (True, f"could not count commits ahead of main ({(ahead.stderr or '').strip()}) — "
+                          f"refusing to treat an unreadable worktree as empty")
+        try:
+            n_ahead = int((ahead.stdout or "").strip() or "0")
+        except ValueError:
+            return (True, f"unparseable commit count {(ahead.stdout or '').strip()!r} — "
+                          f"refusing to treat an unreadable worktree as empty")
+        if n_ahead > 0:
+            return (True, f"{n_ahead} un-landed commit(s) on the branch")
     st = _run_git_cap(["status", "--porcelain"], wt)
     if st.returncode != 0:
         return (True, f"could not read the working tree ({(st.stderr or '').strip()}) — "
@@ -2811,7 +2963,7 @@ def _orphan_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, str]":
             path = path.split(" -> ", 1)[1].strip().strip('"')
         if not path:
             continue
-        if path == "events.jsonl" or _claim_card_re(task).fullmatch(path):
+        if _in_claim_footprint(path, task):
             continue                       # re-derivable claim footprint — not work
         return (True, f"uncommitted work at {path}")
     return (False, "")
@@ -4352,7 +4504,8 @@ def _default_proc_start_token(pid: "int | None") -> "str | None":
 
 
 def _live_watchers_over(tasks, *, main_wt, _dispatch_status_events, _pid_alive,
-                        _proc_start_token=_default_proc_start_token, _utc_now=None) -> "tuple[list, str | None]":
+                        _proc_start_token=_default_proc_start_token, _utc_now=None,
+                        session_ref=None) -> "tuple[list, str | None]":
     """The `watch_process_group_escaped` rows on MAIN whose recorded process is STILL THAT process and
     whose watched set INTERSECTS `tasks` — i.e. the watchers a fresh arming over `tasks` would
     DUPLICATE (T-12637 AC2). Returns `(live_rows, unanswered)`: `unanswered` is None when the journal
@@ -4364,9 +4517,17 @@ def _live_watchers_over(tasks, *, main_wt, _dispatch_status_events, _pid_alive,
     answers `_pid_alive` AND the process now holding that pid carries the row's recorded `pid_start`
     token (`_proc_start_token`). A row with NO token (written before this card) or a token that does
     not match (the pid was REUSED) is NOT a live watcher, so the promised re-arm after a watcher has
-    ended is never refused on a stranger's pid."""
+    ended is never refused on a stranger's pid.
+
+    SELECTING BY ARMING SESSION (T-13539). Given a non-empty `session_ref`, the rows selected are those
+    whose ENVELOPE `session_ref` equals it — the watchers THAT SESSION armed, whatever they watch — in
+    place of the task intersection (`tasks` may then be empty). This is the hand-off take's question
+    («which watchers did the author leave running?»), answered by the same reader, window and liveness
+    test as the dedup seam, so there is one definition of a live watcher. Without it the selection is
+    the task intersection, unchanged."""
     wanted = {str(t) for t in (tasks or [])}
-    if not wanted or _dispatch_status_events is None:
+    by_session = bool(session_ref)
+    if (not wanted and not by_session) or _dispatch_status_events is None:
         return [], None
     # WALL-clock, deliberately separate from the loop's injected MONOTONIC `_watch_now`: the window is
     # judged against journal `ts` strings, and a monotonic float cannot be.
@@ -4385,7 +4546,12 @@ def _live_watchers_over(tasks, *, main_wt, _dispatch_status_events, _pid_alive,
         d = row.get("data") or {}
         watched = {str(t) for t in (d.get("watched_tasks") or [])}
         pid, token = d.get("pid"), d.get("pid_start")
-        if not (watched & wanted) or pid is None or not token:
+        if by_session:
+            if str(row.get("session_ref") or "") != str(session_ref):
+                continue
+        elif not (watched & wanted):
+            continue
+        if pid is None or not token:
             continue
         try:
             if _pid_alive(pid) and _proc_start_token(pid) == str(token):
@@ -4393,6 +4559,31 @@ def _live_watchers_over(tasks, *, main_wt, _dispatch_status_events, _pid_alive,
         except Exception:      # noqa: BLE001 — unanswerable identity ⇒ not a live watcher
             continue
     return live, None
+
+
+def _watch_holder_text(row: dict) -> str:
+    """T-13539 — WHO holds a live watcher and UNTIL WHEN, from its `watch_process_group_escaped` row:
+    the arming session (the row's envelope `session_ref`), the arm time (its `ts`) and the latest
+    expected end (`ts` + the `timeout_sec` the arming recorded). One home, read by the duplicate
+    refusal and by `session handoff take` (CHARTER §P1 F1). PURE; never raises.
+
+    The end is an UPPER bound — a watcher exits earlier on a wake — so it is worded «at the latest».
+    A row with no readable arm time or no recorded timeout (every row written before this card) says
+    the end is unknown: a guessed time would be read as a promise."""
+    d = row.get("data") or {}
+    ref = row.get("session_ref") or "unknown"
+    armed = row.get("ts") or "unknown"
+    end = None
+    secs = d.get("timeout_sec")
+    if isinstance(secs, (int, float)) and not isinstance(secs, bool) and secs >= 0:
+        try:
+            t0 = datetime.datetime.strptime(str(row.get("ts")), "%Y-%m-%dT%H:%M:%SZ")
+            end = (t0 + datetime.timedelta(seconds=secs)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except Exception:      # noqa: BLE001 — an unreadable arm time ⇒ no computed end
+            end = None
+    tail = (f"ends by {end} at the latest" if end
+            else "expected end unknown (the row records no arm time or no watch timeout)")
+    return f"armed by session {ref} at {armed}, {tail}"
 
 
 # T-13396 (SPEC-0190 rules 4 + 10) — the WATCH's one request scope. Measured on the T-13366 sandbox:
@@ -4446,7 +4637,10 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
             for row in live:
                 d = row.get("data") or {}
                 overlap = sorted({str(t) for t in (d.get("watched_tasks") or [])} & {str(t) for t in tasks})
-                print(f"dispatch: watcher already live for {', '.join(overlap)} (pid={d.get('pid')}) — "
+                # T-13539 — name the HOLDER, not the pid alone: after a hand-off the pid says nothing
+                # about whose watcher this is or when it ends.
+                print(f"dispatch: watcher already live for {', '.join(overlap)} (pid={d.get('pid')}) "
+                      f"{_watch_holder_text(row)} — "
                       f"not arming a second (T-12637 AC2; a watcher that has ENDED is no obstacle, "
                       f"re-arm after its WATCH: token).", flush=True)
             return 0
@@ -4488,6 +4682,9 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
                           {"mechanism": _escape, "pid": os.getpid(),
                            # T-12637 — the process-identity token the dedup seam verifies beyond the pid.
                            "pid_start": _proc_start_token(os.getpid()),
+                           # T-13539 — the watch window, so a reader of this row can say when this
+                           # watcher ends at the latest (row `ts` + this) instead of only that it lives.
+                           "timeout_sec": _timeout,
                            "watched_tasks": tasks,
                            "watch_fleet": bool(getattr(args, "watch_fleet", False)),
                            "reason": "this watcher's lifetime is now DECOUPLED from the shell that "
@@ -4834,6 +5031,15 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
     # T-13255 — a streaming fold retaining only what those readers use (never the whole journal).
     _wave_journal = (None if getattr(args, "brief_raw", False)
                      else _wave_journal_fold(main_wt / "events.jsonl", _wave_cards))
+    # T-13540 — ONE frame-level read of the live `task/` worktrees, shared by the readiness block
+    # (which wave ids re-use a worktree already inside live_worker_count) and the T-13204 in-flight
+    # overlap below, which made this same read on its own before. Report-only and fail-open: None
+    # means "unknown" — the block then discounts nothing and T-13204 falls back to its own read. The
+    # per-task in-flight guard further down keeps its own deliberate re-read (T-0621).
+    try:
+        _frame_live = _live_task_worktrees() or {}
+    except Exception:   # noqa: BLE001 — advisory substrate must never break a dispatch
+        _frame_live = None
     try:
         _readiness_report, _num_live_controllers = _dispatch_readiness_report(args)
         # T-11678 — the SAME block also carries the two card-precondition lines (unarrived trigger /
@@ -4846,7 +5052,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                                                                 os.cpu_count())
                                              if _wave_journal is None
                                              else _wave_worker_fit(main_wt / "events.jsonl",
-                                                                   _wave_journal))))   # T-13237/T-13255
+                                                                   _wave_journal)),   # T-13237/T-13255
+                                        reused=[t for t in tasks if t in (_frame_live or {})]))
         # T-13020 — KERNEL self-telemetry: stamped `subject_realm: kernel`, and bound to the kernel's
         # own T-10100 only in the kernel — under `-C` that id names an unrelated consumer card.
         _append_event(
@@ -4891,7 +5098,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
     # flight (live task worktrees), for 1-task waves too. Report-only, fail-open, same fence as above.
     try:
         _inflight_cards = [(t, (_read_yaml(_find_task_yaml(t)) if _find_task_yaml(t) else None))
-                           for t in sorted(_live_task_worktrees() or {})]
+                           for t in sorted(_frame_live if _frame_live is not None
+                                           else (_live_task_worktrees() or {}))]
         _inflight_text = _inflight_touch_overlap_block(_wave_cards, _inflight_cards)
         if _inflight_text:
             print(_inflight_text)

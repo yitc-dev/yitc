@@ -489,6 +489,107 @@ def folded_match_spans(text: str, candidate: str) -> list:
         at = k + len(candidate)
 
 
+# ── THE PARSED-RECORD VIEW + the literal-block editor (moved from `task.py` by T-13509) ──────────
+# `task update` (T-11166 / T-12920) and `spec edit` (T-13509) both judge an edit on the PARSED record:
+# what a LOGICAL occurrence is, what the record must read after the edit, and — for a `|` block
+# scalar — how to re-emit the block so it reads exactly that. One home, two callers.
+
+
+def leaf_occurrences(rec, old: str) -> int:
+    """Occurrences of `old` across every STRING LEAF of a parsed card, in document order.
+
+    This is the count the AUTHOR sees, and therefore the count ambiguity is judged on (AC3). Mapping
+    KEYS are deliberately not searched: a key is never wrapped, so the raw path already matches it."""
+    if isinstance(rec, str):
+        return rec.count(old)
+    if isinstance(rec, dict):
+        return sum(leaf_occurrences(v, old) for v in rec.values())
+    if isinstance(rec, list):
+        return sum(leaf_occurrences(v, old) for v in rec)
+    return 0
+
+
+def replace_in_leaves(rec, old: str, new: str, remaining: list):
+    """The parsed card with `old` → `new` applied to its string leaves, at most `remaining[0]` times
+    (`None` = unlimited), walking leaves in document order. `remaining` is a one-element mutable box
+    so the budget is shared across the whole recursion.
+
+    This builds the EXPECTED parse — what the author asked for, expressed on the parsed side. The raw
+    splice is accepted only if it reparses to exactly this, so a wrong encoding or a mislocated span
+    cannot slip through: acceptance is verification-driven, never a guess (the T-11109 posture)."""
+    if isinstance(rec, str):
+        if remaining[0] is None:
+            return rec.replace(old, new)
+        if remaining[0] <= 0:
+            return rec
+        take = min(rec.count(old), remaining[0])
+        if take <= 0:
+            return rec
+        remaining[0] -= take
+        return rec.replace(old, new, take)
+    if isinstance(rec, dict):
+        return {k: replace_in_leaves(v, old, new, remaining) for k, v in rec.items()}
+    if isinstance(rec, list):
+        return [replace_in_leaves(v, old, new, remaining) for v in rec]
+    return rec
+
+
+def literal_block_field_edit(text: str, parsed, old: str, new: str, *, replace_all: bool) -> tuple:
+    """T-12920 (<project> X-1569) — the LITERAL-BLOCK sibling of `wrapped_field_edit`: a multi-line
+    `--old` inside a `|` block scalar (`implementation_plan` / `analysis`, which `state.dump_state`
+    stores that way) misses the raw text because every raw line carries the block indent, and no
+    flow-scalar form models that. So match `--old` against each block's PARSED value, replace there,
+    and re-emit the whole block: header line verbatim, content at the block's own indent.
+
+    Same return contract as `wrapped_field_edit` — `(None, 0)` not this case, `(None, k)` ambiguous,
+    `(text', k)` accepted — and the same acceptance guard: the spliced text must reparse to the
+    expected record EXACTLY, so an indent the re-emission cannot hold fails closed."""
+    import yaml
+    n_logical = leaf_occurrences(parsed, old)
+    if n_logical == 0:
+        return None, 0
+    if n_logical > 1 and not replace_all:
+        return None, n_logical
+    try:
+        root = yaml.compose(text, Loader=getattr(yaml, "CSafeLoader", yaml.SafeLoader))
+    except Exception:                                # noqa: BLE001 — unparseable → not this case
+        return None, 0
+    sites, stack = [], [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, yaml.ScalarNode):
+            if node.style == "|" and old in node.value:
+                sites.append(node)
+        elif isinstance(node, yaml.SequenceNode):
+            stack.extend(node.value)
+        elif isinstance(node, yaml.MappingNode):
+            for k, v in node.value:
+                stack.extend((k, v))
+    # Every logical occurrence must live in a literal block, else leaf order ≠ block order.
+    if sum(s.value.count(old) for s in sites) != n_logical:
+        return None, 0
+    out = text
+    for node in sorted(sites, key=lambda s: s.start_mark.index, reverse=True):
+        raw = text[node.start_mark.index:node.end_mark.index]
+        header, sep, body = raw.partition("\n")
+        content = [ln for ln in body.split("\n") if ln.strip()]
+        if not sep or not content:
+            return None, 0
+        indent = min(len(ln) - len(ln.lstrip(" ")) for ln in content)
+        value = node.value.replace(old, new)
+        if not header.split("#", 1)[0].rstrip().endswith("-") and value.endswith("\n"):
+            value = value[:-1]                       # clip/keep: the final newline is the block's own
+        block = "".join((" " * indent + ln if ln else "") + "\n" for ln in value.split("\n"))
+        out = out[:node.start_mark.index] + header + "\n" + block + out[node.end_mark.index:]
+    expected = replace_in_leaves(parsed, old, new, [None])
+    try:
+        if state.load_str(out) != expected:
+            return None, 0
+    except Exception:                                # noqa: BLE001 — any parse failure = unusable
+        return None, 0
+    return out, n_logical
+
+
 def scaffold_substitute(text: str, template_name: str, field_subs: dict, die) -> str:
     """Replace each `^<field>:` header line in `text` with `<field>: <value>`. The pure-text half of
     _scaffold_doc (T-0860 split) — callers that pre-read the template (cmd_spec_new, no-id-burn) reuse

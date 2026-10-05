@@ -16,8 +16,8 @@ sourced_from: official AI tool MCP docs (code.claude.com/docs/en/mcp.md, mcp-qui
 > the root `<vendor-adapter>.md` vendor adapter.)
 
 This runbook makes the neutral pattern's abstractions concrete for one client (the AI tool). Read the
-neutral pattern FIRST for the WHY (the two-shelf model, the session-start reconcile, capture, the
-delivery axis); this file is only the HOW-to-type-it.
+neutral pattern FIRST for the WHY (the two-shelf model, the reconcile before the first MCP use, capture,
+the delivery axis); this file is only the HOW-to-type-it.
 
 ## Register a server
 
@@ -39,10 +39,14 @@ Newer builds also expose `the AI provider mcp login <name>` / `the AI provider m
 | **local** (default) | `~/<provider-config>.json` under the project entry | you only, this project | a **one-off** (uncommitted) |
 | **project** | `.mcp.json` in the repo root — **committed** | the team, on first-load approval | the **standing** committed config |
 | **user** | `~/<provider-config>.json` top-level `mcpServers` | you, ALL projects | a personal always-on |
+| **host-provided / account** (e.g. a `the AI provider.ai …` connector) | none you or the repo wrote — the host or the signed-in account injects it into the session | every session under that host/account | **«host-provided, not project-declared»** — on neither shelf; reported under that name, never as a stray one-off |
 
 - Share a set with a team/repo → **project scope** (`.mcp.json`, the standing shelf's source of truth).
 - Make a server available everywhere for yourself → **user scope**.
-- A throwaway server for one session → **local scope** (the one-off shelf; drop it at the reconcile).
+- A throwaway server for one session → **local scope** (the one-off shelf; if it lingers, the reconcile
+  reports it and the person drops it).
+- A connector that is simply there because of where or as whom the session runs → **host-provided /
+  account**: not yours to declare and not the AI's to disable.
 
 > **Standing-shelf SoT (neutral pattern §Shelf 1):** the committed **`.mcp.json`** IS «what this project
 > connects». A `lessons/` note may name the servers + why, as a pointer only.
@@ -57,8 +61,14 @@ Newer builds also expose `the AI provider mcp login <name>` / `the AI provider m
 
 ## Work with them
 
-- `/mcp` (in-session) — list / auth / reconnect / disable per server. This is the **reconcile surface**
-  (neutral pattern §session-start reconcile): use it at session start to disable any extra one-off.
+- `/mcp` (in-session) — list / auth / reconnect / disable per server. It is the **PERSON's surface**: an
+  interactive command the AI cannot run, so disabling a server is the person's act, never the AI's.
+- **The reconcile, concretely** (neutral pattern §The reconcile — before the first MCP use; NOT a
+  startup step): before the session's first MCP connect or use the AI **lists** the connected servers
+  (the `mcp__<server>__<tool>` tools already in its context name them; `the AI provider mcp list` from the shell
+  shows the same set), **compares** them with `.mcp.json` at the repo root (no such file = an empty
+  standing set) and **reports** each extra to the person, naming a host/account connector
+  «host-provided, not project-declared». The person then disables in `/mcp` whatever they want gone.
 - `the AI provider mcp list` / `the AI provider mcp get <name>` (shell) — inspect configured servers.
 - Tools surface as **`mcp__<server>__<tool>`**.
 

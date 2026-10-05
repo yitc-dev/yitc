@@ -29,6 +29,9 @@ implements:
 - bin/lib/worktree.py#_work_batch_product_source_migration_note
 - bin/lib/worktree.py#_work_batch_unanswered_paths
 - bin/lib/worktree.py#_work_batch_verify_covers
+- bin/lib/worktree.py#_working_tree_delta_paths
+- bin/lib/land_verify_legs.py#_ops_carrier_freed_paths
+- bin/lib/land_verify_legs.py#_owned_test_freed_paths
 body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check facets\
   \ of a project's `yitc-ops.yaml`\nops-contract carrier (SPEC-0093). In the SAME\
   \ one carrier file a project declares which land-verify\nLAYERS the `land` gate\
@@ -111,7 +114,8 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ gate runs at the `verify` moment (e.g. a backend pytest\nlayer AND a frontend\
   \ smoke layer). It is the slice-1 `verify` single-home (rule 5) MIGRATED from\n\
   `yitc-verify.yaml` into the carrier. This rule owns the section SHAPE; the EXECUTABLE\
-  \ land RUN (run\nevery declared layer, FAIL on any failed layer, honor a per-layer\
+  \ land RUN (run\nevery declared layer, FAIL on any failed layer — a SOLE failed\
+  \ layer first gets ONE isolated re-run, §THE ISOLATED RE-RUN below — honor a per-layer\
   \ waiver, migrate/retire\n`yitc-verify.yaml`, per-layer command inherits the F-025\
   \ hermeticity contract) is owned by the\nimplementing land card. DECLARE-OR-WAIVE,\
   \ fail-closed, checked ONLY IF PRESENT (the\nsecurity/ui/tests/host_config backward-compat\
@@ -220,11 +224,22 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ which runs the named layers OVERLAPPED instead of\none after another. Like `combined_candidate_safe`,\
   \ it is DISCLOSED on the `verify` concern's\n`gated_capabilities:` (SPEC-0093) so\
   \ the born stanza names it; this section stays the single home of\nthe field's NAME,\
-  \ SHAPE and SEMANTICS (SPEC-0128 Rule 2).\n\n**WHAT A CONCURRENTLY-RUN LAYER IS\
-  \ GIVEN, AND WHY IT MATTERS TO THE PROJECT.** A layer the\nrunner overlaps is published\
-  \ one extra environment variable: `COMPOSE_PROJECT_NAME`, set to a compose\nproject\
-  \ name the runner MINTS for that layer alone (unique by construction — `<pid>-<n>`,\
-  \ SPEC-0041\n§1c guarantee source (A); no random component). It rides the SAME env-publication\
+  \ SHAPE and SEMANTICS (SPEC-0128 Rule 2).\n\n**THE STANDING OF THE DECLARATION —\
+  \ the project's own declared risk judgement.** A project\nthat names layers here\
+  \ decides, and bears the risk. The declaration is admissible WITHOUT any `owns:`\n\
+  mapping; the kernel checks its SHAPE ONLY and does not police independence; and\
+  \ a wrong declaration\ncosts only the declaring project's own verify. That standing\
+  \ — why it is sound (attributable,\nreviewable, reversible, on the terms of the\
+  \ project-declared exemption), that it is the ONE key by\nwhich a project states\
+  \ the conclusion directly, and the resource classes a project is advised to\nwalk\
+  \ over each named pair before declaring — is homed SINGLE-SoT in SPEC-1007 rules\
+  \ 1 and 2; read it\nvia `bin/yitc-v2 graph query SPEC-1007`. It is stated here because\
+  \ this is where a reader meets the\nfield; the home is that spec, and `tests/test_spec0207_resource_ownership.py`\
+  \ pins the two together.\n\n**WHAT A CONCURRENTLY-RUN LAYER IS GIVEN, AND WHY IT\
+  \ MATTERS TO THE PROJECT.** A layer the\nrunner overlaps is published one extra\
+  \ environment variable: `COMPOSE_PROJECT_NAME`, set to a compose\nproject name the\
+  \ runner MINTS for that layer alone (unique by construction — `<pid>-<n>`, SPEC-0041\n\
+  §1c guarantee source (A); no random component). It rides the SAME env-publication\
   \ seam as\n`YITC_VERIFY_LAYER_WORKERS` below and is published ONLY to a layer that\
   \ actually overlaps a peer — a\nserially-run layer's environment is untouched, so\
   \ the serial default is unchanged here too.\n\nIt exists because the per-layer container-CPU\
@@ -330,7 +345,9 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ checks STANCE + SHAPE only (rule 3): it never verifies that the named layers are\
   \ in fact\nindependent — that assertion is the project's, on the same grounds as\
   \ `combined_candidate_safe` (a\nlayer is an arbitrary command, so inferring the\
-  \ property would be a guess dressed as a guarantee).\n\n**The tests-sweep DELEGATION\
+  \ property would be a guess dressed as a guarantee).\nThe standing of that assertion\
+  \ is the paragraph above and SPEC-1007 rule 1: the project's own\ndeclared risk\
+  \ judgement, never a kernel-derived eligibility.\n\n**The tests-sweep DELEGATION\
   \ (X-0297; a SUB-rule of `verify.layers[]`).** The kernel's own\nland-verify runs\
   \ a BARE sweep of the repo-root `tests/` dir — each `tests/test_*.py` executed as\n\
   `python3 <file>`, exit 0 = pass (the ENGINE suite convention). On a `-C` consumer\
@@ -698,27 +715,31 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ here to the boundary globs.\n\n**The `owns:` sub-field — what a layer OWNS (a\
   \ SUB-rule of `verify.layers[]`, not a new section;\nPOINTER ONLY).** `covers:`\
   \ names what a layer VERIFIES and `boundary:` what its harness can\nSEE; NEITHER\
-  \ names what a layer OWNS — the question that must be answered before layers may\
-  \ run\nCONCURRENTLY. A `verify.layers[]` entry MAY therefore carry an OPTIONAL `owns:`\
-  \ mapping declaring the\nlayer's conflict domains over the resource classes it touches,\
-  \ each boundary naming the probe that\nwould disprove it. It is OPT-IN and its ABSENCE\
-  \ is the unchanged current behaviour, so no existing\ncarrier changes and no land\
-  \ gate moves. **The contract — the resource classes, the fail-closed default\nfor\
-  \ anything undeclared, the probe-per-boundary requirement, the bounded allowlist\
-  \ for a synchronized\nshared sink, and the dispositions — is homed SINGLE-SoT in\
-  \ SPEC-0207; read it via `bin/yitc-v2 graph\nquery SPEC-0207`.** This row is a pointer\
-  \ and restates none of it (SPEC-0005 rule 8 / SPEC-0067\ndrift-proof mention).\n\
-  \n**The `subject_globs:` sub-field — per-layer diff-relevance subject (a SUB-rule\
-  \ of `verify.layers[]`,\nnot a new section).** A DECLARED layer MAY additionally\
-  \ carry an OPTIONAL `subject_globs:` — a\nnon-empty list of non-empty repo-relative\
-  \ glob strings claiming EXHAUSTIVELY: \"a change to a path\nmatching NO glob here\
-  \ cannot affect this layer's verdict.\" When present, the land RUN MAY SKIP that\n\
-  layer for a candidate diff whose every touched path provably matches none of the\
-  \ globs. Fail-closed\non every edge: an ABSENT `subject_globs` → the layer ALWAYS\
-  \ runs (opt-in, backward-compat); an\nempty list / non-string entry / unresolvable\
-  \ or ambiguous path comparison → run (malformed shape is\na carrier ERROR per rule\
-  \ 3); a diff touching ANY verify-infrastructure surface — the SPEC-0077\npinned\
-  \ set, `tests/**`, the ops-carrier `yitc-ops.yaml`, the land/verify implementation\
+  \ names what a layer OWNS — the question a project is advised to answer before it\
+  \ names\nlayers in `independent_layers:`. A `verify.layers[]` entry MAY therefore\
+  \ carry an OPTIONAL `owns:`\nmapping declaring the layer's conflict domains over\
+  \ the resource classes it touches, each boundary\nnaming the probe that would disprove\
+  \ it. It is an OPTIONAL AID to the project's own judgement, never\nan admission\
+  \ gate: the land runner does not read it, and its presence, its absence and its\
+  \ content\nneither admit nor refuse a layer named in `independent_layers:`. It is\
+  \ OPT-IN and its ABSENCE is the\nunchanged current behaviour, so no existing carrier\
+  \ changes and no land gate moves. **The contract —\nthe resource classes, the fail-closed\
+  \ default for anything undeclared under kernel derivation, the\nprobe-per-boundary\
+  \ requirement, the bounded allowlist for a synchronized shared sink, and the\ndispositions\
+  \ — is homed SINGLE-SoT in SPEC-1007; read it via `bin/yitc-v2 graph query SPEC-1007`.**\n\
+  This row is a pointer and restates none of it (SPEC-0005 rule 8 / SPEC-0067 drift-proof\
+  \ mention).\n\n**The `subject_globs:` sub-field — per-layer diff-relevance subject\
+  \ (a SUB-rule of `verify.layers[]`,\nnot a new section).** A DECLARED layer MAY\
+  \ additionally carry an OPTIONAL `subject_globs:` — a\nnon-empty list of non-empty\
+  \ repo-relative glob strings claiming EXHAUSTIVELY: \"a change to a path\nmatching\
+  \ NO glob here cannot affect this layer's verdict.\" When present, the land RUN\
+  \ MAY SKIP that\nlayer for a candidate diff whose every touched path provably matches\
+  \ none of the globs. Fail-closed\non every edge: an ABSENT `subject_globs` → the\
+  \ layer ALWAYS runs (opt-in, backward-compat); an\nempty list / non-string entry\
+  \ / unresolvable or ambiguous path comparison → run (malformed shape is\na carrier\
+  \ ERROR per rule 3); a diff touching ANY verify-infrastructure surface — the SPEC-0077\n\
+  pinned set, `tests/**` (ownership-aware — the second paragraph below), the ops-carrier\n\
+  `yitc-ops.yaml` (section-aware — the paragraph below), the\nland/verify implementation\
   \ — runs\nEVERYTHING including the pinned re-run (SPEC-0077 supremacy, unchanged).\
   \ A skip is NEVER silent:\nevery skipped layer is NAMED in land stdout AND carried\
   \ in the `land_completed` payload\n(`{layer, outcome: skipped-disjoint-subject}`),\
@@ -726,11 +747,171 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ report-only + tests-sweep delegation — NOT retro-flipped into\nskip authority);\
   \ a declared `subject_globs` SHOULD be a superset of the layer's `covers:` globs\
   \ —\nan advisory shape note, never a validator. The kernel checks STANCE + structural\
-  \ SHAPE, never glob\n\"correctness\" (rule 3).\n\n**The `verify.infra_globs:` key\
-  \ — a project WIDENS the kernel verify-infrastructure floor, never\nnarrows it (X-0938\
-  \ / SPEC-0185 §3(a)).** The verify-infrastructure set that forces a FULL\nrun (the\
-  \ SPEC-0077 pinned set above) is a kernel constant of ROOT-relative globs, so a\
-  \ project whose\nverify implementation sits elsewhere (tests at `backend/tests/`,\
+  \ SHAPE, never glob\n\"correctness\" (rule 3).\n\n**The ops-carrier member of that\
+  \ verify-infrastructure set is SECTION-AWARE at this skip, and only\nat this skip.**\
+  \ A `yitc-ops.yaml` change does NOT disable a layer's skip when the\ncarrier's PARSED\
+  \ `verify`, `verify_policy` and `tests` sections are equal at the merge-base and\
+  \ in\nthe candidate. Those three sections are everything a land reads from the carrier\
+  \ to decide which\nlayers exist, what they run and how they are bounded; a change\
+  \ confined to any OTHER section is then\njudged like any other path — by each layer's\
+  \ own `subject_globs`. So a layer that LISTS\n`yitc-ops.yaml` in its globs still\
+  \ runs, and a layer whose command reads another carrier section\nmust list the carrier:\
+  \ the exhaustiveness this sub-rule already asks of `subject_globs` now carries\n\
+  for the carrier what the whole-file rule used to carry for it. Measured basis: in\
+  \ two consumers, 35\nof 42 and 20 of 29 carrier commits over 30 days left those\
+  \ three sections unchanged, each paying a\nfull run of every declared layer.\n\n\
+  EQUALITY IS A PROOF, and every doubt is «changed» — the whole-file full run, exactly\
+  \ as before this\nparagraph: a carrier absent at either side (born, deleted, renamed\
+  \ away), unreadable or unparseable;\na duplicate key at ANY depth in either text\
+  \ (the loader keeps the last one, so an ambiguous text can\nparse equal to an unambiguous\
+  \ one); a working-tree carrier that is not BYTE-FOR-BYTE the committed\none (a line-ending\
+  \ difference included); values that differ in type or in order though a loose\n\
+  comparison would call them equal; a section built from anything but plain mappings,\
+  \ lists and\nscalars (a tagged construct such as `!!pairs`, `!!omap` or `!!set`\
+  \ is never compared, even against\nitself); an absent section against an explicit\
+  \ null. An anchor aliased INTO one of the three sections is compared as its\nresolved\
+  \ value, so moving the anchor moves the section. Only the carrier path is freed\
+  \ by this\nparagraph: any other verify-infrastructure path in the same diff still\
+  \ runs everything, unless the\nownership-aware paragraph below frees it.\n\nA PROJECT\
+  \ KEEPS THE WHOLE-FILE RULE BY DECLARING IT. A `verify.infra_globs` entry that covers\
+  \ the\ncarrier — or any refused entry of that key — withholds the freeing, on the\
+  \ same widen-only terms as\nthe paragraph below: a declaration can only make MORE\
+  \ lands run in full.\n\nONE ANSWER, THREE READERS. The land's attribution of a layer\
+  \ red the merge-base did not reproduce,\nand the false-skip replay that watches\
+  \ this skip (SPEC-0189), take the SAME answer from the SAME\nreader as the skip\
+  \ decision — so none of them can call a layer reachable, or skippable, that another\n\
+  judged otherwise for the same land.\n\nWHAT DOES NOT MOVE. The SPEC-0077 pinned\
+  \ last-green TRIGGER still fires on ANY carrier change,\nwhichever section moved,\
+  \ and where a project runs that leg (SPEC-0186) the leg still runs every\nlayer\
+  \ — it never skips. So the saving is the CANDIDATE leg's alone, and it is whole\
+  \ only for a\nproject whose `verify_policy` turns the pinned leg off. Also unchanged:\
+  \ the per-file selector of\nthe script-run suite (SPEC-0181), the any-author floor\
+  \ and `prep:`. The Stage-6 run is governed by\nthe paragraph below.\nThe skip stays\
+  \ NAMED: when a freed carrier touch let a layer skip, land says so on stdout beside\
+  \ the\nper-layer skip lines. Reader: `bin/lib/land_verify_legs.py#_ops_carrier_freed_paths`.\n\
+  \n**The `tests/**` member of that verify-infrastructure set is OWNERSHIP-AWARE at\
+  \ this skip, and only\nat this skip.** A changed path under `tests/` does NOT disable\
+  \ a layer's skip when it is\nPROVEN to be particular layers' own: it then forces\
+  \ exactly the layers whose `subject_globs` claim\nit, and every other layer is judged\
+  \ by its own globs, as for any other path. Measured basis: one\nconsumer spent 680\
+  \ of 1151 verify-minutes over 30 days on full runs this member forced, one of its\n\
+  layers running on 124 such lands whose diffs mostly did not touch that layer's globs.\n\
+  \nOWNERSHIP IS A PROOF, and every doubt is «not owned» — the full run of every layer,\
+  \ exactly as\nbefore this paragraph. A changed path is owned only when ALL of these\
+  \ hold:\n- it is one of the project's DECLARED test files: it matches the union\
+  \ of the project's\n  `tests.classes[].globs` (SPEC-0160 rule 10) at the merge-base\
+  \ AND in the candidate. What a test\n  file IS comes from that declaration and from\
+  \ nothing else — on this gating surface the kernel\n  applies no filename convention\
+  \ of its own (SPEC-0185 §1(c)) — so a project that declares no\n  test-file globs\
+  \ frees nothing;\n- at least one layer declaring `subject_globs` CLAIMS it, by the\
+  \ same judgement that decides\n  whether that layer runs, so an owned path always\
+  \ forces a layer to run;\n- at least one layer declaring `subject_globs` does NOT\
+  \ claim it — a path every such layer claims\n  belongs to none of them in particular;\n\
+  - no layer that names it in `covers:` fails to claim it in `subject_globs`;\n- it\
+  \ is not SHARED by declaration: it matches no `verify.infra_globs` entry and no\
+  \ path a layer's\n  `command:` names (the declared check surface — the `verify.infra_globs`\
+  \ paragraph below);\n- the declaration itself is beyond doubt: the carrier meets\
+  \ the conditions of the section-aware\n  paragraph above at both sides (readable,\
+  \ parseable, no duplicate key at any depth, the\n  working-tree carrier byte-for-byte\
+  \ the committed one, no refused `verify.infra_globs` entry),\n  every declared layer\
+  \ is well-formed and uniquely named, and the layers' subjects are the same at\n\
+  \  the merge-base and in the candidate.\nOnly an owned path is freed: any other\
+  \ verify-infrastructure path in the same diff — a `bin/**`\npath, a test path that\
+  \ is not owned, a carrier change that is not section-equal — still runs\neverything.\n\
+  \nHOW A PROJECT KEEPS A SHARED TEST FILE ON THE FULL RUN. A file no declared test-class\
+  \ glob names\n(a `conftest.py`, a fixtures directory, a helper module under an ordinary\
+  \ declaration) is never\nowned. A shared file that a class glob DOES name is listed\
+  \ under `verify.infra_globs`, or in the\n`subject_globs` of every layer that consumes\
+  \ it — the exhaustiveness this sub-rule already asks of\n`subject_globs`. Either\
+  \ lever can only make MORE lands run in full.\n\nONE ANSWER, THREE READERS, as for\
+  \ the carrier: the land's attribution of a layer red the merge-base\ndid not reproduce,\
+  \ and the false-skip replay that watches this skip (SPEC-0189), take the SAME\n\
+  answer from the SAME reader as the skip decision. A red in a layer that does not\
+  \ own the changed\ntest is therefore not attributed to the branch.\n\nWHAT DOES\
+  \ NOT MOVE. The SPEC-0077 pinned last-green TRIGGER still fires on ANY `tests/`\
+  \ change, and\nwhere a project runs that leg (SPEC-0186) the leg still runs every\
+  \ layer, so the saving is the\nCANDIDATE leg's. Also unchanged: `bin/**`; the declared-check-surface\
+  \ companion, so a test tree\noutside the root `tests/` keeps the full run; the per-file\
+  \ selector of the script-run suite\n(SPEC-0181) and the engine's own land, which\
+  \ declares no layers to scope; the any-author floor and\n`prep:`. The skip stays\
+  \ NAMED: when an owned test path let a layer skip, land says so on stdout,\nnaming\
+  \ the path, beside the per-layer skip lines.\nReader: `bin/lib/land_verify_legs.py#_owned_test_freed_paths`.\n\
+  \n**THE SAME DECISION AT STAGE 6.** A consumer's `task test --run` skips what its\
+  \ land\nskips on the same diff. Stage 6 runs BEFORE the commit (§STAGE-6 READS A\
+  \ WORKING TREE, above), so\nthe skip is judged over everything the WORKING TREE\
+  \ changes against the base the land measures the\nbranch from — its merge-base with\
+  \ `main`: committed, uncommitted, staged and untracked paths. It is\nthe ONE decision\
+  \ the land takes, entered with that diff: every rung of this sub-rule (the\nverify-infrastructure\
+  \ supremacy edge, the section-aware carrier arm, `verify.infra_globs`, the\ndeclared-check-surface\
+  \ companion, the ownership-aware `tests/**` arm, each layer's own\n`subject_globs`)\
+  \ applies to Stage 6 as written,\nand a later change to any of them reaches both\
+  \ seams at once.\nFAIL-CLOSED, toward MORE layers: no resolvable merge-base, a failed\
+  \ git read, or a changed path the\nkernel cannot hand to a glob as the path git\
+  \ means (an undecodable name; a directory git lists\nwithout enumerating) runs EVERY\
+  \ layer. The carrier arm's condition that the working carrier is\nbyte-for-byte\
+  \ the committed one is NOT relaxed for a dirty tree, so an UNCOMMITTED carrier edit\n\
+  runs every layer at Stage 6 where the same edit committed is judged per layer. Stage\
+  \ 6 may thus run\na layer its land will skip; it never skips one the land would\
+  \ run for the same changes.\nTHE BOUND: the equality is per DIFF. Paths that join\
+  \ the branch after the run (the closure record,\na merge of newer `main`) are judged\
+  \ by the land, which decides independently and stays the gate.\nNEVER SILENT: each\
+  \ skipped layer is NAMED on stdout with the diff it was judged against, the PASS\n\
+  line states which layers ran, which were skipped and why, and a recorded pass carries\
+  \ the\nper-layer outcome rows (SPEC-0025 §tests_passed); a run whose every layer\
+  \ was skipped or waived is\nnot a pass and records none. Unchanged: the land path,\
+  \ the SPEC-0077 pinned leg (it never skips),\nthe any-author floor, `prep:`, the\
+  \ engine's own Stage 6.\nReader: `bin/lib/worktree.py#_working_tree_delta_paths`.\n\
+  \n**THE ISOLATED RE-RUN OF A SOLE FAILED LAYER.** «FAIL on any failed layer» has\
+  \ ONE\ncarve-out, and it holds wherever the declared layers are run — the land's\
+  \ candidate leg, the\nSPEC-0077 pinned leg and Stage-6 `task test --run` — because\
+  \ all three run them through the one\nguard. When, after EVERY declared layer has\
+  \ finished, EXACTLY ONE layer did not pass and it failed\nby its command's exit\
+  \ code, that layer's command is run ONCE more before the verdict is taken. A\nPASS\
+  \ there keeps the verify green on that layer; a second failure fails it exactly\
+  \ as before, and\nthe abort names both attempts. It is the layer-level sibling of\
+  \ the engine suite's isolated re-run\nof a failed test file (SPEC-0077 §3, SPEC-0132\
+  \ §2) and rescues BY DEFAULT on the same terms (owner\ndecision 2026-10-04).\nTHE\
+  \ UNIT IS THE LAYER, because the kernel sees only a layer command's exit code. A\
+  \ per-test re-run\nneeds a per-test report from the project and is not this rule.\n\
+  «ALONE» MEANS ALONE WITHIN THIS VERIFY, never alone on the host: no other layer\
+  \ of the same verify\nruns beside the re-run, but other sessions on the machine\
+  \ are not excluded and no host isolation is\nclaimed. The host load at the moment\
+  \ of the re-run is recorded beside it, so a reader can tell a\nquiet re-run from\
+  \ a contended one.\nTHE RE-RUN REPEATS THE COMMAND, NOT THE PREP: `prep:` ran once\
+  \ for this worktree and is not\nrepeated; the layer's own bound (the `timeout:`\
+  \ chain above) applies to the re-run unchanged.\nIt is otherwise the SAME invocation\
+  \ as the first attempt: the same published worker allotment and,\nfor a layer that\
+  \ ran overlapped with its declared-independent peers, the same run-issued compose\n\
+  project name (§independent_layers) — both attempts address one container namespace.\n\
+  DECLINED — nothing is re-run, the verify fails as before, and the reason is recorded:\
+  \ any layer\nTIMED OUT (SPEC-0071 makes a verify timeout a distinct non-retriable\
+  \ class, and a re-run would cost\nanother full bound); any layer's `prep:` FAILED\
+  \ (a setup fault — the prep's fail-closed stance\nstands); or MORE THAN ONE layer\
+  \ did not pass, a malformed layer counting (the bound is ONE layer: a\nre-run is\
+  \ cheaper than the abort it replaces only while it repeats a fraction of the verify,\
+  \ and\nseveral layers failing at once is evidence about the change or the host,\
+  \ not about one flaky\ncheck). Setting the engine suite's machine-level retry bound\
+  \ to 0 turns the layer re-run off as\nwell — one switch, no second knob. The merge-base\
+  \ attribution re-run of failing layers never\nre-runs: it is a diagnostic over the\
+  \ base tree, not a verdict.\nA RESCUE IS RECORDED, NEVER A CLEAN PASS. A pass on\
+  \ the re-run does not prove the first failure\nharmless — a real race can fail under\
+  \ load and pass alone — so the first failure stays on record:\nthe retried layer\
+  \ is NAMED on stdout, the verify metrics of the land (and the Stage-6 pass or fail\n\
+  row) carry the re-run's record WITH the first attempt's exit code and failure excerpt,\
+  \ and the\nlayer's outcome row is marked as retried (field shapes: SPEC-0025 `flaky_retry`).\
+  \ A verify on which\nno layer's run failed records nothing, so a clean land never\
+  \ reports a retry it did not do.\nOUT OF THIS RULE, deliberately: an automatic load-sensitive\
+  \ lane for layers, a quarantine that\nstops a failing check from blocking, and per-test\
+  \ re-runs.\nUNCHANGED: every layer still runs; a deterministic failure still fails\
+  \ the land, with the same\nfailing-assertion text; waivers, the `subject_globs`\
+  \ skip, `independent_layers`, the any-author\nfloor and what a project declares\
+  \ are all as they were. A nightly health run (`verify.health`,\nabove) executes\
+  \ its named layers through its own runner, not this guard, and takes no re-run.\n\
+  Reader: `bin/lib/worktree.py#_consumer_zero_probe_guard`.\n\n**The `verify.infra_globs:`\
+  \ key — a project WIDENS the kernel verify-infrastructure floor, never\nnarrows\
+  \ it (X-0938 / SPEC-0185 §3(a)).** The verify-infrastructure set that forces a FULL\n\
+  run (the SPEC-0077 pinned set above) is a kernel constant of ROOT-relative globs,\
+  \ so a project whose\nverify implementation sits elsewhere (tests at `backend/tests/`,\
   \ reached by a layer whose `command:`\nreveals no path) had NO way to place it under\
   \ the floor: the pinned re-run never armed and its\nabsence was invisible. A project\
   \ MAY therefore declare an OPTIONAL `verify.infra_globs:` — a flat\nlist of repo-relative\
@@ -1056,7 +1237,48 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ once the repo\n  declares `globs:` or a `waiver:`, is carried, or touches nothing\
   \ covers named; malformed entries narrow and\n  never widen — `bin/lib/worktree.py#_work_batch_declared_product_source`\
   \ +\n  `#_work_batch_product_source_migration_note` + `#_work_batch_unanswered_paths`,\
-  \ land-level differentials in\n  tests/test_work_batch_carrier_gate.py.\n- AC2 aggregate-neutrality\
+  \ land-level differentials in\n  tests/test_work_batch_carrier_gate.py.\n- the section-aware\
+  \ ops-carrier arm of the `subject_globs` skip (rule 16 amend): a land\n  whose only\
+  \ carrier change is outside `verify` / `verify_policy` / `tests` records a layer\
+  \ whose\n  globs exclude `yitc-ops.yaml` as `skipped-disjoint-subject` (before the\
+  \ amend every layer ran — the\n  frozen pre-change predicate is the in-arm negative\
+  \ control); a layer listing the carrier, an edit\n  under any of the three sections,\
+  \ an anchor aliased into `verify`, a duplicate key at any depth, an\n  unparseable\
+  \ or absent carrier, a dirty carrier and a `verify.infra_globs` declaration over\
+  \ the\n  carrier each run every layer — tests/test_subject_scoping_would_skip.py;\
+  \ the attribution takes the\n  same answer — tests/test_t11464_failure_attribution.py;\
+  \ the replay does —\n  tests/test_surface4_detector.py; the pinned trigger is unchanged\
+  \ —\n  tests/test_verify_implementation_touch.py.\n- the Stage-6 seam of the `subject_globs`\
+  \ skip (rule 16 amend): on a consumer with two\n  layers, a `task test --run` whose\
+  \ working tree changes only one layer's subject runs that layer\n  and records the\
+  \ other `skipped-disjoint-subject` (before the amend both ran — the pre-change call\n\
+  \  shape is the in-arm control); a tracked-uncommitted, untracked, staged-only or\
+  \ committed change\n  inside the other layer's subject, no merge-base, a failed\
+  \ git read and an unclassifiable path\n  each run it — tests/test_task_test_run_consumer_parity.py;\
+  \ the Stage-6 answer equals the land's\n  on the same diff, committed or not, and\
+  \ an uncommitted carrier edit skips nothing —\n  tests/test_subject_scoping_would_skip.py.\n\
+  - the ownership-aware `tests/**` arm of the `subject_globs` skip (rule 16 amend):\
+  \ on a\n  consumer with two layers, a land whose only change is a declared test\
+  \ file inside one layer's\n  `subject_globs` runs that layer and records the other\
+  \ `skipped-disjoint-subject` (before the\n  amend both ran — the frozen pre-change\
+  \ predicate and the reader-withheld run are the in-arm\n  controls); a test file\
+  \ no layer claims, a shared test file, a test file both layers claim, the\n  same\
+  \ file in a project declaring no test-file globs, a path the declaration matches\
+  \ at one\n  revision only, a malformed layer declaration, a dirty or unparseable\
+  \ carrier and a `bin/**` path\n  beside it each run every layer — tests/test_subject_scoping_would_skip.py;\
+  \ the attribution takes\n  the same answer — tests/test_t11464_failure_attribution.py;\
+  \ the replay does —\n  tests/test_surface4_detector.py; the shared edge, the engine's\
+  \ own build and the pinned trigger\n  are unchanged — tests/test_t11112_shared_fail_closed_edge.py\
+  \ and\n  tests/test_verify_implementation_touch.py.\n- the isolated re-run of a\
+  \ sole failed layer (rule 16 amend): in a sandbox consumer, a\n  layer that fails\
+  \ its first run and passes its second lands `LAND: OK` with a `flaky_retry` row\n\
+  \  naming the layer, `isolated: pass` and the first failure's excerpt, and with\
+  \ the retry bound at 0\n  the SAME sandbox aborts (the in-arm control); a layer\
+  \ failing both runs aborts naming both\n  attempts, its failure entry and outcome\
+  \ row unchanged from the pre-amend shape; an all-green land\n  carries no `flaky_retry`\
+  \ key; a Stage-6 run names the retried layer in its output and on its\n  `tests_passed`\
+  \ row; a timeout, a prep failure, two failed layers and the attribution re-run each\n\
+  \  re-run nothing — tests/test_t13545_consumer_layer_flaky_retry.py.\n- AC2 aggregate-neutrality\
   \ : the concatenated SPEC-0093-remaining + SPEC-0152 `### N.` rule\n  blocks reproduce\
   \ the pre-split rule text byte-for-byte (a reconstruction check, not an eyeball).\n"
 cites:
@@ -1086,10 +1308,12 @@ implements_signature:
   bin/lib/land_verify_legs.py#_declared_layer_worker_shares: 570880f1904f70f04d92e3d54504eb9683c8b7995edeb29c2f25d60903d4cd18
   bin/lib/land_verify_legs.py#_declared_verify_infra_globs: 12dd4d8f76d27860d1cc40599adc8d6cba7c8dd882a12eee0675dee92c4383b2
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
+  bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
+  bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
   bin/lib/session.py#startup_check_lines: f88dc029b52ef82ae732227899100b2bf50812c971a88b3a4a8a374bb6207288
-  bin/lib/task.py#cmd_task_test: 45c6c68be2d815c105861412ddec31781fbf3ec25cb03183e1d0eed2ab4d4dab
+  bin/lib/task.py#cmd_task_test: 55a894991520c4547cb3476d9d575f37585e354ed12da0cb4228102f39e1462e
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
-  bin/lib/worktree.py#_consumer_zero_probe_guard: f1561d24bbfdbe2ca20a2fe834457c24318236b6d60f3b067b6e8ebb297ef20e
+  bin/lib/worktree.py#_consumer_zero_probe_guard: f2119cb8b7d36cf2878b56723b6f31bb599a3b087837b3ac1b1911c461d8ffed
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279
@@ -1098,3 +1322,4 @@ implements_signature:
   bin/lib/worktree.py#_work_batch_product_source_migration_note: f7cf6993a5422b3100efd1901820b9b6f110fdcffaeedca0d53bae63b1b41d4e
   bin/lib/worktree.py#_work_batch_unanswered_paths: 6b8dc699863474bb55f09ea9ed722c3ca2ec4e7a009c33705f6ad3de34f1823a
   bin/lib/worktree.py#_work_batch_verify_covers: 23c1ec3257f3951e8bea8850a1647881ad725c3e004ccf08bca5bd6eab674ae5
+  bin/lib/worktree.py#_working_tree_delta_paths: ce5411910bf1d01b4c169ac84f3770d5ca22e5d8b2cf38a467fb8aa03992b61b

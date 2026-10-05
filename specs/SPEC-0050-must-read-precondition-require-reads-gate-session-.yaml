@@ -11,6 +11,7 @@ implements:
 - bin/lib/gates.py#_seed_receipt_epochs
 - bin/lib/session.py#session_epoch
 - bin/lib/events.py#_emit_cli_invoked
+- bin/lib/cli.py#_deliver_stage_bundle_contracts
 - bin/lib/task.py#cmd_task_close
 - bin/lib/task.py#cmd_task_commit
 - bin/lib/audit.py#cmd_audit
@@ -204,67 +205,90 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ the\ndocumented distinct code `STAGE_BUNDLE_DISCARDED_EXIT` (6) — the only channel\
   \ that survives\n`>/dev/null 2>&1`. Nothing above changes: no receipt is credited\
   \ that was not before, the three\nbounds stand, and the session-start delivery seam\
-  \ is unaffected.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
-  \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
-  ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
-  \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
-  \ `task\ncommit` (Commit contracts), then GRADUATED (each its OWN first-connection\
-  \ step — never bulk)\nonto the remaining stage work-verbs: `audit pre`/`audit post`\
-  \ (TASK Audit-pre/post, SPEC-0036), `spec\nnew --draft` (plan `specs`, SPEC-0034),\
-  \ and `plan check` (plan `accepted`, SPEC-0034) — the latter two\non the cross-axis\
-  \ `axis==\"plan\"` derivation (§1). `kind=seed` / `kind=action` are RESERVED API\
-  \ shape ONLY — non-normative,\ncarrying NO code and NO obligation until a first-connection\
-  \ decision wires a consumer (each its\nown decision — never wired in bulk). Prerequisite\
-  \ named for the future seed wiring:\n`graph/floor-trigger-map.md` + `MEMORY.md`\
-  \ added to the materializer's GOVERNED list.\n\n**Anchor-scope (co-anchor boundary).**\
-  \ This spec's `bin/yitc-v2#cmd_task_close` anchor\ngoverns ONLY the must-read entry-gate\
-  \ PROLOGUE of that verb (the `_require_reads(\"stage\", …)`\nprecondition + its\
-  \ refusal); the rest of the close-path body (probe gating, spec activation, the\n\
-  closure-record write, and the report-only WARN family) is SPEC-0015 closure-contract\
-  \ behavior,\nNOT this spec's. A close-path symbol change that leaves the read-gate\
-  \ prologue unchanged is\ntherefore OUTSIDE this spec's governed behavior — the co-anchor\
-  \ `possibly-stale` flag is a false\npositive cleared by a last-touch refresh (the\
-  \ collateral co-anchor class; SPEC-0005\nrule-7 in-place). Instance : the SPEC-0052\
-  \ at-closure audit-YAML displacement is appended\nto the END of `cmd_task_close`\
-  \ (after the closure-record commit), leaving the read-gate prologue\nuntouched —\
-  \ no-drift for this spec; refreshed last-touch. Instance : the read_gate_refused\n\
-  observability emit is added to `_require_reads` BEFORE each `_die` refusal path,\
-  \ leaving the\ndoc-set derivation, the cli_invoked evidence window, and the stdout\
-  \ refusal text (this spec's\ngoverned behavior) UNCHANGED — additive observability\
-  \ only; no-drift, refreshed last-touch.\nInstance : the `task close --batch-close`\
-  \ preamble (the hygiene work-batch in-place close)\nis inserted into `cmd_task_close`\
-  \ BEFORE the read-gate prologue and still routes through the SAME\nunchanged `_require_reads(\"\
-  stage\", {\"stage\": \"Closure\"...})` precondition (doc-set, evidence\nwindow,\
-  \ refusal text all UNTOUCHED) — so the batch-close path is governed by this gate\
-  \ exactly like\nthe normal close; the co-anchor `possibly-stale` flag is a false\
-  \ positive, refreshed last-touch.\nInstance : `_require_reads` now passes `kind=\"\
-  read-check\"` (the SPEC-0025/SPEC-0059 locked\nrefusal-category enum value, reconciled\
-  \ from the interim `\"stage\"`) plus the already-resolved\n`session_ref` to the\
-  \ read_gate_refused emit; `cmd_task_close` / `cmd_task_commit` additionally pass\
-  \ a\n`verb=` label to the shared stage-correspondence guard. All additive observability/labelling\
-  \ — the\ndoc-set derivation, the cli_invoked evidence window, and the stdout refusal\
-  \ text (this spec's governed\nbehavior) are UNCHANGED. The co-anchor `possibly-stale`\
-  \ flag is a false positive, refreshed last-touch.\nInstance ( — GRADUATION): the\
-  \ read-check graduated onto `cmd_audit` (TASK Audit-pre/post),\n`cmd_spec_new` (--draft,\
-  \ plan `specs`), and `cmd_plan_check` (plan `accepted`). Each new verb anchor\n\
-  governs ONLY its must-read entry-gate PROLOGUE (the `_require_reads(\"stage\", …)`\
-  \ call + its refusal),\nexactly the co-anchor boundary the pilot uses for `cmd_task_close`;\
-  \ the REST of each verb (the\nauditor invocation, the spec scaffold/allocation,\
-  \ the plan-check audit body) is its OWN spec's\nbehavior, NOT this spec's. `_require_reads`\
-  \ additionally gained the cross-axis `ctx.axis` selector\n(§1) — additive: the evidence\
-  \ window, the cli_invoked window, and the read_gate_refused emit are\nUNCHANGED.\
-  \ The verb-own governing specs (SPEC-0030 / SPEC-0034 / SPEC-0046) are deliberately\
-  \ NOT edited\nto mention the gate — the read-gate has ONE home (this spec); duplicating\
-  \ it into each verb's spec is\nthe P5 violation the co-anchor model exists to avoid.\
-  \ The `ctx.axis` selector FAILS CLOSED\n(audit-post F1): an unknown axis raises\
-  \ ValueError (only an ABSENT axis defaults to \"task\"), so a\nmis-wired caller\
-  \ surfaces rather than silently routing to the task bundle. Refreshed last-touch\
-  \ on\nthe four anchors.\nInstance : the closure-time fingerprint linkage (`task\
-  \ close --closes-fp <fp>`, SPEC-0069)\nadds an OPTIONAL cites-fold + an advisory\
-  \ candidate HINT to `cmd_task_close` — the cites write, the\nlate-linkage done-re-run,\
-  \ and the report-only hint are all SPEC-0069 LINK-RULE behavior, leaving the\n`_require_reads(\"\
-  stage\", {\"stage\": \"Closure\"...})` read-gate prologue (doc-set, evidence window,\n\
-  refusal text — this spec's governed behavior) UNCHANGED. So the co-anchor `possibly-stale`\
+  \ is unaffected.\n\n**A STAGE CONTRACT IS DELIVERED ONCE PER CONTEXT EPOCH.** The\
+  \ stage deliverer — ONE helper\nbehind both seams, `stage <NAME>` and the in-worktree\
+  \ `session start` — renders a contract as ONE\nPOINTER LINE (its id, its title,\
+  \ the command that re-reads it) instead of its body when ALL THREE\nhold, and in\
+  \ full in every other state:\n(a) the current context epoch (§8's counter) can be\
+  \ ESTABLISHED — the provider transcript was\n    actually read to the end. A session\
+  \ with no provider transcript, or one whose transcript\n    exists but cannot be\
+  \ read, reads epoch 0 before AND after a `/compact` (§8's fail-safe\n    floor),\
+  \ so \"this epoch already holds it\" cannot be asserted of it — such a session is\
+  \ never\n    shown a pointer;\n(b) this session holds a crediting receipt for that\
+  \ contract, inside §2's own window, stamped with\n    an epoch not older than the\
+  \ current one and carrying the FINGERPRINT of what was rendered (and,\n    under\
+  \ `-C`, the realm the contract requires);\n(c) the contract rendered NOW has that\
+  \ same fingerprint — a spec edited between two deliveries is\n    delivered again,\
+  \ whatever its length.\nA pointer writes NO receipt: the earlier delivery is what\
+  \ credits. To make (b) decidable, a\npoint-lookup receipt carries the epoch stamp\
+  \ the seed receipt already has (an absent stamp reads as\nepoch 0), and a stage-delivered\
+  \ one also carries the fingerprint; a hand `graph query` receipt has\nnone and therefore\
+  \ never suppresses a body. NOTHING ABOVE CHANGES: §2's credit stays SESSION-scoped\n\
+  and reads neither field — the epoch decides RE-RENDERING, never credit — and every\
+  \ doubt (no anchor,\nan unreadable journal, a comparison that fails) falls toward\
+  \ delivering the body. A `/compact`\nadvances the epoch, so the SPEC-0007 §5a re-run\
+  \ of `stage <current_stage>` delivers in full again.\n\n### 5. Bypass\nEmergency\
+  \ mode ONLY (`patterns/error-friction-tracking.md` analog — `patterns/emergency-mode.md`\n\
+  entry). No dedicated `--force` flag.\n\n### 6. Pilot scope — NORMATIVE = kind=stage\
+  \ only; seed/action RESERVED\nNORMATIVE: `kind=stage` — wired first as the pilot\
+  \ on `task close` (Closure contracts) and `task\ncommit` (Commit contracts), then\
+  \ GRADUATED (each its OWN first-connection step — never bulk)\nonto the remaining\
+  \ stage work-verbs: `audit pre`/`audit post` (TASK Audit-pre/post, SPEC-0036), `spec\n\
+  new --draft` (plan `specs`, SPEC-0034), and `plan check` (plan `accepted`, SPEC-0034)\
+  \ — the latter two\non the cross-axis `axis==\"plan\"` derivation (§1). `kind=seed`\
+  \ / `kind=action` are RESERVED API shape ONLY — non-normative,\ncarrying NO code\
+  \ and NO obligation until a first-connection decision wires a consumer (each its\n\
+  own decision — never wired in bulk). Prerequisite named for the future seed wiring:\n\
+  `graph/floor-trigger-map.md` + `MEMORY.md` added to the materializer's GOVERNED\
+  \ list.\n\n**Anchor-scope (co-anchor boundary).** This spec's `bin/yitc-v2#cmd_task_close`\
+  \ anchor\ngoverns ONLY the must-read entry-gate PROLOGUE of that verb (the `_require_reads(\"\
+  stage\", …)`\nprecondition + its refusal); the rest of the close-path body (probe\
+  \ gating, spec activation, the\nclosure-record write, and the report-only WARN family)\
+  \ is SPEC-0015 closure-contract behavior,\nNOT this spec's. A close-path symbol\
+  \ change that leaves the read-gate prologue unchanged is\ntherefore OUTSIDE this\
+  \ spec's governed behavior — the co-anchor `possibly-stale` flag is a false\npositive\
+  \ cleared by a last-touch refresh (the collateral co-anchor class; SPEC-0005\nrule-7\
+  \ in-place). Instance : the SPEC-0052 at-closure audit-YAML displacement is appended\n\
+  to the END of `cmd_task_close` (after the closure-record commit), leaving the read-gate\
+  \ prologue\nuntouched — no-drift for this spec; refreshed last-touch. Instance :\
+  \ the read_gate_refused\nobservability emit is added to `_require_reads` BEFORE\
+  \ each `_die` refusal path, leaving the\ndoc-set derivation, the cli_invoked evidence\
+  \ window, and the stdout refusal text (this spec's\ngoverned behavior) UNCHANGED\
+  \ — additive observability only; no-drift, refreshed last-touch.\nInstance : the\
+  \ `task close --batch-close` preamble (the hygiene work-batch in-place close)\n\
+  is inserted into `cmd_task_close` BEFORE the read-gate prologue and still routes\
+  \ through the SAME\nunchanged `_require_reads(\"stage\", {\"stage\": \"Closure\"\
+  ...})` precondition (doc-set, evidence\nwindow, refusal text all UNTOUCHED) — so\
+  \ the batch-close path is governed by this gate exactly like\nthe normal close;\
+  \ the co-anchor `possibly-stale` flag is a false positive, refreshed last-touch.\n\
+  Instance : `_require_reads` now passes `kind=\"read-check\"` (the SPEC-0025/SPEC-0059\
+  \ locked\nrefusal-category enum value, reconciled from the interim `\"stage\"`)\
+  \ plus the already-resolved\n`session_ref` to the read_gate_refused emit; `cmd_task_close`\
+  \ / `cmd_task_commit` additionally pass a\n`verb=` label to the shared stage-correspondence\
+  \ guard. All additive observability/labelling — the\ndoc-set derivation, the cli_invoked\
+  \ evidence window, and the stdout refusal text (this spec's governed\nbehavior)\
+  \ are UNCHANGED. The co-anchor `possibly-stale` flag is a false positive, refreshed\
+  \ last-touch.\nInstance ( — GRADUATION): the read-check graduated onto `cmd_audit`\
+  \ (TASK Audit-pre/post),\n`cmd_spec_new` (--draft, plan `specs`), and `cmd_plan_check`\
+  \ (plan `accepted`). Each new verb anchor\ngoverns ONLY its must-read entry-gate\
+  \ PROLOGUE (the `_require_reads(\"stage\", …)` call + its refusal),\nexactly the\
+  \ co-anchor boundary the pilot uses for `cmd_task_close`; the REST of each verb\
+  \ (the\nauditor invocation, the spec scaffold/allocation, the plan-check audit body)\
+  \ is its OWN spec's\nbehavior, NOT this spec's. `_require_reads` additionally gained\
+  \ the cross-axis `ctx.axis` selector\n(§1) — additive: the evidence window, the\
+  \ cli_invoked window, and the read_gate_refused emit are\nUNCHANGED. The verb-own\
+  \ governing specs (SPEC-0030 / SPEC-0034 / SPEC-0046) are deliberately NOT edited\n\
+  to mention the gate — the read-gate has ONE home (this spec); duplicating it into\
+  \ each verb's spec is\nthe P5 violation the co-anchor model exists to avoid. The\
+  \ `ctx.axis` selector FAILS CLOSED\n(audit-post F1): an unknown axis raises ValueError\
+  \ (only an ABSENT axis defaults to \"task\"), so a\nmis-wired caller surfaces rather\
+  \ than silently routing to the task bundle. Refreshed last-touch on\nthe four anchors.\n\
+  Instance : the closure-time fingerprint linkage (`task close --closes-fp <fp>`,\
+  \ SPEC-0069)\nadds an OPTIONAL cites-fold + an advisory candidate HINT to `cmd_task_close`\
+  \ — the cites write, the\nlate-linkage done-re-run, and the report-only hint are\
+  \ all SPEC-0069 LINK-RULE behavior, leaving the\n`_require_reads(\"stage\", {\"\
+  stage\": \"Closure\"...})` read-gate prologue (doc-set, evidence window,\nrefusal\
+  \ text — this spec's governed behavior) UNCHANGED. So the co-anchor `possibly-stale`\
   \ flag is a\nfalse positive (deliberate-non-update of this spec), refreshed last-touch.\n\
   Instance (re-verified): the at-the-moment spec-body-edit cue is appended to the\
   \ END of\n`cmd_spec_new` as a single stdout line — printed AFTER the id is allocated\
@@ -537,7 +561,17 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   a receipt with NO `stdout_delivered` key still credits (back-compat + the dispatch\
   \ bootstrap\nreceipts), and a not-delivered `session start` receipt is still read\
   \ by `_seed_receipt_epochs`\n(the seed floor was not widened). Covered by\n`tests/test_t11411_discarded_fetch_not_credited.py`.\n\
-  \n## Drift review\n\n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`.\
+  (7) ONCE-PER-EPOCH delivery (§4) — a DIFFERENTIAL over the deliverer, both directions\n\
+  required: after one delivery, a second delivery call in the SAME established epoch\
+  \ prints a pointer\nper contract, no body and no second receipt, and the gate still\
+  \ passes with no manual fetch; after\nthe epoch advances the same call prints full\
+  \ bodies and writes receipts stamped with the new epoch.\nPlus the three fail-toward-delivering\
+  \ bounds, each with its own failing input: an epoch that cannot\nbe established\
+  \ (bodies on every call), a prior receipt carrying no fingerprint (body), and a\n\
+  contract whose text changed to different text of IDENTICAL length (body). Covered\
+  \ by\n`tests/test_session_start_delivers_stage_bundle.py` and `tests/test_stage_bundle_credits_read_gate.py`\n\
+  (the `test_t13510_*` arms, incl. the real-subprocess session-start → stage → compact\
+  \ run).\n\n## Drift review\n\n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`.\
   \ edited only\nthe spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range`\
   \ scoping for the\nWARN) — it does NOT touch the `_require_reads` precondition /\
   \ `_fetched_spec_ids` pass-granting gate\nthis spec governs. The graph last-touch\
@@ -565,16 +599,17 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/audit.py#cmd_audit: 58301348f06fbf68c078147cd57f91b7a5f31579fef69514eea5913c15c83c24
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: bc03fe81c903fc48ae82a8f604632810aa542d9c654e06eee6cdff99d1a2ecef
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
-  bin/lib/events.py#_emit_cli_invoked: c5a936b389c6a76ee6480e855b5b742707b330336d3372d9e7fc195d8251c7a8
-  bin/lib/gates.py#_fetched_spec_ids: 4f91d79220adae801846c2a84860c2c964b1ea5445d0ad8d73acbdda2033bbd8
+  bin/lib/events.py#_emit_cli_invoked: 83fa38666a44a4f694dbb219f4863e661550d724cd3c0eb31aecac56f774854e
+  bin/lib/gates.py#_fetched_spec_ids: 739bdb4d1c6f702735873fccd51a1a608ed0ce17813d77f6865a4a2015dc1778
   bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
   bin/lib/gates.py#_require_seed_read: 02efe8b5f67e0e05610a0a98a305b5b790cc0da7b0c6b5ccbdcada360394d6b6
   bin/lib/gates.py#_seed_receipt_epochs: 1fd06ce74f223c807742191c68e5d737d7cb07406effeb8cee3d396335b80779
   bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
   bin/lib/plan.py#cmd_plan_check: 603e0efaaea925bf0a7b1f93003e3c60fe74d5dd1c2e4e7f122a5d1317750df3
-  bin/lib/session.py#session_epoch: 9de86dd52424e7ab717de755fe7d7efd6393e5621e20a243e44cdfdd0e3b40ff
+  bin/lib/session.py#session_epoch: 09738dbd94ed367566655e76f73370e87e2775a935acc00a6c40df3edc7d15d0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
   bin/lib/task.py#cmd_task_close: 52883cc89950992ccb366f432233e631c08728390f37d18b6ffccac81d3be8f3
   bin/lib/task.py#cmd_task_commit: d52e5309b3dd543695f7834278495eb8a091b878fa5ba01f9c47f7e28f25300f

@@ -284,20 +284,39 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   \ missing; the receiving card is not filed; or a decision\nfor that fingerprint\
   \ already exists on the same `ceiling_ref` (append-only means a decision is never\n\
   edited — a wrong one is superseded by a NEW ceiling row, rule 4). Each refusal emits\
-  \ the existing\n`read_gate_refused` with a distinct `kind`.\nTHE REASON'S INPUT\
-  \ CHANNEL IS PART OF THE CONTRACT (amended, <project> X-1427; same class,\nprior\
-  \ art X-1340 / on `blocked-on-land --reason`). The channel is named:\n  - **`--from-stdin`\
-  \ is the shell-proof route, and the prescribed one for any non-trivial reason.**\n\
-  \    It reads the CONTENT-bearing fields — `reason`, `directive`, `receiving`, `evidence`\
-  \ — as a YAML\n    mapping on stdin, through the SAME shared ingest every prose-bearing\
-  \ sibling already uses\n    (`task file`, `task update`, `followup add`, `task commit`,\
-  \ `work commit`, `worktree park`,\n    `blocked-on-land`). There is no second ingest.\n\
-  \  - **On that route the `reason` is stored VERBATIM.** It is the one field never\
-  \ stripped, because\n    the promise of the route is a byte-for-byte round trip\
-  \ of what the author wrote; the three\n    id-shaped fields keep their normalization,\
-  \ and the argv route's own normalization is unchanged.\n  - **The TARGET/ROUTING\
-  \ flags stay ARGV-ONLY** — `--task` / `--plan` / `--stage` / `--gate` /\n    `--finding`\
-  \ / `--disposition`. They are id-shaped, carry no prose and ride no shell hazard.\
+  \ the existing\n`read_gate_refused` with a distinct `kind`.\nA SAME-SECOND DIRECTIVE\
+  \ LOCATOR IS RESOLVED BY COVERAGE, NEVER BY JOURNAL ORDER (ADDITIVE).\nThe locator\
+  \ is second-granular, so several `owner_directive` rows may share the second it\
+  \ names, and\nthe rule above said which row authorizes only when there is one. Among\
+  \ the rows of that second the\nCANDIDATES are those that cover the task, and rows\
+  \ carrying the same words (the same prose and the\nsame `cards`) are ONE candidate\
+  \ — a duplicate capture. Exactly one candidate → the decision is judged\nagainst\
+  \ it wherever it sits in the journal, and it authorizes when ANY of its duplicate\
+  \ captures\npasses the precedes and delegation tests above. No candidate → the refusals\
+  \ above; when the rows of\nthat second fail on different tests the one named is\
+  \ the test reached furthest (precedes, then\ndelegation, then coverage), so the\
+  \ refusal does not depend on journal order either. Several\ncandidates → refused\
+  \ `directive-ambiguous`, naming each, with nothing written: the locator names no\n\
+  single directive. The exit is to cite a covering row that is alone in its second\
+  \ — the delegated or\nmid-turn capture above. A second holding one `owner_directive`\
+  \ row is judged exactly as before.\nProbe: two rows sharing one second, in both\
+  \ journal orders — exactly one covering resolves to it;\ntwo covering in different\
+  \ words refuse, both named, no row written; the same words twice resolve\nas one\
+  \ (tests/test_owner_directive_same_second.py; the pre-change resolver judged the\
+  \ first row only).\nTHE REASON'S INPUT CHANNEL IS PART OF THE CONTRACT (amended,\
+  \ <project> X-1427; same class,\nprior art X-1340 / on `blocked-on-land --reason`).\
+  \ The channel is named:\n  - **`--from-stdin` is the shell-proof route, and the\
+  \ prescribed one for any non-trivial reason.**\n    It reads the CONTENT-bearing\
+  \ fields — `reason`, `directive`, `receiving`, `evidence` — as a YAML\n    mapping\
+  \ on stdin, through the SAME shared ingest every prose-bearing sibling already uses\n\
+  \    (`task file`, `task update`, `followup add`, `task commit`, `work commit`,\
+  \ `worktree park`,\n    `blocked-on-land`). There is no second ingest.\n  - **On\
+  \ that route the `reason` is stored VERBATIM.** It is the one field never stripped,\
+  \ because\n    the promise of the route is a byte-for-byte round trip of what the\
+  \ author wrote; the three\n    id-shaped fields keep their normalization, and the\
+  \ argv route's own normalization is unchanged.\n  - **The TARGET/ROUTING flags stay\
+  \ ARGV-ONLY** — `--task` / `--plan` / `--stage` / `--gate` /\n    `--finding` /\
+  \ `--disposition`. They are id-shaped, carry no prose and ride no shell hazard.\
   \ One\n    sent inside the mapping is REFUSED BY NAME, never silently dropped.\n\
   \  - **A field supplied on BOTH argv and stdin is a fail-closed CONFLICT** — refused\
   \ before any read\n    and any emit, naming the flag and the key. It is never resolved\
@@ -399,7 +418,7 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: 8e11fb5399e6d6a64801bdb55f5e234a7c5fc842a7779ffe1a94cb57c5c6b3a0
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: dbfad51c3dbb452abda3fe580112d867ca4c8fc2155434a87de0a4d32657cf97
-  bin/lib/audit.py#cmd_audit: 054c1c5920c95bd5cbf8a5fa00993e36b12c4a8e785ee8ffed4b5dc274c70b59
+  bin/lib/audit.py#cmd_audit: 58301348f06fbf68c078147cd57f91b7a5f31579fef69514eea5913c15c83c24
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -422,7 +441,7 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: e9a4563e003d146c3487fad015b9c96d3b4369c9f1e4ddf02303a085b0e9cd27
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: e24ef348436b9800ce4d8ac311ae77b72f4b1a414adf5a800ff8e004a8aa4b98
+  bin/lib/cli_parser.py#build_parser: 82a4a7bd2d21581ff79563698358214ab86d6285b5c16b82bb7631f0b1548537
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
   bin/lib/plan.py#_run_plan_gate_audit: f5edd1544998341ec6ba54fdf3c069c5ba06b8b62631449c60bd2b96a24c2a6f

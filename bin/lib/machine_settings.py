@@ -319,7 +319,10 @@ INVENTORY: "tuple[Knob, ...]" = (
        "re-running a set large enough that the pool is not what is wrong; anything else is ignored "
        "and the default stands. PERFORMANCE: it changes how many load-only flakes a leg absorbs "
        "before giving up, never which files run or how they conclude — a file is cleared ONLY by "
-       "PASSING in isolation, so no value here can admit a failing check",
+       "PASSING in isolation, so no value here can admit a failing check. THE SAME BOUND IS THE "
+       "SWITCH FOR THE CONSUMER LAYER RE-RUN (T-13545, SPEC-0152 rule 16): any value >= 1 admits "
+       "the isolated re-run of ONE sole failed verify layer (never more than one, whatever the "
+       "value), and 0 turns that re-run off as well — one switch, no second knob",
        bounds=(0, 20)),
     _p("YITC_LAND_TAIL_TRIPWIRE_BUDGET_S", "int", 120,
        "bin/lib/worktree.py#_land_tail_tripwire_budget_s",
@@ -552,6 +555,9 @@ INVENTORY: "tuple[Knob, ...]" = (
     _g("YITC_AUDIT_TIMEOUT_SECONDS", "int", 300, "bin/lib/audit.py",
        "the card's own named example: expiry ABORTS the audit, so the value participates in the "
        "verdict"),
+    _g("YITC_C2_BACKUP_HANG_CAP_S", "int", 3600, "bin/lib/deploy.py",
+       "T-13514: the owner-approved Class-C2 dump's hang-cap — its expiry REFUSES the deploy "
+       "(SPEC-0097 §5), so the value participates in the verdict"),
     _g("YITC_CANARY_RUN", "str", None, "bin/lib/cli.py", "opt-in gate for the canary test arm"),
     _g("YITC_CANARY_BUDGET_SECS", "float", 180.0, "bin/lib/audit.py",
        "T-12481: the backstop canary's suite-run budget — it decides which probes run, so it shapes "

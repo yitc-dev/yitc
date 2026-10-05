@@ -8,16 +8,18 @@ applies_to: every YITC session (kernel or consumer) that connects or uses an ext
 
 > **Provider-NEUTRAL by construction (CHARTER §Principle 4b).** This pattern carries ONLY
 > provider-neutral governance, in abstractions — «the project's committed MCP config», «the session's
-> MCP-list command», «disable an unused server». It names NO provider brand and NO concrete command.
+> MCP-list command», «report an extra server to the person». It names NO provider brand and NO concrete command.
 > The concrete commands for a specific client live in a SEPARATE per-client `class: adapter` runbook
 > (provider-named; it links back UP to this pattern — the neutral home does not privilege one client by
 > hardcoding its path). That runbook is non-normative and is NOT a governance source. On any conflict
 > the canonical handbook + active specs WIN (P7).
 >
-> **Delivered (SPEC-0118).** This discipline is surfaced at the two moments it is needed — the
-> session-start reconcile rides the always-loaded `binding:[seed]` seed; the connect/use guidance rides
-> the `before-mcp-use` floor trigger (`graph/floor-trigger-map.md`). SPEC-0118 is the delivery contract;
-> THIS pattern is the single home for the prose (SoT — the spec does not restate it, P5).
+> **Delivered (SPEC-0118).** This discipline is acted on at ONE moment — before the session's first MCP
+> connect or use, where the `before-mcp-use` floor trigger fires (`graph/floor-trigger-map.md`) — and it
+> is CUED from two surfaces: that floor row, and the always-loaded `binding:[seed]` seed line, whose cue
+> states the reconcile in one sentence so it can be carried out without a further read. Nothing here is a
+> session-start step. SPEC-0118 is the delivery contract; THIS pattern is the single home for the prose
+> (SoT — the spec does not restate it, P5).
 
 ## Problem
 
@@ -50,18 +52,33 @@ legitimate (you don't commit a server you needed for one investigation), but it 
 **forgetting to drop it**, so it lingers across sessions as connected-but-unaccounted clutter. The
 reconcile below is the safety net for exactly that.
 
-### The session-start reconcile (the «don't-forget-to-disable» safety net)
+### Not a shelf — a host-provided connector
+
+A connector the **host or the person's account provides** is on NEITHER shelf: it is present in the
+session without any project config naming it and without the session having added it. The project did
+not declare it, so it is not standing; nobody added it for a single need, so it is not a forgotten
+one-off. Name it **«host-provided, not project-declared»** — never a stray one-off, and never something
+the project is expected to drop. The capture rule (§Capture) applies to it exactly as to any other server.
+
+### The reconcile — before the first MCP use (the «don't-forget-to-drop» safety net)
 
 A **BEHAVIORAL discipline, NOT a new hook or gate** (CHARTER §When-NOT-to-add-a-mechanism — the harness
-does not auto-disable anything). At **session start**, as one of the session's other start-of-session
-reads:
+does not auto-disable anything). It is **NOT a session-start step**: startup is done once the seed is
+read, `session start` has run and its `--help` scan is done (SPEC-0007 §5b), and nothing else is opened
+then. The reconcile runs **before the session's first MCP connect or use** — the moment the MCP-use
+floor trigger fires — once per session; a session that never touches MCP never runs it.
 
-1. **List** the currently connected MCP servers (the session's MCP-list surface).
-2. **Compare** against the declared standing set (the committed config + any explicit always-on).
-3. **Disable / remove** any extra one-off that is no longer needed.
+1. **List** the MCP servers connected to the session (the session's MCP-list surface).
+2. **Compare** them with the standing set: the servers the project's committed, project-scope MCP config
+   declares. **No such config = an empty standing set** — that is a complete answer, not a reason to go
+   looking for another source.
+3. **Report** each extra to the person, by name and by kind — a one-off left connected, or a
+   «host-provided, not project-declared» connector. **Do NOT disable or remove a server yourself:** the
+   disable surface belongs to the person, not to the AI, and the person decides whether an extra stays.
 
-This rides the always-loaded session-start seed (SPEC-0118 `binding:[seed]`), so it is surfaced every
-session start and re-surfaced after `/compact`. It is a reconcile you RUN, not a guard that fires.
+Then carry on with the connect or use. The cue for this step rides the always-loaded seed line
+(SPEC-0118 `binding:[seed]`) and returns after a `/compact` when that line is re-printed. It is a
+reconcile you RUN, not a guard that fires.
 
 ## Capture — a substantive MCP write incurs the external_action floor
 
@@ -102,18 +119,22 @@ the design specifics stay there; do not duplicate).
 
 ## Procedure
 
-1. **Classify the server** — standing (committed project config) or one-off (session/local, uncommitted).
-2. **Connect** per your client's mechanics — the concrete commands are in your client's per-client
+1. **Reconcile first** — before the session's first MCP connect or use, list the connected servers,
+   compare them with the standing set and report any extra to the person (§The reconcile). Once per session.
+2. **Classify the server** you are about to connect — standing (committed project config) or one-off
+   (session/local, uncommitted); a host-provided connector is neither (§Not a shelf).
+3. **Connect** per your client's mechanics — the concrete commands are in your client's per-client
    `class: adapter` runbook (the provider-named adapter that links back here), never here.
-3. **Use** the server's tools for the work.
-4. **Capture every substantive external WRITE** with a SPEC-0116 `external_action` event (no worktree —
+4. **Use** the server's tools for the work.
+5. **Capture every substantive external WRITE** with a SPEC-0116 `external_action` event (no worktree —
    the journal-append path); reads need nothing.
-5. **At the next session start, reconcile** — drop any one-off you no longer need.
 
 ## What this pattern is NOT
 
-- **NOT** a new gate, verb, hook, or auto-disable mechanism — the reconcile is a behavioral read, the
-  capture reuses the existing `bin/yitc-v2 event` append (no new store/parser).
+- **NOT** a new gate, verb, hook, or auto-disable mechanism — the reconcile is a behavioral
+  list-compare-report the AI runs before its first MCP use, the capture reuses the existing
+  `bin/yitc-v2 event` append (no new store/parser).
+- **NOT** a startup step — it adds no read and no action to session start (SPEC-0007 §5b done-when).
 - **NOT** a provider reference — it names no commands; the runbook (adapter) carries those.
 - **NOT** a second home for the capture rule (that is SPEC-0116) or the design round-trip
   (that is `design-tool-roundtrip.md`) — it POINTS at both.
@@ -128,7 +149,9 @@ the design specifics stay there; do not duplicate).
    `bin/yitc-v2 event`. No new node, parser, gate, or store.
 3. **What gets RETIRED (named)?** The per-project re-derivation of «how does v2 work with MCP»; and
    `design-tool-roundtrip.md §Delivery axis` is DEMOTED from a standalone home to an INSTANCE of this
-   general rule.
+   general rule. RETIRED since : the reconcile as a start-of-session step, and the AI-side
+   «disable» — the step moved to the first-use moment the floor row already marks and became a report;
+   nothing was added in their place.
 4. **Real incident?** Yes — the <project> DesignSync write into design-project `c95f02ff` that fired no
    journal line (2026-06-30, cross X-0138/X-0139). Not imagined.
 

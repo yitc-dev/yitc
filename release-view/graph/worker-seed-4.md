@@ -173,7 +173,7 @@ and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budg
 
 > **Retrieved — SPEC-0027 — stage-DELIVERED at Tests entry** : `bin/yitc-v2 stage Tests --task T-XXXX` delivers SPEC-0027 in its stage bundle (same delivery axis as Stage 3 Plan — a lighter pointer, NOT a floor-trigger; stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-0027`.
 
-**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here.
+**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not moved since the run; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, full-breadth, marked row — never a red, partial or hand-recorded one; (4) the run's set covers the land's set; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
 
 ### Stage 7 — Commit
 

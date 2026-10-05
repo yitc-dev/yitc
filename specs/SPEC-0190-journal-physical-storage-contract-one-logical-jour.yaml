@@ -576,7 +576,7 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \ carrier exists to replace. What is refused is PRE-GRANTING it, not documenting\
   \ it —\nthe `startup_checks` born shape, for the same reason. The per-section shape\
   \ is catalogued at its\nsingle home, SPEC-0160.\n**The ENGINE's one place is `tests/read-contract-exemptions.yaml`.**\
-  \ The engine carries no\n`yitc-ops.yaml` (a kernel invariant, SPEC-0077), so it\
+  \ The engine is not a\nconsumer of its own ops contract (SPEC-0186 rule 6), so it\
   \ declares its own exemptions in that ONE file,\nunder the SAME `reads: exemptions:`\
   \ shape and validated by the SAME shape hook — still exactly one\nplace per project.\
   \ **An entry whose `until` has passed holds NOTHING:** the tripwire judges it as\n\
@@ -884,7 +884,7 @@ concern:
   born: '# reads:
 
     # # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier
-    for a COMPOSED SEAM
+    for a verb or seam
 
     # # that cannot hold the read contract (one request-scoped ReadScope; folds <=
     1 per segment).
@@ -898,7 +898,8 @@ concern:
 
     # exemptions: # the list; each entry carries ALL FOUR fields below
 
-    # - seam: "bin/lib/debt.py#_debt_echo_lines" # the WIRING SITE, <file>#<symbol>
+    # - seam: "bin/lib/debt.py#_debt_echo_lines" # the VERB LABEL (e.g. journal query),
+    or the WIRING SITE <file>#<symbol>
 
     # ratio_bound: 2 # the POSITIVE folds-per-segment ceiling this seam is permitted
 

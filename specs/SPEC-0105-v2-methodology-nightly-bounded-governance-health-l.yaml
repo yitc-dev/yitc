@@ -393,4 +393,4 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/nightly.py#cmd_nightly: 8db97c8d2cc6bd301f6d2707969896bcd828e8001c0cc9ac6acdea28db5d6739
+  bin/lib/nightly.py#cmd_nightly: 5f7df9824d58e151773c5b1312534fa1f5b1d367be8c4c254a061b715c12253b

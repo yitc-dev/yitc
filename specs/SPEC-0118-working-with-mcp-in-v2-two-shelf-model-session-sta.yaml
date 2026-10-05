@@ -1,5 +1,5 @@
 id: SPEC-0118
-title: Working with MCP in v2 — two-shelf model + session-start reconcile + capture-delivery
+title: Working with MCP in v2 — two-shelf model + before-first-use reconcile + capture-delivery
   contract (before-mcp-use)
 status: active
 created_at: 2026-06-30 14:08:53+00:00
@@ -12,49 +12,57 @@ body: "## Scenario\n\nA session (the kernel's own, or a consumer's) needs an ext
   \ v2 wants it to connect/use that server, how to keep the connected set\nclean across\
   \ sessions, and what it MUST record when an MCP tool changes the outside world.\
   \ The owner\nsees: a project's always-needed servers are declared once in its committed\
-  \ MCP config; a one-off\nserver added for a single need is dropped again at the\
-  \ next session-start reconcile; and a\nsubstantive external write through any MCP\
-  \ tool leaves a journal line like a deploy does.\n\n## Internal\n\nThe MCP working-discipline\
-  \ (the two-shelf model, the session-start reconcile, the delivery axis, the\nterritory\
-  \ composition) lives in the pattern `patterns/working-with-mcp-in-v2.md` — the single\n\
-  PROVIDER-NEUTRAL home (SoT; this spec does NOT restate it — CHARTER §P5). The concrete\
-  \ provider\ncommands live separately in a per-client `class: adapter` MCP runbook\
-  \ (e.g.\n`patterns/claude-code-mcp-runbook.md`) — NOT a governance source (CHARTER\
-  \ §P4b). This spec is that\npattern's RETRIEVAL-DELIVERY contract: it binds the\
-  \ delivery so `graph build` surfaces the discipline\nat the two moments it is needed\
-  \ (the SPEC-0013 binding contract; plan-check finding #1's two delivery\nmoments):\n\
-  \n- **`binding: [seed]`** → the **session-start** delivery, carrying the pattern's\
-  \ §session-start\n  reconcile. Because the `binding:[seed]` `_seed_howto` echo is\
-  \ a `session start` output evicted by a\n  `/compact` (and `session start` is NOT\
-  \ re-run), the concrete post-`/compact` re-delivery surface is\n  the explicit pointer\
-  \ in **AGENTS.md §After-/compact** (\"MCP session-start reconcile re-delivery\"\
-  ).\n- **`binding: [before-mcp-use]`** → the **connect/use** floor trigger, carrying\
-  \ the pattern's\n  §two-shelf model / §delivery axis. Before a session registers\
-  \ or uses an MCP server the\n  floor-trigger-map row points it at this spec → the\
-  \ pattern; that row re-delivers via the re-readable\n  `graph/floor-trigger-map.md`.\n\
+  \ MCP config; before a\nsession first connects or uses an MCP server it lists what\
+  \ is connected and REPORTS anything outside\nthat declared set — a one-off left\
+  \ over from an earlier need, or a connector the host or account\nprovides — and\
+  \ the person, not the AI, decides whether it stays; and a substantive external write\n\
+  through any MCP tool leaves a journal line like a deploy does.\n\n## Internal\n\n\
+  The MCP working-discipline (the two-shelf model, the reconcile before the first\
+  \ MCP use, the delivery\naxis, the territory composition) lives in the pattern `patterns/working-with-mcp-in-v2.md`\
+  \ — the single\nPROVIDER-NEUTRAL home (SoT; this spec does NOT restate it — CHARTER\
+  \ §P5). The concrete provider\ncommands live separately in a per-client `class:\
+  \ adapter` MCP runbook (e.g.\n`patterns/claude-code-mcp-runbook.md`) — NOT a governance\
+  \ source (CHARTER §P4b). This spec is that\npattern's RETRIEVAL-DELIVERY contract:\
+  \ it binds the delivery so `graph build` surfaces the discipline\non the two surfaces\
+  \ that carry it (the SPEC-0013 binding contract). Both serve ONE moment of action\
+  \ —\nbefore the session's first MCP connect or use; neither adds a step or a read\
+  \ to session start (the\nstartup done-when is SPEC-0007 §5b's and is unchanged):\n\
+  \n- **`binding: [seed]`** → the always-loaded **cue** for the pattern's §The reconcile.\
+  \ The generated\n  seed line states the reconcile in one sentence — its moment (before\
+  \ the first MCP connect or use,\n  not session start), where the standing set lives\
+  \ (the project's committed MCP config; none = an\n  empty set) and that an extra\
+  \ is REPORTED to the person, not disabled by the AI — so the step can be\n  carried\
+  \ out from the cue alone, with no further read. The seed line is a `session start`\
+  \ output a\n  `/compact` evicts; it returns when the sanctioned receipt-refresh\
+  \ re-run re-prints it (SPEC-0007\n  §5b), and **AGENTS.md §After-/compact** carries\
+  \ the pointer (\"MCP reconcile re-delivery\").\n- **`binding: [before-mcp-use]`**\
+  \ → the **connect/use** floor trigger: the reconcile's MOMENT, and\n  the carrier\
+  \ of the pattern's §two-shelf model / §delivery axis. Before a session registers\
+  \ or uses\n  an MCP server the floor-trigger-map row points it at this spec → the\
+  \ pattern; that row re-delivers\n  via the re-readable `graph/floor-trigger-map.md`.\n\
   \nBeyond the one design-backend capability rule stated in §Design-backend capability\
   \ below, this spec\ncarries NO governance rule of its own — the rules (the two-shelf\
-  \ model, the reconcile, the capture\nobligation, the delivery axis, the territory\
-  \ composition) live ONLY in the pattern sections named\nabove, and the capture floor\
-  \ in SPEC-0116 (P5 — no restatement here, so nothing can drift beside the\npattern\
-  \ + the AGENTS re-delivery pointer). Read `patterns/working-with-mcp-in-v2.md` for\
-  \ the rules.\n\n## Design-backend capability (provider-neutral rule)\n\nA design\
-  \ backend has two project types — a reusable **design-system catalog** and a concrete\n\
-  **screen design-project canvas**. They are NOT served by the same tool:\n\n- The\
-  \ **design-system catalog** round-trips (read + write) through the **built-in /\
-  \ harness-native\n  design-sync tool** — no separately-declared design MCP is required\
-  \ for that side.\n- The **screen design-project canvas** does **NOT** round-trip\
-  \ through the built-in tool. Its\n  round-trip **REQUIRES the declared design MCP\
-  \ capability** — an explicitly connected design-backend\n  MCP server (a `before-mcp-use`\
-  \ connect, this spec's floor). A session that needs to pull or write a\n  *screen*\
-  \ MUST connect that declared design MCP; the built-in tool alone does not reach\
-  \ it.\n\nThis rule is stated **provider-neutrally** (CHARTER §Principle 4b — the\
-  \ normative text names no\nprovider). *Current implementation facts (non-normative):*\
-  \ the built-in tool is **DesignSync**, the\ndeclared design MCP is **`claude_design`**\
-  \ (`api.anthropic.com/v1/design/mcp`), both authed via\n**`/design-login`** — named\
-  \ as facts, not as the rule. Full discipline + the capability matrix +\nprovenance\
-  \ (owner-verified on <project>, cross X-0230, correcting the earlier X-0136 «one\
-  \ built-in\ntool covers both types» claim) live in `patterns/design-tool-roundtrip.md`\
+  \ model, the host-provided connector class, the reconcile, the capture\nobligation,\
+  \ the delivery axis, the territory composition) live ONLY in the pattern sections\
+  \ named\nabove, and the capture floor in SPEC-0116 (P5 — no restatement here, so\
+  \ nothing can drift beside the\npattern + the AGENTS re-delivery pointer). Read\
+  \ `patterns/working-with-mcp-in-v2.md` for the rules.\n\n## Design-backend capability\
+  \ (provider-neutral rule)\n\nA design backend has two project types — a reusable\
+  \ **design-system catalog** and a concrete\n**screen design-project canvas**. They\
+  \ are NOT served by the same tool:\n\n- The **design-system catalog** round-trips\
+  \ (read + write) through the **built-in / harness-native\n  design-sync tool** —\
+  \ no separately-declared design MCP is required for that side.\n- The **screen design-project\
+  \ canvas** does **NOT** round-trip through the built-in tool. Its\n  round-trip\
+  \ **REQUIRES the declared design MCP capability** — an explicitly connected design-backend\n\
+  \  MCP server (a `before-mcp-use` connect, this spec's floor). A session that needs\
+  \ to pull or write a\n  *screen* MUST connect that declared design MCP; the built-in\
+  \ tool alone does not reach it.\n\nThis rule is stated **provider-neutrally** (CHARTER\
+  \ §Principle 4b — the normative text names no\nprovider). *Current implementation\
+  \ facts (non-normative):* the built-in tool is **DesignSync**, the\ndeclared design\
+  \ MCP is **`claude_design`** (`api.anthropic.com/v1/design/mcp`), both authed via\n\
+  **`/design-login`** — named as facts, not as the rule. Full discipline + the capability\
+  \ matrix +\nprovenance (owner-verified on <project>, cross X-0230, correcting the\
+  \ earlier X-0136 «one built-in\ntool covers both types» claim) live in `patterns/design-tool-roundtrip.md`\
   \ §capability matrix.\n\n## Parameters\n\nNone consumed. The binding tokens (`before-mcp-use`,\
   \ `seed`) are the delivery contract, not a\ncode-read scalar — so `consumed: false`.\n\
   \n## Rationale\n\nReal incident: a <project> session wrote a correction into design-project\
@@ -69,16 +77,24 @@ body: "## Scenario\n\nA session (the kernel's own, or a consumer's) needs an ext
   \ carries a `before-mcp-use`\n  row resolving to `SPEC-0118` (once active); `grep\
   \ 'before-mcp-use' graph/floor-trigger-map.md`.\n- **Seed delivery (post-/compact\
   \ survival):** `bin/yitc-v2 session start` echoes the `binding:[seed]`\n  general-verb\
-  \ seed line naming `SPEC-0118` (the reconcile pointer). Because that echo is evicted\
-  \ by a\n  `/compact` and `session start` is NOT re-run, the concrete post-/compact\
-  \ re-delivery surface is the\n  explicit pointer in **AGENTS.md §After-/compact**\
-  \ (\"MCP session-start reconcile re-delivery\") — grep\n  `before-mcp-use` / `SPEC-0118`\
-  \ in AGENTS.md. (The floor CONNECT/USE half re-delivers via the\n  re-readable `graph/floor-trigger-map.md`\
-  \ row.)\n- **Provider-neutrality (CHARTER §P4b):** the pattern `patterns/working-with-mcp-in-v2.md`\
-  \ normative\n  text contains NONE of {`the AI provider mcp`, `the AI tool`, `/mcp`,\
-  \ `.mcp.json`, `~/<provider-config>.json`} — those\n  live ONLY in the `class: adapter`\
-  \ runbook.\n- **Capture composition:** a substantive MCP-mediated external write\
-  \ emits a SPEC-0116\n  `external_action` event (probed there, not duplicated here).\n"
+  \ seed line naming `SPEC-0118`, and its cue orders NO action at session start: it\
+  \ names\n  the before-first-use moment, the committed-config standing set (none\
+  \ = empty) and report-not-disable.\n  Failing input: the cue «At session start,\
+  \ list … and disable any extra one-off» fails each of those\n  checks (`tests/test_t0861_consumer_session_start_echo.py`,\
+  \ the checks of arm (7)); the same\n  file's arm (10) shows the startup-done line\
+  \ and the three-step done-when unchanged. Post-/compact the\n  seed line is re-printed\
+  \ by the receipt-refresh re-run, and **AGENTS.md §After-/compact** carries the\n\
+  \  pointer (\"MCP reconcile re-delivery\") — grep `SPEC-0118` in AGENTS.md. (The\
+  \ floor row re-delivers\n  via the re-readable `graph/floor-trigger-map.md`.)\n\
+  - **Homes agree with the cue:** the pattern, the per-client runbook, the AGENTS.md\
+  \ sentence and its\n  `<provider-config>/commands/yitc.md` twin describe the reconcile\
+  \ as a before-first-use, report-only step, and\n  the runbook's scope table carries\
+  \ a host-provided/account row (same test file, the AC3 checks).\n- **Provider-neutrality\
+  \ (CHARTER §P4b):** the pattern `patterns/working-with-mcp-in-v2.md` normative\n\
+  \  text contains NONE of {`the AI provider mcp`, `the AI tool`, `/mcp`, `.mcp.json`,\
+  \ `~/<provider-config>.json`} — those\n  live ONLY in the `class: adapter` runbook.\n\
+  - **Capture composition:** a substantive MCP-mediated external write emits a SPEC-0116\n\
+  \  `external_action` event (probed there, not duplicated here).\n"
 cites:
 - CHARTER.md#principle-4
 - CHARTER.md#principle-5
@@ -93,7 +109,10 @@ proposed_by: external-system-interaction-governance-capture-doc
 binding:
 - before-mcp-use
 - seed
-seed_cue: At session start, list the connected MCP servers, compare them with the
-  project's declared standing set and disable any extra one-off; before connecting
-  or using an MCP server, read its rules.
+seed_cue: 'Before your first MCP connect or use in a session (not at session start),
+  list the MCP servers connected to the session and compare them with the standing
+  set, which is the project-scope MCP config file committed in the repo (no such file
+  = an empty standing set): report each extra server to the person rather than disabling
+  it yourself, and name a connector the host or account provides «host-provided, not
+  project-declared», never a stray one-off.'
 init_concern: null

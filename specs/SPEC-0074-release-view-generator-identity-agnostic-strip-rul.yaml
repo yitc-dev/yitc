@@ -214,10 +214,25 @@ body: "## Scenario\n\nA consumer project adopts the methodology by PINNING the r
   \ is reported against the release-view path, never silently\n   resolved to the\
   \ raw dev-entangled engine handbook (nor the consumer's own product file). So the\n\
   \   consumer reads the identity-agnostic contract (§4), not V2-dev provenance —\
-  \ the §4 output contract\n   is what gets DELIVERED, closing F-002 part 2.\n\n##\
-  \ Rationale\n\nF-002 + external audit 2026-06-15 MED-4: the only handbook was the\
-  \ dev-entangled one, so a consumer\npointed at it (the interim echo) read V2-internal\
-  \ provenance, not a clean contract. Design\nhome: plan `export-slice-contract-and-core-authoring-model`\
+  \ the §4 output contract\n   is what gets DELIVERED, closing F-002 part 2.\n   OUTPUT\
+  \ NAMES. The view publishes NO file under a name an AI tool attaches on its own\n\
+  \   when a file inside that directory is read — the agent-instructions name `AGENTS.md`,\
+  \ or a\n   vendor-adapter file name. A file so named is attached beside the commanded\
+  \ read, so a consumer\n   session loaded that part twice at start and again at every\
+  \ post-`/compact` re-read. A source doc\n   carrying such a name is PUBLISHED under\
+  \ a release-view name taken from ONE output-name map\n   (`bin/lib/graph.py#release_view_name`;\
+  \ today `AGENTS.md` is published as `AGENTS-STARTUP.md`).\n   That one map names\
+  \ the part wherever a release-view path is formed: the builder's output path,\n\
+  \   `_kernel_handbook_file`, the `-C` read-order echo, the commanded-read journal\
+  \ target, and the\n   derived-path set land folds. Inside the view's own text a\
+  \ mention of the source name is rewritten\n   to the published name, EXCEPT a mention\
+  \ naming a consumer's OWN file (the project `AGENTS.md`, its\n   SPEC-0125 operating-context\
+  \ home). SOURCE names (`HANDBOOK_READ_ORDER`) never change, and the\n   engine's\
+  \ own session — which reads the source files — is unaffected. Regeneration prunes\
+  \ a\n   retired source-named copy, so the §6 drift check never meets the part under\
+  \ two names.\n\n## Rationale\n\nF-002 + external audit 2026-06-15 MED-4: the only\
+  \ handbook was the dev-entangled one, so a consumer\npointed at it (the interim\
+  \ echo) read V2-internal provenance, not a clean contract. Design\nhome: plan `export-slice-contract-and-core-authoring-model`\
   \ §2 (`core = a RELEASE VIEW cut from the\nsingle source`; ONE writable source —\
   \ P5). The derived-artifact + conformance model reuses the\nexisting `graph build`\
   \ / floor-trigger-map analog (CHARTER §P1 F1 — extend, don't add parallel).\n\n\
@@ -228,6 +243,9 @@ body: "## Scenario\n\nA consumer project adopts the methodology by PINNING the r
   \ regenerates `release-view/`; `bin/yitc-v2 graph conformance` fails when\n  the\
   \ committed view diverges from the freshly re-derived one (§6).\n- The six SOURCE\
   \ handbook files are byte-unchanged after generation (single writable source).\n\
+  - No released file is named `AGENTS.md` or a vendor-adapter file name; the AGENTS\
+  \ part is\n  `release-view/AGENTS-STARTUP.md`, and with the output-name map emptied\
+  \ the builder emits\n  `release-view/AGENTS.md` again (§7 OUTPUT NAMES — the differential).\n\
   - Probe test: `tests/test_release_view.py` exits 0.\n"
 cites:
 - CHARTER.md#principle-1
@@ -242,16 +260,16 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_auto_rebuild_graph: 57d01a86af83c1f940b9873f8b566077d87d93f89a628e5700e88182a5b5b8fa
-  bin/lib/cli.py#_kernel_handbook_file: bbe75f7b60bd6fe0bf991fd26e2834269c596935dafcfeff44dad2aaafcb5003
-  bin/lib/graph.py#_build_release_view: cc734cb343830ac39efaf9b71f6def0419464fbc6eec155e0effeaac90851496
+  bin/lib/cli.py#_kernel_handbook_file: 2aad4faf449be3ee2c8e03b6b5c3e0f72e573147b63e8278be7e7a9dc38bc0bc
+  bin/lib/graph.py#_build_release_view: 8802a323ba072cc7ada18f94d87d39969486287c5b853fdfd93a2b31d6842e6b
   bin/lib/graph.py#_release_view_floor_kernel_explicit: 078b3383123e072d847bd11736a240e9b72ba044f3b2eecbbf7cec3fd2a4ddeb
   bin/lib/graph.py#_release_view_strip: ac8a2e6250989ee0797a0bfa7e21d8d5da540f7d2ed819680603cd9d6baa26dc
   bin/lib/graph.py#cmd_graph_release_view: a3db5be5267519ad7e9f484bf5ea99d6423e9cc19a2e5764449b08b906058119
   bin/lib/host_paths.py#host_home: 3029bb1be8e3c1227b06a4c0e8489056bba383ec7c922afc27c0ff1ba5af55be
   bin/lib/release.py#abstract_project_identity: d7fd86fffe82d3526bf4363f2f09213a03bfe85bc2616c58ce40f3728854f985
   bin/lib/release.py#build_manifest: 107c52480dcb2305aa4a8c8bdee85d687b9742bf8f138ed449a965f2a68189ac
-  bin/lib/release.py#cmd_work_publish: 34acb2d9cc74094d7eb82a756634003686d3092f835a14c6861334752120ed1b
-  bin/lib/release.py#cut_release_tree: 0f73b6f03adbea82d4f904cd697d963717e19ba92ac1ee30dc93eee474dfe18e
+  bin/lib/release.py#cmd_work_publish: 17fa112751d143c91cd044bd610fa9a333bb1d2505ecb52b4561ea78dcd77115
+  bin/lib/release.py#cut_release_tree: b3774bf09d0c706847174fb4d27c9997ffe3a2fa8a7a8005ff102a00acd6eeb4
   bin/lib/release.py#host_literal_violations: 517ca88cf4b540bb917bc3f1319c0a0603b24f1f038de2ed713d1bc53e095757
   bin/lib/release.py#project_identity_operands: faa791e2cda98d729f26265f29e3260a3b107efb9d9970082c2b6e286738433a
   bin/lib/release.py#publish_metadata: 4883ec7b823b52d90a1c387649ef17ed6c492da1fbad53854cde3874e87a646d

@@ -141,7 +141,7 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ test-authoring rule placed there would be reachable\n    only by grep, which is\
   \ the state this section exists to end.\n\nBOUNDARY — this section owns how a TEST\
   \ IS WRITTEN so that a layer-independence claim can be true.\nWhat a PROJECT DECLARES\
-  \ in order to make that claim is SPEC-0207's contract, not this section's, and\n\
+  \ in order to make that claim is SPEC-1007's contract, not this section's, and\n\
   no declaration schema is defined here.\n\n### 2. The two sanctioned isolation techniques\
   \ (pick one; both already)\n- **(a) In-process monkeypatch of the path globals.**\
   \ For an in-process test, reassign the CLI module\n  globals to tmp paths BEFORE\

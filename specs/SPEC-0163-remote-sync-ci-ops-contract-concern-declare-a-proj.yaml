@@ -409,11 +409,11 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   \  persist. A removal merging spans of both kinds is `unhashed`.\n- THE BOOTSTRAP\
   \ COMMIT IS SCANNED. `init`'s one-time direct-to-`main` bootstrap commit runs the\n\
   \  rule-4a shapes over the ADDED lines of the STAGED diff before committing — the\
-  \ WHOLE index,\n  because that commit takes no pathspec, so the staged diff IS its\
-  \ snapshot. A hit refuses: no\n  commit, no host-registry registration, exit 1,\
-  \ each `file:line` and shape named, the value never\n  printed. A staged diff that\
-  \ cannot be read refuses the same way (fail-closed). The refused\n  scaffolds stay\
-  \ staged, and a re-run commits them once the scan is clean (the born ops contract\n\
+  \ WHOLE index,\n  which holds everything that commit carries and may hold more (a\
+  \ superset scan). A hit refuses: no\n  commit, no host-registry registration, exit\
+  \ 1, each `file:line` and shape named, the value never\n  printed. A staged diff\
+  \ that cannot be read refuses the same way (fail-closed). The refused\n  scaffolds\
+  \ stay staged, and a re-run commits them once the scan is clean (the born ops contract\n\
   \  still staged against HEAD is the derived signal that the bootstrap never reached\
   \ `main`).\nNeither seam replaces rotation: a redacted or refused credential was\
   \ still exposed where it was\ntyped, and rotating it stays the operator's duty.\n\
@@ -533,5 +533,6 @@ init_concern:
   tier: universal
 implements_signature:
   bin/lib/init.py#_hook_remote_sync: d3805312bfe8504c8f34eb31439287774275fb6426e56c55d7284fd97615ce73
+  bin/lib/init.py#_staged_secret_hits: 9f54079628037073039f3b30b2a575646f1e551fcb7ff59832b3cdc2e1b62497
   bin/lib/journal.py#cmd_journal_redact: ae45f45ab769cde4a6062fefd6532c0b6118f6e6a04b36ac1e8d5d9fcee8d9fc
   bin/lib/land_floors.py#_floor_secrets_scan: 4a3519cca2f747d4e290d7dc760fd267fcb51267dc3460cc39954b948432c726

@@ -327,9 +327,9 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#is_auditor_outage_abort: 8ed853121868513c6b94b32f8b6c35ba2bb9a46044cf1ef59138199f6df5e333
+  bin/lib/audit.py#is_auditor_outage_abort: 2ae421618420871eff777271bb503cf0c7b4eb68281a38efb1e02a1b50cd2b1e
   bin/lib/cli.py#_branch_carried_claim: fc71f8988a4599865c25921528a3db115926bceb94f2c3cb5abbb0fc9cdee320
   bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
   bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
   bin/lib/worktree.py#cmd_blocked_on_land: fbd30050ae5590d2674dd9573e92d906428f37951d8ce033fef197261e2756f5
-  bin/lib/worktree_lifecycle.py#cmd_worktree_park: db26a2e40b7e9d7193050c9c5ab914d738440f92a3f1750f1bdaf78eb6233ab2
+  bin/lib/worktree_lifecycle.py#cmd_worktree_park: 206656daadb5557b4283db9aa130d9a9b6e5fc6181a8f04f9e1a22961c12ce31

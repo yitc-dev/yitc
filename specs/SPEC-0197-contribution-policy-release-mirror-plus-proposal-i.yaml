@@ -115,7 +115,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/release.py#attach_contribution_surfaces: b6e9c7fef5e5cb75a4e3ae53045278b0e35ee74ce310a5d7ed45d4d099ecc887
-  bin/lib/release.py#collect_answered_proposals: f61c39f22f8928b0aceb5ae9c3d0d7a157e109edd7601cbc1ec5db4b630e0794
+  bin/lib/release.py#collect_answered_proposals: b2e690ae5b7c78d931363cb1325ea803f11a196bc42ff862a9c52a76f696d199
   bin/lib/release.py#render_contribution_policy: 5e0ab9e75ddcf38cafe1db0b2269fa0f80b7db7e10ebafe54c59dfb23c2cd9b7
   bin/lib/release.py#render_release_notes: 33cd45f809222d40f8f2555db068c0cd430d1bc12cb08a12adb37c78e57cd8d4
   bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

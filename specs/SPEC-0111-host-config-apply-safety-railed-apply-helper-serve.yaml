@@ -69,11 +69,17 @@ body: "## Scenario\n\nThe owner/AI needs to make a HOST-level config change — 
   \ rule 2 coverage primitives\n  (`` never covers ``). A generic owner line («prepare\
   \ so you can deploy without me»)\n  resolves but names nothing, so it is REFUSED\
   \ **before any backup or write**, the refusal naming the\n  card id and the target\
-  \ paths it looked for (`_directive_names_target`).\nThis TIGHTENS Fork-1(A) rather\
-  \ than reopening it — a background session still cannot self-authorize;\nit must\
-  \ now NAME the owner directive that authorized it, which the prior surface could\
-  \ not express.\nWithout this, the controller-dispatched owner-approved path (the\
-  \ path a deploying consumer actually\nruns) could satisfy the §5 three-evidence\
+  \ paths it looked for (`_directive_names_target`).\n  A SAME-SECOND locator is resolved\
+  \ on THIS axis, never by journal order ( — the SPEC-0204\n  rule 2 same-second rule,\
+  \ applied to the target test): among the `owner_directive` rows sharing\n  the named\
+  \ second, exactly one naming the target (the same words captured twice count once)\
+  \ is\n  the authorizing row wherever it sits in the journal; several naming it in\
+  \ different words are\n  REFUSED `directive-ambiguous`, each named, **before any\
+  \ backup or write**; none naming it is\n  the refusal above.\nThis TIGHTENS Fork-1(A)\
+  \ rather than reopening it — a background session still cannot self-authorize;\n\
+  it must now NAME the owner directive that authorized it, which the prior surface\
+  \ could not express.\nWithout this, the controller-dispatched owner-approved path\
+  \ (the path a deploying consumer actually\nruns) could satisfy the §5 three-evidence\
   \ close-gate only by contradicting §1's literal wording.\n\n### 2. Safe-by-construction\
   \ apply rails (ALL mandatory, in order — any failure ABORTS the apply)\nThe vetted\
   \ helper MUST, for every host-config apply, in this order:\n- **(a) Auto-backup**\
@@ -174,7 +180,10 @@ body: "## Scenario\n\nThe owner/AI needs to make a HOST-level config change — 
   \ records `owner-interactive`). The system holds no host sudo (state check: no\n\
   \  autonomous hostapply verb path exists). NOTE the emitter/authority split: `emitter:\
   \ hostapply` is the\n  SPEC-0094 §3 helper-provenance tag naming the emitting TOOL\
-  \ — it is NOT, and never was, the\n  owner-approval marker; `confirmed_by` is.\n\
+  \ — it is NOT, and never was, the\n  owner-approval marker; `confirmed_by` is. Two\
+  \ same-second owner directives of which exactly one\n  names the apply's target\
+  \ clear the gate in BOTH journal orders; both naming it in different words\n  are\
+  \ refused `directive-ambiguous` with nothing backed up or written (probe:\n  tests/test_owner_directive_same_second.py).\n\
   - **VP2 (safe-by-construction rails):** a synthetic apply of a syntactically-bad\
   \ nginx conf ABORTS at\n  the `nginx -t` gate with the old config still live (no\
   \ change); a recorded backup exists for every\n  applied change.\n- **VP3 (collision\
@@ -235,4 +244,4 @@ implements_signature:
   bin/lib/host_apply.py#_directive_names_target: c412e7816afa4d1b07b530d26dd7111bb265dfdd38eea6cbba683ed5ba70f9bc
   bin/lib/host_apply.py#_reconciliation_record: a5dd2a2c2b03ff807f0465243289383e49a9ff2de672ed6cd5a5eec48856628c
   bin/lib/host_apply.py#_regressed_domains: 5952704476a89bc1ed3b203bc6f764e3b426a7417c7bfafdfe10d12d149780d3
-  bin/lib/host_apply.py#cmd_host_apply: a6b0909326920d2817a125dd1b5bee2f877696b932a41b106ac65bbb9a2c458b
+  bin/lib/host_apply.py#cmd_host_apply: e7c0220795d402e0fb43d0245ce50f0846ced22762f839153ed3ca608a55245b

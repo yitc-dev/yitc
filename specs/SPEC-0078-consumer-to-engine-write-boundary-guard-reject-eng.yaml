@@ -153,28 +153,45 @@ body: "## Scenario\n\nA `-C <consumer>` session operates the engine CLI against 
   \ never refused; only a SEPARATE repo that is a\nyitc corpus → refused. REFUSE (not\
   \ auto-bind): auto-binding would contradict the documented\nno-cwd-auto-detect rule\
   \ and could silently act on a different repo than invoked. No new gate/FSM/ledger\n\
-  — one guard at an existing chokepoint, sibling to §2.\n\n## Rationale\n\nConsumer\
-  \ `-C` protection of the engine is currently behavioral only ( AI-discipline); nothing\n\
-  mechanically STOPS a mis-resolved engine verb from writing into `ENGINE_ROOT` from\
-  \ a consumer session.\nRelevant the moment real consumers run (Kupi Club). Source:\
-  \ the external consult\n`decisions/kernel-protection-recovery-set-audit-adhoc.yaml`\
-  \ (finding 1, HIGH, 4-filter-passed).\nReuses the F-001 REPO_ROOT/ENGINE_ROOT split\
-  \ (`plans/kernel-extraction-evidence-driven-engine-consumabi.md`);\nhardens.\n\n\
-  ## Verification\n\n- **(refusal — FIXED contract)** a `-C <consumer>` session mutating\
-  \ verb whose target `realpath` resolves\n  under `ENGINE_ROOT` → exit 1 + the exact\
-  \ stdout token `WRITE-BOUNDARY: REFUSED <abs-path>` + NO file\n  written under `ENGINE_ROOT`.\n\
-  - **(no false-refuse)** an engine-own session writing its own corpus (incl. a worktree→main\
-  \ land write),\n  and a `-C` consumer writing under its own `REPO_ROOT` → exit 0\
-  \ + the file written (guard silent).\n- **failure-threshold:** the guard false-refuses\
-  \ an engine-own / cross-checkout land write; OR a\n  corpus-write path bypasses\
-  \ `_guard_consumer_engine_write`; OR it adds a new gate cascade / ledger / FSM.\n\
-  - **(§5 read-only mode)** `-C <fixture-consumer> --read-only inspect record --theme\
-  \ T7` →\n  the SPEC-0057 inspection evidence IS produced (a real `criteria_ref`\
-  \ + a `durable_docs.swept` count\n  measured over the TARGET's docs, so a silent\
-  \ no-op cannot pass) AND recorded in the READER's\n  journal, while the target's\
-  \ `events.jsonl` is BYTE-IDENTICAL before and after and holds no\n  `cli_invoked`\
-  \ / `session_started` / `read_gate_refused` row for the reading session's ref. A\
-  \ write\n  reaching into the target under this mode → exit 1 + `WRITE-BOUNDARY:\
+  — one guard at an existing chokepoint, sibling to §2.\n\n**ONE ADMISSION — the release\
+  \ verbs that name every target as an argument.**\n`release verify`, `release install`\
+  \ and `release update` take the release directory (and, for the\nlast two, the install\
+  \ directory) as explicit arguments and never read REPO_ROOT; and the published\n\
+  upgrade recipe is run from the project being upgraded. So the guard ADMITS exactly\
+  \ those three when\nthey are run bare from a foreign corpus, instead of refusing\
+  \ them. Two bounds, both load-bearing:\n- **The admission is taken only AFTER a\
+  \ foreign yitc corpus was positively detected, and it carries\n  the harm this section\
+  \ exists to prevent as its own condition:** on an admitted call the verb's\n  provenance\
+  \ row is NEVER appended to the ENGINE's journal. It goes to the journal under the\n\
+  \  install directory when one exists; otherwise it is skipped OUT LOUD, naming this\
+  \ reason. The\n  kernel journal is byte-identical after the run. A bare call from\
+  \ a directory that is NOT a yitc\n  corpus is outside this section and unchanged.\n\
+  - **It is verb-scoped and does not widen to `release check`.** That verb takes no\
+  \ argument: its\n  subject is the `-C <project>` target, so bare from a consumer\
+  \ checkout it would report on the\n  engine and read as an answer about the project.\
+  \ It is refused like every other bare verb, and the\n  refusal names the `-C` form\
+  \ it needs.\nEvery other bare verb is refused exactly as before; the `-C` form stays\
+  \ valid for the three\nadmitted verbs.\n\n## Rationale\n\nConsumer `-C` protection\
+  \ of the engine is currently behavioral only ( AI-discipline); nothing\nmechanically\
+  \ STOPS a mis-resolved engine verb from writing into `ENGINE_ROOT` from a consumer\
+  \ session.\nRelevant the moment real consumers run (Kupi Club). Source: the external\
+  \ consult\n`decisions/kernel-protection-recovery-set-audit-adhoc.yaml` (finding\
+  \ 1, HIGH, 4-filter-passed).\nReuses the F-001 REPO_ROOT/ENGINE_ROOT split (`plans/kernel-extraction-evidence-driven-engine-consumabi.md`);\n\
+  hardens.\n\n## Verification\n\n- **(refusal — FIXED contract)** a `-C <consumer>`\
+  \ session mutating verb whose target `realpath` resolves\n  under `ENGINE_ROOT`\
+  \ → exit 1 + the exact stdout token `WRITE-BOUNDARY: REFUSED <abs-path>` + NO file\n\
+  \  written under `ENGINE_ROOT`.\n- **(no false-refuse)** an engine-own session writing\
+  \ its own corpus (incl. a worktree→main land write),\n  and a `-C` consumer writing\
+  \ under its own `REPO_ROOT` → exit 0 + the file written (guard silent).\n- **failure-threshold:**\
+  \ the guard false-refuses an engine-own / cross-checkout land write; OR a\n  corpus-write\
+  \ path bypasses `_guard_consumer_engine_write`; OR it adds a new gate cascade /\
+  \ ledger / FSM.\n- **(§5 read-only mode)** `-C <fixture-consumer> --read-only inspect\
+  \ record --theme T7` →\n  the SPEC-0057 inspection evidence IS produced (a real\
+  \ `criteria_ref` + a `durable_docs.swept` count\n  measured over the TARGET's docs,\
+  \ so a silent no-op cannot pass) AND recorded in the READER's\n  journal, while\
+  \ the target's `events.jsonl` is BYTE-IDENTICAL before and after and holds no\n\
+  \  `cli_invoked` / `session_started` / `read_gate_refused` row for the reading session's\
+  \ ref. A write\n  reaching into the target under this mode → exit 1 + `WRITE-BOUNDARY:\
   \ REFUSED <abs-path>`. A\n  non-admissible verb → refused BY NAME up front. `--read-only`\
   \ without `-C` → refused.\n- **(§5 foreign default)** `-C <fixture-consumer> journal\
   \ query` from a cwd outside the\n  consumer, under a session not anchored there\
@@ -191,7 +208,16 @@ body: "## Scenario\n\nA `-C <consumer>` session operates the engine CLI against 
   \ `yitc-v2 <verb>` (no `-C`, no YITC_REPO_ROOT) from inside a\n  SEPARATE yitc corpus\
   \ → exit != 0 + a refusal naming the X-0093 foreign-corpus cause + the kernel\n\
   \  events.jsonl byte-unchanged; an engine-own bare call and an explicit `-C`/YITC_REPO_ROOT\
-  \ target →\n  NOT refused (guard no-ops; byte-identical).\n"
+  \ target →\n  NOT refused (guard no-ops; byte-identical).\n- **(§4 admission)**\
+  \ a BARE `release verify` / `release install` from inside a SEPARATE\n  yitc corpus\
+  \ → exit 0, never the X-0093 refusal, with the ENGINE's journal BYTE-IDENTICAL after\
+  \ the\n  run and the consumer's own journal untouched. The absence is not vacuous:\
+  \ the SAME install from a\n  directory that is not a yitc corpus still appends its\
+  \ row to that engine journal, so the\n  byte-identity is the admission's own drop\
+  \ and not a journal nothing writes. A bare `release check`\n  from the foreign corpus\
+  \ is STILL refused. Failing input: the guard lifted for these verbs with the\n \
+  \ engine-journal fallback kept — one `release_installed` row lands in the engine's\
+  \ journal\n  (`tests/test_t9577_bare_invocation_foreign_corpus_guard.py`,\n  `tests/test_release_verify_clean_machine.py`).\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0044

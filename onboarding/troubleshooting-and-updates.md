@@ -58,7 +58,7 @@ report: it writes nothing, journals nothing and always exits 0. The first line i
 Say "install the update". The AI first keeps the release you run today as a worktree BESIDE your
 clone, then moves the clone forward to the new tag (§If something goes wrong — by symptom, the
 update folder layout; the same recipe is in the release notes' «Updating from the previous
-release»), then verifies and updates:
+release»), then verifies and updates — from any folder (both commands name their folders):
 
 ```
 git -C <clone> worktree add <clone>-<old-tag> <old-tag>
@@ -74,17 +74,17 @@ yitc-v2 release update <clone> --into <engine> --anchor <fp> --from-release <clo
   today, used as the merge base.
 - **Verify before write.** The signature and content check reach a verdict *before* the install is
   opened. A refused update prints `RELEASE UPDATE: REFUSED` with its reasons and changes nothing.
-- **What it touches.** Kernel-owned files are replaced from the verified release; template files are
-  merged three-way; files your project owns are **never written**.
+- **What it touches.** Kernel-owned files are replaced; template files are merged three-way; files
+  your project owns are **never written**. A file the new release dropped is `REMOVED` only when the
+  `--from-release` folder verifies and your copy is unchanged; otherwise it is `KEPT` and named.
 - **How divergence is reported.** It never guesses. The summary line is `release_updated: vN -> vM`;
   each disagreement prints as `CONFLICT [kind] <path>: …`, each ledger finding as
   `LEDGER <KIND> <path>: …`. With no conflict it says every project-owned path was untouched. The AI
   shows you each conflict and asks — it does not pick a side.
 - Without `--from-release` a local edit cannot be told apart from an old file, so every differing
-  path is reported and left untouched — a useful read, but not an update.
+  path is reported and left untouched and nothing is removed — a useful read, but not an update.
 - **Afterwards:** move the pin in `yitc-ops.yaml` to the new tag, then `yitc-v2 -C <project> init`
-  back-fills any scaffold the new release added. `init` is idempotent: it adds what is missing and
-  leaves what you have.
+  back-fills any scaffold the new release added — it adds what is missing and leaves what you have.
 
 ## Rolling back
 

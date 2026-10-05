@@ -1447,7 +1447,7 @@ def _default_session_terminally_over(session_ref: "str | None", events_path) -> 
     return over
 
 
-def _default_park_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, str]":
+def _default_park_carries_work(wt, task: str, *, _run_git_cap, landed_done: bool = False) -> "tuple[bool, str]":
     """T-11330 — the module default for `_park_worktree`'s injected `_carries_work` discriminator: the
     SAME `_orphan_carries_work` (T-11289) the DISPATCH-side confirmed-dead teardown already consults, NOT
     a second reading of "is this worktree empty". Lazy import, exactly as `_default_session_proc_alive`
@@ -1462,9 +1462,12 @@ def _default_park_carries_work(wt, task: str, *, _run_git_cap) -> "tuple[bool, s
     uses that one: `_orphan_carries_work`'s own docstring records the rejection and the reason — the
     SPEC-0064 allowlist holds `decisions/` INERT, which is the OPPOSITE polarity for this question and
     would declare a task's PAID external-auditor verdicts worthless. The two gates ask different
-    questions ("can this change alter a verify verdict?" vs "would destroying this lose work?")."""
+    questions ("can this change alter a verify verdict?" vs "would destroying this lose work?").
+
+    `landed_done` (T-13458) is FORWARDED, never decided here: `_park_worktree` passes it on its
+    landed-done arm only, and the discriminator's own docstring says what it changes."""
     from lib import dispatch as _dispatch
-    return _dispatch._orphan_carries_work(wt, task, _run_git_cap=_run_git_cap)
+    return _dispatch._orphan_carries_work(wt, task, _run_git_cap=_run_git_cap, landed_done=landed_done)
 
 
 
@@ -1697,12 +1700,16 @@ def _park_worktree(task: str, reason: str, *, _append_event, _die, _main_worktre
         discarded; park's `ready`-only gate refused it), leaving raw `git worktree remove` — the
         sanctioned escape hatch, but journal-EVIDENCE-FREE, which is what these verbs exist to prevent.
       • `done`    → the LANDED-DONE retirement (T-11414): the card's claim, diff and closure record ALL
-        reached main and the branch is 0 ahead and clean, so there is nothing to adopt, resume or land —
-        yet sweep skips every task/T-XXXX and park's own `ready`-only gate refused `done` as "landed
-        state", leaving raw git as the only exit (X-1079, measured on four worktrees at once). Retired,
-        never re-dispatchable (`redispatchable: False`). STRICTLY NARROWER than its two siblings: the
-        work-in-flight guard below is the ONLY thing that opens it and `--force` is NOT admitted, so it
-        can tear down a PROVABLY EMPTY worktree and nothing else.
+        reached main and the worktree holds nothing un-landed, so there is nothing to adopt, resume or
+        land — yet sweep skips every task/T-XXXX and park's own `ready`-only gate refused `done` as
+        "landed state", leaving raw git as the only exit (X-1079, measured on four worktrees at once).
+        Retired, never re-dispatchable (`redispatchable: False`). STRICTLY NARROWER than its two
+        siblings: the work-in-flight guard below is the ONLY thing that opens it and `--force` is NOT
+        admitted, so it can tear down a PROVABLY EMPTY worktree and nothing else. "Empty" is a clean
+        tree whose branch is 0 ahead of main — or (T-13458) ahead ONLY by commits that provably carry
+        no work: merges of main and claim-footprint bookkeeping, the residue of the card's own
+        land-retry loop. That widening exists on THIS arm alone; the dropped commits are named on
+        the `worker_parked` row (`discarded_commit_shas`).
     Every OTHER status (in-progress / parked / blocked / absent / unreadable) stays REFUSED — an in-flight
     claim is never discarded.
 
@@ -1810,7 +1817,8 @@ def _park_worktree(task: str, reason: str, *, _append_event, _die, _main_worktre
     # destructive). `done` is admitted by its OWN branch below, on strictly tighter terms — never here.
     card_died = status_on_main == "wont-do"
     # LANDED-DONE branch (T-11414 / X-1079) — the card is `done` on main, so its claim, its diff and its
-    # closure record ALL landed; what survives is a worktree whose branch is 0 ahead and clean. Before
+    # closure record ALL landed; what survives is a worktree holding nothing un-landed (clean, and 0
+    # ahead or — T-13458 — ahead only by merges of main and claim-footprint bookkeeping). Before
     # this, THREE verbs formed a closed ring around exactly that shape: `worktree sweep` skips every
     # task/T-XXXX by construction, `worktree adopt` / `recover-land` exist to CONTINUE or LAND a build
     # that here has nothing left to continue or land, and park's own status gate refused `done` as
@@ -1833,7 +1841,13 @@ def _park_worktree(task: str, reason: str, *, _append_event, _die, _main_worktre
     # (`lessons/carving-an-exception-into-a-fail-closed-gate` §1). The genuine pre-Execution park the
     # rule was built for (X-0098 / X-0092) is UNAFFECTED: a fresh claim's footprint is exactly
     # `events.jsonl` + `tasks/<task>-*.yaml`, which that discriminator excludes by name.
-    carries_work, carries_why = (_carries_work(wt, task, _run_git_cap=_run_git_cap)
+    # T-13458 — the landed-done arm, and ONLY it, asks for the per-commit read: a card whose closure is
+    # on main can sit ahead of it by merges of main and journal bookkeeping alone (its own land-retry
+    # loop), and counting those by sha left the worktree with no governed exit. The keyword is passed
+    # ONLY when the card is `done`, so the `ready` / `wont-do` arms make the byte-identical call they
+    # made before it existed — any commit ahead is still work there.
+    carries_work, carries_why = (_carries_work(wt, task, _run_git_cap=_run_git_cap,
+                                               **({"landed_done": True} if landed_done else {}))
                                  if _carries_work else (False, ""))
     # T-11414 — `--force` is NOT admitted on the LANDED-DONE branch. A done card whose worktree still
     # holds un-landed work is NOT a retirement at all: it is the QUEUE §Prematurely-closed shape
@@ -2381,8 +2395,9 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
       --task T-XXXX (T-9583) — tear down a dispatched worker's `task/T-XXXX` worktree+branch so the task
         is cleanly re-dispatchable instead of orphaned; the manual sibling of the cmd_audit auto-park on
         an auditor-OUTAGE ABORT (both call `_park_worktree`). Since T-11414 it ALSO retires the worktree
-        of a card that is `done` on main — clean, 0 ahead, nothing to adopt/resume/land — which no verb
-        could remove (X-1079). See `_park_worktree` for the unlanded-claim invariant, the three legal
+        of a card that is `done` on main — clean, and 0 ahead or (T-13458) ahead only by merges of main
+        and claim-footprint bookkeeping; nothing to adopt/resume/land — which no verb could remove
+        (X-1079). See `_park_worktree` for the unlanded-claim invariant, the three legal
         main-statuses + the VERIFY-READY postcondition. Emits `worker_parked`.
       --work <slug> (T-10589) — DISCARD a non-task `work/<slug>` batch (the duplicate-discovered-post-
         filing exit that used to fall back to raw `git worktree remove` + `branch -D`, X-0438). See
@@ -2568,7 +2583,9 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
     # park keeps its two-line output unchanged.
     _shas = data.get("discarded_commit_shas") or []
     if _shas:
-        print(f"  RECOVERABLE: the discarded commits are still reachable by sha until the next gc — "
+        # T-13458 — the same verb as the line above (`removed` on a landed-done retirement, where
+        # nothing was discarded), so the two lines never describe one teardown two ways.
+        print(f"  RECOVERABLE: the {_verb} commits are still reachable by sha until the next gc — "
               f"head {_shas[0]}"
               + (f" (predecessors: {', '.join(_shas[1:])})" if len(_shas) > 1 else "")
               + f". Restore with `git checkout {_shas[0]} -- <path>` or `git branch "
@@ -2581,8 +2598,15 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
     elif data["status_on_main"] == "done":
         # T-11414 — the THIRD post-condition. Both existing lines would be FALSE here: the card is not
         # `ready` and nothing was discarded — its work is ON main.
-        print(f"  task {data['task']} is `done` on main (claim, diff and closure all landed; the worktree "
-              f"was clean and 0 ahead) → RETIRED, not re-dispatchable; worktree removed + branch deleted, "
+        # T-13458 — say what the worktree ACTUALLY held. "0 ahead" over a branch that was N ahead by
+        # merges of main and bookkeeping would be a false statement on the operator's screen; the
+        # count is the one `_park_discarded_volume` already put on the row.
+        _n_ahead = data.get("discarded_commits") or 0
+        _held = ("the worktree was clean and 0 ahead" if not _n_ahead else
+                 f"the worktree held nothing un-landed — its {_n_ahead} commit(s) ahead of main were "
+                 f"merges of main and claim-footprint bookkeeping, named on the worker_parked row")
+        print(f"  task {data['task']} is `done` on main (claim, diff and closure all landed; {_held}) "
+              f"→ RETIRED, not re-dispatchable; worktree removed + branch deleted, "
               f"no orphan, and the retirement is on the journal instead of invisible")
     else:
         print(f"  task {data['task']} is `wont-do` on main (its card died under the worker; the claim never "
@@ -5729,7 +5753,11 @@ def _resume_orphan_in_worktree(tid: str, tasks_dir: "Path", events_path: "Path",
     T-10544 widened the re-validation to match `_orphan_resume_task` (in-progress; `paused_at` no
     longer required — see that fn for why). Clearing the pause metadata is a harmless NO-OP for the
     never-paused shape (a session killed after a mid-task land), which is exactly what makes the same
-    core serve both orphan kinds without a branch."""
+    core serve both orphan kinds without a branch.
+
+    Returns the resume REPORT, not the card as written (T-13507): the core clears the ended pause's
+    `resume_from` / `next_action` from the card, and this hands them back under those same keys so the
+    caller's echo still prints them. The file on disk carries neither."""
     import yaml
     path = next(tasks_dir.glob(f"{tid}-*.yaml"), None)
     if path is None:
@@ -5744,8 +5772,8 @@ def _resume_orphan_in_worktree(tid: str, tasks_dir: "Path", events_path: "Path",
         _die(f"{tid}: not a resumable orphan (status={task.get('status')!r}) — expected in-progress "
              f"(paused or not: T-10544 admits a session killed after a mid-task land, which never "
              f"wrote pause metadata)")
-    _apply_task_resume(yaml, path, task, events_path)
-    return task
+    _reason, _paused_at, ended = _apply_task_resume(yaml, path, task, events_path)
+    return {**task, **{k: v for k, v in ended.items() if v}}
 
 
 

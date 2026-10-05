@@ -4686,7 +4686,23 @@ def _verify_skip_fail_closed_edge(diff_paths, verify_globs, diff_error=None,
                                   see `_selection_leaf_test_freed` for the freed shape and for why
                                   shared test infrastructure, deletes and renames still refuse. With
                                   `test_file_names=None` (the per-layer mechanism) the rung is
-                                  byte-identical to before.
+                                  byte-identical to before. NARROWED by T-13528 for the ops-carrier
+                                  arm, at the LAYER side only and through the caller-supplied
+                                  `reachability_freed` seam this rung already had: when the layer
+                                  mechanism has PROVEN that a `yitc-ops.yaml` change leaves the
+                                  carrier's `verify` / `verify_policy` / `tests` sections equal
+                                  (`_ops_carrier_verify_freed`, fail-closed to None), it hands that
+                                  one path in and each layer's own `subject_globs` judges it. This
+                                  rung's code did not change, and with `reachability_freed=None` —
+                                  the file side for this path, and the SPEC-0077 pinned trigger
+                                  always — a carrier touch still disables skipping entirely.
+                                  NARROWED by T-13531 for the `tests/**` arm, again at the LAYER
+                                  side only and through the same seam: a changed test path the layer
+                                  mechanism has PROVEN to be a declared test file that some scoped
+                                  layers claim and others do not (`_owned_test_verify_freed`,
+                                  fail-closed to None) is handed in and forces only the layers
+                                  claiming it. An unowned, shared or undeclared test path, the file
+                                  side's own T-11461 leaf rule and the pinned trigger are unchanged.
     NOT here, deliberately, and pinned as such by the mirror test: each mechanism's OWN-granularity
     edges — the layer side's per-layer absent/malformed `subject_globs` and its `base_ref`/git-runner
     precondition, the file side's `no-test-files` and `unresolved-path:<p>`. Those are edges of the

@@ -121,7 +121,7 @@ def _any_type_axis(axis, diag) -> bool:
 # lib aliases, moved siblings). `audit._ceiling_inject(kw, name)` reads it at call time.
 # ---------------------------------------------------------------------------
 INJECTS = {
-    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'row_residual_fingerprints', 'state', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
+    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'explicit_record_passes', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'row_residual_fingerprints', 'state', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
     'on_decisions_admission': ('on_decisions_bind',),
     'on_decisions_absorption_grant': ('ON_DECISIONS_ABSORPTION_BASIS', '_ceiling_row_of', 'on_decisions_row_absorbable'),
     'on_decisions_bind': ('decision_names_subject',),
@@ -161,7 +161,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                      _cross_instance_events=None, _cross_instance_path=None,
                      _evidence_subject_refusal=None,
                      _find_receiving_task_yaml=None,
-                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload) -> None:
+                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, explicit_record_passes, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload) -> None:
     """SPEC-0204 rule 2 — record ONE typed Controller decision for ONE residual of a ceiling row.
 
     `bin/yitc-v2 audit decide --task T-XXXX --stage pre|post --finding <fp>
@@ -580,8 +580,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             # field is a real ceiling value and would make a record stating NOTHING answer "not a ceiling
             # row"). C1 walks it for a row carrying no findings; a legacy row that carries findings but
             # no counter reaches here instead, and must read the record the same way.
-            rec_passes = (local_record or {}).get("passes")
-            passes = int(rec_passes) if isinstance(rec_passes, int) else None
+            # T-13471 — through the ONE expression the closure reader's record step uses.
+            passes = explicit_record_passes(local_record)
         if passes is None:
             _refuse("below-ceiling", "ceiling_row_passes_unresolved",
                     f"{target_id} audit-{target_key}: the ceiling row records no `passes` counter and "
@@ -730,6 +730,18 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                           "unlanded sibling worktree is not visible here — land it (or record it on "
                           "main) rather than writing a second owner row.")
                 cause_line = f" CAUSE ({cause}): {cause_line}"
+            if axis == "directive-ambiguous":
+                # T-13460 — the second the locator names holds several covering directives in
+                # different words; name each, so the Controller can see which rows collide.
+                cands = list(chain_diag.get("candidates") or ())
+                chain_extra = {"candidates": cands}
+                cause_line = (
+                    f" CAUSE: {len(cands)} `owner_directive` rows share that second and each covers "
+                    f"this task in different words, so the locator names no single directive: "
+                    + "; ".join(f"[session {c.get('session_ref') or 'unknown'}] «{c.get('words')}»"
+                                for c in cands)
+                    + ". A `ts` locator is second-granular. Cite a covering row that is alone in "
+                      "its second — record one by the route below and pass ITS locator.")
             _refuse(axis, why,
                     f"{target_id} — `--directive {locator}` did not resolve to an owner directive that "
                     f"authorizes this decision ({axis}). Rule 2: authority is proven by RESOLUTION, "
@@ -741,7 +753,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     # T-12401: the two axes a Controller resolves by WRITING a covering row get the
                     # concrete route; every other axis's message is byte-identical to before.
                     + (DIRECTIVE_COVERAGE_HELP
-                       if axis in ("directive-not-covering", "delegation-chain-broken") else ""),
+                       if axis in ("directive-not-covering", "delegation-chain-broken",
+                                   "directive-ambiguous") else ""),
                     {"directive": locator, **({"plan": plan_slug} if plan_slug else {}),
                      **chain_extra})
         directive_text = _directive_row_text(directive_row)
@@ -1133,7 +1146,11 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     current_subject=_current, reaudit_after_close=False, unresolvable=False,
                     strict_descendant=(lambda a, b: _git_strict_descendant(a, b, repo_root=REPO_ROOT)),
                     resolve_revision=_res,
-                    late_refs=late_finding_refs_by_fp(rows, tid, stage, repo_root=[REPO_ROOT]),
+                    # T-13471 — the SAME record read axis (ii) bound `ceiling_ref` from, so the ref
+                    # this verb binds and the ref closure requires come from one value.
+                    late_refs=late_finding_refs_by_fp(
+                        rows, tid, stage, repo_root=[REPO_ROOT],
+                        record_passes={stage: explicit_record_passes(local_record)}),
                     subject_refusal=_subject_refusal, ship_of_record_only=_ship_reader,
                     sync_merges=(worktree_sync_merges(rows, tid, resolve=_git_resolve_sha)
                                  if stage == "post" else None))[1]
@@ -3534,7 +3551,7 @@ def _repo_path_tokens(text: str, REPO_ROOT=None) -> set:
     return out
 
 
-def _locate_owner_directive(rows, locator) -> tuple:
+def _locate_owner_directive(rows, locator, *, covers=None, diag=None) -> tuple:
     """The first two axes of rule 2 — «does this locator NAME an owner directive at all?».
 
     Returns `((position, row), None)` for the first `owner_directive` row carrying the locator's `ts`,
@@ -3542,7 +3559,24 @@ def _locate_owner_directive(rows, locator) -> tuple:
     locator, or no row at that ts) or `directive-wrong-type` (rows at that ts, none an owner
     directive). Extracted from `_resolve_owner_directive` (T-13195) so the hostapply `--confirmed-by`
     gate (SPEC-0111 §1) resolves through the SAME grammar and lookup — one contract, two consumers.
-    The later axes (precedes / delegation / covers) stay the ceiling resolver's own. Pure f(rows)."""
+    The later axes (precedes / delegation / covers) stay the ceiling resolver's own. Pure f(rows).
+
+    A SAME-SECOND LOCATOR RESOLVES BY THE CALLER'S TARGET AXIS, NEVER BY FILE ORDER (T-13460). `ts` is
+    second-granularity, so several `owner_directive` rows can share the one a locator names (measured
+    2026-10-03: 251 such seconds, 238 with different words). A caller passing `covers` — its own
+    target test (`audit decide`: covers the task; `hostapply`: names the apply's target) — gets the
+    rows of that second chosen by it. The CANDIDATES are the rows `covers` admits, and rows carrying
+    the SAME WORDS (the same `_directive_row_text` and the same `cards`) are ONE candidate: a
+    duplicate capture. Both callers' tests read only those two inputs, so every member of one
+    candidate answers `covers` alike.
+      several candidates -> `(None, "directive-ambiguous")`, `diag["candidates"]` naming each
+                            (`ts`, `session_ref`, first words), sorted by content;
+      exactly one        -> its first member, and `diag["members"]` = EVERY member of it;
+      none               -> the first row (the caller's own refusal then fires, unchanged), and
+                            `diag["members"]` = EVERY `owner_directive` row of that second.
+    No representative is picked for a caller with further axes: it is handed the whole member set
+    and judges each (`_resolve_owner_directive`). Without `covers` the result is the first row, as
+    before."""
     m = _DIRECTIVE_LOCATOR_RE.fullmatch(str(locator or ""))
     if not m:
         return None, "directive-unresolved"   # the WHOLE value must be a locator — see the pattern
@@ -3557,10 +3591,29 @@ def _locate_owner_directive(rows, locator) -> tuple:
     at_ts = [(i, r) for i, r in enumerate(corpus) if isinstance(r, dict) and r.get("ts") == ts]
     if not at_ts:
         return None, "directive-unresolved"
-    hit = next(((i, r) for i, r in at_ts if r.get("type") == "owner_directive"), None)
-    if hit is None:
+    owner = [(i, r) for i, r in at_ts if r.get("type") == "owner_directive"]
+    if not owner:
         return None, "directive-wrong-type"
-    return hit, None
+    if covers is None:
+        return owner[0], None
+    groups = {}                               # same words -> its members, in journal order
+    for i, r in owner:
+        if covers(r):
+            data = r.get("data") if isinstance(r.get("data"), dict) else {}
+            cards = data.get("cards") if isinstance(data.get("cards"), list) else []
+            key = (_directive_row_text(r), tuple(sorted(str(c) for c in cards)))
+            groups.setdefault(key, []).append((i, r))
+    if len(groups) > 1:
+        if diag is not None:
+            diag["candidates"] = [
+                {"ts": ts, "session_ref": members[0][1].get("session_ref"),
+                 "words": " ".join(key[0].split())[:80]}
+                for key, members in sorted(groups.items(), key=lambda kv: kv[0])]
+        return None, "directive-ambiguous"
+    members = next(iter(groups.values())) if groups else owner
+    if diag is not None:
+        diag["members"] = list(members)
+    return members[0], None
 
 
 def _resolve_owner_directive(rows, locator, tid, *, decision_ts, decision_pos=None,
@@ -3618,61 +3671,98 @@ def _resolve_owner_directive(rows, locator, tid, *, decision_ts, decision_pos=No
     unlanded sibling worktree, the refusal could not say «not found», and three retries plus one
     duplicated owner row followed.
 
+    A SAME-SECOND LOCATOR IS RESOLVED BY COVERAGE, NEVER BY FILE ORDER (T-13460).
+      `directive-ambiguous`       — several `owner_directive` rows share the locator's second and more
+                                    than one of them, in DIFFERENT words, covers the task: the locator
+                                    names no single directive. `diag["candidates"]` names each.
+    `_locate_owner_directive` picks among the rows of that second by this resolver's coverage test and
+    hands back every member of the chosen set — one covering directive and its duplicate captures, or
+    (when nothing covers) every owner row of the second. The ladder above then runs on EACH member:
+    ANY member passing resolves (same words and cards, so the text an `accept` quote is tested against
+    is the same whichever is returned — the first passing one, in journal order); when NONE passes the
+    refusal is the one that got FURTHEST, by a rank that never reads position — `directive-late` <
+    `delegation-chain-broken` (inside it, the `causes` order above, `no-cited-locator` lowest) <
+    `directive-not-covering`. A second holding ONE owner row has a one-member set and behaves exactly
+    as it did.
+
     Pure f(rows) — the rows come from the caller's segment-aware read."""
     corpus = list(rows or ())
-    hit, kind = _locate_owner_directive(corpus, locator)
+    picked = {}
+    hit, kind = _locate_owner_directive(
+        corpus, locator, diag=picked,
+        covers=lambda r: _directive_covers_task(r, tid, plan_slug=plan_slug))
     if hit is None:
+        if diag is not None and picked.get("candidates"):
+            diag["candidates"] = picked["candidates"]
         return None, kind
-    pos, row = hit
-    ts = row.get("ts")
     # Row ORDER, not second-granularity `ts` — see PRECEDES IS JOURNAL ROW ORDER above. The default
     # `len(corpus)` is the position the decision this call authorizes is about to be appended at.
     dec_pos = len(corpus) if decision_pos is None else int(decision_pos)
-    if not ((str(ts), pos) < (str(decision_ts), dec_pos)):
-        return None, "directive-late"
-    data = row.get("data") if isinstance(row.get("data"), dict) else {}
-    if data.get("captured_via") == _CONTROLLER_DELEGATED:
-        cited_ok = False
-        cited_ts = []
-        # How far each citation got — ordered so `max` names the cause closest to a grounded chain.
-        causes = ("cited-row-missing", "cited-not-owner", "cited-delegated", "cited-late")
-        furthest = -1
-        for cm in _DIRECTIVE_LOCATOR_RE.finditer(_directive_row_text(row)):
-            cts = cm.group(1)
-            if cts == ts:
-                continue                      # a row citing ITSELF grounds nothing
-            cited_ts.append(cts)
-            reached = 0                       # cited-row-missing until a row carries the ts
-            for cand in rows or ():
-                if not isinstance(cand, dict) or cand.get("ts") != cts:
-                    continue
-                reached = max(reached, 1)
-                if cand.get("type") != "owner_directive":
-                    continue
-                reached = max(reached, 2)
-                cdata = cand.get("data") if isinstance(cand.get("data"), dict) else {}
-                if cdata.get("captured_via") == _CONTROLLER_DELEGATED:
-                    continue                  # the chain must END in an owner row, not another delegation
-                reached = max(reached, 3)
-                if str(cts) <= str(ts):
-                    cited_ok = True
+    # How far each citation got — ordered so `max` names the cause closest to a grounded chain.
+    causes = ("cited-row-missing", "cited-not-owner", "cited-delegated", "cited-late")
+
+    def _judge(pos, row, d):
+        """The late -> delegation -> covers ladder for ONE row: `None` when it authorizes, else the
+        refusing axis (a broken chain's cause and cited ts go into `d`)."""
+        ts = row.get("ts")
+        if not ((str(ts), pos) < (str(decision_ts), dec_pos)):
+            return "directive-late"
+        data = row.get("data") if isinstance(row.get("data"), dict) else {}
+        if data.get("captured_via") == _CONTROLLER_DELEGATED:
+            cited_ok = False
+            cited_ts = []
+            furthest = -1
+            for cm in _DIRECTIVE_LOCATOR_RE.finditer(_directive_row_text(row)):
+                cts = cm.group(1)
+                if cts == ts:
+                    continue                      # a row citing ITSELF grounds nothing
+                cited_ts.append(cts)
+                reached = 0                       # cited-row-missing until a row carries the ts
+                for cand in rows or ():
+                    if not isinstance(cand, dict) or cand.get("ts") != cts:
+                        continue
+                    reached = max(reached, 1)
+                    if cand.get("type") != "owner_directive":
+                        continue
+                    reached = max(reached, 2)
+                    cdata = cand.get("data") if isinstance(cand.get("data"), dict) else {}
+                    if cdata.get("captured_via") == _CONTROLLER_DELEGATED:
+                        continue                  # the chain must END in an owner row, not another delegation
+                    reached = max(reached, 3)
+                    if str(cts) <= str(ts):
+                        cited_ok = True
+                        break
+                furthest = max(furthest, reached)
+                if cited_ok:
                     break
-            furthest = max(furthest, reached)
-            if cited_ok:
-                break
-        # T-12801 — the NAMED MID-TURN route: the row grounds itself when the write verb proved its
-        # verbatim owner text against the anchored transcript entry. Every element required; a
-        # hand-appended row never carries the verb's `owner_text_verified` stamp.
-        owner_text = data.get("owner_text")
-        mid_turn_proven = (data.get("mid_turn") is True
-                           and isinstance(owner_text, str) and bool(owner_text.strip())
-                           and bool(str(row.get("source_ref") or "").strip())
-                           and data.get("owner_text_verified") is True)
-        if not cited_ok and not mid_turn_proven:
-            if diag is not None:
-                diag["reason"] = causes[furthest] if furthest >= 0 else "no-cited-locator"
-                diag["cited_ts"] = cited_ts
-            return None, "delegation-chain-broken"
-    if not _directive_covers_task(row, tid, plan_slug=plan_slug):
-        return None, "directive-not-covering"
-    return row, None
+            # T-12801 — the NAMED MID-TURN route: the row grounds itself when the write verb proved its
+            # verbatim owner text against the anchored transcript entry. Every element required; a
+            # hand-appended row never carries the verb's `owner_text_verified` stamp.
+            owner_text = data.get("owner_text")
+            mid_turn_proven = (data.get("mid_turn") is True
+                               and isinstance(owner_text, str) and bool(owner_text.strip())
+                               and bool(str(row.get("source_ref") or "").strip())
+                               and data.get("owner_text_verified") is True)
+            if not cited_ok and not mid_turn_proven:
+                d["reason"] = causes[furthest] if furthest >= 0 else "no-cited-locator"
+                d["cited_ts"] = cited_ts
+                return "delegation-chain-broken"
+        if not _directive_covers_task(row, tid, plan_slug=plan_slug):
+            return "directive-not-covering"
+        return None
+
+    axis_rank = ("directive-late", "delegation-chain-broken", "directive-not-covering")
+    best = None                               # (rank, axis, chain diag) of the furthest refusal
+    for pos, row in picked.get("members") or [hit]:
+        d = {}
+        axis = _judge(pos, row, d)
+        if axis is None:
+            return row, None
+        cause = d.get("reason")
+        rank = (axis_rank.index(axis), causes.index(cause) if cause in causes else -1,
+                tuple(sorted(d.get("cited_ts") or ())))   # content tiebreak — never position
+        if best is None or rank > best[0]:
+            best = (rank, axis, d)
+    if diag is not None:
+        diag.update(best[2])
+    return None, best[1]

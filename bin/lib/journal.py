@@ -172,20 +172,36 @@ def _source_refs_and_birth_ts(*, EVENTS_PATH) -> tuple:
     """ONE segment-aware fold → (all source_ref values, the journal's earliest row `ts` or None).
 
     T-12936: the earliest row IS the project's birth anchor — the first row any v2 verb wrote here.
-    The implicit first-sync reads both in the SAME pass (SPEC-0190 rule 10 — one fold, not two)."""
+    The implicit first-sync reads both in the SAME pass (SPEC-0190 rule 10 — one fold, not two).
+
+    T-13391: this fold walks the WHOLE journal ONCE and keeps a ref set and one `ts` of it. Inside a
+    declaring `rows_memo` — `cli.main`'s auto-sync scope — `segment_lines`' memo arm would fold every
+    segment INTO the memo as a list of decoded lines (the whole journal, ~1.37 GB on the kernel
+    2026-10-04) only for this loop to iterate them once. So the memo is put in `walk_once` for the
+    span of this walk: each segment is streamed, kept PACKED, and still handed down to the verb's own
+    scope (`offer_adoption`), so the invocation keeps its ONE physical read per segment (1,440 MB ->
+    189 MB peak on a recovery-mode verb). The lines are the memo arm's own (`_fold_lines_uncached`'s
+    admission), in the same order; outside a scope nothing changes."""
     if not EVENTS_PATH.exists():
         return set(), None
     refs, birth = set(), None
-    for line in segment_lines(EVENTS_PATH):
-        try:
-            row = json.loads(line)
-            sr, ts = row.get("source_ref"), row.get("ts")
-        except (json.JSONDecodeError, AttributeError):
-            continue
-        if sr:
-            refs.add(sr)
-        if isinstance(ts, str) and ts and (birth is None or ts < birth):
-            birth = ts
+    memo = _rows_memo_current()
+    if memo is not None:
+        memo.walk_once = True
+    try:
+        for line in segment_lines(EVENTS_PATH):
+            try:
+                row = json.loads(line)
+                sr, ts = row.get("source_ref"), row.get("ts")
+            except (json.JSONDecodeError, AttributeError):
+                continue
+            if sr:
+                refs.add(sr)
+            if isinstance(ts, str) and ts and (birth is None or ts < birth):
+                birth = ts
+    finally:
+        if memo is not None:
+            memo.walk_once = False
     return refs, birth
 
 def _all_source_refs(*, EVENTS_PATH) -> set:
@@ -2780,6 +2796,7 @@ class JournalRowsMemo:
                 self._keys.add(self._key(p))
         self._lines = {}
         self._rows = {}
+        self._packed = {}       # T-13391 — key -> `_LineStore`: a streamed fold's lines, COMPRESSED
         self._lossy = set()     # T-13108 — keys whose fold dropped an undecodable line
         self.folds = 0
         self.served = 0
@@ -2787,6 +2804,11 @@ class JournalRowsMemo:
         # then reads that append back, so `segment_text` may serve the LIVE segment from this memo
         # too (default False: the land seam's journal-then-read-back stays a disk read).
         self.live_settled = False
+        # T-13391 — set, for the span of its ONE walk, by a caller that walks the whole journal once
+        # and keeps nothing of it (the auto-sync recovery fold, `_source_refs_and_birth_ts`): while
+        # set, `lines` of a segment this memo has NOT folded returns a ONE-SHOT WALK that streams it
+        # and keeps it PACKED, instead of folding it into a list of decoded lines.
+        self.walk_once = False
 
     @staticmethod
     def _key(path) -> str:
@@ -2829,7 +2851,13 @@ class JournalRowsMemo:
 
     def lines(self, path) -> list:
         key = self._key(path)
+        if key in self._packed:     # T-13391 — a list reader inflates the packed lane on first use
+            self.served += 1
+            self._lines[key] = [line for _seq, _seg, line in self._packed.pop(key)]
+            return self._lines[key]
         if key not in self._lines:
+            if self.walk_once:      # T-13391 — a ONE-SHOT WALK, not a list (see `walk_once`)
+                return self._stream_packed(path, key)
             self.folds += 1
             global _FOLD_DROPPED
             prev, dropped = _FOLD_DROPPED, []
@@ -2843,6 +2871,43 @@ class JournalRowsMemo:
         else:
             self.served += 1
         return self._lines[key]
+
+    def iter_lines(self, path):
+        """`lines(path)` for a reader that only WALKS them (T-13391) — the same lines, in the same
+        order, without growing what the memo retains when the segment is held PACKED."""
+        key = self._key(path)
+        if key in self._packed:
+            self.served += 1
+            return (line for _seq, _seg, line in self._packed[key])
+        return iter(self.lines(path))
+
+    def _stream_packed(self, path, key):
+        """The `walk_once` fold of one segment: STREAMED (`_stream_fold_lines` — the admission of
+        `_fold_lines_uncached`, never the file whole) and kept COMPRESSED (`_LineStore`), so a later
+        reader of this scope — or the verb that adopts it (`offer_adoption`) — is still served with
+        no second physical read (SPEC-0190 rule 10) while the memo holds a fraction of the decoded
+        text. Measured on the kernel journal 2026-10-04 (125 segments / 804 MB): 108 MB packed
+        against ~1.37 GB as decoded lines. A LIST reader (`lines` / `rows` / `lossless_lines`, and so
+        `segment_lines`' memo arm outside `walk_once`) inflates a packed segment on first use and
+        holds it as before. A walk abandoned before its end records nothing, so a partial fold is
+        never served."""
+        store, dropped = _LineStore(), []
+        for line in _stream_fold_lines(path, dropped):
+            store.append(0, 0, line)
+            yield line
+        store._flush()
+        self.folds += 1
+        self._packed[key] = store
+        if dropped:
+            self._lossy.add(key)
+
+    def is_lossy(self, path) -> bool:
+        """True iff the fold of `path` this memo holds dropped an undecodable line — never folds."""
+        return self._key(path) in self._lossy
+
+    def has_packed(self, path) -> bool:
+        """True iff `path` is held in the packed lane only — never folds (T-13391)."""
+        return self._key(path) in self._packed
 
     def lossless_lines(self, path):
         """`path`'s memoised lines, or None when that fold dropped an undecodable line (T-13108).
@@ -2878,6 +2943,7 @@ class JournalRowsMemo:
         key = self._key(path)
         self._lines.pop(key, None)
         self._rows.pop(key, None)
+        self._packed.pop(key, None)
 
 
 def offer_adoption(memo, *, forget=()) -> None:
@@ -2895,7 +2961,10 @@ def offer_adoption(memo, *, forget=()) -> None:
     own keeps its read path exactly. A sync that folded nothing (the steady-state cursor path) offers
     nothing. `forget` names paths whose bytes the sync changed after folding them — the live segment
     it appended to; archive segments are immutable (rotation happens only at land). One-shot and
-    THREAD-local, like the scope itself (T-12424)."""
+    THREAD-local, like the scope itself (T-12424).
+
+    T-13391: what the recovery sync hands down is the PACKED lane (compressed lines), not decoded
+    lists — an adopting reader walks or inflates it on use, still with no second physical read."""
     if memo is None or not memo.folds:
         return
     for p in forget:
@@ -3189,56 +3258,39 @@ def _archive_segments_identical_to_main(leg, main_journal) -> frozenset:
     103 segments, `cmp` differ=0 for all) — re-folded per leg only for the dedup to discard. A segment
     returned here is one main's leg already folds, so the caller may leave it unopened.
 
-    IDENTITY = the git content hash, VERIFIED on both sides: the same stage-0 index blob for the same
-    `archive/<name>` in both checkouts, neither path modified in its working tree (`git diff`, which
-    re-hashes a stat-dirty file), and an equal on-disk size. mtime is deliberately NOT part of it: it is
-    checkout time and differs across every worktree, so it could only ever refuse a true match.
+    IDENTITY = ONE DERIVATION (T-13479): both sides are keyed by `_verified_archive_blobs`, the blob id
+    git itself vouches for the archive's RAW BYTES — a tag-`H` stage-0 regular entry, not modified
+    (`diff-files`, one root-relative path space wherever the journal sits in the repo), git made to
+    stat every entry (no fsmonitor, GIT_* scrubbed) and no conversion attribute on the path. A segment
+    is returned when both sides carry the same id AND the same on-disk size. An assume-unchanged or
+    skip-worktree entry, an archive behind a conversion, or one an inherited index would have answered
+    for gets no key and is read. mtime is deliberately NOT part of it: it is checkout time and differs
+    across every worktree, so it could only ever refuse a true match.
 
     FAIL-OPEN: no git, a nonzero exit, an untracked or conflicted segment, any OSError — the segment is
     simply not returned and is read in full, exactly as before. NOT A CACHE (SPEC-0190 rule 10): nothing
-    is stored; two git plumbing calls per checkout, re-derived on every call.
+    is stored; the plumbing calls of `_verified_archive_blobs` per checkout, re-derived on every call.
 
     A LEG OWNED BY ANOTHER UNIX USER (T-13108). git refuses such a checkout ("dubious ownership",
-    `safe.directory`), so the two calls above exited nonzero and EVERY segment of the leg was read in
-    full — measured 2026-09-28: 28 of <project>'s 29 worktrees and 3 of <project>'s are owned by a second
-    user, `journal query --fleet-verdict` there folded 144 files over 70 segments. The leg is admitted
-    for these two READ-ONLY plumbing calls by a per-call `-c safe.directory=<leg>`, and ONLY when
+    `safe.directory`), so its calls exited nonzero and EVERY segment of the leg was read in full —
+    measured 2026-09-28: 28 of <project>'s 29 worktrees and 3 of <project>'s are owned by a second user,
+    `journal query --fleet-verdict` there folded 144 files over 70 segments. The leg is admitted for
+    these READ-ONLY plumbing calls by a per-call `-c safe.directory=<leg>`, and ONLY when
     `_linked_worktree_of` proves from the files alone that it is a linked worktree OF THIS MAIN REPO:
     its `.git` file names a gitdir directly under main's `.git/worktrees/`, whose `commondir` resolves
     back to main's `.git`. git then reads exactly the repository config it reads for main itself —
     config the main checkout already runs on every call — so no configuration is trusted that was not
     trusted before. A leg that fails that proof is refused by git exactly as before (fail-open read)."""
-    import os
     import subprocess
     leg, main_journal = Path(leg), Path(main_journal)
-    trusted_leg = _linked_worktree_of(leg.parent, main_journal.parent)
-
-    def _clean_blobs(journal):
-        rel = f"{events.ARCHIVE_DIRNAME}/{events.archive_glob(journal)}"
-        base = ["git", "-C", str(journal.parent)]
-        if trusted_leg is not None and journal is leg:
-            base = ["git", "-c", f"safe.directory={trusted_leg}", "-C", str(journal.parent)]
-        ls = subprocess.run(base + ["ls-files", "-s", "-z", "--", rel], capture_output=True, timeout=60)
-        dirty = subprocess.run(base + ["diff", "--name-only", "-z", "--", rel],
-                               capture_output=True, timeout=60)
-        if ls.returncode or dirty.returncode:
-            return {}
-        blobs = {}
-        for rec in ls.stdout.split(b"\0"):
-            meta, _, name = rec.partition(b"\t")
-            fields = meta.split()
-            if len(fields) == 3 and fields[2] == b"0":
-                blobs[os.fsdecode(name)] = fields[1]
-        for name in dirty.stdout.split(b"\0"):
-            blobs.pop(os.fsdecode(name), None)
-        return blobs
-
     try:
-        mine, theirs = _clean_blobs(leg), _clean_blobs(main_journal)
+        mine = _verified_archive_blobs(
+            leg, safe_directory=_linked_worktree_of(leg.parent, main_journal.parent))
+        theirs = _verified_archive_blobs(main_journal) if mine else {}
         out = set()
         for seg in events.segment_paths(leg)[:-1]:          # the live segment (last) is never shared
-            blob = mine.get(f"{events.ARCHIVE_DIRNAME}/{seg.name}")
-            if blob is None or blob != theirs.get(f"{events.ARCHIVE_DIRNAME}/{seg.name}"):
+            blob = mine.get(seg.name)
+            if blob is None or blob != theirs.get(seg.name):
                 continue
             if seg.stat().st_size != (events.archive_dir(main_journal) / seg.name).stat().st_size:
                 continue
@@ -3727,6 +3779,13 @@ class _FoldLineSource:
                 rows = memo.rows(seg) if self.force_rows else memo.parsed_rows(seg)
                 if rows is not None and len(rows) == len(src):
                     src = zip(src, rows)
+            elif memo is not None and memo.holds(seg) and memo.has_packed(seg):
+                # T-13391 — a share-only walk over a segment the enclosing scope holds PACKED (the
+                # adopted auto-sync recovery fold): walked from there, so no second physical read and
+                # nothing inflated into the memo.
+                src = memo.iter_lines(seg)
+                if memo.is_lossy(seg):
+                    dropped.append(0)
             else:
                 self.streamed[idx] = self.streamed.get(idx, 0) + 1
                 obs = {"algo": self.observe[idx]} if idx in self.observe else None
@@ -3910,13 +3969,25 @@ _INDEX_GIT_CONFIG = ("-c", "core.fsmonitor=false", "-c", "core.checkStat=default
                      "-c", "core.trustctime=true")
 
 
-def _index_git(args, cwd):
+# The two inherited GIT_* variables `_index_git` does NOT scrub (T-13479). Neither can point the answer
+# at another index or repository: the first only makes git REFUSE more checkouts (a refusal is the
+# fail-open read), the second relocates the user-level config file — the trust class of $HOME, which
+# is not scrubbed either — and nothing it sets outranks the per-call `-c` above. Scrubbing them would
+# make git MORE trusting than the caller's own environment.
+_INDEX_GIT_ENV_KEEP = ("GIT_TEST_ASSUME_DIFFERENT_OWNER", "GIT_CONFIG_GLOBAL")
+
+
+def _index_git(args, cwd, *, safe_directory=None):
     """One read-only git plumbing call for the index, with the inherited GIT_* environment SCRUBBED (an
-    outer GIT_DIR / GIT_INDEX_FILE must not point the answer at another index). None on any failure."""
+    outer GIT_DIR / GIT_INDEX_FILE must not point the answer at another index), save the two names in
+    `_INDEX_GIT_ENV_KEEP`. `safe_directory`, when given, is passed as a per-call `-c safe.directory=`
+    — the T-13108 admission of a leg `_linked_worktree_of` proved. None on any failure."""
     import subprocess
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith("GIT_") or k in _INDEX_GIT_ENV_KEEP}
+    trust = ("-c", f"safe.directory={safe_directory}") if safe_directory else ()
     try:
-        r = subprocess.run(["git", *_INDEX_GIT_CONFIG, *args], cwd=str(cwd), env=env,
+        r = subprocess.run(["git", *_INDEX_GIT_CONFIG, *trust, *args], cwd=str(cwd), env=env,
                            capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
@@ -3953,9 +4024,11 @@ def _index_store(journal_path, *, honour_off=True) -> "dict | None":
     return {"dir": d, "algo": out[2].strip()}
 
 
-def _verified_archive_blobs(journal_path) -> dict:
+def _verified_archive_blobs(journal_path, *, safe_directory=None) -> dict:
     """{archive file NAME: blob id} for the archive segments of `journal_path` whose RAW BYTES git
     itself vouches for (see the block comment). {} on any failure — every segment is then folded.
+    `safe_directory` rides every call (`_index_git`): the T-13108 admission of a proven linked leg,
+    passed by `_archive_segments_identical_to_main` (T-13479) and by no other caller.
     Modeled on T-12494's `_clean_blobs`, and stricter on three counts:
 
       * ENTRY TAGS — `ls-files -s -v` keeps a tag-`H`, stage-0, regular-file entry only (lowercase =
@@ -3977,7 +4050,8 @@ def _verified_archive_blobs(journal_path) -> dict:
         attributes on the path, whatever its value (`-text` included), refuses the key, and so does
         any `core.autocrlf` but false. Only an archive carrying none of them is looked up."""
     journal = Path(journal_path)
-    loc = _index_git(["rev-parse", "--show-toplevel", "--show-prefix"], journal.parent)
+    git = functools.partial(_index_git, safe_directory=safe_directory)
+    loc = git(["rev-parse", "--show-toplevel", "--show-prefix"], journal.parent)
     if loc is None:
         return {}
     out = os.fsdecode(loc.stdout).split("\n")
@@ -3985,9 +4059,9 @@ def _verified_archive_blobs(journal_path) -> dict:
         return {}
     top, adir = out[0], f"{out[1]}{events.ARCHIVE_DIRNAME}"
     spec = f":(literal){adir}"
-    ls = _index_git(["ls-files", "-s", "-v", "-z", "--full-name", "--", spec], top)
-    dirty = _index_git(["diff-files", "--name-only", "-z", "--", spec], top)
-    crlf = _index_git(["config", "--get", "--default", "false", "core.autocrlf"], top)
+    ls = git(["ls-files", "-s", "-v", "-z", "--full-name", "--", spec], top)
+    dirty = git(["diff-files", "--name-only", "-z", "--", spec], top)
+    crlf = git(["config", "--get", "--default", "false", "core.autocrlf"], top)
     if ls is None or dirty is None or crlf is None:
         return {}
     glob = events.archive_glob(journal)
@@ -4014,7 +4088,7 @@ def _verified_archive_blobs(journal_path) -> dict:
         return {}
     if os.fsdecode(crlf.stdout).strip().lower() not in ("false", "no", "off", "0"):
         return {}                          # core.autocrlf may convert any text file: no key at all
-    attrs = _index_git(["check-attr", "-z", "--all", "--", *cands], top)
+    attrs = git(["check-attr", "-z", "--all", "--", *cands], top)
     if attrs is None:
         return {}
     carried: dict = {}
@@ -5969,6 +6043,10 @@ class JournalScan:
             # them and is not opened; any miss folds as before.
             skip = self._remainder_absent(rest, rem_needles)
             rest = [i for i in rest if i not in skip]
+        if rest and self._since:
+            # T-13467 — the horizon walk counted every one of these as skipped (`_run`); this walk
+            # opens them, so they leave the count (`extend`'s rule). What `skip` left unopened stays.
+            _READ_COUNTERS["segments_skipped"] -= len(rest)
         fresh = {}
         for n in names:
             f = self._factories[n]
@@ -7956,7 +8034,7 @@ def _dispatch_quiescent(cls):
     # `closed_pending_land` class label is what tells the controller "land it".
     return None
 
-def _dispatch_recovery_hint(cls, task_id=None, detail=None):
+def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
     """Advisory NEXT-ACTION hint per recovery-bearing dispatch class (T-1117) — a PURE derived
     projection over the class, NO new liveness logic and NO process walk (detect+surface only,
     CHARTER L59/148). Surfaced on the dispatch-status row so a controller reads the concrete
@@ -7982,7 +8060,15 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None):
     remedy: a `transient-overload` stall (the log declares its own failure temporary) is the one
     launch-stall whose answer is WAIT-then-retry, not the standing "confirm dead, re-bootstrap"
     advice. OPTIONAL by construction: `detail=None` (the 2-arg call every existing caller and test
-    makes) returns exactly what it returned before this card, byte for byte."""
+    makes) returns exactly what it returned before this card, byte for byte.
+
+    T-13537 — `events` ROUTES the `paused(audit-ceiling)` hint the same way: a stage a rule-4 RED has
+    ENDED (SPEC-0204 rules 3-4) refuses `audit decide` and every further pass, so the decide route is
+    a route nobody can take there. When the row's own event list carries that terminal row the hint
+    names the terminal exits instead. The reading is `audit.terminal_ceiling_stage` — the ONE shared
+    predicate (T-12613), never a second copy here — over the list the caller ALREADY holds (no
+    journal read is added). `events=None`, a list without the row (a bounded tail may not hold it)
+    and any read failure all return the decide route exactly as before."""
     t = task_id or "T-XXXX"
     if cls == "paused":
         # T-12916 — the route depends on the RECORDED pause reason, never a blanket resume: the dispatch
@@ -7993,6 +8079,14 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None):
             return (f"clean cued stop — the pending step is the CONTROLLER's (the recorded next_action); "
                     f"then `bin/yitc-v2 dispatch --resume {t}` (no --force)")
         if detail == _CAUSE_AUDIT_CEILING:
+            if events:
+                from lib import audit   # noqa: PLC0415 — lazy: audit imports this module
+                _stage = audit.terminal_ceiling_stage(events, t)
+                if _stage:
+                    return (f"paused at a TERMINAL audit-{_stage} (SPEC-0204 rules 3-4) — no further audit "
+                            f"pass and no `audit decide` is admitted, so do NOT re-dispatch for one; the "
+                            f"exits are the terminal dispositions, cited to an owner directive: "
+                            f"{audit.ceiling_terminal_exits(t)}")
             return (f"paused at the audit-loop ceiling — record one `bin/yitc-v2 audit decide` per residual "
                     f"fingerprint (SPEC-0204), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
                     f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`)")
@@ -11335,7 +11429,7 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
                                                                     _dispatch_task_of=_dispatch_task_of),
                               "quiescent": _dispatch_quiescent(cls),
                               # T-11565 — the row's own detail routes the launch-stall remedy
-                              "recovery": _dispatch_recovery_hint(cls, tid, detail),
+                              "recovery": _dispatch_recovery_hint(cls, tid, detail, all_events),
                               "dead_but_unlanded": _dispatch_dead_but_unlanded(cls),
                               # T-9240 (AC2): the last unresolved land abort cause/test/mode for the row
                               "last_land_abort": _last_land_abort(all_events, tid),
@@ -11426,7 +11520,7 @@ def cmd_journal_dispatch_status(args: argparse.Namespace, *, DISPATCH_BOUNDARY_T
         print(f"{tid:<8} {label:<22} last={ltxt}{mtxt}  session={sref or '-'}{idtxt}{qtxt}{ctxt}{btxt}{dbu}{utxt}{natxt}")
         # T-1117: surface the concrete recovery route for a recovery-bearing class on its own
         # indented line (the hint is long); None for healthy/terminal classes => no line.
-        rec = _dispatch_recovery_hint(cls, tid, detail)   # T-11565 — detail routes the launch-stall remedy
+        rec = _dispatch_recovery_hint(cls, tid, detail, all_events)   # T-11565 detail / T-13537 events route the remedy
         if rec:
             # T-9240 (AC2): name the last land abort cause + failing test(s) + verify mode on the
             # existing recovery line, so a controller does not theorize/--ack a real pinned verify-fail.

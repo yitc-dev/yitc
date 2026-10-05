@@ -443,7 +443,7 @@
      "example": "[static, frontend-unit]",
      "key": "independent_layers",
      "spec": "SPEC-0152",
-     "summary": "CONCURRENT land-verify layers — the layers named here run OVERLAPPED in one land instead of one after another (the wall drops from their sum towards their longest). Name only layers that share nothing with EACH OTHER: no host port, compose project, database, build cache or tree write, their `prep:` included — a pairwise claim the kernel cannot infer. Fail-fast, per-layer timeouts and the per-layer rows are unchanged; a name matching no declared layer fails the land closed."
+     "summary": "CONCURRENT land-verify layers — the layers named here run OVERLAPPED in one land instead of one after another (the wall drops from their sum towards their longest). YOU decide, and you bear the risk: naming layers here is your project's own risk judgement. The kernel checks the shape of the list only and never polices independence, so a wrong declaration costs only your own verify. Before declaring, check each named pair, their `prep:` included, against every resource class two layers can collide on: mutable_files, caches, temp_paths, services, locks, processes, shared_sinks. A per-layer `owns:` declaration is an optional aid for that check, never a requirement. Fail-fast, per-layer timeouts and the per-layer rows are unchanged; a name matching no declared layer fails the land closed."
     },
     {
      "absent": "every layer reads the whole allotment — unsplit, as today.",

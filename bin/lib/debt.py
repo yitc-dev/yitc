@@ -1623,6 +1623,46 @@ def _surface4_engine_predicate():
             f"(SPEC-0189 rule 5)") from exc
 
 
+def _surface4_engine_carrier_freed():
+    """T-13528 — the engine's OWN section-aware ops-carrier comparison, or REFUSE.
+
+    Since T-13528 a land whose `yitc-ops.yaml` change leaves the `verify` / `verify_policy` / `tests`
+    sections equal no longer takes the verify-infra full-run edge: the carrier path is freed and each
+    layer's `subject_globs` judges it. A replay that kept treating EVERY carrier touch as a full run
+    would report `safe-full-run-fail-closed-edge` on exactly the lands the engine now skips layers on
+    — the detector would be blind where the skip widened. So the replay asks the SAME pure function
+    the land asks, imported on the same terms as `_surface4_engine_predicate` and for the same reason
+    (SPEC-0189 rule 5): a restated comparison would measure the restatement."""
+    try:
+        from lib import worktree as _wt
+        return _wt._ops_carrier_freed_paths
+    except Exception as exc:  # noqa: BLE001 — every cause is the same fact to the caller
+        raise Surface4DetectorRefused(
+            f"REFUSING to run the {_SURFACE4_DETECTOR} detector — could not import the engine's "
+            f"ops-carrier section comparison from bin/lib/worktree.py ({type(exc).__name__}: {exc}). A "
+            f"replayed comparison that is not the engine's own measures the replay, not the engine "
+            f"(SPEC-0189 rule 5)") from exc
+
+
+def _surface4_engine_owned_test_freed():
+    """T-13531 — the engine's OWN owned-test-path proof, or REFUSE.
+
+    Since T-13531 a land whose changed `tests/` path is a declared test file that some scoped layers
+    claim and others do not no longer takes the verify-infra full-run edge: the path is freed and
+    forces only the layers claiming it. A replay that kept treating EVERY test touch as a full run
+    would report `safe-full-run-fail-closed-edge` on exactly the lands the engine now skips layers on.
+    Imported on the same terms as its two siblings above, and for the same reason (SPEC-0189 rule 5)."""
+    try:
+        from lib import worktree as _wt
+        return _wt._owned_test_freed_paths
+    except Exception as exc:  # noqa: BLE001 — every cause is the same fact to the caller
+        raise Surface4DetectorRefused(
+            f"REFUSING to run the {_SURFACE4_DETECTOR} detector — could not import the engine's "
+            f"owned-test-path proof from bin/lib/worktree.py ({type(exc).__name__}: {exc}). A "
+            f"replayed proof that is not the engine's own measures the replay, not the engine "
+            f"(SPEC-0189 rule 5)") from exc
+
+
 def surface4_structured_failing_layers(data) -> list:
     """The layer names THIS abort row records as NOT PASSING, read from STRUCTURED tool state ONLY.
 
@@ -1673,7 +1713,8 @@ def surface4_layer_classes(layer: dict) -> frozenset:
 _SURFACE4_BOOKKEEPING = ("events.jsonl", "graph/", "tasks/", "decisions/", "MEMORY.md", "specs/")
 
 
-def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predicate=None) -> list:
+def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predicate=None,
+                              carrier_texts=None, _carrier_freed=None, _owned_test_freed=None) -> list:
     """THE ORACLE. Replay the engine's skip predicate over the content of every land that ABORTED on a
     structurally-named layer failure, and return the cases where a layer WOULD have been skipped on
     content that really broke something it covers. Each returned case is a dict carrying `verdict`.
@@ -1695,7 +1736,16 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
          row therefore contributes nothing, which is the honest reading: the field did not exist, so
          the journal does not say which layer failed, and guessing from prose is the refused move.
       2. The verify-infra fail-closed edge (`_verify_skip_fail_closed_edge` over
-         `_SUBJECT_VERIFY_INFRA_GLOBS`) did not force a full run on that content.
+         `_SUBJECT_VERIFY_INFRA_GLOBS`) did not force a full run on that content. T-13528 — the edge
+         is asked the way the land asks it: when the corpus supplies `carrier_texts(sha, base_sha)`
+         (the `yitc-ops.yaml` text at the replayed land's merge-base and at its sha), the engine's own
+         `_ops_carrier_freed_paths` decides whether a carrier touch is freed, and that set rides the
+         SAME `reachability_freed` seam. A corpus without the reader, a reader answering None, and a
+         comparison answering None all leave a carrier touch on the full-run edge, as before.
+         T-13531 — over those SAME two texts the engine's own `_owned_test_freed_paths` decides
+         which changed `tests/` paths are freed (declared test files some scoped layers claim and
+         others do not), and that set joins the carrier answer on the seam. No carrier reader, no
+         freed test path: a test touch stays on the full-run edge.
       3. Some DECLARED layer L carrying `subject_globs` WOULD have been skipped on that content, per
          the imported predicate.
       4. L's classes intersect the classes of the layers that actually failed. This is the card's own
@@ -1717,6 +1767,10 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
     succeeds if its layers pass) and cleared every inconvenient one. That shape is recorded in the
     trial instrument for the same reason it is recorded here — it recurs."""
     would_skip, fail_closed_edge, infra_globs = _predicate or _surface4_engine_predicate()
+    carrier_freed = owned_test_freed = None
+    if carrier_texts is not None:
+        carrier_freed = _carrier_freed or _surface4_engine_carrier_freed()
+        owned_test_freed = _owned_test_freed or _surface4_engine_owned_test_freed()
 
     by_layer = {str(ly.get("layer") or "").strip(): ly for ly in (layers or []) if isinstance(ly, dict)}
     scoped = [ly for name, ly in by_layer.items() if name and ly.get("subject_globs") is not None]
@@ -1759,7 +1813,16 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
             case["verdict"] = "not-decidable-unresolvable-sha"
             cases.append(case)
             continue
-        if fail_closed_edge(paths, infra_globs, diff_error=None):
+        freed = None
+        if carrier_freed is not None:
+            texts = carrier_texts(sha, base)
+            if isinstance(texts, (tuple, list)) and len(texts) == 2:
+                freed = (frozenset(carrier_freed(paths, texts[0], texts[1]) or ())
+                         | frozenset(owned_test_freed(paths, texts[0], texts[1]) or ())) or None
+        # The kwarg is passed only when a freed set exists, so an injected edge stub that predates
+        # the seam is called exactly as before.
+        if (fail_closed_edge(paths, infra_globs, diff_error=None, reachability_freed=freed)
+                if freed else fail_closed_edge(paths, infra_globs, diff_error=None)):
             case["verdict"] = "safe-full-run-fail-closed-edge"
             cases.append(case)
             continue
@@ -1876,7 +1939,22 @@ def surface4_repo_corpus(repo) -> dict:
     except Exception:  # noqa: BLE001 — an unreadable carrier declares no layers to replay
         layers = []
 
-    return {"rows": rows, "layers": layers, "diff_paths": diff_paths, "repairs_after": repairs_after}
+    def carrier_texts(sha, base_sha):
+        """T-13528 — the ops-carrier text at the replayed land's merge-base and at its sha, or None.
+        The SAME two revisions `diff_paths` compares. Any unreadable side is None, which the oracle
+        reads as «not freed» — a carrier touch, and since T-13531 a test touch, stays on the full-run
+        edge."""
+        base = _merge_base(sha, base_sha)
+        if not base or not sha:
+            return None
+        base_text = git("show", f"{base}:yitc-ops.yaml")
+        cand_text = git("show", f"{sha}:yitc-ops.yaml")
+        if base_text is None or cand_text is None:
+            return None
+        return (base_text, cand_text)
+
+    return {"rows": rows, "layers": layers, "diff_paths": diff_paths, "repairs_after": repairs_after,
+            "carrier_texts": carrier_texts}
 
 
 def declared_test_regime_false_skips(root=None, *, _corpus=None) -> "dict | None":
@@ -1916,7 +1994,8 @@ def declared_test_regime_false_skips(root=None, *, _corpus=None) -> "dict | None
     corpus = _corpus if _corpus is not None else surface4_repo_corpus(root)
     cases = surface4_false_skip_cases(rows=corpus["rows"], layers=corpus["layers"],
                                       diff_paths=corpus["diff_paths"],
-                                      repairs_after=corpus["repairs_after"])
+                                      repairs_after=corpus["repairs_after"],
+                                      carrier_texts=corpus.get("carrier_texts"))
     fired = [c for c in cases if c.get("verdict") == "FALSE-SKIP"]
     if not fired:
         return None
@@ -2142,12 +2221,71 @@ def recent_gate_overrides(events_path, window_days: int = _GATE_OVERRIDE_WINDOW_
 # It GATES NOTHING and can gate nothing: it is a fold over rows that already exist, with no stored
 # state, no event of its own and no threshold. Suppressed when the count is zero, which is every repo
 # whose audits surface nothing late.
+#
+# WHAT IT SAYS ABOUT CLOSURE IS THE CLOSE GATE'S OWN ANSWER, NEVER ITS OWN (T-13470). The line used
+# to say every late finding «BLOCKS its card's `task close`». Measured 2026-10-03: 22 findings on 18
+# cards, all 18 `done`, 20 already carrying a `ceiling_decision`, 0 closes blocked — the fold read
+# only `late_findings[]` and joined neither the decisions nor the card. So each finding now carries a
+# `state`, from two injected collaborators: the card's status, and `audit.undecided_late_findings` —
+# the very judgement `task close` refuses on. A finding is a closure blocker only when BOTH say so; the
+# count itself is unchanged, because a decided finding is still the recorded cost of a pass-1 survey.
+#
+# THE JUDGEMENT IS FED FROM THIS FOLD'S OWN DECLARED READ, NEVER A SECOND ONE (SPEC-0190 rule 10). The
+# debt seam owes ONE pass over the journal; handing the fold the close gate's host reader would have
+# walked the journal again per card. So the fold reads the gate's two row types through its ONE call
+# site and passes those rows to the judgement function. THE BOUND, stated: the rows are THIS
+# checkout's, from the window's segment floor on. On the main checkout — where the echo's seams live —
+# that is the corpus the gate itself reads. In a task worktree a decision recorded on main is not in
+# this journal yet, so the on-demand `debt` re-fold there can still name that worktree's own decided
+# finding a blocker; it errs toward visible, and `task close` remains the authority either way.
 _LATE_FINDINGS_WINDOW_DAYS = 30   # the reading window; not a governance scalar — a report-only horizon
+#: The two event types `audit.undecided_late_findings` judges over: the audit completion rows that
+#: carry `late_findings[]`, and the decisions that bind them. Declared once; `debt_echo_scan` reads it.
+LATE_FINDING_READ_TYPES = ("external_audit_completed", "ceiling_decision")
+#: The card statuses with no `task close` left to block (QUEUE §State transitions: `done` is shipped
+#: history, `wont-do` is decided-not-to-do — both terminal).
+_LATE_FINDING_TERMINAL_STATUSES = ("done", "wont-do")
+
+
+def _task_card_status(tasks_dir, tid, _read_yaml) -> "str | None":
+    """The `status:` of card `tid` under `tasks_dir`, or None when it cannot be read (T-13470).
+
+    TOLERANT by construction — a report-only line never breaks the seam it rides: a missing
+    directory, no such card, an unparseable file, a non-mapping document or a blank status all answer
+    None, and the caller treats None as «not proven terminal». Only a real task id is looked up, so
+    the glob below can never be steered by a foreign `target_id` (a plan slug, a path)."""
+    if not isinstance(tid, str) or not re.fullmatch(r"T-\d+", tid):
+        return None
+    try:
+        paths = sorted(Path(tasks_dir).glob(f"{tid}-*.yaml")) or sorted(Path(tasks_dir).glob(f"{tid}.yaml"))
+        if not paths:
+            return None
+        card = _read_yaml(paths[0])
+    except Exception:                      # noqa: BLE001 — unreadable ⇒ unknown, never a raise
+        return None
+    status = card.get("status") if isinstance(card, dict) else None
+    return status.strip() if isinstance(status, str) and status.strip() else None
 
 
 def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW_DAYS,
-                           now=None) -> dict:
+                           now=None, *, _card_status=None, _judge=None) -> dict:
     """Fold the journal → the `late_findings[]` recorded on audit passes inside `window_days`.
+
+    EACH FINDING CARRIES A `state` (T-13470) — what the engine's own state says about closure:
+      `card-terminal` — its card is `done` / `wont-do`: there is no `task close` left to block.
+      `blocks-close`  — the card is not terminal AND the close gate's own judgement lists this
+                        finding undecided. The ONLY state the line may call a blocker.
+      `decided`       — the card is not terminal and the gate does NOT list it (a `ceiling_decision`
+                        binds its ref, or the gate does not gate that row).
+      `unjudged`      — the card is not terminal and the judgement could not be made (no judge
+                        injected, or it raised). Never a blocker claim, and never read as cleared.
+    `_card_status(tid) -> str | None` reads the card; `_judge(rows, tid) -> [undecided entries]` IS
+    `audit.undecided_late_findings`, handed in rather than re-derived so this line and the gate cannot
+    disagree about what «undecided» means. The card is read FIRST and the judge is called only for a
+    NON-terminal card, once per card — so a window of findings on closed cards (18 of 18 when this
+    was measured) costs nothing more. The rows the judge sees come from this fold's own read (see the
+    block above for why, and for the bound). A card whose status cannot be read is NOT proven
+    terminal: the judgement stands, visibly.
 
     Pure: reads the journal, writes nothing (the SPEC-0149 acceptance boundary every fold here
     shares). SEGMENT-AWARE (SPEC-0190 rule 4) on the same terms as its `recent_gate_overrides`
@@ -2158,10 +2296,12 @@ def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW
     A missing/unreadable journal, a malformed line or an unparseable `ts` yields a clean zero-count
     result — a report-only surface never breaks the seam it rides and never nags on an unknown.
 
-    Returns `{lens, now, window_days, count, passes, findings, next}` — `count` is the number of LATE
-    FINDINGS, `passes` the number of distinct (task, stage, pass) rows that carried at least one.
-    Both are reported because they answer different questions: one card taking five late findings on
-    one pass and five cards taking one each are the same `count` and very different signals.
+    Returns `{lens, now, window_days, count, passes, findings, blocking_count, blocking_tasks,
+    unjudged_count, unjudged_tasks, decided_count, card_terminal_count, next}` — `count` is the number
+    of LATE FINDINGS, `passes` the number of distinct (task, stage, pass) rows that carried at least
+    one. Both are reported because they answer different questions: one card taking five late findings
+    on one pass and five cards taking one each are the same `count` and very different signals. The
+    four state counts partition `count`; nothing is ever dropped from it.
     """
     now = now if now is not None else datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -2169,10 +2309,14 @@ def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW
 
     findings: list = []
     rows_seen: set = set()
+
+    def _read(pred=None):
+        # THE one journal call site of this fold: the window's segments, the gate's two row types.
+        return journal.iter_rows(
+            events_path, since=_window_segment_floor(now, days=window_days),
+            types=LATE_FINDING_READ_TYPES, pred=pred)
     try:
-        for event in journal.iter_rows(
-                events_path, since=_window_segment_floor(now, days=window_days),
-                types=("external_audit_completed",)):
+        for event in _read():
             if not isinstance(event, dict) or event.get("type") != "external_audit_completed":
                 continue
             data = event.get("data") if isinstance(event.get("data"), dict) else {}
@@ -2196,28 +2340,115 @@ def late_findings_per_pass(events_path, window_days: int = _LATE_FINDINGS_WINDOW
                     "pass": f.get("pass") if f.get("pass") is not None else passes,
                     "finding_fingerprint": f.get("finding_fingerprint"),
                     "criterion_ref": f.get("criterion_ref") or f.get("class_id"),
+                    "_row_passes": passes,
                 })
     except (OSError, UnicodeDecodeError):
         findings, rows_seen = [], set()
 
+    # THE CLOSURE JUDGEMENT (T-13470) — one card read per distinct card, and the judge called only for
+    # the cards that are not terminal, over rows re-served by the SAME declared read.
+    status_of: dict = {}
+
+    def _status(tid):
+        if tid not in status_of:
+            try:
+                status_of[tid] = _card_status(tid) if _card_status is not None else None
+            except Exception:              # noqa: BLE001 — unreadable ⇒ not proven terminal
+                status_of[tid] = None
+        return status_of[tid]
+
+    need = {f["task"] for f in findings
+            if f["task"] and _status(f["task"]) not in _LATE_FINDING_TERMINAL_STATUSES}
+    undecided_of: dict = {}                # tid -> [entries]; a tid ABSENT here was not judged
+    if need and _judge is not None:
+        def _names_needed(row):
+            # At least as wide as the judge's own row→task test (envelope `task_id`, or the audit
+            # family's `data.target_id` / `data.plan_slug`): the judge narrows, this only bounds.
+            data = row.get("data") if isinstance(row.get("data"), dict) else {}
+            return (row.get("task_id") in need or data.get("target_id") in need
+                    or data.get("plan_slug") in need)
+        try:
+            gate_rows = [r for r in _read(_names_needed) if isinstance(r, dict)]
+        except (OSError, UnicodeDecodeError):
+            gate_rows = None               # could not read ⇒ nothing judged, nothing cleared
+        for tid in (sorted(need, key=str) if gate_rows is not None else ()):
+            try:
+                answer = _judge(gate_rows, tid)
+            except Exception:              # noqa: BLE001 — could not judge ⇒ unjudged, never cleared
+                continue
+            if isinstance(answer, (list, tuple)):
+                undecided_of[tid] = list(answer)
+
+    def _gate(tid):
+        """The judge's undecided entries for `tid`, or None when it could not be judged."""
+        return undecided_of.get(tid)
+
+    for f in findings:
+        row_passes = f.pop("_row_passes")
+        status = _status(f["task"])
+        f["card_status"] = status
+        if status in _LATE_FINDING_TERMINAL_STATUSES:
+            f["state"] = "card-terminal"
+            continue
+        entries = _gate(f["task"])
+        if entries is None:
+            f["state"] = "unjudged"
+            continue
+        # The gate keys an undecided late finding by (stage, fingerprint) and the pass of the ROW it
+        # sits on (rule 4: a decision binds ONE (ceiling_ref, fingerprint) pair). A row that states no
+        # counter was bound at the ceiling row's ref, which this fold does not re-derive — so there the
+        # match is on (stage, fingerprint) alone, the direction that keeps a blocker visible.
+        at_stage = [e for e in entries if isinstance(e, dict) and e.get("stage") == f["stage"]]
+        key = f["finding_fingerprint"]
+        if isinstance(key, str) and key:
+            hit = any(e.get("finding_fingerprint") == key
+                      and (not isinstance(row_passes, int) or e.get("pass") == row_passes)
+                      for e in at_stage)
+        else:
+            hit = bool(at_stage)           # an unkeyed finding cannot be told apart — stay visible
+        f["state"] = "blocks-close" if hit else "decided"
+
     findings.sort(key=lambda r: r["ts"], reverse=True)   # most recent first
+
+    def _tasks_in(state):
+        return sorted({str(f["task"]) for f in findings if f["state"] == state and f["task"]})
+    blocking = [f for f in findings if f["state"] == "blocks-close"]
+    unjudged = [f for f in findings if f["state"] == "unjudged"]
     return {
         "lens": f"late-findings-per-pass (SPEC-0204 rule 8) — defects the external auditor raised at "
                 f"a pass >= 2 with `causality: pre-existing-in-subject`, i.e. ones its own pass-1 "
                 f"whole-subject survey MISSED, in the last {window_days} days. Each was RECORDED and "
                 f"excluded from that pass's verdict (owner ruling D8: a late finding is never a "
-                f"verdict driver on its own) and each still needs a typed `ceiling_decision` before "
-                f"its card can close. DERIVED by folding the journal; zero stored state, recomputed "
-                f"fresh, report-only, never a gate.",
+                f"verdict driver on its own). The COUNT is recorded history and includes findings "
+                f"already decided and findings on cards already closed. Each finding's `state` says "
+                f"what it means for closure, and only `blocks-close` — undecided by the close gate's "
+                f"own judgement, on a card that is not done / wont-do — still needs a typed "
+                f"`ceiling_decision` before its card can close; `unjudged` means that judgement could "
+                f"not be made, which is not a clearance. DERIVED by folding the journal; zero stored "
+                f"state, recomputed fresh, report-only, never a gate.",
         "now": now.isoformat().replace("+00:00", "Z"),
         "window_days": window_days,
         "count": len(findings),
         "passes": len(rows_seen),
         "findings": findings,
+        "blocking_count": len(blocking),
+        "blocking_tasks": _tasks_in("blocks-close"),
+        "unjudged_count": len(unjudged),
+        "unjudged_tasks": _tasks_in("unjudged"),
+        "decided_count": sum(1 for f in findings if f["state"] == "decided"),
+        "card_terminal_count": sum(1 for f in findings if f["state"] == "card-terminal"),
         "next": ("late findings are the measured cost of an incomplete pass-1 survey: they are "
-                 "recorded, not penalised, but each blocks its card's `task close` until a "
-                 "`yitc-v2 audit decide` records fix / accept / defer. A RISING count on one stage is "
-                 "the signal that the pass-1 packet, not the auditor, is what needs the change."
+                 "recorded, not penalised. "
+                 + (f"{len(blocking)} of them block a `task close` until a `yitc-v2 audit decide` "
+                    f"records fix / accept / defer ({', '.join(_tasks_in('blocks-close'))}). "
+                    if blocking else "")
+                 + (f"{len(unjudged)} could not be judged — the close-gate judgement was unavailable "
+                    f"({', '.join(_tasks_in('unjudged'))}); that is not a clearance. "
+                    if unjudged else "")
+                 + ("None of them blocks a close: every one is decided or sits on a closed card. "
+                    if not blocking and not unjudged else "")
+                 + "A RISING count on one stage is the signal that the pass-1 packet, not the "
+                   "auditor, is what needs the change."
                  if findings else
                  "no late finding in the window — every defect surfaced on the pass that surveyed for "
                  "it."),
@@ -5767,6 +5998,8 @@ def unpickable_ready_cards(tasks_dir) -> dict:
     except (OSError, TypeError):
         return _unpickable_ready_result([])
 
+    from lib.graph import _task_card_shape_fault   # T-13463: the one shared card-shape check
+    unreadable: list = []
     cards: dict = {}
     for path in paths:
         # T-12030 — TWO changes, and the second is the reason for the first. (1) The parse goes
@@ -5780,11 +6013,21 @@ def unpickable_ready_cards(tasks_dir) -> dict:
         # unchanged, not merely narrowed carefully: a card with no readable status could never have
         # been a `ready` row NOR a `wont-do` blocker, so it contributed nothing before either — and
         # an unreadable card was already dropped by the `except ... continue` this replaces.
-        status = state.card_status(path)
+        # T-13463 — a card that cannot be read or walked DROPS ONLY ITSELF. `card_status` fills the
+        # memo through a no-list `load_path`, which RAISES on a non-UTF-8 card (T-13266, by design),
+        # so that one raise is caught here; the read below passes a discard list; and the ONE shared
+        # shape check (`graph._task_card_shape_fault`, extended for the `requires:` this fold reads)
+        # skips a mis-shaped card. Nothing is reported from here: `graph build` / `land` already
+        # name a malformed card, and this view rides the SPEC-0119 echo, whose shared try would
+        # otherwise blank every debt line over one bad card.
+        try:
+            status = state.card_status(path)
+        except UnicodeDecodeError:
+            continue
         if status not in ("ready", "wont-do"):
             continue
-        doc = state.load_path(path)
-        if not isinstance(doc, dict):
+        doc = state.load_path(path, errors=unreadable)
+        if _task_card_shape_fault(doc, also_iterable=("requires",)):
             continue
         tid = doc.get("id")
         if isinstance(tid, str) and _REQUIRES_TASK_ID_RE.match(tid.strip()):
@@ -6464,6 +6707,12 @@ def _hold_task_of(*a, **kw):
 def _concurrent_holds_result(*a, **kw):
     """T-12698 host residue — the body now lives in `bin/lib/debt_landing.py#_concurrent_holds_result`."""
     return debt_landing._concurrent_holds_result(*a, **kw)
+
+
+@functools.wraps(debt_landing.holder_liveness)
+def holder_liveness(*a, **kw):
+    """T-13470 host residue — the body lives in `bin/lib/debt_landing.py#holder_liveness`."""
+    return debt_landing.holder_liveness(*a, **kw)
 
 
 # ── SPEC-0119 rule 26 (T-11380 / the 2026-08-21 04:27-04:49 window): ONE land-abort cause refusing
@@ -7725,7 +7974,7 @@ def _seam_read_ratios(reads: dict) -> dict:
     return out
 
 
-def _seam_exemption_bound(exemptions, verb: str, default: float) -> float:
+def _seam_exemption_bound(exemptions, verb: str, default: float, today=None) -> float:
     """The bound THIS seam is held to — `default`, unless a `reads.exemptions[]` entry names it.
 
     THE VISIBLE READER THE CARRIER NEVER HAD. `init.py#_hook_reads_exemptions` validates the entry's
@@ -7735,19 +7984,26 @@ def _seam_exemption_bound(exemptions, verb: str, default: float) -> float:
     requires is honoured here, at the one place a bound is applied.
 
     SHAPE ONLY, never re-validation (the `_hook_reads_exemptions` division of labour): `seam` must
-    match the verb and `ratio_bound` must be a positive number, because those two are what this
-    function USES; `reason` and `until` are the hook's business and are not re-checked here, so a
-    change to the carrier's shape rules has ONE home. An entry that fails this function's two
+    match the verb, `ratio_bound` must be a positive number and `until` must be a date, because those
+    three are what this function USES; `reason` is the hook's business and is not re-checked here, so
+    a change to the carrier's shape rules has ONE home. An entry that fails this function's
     requirements yields the default — the fail-closed direction, since an unusable exemption must
     never read as a wider bound.
 
+    T-13467 — AN ENTRY PAST ITS `until` HOLDS NOTHING (SPEC-0190 rule 10). `until` is the review-by
+    date; an entry whose date is before `today` (the UTC date when not given), or that carries no
+    readable date, is skipped — the rule the read-contract tripwire's `live_entries` already applies,
+    so the two readers of one carrier agree. The day itself is still live.
+
     MATCH IS EXACT on the seam label, not a prefix: an exemption is a specific accepted risk at a
     specific wiring site, and prefix-matching `land` would silently exempt every land-family verb
-    nobody wrote an entry for. RAISES the bound only — an entry declaring a bound TIGHTER than the
-    default is honoured as declared, since a project holding itself to more is not this view's
-    business to relax."""
+    nobody wrote an entry for. RAISES the bound only (T-13467): the result is never below `default`,
+    so an entry at `ratio_bound: 1` — the engine carrier's "1 widens nothing" — leaves its seam at
+    the default instead of holding it under the tolerance the default exists to give."""
     if not exemptions:
         return default
+    if today is None:
+        today = datetime.now(timezone.utc).date()
     try:
         for e in exemptions:
             if not isinstance(e, dict) or str(e.get("seam") or "").strip() != verb:
@@ -7755,10 +8011,25 @@ def _seam_exemption_bound(exemptions, verb: str, default: float) -> float:
             rb = e.get("ratio_bound")
             if isinstance(rb, bool) or not isinstance(rb, (int, float)) or rb <= 0:
                 continue
-            return float(rb)
+            until = _exemption_until(e.get("until"))
+            if until is None or until < today:
+                continue
+            return max(float(default), float(rb))
     except TypeError:                      # a non-iterable `exemptions` — treat as none declared
         return default
     return default
+
+
+def _exemption_until(value):
+    """An exemption's `until` as a date, or None: a YAML date/timestamp, or an ISO `YYYY-MM-DD` string."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value).strip())
+    except ValueError:
+        return None
 
 
 def seam_read_leaf_verbs(verbs) -> list:
@@ -7950,7 +8221,7 @@ def seam_read_amplification(events_path, *, root=None, now=None,
 
     seams: list = []
     for key, rec in worst.items():
-        seam_bound = _seam_exemption_bound(exemptions, rec["verb"], float(bound))
+        seam_bound = _seam_exemption_bound(exemptions, rec["verb"], float(bound), now.date())
         if rec["ratio"] <= seam_bound:
             continue
         rec = dict(rec)
@@ -8102,6 +8373,90 @@ def _nightly_chronic_spell(nights, check: str, verdict: str) -> dict:
     return {"count": len(afflicted), "projects": sorted(afflicted), "since": since, "nights": spell}
 
 
+# The ENGINE QUIET LANE on the same row (SPEC-0105 §2c — `data.quiet_lane`, T-13457). The verdict
+# that makes an instrument a debt line, read as an EXACT match on the `NIGHTLY_CHRONIC_VERDICT`
+# terms. `failed` is what the lane records when an instrument exited non-zero, was killed at the
+# lane's bound, or could not be run (bin/lib/nightly.py#_run_one_instrument) — so it covers an
+# instrument that never measured AND one whose own assertion failed; this reader does not tell
+# them apart, the recorded reason does. NOT `failed`, and so never a line: `skipped` (the host was
+# not quiet, nothing was measured), an absent reading, and `ok` carrying `regression: true` (a
+# passing run slower than its baseline — a different, measured verdict).
+NIGHTLY_QUIET_LANE_FAILED = "failed"
+# The pseudo-check name the lane's readings are projected under so `_nightly_chronic_spell` can walk
+# them unchanged. It is a map KEY and nothing else — never a `results[]` check, never rendered.
+_NIGHTLY_QUIET_LANE_CHECK = "quiet_lane"
+
+
+def _nightly_quiet_lane_map(row) -> "tuple[dict, dict]":
+    """One `nightly_run_completed` row → (`{instrument: {quiet_lane: verdict}}`, `{instrument: reason}`).
+
+    THE SAME SHAPE AS `_nightly_verdict_map`, ON PURPOSE: an instrument stands where a project
+    stands and its one reading where a check stands, so the spell walk that dates a chronic
+    condition dates a failing instrument with no second walk written for it.
+
+    The ENGINE lane only — the top-level `data.quiet_lane` block. The per-project lanes
+    (`results[].quiet_lane`, T-12097) are a different subject and are not read here.
+
+    A row with no block (every night before the lane shipped), a malformed block and a reading
+    naming no instrument or no verdict all contribute NOTHING: membership in the map IS the claim
+    "this instrument reported that night", so an unreadable night is an absent one — it ends a
+    spell, it can never extend one."""
+    verdicts: dict = {}
+    reasons: dict = {}
+    data = row.get("data") if isinstance(row.get("data"), dict) else {}
+    lane = data.get("quiet_lane") if isinstance(data.get("quiet_lane"), dict) else {}
+    readings = lane.get("readings") if isinstance(lane.get("readings"), list) else []
+    for reading in readings:
+        if not isinstance(reading, dict):
+            continue
+        inst = str(reading.get("instrument") or "").strip()
+        if not inst or not isinstance(reading.get("verdict"), str):
+            continue
+        verdicts[inst] = {_NIGHTLY_QUIET_LANE_CHECK: reading["verdict"]}
+        reasons[inst] = reading.get("reason")
+    return verdicts, reasons
+
+
+def _nightly_quiet_lane_failed(lanes, reasons) -> list:
+    """The engine quiet-lane instruments whose LATEST reading is `failed`, each with its spell.
+
+    WHY A FAILED READING IS A LINE. The lane exists to carry the wall-clock assertions SPEC-0077
+    §3b took OFF the per-land verify, so a `failed` reading there is the ONLY place that assertion
+    can report — whether the instrument could not run or ran and failed its own assertion — and
+    the nightly said so only on its own stdout and in a block nothing read back. Measured:
+    `t11451-coupled-bite-proof` read `failed` on every night from 2026-09-13 to 2026-10-02 (that
+    spell was the could-not-run kind: it raised before measuring).
+
+    ONE RECORD PER INSTRUMENT, dated by `_nightly_chronic_spell` over that instrument's own nights
+    (the projection below is what lets the existing walk be reused rather than re-written): the
+    first night of the CURRENT unbroken `failed` spell and its length, so a spell that cleared and
+    returned is dated from its RETURN. Suppressed — no record at all — unless the LATEST night's
+    reading is `failed`: an instrument stops being reported the night it reads anything else.
+
+    `reason` is the FIRST non-empty line of what the latest night recorded, bounded. The lane stores
+    `exited <rc>: <the last 400 characters of stderr>`, so the first line names the exit and where
+    it happened; the rest is a traceback the row itself keeps for whoever goes to look.
+
+    Never raises; an empty `lanes` is the nothing-to-report shape."""
+    out: list = []
+    try:
+        if not lanes:
+            return out
+        for inst in sorted(lanes[-1]["map"] or {}):
+            own = [{"ts": night["ts"], "map": {inst: (night["map"] or {}).get(inst) or {}}}
+                   for night in lanes]
+            spell = _nightly_chronic_spell(own, _NIGHTLY_QUIET_LANE_CHECK, NIGHTLY_QUIET_LANE_FAILED)
+            if not spell:
+                continue
+            first = next((ln.strip() for ln in str((reasons or {}).get(inst) or "").splitlines()
+                          if ln.strip()), "")
+            out.append({"instrument": inst, "since": spell["since"], "nights": spell["nights"],
+                        "reason": first[:200]})
+    except Exception:                      # noqa: BLE001 — report-only: an unknown shape is silence
+        return []
+    return out
+
+
 def nightly_verdict_changes(events_path, *, now=None) -> dict:
     """Fold the journal → what the LAST nightly said that the one before it did not (SPEC-0119 r38).
 
@@ -8142,7 +8497,15 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
     inside a composed seam is a proposal to skip rule 10, which the sibling rule-37 line reports on.
     Only the verdict MAP of each row is retained (`_nightly_verdict_map`), never the row.
 
-    Returns `{lens, count, projects, nights, chronic}` — `projects` is one record per CHANGED project
+    THE ENGINE QUIET LANE RIDES THE SAME ROWS (T-13457). The row also carries `data.quiet_lane`
+    (SPEC-0105 §2c), which had no reader either. Each instrument whose LATEST reading is `failed`
+    gets one record in `quiet_lane` — the first night of its current unbroken failed spell, the
+    night count, and the first line of the recorded reason (`_nightly_quiet_lane_failed`). It is
+    read off the rows this pass already iterates, so it adds no read; it is INDEPENDENT of `count`,
+    of the chronic lines, and of the two-row floor below — a `failed` reading is a fact about
+    tonight, not a comparison, so it needs no previous night.
+
+    Returns `{lens, count, projects, nights, chronic, quiet_lane}` — `projects` is one record per CHANGED project
     (`{project, flips: [{check, from, to}]}`, sorted by project, flips sorted by check, both
     deterministic because SPEC-0190 rule 5 promises no physical row order), `nights` names the two
     timestamps compared, and `chronic` is one record per chronic condition PRESENT on the latest
@@ -8158,13 +8521,20 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
     Never raises: an unreadable / missing / malformed journal folds to the empty shape, which IS the
     nothing-to-report shape — a report-only surface must never nag on, or die of, an unknown."""
     empty = {"lens": _nightly_changes_lens(), "count": 0, "projects": [],
-             "nights": {}, "chronic": []}
+             "nights": {}, "chronic": [], "quiet_lane": []}
     nights: list = []
+    # The engine quiet lane, one thin entry per nightly row — EVERY row, including one whose
+    # `results` yielded no verdict map and so never joins `nights`: the lane is a host duty outside
+    # the project loop (SPEC-0105 §2c) and its reading does not depend on any project reporting.
+    lanes: list = []
+    lane_reasons: dict = {}
     try:
         # SPEC-0190 rule 4 — the WHOLE journal; T-13139 — declared: the nightly rows only.
         for event in journal.segment_rows(events_path, types=("nightly_run_completed",)):
             if not isinstance(event, dict) or event.get("type") != "nightly_run_completed":
                 continue
+            lane_map, lane_reasons = _nightly_quiet_lane_map(event)   # reasons: the LATEST row's only
+            lanes.append({"ts": str(event.get("ts") or ""), "map": lane_map})
             vmap = _nightly_verdict_map(event)
             if vmap:
                 # The verdict MAP for every night, and the RAW `results` for the latest night only —
@@ -8177,9 +8547,11 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
                     nights[-3]["results"] = None        # only the last two rows keep their payload
     except Exception:                      # noqa: BLE001 — see docstring
         return empty
+    quiet_lane = _nightly_quiet_lane_failed(lanes, lane_reasons)
     if len(nights) < 2:
-        # A first night (or none) has no yesterday. Silence, never "everything changed".
-        return empty
+        # A first night (or none) has no yesterday. Silence, never "everything changed" — for the
+        # CHANGE and chronic lines. A `failed` quiet-lane reading is not a comparison and still reports.
+        return {**empty, "quiet_lane": quiet_lane}
 
     prev, latest = nights[-2], nights[-1]
     changed: list = []
@@ -8208,7 +8580,8 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
             chronic.append(spell)
 
     return {"lens": _nightly_changes_lens(), "count": len(changed), "projects": changed,
-            "nights": {"previous": prev["ts"], "latest": latest["ts"]}, "chronic": chronic}
+            "nights": {"previous": prev["ts"], "latest": latest["ts"]}, "chronic": chronic,
+            "quiet_lane": quiet_lane}
 
 
 def _nightly_changes_lens() -> str:
@@ -9230,7 +9603,7 @@ def debt_echo_scan(*, window_sec, followup_mod, views, profile_mod, journal_mod,
     import functools as _ft
     from lib import land_floors as _lf
     whole = set(OBLIGATION_CARRIER_EVENTS) | {
-        OBLIGATION_CLOSING_EVENT, OBLIGATION_MISS_EVENT, _GATE_OVERRIDE_EVENT, "external_audit_completed",
+        OBLIGATION_CLOSING_EVENT, OBLIGATION_MISS_EVENT, _GATE_OVERRIDE_EVENT, *LATE_FINDING_READ_TYPES,
         ADMISSION_EVENT, EXECUTION_EVENT, QUEUE_JUMP_FIRED_EVENT, TAIL_WITHHELD_EVENT, GIT_MAINTENANCE_EVENT,
         PREQUEUE_REFUSAL_EVENT, KNOWN_BROKEN_CARRIER_EVENT, P8_WARN_EVENT, "nightly_run_completed",
         "task_closed", "commit_landed", "land_member_verdict", "triage_run_completed"}
@@ -9296,6 +9669,26 @@ def scope_fold_entry(paths, _segment_lines):
         return None
     reducer = journal.scope_reducer(paths[0], "followup")
     return reducer.result() if reducer is not None else None
+
+
+def _consumer_carrier_posture(is_consumer, repo_root) -> bool:
+    """T-13525 (SPEC-0186 rule 6): is THIS root's `yitc-ops.yaml` to be judged as a CONSUMER ops
+    contract? False on the engine's own checkout, whose root file is the kernel's verify-policy
+    declaration and nothing else — so the sweeps that judge a repository AS a consumer of the
+    contract are withheld BY IDENTITY, never by whether the file exists.
+
+    The identity is the canonical one (`_is_consumer_build`, T-0952 — an engine linked worktree is
+    the engine), read consistently with the documented `YITC_REPO_ROOT` override it honours at
+    import: a root that override names IS the engine, also when a harness rebinds the root
+    in-process after import (the same call-time read `own_journal_path` makes). A failing predicate
+    answers True — the sweeps run, as before this rule existed."""
+    try:
+        if not is_consumer():
+            return False
+        override = os.environ.get("YITC_REPO_ROOT")
+        return not (override and Path(override).resolve() == Path(repo_root).resolve())
+    except Exception:
+        return True
 
 
 def _seam_audience(is_consumer) -> dict:
@@ -9370,6 +9763,14 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
         # malformed task card) the writers after the render must SKIP, not crash `session start`
         # with an UnboundLocalError that leaves no seed receipt.
         _gap_reg = _gap_carrier = _gap_profile = None
+        # T-13525 (SPEC-0186 rule 6): resolved ONCE for this seam. On the engine's own checkout the
+        # four folds that judge THIS repo as a consumer of the ops contract are withheld — the
+        # concern-conformance view, the unratified-adoption view, the gap register (and so its
+        # writer) and the born-skew append. The first two walk the concern registry the moment a
+        # carrier exists, so left running they do not merely print: an engine checkout without a
+        # built registry dies on them. No other collaborator is guarded: each reads a section the
+        # engine does not declare.
+        _posture = _consumer_carrier_posture(_is_consumer_build, REPO_ROOT)
         try:
             # ONE fold (SPEC-0095) → the 3 open-followup counts, injected as 3 collaborators. The armed pair
             # is OPTIONAL in the leaf, so this is the only site that has to know about the T-10309 split.
@@ -9402,7 +9803,8 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
             # T-12085 — the register is folded ONCE here, then both READ (the capped line below)
             # and WRITTEN FROM (the auto-file after the render). Folding it twice would let the
             # line and the filing disagree about what was unmet at this instant.
-            _gap_reg = _gap_register_view(_gap_profile, carrier=_gap_carrier)
+            _gap_reg = (_gap_register_view(_gap_profile, carrier=_gap_carrier) if _posture
+                        else debt_mod.profile_gap_register(resolution=None, ops_path=None))
             lines = views._render_debt_echo(
                 _view_not_adopted=lambda: _view_not_adopted(EVENTS_PATH),
                 _view_overdue_recheck=_view_overdue_recheck,
@@ -9411,8 +9813,10 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 _armed_waiting_count=lambda: _fu.get("armed_waiting"),
                 followup_floor=_debt_followup_floor(),
                 # T-10030 (SPEC-0119 rule 8 / SPEC-0128 Rule 2): the concern-conformance view over THIS repo's
-                # ops carrier. no-carrier (the engine kernel itself) → count 0 → suppressed.
-                _concern_conformance=lambda: init_mod.concern_conformance(REPO_ROOT / "yitc-ops.yaml"),
+                # ops carrier. No carrier → count 0 → suppressed; the engine kernel itself is not judged
+                # at all (T-13525 — withheld by identity, SPEC-0186 rule 6).
+                _concern_conformance=((lambda: init_mod.concern_conformance(REPO_ROOT / "yitc-ops.yaml"))
+                                      if _posture else None),
                 # T-10480 (SPEC-0125 VP1/VP2): the vendor-adapter conformance view over THIS repo's
                 # adapter→neutral-home chain. Injecting it HERE — the one shared host residue — is what
                 # gives a CONSUMER the per-repo `-C` surface for the check on all three debt seams at once
@@ -9425,8 +9829,10 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # carrier DECLARES. The T-10493 stance sweep passes them BY DESIGN (variant A leaves a
                 # truthful-but-unreviewed record as DEBT rather than fail-closing honest consumers), so this
                 # line is the residual's ONE reading moment. Wired at the same shared residue as its stance
-                # siblings above → all three debt seams from one site. Engine kernel: no carrier → 0 → suppressed.
-                _unratified_adoptions=lambda: init_mod.unratified_adoptions(REPO_ROOT / "yitc-ops.yaml"),
+                # siblings above → all three debt seams from one site. No carrier → 0 → suppressed; the engine
+                # kernel itself is not judged at all (T-13525 — withheld by identity, SPEC-0186 rule 6).
+                _unratified_adoptions=((lambda: init_mod.unratified_adoptions(REPO_ROOT / "yitc-ops.yaml"))
+                                       if _posture else None),
                 # T-10134 (SPEC-0119 / SPEC-0057 §9): the activity-gated review-due semaphore — surfaced
                 # only when a periodic review is past cadence AND work happened since (no work → no nag).
                 _review_due=_review_due_view,
@@ -9620,7 +10026,14 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # apart. Report-only: rule 8 records the auditor's completeness and never gates on it
                 # (owner ruling D8; T-12141 gated and measured worse). A repo whose audits surface
                 # nothing late folds to 0 → suppressed.
-                _late_findings=lambda: debt_mod.late_findings_per_pass(EVENTS_PATH),
+                # T-13470: the closure half is the CLOSE GATE'S OWN judgement function, fed from the
+                # fold's one declared read and joined to the card's status off this repo's cards — so
+                # the line names a blocker only where an undecided finding sits on an open card.
+                _late_findings=lambda: debt_mod.late_findings_per_pass(
+                    EVENTS_PATH,
+                    _card_status=lambda tid: _task_card_status(Path(REPO_ROOT) / "tasks", tid, _read_yaml),
+                    _judge=lambda rows, tid: audit.undecided_late_findings(
+                        rows, tid, repo_root=REPO_ROOT)),
                 # T-11380 (SPEC-0119 rule 26): the land-abort CAUSE-BREADTH fold over THIS repo's journal —
                 # ONE abort cause that has now refused several DIFFERENT branches inside the window. Every
                 # existing surface for a repeating abort is per-branch or per-task, so a cause that fails
@@ -9948,11 +10361,12 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
         # project watches AND updates ITSELF at its own debt seams (owner directive 2026-07-03) — this
         # REPLACES the retired engine-side registry sweep (the kernel enumerating every registry consumer
         # on their behalf; the sweep's host residue + registry-resident gate + view/debt-line were removed
-        # by T-10077). The engine's own repo has no yitc-ops.yaml → []. Best-effort ([] on any failure);
-        # suppressed-when-clean.
+        # by T-10077). The engine's own repo is not a consumer of the ops contract → withheld by identity
+        # (T-13525, SPEC-0186 rule 6). Best-effort ([] on any failure); suppressed-when-clean.
         try:
-            lines = list(lines) + session.born_skew_check_line(
-                REPO_ROOT, _read_yaml, init_mod._consumer_carrier_skew)
+            if _posture:
+                lines = list(lines) + session.born_skew_check_line(
+                    REPO_ROOT, _read_yaml, init_mod._consumer_carrier_skew)
         except Exception:
             pass
         # T-12085 (SPEC-0119 rule 39 / SPEC-0198 rule 5) — THE WRITER, and it is placed HERE for two
@@ -9963,8 +10377,8 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
         #
         # IT FILES AND NOTHING ELSE. `_profile_gap_autofile` appends `followup_added` rows, capped
         # per run and deduped forever by the key the fold computed; it dispatches nothing, audits
-        # nothing, deploys nothing and touches no code (SPEC-0198 rule 5 / CHARTER §6). The engine's
-        # own repo has no yitc-ops.yaml, so the register folds empty here and this files nothing.
+        # nothing, deploys nothing and touches no code (SPEC-0198 rule 5 / CHARTER §6). On the engine's
+        # own repo the register is the empty one (T-13525 — by identity), so this files nothing.
         # T-13011 — under READ_ONLY_ROOT both writers are SKIPPED (the render above is untouched):
         # their appends would land in the READER's journal while the dedupe/latch folds read the
         # TARGET's, so a read-only fold must stay write-free.

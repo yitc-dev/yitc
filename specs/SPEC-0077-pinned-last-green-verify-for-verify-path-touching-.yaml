@@ -34,9 +34,9 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ `yitc-ops.yaml`: `all` — the default and\nthe born state — or `never`). This spec\
   \ remains the ONE normative home for WHEN the leg fires (the\ntrigger predicate\
   \ below) and WHAT it does; SPEC-0186 governs only the per-project ON/OFF gate in\
-  \ front\nof it, is read PRE-MERGE from the base tree, and cannot reach the engine\
-  \ (a kernel invariant — the\nengine has no `yitc-ops.yaml`). Navigational pointer,\
-  \ not a second rule (SPEC-0005 rule 8).\n\n**WHICH tests this leg pins is additionally\
+  \ front\nof it, is read PRE-MERGE from the base tree, and reaches the engine on\
+  \ the same terms as any project\n(SPEC-0186 rule 6). Navigational pointer, not a\
+  \ second rule (SPEC-0005 rule 8).\n\n**WHICH tests this leg pins is additionally\
   \ NARROWED, per project, by what that project DECLARES\n(`tests.classes[].timing_lane`\
   \ in its `yitc-ops.yaml`).** The narrowing is DECLARED data — the\nproject names\
   \ the test files whose verdict is a function of wall clock — never a kernel judgement\n\
@@ -904,67 +904,73 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ executes LAST-GREEN engine code, so it acquires the retry one green land later,\
   \ as\nit would any runner change. Nothing here moves the verdict gate, the A-prime\
   \ authority, or either\nconjunct below: a file is still cleared only by PASSING\
-  \ alone, which is the same fact part (i)\nhas always required.\n**THE SERIALIZED\
-  \ TAIL IS PART OF THE LEG'S VERDICT.** A file listed in the committed\n`tests/load-sensitive.txt`\
-  \ runs AFTER the leg's concurrent pool, alone, on both legs, and its pass\nor fail\
-  \ decides that leg exactly as a pool result does — the declared set moves WHERE\
-  \ a file runs,\nnever WHETHER it counts, so neither conjunct above is weakened by\
-  \ it.\n**THE `environmental` TWO-PART BINDING — fail-closed on EACH part.** Under\
-  \ this kind,\n  and ONLY under it, a `--rebaseline-waive` token binds when BOTH\
-  \ hold:\n  (i) the ISOLATED preflight run of EVERY named-and-runnable file PASSES,\
-  \ AND (ii) the token's key\n  is named in the `failing_assertions` of THIS branch's\
-  \ most recent RECORDED land abort (the\n  recorded full-run failure; read back through\
-  \ the SAME fail-closed\n  `_recorded_pinned_waive_records` classifier the land backstop's\
-  \ admission pre-check uses, never\n  a fresh string match) AND that row yields a\
-  \ LOCATOR. Neither part alone is evidence: (i) alone is\n  just a green file, and\
-  \ (ii) alone is a failure with no proof it is environmental.\n  **THE LOCATOR IS\
-  \ PART OF (ii), NOT DECORATION.** A recorded row carrying no timestamp yields no\n\
-  \  locator, and a grant made on it would record a `waive_binding` that cannot be\
-  \ traced back to the\n  evidence justifying it — which is exactly the accountability\
-  \ this kind's record exists to\n  provide. So an unlocatable row binds NOTHING and\
-  \ the token stays `no-match`: a locator is\n  evidence, and an absent timestamp\
-  \ is not evidence of a row.\n  **(i) IS EVALUATED FIRST AND IS ALL-OR-NOTHING.**\
-  \ A file that FAILS its isolated run is `broken`,\n  not environmental, and it REFUTES\
-  \ THE KIND for the WHOLE declaration — the land is REFUSED naming\n  `broken` as\
-  \ the honest kind, and NO sibling token is cleared either, not even one a recorded\
-  \ prior\n  abort would otherwise have bound. A declaration is judged as a whole,\
-  \ so a multi-token ack can\n  never smuggle a prior-abort clearance past a provably\
-  \ broken file. A token failing (ii) alone\n  stays `no-match` and leaves its siblings\
-  \ unaffected — that asymmetry is deliberate: (i) refutes\n  the KIND, (ii) merely\
-  \ fails to find evidence for ONE token. An acquisition that could not be\n  ESTABLISHED\
-  \ clears nothing AND refuses nothing (the preflight's own fail-open rule,\n  unchanged\
-  \ — this arm may make a refusal reachable or cheaper, never invent one from an\n\
-  \  unestablished fact).\n  **THE WAIVED FILE IS STILL RUN, AND ITS RESULT RECORDED.**\
-  \ The waive moves the VERDICT gate only,\n  never what runs: the full pinned verify's\
-  \ file set is untouched (the narrowed `only` selection\n  belongs to the preflight\
-  \ alone). That is what keeps a flake COUNTED rather than hidden — the\n  cross-branch\
-  \ debt echo and any de-flake card's post-ship observation both read those runs.\
-  \ The\n  grant records `rebaseline_kind: environmental` plus, per token,\n  `land_completed.waive_binding:\
-  \ {token, key, mode: prior-abort, locator, isolated, full_run}` —\n  the locator\
-  \ of the recorded abort it bound to, the isolated verdict that proved the check\
-  \ healthy\n  here, and what the full run actually said about that file. Accountability\
-  \ grep:\n  `grep rebaseline_kind events.jsonl`, the shape the §2a `--no-tests` marker\
-  \ already uses.\n  **It does NOT reintroduce the coin flip.** That rule requires\
-  \ a token not to \"move between\n  runs\". Both conjuncts are STABLE facts about\
-  \ this branch — a recorded journal row that does not\n  change, and an isolated\
-  \ verdict taken in a single subprocess OUTSIDE the contended pool. Neither\n  is\
-  \ the re-rolled full-run outcome whose instability is the problem being solved.\
-  \ The\n  / exact-both-directions matching for the other two kinds is UNTOUCHED.\n\
-  \  **REQUIRED at grant, NEVER inferred.** A `--rebaseline` with no kind is REFUSED\
-  \ on the EXISTING\n  `rebaseline-unauthorized` abort class (no new taxonomy), and\
-  \ the refusal NAMES every kind and\n  what each MEANS. There is deliberately no\
-  \ default: a defaulted kind would recreate the exact\n  conflation the declaration\
-  \ removes, with a label on top. The vocabulary is CLOSED and\n  kernel-owned — ONE\
-  \ code constant, `worktree_mod.REBASELINE_KINDS`, read by the flag's `choices`,\n\
-  \  by both required-at-grant refusals and by the record, so prose and code cannot\
-  \ drift (the §1\n  file-membership idiom; this prose POINTS at the constant and\
-  \ does not duplicate it) — with\n  NOT-DECLARED as the reserved state that routes\
-  \ to refuse\n  (`lessons/carving-an-exception-into-a-fail-closed-gate` §1: a vocabulary\
-  \ narrower than its\n  reality is how a silent default gets in).\n  **THE KIND IS\
-  \ A LABEL, NOT A DISCRIMINATOR — it opens NOTHING. AMENDED IN SCOPE BY, and\n  the\
-  \ amendment is stated here rather than left as a standing contradiction (CHARTER\
-  \ §P7).** This\n  is the load-bearing negative clause, and it is UNCHANGED for the\
-  \ two values it was written about:\n  no gate reads `broken` or `unrunnable-here`;\
+  \ alone, which is the same fact part (i)\nhas always required.\n**A CONSUMER'S PINNED\
+  \ LEG RE-RUNS A SOLE FAILED LAYER TOO.** Where the pinned verifier is\nthe consumer's\
+  \ declared layers (§6b — the current guard over the last-green carrier), the\nSPEC-0152\
+  \ rule 16 isolated re-run applies on this leg exactly as on the candidate one: a\
+  \ sole\nfailed layer is re-run once, alone within that verify, a pass keeps the\
+  \ leg green and the re-run\nis recorded with `leg: pinned` on `land_completed.verify_metrics.flaky_retry`.\
+  \ A second failure\nleaves the leg's failing entry — and every re-baseline reader\
+  \ of it — exactly as it was.\n**THE SERIALIZED TAIL IS PART OF THE LEG'S VERDICT.**\
+  \ A file listed in the committed\n`tests/load-sensitive.txt` runs AFTER the leg's\
+  \ concurrent pool, alone, on both legs, and its pass\nor fail decides that leg exactly\
+  \ as a pool result does — the declared set moves WHERE a file runs,\nnever WHETHER\
+  \ it counts, so neither conjunct above is weakened by it.\n**THE `environmental`\
+  \ TWO-PART BINDING — fail-closed on EACH part.** Under this kind,\n  and ONLY under\
+  \ it, a `--rebaseline-waive` token binds when BOTH hold:\n  (i) the ISOLATED preflight\
+  \ run of EVERY named-and-runnable file PASSES, AND (ii) the token's key\n  is named\
+  \ in the `failing_assertions` of THIS branch's most recent RECORDED land abort (the\n\
+  \  recorded full-run failure; read back through the SAME fail-closed\n  `_recorded_pinned_waive_records`\
+  \ classifier the land backstop's admission pre-check uses, never\n  a fresh string\
+  \ match) AND that row yields a LOCATOR. Neither part alone is evidence: (i) alone\
+  \ is\n  just a green file, and (ii) alone is a failure with no proof it is environmental.\n\
+  \  **THE LOCATOR IS PART OF (ii), NOT DECORATION.** A recorded row carrying no timestamp\
+  \ yields no\n  locator, and a grant made on it would record a `waive_binding` that\
+  \ cannot be traced back to the\n  evidence justifying it — which is exactly the\
+  \ accountability this kind's record exists to\n  provide. So an unlocatable row\
+  \ binds NOTHING and the token stays `no-match`: a locator is\n  evidence, and an\
+  \ absent timestamp is not evidence of a row.\n  **(i) IS EVALUATED FIRST AND IS\
+  \ ALL-OR-NOTHING.** A file that FAILS its isolated run is `broken`,\n  not environmental,\
+  \ and it REFUTES THE KIND for the WHOLE declaration — the land is REFUSED naming\n\
+  \  `broken` as the honest kind, and NO sibling token is cleared either, not even\
+  \ one a recorded prior\n  abort would otherwise have bound. A declaration is judged\
+  \ as a whole, so a multi-token ack can\n  never smuggle a prior-abort clearance\
+  \ past a provably broken file. A token failing (ii) alone\n  stays `no-match` and\
+  \ leaves its siblings unaffected — that asymmetry is deliberate: (i) refutes\n \
+  \ the KIND, (ii) merely fails to find evidence for ONE token. An acquisition that\
+  \ could not be\n  ESTABLISHED clears nothing AND refuses nothing (the preflight's\
+  \ own fail-open rule,\n  unchanged — this arm may make a refusal reachable or cheaper,\
+  \ never invent one from an\n  unestablished fact).\n  **THE WAIVED FILE IS STILL\
+  \ RUN, AND ITS RESULT RECORDED.** The waive moves the VERDICT gate only,\n  never\
+  \ what runs: the full pinned verify's file set is untouched (the narrowed `only`\
+  \ selection\n  belongs to the preflight alone). That is what keeps a flake COUNTED\
+  \ rather than hidden — the\n  cross-branch debt echo and any de-flake card's post-ship\
+  \ observation both read those runs. The\n  grant records `rebaseline_kind: environmental`\
+  \ plus, per token,\n  `land_completed.waive_binding: {token, key, mode: prior-abort,\
+  \ locator, isolated, full_run}` —\n  the locator of the recorded abort it bound\
+  \ to, the isolated verdict that proved the check healthy\n  here, and what the full\
+  \ run actually said about that file. Accountability grep:\n  `grep rebaseline_kind\
+  \ events.jsonl`, the shape the §2a `--no-tests` marker already uses.\n  **It does\
+  \ NOT reintroduce the coin flip.** That rule requires a token not to \"move between\n\
+  \  runs\". Both conjuncts are STABLE facts about this branch — a recorded journal\
+  \ row that does not\n  change, and an isolated verdict taken in a single subprocess\
+  \ OUTSIDE the contended pool. Neither\n  is the re-rolled full-run outcome whose\
+  \ instability is the problem being solved. The\n  / exact-both-directions matching\
+  \ for the other two kinds is UNTOUCHED.\n  **REQUIRED at grant, NEVER inferred.**\
+  \ A `--rebaseline` with no kind is REFUSED on the EXISTING\n  `rebaseline-unauthorized`\
+  \ abort class (no new taxonomy), and the refusal NAMES every kind and\n  what each\
+  \ MEANS. There is deliberately no default: a defaulted kind would recreate the exact\n\
+  \  conflation the declaration removes, with a label on top. The vocabulary is CLOSED\
+  \ and\n  kernel-owned — ONE code constant, `worktree_mod.REBASELINE_KINDS`, read\
+  \ by the flag's `choices`,\n  by both required-at-grant refusals and by the record,\
+  \ so prose and code cannot drift (the §1\n  file-membership idiom; this prose POINTS\
+  \ at the constant and does not duplicate it) — with\n  NOT-DECLARED as the reserved\
+  \ state that routes to refuse\n  (`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ §1: a vocabulary narrower than its\n  reality is how a silent default gets in).\n\
+  \  **THE KIND IS A LABEL, NOT A DISCRIMINATOR — it opens NOTHING. AMENDED IN SCOPE\
+  \ BY, and\n  the amendment is stated here rather than left as a standing contradiction\
+  \ (CHARTER §P7).** This\n  is the load-bearing negative clause, and it is UNCHANGED\
+  \ for the two values it was written about:\n  no gate reads `broken` or `unrunnable-here`;\
   \ `unrunnable-here` buys no eligibility that `broken`\n  does not, and neither buys\
   \ any that the pre- kindless grant did not.\n  **What changes is the clause's SCOPE,\
   \ not its force.** `environmental` (the third value)\n  IS a discriminator: it selects\
@@ -1266,13 +1272,31 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ this rule must not produce.\n\n### 4. Scope guard (the negative contract)\nThe\
   \ pinned re-run fires ONLY for verify-path-touching diffs; a normal source/doc land\
   \ is verified\nonce, as today — no scope creep into a blanket double-verify gate.\n\
-  \n### 5. Bootstrap cutover — the trusted starting base (forward-looking, probe-shaped)\n\
-  The rule is forward-looking. The activating land (which INTRODUCES the mode — itself\
-  \ a\nverify-implementation-touch) is NOT self-affirming: its pinned source is the\
-  \ PRE-MODE `main` verifier,\nwhich already carries every existing real check (it\
-  \ merely lacks the new pinned-re-run feature), so the\nold verifier still gates\
-  \ the activating change. The one-time bootstrap exception is explicit +\nprobe-shaped:\
-  \ (i) verify the activating land with the pre-mode `main` verifier; (ii) an owner-authorized\n\
+  \n**The candidate leg's verdict may be a CREDITED Stage-6 run — the pinned leg is\
+  \ untouched.**\n«Verified by the candidate» (§Scenario, §3) is satisfied either\
+  \ by running the candidate verify at\nland or by the land CREDITING the task's own\
+  \ runner-recorded green Stage-6 run of the same tree. It\ndoes so only when the\
+  \ land itself proves five conditions: (1) `main` has not moved since the run;\n\
+  (2) its candidate tree is the tested tree apart from inert paths (SPEC-0064); (3)\
+  \ the row is the\nrunner's own green, full-breadth, marked row — never a red, partial\
+  \ or hand-recorded one; (4) the\nrun's set covers the land's set; (5) the cheap\
+  \ land checks still run — the SPEC-0163 any-author floor\nand the host-leak check\
+  \ — and this spec's pinned leg runs as the project's policy says. The rule and\n\
+  its conditions are homed ONCE, in SPEC-0065 §Bound (`bin/yitc-v2 graph query SPEC-0065`);\
+  \ this\nparagraph is a pointer, not a second rule (SPEC-0005 rule 8).\nNOTHING ABOUT\
+  \ THE PINNED LEG MOVES. §1's trigger is computed exactly as before and is neither\
+  \ read\nnor written by the credit; §2's source and §3's both-must-pass are unchanged;\
+  \ and a\nverify-path-touching land whose candidate leg is credited STILL runs the\
+  \ pinned leg (where SPEC-0186\nleaves it on) and STILL integrates only if that leg\
+  \ is green. The credit never stands in for the\npinned leg, and a Stage-6 run —\
+  \ which runs the candidate leg alone — is never evidence for it.\n\n### 5. Bootstrap\
+  \ cutover — the trusted starting base (forward-looking, probe-shaped)\nThe rule\
+  \ is forward-looking. The activating land (which INTRODUCES the mode — itself a\n\
+  verify-implementation-touch) is NOT self-affirming: its pinned source is the PRE-MODE\
+  \ `main` verifier,\nwhich already carries every existing real check (it merely lacks\
+  \ the new pinned-re-run feature), so the\nold verifier still gates the activating\
+  \ change. The one-time bootstrap exception is explicit +\nprobe-shaped: (i) verify\
+  \ the activating land with the pre-mode `main` verifier; (ii) an owner-authorized\n\
   adoption probe — the deliberately-weakened-verifier test must FAIL that pre-mode\
   \ verifier on the\nactivating tree (the gate works from land #1); (iii) record the\
   \ bootstrap evidence on an EXISTING\ncarrier — the activating task's closure adoption-probe\
@@ -1391,5 +1415,5 @@ implements_signature:
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
   bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
-  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
+  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
   bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

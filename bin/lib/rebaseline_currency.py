@@ -1052,7 +1052,7 @@ def _run_pinned_verify(W: Path, main_wt: Path, merged_base: str, branch: str,
                        SUBENV_SCRUB_CARRIERS=None, _consumer_tests_delegation=None,
                        _delegated_tests_execution_gap=None,
                        admission_wait_out=None, _try_resolve_session_ref=None,
-                       only: "set[str] | None" = None, excluded_out: "list | None" = None, skipped_out: "list | None" = None, CONSUMER_OPS_CONTRACT=None, _PINNED_PREFIX=None, _PINNED_VERIFY_DRIVER=None, _in_hermetic_verify_child=None, _load_ops_carrier_text=None, _pinned_candidate_added_paths=None, _pinned_declared_check_paths_by_layer=None, _pinned_env_prime=None, _pinned_verify_subprocess_env=None, _render_tests_delegation_note=None, _verify_admission=None, _declared_test_sweep_paths=None, _ROOT_TEST_SWEEP_DIR=None, _expand_declared_glob=None) -> list:
+                       only: "set[str] | None" = None, excluded_out: "list | None" = None, skipped_out: "list | None" = None, layer_retry_out: "list | None" = None, CONSUMER_OPS_CONTRACT=None, _PINNED_PREFIX=None, _PINNED_VERIFY_DRIVER=None, _in_hermetic_verify_child=None, _load_ops_carrier_text=None, _pinned_candidate_added_paths=None, _pinned_declared_check_paths_by_layer=None, _pinned_env_prime=None, _pinned_verify_subprocess_env=None, _render_tests_delegation_note=None, _verify_admission=None, _declared_test_sweep_paths=None, _ROOT_TEST_SWEEP_DIR=None, _expand_declared_glob=None) -> list:
     """SPEC-0077 §2-§3 — the pinned LAST-GREEN both-must-pass re-run for a verify-implementation-touch
     land. Returns [] (pass) or [<reason>, ...] (the SAME shape `_run_verify_tests` uses → folded into
     `bad` → LAND: ABORT). Construction: a throwaway DETACHED worktree of the candidate HEAD (the SUBJECT
@@ -1540,7 +1540,15 @@ def _run_pinned_verify(W: Path, main_wt: Path, merged_base: str, branch: str,
             # (consumer-immutable §6b), so the CURRENT module's guard IS the pinned verifier; it runs the
             # OVERLAID (last-green) yitc-ops.yaml `verify.layers` over the candidate subject (the migrated
             # verify home, SPEC-0152 rule 16 / T-9719). Inert on the engine's own land.
-            bad.extend(f"{pfx}{b}" for b in _consumer_zero_probe_guard(pinned_wt)["bad"])
+            # T-13545 (SPEC-0152 rule 16): the guard re-runs a sole failed layer once, alone, and a pass
+            # there drops its failure from `bad` — on this leg exactly as on the candidate one. The
+            # record of that re-run leaves through `layer_retry_out` (the `excluded_out` /
+            # `skipped_out` sink shape) so the land writes it with `leg: pinned`; a caller that passes
+            # no sink (the step-4a preflight) gets the verdict alone, as it does for the file sweep.
+            _pinned_guard = _consumer_zero_probe_guard(pinned_wt)
+            bad.extend(f"{pfx}{b}" for b in _pinned_guard["bad"])
+            if layer_retry_out is not None and _pinned_guard.get("flaky_retry"):
+                layer_retry_out.append(_pinned_guard["flaky_retry"])
         return bad
     finally:
         # CLEANUP (audit-F3) — `worktree remove --force` already deletes the dir; prune the registration,

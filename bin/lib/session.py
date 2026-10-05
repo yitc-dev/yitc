@@ -52,7 +52,11 @@ def visible_start_line(project) -> str:
 # intact); indented continuation rows inherit their header's class. The startup bodies append the
 # constants (no new call there — the D-0052 F5 allowlist); the cli residue uses `mark`.
 REPORT_ONLY = "[report-only]"   # no action at startup
-OWNER_CUED = "[owner-cued]"     # act only on the owner's cue
+OWNER_CUED_TAG = "[owner-cued]"  # the bare class tag — what the startup-done legend names
+# T-13503: an owner-cued line says what the session does NOW, on the line itself — a session that read
+# only the tag went on to investigate the hand-off it named (deviation
+# consumer-start-preinvestigates-owner-cued-handoff). Every producer appends this one constant.
+OWNER_CUED = OWNER_CUED_TAG + " — name it to the person in your reply, then wait: act only when they say so"
 
 
 def on_demand(trigger: str) -> str:
@@ -63,6 +67,25 @@ def on_demand(trigger: str) -> str:
 def mark(text: str, marker: str) -> str:
     head, sep, rest = str(text).partition("\n")
     return f"{head} {marker}{sep}{rest}"
+
+
+# One global option of the CLI as it may be WRITTEN in prose: `-C` / `--directory` with its argument
+# (any spelling — absolute, relative, upper-case, quoted, `=`-joined), or any other flag.
+_CLI_OPTION = r"""\s+(?:(?:-C|--directory)(?:\s+|=)(?:"[^"]*"|'[^']*'|[^\s`]+)|--?[A-Za-z][\w-]*(?:=[^\s`]+)?)"""
+_RUNNABLE_CLI_PREFIX = re.compile(
+    r"(?:\b[A-Z_][A-Z0-9_]*=\S+\s+)*"             # env assignments riding the command
+    r"[^\s`'\"«»()]*yitc-v2(?![\w./-])"            # the program token, however its path is spelled
+    rf"(?:(?:{_CLI_OPTION})*\s+(?=[a-z])|(?:{_CLI_OPTION})+)")   # … options, then a verb — or options alone
+
+
+def no_runnable_cli(text: str) -> str:
+    """T-13503: an owner-cued start line names things, it hands the session no command to run. Card data
+    quoted on one (a title, a `next_action`, a `return_trigger`) may hold a CLI invocation: its runnable
+    prefix — env assignments, the program token, its global options with their arguments — is dropped and
+    the verb words stay, so the next step is still named. The engine's name in plain prose (no option, no
+    verb after it) and a path that merely contains it are left alone; text holding no invocation is
+    returned unchanged."""
+    return _RUNNABLE_CLI_PREFIX.sub("", str(text))
 
 
 # The startup READ itself — the only unmarked lines. The seed line is T-13422's; the stage-entry header
@@ -88,7 +111,7 @@ def startup_done_line(worker: bool, help_cmd: str) -> str:
     nxt = "continue your claimed task" if worker else "await the owner cue"
     return (f"startup done once you run the one remaining step, the session-tied scan `{help_cmd}` — then "
             f"open nothing else now: {nxt}. Every line above is marked {REPORT_ONLY} (no action now), "
-            f"{OWNER_CUED} (only on the owner's cue) or [on-demand: <trigger>] (only when that happens).")
+            f"{OWNER_CUED_TAG} (only on the owner's cue) or [on-demand: <trigger>] (only when that happens).")
 
 
 def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
@@ -304,17 +327,15 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         _views = (" + ".join(f"graph/{p}" for p in _seed_parts)
                   + (" (read ALL parts — the chain IS your seed, SPEC-0120 §3)" if len(_seed_parts) > 1 else "")
                   if _sess_type == "build"
-                  else "CHARTER.md + AGENTS.md + AGENTS-SESSIONS.md + AGENTS-PROTOCOL.md + "
-                       "LIFECYCLE.md + QUEUE.md + GRAPH.md (source parts, read directly in this order"
-                       " — SPEC-0007 §5c)")
+                  # T-13492: each part at the name the release view PUBLISHES it under (SPEC-0074 §7).
+                  else " + ".join(graph.release_view_name(f"{_stem}.md")
+                                  for _stem, _purpose, _self in HANDBOOK_READ_ORDER)
+                       + " (source parts, read directly in this order — SPEC-0007 §5c)")
         print(_kq("read-order (topological — CHARTER first, pedagogical pin) — kernel METHODOLOGY handbook, "
               "kernel-provided (pre-extraction; this -C consumer authors none of it — these are the ENGINE's "
               "files; your own CHARTER.md, if any, is your PRODUCT charter = separate project-context, NOT "
               f"this methodology seed — read your audience seed + voice the anchors). engine release-view ({_hb_root}/): "
-              + _views
-              + ". A part whose full text the AI tool has ALREADY attached in this context counts as read — "
-                "do not read it again; read the remaining parts in order (after a /compact an earlier "
-                "attachment no longer counts — re-read every part; SPEC-0007 §5b)."))
+              + _views + "."))
         # T-9469: name the consumer's OWN backbone at startup. CONVENIENCE over durable on-disk
         # state; re-derived directly post-`/compact`, never by re-running
         # session start (SPEC-0007 §5b consumer-echo extension). Guarded inside the consumer branch
@@ -600,17 +621,37 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     return resolved_ref, source_kind
 
 
-def _print_task_resume(t: dict, label: str = "build") -> None:
+def _held_line(tid, title, ref) -> str:
+    """T-13526: the ONE home of the start line for a card a LIVE foreign session holds. It replaces
+    the WAITING-family line and the single-card RESUME block for that card. Its producers print it
+    with the `REPORT_ONLY` class marker (the holder is working the card, so the reading session owes
+    it nothing) — appended at each producer, where the T-13435 marker scan can see it."""
+    return f"  {tid} — {no_runnable_cli(title or '(no title)')} — held by live session {ref}"
+
+
+def _print_task_resume(t: dict, label: str = "build", holder=None) -> None:
     """Print a task's resume contract (the non-mutating resume report). Factored (T-0140) so the
     branch-identified resume and the single-in-progress resume share one shape. T-9698: `label`
     frames the line per posture (controller|build) — the interactive Controller resumes own work
-    too (resume triggers off worktree/own-stamp STATE, not the type label)."""
-    print(f"{label}: RESUME in-progress {t.get('id')} — {t.get('title') or '(no title)'} "
-          + (ON_DEMAND_CLAIMED if label == "build" else OWNER_CUED))
+    too (resume triggers off worktree/own-stamp STATE, not the type label).
+
+    T-13526: `holder` — the ref of a CONFIRMED live foreign session holding this card's worktree.
+    Given, the held line is printed INSTEAD of the resume contract; absent, nothing changes."""
+    if holder:
+        print(f"{label}:" + _held_line(t.get("id"), t.get("title"), holder) + " " + REPORT_ONLY)
+        return
+    # T-13503: for the Controller this block is owner-cued — it names the task and waits, so quoted card
+    # data carries no runnable command and the last row says resume on the person's say-so. The Worker's
+    # block (its own claimed task) is unchanged.
+    worker = label == "build"
+    quote = str if worker else no_runnable_cli
+    print(f"{label}: RESUME in-progress {t.get('id')} — {quote(t.get('title') or '(no title)')} "
+          + (ON_DEMAND_CLAIMED if worker else OWNER_CUED))
     print(f"  stage={t.get('current_stage') or '?'} | resume_from={t.get('resume_from') or 'start'}")
     if t.get("next_action"):
-        print(f"  next_action: {t.get('next_action')}")
-    print("  (read-only report — the verb did NOT resume/mutate; continue the task yourself)")
+        print(f"  next_action: {quote(t.get('next_action'))}")
+    print("  (read-only report — the verb did NOT resume/mutate; "
+          + ("continue the task yourself)" if worker else "resume it only when the person says so)"))
 
 
 def _print_await(label: str, show_posture: bool) -> None:
@@ -650,7 +691,8 @@ def _read_open_card(p, _read_yaml, skipped=None):
     return d
 
 
-def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skipped=None) -> list:
+def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skipped=None,
+                            held=None) -> list:
     """T-0381: the read-only WAITING-ON-OWNER surfacing — in-progress tasks paused with
     reason==owner-wait + paused_at set. Closes the run-9 gap (a halted owner-wait task looked
     like ordinary concurrent work from main; parent plan to-fix #8). The DURABLE acceptance-#1
@@ -680,7 +722,16 @@ def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skip
           unclassifiable ref all leave the card reading WAITING. A false WAITING is visible and one
           command from disposition; a false RESUMABLE tells an operator to re-enter work that is
           still blocked, which is the very assertion-without-evidence this change removes. The
-          direction is the same one `_terminal_cross_ids` fails in, for the same reason."""
+          direction is the same one `_terminal_cross_ids` fails in, for the same reason.
+
+    T-13526 — A CARD A LIVE FOREIGN SESSION HOLDS IS REPORTED AS HELD, NOT AS WAITING. This view
+    reads main's cards, and a pause reaches main when its worker lands it — while a relaunched
+    worker's `task resume` stays unlanded in its worktree. So for the whole run of a relaunched card
+    the committed `paused_*` state says «the owner owes an answer» about a card someone is working.
+    `held` is an INJECTED lookup whose `.get(task id)` answers the holder's session ref ONLY when the
+    hold is confirmed (a worktree on the task branch, a foreign stamp, a live process); such a card
+    gets the one `_held_line` in place of its WAITING-family line. `held` absent, or any unconfirmed
+    answer, leaves every line below byte-identical — a hold is never claimed on less than proof."""
     out = []
     for p in state.scan_tasks(TASKS_DIR):
         # T-12030 — ask the STATUS first, and read the card only for the ones this view can report.
@@ -714,6 +765,10 @@ def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skip
                 or reason not in ("owner-wait", "artifact-wait"):
             continue
         tid, title = d.get("id"), d.get("title") or "(no title)"
+        holder = held.get(tid) if held is not None else None
+        if holder:
+            out.append(_held_line(tid, title, holder) + " " + REPORT_ONLY)
+            continue
         awaits = d.get("paused_awaits")
         # The UNDECLARED case, unchanged char-for-char (invariant 1 above). `artifact-wait` cannot
         # reach it — the verb refuses that reason without an `--awaits` — so this branch stays the
@@ -743,7 +798,9 @@ def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skip
         if d.get("next_action"):
             line += f"; next: {d.get('next_action')}"
         out.append(line + ")")
-    return out
+    # T-13503: every row is printed owner-cued — card data quoted on it carries no runnable command.
+    # (A T-13526 held row is already sanitised by `_held_line` and is printed report-only instead.)
+    return [ln if ln.endswith(REPORT_ONLY) else no_runnable_cli(ln) for ln in out]
 
 
 def _controller_acting_holder(*, REPO_ROOT, TASKS_DIR, _read_yaml, _run_git_cap,
@@ -794,7 +851,7 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
                             REPO_ROOT, _read_worktree_stamp, _stamp_is_own, _print_task_resume,
                             _main_worktree, EVENTS_PATH, _foreign_hold_report,
                             label="build", show_posture=False, acting_holder=None,
-                            skipped=None) -> None:
+                            skipped=None, held=None) -> None:
     """NON-MUTATING resume-or-await startup report (per D-0052 Phase 3 + T-0510; concurrency-aware
     per D-0083 §4). T-9698: ONE resume-or-await body serves BOTH postures — `label` frames every
     line ("build" for the dispatched Worker, "controller" for the interactive Controller) and
@@ -848,8 +905,11 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
     in_progress = [t for t in tasks if (t.get("status") or "") == "in-progress"]
     # T-0381: surface owner-wait paused tasks FIRST (a halted owner-wait task is otherwise
     # indistinguishable from active concurrent work — run-9 gap, parent plan to-fix #8).
-    for ln in _waiting_on_owner_lines():
-        print(f"{label}:" + ln + " " + OWNER_CUED)
+    # T-13526: a row for a card a LIVE foreign session holds arrives already `[report-only]` (the
+    # held line) — it is not an owner-cued row, so it takes no owner-cued tag.
+    wait_lines = _waiting_on_owner_lines()
+    for ln in wait_lines:
+        print(f"{label}:" + ln + ("" if ln.endswith(REPORT_ONLY) else " " + OWNER_CUED))
     # Branch-identified resume (D-0083 §4): cwd-independent read of THIS checkout's branch.
     br = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT).stdout.strip()
     m = re.fullmatch(r"task/(T-\d{4,})", br)
@@ -885,6 +945,18 @@ def _session_build_dispatch(*, TASKS_DIR, _read_yaml, _waiting_on_owner_lines, _
             return
         # branch's task not in-progress / not found → fall through to the count logic (rare edge).
     if len(in_progress) == 1:
+        # T-13526: the one in-progress card may be held by a LIVE foreign session (a dispatched
+        # worker in its worktree). Offering its resume contract here invites this session into work
+        # someone is doing, so a CONFIRMED hold prints the held line instead and the session awaits a
+        # cue like any session that owns nothing. `held` is the per-start lookup the host builds
+        # (memoised, so a card the waiting rows already asked about is not probed twice); absent, or
+        # unconfirmed, the resume block below is byte-unchanged.
+        holder = held.get(in_progress[0].get("id")) if held is not None else None
+        if holder:
+            if not [ln for ln in wait_lines if ln.endswith(REPORT_ONLY)]:
+                _print_task_resume(in_progress[0], label, holder)
+            _print_await(label, show_posture)
+            return
         _print_task_resume(in_progress[0], label)
         return
     if len(in_progress) > 1:
@@ -950,7 +1022,7 @@ def _context_occupancy(path):
     return {"occupied": occupied, "model": model}
 
 
-def session_epoch(session_ref, *, _session_log_path) -> int:
+def session_epoch(session_ref, *, _session_log_path, unknown=0):
     """The current CONTEXT EPOCH of a session (T-10082, SPEC-0050 §8): the count of `/compact`
     boundaries recorded in the provider transcript so far — 0 at a fresh session, +1 per compaction.
     A monotonic integer signal (NOT a timestamp) the seed-read gate compares against the epoch stamped
@@ -965,11 +1037,16 @@ def session_epoch(session_ref, *, _session_log_path) -> int:
     FAIL-SAFE (mirrors `_context_occupancy`'s broad-except contract): no transcript / unreadable /
     parse hiccup → 0. The gate must never break a governed verb on a provider-log quirk — 0 is the
     honest "no compaction observed" floor (it can only UNDER-count, which fails toward crediting a
-    present receipt, never toward a spurious stale-refusal)."""
+    present receipt, never toward a spurious stale-refusal).
+
+    `unknown` (T-13510) is what a count that could NOT be taken returns — no transcript, an open or
+    read that raised. The default 0 is the gate floor above, so every existing caller is unchanged.
+    A caller that must tell "counted, and it is 0" from "could not count" passes `unknown=None`: the
+    stage deliverer does, because it may WITHHOLD a contract body only on a count it actually took."""
     try:
         path = _session_log_path(session_ref)
         if path is None or not Path(path).exists():
-            return 0
+            return unknown
         n = 0
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -983,7 +1060,7 @@ def session_epoch(session_ref, *, _session_log_path) -> int:
                     n += 1
         return n
     except Exception:
-        return 0
+        return unknown
 
 
 def _context_measure(path, cfg):
@@ -1703,12 +1780,19 @@ def born_skew_check_line(repo_root, _read_yaml, _carrier_skew) -> list:
 NEW_PROJECT_ENTRY = "new project"   # T-13384 — the picker's last entry, always offered
 
 
+def _folder_missing(p: dict) -> bool:
+    """T-13486: the registry still names this project, but its path is not an existing directory."""
+    return not os.path.isdir(str(p["path"]))
+
+
 def picker_lines(projects: list) -> list:
-    """Plain numbered lines for the registered projects, then the "new project" entry (T-13384)."""
+    """Plain numbered lines for the registered projects, then the "new project" entry (T-13384).
+    An entry whose folder is gone keeps its number and is marked (T-13486)."""
     lines = (["No projects are registered on this machine yet."] if not projects
              else ["Projects on this machine:"])
     for i, p in enumerate(projects, 1):
-        lines.append(f"  {i}. {p['name']} — {p['path']}")
+        lines.append(f"  {i}. {p['name']} — {p['path']}"
+                     + (" (folder missing)" if _folder_missing(p) else ""))
     lines.append(f"  {len(projects) + 1}. {NEW_PROJECT_ENTRY} — create a new project folder")
     return lines
 
@@ -1744,7 +1828,8 @@ def cmd_session_pick(args: argparse.Namespace, *, registry_path, engine_root, ke
     """A read-only VIEW over the host registry (SPEC-0086 rule 6f). Lists the registered projects in
     plain words; on a choice (argument, or one answer typed at an interactive prompt) it runs that
     project's own existing `session start`. It writes nothing itself and owns no project list — the
-    registry is read through the ONE reader `_v2_projects`; the only writes are the child's own."""
+    registry is read through the ONE reader `_v2_projects`; the only writes are the child's own.
+    A chosen entry whose folder is gone is refused with one plain line, exit 2, nothing run (T-13486)."""
     projects = _v2_projects(Path(registry_path), Path(engine_root), kernel_name)
     for line in picker_lines(projects):
         print(line)
@@ -1764,6 +1849,9 @@ def cmd_session_pick(args: argparse.Namespace, *, registry_path, engine_root, ke
         return 0
     if picked is None:
         print(f"There is no project called {choice!r} in the list above — nothing was started.")
+        return 2
+    if _folder_missing(picked):   # T-13486: refused before anything is started; the registry is not touched
+        print(f"The folder for {picked['name']} is missing ({picked['path']}) — nothing was started.")
         return 2
     print(f"Entering {picked['name']} — {picked['path']}")
     import sys as _sys
@@ -2039,23 +2127,25 @@ def _handoff_age(written, now) -> str:
 HANDOFF_START_ECHO_MAX = 5
 
 
-def handoff_start_echo_lines(repo_root, *, split_frontmatter_text, now, cli_form) -> list:
+def handoff_start_echo_lines(repo_root, *, split_frontmatter_text, now) -> list:
     """SPEC-1004 §4 §Session-start delivery (T-13251): the interactive Controller's start echo — the open
-    count + up to 5 newest `H-N «title» (<age>)` + the `session handoff list` pointer. Report-only and
-    SUPPRESSED-WHEN-EMPTY ([] when nothing is open). Read-only through THE shared loader: never writes,
-    renames, takes or emits; a malformed / symlinked entry is skipped (only counted), never followed."""
+    count + up to 5 newest `H-N «title» (<age>)`. Owner-cued SHOW-AND-WAIT (T-13503): the head says a
+    hand-off is taken only on the person's «берём H-N» and the block carries no runnable command — the
+    list / take / drop verbs are not a startup step. SUPPRESSED-WHEN-EMPTY ([] when nothing is open).
+    Read-only through THE shared loader: never writes, renames, takes or emits; a malformed / symlinked
+    entry is skipped (only counted), never followed."""
     entries, invalid = load_handoff_entries(handoff_store_dir(repo_root),
                                             split_frontmatter_text=split_frontmatter_text)
     if not entries:
         return []
     newest = sorted(entries, key=lambda e: e["n"], reverse=True)[:HANDOFF_START_ECHO_MAX]
-    head = (f"hand-offs: {len(entries)} open — newest {len(newest)} below; full list + take/drop: "
-            f"`{cli_form} session handoff list`")
+    head = (f"hand-offs: {len(entries)} open — newest {len(newest)} below; take one only when the person "
+            f"says «берём H-N»")
     if invalid:
         head += f" · {len(invalid)} invalid store entr{'y' if len(invalid) == 1 else 'ies'} skipped"
     # A hand-placed file's title is collapsed to one line, so it cannot inject extra echo lines.
-    return [head] + [f"  {e['id']} «{' '.join(e['title'].split())}» ({_handoff_age(e['written'], now)})"
-                     for e in newest]
+    rows = [f"  {e['id']} «{' '.join(e['title'].split())}» ({_handoff_age(e['written'], now)})" for e in newest]
+    return [head] + [no_runnable_cli(r) for r in rows]
 
 
 def _handoff_surface_invalid(invalid, sys_stderr) -> None:
@@ -2137,9 +2227,37 @@ def _handoff_write_file(dfd: int, name: str, content: str, *, file_mode: int = 0
         raise
 
 
+def _handoff_author_watcher_report(author_ref, _live_watchers) -> "tuple[list, str | None]":
+    """T-13539 — the lines `session handoff take` prints about the watchers the hand-off's AUTHOR
+    session armed that are still live: `(stdout_lines, problem)`. One line per live watcher, none when
+    there is none. REPORT-ONLY: it reads, it never signals, ends or takes over a watcher. NEVER raises —
+    the take has already happened when this runs — and an UNANSWERED read comes back as `problem`
+    (a sentence for stderr), never as a silent «none»."""
+    if _live_watchers is None or not author_ref:
+        return [], None
+    try:
+        from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy, leaf-order
+        live, unanswered = _live_watchers(author_ref)
+        if unanswered is not None:
+            return [], (f"session handoff take: the live watchers of the hand-off author's session "
+                        f"{author_ref} could NOT be listed ({unanswered}) — one may still be running; "
+                        f"a duplicate `dispatch --watch` over its tasks names it if so")
+        lines = []
+        for row in live or []:
+            d = row.get("data") or {}
+            tasks = ", ".join(str(t) for t in (d.get("watched_tasks") or [])) or "(no task recorded)"
+            lines.append(f"watcher still live from the hand-off author's session: pid={d.get('pid')} "
+                         f"over {tasks} — {_dispatch._watch_holder_text(row)} (report-only: it is not "
+                         f"this session's, and nothing here ends it or takes it over)")
+        return lines, None
+    except Exception as exc:   # noqa: BLE001 — report-only; the take is already done and must stand
+        return [], (f"session handoff take: the live watchers of the hand-off author's session "
+                    f"{author_ref} could NOT be listed ({exc!r}) — one may still be running")
+
+
 def cmd_session_handoff(args, *, REPO_ROOT, _die, _resolve_session_ref, _append_event,
                         split_frontmatter_text, redact_secrets, alloc, state_dump, worker_context: bool,
-                        _stdin=None, _now=None) -> None:
+                        _stdin=None, _now=None, _live_watchers=None) -> None:
     """`session handoff write|list|take|drop` (SPEC-1004 §4). Refused in a dispatched-worker context;
     every verb resolves the strict fail-closed SPEC-0137 identity FIRST (absent/ambiguous → refused, no
     file, no row). Writes only `<git-common-dir>/yitc/handoffs/` — no worktree needed."""
@@ -2201,6 +2319,14 @@ def cmd_session_handoff(args, *, REPO_ROOT, _die, _resolve_session_ref, _append_
                       {"id": hid, "sha256": digest}, session_ref=ref)
         if action == "drop":
             print(f"{hid} удалена")
+        else:
+            # T-13539 — AFTER the take is complete (body printed, file gone, row written), so nothing
+            # here can fail or alter it: name the watchers the author's session left running.
+            _lines, _problem = _handoff_author_watcher_report(entry.get("author_session_ref"), _live_watchers)
+            for _ln in _lines:
+                print(_ln)
+            if _problem:
+                print(_problem, file=_sys.stderr)
         return
 
     if action != "write":

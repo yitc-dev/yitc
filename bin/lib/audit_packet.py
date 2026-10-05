@@ -167,6 +167,17 @@ _PACKET_KEEP_TAIL_PREFIXES = (
     "### Adoption evidence",
 )
 
+# T-13538 — the `### Stage-6 test evidence` section's OWN budget. The heading is in
+# `_PACKET_PROTECTED_PREFIXES`, so `_bound_packet_total` never trims it: whatever is rendered there
+# has to bound itself, on the BYTE axis, through the one budget primitive (`_keep_within_budget`).
+# The segment budgets plus the fixed marker / note text sum to under STAGE6_SECTION_MAX_BYTES, which
+# `stage6_evidence_section` also enforces on the assembled whole.
+STAGE6_MAX_ROWS = 10                     # rows shown, the latest included; older ones are counted, not shown
+STAGE6_EARLIER_ROW_MAX_BYTES = 700       # one earlier row = one line (ts + evidence)
+STAGE6_LATEST_EVIDENCE_MAX_BYTES = 10_000
+STAGE6_LATEST_ACCEPTANCE_MAX_BYTES = 6_000
+STAGE6_SECTION_MAX_BYTES = 32_000
+
 
 # ---------------------------------------------------------------------------
 # INJECTS — per mover, the keyword-only names its spliced signature gained (generated with
@@ -192,6 +203,7 @@ INJECTS = {
                                           "_md_cell", "_passes_recorded", "parse_resolution_note"),
     "delta_discipline_block": (),
     "build_audit_prompt": ("BASE_PASS1_SURVEY_CLAUSE", "PROTOTYPE_PRE_OVERLAY", "_bound_packet_total",
+                           "_keep_within_budget",   # T-13538: the Stage-6 section bounds itself
                            "_format_adoption_evidence_lines", "_format_collector_shape_note",
                            "_format_monotonic_reaudit_section", "_format_sandbox_evidence_exclusion_note",
                            "_format_type_optin_exclusion_note", "_format_window_exclusion_note",
@@ -365,6 +377,23 @@ def _format_type_optin_exclusion_note(excluded_types) -> str:
     )
 
 
+def packet_optin_exclusion_line(excluded_types) -> str:
+    """T-13508 (GitHub intake, issue #10) — the ONE LINE `audit post` prints (stderr) naming the task-tied
+    event types the packet EXCLUDED by the card opt-in. The in-packet note above tells the AUDITOR;
+    until this line nothing told the person RUNNING the audit, who is the one able to act on it.
+
+    Same input as `_format_type_optin_exclusion_note` (the set the packet builder collected on its
+    single pass), same emptiness rule: "" for an empty/absent set, so a run with nothing excluded
+    prints nothing. Report-only — no verdict, gate, exit code or counted set reads it."""
+    types = sorted(t for t in (excluded_types or ()) if t)
+    if not types:
+        return ""
+    return ("# audit packet: task-tied event type(s) EXCLUDED from the evidence section — the card's "
+            "acceptance does not name them (T-10708 / SPEC-0168 rule 7): " + ", ".join(types)
+            + ". Rows of these types were NOT shown to the auditor; to have them rendered, name the "
+              "type in the card's acceptance text.")
+
+
 def _format_sandbox_evidence_exclusion_note(excluded) -> str:
     """T-12454 — the REPORT-ONLY note naming each sandbox lifecycle row the fold EXCLUDED, with its
     reason (the X-0686 loud-exclusion shape): a dangling `evidence_ref` or an `ok: false` run must never
@@ -381,6 +410,96 @@ def _format_sandbox_evidence_exclusion_note(excluded) -> str:
         lines.append(f"- `{ev.get('type')}` @ {ev.get('ts')} (evidence_ref: {d.get('evidence_ref')!r}) — {reason}")
     lines.append("Do NOT read such a row as proof: a criterion it would prove stays unproven until a row passes.")
     return "\n".join(lines)
+
+
+def stage6_rows_since_claim(rows, *, max_rows: int = STAGE6_MAX_ROWS):
+    """T-13538 — WHICH task-tied `tests_passed` rows the Stage-6 section shows.
+
+    `rows` are the task-tied `task_picked` + `tests_passed` rows in JOURNAL ORDER. The window opens
+    at the card's CURRENT claim — the LAST `task_picked` row — so a run recorded under an earlier
+    claim (a parked, discarded attempt) is not presented as this build's evidence. No claim row at
+    all means NO window and every row is in it (the T-12337 "None = no window" precedent). Journal
+    ORDER, not `ts`: the reader already returns the rows in append order, and a second ISO parser in
+    this leaf would be the drift CHARTER P1 F1 forbids.
+
+    Returns `(shown, omitted_older, pre_claim)`: the newest `max_rows` rows of the window, oldest
+    first; how many OLDER window rows the row bound dropped; how many rows precede the claim. The
+    two counts exist so the section can STATE what it does not show (SPEC-0165). Pure f(rows)."""
+    claim_at, tests = -1, []
+    for i, ev in enumerate(rows or ()):
+        if not isinstance(ev, dict):
+            continue
+        if ev.get("type") == "task_picked":
+            claim_at = i
+        elif ev.get("type") == "tests_passed":
+            tests.append((i, ev))
+    window = [ev for i, ev in tests if i > claim_at]
+    omitted_older = max(0, len(window) - max(1, int(max_rows)))
+    return window[omitted_older:], omitted_older, len(tests) - len(window)
+
+
+def stage6_evidence_section(shown, omitted_older: int, pre_claim: int, *, churn_note: str = "",
+                            yaml_dump_block, keep_within_budget) -> str:
+    """T-13538 — the body of `### Stage-6 test evidence`: every shown row, oldest first, the WHOLE
+    section bounded in UTF-8 BYTES.
+
+    Earlier rows are one line each (`- @ <ts>: <evidence>`); the LATEST row keeps the three-part form
+    this section always had (header, `evidence:`, `acceptance-at-test:`), so a card with one row that
+    fits its budget renders BYTE-IDENTICAL to the pre-T-13538 section. Every segment is bounded
+    through `keep_within_budget` — the ONE budget-accounting primitive (bytes, multibyte-safe) — and
+    every cut carries a visible marker, because this heading is PROTECTED from the total packet bound
+    and an unmarked omission reads as content that was never there.
+
+    A VIEW, never a trigger (lessons/scope-the-trigger-not-the-view): nothing here is counted
+    evidence — the rows never enter `evidence_sink` or any gate. Pure f(rows); no journal, no I/O."""
+    def _b(text: str) -> int:
+        return len(text.encode("utf-8", "replace"))
+
+    def _bounded(label: str, text: str, max_bytes: int) -> str:
+        if _b(text) <= max_bytes:
+            return text                                  # untouched: the byte-identical path
+        lines = text.split("\n")
+        kept, kept_b, _cut = keep_within_budget(lines, len(lines), max_bytes)
+        return "\n".join(kept + [_packet_elision_marker(label, len(kept), len(lines), kept_b, _b(text) + 1)])
+
+    def _ts(ev) -> str:
+        ts = str(ev.get("ts"))
+        return ts if _b(ts) <= 64 else ts[:40]           # a journal `ts` is ~20 bytes; never unbounded
+
+    notes = ""
+    if pre_claim > 0:
+        notes = (f"\n\nNOTE (T-13538) — {pre_claim} task-tied `tests_passed` row"
+                 f"{'' if pre_claim == 1 else 's'} recorded BEFORE this task's current claim "
+                 f"{'is' if pre_claim == 1 else 'are'} EXCLUDED from this section: a run recorded under an\n"
+                 "earlier claim of the card is not this build's evidence. Excluded, not absent from the journal.")
+    if not shown:
+        return ("(no `tests_passed` event recorded for this task — verify Stage-6 evidence via the\n"
+                "shipped diff / commit context; its absence here is not itself a finding per D-0043)" + notes)
+    earlier, tp = list(shown[:-1]), shown[-1]
+    head = ""
+    if earlier or omitted_older > 0:
+        out = [f"task-tied `tests_passed` rows since this task's claim, oldest first — "
+               f"{len(shown) + omitted_older} recorded (T-13538). The LAST row is the latest and is rendered in full:"]
+        if omitted_older > 0:
+            out.append(f"… {omitted_older} older row(s) since the claim are not shown (row bound {STAGE6_MAX_ROWS}) — "
+                       "they EXIST in the journal; bounded here, it is NOT absent evidence")
+        for ev in earlier:
+            data = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+            evidence = " ".join(part.strip() for part in str(data.get("evidence")).splitlines() if part.strip())
+            out.append(_bounded(f"earlier tests_passed row @ {_ts(ev)}",
+                                f"- @ {_ts(ev)}: {evidence}", STAGE6_EARLIER_ROW_MAX_BYTES))
+        head = "\n".join(out) + "\n"
+    ev = tp.get("data") if isinstance(tp.get("data"), dict) else {}
+    latest = (f"recorded `tests_passed` event @ {_ts(tp)}:\n"
+              + _bounded("latest tests_passed evidence", f"evidence: {ev.get('evidence')}",
+                         STAGE6_LATEST_EVIDENCE_MAX_BYTES) + "\n"
+              + _bounded("latest tests_passed acceptance-at-test",
+                         f"acceptance-at-test: {yaml_dump_block(ev.get('acceptance') or [])}",
+                         STAGE6_LATEST_ACCEPTANCE_MAX_BYTES))
+    section = head + latest + (churn_note or "") + notes
+    # The belt: the segment budgets already sum under the section budget, but the whole is what the
+    # protected heading has to guarantee — so the assembled section is bounded once more, as a unit.
+    return _bounded("Stage-6 test evidence section", section, STAGE6_SECTION_MAX_BYTES - 400)
 
 
 def _format_window_exclusion_note(excluded_count: int) -> str:
@@ -1030,7 +1149,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                        activation_section=None,
                        readiness_sink=None, readiness_journal_silent: bool = False,
                        cross_evidence_section_for=None, p8_carrier_section_for=None,
-                       repo_root=None, cross_section_sink=None, BASE_PASS1_SURVEY_CLAUSE, PROTOTYPE_PRE_OVERLAY, _bound_packet_total, _format_adoption_evidence_lines, _format_collector_shape_note, _format_monotonic_reaudit_section, _format_sandbox_evidence_exclusion_note, _format_type_optin_exclusion_note, _format_window_exclusion_note, _merge_tie_ordering_note, class_id_vocabulary, decision_audit_prompt_parts, declared_deferred_probes_block, deferred_by_declaration_block, delta_discipline_block, land_emitted_named_evidence, on_decisions_packet_block, p8_carrier_ids_in_section, packet_readiness_section, packet_touch_reconciliation, packet_touch_section) -> str:
+                       repo_root=None, cross_section_sink=None, optin_excluded_sink=None, task_events_for=None, BASE_PASS1_SURVEY_CLAUSE, PROTOTYPE_PRE_OVERLAY, _bound_packet_total, _keep_within_budget, _format_adoption_evidence_lines, _format_collector_shape_note, _format_monotonic_reaudit_section, _format_sandbox_evidence_exclusion_note, _format_type_optin_exclusion_note, _format_window_exclusion_note, _merge_tie_ordering_note, class_id_vocabulary, decision_audit_prompt_parts, declared_deferred_probes_block, deferred_by_declaration_block, delta_discipline_block, land_emitted_named_evidence, on_decisions_packet_block, p8_carrier_ids_in_section, packet_readiness_section, packet_touch_reconciliation, packet_touch_section) -> str:
     """Construct codex prompt с V2 universal lens + per-stage overlay + task/decision context (D-0055).
     `focus` (T-0350, SPEC-0036 --focus): an owner/session question block appended AFTER the overlay+body
     — it never replaces the template/overlay; deterministic order: focus part precedes ## Extra context.
@@ -2052,17 +2171,23 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                 "with other docs/state. A genuine diff-drift or a truly-unmet acceptance criterion is\n"
                 "still RED — that judgement is unchanged; ONLY the expected closure-in-diff is exempted.\n"
             )
-        tp = latest_event_for(task.get("id"), "tests_passed")
-        if tp:
-            ev = tp.get("data") or {}
-            stage6 = (f"recorded `tests_passed` event @ {tp.get('ts')}:\n"
-                      f"evidence: {ev.get('evidence')}\n"
-                      f"acceptance-at-test: {yaml_dump_block(ev.get('acceptance') or [])}")
-            if churn_tie:
-                stage6 += _merge_tie_ordering_note(churn_tie)   # T-12718
+        # T-13538 — EVERY task-tied `tests_passed` row since the claim, not only the latest: the
+        # red-run rows a card records with `task test --evidence` are the differential half of its
+        # proof, and the auditor could not see them. ONE read (it replaces the single-row read, so
+        # the fold count is unchanged); a caller that injects no multi-row reader keeps the
+        # single-row view. `tp` stays the row rendered LAST and in full — the readiness block below
+        # reads it. A VIEW only: these rows never enter `evidence_sink` (the counted set).
+        if task_events_for is not None:
+            _s6_rows = list(task_events_for(task.get("id"), ("task_picked", "tests_passed")) or [])
         else:
-            stage6 = ("(no `tests_passed` event recorded for this task — verify Stage-6 evidence via the\n"
-                      "shipped diff / commit context; its absence here is not itself a finding per D-0043)")
+            _s6_one = latest_event_for(task.get("id"), "tests_passed")
+            _s6_rows = [_s6_one] if _s6_one else []
+        _s6_shown, _s6_omitted, _s6_pre_claim = stage6_rows_since_claim(_s6_rows)
+        tp = _s6_shown[-1] if _s6_shown else None
+        stage6 = stage6_evidence_section(
+            _s6_shown, _s6_omitted, _s6_pre_claim,
+            churn_note=_merge_tie_ordering_note(churn_tie) if (tp and churn_tie) else "",   # T-12718
+            yaml_dump_block=yaml_dump_block, keep_within_budget=_keep_within_budget)
         # Adoption / AC-probe evidence (T-0236 + T-0290 + T-0551): surface the task's diff-invisible
         # journal events HERE because events.jsonl is excluded from the audit diff (T-0219) — without
         # this the auditor cannot see an event-based AC probe. T-0290 broadens beyond the two P8 types
@@ -2110,6 +2235,13 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                         "product-class task a probe/state-check is the carrier instead. Its absence from the\n"
                         "DIFF is expected (events.jsonl is excluded per T-0219) and is not itself a finding.)")
         adoption += _format_type_optin_exclusion_note(excluded_types)
+        # T-13508 — hand the SAME set to the caller, so `audit post` can name the excluded types in
+        # its own output (the `evidence_sink` shape: caller-supplied, guarded, observation only).
+        if optin_excluded_sink is not None:
+            try:
+                optin_excluded_sink.extend(sorted(t for t in excluded_types if t))
+            except Exception:      # noqa: BLE001 — observation only; an audit never fails on capture
+                pass
         adoption += _format_sandbox_evidence_exclusion_note(sandbox_excluded)
         # T-12337 — and the sibling exclusion note for the card-window narrowing (SPEC-0165):
         # a shrunken section must never read like an empty corpus. Renders "" when nothing

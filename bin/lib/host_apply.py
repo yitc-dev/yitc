@@ -556,8 +556,10 @@ def cmd_host_apply(args: argparse.Namespace, *, REPO_ROOT, REGISTRY_PATH, _appen
     # the SAME grammar + lookup the ceiling decision resolves through (audit_ceiling, SPEC-0204
     # rule 2). No «must precede» bound (T-13111). Still BEFORE the carrier read or any write.
     directive_row = None
+    directive_rows = []
     if confirm and confirmed_by:
-        _hit, _kind = _locate_owner_directive(_owner_directive_rows(), confirmed_by)
+        directive_rows = _owner_directive_rows()
+        _hit, _kind = _locate_owner_directive(directive_rows, confirmed_by)
         if _hit is None:
             _die(f"hostapply: --confirmed-by {confirmed_by!r} does not resolve to an owner_directive row "
                  f"in this project's journal ({_kind}). SPEC-0111 §1 requires the apply to name the owner "
@@ -612,8 +614,26 @@ def cmd_host_apply(args: argparse.Namespace, *, REPO_ROOT, REGISTRY_PATH, _appen
     # The resolved directive must NAME this apply's target (T-13206, SPEC-0111 §1) — the card id or a
     # host file being changed — else a generic owner line authorizes any apply. Targets are known only
     # now; still BEFORE the include-set probe, any backup or any write.
+    # A `ts` locator is second-granular, so several owner_directive rows may share it: the row this
+    # apply is judged against is chosen by THIS axis among them, never by journal order (T-13460) —
+    # exactly one names the target (same words captured twice count once) -> that row; several in
+    # different words -> refused, each named; none -> the refusal below, unchanged.
     if directive_row is not None:
         target_paths = [str(t) for _s, t in plan]
+        _picked = {}
+        _hit, _kind = _locate_owner_directive(
+            directive_rows, confirmed_by, diag=_picked,
+            covers=lambda r: _directive_names_target(r, tid, target_paths))
+        if _hit is None:
+            _cands = "; ".join(f"[session {c.get('session_ref') or 'unknown'}] «{c.get('words')}»"
+                               for c in _picked.get("candidates") or ())
+            _die(f"hostapply: --confirmed-by {confirmed_by!r} is AMBIGUOUS ({_kind}) — several "
+                 f"owner_directive rows share that second and each names this apply's target (the "
+                 f"card {tid} or the host target {', '.join(target_paths)}) in different words, so "
+                 f"the locator names no single directive: {_cands}. A `ts` locator is "
+                 f"second-granular: cite an owner_directive row that names the target and is alone "
+                 f"in its second, or ask the owner. No backup or write performed; old config live.")
+        directive_row = _hit[1]
         if not _directive_names_target(directive_row, tid, target_paths):
             _die(f"hostapply: --confirmed-by {confirmed_by!r} resolves to an owner_directive row that does "
                  f"not name this apply's target — it names neither the card {tid} nor the host target "

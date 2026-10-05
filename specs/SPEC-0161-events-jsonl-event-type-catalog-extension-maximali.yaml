@@ -931,7 +931,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ ·\n`audit_post_completed.final_verdict` · `audit_pre_completed.final_verdict`\
   \ ·\n`audit_yamls_archived.nontask_swept|tasks_swept` ·\n`authorization_decided.identity_source|rights_held`\
   \ ·\n`bg_dispatch_halted.confirmed_death_basis|log_tail|redispatchable` ·\n`bg_dispatch_launched.source_tier|land_regime|session_id_argv`\
-  \ · `canary_backstop_ran.verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|peak_rss_kb`\
+  \ · `canary_backstop_ran.verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|content_sha|peak_rss_kb`\
   \ ·\n`consumer_read_evidence.evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n`\
   \ ·\n`deviation_captured.evidence_events` · `dispatch_outcome.land_sha` ·\n`draft_closed.reverse_linked`\
   \ · `error_reopened.reopen_count` ·\n`error_residual_recurrence.reopen_count` ·\
@@ -986,13 +986,23 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ no parseable verdict). No `refused` value is written:\nnothing in-process tells\
   \ an auditor refusal from a malformed response, so naming it would be\ninvented\
   \ precision. Absent on every non-ABORT row. CANDIDATE: written, no reader branches\
-  \ on it.\n`external_audit_completed.findings` (below) is carried on a YELLOW task\
-  \ record as on a RED one.\n\n**SIX MORE PAIRS NAMED FORWARD — the consult no-answer\
-  \ + packet-bound keys (2026-09-07).**\nNamed here BEFORE any row carrying them has\
-  \ reached `main`, on the same terms as the block\nbelow (free to name, not added\
-  \ to the count). Three ride `external_audit_completed` from the\n<workshop-spec>\
-  \ row-0a no-answer classification — `external_audit_completed.no_answer` (bool:\
-  \ the round\nreturned NO PAYLOAD, so it is not a malformed response) · `external_audit_completed.no_answer_count`\n\
+  \ on it.\n**ONE MORE KEY, BESIDE IT :** `external_audit_completed.abort_cause_text`\
+  \ — on an ABORT\ntask-gate row whose auditor EXITED NONZERO, the failure note built\
+  \ from that run's stderr: the\nsame text the saved verdict record's `notes` begin\
+  \ with for that pass, which survives there only\nuntil the next pass rewrites that\
+  \ one-per-(task, stage) file. Free text, bounded as built by the\nexisting failure-note\
+  \ cap; the journal's write-time credential redaction (SPEC-0163 §4e) applies\nto\
+  \ it as to every row, so where a credential-shaped span was replaced the row text\
+  \ differs from\nthe record's by that placeholder. Absent on every non-ABORT row\
+  \ AND on an ABORT whose auditor\nexited 0 (no stderr-built cause exists; `abort_cause:\
+  \ malformed` names that case). CANDIDATE:\nwritten, no reader branches on it.\n\
+  `external_audit_completed.findings` (below) is carried on a YELLOW task record as\
+  \ on a RED one.\n\n**SIX MORE PAIRS NAMED FORWARD — the consult no-answer + packet-bound\
+  \ keys (2026-09-07).**\nNamed here BEFORE any row carrying them has reached `main`,\
+  \ on the same terms as the block\nbelow (free to name, not added to the count).\
+  \ Three ride `external_audit_completed` from the\n<workshop-spec> row-0a no-answer\
+  \ classification — `external_audit_completed.no_answer` (bool: the round\nreturned\
+  \ NO PAYLOAD, so it is not a malformed response) · `external_audit_completed.no_answer_count`\n\
   (int: consecutive no-answers, reset to 0 by any round that answers) ·\n`external_audit_completed.no_answer_route`\
   \ (`auditor-unavailable` on the SECOND consecutive one, else\nabsent). Three ride\
   \ `audit_prompt_sent` from the SOFT, RECORDED consult packet bound —\n`audit_prompt_sent.packet_bytes`\

@@ -118,28 +118,36 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ the leg still runs\nand still yields the complete failing set the SPEC-0077 §3a\
   \ grant matches entry by entry; only WHERE\nit runs is this spec's business. The\
   \ step-4a waive-coverage preflight then reads that ONE request's\nenvelope instead\
-  \ of spawning a second, local pinned run.\n**The Stage-6 interim split is LIFTED\
-  \ — the paragraph above is the WHOLE rule again.**\n carried an interim clause here\
-  \ keeping a Stage-6 pass (`task test --run`) LOCAL with the\nnamed reason `stage6-local-until-`,\
-  \ because the box-side lease was keyed by LEG ALONE and\nan overlapping Stage-6\
-  \ run and land collided (INDETERMINATE, class `digest-mismatch`). Its single\nnamed\
-  \ lift condition is MET — shipped the request-keyed lease + the per-request leg\n\
-  worktree (rule 4) — so the clause and the `venue_decision` branch implementing it\
-  \ are DELETED,\nand a Stage-6 pass routes like every other kernel pass. It differs\
-  \ only in the PRIORITY its\ncaller asks for (rule 5's lower-priority arm: `YITC_VENUE_STAGE6_WORKERS_FRACTION`\
-  \ of the derived W (default 0.5 — the halving this clause described while the width\
-  \ was a literal at the route seam; both halves of the arm are machine-scoped knobs\
-  \ since) + the `YITC_VENUE_STAGE6_NICE` nice a land\nleg never takes), never in\
-  \ WHERE it runs — which is what makes it safe beside a land and is the\npoint of\
-  \ routing it at all (owner directive : the land carries the system's\nthroughput,\
-  \ a background worker's Stage-6 pass can wait, and the local host stops carrying\
-  \ it).\n\n**The one per-pass cut, and it reads the RESOLVED breadth — never a CLI\
-  \ flag.** The\nparagraph above says no COST threshold decides per pass, and that\
-  \ is unchanged. The single cut that\ndoes exist is about SIZE OF THE PASS, not cost\
-  \ of the box: a genuinely NARROWED SPEC-0181 selection\nstays LOCAL (`venue_decision`\
-  \ reason `small-selection`), per the owner directive of\n — a small selection is\
-  \ cheaper local than it is to ship. WHAT COUNTS AS\nNARROWED is the SPEC-0181 ladder's\
-  \ OWN verdict (`governed_selection[\"governed\"]`), resolved\nONCE per pass through\
+  \ of spawning a second, local pinned run.\n**A land whose candidate leg is CREDITED\
+  \ has no candidate pass to route (ADDITIVE).** When a\nland takes its candidate-leg\
+  \ verdict from its task's Stage-6 run (SPEC-0065 §Bound), that verdict was\nproduced\
+  \ by the Stage-6 pass — itself a kernel pass routed under this rule — and no candidate\
+  \ pass\nexists at land. Such a land ships the pinned leg ALONE when that leg is\
+  \ due, and routes nothing when\nit is not; the rule-8 local-probe files, being candidate\
+  \ files, are not re-run either. Everything\nabout the routed pinned leg itself (rule\
+  \ 3's identity, rule 4's envelope, rule 7's INDETERMINATE) is\nunchanged.\n**The\
+  \ Stage-6 interim split is LIFTED — the paragraph above is the WHOLE rule again.**\n\
+  \ carried an interim clause here keeping a Stage-6 pass (`task test --run`) LOCAL\
+  \ with the\nnamed reason `stage6-local-until-`, because the box-side lease was keyed\
+  \ by LEG ALONE and\nan overlapping Stage-6 run and land collided (INDETERMINATE,\
+  \ class `digest-mismatch`). Its single\nnamed lift condition is MET — shipped the\
+  \ request-keyed lease + the per-request leg\nworktree (rule 4) — so the clause and\
+  \ the `venue_decision` branch implementing it are DELETED,\nand a Stage-6 pass routes\
+  \ like every other kernel pass. It differs only in the PRIORITY its\ncaller asks\
+  \ for (rule 5's lower-priority arm: `YITC_VENUE_STAGE6_WORKERS_FRACTION` of the\
+  \ derived W (default 0.5 — the halving this clause described while the width was\
+  \ a literal at the route seam; both halves of the arm are machine-scoped knobs since)\
+  \ + the `YITC_VENUE_STAGE6_NICE` nice a land\nleg never takes), never in WHERE it\
+  \ runs — which is what makes it safe beside a land and is the\npoint of routing\
+  \ it at all (owner directive : the land carries the system's\nthroughput, a background\
+  \ worker's Stage-6 pass can wait, and the local host stops carrying it).\n\n**The\
+  \ one per-pass cut, and it reads the RESOLVED breadth — never a CLI flag.** The\n\
+  paragraph above says no COST threshold decides per pass, and that is unchanged.\
+  \ The single cut that\ndoes exist is about SIZE OF THE PASS, not cost of the box:\
+  \ a genuinely NARROWED SPEC-0181 selection\nstays LOCAL (`venue_decision` reason\
+  \ `small-selection`), per the owner directive of\n — a small selection is cheaper\
+  \ local than it is to ship. WHAT COUNTS AS\nNARROWED is the SPEC-0181 ladder's OWN\
+  \ verdict (`governed_selection[\"governed\"]`), resolved\nONCE per pass through\
   \ the single selector home and READ by the routing decision — never the\n`--full`\
   \ CLI flag, and never a file-count threshold of routing's own. This is normative\
   \ because the\ntwo differ exactly where it matters: the ladder FAILS CLOSED TO THE\
@@ -890,7 +898,7 @@ implements_signature:
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
   bin/lib/remote_verify.py#venue_stage6_max_concurrent: d6c56faa11bf1eab22102d9c5ea48426418bff31c1232e73f2ed24f2c3f6ce40
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
-  bin/lib/task.py#cmd_task_test: 45c6c68be2d815c105861412ddec31781fbf3ec25cb03183e1d0eed2ab4d4dab
+  bin/lib/task.py#cmd_task_test: 55a894991520c4547cb3476d9d575f37585e354ed12da0cb4228102f39e1462e
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 4bd62b68823f11da7089d91eb320d4b315b41f6da2a5d4a2499a0a1970c033f0
@@ -903,4 +911,4 @@ implements_signature:
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
   bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: d3e9131a4ebf3b9205cfe8bed3d73e96c5c6ddbbfaabb8daa0191d329e4cfc77
+  bin/lib/worktree.py#_land_integrate: a71560cc40df1f20ca819c3be75f8e4adac4da190dfc7ce9230f1af0f450c0fe
