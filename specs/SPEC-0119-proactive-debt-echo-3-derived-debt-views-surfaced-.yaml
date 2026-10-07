@@ -1334,73 +1334,74 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \    (`land_completed.data.verify_metrics.per_file_durations`). It reports what\
   \ MOVED in the recorded\n    slow tail between the latest land and the median of\
   \ the previous window: a file that newly\n    ENTERED the recorded slowest set,\
-  \ or a member that GREW materially.\n    **THE DELTA, NEVER THE LEVEL — this is\
-  \ the whole rule, not an implementation detail.** A slowest\n    set EXISTS BY DEFINITION,\
-  \ so a view that printed the set itself would print on EVERY land, and a\n    surface\
-  \ that always prints trains its reader to skip it — the same silent failure, reached\
-  \ by\n    another route, as having no surface at all. Reporting only the change\
-  \ is what makes\n    SUPPRESSED-WHEN-CLEAN a real property here rather than a decoration:\
-  \ clean means no new entrant\n    and no material growth, and clean prints NOTHING.\
-  \ The current tail stays available ON DEMAND from\n    the latest land's own record,\
-  \ exactly as the debt views themselves are available on demand.\n    **NO ABSOLUTE\
-  \ BAR, and the rejected one is named.** The original design anchored to the 300s\n\
-  \    per-file verify timeout (SPEC-0071). That is an ABORT bound, not a health target:\
-  \ it makes a file\n    interesting only once it is near failing a land (135.7s reads\
-  \ as a comfortable 45% while being a\n    bad cost for one test), and it goes silent\
-  \ entirely once everything sits under it — precisely\n    when durations creep back\
-  \ up unwatched. A relative reading decrees nothing and self-calibrates.\n    The\
-  \ 300s bound stays what it already is: the hard abort.\n    **ENTRANT IS DEFINED\
-  \ BY MEMBERSHIP, never by \"unseen anywhere before\".** A file counts as an\n  \
-  \  entrant when it is absent from the BASELINE SLOWEST-SET MEMBERSHIP — the union\
-  \ of the prior\n    window's recorded names. An EXISTING, long-known test file CLIMBING\
-  \ INTO the slow tail is the\n    primary way a creep first shows itself; an \"absent\
-  \ from all duration data\" reading would miss\n    exactly that case, and it is\
-  \ the reading the audit-pre of the authoring task rejected.\n    **THE BASELINE\
-  \ IS A MEDIAN OF A WINDOW, not the previous land.** Comparing against a single prior\n\
-  \    run fires on ordinary run-to-run jitter, and a view that fires on noise is\
-  \ skipped within a week —\n    taking its next real signal with it. The median over\
-  \ the window is the noise-robust reading and,\n    on a genuinely unchanged series,\
-  \ is exactly the unchanged value, so the clean case stays silent.\n    GROWTH must\
-  \ clear TWO bars together: a RELATIVE one (scale-free, so a slow file and a fast\
-  \ one are\n    judged alike) and an ABSOLUTE ms one (so a small file's wobble stays\
-  \ mute).\n    **ONLY `passed` OBSERVATIONS COMPARE.** A file that failed, timed\
-  \ out, was killed by fail-fast or\n    never launched exits early or is capped,\
-  \ so its wall is not comparable across lands; scoring it\n    would manufacture\
-  \ growth and shrinkage out of test OUTCOMES. Such an entry scores on neither side.\n\
-  \    This hides nothing — record still carries every outcome; this view's subject\
-  \ is duration\n    comparability, not test health.\n    **THE EVIDENCE FLOOR (rule\
-  \ 3 applied).** Below a minimum number of prior records the view says\n    NOTHING:\
-  \ with one or two lands there is no previous state to have changed from, and every\
-  \ file\n    would read as an entrant. A freshly-started series therefore stays silent\
-  \ BY DESIGN — the state\n    of the real journal immediately after.\n    **THE FAIL\
-  \ DIRECTION IS TOWARD SILENCE — and it INVERTS rule 18's, deliberately.** Rule 18\
-  \ fails\n    toward VISIBLE because a lost halt loses a decision someone is owed.\
-  \ Here the subject is an\n    advisory trend, and a FABRICATED change is worse than\
-  \ a missed one: a creep watch that cries wolf\n    is unread within a week. So every\
-  \ uncertainty — too little history, an unparseable record, a\n    non-comparable\
-  \ outcome — resolves to saying nothing.\n    **NOT A CADENCE (SPEC-0142 §4).** This\
-  \ stands up no recurring obligation and owns no trigger of\n    its own: it is computed\
-  \ inline at seams a controller already passes, and computes nothing when\n    nobody\
-  \ passes one. NO fourth cadence layer, no cadence store, no registry. The rejected\n\
-  \    alternative was a nightly check, and the reason is the rule's own subject:\
-  \ a nightly report is\n    read only if someone opens it, so its failure is indistinguishable\
-  \ from a quiet week.\n    **WHAT IT REPLACES (P1 F3, named).** The REACTIVE watch\
-  \ on test duration — a followup armed to\n    return only once a test ACTUALLY crosses\
-  \ the timeout, i.e. after a land has already aborted on\n    it. That trigger becomes\
-  \ redundant the moment this line ships, and is dropped with this rule.\n    It rides\
-  \ rules 2/3/5 verbatim — the SAME seams (session-start / `debt` re-fold) from\n\
-  \    the ONE host residue, SUPPRESSED-WHEN-CLEAN, REPORT-ONLY, never a gate: no\
-  \ verb gains a refusal on\n    account of this row and no exit code moves. NO new\
-  \ store / event type / verb / env knob / seam —\n    one more OPTIONAL injected\
-  \ collaborator reading a payload that already exists (P1 F1/F2). A repo\n    whose\
-  \ journal carries no such series ⇒ count 0 ⇒ suppressed, so history is never retro-charged.\n\
-  21. **The NON-TERMINAL PLAN CENSUS.** An OPTIONAL injected report-only view\n  \
-  \  (`debt.nonterminal_plan_census`, collaborator of `_render_debt_echo`) over `plans/*.md`\n\
-  \    frontmatter: how many plans sit in each NON-TERMINAL stage of the plan FSM\n\
-  \    (draft/specs/trial/accepted/decomposition/executing/postcheck), rendered as\
-  \ ONE line naming the\n    per-stage counts.\n    **THE GAP IT CLOSES.** Plans are\
-  \ the one tracked work class NO seam surfaced. The picker reads\n    `tasks/` ONLY\
-  \ and no sibling view here opens `plans/`, so a plan parked mid-FSM goes quiet\n\
+  \ or a member that GREW materially. Its head names the\n    largest growth in seconds\
+  \ (file, both walls) for the rule-40 row.\n    **THE DELTA, NEVER THE LEVEL — this\
+  \ is the whole rule, not an implementation detail.** A slowest\n    set EXISTS BY\
+  \ DEFINITION, so a view that printed the set itself would print on EVERY land, and\
+  \ a\n    surface that always prints trains its reader to skip it — the same silent\
+  \ failure, reached by\n    another route, as having no surface at all. Reporting\
+  \ only the change is what makes\n    SUPPRESSED-WHEN-CLEAN a real property here\
+  \ rather than a decoration: clean means no new entrant\n    and no material growth,\
+  \ and clean prints NOTHING. The current tail stays available ON DEMAND from\n  \
+  \  the latest land's own record, exactly as the debt views themselves are available\
+  \ on demand.\n    **NO ABSOLUTE BAR, and the rejected one is named.** The original\
+  \ design anchored to the 300s\n    per-file verify timeout (SPEC-0071). That is\
+  \ an ABORT bound, not a health target: it makes a file\n    interesting only once\
+  \ it is near failing a land (135.7s reads as a comfortable 45% while being a\n \
+  \   bad cost for one test), and it goes silent entirely once everything sits under\
+  \ it — precisely\n    when durations creep back up unwatched. A relative reading\
+  \ decrees nothing and self-calibrates.\n    The 300s bound stays what it already\
+  \ is: the hard abort.\n    **ENTRANT IS DEFINED BY MEMBERSHIP, never by \"unseen\
+  \ anywhere before\".** A file counts as an\n    entrant when it is absent from the\
+  \ BASELINE SLOWEST-SET MEMBERSHIP — the union of the prior\n    window's recorded\
+  \ names. An EXISTING, long-known test file CLIMBING INTO the slow tail is the\n\
+  \    primary way a creep first shows itself; an \"absent from all duration data\"\
+  \ reading would miss\n    exactly that case, and it is the reading the audit-pre\
+  \ of the authoring task rejected.\n    **THE BASELINE IS A MEDIAN OF A WINDOW, not\
+  \ the previous land.** Comparing against a single prior\n    run fires on ordinary\
+  \ run-to-run jitter, and a view that fires on noise is skipped within a week —\n\
+  \    taking its next real signal with it. The median over the window is the noise-robust\
+  \ reading and,\n    on a genuinely unchanged series, is exactly the unchanged value,\
+  \ so the clean case stays silent.\n    GROWTH must clear TWO bars together: a RELATIVE\
+  \ one (scale-free, so a slow file and a fast one are\n    judged alike) and an ABSOLUTE\
+  \ ms one (so a small file's wobble stays mute).\n    **ONLY `passed` OBSERVATIONS\
+  \ COMPARE.** A file that failed, timed out, was killed by fail-fast or\n    never\
+  \ launched exits early or is capped, so its wall is not comparable across lands;\
+  \ scoring it\n    would manufacture growth and shrinkage out of test OUTCOMES. Such\
+  \ an entry scores on neither side.\n    This hides nothing — record still carries\
+  \ every outcome; this view's subject is duration\n    comparability, not test health.\n\
+  \    **THE EVIDENCE FLOOR (rule 3 applied).** Below a minimum number of prior records\
+  \ the view says\n    NOTHING: with one or two lands there is no previous state to\
+  \ have changed from, and every file\n    would read as an entrant. A freshly-started\
+  \ series therefore stays silent BY DESIGN — the state\n    of the real journal immediately\
+  \ after.\n    **THE FAIL DIRECTION IS TOWARD SILENCE — and it INVERTS rule 18's,\
+  \ deliberately.** Rule 18 fails\n    toward VISIBLE because a lost halt loses a\
+  \ decision someone is owed. Here the subject is an\n    advisory trend, and a FABRICATED\
+  \ change is worse than a missed one: a creep watch that cries wolf\n    is unread\
+  \ within a week. So every uncertainty — too little history, an unparseable record,\
+  \ a\n    non-comparable outcome — resolves to saying nothing.\n    **NOT A CADENCE\
+  \ (SPEC-0142 §4).** This stands up no recurring obligation and owns no trigger of\n\
+  \    its own: it is computed inline at seams a controller already passes, and computes\
+  \ nothing when\n    nobody passes one. NO fourth cadence layer, no cadence store,\
+  \ no registry. The rejected\n    alternative was a nightly check, and the reason\
+  \ is the rule's own subject: a nightly report is\n    read only if someone opens\
+  \ it, so its failure is indistinguishable from a quiet week.\n    **WHAT IT REPLACES\
+  \ (P1 F3, named).** The REACTIVE watch on test duration — a followup armed to\n\
+  \    return only once a test ACTUALLY crosses the timeout, i.e. after a land has\
+  \ already aborted on\n    it. That trigger becomes redundant the moment this line\
+  \ ships, and is dropped with this rule.\n    It rides rules 2/3/5 verbatim — the\
+  \ SAME seams (session-start / `debt` re-fold) from\n    the ONE host residue, SUPPRESSED-WHEN-CLEAN,\
+  \ REPORT-ONLY, never a gate: no verb gains a refusal on\n    account of this row\
+  \ and no exit code moves. NO new store / event type / verb / env knob / seam —\n\
+  \    one more OPTIONAL injected collaborator reading a payload that already exists\
+  \ (P1 F1/F2). A repo\n    whose journal carries no such series ⇒ count 0 ⇒ suppressed,\
+  \ so history is never retro-charged.\n21. **The NON-TERMINAL PLAN CENSUS.** An OPTIONAL\
+  \ injected report-only view\n    (`debt.nonterminal_plan_census`, collaborator of\
+  \ `_render_debt_echo`) over `plans/*.md`\n    frontmatter: how many plans sit in\
+  \ each NON-TERMINAL stage of the plan FSM\n    (draft/specs/trial/accepted/decomposition/executing/postcheck),\
+  \ rendered as ONE line naming the\n    per-stage counts.\n    **THE GAP IT CLOSES.**\
+  \ Plans are the one tracked work class NO seam surfaced. The picker reads\n    `tasks/`\
+  \ ONLY and no sibling view here opens `plans/`, so a plan parked mid-FSM goes quiet\n\
   \    indefinitely — most concretely one sitting in `postcheck`, the real-data soak\
   \ that is supposed to\n    PROVE the change, which is unfinished work with no reading\
   \ moment at all. This line is that\n    moment. The per-STAGE split is load-bearing,\
@@ -3805,51 +3806,48 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ ECHO RENDER SHAPE — a compact TABLE at the two echo seams, the long text ONE VERB\n\
   \    away.** Rules 1-39 govern WHAT counts as debt; this rule governs only how the\n\
   \    result is RENDERED, and it moves no threshold, window, class or count. **The\
-  \ occasion:** the\n    echo prints one dense paragraph per class — measured on this\
-  \ repo 19,014 bytes over 20 lines\n    — so it arrived at every `session start`\
-  \ and every land tail as several KB of prose the\n    Controller does not read (owner,\
-  \ 2026-09-09: «читать нельзя»). An echo nobody reads is\n    report-only in the\
-  \ worst sense: it costs the seam and delivers nothing.\n    **THE TWO ECHO SEAMS\
-  \ RENDER ONE ROW PER CLASS:** `<marker>: <class> | <count> | <verb>` —\n    the\
-  \ class DERIVED from the line's own head, the count the head's own first integer,\
-  \ the verb\n    the FIRST `bin/yitc-v2 …` the line names. One row per non-clean\
-  \ class in first-appearance\n    order, equal classes FOLDED with counts summed\
-  \ (which is what collapses the per-project\n    nightly/chronic lines to one row\
-  \ each), every row within `debt.DEBT_ROW_WIDTH`.\n    **A CONSUMER BUILD NAMES ITS\
-  \ INVOCATION ONCE.** Where the host invocation form is\n    not bare `bin/yitc-v2`\
-  \ (a consumer has no local copy), ONE prefix line above the rows names\n    the\
-  \ runnable form and each row drops its leading `bin/yitc-v2 `; the engine render\
-  \ stays\n    byte-identical. The form is resolved OUTSIDE the fail-open fallback,\
-  \ so a failed resolution\n    never renders a bare-form table on a consumer that\
-  \ cannot run it.\n    **SUPPRESSED-WHEN-CLEAN IS UNCHANGED (rule 5).** Clean in\
-  \ yields clean out and the table\n    renderer prints NO header, ever — so the property\
-  \ is structural, not a second thing to\n    maintain.\n    **THE LONG TEXT IS RELOCATED,\
-  \ NEVER REWRITTEN — one home per rule text (CHARTER §P5).**\n    `bin/yitc-v2 debt`\
-  \ BARE keeps today's FULL render unchanged: it IS the post-`/compact`\n    re-fold\
-  \ (rule 5), whose whole job is to give back what the compact echo no longer prints.\n\
-  \    `debt --explain <class>` returns ONE class's lines VERBATIM — the same rendered\
-  \ line objects,\n    not a re-authoring — and `--explain` bare lists the classes.\
-  \ Because the text returned IS the\n    text rendered, preservation is checkable\
-  \ by byte-identity rather than asserted, and no class\n    can be silently dropped.\n\
-  \    **NO CLASS REGISTRY.** The class slug is derived mechanically from each line's\
-  \ own head\n    (parentheticals, quoted ids, digit-bearing tokens, a trailing `\
-  \ for <x>` clause and stopwords\n    dropped, capped at `DEBT_CLASS_MAX_WORDS`).\
-  \ A NEGATION (`no` / `not`) is never a stopword and\n    never counts toward the\
-  \ cap, and each one past the cap is appended with the word it negates: dropping\
-  \ it inverted the label — «does not meet» rendered «does\n    meet» — and leaving\
-  \ it out of the count keeps every negation-free slug unchanged.\n    A hand-maintained\
-  \ registry was the obvious design\n    and is rejected under CHARTER §P1 F1/F2:\
-  \ it is a second home that drifts silently every time\n    a renderer's wording\
-  \ changes, and it buys nothing the head does not already carry.\n    **FAIL-OPEN\
-  \ AT ITS SEAM.** The fold is presentation riding the session-start seam (the land\n\
-  \    tail was a second compacting seam until retired it, rule 2(b)), so a failure\n\
-  \    falls back to the FULL lines — degrading to unreadable beats degrading to broken,\
-  \ and beats\n    degrading to silent (which returning nothing would be). The shared\
-  \ render helper\n    (`views._render_debt_echo`) and the host helpers it feeds are\
-  \ UNCHANGED: the compaction\n    happens at the session-start INJECT seam, so every\
-  \ suite pinning what those helpers RETURN\n    still measures the helper rather\
-  \ than this presentation.\n    Unit tests (`tests/test_debt_echo_table.py`): the\
-  \ real `session start` subprocess\n    emits only rows and no surviving paragraph\
+  \ occasion:** one\n    paragraph per class (19,014 bytes on this repo) went unread\
+  \ at every seam.\n    **THE TWO ECHO SEAMS RENDER ONE ROW PER CLASS:** `<marker>:\
+  \ <class> | <count> | <verb>` —\n    the class DERIVED from the line's own head,\
+  \ the count the head's own first integer, the verb\n    the FIRST `bin/yitc-v2 …`\
+  \ the line names. One row per non-clean class in first-appearance\n    order, equal\
+  \ classes FOLDED with counts summed (which is what collapses the per-project\n \
+  \   nightly/chronic lines to one row each), every row within `debt.DEBT_ROW_WIDTH`.\n\
+  \    **A HEAD MAY CARRY ITS FIGURES.** One square-bracketed span in the head holds\
+  \ what\n    one count does not (seconds, a share, a recent change): no part of the\
+  \ class or the count, it\n    prints after the count, shortened before the verb\
+  \ is; a line without one renders as before.\n    **A CONSUMER BUILD NAMES ITS INVOCATION\
+  \ ONCE.** Where the host invocation form is\n    not bare `bin/yitc-v2` (a consumer\
+  \ has no local copy), ONE prefix line above the rows names\n    the runnable form\
+  \ and each row drops its leading `bin/yitc-v2 `; the engine render stays\n    byte-identical.\
+  \ The form is resolved OUTSIDE the fail-open fallback, so a failed resolution\n\
+  \    never renders a bare-form table on a consumer that cannot run it.\n    **SUPPRESSED-WHEN-CLEAN\
+  \ IS UNCHANGED (rule 5).** Clean in yields clean out and the table\n    renderer\
+  \ prints NO header, ever — so the property is structural, not a second thing to\n\
+  \    maintain.\n    **THE LONG TEXT IS RELOCATED, NEVER REWRITTEN — one home per\
+  \ rule text (CHARTER §P5).**\n    `bin/yitc-v2 debt` BARE keeps today's FULL render\
+  \ unchanged: it IS the post-`/compact`\n    re-fold (rule 5), whose whole job is\
+  \ to give back what the compact echo no longer prints.\n    `debt --explain <class>`\
+  \ returns ONE class's lines VERBATIM — the same rendered line objects,\n    not\
+  \ a re-authoring — and `--explain` bare lists the classes. Because the text returned\
+  \ IS the\n    text rendered, preservation is checkable by byte-identity rather than\
+  \ asserted, and no class\n    can be silently dropped.\n    **NO CLASS REGISTRY.**\
+  \ The class slug is derived mechanically from each line's own head\n    (parentheticals,\
+  \ quoted ids, digit-bearing tokens, a trailing ` for <x>` clause and stopwords\n\
+  \    dropped, capped at `DEBT_CLASS_MAX_WORDS`). A NEGATION (`no` / `not`) is never\
+  \ a stopword and\n    never counts toward the cap, and each one past the cap is\
+  \ appended with the word it negates: dropping it inverted the label — «does not\
+  \ meet» rendered «does\n    meet» — and leaving it out of the count keeps every\
+  \ negation-free slug unchanged.\n    A registry would be a second home that drifts\
+  \ (CHARTER §P1 F1/F2).\n    **FAIL-OPEN AT ITS SEAM.** The fold is presentation\
+  \ riding the session-start seam (the land\n    tail was a second compacting seam\
+  \ until retired it, rule 2(b)), so a failure\n    falls back to the FULL lines —\
+  \ degrading to unreadable beats degrading to broken, and beats\n    degrading to\
+  \ silent (which returning nothing would be). The shared render helper\n    (`views._render_debt_echo`)\
+  \ and the host helpers it feeds are UNCHANGED: the compaction\n    happens at the\
+  \ session-start INJECT seam, so every suite pinning what those helpers RETURN\n\
+  \    still measures the helper rather than this presentation.\n    Unit tests (`tests/test_debt_echo_table.py`):\
+  \ the real `session start` subprocess\n    emits only rows and no surviving paragraph\
   \ (AC1), a GOLDEN byte-identity comparison per\n    class between `debt --explain`\
   \ and the pre-change paragraph (AC2), a clean fixture prints\n    nothing (AC3),\
   \ plus the drift tripwires — distinct heads stay distinct classes\n    and every\
@@ -4116,10 +4114,10 @@ implements_signature:
   bin/lib/debt.py#_unpickable_ready_result: 4b2ee637961891df40349ad9eaac203f50af387bbf2bd52f4736624a9ba3866a
   bin/lib/debt.py#_younger_than: 0a9c5459e7b95505db55ad2c54b9d3a387968d5e47b17ba6a74923a19ba18718
   bin/lib/debt.py#broken_outcome_invariants: e0120f1edfbeadc2f42fe3d09f767e2476b70f9a2781c5e9e39fd409ee4162f4
-  bin/lib/debt.py#debt_echo_table: 980ab235e342cac00b711ec5e35a300f7f9f8191611c17439585140232966005
+  bin/lib/debt.py#debt_echo_table: cf070dd841aa0fa59e0dcce2d82a638b1dc70910ed552d847db8a6bd2052d10b
   bin/lib/debt.py#debt_explain: 462704be0d329f8f33c6c175c70c588c3193cffca792a9e4760f9a1983d758c6
-  bin/lib/debt.py#debt_row_class: 410973e0cd137bcbace854767e536f33a9b0e8e523375456e83f1053121b1345
-  bin/lib/debt.py#debt_row_count: 98596646068d57b194ae99fd9488dcaa35de5fe4bde0af7a044c15c9944bd260
+  bin/lib/debt.py#debt_row_class: 523ae1660cfcc5f724ec5ed418bf4c29c4ff869422266f7cb0d9c13ae4f1270f
+  bin/lib/debt.py#debt_row_count: 0a05acb80ffe2d51dcf17d4926b0cb4309e7d7b48d202e4888c8a48db8bb4721
   bin/lib/debt.py#debt_row_verb: ca9f0835c8b2c4f611ec33e8002a7a8b3a8f39bb7dd94eba2598e79c24f6ee6c
   bin/lib/debt.py#declared_outcome_invariants: 6403345f9db56dc3df67a97976c2ae9510406cbe8fb481a92ac2c68eba96d747
   bin/lib/debt.py#late_findings_per_pass: 5e45863430cb1c0bd3d50731a2f4d9d926e75586aa9955fe302573823bb1f0d1
@@ -4130,6 +4128,7 @@ implements_signature:
   bin/lib/debt.py#nightly_verdict_changes: 3abef6813f2bdad9ce9bd6fe2afa5c814553dea15563f303225ddec7b08247f9
   bin/lib/debt.py#nonterminal_plan_census: 90a7ab1c1ec320c616ecc84f0a8ecaeef2c758d51d3a95599d0ffa4fc439d704
   bin/lib/debt.py#prequeue_known_broken_refusals: 650d18dd78a57e07aede37209820c72e1e3e4da30857eb99c266a2fa2ce8144d
+  bin/lib/debt.py#probes_awaiting_first_check: a76519dd660e599af512d66e10493f79ddf90e384de8e7963f542392c7994741
   bin/lib/debt.py#profile_gap_register: 048350b595ecc4860da381d824136a8b5d50b6f7dc7e1e5cc7ae69437f7d86ee
   bin/lib/debt.py#recorded_measurement_drift: b57170981a1e350f30749860d2e6056531fdc15d4b552527b71f1f1dcf905111
   bin/lib/debt.py#runtime_delivery_coherence: fb80f6b00e81fefc55ed64e2b5e6e757e70a771bc3016a1c05e3f57b6efe2825
@@ -4140,7 +4139,7 @@ implements_signature:
   bin/lib/debt_adoption.py#P8_ADOPTION_EVENT_TYPES: 0839882dca70b529cfcdb88caa797e23d87a6db5d5ec90c040e8f618d46fd511
   bin/lib/debt_adoption.py#P8_CARRIER_MARKER: 7ca55ce542f77dd391b2275602802e4ccc49e04a911f5771769e1d6dc69de71a
   bin/lib/debt_adoption.py#_gap_waiver_answer: deae6fdfb0beeba647a616e65b463af8c65d75a1c4a92793e026e2bfc79ce212
-  bin/lib/debt_adoption.py#_known_broken_blob_exists: 6b1f2a272a9ca7287b99bfde3f1af98a74813a84847598543970f7a5827658e0
+  bin/lib/debt_adoption.py#_known_broken_blob_exists: a417d1b394c6270c66265a16ecfd2d1459814eb78c79e63301b81bce8be27446
   bin/lib/debt_adoption.py#_known_broken_full_enumeration: f5e80aafba8ea787ae0db3db10f1feffd93fde09b6a2c4ce82549bd1e982a771
   bin/lib/debt_adoption.py#_p8_card_declares_carrier: d4a9168a3a693f4b24f6547e845b577a106127f8990688103b6d1a0ad826b0b9
   bin/lib/debt_adoption.py#_p8_carrier_task_ids: d60373be00e49264dad2c1ff2c61a885c13c278f8b79b7c95fc0b35c9592d3b7
@@ -4151,7 +4150,7 @@ implements_signature:
   bin/lib/debt_adoption.py#gap_task_linked: 3893e4f233a183b709d8e9d941484900586687c673663afdef13dc927f8166e6
   bin/lib/debt_adoption.py#open_known_broken: 5a228dbc90e35fa3e0f6f646f3a06e47ad27fc1984cb1df531a4b3743738e965
   bin/lib/debt_adoption.py#open_subcritical_findings: 0305df9e23683084a6d3967440e6482f7ae01900459800b54126e8d9a8647a4a
-  bin/lib/debt_adoption.py#p8_carrier_followups: cde90bc5e19da483154e956f9b238e167ec253ead492e2a041ac1fdc76c168de
+  bin/lib/debt_adoption.py#p8_carrier_followups: e2698a024c0101d29e9d11452007fa35c3aa71ed30a5a1f9e26026d25282b8c7
   bin/lib/debt_adoption.py#uncarried_p8_warns: c2dc1a937f341b1a116a8ea0f2f8fe757b7d8e3d01853c62eaaa017dd0004305
   bin/lib/debt_adoption.py#unexecuted_subject_files: acfff1c279962fc968ee9e494ba3d7e64a7cf4e161ca2dc00f873b53b8768335
   bin/lib/debt_adoption.py#unresolved_worker_halts: a14fcd9a6710ec8109c2bc1e169883a9e6aae1080fae9793401d4a0c9399243b
@@ -4207,13 +4206,13 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 6c2d6c6f268f600c92431291932c807dd706ddb844c1b6271fc58447c3fdd822
   bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: 2536d44a2d5a932ab630b74c77f3ab7d0fa5fe9f3811d8954691738c22ed4cba
+  bin/lib/session.py#cmd_session_start: 73b63d25a85915faa5a98944822c6d06f57ec33ba56897633e6ca587042cb1c7
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
   bin/lib/task.py#cmd_task_update: e5719c353ef13be74a5c770f9fbe560e12a00c556de2eb0849ff4bc0d1788f6f
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 24212938c3eab52ee31493b7e24a3f077aa400a968ec87fb2db33eeb5dac1f55
+  bin/lib/views.py#_render_debt_echo: b9f9e3b3d1acfe8a26bc59ba414044b60672d7d9aadb4414f91f14b9f3229e29
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

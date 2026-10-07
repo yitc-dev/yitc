@@ -130,4 +130,4 @@ implements_signature:
   bin/lib/init.py#override_entry_errors: 30eb1a5a5222da33723203228acbf56079e2ec69230fa55c6bf5244a9ffb6372
   bin/lib/nightly.py#_check_override_ledger: 0161f56cb0b47ec98c52ec17273622049a9099d79ae11b6ef317c86f153fe0b2
   bin/lib/release.py#ledger_drift: 5c3ef6954d038ae9fdcbf14eae1468780de9d5343fb0bc4e559e945bf51850a1
-  bin/lib/release.py#update: 0245c62deeb77cc506dcb69549beef733184d425987a7a63d60c992d4625e8e0
+  bin/lib/release.py#update: 40a61645bdc53c046a151753ae10948a28b71efa078bd452d5884289ce08613f

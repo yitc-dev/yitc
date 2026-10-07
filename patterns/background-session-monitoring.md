@@ -346,7 +346,12 @@ Read the verdict/class from the verb; pick the ACTION here. The verb never presc
 - **`silent_stop` / `hang_suspect` → confirm dead, then recover from durable state.** `silent_stop` = no live
   claim; `hang_suspect` = a LIVE claim held but stale (detect+surface only — never auto-kill). Once `dead` is
   confirmed across the heartbeat, terminate/recover and resume from `current_stage` (§land-after-each keeps
-  1..*k*-1 safe on main).
+  1..*k*-1 safe on main). For `hang_suspect` the verb's `recovery:` line names BOTH routes : hand
+  the task to a FRESH worker with the plain `dispatch` described under Premature exit below (do NOT adopt
+  first), or — on owner say-so — finish it yourself (§Controller takeover, `worktree adopt --task T-XXXX
+  --confirm-dead`). `hang_suspect(usage-limit,resets=…)` = the dead worker's dispatch log ENDS on the
+  provider usage-limit banner: wait for the reset the log names, then re-dispatch. Advice only — the verb
+  neither waits nor re-dispatches.
 - **Premature exit (worker gone, task unlanded — a death subclass).** The verb reads `verdict: dead` (proc
   gone, journal quiescent, no live child). SPLIT by checkpoint: NO ship-commit beyond the claim → ordinary
   Death (re-bootstrap + resume); a ship-commit present → RESPAWN a fresh worker to ADOPT the committed

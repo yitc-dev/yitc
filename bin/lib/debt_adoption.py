@@ -1681,13 +1681,14 @@ def _known_broken_blob_exists(root, sha: str, relpath: str, *, _PROVENANCE_GIT_T
     unresolvable one, a pruned history, or no git at all returns `None` and the fold FAILS CLOSED;
     collapsing that into False would silently VACATE records on a machine without git.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not sha or not str(sha).strip():
         return None
     import subprocess
     try:
         proc = subprocess.run(
             ["git", "-C", str(root), "cat-file", "-e", f"{str(sha).strip()}:{relpath}"],
-            capture_output=True, text=True, timeout=_PROVENANCE_GIT_TIMEOUT)
+            capture_output=True, text=True, timeout=_PROVENANCE_GIT_TIMEOUT, env=_git_env._git_child_env())
     except Exception:                     # noqa: BLE001 — no git, no repo, a timeout: cannot answer
         return None
     if proc.returncode == 0:
@@ -1698,7 +1699,8 @@ def _known_broken_blob_exists(root, sha: str, relpath: str, *, _PROVENANCE_GIT_T
     try:
         probe = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet",
                                 f"{str(sha).strip()}^{{commit}}"],
-                               capture_output=True, text=True, timeout=_PROVENANCE_GIT_TIMEOUT)
+                               capture_output=True, text=True, timeout=_PROVENANCE_GIT_TIMEOUT,
+                               env=_git_env._git_child_env())
     except Exception:                     # noqa: BLE001
         return None
     return False if probe.returncode == 0 else None
@@ -1989,11 +1991,15 @@ def p8_carrier_followups(events_path, _followups=None, *, P8_CARRIER_MARKER=None
         # The marker names the id it carries, so one followup can only ever carry what it SAYS.
         carried = set()
         for chunk in text.split(P8_CARRIER_MARKER)[1:]:
-            m = _TASK_ID_RE.match(chunk.strip().split()[0]) if chunk.strip().split() else None
+            toks = chunk.split()
+            # T-13637 — a hand-typed carrier often ends its sentence on the id (`P8-CARRIER: T-0066.`);
+            # trailing punctuation is not part of an id, so it is dropped before the anchored match.
+            m = _TASK_ID_RE.match(toks[0].rstrip(".,;:!?)]}>'\"`")) if toks else None
             if m:
                 carried.add(m.group(0))
-        if not carried:
-            continue
+        # T-13637 — a marker that names no readable id still yields its record, with EMPTY `task_ids`:
+        # every consumer selects by id membership, so it carries nothing, and `followup add` can tell
+        # "no marker" from "a marker this parse cannot read" without a second marker check.
         out.append({"id": it.get("id") or fid,
                     "task_ids": carried,
                     "trigger": it.get("trigger"),

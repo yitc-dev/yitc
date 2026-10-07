@@ -173,7 +173,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/cli.py#main: 9d094ff57034b68dc6c7bb5835a9d336baed0d9e56933f5acfa00cd4486c0f72
-  bin/lib/cli_parser.py#build_parser: 10232c1b899b1e8194d737f52009ac381cd849065f987836cfc9f437255fac6b
+  bin/lib/cli_parser.py#build_parser: 3e087187882305f34ceb526c224a98e2923d9df18f858c1bfd0cc75a3a03779f
   bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS: a14357dce8243c42484f7ceb2fcfa9f9cc57ca3d19b446ea91ce501c75ff1de3
   bin/lib/textutil.py#ARGV_PROSE_SEAMS: 4b5e7099a6d1f87fb3ae82d7be6ca49092966b7485373ca299277036ab68c757
   bin/lib/textutil.py#ARGV_PROSE_WAIVED: 315b572b5864e608df514228107852dbfcfc30e05e9030bfea31f00e1d43d979
@@ -181,4 +181,4 @@ implements_signature:
   bin/lib/textutil.py#argv_prose_seam_refusal: 12599acbc942dc207a0d103eb0e4ec3b748c6bfa8c9489b9294b710cf442fbe3
   bin/lib/textutil.py#argv_verb_start: d938108c1a0388a5ad62c0c47ab42ce1c822ef6394c04bb7cf8b530b1d0904b5
   bin/lib/worktree.py#WORK_COMMIT_STDIN_CONFLICTING_ARGV_FLAGS: 7c9cfccc1764249cd1cda308796b1bbd3bd15f398a178d9804bb5e0bf2c75075
-  bin/lib/worktree.py#cmd_work_commit: 7e6f85465c462ee979c27cd45747134d6944e6b894b9a930f9242d6d7df63ec0
+  bin/lib/worktree.py#cmd_work_commit: d348ff38c340f143e2d0c1e3be3fcb82ca7706a5154500debfdcaeb7c9b2ea72

@@ -30,6 +30,7 @@ implements:
 - bin/lib/task_closure_evidence.py#_case_attribution
 - bin/lib/task.py#_case_restoration_state
 - bin/lib/task_closure_evidence.py#_case_covered_share
+- bin/lib/task_closure_evidence.py#_takeback_resign_only
 - bin/lib/task_closure_evidence.py#_case_revision_proposal
 - bin/lib/task_closure_evidence.py#_case_revision_review
 - bin/lib/task.py#cmd_task_close
@@ -69,26 +70,28 @@ concern:
     \ / W (kernel defaults 3 / 90)\n  #\n  # A case exempts audit-post and NOTHING\
     \ else (never audit-pre, tests, land-verify, the worktree\n  # rule or closure\
     \ probes), and a card whose DIFF touches a governance surface takes audit-post\n\
-    \  # whatever your case says. The guard takes back GOVERNANCE\n  # surfaces: specs,\
-    \ an always-loaded seed, this file, AND the SPEC-0077 pinned-test surface —\n\
-    \  # `bin/**` + `tests/**` + `yitc-ops.yaml`. app/, backend/, frontend/, scripts/\
-    \ are NOT guarded, so\n  # PREFER `paths:` over a class-only case.\n  # see SPEC-0178\
-    \ §Rule 2, §Rule 3, §Rule 6\n  #\n  # BORN-PERMISSIVE DECLARATION (SPEC-0189):\
-    \ the fragment below is LIVE. It is written only into a\n  # birth carrying an\
-    \ explicit per-section confirmation, which records its ratification:\n  # `init\
-    \ --confirm-born-permissive audit_scrutiny:<owner>`\n  # an unconfirmed or noninteractive\
-    \ birth has the section WITHHELD (absence reads fail-closed).\n  # ACCEPTED RISK\
-    \ — docs-only cards ship without a semantic diff review. Restoration is this project's\n\
-    \  # own explicit act — delete or narrow the case here (SPEC-0189 rule 4).\n \
-    \ # see SPEC-0189 §Rule 8\n  # yitc:born-permissive-declaration\n  cases:\n  \
-    \  - case: docs\n      match: { paths: [docs/**] }\n      exempt: audit-post\n\
-    \      reason: \"born permissive per the owner directive of 2026-08-21 — a new\
-    \ project does not\n        pay a semantic diff review for a docs-only card from\
-    \ day one. Bounded to docs/**, and\n        rule 3's governance guard takes back\
-    \ every governance surface regardless. The periodic\n        review watches for\
-    \ the absence starting to cost something and PROPOSES restoring the\n        gate\
-    \ (SPEC-0189); restoration is this project's own explicit act — delete or narrow\
-    \ this\n        case.\"\n      declared_at: 2026-08-21\n  # yitc:end-born-permissive-declaration\n"
+    \  # whatever your case says. A spec RE-SIGN counts as a touch: a diff that only\
+    \ re-stamps a spec's\n  # `implements_signature` takes the exemption back, so\
+    \ a case reaches only cards whose diff\n  # re-signs no anchored spec. The guard\
+    \ takes back GOVERNANCE\n  # surfaces: specs, an always-loaded seed, this file,\
+    \ AND the SPEC-0077 pinned-test surface —\n  # `bin/**` + `tests/**` + `yitc-ops.yaml`.\
+    \ app/, backend/, frontend/, scripts/ are NOT guarded, so\n  # PREFER `paths:`\
+    \ over a class-only case.\n  # see SPEC-0178 §Rule 2, §Rule 3, §Rule 6\n  #\n\
+    \  # BORN-PERMISSIVE DECLARATION (SPEC-0189): the fragment below is LIVE. It is\
+    \ written only into a\n  # birth carrying an explicit per-section confirmation,\
+    \ which records its ratification:\n  # `init --confirm-born-permissive audit_scrutiny:<owner>`\n\
+    \  # an unconfirmed or noninteractive birth has the section WITHHELD (absence\
+    \ reads fail-closed).\n  # ACCEPTED RISK — docs-only cards ship without a semantic\
+    \ diff review. Restoration is this project's\n  # own explicit act — delete or\
+    \ narrow the case here (SPEC-0189 rule 4).\n  # see SPEC-0189 §Rule 8\n  # yitc:born-permissive-declaration\n\
+    \  cases:\n    - case: docs\n      match: { paths: [docs/**] }\n      exempt:\
+    \ audit-post\n      reason: \"born permissive per the owner directive of 2026-08-21\
+    \ — a new project does not\n        pay a semantic diff review for a docs-only\
+    \ card from day one. Bounded to docs/**, and\n        rule 3's governance guard\
+    \ takes back every governance surface regardless. The periodic\n        review\
+    \ watches for the absence starting to cost something and PROPOSES restoring the\n\
+    \        gate (SPEC-0189); restoration is this project's own explicit act — delete\
+    \ or narrow this\n        case.\"\n      declared_at: 2026-08-21\n  # yitc:end-born-permissive-declaration\n"
 body: "## Scenario\n\nA project decides that for some kind of its own work — a class\
   \ of cards, or changes confined to\nsome paths — it will ship without the external\
   \ semantic review of the shipped diff, and it says so\nout loud, with a reason,\
@@ -138,15 +141,29 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ a defect of the\nmeasure:** a case whose actual share creeps up has changed what\
   \ the project is accepting without\nanyone re-deciding it. Rule 7 already requires\
   \ each proposal to name its BASIS — this share is a\nbasis datum, so no new surface\
-  \ is introduced.\n\nThe section is OPT-IN: **absent ⇒ every substantive task takes\
-  \ audit-post**. That is the state a\nproject is born in and returns to by deleting\
-  \ a case; silence is never an exemption.\n\nThis rule sets NO ceiling on how many\
-  \ cards a case may exempt, and no time bound on how long an\nexemption stands. The\
-  \ bound is the project's declaration and the restoration in rule 5.\n\n### Rule\
-  \ 2 — Scope bound: audit-post ONLY\n`exempt:` accepts exactly one value, `audit-post`.\
-  \ A case NEVER reaches audit-pre, the Tests stage,\nthe land-verify layers, the\
-  \ worktree-before-write rule, or the Closure probe requirement. Which\nverify layers\
-  \ run stays decided by computation over the diff (`verify.layers[].subject_globs`,\n\
+  \ is introduced.\n\n**What the share does NOT show: cards taken back on a re-sign\
+  \ alone.** On the same line and over the\nsame window, the review names the closed\
+  \ cards that MATCHED the case at their close and whose rule 3\ntakeback rested on\
+  \ re-signed specs only — every governance path in their diff a spec the card\nchanged\
+  \ in its signature map and nowhere else. A card that edits a spec's text, flips\
+  \ a spec's status at\nclosure, or touches any other governance surface is not named\
+  \ there. It is a fact about the diff,\nnot a claim that the card would otherwise\
+  \ have closed exempt: rule 4, rule 5 and the other\nconditions of the exemption\
+  \ are not consulted. A re-sign is judged by what it leaves: with its\nsignature\
+  \ map set aside the spec reads the same before and after everything the card did\
+  \ to it,\nwhether the map was re-stamped, extended, trimmed or written for the first\
+  \ time. The Closure seam\nmarks it on the takeback record it already writes; the\
+  \ home of the concrete form is\n`bin/lib/task_closure_evidence.py#_takeback_resign_only`.\
+  \ The mark is absent unless proven, so the\ncount can only under-report. Report-only:\
+  \ it changes no outcome, and rule 3 is unaffected.\n\nThe section is OPT-IN: **absent\
+  \ ⇒ every substantive task takes audit-post**. That is the state a\nproject is born\
+  \ in and returns to by deleting a case; silence is never an exemption.\n\nThis rule\
+  \ sets NO ceiling on how many cards a case may exempt, and no time bound on how\
+  \ long an\nexemption stands. The bound is the project's declaration and the restoration\
+  \ in rule 5.\n\n### Rule 2 — Scope bound: audit-post ONLY\n`exempt:` accepts exactly\
+  \ one value, `audit-post`. A case NEVER reaches audit-pre, the Tests stage,\nthe\
+  \ land-verify layers, the worktree-before-write rule, or the Closure probe requirement.\
+  \ Which\nverify layers run stays decided by computation over the diff (`verify.layers[].subject_globs`,\n\
   SPEC-0152 rule 16) — a case may neither widen nor narrow it, so exactly one mechanism\
   \ decides that\nquestion.\n\n### Rule 3 — Governance-surface guard (computed on\
   \ the DIFF, never on the match)\nA card whose diff TOUCHES a GOVERNANCE SURFACE\
@@ -160,7 +177,13 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ for a case declared by `paths:` and for one declared by `class:` — neither needs\
   \ a\nclass-to-path mapping in order to be safe, and no such mapping exists to be\
   \ relied on. A declaration\nwhose own `paths:` name a governance surface is additionally\
-  \ refused at declaration time, as an early\nand redundant belt.\n\n**WHICH diff.**\
+  \ refused at declaration time, as an early\nand redundant belt.\n\n**A re-sign is\
+  \ a touch.** The guard reads PATHS, not hunks: a diff that changes nothing in a\
+  \ spec but\nits anchor-signature entries still touches that spec file, and the card\
+  \ takes audit-post like any\nother spec edit. In a project whose code is anchored\
+  \ by specs, a case therefore reaches only the\ncards whose diff re-signs no anchored\
+  \ spec. The born template and the Closure-seam warning both say\nso, and rule 9\
+  \ reports how often the re-sign is the only governance touch.\n\n**WHICH diff.**\
   \ \"The card's ACTUAL changed paths\" means the card's **ship diff PLUS the governance\n\
   writes `task close` is itself about to make** in the closure-record commit — above\
   \ all the\n`proposed → active` activation `task close` is the SOLE writer of, which\
@@ -415,16 +438,23 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ and (ii) the same journal read under a case\n  declaring a SHORTER `window_days`\
   \ reports a DIFFERENT share — the share must be INSENSITIVE to when\n  the previous\
   \ review ran and SENSITIVE to the case's own `W`. Default `W` = 90 where the case\n\
-  \  declares none.\n- **VP10 (rule 5, attribution carrier) — BOTH ends of the join\
-  \ are catalogued:** SPEC-0025 documents\n  `exempted_case` as an optional key on\
-  \ **both** the `deviation_captured` payload (the attribution\n  end) and the `task_closed`\
-  \ payload (the closure end rule 4 records) before this spec is activated,\n  and\
-  \ the restoration reader resolves attributions through those documented keys. Probe:\
-  \ read BOTH\n  SPEC-0025 catalog entries, plus a fixture where an attribution naming\
-  \ a case is counted and one\n  omitting the key is not. A catalog carrying only\
-  \ the capture end FAILS this probe: the regime is\n  computed by joining the two,\
-  \ so a documented capture key and an undocumented closure key leave the\n  computation\
-  \ resting on an uncatalogued field (plan-check F2, 2026-08-15).\n"
+  \  declares none.\n- **VP23 (rules 3+9, the re-sign-only takeback) — differential\
+  \ on WHAT changed in the spec, not on its path:** under\n  one live case, a matching\
+  \ card whose only governance paths are specs changed in their signature\n  map alone\
+  \ — re-stamped, or written for the first time — is taken back by rule 3 AND named\
+  \ on the\n  rule 9 line; the otherwise identical card whose spec diff also edits\
+  \ rule text, or edits a\n  signature-shaped line outside the map, is taken back\
+  \ and NOT named there. Probe:\n  `tests/test_t13599_resign_only_takeback.py` — a\
+  \ count keyed on \"any spec path\" names all and fails.\n- **VP10 (rule 5, attribution\
+  \ carrier) — BOTH ends of the join are catalogued:** SPEC-0025 documents\n  `exempted_case`\
+  \ as an optional key on **both** the `deviation_captured` payload (the attribution\n\
+  \  end) and the `task_closed` payload (the closure end rule 4 records) before this\
+  \ spec is activated,\n  and the restoration reader resolves attributions through\
+  \ those documented keys. Probe: read BOTH\n  SPEC-0025 catalog entries, plus a fixture\
+  \ where an attribution naming a case is counted and one\n  omitting the key is not.\
+  \ A catalog carrying only the capture end FAILS this probe: the regime is\n  computed\
+  \ by joining the two, so a documented capture key and an undocumented closure key\
+  \ leave the\n  computation resting on an uncatalogued field (plan-check F2, 2026-08-15).\n"
 implements_signature:
   bin/lib/inspection.py#cmd_inspect_record: c967863812d2d9433dfda0396b30ac2707bbcfde85c7eef50b5f080011753806
   bin/lib/task.py#_audit_scrutiny_cases: 93b55012af9ecc8c96732ea52e945bd1de03d56cc1ecd0bb49bcfd848639a013
@@ -432,12 +462,12 @@ implements_signature:
   bin/lib/task.py#_case_match: 90e154158a6e80973365751157c24d3732570b3fbe7154ee4fbfabfe132c0a9e
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: 2e45dc77f3ce5744747144d9bf3abd1546378770e2006899ace13c1d48056746
+  bin/lib/task.py#cmd_task_close: 59824887a1b86ae08b2ea29b10b4ff9217e0efec44586b41273da3008aba988e
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
-  bin/lib/task_closure_evidence.py#_case_closure_index: 51d90ca81e2415a311299373b722134914a8a5bf27e298daf649ce9cb763a2f5
-  bin/lib/task_closure_evidence.py#_case_covered_share: f49ddb205b5a97055766baddadc62919fcedc47af50f5d2bccaa1577b6da18d8
+  bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
+  bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d
   bin/lib/task_closure_evidence.py#_case_declaration_refusal: 8aeb8d285b491b09fe53d327ab0aee95b99aeb236de53a45eb64844c748293d0
-  bin/lib/task_closure_evidence.py#_case_governance_guard: 93542b358dc521fff14e16ebc2fad6b59d4bbb6fdd8fff7e24507f4ce396ff66
+  bin/lib/task_closure_evidence.py#_case_governance_guard: 216f105dee237cf668e303e14e38eaaada5f2b11e9bac0a655f278dd2cd376a9
   bin/lib/task_closure_evidence.py#_case_out_of_path_observation: 46534caa298e6f7be764d084ca27c51b7a1c518de639e70c66fb023b47840fed
   bin/lib/task_closure_evidence.py#_case_revision_proposal: 0a2047abfe810749433f5354cebd557835901a3cb6bda0985f2cfb91b85b7aa4
   bin/lib/task_closure_evidence.py#_case_revision_review: 1f3184d5d7bfa455ef335714b4fed812c54c093c53de320f9c87bb8721ca60df

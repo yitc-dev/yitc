@@ -52,26 +52,56 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ which is exactly what rule 4 has\n   co-evolve (\"corrected in place … as findings\
   \ accumulate\") and what rule 10(b) calls the DRY\n   state of iterate-until-dry.\
   \ So: **recording a cycle's trial-summary / run-record section does\n   NOT reset\
-  \ the count; a correction to the design or to a draft spec DOES, and restarts it\
-  \ from\n   that cycle** (fix-first, rule 10(b)). This states what the rule already\
-  \ means — the floor keeps\n   EXACTLY its three items, none widened, none weakened.\n\
-  \   - **Suppression is not dryness (the direction that matters first).** A finding\
-  \ that requires a\n     correction to the design or to a draft spec must be absorbed\
-  \ before the next cycle\n     (fix-first, \"never logged-and-deferred\"): withholding,\
-  \ deferring or logging-and-deferring\n     that absorption to keep the count alive\
-  \ buys unchanged-ness by SUPPRESSION, and the cycle\n     does NOT count dry. Only\
-  \ a cycle whose findings needed NO design / draft-spec correction at\n     all —\
-  \ nothing absorbed, nothing deferred that an absorption would have carried — leaves\
-  \ the\n     count intact (e.g. an observation about delivery or adoption rather\
-  \ than design, or a\n     thought parked as a `followup`). Record WHICH of the two\
-  \ it was, so \"unchanged\" reads as\n     *nothing was there*, not as *nobody looked*.\n\
-  \   - **Counting when a trial exits on its THIRD or later cycle.** \"The last 2\
-  \ cycles\" is the\n     BOUNDARY between the two most recent cycles: the design\
-  \ state at the end of cycle N-1 is\n     identical to the design state at the end\
-  \ of cycle N. Corrections made IN cycle N-1 do not by\n     themselves break it\
-  \ — they are what cycle N was run against. Grounds in this spec's own text:\n  \
-  \   rule 10(b) names the item as the dry state of \"keep running cycles until A\
-  \ cycle surfaces\n     nothing new\" (singular), which a two-consecutive-dry-cycles\
+  \ the count; a BEHAVIOUR-BEARING correction to the design or to a draft spec DOES,\
+  \ and\n   restarts it from that cycle** (fix-first, rule 10(b)); which corrections\
+  \ are behaviour-bearing is\n   the semantic-effect test below. The floor keeps EXACTLY\
+  \ its three items, none widened,\n   none weakened.\n   - **Which corrections restart\
+  \ the count — the SEMANTIC-EFFECT test.** A correction\n     invalidates only the\
+  \ evidence whose claims, governing assumptions or relevant inputs it\n     changes;\
+  \ evidence it leaves untouched is reused. Classify the ACTUAL correction by its\
+  \ effect\n     on the contract, never by what the existing trial probes happen to\
+  \ compute: could it change\n     what a conforming implementation or trial judgement\
+  \ permits, requires, produces or accepts for\n     ANY supported case — eligibility,\
+  \ authority, failure handling, safety, scope, observability,\n     evidence or exit\
+  \ criteria? **Yes, or unsure → BEHAVIOUR-BEARING: it restarts the count**\n    \
+  \ (fail-closed — an equivalence nobody can show is not one). Spelling, formatting\
+  \ and equivalent\n     references → NOT behaviour-bearing: the count and the run-refs\
+  \ it rests on stand. A\n     clarification that settles between competing operative\
+  \ readings is behaviour-bearing, and\n     weakening a completion or exit criterion\
+  \ is never wording. A behaviour-bearing correction on a\n     branch no recorded\
+  \ run exercised is answered by a run that EXERCISES that branch — a probe for\n\
+  \     it — never by another run of unrelated cases.\n     **The record and its reader\
+  \ — no new pass, no new store.** The session that makes the\n     correction writes\
+  \ ONE line into the plan's own External checks / audits section — the one\n    \
+  \ record every plan-gate prompt and the convergence read already carry (SPEC-0083\
+  \ §Correction\n     invalidation): what changed (before → after), its classification,\
+  \ which run-refs it keeps or\n     invalidates, and a reference to the correction.\
+  \ The next already-required read scrutinizes\n     that line — the convergence read\
+  \ below and the next plan gate (SPEC-0083) — and a line it\n     cannot confirm\
+  \ reads as behaviour-bearing. The classification is never a gate of its own:\n \
+  \    owner judgement stays the final act.\n     **No dry-pair floor.** One clean\
+  \ run after a correction can meet item 3: the boundary form\n     below compares\
+  \ the design state at the end of the last two cycles, so the correcting cycle\n\
+  \     followed by ONE run that needs no behaviour-bearing correction satisfies it.\
+  \ A second clean\n     run is required only where a plan bakes it as its own criterion\
+  \ (rule 3).\n   - **Suppression is not dryness (the direction that matters first).**\
+  \ A finding that requires a\n     behaviour-bearing correction to the design or\
+  \ to a draft spec must be absorbed before the next\n     cycle (fix-first, \"never\
+  \ logged-and-deferred\"): withholding, deferring, accepting or\n     logging-and-deferring\
+  \ that absorption to keep the count alive buys unchanged-ness by\n     SUPPRESSION,\
+  \ and the cycle does NOT count dry. Only a cycle whose findings needed NO\n    \
+  \ behaviour-bearing correction — none absorbed, none deferred that an absorption\
+  \ would have\n     carried — leaves the count intact (e.g. an observation about\
+  \ delivery or adoption rather than\n     design, a thought parked as a `followup`,\
+  \ or a correction the test above classifies as not\n     behaviour-bearing). Record\
+  \ WHICH it was, so \"unchanged\" reads as *nothing was there*, not as\n     *nobody\
+  \ looked*.\n   - **Counting when a trial exits on its THIRD or later cycle.** \"\
+  The last 2 cycles\" is the\n     BOUNDARY between the two most recent cycles: the\
+  \ design state at the end of cycle N-1 is\n     identical to the design state at\
+  \ the end of cycle N. Corrections made IN cycle N-1 do not by\n     themselves break\
+  \ it — they are what cycle N was run against. Grounds in this spec's own text:\n\
+  \     rule 10(b) names the item as the dry state of \"keep running cycles until\
+  \ A cycle surfaces\n     nothing new\" (singular), which a two-consecutive-dry-cycles\
   \ reading would contradict. The\n     exiting cycle's own summary write is a record,\
   \ not a change (above).\n   - **What a cycle IS — the unit is ONE JOURNALED TRIAL\
   \ RUN, never a calendar or dwell window\n     (in-place clarification of a word\
@@ -203,11 +233,12 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ (each surfaced defect is FIXED and the design/specs\n    co-evolved before the\
   \ next cycle — never logged-and-deferred), then **iterate-until-dry** (keep\n  \
   \  running cycles until a cycle surfaces NOTHING new — the exit floor's \"plan +\
-  \ draft specs unchanged\n    across the last 2 cycles\", rule 5, is this dry state),\
-  \ then escalate the FIDELITY of the runs:\n    **real-user** (exercise the flow\
-  \ the way a real user/operator would, not just the happy path the\n    author imagined)\
-  \ and **concurrent** (where the mechanism runs under parallelism/background\n  \
-  \  dispatch, exercise it CONCURRENTLY — the failure class text-audit and single-threaded\
+  \ draft specs unchanged\n    across the last 2 cycles\", rule 5, is this dry state,\
+  \ and a correction rule 5's semantic-effect\n    test classifies as not behaviour-bearing\
+  \ does not break it), then escalate the FIDELITY of the runs:\n    **real-user**\
+  \ (exercise the flow the way a real user/operator would, not just the happy path\
+  \ the\n    author imagined) and **concurrent** (where the mechanism runs under parallelism/background\n\
+  \    dispatch, exercise it CONCURRENTLY — the failure class text-audit and single-threaded\
   \ runs both\n    miss, e.g. the double-claim / journal-isolation defects the §Rationale\
   \ trial surfaced). This is\n    the reliability shape of rule 5's convergence floor,\
   \ not a new gate: it says HOW to spend the\n    dwell so the owner's final convergence\
@@ -248,12 +279,22 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ shape (10 runs, 2 ticks, correction in\nrun 9, clean run 10) as SATISFIED. Probe\
   \ (additive edit to this active spec, SPEC-0005 rule 7 — no\nre-activation): `tests/test_spec0035_cycle_unit_defined.py`\
   \ reads this text, derives the unit from it\nand re-evaluates the worked example\
-  \ by the boundary form to the one stated answer.\n\n**(AC5) trial-reliability doctrine\
-  \ + skip-is-default present:** rule 10 carries (a)\nskip-trial-is-the-DEFAULT +\
-  \ the trial-vs-postcheck routing, and (b) the fix-first → iterate-until-dry\n→ real-user\
-  \ → concurrent reliability ladder. Probe (additive edit to this active spec, SPEC-0005\
-  \ rule\n7 — no re-activation): `grep -c 'skip-trial is the DEFAULT\\|fix-first\\\
-  |iterate-until-dry\\|Trial-reliability doctrine' specs/SPEC-0035-*.yaml` ≥ 2.\n"
+  \ by the boundary form to the one stated answer.\n\n**(AC1) a correction restarts\
+  \ the count by its semantic effect:** rule 5 carries the\nsemantic-effect test (yes\
+  \ or unsure → behaviour-bearing → restart; spelling, formatting, equivalent\nreferences\
+  \ → the count stands; an unexercised behavioural branch → a probe for it), its record\
+  \ (one\nline in the plan's External checks / audits section) and readers (the convergence\
+  \ read, the next\nSPEC-0083 gate), and the no-dry-pair statement;\nsuppression-is-not-dryness\
+  \ and fix-first are kept. Probe (in-place edit, SPEC-0005 rule 7):\n`tests/test_t13597_semantic_evidence_invalidation.py`\
+  \ reads rule 5 and decides three worked\ncorrections by it — a wording fix keeps\
+  \ the count, an eligibility change restarts it, an\nunclassifiable change restarts\
+  \ it — and the same derivation over the pre-change text restarts all three.\n\n\
+  **(AC5) trial-reliability doctrine + skip-is-default present:** rule 10 carries\
+  \ (a)\nskip-trial-is-the-DEFAULT + the trial-vs-postcheck routing, and (b) the fix-first\
+  \ → iterate-until-dry\n→ real-user → concurrent reliability ladder. Probe (additive\
+  \ edit to this active spec, SPEC-0005 rule\n7 — no re-activation): `grep -c 'skip-trial\
+  \ is the DEFAULT\\|fix-first\\|iterate-until-dry\\|Trial-reliability doctrine' specs/SPEC-0035-*.yaml`\
+  \ ≥ 2.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3

@@ -834,9 +834,11 @@ def _spec0161_branch_added_code(repo_root, *, consumer=False, _SPEC0161_SPEC_NAM
     import subprocess
 
     def _git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
             return subprocess.run(["git", "-C", str(repo_root), *args],
-                                  capture_output=True, text=True, check=False, timeout=30)
+                                  capture_output=True, text=True, check=False, timeout=30,
+                                  env=_git_env._git_child_env())
         except Exception:
             return None
 

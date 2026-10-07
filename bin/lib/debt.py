@@ -946,9 +946,10 @@ def _diff_files(repo_root, shas, _run=None) -> set:
     runner = _run
     if runner is None:
         def runner(sha):
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
             r = subprocess.run(["git", "-C", str(repo_root), "show", "--name-only",
                                 "--pretty=format:", sha],
-                               capture_output=True, text=True, timeout=30)
+                               capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
             return r.stdout if r.returncode == 0 else ""
     for sha in shas:
         try:
@@ -1092,9 +1093,10 @@ def _diff_hunks(repo_root, shas, _run=None) -> dict:
     runner = _run
     if runner is None:
         def runner(sha):
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
             r = subprocess.run(["git", "-C", str(repo_root), "show", "--unified=0",
                                 "--pretty=format:", sha],
-                               capture_output=True, text=True, timeout=30)
+                               capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
             return r.stdout if r.returncode == 0 else ""
     for sha in shas:
         try:
@@ -1868,9 +1870,10 @@ def surface4_repo_corpus(repo) -> dict:
     root = Path(repo)
 
     def git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
             r = subprocess.run(["git", "-C", str(root), *args],
-                               capture_output=True, text=True, timeout=120)
+                               capture_output=True, text=True, timeout=120, env=_git_env._git_child_env())
         except Exception:  # noqa: BLE001 — a report-only reader never raises on a host fault
             return None
         return r.stdout if r.returncode == 0 else None
@@ -2097,7 +2100,9 @@ def probes_awaiting_first_check(repo_root: Path) -> dict:
         import subprocess
 
         def _git_cap(args, cwd):
-            return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+            return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                                  env=_git_env._git_child_env())
         pending: list = []
         refused = _wt._floor_declared_probes(Path(repo_root), ops, _wt._floor_section(ops),
                                              _git_cap, base_doc={}, pending_out=pending)
@@ -2754,10 +2759,11 @@ def absent_card_provenance(task_id: str, *, repo_root, _run=None) -> "dict | Non
 
 def _provenance_git(root, argv: list) -> str:
     """`git -C <root> <argv…>` → stripped stdout, or "" on ANY failure. Bounded; never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     try:
         proc = subprocess.run(["git", "-C", str(root)] + list(argv), capture_output=True, text=True,
-                              timeout=_PROVENANCE_GIT_TIMEOUT)
+                              timeout=_PROVENANCE_GIT_TIMEOUT, env=_git_env._git_child_env())
     except Exception:                     # noqa: BLE001 — no git, no repo, a timeout: all "cannot prove"
         return ""
     return (proc.stdout or "").strip() if proc.returncode == 0 else ""
@@ -3469,9 +3475,10 @@ def _identities_ever_declared(ops_path, wanted: dict, today=None):
         return None
 
     def _git(argv: list):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
             proc = subprocess.run(["git", "-C", str(root)] + list(argv), capture_output=True, text=True,
-                                  timeout=_IDENTITY_HISTORY_GIT_TIMEOUT)
+                                  timeout=_IDENTITY_HISTORY_GIT_TIMEOUT, env=_git_env._git_child_env())
         except Exception:                 # noqa: BLE001 — no git, no repo, a timeout: all "cannot tell"
             return None
         return proc.stdout if proc.returncode == 0 else None
@@ -9219,9 +9226,23 @@ def debt_row_count(line: str) -> int:
     ("task/T-12121 (6 commit(s), 119h)"), and reading a number from there would report a number the
     line never claimed as its size."""
     _prefix, body = _debt_line_prefix(line)
-    head = body.split("—", 1)[0]
+    head = _DEBT_FIGURES_RE.sub(" ", body.split("—", 1)[0])
     m = re.search(r"\b(\d+)\b", head)
     return int(m.group(1)) if m else 1
+
+
+# T-13621 (SPEC-0119 rule 40): a head MAY carry ONE square-bracketed FIGURES span — the numbers a
+# single integer cannot hold (seconds, a share, a 7-day change). It is stripped before the class and
+# the count are derived, and the row prints it after the count, so a line without one renders exactly
+# as before. Taken from the line itself, like the class and the verb: no per-class code here.
+_DEBT_FIGURES_RE = re.compile(r"\[[^\[\]]*\]")
+
+
+def debt_row_figures(line: str) -> str:
+    """The FIRST square-bracketed span of the line's head, without its brackets, else ''."""
+    _prefix, body = _debt_line_prefix(line)
+    m = _DEBT_FIGURES_RE.search(body.split("—", 1)[0])
+    return " ".join(m.group(0)[1:-1].split()) if m else ""
 
 
 def debt_row_verb(line: str) -> str:
@@ -9246,7 +9267,7 @@ def debt_row_class(line: str) -> str:
     every later negation is appended with the word it negates). Two lines that derive the same slug are ONE class and fold to one row with
     summed counts — which is exactly what the card asks for for the nightly/chronic lines."""
     prefix, body = _debt_line_prefix(line)
-    head = body.split("—", 1)[0]
+    head = _DEBT_FIGURES_RE.sub(" ", body.split("—", 1)[0])   # the figures span is not identity
     head = re.sub(r"\([^)]*\)", " ", head)          # parentheticals carry qualifiers, not identity
     head = re.sub(r"`[^`]*`", " ", head)            # a quoted id/verb is an instance, not a class
     head = re.sub(r"\bfor\b.*$", " ", head)         # the trailing ` for <x>` per-project clause
@@ -9293,8 +9314,11 @@ def debt_echo_table(_debt_echo_lines, *, cli_form: str = "bin/yitc-v2") -> list:
         key = (prefix, debt_row_class(line))
         if key not in rows:
             order.append(key)
-            rows[key] = {"count": 0, "verb": debt_row_verb(line)}
+            rows[key] = {"count": 0, "verb": debt_row_verb(line), "figures": []}
         rows[key]["count"] += debt_row_count(line)
+        _fig = debt_row_figures(line)
+        if _fig and _fig not in rows[key]["figures"]:
+            rows[key]["figures"].append(_fig)
     out = []
     bare = _DEBT_DEFAULT_VERB.split(" ", 1)[0]
     if order and cli_form != bare:
@@ -9304,7 +9328,16 @@ def debt_echo_table(_debt_echo_lines, *, cli_form: str = "bin/yitc-v2") -> list:
         verb = rows[key]["verb"]
         if cli_form != bare and verb.startswith(bare + " "):
             verb = verb[len(bare) + 1:]
+        figures = "; ".join(rows[key]["figures"])
         row = f"{prefix}: {klass}{_DEBT_ROW_SEP}{rows[key]['count']}{_DEBT_ROW_SEP}{verb}"
+        if figures:
+            # the figures are shortened FIRST, so an over-wide row never loses its verb (T-13621)
+            room = DEBT_ROW_WIDTH - len(row) - 3
+            if len(figures) > room:
+                figures = figures[:max(room - 1, 0)].rstrip() + "…"
+            if room > 1:
+                row = (f"{prefix}: {klass}{_DEBT_ROW_SEP}{rows[key]['count']} [{figures}]"
+                       f"{_DEBT_ROW_SEP}{verb}")
         if len(row) > DEBT_ROW_WIDTH:
             row = row[:DEBT_ROW_WIDTH - 1].rstrip() + "…"
         out.append(row)
@@ -9382,6 +9415,26 @@ def load_sensitive_max_files(*, env: "dict | None" = None) -> int:
     return _lane_knob(_LANE_FILES_ENV, _LANE_FILES_DEFAULT, _LANE_FILES_RANGE, env=env)
 
 
+def _lane_carrier_entries(path) -> dict:
+    """{basename: entry-date token} over the carrier, by the runner's grammar (see
+    `_lane_carrier_files`). The token is the line's SECOND whitespace-separated field — the carrier
+    header's `<entered YYYY-MM-DD>` — or '' when the line has none; the first occurrence of a
+    basename wins, as in the file list (T-13621)."""
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    out = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if parts[0].endswith(".py") and parts[0] not in out:
+            out[parts[0]] = parts[1] if len(parts) > 1 else ""
+    return out
+
+
 def _lane_carrier_files(path) -> list:
     """The carrier's listed basenames, read by the SAME grammar the runner reads it with
     (`verify_runner._load_sensitive_set`): blank lines and `#` comments skipped, the FIRST
@@ -9389,28 +9442,17 @@ def _lane_carrier_files(path) -> list:
     Restated here rather than imported because `verify_runner` is the LAND path and this is a
     report-only fold — but the grammar is the runner's, and the identity is the basename, which is
     unambiguous by that runner's own duplicate-basename refusal (SPEC-0185 / T-11204)."""
-    try:
-        text = Path(path).read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []
-    out = []
-    for raw in text.splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        name = line.split()[0]
-        if name.endswith(".py") and name not in out:
-            out.append(name)
-    return out
+    return list(_lane_carrier_entries(path))
 
 
-def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None) -> dict:
+def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=None) -> dict:
     """T-12360 — the SEQUENTIAL-TAIL reading of the declared load-sensitive lane, folded from the two
     artifacts that already exist: the carrier `tests/load-sensitive.txt` (T-12358) and the FIXED
     per-file duration table `tests/verify-durations.json` (T-11316 / SPEC-0132 §6).
 
     Returns `{count, wall_s, suite_wall_s, share_pct, bound_share_pct, bound_files, unrecorded,
-    crossed: [...]}`. `wall_s` is the lane's SERIALIZED wall — the sum of the LISTED files' recorded
+    entry_window_days, entered, entered_s, undated, crossed: [...]}` — the four entry keys being the
+    T-13621 7-day reading (present only once the table was read). `wall_s` is the lane's SERIALIZED wall — the sum of the LISTED files' recorded
     seconds, and only those: a file the table does not list contributes ZERO and is counted in
     `unrecorded` rather than guessed at, and an UNLISTED file's duration is never summed (the AC1
     differential). `suite_wall_s` is the table's OWN total per-file work, which is the only
@@ -9431,7 +9473,8 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None) -> dic
     base = Path(root) if root else Path(__file__).resolve().parents[2]
     carrier_path = Path(carrier) if carrier else base / "tests" / LOAD_SENSITIVE_CARRIER
     table_path = Path(table) if table else base / "tests" / LOAD_SENSITIVE_TABLE
-    listed = _lane_carrier_files(carrier_path)
+    dated = _lane_carrier_entries(carrier_path)   # ONE read of the carrier: names + entry dates
+    listed = list(dated)
     if not listed:
         return out
     try:
@@ -9466,9 +9509,29 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None) -> dic
         except (TypeError, ValueError):
             continue
     share = (lane / suite * 100.0) if suite > 0 else 0.0
+    # T-13621 — the 7-day ENTRY reading, from the carrier's own per-line entry date and the SAME
+    # table: how many listed files entered inside the window and their recorded seconds. A line whose
+    # date is missing or does not parse is counted as UNDATED and named, never dropped. Files that
+    # LEFT the lane are not read at all (owner ruling events.jsonl#ts=2026-10-06T11:27:44Z).
+    _today = today or datetime.now(timezone.utc).date()
+    window_days = 7                    # the card's «last 7 days»; a reading window, not a bound
+    entered, entered_s, undated = 0, 0.0, 0
+    for name in listed:
+        try:
+            when = date.fromisoformat(str(dated.get(name) or ""))
+        except ValueError:
+            undated += 1
+            continue
+        if 0 <= (_today - when).days < window_days:
+            entered += 1
+            try:
+                entered_s += _secs(files.get(name) or 0)
+            except (TypeError, ValueError):
+                pass
     out.update({"count": len(listed), "files": listed, "wall_s": round(lane, 1),
                 "suite_wall_s": round(suite, 1), "share_pct": round(share, 1),
-                "unrecorded": unrecorded})
+                "unrecorded": unrecorded, "entry_window_days": window_days,
+                "entered": entered, "entered_s": round(entered_s, 1), "undated": undated})
     if share > bound_share:
         out["crossed"].append("share")
     if len(listed) > bound_files:
@@ -9567,6 +9630,7 @@ def uncovered_surface_debt_lines(REPO_ROOT, _read_yaml) -> list:
     """SPEC-0119 rule 43: ONE report-only row `user-surface files no scenario covers: N`, over every
     TRACKED file under the declared prefixes. Suppressed-when-clean, and silent without a declaration
     (the engine itself declares none). Best-effort: [] on any failure — a seam is never broken."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         from lib import profile as _profile
         prefixes = user_surface_prefixes(_profile._load_ops(Path(REPO_ROOT)))
@@ -9576,7 +9640,7 @@ def uncovered_surface_debt_lines(REPO_ROOT, _read_yaml) -> list:
         index = _read_yaml(gp) if gp.exists() else {}
         import subprocess
         r = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "--", *prefixes],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
         if r.returncode != 0:
             return []
         hits = uncovered_surface_files(r.stdout.splitlines(), prefixes, index)

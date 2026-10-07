@@ -678,13 +678,15 @@ def _consult_record_only_delta(basis_fp: str | None, current_fp: str | None,
     plan_fingerprint is a content hash, so this predicate is inert on that whole stage by
     construction), a missing fingerprint, a non-git repo, a git failure of ANY kind — returns False
     and leaves the caller's existing `stale` refusal untouched."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not basis_fp or not current_fp or not consult_rel:
         return False
     resolved = []
     for fp in (basis_fp, current_fp):
         try:
             r = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "--quiet",
-                                f"{fp}^{{commit}}"], capture_output=True, text=True, check=False)
+                                f"{fp}^{{commit}}"], capture_output=True, text=True, check=False,
+                               env=_git_env._git_child_env())
         except (FileNotFoundError, OSError):
             return False
         if r.returncode != 0 or not (r.stdout or "").strip():
@@ -692,7 +694,8 @@ def _consult_record_only_delta(basis_fp: str | None, current_fp: str | None,
         resolved.append(r.stdout.strip())
     try:
         d = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--name-only",
-                            resolved[0], resolved[1]], capture_output=True, text=True, check=False)
+                            resolved[0], resolved[1]], capture_output=True, text=True, check=False,
+                           env=_git_env._git_child_env())
     except (FileNotFoundError, OSError):
         return False
     if d.returncode != 0:

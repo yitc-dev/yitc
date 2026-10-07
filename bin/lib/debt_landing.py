@@ -1187,11 +1187,12 @@ def _remote_lag_git(repo_root, *gitargs, _REMOTE_LAG_GIT_TIMEOUT=None) -> "str |
     A pure LOCAL reader (`remote -v` / `rev-parse` / `rev-list`) — never a write and never a network
     call. Same shape as `views._git_read`; module-local so the fold is self-contained and isolatable
     against a test sandbox repo. Never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     try:
         r = subprocess.run(["git", "-C", str(repo_root), *gitargs],
                            capture_output=True, text=True, check=False,
-                           timeout=_REMOTE_LAG_GIT_TIMEOUT)
+                           timeout=_REMOTE_LAG_GIT_TIMEOUT, env=_git_env._git_child_env())
     except (FileNotFoundError, OSError, ValueError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:

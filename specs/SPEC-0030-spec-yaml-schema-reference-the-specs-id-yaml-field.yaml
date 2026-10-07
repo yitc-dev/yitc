@@ -67,13 +67,22 @@ body: "## Scenario\n\nWhen the AI authors or edits a spec, it needs the exact fi
   \ body stays\n                               # authoritative). `graph build` carries\
   \ it onto the node; `_seed_howto`\n                               # renders it into\
   \ the session-start seed line; `graph conformance`\n                           \
-  \    # refuses a seed-bound spec without one.\nimplements: # = the Anchors layer.\
-  \ durable anchors : `<file>` OR\n                               # `<file>#<symbol>`\
-  \ — NOT line ranges (they drift). `graph build`\n                              \
-  \ # resolves each against the tree + REPORTS stale ones (report-not-\n         \
-  \                      # block). A spec with no code site (design-phase / documentary)\n\
-  \                               # keeps `implements: []` + a human-visible note.\n\
-  \  - bin/lib/task.py#cmd_task_file # symbol: a def/class/module-const/markdown-heading\
+  \    # refuses a seed-bound spec without one.\nturn_on: ~ # OPTIONAL (added; the\
+  \ RULE + semantics owned by SPEC-0195\n                               # rule 8,\
+  \ this is the field's SCHEMA home). ONE line naming where a\n                  \
+  \             # project turns this capability on — the declaration it writes — for\n\
+  \                               # a capability whose `concern:` blocks and `extension:`\
+  \ marker do not\n                               # already name it. Read only by\
+  \ the release's capabilities-to-consider\n                               # list;\
+  \ absent = that list derives the line from those two carriers,\n               \
+  \                # else says the turn-on is not declared and points at the contract\n\
+  \                               # (absence never reads as automatic adoption).\n\
+  implements: # = the Anchors layer. durable anchors : `<file>` OR\n             \
+  \                  # `<file>#<symbol>` — NOT line ranges (they drift). `graph build`\n\
+  \                               # resolves each against the tree + REPORTS stale\
+  \ ones (report-not-\n                               # block). A spec with no code\
+  \ site (design-phase / documentary)\n                               # keeps `implements:\
+  \ []` + a human-visible note.\n  - bin/lib/task.py#cmd_task_file # symbol: a def/class/module-const/markdown-heading\
   \ name\n  - bin/lib/state.py # file-level: whole file enforces the spec\nimplements_signature:\
   \ # OPTIONAL, machine-managed (E-0019 kind-B). A mapping\n                     \
   \          # {<implements-anchor>: <sha256-hex>} recording the content each\n  \

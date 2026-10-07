@@ -874,6 +874,7 @@ def _audit_config_text(config_path: Path) -> "str | None":
     Returns None only when there is no text at ALL (no `main` copy and no file on disk), which each
     caller treats exactly as its pre-existing missing-file branch — so T-12093's fail-closed model
     refusal and T-12176's PATH-first binary order are unchanged."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     on_disk: "str | None" = None
     if config_path.exists():
         try:
@@ -888,10 +889,10 @@ def _audit_config_text(config_path: Path) -> "str | None":
     rel = f"{config_path.parent.name}/{config_path.name}"
     try:
         head = subprocess.run(["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
-                              capture_output=True, text=True, timeout=10)
+                              capture_output=True, text=True, timeout=10, env=_git_env._git_child_env())
         if head.returncode == 0 and _AUDIT_CONFIG_WORKTREE_BRANCH_RE.match(head.stdout.strip()):
             shown = subprocess.run(["git", "-C", str(root), "show", f"main:{rel}"],
-                                   capture_output=True, text=True, timeout=10)
+                                   capture_output=True, text=True, timeout=10, env=_git_env._git_child_env())
             if shown.returncode == 0 and shown.stdout.strip():
                 resolved = shown.stdout
                 if on_disk is not None and on_disk != resolved:
@@ -2683,7 +2684,9 @@ def prototype_diff_text(repo_root, ref: str) -> "str | None":
     """`git diff <merge-base main ref>..<ref>` for the card's prototype tag; None when unresolvable."""
     import subprocess   # noqa: PLC0415
     def _g(*a):
-        r = subprocess.run(["git", "-C", str(repo_root), *a], capture_output=True, text=True, errors="replace")
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+        r = subprocess.run(["git", "-C", str(repo_root), *a], capture_output=True, text=True, errors="replace",
+                           env=_git_env._git_child_env())
         return r.stdout if r.returncode == 0 else None
     mb = (_g("merge-base", "main", f"refs/tags/{ref}") or "").strip()
     return _g("diff", f"{mb}..refs/tags/{ref}") if mb else None
@@ -3792,10 +3795,11 @@ def _git_show_text(rev, file_rel, *, repo_root=None):
 
     Returns None on any git failure (revision unknown, path absent at that revision) — the caller
     reads None as UNRESOLVABLE and keeps today's fail-closed count. Never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     root = str(repo_root) if repo_root else None
     cmd = ["git"] + (["-C", root] if root else []) + ["show", f"{rev}:{file_rel}"]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=False, check=False)
+        r = subprocess.run(cmd, capture_output=True, text=False, check=False, env=_git_env._git_child_env())
     except OSError:
         return None
     if r.returncode != 0:
@@ -5799,12 +5803,13 @@ def _git_span_member_reachable(sha, *, repo_root) -> "bool | None":
     (T-12678), so the value that arrives is the full sha; an ambiguous 7-char slice passed straight
     in makes git exit 128 and this answer None (the X-1406 wedge) — that is the caller's job to
     prevent, not a case this helper guesses through."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not sha or not repo_root:
         return None
     try:
         r = subprocess.run(
             ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", str(sha), "HEAD"],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except Exception:                 # noqa: BLE001 — unanswered, never answered "no"
         return None
     return True if r.returncode == 0 else (False if r.returncode == 1 else None)
@@ -5819,12 +5824,13 @@ def _git_ship_landed(ship_sha, *, repo_root) -> "bool | None":
     same `merge-base --is-ancestor` call (CHARTER §P1 F1). Three-valued for the `_git_strict_descendant`
     reason: exit 0 is yes, exit 1 is no, and ANY other exit — or any exception, or a missing sha — is an
     UNANSWERED question, never a `no`. Both callers treat the unknown as «do not act on it»."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not ship_sha or not repo_root:
         return None
     try:
         r = subprocess.run(
             ["git", "-C", str(repo_root), "merge-base", "--is-ancestor", str(ship_sha), "main"],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except Exception:                 # noqa: BLE001 — unanswered, never answered "no"
         return None
     return True if r.returncode == 0 else (False if r.returncode == 1 else None)
@@ -5832,9 +5838,10 @@ def _git_ship_landed(ship_sha, *, repo_root) -> "bool | None":
 
 def _git_out(args, *, repo_root) -> "str | None":
     """stdout of `git -C <repo_root> <args>` on exit 0, else None. Never raises (T-12592)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(["git", "-C", str(repo_root), *args],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except Exception:                 # noqa: BLE001 — an unanswered git question, never a crash
         return None
     return (r.stdout or "").strip() if r.returncode == 0 else None
@@ -5995,6 +6002,7 @@ def _git_strict_descendant(audited, evidence, *, repo_root) -> "bool | None":
     --is-ancestor` exits 0 for yes and 1 for no, and ANY other exit — or any exception — is an
     UNANSWERED question, never a `no`. The caller REFUSES on anything that is not True, so an
     unanswerable ancestry fails closed without being reported as a proven non-descendant."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not audited or not evidence or not repo_root:
         return None
     if str(audited) == str(evidence):
@@ -6002,7 +6010,7 @@ def _git_strict_descendant(audited, evidence, *, repo_root) -> "bool | None":
     try:
         r = subprocess.run(["git", "-C", str(repo_root), "merge-base", "--is-ancestor",
                             str(audited), str(evidence)],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except (OSError, ValueError):     # noqa: BLE001 — unanswered, never answered "no"
         return None
     if r.returncode == 0:
@@ -6015,11 +6023,13 @@ def _git_strict_descendant(audited, evidence, *, repo_root) -> "bool | None":
 def _git_is_merge(sha, *, repo_root) -> "bool | None":
     """T-13256 — is `sha` a MERGE commit (two or more parents)? True / False / None (unanswerable).
     Same three-valued posture as `_git_strict_descendant`: a git failure is None, never a `no`."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not sha or not repo_root:
         return None
     try:
         r = subprocess.run(["git", "-C", str(repo_root), "rev-list", "--parents", "-n", "1",
-                            str(sha)], capture_output=True, text=True, check=False)
+                            str(sha)], capture_output=True, text=True, check=False,
+                           env=_git_env._git_child_env())
     except (OSError, ValueError):     # noqa: BLE001 — unanswered, never answered "no"
         return None
     if r.returncode != 0 or not r.stdout.strip():
@@ -6045,11 +6055,12 @@ def _git_commit_on_a_branch(sha, *, repo_root) -> "bool | None":
     the fact this reader is asked for.
 
     Pure read (git plumbing only); no state, no event; never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not sha or not repo_root:
         return None
     try:
         r = subprocess.run(["git", "-C", str(repo_root), "branch", "--all", "--contains", str(sha)],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except (OSError, ValueError):     # noqa: BLE001 — unanswered, never answered "no"
         return None
     if r.returncode != 0:
@@ -8146,9 +8157,10 @@ def _residual_escalation_suffix(residual_findings) -> str:
 def _decide_main_checkout(worktree) -> "Path | None":
     """T-13362 — the MAIN checkout of the repo `worktree` belongs to (the worktree on
     `refs/heads/main`, the cli.py `_main_worktree` resolution, D-0037), or None when unresolvable."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(["git", "-C", str(worktree), "worktree", "list", "--porcelain"],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except (OSError, ValueError):
         return None
     if r.returncode != 0:
@@ -8458,9 +8470,32 @@ def absorb_texts(raw, *, _die) -> "list[str] | None":
     return texts
 
 
+def sweep_statement(raw) -> str:
+    """T-13632 — THE ONE HOME for the same-class sweep statement an absorption records (SPEC-0036
+    §Absorption sweep). The first absorption after that rule landed (T-13613 audit-pre,
+    events.jsonl#ts=2026-10-06T14:28:23Z) stated no sweep: the rule rode free text and memory. So the
+    absorption routes now take the statement as its own value (`--sweep`) and record it on the
+    absorbed entry and on the `audit_finding_absorbed` row.
+
+    Missing-statement behaviour (the Analysis decision): the absorption PROCEEDS and records the
+    literal marker `not stated` — never a refusal, so the cheap mode-(b) path stays cheap, and never
+    an absent key, so a miss stays COUNTABLE (count the rows whose `sweep` is the marker). An
+    empty or whitespace-only value reads as not stated."""
+    text = raw.strip() if isinstance(raw, str) else ""
+    return text or "not stated"
+
+
+def _warn_sweep_not_stated(where: str, sweep: str) -> None:
+    """T-13632 — the one loud line for a missing statement; the record carries the marker either way."""
+    if sweep == "not stated":
+        print(f"note: {where}: no --sweep given — recorded `sweep: not stated` (SPEC-0036 §Absorption "
+              f"sweep: state where you looked for the same defect class and what you found, T-13632)",
+              file=sys.stderr)
+
+
 def absorb_into_audit_record(tid: str, stage: str, text: str, *, decisions_dir: Path, repo_root: Path,
                              _die, _append_event, _utc_now_iso, write_text_atomic,
-                             _governing_contract_for=None) -> None:
+                             _governing_contract_for=None, sweep=None) -> None:
     """T-10770 — MODE-(b) ABSORPTION as a governed FIELD EDIT over the saved audit record.
 
     LIFECYCLE Stage 4 names two ways to absorb a YELLOW audit-pre finding: (a) edit the plan, which
@@ -8521,11 +8556,12 @@ def absorb_into_audit_record(tid: str, stage: str, text: str, *, decisions_dir: 
     absorbed = rec.get("absorbed")
     if not isinstance(absorbed, list):
         absorbed = []
-    absorbed.append({"mode": "b", "at": now, "what": text})
+    sweep = sweep_statement(sweep)      # T-13632 — recorded on the entry, the notes and the row
+    absorbed.append({"mode": "b", "at": now, "what": text, "sweep": sweep})
     rec["absorbed"] = absorbed
     prior_notes = str(rec.get("notes") or "").rstrip()
     rec["notes"] = (prior_notes + "\n\n" if prior_notes else "") + \
-        f"--- absorbed mode-(b) {now} (yitc-v2 audit {stage} --absorb) ---\n{text}"
+        f"--- absorbed mode-(b) {now} (yitc-v2 audit {stage} --absorb) ---\n{text}\nsweep: {sweep}"
 
     content = state.dump(rec)
     # SPEC-0001 self-test — same round-trip proof the original write performs, re-run because this is a
@@ -8542,10 +8578,12 @@ def absorb_into_audit_record(tid: str, stage: str, text: str, *, decisions_dir: 
         "verdict": verdict,
         "absorbed_count": len(absorbed),
         "what": text,
+        "sweep": sweep,
     }
     if _governing_contract_for is not None:
         data["governing_contract"] = _governing_contract_for(f"audit-{stage}")
     _append_event("audit_finding_absorbed", tid, data)
+    _warn_sweep_not_stated(f"{tid} audit-{stage} --absorb", sweep)
     print(f"{tid} audit-{stage}: absorbed mode-(b) residual → {data['record']} "
           f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
 
@@ -8832,7 +8870,8 @@ def derive_finding_outcome(prior_record, *, stage: str, current_commit=None, com
     return outcome, evidence
 
 
-def finding_outcome_row(prior_record, outcome, evidence, *, stage, resolved_pass, record) -> dict:
+def finding_outcome_row(prior_record, outcome, evidence, *, stage, resolved_pass, record,
+                        sweep=None) -> dict:
     """The `audit_finding_absorbed mode=inline` payload — the EXISTING absorption record extended to the
     ordinary case (T-12726). Keyed by (task, stage, raised_pass) so the census joins it to the mined
     verdict YAML of the pass that raised the findings. No new event type, store, card field or gate."""
@@ -8849,6 +8888,8 @@ def finding_outcome_row(prior_record, outcome, evidence, *, stage, resolved_pass
                                   if f.get("finding_fingerprint")],
         "evidence": evidence,
         "record": record,
+        # T-13632 — the sweep statement THIS re-run was given (`--sweep`), or the `not stated` marker.
+        "sweep": sweep_statement(sweep),
     }
 
 
@@ -8870,7 +8911,8 @@ PLAN_ACCEPT_GATE_NAMING = (
 def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_dir: Path,
                                  repo_root: Path, gate_audit_map: dict,
                                  _die, _append_event, _utc_now_iso, write_text_atomic,
-                                 _governing_contract_for=None, invocation: str = None) -> None:
+                                 _governing_contract_for=None, invocation: str = None,
+                                 sweep=None) -> None:
     """T-11167 — the PLAN-GATE sibling of `absorb_into_audit_record` (X-0928).
 
     SPEC-0124 §Audit-loop ceiling governs TASK audit-pre/post AND the ceiling-bearing PLAN gates, and
@@ -8938,11 +8980,12 @@ def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_d
     absorbed = rec.get("absorbed")
     if not isinstance(absorbed, list):
         absorbed = []
-    absorbed.append({"mode": "b", "at": now, "gate": gate, "what": text})
+    sweep = sweep_statement(sweep)      # T-13632 — recorded on the entry, the notes and the row
+    absorbed.append({"mode": "b", "at": now, "gate": gate, "what": text, "sweep": sweep})
     rec["absorbed"] = absorbed
     prior_notes = str(rec.get("notes") or "").rstrip()
     rec["notes"] = (prior_notes + "\n\n" if prior_notes else "") + \
-        f"--- absorbed mode-(b) {now} ({invocation or f'yitc-v2 audit pre --plan {slug} --gate {gate} --absorb'}) ---\n{text}"
+        f"--- absorbed mode-(b) {now} ({invocation or f'yitc-v2 audit pre --plan {slug} --gate {gate} --absorb'}) ---\n{text}\nsweep: {sweep}"
 
     content = state.dump(rec)
     # SPEC-0001 self-test — the same round-trip proof `_run_plan_gate_audit#_save` performs, re-run
@@ -8962,12 +9005,14 @@ def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_d
         "verdict": verdict,
         "absorbed_count": len(absorbed),
         "what": text,
+        "sweep": sweep,
     }
     if _governing_contract_for is not None:
         data["governing_contract"] = _governing_contract_for(f"plan-gate-{gate}")
     # tid=None: a plan target is journalled by slug-in-data (the `draft_checked` precedent that
     # `_run_plan_gate_audit` itself uses), not by the task_id column.
     _append_event("audit_finding_absorbed", None, data)
+    _warn_sweep_not_stated(f"{slug} {gate} --absorb", sweep)
     print(f"{slug} {gate}: absorbed mode-(b) residual → {data['record']} "
           f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
 
@@ -10190,6 +10235,7 @@ def get_audit_post_span_diff(shas, *, repo_root: Path) -> dict:
     cannot resolve falls through to the union, whose own per-member refusal names it.
 
     Returns `{"diff": str, "refusal": str|None}`. Never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     members = [str(s).strip() for s in (shas or ()) if str(s or "").strip()]
     if len(members) <= 1:
         one = members[0] if members else ""
@@ -10201,9 +10247,9 @@ def get_audit_post_span_diff(shas, *, repo_root: Path) -> dict:
     last = members[-1]
     try:
         _base = subprocess.run(["git", "-C", str(repo_root), "merge-base", last, "main"],
-                               capture_output=True, text=True, check=False)
+                               capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         _head = subprocess.run(["git", "-C", str(repo_root), "rev-parse", last],
-                               capture_output=True, text=True, check=False)
+                               capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         base_sha = _base.stdout.strip() if _base.returncode == 0 else ""
         head_sha = _head.stdout.strip() if _head.returncode == 0 else ""
     except Exception:                 # noqa: BLE001 — unanswered: fall through to the union, whose refusal names it
@@ -10215,7 +10261,7 @@ def get_audit_post_span_diff(shas, *, repo_root: Path) -> dict:
     for sha in members:
         try:
             r = subprocess.run(["git", "-C", str(repo_root), "show", sha, *_AUDIT_POST_DIFF_EXCL],
-                               capture_output=True, text=True, check=False)
+                               capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         except Exception as exc:      # noqa: BLE001 — a member we cannot read is a REFUSAL
             return {"diff": "", "refusal":
                     f"ship-span: `git show {sha[:12]}…` failed ({str(exc)[:160]}), so the audited "
@@ -10254,8 +10300,9 @@ def get_audit_post_diff(sha: str, *, repo_root: Path) -> str:
     audit — see inline note. T-0220: the decisions exclude is two SUFFIX-anchored patterns, not the
     over-broad '*-audit-*.yaml' (which also hid legit decisions whose slug merely contains 'audit')."""
     def _git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(repo_root), *args],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_env._git_child_env())
 
     base = _git("merge-base", sha, "main")
     base_sha = base.stdout.strip() if base.returncode == 0 else ""
@@ -10311,8 +10358,9 @@ def audit_post_range(sha: str, *, repo_root: Path) -> dict:
     explicitly did not ask for. Absent keys therefore mean "not derivable", never zero. Pure read (git
     plumbing only); no state, no event, no mutation."""
     def _git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(repo_root), *args],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_env._git_child_env())
 
     def _count(res):
         if res.returncode != 0:
@@ -11366,8 +11414,9 @@ def _empty_subject_own_paths(sha: str, REPO_ROOT) -> list:
     contract returns the AUTHORED paths (`[]` is precisely the case being refused) and so can never
     name what the commit DOES carry. Best-effort: a git failure yields `[]` and the refusal simply
     drops the path clause rather than turning a diagnostic into a second failure mode."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     r = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "--name-only", "--pretty=format:", sha],
-                       capture_output=True, text=True, check=False)
+                       capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     if r.returncode != 0:
         return []
     # T-12014: decoded, so the refusal NAMES the path git means rather than its octal-escaped form.
@@ -12146,10 +12195,11 @@ def _declared_deletion_deliverable(tid: str, sha: str, REPO_ROOT) -> bool:
     (exact entry) or appears in one of its `acceptance` criteria. A mix of declared and undeclared
     deletions is refused: the admission covers only what the card owns. FAIL-CLOSED — any git or
     card-read failure answers False, leaving the T-11405 refusal byte-identical. Never raises."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(["git", "-C", str(REPO_ROOT), "show", "--name-status", "-M",
                             "--pretty=format:", "-m", sha],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         if r.returncode != 0:
             return False
         deleted = set()
@@ -12388,8 +12438,9 @@ def _concurrent_merge_churn_only(prior_commit: str, head_sha: str, repo_root: "P
     `CONFLICT (content)` (modify/delete, rename/rename, a future wording — an unrecognised kind may name
     a path this parse would not see at all)."""
     def _git(*a):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(repo_root), *a],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     # The prior-audited commit must be a proper ANCESTOR of HEAD (forward-only concurrent-merge churn);
     # a divergent / rewritten history is not this benign case.
     if _git("merge-base", "--is-ancestor", prior_commit, head_sha).returncode != 0:
@@ -12786,6 +12837,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # (it writes `decisions/<id>-audit-<stage>.yaml`, the T-0399/E-0014 dirt this guard exists for).
     # Read HERE, hoisted above the guard, in the same additive-optional getattr shape as the
     # canonical T-11407 read below — which stays the site that refuses the flag combinations.
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not bool(getattr(args, "preview", False)):
         _require_writing_worktree()
     try:
@@ -12988,7 +13040,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     decisions_dir=REPO_ROOT / "decisions", repo_root=REPO_ROOT,
                     gate_audit_map=_PLAN_CONSULT_GATE_AUDIT,
                     _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
-                    write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
+                    write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
+                    sweep=getattr(args, "sweep", None))
             return
         _require_reads("stage", {"stage": "Audit-pre", "verb": "audit pre --absorb",
                                  "action": "audit-pre-absorb"})
@@ -12997,7 +13050,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 (getattr(args, "task", None) or "").strip(), stage, _text,
                 decisions_dir=REPO_ROOT / "decisions", repo_root=REPO_ROOT,
                 _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
-                write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
+                write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
+                sweep=getattr(args, "sweep", None))
         return
 
     # T-13542 (LIFECYCLE Stage 8 / SPEC-0036 §Saved audit result) — the FOLLOW-UP RECORD field-edit
@@ -13307,7 +13361,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                              f"history (T-12370). No auditor was invoked and no pass was spent.")
                     _rs_delta = subprocess.run(
                         ["git", "-C", str(REPO_ROOT), "diff", "--name-only", _rs, sha],
-                        capture_output=True, text=True, check=False)
+                        capture_output=True, text=True, check=False, env=_git_env._git_child_env())
                     if _rs_delta.returncode != 0:
                         _die(f"--reaudit-subject {_rs[:12]}…: could not diff it against HEAD, so "
                              f"nothing is proven about whether it names the same audited content "
@@ -13647,8 +13701,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     and not _t13256_ship and _iter_events is not None
                     and _count_audit_passes(tid, "post") >= AUDIT_PASS_CEILING):
                 def _mi_git(_args):
+                    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
                     _p = subprocess.run(["git", "-C", str(REPO_ROOT), *_args], capture_output=True,
-                                        text=True, errors="replace", check=False)
+                                        text=True, errors="replace", check=False, env=_git_env._git_child_env())
                     return _p.returncode, _p.stdout
                 _mi_view = _decide_journal_view(   # T-13332: the scope's task rows when held
                     tid, "post", _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
@@ -17406,10 +17461,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 current_plan_fingerprint=(plan_fp if stage == "pre" else None))
             if _fo is not None:
                 _fo_outcome, _fo_evidence = _fo
-                _append_event("audit_finding_absorbed", tid, finding_outcome_row(
+                _fo_row = finding_outcome_row(
                     _outcome_prior, _fo_outcome, _fo_evidence, stage=stage,
                     resolved_pass=audit["passes"],
-                    record=str(audit_path.relative_to(REPO_ROOT))))
+                    record=str(audit_path.relative_to(REPO_ROOT)),
+                    sweep=getattr(args, "sweep", None))     # T-13632 — the mode-(a) statement
+                _append_event("audit_finding_absorbed", tid, _fo_row)
+                _warn_sweep_not_stated(f"{tid} audit-{stage} re-audit", _fo_row["sweep"])
                 print(f"# {tid} audit-{stage}: prior pass {_outcome_prior.get('passes')} findings "
                       f"({len(_outcome_prior.get('findings') or [])}) → outcome {_fo_outcome} "
                       f"(derived from commit evidence, T-12726)", file=sys.stderr)
@@ -19214,9 +19272,11 @@ AUDIT_PACKET_RETENTION_DAYS = 30
 def audit_packet_store_dir(repo_root) -> Path:
     """Machine-local packet store: under the git COMMON dir (outside any worktree, never committed);
     falls back to <repo_root>/.yitc/audit-packets when git is unavailable."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute",
-                            "--git-common-dir"], capture_output=True, text=True, timeout=10)
+                            "--git-common-dir"], capture_output=True, text=True, timeout=10,
+                           env=_git_env._git_child_env())
         if r.returncode == 0 and r.stdout.strip():
             return Path(r.stdout.strip()) / "yitc-audit-packets"
     except (OSError, subprocess.SubprocessError):
@@ -19249,8 +19309,9 @@ def shared_store_modes(d: Path, repo_root) -> tuple:
         from lib import graph as graph_mod
 
         def _run_git(args, root):
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
             return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True,
-                                  timeout=10)
+                                  timeout=10, env=_git_env._git_child_env())
         file_mode = graph_mod._shared_git_dir_file_mode(d.parent, repo_root=repo_root,
                                                         run_git=_run_git)
     except (OSError, subprocess.SubprocessError, ImportError):

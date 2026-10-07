@@ -1537,7 +1537,7 @@ def _stage6_governed_selection(*a, **kw):
 
 
 def cmd_task_test(args: argparse.Namespace) -> None:
-    return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree)   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11975: the Stage-6 stale-anchor report reuses the SAME assembler the audit packet's `### Spec coverage of touched files` section calls (`_spec_coverage_section`) — one detector, forwarded here rather than re-derived, so the two surfaces cannot drift.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
+    return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree, _layer_step_lines=lambda cur: _scaling_signals_lines(stage6=cur))   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11975: the Stage-6 stale-anchor report reuses the SAME assembler the audit packet's `### Spec coverage of touched files` section calls (`_spec_coverage_section`) — one detector, forwarded here rather than re-derived, so the two surfaces cannot drift.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
 def cmd_task_analyze(args: argparse.Namespace) -> None:
     # T-11358: the Stage-8 forecast CORRECTION arm needs the recorded audit commit + its diff, so the
     # fence is computed from what the ship ACTUALLY touched rather than taken on a flag's word. Both
@@ -1694,6 +1694,10 @@ def _view_outcome_ratio(events_path: "Path", since=None, until=None) -> dict:
     return views._view_outcome_ratio(events_path, since, until, _iter_events=_iter_events, _ev_dt=_ev_dt)
 def _view_admission_series(events_path: "Path", since=None, until=None) -> dict:
     return views._view_admission_series(events_path, since, until, _iter_events=_iter_events, _ev_dt=_ev_dt)
+def _view_test_layout_hotspots(events_path: "Path", since=None, until=None) -> dict:
+    # T-13611 (SPEC-1006 rule 13): reads the journal it is handed — under `-C <project>` that
+    # project's own, so a consumer runs the report over its own shadow lands.
+    return views._view_test_layout_hotspots(events_path, since, until, _iter_events=_iter_events, _ev_dt=_ev_dt)
 
 
 def _plan_status(slug: "str | None") -> "str | None":
@@ -1801,6 +1805,10 @@ def _review_due_view() -> dict:
                                   declared_cadence=_declared_cad,
                                   # T-13104 — the routed-boundary home for the triage subject's gate.
                                   _last_triage_watermark=_SELF._last_triage_watermark)
+def _view_per_unit_flaky_rate(events_path: "Path", since=None, until=None) -> dict:
+    return worktree_mod.land_verify_legs._per_unit_flaky_rate(events_path, since, until, _iter_events=_iter_events, _ev_dt=_ev_dt)
+def _view_per_case_rescued_failures(events_path: "Path", since=None, until=None) -> dict:
+    return worktree_mod.land_verify_legs._per_case_rescued_failures(events_path, since, until, _iter_events=_iter_events, _ev_dt=_ev_dt)
 def _view_test_orientation() -> dict:
     return views._view_test_orientation(REPO_ROOT, _read_yaml=_read_yaml)
 def _view_consumer_deploy_policy() -> dict:
@@ -5959,7 +5967,7 @@ def _pre_parse_c_root(raw_argv: list) -> "Path | None":
         if p is None or not p.is_absolute() or not p.is_dir():
             return None
         r = subprocess.run(["git", "-C", str(p), "rev-parse", "--show-toplevel"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, env=_git_child_env())
         return Path(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
     except Exception:   # noqa: BLE001
         return None
@@ -6459,7 +6467,7 @@ def _reservation_dir(directory: Path):
     import subprocess
     try:
         out = subprocess.run(["git", "-C", str(directory), "rev-parse", "--git-common-dir"],
-                             capture_output=True, text=True, check=False)
+                             capture_output=True, text=True, check=False, env=_git_child_env())
     except (FileNotFoundError, OSError):
         return None
     if out.returncode != 0 or not out.stdout.strip():
@@ -8695,7 +8703,7 @@ def _venue_publish_under_reservation(args, fingerprint: dict, _rv) -> None:
     if _venue_publish_existing(existing, args.box):
         return
     host = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "-q", "main"],
-                          text=True, capture_output=True)
+                          text=True, capture_output=True, env=_git_child_env())
     host_main = host.stdout.strip()
     if host.returncode != 0 or not host_main:
         _die("venue publish: REFUSED — this host's `main` did not resolve, so there is nothing to "
@@ -8927,6 +8935,17 @@ def _engine_live_root() -> Path:
     return engine_route.live_engine_root(ENGINE_ROOT)
 
 
+def _p8_marker_carried_ids(text):
+    """T-13637 — the task ids the ONE `P8-CARRIER:` parse reads from a capture's text, or None when the
+    text carries no marker (or the parse could not run). Feeds the text through
+    `debt.p8_carrier_followups` as a one-item fold, so the note and the debt view cannot disagree."""
+    from lib import debt as _debt   # leaf import, lazy — the init.py/views.py idiom
+    recs = _debt.p8_carrier_followups(EVENTS_PATH, _followups=lambda: {"_": {"text": text}})
+    if not recs:                    # None = unreadable; [] = the text carries no marker
+        return None
+    return set().union(*(r["task_ids"] for r in recs))
+
+
 def cmd_followup_add(args: argparse.Namespace) -> None:
     # T-11244 (E-0054): the shared `--from-stdin` mapping ingest is INJECTED like every other
     # collaborator of this leaf — `lib/followup.py` is loaded both as `lib.followup` and (by three
@@ -8936,7 +8955,9 @@ def cmd_followup_add(args: argparse.Namespace) -> None:
                                   stdin_ingest=textutil.stdin_mapping_ingest,
                                   # T-12055 — the born-armed advisory's openness reader. Injected like
                                   # every other host collaborator of this leaf; report-only, fail-open.
-                                  open_refs=_open_awaited_refs)
+                                  open_refs=_open_awaited_refs,
+                                  # T-13637 — the unreadable-marker note's reader: the ONE marker parse.
+                                  carrier_ids=_p8_marker_carried_ids)
     _onboarding_seam_nudge("followup")   # SPEC-0147 §5 station H rides this existing seam
 
 
@@ -9875,7 +9896,8 @@ def _scoped_selfcommit_rollback(verb: str, artifact_rels: "list[str]", new: "lis
         try:
             blob = subprocess.run(
                 ["git", "-C", str(REPO_ROOT), *_foreign_worktree_safe_directory_args(REPO_ROOT),
-                 "cat-file", "blob", f"HEAD:{rel}"], capture_output=True, check=True).stdout
+                 "cat-file", "blob", f"HEAD:{rel}"], capture_output=True, check=True,
+                env=_git_child_env()).stdout
             target = REPO_ROOT / rel
             try:
                 mode = os.stat(target).st_mode & 0o777
@@ -9977,7 +9999,7 @@ def _settle_journal_receipt(verb: str, from_ref: str) -> "str | None":
     body = _build_commit_body(from_ref, f"chore: settle {verb} journal receipt")
     idargs = _git_identity_fallback_args(REPO_ROOT)      # X-0233: no-op unless no identity resolvable
     rv = subprocess.run(["git", "-C", str(REPO_ROOT), *idargs, "commit", "-q", "-F", "-"],
-                        input=body, text=True, capture_output=True)
+                        input=body, text=True, capture_output=True, env=_git_child_env())
     if rv.returncode != 0:
         _die(f"{verb}: the journal-receipt settle commit FAILED — refusing (fail-closed, T-11232): "
              f"{(rv.stderr or rv.stdout).strip()}")
@@ -10531,13 +10553,14 @@ def _fingerprint_emitter_index(mention_idx) -> dict:
 
     def _git(*a, timeout=120):
         r = _sp.run(["git", "-C", str(REPO_ROOT), *a], capture_output=True, text=True,
-                    errors="replace", timeout=timeout)
+                    errors="replace", timeout=timeout, env=_git_child_env())
         return r.stdout if r.returncode == 0 else None
 
     try:
         pats = "".join(f'"{fp}"\n\'{fp}\'\n' for fp in cands)
         r = _sp.run(["git", "-C", str(REPO_ROOT), "grep", "-l", "-F", "-f", "-", "--", "bin/"],
-                    input=pats, capture_output=True, text=True, errors="replace", timeout=120)
+                    input=pats, capture_output=True, text=True, errors="replace", timeout=120,
+                    env=_git_child_env())
         present: set = set()
         for rel in r.stdout.splitlines():
             try:
@@ -10695,7 +10718,7 @@ def _git_resolve_sha(ref: str) -> str | None:
     try:
         result = subprocess.run(
             ["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", ref],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, check=False, env=_git_child_env()
         )
         if result.returncode != 0:
             return None
@@ -11107,7 +11130,7 @@ def _landed_branch_ship_tie(tid: str, full: str, tips: "list[str]", tie: "str | 
         try:
             return subprocess.run(
                 ["git", "-C", str(REPO_ROOT), "merge-base", "--is-ancestor", full, t],
-                capture_output=True, text=True, check=False).returncode == 0
+                capture_output=True, text=True, check=False, env=_git_child_env()).returncode == 0
         except (OSError, ValueError, subprocess.SubprocessError):
             return False               # the check could not RUN — not proven, refuse (never raise)
 
@@ -12629,6 +12652,69 @@ def _rendered_spec_title(rendered: str) -> str:
     return title or "(untitled)"
 
 
+# T-13625 — the stage-entry CONTRACT VIEW: what `_deliver_stage_bundle_contracts` hands an agent ENTERING
+# a stage, cut from the ordinary point-lookup render. Dropped: the derived header the render opens with
+# (the index node re-dumping every source field, and the reverse lookups `graph query <file>` answers),
+# and these source fields — code anchors and their hashes, born concern, provenance and activation
+# bookkeeping — which tools and explicit lookups read, not the act. Every other field, every body and
+# every source line is delivered unchanged; a field not named here fails toward being delivered. An
+# explicit `graph query <SPEC>` stays the full render (this view is never applied there).
+_CONTRACT_VIEW_DROPPED_FIELDS = frozenset({
+    "implements", "implements_signature", "concern", "init_concern",
+    "created_at", "consumed", "activation_owner_task", "proposed_by"})
+_CONTRACT_VIEW_SOURCE_LINE = re.compile(r"^# ── source: ", re.M)
+_CONTRACT_VIEW_KEY = re.compile(r"([A-Za-z_][\w-]*)[ \t]*:")
+
+
+def _stage_contract_view(rendered: str) -> str:
+    """T-13625 — the CONTRACT VIEW of one `graph query <SPEC>` render. Pure, string-only.
+
+    The header is everything before the FIRST source line, cut whole. Each source part is then walked
+    as top-level YAML blocks: a column-0 key opens a block and indented lines continue it. A BLANK line
+    stays with the block BEFORE it — so a body's blank lines, trailing ones included (content under
+    `|+` keep chomping), are delivered whenever the body is, whatever field follows. A column-0
+    COMMENT line is held and travels with the NEXT block, as do blank lines after it — so a dropped
+    field leaves with its leading and inline comments. A SOURCE LINE is always delivered and starts a
+    new part: the block state resets there, and the part's PREAMBLE (the comment and blank lines
+    before its first key) is delivered too, whatever that first key is. A render carrying no source
+    line is returned UNCHANGED (fail toward delivering)."""
+    m = _CONTRACT_VIEW_SOURCE_LINE.search(rendered)
+    if m is None:
+        return rendered
+    out: list = []
+    held: list = []
+    drop = False
+    preamble = False
+    for line in rendered[m.start():].splitlines(keepends=True):
+        if _CONTRACT_VIEW_SOURCE_LINE.match(line):
+            if not drop:
+                out.extend(held)
+            out.append(line)           # a source line is never dropped, and opens a new part
+            held, drop, preamble = [], False, True
+            continue
+        if preamble and (not line.strip() or line.startswith("#")):
+            out.append(line)           # the part's own preamble, before its first key
+            continue
+        preamble = False
+        if not line.strip() and not held:
+            if not drop:
+                out.append(line)       # a blank line belongs to the block before it
+            continue
+        if not line.strip() or line.startswith("#"):
+            held.append(line)          # a comment (and what follows it) belongs to the next block
+            continue
+        if not line[0].isspace():
+            k = _CONTRACT_VIEW_KEY.match(line)
+            drop = k is not None and k.group(1) in _CONTRACT_VIEW_DROPPED_FIELDS
+        if not drop:
+            out.extend(held)
+            out.append(line)
+        held = []
+    if not drop:
+        out.extend(held)
+    return "".join(out)
+
+
 def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
     """T-11550 — RENDER this stage's bundle contracts, so `stage <NAME>` DELIVERS the bundle it has
     always only NAMED, and the session that received it is CREDITED by the SPEC-0042/0050 read-gate.
@@ -12696,7 +12782,13 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
     A pointer writes NO new receipt: the earlier one is what credits, and the gate is untouched —
     read-gate credit stays SESSION-scoped (SPEC-0050 §2); the epoch decides re-RENDERING only. The id
     stays in the returned list, because the session does hold that contract. Every doubt fails toward
-    DELIVERING: an unreadable journal, no anchor, a receipt with no fingerprint, a raised comparison."""
+    DELIVERING: an unreadable journal, no anchor, a receipt with no fingerprint, a raised comparison.
+
+    THE CONTRACT VIEW (T-13625). What reaches the reader is `_stage_contract_view` of the render — the
+    body and routing fields, without the derived header and the machine-only source fields — and the
+    receipt's byte count and fingerprint are taken over THOSE bytes. An explicit `graph query <SPEC>`
+    never passes through here, so it stays the full render; its receipt carries no fingerprint and
+    therefore neither suppresses nor forces a body here."""
     done: list = []
     if not delivered:
         return done
@@ -12729,12 +12821,11 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
                              f"`yitc-v2 {' '.join(argv)}`\n")
             continue
         real_out = sys.stdout
-        # T-13510 — an id this epoch may already hold is rendered into MEMORY first, so its
-        # fingerprint can be compared before a byte reaches the reader; every other id streams
-        # straight to stdout as before.
-        buf = io.StringIO() if held.get(sid) else None
-        tee = _HashingTee(buf if buf is not None else real_out)
-        sys.stdout = tee
+        # T-13510 / T-13625 — every contract is rendered into MEMORY first: the reader receives the
+        # CONTRACT VIEW of it (`_stage_contract_view`), and an id this epoch may already hold has the
+        # view's fingerprint compared before a byte reaches the reader.
+        buf = io.StringIO()
+        sys.stdout = buf
         ok = True
         try:
             cmd_graph_query(ns)
@@ -12742,17 +12833,20 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
             ok = False
         finally:
             sys.stdout = real_out  # RESTORE before the emit: `stdout_delivered` is computed off the
-                                   # real stream, and the tee delegates `fileno` to it either way.
-        if ok and buf is not None:
+                                   # real stream.
+        view = _stage_contract_view(buf.getvalue()) if ok else ""
+        tee = _HashingTee(io.StringIO())   # counts + fingerprints the VIEW, the bytes delivered
+        tee.write(view)
+        if ok:
             try:
-                if tee.hexdigest() in held[sid]:
+                if held.get(sid) and tee.hexdigest() in held[sid]:
                     print(_consumer_render(
-                        f"{sid} — {_rendered_spec_title(buf.getvalue())} — already delivered in this "
+                        f"{sid} — {_rendered_spec_title(view)} — already delivered in this "
                         f"context epoch (unchanged); re-read: `yitc-v2 {' '.join(argv)}`",
                         qualify_specs=False))
                     done.append(sid)
                     continue           # no new receipt: the earlier delivery is what credits
-                real_out.write(buf.getvalue())   # changed since that delivery → the body, in full
+                real_out.write(view)   # not held, or changed since that delivery → the view, in full
             except BaseException:      # a reader that left mid-write: neither delivered nor credited
                 ok = False
         if not ok:
@@ -13094,6 +13188,23 @@ def cmd_stage(args: argparse.Namespace) -> None:
                 if _chits:
                     sys.stderr.write("(Commit stage — re-readable here, read-only; no commit made)\n"
                                      + task_mod.commit_stage_spec_drift_warn(tid, _chits))
+        # T-13602 (public proposal #44): the Stage-6 stale-anchor report, delivered at Tests ENTRY as
+        # well as by `task test` — the last moment a re-sign is free. A re-sign made after the final
+        # full run changes `specs/` (observable, `_inert_path_class`), so the land does not credit that
+        # run and repeats it (SPEC-0065 §Bound condition 2); the report says so and names `spec
+        # reverify` first. Same working-tree touched set, same assembler and the SAME renderer `task
+        # test` uses (task_mod.tests_stage_spec_drift_warn), so the two surfaces cannot drift into two
+        # wordings. Print-only, like every other cmd_stage cue: no gate, no field, no event; a failure
+        # of the signal fails toward silence.
+        if name == "Tests":
+            try:
+                _tt = task_mod.tests_stage_touched_files(REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap)
+                _tnote = task_mod.tests_stage_spec_drift_warn(
+                    tid, _changed_anchor_spec_drift(_tt, {})) if _tt else ""
+            except Exception:                  # noqa: BLE001 — a report-only signal never breaks the verb
+                _tnote = ""
+            if _tnote:
+                print(_tnote, end="")
         if name in _P8_CUE_STAGES and task.get("class") == "infra":
             print(f"cue (infra P8 adoption — compose the evidence payload NOW, at the {name} stage): "
                   f"{task_mod.P8_EVIDENCE_PAYLOAD_CUE}")
@@ -13322,7 +13433,7 @@ def _build_commit_body(from_ref: str, msg: str) -> str:
     coauthor = "Co-Authored-By: AI Agent <noreply@example.com>"
     src = (msg or "").rstrip() + "\n"
     parsed = subprocess.run(["git", "-C", str(REPO_ROOT), "interpret-trailers", "--parse"],
-                            input=src, text=True, capture_output=True)
+                            input=src, text=True, capture_output=True, env=_git_child_env())
     lines = src.rstrip("\n").split("\n")
     block_start = len(lines)  # no trailer block → every line is body
     if parsed.returncode == 0 and parsed.stdout.strip():
@@ -13342,7 +13453,7 @@ def _build_commit_body(from_ref: str, msg: str) -> str:
         ["git", "-C", str(REPO_ROOT), "interpret-trailers", "--if-missing", "add",
          "--if-exists", "replace", "--trailer", f"from: {from_ref}",
          "--if-exists", "doNothing", "--trailer", coauthor],
-        input=src, text=True, capture_output=True)
+        input=src, text=True, capture_output=True, env=_git_child_env())
     if res.returncode != 0:
         _die(f"git interpret-trailers failed: {(res.stderr or res.stdout).strip()}")
     return res.stdout if res.stdout.endswith("\n") else res.stdout + "\n"
@@ -13370,14 +13481,14 @@ def _from_ref_unresolved(from_ref: str, flag: str = "--from") -> "str | None":
         return None
     seg = path.split("/", 1)[0]
     top = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "--cached", "--", seg],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, env=_git_child_env())
     if top.returncode != 0 or not top.stdout.strip():
         return None  # first segment is not this repo's — a project-side / external reference
     # An extension-less path is SPEC-0014's `tasks/T-XXXX` shorthand (or a directory): it resolves
     # when some staged file starts with it (`tasks/T-XXXX-<slug>.yaml`, `plans/<slug>/...`).
     spec = path if has_ext else f"{path}*"
     hit = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files", "--cached", "--", spec],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, env=_git_child_env())
     if hit.returncode != 0 or not hit.stdout.strip():
         return f"{path!r} is absent from the tree being committed (the staged index)"
     return None
@@ -13392,7 +13503,7 @@ def _staged_added_artifact() -> "str | None":
 
     def _staged(flt):
         out = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--cached", "--name-only", "-z",
-                              f"--diff-filter={flt}"], capture_output=True, text=True)
+                              f"--diff-filter={flt}"], capture_output=True, text=True, env=_git_child_env())
         return [p for p in out.stdout.split("\0") if p.strip()] if out.returncode == 0 else []
     corpus = {d.name for d in (TASKS_DIR, SPECS_DIR, PLANS_DIR, IDEAS_DIR, DECISIONS_DIR, PATTERNS_DIR)}
     for paths in (_staged("A"), _staged("d")):
@@ -13444,14 +13555,16 @@ def _commit_worktree(from_ref: str, msg: str, before_commit=None, pathspecs=None
         # dirt is excluded too — `git add -- <pathspecs>` alone only bounds what is ADDED, it would
         # still commit files already in the index. After the reset the index holds exactly the
         # scoped set, leaving every other working-tree change uncommitted.
-        subprocess.run(["git", "-C", str(REPO_ROOT), "reset", "-q"], capture_output=True, text=True)
+        subprocess.run(["git", "-C", str(REPO_ROOT), "reset", "-q"], capture_output=True, text=True,
+                       env=_git_child_env())
         add_cmd = ["git", "-C", str(REPO_ROOT), "add", "--", *pathspecs]
     else:
         add_cmd = ["git", "-C", str(REPO_ROOT), "add", "-A"]
-    add = subprocess.run(add_cmd, capture_output=True, text=True)
+    add = subprocess.run(add_cmd, capture_output=True, text=True, env=_git_child_env())
     if add.returncode != 0:
         _die(f"git add failed: {(add.stderr or add.stdout).strip()}")
-    staged = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--cached", "--quiet"], capture_output=True)
+    staged = subprocess.run(["git", "-C", str(REPO_ROOT), "diff", "--cached", "--quiet"], capture_output=True,
+                            env=_git_child_env())
     if staged.returncode == 0:
         _die("nothing to commit — worktree is clean after staging")
     if verify_from is not None:
@@ -13479,11 +13592,11 @@ def _commit_worktree(from_ref: str, msg: str, before_commit=None, pathspecs=None
                  f"    bin/yitc-v2 {rerun}")
     rollback = before_commit() if before_commit is not None else None
     if before_commit is not None:
-        subprocess.run(add_cmd, capture_output=True, text=True)
+        subprocess.run(add_cmd, capture_output=True, text=True, env=_git_child_env())
     body = _build_commit_body(from_ref, msg)
     idargs = _git_identity_fallback_args(REPO_ROOT)  # X-0233: no-op unless no identity resolvable
     res = subprocess.run(["git", "-C", str(REPO_ROOT), *idargs, "commit", "-F", "-"],
-                         input=body, text=True, capture_output=True)
+                         input=body, text=True, capture_output=True, env=_git_child_env())
     if res.returncode != 0:
         if rollback is not None:
             rollback()
@@ -13529,11 +13642,12 @@ def _commit_worktree(from_ref: str, msg: str, before_commit=None, pathspecs=None
     try:
         if sha:
             parent = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "--quiet",
-                                     f"{sha}^"], capture_output=True, text=True).stdout.strip()
+                                     f"{sha}^"], capture_output=True, text=True,
+                                    env=_git_child_env()).stdout.strip()
             if parent:      # a root commit has no parent to diff against — skip, never guess
                 diff = subprocess.run(
                     ["git", "-C", str(REPO_ROOT), "diff", "--unified=0", parent, sha, "--", "tests/"],
-                    capture_output=True, text=True).stdout
+                    capture_output=True, text=True, env=_git_child_env()).stdout
                 # T-11262 — the same answer is now used TWICE: printed here as before, and recorded
                 # onto the `commit_landed` row the caller is about to emit. Both read the ONE pure
                 # `pinned_supersession_entries` (the notice calls it too), so the row can never name a
@@ -13571,7 +13685,7 @@ def _commit_worktree(from_ref: str, msg: str, before_commit=None, pathspecs=None
     # have caught only the first.
     try:
         mb = subprocess.run(["git", "-C", str(REPO_ROOT), "merge-base", "HEAD", "main"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, env=_git_child_env())
         base = mb.stdout.strip() if mb.returncode == 0 else ""
         if base:      # no merge-base with `main` (e.g. a CLI-less sandbox) — nothing to compare against
             notice = worktree_mod.spec_hand_edit_commit_notice(
@@ -16433,7 +16547,7 @@ def _zero_ship_diff_extra_paths(tid: str) -> "list | None":
 
     def _git(*args):
         return subprocess.run(["git", "-C", str(REPO_ROOT), *args],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_child_env())
 
     changed: "set[str]" = set()
     # (1) committed branch delta vs main — merge-base range (a task may span >1 commit, T-0182).
@@ -16569,7 +16683,7 @@ def _settlement_sweep_evidence(tid: str, settled_tasks) -> "tuple[list, list]":
         for base in ("main", "HEAD"):
             r = subprocess.run(
                 ["git", "-C", str(REPO_ROOT), "merge-base", "--is-ancestor", sha, base],
-                capture_output=True, text=True, check=False)
+                capture_output=True, text=True, check=False, env=_git_child_env())
             if r.returncode == 0:
                 return True
         return False
@@ -16709,7 +16823,7 @@ def _require_preshipped_deliverable(*, verb: str, stage: str, tid: "str | None",
         if named and _governed_land_evidence(named):
             anc = subprocess.run(
                 ["git", "-C", str(REPO_ROOT), "merge-base", "--is-ancestor", named, "main"],
-                capture_output=True, text=True, check=False)
+                capture_output=True, text=True, check=False, env=_git_child_env())
             if anc.returncode == 0:
                 precard = named          # evidence-checked + already on main — admissible
     _require_verification_artifact(
@@ -17200,7 +17314,7 @@ def _bookkeeping_commit_authored_paths(sha: str, tid: str, *,
     r = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "show", "--name-status", "-M",
          "--pretty=format:", "-m", sha],
-        capture_output=True, text=True, check=False)
+        capture_output=True, text=True, check=False, env=_git_child_env())
     if r.returncode != 0:
         return None
     out: "set[str]" = set()
@@ -17227,7 +17341,7 @@ def _bookkeeping_commit_authored_paths(sha: str, tid: str, *,
         # must fall on opposite sides of this filter.)
         t = subprocess.run(
             ["git", "-C", str(REPO_ROOT), "ls-tree", "-r", "--name-only", "-z", str(ships_into)],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_child_env())
         if t.returncode == 0:
             present = {q for q in t.stdout.split("\0") if q}
             out = {q for q in out if q in present}
@@ -17516,7 +17630,7 @@ def _ship_custody_repin_check(tid: "str | None", ship_ref: str) -> "tuple[str | 
     #     and a record-only ship all refuse, exactly as before.
     anc = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "merge-base", "--is-ancestor", str(ship_full), "main"],
-        capture_output=True, text=True, check=False)
+        capture_output=True, text=True, check=False, env=_git_child_env())
     if anc.returncode != 0:
         # FAIL-CLOSED ON AN OPERATIONAL FAILURE, not just on a negative answer (audit-post finding,
         # T-11613). `merge-base --is-ancestor` answers 1 for "no"; ANY OTHER nonzero (128 — a missing
@@ -17536,7 +17650,7 @@ def _ship_custody_repin_check(tid: "str | None", ship_ref: str) -> "tuple[str | 
                       f"pass. Refusing fail-closed (T-10567/T-11613, SPEC-0015).")
         on_branch = subprocess.run(
             ["git", "-C", str(REPO_ROOT), "merge-base", "--is-ancestor", str(ship_full), "HEAD"],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_child_env())
         authored_here = _bookkeeping_commit_authored_paths(ship_full, tid)  # type: ignore[arg-type]
         if on_branch.returncode != 0 or not authored_here:
             return (ship_full, "ship-commit-landed-on-main",
@@ -18121,7 +18235,7 @@ def _merge_base_with_main() -> "str | None":
     refuse (fail-closed, as `_zero_ship_diff_extra_paths` does). Read-only git; never raises."""
     import subprocess
     r = subprocess.run(["git", "-C", str(REPO_ROOT), "merge-base", "HEAD", "main"],
-                       capture_output=True, text=True, check=False)
+                       capture_output=True, text=True, check=False, env=_git_child_env())
     return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
 
 
@@ -18153,7 +18267,7 @@ def _anchor_base_signature(anchor: str, base_rev: str, cache: dict) -> "str | No
     text = cache.get(key, False)
     if text is False:
         r = subprocess.run(["git", "-C", str(REPO_ROOT), "show", f"{base_rev}:{code_file}"],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_child_env())
         text = r.stdout if r.returncode == 0 else None
         cache[key] = text
     if text is None:
@@ -19028,7 +19142,7 @@ def _seed_growth_warnings() -> dict:
 
     def _git(*a):
         return subprocess.run(["git", "-C", str(REPO_ROOT), *a],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_child_env())
 
     current = {}
     for name in CANONICAL_DOCS:
@@ -19110,7 +19224,7 @@ def _git_batch_show(base_sha: str, rels: list) -> dict:
         return {}
     proc = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "--batch"],
                           input="".join(f"{base_sha}:{r}\n" for r in rels).encode("utf-8"),
-                          capture_output=True, check=False)
+                          capture_output=True, check=False, env=_git_child_env())
     if proc.returncode != 0:
         return {}
     out: dict = {}
@@ -19336,7 +19450,7 @@ def _test_building_warnings() -> dict:
 
     def _git(*a):
         return subprocess.run(["git", "-C", str(REPO_ROOT), *a],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_child_env())
 
     # current suite — diff-independent working-tree scan (the growth-bend probe data)
     current_texts: dict = {}
@@ -19416,7 +19530,7 @@ def _uncatalogued_type_warnings() -> dict:
 
     def _git(*a, binary=False):
         return subprocess.run(["git", "-C", str(REPO_ROOT), *a],
-                              capture_output=True, text=not binary, check=False)
+                              capture_output=True, text=not binary, check=False, env=_git_child_env())
 
     try:
         # T-13307: the live type set comes from the seam's ONE journal pass (whole history through the
@@ -19447,7 +19561,7 @@ def _uncatalogued_type_warnings() -> dict:
                 batch = subprocess.run(
                     ["git", "-C", str(REPO_ROOT), "cat-file", "--batch"],
                     input="".join(f"{base_sha}:{n}\n" for n in wanted).encode("utf-8"),
-                    capture_output=True, check=False)
+                    capture_output=True, check=False, env=_git_child_env())
                 if batch.returncode == 0 and wanted:
                     # BINARY framing: cat-file sizes are BYTES, so decoding first desyncs the offsets on
                     # the first non-ASCII byte. Slice bytes, decode each body.
@@ -19481,7 +19595,8 @@ def _uncatalogued_type_warnings() -> dict:
                             break
                         show = subprocess.Popen(
                             ["git", "-C", str(REPO_ROOT), *_argv],
-                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, errors="ignore")
+                            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, errors="ignore",
+                            env=_git_child_env())
                         try:
                             for line in show.stdout:
                                 if base_live == cur:
@@ -19515,7 +19630,8 @@ def _uncatalogued_type_warnings() -> dict:
         if _common.returncode == 0 and _common.stdout.strip():
             _main_root = Path(_common.stdout.strip()).parent
             mu = subprocess.run(["git", "-C", str(_main_root), "diff", "--no-color", "-U0", "HEAD",
-                                 "--", "events.jsonl"], capture_output=True, text=True, check=False)
+                                 "--", "events.jsonl"], capture_output=True, text=True, check=False,
+                                env=_git_child_env())
             if mu.returncode == 0:
                 main_uncommitted_rows = graph.journal_diff_added_rows(mu.stdout)
         residue = set()
@@ -19946,7 +20062,7 @@ def _git_common_dir(directory) -> "Path | None":
     import subprocess
     try:
         out = subprocess.run(["git", "-C", str(directory), "rev-parse", "--git-common-dir"],
-                             capture_output=True, text=True, check=False)
+                             capture_output=True, text=True, check=False, env=_git_child_env())
     except (FileNotFoundError, OSError):
         return None
     if out.returncode != 0 or not out.stdout.strip():
@@ -20066,7 +20182,7 @@ def _guard_bare_invocation_foreign_corpus(admit_explicit_target: bool = False) -
     import subprocess
     try:
         top = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
-                             capture_output=True, text=True, check=False)
+                             capture_output=True, text=True, check=False, env=_git_child_env())
         root = Path(top.stdout.strip()) if top.returncode == 0 and top.stdout.strip() else cwd
     except (FileNotFoundError, OSError):
         root = cwd
@@ -22082,6 +22198,12 @@ def _run_view(view_path: "Path", index: dict, arg: "str | None" = None, since=No
             _since = _now - _dt.timedelta(days=7)
         print(state.dump(_view_admission_series(EVENTS_PATH, _since, _until)).rstrip())
         return
+    if kind == "test-layout-hotspots":
+        # T-13611 / SPEC-1006 rule 13: the units a layer identity's recorded shadow selections named
+        # most often — journal-reading like admission-series and windowed by the same --since/--until
+        # pair. Recomputed on every run from the `land_completed` rows; writes nothing.
+        print(state.dump(_view_test_layout_hotspots(EVENTS_PATH, since, until)).rstrip())
+        return
     if kind == "consult-postcheck":
         # T-12181 / SPEC-0200 rule 9: the ceiling-consult EPISODE fold — journal-reading like
         # outcome-ratio / admission-series and windowed by the same --since/--until pair, so a
@@ -22120,6 +22242,18 @@ def _run_view(view_path: "Path", index: dict, arg: "str | None" = None, since=No
         # — the overdue-recheck_by revisit path raised at the weekly Review sweep (QUEUE §Re-review
         # triggers). DERIVED over the live_probe carrier + today; no stored state.
         print(state.dump(_view_overdue_recheck()).rstrip())
+        return
+    if kind == "per-unit-flaky-rate":
+        # T-13608 / SPEC-1006 rule 13: the per-unit flaky rate of adapter-backed verify layers —
+        # journal-reading like outcome-ratio and windowed by the same --since/--until pair. DERIVED
+        # from the per-unit rows `land` and the Stage-6 run already write; no stored state.
+        print(state.dump(_view_per_unit_flaky_rate(EVENTS_PATH, since, until)).rstrip())
+        return
+    if kind == "per-case-rescued-failures":
+        # T-13615 / SPEC-1006 rule 13 (GRANULARITY): which test case of a unit is flaky — per case,
+        # the first-attempt failures a re-run of its unit rescued. Counted on the rows the
+        # per-unit rate joined (one fold, one journal read), windowed alike; no stored state.
+        print(state.dump(_view_per_case_rescued_failures(EVENTS_PATH, since, until)).rstrip())
         return
     if kind == "test-orientation":
         # T-9720 / X-0140 Card 3: a yitc-ops.yaml-reading lens (the project's declared test rows bound to
@@ -23307,7 +23441,7 @@ def _git_identity_fallback_args(cwd: Path) -> list:
     import subprocess, getpass
     for var in ("GIT_AUTHOR_IDENT", "GIT_COMMITTER_IDENT"):
         if subprocess.run(["git", "-C", str(cwd), "var", var],
-                          capture_output=True, text=True).returncode == 0:
+                          capture_output=True, text=True, env=_git_child_env()).returncode == 0:
             continue
         try:
             user = getpass.getuser() or "yitc"
@@ -23377,25 +23511,14 @@ def _git_identity_cache_clear() -> None:
 
 
 def _git_child_env(env=None) -> dict:
-    """T-13586 — THE environment of every git child the two runners below spawn: a COPY of the
-    effective caller environment (`env` when one is supplied — every key of it kept, the caller's own
-    mapping never written — else this process's) with git's OPTIONAL locks switched off.
-
-    WHY. A `git status` takes the repository's index lock only to SAVE the stat data it refreshed, and
-    a git WRITE that meets that lock dies `Unable to create '.git/index.lock': File exists` (T-13566:
-    28 of 1200 land-tail restores under a polling reader). With the switch off the read refreshes in
-    memory and answers the same; it saves nothing, so it cannot fail a concurrent write. REQUIRED locks
-    are untouched: checkout, add, commit, merge and an explicit update-index lock as before. The value
-    is FORCED, not defaulted — a caller's own setting must not turn an engine read back into a lock
-    taker. A supplied env may key by bytes (POSIX `subprocess` accepts both spellings and does not
-    de-duplicate them), so BOTH spellings of the name are dropped before the one forced entry is set —
-    otherwise the child would carry the name twice and git would read the caller's value. Rule home —
-    what not saving costs, and who owns an explicit refresh: SPEC-0188 rule 7."""
-    import os
-    child = dict(os.environ if env is None else env)
-    child.pop(b"GIT_OPTIONAL_LOCKS", None)
-    child["GIT_OPTIONAL_LOCKS"] = "0"
-    return child
+    """T-13587 — a FORWARDER. The ONE child-environment policy of every git the engine spawns lives in the
+    stdlib-only leaf `lib/git_env.py` (SPEC-0188 rule 7), where every direct launch across `bin/lib`
+    reaches it; this name is the one the two runners below and every `cli.py` launch use. The leaf is
+    imported HERE, at call time, like every other adapter does: the import set a bare `import lib.cli`
+    pays stays what it was, and the name resolves to the leaf by an ordinary import — nothing to
+    impersonate."""
+    from lib import git_env as _git_env
+    return _git_env._git_child_env(env)
 
 
 def _run_git_cap(args: list, cwd: Path, env=None, input=None):
@@ -26091,7 +26214,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree)   # T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land-only
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree)   # T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":
@@ -26730,7 +26853,7 @@ def _canary_watched_leaks(mod, cwd: Path):
     in the canary's own checks can make nonzero on a byte-clean checkout — the T-0679 false-ABORT)."""
     import subprocess
     status = subprocess.run(["git", "-C", str(cwd), "status", "--short"],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, env=_git_child_env())
     if status.returncode != 0:
         # T-9511 (E-0010 R1 site a): a REMOVED checkout dir is NOT a failed query. Under
         # concurrency the worktree this land integrated may already be gone (own/concurrent
@@ -27219,12 +27342,16 @@ def _read_land_events(events_path: Path, *, types=None, pred=None) -> list:
     return worktree_mod._read_land_events(events_path, types=types, pred=pred)
 
 
-def _scaling_signals_lines() -> list:
+def _scaling_signals_lines(stage6=None) -> list:
     """T-10071 (SPEC-0132 Rules 3-4): the REPORT-ONLY land-verify scaling-signals echo — reads the recent
     ok `land_completed` data payloads from the journal and hands them to the PURE
     `worktree_mod._verify_scaling_signals`, returning its lines (EMPTY = clean → suppressed). BEST-EFFORT:
     any failure returns [] so `land`'s tail is NEVER broken by the informational surface (the
-    `_debt_echo_lines` / `_context_seam_tail_line` seam-tail precedent). NEVER acts — strings only."""
+    `_debt_echo_lines` / `_context_seam_tail_line` seam-tail precedent). NEVER acts — strings only.
+
+    T-13645: `stage6={"budget", "layers"}` (a Stage-6 run's own guard rows) returns ONLY the layer STEP
+    lines for that run, over the SAME fold — the Stage-6 seam of SPEC-0132 Rule 7, with no second
+    journal reader."""
     try:
         # T-13138 (X-1687) — ONE streamed pass over the two row types this tail folds, keeping only what
         # the folds read: each ok land's PROJECTED `data` (`_scaling_series_projection`, homed beside the
@@ -27252,6 +27379,8 @@ def _scaling_signals_lines() -> list:
             series, graph_rows = journal_mod.scan_journal(
                 EVENTS_PATH, types=("land_completed", "graph_built"),
                 collector=journal_mod.FoldCollector(_keep, ([], [])))
+        if stage6 is not None:
+            return worktree_mod.land_verify_legs._verify_layer_duration_step_signals(series, current=stage6)
         # T-11326: the graph-build cache's OWN hit-rate line, folded from the SAME already-read rows
         # (no extra journal I/O). Report-only like everything else here, but deliberately NOT
         # suppressed-when-clean: a 0% rate PRINTS, because a silent dead cache and a working one are
@@ -28461,7 +28590,7 @@ def _deploy_lock_revision(root) -> str | None:
     shape the revision has."""
     try:
         r = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, env=_git_child_env())
         return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
     except Exception:                                      # noqa: BLE001 — every failure is one
         return None

@@ -139,5 +139,5 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/worktree.py#_host_leak_land_verdict: 0ecda71dbca02afaa32d3a55a4df760f16847496ef928b122e28679640b024f3
-  bin/lib/worktree.py#_host_leak_surface_state: 948e5a1c879999c567814386142cf18bf10cbbf42fa3d62cd443597296abcbb1
+  bin/lib/worktree.py#_host_leak_surface_state: f37ddf02aae793a1cc26b809b874db5b42a6c0569b8c96b6ef69530f699b5487
   bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3

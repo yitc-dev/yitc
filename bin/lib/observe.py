@@ -191,9 +191,10 @@ def resource_summary() -> dict:
 def _git_field(repo_root, args) -> "str | None":
     """`git -C <repo_root> <args>` -> stripped stdout, or None on ANY failure. A DIAGNOSTIC must
     never be able to fail the verb it decorates, so every error path degrades to None."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(["git", "-C", str(repo_root), *args],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, env=_git_env._git_child_env())
     except Exception:
         return None
     if r.returncode != 0:

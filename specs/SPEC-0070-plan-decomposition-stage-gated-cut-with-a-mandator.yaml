@@ -63,8 +63,12 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ (the blind-spot per-task audit-pre cannot reach):\n  coverage (every plan part\
   \ mapped 1:1), cross-task `requires:` ordering, verifier-after-settled\n  edges,\
   \ a singular `activation_owner_task` across siblings, probe quality (no future-bound\
-  \ /\n  luck-only probes), and no card reopening a settled choice.\n- **Anchor wiring\
-  \ carried by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task`\
+  \ /\n  luck-only probes), and no card reopening a settled choice.\n- **A split recommendation\
+  \ is advisory.** A finding that a card bundles more than one\n  claim and should\
+  \ be split never holds the transition: the project's declared grouping rules\n \
+  \ decide (SPEC-0046 §A); the question and its bound are asked in the SPEC-0083 P5\
+  \ template. Every\n  other finding of this gate holds the transition as before.\n\
+  - **Anchor wiring carried by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task`\
   \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
   \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
   \  disposition; and the owner card is `requires:`-ordered after every implementing\

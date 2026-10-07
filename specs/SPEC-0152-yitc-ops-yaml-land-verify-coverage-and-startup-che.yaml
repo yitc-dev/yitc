@@ -872,35 +872,37 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ the engine suite's isolated re-run\nof a failed test file (SPEC-0077 §3, SPEC-0132\
   \ §2) and rescues BY DEFAULT on the same terms (owner\ndecision 2026-10-04).\nTHE\
   \ UNIT IS THE LAYER, because the kernel sees only a layer command's exit code. A\
-  \ per-test re-run\nneeds a per-test report from the project and is not this rule.\n\
-  «ALONE» MEANS ALONE WITHIN THIS VERIFY, never alone on the host: no other layer\
-  \ of the same verify\nruns beside the re-run, but other sessions on the machine\
-  \ are not excluded and no host isolation is\nclaimed. The host load at the moment\
-  \ of the re-run is recorded beside it, so a reader can tell a\nquiet re-run from\
-  \ a contended one.\nTHE RE-RUN REPEATS THE COMMAND, NOT THE PREP: `prep:` ran once\
-  \ for this worktree and is not\nrepeated; the layer's own bound (the `timeout:`\
-  \ chain above) applies to the re-run unchanged.\nIt is otherwise the SAME invocation\
-  \ as the first attempt: the same published worker allotment and,\nfor a layer that\
-  \ ran overlapped with its declared-independent peers, the same run-issued compose\n\
-  project name (§independent_layers) — both attempts address one container namespace.\n\
-  DECLINED — nothing is re-run, the verify fails as before, and the reason is recorded:\
-  \ any layer\nTIMED OUT (SPEC-0071 makes a verify timeout a distinct non-retriable\
-  \ class, and a re-run would cost\nanother full bound); any layer's `prep:` FAILED\
-  \ (a setup fault — the prep's fail-closed stance\nstands); or MORE THAN ONE layer\
-  \ did not pass, a malformed layer counting (the bound is ONE layer: a\nre-run is\
-  \ cheaper than the abort it replaces only while it repeats a fraction of the verify,\
-  \ and\nseveral layers failing at once is evidence about the change or the host,\
-  \ not about one flaky\ncheck). Setting the engine suite's machine-level retry bound\
-  \ to 0 turns the layer re-run off as\nwell — one switch, no second knob. The merge-base\
-  \ attribution re-run of failing layers never\nre-runs: it is a diagnostic over the\
-  \ base tree, not a verdict.\nA RESCUE IS RECORDED, NEVER A CLEAN PASS. A pass on\
-  \ the re-run does not prove the first failure\nharmless — a real race can fail under\
-  \ load and pass alone — so the first failure stays on record:\nthe retried layer\
-  \ is NAMED on stdout, the verify metrics of the land (and the Stage-6 pass or fail\n\
-  row) carry the re-run's record WITH the first attempt's exit code and failure excerpt,\
-  \ and the\nlayer's outcome row is marked as retried (field shapes: SPEC-0025 `flaky_retry`).\
-  \ A verify on which\nno layer's run failed records nothing, so a clean land never\
-  \ reports a retry it did not do.\nOUT OF THIS RULE, deliberately: an automatic load-sensitive\
+  \ per-test re-run\nneeds a per-test report from the project and is not this rule:\
+  \ a layer that declares an adapter gets\nper-test reports, re-runs and accounting\
+  \ under SPEC-1006, a sub-contract of this rule.\n«ALONE» MEANS ALONE WITHIN THIS\
+  \ VERIFY, never alone on the host: no other layer of the same verify\nruns beside\
+  \ the re-run, but other sessions on the machine are not excluded and no host isolation\
+  \ is\nclaimed. The host load at the moment of the re-run is recorded beside it,\
+  \ so a reader can tell a\nquiet re-run from a contended one.\nTHE RE-RUN REPEATS\
+  \ THE COMMAND, NOT THE PREP: `prep:` ran once for this worktree and is not\nrepeated;\
+  \ the layer's own bound (the `timeout:` chain above) applies to the re-run unchanged.\n\
+  It is otherwise the SAME invocation as the first attempt: the same published worker\
+  \ allotment and,\nfor a layer that ran overlapped with its declared-independent\
+  \ peers, the same run-issued compose\nproject name (§independent_layers) — both\
+  \ attempts address one container namespace.\nDECLINED — nothing is re-run, the verify\
+  \ fails as before, and the reason is recorded: any layer\nTIMED OUT (SPEC-0071 makes\
+  \ a verify timeout a distinct non-retriable class, and a re-run would cost\nanother\
+  \ full bound); any layer's `prep:` FAILED (a setup fault — the prep's fail-closed\
+  \ stance\nstands); or MORE THAN ONE layer did not pass, a malformed layer counting\
+  \ (the bound is ONE layer: a\nre-run is cheaper than the abort it replaces only\
+  \ while it repeats a fraction of the verify, and\nseveral layers failing at once\
+  \ is evidence about the change or the host, not about one flaky\ncheck). Setting\
+  \ the engine suite's machine-level retry bound to 0 turns the layer re-run off as\n\
+  well — one switch, no second knob. The merge-base attribution re-run of failing\
+  \ layers never\nre-runs: it is a diagnostic over the base tree, not a verdict.\n\
+  A RESCUE IS RECORDED, NEVER A CLEAN PASS. A pass on the re-run does not prove the\
+  \ first failure\nharmless — a real race can fail under load and pass alone — so\
+  \ the first failure stays on record:\nthe retried layer is NAMED on stdout, the\
+  \ verify metrics of the land (and the Stage-6 pass or fail\nrow) carry the re-run's\
+  \ record WITH the first attempt's exit code and failure excerpt, and the\nlayer's\
+  \ outcome row is marked as retried (field shapes: SPEC-0025 `flaky_retry`). A verify\
+  \ on which\nno layer's run failed records nothing, so a clean land never reports\
+  \ a retry it did not do.\nOUT OF THIS RULE, deliberately: an automatic load-sensitive\
   \ lane for layers, a quarantine that\nstops a failing check from blocking, and per-test\
   \ re-runs.\nUNCHANGED: every layer still runs; a deterministic failure still fails\
   \ the land, with the same\nfailing-assertion text; waivers, the `subject_globs`\
@@ -1283,6 +1285,7 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ the pre-split rule text byte-for-byte (a reconstruction check, not an eyeball).\n"
 cites:
 - SPEC-0093
+- SPEC-1006
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
 - SPEC-0073
@@ -1311,9 +1314,9 @@ implements_signature:
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
   bin/lib/session.py#startup_check_lines: f88dc029b52ef82ae732227899100b2bf50812c971a88b3a4a8a374bb6207288
-  bin/lib/task.py#cmd_task_test: f1ac3dc60398580d8914697dabb437c4111f60143200e39298a6753cae6739c1
+  bin/lib/task.py#cmd_task_test: 5e61632e71ac90bbd0763166e2932e4f25e397cfaa0f3f4efad148d4bee50d57
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
-  bin/lib/worktree.py#_consumer_zero_probe_guard: f2119cb8b7d36cf2878b56723b6f31bb599a3b087837b3ac1b1911c461d8ffed
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 8128923ee67516ea0a18fb1b2931e44825d2330e289d81e2c81b572a51a8a85d
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

@@ -3338,15 +3338,169 @@ def _view_admission_series(events_path: "Path", since=None, until=None, *,
                       "Pair with `graph query outcome-ratio --since <date>` for the audit-cost side.")
     return result
 
+def _view_test_layout_hotspots(events_path: "Path", since=None, until=None, *, threshold_pct: int = 80,
+                               _iter_events=None, _ev_dt=None) -> dict:
+    """test-layout-hotspots lens (T-13611, SPEC-1006 rule 13): per verify layer and layer IDENTITY,
+    the test units the recorded shadow selection named in at least `threshold_pct` percent of that
+    identity's unit-level decisions — the files almost every change reaches, which are the ones
+    worth splitting (the plan's «measure, then split by data»).
+
+    WHAT IS READ. `land_completed` rows only, ok and abort alike, through the shared segment-aware
+    iterator; on each, every `consumer_verify_layers[]` row whose `adapter` record carries a
+    `selection` (SPEC-0025; written by `land_verify_legs._adapter_shadow_decision`). One such
+    record is one shadow land of that layer; a row whose `adapter` carries no `selection` (the
+    key absent, or null) is not one. The Tests-stage rows carry the same record and are NOT read:
+    the report is over lands.
+
+    THE GROUP is `(layer, adapter.identity)`. A record with no identity belongs to no group; it
+    is counted under `unidentified` by layer and by the recorded `identity_unavailable` reason,
+    never dropped and never added to a group.
+
+    THE SHARE. A unit is SELECTED by a land when that land's record reads `decision: units` and
+    names the unit in `would_run`. A `decision: full` record names no unit — a fail-closed rung
+    answered for the whole layer, which says nothing about one file's layout — so it selects none
+    and is not in the base: a unit's share is `selected / unit_decisions`, both over the group.
+    Counting a full-layer land as selecting every unit would make every unit a hotspot wherever
+    the rungs answer for most lands, and counting it in the base while selecting none would hide
+    a file every unit-level decision reaches. The full-layer lands stay visible beside the share,
+    counted by rung and reason. A group with no unit-level decision has no share and lists none.
+
+    THE COMPARISON is on integers (`selected * 100 >= threshold_pct * unit_decisions`), so a share
+    exactly at the threshold is in and no rounding moves a unit across it; `share_pct` is rounded
+    DOWN to one decimal for the same reason. `threshold_pct` is H of SPEC-1006 §Parameters.
+
+    A record this reader does not understand (not schema 1, not `mode: shadow`, an unknown
+    `decision`, a malformed unit list) is counted under `unreadable` and feeds no group.
+
+    ORDER. The loop over the journal only COLLECTS one entry per shadow record; the entries are
+    sorted before anything is counted, so the answer is a function of the multiset of rows and a
+    re-partition of the journal into segments cannot change it.
+
+    Posture: pure f over the journal, one pass, recomputed on every run, writes nothing (the
+    D-0053 view family). No store, no event type, no register."""
+    in_window = _window_predicate(since, until, _ev_dt=_ev_dt)
+
+    def _unit_keys(units):
+        """The sorted `(project, file)` keys of a recorded unit list, or None when it is not one."""
+        if not isinstance(units, list):
+            return None
+        keys = set()
+        for u in units:
+            if not (isinstance(u, dict) and isinstance(u.get("file"), str) and u["file"]
+                    and isinstance(u.get("project", ""), str)):
+                return None
+            keys.add((u.get("project", ""), u["file"]))
+        return tuple(sorted(keys))
+
+    def _entry(row, ts):
+        """One layer row of one land → `(layer, identity, kind, detail, units, ts)`, or None when
+        the row carries no shadow selection. `kind` is `units` | `full` | `unidentified` |
+        `unreadable`; `detail` is what the kind is counted by."""
+        rec = row.get("adapter") if isinstance(row, dict) else None
+        sel = rec.get("selection") if isinstance(rec, dict) else None
+        if sel is None:
+            return None
+        layer = row["layer"] if isinstance(row.get("layer"), str) else ""
+        if not isinstance(sel, dict) or type(sel.get("schema")) is not int or sel["schema"] != 1 \
+                or sel.get("mode") != "shadow":
+            return (layer, "", "unreadable", "not a schema-1 shadow record", (), ts)
+        units, detail = (), ""
+        if sel.get("decision") == "units":
+            units = _unit_keys(sel.get("would_run"))
+            if units is None or _unit_keys(sel.get("would_omit")) is None:
+                return (layer, "", "unreadable", "malformed unit list", (), ts)
+        elif sel.get("decision") == "full":
+            rung, reason = sel.get("rung"), sel.get("reason")
+            detail = (f"rung {rung}" if isinstance(rung, str) and rung else "no rung") + ": " \
+                + (reason if isinstance(reason, str) and reason else "no reason recorded")
+        else:
+            return (layer, "", "unreadable", "unknown decision", (), ts)
+        identity = rec.get("identity")
+        if not (isinstance(identity, str) and identity):
+            why = rec.get("identity_unavailable")
+            return (layer, "", "unidentified", why if isinstance(why, str) and why else "not-recorded", (), ts)
+        return (layer, identity, sel["decision"], detail, units, ts)
+
+    lands_read, seen = 0, []
+    for e in _iter_events(events_path, types=("land_completed",)):
+        if e.get("type") != "land_completed" or not in_window(e):
+            continue
+        lands_read += 1
+        data = e.get("data")
+        rows = data.get("consumer_verify_layers") if isinstance(data, dict) else None
+        ts = e["ts"] if isinstance(e.get("ts"), str) else ""
+        seen.extend(entry for entry in (_entry(row, ts) for row in (rows if isinstance(rows, list) else ()))
+                    if entry is not None)
+
+    groups, aside = {}, {"unidentified": {}, "unreadable": {}}
+    for layer, identity, kind, detail, units, ts in sorted(seen):
+        if kind in aside:
+            aside[kind][(layer, detail)] = aside[kind].get((layer, detail), 0) + 1
+            continue
+        g = groups.setdefault((layer, identity), {"lands": 0, "base": 0, "full": {}, "selected": {}, "stamps": []})
+        g["lands"] += 1
+        if ts:
+            g["stamps"].append(ts)
+        if kind == "full":
+            g["full"][detail] = g["full"].get(detail, 0) + 1
+            continue
+        g["base"] += 1
+        for key in units:
+            g["selected"][key] = g["selected"].get(key, 0) + 1
+
+    layers = []
+    for (layer, identity), g in sorted(groups.items()):
+        base = g["base"]
+        hot = sorted(((key, n) for key, n in g["selected"].items() if n * 100 >= threshold_pct * base),
+                     key=lambda kn: (-kn[1], kn[0]))
+        layers.append({
+            "layer": layer,
+            "identity": identity,
+            "shadow_lands": g["lands"],
+            "unit_decisions": base,
+            "full_layer_lands": g["lands"] - base,
+            "full_layer_by_reason": dict(sorted(g["full"].items())),
+            "first_land": min(g["stamps"]) if g["stamps"] else None,
+            "last_land": max(g["stamps"]) if g["stamps"] else None,
+            "units_selected": len(g["selected"]),
+            "hotspots": [{"file": key[1], **({"project": key[0]} if key[0] else {}),
+                          "selected": n, "of": base, "share_pct": (n * 1000 // base) / 10}
+                         for key, n in hot],
+        })
+    result = {
+        "view": "test-layout-hotspots",
+        "threshold_pct": threshold_pct,
+        "window": _window_block(since, until),
+        "lands_read": lands_read,
+        "layers": layers,
+        "reading": "a unit is listed when `selected * 100 >= threshold_pct * of`: `selected` = the "
+                   "lands of this layer identity whose recorded shadow selection decided unit by unit "
+                   "and named the unit in `would_run`; `of` = all such unit-level decisions of the "
+                   "identity. A full-layer land names no unit: it is in neither number and is counted "
+                   "under `full_layer_by_reason`.",
+    }
+    for name, label in (("unidentified", "reason"), ("unreadable", "what")):
+        if aside[name]:
+            result[name] = [{"layer": layer, label: detail, "lands": n}
+                            for (layer, detail), n in sorted(aside[name].items())]
+    if not layers:
+        result["no_data"] = ("no `land_completed` row in the window carries a shadow selection record with "
+                             "a layer identity — the report is UNMEASURED, not an empty list of hotspots")
+    result["next"] = ("report-only (D-0053): nothing reads this view to decide what runs. A listed unit is a "
+                      "candidate for splitting by product area (SPEC-0165); a layer whose lands are mostly "
+                      "full-layer is read by its reasons first.")
+    return result
+
 def _git_read(repo_root, *gitargs) -> "str | None":
     """Read-only `git -C <repo_root> <gitargs>` → stdout (stripped) on exit-0, else None. A pure
     READER (rev-parse / rev-list / merge-base) — never a write. Module-local so the not-adopted lens
     is self-contained + isolatable against a test sandbox repo (the SAME `git -C` shape the test
     sandbox + host `_git_resolve_sha` use; not a new git path — one invocation helper)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     try:
         r = subprocess.run(["git", "-C", str(repo_root), *gitargs],
-                           capture_output=True, text=True, check=False)
+                           capture_output=True, text=True, check=False, env=_git_env._git_child_env())
     except (FileNotFoundError, OSError):
         return None
     if r.returncode != 0:
@@ -6285,8 +6439,16 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _mark = (" — OVER BOUND (" + ", ".join(_which.get(c, c) for c in _crossed) + ")"
                      if _crossed else "")
             _unrec = _n(_ls.get("unrecorded")) or 0
+            # T-13621: the head carries the numbers so the rule-40 row keeps them — the count in a
+            # parenthetical (rule 40's count, never part of the class) and the seconds, the share and
+            # the 7-day entries in the figures span. Entries only: an exit is not read (owner ruling).
+            _und = _n(_ls.get("undated")) or 0
+            _fig = (f"{_ls.get('wall_s')}s serialized = {_ls.get('share_pct')}%; "
+                    f"{_ls.get('entry_window_days', 7)}d: {_n(_ls.get('entered')) or 0} entered, "
+                    f"{_ls.get('entered_s', 0.0)}s" + (f"; {_und} undated" if _und else ""))
             lines.append(
-                f"debt: load-sensitive lane — {_ls_count} file(s), {_ls.get('wall_s')}s serialized "
+                f"debt: load-sensitive lane ({_ls_count} file(s)) [{_fig}] — "
+                f"{_ls_count} file(s), {_ls.get('wall_s')}s serialized "
                 f"tail = {_ls.get('share_pct')}% of the duration table's {_ls.get('suite_wall_s')}s "
                 f"of per-file work (bounds: {_bs}% / {_bf} files){_mark}"
                 f"{f'; {_unrec} listed file(s) carry no recorded duration and count as 0s' if _unrec else ''}. "
@@ -7227,8 +7389,16 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                        f"(+{g.get('growth_pct')}%)" for g in _grew])
             _named = (" — " + ", ".join(_items[:_CAP]) +
                       (f" +{len(_items) - _CAP} more" if len(_items) > _CAP else "")) if _items else ""
+            # T-13621: the largest growth IN SECONDS rides the head's figures span, so the rule-40
+            # row names the file and both walls; with no GREW member there is no span.
+            _top = max(_grew, key=lambda g: (_n(g.get("wall_ms")) or 0) - (_n(g.get("baseline_ms")) or 0),
+                       default=None)
+            # seconds BEFORE the name: rule 40 shortens a figures span from the right, so a long
+            # name is what gets cut, never a wall (audit-pre finding fp1:ed2812ff3c1f7e6f)
+            _topfig = (f" [grew {_secs(_top.get('baseline_ms'))}->{_secs(_top.get('wall_ms'))} {_top['file']}]"
+                       if _top else "")
             lines.append(
-                f"debt: {sd} change(s) in the recorded SLOWEST test files vs the median of the previous "
+                f"debt: {sd} change(s){_topfig} in the recorded SLOWEST test files vs the median of the previous "
                 f"{_sd.get('window_lands')} land(s){_named} — a NEW entrant climbed into the recorded "
                 f"slow tail, or a member GREW past both the relative and the absolute bar. This is the "
                 f"DELTA, never the level: nothing prints while the tail is unchanged, and nothing here "

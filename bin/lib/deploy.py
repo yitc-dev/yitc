@@ -2199,12 +2199,13 @@ def _service_sources_unchanged(reported: "str | None", revision: str, paths, *,
     checkout and not in the revision being compared, and it is the revisions that are being diffed. EITHER
     revision suffices, not both: a source tree legitimately ADDED or DELETED between the two exists at one
     of them and is genuinely comparable, so demanding both would refuse honest declarations."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     token = (reported or "").strip()
     if len(token) < _MIN_REVISION_TOKEN:
         return False, (f"the reported revision `{token}` is too short to identify a commit "
                        f"(< {_MIN_REVISION_TOKEN} chars)")
     resolved = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{token}^{{commit}}"],
-                              cwd=str(REPO_ROOT), capture_output=True, text=True)
+                              cwd=str(REPO_ROOT), capture_output=True, text=True, env=_git_env._git_child_env())
     if resolved.returncode != 0 or not resolved.stdout.strip():
         return False, (f"the reported revision `{token}` is not a commit in this repository, so the "
                        f"sources it was built from cannot be compared")
@@ -2216,7 +2217,8 @@ def _service_sources_unchanged(reported: "str | None", revision: str, paths, *,
         matched = False
         for rev in (base, revision):
             listed = subprocess.run(["git", "ls-tree", "-r", "--name-only", rev, "--", entry],
-                                    cwd=str(REPO_ROOT), capture_output=True, text=True)
+                                    cwd=str(REPO_ROOT), capture_output=True, text=True,
+                                    env=_git_env._git_child_env())
             if listed.returncode != 0:
                 # Un-answerable is not evidence of existence — same fail-closed floor as the two edges
                 # above, rather than an optimistic "assume it is there".
@@ -2234,7 +2236,7 @@ def _service_sources_unchanged(reported: "str | None", revision: str, paths, *,
                            f"verifies nothing; correct the path in "
                            f"`deploy.convergence.services.<service>.paths`")
     diff = subprocess.run(["git", "diff", "--quiet", base, revision, "--", *paths],
-                          cwd=str(REPO_ROOT), capture_output=True, text=True)
+                          cwd=str(REPO_ROOT), capture_output=True, text=True, env=_git_env._git_child_env())
     if diff.returncode == 0:
         return True, None
     if diff.returncode == 1:
@@ -2852,10 +2854,11 @@ def deploy_lock_root(root) -> Path:
     the same way. Falls back to `<root>/.git` when git cannot answer — the fallback can only NARROW
     what one key covers (a worktree would then key on its own gitdir), never widen it, so a
     fail-soft resolver is safe at a fail-closed gate."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     root = Path(root)
     try:
         r = subprocess.run(["git", "-C", str(root), "rev-parse", "--git-common-dir"],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
         if r.returncode == 0 and r.stdout.strip():
             return (root / r.stdout.strip()).resolve()
     except Exception:                                      # noqa: BLE001 — every failure is one

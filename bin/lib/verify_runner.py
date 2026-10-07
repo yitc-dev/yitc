@@ -591,11 +591,12 @@ def _live_journals(checkout) -> "list[Path]":
 
     A sandbox repo built in a tmpdir is in no worktree list, so a correctly-sandboxed test is untouched.
     Best-effort: a non-repo / git-less checkout guards just itself (plus the shared store)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess          # module idiom: subprocess is imported function-locally throughout this file
     from lib import cross      # the ONE shared-store resolution site (SPEC-0084 r3) — never a second copy
     journals = [(Path(checkout) / "events.jsonl").resolve()]
     r = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=str(checkout),
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=_git_env._git_child_env())
     if r.returncode == 0:
         for line in r.stdout.splitlines():
             if line.startswith("worktree "):
@@ -1199,7 +1200,9 @@ def _reclaim_sandbox_worktrees(cwd: Path, under: "Path | None" = None, *, _VERIF
     def _git(*args) -> "subprocess.CompletedProcess":
         # A local runner, not the injected `_run_git_cap`: this call site receives no injection, and
         # that helper's only extra behaviour (an identity fallback) applies to `commit` alone.
-        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                              env=_git_env._git_child_env())
 
     listing = _git("worktree", "list", "--porcelain")
     if listing.returncode != 0:

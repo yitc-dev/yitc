@@ -3193,6 +3193,106 @@ def _one_pass_read_scope(body):
     return run
 
 
+# T-13642 — the carry of uncommitted changes across `worktree sync`'s merge (see each docstring).
+def _carry_out_local_changes(W: Path, *, _run_git_cap, source: str = "main"):
+    """T-13642 — before `worktree sync` merges, set aside uncommitted tracked changes the merge would
+    refuse to overwrite.
+
+    `worktree sync` tolerates source dirt (its fold runs with `refuse_nonfoldable=False`), so an
+    unstaged edit to a file main also changed made git refuse the merge BEFORE it started, and
+    `_update_from_main` reported that refusal as "non-union conflicts" with no merge for `--resolved`
+    to finish. Returns None — and changes nothing — unless some tracked path differing from HEAD is
+    also a path main changed since the merge-base (the case git refuses), or when the save cannot be
+    completed. Otherwise returns {sha, ref, paths} for EVERY tracked dirty path: `git stash create`
+    builds the stash commit without touching the shared stash list, `update-ref` keeps it under
+    `refs/yitc/sync-carry/<sha>` BEFORE anything is cleaned, and only then `reset --hard HEAD`
+    empties the tracked changes so the merge runs on a clean tree. The ref is named by the stash
+    commit's sha because `refs/stash` is shared by every worktree of the repository, so its tip
+    could never prove which entry is this sync's."""
+    from lib import textutil as _textutil   # lazy, as this module's other textutil use
+    def _names(args):
+        r = _run_git_cap(args, W)
+        if r.returncode != 0:
+            return None
+        return {q for q in (_textutil.git_unquote_path(ln).strip() for ln in r.stdout.splitlines()) if q}
+    dirty = _names(["diff", "--name-only", "HEAD"])
+    incoming = _names(["diff", "--name-only", f"HEAD...{source}"])
+    if not dirty or not incoming or not (dirty & incoming):
+        return None
+    if _run_git_cap(["rev-parse", "-q", "--verify", "MERGE_HEAD"], W).returncode == 0:
+        return None
+    # `reset --hard` below may only drop what the stash commit holds. A dirty path that is now a
+    # directory or a symlink (a tracked file replaced by something else) can hold UNTRACKED content
+    # the stash does not carry and the reset would delete — so such a worktree is not carried at all
+    # and the merge refuses exactly as before. A deleted path (absent) or a regular file is safe.
+    for rel in dirty:
+        full = Path(W) / rel
+        if os.path.islink(full) or (os.path.lexists(full) and not os.path.isfile(full)):
+            return None
+    base = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
+    if not base:
+        return None
+    made = _run_git_cap(["stash", "create", "yitc-v2 worktree sync: uncommitted changes"], W)
+    sha = (made.stdout or "").strip()
+    if made.returncode != 0 or not sha:
+        return None
+    ref = "refs/yitc/sync-carry/" + sha
+    if _run_git_cap(["update-ref", ref, sha], W).returncode != 0:
+        return None
+    if _run_git_cap(["reset", "-q", "--hard", "HEAD"], W).returncode != 0:
+        _run_git_cap(["stash", "apply", "--index", sha], W)
+        return None
+    return {"sha": sha, "ref": ref, "paths": sorted(dirty), "base": base}
+
+
+def _put_back_carried(W: Path, carry: dict, *, _run_git_cap) -> bool:
+    """T-13642 — restore the carried changes onto `carry["base"]` (the commit they were saved from,
+    so the apply is clean). On success the carry ref is deleted; on failure it is kept and named."""
+    rs = _run_git_cap(["reset", "-q", "--hard", carry["base"]], W)
+    ap = (_run_git_cap(["stash", "apply", "--index", carry["sha"]], W) if rs.returncode == 0
+          else rs)
+    if ap.returncode == 0:
+        _run_git_cap(["update-ref", "-d", carry["ref"]], W)
+        return True
+    print(f"yitc-v2: your uncommitted changes could NOT be put back automatically; they are kept "
+          f"at {carry['ref']} — restore them with `git stash apply --index {carry['sha']}`.", file=sys.stderr)
+    return False
+
+
+def _carry_back_local_changes(W: Path, carry: dict, label: str, *, _run_git_cap, _die,
+                              _carried_out: dict) -> None:
+    """T-13642 — re-apply the carried changes on top of the completed merge.
+
+    Every apply here and in `_put_back_carried` is `stash apply --index`, so a path whose staged
+    and unstaged versions differ gets BOTH back, never only the working copy.
+    Clean → the paths go into `_carried_out` and the carry ref is deleted. Conflict with what main
+    brought → the merge is undone (`reset --hard` to `carry["base"]`; main is untouched and the
+    branch is back where the merge found it), the changes are re-applied there, the carry ref is KEPT as the
+    recovery copy, and the sync refuses with `merge-uncommitted-changes-conflict`."""
+    from lib import textutil as _textutil   # lazy, as this module's other textutil use
+    ap = _run_git_cap(["stash", "apply", "--index", carry["sha"]], W)
+    unmerged = sorted(q for q in (_textutil.git_unquote_path(ln).strip() for ln in
+                                  _run_git_cap(["diff", "--name-only", "--diff-filter=U"], W)
+                                  .stdout.splitlines()) if q)
+    if ap.returncode == 0 and not unmerged:
+        _carried_out["paths"] = carry["paths"]
+        _run_git_cap(["update-ref", "-d", carry["ref"]], W)
+        return
+    rs = _run_git_cap(["reset", "-q", "--hard", carry["base"]], W)
+    back = rs.returncode == 0 and _run_git_cap(["stash", "apply", "--index", carry["sha"]],
+                                               W).returncode == 0
+    state = ("the worktree is back at its pre-merge commit with your changes re-applied" if back else
+             "the worktree could NOT be put back automatically — recover your changes from the "
+             "copy below")
+    _die(f"{label}: merge from main conflicts with your uncommitted changes in: "
+         f"{', '.join(unmerged or carry['paths'])} (main untouched; {state}). Commit or revert the "
+         f"overlapping edit, then re-run `yitc-v2 worktree sync`. No merge is left in progress, so "
+         f"the --resolved arm does not apply. A copy of your uncommitted changes is kept at "
+         f"{carry['ref']} — restore it any time with `git stash apply --index {carry['sha']}`, and delete it "
+         f"with `git update-ref -d {carry['ref']}` once you no longer need it.",
+         abort_class="merge-uncommitted-changes-conflict")
+
+
 @_one_pass_read_scope
 def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_worktree,
                       _worktree_path_for_branch, _run_git_cap, _BOOKKEEPING_ALLOWLIST,
@@ -3367,7 +3467,9 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
              f"does not START one. To get INTO the merge, run `yitc-v2 worktree sync "
              f"{('--task ' + task) if task else ('--work ' + str(work))}` — it folds the trailing "
              f"bookkeeping and runs the merge (no raw git needed for that either). If it stops on a "
-             f"non-union conflict, resolve the named files, `git add` them, and re-run this arm.")
+             f"non-union conflict, resolve the named files, `git add` them, and re-run this arm. A "
+             f"refusal over your UNCOMMITTED changes (merge-uncommitted-changes-conflict) leaves no "
+             f"merge behind, so this arm never applies to it.")
     if in_merge and not resolved_arm:
         # The ordinary arm's own fail-closed guard: it would otherwise fold bookkeeping and merge on
         # TOP of an unfinished merge. It is also the arm's discovery surface — the operator holding a
@@ -3581,7 +3683,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                        # T-11907 — present on BOTH paths, so an empty set always means "resolved
                        # nothing" and never "this arm forgot to say". A no-op ran no merge, so it
                        # can only ever be empty here.
-                       "resolved": [], "resolved_kinds": {},
+                       "resolved": [], "resolved_kinds": {}, "carried": [],
                        "preflight": _preflight_blocker_record(None, cur_lines,
                                                               census_lines, sup_lines,
                                                               corpus_lines=corpus_lines)})
@@ -3607,11 +3709,24 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     # resolution was actually applied, so an absent key is distinguishable from an empty set — the
     # same distinction the `preflight` record makes.
     resolved_sink: dict = {}
-    _update_from_main(W, label="worktree sync", _run_git_cap=_run_git_cap, _die=_die,
-                      _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
-                      _dedup_events=_dedup_events, write_text_atomic=write_text_atomic,
-                      _anchor_signature_of_text=_anchor_signature_of_text,
-                      _resolved_out=resolved_sink)
+    # T-13642 — uncommitted tracked changes the merge would refuse to overwrite are set aside first
+    # and re-applied after it; on ANY refusal of the merge they are put back on the unmerged branch
+    # before the refusal propagates. `carried_sink` names what rode the merge on the row below.
+    carried_sink: dict = {}
+    carry = _carry_out_local_changes(W, _run_git_cap=_run_git_cap)
+    try:
+        _update_from_main(W, label="worktree sync", _run_git_cap=_run_git_cap, _die=_die,
+                          _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                          _dedup_events=_dedup_events, write_text_atomic=write_text_atomic,
+                          _anchor_signature_of_text=_anchor_signature_of_text,
+                          _resolved_out=resolved_sink)
+    except SystemExit:
+        if carry is not None:
+            _put_back_carried(W, carry, _run_git_cap=_run_git_cap)
+        raise
+    if carry is not None:
+        _carry_back_local_changes(W, carry, "worktree sync", _run_git_cap=_run_git_cap,
+                                  _die=_die, _carried_out=carried_sink)
 
     head_after = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
     behind_after = int((_run_git_cap(["rev-list", "--count", "HEAD..main"], W).stdout.strip() or "0"))
@@ -3623,6 +3738,11 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
               f"row, not hand-merged:")
         for _p in resolved_sink["paths"]:
             print(f"    {_p}  [{resolved_sink['kinds'][_p]}]")
+    if carried_sink.get("paths"):
+        print(f"  uncommitted change(s) CARRIED across the merge ({len(carried_sink['paths'])} "
+              f"path(s), still uncommitted) — recorded on this run's `worktree_synced` row:")
+        for _p in carried_sink["paths"]:
+            print(f"    {_p}")
     print(f"worktree sync: {branch} brought up to date with main IN PLACE — merged {behind} commit(s) "
           f"(main {main_sha[:12]}); now {behind_after} behind. Worktree intact at {W}.")
     print(f"  main was NOT advanced — this is a SYNC, not a land. Integrate with "
@@ -3671,6 +3791,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                    # "a version that did not record it"; the branch is already on the row beside it.
                    "resolved": resolved_sink.get("paths", []),
                    "resolved_kinds": resolved_sink.get("kinds", {}),
+                   # T-13642 — uncommitted paths the merge carried (always present; [] = none).
+                   "carried": carried_sink.get("paths", []),
                    "preflight": _preflight_blocker_record(conflict_sink, cur_lines,
                                                           census_lines, sup_lines, dirt_sink,
                                                           corpus_lines=corpus_lines)})

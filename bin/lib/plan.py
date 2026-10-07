@@ -91,7 +91,13 @@ _PLAN_DRAFT_SKELETON = """\
 ## External checks / audits
 
 <!-- Which external audits at which boundaries (SPEC-0036 / SPEC-0034 §Audit-posture). Trial-eligibility
-     (SPEC-0035): is this mechanism/behavioral (soak in `trial`) or text-audit-verifiable (skips trial)? -->
+     (SPEC-0035): is this mechanism/behavioral (soak in `trial`) or text-audit-verifiable (skips trial)?
+     HISTORY STAYS OUT OF THIS BODY: gate-pass and trial-run history lives in the journal (raw run
+     observations — SPEC-0035 rule 6) and in the saved audit records under `decisions/` (each pass's
+     findings and dispositions — SPEC-0036 §Saved audit result; an overwritten record keeps its earlier
+     passes in its git history). Here, and in a `## Trial summary`, keep ONE CURRENT summary per check
+     with REFERENCES to those rows and records — update it in place, never append a pass-by-pass or
+     run-by-run log. The per-correction record lines of SPEC-0083 §Correction invalidation still go here. -->
 
 ## Planned artifacts / corpus impact
 
@@ -2423,6 +2429,20 @@ def _plan_gate_engine_context(slug: str, audit_path, content_hash: str, od_packe
     return "".join(parts)
 
 
+def _prompt_size_fields(prompt: str, *, plan_body: str = "", cut_cards: str = "",
+                        corpus_bytes: int = 0) -> dict:
+    """T-13619 — REPORT-ONLY: the auditor prompt's total UTF-8 bytes and its parts, for a plan-gate row.
+
+    `plan_body`, `cut_cards` and `corpus` are measured from the strings the prompt was built from;
+    `lens_template` is the remainder (lens, FSM line, gate template, headings, engine context), so the
+    parts sum to the total by construction. Nothing reads these keys to decide anything (SPEC-0025)."""
+    total = len(prompt.encode("utf-8"))
+    named = {"plan_body": len(plan_body.encode("utf-8")), "cut_cards": len(cut_cards.encode("utf-8")),
+             "corpus": int(corpus_bytes or 0)}
+    return {"prompt_bytes": total,
+            "prompt_parts_bytes": {"lens_template": total - sum(named.values()), **named}}
+
+
 def _auditor_guard_note(full: bool) -> str:
     """T-13574 — the hang guard a plan audit is about to run under, in the form `audit status`
     prints: the resolved seconds and the layer that answered (env, machine binding or shipped
@@ -2719,6 +2739,9 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     #: T-12857 — the auditor triple (SPEC-0135 §4) of THIS pass's row, filled once the auditor is
     #: resolved below; the carry / template-unavailable paths save before that and ran no auditor.
     _auditor_row_fields: dict = {}
+    #: T-13619 — the prompt size of THIS pass, filled once the prompt is built; the template-unavailable
+    #: save runs no auditor and records none.
+    _prompt_size: dict = {}
 
     def _save(audit: dict) -> None:
         content = state.dump(audit)
@@ -2730,7 +2753,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
         _append_event("draft_checked", None, {
             "slug": slug, "verdict": audit["verdict"], "findings_count": len(audit["findings"]),
             "stage_template": template, "gate_policy": gate_policy, "duration_ms": _dur,
-            "saved_to": str(audit_path.relative_to(REPO_ROOT))})
+            "saved_to": str(audit_path.relative_to(REPO_ROOT)), **_prompt_size})
         # ── C-A (T-12335) — THE CEILING ROW A PLAN GATE NEVER HAD ───────────────────────────────
         # Until now a plan gate emitted `draft_checked` ONLY: no `findings[]`, no `passes`, and never an
         # `external_audit_completed` row — so the whole SPEC-0204 rule-1/2/3 reader chain, which keys off
@@ -2749,6 +2772,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                 saved_to=str(audit_path.relative_to(REPO_ROOT)), repo_root=[REPO_ROOT])
             _row.update(_auditor_row_fields)   # T-12857 — same triple as the task row
             _row["duration_ms"] = _dur         # T-13574 — REQUIRED on this row type (SPEC-0025)
+            _row.update(_prompt_size)          # T-13619 — report-only prompt size
             if _od_row_fields:
                 _row.update(_od_row_fields)
                 # THE WRITE-SITE VALIDATOR (SPEC-0046 §A) — C1's shared validator, scoped to the keys
@@ -2829,6 +2853,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
               + _plan_gate_engine_context(slug, audit_path.relative_to(REPO_ROOT), _plan_content_hash(body),
                                           _od["packet"] if _od is not None else None,
                                           bool(prior)))
+    _prompt_size.update(_prompt_size_fields(prompt, plan_body=body, cut_cards=extra_context or ""))
     print(f"# Invoking external auditor: {provider}/{model} (full) — {template} gate "
           f"({gate_policy}) on plan {slug}; {_auditor_guard_note(True)}...", file=sys.stderr)
     _answered_pair: dict = {}      # T-12606 — INVOCATION-scoped: which pair answered THIS gate audit
@@ -2957,7 +2982,8 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             "slug": slug, "verdict": verdict, "findings_count": 0,
             "stage_template": template, "gate_policy": gate_policy, "saved_to": None,
             "duration_ms": audit_lib._audit_duration_ms(_gate_t0),   # T-13574
-            "no_data": True, "prior_verdict_retained": _retained, "cause": parse_notes})
+            "no_data": True, "prior_verdict_retained": _retained, "cause": parse_notes,
+            **_prompt_size})
         print(f"{slug} {template} gate ({gate_policy}): {verdict} (no verdict produced) -> "
               f"{audit_path.relative_to(REPO_ROOT)} NOT overwritten — prior {_retained} retained "
               f"(passes {prior_passes})")
@@ -3181,7 +3207,8 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                 gate_audit_map=_PLAN_CONSULT_GATE_AUDIT,
                 _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
                 write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
-                invocation=f"yitc-v2 plan check {slug} --absorb")
+                invocation=f"yitc-v2 plan check {slug} --absorb",
+                sweep=getattr(args, "sweep", None))      # T-13632
         print(f"note: the accept-gate verdict / content_hash / accept_freshness_hash are UNCHANGED — "
               f"`plan stage accepted` still accepts this record, and no ceiling pass was burned.")
         return
@@ -3404,7 +3431,11 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                "structural_findings_count": len(structural), "large": large,
                "stage_template": stage_template, "gate_policy": gate_policy,
                "duration_ms": audit_lib._audit_duration_ms(_check_t0),   # T-13574
-               "saved_to": str(audit_path.relative_to(REPO_ROOT))}
+               "saved_to": str(audit_path.relative_to(REPO_ROOT)),
+               # T-13619 — report-only; the corpus block (PLAN-BORN draft specs + comparands) is
+               # measured by its own builder into the reach sink
+               **_prompt_size_fields(prompt, plan_body=body,
+                                     corpus_bytes=coverage.get("block_bytes", 0))}
     if _retained:
         _dc_row.update({"no_data": True, "prior_verdict_retained": _retained, "saved_to": None,
                         "cause": parse_notes})

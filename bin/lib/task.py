@@ -1621,9 +1621,10 @@ _PROTOTYPE_REF_RE = re.compile(r"^spike/[A-Za-z0-9._-]+$")
 def prototype_main_journal(repo_root) -> Path:
     """MAIN's `events.jsonl` (the spike-set fold source) — the git common dir's checkout; falls back to
     `repo_root/events.jsonl`."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess   # noqa: PLC0415
     r = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=_git_env._git_child_env())
     cand = Path(r.stdout.strip()).parent / "events.jsonl" if r.returncode == 0 and r.stdout.strip() else None
     return cand if cand is not None and cand.exists() else Path(repo_root) / "events.jsonl"
 
@@ -11027,14 +11028,15 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     # ship-record reader is an injected host dep, and a caller that does not wire it has no shipped
     # footprint to show — which must read as "cannot prove", not as the pre-fix set.
     _ship_reader_wired = _task_commit_landed_chain is not None
+    _ship_chain = _task_commit_landed_chain(tid) if _ship_reader_wired else []
     touched, _ship_unproven = _card_ship_footprint(
-        sha, commit_chain=_task_commit_landed_chain(tid) if _ship_reader_wired else [],
+        sha, commit_chain=_ship_chain,
         task_diff_files=_task_diff_files,
         repo_root=REPO_ROOT)                   # the SHIP diff — shared by all readers below
     _cases = _audit_scrutiny_cases(REPO_ROOT, ops_contract=init.CONSUMER_OPS_CONTRACT)
     _gov_globs = _governance_surface_globs_arg or ()
-    _guard_paths = (sorted(set(touched) | set(_pending_governance_writes(tid, repo_root=REPO_ROOT)))
-                    if _gov_globs else [])
+    _pending_writes = _pending_governance_writes(tid, repo_root=REPO_ROOT) if _gov_globs else []
+    _guard_paths = sorted(set(touched) | set(_pending_writes)) if _gov_globs else []
 
     # IS AN EXEMPTION REACHABLE FOR THIS CLOSE AT ALL? ONE predicate, computed ONCE and read by BOTH
     # the rule-5 attribution fold and the exemption gate below (CHARTER §P5). Spelled twice, the two
@@ -11579,6 +11581,19 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     # (SPEC-0178 is still `proposed`, so today that is every card).
     governance_case_refused: list[dict] = []
     governance_takeback: list[dict] = []
+    # T-13599 (rule 9) — each touched spec before and after what this card did to it, read at most
+    # ONCE per close and only when a takeback row survives `_takeback_resign_only`'s cheap checks
+    # (every governance path a spec, none of them a pending activation). `_dr` is the card's diff
+    # range; it is computed here, once, for this reader and the two further down.
+    _dr = _task_diff_range(sha)
+    _spec_rev_memo: dict = {}
+
+    def _spec_revisions():
+        if "rows" not in _spec_rev_memo:
+            _spec_rev_memo["rows"] = _ship_spec_revisions(
+                [p for p in _guard_paths if str(p).startswith("specs/")],
+                commit_chain=_ship_chain, diff_range=_dr, repo_root=REPO_ROOT)
+        return _spec_rev_memo["rows"]
     if _gov_globs:
         for _case in _cases:
             _refusal = _case_declaration_refusal(_case, governance_globs=_gov_globs)
@@ -11590,18 +11605,29 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
                                  "anything; closure PROCEEDS (the gate it targets already applies).\n")
             _row = _case_governance_guard(_case, _guard_paths, governance_globs=_gov_globs)
             if _row:
+                # T-13599 — mark the row when the re-sign is the WHOLE reason, for rule 9's count.
+                # The guard's own answer above is not touched; the mark is absent unless proven.
+                _resign_only = _takeback_resign_only(
+                    _row, matched=_case_match(_case, task_class=task.get("class"), ship_paths=touched),
+                    pending_writes=_pending_writes, revisions=_spec_revisions)
+                if _resign_only:
+                    _row["resign_only"] = True
                 governance_takeback.append(_row)
                 sys.stderr.write(
                     f"WARN: {tid} matches the audit_scrutiny case '{_row['case']}', but its diff "
                     f"touches GOVERNANCE surface(s) {', '.join(_row['governance_paths'])} — SPEC-0178 "
-                    "rule 3: the card takes audit-post whatever the case says. The diff read here is the "
-                    "ship diff PLUS the governance writes this closure itself makes.\n")
+                    "rule 3: the card takes audit-post whatever the case says. A spec RE-SIGN counts: "
+                    "a diff that only re-stamps a spec's `implements_signature` still touches that "
+                    "spec and takes the exemption back"
+                    + (" — here that re-sign is the ONLY governance touch" if _resign_only else "")
+                    + ". The diff read here is the ship diff PLUS the governance writes this closure "
+                    "itself makes.\n")
 
     # T-0616: scope the attribution to symbols THIS task's diff actually changed (pass the SAME range
     # `touched` was derived from), so a monolithic file's co-anchored-but-untouched specs' standing
     # drift is NOT misattributed to the closing task. base None -> no range -> file-level (back-compat).
-    # Computed HERE (shared) so the T-1177 reverify-fold below and the T-0298 drift WARN agree on scope.
-    _dr = _task_diff_range(sha)
+    # `_dr` is computed ONCE, above the takeback block (T-13599), and shared: the T-1177
+    # reverify-fold below and the T-0298 drift WARN agree on scope with it.
 
     # T-1177 (SPEC-0015 §Reverify-at-close) — fold the author's still-accurate assertion(s) into THIS
     # closure-commit. `--reverify SPEC-X` re-blesses SPEC-X's content-signature (the SHARED
@@ -12473,10 +12499,15 @@ def _stage6_layer_retry_lines(tid, metrics) -> list:
         return []
     out: list = []
     for r in rec.get("rows") or []:
-        if not isinstance(r, dict) or not r.get("layer"):
-            continue
+        if not isinstance(r, dict) or not r.get("layer") or "attempts" in r:
+            continue                       # T-13607: a per-UNIT row is rendered below, by its own reader
         _load = f"host load1 {r['load1']}" if "load1" in r else "host load not measurable"
-        if r.get("isolated") == "pass":
+        if r.get("isolated") == "pass" and r.get("rescue") == "off":
+            # T-13607 (SPEC-1006 rule 3): the layer declares `rescue: off` — the pass is diagnostic.
+            out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
+                       f"(exit {r.get('first_exit')}) and PASSED its isolated re-run (alone in this "
+                       f"verify, {_load}), but the layer declares `rescue: off` — the first failure blocks.")
+        elif r.get("isolated") == "pass":
             out.append(f"{tid} task test --run: verify layer {str(r['layer'])!r} FAILED its first run "
                        f"(exit {r.get('first_exit')}) and PASSED its isolated re-run (alone in this "
                        f"verify, {_load}) — a FLAKY RETRY: the run stays green on that layer and the "
@@ -12490,6 +12521,10 @@ def _stage6_layer_retry_lines(tid, metrics) -> list:
             out.append(f"{tid} task test --run: isolated re-run NOT attempted for failed verify "
                        f"layer(s) {', '.join(str(n) for n in d.get('layers') or [])} — "
                        f"{d.get('reason')} (SPEC-0152 rule 16).")
+    # T-13607 (SPEC-1006 rule 10): the per-unit re-runs and the layers whose failed units were not
+    # re-run — the same lines the guard printed, under this run's own head.
+    from lib import worktree as _wt
+    out.extend(_wt._unit_retry_lines(rec, f"{tid} task test --run: "))
     return out
 
 
@@ -12790,7 +12825,7 @@ def _stage6_venue_wait_relay(_append_event, tid, box):
 
 
 @_pinned_suite_edit_preaudit_marker
-def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None) -> None:
+def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None) -> None:
     """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
     writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
     ACs as a manual checklist). With --evidence: RECORD the Stage-6 result durably — emit a
@@ -12862,6 +12897,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     # `--evidence` recorder. Function-scoped for the same reason as `selection_summary` above: a bare
     # `task test --evidence` never enters the `--run` branch, and must record no layer rows at all.
     _stage6_guard = None
+    _stage6_step_lines: list = []   # T-13645: the layer STEP lines this run printed (SPEC-0132 Rule 7)
     _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
     # T-13532 (SPEC-0065 §Bound) — what the `--run` branch learns about the tree it tested, read by the
     # `--evidence` recorder. Function-scoped for the same reason as the two above: a bare
@@ -13339,6 +13375,17 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         _guard_kw: dict = {}
         if _verify_worker_governor is not None:
             _guard_kw["workers"] = _verify_worker_governor()
+        # T-13635 (GitHub #55): a failing layer's WHOLE output is kept the way land keeps it (T-12758) —
+        # in the main checkout's `.yitc/land-logs/` (this worktree is removed at land), under this
+        # branch and a `stage6` attempt, so the first attempt's log survives beside the re-run's
+        # (`first_output_log` on the flaky-retry row). Wired by the same seam that supplies the main
+        # checkout; an unwired harness keeps the call shapes below.
+        if _main_worktree is not None and root is not None:
+            try:
+                _s6_log_root = _main_worktree(root) or root
+            except Exception:                  # an unresolvable main checkout: keep it beside the run
+                _s6_log_root = root
+            _guard_kw["layer_log_ctx"] = {"root": _s6_log_root, "branch": f"task/{tid}", "attempt": "stage6"}
         if _s6_base:
             cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True, **_guard_kw)
         else:
@@ -13503,6 +13550,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
                     **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics}}
                        if (_venue_metrics or _stage6_retry_metrics) else {}),
+                    # T-13606 (SPEC-1006 rule 13): + the per-layer rows of a run on which a layer
+                    # carries an adapter record — the SAME two keys, in the SAME shape, the green
+                    # row and `land_completed` carry — so a FAILED run keeps its per-unit report.
+                    # A run with no adapter-backed layer writes this row exactly as before.
+                    **({"consumer_verify": _stage6_guard.get("mode"),
+                        "consumer_verify_layers": list(_stage6_guard["layers"])}
+                       if isinstance(_stage6_guard, dict) and any(
+                           isinstance(_r, dict) and "adapter" in _r
+                           for _r in (_stage6_guard.get("layers") or [])) else {}),
                 })
                 print(f"{tid} tests_failed recorded ({len(_layers)} layer(s)) — "
                       f"`yitc-v2 journal query --type tests_failed --task {tid}` reads it back")
@@ -13572,6 +13628,19 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 cguard, have_tests=_have_tests, suite_scope=_scope,
                 pinned_leg_runs=_stage6_pinned_leg_runs(root, cguard, _main_worktree=_main_worktree))
             print(f"{tid} task test --run: PASS — {_claim}" + _layer_scope)
+        # T-13645 (SPEC-0132 Rule 7, the Stage-6 seam) — a declared layer whose duration on THIS run
+        # stepped against its own recent lands is named here, at the card that caused it, rather than
+        # about six lands later on another card. REPORT-ONLY: printed after the verdict, read from the
+        # existing land-tail fold, and never able to move the exit code (any fault prints nothing).
+        if _layer_step_lines is not None and isinstance(cguard, dict) and cguard.get("mode"):
+            try:
+                _stage6_step_lines = [str(_l) for _l in (_layer_step_lines(
+                    {"budget": cguard.get("layer_worker_budget"), "layers": cguard.get("layers") or []})
+                    or [])]
+            except Exception:
+                _stage6_step_lines = []
+            for _line in _stage6_step_lines:
+                print(_line)
         if not getattr(args, "evidence", None):
             # pure self-check (no --evidence) — done; record the pass separately with --evidence.
             print(_post_action_hint(f"record the pass: `yitc-v2 task test {tid} --evidence ...` (or re-run with --run --evidence)"))
@@ -13633,6 +13702,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             data["consumer_verify"] = _stage6_guard["mode"]
             if _stage6_guard.get("layers"):
                 data["consumer_verify_layers"] = list(_stage6_guard["layers"])
+        if _stage6_step_lines:   # T-13645: ONLY when this run printed a step line (report-only)
+            data["layer_duration_step"] = list(_stage6_step_lines)
         if selection_summary:
             data["selection"] = selection_summary["selection"]
             data["selection_ran"] = selection_summary["ran"]
@@ -15222,8 +15293,15 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         f"re-stamp ships in the audited diff — or do both in ONE command (re-signs only the anchors "
         f"this diff moved; still a second commit HERE, because this one already exists):\n"
         f"  yitc-v2 task commit {tid} {one_step} --message ...\n"
-        f"    Next time, pass `--reverify` on the FIRST `task commit` (the Stage-6 report names it) "
-        f"and the re-stamp rides the product commit — one commit, no re-sign commit (T-13056).\n"
+        f"    A re-sign made HERE comes after any Stage-6 run you have made, and `specs/` is not an "
+        f"inert path: the tree the land integrates is then no longer the tree that run tested, so "
+        f"where the land would have credited the run, a re-sign after it ends the land's Stage-6 "
+        f"credit and the land runs the full suite itself (SPEC-0065 §Bound condition 2). Re-signing "
+        f"is still the right thing to do; it costs at most that one run (T-13602).\n"
+        f"    Next time, re-sign with `yitc-v2 spec reverify <SPEC>` BEFORE your final `task test "
+        f"--run` (`stage Tests` and the Stage-6 report name it): the re-stamp is then in the tested "
+        f"tree and rides the product commit. `--reverify` on the FIRST `task commit` also gives one "
+        f"commit, no re-sign commit (T-13056) — but it too re-signs after the run.\n"
         f"  - behaviour genuinely changed? `yitc-v2 spec edit <SPEC>` (SPEC-0005 rule-7 in-place).\n"
         f"A spec file outside the card's expected_touch is fine to re-sign: expected_touch is a "
         f"forecast that `task commit` refreshes from the diff (T-12302), so it needs no amendment "
@@ -15304,15 +15382,23 @@ def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         f"section runs — delivered HERE, before `task commit` and before either audit, so you can "
         f"act on it for free instead of spending an auditor pass to be told it.\n"
         f"Re-read each spec against your new code, then:\n"
-        f"  - body still accurate (the move was cosmetic/orthogonal)? fold the re-sign into your "
-        f"commit — ONE commit carries the code AND the re-stamp (only the anchors this diff moved; "
-        f"T-13056):\n"
-        f"  yitc-v2 task commit {tid} {one_step} --message ...\n"
-        f"    (or re-bless now and continue Stage 6 — the re-stamp then ships inside that commit too:)\n"
+        f"  - body still accurate (the move was cosmetic/orthogonal)? re-sign NOW, BEFORE your final "
+        f"full run (`yitc-v2 task test {tid} --run --evidence ...`):\n"
         f"{reverify_cmds}\n"
+        f"    The re-stamp is then part of the tree that run tests and your commit ships it with the "
+        f"code, so the land can credit that run instead of repeating it.\n"
+        f"    A re-sign AFTER the run changes `specs/`, which is not an inert path: the tree the land "
+        f"integrates is then no longer the tree the run tested, so where the land would have credited "
+        f"the run this ends the land's Stage-6 credit and the land runs the full suite itself "
+        f"(SPEC-0065 §Bound condition 2; T-13602). That includes the one-command form, which re-signs "
+        f"at commit time — ONE commit carries the code AND the re-stamp (only the anchors this diff "
+        f"moved; T-13056), at the price of that credit:\n"
+        f"  yitc-v2 task commit {tid} {one_step} --message ...\n"
         f"  - behaviour genuinely changed? `yitc-v2 spec edit <SPEC>` (SPEC-0005 rule-7 in-place) — "
         f"`spec reverify` is the WRONG tool there (it asserts the rule is UNCHANGED).\n"
         f"  - the anchor itself is wrong? correct the spec's `implements:` anchor.\n"
+        f"    Either of these is a change under `specs/` too: make it before the final run for the "
+        f"same reason.\n"
         f"A spec file outside the card's expected_touch is fine to re-sign: expected_touch is a "
         f"forecast that `task commit` refreshes from the diff (T-12302), so it needs no amendment "
         f"and no escalation — `task commit --reverify` ships the re-stamp (T-13175).\n"
@@ -16732,6 +16818,7 @@ def plan_creation_floor(path, fm) -> "str | None":
     direction. That fallback closes the T-13292 audit-pre gap (fp1:e360451729417b44): a plan without
     `created:` no longer reads the whole history. None only for a file no commit ever added (an
     uncommitted plan — unreachable for an ACCEPTED one, which `plan stage` commits) or no git."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import datetime as _dt
     import subprocess as _sp
     day = str((fm or {}).get("created") or "")[:10]
@@ -16740,7 +16827,8 @@ def plan_creation_floor(path, fm) -> "str | None":
         try:
             p = Path(path)
             r = _sp.run(["git", "-C", str(p.parent), "log", "--follow", "--diff-filter=A",
-                         "--format=%cI", "--", p.name], capture_output=True, text=True, timeout=60)
+                         "--format=%cI", "--", p.name], capture_output=True, text=True, timeout=60,
+                        env=_git_env._git_child_env())
             lines = [ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()]
             if r.returncode == 0 and lines:
                 day = lines[-1][:10]
@@ -16966,6 +17054,12 @@ def _pending_governance_writes(tid: str, *, repo_root) -> list:
     except Exception:
         return sorted(set(out))      # read-only prediction: never let a corpus read break a close
     return sorted(set(out))
+
+
+@functools.wraps(closure_evidence._takeback_resign_only)
+def _takeback_resign_only(*args, **kw):
+    kw = {**{"_same_outside_signature_map": closure_evidence._same_outside_signature_map}, **kw}
+    return closure_evidence._takeback_resign_only(*args, **kw)
 
 
 @functools.wraps(closure_evidence._case_governance_guard)
@@ -17712,8 +17806,9 @@ def _card_ship_footprint(sha, *, commit_chain, task_diff_files, repo_root):
     import subprocess
 
     def _git(*a):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(repo_root), *a], capture_output=True, text=True,
-                              check=False)
+                              check=False, env=_git_env._git_child_env())
 
     try:
         _has_git = _git("rev-parse", "--git-dir").returncode == 0
@@ -17746,6 +17841,69 @@ def _card_ship_footprint(sha, *, commit_chain, task_diff_files, repo_root):
     return sorted(paths), sorted(set(unproven))
 
 
+def _ship_spec_revisions(paths, *, commit_chain, diff_range, repo_root) -> "dict | None":
+    """T-13599 (SPEC-0178 rule 9) — each of `paths` BEFORE and AFTER what this card did to it:
+    `{path: [(before_text, after_text), ...]}`, or None when any read it needed could not be made.
+    Read-only git, total, never raises.
+
+    THE SAME TWO SOURCES `_card_ship_footprint` BUILDS THE CARD'S PATHS FROM, so a spec the guard
+    saw is judged on exactly the evidence that put it there:
+      - one pair per SHIP commit that carries the path (the kind-less rows of the `commit_landed`
+        chain, read one commit at a time against its first parent) — a `worktree sync` merge lists
+        no names and contributes nothing, so a spec main changed is never charged to this card;
+      - one pair for the card's whole RANGE (`_task_diff_range`: merge-base with main to the
+        recorded commit) — so a change that rode a commit the chain does not call a ship is still
+        in front of the judge.
+
+    NONE IS THE ANSWER FOR EVERYTHING UNPROVABLE, never an empty pair list: a commit whose name list
+    cannot be read might be the one that edits a rule, an unknown range base hides whatever rode
+    outside the ship commits, and a spec the card ADDS or DELETES has no before or no after —
+    none of these is a re-sign, and `_takeback_resign_only` reads None as "not shown". The
+    comparison itself lives there; this only fetches."""
+    import subprocess
+
+    def _git(*a):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+        return subprocess.run(["git", "-C", str(repo_root), *a], capture_output=True, text=True,
+                              check=False, env=_git_env._git_child_env())
+
+    def _pair(old_rev, new_rev, path):
+        before, after = _git("show", f"{old_rev}:{path}"), _git("show", f"{new_rev}:{path}")
+        if before.returncode != 0 or after.returncode != 0:
+            return None
+        return before.stdout, after.stdout
+
+    out: dict = {str(p): [] for p in (paths or [])}
+    try:
+        base, head = diff_range
+        if not (base and head):
+            return None
+        for entry in (commit_chain or []):
+            csha, kind = entry[0], entry[1]
+            csha = str(csha or "").strip()
+            if kind is not None or not csha:
+                continue                       # bookkeeping self-commit / close-tail — not a ship
+            names = _git("show", "--name-only", "--format=", csha)
+            if names.returncode != 0:
+                return None
+            carried = {textutil.git_unquote_path(ln).strip() for ln in names.stdout.splitlines()
+                       if ln.strip()}
+            for p in out:
+                if p in carried:
+                    pair = _pair(f"{csha}^", csha, p)
+                    if pair is None:
+                        return None
+                    out[p].append(pair)
+        for p in out:
+            pair = _pair(base, head, p)
+            if pair is None:
+                return None
+            out[p].append(pair)
+    except Exception:
+        return None
+    return out
+
+
 def _task_diff_files(sha: str, *, REPO_ROOT) -> list[str]:
     """The FULL task diff's touched paths (name-only) — used by the T-0202 hygiene-fast-path
     excluded-surface WARN in `task close`. Mirrors _get_audit_post_diff's range logic: a task may
@@ -17762,8 +17920,9 @@ def _task_diff_files(sha: str, *, REPO_ROOT) -> list[str]:
     import subprocess
 
     def _git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(REPO_ROOT), *args],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_env._git_child_env())
 
     def _paths(out):
         # `textutil` is this module's own module-level import (top of file, beside `state`/`events`)
@@ -17794,8 +17953,9 @@ def _task_diff_range(sha: str, *, REPO_ROOT) -> "tuple[str | None, str]":
     import subprocess
 
     def _git(*args):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(REPO_ROOT), *args],
-                              capture_output=True, text=True, check=False)
+                              capture_output=True, text=True, check=False, env=_git_env._git_child_env())
 
     head_sha = _git("rev-parse", sha).stdout.strip()
     base = _git("merge-base", sha, "main")

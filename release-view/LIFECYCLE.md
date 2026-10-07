@@ -125,20 +125,20 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 
 **Two ways to absorb a YELLOW finding (and how each meets the audit-loop ceiling):**
 
-- **(a) Edit the plan.** Changing `implementation_plan:` **re-fingerprints** it, so the prior
-  audit-pre no longer matches the plan ( `require-audit-pre-matches-plan`); `task execute`
-  REFUSES until a fresh `bin/yitc-v2 audit pre` re-verifies the changed plan. That re-audit **is a
-  new absorption pass** — it is what generates a pass, so it counts against the ceiling.
-- **(b) Record without changing the plan.** When the finding is a residual that does NOT warrant
-  re-planning, record it into the **existing** audit-pre verdict YAML (`absorbed:` / `notes:` fields,
-  per AGENTS §Saved audit result schema) via **`bin/yitc-v2 audit pre --task T-XXXX --absorb "<text>"`**
-  — the governed field-edit route, never a hand-edit of the governed YAML (a hand-edit skips
-  the deterministic `audit_finding_absorbed` emit, so the absorption is invisible to later sessions).
-  It runs no auditor and leaves `verdict:` / `passes:` / `plan_fingerprint:` untouched; it refuses a
-  non-YELLOW record (RED/ABORT = STOP, GREEN has nothing to absorb) and a custody-re-pinned one. The
-  plan text is unchanged → no re-fingerprint → no forced re-audit → this does **not** generate a new pass.
-  The SAME route serves a **plan-gate** residual — `bin/yitc-v2 audit pre --plan <slug> --gate <id>
-  --absorb "<text>"`, gate id per SPEC-0124 §Plan-target parity — on identical terms.
+- **(a) Edit the plan.** Changing `implementation_plan:` **re-fingerprints** it, so the prior audit-pre no longer matches the
+  plan ( `require-audit-pre-matches-plan`); `task execute` REFUSES until a fresh `bin/yitc-v2 audit pre` re-verifies
+  the changed plan. That re-audit **is a new absorption pass** — it generates a pass, so it counts against the ceiling.
+- **(b) Record without changing the plan.** When the finding is a residual that does NOT warrant re-planning, record it into
+  the **existing** audit-pre verdict YAML (`absorbed:` / `notes:` fields, per AGENTS §Saved audit result schema) via
+  **`bin/yitc-v2 audit pre --task T-XXXX --absorb "<text>"`** — the governed field-edit route, never a hand-edit of
+  the governed YAML (a hand-edit skips the deterministic `audit_finding_absorbed` emit, so the absorption is invisible to
+  later sessions). It runs no auditor and leaves `verdict:` / `passes:` / `plan_fingerprint:` untouched; it refuses a
+  non-YELLOW record (RED/ABORT = STOP, GREEN has nothing to absorb) and a custody-re-pinned one. The plan text is unchanged →
+  no re-fingerprint → no forced re-audit → this does **not** generate a new pass. The SAME route serves a **plan-gate**
+  residual — `bin/yitc-v2 audit pre --plan <slug> --gate <id> --absorb "<text>"`, gate id per SPEC-0124
+  §Plan-target parity — on identical terms.
+- **Either mode — sweep before you absorb (rule: SPEC-0036 §Absorption sweep).** Search the whole audited subject for the
+  same defect class and fix or record each instance; state the sweep — where you looked, what you found — as `--sweep "<text>"`: beside `--absorb "<text>"` for mode (b), and on a TASK's `audit pre|post` re-run after the edited plan/card text for mode (a). A plan gate's mode-(a) re-audit writes no absorption row, so there the sweep is stated in the edited plan text, not through the flag. On the routes that write a row, an absorption without the statement still proceeds and its `audit_finding_absorbed` row records `sweep: not stated`, so a miss stays countable.
 
 **Ceiling interaction, and what happens AT the ceiling:** the ceiling counts **re-audit passes**, and
 mode (a) is the only thing that generates one (mode (b) closes a residual without a re-audit, so it
@@ -164,7 +164,7 @@ and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budg
 
 > **Retrieved — SPEC-0027 — stage-DELIVERED at Tests entry** : `bin/yitc-v2 stage Tests --task T-XXXX` delivers SPEC-0027 in its stage bundle (same delivery axis as Stage 3 Plan — a lighter pointer, NOT a floor-trigger; stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-0027`.
 
-**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. For a consumer project (`-C`) that run executes the project's declared `verify.layers` — a layer whose `subject_globs` are disjoint from the working tree's changes is skipped, as at `land` — plus its test sweep where a test directory exists and no layer covers it, and its `land` runs the pinned leg only as the project's `verify_policy` says (SPEC-0186). The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not advanced since the run — the base the run recorded is its merge-base with `main`, and ANY later advance of `main`, an inert bookkeeping land included, ends the credit; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, full-breadth, marked row — never a red, partial or hand-recorded one; (4) the run's set covers the land's set; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
+**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. For a consumer project (`-C`) that run executes the project's declared `verify.layers` — a layer whose `subject_globs` are disjoint from the working tree's changes is skipped, as at `land` — plus its test sweep where a test directory exists and no layer covers it, and its `land` runs the pinned leg only as the project's `verify_policy` says (SPEC-0186). The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not advanced since the run — the base the run recorded is its merge-base with `main` — or advanced only by inert paths no declared test names; any other advance ends the credit; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, full-breadth, marked row — never a red, partial or hand-recorded one; (4) the run's set covers the land's set; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
 
 ### Stage 7 — Commit
 

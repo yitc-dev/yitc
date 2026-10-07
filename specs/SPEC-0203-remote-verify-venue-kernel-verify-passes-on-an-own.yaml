@@ -886,11 +886,11 @@ implements_signature:
   bin/lib/remote_verify.py#derive_remote_w: 5bc98f158f768fb598533c9379027e9808ab5230667bca97fbb0cf88fdc97578
   bin/lib/remote_verify.py#execute_remote_verify: 64dff88a11a5216cecb1781fde8c318f0f40ffe165afb0888ebf8e2f5b0a852a
   bin/lib/remote_verify.py#local_probe_set: 854ec715e1a8aae300f37e1d5666fdc8e801b7ea37b9400026c4c2cab3472524
-  bin/lib/remote_verify.py#mirror_main_to_box: 35c078c9febf720a40df6a979bcebe68b59539faa149b0732dd16b78bb2a538e
+  bin/lib/remote_verify.py#mirror_main_to_box: 1fcceadda609d63361391c2a2c2a3f834d3a258b3b9f4bf4de4e0bd4d2d3bf2e
   bin/lib/remote_verify.py#partition_suite: 0157fe314af49fc3c6543be06928ee894f6f7098cc18fc055f3472bd4e5fe3bd
   bin/lib/remote_verify.py#preship_admit: 5fa44842a23c92be738f37da9edaf4ce9c5335d3d19a859e8e577988002fbf57
   bin/lib/remote_verify.py#route: d5193364f8fc46fa6cbd2424d1a1ea10ae694566847c7b6c3ff38aa3f61d0a9b
-  bin/lib/remote_verify.py#ship_trees: 8a18ff415de11611eaaa0eb8045adfc3530f0c230cd616fd924b32d822a80480
+  bin/lib/remote_verify.py#ship_trees: 459a2c93cc9099edc3f64877224cd07eb0d3e557780f00059a4a95f0407482b0
   bin/lib/remote_verify.py#validate_envelope: a8e909c647215b15cd9c084d2b4f194c72a87ef7c85d18736d5688071dae6374
   bin/lib/remote_verify.py#venue_decision: 7cc25cc7e7cf928cec405555d3763410de421d289f0e8b67cbca9f5c54165427
   bin/lib/remote_verify.py#venue_max_requests: 750fd2a701e6ee5f98f42f5e4d1e6ceef694655f18003b1166086332be48e87e
@@ -898,12 +898,12 @@ implements_signature:
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
   bin/lib/remote_verify.py#venue_stage6_max_concurrent: d6c56faa11bf1eab22102d9c5ea48426418bff31c1232e73f2ed24f2c3f6ce40
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
-  bin/lib/task.py#cmd_task_test: f1ac3dc60398580d8914697dabb437c4111f60143200e39298a6753cae6739c1
+  bin/lib/task.py#cmd_task_test: 5e61632e71ac90bbd0763166e2932e4f25e397cfaa0f3f4efad148d4bee50d57
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 4bd62b68823f11da7089d91eb320d4b315b41f6da2a5d4a2499a0a1970c033f0
   bin/lib/venue.py#delete_server: 388fcce4ebe8a6d3c1fe726b9d5f1af13234b089e9aad45dbc70412d0151a6b3
-  bin/lib/venue.py#main_mirror_state: 6a5dfb3f3c2754b53eecf8833bbdf64a3b1a1c6bc6a935221075eaefaf264af6
+  bin/lib/venue.py#main_mirror_state: a4d0540c1ab10d4afbdeaf492f136fa1eda01a8ed8a364e75597354acd344ae5
   bin/lib/venue.py#probe_readiness: d8ef68237c6aca5eca95e06bf519363f4131fffc0e8dc2cc58e913d19834303c
   bin/lib/venue.py#read_record: f1629b1c5e2e8add73bf1e067b15eef287a1c96a45b0c7322e85800b3e49e01f
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b

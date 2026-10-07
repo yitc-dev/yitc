@@ -1002,7 +1002,7 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 1b75f41b1711752f4e93106f23b15bff44030bbd65d720ef565273ba9a16f087
+  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7

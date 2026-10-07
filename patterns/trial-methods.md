@@ -109,7 +109,10 @@ SPEC-0035 rule 5; this is the rule-6 METHOD carrier for HOW to run it.)
   `bin/yitc-v2 audit adhoc --slug <plan>-trial-convergence` (SPEC-0036) with a prompt asking the
   external auditor to judge convergence **INDEPENDENTLY**: derive the verdict from the baked trial
   criteria (rule 3) + the journal run-refs, treating the primary trial-summary as **context/carrier
-  only** (not the thing it ratifies). The verdict + recommendation save to
+  only** (not the thing it ratifies). The prompt ALSO asks it to scrutinize each correction line the
+  plan's External checks / audits section records (SPEC-0035 rule 5's semantic-effect test):
+  does the before → after support the classification? A line it cannot confirm reads behaviour-bearing,
+  and the run-refs that line kept do not count toward convergence. The verdict + recommendation save to
   `decisions/<slug>-audit-adhoc.yaml` and emit the audit events.
 - **Fold the two reads together:** record in the trial-summary whether the two reads **AGREE**. Two
   independent reads converging strengthens the signal; a **divergence** (primary says "converged",
@@ -156,15 +159,17 @@ that floor showed up *in practice* + the reusable reads that the real runs taugh
 
 **Observed convergence criteria — distilled recommendations:**
 
-1. **Stop-changing is the load-bearing signal: ≥2 consecutive runs that produce ZERO edits to
-   plan + draft specs.** The floor's "unchanged across last 2 cycles" leg is what actually fires
-   in practice — read it as *two clean cycles*, not one. **Cite:** the `per-stage-external-audit-question-templates`
+1. **Stop-changing is the load-bearing signal: a run that needs no behaviour-bearing edit to plan
+   + draft specs after the run that last needed one.** The floor's "unchanged across last 2 cycles"
+   leg is the BOUNDARY between the last two runs (SPEC-0035 rule 5), so ONE clean run after the
+   correcting run meets it — it is not a dry PAIR ( retired that reading). **Cite:** the `per-stage-external-audit-question-templates`
    trial (mode B-in-vivo) — runs 1–2 produced template-text edits, run 3 was a clean GREEN
    cycle, run 4 re-applied the *same* texts and produced no edits → the rule-5 floor leg was
    explicitly logged satisfied. Journal: `events.jsonl#ts=` (clean cycle 1)
    + `events.jsonl#ts=` (clean cycle 2, "plan + draft specs unchanged across
-   last 2 trial cycles — SPEC-0035 rule-5 floor leg satisfied"). **The confirmation run is not
-   ceremony** — a single clean cycle can be luck; the second proves it.
+   last 2 trial cycles — SPEC-0035 rule-5 floor leg satisfied"). Where a single clean run could
+   be luck for THIS mechanism (sampling- or timing-shaped behaviour), bake a confirmation-run
+   criterion into the plan's own protocol (rule 3) — never read the universal floor as two clean runs.
 
 2. **A converged trial drives the defect-find rate toward zero across runs — but the
    per-iteration text must stay STABLE while it still catches real defects.** Convergence is

@@ -596,7 +596,9 @@ DISPATCH_CLASS_VOCAB = (
      "claiming anything (detail: `no-live-claim`)"),
     ("hang_suspect",
      "non-terminal, journal-stale, but a LIVE worktree claim is still held — the dead-but-unlanded "
-     "orphan (detail: the claim stamp's provenance `own|foreign|unknown-stamp`)"),
+     "orphan (detail: the claim stamp's provenance `own|foreign|unknown-stamp`; or, when the dead "
+     "worker's dispatch log ENDS on the provider usage-limit banner, `usage-limit` followed by "
+     "`,resets=<the log's own reset text>` where the banner states one — T-13601)"),
 )
 
 
@@ -6714,9 +6716,10 @@ def revision_segment_paths(rev: str, cwd, journal_rel: str = "events.jsonl", *, 
     pattern = adir + events.archive_glob(live)
     if run is None:
         def run(argv):                                   # noqa: ANN001 — local default runner
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
             import subprocess
             return subprocess.run(["git", "-C", str(cwd), *argv], capture_output=True,
-                                  text=True, errors="replace")
+                                  text=True, errors="replace", env=_git_env._git_child_env())
     try:
         r = run(["ls-tree", "-r", "--name-only", rev, "--", adir])
     except OSError:
@@ -6763,6 +6766,7 @@ def revision_segment_show_argvs(rev: str, cwd, journal_rel: str = "events.jsonl"
 
     `run` is the same injection seam `revision_segment_paths` takes and is passed through to it, and
     so is `since` (T-13408) — the argvs then read only the segments that horizon keeps."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     rels = revision_segment_paths(rev, cwd, journal_rel, run=run, since=since)
     per_segment = [["show", f"{rev}:{rel}"] for rel in rels]
     if len(rels) < 2:
@@ -6776,7 +6780,7 @@ def revision_segment_show_argvs(rev: str, cwd, journal_rel: str = "events.jsonl"
         import subprocess
         pr = subprocess.run(["git", "-C", str(cwd), "cat-file", "--batch-check"],
                             input="\n".join(specs), capture_output=True, text=True,
-                            errors="replace")
+                            errors="replace", env=_git_env._git_child_env())
     except (OSError, ValueError):
         return per_segment
     if getattr(pr, "returncode", 1) != 0:
@@ -7550,7 +7554,10 @@ def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None
       - hang_suspect: non-terminal, stale, a LIVE worktree claim still present (alive-but-stale,
         worktree-corroborated). F0 absorption: the stamp provenance is surfaced —
         'hang_suspect(own)' vs 'hang_suspect(foreign/unknown)' — a foreign/unreadable claim is
-        NEVER silently asserted as own-alive. Detect+surface ONLY, never auto-kill (CHARTER)."""
+        NEVER silently asserted as own-alive. T-13601: when the worker's dispatch log ENDS on the
+        provider usage-limit banner the detail names that cause instead —
+        'hang_suspect(usage-limit,resets=<the log's reset text>)'. Detect+surface ONLY, never
+        auto-kill (CHARTER)."""
     now = now or _dt.datetime.now(_dt.timezone.utc)
     proc_alive = proc_alive or _session_proc_alive   # T-9240 (AC1): injectable for tests
     land_alive = land_alive or _land_proc_alive       # T-10043: injectable land-liveness probe
@@ -7888,6 +7895,17 @@ def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None
     wt = _worktree_path_for_branch(f"task/{task_id}")
     stamp = _read_worktree_stamp(wt)
     detail = "own" if _stamp_is_own(stamp) else ("foreign" if stamp else "unknown-stamp")
+    # T-13601 — NAME THE CAUSE when the dead worker's own dispatch log ENDS on the provider usage-limit
+    # banner: a worker killed by the limit mid-run authors no terminal, so it lands here looking like
+    # an unexplained orphan. Reuses the T-13200 reader (`_usage_limit_death` over the bounded
+    # `_dispatch_log_tail`, both fail-open) on the carrier the launch-stall branch already reads
+    # (`_ldata`, the newest launch's `data.log`) — no new detector. A hit REPLACES the stamp provenance
+    # with the cause plus the log's own reset text (the `still-booting,age=Nm` shape); a miss — no log,
+    # an unreadable one, any other final line — keeps the provenance detail exactly as before.
+    _limit = _usage_limit_death(_dispatch_log_tail(_ldata.get("log"))) if isinstance(_ldata, dict) else None
+    if _limit:
+        _resets = str(_limit.get("resets") or "")[:80]
+        detail = _STALL_DETAIL_USAGE_LIMIT + (f",resets={_resets}" if _resets else "")
     return ("hang_suspect", detail, last_ts, sref)
 
 def _dispatch_dead_but_unlanded(cls):
@@ -8134,8 +8152,10 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
         self-land to reach terminal FIRST (T-9258 — it is a transient self-land phase; firing `land`
         against a live self-land RACES it), then `land` only if still un-landed (NEVER respawn, T-0691).
       - hang_suspect → non-terminal + a LIVE orphan worktree claim = the dead-but-unlanded case →
-        once the Confirmed-dead GATE holds, `worktree adopt` the orphan worktree (T-1117 verb), then
-        resume/close/land. This is the route the dead-but-unlanded worker (the T-1052 root cause) takes.
+        once the Confirmed-dead GATE holds, TWO routes, by who finishes the work (T-13601): a plain
+        `dispatch` hands it to a fresh worker (never adopt first, T-10985), or the controller itself
+        takes it over with `worktree adopt` (T-1117 verb) on owner say-so, then resume/close/land.
+        Detail `usage-limit[,resets=<text>]` adds WAIT-for-the-reset in front of the same two routes.
       - silent_stop → non-terminal but NO live worktree claim (already landed / removed / never made)
         → nothing to ADOPT → re-bootstrap a fresh worker and resume from current_stage on main.
       - launch-stall → launched but never CAME UP (identity not-yet-started) and never claimed, past
@@ -8210,8 +8230,25 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
                 f"`worktree recover-land --task {t}` only if still un-landed (T-10139: governed, fail-closed, "
                 f"idempotent — re-verifies land-dead+proc-dead IN-CODE, adopts + lands; never respawn)")
     if cls == "hang_suspect":
-        return (f"confirm dead (Confirmed-dead GATE: no live `--session-id` proc) -> "
-                f"`worktree adopt --task {t} --confirm-dead` -> resume/close/land")
+        # T-13601 — TWO routes, picked by WHO finishes the work. The adopt route alone read as the
+        # only one, while the standing practice for a respawn is the plain dispatch (T-10985): the
+        # in-flight guard itself preserves a worktree that carries work and the fresh worker adopts it.
+        _fresh = (f"hand it to a FRESH worker -> plain `bin/yitc-v2 dispatch --task {t} --brief ...` "
+                  f"(no --force, and do NOT adopt first — an adopt re-stamps the worktree to a live "
+                  f"session and the dispatch then skips it; a worktree that carries work is PRESERVED "
+                  f"and the new worker adopts it itself, an empty one is torn down and re-claimed)")
+        _own = (f"finish it YOURSELF, on owner say-so only -> `bin/yitc-v2 worktree adopt --task {t} "
+                f"--confirm-dead` -> resume/close/land")
+        _cause, _, _resets = str(detail or "").partition(",resets=")
+        if _cause == _STALL_DETAIL_USAGE_LIMIT:
+            # The worker's log named a provider usage limit (the mid-run sibling of the launch-stall
+            # arm below). Advice only, mutates nothing: no wait and no re-dispatch happens here.
+            _when = f"resets {_resets}" if _resets else "reset time not stated in the log"
+            return (f"the worker's dispatch log ENDS on the provider USAGE-LIMIT banner ({_when}) — it "
+                    f"died on the limit, not on the task. WAIT for that reset (or move dispatch to an "
+                    f"account with quota left; a re-dispatch before it re-dies), then {_fresh}; or {_own}")
+        return (f"dead-but-unlanded orphan — confirm dead FIRST (Confirmed-dead GATE: no live "
+                f"`--session-id` proc), then pick by WHO finishes it: {_fresh}; or {_own}")
     if cls == "silent_stop":
         return ("no live worktree (already landed/removed) -> nothing to adopt; "
                 "re-bootstrap a fresh worker, resume from current_stage")

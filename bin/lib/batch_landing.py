@@ -6517,9 +6517,10 @@ def _land_prequeue_uncatalogued_type_refusal(branch: str, main_wt: Path, *, _run
             return None                        # nothing introduced → no work at all (rule-1 shape)
 
         def _real_git_bytes(args, stdin=None):
+            from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
             import subprocess
             proc = subprocess.run(["git", "-C", str(main_wt), *args], input=stdin,
-                                  capture_output=True, check=False)
+                                  capture_output=True, check=False, env=_git_env._git_child_env())
             return proc.returncode, proc.stdout
 
         gitb = _git_bytes or _real_git_bytes
@@ -9172,6 +9173,7 @@ def _rev_journal_types(rev: str, candidates, main_wt: Path, *, _run_git_cap) -> 
 
     Streamed, because this repo's journal is ~177MB: `git show` into a pipe, abandoned as soon as
     every candidate is found."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     candidates = set(candidates)
     if not candidates:
         return set()
@@ -9191,7 +9193,7 @@ def _rev_journal_types(rev: str, candidates, main_wt: Path, *, _run_git_cap) -> 
             break
         proc = subprocess.Popen(["git", "-C", str(main_wt), *_argv],
                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
-                                errors="ignore")
+                                errors="ignore", env=_git_env._git_child_env())
         try:
             for line in proc.stdout:
                 if found == candidates:

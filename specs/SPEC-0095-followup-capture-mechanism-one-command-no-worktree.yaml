@@ -699,7 +699,7 @@ implements_signature:
   bin/lib/followup.py#arrived_ids: a6f5fd26a43073494d8e436d3c3e681a39a44cc9be61a98af353a2d1eb641dbd
   bin/lib/followup.py#awaits_kind: ca96a0145e1cf4ba61878fe266bb80737c312d30a572fc2f975b7c62a0746220
   bin/lib/followup.py#born_armed_advisory_line: bb759a5bc016feff9932eef282c67eff321b8aa3bb758e63a1c7db5b0e4ba514
-  bin/lib/followup.py#cmd_followup_add: 463c40504379b4538a6800a3d6371036089d3c879feb218f4f4865dc43d60260
+  bin/lib/followup.py#cmd_followup_add: 4351c74ca5b24bab7428dac6f6c4c8e689771b03a1e9eaed659f3bf2167293ac
   bin/lib/followup.py#cmd_followup_arm: c2da7478d8f38bdca2829d77f803a7fe38021b7a8ee4e777868220b67024f2d6
   bin/lib/followup.py#cmd_followup_drop: 53325fff2a241c652cfc162792891dfb61e603b4dc737f117791676bc4aa18ba
   bin/lib/followup.py#cmd_followup_list: 5b1ce0719a69fd91bd5b0d7b15158d50b605273219914fc3133f0811a19989a8

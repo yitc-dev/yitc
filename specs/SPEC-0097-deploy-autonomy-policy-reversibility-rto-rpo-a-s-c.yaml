@@ -854,7 +854,7 @@ implements_signature:
   bin/lib/deploy.py#_run_class_s_security_probe: b8ccf21f5168edf01532d9475fa21281408aadf2c09d2c2403a03b9261094c76
   bin/lib/deploy.py#_run_post_deploy_security_probe: 2beea96d30e9c4fa97472239c86420bb34faabeb25f2d33243a5975edbb0fe1e
   bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
-  bin/lib/deploy.py#_service_sources_unchanged: 25bc9eba2deb2ba56cae208ac8d0a2b4a45de8f3da0702df1c2b053cd681a2ea
+  bin/lib/deploy.py#_service_sources_unchanged: 47adfc5cbc3579e717e737c32abee8ca60c37268891aaf627133cbdd9538ad2c
   bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
   bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
   bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

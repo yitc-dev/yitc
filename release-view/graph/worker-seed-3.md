@@ -221,10 +221,10 @@ A read-only Controller session is NOT special-cased: it reads on main, but a fil
 
 **Territorial ownership, not semantic relevance** — V2 write scope is path-based, not topic-based; it is the WRITE that is gated, not the posture. "It relates to V2 protocol" ≠ "it's editable from a V2 write".
 
-**V2 territory** (editable by any V2 write):
-- `realpath <repo-root>/**` ONLY. Use `realpath`, not a raw string prefix — symlinks inside the repo or `../` relative paths defeat naive prefix checks.
+**Own territory = the repository this session works in** (editable by any write from this session — in the engine, the engine root; in a consumer, that consumer's own root):
+- `realpath <repo-root>/**` ONLY (the engine's own root; a consumer session reads its own repository root here). Use `realpath`, not a raw string prefix — symlinks inside the repo or `../` relative paths defeat naive prefix checks.
 
-**External territory** (referenced read-only — NEVER edited or made an acceptance probe target from any V2 write; not monitored/probed — with ONE narrow carve-out: a **read-only fold of the kernel-owned SHARED coordination log** for `to:<self>` routing/intake entries (via **`bin/yitc-v2 cross inbox`**) is territory-SAFE and PERMITTED (reading a coordination log for intake ≠ surveillance/probing of another project); the carve-out is read-only and scoped to that shared log — every WRITE to another project's repo stays forbidden, SPEC-0084 §3. *(The retired per-repo `CROSS-TASKS.md`, tombstoned at the cutover when its per-repo spec was superseded, was this carve-out's predecessor surface.)*):
+**External territory** = anything outside that repository (referenced read-only — NEVER edited or made an acceptance probe target from any write; not monitored/probed — with ONE narrow carve-out: a **read-only fold of the kernel-owned SHARED coordination log** for `to:<self>` routing/intake entries (via **`bin/yitc-v2 cross inbox`**) is territory-SAFE and PERMITTED (reading a coordination log for intake ≠ surveillance/probing of another project); the carve-out is read-only and scoped to that shared log — every WRITE to another project's repo stays forbidden, SPEC-0084 §3. *(The retired per-repo `CROSS-TASKS.md`, tombstoned at the cutover when its per-repo spec was superseded, was this carve-out's predecessor surface.)*). The engine host's neighbours, as examples:
 - `<host-home>/projects/<project>/` (V1 platform)
 - `<host-home>/<provider-config>/` (user-level settings, `/yitc` skill commands, hooks)
 - `<host-home>/bin/`
@@ -232,7 +232,7 @@ A read-only Controller session is NOT special-cased: it reads on main, but a fil
 - `<host-home>/.gitignore`
 - Any `realpath <host-home>/*` outside `<repo-root>/`
 
-**Pre-mutate path check** — before Edit/Write/Bash that mutate state: resolve `realpath` of the touched path; verify it starts with the realpath-resolved V2 root. If outside → halt + escalate.
+**Pre-mutate path check** — before Edit/Write/Bash that mutate state: resolve `realpath` of the touched path; verify it starts with the realpath-resolved root of the repository this session works in. If outside → halt + escalate.
 
 **External-auditor prompt discipline** — prompts sent to the external auditor MUST NOT reference external paths as "artifacts to update / maintain / monitor". Only legitimate references: read-only provenance (sourced_from), historical prior-art citations, boundary definitions (listing what NOT to touch).
 

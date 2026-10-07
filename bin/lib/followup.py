@@ -1799,7 +1799,7 @@ def _awaits_shape_refusal(awaits: str, verb: str, family: str = "followup",
 
 
 def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
-                     open_refs=None) -> None:
+                     open_refs=None, carrier_ids=None) -> None:
     """`followup add --text <t> [--relates-to <ref>] [--trigger <phrase>] [--awaits <artifact>]` — append
     followup_added, print the id. NO worktree (the D-0049 append-only-journal exception: same MECHANISM
     as `event`).
@@ -1826,7 +1826,13 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
     `refs -> the subset still open`, supplied by the host, which owns `tasks/` and the shared
     coordination store while this module stays a stdlib-only leaf (SPEC-0080 §P-A1), exactly as
     `terminal_ids` reaches `list`. It changes NOTHING about the capture: the event is appended and the
-    id printed identically whether the advisory fires or not."""
+    id printed identically whether the advisory fires or not.
+
+    `carrier_ids` (T-13637) is the INJECTED P8-carrier reader behind the unreadable-marker NOTE — a
+    callable `text -> None` when the text carries no `P8-CARRIER:` marker, else the set of task ids the
+    host's ONE marker parse (`debt.p8_carrier_followups`) reads from it. An EMPTY set means the marker
+    names nothing that parse can read, so the capture would never count as a carrier; the note says so.
+    Same posture as `open_refs`: report-only, printed after the capture, silent on any failure."""
     _stdin_ingest(args, ADD_STDIN_CONFLICTING_ARGV_FLAGS, PROSE_BEARING_ADD_FIELDS, die=die,
                   carries="the capture fields (text / relates_to / trigger / awaits)",
                   ingest=stdin_ingest)
@@ -1911,6 +1917,17 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
             if still_open:
                 print(born_armed_advisory_line(fid, still_open))
         except Exception:                          # noqa: BLE001 — see FAIL-OPEN TO SILENCE above
+            pass
+    # T-13637 — the unreadable-marker note. Same FAIL-OPEN TO SILENCE posture as the advisory above:
+    # the capture is already appended, and no injection means no note.
+    if carrier_ids is not None:
+        try:
+            carried = carrier_ids(text)
+            if carried is not None and not carried:
+                print(f"  note: {fid} carries a P8-CARRIER: marker but names no task id the carrier "
+                      f"reader can read (expected `P8-CARRIER: T-NNNN …`), so the debt view and the "
+                      f"audit packet will not count it as a carrier. It is recorded as written.")
+        except Exception:                          # noqa: BLE001 — report-only, never fatal to a capture
             pass
 
 

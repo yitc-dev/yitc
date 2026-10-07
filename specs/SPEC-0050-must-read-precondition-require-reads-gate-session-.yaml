@@ -12,6 +12,7 @@ implements:
 - bin/lib/session.py#session_epoch
 - bin/lib/events.py#_emit_cli_invoked
 - bin/lib/cli.py#_deliver_stage_bundle_contracts
+- bin/lib/cli.py#_stage_contract_view
 - bin/lib/task.py#cmd_task_close
 - bin/lib/task.py#cmd_task_commit
 - bin/lib/audit.py#cmd_audit
@@ -195,40 +196,64 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ gate), which share `_fetched_spec_ids`. The §8 seed floor\n   reads its own receipts\
   \ (`_seed_receipt_epochs`) and is UNCHANGED; §2's window/anchor rules are\n   untouched.\n\
   \n**HONEST BOUND, recorded so no reader over-trusts this.** The kernel cannot verify\
-  \ reading; it can\nonly decline to credit a fetch it can SEE was discarded. `> /tmp/x`\
-  \ is just as unread while looking\ndelivered, and nothing here reaches it. That\
-  \ residual is accepted deliberately — anything stronger\nis the comprehension check\
-  \ this corpus refuses to build.\n\n**THE STAGE VERB DOES NOT DISCARD SILENTLY.**\
-  \ `stage <NAME>` with fd 1 on the null device\nrecords the stage, renders NO bundle\
-  \ body, writes ONE stderr line naming the ids left uncredited and\nthe crediting\
-  \ form (the same command with stdout attached — terminal, pipe or file), and exits\
-  \ the\ndocumented distinct code `STAGE_BUNDLE_DISCARDED_EXIT` (6) — the only channel\
-  \ that survives\n`>/dev/null 2>&1`. Nothing above changes: no receipt is credited\
-  \ that was not before, the three\nbounds stand, and the session-start delivery seam\
-  \ is unaffected.\n\n**A STAGE CONTRACT IS DELIVERED ONCE PER CONTEXT EPOCH.** The\
-  \ stage deliverer — ONE helper\nbehind both seams, `stage <NAME>` and the in-worktree\
-  \ `session start` — renders a contract as ONE\nPOINTER LINE (its id, its title,\
-  \ the command that re-reads it) instead of its body when ALL THREE\nhold, and in\
-  \ full in every other state:\n(a) the current context epoch (§8's counter) can be\
-  \ ESTABLISHED — the provider transcript was\n    actually read to the end. A session\
-  \ with no provider transcript, or one whose transcript\n    exists but cannot be\
-  \ read, reads epoch 0 before AND after a `/compact` (§8's fail-safe\n    floor),\
-  \ so \"this epoch already holds it\" cannot be asserted of it — such a session is\
-  \ never\n    shown a pointer;\n(b) this session holds a crediting receipt for that\
-  \ contract, inside §2's own window, stamped with\n    an epoch not older than the\
-  \ current one and carrying the FINGERPRINT of what was rendered (and,\n    under\
-  \ `-C`, the realm the contract requires);\n(c) the contract rendered NOW has that\
-  \ same fingerprint — a spec edited between two deliveries is\n    delivered again,\
-  \ whatever its length.\nA pointer writes NO receipt: the earlier delivery is what\
-  \ credits. To make (b) decidable, a\npoint-lookup receipt carries the epoch stamp\
-  \ the seed receipt already has (an absent stamp reads as\nepoch 0), and a stage-delivered\
-  \ one also carries the fingerprint; a hand `graph query` receipt has\nnone and therefore\
-  \ never suppresses a body. NOTHING ABOVE CHANGES: §2's credit stays SESSION-scoped\n\
-  and reads neither field — the epoch decides RE-RENDERING, never credit — and every\
-  \ doubt (no anchor,\nan unreadable journal, a comparison that fails) falls toward\
-  \ delivering the body. A `/compact`\nadvances the epoch, so the SPEC-0007 §5a re-run\
-  \ of `stage <current_stage>` delivers in full again.\n\n### 5. Bypass\nEmergency\
-  \ mode ONLY (`patterns/error-friction-tracking.md` analog — `patterns/emergency-mode.md`\n\
+  \ reading; it can\nonly decline to credit a fetch it can SEE was discarded. A credited\
+  \ receipt therefore attests\nEMISSION to a stdout that is not the null device —\
+  \ never that the model holds the contract. Two\nresiduals look delivered and are\
+  \ not, and nothing here reaches either: `> /tmp/x`, whose output sits\nunread in\
+  \ a file, and FILTERED consumption, where the output is piped through a filter (`|\
+  \ tail`,\n`| grep`, `| head`) that drops the body before the reader sees it. The\
+  \ engine sees the same pipe for\na complete capture and a filtered one, and a marker\
+  \ at the end of the body survives a filter that\nkeeps the last lines, so neither\
+  \ a pipe test nor an end-of-body marker tells the two apart (\nreproduces this on\
+  \ a real stage bundle with `| tail`, a `| grep` on a body line and a `| grep` that\n\
+  keeps only the end-of-body marker). These residuals are accepted deliberately —\n\
+  anything stronger is the comprehension check this corpus refuses to build.\n\n**THE\
+  \ STAGE VERB DOES NOT DISCARD SILENTLY.** `stage <NAME>` with fd 1 on the null device\n\
+  records the stage, renders NO bundle body, writes ONE stderr line naming the ids\
+  \ left uncredited and\nthe crediting form (the same command with stdout attached\
+  \ — terminal, pipe or file), and exits the\ndocumented distinct code `STAGE_BUNDLE_DISCARDED_EXIT`\
+  \ (6) — the only channel that survives\n`>/dev/null 2>&1`. Nothing above changes:\
+  \ no receipt is credited that was not before, the three\nbounds stand, and the session-start\
+  \ delivery seam is unaffected.\n\n**A STAGE CONTRACT IS DELIVERED ONCE PER CONTEXT\
+  \ EPOCH.** The stage deliverer — ONE helper\nbehind both seams, `stage <NAME>` and\
+  \ the in-worktree `session start` — renders a contract as ONE\nPOINTER LINE (its\
+  \ id, its title, the command that re-reads it) instead of its body when ALL THREE\n\
+  hold, and in full in every other state:\n(a) the current context epoch (§8's counter)\
+  \ can be ESTABLISHED — the provider transcript was\n    actually read to the end.\
+  \ A session with no provider transcript, or one whose transcript\n    exists but\
+  \ cannot be read, reads epoch 0 before AND after a `/compact` (§8's fail-safe\n\
+  \    floor), so \"this epoch already holds it\" cannot be asserted of it — such\
+  \ a session is never\n    shown a pointer;\n(b) this session holds a crediting receipt\
+  \ for that contract, inside §2's own window, stamped with\n    an epoch not older\
+  \ than the current one and carrying the FINGERPRINT of what was rendered (and,\n\
+  \    under `-C`, the realm the contract requires);\n(c) the contract rendered NOW\
+  \ has that same fingerprint — a spec edited between two deliveries is\n    delivered\
+  \ again, whatever its length.\nA pointer writes NO receipt: the earlier delivery\
+  \ is what credits. To make (b) decidable, a\npoint-lookup receipt carries the epoch\
+  \ stamp the seed receipt already has (an absent stamp reads as\nepoch 0), and a\
+  \ stage-delivered one also carries the fingerprint; a hand `graph query` receipt\
+  \ has\nnone and therefore never suppresses a body. NOTHING ABOVE CHANGES: §2's credit\
+  \ stays SESSION-scoped\nand reads neither field — the epoch decides RE-RENDERING,\
+  \ never credit — and every doubt (no anchor,\nan unreadable journal, a comparison\
+  \ that fails) falls toward delivering the body. A `/compact`\nadvances the epoch,\
+  \ so the SPEC-0007 §5a re-run of `stage <current_stage>` delivers in full again.\n\
+  The pointer is an EMISSION optimization that ASSUMES the earlier delivery was consumed\
+  \ complete:\ncondition (b) reads an emission receipt, and a filtered run writes\
+  \ the same receipt (HONEST BOUND\nabove). So after a stage bundle piped through\
+  \ `| tail`, a re-entry in the same epoch prints the\npointer for a body the reader\
+  \ never received. That is a named residual of this rule, not a promise\nit makes;\
+  \ the recovery is the re-read command the pointer names.\n\n**A STAGE ENTRY DELIVERS\
+  \ THE CONTRACT VIEW.** The same deliverer hands the reader each\ncontract's body\
+  \ and routing fields — what an agent acting in the stage reads — and leaves out\
+  \ what\ntools and explicit lookups read: the derived index header the point-lookup\
+  \ opens with, the code\nanchors and their signatures, the born concern, and the\
+  \ provenance and activation bookkeeping. The\nexact set is the deliverer's own field\
+  \ list (`_stage_contract_view`); a field it does not name is\ndelivered. An explicit\
+  \ `graph query <SPEC>` stays the full render, so every omitted field is one\ncommand\
+  \ away. The fingerprint in (b) and (c) is taken over the bytes DELIVERED, and a\
+  \ hand lookup's\nreceipt carries none, so a full lookup neither suppresses nor forces\
+  \ a delivered body. Credit (§2)\nis unchanged.\n\n### 5. Bypass\nEmergency mode\
+  \ ONLY (`patterns/error-friction-tracking.md` analog — `patterns/emergency-mode.md`\n\
   entry). No dedicated `--force` flag.\n\n### 6. Pilot scope — NORMATIVE = kind=stage\
   \ only; seed/action RESERVED\nNORMATIVE: `kind=stage` — wired first as the pilot\
   \ on `task close` (Closure contracts) and `task\ncommit` (Commit contracts), then\
@@ -599,17 +624,18 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 1b75f41b1711752f4e93106f23b15bff44030bbd65d720ef565273ba9a16f087
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: bc03fe81c903fc48ae82a8f604632810aa542d9c654e06eee6cdff99d1a2ecef
+  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: e54505088e3581c7b0def7830e5fedc54f5b9f6f5713ad4077251f0c24863302
+  bin/lib/cli.py#_stage_contract_view: 69bfd277bb8a74077539beed37f0aa41f2e2385b315fdd69353256c3b99c861c
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
   bin/lib/events.py#_emit_cli_invoked: 83fa38666a44a4f694dbb219f4863e661550d724cd3c0eb31aecac56f774854e
   bin/lib/gates.py#_fetched_spec_ids: 739bdb4d1c6f702735873fccd51a1a608ed0ce17813d77f6865a4a2015dc1778
   bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
-  bin/lib/gates.py#_require_seed_read: 02efe8b5f67e0e05610a0a98a305b5b790cc0da7b0c6b5ccbdcada360394d6b6
+  bin/lib/gates.py#_require_seed_read: 292b1449203336794117a301111a9e76a8b866d2f6097846c4ddf423151c6f3d
   bin/lib/gates.py#_seed_receipt_epochs: 1fd06ce74f223c807742191c68e5d737d7cb07406effeb8cee3d396335b80779
   bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
-  bin/lib/plan.py#cmd_plan_check: e18aee98679bf1bc1a086578da0cec06a4c64e1cee12fc260723664e3c0899cd
+  bin/lib/plan.py#cmd_plan_check: 4f48a3ade13764afe1b5e49c54c5346d4b43884199491d6c5659428722642a34
   bin/lib/session.py#session_epoch: 09738dbd94ed367566655e76f73370e87e2775a935acc00a6c40df3edc7d15d0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 2e45dc77f3ce5744747144d9bf3abd1546378770e2006899ace13c1d48056746
+  bin/lib/task.py#cmd_task_close: 59824887a1b86ae08b2ea29b10b4ff9217e0efec44586b41273da3008aba988e
   bin/lib/task.py#cmd_task_commit: d52e5309b3dd543695f7834278495eb8a091b878fa5ba01f9c47f7e28f25300f

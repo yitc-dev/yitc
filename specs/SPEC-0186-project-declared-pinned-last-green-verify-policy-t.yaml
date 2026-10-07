@@ -180,17 +180,17 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   SPEC-0065 §Bound lets a land take its CANDIDATE-leg verdict from the task's own\
   \ Stage-6 run instead of\nrepeating it, when the land itself proves five conditions:\
   \ (1) `main` has not advanced since the run —\nthe base the run recorded is its\
-  \ merge-base with `main`, and ANY later advance of `main`, an inert\nbookkeeping\
-  \ land included, ends the credit;\n(2) its candidate tree is the tested tree apart\
-  \ from inert paths; (3) the row is the runner's own\ngreen, full-breadth, marked\
-  \ row — never a red, partial or hand-recorded one; (4) the run's set covers\nthe\
-  \ land's set; (5) the any-author floor and the host-leak check still run, and the\
-  \ pinned leg runs\nexactly as rules 1-9 here say. That rule and its conditions are\
-  \ homed there\n(`bin/yitc-v2 graph query SPEC-0065`); THIS rule owns only the per-project\
-  \ switch.\n\n`verify_policy.stage6_credit` takes `allowed` or `never`. **Absence\
-  \ reads `allowed`** — the credit is ON\nfor a project that declares nothing, and\
-  \ for the engine on the same terms (rule 6). `never` switches\nit off: every land\
-  \ of that project then runs its candidate verify, as before the credit existed.\n\
+  \ merge-base with `main` — or advanced only by inert paths no declared\ntest names;\
+  \ any other advance ends the credit;\n(2) its candidate tree is the tested tree\
+  \ apart from inert paths; (3) the row is the runner's own\ngreen, full-breadth,\
+  \ marked row — never a red, partial or hand-recorded one; (4) the run's set covers\n\
+  the land's set; (5) the any-author floor and the host-leak check still run, and\
+  \ the pinned leg runs\nexactly as rules 1-9 here say. That rule and its conditions\
+  \ are homed there\n(`bin/yitc-v2 graph query SPEC-0065`); THIS rule owns only the\
+  \ per-project switch.\n\n`verify_policy.stage6_credit` takes `allowed` or `never`.\
+  \ **Absence reads `allowed`** — the credit is ON\nfor a project that declares nothing,\
+  \ and for the engine on the same terms (rule 6). `never` switches\nit off: every\
+  \ land of that project then runs its candidate verify, as before the credit existed.\n\
   \n**It fails toward VERIFYING.** An unrecognised value, a section that is not a\
   \ mapping and a carrier\nnobody can parse all read `never` — the same direction\
   \ rule 1 fails in, since here it is `never` that\nkeeps the check. For that reason\

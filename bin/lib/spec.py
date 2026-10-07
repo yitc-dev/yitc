@@ -874,6 +874,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # below REBIND old/new to storage-form candidates, and the round-trip must be judged against
     # what the author actually asked for, not against the candidate that happened to match.
     orig_old, orig_new = old, new
+    # T-13600 — which of the two readings the write below takes; printed on every successful edit.
+    # Raw until a branch re-shapes the author's text so the PARSED body reads as asked.
+    # `raw_reindented` marks the one raw write that is not verbatim: the T-10920 retry also serves
+    # a match OUTSIDE the body (any indented block field), where no body reading exists.
+    reading, raw_reindented = "raw replacement", False
     if n == 0:
         # T-10321 (X-0284) — the indentation trap. The exact raw match above stays PRIMARY (every
         # currently-working call is byte-identical). Only on a miss: if `old` is a substring of the
@@ -889,6 +894,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                 print(f"note: `old` matched the parsed body, not the raw file — re-indented it (and "
                       f"`new`) by {len(indent)} space(s) to the `body:` block-scalar level (T-10321).")
                 old, new, n = cand_old, cand_new, cand_n
+                reading = "edited as body text"
     if n == 0:
         # T-11109 (X-0882) — the FLOW-scalar sibling of the branch above. Same shape, same honesty
         # guard: only when `old` is in the PARSED body do we look for its stored ESCAPED form, and
@@ -908,6 +914,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                           f"quoted flow scalar, so `old` (and `new`) were encoded to its stored "
                           f"escaped form before matching (T-11109).")
                     old, new, n = cand_old, cand_new, cand_n
+                    reading = "edited as body text"
                     break
     # T-13581 — the quoted body no candidate could reach (line-WRAPPED, or escaped by a setting
     # the encoder does not reproduce). `old` is demonstrably text of the parsed body, so apply the
@@ -1080,9 +1087,14 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                 _die(f"refusing to write — the replacement makes {path.name} invalid YAML "
                      f"({str(e)[:160]}). Narrow --old to the intended text (the file is untouched).")
             updated, updated_rec = flow_retried
+            reading = "edited as body text"
             print(_FLOW_REENCODE_NOTE)
         else:
             updated, updated_rec = retried
+            if _expected_body is not None:
+                reading = "edited as body text"
+            else:
+                raw_reindented = True
             print(f"note: `new` was inserted at a matched line indented by {len(prefix)} space(s), so "
                   f"its continuation lines were re-indented to match — inserting them verbatim would "
                   f"have broken the `body:` block scalar (T-10920). Write both halves at the file's "
@@ -1105,6 +1117,30 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         # naming both readings, never written as the raw one.
         readings = _body_reading_diff(updated_rec.get("body"), _expected_body,
                                       sorted(set(updated_rec) - set(rec)))
+        # T-13600 (GitHub issue #42) — the repair below assumes the author typed `new` as BODY text.
+        # That is certain only when the raw write would be malformed. When every continuation line
+        # of `new` already carries the block's own indent, the raw write is a well-formed body too:
+        # an `old` written without its indent is found both ways, and the same input is typed by an
+        # author who copied `new` from the FILE (each line at its file column) and by one who wrote
+        # a nested line in the BODY. Taking it as body text put the first author's lines one block
+        # indent too deep, exit 0. Nothing in the input separates the two, so the verb refuses and
+        # names both forms. A `new` with any continuation line short of the block indent keeps the
+        # repair: as raw text that line would leave the block, so only the body reading holds.
+        block_indent = _body_block_indent(text)
+        continuation = [ln for ln in orig_new.split("\n")[1:] if ln.strip()]
+        if continuation and all(ln.startswith(block_indent) for ln in continuation):
+            _die(f"refusing to write — `old` is found in {path.name} both as raw file text and as "
+                 f"text of the parsed body, and the two readings write different bodies: {readings}. "
+                 f"Every continuation line of `new` already carries the `body:` block's own "
+                 f"{len(block_indent)}-space indent, so either reading may be the one you meant and "
+                 f"this verb does not pick one (T-13600). Re-run `bin/yitc-v2 spec edit {sid} "
+                 f"--from-file <payload.yaml>` in one of two forms. RAW form: copy `old` and every "
+                 f"line of `new` WITH the file's own indentation from `{path.name}`, the first line "
+                 f"included — each line lands at the column you typed. BODY form: write `old` and "
+                 f"every line of `new` without the block indent, as `bin/yitc-v2 graph query {sid}` "
+                 f"prints the body — with this `old`, a continuation line indented "
+                 f"{len(block_indent)} or more spaces is found both ways again, so write such a "
+                 f"line in the RAW form. The file is untouched.")
         fixed, fixed_n = textutil.literal_block_field_edit(
             text, state.load_str(text), orig_old, orig_new, replace_all=replace_all)
         fixed_rec = state.load_str(fixed) if fixed is not None else None
@@ -1117,6 +1153,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                  f"indentation from `{path.name}` and re-run `bin/yitc-v2 spec edit {sid} --from-file "
                  f"<payload.yaml>`. The file is untouched.")
         updated, updated_rec, count = fixed, fixed_rec, fixed_n
+        reading = "edited as body text"
         print(f"note: `old` is text of the parsed body, and inserting `new` verbatim into the raw "
               f"file would have written a body that means something else — {readings}. Applied as an "
               f"edit of the parsed body instead: the `body:` block was re-emitted at its own indent so "
@@ -1132,11 +1169,13 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                  f"backslash re-escapes), and no encoding of `new` reproduced it (T-11109). The "
                  f"file is untouched.")
         updated, updated_rec = flow_retried
+        reading = "edited as body text"
         print(_FLOW_REENCODE_NOTE)
     if wrapped_fix is not None:
         # T-13581 — nothing above touched the text (`old` is absent from the raw file, so the raw
         # replace was a no-op and no repair branch ran); the verified re-emission is the write.
         updated, updated_rec, count = wrapped_fix
+        reading = "edited as body text"
         print(f"note: `old` matched the parsed body, not the raw file — the `body:` is a quoted "
               f"scalar whose stored form could not be matched (most likely line-wrapped), so the "
               f"edit was applied to the parsed body and the body is now stored as a literal `|` "
@@ -1175,6 +1214,16 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     print(f"spec edited: {path.relative_to(REPO_ROOT)} ({count} replacement"
           f"{'s' if count != 1 else ''}) — before-rule-change governing contract: "
           f"{', '.join(contract_specs) or '(none active-bound yet — run graph build)'}")
+    # T-13600 — say which reading the write took, on every edit: the corrective notes above fire
+    # only when a repair ran, so a plain raw write used to be told from a body edit by their absence.
+    if raw_reindented:
+        print("reading: raw replacement — `old` was matched as file text; the continuation lines of "
+              "`new` were indented to the matched line's own indent, nothing else was re-shaped.")
+    elif reading == "raw replacement":
+        print("reading: raw replacement — `old` and `new` went into the file text exactly as given.")
+    else:
+        print("reading: edited as body text — `old` was taken as text of the parsed body, and `new` "
+              "was stored so the body reads as given.")
     print("next: `yitc-v2 graph build` to refresh rules/binding views if the body changed governing text.")
     print(f"cue: {SPEC_BODY_EDIT_CUE}")  # T-10159 (a-d single-SoT)
     # T-10727 — fire the re-pin companion cue ONLY when this edit actually CHANGED `travels:`. Both

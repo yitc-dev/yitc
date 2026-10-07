@@ -322,7 +322,10 @@ INVENTORY: "tuple[Knob, ...]" = (
        "PASSING in isolation, so no value here can admit a failing check. THE SAME BOUND IS THE "
        "SWITCH FOR THE CONSUMER LAYER RE-RUN (T-13545, SPEC-0152 rule 16): any value >= 1 admits "
        "the isolated re-run of ONE sole failed verify layer (never more than one, whatever the "
-       "value), and 0 turns that re-run off as well — one switch, no second knob",
+       "value), and 0 turns that re-run off as well — one switch, no second knob. AND FOR THE "
+       "PER-UNIT RE-RUN of an adapter-backed layer (T-13607, SPEC-1006 rule 10): any value >= 1 "
+       "admits it under that rule's own bounds, and 0 turns it off too, so a failed unit's first "
+       "failure blocks",
        bounds=(0, 20)),
     _p("YITC_LAND_TAIL_TRIPWIRE_BUDGET_S", "int", 120,
        "bin/lib/worktree.py#_land_tail_tripwire_budget_s",
@@ -353,7 +356,10 @@ INVENTORY: "tuple[Knob, ...]" = (
        "tests become sensitive»), and past 100 no file would ever enter; anything else is ignored "
        "and the default stands. PERFORMANCE: it changes WHERE a file runs, never WHETHER its verdict "
        "counts — no value can admit a failing check or excuse a file from the verdict. EXIT is never "
-       "automatic at any value: a line leaves the carrier only by a card",
+       "automatic at any value: a line leaves the carrier only by a card. The SAME threshold decides "
+       "the per-unit lane of a consumer's adapter-backed verify layers (T-13609, SPEC-1006 rule 11): "
+       "that many RESCUED per-unit re-runs inside the window enter a unit into that project's "
+       "`yitc-load-sensitive-units.txt`, on the same terms",
        bounds=(1, 100)),
     _p("YITC_FLAKY_SENSITIVE_WINDOW_DAYS", "int", 14,
        "bin/lib/worktree.py#_flaky_sensitive_window_days",
@@ -364,8 +370,17 @@ INVENTORY: "tuple[Knob, ...]" = (
        "the two defaults describe one measurement. Admissible 1..365 — below a day the fold sees at "
        "most one land, above a year it is no longer a window; anything else is ignored and the "
        "default stands. PERFORMANCE on the same terms as its sibling: it changes WHERE a file runs, "
-       "never whether its verdict counts",
+       "never whether its verdict counts. The SAME window bounds the per-unit entry of a consumer's "
+       "adapter-backed layers (T-13609, SPEC-1006 rule 11)",
        bounds=(1, 365)),
+    _g("YITC_VERIFY_ADAPTER_MANIFEST", "str", None,
+       "bin/lib/land_verify_legs.py#_VERIFY_ADAPTER_MANIFEST_ENV",
+       "NOT an input the kernel reads: the path of the manifest file the kernel writes for ONE "
+       "adapter invocation of an adapter-backed verify layer, WRITTEN into that `list` / `run` "
+       "command's env so the project's adapter knows what to enumerate or run and where to write "
+       "its report (T-13606, SPEC-1006 rules 3-4). GATE by the fail-closed default, on the same "
+       "terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes nothing the kernel decides, "
+       "and it is never read back"),
     _p("YITC_VERIFY_HEARTBEAT_SECS", "float", 20.0,
        "bin/lib/verify_runner.py#_verify_heartbeat_interval",
        "seconds between land-verify progress heartbeats — an EMIT cadence on stderr; the verify "

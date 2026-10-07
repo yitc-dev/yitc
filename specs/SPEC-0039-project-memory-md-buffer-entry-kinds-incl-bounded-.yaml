@@ -39,17 +39,17 @@ amends:
     a stranded dirty write that wedged land (the X-0274 incident). Code home is `bin/yitc-v2`
     cmd_memory_consume (the `_memory_consume_selfcommit*` helpers); the write-flow
     exception is co-homed in AGENTS §Writes-happen-in-a-worktree EXCEPTION.
-- <workshop-spec> coherence (T-9496): RETIRES the "passive lead (default kind) — no
-    action obligation, drained later via a full-Analysis task" entry kind + its unbounded-scratch
-    / drain-into-corpus framing, re-homing a note-that-must-persist to <workshop-spec>'s
+- SPEC-0091 coherence (T-9496): RETIRES the "passive lead (default kind) — no action
+    obligation, drained later via a full-Analysis task" entry kind + its unbounded-scratch
+    / drain-into-corpus framing, re-homing a note-that-must-persist to SPEC-0091's
     route-by-purpose lanes (P5/P7 dedup — the short / read-by-all / consume-once,
-    deleted-after-use MEMORY-line model is already active in <workshop-spec> Rule
-    2/3, which cites this spec as the transient carrier). The surviving unmarked entry
-    is a SHORT read-by-all consume-once to-do-NOW line; the bounded [instruction]
-    kind is KEPT, its lifetime wording aligned to "deleted after execution / when
-    until fires". Realigns the §0 base contract + §5 GC to an explicit immediate-deletion
-    discipline, and the echoing MEMORY.md header + AGENTS §At-session-start paragraph
-    + patterns/doc-conventions.md MEMORY row.
+    deleted-after-use MEMORY-line model is already active in SPEC-0091 Rule 2/3, which
+    cites this spec as the transient carrier). The surviving unmarked entry is a SHORT
+    read-by-all consume-once to-do-NOW line; the bounded [instruction] kind is KEPT,
+    its lifetime wording aligned to "deleted after execution / when until fires".
+    Realigns the §0 base contract + §5 GC to an explicit immediate-deletion discipline,
+    and the echoing MEMORY.md header + AGENTS §At-session-start paragraph + patterns/doc-conventions.md
+    MEMORY row.
 body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` buffer,\
   \ and sees SHORT, READ-BY-ALL,\nCONSUME-ONCE entries — each a to-do-NOW deleted\
   \ after use, never long-lived. Two kinds: an\nunmarked short to-do-NOW line (a near-term\
@@ -59,7 +59,7 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   amended\"). Only the marked instruction is audience-filtered; it names who it is\
   \ for and how long\nit lives, and nothing broadcasts to every session forever by\
   \ default. Anything that must PERSIST\nis not a MEMORY entry — it routes by purpose\
-  \ to its durable home (<workshop-spec>). The buffer stays\nshort because foreign/expired\
+  \ to its durable home (SPEC-0091). The buffer stays\nshort because foreign/expired\
   \ entries are ignored at read time and every entry is deleted by the\nsession that\
   \ consumes it.\n\n## Internal\n\nThe ONE home (P5) of the project-MEMORY.md buffer\
   \ rule — split out of SPEC-0007 §6 (rule-6\nsplit-by-surface; SPEC-0007 §6 is now\
@@ -82,7 +82,7 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ carve-out from the\n  blanket auto-read — every other session (Controller / interactive\
   \ / auto) still auto-reads,\n  unchanged. A MEMORY entry is a short to-do-NOW, NEVER\
   \ a\n  persistence home: a note that must outlive its use was never a MEMORY destiny\
-  \ — it ROUTES by\n  purpose to its durable home the moment it is recognized (<workshop-spec>\
+  \ — it ROUTES by\n  purpose to its durable home the moment it is recognized (SPEC-0091\
   \ route-by-purpose lanes —\n  pointer, not restated here). The immediate-deletion\
   \ discipline is the survival piece — an\n  undeleted memory surface bloats. **Coherence\
   \ (SPEC-1004):** the owner-refresh / «обновим сессию»\n  continuation hand-off is\
@@ -91,8 +91,8 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ never\n  written here; MEMORY stays near-empty.\n  (Distinct from the §3 pre-/compact\
   \ note case, which IS a legitimate `session(<ref>)` consume-once\n  buffer entry\
   \ — that survives a /compact within the SAME session and stays as-is.)\n- **Distinct\
-  \ lanes** (do not conflate; route-by-purpose home = <workshop-spec>): `ideas/` =\
-  \ forward\n  plan seeds · the journal = append-only history (never drained) · `deviation_captured`\
+  \ lanes** (do not conflate; route-by-purpose home = SPEC-0091): `ideas/` = forward\n\
+  \  plan seeds · the journal = append-only history (never drained) · `deviation_captured`\
   \ =\n  nonconformity capture · this buffer = short consume-once to-do-NOW lines\
   \ + bounded temporary\n  instructions (this spec).\n- **Provider stance (P4):**\
   \ a neutral SUBSTRATE (a plain in-repo file — survives a tool swap) +\n  a familiar\
@@ -102,7 +102,7 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ SHORT and **consume-once — deleted after use**. The \"passive lead — orientation\n\
   scratch with NO action obligation, drained LATER via a full-Analysis task migration\
   \ into the\ncorpus\" default kind is **RETIRED** : a note that must persist is not\
-  \ a MEMORY entry — it\nroutes by purpose to its durable home (<workshop-spec>, pointer).\
+  \ a MEMORY entry — it\nroutes by purpose to its durable home (SPEC-0091, pointer).\
   \ The two kinds:\n- **Short to-do-NOW line** (the default, unmarked): a SHORT, READ-BY-ALL\
   \ near-term note — a\n  \"remember to check X\", a hand-off cue — that any session\
   \ may consume. It is NOT audience-filtered\n  (audience marking is the instruction\
@@ -265,13 +265,13 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ RETIRES the passive-lead-as-unbounded-scratch\ndefault + the drain-via-a-full-Analysis-task\
   \ framing (F3 — removes a kind, adds none): the owner's\nsharper model («MEMORY\
   \ = short, deleted after execution; all long-lived rules → documentation») was\n\
-  already active in <workshop-spec> Rule 2/3, so this is a P5/P7 coherence dedup —\
-  \ SPEC-0039 stops carrying\na contradictory duplicate and points to <workshop-spec>'s\
-  \ route-by-purpose lanes for any note that must\npersist (one home, P5). The surviving\
-  \ model: every MEMORY entry is short, read-by-all, consume-once,\ndeleted by its\
-  \ consuming session immediately after use (§5(b)).\n\n## Verification\n\nProbe CONTRACTS\
-  \ (not one-time results — SPEC-0005 rule 8):\n- **VP1 (four bounds present — AC1):**\
-  \ grep this body — the scratch-vs-instruction line\n  (§1), provisional-only + auto-drain\
+  already active in SPEC-0091 Rule 2/3, so this is a P5/P7 coherence dedup — SPEC-0039\
+  \ stops carrying\na contradictory duplicate and points to SPEC-0091's route-by-purpose\
+  \ lanes for any note that must\npersist (one home, P5). The surviving model: every\
+  \ MEMORY entry is short, read-by-all, consume-once,\ndeleted by its consuming session\
+  \ immediately after use (§5(b)).\n\n## Verification\n\nProbe CONTRACTS (not one-time\
+  \ results — SPEC-0005 rule 8):\n- **VP1 (four bounds present — AC1):** grep this\
+  \ body — the scratch-vs-instruction line\n  (§1), provisional-only + auto-drain\
   \ (§2), marking + lifetime axes (§3), authority ceiling (§4)\n  all stated; spec\
   \ `active` in the graph.\n- **VP2 (AGENTS reflects — AC2):** grep `AGENTS.md` §At-session-start\
   \ MEMORY paragraph\n  for SPEC-0039 + the read-only self-filter + the two entry\
@@ -291,50 +291,50 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ retirement coherent):** grep this body — §1\n  states every entry is short / read-by-all\
   \ / consume-once / deleted-after-use and EXPLICITLY\n  RETIRES the passive-lead\
   \ / drain-via-full-Analysis-task default kind, re-homing a must-persist\n  note\
-  \ to <workshop-spec>'s route-by-purpose lanes (pointer, not restated); §5(b) carries\
-  \ the explicit\n  who-deletes / when immediate-deletion discipline + §5(c) scopes\
-  \ the weekly sweep to stale\n  leftovers only; and the MEMORY.md header + AGENTS\
-  \ §At-session-start paragraph +\n  patterns/doc-conventions.md MEMORY row carry\
-  \ ZERO description of the retired kind (no P7\n  contradiction across the four surfaces).\n\
-  - **VP8 (worker exemption present + reflected):** grep this body — §0 carries the\n\
-  \  dispatched-worker (`background`, `--type build`) exemption from the auto-read\
-  \ + §5(a) notes the\n  worker skips the buffer read entirely; and the reflecting\
-  \ surfaces carry it — AGENTS.md\n  \"Also auto-read MEMORY.md\" paragraph states\
-  \ the worker exemption, and `bin/lib/session.py`\n  cmd_session_start gates the\
-  \ consumer MEMORY read-nudge behind `_sess_type != \"build\"` (the\n  hermetic test\
-  \ tests/test_t9757_worker_no_memory_read.py is the in-diff probe).\n- **VP9 (recipient-scoped\
-  \ `user(<name>)` audience present + machine-checked):** grep this\n  body — §3 carries\
-  \ `user(<name>)` in the audience enum line AND its RECIPIENT-selector clause\n \
-  \ (matched against the session's own provisioned user identity; never surfaced to\
-  \ another user;\n  unrecognized audience = fail-closed), and §5(a) names it among\
-  \ the values the read-only startup\n  self-filter honors. The predicate is machine-checked\
-  \ by `bin/lib/memory.py:audience_matches`\n  (`implements:`), whose hermetic test\
-  \ tests/test_t10263_user_audience_selector.py is the in-diff\n  probe: an entry\
-  \ tagged `user(A)` surfaces to a user-A session and is filtered out for user-B,\n\
-  \  the pre-existing audience values match exactly as before (no-regression), and\
-  \ an unknown\n  audience matches nothing.\n\n- **VP10 (onboarding-pointer consume\
-  \ self-commits on main — / X-0274):** grep this body —\n  §5(b) carries the onboarding-pointer\
-  \ EXCEPTION (a main-checkout `memory consume` SELF-COMMITS its\n  deletion directly\
-  \ to `main`, staging MEMORY.md + the one journal receipt only, fail-closed when\
-  \ MEMORY.md carries preexisting\n  dirt, when the journal's uncommitted delta is\
-  \ NOT a VALID APPEND, or on an in-progress merge\n  (the journal boundary is APPEND-ONLY\
-  \ VALIDITY, not substantiveness — / X-0361, see VP11),\n  receipt-gated idempotence\
-  \ on repeat),\n  naming it a narrow sanctioned\n  direct-to-main exception beside\
-  \ the `-C init` + task-terminal\n  self-commit precedents; and `amends:` names the\
-  \ carve-out. The behavior is the in-diff probe\n  tests/test_t10307_memory_consume_selfcommit.py\
-  \ (a real tmp git repo: a main-checkout consume leaves\n  main clean with the scoped\
-  \ commit shape; unrelated MEMORY.md dirt refuses; a receipt-gated repeat is\n  a\
-  \ no-op with no duplicate commit while an absent target with no receipt fails closed;\
-  \ a seeded\n  unrelated file is never staged, while a VALID journal APPEND is SWEPT\
-  \ and only a non-append\n  journal delta refuses — the append-only VALIDITY boundary\
-  \ / X-0361 / VP11). The write-flow exception is\n  co-documented in AGENTS §Writes-happen-in-a-worktree\
-  \ EXCEPTION.\n\n- **VP11 (the journal-dirt boundary is APPEND-ONLY VALIDITY — /\
-  \ X-0361; supersedes the\n   pure-telemetry carve-out and the SUBSTANTIVE-line refusal\
-  \ it narrowed):** grep this\n  body — §5(b) carries the boundary (an `events.jsonl`\
-  \ delta of purely APPENDED, parseable JSON event\n  lines does NOT refuse, whatever\
-  \ the events' type or authoring session; the fail-closed branch is\n  STRAND/CORRUPTION\
-  \ — non-append, blank/unparseable/non-object, unobtainable-diff, in-progress-merge,\n\
-  \  artifact-dirt). The behavior is the DIFFERENTIAL in-diff probe\n  tests/test_t10494_append_only_journal_boundary.py\
+  \ to SPEC-0091's route-by-purpose lanes (pointer, not restated); §5(b) carries the\
+  \ explicit\n  who-deletes / when immediate-deletion discipline + §5(c) scopes the\
+  \ weekly sweep to stale\n  leftovers only; and the MEMORY.md header + AGENTS §At-session-start\
+  \ paragraph +\n  patterns/doc-conventions.md MEMORY row carry ZERO description of\
+  \ the retired kind (no P7\n  contradiction across the four surfaces).\n- **VP8 (worker\
+  \ exemption present + reflected):** grep this body — §0 carries the\n  dispatched-worker\
+  \ (`background`, `--type build`) exemption from the auto-read + §5(a) notes the\n\
+  \  worker skips the buffer read entirely; and the reflecting surfaces carry it —\
+  \ AGENTS.md\n  \"Also auto-read MEMORY.md\" paragraph states the worker exemption,\
+  \ and `bin/lib/session.py`\n  cmd_session_start gates the consumer MEMORY read-nudge\
+  \ behind `_sess_type != \"build\"` (the\n  hermetic test tests/test_t9757_worker_no_memory_read.py\
+  \ is the in-diff probe).\n- **VP9 (recipient-scoped `user(<name>)` audience present\
+  \ + machine-checked):** grep this\n  body — §3 carries `user(<name>)` in the audience\
+  \ enum line AND its RECIPIENT-selector clause\n  (matched against the session's\
+  \ own provisioned user identity; never surfaced to another user;\n  unrecognized\
+  \ audience = fail-closed), and §5(a) names it among the values the read-only startup\n\
+  \  self-filter honors. The predicate is machine-checked by `bin/lib/memory.py:audience_matches`\n\
+  \  (`implements:`), whose hermetic test tests/test_t10263_user_audience_selector.py\
+  \ is the in-diff\n  probe: an entry tagged `user(A)` surfaces to a user-A session\
+  \ and is filtered out for user-B,\n  the pre-existing audience values match exactly\
+  \ as before (no-regression), and an unknown\n  audience matches nothing.\n\n- **VP10\
+  \ (onboarding-pointer consume self-commits on main — / X-0274):** grep this body\
+  \ —\n  §5(b) carries the onboarding-pointer EXCEPTION (a main-checkout `memory consume`\
+  \ SELF-COMMITS its\n  deletion directly to `main`, staging MEMORY.md + the one journal\
+  \ receipt only, fail-closed when MEMORY.md carries preexisting\n  dirt, when the\
+  \ journal's uncommitted delta is NOT a VALID APPEND, or on an in-progress merge\n\
+  \  (the journal boundary is APPEND-ONLY VALIDITY, not substantiveness — / X-0361,\
+  \ see VP11),\n  receipt-gated idempotence on repeat),\n  naming it a narrow sanctioned\n\
+  \  direct-to-main exception beside the `-C init` + task-terminal\n  self-commit\
+  \ precedents; and `amends:` names the carve-out. The behavior is the in-diff probe\n\
+  \  tests/test_t10307_memory_consume_selfcommit.py (a real tmp git repo: a main-checkout\
+  \ consume leaves\n  main clean with the scoped commit shape; unrelated MEMORY.md\
+  \ dirt refuses; a receipt-gated repeat is\n  a no-op with no duplicate commit while\
+  \ an absent target with no receipt fails closed; a seeded\n  unrelated file is never\
+  \ staged, while a VALID journal APPEND is SWEPT and only a non-append\n  journal\
+  \ delta refuses — the append-only VALIDITY boundary / X-0361 / VP11). The write-flow\
+  \ exception is\n  co-documented in AGENTS §Writes-happen-in-a-worktree EXCEPTION.\n\
+  \n- **VP11 (the journal-dirt boundary is APPEND-ONLY VALIDITY — / X-0361; supersedes\
+  \ the\n   pure-telemetry carve-out and the SUBSTANTIVE-line refusal it narrowed):**\
+  \ grep this\n  body — §5(b) carries the boundary (an `events.jsonl` delta of purely\
+  \ APPENDED, parseable JSON event\n  lines does NOT refuse, whatever the events'\
+  \ type or authoring session; the fail-closed branch is\n  STRAND/CORRUPTION — non-append,\
+  \ blank/unparseable/non-object, unobtainable-diff, in-progress-merge,\n  artifact-dirt).\
+  \ The behavior is the DIFFERENTIAL in-diff probe\n  tests/test_t10494_append_only_journal_boundary.py\
   \ (a real tmp git repo: the X-0361 repro — an\n  uncommitted SUBSTANTIVE append-only\
   \ delta (`session_started` + `deviation_captured`) -> the consume\n  SUCCEEDS, its\
   \ scoped commit is exactly {MEMORY.md, events.jsonl}, the swept lines are byte-identical\n\

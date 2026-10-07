@@ -480,7 +480,12 @@ def remote_lane_set(repo_root) -> set:
 # ── local-side identity: what `land` shipped, computed the way `land` computes it ────────────────
 
 def _git(repo_root, *args, check=True):
-    r = subprocess.run(["git", *args], cwd=str(repo_root), text=True, capture_output=True)
+    try:  # T-13587 — the git child env policy leaf, under either import spelling
+        from lib import git_env as _git_env
+    except ImportError:                                  # script-style import (bin/lib on sys.path)
+        import git_env as _git_env                        # type: ignore[no-redef]
+    r = subprocess.run(["git", *args], cwd=str(repo_root), text=True, capture_output=True,
+                       env=_git_env._git_child_env())
     if check and r.returncode != 0:
         raise RemoteVerifyError(f"git {' '.join(args)} failed: {r.stderr.strip()[:200]}")
     return r.stdout
@@ -500,23 +505,28 @@ def expected_pinned_tree(repo_root, cand_tree: str, *, main_ref: str = "main") -
     presence check cannot fail. With the expected sha in hand the pinned leg gets the same REAL
     equality the candidate leg has, and post-checkout corruption of a pinned-only file — the exact
     fault cycle 8 found invisible — is caught on that leg too."""
+    try:  # T-13587 — the git child env policy leaf, under either import spelling
+        from lib import git_env as _git_env
+    except ImportError:                                  # script-style import (bin/lib on sys.path)
+        import git_env as _git_env                        # type: ignore[no-redef]
     repo_root = Path(repo_root)
     main_tests = _git(repo_root, "rev-parse", f"{main_ref}:tests").strip()
     with tempfile.TemporaryDirectory(prefix="yitc-pinned-idx-") as td:
         idx = os.path.join(td, "index")
         env = {**os.environ, "GIT_INDEX_FILE": idx}
-        subprocess.run(["git", "read-tree", cand_tree], cwd=str(repo_root), env=env, check=True,
+        subprocess.run(["git", "read-tree", cand_tree], cwd=str(repo_root), env=_git_env._git_child_env(env), check=True,
                        capture_output=True)
         listing = subprocess.run(["git", "ls-tree", "-r", main_tests], cwd=str(repo_root),
-                                 text=True, capture_output=True, check=True).stdout
+                                 text=True, capture_output=True, check=True,
+                                 env=_git_env._git_child_env()).stdout
         # `ls-tree -r` yields "<mode> <type> <sha>\t<path>" relative to the tests/ tree; re-prefix the
         # path so the entries land where the overlay puts them. `update-index --index-info` accepts
         # this exact format, so no line is re-assembled by hand.
         prefixed = "".join(f"{line.split(chr(9), 1)[0]}\ttests/{line.split(chr(9), 1)[1]}\n"
                            for line in listing.splitlines() if chr(9) in line)
-        subprocess.run(["git", "update-index", "--index-info"], cwd=str(repo_root), env=env,
+        subprocess.run(["git", "update-index", "--index-info"], cwd=str(repo_root), env=_git_env._git_child_env(env),
                        input=prefixed, text=True, check=True, capture_output=True)
-        out = subprocess.run(["git", "write-tree"], cwd=str(repo_root), env=env, text=True,
+        out = subprocess.run(["git", "write-tree"], cwd=str(repo_root), env=_git_env._git_child_env(env), text=True,
                              capture_output=True, check=True).stdout
     return out.strip()
 
@@ -567,8 +577,12 @@ def working_tree_snapshot(repo_root) -> "str | None":
         env = {**os.environ, "GIT_INDEX_FILE": str(Path(td) / "index")}
 
         def _snap_git(*args: str) -> str:
+            try:  # T-13587 — the git child env policy leaf, under either import spelling
+                from lib import git_env as _git_env
+            except ImportError:                                  # script-style import (bin/lib on sys.path)
+                import git_env as _git_env                        # type: ignore[no-redef]
             r = subprocess.run(["git", *args], cwd=str(repo_root), text=True,
-                               capture_output=True, env=env)
+                               capture_output=True, env=_git_env._git_child_env(env))
             if r.returncode != 0:
                 raise RemoteVerifyError(
                     f"the Stage-6 working-tree snapshot failed at `git {' '.join(args)}` "
@@ -729,6 +743,10 @@ def mirror_main_to_box(repo_root, box: str, ident: dict, *, user: str = "dev",
     exit mirror (`ParkedPreship`) pass it, because a heal must reach a recorded row (the identity's
     `venue_main_healed`), and the exit tail runs after the land's row is written. Default unchanged, so
     the verify-time `ship_trees` and `venue publish` are byte-identical."""
+    try:  # T-13587 — the git child env policy leaf, under either import spelling
+        from lib import git_env as _git_env
+    except ImportError:                                  # script-style import (bin/lib on sys.path)
+        import git_env as _git_env                        # type: ignore[no-redef]
     shipped_main = ident["shipped_main_sha"]
     out: dict = {}
     attempt_out = {} if attempt_out is None else attempt_out
@@ -787,7 +805,7 @@ def mirror_main_to_box(repo_root, box: str, ident: dict, *, user: str = "dev",
     attempt_out["attempted"] = True
     t0 = time.monotonic()
     m = _push(mirror_push, cwd=str(repo_root), text=True, capture_output=True,
-              timeout=timeout, env=push_env)
+              timeout=timeout, env=_git_env._git_child_env(push_env))
     if m.returncode != 0:
         # ONE RETRY. A lost ref lock is TRANSIENT by nature — it means another request held
         # `refs/heads/main` for the moment of our update, not that the ref is unwritable — so the
@@ -801,7 +819,7 @@ def mirror_main_to_box(repo_root, box: str, ident: dict, *, user: str = "dev",
         # code — and that state is the ANCESTOR success arm. One extra rejected ref update buys one
         # code path instead of two.
         m = _push(mirror_push, cwd=str(repo_root), text=True, capture_output=True,
-                  timeout=timeout, env=push_env)
+                  timeout=timeout, env=_git_env._git_child_env(push_env))
     # THE POSTCONDITION IS READ BACK AND ENFORCED, NEVER ASSUMED FROM AN EXIT CODE — the same
     # discipline the transport read-back below states: a push reporting success is not the same
     # claim as the clone holding what we named. `check=False` and its own call, deliberately:
@@ -826,7 +844,7 @@ def mirror_main_to_box(repo_root, box: str, ident: dict, *, user: str = "dev",
         heal_push = _push(
             ["git", "push", "-q", "--no-thin", f"--force-with-lease={MIRROR_MAIN_REF}:{seen}", url,
              f"{shipped_main}:{MIRROR_MAIN_REF}"],
-            cwd=str(repo_root), text=True, capture_output=True, timeout=timeout, env=push_env)
+            cwd=str(repo_root), text=True, capture_output=True, timeout=timeout, env=_git_env._git_child_env(push_env))
         orphan, seen = seen, _read_mirror()
         out["box_main_sha"] = seen
         out["box_main_ref_shipped"] = _current(seen)
@@ -954,6 +972,10 @@ def ship_trees(repo_root, box: str, ref: str = "HEAD", *, request: str, attempt:
     as a non-descendant move and aborts `venue-refs-clobbered` once — correct, its main no longer
     exists on the host; its retry ships the current main. The operator escape hatch
     (`git push -f main:refs/heads/main`) remains for the still-loud cases."""
+    try:  # T-13587 — the git child env policy leaf, under either import spelling
+        from lib import git_env as _git_env
+    except ImportError:                                  # script-style import (bin/lib on sys.path)
+        import git_env as _git_env                        # type: ignore[no-redef]
     ident = shipped_identity(repo_root, ref, main_ref=main_ref)
     cand_ref = box_ref(request, attempt, "cand")
     main_box_ref = box_ref(request, attempt, "main")
@@ -967,7 +989,7 @@ def ship_trees(repo_root, box: str, ref: str = "HEAD", *, request: str, attempt:
         ["git", "push", "-q", "-f", url,
          f"{ident['cand_sha']}:{cand_ref}", f"{ident['shipped_main_sha']}:{main_box_ref}",
          "refs/tags/*:refs/tags/*"],
-        cwd=str(repo_root), text=True, capture_output=True, timeout=timeout, env=push_env)
+        cwd=str(repo_root), text=True, capture_output=True, timeout=timeout, env=_git_env._git_child_env(push_env))
     if r.returncode != 0:
         raise RemoteVerifyError(f"git push into the venue clone failed: {(r.stderr or '')[:300]}")
     ident["push_s"] = round(time.monotonic() - t0, 2)
@@ -4156,9 +4178,13 @@ def _repo_identity(path) -> "Path | None":
     repository, a timeout, an OSError — returns None, and None makes `sandbox_repo` claim NOTHING.
     The carve-out can therefore only ever ADD an exemption on positive evidence; no environment can
     make it silently disable a published venue, which is the property rule 7 exists to hold."""
+    try:  # T-13587 — the git child env policy leaf, under either import spelling
+        from lib import git_env as _git_env
+    except ImportError:                                  # script-style import (bin/lib on sys.path)
+        import git_env as _git_env                        # type: ignore[no-redef]
     try:
         r = subprocess.run(["git", "-C", str(path), "rev-parse", "--git-common-dir"],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0 or not (r.stdout or "").strip():

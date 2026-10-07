@@ -289,12 +289,60 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ §Watcher), the fail-closed classifier\n    outcomes (SPEC-0133), and the three-valued\
   \ reader returns (`bin/lib/debt.py`). Read alongside\n    `lessons/fail-closed-belongs-to-the-reader-not-the-parser`,\
   \ whose point — fail-closed is a\n    property of a USE SITE, not of a parser —\
-  \ this item is the general statement of.\n\n## Rationale\n\nThe incident record\
-  \ behind each item — test accretion hung on tasks not rules, specs↔tests\nunlinked,\
-  \ a tripwire that fired and could not be attributed, a message that overstated its\n\
-  assertion (a tripwire whose MESSAGE overstated its assertion, worked through in\
-  \ item 3), the\nabsence-read recurrence — lives in git history and in the external\
-  \ consult\nverdicts this spec was absorbed from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n\
+  \ this item is the general statement of.\n\n12. **Selection-friendly layout — write\
+  \ tests so that a change selects FEW of them.** Items 1-11\n    govern whether a\
+  \ tripwire exists, what it proves and how its signal is read. This one governs\n\
+  \    where it SITS. A verify that runs only the tests a change can affect is only\
+  \ as fine as the\n    test files and what they import, and that layout is decided\
+  \ by whoever writes the test — so\n    the guidance is delivered here, at the keyboard.\
+  \ It holds for every project's suite, the\n    kernel's own included.\n    **(a)\
+  \ Five habits — three for the test, two for the layer that runs it.**\n    - **One\
+  \ test file checks one product area.** A file that mixes areas is selected by a\
+  \ change\n      to any of them, and its red names none of them.\n    - **A test\
+  \ imports only what it checks.** No catch-all helper module that pulls in the whole\n\
+  \      application: through such a helper every change reaches every test, and selection\
+  \ by\n      imports then selects everything.\n    - **A layer's globs name only\
+  \ what that layer's tests read.** A glob wider than the tests'\n      real inputs\
+  \ runs the layer on changes that cannot alter its verdict. A glob narrower than\n\
+  \      them skips the layer on a change that can — that is the unsound side, so\
+  \ narrow a glob on\n      evidence of what the tests read, never on how the paths\
+  \ look.\n    - **Prefer a runner that sees dependencies.** A runner, or a dependency-tracking\
+  \ plugin for\n      it, that can answer \"which tests does this changed path reach?\"\
+  \ without running them is\n      what lets a layer narrow. A layer whose runner\
+  \ cannot answer that runs in full.\n    - **The commands that list, select and run\
+  \ a layer's tests execute inside that layer's ONE\n      prepared environment.**\
+  \ A listing taken in a different environment from the one the tests\n      run in\
+  \ describes a suite that is not the one being verified.\n    **(b) Heavy tests get\
+  \ layers of their own.** A browser suite, or any test that checks the\n    whole\
+  \ application, depends on nearly everything, so selection INSIDE its layer rarely\
+  \ narrows\n    it. The lever for those is the layer boundary: split heavy tests\
+  \ into separate layers by\n    PRODUCT AREA and by WEIGHT, each with precise globs,\
+  \ so that a heavy layer runs only when its\n    own area changes.\n    **The mechanics\
+  \ of that split have exactly ONE home and are NOT restated here:**\n    `patterns/consumer-suite-parallelization.md`\
+  \ §Splitting a monolithic layer, and the sections\n    of its SPLIT lever that follow\
+  \ it — read them before you cut. A cue plus a pointer, per\n    SPEC-0005 rule 8;\
+  \ the layer contract those globs and that prepared environment belong to is\n  \
+  \  SPEC-0152 rule 16 (`yitc-v2 graph query SPEC-0152`).\n    **(c) Keep one test\
+  \ file from setting its layer's wall.** A layer whose files run side by side\n \
+  \   finishes no sooner than its longest file, so one slow file is paid again by\
+  \ every later change\n    that selects the layer. The card that writes or grows\
+  \ a test file reads that file's time at the\n    Tests stage and cuts the file when\
+  \ it has become the longest file of such a layer, or when a\n    single test in\
+  \ it passes half of its own time limit. Both bounds are relative to the layer and\n\
+  \    to the limit, never an absolute bar. A file you are unable to cut is named\
+  \ in the card's closure\n    with its measured time, so a later reader does not\
+  \ have to bisect the cost back to this card.\n    How to find what a slow file spends\
+  \ its time on, and how to cut it, stay in the pattern named\n    in (b): its §The\
+  \ WASTE lever and §Splitting a monolithic layer.\n    **NO GATE, exactly like the\
+  \ rest of this spec.** This is authoring guidance: nothing refuses,\n    warns or\
+  \ exits nonzero on account of this item, and it adds no verb, validator or event\
+  \ type.\n    A suite laid out against it still runs and still lands — it only selects\
+  \ more than it needed\n    to.\n\n## Rationale\n\nThe incident record behind each\
+  \ item — test accretion hung on tasks not rules, specs↔tests\nunlinked, a tripwire\
+  \ that fired and could not be attributed, a message that overstated its\nassertion\
+  \ (a tripwire whose MESSAGE overstated its assertion, worked through in item 3),\
+  \ the\nabsence-read recurrence — lives in git history and in the external consult\n\
+  verdicts this spec was absorbed from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n\
   `decisions/absence-is-not-evidence-audit-adhoc.yaml`). Prior art extended, not re-invented:\n\
   SPEC-0015 differential probes, SPEC-0060 AC discipline, the module→spec coverage-admission\n\
   ledger shape.\n\n## Verification\n\nDelivered at Tests stage-entry (binding). Probes:\
@@ -349,7 +397,16 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ stripped pointer from an inlined rule and to report them separately.\nDelivery\
   \ is part of the probe: SPEC-0165 must still bind stage-entry:Filing and stage-entry:Tests,\
   \ or\nthe cue reaches neither authoring moment. Wired to NO code, like every other\
-  \ item here.\n"
+  \ item here.\n(k) for item 12's selection-friendly layout, a DIFFERENTIAL with three\
+  \ legs: item 12's own text\nCARRIES each of the five habits of (a) and the heavy-test\
+  \ split of (b); it CARRIES a pointer that\nresolves to the pattern section holding\
+  \ the split mechanics; and it does NOT carry that\nsection's own sentences — the\
+  \ third leg goes RED if a later edit inlines the mechanics here. Each\nleg is held\
+  \ against a negative fixture built from the shipped body (one habit removed, the\n\
+  pointer removed, a pattern sentence pasted in, the whole item removed), and each\
+  \ is reported by\nits own name. Clause (c) is held the same way: its sentences are\
+  \ in item 12, it names the\npattern's §The WASTE lever beside the split section,\
+  \ and item 12 with (c) cut out fails. Wired to\nNO code, like every other item here.\n"
 cites:
 - CHARTER.md#principle-3
 - SPEC-0015

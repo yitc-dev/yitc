@@ -150,6 +150,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # — a NON-carrier provenance, recorded verbatim). resolved_session_ref + source_kind are produced
     # TOGETHER so the pair is coherent (ref ↔ its provenance). No provider env carrier is read (Rule 8b).
     # T-13013: kernel-authored start text realm-qualifies its bare kernel spec ids under -C (SPEC-0073 r6).
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     _kq = functools.partial(graph.kernel_qualify, is_consumer=_is_consumer_build())
     resolved_ref, source_kind = _resolve_or_mint_identity(getattr(args, "session_ref", None))
     # T-0561 part 1: worker fail-closed identity self-check — runs on the CARRIER-resolved ref BEFORE
@@ -296,7 +297,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     _scratch = _dispatch.ensure_session_scratch_root(resolved_ref)
     if _scratch is not None and not _seed_held:   # T-13580: same ref, same root — still ensured above
         print(_kq(f"session scratch root: {_scratch} — put scratch logs, clones and probes HERE, never a "
-                  "bare /tmp name; a dispatched worker's land/park removes it, `worktree sweep` reclaims "
+                  "bare /tmp name; " + _dispatch.SCRATCH_CLONE_RULE + "; a dispatched worker's land/park removes it, `worktree sweep` reclaims "
                   "it once this session is dead and past the age floor." + " " + ON_DEMAND_SCRATCH))
     # Bootstrap-floor delivery (SPEC-0007 §5, T-0240): the always-loaded seed = the MANDATORY
     # handbook (topological, CHARTER first — pedagogical pin) + the derived floor trigger-map. The
@@ -400,7 +401,8 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
             from lib import release as _release   # noqa: PLC0415 — lazy, start-path only
             import subprocess   # noqa: PLC0415
             _gd = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--path-format=absolute",
-                                  "--git-common-dir"], capture_output=True, text=True, timeout=10)
+                                  "--git-common-dir"], capture_output=True, text=True, timeout=10,
+                                 env=_git_env._git_child_env())
             if _gd.returncode == 0 and _gd.stdout.strip():
                 _rl = _release.session_release_line(REPO_ROOT, cache_dir=_gd.stdout.strip(),
                                                     cli=f"{ENGINE_ROOT}/bin/yitc-v2")
@@ -1989,10 +1991,12 @@ class HandoffStoreUnsafe(Exception):
 def handoff_store_dir(repo_root) -> "Path | None":
     """The anchored repo's store — `<git-common-dir>/yitc/handoffs` (shared by every linked worktree,
     never in the working tree). None when `repo_root` is not a git checkout."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     try:
         r = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--path-format=absolute",
-                            "--git-common-dir"], capture_output=True, text=True, timeout=10)
+                            "--git-common-dir"], capture_output=True, text=True, timeout=10,
+                           env=_git_env._git_child_env())
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0 or not r.stdout.strip():

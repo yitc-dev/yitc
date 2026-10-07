@@ -488,14 +488,26 @@ reservation channel was the external crontab env, not the controller — deviati
 4. On the token: read the log's verdict and continue the lifecycle **in the same turn**.
 
 ```bash
-# 0. the log lives in YOUR SESSION SCRATCH ROOT — never a bare /tmp/<job>.log (see the RULE below)
+# 0. the log and pidfile live in YOUR SESSION SCRATCH ROOT — never a bare /tmp/<job>.log (see the RULE below)
 LOG=$YITC_SCRATCH_DIR/T-XXXX-<job>.log
+PIDF=$YITC_SCRATCH_DIR/T-XXXX-<job>.pid
+echo "$LOG $PIDF"
+# Below, <log> and <pidfile> stand for the two paths that `echo` printed, WRITTEN OUT IN FULL: every
+# `bash -c` script here is a single-quoted, self-contained LITERAL — no `$VAR` of your own shell
+# inside it and no positional parameters. The harness refuses a `-c` script it cannot read as a
+# literal, with a message that blames `rm` even when the call runs none (X-1857).
 # 1. detached launch — survives the tool cap AND the tool-call boundary.
-# `>` (truncate), not `>>`: the log is THIS attempt's, so a retry's poll cannot see the last one's token
-setsid bash -c "<long-self-verifying-command> > $LOG 2>&1" < /dev/null &
-LAND_PID=$! #...or read a pidfile the detached shell wrote; you need a PID, not a pattern
-# 2+3. bounded foreground poll window, re-invoked INLINE until token-or-exit
-timeout 300 bash -c "until grep -qE '^<TERMINAL-TOKEN>' $LOG || ! kill -0 $LAND_PID 2>/dev/null; do sleep 10; done"
+# `>` (truncate), not `>>`: the log is THIS attempt's, so a retry's poll cannot see the last one's token.
+# `: >` empties a stale pidfile the same way, without an `rm`. The detached shell writes its OWN
+# pid and `exec`s the command, so the pidfile names the command's own process.
+: > <pidfile>; setsid bash -c 'echo $$ > <pidfile>; exec <long-self-verifying-command> > <log> 2>&1' </dev/null &
+# resolve the handle from the pidfile — never `$!` (X-1011: valid with job control OFF, dead within
+# a second with it ON); the wait for a NON-EMPTY file means a previous attempt's pid is never read back
+LAND_PID=$(timeout 30 bash -c 'until [ -s <pidfile> ]; do sleep 1; done; cat <pidfile>')
+# 2+3. bounded foreground poll window, re-invoked INLINE until token-or-exit. It reads the pid from the
+# pidfile ITSELF (a shell variable does not survive into the next tool call), and an EMPTY pidfile
+# keeps it polling rather than reading as an exited process.
+timeout 300 bash -c 'until grep -qE "^<TERMINAL-TOKEN>" <log> || { [ -s <pidfile> ] && ! kill -0 "$(cat <pidfile>)" 2>&-; }; do sleep 10; done'
 ```
 
 **EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO *THIS* RUN (RULE).** The recipe above
@@ -518,7 +530,9 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   probes go under the scratch root too: nothing owns a hand-spelled /tmp name, so
   nothing ever reclaimed one (~44 GB measured 2026-09-28). The root is RECLAIMED when its owner ends —
   a dispatched worker's `land`/`worktree park` removes it, and `worktree sweep` removes any root whose
-  session is not alive, past the age floor and held by no live process. The engine's own detached
+  session is not alive, past the age floor and held by no live process. So **never redirect a `land`'s output into
+  the scratch root**: a successful land removes it BEFORE printing `LAND: OK`, so the token is lost with
+  it — use the engine-named land log instead. The engine's own detached
   land/test log+pid stay OUTSIDE it by design (a poller reads them past land's teardown); `worktree
   sweep` reclaims those once aged, unheld and their pid dead. This
   EXTENDS the convention the engine already applies to the log it writes for you —

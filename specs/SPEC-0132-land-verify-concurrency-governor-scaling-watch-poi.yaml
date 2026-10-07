@@ -12,6 +12,7 @@ implements:
 - bin/lib/land_verify_legs.py#_verify_scaling_signals
 - bin/lib/land_verify_legs.py#_verify_duration_drift_signals
 - bin/lib/land_verify_legs.py#_verify_layer_duration_drift_signals
+- bin/lib/land_verify_legs.py#_verify_layer_duration_step_signals
 - bin/lib/verify_runner.py#_verify_dispatch_order
 - bin/lib/verify_runner.py#_load_verify_duration_table
 - bin/lib/verify_runner.py#cmd_verify_durations
@@ -251,11 +252,14 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ lane for layers. A declined layer plan is recorded as `layers_skipped`\n(`timeout-class`\
   \ / `prep-failed` / `over-bound`), beside and never over the runner's own FILE\n\
   record. «Isolated» for a layer means alone within that verify, not alone on the\
-  \ host — which is\nwhy the load is recorded. Field shapes: SPEC-0025.\n**The admitted\
-  \ budget is PUBLISHED, and each layer's actual CPU is RECORDED — REPORT-ONLY:**\n\
-  the governor's admitted per-verify worker count reaches every consumer verify layer\
-  \ COMMAND, and\nStage-6 `task test --run`, as `YITC_VERIFY_LAYER_WORKERS` — an OUTPUT,\
-  \ deliberately distinct from\nthe `YITC_VERIFY_WORKERS` machine input. `verify_metrics.layer_worker_budget`\
+  \ host — which is\nwhy the load is recorded. Field shapes: SPEC-0025. A layer that\
+  \ declares an adapter also re-runs a\nfailed test file alone and enters a repeatedly\
+  \ rescued one into its own load-sensitive lane — the\nper-unit siblings of this\
+  \ re-run and of the lane, homed in SPEC-1006.\n**The admitted budget is PUBLISHED,\
+  \ and each layer's actual CPU is RECORDED — REPORT-ONLY:**\nthe governor's admitted\
+  \ per-verify worker count reaches every consumer verify layer COMMAND, and\nStage-6\
+  \ `task test --run`, as `YITC_VERIFY_LAYER_WORKERS` — an OUTPUT, deliberately distinct\
+  \ from\nthe `YITC_VERIFY_WORKERS` machine input. `verify_metrics.layer_worker_budget`\
   \ records the value the\nlayers received, and `verify_metrics.per_layer_cpu` records\
   \ each executed layer's process CPU plus\nthe CPU of docker compose containers labelled\
   \ with the land's worktree, naming two gaps instead of\ndropping or counting them:\
@@ -276,41 +280,44 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \    FIXED per-file duration table (§6) — the sum of the LISTED files' recorded\
   \ seconds\n    against the table's own total per-file work — and both numbers ride\
   \ the SPEC-0119 debt echo's\n    rule-40 line at every seam, so nobody computes\
-  \ them by hand. OVER EITHER BOUND the obligation\n    is a DISPOSITION, not an action:\
-  \ the weekly review (`inspect record --tier weekly`, the roster's\n    T5 lens)\
-  \ must dispose a NAMED global-rework question — box-admission width, stage-6-beside-land\n\
-  \    policy, or harness isolation — with a dated line that either files that card\
-  \ or records why not\n    plus a re-check date. Another per-file card is not a disposition.\
-  \ Report-only on the same terms\n    as every watch-point here: nothing gates, nothing\
-  \ acts autonomously (CHARTER §6 fence).\n\n**RETIRED watch-point — the pinned double-verify\
-  \ cache hit-rate (X-0968).** This rule used\nto carry a third watch-point: *\"the\
-  \ pinned double-verify cache hit-rate is < 80% after warm-up →\nredesign the pinned\
-  \ trigger scope.\"* It is **DELETED, not re-tuned** — no threshold is reachable,\
-  \ so\nthe expectation was wrong rather than the number. Recorded here, with its\
-  \ evidence, because the cache\naxis had already been adjudicated three times (plan\
-  \ `land-throughput-cut-queue-occupancy-and-doomed-lan`\nslice S3) without anyone\
-  \ owning the EXPECTATION, and a reader who does not find the\nreason at the retired\
-  \ rule re-opens it a fifth time.\n\nMEASURED, kernel-side, 2026-08-17 — locator\
-  \ `events.jsonl#ts=` (a\n`measurement_recorded` event carrying the full counts +\
-  \ the measuring commit sha): over 7032\n`land_completed` rows, **1390** ran the\
-  \ pinned leg, **0** recorded `pinned_cache_hit`, and **0** were\nlayout-excused\
-  \ — so all 1390 were clean GREENs that ran `_pinned_cache_put` — while\n`.git/yitc-pinned-verify-cache`\
-  \ held **1135 markers, all 1135 distinct**. 1135 writes, zero hits: no\nkey has\
-  \ ever repeated. This also REFUTES the earlier reading (carried in own commit body\
-  \ and\nin <project> X-0934) that the 0% meant a GREEN pinned verdict was never reached\
-  \ — greens are reached and\ncached in bulk, and the rate is still 0.\n\nWHY NO FLOOR\
-  \ IS REACHABLE — two INDEPENDENT causes, either alone sufficient:\n  1. **The subject\
-  \ term defeats its own trigger.** The key's subject is the candidate `HEAD^{tree}`,\n\
-  \     and the cache is consulted ONLY when `_verify_path_touch` holds — i.e. only\
-  \ when this land's diff\n     touches the very `bin`/`tests` surfaces that guarantee\
-  \ its tree differs from every earlier land's.\n     The condition that OPENS the\
-  \ cache is the condition that BUSTS it. The only unchanged-tree case is\n     a\
-  \ retry, and `land` runs update-from-main BEFORE verify, so a retry's tree and merged\
-  \ base move too.\n  2. **The engine-code-hash term invalidates globally**, for every\
-  \ consumer at once: 438 commits touched\n     `bin/**/*.py` or `bin/yitc-v2` in\
-  \ the 7 days to 2026-08-17 — a full-cache kill roughly every 23\n     minutes, far\
-  \ shorter than the interval between two lands of any one project.\n\nWHAT IS AND\
-  \ IS NOT RETIRED. Only the EXPECTATION and its report-only emit site. The cache\
+  \ them by hand. The same line reads how many\n    listed files ENTERED the lane\
+  \ in the last 7 days and their recorded seconds, from each carrier\n    line's own\
+  \ entry date; an undated line is named as undated. A file that LEFT the lane is\
+  \ not\n    reported — the card that removed it already dealt with it. OVER EITHER\
+  \ BOUND the obligation\n    is a DISPOSITION, not an action: the weekly review (`inspect\
+  \ record --tier weekly`, the roster's\n    T5 lens) must dispose a NAMED global-rework\
+  \ question — box-admission width, stage-6-beside-land\n    policy, or harness isolation\
+  \ — with a dated line that either files that card or records why not\n    plus a\
+  \ re-check date. Another per-file card is not a disposition. Report-only on the\
+  \ same terms\n    as every watch-point here: nothing gates, nothing acts autonomously\
+  \ (CHARTER §6 fence).\n\n**RETIRED watch-point — the pinned double-verify cache\
+  \ hit-rate (X-0968).** This rule used\nto carry a third watch-point: *\"the pinned\
+  \ double-verify cache hit-rate is < 80% after warm-up →\nredesign the pinned trigger\
+  \ scope.\"* It is **DELETED, not re-tuned** — no threshold is reachable, so\nthe\
+  \ expectation was wrong rather than the number. Recorded here, with its evidence,\
+  \ because the cache\naxis had already been adjudicated three times (plan `land-throughput-cut-queue-occupancy-and-doomed-lan`\n\
+  slice S3) without anyone owning the EXPECTATION, and a reader who does not find\
+  \ the\nreason at the retired rule re-opens it a fifth time.\n\nMEASURED, kernel-side,\
+  \ 2026-08-17 — locator `events.jsonl#ts=` (a\n`measurement_recorded` event carrying\
+  \ the full counts + the measuring commit sha): over 7032\n`land_completed` rows,\
+  \ **1390** ran the pinned leg, **0** recorded `pinned_cache_hit`, and **0** were\n\
+  layout-excused — so all 1390 were clean GREENs that ran `_pinned_cache_put` — while\n\
+  `.git/yitc-pinned-verify-cache` held **1135 markers, all 1135 distinct**. 1135 writes,\
+  \ zero hits: no\nkey has ever repeated. This also REFUTES the earlier reading (carried\
+  \ in own commit body and\nin <project> X-0934) that the 0% meant a GREEN pinned\
+  \ verdict was never reached — greens are reached and\ncached in bulk, and the rate\
+  \ is still 0.\n\nWHY NO FLOOR IS REACHABLE — two INDEPENDENT causes, either alone\
+  \ sufficient:\n  1. **The subject term defeats its own trigger.** The key's subject\
+  \ is the candidate `HEAD^{tree}`,\n     and the cache is consulted ONLY when `_verify_path_touch`\
+  \ holds — i.e. only when this land's diff\n     touches the very `bin`/`tests` surfaces\
+  \ that guarantee its tree differs from every earlier land's.\n     The condition\
+  \ that OPENS the cache is the condition that BUSTS it. The only unchanged-tree case\
+  \ is\n     a retry, and `land` runs update-from-main BEFORE verify, so a retry's\
+  \ tree and merged base move too.\n  2. **The engine-code-hash term invalidates globally**,\
+  \ for every consumer at once: 438 commits touched\n     `bin/**/*.py` or `bin/yitc-v2`\
+  \ in the 7 days to 2026-08-17 — a full-cache kill roughly every 23\n     minutes,\
+  \ far shorter than the interval between two lands of any one project.\n\nWHAT IS\
+  \ AND IS NOT RETIRED. Only the EXPECTATION and its report-only emit site. The cache\
   \ MECHANISM\n(`_pinned_verify_cache_key` / `_pinned_cache_get` / `_pinned_cache_put`)\
   \ is UNTOUCHED and remains\ncorrect: a MISS is fail-safe (it re-runs), so the cache\
   \ can never produce a stale green and costs only\na few git calls. `land_completed.pinned_cache_hit`\
@@ -581,53 +588,72 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ carrier is not re-reported from its\n    last rows, and a newest land whose layer\
   \ record is unreadable, ambiguous or without a budget\n    silences the layer rather\
   \ than falling out of sight and leaving an older land's creep to be\n    reported\
-  \ as current. A land that recorded no layers says nothing either way.\n**One seam:\
-  \ the land tail.** This subject is rendered where the land that produced the newest\n\
-  observation finishes, and nowhere else — in particular NOT in the session-start\
-  \ debt echo\n(SPEC-0119), whose content is unchanged by it. SPEC-0208's bound calibration\
-  \ is a different\nquestion (is a declared timeout derived from measurement) and\
-  \ reads the same series for the LEVEL;\nthis rule never does.\n\n## Parameters\n\
-  None consumed. The thresholds (Rules 3-4) and the movement bars (Rule 7) are governance\
-  \ numbers\nstated in rule-text an editor reads before changing the policy; they\
-  \ are NOT runtime scalars read\nFROM this spec by code (`consumed: false`). A future\
-  \ task MAY move a threshold into a code\nconstant citing this spec.\n\n## Rationale\n\
-  \nReal incident + measurement: the 2026-07-03 raised-cap flake (oversubscription\
-  \ + ff-race under\nconcurrency) and the land-concurrency reality (concurrent lands\
-  \ expected; a 49%-overlap +\noversubscription measurement). Three external-auditor\
-  \ consults (land-timing mechanics /\ntest-isolation-under-high-parallelism / test-verify\
-  \ scaling strategy) converged: the FIRST durable\nwall is full-suite throughput,\
-  \ not isolation. Prior-art extended: `` (parked serialize-the-\ncritical-section\
-  \ proposal → the serialize fork), `` (contention-aware cap → the share fork),\n\
-  `SPEC-0077` (pinned double-verify), `SPEC-0071` (per-file timeout). Why measurement\
-  \ resolves the fork\nrather than a prose pick, and the full share/serialize/hybrid\
-  \ deliberation, live in the proposing plan\n(SPEC-0005 §3 content boundary — not\
-  \ restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record names\
-  \ the ladder level in effect with the A4 numbers that\n  selected it (replayable\
-  \ from the journaled trial runs); the governor's multi-resource bound is\n  fail-closed\
-  \ (a synthetic over-bound admission is refused).\n- **Rule 2:** a `land_completed`\
-  \ event carries the verify-metrics payload (grep the journal); the\n  minimal subset\
-  \ is present before governor final-adoption.\n- **Rules 3-4:** the watch-point /\
-  \ Tier-C triggers are report-only signals computed from the A4\n  metrics — a synthetic\
-  \ metric series over/under a threshold flips the reported signal (yes/no),\n  never\
-  \ an autonomous build.\n- **Rule 7, the layer subject:** a journal whose layer creeps\
-  \ across lands under one worker budget\n  makes the land tail print the line naming\
-  \ that layer and citing rows of that journal; the same\n  journal flattened, and\
-  \ the same growth split across two budgets, print nothing; and the\n  session-start\
-  \ output over the creeping journal is byte-identical to its output over the flat\
-  \ one\n  (`tests/test_t11127_duration_drift.py`).\n\n## Postcheck convergence soak\n\
-  \nA controlled real-data soak (SPEC-0035; never mutates production data) run at\
-  \ the plan's `postcheck`\nstage on the BUILT governor (not a pre-accept FSM `trial`\
-  \ on throwaway prototypes): run the\nnarrowest-default governor (serialize-ff +\
-  \ conservative shared verify cap) against a batch of real\nconcurrent lands at the\
-  \ raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics per run into\n`land_completed`.\
-  \ Convergence = zero oversubscription/ff-race non-determinism at an acceptable p95\n\
-  land wall time within the resource bound. If the A4 metrics show the default's queueing/throughput\n\
-  cost crosses a Rule-4 threshold, escalate ONE ladder step (Rule 1) and re-soak.\
-  \ The owner judges\nconvergence on the journaled runs and records the level in effect\
-  \ in the plan's **postcheck record**.\n"
+  \ as current. A land that recorded no layers says nothing either way.\n**A single-run\
+  \ STEP — the same subject, read at the card that caused it.** The\ntwo-window reading\
+  \ above needs twenty lands and speaks only once a jump has moved a ten-land\nmedian\
+  \ — about six lands after the land that caused it, and on another card. So the layer\
+  \ subject\nis also read as a step: the newest single observation of a layer against\
+  \ the median of that\nlayer's previous ten observations under the same worker budget,\
+  \ on the same two bars. Two\nproperties of its own: when two or more layers had\
+  \ a baseline and every one of them moved past\nthe relative bar — a short layer\
+  \ under the absolute floor still counts as having moved — the whole\nverify moved\
+  \ together — host load, not a layer — and nothing is reported; and when\nthe observation\
+  \ carries per-unit rows (SPEC-1006), the line names the slowest unit.\n**Two seams,\
+  \ and nowhere else.** The layer subject is rendered where the land that produced\
+  \ the\nnewest observation finishes — both readings — and the step reading also at\
+  \ the Stage-6 run, over\nthat run's own layer rows against the recorded lands, where\
+  \ the green row records the printed\nline only when one printed. On the land tail\
+  \ a step is printed only while its land is the newest\nland; a later land that ran\
+  \ no layer does not repeat it. Neither seam is the session-start debt\necho (SPEC-0119),\
+  \ whose content is unchanged. SPEC-0208's bound calibration is a different\nquestion\
+  \ (is a declared timeout derived from measurement) and reads the same series for\
+  \ the LEVEL;\nthis rule never does.\n\n## Parameters\nNone consumed. The thresholds\
+  \ (Rules 3-4) and the movement bars (Rule 7) are governance numbers\nstated in rule-text\
+  \ an editor reads before changing the policy; they are NOT runtime scalars read\n\
+  FROM this spec by code (`consumed: false`). A future task MAY move a threshold into\
+  \ a code\nconstant citing this spec.\n\n## Rationale\n\nReal incident + measurement:\
+  \ the 2026-07-03 raised-cap flake (oversubscription + ff-race under\nconcurrency)\
+  \ and the land-concurrency reality (concurrent lands expected; a 49%-overlap +\n\
+  oversubscription measurement). Three external-auditor consults (land-timing mechanics\
+  \ /\ntest-isolation-under-high-parallelism / test-verify scaling strategy) converged:\
+  \ the FIRST durable\nwall is full-suite throughput, not isolation. Prior-art extended:\
+  \ `` (parked serialize-the-\ncritical-section proposal → the serialize fork), ``\
+  \ (contention-aware cap → the share fork),\n`SPEC-0077` (pinned double-verify),\
+  \ `SPEC-0071` (per-file timeout). Why measurement resolves the fork\nrather than\
+  \ a prose pick, and the full share/serialize/hybrid deliberation, live in the proposing\
+  \ plan\n(SPEC-0005 §3 content boundary — not restated here).\n\n## Verification\n\
+  \n- **Rule 1:** the postcheck record names the ladder level in effect with the A4\
+  \ numbers that\n  selected it (replayable from the journaled trial runs); the governor's\
+  \ multi-resource bound is\n  fail-closed (a synthetic over-bound admission is refused).\n\
+  - **Rule 2:** a `land_completed` event carries the verify-metrics payload (grep\
+  \ the journal); the\n  minimal subset is present before governor final-adoption.\n\
+  - **Rules 3-4:** the watch-point / Tier-C triggers are report-only signals computed\
+  \ from the A4\n  metrics — a synthetic metric series over/under a threshold flips\
+  \ the reported signal (yes/no),\n  never an autonomous build.\n- **Rule 7, the layer\
+  \ subject:** a journal whose layer creeps across lands under one worker budget\n\
+  \  makes the land tail print the line naming that layer and citing rows of that\
+  \ journal; the same\n  journal flattened, and the same growth split across two budgets,\
+  \ print nothing; and the\n  session-start output over the creeping journal is byte-identical\
+  \ to its output over the flat one\n  (`tests/test_t11127_duration_drift.py`).\n\
+  - **Rule 7, the layer step:** ten lands of a layer at 150-170 s and one observation\
+  \ at 364 s make\n  both the land tail and the Stage-6 run print the line naming\
+  \ that layer, and the run's green row\n  carry it; every layer doubling together,\
+  \ and a budget change, print nothing at either seam, and the\n  run's exit code\
+  \ does not move (`tests/test_t11127_duration_drift.py`).\n\n## Postcheck convergence\
+  \ soak\n\nA controlled real-data soak (SPEC-0035; never mutates production data)\
+  \ run at the plan's `postcheck`\nstage on the BUILT governor (not a pre-accept FSM\
+  \ `trial` on throwaway prototypes): run the\nnarrowest-default governor (serialize-ff\
+  \ + conservative shared verify cap) against a batch of real\nconcurrent lands at\
+  \ the raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics per run into\n\
+  `land_completed`. Convergence = zero oversubscription/ff-race non-determinism at\
+  \ an acceptable p95\nland wall time within the resource bound. If the A4 metrics\
+  \ show the default's queueing/throughput\ncost crosses a Rule-4 threshold, escalate\
+  \ ONE ladder step (Rule 1) and re-soak. The owner judges\nconvergence on the journaled\
+  \ runs and records the level in effect in the plan's **postcheck record**.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-6
+- SPEC-1006
 - SPEC-0025
 - SPEC-0035
 - SPEC-0071
@@ -648,7 +674,8 @@ implements_signature:
   bin/lib/land_verify_legs.py#_verify_duration_drift_signals: 8ac2cdbb412625dc21a0c47d7598451a16c5bc2a4be0c9b2267909863c3f5911
   bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: 32da99cc15e2e4fb18de6eb8870876d781e3d957a04b64ac1a959e465ad8b0d7
   bin/lib/land_verify_legs.py#_verify_layer_duration_drift_signals: 1aa27208d4cee242ce64e92bbf268bb4acd9a2dc7f5199a775281cc3549745c7
-  bin/lib/land_verify_legs.py#_verify_scaling_signals: 09757e8b8e7e262cd3deb800e38f55b0d3fc48cd844730f1a0a479e9fe05363b
+  bin/lib/land_verify_legs.py#_verify_layer_duration_step_signals: 8f1d77793565ff9864700ff052aef178610e03905a594a53bf06059f648c0a1d
+  bin/lib/land_verify_legs.py#_verify_scaling_signals: 6567397a33ef6ad9d58b2beaf83bb3975174fb8fdda22dcc07783f34e386884e
   bin/lib/verify_runner.py#_load_verify_duration_table: a7e65f0f31f369f01a0c4f9622277d149d9432a1d0d9ea54af9b2d8f666038db
   bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87

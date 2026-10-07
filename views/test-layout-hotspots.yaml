@@ -1,0 +1,27 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: test-layout-hotspots
+description: Test-layout hotspots of the adapter-backed verify layers — per layer and layer identity, the test files the recorded shadow selection named in at least H percent (80) of that identity's unit-level decisions, beside the count of full-layer lands by rung and reason. Derived from the `land_completed` rows; read-only, NO gate / event. Run `bin/yitc-v2 graph query test-layout-hotspots [--since <date>] [--until <date>]`.
+lens:
+  kind: test-layout-hotspots   # pure f over the journal: every `land_completed` row's
+                               # consumer_verify_layers[].adapter.selection (SPEC-0025), grouped by
+                               # (layer, adapter.identity). A unit is listed when
+                               # selected * 100 >= 80 * unit_decisions. Windowed by --since/--until.
+why: >-
+  SPEC-1006 rule 13: the layout hotspot report is a derived view over the rows a shadow land already
+  writes; there is no second register of results. Selection by a runner's dependency graph is only as
+  fine as the test files and what they import, so a file that almost every change reaches gains
+  nothing from selection until it is split. This lens names those files from recorded lands, so a
+  project splits the few that need it instead of everything up front (the test-writing policy is
+  SPEC-0165).
+
+  A unit counts as selected by a land when that land's record decided unit by unit and named it in
+  `would_run`. A land the ladder answered with the full layer names no unit: it is counted beside the
+  share by rung and reason, and it is in neither the numerator nor the base — a layer whose lands are
+  mostly full-layer is a question about its rungs (an undeclared trigger, a path outside the modelled
+  domain), which this lens shows first, not a list of every file. Records with no layer identity are
+  counted by reason and feed no group; nothing is dropped silently.
+
+  Report-not-block (D-0053): nothing reads this lens to decide what runs or what is admitted. The view
+  mechanism (lens dispatch, the views/*.yaml format) is owned by SPEC-0031 and D-0053 and is reused
+  unchanged.

@@ -157,10 +157,10 @@ body: "## Scenario\n\nThe owner sees TWO clean homes for durable craft knowledge
   \ general → `patterns/`). Adding a home is additive — it RETIRES no routing surface,\n\
   so it creates NO dissonance window even if the structural leg lands before the behavioral\
   \ one.\n  - **ALL routing RETIREMENTS belong WHOLLY to the SIBLING behavioral plan**\n\
-  \    (`lessons-read-surfaces-and-route-by-purpose-lane-di` / **<workshop-spec>**),\
-  \ NOT this spec: the «a\n    project-specific craft note → `patterns/` (or no home)»\
+  \    (`lessons-read-surfaces-and-route-by-purpose-lane-di` / **SPEC-0091**), NOT\
+  \ this spec: the «a\n    project-specific craft note → `patterns/` (or no home)»\
   \ route AND the «findings/analysis →\n    `pattern[observation]`» route are retired\
-  \ THERE, alongside the route-by-purpose ENFORCEMENT they\n    belong with — **<workshop-spec>\
+  \ THERE, alongside the route-by-purpose ENFORCEMENT they\n    belong with — **SPEC-0091\
   \ is the single normative home of the route-by-purpose lane + read-surfaces**\n\
   \    (accept-gate F1; SPEC-0089 keeps only the producer/capture discipline). (plan-check\
   \ 2026-06-19 F1:\n    retiring a routing surface HERE without a co-adoption order\
@@ -217,6 +217,7 @@ cites:
 - SPEC-0073
 - SPEC-0076
 - SPEC-0089
+- SPEC-0091
 - patterns-vs-lessons-architecture-traveling-pattern
 - lessons-read-surfaces-and-route-by-purpose-lane-di
 - export-slice-contract-and-core-authoring-model
@@ -235,9 +236,8 @@ amends:
 - patterns/doc-conventions.md#artifact-taxonomy: ADDS a `lessons` row (the per-repo
     local-craft home, file-per-topic) + the patterns(travel)/lessons(local) boundary.
     ADDITIVE — retires NO routing surface (rule 7); all routing retirements + the
-    route-by-purpose enforcement are the sibling plan's surface (<workshop-spec> —
-    the single normative home of read-surfaces + route-by-purpose). No dissonance
-    window.
+    route-by-purpose enforcement are the sibling plan's surface (SPEC-0091 — the single
+    normative home of read-surfaces + route-by-purpose). No dissonance window.
 - SPEC-0073#class-default-matrix: ADDS the `lessons/` artifact class to the EXHAUSTIVE
     placement matrix — realm = PROJECT (born empty per repo, never travels, never
     enters the export slice); the lesson node-type DOCTRINE itself = kernel (travels);

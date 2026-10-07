@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import fnmatch
+import functools
 import hashlib
 import io
 import json
@@ -46,6 +47,7 @@ from typing import NamedTuple
 
 from lib import engine_route
 from lib import graph as graph_lib
+from lib import host_paths
 from lib import state
 
 # The manifest is the SIGNATURE TARGET (SPEC-0195 rule 5): signing one small file covers the whole
@@ -218,9 +220,21 @@ def host_literal_violations(tree: dict) -> list:
     host absolute path appearing in a NON-docstring string constant. Fail-closed: a module that will
     not parse is REFUSED, never skipped — an unparseable module is exactly where a literal would hide.
 
-    `tree` is the {rel_path: bytes} cut. Pure: no I/O, no globals — it judges the bytes it is given,
-    which is why it can judge a COMMIT's content without checking that commit out.
+    `tree` is the {rel_path: bytes} cut. No I/O — it judges the bytes it is given, which is why it
+    can judge a COMMIT's content without checking that commit out.
+
+    Computed once per process for one engine-code content (T-13476): the answer is a function of the
+    (path, bytes) of the `_is_engine_code` entries and of nothing else, so it is kept under a digest
+    of exactly those and every caller gets its own list.
     """
+    digest = hashlib.sha256()
+    for rel in sorted(tree):
+        if _is_engine_code(rel):
+            digest.update(rel.encode("utf-8", "surrogateescape") + b"\0"
+                          + hashlib.sha256(tree[rel]).digest())
+    key = digest.digest()
+    if key in _HOST_LITERAL_VERDICTS:
+        return list(_HOST_LITERAL_VERDICTS[key])
     hits = []
     for rel in sorted(tree):
         if not _is_engine_code(rel):
@@ -236,7 +250,13 @@ def host_literal_violations(tree: dict) -> list:
             if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in skip:
                 for m in HOST_PATH_RE.findall(node.value):
                     hits.append(f"{rel}:{getattr(node, 'lineno', '?')}: host path {m!r} in a string constant")
+    _HOST_LITERAL_VERDICTS[key] = tuple(hits)
     return hits
+
+
+# T-13476 — `host_literal_violations` answers, by engine-code digest. Process-local: nothing is
+# written to disk and nothing outlives the process.
+_HOST_LITERAL_VERDICTS: dict = {}
 
 
 # Which published paths are CODE (the refusal arm) versus published TEXT (the strip arm). The split
@@ -284,7 +304,30 @@ def _strip_spec_values(text: str, identity: "ProjectIdentity | None" = None) -> 
     """Strip a spec's PROSE per string value, keeping the YAML parseable (T-12942). The whole-text strip
     cut ids out of `- D-0030` / `proposed_by: T-0527` lines and multi-line scalars, so 23 published
     specs no longer loaded. Here each string is stripped on its own; a list item or value the strip
-    empties is dropped / nulled — the same content the whole-text strip removed, as valid YAML."""
+    empties is dropped / nulled — the same content the whole-text strip removed, as valid YAML.
+
+    One spec text is stripped once per process under one identity (T-13476): a publish, and every
+    test that drives the publish seam in-process, strips the same spec corpus again and again, and
+    the re-dump through the pure-Python emitter is the cost. The emitter itself is untouched."""
+    return _once(_strip_spec_values_once, text, identity, str(host_paths.host_home()))
+
+
+def _once(memoized, *key):
+    """`memoized(*key)`, computed directly when the key cannot be hashed (T-13476). An identity built
+    with list fields is still a valid `ProjectIdentity`; it gets the answer it always got, uncached."""
+    try:
+        hash(key)
+    except TypeError:
+        return memoized.__wrapped__(*key)
+    return memoized(*key)
+
+
+@functools.lru_cache(maxsize=None)
+def _strip_spec_values_once(text: str, identity: "ProjectIdentity | None", host_home: str) -> str:
+    """The strip behind `_strip_spec_values`, kept per distinct argument triple for the life of the
+    process. `host_home` is part of the key because the §5 ruleset reads it (`_release_view_strip`
+    abstracts THIS host's home), so an answer computed under one home is never served under another.
+    The result is an immutable `str`, so a caller cannot alter what the next caller gets."""
     def walk(node):
         if isinstance(node, dict):
             return {k: walk(v) for k, v in node.items()}
@@ -680,7 +723,16 @@ def _abstract_code_provenance(src: str, identity: "ProjectIdentity | None") -> s
     """Abstract project identity in an engine module's COMMENTS and DOCSTRINGS only — its provenance
     positions (SPEC-0074 rule 4a). Every other byte is untouched, and the rewrite is KEPT only when the
     result parses to the same AST modulo docstrings; otherwise `src` comes back unchanged and the
-    whole-tree refusal names what survived. A string VALUE is never rewritten here: it is refused."""
+    whole-tree refusal names what survived. A string VALUE is never rewritten here: it is refused.
+
+    Pure in (src, identity), so one module text is judged once per process under one identity
+    (T-13476); the result is an immutable `str`."""
+    return _once(_abstract_code_provenance_once, src, identity)
+
+
+@functools.lru_cache(maxsize=None)
+def _abstract_code_provenance_once(src: str, identity: "ProjectIdentity | None") -> str:
+    """The rewrite behind `_abstract_code_provenance`, kept per distinct (src, identity)."""
     if not identity or abstract_project_identity(src, identity) == src:
         return src
     try:
@@ -851,8 +903,9 @@ def _git_blob(main: Path, source_sha: str, rel: str) -> "bytes | None":
     the injected seam, where text is right and the seam's rebind/monkeypatch behaviour matters; only
     the CONTENT read needs bytes.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     rp = subprocess.run(["git", "-C", str(main), "cat-file", "blob", f"{source_sha}:{rel}"],
-                        capture_output=True)
+                        capture_output=True, env=_git_env._git_child_env())
     return rp.stdout if rp.returncode == 0 else None
 
 
@@ -877,7 +930,7 @@ def _spec_part_base(rel: str) -> "str | None":
 
 
 def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_placement,
-                     raw_handbook_docs, _die) -> tuple:
+                     raw_handbook_docs, _die, paths_under: str = "") -> tuple:
     """The kernel-realm slice at `source_sha`, as `(tree, exec_paths)`.
 
     `tree` is the ordered {rel_path: bytes} dict; `exec_paths` is the SIBLING set of those same
@@ -914,6 +967,10 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
     The generated `release-view/**` needs no special case: it is kernel-realm and COMMITTED
     (SPEC-0074 rule 3), so it rides filter 1 straight out of the commit — fresh by the land-regen +
     conformance drift check the spec's rule 6 already guarantees.
+
+    `paths_under` (T-13629) narrows the cut to one directory prefix — the SAME three filters, applied
+    to fewer paths — so a caller that needs only the travelling specs at a commit does not read every
+    other file of it.
     """
     # `ls-tree -r` (not `--name-only`) so the MODE column comes back with the path: `<mode> <type>
     # <sha>\t<path>`. One listing, one truth — the mode is read from the same commit read the bytes
@@ -934,6 +991,8 @@ def cut_release_tree(source_sha: str, *, _run_git_cap, main: Path, _resolve_plac
     exec_paths = set()
     parts = {}
     for rel in sorted(modes):
+        if paths_under and not rel.startswith(paths_under):
+            continue
         if rel in excluded_docs:
             continue
         if _resolve_placement(rel) != "kernel":
@@ -1217,7 +1276,7 @@ def _write_tree(dest: Path, tree: dict, manifest_text: str, signature: bytes = b
 
 
 def _add_trust_surfaces(tree: dict, *, tag: str, source_sha: str, trust_root_arg, revocations_arg,
-                        answers, _die, changes=None) -> dict:
+                        answers, _die, changes=None, capabilities=None) -> dict:
     """Add the four published trust/policy surfaces to the cut, BEFORE the digest is taken.
 
     Two of them are OPERATOR-SUPPLIED and are copied verbatim — the trust root and the revocation
@@ -1271,7 +1330,8 @@ def _add_trust_surfaces(tree: dict, *, tag: str, source_sha: str, trust_root_arg
                      "release with itself. Sign it out of band, then re-run. Nothing was written.")
             out[REVOCATION_SIGNATURE_FILENAME] = sig_src.read_bytes()
     out[SECURITY_POLICY_FILENAME] = build_security_policy().encode("utf-8")
-    out[RELEASE_NOTES_FILENAME] = build_release_notes(tag, source_sha, answers, changes).encode("utf-8")
+    out[RELEASE_NOTES_FILENAME] = build_release_notes(tag, source_sha, answers, changes,
+                                                     capabilities).encode("utf-8")
     return out
 
 # T-12944 — the published GRAPH INDEX. Every handbook "Retrieved — SPEC-XXXX" pointer routes through
@@ -1369,6 +1429,7 @@ def smoke_install_init(tree: dict, exec_paths=()) -> "dict | None":
     """Stage `tree` as an install, `git init` a fresh project, run `<install>/bin/yitc-v2 -C <project>
     init` hermetically. Returns None when `tree` carries no init to smoke, else
     `{"ok": bool, "returncode": int, "tail": str}`. Never raises for a failed init — the caller refuses."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import os
     import sys
     import tempfile
@@ -1396,7 +1457,7 @@ def smoke_install_init(tree: dict, exec_paths=()) -> "dict | None":
                "GIT_COMMITTER_NAME": "publish-smoke", "GIT_COMMITTER_EMAIL": "smoke@invalid"}
         verb = ("git", "init")
         try:
-            subprocess.run(["git", "init", "-q", "-b", "main", str(proj)], check=True, env=env,
+            subprocess.run(["git", "init", "-q", "-b", "main", str(proj)], check=True, env=_git_env._git_child_env(env),
                            capture_output=True, timeout=60)
             for verb in SMOKE_VERBS:
                 run = subprocess.run([sys.executable, str(install / "bin" / "yitc-v2"), "-C",
@@ -1582,7 +1643,11 @@ def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree,
                                answers=answers, _die=_die,
                                changes=collect_change_list(tag, source_sha, main=main,
                                                            _resolve_placement=_resolve_placement,
-                                                           _die=_die))
+                                                           _die=_die),
+                               capabilities=collect_capabilities(
+                                   tag, source_sha, main=main, _run_git_cap=_run_git_cap,
+                                   _resolve_placement=_resolve_placement,
+                                   raw_handbook_docs=_release_view_docs(), _die=_die))
 
     survivors = published_host_literals(tree)
     if survivors:
@@ -2244,9 +2309,10 @@ def read_tracked_release_tree(root: Path, *, exec_paths: "set | None" = None) ->
     SAME PASS, from the path already in hand, so the mode is part of the same snapshot as the bytes.
     See `read_release_tree` for why that matters; the return contract is unchanged either way.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     root = Path(root)
     top = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-                         capture_output=True, text=True)
+                         capture_output=True, text=True, env=_git_env._git_child_env())
     if top.returncode != 0:
         return None
     # The toplevel must be `root` ITSELF. A plain unpacked copy sitting anywhere inside an unrelated
@@ -2257,7 +2323,8 @@ def read_tracked_release_tree(root: Path, *, exec_paths: "set | None" = None) ->
             return None
     except OSError:
         return None
-    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True)
+    listed = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], capture_output=True,
+                            env=_git_env._git_child_env())
     if listed.returncode != 0:
         return None
     tree = {}
@@ -2569,7 +2636,97 @@ def render_change_list(changes) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_release_notes(tag: str, source_sha: str, answers, changes=None) -> str:
+def _active_specs(tree: dict) -> dict:
+    """`{spec_id: parsed spec}` for every `status: active` spec file in a release-cut tree.
+
+    A continuation part and the template-owned scaffold are not specs of their own (the same two
+    exclusions `cut_release_tree` makes). A spec that will not parse raises `ValueError`: an
+    unreadable spec cannot be judged new-or-not, and each caller says so rather than guessing.
+    """
+    out = {}
+    for rel in sorted(tree):
+        if not (rel.startswith("specs/") and rel.endswith(".yaml")) or rel in TEMPLATE_OWNED_SURFACE \
+                or _spec_part_base(rel):
+            continue
+        try:
+            data = state.load_str(tree[rel].decode("utf-8")) or {}
+        except Exception as exc:
+            raise ValueError(f"{rel} does not parse ({exc.__class__.__name__})") from exc
+        if isinstance(data, dict) and data.get("status") == "active" and data.get("id"):
+            out[str(data["id"])] = data
+    return out
+
+
+def _capability_turn_on(sid: str, data: dict) -> "str | None":
+    """Where a project turns the capability on, read from the spec's own declarations, or `None`.
+
+    In order: the spec's `turn_on` line (SPEC-0030); else the declaration key of each concern the
+    spec hosts (`carrier_path` + `declare_key`, SPEC-0128); else, for an adoptable extension
+    (SPEC-0101), its adoption entry. `None` when the spec declares none of them. That absence says
+    nothing about whether a project must opt in — the renderer says the line is not declared and
+    points at the contract, never that the capability applies on its own.
+    """
+    turn_on = data.get("turn_on")
+    if isinstance(turn_on, str) and turn_on.strip():
+        return " ".join(turn_on.split())
+    blocks = data.get("concern")
+    keys = []
+    for b in (blocks if isinstance(blocks, list) else [blocks]):
+        if isinstance(b, dict) and isinstance(b.get("carrier_path"), str) \
+                and isinstance(b.get("declare_key"), str) and b["carrier_path"] and b["declare_key"]:
+            keys.append(f"`{b['carrier_path']}.{b['declare_key']}`")
+    if keys:
+        return "yitc-ops.yaml " + ", ".join(keys)
+    if data.get("extension") == "adoptable":
+        return f"yitc-ops.yaml `extensions.adopts[]` — an entry naming {sid}"
+    return None
+
+
+def capabilities_to_consider(new_tree: dict, old_tree: dict) -> tuple:
+    """The kernel specs that became active between two release cuts (T-13629) — the ONE derivation.
+
+    `new_tree` and `old_tree` are release cuts (`cut_release_tree`, or two verified published
+    releases, which are such cuts), so every spec in them already passed the release predicate:
+    kernel realm and `status: active` at that commit. A spec is listed when it is active in the new
+    cut and NOT active in the old one — absent there, or there under another status. Returns
+    `(spec_id, title, turn_on)` rows in id order; the title is identity-stripped like the «What
+    changed» titles. Both the release notes and the end of `release update` render THIS tuple.
+    """
+    new, old = _active_specs(new_tree), _active_specs(old_tree)
+    return tuple((sid, " ".join(graph_lib._release_view_strip(str(new[sid].get("title") or "")).split()),
+                  _capability_turn_on(sid, new[sid]))
+                 for sid in sorted(set(new) - set(old)))
+
+
+def capability_lines(caps, indent: str = "") -> list:
+    """The per-capability lines both renderings print — one home for their wording."""
+    lines = []
+    for sid, title, turn_on in caps:
+        lines.append(f"{indent}- {sid} — {title}")
+        lines.append(f"{indent}  turn on: {turn_on}" if turn_on else
+                     f"{indent}  turn on: not declared by the spec — read its contract for whether and how "
+                     "a project opts in")
+        lines.append(f"{indent}  read: `yitc-v2 graph query --kernel {sid}`")
+    return lines
+
+
+def render_capabilities(caps) -> str:
+    """The «Capabilities to consider» section of RELEASE-NOTES.md (T-13629), above «What changed»."""
+    lines = ["## Capabilities to consider", ""]
+    if caps is None:
+        lines += ["This is the first release — there is no previous tag to compare against."]
+        return "\n".join(lines) + "\n"
+    caps = tuple(caps)
+    if not caps:
+        lines += ["No kernel spec became active since the previous release tag."]
+        return "\n".join(lines) + "\n"
+    lines += [f"{len(caps)} kernel spec(s) became active since the previous release tag — capabilities "
+              "this release adds. Each names where a project turns it on and how to read its contract:",
+              ""]
+    return "\n".join(lines + capability_lines(caps)) + "\n"
+
+
+def build_release_notes(tag: str, source_sha: str, answers, changes=None, capabilities=None) -> str:
     """The mirror's RELEASE-NOTES.md — the ONE COMPOSED WRITER of that published file.
 
     TWO active rules land on this ONE published filename and BOTH sections are required, so one
@@ -2577,6 +2734,8 @@ def build_release_notes(tag: str, source_sha: str, answers, changes=None) -> str
 
       SPEC-0197 rule 4  the `answers:` LINK-BACK list — rendered by `render_release_notes` (T-12048),
                         called here VERBATIM and used as the head of the file.
+      T-13629           the CAPABILITIES TO CONSIDER section — the kernel specs that became active
+                        since the previous tag (`capabilities_to_consider`), above «What changed».
       SPEC-0195 rule 6  the ENUMERATED VERIFYING-ENTRYPOINT INVENTORY — appended below it.
       T-13220           the UPDATING FROM THE PREVIOUS RELEASE section — the kept-tree layout an
                         update needs (the new clone AND the old tree as `--from-release`), last.
@@ -2606,7 +2765,7 @@ def build_release_notes(tag: str, source_sha: str, answers, changes=None) -> str
     """
     rows = "\n".join(f"- `{name}` — `{usage}`\n  {note}" for name, usage, note in ENTRYPOINT_INVENTORY)
     head = render_release_notes(tag=tag, source_sha=source_sha, answers=answers)
-    return head + "\n" + render_change_list(changes) + f"""
+    return head + "\n" + render_capabilities(capabilities) + "\n" + render_change_list(changes) + f"""
 ## Trust surfaces
 
 GENERATED by `yitc-v2 work publish`; do not edit in the mirror.
@@ -3084,8 +3243,9 @@ def collect_answered_proposals(source_sha: str, *, main: Path, _die) -> tuple:
     is judged at the release whose commit carries the card done. The ids fold into a SET, so two
     trackers' `#1` stay two entries only because each carries its tracker.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     rp = subprocess.run(["git", "-C", str(main), "grep", "-l", "-E", r"^answers:", source_sha,
-                         "--", "tasks/"], capture_output=True, text=True)
+                         "--", "tasks/"], capture_output=True, text=True, env=_git_env._git_child_env())
     # `git grep` exits 1 for "no matches" — a release that answers no proposal is ordinary, not an
     # error. Any OTHER non-zero exit is a real failure and must not read as an empty list.
     if rp.returncode not in (0, 1):
@@ -3222,8 +3382,8 @@ def change_subject_task_id(subject: str):
     return None
 
 
-def journal_task_closed_rows(since: str, *, main: Path, _die) -> list:
-    """`task_closed` rows with `ts >= since`, read through the governed `journal query` verb.
+def journal_task_closed_rows(since, *, main: Path, _die) -> list:
+    """`task_closed` rows with `ts >= since` (every row when `since` is None), read through the governed `journal query` verb.
 
     The verb is the segment-aware reader (SPEC-0190 rule 4), so the publish seam reads the one
     logical journal across every segment rather than growing a second raw reader of its own. It is
@@ -3233,7 +3393,8 @@ def journal_task_closed_rows(since: str, *, main: Path, _die) -> list:
     import json
     import sys
     argv = [sys.executable, str(Path(__file__).resolve().parent.parent / "yitc-v2"), "-C", str(main),
-            "journal", "query", "--type", "task_closed", "--since", since, "--limit", "0", "--json"]
+            "journal", "query", "--type", "task_closed", *(["--since", since] if since else []),
+            "--limit", "0", "--json"]
     try:
         rp = subprocess.run(argv, cwd=str(main), capture_output=True, text=True)
     except OSError as exc:
@@ -3260,38 +3421,86 @@ def journal_task_closed_rows(since: str, *, main: Path, _die) -> list:
     return rows
 
 
-def collect_change_list(tag: str, source_sha: str, *, main: Path, _resolve_placement, _die,
-                        _task_closed_rows=None):
-    """The «What changed» list (T-12391): kernel-realm tasks closed since the previous release tag.
+def previous_release_tag(tag: str, *, main: Path, _die):
+    """The highest release tag in `main` older than `tag`, or `None` for a first release.
 
-    Returns `None` when there is no previous release tag, else a tuple of
-    `(task_id, title, class, closed_at)` in close order — `closed_at` is the `ts` of the card's
-    `task_closed` row, printed as its `events.jsonl#ts=` locator (T-13001). Three existing carriers, no new store:
-
-      the JOURNAL  says WHEN a task closed — `task_closed` rows with `ts` at or after the previous
-                   tag's source-commit time, via `journal_task_closed_rows` (injectable for tests);
-      GIT          says whether it TRAVELS — a task qualifies only when a commit in
-                   `<prev>..<source>` whose subject names it (`change_subject_task_id`) touches
-                   a path `_resolve_placement` resolves `kernel` (SPEC-0073), so a
-                   workshop-only task never appears;
-      the CARD     at the source commit supplies title and class, and must say `done` — a closure
-                   journaled after the tag is not part of this release.
+    The ONE answer to "which release came before this one" for the notes: the «What changed» list
+    (T-12391) and the «Capabilities to consider» list (T-13629) both compare against it.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     this_v = parse_release_version(tag)
-    rp = subprocess.run(["git", "-C", str(main), "tag", "--list"], capture_output=True, text=True)
+    rp = subprocess.run(["git", "-C", str(main), "tag", "--list"], capture_output=True, text=True,
+                        env=_git_env._git_child_env())
     if rp.returncode != 0:
-        _die(f"work publish: could not list tags in {main} for the change list — refusing.")
+        _die(f"work publish: could not list tags in {main} for the release notes — refusing. Check "
+             f"`git -C {main} tag --list`, then re-run `bin/yitc-v2 work publish`.")
         return None
     older = [(v, t) for t, v in ((t.strip(), parse_release_version(t.strip()))
                                  for t in rp.stdout.splitlines() if t.strip())
              if v is not None and this_v is not None and _compare(v, this_v) < 0]
     if not older:
         return None
-    import functools
-    prev_tag = max(older, key=functools.cmp_to_key(lambda a, b: _compare(a[0], b[0])))[1]
+    return max(older, key=functools.cmp_to_key(lambda a, b: _compare(a[0], b[0])))[1]
+
+
+def collect_capabilities(tag: str, source_sha: str, *, main: Path, _run_git_cap, _resolve_placement,
+                         raw_handbook_docs, _die):
+    """The «Capabilities to consider» list (T-13629) for the release cut at `source_sha`.
+
+    `None` for a first release, else what `capabilities_to_consider` derives from the travelling
+    specs of TWO cuts: this one and the previous release tag's. Both sides are `cut_release_tree`
+    itself, narrowed to `specs/`, so "travels in a release" has one predicate (kernel realm and
+    `status: active` at that commit, SPEC-0073 rule 8) and this list cannot disagree with what the
+    two releases actually ship.
+    """
+    prev_tag = previous_release_tag(tag, main=main, _die=_die)
+    if prev_tag is None:
+        return None
+    prev_sha = _git_out(_run_git_cap, main, ["rev-parse", f"{prev_tag}^{{commit}}"])
+    if not prev_sha or not prev_sha.strip():
+        _die(f"work publish: could not resolve the previous release tag {prev_tag} — refusing "
+             "rather than publishing notes that silently list no new capability. Check "
+             f"`git -C {main} rev-parse {prev_tag}^{{commit}}`, then re-run `bin/yitc-v2 work publish`.")
+        return None
+    cuts = [cut_release_tree(sha, _run_git_cap=_run_git_cap, main=main,
+                             _resolve_placement=_resolve_placement,
+                             raw_handbook_docs=raw_handbook_docs, _die=_die, paths_under="specs/")[0]
+            for sha in (source_sha, prev_sha.strip())]
+    try:
+        return capabilities_to_consider(cuts[0], cuts[1])
+    except ValueError as exc:
+        _die(f"work publish: {exc} — refusing to guess the capabilities list. Fix the spec at that "
+             "commit, then re-tag with `bin/yitc-v2 work tag --tag <tag>`.")
+        return None
+
+
+def collect_change_list(tag: str, source_sha: str, *, main: Path, _resolve_placement, _die,
+                        _task_closed_rows=None):
+    """The «What changed» list (T-12391): kernel-realm tasks whose work first enters this tag's history.
+
+    Returns `None` when there is no previous release tag, else a tuple of
+    `(task_id, title, class, closed_at)` in close order — `closed_at` is the `ts` of the card's
+    `task_closed` row, printed as its `events.jsonl#ts=` locator (T-13001). Three existing carriers, no new store:
+
+      GIT          decides MEMBERSHIP, by ancestry — a task qualifies only when a commit in
+                   `<prev>..<source>` whose subject names it (`change_subject_task_id`) touches
+                   a path `_resolve_placement` resolves `kernel` (SPEC-0073), so a
+                   workshop-only task never appears;
+      the CARD     at the source commit supplies title and class and must say `done`, and the same
+                   card at the previous tag's commit must NOT say `done` — a card an earlier release
+                   already listed is never listed again;
+      the JOURNAL  says WHEN a task closed — its `task_closed` rows, via `journal_task_closed_rows`
+                   (injectable for tests) — and is ONLY the sort key and the printed locator, never a
+                   filter (T-13595): a tag may point at a branch commit, so close time and ancestry
+                   disagree in both directions, and a time window dropped cards that shipped.
+    """
+    prev_tag = previous_release_tag(tag, main=main, _die=_die)
+    if prev_tag is None:
+        return None
 
     def git(*argv, env=None):
-        r = subprocess.run(["git", "-C", str(main), *argv], capture_output=True, text=True, env=env)
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+        r = subprocess.run(["git", "-C", str(main), *argv], capture_output=True, text=True, env=_git_env._git_child_env(env))
         if r.returncode != 0:
             _die(f"work publish: `git {' '.join(argv[:3])}` failed while composing the change list "
                  f"({r.stderr.strip()}) — refusing.")
@@ -3305,10 +3514,8 @@ def collect_change_list(tag: str, source_sha: str, *, main: Path, _resolve_place
                     env=dict(os.environ, TZ="UTC")) or "").strip()
 
     prev_sha = (git("rev-parse", f"{prev_tag}^{{commit}}") or "").strip()
-    # The interval is CLOSED on both ends: at or after the previous tag's source commit, and at or
-    # before THIS tag's. Without the upper bound a closure journaled after the tag was cut — a later
-    # re-close or settle row — would be listed as part of a release it did not ship in.
-    since = commit_time(prev_sha)
+    # Only the locator choice reads THIS tag's commit time: when a card has several task_closed
+    # rows, the latest one at or before it is printed (a later re-close or settle row is not).
     until = commit_time(source_sha)
     log = git("log", "--format=%x00%s", "--name-only", f"{prev_sha}..{source_sha}") or ""
     kernel_ids = set()
@@ -3320,32 +3527,40 @@ def collect_change_list(tag: str, source_sha: str, *, main: Path, _resolve_place
         if tid and any(_resolve_placement(p.strip()) == "kernel" for p in lines[1:]):
             kernel_ids.add(tid)
 
+    # The whole journal is read: a card's closure may predate the previous tag's commit time while
+    # its commit is still outside that tag's history (T-13595).
     reader = _task_closed_rows or (lambda s: journal_task_closed_rows(s, main=main, _die=_die))
-    closed_at = {}
-    for row in reader(since) or ():
+    rows_by_tid = {}
+    for row in reader(None) or ():
         tid, ts = row.get("task_id"), str(row.get("ts") or "")
-        if (row.get("type", "task_closed") == "task_closed" and tid in kernel_ids
-                and since <= ts <= until):
-            closed_at[tid] = max(closed_at.get(tid, ""), ts)
+        if row.get("type", "task_closed") == "task_closed" and tid in kernel_ids and ts:
+            rows_by_tid.setdefault(tid, []).append(ts)
+    closed_at = {tid: max([t for t in tss if t <= until] or tss) for tid, tss in rows_by_tid.items()}
 
-    cards = {}
-    for rel in (git("ls-tree", "--name-only", source_sha, "tasks/") or "").splitlines():
-        name = Path(rel.strip()).name
-        tid = name.split("-", 2)
-        if len(tid) >= 2 and name.endswith(".yaml"):
-            cards.setdefault(f"{tid[0]}-{tid[1].split('.')[0]}", rel.strip())
+    def card_paths(sha):
+        found = {}
+        for rel in (git("ls-tree", "--name-only", sha, "tasks/") or "").splitlines():
+            name = Path(rel.strip()).name
+            tid = name.split("-", 2)
+            if len(tid) >= 2 and name.endswith(".yaml"):
+                found.setdefault(f"{tid[0]}-{tid[1].split('.')[0]}", rel.strip())
+        return found
+
+    cards, prev_cards = card_paths(source_sha), card_paths(prev_sha)
     out = []
     for tid in closed_at:
-        blob = _git_blob(main, source_sha, cards[tid]) if tid in cards else None
-        if blob is None:
-            continue
-        try:
-            data = state.load_str(blob.decode("utf-8")) or {}
-        except Exception as exc:
-            _die(f"work publish: {cards[tid]} at {source_sha[:12]} does not parse "
-                 f"({exc.__class__.__name__}) — refusing to guess its title for the change list.")
-            return None
-        if data.get("status") != "done":
+        # The card at THIS tag's commit, then at the previous tag's — `{}` where it is absent.
+        parsed = []
+        for sha, paths in ((source_sha, cards), (prev_sha, prev_cards)):
+            blob = _git_blob(main, sha, paths[tid]) if tid in paths else None
+            try:
+                parsed.append((state.load_str(blob.decode("utf-8")) or {}) if blob is not None else {})
+            except Exception as exc:
+                _die(f"work publish: {paths[tid]} at {sha[:12]} does not parse "
+                     f"({exc.__class__.__name__}) — refusing to guess its title for the change list.")
+                return None
+        data, before = parsed
+        if data.get("status") != "done" or before.get("status") == "done":
             continue
         out.append((closed_at[tid], tid, str(data.get("title") or ""), str(data.get("class") or "")))
     return tuple((tid, title, klass, ts) for ts, tid, title, klass in sorted(out))
@@ -3495,6 +3710,7 @@ def engine_version_line(root=None) -> str:
     T-13234/T-13258). Order: the release manifest's `source_ref`, else `source checkout <short sha>`,
     else `unknown`. Printed at `session start` and by `release check` (its post-/compact re-fold).
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         root = Path(root) if root is not None else running_engine_root()
         manifest = read_manifest(root)
@@ -3503,7 +3719,8 @@ def engine_version_line(root=None) -> str:
             return f"engine: this session runs release {ref} ({root})"
         import subprocess
         proc = subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
-                              capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL)
+                              capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL,
+                              env=_git_env._git_child_env())
         sha = proc.stdout.strip() if proc.returncode == 0 else ""
         if sha:
             return f"engine: this session runs source checkout {sha} ({root})"
@@ -3945,6 +4162,10 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
         "removed": [], "kept": [],
         "ledger": {"status": "not-read", "findings": []},
         "from_ref": None, "to_ref": None, "base": str(base) if base else None,
+        # T-13629 — `capabilities` stays None unless a VERIFIED base lets the two releases be
+        # compared; `capabilities_unread` then says why.
+        "capabilities": None, "capabilities_from": None,
+        "capabilities_unread": "no --from-release was given",
     }
 
     verdict = verify_release(dest, anchor, now=now)
@@ -4078,6 +4299,14 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
         base_verdict = verify_release(Path(base), anchor, now=now)
         if base_verdict.ok:
             old_tree = base_verdict.tree or {}
+            # T-13629 — the kernel specs this update brings that release N did not have: the SAME
+            # derivation the release notes render, over the two VERIFIED trees.
+            try:
+                report["capabilities"] = capabilities_to_consider(new_tree, old_tree)
+                report["capabilities_from"] = (base_verdict.manifest or {}).get("source_ref")
+                report["capabilities_unread"] = None
+            except ValueError as exc:
+                report["capabilities_unread"] = str(exc)
             for rel in sorted(set(old_tree) - set(new_tree)):
                 ours = held.get(rel)
                 if ours is None:
@@ -4093,6 +4322,7 @@ def update(dest, into, anchor, *, base=None, now=None) -> dict:
                                "but it was changed locally — kept, not deleted"})
         else:
             unverified = "; ".join(base_verdict.reasons) or "no reason given"
+            report["capabilities_unread"] = f"the --from-release tree did not verify: {unverified}"
             for rel in sorted(set(base_tree or {}) - set(new_tree)):
                 if rel in held:
                     report["kept"].append({
@@ -4331,6 +4561,20 @@ def cmd_release_update(args, *, _append_event, _die, _install_start_command=None
         print(f"this release answers: {', '.join(answered)} — drop any local workaround you kept for "
               "these (an env override, an extra in a worker brief or prompt, a handoff note) and "
               "re-try the normal path (SPEC-0197 rule 4).")
+    # T-13629: LAST — the kernel specs that became active between the two releases, rendered by the
+    # same line helper as the notes' «Capabilities to consider» section.
+    caps = report.get("capabilities")
+    span = f"{report.get('capabilities_from') or '(unknown)'} and {report.get('to_ref') or '(unknown)'}"
+    if caps is None:
+        print("capabilities to consider: not computed — it compares this release with the previous "
+              f"one, which needs a verified --from-release ({report.get('capabilities_unread')}).")
+    elif not caps:
+        print(f"capabilities to consider: none — no kernel spec became active between {span}.")
+    else:
+        print(f"capabilities to consider: {len(caps)} kernel spec(s) became active between {span} — "
+              "capabilities this update adds; turn on the ones you want:")
+        for line in capability_lines(caps, indent="  "):
+            print(line)
 
 
 def release_notes_answers(release_dir) -> tuple:
@@ -4400,11 +4644,13 @@ def _check_git(release_repo, argv: list):
     STRUCTURAL — a new call site cannot forget it — instead of a promise each call site keeps on its
     own. The CALLER turns a None into the named line, because only it knows what was being asked.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
 
     try:
         proc = subprocess.run(["git", "-C", str(release_repo)] + list(argv),
-                              capture_output=True, text=True, timeout=_CHECK_GIT_TIMEOUT)
+                              capture_output=True, text=True, timeout=_CHECK_GIT_TIMEOUT,
+                              env=_git_env._git_child_env())
     except Exception:  # noqa: BLE001 — git missing/hanging/failing is UNANSWERABLE, never a crash
         return None
     return proc.stdout if proc.returncode == 0 else None
@@ -4588,6 +4834,7 @@ def _mirror_release_tags(release_repo, timeout: float) -> "list | None":
     what makes this useful; it is `ls-remote` — a read — never a fetch. `None` when neither half
     answered, which the caller reads as "cannot tell" and turns into silence.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import functools
     import os
     import subprocess
@@ -4602,7 +4849,7 @@ def _mirror_release_tags(release_repo, timeout: float) -> "list | None":
         proc = subprocess.run(["git", "-C", str(release_repo), "ls-remote", "--tags"],
                               capture_output=True, text=True, timeout=timeout,
                               stdin=subprocess.DEVNULL,
-                              env=dict(os.environ, GIT_TERMINAL_PROMPT="0"))
+                              env=_git_env._git_child_env(dict(os.environ, GIT_TERMINAL_PROMPT="0")))
         if proc.returncode == 0:
             answered = True
             for line in proc.stdout.splitlines():

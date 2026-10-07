@@ -1,0 +1,416 @@
+id: SPEC-1006
+title: Adapter-backed consumer verify layers — per-test report, fail-closed selection,
+  per-test re-run and accounting
+status: active
+created_at: 2026-10-04 20:52:21+00:00
+travels: kernel
+consumed: false
+extension: null
+turn_on: yitc-ops.yaml `verify.layers[].adapter` — an `adapter:` block on the declared
+  verify layer whose tests it lists, selects and re-runs
+implements:
+- bin/lib/land_verify_legs.py#_declared_layer_adapters
+- bin/lib/land_verify_legs.py#_layer_adapter_report_pass
+- bin/lib/land_verify_legs.py#_classify_adapter_report
+- bin/lib/land_verify_legs.py#_layer_unit_reruns
+- bin/lib/land_verify_legs.py#_adapter_lane_split
+- bin/lib/worktree.py#_unit_lane_entry_at_land_tail
+- bin/lib/land_verify_legs.py#_adapter_shadow_decision
+- bin/lib/land_verify_legs.py#_adapter_stamp_identity
+- bin/lib/land_verify_legs.py#_adapter_credit_decision
+- bin/lib/land_verify_legs.py#_per_unit_flaky_rate
+- bin/lib/land_verify_legs.py#_per_case_rescued_failures
+- bin/lib/views.py#_view_test_layout_hotspots
+body: "## Scenario\n\nA consumer project whose tests live inside its own runners (Vitest,\
+  \ Playwright, pytest...) can let the\nkernel see them one by one. It declares, on\
+  \ a verify layer, three small commands — list the tests, name the\ntests a change\
+  \ can reach, run exactly these and report each one. From then on a land and a Tests-stage\
+  \ run\nof that layer record every test's result, re-run a failed test file alone,\
+  \ count the tests that only pass on a\nre-run, and record which test files a change\
+  \ would reach and which passes a fix attempt could reuse — the\nevidence a later\
+  \ admission contract needs before any test file is skipped.\nWhatever the kernel\
+  \ does not understand, it answers by running the whole layer as before. A layer\
+  \ that\ndeclares nothing behaves exactly as it does today.\n\n## Internal\n\nADAPTER-BACKED\
+  \ CONSUMER VERIFY LAYERS. A sub-contract of a declared `verify.layers[]` entry (SPEC-0152\n\
+  rule 16): the layer stays the container (prep, timeout, worker share, the full `command:`);\
+  \ the adapter adds\nper-test visibility. The kernel owns acceptance, fallback, accounting\
+  \ and activation; the project owns the\nknowledge of its runners. Every rule below\
+  \ is fail-closed toward MORE testing.\n\n### 1. Declaration — optional, per layer\n\
+  A declared layer MAY carry `adapter:` with `list`, `related` and `run` (rule 3),\
+  \ a `report_profile` (rule 4),\n`sources:` — the repo paths that implement the adapter\
+  \ (its own scripts) and the runner configuration its\ncommands read (rule 8) —\n\
+  optional `required:` non-test commands (rule 5), an optional `modelled:` input domain\
+  \ (rule 3), optional\nadditive `triggers:` (rule 7), `selection:`\n`off | shadow`\
+  \ (default `off`, rule 8), `credit:` `off | shadow` (default `off`, rule 14)\nand\
+  \ `rescue:` `on | off` (default `on`, rule 10). A DECIDING mode — `selection: deciding`\
+  \ or `credit: deciding`,\nanything that would change what runs — is not part of\
+  \ this contract and fails the declaration closed, until an\nadmission contract governs\
+  \ it (plan admission-for-adapter-backed-consumer-verify-layer). Absent\n`adapter:`\
+  \ → the layer runs its `command:` exactly as SPEC-0152 rule 16 says. A malformed\
+  \ adapter declaration\nfails closed before any layer runs (the rule-16 `mode: malformed`\
+  \ stance) — so does a command that invokes a\ntracked repo file its `sources:` do\
+  \ not list.\n\n### 2. The unit\nThe selection and execution UNIT is a test FILE\
+  \ within a runner project: `(runner project, repo-relative\nfile)`. Case identities\
+  \ (file + suite/case title + parameterization) are recorded for diagnostics, re-run\
+  \ and\naccounting. An adapter declares any larger indivisible group (a serial suite\
+  \ whose cases depend on each other);\nsuch a group is selected, re-run and counted\
+  \ whole. Completeness and consistency are checked per UNIT, never per\ncase: a runner's\
+  \ enumeration and its run report do not name cases alike (a statically parsed `list`\
+  \ keeps a\nparameterized title as its template, the run expands it), so case identities\
+  \ come from the run report alone and\nare never cross-checked against `list`; and\
+  \ nothing selects or re-runs a single case (a title filter is a regular\nexpression\
+  \ over titles that carry its metacharacters). Where a runner's report does not name\
+  \ the runner project,\nthe adapter runs one `run` invocation per project, and a\
+  \ file declared in two projects fails the declaration\nclosed.\n\n### 3. The three\
+  \ commands\n- `list` — enumerates the units the LAYER runs and their cases WITHOUT\
+  \ executing any test body. It names what\n  the layer's `command:` runs, never whatever\
+  \ a runner can collect from a directory (<project>, trial run 7:\n  `pytest --collect-only\
+  \ tests/` found 588 cases with 82 collection errors from files the layers run as\
+  \ scripts\n  or only against a live stack). A `list` that exits nonzero or reports\
+  \ a collection error leaves the adapter\n  path unusable for that run: the layer's\
+  \ full `command:` decides (the safe fallback below).\n- `related` — ENUMERATION-ONLY:\
+  \ the kernel passes its comparison base and its changed paths; the adapter may let\n\
+  \  the runner diff the candidate tree against that base itself, and returns the\
+  \ units reached. A runner gives no\n  `unknown` of its own — it answers an empty\
+  \ set for a path it does not model — so `unknown` is DERIVED, never\n  trusted from\
+  \ the runner: the kernel's own path list stays authoritative for rungs (a)-(e),\
+  \ and `unknown` is\n  every changed path the layer's eligibility admits (its `subject_globs`,\
+  \ rule 6 — a path outside them is not\n  this layer's input) that is (i) DELETED\
+  \ or RENAMED (a runner answers nothing for a deleted module its tests\n  still import),\
+  \ or (ii) outside the adapter's declared `modelled:` domain — the input kinds the\
+  \ runner's\n  dependency graph resolves, by default source modules only (`.ts.tsx.js.jsx.mjs.cjs`)\
+  \ — unless an\n  `adapter.triggers` entry names it (rule 7). A runner answers the\
+  \ same empty set for an input nothing reaches\n  and for an input its tests read\
+  \ without importing it (a fixture read from disk), so only a declared domain\n \
+  \ lets an empty answer mean \"nothing reached\". (iii) Also `unknown`: every eligible\
+  \ changed path the runner's\n  OWN diff does not contain — a runner that diffs by\
+  \ itself answers for the paths IT sees, which need not be the\n  kernel's: Vitest\
+  \ diffs `<ref>...HEAD` (from the merge base) plus staged, unstaged and untracked\
+  \ files, so\n  against a ref that is not an ancestor of HEAD it misses a file the\
+  \ candidate restored to HEAD; Playwright diffs\n  the working tree against `<ref>`\
+  \ plus untracked files (trial run 12). The report profile names the runner's\n \
+  \ diff form; the kernel derives that set with git and never trusts an answer for\
+  \ a path outside it. An empty\n  answer is \"nothing reached\" ONLY when no path\
+  \ is `unknown`; it never executes a test.\n- `run` — executes exactly the requested\
+  \ units in ONE native runner invocation where the runner batches files\n  (never\
+  \ a process per case), writing its report to the kernel-chosen path named in the\
+  \ kernel's manifest. A\n  SCRIPT-STYLE suite — each file its own runner, its verdict\
+  \ the file's exit code (the engine suite's own shape,\n  and <project>'s `python3\
+  \ tests/<file>` layers) — runs one process per FILE; its report is the per-file\
+  \ exit\n  code, so rule 4 applies to it at the file level and it carries no case\
+  \ rows.\n  `run` runs with the runner's OWN retries DISABLED — every retry on the\
+  \ adapter path is the kernel's (rule 10),\n  so a first failure is never lost inside\
+  \ one invocation (a Playwright config with `retries: 2` reports a case\n  that failed\
+  \ and then passed as passed — and so does Vitest's under `--retry`; neither JUnit\
+  \ report shows the\n  retry, trial run 19). The report profile names the flag the\
+  \ adapter passes (Playwright `--retries=0`, Vitest\n  `--retry=0`, no rerun plugin\
+  \ under pytest) and the report that would show a native retry — a SECOND report\n\
+  \  written beside the JUnit one where JUnit cannot: Playwright's JSON report (a\
+  \ test with more than one result,\n  or a nonzero `flaky` count), Vitest's JSON\
+  \ report (a passed case that carries failure messages); pytest's own\n  JUnit report\
+  \ shows a rerun plugin's retry as the SAME case recorded twice. A report showing\
+  \ a native retry is\n  VOID (rule 4).\nThe three commands run inside the layer's\
+  \ prepared environment (SPEC-0152 rule 16 prep), not each in a fresh\none: under\
+  \ <project>'s per-command container shape (`npm ci` on every invocation) enumeration\
+  \ alone took 8.5 s\nagainst a 20 s full layer (trial run 7).\nSAFE FALLBACK — two\
+  \ cases, kept apart: (1) a runner with no enumeration-only `related`: the adapter\
+  \ declares it\nabsent; the layer runs in full for selection (rung (d)) and every\
+  \ fix attempt re-runs it in full (rule 14 (iv));\n`list` and `run` still give a\
+  \ checked per-unit report, per-unit re-run and rescue. (2) a runner with no\nenumeration-only\
+  \ `list`, or a `list` that failed for this run: there is no complete inventory to\
+  \ judge a report\nagainst (rule 4), so the adapter path is REPORT-ONLY — the layer's\
+  \ full `command:` runs and its exit code\ndecides; the per-unit rows are diagnostics;\
+  \ no selection, no per-unit re-run, no rescue and no credit rests on\nthem. THE\
+  \ LAYER'S `rescue:` SETTING HOLDS ON EVERY WHOLE-LAYER PATH: the layer-level re-run\
+  \ of SPEC-0152 rule 16\nruns there as on any layer — only where that rule admits\
+  \ it (rule 4) — and under `rescue: off` its pass is\ndiagnostic — the first failure\
+  \ still blocks.\nSelection never rests on an absent or executing command.\n\n###\
+  \ 4. Report profile — consistency, not authenticity\nOUTER FAILURES DECIDE FIRST.\
+  \ Before any report is read, the SPEC-0152 rule-16 classes decide exactly as they\
+  \ do\non a layer without an adapter: a layer whose `run` or full `command:` hit\
+  \ the layer's outer `timeout:` bound, or\nwhose `prep:` failed, FAILS — no report\
+  \ fallback, no whole-layer re-run, no per-unit re-run, no rescue (the\nDECLINED\
+  \ classes of SPEC-0152 rule 16; SPEC-0071 makes a verify timeout non-retriable).\
+  \ A test's OWN timeout\ninside the runner — a per-test or per-action timeout the\
+  \ runner records on the test case — is not an outer\ntimeout: it is that unit's\
+  \ failure under the rules below.\nThe report is a versioned profile (a JUnit XML\
+  \ subset) bound to the kernel's manifest (run id, requested\nunits, output path).\
+  \ The kernel writes it to a FRESH path per invocation and checks each suite's timestamp\n\
+  against the invocation's start (a runner that cannot start leaves an older report\
+  \ in place). The evidence is\nVOID when a requested unit has no record or only skipped\
+  \ records; an unrequested or duplicate unit appears;\nthe report is missing, malformed\
+  \ or stale; a failure is recorded that is not a test case's own (a collection,\n\
+  setup or teardown failure that the runner marks APART from a test's own failure\
+  \ — the profile names how each\nrunner marks one); an error is recorded outside\
+  \ every\nunit (an unhandled error); a native retry shows (rule 3); or the command\
+  \ exits nonzero while every requested\nunit reads passed. RUN-LEVEL ERRORS BESIDE\
+  \ A TEST FAILURE: an error outside every test case (an unhandled error,\na global\
+  \ setup or teardown failure, a worker crash) must stay visible when a test ALSO\
+  \ failed in the same\ninvocation, or a per-unit re-run that passes would clear the\
+  \ test and leave the error unchecked. The profile\nnames, per runner, the channel\
+  \ that reports such an error in that combination: Vitest's JUnit report carries\
+  \ it\nas a `vitest unhandled errors` suite; Playwright's JUnit report does NOT (the\
+  \ error's own test reads passed, trial\nrun 19), so its profile reads the top-level\
+  \ `errors` list of the JSON report written beside it. A runner whose profile names\
+  \ no such channel has that combination as\nan UNREVEALABLE void condition — the\
+  \ LIMIT clause below then holds for the layer: no rescue and no selection\nrests\
+  \ on its rows. A skipped\nCASE never voids and decides nothing: the report cannot\
+  \ tell who caused it — an author's `.skip`, a runtime\ncondition and a filter the\
+  \ adapter's `run` applied read the same — so the kernel records each unit's\nskipped-case\
+  \ count on every run and uses a skip for nothing else (not as a pass, not for selection,\
+  \ not for\nrescue). An adapter-introduced skip of a failing case is therefore an\
+  \ instance of this rule's LIMIT below, not\nsomething the kernel detects. A failure\
+  \ a runner records ON a unit's own test cases exactly as it records a\nfailing test\
+  \ — whatever caused it, a hook included — is that UNIT's failure, never a void:\
+  \ Playwright marks\nonly an assertion failure `<failure>` and EVERY other failure\
+  \ on a test case — a thrown error, an action or\ntest timeout, a failed hook — `<error>`\
+  \ (trial run 9), so its profile names no per-case record as a non-test\nfailure,\
+  \ and its void conditions are the run-level ones above; pytest marks collection,\
+  \ setup and teardown\n`<error>` apart from a test's own `<failure>`, and Vitest\
+  \ a collection failure as a case named by the file, so\nthose stay void. A nonzero\
+  \ exit\nWITH failed test-case rows for requested units is NOT a void report: it\
+  \ is a valid, recorded test failure and\ngoes to rule 10 (re-run, rescue). A nonzero\
+  \ exit is never overridden by passing rows. A void report with a ZERO\nexit: the\
+  \ layer's full `command:` runs and decides as the first attempt. A void report with\
+  \ a NONZERO exit: the\nfirst attempt FAILED by its exit code, exactly as a layer\
+  \ without an adapter fails, and from there SPEC-0152\nrule 16's ISOLATED RE-RUN\
+  \ decides it UNCHANGED — this contract adds no layer re-run of its own. That rule\
+  \ runs\nthe full `command:` ONCE more only where it would on a verify without adapters:\
+  \ this layer is the SOLE layer of\nthe verify that did not pass, no layer timed\
+  \ out, no layer's `prep:` failed, the machine retry bound\n(`YITC_VERIFY_RETRY_MAX_FILES`)\
+  \ is not 0, and the run is not the merge-base attribution run, which never re-runs.\n\
+  Each of its DECLINED cases declines here as there: nothing is re-run and the layer\
+  \ fails, the reason recorded.\nFOR THAT DECISION an adapter-backed layer counts\
+  \ by its FIRST attempt, as it would without an adapter: a layer\nwhose first attempt\
+  \ did not pass — a void report with a nonzero exit, or failed units on a usable\
+  \ report,\nwhatever rule 10 then rescues — is a layer that did not pass, so the\
+  \ per-unit path never widens what the\nlayer-level re-run admits. Where that rule\
+  \ admits the re-run, it runs under the layer's `rescue:` setting — a\npass there\
+  \ rescues the LAYER exactly as it would without an adapter, recorded with the first\
+  \ attempt's void\nreasons; it is never a per-unit rescue and never a clean first\
+  \ attempt. A usable report's failed units never\ntake that whole-layer re-run: they\
+  \ go to rule 10, whose per-unit re-run has its own bound (M) and is not this\ndecision.\
+  \ LIMIT: `list` and\n`run` are both project-authored, so this checks CONSISTENCY;\
+  \ it is not a trust boundary against a fabricated\nreport, and nothing in the kernel\
+  \ may claim it is. A void condition a runner's report cannot reveal is named in\n\
+  the report profile; while the profile names any, the layer's verdict rests on the\
+  \ full `command:` and its exit\ncode, and the per-test rows are report-only — no\
+  \ selection and no rescue rests on them.\n\n### 5. Non-test checks never ride the\
+  \ adapter\nA layer's mandatory non-test checks (typecheck, lint, build) are declared\
+  \ under `required:` and run on every\nland and Tests-stage run of that layer regardless\
+  \ of selection. Their failure fails the layer; no re-run ever\nrescues it.\n\n###\
+  \ 6. Selection ladder — the default is RUN\nFor each land and Tests-stage run, the\
+  \ kernel decides per layer, in order; every rung but the last runs the\nFULL layer.\
+  \ Under this contract the ladder's answer is RECORDED (rule 8) and never narrows\
+  \ what runs:\n  (a) a verify-infrastructure touch — the SPEC-0152 rule-16 edges\
+  \ (the pinned set, the land/verify\n      implementation, the ops carrier's verify\
+  \ section) and the layer's own `sources:` (rule 1);\n  (b) a changed dependency\
+  \ manifest, lockfile or toolchain / browser version;\n  (c) any `adapter.triggers`\
+  \ match (rule 7) that names the full layer;\n  (d) `related` failed, timed out,\
+  \ or any path is `unknown` (rule 3 — a deleted or renamed path always is);\n  (e)\
+  \ for a browser-class layer (`covers_classes` includes `e2e`), any change to application,\
+  \ server or asset\n      code, unless the adapter declares a conservative app-to-spec\
+  \ relation for that path;\n  (f) otherwise the selected units = `related` ∪ trigger-named\
+  \ units.\nELIGIBILITY FIRST — after the fail-closed exceptions: the SPEC-0152 rule-16\
+  \ skip is applied WHOLE, its own\nexception included — a change touching any verify-infrastructure\
+  \ surface it names runs every layer, whatever\nits globs, and on an adapter-backed\
+  \ layer that set also holds the layer's `sources:` (rule 1), so a changed\nadapter\
+  \ script or runner configuration runs that layer in full though no glob names it.\
+  \ Rung (b) is NOT such an\nexception: a lockfile change outside a layer's globs\
+  \ skips it as today. Then, on every layer, adapter-backed\nincluded, a change with\
+  \ NO path matching the layer's\n`subject_globs` skips the layer exactly as SPEC-0152\
+  \ rule 16 does today — an adapter-backed layer carries no\nmore stale-glob exposure\
+  \ than today. A change with ANY matching path enters this ladder, which then decides\
+  \ alone: within the layer a\nglob never subtracts. Because the globs keep their\
+  \ whole-layer skip authority, a guard a project keeps over their\ncompleteness (a\
+  \ tripwire test) keeps its job on an adapter-backed layer; nothing in this contract\
+  \ replaces it. Freeing a path from one rung earns nothing while another rung still\
+  \ answers RUN.\n\n### 7. Additive triggers — they only widen\n`adapter.triggers`\
+  \ maps globs the import graph cannot see (data and fixture files a test reads, configs,\n\
+  generated inputs) to units or to the full layer. A trigger can only ADD units or\
+  \ force the full layer; it\nnever removes a `related` unit. A path a trigger names\
+  \ is thereby MODELLED (rule 3): its named units replace\nthe full-layer answer `unknown`\
+  \ would give — the project's declared knowledge, compared by the rule-9 shadow\n\
+  comparison like any other recorded selection.\n\n### 8. Shadow only — this contract\
+  \ records, it never decides\n`selection: shadow` runs the FULL layer and RECORDS\
+  \ the EFFECTIVE decision this contract describes — after\neligibility (rule 6),\
+  \ the fail-closed rungs, the fallbacks (rule 3) and credit (rule 14): the would-run,\
+  \ the\nwould-omit and the would-credit units and the rung that decided. It saves\
+  \ no time by design. `credit: shadow`\nrecords, on each fix attempt, the would-be\
+  \ credit of rule 14 beside that attempt's full run. Every adapter-path\nrow also\
+  \ records the layer's IDENTITY — a hash over the inputs that shape this evidence:\
+  \ the layer's `command:`,\n`subject_globs` and `covers_classes`, the adapter's three\
+  \ commands, report profile, `modelled:` and triggers, the\nCONTENT of every path\
+  \ its `sources:` list, and the resolved versions of the runner and of any dependency\
+  \ tracker\nit uses — so recorded lands can later be read per identity. The operating\
+  \ modes (`selection:`, `credit:`,\n`rescue:`, `required:`) are outside it. Nothing\
+  \ in this contract reads the identity to decide anything; when a\nselection or a\
+  \ credit may start to DECIDE is an admission contract's question (plan\nadmission-for-adapter-backed-consumer-verify-layer).\n\
+  \n### 9. The shadow comparison\nEvery shadow land runs the full layer, so each one\
+  \ is its own comparison: a unit the effective decision would\nhave OMITTED or CREDITED\
+  \ that FAILS in that full run is a DISAGREEMENT, recorded on the land with the unit,\
+  \ the\nrung and the identity. A layer skipped whole by eligibility (rule 6) runs\
+  \ nothing to compare against and records\nthe skip, as SPEC-0152 rule 16 does. The\
+  \ comparison does not reuse the selector's graph. Disagreements decide\nnothing\
+  \ here; they are the evidence an admission contract reads.\n\n### 10. Re-run, rescue\
+  \ and accounting — per test\nA failed unit is re-run ALONE within this verify (after\
+  \ the batch), up to R attempts that stop at the first\npass — the engine suite's\
+  \ shape. Re-runs of several failed units MAY share one invocation that runs\nthem\
+  \ one at a time, so a layer's setup (a build, a server) is paid once per attempt\
+  \ rather than once per unit.\nEvery first-attempt\nfailure is recorded with its\
+  \ case identities and failure excerpt, whatever happens next. With `rescue: on`\n\
+  (the default — the owner decision events.jsonl#ts= made for the layer-level re-run,\
+  \ carried here) a pass on the re-run keeps the verdict green; with `rescue: off`\
+  \ the re-run is\ndiagnostic only and the first failure blocks. A unit none of whose\
+  \ R attempts passes blocks under either\nsetting. RESIDUAL RISK accepted with the\
+  \ default: a real race that fails under load and passes alone is rescued;\nit stays\
+  \ visible (the recorded first failure, the rescue count, the unit's flaky rate and\
+  \ lane entry, rule 11)\nbut does not block, and no artifact may claim a rescue proves\
+  \ the first failure harmless. No rescue when more than M units failed in the batch\
+  \ (a\nsystemic failure), for a `required:` check (rule 5), and no per-unit rescue\
+  \ rests on a report voided by rule 4\n(that case is rule 4's whole-layer re-run).\
+  \ The switch that turns SPEC-0152 rule 16's layer re-run off — the\nmachine retry\
+  \ bound `YITC_VERIFY_RETRY_MAX_FILES` at 0 — turns this per-unit re-run off too\
+  \ (one switch, no\nsecond knob), and the merge-base attribution run re-runs no unit.\
+  \ \"Alone\" means alone\ninside this verify, never on the host: the host load is\
+  \ recorded beside every re-run and no host isolation is\nclaimed (the existing worker-share\
+  \ controls apply).\n\n### 11. The per-test load-sensitive lane\nA unit rescued at\
+  \ least E times within W days enters the layer's load-sensitive list automatically\
+  \ — the\nengine-suite rule of applied per unit: listed units run after the batch,\
+  \ one at a time, and STILL decide\nthe verdict; the list is append-only for automation;\
+  \ a unit leaves it only through a card that makes it robust\nor ratifies it with\
+  \ a reason. E and W are the existing `YITC_FLAKY_SENSITIVE_ENTER` / `_WINDOW_DAYS`\
+  \ tunables.\n\n### 12. Tests stage decides like the land\n`task test --run` takes\
+  \ the same adapter path and the same ladder decision on the same diff as the land\n\
+  (the SPEC-0152 Stage-6 parity of).\n\n### 13. Evidence home — the existing journal\
+  \ only\nEvery per-test result, re-run, rescue, selection decision, rung, credit\
+  \ and disagreement is recorded on\n`land_completed` (and the Tests-stage rows) as\
+  \ fields registered in SPEC-0025. Flaky rates and the layout\nHOTSPOT report — units\
+  \ selected by at least H% of changes in the shadow window — are derived views over\
+  \ those\nrows; there is no second mutable register of results.\nGRANULARITY — what\
+  \ is per unit and what is per case. Selected, executed, re-run, rescued, credited\
+  \ and laned:\nthe UNIT (rule 2), never a single case. Recorded per CASE on every\
+  \ attempt: its status, and for a failed case its\nidentity and failure excerpt.\
+  \ Derived per UNIT: the flaky rate (first-attempt failures a re-run rescued, over\
+  \ the\nunit's runs) and lane entry (rule 11). Derived per CASE: how often each case\
+  \ failed on a first attempt a re-run\nthen rescued — the view that names WHICH test\
+  \ in a file is flaky; it is diagnostic and decides nothing.\n\n### 14. Re-verify\
+  \ after a fix — the would-be credit from the previous attempt\nWhen a land or Tests-stage\
+  \ run of a layer FAILED and the next attempt runs on the SAME base, the decision\
+  \ this\nrule describes is: re-run every unit that failed and every unit the changed\
+  \ paths reach through the rule-6\nladder, and CREDIT every other unit with its pass\
+  \ from the previous attempt. Under `credit: shadow` the next\nattempt runs the FULL\
+  \ layer and records that decision beside it — the would-re-run and the would-credit\
+  \ units —\nand a would-credited unit failing in that full run is a rule-9 disagreement.\
+  \ The previous attempt is read from\nits RECORD alone, never from state a run leaves\
+  \ behind: the row rule 13 writes carries the attempt's tree (the\ntree git would\
+  \ commit from the files on disk — the tree notion already records for a Stage-6\
+  \ green), its\nbase and its per-unit results. The changed paths are the diff between\
+  \ that recorded tree and the current\ncandidate's tree, never the branch's own fix\
+  \ commits alone, and the adapter's `related` diffs the current\ncandidate against\
+  \ the recorded tree (a commit object over that tree where a runner needs one). The\
+  \ decision\ncredits NOTHING when (i) the base moved between the attempts — a main-side\
+  \ change can break a unit the previous\nattempt passed and the fix's own diff does\
+  \ not show it; (ii) the previous attempt's report was void under rule 4\n— its per-unit\
+  \ rows decide nothing; (iii) the record is missing or incomplete, or its tree no\
+  \ longer resolves in\nthe repository; (iv) any rung (a)-(e) answers the full layer\
+  \ for the changed paths — rung (d) included, so a\nlayer whose runner has no enumeration-only\
+  \ `related` (rule 3's safe fallback) would re-run in full after every\nfix. Each\
+  \ case is recorded with its reason. `required:` checks (rule 5) run on every attempt;\
+  \ a unit that fails\nagain goes to rule 10 like any first-attempt failure. This\
+  \ extends the crediting of a prior green on the same\ntree as a recorded decision;\
+  \ it is not a second mechanism, and it changes what runs only once an\nadmission\
+  \ contract says so.\n\n## Parameters\n| name | meaning | proposed default | consumed\
+  \ |\n|---|---|---|---|\n| R | isolated re-run attempts per failed unit | 2 (as the\
+  \ engine suite) | no |\n| M | failed units above which no rescue is attempted |\
+  \ 3 | no |\n| H | hotspot share of the recorded shadow lands | 80% | no |\n| E,\
+  \ W | lane entry: rescues within days | the existing tunables | no |\n\n## Rationale\n\
+  The engine's own suite already runs a fail-closed selection ladder proven in shadow\
+  \ (SPEC-0181), isolated\nre-runs with recorded `flaky_retry` (SPEC-0132) and an\
+  \ automatic load-sensitive lane; a\nconsumer whose tests run through layers gets\
+  \ none of it because the kernel sees only the layer's exit code. The\nfield-study\
+  \ consumer measured land verify growing from about 1 to 9-20 minutes a land in a\
+  \ day and a half, 7 of\n81 lands aborted on a failed layer, and hand-maintained\
+  \ layer globs guarded by a tripwire test. The rules above\ncarry the external concept\
+  \ consult's findings (decisions/consumer-test-adapter-concept-audit-adhoc.yaml):\
+  \ an\nempty `related` is not \"nothing affected\" (rule 3, 6d-e), a report proves\
+  \ consistency not authenticity (rule 4),\na pass alone does not prove the first\
+  \ failure harmless (rule 10 records it always), non-test checks stay\noutside the\
+  \ adapter (rule 5), the unit is a file (rule 2), globs keep their meaning (rule\
+  \ 6 precedence, 7),\n\"alone\" is scoped (rule 10), `related` is enumeration-only\
+  \ (rule 3).\n\n## Verification\n- A layer without `adapter:` lands exactly as before\
+  \ (state check: no adapter fields on `land_completed`).\n- A void report (each rule-4\
+  \ condition) records why. With a ZERO exit the full `command:` runs and decides\
+  \ as\n  the first attempt; with a NONZERO exit the first attempt failed, and the\
+  \ full `command:` runs again only where\n  SPEC-0152 rule 16's isolated re-run admits\
+  \ it (rule 4) — otherwise the decline is recorded and the layer fails.\n- A failing\
+  \ `required:` check fails the layer and is never re-run.\n- Each ladder rung (a)-(e)\
+  \ forces the full layer on a sandbox consumer; rung (f) selects only `related` ∪\n\
+  \  triggers; a change with no path in an adapter-backed layer's `subject_globs`\
+  \ skips it as on any layer (rule\n  6, eligibility first), and a changed input outside\
+  \ the `modelled:` domain no trigger names forces the full\n  layer.\n- `selection:\
+  \ deciding` or `credit: deciding` fails the declaration closed; a shadow land records\
+  \ the effective\n  would-run, would-omit and would-credit units, and a planted failure\
+  \ in a would-omitted unit is a recorded\n  disagreement.\n- A unit failing first\
+  \ and passing on re-run is rescued with `rescue: on` and blocks with `rescue: off`;\
+  \ the\n  first-attempt excerpt is recorded in both.\n- A unit rescued E times within\
+  \ W days enters the lane and still decides the verdict.\n- An outer layer timeout\
+  \ or a failed `prep:` fails the layer with no report fallback, re-run or rescue;\
+  \ a test's\n  own runner timeout reads as that unit's failure.\n- With no `list`,\
+  \ the layer's verdict is its full `command:`: no selection, no credit and no PER-UNIT\
+  \ re-run or\n  rescue acts, while the whole-layer re-run of SPEC-0152 rule 16 runs,\
+  \ where that rule admits it, under the\n  layer's `rescue:` setting; with\n  no\
+  \ `related`, report, per-unit re-run and rescue work and selection and credit run\
+  \ the full layer.\n- Under `credit: shadow` a fix attempt runs the full layer and\
+  \ records the would-be credit and each void case\n  (i)-(iv) with its reason; a\
+  \ would-credited unit failing there is a recorded disagreement.\n- A rescued unit's\
+  \ row names the failing case; the per-case view counts it against that case only.\n\
+  - A runner config with native retries on: `run` disables them, so a fail-then-pass\
+  \ case reads failed on the\n  first attempt; a report showing a native retry is\
+  \ void.\n- A test failure and a separate run-level error in one invocation: the\
+  \ profile's channel shows the error and a\n  passing re-run of the failed unit does\
+  \ not clear it; without such a channel the layer rescues nothing.\n- A changed adapter\
+  \ script under an unchanged command, a widened glob, a changed `covers_classes`\
+  \ or a runner\n  version change records a new identity; switching `selection:`,\
+  \ `credit:` or `rescue:` does not.\n- A verify-infrastructure change, or a change\
+  \ to a layer's `sources:`, outside the layer's globs runs the layer.\n- With no\
+  \ `list`, a fail-then-pass full `command:` blocks under `rescue: off` and is rescued\
+  \ under `rescue: on`.\n- A void report with a nonzero exit takes the whole-layer\
+  \ re-run only where SPEC-0152 rule 16 admits it: beside\n  a second layer that did\
+  \ not pass — another void report, a layer without an adapter failing by its exit\
+  \ code,\n  or an adapter-backed layer whose first attempt failed units even when\
+  \ rule 10 rescues them — beside a\n  timed-out layer or a failed `prep:`, with `YITC_VERIFY_RETRY_MAX_FILES`\
+  \ at 0, or on the merge-base\n  attribution run, nothing is re-run and the layer\
+  \ fails with the decline reason recorded.\n- With `YITC_VERIFY_RETRY_MAX_FILES`\
+  \ at 0 no unit is re-run: a unit's first failure blocks.\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0152
+- SPEC-0181
+- SPEC-0132
+- SPEC-0025
+- SPEC-0165
+- SPEC-0077
+- SPEC-0065
+requires:
+- SPEC-0152
+- SPEC-0065
+supersedes: null
+activation_owner_task: null
+proposed_by: per-test-verification-for-consumer-projects-a-test
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/land_verify_legs.py#_adapter_credit_decision: 0dce09c93705ed548d80642d06b6cb76e32f15f985225e0607b0d25aa108e430
+  bin/lib/land_verify_legs.py#_adapter_lane_split: bf70597b1557d482e13844b149ef2121a06d701f6f7777844e1a2b94209fe285
+  bin/lib/land_verify_legs.py#_adapter_shadow_decision: 09a26fed29b4cefc61ae32f831ff24c33a4f522497579b45d1fe1ed70472cbc3
+  bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
+  bin/lib/land_verify_legs.py#_classify_adapter_report: c0bffdfe5e18845e1db20b613dffaeda5ce8532458d125847b9e734266b8a833
+  bin/lib/land_verify_legs.py#_declared_layer_adapters: 1d0f3c41e14e046d90e49a60f6b5b3e33a593804b6aa7c3cf906a716e5633e11
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 9887ca8589898c36efe8cb12c771b108fb52b2cf806b8ae874a618bf1cf54c45
+  bin/lib/land_verify_legs.py#_layer_unit_reruns: 392195f4c277e1bc1296a4528985710b3d1564b010f42a165e60d00e15226313
+  bin/lib/land_verify_legs.py#_per_case_rescued_failures: 7461f694edca5d2152190a764ef486a64c87ebf51d629c8edb07ae5c3cb7399f
+  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 708bb7b88916a92ec5f3748a19919ab4b9e76b4c6c496534fc64084bc0530911
+  bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
+  bin/lib/worktree.py#_unit_lane_entry_at_land_tail: 47739d4323bc119bbeb9004e1f8cc3b44d6b615ab8c53257614310184d2883a8

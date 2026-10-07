@@ -1,0 +1,25 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: per-case-rescued-failures
+description: Per test case of an adapter-backed consumer verify layer (SPEC-1006) — how often the case failed on a first attempt that a re-run of its unit then rescued; names which test in a file is flaky. Derived from the journal at read time, diagnostic, report-only. Run `graph query per-case-rescued-failures [--since <date>] [--until <date>]`.
+lens:
+  kind: per-case-rescued-failures   # pure f over the journal: counts the cases named by the per-unit
+                                    # `flaky_retry` rows (SPEC-0025) that the per-unit rate joined
+                                    # as rescues; writes nothing.
+why: >-
+  SPEC-1006 rule 13 (granularity): a unit — a test file — is what is re-run, rescued and rated, and
+  the case is what a person fixes. The per-unit rate says a file is flaky; this lens says which test
+  in it: per case, the first-attempt failures a re-run of its unit then rescued. It is diagnostic
+  and decides nothing.
+
+  A rescue here is exactly a rescue of the lens `per-unit-flaky-rate` — the same joined rows, read
+  once — so the two readings cannot disagree about what was rescued. Each case a rescued row names
+  among its first-attempt failures gains one. A case that failed only on a re-run attempt, and every
+  case of a re-run that passed under `rescue: off` or never passed, gains nothing.
+
+  What a row does not name is stated per unit under `rescues_not_named`, never dropped: a rescue of
+  a script-style unit (its report carries no case rows), and the failed cases a row counts beyond the
+  ones it names.
+
+  A consumer surface: the kernel's own suite runs no adapter-backed layer, so the lens answers
+  `no_data` there. Report-only (D-0053). No new store, event type or command family.

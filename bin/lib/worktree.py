@@ -1758,8 +1758,10 @@ def _census_populate_from_tree(tree: str, cwd: Path):
     import tarfile
 
     def _populate(root: Path) -> bool:
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         r = subprocess.run(["git", "archive", "--format=tar", str(tree), "--", "bin", _CENSUS_GENERATOR],
-                           cwd=str(cwd), capture_output=True, timeout=_CENSUS_REGEN_TIMEOUT_S)
+                           cwd=str(cwd), capture_output=True, timeout=_CENSUS_REGEN_TIMEOUT_S,
+                           env=_git_env._git_child_env())
         if r.returncode != 0 or not r.stdout:
             return False
         with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tf:
@@ -2070,7 +2072,8 @@ def _land_post_ff_commit_needed(lse, vtr) -> bool:
     """T-13054 — does the post-ff tail of `_land_integrate` owe main a FRESH commit (T-12343)?
 
     True iff the tail wrote a NON-JOURNAL carrier: the load-sensitive carrier line, an auto-filed
-    card, or the refreshed verify-durations table. Those are not bookkeeping dirt (`tests/**`, a task
+    card, the refreshed verify-durations table, or (T-13609) a line of the per-unit load-sensitive
+    list of a consumer's adapter-backed layers. Those are not bookkeeping dirt (`tests/**`, a task
     card), so left uncommitted they would wedge every later land — they must ride a commit now.
     A journal-only tail (land_completed{ok}, member verdicts, footprint rows) owes nothing: those rows
     stay sanctioned main-journal dirt (D-0049) and the NEXT land's existing pre-ff fold carries them
@@ -2078,7 +2081,8 @@ def _land_post_ff_commit_needed(lse, vtr) -> bool:
     travels. So one land adds one bookkeeping commit, and main's tip is still never amended.
     Pure: reads the two tail records, touches nothing."""
     lse, vtr = lse or {}, vtr or {}
-    return bool(lse.get("written") or lse.get("cards") or vtr.get("written"))
+    return bool(lse.get("written") or lse.get("cards") or vtr.get("written")
+                or (lse.get("units") or {}).get("written"))    # T-13609: the per-unit list
 
 
 @functools.wraps(worktree_lifecycle._self_proc_ancestry)
@@ -7807,11 +7811,12 @@ class _ClosureBlobReader:
     def _bytes(self, args, stdin=None):
         """`(returncode, stdout_bytes)`. Injectable for tests; otherwise the same `git -C <W>` shape
         `_run_git_cap` uses, minus the text decoding (see the binary note above)."""
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         if self._git_bytes is not None:
             return self._git_bytes(args, stdin=stdin)
         import subprocess
         proc = subprocess.run(["git", "-C", str(self._W), *args], input=stdin,
-                              capture_output=True, check=False)
+                              capture_output=True, check=False, env=_git_env._git_child_env())
         return proc.returncode, proc.stdout
 
     def read(self, rev: str, path: str) -> "str | None":
@@ -8607,10 +8612,11 @@ def _pin_in_process_engine_commit() -> str:
     is lazy-loaded (cli.py `_LazyLib`, T-11320), so for a land the import IS land start: the pin predates
     any `main` advance during a long queue wait, which is exactly when the on-disk engine stops being the
     one running. "" when unresolvable (read as UNKNOWN by the caller, never as equal)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     try:
         r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(_LAND_ENGINE_ROOT),
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, timeout=10, env=_git_env._git_child_env())
     except Exception:   # noqa: BLE001 — unknown identity routes to the candidate engine (fail-safe)
         return ""
     return r.stdout.strip() if r.returncode == 0 else ""
@@ -8632,8 +8638,10 @@ def _land_engine_differs_from_candidate(worktree: Path) -> bool:
     import subprocess
 
     def _git(args, cwd):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
-            r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=30)
+            r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, timeout=30,
+                               env=_git_env._git_child_env())
         except Exception:   # noqa: BLE001
             return None
         return r.stdout.strip() if r.returncode == 0 else None
@@ -11715,6 +11723,66 @@ def _declared_layer_worker_shares(*a, **kw):
     return land_verify_legs._declared_layer_worker_shares(*a, **kw)
 
 
+@functools.wraps(land_verify_legs._declared_layer_adapters)
+def _declared_layer_adapters(*a, **kw):
+    """T-13606 host residue — the body lives in `bin/lib/land_verify_legs.py#_declared_layer_adapters`."""
+    return land_verify_legs._declared_layer_adapters(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._adapter_change_facts)
+def _adapter_change_facts(*a, **kw):
+    """T-13610 host residue — the body lives in `bin/lib/land_verify_legs.py#_adapter_change_facts`."""
+    return land_verify_legs._adapter_change_facts(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._classify_adapter_report)
+def _classify_adapter_report(*a, **kw):
+    """T-13606 host residue — the body lives in `bin/lib/land_verify_legs.py#_classify_adapter_report`."""
+    return land_verify_legs._classify_adapter_report(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._layer_adapter_report_pass)
+def _layer_adapter_report_pass(*a, **kw):
+    """T-13606 host residue — the body lives in `bin/lib/land_verify_legs.py#_layer_adapter_report_pass`.
+    The bounded layer runner is injected HERE at call time, through its own residue — and (T-13610)
+    the rule-16 per-layer subject judge, which the shadow selection asks which paths a layer admits."""
+    kw.setdefault("_run_layer_command", _run_layer_command)
+    kw.setdefault("_subject_globs_would_skip", _subject_globs_would_skip)
+    return land_verify_legs._layer_adapter_report_pass(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._adapter_first_attempt)
+def _adapter_first_attempt(*a, **kw):
+    """T-13607 host residue — the body lives in `bin/lib/land_verify_legs.py#_adapter_first_attempt`."""
+    return land_verify_legs._adapter_first_attempt(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._adapter_invocations_output)
+def _adapter_invocations_output(*a, **kw):
+    """T-13607 host residue — the body lives in `bin/lib/land_verify_legs.py#_adapter_invocations_output`."""
+    return land_verify_legs._adapter_invocations_output(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._adapter_unit_failure_lines)
+def _adapter_unit_failure_lines(*a, **kw):
+    """T-13607 host residue — the body lives in `bin/lib/land_verify_legs.py#_adapter_unit_failure_lines`."""
+    return land_verify_legs._adapter_unit_failure_lines(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._adapter_rerun_entities)
+def _adapter_rerun_entities(*a, **kw):
+    """T-13607 host residue — the body lives in `bin/lib/land_verify_legs.py#_adapter_rerun_entities`."""
+    return land_verify_legs._adapter_rerun_entities(*a, **kw)
+
+
+@functools.wraps(land_verify_legs._layer_unit_reruns)
+def _layer_unit_reruns(*a, **kw):
+    """T-13607 host residue — the body lives in `bin/lib/land_verify_legs.py#_layer_unit_reruns`.
+    The bounded layer runner is injected HERE at call time, through its own residue."""
+    kw.setdefault("_run_layer_command", _run_layer_command)
+    return land_verify_legs._layer_unit_reruns(*a, **kw)
+
+
 # SPEC-0152 rule 16 (T-10303 / X-0140) — the SOURCE-LAYER MARKER registry for the layer-PRESENCE prompt.
 # Each entry: (layer id, marker paths that PROVE that source layer exists in the tree). Born with the ONE
 # family a real incident pulled (<project> shipped a frontend untested by a backend-only land gate); it
@@ -12139,7 +12207,7 @@ def _subject_globs_would_skip(diff_paths, subject_globs) -> bool:
     return True
 
 
-def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap, *, working_tree: bool = False) -> set:
+def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap, *, working_tree: bool = False, facts: "dict | None" = None) -> set:
     """SPEC-0152 rule 16 subject_globs sub-rule (T-10573) — the ENABLED skip decision. Returns the
     SET of layer names whose declared `subject_globs` are provably DISJOINT from the candidate diff,
     i.e. the layers whose command (and `prep:`) the caller must NOT run for this land.
@@ -12205,9 +12273,24 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
         it is an edge of the per-LAYER unit, which the file-side mechanism has no analog of.
     The caller keeps EVERY shape check (non-mapping / waiver / missing-command / malformed
     `timeout:`) AHEAD of the skip, so a malformed layer is still `malformed` + a `bad` entry and can
-    never be masked by a skip."""
+    never be masked by a skip.
+
+    `facts` (T-13610) — an OUT parameter for the one caller that must record WHY this decision came
+    out as it did (the adapter-backed layers' shadow selection, SPEC-1006 rule 6): when a dict is
+    passed it receives `paths` (the diff this call read, None when it read none) and `edge` (the
+    reason EVERY layer runs — a shared fail-closed edge's own token, `no-base`,
+    `declared-check-surface`, `owned-test-ownership` — or None when each layer was judged by its
+    own globs). It changes nothing this function returns, and with `facts=None` (every other
+    caller) nothing is written."""
+    def _edge(reason) -> set:
+        if facts is not None:
+            facts["edge"] = reason
+        return set()
+
+    if facts is not None:
+        facts.update({"paths": None, "edge": None})
     if not base_ref or _run_git_cap is None:
-        return set()   # a call-time PRECONDITION (no diff exists yet), not an edge OVER a diff
+        return _edge("no-base")   # a call-time PRECONDITION (no diff exists yet), not an edge OVER a diff
     diff_paths, diff_error = None, None
     try:
         # T-13533: the ONE thing the Stage-6 seam changes — WHICH diff is read. A raise from either
@@ -12216,6 +12299,8 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
             worktree, base_ref, _run_git_cap=_run_git_cap)
     except Exception as exc:
         diff_error = type(exc).__name__ or "unresolvable"
+    if facts is not None:
+        facts["paths"] = None if diff_paths is None else list(diff_paths)
     # T-11112 — the SHARED fail-closed edges (unresolvable diff · empty diff · absent globs · the
     # SPEC-0077 verify-infra supremacy touch) resolve through the ONE predicate the per-file shadow
     # selector also calls, so an edge fixed there cannot silently stay broken here. Any of them → the
@@ -12241,10 +12326,11 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
         tests_freed = _owned_test_verify_freed(worktree, base_ref, diff_paths, _run_git_cap=_run_git_cap)
     except Exception:
         tests_freed = None
-    if _verify_skip_fail_closed_edge(
-            diff_paths, _SUBJECT_VERIFY_INFRA_GLOBS, diff_error=diff_error,
-            reachability_freed=(frozenset(carrier_freed or ()) | frozenset(tests_freed or ())) or None):
-        return set()
+    _shared_edge = _verify_skip_fail_closed_edge(
+        diff_paths, _SUBJECT_VERIFY_INFRA_GLOBS, diff_error=diff_error,
+        reachability_freed=(frozenset(carrier_freed or ()) | frozenset(tests_freed or ())) or None)
+    if _shared_edge:
+        return _edge(_shared_edge)
     # T-11572 (SPEC-0185 §5, SPEC-0077 §1 as amended by T-11184) — the DECLARATION-AWARE companion of
     # the rung above, evaluated ONLY when the static globs did not already fire. `_SUBJECT_VERIFY_INFRA_GLOBS`
     # is ROOT-LEVEL (`tests/**`), so for a consumer whose check surface is declared elsewhere —
@@ -12260,9 +12346,9 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
     try:
         if diff_paths and _declared_check_surface_touch(diff_paths, worktree, base_ref,
                                                        _run_git_cap=_run_git_cap):
-            return set()
+            return _edge("declared-check-surface")
     except Exception:
-        return set()
+        return _edge("declared-check-surface")
     skip = set()
     for i, ly in enumerate(layers):
         if not isinstance(ly, dict):
@@ -12282,7 +12368,7 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
         scoped = [sg for sg in scoped
                   if isinstance(sg, list) and sg and all(isinstance(g, str) and g.strip() for g in sg)]
         if not all(any(not _subject_globs_would_skip([p], sg) for sg in scoped) for p in tests_freed):
-            return set()
+            return _edge("owned-test-ownership")
     if skip and tests_freed:
         # Never-silent skip discipline (SPEC-0152 rule 16): the log shows a `tests/` path in the diff
         # beside a skipped layer, so say why that touch did not force a full run.
@@ -12299,6 +12385,165 @@ def _subject_scoping_skip_layers(worktree: Path, layers, base_ref, _run_git_cap,
               f"`tests` sections are equal to the merge-base — the change is judged by each layer's own "
               f"`subject_globs` like any other path (SPEC-0152 rule 16, T-13528)")
     return skip
+
+
+def _adapter_credit_bases(worktree: Path, base_ref, wanted: dict, *, _run_git_cap) -> "tuple[dict, dict]":
+    """T-13612 (SPEC-1006 rule 14) — what ONE verify knows, before any layer runs, about the layers
+    that declare `credit: shadow` and will run: `wanted` maps a key of the caller's choosing to
+    `(layer name, the `related_diff` form of its report profile)`. Returns `(run, bases)`.
+
+    `run` is THIS run as a later one will read it — `{tree, base, branch}`: `tree` the tree git
+    would commit from the files on disk (`_worktree_disk_tree` — T-13532's notion, by its own
+    function), `base` the commit `base_ref` names, `branch` the checked-out branch; a value that
+    cannot be read is None. `bases` maps each key to `_adapter_credit_basis`'s answer for that
+    layer's PREVIOUS attempt, read from the journal rows alone
+    (`_adapter_previous_attempt` over the bounded tail of this checkout's journal and of the main
+    checkout's, each read with the reader and the byte horizon `_land_stage6_credit` uses, the
+    main checkout's under its shared journal lock), with the fix's own diff filled in
+    where the record can be credited from:
+      paths   the changed paths between the recorded tree and this run's `tree`, tree to tree,
+              renames off (`_diff_name_paths`), the journal's own files left out — every run
+              appends to them, and T-13532 reads two trees that differ by them as one;
+      edge    the SPEC-0152 rule-16 fail-closed edge over those paths, by the shared predicate
+              (`_verify_skip_fail_closed_edge`, then the declared-check-surface companion). The
+              two section-aware readers that can FREE a carrier or test path for the skip
+              decision are not consulted: such a touch in a fix answers the full layer;
+      base    what `related` diffs the candidate against: the recorded tree, or — where a
+              runner diffs by itself — a commit over that tree whose parent is the base;
+      seen    that runner's own diff against the commit (`_adapter_change_facts`).
+    Where the diff cannot be read the record says why and credits nothing:
+    `candidate-tree-unreadable`, `record-tree-unresolvable` (the recorded tree is no longer a
+    tree object of this repository — case (iii)), `diff-unreadable`. With no usable `base_ref`
+    or no git runner every record is `void` / `no-base` and nothing is read. Never raises: a
+    fault is `void` / `credit-error`."""
+    run = {"tree": None, "base": None, "branch": None}
+
+    def _stub(reason) -> dict:
+        return {"record": {"schema": 1, "mode": "shadow", "decision": "void", "reason": reason},
+                "units": None, "change": None}
+
+    try:
+        if _run_git_cap is None or not base_ref:
+            return run, {key: _stub("no-base") for key in wanted}
+        named = _run_git_cap(["rev-parse", "--verify", "--quiet", f"{base_ref}^{{commit}}"], worktree)
+        base = (named.stdout or "").strip()
+        if named.returncode != 0 or not _STAGE6_SHA.fullmatch(base):
+            return run, {key: _stub("no-base") for key in wanted}
+        run["base"] = base
+        head = _run_git_cap(["symbolic-ref", "--short", "-q", "HEAD"], worktree)
+        run["branch"] = ((head.stdout or "").strip() or None) if head.returncode == 0 else None
+        run["tree"] = _worktree_disk_tree(worktree, _run_git_cap)
+        journals = [Path(worktree) / "events.jsonl"]
+        # The main checkout — the worktree checked out on `main` (D-0037, the reading every
+        # «which checkout is THE one» answer uses) — holds a land's abort row before it is folded.
+        listed = _run_git_cap(["worktree", "list", "--porcelain"], worktree)
+        entry = None
+        for line in (listed.stdout or "").splitlines() if listed.returncode == 0 else ():
+            if line.startswith("worktree "):
+                entry = line[len("worktree "):].strip()
+            elif line.strip() == "branch refs/heads/main" and entry:
+                if Path(entry) / "events.jsonl" not in journals:
+                    journals.append(Path(entry) / "events.jsonl")
+                break
+        rows: list = []                                    # one list per journal, in file order
+        for n, journal in enumerate(journals):
+            if not journal.is_file():
+                continue
+            # ANOTHER checkout's journal may be mid-rewrite: a land's critical section lets git
+            # rewrite main's journal, which is not atomic, and a reader inside that window sees a
+            # prefix — the newest rows missing. It is read under that journal's own shared lock
+            # (the reader discipline of SPEC-0168 rule 6). This checkout's own journal is read
+            # as `_land_stage6_credit` reads it; no caller holds either lock across a verify.
+            with (events.journal_lock(journal) if n else contextlib.nullcontext()):
+                rows.append(journal_mod.tail_scan_events(
+                    journal, "consumer_verify_layers", max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES))
+        forms = {form for _name, form in wanted.values() if form != "kernel"}
+        fixes: dict = {}
+
+        def _fix(recorded):
+            if run["tree"] is None:
+                return "candidate-tree-unreadable"
+            kind = _run_git_cap(["cat-file", "-t", recorded], worktree)
+            if kind.returncode != 0 or (kind.stdout or "").strip() != "tree":
+                return "record-tree-unresolvable"
+            try:
+                paths = [p for p in _diff_name_paths(worktree, recorded, run["tree"], _run_git_cap=_run_git_cap)
+                         if not (p == "events.jsonl"
+                                 or events.is_archive_segment(Path(p), Path("events.jsonl")))]
+            except Exception:                              # noqa: BLE001 — no list, no credit
+                return "diff-unreadable"
+            edge = None
+            if paths:
+                edge = _verify_skip_fail_closed_edge(paths, _SUBJECT_VERIFY_INFRA_GLOBS, diff_error=None,
+                                                     reachability_freed=None) or None
+                if edge is None:
+                    try:
+                        if _declared_check_surface_touch(paths, worktree, recorded, _run_git_cap=_run_git_cap):
+                            edge = "declared-check-surface"
+                    except Exception:                      # noqa: BLE001 — an edge, as in the skip decision
+                        edge = "declared-check-surface"
+            against, seen = recorded, {}
+            if paths and forms:
+                # A runner that diffs by itself needs a COMMIT to diff against. The object is
+                # deterministic (fixed identity and dates), so a second run writes nothing new;
+                # no ref names it. Unwritable = that runner's diff is unreadable (rung (d)).
+                seen = {form: None for form in forms}
+                stamp = "2000-01-01T00:00:00+0000"
+                made = _run_git_cap(
+                    ["commit-tree", recorded, "-p", base, "-m", "the tree of a recorded verify attempt"],
+                    worktree, env={**os.environ, "GIT_AUTHOR_NAME": "yitc-v2", "GIT_AUTHOR_EMAIL": "yitc-v2@localhost",
+                                   "GIT_COMMITTER_NAME": "yitc-v2", "GIT_COMMITTER_EMAIL": "yitc-v2@localhost",
+                                   "GIT_AUTHOR_DATE": stamp, "GIT_COMMITTER_DATE": stamp})
+                commit = (made.stdout or "").strip()
+                if made.returncode == 0 and _STAGE6_SHA.fullmatch(commit):
+                    against = commit
+                    seen = _adapter_change_facts(worktree, commit, forms, _run_git_cap=_run_git_cap)
+            return {"base": against, "tree": run["tree"], "paths": paths, "edge": edge, "seen": seen}
+
+        bases: dict = {}
+        for key, (name, _form) in wanted.items():
+            try:
+                basis = land_verify_legs._adapter_credit_basis(
+                    land_verify_legs._adapter_previous_attempt(rows, name, run["branch"]), base)
+                if basis["units"] is not None:
+                    recorded = basis["record"]["previous"]["tree"]
+                    if recorded not in fixes:
+                        fixes[recorded] = _fix(recorded)
+                    if isinstance(fixes[recorded], str):
+                        basis["record"]["reason"] = fixes[recorded]
+                    else:
+                        basis["change"] = fixes[recorded]
+                bases[key] = basis
+            except Exception:                              # noqa: BLE001 — nothing credited
+                bases[key] = _stub("credit-error")
+        return run, bases
+    except Exception:                                      # noqa: BLE001 — nothing credited
+        return run, {key: _stub("credit-error") for key in wanted}
+
+
+def _adapter_attempt_stamp(worktree: Path, run: dict, *, _run_git_cap) -> dict:
+    """T-13612 (SPEC-1006 rules 13, 14) — what a `credit: shadow` layer's adapter record says of
+    the run that produced it, taken AFTER every layer has run: `{"attempt": {tree, base,
+    branch?}}`, or `{"attempt_unavailable": why}` when the run cannot be named. `run` is
+    `_adapter_credit_bases`'s reading from BEFORE the layers ran.
+
+    The tree is T-13532's notion on T-13532's terms (`_stage6_run_record`): the tree on disk
+    before the run, recorded only when the same read taken after it differs by the journal alone
+    — a run that wrote any other path tested a tree nobody can name. `no-base` (no comparison
+    base — nothing to tell a moved base by), `tree-unreadable` (either read failed),
+    `tree-changed` (the run changed files other than the journal). Never raises."""
+    try:
+        if not run.get("base"):
+            return {"attempt_unavailable": "no-base"}
+        after = _worktree_disk_tree(worktree, _run_git_cap) if run.get("tree") else None
+        if after is None:
+            return {"attempt_unavailable": "tree-unreadable"}
+        if not _trees_differ_by_journal_only(worktree, run["tree"], after, _run_git_cap):
+            return {"attempt_unavailable": "tree-changed"}
+        return {"attempt": {"tree": run["tree"], "base": run["base"],
+                            **({"branch": run["branch"]} if run.get("branch") else {})}}
+    except Exception:                                      # noqa: BLE001 — absent, never a guess
+        return {"attempt_unavailable": "tree-unreadable"}
 
 
 def _layer_duration_ms(t0: float) -> dict:
@@ -13492,6 +13737,17 @@ _LAYER_RETRY_DECLINE_WHY = {
     "prep-failed": "a layer's dependency prep failed — a setup fault, not a flaky check",
     "over-bound": "more than one layer did not pass, or the retry bound "
                   "YITC_VERIFY_RETRY_MAX_FILES is 0 — the re-run is for a sole failed layer",
+    # T-13607 (SPEC-1006 rule 5) — the one decline `_layer_flaky_retry_plan` does not make: the
+    # plan admitted the layer, and its first attempt failed on a `required:` non-test check.
+    "required-check": "the layer failed a `required:` non-test check of its adapter — no re-run "
+                      "ever rescues one",
+}
+# T-13607 (SPEC-1006 rule 10) — why a layer's failed units were NOT re-run, printed beside the reason.
+_UNIT_RETRY_DECLINE_WHY = {
+    "retry-off": "the retry bound YITC_VERIFY_RETRY_MAX_FILES is 0 — the one switch that turns the "
+                 "layer re-run off turns the per-unit re-run off too",
+    "over-unit-bound": "more units failed than the per-unit re-run admits — a systemic failure, "
+                       "not a flaky unit",
 }
 
 
@@ -13548,13 +13804,16 @@ def _fold_layer_flaky_retry(verify_metrics, record, leg: str) -> None:
         return
     rows = [{**r, "leg": leg} for r in (record.get("rows") or []) if isinstance(r, dict)]
     declined = [{"leg": leg, **d} for d in (record.get("layers_skipped") or []) if isinstance(d, dict)]
-    if not rows and not declined:
+    # T-13607: a layer whose failed UNITS were not re-run (SPEC-1006 rule 10) — its own key, for the
+    # reason `layers_skipped` has one: it is another plan's decline.
+    units_declined = [{"leg": leg, **d} for d in (record.get("units_skipped") or []) if isinstance(d, dict)]
+    if not rows and not declined and not units_declined:
         return
     cur = verify_metrics.get("flaky_retry")
     if not isinstance(cur, dict):
         cur = {} if cur is None else {"kernel_record": cur}
         verify_metrics["flaky_retry"] = cur
-    for key, add in (("rows", rows), ("layers_skipped", declined)):
+    for key, add in (("rows", rows), ("layers_skipped", declined), ("units_skipped", units_declined)):
         if add:
             if not isinstance(cur.get(key), list):
                 cur[key] = []
@@ -13563,24 +13822,73 @@ def _fold_layer_flaky_retry(verify_metrics, record, leg: str) -> None:
 
 def _layer_retry_abort_lines(verify_metrics) -> list:
     """T-13545 — one line per verify layer that failed BOTH its first run and its isolated re-run,
-    naming the layer, the leg and both attempts. Read from `verify_metrics["flaky_retry"].rows`; the
+    naming the layer, the leg and both attempts; T-13607 — and one per UNIT that failed its first
+    attempt and every re-run attempt. Read from `verify_metrics["flaky_retry"].rows`; the
     land's abort text leads with these, so `bad` itself is never rewritten. PURE; [] when none."""
     rec = verify_metrics.get("flaky_retry") if isinstance(verify_metrics, dict) else None
     rows = rec.get("rows") if isinstance(rec, dict) else None
     out: list = []
     for r in rows if isinstance(rows, list) else []:
-        if not isinstance(r, dict) or not r.get("layer") or r.get("isolated") != "fail":
+        if not isinstance(r, dict) or not r.get("layer"):
+            continue
+        _leg = r.get("leg") or "cand"
+        if "attempts" in r:
+            # T-13607 — a per-UNIT row (SPEC-1006 rule 10). Named here only when the unit FAILED
+            # its first attempt AND every re-run attempt, which is what the land's heading over
+            # these lines says. A re-run that passed (rescued, or diagnostic under `rescue: off`)
+            # or could not be read is told by the row itself and by the run's own output.
+            _tries = [a.get("status") for a in (r["attempts"] if isinstance(r["attempts"], list) else [])
+                      if isinstance(a, dict)]
+            if not _tries or any(s != "failed" for s in _tries):
+                continue
+            _what = (f"group {str(r.get('group'))!r}" if "group" in r else f"unit {str(r.get('unit'))!r}")
+            out.append(f"verify layer {str(r['layer'])!r} [{_leg} leg]: {_what} failed on the first "
+                       f"attempt and on each of its {len(_tries)} re-run attempt(s) alone in this verify")
+            continue
+        if r.get("isolated") != "fail":
             continue
         _second = ("timed out" if r.get("retry_outcome") == "timed-out"
                    else f"failed (exit {r.get('retry_exit')})")
         _load = f", host load1 {r['load1']}" if "load1" in r else ""
-        out.append(f"verify layer {str(r['layer'])!r} [{r.get('leg') or 'cand'} leg]: attempt 1 failed "
+        out.append(f"verify layer {str(r['layer'])!r} [{_leg} leg]: attempt 1 failed "
                    f"(exit {r.get('first_exit')}); attempt 2 — the isolated re-run, alone in this "
                    f"verify{_load} — {_second}")
     return out
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False) -> dict:   # T-12758: {root,branch,attempt} from the LAND call site only — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
+def _unit_retry_lines(record, prefix: str) -> list:
+    """T-13607 — one line per per-UNIT `flaky_retry` row (SPEC-1006 rule 10) and per layer whose
+    failed units were not re-run, read from a guard result's (or a folded) record. PURE; [] when
+    the record carries neither. `prefix` is the caller's line head (the land's, the Stage-6 run's)."""
+    rec = record if isinstance(record, dict) else {}
+    out: list = []
+    for r in rec.get("rows") or []:
+        if not isinstance(r, dict) or "attempts" not in r or not r.get("layer"):
+            continue
+        _what = (f"group {str(r.get('group'))!r}" if "group" in r else f"unit {str(r.get('unit'))!r}")
+        _tries = [a for a in (r["attempts"] if isinstance(r["attempts"], list) else []) if isinstance(a, dict)]
+        _load = next((f"host load1 {a['load1']}" for a in _tries if "load1" in a), "host load not measurable")
+        _head = (f"{prefix}verify layer {str(r['layer'])!r} {_what} FAILED on the first attempt and was "
+                 f"re-run alone in this verify ({len(_tries)} attempt(s): "
+                 f"{', '.join(str(a.get('status')) for a in _tries)}; {_load})")
+        if r.get("rescued") is True:
+            out.append(f"{_head} — a FLAKY RETRY: this unit no longer blocks, and its first failure is "
+                       f"recorded under verify_metrics.flaky_retry.")
+        elif r.get("isolated") == "pass":
+            out.append(f"{_head} — it passed alone, but the layer declares `rescue: off`: the re-run is "
+                       f"diagnostic and the first failure blocks.")
+        else:
+            out.append(f"{_head} — it never passed alone: the failure stands.")
+    for d in rec.get("units_skipped") or []:
+        if not isinstance(d, dict):
+            continue
+        out.append(f"{prefix}per-unit re-run NOT attempted for verify layer {str(d.get('layer'))!r} "
+                   f"({d.get('failed')} failed unit(s)) — {d.get('reason')} "
+                   f"({_UNIT_RETRY_DECLINE_WHY.get(d.get('reason'), 'declined')}; SPEC-1006 rule 10).")
+    return out
+
+
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False) -> dict:   # T-12758: {root,branch,attempt} from the LAND call site (T-13635: and Stage-6 `task test --run`) — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
     """The consumer zero-probe land gate. Returns `{'mode': <str>, 'bad': [<reason>, ...],
     'layers': [{'layer','outcome'}, ...]}` where `bad` is the SAME `[] == pass` shape as
     `_run_verify_tests` (land aborts iff non-empty), folded by `_land_integrate` into `bad`. `mode` is
@@ -13715,7 +14023,104 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     the bound `YITC_VERIFY_RETRY_MAX_FILES` at 0) record `flaky_retry: {layers_skipped: [{reason,
     layers, bound?}]}` and run nothing. The key is ABSENT when no layer's run failed. The `only_layers`
     attribution re-run never retries. The guard judges only its own layers: a caller that already
-    holds another failure (a failed kernel sweep, the land floor) still fails on it."""
+    holds another failure (a failed kernel sweep, the land floor) still fails on it.
+
+    ADAPTER-BACKED LAYERS (T-13606, T-13607 — SPEC-1006 rules 1-5, 10, 12, 13). A layer MAY carry
+    `adapter:` — project-owned `list` / `run` commands and a report profile. The declarations are
+    read with the section's other keys and a malformed one (a `deciding` mode, a command naming a
+    repository file its `sources:` do not list) is `mode: malformed` before any layer runs. What
+    the adapter reports rides the layer's row as ONE additive key `adapter` (the per-unit rows and
+    every void condition — shape: `_layer_adapter_report_pass`, registered in SPEC-0025). A layer
+    with no `adapter:` gains no key and no work, and is run exactly as described above.
+
+    WHICH ATTEMPT IS THE FIRST (T-13607). On a layer whose adapter declares `list`, the adapter runs
+    FIRST, after `prep:`: `list`, the declaration's `required:` non-test checks, then `run` over the
+    listed units, all under the layer's one bound. `_adapter_first_attempt` reads the outcome:
+      * every unit passed on a usable report -> the layer PASSED; its `command:` is not run;
+      * units failed on a usable report -> the layer FAILED on its first attempt, and those units
+        go to the per-unit re-run below;
+      * a `required:` check failed -> FAILED; nothing ever re-runs it (rule 5);
+      * the report is void and `run` exited nonzero -> FAILED by that exit code, exactly as a layer
+        without an adapter fails;
+      * `required:`, `run` or the reading hit the bound -> TIMED OUT (an outer failure);
+      * anything else — `list` unusable for this run, a void report with a zero exit, a fault in
+        the pass — decides nothing: the full `command:` runs and its exit code decides, as above.
+    The record then carries `mode: verdict` where it gave the outcome and `report-only` where the
+    `command:` did. An adapter WITHOUT `list` has no inventory to judge a report against: its
+    `command:` runs and decides first and the adapter is invoked afterwards, report-only (T-13606)
+    — except on the merge-base attribution re-run, which takes no report-only pass. The isolated
+    layer re-run invokes no adapter. The attribution re-run takes the SAME first attempt as the
+    verify it explains (the adapter first, where it declares `list`) and then re-runs nothing —
+    no unit and no layer.
+
+    THE PER-UNIT RE-RUN (T-13607 — SPEC-1006 rule 10). After every layer has finished, the failed
+    units of each usable first attempt are re-run alone in this verify (`_layer_unit_reruns`): up
+    to R = 2 attempts stopping at a unit's first pass, the still-failing units of a layer sharing
+    one invocation per attempt, a declared group re-run and counted whole, all of a layer's re-runs
+    under one more bound. With the layer's `rescue: on` (the default) a layer ALL of whose failed
+    units passed alone is rescued — `bad` dropped, the row `passed` + `retried: true`; with
+    `rescue: off` the re-run is diagnostic and the first failure blocks; a unit that never passes
+    blocks under either. NOT re-run, the reason recorded under `flaky_retry.units_skipped`: more
+    than M = 3 units (or groups) failed (`over-unit-bound`), or the retry bound
+    `YITC_VERIFY_RETRY_MAX_FILES` is 0 (`retry-off`). Every re-run writes a `flaky_retry` row per
+    unit carrying the first attempt's failed cases and each attempt's status and host load.
+
+    THE LAYER RE-RUN IS DECIDED BY FIRST ATTEMPTS, UNCHANGED (T-13607 — SPEC-1006 rule 4).
+    `_layer_flaky_retry_plan` is handed every layer's FIRST-attempt row, so an adapter-backed layer
+    whose first attempt did not pass counts as a layer that did not pass whatever the per-unit
+    re-run then rescues: the decision is the one the same layers get without adapters. Where the
+    plan admits a layer, what is re-run depends on how its first attempt failed: failed units on a
+    usable report never take the layer re-run (they took the per-unit one); a failed `required:`
+    check is declined (`layers_skipped` reason `required-check`); every other failure — a void
+    report with a nonzero exit, a `command:` that decided — re-runs the full `command:` once, as
+    above. THE LAYER'S `rescue:` SETTING HOLDS THERE TOO: under `rescue: off` a pass on that re-run
+    is recorded (`rescue: off`) and the first failure still blocks. A void first attempt's reasons
+    ride the re-run's row as `first_void`.
+
+    THE SHADOW SELECTION OF AN ADAPTER-BACKED LAYER (T-13610 — SPEC-1006 rules 3, 6-9). Two things,
+    and only the first changes what runs — toward MORE:
+      • ELIGIBILITY keeps its whole-layer skip on an adapter-backed layer, with ONE addition to its
+        fail-closed exceptions: a change touching a path under the layer's own `adapter.sources`
+        runs that layer though none of its `subject_globs` names the path (a changed adapter
+        script or runner configuration can change every answer the adapter gives). Whatever its
+        `selection:` mode; a layer with no adapter is skipped exactly as before.
+      • On a layer declaring `selection: shadow` the adapter pass ALSO records `selection` on its
+        record — the rule-6 ladder's decision for this change (`_adapter_shadow_decision`), and
+        every unit it would have omitted that failed in the full run. The `run` over the whole
+        inventory, the command where it runs, the verdict, `bad` and the exit code are the ones
+        of any adapter-backed layer: the selection is read by nothing here. The change it is taken over is
+        the one the skip decision above read (`facts`), so the land and a Stage-6 run decide alike
+        on one diff (rule 12).
+      • Every adapter record carries the layer's IDENTITY or the reason it has none (rule 8). What
+        the layer's `sources:` hold is read just before the adapter runs — after the layer's own
+        `prep:` and, for an adapter without `list`, its command, which may have rewritten them —
+        and again just after, and an identity is issued only when both readings agree
+        (`_adapter_stamp_identity`). The record of a first attempt is stamped where it ran, so
+        the one record a layer's row carries is stamped once. A per-unit re-run takes no
+        selection and writes no adapter record of its own.
+
+    THE WOULD-BE CREDIT OF A FIX ATTEMPT (T-13612 — SPEC-1006 rules 13, 14). On a layer declaring
+    `credit: shadow` that runs, nothing about what runs changes — the adapter's `run` over the
+    whole inventory, the command where it runs, the verdict, `bad` and the exit code are those
+    of any adapter-backed layer — and its adapter record gains two keys:
+      • `attempt` — the tree this run tested (T-13532's tree notion, `_worktree_disk_tree`), its
+        base and its branch — or `attempt_unavailable` with the reason (`_adapter_attempt_stamp`);
+        with the record's per-unit rows it is what a later run reads as its previous attempt;
+      • `credit` — read from the previous attempt's ROW alone (`_adapter_credit_bases`): the
+        units this run would re-run and would credit had the credit decided, each of the rule's
+        four void cases with its reason, and every would-credit unit that failed in this full
+        run (`_layer_adapter_report_pass`).
+    Neither is written on the merge-base attribution re-run, and a layer the skip decision
+    leaves out runs nothing and records nothing.
+
+    THE PER-UNIT LOAD-SENSITIVE LANE (T-13609 — SPEC-1006 rule 11). The units a layer's declared
+    list names (`yitc-load-sensitive-units.txt` of the tree under verify, read once here) leave that
+    layer's batch and run after it, one at a time, inside the same adapter pass and bound
+    (`_layer_adapter_report_pass`, `lane=`). Their rows are rows of the same report: a listed unit
+    that fails makes the first attempt a failed one, takes the per-unit re-run above like any
+    failed unit, and blocks unless that re-run rescues it under the layer's `rescue:` setting. Its
+    `flaky_retry` row carries `lane: true` and is not evidence for entry. Entry is the land
+    tail's (`_unit_lane_entry_at_land_tail`); nothing here writes the list."""
     if not _is_consumer_build():
         return {"mode": "", "bad": [], "layers": []}
     # SPEC-0123 (T-9783): a consumer BEHIND on kernel migrations must see the WHOLE ordered pending-
@@ -13823,7 +14228,32 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             f"Declare a mapping of declared `verify.layers[].layer` name to that layer's FRACTION of "
             f"the land's worker allotment — a number in (0, 1], never a core count — or omit the key "
             f"to leave every layer reading the whole allotment (SPEC-0152 rule 16)."], "layers": []}
+    # T-13606 (SPEC-1006 rule 1) — the OPTIONAL per-layer `adapter:` declarations, read ONCE here with
+    # their section siblings so a malformed one — a `deciding` mode, a command naming a repository
+    # file its `sources:` do not list — fails CLOSED before any layer runs. The repository's file set
+    # (tracked, plus untracked-and-not-ignored: what a Stage-6 run before the commit and the land
+    # after it both see) is read only when some layer carries the key, so a project that declares no
+    # adapter pays nothing and reaches the loop below exactly as before. An unreadable set is passed
+    # as None and the reader refuses on it — the `sources:` check cannot run.
+    try:
+        _repo_files = None
+        if any(isinstance(ly, dict) and "adapter" in ly for ly in layers):
+            _ls = (_run_git_cap(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], worktree)
+                   if _run_git_cap is not None else None)
+            if _ls is not None and _ls.returncode == 0:
+                _repo_files = {p for p in (_ls.stdout or "").split("\0") if p}
+        adapters = {id(layers[i]): decl
+                    for i, decl in _declared_layer_adapters(layers, repo_files=_repo_files).items()}
+    except ValueError as e:
+        return {"mode": "malformed", "bad": [
+            f"land(consumer): {CONSUMER_OPS_CONTRACT} {e}. Fix the layer's `adapter:` declaration, or "
+            f"remove the key to run the layer on its `command:` alone (SPEC-1006 rule 1; SPEC-0152 "
+            f"rule 16)."], "layers": []}
     import subprocess
+    # T-13609 (SPEC-1006 rule 11) — the declared per-unit load-sensitive lists of the tree under
+    # verify, read ONCE and only when some layer carries an adapter. A missing or unreadable
+    # carrier lists nothing, and every unit then runs in its layer's batch.
+    _lanes = land_verify_legs._unit_lane_set(worktree) if adapters else {}
     bad: list = []
     outcomes: list = []
     preps: list = []   # T-10021: verify_layer_prep records ({layer, lockfile_hash, package_manager,
@@ -13856,8 +14286,63 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # subject_globs) → every layer runs FULL, bit-identical to the pre-skip behaviour.
     # T-13533: at Stage 6 (`working_tree=True`) the same decision is taken over the working tree's
     # changes against `base_ref` (the merge-base with main); every doubt there is the EMPTY set too.
+    _scope: "dict | None" = {} if adapters else None      # T-13610: why the skip came out as it did
     skip_layers = _subject_scoping_skip_layers(worktree, layers, base_ref, _run_git_cap,
-                                               working_tree=working_tree)
+                                               working_tree=working_tree, facts=_scope)
+    # T-13610 (SPEC-1006 rule 6, eligibility) — the adapter-backed layer's OWN fail-closed exception:
+    # a changed path under its `adapter.sources` runs it, whatever its globs say. Applied to the skip
+    # set the ONE decision above returned, so it can only take a layer OUT of that set.
+    _shadow_change = None
+    if adapters:
+        _changed = [str(p) for p in (_scope.get("paths") or ())]   # git's own spelling, never trimmed
+        for _ly in layers:
+            _decl = adapters.get(id(_ly)) if isinstance(_ly, dict) else None
+            _lname = str(_ly.get("layer") or "").strip() if isinstance(_ly, dict) else ""
+            if _decl is None or _lname not in skip_layers:
+                continue
+            _hit = sorted(p for p in _changed
+                          if any(p == s or p.startswith(s + "/") for s in _decl["sources"]))
+            if _hit:
+                skip_layers.discard(_lname)
+                print(f"land(consumer): verify layer {_lname!r} RUNS though its subject_globs are "
+                      f"disjoint from the change — the change touches its own `adapter.sources` "
+                      f"({', '.join(_hit[:5])}{'' if len(_hit) <= 5 else f' (+{len(_hit) - 5} more)'}), "
+                      f"a verify-infrastructure touch for this layer (SPEC-1006 rule 6).")
+        # The change a `selection: shadow` layer's decision is taken over: what the skip decision
+        # read, plus — for a runner that diffs by itself — that runner's own diff (rule 3 iii), read
+        # ONCE, here, and only when such a layer will run on a known path list.
+        # Only the shadow layers that will RUN are asked about: a layer the skip decision leaves
+        # out records no selection, so nothing is read on its account.
+        _forms = {land_verify_legs._ADAPTER_REPORT_PROFILES[adapters[id(ly)]["report_profile"]]["related_diff"]
+                  for ly in layers
+                  if isinstance(ly, dict) and id(ly) in adapters
+                  and adapters[id(ly)]["selection"] == "shadow"
+                  and (str(ly.get("layer") or "").strip() or None) not in skip_layers}
+        if only_layers is None and _forms:
+            _shadow_change = {"base": base_ref, "paths": _scope.get("paths"), "edge": _scope.get("edge"),
+                              "seen": {}}
+            _forms.discard("kernel")      # an adapter answering from the kernel's own path list
+            if _forms and _scope.get("paths") and _run_git_cap is not None:
+                try:
+                    _shadow_change["seen"] = _adapter_change_facts(worktree, base_ref, _forms,
+                                                                   _run_git_cap=_run_git_cap)
+                except Exception:   # unreadable = every eligible path is `unknown` (the full layer)
+                    pass
+    # T-13612 (SPEC-1006 rule 14) — the layers declaring `credit: shadow` that will run: what this
+    # run is (its tree, base and branch) and what each one's PREVIOUS attempt allows it to credit,
+    # read ONCE, here, before any layer runs. Never on the attribution re-run (a diagnostic over
+    # the base tree, not an attempt). `_credit_run` stays None when no such layer runs.
+    _credit_run, _credit_bases = None, {}
+    if adapters and only_layers is None:
+        _credit_wanted = {
+            id(ly): (str(ly.get("layer") or "").strip(),
+                     land_verify_legs._ADAPTER_REPORT_PROFILES[adapters[id(ly)]["report_profile"]]["related_diff"])
+            for ly in layers
+            if isinstance(ly, dict) and id(ly) in adapters and adapters[id(ly)]["credit"] == "shadow"
+            and str(ly.get("layer") or "").strip() and str(ly.get("layer") or "").strip() not in skip_layers}
+        if _credit_wanted:
+            _credit_run, _credit_bases = _adapter_credit_bases(worktree, base_ref, _credit_wanted,
+                                                               _run_git_cap=_run_git_cap)
     # What the skip line below says the layer's subject is disjoint FROM — the diff actually judged.
     _judged_diff = ("this working tree's changes against the merge-base with main (committed, "
                     "uncommitted and untracked)" if working_tree else "the candidate diff")
@@ -13866,6 +14351,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # cannot reorder the trail and no list is mutated from a thread. The serial path (no declaration)
     # takes exactly the same slots inline, in order — byte-identical output.
     results: list = [None] * len(layers)
+    # T-13607 (SPEC-1006 §Parameters): R — isolated re-run attempts per failed unit; M — failed
+    # units (or groups) above which a layer's units are not re-run at all.
+    _UNIT_RERUN_ATTEMPTS, _UNIT_RERUN_MAX_FAILED = 2, 3
     runnable: dict = {}   # T-13545: slot index -> the `_execute` arguments of a layer whose command ran
     run_ctx: dict = {}    # T-13545: slot index -> the {project, peers} an OVERLAPPED layer was run under
 
@@ -13893,6 +14381,46 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         handed to the CPU sampler as its attribution key. None (the serial path, and a group of one)
         leaves both untouched, so a serially-run layer is byte-identical to the pre-T-12657 shape."""
         e_bad: list = []
+        # T-13606 (SPEC-1006 rules 3-4) — THE ADAPTER HOOK, REPORT-ONLY. A layer that declares
+        # `adapter:` gets one more key on the row its command produced: the adapter's per-unit
+        # report, read AFTER the verdict below is already taken from the command's exit code. The
+        # fragment is `{}` for a layer with no adapter, for the isolated re-run (the first run's
+        # record stands) and for the merge-base attribution re-run (a diagnostic over the base
+        # tree) — so none of those rows changes. Nothing it returns reaches `e_bad` or `outcome`.
+        # T-13607: that is the adapter WITHOUT `list`. One that declares `list` runs FIRST, further
+        # down, and its record may give the outcome — on the attribution re-run too, which takes
+        # the same first attempt and then re-runs nothing.
+        _adapter = None if retry else adapters.get(id(ly))
+        if _adapter is not None and only_layers is not None and "list" not in _adapter:
+            _adapter = None    # the attribution re-run takes no report-only pass (T-13606)
+        _pre: list = []    # T-13607: the adapter's record, once it has run as the FIRST attempt
+
+        def _adapter_fields(bound=None, env=None, outer=None, outer_at=None) -> dict:
+            if _adapter is None:
+                return {}
+            if _pre:       # the adapter already ran, before the command: ONE pass, never a second
+                return {"adapter": _pre[0]}
+            return {"adapter": _adapter_pass(timeout=bound, env=env, outer=outer, outer_at=outer_at)}
+
+        def _adapter_pass(*, outer=None, **kw) -> dict:
+            """ONE adapter pass of this layer with its identity stamped (T-13610 — SPEC-1006 rule
+            8). The identity hashes what the layer's `sources:` HOLD, and the layer's own `prep:`
+            (and, where the command ran first, the command) may have rewritten them: the sources
+            are read HERE, just before the adapter runs, and again just after it, and an identity
+            is issued only when both readings agree (`_adapter_stamp_identity`). On an outer
+            failure the adapter does not run and nothing is read. A `selection: shadow` layer's
+            pass is handed the change its decision is taken over, and a `credit: shadow` layer's
+            the basis of its would-be credit (T-13612)."""
+            _before = (None if outer else
+                       land_verify_legs._adapter_sources_snapshot(worktree, _adapter, _run_git_cap=_run_git_cap))
+            _rec = _layer_adapter_report_pass(
+                worktree, name, _adapter, outer=outer, _load_avg=_load_avg,
+                change=_shadow_change if _adapter["selection"] == "shadow" else None,
+                credit=_credit_bases.get(id(ly)),
+                lane=_lanes.get(name), **kw)
+            _after = (None if outer else
+                      land_verify_legs._adapter_sources_snapshot(worktree, _adapter, _run_git_cap=_run_git_cap))
+            return land_verify_legs._adapter_stamp_identity(_rec, _adapter, _before, _after)
         # SPEC-0152 rule 16 (T-10021): a DECLARED layer MAY carry a `prep:` dependency-prep step run
         # INSIDE this worktree BEFORE its command. Checked-if-present — a layer with NO `prep:` prepares
         # nothing (the backward-compat default). Fail-closed: a failed prep does NOT run the command
@@ -13956,7 +14484,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                         e_bad.append(f"land(consumer): verify layer {name!r} prep — WHOLE captured output: {_log}")
                     return {"bad": e_bad, "row": {"layer": name, "outcome": "prep-failed",
                                                   **({"output_log": _log} if _log else {}),
-                                                  **_bound, **_layer_duration_ms(_layer_t0)},
+                                                  **_bound, **_layer_duration_ms(_layer_t0),
+                                                  **_adapter_fields(outer="prep-failed", outer_at="prep")},
                             "prep": None}   # fail-closed: do NOT run the command against wrong deps
                 if _prep["record"]:
                     prep_record = _prep["record"]
@@ -14002,10 +14531,84 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _cpu = _LayerCpuSampler(worktree, _container_cpu_reader, project=project, peers=peers)
         _proc_ms = None
         _captured = None        # T-12758: bound before the call, so an exceptional path is unchanged
+        # T-13607 (SPEC-1006 rules 4, 5) — THE ADAPTER'S `run` AS THE FIRST ATTEMPT. A layer whose
+        # adapter declares `list` has an inventory to judge a report against, so the adapter runs
+        # HERE, before the command: `list`, the `required:` checks, `run`. `_adapter_first_attempt`
+        # reads the outcome off the record; `command` means the record decides nothing and the full
+        # `command:` runs below exactly as on a layer with no adapter (the record then rides the
+        # row as report-only). An adapter without `list` is not run here at all — its report-only
+        # pass follows the command, as before.
+        _first = "command"
+        _sink: dict = {}
+        r = None
         try:
-            r, _proc_ms, _captured = _run_layer_command(cmd, worktree, effective_timeout, _layer_env)
+            if _adapter is not None and "list" in _adapter:
+                _pre.append(_adapter_pass(timeout=effective_timeout, env=_layer_env,
+                                          first_attempt=True, sink=_sink))
+                _first = _adapter_first_attempt(_pre[0])
+                _proc_ms = _sink.get("proc_ms")
+            if _first == "command":
+                r, _cmd_ms, _captured = _run_layer_command(cmd, worktree, effective_timeout, _layer_env)
+                _proc_ms = _cmd_ms if _proc_ms is None else _proc_ms + (_cmd_ms or 0)
         finally:
             _cpu_fields = _cpu.finish(_proc_ms)   # REPORT-ONLY reading, read by nothing that decides
+        if _first != "command":
+            # The adapter's record IS this layer's first attempt. The rows below carry the same
+            # keys, in the same order, as the command's rows further down.
+            _rec = _pre[0]
+            _rec["mode"] = "verdict"
+            # EVERY `required:` / `run` invocation's stream, labelled, the ones that did not pass
+            # last — a per-project runner's failing project need not be the last one invoked.
+            _printed, _not_passed = _adapter_invocations_output(_sink.get("invocations"))
+            _ran = _not_passed or _adapter["run"]
+            _row_tail = {**_layer_duration_ms(_layer_t0), **_cpu_fields, "adapter": _rec}
+            if _first == "passed":
+                print(f"land(consumer): verify layer {name!r} OK on its adapter's per-unit report "
+                      f"({len(_rec['units'])} unit(s) passed): {_adapter['run']!r}")
+                return {"bad": e_bad, "row": {"layer": name, "outcome": "passed", **_prov, **_share,
+                                              **_bound, **_row_tail},
+                        "prep": prep_record, "exit": 0}
+            _log = _write_layer_output_log(_log_ctx, name, _printed)
+            if _first == "timed-out":
+                _cc = _verify_contention_context(_live_land_frontier=_live_land_frontier, _load_avg=_load_avg,
+                                                 _cpu_count=_cpu_count)
+                e_bad.append(f"land(consumer): verify layer {name!r} command TIMED OUT after {effective_timeout}s: "
+                             f"{_ran!r} (the adapter's `{_rec.get('outer_at')}`) — raise the layer's "
+                             f"`timeout:` (or `verify.timeout_seconds:`) in {CONSUMER_OPS_CONTRACT} if the "
+                             f"layer is legitimately slower than that." + (f"\n{_cc}" if _cc else ""))
+                if _log:
+                    e_bad.append(f"land(consumer): verify layer {name!r} — WHOLE captured output: {_log}")
+                return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share,
+                                              **_bound, **({"output_log": _log} if _log else {}),
+                                              **_row_tail},
+                        "prep": prep_record}
+            _extra: dict = {}
+            if _first == "units-failed":
+                _failed = [u for u in _rec["units"] if u.get("status") != "passed"]
+                _exit = _rec.get("exit")
+                tail = "\n".join(_adapter_unit_failure_lines(_failed))
+                _why = (f"the adapter's `run`: {len(_failed)} of {len(_rec['units'])} unit(s) failed on "
+                        f"its report")
+                # SLOT-INTERNAL, read only by the per-unit re-run after the loop: what failed, the
+                # inventory to ask for it again, and the invocation this attempt ran under.
+                _extra["rerun"] = {"decl": _adapter, "failed": _failed,
+                                   "inventory": _sink.get("inventory"), "env": _layer_env,
+                                   "timeout": effective_timeout}
+            elif _first == "void-failed":
+                _exit = _rec.get("exit")
+                tail = _layer_failure_excerpt(_printed)
+                _why = (f"the adapter's `run`; its report is void ({', '.join(_rec.get('void') or [])}), "
+                        f"so the layer fails by this exit code")
+            else:   # required-failed
+                _exit = _rec["required"]["exit"]
+                tail = _layer_failure_excerpt(_printed)
+                _why = "a `required:` check of the layer's adapter — never re-run or rescued"
+                _extra["no_rerun"] = "required-check"
+            e_bad.append(f"land(consumer): verify layer {name!r} FAILED (exit {_exit}): {_ran!r} [{_why}]\n{tail}"
+                         + (f"\nWHOLE captured output: {_log}" if _log else ""))
+            return {"bad": e_bad, "row": {"layer": name, "outcome": "failed", **_prov, **_share, **_bound,
+                                          **({"output_log": _log} if _log else {}), **_row_tail},
+                    "prep": prep_record, "exit": _exit, "excerpt": tail, **_extra}
         if r is None:   # the bound expired and the command was killed (the TimeoutExpired case)
             # T-10566: name the cause when the box was contended (None on a quiet box ⇒ text unchanged).
             # REPORT-ONLY — the outcome/gate below is deliberately untouched.
@@ -14021,14 +14624,16 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 e_bad.append(f"land(consumer): verify layer {name!r} — WHOLE captured output: {_log}")
             return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share, **_bound,
                                           **({"output_log": _log} if _log else {}),
-                                          **_layer_duration_ms(_layer_t0), **_cpu_fields},
+                                          **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                          **_adapter_fields(outer="timed-out", outer_at="command")},
                     "prep": prep_record}
         if r.returncode != 0:
             # T-12384 (X-1373): SIGNAL-keyed excerpt, not the blind `[-500:]` tail — a docker-backed
             # layer prints its teardown (one container/db name per line) AFTER pytest's short summary,
             # so the positional tail carried the resource-name list and the FAILED node ids never
             # reached `_surface_failing_assertions`. The entry's first-line shape is unchanged.
-            tail = _layer_failure_excerpt(r.stdout + r.stderr)
+            # T-13635: the two streams are handed over SEPARATELY, so each keeps its own tail.
+            tail = _layer_failure_excerpt(r.stdout, err=r.stderr)
             # T-12758 (X-1478 item 8): the excerpt above is the READABLE summary; this is the WHOLE
             # stream, which is the only thing that carries the cause when there is no pytest summary
             # to key on. Named AFTER the excerpt, so the abort still LEADS with the signal.
@@ -14037,7 +14642,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                          + (f"\nWHOLE captured output: {_log}" if _log else ""))
             return {"bad": e_bad, "row": {"layer": name, "outcome": "failed", **_prov, **_share, **_bound,
                                           **({"output_log": _log} if _log else {}),
-                                          **_layer_duration_ms(_layer_t0), **_cpu_fields},
+                                          **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                          **_adapter_fields(effective_timeout, _layer_env)},
                     "prep": prep_record, "exit": r.returncode, "excerpt": tail}
         if retry:
             print(f"land(consumer): verify layer {name!r} PASSED on its isolated re-run: {cmd!r}")
@@ -14049,7 +14655,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             print(f"land(consumer): attribution re-run at the merge-base (main WITHOUT this branch): "
                   f"verify layer {name!r} passed there — this is NOT this branch's result")
         return {"bad": e_bad, "row": {"layer": name, "outcome": "passed", **_prov, **_share, **_bound,
-                                      **_layer_duration_ms(_layer_t0), **_cpu_fields},
+                                      **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                      **_adapter_fields(effective_timeout, _layer_env)},
                 "prep": prep_record, "exit": 0}
 
     # T-12585: the pending group of runnable layers NAMED in `independent` (declaration order), run
@@ -14168,18 +14775,113 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # Never on the merge-base attribution re-run (`only_layers`): that is a diagnostic over the base
     # tree, not a verdict. `_layer_flaky_retry_plan` decides; a decline is recorded with its reason.
     _retry_record = None
+    # T-13607 (SPEC-1006 rule 4): the plan is handed every layer's FIRST-attempt row, read HERE —
+    # before the per-unit re-run below can turn a failed row into a rescued one — so an
+    # adapter-backed layer counts exactly as it would without an adapter and the per-unit path
+    # never widens what the layer-level re-run admits.
+    _retry_bound = min(1, _verify_retry_max_files())
     _plan = (None if only_layers is not None
-             else _layer_flaky_retry_plan([res["row"] for res in results], min(1, _verify_retry_max_files())))
+             else _layer_flaky_retry_plan([res["row"] for res in results], _retry_bound))
+    # ── T-13607 — THE PER-UNIT RE-RUN OF A USABLE FIRST ATTEMPT'S FAILED UNITS (SPEC-1006 rule 10) ──
+    # HERE for the reason the layer re-run is: every layer of this verify has finished, so a unit
+    # re-run is alone in THIS verify (the host is not excluded — each attempt records its load).
+    # One layer at a time, in declaration order. Its bound is its own (M units or groups), and it
+    # is not the layer plan's decision: only the one switch (the retry bound at 0) is shared. The
+    # merge-base attribution re-run (`only_layers`) re-runs no unit and records nothing, exactly
+    # as it never consults the layer plan: it is a diagnostic over the base tree, not a verdict.
+    _unit_rows: list = []
+    _units_skipped: list = []
+    _unit_rerun_layers: set = set()
+    for _ui, _ures in enumerate(results):
+        _todo = _ures.get("rerun") if isinstance(_ures, dict) and only_layers is None else None
+        if not _todo:
+            continue
+        _uname = runnable[_ui][2]
+        _unit_rerun_layers.add(_ui)
+        _entities = _adapter_rerun_entities(_todo["failed"], _todo["inventory"])
+        _decline = ("retry-off" if _retry_bound == 0 else
+                    "over-unit-bound" if len(_entities) > _UNIT_RERUN_MAX_FAILED else None)
+        if _decline or not _entities:
+            if _decline:
+                _units_skipped.append({"layer": _uname, "reason": _decline, "failed": len(_entities),
+                                       **({"bound": _UNIT_RERUN_MAX_FAILED}
+                                          if _decline == "over-unit-bound" else {})})
+            continue
+        _names = ", ".join(repr(e.get("group") or e.get("unit")) for e in _entities)
+        print(f"land(consumer): verify layer {_uname!r} — {len(_entities)} unit(s) FAILED on the first "
+              f"attempt ({_names}); re-running them alone in this verify, up to "
+              f"{_UNIT_RERUN_ATTEMPTS} attempt(s) each (other sessions on this host are NOT excluded; "
+              f"each attempt records the host load) — SPEC-1006 rule 10.")
+        _printed: list = []
+        _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, timeout=_todo["timeout"],
+                                   env=_todo["env"], _load_avg=_load_avg, attempts=_UNIT_RERUN_ATTEMPTS,
+                                   outputs=_printed)
+        # What the re-run attempts printed is kept whenever one of them did not pass — under its own
+        # log name, so the first attempt's artifact is never overwritten (the layer re-run's rule).
+        # Named on every row that had such an attempt. No log context (every caller but the land)
+        # writes nothing, as for the first attempt.
+        _unpassed = [_r for _r in _rows if any(a.get("status") != "passed" for a in _r["attempts"])]
+        if _unpassed and isinstance(layer_log_ctx, dict):
+            _rlog = _write_layer_output_log(
+                {**layer_log_ctx, "attempt": f"{layer_log_ctx.get('attempt') or 1}-unit-retry"}, _uname,
+                "".join(f"══ re-run attempt {_n} ══\n{_text}" for _n, _text in _printed))
+            for _r in _unpassed if _rlog else []:
+                _r["retry_output_log"] = _rlog
+        _rescue = _todo["decl"].get("rescue", "on")
+        for _r in _rows:
+            # PER UNIT (SPEC-1006 rule 10): a unit that passed alone is rescued under `rescue: on`
+            # whatever its siblings did; under `rescue: off` its pass is diagnostic.
+            _r["rescue"] = _rescue
+            _r["rescued"] = _r.get("isolated") == "pass" and _rescue == "on"
+        _unit_rows.extend(_rows)
+        if _rows and all(_r["rescued"] for _r in _rows):
+            # THE LAYER IS RESCUED only when EVERY failed unit was — on the layer re-run's terms:
+            # the failure leaves `bad`, the row reads `passed` + `retried`, and the first failure
+            # stays on record, on the row's `adapter` record and on every `flaky_retry` row above.
+            results[_ui] = {**_ures, "bad": [], "row": {**_ures["row"], "outcome": "passed", "retried": True}}
+    for _line in _unit_retry_lines({"rows": _unit_rows, "units_skipped": _units_skipped}, "land(consumer): "):
+        print(_line)
+    if _unit_rows or _units_skipped:
+        _retry_record = {}
+        if _unit_rows:
+            _retry_record["rows"] = _unit_rows
+        if _units_skipped:
+            _retry_record["units_skipped"] = _units_skipped
+    _ri = _plan.get("retry") if _plan is not None else None
+    _no_rerun = results[_ri].get("no_rerun") if _ri is not None else None
     if _plan is not None and "retry" not in _plan:
-        _retry_record = {"layers_skipped": [{"reason": _plan["skipped"], "layers": list(_plan["layers"]),
+        _retry_record = {**(_retry_record or {}),
+                         "layers_skipped": [{"reason": _plan["skipped"], "layers": list(_plan["layers"]),
                                              **({"bound": _plan["bound"]} if "bound" in _plan else {})}]}
+        # A layer counts here by its FIRST attempt (SPEC-1006 rule 4), so the names may include one
+        # whose failed units took the per-unit re-run above — said, so the line is not read as
+        # «these layers ended failed».
+        _per_unit = [runnable[_i][2] for _i in sorted(_unit_rerun_layers)]
         print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
               f"{', '.join(repr(n) for n in _plan['layers'])} — {_plan['skipped']} "
-              f"({_LAYER_RETRY_DECLINE_WHY.get(_plan['skipped'], 'declined')}; SPEC-0152 rule 16).")
+              f"({_LAYER_RETRY_DECLINE_WHY.get(_plan['skipped'], 'declined')}; SPEC-0152 rule 16)."
+              + (f" Layers are counted by their FIRST attempt: {', '.join(repr(n) for n in _per_unit)} "
+                 f"failed units on a usable report, which the per-unit re-run answers "
+                 f"(SPEC-1006 rules 4, 10)." if _per_unit else ""))
+    elif _ri is not None and _ri in _unit_rerun_layers:
+        pass    # T-13607: failed units on a usable report took the per-unit path, never this one
+    elif _no_rerun:
+        # T-13607 (SPEC-1006 rule 5): the plan admits the layer, the failure is a `required:` check.
+        _retry_record = {**(_retry_record or {}),
+                         "layers_skipped": [{"reason": _no_rerun, "layers": [runnable[_ri][2]]}]}
+        print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
+              f"{runnable[_ri][2]!r} — {_no_rerun} "
+              f"({_LAYER_RETRY_DECLINE_WHY.get(_no_rerun, 'declined')}; SPEC-1006 rule 5).")
     elif _plan is not None:
-        _ri = _plan["retry"]
         _first = results[_ri]
         _rname = runnable[_ri][2]
+        # T-13607 (SPEC-1006 rules 3, 4): the layer's `rescue:` setting holds on this whole-layer
+        # path too. A layer with no adapter has none and rescues, as before.
+        _layer_rescue = (adapters.get(id(runnable[_ri][1])) or {}).get("rescue", "on")
+        # The void reasons of a first attempt the ADAPTER gave (a void report, nonzero exit). Where
+        # the `command:` was the first attempt, the adapter's record on the row already says why.
+        _first_rec = _first["row"].get("adapter") or {}
+        _first_void = list(_first_rec.get("void") or []) if _first_rec.get("mode") == "verdict" else []
         try:
             _l1 = round(float(_load_avg()[0]), 2) if _load_avg is not None else None
         except Exception:                                  # unmeasurable — recorded ABSENT, never a 0.0
@@ -14212,8 +14914,17 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 _rrow["retry_failure_excerpt"] = _again["excerpt"]
             if _again["row"].get("output_log"):
                 _rrow["retry_output_log"] = _again["row"]["output_log"]
-        _retry_record = {"rows": [_rrow]}
-        if _passed:
+        if _layer_rescue != "on":
+            _rrow["rescue"] = _layer_rescue
+        if _first_void:
+            _rrow["first_void"] = _first_void     # a void first attempt: its reasons stay on record
+        _retry_record = {**(_retry_record or {}), "rows": [*(_retry_record or {}).get("rows", []), _rrow]}
+        if _passed and _layer_rescue != "on":
+            # DIAGNOSTIC ONLY (SPEC-1006 rule 3): the layer declares `rescue: off`, so the pass is
+            # recorded and the first failure blocks — `bad` and the row are the first run's.
+            print(f"land(consumer): verify layer {_rname!r} PASSED its isolated re-run, but it declares "
+                  f"`rescue: off` — the re-run is diagnostic and the first failure blocks.")
+        elif _passed:
             # RESCUE (owner decision events.jsonl#ts=2026-10-04T20:06:56Z): the layer's failure is
             # dropped from `bad` and its row reads `passed` + `retried`, its measurements staying the
             # FIRST run's. The failure itself is not dropped from the record — the row above keeps
@@ -14229,6 +14940,14 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                     else f"FAILED (exit {_again.get('exit')})")
             print(f"land(consumer): verify layer {_rname!r} {_how} AGAIN on its isolated re-run "
                   f"(attempt 2 of 2) — the failure stands and this verify fails on that layer.")
+    if _credit_run is not None:
+        # T-13612 (SPEC-1006 rule 13): the run every `credit: shadow` record belongs to, named
+        # once every layer has finished — the tree is recorded only when the run left it as it was.
+        _stamp = _adapter_attempt_stamp(worktree, _credit_run, _run_git_cap=_run_git_cap)
+        for _ci, _cres in enumerate(results):
+            _crec = _cres["row"].get("adapter") if isinstance(_cres, dict) else None
+            if isinstance(_crec, dict) and id(layers[_ci]) in _credit_bases:
+                _crec.update({k: (dict(v) if isinstance(v, dict) else v) for k, v in _stamp.items()})
     for res in results:
         bad.extend(res["bad"])
         outcomes.append(res["row"])
@@ -15015,6 +15734,7 @@ def cmd_work_commit(args: argparse.Namespace, *, _append_event, _commit_worktree
     exactly as before, then committed, never suppressed (a quiet journal is the failure D-0032/D-0049
     closed). The dep is OPTIONAL (default None) so an in-process caller injecting the historical dep
     set keeps working; the host always injects it."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     from_ref = (getattr(args, "from_ref", None) or "").strip()
     if not from_ref:
         _die("work commit: --from <durable artifact> required (CHARTER §Principle 2)")
@@ -15046,7 +15766,8 @@ def cmd_work_commit(args: argparse.Namespace, *, _append_event, _commit_worktree
     # T-13173 — a local commit is NOT on `main` yet; say so and name the land that puts it there.
     import subprocess
     _br = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True,
-                         cwd=str(REPO_ROOT) if REPO_ROOT else None).stdout.strip()
+                         cwd=str(REPO_ROOT) if REPO_ROOT else None,
+                         env=_git_env._git_child_env()).stdout.strip()
     _land = f"yitc-v2 land --branch {_br if _br and _br != 'HEAD' else 'work/<slug>'}"
     print(f"work commit {short} committed on {_br or 'the branch'} (not on main yet) | from: {from_ref}"
           f" | next: `{_land}`"
@@ -16190,9 +16911,9 @@ def _clip_layer_output(text: "str | None", budget: int = _LAYER_OUTPUT_LOG_MAX_B
 def _write_layer_output_log(ctx, layer: str, text: "str | None") -> "str | None":
     """Persist a FAILING layer's whole captured output; return the path to NAME, relative to `ctx['root']`.
 
-    `ctx` is `{root, branch, attempt}` — supplied ONLY by the land call site, so every non-land caller of
-    the layer runner (`task test`, the pinned-currency re-run) passes None and writes nothing, byte-identical
-    to before. NEVER raises and never aborts the land on an artifact: an unwritable dir degrades to one
+    `ctx` is `{root, branch, attempt}` — supplied by the land call site and (T-13635) by Stage-6
+    `task test --run` (attempt `stage6`); every other caller of the layer runner (the pinned-currency
+    re-run, the merge-base attribution run) passes None and writes nothing, byte-identical to before. NEVER raises and never aborts the land on an artifact: an unwritable dir degrades to one
     stderr line + `None`, which leaves the row and the abort_reason exactly as they were without it."""
     if not isinstance(ctx, dict) or not ctx.get("root"):
         return None
@@ -17930,31 +18651,66 @@ _JS_RUNNER_FAILURE_HEAD_RE = re.compile(r"^(?:FAIL\s+(?P<fail>\S.*)|●\s+(?P<bu
 _JS_RUNNER_TIMEOUT_RE = re.compile(r"(?:Test timed out in \d+\s*ms|Exceeded timeout of \d+\s*ms)[^\n]*",
                                    re.IGNORECASE)
 _JS_RUNNER_MAX_FAILURES = 12
+# T-13635 (GitHub #47): Playwright names a failed test as a NUMBERED head — `  1) [chromium] ›
+# tests/a.spec.ts:12:7 › Suite › test ───` (the `[project] › ` part absent without projects) — and
+# lists the failed ones again under its `N failed` summary line, unnumbered. Neither shape is vitest's
+# `FAIL` nor jest's `●`, so the T-13235 reader above named nothing for a Playwright layer. The summary
+# list is preferred when present: the numbered heads also cover tests that passed on Playwright's own
+# retry (its `N flaky` list), which did not fail the layer.
+_PLAYWRIGHT_TEST_RE = r"(?:\[[^\]]+\]\s+›\s+)?\S+:\d+:\d+\s+›\s+.*?"
+_PLAYWRIGHT_HEAD_RE = re.compile(r"^\d+\)\s+(?P<pw>" + _PLAYWRIGHT_TEST_RE + r")\s*─*$")
+_PLAYWRIGHT_LISTED_RE = re.compile(r"^(?P<pw>" + _PLAYWRIGHT_TEST_RE + r")\s*─*$")
+_PLAYWRIGHT_SUMMARY_RE = re.compile(r"^\d+\s+(?P<kind>failed|flaky|passed|skipped|interrupted|did not run)\b")
+_PLAYWRIGHT_TIMEOUT_RE = re.compile(r"Test timeout of \d+\s*ms exceeded\.?", re.IGNORECASE)
 
 
 def _js_runner_failure_lines(lines: list) -> list:
-    """T-13235: every distinct vitest/jest failure named in `lines`, as `FAIL: <head>[ — <timeout>]`,
+    """T-13235: every distinct vitest/jest (T-13635: and Playwright) failure named in `lines`, as `FAIL: <head>[ — <timeout>]`,
     at most `_JS_RUNNER_MAX_FAILURES`. A timeout line binds to the nearest head ABOVE it (before the next
     head). Pure; [] when the output carries no JS-runner failure head."""
     out: list = []
+    listed: list = []                       # T-13635: the tests Playwright's `N failed` summary names
+    section = None
     for raw in lines:
         ln = _ANSI_ESCAPE_RE.sub("", raw).strip()
+        s = _PLAYWRIGHT_SUMMARY_RE.match(ln)
+        if s:
+            section = s.group("kind")
+            continue
         m = _JS_RUNNER_FAILURE_HEAD_RE.match(ln)
         if m:
-            out.append([(m.group("fail") or m.group("bullet")).strip(), None])
+            out.append([(m.group("fail") or m.group("bullet")).strip(), None, "js"])
             continue
-        t = _JS_RUNNER_TIMEOUT_RE.search(ln)
+        pw = _PLAYWRIGHT_HEAD_RE.match(ln)
+        if pw:
+            out.append([pw.group("pw").strip(), None, "pw"])
+            continue
+        if section == "failed":
+            lst = _PLAYWRIGHT_LISTED_RE.match(ln)
+            if lst:
+                listed.append(lst.group("pw").strip())
+                continue
+        t = _JS_RUNNER_TIMEOUT_RE.search(ln) or _PLAYWRIGHT_TIMEOUT_RE.search(ln)
         if t and out and out[-1][1] is None:
             out[-1][1] = t.group(0).strip()
-    rendered = [f"FAIL: {h}" + (f" — {t}" if t else "") for h, t in out]
+    if listed:
+        # Keep the Playwright heads the summary confirms failed (with any timeout bound to them), then
+        # any listed test that printed no numbered head. The filter keys on each head's ORIGIN (the
+        # line shape it was read from), never on its text: a vitest / jest head whose title happens to
+        # look like a Playwright one is never dropped (T-13635 audit-post finding).
+        keep = set(listed)
+        out = [e for e in out if e[2] != "pw" or e[0] in keep]
+        seen = {e[0] for e in out}
+        out += [[h, None, "pw"] for h in listed if h not in seen]
+    rendered = [f"FAIL: {h}" + (f" — {t}" if t else "") for h, t, _k in out]
     # A timed-out rendering supersedes the bare one of the same head (vitest prints the head twice).
-    timed = {h for h, t in out if t}
-    rendered = [r for (h, t), r in zip(out, rendered) if t or h not in timed]
+    timed = {h for h, t, _k in out if t}
+    rendered = [r for (h, t, _k), r in zip(out, rendered) if t or h not in timed]
     return list(dict.fromkeys(rendered))[:_JS_RUNNER_MAX_FAILURES]
 
 def _layer_failure_excerpt(out: "str | None", bound: int = _LAYER_EXCERPT_BOUND,
                            max_summary_lines: int = _LAYER_SUMMARY_MAX_LINES,
-                           last_lines: int = _LAYER_CONTEXT_LAST_LINES) -> str:
+                           last_lines: int = _LAYER_CONTEXT_LAST_LINES, *, err: "str | None" = None) -> str:
     """T-12384 (X-1373): the recorded tail of a FAILED consumer verify LAYER — SIGNAL-keyed, not positional.
 
     WHY. The layer runner recorded `(stdout + stderr).strip()[-500:]`, a blind tail slice. A docker-backed
@@ -17981,21 +18737,42 @@ def _layer_failure_excerpt(out: "str | None", bound: int = _LAYER_EXCERPT_BOUND,
     Only WHAT THE RECORD SAYS changes: the exit-code gate, the failure-marker protocol, the
     `unmarked-layer-failure` id and every waive reader are untouched — they receive a tail that can
     carry the signal. `ERROR <nodeid>` lines are KEPT in the block as context; the extractor's
-    FAILED-only rule is deliberately not widened here (the T-11346 bound)."""
-    raw = [ln.strip() for ln in str(out or "").splitlines()]
-    lines = [ln for ln in raw if ln and not _VERIFY_LAYER_TEARDOWN_NOISE_RE.match(ln)]
+    FAILED-only rule is deliberately not widened here (the T-11346 bound).
+
+    T-13635 (GitHub #47/#55) — `err`: the caller MAY pass stderr SEPARATELY. The signal search (rule 2
+    and the JS-runner reader) reads both streams; the rule-3 context then keeps each stream's OWN tail —
+    the last `last_lines` stdout lines and the last `last_lines` stderr lines, `bound` chars shared
+    between them — instead of the tail of `stdout + stderr`, where a build tool's stderr warnings
+    (appended LAST) pushed every stdout line, the test runner's failure report included, out of the
+    record. `err=None` (every adapter-path caller) keeps the one-stream behaviour byte-identical."""
+    def _keep(text):
+        raw = [ln.strip() for ln in str(text or "").splitlines()]
+        return [ln for ln in raw if ln and not _VERIFY_LAYER_TEARDOWN_NOISE_RE.match(ln)]
+    out_lines = _keep(out)
+    err_lines = _keep(err) if err is not None else []
+    lines = out_lines + err_lines
     if not lines:
         return _LAYER_NO_PYTEST_SUMMARY_MARK
     header = next((i for i in range(len(lines) - 1, -1, -1) if _PYTEST_SUMMARY_HEADER_RE.match(lines[i])), None)
     items = [i for i, ln in enumerate(lines) if _PYTEST_SUMMARY_ITEM_RE.match(ln)]
     if header is None and not items:
-        ctx = lines[-last_lines:]
-        text = "\n".join(ctx)
-        if len(text) > bound:
-            text = text[-bound:]
         js = _js_runner_failure_lines(lines)
         js_block = ("JS test-runner failure(s):\n" + "\n".join(js) + "\n") if js else ""
-        return f"{_LAYER_NO_PYTEST_SUMMARY_MARK}; {js_block}last {len(ctx)} non-teardown line(s):\n{text}"
+        if err is None or not err_lines or not out_lines:
+            ctx = lines[-last_lines:]
+            text = "\n".join(ctx)
+            if len(text) > bound:
+                text = text[-bound:]
+            which = "" if err is None else ("stdout " if out_lines else "stderr ")
+            return f"{_LAYER_NO_PYTEST_SUMMARY_MARK}; {js_block}last {len(ctx)} non-teardown {which}line(s):\n{text}"
+        parts = []
+        for name, stream in (("stdout", out_lines), ("stderr", err_lines)):
+            ctx = stream[-last_lines:]
+            text = "\n".join(ctx)
+            if len(text) > bound // 2:
+                text = text[-(bound // 2):]
+            parts.append(f"last {len(ctx)} non-teardown {name} line(s):\n{text}")
+        return f"{_LAYER_NO_PYTEST_SUMMARY_MARK}; {js_block}" + "\n".join(parts)
     start = header if header is not None else items[0]
     # the LAST final banner at/after the block start closes it; else the last item does
     banner = next((i for i in range(len(lines) - 1, start - 1, -1) if _PYTEST_FINAL_BANNER_RE.match(lines[i])), None)
@@ -19306,12 +20083,17 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
     Stage-6 run instead of re-running it? `(True, "stage6-credit", ref)` on proof, else
     `(False, why, None)` — one reason per refusal, and the caller runs the candidate verify. The ONE
     exception to the `None`: a `main-moved` refusal carries `{class, paths}` — main's own advance since
-    the run, classified (T-13588) — which the caller only records.
+    the run, classified (T-13588), plus `read_by` when an inert advance is named by a test (T-13620) —
+    which the caller only records. A credit over an inert advance carries `{class, paths}` as
+    `main_delta` on `ref` — the advance it accepted, recorded on `land_completed.stage6_credit`.
 
     The land proves each part itself; nothing the worker asserts is trusted:
       (0) POLICY — the project has not opted out (`verify_policy.stage6_credit`, read from the BASE tree).
-      (1) MAIN HAS NOT MOVED — the row's recorded `base` IS `merged_base`, the main tip this attempt
-          merged (which HEAD therefore contains).
+      (1) MAIN HAS NOT MOVED, OR MOVED INERTLY — the row's recorded `base` IS `merged_base`, the main
+          tip this attempt merged (which HEAD therefore contains); or main's OWN advance
+          `base..merged_base` is inert by the ONE SPEC-0064 authority and no declared test file names a
+          changed non-journal path of it (the same reader derivation as (2), T-13620). A `tests/` path —
+          the verify-durations table included — is never inert, so it always ends the credit.
       (2) THE SAME TREE — `tree..HEAD`, tree to tree with renames off, is inert by the ONE SPEC-0064
           authority, and no declared test file names a changed non-journal path (the T-12420 reader
           derivation — the inert first-attempt skip's condition (d)).
@@ -19348,17 +20130,30 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         tree, base = run.get("tree"), run.get("base")
         if not all(isinstance(v, str) and _STAGE6_SHA.fullmatch(v) for v in (tree, base)):
             return False, "row-tree-unrecorded", None
+        main_delta = None
         if base != merged_base:
             # T-13588: WHAT main's own advance since the run touched — `base..merged_base`, never the
-            # branch delta — classified by the ONE SPEC-0064 authority. Recorded, never acted on: the
-            # credit stays refused (owner decision 2026-10-05, card T-13576). Any fault reads
-            # «unknown», never «inert».
+            # branch delta — classified by the ONE SPEC-0064 authority. Any fault reads «unknown»,
+            # never «inert». T-13620 (owner decision 2026-10-06, yitc#35 option B): an INERT advance
+            # that no declared test names no longer ends the credit — the reader derivation is the
+            # same one (2) uses, because SPEC-0064 §5 is not literally true (tests read named cards).
+            # A named card is refused here as `main-moved` with `read_by`, never left to (2).
             try:
                 moved = _diff_name_paths(W, base, merged_base, _run_git_cap=_run_git_cap)
                 delta = {"class": _classify_inert_paths(moved)[0], "paths": len(moved)}
             except Exception:                              # noqa: BLE001 — unknown, never a guess
-                delta = {"class": "unknown", "paths": None}
-            return False, "main-moved", delta
+                return False, "main-moved", {"class": "unknown", "paths": None}
+            if delta["class"] != "inert":
+                return False, "main-moved", delta
+            moved_readers = []
+            moved_artifacts = [p for p in moved if p != "events.jsonl"
+                               and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
+            for test_dir in _declared_test_sweep_paths(Path(W)):
+                if Path(test_dir).is_dir():
+                    moved_readers += _land_tail_tripwire_readers(test_dir, moved_artifacts)
+            if moved_readers:
+                return False, "main-moved", {**delta, "read_by": moved_readers[0]}
+            main_delta = delta
         t = _run_git_cap(["cat-file", "-t", tree], W)
         if t.returncode != 0 or (t.stdout or "").strip() != "tree":
             return False, "row-tree-unresolvable", None
@@ -19379,7 +20174,10 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
             _consumer_tests_delegation=_consumer_tests_delegation)
         if uncovered:
             return False, uncovered, None
-        return True, STAGE6_CREDIT_REASON, {"task": tid, "ts": newest.get("ts"), "tree": tree, "base": base}
+        ref = {"task": tid, "ts": newest.get("ts"), "tree": tree, "base": base}
+        if main_delta is not None:
+            ref["main_delta"] = main_delta                 # T-13620: the inert advance this credit accepted
+        return True, STAGE6_CREDIT_REASON, ref
     except Exception as exc:                               # noqa: BLE001 — fail-closed: no proof, verify
         return False, f"error:{type(exc).__name__}", None
 
@@ -19779,11 +20577,13 @@ def _load_sensitive_exited_at(main_wt, name: str) -> "str | None":
     `name` from `tests/load-sensitive.txt` — a card's exit (T-12358: exit is a card's decision) — or
     None when no such removal exists or git cannot answer. Walks the `-S<name>` history of the carrier
     newest-first and returns the first commit whose carrier LACKS the name. NEVER RAISES."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     carrier_rel = "tests/" + verify_runner._LOAD_SENSITIVE_FILE
     try:
         import subprocess as _sp
         log = _sp.run(["git", "log", "-8", "--format=%H %cI", f"-S{name}", "--", carrier_rel],
-                      cwd=str(main_wt), capture_output=True, text=True, timeout=20)
+                      cwd=str(main_wt), capture_output=True, text=True, timeout=20,
+                      env=_git_env._git_child_env())
         if log.returncode != 0:
             return None
         for line in log.stdout.splitlines():
@@ -19792,7 +20592,7 @@ def _load_sensitive_exited_at(main_wt, name: str) -> "str | None":
                 continue
             sha, ciso = parts
             shown = _sp.run(["git", "show", f"{sha}:{carrier_rel}"], cwd=str(main_wt),
-                            capture_output=True, text=True, timeout=20)
+                            capture_output=True, text=True, timeout=20, env=_git_env._git_child_env())
             body = shown.stdout if shown.returncode == 0 else ""
             if name not in body:
                 import datetime as _dt
@@ -19813,12 +20613,16 @@ def _load_sensitive_exited_at(main_wt, name: str) -> "str | None":
 _LOAD_SENSITIVE_ROW_TYPES = ("load_sensitive_entered", "land_tail_write_withheld")
 
 
-def _load_sensitive_withheld_at(rows, name: str) -> "str | None":
+def _load_sensitive_withheld_at(rows, name: str, *, entered=None) -> "str | None":
     """T-12523 — the ts of the `land_tail_write_withheld` row (writer `load_sensitive_entry`) that
     corrected the most recent `load_sensitive_entered` row for `name`, or None. `rows` are the window
     rows `_flaky_retry_isolated_passes(rows_out=)` already read — no second journal scan. The withheld
     row names paths, not files, so the attempt is joined by ORDER: the first withheld row at/after the
-    file's latest entered row is that attempt's correction. NEVER RAISES; unreadable → None (fail-open)."""
+    file's latest entered row is that attempt's correction. NEVER RAISES; unreadable → None (fail-open).
+
+    T-13609: `entered` — `entered(row data) -> bool` — says which `load_sensitive_entered` rows are
+    this entry's (default: the row's `file` is `name`); the per-unit entry passes its own."""
+    entered = entered or (lambda data: data.get("file") == name)
     try:
         entered_ts, withheld_ts = "", None
         for e in rows or []:
@@ -19826,7 +20630,7 @@ def _load_sensitive_withheld_at(rows, name: str) -> "str | None":
                 continue
             data = e.get("data") if isinstance(e.get("data"), dict) else {}
             ts = str(e.get("ts") or "")
-            if e.get("type") == "load_sensitive_entered" and data.get("file") == name and ts >= entered_ts:
+            if e.get("type") == "load_sensitive_entered" and entered(data) and ts >= entered_ts:
                 entered_ts, withheld_ts = ts, None
             elif (e.get("type") == "land_tail_write_withheld" and entered_ts and withheld_ts is None
                   and data.get("writer") == "load_sensitive_entry" and ts >= entered_ts):
@@ -19861,7 +20665,7 @@ def _load_sensitive_entry_at_land_tail(main_wt, *, now: "str | None" = None, ent
                                        write_text_atomic, _consumer_tests_delegation=None,
                                        _id_alloc_lock=None, _dump_state_yaml=None,
                                        count_timeouts: bool = True, timeout_bound_s=None,
-                                       defer_cards: bool = False) -> dict:
+                                       defer_cards: bool = False, rows_out: "list | None" = None) -> dict:
     """T-12358 — THE AUTOMATIC ENTRY SEAM. Called by `_land_integrate` post-ff, in-lock, right after
     the land's own `land_completed` row is appended to main's journal (so the fold sees THIS land's
     retries) and before the `git add` that folds the carrier into the same fresh bookkeeping commit.
@@ -19907,6 +20711,10 @@ def _load_sensitive_entry_at_land_tail(main_wt, *, now: "str | None" = None, ent
     _rows: list = []
     retry_passes = _flaky_retry_isolated_passes(Path(main_wt) / "events.jsonl", since, until,
                                                 rows_out=_rows, rows_out_types=_LOAD_SENSITIVE_ROW_TYPES)
+    if rows_out is not None:
+        # T-13609: the window this read covered rides out with its rows, so the per-unit half of the
+        # same tail writer folds them instead of reading the journal a second time.
+        rows_out.append({"since": since, "until": until, "rows": _rows})
     # T-12501 — the SECOND evidence class: pool timeouts of files recorded AT the bound. The bound is
     # the ONE resolver's answer (lazy import — cli.py is already loaded by any land); an unresolvable
     # bound or table contributes nothing (fail-closed toward NOT entering).
@@ -20084,28 +20892,298 @@ def _load_sensitive_entry_with_tripwire(main_wt, *, now=None, _append_event, wri
     basename tail: readers are derived by basename mention (`_land_tail_tripwire_readers`) and no
     existing test can name a T-id not yet allocated, so the tail carries every derivable card reader —
     the T-12420 whole-transaction union in a single run. RED → rows emitted WITHOUT a card (the attempt
-    `_load_sensitive_withheld_at` reads), the carrier withheld, no id allocated."""
+    `_load_sensitive_withheld_at` reads), the carrier withheld, no id allocated.
+
+    T-13609 — the writer's transaction also holds the per-unit list of a consumer's adapter-backed
+    layers (`_unit_lane_entry_at_land_tail`): its carrier joins the artifacts of the ONE verdict
+    when it was written, and is withheld with them. A land on which neither half wrote anything
+    runs no verdict, as before."""
     _verdict = _verdict or _land_tail_tripwire_verdict
+    _window: list = []
     rep = _load_sensitive_entry_at_land_tail(
         main_wt, now=now, _append_event=_append_event, write_text_atomic=write_text_atomic,
-        _consumer_tests_delegation=_consumer_tests_delegation, defer_cards=True, **entry_kw)
+        _consumer_tests_delegation=_consumer_tests_delegation, defer_cards=True, rows_out=_window,
+        **entry_kw)
     pending = rep.pop("pending", None)
-    if not rep.get("written"):
+    # T-13609 (SPEC-1006 rule 11) — THE PER-UNIT LIST IS THE SAME WRITER'S WRITE: the entry of a
+    # consumer's adapter-backed layers appends to its own carrier here, and what both halves wrote
+    # is ONE rule-7 transaction below — one verdict over the union of their paths, admitted or
+    # withheld together (rule 7 bound 1). Its report rides `units`, ABSENT on a project that
+    # declares no adapter-backed layer, whose report is therefore the one it was. Best-effort like
+    # the seam it sits in: a fault here is a recorded reason, never a land failure.
+    try:
+        units = _unit_lane_entry_at_land_tail(
+            main_wt, now=now, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap,
+            window_rows=_window[0] if _window else None,
+            **{k: entry_kw[k] for k in ("enter", "window_days") if k in entry_kw})
+    except Exception as _ue:       # noqa: BLE001 — the work is already on main
+        units = {"written": False, "entered": [], "reason": f"error:{type(_ue).__name__}"}
+    unit_pending = units.pop("pending", None) or []
+    if units.get("reason") != "no-adapter-layer":
+        rep["units"] = units
+    if not rep.get("written") and not units.get("written"):
         return rep
     carrier_rel = f"tests/{verify_runner._LOAD_SENSITIVE_FILE}"
     tails = [f"{textutil.slug(_load_sensitive_card_title(p['file']))}.yaml" for p in pending or []]
-    v = _verdict(main_wt, [carrier_rel] + tails)
+    written = ([carrier_rel] if rep.get("written") else []) \
+        + ([land_verify_legs._UNIT_LANE_FILE] if units.get("written") else [])
+    v = _verdict(main_wt, written + (tails if rep.get("written") else []))
     rep["tripwire"] = {k: v.get(k) for k in ("ok", "reason", "wall_ms")}
+    # One `load_sensitive_entered` row per per-unit entrant, on either verdict: it is the attempt
+    # the withheld guard reads, exactly as the engine rows below are.
+    for data in unit_pending:
+        _append_event("load_sensitive_entered", None, data, events_path=Path(main_wt) / "events.jsonl")
     if not v.get("ok"):
-        _load_sensitive_entry_emit(main_wt, rep, pending or [], _append_event=_append_event,
-                                   write_text_atomic=write_text_atomic)
-        _land_tail_withhold(main_wt, "load_sensitive_entry", [carrier_rel], v,
+        if rep.get("written"):
+            _load_sensitive_entry_emit(main_wt, rep, pending or [], _append_event=_append_event,
+                                       write_text_atomic=write_text_atomic)
+        _land_tail_withhold(main_wt, "load_sensitive_entry", written, v,
                             _run_git_cap=_run_git_cap, _append_event=_append_event)
-        rep.update({"written": False, "withheld": v.get("reason"), "cards": {}, "entered": []})
+        if rep.get("written"):
+            rep.update({"written": False, "withheld": v.get("reason"), "cards": {}, "entered": []})
+        if units.get("written"):
+            units.update({"written": False, "withheld": v.get("reason"), "entered": []})
+        return rep
+    if not rep.get("written"):
         return rep
     return _load_sensitive_entry_emit(main_wt, rep, pending or [], _append_event=_append_event,
                                       write_text_atomic=write_text_atomic,
                                       _id_alloc_lock=_id_alloc_lock, _dump_state_yaml=_dump_state_yaml)
+
+
+def _unit_lane_exited_at(main_wt, key, since: str, *, _run_git_cap) -> tuple:
+    """T-13609 — the commit date (ISO, UTC `Z`) of the most recent commit since `since` on main's
+    history that REMOVED the per-unit list entry `key` = (layer, kind, project, name): a commit whose
+    list no longer carries that ENTRY while one of its parents' did. Returns `(date | None, error |
+    None)`. An entry is judged by the list's own reader, so a commit replacing one project's entry by
+    another project's entry for the same file is an exit for the first — a name-based search
+    (`git log -S`) would miss it, because the name's occurrence count does not change.
+
+    BOUNDED BY THE WINDOW, which is what makes the walk sound rather than merely cheap: an exit
+    before `since` is older than every rescue the window counts, so it can never make one of them
+    stale. FAIL-CLOSED: any answer git cannot give is returned as `error`, and the caller then does
+    NOT enter the unit — entering on an unproven exit would let automation put back a line a card
+    removed. Every git read goes through the engine's one runner (`_run_git_cap`, injected — the
+    SPEC-0188 rule-7 reader discipline), whose strict text decode makes a list that is not UTF-8 an
+    error here, never a guess. NEVER RAISES."""
+    carrier_rel = land_verify_legs._UNIT_LANE_FILE
+    main_wt = Path(main_wt)
+
+    def _lists(rev) -> "bool | None":
+        tree = _run_git_cap(["ls-tree", rev, "--", carrier_rel], main_wt)
+        if tree.returncode != 0:
+            return None
+        if not (tree.stdout or "").strip():
+            return False                                   # no list at that revision lists nothing
+        shown = _run_git_cap(["show", f"{rev}:{carrier_rel}"], main_wt)
+        if shown.returncode != 0:
+            return None
+        return key[1:] in land_verify_legs._unit_lane_parse(shown.stdout).get(key[0], {})
+
+    try:
+        log = _run_git_cap(["log", "--full-history", "--format=%H %cI %P", f"--since={since}", "--",
+                            carrier_rel], main_wt)
+        if log.returncode != 0:
+            return None, f"git log exit {log.returncode}"
+        import datetime as _dt
+        for line in log.stdout.splitlines():
+            parts = line.split()
+            if len(parts) < 3:
+                continue                                   # a root commit: nothing was removed by it
+            sha, ciso, parents = parts[0], parts[1], parts[2:]
+            here = _lists(sha)
+            if here is None:
+                return None, f"unreadable at {sha[:12]}"
+            if here:
+                continue
+            before = [_lists(par) for par in parents]
+            if any(b is None for b in before):
+                return None, f"unreadable at a parent of {sha[:12]}"
+            if any(before):
+                try:
+                    d = _dt.datetime.fromisoformat(ciso)
+                except ValueError:
+                    return None, f"undatable {sha[:12]}"
+                return d.astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), None
+        return None, None
+    except Exception as e:         # noqa: BLE001 — fail-closed, reported to the caller
+        return None, f"{type(e).__name__}"
+
+
+_UNIT_LANE_HEADER = """\
+# yitc-load-sensitive-units.txt — THE DECLARED LOAD-SENSITIVE UNITS OF THIS PROJECT'S VERIFY LAYERS.
+#
+# One entry per line, its fields separated by TAB characters:
+#   <layer> <unit|group> <runner project, empty where the runner has none> <test file | group label> <entered YYYY-MM-DD> <locator of the rescue that put it here> rescues=<n>/<window>d [reason]
+# The verify reads the first four fields; the rest is provenance for humans and the ratifying card.
+# A listed unit leaves its layer's batch and runs AFTER it, one at a time — its pass or fail decides
+# the layer's verdict exactly as a batch result does.
+#
+# ENTRY is automatic: `land` appends a unit whose per-unit re-run rescued it at least
+# `YITC_FLAKY_SENSITIVE_ENTER` times inside `YITC_FLAKY_SENSITIVE_WINDOW_DAYS`. EXIT is NEVER
+# automatic: a line is removed ONLY by a card that either makes the unit load-robust (removing the
+# line in its ship diff) or ratifies it here with a reason.
+"""
+
+
+def _unit_lane_entry_at_land_tail(main_wt, *, now: "str | None" = None, enter: "int | None" = None,
+                                  window_days: "int | None" = None, write_text_atomic, _run_git_cap,
+                                  window_rows=None) -> dict:
+    """T-13609 (SPEC-1006 rule 11) — THE AUTOMATIC PER-UNIT ENTRY, the sibling of
+    `_load_sensitive_entry_at_land_tail` for a consumer's adapter-backed verify layers and the
+    second half of the SAME tail writer: `_load_sensitive_entry_with_tripwire` calls both, post-ff
+    and in-lock, after the land's own `land_completed` row is on main's journal (so THIS land's
+    rescues count), and judges what both wrote as one transaction. Returns `{written, entered:
+    [...], pending: [one `load_sensitive_entered` payload per entrant], reason?, ...}`; it emits
+    nothing and gates nothing — the work is already on main.
+
+    WHAT ENTERS. A unit (or a declared group, counted whole) whose RESCUED per-unit `flaky_retry`
+    rows inside the window reach the threshold (`_unit_rescue_passes`; E and W are the engine
+    lane's two tunables), on a layer main's ops carrier still declares with an `adapter:`, not
+    already listed — and, for a unit, whose file is a repo-relative file of main's tree. An entry
+    whose line would not read back as itself (a TAB or a line break in a name, a layer name a
+    comment line would swallow) is not written and is named under `unlistable`.
+
+    APPEND-ONLY, BY CONSTRUCTION: this is the carrier's ONE writer and the only thing it does to
+    `yitc-load-sensitive-units.txt` is add lines for entries not already listed. No engine path
+    removes, rewrites or expires a line; exit is a card's decision. THAT EXIT IS HONOURED and A
+    WITHHELD ATTEMPT IS NOT RETRIED ON THE SAME EVIDENCE — the two guards of the engine entry: an
+    entry a commit removed (judged per ENTRY, `_unit_lane_exited_at`; when git cannot answer, the
+    unit is not entered) or whose last attempt was withheld (the engine's own reader) re-enters
+    only on a rescue NEWER than that. The existing bytes of the list are kept exactly — line
+    endings included — and whole lines are added after them. The withheld guard is the engine entry's
+    in its reach too: the correction is joined to an attempt by ORDER, so a withholding of this
+    writer that follows an entry's row counts as that entry's, whichever of the writer's paths
+    reddened the reader — it can only DELAY a re-entry until the next rescue, never admit one.
+
+    THE WRITE IS A SPEC-0188 RULE-7 TAIL WRITE and the caller's to admit: the carrier is one more
+    path of the load-sensitive entry's transaction, admitted or withheld with the rest of it.
+
+    ONE READ OF THE WINDOW PER TAIL: `window_rows` is what the engine half read (`{since, until,
+    rows}`); when it covers exactly this window its rows are folded and the journal is not opened
+    again. The engine half reads nothing on a project that delegates its tests to layers, and then
+    this half reads the window itself, once."""
+    report: dict = {"written": False, "entered": []}
+    carrier_rel = land_verify_legs._UNIT_LANE_FILE
+    main_wt = Path(main_wt)
+    # THE GATE, before any journal read: a project none of whose layers declares an adapter can
+    # hold no per-unit row, so its lands pay one small YAML read here and nothing else. Read
+    # through `state.load_ops_str`, the land seam's ops-carrier idiom (`_any_author_land_floor`).
+    try:
+        ops_path = main_wt / CONSUMER_OPS_CONTRACT
+        ops = state.load_ops_str(ops_path.read_text(encoding="utf-8")) if ops_path.exists() else None
+    except Exception:              # noqa: BLE001 — an unreadable carrier declares nothing here
+        ops = None
+    ver = ops.get("verify") if isinstance(ops, dict) else None
+    layers = ver.get("layers") if isinstance(ver, dict) else None
+    adapter_layers = {str(ly.get("layer") or "").strip() for ly in (layers if isinstance(layers, list) else [])
+                      if isinstance(ly, dict) and isinstance(ly.get("adapter"), dict)}
+    adapter_layers.discard("")
+    if not adapter_layers:
+        report["reason"] = "no-adapter-layer"
+        return report
+    import datetime as _dt
+    enter = _flaky_sensitive_enter() if enter is None else int(enter)
+    window_days = _flaky_sensitive_window_days() if window_days is None else int(window_days)
+    if not now:
+        now = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        _until = _dt.datetime.strptime(str(now)[:19], "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        report["reason"] = "undatable-now"
+        return report
+    since = (_until - _dt.timedelta(days=window_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    until = now[:19] + "Z"
+    # ONE read of the window, through the engine entry's own reader (its answer — engine test
+    # files — is not this seam's and is dropped); the per-unit fold is pure over the rows it read.
+    if isinstance(window_rows, dict) and window_rows.get("since") == since \
+            and window_rows.get("until") == until and isinstance(window_rows.get("rows"), list):
+        _rows = window_rows["rows"]
+    else:
+        _rows = []
+        _flaky_retry_isolated_passes(main_wt / "events.jsonl", since, until,
+                                     rows_out=_rows, rows_out_types=_LOAD_SENSITIVE_ROW_TYPES)
+    passes = land_verify_legs._unit_rescue_passes(_rows, since, until)
+    listed = land_verify_legs._unit_lane_set(main_wt)
+    day = now[:10]
+
+    def _line(key) -> str:
+        return "\t".join([key[0], key[1], key[2], key[3], day, sorted(passes[key], key=_locator_ts)[-1],
+                          f"rescues={len(passes[key])}/{window_days}d"])
+
+    def _is_entry(key):
+        return lambda data: (data.get("layer") == key[0] and data.get(key[1]) == key[3]
+                             and (data.get("project") or "") == key[2])
+
+    def _in_tree(name) -> bool:
+        # A unit is a canonical repo-relative file (the form `list` is held to): anything else —
+        # absolute, a parent-directory component, a name the file system cannot hold — is no file
+        # of main's tree, whatever a path join would make of it.
+        import posixpath
+        if name.startswith("/") or posixpath.normpath(name) != name or name in (".", "..") \
+                or name.startswith("../"):
+            return False
+        try:
+            return (main_wt / name).is_file()
+        except (OSError, ValueError):
+            return False
+
+    entrants, unlistable = [], []
+    for key in sorted(passes):
+        layer, kind, _proj, name = key
+        if len(passes[key]) < enter or layer not in adapter_layers or key[1:] in listed.get(layer, {}):
+            continue
+        if kind == "unit" and not _in_tree(name):
+            continue
+        if land_verify_legs._unit_lane_parse(_line(key)) != {layer: {key[1:]: _line(key)}}:
+            unlistable.append(key)
+            continue
+        entrants.append(key)
+    if unlistable:
+        report["unlistable"] = [{"layer": k[0], k[1]: k[3], **({"project": k[2]} if k[2] else {})}
+                                for k in unlistable]
+    exited_skipped, attempted, exit_unknown = [], [], []
+    for key in list(entrants):
+        newest = max(_locator_ts(loc) for loc in passes[key])
+        exited, exit_error = _unit_lane_exited_at(main_wt, key, since, _run_git_cap=_run_git_cap)
+        withheld = _load_sensitive_withheld_at(_rows, key[3], entered=_is_entry(key))
+        if exit_error:
+            exit_unknown.append({"layer": key[0], key[1]: key[3], "error": exit_error})
+            entrants.remove(key)
+        elif exited and newest <= exited:
+            exited_skipped.append({"layer": key[0], key[1]: key[3], "exited": exited})
+            entrants.remove(key)
+        elif withheld and newest <= withheld:
+            attempted.append({"layer": key[0], key[1]: key[3], "withheld": withheld})
+            entrants.remove(key)
+    if exited_skipped:
+        report["exited_skipped"] = exited_skipped
+    if attempted:
+        report["already_attempted"] = attempted
+    if exit_unknown:
+        report["exit_unknown"] = exit_unknown
+    report.update({"threshold": enter, "window_days": window_days, "candidates": len(passes)})
+    if not entrants:
+        report["reason"] = "below-threshold"
+        return report
+    carrier = main_wt / carrier_rel
+    try:
+        # BYTES, decoded strictly: the existing text is kept EXACTLY — line endings included — and
+        # only whole lines are added after it. A text this cannot decode is never rewritten.
+        existing = carrier.read_bytes().decode("utf-8") if carrier.exists() else _UNIT_LANE_HEADER
+    except (OSError, UnicodeDecodeError):
+        report["reason"] = "carrier-unreadable"
+        return report
+    nl = "\r\n" if "\r\n" in existing else "\n"
+    if existing and not existing.endswith("\n"):
+        existing += nl
+    write_text_atomic(carrier, existing + "".join(_line(k) + nl for k in entrants))
+    pending = [{"layer": k[0], k[1]: k[3], **({"project": k[2]} if k[2] else {}),
+                "count": len(passes[k]), "threshold": enter, "window_days": window_days,
+                "locators": sorted(passes[k], key=_locator_ts), "carrier": carrier_rel} for k in entrants]
+    report.update({"written": True, "day": day, "pending": pending,
+                   "entered": [f"{d['layer']}:{d.get('unit') or d.get('group')}" for d in pending]})
+    return report
 
 
 def _load_sensitive_file_card(main_wt: Path, name: str, fingerprint: str, day: str, enter,
@@ -20292,6 +21370,7 @@ def _host_leak_surface_state(cwd: Path):
     decided must NOT abort the land (`_canary_watched_leaks` is the same watched-only predicate). It runs
     NO test subprocess / NO suite re-run (unlike the retired per-land `_run_host_leak_canary`) — it only
     reads `git status`, so it can never hang (root-fix of the SPEC-0071 land-verify-timeout class)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import importlib.util
     import subprocess
     canary = cwd / "tests" / "test_t0402_host_leak_canary.py"
@@ -20306,7 +21385,7 @@ def _host_leak_surface_state(cwd: Path):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         status = subprocess.run(["git", "-C", str(cwd), "status", "--short"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, env=_git_env._git_child_env())
         if status.returncode != 0:
             # A REMOVED checkout dir (own/concurrent cleanup) is NOT a failed query — there is no
             # checkout to leak into, so it reads as "no guard" (mirror _canary_watched_leaks / T-9511).
@@ -21279,6 +22358,27 @@ def _hand_resolved_merge_paths(*a, **kw):
     `bin/lib/worktree_lifecycle.py#_hand_resolved_merge_paths`. Same shape as the sibling above: no
     host injection, `_run_git_cap` arrives keyword-only from the caller."""
     return worktree_lifecycle._hand_resolved_merge_paths(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._carry_out_local_changes)
+def _carry_out_local_changes(*a, **kw):
+    """T-13642 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_carry_out_local_changes`. No host
+    injection; `_run_git_cap` (and `_die` where used) arrive keyword-only from the caller."""
+    return worktree_lifecycle._carry_out_local_changes(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._put_back_carried)
+def _put_back_carried(*a, **kw):
+    """T-13642 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_put_back_carried`. No host
+    injection; `_run_git_cap` (and `_die` where used) arrive keyword-only from the caller."""
+    return worktree_lifecycle._put_back_carried(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._carry_back_local_changes)
+def _carry_back_local_changes(*a, **kw):
+    """T-13642 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_carry_back_local_changes`. No host
+    injection; `_run_git_cap` (and `_die` where used) arrive keyword-only from the caller."""
+    return worktree_lifecycle._carry_back_local_changes(*a, **kw)
 
 
 @functools.wraps(worktree_lifecycle._staged_conflict_marker_paths)
@@ -27197,7 +28297,8 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             # T-12509: name the tail's in-flight paths BEFORE the first write, so a concurrent land's
             # P0 arm waits them out instead of refusing them as foreign; the span clears it on exit.
             _arm_tail_marker([f"tests/{_VERIFY_DURATIONS_FILE}",
-                              f"tests/{verify_runner._LOAD_SENSITIVE_FILE}", "tasks/T-*.yaml"])
+                              f"tests/{verify_runner._LOAD_SENSITIVE_FILE}", "tasks/T-*.yaml",
+                              land_verify_legs._UNIT_LANE_FILE])
             try:
                 _vtr = _refresh_verify_duration_table(
                     # T-13228: a routed land's width is the box's derived W (`venue_workers`).
@@ -27657,6 +28758,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 print("land: load-sensitive set — ENTERED " + ", ".join(_lse["entered"])
                       + f" (>= {_lse.get('threshold')} entry events — isolated-pass retries or at-bound pool timeouts — in {_lse.get('window_days')}d; "
                         f"tests/{verify_runner._LOAD_SENSITIVE_FILE}, removal is a card's decision)")
+            # T-13609 (SPEC-1006 rule 11) — the per-unit entry of a consumer's adapter-backed layers
+            # is the second half of the same tail writer; its report rides `_lse["units"]`.
+            _lle = _lse.get("units") or {}
+            if _lle.get("entered"):
+                print("land: per-unit load-sensitive list — ENTERED " + ", ".join(_lle["entered"])
+                      + f" (>= {_lle.get('threshold')} rescued per-unit re-runs in {_lle.get('window_days')}d; "
+                        f"{land_verify_legs._UNIT_LANE_FILE}, removal is a card's decision)")
             # T-11191 (SPEC-0184 rule 5) — the per-member verdict seam, immediately after the row it
             # extends and INSIDE the same ff lock, so a member's verdict and the ff that produced it
             # are recorded atomically. `_land_batch_members` returns a SINGLETON today (formation is
@@ -27789,6 +28897,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             _post_ff_commit = _land_post_ff_commit_needed(_lse, _vtr)
             if _post_ff_commit:
                 _run_git_cap(["add", "events.jsonl"], main_wt)
+            if _lle.get("written"):
+                # T-13609: the appended per-unit carrier rides the same fresh bookkeeping commit.
+                _run_git_cap(["add", land_verify_legs._UNIT_LANE_FILE], main_wt)
             if _lse.get("written"):
                 # T-12358: stage the appended carrier beside the journal so it rides the ONE fresh
                 # bookkeeping commit. Staged ONLY when a line was appended — an unchanged land

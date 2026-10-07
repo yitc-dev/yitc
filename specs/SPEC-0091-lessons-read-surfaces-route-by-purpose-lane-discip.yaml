@@ -1,0 +1,86 @@
+id: SPEC-0091
+title: Lessons read-surfaces + route-by-purpose lane discipline
+status: active
+created_at: 2026-06-19 18:51:41+00:00
+travels: null
+consumed: false
+implements: []
+body: "## Scenario\n\nThe owner/AI keeps `lessons/` (repo-local craft) and `patterns/`\
+  \ (general methodology). Two\ndisciplines give lessons their value: (1) they are\
+  \ READ at the moments a future decision could\nreuse them, and (2) every note the\
+  \ AI produces ROUTES to a governed home by what it is FOR — there\nis no «just a\
+  \ note» lane. This spec is the SINGLE normative home of both (the rule «durable\
+  \ rule →\nspec»); `patterns/doc-conventions.md` carries only a taxonomy POINTER\
+  \ to it.\n\n## Internal\n\n### Rule 1 — Read-surfaces (lessons must be CONSULTED,\
+  \ or they are a dead loop)\nRelevant `lessons/` entries (graph-queryable, found\
+  \ by topic) are surfaced at THREE moments:\n- **plan-draft authoring** — the front-load\
+  \ read (plan-stage-entry:draft axis; SPEC-0043 carries\n  the pointer);\n- **task\
+  \ Stage-1 Analysis** — the prior-art sweep (stage-entry:Analysis; SPEC-0032 carries\
+  \ the\n  pointer). One-home note: exactly ONE active home owns the read-surface\
+  \ rule — this spec; SPEC-0089\n  keeps only the PRODUCER/capture discipline;\n-\
+  \ **the design-JUDGING external audits** — task `audit-pre`, via its EXISTING `--from-file\
+  \ <lesson>`\n  carrier (NOT `--read-corpus`: that flag exists ONLY on `audit adhoc`,\
+  \ never on `audit pre`), plus\n  ad-hoc design consults via `audit adhoc --read-corpus`.\
+  \ The RELEVANT lessons are inlined (never the\n  whole corpus — prompt-cost). `plan\
+  \ check` (draft-only shaping) and audit-post MAY receive a lesson\n  the same way\
+  \ but are NOT the design-judging gates (a different control-point).\nNo new audit\
+  \ mechanism, store, event, FLAG, or gate — this REUSES each verb's EXISTING corpus-inline\n\
+  carrier (`audit pre --from-file`, `audit adhoc --read-corpus`), the read-receipt\n\
+  journal, and the existing stage-entry delivery. SPEC-0032 / SPEC-0043 / SPEC-0036\
+  \ keep their\ndelivery mechanics UNCHANGED and gain only a one-line pointer to this\
+  \ rule.\n\n### Rule 2 — Route-by-purpose lane discipline (no «just a note»)\nEvery\
+  \ note routes by its FATE/PURPOSE; there is NO purposeless-note lane:\n- reusable\
+  \ craft → `lessons/` (repo-local) or `patterns/` (general, travels) — the local-vs-general\n\
+  \  boundary is the structural plan's test, and the local-vs-general lane is RE-EVALUATED\
+  \ on a cadence\n  — see SPEC-0090 §2b (the generalization sweep);\n- to-do-LATER\
+  \ → a `plan` (or `ideas/` = a plan-seed awaiting a trigger);\n- short to-do-NOW\
+  \ → a `MEMORY.md` line (consume-once, deleted after use);\n- went-wrong → a `deviation`\
+  \ / `errors/` entry;\n- durable standing rule → a `spec`; a user-path → a `scenario`;\n\
+  - history (what happened, when) → the journal.\n\n### Rule 3 — Ambiguous-class:\
+  \ a factual note has NO durable home of its own\nA repo-local FACTUAL note that\
+  \ is not yet reusable craft, not a plan-seed, not a rule, not an error,\nnot a scenario\
+  \ does NOT get a durable «limbo» class. While it is only a CANDIDATE its governed\n\
+  carrier is the **transient `MEMORY.md` line** (consume-once, deleted after use —\
+  \ SPEC-0039). It\nearns a durable `lessons/` home ONLY by passing the qualification\
+  \ test (Rule 4) — the governed\nPROMOTION `transient MEMORY → lessons/`. If it never\
+  \ qualifies it is deleted after use. So nothing\nis simultaneously durable and home-less.\n\
+  \n### Rule 4 — Lesson qualification test\nA factual note QUALIFIES as a `lessons/`\
+  \ entry when ALL THREE hold:\n(a) **reusable** — it will inform ≥1 FUTURE work item,\
+  \ not a one-shot;\n(b) **about HOW to do the work** — craft/method, not a historical\
+  \ event or a status;\n(c) **repo-local-specific** — true of THIS project's code/stack,\
+  \ not general methodology\n    (general → `patterns/`).\nFail any → NOT a lesson\
+  \ (it stays a transient MEMORY line, or routes per Rule 2).\n\n## Parameters\nNone\
+  \ consumed.\n\n## Rationale\n\nProvenance (the founding incidents, the refinement\
+  \ history and the rejected alternatives) lives in\ngit history and the authoring\
+  \ plan — not here.\n\n## Verification\n\n- **Read-surfaces (Rule 1) — deterministic:**\
+  \ a Stage-1 / plan-draft read-receipt NAMES a `lessons/`\n  id at a LATER work item\
+  \ (yes/no); a gate-specs / audit-pre saved artifact NAMES an inlined lesson\n  id\
+  \ (yes/no) — both replayable from the journal / `decisions/`, not claim-only. **Repeat-catch\n\
+  \  signal — COUNTED:** over the saved audit-result YAMLs, count\n  the cases where\
+  \ an audit FINDING cites the same repeated pitfall that an inlined `lessons/` id\
+  \ in the\n  same audit names — a zero/non-zero count over the saved YAMLs, replayable,\
+  \ not a narrative claim.\n- **Route-discipline (Rules 2-4) — counted:** over a bounded\
+  \ window M = the work items in ONE Review\n  soak-cycle (the weekly cadence — the\
+  \ window-selection rule, NOT re-negotiated per trial), count the\n  note population\
+  \ pinned to ONE scope — the interactive main-session notes across that selected\
+  \ Review\n  weekly cycle (the journal + those items' commits), the SAME denominator\
+  \ used at postcheck (the plan's\n  `postcheck_probe_block`); unhomed «just-note»\
+  \ dumps MUST = 0; and ≥1\n  factual note has the Rule-4 test applied (promoted to\
+  \ a lesson OR kept transient).\n"
+cites:
+- CHARTER.md#principle-1
+- SPEC-0032
+- SPEC-0043
+- SPEC-0036
+- SPEC-0083
+- SPEC-0039
+- SPEC-0089
+- memory-redefinition-amendment-short-deleted-after-
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: lessons-read-surfaces-and-route-by-purpose-lane-di
+binding:
+- plan-stage-entry:draft
+- stage-entry:Analysis
+- stage-entry:Audit-pre

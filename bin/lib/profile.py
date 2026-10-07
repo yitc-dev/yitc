@@ -320,12 +320,13 @@ def _git_tracked(root: Path):
     project. Where git can answer, its answer is the inventory; where it cannot (a plain directory,
     no git binary), the walk below is the fallback and the distinction is recorded, never guessed.
     """
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     if not (root / ".git").exists():
         return None
     try:
         import subprocess
         proc = subprocess.run(["git", "-C", str(root), "ls-files", "-z"],
-                              capture_output=True, timeout=20)
+                              capture_output=True, timeout=20, env=_git_env._git_child_env())
     except Exception:
         return None
     if proc.returncode != 0:

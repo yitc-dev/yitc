@@ -10,7 +10,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ leak), or an exception-capable artifact (spec/pattern) whose placement the plan\
   \ leaves implicit (`spec new` fails closed without a `--travels` decision). ALSO\
   \ inline relevant `lessons/` entries to the design-judging auditor via the EXISTING\
-  \ `audit pre --from-file <lesson>` carrier — the audit lessons read-surface (<workshop-spec>\
+  \ `audit pre --from-file <lesson>` carrier — the audit lessons read-surface (SPEC-0091\
   \ Rule 1). CONTENT-BOUNDARY BINDING (SPEC-0005 §3 / X-0134 RC1b): when a forecast\
   \ change AUTHORS or EDITS a spec, implementation detail — DTO / payload / schema\
   \ SHAPES, field / function signatures, data-structure layouts, runtime flags / env-var\

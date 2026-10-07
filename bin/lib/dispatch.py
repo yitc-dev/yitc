@@ -216,6 +216,13 @@ def _scratch_user() -> str:
 # log+pid stay OUTSIDE it by design (a poller reads them past land's own teardown); the sweep's
 # transport arm reclaims those.
 SCRATCH_ROOT_PREFIX = "yitc-scratch-"
+# T-13594 — HOW a scratch checkout is made, spelled ONCE and read by both surfaces that name the
+# root (the session-start scratch line and the worker preamble), so the two cannot drift. Full clones
+# of this repository filled /tmp with ~118 GB in one day (2026-10-05).
+SCRATCH_CLONE_RULE = ("a scratch checkout of this repository is made with `git worktree add` when a working "
+                      "tree of a commit is enough, or `git clone --shared` / `git clone --reference <the main "
+                      "repository>` when a separate repository is needed — never a full clone (a --shared / "
+                      "--reference clone borrows the main repository's objects, so it breaks if those are removed)")
 _SCRATCH_REF_RE = re.compile(r"[A-Za-z0-9._-]+")
 
 
@@ -338,23 +345,34 @@ def _build_over_cap_test_rule(test_log: str, test_pid: str) -> str:
     "background-wait ceiling, Execution work and a paid audit-pre stranded uncommitted). What "
     "SYNCHRONOUS protects is the HELD TURN, not the foreground PROCESS — so when the suite cannot fit "
     "one call, run it DETACHED while you HOLD YOUR TURN. Launch "
-    f"`rm -f {test_pid}; setsid bash -c 'echo $$ > {test_pid}; exec "
+    f"`: > {test_pid}; setsid bash -c 'echo $$ > {test_pid}; exec "
     "<the SAME `task test --run --evidence \"<summary>\"` invocation you would have run in the "
     f"foreground> > {test_log} 2>&1' </dev/null &` — `>` (TRUNCATE), never `>>`, so the log carries "
     "THIS attempt's bytes only and a previous attempt's token can never be re-read as this one's "
-    "(T-11900/T-11925). RESOLVE the handle by READING the pidfile that detached shell just wrote — "
+    "(T-11900/T-11925); the leading `: >` EMPTIES a stale pidfile the same way, by truncation and "
+    "with no `rm` (X-1857), "
+    "and the resolve below waits for a NON-EMPTY file, so a previous attempt's pid can never be read "
+    "back as this one's. RESOLVE the handle by READING the pidfile that detached shell just wrote — "
     f"`TEST_PID=$(timeout 30 bash -c 'until [ -s {test_pid} ]; do sleep 1; done; cat {test_pid}')` — "
     "and NEVER as `$!`: `setsid` forks only when the caller is already a process-group leader, so "
     "that handle is valid with job control OFF and dead within a second with it ON (X-1011), failing "
     "in the direction that reads a RUNNING suite as TERMINAL. POLL in BOUNDED FOREGROUND windows, "
     "each re-invoked INLINE in the SAME turn — "
-    "`timeout 300 bash -c \"until grep -qE '^TEST: (PASS|FAIL)' "
-    f"{test_log} || ! kill -0 $TEST_PID 2>/dev/null; do sleep 10; done\"` — note the poll is in "
-    "DOUBLE quotes so YOUR shell expands `$TEST_PID` BEFORE `bash -c` runs. Single quotes there "
-    "would pass the name through literally, the nested bash does not inherit an unexported shell "
-    "variable, `kill -0` would run against an EMPTY pid and fail, `! kill -0` would be TRUE on the "
-    "first iteration, and the window would return INSTANTLY reporting a still-running suite as "
-    "terminal — the false-GREEN this whole recipe exists to prevent. Until TERMINALITY, which "
+    "`timeout 300 bash -c 'until grep -qE \"^TEST: (PASS|FAIL)\" "
+    f"{test_log} || {{ [ -s {test_pid} ] && ! kill -0 \"$(cat {test_pid})\" 2>&-; }}; "
+    "do sleep 10; done'` — RUN EVERY `bash -c` SCRIPT OF THIS RECIPE EXACTLY AS PRINTED: "
+    "single-quoted, every path written out, NOTHING taken from your own shell. The window reads the "
+    "pid from the pidfile ITSELF (the pid `$TEST_PID` holds), so it needs no variable — and a shell "
+    "variable does not survive into your next tool call anyway. Do NOT respell a script in double "
+    "quotes around your own `$VAR`, and do NOT hand it values as positional parameters: the harness "
+    "REFUSES a `-c` script it cannot read as a literal, with a message that blames `rm` even when the "
+    "call runs none (X-1857 — measured: every one of 326 such refusals carried a non-literal script, "
+    "none a literal one). A single-quoted script that NAMES `$TEST_PID` is the opposite failure: the "
+    "nested bash does not inherit an unexported shell variable, `kill -0` would run against an EMPTY "
+    "pid and fail, `! kill -0` would be TRUE on the first iteration, and the window would return "
+    "INSTANTLY reporting a still-running suite as "
+    "terminal — the false-GREEN this whole recipe exists to prevent; the `[ -s … ]` guard keeps an "
+    "EMPTY pidfile polling for the same reason. Until TERMINALITY, which "
     "is the `^TEST: (PASS|FAIL)` token on stdout OR the test PROCESS EXITING (`kill -0 $TEST_PID` "
     "failing), polled BESIDE each other in the same window since a suite that dies without printing "
     "its token is terminal too. `task test --run` emits that token as its FINAL stdout line on BOTH "
@@ -413,9 +431,10 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "— the pid your `bg_dispatch_launched` record carries, resolvable as `WPID=$(grep "
     "bg_dispatch_launched events.jsonl | grep \"$YITC_EXPECTED_SESSION_REF\" | tail -1 | python3 -c "
     "'import sys,json;print(json.load(sys.stdin)[\"data\"][\"pid\"])')` — then launch "
-    f"`rm -f {land_pid}; YITC_LAND_HELD_TURN_PID=$WPID setsid bash -c 'echo $$ > {land_pid}; exec "
+    f"`: > {land_pid}; YITC_LAND_HELD_TURN_PID=$WPID setsid bash -c 'echo $$ > {land_pid}; exec "
     "<the SAME `land --task T-XXXX` invocation you would have run in the foreground — the engine-CLI "
-    f"form this preamble gives you> > {land_log} 2>&1' </dev/null &`, then RESOLVE the handle by "
+    f"form this preamble gives you> > {land_log} 2>&1' </dev/null &` (the leading `: >` empties a "
+    "stale pidfile without an `rm`, X-1857), then RESOLVE the handle by "
     "READING the pidfile that detached shell just wrote — "
     f"`LAND_PID=$(timeout 30 bash -c 'until [ -s {land_pid} ]; do sleep 1; done; cat {land_pid}')` "
     "(the `exec` makes that pid the LAND process itself, so the handle is the real one). "
@@ -427,11 +446,17 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "POLL that log in BOUNDED "
     "FOREGROUND windows, each re-invoked "
     "INLINE in the SAME turn — `timeout 300 bash -c 'until grep -qE \"^LAND: (OK|ABORT)\" "
-    f"{land_log}; do sleep 10; done'` — until TERMINALITY, which is `^LAND: (OK|ABORT)` on "
+    f"{land_log} || {{ [ -s {land_pid} ] && ! kill -0 \"$(cat {land_pid})\" 2>&-; }}; "
+    "do sleep 10; done'` — until TERMINALITY, which is `^LAND: (OK|ABORT)` on "
     "stdout OR the land PROCESS EXITING (`kill -0 $LAND_PID` failing — poll it BESIDE the token grep, "
-    "in the same window, since a land that dies without printing its token is terminal too, and read "
+    "in the same window, as the window above does by reading the pid from the pidfile itself, since "
+    "a land that dies without printing its token is terminal too, and read "
     "the log for the verdict once either fires), and NOTHING else: a bare `yitc-v2:` line is "
-    "ordinary progress, never a token (capture the diagnostic channel, gate on token-or-exit). The "
+    "ordinary progress, never a token (capture the diagnostic channel, gate on token-or-exit). RUN "
+    "EVERY `bash -c` SCRIPT OF THIS RECIPE EXACTLY AS PRINTED — single-quoted, every path written "
+    "out, nothing interpolated from your own shell and no positional parameters: the harness REFUSES "
+    "a `-c` script it cannot read as a literal, with a message that blames `rm` even when the call "
+    "runs none (X-1857). The "
     "claim is verified SERVER-SIDE against your dispatch record and FAILS CLOSED — a wrong, "
     "unverifiable or unresolvable pid is simply REFUSED with `main` untouched — and an ADMITTED "
     "detached land is BOUND TO YOUR PROCESS LIVENESS: it KILLS ITSELF, journaling "
@@ -796,8 +821,10 @@ names who may occupy it — being re-dispatched is not being granted the right).
      worktree does NOT carry that directory: run `mkdir -p .yitc` BEFORE the first redirect there,
      or the redirect fails and THE VERB NEVER RUNS (T-13536). A name outside both still carries
      `<sessionref>-<task>` (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go under the scratch
-     root too, never a bare /tmp name: your land/park REMOVES that root, and `worktree sweep`
-     reclaims a dead session's. The engine's
+     root too, never a bare /tmp name, and {SCRATCH_CLONE_RULE}. Your land/park REMOVES that root,
+     and `worktree sweep` reclaims a dead session's. So NEVER redirect a `land`'s output into the
+     scratch root: a successful land removes it BEFORE printing `LAND: OK`, so the token is lost with
+     it — use the engine-named land log below (T-13639). The engine's
      own detached land/test log+pid (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`, T-11294 off
      the same false-GREEN class) stay OUTSIDE it by design — a poller reads them past land's teardown.
    - **A RE-LAND POLL IS ANCHORED TO THIS ATTEMPT'S BYTES.** The start-detach land log

@@ -3276,10 +3276,11 @@ def _card_repair_chain_transparent(commit: str, tid: str, *, _bookkeeping_commit
 
     Pure predicate, never raises: every git failure, every unreadable parent list and every
     unprovable input answers False — a walk that cannot verify must not grant."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = subprocess.run(
             ["git", "-C", str(REPO_ROOT), "rev-list", "--parents", "-n", "1", str(commit)],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         if r.returncode != 0:
             return False
         fields = (r.stdout or "").split()
@@ -3319,12 +3320,13 @@ def _card_repair_chain_walk(sha: str, covered: str, tid: str, *,
 
     Pure predicate; never raises; False on any git failure, any unreadable parent and any unprovable
     input — a walk that cannot verify must not grant."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         cur = str(sha)
         for _ in range(_CARD_REPAIR_CHAIN_MAX_DEPTH):
             par = subprocess.run(
                 ["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", f"{cur}^1"],
-                capture_output=True, text=True, check=False)
+                capture_output=True, text=True, check=False, env=_git_env._git_child_env())
             if par.returncode != 0:
                 return False
             raw = par.stdout.strip()
@@ -3365,12 +3367,13 @@ def _folded_audit_post_record(sha: str, tid: str, REPO_ROOT) -> "dict | None":
     repair is only ever committed on an in-flight card, so the archive fallbacks are not consulted.
     A governed record read from GIT — the same trust boundary the other conjuncts sit behind; the
     actor being fenced cannot rewrite a committed blob. Pure; never raises; no host collaborator."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         if not sha or not tid or REPO_ROOT is None:
             return None
         r = subprocess.run(
             ["git", "-C", str(REPO_ROOT), "show", f"{sha}:decisions/{tid}-audit-post.yaml"],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, check=False, env=_git_env._git_child_env())
         if r.returncode != 0 or not (r.stdout or "").strip():
             return None
         import yaml

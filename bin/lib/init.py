@@ -2157,11 +2157,12 @@ def scaffold_staleness(REPO_ROOT, ENGINE_ROOT, templates) -> "tuple[list, dict]"
     nothing — while <project>'s drifted runner was exactly the case an UNREADABLE report hid (audit-pre
     fp1:c94fbc313389576d). `kinds` reuses the T-10886 refusal oracle: DIVERGED when a refresh would
     delete local lines, else BEHIND (a previous kernel release, or a strict subsequence of today's)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     pending, kinds = [], {}
     # T-13112: the runner's kernel form is the LAUNCHER rendered for the engine install root.
     install = _engine_install_root(ENGINE_ROOT, lambda a, cwd: subprocess.run(
-        ["git", "-C", str(cwd), *a], capture_output=True, text=True, timeout=30))
+        ["git", "-C", str(cwd), *a], capture_output=True, text=True, timeout=30, env=_git_env._git_child_env()))
     for rel in ("bin/security-audit", *templates):
         eng, dst = ENGINE_ROOT / rel, REPO_ROOT / rel
         if not (eng.exists() and dst.exists()):
@@ -2208,8 +2209,9 @@ def _scaffold_is_init_written(REPO_ROOT, rel: str, consumer_text: str):
     if not (Path(REPO_ROOT) / ".git").exists():
         return None
     def _git(args, stdin_text=None):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(REPO_ROOT), *args], input=stdin_text,
-                              capture_output=True, text=True, timeout=60)
+                              capture_output=True, text=True, timeout=60, env=_git_env._git_child_env())
     try:
         h = _git(["hash-object", "--stdin"], stdin_text=consumer_text)
         want = h.stdout.strip() if h.returncode == 0 else ""
@@ -2257,8 +2259,9 @@ def _scaffold_is_kernel_ancestor(ENGINE_ROOT, rel: str, consumer_text: str):
     if not (Path(ENGINE_ROOT) / ".git").exists():
         return None
     def _git(args, stdin_text=None):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         return subprocess.run(["git", "-C", str(ENGINE_ROOT), *args], input=stdin_text,
-                              capture_output=True, text=True, timeout=60)
+                              capture_output=True, text=True, timeout=60, env=_git_env._git_child_env())
     try:
         h = _git(["hash-object", "--stdin"], stdin_text=consumer_text)
         if h.returncode != 0:
@@ -2355,10 +2358,11 @@ class _ScaffoldTestCorpus:
         self._files = False            # False = not loaded yet; None = unenumerable; else [(path, bytes|None)]
 
     def _load(self):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         import subprocess
         try:
             r = subprocess.run(["git", "-C", str(self.repo_root), "ls-files", "-z"],
-                               capture_output=True, timeout=30)
+                               capture_output=True, timeout=30, env=_git_env._git_child_env())
         except (OSError, subprocess.SubprocessError):
             return None
         if r.returncode != 0:
@@ -4189,11 +4193,21 @@ def _born_fragment_is_live(section: str) -> bool:
     return _mirror_adoption_status(parsed, entry) == "adopt"
 
 
-def _engine_charter_path():
+def _engine_charter_path(root=None):
     """The ENGINE CHARTER path, resolved relative to THIS module (the `_load_concern_registry` idiom) —
-    a seam so a test can point it at an unreadable file (T-13446)."""
+    a seam so a test can point it at an unreadable file (T-13446).
+
+    An INSTALLED engine has no root CHARTER.md: the release cut ships only its release-view twin, which
+    keeps the amendment text. So the root file is read when it exists (the source checkout), else the
+    release-view twin — the same place `_handbook_seed_path` reads an installed engine's handbook from
+    (T-13638, GitHub #51). When neither exists the read still fails closed, naming the release-view path."""
     from pathlib import Path
-    return Path(__file__).resolve().parents[2] / "CHARTER.md"
+    from lib import graph as _graph
+    root = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    source = root / "CHARTER.md"
+    if source.is_file():
+        return source
+    return root / _graph.RELEASE_VIEW_DIR / _graph.release_view_name("CHARTER.md")
 
 
 def _charter_born_permissive_cause(charter_text: "str | None" = None) -> "str | None":
@@ -8444,6 +8458,7 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
     dangling link is ordinary release content), and a gitlink (mode 160000) is only an empty
     directory in a `git archive`, so it is never read as a file. Every on-disk entry that is not a
     directory and not in the tree is EXTRA. It writes nothing."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import hashlib
     import os
     import subprocess
@@ -8452,7 +8467,7 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
     root = Path(root)
     try:
         out = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", sha],
-                             capture_output=True, timeout=60)
+                             capture_output=True, timeout=60, env=_git_env._git_child_env())
     except Exception:  # noqa: BLE001 — diagnostics are best-effort; the refusal stands without them
         return None
     if out.returncode != 0:
@@ -8532,6 +8547,7 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     is missing, is not a git repo, or does not carry the tag returns None so the caller reports
     `pin-unresolved` LOUD. Every git/tar failure and timeout is likewise None — a widening that let an
     unresolvable pin read as resolved would turn a loud honest state into a silent false one."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import os
     import shutil
     import subprocess
@@ -8546,7 +8562,8 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     try:
         sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "-q", "--verify",
                               f"refs/tags/{ref}^{{commit}}"],
-                             capture_output=True, text=True, timeout=60).stdout.strip()
+                             capture_output=True, text=True, timeout=60,
+                             env=_git_env._git_child_env()).stdout.strip()
     except Exception:  # noqa: BLE001 — git missing/failing is UNRESOLVED, never a crash
         return None
     if len(sha) != 40 or not all(c in "0123456789abcdef" for c in sha):
@@ -8575,7 +8592,7 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     staging = Path(tempfile.mkdtemp(dir=str(cache.parent), prefix=f".{repo.name}-{sha}."))
     try:
         proc = subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", sha],
-                              capture_output=True, timeout=300)
+                              capture_output=True, timeout=300, env=_git_env._git_child_env())
         if proc.returncode != 0:
             return None
         tar = subprocess.run(["tar", "-x", "-C", str(staging)], input=proc.stdout, timeout=300)
@@ -8686,9 +8703,11 @@ def _names_moving_ref(release_repo, ref) -> bool:
     if any(c in ref for c in " \t\n~^:?*[\\") or ref.startswith("-"):
         return False                      # not a plausible ref name — never handed to git
     def _has(full_ref):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
             return subprocess.run(["git", "-C", str(repo), "rev-parse", "-q", "--verify", full_ref],
-                                  capture_output=True, text=True, timeout=60).returncode == 0
+                                  capture_output=True, text=True, timeout=60,
+                                  env=_git_env._git_child_env()).returncode == 0
         except Exception:  # noqa: BLE001 — an unanswerable question is not evidence of a branch
             return False
     return _has(f"refs/heads/{ref}") and not _has(f"refs/tags/{ref}")
@@ -9983,11 +10002,12 @@ def _is_linked_worktree(path) -> bool:
     """T-13444 / T-13488 — True when `path` is inside a LINKED git worktree: `git rev-parse --git-dir`
     there differs from `--git-common-dir`. A main checkout, a folder outside any repository, a missing
     folder and a git fault all read False (fail-soft: nothing changes off a linked worktree)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     from pathlib import Path
     try:
         r = subprocess.run(["git", "rev-parse", "--git-dir", "--git-common-dir"], cwd=str(path),
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=_git_env._git_child_env())
     except OSError:
         return False
     dirs = r.stdout.split("\n")[:2] if r.returncode == 0 else []

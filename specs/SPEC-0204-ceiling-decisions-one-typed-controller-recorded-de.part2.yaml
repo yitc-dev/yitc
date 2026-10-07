@@ -584,15 +584,29 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ names its target in the payload's plan and\n  gate keys. It is the SAME `ceiling_decision`\
   \ event — never a second type — and every other rule-2\n  axis (writer authority,\
   \ the resolved directive, residual membership, the `accept` quote, the\n  `defer`\
-  \ receiving CARD, append-only uniqueness) applies unchanged.\n\n### 7. Kept — the\
-  \ safety properties, and where each now lives\nThe ceiling itself (SPEC-0124, 2\
-  \ passes) — unchanged. No self-grant past the ceiling — rule 2's writer\nauthority\
-  \ + the mandatory directive locator. No silent loop — rule 3: one pass, then terminal\
-  \ on a TASK target; a PLAN gate is decision-bounded, each round admitted only by\
-  \ fresh decisions (rule 9(f)) (amended\n: a YELLOW-absorbable pass admits ONE further\
-  \ absorption re-audit, derived from the rows and spent\nby its own record — still\
-  \ bounded, still no loop).\nAudited-commit custody — rules 1 + 4: fingerprints and\
-  \ decisions are revision-bound; nothing\ninherits. Record integrity — a verdict\
+  \ receiving CARD, append-only uniqueness) applies unchanged.\n  (h) BELOW THE CEILING\
+  \ — ordinary absorption, not decision authority. A typed per-finding\n  `accept`\
+  \ or `defer` is NOT admitted on a plan gate before its ceiling (a recorded late\
+  \ finding\n  aside, rule 2) — `audit decide` refuses it there. Below the ceiling\
+  \ the route is ORDINARY PASSABLE\n  ABSORPTION: a residual that needs no correction\
+  \ is recorded into the gate's saved record through\n  its governed absorption note\
+  \ (a YELLOW verdict only; no pass is spent); a finding that HOLDS the\n  transition\
+  \ is corrected and that gate run again, because the transition still needs a passing\n\
+  \  verdict; and a correction made after a passing verdict re-runs nothing for its\
+  \ own sake —\n  SPEC-0083 §Correction invalidation decides which conclusion it invalidates\
+  \ and which next gate\n  re-examines it. Typed decision authority (rules 2-3) begins\
+  \ AT the ceiling. On either side, a\n  correction that SPEC-0035 rule 5's semantic-effect\
+  \ test classifies\n  as BEHAVIOUR-BEARING is never accepted, deferred or absorbed\
+  \ uncorrected to keep a trial count\n  dry — that is suppression, not dryness (SPEC-0035\
+  \ rule 5); and a `defer` still names its\n  already-filed receiving card (rule 2).\n\
+  \n### 7. Kept — the safety properties, and where each now lives\nThe ceiling itself\
+  \ (SPEC-0124, 2 passes) — unchanged. No self-grant past the ceiling — rule 2's writer\n\
+  authority + the mandatory directive locator. No silent loop — rule 3: one pass,\
+  \ then terminal on a TASK target; a PLAN gate is decision-bounded, each round admitted\
+  \ only by fresh decisions (rule 9(f)) (amended\n: a YELLOW-absorbable pass admits\
+  \ ONE further absorption re-audit, derived from the rows and spent\nby its own record\
+  \ — still bounded, still no loop).\nAudited-commit custody — rules 1 + 4: fingerprints\
+  \ and decisions are revision-bound; nothing\ninherits. Record integrity — a verdict\
   \ never reads GREEN with an undecided residual: rule 3\nrefuses the pass before\
   \ an auditor runs. Loud failure (SPEC-0165) — every refusal axis in rules 2-3 is\n\
   a distinct `read_gate_refused` kind with a pinned test.\n\n### 8. First-round delta\

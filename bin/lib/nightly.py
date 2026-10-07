@@ -118,10 +118,11 @@ def _engine_repo_root(engine_root: Path) -> Path:
     worse than it was; the helper can only ever ADD the worktree recognition. Both exits are absolute
     canonical paths, so the caller's comparison against an already-resolved registry path (and the
     T-9796 alias/relative recognition that rests on it) is preserved."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     fallback = engine_root.resolve()
     try:
         r = subprocess.run(["git", "-C", str(engine_root), "worktree", "list", "--porcelain"],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
     except (OSError, subprocess.SubprocessError):
         return fallback
     if r.returncode != 0:
@@ -2643,9 +2644,10 @@ def _live_writing_branches(proj_path: Path, *, _run) -> "list[str] | None":
     ask", because only the first proves idleness (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`).
     A branch shape wider than `task/` is deliberate: a `work/<slug>` batch is work in flight too, and
     the T-11352 sibling in `bin/lib/cli.py` widened for exactly this reason."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     try:
         r = _run(["git", "-C", str(proj_path), "worktree", "list", "--porcelain"],
-                 capture_output=True, text=True, timeout=60)
+                 capture_output=True, text=True, timeout=60, env=_git_env._git_child_env())
     except Exception:  # noqa: BLE001 — the siblings' never-raise report-only posture
         return None
     if getattr(r, "returncode", 1) != 0:

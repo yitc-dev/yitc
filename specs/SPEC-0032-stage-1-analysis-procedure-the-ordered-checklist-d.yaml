@@ -28,44 +28,44 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ rejected/withdrawn methodological options + their why) — anti-reinvention #5:\
   \ is this approach already weighed and rejected? Extend it, don't create parallel.\
   \ ALSO surface relevant `lessons/` entries for this topic — the Stage-1 lessons\
-  \ read-surface (<workshop-spec> Rule 1).\n   - **Already-SHIPPED dup-check (BEFORE\
-  \ claiming/implementing)** — \"prior-art\" is not only \"is there an\n     analog?\"\
-  \ but \"is this exact work already DONE?\". Grep the task's core implementation\
-  \ SYMBOL (the\n     function / flag / artifact the task would create), AND check\
-  \ the CITED plan's done tasks +\n     `closed_into` — a realized plan that still\
-  \ carries `closed_into: []` makes the \"already done\" link\n     INVISIBLE, so\
-  \ check the plan's done-task list too, not only the field. If the symbol resolves\
-  \ to\n     shipped code OR a cited plan-task already closed it → it is a duplicate:\
-  \ HALT, do not re-implement.\n1a. **REPEATED-WORK CHECK** — the prevention half\
-  \ of filter 1: an \"existing analog?\" that is not\n   REUSED becomes the same work\
-  \ done twice. Does this change add a read, a loop, a poll, a remote\n   fetch, a\
-  \ scan or a worker pass? Then NAME the NEIGHBOURING mechanism at the same seam that\n\
-  \   already folds / caches / bounds / watermarks that work and state what is reused\
-  \ — or record that\n   none exists (this change then owns the first one). Classes,\
-  \ detect heuristics and the severity\n   rubric: `patterns/repeated-work-lens.md`\
-  \ (the single home — never restated here, SPEC-0005 rule 8).\n   Report-only, like\
-  \ the rest of this checklist: no verb refuses on it, and the `analysis:` record\
-  \ is\n   its only carrier. The KERNEL-VERB counterpart of this check — the read\
-  \ contract for composed kernel\n   seams — is SPEC-0190 rule 10.\n2. **Cite-the-proof**\
-  \ — (failure classes #7/#8): an asserted existence/absence MUST cite the\n   grep/path\
-  \ that proves it, and sweep `decisions/` (not only code). «I think it exists» is\
-  \ not prior-art.\n   - **Premise check — the CARD's own assertions. NARROW, and\
-  \ never a gate.** The rule above\n     governs YOUR assertions; this applies it\
-  \ to the CARD's. If the card STATES a **causal or empirical\n     premise** («X\
-  \ happens because Y», «no verb covers this», «the row is absent»), TEST that one\
-  \ claim\n     against the NEAREST code/corpus evidence and RECORD the outcome in\
-  \ the `analysis:` record as\n     **confirmed / refined / refuted**. A card that\
-  \ states no such claim is recorded **not-applicable** —\n     for a purely descriptive\
-  \ card that branch is the expected answer, not an escape.\n     **Three bounds,\
-  \ all load-bearing:** it is NOT a blanket re-derivation of the card (re-litigating\
-  \ a\n     card at Stage 1 costs more than the gap this closes), NOT a second decomposition\
-  \ pass, and NOT\n     permission to reopen an accepted design decision the card\
-  \ is downstream of. **It never blocks:** no\n     verb refuses on it and it adds\
-  \ no artifact — the analysis record is its only carrier.\n     A REFUTED premise\
-  \ found BEFORE the claim takes the governed pre-claim exit (`task refuse` —\n  \
-  \   SPEC-0133); found AFTER, capture the deviation and escalate per SPEC-0103.\n\
-  \     Siblings — pointers, not restatements, so the corpus reads as one rule: SPEC-0060\
-  \ item 3 is the\n     FILING-side cue (how a card is written); `patterns/validate-deviation-task-premise-at-analysis.md`\n\
+  \ read-surface (SPEC-0091 Rule 1).\n   - **Already-SHIPPED dup-check (BEFORE claiming/implementing)**\
+  \ — \"prior-art\" is not only \"is there an\n     analog?\" but \"is this exact\
+  \ work already DONE?\". Grep the task's core implementation SYMBOL (the\n     function\
+  \ / flag / artifact the task would create), AND check the CITED plan's done tasks\
+  \ +\n     `closed_into` — a realized plan that still carries `closed_into: []` makes\
+  \ the \"already done\" link\n     INVISIBLE, so check the plan's done-task list\
+  \ too, not only the field. If the symbol resolves to\n     shipped code OR a cited\
+  \ plan-task already closed it → it is a duplicate: HALT, do not re-implement.\n\
+  1a. **REPEATED-WORK CHECK** — the prevention half of filter 1: an \"existing analog?\"\
+  \ that is not\n   REUSED becomes the same work done twice. Does this change add\
+  \ a read, a loop, a poll, a remote\n   fetch, a scan or a worker pass? Then NAME\
+  \ the NEIGHBOURING mechanism at the same seam that\n   already folds / caches /\
+  \ bounds / watermarks that work and state what is reused — or record that\n   none\
+  \ exists (this change then owns the first one). Classes, detect heuristics and the\
+  \ severity\n   rubric: `patterns/repeated-work-lens.md` (the single home — never\
+  \ restated here, SPEC-0005 rule 8).\n   Report-only, like the rest of this checklist:\
+  \ no verb refuses on it, and the `analysis:` record is\n   its only carrier. The\
+  \ KERNEL-VERB counterpart of this check — the read contract for composed kernel\n\
+  \   seams — is SPEC-0190 rule 10.\n2. **Cite-the-proof** — (failure classes #7/#8):\
+  \ an asserted existence/absence MUST cite the\n   grep/path that proves it, and\
+  \ sweep `decisions/` (not only code). «I think it exists» is not prior-art.\n  \
+  \ - **Premise check — the CARD's own assertions. NARROW, and never a gate.** The\
+  \ rule above\n     governs YOUR assertions; this applies it to the CARD's. If the\
+  \ card STATES a **causal or empirical\n     premise** («X happens because Y», «no\
+  \ verb covers this», «the row is absent»), TEST that one claim\n     against the\
+  \ NEAREST code/corpus evidence and RECORD the outcome in the `analysis:` record\
+  \ as\n     **confirmed / refined / refuted**. A card that states no such claim is\
+  \ recorded **not-applicable** —\n     for a purely descriptive card that branch\
+  \ is the expected answer, not an escape.\n     **Three bounds, all load-bearing:**\
+  \ it is NOT a blanket re-derivation of the card (re-litigating a\n     card at Stage\
+  \ 1 costs more than the gap this closes), NOT a second decomposition pass, and NOT\n\
+  \     permission to reopen an accepted design decision the card is downstream of.\
+  \ **It never blocks:** no\n     verb refuses on it and it adds no artifact — the\
+  \ analysis record is its only carrier.\n     A REFUTED premise found BEFORE the\
+  \ claim takes the governed pre-claim exit (`task refuse` —\n     SPEC-0133); found\
+  \ AFTER, capture the deviation and escalate per SPEC-0103.\n     Siblings — pointers,\
+  \ not restatements, so the corpus reads as one rule: SPEC-0060 item 3 is the\n \
+  \    FILING-side cue (how a card is written); `patterns/validate-deviation-task-premise-at-analysis.md`\n\
   \     is the how-to for the deviation-framed subset («X is missing») — read it when\
   \ the card has that\n     shape; SPEC-0166 is the same discipline at the IMPORT-INTAKE\
   \ seam (`imported_from:` cards, where it\n     does gate dispatch) — this clause\

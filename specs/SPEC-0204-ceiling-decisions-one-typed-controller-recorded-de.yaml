@@ -435,7 +435,7 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: 8e11fb5399e6d6a64801bdb55f5e234a7c5fc842a7779ffe1a94cb57c5c6b3a0
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: dbfad51c3dbb452abda3fe580112d867ca4c8fc2155434a87de0a4d32657cf97
-  bin/lib/audit.py#cmd_audit: 1b75f41b1711752f4e93106f23b15bff44030bbd65d720ef565273ba9a16f087
+  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -458,8 +458,8 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: e9a4563e003d146c3487fad015b9c96d3b4369c9f1e4ddf02303a085b0e9cd27
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 10232c1b899b1e8194d737f52009ac381cd849065f987836cfc9f437255fac6b
+  bin/lib/cli_parser.py#build_parser: 3e087187882305f34ceb526c224a98e2923d9df18f858c1bfd0cc75a3a03779f
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
-  bin/lib/plan.py#_run_plan_gate_audit: 985a27e727c75ea59a7139d61397021d4bc1405ad42761e0c364f1b2d2cbb46d
-  bin/lib/plan.py#cmd_plan_check: e18aee98679bf1bc1a086578da0cec06a4c64e1cee12fc260723664e3c0899cd
+  bin/lib/plan.py#_run_plan_gate_audit: cfd7195f1cccb33ba6492b77346669611f2877b775d22f9a5d465a9d51638238
+  bin/lib/plan.py#cmd_plan_check: 4f48a3ade13764afe1b5e49c54c5346d4b43884199491d6c5659428722642a34

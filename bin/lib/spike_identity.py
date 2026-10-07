@@ -43,7 +43,9 @@ def _now_iso() -> str:
 
 
 def _git(repo, *args, raw=False, inp=None, check=True):
-    p = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=not raw, input=inp)
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    p = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=not raw, input=inp,
+                       env=_git_env._git_child_env())
     if check and p.returncode != 0:
         err = p.stderr if isinstance(p.stderr, str) else p.stderr.decode("utf-8", "replace")
         raise RuntimeError(f"git {' '.join(args)}: {err.strip()[:300]}")

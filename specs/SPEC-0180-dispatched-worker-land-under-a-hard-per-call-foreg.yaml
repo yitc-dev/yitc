@@ -346,46 +346,54 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ buy no protection and would add a second mechanism for nothing\n(CHARTER §P1 F1/F4).\
   \ Consequently the suite path is a RECIPE, delivered in the dispatch preamble\n\
   to BOTH regimes (`bin/lib/dispatch.py#_build_over_cap_test_rule`), not a gated arm\
-  \ in the verb.\n\n**THE POLL WINDOW IS DOUBLE-QUOTED, and that is a CONTRACT clause,\
-  \ not a style note (audit-post\npass 1, fp1:7e23c924909e6290).** The window interpolates\
-  \ the caller's own `$TEST_PID`, so the\nCALLER's shell must expand it BEFORE `bash\
-  \ -c` runs. Spelled in SINGLE quotes the name passes\nthrough literally; a nested\
-  \ `bash -c` does not inherit an unexported shell variable, so `kill -0`\nruns against\
-  \ an EMPTY pid and fails, `! kill -0` is TRUE on the first iteration, and the window\n\
-  returns INSTANTLY reporting a still-running suite as TERMINAL. That is precisely\
-  \ the false-GREEN\nbound (c) exists to forbid, reached through the QUOTING rather\
-  \ than through the token — which is\nwhy it is stated here: every substring of the\
-  \ recipe can be correct and present while the\nassembled command is wrong. The land\
-  \ recipe is not exposed to this (its poll interpolates no\nvariable), so this clause\
-  \ is the suite's own.\n\nSurfaces: `bin/lib/dispatch.py#_build_over_cap_test_rule`,\
-  \ `#_test_log_path`, `#_test_pid_path`\nand `bin/lib/task.py#_test_run_token`.\n\
-  \n### 9. The SAME held-turn exit covers `audit pre|post` — additive\nAn external-audit\
-  \ call is the third over-cap command in evidence: a primary auditor pair that times\n\
-  out (~300 s) followed by the reserve pair (~280 s) plus packet assembly outruns\
-  \ the per-call\nforeground cap, measured in a consumer worker (X-1689). Rule 8's\
-  \ reasoning carries over unchanged:\nwhat protects the work is the HELD TURN, so\
-  \ **a dispatched worker's `audit pre|post` MAY run as a\nDETACHED PROCESS on rule\
-  \ 8's terms** — rule 2's bounds (b) and (c) and rule 4's non-weakening apply\nUNCHANGED\
-  \ (no pass, lens, ceiling or verdict rule moves; this is an exit from a call too\
-  \ LONG, never\nfrom a RED). Rule 5 applies verbatim.\n\n**`audit pre|post` satisfies\
-  \ bound (a) by printing `^AUDIT: (GREEN|YELLOW|RED|ABORT)` as its FINAL\nstdout\
-  \ line on EVERY exit path.** A verdict-carrying exit renders that verdict (the exit\
-  \ code is\nunchanged, GREEN 0 / YELLOW 1 / RED 2 / ABORT 3); every other exit —\
-  \ a refusal, an exception\nincluding an interrupt, a preview or an absorb that reaches\
-  \ no auditor verdict — renders `AUDIT:\nABORT <why>`, meaning NO verdict this call,\
-  \ never a verdict it did not earn. The in-process\nceiling continuation is internal\
-  \ and prints no token of its own; only the outer call's\nfinal exit does. The saved\
-  \ `decisions/<id>-audit-<stage>.yaml` stays the durable verdict record.\n**One stream\
-  \ exception, `--preview`:** there STDOUT is the packet itself and must stay\nbyte-identical\
-  \ to what a real run hands the auditor, so the token is printed as the\nfinal STDERR\
-  \ line instead — a detached poll captures `2>&1` and still sees it.\n\n**The same\
-  \ TWO narrowings as rule 8:** no held-turn admission claim and no liveness watchdog.\
-  \ An\naudit writes its verdict into the worker's OWN worktree and journal and integrates\
-  \ nothing into\n`main`; a worker that yields mid-audit loses only that pass. So\
-  \ it is a RECIPE in the dispatch\npreamble's shared over-cap paragraph, not a gated\
-  \ arm in the verb.\n\nSurfaces: `bin/lib/audit.py#audit_terminal_token`, `bin/lib/audit.py#cmd_audit`\
-  \ (the verdict carried\non the SystemExit), `bin/lib/cli.py#cmd_audit` (the outermost\
-  \ wrapper that prints the token) and\n`bin/lib/dispatch.py#_build_over_cap_test_rule`.\n\
+  \ in the verb.\n\n**EVERY SCRIPT THE RECIPE HANDS TO A NESTED SHELL IS A SELF-CONTAINED\
+  \ LITERAL, and that is a\nCONTRACT clause, not a style note (it restates the quoting\
+  \ clause of audit-post pass 1,\nfp1:7e23c924909e6290, and replaces the double-quoted\
+  \ window that clause prescribed).** The launch,\nthe handle read and the poll window\
+  \ are each spelled in SINGLE quotes with every path written\nout, and take nothing\
+  \ from the caller's shell: no interpolated variable, no positional parameter.\n\
+  The window reads the process id from the pidfile itself, and an EMPTY pidfile keeps\
+  \ it polling.\nTwo failures meet here, both measured. A single-quoted window that\
+  \ NAMES a caller variable\nreceives it empty, since a nested shell does not inherit\
+  \ an unexported variable: `kill -0` fails,\nthe exit half is TRUE on the first iteration,\
+  \ and the window returns INSTANTLY reporting a\nstill-running suite as TERMINAL.\
+  \ That is precisely the false-GREEN bound (c) exists to forbid,\nreached through\
+  \ the QUOTING rather than through the token — every substring of the recipe can\
+  \ be\ncorrect and present while the assembled command is wrong. A double-quoted\
+  \ window that\ninterpolates the caller's variable avoids that and is REFUSED by\
+  \ the harness's command check,\nwhich rejects a nested-shell script it is unable\
+  \ to read as a literal and reports a possible\nremoval where the call runs none\
+  \ (X-1857). A literal that reads the pidfile is exposed to\nneither. The clause\
+  \ covers the land recipe and the audit recipe of rule 9 on the same terms.\n\nSurfaces:\
+  \ `bin/lib/dispatch.py#_build_over_cap_test_rule`, `#_test_log_path`, `#_test_pid_path`\n\
+  and `bin/lib/task.py#_test_run_token`.\n\n### 9. The SAME held-turn exit covers\
+  \ `audit pre|post` — additive\nAn external-audit call is the third over-cap command\
+  \ in evidence: a primary auditor pair that times\nout (~300 s) followed by the reserve\
+  \ pair (~280 s) plus packet assembly outruns the per-call\nforeground cap, measured\
+  \ in a consumer worker (X-1689). Rule 8's reasoning carries over unchanged:\nwhat\
+  \ protects the work is the HELD TURN, so **a dispatched worker's `audit pre|post`\
+  \ MAY run as a\nDETACHED PROCESS on rule 8's terms** — rule 2's bounds (b) and (c)\
+  \ and rule 4's non-weakening apply\nUNCHANGED (no pass, lens, ceiling or verdict\
+  \ rule moves; this is an exit from a call too LONG, never\nfrom a RED). Rule 5 applies\
+  \ verbatim.\n\n**`audit pre|post` satisfies bound (a) by printing `^AUDIT: (GREEN|YELLOW|RED|ABORT)`\
+  \ as its FINAL\nstdout line on EVERY exit path.** A verdict-carrying exit renders\
+  \ that verdict (the exit code is\nunchanged, GREEN 0 / YELLOW 1 / RED 2 / ABORT\
+  \ 3); every other exit — a refusal, an exception\nincluding an interrupt, a preview\
+  \ or an absorb that reaches no auditor verdict — renders `AUDIT:\nABORT <why>`,\
+  \ meaning NO verdict this call, never a verdict it did not earn. The in-process\n\
+  ceiling continuation is internal and prints no token of its own; only the outer\
+  \ call's\nfinal exit does. The saved `decisions/<id>-audit-<stage>.yaml` stays the\
+  \ durable verdict record.\n**One stream exception, `--preview`:** there STDOUT is\
+  \ the packet itself and must stay\nbyte-identical to what a real run hands the auditor,\
+  \ so the token is printed as the\nfinal STDERR line instead — a detached poll captures\
+  \ `2>&1` and still sees it.\n\n**The same TWO narrowings as rule 8:** no held-turn\
+  \ admission claim and no liveness watchdog. An\naudit writes its verdict into the\
+  \ worker's OWN worktree and journal and integrates nothing into\n`main`; a worker\
+  \ that yields mid-audit loses only that pass. So it is a RECIPE in the dispatch\n\
+  preamble's shared over-cap paragraph, not a gated arm in the verb.\n\nSurfaces:\
+  \ `bin/lib/audit.py#audit_terminal_token`, `bin/lib/audit.py#cmd_audit` (the verdict\
+  \ carried\non the SystemExit), `bin/lib/cli.py#cmd_audit` (the outermost wrapper\
+  \ that prints the token) and\n`bin/lib/dispatch.py#_build_over_cap_test_rule`.\n\
   \n## Parameters\n\nNone consumed. The cap is a harness property (provider-specific,\
   \ CHARTER §P4b) and is deliberately\nNOT a number in this body: the rule is \"a\
   \ hard per-call cap exists and a land may exceed it\", which\nholds whatever the\

@@ -199,4 +199,5 @@ init_concern: null
 implements_signature:
   bin/lib/session.py#cmd_session_handoff: 5fa9b65a1f28d17cdcccb8b278fa7f88662a749cff648fce54360e3f335f0969
   bin/lib/session.py#handoff_start_echo_lines: 80236ceea6384556eba618551e490c4ce1eac0c9b6cc6a1d307521321d6504c6
+  bin/lib/session.py#handoff_store_dir: aab589bd643ab7aa64cdc7a68ce9b58890635592efcdeb7746536af8e6e4332a
   bin/lib/session.py#open_handoff_store: abaf7d092cb5cbf7db2883b42d18aa6a7fe9d555f7e33b807f5e975b50cd3710

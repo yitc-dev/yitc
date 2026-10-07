@@ -337,6 +337,10 @@ def p8_ref_horizon(refs, task_floor) -> tuple:
         if not etype or (sep and (not layer or not ts)):
             continue
         types.add(etype)
+        if sep and etype == _LAYER_ROW_EVIDENCE_TYPE and not layer.startswith(
+                (_ABORT_ROW_SELECTOR_PREFIX, _VERIFY_REFUSAL_SELECTOR_PREFIX,
+                 _GATE_ROW_SELECTOR_PREFIX, _METRIC_ROW_SELECTOR_PREFIX)):
+            types.add("tests_passed")                  # T-13643 — a credited land's layers live there
         if not ts:
             continue                                   # bare TYPE: task-tied, the task horizon
         if not _ISO_DAY.match(ts):
@@ -362,6 +366,48 @@ def _p8_evidence_event_exists(tid: str, *, _p8_evidence_events_for) -> bool:
     prompt surface + the AC-probe evidence readers want every P8 event of either FORM (T-0255 form-agnosticism);
     only the CLOSE-time adoption judgement tightened, via `_p8_substantive_evidence_exists` below."""
     return bool(_p8_evidence_events_for(tid))
+
+
+def _stage6_layer_rows_index(events: list) -> dict:
+    """T-13643 — `(task_id, ts) -> consumer_verify_layers` of every `tests_passed` row carrying a list,
+    built ONCE per resolution so each credited land is a lookup, never a fresh walk of the corpus.
+    Pure function of `events` — no I/O."""
+    index: dict = {}
+    for ev in events:
+        if ev.get("type") != "tests_passed":
+            continue
+        tid, ts, run = ev.get("task_id"), str(ev.get("ts") or ""), ev.get("data")
+        rows = run.get("consumer_verify_layers") if isinstance(run, dict) else None
+        if isinstance(tid, str) and ts and isinstance(rows, list):
+            index.setdefault((tid, ts), rows)
+    return index
+
+
+def _land_layer_rows(data: dict, stage6_index: dict):
+    """T-13643 (yitc#58) — the verify-layer rows a `land_completed` row ANSWERS FOR, or None.
+
+    A land that ran its candidate verify carries them on `consumer_verify_layers`. A land that took its
+    candidate verdict from the task's Stage-6 run (`stage6_credit`, T-13532) ran no layer itself — its
+    `consumer_verify_layers` holds only the any-author floor — and the layers it answers for are the
+    ones on the `tests_passed` row it credited. That row is read where it lies, never copied onto the
+    land row: a copy would feed every land-row reader and count the run twice.
+    The credited row is matched by IDENTITY, never by proximity: the credit names a task and a ts, the
+    task must be the land's own branch task, and the row must be a `tests_passed` of that task at that
+    ts. Any mismatch — another task's row, no such row, a red row — reads the land row alone, as before.
+    `stage6_index` is `_stage6_layer_rows_index(events)`. Pure — no I/O."""
+    rows = data.get("consumer_verify_layers")
+    own = list(rows) if isinstance(rows, list) else None
+    credit = data.get("stage6_credit")
+    if not isinstance(credit, dict):
+        return own
+    ctid, cts = credit.get("task"), credit.get("ts")
+    if (not isinstance(ctid, str) or not isinstance(cts, str) or not cts
+            or data.get("branch") != f"task/{ctid}"):
+        return own
+    run_rows = stage6_index.get((ctid, cts))
+    if isinstance(run_rows, list):
+        return (own or []) + list(run_rows)
+    return own
 
 
 def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
@@ -406,14 +452,15 @@ def _resolve_layer_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
     own_branch = f"task/{tid}"
     hit = None
     layer_ran_before = False
+    stage6_index = _stage6_layer_rows_index(events)   # T-13643: one walk, every credited land a lookup
     for ev in events:
         if ev.get("type") != "land_completed":
             continue
         data = ev.get("data")
         if not isinstance(data, dict):
             continue
-        rows = data.get("consumer_verify_layers")
-        if not isinstance(rows, list):
+        rows = _land_layer_rows(data, stage6_index)
+        if rows is None:
             continue
         rows = [r for r in rows if isinstance(r, dict) and r.get("layer") == layer]
         if not rows:
@@ -825,12 +872,13 @@ def _gate_row_discoverable_count_at_rev(root: "Path", sha: str) -> "int | None":
     Returns None — never 0 — for every unanswerable case (no root, no sha, an unresolvable sha, a
     non-repo root): the caller must fail closed on an unknown, and a 0 would otherwise read as a
     real "nothing was discoverable"."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     if not sha:
         return None
     try:
         r = subprocess.run(["git", "-C", str(root), "ls-tree", "--name-only", sha, "tests/"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=_git_env._git_child_env())
     except (OSError, ValueError):
         return None
     if r.returncode != 0:
@@ -932,12 +980,13 @@ def _path_existed_at_rev(root: "Path", sha: str, rel: str) -> bool:
     surface that already reaches it with only `REPO_ROOT` (`task close`, the E-0005 cue, the
     SPEC-0119 rule-31 fold) — the same reason the sibling existence check reads the filesystem
     directly."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import subprocess
     if not sha or not rel:
         return False
     try:
         r = subprocess.run(["git", "-C", str(root), "cat-file", "-e", f"{sha}:{rel}"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, env=_git_env._git_child_env())
     except (OSError, ValueError):
         return False
     return r.returncode == 0
@@ -3131,6 +3180,103 @@ def _case_governance_guard(case, paths, *, governance_globs, _case_valid) -> "di
     if not hits:
         return None
     return {"case": str(case.get("case")).strip(), "governance_paths": sorted(set(hits))}
+
+
+def _same_outside_signature_map(before, after) -> bool:
+    """Do two revisions of a spec differ in NOTHING but the top-level `implements_signature:`
+    mapping? PURE, total, never raises.
+
+    THE REST OF A SPEC IS WHAT THE SIGNER ITSELF KEEPS. `spec reverify` writes a signature by taking
+    `state.strip_top_key(text, "implements_signature")`, trimming the trailing newlines and
+    appending the fresh mapping (`bin/lib/cli.py#_reverify_spec_signature`). This reads the SAME
+    expression off both revisions and compares the results byte for byte — so every write that verb
+    can make (a re-stamp, an entry added or dropped, the first mapping on a spec that had none, a
+    mapping moved to the end) compares equal by construction, comments and all, and no second
+    reading of where the mapping is exists (CHARTER §P5: the surgery rule has one source).
+
+    THE SURGERY IS PROVEN EXACT ON EACH REVISION BEFORE IT IS TRUSTED. `strip_top_key` works on
+    lines, so a line that merely LOOKS like the key — a quoted scalar continued at column 0 — would
+    be cut with whatever is indented under it, hiding an edit there. So for each revision the cut
+    text must parse to exactly the revision's own mapping with that one key removed. A cut that
+    took anything else changes or breaks the parse and the revision is not shown to be a re-sign:
+    the look-alike line, a mapping written under a quoted key, a flow mapping continued on a second
+    line, a blank line inside the mapping, a document that is not a mapping."""
+    key = "implements_signature"
+
+    def _rest(doc):
+        text = str(doc)
+        cut = state.strip_top_key(text, key)
+        whole, kept = state.load_str(text), state.load_str(cut)
+        if not isinstance(whole, dict) or not isinstance(kept, dict):
+            raise ValueError("not a mapping")
+        if kept != {k: v for k, v in whole.items() if k != key}:
+            raise ValueError("the cut did not remove exactly the signature mapping")
+        return cut.rstrip("\n")
+
+    try:
+        return _rest(before) == _rest(after)
+    except Exception:
+        return False
+
+
+def _takeback_resign_only(row, *, matched, pending_writes, revisions, _same_outside_signature_map) -> bool:
+    """SPEC-0178 rule 9 (T-13599) — is this takeback a spec RE-SIGN and nothing else? True only when
+    the card MATCHED the case and EVERY governance path in the guard's row is a spec that the card
+    changed in its signature map and nowhere else. PURE apart from the injected `revisions` read,
+    never raises.
+
+    A READER BESIDE THE GUARD, NEVER PART OF IT. `_case_governance_guard` answers on PATHS and is
+    untouched: a re-sign is a spec touch and the card takes audit-post (CHARTER §Self-reference
+    guard). This only says, for the review, what the takeback RESTED ON — so a project whose code
+    is bound to specs can read how many matching cards rule 3 reaches through a re-sign alone.
+
+    A FACT ABOUT THE DIFF, NOT ABOUT THE GATE. It does not say the card would otherwise have closed
+    exempt: rule 4's infra bar, a restored case and the other links of the exemption conjunction are
+    not consulted here, exactly as the takeback row itself is written whatever the gate decided.
+
+    WHAT COUNTS AS A RE-SIGN IS DEFINED BY WHAT IS LEFT, not by the shape of a changed line: a
+    re-stamped entry, an entry added or dropped, and the whole map added to a spec that had none
+    all leave the rest of the file as it was, and that is the test (`_same_outside_signature_map`).
+    A signature-shaped line, a comment or a blank line changed anywhere else is a change to the
+    rest of the file and fails it.
+
+    `revisions` is a zero-arg callable returning `{path: [(before, after), ...]}`, or None when any
+    read it needed could not be made (`bin/lib/task.py#_ship_spec_revisions` — one pair per ship
+    commit that carries the path, plus the card's whole range). EVERY pair must pass that test, and
+    in at least one the signature mapping itself must have changed — a pair that only moved the
+    mapping, or edited a comment inside it, re-signed nothing. It is called only once the cheap
+    checks have passed.
+
+    FAIL-CLOSED TOWARD FALSE at every link, so the count can only under-report:
+      - an unmatched card is not one the case would have exempted;
+      - a governance path outside `specs/` (a test, the ops contract, a seed) is another reason;
+      - a path in `pending_writes` is a `proposed -> active` flip this closure makes — a rule
+        change, whatever the ship diff did to the same file;
+      - a path with no pair in which the mapping changed was not SHOWN to be re-signed; a spec
+        the card adds or deletes has no before or no after, so the read is None."""
+    if not matched or not isinstance(row, dict):
+        return False
+    paths = [str(p) for p in (row.get("governance_paths") or [])]
+    pending = {str(p) for p in (pending_writes or ())}
+    if not paths or any(not p.startswith("specs/") or p in pending for p in paths):
+        return False
+    try:
+        revs = revisions()
+        if not isinstance(revs, dict):
+            return False
+        for p in paths:
+            pairs = list(revs.get(p) or [])
+            if not all(_same_outside_signature_map(before, after) for before, after in pairs):
+                return False
+            if not any(state.load_str(str(before)).get("implements_signature")
+                       != state.load_str(str(after)).get("implements_signature")
+                       for before, after in pairs):
+                return False
+    except Exception:
+        return False                           # an unreadable diff shows nothing (above)
+    return True
+
+
 _CASE_DEFECT_KIND = "defect"                   # the triage judgement rule 5 counts, spelled EXACTLY
 
 
@@ -3208,8 +3354,16 @@ def _case_closure_index(events_path) -> dict:
             oop = [str(r.get("case")).strip()
                    for r in (_oop_rows if isinstance(_oop_rows, list) else [])
                    if isinstance(r, dict) and str(r.get("case") or "").strip()]
+            # T-13599 (rule 9) — the cases this closure was taken back from by a spec re-sign ONLY.
+            # Same row, same fold as `out_of_path` above, for the same reason.
+            _tb_rows = d.get("governance_takeback")
+            resign = [str(r.get("case")).strip()
+                      for r in (_tb_rows if isinstance(_tb_rows, list) else [])
+                      if isinstance(r, dict) and r.get("resign_only") is True
+                      and str(r.get("case") or "").strip()]
             idx[tid] = {"case": case.strip() if isinstance(case, str) and case.strip() else None,
-                        "closed_at": str(e.get("ts") or ""), "out_of_path": oop}
+                        "closed_at": str(e.get("ts") or ""), "out_of_path": oop,
+                        "resign_only_cases": resign}
     except Exception:
         return idx                             # a corpus read must never break a close (read-only)
     return idx
@@ -3341,7 +3495,7 @@ def _case_covered_share(case, *, closures, now, _CASE_WINDOW_DAYS_DEFAULT, _case
     reintroduce them under another name."""
     name = str(case.get("case") or "").strip() if isinstance(case, dict) else ""
     out = {"case": name or None, "applies": False, "w": None, "window_start": None,
-           "closed": 0, "exempted": 0, "share": None, "why": ""}
+           "closed": 0, "exempted": 0, "share": None, "why": "", "resign_only_cards": []}
     if not isinstance(case, dict):
         out["why"] = "not a mapping"
         return out
@@ -3357,7 +3511,7 @@ def _case_covered_share(case, *, closures, now, _CASE_WINDOW_DAYS_DEFAULT, _case
     start = end - _dt.timedelta(days=w)
     out["applies"] = True
     out["window_start"] = start.isoformat()
-    for row in (closures or {}).values():
+    for tid, row in sorted((closures or {}).items()):
         if not isinstance(row, dict):
             continue
         at = _case_ts(row.get("closed_at"))
@@ -3366,6 +3520,11 @@ def _case_covered_share(case, *, closures, now, _CASE_WINDOW_DAYS_DEFAULT, _case
         out["closed"] += 1
         if row.get("case") == name:
             out["exempted"] += 1
+        # T-13599 — cards that matched this case and that rule 3 took back on a spec re-sign and
+        # nothing else, over the SAME window. Named, not only counted, so the line stays
+        # checkable. Report-only like the share: no caller branches on it.
+        if name in (row.get("resign_only_cases") or []):
+            out["resign_only_cards"].append(str(tid))
     if out["closed"]:
         out["share"] = out["exempted"] / out["closed"]
     else:
@@ -3471,8 +3630,11 @@ def _case_share_basis(share) -> str:
         return (f"covered share UNDEFINED over the case's own {share['w']}-day window — "
                 f"{share['closed']} closed card(s) in it (an empty denominator is a measurement not "
                 f"taken, never 0%)")
+    resign = list(share.get("resign_only_cards") or [])
     return (f"covered share {share['exempted']}/{share['closed']} = {share['share'] * 100:.1f}% of "
-            f"cards closed in the case's own {share['w']}-day window (report-only: no ceiling, no "
+            f"cards closed in the case's own {share['w']}-day window; {len(resign)} card(s) there "
+            f"matched the case at close and were taken back by rule 3 on a spec re-sign alone"
+            f"{' (' + ', '.join(resign) + ')' if resign else ''} (report-only: no ceiling, no "
             f"threshold, nothing refused)")
 
 

@@ -42,32 +42,31 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ query <related-spec>` / `graph query --type view` /\n   grep — does an analog\
   \ already exist? extend over create). The sweep is the CHARTER §P1 F1 filter,\n\
   \   homed there — this is a pointer. ALSO surface relevant `lessons/` entries for\
-  \ this topic — the\n   plan-draft lessons read-surface (<workshop-spec> Rule 1).\n\
-  2. **Owner-visible done-criterion.** Name the result the OWNER would recognize as\
-  \ \"done\" (the\n   plan's eventual `realized` proof reads back to it). Not \"code\
-  \ shipped\" — an observable outcome\n   (CHARTER §P3 done=adopted, homed there).\n\
-  3. **Verification plan UPFRONT.** Sketch the probe targets, the real-data soak expectation,\
-  \ and a\n   `postcheck` probe-block STUB (observed / min-runs / failure-threshold\
-  \ / evidence-home) — so the\n   plan declares HOW it will be proven before it is\
-  \ built, not after. The postcheck probe-block\n   contract is normative in SPEC-0034\
-  \ §postcheck — this is a pointer to fill the stub there.\n4. **External-checks map\
-  \ + trial-eligibility question.** Note which external audits apply at which\n  \
-  \ boundaries (gate templates: SPEC-0036 / SPEC-0034 §Audit-posture), and answer\
-  \ the\n   trial-eligibility question (SPEC-0035) — does this plan need a real-data\
-  \ trial?\n5. **Deferrals as tracked tasks, never prose.** Carry any \"do later\"\
-  \ as a tracked task, never a\n   sentence in the draft (the deferral-as-prose trap)\
-  \ — rule + check in <workshop-spec>.\n6. **Quantitative / foundational claims →\
-  \ big-plan discipline.** If the draft makes\n   quantitative/foundational claims,\
-  \ apply the big-plan discipline\n   (`patterns/big-plan-checklist.md` / SPEC-0034\
-  \ §Mandatory-big-plan-check). If a claim is a SCOPE\n   SIZING of a refactor / rename\
-  \ / relocation (a ref-count / blast-radius), it must be BACKED by the\n   SPEC-0046\
-  \ §A Sizing rule, not estimated — pointer only, rule homed there (P5).\n7. **Planned\
-  \ artifacts / corpus impact.** Name the expected spec/task/decision OUTPUTS the\
-  \ plan\n   anticipates creating or changing — or explicitly say \"none yet\". This\
-  \ keeps a draft from staying\n   vague about its corpus footprint (the F2 finding\
-  \ of the motivating ad-hoc audit). And\n   declare the plan's SCENARIO INPUTS the\
-  \ same way: if the plan shapes/touches a user-path, list\n   the scenario slug(s)\
-  \ in the plan's `cites:` (reuse the any→any cites edge — NOT a new\n   `scenarios:`\
+  \ this topic — the\n   plan-draft lessons read-surface (SPEC-0091 Rule 1).\n2. **Owner-visible\
+  \ done-criterion.** Name the result the OWNER would recognize as \"done\" (the\n\
+  \   plan's eventual `realized` proof reads back to it). Not \"code shipped\" — an\
+  \ observable outcome\n   (CHARTER §P3 done=adopted, homed there).\n3. **Verification\
+  \ plan UPFRONT.** Sketch the probe targets, the real-data soak expectation, and\
+  \ a\n   `postcheck` probe-block STUB (observed / min-runs / failure-threshold /\
+  \ evidence-home) — so the\n   plan declares HOW it will be proven before it is built,\
+  \ not after. The postcheck probe-block\n   contract is normative in SPEC-0034 §postcheck\
+  \ — this is a pointer to fill the stub there.\n4. **External-checks map + trial-eligibility\
+  \ question.** Note which external audits apply at which\n   boundaries (gate templates:\
+  \ SPEC-0036 / SPEC-0034 §Audit-posture), and answer the\n   trial-eligibility question\
+  \ (SPEC-0035) — does this plan need a real-data trial?\n5. **Deferrals as tracked\
+  \ tasks, never prose.** Carry any \"do later\" as a tracked task, never a\n   sentence\
+  \ in the draft (the deferral-as-prose trap) — rule + check in <workshop-spec>.\n\
+  6. **Quantitative / foundational claims → big-plan discipline.** If the draft makes\n\
+  \   quantitative/foundational claims, apply the big-plan discipline\n   (`patterns/big-plan-checklist.md`\
+  \ / SPEC-0034 §Mandatory-big-plan-check). If a claim is a SCOPE\n   SIZING of a\
+  \ refactor / rename / relocation (a ref-count / blast-radius), it must be BACKED\
+  \ by the\n   SPEC-0046 §A Sizing rule, not estimated — pointer only, rule homed\
+  \ there (P5).\n7. **Planned artifacts / corpus impact.** Name the expected spec/task/decision\
+  \ OUTPUTS the plan\n   anticipates creating or changing — or explicitly say \"none\
+  \ yet\". This keeps a draft from staying\n   vague about its corpus footprint (the\
+  \ F2 finding of the motivating ad-hoc audit). And\n   declare the plan's SCENARIO\
+  \ INPUTS the same way: if the plan shapes/touches a user-path, list\n   the scenario\
+  \ slug(s) in the plan's `cites:` (reuse the any→any cites edge — NOT a new\n   `scenarios:`\
   \ field, CHARTER §P1 F2; the `cites(plan→scenario)` direction semantics are homed\
   \ in\n   SPEC-0076 §4 — pointer, not restated here).\n8. **Realization-exit criteria\
   \ UP FRONT.** Author the plan's realization-exit criteria — the\n   postcheck probe\

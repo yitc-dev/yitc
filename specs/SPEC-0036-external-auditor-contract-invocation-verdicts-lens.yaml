@@ -111,47 +111,65 @@ body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contrac
   \ orphan (the X-0098/X-0092 incident — twice in one session). An INTERACTIVE session\
   \ prints the manual `worktree park` hint instead (never auto-destroy an interactive\
   \ worktree). The dispatched-worker park-not-escalate behavior is the SPEC-0103 §3a\
-  \ subclass. |\n\n### Auditor-tier policy — routine vs FULL, and no relitigation\
-  \ of a FULL-settled point\nTwo standing policies (owner precedent 2026-06-11). NO\
-  \ new mechanism: session DISCIPLINE on\nthe EXISTING `--full` flag + the EXISTING\
-  \ consult path, never a detector or gate (CHARTER non-goal\n#7 — no behavioral auto-classifier).\n\
-  \n- **(b) Tier selection — doctrine/scope-sensitive gates default to FULL.** The\
-  \ BASE tier guidance\n  lives in AGENTS §External auditor (FULL for big-plan / architectural\
-  \ / conceptual-coherence;\n  lighter routine for small mechanical pre/post) — read\
-  \ it there, not duplicated here (P5). This\n  SHARPENS it on the GATE axis: when\
-  \ the gate turns on a DOCTRINE, GOVERNANCE, SCOPE-BOUNDARY, or\n  CONCEPTUAL-COHERENCE\
-  \ judgement — not a mechanical diff check — the session passes `--full` BY\n  DEFAULT.\
-  \ The session JUDGES sensitivity (a routine/mechanical change stays routine); this\
-  \ is a\n  behavioral discipline, NEVER an auto-classifier or gate (non-goal #7).\
-  \ Rationale: a weaker model\n  relitigates settled doctrine, so a doctrine gate\
-  \ starts at the tier where doctrine is adjudicated.\n\n- **(a) No relitigation after\
-  \ a FULL consult settles a point.** Once a FULL consult (the\n  ceiling-convergence\
-  \ consult, or a FULL ad-hoc) has SETTLED a point — a FRESH single-survivor\n  GREEN/YELLOW\
-  \ on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that\n\
-  \  settled point. The FULL consult is the authoritative adjudication; a routine\
-  \ RED that merely\n  RE-ASSERTS what the fresh FULL consult resolved is treated\
-  \ as DOCTRINE-INCONSISTENT and is NOT\n  relitigated — it is dispositioned in the\
-  \ audit YAML `session_disposition` citing the consult. SAME freshness guard binds\
-  \ BOTH: only a consult matching the CURRENT\n  subject (pre = plan_fingerprint,\
-  \ post = commit SHA) settles a point — a STALE / multi-survivor /\n  ABORT consult\
-  \ settles NOTHING, and a routine RED with no settling consult governs normally.\n\
-  \n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\nRE-HOMED to SPEC-0124,\
-  \ which binds the SAME Audit-pre/Audit-post stage-entries and is\ntherefore always\
-  \ delivered alongside this spec — read the ceiling contract there.\n\n### Universal\
-  \ V2 evaluation lens (include in EVERY prompt)\nEvaluate against CHARTER principles:\n\
-  - Anti-complexity: does this add mechanism/file/rule? 4 filters passed?\n- Done\
-  \ = adopted: acceptance includes probe evidence (event/state/measurable)?\n- Documentation-first:\
-  \ relevant docs read/updated?\n- Single source of truth: parallel storage/parser\
-  \ created?\n- AI independence: provider-specific terms in normative text?\n- Controller+Worker\
-  \ only (CHARTER §P6 — the live session taxonomy; Build+Review is retired): pipeline/role-split\
-  \ crept in?\n- Repeated work (audit-pre / any plan-shaped artifact): does the plan\
-  \ add repeated work — an N+1, a\n  re-read, a re-fetch, an unbounded loop or poll,\
-  \ a repeated scan, an unwatermarked pass — WITHOUT\n  naming the neighbouring mechanism\
-  \ at the same seam that it reuses (or recording that none exists)?\n  The classes\
-  \ + detect heuristics live single-home in `patterns/repeated-work-lens.md`; this\
-  \ lens\n  asks the ONE question and never restates them (SPEC-0005 rule 8). Its\
-  \ authoring-side counterparts\n  are SPEC-0032 §Internal item 1a (Analysis) and\
-  \ SPEC-0027 §Stage 3 (the plan's `reuses:` /\n  `adds-first:` line) — the absence\
+  \ subclass. |\n\n### Absorption sweep — the same defect class, across the whole\
+  \ subject\nAbsorbing a finding of a task or plan audit — either absorption mode,\
+  \ at any gate — includes a SWEEP:\nthe absorber searches the WHOLE audited subject\
+  \ for the same defect class (every sibling card of a plan\ncut, every section of\
+  \ the plan, every file of the diff) and fixes or records each instance it finds.\n\
+  The absorption record states the sweep: where it looked and what it found, a sweep\
+  \ that found nothing\nincluded. Fixing only the named instance leaves its siblings\
+  \ for the next round to find (2026-10-05:\na later round found without the check\
+  \ the absorber had added to and after the\nprevious round). The concrete recording\
+  \ instructions live at LIFECYCLE §Stage 4. The statement is a\nvalue of its own\
+  \ on the existing absorption routes. In mode (b) it is given beside the absorbed\
+  \ text,\nand both the saved record and the absorption's journal row carry it. In\
+  \ a task's mode (a) it is given on\nthe re-audit run, and that run's absorption\
+  \ journal row carries it (a plan gate's mode-(a) re-audit has\nno absorption row,\
+  \ so there it stays in the edited plan text). An absorption given\nwithout it still\
+  \ proceeds and is recorded as not stated, so a miss is countable rather than silent;\
+  \ no\ngate refuses it. Amended by : the first absorption under this rule ( audit-pre)\
+  \ stated\nno sweep, because the earlier text added no verb, event, store or gate\
+  \ and left the statement to memory.\n\n### Auditor-tier policy — routine vs FULL,\
+  \ and no relitigation of a FULL-settled point\nTwo standing policies (owner precedent\
+  \ 2026-06-11). NO new mechanism: session DISCIPLINE on\nthe EXISTING `--full` flag\
+  \ + the EXISTING consult path, never a detector or gate (CHARTER non-goal\n#7 —\
+  \ no behavioral auto-classifier).\n\n- **(b) Tier selection — doctrine/scope-sensitive\
+  \ gates default to FULL.** The BASE tier guidance\n  lives in AGENTS §External auditor\
+  \ (FULL for big-plan / architectural / conceptual-coherence;\n  lighter routine\
+  \ for small mechanical pre/post) — read it there, not duplicated here (P5). This\n\
+  \  SHARPENS it on the GATE axis: when the gate turns on a DOCTRINE, GOVERNANCE,\
+  \ SCOPE-BOUNDARY, or\n  CONCEPTUAL-COHERENCE judgement — not a mechanical diff check\
+  \ — the session passes `--full` BY\n  DEFAULT. The session JUDGES sensitivity (a\
+  \ routine/mechanical change stays routine); this is a\n  behavioral discipline,\
+  \ NEVER an auto-classifier or gate (non-goal #7). Rationale: a weaker model\n  relitigates\
+  \ settled doctrine, so a doctrine gate starts at the tier where doctrine is adjudicated.\n\
+  \n- **(a) No relitigation after a FULL consult settles a point.** Once a FULL consult\
+  \ (the\n  ceiling-convergence consult, or a FULL ad-hoc) has SETTLED a point — a\
+  \ FRESH single-survivor\n  GREEN/YELLOW on the CURRENT subject — a subsequent ROUTINE\
+  \ re-audit MUST NOT relitigate that\n  settled point. The FULL consult is the authoritative\
+  \ adjudication; a routine RED that merely\n  RE-ASSERTS what the fresh FULL consult\
+  \ resolved is treated as DOCTRINE-INCONSISTENT and is NOT\n  relitigated — it is\
+  \ dispositioned in the audit YAML `session_disposition` citing the consult. SAME\
+  \ freshness guard binds BOTH: only a consult matching the CURRENT\n  subject (pre\
+  \ = plan_fingerprint, post = commit SHA) settles a point — a STALE / multi-survivor\
+  \ /\n  ABORT consult settles NOTHING, and a routine RED with no settling consult\
+  \ governs normally.\n\n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\n\
+  RE-HOMED to SPEC-0124, which binds the SAME Audit-pre/Audit-post stage-entries and\
+  \ is\ntherefore always delivered alongside this spec — read the ceiling contract\
+  \ there.\n\n### Universal V2 evaluation lens (include in EVERY prompt)\nEvaluate\
+  \ against CHARTER principles:\n- Anti-complexity: does this add mechanism/file/rule?\
+  \ 4 filters passed?\n- Done = adopted: acceptance includes probe evidence (event/state/measurable)?\n\
+  - Documentation-first: relevant docs read/updated?\n- Single source of truth: parallel\
+  \ storage/parser created?\n- AI independence: provider-specific terms in normative\
+  \ text?\n- Controller+Worker only (CHARTER §P6 — the live session taxonomy; Build+Review\
+  \ is retired): pipeline/role-split crept in?\n- Repeated work (audit-pre / any plan-shaped\
+  \ artifact): does the plan add repeated work — an N+1, a\n  re-read, a re-fetch,\
+  \ an unbounded loop or poll, a repeated scan, an unwatermarked pass — WITHOUT\n\
+  \  naming the neighbouring mechanism at the same seam that it reuses (or recording\
+  \ that none exists)?\n  The classes + detect heuristics live single-home in `patterns/repeated-work-lens.md`;\
+  \ this lens\n  asks the ONE question and never restates them (SPEC-0005 rule 8).\
+  \ Its authoring-side counterparts\n  are SPEC-0032 §Internal item 1a (Analysis)\
+  \ and SPEC-0027 §Stage 3 (the plan's `reuses:` /\n  `adds-first:` line) — the absence\
   \ of that line is at most a finding here, never a refusal there.\n  Inert for an\
   \ artifact that adds no read / loop / poll / fetch / scan / worker pass.\n- **Touch-forecast\
   \ / coverage COMPLETENESS is CONTEXT, never a finding.** That a file or\n  a spec\

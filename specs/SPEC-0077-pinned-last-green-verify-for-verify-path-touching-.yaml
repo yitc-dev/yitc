@@ -1277,53 +1277,54 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ by running the candidate verify at\nland or by the land CREDITING the task's own\
   \ runner-recorded green Stage-6 run of the same tree. It\ndoes so only when the\
   \ land itself proves five conditions: (1) `main` has not advanced since the run\
-  \ —\nthe base the run recorded is its merge-base with `main`, and ANY later advance\
-  \ of `main`, an inert\nbookkeeping land included, ends the credit;\n(2) its candidate\
-  \ tree is the tested tree apart from inert paths (SPEC-0064); (3) the row is the\n\
-  runner's own green, full-breadth, marked row — never a red, partial or hand-recorded\
-  \ one; (4) the\nrun's set covers the land's set; (5) the cheap land checks still\
-  \ run — the SPEC-0163 any-author floor\nand the host-leak check — and this spec's\
-  \ pinned leg runs as the project's policy says. The rule and\nits conditions are\
-  \ homed ONCE, in SPEC-0065 §Bound (`bin/yitc-v2 graph query SPEC-0065`); this\n\
-  paragraph is a pointer, not a second rule (SPEC-0005 rule 8).\nNOTHING ABOUT THE\
-  \ PINNED LEG MOVES. §1's trigger is computed exactly as before and is neither read\n\
-  nor written by the credit; §2's source and §3's both-must-pass are unchanged; and\
-  \ a\nverify-path-touching land whose candidate leg is credited STILL runs the pinned\
-  \ leg (where SPEC-0186\nleaves it on) and STILL integrates only if that leg is green.\
-  \ The credit never stands in for the\npinned leg, and a Stage-6 run — which runs\
-  \ the candidate leg alone — is never evidence for it.\n\n### 5. Bootstrap cutover\
-  \ — the trusted starting base (forward-looking, probe-shaped)\nThe rule is forward-looking.\
-  \ The activating land (which INTRODUCES the mode — itself a\nverify-implementation-touch)\
-  \ is NOT self-affirming: its pinned source is the PRE-MODE `main` verifier,\nwhich\
-  \ already carries every existing real check (it merely lacks the new pinned-re-run\
-  \ feature), so the\nold verifier still gates the activating change. The one-time\
-  \ bootstrap exception is explicit +\nprobe-shaped: (i) verify the activating land\
-  \ with the pre-mode `main` verifier; (ii) an owner-authorized\nadoption probe —\
-  \ the deliberately-weakened-verifier test must FAIL that pre-mode verifier on the\n\
-  activating tree (the gate works from land #1); (iii) record the bootstrap evidence\
-  \ on an EXISTING\ncarrier — the activating task's closure adoption-probe evidence\
-  \ (the journaled probe-(ii) run-ref: the\npre-mode `main` verifier FAILS a deliberately-weakened\
-  \ activating tree), together with that land's\nstandard `land_completed.verify_mode=pinned+candidate`\
-  \ field — NOT a new standalone note / store / tag\n(CHARTER §P1 F3 — git + the existing\
-  \ closure/event carriers already hold it; convergence target\nresolved, trial run\
-  \ #2). From there every subsequent `main` HEAD is trusted by the pinned+candidate\n\
-  gate (self-reinforcing forward). EXPLICITLY out of scope (the accepted-baseline\
-  \ class, §2): a verifier already weakened on `main`\nBEFORE the mode existed, OR\
-  \ a verifier change landed via an owner-authorized emergency-bypass (CHARTER\n§P2,\
-  \ `--no-tests`) — the rule cannot retroactively detect a pre-mode compromise or\
-  \ re-judge an\nowner-accepted bypass, and does not claim to. Both are owner-confirmed\
-  \ baselines (the bypass is surfaced +\nretro'd), not silent gaps.\n\n### 6. Consumer\
-  \ surfaces (no hidden second mode)\nThe pinned source is ALWAYS the committed `main`\
-  \ HEAD verify-path of the checkout being landed, under\nthat checkout's `REPO_ROOT`:\
-  \ (a) engine self-build → the engine's own `main` HEAD verify-path; (b) a\n`-C`\
-  \ consumer land → the consumer's OWN `main` HEAD verify inputs, while the ENGINE\
-  \ binary running its\n`-C` verify is the consumer's PINNED engine version (a fixed,\
-  \ already-trusted reference the consumer\ndoes not edit per-land — kernel is pinned,\
-  \ not consumer-mutable); (c) a pre-extraction / kernel-provided\nconsumer runs engine-resolved\
-  \ content it does not edit, so nothing consumer-side is\npinned beyond the engine's\
-  \ already-pinned version. One rule, surfaces named.\n\n## Rationale\n\nA self-modifying\
-  \ engine has a circular-trust gap: the same CLI/graph-build code being changed is\n\
-  also the code that decides whether the land is valid, so a wrong-but-passing verifier\
+  \ —\nthe base the run recorded is its merge-base with `main` — or advanced only\
+  \ by inert paths no declared\ntest names; any other advance ends the credit;\n(2)\
+  \ its candidate tree is the tested tree apart from inert paths (SPEC-0064); (3)\
+  \ the row is the\nrunner's own green, full-breadth, marked row — never a red, partial\
+  \ or hand-recorded one; (4) the\nrun's set covers the land's set; (5) the cheap\
+  \ land checks still run — the SPEC-0163 any-author floor\nand the host-leak check\
+  \ — and this spec's pinned leg runs as the project's policy says. The rule and\n\
+  its conditions are homed ONCE, in SPEC-0065 §Bound (`bin/yitc-v2 graph query SPEC-0065`);\
+  \ this\nparagraph is a pointer, not a second rule (SPEC-0005 rule 8).\nNOTHING ABOUT\
+  \ THE PINNED LEG MOVES. §1's trigger is computed exactly as before and is neither\
+  \ read\nnor written by the credit; §2's source and §3's both-must-pass are unchanged;\
+  \ and a\nverify-path-touching land whose candidate leg is credited STILL runs the\
+  \ pinned leg (where SPEC-0186\nleaves it on) and STILL integrates only if that leg\
+  \ is green. The credit never stands in for the\npinned leg, and a Stage-6 run —\
+  \ which runs the candidate leg alone — is never evidence for it.\n\n### 5. Bootstrap\
+  \ cutover — the trusted starting base (forward-looking, probe-shaped)\nThe rule\
+  \ is forward-looking. The activating land (which INTRODUCES the mode — itself a\n\
+  verify-implementation-touch) is NOT self-affirming: its pinned source is the PRE-MODE\
+  \ `main` verifier,\nwhich already carries every existing real check (it merely lacks\
+  \ the new pinned-re-run feature), so the\nold verifier still gates the activating\
+  \ change. The one-time bootstrap exception is explicit +\nprobe-shaped: (i) verify\
+  \ the activating land with the pre-mode `main` verifier; (ii) an owner-authorized\n\
+  adoption probe — the deliberately-weakened-verifier test must FAIL that pre-mode\
+  \ verifier on the\nactivating tree (the gate works from land #1); (iii) record the\
+  \ bootstrap evidence on an EXISTING\ncarrier — the activating task's closure adoption-probe\
+  \ evidence (the journaled probe-(ii) run-ref: the\npre-mode `main` verifier FAILS\
+  \ a deliberately-weakened activating tree), together with that land's\nstandard\
+  \ `land_completed.verify_mode=pinned+candidate` field — NOT a new standalone note\
+  \ / store / tag\n(CHARTER §P1 F3 — git + the existing closure/event carriers already\
+  \ hold it; convergence target\nresolved, trial run #2). From there every subsequent\
+  \ `main` HEAD is trusted by the pinned+candidate\ngate (self-reinforcing forward).\
+  \ EXPLICITLY out of scope (the accepted-baseline class, §2): a verifier already\
+  \ weakened on `main`\nBEFORE the mode existed, OR a verifier change landed via an\
+  \ owner-authorized emergency-bypass (CHARTER\n§P2, `--no-tests`) — the rule cannot\
+  \ retroactively detect a pre-mode compromise or re-judge an\nowner-accepted bypass,\
+  \ and does not claim to. Both are owner-confirmed baselines (the bypass is surfaced\
+  \ +\nretro'd), not silent gaps.\n\n### 6. Consumer surfaces (no hidden second mode)\n\
+  The pinned source is ALWAYS the committed `main` HEAD verify-path of the checkout\
+  \ being landed, under\nthat checkout's `REPO_ROOT`: (a) engine self-build → the\
+  \ engine's own `main` HEAD verify-path; (b) a\n`-C` consumer land → the consumer's\
+  \ OWN `main` HEAD verify inputs, while the ENGINE binary running its\n`-C` verify\
+  \ is the consumer's PINNED engine version (a fixed, already-trusted reference the\
+  \ consumer\ndoes not edit per-land — kernel is pinned, not consumer-mutable); (c)\
+  \ a pre-extraction / kernel-provided\nconsumer runs engine-resolved content it does\
+  \ not edit, so nothing consumer-side is\npinned beyond the engine's already-pinned\
+  \ version. One rule, surfaces named.\n\n## Rationale\n\nA self-modifying engine\
+  \ has a circular-trust gap: the same CLI/graph-build code being changed is\nalso\
+  \ the code that decides whether the land is valid, so a wrong-but-passing verifier\
   \ change can\nsilently weaken the chokepoint. V2 dispatches autonomous workers that\
   \ edit `bin/yitc-v2` + the\ngraph-build, and real `-C` consumers arrive next — each\
   \ consumer's `-C land` verifies its own code\nwith its own (possibly-just-changed)\
@@ -1408,7 +1409,7 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_extract_failing_assertion: 0d089df5b265d5ed5316fc741553cd14152ebd9b79f7f8cfb3b23a17127aa198
-  bin/lib/land_verify_legs.py#_pinned_recovery_hint: 68fe10ba27b2781cdab95da7d4760fffcde042aeab89a93b55e5fd80f4cd4688
+  bin/lib/land_verify_legs.py#_pinned_recovery_hint: c4bdf1a10a76dc742a275952f306c0be26d1232671b3899d35fe00f6d139dace
   bin/lib/rebaseline_currency.py#_environmental_broken_refusal_text: 203d51d231c5262397ca1fb96f085b7b182d0835fb06fef1d3a2122a9139b658
   bin/lib/rebaseline_currency.py#_environmental_waive_bindings: 7b83c8add92401ab004c2864e439be1111c65deacaf3e13921ef350a833206cb
   bin/lib/rebaseline_currency.py#_first_attempt_preflight_refusal_text: 891be361dd007b7641dcab62e00efafa6f4c7ac699e46b5f48ae8af8812f903b

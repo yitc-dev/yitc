@@ -280,11 +280,19 @@ body: "## Scenario\n\nA machine that shares NO filesystem and NO `main` with the
   \ or kept path\nis named in the update report. A path NO release shipped is consumer-owned\
   \ and is never removed.\nFirst install and later back-fill of newly-added born-empty\
   \ scaffolds both\nreuse the idempotent consumer bootstrap (`init`) — no second scaffold\
-  \ path.\n\n### 9. Compatibility declaration + version floor — refuse BEFORE any\
-  \ write\nThe CONTENT carries ONE canonical compatibility declaration naming the\
-  \ engine version range it\nrequires; the ENGINE performs ONE version check against\
-  \ it. An out-of-floor engine/content pair\nHARD-FAILS before any mutation, with\
-  \ an actionable message naming the required version and the\ncommand that satisfies\
+  \ path.\nThe update report ENDS with the capabilities to consider: every kernel-realm\
+  \ spec active in version\nN+1 and not active in version N, each with where a project\
+  \ turns it on when the spec declares that\n(otherwise saying it is not declared,\
+  \ never that it applies on its own) and how to read its contract,\nderived from\
+  \ the two verified trees. It is one derivation with the release notes, which publish\
+  \ the\nsame list as their own section above the list of changes, both cuts taken\
+  \ by rule 1's own active-only\npredicate — so a new opt-in capability reaches an\
+  \ adopter through the update and the notes, without\na task list and without a message\
+  \ sent project by project.\n\n### 9. Compatibility declaration + version floor —\
+  \ refuse BEFORE any write\nThe CONTENT carries ONE canonical compatibility declaration\
+  \ naming the engine version range it\nrequires; the ENGINE performs ONE version\
+  \ check against it. An out-of-floor engine/content pair\nHARD-FAILS before any mutation,\
+  \ with an actionable message naming the required version and the\ncommand that satisfies\
   \ it. Embedded-engine releases (engine + content at one tag) satisfy the\ncheck\
   \ by construction; a mixed pair is where the floor bites. What this RETIRES: silent\
   \ mixed\nengine/content compatibility drift — today a consumer runs whatever engine\
@@ -407,3 +415,10 @@ concern:
     \      release is published and this project installs from the artifact rather\
     \ than the shared\n      filesystem (SPEC-0195 rules 3-4).\n"
 init_concern: null
+implements_signature:
+  bin/lib/release.py#_add_trust_surfaces: 9aaaf073111ea2ff3e24cdea6627fcc29eaddbe4e374eff58cb1ff2c1eaaea2b
+  bin/lib/release.py#cmd_release_update: 591047391c9872c824509383c77d8951114fa603cd08dca93bdd773f6063fdde
+  bin/lib/release.py#cmd_work_publish: 5a75ac540b3f3b0729222c454d96f062c5bf7365752cdc43d7534e8b30542010
+  bin/lib/release.py#cut_release_tree: fe2d3ae82d7bc2f6aaa2fee68235a59624d691c9b95dbe1b4b7d3d4ab073aec9
+  bin/lib/release.py#host_literal_violations: 3c9b17eedb6df57aff0af813c33da78f3da0719e66818c22bb2e1ad470adea83
+  bin/lib/release.py#update: 40a61645bdc53c046a151753ae10948a28b71efa078bd452d5884289ce08613f

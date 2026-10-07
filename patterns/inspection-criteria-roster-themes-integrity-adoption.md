@@ -506,7 +506,7 @@ not an empty result.
 
 | Lens | Surfaces | Probes |
 |---|---|---|
-| **exemption-case revision** | `yitc-ops.yaml audit_scrutiny.cases[]` · `task_closed.data.exempted_case` (the closure end) · `task_closed.data.case_out_of_path` (rule 6) · `deviation_captured` attributions (the rule-5 join) | the four-field proposal + the covered share below |
+| **exemption-case revision** | `yitc-ops.yaml audit_scrutiny.cases[]` · `task_closed.data.exempted_case` (the closure end) · `task_closed.data.case_out_of_path` (rule 6) · `task_closed.data.governance_takeback` (rule 3 — its re-sign-only mark feeds the rule-9 line) · `deviation_captured` attributions (the rule-5 join) | the four-field proposal + the covered share below |
 
 - **The PROPOSAL format (rule 7) — four fields, never three.** Every proposal names the **CASE**, the
   **ACTION** (`restore` · `narrow` · `widen` · `leave`), the **BASIS** (the specific records) and the

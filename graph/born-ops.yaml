@@ -310,7 +310,9 @@ audit_scrutiny:
   #
   # A case exempts audit-post and NOTHING else (never audit-pre, tests, land-verify, the worktree
   # rule or closure probes), and a card whose DIFF touches a governance surface takes audit-post
-  # whatever your case says. The guard takes back GOVERNANCE
+  # whatever your case says. A spec RE-SIGN counts as a touch: a diff that only re-stamps a spec's
+  # `implements_signature` takes the exemption back, so a case reaches only cards whose diff
+  # re-signs no anchored spec. The guard takes back GOVERNANCE
   # surfaces: specs, an always-loaded seed, this file, AND the SPEC-0077 pinned-test surface —
   # `bin/**` + `tests/**` + `yitc-ops.yaml`. app/, backend/, frontend/, scripts/ are NOT guarded, so
   # PREFER `paths:` over a class-only case.

@@ -485,20 +485,27 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ override of that bound is NOT part of the definition: it is a property of the\
   \ machine a\nland ran on, never of the ship's diff. A layer that declares no bound\
   \ at either level, on both sides\nof the diff, is judged on its command alone, exactly\
-  \ as before.\n\n**The rewire proof is RECORDED BY LAND, never inferred by the reader.**\
-  \ Land compares the layer's\ndeclared definition in the ship's tree against the\
-  \ commit it integrates onto and records the verdict\non that layer's row. Each row\
-  \ of a layer that executed also records the bound it actually ran under\nand which\
-  \ rung supplied it, so the land that ships a declared bound shows that bound in\n\
-  force — a report-only reading beside the verdict, which no gate reads. The reader\
-  \ must NOT infer a rewire by comparing rows across lands. FAIL-CLOSED: an\nabsent\
-  \ or non-affirmative record is UNKNOWN, never «changed».\n\nConditions (iii) + (iv)\
-  \ are what make this EVIDENCE: an ordinary task citing a PRE-EXISTING, UNCHANGED\n\
-  layer row on its own land is still refused. A BARE land-record reference (and one\
-  \ that pins a land\nbut names no layer) stays REFUSED, here and everywhere; the\
-  \ layer-scoped form is the ONE sanctioned\nexception. The reference spelling and\
-  \ the rewire-verdict row field live in the code + its tests\n(SPEC-0005 §3).\n\n\
-  **ORDERING.** The row is LAND-emitted, so the ship's own pre-land close legitimately\
+  \ as before.\n\n**A land that credited the task's own Stage-6 run answers for that\
+  \ run's layers.** Such a\nland runs no candidate verify of its own (SPEC-0065 §Bound),\
+  \ so its own record shows only the\nany-author floor; the layer outcomes it answers\
+  \ for — the rewire verdict included — are read from\nthe green Stage-6 row its credit\
+  \ names, matched by identity (the land's own task, the row's exact\ntimestamp),\
+  \ never copied onto the land record and never taken from any other row. Conditions\n\
+  (i)-(iv) are otherwise unchanged, and an earlier credited land counts toward condition\
+  \ (iv) the\nsame way.\n\n**The rewire proof is RECORDED BY LAND, never inferred\
+  \ by the reader.** Land compares the layer's\ndeclared definition in the ship's\
+  \ tree against the commit it integrates onto and records the verdict\non that layer's\
+  \ row. Each row of a layer that executed also records the bound it actually ran\
+  \ under\nand which rung supplied it, so the land that ships a declared bound shows\
+  \ that bound in\nforce — a report-only reading beside the verdict, which no gate\
+  \ reads. The reader must NOT infer a rewire by comparing rows across lands. FAIL-CLOSED:\
+  \ an\nabsent or non-affirmative record is UNKNOWN, never «changed».\n\nConditions\
+  \ (iii) + (iv) are what make this EVIDENCE: an ordinary task citing a PRE-EXISTING,\
+  \ UNCHANGED\nlayer row on its own land is still refused. A BARE land-record reference\
+  \ (and one that pins a land\nbut names no layer) stays REFUSED, here and everywhere;\
+  \ the layer-scoped form is the ONE sanctioned\nexception. The reference spelling\
+  \ and the rewire-verdict row field live in the code + its tests\n(SPEC-0005 §3).\n\
+  \n**ORDERING.** The row is LAND-emitted, so the ship's own pre-land close legitimately\
   \ still WARNs; the\ncarrier is read at a POST-land seam (the post-land P8 emit,\
   \ and any later recovery / re-close / audit\nread). It does not manufacture adoption\
   \ before the land that proves it.\n\n### Verify-refusal ships: the carrier is a\

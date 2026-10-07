@@ -50,20 +50,51 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ advance this gate blocks. The\nconsult-governed continuation this policy previously\
   \ pointed at is retired there (rule 6).\nAn ADVISORY gate records the verdict and\
   \ always proceeds. This spec is the doctrine; the verb is\nthe chokepoint (`implements:`\
-  \ above).\n\n### Plan-stage question templates (re-homed VERBATIM from SPEC-0036\
-  \ §Plan-stage overlays)\n\n**Selection carrier (deterministic — the VERB invocation,\
-  \ never bare `status`):**\n- **ad-hoc check** (`plan check <slug>` [+`--focus`])\
-  \ → the ONE shaping template that exists:\n  `draft` → P1 below. Ad-hoc shaping\
-  \ is DRAFT-ONLY; at `specs`+ the checks ride the gate\n  templates (P2-P4) and the\
-  \ accept-gate lens;\n- **gate template** → asked by the TRANSITION verb itself:\
-  \ `plan stage <NEXT>` asks the\n  entry-gate template FOR `<NEXT>` (the verb already\
-  \ gates the prior stage and delivers the stage\n  bundle — the template question\
-  \ joins that exact moment). No new flag, no new verb.\n\n**Gate policy — homed in\
-  \ SPEC-0083 ( stable-surface split, P5).** WHICH plan-FSM\ntransition blocks on\
-  \ the audit verdict vs records-and-proceeds is the ORTHOGONAL concern to the\nquestion\
-  \ TEMPLATES below (WHAT is asked); the one-table gate POLICY lives single-SoT in\
-  \ SPEC-0083\n(`graph query SPEC-0083`). The per-gate question templates (P1-P5)\
-  \ below are UNAFFECTED by the split.\n\n**Plan-FINALIZATION overlay — reached-active\
+  \ above).\n\n**Correction invalidation — relative to EACH gate's question.** A plan\
+  \ or its cut is\ncorrected between gates. A correction invalidates only the gate\
+  \ conclusions whose claims, governing\nassumptions or relevant inputs it changes,\
+  \ judged against what THAT gate asks — never through a\nuniversal \"text-only\"\
+  \ exemption: a correction inert for trial evidence can be material to a textual\n\
+  gate. A gate's conclusion falls when the correction changes:\n  - P2 — the scope,\
+  \ a contradiction, or the build order;\n  - P3 — trial eligibility, the trial protocol,\
+  \ its criteria, or the safety envelope;\n  - P4 — whether the recorded trial evidence\
+  \ still applies to the current design (SPEC-0035 rule 5's\n    semantic-effect test\
+  \ decides which run-refs stand);\n  - P5 — the filed cut: its coverage, dependencies,\
+  \ activation ownership, or closure probes. A\n    card-cut or completion-criterion\
+  \ correction is NEVER exempt here, however small its text, and\n    P5's fingerprint-fresh\
+  \ verdict stays REQUIRED after any change to the cut — obtained by a delta\n   \
+  \ check over the change AND every card, dependency edge, activation owner and closure\
+  \ probe that\n    depends on it, plus any prior finding the change could reopen;\
+  \ never carried stale.\nA wording-only correction (spelling, formatting, an equivalent\
+  \ reference) keeps the P2-P4\nconclusions. A conclusion that falls is re-examined\
+  \ by the NEXT gate the plan must pass anyway: a\npassed transition is never re-run,\
+  \ no gate or pass is added, and every currently required fresh\nverdict (the accept-gate's\
+  \ freshness, P5's fingerprint) is still obtained.\n**The record — ONE existing home\
+  \ for every correction.** Whatever prompted it (a trial run, a RED\nor YELLOW gate\
+  \ finding, or no finding at all) and whatever it touches (the plan, a draft spec\
+  \ or a\nfiled card), the correcting session writes ONE line into the plan's own\
+  \ External checks / audits\nsection (a section every plan carries from its skeleton):\
+  \ what changed (before → after), its\nclassification by SPEC-0035 rule 5's semantic-effect\
+  \ test, which gate conclusions or run-refs it\nkeeps or invalidates, and a reference\
+  \ to the correction. Every plan-gate prompt carries the plan\nbody, so that line\
+  \ reaches every later gate, and the P2-P5 templates below each ask their auditor\n\
+  to scrutinize it; the convergence read is asked the same (SPEC-0035 rule 5). The\
+  \ accept-gate check\nof a plan that skipped trial reuses no conclusion — it audits\
+  \ the whole assembled package fresh —\nso it needs no such question. The two Plan-FINALIZATION\
+  \ overlays below are unchanged.\n\n### Plan-stage question templates (re-homed VERBATIM\
+  \ from SPEC-0036 §Plan-stage overlays)\n\n**Selection carrier (deterministic — the\
+  \ VERB invocation, never bare `status`):**\n- **ad-hoc check** (`plan check <slug>`\
+  \ [+`--focus`]) → the ONE shaping template that exists:\n  `draft` → P1 below. Ad-hoc\
+  \ shaping is DRAFT-ONLY; at `specs`+ the checks ride the gate\n  templates (P2-P4)\
+  \ and the accept-gate lens;\n- **gate template** → asked by the TRANSITION verb\
+  \ itself: `plan stage <NEXT>` asks the\n  entry-gate template FOR `<NEXT>` (the\
+  \ verb already gates the prior stage and delivers the stage\n  bundle — the template\
+  \ question joins that exact moment). No new flag, no new verb.\n\n**Gate policy\
+  \ — homed in SPEC-0083 ( stable-surface split, P5).** WHICH plan-FSM\ntransition\
+  \ blocks on the audit verdict vs records-and-proceeds is the ORTHOGONAL concern\
+  \ to the\nquestion TEMPLATES below (WHAT is asked); the one-table gate POLICY lives\
+  \ single-SoT in SPEC-0083\n(`graph query SPEC-0083`). The per-gate question templates\
+  \ (P1-P5) below are UNAFFECTED by the split.\n\n**Plan-FINALIZATION overlay — reached-active\
   \ acceptance (mirrors SPEC-0034 §realized\nclause (a)).** The aggregate `audit post\
   \ --plan` finalization overlay tells the external\nauditor the SAME realize-gate\
   \ semantics the code gate (`_require_plan_finalization_ready`) enforces:\na `proposed_by`\
@@ -121,36 +152,63 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ to compose specs — scope stable across recent edits?\n- Every carve-out / deferral\
   \ carried by a TRACKED id (<workshop-spec> — never prose)?\n- Contradictions resolved\
   \ or explicitly named (P7)?\n- Multi-part plan: is the build ORDER fixed (instrument-before-policy\
-  \ where applicable)?\n\n**P3 — specs→trial gate template (asked by `plan stage trial`;\
-  \ MANDATORY-BLOCKING):**\n- Eligibility rationale honest — BOTH legs (mechanism-class\
-  \ AND convergence not honestly\n  obtainable by text audit alone)?\n- `## Trial\
-  \ protocol` baked and sound: mode + why, probe targets, exit criteria, safety envelope\n\
-  \  (never mutates production data) — per `patterns/trial-methods.md`?\n- Draft specs\
-  \ composed + checked (the prior stage actually complete)?\n\n**P4 — trial→accepted\
-  \ trial-evidence block (joins the accept-gate `plan check` prompt when a\ntrial\
-  \ ran; MANDATORY-BLOCKING):**\n- Does the JOURNALED trial evidence (runs + convergence\
-  \ claim) support «design converged» — or\n  did runs stop while the design was still\
-  \ moving?\n- Did the trial feed the plan/specs (co-evolution visible), or were they\
-  \ untouched despite\n  divergent runs (a smell)?\n\n**P5 — decomposition→executing\
-  \ fidelity template (asked by `plan stage executing`; MANDATORY-BLOCKING — SPEC-0070\
-  \ §3):**\nAudit the FILED TASK CARD SET (delivered in the prompt as `## Decomposition\
-  \ — the filed task CARD\nSET`) against the plan AND its goals — the SET-level properties\
+  \ where applicable)?\n- Recorded correction classifications — for each correction\
+  \ line the plan's External\n  checks / audits section records since the verdict\
+  \ or trial evidence this gate relies on, does\n  its before → after support its\
+  \ classification for THIS gate's question: could the correction change what a conforming\
+  \ implementation or trial judgement permits,\n  requires, produces or accepts for\
+  \ ANY supported case (eligibility, authority, failure handling,\n  safety, scope,\
+  \ observability, evidence or exit criteria)?\n  A line you cannot confirm is behaviour-bearing,\
+  \ and the conclusions or run-refs it kept do\n  not stand.\n\n**P3 — specs→trial\
+  \ gate template (asked by `plan stage trial`; MANDATORY-BLOCKING):**\n- Eligibility\
+  \ rationale honest — BOTH legs (mechanism-class AND convergence not honestly\n \
+  \ obtainable by text audit alone)?\n- `## Trial protocol` baked and sound: mode\
+  \ + why, probe targets, exit criteria, safety envelope\n  (never mutates production\
+  \ data) — per `patterns/trial-methods.md`?\n- Draft specs composed + checked (the\
+  \ prior stage actually complete)?\n- Recorded correction classifications — for each\
+  \ correction line the plan's External\n  checks / audits section records since the\
+  \ verdict or trial evidence this gate relies on, does\n  its before → after support\
+  \ its classification for THIS gate's question: could the correction change what\
+  \ a conforming implementation or trial judgement permits,\n  requires, produces\
+  \ or accepts for ANY supported case (eligibility, authority, failure handling,\n\
+  \  safety, scope, observability, evidence or exit criteria)?\n  A line you cannot\
+  \ confirm is behaviour-bearing, and the conclusions or run-refs it kept do\n  not\
+  \ stand.\n\n**P4 — trial→accepted trial-evidence block (joins the accept-gate `plan\
+  \ check` prompt when a\ntrial ran; MANDATORY-BLOCKING):**\n- Does the JOURNALED\
+  \ trial evidence (runs + convergence claim) support «design converged» — or\n  did\
+  \ runs stop while the design was still moving?\n- Did the trial feed the plan/specs\
+  \ (co-evolution visible), or were they untouched despite\n  divergent runs (a smell)?\n\
+  - Recorded correction classifications — for each correction line the plan's External\n\
+  \  checks / audits section records since the verdict or trial evidence this gate\
+  \ relies on, does\n  its before → after support its classification for THIS gate's\
+  \ question: could the correction change what a conforming implementation or trial\
+  \ judgement permits,\n  requires, produces or accepts for ANY supported case (eligibility,\
+  \ authority, failure handling,\n  safety, scope, observability, evidence or exit\
+  \ criteria)?\n  A line you cannot confirm is behaviour-bearing, and the conclusions\
+  \ or run-refs it kept do\n  not stand.\n\n**P5 — decomposition→executing fidelity\
+  \ template (asked by `plan stage executing`; MANDATORY-BLOCKING — SPEC-0070 §3):**\n\
+  Audit the FILED TASK CARD SET (delivered in the prompt as `## Decomposition — the\
+  \ filed task CARD\nSET`) against the plan AND its goals — the SET-level properties\
   \ no single-card audit-pre can reach\n(the cut, not one card):\n- Coverage 1:1 —\
   \ is every plan part / accept-unit mapped to exactly ONE card, with no plan part\n\
   \  unmapped and no card outside the plan's scope?\n- One provable claim per card\
   \ (SPEC-0046) — does any card BUNDLE two concerns, or carry an\n  acceptance OVERLAPPING\
-  \ a sibling card's claim, instead of one provable accept-unit?\n- Declared grouping\
-  \ preference (SPEC-0046 §A) — where the cut material (the plan body or\n  a card)\
-  \ names a project-declared task-grouping preference, whether a grouping FOLLOWS\
-  \ it or the\n  cutter DECLINED it, are that preference's SOURCE and RATIONALE named\
-  \ there (for a declined one,\n  with the reason it was not followed)? And does any\
-  \ card rest on the preference to hold MORE than\n  one provable claim? A preference\
-  \ only PROPOSES a cut: it never justifies more than one provable\n  claim per card,\
-  \ and items of one type, or items that would receive one combined verdict, are not\n\
-  \  thereby one claim. A cut that names NO preference is ANSWERED-CLEAN — it is judged\
-  \ by SPEC-0046\n  §A alone and must NOT be reported for lacking a declaration.\n\
-  - `requires:` ordering encoded, not prose — is every intended precedence (a «first»\
-  \ / «before» /\n  verifier-after-settled relationship) carried by a `requires:`\
+  \ a sibling card's claim, instead of one provable accept-unit? A finding\n  that\
+  \ a card bundles more than one claim and should be SPLIT is a RECOMMENDATION — ADVISORY,\
+  \ never\n  blocking : report it with the split it proposes; split recommendations,\
+  \ however many,\n  never make the verdict RED; whether to follow one is the project's\
+  \ call under its own declared\n  grouping rules (SPEC-0046 §A). An acceptance overlapping\
+  \ a sibling card's claim is not a split\n  recommendation and is reported at its\
+  \ own severity.\n- Declared grouping preference (SPEC-0046 §A) — where the cut material\
+  \ (the plan body or\n  a card) names a project-declared task-grouping preference,\
+  \ whether a grouping FOLLOWS it or the\n  cutter DECLINED it, are that preference's\
+  \ SOURCE and RATIONALE named there (for a declined one,\n  with the reason it was\
+  \ not followed)? The project's declared rules DECIDE its grouping: a card\n  grouped\
+  \ by them is not re-cut by this gate — a split you would still recommend is the\
+  \ advisory\n  recommendation above. A cut that names NO preference is ANSWERED-CLEAN\
+  \ — it is judged by SPEC-0046\n  §A alone and must NOT be reported for lacking a\
+  \ declaration.\n- `requires:` ordering encoded, not prose — is every intended precedence\
+  \ (a «first» / «before» /\n  verifier-after-settled relationship) carried by a `requires:`\
   \ edge, so no later writer can legally\n  run before a card it depends on? (A named-first\
   \ card with NO outgoing dependency edge is the defect.)\n- Singular activation —\
   \ does each `proposed` spec have EXACTLY ONE `activation_owner_task` across its\n\
@@ -199,19 +257,32 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \  mutually satisfiable? The cut must either cite the ACTIVE spec that governs the\
   \ surface, or name\n  ONE card as its definer and `requires:`-order the other after\
   \ it.\n- Fidelity to intent — taken as a whole, does the cut faithfully realize\
-  \ the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n\n**`--focus\
-  \ \"<text>\"` — the composable append (on `plan check` / `audit post --plan`):**\
-  \ appends an\nowner/session-specific question block AFTER the stage template (the\
-  \ ad-hoc form made composable —\nit never REPLACES the template). The appended text\
-  \ is recorded VERBATIM in the saved verdict\n`notes` field — **`notes` IS the single\
-  \ verbatim carrier** (full text, byte-equal);\n`prompt_excerpt` stays a ~200-char\
-  \ excerpt and is NEVER the carrier. No new schema field.\n\n**Verdict recording\
-  \ (ONE canonical schema — P5):** every plan-gate verdict saves to the canonical\n\
-  audit-result schema (AGENTS §Saved audit result) extended by TWO additive fields:\n\
-  `stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`, `gate-trial`,\n\
-  `gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory | mandatory-blocking`).\
-  \ The legacy\ndraft-check shape (`draft:`/`kind:`/`content_hash`) is NORMALIZED\
-  \ onto this schema — its\nfreshness extras (`content_hash`/`accept_freshness_hash`)\
+  \ the plan's PURPOSE, not\n  merely the literal `implementation_plan` map?\n- Correction\
+  \ since a prior verdict of this gate — where the cut changed after a recorded\n\
+  \  verdict of this gate, this pass IS the required fresh verdict: judge the changed\
+  \ cards AND every\n  card, `requires:` edge, activation owner and closure probe\
+  \ that depends on them, and any prior\n  finding the change could reopen. A card-cut\
+  \ or completion-criterion change is never wording,\n  however small its text, whatever\
+  \ its recorded classification says.\n- Recorded correction classifications — for\
+  \ each correction line the plan's External\n  checks / audits section records since\
+  \ the verdict or trial evidence this gate relies on, does\n  its before → after\
+  \ support its classification for THIS gate's question: could the correction change\
+  \ what a conforming implementation or trial judgement permits,\n  requires, produces\
+  \ or accepts for ANY supported case (eligibility, authority, failure handling,\n\
+  \  safety, scope, observability, evidence or exit criteria)?\n  A line you cannot\
+  \ confirm is behaviour-bearing, and the conclusions or run-refs it kept do\n  not\
+  \ stand.\n\n**`--focus \"<text>\"` — the composable append (on `plan check` / `audit\
+  \ post --plan`):** appends an\nowner/session-specific question block AFTER the stage\
+  \ template (the ad-hoc form made composable —\nit never REPLACES the template).\
+  \ The appended text is recorded VERBATIM in the saved verdict\n`notes` field — **`notes`\
+  \ IS the single verbatim carrier** (full text, byte-equal);\n`prompt_excerpt` stays\
+  \ a ~200-char excerpt and is NEVER the carrier. No new schema field.\n\n**Verdict\
+  \ recording (ONE canonical schema — P5):** every plan-gate verdict saves to the\
+  \ canonical\naudit-result schema (AGENTS §Saved audit result) extended by TWO additive\
+  \ fields:\n`stage_template:` (the template name asked — e.g. `plan-draft`, `gate-specs`,\
+  \ `gate-trial`,\n`gate-accepted`) and `gate_policy:` (`on-demand | auto-advisory\
+  \ | mandatory-blocking`). The legacy\ndraft-check shape (`draft:`/`kind:`/`content_hash`)\
+  \ is NORMALIZED onto this schema — its\nfreshness extras (`content_hash`/`accept_freshness_hash`)\
   \ join as additive fields; no second\nverdict format survives.\n\n**Retirement (what\
   \ this head removes):** (a) hand-authored free-form external-auditor prompts for\n\
   plan-stage questions are DEMOTED to the documented manual fallback ONLY (CLI unavailable\
@@ -234,7 +305,14 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS key from this spec (tests/test_t0349_plan_gate_templates.py).\n\
   - VP3 (code link): `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage`\
   \ (non-dangling\n  without a binding).\n- VP4 (activation): this spec resolves to\
-  \ exactly one `activation_owner_task`; closing\n  it flips proposed→active.\n"
+  \ exactly one `activation_owner_task`; closing\n  it flips proposed→active.\n- VP5\
+  \ (correction invalidation): §Correction invalidation states the per-gate rule (P2-P5,\n\
+  \  P5's delta-checked fresh verdict, card-cut / completion-criterion never exempt,\
+  \ wording-only keeps\n  P2-P4, one record home), and the P2-P5 templates the real\
+  \ gate reader extracts each carry the\n  scrutinize instruction. Probe: tests/test_t13597_semantic_evidence_invalidation.py.\n\
+  - VP6 (advisory split): the P5 template the real gate reader extracts states that\
+  \ a split\n  recommendation is advisory and never makes the verdict RED, and that\
+  \ the project's declared\n  grouping rules decide. Probe: tests/test_decomposition_fidelity_gate.py.\n"
 cites:
 - SPEC-0036
 - SPEC-0034

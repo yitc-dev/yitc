@@ -1916,6 +1916,21 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                              "`echo_of: <fingerprint>` on every finding re-raising a residual (the "
                              "ENGINE verifies it). A RED here is TERMINAL for this (task, stage). "
                              "--task only; not combinable with --preview.")
+        # T-13632 (SPEC-0036 §Absorption sweep) — the same-class sweep statement, on BOTH stages: with
+        # `--absorb` (pre) it rides the mode-(b) record; on a re-audit pass (pre or post) it rides the
+        # mode-(a) `audit_finding_absorbed` row. Absent → that row records `sweep: not stated`.
+        # The help names only flags THIS stage's parser accepts (`--absorb` is pre-only — the
+        # T-11165 help-vs-parser tripwire reads them together).
+        ap.add_argument("--sweep", dest="sweep", metavar="TEXT",
+                        help="the ABSORPTION SWEEP statement (SPEC-0036 §Absorption sweep): where you "
+                             "searched the whole audited subject for the same defect class, and what "
+                             "you found (a sweep that found nothing included). Recorded on the "
+                             "audit_finding_absorbed row — "
+                             + ("beside --absorb (mode b), or on the re-audit pass after a plan edit "
+                                "(mode a). " if stage_name == "pre" else
+                                "on the re-audit pass after an absorbing commit (mode a). ")
+                             + "Without it the absorption still proceeds and records `sweep: not "
+                               "stated` (T-13632)")
         if stage_name == "pre":
             # T-10770 (SPEC-0036 / LIFECYCLE Stage 4) — the MODE-(b) ABSORPTION route: a field-edit over
             # the audit-pre record THIS verb wrote, modelled on the shipped `task update --old/--new` /
@@ -3057,6 +3072,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "record and a body edited since the check — a body edit still forces a fresh "
                           "check (SPEC-0034 §accept-gate, T-11986). REPEATABLE: every occurrence is "
                           "recorded in order as its own entry (T-12734)")
+    # T-13632 — the sweep statement beside --absorb, the same value `audit pre --absorb` takes.
+    dck.add_argument("--sweep", metavar="TEXT",
+                     help="(with --absorb) the ABSORPTION SWEEP statement — where you looked for the "
+                          "same defect class and what you found (SPEC-0036 §Absorption sweep). Absent → "
+                          "the record says `sweep: not stated` (T-13632)")
     dck.set_defaults(func=cmd_plan_check)
 
     dti = plan_sub.add_parser("to-idea", help="Move an active plan → ideas/ (out of the FSM)")
@@ -4008,12 +4028,20 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     se.add_argument("--old", help="exact existing text to replace, matched against the RAW file text "
                                   "first (0 or >1 match dies). Text that reads as the parsed body "
                                   "(what `graph query` prints, without the block indent) is found "
-                                  "too, and is then edited AS body text. CLI mode; mutually "
-                                  "exclusive with --from-file/--from-stdin")
+                                  "too, and is then edited AS body text. A ONE-LINE --old written "
+                                  "without its block indent is found BOTH ways: with a multi-line "
+                                  "--new whose continuation lines all carry the block indent the "
+                                  "two readings write different bodies, so the verb refuses and "
+                                  "names both forms (T-13600). Every successful edit prints the "
+                                  "reading it took (`reading: raw replacement` / `reading: edited "
+                                  "as body text`). CLI mode; mutually exclusive with "
+                                  "--from-file/--from-stdin")
     se.add_argument("--new", help="replacement text (CLI mode; needs --old). When --old is text of "
                                   "the parsed body, write --new as it should read in the body: its "
                                   "lines land at the nesting you type, and the verb refuses rather "
-                                  "than write a body that means something else (T-13509). When "
+                                  "than write a body that means something else (T-13509) — "
+                                  "unless every continuation line starts at or past the block "
+                                  "indent, which is the both-ways case under --old. When "
                                   "--old is copied WITH the file's own indentation, the edit is a "
                                   "raw replacement and every line of --new must carry that "
                                   "indentation itself")

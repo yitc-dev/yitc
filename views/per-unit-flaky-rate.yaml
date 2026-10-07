@@ -1,0 +1,26 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: per-unit-flaky-rate
+description: Per test unit of an adapter-backed consumer verify layer (SPEC-1006) — runs, first-attempt failures, the failures a re-run alone rescued, and the flaky rate (rescued over runs). Derived from the journal at read time, report-only. Run `graph query per-unit-flaky-rate [--since <date>] [--until <date>]`.
+lens:
+  kind: per-unit-flaky-rate   # pure f over the journal: reads the per-unit report rows and the per-unit
+                              # `flaky_retry` rows on `land_completed` / `tests_passed` / `tests_failed`
+                              # (SPEC-0025), joins a rescue to a run of the same row, writes nothing.
+why: >-
+  SPEC-1006 rule 13: every per-test result and re-run is recorded on the existing journal rows, and the
+  flaky rate is a derived view over them — there is no second register of results. A unit that fails
+  under load and passes alone is rescued by default (rule 10), so the rescue has to stay visible
+  somewhere a person looks: this lens is that reading, per unit (the selection and re-run unit of rule
+  2 — a test file within a runner project, or a declared group counted whole).
+
+  The rate is rescued first-attempt failures over the unit's runs. A run is a unit row on a usable
+  per-unit report; a void report's rows count nothing (rule 4). A rescue counts only against a run on
+  the same journal row, so a rate never exceeds 1; a re-run row that cannot be joined that way is
+  listed under `rows_outside_rate` with its reason instead of being dropped. A re-run that passed
+  under `rescue: off`, or never passed, is counted beside the rescues and never inside the rate.
+
+  A consumer surface: the kernel's own suite runs no adapter-backed layer, so the lens answers
+  `no_data` there, naming the absent record. Report-only (D-0053): nothing reads this lens to decide a
+  verdict, a lane entry (rule 11 has its own fold) or a selection. No new store, event type or command
+  family; it reuses the journal reader and the shared window predicate. The per-case reading (which
+  test in a file is flaky) is a separate lens.

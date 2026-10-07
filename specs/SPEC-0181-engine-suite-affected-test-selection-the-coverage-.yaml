@@ -799,19 +799,22 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   SPEC-0152 rule 16), enabled after a 60-land replay with zero false would-skips;\
   \ this spec carries\nthat doctrine down to the per-test-file granularity of the\
   \ script-run suite path, reusing its\nfail-closed edge set and its self-guard predicate\
-  \ rather than authoring a parallel design.\n\n## Verification\n\n- VP1 (self-guard,\
-  \ differential): a diff touching `bin/**` yields an EMPTY would-omit set.\n  Failing\
-  \ input — remove rung R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential):\
-  \ the executed test set equals the unfiltered enumeration\n  regardless of the recorded\
-  \ decision. Failing input — feed the would-run set into the executed\n  list and\
-  \ the tripwire goes RED.\n- VP3 (unknown mapping, differential): a changed path\
-  \ outside the coverage map yields an EMPTY\n  would-omit set. Failing input — have\
-  \ R3 return the mapped subset and the tripwire goes RED.\n- VP4 (the record exists):\
-  \ a land's `land_completed.verify_metrics` carries the selection fields,\n  with\
-  \ would-run plus would-omit equal to the full test-file count.\n"
+  \ rather than authoring a parallel design. A consumer\nlayer that declares an adapter\
+  \ records the same kind of fail-closed ladder per test file, in shadow,\nunder SPEC-1006.\n\
+  \n## Verification\n\n- VP1 (self-guard, differential): a diff touching `bin/**`\
+  \ yields an EMPTY would-omit set.\n  Failing input — remove rung R1 and the tripwire\
+  \ goes RED.\n- VP2 (governs nothing, differential): the executed test set equals\
+  \ the unfiltered enumeration\n  regardless of the recorded decision. Failing input\
+  \ — feed the would-run set into the executed\n  list and the tripwire goes RED.\n\
+  - VP3 (unknown mapping, differential): a changed path outside the coverage map yields\
+  \ an EMPTY\n  would-omit set. Failing input — have R3 return the mapped subset and\
+  \ the tripwire goes RED.\n- VP4 (the record exists): a land's `land_completed.verify_metrics`\
+  \ carries the selection fields,\n  with would-run plus would-omit equal to the full\
+  \ test-file count.\n"
 cites:
 - SPEC-0077
 - SPEC-0132
+- SPEC-1006
 - SPEC-0152
 - CHARTER.md#principle-3
 requires: []

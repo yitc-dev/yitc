@@ -25,6 +25,7 @@ keep `implements:` anchors repointed to bin/lib/gates.py#<sym>.
 from __future__ import annotations
 
 import inspect
+import os
 import sys
 import time
 
@@ -1200,12 +1201,22 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
     # Reached only when a receipt exists but every one predates the current context epoch (the credit
     # check in the retry loop already returned on any fresh receipt) — a /compact evicted the seed from
     # context after it was read, so the receipt is STALE (T-10082 / SPEC-0050 §8).
+    # T-13636: print THIS session's own start form. A bare `session start` records the session as a
+    # controller, so a dispatched worker (the launcher-set YITC_EXPECTED_SESSION_REF) is told to keep
+    # `--type build`. And the refresh credits only the checkout it ran in plus main: a refresh in a
+    # task worktree does not reach a `land` run from main, so the text names where to run it.
+    _start = "bin/yitc-v2 session start"
+    if os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip():
+        _start += " --type build"
     return _refuse("seed_read_stale_epoch", [
         f"{verb}: your seed_read receipt is from an earlier context epoch — refusing (T-10082 / SPEC-0050 §8).",
         f"A /compact advanced the context epoch (receipt epoch {max(epochs)} < current {current_epoch}); the",
         "pre-compact seed is gone from context. Re-read your audience seed, then re-run `session start` ONCE",
-        "to refresh the receipt for this epoch (the sanctioned post-compact re-run — SPEC-0007 §5b):",
-        "  bin/yitc-v2 session start",
+        "to refresh the receipt for this epoch (the sanctioned post-compact re-run — SPEC-0007 §5b),",
+        "in the checkout you run this verb from:",
+        f"  {_start}",
+        "A refresh run in a task worktree is not seen by a verb run from the main checkout (e.g. `land`):",
+        "run it once more in the main checkout before that verb.",
     ])
 
 

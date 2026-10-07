@@ -691,9 +691,10 @@ def main_mirror_state(fingerprint: dict | None, *, repo_root, main_ref: str = "m
     clone_sha = (fp.get("clone_main_sha") or "").strip() or None
 
     def _run(*argv):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
         try:
             return subprocess.run(["git", "-C", str(repo_root), *argv], text=True,
-                                  capture_output=True, timeout=30)
+                                  capture_output=True, timeout=30, env=_git_env._git_child_env())
         except Exception:                     # noqa: BLE001 — a reporter never raises past its caller
             return None
 
