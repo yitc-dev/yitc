@@ -42,11 +42,9 @@ body: "## Scenario\n\nWhen a session does something that changes the world OUTSI
   \ of transport — an MCP tool, a harness-native\n  tool, or a raw `curl`/API call\
   \ in Bash all incur it equally. (MCP transport specifics: the\n  \"working with\
   \ MCP in v2\" pattern, which POINTS here for capture — it does not restate this\
-  \ rule.)\n\n`external_action` is a NEW event type added to the events catalog (SPEC-0025\
-  \ / extension) —\nadditive to the one journal (CHARTER §P5), no new store/parser/format.\n\
-  \n## Parameters\n\nNone consumed. The `data` field set above is the event PAYLOAD\
-  \ contract (channel/target/action/from),\nnot a code-read scalar governance param\
-  \ — so `consumed: false`.\n\n## Rationale\n\nReal incident: a <project> session\
+  \ rule.)\n\n## Parameters\n\nNone consumed. The `data` field set above is the event\
+  \ PAYLOAD contract (channel/target/action/from),\nnot a code-read scalar governance\
+  \ param — so `consumed: false`.\n\n## Rationale\n\nReal incident: a <project> session\
   \ wrote a correction into design-project `c95f02ff` via DesignSync\n`write_files`\
   \ (2026-06-30) and it fired **no journal line** — an uncaptured external mutation\
   \ (cross\nX-0138/X-0139). v2 captured outbound mutations ONLY per-named-action (deploy\
@@ -55,7 +53,12 @@ body: "## Scenario\n\nWhen a session does something that changes the world OUTSI
   \ floor. Prior-art for the SHAPE: `deviation_captured` — a\ngeneric, no-worktree,\
   \ fire-from-anywhere journal event with no dedicated verb. (Deliberation +\nrejected\
   \ alternatives — a dedicated verb, the scope/trial choices — live in the proposing\
-  \ plan\n`external-system-interaction-governance-capture-doc`, not here.)\n\n## Verification\n\
+  \ plan\n`external-system-interaction-governance-capture-doc`, not here.)\n\n## Implementation\
+  \ notes\n\n### Moved from the rule text\n\nReference and maintainer passages moved\
+  \ word for word out of the rule text of the section\neach names; no rule an acting\
+  \ reader applies moved with them.\n\nFrom «Internal»:\n\n`external_action` is a\
+  \ NEW event type added to the events catalog (SPEC-0025 / extension) —\nadditive\
+  \ to the one journal (CHARTER §P5), no new store/parser/format.\n\n## Verification\n\
   \n- **Probe (behavioral):** after a substantive un-verbed external mutation, `grep\
   \ '\"type\":\n  \"external_action\"' events.jsonl` shows the event carrying `channel`\
   \ / `target` / `action` / `from`.\n- **Negative probe (reads):** a READ-only external\

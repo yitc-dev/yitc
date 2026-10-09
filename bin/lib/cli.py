@@ -6981,7 +6981,8 @@ def _as_list(name: str, val) -> list:
 _SEQUENCE_STAGES = ("Analysis", "Plan", "Audit-pre", "Execution", "Tests", "Commit", "Audit-post", "Closure")
 
 
-def _stage_sequence_skeleton(tid: str = "T-XXXX", corpus: "dict | None" = None) -> str:
+def _stage_sequence_skeleton(tid: str = "T-XXXX", corpus: "dict | None" = None,
+                             is_consumer: bool = False) -> str:
     """The CANONICAL per-stage command sequence, surfaced ONCE at the claim moment (T-9741) so a fresh
     executor learns the whole ENTER → WORK → FINALIZE shape UP FRONT instead of discovering it via the
     >=3 cascading stage-correspondence / read-gate refusals (the gates are CORRECT — only their delivery
@@ -6997,13 +6998,16 @@ def _stage_sequence_skeleton(tid: str = "T-XXXX", corpus: "dict | None" = None) 
     ENTER delivers); the fetch command is named ONCE, as the re-read after a `/compact`.
 
     T-13550: the rows ask about every stage, so the corpus is read ONCE here (or by the caller, who
-    passes its own read as `corpus`) and handed to each stage's lookup — it was one read per stage."""
+    passes its own read as `corpus`) and handed to each stage's lookup — it was one read per stage.
+
+    T-13778: `is_consumer` labels each DELIVERS id by the realm the bundle derivation gives it
+    (`_realm_labelled`) — kernel ids `kernel:SPEC-NNNN`, the project's own bare. Engine: bare, unchanged."""
     rows = []
     if corpus is None:
         corpus = _stage_bundle_corpus(include_kernel=True)
     for st in _SEQUENCE_STAGES:
-        specs = _stage_bundle_specs(st, include_kernel=True, corpus=corpus)   # exact per-stage read-gate contracts (P5 carrier)
-        delivers = ", ".join(specs) if specs else "(no contract bound — work-verb only)"
+        specs = _stage_bundle_specs(st, include_kernel=True, with_realms=True, corpus=corpus)   # exact per-stage read-gate contracts (P5 carrier)
+        delivers = _realm_labelled(*specs, is_consumer=is_consumer) or "(no contract bound — work-verb only)"
         verbs = [v for v in STAGE_WORK_VERBS.get(st, []) if "worktree new" not in v]   # drop the claim self-ref row
         # T-11982: interpolate the id AT the `--task` token, not only when the row ENDS with it — a
         # work-verb row may now carry a flag + prose after `--task` (the Audit-pre/post preview step).
@@ -7031,6 +7035,14 @@ def _stage_sequence_skeleton(tid: str = "T-XXXX", corpus: "dict | None" = None) 
         f"  then integrate: yitc-v2 land --task {tid}")
 
 
+def _realm_labelled(ids, realms, *, is_consumer: bool) -> str:
+    """T-13778: a stage bundle's ids, comma-joined, each named for the realm `_stage_bundle_specs`
+    (with_realms) derived for it — a kernel id `kernel:SPEC-NNNN` under `-C`, the project's own bare (as
+    `stage <NAME>` and `stage_entered` name it). Engine session: every id bare, byte-identical."""
+    return ", ".join(graph.kernel_ref(i, is_consumer=is_consumer and realms.get(i) == "kernel")
+                     for i in ids)
+
+
 def _analysis_procedure_reminder(tid=None) -> str:
     """The ordered Stage-1 (Analysis) procedure SURFACED at the claim moment (`worktree new --task` —
     the claim IS Analysis-entry, so it delivers the Analysis stage bundle; T-0279, axis migrated to
@@ -7044,12 +7056,19 @@ def _analysis_procedure_reminder(tid=None) -> str:
     claim-moment delivery, extended so the whole ENTER→FETCH→WORK→FINALIZE path is surfaced ONCE (`tid`
     substituted when known, else the `T-XXXX` placeholder for the no-arg callers)."""
     corpus = _stage_bundle_corpus(include_kernel=True)   # T-13550: ONE corpus read for this echo — the Analysis pointer and the skeleton below
-    analysis_specs = _stage_bundle_specs("Analysis", include_kernel=True, corpus=corpus)   # T-0865: DELIVERY surfacing → expose kernel Analysis specs on a -C consumer
-    ptr = ((f"→ Analysis stage-entry delivers: {', '.join(analysis_specs)} "
+    analysis_specs, realms = _stage_bundle_specs("Analysis", include_kernel=True, with_realms=True, corpus=corpus)   # T-0865: DELIVERY surfacing → expose kernel Analysis specs on a -C consumer
+    try:
+        is_consumer = _is_consumer_build()
+    except Exception:   # noqa: BLE001 — advisory rendering only, like _consumer_render
+        is_consumer = False
+    ptr = ((f"→ Analysis stage-entry delivers: {_realm_labelled(analysis_specs, realms, is_consumer=is_consumer)} "
             "(in full, by your worktree `session start` — no fetch owed; re-read one after a /compact "
             "with `yitc-v2 graph query <SPEC>`)") if analysis_specs
            else "→ Analysis stage-entry: no spec bound (the claim IS Analysis-entry)")
-    return _consumer_render(   # T-13176: every command/path in the claim-time hint resolves under -C
+    # T-13176: every command/path in the claim-time hint resolves under -C. T-13778: the spec ids are
+    # qualified here, not by the render — the fixed text names kernel ids only, the bundle lists are
+    # labelled per realm above, so the project's own ids stay bare.
+    return _consumer_render(graph.kernel_qualify(
         "→ Stage-1 (Analysis) procedure (Analysis stage-entry) — work these IN ORDER before any edit:\n"
         "  1. Prior-art grep (CHARTER §Principle 1 filter 1): does a similar mechanism / file / decision "
         "already exist? Extend it, don't create parallel.\n"
@@ -7067,8 +7086,10 @@ def _analysis_procedure_reminder(tid=None) -> str:
         "spec (joins step 3).\n"
         "  6. Read the cited specs / decisions / prior tasks.\n"
         "  7. Scope unclear? File a clarification to a Review session — don't proceed on a guess.\n"
+        , is_consumer=is_consumer)
         + ptr
-        + "\n" + _stage_sequence_skeleton(tid or "T-XXXX", corpus=corpus))   # T-9741: surface the whole per-stage sequence once
+        + "\n" + _stage_sequence_skeleton(tid or "T-XXXX", corpus=corpus, is_consumer=is_consumer),   # T-9741: surface the whole per-stage sequence once
+        qualify_specs=False)
 
 
 def _scenario_spec_view(spec_ids, index=None, *, stale_only=False):

@@ -18866,7 +18866,8 @@ def consult_pick_held_record(*a, **kw):
 #: and above-ceiling surveys drift into two different asks (CHARTER §P5), which is exactly the
 #: divergence rule 8's "no new mechanism" forbids.
 _CONSULT_ROUND0_FRAME = (
-    "## Full verdict — enumerate EVERY defect, never one per round (SPEC-0200 rule 2)\n\n"
+    "## Full verdict — enumerate EVERY defect, never one per round (retired ceiling consult —\n"
+    "superseded SPEC-0200 rule 2, now SPEC-0204 rule 8)\n\n"
     "This is the BASELINE round (round 0) of this ceiling episode, and it is the ONLY round that\n"
     "surveys the whole subject. Your survey is FROZEN as this card's defect baseline; every later\n"
     "round judges ONLY the ids you name here. A defect you omit now does not get a later round to\n"
@@ -18928,7 +18929,7 @@ BASE_PASS1_SURVEY_CLAUSE = _full_verdict_clause(_BASE_PASS1_FRAME)
 #: (`id`, `subject_revision`) are deliberately absent — «the auditor is never asked for an engine
 #: field».
 _CONSULT_BASELINE_OUTPUT_BLOCK = (
-    "findings:            # SPEC-0200 rule 3 — EVERY defect, each fully substantiated\n"
+    "findings:            # SPEC-0204 rule 1 — EVERY defect, each fully substantiated\n"
     "  - disposition: blocking | deferrable\n"
     "    criterion_ref: <an EXACT acceptance-criterion id of this target's lens>   # or class_id\n"
     "    class_id: <one of: " + " | ".join(sorted(CONSULT_BLOCKING_CLASS_IDS)) + ">\n"

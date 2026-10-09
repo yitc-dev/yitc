@@ -61,10 +61,7 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ default. Anything that must PERSIST\nis not a MEMORY entry — it routes by purpose\
   \ to its durable home (SPEC-0091). The buffer stays\nshort because foreign/expired\
   \ entries are ignored at read time and every entry is deleted by the\nsession that\
-  \ consumes it.\n\n## Internal\n\nThe ONE home (P5) of the project-MEMORY.md buffer\
-  \ rule — split out of SPEC-0007 §6 (rule-6\nsplit-by-surface; SPEC-0007 §6 is now\
-  \ a pointer here). Base contract + the temporary-instruction\nextension stated as\
-  \ FOUR BOUNDS + the three-layer GC.\n\n### 0. Base contract (carried over from SPEC-0007\
+  \ consumes it.\n\n## Internal\n\n### 0. Base contract (carried over from SPEC-0007\
   \ §6; drain framing realigned to immediate-deletion)\n- A project keeps its OWN\
   \ project-local `MEMORY.md` (repo root, project territory): the familiar\n  surface\
   \ the AI's memory reflex is fluent in, so the reflex lands in GOVERNED territory\
@@ -269,19 +266,24 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ stops carrying\na contradictory duplicate and points to SPEC-0091's route-by-purpose\
   \ lanes for any note that must\npersist (one home, P5). The surviving model: every\
   \ MEMORY entry is short, read-by-all, consume-once,\ndeleted by its consuming session\
-  \ immediately after use (§5(b)).\n\n## Verification\n\nProbe CONTRACTS (not one-time\
-  \ results — SPEC-0005 rule 8):\n- **VP1 (four bounds present — AC1):** grep this\
-  \ body — the scratch-vs-instruction line\n  (§1), provisional-only + auto-drain\
-  \ (§2), marking + lifetime axes (§3), authority ceiling (§4)\n  all stated; spec\
-  \ `active` in the graph.\n- **VP2 (AGENTS reflects — AC2):** grep `AGENTS.md` §At-session-start\
-  \ MEMORY paragraph\n  for SPEC-0039 + the read-only self-filter + the two entry\
-  \ kinds.\n- **VP3 (one home, P5):** SPEC-0007 §6 is a POINTER to SPEC-0039, not\
-  \ a restated rule (grep\n  SPEC-0007 body for `SPEC-0039`); no parallel rule-home\
-  \ ( AC3 — audit-confirmed).\n- **VP4 (read-only startup):** this body states the\
-  \ startup self-filter is READ-ONLY with all\n  drains at governed write points (grep\
-  \ `READ-ONLY`) — the audit-pre pass-2 F1 resolution.\n- **VP5 (admission, self):**\
-  \ cross-task, durable, analysis-shaping process rule (SPEC-0005\n  rule-2 criteria\
-  \ 1, 3, 4, 5, 7); delete-test: removing it reverts the buffer to an ungoverned\n\
+  \ immediately after use (§5(b)).\n\n### History moved from the rule body\n\nEach\
+  \ entry is a passage moved word for word out of the rule text of the section it\
+  \ names;\nthe rule it explains stays there.\n\nFrom «Internal»:\n\nThe ONE home\
+  \ (P5) of the project-MEMORY.md buffer rule — split out of SPEC-0007 §6 (rule-6\n\
+  split-by-surface; SPEC-0007 §6 is now a pointer here). Base contract + the temporary-instruction\n\
+  extension stated as FOUR BOUNDS + the three-layer GC.\n\n## Verification\n\nProbe\
+  \ CONTRACTS (not one-time results — SPEC-0005 rule 8):\n- **VP1 (four bounds present\
+  \ — AC1):** grep this body — the scratch-vs-instruction line\n  (§1), provisional-only\
+  \ + auto-drain (§2), marking + lifetime axes (§3), authority ceiling (§4)\n  all\
+  \ stated; spec `active` in the graph.\n- **VP2 (AGENTS reflects — AC2):** grep `AGENTS.md`\
+  \ §At-session-start MEMORY paragraph\n  for SPEC-0039 + the read-only self-filter\
+  \ + the two entry kinds.\n- **VP3 (one home, P5):** SPEC-0007 §6 is a POINTER to\
+  \ SPEC-0039, not a restated rule (grep\n  SPEC-0007 body for `SPEC-0039`); no parallel\
+  \ rule-home ( AC3 — audit-confirmed).\n- **VP4 (read-only startup):** this body\
+  \ states the startup self-filter is READ-ONLY with all\n  drains at governed write\
+  \ points (grep `READ-ONLY`) — the audit-pre pass-2 F1 resolution.\n- **VP5 (admission,\
+  \ self):** cross-task, durable, analysis-shaping process rule (SPEC-0005\n  rule-2\
+  \ criteria 1, 3, 4, 5, 7); delete-test: removing it reverts the buffer to an ungoverned\n\
   \  broadcast surface — materially worse change analysis for every startup read.\n\
   - **VP6 (role vocabulary + authorship norm present):** grep this body — §3 carries\
   \ the\n  `interactive | background | auto` audience values + the SELF-DECLARED-from-launch-context\

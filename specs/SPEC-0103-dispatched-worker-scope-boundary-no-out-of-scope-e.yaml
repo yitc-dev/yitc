@@ -176,43 +176,33 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ by name, so\nX-0098 / X-0092's dead-but-unlanded orphans stay solved. What the\
   \ park now also does is REPORT what it\ndiscards — `worker_parked` carries `discarded_files`\
   \ / `discarded_commits` — so even a sanctioned\nteardown is visible rather than\
-  \ silent.\n\nReal incidents, all measured 2026-08-19 (fingerprints in the journal):\
-  \ held 684 modified files\nwith `git rev-list --count main..HEAD` = 0 when `worker_parked`\
-  \ fired at 17:35:33Z — and twice more\nafter — losing ~1h40m of a mechanical refactor\
-  \ unrecoverably from the branch. A later run of the same\ncard lost a CONVERGED\
-  \ build (audit-pre GREEN, pinned suite green, commit made) to a TRANSIENT auditor\n\
-  exit-1 that a probe seconds later disproved as a quota wall; the commit object survived\
-  \ only because\ngit had not gc-ed it. And the journal receipt did not return with\
-  \ the code — a cherry-pick restores the\ntree, not the `commit_landed` row — so\
-  \ closure had to be reconstructed by hand under an explicit owner\ndecision (events.jsonl#ts=).\
-  \ Cross-reported by <project> as X-0998 / X-1000.\n\n### 3b. Who may escalate —\
-  \ the BRANCH carries the claim, not the filesystem\n§3 tells a blocked worker to\
-  \ escalate; this section says WHO the verb admits. The admitting evidence\nis the\
-  \ BRANCH under escalation — NOT worktree existence, and NOT the status of the checkout\
-  \ the verb\nhappens to run in. `blocked-on-land` is admitted when BOTH hold: (a)\
-  \ a LIVE `task/T-XXXX` worktree\nexists — the worker is HOLDING it (the live-claim\
-  \ signal §3a already relies on); AND (b) that\nbranch CARRIES either the governed\
-  \ CLAIM (its card reads `in-progress` AND a committed `task_picked`\nevent for the\
-  \ task backs it — a hand-flipped card is not a governed claim) or the CLOSURE the\
-  \ worker\ncould not land (its card reads `done`). Anything else REFUSES, including\
-  \ the unknown answer: a git /\nparse failure that leaves the carrier unprovable\
-  \ is a refusal, never an admission.\n\nWHY the branch, not `main`: a dispatched\
-  \ worker's claim (ready→in-progress + `task_picked`) is\nwritten INSIDE its worktree\
-  \ and reaches `main` only through `land` ( option B, the same fact\n§3a relies on\
-  \ when it parks a task that stays `ready` on main). So at the exact moment a land\
-  \ fails,\n`main` still reads `ready`, and the verb used to answer «this is a PRE-claim\
-  \ refusal, use `task\nrefuse`». That answer is not merely unhelpful, it is FALSE:\
-  \ `refused(pre-claim)` (SPEC-0133 rule 2a)\ntells the controller the card was never\
-  \ worked, while the worker in fact holds a finished, audited\nbranch it cannot integrate\
-  \ (X-0754; it also strands the X-0740 done-but-unlandable card, leaves the\nX-0700\
-  \ post-close rebaseline block with no covering verb, and loses the X-0758 reason).\n\
-  \nWHY BOTH halves, and why NEITHER alone: worktree PRESENCE alone is over-trust\
-  \ — a raw `git worktree\nadd` mints exactly that shape with no claim in it, and\
-  \ admitting it would let any leftover directory\nraise a needs-decision halt for\
-  \ work nobody did (the double-claim class; AGENTS-SESSIONS\nalready states presence\
-  \ is not orphanhood). A branch carrier alone is under-constrained — a branch\noutlives\
-  \ its worktree, so a stale one would speak for a worker that is no longer there.\
-  \ The\nconjunction is the whole discriminator, and this section is the exception\
+  \ silent.\n\n### 3b. Who may escalate — the BRANCH carries the claim, not the filesystem\n\
+  §3 tells a blocked worker to escalate; this section says WHO the verb admits. The\
+  \ admitting evidence\nis the BRANCH under escalation — NOT worktree existence, and\
+  \ NOT the status of the checkout the verb\nhappens to run in. `blocked-on-land`\
+  \ is admitted when BOTH hold: (a) a LIVE `task/T-XXXX` worktree\nexists — the worker\
+  \ is HOLDING it (the live-claim signal §3a already relies on); AND (b) that\nbranch\
+  \ CARRIES either the governed CLAIM (its card reads `in-progress` AND a committed\
+  \ `task_picked`\nevent for the task backs it — a hand-flipped card is not a governed\
+  \ claim) or the CLOSURE the worker\ncould not land (its card reads `done`). Anything\
+  \ else REFUSES, including the unknown answer: a git /\nparse failure that leaves\
+  \ the carrier unprovable is a refusal, never an admission.\n\nWHY the branch, not\
+  \ `main`: a dispatched worker's claim (ready→in-progress + `task_picked`) is\nwritten\
+  \ INSIDE its worktree and reaches `main` only through `land` ( option B, the same\
+  \ fact\n§3a relies on when it parks a task that stays `ready` on main). So at the\
+  \ exact moment a land fails,\n`main` still reads `ready`, and the verb used to answer\
+  \ «this is a PRE-claim refusal, use `task\nrefuse`». That answer is not merely unhelpful,\
+  \ it is FALSE: `refused(pre-claim)` (SPEC-0133 rule 2a)\ntells the controller the\
+  \ card was never worked, while the worker in fact holds a finished, audited\nbranch\
+  \ it cannot integrate (X-0754; it also strands the X-0740 done-but-unlandable card,\
+  \ leaves the\nX-0700 post-close rebaseline block with no covering verb, and loses\
+  \ the X-0758 reason).\n\nWHY BOTH halves, and why NEITHER alone: worktree PRESENCE\
+  \ alone is over-trust — a raw `git worktree\nadd` mints exactly that shape with\
+  \ no claim in it, and admitting it would let any leftover directory\nraise a needs-decision\
+  \ halt for work nobody did (the double-claim class; AGENTS-SESSIONS\nalready states\
+  \ presence is not orphanhood). A branch carrier alone is under-constrained — a branch\n\
+  outlives its worktree, so a stale one would speak for a worker that is no longer\
+  \ there. The\nconjunction is the whole discriminator, and this section is the exception\
   \ carved into a fail-closed\ngate that must not swallow the rule (`lessons/carving-an-exception-into-a-fail-closed-gate`).\n\
   \nBOUND. This governs ADMISSION only. The escalation still records the EXISTING\
   \ `bg_dispatch_halted`\nmarker with the worker's reason (§3, the reader unchanged:\
@@ -297,8 +287,19 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ and report, never grind\", and §By-design governance STOP (all\npatterns/background-session-operation.md).\
   \ LAYER-2 (a structural land-time diff-vs-scope guard) is a\ntracked follow-up,\
   \ deferred by anti-complexity (one incident; audit-post already DETECTS an\nout-of-scope\
-  \ diff).\n\n## Verification\n\n- Probe (single-source carve-out, rule 4): tests/test_dispatch.py\
-  \ asserts SYNC_TO_LAND_RULE itself\n  carries the escalate-on-out-of-scope/environmental-block\
+  \ diff).\n\n### History moved from the rule body\n\nFrom «3a-bis. The auditor-outage\
+  \ park is BOUNDED by work in flight »:\n\nReal incidents, all measured 2026-08-19\
+  \ (fingerprints in the journal): held 684 modified files\nwith `git rev-list --count\
+  \ main..HEAD` = 0 when `worker_parked` fired at 17:35:33Z — and twice more\nafter\
+  \ — losing ~1h40m of a mechanical refactor unrecoverably from the branch. A later\
+  \ run of the same\ncard lost a CONVERGED build (audit-pre GREEN, pinned suite green,\
+  \ commit made) to a TRANSIENT auditor\nexit-1 that a probe seconds later disproved\
+  \ as a quota wall; the commit object survived only because\ngit had not gc-ed it.\
+  \ And the journal receipt did not return with the code — a cherry-pick restores\
+  \ the\ntree, not the `commit_landed` row — so closure had to be reconstructed by\
+  \ hand under an explicit owner\ndecision (events.jsonl#ts=). Cross-reported by <project>\
+  \ as X-0998 / X-1000.\n\n## Verification\n\n- Probe (single-source carve-out, rule\
+  \ 4): tests/test_dispatch.py asserts SYNC_TO_LAND_RULE itself\n  carries the escalate-on-out-of-scope/environmental-block\
   \ / not-abandonment carve-out — so it\n  co-delivers at BOTH the preamble point\
   \ 1 and the cmd_stage stage-entry reminder.\n- Probe (delivery, AC2): tests/test_dispatch.py\
   \ asserts DISPATCH_WORKER_PREAMBLE +\n  `_compose_worker_brief` output carry the\

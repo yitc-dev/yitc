@@ -89,17 +89,21 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ --absorb\nfail-closes at `task close` (audit-post is for the old commit) — no\
   \ deadlock, the re-audit is\nwithin ceiling by construction.\n**Exhausted-ceiling\
   \ refusal + its OWNER-AUTHORIZED escape (E-0030).** When the required\nre-audit\
-  \ (pass N+1) is past EVEN the owner-reset ceiling, a bare `--absorb` REFUSES. The\
-  \ sanctioned\nexit is an OWNER-AUTHORIZED `task commit --absorb --owner-reset`:\
-  \ it COMMITS the late fix past the\nexhausted ceiling purely to materialize a committed\
-  \ subject the ceiling-convergence consult can then\ngovern, re-pinning custody via\
-  \ the REQUIRED follow-up `audit post --commit <new> --owner-reset`. It\nis structurally\
-  \ NON-STACKABLE: the escape commit folds the dirty audit-post YAML in and shifts\
-  \ the\nrecorded commit, dissolving the hazard this section requires, so a SECOND\
-  \ escape is REFUSED until the\nconsult-governed re-pin restores it. It is journal-observable\
-  \ (`commit_landed` `data.owner_reset:\ntrue`) and FAIL-CLOSED (no flag → the refusal\
-  \ stands). Primary home: SPEC-0124 §Audit-loop ceiling\n(kept in sync, not duplicated\
-  \ — P7).\n\nSECOND sanctioned exception — the Stage-8 RED IN-SCOPE-FIX leg (`task\
+  \ (pass N+1) is past the ceiling, a bare `--absorb` REFUSES. The exit still admitted\
+  \ at the\nCOMMIT door is an OWNER-AUTHORIZED `task commit --absorb --owner-reset`:\
+  \ it COMMITS the late fix\npast the exhausted ceiling purely to materialize a committed\
+  \ subject. The custody re-pin it was\nfirst paired with — `audit post --commit <new>`\
+  \ under the audit-side owner reset, governed by a\nceiling-convergence consult —\
+  \ is RETIRED by SPEC-0204 rule 6 and refuses: a pass on the new commit\nis admitted\
+  \ only by the SPEC-0204 route (one `audit decide` per residual, then ONE `audit\
+  \ post\n--on-decisions` pass), and where that route admits none the commit stays\
+  \ un-re-pinned. It\nis structurally NON-STACKABLE: the escape commit folds the dirty\
+  \ audit-post YAML in and shifts the\nrecorded commit, dissolving the hazard this\
+  \ section requires, so a SECOND escape is REFUSED until a\nfurther audit-post pass\
+  \ has re-pinned custody. It is journal-observable (`commit_landed` `data.owner_reset:\n\
+  true`) and FAIL-CLOSED (no flag → the refusal stands). Full text: SPEC-1018 §Late\
+  \ finding after the\naudit-post budget is spent (kept in sync, not duplicated —\
+  \ P7).\n\nSECOND sanctioned exception — the Stage-8 RED IN-SCOPE-FIX leg (`task\
   \ commit --fix-red`).\nThe mode-a carve-out above is the YELLOW branch ONLY (an\
   \ absorption run against a RED is refused). The RED refusal PRESCRIBES «fix the\
   \ RED cause in scope and re-audit the new commit», and\n`--fix-red` is that remedy\
@@ -114,36 +118,33 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ (iii)\nPOSITIVE proof the commit carries AUTHORED content, read through the SAME\n\
   `_zero_ship_diff_bookkeeping` allow-list the second guard arm reads (`_red_fix_authored_paths`);\
   \ and\n(iv) the REQUIRED re-audit is still within the ceiling, checked BEFORE the\
-  \ commit — **UNLESS the owner\ngrants the one-pass-wide arm (`--fix-red --owner-reset`)**,\
-  \ the RED analog of the mode-a\nE-0030 continuation and on identical terms: it admits\
-  \ the commit EXACTLY ONE pass past the exhausted\nceiling (a second is refused with\
-  \ or without the flag), ONLY on condition (iii)'s authored-content\nproof (so the\
-  \ CARD-REPAIR ARM below is refused there), journal-marked `commit_landed`\n`data.owner_reset_commit:\
-  \ true`. It widens the COMMIT door ONLY: the AUDIT ceiling is untouched, so\nthe\
-  \ REQUIRED `audit post --commit <new> --owner-reset` stays gated on the unchanged\
-  \ consult-reopen\nfreshness axis, and it is non-stackable for the same reason the\
-  \ mode-a escape is. Co-homed with\nSPEC-0124 §Audit-loop ceiling. The two flags\
-  \ are MUTUALLY EXCLUSIVE: a caller declares exactly one\ncycle. The commit is journal-marked\
-  \ (`commit_landed` `data.red_fix: true`).\n**THE GUARD IS NOT WEAKENED.** `--absorb`\
-  \ over a non-YELLOW verdict stays refused on every\npath, byte-unchanged; a FIXLESS\
-  \ RED absorption fails condition (iii) and is refused at THIS door too.\n**The failure\
-  \ DIRECTION is deliberately opposite to the second guard arm's, off the same primitive.**\n\
-  `_worktree_dirty_paths` returns `[]` on any git failure: the arm MISSES on that\
-  \ input, this leg\nREFUSES on it; a missing injection refuses identically. The one\
-  \ known over-admission (the collapsed\nbare `decisions/` row) is bounded by conditions\
-  \ (i), (ii) and (iv) holding simultaneously.\n**SCOPE BOUND — the leg is for a fix\
-  \ that SHIPS, and the refusal must ROUTE.** When a RED\ncause's ONLY honest fix\
-  \ is a correction to the task's OWN records (its card, its acceptance text, its\n\
-  audit YAML), that fix is BOOKKEEPING, and a bookkeeping-only commit cannot earn\
-  \ custody on the\nORDINARY leg. Such a correction either RIDES a commit that also\
-  \ carries authored work, or takes the\nCARD-REPAIR ARM below, or — when the card\
-  \ has no shipping fix at all — the governed exit is the\nSPEC-0103 escalation. The\
-  \ refusal text NAMES every route.\n\n**THE CARD-REPAIR ARM (`task commit --fix-red\
-  \ --card-repair`) — and the retirement it\ncarries.** RETIRED (P1 F3): the escalate-only\
-  \ ending the SCOPE BOUND above used to have for a RED whose\nONLY named cause was\
-  \ the card's OWN record (its only terminal was park-mid-audit, recording a\nCOMPLETE\
-  \ card as `parked`).\n\nIt is an ARM of this leg, never a leg of its own: passed\
-  \ alone it is refused, `--absorb` stays\nincompatible, and it relaxes NONE of conditions\
+  \ commit. The one-pass-wide\narm that once widened (iv) past an exhausted ceiling\
+  \ — `--fix-red --owner-reset`, the\nspent-budget bypass — is RETIRED by SPEC-0204\
+  \ rule 6 and refuses: the audit-side owner reset it\nbootstrapped a subject for\
+  \ no longer exists. Past the ceiling the route is the SPEC-0204 one — one\n`audit\
+  \ decide` per residual, then ONE `audit post --on-decisions` pass. Co-homed with\n\
+  SPEC-0124 §Audit-loop ceiling. The two flags are MUTUALLY EXCLUSIVE: a caller declares\
+  \ exactly one\ncycle. The commit is journal-marked (`commit_landed` `data.red_fix:\
+  \ true`).\n**THE GUARD IS NOT WEAKENED.** `--absorb` over a non-YELLOW verdict stays\
+  \ refused on every\npath, byte-unchanged; a FIXLESS RED absorption fails condition\
+  \ (iii) and is refused at THIS door too.\n**The failure DIRECTION is deliberately\
+  \ opposite to the second guard arm's, off the same primitive.**\n`_worktree_dirty_paths`\
+  \ returns `[]` on any git failure: the arm MISSES on that input, this leg\nREFUSES\
+  \ on it; a missing injection refuses identically. The one known over-admission (the\
+  \ collapsed\nbare `decisions/` row) is bounded by conditions (i), (ii) and (iv)\
+  \ holding simultaneously.\n**SCOPE BOUND — the leg is for a fix that SHIPS, and\
+  \ the refusal must ROUTE.** When a RED\ncause's ONLY honest fix is a correction\
+  \ to the task's OWN records (its card, its acceptance text, its\naudit YAML), that\
+  \ fix is BOOKKEEPING, and a bookkeeping-only commit cannot earn custody on the\n\
+  ORDINARY leg. Such a correction either RIDES a commit that also carries authored\
+  \ work, or takes the\nCARD-REPAIR ARM below, or — when the card has no shipping\
+  \ fix at all — the governed exit is the\nSPEC-0103 escalation. The refusal text\
+  \ NAMES every route.\n\n**THE CARD-REPAIR ARM (`task commit --fix-red --card-repair`)\
+  \ — and the retirement it\ncarries.** RETIRED (P1 F3): the escalate-only ending\
+  \ the SCOPE BOUND above used to have for a RED whose\nONLY named cause was the card's\
+  \ OWN record (its only terminal was park-mid-audit, recording a\nCOMPLETE card as\
+  \ `parked`).\n\nIt is an ARM of this leg, never a leg of its own: passed alone it\
+  \ is refused, `--absorb` stays\nincompatible, and it relaxes NONE of conditions\
   \ (i), (ii) or (iv), which run first and unchanged. It\nreplaces condition (iii)\
   \ ALONE, with a DIFFERENT positive proof rather than a weaker one. Its\nconjuncts\
   \ are all DERIVED from the repo, never asserted by the flag, and fail-closed on\
@@ -207,48 +208,49 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ exhausted ceiling this leg\nrefuses UNCONDITIONALLY and `--owner-reset` does NOT\
   \ open it — that continuation was owner-authorized\nfor the mode-a cycle (E-0030)\
   \ and widening it to a new leg is an owner-class decision this\nleg does not make\
-  \ for itself. Nothing deadlocks by refusing there: the ceiling-convergence consult\n\
-  (SPEC-0124) is the governed exit and is the correct one.\n\n### Reverify-at-close\
-  \ via author signal (`task close --reverify SPEC-XXXX`)\nWhen the closing task's\
-  \ own diff changes code an ACTIVE spec anchors, `task close` SURFACES the\npossibly-stale\
-  \ spec (the `spec_drift_unverified` WARN) and NEVER silently re-stamps it — only\n\
-  the author can tell a cosmetic anchor-edit from a contract change. `task close --reverify\
-  \ SPEC-XXXX`\n(repeatable) asserts \"I re-read SPEC-XXXX against the changed code;\
-  \ its body still holds\" and\nre-blesses its durable `implements_signature:` (the\
-  \ `spec reverify` core / SPEC-0013), staged\nBY NAME into the closure-record commit,\
-  \ so the spec drops out of the WARN. FAIL-CLOSED scope: honoured\nONLY for a spec\
-  \ THIS task's diff left possibly-stale; a `--reverify` of any other spec is REFUSED\
-  \ up\nfront. A genuine BEHAVIOUR change is NOT --reverify's job — the author edits\
-  \ the spec body. The\nreverified ids are recorded in `task_closed` (`reverified_specs`,\
-  \ honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal #7).\n\n### Reverify-at-commit\
-  \ (`task commit --reverify SPEC-XXXX`)\nThe SAME author signal, one seam earlier,\
-  \ so the re-stamp rides the PRODUCT commit instead of a\nseparate re-sign commit\
-  \ (and precedes audit-post by construction). `task commit --reverify SPEC-XXXX`\n\
-  (repeatable) is never automatic and asserts exactly what the close flag asserts.\
-  \ FAIL-CLOSED scope:\neligibility is the PRE-commit drift set — the Stage-6 touched\
-  \ set (merge-base..working tree +\nuntracked) fed to the one detector — narrowed\
-  \ PER ANCHOR to anchors whose content signature\ndiffers from their signature at\
-  \ merge-base(HEAD, main); any other id is REFUSED before anything\nis written, naming\
-  \ the eligible set. Only those moved anchors are re-signed (`only_anchors`,\nSPEC-0006\
-  \ scope — every other anchor's baseline stays byte-identical), the re-stamp is\n\
-  written before staging so it ships in the same commit, and each sign emits `spec_reverified`\n\
-  (`via: task-commit`). The Stage-6 report names it as the one-commit route; the post-commit\
-  \ Stage-7\nWARN names it as the one-command recovery. No new gate, event, or store.\n\
-  \n**RECOVERY RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare\
-  \ states have their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`):\
-  \ a task the owner parks while its\naudit-post is RED — lead «Park-mid-audit land\
-  \ path»; and a task closed before its land-verify passed,\nwhose closure is still\
-  \ on its branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\n\
-  discard + re-claim). Read it before acting in either state.\n\n### Ship-custody\
-  \ RE-PIN — the THIRD sanctioned exception (X-0422)\nThe guard above pins custody\
-  \ to `_recorded_commit_sha` = the LATEST `commit_landed`. THREE\ngoverned self-commits\
-  \ legitimately emit a `commit_landed` AFTER the ship — `task update --status\nparked`,\
-  \ `task pause`, and `task update --status wont-do` — and so SHIFT\nrecorded custody\
-  \ past the ship, wedging the task: `audit post --commit <ship>` refuses (ship ≠\n\
-  recorded), a bare `audit post` audits the PARK diff (GREEN-BY-VACUITY), and `task\
-  \ close` stays\nRED-blocked.\n\nThe governed exit is `yitc-v2 audit post --task\
-  \ T-XXXX --commit <ship-sha> --repin-ship`. It re-pins\naudit custody to the DISPLACED\
-  \ SHIP, and it is NOT a weakening of the guard: every leg is DERIVED by\n`_require_ship_custody_repin`\
+  \ for itself. Nothing deadlocks by refusing there: the governed exit is the\nSPEC-0204\
+  \ route — one `audit decide` per residual, then ONE `audit post --on-decisions`\
+  \ pass.\n\n### Reverify-at-close via author signal (`task close --reverify SPEC-XXXX`)\n\
+  When the closing task's own diff changes code an ACTIVE spec anchors, `task close`\
+  \ SURFACES the\npossibly-stale spec (the `spec_drift_unverified` WARN) and NEVER\
+  \ silently re-stamps it — only\nthe author can tell a cosmetic anchor-edit from\
+  \ a contract change. `task close --reverify SPEC-XXXX`\n(repeatable) asserts \"\
+  I re-read SPEC-XXXX against the changed code; its body still holds\" and\nre-blesses\
+  \ its durable `implements_signature:` (the `spec reverify` core / SPEC-0013), staged\n\
+  BY NAME into the closure-record commit, so the spec drops out of the WARN. FAIL-CLOSED\
+  \ scope: honoured\nONLY for a spec THIS task's diff left possibly-stale; a `--reverify`\
+  \ of any other spec is REFUSED up\nfront. A genuine BEHAVIOUR change is NOT --reverify's\
+  \ job — the author edits the spec body. The\nreverified ids are recorded in `task_closed`\
+  \ (`reverified_specs`, honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal\
+  \ #7).\n\n### Reverify-at-commit (`task commit --reverify SPEC-XXXX`)\nThe SAME\
+  \ author signal, one seam earlier, so the re-stamp rides the PRODUCT commit instead\
+  \ of a\nseparate re-sign commit (and precedes audit-post by construction). `task\
+  \ commit --reverify SPEC-XXXX`\n(repeatable) is never automatic and asserts exactly\
+  \ what the close flag asserts. FAIL-CLOSED scope:\neligibility is the PRE-commit\
+  \ drift set — the Stage-6 touched set (merge-base..working tree +\nuntracked) fed\
+  \ to the one detector — narrowed PER ANCHOR to anchors whose content signature\n\
+  differs from their signature at merge-base(HEAD, main); any other id is REFUSED\
+  \ before anything\nis written, naming the eligible set. Only those moved anchors\
+  \ are re-signed (`only_anchors`,\nSPEC-0006 scope — every other anchor's baseline\
+  \ stays byte-identical), the re-stamp is\nwritten before staging so it ships in\
+  \ the same commit, and each sign emits `spec_reverified`\n(`via: task-commit`).\
+  \ The Stage-6 report names it as the one-commit route; the post-commit Stage-7\n\
+  WARN names it as the one-command recovery. No new gate, event, or store.\n\n**RECOVERY\
+  \ RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare states have\
+  \ their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`): a task\
+  \ the owner parks while its\naudit-post is RED — lead «Park-mid-audit land path»;\
+  \ and a task closed before its land-verify passed,\nwhose closure is still on its\
+  \ branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\ndiscard\
+  \ + re-claim). Read it before acting in either state.\n\n### Ship-custody RE-PIN\
+  \ — the THIRD sanctioned exception (X-0422)\nThe guard above pins custody to `_recorded_commit_sha`\
+  \ = the LATEST `commit_landed`. THREE\ngoverned self-commits legitimately emit a\
+  \ `commit_landed` AFTER the ship — `task update --status\nparked`, `task pause`,\
+  \ and `task update --status wont-do` — and so SHIFT\nrecorded custody past the ship,\
+  \ wedging the task: `audit post --commit <ship>` refuses (ship ≠\nrecorded), a bare\
+  \ `audit post` audits the PARK diff (GREEN-BY-VACUITY), and `task close` stays\n\
+  RED-blocked.\n\nThe governed exit is `yitc-v2 audit post --task T-XXXX --commit\
+  \ <ship-sha> --repin-ship`. It re-pins\naudit custody to the DISPLACED SHIP, and\
+  \ it is NOT a weakening of the guard: every leg is DERIVED by\n`_require_ship_custody_repin`\
   \ from durable task-linked journal + git state, never asserted by the\ncaller, and\
   \ each refuses FAIL-CLOSED (same `read_gate_refused` kind=`verification-exists`\
   \ channel, NO\nnew event/emit path).\n\n**THE ADMISSION LEGS AND THE AUDITED SUBJECT\
@@ -304,9 +306,13 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ never a standalone `task commit`\n   — THE CARD-REPAIR ARM»: Admission used to\
   \ turn on WHAT THE AUDITOR HAPPENED TO WRITE.\n- From «### Ship-custody RE-PIN»:\
   \ This is an ADDITIVE extension (SPEC-0005 §additive-extension): it adds an answer\
-  \ for a case the rule never addressed and alters no already-covered case.\n\n##\
-  \ Implementation notes\n\nNotes for the maintainer of the code, moved word for word\
-  \ out of the rule text of the section\neach names.\n\n- From «#### THE EVIDENCE-LOCATOR\
+  \ for a case the rule never addressed and alters no already-covered case.\n\n###\
+  \ Moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names.\n\n- From «Probe verification — FAIL-CLOSED\
+  \ BOUND»: What a post-close TERMINAL does to `probe_passed`\n  was decided by («this\
+  \ widens the SETTLE, never the close») and is deliberately NOT\n  re-decided here.\n\
+  \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
+  \ word out of the rule text of the section\neach names.\n\n- From «#### THE EVIDENCE-LOCATOR\
   \ ADDRESS SPACE — EXTENSION RULE»: A differential test pins the two\n  halves together\
   \ (every form this rule names is ACCEPTED, and forms it does not name are REFUSED),\n\
   \  so the record cannot drift from the parser.\n- From «### Infrastructure-class\
@@ -323,8 +329,19 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ unprovable shapes leave the arm SILENT — it MISSES rather than MISFIRES.\n- From\
   \ «### Audit-stage YAMLs — CARD-REPAIR ARM (C)»: This leg and the audit-post admission\n\
   \  (SPEC-0036) call ONE shared predicate (`_red_cause_is_card_record`), so the two\
-  \ doors cannot\n  answer differently about one RED.\n\n## Verification\n\n- Bound:\
-  \ `bin/yitc-v2 graph build` maps `Closure → SPEC-0015` in `binding_report.stage_to_specs`\n\
+  \ doors cannot\n  answer differently about one RED.\n\n### Moved from the rule body\n\
+  \n- From «Ordering prerequisite »: A card closed under a case records the case on\
+  \ its\n  own closure record as `task_closed.data.exempted_case` (SPEC-0025), so\
+  \ every skip is\n  attributable after the fact.\n- From «THE EVIDENCE-LOCATOR ADDRESS\
+  \ SPACE»: The address space of a NAMED, RESOLVING settlement\n  locator, recorded\
+  \ at one home. RECORDING ONLY: it names no new form and changes nothing the verb\n\
+  \  accepts.\n- From «Land-emitted verify-layer ships — rewire proof»: Each row of\
+  \ a layer that executed also\n  records the bound it actually ran under and which\
+  \ rung supplied it, so the land that\n  ships a declared bound shows that bound\
+  \ in force — a report-only reading beside the verdict,\n  which no gate reads.\n\
+  - From «Crash-atomic ordering»: Pure ordering — no new mechanism; it reuses the\
+  \ existing\n  idempotent-resume + `_recover_close_tail` recovery path.\n\n## Verification\n\
+  \n- Bound: `bin/yitc-v2 graph build` maps `Closure → SPEC-0015` in `binding_report.stage_to_specs`\n\
   \  (the stage-entry delivery axis) once active; `stage Closure` delivers it.\n-\
   \ Pointer: `bin/yitc-v2 audit post --task T-XXXX` prints the closure-rules forward-pointer\
   \ (element #2).\n- Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded\

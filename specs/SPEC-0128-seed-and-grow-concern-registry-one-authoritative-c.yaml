@@ -47,70 +47,67 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ GRAPH\npermits (the scenario-status carve-out), NOT a semantic validation layer.\
   \ The block BROADENS the existing\nSPEC-0096 `init_concern` mapping into the full\
   \ per-concern registry entry; the field SCHEMA is homed in\nSPEC-0030. That block\
-  \ is the SOLE source for the concern's\nFINITE metadata table (constraint 1 of `decisions/-audit-adhoc.yaml`\
-  \ — a TABLE, not a language;\nvariant B's shape-DSL was rejected precisely to avoid\
-  \ a new parser/DSL path): `section` (the carrier\nsection name); `carrier_path`\
-  \ (the dotted carrier path — supports a nested subfield, e.g.\n`deploy.policy` /\
-  \ `deploy.host_config`); `presence_policy` (`mandatory | checked-if-present | opt-in`);\n\
-  `update_policy`; `declare_key` (the section-appropriate declaration key); `waiver_policy`\n\
-  (`loose | strict`, per SPEC-0093 rule 6); and the OPTIONAL `shape_hook` (Rule 2).\
-  \ The activation-checklist\nquestion / floor-trigger token / review-debt lens key\
-  \ stay carried by the already-derived companion\nfields (`init_concern`, `binding`).\
-  \ No concern datum lives anywhere else.\n\n### Rule 2 — All surfaces are GENERATED;\
-  \ the generic ladder retires, registry-named deep-shape hooks stay\nThe born `yitc-ops.yaml`\
-  \ template, the carrier declare-or-waive fail-closed sweep, the activation\nchecklist,\
-  \ the concern's floor-trigger-map row(s), and its review/debt lens are all DERIVED\
-  \ from the\nRule-1 registry at `graph build` — the SAME derive-from-declaration\
-  \ model the floor-trigger-map\n(from `binding:`) and the activation checklist (from\
-  \ `init_concern`) already use. **The registry\nderives from LIVE (active) specs\
-  \ ONLY.** A concern enters the registry — and thus every\nderived surface, incl.\
-  \ the consumer-shipped `born-ops.yaml` and the pinned registry set — only when\n\
-  its owning spec is `active`; a `draft`/`proposed` concern is non-authoritative (SPEC-0005\
-  \ §4 — \"active\nis the only normative status\") and `superseded`/`retired` is history,\
-  \ so a concern goes live at spec\nACTIVATION, not at declaration. This mirrors `graph\
-  \ query --projected` (which already excludes drafts)\nand keeps the shipped surfaces\
-  \ from carrying a concern the corpus does not yet govern. The gate is the\nONE shared\
-  \ `_active_concern_blocks` helper feeding BOTH the registry roster (`_concern_registry_entries`)\n\
-  and the born roster (`_concern_born_entries`) so they cannot diverge (P5); `_concern_malformed_violations`\n\
+  \ is the SOLE source for the concern's\nFINITE metadata table: `section` (the carrier\n\
+  section name); `carrier_path` (the dotted carrier path — supports a nested subfield,\
+  \ e.g.\n`deploy.policy` / `deploy.host_config`); `presence_policy` (`mandatory |\
+  \ checked-if-present | opt-in`);\n`update_policy`; `declare_key` (the section-appropriate\
+  \ declaration key); `waiver_policy`\n(`loose | strict`, per SPEC-0093 rule 6); and\
+  \ the OPTIONAL `shape_hook` (Rule 2). The activation-checklist\nquestion / floor-trigger\
+  \ token / review-debt lens key stay carried by the already-derived companion\nfields\
+  \ (`init_concern`, `binding`). No concern datum lives anywhere else.\n\n### Rule\
+  \ 2 — All surfaces are GENERATED; the generic ladder retires, registry-named deep-shape\
+  \ hooks stay\nThe born `yitc-ops.yaml` template, the carrier declare-or-waive fail-closed\
+  \ sweep, the activation\nchecklist, the concern's floor-trigger-map row(s), and\
+  \ its review/debt lens are all DERIVED from the\nRule-1 registry at `graph build`\
+  \ — the SAME derive-from-declaration model the floor-trigger-map\n(from `binding:`)\
+  \ and the activation checklist (from `init_concern`) already use. **The registry\n\
+  derives from LIVE (active) specs ONLY.** A concern enters the registry — and thus\
+  \ every\nderived surface, incl. the consumer-shipped `born-ops.yaml` and the pinned\
+  \ registry set — only when\nits owning spec is `active`; a `draft`/`proposed` concern\
+  \ is non-authoritative (SPEC-0005 §4 — \"active\nis the only normative status\"\
+  ) and `superseded`/`retired` is history, so a concern goes live at spec\nACTIVATION,\
+  \ not at declaration. The gate is the\nONE shared `_active_concern_blocks` helper\
+  \ feeding BOTH the registry roster (`_concern_registry_entries`)\nand the born roster\
+  \ (`_concern_born_entries`) so they cannot diverge (P5); `_concern_malformed_violations`\n\
   stays status-AGNOSTIC (a mis-formatted concern is a FORMAT fault flagged on any\
-  \ spec). **Born-guidance\ncompanion (born decision (i), `decisions/-audit-adhoc.yaml`):**\
-  \ the born\n`yitc-ops.yaml` SECTION is rendered from a `born:` (the VERBATIM per-section\
-  \ born block — its `#`\nguidance PROSE + declare-or-waive stub) + `born_order:`\
-  \ companion carried ON the concern block\nalongside the Rule-1 metadata (schema\
-  \ home SPEC-0030). `graph build` renders\n`graph/born-ops.yaml` = the file-level\
-  \ preamble + each concern's `born` in `born_order` (RENDER-ONLY\nconcat, NO shape-DSL\
-  \ — the born decision (i) constraint; a nested subfield's born, e.g. `deploy.policy`,\n\
-  is stored indented so pure concatenation preserves the `deploy:` nesting); init\
-  \ READS that generated\nfile (the concern-registry.json precedent). EVERY born SECTION\
-  \ is thereby a registered concern (coverage\n+ startup_checks migrated in); a concern\
-  \ with no `born` renders no section (surfaced by the\nconcern-surface check). **Retired\n\
-  hand-maintained lists (CHARTER §P1 F3 — the removal this rule buys):** `_OPS_CARRIER_SECTIONS`,\
-  \ the\n`_BORN_OPS_YAML` per-section literals (retired — the file-level PREAMBLE\
-  \ stays a render-time\ntemplate constant, NOT a per-SECTION literal), and — the\
-  \ precise scope — the **GENERIC per-section STANCE/XOR\nbranch ladder** in `_sweep_ops_carrier`\
-  \ (`bin/lib/init.py`): the repeated hand-written\ndeclared-or-waived / declaration-XOR-waiver\
-  \ dispatch that the registry's `declare_key` + `waiver_policy`\nnow generate. **NOT\
-  \ retired — EXPLICITLY PERMITTED (constraint 2 / audit finding 2): small kernel-owned\n\
-  deep-shape VALIDATORS (\"shape hooks\").** A concern whose residual shape is richer\
-  \ than the generic\nstance check (e.g. the STRICT security waiver's reason+compensating_control+expiry,\
-  \ or the per-layer\n`verify.layers` command-XOR-waiver shape) NAMES a kernel-owned\
-  \ validator via its `concern.shape_hook`;\nthe GENERATED sweep dispatches to that\
-  \ validator AFTER the generic stance/XOR check. The hook is the\nnarrow escape hatch\
-  \ for concern-specific deep shape — it does NOT become a second registry: the\n\
-  `concern:` block is the SOLE owner of concern↔hook membership, each hook is referenced\
-  \ from **EXACTLY\nONE** concern block, and `graph build` WARNs (report-only) on\
-  \ a **missing** (a `shape_hook` named with\nno implemented validator), an **orphan**\
-  \ (an implemented validator no concern references), or a\n**duplicate** hook (constraint\
-  \ 3). **The ORPHAN row is addressed to the repo that can ACT on it\n(answering X-1184).**\
-  \ The validators are kernel-owned code and the concern blocks that name\nthem live\
-  \ in the KERNEL's corpus, so in a CONSUMER build every implemented hook is unreferenced\
-  \ BY\nCONSTRUCTION — a permanent row per hook that nobody there can act on, degrading\
-  \ a surface a scheduled inspection reads as an INPUT. So a\nkernel-owned hook's\
-  \ orphan row is NOT reported in a consumer build; the kernel's own build is\nunchanged,\
-  \ and so is every other WARN family. The exemption is keyed on the HOOK's ownership,\
-  \ never on\nthe build being a consumer: a consumer concern block that DOES name\
-  \ a kernel hook references it (so it\nwas never an orphan) and still earns its missing\
-  \ / duplicate verdict — a genuine consumer-owned orphan\nis still reported. A concern\
+  \ spec). **Born-guidance\ncompanion:** the born\n`yitc-ops.yaml` SECTION is rendered\
+  \ from a `born:` (the VERBATIM per-section born block — its `#`\nguidance PROSE\
+  \ + declare-or-waive stub) + `born_order:` companion carried ON the concern block\n\
+  alongside the Rule-1 metadata (schema home SPEC-0030). `graph build` renders\n`graph/born-ops.yaml`\
+  \ = the file-level preamble + each concern's `born` in `born_order` (RENDER-ONLY\n\
+  concat, NO shape-DSL — the born decision (i) constraint; a nested subfield's born,\
+  \ e.g. `deploy.policy`,\nis stored indented so pure concatenation preserves the\
+  \ `deploy:` nesting); init READS that generated\nfile (the concern-registry.json\
+  \ precedent). EVERY born SECTION is thereby a registered concern (coverage\n+ startup_checks\
+  \ migrated in); a concern with no `born` renders no section (surfaced by the\nconcern-surface\
+  \ check). **Retired\nhand-maintained lists (CHARTER §P1 F3 — the removal this rule\
+  \ buys):** `_OPS_CARRIER_SECTIONS`, the\n`_BORN_OPS_YAML` per-section literals (retired\
+  \ — the file-level PREAMBLE stays a render-time\ntemplate constant, NOT a per-SECTION\
+  \ literal), and — the precise scope — the **GENERIC per-section STANCE/XOR\nbranch\
+  \ ladder** in `_sweep_ops_carrier` (`bin/lib/init.py`): the repeated hand-written\n\
+  declared-or-waived / declaration-XOR-waiver dispatch that the registry's `declare_key`\
+  \ + `waiver_policy`\nnow generate. **NOT retired — EXPLICITLY PERMITTED (constraint\
+  \ 2 / audit finding 2): small kernel-owned\ndeep-shape VALIDATORS (\"shape hooks\"\
+  ).** A concern whose residual shape is richer than the generic\nstance check (e.g.\
+  \ the STRICT security waiver's reason+compensating_control+expiry, or the per-layer\n\
+  `verify.layers` command-XOR-waiver shape) NAMES a kernel-owned validator via its\
+  \ `concern.shape_hook`;\nthe GENERATED sweep dispatches to that validator AFTER\
+  \ the generic stance/XOR check. The hook is the\nnarrow escape hatch for concern-specific\
+  \ deep shape — it does NOT become a second registry: the\n`concern:` block is the\
+  \ SOLE owner of concern↔hook membership, each hook is referenced from **EXACTLY\n\
+  ONE** concern block, and `graph build` WARNs (report-only) on a **missing** (a `shape_hook`\
+  \ named with\nno implemented validator), an **orphan** (an implemented validator\
+  \ no concern references), or a\n**duplicate** hook (constraint 3). **The ORPHAN\
+  \ row is addressed to the repo that can ACT on it\n(answering X-1184).** The validators\
+  \ are kernel-owned code and the concern blocks that name\nthem live in the KERNEL's\
+  \ corpus, so in a CONSUMER build every implemented hook is unreferenced BY\nCONSTRUCTION\
+  \ — a permanent row per hook that nobody there can act on, degrading a surface a\
+  \ scheduled inspection reads as an INPUT. So a\nkernel-owned hook's orphan row is\
+  \ NOT reported in a consumer build; the kernel's own build is\nunchanged, and so\
+  \ is every other WARN family. The exemption is keyed on the HOOK's ownership, never\
+  \ on\nthe build being a consumer: a consumer concern block that DOES name a kernel\
+  \ hook references it (so it\nwas never an orphan) and still earns its missing /\
+  \ duplicate verdict — a genuine consumer-owned orphan\nis still reported. A concern\
   \ present in the registry but absent from a generated\nsurface — or the reverse\
   \ — is likewise a build-time inconsistency (report-only WARN), not an invisible\n\
   drift.\n**Per-concern `version` (the SPEC-0143 propagation extension):** each derived\
@@ -144,70 +141,60 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ every reader of these keys already fails closed on); it is MARKER-KEYED,\nso a\
   \ re-run is byte-identical; and it is GENERATED FROM THE SAME DECLARATION as every\
   \ other born\nsurface, so the NEXT declaration-gated capability discloses itself\
-  \ by construction. A second\nhand-maintained list of keys would satisfy the letter\
-  \ and become the next thing nobody maintains\n(§P1 F3) — which is the whole finding:\
-  \ `combined_candidate_safe` (SPEC-0152) existed only in kernel\nsource and its own\
-  \ spec body, and <project> formed 154 land batches of ONE, every row stamped\n`engagement:\
-  \ project-authored-verify-undeclared`. The field is EXCLUDED from the per-concern\n\
-  `version` hash for the same reason `born` is — it is guidance PROSE about a capability,\
-  \ not the\ncarrier CONTRACT a consumer pins.\n\n**Born-permissive DECLARATION +\
-  \ the detector-naming convention — `born_stance:` +\n`detector:`.** SPEC-0189 rule\
-  \ 1 admits a born-permissive default ONLY as a PAIR: the permissive\nvalue AND a\
-  \ named detector for its absence. Rule 5 of that spec homes the registry MECHANICS\
-  \ of\nthat pairing HERE, and this is it. A concern block MAY carry `born_stance:`\
-  \ — the CLOSED\nvocabulary `permissive | protective`, declaring the DIRECTION of\
-  \ its born value (rule 8 fixes the\naxis as the value's direction and is blind to\
-  \ WHICH gate is relaxed, so two words suffice and\nthere is no language) — and `detector:`,\
-  \ the NAME of the code watching for that absence starting\nto cost something. `graph\
-  \ build` carries both onto the registry entry by the SAME special-carry\nshape as\
-  \ `authoring_floor` / `gated_capabilities`: kept only when well-formed, so a typo'd\
-  \ stance\nis SKIPPED rather than half-registered. That skip is fail-closed on the\
-  \ ADMITTING side — an\nunreadable stance reads as NO stance, never as a permissive\
-  \ default that excused itself.\nENFORCEMENT is a REFUSAL, not a WARN: a concern\
-  \ declaring `born_stance: permissive` with no\nnon-empty `detector:` is a conformance\
-  \ RED naming the concern. Rule 1 binds at AUTHORING time and\nmakes the pair the\
-  \ unit of admission, so a warning would leave precisely the unenforced convention\n\
-  it forbids — and the failure it permits is silent by construction, since a born-permissive\
-  \ default\nsurfaces nothing on its own and the missing detector disables the very\
-  \ review that would catch it\nlater. The name resolves through the kernel detector\
-  \ registry (`bin/lib/debt.py`, SPEC-0189 rule\n5: a detector is named CODE, never\
-  \ a rule expressed in metadata). BOTH KEYS ARE EXCLUDED FROM THE\nPER-CONCERN `version`\
-  \ HASH, for the reason `born` and `gated_capabilities` are: which detector\nwatches\
-  \ a concern is kernel-side review machinery and moves no key, type or stance in\
-  \ any\nconsumer's carrier, so hashing it would bump every consumer's adopted version\
-  \ for a change that\nnever touched their contract. Field schema home: SPEC-0030.\n\
-  \n### Rule 3 — Adding/evolving a concern is ONE governed act\nTo add a concern:\
-  \ author its spec with a `concern:` block. That is the WHOLE registration — the\n\
-  generated surfaces follow at the next `graph build`. No parallel `init.py` edit,\
-  \ no separate checklist\nor floor-map edit. This single point of extension is what\
-  \ closes the self-replenishing gap (GAP A2):\nthe two-hand-synced-steps requirement\
-  \ (edit code AND declare a field) is gone.\n\n### Rule 4 — Report-only, never autonomous\
-  \ (CHARTER §6 fence)\nThis spec introduces NO autonomous apply/launch. The generated\
-  \ surfaces are declarations + fail-closed\ninit sweep + report-only standing signals\
-  \ (the conformance/skew views ride SPEC-0119's `debt` echo,\nreport-only, suppressed-when-clean).\
-  \ Closing any surfaced gap stays an owner/consumer-invoked governed\nact (re-`init`,\
-  \ the SPEC-0123 migration-plan steps). \"Self-replenishing\" is scoped to DERIVED\
-  \ signals\n+ governed verbs, never a self-mutation.\n\n### Rule 5 — Scope bound\
-  \ (honest +1 spec, no new machinery)\nExactly +1 spec, REUSING the existing `graph\
-  \ build` generation pass + the `concern:`/`init_concern`\nfield — NO new file, parser,\
-  \ node-type, edge, or gate (CHARTER §P1 F2/F5). This spec does not restate\nany\
-  \ per-surface rule; it is the single home of the cross-surface INVARIANT that the\
-  \ meta-analysis found\nmissing (the \"one authoritative concern registry\").\n\n\
-  ### Rule 6 — A flip to `mandatory` carries its MIGRATION, or it is REFUSED\n`presence_policy:\
-  \ mandatory` may be reached only by a change that ALSO supplies (a) an UNANSWERED\n\
-  migration SCAFFOLD for that concern and (b) probe evidence that a **PRE-CHANGE**\
-  \ carrier receives it.\nA flip that supplies neither is a conformance RED naming\
-  \ the concern — it is not accepted and later\ncleaned up. **Why the pre-change qualifier\
-  \ is the whole rule:** the born template ANSWERS every\nmandatory section for a\
-  \ project being born, and that answer is honest only at birth (`lessons/\na-stance-mirror-is-only-sound-at-birth.md`).\
-  \ An EXISTING project must be ASKED. So evidence produced\nfrom a born-today carrier\
-  \ proves nothing — it already HAS the section — and accepting it would let\nthis\
-  \ exact class recur while looking guarded; the guard therefore builds its probe\
-  \ carrier by REMOVING\nthe section from the born template and requires the shipped\
-  \ delivery to land it there, unanswered,\nsuch that the declare-or-waive sweep then\
-  \ NAMES it (SPEC-0093 rule 3 fail-closed). The obligation is\nhomed HERE, at the\
-  \ registry, because that is where the one-word flip is authored: a future author\n\
-  meets it while editing the `concern:` block, not months later via a stranded consumer.\
+  \ by construction. The field is EXCLUDED from the per-concern\n`version` hash for\
+  \ the same reason `born` is — it is guidance PROSE about a capability, not the\n\
+  carrier CONTRACT a consumer pins.\n\n**Born-permissive DECLARATION + the detector-naming\
+  \ convention — `born_stance:` +\n`detector:`.** SPEC-0189 rule 1 admits a born-permissive\
+  \ default ONLY as a PAIR: the permissive\nvalue AND a named detector for its absence.\
+  \ Rule 5 of that spec homes the registry MECHANICS of\nthat pairing HERE, and this\
+  \ is it. A concern block MAY carry `born_stance:` — the CLOSED\nvocabulary `permissive\
+  \ | protective`, declaring the DIRECTION of its born value (rule 8 fixes the\naxis\
+  \ as the value's direction and is blind to WHICH gate is relaxed, so two words suffice\
+  \ and\nthere is no language) — and `detector:`, the NAME of the code watching for\
+  \ that absence starting\nto cost something. `graph build` carries both onto the\
+  \ registry entry by the SAME special-carry\nshape as `authoring_floor` / `gated_capabilities`:\
+  \ kept only when well-formed, so a typo'd stance\nis SKIPPED rather than half-registered.\
+  \ That skip is fail-closed on the ADMITTING side — an\nunreadable stance reads as\
+  \ NO stance, never as a permissive default that excused itself.\nENFORCEMENT is\
+  \ a REFUSAL, not a WARN: a concern declaring `born_stance: permissive` with no\n\
+  non-empty `detector:` is a conformance RED naming the concern. The name resolves\
+  \ through the kernel detector registry (`bin/lib/debt.py`, SPEC-0189 rule\n5: a\
+  \ detector is named CODE, never a rule expressed in metadata). BOTH KEYS ARE EXCLUDED\
+  \ FROM THE\nPER-CONCERN `version` HASH, for the reason `born` and `gated_capabilities`\
+  \ are: which detector\nwatches a concern is kernel-side review machinery and moves\
+  \ no key, type or stance in any\nconsumer's carrier, so hashing it would bump every\
+  \ consumer's adopted version for a change that\nnever touched their contract. Field\
+  \ schema home: SPEC-0030.\n\n### Rule 3 — Adding/evolving a concern is ONE governed\
+  \ act\nTo add a concern: author its spec with a `concern:` block. That is the WHOLE\
+  \ registration — the\ngenerated surfaces follow at the next `graph build`. No parallel\
+  \ `init.py` edit, no separate checklist\nor floor-map edit.\n\n### Rule 4 — Report-only,\
+  \ never autonomous (CHARTER §6 fence)\nThis spec introduces NO autonomous apply/launch.\
+  \ The generated surfaces are declarations + fail-closed\ninit sweep + report-only\
+  \ standing signals (the conformance/skew views ride SPEC-0119's `debt` echo,\nreport-only,\
+  \ suppressed-when-clean). Closing any surfaced gap stays an owner/consumer-invoked\
+  \ governed\nact (re-`init`, the SPEC-0123 migration-plan steps). \"Self-replenishing\"\
+  \ is scoped to DERIVED signals\n+ governed verbs, never a self-mutation.\n\n###\
+  \ Rule 5 — Scope bound (honest +1 spec, no new machinery)\nExactly +1 spec, REUSING\
+  \ the existing `graph build` generation pass + the `concern:`/`init_concern`\nfield\
+  \ — NO new file, parser, node-type, edge, or gate (CHARTER §P1 F2/F5). This spec\
+  \ does not restate\nany per-surface rule; it is the single home of the cross-surface\
+  \ INVARIANT that the meta-analysis found\nmissing (the \"one authoritative concern\
+  \ registry\").\n\n### Rule 6 — A flip to `mandatory` carries its MIGRATION, or it\
+  \ is REFUSED\n`presence_policy: mandatory` may be reached only by a change that\
+  \ ALSO supplies (a) an UNANSWERED\nmigration SCAFFOLD for that concern and (b) probe\
+  \ evidence that a **PRE-CHANGE** carrier receives it.\nA flip that supplies neither\
+  \ is a conformance RED naming the concern — it is not accepted and later\ncleaned\
+  \ up. **Why the pre-change qualifier is the whole rule:** the born template ANSWERS\
+  \ every\nmandatory section for a project being born, and that answer is honest only\
+  \ at birth (`lessons/\na-stance-mirror-is-only-sound-at-birth.md`). An EXISTING\
+  \ project must be ASKED. So evidence produced\nfrom a born-today carrier proves\
+  \ nothing — it already HAS the section — and accepting it would let\nthis exact\
+  \ class recur while looking guarded; the guard therefore builds its probe carrier\
+  \ by REMOVING\nthe section from the born template and requires the shipped delivery\
+  \ to land it there, unanswered,\nsuch that the declare-or-waive sweep then NAMES\
+  \ it (SPEC-0093 rule 3 fail-closed). The obligation is\nhomed HERE, at the registry,\
+  \ because that is where the one-word flip is authored: a future author\nmeets it\
+  \ while editing the `concern:` block, not months later via a stranded consumer.\
   \ Three refusal families: no migration ROUTE (a nested/dotted mandatory\nconcern\
   \ — the backfill delivers top-level sections only), no SCAFFOLD (no `born:` block\
   \ or no\n`declare_key` to leave empty), and an UNPROVEN migration (a scaffold that\
@@ -229,9 +216,26 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ derive-from-declaration model to EVERY surface.\n\n### History moved from the\
   \ rule body\n\nEach entry is a passage moved word for word out of the rule text\
   \ of the section it names;\nthe rule it explains stays there.\n\n- From «Rule 2»:\
-  \ (measured: 17 in <project>, 0 in the kernel's own build)\n\n## Implementation\
-  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
-  \ rule text of the section\neach names.\n\n- From «Rule 2»: Carrier: the host composition\
+  \ (measured: 17 in <project>, 0 in the kernel's own build)\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «Rule\
+  \ 1»: (constraint 1 of `decisions/-audit-adhoc.yaml` — a TABLE, not a language;\n\
+  \  variant B's shape-DSL was rejected precisely to avoid a new parser/DSL path)\n\
+  - From «Rule 2»: (born decision (i), `decisions/-audit-adhoc.yaml`)\n- From «Rule\
+  \ 2 (gated_capabilities)»: A second hand-maintained list of keys would satisfy the\n\
+  \  letter and become the next thing nobody maintains (§P1 F3) — which is the whole\
+  \ finding:\n  `combined_candidate_safe` (SPEC-0152) existed only in kernel source\
+  \ and its own spec body, and\n  <project> formed 154 land batches of ONE, every\
+  \ row stamped `engagement:\n  project-authored-verify-undeclared`.\n- From «Rule\
+  \ 2 (born_stance)»: Rule 1 binds at AUTHORING time and makes the pair the unit of\n\
+  \  admission, so a warning would leave precisely the unenforced convention it forbids\
+  \ — and the\n  failure it permits is silent by construction, since a born-permissive\
+  \ default surfaces nothing\n  on its own and the missing detector disables the very\
+  \ review that would catch it later.\n- From «Rule 3»: This single point of extension\
+  \ is what closes the self-replenishing gap (GAP A2):\n  the two-hand-synced-steps\
+  \ requirement (edit code AND declare a field) is gone.\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code, moved word for word out of the rule text\
+  \ of the section\neach names.\n\n- From «Rule 2»: Carrier: the host composition\
   \ root injects the exempt set; the pure core stays\n  identity-agnostic.\n- From\
   \ «Rule 2»: (`bin/lib/init.py#_ops_born_disclosures` + `_inject_section_disclosure`)\n\
   - From «Rule 2»: (`bin/lib/init.py#born_permissive_detector_violations`, composed\
@@ -239,7 +243,12 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \  `mandatory_migration_violations` precedent)\n- From «Rule 6»: Realized by `bin/lib/init.py#mandatory_migration_violations`,\
   \ wired into the\n  `graph conformance` RED set at the host seam (the SPEC-0150\
   \ `_key_ownership_violations`\n  precedent); registry-derived, so it covers the\
-  \ NEXT concern with no code edit.\n\n## Verification\n\n- **state-check:** a concern\
+  \ NEXT concern with no code edit.\n\n### Moved from the rule body\n\nEach entry\
+  \ is a passage moved word for word out of the rule text of the section it names\n\
+  (its class per SPEC-0005 rule 3 in brackets); every acting rule stays in the rule\
+  \ text.\n\n- From «Rule 2» [MECH]: This mirrors `graph query --projected` (which\
+  \ already excludes drafts) and\n  keeps the shipped surfaces from carrying a concern\
+  \ the corpus does not yet govern.\n\n## Verification\n\n- **state-check:** a concern\
   \ declared ONLY via a `concern:` block appears on every generated surface\n  (born\
   \ `yitc-ops.yaml` template, carrier fail-closed sweep, activation checklist, floor-trigger-map\n\
   \  row) after `graph build`, with NO edit to `_OPS_CARRIER_SECTIONS` / `_BORN_OPS_YAML`\

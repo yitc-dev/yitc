@@ -7,6 +7,15 @@
 
 # Controller supplement — read IN ADDITION to the worker seed (generated, SPEC-0127)
 
+<!-- source: CHARTER.md (controller supplement) -->
+
+#### Controller only — orchestrate posture and context-bounded continuation
+
+**Orchestrate posture — the bounded controller-selector (the amendment ratified by plan `orchestrate-posture-for-the-main-session-6-amendme`).** The Controller's DEFAULT posture: instead of executing a task itself, it **selects + dispatches** independent ready tasks to Workers and **coordinates their order** — selection + dependency-gating on stateless reads, within ONE owner-authorized batch. The Controller never runs a Worker's stages in-process. This is a *posture*, **NOT a third type** (Controller + Worker stays the whole taxonomy) and **NOT the forbidden orchestrator**. The operational protocol + the named retirements are homed in AGENTS §Session-types → Orchestrate posture. The owner always starts the session AND authorizes the batch.
+
+**Context-bounded autonomous continuation (per SPEC-0126).** Within an owner-authorized **plan-drive** (advancing a plan across its FSM stages after the owner took it into work) or **background batch** (running dispatched Workers over an owner-authorized task set), the Controller proceeds across seams — plan stage→stage, batch task→task — WITHOUT pausing for an owner cue at any seam that carries no human decision. This is the plan/batch-level analog of a Worker running one task's 9 stages without asking the human between them. It STOPS only on (i) a **genuine owner decision** (the AGENTS §When-to-ask-owner-vs-proceed triggers + §6(f) missing/ambiguous `requires:` edge + a heavy mandatory gate RED/ABORT on an unresolved cause per §7) or (ii) the **context threshold** — when `session context` (SPEC-0115) reaches the configured bound, STOP at a clean seam and propose a fresh-session hand-off (SPEC-1004, interactive only), with no lost work. This is INSIDE the fence: the owner authorizes the plan/batch up front and still makes every genuine decision, and it adds NO auto-start, NO auto-pick at session start (session start still awaits an owner cue), and NO self-fetch beyond the authorized plan/batch — the **named retirements above are UNCHANGED**. Full rule: `graph query SPEC-0126`.
+
+
 <!-- source: AGENTS-STARTUP.md (controller supplement) -->
 
 ### Controller and interactive sessions only — further re-delivery
@@ -309,6 +318,19 @@ differences are **gate-WEIGHT variations**, not skipped stages.
 > through the FSM or the weight of a gate, each with its rule home; delivered at `plan file` and at the
 > entry of each linear stage). `bin/yitc-v2 graph query SPEC-0034`
 
+## Scenario authoring (pointer — per SPEC-0076)
+
+A **scenario** (`scenarios/<slug>.md`, the 7th graph node) is the human-facing user-path artifact —
+zero-normative narration that `cites` the specs where every rule lives. It is NOT a lifecycle stage;
+this is a navigational pointer, not a restated rule (the rules live single-SoT in SPEC-0076 — fetch
+via `bin/yitc-v2 graph query SPEC-0076`; authoring shape: `scenarios/_template.md`).
+
+- **Where authoring sits:** at the PLAN `draft → specs` seam — as a plan's specs are composed, the
+  scenario is authored/updated alongside them (it composes those specs into a user-path). See
+  §Plan lifecycle.
+- **Per-stage checks:** scenario coherence is checked on the EXISTING lifecycle stages (no new gate,
+  no new lifecycle) — the stage map + which checks WARN vs BLOCK live single-SoT in **SPEC-0076 §6**.
+
 
 <!-- source: QUEUE.md (controller supplement) -->
 
@@ -320,6 +342,8 @@ When the Controller, on an owner cue, assembles the ready queue and selects «wh
 - **Order:** priority high → medium → low, pick first (`bin/yitc-v2 task list --status ready` prints the ready cards in that order).
 - **Claim it by creating its worktree: `bin/yitc-v2 worktree new --task T-XXXX`.** The claim — `status: ready → in-progress` (`current_stage: Analysis`) + the `task_picked` event — is written **inside the new worktree**, so it reaches `main` only via `land` (mechanics: AGENTS-SESSIONS §Writes happen in a worktree).
 - How deep a `requires:` chain may run is set where the chain is cut — a decomposition authoring rule, not a picker check: `bin/yitc-v2 graph query SPEC-0046`.
+
+**Order:** picker reads ready ∩ requires-unblocked tasks first by `priority:` field (`high | medium | low`). No multi-axis priority taxonomy.
 
 No queue-saturation logic, no parallel-cap, no cap-per-account, no rate-limit awareness. Solo *author* — but concurrent sessions are expected : the invariant is **one active claim per task id** (a task id has at most one in-progress claim / `task/T-XXXX` worktree), NOT "one task at a time" globally. **Different** tasks may run concurrently in separate worktrees; the per-task-id guard only rejects a second claim of the *same* task.
 
@@ -334,6 +358,8 @@ No queue-saturation logic, no parallel-cap, no cap-per-account, no rate-limit aw
 > in **`patterns/inspection-criteria-roster.md`** (SPEC-0120 split). Read it there. The
 > Controller's review cadence is unchanged; it is now sourced from the
 > roster, not this section (CHARTER §P5 — no double-home). No automated re-review; no cron jobs Day 1.
+
+**Review trigger:** the Controller's weekly review scans the parking lot. If return_trigger condition met → status flips to ready.
 
 > **Triage sweep + window — retrieved (SPEC-0055).** Fetch on demand: `bin/yitc-v2 graph query
 > SPEC-0055` (triage VERB: `bin/yitc-v2 triage`). The cadence in the roster stays mandatory.

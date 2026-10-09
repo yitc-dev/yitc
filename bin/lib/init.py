@@ -8147,13 +8147,25 @@ def home_reference_drift(repo, home_text, kernel_root) -> list:
       2. a bare SPEC id, resolved own-first — the project's `specs/`, else the kernel's;
       3. a `graph query --kernel SPEC-XXXX` form, resolved against the kernel only.
     Drift = a named path that does not exist, or a named spec that is not `active` (absent included).
+    A span the project declares as its own content under `context_home.own_content` in its
+    `yitc-ops.yaml` — an exact span or a glob (T-13781) — is not read as a path; the list never
+    reaches forms 2 and 3, so a declared entry cannot silence a spec reference.
     Returns `{"ref", "detail"}` records in first-mention order. Read-only, never raises."""
+    import fnmatch
     import re
     from pathlib import Path
+    from lib import state
 
     repo = Path(repo)
     kernel_specs = Path(kernel_root) / "specs"
     found, seen, statuses = [], set(), {}
+    try:
+        ops = state.load_ops_str((repo / "yitc-ops.yaml").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — no readable carrier declares nothing
+        ops = None
+    own = (ops or {}).get("context_home") if isinstance(ops, dict) else None
+    own = own.get("own_content") if isinstance(own, dict) else None
+    own = [str(e).strip() for e in own if isinstance(e, str) and e.strip()] if isinstance(own, list) else []
 
     def _add(pos, ref, detail):
         if ref not in seen:
@@ -8173,6 +8185,8 @@ def home_reference_drift(repo, home_text, kernel_root) -> list:
                 or "://" in path or any(c in path for c in "*?[]{}<>|=")
                 or re.fullmatch(r"SPEC-\d{4,}", path) or (anchor and anchor.isdigit())
                 or not ("/" in path or re.search(r"\.[A-Za-z][A-Za-z0-9]{0,5}$", path))):
+            continue
+        if any(span == e or fnmatch.fnmatchcase(span, e) for e in own):
             continue
         target = (repo / path).resolve()
         if repo.resolve() not in (target, *target.parents):
@@ -8206,7 +8220,8 @@ def render_home_drift_line(home, drift, limit=5) -> str:
     more = f"; … {len(drift) - limit} more" if len(drift) > limit else ""
     return (f"debt: the project-context home {home} names {len(drift)} reference(s) that no longer "
             f"hold — {shown}{more}. Fix the home, or name the command that shows the fact instead "
-            f"(SPEC-0125 Rule 1a). Report-only (SPEC-0119).")
+            f"(SPEC-0125 Rule 1a); declare a span under `context_home.own_content` in yitc-ops.yaml "
+            f"if it is the project's own content. Report-only (SPEC-0119).")
 
 
 def adapter_conformance(repo_path, *, kernel_root=None) -> dict:

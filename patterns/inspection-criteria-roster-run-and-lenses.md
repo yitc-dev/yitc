@@ -452,6 +452,33 @@ filed again. **Report shape:** one `inspection_completed` per repo run,
 id of every card or cross item filed; a reading with nothing to report records `no candidates`, never an
 empty event. Unchanged by this lens: the lane bounds, SPEC-0119 rule 41 and the weekly over-bound row.
 
+## Context-home content lens (report-only)
+
+Same posture and record path as Lens A–C. **Monthly (rotated), per repo** — the kernel and each `-C`
+consumer, read-only (`-C <repo> --read-only`), since this repo's last `inspection_completed` for this
+lens (the first run records `first run`). It asks whether the project-context home holds entries that
+SPEC-0125 **Rule 1a** says it never holds; the never-holds list and its homes are read THERE
+(`bin/yitc-v2 graph query --kernel SPEC-0125`), never restated here. The only other recurring reading
+of the home, the drift line, checks references and never content.
+
+- **Which file.** The ONE home SPEC-0125 Rule 1 declares for the repo. A repo that declares none — the
+  kernel among them: its `CHARTER.md` / `AGENTS.md` are the methodology handbook (SPEC-0127), which
+  holds worker rules and principle history by design — records the literal reading `no home declared`
+  and is not read against Rule 1a.
+- **Reading — misplaced entries.** Each entry of the home that falls under a Rule 1a never-holds
+  class, named by line or heading, with the class and the home Rule 1a gives it (a project-own spec,
+  the journal, `MEMORY.md`, the command or view that derives the fact). A span the repo declares under
+  `yitc-ops.yaml` `context_home.own_content` is the project's own content and is never a
+  finding.
+
+**Output.** A finding in a consumer becomes ONE `cross request` to that project per run, listing its
+entries — a kernel session never edits a consumer repo; a kernel finding (only once the kernel
+declares a home) is a `task file` card filed `ready`, never claimed. A finding already held by a live card or open
+cross item is named with that holder, not filed again. **Report shape:** one `inspection_completed`
+per repo run, `run_ref=context-home-content-lens-<repo>-<n>`, `data.readings` naming the home file,
+each finding (entry, class, home) and the id of every cross item filed; a clean run records
+`no misplaced entry` explicitly — a silent run and a clean one must never read the same.
+
 ## Delivered-protocol-weight lens (a T7 sub-probe, served from §T7 in part 1 — report-only)
 
 What the durable-doc size probe cannot see: what is INSIDE the text a spec DELIVERS, and how much each

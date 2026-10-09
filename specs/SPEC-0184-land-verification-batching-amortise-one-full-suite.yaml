@@ -826,35 +826,27 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ with its own declaration and its\nown fresh audit-post. No gate is removed, no\
   \ authority widened, no event type or store added, and the\nland is NOT refused\
   \ — the pre-queue refusal shape is for a land that cannot succeed AT ALL, and a\n\
-  rebaselining land succeeds fine alone.\n\nRate, so the rule is sized rather than\
-  \ guessed: 6 of 48 branches that landed on 2026-08-17 carried a\nrebaseline (~12.5%),\
-  \ giving a batch of N a superseder with probability ≈ 1 − 0.875^N — 23% at N=2,\n\
-  41% at N=4. BOTH formations that day contained one and BOTH died red; under this\
-  \ rule neither would\nhave formed, costing zero successful batches and saving two\
-  \ combined passes. The second occurrence\nlanded the cost entirely on a bystander:\
-  \ a filing land of two YAML cards (an inert diff) was batched\nwith a superseding\
-  \ peer and reddened by it, `paying_members` 1 of 2.\n\n**THE PEER'S INTENT RIDES\
-  \ THE WAIT ROW THE QUEUE READ ALREADY CONSUMES.** The head knows its own\nflags;\
-  \ a peer's declaration must be visible in the journal. It is, and early enough by\
-  \ construction:\n`--rebaseline` is declared at ARGUMENT-PARSE time and an EMPTY\
-  \ `--rebaseline-waive` is refused right\nthere, so an intending land carries a complete\
-  \ declaration before the reservation, before\nthe queue read and before formation\
-  \ — and it beats `waiting_for_*` heartbeats the whole time it is\nqueued. Those\
-  \ rows carry an ADDITIVE `rebaselining: true`, present ONLY when declared, on BOTH\
-  \ wait\ntypes (the reservation row matters most: lands serialize behind the reservation,\
-  \ so a queued peer is\nnormally parked there and only the holder reaches the admission\
-  \ slot). This is the same additive-key\ngrowth `solo` / `queue_depth` already ride\
-  \ — no second store and no new event type, and a\nnon-rebaselining land's rows stay\
-  \ byte-identical. Freshness is load-bearing: only rows inside the\nqueue read's\
-  \ own window count, newest-wins, so a PRIOR attempt's declaration never excludes\
-  \ a later\nflagless attempt of the same branch — the exclusion is attempt-scoped,\
-  \ and rule 4 is not a quarantine.\n\n**THERE ARE TWO DOORS TO THAT KEY, AND THE\
-  \ SECOND IS TOKENLESS ( — an ADDITIVE extension;\na `--rebaseline` land's behaviour\
-  \ is UNCHANGED).** The paragraph above describes the GRANT door, and\nfor a while\
-  \ it was the only one — which STARVED this whole filter. `--rebaseline` conflates\
-  \ two\nseparable things: the DECLARATION of intent (\"I expect to supersede a pinned\
-  \ assertion; verify me\nALONE\"), which is a batch-formation input, and the GRANT\
-  \ of a waive (\"waive these named assertions\"),\nwhich needs a `KEY::ASSERTION`\
+  rebaselining land succeeds fine alone.\n\n**THE PEER'S INTENT RIDES THE WAIT ROW\
+  \ THE QUEUE READ ALREADY CONSUMES.** The head knows its own\nflags; a peer's declaration\
+  \ must be visible in the journal. It is, and early enough by construction:\n`--rebaseline`\
+  \ is declared at ARGUMENT-PARSE time and an EMPTY `--rebaseline-waive` is refused\
+  \ right\nthere, so an intending land carries a complete declaration before the reservation,\
+  \ before\nthe queue read and before formation — and it beats `waiting_for_*` heartbeats\
+  \ the whole time it is\nqueued. Those rows carry an ADDITIVE `rebaselining: true`,\
+  \ present ONLY when declared, on BOTH wait\ntypes (the reservation row matters most:\
+  \ lands serialize behind the reservation, so a queued peer is\nnormally parked there\
+  \ and only the holder reaches the admission slot). This is the same additive-key\n\
+  growth `solo` / `queue_depth` already ride — no second store and no new event type,\
+  \ and a\nnon-rebaselining land's rows stay byte-identical. Freshness is load-bearing:\
+  \ only rows inside the\nqueue read's own window count, newest-wins, so a PRIOR attempt's\
+  \ declaration never excludes a later\nflagless attempt of the same branch — the\
+  \ exclusion is attempt-scoped, and rule 4 is not a quarantine.\n\n**THERE ARE TWO\
+  \ DOORS TO THAT KEY, AND THE SECOND IS TOKENLESS ( — an ADDITIVE extension;\na `--rebaseline`\
+  \ land's behaviour is UNCHANGED).** The paragraph above describes the GRANT door,\
+  \ and\nfor a while it was the only one — which STARVED this whole filter. `--rebaseline`\
+  \ conflates two\nseparable things: the DECLARATION of intent (\"I expect to supersede\
+  \ a pinned assertion; verify me\nALONE\"), which is a batch-formation input, and\
+  \ the GRANT of a waive (\"waive these named assertions\"),\nwhich needs a `KEY::ASSERTION`\
   \ token. That token names what actually FAILED, so the sanctioned way to\nlearn\
   \ it is to read it off a LIVE refusal — i.e. AFTER the branch has already reddened\
   \ a batch and\ncost its peers a shared pass. To avoid poisoning you had to declare;\
@@ -1613,33 +1605,27 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ assumed — on 2026-10-05 nine such\nlands ran a 7-27 s verify step inside a median\
   \ 143 s of their own work (merge, journal fold, graph\nrebuild, bookkeeping), against\
   \ a median 571 s for a paying land the same day — and the one case\nwhere the branch\
-  \ behind gives up a full pass is the recorded `rung0_paid` land.\n\n**THE OBSERVATION\
-  \ THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/\n—\
-  \ a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z —\
-  \ while the admission\nqueue grew to 10 and the oldest waiter sat at 3629 s. A mark\
-  \ that outranks EVERYTHING hands a\nfailing branch repeated priority over branches\
-  \ that would have cleared, including ones that would\nhave cleared for free.\n\n\
-  **IT IS ORDER OF SERVICE, AND — SINCE — IT ALSO MAKES THE CARD SOLO.** A branch\
-  \ whose card\ncarries a LIVE mark is batch-INELIGIBLE for as long as the mark lives:\
-  \ an ineligible HEAD forms a\nbatch of ONE, an ineligible PEER is dropped before\
-  \ the cap (rule 4's existing membership seam,\nreused unchanged). Owner decision\
-  \ 2026-08-27, and it OVERTURNS this paragraph's former reading\n(«it does not make\
-  \ a card solo — being verified alone is ALREADY derived where it belongs and needs\n\
-  no second carrier»). The grounds: order of service alone does not deliver what the\
-  \ mark is FOR. A\nmarked card is served first and then verified INSIDE a batch,\
-  \ so its land is hostage to every peer\nin it — a red raised by any member dissolves\
-  \ the batch and the urgent card waits another full\nround. Serving it first and\
-  \ then making it wait on peers is the same delay wearing a different\nname.\n\n\
-  **ONE HOME, TWO SOURCES — the design, and why it is not a second carrier.** There\
-  \ is no stored solo\nFIELD, here or anywhere: batch-ineligibility is DERIVED in\n\
-  `bin/lib/batch_landing.py#_land_batch_ineligible_branches`. That ONE predicate now\
-  \ answers from TWO\nsources — the rule-4 red-batch history, and a live rule-9 mark\
-  \ — so every existing consumer of\nbatch-ineligibility keeps working unchanged and\
-  \ nothing new is stored. In particular a mark\nwrites NO journal row: synthesising\
-  \ a `requeued-after-red-batch` verdict to fake ineligibility would\nrecord a red\
-  \ batch that never happened in an append-only history, which is the one thing that\
-  \ must\nstay true.\n\n**THE TWO SOURCES HAVE DELIBERATELY DIFFERENT LIFETIMES, and\
-  \ this is the rule rather than an\nartefact.** The red-batch source is ONE ROUND\
+  \ behind gives up a full pass is the recorded `rung0_paid` land.\n\n**IT IS ORDER\
+  \ OF SERVICE, AND — SINCE — IT ALSO MAKES THE CARD SOLO.** A branch whose card\n\
+  carries a LIVE mark is batch-INELIGIBLE for as long as the mark lives: an ineligible\
+  \ HEAD forms a\nbatch of ONE, an ineligible PEER is dropped before the cap (rule\
+  \ 4's existing membership seam,\nreused unchanged). Owner decision 2026-08-27, and\
+  \ it OVERTURNS this paragraph's former reading\n(«it does not make a card solo —\
+  \ being verified alone is ALREADY derived where it belongs and needs\nno second\
+  \ carrier»). The grounds: order of service alone does not deliver what the mark\
+  \ is FOR. A\nmarked card is served first and then verified INSIDE a batch, so its\
+  \ land is hostage to every peer\nin it — a red raised by any member dissolves the\
+  \ batch and the urgent card waits another full\nround. Serving it first and then\
+  \ making it wait on peers is the same delay wearing a different\nname.\n\n**ONE\
+  \ HOME, TWO SOURCES — the design, and why it is not a second carrier.** There is\
+  \ no stored solo\nFIELD, here or anywhere: batch-ineligibility is DERIVED in\n`bin/lib/batch_landing.py#_land_batch_ineligible_branches`.\
+  \ That ONE predicate now answers from TWO\nsources — the rule-4 red-batch history,\
+  \ and a live rule-9 mark — so every existing consumer of\nbatch-ineligibility keeps\
+  \ working unchanged and nothing new is stored. In particular a mark\nwrites NO journal\
+  \ row: synthesising a `requeued-after-red-batch` verdict to fake ineligibility would\n\
+  record a red batch that never happened in an append-only history, which is the one\
+  \ thing that must\nstay true.\n\n**THE TWO SOURCES HAVE DELIBERATELY DIFFERENT LIFETIMES,\
+  \ and this is the rule rather than an\nartefact.** The red-batch source is ONE ROUND\
   \ and self-clearing — its clearing signal is the\nmember's own individual verdict\
   \ (rule 4: «one round, not a quarantine»). The mark source is\nPERSISTENT: it holds\
   \ while the mark holds and ends when the mark ends, which per safeguard (b)\nbelow\
@@ -1803,14 +1789,7 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ never a peer`s, so\nthe peer`s uncommitted rows survive on disk and reach `main`\
   \ through that peer`s own next land —\nthe identical path they would take had it\
   \ been excluded. The exclusion therefore bought a deferral\nthe peer was going to\
-  \ take anyway, and charged a whole batch place for it.\n\n**THE MEASURED COST OF\
-  \ COUNTING IT** (2026-08-27): 9 `uncommitted-worktree-dirt` exclusions\nacross 45\
-  \ formations in one day, and task/ dropped from two consecutive formations\n(09:40:25Z,\
-  \ 09:51:30Z) with `events.jsonl` as its ONLY dirty path. The burden fell on PEERS\
-  \ alone,\nand asymmetrically: a HEAD reaches formation ALREADY folded clean by `cmd_land`s\
-  \ two\n`_fold_trailing_bookkeeping` calls, while a peer`s tree is folded by nobody.\
-  \ So the two candidate\npositions were being judged by different standards — not\
-  \ by design, but as a side effect of where\nthe fold runs.\n\n### 12. An exact member\
+  \ take anyway, and charged a whole batch place for it.\n\n### 12. An exact member\
   \ SET that already reddened is not RE-FORMED — recompose, never block\n\n**The rule.**\
   \ At formation, once the members have been selected and the cap applied, a batch\
   \ whose\nEXACT member set already produced a red batch is not formed. A member is\
@@ -2221,7 +2200,30 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ keyed on the whole candidate tree so it\nonly hits on a repeated attempt of the\
   \ SAME branch — it does not amortise across different changes).\nIndustry precedent\
   \ for this exact shape: Bors / GitHub merge queue (batch then bisect), Zuul\n(speculative\
-  \ chains).\n\n## Verification\n\n- **Rule 15 (the queued pre-merge — four differentials,\
+  \ chains).\n\n### History moved from the rule body\n\nFrom «4. One pass, then all-or-nothing\
+  \ — and a red batch NEVER reforms itself»:\n\nRate, so the rule is sized rather\
+  \ than guessed: 6 of 48 branches that landed on 2026-08-17 carried a\nrebaseline\
+  \ (~12.5%), giving a batch of N a superseder with probability ≈ 1 − 0.875^N — 23%\
+  \ at N=2,\n41% at N=4. BOTH formations that day contained one and BOTH died red;\
+  \ under this rule neither would\nhave formed, costing zero successful batches and\
+  \ saving two combined passes. The second occurrence\nlanded the cost entirely on\
+  \ a bystander: a filing land of two YAML cards (an inert diff) was batched\nwith\
+  \ a superseding peer and reddened by it, `paying_members` 1 of 2.\n\nFrom «9. A\
+  \ slot holder YIELDS to a strictly cheaper unmarked queued class»:\n\n**THE OBSERVATION\
+  \ THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/\n—\
+  \ a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z —\
+  \ while the admission\nqueue grew to 10 and the oldest waiter sat at 3629 s. A mark\
+  \ that outranks EVERYTHING hands a\nfailing branch repeated priority over branches\
+  \ that would have cleared, including ones that would\nhave cleared for free.\n\n\
+  From «11. A candidate whose WORKTREE IS DIRTY does not consume a batch place»:\n\
+  \n**THE MEASURED COST OF COUNTING IT** (2026-08-27): 9 `uncommitted-worktree-dirt`\
+  \ exclusions\nacross 45 formations in one day, and task/ dropped from two consecutive\
+  \ formations\n(09:40:25Z, 09:51:30Z) with `events.jsonl` as its ONLY dirty path.\
+  \ The burden fell on PEERS alone,\nand asymmetrically: a HEAD reaches formation\
+  \ ALREADY folded clean by `cmd_land`s two\n`_fold_trailing_bookkeeping` calls, while\
+  \ a peer`s tree is folded by nobody. So the two candidate\npositions were being\
+  \ judged by different standards — not by design, but as a side effect of where\n\
+  the fold runs.\n\n## Verification\n\n- **Rule 15 (the queued pre-merge — four differentials,\
   \ `tests/test_t12150_queued_land_branch_freshness.py`):**\n  (a) FRESHNESS — a branch\
   \ parked on a real held reservation gains main's commit WHILE STILL\n  PARKED and\
   \ the merge path is invoked exactly ONCE across the whole land; with\n  `YITC_LAND_QUEUED_PREMERGE=0`\

@@ -44,11 +44,9 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ at triage, a call that\n  is optional and, measured across three consumers' entire\
   \ history, never made; where it is not\n  made, restoration is carried by the SPEC-0178\
   \ rule 7 periodic review instead. Stated because\n  omitting it would promise a\
-  \ stronger safeguard than SPEC-0178 provides.\n\nA card closed under a case records\
-  \ the case on its own closure record as\n`task_closed.data.exempted_case` (SPEC-0025),\
-  \ so every skip is attributable after the fact.\n\n**DECLARED EXEMPTION CASES →\
-  \ SPEC-0178 (index).** The paragraph above states the bounds. The rules\nthemselves\
-  \ — the declaration and how a case matches, the governance-surface guard, automatic\n\
+  \ stronger safeguard than SPEC-0178 provides.\n\n**DECLARED EXEMPTION CASES → SPEC-0178\
+  \ (index).** The paragraph above states the bounds. The rules\nthemselves — the\
+  \ declaration and how a case matches, the governance-surface guard, automatic\n\
   restoration, the out-of-path observation and the periodic review — are in SPEC-0178:\n\
   `bin/yitc-v2 graph query SPEC-0178`. It is fetched when a declared case is at hand:\
   \ the Audit-post\nstage cue printed for a card that matches a case, and the notes\
@@ -94,48 +92,47 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ remains but some probe carries a NON-PASS result (`fail`,\nor the terminals `unreachable`\
   \ / `falsified`), the recomputation returns the CURRENT value\nUNCHANGED and WARNs,\
   \ naming the non-pass probe(s). A settlement can therefore never rewrite a\nnon-pass\
-  \ state to `true`. What a post-close TERMINAL does to `probe_passed` was decided\n\
-  («this widens the SETTLE, never the close») and is deliberately NOT re-decided here.\n\
-  \nRead with QUEUE §Done log, which carries the same two values.\n\n#### Reporter-originated\
-  \ defect — the closure evidence must TIE BACK (per the X-0816 consult)\nWhen the\
-  \ closing task fixes a defect REPORTED BY A NAMED REPORTER (a user, a peer project,\
-  \ an owner\nreport that names WHOSE failure it was), its closure evidence must tie\
-  \ back either to **that\nreporter** (their confirmation, their session, their re-run)\
-  \ or to the **SAME observed failing\nenvironment** (the account / device / build\
-  \ / configuration the report named). Where the evidence\ncannot make that tie-back,\
-  \ closure must SAY SO: record the reporter-specific claim as **UNPROVEN**,\nrather\
-  \ than let a green probe imply it. «We shipped a genuine fix» and «we fixed the\
-  \ reporter's\ndefect» are DIFFERENT statements, and only the second closes the loop\
-  \ the reporter opened —\nCHARTER §P3 (done = adopted) points at this but does not\
-  \ reach the «whose defect was it» question.\n**Scope + bound — this clause adds\
-  \ NO mechanism.** A REVIEW-time authoring obligation on how closure\nevidence is\
-  \ WORDED: no new verb, event type, status or store, and NO gate on `task close`.\
-  \ It fires\nONLY for a defect with a NAMED reporter, and establishes NO environment-first\
-  \ analysis rule.\n\n### Shared-store evidence spelling: a state-check over the out-of-repo\
-  \ store must SPELL its rows\n§Probe verification above admits a criterion proved\
-  \ by «state is checked». The shared coordination\nstore is kernel-owned and OUTSIDE\
-  \ every repo (SPEC-0084 rule 5), so a green probe over it is\nunverifiable from\
-  \ this repo unless the rows it read are addressable (the empty-`evidence:` shape).\n\
-  \n**THE STANDING RULE.** A card with an acceptance criterion whose proof is a state-check\
-  \ over the\nout-of-repo shared coordination store MUST fill `evidence:` with the\
-  \ SHARED-STORE ROW REFS the\ncheck read — the coordination item ids (`X-NNNN`),\
-  \ and the `cross_*` event timestamps where the\nrow proved is a TRANSITION rather\
-  \ than the item's existence.\n\n**NAMED, NEVER ASSERTED** — a free-text «we checked\
-  \ the store» satisfies nothing; the rule requires\nthe LOCATOR, not a re-description.\n\
-  \n**Scope + bound.** It fires ONLY where the card itself ties a coordination item\
-  \ to the store: an id\nin its `resolves_cross:`, an id an acceptance criterion names\
-  \ in a store context, or a store item\nfiled for the card. The refusal names, per\
-  \ id, which of these tied it. It rules on WHETHER the refs are\nspelled, never on\
-  \ whether the disposition they name is GOOD. No new verb, event type, status or\n\
-  store; NOTHING from the shared store is folded into `events.jsonl`. Additive to\
-  \ §Probe verification\n(SPEC-0005 rule 7).\n\n**Fail-closed, at the close gate.**\
-  \ `task close` REFUSES a card that meets the trigger and whose\n`evidence:` is absent/empty,\
-  \ or is present but names no store row. Dormant for every other card.\n\n**THE AUTHORING\
-  \ ROUTE — `task update --evidence`.** `bin/yitc-v2 task update T-XXXX\n--evidence\
-  \ X-NNNN [--evidence …]` writes the field: repeatable (the flags state the COMPLETE\
-  \ row\nset), its own mode, refused on a terminal card, validated through THIS SAME\
-  \ gate before it writes,\nemitting the EXISTING `task_amended` event and leaving\
-  \ the card uncommitted so `task close` folds it\ninto its own closure-record commit.\
+  \ state to `true`.\n\nRead with QUEUE §Done log, which carries the same two values.\n\
+  \n#### Reporter-originated defect — the closure evidence must TIE BACK (per the\
+  \ X-0816 consult)\nWhen the closing task fixes a defect REPORTED BY A NAMED REPORTER\
+  \ (a user, a peer project, an owner\nreport that names WHOSE failure it was), its\
+  \ closure evidence must tie back either to **that\nreporter** (their confirmation,\
+  \ their session, their re-run) or to the **SAME observed failing\nenvironment**\
+  \ (the account / device / build / configuration the report named). Where the evidence\n\
+  cannot make that tie-back, closure must SAY SO: record the reporter-specific claim\
+  \ as **UNPROVEN**,\nrather than let a green probe imply it. «We shipped a genuine\
+  \ fix» and «we fixed the reporter's\ndefect» are DIFFERENT statements, and only\
+  \ the second closes the loop the reporter opened —\nCHARTER §P3 (done = adopted)\
+  \ points at this but does not reach the «whose defect was it» question.\n**Scope\
+  \ + bound — this clause adds NO mechanism.** A REVIEW-time authoring obligation\
+  \ on how closure\nevidence is WORDED: no new verb, event type, status or store,\
+  \ and NO gate on `task close`. It fires\nONLY for a defect with a NAMED reporter,\
+  \ and establishes NO environment-first analysis rule.\n\n### Shared-store evidence\
+  \ spelling: a state-check over the out-of-repo store must SPELL its rows\n§Probe\
+  \ verification above admits a criterion proved by «state is checked». The shared\
+  \ coordination\nstore is kernel-owned and OUTSIDE every repo (SPEC-0084 rule 5),\
+  \ so a green probe over it is\nunverifiable from this repo unless the rows it read\
+  \ are addressable (the empty-`evidence:` shape).\n\n**THE STANDING RULE.** A card\
+  \ with an acceptance criterion whose proof is a state-check over the\nout-of-repo\
+  \ shared coordination store MUST fill `evidence:` with the SHARED-STORE ROW REFS\
+  \ the\ncheck read — the coordination item ids (`X-NNNN`), and the `cross_*` event\
+  \ timestamps where the\nrow proved is a TRANSITION rather than the item's existence.\n\
+  \n**NAMED, NEVER ASSERTED** — a free-text «we checked the store» satisfies nothing;\
+  \ the rule requires\nthe LOCATOR, not a re-description.\n\n**Scope + bound.** It\
+  \ fires ONLY where the card itself ties a coordination item to the store: an id\n\
+  in its `resolves_cross:`, an id an acceptance criterion names in a store context,\
+  \ or a store item\nfiled for the card. The refusal names, per id, which of these\
+  \ tied it. It rules on WHETHER the refs are\nspelled, never on whether the disposition\
+  \ they name is GOOD. No new verb, event type, status or\nstore; NOTHING from the\
+  \ shared store is folded into `events.jsonl`. Additive to §Probe verification\n\
+  (SPEC-0005 rule 7).\n\n**Fail-closed, at the close gate.** `task close` REFUSES\
+  \ a card that meets the trigger and whose\n`evidence:` is absent/empty, or is present\
+  \ but names no store row. Dormant for every other card.\n\n**THE AUTHORING ROUTE\
+  \ — `task update --evidence`.** `bin/yitc-v2 task update T-XXXX\n--evidence X-NNNN\
+  \ [--evidence …]` writes the field: repeatable (the flags state the COMPLETE row\n\
+  set), its own mode, refused on a terminal card, validated through THIS SAME gate\
+  \ before it writes,\nemitting the EXISTING `task_amended` event and leaving the\
+  \ card uncommitted so `task close` folds it\ninto its own closure-record commit.\
   \ (`task close --settle-evidence` serves a different purpose —\n§Settling below.)\
   \ A route, not an exemption: same trigger, same fail-closed gate, same refusal.\n\
   \n**THE CLOSE-TIME ROUTE — a held `resolves_cross` item.** When EVERY id that ties\
@@ -165,9 +162,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ is the reference SPEC-1011: read it first (`graph query SPEC-1011`),\nfrom its\
   \ heading «The settle procedure». The evidence-locator address space below stays\
   \ here: it is\nshared by all three locator consumers.\n\n#### THE EVIDENCE-LOCATOR\
-  \ ADDRESS SPACE — all three kinds, at one rule home\nThe address space of a NAMED,\
-  \ RESOLVING settlement locator, recorded at one home. RECORDING ONLY: it\nnames\
-  \ no new form and changes nothing the verb accepts.\n\n**THE THREE KINDS.** A settlement\
+  \ ADDRESS SPACE — all three kinds, at one rule home\n\n**THE THREE KINDS.** A settlement\
   \ evidence locator is EXACTLY one of:\n- `events.jsonl#ts=<ISO-instant>` — a journal\
   \ row addressed by its instant;\n- `events.jsonl#source_ref=<ref>` — a journal row\
   \ addressed by its `source_ref` (top-level or\n  under `data`); both of these are\
@@ -458,11 +453,8 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ record; conditions (i)-(iv) unchanged.\n\n**The rewire proof is RECORDED BY LAND,\
   \ never inferred by the reader.** Land compares the layer's\ndeclared definition\
   \ in the ship's tree against the commit it integrates onto and records the verdict\n\
-  on that layer's row. Each row of a layer that executed also records the bound it\
-  \ actually ran under\nand which rung supplied it, so the land that ships a declared\
-  \ bound shows that bound in\nforce — a report-only reading beside the verdict, which\
-  \ no gate reads. The reader must NOT infer a rewire by comparing rows across lands.\
-  \ FAIL-CLOSED: an\nabsent or non-affirmative record is UNKNOWN, never «changed».\n\
+  on that layer's row. The reader must NOT infer a rewire by comparing rows across\
+  \ lands. FAIL-CLOSED: an\nabsent or non-affirmative record is UNKNOWN, never «changed».\n\
   \nConditions (iii) + (iv) are what make this EVIDENCE: an ordinary task citing a\
   \ PRE-EXISTING, UNCHANGED\nlayer row on its own land is still refused. A BARE land-record\
   \ reference (and one that pins a land\nbut names no layer) stays REFUSED, here and\
@@ -533,9 +525,8 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ stays `in-progress` — a clean idempotent re-run); a crash BETWEEN the done-write\
   \ and the\nactivation leaves a `done` task with un/partly-activated specs, healed\
   \ idempotently by\n`_recover_close_tail` re-running the activation on the next `task\
-  \ close` (its `status==proposed` scan\nflips only what is still proposed). Pure\
-  \ ordering — no new mechanism; it reuses the existing\nidempotent-resume + `_recover_close_tail`\
-  \ recovery path.\n\n> **This body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
+  \ close` (its `status==proposed` scan\nflips only what is still proposed).\n\n>\
+  \ **This body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
   > (SPEC-0120 §3 split) — §Audit-stage YAMLs … §Verification. `graph query SPEC-0015`\
   \ serves both.\n"
 cites:

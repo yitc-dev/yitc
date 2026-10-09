@@ -87,15 +87,39 @@ A worker death costs only its disposable warm context (§land-after-each (`backg
 
 > **LAUNCH POLICY (apply at dispatch — the controller decides without an owner prompt).** Speed-first
 > among already-safe shapes is the **DEFAULT** (the §Guard-rails invariants are never on the trade
-> table) — it holds for EVERY shape EXCEPT the one small-task cost-first branch named in line 4:
+> table) — it holds for EVERY shape EXCEPT the one small-task cost-first branch named in line 4. WIDTH
+> comes first and DEPTH second: fill every free stream of the fleet width before packing, and pack only
+> the SMALL tasks no free stream could start now — a short chain's not-yet-ready tail, or independent
+> tasks beyond the free streams (line 2) — instead of leaving them for later launches:
 > 1. **Max parallelism is PRIMARY** — independent ready tasks → as many concurrent background workers
-> as the collision-free topology allows.
-> 2. **A sequential `requires:`-chain front-loads into ONE warm worker** up to the **front-load cap**
-> (a controller JUDGEMENT bound — per-worker context budget + death-blast-radius, NOT a fixed count;
-> observed 1-2 tasks/worker across the trial soaks); a longer chain splits across successive
-> warm workers (cap + remainder).
+> as the collision-free topology allows, up to the fleet width the owner sets (currently 3 streams —
+> `events.jsonl#ts=`). Never leave a free stream idle in order to pack. A LARGE
+> or RISKY task (context-heavy, likely-to-block, wide blast radius) stays a singleton worker.
+> 2. **SMALL tasks go 2-3 per warm worker by DEFAULT** (owner directive
+> `events.jsonl#ts=`), in two shapes. (a) A sequential `requires:`-chain of 2-3
+> SMALL tasks goes WHOLE to one warm worker, whether or not anything else is ready — only its head is
+> claimable, so the chain could not use a second stream anyway; independent tasks fill the other
+> streams. (b) INDEPENDENT ready SMALL tasks that outnumber the free streams are spread over every
+> free stream, as evenly as possible and at most 3 per worker, rather than one per launch with the
+> rest waiting — a worker MAY carry a single task when the count does not divide (3 small tasks and
+> 3 free streams → 1+1+1; 4 → 2+1+1; 7 → 3+2+2). Each worker's ids are front-loaded as a static
+> ordered batch: the Controller names the ids, in order, in the spawn brief
+> (the in-bounds carve-out of `background-session-monitoring.md` §Guard rails item 2 — no new
+> mechanism). Why it pays: the stage deliverer sends a spec ONCE per context epoch (`bin/lib/cli.py`,
+> `if held.get(sid) and tee.hexdigest in held[sid]:` → a one-line `already delivered in this
+> context epoch (unchanged)` pointer instead of the body), so the 2nd and 3rd task get the stage specs
+> the worker already holds as pointers, and the ~123 kB seed is paid once; measured after the
+> 2026-10-07..09 trims, a worker's protocol text is ~0.8-1.0 MB per task, so 2-3 fit one 1M-token
+> context with room. **Stop rule — binds BOTH sides:** the Controller does not hand a warm worker a
+> further task once its context has passed HALF its window or once it has halted (at an audit
+> ceiling, on `blocked-on-land`, or on a pause); and the WORKER, before it claims each next id of its
+> assigned batch, reads the `context:` line its own `session start` prints — past half, or after any
+> such halt, it starts no further id, ends its turn after its last `LAND: OK`, and names the
+> unstarted ids in its final report, which the Controller re-dispatches to a fresh worker. A longer
+> chain splits across successive warm workers (2-3 + remainder).
 > 3. **Tokens break ties only (in the DEFAULT regime)** — decide by token-economy ONLY between
 > equally-fast shapes; never trade a faster front for a cheaper one — EXCEPT in the line-4 branch.
+> Line-2 packing is not such a trade: it packs only tasks no free stream could start now.
 > 4. **Small different-claim follow-ups → cost-FIRST (the ONE exception).** When several SMALL tasks each
 > prove a DIFFERENT claim (so SPEC-0046's one-claim-per-accept-unit FORBIDS merging them into one
 > task — the PRIMARY same-claim lever stays first when claims ARE homogeneous) AND each task's work
@@ -106,6 +130,8 @@ A worker death costs only its disposable warm context (§land-after-each (`backg
 > current owner-authorized window and dispatch at window close — NEVER delay a ready task waiting for
 > HYPOTHETICAL future small tasks (that is the forbidden self-fetch / autopilot wait); the owner may
 > explicitly say "hold for N" to override.
+>
+> **Unchanged fence — the warm batch never widens it (CHARTER §6, carried verbatim):** no auto-launch / no self-fetch / batch-bounded / no stateful orchestrator / no in-process fan-out (no autopilot-FSM; a Worker is a separate sub-session, never an in-process subagent; no cap/queue-state machinery, no liveness-arming FSM, no role taxonomy; no decide-without-owner). The owner always authorizes the batch and makes genuine decisions.
 
 **§Two axes — fleet-WIDTH vs tasks-PER-worker (orient before sizing a wave).** Dispatch planning moves on
 TWO orthogonal axes; do not conflate them. **Axis A — fleet width** (how many workers run CONCURRENTLY) is
@@ -113,7 +139,8 @@ bounded by the box + the land frontier: detail-1's build-concurrency ceiling (th
 --dispatch-readiness` advisor — nproc/loadavg/free slots) + the §Land-admission throttle (the smaller,
 separate land-concurrency ceiling). The owner's "how much hardware" + "how many simultaneous lands" inputs
 live HERE. **Axis B — tasks per worker** (how many tasks one WARM worker carries) is the front-load cap
-(detail-2 chains + detail-4 cost-first small-tasks) — a controller judgement, NOT a number. This is the
+(detail-2 chains + detail-4 cost-first small-tasks) — for SMALL tasks the default is 2-3 per worker
+(policy line 2, with its stop rule); for the rest a controller judgement, NOT a number. This is the
 "optimize context" lever: a fleet can be WIDE-and-thin (1 task/worker) or NARROW-and-warm (a chain/worker).
 Axis A is a throughput/safety ceiling; Axis B is a context-economy choice under it — sized by §Tasks-per-worker
 context sizing below. (Pointer only — each axis's rules stay in their homes named here, P5.)
@@ -128,7 +155,9 @@ SPEC-0095), where for SMALL different-claim follow-ups bootstrap-economy LEADS.
 1. **Maximize parallelism (primary).** Decompose into dependency-CHAINS (maximal `requires:`-ordered
    spines) + independent singletons. Default to the WIDEST collision-free front — independent
    chains/singletons → as many concurrent background workers as the topology allows. Do NOT serialize
-   merely to save bootstrap cost.
+   merely to save bootstrap cost — packing SMALL tasks 2-3 per worker (policy line 2) is not such a
+   serialization: it applies only to SMALL tasks no free stream could start now (a short chain's
+   not-yet-ready tail, or independent tasks beyond the free streams), never by leaving a stream idle.
    - **The build-concurrency ceiling is a controller JUDGEMENT bound against an owner-set SUGGESTED
      width (graduated from the MEMORY trial-knob at plan `orchestrate-posture-for-the-main-session-6-amendme`
      realize, 2026-06-22 — same form as the front-load cap; re-based on the owner constant).** When the owner gives an open-ended "drain the queue / run the free tasks"-style cue
@@ -189,6 +218,10 @@ SPEC-0095), where for SMALL different-claim follow-ups bootstrap-economy LEADS.
 2. **Front-load a chain into ONE warm worker.** A necessarily-sequential `requires:` chain goes to one
    worker, front-loaded into its spawn prompt (bootstrap paid once; context-locality bonus). A chain
    longer than the **front-load cap** splits across successive warm workers (cap + remainder).
+   - **Re-based 2026-10-09 : SMALL tasks now carry a stated default of 2-3 per warm worker**
+     (policy line 2 — its basis is the once-per-epoch stage delivery and the measured per-task protocol
+     size, evidence the 2026-06 soaks below did not have). The history below stays as the record of the
+     earlier judgement-only bound, which still governs tasks that are not small.
    - **The front-load cap is a controller JUDGEMENT bound, not a fixed number (re-tuned 2026-06-09).**
      The bound is what one warm worker can carry safely = **per-worker context budget + death-blast-radius**;
      the controller judges it per dispatch. **No magic constant** — the earlier provisional "3 tasks/worker"
@@ -200,7 +233,8 @@ SPEC-0095), where for SMALL different-claim follow-ups bootstrap-economy LEADS.
      precision — CHARTER §P6.)
 3. **Tokens break ties only (DEFAULT regime).** When two shapes are EQUALLY fast, prefer the one that
    front-loads chains (fewer bootstraps). Never trade a faster front for a cheaper one — EXCEPT the
-   detail-4 small-task branch. *(Speed-first ordering — lines 1+3 — confirmed unchanged by the trial
+   detail-4 small-task branch. (Policy-line-2 packing keeps the front as wide: it packs only SMALL
+   tasks no free stream could start now.) *(Speed-first ordering — lines 1+3 — confirmed unchanged by the trial
    soaks: max-parallelism-primary held every batch; tokens never overrode a faster front in the
    default regime.)*
 4. **Small different-claim follow-ups → cost-FIRST (the one scoped exception).** The trigger has TWO parts,
@@ -222,7 +256,9 @@ SPEC-0095), where for SMALL different-claim follow-ups bootstrap-economy LEADS.
      and (the trial-confirmed speed-first default this branch is the scoped exception to).
 
 **§Tasks-per-worker context sizing — the Axis-B judgement residual (how many tasks in ONE warm worker).**
-The front-load cap (lines 2+4) is a controller JUDGEMENT, not a number. The **COMPUTABLE factors that
+For SMALL tasks the front-load cap starts from the default of 2-3 per warm worker (policy line 2, with its
+stop rule); the three bounds below are what SHRINK it, and for other tasks it is a controller JUDGEMENT, not
+a number. The **COMPUTABLE factors that
 judgement once weighed by hand — chain-grouping, effort-tier homogeneity, critical-path-shadow packing, and
 fleet-width — are now COMPUTED by the read-only Axis-B advisor `journal query --dispatch-plan`** (<workshop-spec>). It CONSUMES `graph query --carve-out` (SPEC-0044 — chains/clash/waits/in-flight) + `journal query
 --dispatch-readiness` (SPEC-0133 — fleet-width headroom) and proposes which ready cards pack into which warm

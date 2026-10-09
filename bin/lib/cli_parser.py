@@ -1287,15 +1287,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "carries none, or when git cannot answer — fail-closed. Not combinable with "
                           "--absorb.")
     tcm.add_argument("--owner-reset", dest="owner_reset", action="store_true",
-                     help="OWNER-AUTHORIZED (T-9403/E-0030): with --absorb, grant ONE continuation that "
-                          "COMMITS a late-surfacing legit finding's fix past an EXHAUSTED audit-post "
-                          "ceiling (when even the owner-reset re-audit budget is spent), so the "
-                          "ceiling-convergence consult has a committed subject to govern (re-pin custody "
-                          "via `audit post --commit <new> --owner-reset`). Pass only on owner "
-                          "authorization; recorded owner_reset:true on commit_landed. Mirrors `audit "
-                          "--owner-reset` — the BOOTSTRAP that materializes a committed subject, "
-                          "structurally non-stackable (a second escape is refused until the "
-                          "consult-governed re-pin), NOT a blanket ceiling disable.")
+                     help="OWNER-AUTHORIZED (T-9403/E-0030): with --absorb, COMMIT a late-surfacing "
+                          "legit finding's fix ONE pass past an EXHAUSTED audit-post ceiling — the "
+                          "BOOTSTRAP that materializes a committed subject, never a verdict or a pass. "
+                          "Pass only on owner authorization; recorded owner_reset:true on "
+                          "commit_landed. Its former follow-ups — the ceiling-adjudication auditor "
+                          "pass and the audit-side owner reset that re-pinned custody — are RETIRED "
+                          "(SPEC-0204 rule 6) and refuse: a pass on the new commit is admitted only "
+                          "by `audit decide` per residual, then `audit post --on-decisions`. "
+                          "Structurally non-stackable (a second escape is refused until a further "
+                          "audit-post pass re-pins custody), NOT a blanket ceiling disable.")
     tcm.add_argument("--reverify", action="append",
                      help="SPEC-NNNN the AUTHOR asserts is STILL ACCURATE despite this task's diff "
                           "moving its anchored code — re-stamps ONLY the anchors this diff moved and "
@@ -2102,7 +2103,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             type=lambda s: _SELF._PLAN_TEMPLATE_TO_GATE_ID.get(s, s),
                             help="(with --absorb --plan) which ceiling-bearing PLAN GATE's verdict holds "
                                  "the residual being absorbed. Same SPEC-0124 gate identity as `audit "
-                                 "consult --plan --gate` (T-11167). The stage name `plan stage` prints "
+                                 "decide --plan --gate` (T-11167). The stage name `plan stage` prints "
                                  "(gate-specs, gate-trial, gate-accepted, gate-executing) is accepted "
                                  "as an alias of its gate id (T-12987). "
                                  # T-11993 (X-1229) — the naming line, consumed from its one home so
@@ -2186,13 +2187,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                           "reference SPEC-1018 — `graph query SPEC-1018`, heading "
                                           "«Rare ceiling cases».",
                               help="Adversarial consult: submit >=2 resolution options and the "
-                                   "external auditor names survivors + a single recommendation. Saves "
-                                   "decisions/<tid>-audit-consult-<key>.yaml. TWO live forms: the "
-                                   "BELOW-ceiling technical-fork pick (--on-demand --task) and the "
-                                   "PLAN-GATE consult (--plan --gate), which is the basis `plan stage` "
-                                   "verifies for its own gate continuation. The TASK --task --stage "
-                                   "ceiling-adjudication form is RETIRED (SPEC-0204 rule 6) and "
-                                   "REFUSES with a pointer to `audit decide`.")
+                                   "external auditor names survivors + a single recommendation. ONE "
+                                   "live form: the BELOW-ceiling technical-fork pick (--on-demand "
+                                   "--task). Both ceiling-adjudication forms — --task --stage and the "
+                                   "plan-gate --plan --gate — are RETIRED (SPEC-0204 rule 6) and "
+                                   "REFUSE with a pointer to `audit decide` (then `audit post "
+                                   "--on-decisions` / `audit pre --on-decisions`, or `plan stage <NEXT> "
+                                   "--on-decisions` at a plan gate).")
     ac.add_argument("--task", help="T-NNNN task id. LIVE only with --on-demand. With --stage and no "
                                    "--on-demand it is the RETIRED ceiling-adjudication form "
                                    "(SPEC-0204 rule 6), which REFUSES with a pointer to `audit "
@@ -2202,12 +2203,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "6): an invocation carrying it without --on-demand REFUSES with a pointer to "
                          "`audit decide`. Kept registered only so a caller meets that pointer, not an "
                          "unknown-flag error.")
-    ac.add_argument("--plan", help="T-9286 — plan slug at a plan-gate ceiling (with --gate). The "
-                                   "PLAN-target consult (SPEC-0124 §Plan-target parity).")
+    ac.add_argument("--plan", help="RETIRED (SPEC-0204 rule 6, plan-gate arm — T-12335): with --gate "
+                                   "it was the plan-gate ceiling-adjudication form, which now REFUSES. "
+                                   "Use `audit decide --plan <slug> --gate <id>` per residual, then "
+                                   "the ONE bounded decision pass of `plan stage <NEXT>` (its own "
+                                   "help names the flag). Kept registered only so a "
+                                   "caller meets that pointer, not an unknown-flag error.")
     ac.add_argument("--gate", choices=PLAN_CONSULT_GATES,
-                    help="REQUIRED with --plan — the ceiling-bearing plan gate this triage is for "
-                         "(reuses SPEC-0124's existing gate identity: draft-specs | specs-trial | "
-                         "trial-accepted | decomposition-executing | finalization).")
+                    help="RETIRED with --plan (SPEC-0204 rule 6, plan-gate arm): the plan-gate "
+                         "ceiling-adjudication form REFUSES with a pointer to `audit decide --plan "
+                         "<slug> --gate <id>`. Kept registered only so a caller meets that pointer.")
     ac.add_argument("--option", action="append",
                     help="a candidate resolution option (repeatable; >=2 required). May also be given "
                          "one-per-line via -f/--from-file or stdin.")
@@ -3606,7 +3611,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "Recorded on land_completed.rebaseline_waived.")
     land.add_argument("--ack-repeated-abort", action="store_true",
                       help="T-0655: consciously continue past the repeated-abort convergence backstop "
-                           "(structurally the land analog of audit --owner-reset) — use after resolving "
+                           "(structurally the land analog of the retired audit --owner-reset) — use after resolving "
                            "the cause that aborted N× in a row, or to escalate. NOT OWNER-GATED (T-10788): "
                            "unlike --no-tests this flag demands no --owner-authorized, and the halt it "
                            "clears escalates to the CONTROLLER (SPEC-0103 §3), which is who decides here")

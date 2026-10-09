@@ -42,14 +42,7 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ image.\nThe consumers' pre-existing spike branches are ADOPTED into the declared\
   \ set before the first\nrefusing land, so copying from them is refused too. There\
   \ is no transfer stage — a plan that reduces\nto copying the prototype's paths is\
-  \ a RED at audit-pre.\n\n## Internal\n\n> **Placement + lineage.** Carved out of\
-  \ SPEC-0172 rule 5 as a STABLE SURFACE (SPEC-0005 rule 6 /\n> §7 — the SPEC-0083\
-  \ carve shape: `supersedes: ~`, the parent lives on and points here). SPEC-0172\n\
-  > keeps the STACK wiring (layers, declaration, pin, cage atoms 4a-4d, sharing, entrance);\
-  \ THIS spec\n> owns the spike's EXIT and the lifecycle's INPUT — what crosses the\
-  \ boundary between a sandbox and\n> `main`. The owner rulings and external consult\
-  \ verdicts this contract absorbs are in the journal\n> and in the proposing plan,\
-  \ not restated here (SPEC-0005 rule 8).\n\n### 1. The name cannot lie — a `spike-*`\
+  \ a RED at audit-pre.\n\n## Internal\n\n### 1. The name cannot lie — a `spike-*`\
   \ batch declares itself or is refused\n`bin/yitc-v2 worktree new --work spike-<slug>`\
   \ WITHOUT `--spike` is REFUSED, naming the flag; with\n`--spike` it is created and\
   \ the worktree stamp carries `spike: true`. Any other slug is unaffected.\nThe prefix\
@@ -109,23 +102,15 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ route (tag → `prototype_ref` card, whose\ncommit may carry `emergency:` for its\
   \ `from:`). No Charter surface is amended. The refusal names the covered route and\
   \ the rule-5 exit\n(`worktree park` → `spike/<slug>` → a `prototype_ref` card).\n\
-  The verdict is computed ONCE per land by ONE helper and journaled as `spike_content_checked`\
-  \ (branch,\nspike ref, T1 hits, T3 verdict, share); every other reader — the report\
-  \ line, the abort message, the\naudit packet (rule 6) — CITES that row. Per-commit\
-  \ `patch-id` is NOT a mechanism here; the\nexisting branch-level `_spike_land_verdict`\n\
-  (the landing branch IS a declared spike) stays the FIRST check, T1/T3 run after\
-  \ it on every other\nbranch.\nCheck layer: KERNEL. A hand-typed RE-IMPLEMENTATION\
-  \ is not caught here and is not meant to be —\nthat is the work this contract wants,\
-  \ judged by rule 5's overlay and rule 6's identity line.\n\n### 2a. T3 — the canonical\
-  \ hunk and the exact algorithm (normative)\n- **Diff basis.** Spike S: `git diff\
-  \ -M -U0 $(git merge-base main S)..S`; landing branch L: the same\n  over its merge-base\
-  \ with `main`; `main` since that merge-base likewise. Rename-aware, zero context.\n\
-  - **Per file.** A BINARY file is judged by T1 only (no hunks). A path whose git\
-  \ attributes carry\n  `yitc-generated` (set by the PROJECT in its own `.gitattributes`;\
-  \ exempt iff the attribute is `set`,\n  nothing else exempts) is skipped by T1 and\
-  \ T3: a lockfile / migration REGENERATED from the same input\n  is identical by\
-  \ construction, not by copy. **Provenance CONTRACT (this rule INTRODUCES the\n \
-  \ `yitc-generated` semantic — the git-attribute mechanism and GitHub's `linguist-generated`\
+  Check layer: KERNEL. A hand-typed RE-IMPLEMENTATION is not caught here and is not\
+  \ meant to be —\nthat is the work this contract wants, judged by rule 5's overlay\
+  \ and rule 6's identity line.\n\n### 2a. T3 — the canonical hunk and the exact algorithm\
+  \ (normative)\n- **Per file.** A BINARY file is judged by T1 only (no hunks). A\
+  \ path whose git attributes carry\n  `yitc-generated` (set by the PROJECT in its\
+  \ own `.gitattributes`; exempt iff the attribute is `set`,\n  nothing else exempts)\
+  \ is skipped by T1 and T3: a lockfile / migration REGENERATED from the same input\n\
+  \  is identical by construction, not by copy. **Provenance CONTRACT (this rule INTRODUCES\
+  \ the\n  `yitc-generated` semantic — the git-attribute mechanism and GitHub's `linguist-generated`\
   \ are the\n  analogs, no repo declares it today):** carrier = the project's `.gitattributes`,\
   \ evaluated by git\n  per path (no parser/store); entry ONLY through a landed card\
   \ whose Analysis names the producing\n  generator/lock/migration tool; scope = generator\
@@ -139,76 +124,56 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ a card (the self-grant bypass is REFUSED, VP2). An exempt path is excluded from\
   \ T1/T3 and from the\n  share's numerator and denominator, and the REPORT line LISTS\
   \ it (`exempt: <n> path(s) (yitc-generated):\n  <paths>`) — visible, never silent.\
-  \ Every other file yields hunks.\n- **Canonical hunk.** `(removed_lines, added_lines)`\
-  \ as EXACT line bytes (NFC only — no whitespace\n  stripping/collapsing, no blank-line\
-  \ dropping: a formatting-only variant must never hash-identical, it\n  is REPORTED);\
-  \ order kept. KEY = the FULL sha256 over an explicitly framed BYTE encoding of the\
-  \ two lists (per-line length prefix + distinct list/line separators — not JSON/text);\
-  \ a valid-UTF-8 line is NFC-normalised, any other byte sequence is hashed raw (no\
-  \ decode may raise or lose bytes). Path, line numbers and mode\n  are NOT in the\
-  \ key. A fully-added file is one hunk; a pure deletion is a hunk. A hash collision\
-  \ is\n  identity.\n- **Sets.** `H(S)`, `H(L)`, `H(main)` (= `main` since the merge-base\
-  \ ∪ every landed `prototype_ref`\n  card's ship — a consumed prototype). The REPORT's\
-  \ attributable share is\n  `A(S) = H(L) ∩ (H(S) \\ H(main) \\ ⋃_{S'≠S} H(S'))`;\
-  \ the VERDICT does not use it.\n- **Verdict.** `H(L)` empty → lands. T1 first (blob\
-  \ identity → REFUSE naming file + S). Then T3:\n  IDENTITY IS DECISIVE: `H(L) ⊆\
-  \ H(S) \\ H(main)` for ANY declared spike S → REFUSE naming EVERY matching\n  S\
-  \ + the covered route + the governed exit (a change-set two spikes both carry is\
-  \ still a copied\n  change-set). Otherwise REPORT `spike-content: |A(S)|/|H(L)|\
-  \ hunks match spike/<S>` for the best S\n  (`ambiguous attribution` when a landing\
-  \ hunk lies in two spikes — it attributes to no single one)\n  and land.\n- **Boundaries.**\
-  \ Hunk granularity is EXACT and keys are byte-exact: a copied block split by an\n\
-  \  inserted line, two hunks merged, or a reformatted copy (black/prettier, re-indent)\
-  \ changes the keys →\n  REPORT, never refuse (rule 6 still shows the verbatim share).\
-  \ The ONE\n  documented false-positive class, in two forms: (T3) a landing diff\
-  \ that IS a single independently-\n  authored hunk identical to a spike hunk; (T1)\
-  \ an independently-authored whole file byte-identical to a\n  file the spike changed\
-  \ — both REFUSED (indistinguishable from a copy); the refusal prints its exit. An\n\
-  \  identical hunk inside a file that also carries own hunks is not this class —\
-  \ it reports and lands.\n- **Retention + retirement.** Permanent, bounded by the\
-  \ set's size: `H(S)` is FOLDED at each land from\n  the rows + refs — no cache,\
-  \ no memo, no store; retirement is DERIVED — once a prototype's\n  `prototype_ref`\
-  \ card lands, its hunks enter `H(main)` and stop attributing; the tag stays as history.\n\
-  \  No retirement verb, no expiry.\n- **No memo, no store — final.** `H(S)` is folded\
-  \ at each land from the rows + refs (the set is small by\n  construction). No memo\
-  \ is planned or deferred by this contract.\n- **Uncomputed verdict — the land proceeds.**\
-  \ When the verdict cannot be computed (the\n  checker raised, or its payload carries\
-  \ `error`), `land` NEVER refuses on spike content: it prints a\n  `spike-content:\
-  \ not computed` line and proceeds. Deliberate : a fault in the checker must\n  not\
-  \ block every land in the repo. The refusal fires ONLY on a COMPUTED `identity`\
-  \ verdict while the\n  code-level switch `REFUSE_SPIKE_CONTENT` is ON (shipped ON\
-  \ since). So rule 2 is fail-closed\n  on a copy it can SEE, and fail-open on a checker\
-  \ fault — stated, not implied.\n- **Two events.** ONE `spike_content_checked` row\
-  \ per land attempt (the land record); the pre-land dry\n  run the audit packet needs\
-  \ writes a DISTINCT `spike_content_previewed` row (same payload +\n  `preview: true`).\
-  \ A preview is never a land record.\n- **Catalog home.** Every event type this contract\
-  \ names —\n  `spike_content_checked`, `spike_content_previewed`, `spike_declared_late`,\
-  \ `worktree_create_failed`,\n  and the changed `worktree_created` payload (`path`,\
-  \ `spike`) — is CATALOGUED in SPEC-0161 (the\n  event-type catalog extension, the\
-  \ ONE catalog home) with a payload probe, by the card that SHIPS\n  it: L1 (`worktree_created`\
-  \ payload + `worktree_create_failed`), L2a (the two `spike_content_*`),\n  L4c (`spike_declared_late`).\
-  \ A name appearing only in this spec is not a catalog entry.\nCheck layer: KERNEL\
-  \ (one helper; one `spike_content_checked` row per land, previews separate).\n\n\
-  ### 3. Cage atom 4e — a KERNEL-AUTHENTICATED source of served code\nA sandbox stack\
-  \ serves code from exactly one of two sources, and the cage accepts only what the\n\
-  kernel can VOUCH for: (a) an IMAGE built from a landed `main` revision, deployed\
-  \ through the governed\n`deploy --target <name>` on a target declared `production:\
-  \ false`, whose DEPLOY FACT names that\nrevision (SPEC-0094 §Named targets) — the\
-  \ fact, not an image label the operator typed; or (b) a\nworktree whose `spike:\
-  \ true` stamp the KERNEL wrote (rule 1) — cross-checked against the journal's\n\
-  `worktree_created{spike: true}` row for that path — mounted by the project's live-code\
-  \ layer.\nREFUSED, fail-closed: an unstamped worktree; a `task/T-XXXX` worktree\
-  \ mounted into the live-code\nlayer; an image built from an unlanded tree; a source\
-  \ established only by an operator-supplied path\nor an environment flag; a mount\
-  \ whose provenance the check cannot read. PERMITTED (positive\ncontrols): a `main`-SHA\
-  \ image whose deploy fact resolves comes up; a kernel-stamped spike worktree\ncomes\
-  \ up under live-code.\n**Two authentication states.** ACTIVE spike = a live worktree\
-  \ whose stamp ⇄ row agree — same session ref, same ts, same worktree path,\nand\
-  \ that path IS the mounted one (no tag exists\nbefore park) — the state the cage\
-  \ admits under live-code; PARKED spike = a `spike/<slug>` ANNOTATED tag\nwhose annotation\
-  \ ⇄ row agree — a ref, not a mountable tree, so the cage never serves it (rule 2\
-  \ folds\nboth states at land). **Trust boundary — two state-specific predicates,\
-  \ never one unconditional conjunction.** ACTIVE:\nthe journal row (`worktree_created{spike:true}`:\
+  \ Every other file yields hunks.\n- **Sets.** `H(S)`, `H(L)`, `H(main)` (= `main`\
+  \ since the merge-base ∪ every landed `prototype_ref`\n  card's ship — a consumed\
+  \ prototype). The REPORT's attributable share is\n  `A(S) = H(L) ∩ (H(S) \\ H(main)\
+  \ \\ ⋃_{S'≠S} H(S'))`; the VERDICT does not use it.\n- **Verdict.** `H(L)` empty\
+  \ → lands. T1 first (blob identity → REFUSE naming file + S). Then T3:\n  IDENTITY\
+  \ IS DECISIVE: `H(L) ⊆ H(S) \\ H(main)` for ANY declared spike S → REFUSE naming\
+  \ EVERY matching\n  S + the covered route + the governed exit (a change-set two\
+  \ spikes both carry is still a copied\n  change-set). Otherwise REPORT `spike-content:\
+  \ |A(S)|/|H(L)| hunks match spike/<S>` for the best S\n  (`ambiguous attribution`\
+  \ when a landing hunk lies in two spikes — it attributes to no single one)\n  and\
+  \ land.\n- **Boundaries.** Hunk granularity is EXACT and keys are byte-exact: a\
+  \ copied block split by an\n  inserted line, two hunks merged, or a reformatted\
+  \ copy (black/prettier, re-indent) changes the keys →\n  REPORT, never refuse (rule\
+  \ 6 still shows the verbatim share). The ONE\n  documented false-positive class,\
+  \ in two forms: (T3) a landing diff that IS a single independently-\n  authored\
+  \ hunk identical to a spike hunk; (T1) an independently-authored whole file byte-identical\
+  \ to a\n  file the spike changed — both REFUSED (indistinguishable from a copy);\
+  \ the refusal prints its exit. An\n  identical hunk inside a file that also carries\
+  \ own hunks is not this class — it reports and lands.\n- **Uncomputed verdict —\
+  \ the land proceeds.** When the verdict cannot be computed (the\n  checker raised,\
+  \ or its payload carries `error`), `land` NEVER refuses on spike content: it prints\
+  \ a\n  `spike-content: not computed` line and proceeds. Deliberate : a fault in\
+  \ the checker must\n  not block every land in the repo. The refusal fires ONLY on\
+  \ a COMPUTED `identity` verdict while the\n  code-level switch `REFUSE_SPIKE_CONTENT`\
+  \ is ON (shipped ON since). So rule 2 is fail-closed\n  on a copy it can SEE, and\
+  \ fail-open on a checker fault — stated, not implied.\n- **Two events.** ONE `spike_content_checked`\
+  \ row per land attempt (the land record); the pre-land dry\n  run the audit packet\
+  \ needs writes a DISTINCT `spike_content_previewed` row (same payload +\n  `preview:\
+  \ true`). A preview is never a land record.\nCheck layer: KERNEL (one helper; one\
+  \ `spike_content_checked` row per land, previews separate).\n\n### 3. Cage atom\
+  \ 4e — a KERNEL-AUTHENTICATED source of served code\nA sandbox stack serves code\
+  \ from exactly one of two sources, and the cage accepts only what the\nkernel can\
+  \ VOUCH for: (a) an IMAGE built from a landed `main` revision, deployed through\
+  \ the governed\n`deploy --target <name>` on a target declared `production: false`,\
+  \ whose DEPLOY FACT names that\nrevision (SPEC-0094 §Named targets) — the fact,\
+  \ not an image label the operator typed; or (b) a\nworktree whose `spike: true`\
+  \ stamp the KERNEL wrote (rule 1) — cross-checked against the journal's\n`worktree_created{spike:\
+  \ true}` row for that path — mounted by the project's live-code layer.\nREFUSED,\
+  \ fail-closed: an unstamped worktree; a `task/T-XXXX` worktree mounted into the\
+  \ live-code\nlayer; an image built from an unlanded tree; a source established only\
+  \ by an operator-supplied path\nor an environment flag; a mount whose provenance\
+  \ the check cannot read. PERMITTED (positive\ncontrols): a `main`-SHA image whose\
+  \ deploy fact resolves comes up; a kernel-stamped spike worktree\ncomes up under\
+  \ live-code.\n**Two authentication states.** ACTIVE spike = a live worktree whose\
+  \ stamp ⇄ row agree — same session ref, same ts, same worktree path,\nand that path\
+  \ IS the mounted one (no tag exists\nbefore park) — the state the cage admits under\
+  \ live-code; PARKED spike = a `spike/<slug>` ANNOTATED tag\nwhose annotation ⇄ row\
+  \ agree — a ref, not a mountable tree, so the cage never serves it (rule 2 folds\n\
+  both states at land). **Trust boundary — two state-specific predicates, never one\
+  \ unconditional conjunction.** ACTIVE:\nthe journal row (`worktree_created{spike:true}`:\
   \ ts + declaring session ref + path) ⇄ the worktree\nstamp (written only by `worktree\
   \ new`, carrying that ts + session ref) — the predicate the CAGE and a\nlive-worktree\
   \ `land` evaluate. PARKED: the journal row (`worktree_created{spike:true}` or\n\
@@ -386,11 +351,53 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ the why).\n\n### History moved from the rule body\n\nEach entry is a passage moved\
   \ word for word out of the rule text of the section it names;\nthe rule it explains\
   \ stays there.\n\n- From «2. Content identity at land»: (consult #2 finding 1)\n\
-  - From «2. Content identity at land»: (owner ruling; consult #2 Q1/Q2)\n\n## Implementation\
-  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
-  \ rule text of the section\neach names.\n\n- From «2. Content identity at land»:\
-  \ (`_work_batch_carrier`)\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new\
-  \ --work spike-x` → refused naming `--spike`; `--spike` → stamp\n  `spike: true`;\
+  - From «2. Content identity at land»: (owner ruling; consult #2 Q1/Q2)\n\n### History\
+  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
+  From «Internal»:\n\n> **Placement + lineage.** Carved out of SPEC-0172 rule 5 as\
+  \ a STABLE SURFACE (SPEC-0005 rule 6 /\n> §7 — the SPEC-0083 carve shape: `supersedes:\
+  \ ~`, the parent lives on and points here). SPEC-0172\n> keeps the STACK wiring\
+  \ (layers, declaration, pin, cage atoms 4a-4d, sharing, entrance); THIS spec\n>\
+  \ owns the spike's EXIT and the lifecycle's INPUT — what crosses the boundary between\
+  \ a sandbox and\n> `main`. The owner rulings and external consult verdicts this\
+  \ contract absorbs are in the journal\n> and in the proposing plan, not restated\
+  \ here (SPEC-0005 rule 8).\n\n## Implementation notes\n\nNotes for the maintainer\
+  \ of the code, moved word for word out of the rule text of the section\neach names.\n\
+  \n- From «2. Content identity at land»: (`_work_batch_carrier`)\n\n### Moved from\
+  \ the rule text\n\nReference and maintainer passages moved word for word out of\
+  \ the rule text of the section\neach names; no rule an acting reader applies moved\
+  \ with them.\n\nFrom «2. Content identity at land»:\n\nThe verdict is computed ONCE\
+  \ per land by ONE helper and journaled as `spike_content_checked` (branch,\nspike\
+  \ ref, T1 hits, T3 verdict, share); every other reader — the report line, the abort\
+  \ message, the\naudit packet (rule 6) — CITES that row. Per-commit `patch-id` is\
+  \ NOT a mechanism here; the\nexisting branch-level `_spike_land_verdict`\n(the landing\
+  \ branch IS a declared spike) stays the FIRST check, T1/T3 run after it on every\
+  \ other\nbranch.\n\nFrom «2a»:\n\n- **Diff basis.** Spike S: `git diff -M -U0 $(git\
+  \ merge-base main S)..S`; landing branch L: the same\n  over its merge-base with\
+  \ `main`; `main` since that merge-base likewise. Rename-aware, zero context.\n\n\
+  From «2a»:\n\n- **Canonical hunk.** `(removed_lines, added_lines)` as EXACT line\
+  \ bytes (NFC only — no whitespace\n  stripping/collapsing, no blank-line dropping:\
+  \ a formatting-only variant must never hash-identical, it\n  is REPORTED); order\
+  \ kept. KEY = the FULL sha256 over an explicitly framed BYTE encoding of the two\
+  \ lists (per-line length prefix + distinct list/line separators — not JSON/text);\
+  \ a valid-UTF-8 line is NFC-normalised, any other byte sequence is hashed raw (no\
+  \ decode may raise or lose bytes). Path, line numbers and mode\n  are NOT in the\
+  \ key. A fully-added file is one hunk; a pure deletion is a hunk. A hash collision\
+  \ is\n  identity.\n\nFrom «2a»:\n\n- **Retention + retirement.** Permanent, bounded\
+  \ by the set's size: `H(S)` is FOLDED at each land from\n  the rows + refs — no\
+  \ cache, no memo, no store; retirement is DERIVED — once a prototype's\n  `prototype_ref`\
+  \ card lands, its hunks enter `H(main)` and stop attributing; the tag stays as history.\n\
+  \  No retirement verb, no expiry.\n\nFrom «2a»:\n\n- **No memo, no store — final.**\
+  \ `H(S)` is folded at each land from the rows + refs (the set is small by\n  construction).\
+  \ No memo is planned or deferred by this contract.\n\nFrom «2a»:\n\n- **Catalog\
+  \ home.** Every event type this contract names —\n  `spike_content_checked`, `spike_content_previewed`,\
+  \ `spike_declared_late`, `worktree_create_failed`,\n  and the changed `worktree_created`\
+  \ payload (`path`, `spike`) — is CATALOGUED in SPEC-0161 (the\n  event-type catalog\
+  \ extension, the ONE catalog home) with a payload probe, by the card that SHIPS\n\
+  \  it: L1 (`worktree_created` payload + `worktree_create_failed`), L2a (the two\
+  \ `spike_content_*`),\n  L4c (`spike_declared_late`). A name appearing only in this\
+  \ spec is not a catalog entry.\n\n## Verification\n\n- **VP1 (rule 1):** `worktree\
+  \ new --work spike-x` → refused naming `--spike`; `--spike` → stamp\n  `spike: true`;\
   \ `--work sandbox-x` → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule\
   \ 2, T1 + T3):** over a sandbox repo with one declared spike: `git checkout <spike>\
   \ --\n  <path>` · whole-file copy · rename of a copied file · `git archive` → `LAND:\

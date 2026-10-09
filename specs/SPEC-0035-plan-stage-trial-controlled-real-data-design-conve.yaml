@@ -43,51 +43,50 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ 2 trial cycles. PLUS the per-plan baked criteria\n   (rule 3). The FINAL act is\
   \ owner judgment citing the journal run-refs — there is NO automated\n   convergence\
   \ detector (V2 non-goals: no autonomy FSM / detectors).\n\n   **What the third floor\
-  \ item is counted OVER — the DESIGN, not the plan FILE (in-place\n   clarification\
-  \ of a rule that was silent, SPEC-0005 rule 7).** Read byte-literally,\n   floor\
-  \ items 2 and 3 are not jointly satisfiable by any trial lasting more than one cycle:\n\
-  \   recording a cycle's trial-summary IS an edit to the plan file, so \"plan … unchanged\"\
-  \ could\n   never hold. They are jointly satisfiable because item 3 counts the DESIGN\
-  \ state — the plan's\n   protocol, rules and design body plus the draft specs —\
-  \ which is exactly what rule 4 has\n   co-evolve (\"corrected in place … as findings\
-  \ accumulate\") and what rule 10(b) calls the DRY\n   state of iterate-until-dry.\
-  \ So: **recording a cycle's trial-summary / run-record section does\n   NOT reset\
-  \ the count; a BEHAVIOUR-BEARING correction to the design or to a draft spec DOES,\
-  \ and\n   restarts it from that cycle** (fix-first, rule 10(b)); which corrections\
-  \ are behaviour-bearing is\n   the semantic-effect test below. The floor keeps EXACTLY\
-  \ its three items, none widened,\n   none weakened.\n   - **Which corrections restart\
-  \ the count — the SEMANTIC-EFFECT test.** A correction\n     invalidates only the\
-  \ evidence whose claims, governing assumptions or relevant inputs it\n     changes;\
-  \ evidence it leaves untouched is reused. Classify the ACTUAL correction by its\
-  \ effect\n     on the contract, never by what the existing trial probes happen to\
-  \ compute: could it change\n     what a conforming implementation or trial judgement\
-  \ permits, requires, produces or accepts for\n     ANY supported case — eligibility,\
-  \ authority, failure handling, safety, scope, observability,\n     evidence or exit\
-  \ criteria? **Yes, or unsure → BEHAVIOUR-BEARING: it restarts the count**\n    \
-  \ (fail-closed — an equivalence nobody can show is not one). Spelling, formatting\
-  \ and equivalent\n     references → NOT behaviour-bearing: the count and the run-refs\
-  \ it rests on stand. A\n     clarification that settles between competing operative\
-  \ readings is behaviour-bearing, and\n     weakening a completion or exit criterion\
-  \ is never wording. A behaviour-bearing correction on a\n     branch no recorded\
-  \ run exercised is answered by a run that EXERCISES that branch — a probe for\n\
-  \     it — never by another run of unrelated cases.\n     **The record and its reader\
-  \ — no new pass, no new store.** The session that makes the\n     correction writes\
-  \ ONE line into the plan's own External checks / audits section — the one\n    \
-  \ record every plan-gate prompt and the convergence read already carry (SPEC-0083\
-  \ §Correction\n     invalidation): what changed (before → after), its classification,\
-  \ which run-refs it keeps or\n     invalidates, and a reference to the correction.\
-  \ The next already-required read scrutinizes\n     that line — the convergence read\
-  \ below and the next plan gate (SPEC-0083) — and a line it\n     cannot confirm\
-  \ reads as behaviour-bearing. The classification is never a gate of its own:\n \
-  \    owner judgement stays the final act.\n     **No dry-pair floor.** One clean\
-  \ run after a correction can meet item 3: the boundary form\n     below compares\
-  \ the design state at the end of the last two cycles, so the correcting cycle\n\
-  \     followed by ONE run that needs no behaviour-bearing correction satisfies it.\
-  \ A second clean\n     run is required only where a plan bakes it as its own criterion\
-  \ (rule 3).\n   - **Suppression is not dryness (the direction that matters first).**\
-  \ A finding that requires a\n     behaviour-bearing correction to the design or\
-  \ to a draft spec must be absorbed before the next\n     cycle (fix-first, \"never\
-  \ logged-and-deferred\"): withholding, deferring, accepting or\n     logging-and-deferring\
+  \ item is counted OVER — the DESIGN, not the plan FILE.** Read byte-literally,\n\
+  \   floor items 2 and 3 are not jointly satisfiable by any trial lasting more than\
+  \ one cycle:\n   recording a cycle's trial-summary IS an edit to the plan file,\
+  \ so \"plan … unchanged\" could\n   never hold. They are jointly satisfiable because\
+  \ item 3 counts the DESIGN state — the plan's\n   protocol, rules and design body\
+  \ plus the draft specs — which is exactly what rule 4 has\n   co-evolve (\"corrected\
+  \ in place … as findings accumulate\") and what rule 10(b) calls the DRY\n   state\
+  \ of iterate-until-dry. So: **recording a cycle's trial-summary / run-record section\
+  \ does\n   NOT reset the count; a BEHAVIOUR-BEARING correction to the design or\
+  \ to a draft spec DOES, and\n   restarts it from that cycle** (fix-first, rule 10(b));\
+  \ which corrections are behaviour-bearing is\n   the semantic-effect test below.\
+  \ The floor keeps EXACTLY its three items, none widened,\n   none weakened.\n  \
+  \ - **Which corrections restart the count — the SEMANTIC-EFFECT test.** A correction\n\
+  \     invalidates only the evidence whose claims, governing assumptions or relevant\
+  \ inputs it\n     changes; evidence it leaves untouched is reused. Classify the\
+  \ ACTUAL correction by its effect\n     on the contract, never by what the existing\
+  \ trial probes happen to compute: could it change\n     what a conforming implementation\
+  \ or trial judgement permits, requires, produces or accepts for\n     ANY supported\
+  \ case — eligibility, authority, failure handling, safety, scope, observability,\n\
+  \     evidence or exit criteria? **Yes, or unsure → BEHAVIOUR-BEARING: it restarts\
+  \ the count**\n     (fail-closed — an equivalence nobody can show is not one). Spelling,\
+  \ formatting and equivalent\n     references → NOT behaviour-bearing: the count\
+  \ and the run-refs it rests on stand. A\n     clarification that settles between\
+  \ competing operative readings is behaviour-bearing, and\n     weakening a completion\
+  \ or exit criterion is never wording. A behaviour-bearing correction on a\n    \
+  \ branch no recorded run exercised is answered by a run that EXERCISES that branch\
+  \ — a probe for\n     it — never by another run of unrelated cases.\n     **The\
+  \ record and its reader — no new pass, no new store.** The session that makes the\n\
+  \     correction writes ONE line into the plan's own External checks / audits section\
+  \ — the one\n     record every plan-gate prompt and the convergence read already\
+  \ carry (SPEC-0083 §Correction\n     invalidation): what changed (before → after),\
+  \ its classification, which run-refs it keeps or\n     invalidates, and a reference\
+  \ to the correction. The next already-required read scrutinizes\n     that line\
+  \ — the convergence read below and the next plan gate (SPEC-0083) — and a line it\n\
+  \     cannot confirm reads as behaviour-bearing. The classification is never a gate\
+  \ of its own:\n     owner judgement stays the final act.\n     **No dry-pair floor.**\
+  \ One clean run after a correction can meet item 3: the boundary form\n     below\
+  \ compares the design state at the end of the last two cycles, so the correcting\
+  \ cycle\n     followed by ONE run that needs no behaviour-bearing correction satisfies\
+  \ it. A second clean\n     run is required only where a plan bakes it as its own\
+  \ criterion (rule 3).\n   - **Suppression is not dryness (the direction that matters\
+  \ first).** A finding that requires a\n     behaviour-bearing correction to the\
+  \ design or to a draft spec must be absorbed before the next\n     cycle (fix-first,\
+  \ \"never logged-and-deferred\"): withholding, deferring, accepting or\n     logging-and-deferring\
   \ that absorption to keep the count alive buys unchanged-ness by\n     SUPPRESSION,\
   \ and the cycle does NOT count dry. Only a cycle whose findings needed NO\n    \
   \ behaviour-bearing correction — none absorbed, none deferred that an absorption\
@@ -95,35 +94,27 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ delivery or adoption rather than\n     design, a thought parked as a `followup`,\
   \ or a correction the test above classifies as not\n     behaviour-bearing). Record\
   \ WHICH it was, so \"unchanged\" reads as *nothing was there*, not as\n     *nobody\
-  \ looked*.\n   - **Counting when a trial exits on its THIRD or later cycle.** \"\
-  The last 2 cycles\" is the\n     BOUNDARY between the two most recent cycles: the\
-  \ design state at the end of cycle N-1 is\n     identical to the design state at\
-  \ the end of cycle N. Corrections made IN cycle N-1 do not by\n     themselves break\
-  \ it — they are what cycle N was run against. Grounds in this spec's own text:\n\
-  \     rule 10(b) names the item as the dry state of \"keep running cycles until\
-  \ A cycle surfaces\n     nothing new\" (singular), which a two-consecutive-dry-cycles\
-  \ reading would contradict. The\n     exiting cycle's own summary write is a record,\
-  \ not a change (above).\n   - **What a cycle IS — the unit is ONE JOURNALED TRIAL\
-  \ RUN, never a calendar or dwell window\n     (in-place clarification of a word\
-  \ the rule never defined, SPEC-0005 rule 7).** A\n     cycle is one run of the trial\
-  \ against the design state as it stood when that run began — the\n     SAME unit\
-  \ floor item 1 counts (\"≥1 journaled trial run\"). Grounds in this spec's own text:\
-  \ the\n     boundary form above is stated per run (\"what cycle N was run against\"\
-  ); its real-incident\n     grounding below already names \"run 3\" as \"the third-cycle\
-  \ form\"; and rule 10(b) absorbs each\n     defect \"before the next cycle\" (fix-first)\
-  \ and \"keeps running cycles until a cycle surfaces\n     nothing new\" (iterate-until-dry)\
-  \ — a finding is surfaced by a run and absorbed between two\n     runs. A coarser\
-  \ window a plan declares for itself — a daily tick, a batch, a soak day — is NOT\n\
-  \     the floor's cycle: a plan whose evidence needs N clean windows or elapsed\
-  \ time bakes that as a\n     per-plan criterion (rule 3), which ADDS to the floor\
-  \ and never re-defines its unit.\n     **Worked example** (<project> X-1580, plan\
-  \ `session-start-health-check-a-whole-lifecycle-obser`):\n     10 journaled runs\
-  \ across 2 daily ticks, a design correction in run 9, run 10 needing none → the\n\
-  \     boundary between run 9 and run 10 holds, so floor item 3 is SATISFIED. Any\
-  \ tick-count\n     criterion that plan baked is judged separately, under rule 3,\
-  \ by its own protocol.\n   Real-incident grounding (CHARTER §Principle 1 filter\
-  \ 4) — the same question answered by\n   reasoning at the seam twice, by two authors,\
-  \ deviation fingerprint\n   `spec0035-exit-floor-unchanged-vs-required-summary-ambiguity`:\
+  \ looked*.\n   - **A correction that repairs an earlier correction** is the patch-on-patch\
+  \ signal: CHARTER\n     §Failure trigger.\n   - **Counting when a trial exits on\
+  \ its THIRD or later cycle.** \"The last 2 cycles\" is the\n     BOUNDARY between\
+  \ the two most recent cycles: the design state at the end of cycle N-1 is\n    \
+  \ identical to the design state at the end of cycle N. Corrections made IN cycle\
+  \ N-1 do not by\n     themselves break it — they are what cycle N was run against.\
+  \ The\n     exiting cycle's own summary write is a record, not a change (above).\n\
+  \   - **What a cycle IS — the unit is ONE JOURNALED TRIAL RUN, never a calendar\
+  \ or dwell window.** A\n     cycle is one run of the trial against the design state\
+  \ as it stood when that run began — the\n     SAME unit floor item 1 counts (\"\
+  ≥1 journaled trial run\"). A coarser window a plan declares for itself — a daily\
+  \ tick, a batch, a soak day — is NOT\n     the floor's cycle: a plan whose evidence\
+  \ needs N clean windows or elapsed time bakes that as a\n     per-plan criterion\
+  \ (rule 3), which ADDS to the floor and never re-defines its unit.\n     **Worked\
+  \ example** (<project> X-1580, plan `session-start-health-check-a-whole-lifecycle-obser`):\n\
+  \     10 journaled runs across 2 daily ticks, a design correction in run 9, run\
+  \ 10 needing none → the\n     boundary between run 9 and run 10 holds, so floor\
+  \ item 3 is SATISFIED. Any tick-count\n     criterion that plan baked is judged\
+  \ separately, under rule 3, by its own protocol.\n   Real-incident grounding (CHARTER\
+  \ §Principle 1 filter 4) — the same question answered by\n   reasoning at the seam\
+  \ twice, by two authors, deviation fingerprint\n   `spec0035-exit-floor-unchanged-vs-required-summary-ambiguity`:\
   \ plan\n   `project-declared-audit-post-exemption-cases-plus-t` (2026-08-13, cycle\
   \ 2, and its cycle-9\n   counting note left deliberately open) and, independently,\
   \ plan\n   `widen-the-land-re-verify-skip-beyond-the-inert-ret` (2026-08-14, run\
@@ -148,38 +139,37 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ The package-level accept-gate `plan check` (FULL)\n   stays a SEPARATE later audit\
   \ — this dual read neither duplicates nor replaces it. The how-to (the\n   dual-convergence-analysis\
   \ METHOD) lives in `patterns/trial-methods.md` (rule 6 carrier).\n\n   **NARROWING\
-  \ the floor — permitted ONLY as an EXPLICIT RECORDED owner act (additive carve-out,\n\
-  \   SPEC-0005 rule 7).** OLD RULE (the floor above): the three-item floor is UNIVERSAL,\
-  \ and\n   owner judgement — though FINAL — acts WITHIN it; nothing grants a power\
-  \ to narrow the floor\n   itself, so a plan that declares the floor locally superseded\
-  \ overrides an active spec by its own\n   prose, which CHARTER §Principle 7 forbids\
-  \ (specs win). NEW RULE (this carve-out): the floor MAY be\n   narrowed, for ONE\
-  \ NAMED TRIAL, by an EXPLICIT OWNER ACT RECORDED IN THAT PLAN — and the exit then\n\
-  \   CITES that record instead of overriding this rule. The record MUST name ALL\
-  \ THREE:\n   (i) WHICH floor item is unmet;\n   (ii) WHERE each unmet criterion\
-  \ MOVES — the LATER GATE that now carries it, named by that gate's\n        OWN\
-  \ criterion / block (never a bare \"later\");\n   (iii) WHY the TRIAL ITSELF cannot\
-  \ produce it — a property of the trial's own legs, not its cost,\n         duration\
-  \ or fatigue.\n   A record missing any of the three is NOT a narrowing: the floor\
-  \ stands unnarrowed and the exit is\n   refused.\n   **BOUNDS — the act NARROWS,\
-  \ it never DISCHARGES:**\n   - the narrowing discharges NOTHING — a moved criterion\
-  \ still GATES its new home, which must stay\n     unreachable without it; moving\
-  \ is STRICTER placement, never retirement;\n   - it NEVER silently narrows a per-plan\
-  \ BAKED criterion (rule 3) — a baked criterion is narrowed\n     only by being NAMED\
-  \ under (i)-(iii) in its own right, never as a side-effect of narrowing the\n  \
-  \   universal floor;\n   - owner judgement stays a JUDGEMENT, not a rubber stamp\
-  \ — the act is the OWNER's, taken on the\n     recorded evidence; a session's own\
-  \ generous re-reading of a criterion is NOT this act and stays\n     refused.\n\
-  \   Everything else in this rule is UNCHANGED: the three floor items themselves,\
-  \ the per-plan baked\n   criteria, the dual convergence read, and owner judgement\
-  \ as the FINAL act.\n\n6. **Carrier boundary (editorial rule).** The plan carries\
-  \ ONLY the baked protocol + the\n   exit-facing trial-summary. `events.jsonl` carries\
-  \ ONLY raw run observations.\n   `patterns/trial-methods.md` carries ONLY reusable\
-  \ methods / lessons. Moving raw observations\n   into the plan is FORBIDDEN (no\
-  \ parallel carrier — CHARTER §P5).\n\n7. **Narrowing (what this rule removes).**\
-  \ For trial-eligible plans `plan check` is NOT the\n   design-convergence gate —\
-  \ convergence evidence is produced in `trial` against the baked\n   criteria; `plan\
-  \ check`'s role at the `accepted`-gate is the audit of the ASSEMBLED package.\n\
+  \ the floor — permitted ONLY as an EXPLICIT RECORDED owner act.** OLD RULE (the\
+  \ floor above): the three-item floor is UNIVERSAL, and\n   owner judgement — though\
+  \ FINAL — acts WITHIN it; nothing grants a power to narrow the floor\n   itself,\
+  \ so a plan that declares the floor locally superseded overrides an active spec\
+  \ by its own\n   prose, which CHARTER §Principle 7 forbids (specs win). NEW RULE\
+  \ (this carve-out): the floor MAY be\n   narrowed, for ONE NAMED TRIAL, by an EXPLICIT\
+  \ OWNER ACT RECORDED IN THAT PLAN — and the exit then\n   CITES that record instead\
+  \ of overriding this rule. The record MUST name ALL THREE:\n   (i) WHICH floor item\
+  \ is unmet;\n   (ii) WHERE each unmet criterion MOVES — the LATER GATE that now\
+  \ carries it, named by that gate's\n        OWN criterion / block (never a bare\
+  \ \"later\");\n   (iii) WHY the TRIAL ITSELF cannot produce it — a property of the\
+  \ trial's own legs, not its cost,\n         duration or fatigue.\n   A record missing\
+  \ any of the three is NOT a narrowing: the floor stands unnarrowed and the exit\
+  \ is\n   refused.\n   **BOUNDS — the act NARROWS, it never DISCHARGES:**\n   - the\
+  \ narrowing discharges NOTHING — a moved criterion still GATES its new home, which\
+  \ must stay\n     unreachable without it; moving is STRICTER placement, never retirement;\n\
+  \   - it NEVER silently narrows a per-plan BAKED criterion (rule 3) — a baked criterion\
+  \ is narrowed\n     only by being NAMED under (i)-(iii) in its own right, never\
+  \ as a side-effect of narrowing the\n     universal floor;\n   - owner judgement\
+  \ stays a JUDGEMENT, not a rubber stamp — the act is the OWNER's, taken on the\n\
+  \     recorded evidence; a session's own generous re-reading of a criterion is NOT\
+  \ this act and stays\n     refused.\n   Everything else in this rule is UNCHANGED:\
+  \ the three floor items themselves, the per-plan baked\n   criteria, the dual convergence\
+  \ read, and owner judgement as the FINAL act.\n\n6. **Carrier boundary (editorial\
+  \ rule).** The plan carries ONLY the baked protocol + the\n   exit-facing trial-summary.\
+  \ `events.jsonl` carries ONLY raw run observations.\n   `patterns/trial-methods.md`\
+  \ carries ONLY reusable methods / lessons. Moving raw observations\n   into the\
+  \ plan is FORBIDDEN (no parallel carrier — CHARTER §P5).\n\n7. **Narrowing (what\
+  \ this rule removes).** For trial-eligible plans `plan check` is NOT the\n   design-convergence\
+  \ gate — convergence evidence is produced in `trial` against the baked\n   criteria;\
+  \ `plan check`'s role at the `accepted`-gate is the audit of the ASSEMBLED package.\n\
   \   Post-accept spec-rework driven by reality-vs-paper divergence is no longer a\
   \ normal path (the\n   cheap pre-accept convergence loop replaces the costly post-accept\
   \ correction loop).\n\n8. **No-orchestration guard.** `trial` introduces NO new\
@@ -188,34 +178,32 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ non-goals #1/#7); rule 9 permits AUTONOMOUS entry for a provably-non-destructive\
   \ trial under\n   an owner-authorized plan-drive, but this guard against any autonomous\
   \ LOOP / dispatcher / supervisor\n   stays in force regardless.\n\n9. **Autonomous-entry\
-  \ carve-out for provably-non-destructive trials (narrowing, additive — SPEC-0005\
-  \ rule 7).**\n   OLD RULE (rules 2, 3, 8 above): trial entry is ALWAYS owner-invoked.\
-  \ NEW RULE (this carve-out narrows\n   it): a trial-eligible plan whose baked `##\
-  \ Trial protocol` is PROVABLY NON-DESTRUCTIVE — it never\n   mutates production\
-  \ data, honouring the rule 3-4 dwell/safety envelope (emulation/modulation of the\n\
-  \   planned flow, or reviewable + rollbackable manual execution ONLY) — MAY be entered\
-  \ AUTONOMOUSLY by the\n   Controller under an owner-authorized plan-drive. A trial\
-  \ that is risky or irreversible (any\n   production-data mutation, or a safety envelope\
-  \ not provably non-destructive) STAYS owner-invoked (the\n   unchanged default).\
-  \ Eligibility (rule 2) and the non-destructiveness judgement remain OWNER-AUTHORED\
-  \ in\n   the baked protocol — there is NO detector and NO new mechanism (judgement,\
-  \ not machinery — CHARTER\n   §Principle 1); the Controller reads the baked protocol\
-  \ and enters autonomously ONLY when it provably\n   clears rules 3-4. This narrows\
-  \ ONLY the entry-invocation authority under an existing owner-authorized\n   drive:\
-  \ the eligibility test (rule 2), entry contract (rule 3), dwell/safety envelope\
-  \ (rule 4), and\n   owner-final exit judgment (rule 5) are UNCHANGED, and the no-orchestration\
-  \ guard (rule 8) still forbids\n   any autonomous loop / dispatcher / supervisor.\n\
-  \n10. **Trial-reliability doctrine + skip-is-default (additive, SPEC-0005 rule 7).**\n\
-  \    Two clarifications the prior rules left implicit:\n\n    **(a) Skip-trial is\
-  \ the DEFAULT; enter-trial is the deliberate act.** `trial` is NOT a stage\n   \
-  \ every plan visits and then decides to skip — it is entered ONLY when rule-2 eligibility\
-  \ holds\n    (mechanism/behavioral AND text-audit-insufficient) AND the owner invokes\
-  \ it (or, under rule 9, the\n    Controller enters a provably-non-destructive trial\
-  \ autonomously). For every OTHER plan the path is\n    just `specs → accepted` and\
-  \ NO owner decision is required to \"skip\" — the skip is the zero-cost\n    default,\
-  \ not a fork to pose. Reading `trial` as opt-OUT (a gate you must justify skipping)\
-  \ is the\n    error this rule closes: it is opt-IN. A plan whose completeness risk\
-  \ is about \"does the SHIPPED\n    thing behave\" — not \"is the DESIGN converged\"\
+  \ carve-out for provably-non-destructive trials.**\n   OLD RULE (rules 2, 3, 8 above):\
+  \ trial entry is ALWAYS owner-invoked. NEW RULE (this carve-out narrows\n   it):\
+  \ a trial-eligible plan whose baked `## Trial protocol` is PROVABLY NON-DESTRUCTIVE\
+  \ — it never\n   mutates production data, honouring the rule 3-4 dwell/safety envelope\
+  \ (emulation/modulation of the\n   planned flow, or reviewable + rollbackable manual\
+  \ execution ONLY) — MAY be entered AUTONOMOUSLY by the\n   Controller under an owner-authorized\
+  \ plan-drive. A trial that is risky or irreversible (any\n   production-data mutation,\
+  \ or a safety envelope not provably non-destructive) STAYS owner-invoked (the\n\
+  \   unchanged default). Eligibility (rule 2) and the non-destructiveness judgement\
+  \ remain OWNER-AUTHORED in\n   the baked protocol — there is NO detector and NO\
+  \ new mechanism (judgement, not machinery — CHARTER\n   §Principle 1); the Controller\
+  \ reads the baked protocol and enters autonomously ONLY when it provably\n   clears\
+  \ rules 3-4. This narrows ONLY the entry-invocation authority under an existing\
+  \ owner-authorized\n   drive: the eligibility test (rule 2), entry contract (rule\
+  \ 3), dwell/safety envelope (rule 4), and\n   owner-final exit judgment (rule 5)\
+  \ are UNCHANGED, and the no-orchestration guard (rule 8) still forbids\n   any autonomous\
+  \ loop / dispatcher / supervisor.\n\n10. **Trial-reliability doctrine + skip-is-default.**\n\
+  \n    **(a) Skip-trial is the DEFAULT; enter-trial is the deliberate act.** `trial`\
+  \ is NOT a stage\n    every plan visits and then decides to skip — it is entered\
+  \ ONLY when rule-2 eligibility holds\n    (mechanism/behavioral AND text-audit-insufficient)\
+  \ AND the owner invokes it (or, under rule 9, the\n    Controller enters a provably-non-destructive\
+  \ trial autonomously). For every OTHER plan the path is\n    just `specs → accepted`\
+  \ and NO owner decision is required to \"skip\" — the skip is the zero-cost\n  \
+  \  default, not a fork to pose. Reading `trial` as opt-OUT (a gate you must justify\
+  \ skipping) is the\n    error this rule closes: it is opt-IN. A plan whose completeness\
+  \ risk is about \"does the SHIPPED\n    thing behave\" — not \"is the DESIGN converged\"\
   \ — does NOT belong in `trial` at all; it soaks at\n    **`postcheck`** (the real-data\
   \ soak of built work, SPEC-0034 §postcheck), which is a different\n    stage answering\
   \ a different question. Trial = pre-build design convergence; postcheck = post-build\n\
@@ -259,13 +247,30 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ 1 filter 4): the\n  `close-the-spike-mode-safety-floor-to-data-carried-` plan's\
   \ accept-gate `plan check` returned\n  RED on two consecutive passes on 2026-08-11\
   \ for exactly this absence — an owner-approved\n  narrowed exit with no authority\
-  \ carrier in the corpus.\n\n## Verification\n\nAdoption probe (activation gate,\
-  \ CHARTER §P3/§P8 — infra-class): the FIRST real plan run through\n`specs → trial\
-  \ → accepted` with journal/state evidence — `plan_stage_entered` (trial) for a live\n\
-  plan; that plan's baked `## Trial protocol` section present; ≥1 journaled trial\
-  \ run; the\ntrial-summary in the plan; the subsequent `plan_stage_entered` (accepted)\
-  \ citing the journal\nrun-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial`\
-  \ between `specs` and `accepted`;\n`graph query SPEC-0035` shows binding `plan-stage-entry:trial`\
+  \ carrier in the corpus.\n\n### History moved from the rule body\n\nEach entry is\
+  \ a passage moved word for word out of the rule text of the section it names;\n\
+  the rule it explains stays there.\n\n- From «5. Exit contract»: (in-place clarification\
+  \ of a rule that was silent, SPEC-0005 rule 7 —\n)\n- From «5. Exit contract»: Grounds\
+  \ in this spec's own text: rule 10(b) names the item as the dry\n  state of \"keep\
+  \ running cycles until A cycle surfaces nothing new\" (singular), which a\n  two-consecutive-dry-cycles\
+  \ reading would contradict.\n- From «5. Exit contract»: (in-place clarification\
+  \ of a word the rule never defined, SPEC-0005\n  rule 7)\n- From «5. Exit contract»:\
+  \ Grounds in this spec's own text: the boundary form above is stated per\n  run\
+  \ (\"what cycle N was run against\"); its real-incident grounding below already\
+  \ names \"run 3\" as\n  \"the third-cycle form\"; and rule 10(b) absorbs each defect\
+  \ \"before the next cycle\" (fix-first)\n  and \"keeps running cycles until a cycle\
+  \ surfaces nothing new\" (iterate-until-dry) — a finding is\n  surfaced by a run\
+  \ and absorbed between two runs.\n- From «5. Exit contract»: (additive carve-out,\
+  \ SPEC-0005 rule 7)\n- From «9. Autonomous-entry carve-out»: (narrowing, additive\
+  \ — SPEC-0005 rule 7)\n- From «10. Trial-reliability doctrine»: (additive, SPEC-0005\
+  \ rule 7)\n- From «10. Trial-reliability doctrine»: Two clarifications the prior\
+  \ rules left implicit:\n\n## Verification\n\nAdoption probe (activation gate, CHARTER\
+  \ §P3/§P8 — infra-class): the FIRST real plan run through\n`specs → trial → accepted`\
+  \ with journal/state evidence — `plan_stage_entered` (trial) for a live\nplan; that\
+  \ plan's baked `## Trial protocol` section present; ≥1 journaled trial run; the\n\
+  trial-summary in the plan; the subsequent `plan_stage_entered` (accepted) citing\
+  \ the journal\nrun-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial` between\
+  \ `specs` and `accepted`;\n`graph query SPEC-0035` shows binding `plan-stage-entry:trial`\
   \ and `plan stage trial` delivers\nthis spec in its bundle. Without this evidence\
   \ the activating task does NOT close.\n\n**(AC1-AC4) what the unchanged-across-2-cycles\
   \ item is counted over:** rule 5 carries the\nin-place clarification that the count\

@@ -27,10 +27,46 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ YELLOW).\n  A skip would have shipped all six unexamined.\n- From «Per-stage mechanics\
   \ (one rule per linear stage»: (measured 2026-09-02; the\n  3-plan-check incident\
   \ is the same class)\n- From «Per-stage mechanics (one rule per linear stage»: («older\
-  \ than 2 days», 2026-09-13T03: 22\n  postcheck soaks cancelled)\n\n## Implementation\
-  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
-  \ rule text of the section\neach names.\n\n- From «Per-stage mechanics (one rule\
-  \ per linear stage»: Tripwire:\n  `tests/test_plan_stage.py::test_t12845_age_cancel_reads_postcheck_and_live_trigger_state`.\n\
+  \ than 2 days», 2026-09-13T03: 22\n  postcheck soaks cancelled)\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «Per-stage\
+  \ mechanics»: (owner-settled 2026-06-05)\n- From «draft»: (SPEC-0059 §First-stage-check-carrier-gap;\
+  \ plan-axis mirror of `task analyze\n  --finalize`)\n- From «specs»: Closes the\
+  \ draft-had-a-START-but-no-END-verb gap (SPEC-0059\n  §First-stage-check-carrier-gap).\n\
+  - From «specs»: (the status now says WHAT we work with — already the spec-set, not\
+  \ just the bare\n  draft; the `draft`-vs-`specs` split is deliberate, owner-from-experience)\n\
+  - From «specs»: (owner-settled 2026-06-05)\n- From «accepted»: — owner directive\
+  \ 2026-06-06\n- From «accepted»: Additive extension per SPEC-0005 §7: every already-covered\
+  \ case's compliance is\n  unchanged.\n- From «decomposition»: (the readiness body\
+  \ RELOCATED here from the old `executing`-gate,\n  SPEC-0070 §9.3)\n- From «postcheck»:\
+  \ (: the SAME `_plan_tasks` union this gate's own membership has used\n  since.\
+  \ Keyed on `cites` alone the exemption read a DIFFERENT carrier than the set it\n\
+  \  exempts over, so a card created by the governed cut path `task file --decomposed-from`\
+  \ and then\n  parked WITH a `return_trigger` was structurally UNEXEMPTABLE — it\
+  \ entered the blocking set by\n  `decomposed_from` and could never enter the exemption\
+  \ set)\n- From «Terminals»: This retires the old draft→ realized jump the `plan\
+  \ close` shim allowed (the\n  `plan-close-shim-ungated-terminal-jump-draft-to-realized`\
+  \ deviation); with the shim removed\n  there is no longer any path to a never-executed\
+  \ `realized`.\n- From «Realized-by-record»: The pre- workaround was to close such\
+  \ a plan with a\n  closure-record blockquote AT `status: draft` (<project>, N≥2:\
+  \ ui-enhancement-procedure + deploy)\n  — an UNGOVERNED terminal invisible to the\
+  \ FSM.\n- From «Realized-by-record»: (the <project> instances RED'd at `gate-specs`\
+  \ BEFORE `trial`, so\n  requiring trial-status would defeat the purpose)\n- From\
+  \ «linkage chain»: — the picture that previously required reading 4 surfaces (GRAPH\n\
+  \  §spec-schema + §Spec-lifecycle + `patterns/plan-lifecycle.md` + SPEC-0005 §5)\n\
+  - From «Planning-artifact handling»: (consolidated here from the retired\n  `patterns/plan-lifecycle.md`\
+  \ — single normative home, P5)\n\n## Implementation notes\n\nNotes for the maintainer\
+  \ of the code, moved word for word out of the rule text of the section\neach names.\n\
+  \n- From «Per-stage mechanics (one rule per linear stage»: Tripwire:\n  `tests/test_plan_stage.py::test_t12845_age_cancel_reads_postcheck_and_live_trigger_state`.\n\
+  \n### Moved from the rule body\n\nEach entry is a passage moved word for word out\
+  \ of the rule text of the section it names\n(its class per SPEC-0005 rule 3 in brackets);\
+  \ every acting rule stays in the rule text.\n\n- From «accepted» [MECH]: (`_plan_accept_core`)\n\
+  - From «accepted» [MECH]: (`_plan_accept_freshness_hash`)\n- From «Realized-by-record»\
+  \ [MECH]: The terminal is journaled (`plan_stage_entered {to: realized,\n  realized_by:\
+  \ record}` + the legacy `draft_closed` carrying\n  `realized_by`/`soak_evidence`/`handoff`).\n\
+  - From «Realized-by-record» [REF]: RECORDED frontmatter fields (the persisted state\
+  \ schema this\n  terminal writes): `status: realized`, `realized_by: record`, `soak_evidence:\
+  \ <ref>`, `handoff:\n  <ref>`, `closed_into: [<IDs>]` (the standard `close_note`).\n\
   \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before trusted\
   \ Slip 4; concrete results in\ntests/test_t0317_plan_lifecycle_spec.py + the closure\
   \ record):\n- **VP1 (per-stage delivery axis):** this spec's `binding:` is EXACTLY\

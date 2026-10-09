@@ -5,10 +5,10 @@
      divergent committed copy is flagged by `graph conformance` (audience-view-drift). The
      tagged SOURCE sections are the ONLY normative text; this is a derived-only worker seed (core + worker sections). -->
 
-# Worker seed — part 1 of 5 — what a `--type build` Worker reads (generated, SPEC-0127)
+# Worker seed — part 1 of 4 — what a `--type build` Worker reads (generated, SPEC-0127)
 
-> **This is part 1 of 5 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
-> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md` · `graph/worker-seed-5.md`.
+> **This is part 1 of 4 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
+> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md`.
 > **This part carries:** CHARTER.md.
 
 <!-- source: CHARTER.md (worker seed = core + worker) -->
@@ -77,9 +77,8 @@ Read-only actions require `from:` only if substantive (e.g. analysis-time prior-
 **Size budget:**
 - Hard cap: ≤ 2500 lines total across the FULL generated `HANDBOOK_READ_ORDER` set — every split
   part counts, so splitting a file into read-order-served parts does NOT escape the aggregate (the
-  conformance/check path SUMS the generated set, not a fixed 5-file list). (Cap raised to 2500 — the original Day-1 value was an unverified empirical guess; 2500 gives headroom for
-  evolution + supersession bodies. The cap stays a hard fail-closed limit; the compaction discipline
-  (SPEC-0127 §8) is unchanged.)
+  conformance/check path SUMS the generated set, not a fixed 5-file list). The cap stays a hard
+  fail-closed limit; the compaction discipline (SPEC-0127 §8) is unchanged.
 - Warning threshold: 2000 lines — a Controller review pass reviews the growth trajectory; identifies compaction candidates
 - **The rest of the budget rule — retrieved (SPEC-0127 §8).** Which files are handbook members and
   which are excluded, the reported byte/token axis, the compaction trigger and the deletion rule:
@@ -110,8 +109,6 @@ Two-axis independence:
 - **No parallel paths** — if you find yourself writing "migration from old reader to new reader", stop and fix at source
 - **Scope note :** "single source of truth" governs storage FORMAT / parser / journal — NOT git-commit COUNT; the per-task multi-commit reality is canonically documented at LIFECYCLE §Stage 7, not duplicated here.
 
-V1 split storage (aggregate index + per-entry workspace) caused 200-tool-call debugging on 2026-05-26. V2 does not get to repeat this.
-
 ### 6. One interactive posture (Controller) + the dispatched Worker
 
 **One interactive posture, not a type choice.** The interactive main session opens in a SINGLE posture — **the Controller**: read-leaning, broad across projects, **dispatch-by-default**, self-executing a task only on owner say-so. There is no Build-vs-Review choice at startup — that distinction had eroded to near-nominal (both defaulted to dispatch; the type was never a permission class). The **right to write is granted by NO label** but by the orthogonal gates that apply to EVERY session: path-territory (per write, one project), worktree-before-write, and the 9-stage lifecycle for substantive change. This merge leaves those gates UNCHANGED. Cross-project observation stays routing/filed, never silent implementation.
@@ -120,11 +117,7 @@ V1 split storage (aggregate index + per-entry workspace) caused 200-tool-call de
 
 **Net taxonomy → Controller (interactive) + Worker (dispatched)** — the vocabulary the Orchestrate posture already names. This merge RATIFIES controller/worker as primary and retires Build|Review as a startup choice: a REMOVAL + re-use of existing vocabulary (CHARTER §P1 F3), not a new entity, a hidden third mode, or a role split.
 
-**Orchestrate posture — the bounded controller-selector (the amendment ratified by plan `orchestrate-posture-for-the-main-session-6-amendme`).** The Controller's DEFAULT posture: instead of executing a task itself, it **selects + dispatches** independent ready tasks to Workers and **coordinates their order** — selection + dependency-gating on stateless reads, within ONE owner-authorized batch. The Controller never runs a Worker's stages in-process. This is a *posture*, **NOT a third type** (Controller + Worker stays the whole taxonomy) and **NOT the forbidden orchestrator**. The operational protocol + the named retirements are homed in AGENTS §Session-types → Orchestrate posture. The owner always starts the session AND authorizes the batch.
-
 **Named retirements — what STAYS forbidden (the §6 fence, carried VERBATIM):** no auto-launch / no self-fetch / batch-bounded / no stateful orchestrator / no in-process fan-out (no autopilot-FSM; a Worker is a separate sub-session, never an in-process subagent; no cap/queue-state machinery, no liveness-arming FSM, no role taxonomy; no decide-without-owner). The owner always authorizes the batch and makes genuine decisions. If V2 grows beyond 1-developer capacity in 6+ months, **then** we discuss multi-role. Not now.
-
-**Context-bounded autonomous continuation (per SPEC-0126).** Within an owner-authorized **plan-drive** (advancing a plan across its FSM stages after the owner took it into work) or **background batch** (running dispatched Workers over an owner-authorized task set), the Controller proceeds across seams — plan stage→stage, batch task→task — WITHOUT pausing for an owner cue at any seam that carries no human decision. This is the plan/batch-level analog of a Worker running one task's 9 stages without asking the human between them. It STOPS only on (i) a **genuine owner decision** (the AGENTS §When-to-ask-owner-vs-proceed triggers + §6(f) missing/ambiguous `requires:` edge + a heavy mandatory gate RED/ABORT on an unresolved cause per §7) or (ii) the **context threshold** — when `session context` (SPEC-0115) reaches the configured bound, STOP at a clean seam and propose a fresh-session hand-off (SPEC-1004, interactive only), with no lost work. This is INSIDE the fence: the owner authorizes the plan/batch up front and still makes every genuine decision, and it adds NO auto-start, NO auto-pick at session start (session start still awaits an owner cue), and NO self-fetch beyond the authorized plan/batch — the **named retirements above are UNCHANGED**. Full rule: `graph query SPEC-0126`.
 
 **Solo author, concurrent sessions.** "Solo" means one *author* (the owner + the AI doing all 9 stages itself) — NOT one session at a time. **Multiple concurrent SESSIONS are expected and supported**: the interactive Controller alongside several background Workers on *different* tasks, plus auto-sessions for analysis/hygiene. This is precisely why per-write **worktree isolation is mandatory** — parallel sessions sharing one working tree collide. A single session works **one task at a time** — sequentially through its 9 stages, never two in parallel — but the per-session task **count is not limited** (a session may take further ready tasks in sequence). The cross-session rule is "one active claim per task id" (QUEUE §Picker), not "one task at a time" globally.
 
@@ -154,8 +147,6 @@ Without it the foundation accumulates silent contradictions until catastrophic c
 - Or **explicitly blocking adoption follow-up** filed (with trigger condition + ownership)
 
 "Tests green" **by itself** is NOT sufficient for infrastructure closure. Probe-side adoption (CHARTER §Principle 3 baseline) is sufficient for product-class work, not infra-class.
-
-V1's split storage + audit-by-tier hook did not fire for 14 ships = direct prior-art. V2 prevents through stricter infra-class adoption rule.
 
 **Inaugural codification exemption.** When a decision is inaugural codification of Principle 8 itself or its first amendment, no prior consumer can have read it (bootstrap moment). For such inaugural decisions, substitute proof acceptable:
 - Same-session synthetic exercise (mental walk through new rule applied to a hypothetical scenario)
@@ -216,6 +207,7 @@ which SPEC-0178 requires per case — informs the same decision without pre-empt
 ## Failure trigger
 
 Don't escalate complexity in response to friction. Reduce.
+In any correction loop — audit rounds, trial cycles, a task's fix cycle, debugging — when the next round finds a defect in the previous round's fix, the fixes are the failure signal: stop patching, find the simpler invariant that removes the whole class, and ask the owner when the simplification changes a promise.
 
 ## Anti-recurrence discipline
 
@@ -240,5 +232,5 @@ Without all 4 — addition rejected. Owner enforces this during the Controller's
 
 <!-- seed-nav -->
 
-> **The worker seed CONTINUES — part 2 of 5: `graph/worker-seed-2.md`.** Read it NEXT;
+> **The worker seed CONTINUES — part 2 of 4: `graph/worker-seed-2.md`.** Read it NEXT;
 > the whole chain IS your seed (SPEC-0120 §3 split — SPLIT never deletes content).

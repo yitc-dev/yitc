@@ -5,10 +5,10 @@
      divergent committed copy is flagged by `graph conformance` (audience-view-drift). The
      tagged SOURCE sections are the ONLY normative text; this is a derived-only worker seed (core + worker sections). -->
 
-# Worker seed — part 2 of 5 — what a `--type build` Worker reads (generated, SPEC-0127)
+# Worker seed — part 2 of 4 — what a `--type build` Worker reads (generated, SPEC-0127)
 
-> **This is part 2 of 5 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
-> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md` · `graph/worker-seed-5.md`.
+> **This is part 2 of 4 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
+> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md`.
 > **This part carries:** AGENTS-STARTUP.md.
 
 <!-- source: AGENTS-STARTUP.md (worker seed = core + worker) -->
@@ -202,5 +202,5 @@ This is V2's OWN rule, no longer inherited from the non-normative global `<host-
 
 <!-- seed-nav -->
 
-> **The worker seed CONTINUES — part 3 of 5: `graph/worker-seed-3.md`.** Read it NEXT;
+> **The worker seed CONTINUES — part 3 of 4: `graph/worker-seed-3.md`.** Read it NEXT;
 > the whole chain IS your seed (SPEC-0120 §3 split — SPLIT never deletes content).

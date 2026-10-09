@@ -26,33 +26,35 @@ body: "## Scenario\nA worker has finished editing and is about to enter Tests. B
   \  code and covered, and listed in the commit body as a short «Edge cases:» block\
   \ (case → what the\n  code does → which test, waive or check covers it), only the\
   \ cases the change really meets;\n  (4) a missing CHARTER §P8 adoption carrier the\
-  \ change is meant to produce. These are the leading\n  first-pass audit-post causes.\
-  \ The re-read adds NO test obligation of its own: whether a criterion\n  or an edge\
-  \ case is covered by a test, by a recorded waive (a named mechanism already fails\
-  \ closed\n  before the harm) or by another check the Tests stage admits is decided\
-  \ by the test doctrine\n  (SPEC-0165) and SPEC-0027 §Stage 6 — where they ask no\
-  \ test, items (2) and (3) ask none either,\n  and the block names the waive or the\
-  \ check instead. A re-read, not a gate: no verb reads it,\n  nothing refuses on\
-  \ it.\n\n### 2. Scope\nThe hand-in applies to a card that takes audit-post — the\
-  \ substantive flow. A hygiene fast-path\ncard has no audited plan and no audit-post;\
-  \ nothing here is asked of it.\n\n### 3. Who executes it\nexecution: operator-owned\
-  \ — the session that authors the change performs the re-read itself, at the\nmoment\
-  \ §1 names; the Execution stage bundle only delivers this rule at the start of that\
-  \ work. No\ncode performs it and no code checks it.\n\n## Rationale\nThe rule exists\
-  \ because the auditor applies a differential per acceptance criterion and reads\
-  \ the\ndiff against the plan, while the author, without this step, hands the change\
-  \ in unread. Item (3)\nasks for the list in the commit body because the first audit-post\
-  \ reads commit messages with the\ndiff, so an edge case that is written down can\
-  \ be checked and one that is not cannot.\nThe rule decides WHEN the author re-reads\
-  \ and what the re-read looks for. It does not decide how a\nrule is proven: the\
-  \ test doctrine (SPEC-0165) does, and a case that doctrine waives is named in the\n\
-  block as waived, not given a test for this rule's sake.\nKnown limit: the audit\
-  \ packet has a size limiter, and a very long commit body can be cut before the\n\
-  block (the packet then carries a notice of the cut). A block cut that way is not\
-  \ read. This rule\nrests no guarantee on its delivery — the audit judges the diff\
-  \ and the tests either way.\n\n## Verification\n- **VP1 (delivery) — two parts,\
-  \ because the stage bundle lists ACTIVE specs only and this spec\n  becomes active\
-  \ only when its activation owner closes.**\n  (a) Wiring, proven BEFORE that closure:\
+  \ change is meant to produce. The re-read adds NO test obligation of its own: whether\
+  \ a criterion\n  or an edge case is covered by a test, by a recorded waive (a named\
+  \ mechanism already fails closed\n  before the harm) or by another check the Tests\
+  \ stage admits is decided by the test doctrine\n  (SPEC-0165) and SPEC-0027 §Stage\
+  \ 6 — where they ask no test, items (2) and (3) ask none either,\n  and the block\
+  \ names the waive or the check instead. A re-read, not a gate: no verb reads it,\n\
+  \  nothing refuses on it.\n\n### 2. Scope\nThe hand-in applies to a card that takes\
+  \ audit-post — the substantive flow. A hygiene fast-path\ncard has no audited plan\
+  \ and no audit-post; nothing here is asked of it.\n\n### 3. Who executes it\nexecution:\
+  \ operator-owned — the session that authors the change performs the re-read itself,\
+  \ at the\nmoment §1 names; the Execution stage bundle only delivers this rule at\
+  \ the start of that work. No\ncode performs it and no code checks it.\n\n## Rationale\n\
+  The rule exists because the auditor applies a differential per acceptance criterion\
+  \ and reads the\ndiff against the plan, while the author, without this step, hands\
+  \ the change in unread. Item (3)\nasks for the list in the commit body because the\
+  \ first audit-post reads commit messages with the\ndiff, so an edge case that is\
+  \ written down can be checked and one that is not cannot.\nThe rule decides WHEN\
+  \ the author re-reads and what the re-read looks for. It does not decide how a\n\
+  rule is proven: the test doctrine (SPEC-0165) does, and a case that doctrine waives\
+  \ is named in the\nblock as waived, not given a test for this rule's sake.\nKnown\
+  \ limit: the audit packet has a size limiter, and a very long commit body can be\
+  \ cut before the\nblock (the packet then carries a notice of the cut). A block cut\
+  \ that way is not read. This rule\nrests no guarantee on its delivery — the audit\
+  \ judges the diff and the tests either way.\n\n### Moved from the rule body\n\n\
+  Each entry is a passage moved word for word out of the rule text of the section\
+  \ it names.\n\n- From «1. The change hand-in»: These are the leading first-pass\
+  \ audit-post causes.\n\n## Verification\n- **VP1 (delivery) — two parts, because\
+  \ the stage bundle lists ACTIVE specs only and this spec\n  becomes active only\
+  \ when its activation owner closes.**\n  (a) Wiring, proven BEFORE that closure:\
   \ a hermetic test derives the Execution bundle from a corpus\n  in which this spec\
   \ is active and finds SPEC-1019 in it; the same test fails when the binding is\n\
   \  removed and when the status is not active.\n  (b) Real delivery, proven AFTER\

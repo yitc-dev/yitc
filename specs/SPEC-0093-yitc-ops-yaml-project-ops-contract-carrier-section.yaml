@@ -836,22 +836,25 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ the uncovered-user-surface signal\n(SPEC-0076 §6c, the code→scenario direction)\
   \ and one debt row (SPEC-0119 rule 43) — it stores\nnothing back. Born templates\
   \ are UNCHANGED (no init seed, no sweep): the subfield is the project's\nchoice\
-  \ to opt into a report-only signal.\n\n## Parameters\n\nThe carrier's values are\
-  \ PER-PROJECT ops config — commands, base URLs, probe dialects,\nwaiver reasons.\
-  \ They are explicitly NOT kernel-read governance scalars (the SPEC-0005 §Parameters\n\
-  whitelist FORBIDS env/secret/per-deploy/path/flag values) — so this spec is `consumed:\
-  \ false`.\n\n## Rationale\n\nPrior-art (extend, not create — CHARTER §P1 F1): the\
-  \ kernel ALREADY seeds — but as a REPEATED PATTERN,\nnot one shared file. A 3-project\
-  \ survey (accurate, 2026-06-21): <project> consumes the shared\n`<host-home>/projects/<project>/bin/lib/deploy-common.sh`\
-  \ + `<host-home>/bin/check-release-gate.sh`\n+ `check-production-gate.sh`; <project>\
-  \ and <project> each carry their OWN `scripts/deploy.sh` (deploy +\ninline smoke/health\
-  \ gate + rollback) — the SAME deploy.sh + smoke-gate + rollback SHAPE reproduced\n\
-  per project, NOT one consumed library. The genuinely-shared `<host-home>/lib/*`\
-  \ libs are the test/safety\nones (`pytest-fastapi-db/`, `<project>/`), not a deploy\
-  \ seed. `init` already delivers `yitc-verify.yaml`\nborn-empty (the declare-or-waive\
-  \ prior-art). One carrier formalizes that recurring deploy SHAPE onto one\ngoverned\
-  \ file. The slice-1 boundary (rule 4) is the gate-specs YELLOW absorption (platform-creep).\
-  \ Full\ndeliberation: plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`.\n\
+  \ to opt into a report-only signal.\n\n### 30. `context_home:` — the context home's\
+  \ declared own-content spans (OPT-IN)\nThe `context_home.own_content` list, and\
+  \ what the context-home drift check does with it, are stated\nin SPEC-0125 Rule\
+  \ 1a (`graph query SPEC-0125`). Born templates are UNCHANGED (no init seed, no sweep).\n\
+  \n## Parameters\n\nThe carrier's values are PER-PROJECT ops config — commands, base\
+  \ URLs, probe dialects,\nwaiver reasons. They are explicitly NOT kernel-read governance\
+  \ scalars (the SPEC-0005 §Parameters\nwhitelist FORBIDS env/secret/per-deploy/path/flag\
+  \ values) — so this spec is `consumed: false`.\n\n## Rationale\n\nPrior-art (extend,\
+  \ not create — CHARTER §P1 F1): the kernel ALREADY seeds — but as a REPEATED PATTERN,\n\
+  not one shared file. A 3-project survey (accurate, 2026-06-21): <project> consumes\
+  \ the shared\n`<host-home>/projects/<project>/bin/lib/deploy-common.sh` + `<host-home>/bin/check-release-gate.sh`\n\
+  + `check-production-gate.sh`; <project> and <project> each carry their OWN `scripts/deploy.sh`\
+  \ (deploy +\ninline smoke/health gate + rollback) — the SAME deploy.sh + smoke-gate\
+  \ + rollback SHAPE reproduced\nper project, NOT one consumed library. The genuinely-shared\
+  \ `<host-home>/lib/*` libs are the test/safety\nones (`pytest-fastapi-db/`, `<project>/`),\
+  \ not a deploy seed. `init` already delivers `yitc-verify.yaml`\nborn-empty (the\
+  \ declare-or-waive prior-art). One carrier formalizes that recurring deploy SHAPE\
+  \ onto one\ngoverned file. The slice-1 boundary (rule 4) is the gate-specs YELLOW\
+  \ absorption (platform-creep). Full\ndeliberation: plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`.\n\
   \n### History moved from the rule body\n\nEach entry is a passage moved word for\
   \ word out of the rule text of the section it names;\nthe rule it explains stays\
   \ there.\n\n- From «Internal»: The split moved NO anchor and re-signed NO signature.\n\

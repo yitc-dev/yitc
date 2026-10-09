@@ -461,7 +461,8 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("lib.audit.AUDIT_INSPECTION_TIMEOUT_SECONDS", "int", 1320,
        "bin/lib/audit.py#_audit_timeout_seconds",
        "T-12233 — the INSPECTION-class (consult / adhoc) auditor wall-clock budget in seconds. "
-       "PERFORMANCE only BECAUSE of the same card's SPEC-0200 no-answer case: the expiry of THIS "
+       "PERFORMANCE only BECAUSE of the same card's no-answer case (written for the now-retired "
+       "ceiling-consult episodes of the superseded SPEC-0200, and kept by the consult engine): the expiry of THIS "
        "budget now produces NO verdict, NO round, NO resolution and NO episode terminal — the round "
        "is recorded `outcome: no-answer` and the episode stays open and re-runnable — so the value "
        "changes how long the auditor may think and nothing about what passes. Rule 2's operative "
@@ -477,10 +478,11 @@ INVENTORY: "tuple[Knob, ...]" = (
        "bin/lib/audit.py#consult_packet_max_bytes",
        "T-12233 — the byte bound on an ASSEMBLED consult packet. It is a SOFT, RECORDED target and "
        "by construction cannot change what the auditor is asked to judge: over the bound at a RETEST "
-       "it chooses the DELTA SINCE THE BASELINE REVISION instead of the full subject diff — the two "
-       "admit the SAME judgement by SPEC-0200 rule 4's own terms, since a retest judges only the "
-       "open blocking ids and regressions the fix introduced, and rule 4 forbids a whole-subject "
-       "survey there — and when the packet is STILL over the bound it is sent WHOLE and UNTRUNCATED "
+       "it chooses the DELTA SINCE THE BASELINE REVISION instead of the full subject diff. A retest "
+       "round exists only inside a ceiling-consult episode, and those episodes are retired "
+       "(SPEC-0204 rule 6). Under the superseded SPEC-0200 rule 4 of those retired episodes a retest "
+       "judged only the open blocking ids and regressions the fix introduced, which is why the two "
+       "scopes were equivalent there — and when the packet is STILL over the bound it is sent WHOLE and UNTRUNCATED "
        "with `packet_over_bound: true` and the measured size recorded. It NEVER truncates and NEVER "
        "refuses a round, which is exactly what keeps it out of GATE. DELIBERATELY NOT REACHED BY IT: "
        "the pre-existing AUDIT_MAX_DIFF_LINES / AUDIT_MAX_DIFF_BYTES diff truncation stays an "

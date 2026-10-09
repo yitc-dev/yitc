@@ -29,40 +29,39 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ here (§A3): a VERIFIER unit (one that checks a SETTLED subject) must run\nonly\
   \ AFTER its subject landed, and its `requires:` must NAME every writer of that subject\
   \ — the\nordering carried machine-readably, never in prose / operator memory.\n\n\
-  ## Internal\n\n`big-plan-checklist`\nkeeps only LINKS + judgement-only items; `plan-lifecycle`\
-  \ keeps only a POINTER here (single-SoT, P5).\n\n### A. Decomposition discipline\
-  \ — ONE provable claim per accept-unit (absorbed from task-decomposition)\n\nThe\
-  \ decomposition unit = ONE provable claim / invariant per ACCEPT-UNIT, defined against\
-  \ the gate it\nfaces (audit-pre).\n\n- An **accept-unit** is whatever the gate evaluates\
-  \ as one verdict — a task (audit-pre/post) or a\n  decision (`decision accept`/`finalize`).\
-  \ \"One claim per accept-unit\", not \"per task\" in the\n  abstract: one task may\
-  \ implement one claim across several files; a plan decomposes into several\n  task-level\
-  \ proofs. Frame the cut against the gate the unit will actually face.\n- **Cut by\
-  \ claim/invariant, not by line count.** Size is a proxy/secondary symptom, never\
-  \ the\n  criterion: a large unit is risky because it tends to hide multiple claims,\
-  \ not because it is long.\n  A single coherent artifact may legitimately be long\
-  \ (cf. LIFECYCLE §Stage 3 — the ~30-line plan\n  guideline is a WARN, not a gate).\
-  \ When a unit feels too big, ask \"how many claims is it proving?\"\n  — split only\
-  \ if the answer is >1.\n\n**Project-declared task-grouping preference — the project's\
-  \ declared rules decide its grouping\n(amended).** A project MAY declare a task-grouping\
-  \ preference in its SPEC-0125\nprovider-neutral project-context home (the ONE declared\
-  \ home that spec names); where an existing\nproject spec owns the preference, that\
-  \ home holds only a pointer to it. At decomposition, cut by\nthe preference, and\
-  \ identify its SOURCE and RATIONALE in the existing decomposition-fidelity audit\n\
-  input — the plan body or the cut cards the SPEC-0070 §3 gate is already handed;\
-  \ a preference the\ncutter considered and DECLINED is named there the same way,\
-  \ with the reason it was not followed.\nWhere a project declares grouping rules,\
-  \ those rules decide its grouping; §A is the default where\nnone is declared, and\
-  \ the lens a reviewer uses to RECOMMEND a split. A recommendation to split a\ncard\
-  \ is ADVISORY: it does not block the fidelity gate, and the project decides by its\
-  \ own declared\nrules whether to follow it. Without a\ndeclaration, apply §A; approving\
-  \ one cut does not establish a standing convention. The preference\nis read from\
-  \ the project context a session has already loaded — it adds no read, store, field,\n\
-  event or gate, and neither a `lessons/` note (zero-normative, SPEC-0090) nor the\
-  \ project\nops-contract carrier is a home for it. The reviewer of the boundary is\
-  \ the fidelity gate; its\nquestion is asked in the SPEC-0083 P5 template.\n\n**audit-pre\
-  \ RED red-flag catalog** — a unit is mis-cut (expect audit-pre RED/strong-YELLOW)\
-  \ when:\n- **(a) >1 claim in one unit** — two independent invariants/contracts bundled.\n\
+  ## Internal\n\n### A. Decomposition discipline — ONE provable claim per accept-unit\
+  \ (absorbed from task-decomposition)\n\nThe decomposition unit = ONE provable claim\
+  \ / invariant per ACCEPT-UNIT, defined against the gate it\nfaces (audit-pre).\n\
+  \n- An **accept-unit** is whatever the gate evaluates as one verdict — a task (audit-pre/post)\
+  \ or a\n  decision (`decision accept`/`finalize`). \"One claim per accept-unit\"\
+  , not \"per task\" in the\n  abstract: one task may implement one claim across several\
+  \ files; a plan decomposes into several\n  task-level proofs. Frame the cut against\
+  \ the gate the unit will actually face.\n- **Cut by claim/invariant, not by line\
+  \ count.** Size is a proxy/secondary symptom, never the\n  criterion: a large unit\
+  \ is risky because it tends to hide multiple claims, not because it is long.\n \
+  \ A single coherent artifact may legitimately be long (cf. LIFECYCLE §Stage 3 —\
+  \ the ~30-line plan\n  guideline is a WARN, not a gate). When a unit feels too big,\
+  \ ask \"how many claims is it proving?\"\n  — split only if the answer is >1.\n\n\
+  **Project-declared task-grouping preference — the project's declared rules decide\
+  \ its grouping\n(amended).** A project MAY declare a task-grouping preference in\
+  \ its SPEC-0125\nprovider-neutral project-context home (the ONE declared home that\
+  \ spec names); where an existing\nproject spec owns the preference, that home holds\
+  \ only a pointer to it. At decomposition, cut by\nthe preference, and identify its\
+  \ SOURCE and RATIONALE in the existing decomposition-fidelity audit\ninput — the\
+  \ plan body or the cut cards the SPEC-0070 §3 gate is already handed; a preference\
+  \ the\ncutter considered and DECLINED is named there the same way, with the reason\
+  \ it was not followed.\nWhere a project declares grouping rules, those rules decide\
+  \ its grouping; §A is the default where\nnone is declared, and the lens a reviewer\
+  \ uses to RECOMMEND a split. A recommendation to split a\ncard is ADVISORY: it does\
+  \ not block the fidelity gate, and the project decides by its own declared\nrules\
+  \ whether to follow it. Without a\ndeclaration, apply §A; approving one cut does\
+  \ not establish a standing convention. The preference\nis read from the project\
+  \ context a session has already loaded — it adds no read, store, field,\nevent or\
+  \ gate, and neither a `lessons/` note (zero-normative, SPEC-0090) nor the project\n\
+  ops-contract carrier is a home for it. The reviewer of the boundary is the fidelity\
+  \ gate; its\nquestion is asked in the SPEC-0083 P5 template.\n\n**audit-pre RED\
+  \ red-flag catalog** — a unit is mis-cut (expect audit-pre RED/strong-YELLOW) when:\n\
+  - **(a) >1 claim in one unit** — two independent invariants/contracts bundled.\n\
   - **(b) contradiction / dissonance with an already-accepted artifact** (CHARTER\
   \ §Principle 7).\n- **(c) under-specified mechanism** — the claim is stated but\
   \ how it holds is hand-waved. This INCLUDES an AC/probe written as an IDEAL not\
@@ -142,17 +141,12 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ this\nspec PER STAGE (one stage → two tasks; a stage absorbed elsewhere; an order\
   \ re-derived from the\ngate, e.g. verb-first when the spec's activation probe needs\
   \ the live verb). Do not treat the\nplan's own sketch (its §Next / stage boundaries)\
-  \ as a cutting commitment.\n**Two delivery faces :** this cut discipline reaches\
-  \ the AI at BOTH the task-Analysis face\n(`stage-entry:Analysis` — when a task is\
-  \ claimed) AND the plan-cut face (`plan-stage-entry:decomposition`\n— at the gated\
-  \ `decomposition` plan-FSM stage where a plan is sliced into cards, SPEC-0070 §9.5).\
-  \ Same\nsingle rule, two orthogonal delivery moments for two consumers (task author\
-  \ vs plan decomposer).\n\n**A cross-cutting obligation has no owner across a producer/consumer\
-  \ split — assign it to the\nPRODUCER.** When task A BIRTHS a shared primitive (a\
-  \ token / format / axis /\nschema field) and task B is its first real consumer,\
-  \ any cross-cutting half (the validator, the\nconformance check, the test for the\
-  \ primitive itself) silently falls in the SEAM — neither A nor B\nowns it. A \"\
-  births a new shared primitive\" claim MUST enumerate ALL the\ndoors the primitive\
+  \ as a cutting commitment.\n\n**A cross-cutting obligation has no owner across a\
+  \ producer/consumer split — assign it to the\nPRODUCER.** When task A BIRTHS a shared\
+  \ primitive (a token / format / axis /\nschema field) and task B is its first real\
+  \ consumer, any cross-cutting half (the validator, the\nconformance check, the test\
+  \ for the primitive itself) silently falls in the SEAM — neither A nor B\nowns it.\
+  \ A \"births a new shared primitive\" claim MUST enumerate ALL the\ndoors the primitive\
   \ touches (deliver + validate + test) and keep them in A; never let the validator\n\
   half ride to B. (Distinct from red-flag (a): not two claims — ONE claim whose surface\
   \ the naive\ntask boundary omits.)\n\n**Execution-readiness rule (the auditor blind-spot\
@@ -196,48 +190,31 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ them.\n- **(3) Producer/consumer over real data** — one part CONSUMES the real-data\
   \ output of the other\n  (the consumer cannot even be designed-converged until the\
   \ producer's data exists).\n\n**Split shape:** SEPARATE plans with INFORMATIONAL\
-  \ cross-refs (tracked ids in body / `cites` —\nresolvable per §C(i)); **NO `requires:`\
-  \ between plans** — plans carry no blocking-dep semantics\n(ordering lives in each\
-  \ plan's own entry-gates and the consumer plan's stated input).\n\n**Trial-FSM carve-out.**\
-  \ For a trial-ELIGIBLE plan, its own design-convergence\n(`trial`) phase followed\
-  \ by implementation (`executing`) is ONE sequential regime — that built-in\ntrial→executing\
-  \ sequence is NOT a split signal. Apply the split signals only to parts whose fates\n\
-  stay independently rejectable AFTER accept.\n\n**Where the net fires — EXISTING\
-  \ surfaces only, nothing new.** No new verb / field / gate.\nThe question is asked\
-  \ where splitting is still cheap (pre task-cut): the plan-draft shaping\ntemplate\
-  \ (P1) CITES this rule as its home (never duplicates it — P5); the matching JUDGEMENT\
-  \ item\nin `patterns/big-plan-checklist.md` Probe 7 (delegated to the external auditor\
-  \ like the other\njudgement items) surfaces it for big plans at the executing-gate\
-  \ `plan check --full` and in\nplan-level audit prompts. The §C structural pre-pass\
-  \ does NOT mechanize this — it is judgement,\npeer to enumerate-halves / probe-quality\
-  \ / one-route.\n\n### A3. The verifier-after-settled requires rule (THIS head's\
-  \ delta — owner-ratified 2026-06-06)\n\nA **VERIFIER** unit is a task whose essence\
-  \ is **CHECKING a SETTLED subject** — a spec self-test, a\ncoherence check, a conformance\
-  \ run, an aspect-audit over already-shipped material. It produces a\nverdict about\
-  \ a subject; it does NOT itself author that subject. The rule has two inseparable\
-  \ halves:\n\n- **Runs only AFTER the subject LANDED.** A verifier whose subject\
-  \ is not yet on `main` checks\n  nothing real — it produces low-fidelity probes\
-  \ against an absent or half-written target, then\n  needs rework once the subject\
-  \ actually exists (the §A E3/§A's \"decompose contract-CONSUMERS\n  against shipped\
-  \ reality\" fidelity lesson, at the verifier altitude). So at decomposition a\n\
-  \  verifier is ordered AFTER every task that WRITES its subject.\n\n- **`requires:`\
-  \ MUST name every writer of its subject — machine-readable, never prose / operator\n\
-  \  memory.** The ordering is encoded as blocking `requires:` edges (one per writer\
-  \ task), exactly the\n  edge QUEUE §Picker-logic already gates on (`ready` ∩ every\
-  \ `requires:` target `done`). A verifier\n  whose order lives only in a plan sentence\
-  \ or the dispatcher's head WILL RACE its writers under\n  parallel / background\
-  \ dispatch — the picker cannot see prose. Naming the writers in `requires:` is\n\
-  \  what makes the ordering survive a fresh session, a re-dispatch, and concurrency.\n\
-  \n**No new mechanism (anti-complexity F1/F3).** `requires:` already orders dispatch\
-  \ and is already the\npicker's eligibility gate; this rule fixes WHAT goes into\
-  \ a verifier's `requires:` edge-set (every\nwriter of the settled subject), not\
-  \ HOW ordering works. It is a §A-class CONTENT discipline on the\ndecomposition\
-  \ cut — the verifier-specialization of the general \"decompose consumers against\
-  \ shipped\nreality\" + \"encode a real claim-dependency as a machine-readable `requires:`\
-  \ edge\" rules. The\nCONSUMING side (a dispatch picker reading `requires:` for eligibility)\
-  \ is homed with the\nparallel-dispatch selection rule (SPEC-0044 §2 explicitly defers\
-  \ this content discipline back HERE);\nthis spec owns only the decomposition-side\
-  \ content of the edge (single home, P5).\n\n### B. The deferral-must-be-tracked\
+  \ cross-refs (tracked ids in body / `cites` —\nresolvable per §C(i) in `## Implementation\
+  \ notes`); **NO `requires:` between plans** — plans carry no blocking-dep semantics\n\
+  (ordering lives in each plan's own entry-gates and the consumer plan's stated input).\n\
+  \n**Trial-FSM carve-out.** For a trial-ELIGIBLE plan, its own design-convergence\n\
+  (`trial`) phase followed by implementation (`executing`) is ONE sequential regime\
+  \ — that built-in\ntrial→executing sequence is NOT a split signal. Apply the split\
+  \ signals only to parts whose fates\nstay independently rejectable AFTER accept.\n\
+  \n### A3. The verifier-after-settled requires rule (THIS head's delta — owner-ratified\
+  \ 2026-06-06)\n\nA **VERIFIER** unit is a task whose essence is **CHECKING a SETTLED\
+  \ subject** — a spec self-test, a\ncoherence check, a conformance run, an aspect-audit\
+  \ over already-shipped material. It produces a\nverdict about a subject; it does\
+  \ NOT itself author that subject. The rule has two inseparable halves:\n\n- **Runs\
+  \ only AFTER the subject LANDED.** A verifier whose subject is not yet on `main`\
+  \ checks\n  nothing real — it produces low-fidelity probes against an absent or\
+  \ half-written target, then\n  needs rework once the subject actually exists (the\
+  \ §A E3/§A's \"decompose contract-CONSUMERS\n  against shipped reality\" fidelity\
+  \ lesson, at the verifier altitude). So at decomposition a\n  verifier is ordered\
+  \ AFTER every task that WRITES its subject.\n\n- **`requires:` MUST name every writer\
+  \ of its subject — machine-readable, never prose / operator\n  memory.** The ordering\
+  \ is encoded as blocking `requires:` edges (one per writer task), exactly the\n\
+  \  edge QUEUE §Picker-logic already gates on (`ready` ∩ every `requires:` target\
+  \ `done`). A verifier\n  whose order lives only in a plan sentence or the dispatcher's\
+  \ head WILL RACE its writers under\n  parallel / background dispatch — the picker\
+  \ cannot see prose. Naming the writers in `requires:` is\n  what makes the ordering\
+  \ survive a fresh session, a re-dispatch, and concurrency.\n\n### B. The deferral-must-be-tracked\
   \ rule (E-0005 applied at plan-carve / spec-authoring time)\n\nEvery named deliverable\
   \ of a plan MUST map to a tracked artifact, and **any deferral MUST be a\ntracked\
   \ task — never prose**:\n\n1. **Zero prose-only deferrals.** Every \"doctrinal-only-until-X\"\
@@ -256,26 +233,8 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ over) and RETIRE, and any stale\n   plan-`cites:` pointing at it MUST be dropped\
   \ — otherwise aggregate finalization\n   (`audit post --plan`) flags it as unresolved\
   \ corpus. On absorption: move the tracking, clean the\n   corpus membership.\n\n\
-  ### C. The structural pre-pass — what `plan check` enforces deterministically (report-not-block)\n\
-  \n`plan check` computes `_plan_structural_findings(slug, body)` (regardless of the\
-  \ auditor outcome,\nso it is ALWAYS recorded) and stores it under `structural_findings:`\
-  \ in `decisions/<slug>-audit.yaml`.\nEvery finding is WARN-level (`severity: low`,\
-  \ `source: structural`) and is recorded in the verdict\nbut **NEVER flips the auditor\
-  \ verdict** (report-not-block, mirroring the resolve-not-block\nanchor resolver).\
-  \ Two HONESTLY-DISTINCT halves:\n\n- **(i) REUSE — id/path resolution ( resolve-not-block).**\
-  \ Each referenced `T-`/`SPEC-`/`D-XXXX`\n  id resolves via the EXISTING finders\
-  \ (`_find_task_yaml` / `_find_spec_path` / `_find_decision_yaml`),\n  and each \"\
-  Depends on\" code-path resolves via `_resolve_implements_anchor` (the same resolver\n\
-  \  used by `graph build`). No parallel resolver.\n- **(ii) NEW NARROW prose-deferral\
-  \ validator (declared new machinery — see §New machinery scope).**\n\nThe **accept-gate\
-  \ path CONSUMES** the structural verdict: `plan accept` reads the recorded\n`structural_findings`\
-  \ and records `structural_findings_consumed` in the `plan_accepted` event (a\nconsumer-read\
-  \ signal), so the pre-pass is not merely printable at check time.\n\n### New machinery\
-  \ scope (anti-complexity Filter 2 — the ONE genuinely new validator)\n\nFilter 1\
-  \ (existing analog) covers the id/path half: it REUSES the resolver. The prose-deferral\n\
-  half has **no analog** — it is the ONE new validator this spec introduces, and it\
-  \ is bounded so it\nnever becomes a general markdown-semantics engine:\n\n- **Fixed,\
-  \ small phrase set** — exactly `{\"deferred to part\", \"doctrinal-only-until\"\
+  ### New machinery scope (anti-complexity Filter 2 — the ONE genuinely new validator)\n\
+  \n- **Fixed, small phrase set** — exactly `{\"deferred to part\", \"doctrinal-only-until\"\
   , \"until tooling\"}`\n  (case-insensitive). Not an open NLP classifier.\n- **Tight\
   \ carrier (HIGH-2).** A deferral is satisfied ONLY by a tracked id in the SAME bullet/\n\
   \  paragraph OR inside a `deliverables_mapping` fenced block. A tracked id in a\
@@ -285,36 +244,83 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ is neither a tracked id nor a resolvable path AND has no co-located\n  `graph_query:`\
   \ proof → finding. Bounded to the structured block so it is NOT citation-theater\
   \ on\n  free prose. Extends Stage-1 \"cite the proof\" to the F/3 lesson the id-resolve\
-  \ cannot catch\n  (a NAMED but nonexistent target has no id to resolve).\n- **Lives\
-  \ INSIDE the existing `plan check` verb** — not a new verb, hook, store, or format\n\
-  \  ( extend-the-verb; the standing answer to \"add a hook for X\" is \"extend the\
-  \ verb before X\").\n\nThe verifier-after-settled rule (§A3) adds NO machinery to\
-  \ this section — it is a JUDGEMENT-grade\ndecomposition-side content discipline\
-  \ (peer to the §A red-flags / the producer-owns-the-seam rule),\nenforced by the\
-  \ decomposition reviewer + audit-pre + the `requires:` dep, NOT by the §C structural\n\
-  pre-pass. (Same enforcement posture as red-flag (d) + the add-new-before-remove-old\
-  \ ordering rule.)\n\n## Rationale\n\nProvenance (the founding incidents, the refinement\
-  \ history and the rejected alternatives) lives in\ngit history and the authoring\
-  \ plan, beyond the passages moved below.\n\n### History moved from the rule body\n\
-  \nEach entry is a passage moved word for word out of the rule text of the section\
-  \ it names;\nthe rule it explains stays there.\n\n- From «Internal»: This spec ABSORBS\
-  \ and RETIRES `patterns/task-decomposition.md` — that doctrine\n  now lives HERE\
-  \ as the single source (the pattern file is a tombstone pointer). It also homes\
-  \ the\n  deferral-must-be-tracked rule (formerly `patterns/big-plan-checklist.md`\
-  \ Probe 7, the\n  manual memo).\n- From «A. Ordering rule»: Prior-art: the legacy-migration\
-  \ Pipeline→Mirror→Switch shape, applied at\n  task granularity.\n- From «A. Bidirectional\
-  \ cut»: (refinement 2026-06-04/05, N=3)\n- From «A. Plan STAGE is INPUT»: (refinement,\
-  \ N=2)\n- From «A. Cross-cutting obligation»: (refinement, N=2)\n- From «A. Execution-readiness»:\
-  \ Fold pointer added.\n- From «A2. Trial-FSM carve-out»: (proven trial-run-1)\n\n\
-  ## Parameters\n\nNone consumed. Governing constants referenced live in their OWN\
-  \ specs/decisions — NOT duplicated here.\n\n## Verification\n\n- **VP1 (structural\
-  \ findings recorded).** `plan check` on a fixture plan carrying (a) an unresolved\n\
-  \  id and (b) a prose-only deferral records both under `structural_findings:` in\
-  \ the audit YAML and\n  emits `draft_checked` with `structural_findings_count >\
-  \ 0`\n  (`tests/test_plan_check_structural.py`). AC1.\n- **VP2 (single normative\
-  \ home).** This spec is ACTIVE,\n  `patterns/task-decomposition.md` is a tombstone\
-  \ pointer (no load-bearing doctrine), and\n  `patterns/big-plan-checklist.md` /\
-  \ `patterns/plan-lifecycle.md` carry only links/pointers here —\n  `grep -rl \"\
+  \ cannot catch\n  (a NAMED but nonexistent target has no id to resolve).\n\n## Rationale\n\
+  \nProvenance (the founding incidents, the refinement history and the rejected alternatives)\
+  \ lives in\ngit history and the authoring plan, beyond the passages moved below.\n\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\n- From «Internal»: This spec ABSORBS and RETIRES `patterns/task-decomposition.md`\
+  \ — that doctrine\n  now lives HERE as the single source (the pattern file is a\
+  \ tombstone pointer). It also homes the\n  deferral-must-be-tracked rule (formerly\
+  \ `patterns/big-plan-checklist.md` Probe 7, the\n  manual memo).\n- From «A. Ordering\
+  \ rule»: Prior-art: the legacy-migration Pipeline→Mirror→Switch shape, applied at\n\
+  \  task granularity.\n- From «A. Bidirectional cut»: (refinement 2026-06-04/05,\
+  \ N=3)\n- From «A. Plan STAGE is INPUT»: (refinement, N=2)\n- From «A. Cross-cutting\
+  \ obligation»: (refinement, N=2)\n- From «A. Execution-readiness»: Fold pointer\
+  \ added.\n- From «A2. Trial-FSM carve-out»: (proven trial-run-1)\n\n## Parameters\n\
+  \nNone consumed. Governing constants referenced live in their OWN specs/decisions\
+  \ — NOT duplicated here.\n\n## Implementation notes\n\n### Moved from the rule text\n\
+  \nReference and maintainer passages moved word for word out of the rule text of\
+  \ the section\neach names; no rule an acting reader applies moved with them.\n\n\
+  From «Internal»:\n\n`big-plan-checklist`\nkeeps only LINKS + judgement-only items;\
+  \ `plan-lifecycle` keeps only a POINTER here (single-SoT, P5).\n\nFrom «A. Plan\
+  \ STAGE is INPUT»:\n\n**Two delivery faces :** this cut discipline reaches the AI\
+  \ at BOTH the task-Analysis face\n(`stage-entry:Analysis` — when a task is claimed)\
+  \ AND the plan-cut face (`plan-stage-entry:decomposition`\n— at the gated `decomposition`\
+  \ plan-FSM stage where a plan is sliced into cards, SPEC-0070 §9.5). Same\nsingle\
+  \ rule, two orthogonal delivery moments for two consumers (task author vs plan decomposer).\n\
+  \nFrom «A2. Where the net fires»:\n\n**Where the net fires — EXISTING surfaces only,\
+  \ nothing new.** No new verb / field / gate.\nThe question is asked where splitting\
+  \ is still cheap (pre task-cut): the plan-draft shaping\ntemplate (P1) CITES this\
+  \ rule as its home (never duplicates it — P5); the matching JUDGEMENT item\nin `patterns/big-plan-checklist.md`\
+  \ Probe 7 (delegated to the external auditor like the other\njudgement items) surfaces\
+  \ it for big plans at the executing-gate `plan check --full` and in\nplan-level\
+  \ audit prompts. The §C structural pre-pass does NOT mechanize this — it is judgement,\n\
+  peer to enumerate-halves / probe-quality / one-route.\n\nFrom «A3. No new mechanism»:\n\
+  \n**No new mechanism (anti-complexity F1/F3).** `requires:` already orders dispatch\
+  \ and is already the\npicker's eligibility gate; this rule fixes WHAT goes into\
+  \ a verifier's `requires:` edge-set (every\nwriter of the settled subject), not\
+  \ HOW ordering works. It is a §A-class CONTENT discipline on the\ndecomposition\
+  \ cut — the verifier-specialization of the general \"decompose consumers against\
+  \ shipped\nreality\" + \"encode a real claim-dependency as a machine-readable `requires:`\
+  \ edge\" rules. The\nCONSUMING side (a dispatch picker reading `requires:` for eligibility)\
+  \ is homed with the\nparallel-dispatch selection rule (SPEC-0044 §2 explicitly defers\
+  \ this content discipline back HERE);\nthis spec owns only the decomposition-side\
+  \ content of the edge (single home, P5).\n\nFrom «C. The structural pre-pass»:\n\
+  \n### C. The structural pre-pass — what `plan check` enforces deterministically\
+  \ (report-not-block)\n\n`plan check` computes `_plan_structural_findings(slug, body)`\
+  \ (regardless of the auditor outcome,\nso it is ALWAYS recorded) and stores it under\
+  \ `structural_findings:` in `decisions/<slug>-audit.yaml`.\nEvery finding is WARN-level\
+  \ (`severity: low`, `source: structural`) and is recorded in the verdict\nbut **NEVER\
+  \ flips the auditor verdict** (report-not-block, mirroring the resolve-not-block\n\
+  anchor resolver). Two HONESTLY-DISTINCT halves:\n\n- **(i) REUSE — id/path resolution\
+  \ ( resolve-not-block).** Each referenced `T-`/`SPEC-`/`D-XXXX`\n  id resolves via\
+  \ the EXISTING finders (`_find_task_yaml` / `_find_spec_path` / `_find_decision_yaml`),\n\
+  \  and each \"Depends on\" code-path resolves via `_resolve_implements_anchor` (the\
+  \ same resolver\n  used by `graph build`). No parallel resolver.\n- **(ii) NEW NARROW\
+  \ prose-deferral validator (declared new machinery — see §New machinery scope).**\n\
+  \nThe **accept-gate path CONSUMES** the structural verdict: `plan accept` reads\
+  \ the recorded\n`structural_findings` and records `structural_findings_consumed`\
+  \ in the `plan_accepted` event (a\nconsumer-read signal), so the pre-pass is not\
+  \ merely printable at check time.\n\nFrom «New machinery scope»:\n\nFilter 1 (existing\
+  \ analog) covers the id/path half: it REUSES the resolver. The prose-deferral\n\
+  half has **no analog** — it is the ONE new validator this spec introduces, and it\
+  \ is bounded so it\nnever becomes a general markdown-semantics engine:\n\nFrom «New\
+  \ machinery scope»:\n\n- **Lives INSIDE the existing `plan check` verb** — not a\
+  \ new verb, hook, store, or format\n  ( extend-the-verb; the standing answer to\
+  \ \"add a hook for X\" is \"extend the verb before X\").\n\nFrom «New machinery\
+  \ scope»:\n\nThe verifier-after-settled rule (§A3) adds NO machinery to this section\
+  \ — it is a JUDGEMENT-grade\ndecomposition-side content discipline (peer to the\
+  \ §A red-flags / the producer-owns-the-seam rule),\nenforced by the decomposition\
+  \ reviewer + audit-pre + the `requires:` dep, NOT by the §C structural\npre-pass.\
+  \ (Same enforcement posture as red-flag (d) + the add-new-before-remove-old ordering\
+  \ rule.)\n\n## Verification\n\n- **VP1 (structural findings recorded).** `plan check`\
+  \ on a fixture plan carrying (a) an unresolved\n  id and (b) a prose-only deferral\
+  \ records both under `structural_findings:` in the audit YAML and\n  emits `draft_checked`\
+  \ with `structural_findings_count > 0`\n  (`tests/test_plan_check_structural.py`).\
+  \ AC1.\n- **VP2 (single normative home).** This spec is ACTIVE,\n  `patterns/task-decomposition.md`\
+  \ is a tombstone pointer (no load-bearing doctrine), and\n  `patterns/big-plan-checklist.md`\
+  \ / `patterns/plan-lifecycle.md` carry only links/pointers here —\n  `grep -rl \"\
   ONE provable claim\" specs patterns` resolves to this spec as the doctrine home.\
   \ AC2/AC3.\n- **VP3 (new-machinery scope declared).** The `### New machinery scope`\
   \ subsection above states the\n  prose-validator bounds (fixed phrase set + tight\

@@ -112,7 +112,7 @@ CONSULT_SUCCESSOR_PREFIX = "consult-successor:"
 CONSULT_ESCAPE_KEY_FIELD = "escape_key"
 
 _CONSULT_RETEST_OUTPUT_BLOCK = (
-    "findings:            # SPEC-0200 rule 4 — ECHOES of the open ids, plus any REGRESSION\n"
+    "findings:            # superseded SPEC-0200 rule 4 (retired retest) — ECHOES of the open ids, plus any REGRESSION\n"
     "  - baseline_ref: <the BARE id from that row's `id:` column — e.g. `B1` or `R1.2`, and\n"
     "                   NOTHING else: not the whole table row, not the id in brackets>\n"
     "    resolution: open | closed\n"
@@ -135,10 +135,11 @@ CONSULT_REFUSAL_EPISODE_ENDED = "episode-ended"
 CONSULT_CONTRACT_ACTIVE = True
 
 CONSULT_PARTIAL_SWITCH_REFUSAL = (
-    "consult-contract-partially-switched: the SPEC-0200 round-k prompt overlay is disabled while the "
+    "consult-contract-partially-switched: the round-k prompt overlay of the retired ceiling-consult "
+    "episodes (superseded SPEC-0200) is disabled while the "
     "re-keyed predicates are live. That is not a degraded mode, it is a CONTRADICTORY state — the "
     "auditor would be asked a whole-subject question and its answer judged by delta rules (or the "
-    "reverse), and rule 7 says in as many words that a partially-landed state is not a valid state of "
+    "reverse), and that contract's rule 7 said in as many words that a partially-landed state is not a valid state of "
     "this contract. Refusing rather than falling through to the pre-C3 path: the legacy path cannot "
     "produce the persisted `offered_options` the re-keyed `_survivor_is_hold_for_owner` compares "
     "against, so a fall-through would silently stop recognising owner-held HOLDs — exactly the "
@@ -865,8 +866,9 @@ def _consult_basis(tid: str, stage: str, current_fp: str | None,
               f"FORWARD PATH: (1) AMEND the subject and RE-CONSULT — but note a re-consult INSIDE a "
               f"terminal episode is refused `episode-ended`, so it needs the boundary too; "
               f"(2) `yitc-v2 audit consult --task {tid} --stage {stage} --reopen --reason '<the "
-              f"owner grant locator>'` allocates episode n+1 with a fresh baseline (SPEC-0200 rule "
-              f"7 — an OWNER act, refused in a dispatched-worker context); or (3) for a TASK target "
+              f"owner grant locator>'` allocates episode n+1 with a fresh baseline (superseded SPEC-0200 rule "
+              f"7, retired with the ceiling episodes by SPEC-0204 rule 6 — an OWNER act, refused in a "
+              f"dispatched-worker context); or (3) for a TASK target "
               f"at `--stage post`, `--owner-reset --reason '<grant>'` IS rule 7's owner-authorized "
               f"PROCEED on an ended episode (T-12234) — this refusal routes you there rather than "
               f"past it.")
@@ -1892,7 +1894,7 @@ def consult_escape_deviations(delta, *, episode_id, target_id, rows, consult_esc
             "relates_to": target_id,
             "impact": (f"consult baseline completeness failure: residual {rid} is a NEW blocking "
                        f"finding at retest {attempt} with causality pre-existing-in-subject — a "
-                       f"defect the frozen baseline survey MISSED (SPEC-0200 rule 8, matrix row 10). "
+                       f"defect the frozen baseline survey MISSED (superseded SPEC-0200 rule 8, matrix row 10 — a retired ceiling-consult episode). "
                        f"The escape blocks and joins the residual set; this row is what makes the "
                        f"auditor's completeness a measured quantity."),
             "fingerprint": CONSULT_ESCAPE_FINGERPRINT,
@@ -1973,8 +1975,8 @@ def consult_successor_text(key, *, target_id, finding_id, entry=None, _consult_s
     embedding IS the identity the next run's lookup matches on — the carrier is its own index."""
     entry = entry if isinstance(entry, dict) else {}
     where = _consult_str(entry.get("locator")) or "(no locator supplied)"
-    return (f"consult deferral {finding_id} on {target_id} — successor work for a SPEC-0200 rule-8 "
-            f"deferrable finding at {where}. identity: {key}")
+    return (f"consult deferral {finding_id} on {target_id} — successor work for a superseded SPEC-0200 rule-8 "
+            f"deferrable finding (retired ceiling-consult episodes) at {where}. identity: {key}")
 
 
 def consult_file_successors(delta, *, episode_id, target_id, rows, file_followup,
@@ -2356,14 +2358,14 @@ def consult_prompt_overlay(prior, *, round_kind, revision=None, lens=None,
         return (
             "\n" + _AUDIT_FULL_VERDICT_CLAUSE
             + consult_lens_block(lens, is_plan=is_plan)
-            + "\n## Baseline output — add these to the YAML block below (SPEC-0200 rules 2-3)\n\n"
+            + "\n## Baseline output — add these to the YAML block below (superseded SPEC-0200 rules 2-3, now SPEC-0204 rule 1)\n\n"
             + "```yaml\n" + _CONSULT_BASELINE_OUTPUT_BLOCK + "```\n"
             "A finding claiming `blocking` WITHOUT all of criterion_ref-or-class_id + locator +\n"
             "failing_input + causality reads `deferrable` immediately — an unproven block does not\n"
             "block, and there is no second ask. `severity` derives NOTHING.\n"
         )
     return (
-        "\n## Delta retest — judge ONLY the ids below (SPEC-0200 rule 4)\n\n"
+        "\n## Delta retest — judge ONLY the ids below (superseded SPEC-0200 rule 4, now SPEC-0204 rule 8)\n\n"
         "This is a RETEST round of an OPEN ceiling episode. The whole-subject survey was FROZEN at\n"
         "round 0 and is NOT re-opened: do NOT re-survey the subject, and do NOT enumerate defects\n"
         "over the whole tree. Judge EXACTLY two things:\n"
@@ -2418,7 +2420,7 @@ def consult_hand_framed_refusal(target_id, consult_key, options, *, consult_opti
         return None
     return (
         f"audit consult refused ({CONSULT_REFUSAL_HAND_FRAMED}): {target_id} {consult_key} is a "
-        f"BASELINE-BEARING ceiling consult, and SPEC-0200 rule 7 retires hand-framed options there "
+        f"BASELINE-BEARING ceiling consult — retired, SPEC-0204 rule 6 — and the superseded SPEC-0200 rule 7 retired hand-framed options there "
         f"— the verb generates the pair, the Controller never writes it. Hand-written option texts "
         f"defeat owner-held recognition: `_survivor_is_hold_for_owner` compares the survivor by "
         f"EXACT EQUALITY against the PERSISTED pair, so a survivor naming a hand-written option "
@@ -2542,7 +2544,7 @@ def consult_episode_ended_refusal(target_id, consult_key, scan, prior, *, CONSUL
         f"{target_id} {consult_key} already ENDED (`outcome: {last}`"
         + (f", `terminal_reason: {reason}`" if reason else "") + ")."
         + (f" Open ids at the terminal: {', '.join(open_ids)}." if open_ids else "")
-        + f" SPEC-0200 rule 4 bounds an episode at 1 baseline + 1 malformed re-run + 2 retests, and "
+        + f" The superseded SPEC-0200 rule 4 bounded an episode (the episodes are retired, SPEC-0204 rule 6) at 1 baseline + 1 malformed re-run + 2 retests, and "
           f"every terminal ENDS it — no further auditor call is admitted inside it. NOTHING WAS "
           f"SPENT: this refusal fired BEFORE any auditor invocation (no round, R unchanged, no "
           f"`external_audit_completed` row).\nThe route is the OWNER's, per rule 7: {route}. An "
@@ -2610,8 +2612,8 @@ def consult_episode_busy_refusal(target_id, consult_key, scan, *, consult_episod
     return (
         f"audit consult refused ({CONSULT_REFUSAL_EPISODE_BUSY}): a round of the ceiling episode "
         f"{consult_episode_id(target_id, consult_key, scan.get('open_episode') or '?')} is already "
-        f"in flight (an `audit_prompt_sent` with no completion recorded after it). SPEC-0200 rule 1 "
-        f"serializes the pre-call transition: a second concurrent round would adjudicate the same "
+        f"in flight (an `audit_prompt_sent` with no completion recorded after it). The superseded SPEC-0200 rule 1 (retired episodes, "
+        f"SPEC-0204 rule 6) serializes the pre-call transition: a second concurrent round would adjudicate the same "
         f"open set and each would overwrite the record the other read. NOTHING WAS SPENT: no "
         f"auditor call, no round, R unchanged, no episode allocated. Wait for the in-flight round to "
         f"record its outcome, then re-run — this call will JOIN the episode as its next round."
@@ -2708,7 +2710,7 @@ def consult_terminal_owner_route(record, *, is_plan, target_id, consult_key, con
            else " over an EMPTY open set (a value/design judgement)")
     if is_plan:
         return (
-            f"OWNER ROUTE (plan-gate target, SPEC-0200 rule 7). The plan {target_id} STAYS at its "
+            f"OWNER ROUTE (plan-gate target, superseded SPEC-0200 rule 7, retired with the ceiling consult by SPEC-0204 rule 6). The plan {target_id} STAYS at its "
             f"current FSM stage — the {consult_key} gate transition does not fire, and the engine "
             f"writes NO task-side field, because a plan HAS none. (The task vocabulary is "
             f"deliberately not repeated here even to deny it: naming an action the target's own FSM "
@@ -2720,7 +2722,7 @@ def consult_terminal_owner_route(record, *, is_plan, target_id, consult_key, con
             f"episode (round 0, n+1); the plan's only other exit is its own FSM terminal "
             f"(`plan stage rejected|cancelled --reason`).")
     return (
-        f"OWNER ROUTE (task target, SPEC-0200 rule 7). {target_id} rests on ONE owner HOLD{ids}, and "
+        f"OWNER ROUTE (task target, superseded SPEC-0200 rule 7, retired with the ceiling consult by SPEC-0204 rule 6). {target_id} rests on ONE owner HOLD{ids}, and "
         f"the engine writes NO plan-side transition. The explicit owner action is one of: PARK the "
         f"card with a successor carrier recorded as its `return_trigger` "
         f"(`task update {target_id} --status parked --reason ... --return-trigger ...`); close it "
@@ -2806,11 +2808,13 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
                                ("events_path", events_path),
                                ("_parse_audit_verdict", _parse_audit_verdict)) if v is None]
     if _missing:
-        _die(f"consult engine mis-wired: SPEC-0200 injection(s) {', '.join(_missing)} missing. "
+        _die(f"consult engine mis-wired: injection(s) {', '.join(_missing)} missing (written for the "
+             f"superseded SPEC-0200, whose ceiling episodes are retired by SPEC-0204 rule 6). "
              f"Refusing rather than adjudicating on the pre-C3 path — that path persists no "
              f"`offered_options`, so the re-keyed owner-held predicate would stop recognising a "
-             f"genuine owner HOLD against the records it produced (SPEC-0200 rule 7 / the T-12150 "
-             f"r8 failure input). Wire the engine or do not call it.")
+             f"genuine owner HOLD against the records it produced (a check kept from the superseded SPEC-0200 "
+             f"rule 7, whose ceiling episodes are retired by SPEC-0204 rule 6; the T-12150 r8 failure input). Wire the engine or do not call it, and record the mis-wiring with "
+             f"`bin/yitc-v2 event deviation_captured --data '{{...}}'`.")
 
     _prior = None
     if audit_path.exists():
@@ -2978,7 +2982,7 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
     print(f"# Invoking external auditor: {provider}/{model} (full) — ceiling-convergence consult "
           f"{target_id} {consult_key} ({len(options)} options)...", file=sys.stderr)
     if _baseline_bearing:
-        print(f"# SPEC-0200 episode {_episode_id} — round_kind={_round_kind} "
+        print(f"# retired ceiling-consult (superseded SPEC-0200) episode {_episode_id} — round_kind={_round_kind} "
               f"(decision={_episode['decision']}); the prompt carries the "
               f"{'whole-subject BASELINE survey' if _round_kind == CONSULT_ROUND_KIND_BASELINE else 'DELTA retest overlay (no whole-subject survey)'}.",
               file=sys.stderr)
@@ -3156,7 +3160,7 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
         # why-the-row-and-not-the-record argument live in `consult_round_withdrawn`'s docstring).
         _withdrawn_now = consult_round_withdrawn(_delta, prior=_prior_episode)
         if _escapes:
-            print(f"# SPEC-0200 rule 8: {len(_escapes)} baseline COMPLETENESS FAILURE(s) recorded — "
+            print(f"# retired ceiling-consult (superseded SPEC-0200 rule 8): {len(_escapes)} baseline COMPLETENESS FAILURE(s) recorded — "
                   f"{', '.join(e['residual_id'] for e in _escapes)} are NEW blocking findings with "
                   f"causality pre-existing-in-subject, i.e. defects the frozen survey MISSED.",
                   file=sys.stderr)
@@ -3619,7 +3623,7 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
             return None
         if _out.returncode != 0:
             return None
-        _delta_note = (f"[SPEC-0200 rule 4 / T-12233: DELTA SINCE THE BASELINE REVISION "
+        _delta_note = (f"[retired ceiling-consult retest (superseded SPEC-0200 rule 4) / T-12233: DELTA SINCE THE BASELINE REVISION "
                        f"{_base[:12]}..{_subj[:12]} — this retest judges only the open blocking ids "
                        f"and any regression the fix INTRODUCED, which is exactly this delta; a "
                        f"whole-subject survey is not asked for at a retest.]")
@@ -3675,11 +3679,12 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
                                                   audit.get("findings_complete"), record=audit):
         converged = False
         _open = ", ".join(consult_sticky_hold_open_ids(audit)) or "(none recorded)"
-        print(f"# NOT converged (SPEC-0200 rule 6): the stated survivor failed validation — "
+        print(f"# NOT converged: the stated survivor failed the survivor validation the engine kept from "
+              f"the superseded SPEC-0200 rule 6 (its ceiling episodes are retired, SPEC-0204 rule 6) — "
               f"outcome={audit.get('outcome')!r}, survivor_overridden="
               f"{bool(audit.get('survivor_overridden'))}, open ids: {_open}. This is NOT an "
-              f"--owner-reset basis; the episode continues with a retest, or rests on the owner "
-              f"route (SPEC-0124 / SPEC-0200 rule 7).", file=sys.stderr)
+              f"--owner-reset basis; the ceiling-consult episodes and --owner-reset are retired (SPEC-0204 "
+              f"rule 6).", file=sys.stderr)
 
     if on_demand:
         # T-9684 — the ON-DEMAND fork-picker outcome. FAIL-CLOSED: a single surviving variant is the

@@ -121,7 +121,7 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ the LIVE-LAND override: a `blocked_on_land` detail is a TRANSIENT while the worker\
   \ lives\n\nA `blocked_on_land` detail names a SETTLED stop — the SPEC-0103 §3 land\
   \ repeated-abort backstop\n(needs-controller, cleared by resolving the cause or\
-  \ by `--ack-repeated-abort`) or the audit-loop\nceiling (needs-owner, `audit --owner-reset`).\
+  \ by `--ack-repeated-abort`) or the audit-loop\nceiling (needs-owner, `audit decide`).\
   \ But the worker EMITS that marker and then, per the\nsynchronous-to-LAND discipline,\
   \ RE-INVOKES `land` INLINE — so the marker sits in the chain while the\nworker is\
   \ merely MID-LAND. Read literally, the classifier flashed `TERMINAL(blocked_on_land)`\n\

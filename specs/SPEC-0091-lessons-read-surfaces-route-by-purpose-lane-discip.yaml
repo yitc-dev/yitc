@@ -23,17 +23,13 @@ body: "## Scenario\n\nThe owner/AI keeps `lessons/` (repo-local craft) and `patt
   \ never on `audit pre`), plus\n  ad-hoc design consults via `audit adhoc --read-corpus`.\
   \ The RELEVANT lessons are inlined (never the\n  whole corpus — prompt-cost). `plan\
   \ check` (draft-only shaping) and audit-post MAY receive a lesson\n  the same way\
-  \ but are NOT the design-judging gates (a different control-point).\nNo new audit\
-  \ mechanism, store, event, FLAG, or gate — this REUSES each verb's EXISTING corpus-inline\n\
-  carrier (`audit pre --from-file`, `audit adhoc --read-corpus`), the read-receipt\n\
-  journal, and the existing stage-entry delivery. SPEC-0032 / SPEC-0043 / SPEC-0036\
-  \ keep their\ndelivery mechanics UNCHANGED and gain only a one-line pointer to this\
-  \ rule.\n\n### Rule 2 — Route-by-purpose lane discipline (no «just a note»)\nEvery\
-  \ note routes by its FATE/PURPOSE; there is NO purposeless-note lane:\n- reusable\
-  \ craft → `lessons/` (repo-local) or `patterns/` (general, travels) — the local-vs-general\n\
-  \  boundary is the structural plan's test, and the local-vs-general lane is RE-EVALUATED\
-  \ on a cadence\n  — see SPEC-0090 §2b (the generalization sweep);\n- to-do-LATER\
-  \ with no plan carrying it → a `plan` (or `ideas/` = a plan-seed awaiting a trigger);\n\
+  \ but are NOT the design-judging gates (a different control-point).\n\n### Rule\
+  \ 2 — Route-by-purpose lane discipline (no «just a note»)\nEvery note routes by\
+  \ its FATE/PURPOSE; there is NO purposeless-note lane:\n- reusable craft → `lessons/`\
+  \ (repo-local) or `patterns/` (general, travels) — the local-vs-general\n  boundary\
+  \ is the structural plan's test, and the local-vs-general lane is RE-EVALUATED on\
+  \ a cadence\n  — see SPEC-0090 §2b (the generalization sweep);\n- to-do-LATER with\
+  \ no plan carrying it → a `plan` (or `ideas/` = a plan-seed awaiting a trigger);\n\
   \  a postponed part of a plan's own deliverable that the plan's `decomposition`\
   \ cut covers is a\n  tracked task filed at that cut instead (<workshop-spec> §B;\
   \ SPEC-0043 item 5), while a remainder left\n  undecomposed when the plan ends `partial`\
@@ -56,21 +52,28 @@ body: "## Scenario\n\nThe owner/AI keeps `lessons/` (repo-local craft) and `patt
   \ (it stays a transient MEMORY line, or routes per Rule 2).\n\n## Parameters\nNone\
   \ consumed.\n\n## Rationale\n\nProvenance (the founding incidents, the refinement\
   \ history and the rejected alternatives) lives in\ngit history and the authoring\
-  \ plan — not here.\n\n## Verification\n\n- **Read-surfaces (Rule 1) — deterministic:**\
-  \ a Stage-1 / plan-draft read-receipt NAMES a `lessons/`\n  id at a LATER work item\
-  \ (yes/no); a gate-specs / audit-pre saved artifact NAMES an inlined lesson\n  id\
-  \ (yes/no) — both replayable from the journal / `decisions/`, not claim-only. **Repeat-catch\n\
-  \  signal — COUNTED:** over the saved audit-result YAMLs, count\n  the cases where\
-  \ an audit FINDING cites the same repeated pitfall that an inlined `lessons/` id\
-  \ in the\n  same audit names — a zero/non-zero count over the saved YAMLs, replayable,\
-  \ not a narrative claim.\n- **Route-discipline (Rules 2-4) — counted:** over a bounded\
-  \ window M = the work items in ONE Review\n  soak-cycle (the weekly cadence — the\
-  \ window-selection rule, NOT re-negotiated per trial), count the\n  note population\
-  \ pinned to ONE scope — the interactive main-session notes across that selected\
-  \ Review\n  weekly cycle (the journal + those items' commits), the SAME denominator\
-  \ used at postcheck (the plan's\n  `postcheck_probe_block`); unhomed «just-note»\
-  \ dumps MUST = 0; and ≥1\n  factual note has the Rule-4 test applied (promoted to\
-  \ a lesson OR kept transient).\n"
+  \ plan — not here.\n\n## Implementation notes\n\n### Moved from the rule text\n\n\
+  Reference and maintainer passages moved word for word out of the rule text of the\
+  \ section\neach names; no rule an acting reader applies moved with them.\n\nFrom\
+  \ «Rule 1»:\n\nNo new audit mechanism, store, event, FLAG, or gate — this REUSES\
+  \ each verb's EXISTING corpus-inline\ncarrier (`audit pre --from-file`, `audit adhoc\
+  \ --read-corpus`), the read-receipt\njournal, and the existing stage-entry delivery.\
+  \ SPEC-0032 / SPEC-0043 / SPEC-0036 keep their\ndelivery mechanics UNCHANGED and\
+  \ gain only a one-line pointer to this rule.\n\n## Verification\n\n- **Read-surfaces\
+  \ (Rule 1) — deterministic:** a Stage-1 / plan-draft read-receipt NAMES a `lessons/`\n\
+  \  id at a LATER work item (yes/no); a gate-specs / audit-pre saved artifact NAMES\
+  \ an inlined lesson\n  id (yes/no) — both replayable from the journal / `decisions/`,\
+  \ not claim-only. **Repeat-catch\n  signal — COUNTED:** over the saved audit-result\
+  \ YAMLs, count\n  the cases where an audit FINDING cites the same repeated pitfall\
+  \ that an inlined `lessons/` id in the\n  same audit names — a zero/non-zero count\
+  \ over the saved YAMLs, replayable, not a narrative claim.\n- **Route-discipline\
+  \ (Rules 2-4) — counted:** over a bounded window M = the work items in ONE Review\n\
+  \  soak-cycle (the weekly cadence — the window-selection rule, NOT re-negotiated\
+  \ per trial), count the\n  note population pinned to ONE scope — the interactive\
+  \ main-session notes across that selected Review\n  weekly cycle (the journal +\
+  \ those items' commits), the SAME denominator used at postcheck (the plan's\n  `postcheck_probe_block`);\
+  \ unhomed «just-note» dumps MUST = 0; and ≥1\n  factual note has the Rule-4 test\
+  \ applied (promoted to a lesson OR kept transient).\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0032

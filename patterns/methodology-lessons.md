@@ -155,6 +155,22 @@ only when a rule is shown to be lost without one; (3) a pre-existing gap a trial
 due deferred probe) is its own card, never folded into the pilot. The trial's findings stay valid evidence for
 (2): the index line and the help head are what agents actually met. (4) before filing a card that moves or un-binds rule text, grep `tests/` for that text and for the binding, and name in the card the probe of each landed card that pins it (six cards were refused pre-claim on 2026-10-08 for missing this, deviation `events.jsonl#ts=`). [relates: plans/restructure-heavy-specs-as-core-plus-index-plus-on.md; <workshop-spec>; SPEC-0015; CHARTER §Principle 1]
 
+### Lesson 14 — patch-on-patch: when a round finds a defect in the previous round's fix, simplify instead of patching (2026-10-08)
+
+RECORDED on owner request (events.jsonl#ts=) after plan
+`provider-neutral-compaction-survival-restoration-b`, plan check 2 (RED, 7 findings). Every round since plan check 1
+had answered a finding with a new mechanism — a count floor, then a stamped-part digest on top of it; a context-size
+trace, then a per-provider format check on top of that — and each next round found holes in those patches. The owner
+stopped it («главное не усложняй … остановись и посмотри как все можно упростить», events.jsonl#ts=;
+choice (A) «давай упрощать», #ts=). The simplification replaced distinct counting, the stamped-epoch
+floor, the stamped-part digest and the per-provider format check by ONE reading — the newest marker's identity (or
+NONE) — which closed the open findings by construction; the converged trial re-ran on the simpler design. This was the
+SECOND recurrence in two days: Lesson 13 (2026-10-07) is the same loop — a pilot that grew a gate, a seed cue and a new
+duty across 17 trial cycles — and that lesson, read at session start, did not prevent this one. A lesson in this
+catalog is consulted at Stage 1 for a CHOICE; the loop forms mid-work, round by round, so the rule sits where every
+session already holds it. STANDING: the rule home is CHARTER §Failure trigger (the correction-loop sentence); this
+lesson is its why and worked example, never a second home of the rule. [relates: plans/provider-neutral-compaction-survival-restoration-b.md; Lesson 13; CHARTER §Failure trigger; SPEC-0035; SPEC-0036]
+
 ## Anti-pattern
 
 - **Re-litigating a settled lesson because its «why» had no home** — e.g. re-proposing in-process

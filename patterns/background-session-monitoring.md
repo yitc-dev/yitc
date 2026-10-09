@@ -459,9 +459,11 @@ Read the verdict/class from the verb; pick the ACTION here. The verb never presc
 - **By-design governance STOP (neither death nor hang).** A worker hitting a hard boundary (audit-loop
   ceiling with a standing RED; an ABORT verdict; a P7 dissonance; a land repeated-abort backstop) STOPS AND
   REPORTS by contract — durable state intact, main untouched — emitting `bg_dispatch_halted`. The common
-  owner-gated cases auto-emit it (audit-ceiling, land repeated-abort) with
-  `data.needs_owner_reset: true`, which the verb surfaces as **`blocked_on_land(needs-owner)`** — a
-  recoverable owner-gated block, never a hang/orphan. Controller path:
+  cases auto-emit it (audit-ceiling, land repeated-abort) — a recoverable block, never a
+  hang/orphan. The audit-ceiling halt names the residual FINGERPRINTS and carries NO
+  `needs_owner_reset` (SPEC-0103 §3; the owner reset is retired, SPEC-0204 rule 6): the Controller
+  records one `audit decide` per residual and the resumed worker runs ONE `audit pre|post
+  --on-decisions` pass. Controller path for an owner-gated stop:
   escalate to the OWNER → on authorization, **RESPAWN a fresh worker by DEFAULT** to adopt the holder's
   worktree (the §6-preferred posture) — mechanically that is the plain `dispatch --task` of the
   §Premature-exit bullet above (this class classifies TERMINAL, so a dead holder gets the PRESERVING

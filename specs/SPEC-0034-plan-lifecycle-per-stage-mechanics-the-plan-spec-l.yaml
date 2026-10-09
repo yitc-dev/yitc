@@ -79,73 +79,68 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ mechanics (one rule per linear stage — entry-gate, work, side-effects, task analog)\n\
   EVERY transition obeys ONE rule: the verb gates the **PRIOR stage's completion**\
   \ (so a check \"at the\nend of stage N\" is expressed as the ENTRY gate of stage\
-  \ N+1).\n\n**Audit posture (owner-settled 2026-06-05): FULL, not light.** Any external\
-  \ audit on a\nplan-lifecycle transition (e.g. `plan check`, the aggregate `audit\
-  \ post --plan`) uses the\nFULL-capability auditor, never the lighter routine mode\
-  \ — plans are high-stakes and audit quality\nis not economized. This OVERRIDES the\
-  \ AGENTS §External-auditor routine→light default for PLAN-level\naudits. (WHICH\
-  \ early transitions block was the former open question — SETTLED by :\nevery forward\
-  \ plan gate is mandatory-blocking, including draft→specs (P2). The one-table gate\n\
-  POLICY is homed in SPEC-0083 — `graph query SPEC-0083`; this section settles audit\
-  \ QUALITY.)\n\n- **draft** *(plan-stage-entry:draft — task analog: Analysis)*\n\
-  \  - Entry gate: — (start; `plan file` creates a plan at `status: draft`).\n  -\
-  \ Work: author the draft (WIP planning); sessions don't touch it (the picker reads\
-  \ `tasks/` only).\n  - Result: a thought-through draft, finalized by its END verb.\
-  \ **Draft END verb (R7):** `plan draft --finalize` is the draft check-carrier (SPEC-0059\
-  \ §First-stage-check-carrier-gap; plan-axis mirror of `task analyze --finalize`)\
-  \ — it read-checks the draft bundle [SPEC-0043, SPEC-0034], reports front-load section-fill\
-  \ (advisory / report-only structural pre-pass), and emits a `plan_draft_finalized`\
-  \ journal event carrying `body_hash` (the body-bound worked-through PROOF — provenance,\
-  \ not a forgeable field; only this verb emits it). The `specs` entry-gate REQUIRES\
-  \ a FRESH such proof matching the current body (§specs). Side-effect : `plan file`\
-  \ (the draft is the INITIAL\n    status, so `plan stage draft` is unreachable —\
-  \ `plan file` IS the draft-entry delivery point) ALSO\n    delivers the `plan-stage-entry:draft`\
-  \ bundle (the draft-authoring doctrine SPEC-0043) + seeds the\n    front-load skeleton\
-  \ sections in the new plan body, and journals `plan_stage_entered` (from=null→draft).\n\
-  \n- **specs** *(plan-stage-entry:specs — task analog: Filing/Plan)*\n  - Entry gate:\
-  \ the draft is thought-through — ENFORCED (R7): `plan stage specs` REQUIRES a FRESH\
-  \ `plan_draft_finalized` proof (the body-hash-bound journal event emitted by `plan\
-  \ draft --finalize`, matching the current body) + the recorded SPEC-0043/SPEC-0034\
-  \ reads — NON-SKIPPABLE; an absent/stale proof or an unread bundle → REFUSE (`read_gate_refused`\
-  \ kind=verification-exists / read-check). Closes the draft-had-a-START-but-no-END-verb\
-  \ gap (SPEC-0059 §First-stage-check-carrier-gap). ALSO : draft→specs is a MANDATORY-BLOCKING\
-  \ external gate — `plan stage specs` asks the gate-specs FULL audit and a RED/ABORT\
-  \ verdict HOLDS the transition (gate policy home: SPEC-0083).\n  - Work: compose\
-  \ + check the draft specs (the status now says WHAT we work with — already the spec-set,\n\
-  \    not just the bare draft; the `draft`-vs-`specs` split is deliberate, owner-from-experience).\n\
-  \  - **The `specs` stage IS the mandatory gate-specs CHECK every plan transits —\
-  \ NOT \"compose draft\n    specs\" (reframe).** The stage NAME reads as \"author\
-  \ specs\", so a SPEC-FREE plan (one that births\n    no specs) looks like it can\
-  \ SKIP the stage. It CANNOT. `draft → specs` is a MANDATORY-BLOCKING\n    external\
-  \ gate (`gate-specs`, SPEC-0083) whose real subject is the PLAN itself — its scope\n\
-  \    stability, carve-out tracking, trial-path coherence, anti-complexity, provider-neutral\
-  \ wording —\n    NOT only any draft specs it happens to carry. So a spec-free plan\
-  \ STILL transits `specs` and STILL\n    pays the gate-specs audit; \"spec-free\"\
-  \ only means the `specs`-stage WORK bullet (compose draft\n    specs) is vacuous,\
-  \ never that the CHECK is.\n  - The draft specs are authored `status: draft`, plan-local\
-  \ (`spec new --draft --proposed-by <slug>`),\n    governing nothing (SPEC-0005 §4).\n\
-  \  - **Corpus-conflict survey (owner-settled 2026-06-05).** Before AUTHORING or\
-  \ CORRECTING a draft\n    spec, SURVEY the active + proposed corpus (`graph query\
-  \ <related-spec>` / `graph query --type\n    view` / grep) for overlap or contradiction,\
-  \ and apply the SPEC-0005 admission test (delete-test /\n    one-home — does this\
-  \ belong inside an existing spec instead?). A genuine RELATIONSHIP → encode it\n\
-  \    via `requires:` / `supersedes:` on the spec. A genuine CONTRADICTION → a Principle-7\
-  \ dissonance:\n    surface/resolve it, never silently choose. The FULL audit at\
-  \ the convergence boundary\n    (→ `accepted`) is the corpus-coherence BACKSTOP.\
-  \ Do NOT add an automated semantic-conflict\n    detector to `spec new` — anti-complexity:\
-  \ semantic conflict is judgement + the audit's job; no\n    incident yet justifies\
-  \ a detector.\n\n- **trial** *(plan-stage-entry:trial — task analog: a pre-accept\
-  \ design-convergence soak; SPEC-0035)*\n  - Entry gate: the draft specs are composed\
-  \ + checked AND the plan is trial-ELIGIBLE (BOTH, owner-judged\n    at entry — SPEC-0035\
-  \ rule 2: (a) mechanism/behavioral — births a spec/verb/flow; (b) convergence\n\
-  \    cannot honestly come from text-audit alone). A non-eligible prose/docs plan\
-  \ SKIPS trial (→ `accepted`).\n  - Work: bake a `## Trial protocol` into the plan\
-  \ (mode + why, probe targets, exit criteria, safety\n    envelope, eligibility rationale\
-  \ — `patterns/trial-methods.md`), then run the planned mechanism in a\n    controlled\
-  \ way on real(-ish) data until the design stops changing; co-evolve the plan + its\
-  \ draft\n    specs in place. A trial NEVER mutates production data (emulation /\
-  \ reviewable+rollbackable manual\n    runs only — SPEC-0035 rules 3-4). Long-running,\
-  \ multi-session: fresh sessions read the PLAN.\n  - Side-effect: `plan_stage_entered`\
+  \ N+1).\n\n**Audit posture: FULL, not light.** Any external audit on a\nplan-lifecycle\
+  \ transition (e.g. `plan check`, the aggregate `audit post --plan`) uses the\nFULL-capability\
+  \ auditor, never the lighter routine mode — plans are high-stakes and audit quality\n\
+  is not economized. This OVERRIDES the AGENTS §External-auditor routine→light default\
+  \ for PLAN-level\naudits. (WHICH early transitions block was the former open question\
+  \ — SETTLED by :\nevery forward plan gate is mandatory-blocking, including draft→specs\
+  \ (P2). The one-table gate\nPOLICY is homed in SPEC-0083 — `graph query SPEC-0083`;\
+  \ this section settles audit QUALITY.)\n\n- **draft** *(plan-stage-entry:draft —\
+  \ task analog: Analysis)*\n  - Entry gate: — (start; `plan file` creates a plan\
+  \ at `status: draft`).\n  - Work: author the draft (WIP planning); sessions don't\
+  \ touch it (the picker reads `tasks/` only).\n  - Result: a thought-through draft,\
+  \ finalized by its END verb. **Draft END verb (R7):** `plan draft --finalize` is\
+  \ the draft check-carrier — it read-checks the draft bundle [SPEC-0043, SPEC-0034],\
+  \ reports front-load section-fill (advisory / report-only structural pre-pass),\
+  \ and emits a `plan_draft_finalized` journal event carrying `body_hash` (the body-bound\
+  \ worked-through PROOF — provenance, not a forgeable field; only this verb emits\
+  \ it). The `specs` entry-gate REQUIRES a FRESH such proof matching the current body\
+  \ (§specs). Side-effect : `plan file` (the draft is the INITIAL\n    status, so\
+  \ `plan stage draft` is unreachable — `plan file` IS the draft-entry delivery point)\
+  \ ALSO\n    delivers the `plan-stage-entry:draft` bundle (the draft-authoring doctrine\
+  \ SPEC-0043) + seeds the\n    front-load skeleton sections in the new plan body,\
+  \ and journals `plan_stage_entered` (from=null→draft).\n\n- **specs** *(plan-stage-entry:specs\
+  \ — task analog: Filing/Plan)*\n  - Entry gate: the draft is thought-through — ENFORCED\
+  \ (R7): `plan stage specs` REQUIRES a FRESH `plan_draft_finalized` proof (the body-hash-bound\
+  \ journal event emitted by `plan draft --finalize`, matching the current body) +\
+  \ the recorded SPEC-0043/SPEC-0034 reads — NON-SKIPPABLE; an absent/stale proof\
+  \ or an unread bundle → REFUSE (`read_gate_refused` kind=verification-exists / read-check).\
+  \ ALSO : draft→specs is a MANDATORY-BLOCKING external gate — `plan stage specs`\
+  \ asks the gate-specs FULL audit and a RED/ABORT verdict HOLDS the transition (gate\
+  \ policy home: SPEC-0083).\n  - Work: compose + check the draft specs.\n  - **The\
+  \ `specs` stage IS the mandatory gate-specs CHECK every plan transits — NOT \"compose\
+  \ draft\n    specs\" (reframe).** The stage NAME reads as \"author specs\", so a\
+  \ SPEC-FREE plan (one that births\n    no specs) looks like it can SKIP the stage.\
+  \ It CANNOT. `draft → specs` is a MANDATORY-BLOCKING\n    external gate (`gate-specs`,\
+  \ SPEC-0083) whose real subject is the PLAN itself — its scope\n    stability, carve-out\
+  \ tracking, trial-path coherence, anti-complexity, provider-neutral wording —\n\
+  \    NOT only any draft specs it happens to carry. So a spec-free plan STILL transits\
+  \ `specs` and STILL\n    pays the gate-specs audit; \"spec-free\" only means the\
+  \ `specs`-stage WORK bullet (compose draft\n    specs) is vacuous, never that the\
+  \ CHECK is.\n  - The draft specs are authored `status: draft`, plan-local (`spec\
+  \ new --draft --proposed-by <slug>`),\n    governing nothing (SPEC-0005 §4).\n \
+  \ - **Corpus-conflict survey.** Before AUTHORING or CORRECTING a draft\n    spec,\
+  \ SURVEY the active + proposed corpus (`graph query <related-spec>` / `graph query\
+  \ --type\n    view` / grep) for overlap or contradiction, and apply the SPEC-0005\
+  \ admission test (delete-test /\n    one-home — does this belong inside an existing\
+  \ spec instead?). A genuine RELATIONSHIP → encode it\n    via `requires:` / `supersedes:`\
+  \ on the spec. A genuine CONTRADICTION → a Principle-7 dissonance:\n    surface/resolve\
+  \ it, never silently choose. The FULL audit at the convergence boundary\n    (→\
+  \ `accepted`) is the corpus-coherence BACKSTOP. Do NOT add an automated semantic-conflict\n\
+  \    detector to `spec new` — anti-complexity: semantic conflict is judgement +\
+  \ the audit's job; no\n    incident yet justifies a detector.\n\n- **trial** *(plan-stage-entry:trial\
+  \ — task analog: a pre-accept design-convergence soak; SPEC-0035)*\n  - Entry gate:\
+  \ the draft specs are composed + checked AND the plan is trial-ELIGIBLE (BOTH, owner-judged\n\
+  \    at entry — SPEC-0035 rule 2: (a) mechanism/behavioral — births a spec/verb/flow;\
+  \ (b) convergence\n    cannot honestly come from text-audit alone). A non-eligible\
+  \ prose/docs plan SKIPS trial (→ `accepted`).\n  - Work: bake a `## Trial protocol`\
+  \ into the plan (mode + why, probe targets, exit criteria, safety\n    envelope,\
+  \ eligibility rationale — `patterns/trial-methods.md`), then run the planned mechanism\
+  \ in a\n    controlled way on real(-ish) data until the design stops changing; co-evolve\
+  \ the plan + its draft\n    specs in place. A trial NEVER mutates production data\
+  \ (emulation / reviewable+rollbackable manual\n    runs only — SPEC-0035 rules 3-4).\
+  \ Long-running, multi-session: fresh sessions read the PLAN.\n  - Side-effect: `plan_stage_entered`\
   \ (trial) + journaled trial runs; the exit (`trial → accepted`) is\n    OWNER judgment\
   \ citing the run-refs against the baked criteria — no automated convergence detector\n\
   \    (CHARTER non-goals #1/#7; exit floor: ≥1 journaled run + a trial-summary +\
@@ -170,124 +165,121 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \    mechanical refusal moves. And a fresh `plan check` does **NOT** preserve mode-b\
   \ `absorbed:`\n    entries: a fresh verdict is a fresh record, by design — one more\
   \ reason to compose the body\n    BEFORE the check rather than re-checking after\
-  \ it.\n  - Work (REALIZATION-EXIT criteria, UP FRONT — owner directive 2026-06-06):\
-  \ ALSO compose the\n    plan's REALIZATION-EXIT criteria here — the postcheck probe\
-  \ block (observed-behaviour / min-runs /\n    failure-threshold / evidence-home)\
-  \ — the way a TASK authors its `acceptance` at FILING, not reactively\n    at postcheck\
-  \ entry. The plan declares HOW it will be proven realized BEFORE it is built. (The\
-  \ front-load\n    prompt is seeded even earlier, at `plan file` — SPEC-0043 §front-load;\
-  \ this is where the criteria are\n    CONFIRMED into the accepted plan.) This is\
-  \ authoring GUIDANCE, NOT a new gate: the obligation to declare\n    the probe block\
-  \ already lives at §postcheck (confirmed/refreshed at postcheck entry), so composing\
-  \ it at\n    `accepted` moves no mechanical REFUSAL earlier in the FSM — compliance\
-  \ is unchanged (in-place amend, not\n    a supersede — SPEC-0005 §7). The criteria\
-  \ stay author-declared + owner-judged; no parser/gate enforces them.\n  - Side-effect\
-  \ (`plan stage accepted`): the plan's `draft` specs are BORN\n    `proposed` (`_plan_accept_core`);\
-  \ GATED on a FRESH GREEN/YELLOW `plan check` (the accept-gate,\n    freshness =\
-  \ a content hash — the mirror of `decision accept`).\n  - **Accept-gate covers the\
-  \ draft specs vs the corpus ( — closes the activation-before-finalize\n    content-audit\
-  \ hole).** A PLAN-BORN spec governs only when `active`, but it reaches `active`\
-  \ via its\n    activation_owner_task close (an ADOPTION probe, NOT a content audit)\
-  \ — so without this, its OWN\n    content first gets a dedicated external audit\
-  \ only at `plan stage realized` (`audit post --plan`),\n    LATE. The accept-gate\
-  \ `plan check` therefore AUDITS the plan's PLAN-BORN draft specs\n    (`proposed_by==slug\
-  \ AND status==draft` — the SAME set `_birth_plan_draft_specs` births) against the\n\
-  \    active+proposed corpus for overlap / duplication / contradiction (P7 / one-active-lineage),\n\
-  \    and the draft→proposed BIRTH is GATED on it: a draft spec that conflicts/duplicates\
-  \ the corpus is\n    NOT born — rework first. Freshness reflects the draft specs\
-  \ + the corpus CONTENT too\n    (`_plan_accept_freshness_hash`): editing a draft\
-  \ spec OR a corpus spec after the check invalidates\n    the accept gate (re-run\
-  \ `plan check`). SCOPE = the PLAN-BORN path ONLY — a WORK-FIRST spec\n    (`proposed_by==<task>`)\
-  \ is content-audited by its own task's audit-pre/post and is NOT\n    double-audited\
-  \ here.\n  - **A partial corpus read never renders as a full pass (X-0706).** The\
-  \ accept-gate corpus\n    block is byte-bounded (`_CORPUS_BLOCK_BUDGET`) so it can\
-  \ never overflow the auditor — that ceiling\n    STAYS. What must not stay silent\
-  \ is CROSSING it: a gate whose reach is shorter than its declared\n    scope is\
-  \ worse than a gate that refuses. So whenever the gate's reach falls short of the\
-  \ corpus it\n    claims to judge — either MECHANICALLY (draft bodies / corpus rows\
-  \ dropped at the ceiling) or by the\n    auditor's OWN SELF-REPORT that it could\
-  \ not fully read or verify the corpus — `plan check` records\n    the shortfall\
-  \ STRUCTURALLY in the verdict (`corpus_coverage`, naming what was not reached) and\n\
-  \    escalates a GREEN to YELLOW. Never RED: a partial read is a statement about\
-  \ CONFIDENCE, not a\n    proven defect (the posture SPEC-0082 settled for baseline-not-live).\
-  \ The shortfall may NOT live\n    only in auditor prose, where it reads as a normal\
-  \ pass. STRICTLY CONDITIONAL — a gate that reached\n    the whole corpus (the ordinary\
-  \ small-plan path) records no key, gains no finding and keeps its\n    verdict byte-for-byte,\
-  \ so the honest floor taxes only the runs that actually fell short.\n    **Separate\
-  \ reservations, refuse rather than audit a partial subject (X-1529).** Draft\n \
-  \   bodies and the corpus index do not share one first-fit pool: the index keeps\
-  \ a reserved share,\n    the drafts fill the rest, and the drafts' RELATED comparands\
-  \ may use whatever remains. When the\n    drafts exceed their pool, or a related\
-  \ comparand no longer fits, `plan check` REFUSES BEFORE the\n    auditor — naming\
-  \ the budget and each draft's size, spending no pass — instead of letting the\n\
-  \    auditor judge a plan whose drafts it never saw. Every shortfall reason names\
-  \ the budget and the\n    measured sizes, and the block's fetch pointers carry the\
-  \ session's `-C <repo>` prefix so a\n    consumer's own spec ids resolve against\
-  \ the consumer corpus.\n  - **A YELLOW residual is absorbed ONTO the verdict, not\
-  \ by editing the plan.** LIFECYCLE\n  Stage 4's two ways to absorb a YELLOW finding\
-  \ govern this gate too: (a) EDIT the plan — which\n  re-hashes the body, stales\
-  \ `content_hash` and forces a whole fresh FULL `plan check` — or (b)\n  RECORD the\
-  \ residual on the EXISTING accept-gate verdict without changing the plan. Mode (b)'s\n\
-  \  governed route here is **`bin/yitc-v2 plan check --absorb \"<text>\" <slug>`**:\
-  \ it runs NO auditor,\n  appends `absorbed:`/`notes:` on `decisions/<slug>-audit.yaml`,\
-  \ emits `audit_finding_absorbed`, and\n  leaves `verdict:` / `content_hash:` / `accept_freshness_hash:`\
-  \ / `passes:` byte-identical — so\n  `plan stage accepted` still accepts that record\
-  \ and NO ceiling pass is burned (SPEC-0124\n  §Audit-loop ceiling; mode (a) is the\
-  \ only mode that generates a pass, unchanged). It is the SAME\n  writer, on the\
-  \ SAME record, as `audit pre --plan <slug> --gate trial-accepted --absorb`\n  —\
-  \ a plan-check-shaped spelling of an existing route, not a second one. TWO REFUSALS,\
-  \ neither\n  loosened: a NON-YELLOW record (RED/ABORT = STOP: re-plan or escalate;\
-  \ GREEN carries no accepted\n  finding), and a plan body that no longer matches\
-  \ the recorded `content_hash` — absorption after\n  body drift is REFUSED, because\
-  \ the cheap path is cheap only while the recorded verdict still\n  judges the CURRENT\
-  \ body. **A body edit therefore still forces a fresh `plan check`**, exactly as\n\
-  \  before; what this removes is the extra FULL check paid when nothing about the\
-  \ plan changed. Additive extension\n  per SPEC-0005 §7: every already-covered case's\
-  \ compliance is unchanged.\n- **Plan check role (narrowed — SPEC-0035 rule 7).**\
-  \ For a trial-ELIGIBLE plan, `plan check` is NOT\n    the design-convergence gate:\
-  \ convergence evidence is produced in `trial` against the baked criteria,\n    and\
-  \ `plan check` at this accept-gate is the audit of the ASSEMBLED package (the plan\
-  \ + its composed\n    draft specs — incl. the corpus content-audit above), NOT the\
-  \ source of design-convergence.\n    Post-accept spec-rework driven by reality-vs-paper\
-  \ divergence is no longer a normal path — the cheap\n    pre-accept `trial` loop\
-  \ replaces it. (A non-eligible plan skipped trial, so its accept-gate `plan\n  \
-  \  check` is its only pre-accept verification, as before.)\n\n- **decomposition**\
-  \ *(plan-stage-entry:decomposition — task analog: the pre-build CUT + its fidelity\
-  \ gate; SPEC-0070)*\n  - Entry gate (`accepted → decomposition`) = the plan is verified\
-  \ — `_require_plan_decomposition_ready`\n    (the readiness body RELOCATED here\
-  \ from the old `executing`-gate, SPEC-0070 §9.3): `plan check`\n    GREEN/YELLOW\
-  \ **+** the `implementation_plan` composed **+** the specs `proposed`. A corpus\
-  \ spec in a\n    DELIBERATE never-active terminal (`withdrawn`/`rejected`) is EXEMPT\
-  \ from this `proposed`/`active`\n    demand ( — a plan-born spec deliberately abandoned\
-  \ as a scope-cut must not block the plan;\n    symmetric with the postcheck `_plan_postcheck_exempt_specs`);\
-  \ a `draft`/`superseded`/`retired`\n    corpus spec still blocks. For a LARGE plan\
-  \ this gate carries the MANDATORY big-plan check — it\n    audits the plan TEXT\
-  \ + the `implementation_plan` decomposition MAP (the TEXT boundary, which sits\n\
-  \    BEFORE the cut; SPEC-0070 §7), so it belongs at the entry to the cut (see the\
-  \ dedicated subsection below).\n  - Work = the CUT (relocated from `executing`):\
-  \ cut the plan into tasks (SPEC-0046 decomposition\n    discipline — ONE provable\
-  \ claim per accept-unit; order via `requires:`; the verifier-after-settled\n   \
-  \ rule); each task then runs its OWN 9-stage lifecycle. The cut is a Build act via\
-  \ EXISTING verbs\n    (`task file` + `worktree new --task`) — no orchestrator/dispatcher\
-  \ (CHARTER non-goals #1/#7); that\n    \"no orchestrator/dispatcher\" disclaimer\
-  \ is about the CUT itself not being a stateful orchestrator,\n    it does NOT bear\
-  \ on HOW the cut cards are then BUILT (which is dispatch-default — see §executing\
-  \ Work). It SETS\n    `activation_owner_task` on each `proposed` spec (one activating\
-  \ task per spec — the HARD invariant;\n    the others `cite` it). Full procedure:\
-  \ the linkage chain below + the §\"Planning-artifact handling\" subsection.\n  -\
-  \ Exit gate (`decomposition → executing`) = the cut is verified — `_require_plan_decomposition_fidelity`:\n\
-  \    a FRESH GREEN/YELLOW external decomposition-fidelity verdict over the task\
-  \ SET (the SPEC-0036\n    `gate-executing` mandatory-blocking template — RED/ABORT\
-  \ HOLDS the transition; the 2-pass audit-loop\n    ceiling applies) whose canonical\
-  \ CARD-SET FINGERPRINT matches (REFUSE → re-audit on mismatch). WHAT it\n    audits\
-  \ (set-level coverage / cross-task `requires:` ordering / a singular `activation_owner_task`\
-  \ /\n    probe quality / no reopened-settled card — the blind-spot a per-task audit-pre\
-  \ cannot reach), the\n    fingerprint inputs, the claim-block (a card of a pre-`executing`\
-  \ plan is unclaimable), and the uniform\n    applicability (every plan transits\
-  \ — no skip path) are HOMED in SPEC-0070 §3-§6 — POINT here, not\n    restated (P5\
-  \ / SPEC-0005 rule 8).\n\n- **executing** *(plan-stage-entry:executing — task analog:\
-  \ Execution + Tests)*\n  - Entry gate (`decomposition → executing`): the decomposition-fidelity\
-  \ verdict is fresh +\n    fingerprint-matched (`_require_plan_decomposition_fidelity`,\
+  \ it.\n  - Work (REALIZATION-EXIT criteria, UP FRONT): ALSO compose the\n    plan's\
+  \ REALIZATION-EXIT criteria here — the postcheck probe block (observed-behaviour\
+  \ / min-runs /\n    failure-threshold / evidence-home) — the way a TASK authors\
+  \ its `acceptance` at FILING, not reactively\n    at postcheck entry. The plan declares\
+  \ HOW it will be proven realized BEFORE it is built. (The front-load\n    prompt\
+  \ is seeded even earlier, at `plan file` — SPEC-0043 §front-load; this is where\
+  \ the criteria are\n    CONFIRMED into the accepted plan.) This is authoring GUIDANCE,\
+  \ NOT a new gate: the obligation to declare\n    the probe block already lives at\
+  \ §postcheck (confirmed/refreshed at postcheck entry), so composing it at\n    `accepted`\
+  \ moves no mechanical REFUSAL earlier in the FSM — compliance is unchanged (in-place\
+  \ amend, not\n    a supersede — SPEC-0005 §7). The criteria stay author-declared\
+  \ + owner-judged; no parser/gate enforces them.\n  - Side-effect (`plan stage accepted`):\
+  \ the plan's `draft` specs are BORN\n    `proposed`; GATED on a FRESH GREEN/YELLOW\
+  \ `plan check` (the accept-gate,\n    freshness = a content hash — the mirror of\
+  \ `decision accept`).\n  - **Accept-gate covers the draft specs vs the corpus (\
+  \ — closes the activation-before-finalize\n    content-audit hole).** A PLAN-BORN\
+  \ spec governs only when `active`, but it reaches `active` via its\n    activation_owner_task\
+  \ close (an ADOPTION probe, NOT a content audit) — so without this, its OWN\n  \
+  \  content first gets a dedicated external audit only at `plan stage realized` (`audit\
+  \ post --plan`),\n    LATE. The accept-gate `plan check` therefore AUDITS the plan's\
+  \ PLAN-BORN draft specs\n    (`proposed_by==slug AND status==draft` — the SAME set\
+  \ `_birth_plan_draft_specs` births) against the\n    active+proposed corpus for\
+  \ overlap / duplication / contradiction (P7 / one-active-lineage),\n    and the\
+  \ draft→proposed BIRTH is GATED on it: a draft spec that conflicts/duplicates the\
+  \ corpus is\n    NOT born — rework first. Freshness reflects the draft specs + the\
+  \ corpus CONTENT too: editing a draft spec OR a corpus spec after the check invalidates\n\
+  \    the accept gate (re-run `plan check`). SCOPE = the PLAN-BORN path ONLY — a\
+  \ WORK-FIRST spec\n    (`proposed_by==<task>`) is content-audited by its own task's\
+  \ audit-pre/post and is NOT\n    double-audited here.\n  - **A partial corpus read\
+  \ never renders as a full pass (X-0706).** The accept-gate corpus\n    block is\
+  \ byte-bounded (`_CORPUS_BLOCK_BUDGET`) so it can never overflow the auditor — that\
+  \ ceiling\n    STAYS. What must not stay silent is CROSSING it: a gate whose reach\
+  \ is shorter than its declared\n    scope is worse than a gate that refuses. So\
+  \ whenever the gate's reach falls short of the corpus it\n    claims to judge —\
+  \ either MECHANICALLY (draft bodies / corpus rows dropped at the ceiling) or by\
+  \ the\n    auditor's OWN SELF-REPORT that it could not fully read or verify the\
+  \ corpus — `plan check` records\n    the shortfall STRUCTURALLY in the verdict (`corpus_coverage`,\
+  \ naming what was not reached) and\n    escalates a GREEN to YELLOW. Never RED:\
+  \ a partial read is a statement about CONFIDENCE, not a\n    proven defect (the\
+  \ posture SPEC-0082 settled for baseline-not-live). The shortfall may NOT live\n\
+  \    only in auditor prose, where it reads as a normal pass. STRICTLY CONDITIONAL\
+  \ — a gate that reached\n    the whole corpus (the ordinary small-plan path) records\
+  \ no key, gains no finding and keeps its\n    verdict byte-for-byte, so the honest\
+  \ floor taxes only the runs that actually fell short.\n    **Separate reservations,\
+  \ refuse rather than audit a partial subject (X-1529).** Draft\n    bodies and the\
+  \ corpus index do not share one first-fit pool: the index keeps a reserved share,\n\
+  \    the drafts fill the rest, and the drafts' RELATED comparands may use whatever\
+  \ remains. When the\n    drafts exceed their pool, or a related comparand no longer\
+  \ fits, `plan check` REFUSES BEFORE the\n    auditor — naming the budget and each\
+  \ draft's size, spending no pass — instead of letting the\n    auditor judge a plan\
+  \ whose drafts it never saw. Every shortfall reason names the budget and the\n \
+  \   measured sizes, and the block's fetch pointers carry the session's `-C <repo>`\
+  \ prefix so a\n    consumer's own spec ids resolve against the consumer corpus.\n\
+  \  - **A YELLOW residual is absorbed ONTO the verdict, not by editing the plan.**\
+  \ LIFECYCLE\n  Stage 4's two ways to absorb a YELLOW finding govern this gate too:\
+  \ (a) EDIT the plan — which\n  re-hashes the body, stales `content_hash` and forces\
+  \ a whole fresh FULL `plan check` — or (b)\n  RECORD the residual on the EXISTING\
+  \ accept-gate verdict without changing the plan. Mode (b)'s\n  governed route here\
+  \ is **`bin/yitc-v2 plan check --absorb \"<text>\" <slug>`**: it runs NO auditor,\n\
+  \  appends `absorbed:`/`notes:` on `decisions/<slug>-audit.yaml`, emits `audit_finding_absorbed`,\
+  \ and\n  leaves `verdict:` / `content_hash:` / `accept_freshness_hash:` / `passes:`\
+  \ byte-identical — so\n  `plan stage accepted` still accepts that record and NO\
+  \ ceiling pass is burned (SPEC-0124\n  §Audit-loop ceiling; mode (a) is the only\
+  \ mode that generates a pass, unchanged). It is the SAME\n  writer, on the SAME\
+  \ record, as `audit pre --plan <slug> --gate trial-accepted --absorb`\n  — a plan-check-shaped\
+  \ spelling of an existing route, not a second one. TWO REFUSALS, neither\n  loosened:\
+  \ a NON-YELLOW record (RED/ABORT = STOP: re-plan or escalate; GREEN carries no accepted\n\
+  \  finding), and a plan body that no longer matches the recorded `content_hash`\
+  \ — absorption after\n  body drift is REFUSED, because the cheap path is cheap only\
+  \ while the recorded verdict still\n  judges the CURRENT body. **A body edit therefore\
+  \ still forces a fresh `plan check`**, exactly as\n  before; what this removes is\
+  \ the extra FULL check paid when nothing about the plan changed.\n- **Plan check\
+  \ role (narrowed — SPEC-0035 rule 7).** For a trial-ELIGIBLE plan, `plan check`\
+  \ is NOT\n    the design-convergence gate: convergence evidence is produced in `trial`\
+  \ against the baked criteria,\n    and `plan check` at this accept-gate is the audit\
+  \ of the ASSEMBLED package (the plan + its composed\n    draft specs — incl. the\
+  \ corpus content-audit above), NOT the source of design-convergence.\n    Post-accept\
+  \ spec-rework driven by reality-vs-paper divergence is no longer a normal path —\
+  \ the cheap\n    pre-accept `trial` loop replaces it. (A non-eligible plan skipped\
+  \ trial, so its accept-gate `plan\n    check` is its only pre-accept verification,\
+  \ as before.)\n\n- **decomposition** *(plan-stage-entry:decomposition — task analog:\
+  \ the pre-build CUT + its fidelity gate; SPEC-0070)*\n  - Entry gate (`accepted\
+  \ → decomposition`) = the plan is verified — `_require_plan_decomposition_ready`:\
+  \ `plan check`\n    GREEN/YELLOW **+** the `implementation_plan` composed **+**\
+  \ the specs `proposed`. A corpus spec in a\n    DELIBERATE never-active terminal\
+  \ (`withdrawn`/`rejected`) is EXEMPT from this `proposed`/`active`\n    demand (\
+  \ — a plan-born spec deliberately abandoned as a scope-cut must not block the plan;\n\
+  \    symmetric with the postcheck `_plan_postcheck_exempt_specs`); a `draft`/`superseded`/`retired`\n\
+  \    corpus spec still blocks. For a LARGE plan this gate carries the MANDATORY\
+  \ big-plan check — it\n    audits the plan TEXT + the `implementation_plan` decomposition\
+  \ MAP (the TEXT boundary, which sits\n    BEFORE the cut; SPEC-0070 §7), so it belongs\
+  \ at the entry to the cut (see the dedicated subsection below).\n  - Work = the\
+  \ CUT (relocated from `executing`): cut the plan into tasks (SPEC-0046 decomposition\n\
+  \    discipline — ONE provable claim per accept-unit; order via `requires:`; the\
+  \ verifier-after-settled\n    rule); each task then runs its OWN 9-stage lifecycle.\
+  \ The cut is a Build act via EXISTING verbs\n    (`task file` + `worktree new --task`)\
+  \ — no orchestrator/dispatcher (CHARTER non-goals #1/#7); that\n    \"no orchestrator/dispatcher\"\
+  \ disclaimer is about the CUT itself not being a stateful orchestrator,\n    it\
+  \ does NOT bear on HOW the cut cards are then BUILT (which is dispatch-default —\
+  \ see §executing Work). It SETS\n    `activation_owner_task` on each `proposed`\
+  \ spec (one activating task per spec — the HARD invariant;\n    the others `cite`\
+  \ it). Full procedure: the linkage chain below + the §\"Planning-artifact handling\"\
+  \ subsection.\n  - Exit gate (`decomposition → executing`) = the cut is verified\
+  \ — `_require_plan_decomposition_fidelity`:\n    a FRESH GREEN/YELLOW external decomposition-fidelity\
+  \ verdict over the task SET (the SPEC-0036\n    `gate-executing` mandatory-blocking\
+  \ template — RED/ABORT HOLDS the transition; the 2-pass audit-loop\n    ceiling\
+  \ applies) whose canonical CARD-SET FINGERPRINT matches (REFUSE → re-audit on mismatch).\
+  \ WHAT it\n    audits (set-level coverage / cross-task `requires:` ordering / a\
+  \ singular `activation_owner_task` /\n    probe quality / no reopened-settled card\
+  \ — the blind-spot a per-task audit-pre cannot reach), the\n    fingerprint inputs,\
+  \ the claim-block (a card of a pre-`executing` plan is unclaimable), and the uniform\n\
+  \    applicability (every plan transits — no skip path) are HOMED in SPEC-0070 §3-§6\
+  \ — POINT here, not\n    restated (P5 / SPEC-0005 rule 8).\n\n- **executing** *(plan-stage-entry:executing\
+  \ — task analog: Execution + Tests)*\n  - Entry gate (`decomposition → executing`):\
+  \ the decomposition-fidelity verdict is fresh +\n    fingerprint-matched (`_require_plan_decomposition_fidelity`,\
   \ the §decomposition Exit gate above) **+**\n    the `plan-stage-entry:decomposition`\
   \ cut bundle was FETCHED this session (the read-gate on the\n    executing leg,\
   \ SPEC-0070 §8). The old readiness body (`plan check` / `implementation_plan` /\
@@ -310,68 +302,62 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \    This is the diff/paper-level \"shipped work matches the plan\" proof, the task-audit-post\
   \ analog at\n    corpus altitude. A RETIRE-ON-PROOF task is a task LINKED to the\
   \ plan by EITHER carrier —\n    `decomposed_from: <slug>` (the governed cut marker)\
-  \ OR `<slug>` as an element of its `cites:` —\n    carrying a `return_trigger` (:\
-  \ the SAME `_plan_tasks` union this gate's own membership has\n    used since. Keyed\
-  \ on `cites` alone the exemption read a DIFFERENT carrier than the set it\n    exempts\
-  \ over, so a card created by the governed cut path `task file --decomposed-from`\
-  \ and then\n    parked WITH a `return_trigger` was structurally UNEXEMPTABLE — it\
-  \ entered the blocking set by\n    `decomposed_from` and could never enter the exemption\
-  \ set) (deferred-by-\n    condition: \"retire the OLD mechanism once the NEW is\
-  \ proven 100%\"); while it is `parked` it does\n    NOT block ENTRY — postcheck\
-  \ IS the real-data soak that proves the new mechanism, so the stage must\n    be\
-  \ ENTERABLE while such a task is still parked (it is postcheck-EXIT payload, NOT\
-  \ an entry\n    prerequisite). An unrelated plain `parked` linked task (no `return_trigger`)\
-  \ STILL blocks\n    entry. The `realized` EXIT gate is what requires the retire-on-proof\
-  \ tasks resolved (see below).\n  - Work: exercise the plan on real data ×N + external\
-  \ monitoring \"works as intended\"; absorb\n    corrections (fix-tasks → re-run\
-  \ → re-observe; the re-run is `audit post --plan`, admitted at status `postcheck`\
-  \ to REFRESH a stale-signature verdict during the soak —; the stage HOLDS `postcheck`\
-  \ until convergence).\n  - Each plan's postcheck probe block — its REALIZATION-EXIT\
-  \ criteria (observed-behaviour / min-runs /\n    failure-threshold / evidence-home)\
-  \ — is AUTHORED UP FRONT at `accepted` (§accepted), the way a TASK\n    authors\
-  \ its `acceptance` at filing; postcheck ENTRY CONFIRMS/refreshes it, it is NOT improvised\
-  \ at entry.\n    `real-data ×N` stays owner-judged per plan, NEVER a hardcoded global\
-  \ count. These are the AUTHOR-DECLARED,\n    owner-judged criteria — NOT a coded\
-  \ gate: the postcheck soak is owner-judged real data (no parser/gate\n    enforces\
-  \ the authored numbers). The readiness view (`postcheck-plans-readiness`) reports\
-  \ the 3\n    CODED realize-exit clauses (finalization-ready / retire-on-proof-resolved\
-  \ / captures-routed) ALONGSIDE\n    these author-declared criteria — the view SURFACES,\
-  \ this clause DEFINES; neither enforces the soak count.\n  - **Dispositionless-infra-closure\
-  \ backstop (read-only DETECTION).** The same\n    `postcheck-plans-readiness` view\
-  \ ALSO reports a read-only ADVISORY — `dispositionless_infra_closures`:\n    the\
-  \ plan's infra-class cited tasks that CLOSED with NO forward-propagation disposition\
-  \ recorded. The\n    propagation-disposition RULE itself is SPEC-0053 (the required-disposition\
-  \ presence-gate at infra\n    `task close`) — POINTER, not restated here (P5, one\
-  \ home — see `graph query SPEC-0053`). Because\n    SPEC-0053's presence-gate makes\
-  \ a FRESH infra close without a `propagation_disposition` structurally\n    impossible,\
-  \ this backstop targets ONLY the legacy / emergency-bypass / pre-gate anomalies\
-  \ (closures\n    that predate or bypassed the gate). It is REPORT-ONLY — it NEVER\
-  \ refuses a closure or a plan\n    transition and is NOT a `realize_ready` clause:\
-  \ a read-only detection, NOT a second enforcement path\n    (CHARTER non-goal #7;\
-  \ the same surface-not-gate posture as the captures-routed advisory above).\n\n\
-  - **realized** *(plan-stage-entry:realized — task analog: Closure; TERMINAL)*\n\
-  \  - Entry gate: the real-data soak CONFIRMS works-as-intended. For a spec-bearing\
-  \ plan this is the\n    `plan stage realized` finalization gate — a fresh GREEN/YELLOW\
-  \ `audit post --plan`\n    over the realized-spec corpus (born `proposed_by==slug`\
-  \ OR activated by an implementing task —\n). Requires `--into <artifact IDs>` (what\
-  \ the plan became; writes reverse `cites:` links).\n    Clause (a) requires every\
-  \ `proposed_by` spec to have REACHED `active` — current `active` OR a\n    post-active\
-  \ state (`superseded`/`retired`, reachable only AFTER `active` in the spec FSM,\
-  \ so they\n    PROVE the spec became normative); a never-active `proposed`/`draft`\n\
-  \    or any unknown status still BLOCKS (fail-closed whitelist). A `superseded`-after-active\n\
-  \    spec subsumed by lineage evolution (its content carried forward into the active\
-  \ head) thus no\n    longer false-refuses a plan whose intent IS realized. EXCEPTION\
-  \ : a DELIBERATE never-active\n    terminal (`withdrawn`/`rejected`) is EXEMPT —\
-  \ a deliberately-abandoned plan-born spec (a scope-cut\n    tracked as a follow-up)\
-  \ is not an unfinished promise, so it does not block `realized`; the\n    fail-closed\
-  \ property is unchanged for an unknown status (it is in neither the reached-active\n\
-  \    whitelist nor the deliberate-terminal exemption, so it still blocks).\n  -\
-  \ **`realized` = the NEW mechanism PROVEN (real-data soak) AND the OLD mechanism\
-  \ RETIRED.**\n    So this gate ALSO requires every RETIRE-ON-PROOF task (a task\
-  \ LINKED to the plan by EITHER\n    carrier — `decomposed_from` OR `cites` — carrying\
-  \ a `return_trigger`)\n    RESOLVED to a TERMINAL close — `done` OR `wont-do` (:\
-  \ a legitimately-abandoned retire-on-proof task carrying a wont_do_reason is as\
-  \ resolved as a done one — the old mechanism is retired either way) (`_require_plan_retire_on_proof_resolved`)\
+  \ OR `<slug>` as an element of its `cites:` —\n    carrying a `return_trigger` (deferred-by-\n\
+  \    condition: \"retire the OLD mechanism once the NEW is proven 100%\"); while\
+  \ it is `parked` it does\n    NOT block ENTRY — postcheck IS the real-data soak\
+  \ that proves the new mechanism, so the stage must\n    be ENTERABLE while such\
+  \ a task is still parked (it is postcheck-EXIT payload, NOT an entry\n    prerequisite).\
+  \ An unrelated plain `parked` linked task (no `return_trigger`) STILL blocks\n \
+  \   entry. The `realized` EXIT gate is what requires the retire-on-proof tasks resolved\
+  \ (see below).\n  - Work: exercise the plan on real data ×N + external monitoring\
+  \ \"works as intended\"; absorb\n    corrections (fix-tasks → re-run → re-observe;\
+  \ the re-run is `audit post --plan`, admitted at status `postcheck` to REFRESH a\
+  \ stale-signature verdict during the soak —; the stage HOLDS `postcheck` until convergence).\n\
+  \  - Each plan's postcheck probe block — its REALIZATION-EXIT criteria (observed-behaviour\
+  \ / min-runs /\n    failure-threshold / evidence-home) — is AUTHORED UP FRONT at\
+  \ `accepted` (§accepted), the way a TASK\n    authors its `acceptance` at filing;\
+  \ postcheck ENTRY CONFIRMS/refreshes it, it is NOT improvised at entry.\n    `real-data\
+  \ ×N` stays owner-judged per plan, NEVER a hardcoded global count. These are the\
+  \ AUTHOR-DECLARED,\n    owner-judged criteria — NOT a coded gate: the postcheck\
+  \ soak is owner-judged real data (no parser/gate\n    enforces the authored numbers).\
+  \ The readiness view (`postcheck-plans-readiness`) reports the 3\n    CODED realize-exit\
+  \ clauses (finalization-ready / retire-on-proof-resolved / captures-routed) ALONGSIDE\n\
+  \    these author-declared criteria — the view SURFACES, this clause DEFINES; neither\
+  \ enforces the soak count.\n  - **Dispositionless-infra-closure backstop (read-only\
+  \ DETECTION).** The same\n    `postcheck-plans-readiness` view ALSO reports a read-only\
+  \ ADVISORY — `dispositionless_infra_closures`:\n    the plan's infra-class cited\
+  \ tasks that CLOSED with NO forward-propagation disposition recorded. The\n    propagation-disposition\
+  \ RULE itself is SPEC-0053 (the required-disposition presence-gate at infra\n  \
+  \  `task close`) — POINTER, not restated here (P5, one home — see `graph query SPEC-0053`).\
+  \ Because\n    SPEC-0053's presence-gate makes a FRESH infra close without a `propagation_disposition`\
+  \ structurally\n    impossible, this backstop targets ONLY the legacy / emergency-bypass\
+  \ / pre-gate anomalies (closures\n    that predate or bypassed the gate). It is\
+  \ REPORT-ONLY — it NEVER refuses a closure or a plan\n    transition and is NOT\
+  \ a `realize_ready` clause: a read-only detection, NOT a second enforcement path\n\
+  \    (CHARTER non-goal #7; the same surface-not-gate posture as the captures-routed\
+  \ advisory above).\n\n- **realized** *(plan-stage-entry:realized — task analog:\
+  \ Closure; TERMINAL)*\n  - Entry gate: the real-data soak CONFIRMS works-as-intended.\
+  \ For a spec-bearing plan this is the\n    `plan stage realized` finalization gate\
+  \ — a fresh GREEN/YELLOW `audit post --plan`\n    over the realized-spec corpus\
+  \ (born `proposed_by==slug` OR activated by an implementing task —\n). Requires\
+  \ `--into <artifact IDs>` (what the plan became; writes reverse `cites:` links).\n\
+  \    Clause (a) requires every `proposed_by` spec to have REACHED `active` — current\
+  \ `active` OR a\n    post-active state (`superseded`/`retired`, reachable only AFTER\
+  \ `active` in the spec FSM, so they\n    PROVE the spec became normative); a never-active\
+  \ `proposed`/`draft`\n    or any unknown status still BLOCKS (fail-closed whitelist).\
+  \ A `superseded`-after-active\n    spec subsumed by lineage evolution (its content\
+  \ carried forward into the active head) thus no\n    longer false-refuses a plan\
+  \ whose intent IS realized. EXCEPTION : a DELIBERATE never-active\n    terminal\
+  \ (`withdrawn`/`rejected`) is EXEMPT — a deliberately-abandoned plan-born spec (a\
+  \ scope-cut\n    tracked as a follow-up) is not an unfinished promise, so it does\
+  \ not block `realized`; the\n    fail-closed property is unchanged for an unknown\
+  \ status (it is in neither the reached-active\n    whitelist nor the deliberate-terminal\
+  \ exemption, so it still blocks).\n  - **`realized` = the NEW mechanism PROVEN (real-data\
+  \ soak) AND the OLD mechanism RETIRED.**\n    So this gate ALSO requires every RETIRE-ON-PROOF\
+  \ task (a task LINKED to the plan by EITHER\n    carrier — `decomposed_from` OR\
+  \ `cites` — carrying a `return_trigger`)\n    RESOLVED to a TERMINAL close — `done`\
+  \ OR `wont-do` (: a legitimately-abandoned retire-on-proof task carrying a wont_do_reason\
+  \ is as resolved as a done one — the old mechanism is retired either way) (`_require_plan_retire_on_proof_resolved`)\
   \ — keyed on the retire-on-proof set\n    being TERMINAL (done|wont-do), NOT merely\
   \ no-longer-parked, so a task moved off `parked` but unfinished cannot slip.\n \
   \   A non-terminal (parked/ready/blocked/in-progress) retire-on-proof task means\
@@ -434,22 +420,17 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ stage chain\n    ran) closes ONLY as `cancelled`/`rejected` with `--reason` naming\
   \ the absorbing artifact — NOT\n    `realized`. `realized` is reserved for a plan\
   \ that ran its OWN stage chain to `postcheck` (the FSM\n    already enforces this:\
-  \ `realized` is reachable only from `postcheck`). This retires the old draft→\n\
-  \    realized jump the `plan close` shim allowed (the `plan-close-shim-ungated-terminal-jump-draft-to-realized`\n\
-  \    deviation); with the shim removed there is no longer any path to a never-executed\
-  \ `realized`.\n\n### Realized-by-record — the soak-OUTSIDE-the-FSM terminal (X-0048)\n\
-  A `trial`/record plan whose prototype was BUILT + soaked + handed-off **OUTSIDE\
-  \ its own\ndecomposition** (the productization shipped elsewhere — e.g. the kernel\
-  \ side via a cross-task) has\nNO clean FSM terminal: driving it `draft → … → realized`\
-  \ is retroactive ceremony over already-shipped\nwork, and the build-oriented gates\
-  \ (the `gate-specs` MANDATORY-BLOCKING audit, the decomposition cut)\nREFUSE — they\
-  \ RED on «nothing left to build project-side». The pre- workaround was to close\
-  \ such\na plan with a closure-record blockquote AT `status: draft` (<project>, N≥2:\
-  \ ui-enhancement-procedure +\ndeploy) — an UNGOVERNED terminal invisible to the\
-  \ FSM. **That draft-blockquote workaround is RETIRED.**\n\nThe governed terminal:\
-  \ **`plan stage realized --by-record --into <IDs> --soak-evidence <ref>\n--handoff\
-  \ <ref>`** — reachable from ANY active stage (like the wont-do terminals), it closes\
-  \ the plan\nto `realized` with a `realized_by: record` marker, BYPASSING the build-oriented\
+  \ `realized` is reachable only from `postcheck`).\n\n### Realized-by-record — the\
+  \ soak-OUTSIDE-the-FSM terminal (X-0048)\nA `trial`/record plan whose prototype\
+  \ was BUILT + soaked + handed-off **OUTSIDE its own\ndecomposition** (the productization\
+  \ shipped elsewhere — e.g. the kernel side via a cross-task) has\nNO clean FSM terminal:\
+  \ driving it `draft → … → realized` is retroactive ceremony over already-shipped\n\
+  work, and the build-oriented gates (the `gate-specs` MANDATORY-BLOCKING audit, the\
+  \ decomposition cut)\nREFUSE — they RED on «nothing left to build project-side».\
+  \ **That draft-blockquote workaround is RETIRED.**\n\nThe governed terminal: **`plan\
+  \ stage realized --by-record --into <IDs> --soak-evidence <ref>\n--handoff <ref>`**\
+  \ — reachable from ANY active stage (like the wont-do terminals), it closes the\
+  \ plan\nto `realized` with a `realized_by: record` marker, BYPASSING the build-oriented\
   \ finalization gate (the\naggregate `audit post --plan`) and substituting it with\
   \ TWO requirements: (i) an EXPLICIT\neligibility declaration, and (ii) EXISTING\
   \ soak-proof + handoff evidence:\n  - **Eligibility declaration (the predicate —\
@@ -469,31 +450,26 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ REQUIRED + non-empty; a plan that CANNOT supply them is REFUSED the shortcut and\n\
   must take the normal FSM path (the gates are NOT loosened for an unproven plan —\
   \ the evidence\nrequirement IS the gate, mirroring the owner-judgement model of\
-  \ `trial → accepted`, SPEC-0035 rule 5).\nThe terminal is journaled (`plan_stage_entered\
-  \ {to: realized, realized_by: record}` + the legacy\n`draft_closed` carrying `realized_by`/`soak_evidence`/`handoff`).\n\
-  \n**FSM edge + recorded state (the governed surface).** EDGE: under `--by-record`,\
-  \ `realized` is an\nedge from ANY active stage (`draft|specs|trial|accepted|decomposition|executing|postcheck`);\
-  \ WITHOUT\n`--by-record`, `realized` stays the strict linear successor of `postcheck`\
-  \ (unchanged). CLI: `plan\nstage realized --by-record --into <IDs> --soak-evidence\
-  \ <ref> --handoff <ref> [--note …]` (`--into`,\n`--soak-evidence`, `--handoff` all\
-  \ REQUIRED + non-empty under `--by-record`). RECORDED frontmatter\nfields (the persisted\
-  \ state schema this terminal writes): `status: realized`, `realized_by: record`,\n\
-  `soak_evidence: <ref>`, `handoff: <ref>`, `closed_into: [<IDs>]` (the standard `close_note`).\
-  \ These\nfields are additive (absent on a normally-finalized `realized` plan → the\
-  \ standard finalization-gate\npath).\n\n**Coherence with §Terminals «never-executed-plan\
-  \ close».** That clause forbids a\n`realized` for a plan that NEVER had its real-data\
-  \ soak — the retired ungated draft→realized jump was a\nnever-PROVEN realize. `--by-record`\
-  \ is NOT that jump: it is gated on EXISTING soak-proof, so the soak\nWAS done (outside\
-  \ the FSM, with evidence), not skipped. `realized` still means «the new mechanism\n\
-  proven» (§realized) — `--by-record` only relocates WHERE the proof lives (external\
-  \ evidence vs the\nplan's own `postcheck` run), never waives it. A plan lacking\
-  \ the evidence still closes only as\n`cancelled`/`rejected` per the clause.\n\n\
-  **Coherence with SPEC-0035 (trial) + SPEC-0083 (gate policy) — intentionally UNAFFECTED.**\
-  \ SPEC-0035\n`trial` semantics are unchanged: `--by-record` does NOT enter or alter\
-  \ the `trial` stage — it is a\nterminal close reachable from any active stage, and\
-  \ a plan MAY take it whether or not it ever entered\n`trial` (the <project> instances\
-  \ RED'd at `gate-specs` BEFORE `trial`, so requiring trial-status would\ndefeat\
-  \ the purpose). SPEC-0083 gate-policy is unchanged: the MANDATORY-BLOCKING `gate-specs`\
+  \ `trial → accepted`, SPEC-0035 rule 5).\n\n**FSM edge + recorded state (the governed\
+  \ surface).** EDGE: under `--by-record`, `realized` is an\nedge from ANY active\
+  \ stage (`draft|specs|trial|accepted|decomposition|executing|postcheck`); WITHOUT\n\
+  `--by-record`, `realized` stays the strict linear successor of `postcheck` (unchanged).\
+  \ CLI: `plan\nstage realized --by-record --into <IDs> --soak-evidence <ref> --handoff\
+  \ <ref> [--note …]` (`--into`,\n`--soak-evidence`, `--handoff` all REQUIRED + non-empty\
+  \ under `--by-record`). These\nfields are additive (absent on a normally-finalized\
+  \ `realized` plan → the standard finalization-gate\npath).\n\n**Coherence with §Terminals\
+  \ «never-executed-plan close».** That clause forbids a\n`realized` for a plan that\
+  \ NEVER had its real-data soak — the retired ungated draft→realized jump was a\n\
+  never-PROVEN realize. `--by-record` is NOT that jump: it is gated on EXISTING soak-proof,\
+  \ so the soak\nWAS done (outside the FSM, with evidence), not skipped. `realized`\
+  \ still means «the new mechanism\nproven» (§realized) — `--by-record` only relocates\
+  \ WHERE the proof lives (external evidence vs the\nplan's own `postcheck` run),\
+  \ never waives it. A plan lacking the evidence still closes only as\n`cancelled`/`rejected`\
+  \ per the clause.\n\n**Coherence with SPEC-0035 (trial) + SPEC-0083 (gate policy)\
+  \ — intentionally UNAFFECTED.** SPEC-0035\n`trial` semantics are unchanged: `--by-record`\
+  \ does NOT enter or alter the `trial` stage — it is a\nterminal close reachable\
+  \ from any active stage, and a plan MAY take it whether or not it ever entered\n\
+  `trial`. SPEC-0083 gate-policy is unchanged: the MANDATORY-BLOCKING `gate-specs`\
   \ /\n`gate-trial` / decomposition-fidelity gates still govern the LINEAR build path\
   \ — `--by-record` does\nnot run them (that is the point: the soak happened outside\
   \ the FSM), so it neither weakens nor\nre-defines them. The bypass is SCOPED to\
@@ -517,14 +493,12 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ the `realized` gate reads it (it does NOT re-derive per-capture\nrouting — routing\
   \ is the AI/owner's judgement, the verb only reports + watermarks §3/§5).\n\n###\
   \ The plan↔spec linkage chain (born → activate → finalize) — ONE consolidated view\n\
-  The authoritative CONSOLIDATED VIEW of how a plan and its specs chain together —\
-  \ the picture that\npreviously required reading 4 surfaces (GRAPH §spec-schema +\
-  \ §Spec-lifecycle + `patterns/plan-lifecycle.md`\n+ SPEC-0005 §5). This is a VIEW\
-  \ for navigation + comprehension; each EDGE's normative rule stays homed\nwhere\
-  \ it already lives (cited inline) — NOT a second normative home (CHARTER §P5 / SPEC-0005\
-  \ rule 8).\n\n    plan(draft/specs) ──births──▶ spec(draft) authored during draft/specs\n\
-  \       │ plan stage accepted proposed_by = <plan slug> (provenance/corpus)\n  \
-  \     ▼ (accept-gate: fresh plan check)\n    spec(proposed) ──activation_owner_task\
+  The authoritative CONSOLIDATED VIEW of how a plan and its specs chain together.\
+  \ This is a VIEW for navigation + comprehension; each EDGE's normative rule stays\
+  \ homed\nwhere it already lives (cited inline) — NOT a second normative home (CHARTER\
+  \ §P5 / SPEC-0005 rule 8).\n\n    plan(draft/specs) ──births──▶ spec(draft) authored\
+  \ during draft/specs\n       │ plan stage accepted proposed_by = <plan slug> (provenance/corpus)\n\
+  \       ▼ (accept-gate: fresh plan check)\n    spec(proposed) ──activation_owner_task\
   \ = T-XXXX──▶ task close ──▶ spec(active)\n       │ one activating task per proposed\
   \ spec (HARD invariant B6);\n       │ supersedes/requires order between sibling\
   \ proposers ( B6)\n       ▼\n    plan stage <terminal> --into … ──writes reverse\
@@ -581,21 +555,20 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ + the EXISTING `plan\ncheck` large-detection; it adds no new gate engine — CHARTER\
   \ §P1.)\n\n### Planning-artifact handling — idea sibling, file shape, anti-patterns\n\
   The plan-lifecycle home ALSO governs the sibling `idea` class, the on-disk file\
-  \ shape, and the\nplanning-hygiene anti-patterns (consolidated here from the retired\
-  \ `patterns/plan-lifecycle.md` — single normative home, P5). The plan FSM, the verbs,\
-  \ the accept-gate, the audit-post\nfinalization, and the decomposition procedure\
-  \ are NOT restated here — they ARE the per-stage\nmechanics + linkage chain above\
-  \ (consolidate, do NOT duplicate).\n\n- **`idea` sibling class (flat — NO FSM).**\
-  \ `ideas/<slug>.md` is a forward-looking holding pen: no\n  FSM, no checks, no accept/finalize\
-  \ gates; sessions NEVER scan / pick / analyze it (the picker reads\n  `tasks/` ONLY)\
-  \ unless the owner explicitly asks. `plan file --idea` creates one; `plan to-idea\
-  \ <slug>`\n  moves a plan that turns out to be «not now, maybe later» into `ideas/`.\
-  \ An idea becomes actionable\n  only when an incident pulls it — re-file it as a\
-  \ plan (manual) then. Holding it here is the\n  anti-accretion default; promoting\
-  \ it prematurely is scope-creep (anti-pattern below).\n\n- **File shape (markdown\
-  \ + frontmatter).** A plan/idea is a small `---` frontmatter block (machine-read\n\
-  \  for accounting + the `plan` graph node) over prose (human-read); `id` = the slug\
-  \ (no numeric id —\n  patterns precedent). The terminal frontmatter CARRIERS: `realized`/`partial`\
+  \ shape, and the\nplanning-hygiene anti-patterns. The plan FSM, the verbs, the accept-gate,\
+  \ the audit-post\nfinalization, and the decomposition procedure are NOT restated\
+  \ here — they ARE the per-stage\nmechanics + linkage chain above (consolidate, do\
+  \ NOT duplicate).\n\n- **`idea` sibling class (flat — NO FSM).** `ideas/<slug>.md`\
+  \ is a forward-looking holding pen: no\n  FSM, no checks, no accept/finalize gates;\
+  \ sessions NEVER scan / pick / analyze it (the picker reads\n  `tasks/` ONLY) unless\
+  \ the owner explicitly asks. `plan file --idea` creates one; `plan to-idea <slug>`\n\
+  \  moves a plan that turns out to be «not now, maybe later» into `ideas/`. An idea\
+  \ becomes actionable\n  only when an incident pulls it — re-file it as a plan (manual)\
+  \ then. Holding it here is the\n  anti-accretion default; promoting it prematurely\
+  \ is scope-creep (anti-pattern below).\n\n- **File shape (markdown + frontmatter).**\
+  \ A plan/idea is a small `---` frontmatter block (machine-read\n  for accounting\
+  \ + the `plan` graph node) over prose (human-read); `id` = the slug (no numeric\
+  \ id —\n  patterns precedent). The terminal frontmatter CARRIERS: `realized`/`partial`\
   \ → `closed_into: [D-/T-…]`\n  (what it became); `partial` additionally → `deferred:\
   \ <new-plan-slug>` (the remainder — a tracked\n  plan, never prose); `rejected`\
   \ → `rejected_reason: <one line>`. (Terminal plans stay in\n  `plans/`, status-filtered\

@@ -64,23 +64,17 @@ body: "## Scenario\n\nIn a long INTERACTIVE session the context fills up. The se
   . It is\nNOT `MEMORY.md` and never a buffer entry (SPEC-0039 §0).\n\n**What is state.**\
   \ The hand-off FILES are the sole open/closed lifecycle state: a file present =\n\
   open. The allocator reservation is id bookkeeping only; journal rows are history\
-  \ only and never\nchange state.\n\n**Journal rows — never the title or text.** `sha256`\
-  \ is SHA-256 over the exact stored `H-<N>.md`\nbytes (after redaction and final\
-  \ serialization) and `bytes` is their length; every terminal row\nhashes those same\
-  \ unchanged bytes before the rename/delete, so written and taken rows pair by\n\
-  id + sha256. `handoff_written {id, sha256, bytes}` ·\n`handoff_taken {id, sha256}`\
-  \ · `handoff_dropped {id, sha256}` · `handoff_expired {id, sha256,\nage_days}`;\
-  \ the acting session travels on the resolved event envelope (`session_ref`).\n\n\
-  **Guards.** `write` / `take` / `drop` require the strict fail-closed governance-key\
-  \ resolver\n(SPEC-0137) — an absent or ambiguous identity is refused. `author_session_ref`\
-  \ is durable v2\nprovenance usable for journal filtering, NOT a guaranteed provider-session\
-  \ locator. `take` / `drop` admit only `^H-[1-9][0-9]*$`; the resolved path's parent\
-  \ must be\nexactly the anchored store; a non-regular file or a symlink is refused.\
-  \ The title must be non-blank (non-empty after stripping whitespace),\nat most 120\
-  \ UTF-8 bytes, one line, with no CR/LF or control characters, and\ncarry NO credential\
-  \ (a title the credential-redaction boundary would change is REFUSED, not\nredacted).\
-  \ The body must be non-blank after redaction\n(original bytes preserved); credentials\
-  \ in the body are REDACTED and\ncounted. The whole file is at most 32 KiB. Any refusal\
+  \ only and never\nchange state.\n\n**Guards.** `write` / `take` / `drop` require\
+  \ the strict fail-closed governance-key resolver\n(SPEC-0137) — an absent or ambiguous\
+  \ identity is refused. `author_session_ref` is durable v2\nprovenance usable for\
+  \ journal filtering, NOT a guaranteed provider-session locator. `take` / `drop`\
+  \ admit only `^H-[1-9][0-9]*$`; the resolved path's parent must be\nexactly the\
+  \ anchored store; a non-regular file or a symlink is refused. The title must be\
+  \ non-blank (non-empty after stripping whitespace),\nat most 120 UTF-8 bytes, one\
+  \ line, with no CR/LF or control characters, and\ncarry NO credential (a title the\
+  \ credential-redaction boundary would change is REFUSED, not\nredacted). The body\
+  \ must be non-blank after redaction\n(original bytes preserved); credentials in\
+  \ the body are REDACTED and\ncounted. The whole file is at most 32 KiB. Any refusal\
   \ leaves no file and no row — never truncated.\nAll verbs are refused in a dispatched-worker\
   \ context.\n\n**One shared entry loader** serves list, session start, cleanup, take\
   \ and drop: `lstat` first; the\ncanonical `H-<N>.md` name; the exact resolved parent;\
@@ -155,26 +149,36 @@ body: "## Scenario\n\nIn a long INTERACTIVE session the context fills up. The se
   \ per-project store with opportunistic cleanup, deleted on take; the journal records\
   \ only that it\nhappened. It reuses the journal event mechanism, the shared id allocator,\
   \ the redaction boundary and\nthe git-common-dir placement of machine-local state\
-  \ (the graph result cache) — no new journal, parser\nor committed store.\n\n## Verification\n\
-  \n- **VP1 (seed delivered):** after activation, `session start` stdout carries a\
-  \ seed line with THIS id.\n- **VP2 (survival re-pointed):** AGENTS.md §After /compact\
-  \ and `<provider-config>/commands/yitc.md` §After\n  /compact name THIS id and `session\
-  \ handoff list` → grep both.\n- **VP3 (no text in the journal):** a canary string\
-  \ in a hand-off's title and text appears in no\n  journal row (segment-aware `journal\
-  \ query --grep`).\n- **VP4 (single taker):** two concurrent `take` of one id → exactly\
-  \ one prints; one `handoff_taken`.\n- **VP5 (gone after take):** after `take` no\
-  \ file for that id exists in the store.\n- **VP5a (guards):** a traversal / malformed\
-  \ / symlinked id; a blank (empty or whitespace-only) /\n  oversize / multiline /\
-  \ control-char / credential-bearing title; a blank body; a malformed or\n  symlinked\
-  \ store entry met by list / session start / cleanup (skipped, never followed, start\
-  \ never\n  aborts); and an absent identity are each refused\n  with no file and\
-  \ no row; a credential in the body is redacted and counted; the created file's mode\n\
-  \  is 0o600 when no ACL or shared mode applies; written/taken rows of one hand-off\
-  \ carry the same sha256 of the stored bytes.\n- **VP6 (two-phase telemetry):** a\
-  \ declined telemetry proposal leaves no file and no row.\n- **VP7 (per project):**\
-  \ under `-C <consumer>` the file lands in THAT repo's git common-dir and the\n \
-  \ rows in THAT repo's journal; a hand-off written from a linked worktree lists from\
-  \ the main checkout.\n- **VP8 (supersession honest):** `supersedes: <workshop-spec>`;\
+  \ (the graph result cache) — no new journal, parser\nor committed store.\n\n## Implementation\
+  \ notes\n\n### Moved from the rule text\n\nReference and maintainer passages moved\
+  \ word for word out of the rule text of the section\neach names; no rule an acting\
+  \ reader applies moved with them.\n\nFrom «4. The carrier — a minimal, best-effort\
+  \ per-project hand-off store»:\n\n**Journal rows — never the title or text.** `sha256`\
+  \ is SHA-256 over the exact stored `H-<N>.md`\nbytes (after redaction and final\
+  \ serialization) and `bytes` is their length; every terminal row\nhashes those same\
+  \ unchanged bytes before the rename/delete, so written and taken rows pair by\n\
+  id + sha256. `handoff_written {id, sha256, bytes}` ·\n`handoff_taken {id, sha256}`\
+  \ · `handoff_dropped {id, sha256}` · `handoff_expired {id, sha256,\nage_days}`;\
+  \ the acting session travels on the resolved event envelope (`session_ref`).\n\n\
+  ## Verification\n\n- **VP1 (seed delivered):** after activation, `session start`\
+  \ stdout carries a seed line with THIS id.\n- **VP2 (survival re-pointed):** AGENTS.md\
+  \ §After /compact and `<provider-config>/commands/yitc.md` §After\n  /compact name\
+  \ THIS id and `session handoff list` → grep both.\n- **VP3 (no text in the journal):**\
+  \ a canary string in a hand-off's title and text appears in no\n  journal row (segment-aware\
+  \ `journal query --grep`).\n- **VP4 (single taker):** two concurrent `take` of one\
+  \ id → exactly one prints; one `handoff_taken`.\n- **VP5 (gone after take):** after\
+  \ `take` no file for that id exists in the store.\n- **VP5a (guards):** a traversal\
+  \ / malformed / symlinked id; a blank (empty or whitespace-only) /\n  oversize /\
+  \ multiline / control-char / credential-bearing title; a blank body; a malformed\
+  \ or\n  symlinked store entry met by list / session start / cleanup (skipped, never\
+  \ followed, start never\n  aborts); and an absent identity are each refused\n  with\
+  \ no file and no row; a credential in the body is redacted and counted; the created\
+  \ file's mode\n  is 0o600 when no ACL or shared mode applies; written/taken rows\
+  \ of one hand-off carry the same sha256 of the stored bytes.\n- **VP6 (two-phase\
+  \ telemetry):** a declined telemetry proposal leaves no file and no row.\n- **VP7\
+  \ (per project):** under `-C <consumer>` the file lands in THAT repo's git common-dir\
+  \ and the\n  rows in THAT repo's journal; a hand-off written from a linked worktree\
+  \ lists from the main checkout.\n- **VP8 (supersession honest):** `supersedes: <workshop-spec>`;\
   \ on activation <workshop-spec> → superseded.\n"
 cites:
 - CHARTER.md#principle-1

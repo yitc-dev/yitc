@@ -312,7 +312,7 @@ All stages (especially 1, 3, 5) apply CHARTER Principle 1 filters:
 4. **Real incident?** If imagined necessity — defer.
 
 ## Scenario authoring (pointer — per SPEC-0076)
-<!--AUDIENCE:core-->
+<!--AUDIENCE:controller-->
 
 A **scenario** (`scenarios/<slug>.md`, the 7th graph node) is the human-facing user-path artifact —
 zero-normative narration that `cites` the specs where every rule lives. It is NOT a lifecycle stage;

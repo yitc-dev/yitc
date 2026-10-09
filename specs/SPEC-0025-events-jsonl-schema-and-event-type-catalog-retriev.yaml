@@ -63,62 +63,53 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ recovery-by-pairing fallback above is\nwhat reads those). The ONE exempt live\
   \ shape is named at §tests_passed: a hand-authored\n`--evidence` with no run attached,\
   \ which measured nothing and must not fabricate a 0.\n\n### Required event types\
-  \ (LIFECYCLE references)\n\n**audit_pre_completed** (Stage 4):\n```jsonc\n{\"ts\"\
-  : \"\", \"type\": \"audit_pre_completed\", \"task_id\": \"\",\n \"data\": {\"verdict\"\
-  : \"GREEN\", \"findings_count\": 0, \"duration_ms\": 61234,\n          \"saved_to\"\
-  : \"decisions/-audit-pre.yaml\"}}\n```\n\n**external_audit_completed** (Stages 4\
-  \ + 8 + ad-hoc):\n```jsonc\n{\"ts\": \"\", \"type\": \"external_audit_completed\"\
-  , \"task_id\": \"\",\n \"data\": {\"stage\": \"pre\", \"verdict\": \"GREEN\", \"\
-  absorbed\": 0, \"followups_filed\": [],\n          \"duration_ms\": 61234}}\n```\n\
-  \n**audit_self_provider_used** (Stages 4 + 8 + ad-hoc + consult — every gate, per\
-  \ SPEC-0201 rule 2):\n```jsonc\n{\"ts\": \"\", \"type\": \"audit_self_provider_used\"\
-  , \"task_id\": \"\",\n \"data\": {\"target_kind\": \"task\", \"target_id\": \"\"\
-  , \"stage\": \"pre\", \"tier\": \"routine\",\n          \"provider\": \"<the auditor's\
-  \ resolved provider>\", \"model\": \"<the model the adapter ran>\",\n          \"\
-  primary_provider\": \"<the primary AI's provider for this session>\"}}\n```\nONE\
-  \ row per SAME-PROVIDER audit — the audit ran on the primary AI's own provider because\
-  \ NO external\nprovider resolved for the tier. It is the journal counterpart of\
-  \ the verdict's\n`auditor_independence: same-provider` stamp (SPEC-0036 §Saved audit\
-  \ result), emitted at the SAME\nsingle invocation chokepoint; an `external` audit\
-  \ emits NOTHING. The payload is exactly these SEVEN\nkeys: `target_kind` (task |\
-  \ plan | ad-hoc) · `target_id` (the audited node id) · `stage`\n(pre | post | ad-hoc\
-  \ | consult-*) · `tier` (the audit tier resolved for this invocation) ·\n`provider`\
-  \ (the auditor's resolved provider) · `model` (the model the adapter actually ran)\
-  \ ·\n`primary_provider` (the primary AI's provider for this session; the value the\
-  \ stamp compared\n`provider` against). Provider-neutral by construction — the values\
-  \ are resolved identifiers, and no\nbrand name is named in this catalog. The row\
-  \ is what makes «how often did this install audit itself?»\nanswerable from the\
-  \ durable journal rather than from a count of verdict files. Rule home:\n`bin/yitc-v2\
-  \ graph query SPEC-0201`.\n\n**CATALOGUED BEFORE ITS EMITTER, deliberately** — the\
-  \ emitter is (`bin/lib/audit.py`), and\nthis row is the definition that emitter\
-  \ writes against. Same discipline, and the same reason, as\n`ceiling_decision` (SPEC-0161\
-  \ §Roster): the card that BIRTHS a shared payload owns its definition\nfirst, so\
-  \ the writers that follow cannot each agree with one another and disagree with the\
-  \ catalog.\nUntil that emitter lands, no live row carries this type — additive and\
-  \ P5-safe.\n\n**external_audit_completed — the ELEVEN CEILING-CONSULT EPISODE FIELDS\
-  \ (<workshop-spec> rule 9, added\nINERT by / plan card C4).** An EXTENSION of THIS\
-  \ event, never a new event type (CHARTER §P1\nF1/F2). They ride a `stage: consult-*`\
-  \ row and make the post-ceiling consult's quality measurable\nfrom the DURABLE journal:\
-  \ the consult RECORD at `saved_to` is rewritten in place by every round, so\na fold\
-  \ built on it would see only each episode's last round — the row is where the per-round\
-  \ truth\nhas to live (rule 9's B13), and `saved_to` stays provenance only.\n\nADDED\
+  \ (LIFECYCLE references)\n\n**audit_self_provider_used** (Stages 4 + 8 + ad-hoc\
+  \ + consult — every gate, per SPEC-0201 rule 2):\n```jsonc\n{\"ts\": \"\", \"type\"\
+  : \"audit_self_provider_used\", \"task_id\": \"\",\n \"data\": {\"target_kind\"\
+  : \"task\", \"target_id\": \"\", \"stage\": \"pre\", \"tier\": \"routine\",\n  \
+  \        \"provider\": \"<the auditor's resolved provider>\", \"model\": \"<the\
+  \ model the adapter ran>\",\n          \"primary_provider\": \"<the primary AI's\
+  \ provider for this session>\"}}\n```\nONE row per SAME-PROVIDER audit — the audit\
+  \ ran on the primary AI's own provider because NO external\nprovider resolved for\
+  \ the tier. It is the journal counterpart of the verdict's\n`auditor_independence:\
+  \ same-provider` stamp (SPEC-0036 §Saved audit result), emitted at the SAME\nsingle\
+  \ invocation chokepoint; an `external` audit emits NOTHING. The payload is exactly\
+  \ these SEVEN\nkeys: `target_kind` (task | plan | ad-hoc) · `target_id` (the audited\
+  \ node id) · `stage`\n(pre | post | ad-hoc | consult-*) · `tier` (the audit tier\
+  \ resolved for this invocation) ·\n`provider` (the auditor's resolved provider)\
+  \ · `model` (the model the adapter actually ran) ·\n`primary_provider` (the primary\
+  \ AI's provider for this session; the value the stamp compared\n`provider` against).\
+  \ Provider-neutral by construction — the values are resolved identifiers, and no\n\
+  brand name is named in this catalog. The row is what makes «how often did this install\
+  \ audit itself?»\nanswerable from the durable journal rather than from a count of\
+  \ verdict files. Rule home:\n`bin/yitc-v2 graph query SPEC-0201`.\n\n**CATALOGUED\
+  \ BEFORE ITS EMITTER, deliberately** — the emitter is (`bin/lib/audit.py`), and\n\
+  this row is the definition that emitter writes against. Same discipline, and the\
+  \ same reason, as\n`ceiling_decision` (SPEC-0161 §Roster): the card that BIRTHS\
+  \ a shared payload owns its definition\nfirst, so the writers that follow cannot\
+  \ each agree with one another and disagree with the catalog.\nUntil that emitter\
+  \ lands, no live row carries this type — additive and P5-safe.\n\n**external_audit_completed\
+  \ — the ELEVEN CEILING-CONSULT EPISODE FIELDS (defined by rule 9 of\n<workshop-spec>,\
+  \ now superseded, and added INERT by / plan card C4).** An EXTENSION of THIS\nevent,\
+  \ never a new event type (CHARTER §P1 F1/F2). They ride a `stage: consult-*` row\
+  \ and make the\npost-ceiling consult's quality measurable from the DURABLE journal:\
+  \ the consult RECORD at `saved_to`\nis rewritten in place by every round, so a fold\
+  \ built on it would see only each episode's last\nround — the row is where the per-round\
+  \ truth has to live (rule 9's B13), and `saved_to` stays\nprovenance only.\n\nADDED\
   \ INERT, AND THAT IS PART OF THE CONTRACT (rule 9's B11): as of the fields are DEFINED,\n\
   formatted (`bin/lib/audit_consult.py#consult_episode_row_fields`) and read by the\
   \ `consult-postcheck` saved\nview, and NO live row carries any of them — a live\
-  \ `audit consult` / auto-consult emits the legacy\nrow unchanged. The FIRST live\
-  \ emission is card C3's, which wires the emit together with\nthe prompt and the\
-  \ predicates, because <workshop-spec> rule 7 holds that a partially-landed state\
-  \ is not a\nvalid state of that contract. Every field below is therefore additive-optional\
-  \ and P5-safe: a\nconsumer that does not know them ignores them, and a legacy row\
-  \ carries none.\n\n- `episode_id` — rule 1's `<target>/<stage|gate>/<attempt n>`;\
-  \ the fold groups by this id MINUS its\n  attempt ordinal, i.e. by `(target, stage|gate)`.\n\
-  - `baseline_revision` — the basis fingerprint the frozen baseline was established\
-  \ at. Carried as its\n  OWN field, never as part of `episode_id`, so two episodes\
-  \ on the same basis never collide.\n- `round_kind`: baseline | retest — FIXED by\
-  \ the state BEFORE the call (rule 4), never by its\n  outcome. R counts rounds of\
-  \ kind `retest` ONLY, malformed or not.\n- `malformed` — true | false. A SEPARATE\
-  \ flag, never a kind: a malformed retest is still a retest\n  and still consumes\
-  \ R.\n- `r_after` — R after this round.\n- `malformed_count` — the episode-scoped\
+  \ `audit consult` / auto-consult emits the legacy\nrow unchanged. Every field below\
+  \ is therefore additive-optional and P5-safe: a consumer that does\nnot know them\
+  \ ignores them, and a legacy row carries none.\n\n- `episode_id` — rule 1's `<target>/<stage|gate>/<attempt\
+  \ n>`; the fold groups by this id MINUS its\n  attempt ordinal, i.e. by `(target,\
+  \ stage|gate)`.\n- `baseline_revision` — the basis fingerprint the frozen baseline\
+  \ was established at. Carried as its\n  OWN field, never as part of `episode_id`,\
+  \ so two episodes on the same basis never collide.\n- `round_kind`: baseline | retest\
+  \ — FIXED by the state BEFORE the call (rule 4), never by its\n  outcome. R counts\
+  \ rounds of kind `retest` ONLY, malformed or not.\n- `malformed` — true | false.\
+  \ A SEPARATE flag, never a kind: a malformed retest is still a retest\n  and still\
+  \ consumes R.\n- `r_after` — R after this round.\n- `malformed_count` — the episode-scoped\
   \ malformed tally (rule 2: ONE re-run per EPISODE, not per\n  basis).\n- `no_answer`\
   \ — true | false (rule 4 row 0a). TRUE when the round returned NO PAYLOAD at\n \
   \ all — an rc-124 wall-clock timeout, a normalized launch/transport failure, or\
@@ -218,46 +209,44 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ IS the\nbody-bound worked-through proof (provenance — only `plan draft --finalize`\
   \ emits it): `plan stage\nspecs` REQUIRES a fresh one whose `body_hash` matches\
   \ the current draft body (SPEC-0034 §draft/§specs,\nSPEC-0059 §First-stage-check-carrier-gap).\
-  \ Append-only + P5-safe\n(consumers ignore unknown keys).\n\n**task_closed** (Stage\
-  \ 9):\n```jsonc\n{\"ts\": \"\", \"type\": \"task_closed\", \"task_id\": \"\",\n\
-  \ \"data\": {\"commit\": \"<sha>\", \"probe_passed\": true, \"probes\": [{\"ac\"\
-  : \"AC1\", \"result\": \"pass\"}]}}\n```\n**Outcome observation fields (per SPEC-0135\
-  \ §3/§5 — additive, OPTIONAL, P5-safe).** `task_closed` MAY\nadditionally carry\
-  \ raw OUTCOME facts the observation loop counts (never a composite score — SPEC-0135\n\
-  §5 fence): `class` (str — the task's `class:`, e.g. `infra` | `product` | …, so\
-  \ outcomes slice by kind),\n`audited` (bool — whether the task ran the external-audit\
-  \ stages), `audit_passes` (int — the audit-loop\npass count reached, the discipline-friction\
-  \ proxy). All OPTIONAL raw facts / join keys only — no derived\nscore, no usage/cost\
-  \ (SPEC-0135 §3). Each OMITTED when unavailable; additive / P5-safe.\n\n**`exempted_case`\
-  \ — the CLOSURE end of the SPEC-0178 restoration join (additive, OPTIONAL).** A\
-  \ card\nclosed under a project-declared `audit_scrutiny` exemption case carries\
-  \ `exempted_case: <case name>`\n— the name of the case whose declaration let it\
-  \ close without audit-post (SPEC-0178 rule 4). OMITTED\nwhen the card closed under\
-  \ no case, so the key's presence is itself the honest signal.\n**The exact NAME\
-  \ is load-bearing, not cosmetic:** SPEC-0178 rule 5 computes a case's RESTORED/ACTIVE\n\
-  regime by joining an attribution to this field, so a closure record spelling it\
-  \ anything else\n(`case`, `audit_exemption`) is INVISIBLE to that join even though\
-  \ a human reading the row would see\nthe case perfectly well. **This is also why\
-  \ the ordinary unknown-key tolerance ( — consumers\nignore unknown keys) does NOT\
-  \ excuse leaving it uncatalogued:** tolerance is the right rule for a key\na reader\
-  \ may safely IGNORE, and this one is the opposite — a reader that treats it as an\
-  \ unknown\nextra computes the wrong regime, and a case that should have been restored\
-  \ keeps running.\n**Provenance discipline, inherited from the sibling keys:** `exempted_case`\
-  \ is ATTRIBUTION, so —\nexactly like `captured_via` and `actor` on the capture event\
-  \ below — it MUST NOT enter any\n`fingerprint`. A fingerprint absorbing the case\
-  \ name would fragment one recurrence class across\ncases and blind the very feedback\
-  \ rule 5 depends on.\n\n**deviation_captured** (capture model AGENTS.md; established,\
-  \ renaming `friction_captured` — the ONE capture event for any\nnonconformity; CLI-emitted\
-  \ by `event` + `audit run`):\n```jsonc\n{\"ts\": \"...\", \"type\": \"deviation_captured\"\
-  , \"task_id\": \"T-XXXX | E-XXXX | null\",\n \"data\": {\"kind\": \"defect|friction|improvement\
-  \ (OPTIONAL at capture — decided in triage, SPEC-0056; established by §2)\",\n \
-  \         \"relates_to\": \"<failure-class id and/or aspect>\",\n          \"impact\"\
-  : \"<WHAT is not as it should be — the deviation itself, in one subject-bearing\
-  \ line>\", \"fingerprint\": \"<source-INDEPENDENT recurrence key>\",\n         \
-  \ \"finding\": \"<one-line, present when via audit run>\", \"refs\": [\"events.jsonl#ts=...\"\
-  , \"<git-sha>\"],\n          \"captured_via\": \"manual | cli | audit-run | inspection\"\
-  ,\n          \"class\": \"<OPTIONAL CHARTER §AI failure class id 1..20 (SPEC-0023)\
-  \ — int, \\\"N\\\" or \\\"#N\\\"; stored as the int >\",\n          \"actor\": \"\
+  \ Append-only + P5-safe\n(consumers ignore unknown keys).\n\n**Outcome observation\
+  \ fields (per SPEC-0135 §3/§5 — additive, OPTIONAL, P5-safe).** `task_closed` MAY\n\
+  additionally carry raw OUTCOME facts the observation loop counts (never a composite\
+  \ score — SPEC-0135\n§5 fence): `class` (str — the task's `class:`, e.g. `infra`\
+  \ | `product` | …, so outcomes slice by kind),\n`audited` (bool — whether the task\
+  \ ran the external-audit stages), `audit_passes` (int — the audit-loop\npass count\
+  \ reached, the discipline-friction proxy). All OPTIONAL raw facts / join keys only\
+  \ — no derived\nscore, no usage/cost (SPEC-0135 §3). Each OMITTED when unavailable;\
+  \ additive / P5-safe.\n\n**`exempted_case` — the CLOSURE end of the SPEC-0178 restoration\
+  \ join (additive, OPTIONAL).** A card\nclosed under a project-declared `audit_scrutiny`\
+  \ exemption case carries `exempted_case: <case name>`\n— the name of the case whose\
+  \ declaration let it close without audit-post (SPEC-0178 rule 4). OMITTED\nwhen\
+  \ the card closed under no case, so the key's presence is itself the honest signal.\n\
+  **The exact NAME is load-bearing, not cosmetic:** SPEC-0178 rule 5 computes a case's\
+  \ RESTORED/ACTIVE\nregime by joining an attribution to this field, so a closure\
+  \ record spelling it anything else\n(`case`, `audit_exemption`) is INVISIBLE to\
+  \ that join even though a human reading the row would see\nthe case perfectly well.\
+  \ **This is also why the ordinary unknown-key tolerance ( — consumers\nignore unknown\
+  \ keys) does NOT excuse leaving it uncatalogued:** tolerance is the right rule for\
+  \ a key\na reader may safely IGNORE, and this one is the opposite — a reader that\
+  \ treats it as an unknown\nextra computes the wrong regime, and a case that should\
+  \ have been restored keeps running.\n**Provenance discipline, inherited from the\
+  \ sibling keys:** `exempted_case` is ATTRIBUTION, so —\nexactly like `captured_via`\
+  \ and `actor` on the capture event below — it MUST NOT enter any\n`fingerprint`.\
+  \ A fingerprint absorbing the case name would fragment one recurrence class across\n\
+  cases and blind the very feedback rule 5 depends on.\n\n**deviation_captured** (capture\
+  \ model AGENTS.md; established, renaming `friction_captured` — the ONE capture event\
+  \ for any\nnonconformity; CLI-emitted by `event` + `audit run`):\n```jsonc\n{\"\
+  ts\": \"...\", \"type\": \"deviation_captured\", \"task_id\": \"T-XXXX | E-XXXX\
+  \ | null\",\n \"data\": {\"kind\": \"defect|friction|improvement (OPTIONAL at capture\
+  \ — decided in triage, SPEC-0056; established by §2)\",\n          \"relates_to\"\
+  : \"<failure-class id and/or aspect>\",\n          \"impact\": \"<WHAT is not as\
+  \ it should be — the deviation itself, in one subject-bearing line>\", \"fingerprint\"\
+  : \"<source-INDEPENDENT recurrence key>\",\n          \"finding\": \"<one-line,\
+  \ present when via audit run>\", \"refs\": [\"events.jsonl#ts=...\", \"<git-sha>\"\
+  ],\n          \"captured_via\": \"manual | cli | audit-run | inspection\",\n   \
+  \       \"class\": \"<OPTIONAL CHARTER §AI failure class id 1..20 (SPEC-0023) —\
+  \ int, \\\"N\\\" or \\\"#N\\\"; stored as the int >\",\n          \"actor\": \"\
   <WHO captured it — DERIVED at emit, never asked for + never caller-supplied >\"\
   ,\n          \"inspection_theme\": \"<T1..T8 — present WHEN captured_via:inspection,\
   \ per SPEC-0057 (established)>\",\n          \"inspection_run_ref\": \"<the inspection\
@@ -462,13 +451,11 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ on EVERY deploy AND every rollback, so the\njournal names the current-live revision\
   \ — WHICH record that is (the latest PRODUCTION one) is the\nrule of SPEC-0094 §1,\
   \ pointed at here and not restated. `task_id` null (a\ndeploy is project-level,\
-  \ not task-tied).\n```jsonc\n{\"ts\": \"...\", \"type\": \"deploy_completed\",\n\
-  \ \"data\": {\"revision\": \"<git-sha left live + gate-verified>\", \"project\"\
-  : \"<slug>\",\n          \"kind\": \"deploy\" | \"rollback\"}}\n```\nAppend-only,\
-  \ P5-safe (consumers ignore unknown keys). The presence of this event is what\n\
-  distinguishes a GOVERNED deploy-via-verb from an off-path direct script run (which\
-  \ leaves no\n`deploy_completed`) — AGENTS §Verb-execution discipline.\n\n**security_audit_scope_stale**\
-  \ (per SPEC-0145 §5; emitted by `bin/yitc-v2 deploy` at the security\nseam — `bin/lib/deploy.py#_run_security_audit_seam`)\
+  \ not task-tied).\n\nAppend-only, P5-safe (consumers ignore unknown keys). The presence\
+  \ of this event is what\ndistinguishes a GOVERNED deploy-via-verb from an off-path\
+  \ direct script run (which leaves no\n`deploy_completed`) — AGENTS §Verb-execution\
+  \ discipline.\n\n**security_audit_scope_stale** (per SPEC-0145 §5; emitted by `bin/yitc-v2\
+  \ deploy` at the security\nseam — `bin/lib/deploy.py#_run_security_audit_seam`)\
   \ — the record of a CLASS-A deploy that\nPROCEEDED over a security report whose\
   \ profile check-set is a strict SUBSET of the CURRENT required\nset. The gate PASSED\
   \ (class A is code-only and trivially reversible — SPEC-0097 §2), so there is no\n\
@@ -508,80 +495,58 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ verb creates an annotated git tag on a LANDED main\ncommit, so a release (a registered\
   \ shared-lib project releases → consumers move their pin, SPEC-0122)\nis journal-visible.\
   \ `task_id` null (a release is project-level, not task-tied). Create+emit are\n\
-  failure-atomic: a tag never exists without this event.\n```jsonc\n{\"ts\": \"...\"\
-  , \"type\": \"release_tagged\",\n \"data\": {\"tag\": \"<annotated tag name, e.g.\
-  \ v1.2.0>\", \"sha\": \"<full sha of the tagged main commit>\",\n          \"project\"\
-  : \"<slug>\"}}\n```\nAppend-only, P5-safe (consumers ignore unknown keys). Its presence\
-  \ is what distinguishes a\nGOVERNED release-via-verb from an off-path raw `git tag\
-  \ -a` (which leaves no `release_tagged` — the\nX-0354 untracked-release gap) — AGENTS\
-  \ §Verb-execution discipline.\n\n**release_published** (per SPEC-0195 rule 5; emitted\
-  \ by `bin/yitc-v2 work publish`) — the\nrelease PUBLISH record: the SPEC-0073 kernel-realm\
-  \ slice was cut at a governed tag's peeled commit and\nwritten, with its manifest,\
-  \ into a destination checkout as one history-free commit. `task_id` null (a\nrelease\
-  \ is project-level, not task-tied), so a P8 reference to it takes the\n`release_published@<iso-ts>`\
-  \ pinned form.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_published\",\n \"\
-  data\": {\"tag\": \"<the source release tag>\", \"source_sha\": \"<full sha of the\
-  \ peeled commit>\",\n          \"tree_digest\": \"<sha256 of the artifact tree,\
-  \ EXCLUDING the manifest>\",\n          \"destination\": \"<absolute path of the\
-  \ destination checkout>\",\n          \"file_count\": <files in the cut>}}\n```\n\
-  The pair `release_tagged` -> `release_published` is a release's journal-visible\
-  \ provenance: the first\nsays WHICH commit was blessed, the second says what was\
-  \ actually cut from it and to what digest.\nBecause the cut is a pure function of\
-  \ the peeled commit, re-publishing the same tag emits a row\ncarrying the SAME `tree_digest`\
-  \ — so a differing digest for one tag is a real signal, not noise.\n\n**release_verified**\
-  \ / **release_installed** (per SPEC-0195 rules 6+7; emitted by `bin/yitc-v2\nrelease\
-  \ verify` and `release install`) — the CONSUMER-side half of the same provenance:\n\
-  where the two rows above record what the publisher CUT, these record what an installation\
-  \ actually\nCHECKED, and against which out-of-band anchor. `task_id` null (an install\
-  \ is project-level), so a\nP8 reference takes the `release_verified@<iso-ts>` pinned\
-  \ form.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_verified\",\n \"data\"\
-  : {\"destination\": \"<the published release directory>\",\n          \"anchor\"\
-  : \"<the OUT-OF-BAND trust-root fingerprint the adopter pinned>\",\n          \"\
-  ok\": <true|false>, \"signing_key\": \"<SHA256:... or null>\",\n          \"tag\"\
-  : \"<the manifest's source_ref, or null>\",\n          \"reasons\": [\"<refusal\
-  \ reason>\", \"...\"]}}\n```\n`release_installed` carries the same keys plus `into`\
-  \ (the directory the verified release was\ninstalled into).\n\n**release_updated**\
-  \ (per SPEC-0195 rule 8; emitted by `bin/yitc-v2 release update` — the emit\nshipped\
-  \ with, the verb reached the CLI with) — the THIRD adopter-side entrypoint's\nrow,\
-  \ on the same terms as the two above: `task_id` null, emitted on refusal as well\
-  \ as on success.\nIt carries the `release_installed` keys (`destination` / `into`\
-  \ / `anchor` / `ok` / `signing_key` /\n`tag` / `reasons`) and adds the update's\
-  \ OWN outcome — `from_ref` / `to_ref` (the release moved\nFROM and TO), the per-class\
-  \ counts `replaced` / `merged` / `preserved` / `skipped` / `conflicts`\n(rule 8's\
-  \ four classes plus the undecidable ones), the dropped-path counts `removed` / `kept`\n\
-  (paths the previous release shipped and the new one no longer carries — deleted,\
-  \ or left in place\nand named), and the SPEC-0196 override-ledger reading\n`ledger_status`\
+  failure-atomic: a tag never exists without this event.\n\nAppend-only, P5-safe (consumers\
+  \ ignore unknown keys). Its presence is what distinguishes a\nGOVERNED release-via-verb\
+  \ from an off-path raw `git tag -a` (which leaves no `release_tagged` — the\nX-0354\
+  \ untracked-release gap) — AGENTS §Verb-execution discipline.\n\n**release_published**\
+  \ (per SPEC-0195 rule 5; emitted by `bin/yitc-v2 work publish`) — the\nrelease PUBLISH\
+  \ record: the SPEC-0073 kernel-realm slice was cut at a governed tag's peeled commit\
+  \ and\nwritten, with its manifest, into a destination checkout as one history-free\
+  \ commit. `task_id` null (a\nrelease is project-level, not task-tied), so a P8 reference\
+  \ to it takes the\n`release_published@<iso-ts>` pinned form.\n\nThe pair `release_tagged`\
+  \ -> `release_published` is a release's journal-visible provenance: the first\n\
+  says WHICH commit was blessed, the second says what was actually cut from it and\
+  \ to what digest.\nBecause the cut is a pure function of the peeled commit, re-publishing\
+  \ the same tag emits a row\ncarrying the SAME `tree_digest` — so a differing digest\
+  \ for one tag is a real signal, not noise.\n\n**release_verified** / **release_installed**\
+  \ (per SPEC-0195 rules 6+7; emitted by `bin/yitc-v2\nrelease verify` and `release\
+  \ install`) — the CONSUMER-side half of the same provenance:\nwhere the two rows\
+  \ above record what the publisher CUT, these record what an installation actually\n\
+  CHECKED, and against which out-of-band anchor. `task_id` null (an install is project-level),\
+  \ so a\nP8 reference takes the `release_verified@<iso-ts>` pinned form.\n```jsonc\n\
+  {\"ts\": \"...\", \"type\": \"release_verified\",\n \"data\": {\"destination\":\
+  \ \"<the published release directory>\",\n          \"anchor\": \"<the OUT-OF-BAND\
+  \ trust-root fingerprint the adopter pinned>\",\n          \"ok\": <true|false>,\
+  \ \"signing_key\": \"<SHA256:... or null>\",\n          \"tag\": \"<the manifest's\
+  \ source_ref, or null>\",\n          \"reasons\": [\"<refusal reason>\", \"...\"\
+  ]}}\n```\n`release_installed` carries the same keys plus `into` (the directory the\
+  \ verified release was\ninstalled into).\n\n**release_updated** (per SPEC-0195 rule\
+  \ 8; emitted by `bin/yitc-v2 release update` — the emit\nshipped with, the verb\
+  \ reached the CLI with) — the THIRD adopter-side entrypoint's\nrow, on the same\
+  \ terms as the two above: `task_id` null, emitted on refusal as well as on success.\n\
+  It carries the `release_installed` keys (`destination` / `into` / `anchor` / `ok`\
+  \ / `signing_key` /\n`tag` / `reasons`) and adds the update's OWN outcome — `from_ref`\
+  \ / `to_ref` (the release moved\nFROM and TO), the per-class counts `replaced` /\
+  \ `merged` / `preserved` / `skipped` / `conflicts`\n(rule 8's four classes plus\
+  \ the undecidable ones), the dropped-path counts `removed` / `kept`\n(paths the\
+  \ previous release shipped and the new one no longer carries — deleted, or left\
+  \ in place\nand named), and the SPEC-0196 override-ledger reading\n`ledger_status`\
   \ / `ledger_findings`. Those last two RIDE THIS ROW rather than emitting a second\n\
   one (CHARTER §P1 F2): \"did this update happen, and what did it find\" has one answer\
-  \ and one row.\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_updated\",\n \"\
-  data\": {\"destination\": \"<the published release N+1 directory>\",\n         \
-  \ \"into\": \"<the existing install being moved forward>\",\n          \"anchor\"\
-  : \"<the OUT-OF-BAND trust-root fingerprint>\", \"ok\": <true|false>,\n        \
-  \  \"from_ref\": \"<the release moved FROM, or null when no base was supplied>\"\
-  ,\n          \"to_ref\": \"<the release moved TO>\",\n          \"replaced\": <upstream-owned>,\
-  \ \"merged\": <template-owned>, \"preserved\": <n>,\n          \"skipped\": <consumer-owned,\
-  \ never written>, \"conflicts\": <n>,\n          \"removed\": <dropped by the new\
-  \ release, deleted>, \"kept\": <dropped, left in place>,\n          \"ledger_status\"\
-  : \"<the SPEC-0196 override-ledger reading>\",\n          \"ledger_findings\": <n>,\n\
-  \          \"reasons\": [\"<refusal reason>\", \"...\"]}}\n```\n\nALL THREE ROWS\
-  \ ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and that is the point: a\nrefused\
-  \ verification is the security-relevant event, so a journal that recorded only successes\n\
-  would be silent about exactly the attempts worth reading. `ok: false` rows carry\
-  \ the `reasons` the\noperator saw — a tampered artifact, a trust root that failed\
-  \ against the anchor, a revoked signing\nkey named with its revocation.\n\n**live_probe_passed**\
-  \ (per SPEC-0094 §4; emitted by `bin/yitc-v2 liveprobe`) — the\nper-change live-adoption\
-  \ PROOF. Emitted ONLY when a task's declarative read-only `live_probe` GET\n(the\
-  \ SPEC-0028 task-YAML assertion) returns the expected status (optional body-contains)\
-  \ against\nproduction, run at the DEPLOY seam. A FAILING probe leaves NO event (the\
-  \ change is NOT confirmed\nlive). `task_id` = the probed task (the proof is per-change,\
-  \ unlike the project-level\n`deploy_completed`). The no-follow/redirect dialect\
-  \ (SPEC-0094 §4) adds an OPTIONAL\n`location` field recording the matched immediate-redirect\
-  \ `Location` (present only for an\n`expect_location` assertion against a redirect\
-  \ status).\n```jsonc\n{\"ts\": \"...\", \"type\": \"live_probe_passed\", \"task_id\"\
-  : \"T-XXXX\",\n \"data\": {\"task\": \"T-XXXX\", \"revision\": \"<git-sha at probe\
-  \ time>\", \"project\": \"<slug>\",\n          \"url\": \"<resolved GET target>\"\
-  , \"expect_status\": <int>, \"actual_status\": <int>,\n          \"location\": \"\
-  <matched Location — OPTIONAL, no-follow redirect dialect only>\"}}\n```\nAppend-only,\
+  \ and one row.\n\nALL THREE ROWS ARE EMITTED ON REFUSAL AS WELL AS ON SUCCESS, and\
+  \ that is the point: a\nrefused verification is the security-relevant event, so\
+  \ a journal that recorded only successes\nwould be silent about exactly the attempts\
+  \ worth reading. `ok: false` rows carry the `reasons` the\noperator saw — a tampered\
+  \ artifact, a trust root that failed against the anchor, a revoked signing\nkey\
+  \ named with its revocation.\n\n**live_probe_passed** (per SPEC-0094 §4; emitted\
+  \ by `bin/yitc-v2 liveprobe`) — the\nper-change live-adoption PROOF. Emitted ONLY\
+  \ when a task's declarative read-only `live_probe` GET\n(the SPEC-0028 task-YAML\
+  \ assertion) returns the expected status (optional body-contains) against\nproduction,\
+  \ run at the DEPLOY seam. A FAILING probe leaves NO event (the change is NOT confirmed\n\
+  live). `task_id` = the probed task (the proof is per-change, unlike the project-level\n\
+  `deploy_completed`). The no-follow/redirect dialect (SPEC-0094 §4) adds an OPTIONAL\n\
+  `location` field recording the matched immediate-redirect `Location` (present only\
+  \ for an\n`expect_location` assertion against a redirect status).\n\nAppend-only,\
   \ P5-safe (consumers ignore unknown keys).\n\nThe SAME event type is emitted on\
   \ the ATTESTED REPORT path (per SPEC-0094 §4b) — a live\nproof the PROJECT itself\
   \ ran at its own gate, GRADED by the kernel, which issues no request of its\nown\
@@ -596,13 +561,8 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ one — it is the opposite — so it is deliberately absent from every\nprobe-evidence\
   \ set that discharges a debt, and a card recording it STAYS on the overdue-recheck\n\
   lens marked `failing`, with no date test. (Distinct from a failing kernel GET, which\
-  \ still emits\nnothing at all: that path has no reported reading to record.)\n```jsonc\n\
-  {\"ts\": \"...\", \"type\": \"live_probe_failed\", \"task_id\": \"T-XXXX\",\n \"\
-  data\": {\"task\": \"T-XXXX\", \"revision\": \"<git-sha at report time>\", \"project\"\
-  : \"<slug>\",\n          \"attested\": \"<the instrument the project ran>\", \"\
-  runs_at\": \"<where it is gated>\",\n          \"asserts\": \"<what it proves>\"\
-  , \"reported\": true,\n          \"detail\": \"<what the reading said — OPTIONAL>\"\
-  }}\n```\nAppend-only, P5-safe (consumers ignore unknown keys).\n\n**task_live_probe_declared**\
+  \ still emits\nnothing at all: that path has no reported reading to record.)\n\n\
+  Append-only, P5-safe (consumers ignore unknown keys).\n\n**task_live_probe_declared**\
   \ (per SPEC-0094 §3/§4b; the card field is the SPEC-0028 `live_probe`) —\nONE row\
   \ per GOVERNED write of a card's `live_probe` declaration, by the task verbs that\
   \ own it\n(`task update` sets an assertion or a waiver; `task close` settles a waiver,\
@@ -636,109 +596,99 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ (per SPEC-0125) — `init` re-stamped one or more consumer vendor-adapter /\nproject-context\
   \ homes whose title still carried the unfilled `<project>` placeholder with the\n\
   real project name. Project-level (no `task_id`); emitted only for a re-stamp actually\
-  \ applied in\nthat run, riding init's own bootstrap commit.\n```jsonc\n{\"ts\":\
-  \ \"...\", \"type\": \"adapter_restamped\", \"task_id\": null,\n \"data\": {\"path\"\
-  : \"<consumer repo root>\", \"scaffolds\": [\"<vendor-adapter>.md\", \"...\"],\n\
-  \          \"project_name\": \"<repo name>\"}}\n```\nAppend-only, P5-safe (consumers\
-  \ ignore unknown keys).\n\n**security_live_probe_passed** (per SPEC-0098 §3; emitted\
-  \ by `bin/yitc-v2 liveprobe` for a SECURITY\nlive-probe — the SPEC-0098 §1 header/cookie\
-  \ dialect) — the Class-S adoption PROOF: a named security\nPROPERTY was asserted\
-  \ read-only at the deploy seam and HOLDS (auth still required / no CORS header leaked\
-  \ /\na required security header present / a session cookie host-only+Secure+HttpOnly).\
+  \ applied in\nthat run, riding init's own bootstrap commit.\n\nAppend-only, P5-safe\
+  \ (consumers ignore unknown keys).\n\n**security_live_probe_passed** (per SPEC-0098\
+  \ §3; emitted by `bin/yitc-v2 liveprobe` for a SECURITY\nlive-probe — the SPEC-0098\
+  \ §1 header/cookie dialect) — the Class-S adoption PROOF: a named security\nPROPERTY\
+  \ was asserted read-only at the deploy seam and HOLDS (auth still required / no\
+  \ CORS header leaked /\na required security header present / a session cookie host-only+Secure+HttpOnly).\
   \ Emitted ONLY on a PASS;\na probeable property that does NOT hold leaves NO event\
   \ (the security violation blocks adoption). The\n`data` payload is fixed by the\
   \ SPEC-0098 §3 contract — `{property, url, project, expect, actual}` — with\nNO\
   \ `task` key inside `data`; task identity rides the universal TOP-LEVEL `task_id`\
   \ (same as every\nlifecycle event), so attribution is not lost despite the contract-fixed\
-  \ `data` shape.\n```jsonc\n{\"ts\": \"...\", \"type\": \"security_live_probe_passed\"\
-  , \"task_id\": \"T-XXXX\",\n \"data\": {\"property\": \"<security-property name>\"\
-  , \"url\": \"<resolved GET target>\", \"project\": \"<slug>\",\n          \"expect\"\
-  : \"<asserted summary>\", \"actual\": \"<observed summary>\"}}\n```\n**security_live_probe_escalated**\
-  \ (per SPEC-0098 §2/§3; emitted by `bin/yitc-v2 liveprobe`) — fail-closed\nowner-escalation\
-  \ evidence: a declared security property CANNOT be asserted by a read-only GET (an\n\
-  un-probeable `{property, unprobeable: <reason>}` live_probe form), so the deploy\
-  \ escalates to the owner\nrather than silently passing. The runner emits this event\
-  \ and exits non-zero — un-probeable is NEVER\ntreated as passed. `data` is fixed\
-  \ by SPEC-0098 §3 — `{property, project, reason}`; task identity rides\nthe top-level\
-  \ `task_id`.\n```jsonc\n{\"ts\": \"...\", \"type\": \"security_live_probe_escalated\"\
-  , \"task_id\": \"T-XXXX\",\n \"data\": {\"property\": \"<security-property name>\"\
-  , \"project\": \"<slug>\", \"reason\": \"<why un-probeable>\"}}\n```\nBoth are additive\
-  \ + P5-safe (no existing event changes; consumers ignore unknown types/keys).\n\n\
-  **host-config apply evidences** (per SPEC-0111 / SPEC-0094 §3; emitted by `bin/yitc-v2\
-  \ hostapply` —\n) — the THREE task-scoped evidences the host-config three-evidence\
-  \ close-gate requires. Each is\ncarry the PROVENANCE TAG `emitter: \"hostapply\"\
-  ` in `data`; in normal governed operation ONLY the\nSPEC-0111 helper emits these\
-  \ three types. The tag blocks ABSENT/INCIDENTAL evidence at the close-gate; it\n\
-  is a provenance marker on the operator-trusted journal, NOT an unforgeable signature\
-  \ (per-event\nanti-forgery is deliberately not added — CHARTER §P1, no incident;\
-  \ the whole journal is operator-trusted).\nAll three carry the top-level `task_id`;\
-  \ `data` always includes `{emitter: \"hostapply\", task, project}`.\n- **apply_confirmed**\
-  \ — the OWNER human-apply confirmation (the manual-path form of evidence (1),\n\
-  \  SPEC-0111 §1/§5); emitted only with `--confirm`. `data` adds `{targets: [<vhost\
-  \ paths>]}`.\n- **host_health_sweep_passed** — the server-wide post-apply health\
-  \ sweep passed (no baseline-healthy\n  domain regressed, SPEC-0111 §3). `data` adds\
-  \ `{domains_checked: <int>, healthy: <int>}`.\n- **host_reconciliation_recorded**\
+  \ `data` shape.\n\n**security_live_probe_escalated** (per SPEC-0098 §2/§3; emitted\
+  \ by `bin/yitc-v2 liveprobe`) — fail-closed\nowner-escalation evidence: a declared\
+  \ security property CANNOT be asserted by a read-only GET (an\nun-probeable `{property,\
+  \ unprobeable: <reason>}` live_probe form), so the deploy escalates to the owner\n\
+  rather than silently passing. The runner emits this event and exits non-zero — un-probeable\
+  \ is NEVER\ntreated as passed. `data` is fixed by SPEC-0098 §3 — `{property, project,\
+  \ reason}`; task identity rides\nthe top-level `task_id`.\n```jsonc\n{\"ts\": \"\
+  ...\", \"type\": \"security_live_probe_escalated\", \"task_id\": \"T-XXXX\",\n \"\
+  data\": {\"property\": \"<security-property name>\", \"project\": \"<slug>\", \"\
+  reason\": \"<why un-probeable>\"}}\n```\nBoth are additive + P5-safe (no existing\
+  \ event changes; consumers ignore unknown types/keys).\n\n**host-config apply evidences**\
+  \ (per SPEC-0111 / SPEC-0094 §3; emitted by `bin/yitc-v2 hostapply` —\n) — the THREE\
+  \ task-scoped evidences the host-config three-evidence close-gate requires. Each\
+  \ is\ncarry the PROVENANCE TAG `emitter: \"hostapply\"` in `data`; in normal governed\
+  \ operation ONLY the\nSPEC-0111 helper emits these three types. The tag blocks ABSENT/INCIDENTAL\
+  \ evidence at the close-gate; it\nis a provenance marker on the operator-trusted\
+  \ journal, NOT an unforgeable signature (per-event\nanti-forgery is deliberately\
+  \ not added — CHARTER §P1, no incident; the whole journal is operator-trusted).\n\
+  All three carry the top-level `task_id`; `data` always includes `{emitter: \"hostapply\"\
+  , task, project}`.\n- **apply_confirmed** — the OWNER human-apply confirmation (the\
+  \ manual-path form of evidence (1),\n  SPEC-0111 §1/§5); emitted only with `--confirm`.\
+  \ `data` adds `{targets: [<vhost paths>]}`.\n- **host_health_sweep_passed** — the\
+  \ server-wide post-apply health sweep passed (no baseline-healthy\n  domain regressed,\
+  \ SPEC-0111 §3). `data` adds `{domains_checked: <int>, healthy: <int>}`.\n- **host_reconciliation_recorded**\
   \ — the live effective config reflects the shipped conf (repo-conf ==\n  live-conf\
   \ via `nginx -T`, no shared-resource clobber, SPEC-0111 §4). `data` adds\n  `{server_names:\
-  \ [...], clobbered: false}`.\n```jsonc\n{\"ts\": \"...\", \"type\": \"host_health_sweep_passed\"\
-  , \"task_id\": \"T-XXXX\",\n \"data\": {\"emitter\": \"hostapply\", \"task\": \"\
-  T-XXXX\", \"project\": \"<slug>\", \"domains_checked\": 7, \"healthy\": 7}}\n```\n\
-  Additive + P5-safe (no existing event changes; consumers ignore unknown types/keys).\n\
-  \n**`governing_contract`** (delivery-observability field, per SPEC-0013 §Delivery-observability)\
-  \ — carried in `data` by the floor-gated lifecycle events (`spec_filed`, `spec_edited`,\n\
-  `task_picked` claim-marker, `commit_landed`, `task_closed`, `audit_{stage}_completed`,\n\
-  `scenario_filed`). A\ndeterministic binding-derived PROJECTION of WHICH contract\
-  \ governs that gate — fixed shape\n`{specs: [...], status: resolved|derivation-failed}`\
-  \ (`_governing_contract_for`). It records the\nGOVERNING contract, NOT read-evidence\
-  \ that the AI consumed/read it (the honest name).\nRENAMED from `consumed_contract`\
-  \ on 2026-06-05; historical journal lines KEEP\n`consumed_contract` (append-only)\
-  \ — a reader handles BOTH keys by `ts` (additive / P5-safe).\nThe `{specs, status}`\
-  \ dict is the ONE documented shape EVERY emitter now writes ( normalized the\n`spec_edited`\
-  \ + `scenario_filed` emitters that historically wrote a BARE `[SPEC-NNNN]` list);\
-  \ historical\npre- lines keep that bare-list form (append-only) — a reader stays\
-  \ tolerant, treating a bare list\nas `{specs: <list>, status: resolved}` (additive\
-  \ / P5-safe).\n\n**worktree_created** (amending) — emitted by `bin/yitc-v2 worktree\
-  \ new` after the\nworktree is created, bound to the MAIN checkout's journal. `data:\
-  \ {branch, path, leaf, session_ref, started_at}`;\nNO `task_id`. **Spike exception\
-  \ (SPEC-0205 rules 1-2):** for a declared `--spike` batch the row\ncarries `spike:\
-  \ true` and is published BEFORE `git worktree add` (so without `started_at`); the\
-  \ worktree\nstamp's `declared_row` is its projection, and a failed add is retired\
-  \ by `worktree_create_failed`\n(same ts ref). Payload keys + the compensating type:\
-  \ SPEC-0161.\nMakes verb-vs-raw-git worktree creation observable: a worktree WITHOUT\
-  \ a matching `worktree_created`\nevent = **missing control-point evidence** (it\
-  \ was likely made with raw `git worktree`), a SOFT signal\nfor human/AI judgement\
-  \ — NOT a definitive bypass (the raw `git worktree` recovery path stays legitimate).\n\
-  No checker/gate is wired (deferred — Principle 1 F4).\n\n**merge_resolved_by_hand**\
-  \ — emitted by `bin/yitc-v2 worktree sync --resolved`, ONCE,\nimmediately after\
-  \ it commits an update-from-main merge whose non-union conflicts a HUMAN resolved.\n\
-  Bound to the journal of the WORKTREE it ran in (the merge is on that branch, and\
-  \ the row rides the\nsame land fold as every other worktree-side append). `task_id`\
-  \ = the task for a `task/` branch, else\nnull. `data: {branch, main_sha, merge_commit,\
-  \ head_before, resolved, resolved_source, worktree}` —\n`main_sha` is the `MERGE_HEAD`\
-  \ actually merged (not a re-read of the moving ref), `resolved` is the\nlist of\
-  \ paths that conflicted, and `resolved_source` names WHERE that list came from:\
-  \ `merge-msg`\n(git's own `# Conflicts:` record for this merge — the exact set)\
-  \ or `staged-delta` (the fallback\nsuperset, every path the merge staged). A reader\
-  \ MUST honour that distinction rather than treating\nevery list as exact.\nWHY IT\
-  \ EXISTS: `land` refuses before the queue on a non-union conflict and `worktree\
-  \ sync` stops on\nthe same class, but the RESOLUTION was raw git — three hand merges\
-  \ on 2026-09-10 alone, each\nleaving the journal no record of what a human changed.\
-  \ AGENTS §Verb-execution discipline forbids\nhand-doing what a verb covers; this\
-  \ row is what makes the covering verb's work visible.\nWHAT A READER MAY CONCLUDE:\
-  \ that these paths were resolved by a human, in that merge, by that\nsession. **What\
-  \ it is NOT:** it is NOT evidence the resolution is CORRECT (no verb judges that),\
-  \ and\nit is explicitly NOT an audit-currency exemption — a hand resolution is authored\
-  \ content, so\nSPEC-0077 §3a demands the re-audit exactly as before (`_offending_drift_is_merge_produced`\
-  \ names\nthis case as precisely what the rule exists to refuse). The row makes the\
-  \ shift ATTRIBUTABLE, and\n`_land_audited_footprint_split` CITES it report-only\
-  \ for that reason; a consumer that read it to\nADMIT such a path would invert the\
-  \ rule. No checker/gate is wired (Principle 1 F4). Append-only,\nP5-safe (consumers\
-  \ ignore unknown keys).\n**worktree_children_reaped** — emitted by `bin/yitc-v2\
-  \ worktree park --confirm-dead`\n(the shared `_assert_no_live_holder` gate), bound\
-  \ to the MAIN checkout's journal; `task_id` = the\nparked task where there is one.\
-  \ Records the teardown of a DEAD holder session's ORPHAN processes: the\nlive-cwd\
-  \ guard refuses while ANYTHING holds the worktree as its working directory, which\
-  \ is\nright for a mid-Stage-6 holder and wrong for an orphan — X-1350 (<project>,\
+  \ [...], clobbered: false}`.\n\nAdditive + P5-safe (no existing event changes; consumers\
+  \ ignore unknown types/keys).\n\n**`governing_contract`** (delivery-observability\
+  \ field, per SPEC-0013 §Delivery-observability) — carried in `data` by the floor-gated\
+  \ lifecycle events (`spec_filed`, `spec_edited`,\n`task_picked` claim-marker, `commit_landed`,\
+  \ `task_closed`, `audit_{stage}_completed`,\n`scenario_filed`). A\ndeterministic\
+  \ binding-derived PROJECTION of WHICH contract governs that gate — fixed shape\n\
+  `{specs: [...], status: resolved|derivation-failed}` (`_governing_contract_for`).\
+  \ It records the\nGOVERNING contract, NOT read-evidence that the AI consumed/read\
+  \ it (the honest name).\nRENAMED from `consumed_contract` on 2026-06-05; historical\
+  \ journal lines KEEP\n`consumed_contract` (append-only) — a reader handles BOTH\
+  \ keys by `ts` (additive / P5-safe).\nThe `{specs, status}` dict is the ONE documented\
+  \ shape EVERY emitter now writes ( normalized the\n`spec_edited` + `scenario_filed`\
+  \ emitters that historically wrote a BARE `[SPEC-NNNN]` list); historical\npre-\
+  \ lines keep that bare-list form (append-only) — a reader stays tolerant, treating\
+  \ a bare list\nas `{specs: <list>, status: resolved}` (additive / P5-safe).\n\n\
+  **worktree_created** (amending) — emitted by `bin/yitc-v2 worktree new` after the\n\
+  worktree is created, bound to the MAIN checkout's journal. `data: {branch, path,\
+  \ leaf, session_ref, started_at}`;\nNO `task_id`. **Spike exception (SPEC-0205 rules\
+  \ 1-2):** for a declared `--spike` batch the row\ncarries `spike: true` and is published\
+  \ BEFORE `git worktree add` (so without `started_at`); the worktree\nstamp's `declared_row`\
+  \ is its projection, and a failed add is retired by `worktree_create_failed`\n(same\
+  \ ts ref). Payload keys + the compensating type: SPEC-0161.\nMakes verb-vs-raw-git\
+  \ worktree creation observable: a worktree WITHOUT a matching `worktree_created`\n\
+  event = **missing control-point evidence** (it was likely made with raw `git worktree`),\
+  \ a SOFT signal\nfor human/AI judgement — NOT a definitive bypass (the raw `git\
+  \ worktree` recovery path stays legitimate).\nNo checker/gate is wired (deferred\
+  \ — Principle 1 F4).\n\n**merge_resolved_by_hand** — emitted by `bin/yitc-v2 worktree\
+  \ sync --resolved`, ONCE,\nimmediately after it commits an update-from-main merge\
+  \ whose non-union conflicts a HUMAN resolved.\nBound to the journal of the WORKTREE\
+  \ it ran in (the merge is on that branch, and the row rides the\nsame land fold\
+  \ as every other worktree-side append). `task_id` = the task for a `task/` branch,\
+  \ else\nnull. `data: {branch, main_sha, merge_commit, head_before, resolved, resolved_source,\
+  \ worktree}` —\n`main_sha` is the `MERGE_HEAD` actually merged (not a re-read of\
+  \ the moving ref), `resolved` is the\nlist of paths that conflicted, and `resolved_source`\
+  \ names WHERE that list came from: `merge-msg`\n(git's own `# Conflicts:` record\
+  \ for this merge — the exact set) or `staged-delta` (the fallback\nsuperset, every\
+  \ path the merge staged). A reader MUST honour that distinction rather than treating\n\
+  every list as exact.\nWHY IT EXISTS: `land` refuses before the queue on a non-union\
+  \ conflict and `worktree sync` stops on\nthe same class, but the RESOLUTION was\
+  \ raw git — three hand merges on 2026-09-10 alone, each\nleaving the journal no\
+  \ record of what a human changed. AGENTS §Verb-execution discipline forbids\nhand-doing\
+  \ what a verb covers; this row is what makes the covering verb's work visible.\n\
+  WHAT A READER MAY CONCLUDE: that these paths were resolved by a human, in that merge,\
+  \ by that\nsession. **What it is NOT:** it is NOT evidence the resolution is CORRECT\
+  \ (no verb judges that), and\nit is explicitly NOT an audit-currency exemption —\
+  \ a hand resolution is authored content, so\nSPEC-0077 §3a demands the re-audit\
+  \ exactly as before (`_offending_drift_is_merge_produced` names\nthis case as precisely\
+  \ what the rule exists to refuse). The row makes the shift ATTRIBUTABLE, and\n`_land_audited_footprint_split`\
+  \ CITES it report-only for that reason; a consumer that read it to\nADMIT such a\
+  \ path would invert the rule. No checker/gate is wired (Principle 1 F4). Append-only,\n\
+  P5-safe (consumers ignore unknown keys).\n**worktree_children_reaped** — emitted\
+  \ by `bin/yitc-v2 worktree park --confirm-dead`\n(the shared `_assert_no_live_holder`\
+  \ gate), bound to the MAIN checkout's journal; `task_id` = the\nparked task where\
+  \ there is one. Records the teardown of a DEAD holder session's ORPHAN processes:\
+  \ the\nlive-cwd guard refuses while ANYTHING holds the worktree as its working directory,\
+  \ which is\nright for a mid-Stage-6 holder and wrong for an orphan — X-1350 (<project>,\
   \ 2026-09-09) left two\n`docker run` land-verify containers on a confirmed-dead\
   \ worker's worktree and X-1346 (<project>)\ntwo leaked node processes, and in BOTH\
   \ the only lever was a hand kill. `data: {path, kind,\ndead_session_ref, holder_verdict,\
@@ -2326,27 +2276,22 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ It is a NEW event\nTYPE, disjoint from the `reads` keys added to the existing\
   \ `cli_invoked` row: those are new\nKEYS on an existing type carrying a read-cost\
   \ counter, this is a new TYPE carrying a wall-clock\nREADING. The two never share\
-  \ a row and neither is derivable from the other.\n```jsonc\n{\"ts\": \"...\", \"\
-  type\": \"timing_instrument_reading\",\n \"data\": {\"instrument\": \"<registry\
-  \ id>\", \"verdict\": \"ok|failed|skipped\",\n          \"duration_ms\": <int|null>,\
-  \ \"exit_code\": <int|null>, \"serialized\": true,\n          \"baseline_median_ms\"\
-  : <number|null>, \"delta_pct\": <number|null>,\n          \"regression\": <bool>,\
-  \ \"readings_considered\": <int>, \"reason\": \"<str|null>\"}}\n```\n- `verdict`\
-  \ — `ok` (the instrument ran and exited 0) / `failed` (it ran and exited non-zero,\
-  \ was\n  killed by the lane's timeout, or its REGISTERED file/leg did not resolve)\
-  \ / `skipped` (the host\n  was not quiet — a verify held an admission slot past\
-  \ the ones this lane holds, on either side of\n  the run). The split is by WHOSE\
-  \ fault the missing number is, not by whether a process started:\n  `skipped` is\
-  \ the TRANSIENT, blameless case that will simply be measured again tomorrow, and\
-  \ it is\n  silent by design; an unresolvable registration is a PERMANENT defect\
-  \ that would otherwise let an\n  instrument quietly stop being measured for weeks\
-  \ under a verdict that reads as normal, so it is\n  `failed` and raises the lane's\
-  \ `alert` (this matches SPEC-0105 §2c, whose `skipped` clause is the\n  lane-could-not-run-at-all\
-  \ case). A run that produced no row at all is a DEFECT, not a state: the\n  lane\
-  \ emits one row per registered instrument unconditionally, so an absent row means\
-  \ the lane\n  itself did not run.\n- `duration_ms` — the measured wall-clock, and\
-  \ the WHOLE POINT of the row. NULL, never 0, for a\n  `skipped` reading: a fabricated\
-  \ 0 would enter the baseline and pull every later comparison down\n  (the no-fabricated-zeros\
+  \ a row and neither is derivable from the other.\n\n- `verdict` — `ok` (the instrument\
+  \ ran and exited 0) / `failed` (it ran and exited non-zero, was\n  killed by the\
+  \ lane's timeout, or its REGISTERED file/leg did not resolve) / `skipped` (the host\n\
+  \  was not quiet — a verify held an admission slot past the ones this lane holds,\
+  \ on either side of\n  the run). The split is by WHOSE fault the missing number\
+  \ is, not by whether a process started:\n  `skipped` is the TRANSIENT, blameless\
+  \ case that will simply be measured again tomorrow, and it is\n  silent by design;\
+  \ an unresolvable registration is a PERMANENT defect that would otherwise let an\n\
+  \  instrument quietly stop being measured for weeks under a verdict that reads as\
+  \ normal, so it is\n  `failed` and raises the lane's `alert` (this matches SPEC-0105\
+  \ §2c, whose `skipped` clause is the\n  lane-could-not-run-at-all case). A run that\
+  \ produced no row at all is a DEFECT, not a state: the\n  lane emits one row per\
+  \ registered instrument unconditionally, so an absent row means the lane\n  itself\
+  \ did not run.\n- `duration_ms` — the measured wall-clock, and the WHOLE POINT of\
+  \ the row. NULL, never 0, for a\n  `skipped` reading: a fabricated 0 would enter\
+  \ the baseline and pull every later comparison down\n  (the no-fabricated-zeros\
   \ discipline).\n- `baseline_median_ms` / `delta_pct` / `regression` / `readings_considered`\
   \ — the report-only\n  regression signal, computed against the TRIMMED median of\
   \ that instrument's last 7 prior readings\n  folded from this same type. With fewer\
@@ -2381,7 +2326,82 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ ( — a\n`before-event` trigger would be obligation-set creep, anti-cx F4). Prior-art:\
   \ the same query-only demote\nshape SPEC-0007 §5a names the DEFAULT for situational\
   \ reference catalogs; SPEC-0014/0015/0016 are the\nfloor-triggered control-point\
-  \ analogues (Part I-A).\n\n## Verification\n\nProbe CONTRACTS (not one-time results):\n\
+  \ analogues (Part I-A).\n\n### History moved from the rule body\n\nMoved out of\
+  \ the rule text of the section it names and put in the past tense; the rule it explains\n\
+  stays there.\n\n- From «Required event types (LIFECYCLE references)», the `external_audit_completed`\
+  \ episode fields:\n  the FIRST live emission was card C3's, which wired the emit\
+  \ together with the prompt and\n  the predicates, because <workshop-spec> rule 7\
+  \ (now superseded) held that a partially-landed state was not\n  a valid state of\
+  \ that contract.\n\n## Implementation notes\n\n### Moved from the rule text\n\n\
+  From «Required event types (LIFECYCLE references)», the `audit_pre_completed` entry:\n\
+  \n**audit_pre_completed** (Stage 4):\n```jsonc\n{\"ts\": \"\", \"type\": \"audit_pre_completed\"\
+  , \"task_id\": \"\",\n \"data\": {\"verdict\": \"GREEN\", \"findings_count\": 0,\
+  \ \"duration_ms\": 61234,\n          \"saved_to\": \"decisions/-audit-pre.yaml\"\
+  }}\n```\n\nFrom «Required event types (LIFECYCLE references)», the `external_audit_completed`\
+  \ entry:\n\n**external_audit_completed** (Stages 4 + 8 + ad-hoc):\n```jsonc\n{\"\
+  ts\": \"\", \"type\": \"external_audit_completed\", \"task_id\": \"\",\n \"data\"\
+  : {\"stage\": \"pre\", \"verdict\": \"GREEN\", \"absorbed\": 0, \"followups_filed\"\
+  : [],\n          \"duration_ms\": 61234}}\n```\n\nFrom «Required event types (LIFECYCLE\
+  \ references)», the `task_closed` entry:\n\n**task_closed** (Stage 9):\n```jsonc\n\
+  {\"ts\": \"\", \"type\": \"task_closed\", \"task_id\": \"\",\n \"data\": {\"commit\"\
+  : \"<sha>\", \"probe_passed\": true, \"probes\": [{\"ac\": \"AC1\", \"result\":\
+  \ \"pass\"}]}}\n```\n\nFrom «Required event types (LIFECYCLE references)», the `deploy_completed`\
+  \ entry:\n\n```jsonc\n{\"ts\": \"...\", \"type\": \"deploy_completed\",\n \"data\"\
+  : {\"revision\": \"<git-sha left live + gate-verified>\", \"project\": \"<slug>\"\
+  ,\n          \"kind\": \"deploy\" | \"rollback\"}}\n```\n\nFrom «Required event\
+  \ types (LIFECYCLE references)», the `release_tagged` entry:\n\n```jsonc\n{\"ts\"\
+  : \"...\", \"type\": \"release_tagged\",\n \"data\": {\"tag\": \"<annotated tag\
+  \ name, e.g. v1.2.0>\", \"sha\": \"<full sha of the tagged main commit>\",\n   \
+  \       \"project\": \"<slug>\"}}\n```\n\nFrom «Required event types (LIFECYCLE\
+  \ references)», the `release_published` entry:\n\n```jsonc\n{\"ts\": \"...\", \"\
+  type\": \"release_published\",\n \"data\": {\"tag\": \"<the source release tag>\"\
+  , \"source_sha\": \"<full sha of the peeled commit>\",\n          \"tree_digest\"\
+  : \"<sha256 of the artifact tree, EXCLUDING the manifest>\",\n          \"destination\"\
+  : \"<absolute path of the destination checkout>\",\n          \"file_count\": <files\
+  \ in the cut>}}\n```\n\nFrom «Required event types (LIFECYCLE references)», the\
+  \ `release_updated` entry:\n\n```jsonc\n{\"ts\": \"...\", \"type\": \"release_updated\"\
+  ,\n \"data\": {\"destination\": \"<the published release N+1 directory>\",\n   \
+  \       \"into\": \"<the existing install being moved forward>\",\n          \"\
+  anchor\": \"<the OUT-OF-BAND trust-root fingerprint>\", \"ok\": <true|false>,\n\
+  \          \"from_ref\": \"<the release moved FROM, or null when no base was supplied>\"\
+  ,\n          \"to_ref\": \"<the release moved TO>\",\n          \"replaced\": <upstream-owned>,\
+  \ \"merged\": <template-owned>, \"preserved\": <n>,\n          \"skipped\": <consumer-owned,\
+  \ never written>, \"conflicts\": <n>,\n          \"removed\": <dropped by the new\
+  \ release, deleted>, \"kept\": <dropped, left in place>,\n          \"ledger_status\"\
+  : \"<the SPEC-0196 override-ledger reading>\",\n          \"ledger_findings\": <n>,\n\
+  \          \"reasons\": [\"<refusal reason>\", \"...\"]}}\n```\n\nFrom «Required\
+  \ event types (LIFECYCLE references)», the `live_probe_passed` entry:\n\n```jsonc\n\
+  {\"ts\": \"...\", \"type\": \"live_probe_passed\", \"task_id\": \"T-XXXX\",\n \"\
+  data\": {\"task\": \"T-XXXX\", \"revision\": \"<git-sha at probe time>\", \"project\"\
+  : \"<slug>\",\n          \"url\": \"<resolved GET target>\", \"expect_status\":\
+  \ <int>, \"actual_status\": <int>,\n          \"location\": \"<matched Location\
+  \ — OPTIONAL, no-follow redirect dialect only>\"}}\n```\n\nFrom «Required event\
+  \ types (LIFECYCLE references)», the `live_probe_failed` entry:\n\n```jsonc\n{\"\
+  ts\": \"...\", \"type\": \"live_probe_failed\", \"task_id\": \"T-XXXX\",\n \"data\"\
+  : {\"task\": \"T-XXXX\", \"revision\": \"<git-sha at report time>\", \"project\"\
+  : \"<slug>\",\n          \"attested\": \"<the instrument the project ran>\", \"\
+  runs_at\": \"<where it is gated>\",\n          \"asserts\": \"<what it proves>\"\
+  , \"reported\": true,\n          \"detail\": \"<what the reading said — OPTIONAL>\"\
+  }}\n```\n\nFrom «Required event types (LIFECYCLE references)», the `adapter_restamped`\
+  \ entry:\n\n```jsonc\n{\"ts\": \"...\", \"type\": \"adapter_restamped\", \"task_id\"\
+  : null,\n \"data\": {\"path\": \"<consumer repo root>\", \"scaffolds\": [\"<vendor-adapter>.md\"\
+  , \"...\"],\n          \"project_name\": \"<repo name>\"}}\n```\n\nFrom «Required\
+  \ event types (LIFECYCLE references)», the `security_live_probe_passed` entry:\n\
+  \n```jsonc\n{\"ts\": \"...\", \"type\": \"security_live_probe_passed\", \"task_id\"\
+  : \"T-XXXX\",\n \"data\": {\"property\": \"<security-property name>\", \"url\":\
+  \ \"<resolved GET target>\", \"project\": \"<slug>\",\n          \"expect\": \"\
+  <asserted summary>\", \"actual\": \"<observed summary>\"}}\n```\n\nFrom «Required\
+  \ event types (LIFECYCLE references)», the `host_health_sweep_passed` entry:\n\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"host_health_sweep_passed\", \"task_id\"\
+  : \"T-XXXX\",\n \"data\": {\"emitter\": \"hostapply\", \"task\": \"T-XXXX\", \"\
+  project\": \"<slug>\", \"domains_checked\": 7, \"healthy\": 7}}\n```\n\nFrom «Normalized\
+  \ provider×model×effort vocabulary (per SPEC-0135)», the `timing_instrument_reading`\
+  \ entry:\n\n```jsonc\n{\"ts\": \"...\", \"type\": \"timing_instrument_reading\"\
+  ,\n \"data\": {\"instrument\": \"<registry id>\", \"verdict\": \"ok|failed|skipped\"\
+  ,\n          \"duration_ms\": <int|null>, \"exit_code\": <int|null>, \"serialized\"\
+  : true,\n          \"baseline_median_ms\": <number|null>, \"delta_pct\": <number|null>,\n\
+  \          \"regression\": <bool>, \"readings_considered\": <int>, \"reason\": \"\
+  <str|null>\"}}\n```\n\n## Verification\n\nProbe CONTRACTS (not one-time results):\n\
   - **VP1 (fidelity, moved-not-lost):** the key phrases of each demoted section resolve\
   \ in THIS spec and\n  are ABSENT from AGENTS.md (probe: `grep \"Universal schema\"\
   ` / `grep \"Event-type catalog extension\"` /\n  `grep \"Fundamental-gap-related\"\

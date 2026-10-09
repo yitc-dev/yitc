@@ -7,57 +7,51 @@ consumed: false
 implements: []
 body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan into\
   \ a SET of task cards) and the BUILD\n(each card running its own 9 stages) are TWO\
-  \ different jobs. Today both happen inside the single\n`executing` stage, so the\
-  \ cut itself has no governed external audit and no stage boundary to hang one\n\
-  on. This spec makes the cut a FIRST-CLASS FSM stage — `decomposition`, between `accepted`\
-  \ and\n`executing` — so the cut lives at a real stage boundary (the V2 idiom: every\
-  \ boundary is a gate) and\na MANDATORY external decomposition-fidelity audit of\
-  \ the whole card SET gates entry to `executing`.\nThe owner/AI then sees: `executing`\
-  \ is entered only when the plan AND its cut are both verified, and\n`executing`\
-  \ becomes purely \"build the tasks\".\n\n## Internal\n\nTHE DECOMPOSITION STAGE\
-  \ — the canonical home for the new `decomposition` plan-FSM stage, its two\ngates,\
-  \ the card-set fingerprint freshness contract, the claim-block rule, and the applicability\
-  \ rule.\nThis EXTENDS the existing plan-FSM machinery (SPEC-0034 per-stage mechanics;\
-  \ the `plan stage` verb;\nthe `_run_plan_gate_audit` plan-gate family of SPEC-0036;\
-  \ the `plan-stage-entry:<NAME>` delivery\naxis) — it adds NO parallel mechanism.\
-  \ SPEC-0034 stays the per-stage-mechanics home and is EDITED to\ninsert this stage\
-  \ + delegate its detail here (§Realization surface); this spec is the single home\
-  \ for\nthe cut-as-a-stage rules (P5 / SPEC-0005 rule 8 — other surfaces point here,\
-  \ never restate).\n\n### 1. FSM position\nThe plan FSM becomes\n`draft → specs →\
-  \ trial → accepted → decomposition → executing → postcheck → realized`\n(terminals\
-  \ `partial | rejected | cancelled`, unchanged — reachable from any active stage).\
-  \ The\n`plan stage` verb stays the SOLE writer, advancing exactly ONE linear step;\
-  \ inserting `decomposition`\nREASSIGNS existing gates (it does not invent a second\
-  \ verb — §3/§4 below) — the verb GATES the prior\nstage's completion, so \"enter\
-  \ N\" == \"exit N-1\".\n\n### 2. The cut is its own stage (what `decomposition`\
-  \ IS)\n- **Entry gate `accepted → decomposition`** = the plan is verified — TAKES\
-  \ OVER today's\n  `_require_plan_executing_ready` body VERBATIM (relocated one stage\
-  \ earlier): a fresh GREEN/YELLOW\n  `plan check` (canonical shape + fresh `content_hash`)\
-  \ **+** the `implementation_plan` composed **+**\n  the plan's specs `proposed`\
-  \ (the deliberate-never-active `withdrawn`/`rejected` exemption\n  carries over\
-  \ unchanged). **The MANDATORY big-plan check (LARGE plans) RELOCATES to THIS gate**\
-  \ — it\n  audits the plan TEXT + the `implementation_plan` decomposition MAP, which\
-  \ is the TEXT boundary that\n  sits BEFORE the cut (the cards do not exist yet),\
-  \ so it belongs at the entry to the cut, not at the\n  entry to build.\n- **Work**\
-  \ = the CUT, relocated from `executing`: slice the plan into task cards per SPEC-0046\
-  \ (ONE\n  provable claim per accept-unit; order via `requires:`; the verifier-after-settled\
-  \ rule), file them\n  via `task file`, and SET the single `activation_owner_task`\
-  \ on each `proposed` spec (the HARD\n  invariant — one activating task per spec;\
-  \ the others `cite` it). The plan↔spec linkage-chain\n  born→activate slice (SPEC-0034)\
-  \ is exercised HERE — the cut SETS these, so it is cut-bundle content.\n- **Exit\
-  \ gate `decomposition → executing`** = the cut is verified (§3).\n- **`executing`**\
-  \ narrows to PURE BUILD: the cards run their own 9 stages; no \"incidental\" cutting.\n\
-  \  Its delivered bundle narrows to \"how to build\" (SPEC-0027 / SPEC-0041 / the\
-  \ per-task stage bundles).\n\n### 3. The decomposition-fidelity gate (`decomposition\
-  \ → executing`) — MANDATORY-BLOCKING\nEntry to `executing` REQUIRES a FRESH GREEN/YELLOW\
-  \ external **decomposition-fidelity** verdict over\nthe task SET (the new gate fn\
-  \ `_require_plan_decomposition_fidelity`). The verdict is produced by the\nEXISTING\
-  \ `_run_plan_gate_audit` plan-gate machinery (SPEC-0036) under a NEW template\n\
-  `gate-executing` / `gate_policy: mandatory-blocking` — the same family as `gate-specs`\
-  \ (P2) /\n`gate-trial` (P3) / `gate-accepted` (P4); it is NOT `audit adhoc` and\
-  \ NOT an `audit post --plan`\noverlay (settles the plan's open \"which audit verb\"\
-  \ branch). FULL auditor (PLAN-level audit posture,\nSPEC-0034). RED/ABORT HOLDS\
-  \ the transition; the 2-pass audit-loop ceiling applies (CHARTER\n§audit-loop ceiling).\
+  \ different jobs. This spec makes the cut a FIRST-CLASS FSM stage — `decomposition`,\
+  \ between `accepted` and\n`executing` — so the cut lives at a real stage boundary\
+  \ (the V2 idiom: every boundary is a gate) and\na MANDATORY external decomposition-fidelity\
+  \ audit of the whole card SET gates entry to `executing`.\nThe owner/AI then sees:\
+  \ `executing` is entered only when the plan AND its cut are both verified, and\n\
+  `executing` becomes purely \"build the tasks\".\n\n## Internal\n\nTHE DECOMPOSITION\
+  \ STAGE — the canonical home for the new `decomposition` plan-FSM stage, its two\n\
+  gates, the card-set fingerprint freshness contract, the claim-block rule, and the\
+  \ applicability rule.\nThis EXTENDS the existing plan-FSM machinery (SPEC-0034 per-stage\
+  \ mechanics; the `plan stage` verb;\nthe `_run_plan_gate_audit` plan-gate family\
+  \ of SPEC-0036; the `plan-stage-entry:<NAME>` delivery\naxis) — it adds NO parallel\
+  \ mechanism. SPEC-0034 stays the per-stage-mechanics home and is EDITED to\ninsert\
+  \ this stage + delegate its detail here (§Realization surface); this spec is the\
+  \ single home for\nthe cut-as-a-stage rules (P5 / SPEC-0005 rule 8 — other surfaces\
+  \ point here, never restate).\n\n### 1. FSM position\nThe plan FSM becomes\n`draft\
+  \ → specs → trial → accepted → decomposition → executing → postcheck → realized`\n\
+  (terminals `partial | rejected | cancelled`, unchanged — reachable from any active\
+  \ stage). The\n`plan stage` verb stays the SOLE writer, advancing exactly ONE linear\
+  \ step; the verb GATES the prior\nstage's completion, so \"enter N\" == \"exit N-1\"\
+  .\n\n### 2. The cut is its own stage (what `decomposition` IS)\n- **Entry gate `accepted\
+  \ → decomposition`** = the plan is verified — a fresh GREEN/YELLOW\n  `plan check`\
+  \ (canonical shape + fresh `content_hash`) **+** the `implementation_plan` composed\
+  \ **+**\n  the plan's specs `proposed` (the deliberate-never-active `withdrawn`/`rejected`\
+  \ exemption\n  carries over unchanged). **The MANDATORY big-plan check (LARGE plans)\
+  \ RELOCATES to THIS gate** — it\n  audits the plan TEXT + the `implementation_plan`\
+  \ decomposition MAP, which is the TEXT boundary that\n  sits BEFORE the cut (the\
+  \ cards do not exist yet), so it belongs at the entry to the cut, not at the\n \
+  \ entry to build.\n- **Work** = the CUT, relocated from `executing`: slice the plan\
+  \ into task cards per SPEC-0046 (ONE\n  provable claim per accept-unit; order via\
+  \ `requires:`; the verifier-after-settled rule), file them\n  via `task file`, and\
+  \ SET the single `activation_owner_task` on each `proposed` spec (the HARD\n  invariant\
+  \ — one activating task per spec; the others `cite` it). The plan↔spec linkage-chain\n\
+  \  born→activate slice (SPEC-0034) is exercised HERE — the cut SETS these, so it\
+  \ is cut-bundle content.\n- **Exit gate `decomposition → executing`** = the cut\
+  \ is verified (§3).\n- **`executing`** narrows to PURE BUILD: the cards run their\
+  \ own 9 stages; no \"incidental\" cutting.\n  Its delivered bundle narrows to \"\
+  how to build\" (SPEC-0027 / SPEC-0041 / the per-task stage bundles).\n\n### 3. The\
+  \ decomposition-fidelity gate (`decomposition → executing`) — MANDATORY-BLOCKING\n\
+  Entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**\
+  \ verdict over\nthe task SET. The verdict is produced by the\nEXISTING `_run_plan_gate_audit`\
+  \ plan-gate machinery (SPEC-0036) under a NEW template\n`gate-executing` / `gate_policy:\
+  \ mandatory-blocking` — the same family as `gate-specs` (P2) /\n`gate-trial` (P3)\
+  \ / `gate-accepted` (P4); it is NOT `audit adhoc` and NOT an `audit post --plan`\n\
+  overlay. FULL auditor (PLAN-level audit posture,\nSPEC-0034). RED/ABORT HOLDS the\
+  \ transition; the 2-pass audit-loop ceiling applies (CHARTER\n§audit-loop ceiling).\
   \ The verdict saves to the canonical plan-gate YAML with\n`stage_template: gate-executing`\
   \ (SPEC-0036 §Verdict recording).\n- **What it audits = the SET, not one card**\
   \ (the blind-spot per-task audit-pre cannot reach):\n  coverage (every plan part\
@@ -93,80 +87,63 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ This EXTENDS the existing claim-validation in `worktree new --task` (it\nalready\
   \ validates `ready` + unblocked); no new mechanism. The guard makes the cut fully\
   \ audited before\nany card can be worked, even across concurrent sessions.\n\n**The\
-  \ carrier is `decomposed_from`, NOT `cites:` (amended by — the membership/reference\
-  \ split).**\nThe original head keyed this block on `cites:` the plan, but `cites:`\
-  \ is OVERLOADED — it carries BOTH\nstructural cut-membership AND broad informational\
-  \ reference (the finalization corpus is \"tasks that\ncite the plan\"). Keying the\
-  \ claim-block on `cites:` FALSE-blocked tasks that merely cited a pre-executing\n\
-  plan as context: the incident (2026-06-10) — an owner-filed prod-incident fix cited\
-  \ a benchmarking\nplan at `status: trial` and was wrongly refused. So the block\
-  \ now reads the explicit\n**`decomposed_from: <plan-slug>`** marker — the NARROW\
-  \ structural relation \"member of the audited cut\",\nwritten ONLY by the decomposition\
-  \ cut (`task file --decomposed-from`, its SOLE authoritative writer). This\nmirrors\
-  \ `activation_owner_task` and the lesson: never derive a structural relation from\n\
-  informational `cites:`. `cites:` reverts to purely informational.\n- **`decomposed_from`\
-  \ (cut-membership) vs the finalization corpus are NON-SUBSTITUTABLE** (one\n  direction\
-  \ must never be conflated): `decomposed_from` = the NARROW structural cut-membership\
-  \ (one plan;\n  the claim-block + the cut-fidelity member-set/fingerprint); the\
-  \ finalization corpus (`_plan_tasks` /\n  `_plan_task_carrier` — see SPEC-0034)\
-  \ = the BROAD \"tasks that implement the plan\" relation. The\n  NON-SUBSTITUTABILITY\
-  \ is ONE-WAY: the corpus is a SUPERSET — it recognizes BOTH `decomposed_from:<plan>`\n\
-  \  AND `cites:<plan>` (the union); a decomposed cut card IS an implementing task,\
-  \ so it is in the\n  corpus. But the cut-fidelity member-set is `decomposed_from`-ONLY:\
-  \ future code MUST NOT re-derive cut\n  MEMBERSHIP from `cites` (that recreates\
-  \ the defect — an informational citer wrongly staling the\n  cut fingerprint). Net:\
-  \ corpus = `decomposed_from` ∪ `cites`; cut member-set\n  = `decomposed_from` alone.\n\
-  - **Reader contract — marker-authoritative ( claim-block; cut-fidelity member-set;\n\
-  \  the DISPLAY):** the claim-block, the cut-fidelity member-set AND the reader-facing\
-  \ cut-card DISPLAY all\n  read `decomposed_from`. The member-set carrier is\n  `_plan_cut_cards`\
-  \ (tasks whose `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4),\n\
-  \  `_plan_card_set_context` (the fidelity-audit prompt card-set) **and `cmd_plan_show`'s\n\
-  \  `status: decomposition` cut-card listing** enumerate the cut through it. An\n\
-  \  informational `cites:`-only citer is therefore NOT a cut member: it neither stales\
-  \ the fingerprint, nor is\n  shown to the auditor as a cut card, nor is listed to\
-  \ a reader as one.\n  **The display is BOUND to the gate's link ( — <project> X-0661/X-0662):**\
-  \ the cut-card set a\n  reader SEES is by contract the set the gate JUDGES, and\
-  \ the empty-state names `decomposed_from` (never\n  `cites:`), so an author repairs\
-  \ the field that actually unblocks the executing gate. Rendering the\n  BROAD corpus\
-  \ under a cut-card heading is the defect this closes — it showed a `cites:`-only\
-  \ citer as a\n  cut card and misdirected the repair. (`_plan_tasks` / `_plan_task_carrier`\
-  \ — the BROAD finalization\n  corpus — read `decomposed_from` ∪ `cites` since, NON-SUBSTITUTABLE\
-  \ with the cut member-set per the\n  bullet above: the corpus is a superset, the\
-  \ member-set is `decomposed_from`-only.) A cut card need NOT\n  `cites:` its plan\
-  \ for the corpus — `decomposed_from` alone puts it in both the corpus and the member-set;\n\
-  \  the fingerprint/member-set never depended on the cite.\n- **Sole-writer invariant\
-  \ + report-only backstop :** every card the cut emits MUST carry the\n  marker (the\
-  \ cut path sets it). A report-only advisory (`graph conformance`, `_unmarked_cut_card_flags`)\n\
-  \  surfaces non-terminal cards that `cites:` a plan at `status: decomposition` but\
-  \ lack the marker, so a\n  forgotten cut-membership mark is visible at land. It\
-  \ is ADVISORY ( report-not-block), scoped to\n  `decomposition`-status plans (the\
-  \ only pre-`executing` stage where cards exist = the claim-block-relevant\n  window);\
-  \ plans at `executing`+ are claim-block-irrelevant, so they are not scanned (no\
-  \ perpetual noise on\n  legitimate informational cites). Completeness for FUTURE\
-  \ cuts rests on the sole-writer, not a perpetual scan.\n- **Governed POST-HOC EDITS\
-  \ of the marker — TWO directions, both verb-owned, NEITHER a second\n  FILING writer\
-  \ ( un-cut; repair).** `task file --decomposed-from` remains the cut's\n  SOLE authoritative\
-  \ writer AT FILING (above) — that is unchanged. Once the card EXISTS, the marker\n\
-  \  is still not hand-editable: `task update --old/--new` owns both post-hoc directions\
-  \ below, each\n  enforcing the SAME dangling-plan check as the filing verb (a non-empty\
-  \ target must resolve to a\n  real `plans/<slug>.md`; a clear is always allowed\
-  \ — the marker is the claim-block carrier, so a\n  dangling marker would silently\
-  \ never block) and each emitting a journal-visible `task_amended`.\n  - **UN-CUT\
-  \ (the TERMINAL direction).** When a card is `wont-do` (a cut member abandoned\n\
-  \    without building — e.g. a consumer card dropped after the cut) it is terminal/frozen,\
-  \ so\n    the ordinary field-edit refuses it. The SOLE carve-out: `task update --old/--new`\
-  \ MAY change\n    `decomposed_from` **ALONE** on a terminal card — clearing it (un-cut\
-  \ from the decomposition) or\n    repointing it to another real plan — enforced\
-  \ by a strict single-field guard (`decomposed_from`\n    is the ONLY changed key;\
-  \ any other field-change refuses, the file untouched) plus the\n    dangling-plan\
-  \ check. Emits `task_amended` with `uncut: true`.\n  - **CUT-MEMBERSHIP REPAIR (the\
-  \ NON-TERMINAL direction — <project> X-0866).** A card cut\n    WITHOUT the marker\
-  \ is repaired IN PLACE on the ordinary (non-terminal) field-edit path: a\n    `--new`\
-  \ that SUPERSETS `--old` ADDS the absent key ( — the field-edit is not\n    replace-only).\
-  \ Re-filing an already-cut set is NOT the route and must not be prescribed as one\n\
-  \    (it costs duplicate cards, wont-do records, and renumbering ids the cards `requires:`\
-  \ each\n    other by and a spec `activation_owner_task` may already name — the measured\
-  \ X-0866 cost).\n    Any non-terminal field-edit that CHANGES `decomposed_from`\
+  \ carrier is `decomposed_from`, NOT `cites:`.**\nSo the block now reads the explicit\n\
+  **`decomposed_from: <plan-slug>`** marker — the NARROW structural relation \"member\
+  \ of the audited cut\",\nwritten ONLY by the decomposition cut (`task file --decomposed-from`,\
+  \ its SOLE authoritative writer). This\nmirrors `activation_owner_task` and the\
+  \ lesson: never derive a structural relation from\ninformational `cites:`. `cites:`\
+  \ reverts to purely informational.\n- **`decomposed_from` (cut-membership) vs the\
+  \ finalization corpus are NON-SUBSTITUTABLE** (one\n  direction must never be conflated):\
+  \ `decomposed_from` = the NARROW structural cut-membership (one plan;\n  the claim-block\
+  \ + the cut-fidelity member-set/fingerprint); the finalization corpus (`_plan_tasks`\
+  \ /\n  `_plan_task_carrier` — see SPEC-0034) = the BROAD \"tasks that implement\
+  \ the plan\" relation. The\n  NON-SUBSTITUTABILITY is ONE-WAY: the corpus is a SUPERSET\
+  \ — it recognizes BOTH `decomposed_from:<plan>`\n  AND `cites:<plan>` (the union);\
+  \ a decomposed cut card IS an implementing task, so it is in the\n  corpus. But\
+  \ the cut-fidelity member-set is `decomposed_from`-ONLY: future code MUST NOT re-derive\
+  \ cut\n  MEMBERSHIP from `cites` (that recreates the defect — an informational citer\
+  \ wrongly staling the\n  cut fingerprint). Net: corpus = `decomposed_from` ∪ `cites`;\
+  \ cut member-set\n  = `decomposed_from` alone.\n- **Reader contract — marker-authoritative\
+  \ ( claim-block; cut-fidelity member-set;\n  the DISPLAY):** the claim-block, the\
+  \ cut-fidelity member-set AND the reader-facing cut-card DISPLAY all\n  read `decomposed_from`.\
+  \ An\n  informational `cites:`-only citer is therefore NOT a cut member: it neither\
+  \ stales the fingerprint, nor is\n  shown to the auditor as a cut card, nor is listed\
+  \ to a reader as one.\n  **The display is BOUND to the gate's link ( — <project>\
+  \ X-0661/X-0662):** the cut-card set a\n  reader SEES is by contract the set the\
+  \ gate JUDGES, and the empty-state names `decomposed_from` (never\n  `cites:`),\
+  \ so an author repairs the field that actually unblocks the executing gate. A cut\
+  \ card need NOT\n  `cites:` its plan for the corpus — `decomposed_from` alone puts\
+  \ it in both the corpus and the member-set;\n  the fingerprint/member-set never\
+  \ depended on the cite.\n- **Sole-writer invariant + report-only backstop :** every\
+  \ card the cut emits MUST carry the\n  marker (the cut path sets it). A report-only\
+  \ advisory (`graph conformance`, `_unmarked_cut_card_flags`)\n  surfaces non-terminal\
+  \ cards that `cites:` a plan at `status: decomposition` but lack the marker, so\
+  \ a\n  forgotten cut-membership mark is visible at land. It is ADVISORY ( report-not-block),\
+  \ scoped to\n  `decomposition`-status plans (the only pre-`executing` stage where\
+  \ cards exist = the claim-block-relevant\n  window); plans at `executing`+ are claim-block-irrelevant,\
+  \ so they are not scanned (no perpetual noise on\n  legitimate informational cites).\
+  \ Completeness for FUTURE cuts rests on the sole-writer, not a perpetual scan.\n\
+  - **Governed POST-HOC EDITS of the marker — TWO directions, both verb-owned, NEITHER\
+  \ a second\n  FILING writer ( un-cut; repair).** `task file --decomposed-from` remains\
+  \ the cut's\n  SOLE authoritative writer AT FILING (above) — that is unchanged.\
+  \ Once the card EXISTS, the marker\n  is still not hand-editable: `task update --old/--new`\
+  \ owns both post-hoc directions below, each\n  enforcing the SAME dangling-plan\
+  \ check as the filing verb (a non-empty target must resolve to a\n  real `plans/<slug>.md`;\
+  \ a clear is always allowed — the marker is the claim-block carrier, so a\n  dangling\
+  \ marker would silently never block) and each emitting a journal-visible `task_amended`.\n\
+  \  - **UN-CUT (the TERMINAL direction).** When a card is `wont-do` (a cut member\
+  \ abandoned\n    without building — e.g. a consumer card dropped after the cut)\
+  \ it is terminal/frozen, so\n    the ordinary field-edit refuses it. The SOLE carve-out:\
+  \ `task update --old/--new` MAY change\n    `decomposed_from` **ALONE** on a terminal\
+  \ card — clearing it (un-cut from the decomposition) or\n    repointing it to another\
+  \ real plan — enforced by a strict single-field guard (`decomposed_from`\n    is\
+  \ the ONLY changed key; any other field-change refuses, the file untouched) plus\
+  \ the\n    dangling-plan check. Emits `task_amended` with `uncut: true`.\n  - **CUT-MEMBERSHIP\
+  \ REPAIR (the NON-TERMINAL direction — <project> X-0866).** A card cut\n    WITHOUT\
+  \ the marker is repaired IN PLACE on the ordinary (non-terminal) field-edit path:\
+  \ a\n    `--new` that SUPERSETS `--old` ADDS the absent key ( — the field-edit is\
+  \ not\n    replace-only). Re-filing an already-cut set is NOT the route and must\
+  \ not be prescribed as one.\n    Any non-terminal field-edit that CHANGES `decomposed_from`\
   \ carries the dangling-plan check and\n    emits `task_amended` with `recut: true`\
   \ + `decomposed_from` (the new slug) +\n    `decomposed_from_from` (the prior value),\
   \ so the repair is findable by the plan slug across\n    sessions. NO `task update\
@@ -197,25 +174,23 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ stage is still entered and the verdict still recorded. \"Decomposed plan\" = a\
   \ plan\nthat produced ≥1 task card — and every `executing` plan does (`executing`\
   \ = \"the tasks run\"); a plan\nthat cuts no cards never reaches `executing` (it\
-  \ closes `partial`/`cancelled`), so the gate is never\nvacuous-and-skipped. (This\
-  \ is the justification the plan's gate-specs audit asked for — applicability\nrests\
-  \ on the cut's properties, not a per-plan-class carve-out.)\n\n### 7. The two audit\
-  \ boundaries (distinct inputs, no overlap)\n- **BEFORE the cut — at `accepted →\
-  \ decomposition` (the TEXT boundary):** audit the plan TEXT + its\n  `implementation_plan`\
-  \ (the decomposition MAP as DESIGNED) — the existing `plan check` / big-plan\n \
-  \ check. Question: \"is the plan + the planned cut sound on paper?\"\n- **AFTER\
-  \ the cut — at `decomposition → executing` (the CARD boundary):** audit the filed\
-  \ task CARDS\n  against the plan AND its goals (did the realized cut serve the plan's\
-  \ PURPOSE — coverage 1:1,\n  ordering, singular activation, probe quality, no reopened/settled\
-  \ cards). Question: \"do the actual\n  cards faithfully realize the plan's intent?\"\
-  \nTwo boundaries, two questions, one each — design-soundness before, decomposition-fidelity\
-  \ after.\n\n### 8. Delivery bundle + read-gate wiring\n- **Bundle:** `decomposition`\
-  \ delivers a `plan-stage-entry:decomposition` bundle = THIS spec (the\n  cut-as-a-stage\
-  \ rules) + SPEC-0046's plan-cut face (re-bound, §Realization) + the SPEC-0034 cut\n\
-  \  slice. The bundle MUST be non-empty or `_emit_plan_stage_entered` ships an empty\
-  \ delivery (the\n   seam).\n- **Read-gate (NOT uniform on the plan axis today —\
-  \ only `plan stage specs` has one):** the gate on\n  the transition `→ N` checks\
-  \ stage `N-1`'s bundle was FETCHED this session (cross-axis\n  `_require_reads(axis=plan,\
+  \ closes `partial`/`cancelled`), so the gate is never\nvacuous-and-skipped.\n\n\
+  ### 7. The two audit boundaries (distinct inputs, no overlap)\n- **BEFORE the cut\
+  \ — at `accepted → decomposition` (the TEXT boundary):** audit the plan TEXT + its\n\
+  \  `implementation_plan` (the decomposition MAP as DESIGNED) — the existing `plan\
+  \ check` / big-plan\n  check. Question: \"is the plan + the planned cut sound on\
+  \ paper?\"\n- **AFTER the cut — at `decomposition → executing` (the CARD boundary):**\
+  \ audit the filed task CARDS\n  against the plan AND its goals (did the realized\
+  \ cut serve the plan's PURPOSE — coverage 1:1,\n  ordering, singular activation,\
+  \ probe quality, no reopened/settled cards). Question: \"do the actual\n  cards\
+  \ faithfully realize the plan's intent?\"\nTwo boundaries, two questions, one each\
+  \ — design-soundness before, decomposition-fidelity after.\n\n### 8. Delivery bundle\
+  \ + read-gate wiring\n- **Bundle:** `decomposition` delivers a `plan-stage-entry:decomposition`\
+  \ bundle = THIS spec (the\n  cut-as-a-stage rules) + SPEC-0046's plan-cut face (re-bound,\
+  \ §Realization) + the SPEC-0034 cut\n  slice. The bundle MUST be non-empty or `_emit_plan_stage_entered`\
+  \ ships an empty delivery (the\n   seam).\n- **Read-gate (NOT uniform on the plan\
+  \ axis today — only `plan stage specs` has one):** the gate on\n  the transition\
+  \ `→ N` checks stage `N-1`'s bundle was FETCHED this session (cross-axis\n  `_require_reads(axis=plan,\
   \ …)`, <workshop-spec>/0050; proves FETCH not comprehension; graceful-empty).\n\
   \  So **`plan stage executing` (completing decomposition) ⇒ `_require_reads(axis=plan,\n\
   \  stage=\"decomposition\")`** — you cannot leave the cut for build unless the cut\
@@ -225,39 +200,7 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ are co-required). A symmetric read-gate on `plan stage decomposition`\n  (checking\
   \ the `accepted` bundle) is DEFERRED — not added now (no incident; the load-bearing\n\
   \  read-check is the cut-rules one on the executing leg). This deferral is a tracked\
-  \ design choice, not\n  a silent omission.\n\n### 9. Realization surface + hard\
-  \ build order (what `executing` tasks edit, in what order)\nThis draft is the DESIGN;\
-  \ the active surfaces are edited by this spec's executing tasks. Build ORDER\nis\
-  \ load-bearing: the safety mechanisms (claim-block + fingerprint freshness) MUST\
-  \ land BEFORE\n`plan stage executing` can ever admit a real plan, else a window\
-  \ exists where a card is claimable or a\nstale cut enters build. Ordered:\n1. **`bin/yitc-v2`\
-  \ — `PLAN_STAGE_SEQUENCE` gains `decomposition`** between `accepted` and `executing`\n\
-  \   (this AUTO-validates the FSM edge + makes `plan-stage-entry:decomposition` a\
-  \ VALID binding token —\n   `_is_valid_plan_stage_entry`; the token is INVALID until\
-  \ this lands, which is WHY this spec ships\n   `binding: []` and the binding is\
-  \ set together with this code edit).\n2. **`bin/yitc-v2` — claim-block leg in `worktree\
-  \ new --task`** (§5) + the **card-set fingerprint\n   helper** (§4). These two land\
-  \ BEFORE step 3 exposes the executing gate.\n3. **`bin/yitc-v2` — `cmd_plan_stage`:**\
-  \ relocate `_require_plan_executing_ready` → the\n   `accepted → decomposition`\
-  \ gate (rename), add `_require_plan_decomposition_fidelity` (the\n   fingerprint-fresh\
-  \ GREEN/YELLOW verdict) as the `decomposition → executing` gate, wire\n   `_require_reads(axis=plan,\
-  \ stage=\"decomposition\")` on the executing leg, relocate the big-plan\n   check\
-  \ to the decomposition-entry gate.\n4. **SPEC-0036** — add the `gate-executing`\
-  \ decomposition-fidelity template (P5) + its gate-policy\n   row (`mandatory-blocking`)\
-  \ to the plan-gate family.\n5. **SPEC-0046** — ADD `plan-stage-entry:decomposition`\
-  \ to its `binding:` (carry BOTH the task-Analysis\n   face and the plan-cut face)\
-  \ so the cut-rules deliver at the new stage.\n6. **SPEC-0034** — insert the `decomposition`\
-  \ stage into §The FSM + §Per-stage mechanics, ADD\n   `plan-stage-entry:decomposition`\
-  \ to its `binding:`, and REWRITE the `executing` entry-gate to the\n   fidelity\
-  \ verdict (delegating the detail here). The relocated `_require_plan_executing_ready`\
-  \ body +\n   the big-plan check MOVE, they are not deleted; the new `executing`\
-  \ gate is ADDITIVE.\n7. **LIFECYCLE.md §Plan lifecycle** (always-loaded skeleton)\
-  \ — add `decomposition` to the FSM row.\n8. **SPEC-0007 §5b co-design** — the new\
-  \ stage's post-`/compact` re-delivery is co-designed in the\n   SAME change (the\
-  \ mandatory coherence invariant; this spec is a startup/stage-delivered surface).\n\
-  Each step is ONE accept-unit (SPEC-0046); steps 1-2 `requires:`-precede step 3;\
-  \ the SPEC edits\n(4-6) and the verifier of the whole cut are `requires:`-ordered\
-  \ after the code they describe lands.\n\n## Parameters\n\nNone consumed. Referenced\
+  \ design choice, not\n  a silent omission.\n\n## Parameters\n\nNone consumed. Referenced\
   \ constants live in their own homes (audit-loop ceiling = 2 → CHARTER;\nbig-plan\
   \ apply-when → `patterns/big-plan-checklist.md`; the plan-gate family + verdict\
   \ schema →\nSPEC-0036) — not duplicated or `consumed:` here.\n\n## Rationale\n\n\
@@ -285,9 +228,75 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ «5. Claim-block»: corrected the inverse error: the corpus was `cites`-ONLY, so\
   \ a\n  decomposed-only card (`task file --decomposed-from` writes NO `cites:<plan>`)\
   \ was wrongly\n  EXCLUDED — the \"a cut card carries BOTH\" premise was false in\
-  \ practice.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing\
-  \ before trusted):\n- **VP1 (stage exists + gated):** after realization, `PLAN_STAGE_SEQUENCE`\
-  \ contains `decomposition`\n  between `accepted` and `executing`; `plan stage decomposition\
+  \ practice.\n\n### History moved from the rule body\n\nEach entry is a passage moved\
+  \ word for word out of the rule text of the section it names;\nthe rule it explains\
+  \ stays there.\n\n- From «Scenario»: Today both happen inside the single `executing`\
+  \ stage, so the cut itself has no\n  governed external audit and no stage boundary\
+  \ to hang one on.\n- From «1. FSM position»: inserting `decomposition` REASSIGNS\
+  \ existing gates (it does not invent a\n  second verb — §3/§4 below) —\n- From «2.\
+  \ The cut is its own stage»: TAKES OVER today's `_require_plan_executing_ready`\
+  \ body\n  VERBATIM (relocated one stage earlier):\n- From «3. The decomposition-fidelity\
+  \ gate»: (settles the plan's open \"which audit verb\" branch)\n- From «5. Claim-block»:\
+  \ (amended by — the membership/reference split)\n- From «5. Claim-block»: The original\
+  \ head keyed this block on `cites:` the plan, but `cites:` is\n  OVERLOADED — it\
+  \ carries BOTH structural cut-membership AND broad informational reference (the\n\
+  \   finalization corpus is \"tasks that cite the plan\"). Keying the claim-block\
+  \ on `cites:`\n  FALSE-blocked tasks that merely cited a pre-executing plan as context:\
+  \ the incident\n  (2026-06-10) — an owner-filed prod-incident fix cited a benchmarking\
+  \ plan at `status: trial` and\n  was wrongly refused.\n- From «5. Claim-block»:\
+  \ Rendering the BROAD corpus under a cut-card heading is the defect this\n  closes\
+  \ — it showed a `cites:`-only citer as a cut card and misdirected the repair.\n\
+  - From «5. Claim-block»: (it costs duplicate cards, wont-do records, and renumbering\
+  \ ids the cards\n  `requires:` each other by and a spec `activation_owner_task`\
+  \ may already name — the measured\n  X-0866 cost)\n- From «6. Applicability»: (This\
+  \ is the justification the plan's gate-specs audit asked for —\n  applicability\
+  \ rests on the cut's properties, not a per-plan-class carve-out.)\n- From «9. Realization\
+  \ surface»: ### 9. Realization surface + hard build order (what `executing`\n  tasks\
+  \ edit, in what order) This draft is the DESIGN; the active surfaces are edited\
+  \ by this\n  spec's executing tasks. Build ORDER is load-bearing: the safety mechanisms\
+  \ (claim-block +\n  fingerprint freshness) MUST land BEFORE `plan stage executing`\
+  \ can ever admit a real plan, else\n  a window exists where a card is claimable\
+  \ or a stale cut enters build. Ordered: 1.\n  **`bin/yitc-v2` — `PLAN_STAGE_SEQUENCE`\
+  \ gains `decomposition`** between `accepted` and\n  `executing` (this AUTO-validates\
+  \ the FSM edge + makes `plan-stage-entry:decomposition` a VALID\n  binding token\
+  \ — `_is_valid_plan_stage_entry`; the token is INVALID until this lands, which is\n\
+  \  WHY this spec ships `binding: []` and the binding is set together with this code\
+  \ edit). 2.\n  **`bin/yitc-v2` — claim-block leg in `worktree new --task`** (§5)\
+  \ + the **card-set fingerprint\n  helper** (§4). These two land BEFORE step 3 exposes\
+  \ the executing gate. 3. **`bin/yitc-v2` —\n  `cmd_plan_stage`:** relocate `_require_plan_executing_ready`\
+  \ → the `accepted → decomposition`\n  gate (rename), add `_require_plan_decomposition_fidelity`\
+  \ (the fingerprint-fresh GREEN/YELLOW\n  verdict) as the `decomposition → executing`\
+  \ gate, wire `_require_reads(axis=plan,\n  stage=\"decomposition\")` on the executing\
+  \ leg, relocate the big-plan check to the\n  decomposition-entry gate. 4. **SPEC-0036**\
+  \ — add the `gate-executing` decomposition-fidelity\n  template (P5) + its gate-policy\
+  \ row (`mandatory-blocking`) to the plan-gate family. 5.\n  **SPEC-0046** — ADD\
+  \ `plan-stage-entry:decomposition` to its `binding:` (carry BOTH the\n  task-Analysis\
+  \ face and the plan-cut face) so the cut-rules deliver at the new stage. 6.\n  **SPEC-0034**\
+  \ — insert the `decomposition` stage into §The FSM + §Per-stage mechanics, ADD\n\
+  \  `plan-stage-entry:decomposition` to its `binding:`, and REWRITE the `executing`\
+  \ entry-gate to\n  the fidelity verdict (delegating the detail here). The relocated\
+  \ `_require_plan_executing_ready`\n  body + the big-plan check MOVE, they are not\
+  \ deleted; the new `executing` gate is ADDITIVE. 7.\n  **LIFECYCLE.md §Plan lifecycle**\
+  \ (always-loaded skeleton) — add `decomposition` to the FSM row. 8.\n  **SPEC-0007\
+  \ §5b co-design** — the new stage's post-`/compact` re-delivery is co-designed in\n\
+  \  the SAME change (the mandatory coherence invariant; this spec is a startup/stage-delivered\n\
+  \  surface). Each step is ONE accept-unit (SPEC-0046); steps 1-2 `requires:`-precede\
+  \ step 3; the\n  SPEC edits (4-6) and the verifier of the whole cut are `requires:`-ordered\
+  \ after the code they\n  describe lands.\n\n## Implementation notes\n\n### Moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names\n(its class per SPEC-0005 rule 3 in brackets); every\
+  \ acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity gate»\
+  \ [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From «5.\
+  \ Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
+  \  `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4), `_plan_card_set_context`\n\
+  \  (the fidelity-audit prompt card-set) **and `cmd_plan_show`'s `status: decomposition`\
+  \ cut-card\n  listing** enumerate the cut through it.\n- From «5. Claim-block» [MECH]:\
+  \ (`_plan_tasks` / `_plan_task_carrier` — the BROAD\n  finalization corpus — read\
+  \ `decomposed_from` ∪ `cites` since, NON-SUBSTITUTABLE with the\n  cut member-set\
+  \ per the bullet above: the corpus is a superset, the member-set is\n  `decomposed_from`-only.)\n\
+  \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before trusted):\n\
+  - **VP1 (stage exists + gated):** after realization, `PLAN_STAGE_SEQUENCE` contains\
+  \ `decomposition`\n  between `accepted` and `executing`; `plan stage decomposition\
   \ <slug>` records `status: decomposition`\n  + emits `plan_stage_entered`; `plan\
   \ stage executing` REFUSES (nonzero, status unchanged) when no\n  fresh decomposition-fidelity\
   \ verdict exists and PASSES on GREEN/YELLOW.\n- **VP2 (fingerprint freshness):**\

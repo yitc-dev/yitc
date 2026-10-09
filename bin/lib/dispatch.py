@@ -1477,15 +1477,50 @@ def _wave_worker_fit(path, fold):
     return fit
 
 
+def _hand_in_engine_root() -> Path:
+    """The engine checkout this module runs from (`<engine>/bin/lib/dispatch.py`) — the one place the
+    SPEC-1019 hand-in is read from, for an engine and a `-C` consumer dispatch alike (T-13795)."""
+    return Path(__file__).resolve().parents[2]
+
+
+def _spec_hand_in_bullet(engine_root=None) -> "str | None":
+    """T-13795 — the SPEC-1019 «CHANGE HAND-IN» bullet, read from the spec AT COMPOSE TIME (one
+    source, never a copied string): the bullet line plus its indented continuation lines, byte-equal
+    to the parsed spec body. Read from the ENGINE's own `specs/` — the checkout this module runs from
+    (`<engine>/bin/lib/dispatch.py`) — so a `-C` consumer's brief carries the kernel rule and a
+    consumer's same-id spec never shadows it. None when the spec file, its `active` status or the
+    bullet is absent, or the read fails: the caller states the absence instead of dropping the block."""
+    import yaml
+    root = Path(engine_root) if engine_root is not None else _hand_in_engine_root()
+    try:
+        paths = sorted((root / "specs").glob("SPEC-1019-*.yaml"))
+        doc = yaml.safe_load(paths[0].read_text(encoding="utf-8")) if paths else None
+    except Exception:   # noqa: BLE001 — an unreadable spec is reported as absent, never a crash
+        return None
+    if not isinstance(doc, dict) or doc.get("status") != "active" or not isinstance(doc.get("body"), str):
+        return None
+    lines = doc["body"].split("\n")
+    for i, line in enumerate(lines):
+        if line.startswith("- **CHANGE HAND-IN"):
+            j = i + 1
+            while j < len(lines) and lines[j].startswith("  "):
+                j += 1
+            return "\n".join(lines[i:j])
+    return None
+
+
 def _compose_brief_preamble(task_id: str, card: "dict | None", owner_rules, shipped,
                             venue_line: "str | None" = None,
                             controller_lands: bool = False) -> str:
-    """Render the DERIVED half of a worker brief (PURE) — everything a Controller used to retype.
+    """Render the DERIVED half of a worker brief — everything a Controller used to retype. Pure
+    apart from one file read (the SPEC-1019 hand-in, T-13795).
 
-    Five blocks, in the order a worker needs them: the card header, the card's SCOPE and its
+    The blocks, in the order a worker needs them: the card header, the card's SCOPE and its
     ACCEPTANCE **verbatim**, the owner rules (each with its journal locator), one «as shipped» block
-    per closed `requires` id, the stop/land contract from `DISPATCH_STOP_LAND_CONTRACT`, and the
-    current venue line. The Controller's own brief is APPENDED AFTER this by the caller and is
+    per closed `requires` id, the stop/land contract from `DISPATCH_STOP_LAND_CONTRACT`, the SPEC-1019
+    change hand-in (T-13795 — the one read this render makes: that spec file, via
+    `_spec_hand_in_bullet`), and the current venue line. The Controller's own brief is APPENDED
+    AFTER this by the caller and is
     therefore the last word on task-specific detail — this preamble is the floor, not a ceiling.
 
     T-12373 — the STOP / LAND CONTRACT block is now emitted ONLY under `controller_lands` (T-12303's
@@ -1566,6 +1601,18 @@ def _compose_brief_preamble(task_id: str, card: "dict | None", owner_rules, ship
     # and this block is the only place the regime is stated. Exactly one of the two, either way.
     if controller_lands:
         L.extend(["", "STOP / LAND CONTRACT:", DISPATCH_STOP_LAND_CONTRACT])
+    # T-13795 — the SPEC-1019 hand-in, VERBATIM from the active spec, in BOTH land regimes. The full
+    # bullet, never a shortened cue: the full text placed in the brief is what measured the effect
+    # (plan author-passes-audit-on-the-first-try-give-the-auth, k32).
+    hand_in = _spec_hand_in_bullet()
+    L.extend(["", "CHANGE HAND-IN — VERBATIM from the active SPEC-1019 §1, read at launch; do this when "
+                  "your edits are done, before `stage Tests`:"])
+    # The absence line names the kernel spec by its ABSOLUTE engine path, never a CLI spelling: a
+    # bare `bin/yitc-v2 graph query` does not exist in a `-C` consumer and could resolve a same-id
+    # consumer spec there (audit-pre fp1:c6ac8a478039b8d8).
+    L.append(hand_in if hand_in else
+             f"  (SPEC-1019's «CHANGE HAND-IN» bullet could not be read at launch — read the kernel "
+             f"spec SPEC-1019-*.yaml in {_hand_in_engine_root() / 'specs'} before `stage Tests`.)")
     L.extend(["", f"VENUE: {venue_line or '(no venue line available)'}", "",
               "=== END COMPOSED PREAMBLE — the Controller's DELTA follows ==="])
     return "\n".join(L)

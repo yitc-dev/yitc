@@ -4437,14 +4437,15 @@ def _view_consult_postcheck(events_path: "Path", since=None, until=None, *,
         models.setdefault(ep["model"] or "(unknown)", {"groups": {}, "r": []})["r"].append(ep["r"])
 
     result = {
-        "lens": "consult-postcheck (SPEC-0200 rule 9 / T-12181) — the ceiling-consult EPISODE fold: "
+        "lens": "consult-postcheck (superseded SPEC-0200 rule 9 / T-12181, a HISTORY fold — the "
+                "consult episodes are retired by SPEC-0204 rule 6) — the ceiling-consult EPISODE fold: "
                 "per-episode R, the four per-group outcome shares, the contract-violation kinds and "
                 "the completeness-failure total, split again by auditor model",
         "window": _window_block(since, until),
         "invariant": "GROUPED BY (target, stage|gate) — the episode id minus its attempt ordinal — "
                      "NEVER by episode: a reopened target would otherwise count twice. R counts "
-                     "rounds of kind `retest` ONLY, malformed or not (SPEC-0200 rule 4's one "
-                     "definition). Every number here is read from the JOURNAL ROWS; the `saved_to` "
+                     "rounds of kind `retest` ONLY, malformed or not (the superseded SPEC-0200 rule 4's one "
+                     "definition, for the retired episodes). Every number here is read from the JOURNAL ROWS; the `saved_to` "
                      "consult record is rewritten in place each round and is provenance only (B13). "
                      "median_low everywhere — an even count never yields a half retest.",
         "denominator": {

@@ -21,19 +21,18 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   evidence cannot be produced, the session STOPS. The owner/AI sees a stop-and-escalate\
   \ as the\nCORRECT outcome, never as failure — the failure mode this rule exists\
   \ to prevent is the SILENT\npush past a real signal, which ships an invisible defect\
-  \ (the V1 failure class V2 exists to end).\n\n## Internal\n\n> **SUPERSEDES <workshop-spec>.**\
-  \ The one normative change is §5a (WHO may be THE AUTHORITY); the supersede\n> history\
-  \ is in §Rationale.\n\nTHE BLOCK-CLASSIFICATION + PUSH-VS-STOP PROTOCOL. A process/governance\
-  \ rule (SPEC-0005 rule 1):\na standing, provider-neutral (CHARTER §P4b) decision\
-  \ procedure for any blocked verify gate. It\nADDS no new LEDGER, no new store, no\
-  \ new event type and no new VERB, and §§1-5 add no mechanism at\nall — they REUSE\
-  \ the existing machinery. §5a is the ONE exception and is declared here rather than\n\
-  left for a reader to discover: it ships a GATE FUNCTION, `bin/lib/grants.py`\n#decide_authority_class_cause,\
-  \ plus one OPTIONAL flag (`--cause`) on the EXISTING `grants authorize`\nverb. The\
-  \ CHARTER §P1 filters, applied and recorded: F1 EXISTING ANALOG — admission is\n\
-  delegated WHOLE to the existing `authorize`, so SPEC-0169's identity and fail-closed\
-  \ rules govern\nunchanged and no second authority mechanism exists; F2 VIEW OVER\
-  \ ENTITY — no new store, event type,\nverb or gated operation (the emits reuse `authorization_decided`\
+  \ (the V1 failure class V2 exists to end).\n\n## Internal\n\nTHE BLOCK-CLASSIFICATION\
+  \ + PUSH-VS-STOP PROTOCOL. A process/governance rule (SPEC-0005 rule 1):\na standing,\
+  \ provider-neutral (CHARTER §P4b) decision procedure for any blocked verify gate.\
+  \ It\nADDS no new LEDGER, no new store, no new event type and no new VERB, and §§1-5\
+  \ add no mechanism at\nall — they REUSE the existing machinery. §5a is the ONE exception\
+  \ and is declared here rather than\nleft for a reader to discover: it ships a GATE\
+  \ FUNCTION, `bin/lib/grants.py`\n#decide_authority_class_cause, plus one OPTIONAL\
+  \ flag (`--cause`) on the EXISTING `grants authorize`\nverb. The CHARTER §P1 filters,\
+  \ applied and recorded: F1 EXISTING ANALOG — admission is\ndelegated WHOLE to the\
+  \ existing `authorize`, so SPEC-0169's identity and fail-closed rules govern\nunchanged\
+  \ and no second authority mechanism exists; F2 VIEW OVER ENTITY — no new store,\
+  \ event type,\nverb or gated operation (the emits reuse `authorization_decided`\
   \ / `authorization_refused`, and\n`GATED_OPERATIONS` is untouched, so the decision\
   \ right stays non-executing); F3 WHAT IS REMOVED —\nthe DEAD END, an authority-class\
   \ cause on a project someone holds the right for no longer has the\nowner as its\
@@ -122,12 +121,13 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ §5a adds) ADDS NO new mechanism (SPEC-0005 rule 1): rung-1 is\nthe EXISTING §2.1\
   \ governed self-clear / diff inspection, rung-2 is the EXISTING SPEC-0124 adversarial\n\
   consult engine, rung-3 is the EXISTING escalation gate (blocked-on-land / `--ack-repeated-abort`\
-  \ /\n`--owner-reset`) — an EXISTING gate, unchanged in code by this spec; §5a widens\
-  \ only WHO may answer\nat that rung. It adds no VERB and no STORE of its own; what\
-  \ it does add is named in full in the\n§Internal preamble above (one gate function,\
-  \ plus one optional `--cause` flag on the existing\n`grants authorize`), with the\
-  \ four anti-complexity filters recorded there.\n\n  - **Rung 1 — MECHANICAL SELF-EVIDENCE\
-  \ (mandatory first; an auditor call costs minutes+tokens).** Valid ONLY for a NO-NEW-DECISION\
+  \ /\nthe SPEC-0204 ceiling decisions, which replaced the retired `--owner-reset`)\
+  \ — an EXISTING gate,\nunchanged in code by this spec; §5a widens only WHO may answer\n\
+  at that rung. It adds no VERB and no STORE of its own; what it does add is named\
+  \ in full in the\n§Internal preamble above (one gate function, plus one optional\
+  \ `--cause` flag on the existing\n`grants authorize`), with the four anti-complexity\
+  \ filters recorded there.\n\n  - **Rung 1 — MECHANICAL SELF-EVIDENCE (mandatory\
+  \ first; an auditor call costs minutes+tokens).** Valid ONLY for a NO-NEW-DECISION\
   \ case: the diff + the\n    named failing assertion + a PRE-EXISTING audited AUTHORIZING\
   \ ARTIFACT (task card / accepted plan /\n    active spec) together re-derive the\
   \ SAME conclusion. A behaviour change WITHOUT such an artifact is\n    NOT staleness\
@@ -333,6 +333,10 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ unreconciled would have left this spec contradicting its own §5a.\n\n- **5a. WHO\
   \ MAY BE THE AUTHORITY — the gate is CONDITIONED, never REMOVED:** fingerprint\n\
   \  worker-self-acked-owner-gated-repeated-abort-flag-correct-outcome-ambiguous-mandate\n\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\nFrom «Internal»:\n\n> **SUPERSEDES <workshop-spec>.** The one normative\
+  \ change is §5a (WHO may be THE AUTHORITY); the supersede\n> history is in §Rationale.\n\
   \n## Implementation notes\n\nCode detail moved verbatim out of the rule text — what\
   \ the code's maintainer reads.\n\n- **5. THE THREE-RUNG RESOLUTION LADDER — how\
   \ a stuck question is ANSWERED before it reaches the\n  human:** carried from the\

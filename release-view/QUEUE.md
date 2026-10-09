@@ -22,8 +22,6 @@ Three-bucket model.
 
 **Size cap:** ≤ 50 tasks whose moment has come — `in-progress` cards plus `ready` cards whose every task `requires:` target is done (a terminal `wont-do` target is not waited on; this is the picker's requires-unblocked filter, §Picker logic). A `ready` card still waiting on a task `requires:` target is reported as waiting and is not counted. If exceeds, **anti-complexity violation** — defer some to the parking lot or close with rationale, don't grow capacity.
 
-**Order:** picker reads ready ∩ requires-unblocked tasks first by `priority:` field (`high | medium | low`). No multi-axis priority taxonomy.
-
 ### Done log
 
 **Location:** `tasks/<id>.yaml` where `status: done` plus required fields `closed_at:`, `commit:`, `probe_passed: true` — **or `probe_passed: deferred`** for a done card that still carries an undischarged deferred probe (the three-state closure contract: the card is done and its shipped work is proven, but a criterion whose proof lands after the ship is not yet discharged; `task close --settle-probe` flips it to `true` when the last one is. Rule home: SPEC-0015 §`probe_passed` is THREE-STATE).
@@ -40,8 +38,6 @@ Three-bucket model.
 **Location:** `tasks/<id>.yaml` where `status: parked` plus required field `parked_reason:` and optional `return_trigger:`.
 
 **Semantics:** "we considered this, decided not to do now, here's when to revisit". Different from `status: wont-do` (which means "decided not to do, period").
-
-**Review trigger:** the Controller's weekly review scans the parking lot. If return_trigger condition met → status flips to ready.
 
 ## State transitions
 <!--AUDIENCE:core-->
@@ -82,6 +78,8 @@ When the Controller, on an owner cue, assembles the ready queue and selects «wh
 - **Claim it by creating its worktree: `bin/yitc-v2 worktree new --task T-XXXX`.** The claim — `status: ready → in-progress` (`current_stage: Analysis`) + the `task_picked` event — is written **inside the new worktree**, so it reaches `main` only via `land` (mechanics: AGENTS-SESSIONS §Writes happen in a worktree).
 - How deep a `requires:` chain may run is set where the chain is cut — a decomposition authoring rule, not a picker check: `bin/yitc-v2 graph query SPEC-0046`.
 
+**Order:** picker reads ready ∩ requires-unblocked tasks first by `priority:` field (`high | medium | low`). No multi-axis priority taxonomy.
+
 No queue-saturation logic, no parallel-cap, no cap-per-account, no rate-limit awareness. Solo *author* — but concurrent sessions are expected : the invariant is **one active claim per task id** (a task id has at most one in-progress claim / `task/T-XXXX` worktree), NOT "one task at a time" globally. **Different** tasks may run concurrently in separate worktrees; the per-task-id guard only rejects a second claim of the *same* task.
 
 ## Re-review triggers
@@ -96,6 +94,8 @@ No queue-saturation logic, no parallel-cap, no cap-per-account, no rate-limit aw
 > in **`patterns/inspection-criteria-roster.md`** (SPEC-0120 split). Read it there. The
 > Controller's review cadence is unchanged; it is now sourced from the
 > roster, not this section (CHARTER §P5 — no double-home). No automated re-review; no cron jobs Day 1.
+
+**Review trigger:** the Controller's weekly review scans the parking lot. If return_trigger condition met → status flips to ready.
 
 > **Triage sweep + window — retrieved (SPEC-0055).** Fetch on demand: `bin/yitc-v2 graph query
 > SPEC-0055` (triage VERB: `bin/yitc-v2 triage`). The cadence in the roster stays mandatory.

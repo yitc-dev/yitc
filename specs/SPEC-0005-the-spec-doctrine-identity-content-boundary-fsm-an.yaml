@@ -50,96 +50,95 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ — NEVER a parallel node-type or filename prefix. Do NOT author\n`INVARIANT-*`\
   \ / `CONFIG-*` / `FSM-*` `.yaml` files: `graph build` indexes only `SPEC-*.yaml`,\
   \ so an\nother-prefixed spec-shaped file is silently graph-invisible (its `implements:`\
-  \ anchors never reach\nthe graph) — the <project>-migration incident (X-0195 / X-0197).\n\
-  \n### 2. Admission test (re-homed from)\nWarranted if MOST hold: (1) states a rule/invariant/contract/design-boundary\
-  \ OR a governing\nparameter an editor must know before safe change; (2) survives\
-  \ an internal refactor; (3)\nimplementation-shape-independent; (4) a change to it\
-  \ needs deliberate review; (5) affects ANALYSIS\nSCOPE (tells the AI what else to\
-  \ inspect); (6) probeable; (7) non-local effect. **Probe breadth:**\n\"probeable\"\
-  \ means at system-behavior level — and for a PROCESS spec that includes governance\
-  \ /\nrepository-state / CLI-behavior / adoption-evidence probes, not only runtime\
-  \ product behavior.\n**Delete-test:** if removing it would not materially worsen\
-  \ change analysis, it wasn't a spec. NOT\na spec: paraphrases one function's control\
-  \ flow; a behavior-preserving refactor would rewrite it;\nbetter as code/test/comment.\n\
-  \n### 3. CONTENT BOUNDARY (the load-bearing discipline)\nA spec body carries ONLY:\
-  \ (a) the standing RULE-TEXT, and (b) rationale STRICTLY in service of\nINTERPRETING\
-  \ or APPLYING that rule. **ALLOWED in the rule text** (every body section except\n\
-  `## Rationale`, `## Implementation notes` and `## Verification`): what the reader\
-  \ acting under the\nrule applies, plus a why of at most one sentence attached to\
-  \ the rule it explains (e.g. \"the\nbyte-cap counts pre-normalization\"). **Placed\
-  \ outside the rule text, in the same spec:**\n  - **History goes to the spec's `##\
-  \ Rationale` section:** incident narratives, measured figures,\n    amendment and\
-  \ change-origin tags (which card, decision or incident produced or changed a\n \
-  \   rule, e.g. \"Amends identity\"), and lists of cards or fingerprints.\n  - **Code\
-  \ detail has two homes:** a code anchor (the file or function that carries the rule)\n\
-  \    goes to the `implements:` field; a note the maintainer of that code needs goes\
-  \ to a\n    `## Implementation notes` section.\n  - A stage entry delivers neither\
-  \ of the two sections nor the `implements:` field; the full\n    lookup of the spec\
-  \ prints all three (delivery rule: SPEC-0050 §4).\n**Stays in the rule text — a\
-  \ rule, never history or code detail:** a cue the acting reader must\nact on that\
-  \ names a retired route or a cutoff the code checks; a command or function that\
-  \ reader\nmust call; a refusal text that reader will meet.\n**What a delivered body\
-  \ carries — one class per line.** The delivered body is every body section\nthe\
-  \ stage contract view keeps (SPEC-0050 §4). Give each of its lines one class:\n\
-  \  - ACT — a rule an acting agent applies: a condition, or a command, flag, field,\
-  \ status token,\n    refusal kind or number it uses or meets;\n  - MECH — how the\
-  \ code computes, stores or checks something the agent never applies;\n  - REF —\
-  \ a field catalog, schema block or template the agent looks up rather than applies;\n\
-  \  - PTR — a pointer to another home with no rule content of its own;\n  - RETIRED\
-  \ — more than one line about a route that is retired;\n  - HIST — history, as the\
-  \ history clause above defines it.\nA line mixing ACT with any other class is ACT.\n\
-  **Where each class goes.** The rule text keeps ACT lines only, and states each acting\
-  \ rule ONCE,\nwith its exact tokens. MECH and REF lines go to the `## Implementation\
-  \ notes` section; HIST lines\ngo to `## Rationale`. A PTR line stays only where\
-  \ the reader must go to that other home at that\nmoment to act; otherwise it is\
-  \ deleted. A retired route keeps ONE line, «never X; it refuses»,\nnaming the refusal\
-  \ the reader meets, and nothing more. Sentence style is free: do not reword an\n\
-  acting rule only to shorten it.\n**Rule-preservation check — REQUIRED for any change\
-  \ that removes or moves text out of a delivered\nbody.** Before the first edit,\
-  \ record a RULE INVENTORY of that body as it stands on main at the\nclaim: one line\
-  \ per ACT rule — condition -> required or forbidden action, with every verb, flag,\n\
-  field, status token, refusal kind and number verbatim. When a sync or another merge\
-  \ from main\nchanges that body before the ship, add every ACT rule the merge brought\
-  \ in to the inventory. After\nthe edit, check the shipped body against it rule by\
-  \ rule and mark each line PRESENT (same condition,\nsame action, every token verbatim),\
-  \ MOVED (give the file and heading of its new home) or REMOVED\n(give the reason:\
-  \ history, code detail, reference material, a duplicate of a named kept rule, or\
-  \ a\nretired route reduced to its one line). Commit the inventory and the result\
-  \ beside the card as\n`tasks/<card-id>-rule-inventory.md`, or quote them in the\
-  \ commit body. The check FAILS if an\ninventory line is missing from the result,\
-  \ a REMOVED line is an ACT rule with no duplicate and no\nnew home, a PRESENT line\
-  \ lost a condition or changed a token, or a MOVED line names a home that does\n\
-  not contain the rule in the shipped tree.\n**Light form — for a change that removes\
-  \ or moves at most 10 lines of a delivered body.** Instead\nof the inventory, the\
-  \ commit body lists every sentence removed from the body with its disposition:\n\
-  moved (to which home), duplicate (of which kept sentence), history, code detail,\
-  \ reference\nmaterial, or retired route reduced to one line. It FAILS if a removed\
-  \ sentence that states a\ncondition and an action an acting agent applies is listed\
-  \ as history, code detail, reference\nmaterial or none of these; if a sentence listed\
-  \ as moved is not in the named home in the shipped\ntree; or if the kept sentence\
-  \ a duplicate names is not in the shipped body. **Grandfathering:** text placed\
-  \ in a rule body\nbefore this split stays valid where it is; it is moved when a\
-  \ card next reshapes that passage, or\nby a migration card. Editing a spec does\
-  \ not require backfilling its older text first.\n**FORBIDDEN** — these\nbelong in\
-  \ the PLAN: full rejected-alternatives narratives / \"why X over Y\" debate; approval\
-  \ or\nratification history / who-signed-off / dates of agreement; deliberation chronology.\
-  \ **Probe:** a\nbody sentence that would have to CHANGE if a *different* option\
-  \ had been chosen — while the rule\nitself stayed the same — is misplaced deliberation\
-  \ → move it to the plan. (The line: a note that\ninterprets the rule may stay; the\
-  \ debate that produced the rule may not.)\n\n### 4. FSM (adds `draft` below `proposed`)\n\
-  `draft → proposed → active → superseded → retired` (terminal `withdrawn` / `rejected`).\n\
-  \  - `draft` — exploratory, lives in a plan-draft, in the graph for plan-local reasoning,\
-  \ governs\n    NOTHING, triggers NO currency/staleness.\n  - `proposed` — committed\
-  \ staged direction; currency/staleness tracks it; non-authoritative;\n    `consumed:`\
-  \ MUST be false; has an `activation_owner_task` (rule 5).\n  - `active` — realized;\
-  \ the **ONLY** normative status.\n  - `superseded` / `retired` / `withdrawn` / `rejected`\
-  \ — non-normative history, kept + indexed.\n`proposed → active` is GATED by an adoption\
-  \ probe (CHARTER §P3/§P8); on activation any `supersedes:`\ntarget flips atomically\
-  \ (`active` target → `superseded`; a still-`proposed` target being replaced →\n\
-  `withdrawn`/`rejected`, since it never governed).\n**Draft tooling — SHIPPED ( Part\
-  \ A).** The `draft` stage is now live: `spec new --draft\n--proposed-by <plan>`\
-  \ births a plan-local draft; `graph build` indexes drafts (status-agnostic\nwalk);\
-  \ default `graph query --projected` EXCLUDES all drafts; `graph query --projected\n\
+  \ anchors never reach\nthe graph).\n\n### 2. Admission test (re-homed from)\nWarranted\
+  \ if MOST hold: (1) states a rule/invariant/contract/design-boundary OR a governing\n\
+  parameter an editor must know before safe change; (2) survives an internal refactor;\
+  \ (3)\nimplementation-shape-independent; (4) a change to it needs deliberate review;\
+  \ (5) affects ANALYSIS\nSCOPE (tells the AI what else to inspect); (6) probeable;\
+  \ (7) non-local effect. **Probe breadth:**\n\"probeable\" means at system-behavior\
+  \ level — and for a PROCESS spec that includes governance /\nrepository-state /\
+  \ CLI-behavior / adoption-evidence probes, not only runtime product behavior.\n\
+  **Delete-test:** if removing it would not materially worsen change analysis, it\
+  \ wasn't a spec. NOT\na spec: paraphrases one function's control flow; a behavior-preserving\
+  \ refactor would rewrite it;\nbetter as code/test/comment.\n\n### 3. CONTENT BOUNDARY\
+  \ (the load-bearing discipline)\nA spec body carries ONLY: (a) the standing RULE-TEXT,\
+  \ and (b) rationale STRICTLY in service of\nINTERPRETING or APPLYING that rule.\
+  \ **ALLOWED in the rule text** (every body section except\n`## Rationale`, `## Implementation\
+  \ notes` and `## Verification`): what the reader acting under the\nrule applies,\
+  \ plus a why of at most one sentence attached to the rule it explains (e.g. \"the\n\
+  byte-cap counts pre-normalization\"). **Placed outside the rule text, in the same\
+  \ spec:**\n  - **History goes to the spec's `## Rationale` section:** incident narratives,\
+  \ measured figures,\n    amendment and change-origin tags (which card, decision\
+  \ or incident produced or changed a\n    rule, e.g. \"Amends identity\"), and lists\
+  \ of cards or fingerprints.\n  - **Code detail has two homes:** a code anchor (the\
+  \ file or function that carries the rule)\n    goes to the `implements:` field;\
+  \ a note the maintainer of that code needs goes to a\n    `## Implementation notes`\
+  \ section.\n  - A stage entry delivers neither of the two sections nor the `implements:`\
+  \ field; the full\n    lookup of the spec prints all three (delivery rule: SPEC-0050\
+  \ §4).\n**Stays in the rule text — a rule, never history or code detail:** a cue\
+  \ the acting reader must\nact on that names a retired route or a cutoff the code\
+  \ checks; a command or function that reader\nmust call; a refusal text that reader\
+  \ will meet.\n**What a delivered body carries — one class per line.** The delivered\
+  \ body is every body section\nthe stage contract view keeps (SPEC-0050 §4). Give\
+  \ each of its lines one class:\n  - ACT — a rule an acting agent applies: a condition,\
+  \ or a command, flag, field, status token,\n    refusal kind or number it uses or\
+  \ meets;\n  - MECH — how the code computes, stores or checks something the agent\
+  \ never applies;\n  - REF — a field catalog, schema block or template the agent\
+  \ looks up rather than applies;\n  - PTR — a pointer to another home with no rule\
+  \ content of its own;\n  - RETIRED — more than one line about a route that is retired;\n\
+  \  - HIST — history, as the history clause above defines it.\nA line mixing ACT\
+  \ with any other class is ACT.\n**Where each class goes.** The rule text keeps ACT\
+  \ lines only, and states each acting rule ONCE,\nwith its exact tokens. MECH and\
+  \ REF lines go to the `## Implementation notes` section; HIST lines\ngo to `## Rationale`.\
+  \ A PTR line stays only where the reader must go to that other home at that\nmoment\
+  \ to act; otherwise it is deleted. A retired route keeps ONE line, «never X; it\
+  \ refuses»,\nnaming the refusal the reader meets, and nothing more. Sentence style\
+  \ is free: do not reword an\nacting rule only to shorten it.\n**Rule-preservation\
+  \ check — REQUIRED for any change that removes or moves text out of a delivered\n\
+  body.** Before the first edit, record a RULE INVENTORY of that body as it stands\
+  \ on main at the\nclaim: one line per ACT rule — condition -> required or forbidden\
+  \ action, with every verb, flag,\nfield, status token, refusal kind and number verbatim.\
+  \ When a sync or another merge from main\nchanges that body before the ship, add\
+  \ every ACT rule the merge brought in to the inventory. After\nthe edit, check the\
+  \ shipped body against it rule by rule and mark each line PRESENT (same condition,\n\
+  same action, every token verbatim), MOVED (give the file and heading of its new\
+  \ home) or REMOVED\n(give the reason: history, code detail, reference material,\
+  \ a duplicate of a named kept rule, or a\nretired route reduced to its one line).\
+  \ Commit the inventory and the result beside the card as\n`tasks/<card-id>-rule-inventory.md`,\
+  \ or quote them in the commit body. The check FAILS if an\ninventory line is missing\
+  \ from the result, a REMOVED line is an ACT rule with no duplicate and no\nnew home,\
+  \ a PRESENT line lost a condition or changed a token, or a MOVED line names a home\
+  \ that does\nnot contain the rule in the shipped tree.\n**Light form — for a change\
+  \ that removes or moves at most 10 lines of a delivered body.** Instead\nof the\
+  \ inventory, the commit body lists every sentence removed from the body with its\
+  \ disposition:\nmoved (to which home), duplicate (of which kept sentence), history,\
+  \ code detail, reference\nmaterial, or retired route reduced to one line. It FAILS\
+  \ if a removed sentence that states a\ncondition and an action an acting agent applies\
+  \ is listed as history, code detail, reference\nmaterial or none of these; if a\
+  \ sentence listed as moved is not in the named home in the shipped\ntree; or if\
+  \ the kept sentence a duplicate names is not in the shipped body. **Grandfathering:**\
+  \ text placed in a rule body\nbefore this split stays valid where it is; it is moved\
+  \ when a card next reshapes that passage, or\nby a migration card. Editing a spec\
+  \ does not require backfilling its older text first.\n**FORBIDDEN** — these\nbelong\
+  \ in the PLAN: full rejected-alternatives narratives / \"why X over Y\" debate;\
+  \ approval or\nratification history / who-signed-off / dates of agreement; deliberation\
+  \ chronology. **Probe:** a\nbody sentence that would have to CHANGE if a *different*\
+  \ option had been chosen — while the rule\nitself stayed the same — is misplaced\
+  \ deliberation → move it to the plan. (The line: a note that\ninterprets the rule\
+  \ may stay; the debate that produced the rule may not.)\n\n### 4. FSM (adds `draft`\
+  \ below `proposed`)\n`draft → proposed → active → superseded → retired` (terminal\
+  \ `withdrawn` / `rejected`).\n  - `draft` — exploratory, lives in a plan-draft,\
+  \ in the graph for plan-local reasoning, governs\n    NOTHING, triggers NO currency/staleness.\n\
+  \  - `proposed` — committed staged direction; currency/staleness tracks it; non-authoritative;\n\
+  \    `consumed:` MUST be false; has an `activation_owner_task` (rule 5).\n  - `active`\
+  \ — realized; the **ONLY** normative status.\n  - `superseded` / `retired` / `withdrawn`\
+  \ / `rejected` — non-normative history, kept + indexed.\n`proposed → active` is\
+  \ GATED by an adoption probe (CHARTER §P3/§P8); on activation any `supersedes:`\n\
+  target flips atomically (`active` target → `superseded`; a still-`proposed` target\
+  \ being replaced →\n`withdrawn`/`rejected`, since it never governed).\n**Draft tooling\
+  \ — SHIPPED ( Part A).** The `draft` stage is now live: `spec new --draft\n--proposed-by\
+  \ <plan>` births a plan-local draft; `graph build` indexes drafts (status-agnostic\n\
+  walk); default `graph query --projected` EXCLUDES all drafts; `graph query --projected\n\
   --include-draft=<plan>` is the plan-scoped what-if. Draft→proposed is NOT a spec\
   \ verb — that\npromotion is Part B's `plan accept` (one promotion route only). **Currency/staleness\
   \ is NOT yet\nbuilt (Part G):** when it ships it MUST start at `proposed` and NEVER\
@@ -224,104 +223,88 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ in-place amend,\n      NOT a supersede: it enlarges coverage without reshaping\
   \ any existing obligation, so no\n      consumer's PRIOR compliance changes; only\
   \ a situation the rule did not previously address gains\n      an explicit additive\
-  \ answer. Prior-art (in-place on the ACTIVE SPEC-0036 audit-loop ceiling):\n   \
-  \    (commit 965af137) added a new ceiling-EXEMPT case — the plan-freshness re-audit\n\
-  \      ledger-skip — directly in SPEC-0036's body; (6c7e5021, a consult-reopened\
-  \ owner-reset\n      pass) and (66efb620, a uniform ceiling-continuation carrier)\
-  \ likewise EXTENDED that\n      ceiling in-place. Contrast a RESHAPE of an already-covered\
-  \ case (e.g. ceiling 2->3 for the\n      existing absorption loop, or REMOVING an\
-  \ exemption) — that alters existing compliance →\n      supersede.\n    - **The\
-  \ discriminating probe:** \"does the edit change what a consumer must DO to comply\
-  \ IN AN\n      ALREADY-COVERED case?\" YES → supersede; NO (it only clarifies /\
-  \ interprets / corrects, OR adds\n      a NEW case while leaving every already-covered\
-  \ case's compliance unchanged) → in-place. (Mirror\n      of rule 3's content-boundary\
-  \ probe.) The \"already-covered\" qualifier is what keeps a purely\n      ADDITIVE\
-  \ extension from reading as a spurious YES.\n    - **Internal-basis change under\
-  \ PRESERVED rule-text — text-preservation is NOT the discriminator\n      (E-0025):**\
-  \ when a spec's internal BASIS / derivation / mechanism changes while the rule's\
-  \ WORDS\n      stay identical, the boundary is STILL consumer-observable normativity,\
-  \ NOT the unchanged text —\n      run the discriminating probe on BEHAVIOUR, not\
-  \ the words. A basis change that alters what a\n      consumer OBSERVES or relies\
-  \ on in an already-covered case → NORMATIVE reshape → SUPERSEDE\n      (preserved\
-  \ wording is incidental, not exculpatory): watermark basis change (`now →\n    \
-  \  window_through`) kept the rule-text (\"closed boundary / routed exactly once\"\
-  ) intact YET changed\n      the reprocessing window a consumer observes → routed\
-  \ via supersede (consult-blessed). A basis\n      change that is only a more-honest\
-  \ RESTATEMENT of the SAME obligation, with NO consumer-observable\n      difference\
-  \ → IN-PLACE (e.g. correcting an interpreting/provenance note per rule 3 — \"the\
-  \ byte-cap\n      counts pre-normalization\" — sharpens the basis without changing\
-  \ what any consumer must DO). The\n      two E-0025 fingerprints resolve thus: an\
-  \ ADDITIVE ceiling-extension → IN-PLACE (the ADDITIVE\n      EXTENSION bullet above);\
-  \ an internal-basis edit → run the BEHAVIOUR probe (supersede iff it shifts\n  \
-  \    observable behaviour, else in-place).\n  - **Floor coverage of in-place edits\
-  \ (`before-rule-change`) — recorded decision, REVERSED by :**\n     recorded that\
-  \ the `before-rule-change` floor trigger keyed to the `spec-new` ACTION ALONE was\n\
-  \    \"correct by design\", relying on a structural backstop (a normative change\
-  \ smuggled in-place leaves\n    NO `supersedes:` lineage / activation carrier —\
-  \ a drift-#10 / P5 signal). (owner-authorized\n    2026-06-03) REVERSES that: the\
-  \ backstop was shown UNRELIABLE (delivery-inspection finding-3\n    `rule-change-keyed-to-spec-new`,\
-  \ reproduced N=2 — an ungated in-place edit left NO journal trace at\n    all, so\
-  \ the bypass was invisible, not merely lineage-less). The `before-rule-change` trigger\
-  \ now ALSO\n    covers the `spec edit` in-place chokepoint (binding: [spec-new,\
-  \ spec-edit]); `spec edit` makes an\n    in-place edit journal-observable (a `spec_edited`\
-  \ event carrying the binding-derived\n    `governing_contract`), so an off-path\
-  \ raw edit is DETECTABLE as a spec-file diff with no `spec_edited`\n    event. The\
-  \ in-place-vs-supersede NORMATIVITY boundary above is UNCHANGED — a normative reshape\
-  \ still\n    routes through `spec new`; `spec edit` is the sanctioned path for the\
-  \ non-normative in-place\n    clarifications rule 3 already allows, now gated +\
-  \ observable. **Land enforcement :** an off-path raw spec body/implements edit reaching\
-  \ `land` is BLOCKED (LAND: ABORT), not merely surfaced — the prior WARN-only was\
-  \ silently skippable, which the owner directive closed. A legitimate bulk body-migration\
-  \ that cannot ride `spec edit` per-occurrence declares an explicit `spec-hand-edit-waiver:\
-  \ <reason>` commit-body trailer (>=30 chars, the CHARTER §P2 emergency-marker shape\
-  \ — durable in git history, never silent), which downgrades the off-path edit to\
-  \ an acknowledged non-blocking warn. **Commit-time SIGNAL :** the SAME land guard\
-  \ is also read at `task commit` / `work commit` and its finding REPORTED there —\
-  \ a WARN, never a refusal. The block stays at `land`, unmoved: a commit-time gate\
-  \ would be STRICTER than land (which scans the whole branch and accepts a waiver\
-  \ trailer declared on any commit in it), so refusing at commit would make the legal\
-  \ multi-commit waiver flow illegal. One detector, two read points.\n\n    **THE\
-  \ RECEIPT MUST RIDE THE SAME BRANCH AS THE DIFF.** A `spec_edited`\n    receipt\
-  \ clears an off-path body/implements diff ONLY when the SAME member branch introduced\n\
-  \    BOTH. This is stated because it is STRICTER than what a merged-tree check can,\
-  \ and the\n    strictness must be normative BEFORE it is enforced, never discovered\
-  \ from a land refusal.\n    WHY the two differ: the journal is append-only and UNION-MERGED\
-  \ at `land`, so once branches A\n    and B are merged into one candidate, A's receipt\
-  \ and B's body change sit in the same tree and\n    the guard clears B — even though\
-  \ B, alone, changed a governing spec body with no receipt of\n    its own. Union-merge\
-  \ therefore HIDES a provenance violation that per-branch checking sees.\n    The\
-  \ same-branch reading is the rule because the receipt's whole purpose is to record\
-  \ WHO\n    made THIS edit and under which governing contract; a receipt authored\
-  \ by someone else's\n    branch records neither. The identical rule governs the\
-  \ sibling rationale-bearing guards\n    (SPEC-0054 decision content-freeze, SPEC-0165\
-  \ card-shape rationale): the rationale must be\n    introduced by the same member\
-  \ branch as the change it justifies. This clause is what a\n    pre-admission per-branch\
-  \ check ENFORCES; the merged-tree check remains a backstop and is not\n    weakened\
-  \ by it.\n  - **Empty `implements:` has TWO legitimate modes — name which, so empty\
-  \ ≠ omission:**\n    (a) *distributed/documentary* — an active cross-cutting invariant\
-  \ enforced everywhere, no single\n    code site (e.g. SPEC-0001, this spec); (b)\
-  \ *design-stage* — a `proposed` spec not yet wired to a\n    concrete anchor. Always\
-  \ add a one-line note saying which.\n\n### 8. Homing a standing rule — one home;\
-  \ verification travels with the rule\n  - **One home (P5):** a standing rule lives\
-  \ in EXACTLY ONE canonical home — a SPEC, **OR existing\n    handbook/pattern prose**\
-  \ when the rule is already canonical there (CHARTER / AGENTS / LIFECYCLE\n    /\
-  \ QUEUE / GRAPH, or a `patterns/*` file). Never both. A rule already homed in the\
-  \ handbook/pattern\n    STAYS there — do NOT duplicate it into a spec. (This is\
-  \ the THIRD home the spec/plan/task-field\n    split omitted.)\n  - **Verification\
-  \ travels WITH the rule:** a rule's verification CONTRACT (what must be true for\
-  \ it\n    to count as adopted — the probe definition) lives in the rule's `## Verification`\
-  \ — it is part of\n    the rule, not deliberation. The one-time verification RESULT\
-  \ (a probe's status / verified_at /\n    evidence list) is HISTORY, NEVER the live\
-  \ spec body — and its home is precise: the\n    **activation-owner task** owns the\
-  \ durable probe result, the **journal** records the activation\n    event, the **plan**\
-  \ summarizes only migration-wide outcomes.\n  - **Migrating a legacy rule (when\
-  \ the decision class retires) is NOT 1:1** — route each via one of\n    three verbs:\
-  \ *fold-into-existing-spec* (the rule joins an existing spec) / *absorb-into-meta-spec*\n\
-  \    (a foundational rule about the model joins a doctrine spec like this one) /\
-  \ *freeze-history-only*\n    (a pure act / dead / handbook-duplicate stays frozen\
-  \ + gets `migrated_to` or a prose historical-only disclaimer).\n    The one-time\
-  \ field-by-field map for the existing legacy decisions is MIGRATION PROCEDURE —\
-  \ it lives\n    in the parent plan (Part F) [[doc-model-rework-retire-decision-unify-on-spec-spe]],\
+  \ answer. Contrast a RESHAPE of an already-covered case (e.g. ceiling 2->3 for the\n\
+  \      existing absorption loop, or REMOVING an exemption) — that alters existing\
+  \ compliance →\n      supersede.\n    - **The discriminating probe:** \"does the\
+  \ edit change what a consumer must DO to comply IN AN\n      ALREADY-COVERED case?\"\
+  \ YES → supersede; NO (it only clarifies / interprets / corrects, OR adds\n    \
+  \  a NEW case while leaving every already-covered case's compliance unchanged) →\
+  \ in-place. (Mirror\n      of rule 3's content-boundary probe.) The \"already-covered\"\
+  \ qualifier is what keeps a purely\n      ADDITIVE extension from reading as a spurious\
+  \ YES.\n    - **Internal-basis change under PRESERVED rule-text — text-preservation\
+  \ is NOT the discriminator\n      (E-0025):** when a spec's internal BASIS / derivation\
+  \ / mechanism changes while the rule's WORDS\n      stay identical, the boundary\
+  \ is STILL consumer-observable normativity, NOT the unchanged text —\n      run\
+  \ the discriminating probe on BEHAVIOUR, not the words. A basis change that alters\
+  \ what a\n      consumer OBSERVES or relies on in an already-covered case → NORMATIVE\
+  \ reshape → SUPERSEDE\n      (preserved wording is incidental, not exculpatory).\
+  \ A basis\n      change that is only a more-honest RESTATEMENT of the SAME obligation,\
+  \ with NO consumer-observable\n      difference → IN-PLACE (e.g. correcting an interpreting/provenance\
+  \ note per rule 3 — \"the byte-cap\n      counts pre-normalization\" — sharpens\
+  \ the basis without changing what any consumer must DO). The\n      two E-0025 fingerprints\
+  \ resolve thus: an ADDITIVE ceiling-extension → IN-PLACE (the ADDITIVE\n      EXTENSION\
+  \ bullet above); an internal-basis edit → run the BEHAVIOUR probe (supersede iff\
+  \ it shifts\n      observable behaviour, else in-place).\n  - **Floor coverage of\
+  \ in-place edits (`before-rule-change`) — recorded decision, REVERSED by :** The\
+  \ `before-rule-change` trigger now ALSO\n    covers the `spec edit` in-place chokepoint\
+  \ (binding: [spec-new, spec-edit]); `spec edit` makes an\n    in-place edit journal-observable\
+  \ (a `spec_edited` event carrying the binding-derived\n    `governing_contract`),\
+  \ so an off-path raw edit is DETECTABLE as a spec-file diff with no `spec_edited`\n\
+  \    event. The in-place-vs-supersede NORMATIVITY boundary above is UNCHANGED —\
+  \ a normative reshape still\n    routes through `spec new`; `spec edit` is the sanctioned\
+  \ path for the non-normative in-place\n    clarifications rule 3 already allows,\
+  \ now gated + observable. **Land enforcement :** an off-path raw spec body/implements\
+  \ edit reaching `land` is BLOCKED (LAND: ABORT), not merely surfaced — the prior\
+  \ WARN-only was silently skippable, which the owner directive closed. A legitimate\
+  \ bulk body-migration that cannot ride `spec edit` per-occurrence declares an explicit\
+  \ `spec-hand-edit-waiver: <reason>` commit-body trailer (>=30 chars, the CHARTER\
+  \ §P2 emergency-marker shape — durable in git history, never silent), which downgrades\
+  \ the off-path edit to an acknowledged non-blocking warn. **Commit-time SIGNAL :**\
+  \ the SAME land guard is also read at `task commit` / `work commit` and its finding\
+  \ REPORTED there — a WARN, never a refusal. The block stays at `land`, unmoved:\
+  \ a commit-time gate would be STRICTER than land (which scans the whole branch and\
+  \ accepts a waiver trailer declared on any commit in it), so refusing at commit\
+  \ would make the legal multi-commit waiver flow illegal. One detector, two read\
+  \ points.\n\n    **THE RECEIPT MUST RIDE THE SAME BRANCH AS THE DIFF.** A `spec_edited`\n\
+  \    receipt clears an off-path body/implements diff ONLY when the SAME member branch\
+  \ introduced\n    BOTH. This is stated because it is STRICTER than what a merged-tree\
+  \ check can, and the\n    strictness must be normative BEFORE it is enforced, never\
+  \ discovered from a land refusal.\n    WHY the two differ: the journal is append-only\
+  \ and UNION-MERGED at `land`, so once branches A\n    and B are merged into one\
+  \ candidate, A's receipt and B's body change sit in the same tree and\n    the guard\
+  \ clears B — even though B, alone, changed a governing spec body with no receipt\
+  \ of\n    its own. Union-merge therefore HIDES a provenance violation that per-branch\
+  \ checking sees.\n    The same-branch reading is the rule because the receipt's\
+  \ whole purpose is to record WHO\n    made THIS edit and under which governing contract;\
+  \ a receipt authored by someone else's\n    branch records neither. The identical\
+  \ rule governs the sibling rationale-bearing guards\n    (SPEC-0054 decision content-freeze,\
+  \ SPEC-0165 card-shape rationale): the rationale must be\n    introduced by the\
+  \ same member branch as the change it justifies. This clause is what a\n    pre-admission\
+  \ per-branch check ENFORCES; the merged-tree check remains a backstop and is not\n\
+  \    weakened by it.\n  - **Empty `implements:` has TWO legitimate modes — name\
+  \ which, so empty ≠ omission:**\n    (a) *distributed/documentary* — an active cross-cutting\
+  \ invariant enforced everywhere, no single\n    code site (e.g. SPEC-0001, this\
+  \ spec); (b) *design-stage* — a `proposed` spec not yet wired to a\n    concrete\
+  \ anchor. Always add a one-line note saying which.\n\n### 8. Homing a standing rule\
+  \ — one home; verification travels with the rule\n  - **One home (P5):** a standing\
+  \ rule lives in EXACTLY ONE canonical home — a SPEC, **OR existing\n    handbook/pattern\
+  \ prose** when the rule is already canonical there (CHARTER / AGENTS / LIFECYCLE\n\
+  \    / QUEUE / GRAPH, or a `patterns/*` file). Never both. A rule already homed\
+  \ in the handbook/pattern\n    STAYS there — do NOT duplicate it into a spec.\n\
+  \  - **Verification travels WITH the rule:** a rule's verification CONTRACT (what\
+  \ must be true for it\n    to count as adopted — the probe definition) lives in\
+  \ the rule's `## Verification` — it is part of\n    the rule, not deliberation.\
+  \ The one-time verification RESULT (a probe's status / verified_at /\n    evidence\
+  \ list) is HISTORY, NEVER the live spec body — and its home is precise: the\n  \
+  \  **activation-owner task** owns the durable probe result, the **journal** records\
+  \ the activation\n    event, the **plan** summarizes only migration-wide outcomes.\n\
+  \  - **Migrating a legacy rule (when the decision class retires) is NOT 1:1** —\
+  \ route each via one of\n    three verbs: *fold-into-existing-spec* (the rule joins\
+  \ an existing spec) / *absorb-into-meta-spec*\n    (a foundational rule about the\
+  \ model joins a doctrine spec like this one) / *freeze-history-only*\n    (a pure\
+  \ act / dead / handbook-duplicate stays frozen + gets `migrated_to` or a prose historical-only\
+  \ disclaimer).\n    The one-time field-by-field map for the existing legacy decisions\
+  \ is MIGRATION PROCEDURE — it lives\n    in the parent plan (Part F) [[doc-model-rework-retire-decision-unify-on-spec-spe]],\
   \ not restated\n    here (rule 3 — migration narrative is plan material).\n  - **Build\
   \ it drift-PROOF — classify before you mention a homed rule (per SPEC-0067):** before\n\
   \    authoring or editing standing-rule documentation, apply the SPEC-0067 cross-surface\
@@ -383,24 +366,44 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ rule»: (Incident: — a planning sizing rule was directed into\n  the decomposition\
   \ DOCTRINE itself, the SPEC-0043 front-load checklist POINTING to it, not\n  restating\
   \ it.)\n- From «7. How to create / split / reshape»: (absorbing the external auditor's\
-  \ finding 2\n  on the corpus-guard-ordering consult, 2026-08-20)\n\n## Verification\n\
-  \n- **VP1 (content boundary, dogfood):** grep this body — no full rejected-alternatives\
-  \ narrative,\n  no approval/ratification chronology, no dated audit-finding refs;\
-  \ only concise interpreting\n  provenance notes remain (rule 3 ALLOWED set).\n-\
-  \ **VP2 (one activation owner):** a `proposed`/`active` (non-grandfathered) spec\
-  \ resolves to exactly\n  one `activation_owner_task`; other implementing tasks only\
-  \ `cite` it.\n- **VP3 (non-authoritative):** `status: proposed` + `consumed: false`\
-  \ — governs nothing; removing\n  this pilot changes no live behavior.\n- **VP4 (amendment\
-  \ honesty, P7):** the `amends:` block names every canonical surface this doctrine\n\
-  \  changes (the plan's one-task rule) and flags rule 8 as NEW.\n- **VP5 (one home,\
-  \ P5):** no rule stated in this spec is also duplicated as a standing rule in\n\
-  \  handbook/pattern prose; a handbook-homed rule is referenced (`cites`), never\
-  \ restated.\n- **VP6 (verification routing):** this spec's `## Verification` holds\
-  \ probe CONTRACTS (VP1–VP7), not\n  one-time results — no `verified_at` / evidence\
-  \ lists live in the body.\n- **VP7 (declare-the-binding step + own binding):** §7\
-  \ carries the MANDATORY\n  declare-the-binding authoring step (grep); and this doctrine\
-  \ declares its OWN `binding: [spec-new]`\n  (it is the read-before-spec-authoring\
-  \ rule), so `graph build` no longer lists SPEC-0005 in\n  `binding_report.dangling_specs`\
+  \ finding 2\n  on the corpus-guard-ordering consult, 2026-08-20)\n\n### History\
+  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
+  - From «1. Identity (broadened)»: — the <project>-migration incident (X-0195 / X-0197)\n\
+  - From «7. How to create / split / reshape»: Prior-art (in-place on the ACTIVE SPEC-0036\n\
+  \  audit-loop ceiling): (commit 965af137) added a new ceiling-EXEMPT case — the\n\
+  \  plan-freshness re-audit ledger-skip — directly in SPEC-0036's body; (6c7e5021,\
+  \ a\n  consult-reopened owner-reset pass) and (66efb620, a uniform ceiling-continuation\
+  \ carrier)\n  likewise EXTENDED that ceiling in-place.\n- From «7. How to create\
+  \ / split / reshape»: watermark basis change (`now →\n  window_through`) kept the\
+  \ rule-text (\"closed boundary / routed exactly once\") intact YET changed\n  the\
+  \ reprocessing window a consumer observes → routed via supersede (consult-blessed).\n\
+  - From «7. How to create / split / reshape»: recorded that the `before-rule-change`\
+  \ floor\n  trigger keyed to the `spec-new` ACTION ALONE was \"correct by design\"\
+  , relying on a structural\n  backstop (a normative change smuggled in-place leaves\
+  \ NO `supersedes:` lineage / activation\n  carrier — a drift-#10 / P5 signal). (owner-authorized\
+  \ 2026-06-03) REVERSES that: the\n  backstop was shown UNRELIABLE (delivery-inspection\
+  \ finding-3 `rule-change-keyed-to-spec-new`,\n  reproduced N=2 — an ungated in-place\
+  \ edit left NO journal trace at all, so the bypass was\n  invisible, not merely\
+  \ lineage-less).\n- From «8. Homing a standing rule»: (This is the THIRD home the\
+  \ spec/plan/task-field split\n  omitted.)\n\n## Verification\n\n- **VP1 (content\
+  \ boundary, dogfood):** grep this body — no full rejected-alternatives narrative,\n\
+  \  no approval/ratification chronology, no dated audit-finding refs; only concise\
+  \ interpreting\n  provenance notes remain (rule 3 ALLOWED set).\n- **VP2 (one activation\
+  \ owner):** a `proposed`/`active` (non-grandfathered) spec resolves to exactly\n\
+  \  one `activation_owner_task`; other implementing tasks only `cite` it.\n- **VP3\
+  \ (non-authoritative):** `status: proposed` + `consumed: false` — governs nothing;\
+  \ removing\n  this pilot changes no live behavior.\n- **VP4 (amendment honesty,\
+  \ P7):** the `amends:` block names every canonical surface this doctrine\n  changes\
+  \ (the plan's one-task rule) and flags rule 8 as NEW.\n- **VP5 (one home, P5):**\
+  \ no rule stated in this spec is also duplicated as a standing rule in\n  handbook/pattern\
+  \ prose; a handbook-homed rule is referenced (`cites`), never restated.\n- **VP6\
+  \ (verification routing):** this spec's `## Verification` holds probe CONTRACTS\
+  \ (VP1–VP7), not\n  one-time results — no `verified_at` / evidence lists live in\
+  \ the body.\n- **VP7 (declare-the-binding step + own binding):** §7 carries the\
+  \ MANDATORY\n  declare-the-binding authoring step (grep); and this doctrine declares\
+  \ its OWN `binding: [spec-new]`\n  (it is the read-before-spec-authoring rule),\
+  \ so `graph build` no longer lists SPEC-0005 in\n  `binding_report.dangling_specs`\
   \ (RED-GREEN: drop the binding → it reappears).\n- **VP8 (in-place vs supersede\
   \ boundary + floor coverage; floor-coverage decision REVERSED):** §7 names BOTH\
   \ the in-place\n  clarification path AND the supersede-reshape path with the \"\

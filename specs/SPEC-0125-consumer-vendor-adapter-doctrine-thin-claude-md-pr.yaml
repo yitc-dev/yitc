@@ -54,8 +54,13 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ own-first — the project's own spec at that id, else the kernel's;\n3. a `graph\
   \ query --kernel SPEC-XXXX` form, resolved against the kernel.\nThese are the forms\
   \ a drift check of the home reads: a named path that does not exist, or a named\n\
-  spec that is not active, is drift.\n\n### Rule 2 — The vendor adapter file carries\
-  \ ONLY the thin adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`)\
+  spec that is not active, is drift.\nA span that is the project's own content, not\
+  \ a repository path — a host name, a product term —\nis declared once in the project's\
+  \ `yitc-ops.yaml` under `context_home.own_content`: a list whose\nentries are each\
+  \ an exact span or a glob. The drift check does not read a span that equals or\n\
+  matches an entry as a path. An entry never silences a SPEC id or a `graph query\
+  \ --kernel` form.\nWith no list, every span is read.\n\n### Rule 2 — The vendor\
+  \ adapter file carries ONLY the thin adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`)\
   \ carries ONLY: (a) the engine location + the\n`-C` verb-invocation form `<engine>/bin/yitc-v2\
   \ -C <this-repo-abs-path> <verb>` (a consumer has no\nlocal `bin/yitc-v2` — the\
   \ X-0144 class), (b) the session-start pointer, and (c) a pointer to the\nneutral\
@@ -184,5 +189,5 @@ init_concern:
 implements_signature:
   bin/lib/cli.py#cmd_session_start: f369044416df3575c97dd3dbbcebc0fe18c43eb14fff64ef8c1f66ce02086575
   bin/lib/init.py#_ensure_consumer_vendor_adapter: 6a5949d7c49e54d50bfca80079c137594a92131e89eeaffb39f2ed6d210ffbaa
-  bin/lib/init.py#home_reference_drift: 48146a636c9cc7e8e3c8f849d5601ebab3c29322d5a986508ea6d51136015d49
+  bin/lib/init.py#home_reference_drift: deefa92df72a8994bb5d8b69ac8831856f86db48549b0cbaa2c061d4eb52cf44
   bin/lib/session.py#visible_start_line: 5cee49e215d4a6c942927b0d54d58719f725d90c59cb56a3f2fc12e4b0111d10

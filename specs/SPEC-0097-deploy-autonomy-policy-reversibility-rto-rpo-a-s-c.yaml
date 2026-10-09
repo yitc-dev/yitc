@@ -346,44 +346,44 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ every deploy (the pre-policy default). Per-section waiver policy (SPEC-0093 rule\
   \ 6): the\nsecurity-bearing Class-S, when waived, requires a compensating control\
   \ + an expiry/review date.\n\n### 7. Orthogonal — these stay owner-gated ALWAYS\
-  \ (gate-BYPASSES, not deploys)\n`land --no-tests`, `audit --owner-reset`, `land\
-  \ --rebaseline`, emergency-mode skips. They are\ngate-bypasses, not deploys; this\
-  \ policy does not touch them.\n\n### 8. This is a GATE, not an auto-trigger (the\
-  \ autonomy boundary — CHARTER non-goals)\nThe policy decides ONLY whether the **existing,\
-  \ explicitly-invoked `deploy` verb** may proceed without\nan extra owner ceremony.\
-  \ It creates **NO new auto-trigger and NO new pipeline**. Named retirements —\n\
-  what the policy does NOT add: **no post-`land` auto-fire** (landing a task never\
-  \ auto-deploys), **no\nbackground autopilot / self-firing deploy loop**, **no new\
-  \ session type / role / orchestration surface**\n(CHARTER §Principle 6 stays Build+Review\
-  \ only; the deploy is still an action the AI runs deliberately).\n\"Autonomous\"\
-  \ here means \"the AI need not ask the owner per deploy\", NOT \"the system deploys\
-  \ by itself\".\n\n**Implementation binding ( — the deploy-verb gate surface).**\
-  \ Classification is EXPLICIT, never an\nauto-detector (AGENTS §\"When NOT to add\
-  \ a mechanism\" forbids a new behavioral detector; a deploy ships\nmany changes\
-  \ per SPEC-0094 §4, so the class cannot derive from one task). The surface:\n- **`deploy\
-  \ --class {A|S|C1|C2}`** names the class at deploy time; the gate\n  reads `yitc-ops.yaml`\
-  \ `deploy.policy` and SELECTS `deploy.policy.classes.<class>` as that deploy's\n\
-  \  evidence requirement. On a project that opted into autonomous deploys (declared\
-  \ `classes:`) a `--class`\n  is REQUIRED (fail-closed §5); a pre-policy / waived\
-  \ carrier ignores it (§9 — the verb proceeds as\n  before the policy existed). A\
-  \ class undeclared in `classes:`, or carrying a per-class `waiver:`, ⇒\n  escalate\
-  \ (§6).\n- **`deploy --owner-approved`** proceeds a **Class-C2** deploy after the\
-  \ owner took the RTO/RPO decision\n  (NOT autonomous, §5). Without it, C2 escalates\
-  \ (no `deploy_completed`). With it, the verb first\n  runs the project's declared\
-  \ pre-deploy dump and refuses if that dump fails; with no dump declared\n  it proceeds\
-  \ and says that no backup is taken (§5 «The owner-approved Class-C2 backup»).\n\
-  - **`deploy --security-override-advisory <ID> --security-override-reason <WHY>`**\
-  \ is this flag's SIBLING\n  on the SECURITY-GATE leg (X-0362/X-0363): the owner-invoked,\
-  \ journaled override of a\n  REJECTING pre-deploy security gate, for the outage\
-  \ case where a NON-prod-reachable build-time advisory\n  would otherwise keep the\
-  \ GOVERNED restore path shut. Like `--owner-approved` it is an owner\n  ESCALATION\
-  \ act and NEVER autonomous — no class, policy key, or env grants it, and no deploy-autonomy\n\
-  \  stance (§5) can make it self-serve. **Rule body homed in SPEC-0155 rule 7** (owner-invoked\
-  \ ·\n  reason-bearing · bounded to the severity-blocking reject class · must NAME\
-  \ every blocking finding ·\n  journaled as `deploy_security_gate_overridden` · frequency-visible\
-  \ via SPEC-0119 rule 14) — named\n  here, not restated (SPEC-0005 rule 8). It does\
-  \ not touch this spec's class gate: an overridden\n  security gate still pays the\
-  \ full A/S/C1/C2 evidence requirement, and a Class-C2 deploy still needs\n  `--owner-approved`\
+  \ (gate-BYPASSES, not deploys)\n`land --no-tests`, `land --rebaseline`, emergency-mode\
+  \ skips. They are\ngate-bypasses, not deploys; this policy does not touch them.\n\
+  \n### 8. This is a GATE, not an auto-trigger (the autonomy boundary — CHARTER non-goals)\n\
+  The policy decides ONLY whether the **existing, explicitly-invoked `deploy` verb**\
+  \ may proceed without\nan extra owner ceremony. It creates **NO new auto-trigger\
+  \ and NO new pipeline**. Named retirements —\nwhat the policy does NOT add: **no\
+  \ post-`land` auto-fire** (landing a task never auto-deploys), **no\nbackground\
+  \ autopilot / self-firing deploy loop**, **no new session type / role / orchestration\
+  \ surface**\n(CHARTER §Principle 6 stays Build+Review only; the deploy is still\
+  \ an action the AI runs deliberately).\n\"Autonomous\" here means \"the AI need\
+  \ not ask the owner per deploy\", NOT \"the system deploys by itself\".\n\n**Implementation\
+  \ binding ( — the deploy-verb gate surface).** Classification is EXPLICIT, never\
+  \ an\nauto-detector (AGENTS §\"When NOT to add a mechanism\" forbids a new behavioral\
+  \ detector; a deploy ships\nmany changes per SPEC-0094 §4, so the class cannot derive\
+  \ from one task). The surface:\n- **`deploy --class {A|S|C1|C2}`** names the class\
+  \ at deploy time; the gate\n  reads `yitc-ops.yaml` `deploy.policy` and SELECTS\
+  \ `deploy.policy.classes.<class>` as that deploy's\n  evidence requirement. On a\
+  \ project that opted into autonomous deploys (declared `classes:`) a `--class`\n\
+  \  is REQUIRED (fail-closed §5); a pre-policy / waived carrier ignores it (§9 —\
+  \ the verb proceeds as\n  before the policy existed). A class undeclared in `classes:`,\
+  \ or carrying a per-class `waiver:`, ⇒\n  escalate (§6).\n- **`deploy --owner-approved`**\
+  \ proceeds a **Class-C2** deploy after the owner took the RTO/RPO decision\n  (NOT\
+  \ autonomous, §5). Without it, C2 escalates (no `deploy_completed`). With it, the\
+  \ verb first\n  runs the project's declared pre-deploy dump and refuses if that\
+  \ dump fails; with no dump declared\n  it proceeds and says that no backup is taken\
+  \ (§5 «The owner-approved Class-C2 backup»).\n- **`deploy --security-override-advisory\
+  \ <ID> --security-override-reason <WHY>`** is this flag's SIBLING\n  on the SECURITY-GATE\
+  \ leg (X-0362/X-0363): the owner-invoked, journaled override of a\n  REJECTING pre-deploy\
+  \ security gate, for the outage case where a NON-prod-reachable build-time advisory\n\
+  \  would otherwise keep the GOVERNED restore path shut. Like `--owner-approved`\
+  \ it is an owner\n  ESCALATION act and NEVER autonomous — no class, policy key,\
+  \ or env grants it, and no deploy-autonomy\n  stance (§5) can make it self-serve.\
+  \ **Rule body homed in SPEC-0155 rule 7** (owner-invoked ·\n  reason-bearing · bounded\
+  \ to the severity-blocking reject class · must NAME every blocking finding ·\n \
+  \ journaled as `deploy_security_gate_overridden` · frequency-visible via SPEC-0119\
+  \ rule 14) — named\n  here, not restated (SPEC-0005 rule 8). It does not touch this\
+  \ spec's class gate: an overridden\n  security gate still pays the full A/S/C1/C2\
+  \ evidence requirement, and a Class-C2 deploy still needs\n  `--owner-approved`\
   \ on top.\n- The gate guards **kind==deploy only** — a rollback is the always-available\
   \ reversal (§2), never gated.\n- **Fail-closed on a malformed carrier (§9):** an\
   \ ABSENT `deploy.policy` (None) is pre-policy (proceed,\n  back-compat); a PRESENT-but-malformed\

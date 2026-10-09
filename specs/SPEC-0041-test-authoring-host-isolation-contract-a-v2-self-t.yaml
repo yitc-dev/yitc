@@ -24,18 +24,16 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ engine's instances\nof the rule — dev-provenance the release-view strip rebases\
   \ (SPEC-0073 §4), not a reason to scope the\ndiscipline to one repo.\n\n## Internal\n\
   \nTHE HOST-ISOLATION CONTRACT for ENGINE SELF-TOOLING TESTS (`tests/test_*.py` exercising\
-  \ `bin/yitc-v2`\n/ the engine's parser / audit / event / task / graph code). This\
-  \ is AUTHORING DISCIPLINE, not a new gate or\nmechanism — it codifies the ALREADY-SHIPPED\
-  \ sandbox idiom so it is followed once, not rediscovered\nper incident.\n\n### 1.\
-  \ The rule (the invariant)\nThe portable, identity-agnostic INVARIANT: **a self-tooling\
-  \ test MUST sandbox EVERY host-mutable\nsurface it reads or writes, and must NEVER\
-  \ commit, emit events, build the graph, or write any\nartifact against the live\
-  \ checkout it runs in.** This is the normative rule and it travels unchanged\nto\
-  \ any consumer of the engine; the surface TABLE below enumerates THIS engine's instances\
-  \ of the\nrule's \"host-mutable surface\" set (a consumer pins the same engine,\
-  \ so it inherits the same surfaces).\n\n**The surface set is a DERIVATION rule,\
-  \ not a closed list:** \"host-mutable surface\" = the checkout's\n`git` state (working\
-  \ tree / index / HEAD) PLUS **every repo-rooted path global** in `bin/yitc-v2`\n\
+  \ `bin/yitc-v2`\n/ the engine's parser / audit / event / task / graph code).\n\n\
+  ### 1. The rule (the invariant)\nThe portable, identity-agnostic INVARIANT: **a\
+  \ self-tooling test MUST sandbox EVERY host-mutable\nsurface it reads or writes,\
+  \ and must NEVER commit, emit events, build the graph, or write any\nartifact against\
+  \ the live checkout it runs in.** This is the normative rule and it travels unchanged\n\
+  to any consumer of the engine; the surface TABLE below enumerates THIS engine's\
+  \ instances of the\nrule's \"host-mutable surface\" set (a consumer pins the same\
+  \ engine, so it inherits the same surfaces).\n\n**The surface set is a DERIVATION\
+  \ rule, not a closed list:** \"host-mutable surface\" = the checkout's\n`git` state\
+  \ (working tree / index / HEAD) PLUS **every repo-rooted path global** in `bin/yitc-v2`\n\
   (each `<GLOBAL> = REPO_ROOT / …` assignment — the same set `YITC_REPO_ROOT` redirects,\
   \ per the\n`cmd_repo_root_override` invariant). So a NEW writable global added later\
   \ is covered automatically;\ndo not enumerate-and-forget. The set at minimum includes:\n\
@@ -178,57 +176,61 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ PRODUCT tests\n(rollback / recreate / savepoint fixtures), v1-migrated. It is\
   \ NOT this contract and is NOT\nconflated here — this spec governs ENGINE SELF-TOOLING\
   \ tests not touching the host checkout. Cited for\ndisambiguation, not as a dependency.\n\
-  \n### 5. Anti-complexity posture\nNo new node, edge, parser, verb, or gate. This\
-  \ codifies the ALREADY-shipped idiom (the two\ntechniques above + the canary, all\
-  \ live) and EXTENDS the existing SPEC-0013 stage-entry delivery\naxis (`binding:\
-  \ [stage-entry:Execution, stage-entry:Tests]`) so the contract reaches the worker\
-  \ at\nthe authoring moment. What it RETIRES: the reactive whack-a-mole class — one-test-at-a-time\n\
-  sandbox fixes with no governing rule and nothing delivered when a test is written.\
-  \ Codify once +\ndeliver → the recurrence has a home and a delivery.\n\n## Parameters\n\
-  \nNone consumed. The host-mutable surfaces in §1 are the CLI path globals (`bin/yitc-v2`\
-  \ REPO_ROOT\nblock); the env overrides `YITC_REPO_ROOT` / `YITC_EVENTS_SINK` / `YITC_CANARY_RUN`\
-  \ are referenced,\nnot duplicated — they live in `bin/yitc-v2` + the canary, the\
-  \ single source.\n\n## Rationale\n\nA DESIGN/teaching spec : it tells the AI what\
-  \ to inspect and how to isolate before writing a\nself-tooling test, and a spec\
-  \ is its right home (SPEC-0005 rule 1/2 — a standing, cross-task,\nanalysis-shaping,\
-  \ probeable PROCESS rule). It codifies an ALREADY-shipped idiom rather than inventing\
-  \ behaviour, and is\ncarried by the sandbox-leak incident family — repeated one-test-at-a-time\
-  \ fixes sharing one root:\nan engine self-tooling test touched the host checkout,\
-  \ with no governing spec on how to write a test\nand nothing test-discipline delivered\
-  \ when a worker writes one.\n\n### History moved from the rule body\n\nEach entry\
-  \ is a passage moved word for word out of the rule text of the section it names;\n\
-  the rule it explains stays there.\n\n- From «1c. A mutable resource a test OWNS\
-  \ takes a run-unique name»: Evidence from this engine's\n  own history — its detached-land\
-  \ log is keyed by repository and task, which is exactly why that\n  log is append-only\
-  \ ACROSS ATTEMPTS and why a poll of it had to be anchored to the current\n  attempt's\
-  \ bytes.\n\n## Implementation notes\n\nNotes for the maintainer of the code, moved\
-  \ word for word out of the rule text of the section\neach names.\n\n- From «2. The\
-  \ two sanctioned isolation techniques»: (prior-art: `tests/test_graph_freshness.py`,\n\
-  \  `tests/test_audit_degeneration.py`)\n\n## Verification\n\nProbe CONTRACTS (the\
-  \ rule's `## Verification` per SPEC-0005 §8 — contracts, not one-time results):\n\
-  - **VP1 (body carries the contract):** this `## Internal` names ALL seven host-mutable\
-  \ surfaces\n  (REPO_ROOT / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH\
-  \ / FLOOR_MAP_PATH / git), BOTH\n  isolation techniques (monkeypatch the path globals\
-  \ OR a tmp repo), the canonical helper\n  (`tests/_graph_build_sandbox.build_index_in_temp_copy`\
-  \ + `YITC_REPO_ROOT` + `YITC_EVENTS_SINK`),\n  and the leak canary as the enforcement\
-  \ probe — `bin/yitc-v2 graph query SPEC-0041` returns them.\n  It ALSO carries the\
-  \ **§1b shared-mutable-state-under-concurrency rule** : a test MUST NOT\n  assert\
-  \ on shared mutable host state concurrent sessions mutate (the live `events.jsonl`;\
-  \ the worktree\n  `git status` cleanliness) — isolate via a private snapshot / `YITC_EVENTS_SINK`\
-  \ / a `/tmp` repo bound\n  by `YITC_REPO_ROOT`. (state-check on the spec body —\
-  \ AC1.)\n- **VP2 (delivered at the authoring moment):** the binding-report state-check\
-  \ — `graph build`'s\n  `binding_report.stage_to_specs` lists active SPEC-0041 under\
-  \ BOTH `Execution` and `Tests`. The\n  live-trigger is a `stage Execution` / `stage\
-  \ Tests` delivery observed on ANY active task currently\n  at that stage (NOT a\
-  \ re-entry on the just-closed, which is no longer at those stages) — the\n  `stage_entered`\
-  \ event carries SPEC-0041 in `delivered`. (binding-report state-check + live-trigger\n\
-  \  on a live stage entry — AC2.)\n- **VP3 (non-dangling, honest):** active SPEC-0041\
-  \ carries a `stage-entry:` routing binding ⇒\n  excluded from `binding_report.dangling_specs`\
-  \ and from `unknown_tokens`; `graph conformance` is\n  GREEN. (RED-GREEN: drop the\
-  \ binding → it reappears as dangling.)\n- **VP4 (not conflated):** the body cross-references\
-  \ `patterns/test-isolation-strategies.md` as a\n  DIFFERENT concern (async-DB product\
-  \ tests), not as a dependency — §4.\n- **VP5 (work-first activation):** `activation_owner_task:\
-  \ `; `task close ` flips this\n  spec proposed→active ( deterministic side-effect).\n"
+  \n## Parameters\n\nNone consumed.\n\n## Rationale\n\nA DESIGN/teaching spec : it\
+  \ tells the AI what to inspect and how to isolate before writing a\nself-tooling\
+  \ test, and a spec is its right home (SPEC-0005 rule 1/2 — a standing, cross-task,\n\
+  analysis-shaping, probeable PROCESS rule). It codifies an ALREADY-shipped idiom\
+  \ rather than inventing behaviour, and is\ncarried by the sandbox-leak incident\
+  \ family — repeated one-test-at-a-time fixes sharing one root:\nan engine self-tooling\
+  \ test touched the host checkout, with no governing spec on how to write a test\n\
+  and nothing test-discipline delivered when a worker writes one.\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «1c.\
+  \ A mutable resource a test OWNS takes a run-unique name»: Evidence from this engine's\n\
+  \  own history — its detached-land log is keyed by repository and task, which is\
+  \ exactly why that\n  log is append-only ACROSS ATTEMPTS and why a poll of it had\
+  \ to be anchored to the current\n  attempt's bytes.\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code, moved word for word out of the rule text\
+  \ of the section\neach names.\n\n- From «2. The two sanctioned isolation techniques»:\
+  \ (prior-art: `tests/test_graph_freshness.py`,\n  `tests/test_audit_degeneration.py`)\n\
+  \n### Moved from the rule body\n\n- From «Internal»: This is AUTHORING DISCIPLINE,\
+  \ not a new gate or mechanism — it codifies the\n  ALREADY-SHIPPED sandbox idiom\
+  \ so it is followed once, not rediscovered per incident.\n- From «5. Anti-complexity\
+  \ posture»: No new node, edge, parser, verb, or gate. This codifies the\n  ALREADY-shipped\
+  \ idiom (the two techniques above + the canary, all live) and EXTENDS the existing\n\
+  \  SPEC-0013 stage-entry delivery axis (`binding: [stage-entry:Execution, stage-entry:Tests]`)\
+  \ so\n  the contract reaches the worker at the authoring moment. What it RETIRES:\
+  \ the reactive\n  whack-a-mole class — one-test-at-a-time sandbox fixes with no\
+  \ governing rule and nothing\n  delivered when a test is written. Codify once +\
+  \ deliver → the recurrence has a home and a\n  delivery.\n- From «Parameters»: The\
+  \ host-mutable surfaces in §1 are the CLI path globals (`bin/yitc-v2`\n  REPO_ROOT\
+  \ block); the env overrides `YITC_REPO_ROOT` / `YITC_EVENTS_SINK` / `YITC_CANARY_RUN`\n\
+  \  are referenced, not duplicated — they live in `bin/yitc-v2` + the canary, the\
+  \ single source.\n\n## Verification\n\nProbe CONTRACTS (the rule's `## Verification`\
+  \ per SPEC-0005 §8 — contracts, not one-time results):\n- **VP1 (body carries the\
+  \ contract):** this `## Internal` names ALL seven host-mutable surfaces\n  (REPO_ROOT\
+  \ / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH / FLOOR_MAP_PATH / git),\
+  \ BOTH\n  isolation techniques (monkeypatch the path globals OR a tmp repo), the\
+  \ canonical helper\n  (`tests/_graph_build_sandbox.build_index_in_temp_copy` + `YITC_REPO_ROOT`\
+  \ + `YITC_EVENTS_SINK`),\n  and the leak canary as the enforcement probe — `bin/yitc-v2\
+  \ graph query SPEC-0041` returns them.\n  It ALSO carries the **§1b shared-mutable-state-under-concurrency\
+  \ rule** : a test MUST NOT\n  assert on shared mutable host state concurrent sessions\
+  \ mutate (the live `events.jsonl`; the worktree\n  `git status` cleanliness) — isolate\
+  \ via a private snapshot / `YITC_EVENTS_SINK` / a `/tmp` repo bound\n  by `YITC_REPO_ROOT`.\
+  \ (state-check on the spec body — AC1.)\n- **VP2 (delivered at the authoring moment):**\
+  \ the binding-report state-check — `graph build`'s\n  `binding_report.stage_to_specs`\
+  \ lists active SPEC-0041 under BOTH `Execution` and `Tests`. The\n  live-trigger\
+  \ is a `stage Execution` / `stage Tests` delivery observed on ANY active task currently\n\
+  \  at that stage (NOT a re-entry on the just-closed, which is no longer at those\
+  \ stages) — the\n  `stage_entered` event carries SPEC-0041 in `delivered`. (binding-report\
+  \ state-check + live-trigger\n  on a live stage entry — AC2.)\n- **VP3 (non-dangling,\
+  \ honest):** active SPEC-0041 carries a `stage-entry:` routing binding ⇒\n  excluded\
+  \ from `binding_report.dangling_specs` and from `unknown_tokens`; `graph conformance`\
+  \ is\n  GREEN. (RED-GREEN: drop the binding → it reappears as dangling.)\n- **VP4\
+  \ (not conflated):** the body cross-references `patterns/test-isolation-strategies.md`\
+  \ as a\n  DIFFERENT concern (async-DB product tests), not as a dependency — §4.\n\
+  - **VP5 (work-first activation):** `activation_owner_task: `; `task close ` flips\
+  \ this\n  spec proposed→active ( deterministic side-effect).\n"
 cites:
 - SPEC-0005
 - SPEC-0013

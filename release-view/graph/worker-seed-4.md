@@ -5,11 +5,11 @@
      divergent committed copy is flagged by `graph conformance` (audience-view-drift). The
      tagged SOURCE sections are the ONLY normative text; this is a derived-only worker seed (core + worker sections). -->
 
-# Worker seed — part 4 of 5 — what a `--type build` Worker reads (generated, SPEC-0127)
+# Worker seed — part 4 of 4 — what a `--type build` Worker reads (generated, SPEC-0127)
 
-> **This is part 4 of 5 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
-> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md` · `graph/worker-seed-5.md`.
-> **This part carries:** LIFECYCLE.md · QUEUE.md.
+> **This is part 4 of 4 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
+> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md`.
+> **This part carries:** LIFECYCLE.md · QUEUE.md · GRAPH.md.
 
 <!-- source: LIFECYCLE.md (worker seed = core + worker) -->
 
@@ -264,19 +264,6 @@ All stages (especially 1, 3, 5) apply CHARTER Principle 1 filters:
 3. **What gets removed?** If nothing — escalate.
 4. **Real incident?** If imagined necessity — defer.
 
-## Scenario authoring (pointer — per SPEC-0076)
-
-A **scenario** (`scenarios/<slug>.md`, the 7th graph node) is the human-facing user-path artifact —
-zero-normative narration that `cites` the specs where every rule lives. It is NOT a lifecycle stage;
-this is a navigational pointer, not a restated rule (the rules live single-SoT in SPEC-0076 — fetch
-via `bin/yitc-v2 graph query SPEC-0076`; authoring shape: `scenarios/_template.md`).
-
-- **Where authoring sits:** at the PLAN `draft → specs` seam — as a plan's specs are composed, the
-  scenario is authored/updated alongside them (it composes those specs into a user-path). See
-  §Plan lifecycle.
-- **Per-stage checks:** scenario coherence is checked on the EXISTING lifecycle stages (no new gate,
-  no new lifecycle) — the stage map + which checks WARN vs BLOCK live single-SoT in **SPEC-0076 §6**.
-
 ## Queue interaction (cross-stage)
 
 If during any stage you discover a new task:
@@ -309,8 +296,6 @@ Three-bucket model.
 
 **Size cap:** ≤ 50 tasks whose moment has come — `in-progress` cards plus `ready` cards whose every task `requires:` target is done (a terminal `wont-do` target is not waited on; this is the picker's requires-unblocked filter, §Picker logic). A `ready` card still waiting on a task `requires:` target is reported as waiting and is not counted. If exceeds, **anti-complexity violation** — defer some to the parking lot or close with rationale, don't grow capacity.
 
-**Order:** picker reads ready ∩ requires-unblocked tasks first by `priority:` field (`high | medium | low`). No multi-axis priority taxonomy.
-
 ### Done log
 
 **Location:** `tasks/<id>.yaml` where `status: done` plus required fields `closed_at:`, `commit:`, `probe_passed: true` — **or `probe_passed: deferred`** for a done card that still carries an undischarged deferred probe (the three-state closure contract: the card is done and its shipped work is proven, but a criterion whose proof lands after the ship is not yet discharged; `task close --settle-probe` flips it to `true` when the last one is. Rule home: SPEC-0015 §`probe_passed` is THREE-STATE).
@@ -327,8 +312,6 @@ Three-bucket model.
 **Location:** `tasks/<id>.yaml` where `status: parked` plus required field `parked_reason:` and optional `return_trigger:`.
 
 **Semantics:** "we considered this, decided not to do now, here's when to revisit". Different from `status: wont-do` (which means "decided not to do, period").
-
-**Review trigger:** the Controller's weekly review scans the parking lot. If return_trigger condition met → status flips to ready.
 
 ## State transitions
 
@@ -358,7 +341,138 @@ No other transitions. No "in-review", "under-audit", "awaiting-critic", "release
 > **Retrieved — SPEC-0028.** `bin/yitc-v2 graph query SPEC-0028`
 
 
+<!-- source: GRAPH.md (worker seed = core + worker) -->
+
+# GRAPH.md — Specs ↔ Code Graph
+
+Minimal graph. 8 node types, 4 edge types, one query CLI. Bounded by the schema below — additions require anti-complexity check (CHARTER Principle 1).
+
+**The graph is small by intent.** As the spec corpus grows, the SPEC-0005 admission discipline + the anti-complexity check govern — there is no numeric count-gate (see §When to add specs vs just code).
+
+## Schema
+
+### Node types (8)
+
+| Type | Storage | Identifier shape | V1 analog |
+|---|---|---|---|
+| `spec` | `specs/SPEC-XXXX.yaml` | `SPEC-XXXX` | `RULE-*`, `INVARIANT-*`, `SCN-*` |
+| `code` | derived (file paths) | `<file>:<line-range>` | file paths in RULE `implements:` |
+| `pattern` | `patterns/<name>.md` | `<name>` | `knowledge/patterns/<name>.md` |
+| `plan` | `plans/<slug>.md` + `ideas/<slug>.md` frontmatter (one node type, `kind: plan\|idea`; renamed draft→plan) | `<slug>` | `<v1>/yitc-deferred.md` (planning notes) |
+| `rule` | extracted by build script from canonical docs | `rule:<doc-slug>:<section-slug>:<severity>` | `docs/scenarios/artifacts/RULE-*.yaml` (first-class in v1 mature state) |
+| `error` | `errors/E-XXXX.yaml` (promotion-only case files) | `E-XXXX` | v1 error-analysis / incident concepts (no first-class store) |
+| `scenario` | `scenarios/<slug>.md` frontmatter (`scenario`/`actor`/`status`/`cites`/`covers`, per SPEC-0076) | `<slug>` (the frontmatter `scenario:` key) | `SCN-*` (first-class in v1) |
+| `lesson` | `lessons/<slug>.md` frontmatter (`lesson`/optional `status`/`cites`, per SPEC-0090) — per-repo local-craft note | `<slug>` (the frontmatter `lesson:` key) | v1 knowledge notes (no first-class store) |
+
+### Edge types (4)
+
+| Edge | Direction | Source field |
+|---|---|---|
+| `implements` | spec → code | spec YAML `implements:` field |
+| `cites` | any → any (task / decision / spec / scenario → spec / decision / …) — B2 | `cites:` field on task / decision / spec / scenario YAML |
+| `defined_in` | rule → doc | rule extraction stores parent doc reference |
+| `covers` | scenario → code/anchor | scenario frontmatter `covers:` field (per SPEC-0076 §4) |
+
+All edges derivable from existing structured data. No edge classification beyond these 4; no soft-delete, no versions, no validity layers.
+
+**How each node type earned its place — retrieved (SPEC-0031).** The CHARTER §Principle 1 four-filter
+record for the `error`, `scenario` (the `covers` edge) and `lesson` node types, their scope bounds,
+and why the schema is this size: SPEC-0031 §Graph schema bounds. Read it before proposing a new node
+or edge type — `bin/yitc-v2 graph query SPEC-0031`.
+
+## Schema for specs/<id>.yaml
+
+> **Retrieved — SPEC-0030.** `bin/yitc-v2 graph query SPEC-0030`
+
+## Schema for tasks/<id>.yaml (field catalog in SPEC-0028, repeated cite here)
+
+Tasks reference specs via `cites:` field. Build tool indexes these too — though tasks aren't really «implementing» specs, they cite them as context.
+
+## Build tool + Query CLI + Query layer
+
+> **Retrieved — SPEC-0031.** `bin/yitc-v2 graph query SPEC-0031`
+
+## What graph is NOT
+
+The design fence, in one line: no wider node or edge taxonomy, no validation layer (one narrow
+storage-format exception), no unconditional rebuild (the build's result cache), no reactive event
+service, no soft-delete or lifecycle store, no history versioning. The full fence is homed in SPEC-0031
+§Graph schema bounds — read it before proposing any such addition: `bin/yitc-v2 graph query SPEC-0031`.
+
+If any of above gets requested — anti-complexity filter applies. Most likely answer: «defer until empirical pull».
+
+## What a spec is FOR
+
+A spec is the **primary teaching/design layer for the AI** — not merely anti-drift glue for ≥2
+code sites. It tells the agent how the system's logic works, what to analyze before a change,
+which rules govern: **rules → code**. Two complementary purposes: (1) teach/design (comprehension),
+(2) link + anti-drift (the graph). **`active` is the ONLY normative spec status** — a spec governs
+only when `active`; any other status is non-authoritative and cannot satisfy adoption/closure.
+
+## Spec lifecycle
+
+The graph is a top-down **design medium**: a spec change is staged *as a spec* (a `proposed` head)
+before code, then reconciled, then activated. Modeled on PEP/ADR proposal-shape — NOT the task-FSM
+(authoring a spec is a separate task).
+
+**FSM:** `draft → proposed → active → superseded → retired` (terminal `withdrawn` / `rejected`).
+
+- **`draft`** — exploratory, plan-local: lives in a plan-draft (`spec new --draft --proposed-by <plan>`),
+  indexed for plan-local reasoning but **non-authoritative** and EXCLUDED from default
+  `graph query --projected`. Authoritative home: SPEC-0005 §4 (`graph query SPEC-0005`).
+- **`proposed`** — design-grade, **non-authoritative**: it documents a planned spec/change so the
+  graph can show «what will be» (`graph query --projected`, §Query layer). It does NOT govern, and
+  **cannot satisfy adoption/closure** (only `active` does — §What a spec is FOR). `proposed` ⇒
+  `consumed: false` always (a non-authoritative spec must never be code-consumed).
+- **`proposed → active`** is **GATED by an adoption probe** (CHARTER §Principle 3 + 8) — graph
+  presence ≠ done. On activation, any `supersedes:` target flips to `superseded` (atomic, one commit).
+  **The activation WRITE is performed by `task close` ONLY** (per Part C): closing the spec's
+  **`activation_owner_task`** (the single explicit activation carrier — SPEC-0005 §5, the authority; see
+  §Schema) flips `proposed → active` as a deterministic closure side-effect, and atomically flips its
+  `supersedes:` target (an active target → `superseded`, a still-proposed target → `withdrawn`). The
+  owning task is named **EXPLICITLY** in `activation_owner_task`, never derived: **work-first**
+  — that field IS the closing task; **plan-born** (`plan stage accepted`, Part B) — the decomposition SETS it to
+  the ONE decomposed task chosen to activate the spec (SPEC-0034). `proposed_by` stays
+  the PROVENANCE/corpus carrier (the plan slug for plan-born, so the plan's corpus + finalization gate
+  keep seeing the spec — §Schema); it is NOT the activation owner. This
+  is the **SOLE** writer of `proposed → active`: there is **NO manual `status:` edit and NO parallel/
+  ad-hoc activation verb** — a spec found `active` with no activating `task_closed` carrier is a
+  drift-#10 / P5 signal. (`spec` has no `activate` subcommand.)
+- **`active`** is the single normative status; **`superseded` / `retired`** are non-normative history,
+  kept in `specs/` and still indexed.
+
+**Specs may exist before code ( B5):** a `proposed` (or `active`) spec may carry
+`implements: []` + a human-visible note. The activation probe still applies.
+
+**Concurrent-change HARD invariant ( B6):** **one active lineage per spec.** Concurrent
+`proposed` children of the same spec MUST be either `requires`-ordered (spec-level `requires:`) OR
+in a `supersedes:` chain. Two concurrent proposers with neither = **INVALID** — surfaced by the
+`multi-proposer-unordered` structural flag in `graph query --projected`. The schema carrier
+is spec-level `requires` / `supersedes` + the `activation_owner_task` carrier (SPEC-0005 §5 — the single
+explicit activation owner; the ownership VALUE is never in `cites` — cites is informational only, §Schema).
+The rule locks now; richer tooling is deferred until an incident pulls it.
+
+## When to add specs vs just code
+
+> **Homed in SPEC-0005** (the spec doctrine) — the admission test (7 criteria + delete-test +
+> NOT-a-spec), the governing-parameter rule, and the two-bound volume discipline (anti-oversplit
+> merge-default + anti-oversize split-by-surface) live there as **rules 2 + 6** (re-homed from).
+> This GRAPH section was a duplicate; per one-home (CHARTER §P5 / SPEC-0005 rule 8) it now points at the
+> single home. Read it via `bin/yitc-v2 graph query SPEC-0005` (also fetched before `spec new`). The
+> spec count cap is likewise replaced by that admission + two-bound discipline. There is **no numeric
+> node-volume trigger** for the other node types either — consolidation is a regular Review judgement on
+> observed cost, never a count-gate (counts grow with work; owner directive 2026-06-06). The
+> graph-specific node-volume guidance lives with the graph tooling reference — `bin/yitc-v2 graph query
+> SPEC-0031`.
+
+## Refs
+
+- CHARTER.md Principle 1 (anti-complexity), Principle 5 (single source of truth)
+- LIFECYCLE.md Stage 1 (analysis includes prior-art via `graph query`)
+
+> **Query layer — retrieved (SPEC-0031).** Fetch on demand: `bin/yitc-v2 graph query SPEC-0031`.
+
+
 <!-- seed-nav -->
 
-> **The worker seed CONTINUES — part 5 of 5: `graph/worker-seed-5.md`.** Read it NEXT;
-> the whole chain IS your seed (SPEC-0120 §3 split — SPLIT never deletes content).
+> **END of the worker seed** (part 4 of 4 — you have now read the whole `core`+`worker` seed).

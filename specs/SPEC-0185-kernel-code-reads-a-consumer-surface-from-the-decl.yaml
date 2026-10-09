@@ -174,17 +174,7 @@ body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in 
   \ spec class default (`travels: ~`),\nstated here in words because a default carried\
   \ by an absent field is not legible on the artifact.\nIt governs KERNEL code. It\
   \ places no obligation on a consumer: a consumer declares exactly what it\ndeclared\
-  \ before.\n\n### 7. Anti-complexity record (CHARTER §Principle 1, four filters —\
-  \ AGENTS §When NOT to add a mechanism)\n\n1. **Existing analog?** REUSED, not paralleled\
-  \ — SPEC-0093 / SPEC-0152 own the declaration\n   surface (its SHAPE); this spec\
-  \ adds a read-discipline over it (kernel READ behaviour). Not\n   folded INTO either,\
-  \ per SPEC-0005 rule 6: both are at the anti-oversize bound.\n2. **New entity or\
-  \ new view?** No new entity — no carrier, no store, no section; a standing rule\n\
-  \   over existing data, with one tripwire, plus the two OPTIONAL fields §5 names.\n\
-  3. **What gets removed?** §4 — root-layout fallback guessing and the per-language\
-  \ regex growth\n   path: both named and removed, neither replaced by a mechanism.\n\
-  4. **Real incident?** Four, by id, in §3 — all shipped and closed, each carrying\
-  \ its own part.\n\n## Rationale\n\nThis rule guards the CLASS the §3 incidents exposed,\
+  \ before.\n\n## Rationale\n\nThis rule guards the CLASS the §3 incidents exposed,\
   \ never any one closed instance. Its narrow\ndeclaration-exists form (§2), half\
   \ (b), half (c)'s precedence and the §2a duties were each set by\nan external consult;\
   \ the deliberation is in git history and in the consult records under\n`decisions/`.\n\
@@ -193,9 +183,21 @@ body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in 
   \ analog this rule governs»: A concrete instance of the reading it requires,\n \
   \ already shipped and available for reuse rather than reinvention:\n  `bin/lib/land_verify_legs.py#_pinned_declared_check_paths`\
   \ (derive the surface from the declared\n  layers) and `#_declared_check_surface_globs`\
-  \ (take the UNION of the declarations).\n\n## Verification\n\nTripwire (SPEC-0165:\
-  \ one differential tripwire for a rule that can break silently — and this rule\n\
-  can, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.\n\
+  \ (take the UNION of the declarations).\n\n### Moved from the rule text\n\nReference\
+  \ and maintainer passages moved word for word out of the rule text of the section\n\
+  each names; no rule an acting reader applies moved with them.\n\n### 7. Anti-complexity\
+  \ record (CHARTER §Principle 1, four filters — AGENTS §When NOT to add a mechanism)\n\
+  \n1. **Existing analog?** REUSED, not paralleled — SPEC-0093 / SPEC-0152 own the\
+  \ declaration\n   surface (its SHAPE); this spec adds a read-discipline over it\
+  \ (kernel READ behaviour). Not\n   folded INTO either, per SPEC-0005 rule 6: both\
+  \ are at the anti-oversize bound.\n2. **New entity or new view?** No new entity\
+  \ — no carrier, no store, no section; a standing rule\n   over existing data, with\
+  \ one tripwire, plus the two OPTIONAL fields §5 names.\n3. **What gets removed?**\
+  \ §4 — root-layout fallback guessing and the per-language regex growth\n   path:\
+  \ both named and removed, neither replaced by a mechanism.\n4. **Real incident?**\
+  \ Four, by id, in §3 — all shipped and closed, each carrying its own part.\n\n##\
+  \ Verification\n\nTripwire (SPEC-0165: one differential tripwire for a rule that\
+  \ can break silently — and this rule\ncan, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.\n\
   It is anchored to the text of §1/§2 above and NOT to current code behaviour; where\
   \ it uses a\npre-change state as a failing input it carries an INLINE copy of that\
   \ state and names the fixed\ncommit it was taken from, never a merge-base, `main`,\

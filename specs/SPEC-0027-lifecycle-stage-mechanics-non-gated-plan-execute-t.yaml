@@ -57,9 +57,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ live single-home in `patterns/repeated-work-lens.md` and are NOT restated here\n\
   \  (SPEC-0005 rule 8). **ADVISORY, and it gates NOTHING:** `task plan --finalize`\
   \ neither refuses nor\n  warns on its absence, and no other verb reads it — a plan\
-  \ that omits the line finalizes exactly as\n  before. The cue is where the cost\
-  \ is cheapest to remove; the enforcement, such as it is, is the\n  audit-pre lens\
-  \ question (SPEC-0036 §Universal V2 evaluation lens).\n- **For substantive plans**\
+  \ that omits the line finalizes exactly as\n  before.\n- **For substantive plans**\
   \ (foundational decisions, multi-file/multi-step, quantitative claims) —\n  consult\
   \ `patterns/big-plan-checklist.md` (6-probe optional discipline).\n\n#### Plan-entry\
   \ pre-flight checklist (GREEN-first)\nSelf-check these FIVE before `task plan --finalize`\
@@ -67,8 +65,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ Stage-4 on the FIRST pass instead of learning the criteria post-hoc\nfrom the\
   \ auditor. **One home (P5 / SPEC-0005 rule 8):** the lens itself lives in SPEC-0036\
   \ §Task\nper-stage overlays → audit-pre — this is a short pointer to it, NOT a second\
-  \ source of plan-quality\nrules; on any doubt read `bin/yitc-v2 graph query SPEC-0036`.\
-  \ Pre-flight self-check, NOT a new gate\n— audit-pre (SPEC-0036) stays the enforcer.\n\
+  \ source of plan-quality\nrules; on any doubt read `bin/yitc-v2 graph query SPEC-0036`.\n\
   1. **PROBE PER AC** — each acceptance criterion names a concrete grep / command\
   \ / event that PROVES\n   it (not a restatement); an infra-class AC names an unforgeable\
   \ P8 adoption probe (CHARTER §3/§8).\n2. **COHERENCE SWEEP** — «where else is this\
@@ -103,8 +100,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ (the EXISTING rule covers it).** Changing the `proposed`\n  spec SET during Execution\
   \ is a plan/scope change, so it re-fingerprints the plan and the existing\n   rule\
   \ (`task execute` requires an audit-pre bound to the current plan —\n  `_require_audit_pre_matches_plan`)\
-  \ already REFUSES until a fresh audit-pre re-verifies it. This adds\n  no new guard\
-  \ and no new fingerprint of its own — it just reuses that rule.\n- **Escalate-to-plan\
+  \ already REFUSES until a fresh audit-pre re-verifies it.\n- **Escalate-to-plan\
   \ escape:** a big or contested spec design does NOT get crammed into the task —\n\
   \  escalate it to a `plans/` entry (Stage 3 / `patterns/plan-lifecycle.md`) and\
   \ let the plan carry it.\n\n### Stage 6 — Tests (detail)\n- Run the project's own\
@@ -246,63 +242,70 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ free pointer.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers\
   \ what, and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
   \ gate / E-0043, which runs on the edge BEFORE the pointer is written, so a refusal\
-  \ leaves no half-entry), and the refusal itself. No new field, status, event type,\
-  \ verb or state machine is added — the successor relation is a READ of the row this\
-  \ section already publishes, and the write goes through the same `_write_task_transition`\
-  \ the `stage` verb uses (CHARTER non-goal #7 holds; this is not a workflow-engine\
-  \ FSM). A pointer move emits the same `stage_entered` event marked with its `from_stage`\
-  \ / `mode` / `advanced_by`, and carries NO `delivered` key — it delivers no bundle.\n\
-  \n\n\n**`task pick` is a read-only inspector** (option B) — the\nclaim moved into\
-  \ `worktree new --task` so it is written in the worktree and reaches `main` only\
-  \ via\n`land`; `task pick` no longer mutates. Because that claim is UNCOMMITTED\
-  \ in the worktree, a path-scoped `git checkout` of the card silently reverts it;\
-  \ the recovery is `bin/yitc-v2 task reclaim T-XXXX` (X-1008) — admitted only inside\
-  \ that task's own worktree, with the card still `ready` on `main` and no other live\
-  \ worktree holding it, idempotent on an intact claim. It is a recovery ENTRY to\
-  \ the one claim path, never a second claim path, and hand-restoring `status` / `current_stage`\
-  \ stays forbidden. `current_stage` carries a **stage-ENTRY correspondence precondition\
-  \ — it IS read in a\nrefusal path** : a task-bound work-verb (`task plan`/`execute`/`test`/`commit`/`close`\n\
-  + `audit pre`/`post`) REFUSES when the pointer-move table above admits NO move to\
-  \ its stage — i.e.\n`current_stage` neither IS its stage, nor its predecessor on\
-  \ this class's row, nor an audit seam it\nis returning from. Run `stage <NAME>`\
-  \ explicitly whenever you want that stage's BUNDLE (it remains\nthe sole deliverer);\
-  \ you no longer need it merely to satisfy the precondition on the documented\norder.\
-  \ This is an entry/delivery check, **NOT** a\nprogression guard — distinct from\
-  \ the stage-counter retired (below); the two coexist. (Refinement — the bespoke\
-  \ `task plan --finalize` refusal for the mode-a audit-pre absorption sub-case —\
-  \ is **RETIRED by **: the `absorb` edge above represents that return, so the special-case\
-  \ refusal is DELETED from `cmd_task_plan`. Unchanged either way: `audit pre` re-fingerprints\
-  \ an edited plan and re-verifies it, and an Audit-pre stage reached by a move the\
-  \ model does not admit still falls through to the generic stage-correspondence refusal.)\
-  \ The incident that the «transition-guard\nenforcement deferred to first incident»\
-  \ note awaited DID occur ( stage-skips), and **\nretired current_stage as a guard**:\
-  \ enforcement is by **artifacts-as-gates** (a verb validates its\ninput ARTIFACT\
-  \ exists + matches — the data — e.g. `task close` requires the recorded commit +\
-  \ an\naudit-post for it; `task execute` requires an audit-pre bound to the plan),\
-  \ NOT a stage counter (that\nwould be a second progress-truth — P5 — and drift toward\
-  \ a forbidden workflow-engine FSM, non-goal\n#7). Work-verbs carry no per-verb stage\
-  \ setter : `current_stage` is written at the claim, by the\n`stage` verb's explicit\
-  \ entry, and by the pointer move described above; each work-verb\nemits its stage\
-  \ event as a side-effect.\n\n## Rationale\n\nThese are NON-gated stages: consulted\
-  \ when ENTERING the stage, never before an irreversible\ncontrol-point — so they\
-  \ are stage-DELIVERED (the axis, a lighter mechanism) and NO\nfloor-trigger is added\
-  \ here. The real control-point stages (4/7/8/9) deliver via SPEC-0014 /\nSPEC-0015\
-  \ / <workshop-spec> and are untouched.\n\n### History moved from the rule body\n\
-  \nEach entry is a passage moved word for word out of the rule text of the section\
-  \ it names;\nthe rule it explains stays there.\n\n- From «Stage 3 — Plan (detail)»:\
-  \ The threshold is **telemetry-calibrated** (raised from the\n  unbacked size nudge\
-  \ of ~30) so it fires on the genuine long tail rather than on normal variance —\n\
-  \  a real \"notably verbose, sanity-check decomposition\" nudge, not alarm fatigue.\n\
-  - From «Stage 6 — Tests (detail)»: (: tests went green because they ran from inside\
-  \ a\n  worktree, not because the fix worked — the fix was dead code)\n- From «Hygiene\
-  \ Fast-Path»: (established practice:)\n- From «Stage FSM per class»: (incidents)\n\
-  - From «Stage FSM per class»: Grounds (CHARTER §P1 filter 4): a refusal that fired\
-  \ on nearly every\n  real invocation of these verbs was measuring its own model,\
-  \ not catching an error.\n\n## Implementation notes\n\nNotes for the maintainer\
-  \ of the code, moved word for word out of the rule text of the section\neach names.\n\
-  \n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move` +\n\
-  \  `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\n\
-  ## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before the strip\
+  \ leaves no half-entry), and the refusal itself. A pointer move emits the same `stage_entered`\
+  \ event marked with its `from_stage` / `mode` / `advanced_by`, and carries NO `delivered`\
+  \ key — it delivers no bundle.\n\n\n\n**`task pick` is a read-only inspector** (option\
+  \ B) — the\nclaim moved into `worktree new --task` so it is written in the worktree\
+  \ and reaches `main` only via\n`land`; `task pick` no longer mutates. Because that\
+  \ claim is UNCOMMITTED in the worktree, a path-scoped `git checkout` of the card\
+  \ silently reverts it; the recovery is `bin/yitc-v2 task reclaim T-XXXX` (X-1008)\
+  \ — admitted only inside that task's own worktree, with the card still `ready` on\
+  \ `main` and no other live worktree holding it, idempotent on an intact claim. It\
+  \ is a recovery ENTRY to the one claim path, never a second claim path, and hand-restoring\
+  \ `status` / `current_stage` stays forbidden. `current_stage` carries a **stage-ENTRY\
+  \ correspondence precondition — it IS read in a\nrefusal path** : a task-bound work-verb\
+  \ (`task plan`/`execute`/`test`/`commit`/`close`\n+ `audit pre`/`post`) REFUSES\
+  \ when the pointer-move table above admits NO move to its stage — i.e.\n`current_stage`\
+  \ neither IS its stage, nor its predecessor on this class's row, nor an audit seam\
+  \ it\nis returning from. Run `stage <NAME>` explicitly whenever you want that stage's\
+  \ BUNDLE (it remains\nthe sole deliverer); you no longer need it merely to satisfy\
+  \ the precondition on the documented\norder. This is an entry/delivery check, **NOT**\
+  \ a\nprogression guard — distinct from the stage-counter retired (below); the two\
+  \ coexist. (Refinement — the bespoke `task plan --finalize` refusal for the mode-a\
+  \ audit-pre absorption sub-case — is **RETIRED by **: the `absorb` edge above represents\
+  \ that return, so the special-case refusal is DELETED from `cmd_task_plan`. Unchanged\
+  \ either way: `audit pre` re-fingerprints an edited plan and re-verifies it, and\
+  \ an Audit-pre stage reached by a move the model does not admit still falls through\
+  \ to the generic stage-correspondence refusal.) The incident that the «transition-guard\n\
+  enforcement deferred to first incident» note awaited DID occur ( stage-skips), and\
+  \ **\nretired current_stage as a guard**: enforcement is by **artifacts-as-gates**\
+  \ (a verb validates its\ninput ARTIFACT exists + matches — the data — e.g. `task\
+  \ close` requires the recorded commit + an\naudit-post for it; `task execute` requires\
+  \ an audit-pre bound to the plan), NOT a stage counter (that\nwould be a second\
+  \ progress-truth — P5 — and drift toward a forbidden workflow-engine FSM, non-goal\n\
+  #7). Work-verbs carry no per-verb stage setter : `current_stage` is written at the\
+  \ claim, by the\n`stage` verb's explicit entry, and by the pointer move described\
+  \ above; each work-verb\nemits its stage event as a side-effect.\n\n## Rationale\n\
+  \nThese are NON-gated stages: consulted when ENTERING the stage, never before an\
+  \ irreversible\ncontrol-point — so they are stage-DELIVERED (the axis, a lighter\
+  \ mechanism) and NO\nfloor-trigger is added here. The real control-point stages\
+  \ (4/7/8/9) deliver via SPEC-0014 /\nSPEC-0015 / <workshop-spec> and are untouched.\n\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\n- From «Stage 3 — Plan (detail)»: The threshold is **telemetry-calibrated**\
+  \ (raised from the\n  unbacked size nudge of ~30) so it fires on the genuine long\
+  \ tail rather than on normal variance —\n  a real \"notably verbose, sanity-check\
+  \ decomposition\" nudge, not alarm fatigue.\n- From «Stage 6 — Tests (detail)»:\
+  \ (: tests went green because they ran from inside a\n  worktree, not because the\
+  \ fix worked — the fix was dead code)\n- From «Hygiene Fast-Path»: (established\
+  \ practice:)\n- From «Stage FSM per class»: (incidents)\n- From «Stage FSM per class»:\
+  \ Grounds (CHARTER §P1 filter 4): a refusal that fired on nearly every\n  real invocation\
+  \ of these verbs was measuring its own model, not catching an error.\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move`\
+  \ +\n  `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\
+  \n### Moved from the rule body\n\n- From «Stage 3 — Plan (detail) — REPEATED-WORK\
+  \ STATEMENT»: The cue is where the cost is cheapest\n  to remove; the enforcement,\
+  \ such as it is, is the audit-pre lens question (SPEC-0036 §Universal\n  V2 evaluation\
+  \ lens).\n- From «Plan-entry pre-flight checklist (GREEN-first)»: Pre-flight self-check,\
+  \ NOT a new gate —\n  audit-pre (SPEC-0036) stays the enforcer.\n- From «Stage 5\
+  \ — Execution (detail) — Reopen boundary»: This adds no new guard and no new\n \
+  \ fingerprint of its own — it just reuses that rule.\n- From «Stage FSM per class\
+  \ — what does NOT change»: No new field, status, event type, verb or\n  state machine\
+  \ is added — the successor relation is a READ of the row this section already\n\
+  \  publishes, and the write goes through the same `_write_task_transition` the `stage`\
+  \ verb uses\n  (CHARTER non-goal #7 holds; this is not a workflow-engine FSM).\n\
+  \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before the strip\
   \ is trusted Slip 4; concrete\nresults live in tests/test_t0243_demote.py + the\
   \ closure record):\n- **VP1 (fidelity, moved):** every moved section's sentinel\
   \ phrase (\"Spec mutation during Execution\",\n  \"Auto-pause triggers\", \"Eligible\

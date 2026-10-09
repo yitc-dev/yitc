@@ -5,10 +5,10 @@
      divergent committed copy is flagged by `graph conformance` (audience-view-drift). The
      tagged SOURCE sections are the ONLY normative text; this is a derived-only worker seed (core + worker sections). -->
 
-# Worker seed — part 3 of 5 — what a `--type build` Worker reads (generated, SPEC-0127)
+# Worker seed — part 3 of 4 — what a `--type build` Worker reads (generated, SPEC-0127)
 
-> **This is part 3 of 5 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
-> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md` · `graph/worker-seed-5.md`.
+> **This is part 3 of 4 — the WHOLE chain is your startup seed, not this part alone.** The worker seed is SPLIT into single-read-safe parts (SPEC-0120 §3 / SPEC-0007 §5c);
+> reading only one part leaves you missing rules. Parts, in order: `graph/worker-seed.md` · `graph/worker-seed-2.md` · `graph/worker-seed-3.md` · `graph/worker-seed-4.md`.
 > **This part carries:** AGENTS-SESSIONS.md · AGENTS-PROTOCOL.md.
 
 <!-- source: AGENTS-SESSIONS.md (worker seed = core + worker) -->
@@ -313,7 +313,6 @@ If any of these gets requested mid-V2 — anti-complexity filter #4 («real inci
 ## External auditor invocation contract
 
 > **Retrieved — SPEC-0036** — the external-auditor invocation contract: who the auditor is, WHEN invoked across TASK/DECISION/PLAN gates, GREEN/YELLOW/RED/ABORT handling + the audit-loop ceiling; delivered at the Audit-pre + Audit-post stage-entries. `bin/yitc-v2 graph query SPEC-0036`
-> (Supersedes the earlier auditor-contract spec at the closure.)
 
 ## events.jsonl schema
 
@@ -329,7 +328,7 @@ hosted by SPEC-0036 — it remains always-loaded:
 
 ### Saved audit result schema (canonical YAML)
 
-> **Retrieved — SPEC-0036 §Saved audit result** — the canonical annotated audit-result YAML schema (every field + the annotated example + the audit-trail purpose) is homed in SPEC-0036's body, delivered at the audit-pre / audit-post stage-entry (demoted from this seed). `bin/yitc-v2 graph query SPEC-0036`
+> **Retrieved — SPEC-0036 §Saved audit result** — the canonical annotated audit-result YAML schema (every field + the annotated example + the audit-trail purpose) is homed in SPEC-0036's `## Implementation notes` — reference material the audit-pre / audit-post stage entries do not deliver (demoted from this seed). `bin/yitc-v2 graph query SPEC-0036`
 
 ## Instruction injection protocol
 
@@ -346,5 +345,5 @@ hosted by SPEC-0036 — it remains always-loaded:
 
 <!-- seed-nav -->
 
-> **The worker seed CONTINUES — part 4 of 5: `graph/worker-seed-4.md`.** Read it NEXT;
+> **The worker seed CONTINUES — part 4 of 4: `graph/worker-seed-4.md`.** Read it NEXT;
 > the whole chain IS your seed (SPEC-0120 §3 split — SPLIT never deletes content).

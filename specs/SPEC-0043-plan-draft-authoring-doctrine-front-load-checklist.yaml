@@ -22,19 +22,18 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ (`plan file`) on the `plan-stage-entry:draft` axis alongside SPEC-0034. This is\
   \ a\nCHECKLIST, not a gate: it shapes authoring; it does NOT block any transition\
   \ (there is no draft-\ncompleteness validator — out of scope, and a CHARTER non-goal\
-  \ #2/#7). **Draft check-carrier — SHIPPED by (R7), SPEC-0059 §First-stage-check-carrier-gap.**\
-  \ The draft stage now has a dedicated END verb, `plan draft --finalize` (the plan-axis\
-  \ mirror of `task analyze --finalize`): it read-checks the draft bundle [SPEC-0043,\
-  \ SPEC-0034] and emits a body-hash-bound `plan_draft_finalized` journal proof (provenance\
-  \ — only this verb emits it), and `plan stage specs` REQUIRES a fresh such proof\
-  \ matching the current body + the recorded reads (non-skippable). The BLOCKING gate\
-  \ is the doctrine READS + the recorded STATE — NOT section completeness: the front-load\
-  \ section-fill stays a REPORT-ONLY advisory (the verb WARNs about unfilled sections,\
-  \ it does not gate on them), so the «no draft-completeness validator / non-goal\
-  \ #7» stance above is unchanged. The gate MECHANIC is normative in SPEC-0034 §draft\
-  \ + SPEC-0059 (pointer, not restated here). It is POINTER-BASED: every\ngate MECHANIC\
-  \ stays normative in its own home (cited inline) — this spec never restates a gate\
-  \ rule\n(SPEC-0005 rule 3 content-boundary / P5 one-home / rule 8 prompts-checklists-cue+pointer\
+  \ #2/#7). The draft stage now has a dedicated END verb, `plan draft --finalize`\
+  \ (the plan-axis mirror of `task analyze --finalize`): it read-checks the draft\
+  \ bundle [SPEC-0043, SPEC-0034] and emits a body-hash-bound `plan_draft_finalized`\
+  \ journal proof (provenance — only this verb emits it), and `plan stage specs` REQUIRES\
+  \ a fresh such proof matching the current body + the recorded reads (non-skippable).\
+  \ The BLOCKING gate is the doctrine READS + the recorded STATE — NOT section completeness:\
+  \ the front-load section-fill stays a REPORT-ONLY advisory (the verb WARNs about\
+  \ unfilled sections, it does not gate on them), so the «no draft-completeness validator\
+  \ / non-goal #7» stance above is unchanged. The gate MECHANIC is normative in SPEC-0034\
+  \ §draft + SPEC-0059 (pointer, not restated here). It is POINTER-BASED: every\n\
+  gate MECHANIC stays normative in its own home (cited inline) — this spec never restates\
+  \ a gate rule\n(SPEC-0005 rule 3 content-boundary / P5 one-home / rule 8 prompts-checklists-cue+pointer\
   \ — a\nfront-load checklist item carries a discipline CUE + a POINTER, never a restated\
   \ corpus rule).\n\n### The front-load checklist (author any plan draft against these\
   \ — a checklist, NOT a gate)\n1. **Problem / intent + prior-art sweep.** State what\
@@ -102,34 +101,29 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ reopening a draft rediscovers this doctrine via the ALWAYS-LOADED LIFECYCLE §Plan-lifecycle\n\
   draft-row pointer → `graph query SPEC-0043`. That pointer IS the sole rediscovery\
   \ route by design;\nno read verb is added for resumed draft authoring.\n\n### Delivery\
-  \ wiring (how this doctrine reaches the author)\n`cmd_plan_file` delivers the `plan-stage-entry:draft`\
-  \ bundle (this spec) through the SAME path every\nother plan stage uses — `_emit_plan_stage_entered(slug,\
-  \ None, \"draft\")` + the shared delivery print\nhelper `_print_plan_stage_delivery`.\
-  \ The generated plan skeleton carries the base sections (## Problem /\nintent ·\
-  \ ## Done criterion · ## Verification plan · ## External checks / audits · ## Planned\n\
-  artifacts / corpus impact · ## Realization-exit criteria) as PROMPTS + pointers.\
-  \ Ideas (`plan file --idea`) are flat holding pens —\nthey get NEITHER the draft-stage\
-  \ delivery NOR the heavy skeleton (unchanged).\n( last-touch refresh: `cmd_plan_file`'s\
-  \ trailing next-hint also carries the post-specs FORK\npointer — trial-eligible\
-  \ → `plan stage trial`, else → `plan stage accepted` — but that pointer is\ngoverned\
-  \ by SPEC-0034/SPEC-0035, NOT this front-load doctrine; this spec's delivery rule\
-  \ + skeleton\nsections are unchanged.)\n\n### Anti-complexity note (SPEC-0005 §7\
-  \ / CHARTER §P1 F3 — what is retired)\nNOTHING is retired by this spec. It is admitted\
-  \ because it fills a real WIRING + CONTENT gap (the\ndraft bundle was never delivered,\
-  \ and no doctrine said what a draft should front-load), NOT because\nit accretes\
-  \ a parallel mechanism: it REUSES the existing plan-stage-entry axis, the existing\n\
-  `_emit_plan_stage_entered` delivery helper, and the existing `cmd_plan_file` verb\
-  \ — no new gate, no\nnew verb, no new store, no draft-completeness validator.\n\n\
-  ## Parameters\n\nNone consumed. Every governing constant referenced (the big-plan\
-  \ apply-when criteria; the audit\ntemplates; the trial-eligibility rule; the decomposition\
-  \ discipline) lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec>\
-  \ / big-plan-checklist) — pointed at, NEVER duplicated or\n`consumed:` here (SPEC-0005\
-  \ rule 3 / P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1\
-  \ Analysis is a delivered, ordered procedure); the\nPLAN draft stage had the delivery\
-  \ AXIS (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
-  \ — `draft` is the initial status, so `plan stage draft` is never called. A session\n\
-  filing a plan therefore got no front-load guidance, and a draft could stay a bare\
-  \ title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
+  \ wiring (how this doctrine reaches the author)\nIdeas (`plan file --idea`) are\
+  \ flat holding pens —\nthey get NEITHER the draft-stage delivery NOR the heavy skeleton\
+  \ (unchanged).\n( last-touch refresh: `cmd_plan_file`'s trailing next-hint also\
+  \ carries the post-specs FORK\npointer — trial-eligible → `plan stage trial`, else\
+  \ → `plan stage accepted` — but that pointer is\ngoverned by SPEC-0034/SPEC-0035,\
+  \ NOT this front-load doctrine; this spec's delivery rule + skeleton\nsections are\
+  \ unchanged.)\n\n### Anti-complexity note (SPEC-0005 §7 / CHARTER §P1 F3 — what\
+  \ is retired)\nNOTHING is retired by this spec. It is admitted because it fills\
+  \ a real WIRING + CONTENT gap (the\ndraft bundle was never delivered, and no doctrine\
+  \ said what a draft should front-load), NOT because\nit accretes a parallel mechanism:\
+  \ it REUSES the existing plan-stage-entry axis, the existing\n`_emit_plan_stage_entered`\
+  \ delivery helper, and the existing `cmd_plan_file` verb — no new gate, no\nnew\
+  \ verb, no new store, no draft-completeness validator.\n\n## Parameters\n\nNone\
+  \ consumed. Every governing constant referenced (the big-plan apply-when criteria;\
+  \ the audit\ntemplates; the trial-eligibility rule; the decomposition discipline)\
+  \ lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec> / big-plan-checklist)\
+  \ — pointed at, NEVER duplicated or\n`consumed:` here (SPEC-0005 rule 3 / P5).\n\
+  \n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1 Analysis is a\
+  \ delivered, ordered procedure); the\nPLAN draft stage had the delivery AXIS (SPEC-0034\
+  \ binds `plan-stage-entry:draft`) but the bundle was\nnever delivered — `draft`\
+  \ is the initial status, so `plan stage draft` is never called. A session\nfiling\
+  \ a plan therefore got no front-load guidance, and a draft could stay a bare title.\
+  \ The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
   \ YELLOW) confirmed\nOption A — keep doctrine in ONE normative home, reuse the existing\
   \ stage-entry axis, add no new\ngate/verb/store — and surfaced three refinements\
   \ absorbed here: F1 (state the resume path\nexplicitly), F2 (require a planned-artifacts/corpus-impact\
@@ -148,11 +142,24 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ wiring (how this doctrine reaches the author)»: Note recorded to re-verify the\n\
   \  anchor and clear the drift warning.\n- From «Anti-complexity note (SPEC-0005\
   \ §7 / CHARTER §P1 F3»: (The F3 finding of the motivating\n  ad-hoc audit explicitly\
-  \ noted F3 needs no retirement here.)\n\n## Implementation notes\n\nNotes for the\
-  \ maintainer of the code, moved word for word out of the rule text of the section\n\
-  each names.\n\n- From «Delivery wiring (how this doctrine reaches the author)»:\
-  \ (also called by `cmd_plan_stage`,\n  so the delivery print format has ONE source\
-  \ — no mirror/copy)\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observe failing\
+  \ noted F3 needs no retirement here.)\n\n### History moved from the rule body\n\n\
+  Each entry is a passage moved word for word out of the rule text of the section\
+  \ it names;\nthe rule it explains stays there.\n\n- From «Internal»: **Draft check-carrier\
+  \ — SHIPPED by (R7), SPEC-0059\n  §First-stage-check-carrier-gap.**\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «Delivery wiring (how this doctrine\
+  \ reaches the author)»: (also called by `cmd_plan_stage`,\n  so the delivery print\
+  \ format has ONE source — no mirror/copy)\n\n### Moved from the rule body\n\nEach\
+  \ entry is a passage moved word for word out of the rule text of the section it\
+  \ names\n(its class per SPEC-0005 rule 3 in brackets); every acting rule stays in\
+  \ the rule text.\n\n- From «Delivery wiring» [MECH]: `cmd_plan_file` delivers the\
+  \ `plan-stage-entry:draft` bundle\n  (this spec) through the SAME path every other\
+  \ plan stage uses — `_emit_plan_stage_entered(slug,\n  None, \"draft\")` + the shared\
+  \ delivery print helper `_print_plan_stage_delivery`.\n- From «Delivery wiring»\
+  \ [REF]: The generated plan skeleton carries the base sections (## Problem\n  /\
+  \ intent · ## Done criterion · ## Verification plan · ## External checks / audits\
+  \ · ## Planned\n  artifacts / corpus impact · ## Realization-exit criteria) as PROMPTS\
+  \ + pointers.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observe failing\
   \ before trusting):\n- **VP1 (active + bound, AC1 — POST-close):** after `task close\
   \ `, SPEC-0043 is `status:\n  active` with `binding: [plan-stage-entry:draft]`;\
   \ `graph build` + `graph conformance` exit GREEN\n  with it present (valid binding\

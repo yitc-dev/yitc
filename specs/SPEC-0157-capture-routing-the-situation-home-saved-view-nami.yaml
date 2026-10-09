@@ -48,12 +48,7 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ facts need.\n- **machine-read baselines** (startup_checks, verify/test rows, deploy\
   \ policy, declared config) → the\n  **`yitc-ops.yaml`** carrier (SPEC-0093). These\
   \ are the project's machine-consumed contract, not prose.\nBoth are EXISTING homes;\
-  \ the view only NAMES the routing (X-0403), it adds no new fact store.\n\n### 5.\
-  \ Pointer-only seed line (Single-SoT + seed budget)\nThis spec restates NO rule\
-  \ its rows point at (SPEC-0005 rule 8). Its `binding:[seed]` makes\n`_seed_howto`\
-  \ render its TITLE as ONE session-start seed line — a cue+pointer to the view, NOT\
-  \ the\ntable (the table is the view's job; putting it in the seed would blow the\
-  \ CHARTER §P2 budget). Exactly\nthe SPEC-0051 write-flow-pointer shape.\n\n### 6.\
+  \ the view only NAMES the routing (X-0403), it adds no new fact store.\n\n### 6.\
   \ Post-/compact compaction-survival (SPEC-0007 §5b, option (b))\nThe seed line is\
   \ emitted ONLY by `session start` (not re-run after `/compact`), BUT its CONTENT\
   \ is a\npointer to a DERIVED VIEW re-runnable on demand (`graph query capture-routing`)\
@@ -80,20 +75,28 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \nNotes for the maintainer of the code, moved word for word out of the rule text\
   \ of the section\neach names.\n\n- From «1. The view is a DERIVED discovery surface,\
   \ not a new store»:\n  (`views/capture-routing.yaml` → the `capture-routing` `_run_view`\
-  \ dispatch branch →\n  `views._view_capture_routing`)\n\n## Verification\n\n- **VP1\
-  \ (view renders):** `bin/yitc-v2 graph query capture-routing` renders the situation→home\
-  \ table\n  INCLUDING the E-case incident-narrative row (SPEC-0056 §4a), the escalation-doc\
-  \ convention row\n  (`decisions/<task>-escalation.md`), and the environment-facts\
-  \ flavors (lessons/ vs yitc-ops).\n- **VP2 (discoverable):** `bin/yitc-v2 graph\
-  \ query --type view` lists `capture-routing` with its\n  description (the catalog\
-  \ line).\n- **VP3 (seed pointer):** after activation, `bin/yitc-v2 session start`\
-  \ renders the generated seed\n  line carrying SPEC-0157 + its title (the capture-routing\
-  \ pointer), via `_seed_howto` derived SOLELY\n  from binding:[seed] (P5, no hand\
-  \ list).\n- **VP4 (single-SoT):** each row's rule text lives in its OWNING spec,\
-  \ NOT restated in this spec body\n  or the view (grep — SPEC-0005 rule 8); the view\
-  \ ROUTES, the specs GOVERN.\n- **VP5 (no new store):** the change adds `views/capture-routing.yaml`\
-  \ + the lens fn + this pointer\n  spec ONLY — no new node-type/edge/store; escalation-doc\
-  \ → `decisions/`, env-facts → `lessons/` /\n  `yitc-ops.yaml` (all existing homes).\n"
+  \ dispatch branch →\n  `views._view_capture_routing`)\n\n### Moved from the rule\
+  \ text\n\nReference and maintainer passages moved word for word out of the rule\
+  \ text of the section\neach names; no rule an acting reader applies moved with them.\n\
+  \n### 5. Pointer-only seed line (Single-SoT + seed budget)\nThis spec restates NO\
+  \ rule its rows point at (SPEC-0005 rule 8). Its `binding:[seed]` makes\n`_seed_howto`\
+  \ render its TITLE as ONE session-start seed line — a cue+pointer to the view, NOT\
+  \ the\ntable (the table is the view's job; putting it in the seed would blow the\
+  \ CHARTER §P2 budget). Exactly\nthe SPEC-0051 write-flow-pointer shape.\n\n## Verification\n\
+  \n- **VP1 (view renders):** `bin/yitc-v2 graph query capture-routing` renders the\
+  \ situation→home table\n  INCLUDING the E-case incident-narrative row (SPEC-0056\
+  \ §4a), the escalation-doc convention row\n  (`decisions/<task>-escalation.md`),\
+  \ and the environment-facts flavors (lessons/ vs yitc-ops).\n- **VP2 (discoverable):**\
+  \ `bin/yitc-v2 graph query --type view` lists `capture-routing` with its\n  description\
+  \ (the catalog line).\n- **VP3 (seed pointer):** after activation, `bin/yitc-v2\
+  \ session start` renders the generated seed\n  line carrying SPEC-0157 + its title\
+  \ (the capture-routing pointer), via `_seed_howto` derived SOLELY\n  from binding:[seed]\
+  \ (P5, no hand list).\n- **VP4 (single-SoT):** each row's rule text lives in its\
+  \ OWNING spec, NOT restated in this spec body\n  or the view (grep — SPEC-0005 rule\
+  \ 8); the view ROUTES, the specs GOVERN.\n- **VP5 (no new store):** the change adds\
+  \ `views/capture-routing.yaml` + the lens fn + this pointer\n  spec ONLY — no new\
+  \ node-type/edge/store; escalation-doc → `decisions/`, env-facts → `lessons/` /\n\
+  \  `yitc-ops.yaml` (all existing homes).\n"
 cites:
 - SPEC-0056
 - SPEC-0055
