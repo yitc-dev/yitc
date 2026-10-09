@@ -920,10 +920,80 @@ def _is_settle_only_card_delta(rel_path: str, old_text: str, new_text: str) -> b
     return all(k in new_probes for k in settlements)
 
 
-def _is_settle_only_card_advance(rel_path: str, base: str, head: str, cwd: Path, *,
+#: T-13728 — the three top-level keys a `task refuse` / `task refuse --clear` write TOUCHES, and the
+#: ONLY three. Read off the writers (`bin/lib/task.py` `cmd_task_refuse` sets `refused_at` +
+#: `refused_reason`, `_refuse_clear` sets both to None, and `_write_task_state` stamps `last_verified`)
+#: and CONFIRMED against a real record commit (21891eb927) and a real clear commit (42a4dddf41).
+_REFUSAL_CARD_MUTABLE_FIELDS = frozenset({"refused_at", "refused_reason", "last_verified"})
+
+
+def _is_refusal_only_card_delta(rel_path: str, old_text: str, new_text: str) -> bool:
+    """T-13728 — True iff `old_text` -> `new_text` on `rel_path` is EXACTLY a pre-claim refusal write:
+    a `tasks/T-NNNN-*.yaml` whose change is confined to `refused_at` / `refused_reason` /
+    `last_verified`, in either the RECORD shape (both refusal keys non-empty strings) or the CLEAR
+    shape (both null).
+
+    The same failure `_is_settle_only_card_delta` closes, one card shape over: `task refuse` runs
+    pre-claim, so it self-commits `events.jsonl` + ONE card straight to main (T-11679), and the card
+    half sent the whole attempt to `retry-main-advanced`. MEASURED 2026-10-08: task/T-13698 discarded
+    a 429650 ms verify when the ONLY movement of main was 21891eb927, a `task refuse` record commit
+    (events.jsonl#ts=2026-10-08T11:27:03Z).
+
+    Same fail-closed style and same four-part shape as the settle sibling, so read its docstring for
+    the why of each part; what differs is only what the refusal writer produces:
+      1. the path is a task card (`_SETTLE_CARD_RE`);
+      2. both sides split cleanly; the new key sequence is the old one, plus at most an APPEND of
+         mutable keys the old card did not have (a first refusal appends `refused_at` and
+         `refused_reason`; a card with no `last_verified` gets it appended too). Nothing is removed,
+         nothing moves, and no other key may be introduced. Every segment outside
+         `_REFUSAL_CARD_MUTABLE_FIELDS` is BYTE-IDENTICAL at its own position;
+      3. the two refusal keys are both null, or both non-empty strings — the only pairs the two
+         writers produce;
+      4. `last_verified`, where present, is a string (the writer's quoted ISO stamp).
+
+    WHAT IT DOES NOT DECIDE: whether the fold is SAFE. That rests on the T-13728 Analysis finding that
+    nothing a land verify runs reads these three keys from a live card in a way that could change its
+    verdict (the card's analysis record cites every reader)."""
+    if not _SETTLE_CARD_RE.match(rel_path):
+        return False
+    old_segments = _yaml_top_level_segments(old_text)
+    new_segments = _yaml_top_level_segments(new_text)
+    if old_segments is None or new_segments is None:
+        return False
+    old_keys = [k for k, _ in old_segments]
+    new_keys = [k for k, _ in new_segments]
+    if len(set(old_keys)) != len(old_keys) or len(set(new_keys)) != len(new_keys):
+        return False          # a duplicated top-level key is not a shape the writer produces
+    if new_keys[:len(old_keys)] != old_keys:
+        return False          # a key removed, renamed or moved
+    if not set(new_keys[len(old_keys):]) <= _REFUSAL_CARD_MUTABLE_FIELDS:
+        return False          # a newly introduced key outside the three
+    for (old_key, old_chunk), (_new_key, new_chunk) in zip(old_segments, new_segments):
+        if old_key not in _REFUSAL_CARD_MUTABLE_FIELDS and old_chunk != new_chunk:
+            return False
+    try:
+        old_card = state.load_str(old_text)
+        new_card = state.load_str(new_text)
+    except Exception:
+        return False          # an unparseable card is not provably this shape
+    if not isinstance(old_card, dict) or not isinstance(new_card, dict):
+        return False
+    at, reason = new_card.get("refused_at"), new_card.get("refused_reason")
+    cleared = at is None and reason is None
+    recorded = (isinstance(at, str) and bool(at.strip())
+                and isinstance(reason, str) and bool(reason.strip()))
+    if not (cleared or recorded):
+        return False
+    return "last_verified" not in new_card or isinstance(new_card["last_verified"], str)
+
+
+def _is_card_record_only_advance(rel_path: str, base: str, head: str, cwd: Path, *,
                                  _run_git_cap) -> bool:
-    """The blob-fetching wrapper over `_is_settle_only_card_delta` — the impure half, kept thin so the
-    shape rule above stays pure and directly testable (the `_is_yitc_session_state` split).
+    """The blob-fetching wrapper over the two card-record shapes a main-side self-commit leaves —
+    `_is_settle_only_card_delta` (T-11685) and `_is_refusal_only_card_delta` (T-13728) — the impure
+    half, kept thin so each shape rule stays pure and directly testable (the `_is_yitc_session_state`
+    split). The blobs are fetched ONCE and judged against each shape SEPARATELY: a delta mixing a
+    settle with a refusal matches neither and takes the re-verify.
 
     A card BORN or DELETED by the advance has no counterpart blob, and an unreadable one answers
     nothing: all three return False and the land takes today's re-verify. Costs two `git show` calls,
@@ -934,7 +1004,8 @@ def _is_settle_only_card_advance(rel_path: str, base: str, head: str, cwd: Path,
     new = _run_git_cap(["show", f"{head}:{rel_path}"], cwd)
     if old.returncode != 0 or new.returncode != 0:
         return False
-    return _is_settle_only_card_delta(rel_path, old.stdout, new.stdout)
+    return (_is_settle_only_card_delta(rel_path, old.stdout, new.stdout)
+            or _is_refusal_only_card_delta(rel_path, old.stdout, new.stdout))
 
 
 def _is_spec_record(rel_path: str) -> bool:
@@ -2119,6 +2190,12 @@ def _live_path_holders(*a, **kw):
     ):
         kw.setdefault(_k, _v)
     return worktree_lifecycle._live_path_holders(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._closed_before_land_pointer)
+def _closed_before_land_pointer(*a, **kw):
+    """T-13684 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_closed_before_land_pointer`."""
+    return worktree_lifecycle._closed_before_land_pointer(*a, **kw)
 
 
 @functools.wraps(worktree_lifecycle._live_holder_refusal)
@@ -13888,7 +13965,7 @@ def _unit_retry_lines(record, prefix: str) -> list:
     return out
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False) -> dict:   # T-12758: {root,branch,attempt} from the LAND call site (T-13635: and Stage-6 `task test --run`) — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None) -> dict:   # T-13675: `stage6_credit_layers` / `stage6_rerun_layers` from the land's step 4d only; T-12758: {root,branch,attempt} from the LAND call site (T-13635: and Stage-6 `task test --run`) — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
     """The consumer zero-probe land gate. Returns `{'mode': <str>, 'bad': [<reason>, ...],
     'layers': [{'layer','outcome'}, ...]}` where `bad` is the SAME `[] == pass` shape as
     `_run_verify_tests` (land aborts iff non-empty), folded by `_land_integrate` into `bad`. `mode` is
@@ -13898,7 +13975,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     'retired', 'malformed', or 'migration' (>1 pending migration-skew blocker — the SPEC-0123 ordered
     plan). `layers` is the PER-LAYER OUTCOME TRAIL (T-9719 audit-pre F1) recorded
     on `land_completed.consumer_verify_layers` — one `{layer, outcome}` per declared layer (outcome ∈
-    passed|failed|timed-out|waived|malformed|skipped-disjoint-subject), where (SPEC-0152 rule 16
+    passed|failed|timed-out|waived|malformed|skipped-disjoint-subject|credited-stage6-run), where (SPEC-0152 rule 16
     subject_globs, T-10573 — OWNER-ENABLED per journal owner_directive 2026-07-16T14:54:25Z)
     `skipped-disjoint-subject` marks a layer whose declared `subject_globs` are provably disjoint from
     the candidate diff: its `prep:` and command did NOT run, and the skip is NAMED on stdout as well
@@ -13918,6 +13995,20 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     the same shape checks ahead of the skip, the same `skipped-disjoint-subject` row and the same
     NAMED stdout line (which states the diff it judged). Default False — the land, the pinned leg and
     the attribution re-run are byte-identical. With no `base_ref` the keyword is inert (no skip).
+
+    THE STAGE-6 PER-LAYER CREDIT (T-13675, SPEC-0065 §Bound). `stage6_credit_layers` — a set of
+    declared layer names, passed ONLY by a land whose step 4d refused the Stage-6 credit for a tree
+    difference and proved these layers passed in that run with a subject disjoint from everything
+    that changed since. Such a layer's `prep:` and command do not run; its row reads
+    `{layer, outcome: credited-stage6-run}` and the skip is named on stdout. The arm sits where the
+    subject skip sits — after every shape check, and after that skip (a layer this run's own
+    decision skips reads `skipped-disjoint-subject`, as before). None or empty (every other
+    caller) runs every layer, byte-identical.
+    `stage6_rerun_layers` — the declared layers that did NOT pass in that run, passed by the same
+    land and ONLY together with a credited layer: it is the condition of leaning on the run. Such
+    a layer has no verdict to take from the run, so this run's own subject skip does not apply to
+    it: it is taken OUT of the skip set the one decision returned (never added to anything), and
+    the reason is named on stdout. None or empty: the skip set is untouched.
 
     PER-LAYER DURATION (T-11200 / X-0945). A row for a layer that actually EXECUTED also carries
     `duration_ms` (int) — the wall from just before its `prep:` through the end of its command, which
@@ -14289,6 +14380,14 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     _scope: "dict | None" = {} if adapters else None      # T-13610: why the skip came out as it did
     skip_layers = _subject_scoping_skip_layers(worktree, layers, base_ref, _run_git_cap,
                                                working_tree=working_tree, facts=_scope)
+    # T-13675 (SPEC-0065 §Bound, the per-layer case) — on a land that takes a layer's verdict from
+    # the task's Stage-6 run, a layer that did not pass in that run is not left to the subject
+    # skip: it can only LEAVE the set decided above.
+    for _lname in sorted(skip_layers & set(stage6_rerun_layers or ())):
+        skip_layers.discard(_lname)
+        print(f"land(consumer): verify layer {_lname!r} RUNS though its subject_globs are disjoint "
+              f"from the candidate diff — this land takes other layers' verdicts from this task's "
+              f"Stage-6 run, and this layer did not pass there (SPEC-0065 §Bound, T-13675).")
     # T-13610 (SPEC-1006 rule 6, eligibility) — the adapter-backed layer's OWN fail-closed exception:
     # a changed path under its `adapter.sources` runs it, whatever its globs say. Applied to the skip
     # set the ONE decision above returned, so it can only take a layer OUT of that set.
@@ -14360,6 +14459,60 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     def _slot(i, bad_msgs, row, prep=None):
         results[i] = {"bad": list(bad_msgs), "row": row, "prep": prep}
 
+    # T-13653 — PROGRESS WHILE A LAYER RUNS. A stdout that is a file is block-buffered, so every
+    # layer line of a redirected run used to reach its log only when the process exited: the over-cap
+    # recipe (SPEC-0180) prescribes exactly that redirect for `task test --run`, and its reader could
+    # not tell a running verify from a hung one. Two things happen around every stretch in which a
+    # layer's commands run, both report-only: stdout is flushed when the stretch starts and when it
+    # ends (what was printed before a layer is readable while it runs; a layer's own lines are
+    # readable before the next one starts), and in a dispatched-worker context a line naming the
+    # layer goes to stderr at the `_verify_heartbeat_interval()` cadence — the switch and the
+    # context test the kernel suite's own heartbeat uses (T-9601), so <= 0 writes none. Nothing
+    # here is read by a verdict, a row or a bound (SPEC-0132: no decision depends on the switch).
+    _progress_secs = (_verify_heartbeat_interval()
+                      if os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip() else 0.0)
+
+    def _flush_progress():
+        try:
+            sys.stdout.flush()
+        except Exception:   # report-only: an absent, closed or broken stdout leaves the verdict alone
+            pass
+
+    @contextlib.contextmanager
+    def _layer_progress(name):
+        _flush_progress()
+        _stop = threading.Event()
+        _timer = None
+        if _progress_secs > 0:
+            def _beat(_t0=time.monotonic()):
+                while not _stop.wait(_progress_secs):
+                    _err = sys.stderr
+                    if _err is None:    # no stderr: `print(file=None)` would write to STDOUT instead
+                        return
+                    try:
+                        print(f"land(consumer): verify layer {name!r} still running — "
+                              f"{time.monotonic() - _t0:.0f}s elapsed (dispatched-worker progress "
+                              f"heartbeat, not a verdict)", file=_err, flush=True)
+                    except Exception:   # report-only, as the flush above
+                        return
+            _timer = threading.Thread(target=_beat, daemon=True)
+            _timer.start()
+        try:
+            yield
+        finally:
+            _stop.set()
+            if _timer is not None:
+                _timer.join(timeout=1.0)   # no `still running` line after the stretch has ended
+            _flush_progress()
+
+    def _with_layer_progress(fn):
+        @functools.wraps(fn)
+        def _watched(i, ly, name, *a, **kw):
+            with _layer_progress(name):
+                return fn(i, ly, name, *a, **kw)
+        return _watched
+
+    @_with_layer_progress
     def _execute(i, ly, name, cmd, layer_timeout, own_timeout=False, project=None, peers=(), retry=False) -> dict:
         """The EXECUTE phase of one runnable layer — from `_layer_t0` through its outcome row: prep →
         provenance → the bounded command → timed-out / failed / passed. Same code, clock and messages
@@ -14758,6 +14911,14 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                   f"verdict (SPEC-0152 rule 16 subject_globs; outcome: skipped-disjoint-subject).")
             _slot(i, [], {"layer": name, "outcome": "skipped-disjoint-subject"})
             continue
+        # T-13675 (SPEC-0065 §Bound) — the Stage-6 per-layer credit. Same place and same shape as the
+        # skip above: after the shape checks, before `prep:`; a credited row is not a barrier.
+        if stage6_credit_layers and name in stage6_credit_layers:
+            print(f"land(consumer): verify layer {name!r} NOT RUN — it passed in this task's Stage-6 "
+                  f"run and its declared subject_globs are DISJOINT from everything that changed "
+                  f"since that run (SPEC-0065 §Bound, T-13675; outcome: credited-stage6-run).")
+            _slot(i, [], {"layer": name, "outcome": "credited-stage6-run"})
+            continue
         # RUNNABLE. Named in `independent` → join the pending group (overlapped at the next barrier);
         # not named → a BARRIER: the pending group finishes first, then this layer runs alone, in place.
         runnable[i] = (i, ly, name, cmd, layer_timeout, own_timeout)   # T-13545: the re-run's arguments
@@ -14813,9 +14974,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
               f"{_UNIT_RERUN_ATTEMPTS} attempt(s) each (other sessions on this host are NOT excluded; "
               f"each attempt records the host load) — SPEC-1006 rule 10.")
         _printed: list = []
-        _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, timeout=_todo["timeout"],
-                                   env=_todo["env"], _load_avg=_load_avg, attempts=_UNIT_RERUN_ATTEMPTS,
-                                   outputs=_printed)
+        with _layer_progress(_uname):   # T-13653: the unit re-runs are a stretch of layer commands too
+            _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, timeout=_todo["timeout"],
+                                       env=_todo["env"], _load_avg=_load_avg, attempts=_UNIT_RERUN_ATTEMPTS,
+                                       outputs=_printed)
         # What the re-run attempts printed is kept whenever one of them did not pass — under its own
         # log name, so the first attempt's artifact is never overwritten (the layer re-run's rule).
         # Named on every row that had such an attempt. No log context (every caller but the land)
@@ -20076,6 +20238,73 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
     return None
 
 
+def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consumer_build=None,
+                         _consumer_tests_delegation=None) -> "dict | None":
+    """T-13675 (SPEC-0065 §Bound, the per-layer case) — MAY a land that refused the Stage-6 credit for
+    a tree difference take some declared layers' verdicts from the run? `{"layers": [...], "rerun":
+    [...]}` (names, declaration order, `layers` never empty) when it may, else None — and on None the
+    land runs its candidate verify exactly as before this card. Every doubt and every error is None.
+
+    `net` is the tested-tree..HEAD path list `_land_stage6_credit` already read (renames off, the
+    journal's own files included), `data` the runner-marked green row.
+
+    `layers` — the declared layers that take their verdict from the run. A layer qualifies only when
+    ALL hold:
+      • the build is a consumer build by the injected predicate, and the delegation predicate is
+        injected (an uninjected or raising predicate → None);
+      • the row records a layers run with a list of layer rows, and exactly one of them names this
+        layer, outcome `passed`;
+      • `net` meets no shared fail-closed edge of the subject skip (`_verify_skip_fail_closed_edge`
+        over `_SUBJECT_VERIFY_INFRA_GLOBS`, with NO freed path: a `bin/`, `tests/` or ops-carrier
+        path in `net` → None) and no declared check surface (`_declared_check_surface_touch`).
+        The carrier is therefore the same at the tested tree and at HEAD, so the declaration read
+        from disk is the one the run used; `merged_base` only ADDS the base carrier's surfaces;
+      • its name is declared exactly once, it declares no `adapter` key, it is not the layer the
+        test sweep is delegated to (that layer stands in for the sweep, and the sweep is never
+        credited), and its well-formed `subject_globs` are disjoint from `net` by the predicate the
+        land's own skip uses (`_subject_globs_would_skip` — absent, empty or malformed globs never
+        qualify).
+    `rerun` — the CONDITION of taking any verdict from the run: every declared layer the row does
+    NOT show as passed (anything but exactly one row for its name with outcome `passed` — failed,
+    skipped, waived, absent, doubled). The run holds no verdict for such a layer, so a land that
+    leans on the run for `layers` runs it whatever its subject (the guard's `stage6_rerun_layers`).
+    With no layer in `layers` there is nothing to lean on, the answer is None, and `rerun` binds
+    nobody: a layer the run skipped is then left to the land's own subject skip, as on any land.
+    The sweep is not this helper's: the land sweeps what it would sweep with no Stage-6 row at all."""
+    try:
+        if _is_consumer_build is None or not _is_consumer_build() or _consumer_tests_delegation is None:
+            return None
+        rows = data.get("consumer_verify_layers") if isinstance(data, dict) else None
+        if not isinstance(rows, list) or data.get("consumer_verify") != "layers":
+            return None
+        from lib import debt as _debt                      # lazy, as `_stage6_row_covers_land` reads it
+        declared = _debt._declared_verify_layers(Path(W) / CONSUMER_OPS_CONTRACT)
+        if not declared or not all(isinstance(ly, dict) for ly in declared):
+            return None
+        if _verify_skip_fail_closed_edge(net, _SUBJECT_VERIFY_INFRA_GLOBS):
+            return None
+        if _declared_check_surface_touch(net, Path(W), merged_base, _run_git_cap=_run_git_cap):
+            return None
+        deleg = _consumer_tests_delegation(Path(W))
+        deleg = deleg.strip() if isinstance(deleg, str) else deleg
+        names = [ly.get("layer").strip() if isinstance(ly.get("layer"), str) else "" for ly in declared]
+        ran = [(r.get("layer").strip(), r.get("outcome")) for r in rows
+               if isinstance(r, dict) and isinstance(r.get("layer"), str)]
+        every = [n for i, n in enumerate(names) if n and n not in names[:i]]
+        rerun = [n for n in every if [o for m, o in ran if m == n] != ["passed"]]
+        out = []
+        for ly, name in zip(declared, names):
+            if not name or name in rerun or names.count(name) != 1 or "adapter" in ly:
+                continue
+            if deleg and name == deleg:
+                continue
+            if _subject_globs_would_skip(net, ly.get("subject_globs")):
+                out.append(name)
+        return {"layers": out, "rerun": rerun} if out else None
+    except Exception:                                      # noqa: BLE001 — fail-closed: the land as before
+        return None
+
+
 def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_paths, _run_git_cap,
                         _is_consumer_build=None, _consumer_tests_delegation=None
                         ) -> "tuple[bool, str, dict | None]":
@@ -20086,6 +20315,11 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
     the run, classified (T-13588), plus `read_by` when an inert advance is named by a test (T-13620) —
     which the caller only records. A credit over an inert advance carries `{class, paths}` as
     `main_delta` on `ref` — the advance it accepted, recorded on `land_completed.stage6_credit`.
+    The SECOND exception (T-13675): a `tree-differs:` refusal carries `{task, ts, tree, base, layers,
+    rerun}` when `_stage6_layer_credit` names at least one layer that may take the run's verdict —
+    the caller then runs the candidate verify with `layers` withheld and, as the condition of
+    that, with `rerun` kept out of the land's own subject skip; where it answers None so does this,
+    and the caller's candidate verify is the one it ran before this card.
 
     The land proves each part itself; nothing the worker asserts is trusted:
       (0) POLICY — the project has not opted out (`verify_policy.stage6_credit`, read from the BASE tree).
@@ -20160,7 +20394,19 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         net = _diff_name_paths(W, tree, "HEAD", _run_git_cap=_run_git_cap)
         verdict, cls = _classify_inert_paths(net)
         if verdict != "inert":
-            return False, f"tree-differs:{cls}", None
+            # T-13675: conditions (1) and (3) hold here, (2) does not — the per-layer case, when at
+            # least one layer may take the run's verdict (passed there, subject disjoint from `net`).
+            # The sweep is untouched; a land that takes such a verdict also runs every layer the run
+            # holds no pass for. With no such layer `split` is None and the land is as before.
+            split = _stage6_layer_credit(W, merged_base, net, data, _run_git_cap=_run_git_cap,
+                                         _is_consumer_build=_is_consumer_build,
+                                         _consumer_tests_delegation=_consumer_tests_delegation)
+            part = None
+            if split is not None:
+                part = {"task": tid, "ts": newest.get("ts"), "tree": tree, "base": base, **split}
+                if main_delta is not None:
+                    part["main_delta"] = main_delta
+            return False, f"tree-differs:{cls}", part
         artifacts = [p for p in net if p != "events.jsonl"
                      and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
         readers = []
@@ -23526,6 +23772,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     _stage6_refused = None  # T-13576: why step 4d refused a runner-marked green Stage-6 row — the LAND's,
                             # kept across attempts (a retry of a refused land is not asked again)
     _stage6_main_delta = None  # T-13588: on a `main-moved` refusal, main's advance since the run, classified
+    _s6_layer_credit = None    # T-13675: per-ATTEMPT — the per-layer split of a tree-differs refusal
 
     def _close_attempt(n, outcome):
         # Close the CURRENT attempt into a part. Reads the enclosing locals at CALL time, so the
@@ -25189,6 +25436,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         #     ELIGIBILITY IS 4c's, read off `_first_proof_open` rather than restated: one condition
         #     admits both first-attempt proofs, so the rebaseline union is consulted once, there.
         _stage6_credit = None          # per-ATTEMPT: the credited Stage-6 row's reference, or None
+        _s6_layer_credit = None        # T-13675: per-ATTEMPT too — a retry re-proves from scratch
         if _first_proof_open and do_test_verify:
             _s6_ok, _s6_why, _s6_ref = _land_stage6_credit(
                 W, main_wt, merged_base, branch, _classify_inert_paths=_classify_inert_paths,
@@ -25197,6 +25445,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             if not _s6_ok and _s6_why not in _STAGE6_CREDIT_NOT_POSSIBLE and not _s6_why.startswith("error:"):
                 _stage6_refused = _s6_why
                 _stage6_main_delta = _s6_ref if _s6_why == "main-moved" else None
+                if _s6_why.startswith("tree-differs:") and isinstance(_s6_ref, dict):
+                    # T-13675 (SPEC-0065 §Bound, the per-layer case): the candidate verify RUNS — the
+                    # sweep as on any land and every layer the delta since the run may reach; the
+                    # layers in `layers` (never empty) take the run's verdict, and as the condition
+                    # of that every layer that did not pass in the run (`rerun`) is kept out of the
+                    # land's own subject skip.
+                    _s6_layer_credit = _s6_ref
             if _s6_ok:
                 _stage6_credit = _s6_ref
                 reverify_skipped = True
@@ -25214,9 +25469,19 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                          else "candidate verify not run."), file=sys.stderr)
             elif _s6_why not in ("no-stage6-row", "not-a-task-branch"):
                 print(f"land: Stage-6 credit not taken ({_s6_why}) — running the candidate verify "
-                      f"(SPEC-0065 §Bound, T-13532).", file=sys.stderr)
-        if do_test_verify and not _stage6_credit:
-            own_verified = True        # T-13344: this attempt runs the candidate verify itself
+                      f"(SPEC-0065 §Bound, T-13532)"
+                      + (f"; verify layer(s) {', '.join(_s6_layer_credit['layers'])} take the verdict of "
+                         f"the Stage-6 run of {_s6_layer_credit['task']} ({_s6_layer_credit['ts']}) — "
+                         f"they passed there and nothing in their subject changed since (T-13675)."
+                         if _s6_layer_credit and _s6_layer_credit.get("layers") else "."), file=sys.stderr)
+        # T-13675: does this attempt take any layer's verdict from the run? Then it is less than
+        # the land's own candidate verify (the split exists only when it names such a layer).
+        _s6_credits = bool(_s6_layer_credit and _s6_layer_credit.get("layers"))
+        _s6_solo = bool(_stage6_credit) or _s6_credits        # T-13675: either credit forms ALONE
+        if do_test_verify and not _stage6_credit and not _s6_credits:
+            # T-13344: this attempt runs the candidate verify itself. T-13675: an attempt that took
+            # some layers' verdicts from the run is not that backstop — a retry re-proves.
+            own_verified = True
         # T-12254 (SPEC-0077 §3a / SPEC-0203) — set by the step-4a waive-coverage preflight below when
         # this land is going to ROUTE its pinned leg to the published venue, so the coverage question is
         # answered off the ENVELOPE the routing block already fetches instead of a second, LOCAL pinned
@@ -26121,9 +26386,14 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 # output-log context — the main checkout (where the land log already lives), this
                 # branch, and THIS attempt. A failing / timed-out / prep-failed layer persists its
                 # whole captured output there and names the path on its row + in the abort_reason.
+                # T-13675: step 4d's per-layer split rides two keywords, each passed only when it
+                # names a layer — every other land's call is byte-identical.
+                _s6_kw = {k: frozenset(_s6_layer_credit.get(src) or ())
+                          for k, src in (("stage6_credit_layers", "layers"), ("stage6_rerun_layers", "rerun"))
+                          if _s6_layer_credit and _s6_layer_credit.get(src)}
                 _cres = _consumer_zero_probe_guard(W, merged_base, workers=_admitted_workers,
                                                    layer_log_ctx={"root": main_wt, "branch": branch,
-                                                                  "attempt": attempt})   # T-12589: publish W
+                                                                  "attempt": attempt}, **_s6_kw)   # T-12589: publish W
                 # T-12087 — the ANY-AUTHOR LAND FLOOR (SPEC-0163 §4a policy · SPEC-0093 rule 27
                 # shape). Folded in HERE, at the LAND seam, and deliberately NOT inside the guard:
                 # the floor is a LAND-time gate ("`land` runs it for EVERY branch regardless of
@@ -26198,7 +26468,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 superseding_events_path=W / "events.jsonl",
                 excluded_out=_queue_excluded,
                 main_wt=main_wt, repo_root=W, events_path=main_wt / "events.jsonl",
-                solo_head=_solo_head_retry or bool(_stage6_credit),  # T-11387: RELEASED its peers on a
+                solo_head=_solo_head_retry or _s6_solo,              # T-11387: RELEASED its peers on a
                                                  # head-is-culprit red re-forms ALONE (rule 4).
                 snapshot_out=_queue_snapshot,   # T-11312: the read clock + the enumerated candidates
                 truncated_out=_horizon_truncated,   # T-11904: what the formation reads could not see
@@ -27030,7 +27300,8 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 # after the run (a verifier that rewrote a tracked file or left an untracked one
                 # records nothing). Unprefixed key: the `venue_*` keys stay venue-only. A later pinned
                 # or canary failure aborts the land, so the key reaches main only on an ok row.
-                if (_tested_tree and not _sweep_bad and not _cguard["bad"]
+                # T-13675: never under a per-layer credit — this verify did not run every layer.
+                if (_tested_tree and not _sweep_bad and not _cguard["bad"] and not _s6_credits
                         and _worktree_clean_tree(W, _run_git_cap) == _tested_tree):
                     verify_metrics["cand_tree"] = _tested_tree
             bad.extend(_sweep_bad)
@@ -27991,7 +28262,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 # while a controller drained deferred acceptance probes, each settle advancing main again
                 # (events.jsonl#ts=2026-08-27T03:19:40Z). Structurally the E-0033 failure above, with a
                 # card in place of a journal.
-                # RECOGNISED BY CONTENT SHAPE — `_is_settle_only_card_advance` reads the two BLOBS and
+                # RECOGNISED BY CONTENT SHAPE — `_is_card_record_only_advance` reads the two BLOBS and
                 # requires the delta to stay inside the `probes`/`probe_settlements` mappings. NOT by the
                 # commit message, which guarantees nothing, and NOT by a `tasks/` prefix: SPEC-0064 §2
                 # calls the task-card family proven-inert, but that claim was already found FALSE by
@@ -28010,6 +28281,17 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 # probes-confined delta cannot make. No verify-layer test reads a live card's `probes`
                 # mapping, and none folds `tasks/*.yaml` from main (the pinned leg detaches from the
                 # CANDIDATE head and overlays only `tests/` + the ops contract from `merged_base`).
+                # T-13728 — THE SAME CARVE-OUT FOR A PRE-CLAIM REFUSAL. `task refuse` (and its
+                # `--clear`) self-commits the same two-path footprint, its card delta confined to
+                # `refused_at` / `refused_reason` / `last_verified`; MEASURED 2026-10-08, a 429650 ms
+                # verify discarded when that commit was main's only movement
+                # (events.jsonl#ts=2026-10-08T11:27:03Z). Same content-shape rule, same fail-closed
+                # answer (`_is_refusal_only_card_delta`). WHY SAFE: the T-13728 Analysis traced every
+                # reader of the three keys reachable from a land verify — the code readers
+                # (`_premise_dispatch_block`, the card-state reader feeding the `debt` halt fold) run
+                # in no verify-layer test against a live card, and no test asserts on those keys of a
+                # card a refusal can reach; the corpus guards are the ones named above (`status` and
+                # path-scoped), which a three-key delta cannot trip.
                 # T-12014: decoded + splitlines — `.split()` both shattered a path holding a space and
                 # left a non-ASCII one octal-escaped, so `fold_policy` below judged a path git never
                 # named and the benign fold read as unclassified dirt.
@@ -28024,7 +28306,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                                     _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
                                     _is_foldable_journal=_is_foldable_journal,
                                     _is_yitc_session_state=_is_yitc_session_state) is not None
-                        or _is_settle_only_card_advance(p, merged_base, cur_main, main_wt,
+                        or _is_card_record_only_advance(p, merged_base, cur_main, main_wt,
                                                         _run_git_cap=_run_git_cap)
                         for p in delta)):
                     attempt_outcome = "retry-main-advanced"   # T-10847: name this attempt's retry cause (report-only)
@@ -28441,6 +28723,17 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     # unknown, paths} — measured for the owner's decision on condition (1); it changes
                     # nothing about the credit. Present only beside `main-moved`.
                     payload["stage6_credit_main_delta"] = _stage6_main_delta
+            if _s6_layer_credit:
+                # T-13675 (SPEC-0065 §Bound, the per-layer case): the Stage-6 row this land's
+                # per-layer split was made against, which layers took its verdict, and which layers
+                # this land ran itself. Both lists are read off the rows the verify WROTE, never off
+                # the decision.
+                _s6_rows = [r for r in (consumer_verify_layers or []) if isinstance(r, dict)]
+                payload["stage6_layer_credit"] = {
+                    **{k: v for k, v in _s6_layer_credit.items() if k not in ("layers", "rerun")},
+                    "credited": [r.get("layer") for r in _s6_rows
+                                 if r.get("outcome") == "credited-stage6-run"],
+                    "ran": [r.get("layer") for r in _s6_rows if "duration_ms" in r]}
             if consumer_verify_mode:
                 # T-0864: additive consumer-verify telemetry (SPEC-0025 §land_completed additive
                 # keys, P5-safe). PRESENT ONLY on a CONSUMER land (probes|waiver|layers|missing|…) —

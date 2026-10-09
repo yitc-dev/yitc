@@ -17,6 +17,20 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ as the artifacts themselves, in ONE entry doc (PEP-1 documents the PEP\nprocess;\
   \ ADR keeps the process doc beside the ADRs); and the PEP **Provisional → Final**\
   \ shape is the\n`postcheck → realized` real-data-proof boundary. Parent plan: [[plan-lifecycle-delivery-parity-redesign-lifecycle-]].\n\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\n- From «Per-stage mechanics (one rule per linear stage»: **Live proof\
+  \ (real incident):** the\n  SPEC-FREE correct-verify plan (`correct-verify-the-full-project-user-collaboration`,\
+  \ no draft\n  specs) ran `gate-specs` and drew SIX findings — W2 under-specification,\
+  \ an ambiguous trial path,\n  an untracked W4 carve-out, provider-name leakage in\
+  \ normative-looking criteria, plus the two\n  gate answers\n  (`decisions/correct-verify-the-full-project-user-collaboration-audit-gate-specs.yaml`,\
+  \ YELLOW).\n  A skip would have shipped all six unexamined.\n- From «Per-stage mechanics\
+  \ (one rule per linear stage»: (measured 2026-09-02; the\n  3-plan-check incident\
+  \ is the same class)\n- From «Per-stage mechanics (one rule per linear stage»: («older\
+  \ than 2 days», 2026-09-13T03: 22\n  postcheck soaks cancelled)\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «Per-stage mechanics (one rule\
+  \ per linear stage»: Tripwire:\n  `tests/test_plan_stage.py::test_t12845_age_cancel_reads_postcheck_and_live_trigger_state`.\n\
   \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before trusted\
   \ Slip 4; concrete results in\ntests/test_t0317_plan_lifecycle_spec.py + the closure\
   \ record):\n- **VP1 (per-stage delivery axis):** this spec's `binding:` is EXACTLY\

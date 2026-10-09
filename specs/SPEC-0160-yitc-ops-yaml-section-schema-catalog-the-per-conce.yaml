@@ -28,18 +28,19 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ 25** (`reads:` section), which was NOT moved: authored it directly here, because\
   \ a pure-declarative section schema is exactly this part's surface now that the\
   \ split seam exists — a new one is born here rather than landing on SPEC-0093 and\
-  \ being relocated later.\n\n**Split seam (SPEC-0005 rule 6 anti-oversize — split\
-  \ by a STABLE SURFACE, never by perspective).** The\nboundary is CODE-BACKED vs\
-  \ DECLARATIVE. SPEC-0093 retains the carrier FRAMEWORK rules (1-4, 6, 7, 11,\n18,\
-  \ 19), the two code-enforced anchors (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\n\
-  so **rule 22** `deploy.runtime_delivery` stays with its anchor), AND — deliberately\
+  \ being relocated later. **Rule 30** (`anchors:` section) was born here the same\
+  \ way.\n\n**Split seam (SPEC-0005 rule 6 anti-oversize — split by a STABLE SURFACE,\
+  \ never by perspective).** The\nboundary is CODE-BACKED vs DECLARATIVE. SPEC-0093\
+  \ retains the carrier FRAMEWORK rules (1-4, 6, 7, 11,\n18, 19), the two code-enforced\
+  \ anchors (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\nso\
+  \ **rule 22** `deploy.runtime_delivery` stays with its anchor), AND — deliberately\
   \ — the whole\n`concern:` born-ops registry (born generation is active-gated/SPEC-0128,\
   \ so the registry stays\nSINGLE-SoT on the active carrier). This part receives ONLY\
   \ the declarative per-section SHAPE prose,\nwhich has no code anchor to re-home\
   \ — so the split moves NO anchor and re-signs NO signature.\n\n**Shared rule numbers\
   \ across the split pair.** Rule NUMBERS are RETAINED (the carrier already numbers\n\
   non-contiguously), so moved text stays byte-identical and an in-code/prose `rule\
-  \ N` ref changes only its\nSPEC id, not its number. A bare `rule N` for N in {8,9,10,12,13,14,20,21,23,24,25}\
+  \ N` ref changes only its\nSPEC id, not its number. A bare `rule N` for N in {8,9,10,12,13,14,20,21,23,24,25,30}\
   \ refers to THIS spec; any\nother bare `rule N` refers to SPEC-0093. Cross-body\
   \ refs to non-moved rules stay verbatim. The `concern:`\nborn-placeholder comments\
   \ on SPEC-0093 keep their historical `# SPEC-0093 rule N` text (changing generated\n\
@@ -695,24 +696,42 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   declare-or-waive stance: absence is the answer, so there is nothing to waive. A\
   \ section present with\nBOTH an `exemptions:` declaration and a `waiver:` is still\
   \ a contradiction and errors — the carrier\ndeclaring and refusing the same thing\
-  \ at once (the rule-13 per-member idiom, at section altitude).\n\n## Parameters\n\
-  \nNone new — this part carries no governing scalar. The section SHAPES it documents\
-  \ are enforced by the\ncarrier's declare-or-waive born-ops sweep (`init.py#cmd_init`)\
-  \ and the `concern:` registry, both homed\non SPEC-0093 (single-SoT). `consumed:\
-  \ false`.\n\n## Rationale\n\nSPEC-0093 grew to 1046 lines / 88KB — the worst over-ceiling\
-  \ durable doc (SPEC-0120 §3 must-split,\nfingerprint `durable-docs-over-ceiling-7-must-split`,\
-  \ revizia 2026-07-16). This is the SECOND coherent\nsplit of the carrier (the first,\
-  \ re-homed the land-verify/coverage/startup cluster to SPEC-0152).\nThe declarative\
-  \ section-schema catalog is the honest surface to move: it has no code anchor, so\
-  \ the split\nis aggregate-neutral prose relocation with zero anchor/signature churn.\
-  \ SPEC-0120 §3 prefers a balanced\nsplit at a real seam; both parts land under both\
-  \ one-bounded-read ceilings.\n\n## Verification\n\n- **Size:** `wc -l`/`wc -c` on\
-  \ BOTH `specs/SPEC-0093-*.yaml` and `specs/SPEC-0160-*.yaml` are each\n  under the\
-  \ SPEC-0120 §3 ceilings (<800 lines AND <63000 bytes); the T7 `durable_docs` sweep\
-  \ no longer\n  lists SPEC-0093 in `over_ceiling` / `over_ceiling_bytes`.\n- **Aggregate-neutral:**\
-  \ the ten moved rule blocks reproduce the pre-split SPEC-0093 rule text\n  byte-for-byte\
-  \ (relocation, not an edit).\n- **Graph:** `graph build` + `graph conformance` GREEN\
-  \ — every cite resolves, no anchor moved.\n"
+  \ at once (the rule-13 per-member idiom, at section altitude).\n\n### 30. The `anchors:`\
+  \ section schema (rule-4 section-add — a project's own symbol forms)\nThe `anchors:`\
+  \ top-level section declares the project's OWN `<file>#<symbol>` forms — code shapes\n\
+  the kernel grammar does not carry. This rule owns the section SHAPE only; how a\
+  \ declared form is\nREAD (after the built-in forms, by both grammar readers, and\
+  \ the region it bounds) is owned by\nSPEC-0006. OPT-IN (the rule-23 model): an ABSENT\
+  \ section declares nothing and is never seeded or\nswept; a PRESENT one must be\
+  \ usable, fail-closed.\n\n**DECLARE — a non-empty `symbol_forms:` list.** Each entry\
+  \ is a mapping carrying two required\nkeys: `files:` — a non-empty list of repo-relative\
+  \ globs (the rule-10 `globs:` shape, verbatim)\nnaming the files the form applies\
+  \ to; and `pattern:` — a regular expression that names the\nplaceholder `{symbol}`\
+  \ and compiles once the placeholder is filled (tried with symbols of two\nlengths).\
+  \ A file matched by several\nentries takes ALL of their forms (SPEC-0185: the union).\n\
+  \n**WAIVE — the LOOSE waiver (rule 6):** a mapping with a non-empty `reason:`. A\
+  \ present section\ncarrying BOTH `symbol_forms:` and `waiver:`, or NEITHER → ERROR.\n\
+  \n**FAIL-CLOSED, naming the entry.** The kernel-owned shape hook `anchor_symbol_forms_shape`\
+  \ REFUSES\na malformed entry by its index and field. The reader skips such an entry,\
+  \ so its anchors stay\nreported unresolved; the refusal is what says why. Shape,\
+  \ not value (rule 3): what the expression\nmatches is the project's statement about\
+  \ its own code.\n\n## Parameters\n\nNone new — this part carries no governing scalar.\
+  \ The section SHAPES it documents are enforced by the\ncarrier's declare-or-waive\
+  \ born-ops sweep (`init.py#cmd_init`) and the `concern:` registry, both homed\n\
+  on SPEC-0093 (single-SoT). `consumed: false`.\n\n## Rationale\n\nSPEC-0093 grew\
+  \ to 1046 lines / 88KB — the worst over-ceiling durable doc (SPEC-0120 §3 must-split,\n\
+  fingerprint `durable-docs-over-ceiling-7-must-split`, revizia 2026-07-16). This\
+  \ is the SECOND coherent\nsplit of the carrier (the first, re-homed the land-verify/coverage/startup\
+  \ cluster to SPEC-0152).\nThe declarative section-schema catalog is the honest surface\
+  \ to move: it has no code anchor, so the split\nis aggregate-neutral prose relocation\
+  \ with zero anchor/signature churn. SPEC-0120 §3 prefers a balanced\nsplit at a\
+  \ real seam; both parts land under both one-bounded-read ceilings.\n\n## Verification\n\
+  \n- **Size:** `wc -l`/`wc -c` on BOTH `specs/SPEC-0093-*.yaml` and `specs/SPEC-0160-*.yaml`\
+  \ are each\n  under the SPEC-0120 §3 ceilings (<800 lines AND <63000 bytes); the\
+  \ T7 `durable_docs` sweep no longer\n  lists SPEC-0093 in `over_ceiling` / `over_ceiling_bytes`.\n\
+  - **Aggregate-neutral:** the ten moved rule blocks reproduce the pre-split SPEC-0093\
+  \ rule text\n  byte-for-byte (relocation, not an edit).\n- **Graph:** `graph build`\
+  \ + `graph conformance` GREEN — every cite resolves, no anchor moved.\n"
 cites:
 - SPEC-0093
 - CHARTER.md#principle-1

@@ -268,7 +268,8 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ Layers are still taken in declaration order: consecutive RUNNABLE layers that\
   \ are\nALL named here overlap; a runnable layer NOT named here is a BARRIER — the\
   \ pending named layers finish\nfirst, then it runs alone, in its place. A row that\
-  \ executes nothing (waived / malformed /\nskipped-disjoint-subject) is not a barrier,\
+  \ executes nothing (waived / malformed /\nskipped-disjoint-subject, or a layer whose\
+  \ verdict the land took from the Stage-6 run — SPEC-0065\n§Bound) is not a barrier,\
   \ so a `subject_globs` skip between two named layers does not\nserialize them.\n\
   \n**The `layer_worker_shares:` sub-field — HOW THE PROJECT SPLITS the land's worker\
   \ allotment across\nits layers (a SECTION-level sub-rule of `verify:`, not a new\
@@ -854,13 +855,16 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ 6 may thus run\na layer its land will skip; it never skips one the land would\
   \ run for the same changes.\nTHE BOUND: the equality is per DIFF. Paths that join\
   \ the branch after the run (the closure record,\na merge of newer `main`) are judged\
-  \ by the land, which decides independently and stays the gate.\nNEVER SILENT: each\
-  \ skipped layer is NAMED on stdout with the diff it was judged against, the PASS\n\
-  line states which layers ran, which were skipped and why, and a recorded pass carries\
-  \ the\nper-layer outcome rows (SPEC-0025 §tests_passed); a run whose every layer\
-  \ was skipped or waived is\nnot a pass and records none. Unchanged: the land path,\
-  \ the SPEC-0077 pinned leg (it never skips),\nthe any-author floor, `prep:`, the\
-  \ engine's own Stage 6.\nReader: `bin/lib/worktree.py#_working_tree_delta_paths`.\n\
+  \ by the land, which decides independently and stays the gate.\nONE land-side case\
+  \ runs a layer this seam skipped although the land's diff is equally disjoint from\n\
+  it: a land that takes SPEC-0065 §Bound's per-layer case — another layer's verdict\
+  \ from the task's\nStage-6 run — runs a layer with no pass in that run rather than\
+  \ skipping it.\nNEVER SILENT: each skipped layer is NAMED on stdout with the diff\
+  \ it was judged against, the PASS\nline states which layers ran, which were skipped\
+  \ and why, and a recorded pass carries the\nper-layer outcome rows (SPEC-0025 §tests_passed);\
+  \ a run whose every layer was skipped or waived is\nnot a pass and records none.\
+  \ Unchanged: the land path, the SPEC-0077 pinned leg (it never skips),\nthe any-author\
+  \ floor, `prep:`, the engine's own Stage 6.\nReader: `bin/lib/worktree.py#_working_tree_delta_paths`.\n\
   \n**THE ISOLATED RE-RUN OF A SOLE FAILED LAYER.** «FAIL on any failed layer» has\
   \ ONE\ncarve-out, and it holds wherever the declared layers are run — the land's\
   \ candidate leg, the\nSPEC-0077 pinned leg and Stage-6 `task test --run` — because\
@@ -1314,9 +1318,9 @@ implements_signature:
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
   bin/lib/session.py#startup_check_lines: f88dc029b52ef82ae732227899100b2bf50812c971a88b3a4a8a374bb6207288
-  bin/lib/task.py#cmd_task_test: 5e61632e71ac90bbd0763166e2932e4f25e397cfaa0f3f4efad148d4bee50d57
+  bin/lib/task.py#cmd_task_test: e4fdbde3c66d84f8a1ca661f41455a354a3ecd4337239e19dca83351d86429cf
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 8128923ee67516ea0a18fb1b2931e44825d2330e289d81e2c81b572a51a8a85d
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 9542691d47d78d8f0dc7a6aeef34f3f48e326e0783dccd87de7316eb433c0920
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

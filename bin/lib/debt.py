@@ -4533,6 +4533,9 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
     remedy ("narrow its subject") does not exist, since a waived layer costs no land time. This is the
     same exclusion the carrier-read sibling makes for the same reason (a layer that never runs has
     nothing to scope); what the card fixes is only that `waived` must never be MISTAKEN for a skip.
+    T-13675: a `credited-stage6-run` row (SPEC-0065 §Bound — the land took that layer's verdict from
+    the task's Stage-6 run) is treated the same way and for the same reason: the layer did not run on
+    that land and its subject was not what skipped it, so the row scores nothing at all.
 
     ABSENT IS NOT NON-SKIP. A land whose payload carries no row for a layer does not score that layer at
     all — neither numerator nor denominator. Per-layer rows only start once a project declares its
@@ -4598,8 +4601,9 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
             if not isinstance(name, str) or not name.strip():
                 continue                      # a row naming no layer scores none
             outcome = row.get("outcome")
-            if outcome == _ZERO_SKIP_WAIVED:
-                continue                      # waived ⇒ the layer neither ran nor skipped (see below)
+            if outcome == _ZERO_SKIP_WAIVED or outcome == "credited-stage6-run":
+                continue                      # waived ⇒ the layer neither ran nor skipped (see below);
+                                              # T-13675: nor did a layer credited to a Stage-6 run
             seen = tally.setdefault(name.strip(), {"observations": 0, "skips": 0})
             seen["observations"] += 1
             if outcome == _ZERO_SKIP_OUTCOME:
@@ -9307,11 +9311,13 @@ def debt_echo_table(_debt_echo_lines, *, cli_form: str = "bin/yitc-v2") -> list:
     repeating it per row would push rows past DEBT_ROW_WIDTH and truncate the pointer itself."""
     order = []
     rows = {}
+    labelled = {getattr(ln, "start_label", "") for ln in list(_debt_echo_lines or ())} - {""}
     for line in list(_debt_echo_lines or ()):
         if not str(line or "").strip():
             continue
         prefix, _body = _debt_line_prefix(line)
-        key = (prefix, debt_row_class(line))
+        # T-13754: a line its producer marked actionable carries its own plain-words label
+        key = (prefix, getattr(line, "start_label", "") or debt_row_class(line))
         if key not in rows:
             order.append(key)
             rows[key] = {"count": 0, "verb": debt_row_verb(line), "figures": []}
@@ -9338,7 +9344,8 @@ def debt_echo_table(_debt_echo_lines, *, cli_form: str = "bin/yitc-v2") -> list:
             if room > 1:
                 row = (f"{prefix}: {klass}{_DEBT_ROW_SEP}{rows[key]['count']} [{figures}]"
                        f"{_DEBT_ROW_SEP}{verb}")
-        if len(row) > DEBT_ROW_WIDTH:
+        # a labelled row is never cut: its label is authored short and its verb must stay runnable
+        if len(row) > DEBT_ROW_WIDTH and klass not in labelled:
             row = row[:DEBT_ROW_WIDTH - 1].rstrip() + "…"
         out.append(row)
     return out
@@ -9902,7 +9909,10 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # (`-C` session-start / land-tail / the on-demand `-C <repo> debt` re-fold), with NO new
                 # verb: the same one-wiring-site-buys-every-seam discipline as `_security_findings` above.
                 # The engine kernel itself has no consumer adapter → no-adapter → count 0 → suppressed.
-                _adapter_conformance=lambda: init_mod.adapter_conformance(REPO_ROOT),
+                # T-13761: on a consumer, ENGINE_ROOT lets the same view resolve the home's kernel-spec
+                # references (the drift arm); the engine's own CHARTER is not a consumer home.
+                _adapter_conformance=lambda: init_mod.adapter_conformance(
+                    REPO_ROOT, kernel_root=ENGINE_ROOT if _is_consumer_build() else None),
                 # T-10508 (SPEC-0119 rule 13): the unratified-adoption view over THIS repo's ops carrier —
                 # `adoption:` records still stamped `owner: init` (the birth sentinel) over a section the
                 # carrier DECLARES. The T-10493 stance sweep passes them BY DESIGN (variant A leaves a
@@ -10481,7 +10491,9 @@ def _debt_echo_compact(_debt_echo_lines=None, *, debt_mod, _cli_invocation_form)
     presentation surface riding the session-start seam, so a failure here falls back to the FULL
     lines rather than costing a `session start`. Degrading to unreadable beats degrading
     to broken — and to silent, which returning [] would be."""
-    lines = list(_debt_echo_lines or ())
+    # T-13754 (SPEC-0119 rule 40): the start echo shows only the lines their producer marked
+    # actionable; every other class stays in bare `debt` / `debt --explain`.
+    lines = [ln for ln in list(_debt_echo_lines or ()) if getattr(ln, "start_label", "")]
     # T-13075: resolved OUTSIDE the fail-open try — a failed resolution must never render a
     # bare-form table on a consumer that cannot run it.
     cli_form = _cli_invocation_form()

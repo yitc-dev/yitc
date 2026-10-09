@@ -452,6 +452,39 @@ filed again. **Report shape:** one `inspection_completed` per repo run,
 id of every card or cross item filed; a reading with nothing to report records `no candidates`, never an
 empty event. Unchanged by this lens: the lane bounds, SPEC-0119 rule 41 and the weekly over-bound row.
 
+## Delivered-protocol-weight lens (a T7 sub-probe, served from §T7 in part 1 — report-only)
+
+What the durable-doc size probe cannot see: what is INSIDE the text a spec DELIVERS, and how much each
+trigger delivers per firing. Every probe below is a CANDIDATE finding, never a gate, and each is read
+against the LAST T7 run (the trajectory — a figure that grew since then is the signal, one that shrank
+is the follow-up of an earlier finding). Measured over the window the run states (the record uses the
+last 30 days).
+
+| Probe | What it reads | How to run |
+|---|---|---|
+| **P1** history + code-detail share per delivered spec | the estimated share of a delivered spec's text — in the form its trigger delivers it — that is history (provenance, incident narrative, dates) or code detail (file, function, test names); **threshold 5% per spec** (owner directive 2026-10-08) | the `delivered_weight` block `bin/yitc-v2 inspect record --theme T7` attaches: `specs[*]` + `over_threshold`; the block names its calibration factors and says the figure is an estimate |
+| **P2** retired-route text in delivered specs | a delivered spec still describing a route another rule retired (e.g. a retired continuation still written out in full) | read each over-threshold spec's history text against the retiring rule; fetch the spec with `graph query` (e.g. `bin/yitc-v2 graph query SPEC-0005`) |
+| **P3** contract-view leaks | text the stage contract view should cut that still reaches the reader: YAML comments, a column-0 list under a dropped key, a part whose Rationale / Verification cut was rejected | compare the spec card with the contract view the stage entry prints for it |
+| **P4** bundle bytes per trigger × firings | each task stage, each plan stage, the Filing read, each before-* floor trigger and the seed: bytes per firing × firings in the window | the block's `triggers[*]` (`form`, `basis`, `bytes`, `complete`, `firings`, `delivered_bytes`): a task stage is measured as its contract view and the seed as its cue lines (`delivered`); a plan stage, a floor trigger and the Filing read as the full render they name (`named-fetch-upper-bound` — it reaches the reader only when fetched); a trigger with an unresolved spec has no total; a floor trigger records no firing row, so its count reads unknown, never 0 |
+| **P5** same-session re-fetches per spec | `graph query` receipts for one spec in one session with no `session_started` between (an upper bound: a compaction leaves no row) | `bin/yitc-v2 journal query --type cli_invoked --since <window start> --json`, grouped by session and `node_id` |
+| **P6** trigger mismatch | a spec bound to a stage entry whose real trigger fires in a small share of those entries — state the share | the share of the stage's entries in the window where the spec's own Scenario trigger occurred, from the journal |
+| **P7** verbs that NAME spec ids instead of delivering | a new or changed verb that prints spec ids for a hand fetch instead of rendering them through `_deliver_stage_bundle_contracts` | grep the verbs changed in the window for printed `graph query SPEC-` hints |
+| **P8** dispatch preamble + per-verb help bytes | the bytes of the dispatched-worker preamble and of each verb's help text | `wc -c` over the preamble a dispatch prints and over each verb's help output |
+| **P9** external-auditor packet p50 / p90 | the packet size the auditor receives, by stage | observation only — from the saved audit packets / `audit_*` rows in the window |
+| **P10** RE-CHECK: trimmed specs still state their rules | two specs whose delivered body a card trimmed since the last T7 run: every line of that card's committed rule inventory against the CURRENT delivered body (the stage contract view), and every MOVED home against the rule it should hold. What the inventory is and when a line holds: the rule-preservation check, SPEC-0005 §3 | read the inventory (`tasks/<card-id>-rule-inventory.md` or the card's commit body) beside the spec's current contract view; a line changed since by another card's own edit is recorded with that card's id; a line lost with no such card is a miss — capture it at once as `deviation_captured` |
+| **P11** RANKING: where delivered weight goes | the top 5 specs by `stage_entered` deliveries in the review window × the spec's current contract-view bytes; for the heaviest, its non-acting share by the SPEC-0005 §3 line classes (ACT, MECH, REF, PTR, RETIRED, HIST) | `bin/yitc-v2 journal query --type stage_entered --since <window start> --limit 100000 --json`, counting each id in `delivered`; label each line of the heaviest view by hand |
+
+- **Severity (the §T7 table in part 1 applies):** a delivered spec over the 5% threshold with **no open
+  card** carrying it = **MEDIUM**; one already carried by an open card is acted. P2-P9 readings are LOW
+  report-only candidates until a disposition exists. A P10 miss is a capture at once, never a
+  deferred reading.
+- **Record:** P10 and P11 go on the run's `inspect record --theme T7 --notes` — per re-checked spec the
+  lines checked / held / changed by a named card / missed; the window, the top 5 with count × bytes,
+  and the heaviest one's shares.
+- **Probe null ≠ clean:** a clean result names what was reached — "N delivered specs measured, M
+  triggers, firings over the window" — never a bare "none over threshold". A block reading NO-DATA (no
+  delivered spec reached) or listing `unresolved` ids is not clean, and an unknown firing count is not 0.
+
 ## Drain obligation — homed elsewhere (pointer only, P5)
 
 The drain-at-realize RULE (when/what must drain into this home before a plan reaches `realized`) lives

@@ -1,0 +1,16 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: module-map
+description: >-
+  The project's module map, derived from its specs — per directory holding implemented code, the
+  active specs whose implements anchors point into it. Run `graph query module-map` (a consumer:
+  `bin/yitc-v2 -C <path> graph query module-map`, which lists the consumer's own specs). A directory
+  no active spec implements into is not listed. Use it instead of a hand-kept module map.
+lens:
+  kind: module-map   # pure f over index["specs"] (status + implements) — NO new store, NO new edge.
+                     # Under -C it reads the consumer's own built index. Recomputed fresh.
+why: >-
+  Item 6 of plan consumer-method-extension-specs-and-a-content-boun (consumer issue #71): consumers
+  hand-kept a module map in their context home and it went stale. The specs' implements anchors
+  already carry the map; this view derives it on demand, so the home can point at the view instead of
+  copying it (CHARTER §P1 F2 — a view over existing index data, not a new store).

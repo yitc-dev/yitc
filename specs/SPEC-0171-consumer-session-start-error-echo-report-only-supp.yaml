@@ -36,10 +36,9 @@ body: "## Scenario\n\nThe owner of an ADOPTING consumer — one whose error sour
   \ else, it is ALSO their authoritative rule HOME. The earlier `pointer-only` framing\
   \ is\n   retired (accept-gate finding 6, 2026-08-07): a spec cannot be pointer-only\
   \ and simultaneously hold\n   the only copy of a rule. No new pattern doc is created\
-  \ for prose that already has a home here. Source:\n   lesson `delivering-a-pattern-on-the-floor-or-seed`,\
-  \ consulted at plan-draft authoring 2026-08-06.\n2. **CO-DESIGN MUST (SPEC-0007\
-  \ §5b) — non-negotiable, and the reason this spec exists separately.**\n   Anything\
-  \ added to what `session start` DELIVERS must co-design its post-`/compact` re-delivery\
+  \ for prose that already has a home here.\n2. **CO-DESIGN MUST (SPEC-0007 §5b) —\
+  \ non-negotiable, and the reason this spec exists separately.**\n   Anything added\
+  \ to what `session start` DELIVERS must co-design its post-`/compact` re-delivery\
   \ in\n   the SAME change. A `/compact` evicts a start-time echo and re-reading the\
   \ handbook seed does NOT\n   restore it. So this echo ships WITH a named re-fold\
   \ verb, exactly as `debt` (SPEC-0119) and\n   `cross outbox`/`cross inbox` (SPEC-0086)\
@@ -94,27 +93,31 @@ body: "## Scenario\n\nThe owner of an ADOPTING consumer — one whose error sour
   \ Recorded openly rather than quietly dropped: nothing adverse in the data is hidden\
   \ here, and the requirement above survives intact (external consult 2026-08-07,\
   \ GREEN, `decisions/frontend-error-conveyor-refold-name-fork-audit-adhoc.yaml`)\
-  \ |\n\n**Verification status (run-2).** The line was RENDERED from the corrected\
-  \ fold, not just\nspecified — the labelled top-2 form came out at 86 characters\
-  \ on the real confirmed set\n(`frontend: 8 confirmed — UndefinedFunction ×9; UniqueViolation\
-  \ ×6 +6 more`), in the same\nregister as the sibling `debt` / `cross-coord` echoes.\
-  \ One unplanned gain — the label rule\nsurfaces a cluster's CAUSE over its symptom\
-  \ (a rolled-back-transaction cluster now reads\n`UniqueViolation`). Values UNCHANGED\
-  \ by run-2, still provisional — the two-quiet-cycles floor\n(SPEC-0035 rule 5) restarts\
-  \ from this run.\n\nNone is `consumed`.\n\n## Rationale\n\nPrior-art is the kernel's\
-  \ own start-time echoes: `debt` (SPEC-0119) and the `cross-coord` counts\n(SPEC-0086)\
-  \ — both report-only, both suppressed-when-clean, both carrying a re-fold verb precisely\n\
-  because a `/compact` evicts them. Owner cue 2026-07-11: the consumer `session start`\
-  \ should surface\n\"what needs fixing\" without being asked. The no-startup-spam\
-  \ bound is carried in from the settled\nsignal-hygiene requirements of the proposing\
-  \ plan.\n\n## Verification\n\nTrial-stage: the line shape is exercised against the\
-  \ trial's confirmed-cluster output; a run that\nchanges the shape is non-converged.\
-  \ Post-activation: BOTH halves probed on a live consumer session\n(fires on confirmed\
-  \ / silent when clean), plus the re-fold verb re-surfacing the same content after\
-  \ a\n`/compact` — the co-design invariant proved, not asserted.\n\n**Shipped (the\
-  \ activating card).** The re-fold verb NAME — left OUT-OF-TRIAL above, to be\nsettled\
-  \ at decomposition against precedent — is **`bin/yitc-v2 frontend-errors`**: the\
-  \ SPEC-0170\nview verb ITSELF, invoked BARE (it resolves the source the consumer\
+  \ |\n\nValues UNCHANGED by run-2, still provisional — the two-quiet-cycles floor\n\
+  (SPEC-0035 rule 5) restarts from this run.\n\nNone is `consumed`.\n\n## Rationale\n\
+  \nPrior-art is the kernel's own start-time echoes: `debt` (SPEC-0119) and the `cross-coord`\
+  \ counts\n(SPEC-0086) — both report-only, both suppressed-when-clean, both carrying\
+  \ a re-fold verb precisely\nbecause a `/compact` evicts them. Owner cue 2026-07-11:\
+  \ the consumer `session start` should surface\n\"what needs fixing\" without being\
+  \ asked. The no-startup-spam bound is carried in from the settled\nsignal-hygiene\
+  \ requirements of the proposing plan.\n\n### History moved from the rule body\n\n\
+  Each entry is a passage moved word for word out of the rule text of the section\
+  \ it names;\nthe rule it explains stays there.\n\n- From «Internal»: Source: lesson\
+  \ `delivering-a-pattern-on-the-floor-or-seed`, consulted at\n  plan-draft authoring\
+  \ 2026-08-06.\n- From «Parameters»: **Verification status (run-2).** The line was\
+  \ RENDERED from the corrected\n  fold, not just specified — the labelled top-2 form\
+  \ came out at 86 characters on the real\n  confirmed set (`frontend: 8 confirmed\
+  \ — UndefinedFunction ×9; UniqueViolation ×6 +6 more`), in\n  the same register\
+  \ as the sibling `debt` / `cross-coord` echoes. One unplanned gain — the label\n\
+  \  rule surfaces a cluster's CAUSE over its symptom (a rolled-back-transaction cluster\
+  \ now reads\n  `UniqueViolation`).\n\n## Verification\n\nTrial-stage: the line shape\
+  \ is exercised against the trial's confirmed-cluster output; a run that\nchanges\
+  \ the shape is non-converged. Post-activation: BOTH halves probed on a live consumer\
+  \ session\n(fires on confirmed / silent when clean), plus the re-fold verb re-surfacing\
+  \ the same content after a\n`/compact` — the co-design invariant proved, not asserted.\n\
+  \n**Shipped (the activating card).** The re-fold verb NAME — left OUT-OF-TRIAL above,\
+  \ to be\nsettled at decomposition against precedent — is **`bin/yitc-v2 frontend-errors`**:\
+  \ the SPEC-0170\nview verb ITSELF, invoked BARE (it resolves the source the consumer\
   \ already declares), exactly as\n`debt` and `cross outbox` are simultaneously the\
   \ on-demand view and the post-`/compact` re-fold. No\nsecond verb name exists, so\
   \ the two cannot drift.\n\nBoth halves are covered by differential tripwires in\
@@ -146,7 +149,7 @@ seed_cue: In an adopting consumer, act on the session-start frontend-error line 
   a /compact re-fold it with a bare `frontend-errors`.
 init_concern: null
 implements_signature:
-  AGENTS.md#compact: a98a1dcbfa9e6ae166e66eb41c7d8e715f44097c25772508e275243da60a10ea
+  AGENTS.md#compact: 3e95b12aa9c579b76a84915993981c44912f2748b878d5797d0389bab091c59b
   bin/lib/cli.py#_frontend_error_echo_lines: 1841b804feebdc3ea4e8867f22136c79c9de3991aee2858b43e2719364fbf5a6
   bin/lib/cli.py#cmd_frontend_errors: bb0908d968e3dada8a5ab7a98f43f9b80b407e0c59cf06a65c1f3f16b6f379e6
   bin/lib/frontend_errors.py#declared_source: fc76f919bd81c16f0aedb7c5f001b3e642a534a65e83cc4eb1a459deb39eac53

@@ -6704,7 +6704,8 @@ RETIRED_CEILING_POINTER = (
     "THE ROUTE PAST THE CEILING (SPEC-0204 rule 6): (1) the CONTROLLER records ONE "
     "typed decision per residual of the ceiling row — `yitc-v2 audit decide --task <T-XXXX> --stage "
     "<pre|post> --finding <fp1:...> --disposition <fix|accept|defer> --reason \"<why>\" --directive "
-    "<events.jsonl#ts=...>` (rule 2); then (2) ONE bounded pass runs on those decisions — `yitc-v2 "
+    "<events.jsonl#ts=...> [--evidence <revision>]` (rule 2; a `fix` REQUIRES --evidence: the fixing "
+    "commit at post, the card's current plan fingerprint at pre); then (2) ONE bounded pass runs on those decisions — `yitc-v2 "
     "audit pre|post --task <T-XXXX> --on-decisions` (rule 3). A dispatched WORKER never decides: it "
     "halts with `blocked-on-land` naming its residual fingerprints and the Controller decides.")
 
@@ -7265,6 +7266,38 @@ _EVENT_TOKEN_STOPWORDS = frozenset({
     "audit_post", "audit_pre", "implementation_plan", "current_stage", "probe_passed", "closed_at",
 })
 
+# T-13737 (X-1877) — event types ONLY `land` emits (each emitter grepped: `land_completed` in the land
+# tail, `land_batch_formed` / `land_member_verdict` in batch_landing, `verify_layer_prep` in the land
+# verify). A criterion that NAMES one is land-tied by the name itself — the way an author naturally
+# writes it ("journal query --type land_completed shows a row") — so it needs no phrase, the same
+# reasoning as shape (b)'s `resolves_cross` link. Deliberately closed: `cross_done` is absent (the
+# `cross done` verb emits it too; shape (b) already covers land's own emission), and any other token
+# still needs the phrase.
+_LAND_ONLY_EVENT_TYPES = frozenset({
+    "land_completed", "land_batch_formed", "land_member_verdict", "verify_layer_prep",
+})
+
+
+def land_emitted_entry_names(text: str, linked) -> list:
+    """T-13737 — the pending-until-land names ONE acceptance entry carries, in the three shapes
+    `land_emitted_named_evidence` documents. The ONE per-entry reader: the flat namer and the packet's
+    per-criterion builder (`deferred_by_declaration_rows`) both call it, so a shape added here reaches
+    both and they cannot drift. `linked` is the card's upper-cased `resolves_cross` set."""
+    text = str(text or "")
+    names: list = []
+    phrased = bool(_LAND_EMITTED_PHRASE_RE.search(text))
+    for tok in _EVENT_TOKEN_RE.findall(text):
+        if tok in _EVENT_TOKEN_STOPWORDS:
+            continue
+        if phrased or tok in _LAND_ONLY_EVENT_TYPES:  # shape (a) phrase-scoped / (c) land-only type
+            if tok not in names:
+                names.append(tok)
+    for xid in _CROSS_ID_RE.findall(text):            # shape (b) — structurally tied, no phrase
+        xid = xid.upper()
+        if xid in linked and xid not in names:
+            names.append(xid)
+    return names
+
 
 def land_emitted_named_evidence(task: dict) -> list:
     """T-11000 (X-0837) — PURE: the pending-until-land evidence the CARD'S OWN ACCEPTANCE NAMES.
@@ -7293,6 +7326,9 @@ def land_emitted_named_evidence(task: dict) -> list:
           STRUCTURAL land-tie and a strictly stronger proof than prose. The INTERSECTION is what
           keeps it honest — an id named in prose but absent from `resolves_cross` is NOT returned,
           else any card could name any id and claim the store's contents as its own deferred proof.
+      (c) LAND-ONLY TYPE (T-13737, X-1877) — a token in `_LAND_ONLY_EVENT_TYPES`, named in any
+          criterion with no phrase: the type itself is the land-tie, since nothing but `land` emits
+          it. A token outside that closed set still needs shape (a)'s phrase.
 
     Returns [] when the card names neither shape. That empty return IS the differential the card
     demands: the fail-closed guard refuses the flag on it, so no exemption paragraph is built and a
@@ -7311,15 +7347,9 @@ def land_emitted_named_evidence(task: dict) -> list:
               if isinstance(x, (str, int))}
     named: list = []
     for entry in acceptance:
-        text = str(entry or "")
-        if _LAND_EMITTED_PHRASE_RE.search(text):          # shape (a) — phrase-scoped
-            for tok in _EVENT_TOKEN_RE.findall(text):
-                if tok not in _EVENT_TOKEN_STOPWORDS and tok not in named:
-                    named.append(tok)
-        for xid in _CROSS_ID_RE.findall(text):            # shape (b) — structurally tied, no phrase
-            xid = xid.upper()
-            if xid in linked and xid not in named:
-                named.append(xid)
+        for name in land_emitted_entry_names(entry, linked):
+            if name not in named:
+                named.append(name)
     return named
 
 
@@ -10471,16 +10501,15 @@ def _adhoc_payload_budget_warn(corpus_bytes: int, sweep_bytes: int) -> str | Non
 
 def _adhoc_ceiling_steer(slug: str, *, AUDIT_PASS_CEILING, _count_audit_passes, _find_task_yaml, _read_yaml) -> str | None:
     """T-9331 — REPORT-ONLY: if `slug` is a TASK id at/over the audit-loop ceiling on a task audit
-    stage, return the RELEVANT stage ("pre"/"post") to steer an ad-hoc consult toward the MECHANIZED
-    `audit consult --task <slug> --stage <stage>` verb; else None.
+    stage, return the RELEVANT stage ("pre"/"post") to steer an ad-hoc consult toward the route that
+    is admitted past the ceiling — `audit <stage> --task <slug> --on-decisions` (SPEC-0204); else None.
 
-    WHY: an ad-hoc consult (`audit adhoc`) is NOT a ceiling-convergence / owner-reset basis — it has
-    no survivors/recommendation/basis_fingerprint and is saved as decisions/<slug>-audit-adhoc.yaml,
-    which `_consult_basis` never reads (it reads decisions/<tid>-audit-consult-<stage>.yaml). A session
-    reaching for `audit adhoc` to unblock a ceiling-capped closure therefore silently dead-ends — the
-    consult-GREEN is unrecognized by `audit pre|post --owner-reset` (deviation
+    WHY: an ad-hoc consult (`audit adhoc`) is NOT a ceiling-convergence basis — it is saved as
+    decisions/<slug>-audit-adhoc.yaml, which no pass past the ceiling reads. A session reaching for
+    `audit adhoc` to unblock a ceiling-capped closure therefore silently dead-ends (deviation
     consult-governs-owner-reset-rejects-adhoc-consult-stage-commit-mismatch-ceiling-deadend, blocking
-    T-9310). This steer points the session at the verb that DOES produce the recognized basis.
+    T-9310). This steer points the session at the route that IS admitted there (it named the
+    task-form consult until SPEC-0204 rule 6 retired that form — T-13677).
 
     Stage selection (audit-pre F1 absorbed): a stage is "at ceiling" iff its recorded passes
     >= AUDIT_PASS_CEILING. Return ONLY an at-ceiling stage (never invents one): exactly one at ceiling
@@ -10508,6 +10537,28 @@ def _adhoc_ceiling_steer(slug: str, *, AUDIT_PASS_CEILING, _count_audit_passes, 
     if cur == "Audit-pre":
         return "pre"
     return "post"
+
+
+def _adhoc_ceiling_steer_route(slug: str, stage: str, *, _find_task_yaml, _read_yaml) -> str:
+    """T-13677 — the ONE command the T-9331 steer prints for task `slug` at its ceiling `stage`: the
+    SPEC-0204 decision pass, `yitc-v2 audit <stage> --task <slug> --on-decisions`.
+
+    A card whose own YAML says `status: done` is on the post-close route, where a task audit-post is
+    admitted only with `--reaudit-after-close` (SPEC-0204 rule 4) — the plain form refuses there — so
+    for stage "post" on such a card the flag is part of the command. Stage "pre" never carries it (the
+    flag is post-only). A card that cannot be found or read is treated as not done: the plain form.
+    Whether a done card's closure has landed is not read here — the note is advisory and the audit
+    verb's own admission decides. Reads the card only; never blocks or changes verb behaviour."""
+    done = False
+    if stage == "post":
+        try:
+            art = _find_task_yaml(slug)
+            card = _read_yaml(art) if art is not None else None
+        except Exception:
+            card = None    # an unreadable card must not abort an advisory note
+        done = isinstance(card, dict) and card.get("status") == "done"
+    return (f"yitc-v2 audit {stage} --task {slug}"
+            f"{' --reaudit-after-close' if done else ''} --on-decisions")
 
 
 # T-11248 (X-0973) — the NO-DATA MIS-INVOCATION steer + its durable classifier. THIRD member of the
@@ -12803,6 +12854,9 @@ def _warn_preauthored_delta(tid, *, preview, prior_pre, _zero_ship_diff_extra_pa
                 "relates_to": "audit-pre", "impact": "low",
                 "fingerprint": "authored-before-audit-pre",
                 "captured_via": "audit-pre-check", "paths": list(paths)})
+            # T-13667 — printed only after the append above returned: never claims a row that was not written.
+            print(f"audit pre: {tid} — this deviation is already journaled (fingerprint "
+                  f"authored-before-audit-pre); do not capture it again", file=sys.stderr)
     except Exception:   # noqa: BLE001 — report-only by construction
         pass
 
@@ -17739,7 +17793,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     raise _exit
 
 
-def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _capacity_retry_hint=None, ADHOC_SLUG_RE, REPO_ROOT, _adhoc_ceiling_steer, _append_event, _auto_rebuild_graph, _build_audit_prompt, _count_audit_passes, _die, _inline_corpus_files, _inline_sweep_files, _invoke_auditor, _parse_audit_verdict, _require_writing_worktree, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> None:
+def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _capacity_retry_hint=None, ADHOC_SLUG_RE, REPO_ROOT, _adhoc_ceiling_steer, _adhoc_ceiling_steer_route, _append_event, _auto_rebuild_graph, _build_audit_prompt, _count_audit_passes, _die, _inline_corpus_files, _inline_sweep_files, _invoke_auditor, _parse_audit_verdict, _require_writing_worktree, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> None:
     """Open-form (ad-hoc) external-audit verb (T-0361) — ONE verb for an arbitrary consult, so
     sessions stop hand-reconstructing the codex invocation (the 12 hand-authored
     decisions/*-audit-adhoc.yaml artifacts are the incident evidence).
@@ -17851,23 +17905,22 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     else:
         target_kind = "ad-hoc"
 
-    # T-9331 — REPORT-ONLY steer: an ad-hoc consult is NOT a ceiling-convergence / owner-reset basis.
-    # If the slug is a task at/over the audit-loop ceiling, the session is most likely trying to unblock
-    # a capped closure — but `audit pre|post --owner-reset` reads decisions/<tid>-audit-consult-<stage>.yaml
-    # (single-survivor, basis_fingerprint-bound), never this <slug>-audit-adhoc.yaml, so an adhoc-GREEN
-    # silently dead-ends (the T-9310 deviation). Point the session at the verb that produces the
-    # recognized basis. Pure advisory: no verdict / exit / saved-artifact change.
+    # T-9331 — REPORT-ONLY steer: an ad-hoc consult is NOT a ceiling-convergence basis. If the slug
+    # is a task at/over the audit-loop ceiling, the session is most likely trying to unblock a capped
+    # closure — but no pass past the ceiling reads this <slug>-audit-adhoc.yaml, so an adhoc-GREEN
+    # silently dead-ends (the T-9310 deviation). Point the session at the route that IS admitted
+    # there: the recorded decisions and the ONE `--on-decisions` pass (SPEC-0204; the task-form
+    # consult this steer used to name is retired — T-13677). Pure advisory: no verdict / exit /
+    # saved-artifact change.
     _steer = _adhoc_ceiling_steer(slug)
     if _steer:
-        print(f"# NOTE ({slug}): an ad-hoc consult is NOT a ceiling-convergence / owner-reset basis — "
-              f"`audit pre|post --owner-reset` will NOT recognize decisions/{slug}-audit-adhoc.yaml "
-              f"(it reads decisions/{slug}-audit-consult-<stage>.yaml).\n"
-              f"#   {slug} is at/over the audit-loop ceiling. To unblock a ceiling-capped closure use "
-              f"the MECHANIZED ceiling-convergence triage:\n"
-              f"#     yitc-v2 audit consult --task {slug} --stage {_steer} --option ... --option ...\n"
-              f"#   it produces the stage/commit-bound single-survivor consult that `audit {_steer} "
-              f"--task {slug} --owner-reset` carries verbatim (consult_governed:true). "
-              f"SPEC-0124 §Audit-loop ceiling.", file=sys.stderr)
+        print(f"# NOTE ({slug}): an ad-hoc consult is NOT a ceiling-convergence basis — no pass "
+              f"past the audit-loop ceiling reads decisions/{slug}-audit-adhoc.yaml.\n"
+              f"#   {slug} is at/over the audit-loop ceiling. The route past it is SPEC-0204's: the "
+              f"Controller records one decision per residual (`yitc-v2 audit decide --help`), then "
+              f"ONE bounded pass runs on them:\n"
+              f"#     {_adhoc_ceiling_steer_route(slug, _steer)}\n"
+              f"#   SPEC-0124 §Audit-loop ceiling.", file=sys.stderr)
 
     full = not args.routine
     read_corpus = bool(getattr(args, "read_corpus", False))   # T-0713 — opt-in corpus-read mode

@@ -956,6 +956,69 @@ def card_store_checked_item_ids(task: dict) -> list:
     return out
 
 
+def card_store_check_triggers(task: dict, filed_for_ids=()) -> dict:
+    """PURE — WHY each id trips the close gate (T-13739, X-1879): `{X-NNNN: [trigger, …]}` over the
+    SAME id set `card_store_checked_item_ids` + the filed-for tie yield, in that order. A trigger is
+    `resolves_cross`, `acceptance criterion <n>` (1-based, the criterion that names the id in a store
+    context), or a store item filed for this card. The refusal names these instead of always blaming
+    the acceptance — <project>'s T-0859 was refused as an acceptance state-check over an id that sat
+    only in `resolves_cross`."""
+    out: dict = {}
+    for cid in card_store_checked_item_ids(task):
+        out[cid] = []
+    rc = task.get("resolves_cross") or []
+    if isinstance(rc, str):
+        rc = [rc]
+    for x in rc:
+        x = str(x).strip()
+        if x in out and "resolves_cross" not in out[x]:
+            out[x].append("resolves_cross")
+    acc = task.get("acceptance") or []
+    if isinstance(acc, str):
+        acc = [acc]
+    for n, a in enumerate(acc, 1):
+        if _STORE_CONTEXT_RE.search(str(a)):
+            for cid in _CITED_ID_RE.findall(str(a)):
+                label = f"acceptance criterion {n}"
+                if cid in out and label not in out[cid]:
+                    out[cid].append(label)
+    for cid in filed_for_ids or ():
+        out.setdefault(cid, [])
+        if "a store item filed for this card" not in out[cid]:
+            out[cid].append("a store item filed for this card")
+    return out
+
+
+def card_self_held_resolves_ids(task: dict, items: dict, *, self_name) -> list:
+    """PURE — the `resolves_cross` ids whose store item is THIS project's to resolve and is already
+    held by it (T-13739): addressed `to` self, status `picked` or `done`, and not held for ANOTHER card
+    (`held.task` absent — an explicit `cross pick` — or this card's id). For such an id the store row
+    the close gate wants spelled IS the card's own link, so `task close` may spell it. Fail-closed on
+    an id-less card or no self name; an id the store does not carry yields nothing."""
+    items = items or {}
+    tid = str(task.get("id") or "").strip()
+    me = str(self_name or "").strip()
+    if not (tid and me):
+        return []
+    rc = task.get("resolves_cross") or []
+    if isinstance(rc, str):
+        rc = [rc]
+    out = []
+    for x in rc:
+        x = str(x).strip()
+        it = items.get(x)
+        if not isinstance(it, dict) or str(it.get("to") or "").strip() != me:
+            continue
+        if it.get("status") not in ("picked", "done"):
+            continue
+        held_task = str(((it.get("held") or {}).get("task")) or "").strip()
+        if held_task and held_task != tid:
+            continue
+        if x not in out:
+            out.append(x)
+    return out
+
+
 def card_tied_items(task: dict, items: dict, *, self_name=None) -> list:
     """PURE — the folded store items THIS card ties to, card-cited first, then filed-for (T-10915,
     extended T-11747).
@@ -1506,7 +1569,12 @@ def kernel_reflex_echo(kernel_is_local_peer, spec_hint: str) -> str:
     shared coordination log, which no kernel developer reads — so the AI twice told the owner reports
     reach the developers automatically. FAIL-CLOSED: only an explicit True (the kernel is a registered
     peer on this host) keeps the auto-route wording; False/None (absent or undeterminable) says the
-    capture is recorded LOCALLY and names the outward route. The marking guidance is the same in both."""
+    capture is recorded LOCALLY and names the outward route. The marking guidance is the same in both.
+
+    T-13659 (SPEC-1010 section 6): both branches end with ONE added clause — whose matter it is, the
+    project decides, and it does not wait for the kernel — and a pointer. Cue and pointer only: the
+    choices themselves are homed in SPEC-1010 and are not restated here (SPEC-0005 rule 8). The pointer
+    is the bare spec id; the print site realm-qualifies it for the consumer it is shown to (T-13013)."""
     marking = ("kernel-signaling reflex (consumer->kernel, NO owner reminder): when a deviation is an "
                "ENGINE/KERNEL problem, mark it `realm: kernel` + `target: yitc-v2` on capture "
                "(`deviation_captured`) — ")
@@ -1516,15 +1584,17 @@ def kernel_reflex_echo(kernel_is_local_peer, spec_hint: str) -> str:
             "`relates_to: kernel` marker still routes. A kernel FEATURE / improvement ASK "
             "(`--kind task`) stays owner-gated. "
             f"Full: `{spec_hint}` / patterns/error-friction-tracking.md §3.")
+    choice = (" Whose matter it is — your project's own or the kernel's — YOU decide, and you do not "
+              "wait for the kernel (SPEC-1010 §2).")
     if kernel_is_local_peer is True:
         return (marking + "at your next `land` it AUTO-ROUTES to the kernel as a "
                 "`cross request --kind bugfix --to yitc-v2` (idempotent by fingerprint), with NO owner "
-                "gate. " + tail)
+                "gate. " + tail + choice)
     return (marking + "but NO kernel is registered on this host, so it is recorded LOCALLY in this "
             "project's journal only — no kernel developer receives it, and nothing is sent automatically. "
             "It is queued for the public intake: it reaches the kernel developers only through the public "
             "issue intake — render the draft with `bin/yitc-v2 cross intake-draft`, show it to the person "
-            "and send it only with their consent (T-12950); " + INTAKE_MARK_SENT_HINT + ". " + tail)
+            "and send it only with their consent (T-12950); " + INTAKE_MARK_SENT_HINT + ". " + tail + choice)
 
 
 def kernel_local_recording_notice(kernel_is_local_peer, n_kernel_bound: int, surface: str = "land"):
@@ -1977,10 +2047,10 @@ def premise_review_cue(xids, self_name: str, *, is_consumer: bool = False) -> "s
     ids = [str(x).strip() for x in (xids or []) if str(x).strip()]
     if not ids:
         return None
-    return (f"premise review (report-only, SPEC-0086 rule 7): verify the central claim of "
+    return (f"premise review (report-only, SPEC-1010 §3): verify the central claim of "
             f"{', '.join(ids)} against {self_name}'s CURRENT state before accepting — the request text is "
             f"the FROZEN original ask, not current state. Outcomes (incl. the requester-visible reframe "
-            f"duty): `{graph_lib.spec_query_hint('SPEC-0086', is_consumer=is_consumer, cli='yitc-v2')}`")
+            f"duty): `{graph_lib.spec_query_hint('SPEC-1010', is_consumer=is_consumer, cli='yitc-v2')}`")
 
 
 def print_premise_review_cue(xids, self_name: str, *, is_consumer: bool = False) -> None:

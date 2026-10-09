@@ -7,17 +7,37 @@
 
 # Controller supplement — read IN ADDITION to the worker seed (generated, SPEC-0127)
 
+<!-- source: AGENTS-STARTUP.md (controller supplement) -->
+
+### Controller and interactive sessions only — further re-delivery
+
+**Continuation-seed survival (pointer — SPEC-0007 §5b option (a)).** The continuation-seed discipline (produce one fresh-session hand-off at a clean seam — interactive sessions only) is a `binding:[seed]` rule whose body — the trigger set and what disqualifies AI self-estimation — lives in **SPEC-1004**; its cue returns with the seed line above, and its body (`graph query SPEC-1004`) is read when a refresh cue or threshold crossing makes it relevant. In an interactive session, after this re-read, re-fold the open hand-offs the start report listed with `bin/yitc-v2 session handoff list` (consumer: `<engine>/bin/yitc-v2 -C <repo> session handoff list`) — that is start-time STATE, not the rule. (Pointer only — the rule is not restated here, P5.)
+
+**Context-bounded autonomous-continuation re-delivery (pointer — SPEC-0007 §5b).** The context-bounded autonomous-continuation doctrine (within an owner-authorized plan-drive/batch the Controller proceeds across seams without an inter-seam owner cue, stopping only on a genuine owner decision or the `session context` threshold) is a `binding:[seed]` rule whose body lives in **SPEC-0126**; its cue returns with the re-printed seed line, and its body (`graph query SPEC-0126`; under `-C`, `--kernel`) is read when an authorized plan-drive or batch is in progress. The non-blocking-batch half of that doctrine is stated in full at AGENTS-SESSIONS §Orchestrate posture. (Pointer only — the rule is not restated here, P5.)
+
+**PLAN axis (per SPEC-0007 §5b):** a session DWELLING in a plan stage re-delivers ASYMMETRICALLY — the live case is **mid-`decomposition`** (a plan at `status: decomposition`, cutting the plan into task cards over several turns): a `/compact` evicts the cut-rules bundle while the executing-leg read-gate's receipt survives on disk, so do TWO COMPLEMENTARY re-orientation steps yourself — (1) re-orient to your POSITION in the plan (current stage + next gate + the cards cut so far) via **`bin/yitc-v2 plan show <slug>`** (the read-only re-orientation), and (2) re-fetch the decomposition cut-RULES bundle via **`bin/yitc-v2 graph query SPEC-0070`** (whose §8 names the full bundle). These are complementary, NOT a replacement (`plan show` = where-am-I; SPEC-0070 = the cutting rules). Do **NOT** re-run `plan stage <NAME>` to re-deliver — it is a one-step FSM advancer (re-running the stage already entered is an illegal edge), UNLIKE the non-mutating task `stage <NAME>`.
+
+## Language — plain register for owner-facing prose (chat replies, briefs, pings)
+
+Default to the PLAIN register the owner otherwise has to request with an "explain it more simply" — do NOT wait to be asked. Concretely:
+- Lead with one plain line: "what this is / where we are."
+- Short sentences, everyday words. Replace or gloss jargon with a plain phrase or analogy on EVERY use, not just the first (e.g. «`patterns/` = the shelf of general reusable practices»).
+- Structure as short bold-headed chunks + bullets, not dense paragraphs.
+- End with one plain recommendation or question (recommendation first — §Recommendation Default).
+- Target: understandable to a capable reader with zero context on this system.
+
+**Keep technical identifiers EXACT — but always gloss them.** Never rename / translate / paraphrase the token itself: verb & command names (`bin/yitc-v2 land`), ids (`SPEC-XXXX` / `T-XXXX` / `E-XXXX` / `X-XXXX`), event names, field keys, file paths. Pair each with a plain gloss in the surrounding sentence (precise token, plain sentence). "Exact" ≠ "unexplained". This is a REGISTER rule, distinct from the LANGUAGE rule below (Russian vs English) — it governs how plainly owner-facing prose is phrased, not which language.
+
+
 <!-- source: AGENTS-SESSIONS.md (controller supplement) -->
 
 ### Startup phases
 
 `/yitc` startup is **two explicit phases** — there is no Build|Review type choice (one interactive Controller posture):
 
-1. **READ the mandatory handbook** (all sessions): <!--GEN:read-order:arrow generated from HANDBOOK_READ_ORDER — DO NOT EDIT; regen via `graph build`-->CHARTER.md → AGENTS-STARTUP.md → AGENTS-SESSIONS.md → AGENTS-PROTOCOL.md → LIFECYCLE.md → QUEUE.md → GRAPH.md<!--/GEN:read-order--> + the floor trigger-map (`graph/floor-trigger-map.md`, always-loaded seed). **Read your audience's seed** — a Worker: the assembled `graph/worker-seed.md` **and every continuation part it chains to** (IN PLACE OF the source files in that arrow; one part is not the seed); the Controller: the SOURCE parts in that arrow DIRECTLY, each single-read-safe (SPEC-0007 §5c). CHARTER first (pedagogical pin); the retrieved tier is NOT loaded at startup — it is
-   delivered at stage-entry (the one canonical order — §At-session-start §Bootstrap-floor + the `-C` consumer `session start` echo; the engine self-start no longer echoes it).
+1. **READ your audience's seed** (all sessions): <!--GEN:read-order:arrow generated from HANDBOOK_READ_ORDER — DO NOT EDIT; regen via `graph build`-->CHARTER.md → AGENTS-STARTUP.md → AGENTS-SESSIONS.md → AGENTS-PROTOCOL.md → LIFECYCLE.md → QUEUE.md → GRAPH.md<!--/GEN:read-order--> + the floor trigger-map (`graph/floor-trigger-map.md`) — who reads which form of it, and how, is homed in AGENTS §At session start.
    Nothing task-specific here — so the AI always holds the rules.
-2. **`bin/yitc-v2 session start`, then scan `bin/yitc-v2 --help`** — the verb-inventory scan runs HERE, immediately AFTER `session start`, NOT in Phase 1: its fetch-receipt must post-date the `session_started` anchor the `--help` read-gate windows from, else a pre-anchor Phase-1 scan is not credited and the first gated verb (`worktree new`/`task file`) refuses. `session start` (the interactive **Controller** — no `--type` choice; a dispatched **Worker** carries `--type build`) — keeps `session_started` emit
-   (the engine self-start's read-order echo was retired as Phase-1-redundant; a `-C` consumer still gets the engine-resolved read-order echo) AND adds a **NON-MUTATING dispatch** (reads/reports startup state; never
+2. **`bin/yitc-v2 session start`** (the session-tied `--help` scan comes before your first guarded work verb: AGENTS §At session start). `session start` is a **NON-MUTATING dispatch** (reads/reports startup state; never
    changes task status/stage — that FSM/enforcement creep is CHARTER non-goal #7):
    - **controller → resume-or-await (concurrency-aware §4; auto-pick removed):** FIRST,
      branch-identify — if THIS checkout is a `task/T-XXXX` worktree and that task is in-progress,
@@ -64,23 +84,10 @@
      doctrine (per SPEC-0126):** it still AWAITS an owner cue and NEVER auto-picks — context-bounded
      autonomous continuation begins ONLY after the owner authorizes a plan/batch (the doctrine home is
      §Orchestrate posture + CHARTER §6), never at startup.
-   - **cross coordination-log surface (report-only, the Controller and `-C` consumers, per SPEC-0086):**
-     after startup, `session start` prints report-only `cross-coord:` fold-view COUNTS over the
-     kernel-owned SHARED coordination log — the author-side **outbox** (`from:me` items a peer fixed,
-     awaiting MY close — the "fixed→verify at start" surface, the done-awaiting-close subset) + the inbound
-     **inbox** needing a DECISION (`to:me` items still `requested` and not yet tracked by a local task via
-     `resolves_cross` — `picked`/`done`/task-linked are excluded). Fold-derived (no stored status —
-     `cross outbox` / `cross inbox`; **re-fold exactness,:** BOTH `cross outbox` AND
-     `cross inbox` re-fold the FULL non-terminal ledger — each a SUPERSET of its start surface, which is
-     only an actionable cut (outbox = the `done`/fixed→verify subset; inbox = the `requested`-and-not-
-     task-linked needs-decision subset). The superset is the acceptable durable re-fold; each exact start
-     cut is recoverable within it (outbox: its `status==done` rows; inbox: its `requested`-and-unlinked
-     rows); no subset verb — the vocabulary is frozen),
-     report-only, NO auto-pull (surfacing ≠ queue-scan — the LOG-vs-queue line holds; DISTINCT from the
-     QUEUE-exploration counts the dispatch's await-clause removed above, and does not reinstate them). The shared
-     log is identity-agnostic (every participant folds the SAME out-of-repo log). Since the cutover
-     (the per-repo cross spec superseded) this is the SOLE cross surface — the old per-repo `cross-log:` inbound
-     count was REMOVED. Intake (pull / act) stays an owner-commanded `cross pick`/`task file` act. **Triage default (SPEC-0086 §7):** classify each `to:me` item DEFECT / PROVEN NEED / WANT-or-ONE-OFF — decline the last via `cross reject` naming the class + the failed P1 filter; NO card for a one-off.
+   - **cross coordination-log surface (report-only, per SPEC-0086):** the `cross-coord:` counts `session start` prints are
+     surfacing, NOT a queue-scan and NOT an auto-pull — intake (pull / act) stays an owner-commanded `cross pick`/`task file` act.
+     `cross outbox` / `cross inbox` re-fold the full non-terminal ledger (no subset verb — the vocabulary is frozen). The shared
+     log is identity-agnostic (every participant folds the SAME out-of-repo log). **Triage default (SPEC-1010 §3):** sort each `to:me` item and judge whose matter it is BEFORE taking it — how it is sorted, the default answer and what the note names are homed there, not restated here.
 
    **This AMENDS Phase-3 dispatch** — ** is Final/frozen and stays cited as
    superseded-in-part** for that clause: the **resume** halves (own-stamp + len==1) and the
@@ -112,7 +119,7 @@ NEVER the provider in-process subagent tool — a Worker is a separate sub-sessi
 orchestrator. The PROCEDURE (launch / selection / monitoring / abnormal-situation recovery) is homed
 single-SoT in `patterns/background-session-operation.md` — this section is the GOVERNANCE rule only
 (CHARTER §6 carries the principle-level statement; this is its operational protocol + the boundary).
-**The monitor is armed BY THE LAUNCH :** a dispatched Worker is a separate sub-session the harness sends no completion notification for, so detection is system-driven, never an owner poke (rule home: `patterns/background-session-monitoring.md §Watcher`). `dispatch` itself continues into the §Watcher loop in the SAME process and ends on its `WATCH:` token — there is NO post-dispatch arming step to take or skip (X-1443 / X-1440); run the `dispatch` call under the harness background primitive, as a `--watch` was.
+**The monitor is armed BY THE LAUNCH :** a dispatched Worker is a separate sub-session the harness sends no completion notification for, so detection is system-driven, never an owner poke (rule home: `patterns/background-session-monitoring.md §Watcher`). `dispatch` itself continues into the §Watcher loop in the SAME process and ends on its `WATCH:` token — there is NO post-dispatch arming step to take or skip (X-1443 / X-1440). Run the `dispatch` call, and a `dispatch --watch` re-arm alike, under the harness background primitive with its stdout left attached — not redirected to a file, not piped, not filtered: a call whose stdout goes to a file is recorded `watch_armed(reachability=unreachable)` and earns no monitoring credit, under the harness background primitive too.
 `dispatch --watch` remains the route for RE-arming once a watch has ENDED (woke / timed out) and for a launch run `--no-self-arm-watch`; a `--watch` over ids with a LIVE watcher is refused as a duplicate — one live watcher per task, never two.
 When the dispatched batch ORIGINATES from the owner stating a LIST of follow-up items, follow the intake
 working-order (premise-verify → classify → decompose+batch → ONE owner checkpoint → dispatch → verify
@@ -127,8 +134,9 @@ cue, no auto-pick — §Startup phases); autonomy begins ONLY after that authori
 the authorized batch stays forbidden (retirement (b)). **Non-blocking batch:** a task that raises a genuine
 owner question does NOT freeze the batch — PARK it using its existing waiting-on-owner state (`task pause
 --reason owner-wait` — the SOLE carrier, surfaced at session start; NOT the `blocked` status, which no verb
-writes — QUEUE §Verb routes), CAPTURE its question durably+visibly via the existing followup/journal capture
-(`bin/yitc-v2 followup` — NO new question store/FSM), and CONTINUE the other independent ready tasks; the
+writes — QUEUE §Verb routes), CAPTURE its question durably+visibly via the existing followup capture
+(`bin/yitc-v2 followup add` with `OWNER-QUESTION: <T-ID>` in the text — it reads `fired` once that card
+closes, SPEC-0095; NO new question store/FSM), and CONTINUE the other independent ready tasks; the
 owner answers the accumulated questions on reconnect. (Distinct from a task blocked on an unmet `requires:`
 dependency, which waits per the QUEUE §Picker rule — this governs the OWNER-QUESTION block only.) Full
 rule: `graph query SPEC-0126`.
@@ -182,16 +190,10 @@ encode `status:` — P5).
 GREEN/YELLOW `plan check` verdict exists (freshness = a content hash recorded by the check; the
 mirror of `decision accept`), so `accepted` honestly means «a verified plan».
 
-**The plan is the standing successor of `decision finalize` for AGGREGATE finalization (Part B).**
-`plan stage accepted` does more than flip status — it **births the change-corpus** (the plan's `draft` specs →
-`proposed`); and `plan stage realized` (for a spec-bearing plan) is **gated by an aggregate
-`audit post --plan`** over the plan + its **realized-spec corpus** — every spec the plan realized: born
-by it (`proposed_by==slug`) OR activated by one of its implementing tasks (`activation_owner_task` ∈ the
-tasks that `cite` the plan; broadened, so a reorg/task-only plan's corpus is not silently empty) —
-the inherited role of the retired `decision finalize`, at a whole-corpus altitude. A NEW
-governance lifecycle finalizes through the plan, **never** `decision finalize` (backlog-only; `decision
-new` is retired). A plan that realized no specs (none born by it, none activated by its tasks) stays
-decompose-only (backward-compat). Full workflow: SPEC-0034 (`bin/yitc-v2 graph query SPEC-0034`).
+**Aggregate finalization goes through the plan — the standing successor of the retired `decision finalize`.**
+`plan stage accepted` births the plan's `draft` specs as `proposed`; `plan stage realized` of a
+spec-bearing plan is gated by an aggregate `audit post --plan` over its realized-spec corpus. Rule:
+SPEC-0034, the plan↔spec linkage chain (`bin/yitc-v2 graph query SPEC-0034`).
 
 **Sessions do NOT scan or analyze plans/ or ideas/ at startup** — the picker reads `tasks/` ONLY. A `plan` is taken into work **only on owner cue**, and Build **always re-checks currency** (Stage-1) before decomposing it into tasks/decisions — **and, for a spec-bearing plan, its realized-spec corpus (specs born by it OR activated by an implementing task)** — then marks the plan `realized`/`partial` (a spec-bearing plan only after the aggregate `audit post --plan` close-gate). Verification is a manual action (`bin/yitc-v2 plan check` — big-plan-checklist if large + external audit), **not** a persisted status. Full workflow: SPEC-0034 (`bin/yitc-v2 graph query SPEC-0034`).
 
@@ -206,22 +208,8 @@ queue-scan»), and the same one drawn by the retirement of the startup picker, w
 the picker and the auto-counts while explicitly KEEPING the waiting-on-owner surfacing as «a safety
 signal, not queue-exploration».
 
-### Per-stage overlays (decision-audit + ad-hoc — retained)
+### Per-stage overlays (ad-hoc — retained)
 
-**decision audit-pre (Draft → Accepted)** — «is this design sound to commit task resource to?»:
-- the 4 anti-complexity filters genuinely pass (a decision is a governance change);
-- it EXPLICITLY amends the canonical surfaces it changes (does not silently bypass them);
-- alternatives / prior-art considered (existing analog — Principle 1 F1); reuse over reinvention;
-- scope bounded; **retirements named** (replacement, not accretion — what is removed/forbidden?);
-- `adoption_probe` is event/state/measurable (Principle 3 + 8 for infra-class);
-- coherence: does it contradict an existing decision / handbook rule (Principle 7 dissonance)?
-
-**decision audit-post (Accepted → Final)** — «did reality realize the decision's intent, coherently, across ALL its implementing tasks?»:
-- every implementing task (`refs.follow_ups` `T-NNNN`) is `done`;
-- the decision's `acceptance_criteria` / `adoption_probe` are ACTUALLY realized — probe evidence present, not merely claimed (catches the shipped-but-not-adopted class);
-- coherence: shipped reality matches what the decision SAID — no drift, no contradiction with other artifacts (P7);
-- the **retirements actually happened** (what the decision said to remove / forbid is removed / forbidden);
-- **Review-only :** same as the task audit-post — do NOT run tests; VERIFY the recorded Stage-6 evidence of the implementing tasks.
 
 **ad-hoc Review** — open-form. Owner specifies focus in the prompt itself. No fixed schema. Recommended path : `bin/yitc-v2 audit adhoc --slug <slug> [--prompt …|-f file|stdin] [--routine]` — wraps the external-auditor invocation + V2 lens, saves `decisions/<slug>-audit-adhoc.yaml`, emits the audit events; FULL model by default. **Run it from a `work/<slug>` writing worktree** (`bin/yitc-v2 worktree new --work <slug>`) — it SAVES that verdict YAML, so it is a write and the write-isolation guard refuses it on the main checkout. The rule's ONE home is §Writes happen in a worktree (AGENTS-SESSIONS.md).
 
@@ -315,29 +303,11 @@ stage, runs the stage side-effects, and DELIVERS SPEC-0034's matching slice at s
 Unlike the task lifecycle's single binary hygiene fast-path (§Two flow types), the plan
 lifecycle has **no single hygiene-style fast-path**: every plan transits the same FSM, but
 **one stage (`trial`) is conditionally skipped by owner judgement** and the remaining
-differences are **gate-WEIGHT variations**, not skipped stages. This view consolidates the
-per-shape routing for discoverability; the rule bodies live in the cited specs — nothing is
-restated here (P5).
+differences are **gate-WEIGHT variations**, not skipped stages.
 
-- **`trial` — one OPTIONAL owner-judged stage (SPEC-0035).** The default path is
-  `specs → accepted` directly. `trial` is entered ONLY for trial-ELIGIBLE plans
-  (mechanism/behavioral, not honestly text-audit-verifiable) and ONLY on owner invocation —
-  it is a real stage that some plans skip, NOT a generic lightening. For a trial-eligible
-  plan the `plan check` role NARROWS: it is no longer the design-convergence gate (the trial
-  soak is), only the assembled-package audit. Rule: `graph query SPEC-0035`.
-- **Big-plan checklist — a gate-WEIGHT variation, not a skipped stage (SPEC-0034).**
-  `plan check` (FULL capability) runs for EVERY plan at the `draft → accepted` accept-gate
-  (SPEC-0034); only the extra big-plan checklist + `checklist_pass` is LARGE-plan-only. This is NOT a
-  settled "~200 lines / purely automatic" threshold — the apply-when criteria are substantive
-  (`patterns/big-plan-checklist.md`); the current implementation's line-count auto-flag is an
-  aid, not the normative trigger. Rule: `graph query SPEC-0034` §Mandatory big-plan check +
-  `patterns/big-plan-checklist.md`.
-- **Spec-corpus finalization audit — present only for spec-bearing plans (SPEC-0034 / SPEC-0070).**
-  A task-only / spec-free plan skips the spec-corpus aggregate `audit post --plan` surfaces
-  (auto-skipped by the shared finalization helper). It does NOT skip the rest: `postcheck`
-  still requires its cited tasks done + the probe block, and `realized` still requires its
-  other exit gates. The decomposition cut SET is gated by the mandatory external
-  decomposition-fidelity audit (SPEC-0070) for EVERY plan. Rule: `graph query SPEC-0070`.
+> **Retrieved — SPEC-0034 §Plan TYPES** (the per-shape view: which axis of a plan changes its path
+> through the FSM or the weight of a gate, each with its rule home; delivered at `plan file` and at the
+> entry of each linear stage). `bin/yitc-v2 graph query SPEC-0034`
 
 
 <!-- source: QUEUE.md (controller supplement) -->
@@ -346,22 +316,10 @@ restated here (P5).
 
 When the Controller, on an owner cue, assembles the ready queue and selects «what to work on» (the Controller SELECTS; a Worker claims ONLY its assigned task id via `worktree new --task` — no generic self-fetch, AGENTS §Orchestrate posture):
 
-1. Read all `tasks/*.yaml` where `status: ready`
-2. Filter: exclude where any `requires:` target is incomplete:
-   - target = task → `status != done` blocks
-   - target = decision → **NON-BLOCKING** (the decision-resolution branch was retired, gated-safe by the sweep — 0 non-terminal tasks depended on decision-unblock semantics). A decision is a cites-only reference, never a lifecycle-blocking prerequisite — same as a spec. Use `cites:` for decision dependencies.
-   - target = spec → **NOT allowed as `requires:` target** — specs are reference artifacts, not lifecycle-blocking. Use `cites:` for spec dependencies.
-   Only a task `requires:` target blocks; transitive depth ≤ 3. `cites:` field is informational — NOT a blocking filter.
-3. Sort: priority high → medium → low
-4. Pick first
-5. **Claim it by creating its worktree: `bin/yitc-v2 worktree new --task T-XXXX`** (option B). The claim — `status: ready → in-progress` (`current_stage: Analysis`) +
-   the `task_picked` event — is written **inside the new worktree**, so it reaches `main` only
-   via `land` (: main changes ONLY via land). `task pick` is a **read-only inspector** —
-   it validates a task is claimable and points at `worktree new --task`; it does NOT mutate.
-   The previous design (pick flips status on `main` uncommitted, then `worktree new` branches
-   from committed HEAD) caused the desync — the worktree never saw the claim. The
-   `status` field is still the observable "picked" signal (`task list --status in-progress`,
-   after land).
+- **Eligible:** `status: ready` and no incomplete `requires:` target. Only a task `requires:` target blocks (`status != done`): a decision id there is NON-BLOCKING, a spec id is NOT allowed there, and `cites:` is informational — field rules: `bin/yitc-v2 graph query SPEC-0028`. `bin/yitc-v2 task pick T-XXXX` reports one card's claimability; it is a read-only inspector.
+- **Order:** priority high → medium → low, pick first (`bin/yitc-v2 task list --status ready` prints the ready cards in that order).
+- **Claim it by creating its worktree: `bin/yitc-v2 worktree new --task T-XXXX`.** The claim — `status: ready → in-progress` (`current_stage: Analysis`) + the `task_picked` event — is written **inside the new worktree**, so it reaches `main` only via `land` (mechanics: AGENTS-SESSIONS §Writes happen in a worktree).
+- How deep a `requires:` chain may run is set where the chain is cut — a decomposition authoring rule, not a picker check: `bin/yitc-v2 graph query SPEC-0046`.
 
 No queue-saturation logic, no parallel-cap, no cap-per-account, no rate-limit awareness. Solo *author* — but concurrent sessions are expected : the invariant is **one active claim per task id** (a task id has at most one in-progress claim / `task/T-XXXX` worktree), NOT "one task at a time" globally. **Different** tasks may run concurrently in separate worktrees; the per-task-id guard only rejects a second claim of the *same* task.
 

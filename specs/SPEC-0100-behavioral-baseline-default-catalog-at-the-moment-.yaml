@@ -42,79 +42,69 @@ body: "## Scenario\n\nA project (a consumer, or the kernel) is about to author a
   \ seed, NOT the before-authoring-interaction floor, which stays scoped to\nuser-facing\
   \ UI.\n\nAdoption (CHARTER §Principle 8, infra-class): a consumer FILLS a default\
   \ by authoring its own concrete\n`specs/<SPEC>.yaml` that `cites:` the catalog —\
-  \ that cite IS the consumer-read evidence. First evidence:\n<project> <workshop-spec>\
-  \ (confirm-before-irreversible) — tracked by the blocking adopt-back cross to <project>\n\
-  (a consumer-repo edit is cross-territory from the kernel).\n\n## Security authoring-moment\
-  \ defaults (owner-adjudicated LIGHT secbaseline)\n\nBeside the user-facing UX-safety\
-  \ defaults (catalog SoT above) this spec ALSO names a SECURITY axis:\nsix authoring-moment\
+  \ that cite IS the consumer-read evidence.\n\n## Security authoring-moment defaults\
+  \ (owner-adjudicated LIGHT secbaseline)\n\nBeside the user-facing UX-safety defaults\
+  \ (catalog SoT above) this spec ALSO names a SECURITY axis:\nsix authoring-moment\
   \ security defaults, delivered on TWO floor surfaces — `before-handling-a-secret`\n\
   (a session about to handle key material / a credential / a ciphertext surface) and\
   \ `before-authoring-auth`\n(a session about to author an auth flow). These are PROMPTS/DEFAULTS\
   \ a project FILLS or waives at the\nmoment it authors — never a gate, register,\
   \ waiver-contract, or probe obligation (the heavier enforcement\nform B is PARKED;\
   \ owner adjudication decisions/secbaseline-fork-audit-adhoc.yaml GREEN, sole survivor\
-  \ =\nthis LIGHT form). Origin: a day of real <project> incidents (X-0369 — an 8h\
-  \ prod-auth outage + a 5h\nkey-rotation outage from exactly the knowledge this catalog\
-  \ exists to deliver; X-0345 item 1 — a key\nrotation with no ciphertext-surface\
-  \ map). Unlike the UX defaults (SoT = the catalog pattern-doc), this\nsecurity axis\
-  \ single-homes HERE in the spec body (a distinct axis — no P5 double-home).\n\n\
-  **Delivered at `before-handling-a-secret`:**\n1. **Key separation** — a data-encryption\
+  \ =\nthis LIGHT form). Unlike the UX defaults (SoT = the catalog pattern-doc), this\n\
+  security axis single-homes HERE in the spec body (a distinct axis — no P5 double-home).\n\
+  \n**Delivered at `before-handling-a-secret`:**\n1. **Key separation** — a data-encryption\
   \ key is NEVER derived from or shared with the session / JWT\n   signing key (distinct\
-  \ purpose ⇒ distinct key). *Incident: X-0369 (<project> reused the JWT-signing key\n\
-  \   for data encryption).*\n2. **No secret in runtime output** — no key / token\
-  \ / credential ever reaches logs, traces, or error\n   bodies. *Incident: X-0369\
-  \ cluster.*\n3. **No placeholder secret in a live env** — a live/prod environment\
-  \ never runs on a dev/placeholder/\n   example secret; the deployed secret is real\
-  \ and env-scoped. *Incident: X-0369 cluster.*\n4. **Rotation is a rehearsed scripted\
-  \ procedure covering every ciphertext surface** (CAPABILITY, not a\n   one-time\
-  \ act) — the project CAN rotate a credential via a rehearsed script that re-encrypts\
-  \ every\n   ciphertext surface; a project with no ciphertext surface binds not-applicable\
-  \ WITH proof of that\n   absence. *Incident: X-0345 item 1 (rotation with no ciphertext-surface\
-  \ map → 5h outage).*\n5. **Backup restore-drill** (CAPABILITY, same phrasing) —\
-  \ the project CAN restore from backup via a\n   rehearsed drill; not-applicable\
-  \ is bound only with proof of no persisted secret / ciphertext surface.\n   *Incident:\
-  \ X-0345 (secrets / crypto continuity).*\n\n**Delivered at `before-authoring-auth`:**\n\
-  6. **Auth baseline** — an authored auth flow sets an httpOnly session cookie, states\
-  \ its CSRF posture,\n   returns UNIFORM auth errors (no user-enumeration oracle),\
-  \ and rate-limits login. *Incident: X-0369 /\n   <project> CSRF retrofit-live (8h\
-  \ prod-auth outage).*\n\nOptional probe pointers (EXAMPLES ONLY — evidence a project\
-  \ MAY choose to add, never a required SPEC-0098\nprobe and never binding state):\
-  \ a grep of logs/responses for known secret prefixes (item 2); a scripted\nrotation\
-  \ dry-run asserting every ciphertext column re-encrypts (item 4); a restore-drill\
-  \ that boots from a\nfresh backup (item 5); an auth smoke asserting httpOnly + a\
-  \ 401 shape identical for unknown-user vs\nbad-password (item 6). A project FILLS\
-  \ a default as its own concrete `specs/<SPEC>.yaml` (the cite IS the\nconsumer-read\
-  \ evidence) or waives with a reason — CONSIDERATION, never forced adoption.\n\n\
-  ## UI accessibility authoring-moment defaults (before-authoring-UI)\n\nA THIRD axis,\
-  \ delivered on the EXISTING `before-authoring-UI` floor surface — the row that already\n\
-  points at this spec, derived from the SPEC-0093 `ui` concern block, NOT from this\
-  \ spec's\n`binding:` list. This section therefore adds NO trigger and changes no\
-  \ delivery wiring; it fills the\nsurface that reader already reaches. Like the security\
-  \ axis above (and unlike the UX-safety defaults,\nwhose SoT is the catalog pattern-doc),\
-  \ accessibility single-homes HERE — a distinct axis, so no P5\ndouble-home.\n\n\
-  These three are a CONSTANT floor: they apply from the FIRST user, at any project\
-  \ size, and are NEVER\nprofile-gated — an interface either exposes its controls\
-  \ to a keyboard and a screen reader or it does\nnot, and retrofitting that later\
-  \ is the expensive path. Like every catalog item they are\nCONSIDERATION, never\
-  \ forced adoption: a project FILLS one as its own concrete `specs/<SPEC>.yaml`\n\
-  (that cite IS the consumer-read evidence) or waives it with a reason. They are never\
-  \ a gate,\nregister, waiver-contract, or probe obligation.\n\n1. **Every interactive\
-  \ control has an accessible name** — every button, link, input, and icon-only\n\
-  \   control exposes a non-empty accessible name (a visible label, `aria-label`,\
-  \ or `aria-labelledby`);\n   an icon-only control with no text is the recurring\
-  \ miss. A control a screen reader announces as\n   \"button\" is unusable, not merely\
-  \ unpolished.\n2. **Every flow is keyboard-reachable** — each flow can be started,\
-  \ completed, and escaped with the\n   keyboard alone: every interactive element\
-  \ is focusable, focus is VISIBLE, focus order follows\n   reading order, and an\
-  \ overlay/modal traps focus then RESTORES it on close. No action is reachable\n\
-  \   only by hover or pointer.\n3. **A validation/error state is ANNOUNCED, not colour-only**\
-  \ — an error carries TEXT tied\n   programmatically to its control (`aria-invalid`\
-  \ + `aria-describedby`), and when it appears\n   asynchronously it lands in a polite\
-  \ live region so it is announced rather than silently painted.\n   Colour is never\
-  \ the sole carrier of the state.\n\nOptional probe pointers (EXAMPLES ONLY — cheap\
-  \ evidence a project MAY adopt, never a required\nSPEC-0098 probe and never binding\
-  \ state): item 1 — the axe-core `button-name` / `link-name` /\n`image-alt` rules,\
-  \ or a DOM assertion that every focusable control resolves a non-empty accessible\n\
+  \ purpose ⇒ distinct key).\n2. **No secret in runtime output** — no key / token\
+  \ / credential ever reaches logs, traces, or error\n   bodies.\n3. **No placeholder\
+  \ secret in a live env** — a live/prod environment never runs on a dev/placeholder/\n\
+  \   example secret; the deployed secret is real and env-scoped.\n4. **Rotation is\
+  \ a rehearsed scripted procedure covering every ciphertext surface** (CAPABILITY,\
+  \ not a\n   one-time act) — the project CAN rotate a credential via a rehearsed\
+  \ script that re-encrypts every\n   ciphertext surface; a project with no ciphertext\
+  \ surface binds not-applicable WITH proof of that\n   absence.\n5. **Backup restore-drill**\
+  \ (CAPABILITY, same phrasing) — the project CAN restore from backup via a\n   rehearsed\
+  \ drill; not-applicable is bound only with proof of no persisted secret / ciphertext\
+  \ surface.\n\n**Delivered at `before-authoring-auth`:**\n6. **Auth baseline** —\
+  \ an authored auth flow sets an httpOnly session cookie, states its CSRF posture,\n\
+  \   returns UNIFORM auth errors (no user-enumeration oracle), and rate-limits login.\n\
+  \nOptional probe pointers (EXAMPLES ONLY — evidence a project MAY choose to add,\
+  \ never a required SPEC-0098\nprobe and never binding state): a grep of logs/responses\
+  \ for known secret prefixes (item 2); a scripted\nrotation dry-run asserting every\
+  \ ciphertext column re-encrypts (item 4); a restore-drill that boots from a\nfresh\
+  \ backup (item 5); an auth smoke asserting httpOnly + a 401 shape identical for\
+  \ unknown-user vs\nbad-password (item 6). A project FILLS a default as its own concrete\
+  \ `specs/<SPEC>.yaml` (the cite IS the\nconsumer-read evidence) or waives with a\
+  \ reason — CONSIDERATION, never forced adoption.\n\n## UI accessibility authoring-moment\
+  \ defaults (before-authoring-UI)\n\nA THIRD axis, delivered on the EXISTING `before-authoring-UI`\
+  \ floor surface — the row that already\npoints at this spec, derived from the SPEC-0093\
+  \ `ui` concern block, NOT from this spec's\n`binding:` list. This section therefore\
+  \ adds NO trigger and changes no delivery wiring; it fills the\nsurface that reader\
+  \ already reaches. Like the security axis above (and unlike the UX-safety defaults,\n\
+  whose SoT is the catalog pattern-doc), accessibility single-homes HERE — a distinct\
+  \ axis, so no P5\ndouble-home.\n\nThese three are a CONSTANT floor: they apply from\
+  \ the FIRST user, at any project size, and are NEVER\nprofile-gated — an interface\
+  \ either exposes its controls to a keyboard and a screen reader or it does\nnot,\
+  \ and retrofitting that later is the expensive path. Like every catalog item they\
+  \ are\nCONSIDERATION, never forced adoption: a project FILLS one as its own concrete\
+  \ `specs/<SPEC>.yaml`\n(that cite IS the consumer-read evidence) or waives it with\
+  \ a reason. They are never a gate,\nregister, waiver-contract, or probe obligation.\n\
+  \n1. **Every interactive control has an accessible name** — every button, link,\
+  \ input, and icon-only\n   control exposes a non-empty accessible name (a visible\
+  \ label, `aria-label`, or `aria-labelledby`);\n   an icon-only control with no text\
+  \ is the recurring miss. A control a screen reader announces as\n   \"button\" is\
+  \ unusable, not merely unpolished.\n2. **Every flow is keyboard-reachable** — each\
+  \ flow can be started, completed, and escaped with the\n   keyboard alone: every\
+  \ interactive element is focusable, focus is VISIBLE, focus order follows\n   reading\
+  \ order, and an overlay/modal traps focus then RESTORES it on close. No action is\
+  \ reachable\n   only by hover or pointer.\n3. **A validation/error state is ANNOUNCED,\
+  \ not colour-only** — an error carries TEXT tied\n   programmatically to its control\
+  \ (`aria-invalid` + `aria-describedby`), and when it appears\n   asynchronously\
+  \ it lands in a polite live region so it is announced rather than silently painted.\n\
+  \   Colour is never the sole carrier of the state.\n\nOptional probe pointers (EXAMPLES\
+  \ ONLY — cheap evidence a project MAY adopt, never a required\nSPEC-0098 probe and\
+  \ never binding state): item 1 — the axe-core `button-name` / `link-name` /\n`image-alt`\
+  \ rules, or a DOM assertion that every focusable control resolves a non-empty accessible\n\
   name; item 2 — a DOM assertion walking Tab order through one flow and asserting\
   \ it completes, or the\naxe-core `focus-order-semantics` rule plus a no-positive-`tabindex`\
   \ check; item 3 — a DOM assertion\nthat after an invalid submit the error TEXT is\
@@ -218,35 +208,51 @@ body: "## Scenario\n\nA project (a consumer, or the kernel) is about to author a
   \ Prior-art: the existing general UX patterns (`ux-destructive-operation-safety`,\n\
   `ux-general-principles`) carry the CONTENT but are not a NAMED, delivered cross-project\
   \ default catalog.\nThe seed-and-grow shape (the LOGIC sibling of design-by-default)\
-  \ names them once + delivers them. Origin:\ncross X-0059.\n\n## Verification\n\n\
-  - graph query SPEC-0100 resolves the active spec (post-activation).\n- graph query\
-  \ behavioral-baseline-defaults resolves the catalog pattern node; the pattern carries\
-  \ a\n  \"## Review lens\" section (state-check).\n- A seeded ACTIVE spec bound to\
-  \ `before-authoring-interaction` inverts into verb_to_specs (the floor-row\n  mechanism,\
-  \ exercised by tests/test_t9421_behavioral_baseline_catalog.py; the live floor ROW\
-  \ lands in).\n- The two security tokens (before-handling-a-secret / before-authoring-auth)\
-  \ each render a\n  floor-trigger-map row pointing at this spec; differential — removing\
-  \ a token from binding: removes\n  its row (graph build regenerates graph/floor-trigger-map.md).\n\
-  - The two born-secure tokens (before-authoring-public-boundary / before-adding-a-dependency)\n\
-  \  each render a floor-trigger-map row pointing at this spec; differential — removing\
-  \ a token from\n  binding: removes its row (tests/test_t12086_born_secure_triggers.py).\n\
-  - The ten §Born-secure items are delivered PROFILE-GATED by `graph.born_secure_render`\
-  \ off the ONE\n  SPEC-0198 resolver: a prototype-profile checkout receives the two\
-  \ constant-floor items and NOT the\n  eight boundary ones; a public-surface checkout\
-  \ receives all ten; an UNRESOLVABLE profile fails CLOSED\n  to the two constant-floor\
-  \ items. The profile-raising question (SPEC-0198 §8) is the FIRST line of the\n\
-  \  delivery, ahead of the section heading (differential — same test file).\n- Each\
-  \ of the ten items names a one-line differential probe and the bad input that FAILS\
-  \ it (state check\n  over this body; the probes are exercised table-driven in the\
-  \ same test file).\n- The three accessibility items (accessible name · keyboard-reachable\
-  \ flow · error announced,\n  not colour-only) are present in §UI accessibility authoring-moment\
-  \ defaults, each with an optional\n  example probe (state check: grep this body\
-  \ for the three item headings and for the probe-pointer\n  paragraph naming an axe-core\
-  \ rule or a DOM assertion for each). Differential — deleting an item\n  drops its\
-  \ heading from that grep; and the `before-authoring-UI` floor row is UNCHANGED by\
-  \ this\n  section because the row is derived from the SPEC-0093 `ui` concern block,\
-  \ not from this\n  spec's binding: (differential — the row moves only if that concern\
-  \ block or binding: changes,\n  neither of which this section touches).\n"
+  \ names them once + delivers them. Origin:\ncross X-0059.\n\n### History moved from\
+  \ the rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names;\nthe rule it explains stays there.\n\n- From «AI-session\
+  \ behavioral default»: First evidence: <project> <workshop-spec>\n  (confirm-before-irreversible)\
+  \ — tracked by the blocking adopt-back cross to <project> (a\n  consumer-repo edit\
+  \ is cross-territory from the kernel).\n- From «Security authoring-moment defaults»:\
+  \ Origin: a day of real <project> incidents (X-0369 — an\n  8h prod-auth outage\
+  \ + a 5h key-rotation outage from exactly the knowledge this catalog exists to\n\
+  \  deliver; X-0345 item 1 — a key rotation with no ciphertext-surface map).\n- From\
+  \ «Security authoring-moment defaults»: *Incident: X-0369 (<project> reused the\
+  \ JWT-signing\n  key for data encryption).*\n- From «Security authoring-moment defaults»:\
+  \ *Incident: X-0345 item 1 (rotation with no\n  ciphertext-surface map → 5h outage).*\n\
+  - From «Security authoring-moment defaults»: *Incident: X-0369 / <project> CSRF\
+  \ retrofit-live (8h\n  prod-auth outage).*\n- From «Security authoring-moment defaults»:\
+  \ *Incident: X-0369 cluster.*\n- From «Security authoring-moment defaults»: *Incident:\
+  \ X-0369 cluster.*\n- From «Security authoring-moment defaults»: *Incident: X-0345\
+  \ (secrets / crypto continuity).*\n\n## Verification\n\n- graph query SPEC-0100\
+  \ resolves the active spec (post-activation).\n- graph query behavioral-baseline-defaults\
+  \ resolves the catalog pattern node; the pattern carries a\n  \"## Review lens\"\
+  \ section (state-check).\n- A seeded ACTIVE spec bound to `before-authoring-interaction`\
+  \ inverts into verb_to_specs (the floor-row\n  mechanism, exercised by tests/test_t9421_behavioral_baseline_catalog.py;\
+  \ the live floor ROW lands in).\n- The two security tokens (before-handling-a-secret\
+  \ / before-authoring-auth) each render a\n  floor-trigger-map row pointing at this\
+  \ spec; differential — removing a token from binding: removes\n  its row (graph\
+  \ build regenerates graph/floor-trigger-map.md).\n- The two born-secure tokens (before-authoring-public-boundary\
+  \ / before-adding-a-dependency)\n  each render a floor-trigger-map row pointing\
+  \ at this spec; differential — removing a token from\n  binding: removes its row\
+  \ (tests/test_t12086_born_secure_triggers.py).\n- The ten §Born-secure items are\
+  \ delivered PROFILE-GATED by `graph.born_secure_render` off the ONE\n  SPEC-0198\
+  \ resolver: a prototype-profile checkout receives the two constant-floor items and\
+  \ NOT the\n  eight boundary ones; a public-surface checkout receives all ten; an\
+  \ UNRESOLVABLE profile fails CLOSED\n  to the two constant-floor items. The profile-raising\
+  \ question (SPEC-0198 §8) is the FIRST line of the\n  delivery, ahead of the section\
+  \ heading (differential — same test file).\n- Each of the ten items names a one-line\
+  \ differential probe and the bad input that FAILS it (state check\n  over this body;\
+  \ the probes are exercised table-driven in the same test file).\n- The three accessibility\
+  \ items (accessible name · keyboard-reachable flow · error announced,\n  not colour-only)\
+  \ are present in §UI accessibility authoring-moment defaults, each with an optional\n\
+  \  example probe (state check: grep this body for the three item headings and for\
+  \ the probe-pointer\n  paragraph naming an axe-core rule or a DOM assertion for\
+  \ each). Differential — deleting an item\n  drops its heading from that grep; and\
+  \ the `before-authoring-UI` floor row is UNCHANGED by this\n  section because the\
+  \ row is derived from the SPEC-0093 `ui` concern block, not from this\n  spec's\
+  \ binding: (differential — the row moves only if that concern block or binding:\
+  \ changes,\n  neither of which this section touches).\n"
 cites:
 - behavioral-baseline-defaults
 - ux-destructive-operation-safety

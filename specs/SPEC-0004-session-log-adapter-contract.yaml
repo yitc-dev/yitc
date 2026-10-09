@@ -170,7 +170,7 @@ cites:
 - CHARTER.md#principle-4
 - CHARTER.md#principle-5
 implements_signature:
-  bin/lib/cli.py#_append_event: b0a994ba1276786f04ddc0d83afdad69392278b9b70ba3d49dc8ed191ce4db40
+  bin/lib/cli.py#_append_event: dfd4fbf92cd58d252d526be9023ae5b16c606d6ad0ddeefcde792ef019c87d5a
   bin/lib/cli.py#_auto_sync: 1d4fd995805c222b296adb59d972398ddcd40e7158ddc7934722b9fd72ea2f23
   bin/lib/cli.py#_session_log_path: 1e482b30962d0398cfa631ff18805a0cd867731a887cd38d3f2b7615602ccddb
   bin/lib/journal.py#_all_source_refs: 4b9df3902f89f4af7d344eb505f55a63dfa608a13a66a6e058f397fa70887044
@@ -178,7 +178,7 @@ implements_signature:
   bin/lib/journal.py#_classify_cc_entry: 9c95dbd8ca9bb47574876501a386b2a4f811524ae75fdbeef41a2e82f505c0ee
   bin/lib/journal.py#_governed_read_target: 0eb60a85601fad3bede9c0bd437bab1aabc5d6e572e483f9400b0ed8c75719a5
   bin/lib/journal.py#_infer_directive_classification: ad052f641cfa111bfc6cc8ad632d60f2c81bc8265e527527e97a22d12d230ea1
-  bin/lib/journal.py#_journal_sync: 26f6cb1e7c439302f95898b7510b7f93662ab01302983ebff43436da99496e9d
+  bin/lib/journal.py#_journal_sync: 9931138b3f43085bf1154ff4028b4ba9b332400c45a352f0671074c7261ff3e3
   bin/lib/journal.py#_source_refs_and_birth_ts: ce07e4d5d367cf340203f82bc0c007bb4d3577c19110b905620668ce34be8c67
   bin/lib/journal.py#cmd_journal_sync: 4ff5d71ae0a362bb1e354b76795d563caa80b66b18517d7c6f29274bed04b358
   bin/lib/textutil.py#cap_text: bee40bd5f934c5e92b755939adc6aa90bfaff9fb29b0884460b5231d0417a2b9

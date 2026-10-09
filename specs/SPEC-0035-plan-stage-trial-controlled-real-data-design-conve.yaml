@@ -147,46 +147,39 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ a second analytical read, it\n   does not alter any existing exit obligation.\
   \ The package-level accept-gate `plan check` (FULL)\n   stays a SEPARATE later audit\
   \ — this dual read neither duplicates nor replaces it. The how-to (the\n   dual-convergence-analysis\
-  \ METHOD) lives in `patterns/trial-methods.md` (rule 6 carrier).\n   Real-incident\
-  \ grounding (CHARTER §Principle 1 filter 4): the\n   `forward-propagation-adoption-trigger-disposition-r`\
-  \ plan dual-read its trial convergence on\n   2026-06-09 (decisions/forward-propagation-trial-convergence-audit-adhoc.yaml\
-  \ — the two reads\n   agreed on convergence, diverged only on a scope claim later\
-  \ adjudicated GREEN).\n\n   **NARROWING the floor — permitted ONLY as an EXPLICIT\
-  \ RECORDED owner act (additive carve-out,\n   SPEC-0005 rule 7).** OLD RULE (the\
-  \ floor above): the three-item floor is UNIVERSAL, and\n   owner judgement — though\
-  \ FINAL — acts WITHIN it; nothing grants a power to narrow the floor\n   itself,\
-  \ so a plan that declares the floor locally superseded overrides an active spec\
-  \ by its own\n   prose, which CHARTER §Principle 7 forbids (specs win). NEW RULE\
-  \ (this carve-out): the floor MAY be\n   narrowed, for ONE NAMED TRIAL, by an EXPLICIT\
-  \ OWNER ACT RECORDED IN THAT PLAN — and the exit then\n   CITES that record instead\
-  \ of overriding this rule. The record MUST name ALL THREE:\n   (i) WHICH floor item\
-  \ is unmet;\n   (ii) WHERE each unmet criterion MOVES — the LATER GATE that now\
-  \ carries it, named by that gate's\n        OWN criterion / block (never a bare\
-  \ \"later\");\n   (iii) WHY the TRIAL ITSELF cannot produce it — a property of the\
-  \ trial's own legs, not its cost,\n         duration or fatigue.\n   A record missing\
-  \ any of the three is NOT a narrowing: the floor stands unnarrowed and the exit\
-  \ is\n   refused.\n   **BOUNDS — the act NARROWS, it never DISCHARGES:**\n   - the\
-  \ narrowing discharges NOTHING — a moved criterion still GATES its new home, which\
-  \ must stay\n     unreachable without it; moving is STRICTER placement, never retirement;\n\
-  \   - it NEVER silently narrows a per-plan BAKED criterion (rule 3) — a baked criterion\
-  \ is narrowed\n     only by being NAMED under (i)-(iii) in its own right, never\
-  \ as a side-effect of narrowing the\n     universal floor;\n   - owner judgement\
-  \ stays a JUDGEMENT, not a rubber stamp — the act is the OWNER's, taken on the\n\
-  \     recorded evidence; a session's own generous re-reading of a criterion is NOT\
-  \ this act and stays\n     refused.\n   Everything else in this rule is UNCHANGED:\
-  \ the three floor items themselves, the per-plan baked\n   criteria, the dual convergence\
-  \ read, and owner judgement as the FINAL act. Real-incident grounding\n   (CHARTER\
-  \ §Principle 1 filter 4): the `close-the-spike-mode-safety-floor-to-data-carried-`\
-  \ plan's\n   accept-gate `plan check` returned RED on two consecutive passes on\
-  \ 2026-08-11 for exactly this\n   absence — an owner-approved narrowed exit with\
-  \ no authority carrier in the corpus.\n\n6. **Carrier boundary (editorial rule).**\
-  \ The plan carries ONLY the baked protocol + the\n   exit-facing trial-summary.\
-  \ `events.jsonl` carries ONLY raw run observations.\n   `patterns/trial-methods.md`\
-  \ carries ONLY reusable methods / lessons. Moving raw observations\n   into the\
-  \ plan is FORBIDDEN (no parallel carrier — CHARTER §P5).\n\n7. **Narrowing (what\
-  \ this rule removes).** For trial-eligible plans `plan check` is NOT the\n   design-convergence\
-  \ gate — convergence evidence is produced in `trial` against the baked\n   criteria;\
-  \ `plan check`'s role at the `accepted`-gate is the audit of the ASSEMBLED package.\n\
+  \ METHOD) lives in `patterns/trial-methods.md` (rule 6 carrier).\n\n   **NARROWING\
+  \ the floor — permitted ONLY as an EXPLICIT RECORDED owner act (additive carve-out,\n\
+  \   SPEC-0005 rule 7).** OLD RULE (the floor above): the three-item floor is UNIVERSAL,\
+  \ and\n   owner judgement — though FINAL — acts WITHIN it; nothing grants a power\
+  \ to narrow the floor\n   itself, so a plan that declares the floor locally superseded\
+  \ overrides an active spec by its own\n   prose, which CHARTER §Principle 7 forbids\
+  \ (specs win). NEW RULE (this carve-out): the floor MAY be\n   narrowed, for ONE\
+  \ NAMED TRIAL, by an EXPLICIT OWNER ACT RECORDED IN THAT PLAN — and the exit then\n\
+  \   CITES that record instead of overriding this rule. The record MUST name ALL\
+  \ THREE:\n   (i) WHICH floor item is unmet;\n   (ii) WHERE each unmet criterion\
+  \ MOVES — the LATER GATE that now carries it, named by that gate's\n        OWN\
+  \ criterion / block (never a bare \"later\");\n   (iii) WHY the TRIAL ITSELF cannot\
+  \ produce it — a property of the trial's own legs, not its cost,\n         duration\
+  \ or fatigue.\n   A record missing any of the three is NOT a narrowing: the floor\
+  \ stands unnarrowed and the exit is\n   refused.\n   **BOUNDS — the act NARROWS,\
+  \ it never DISCHARGES:**\n   - the narrowing discharges NOTHING — a moved criterion\
+  \ still GATES its new home, which must stay\n     unreachable without it; moving\
+  \ is STRICTER placement, never retirement;\n   - it NEVER silently narrows a per-plan\
+  \ BAKED criterion (rule 3) — a baked criterion is narrowed\n     only by being NAMED\
+  \ under (i)-(iii) in its own right, never as a side-effect of narrowing the\n  \
+  \   universal floor;\n   - owner judgement stays a JUDGEMENT, not a rubber stamp\
+  \ — the act is the OWNER's, taken on the\n     recorded evidence; a session's own\
+  \ generous re-reading of a criterion is NOT this act and stays\n     refused.\n\
+  \   Everything else in this rule is UNCHANGED: the three floor items themselves,\
+  \ the per-plan baked\n   criteria, the dual convergence read, and owner judgement\
+  \ as the FINAL act.\n\n6. **Carrier boundary (editorial rule).** The plan carries\
+  \ ONLY the baked protocol + the\n   exit-facing trial-summary. `events.jsonl` carries\
+  \ ONLY raw run observations.\n   `patterns/trial-methods.md` carries ONLY reusable\
+  \ methods / lessons. Moving raw observations\n   into the plan is FORBIDDEN (no\
+  \ parallel carrier — CHARTER §P5).\n\n7. **Narrowing (what this rule removes).**\
+  \ For trial-eligible plans `plan check` is NOT the\n   design-convergence gate —\
+  \ convergence evidence is produced in `trial` against the baked\n   criteria; `plan\
+  \ check`'s role at the `accepted`-gate is the audit of the ASSEMBLED package.\n\
   \   Post-accept spec-rework driven by reality-vs-paper divergence is no longer a\
   \ normal path (the\n   cheap pre-accept convergence loop replaces the costly post-accept\
   \ correction loop).\n\n8. **No-orchestration guard.** `trial` introduces NO new\
@@ -256,15 +249,25 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ whose product is\ndesign knowledge); PEP \"Provisional\" considered and rejected\
   \ (post-build, the opposite lifecycle\nend). Full deliberation + decision trail:\
   \ the proposing plan\n(plans/add-a-controlled-real-data-trial-stage-between-pla.md).\n\
-  \n## Verification\n\nAdoption probe (activation gate, CHARTER §P3/§P8 — infra-class):\
-  \ the FIRST real plan run through\n`specs → trial → accepted` with journal/state\
-  \ evidence — `plan_stage_entered` (trial) for a live\nplan; that plan's baked `##\
-  \ Trial protocol` section present; ≥1 journaled trial run; the\ntrial-summary in\
-  \ the plan; the subsequent `plan_stage_entered` (accepted) citing the journal\n\
-  run-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial` between `specs` and\
-  \ `accepted`;\n`graph query SPEC-0035` shows binding `plan-stage-entry:trial` and\
-  \ `plan stage trial` delivers\nthis spec in its bundle. Without this evidence the\
-  \ activating task does NOT close.\n\n**(AC1-AC4) what the unchanged-across-2-cycles\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\n- From «Internal»: Real-incident grounding (CHARTER §Principle 1 filter\
+  \ 4): the\n  `forward-propagation-adoption-trigger-disposition-r` plan dual-read\
+  \ its trial convergence on\n  2026-06-09 (decisions/forward-propagation-trial-convergence-audit-adhoc.yaml\
+  \ — the two reads\n  agreed on convergence, diverged only on a scope claim later\
+  \ adjudicated GREEN).\n- From «Internal»: Real-incident grounding (CHARTER §Principle\
+  \ 1 filter 4): the\n  `close-the-spike-mode-safety-floor-to-data-carried-` plan's\
+  \ accept-gate `plan check` returned\n  RED on two consecutive passes on 2026-08-11\
+  \ for exactly this absence — an owner-approved\n  narrowed exit with no authority\
+  \ carrier in the corpus.\n\n## Verification\n\nAdoption probe (activation gate,\
+  \ CHARTER §P3/§P8 — infra-class): the FIRST real plan run through\n`specs → trial\
+  \ → accepted` with journal/state evidence — `plan_stage_entered` (trial) for a live\n\
+  plan; that plan's baked `## Trial protocol` section present; ≥1 journaled trial\
+  \ run; the\ntrial-summary in the plan; the subsequent `plan_stage_entered` (accepted)\
+  \ citing the journal\nrun-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial`\
+  \ between `specs` and `accepted`;\n`graph query SPEC-0035` shows binding `plan-stage-entry:trial`\
+  \ and `plan stage trial` delivers\nthis spec in its bundle. Without this evidence\
+  \ the activating task does NOT close.\n\n**(AC1-AC4) what the unchanged-across-2-cycles\
   \ item is counted over:** rule 5 carries the\nin-place clarification that the count\
   \ is over DESIGN state (the plan's design body + its draft specs),\nthat recording\
   \ a cycle's trial-summary does NOT reset it, the suppression-is-not-dryness direction,\

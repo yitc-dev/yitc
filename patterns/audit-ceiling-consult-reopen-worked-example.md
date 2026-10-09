@@ -11,9 +11,9 @@ applies_to: a session standing at an exhausted audit-loop ceiling, TASK audit-pr
 > the ceiling arithmetic itself stays in SPEC-0124 §Audit-loop ceiling. On ANY conflict, SPEC-0204
 > WINS. This file teaches the sequence; it establishes no rule and adds no gate.
 >
-> **Why it lives here:** SPEC-0204 and SPEC-0124 are delivered at BOTH audit stage-entries, so a
-> worked example there would be paid on every substantive task before anyone needs it. It is read ON
-> DEMAND, when a ceiling is actually reached.
+> **Why it lives here:** a worked example inside SPEC-0204 would be paid by everyone who fetches the
+> rule, before anyone needs the walk-through. It is read ON DEMAND, when a ceiling is actually reached
+> (no stage entry renders SPEC-0204 or SPEC-0124 since; SPEC-0036 §Audit-loop ceiling names them).
 
 ## When to read this
 

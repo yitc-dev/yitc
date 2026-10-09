@@ -912,7 +912,7 @@ implements_signature:
   bin/lib/cli.py#_iter_events: 52b325c121e77eb9002c87a7e0436ba2163ce676d12fd5f8eab703b6f4146f57
   bin/lib/cli.py#_iter_events_tail: 09aae222234dad4d3e3bc098b5b3e681fe27435d1ee0ee3af758dccb9226d087
   bin/lib/cli.py#_land_integrate: 6392c34a32b99e3c170cfa5c131542fab2abdbe1be90e66f1f06a46bc12a2d5f
-  bin/lib/events.py#append_event: f3c9734942ca0dd192cba42932b1aa00931e12240f4f98cdc82220cda593a666
+  bin/lib/events.py#append_event: ee30e6290cd567ce67cf153a726844efeb355364ef783d61f69495943354c091
   bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735
   bin/lib/events.py#recombine_journal: fdb186bc5ed87c8fdbd4f1bc2cf146411e79fd762216799a5c9abf6d41ee151e
   bin/lib/events.py#rotate_journal: 73c3778bdbe9b6d5e328dd444cdc8bfcab21ea065f5a0c448b85dc35bda6b776

@@ -2379,6 +2379,23 @@ PARK_STDIN_CONFLICTING_ARGV_FLAGS = (
 PROSE_BEARING_PARK_FIELDS = ("reason",)
 
 
+def _closed_before_land_pointer(data: dict, *, _read_yaml) -> str:
+    """T-13684 — the recipe pointer appended to the un-landed-work refusal of `worktree park`, for ONE
+    shape only: the card in the refused worktree reads `status: done` (a task closed before its land —
+    main still reads it open, or that refusal would not be the one firing). '' for every other card
+    and on any unreadable input, so the ordinary refusal is byte-unchanged. Pure text: it reads the
+    one card file the refusal is about and decides nothing."""
+    try:
+        cards = sorted((Path(data["worktree"]) / "tasks").glob(f"{data['task']}-*.yaml"))
+        status = (_read_yaml(cards[0]) or {}).get("status") if cards else None
+    except Exception:   # noqa: BLE001 — a refusal's extra sentence must never replace the refusal
+        return ""
+    if status != "done":
+        return ""
+    return (" This branch's card reads `done`: a task CLOSED before its land. Read its two recoveries "
+            "before choosing: `bin/yitc-v2 graph query rare-task-recovery-recipes` (lead «Prematurely-closed UNLANDED task»).")
+
+
 def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_worktree, _read_yaml,
                       _read_worktree_stamp, _stamp_is_own, _worktree_path_for_branch, _run_git_cap,
                       _classify_inert_paths, REPO_ROOT,
@@ -2568,7 +2585,8 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
              f"(T-11330; the 2026-08-19 T-11319 loss, X-0998 / X-1000). The worktree at {data['worktree']} "
              f"and its branch are INTACT. Land it (`bin/yitc-v2 land --task {data['task']}`), escalate it "
              f"(`bin/yitc-v2 blocked-on-land {data['task']} <reason>`, SPEC-0103 §3 — worktree intact), or "
-             f"— if the work is genuinely disposable — re-invoke with `--force --reason <why>`.")
+             f"— if the work is genuinely disposable — re-invoke with `--force --reason <why>`."
+             f"{_closed_before_land_pointer(data, _read_yaml=_read_yaml)}")
     # T-11414 — on the landed-done retirement nothing is DISCARDED (the work is on main and the guard
     # proved the worktree empty), so the volume is REMOVED, not discarded; the numbers are identical.
     _verb = "removed" if data["status_on_main"] == "done" else "discarded"

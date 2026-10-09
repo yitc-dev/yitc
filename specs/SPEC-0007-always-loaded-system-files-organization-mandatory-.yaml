@@ -235,61 +235,90 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ as at session start, a seed body is read\nwhen its surface becomes relevant, before\
   \ the governed action (§5a). The separately-required STATE\nre-folds (`cross outbox`/`cross\
   \ inbox`, `debt`, `session handoff list`, `frontend-errors`, `audit\nstatus`) are\
-  \ unchanged — they restore start-time state, not seed rules.\n**A receipt-only start\
-  \ repeats nothing the same context epoch already holds.** A `session\nstart` run\
-  \ in a linked worktree is receipt-only (SPEC-0119 rule 2 / SPEC-0086 rule 4). When\
-  \ the SAME\nsession already ran `session start` on the main checkout in the CURRENT\
-  \ context epoch — so its\ncontext holds the start block — that run prints only:\
-  \ the line naming the checkout its anchor was\nwritten to; the receipt-only line;\
-  \ one line saying the block is not repeated; what THIS checkout\nadds — the posture\
-  \ report derived from this checkout's own branch and worktree stamp (the own-task\n\
-  resume, the acting-in line, and the foreign-hold report naming the holder, which\
-  \ is a safety line\nand is never trimmed), a consumer's stale-scaffold and newer-release\
-  \ notices, and the in-worktree\nstage-contract delivery under its own SPEC-0050\
-  \ §4 rule; and the closing lines, ending in the\nstartup-done line and the person-facing\
-  \ line. It does NOT repeat the `binding:[seed]` line, the\nfiling-doctrine reference,\
-  \ the owner-cued lines read off the task corpus and the hand-off store, the\nself-ref\
-  \ and scratch-root lines of a ref the caller itself carried, or a consumer's read-order,\n\
-  project-context, kernel-reflex, rescan, buffer, floor-map and stage-entry pointers.\
-  \ What the run\nSTAMPS is unchanged: its `session_started` anchor and its per-checkout\
-  \ seed receipt (SPEC-0050 §8)\nare written exactly as on a full start. \"Already\
-  \ holds\" is decided only on positive proof —\nthe provider transcript of THIS conversation\
-  \ carries, since its last compaction, a tool result\nholding the whole output of\
-  \ a main-checkout `session start` of this repository (its head line, the\nseed line,\
-  \ the filing-doctrine line and the startup-done line — never the head line alone),\
-  \ and the newest seed receipt of the session on the\nmain checkout's journal is\
-  \ stamped with an epoch not older than the current — and every other state prints\
-  \ the full block: a session's\nfirst start (in a worktree or not), a dispatched\
-  \ Worker's first worktree start (the launcher's\npre-recorded receipt delivered\
-  \ nothing to its context), a start whose output was discarded, a ref carried into\n\
-  another conversation, and every main-checkout start. Post-`/compact` (route (a)):\
-  \ a\n`/compact` advances the epoch, so the sanctioned receipt-refresh re-run prints\
-  \ the full block again\nfrom the same carrier, in a worktree as on main — the seed-line\
-  \ and done-line re-delivery above is\nunchanged. Code home: `bin/lib/cli.py#_seed_cues_held_this_epoch`.\
-  \ Verification:\ntests/test_t13580_receipt_only_start_output.py — the repeat start\
-  \ prints none of the repeated lines\nand still writes its receipt; its differential\
-  \ arms (a first start in the worktree, a start after\nthe epoch advanced, a launcher-pre-recorded\
-  \ receipt, a discarded-output start, no transcript,\nanother provider session, the\
-  \ same ref carried into a second conversation) each print the full block; a foreign-held\
-  \ task worktree still names its\nholder.\n**The start report states its own end\
-  \ and each line's class.** `session start` ends with\nONE startup-done line — the\
-  \ last AGENT-facing line, printed immediately before the unchanged SPEC-0125\nrule\
-  \ 2c person-facing start line, which stays the final line. It names the one startup\
-  \ step left (the\nsession-tied `--help` scan) and the posture's next move (the Controller\
-  \ awaits the owner cue; a Worker\ncontinues its claimed task), and says nothing\
-  \ else is to be opened at startup. Every OTHER echo line\nthat names a verb, a file\
-  \ or an artifact id carries exactly one class marker as a suffix —\n`[report-only]`\
-  \ (no action at startup), `[owner-cued]` (act only on the owner's cue) or\n`[on-demand:\
-  \ <trigger>]` — and the seed lines (the startup read itself, incl. the `binding:[seed]`\n\
-  line) carry none. **An `[owner-cued]` line is SHOW AND WAIT :** the marker is followed,\
-  \ on\nthe line itself, by what the session does now — name it to the person in its\
-  \ reply, then wait, and\nact only when the person says so — and the line, with the\
-  \ rows under it, carries NO runnable\ncommand: the echo prints none, and a CLI invocation\
-  \ quoted from card data (a title, a next step, a\nreturn trigger, a hand-off title)\
-  \ is shown without its runnable prefix, its verb words kept. The\nstartup-done line\
-  \ is the legend that names the three classes, not an owner-cued line. Startup is\n\
-  done when the seed is read, `session start` has run and its `--help` scan is done.\
-  \ Post-`/compact` (route (a)): the done line rides the same sanctioned receipt-refresh\n\
+  \ unchanged — they restore start-time state, not seed rules.\n**The re-run prints\
+  \ the post-compact re-fold steps.** A `session start` whose context\nepoch is newer\
+  \ than an earlier start of the same session — a `cli:seed` receipt of that ref,\
+  \ in this\ncheckout's journal or the main checkout's, stamped with an older epoch\
+  \ — prints ONE re-fold block: a\nhead naming both epochs, then one row per step\
+  \ that APPLIES to the session's state: the audience\nseed + floor trigger-map re-read\
+  \ and the two anchors; the session-tied `--help` rescan; the seed cues\nand when\
+  \ to read a seed body; the in-progress card of this checkout's own `task/` worktree\
+  \ with its\nresume contract and stage bundle; each plan this session's own `plan_stage_entered`\
+  \ rows took into\n`decomposition` and that is still there (`plan show` + SPEC-0070,\
+  \ never a re-run of `plan stage`,\nnever a `plans/` scan); for the Controller the\
+  \ open hand-offs and, on a worktree start, the cross /\ndebt re-folds; for a `-C`\
+  \ consumer the engine invocation form, `graph query --kernel` retrieval and\nthe\
+  \ frontend-error and kernel-signaling re-folds; `audit status`; and for a Worker\
+  \ refreshing in its\ntask worktree the second refresh in the main checkout before\
+  \ `land`. No block is printed when the\nepoch cannot be counted or is 0, at a session's\
+  \ first start, or when this conversation was already\nshown a block since its last\
+  \ compaction (read off the provider transcript the way the\nproof reads the start\
+  \ block) — so the same-epoch refresh in a second checkout prints it once, and a\n\
+  start whose output never reached the conversation leaves it due. It adds no state,\
+  \ gate or event:\nthe rows are derived from the journal, the card and the transcript\
+  \ at each start. `AGENTS.md\n§After /compact` keeps the pre-command cue (re-read\
+  \ the seed, then the receipt refresh) and one index\nline per step the block can\
+  \ name; startup content co-designed under route (a) may be wired into this\nblock\
+  \ as well as into that section. Code home: `bin/lib/session.py#post_compact_refold_lines`\
+  \ (what\nthe rows say) and `bin/lib/cli.py#_post_compact_refold_due` (when the block\
+  \ is due). Verification:\ntests/test_t13687_post_compact_refold.py.\n**A receipt-only\
+  \ start repeats nothing the same context epoch already holds.** A `session\nstart`\
+  \ run in a linked worktree is receipt-only (SPEC-0119 rule 2 / SPEC-0086 rule 4).\
+  \ When the SAME\nsession already ran `session start` on the main checkout in the\
+  \ CURRENT context epoch — so its\ncontext holds the start block — that run prints\
+  \ only: the line naming the checkout its anchor was\nwritten to; the receipt-only\
+  \ line; one line saying the block is not repeated; what THIS checkout\nadds — the\
+  \ posture report derived from this checkout's own branch and worktree stamp (the\
+  \ own-task\nresume, the acting-in line, and the foreign-hold report naming the holder,\
+  \ which is a safety line\nand is never trimmed), a consumer's stale-scaffold and\
+  \ newer-release notices, and the in-worktree\nstage-contract delivery under its\
+  \ own SPEC-0050 §4 rule; and the closing lines, ending in the\nstartup-done line\
+  \ and the person-facing line. It does NOT repeat the `binding:[seed]` line, the\n\
+  filing-doctrine reference, the owner-cued lines read off the task corpus and the\
+  \ hand-off store, the\nself-ref and scratch-root lines of a ref the caller itself\
+  \ carried, or a consumer's read-order,\nproject-context, kernel-reflex, rescan,\
+  \ buffer, floor-map and stage-entry pointers. What the run\nSTAMPS is unchanged:\
+  \ its `session_started` anchor and its per-checkout seed receipt (SPEC-0050 §8)\n\
+  are written exactly as on a full start. \"Already holds\" is decided only on positive\
+  \ proof —\nthe provider transcript of THIS conversation carries, since its last\
+  \ compaction, a tool result\nholding the whole output of a main-checkout `session\
+  \ start` of this repository (its head line, the\nseed line, the filing-doctrine\
+  \ line and the startup-done line — never the head line alone), and the newest seed\
+  \ receipt of the session on the\nmain checkout's journal is stamped with an epoch\
+  \ not older than the current — and every other state prints the full block: a session's\n\
+  first start (in a worktree or not), a dispatched Worker's first worktree start (the\
+  \ launcher's\npre-recorded receipt delivered nothing to its context), a start whose\
+  \ output was discarded, a ref carried into\nanother conversation, and every main-checkout\
+  \ start. Post-`/compact` (route (a)): a\n`/compact` advances the epoch, so the sanctioned\
+  \ receipt-refresh re-run prints the full block again\nfrom the same carrier, in\
+  \ a worktree as on main — the seed-line and done-line re-delivery above is\nunchanged.\
+  \ Code home: `bin/lib/cli.py#_seed_cues_held_this_epoch`. Verification:\ntests/test_t13580_receipt_only_start_output.py\
+  \ — the repeat start prints none of the repeated lines\nand still writes its receipt;\
+  \ its differential arms (a first start in the worktree, a start after\nthe epoch\
+  \ advanced, a launcher-pre-recorded receipt, a discarded-output start, no transcript,\n\
+  another provider session, the same ref carried into a second conversation) each\
+  \ print the full block; a foreign-held task worktree still names its\nholder.\n\
+  **The start report states its own end and each line's class.** `session start` ends\
+  \ with\nONE startup-done line — the last AGENT-facing line, printed immediately\
+  \ before the unchanged SPEC-0125\nrule 2c person-facing start line, which stays\
+  \ the final line. It names the session-tied `--help` scan\nto run before the first\
+  \ guarded work verb (`worktree new` / `task file` / `land`) and the\nposture's next\
+  \ move (the Controller awaits the owner cue; a Worker\ncontinues its claimed task),\
+  \ and says nothing else is to be opened at startup. Every OTHER echo line\nthat\
+  \ names a verb, a file or an artifact id carries exactly one class marker as a suffix\
+  \ —\n`[report-only]` (no action at startup), `[owner-cued]` (act only on the owner's\
+  \ cue) or\n`[on-demand: <trigger>]` — and the seed lines (the startup read itself,\
+  \ incl. the `binding:[seed]`\nline) carry none. **An `[owner-cued]` line is SHOW\
+  \ AND WAIT :** the marker is followed, on\nthe line itself, by what the session\
+  \ does now — name it to the person in its reply, then wait, and\nact only when the\
+  \ person says so — and the line, with the rows under it, carries NO runnable\ncommand:\
+  \ the echo prints none, and a CLI invocation quoted from card data (a title, a next\
+  \ step, a\nreturn trigger, a hand-off title) is shown without its runnable prefix,\
+  \ its verb words kept. The\nstartup-done line is the legend that names the three\
+  \ classes, not an owner-cued line. Startup is\ndone when the seed is read and `session\
+  \ start` has run; the scan is required only before\nthe first guarded work verb,\
+  \ enforced by its existing refusal, and journal `event` / `cross *` appends\nneed\
+  \ none. Post-`/compact` (route (a)): the done line rides the same sanctioned receipt-refresh\n\
   re-run as the seed line; the markers ride each echo's existing re-fold verb. Verification:\
   \ the AC1/AC2\narms of tests/test_t0861_consumer_session_start_echo.py (the last-agent-line\
   \ differential and the\nAST-enumerated marker check over the start builders), and\

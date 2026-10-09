@@ -324,6 +324,48 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   plus a re-check date. Filing another PER-FILE card is NOT a disposition — a class paid off one instance
   at a time is asking for a rule. Under bound: read the trajectory, dispose nothing. Report-only; the
   rework is the card the review files, if it does.
+- **standing first-pass audit probe — monthly (plan `author-passes-audit-on-the-first-try-give-the-auth`
+  §Verification plan; owner directive events.jsonl#ts=, confirmed
+  #ts=).** A derived journal fold: no re-audit, no new store. Run it for every
+  `yitc_v2` project in the registry over the last complete calendar month M (journal `ts`, UTC); every
+  cell prints numerator / denominator. `--read-only` needs `-C <path>` (the kernel too).
+  **(1) Fold.** One rule for every unit: its first pass is its EARLIEST row carrying a verdict (GREEN,
+  YELLOW, RED or ABORT — the token before the first `-`; a row with none is not a pass), over the whole
+  journal, counted in the month of that row's `ts`; when that first row is ABORT (or any other verdict
+  — the view lists one under `other_verdicts`) the unit is left out of numerator and denominator, and
+  no later pass becomes its first. Share = RED, and YELLOW, over
+  GREEN + YELLOW + RED. *Task audit-pre and audit-post* (unit = task × stage): run `bin/yitc-v2 -C
+  <path> --read-only graph query outcome-ratio --until <first day of M>` and again with `--until <first
+  day of M+1>`; with no `--since` the view applies the rule above, so the second run's
+  `verdict_breakdown` minus the first's is exactly M's first passes (a `--since` run would count a later
+  pass of a task first audited earlier). *Plan gates* (unit = plan slug × gate): run
+  `python3 dev-utilities/plan-gate-first-pass-fold.py --project <name>=<path>` (once per project, or
+  repeated) `--since <first day of M> --until <first day of M+1> --no-guard` — the one fold of this rule
+  (it reads each journal segment-aware). It reads `draft_checked` rows, the gate from
+  `data.stage_template` — `gate-specs`, `gate-trial`, decomposition fidelity `gate-executing`, and the
+  accept gate (`plan check`) as ONE gate over all its labels: `gate-accepted` (a trial plan),
+  `plan-check` (otherwise) and the unlabelled rows before 2026-06-06; `plan-draft` (P1 shaping) is not
+  a gate and is left out. `audit post --plan` (the `external_audit_completed` rows with `data.stage`
+  `post` and `data.target_kind` `plan`, plan slug in `task_id`) is its own cell, never pooled.
+  **(2) Baselines.** Each is named with its source row and window, and printed beside; the trigger
+  compares with that window RE-FOLDED by step (1), because the named folds used other rules. *Task
+  stages:* the plan's T1-refold (trial_run events.jsonl#ts= — verdict records dated
+  2026-08-01..2026-10-05, ABORT left out); it read each record's `passes_trail`, and on its window the
+  journal fold agrees for audit-pre (kernel GREEN 40.0% vs 40.1%) but not for audit-post (47.9% vs
+  57.4%); re-fold = `--until 2026-08-01` vs `--until 2026-10-06`. *Plan gates:* the seed fold
+  measurement_recorded events.jsonl#ts= (first verdicts 2026-08-01..2026-10-08;
+  it dropped ABORT rows before picking the first and kept `plan-check` and `gate-accepted` apart);
+  re-fold = first passes in that window, `audit post --plan` included. Both re-folds, per project,
+  are in measurement_recorded events.jsonl#ts=. A project × stage with
+  no baseline is reported and decides nothing.
+  **(3) Trigger.** Record each month's fold as one `measurement_recorded` row. A first-pass non-GREEN
+  share (RED + YELLOW) more than 5 points above baseline in the same project × stage for 2 consecutive
+  months → classify that month's first-pass REDs by cause with the 2026-10-06 taxonomy (A1 AC gap · A2
+  edge/logic · A3 weak test · A4 spec drift · A5 scope drift · A6 adoption unplanned · A7 prior art · A8
+  premise · A9 other author · P1 packet context · P2 auditor wrong · P3 over-strict lens · P4
+  bookkeeping · P5 repeat/process · P6 tooling · U unknown; the full text is machine-local at
+  `.yitc/analysis-2026-10-06/red-first/internal/taxonomy.md`) and open a new improvement round as a
+  filed card or plan — never a silent note.
 - **Method:** M9 — separate designed-not-built (the construct) from built-but-not-closing (E-XXXX stuck
   open); fragmentation lens clusters near-duplicate fingerprint families SYSTEMATICALLY (common root, not
   byte-match); verify-package must RE-CARRY raw rows per claim (the auditor is stateless).

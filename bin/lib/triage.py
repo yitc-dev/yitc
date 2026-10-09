@@ -304,8 +304,10 @@ def _capture_near_matches(fp: str, counts: dict, limit: int = 3) -> list:
 
 
 def _fix_boundaries(owners: list, owner_closed_at: dict) -> list:
-    """The SPEC-0061 R-A comparison boundaries available for an owner set — the `closed_at` (or
-    equivalent datable landing) of every done/Final owner that carries one.
+    """The R-A comparison boundaries available for an owner set — the fix boundary (the land time
+    `_owner_landed_at` resolves, else `closed_at`, or a case's datable landing) of every done/Final
+    owner that carries one. The parameter keeps its historical name; it is whichever boundary map
+    the caller passes (`cmd_triage_run` holds two with the same keys — see the T-13668 note there).
 
     Extracted from `_recurs_after_close` (T-11897) so ONE expression answers BOTH questions the
     boundary rule asks: *what* is the boundary to compare against, and *is there one at all*. The
@@ -318,17 +320,20 @@ def _fix_boundaries(owners: list, owner_closed_at: dict) -> list:
 
 
 def _recurs_after_close(owners: list, capture_tss: list, owner_closed_at: dict, fallback: bool) -> bool:
-    """R-A temporal recurrence (SPEC-0061) — REPLACES the bare all-time `count >= 2` for the done-owner
-    branch. For a fingerprint owned by a done/Final fix-task, the recurrence is REAL only if it
-    POST-DATES the fix: at least one capture `ts` strictly AFTER the owning fix-task's `closed_at`. With
-    SEVERAL done-owners the boundary is the LATEST `closed_at` (SPEC-0061 R-A) — a recurrence is real
-    only if it post-dates the MOST RECENT fix; a capture between an earlier and the latest fix is part of
-    the incident the latest fix addressed, not a regression of it. Captures at or before the boundary are
-    the SAME incident — caught while the fix was being built — NOT a regression, so the done-owner reads
-    ALREADY-FIXED. With NO done/Final owner carrying a `closed_at` there is no fix boundary to compare
-    against, so the prior count-based `fallback` is returned UNCHANGED (a no-owner fp recurring N>=2 stays
-    a promotion candidate; an open/declined owner is decided by `_currency_status`, recurs is irrelevant
-    there). ISO-UTC string compare — the same idiom the window uses (`ts > prior`)."""
+    """R-A temporal recurrence — REPLACES the bare all-time `count >= 2` for the done-owner branch.
+    For a fingerprint owned by a done/Final fix-task, the recurrence is REAL only if it POST-DATES
+    the fix: at least one capture `ts` strictly AFTER the owning fix-task's FIX BOUNDARY. The boundary
+    is whatever the caller's map holds for the owner — since T-13668 the time the task's own branch
+    last landed successfully (`_owner_landed_at`), and its `closed_at` where no such land is recorded
+    or the latest one is not later than `closed_at`. With SEVERAL done-owners the boundary is the
+    LATEST one — a recurrence is real only if it post-dates the MOST RECENT fix; a capture between an
+    earlier and the latest fix is part of the incident the latest fix addressed, not a regression of
+    it. Captures at or before the boundary are the SAME incident — caught while the fix was being
+    built or was still waiting to land — NOT a regression, so the done-owner reads ALREADY-FIXED. With
+    NO done/Final owner carrying a boundary there is nothing to compare against, so the prior
+    count-based `fallback` is returned UNCHANGED (a no-owner fp recurring N>=2 stays a promotion
+    candidate; an open/declined owner is decided by `_currency_status`, recurs is irrelevant there).
+    ISO-UTC string compare — the same idiom the window uses (`ts > prior`)."""
     boundaries = _fix_boundaries(owners, owner_closed_at)
     if not boundaries:
         return fallback
@@ -445,7 +450,11 @@ def _mention_derived_boundary_owners(owners: list, err, mentions: list, boundari
     lets the boundary decide NO verdict: a card that names a fingerprint may have fixed it, emitted
     it, discussed it or scoped it out, so the row reads the no-owner verdict and the boundary only
     TIMES the note (all captures predate it / some post-date it). Returns [] when not applicable, so the caller's owner set is unchanged. Pure, order-independent,
-    no I/O; `boundaries` is the SAME merged map the comparator reads, never a second one.
+    no I/O. `boundaries` is read here for PRESENCE only — does the mentioning card carry a datable
+    boundary at all. The VALUE a mention is timed against is chosen by the caller: since T-13668
+    `cmd_triage_run` keeps two maps that hold the same keys, and hands the comparator its `closed_at`
+    map for a mention-derived row, so a mention keeps dating by `closed_at` while a cites-derived or
+    case-file fix-task owner is dated by its land.
 
     THIRD GATE (T-12869): a card in `non_fixers` (this fingerprint's EMITTER / SUBJECT cards,
     `_mention_non_fixers`) is skipped — it names the fingerprint for a reason other than fixing it.
@@ -1267,17 +1276,23 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
               f"read: {', '.join(sorted(error_malformed_resolution))}. Today's schema writes "
               f"`resolution` as a MAPPING with a `kind`; fix the named record(s) — the rest of this "
               f"run is unaffected (T-11921).")
-    # R-A temporal recurs (SPEC-0061): a done-owner's recurrence is REAL only if a capture post-dates
-    # the fix's closed_at. owner_closed_at = {task-id: closed_at}; fp_tss = all-time capture timestamps
-    # per fingerprint (same capture set that feeds `counts`), so _recurs_after_close can test
-    # "a capture strictly AFTER closed_at" instead of the bare all-time count for a done-owner.
+    # R-A temporal recurs: a done-owner's recurrence is REAL only if a capture post-dates the fix
+    # boundary (T-13668: the land of the card's own branch, else its closed_at — built just below).
+    # owner_closed_at = {task-id: closed_at}; fp_tss = all-time capture timestamps per fingerprint
+    # (same capture set that feeds `counts`), so _recurs_after_close can test "a capture strictly
+    # AFTER the boundary" instead of the bare all-time count for a done-owner.
     owner_closed_at = _owner_closed_at_index()
     # T-11897: the SECOND boundary shape. A `root_fix_landed` case has no fix-task and therefore no
     # `closed_at`, so its datable landing is folded from its own `error_resolved` journal row and
-    # merged into ONE boundary map the R-A comparator reads. `owner_closed_at` itself is NOT mutated
+    # merged with the task boundaries (`closed_boundaries` below). `owner_closed_at` itself is NOT mutated
     # (it is a shared derived view), and E-ids cannot collide with T-ids, so the merge is total.
     error_root_fix_at = _error_root_fix_landed_at(EVENTS_PATH, error_root_fix_kind)
-    boundaries = {**owner_closed_at, **error_root_fix_at}
+    # T-13668: `closed_at` is written in the worktree BEFORE the land, so for a card whose own branch
+    # landed after it the fix boundary is that land (`_owner_landed_at`); every other card keeps
+    # `closed_at`. `closed_boundaries` is the map as it was before that overlay — the mention-derived
+    # TIMING note below keeps reading it, so what a body mention dates is unchanged.
+    closed_boundaries = {**owner_closed_at, **error_root_fix_at}
+    boundaries = {**closed_boundaries, **_owner_landed_at(EVENTS_PATH, owner_closed_at)}
     fp_tss: dict = {}
     for _c in captures:
         if _c["fp"] and _c["ts"]:
@@ -1430,8 +1445,9 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
             e_txt = f"{e[0]} ({e[1]})" if e else "— none"
             own_txt = ", ".join(f"{i}({s},{k})" for i, s, k in owners) if owners else "— none"
             print(f"      E-XXXX: {e_txt}    cites-owned-by: {own_txt}")
-            # R-A (SPEC-0061): a done-owner recurs only if a capture post-dates its closed_at; with no
-            # done-owner closed_at the prior all-time count>=2 stands (the fallback). E-0036: resolve a
+            # R-A: a done-owner recurs only if a capture post-dates its fix boundary (its land, else
+            # its closed_at); with no done-owner boundary the prior all-time count>=2 stands (the
+            # fallback). E-0036: resolve a
             # resolved case's done fix-task (cited by case-id, not the fp) as a synthetic done owner so
             # the boundary engages instead of a false REGRESSED.
             r_owners = _resolved_case_fix_owner(e, owners, error_fix_task, boundaries,
@@ -1449,7 +1465,9 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
             mention_derived = bool(m_owners)
             r_owners = r_owners + m_owners
             unowned_recurs = counts.get(fp, 0) >= 2
-            recurs = _recurs_after_close(r_owners, fp_tss.get(fp, []), boundaries, unowned_recurs)
+            recurs = _recurs_after_close(r_owners, fp_tss.get(fp, []),
+                                         closed_boundaries if mention_derived else boundaries,
+                                         unowned_recurs)
             # T-11897: a `resolved` case for which NEITHER boundary shape resolved — `recurs` has
             # fallen back to the bare count and says nothing about the fix, so the verdict must
             # withhold rather than default. Same predicate the comparator uses, never a second one.
@@ -1581,8 +1599,9 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
             cl_owners = cites_idx.get(canon, [])
             # R-A (SPEC-0061): a surfaced cluster is a recurrence of the known root (fallback True), BUT
             # if a done cites-owner of the canonical fixed it, that recurrence is real only if a
-            # member-capture post-dates the fix's closed_at (else ALREADY-FIXED). A case-file-only owner
-            # (no done task closed_at) keeps the prior True.
+            # member-capture post-dates the fix boundary — the land of the owner's own branch, else
+            # its closed_at (else ALREADY-FIXED). A case-file-only owner (no done task boundary) keeps
+            # the prior True.
             cl_tss = [ts for m in cl["members"] for ts in fp_tss.get(m, [])]
             # E-0036: resolve a resolved case's done fix-task (cited by case-id, not the canonical fp)
             # as a synthetic done owner so the boundary engages instead of a false REGRESSED.
@@ -1628,8 +1647,9 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
             owned = f"  cites-owned-by {', '.join(i for i, _, _ in owners)}" if owners else ""
             print(f"  {recurring[fp]}x  {fp}{tail}{owned}")
             # standalone recurring fp (N>=2 by construction). R-A (SPEC-0061): a done-owner here is
-            # REGRESSED only if a capture post-dates its closed_at; else ALREADY-FIXED. No done-owner
-            # closed_at → the prior True (still recurring N>=2) stands as the fallback.
+            # REGRESSED only if a capture post-dates its fix boundary (its land, else its closed_at);
+            # else ALREADY-FIXED. No done-owner boundary → the prior True (still recurring N>=2)
+            # stands as the fallback.
             remedy = _resolve_remedy(                                    # T-11675: sweep record wins
                 fp, next((c["remedy"] for c in captures if c["fp"] == fp and c.get("remedy")), None),
                 remedy_sweeps)
@@ -1648,7 +1668,8 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
                                                         non_fixers.get(fp))
             mention_derived = bool(m_owners)
             r_owners = r_owners + m_owners
-            recurs = _recurs_after_close(r_owners, fp_tss.get(fp, []), boundaries, True)
+            recurs = _recurs_after_close(r_owners, fp_tss.get(fp, []),
+                                         closed_boundaries if mention_derived else boundaries, True)
             unresolvable = bool(e) and e[1] == "resolved" and not _fix_boundaries(r_owners, boundaries)
             currency, _r = _currency_status(r_owners, e, recurs, remedy, unresolvable,
                                             mention_derived, retest_absent, True)
@@ -2186,9 +2207,9 @@ def _error_root_fix_landed_at(events_path, case_ids) -> dict:
     gap is real and is named here rather than left for a reader to discover.
 
     RESTRICTED to `case_ids` — the caller passes EXACTLY the resolved cases carrying
-    `resolution.kind: root_fix_landed`. A case resolved through the fix_task shape has a real
-    `closed_at` boundary and must keep using it, so its `error_resolved` row is deliberately not read
-    here. LATEST ROW WINS (a re-resolve after a reopen corrects an earlier attestation). Segment-aware
+    `resolution.kind: root_fix_landed`. A case resolved through the fix_task shape has a task
+    boundary of its own (the land of that task's branch, else its `closed_at`) and must keep using
+    it, so its `error_resolved` row is deliberately not read here. LATEST ROW WINS (a re-resolve after a reopen corrects an earlier attestation). Segment-aware
     (SPEC-0190 rule 4) — the same fold idiom as `_remedy_sweep_index`; no new store, no new index."""
     idx: dict = {}
     if not case_ids or not events_path.exists():
@@ -2207,6 +2228,90 @@ def _error_root_fix_landed_at(events_path, case_ids) -> dict:
         eid, ts = e.get("task_id"), e.get("ts")
         if eid in wanted and ts:
             idx[str(eid)] = str(ts)     # later row wins — a re-resolve corrects an earlier attestation
+    return idx
+
+
+def _whole_second_utc(ts) -> bool:
+    """True only for a `YYYY-MM-DDTHH:MM:SSZ` string — the one timestamp shape whose plain string
+    order IS its time order. A fractional or offset form sorts wrongly against it (`.` < `Z`), so
+    `_owner_landed_at` compares nothing else.
+
+    EVERY CHARACTER IS CHECKED AT ITS OWN POSITION before the date is parsed: the fourteen digit
+    positions admit the ten ASCII digits only and the six separators must be exactly `-`, `-`, `T`,
+    `:`, `:`, `Z`. The parse alone is not that check — it also takes a space-padded field
+    (`2026-10- 7T…`), a lower-case `t` / `z` and non-ASCII digits, each of which is twenty characters
+    long and none of which sorts as its instant. What the parse adds afterwards is the length (a
+    shorter or longer string does not match the whole format) and the calendar: a thirteenth month
+    or a 30th of February is not a timestamp either."""
+    if not isinstance(ts, str):
+        return False
+    for i, ch in enumerate(ts):
+        want = "-" if i in (4, 7) else "T" if i == 10 else ":" if i in (13, 16) else "Z" if i == 19 else None
+        if want is None:
+            if ch not in "0123456789":
+                return False
+        elif ch != want:
+            return False
+    try:
+        _dt.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return False
+    return True
+
+
+def _owner_landed_at(events_path, owner_closed_at) -> dict:
+    """{task-id: ts} — the time a done fix-task's OWN branch last landed successfully, for exactly
+    the cards whose fix boundary that land is (T-13668, the R-A land-time boundary).
+
+    WHY NOT `closed_at` ALONE. `task close` writes `closed_at` inside the task's worktree; the fix
+    reaches the integration branch only when that worktree lands, which can be hours later (queue,
+    aborts, re-audits). Every capture in between was made against code that did not carry the fix
+    yet, so comparing it with `closed_at` read the SAME incident as a regression (T-12870: closed
+    2026-09-23T23:43Z, landed 2026-09-24T01:50Z after one abort, capture at 01:04Z read REGRESSED).
+
+    A CARD IS IN THE ANSWER ONLY WHEN ALL OF THIS HOLDS — anything else keeps `closed_at`, which the
+    caller's merge leaves in place:
+      * it is a key of `owner_closed_at` (a card that carries a `closed_at`);
+      * the journal holds a `land_completed` row whose `data.status` is exactly `ok` and whose
+        `data.branch` is exactly `task/<that id>` — an aborted land landed nothing, and a card closed
+        inside a work batch lands on the batch's branch, so neither dates it. A row that states NO
+        outcome is not read as a success either: the journal's first week (2026-05-29..06-05, 742
+        rows) wrote land rows without one, and a card landed then keeps `closed_at`, the boundary it
+        has always had;
+      * the LATEST such row (by its own `ts`, so the answer does not depend on journal order — the
+        journal is union-merged) is strictly later than `closed_at`. An earlier successful land of
+        the same branch is not the land of the fix: a bookkeeping pause lands the branch before the
+        card is closed.
+    Both timestamps must be whole-second UTC strings (`_whole_second_utc`) to be compared at all; a
+    row or a card that is not is skipped, never coerced.
+
+    The land time is an UPPER bound on when the fix became what other sessions run — the same
+    direction `_error_root_fix_landed_at` takes. Declared typed read of the whole logical journal
+    (SPEC-0190 rule 4); no new store, no new index. A journal that cannot be read RAISES, as it does
+    for every other fold of the same run: answering "no land" there would silently swap the boundary
+    of every card back to `closed_at`."""
+    idx: dict = {}
+    if not owner_closed_at or not events_path.exists():
+        return idx
+    latest: dict = {}
+    for e in journal_mod.segment_rows(events_path, types=("land_completed",)):
+        if not isinstance(e, dict) or e.get("type") != "land_completed":
+            continue
+        d = e.get("data")
+        if not isinstance(d, dict) or d.get("status") != "ok":
+            continue
+        branch, ts = d.get("branch"), e.get("ts")
+        if not isinstance(branch, str) or not branch.startswith("task/"):
+            continue
+        tid = branch[len("task/"):]
+        if tid not in owner_closed_at or not _whole_second_utc(ts):
+            continue
+        if tid not in latest or ts > latest[tid]:
+            latest[tid] = ts
+    for tid, ts in latest.items():
+        closed = owner_closed_at[tid]
+        if _whole_second_utc(closed) and ts > closed:
+            idx[tid] = ts
     return idx
 
 

@@ -72,57 +72,53 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
   \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
   \  disposition; and the owner card is `requires:`-ordered after every implementing\
-  \ card. Incident: a\n  consumer cut passed this gate while no card carried the wiring,\
-  \ and all 4 plan specs activated\n  anchor-less. The question is asked in the SPEC-0083\
-  \ P5 template; no new gate, no validator.\n\n### 4. Card-set fingerprint freshness\
-  \ contract (the canonical home — F5)\n\"A fresh verdict exists\" alone is too weak\
-  \ — the cut could be edited AFTER the audit and still enter\n`executing`. So the\
-  \ fidelity verdict RECORDS a canonical **card-set fingerprint** and\n`plan stage\
-  \ executing` RECOMPUTES it and REQUIRES an EXACT match (REFUSE on mismatch → re-audit).\n\
-  This is the direct analog of the existing `_plan_content_hash` / accept-freshness-hash\
-  \ mechanism —\nNO new machinery class.\n- **Fingerprint inputs (canonical, sorted/stable):**\
-  \ the sorted set of cut task ids; for EACH card\n  its content hash + its `requires:`\
-  \ list + its `activation_owner_task` + its acceptance/probe\n  fields. Editing any\
-  \ of these after the audit re-fingerprints → stale → REFUSE.\n- **This contract\
-  \ is homed HERE** (single source); SPEC-0034's `executing` entry-gate and the verb\n\
-  \  POINT here, they do not restate it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified\
-  \ plan is NOT claimable\nCards exist in `decomposition` BEFORE `executing`; under\
-  \ parallel/background dispatch a\n`worktree new --task` could otherwise claim+build\
-  \ a card before the fidelity gate passes, defeating\n\"audit the cut, THEN build\"\
-  . So: a task whose **`decomposed_from`** marker names a plan whose status is\nBELOW\
-  \ `executing` is **NOT claimable** — the `worktree new --task` claim chokepoint\
-  \ REFUSES while the\nparent plan is pre-`executing`. This EXTENDS the existing claim-validation\
-  \ in `worktree new --task` (it\nalready validates `ready` + unblocked); no new mechanism.\
-  \ The guard makes the cut fully audited before\nany card can be worked, even across\
-  \ concurrent sessions.\n\n**The carrier is `decomposed_from`, NOT `cites:` (amended\
-  \ by — the membership/reference split).**\nThe original head keyed this block on\
-  \ `cites:` the plan, but `cites:` is OVERLOADED — it carries BOTH\nstructural cut-membership\
-  \ AND broad informational reference (the finalization corpus is \"tasks that\ncite\
-  \ the plan\"). Keying the claim-block on `cites:` FALSE-blocked tasks that merely\
-  \ cited a pre-executing\nplan as context: the incident (2026-06-10) — an owner-filed\
-  \ prod-incident fix cited a benchmarking\nplan at `status: trial` and was wrongly\
-  \ refused. So the block now reads the explicit\n**`decomposed_from: <plan-slug>`**\
-  \ marker — the NARROW structural relation \"member of the audited cut\",\nwritten\
-  \ ONLY by the decomposition cut (`task file --decomposed-from`, its SOLE authoritative\
-  \ writer). This\nmirrors `activation_owner_task` and the lesson: never derive a\
-  \ structural relation from\ninformational `cites:`. `cites:` reverts to purely informational.\n\
-  - **`decomposed_from` (cut-membership) vs the finalization corpus are NON-SUBSTITUTABLE**\
-  \ (one\n  direction must never be conflated): `decomposed_from` = the NARROW structural\
-  \ cut-membership (one plan;\n  the claim-block + the cut-fidelity member-set/fingerprint);\
-  \ the finalization corpus (`_plan_tasks` /\n  `_plan_task_carrier` — see SPEC-0034)\
+  \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\n\
+  \n### 4. Card-set fingerprint freshness contract (the canonical home — F5)\n\"A\
+  \ fresh verdict exists\" alone is too weak — the cut could be edited AFTER the audit\
+  \ and still enter\n`executing`. So the fidelity verdict RECORDS a canonical **card-set\
+  \ fingerprint** and\n`plan stage executing` RECOMPUTES it and REQUIRES an EXACT\
+  \ match (REFUSE on mismatch → re-audit).\nThis is the direct analog of the existing\
+  \ `_plan_content_hash` / accept-freshness-hash mechanism —\nNO new machinery class.\n\
+  - **Fingerprint inputs (canonical, sorted/stable):** the sorted set of cut task\
+  \ ids; for EACH card\n  its content hash + its `requires:` list + its `activation_owner_task`\
+  \ + its acceptance/probe\n  fields. Editing any of these after the audit re-fingerprints\
+  \ → stale → REFUSE.\n- **This contract is homed HERE** (single source); SPEC-0034's\
+  \ `executing` entry-gate and the verb\n  POINT here, they do not restate it.\n\n\
+  ### 5. Claim-block — a card of an un-decomposed-and-verified plan is NOT claimable\n\
+  Cards exist in `decomposition` BEFORE `executing`; under parallel/background dispatch\
+  \ a\n`worktree new --task` could otherwise claim+build a card before the fidelity\
+  \ gate passes, defeating\n\"audit the cut, THEN build\". So: a task whose **`decomposed_from`**\
+  \ marker names a plan whose status is\nBELOW `executing` is **NOT claimable** —\
+  \ the `worktree new --task` claim chokepoint REFUSES while the\nparent plan is pre-`executing`.\
+  \ This EXTENDS the existing claim-validation in `worktree new --task` (it\nalready\
+  \ validates `ready` + unblocked); no new mechanism. The guard makes the cut fully\
+  \ audited before\nany card can be worked, even across concurrent sessions.\n\n**The\
+  \ carrier is `decomposed_from`, NOT `cites:` (amended by — the membership/reference\
+  \ split).**\nThe original head keyed this block on `cites:` the plan, but `cites:`\
+  \ is OVERLOADED — it carries BOTH\nstructural cut-membership AND broad informational\
+  \ reference (the finalization corpus is \"tasks that\ncite the plan\"). Keying the\
+  \ claim-block on `cites:` FALSE-blocked tasks that merely cited a pre-executing\n\
+  plan as context: the incident (2026-06-10) — an owner-filed prod-incident fix cited\
+  \ a benchmarking\nplan at `status: trial` and was wrongly refused. So the block\
+  \ now reads the explicit\n**`decomposed_from: <plan-slug>`** marker — the NARROW\
+  \ structural relation \"member of the audited cut\",\nwritten ONLY by the decomposition\
+  \ cut (`task file --decomposed-from`, its SOLE authoritative writer). This\nmirrors\
+  \ `activation_owner_task` and the lesson: never derive a structural relation from\n\
+  informational `cites:`. `cites:` reverts to purely informational.\n- **`decomposed_from`\
+  \ (cut-membership) vs the finalization corpus are NON-SUBSTITUTABLE** (one\n  direction\
+  \ must never be conflated): `decomposed_from` = the NARROW structural cut-membership\
+  \ (one plan;\n  the claim-block + the cut-fidelity member-set/fingerprint); the\
+  \ finalization corpus (`_plan_tasks` /\n  `_plan_task_carrier` — see SPEC-0034)\
   \ = the BROAD \"tasks that implement the plan\" relation. The\n  NON-SUBSTITUTABILITY\
   \ is ONE-WAY: the corpus is a SUPERSET — it recognizes BOTH `decomposed_from:<plan>`\n\
   \  AND `cites:<plan>` (the union); a decomposed cut card IS an implementing task,\
   \ so it is in the\n  corpus. But the cut-fidelity member-set is `decomposed_from`-ONLY:\
   \ future code MUST NOT re-derive cut\n  MEMBERSHIP from `cites` (that recreates\
-  \ the defect — an informational citer wrongly staling the\n  cut fingerprint). corrected\
-  \ the inverse error: the corpus was `cites`-ONLY, so a decomposed-only\n  card (`task\
-  \ file --decomposed-from` writes NO `cites:<plan>`) was wrongly EXCLUDED — the \"\
-  a cut card\n  carries BOTH\" premise was false in practice. Net: corpus = `decomposed_from`\
-  \ ∪ `cites`; cut member-set\n  = `decomposed_from` alone.\n- **Reader contract —\
-  \ marker-authoritative ( claim-block; cut-fidelity member-set;\n  the DISPLAY):**\
-  \ the claim-block, the cut-fidelity member-set AND the reader-facing cut-card DISPLAY\
-  \ all\n  read `decomposed_from`. The member-set carrier is\n  `_plan_cut_cards`\
+  \ the defect — an informational citer wrongly staling the\n  cut fingerprint). Net:\
+  \ corpus = `decomposed_from` ∪ `cites`; cut member-set\n  = `decomposed_from` alone.\n\
+  - **Reader contract — marker-authoritative ( claim-block; cut-fidelity member-set;\n\
+  \  the DISPLAY):** the claim-block, the cut-fidelity member-set AND the reader-facing\
+  \ cut-card DISPLAY all\n  read `decomposed_from`. The member-set carrier is\n  `_plan_cut_cards`\
   \ (tasks whose `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4),\n\
   \  `_plan_card_set_context` (the fidelity-audit prompt card-set) **and `cmd_plan_show`'s\n\
   \  `status: decomposition` cut-card listing** enumerate the cut through it. An\n\
@@ -281,11 +277,19 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ retired variant A). F2 (real incident) = the two ad-hoc audits +\nthe owner's\
   \ structural framing. Prior-art: PEP/ADR document an artifact-class lifecycle at\
   \ the same\naltitude as the artifacts; the cut earning its own gated phase mirrors\
-  \ a real CI \"plan vs apply\"\nboundary.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN\
-  \ — observed failing before trusted):\n- **VP1 (stage exists + gated):** after realization,\
-  \ `PLAN_STAGE_SEQUENCE` contains `decomposition`\n  between `accepted` and `executing`;\
-  \ `plan stage decomposition <slug>` records `status: decomposition`\n  + emits `plan_stage_entered`;\
-  \ `plan stage executing` REFUSES (nonzero, status unchanged) when no\n  fresh decomposition-fidelity\
+  \ a real CI \"plan vs apply\"\nboundary.\n\n### History moved from the rule body\n\
+  \nEach entry is a passage moved word for word out of the rule text of the section\
+  \ it names;\nthe rule it explains stays there.\n\n- From «3. The decomposition-fidelity\
+  \ gate (`decomposition → …»: Incident: a consumer cut passed\n  this gate while\
+  \ no card carried the wiring, and all 4 plan specs activated anchor-less.\n- From\
+  \ «5. Claim-block»: corrected the inverse error: the corpus was `cites`-ONLY, so\
+  \ a\n  decomposed-only card (`task file --decomposed-from` writes NO `cites:<plan>`)\
+  \ was wrongly\n  EXCLUDED — the \"a cut card carries BOTH\" premise was false in\
+  \ practice.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing\
+  \ before trusted):\n- **VP1 (stage exists + gated):** after realization, `PLAN_STAGE_SEQUENCE`\
+  \ contains `decomposition`\n  between `accepted` and `executing`; `plan stage decomposition\
+  \ <slug>` records `status: decomposition`\n  + emits `plan_stage_entered`; `plan\
+  \ stage executing` REFUSES (nonzero, status unchanged) when no\n  fresh decomposition-fidelity\
   \ verdict exists and PASSES on GREEN/YELLOW.\n- **VP2 (fingerprint freshness):**\
   \ with a fresh GREEN verdict, editing any card (id set / a card body /\n  `requires:`\
   \ / `activation_owner_task` / a probe field) re-fingerprints → `plan stage executing`\n\

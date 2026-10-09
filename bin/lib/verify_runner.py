@@ -3755,6 +3755,22 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("tests/test_t11444_segment_aware_readers.py", "test_t11783_count_only_header_enumeration.py"),
     ("tests/test_t11451_journal_length_decoupling.py", "test_t12038_quiet_lane.py"),
     ("tests/test_t12038_quiet_lane.py", "test_t11808_shim_argv_not_truncated.py"),
+    # T-13670 — the same rule applied to the full-path pairs captured five or more times after T-12852
+    # landed. Verdict and evidence per pair: tests/test_t12497_selection_read_vs_mention_pairs.py.
+    ("patterns/inspection-criteria-roster.md", "test_audit_adhoc_sweep_files.py"),
+    ("patterns/inspection-criteria-roster.md", "test_declare_theme_zero_match_warn.py"),
+    ("patterns/inspection-criteria-roster.md", "test_sweep_against_resolution.py"),
+    ("patterns/inspection-criteria-roster.md", "test_t10235_inspect_declared_theme.py"),
+    ("patterns/inspection-criteria-roster.md", "test_t10320_inspection_probe_evidence.py"),
+    ("patterns/inspection-criteria-roster.md", "test_t10369_inspect_sweep_payload_budget.py"),
+    ("patterns/inspection-criteria-roster.md", "test_t9775_durable_doc_metrics.py"),
+    ("patterns/methodology-lessons.md", "test_t13272_plan_ceiling_wording.py"),
+    ("specs/yitc-v2-rule-test-ledger.md", "test_t11216_eviction_uses_the_land_oracle.py"),
+    ("specs/yitc-v2-rule-test-ledger.md", "test_t11332_mechanical_resolve_currency.py"),
+    ("specs/yitc-v2-rule-test-ledger.md", "test_t11754_inland_reaudit_ordinary_currency.py"),
+    ("specs/yitc-v2-rule-test-ledger.md", "test_worktree_sync.py"),
+    ("tests/test_t12259_venue_class_admission.py", "test_t12220_venue_request_keyed_isolation.py"),
+    ("tests/test_t12259_venue_class_admission.py", "test_t12241_venue_request_cap.py"),
 })
 
 def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=None, *,

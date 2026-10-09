@@ -67,7 +67,7 @@ fresh per-worker id** in the same launch — e.g.
 ```sh
 # scrub EVERY member of the carrier set (env -u per var), THEN set the fresh id
 env -u <provider-session-env> -u CODEX_THREAD_ID -u YITC_SESSION_REF \
-  the AI provider --session-id <fresh-uuid> -p <brief> … # one worker
+  the AI provider --session-id <fresh-uuid> -p < <brief-file> … # one worker, brief on stdin
 ```
 
 where `<provider-session-env>`, `CODEX_THREAD_ID`, `YITC_SESSION_REF` are the concrete members of
@@ -509,6 +509,15 @@ LAND_PID=$(timeout 30 bash -c 'until [ -s <pidfile> ]; do sleep 1; done; cat <pi
 # keeps it polling rather than reading as an exited process.
 timeout 300 bash -c 'until grep -qE "^<TERMINAL-TOKEN>" <log> || { [ -s <pidfile> ] && ! kill -0 "$(cat <pidfile>)" 2>&-; }; do sleep 10; done'
 ```
+
+**What the log shows while a consumer project's `task test --run` is still going.** The run
+executes the project's declared verify layers, and each `verify layer '<name>' …` line reaches the
+redirected log as it finishes — when that layer ends, not when the whole run does. In a
+dispatched-worker context the layer loop also writes `verify layer '<name>' still running — <N>s
+elapsed` to stderr at the `YITC_VERIFY_HEARTBEAT_SECS` cadence (the switch the kernel suite's own
+`verify in progress` line uses; `<= 0` writes none), which the `2>&1` above puts in the same log. A
+`land` runs the same layer loop, so the same holds there. None of these lines is a terminal token:
+terminality stays token-or-exit, as stated below.
 
 **EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO *THIS* RUN (RULE).** The recipe above
 has a worker write a log, poll a token in it, and watch a process. Each of those three reads answers

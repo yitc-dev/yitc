@@ -74,25 +74,22 @@ body: "## Scenario\n\nThe owner/AI stands up a GOVERNED recurring obligation —
   \ script (`bin/v2-security-gate.sh`), AI limited\n  to triage. OWNER = a follow-up\
   \ task cut at this plan's decomposition.\n- **`<external-auditor>-audit-watcher`\
   \ cron:** COMPLIANT (OS cron trigger).\n- **git housekeeping / `yitc-v2-git-maintenance`\
-  \ cron ( runner trigger):** COMPLIANT\n  (added by — the register had NO entry for\
-  \ this cadence, which is how a live, working,\n  five-day-old surface stayed invisible\
-  \ to a sweep and got re-filed as \"nothing invokes it\").\n  TRIGGER: the hourly\
-  \ OS cron line `25 * * * *` on the `dev` crontab, under `<host-home>/bin/cron-notify.sh`,\n\
-  \  invoking the deterministic script `bin/git-maintenance.sh` (exit 0 = OK / exit\
-  \ 1 = efficacy-not-met).\n  No AI judgement anywhere on the trigger->run path, so\
-  \ §2's separability requirement holds by construction.\n  INVOCATION CONTRACT —\
-  \ the §2 binding-1 half, and the part that was BROKEN: the entry must carry the\n\
-  \  `session start` prefix + `YITC_SESSION_REF`, exactly as the `yitc-v2-nightly`\
-  \ and `yitc-v2-worktree-sweep`\n  entries do. Invoked BARE, the gc runs correctly\
-  \ but every `git_maintenance_run` emit dies on the\n  SPEC-0137 Rule 5 fail-closed\
-  \ gate and the script exits 0 anyway — 64 windows (2026-08-22..29) collected\n \
-  \ real garbage and left NO journal row, the silent failure was filed against. This\
-  \ is the same\n  class as the nightly's own invocation-contract violation recorded\
-  \ above: an OS trigger is NOT sufficient\n  if the invocation cannot resolve enough\
-  \ identity to run.\n- **role↔provider execution (audit=<external-auditor> / worker):**\
-  \ OUT-OF-SCOPE — <workshop-spec> owns this axis.\n- **background-worker Watcher\
-  \ (in-session completion monitor):** OUT-OF-SCOPE — a session-scoped monitor\n \
-  \ the Controller arms within ONE authorized batch, not a standing \"run periodically\"\
+  \ cron ( runner trigger):** COMPLIANT.\n  TRIGGER: the hourly OS cron line `25 *\
+  \ * * *` on the `dev` crontab, under `<host-home>/bin/cron-notify.sh`,\n  invoking\
+  \ the deterministic script `bin/git-maintenance.sh` (exit 0 = OK / exit 1 = efficacy-not-met).\n\
+  \  No AI judgement anywhere on the trigger->run path, so §2's separability requirement\
+  \ holds by construction.\n  INVOCATION CONTRACT — the §2 binding-1 half, and the\
+  \ part that was BROKEN: the entry must carry the\n  `session start` prefix + `YITC_SESSION_REF`,\
+  \ exactly as the `yitc-v2-nightly` and `yitc-v2-worktree-sweep`\n  entries do. Invoked\
+  \ BARE, the gc runs correctly but every `git_maintenance_run` emit dies on the\n\
+  \  SPEC-0137 Rule 5 fail-closed gate and the script exits 0 anyway — 64 windows\
+  \ (2026-08-22..29) collected\n  real garbage and left NO journal row, the silent\
+  \ failure was filed against. This is the same\n  class as the nightly's own invocation-contract\
+  \ violation recorded above: an OS trigger is NOT sufficient\n  if the invocation\
+  \ cannot resolve enough identity to run.\n- **role↔provider execution (audit=<external-auditor>\
+  \ / worker):** OUT-OF-SCOPE — <workshop-spec> owns this axis.\n- **background-worker\
+  \ Watcher (in-session completion monitor):** OUT-OF-SCOPE — a session-scoped monitor\n\
+  \  the Controller arms within ONE authorized batch, not a standing \"run periodically\"\
   \ governed\n  obligation (resolved from the plan's CANDIDATE-C; no separate task\
   \ needed).\n- **session-log materialization (journal sync):** OUT-OF-SCOPE — on-demand/recovery,\
   \ not a\n  provider-scheduled cadence; already abstracts the provider-specific path\
@@ -106,10 +103,15 @@ body: "## Scenario\n\nThe owner/AI stands up a GOVERNED recurring obligation —
   \ (F1) existing analog = CHARTER §P4b, EXTENDED to the operational\naxis (not a\
   \ parallel concept); (F2) ONE spec + a floor-trigger token, no new store/parser/registry;\n\
   (F3) REMOVES the implicit permission to trigger a governed cadence from a provider\
-  \ scheduler/runtime;\n(F4) two real incidents this session (not imagined).\n\n##\
-  \ Verification\n- **(rule active)** `bin/yitc-v2 graph query SPEC-0142` → `status:\
-  \ active` with a closed `activation_owner_task`.\n- **(delivered)** after activation,\
-  \ SPEC-0142 appears in `graph/floor-trigger-map.md` under\n  `before-scheduling-a-cadence`.\n\
+  \ scheduler/runtime;\n(F4) two real incidents this session (not imagined).\n\n###\
+  \ History moved from the rule body\n\nEach entry is a passage moved word for word\
+  \ out of the rule text of the section it names;\nthe rule it explains stays there.\n\
+  \n- From «6. The sweep register»: (added by — the register had NO entry for this\
+  \ cadence,\n  which is how a live, working, five-day-old surface stayed invisible\
+  \ to a sweep and got re-filed\n  as \"nothing invokes it\")\n\n## Verification\n\
+  - **(rule active)** `bin/yitc-v2 graph query SPEC-0142` → `status: active` with\
+  \ a closed `activation_owner_task`.\n- **(delivered)** after activation, SPEC-0142\
+  \ appears in `graph/floor-trigger-map.md` under\n  `before-scheduling-a-cadence`.\n\
   - **(adoption — Done=Adopted)** the first cadence setup after activation (the security\
   \ cadence,\n  X-0216/0217) CITES SPEC-0142 and lands on an OS trigger + deterministic\
   \ script — a\n  `consumer_read_evidence` / adoption event.\n- **(sweep complete)**\

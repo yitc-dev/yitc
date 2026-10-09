@@ -4591,8 +4591,25 @@ def venue_stage6_headroom_load1(fingerprint: "dict | None" = None) -> float:
     return VENUE_STAGE6_HEADROOM_LOAD1_DEFAULT
 
 
+# T-13287 — THE SIZE BOUND ON THE ONE PER-PASS CUT (SPEC-0203). A NARROWED SPEC-0181 selection stays
+# LOCAL only when it holds at most this many test files; a larger one routes like a full pass. The owner
+# decision of 2026-09-30 bounded the 2026-09-06T13:39:24Z directive («a small selection is cheaper local
+# than it is to ship») after a 922-file Stage-6 selection ran on a host already at load 57-70. It counts
+# FILES because the count is already in hand at the decision; it changes WHERE a pass runs, never which
+# files run or how they conclude. Read at call time, so a test may patch it on the module.
+VENUE_STAGE6_SMALL_SELECTION_MAX_FILES = 100
+
+
+def _small_selection(selection_size) -> bool:
+    """T-13287 — True only for a readable size at or below the bound. Anything else — absent, a bool,
+    a non-int, a negative — is an UNKNOWN size, and an unknown size reads like an unknown breadth:
+    FULL, which routes (SPEC-0203's fail-closed direction)."""
+    return (isinstance(selection_size, int) and not isinstance(selection_size, bool)
+            and 0 <= selection_size <= VENUE_STAGE6_SMALL_SELECTION_MAX_FILES)
+
+
 def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_note: str = "",
-                   full_suite: bool = True, sandbox: bool = False) -> dict:
+                   full_suite: bool = True, sandbox: bool = False, selection_size=None) -> dict:
     """PURE, box-free, and therefore testable without a venue: should THIS pass run remotely?
 
     Returns `{"remote", "reason", "record", "note"}`. Remote iff a record is PRESENT **and** this is a
@@ -4602,8 +4619,10 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
                         to the land tail, rule 1: an unreadable record reads ABSENT, never honoured);
       `consumer`        rule 2 — a `-C <consumer>` pass NEVER consults the record (T-12192 is the
                         later slice that gives consumers their own venue);
-      `small-selection` the owner directive of 2026-09-06T13:39:24Z — a narrowed SPEC-0181 selection
-                        is cheaper local than it is to ship;
+      `small-selection` the owner directive of 2026-09-06T13:39:24Z, bounded by the owner decision of
+                        2026-09-30 (T-13287) — a narrowed SPEC-0181 selection of at most
+                        `VENUE_STAGE6_SMALL_SELECTION_MAX_FILES` files (`selection_size`) is cheaper
+                        local than it is to ship; a larger or unsized one routes;
       `skipped-sandbox-repo`
                         rule 7's ONE carve-out (T-12272) — the pass runs in a SANDBOX/FIXTURE
                         repository, which the host registry names no project at, so it is a nested
@@ -4635,7 +4654,7 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
         return {"remote": False, "reason": "no-venue", "record": None, "note": record_note}
     if sandbox:
         return {"remote": False, "reason": SANDBOX_ROUTING_REASON, "record": record, "note": ""}
-    if not full_suite:
+    if not full_suite and _small_selection(selection_size):
         return {"remote": False, "reason": "small-selection", "record": record, "note": ""}
     return {"remote": True, "reason": "venue", "record": record, "note": ""}
 

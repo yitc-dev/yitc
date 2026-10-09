@@ -12,6 +12,9 @@ implements:
 - bin/lib/spec.py#cmd_spec_reverify
 - GRAPH.md#Schema
 - GRAPH.md#Build
+- bin/lib/textutil.py#declared_symbol_line
+- bin/lib/cli.py#_declared_symbol_forms
+- bin/lib/init.py#_hook_anchor_symbol_forms
 binding:
 - code-enforced
 body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and «is this\
@@ -32,26 +35,51 @@ body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and �
   \ target TYPE (a template / markup / data file — `_file_has_symbol_space`\n  is\
   \ False) is auto-exempted rather than false-flagged stale (reuses the SPEC-0088\
   \ atomic-target\n  posture); a symbol-bearing type still reports a genuinely-missing\
-  \ symbol.\n- `graph build` RESOLVES each anchor against the CURRENT tree at build\
-  \ time (file exists; symbol is\n  present). An anchor that no longer matches is\
-  \ REPORTED on stderr (like a parse-error surfacing) —\n  not silently echoed. This\
-  \ is a control-point inside the existing spec-walk, **report-not-\n  block**: it\
-  \ does NOT fail the build (GRAPH §«NOT a validation layer» holds).\n- **Freshness\
-  \ / possibly-stale (report-only; symbol-level since):** for an `active`\n  spec\
-  \ whose anchor RESOLVES, `graph build` ALSO checks spec↔code freshness via git provenance\
-  \ — the\n  code AS OF the spec's last-touch commit vs the CURRENT working tree (so\
-  \ an uncommitted edit counts).\n  A mismatch → the spec is flagged `possibly-stale`\
-  \ on stderr (review for drift). SAME report-not-block\n  channel (build stays exit\
-  \ 0). **Granularity matches the anchor :** a `<file>#<symbol>` anchor\n  compares\
-  \ only that SYMBOL's region (whole-file blob is the fast path — equal blobs short-circuit\
-  \ to\n  silent), so an edit ELSEWHERE in a shared monolithic file does NOT false-flag\
-  \ every spec anchored into\n  it (the 2026-06-01 5/5 incident on this one-file CLI);\
-  \ a file-level anchor (no `#symbol`) keeps\n  whole-file comparison. Silent by design\
-  \ when: the spec is uncommitted; OR the anchor file did NOT exist\n  at the spec's\
-  \ last-touch (a spec that PRE-DATES its code — B5, not a false positive); OR (symbol\n\
-  \  anchors) the symbol did not exist at the last-touch / its region is un-extractable.\
-  \ Only `active` specs\n  are checked (a non-normative spec governs nothing). (Last-touch\
-  \ verified accurate vs anchor\n  0b27e5d62: the only GRAPH.md change since was patterns/plan-lifecycle.md->SPEC-0034\n\
+  \ symbol.\n- **A project's own symbol forms.** The forms above are the kernel's\
+  \ grammar, and it is\n  closed to project-specific code shapes: a symbol declared\
+  \ in a shape the grammar does not carry\n  — a callback named inside a call, a framework\
+  \ macro — is answered by a form the PROJECT declares\n  in the anchors section of\
+  \ its ops contract (shape: SPEC-0160 rule 30), not by a further kernel\n  form.\
+  \ A declared form is a regular expression with a symbol placeholder — the placeholder\n\
+  \  stands for the anchored symbol as one literal unit — bound to file globs.\n \
+  \ How it is read:\n  (a) AFTER the built-in forms — it is consulted only when no\
+  \ built-in form resolves the symbol,\n  so an anchor the kernel grammar resolves\
+  \ is not moved by a declaration, and a project that\n  declares nothing resolves\
+  \ exactly as before;\n  (b) IN FULL — every form declared for the anchored file,\
+  \ across all entries (SPEC-0185);\n  (c) by BOTH grammar readers through ONE matcher\
+  \ — the anchor resolver and the region extractor\n  — so a declared anchor has a\
+  \ region, is signed, and is checked for drift like any other; the\n  region starts\
+  \ AT the matching line, whatever precedes it, and runs to the next non-blank line\n\
+  \  indented no deeper;\n  (d) LINE-SCOPED — a form is matched within one line that\
+  \ carries the symbol's text, not across\n  lines; what else on that line it accepts\
+  \ is the project's statement about its own code;\n  (e) from the checkout the reader\
+  \ runs in — where the anchor and the code it names are read\n  too; a region cut\
+  \ from another revision's text is cut with that checkout's declaration, as it\n\
+  \  is with its built-in forms;\n  (f) a malformed entry is refused by the ops-contract\
+  \ sweep and resolves nothing; a form the\n  sweep admitted that does not compile\
+  \ for one particular symbol resolves nothing for that anchor\n  and is NAMED in\
+  \ the anchor's unresolved report.\n  Which file TYPES report a missing symbol is\
+  \ otherwise unchanged by a declaration.\n- `graph build` RESOLVES each anchor against\
+  \ the CURRENT tree at build time (file exists; symbol is\n  present). An anchor\
+  \ that no longer matches is REPORTED on stderr (like a parse-error surfacing) —\n\
+  \  not silently echoed. This is a control-point inside the existing spec-walk, **report-not-\n\
+  \  block**: it does NOT fail the build (GRAPH §«NOT a validation layer» holds).\n\
+  - **Freshness / possibly-stale (report-only; symbol-level since):** for an `active`\n\
+  \  spec whose anchor RESOLVES, `graph build` ALSO checks spec↔code freshness via\
+  \ git provenance — the\n  code AS OF the spec's last-touch commit vs the CURRENT\
+  \ working tree (so an uncommitted edit counts).\n  A mismatch → the spec is flagged\
+  \ `possibly-stale` on stderr (review for drift). SAME report-not-block\n  channel\
+  \ (build stays exit 0). **Granularity matches the anchor :** a `<file>#<symbol>`\
+  \ anchor\n  compares only that SYMBOL's region (whole-file blob is the fast path\
+  \ — equal blobs short-circuit to\n  silent), so an edit ELSEWHERE in a shared monolithic\
+  \ file does NOT false-flag every spec anchored into\n  it (the 2026-06-01 5/5 incident\
+  \ on this one-file CLI); a file-level anchor (no `#symbol`) keeps\n  whole-file\
+  \ comparison. Silent by design when: the spec is uncommitted; OR the anchor file\
+  \ did NOT exist\n  at the spec's last-touch (a spec that PRE-DATES its code — B5,\
+  \ not a false positive); OR (symbol\n  anchors) the symbol did not exist at the\
+  \ last-touch / its region is un-extractable. Only `active` specs\n  are checked\
+  \ (a non-normative spec governs nothing). (Last-touch verified accurate vs anchor\n\
+  \  0b27e5d62: the only GRAPH.md change since was patterns/plan-lifecycle.md->SPEC-0034\n\
   \  repoint in §Spec-lifecycle — outside this spec's §Schema/§Build-tool surface;\
   \ a collateral\n  monolithic-doc false positive of the very class this bullet describes.\
   \ Reviewed 2026-06-06: re-verified vs anchor 53a640322 — the only GRAPH.md change\
@@ -78,40 +106,45 @@ body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and �
   \ region\n  is IDENTICAL at `merge-base(HEAD, main)` — a signature comparison, hence\
   \ SYMBOL-precise, since a\n  monolithic file hosts many anchors. `--anchor <a>`\
   \ re-signs only the named anchor (every other\n  baseline survives byte-identical);\
-  \ `--include-untouched` is the explicit whole-spec opt-in. An\n  untouched anchor\
-  \ with NO prior signature warns but proceeds (a first baseline blesses no drift).\n\
-  \  The shared signer is unguarded by default, so `task close --reverify` is unaffected.\
-  \ A genuinely DELETED/renamed anchor symbol stays surfaced by\n  the resolve-layer\
-  \ (`symbol not found`), so the signature path's defensive silence does not hide\
-  \ it.\n- **WHEN to re-sign — after a merge that MOVES anchored code, re-sign BEFORE\
-  \ you take the audit\n.** The bullet above says WHAT `spec reverify` records and\
-  \ how narrowly it may bless;\n  this says WHEN the operator runs it. **Trigger:**\
-  \ a merge brought in code that MOVED a region an\n  `active` spec anchors — in practice\
-  \ folding `main` into a branch before landing, which is when\n  someone else's landed\
-  \ refactor arrives under your anchors. **Obligation:** before taking the\n  audit\
-  \ for that branch, re-sign the AFFECTED specs PER ANCHOR —\n  `bin/yitc-v2 spec\
-  \ reverify <SPEC-ID> --anchor '<file>#<symbol>'`, one invocation per anchor you\n\
-  \  have actually re-verified. Per-anchor is not a stylistic preference here: `--include-untouched`\n\
-  \  would blanket-bless anchors the merge never moved, which the bullet above already\
-  \ refuses, so\n  the ordering rule must never be read as a licence for the whole-spec\
-  \ re-sign. **Cost of not\n  doing it:** the audit is then taken over stale `implements_signature`\
-  \ values and REDs\n  predictably on exactly that — and an audit pass is NOT refundable,\
-  \ so a predictable RED spends a\n  pass against the SPEC-0124 audit-loop ceiling\
-  \ that the branch may then need to finish. Measured:\n  on 2026-08-24 a merge into\
-  \ `task/` moved `bin/lib/worktree.py#_land_integrate`; eight\n  active specs held\
-  \ three different stale signatures; the re-audit returned RED high-severity on\n\
-  \  that alone, burned one of only two passes plus a full external-auditor invocation,\
-  \ and the card\n  needed an owner-authorized `--owner-reset` to finish.\n  Read\
-  \ the ordering together with its sibling on the same axis: `graph build` REPORTS\
-  \ a\n  possibly-stale anchor without blocking, so nothing refuses on your behalf\
-  \ between the merge and\n  the audit — the report is the signal, and acting on it\
-  \ is this rule.\n- Reverse-index + query normalization: the code→spec index and\
-  \ `graph query <file>` lookup normalize\n  the file component for BOTH the legacy\
-  \ `<file>:<line-range>` and the durable `<file>#<symbol>` forms,\n  so `graph query\
-  \ <file>` keeps matching across the migration.\n- Coverage is a DOCUMENTARY convention,\
-  \ NOT machine-distinguishable: a spec with no single code site\n  SHOULD carry a\
-  \ human-visible note explaining why `implements:` is empty. The graph treats empty\n\
-  \  `implements` identically either way (no empty-by-decision vs empty-by-omission\
+  \ `--include-untouched` is the explicit whole-spec opt-in. An\n  anchor with NO\
+  \ prior signature is left unsigned by the plain form, which lists it: a signature\n\
+  \  says the code was read against the spec, and the plain form names no anchor that\
+  \ was read\n. `--first-baseline` is the explicit request that gives each such anchor\
+  \ its first\n  baseline — the refusal above still applies to the anchors already\
+  \ signed, and a first baseline\n  blesses no drift; `--anchor <a>` gives one to\
+  \ the anchor it names, and `--include-untouched`\n  covers them with the rest of\
+  \ the spec.\n  The shared signer is unguarded by default, so `task close --reverify`\
+  \ is unaffected. A genuinely DELETED/renamed anchor symbol stays surfaced by\n \
+  \ the resolve-layer (`symbol not found`), so the signature path's defensive silence\
+  \ does not hide it.\n- **WHEN to re-sign — after a merge that MOVES anchored code,\
+  \ re-sign BEFORE you take the audit\n.** The bullet above says WHAT `spec reverify`\
+  \ records and how narrowly it may bless;\n  this says WHEN the operator runs it.\
+  \ **Trigger:** a merge brought in code that MOVED a region an\n  `active` spec anchors\
+  \ — in practice folding `main` into a branch before landing, which is when\n  someone\
+  \ else's landed refactor arrives under your anchors. **Obligation:** before taking\
+  \ the\n  audit for that branch, re-sign the AFFECTED specs PER ANCHOR —\n  `bin/yitc-v2\
+  \ spec reverify <SPEC-ID> --anchor '<file>#<symbol>'`, one invocation per anchor\
+  \ you\n  have actually re-verified. Per-anchor is not a stylistic preference here:\
+  \ `--include-untouched`\n  would blanket-bless anchors the merge never moved, which\
+  \ the bullet above already refuses, so\n  the ordering rule must never be read as\
+  \ a licence for the whole-spec re-sign. **Cost of not\n  doing it:** the audit is\
+  \ then taken over stale `implements_signature` values and REDs\n  predictably on\
+  \ exactly that — and an audit pass is NOT refundable, so a predictable RED spends\
+  \ a\n  pass against the SPEC-0124 audit-loop ceiling that the branch may then need\
+  \ to finish. Measured:\n  on 2026-08-24 a merge into `task/` moved `bin/lib/worktree.py#_land_integrate`;\
+  \ eight\n  active specs held three different stale signatures; the re-audit returned\
+  \ RED high-severity on\n  that alone, burned one of only two passes plus a full\
+  \ external-auditor invocation, and the card\n  needed an owner-authorized `--owner-reset`\
+  \ to finish.\n  Read the ordering together with its sibling on the same axis: `graph\
+  \ build` REPORTS a\n  possibly-stale anchor without blocking, so nothing refuses\
+  \ on your behalf between the merge and\n  the audit — the report is the signal,\
+  \ and acting on it is this rule.\n- Reverse-index + query normalization: the code→spec\
+  \ index and `graph query <file>` lookup normalize\n  the file component for BOTH\
+  \ the legacy `<file>:<line-range>` and the durable `<file>#<symbol>` forms,\n  so\
+  \ `graph query <file>` keeps matching across the migration.\n- Coverage is a DOCUMENTARY\
+  \ convention, NOT machine-distinguishable: a spec with no single code site\n  SHOULD\
+  \ carry a human-visible note explaining why `implements:` is empty. The graph treats\
+  \ empty\n  `implements` identically either way (no empty-by-decision vs empty-by-omission\
   \ field).\n- Scope: ONLY the `implements` edge (spec→code). The other graph edges\
   \ (cites / defined_in — the\n  surviving non-implements edges post the 6→3 edge\
   \ cut) are ID-anchored and already drift-immune\n  — explicitly out of scope.\n\n\
@@ -133,10 +166,14 @@ body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and �
   \ (last-touch base==cur → last-touch silent) STILL fires against the stored\n  signature\
   \ (probe: tests/test_graph_freshness.py::test_t0506_signature_catches_what_lasttouch_silently_misses\n\
   \  + ::test_t0506_spec_reverify_writes_field_and_emits_and_preserves_comments).\n\
-  - **Re-verified current + ANCHOR NARROWED (2026-06-07 — E-0019 root fix for the\
-  \ broad-anchor\n  false-positive class):** the GRAPH.md anchor was a whole-FILE\
-  \ anchor, so every §Spec-lifecycle edit\n  re-fired SPEC-0006 `possibly-stale` even\
-  \ though this spec governs only §Schema + §Build-tool — the\n  recurring E-0019\
+  - **Never-signed anchors under the plain form :** on a spec with one stale signed\
+  \ anchor\n  and one never-signed anchor the plain form re-signs the first and leaves\
+  \ the second unsigned\n  and listed, and `--first-baseline` on the same fixture\
+  \ signs it (probe:\n  tests/test_t13674_plain_reverify_leaves_never_signed.py, the\
+  \ AC1/AC2 pair).\n- **Re-verified current + ANCHOR NARROWED (2026-06-07 — E-0019\
+  \ root fix for the broad-anchor\n  false-positive class):** the GRAPH.md anchor\
+  \ was a whole-FILE anchor, so every §Spec-lifecycle edit\n  re-fired SPEC-0006 `possibly-stale`\
+  \ even though this spec governs only §Schema + §Build-tool — the\n  recurring E-0019\
   \ false positive (point-refreshed by /, recurred each time). FIXED durably\n  by\
   \ narrowing to `GRAPH.md#Schema` + `GRAPH.md#Build` (the two section regions it\
   \ governs), reusing the\n  EXISTING `<file>#<symbol>` heading granularity — NO new\
@@ -163,11 +200,47 @@ cites:
 requires: []
 supersedes: null
 proposed_by: null
+concern:
+  section: anchors
+  carrier_path: anchors
+  declare_key: symbol_forms
+  declare_type: list
+  presence_policy: opt-in
+  waiver_policy: loose
+  update_policy: init re-seed
+  shape_hook: anchor_symbol_forms_shape
+  born_order: 137
+  born: '# anchors:
+
+    # # SPEC-0006 (shape: SPEC-0160 rule 30) — this project''s OWN `<file>#<symbol>`
+    forms, for a code
+
+    # # shape the kernel grammar does not resolve. OPT-IN and born COMMENTED: absence
+    declares nothing.
+
+    # # A form is tried only after the built-in forms, within ONE line that carries
+    the symbol.
+
+    # # see SPEC-0006 §Internal; SPEC-0160 §30
+
+    # symbol_forms: # the list; a file matched by several entries takes all of their
+    forms
+
+    # - files: ["test/**/*.test.js"] # repo-relative globs naming the files the form
+    applies to
+
+    # pattern: ''function\s+{symbol}\s*\('' # a regular expression; `{symbol}` stands
+    for the anchored symbol
+
+    '
 implements_signature:
   GRAPH.md#Build: b62802d660dc3d2d6087e044ab034fc02768d62045e53dfbc465f80d7cf3592e
-  GRAPH.md#Schema: fc80a7242389ef95552d2b15098f102ec766bbbcee949628242334a79e6347a0
+  GRAPH.md#Schema: 0886d004a62e12ce49c26f72f40d2ea4cdccd8a06234dfaad9065b9d594b5f7b
   bin/lib/cli.py#_anchor_content_signature: 8061ff36ec14bdc8cbbcd03c5c10be585141705125d7a8eed69ced32cd236487
   bin/lib/cli.py#_anchor_drift_warning: d17e129ce47f983aa6075539c78bdc97257afa4b891a0c7db8cff0e025065edd
-  bin/lib/cli.py#_resolve_implements_anchor: 3504ac7206262e80c1262fb16aa7fd09cc5be18eb3252e41802b08d669c6377d
-  bin/lib/spec.py#cmd_spec_reverify: 493acdfc371f193f4a29dc586c76e18da614e714f4300a4ecd71718426b8bf56
+  bin/lib/cli.py#_declared_symbol_forms: ed6dea0fb4ef2492c4d888479b25e862e18015453b6aa0c549db4c043420bc1b
+  bin/lib/cli.py#_resolve_implements_anchor: a923c3987cbb11883cdd5f10cec01cf13683ee4bddf91304b67c1253a018c47b
+  bin/lib/init.py#_hook_anchor_symbol_forms: 893e2bb56d3c101c2a85097e93edf61fc17335f8a44dc575336501e34d615c6d
+  bin/lib/spec.py#cmd_spec_reverify: 1b900e039b8828f4f71d269f2b17559488341c4f20d355f6967089cbae8369ef
   bin/lib/textutil.py#anchor_file: 7944426743aaaea6da2365d70fb87ad4773e6a8ea3c7e16063ab030ac9d97f93
+  bin/lib/textutil.py#declared_symbol_line: d80412c819052ecab696d2cc5925a8b0b2b79024b1d80f4472bb38a2a5fdc900

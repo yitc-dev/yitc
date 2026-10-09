@@ -88,38 +88,37 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ identity.** The landing diff's canonical byte-exact hunk set is a SUBSET of one\
   \ spike's hunk\n  set → `LAND: ABORT spike-content`, naming the spike. Catches cherry-pick,\
   \ merge, rebase,\n  `format-patch`/`am`, `git apply`, AND `merge --squash` / rebase-squash\
-  \ — the family a per-commit\n  `patch-id` check would miss (consult #2 finding 1);\
-  \ per-commit patch-id is therefore NOT the\n  mechanism here.\n- **Otherwise — REPORT.**\
-  \ Partial-hunk overlap and copy-then-reformat print their overlap share\n  (`spike-content:\
-  \ <n>/<m> hunks match spike/<slug>`) and the land proceeds; the residue is judged\n\
-  \  at audit-post under rule 6. There is NO similarity threshold and NO changed-line\
-  \ minimum —\n  thresholds are bypassable and false-block legitimate re-implementation\
-  \ (owner ruling; consult #2\n  Q1/Q2). Exact identity refuses; anything less is\
-  \ context.\n**Exemption ONLY by declared provenance, never by shape.** A path carrying\
-  \ the `yitc-generated` git\nattribute (rule 2a — the project's own `.gitattributes`)\
-  \ is skipped by T1/T3; an extension, path, size\nor label exempts nothing. A control\
-  \ branch differing only by the spike content\nlands.\n**No override reaches it.**\
-  \ The predicates run on EVERY governed land and under EVERY land override\nflag\
-  \ (`--rebaseline`, `--no-tests`, …). **The emergency marker is reconciled, not constrained:**\
-  \ CHARTER\n§P2 defines `emergency:` as the owner-authorized bypass of the `from:`\
-  \ requirement ONLY, and `land`\nadditionally honours it as a CARRIER for the work-batch\
-  \ product-source gate (`_work_batch_carrier`);\nboth meanings are preserved verbatim.\
-  \ It is simply not a carrier for THIS predicate — content identity\nagainst a declared\
-  \ spike is a different question from «is this product source carried?» — so an\n\
-  emergency fix that IS a prototype's code takes the governed route (tag → `prototype_ref`\
-  \ card, whose\ncommit may carry `emergency:` for its `from:`). No Charter surface\
-  \ is amended. The refusal names the covered route and the rule-5 exit\n(`worktree\
-  \ park` → `spike/<slug>` → a `prototype_ref` card).\nThe verdict is computed ONCE\
-  \ per land by ONE helper and journaled as `spike_content_checked` (branch,\nspike\
-  \ ref, T1 hits, T3 verdict, share); every other reader — the report line, the abort\
-  \ message, the\naudit packet (rule 6) — CITES that row. Per-commit `patch-id` is\
-  \ NOT a mechanism here; the\nexisting branch-level `_spike_land_verdict`\n(the landing\
-  \ branch IS a declared spike) stays the FIRST check, T1/T3 run after it on every\
-  \ other\nbranch.\nCheck layer: KERNEL. A hand-typed RE-IMPLEMENTATION is not caught\
-  \ here and is not meant to be —\nthat is the work this contract wants, judged by\
-  \ rule 5's overlay and rule 6's identity line.\n\n### 2a. T3 — the canonical hunk\
-  \ and the exact algorithm (normative)\n- **Diff basis.** Spike S: `git diff -M -U0\
-  \ $(git merge-base main S)..S`; landing branch L: the same\n  over its merge-base\
+  \ — the family a per-commit\n  `patch-id` check would miss; per-commit patch-id\
+  \ is therefore NOT the\n  mechanism here.\n- **Otherwise — REPORT.** Partial-hunk\
+  \ overlap and copy-then-reformat print their overlap share\n  (`spike-content: <n>/<m>\
+  \ hunks match spike/<slug>`) and the land proceeds; the residue is judged\n  at\
+  \ audit-post under rule 6. There is NO similarity threshold and NO changed-line\
+  \ minimum —\n  thresholds are bypassable and false-block legitimate re-implementation.\
+  \ Exact identity refuses; anything less is context.\n**Exemption ONLY by declared\
+  \ provenance, never by shape.** A path carrying the `yitc-generated` git\nattribute\
+  \ (rule 2a — the project's own `.gitattributes`) is skipped by T1/T3; an extension,\
+  \ path, size\nor label exempts nothing. A control branch differing only by the spike\
+  \ content\nlands.\n**No override reaches it.** The predicates run on EVERY governed\
+  \ land and under EVERY land override\nflag (`--rebaseline`, `--no-tests`, …). **The\
+  \ emergency marker is reconciled, not constrained:** CHARTER\n§P2 defines `emergency:`\
+  \ as the owner-authorized bypass of the `from:` requirement ONLY, and `land`\nadditionally\
+  \ honours it as a CARRIER for the work-batch product-source gate;\nboth meanings\
+  \ are preserved verbatim. It is simply not a carrier for THIS predicate — content\
+  \ identity\nagainst a declared spike is a different question from «is this product\
+  \ source carried?» — so an\nemergency fix that IS a prototype's code takes the governed\
+  \ route (tag → `prototype_ref` card, whose\ncommit may carry `emergency:` for its\
+  \ `from:`). No Charter surface is amended. The refusal names the covered route and\
+  \ the rule-5 exit\n(`worktree park` → `spike/<slug>` → a `prototype_ref` card).\n\
+  The verdict is computed ONCE per land by ONE helper and journaled as `spike_content_checked`\
+  \ (branch,\nspike ref, T1 hits, T3 verdict, share); every other reader — the report\
+  \ line, the abort message, the\naudit packet (rule 6) — CITES that row. Per-commit\
+  \ `patch-id` is NOT a mechanism here; the\nexisting branch-level `_spike_land_verdict`\n\
+  (the landing branch IS a declared spike) stays the FIRST check, T1/T3 run after\
+  \ it on every other\nbranch.\nCheck layer: KERNEL. A hand-typed RE-IMPLEMENTATION\
+  \ is not caught here and is not meant to be —\nthat is the work this contract wants,\
+  \ judged by rule 5's overlay and rule 6's identity line.\n\n### 2a. T3 — the canonical\
+  \ hunk and the exact algorithm (normative)\n- **Diff basis.** Spike S: `git diff\
+  \ -M -U0 $(git merge-base main S)..S`; landing branch L: the same\n  over its merge-base\
   \ with `main`; `main` since that merge-base likewise. Rename-aware, zero context.\n\
   - **Per file.** A BINARY file is judged by T1 only (no hunks). A path whose git\
   \ attributes carry\n  `yitc-generated` (set by the PROJECT in its own `.gitattributes`;\
@@ -384,25 +383,31 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ and the alternatives\nrejected at the consults are DELIBERATION HISTORY, not rule\
   \ text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
   \ §Deliberation chronology (SPEC-0005 rule 8 —\nthe spec keeps rules, the plan keeps\
-  \ the why).\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new --work spike-x`\
-  \ → refused naming `--spike`; `--spike` → stamp\n  `spike: true`; `--work sandbox-x`\
-  \ → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule 2, T1 + T3):** over\
-  \ a sandbox repo with one declared spike: `git checkout <spike> --\n  <path>` ·\
-  \ whole-file copy · rename of a copied file · `git archive` → `LAND: ABORT spike-content`\n\
-  \  naming file + spike (T1); cherry-pick · merge · rebase · `format-patch`/`am`\
-  \ · `git apply` ·\n  `merge --squash` → `LAND: ABORT spike-content` naming the spike\
-  \ (T3); partial-hunk copy and copy +\n  reformat → land with the `spike-content:`\
-  \ report line; a control branch minus the copied content →\n  `LAND: OK`; every\
-  \ land override flag re-runs the predicate; an emergency-marker commit body carrying\n\
-  \  spike content is refused; FALSE-POSITIVE controls — a declared generator output,\
-  \ a lockfile, a\n  migration, `__init__.py`, a golden fixture, a binary asset, an\
-  \ unchanged file present in the spike\n  tree — each lands. Each leg RED-observed-first\
-  \ (SPEC-0165).\n- **VP2a (rule 2a, ambiguity + boundary controls):** a change-set\
-  \ two spikes both carry → REFUSED\n  naming both refs (identity is decisive); a\
-  \ shared hunk beside own hunks → REPORT, no share names it,\n  lands; a candidate\
-  \ adding `yitc-generated` beside a copied source file → REFUSED (attribute read\
-  \ from\n  `main`); an added empty `__init__.py` → lands; a copied block split by\
-  \ an inserted line → REPORT, lands; a hunk\n  already on `main` → excluded, lands;\
+  \ the why).\n\n### History moved from the rule body\n\nEach entry is a passage moved\
+  \ word for word out of the rule text of the section it names;\nthe rule it explains\
+  \ stays there.\n\n- From «2. Content identity at land»: (consult #2 finding 1)\n\
+  - From «2. Content identity at land»: (owner ruling; consult #2 Q1/Q2)\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «2. Content identity at land»:\
+  \ (`_work_batch_carrier`)\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new\
+  \ --work spike-x` → refused naming `--spike`; `--spike` → stamp\n  `spike: true`;\
+  \ `--work sandbox-x` → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule\
+  \ 2, T1 + T3):** over a sandbox repo with one declared spike: `git checkout <spike>\
+  \ --\n  <path>` · whole-file copy · rename of a copied file · `git archive` → `LAND:\
+  \ ABORT spike-content`\n  naming file + spike (T1); cherry-pick · merge · rebase\
+  \ · `format-patch`/`am` · `git apply` ·\n  `merge --squash` → `LAND: ABORT spike-content`\
+  \ naming the spike (T3); partial-hunk copy and copy +\n  reformat → land with the\
+  \ `spike-content:` report line; a control branch minus the copied content →\n  `LAND:\
+  \ OK`; every land override flag re-runs the predicate; an emergency-marker commit\
+  \ body carrying\n  spike content is refused; FALSE-POSITIVE controls — a declared\
+  \ generator output, a lockfile, a\n  migration, `__init__.py`, a golden fixture,\
+  \ a binary asset, an unchanged file present in the spike\n  tree — each lands. Each\
+  \ leg RED-observed-first (SPEC-0165).\n- **VP2a (rule 2a, ambiguity + boundary controls):**\
+  \ a change-set two spikes both carry → REFUSED\n  naming both refs (identity is\
+  \ decisive); a shared hunk beside own hunks → REPORT, no share names it,\n  lands;\
+  \ a candidate adding `yitc-generated` beside a copied source file → REFUSED (attribute\
+  \ read from\n  `main`); an added empty `__init__.py` → lands; a copied block split\
+  \ by an inserted line → REPORT, lands; a hunk\n  already on `main` → excluded, lands;\
   \ an independent-identical hunk beside own hunks → REPORT, lands;\n  a whole diff\
   \ that is one independent-identical hunk → REFUSED with the exit printed (the documented\n\
   \  class); a landed `prototype_ref` card's hunks no longer attribute (derived retirement).\n\
@@ -456,11 +461,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: prototype-never-a-transfer-close-every-path-by-whi
 binding:
-- stage-entry:Filing
+- code-enforced
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: ee9a71c3ac1595a208eee77c2ed25c1c8f860169b1260689f9e482b257f49957
+  bin/lib/audit_packet.py#build_audit_prompt: 4a6e8c732c76fe2faf91723d94f7897197d0f179ce988cba482dedb4104a687c
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
   bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
@@ -468,7 +473,7 @@ implements_signature:
   bin/lib/spike_identity.py#content_verdict: de76a115591e61c9eb83a9510102cd53e910884326662c4283e36d44f4ebfdc9
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
   bin/lib/spike_identity.py#refusal_message: 2d3c54b4709e89b134cf119346eb5c6803567f798aa965af34b5b503f6c107f9
-  bin/lib/task.py#prototype_ref_error: 8ed5923b92402f3f859a8c544ce4695f35f724788f284d8e342b81b52675a472
+  bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
   bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799

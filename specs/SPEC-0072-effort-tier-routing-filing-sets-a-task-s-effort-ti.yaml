@@ -240,9 +240,9 @@ implements_signature:
   bin/lib/cli.py#_resolve_warm_worker_cap: aefc2e51cad053ff361818be4b28cb3b5b7363c4587db66edb4affd05ac53b1a
   bin/lib/cli.py#_resolve_worker_binary: 15c4e30a31bd509a9705a546ea7375b1e361aad288e59649d23d26f889e1fa3e
   bin/lib/cli.py#_strip_model_window_suffix: 01955b91ac353e9e62c496d299ea60c4714b596774915502aff25a3af9f1760b
-  bin/lib/dispatch.py#classify_launch_answer: ced5162cbc089e9466079dd9b9babf88f370ac7efafaa88ca24703a2355698c7
-  bin/lib/dispatch.py#cmd_dispatch: 6a32412c4641be150c448fc1288b84905a79b0fd0eebaab4fac273838e831f23
-  bin/lib/dispatch.py#launch_worker_with_pair: 059484f698a9a14f34ce9813c9ffdf0952911a4649c2500fe9d1f4530a6f10d1
-  bin/lib/task.py#cmd_task_file: e95ef07da93d6783f833cda1747a1831d7761178687fb0dbba85c16a258dd145
-  bin/lib/task.py#cmd_task_update: e5719c353ef13be74a5c770f9fbe560e12a00c556de2eb0849ff4bc0d1788f6f
+  bin/lib/dispatch.py#classify_launch_answer: 217a598ab5ed2f5865ccffc887106c23f9714c7283ca1cc0f1d887dfa70abfb1
+  bin/lib/dispatch.py#cmd_dispatch: 0b41aad5d1b2c91dc6217bd18b923c2a5233eaf7a4223cbddc73c06ee73fe89e
+  bin/lib/dispatch.py#launch_worker_with_pair: 4330b00e18ebeb5505ee8333455c912b877d4e6d86f2d61e86a3ff03b2bc84d6
+  bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
+  bin/lib/task.py#cmd_task_update: 7812d9b7ec3313602f8e068192f6ac45811392f565d28efaf94a4832f0992ea2
   bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

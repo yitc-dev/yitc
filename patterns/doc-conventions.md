@@ -102,6 +102,10 @@ the only related signal; a provenance-shaped nudge is deferred to an observed re
 built speculatively. The complementary seed-authoring cue lives at `AGENTS.md` §"Authoring the seed"
 (a new rule body lives in its spec; the seed carries a cue + pointer). Motivating strip:.
 
+**Spec bodies — one home, SPEC-0005 rule 3.** This section covers seed prose only. Where a spec keeps
+its history and its code detail is ruled by SPEC-0005 rule 3 (`bin/yitc-v2 graph query SPEC-0005`),
+the one home for spec bodies; it is not restated here.
+
 ## §Split-vs-merge — granularity
 
 **Split a spec** in two when (the volume discipline is owned by SPEC-0005 rule 6 — anti-oversplit merge-default + anti-oversize split-by-surface):

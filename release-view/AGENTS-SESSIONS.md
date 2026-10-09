@@ -20,11 +20,9 @@ tool-independent (owner phrase + read `patterns/emergency-mode.md`), never a sta
 
 `/yitc` startup is **two explicit phases** — there is no Build|Review type choice (one interactive Controller posture):
 
-1. **READ the mandatory handbook** (all sessions): <!--GEN:read-order:arrow generated from HANDBOOK_READ_ORDER — DO NOT EDIT; regen via `graph build`-->CHARTER.md → AGENTS-STARTUP.md → AGENTS-SESSIONS.md → AGENTS-PROTOCOL.md → LIFECYCLE.md → QUEUE.md → GRAPH.md<!--/GEN:read-order--> + the floor trigger-map (`graph/floor-trigger-map.md`, always-loaded seed). **Read your audience's seed** — a Worker: the assembled `graph/worker-seed.md` **and every continuation part it chains to** (IN PLACE OF the source files in that arrow; one part is not the seed); the Controller: the SOURCE parts in that arrow DIRECTLY, each single-read-safe (SPEC-0007 §5c). CHARTER first (pedagogical pin); the retrieved tier is NOT loaded at startup — it is
-   delivered at stage-entry (the one canonical order — §At-session-start §Bootstrap-floor + the `-C` consumer `session start` echo; the engine self-start no longer echoes it).
+1. **READ your audience's seed** (all sessions): <!--GEN:read-order:arrow generated from HANDBOOK_READ_ORDER — DO NOT EDIT; regen via `graph build`-->CHARTER.md → AGENTS-STARTUP.md → AGENTS-SESSIONS.md → AGENTS-PROTOCOL.md → LIFECYCLE.md → QUEUE.md → GRAPH.md<!--/GEN:read-order--> + the floor trigger-map (`graph/floor-trigger-map.md`) — who reads which form of it, and how, is homed in AGENTS §At session start.
    Nothing task-specific here — so the AI always holds the rules.
-2. **`bin/yitc-v2 session start`, then scan `bin/yitc-v2 --help`** — the verb-inventory scan runs HERE, immediately AFTER `session start`, NOT in Phase 1: its fetch-receipt must post-date the `session_started` anchor the `--help` read-gate windows from, else a pre-anchor Phase-1 scan is not credited and the first gated verb (`worktree new`/`task file`) refuses. `session start` (the interactive **Controller** — no `--type` choice; a dispatched **Worker** carries `--type build`) — keeps `session_started` emit
-   (the engine self-start's read-order echo was retired as Phase-1-redundant; a `-C` consumer still gets the engine-resolved read-order echo) AND adds a **NON-MUTATING dispatch** (reads/reports startup state; never
+2. **`bin/yitc-v2 session start`** (the session-tied `--help` scan comes before your first guarded work verb: AGENTS §At session start). `session start` is a **NON-MUTATING dispatch** (reads/reports startup state; never
    changes task status/stage — that FSM/enforcement creep is CHARTER non-goal #7):
    - **controller → resume-or-await (concurrency-aware §4; auto-pick removed):** FIRST,
      branch-identify — if THIS checkout is a `task/T-XXXX` worktree and that task is in-progress,
@@ -71,23 +69,10 @@ tool-independent (owner phrase + read `patterns/emergency-mode.md`), never a sta
      doctrine (per SPEC-0126):** it still AWAITS an owner cue and NEVER auto-picks — context-bounded
      autonomous continuation begins ONLY after the owner authorizes a plan/batch (the doctrine home is
      §Orchestrate posture + CHARTER §6), never at startup.
-   - **cross coordination-log surface (report-only, the Controller and `-C` consumers, per SPEC-0086):**
-     after startup, `session start` prints report-only `cross-coord:` fold-view COUNTS over the
-     kernel-owned SHARED coordination log — the author-side **outbox** (`from:me` items a peer fixed,
-     awaiting MY close — the "fixed→verify at start" surface, the done-awaiting-close subset) + the inbound
-     **inbox** needing a DECISION (`to:me` items still `requested` and not yet tracked by a local task via
-     `resolves_cross` — `picked`/`done`/task-linked are excluded). Fold-derived (no stored status —
-     `cross outbox` / `cross inbox`; **re-fold exactness,:** BOTH `cross outbox` AND
-     `cross inbox` re-fold the FULL non-terminal ledger — each a SUPERSET of its start surface, which is
-     only an actionable cut (outbox = the `done`/fixed→verify subset; inbox = the `requested`-and-not-
-     task-linked needs-decision subset). The superset is the acceptable durable re-fold; each exact start
-     cut is recoverable within it (outbox: its `status==done` rows; inbox: its `requested`-and-unlinked
-     rows); no subset verb — the vocabulary is frozen),
-     report-only, NO auto-pull (surfacing ≠ queue-scan — the LOG-vs-queue line holds; DISTINCT from the
-     QUEUE-exploration counts the dispatch's await-clause removed above, and does not reinstate them). The shared
-     log is identity-agnostic (every participant folds the SAME out-of-repo log). Since the cutover
-     (the per-repo cross spec superseded) this is the SOLE cross surface — the old per-repo `cross-log:` inbound
-     count was REMOVED. Intake (pull / act) stays an owner-commanded `cross pick`/`task file` act. **Triage default (SPEC-0086 §7):** classify each `to:me` item DEFECT / PROVEN NEED / WANT-or-ONE-OFF — decline the last via `cross reject` naming the class + the failed P1 filter; NO card for a one-off.
+   - **cross coordination-log surface (report-only, per SPEC-0086):** the `cross-coord:` counts `session start` prints are
+     surfacing, NOT a queue-scan and NOT an auto-pull — intake (pull / act) stays an owner-commanded `cross pick`/`task file` act.
+     `cross outbox` / `cross inbox` re-fold the full non-terminal ledger (no subset verb — the vocabulary is frozen). The shared
+     log is identity-agnostic (every participant folds the SAME out-of-repo log). **Triage default (SPEC-1010 §3):** sort each `to:me` item and judge whose matter it is BEFORE taking it — how it is sorted, the default answer and what the note names are homed there, not restated here.
 
    **This AMENDS Phase-3 dispatch** — ** is Final/frozen and stays cited as
    superseded-in-part** for that clause: the **resume** halves (own-stamp + len==1) and the
@@ -148,43 +133,23 @@ cwd-independent verbs), not by removing isolation. So:
   and is idempotent. Retiring a stale non-main default branch (e.g. `master`) is a separate normalization
   concern, handled by its own follow-up task. Every OTHER source/artifact write — including in a consumer
   once bootstrapped — rides the worktree→land path below. (Same capture-not-isolation rationale as the journal-append exception.)
-- **EXCEPTION (cont.) — the ONBOARDING-POINTER writes (`memory consume --station <id>` / `memory
-  seed`) self-commit their MEMORY.md change directly to `main`, on IDENTICAL terms (per the X-0274 and
-  X-0330..0332 incidents).** A SPEC-0147 station is voiced+consumed, or seeded into a
-  consumer, on the MAIN checkout at a session-start / provisioning seam — no worktree batch carries
-  the write, and a dirty MEMORY.md sits in `land`'s **non-bookkeeping** set, so leaving it
-  uncommitted wedges EVERY later land in that repo (measured on three consumers, 2026-07-12). So
-  each verb owns its own governed commit, the **second and third** sanctioned direct-to-main commits
-  alongside the `-C init` bootstrap above. Kept NARROW by construction, both alike: staging
-  **MEMORY.md + the one journal receipt ONLY** (never `git add -A`); fail-closed refusal on
-  preexisting MEMORY.md dirt, on a journal delta that is not a VALID APPEND (parseable, purely
-  appended event lines — validity, NOT substantiveness, per X-0361), or on a merge in
-  progress; a deterministic message; idempotent, receipt-gated no-op on re-run. `init`'s in-process
-  seed rides `init`'s OWN bootstrap commit at that seam, so an aborted init strands nothing. Inside
-  a real `task/`/`work/` worktree both ride that batch, unchanged — every OTHER buffer-entry write
-  still takes a `work/<slug>` worktree→land. Posture-matched to the terminal task pause/wont-do/park
-  self-commits. Rule homes: SPEC-0039 §5(b) / SPEC-0147 §7.
-- **EXCEPTION (cont.) — five TASK-CARD verbs joined the same scoped-self-commit family, on the same
-  bounds.** `task claim-landed` (per X-1002) writes `ready → in-progress` + its `task_picked`
-  for a card whose deliverable is DERIVABLY already on `main`, without a worktree — admission is
-  derived and fail-closed, never asserted, so it refuses every ordinary card and the claim
-  path is untouched. `task refuse` records the SPEC-0133 pre-claim refusal onto a `ready`
-  card without touching its status. `task update --queue-jump` sets/clears the SPEC-0184
-  rule-9 land-admission mark, writing it at a merge-stable HEADER position and suppressing the
-  `last_verified` bump so a concurrent closing branch does not conflict. **The two late-linkage
-  SETTLE arms of `task close` are members too — `--settle-probe` and
-  `--settle-observation` **: each writes a governed record onto an already-DONE card whose
-  own writing worktree is long gone, so from `main` it owns its own scoped commit exactly as the
-  three above do. All five stage the card +
-  the journal receipt ONLY, refuse on preexisting card dirt, are idempotent on re-run, and defer to
-  the ordinary in-worktree path when run inside a writing worktree.
-  - **The deferral half is load-bearing, not a tidiness rule.** A settle that self-commits
-    INSIDE a writing worktree strands a **reading-class** card — one whose deliverable IS a governed
-    record written into ANOTHER card: the authored content lands under the other card's id BEFORE the
-    citing card's own `task commit`, so the recorded ship carries only that card's own bookkeeping and
-    `audit post` loud-stops on the no-authored-content guard. So inside a `task/` or `work/`
-    worktree a settle writes NOTHING to git and rides the batch. The `--settle-live-probe` / `--live-probe-outcome` arms have **not** yet
-    been brought onto this rule.
+- **EXCEPTION (cont.) — the SCOPED SELF-COMMIT family: each of these verbs commits its OWN narrow
+  record when run from the main checkout and rides the batch inside a writing worktree — never
+  hand-commit for one.** Members: `memory consume --station <id>` / `memory seed` (the
+  onboarding-pointer MEMORY.md writes ONLY — every other buffer-entry write still takes a
+  `work/<slug>` worktree→land; SPEC-0039 §5(b) / SPEC-0147 §7), `task claim-landed` (ONLY a card whose
+  deliverable is derivably already on `main` — every ordinary card still claims via
+  `worktree new --task`), `task refuse` (the SPEC-0133 pre-claim refusal), `task update --queue-jump`
+  (the SPEC-0184 rule-9 land-admission mark), and the `task close` settle arms `--settle-probe`
+  (SPEC-1011) / `--settle-observation`. From the **main checkout** each stages its one artifact
+  (MEMORY.md, or the card) + the journal receipt ONLY (never `git add -A`), refuses on preexisting
+  dirt in that artifact, and is idempotent on re-run. Inside a `task/` or `work/` **writing
+  worktree** none commits to `main`: each defers to the ordinary in-worktree path, so its write
+  reaches `main` only with that batch's `land` (`task claim-landed` refuses there and names the
+  ordinary claim). A settle arm writes NOTHING to git there — the batch's own `task commit` carries
+  it; the `--settle-live-probe` / `--live-probe-outcome` arms are not yet on that rule and still
+  make their own scoped commit. Each verb's admission detail is at the head of its `--help`, which
+  names its home.
 - **EXCEPTION (cont.) — `session handoff *` needs NO worktree.** It writes
   ONLY the anchored repo's `<git-common-dir>/yitc/handoffs/` (machine-local, never in the working tree,
   never committed) plus its journal rows — never a source/artifact file — so it runs from any checkout.
@@ -228,74 +193,25 @@ cwd-independent verbs), not by removing isolation. So:
   (the Slip-5 trap): a *relative* grep from the main checkout won't see your worktree's edits —
   **verify a write in the same checkout you wrote it** (absolute path or `git -C`). Fallback if you DID `cd`
   in (run-from-main avoids it): `cd` back after `land` — it removed the worktree dir, so `getcwd` fails and the exit reads nonzero though land succeeded (`land` prints a `cd <main>` cue).
-- **Backgrounded / tool-invocation callers: key off the `LAND:` token, NOT the shell exit.** Land emits a contracted machine-readable **terminal-status token as its FINAL stdout line**:
-  `LAND: OK <sha>` on success / `LAND: ABORT <reason>` on refusal (match `^LAND: (OK|ABORT)\b`,
-  case-sensitive — the lowercase human `land:` line + the `cd <main>` cue never collide); parse THAT, not
-  the shell exit. Run-from-main keeps your cwd alive, but the token matters either way: the legacy
-  in-worktree `cd <worktree> && bin/yitc-v2 land` has its cwd removed by the *successful* land so the
-  wrapper's `getcwd` fails and the shell exit reads nonzero though land exited 0 (E-0010 manifestation D
-  — the false-fail); the token survives it. `land_completed` stays INTERNAL provenance — the STDOUT token is the single caller-facing contract.
-  - **A `LAND:`-ONLY filter is not a complete watcher — capture STDERR and admit `^yitc-v2:` too.** A pre-verify REFUSAL (a missing `-C` target, a fail-closed session identity, any guard
-    upstream of `cmd_land`'s terminal-signal seam) never reaches the token: it prints as a plain
-    `yitc-v2: …` line on **stderr** and exits nonzero, so a `^LAND:`-only watcher captures an EMPTY file
-    (X-0843 — an instance of SPEC-0165 item 11). Redirect `2>&1` and match `^(LAND:|yitc-v2:)`; the `LAND:` token stays the TERMINAL-STATUS contract, unchanged.
-    **That widening is for CAPTURE ONLY — never gate TERMINALITY on it (SPEC-0180 rule 2c).**
-    Terminality is **token-or-exit**: the `^LAND: (OK|ABORT)\b` token, or the land process EXITING.
-    `yitc-v2:` is the tool's GENERIC message prefix — `land` prints ordinary progress under it (the
-    graph auto-rebuild notice, the verify heartbeat) — so a bare `yitc-v2:` line is terminal only WITH
-    an exit. Collapsing the two is a measured false green. Capture wide; gate narrow.
-- **`land` verify runs for several MINUTES — and how you run it SPLITS BY SESSION KIND ( — the
-  two audiences must not be conflated; the §2 verify step update-from-main → graph rebuild → pinned
-  hermetic test suite routinely runs minutes, longer than a tool's short default command timeout):**
-  - **INTERACTIVE session:** PREFER **backgrounding `land`** and keying off the `LAND:` token — it frees the
-    conversation instead of blocking on a minutes-long verb. **A timed wrapper is a KILL shape, not a watcher
-    :** a `timeout N` wrapper, or a Monitor whose expiry is shorter than a plausible reservation
-    wait, SIGTERMs the land at expiry (`land-wrapped-in-timeout-killed-without-process-group-escape-row`,
-    `land-killed-at-monitor-expiry-despite-already-leader-escape-row`). **Qualifier — under verify-admission
-    CONTENTION, WRAP the land in the harness Monitor primitive and key recovery off the JOURNAL** (fingerprint
-    `interactive-background-land-killed-in-admission-wait`): a land queued on a SPEC-0132 admission slot
-    (`waiting_for_verify_admission_slot` heartbeats, no output) outlives BOTH a plain background land (swept
-    nondeterministically) AND a plain foreground one (the harness ~600s cap kills the group at its
-    move-to-background boundary) — so run it under the harness **Monitor**, and key ALL recovery off the
-    JOURNAL (`LAND:` token + admission heartbeats + the IDEMPOTENT `worktree recover-land` / re-`land` verbs,
-    `patterns/background-session-monitoring.md`), NEVER off the wrapper's process lifetime. Parallel lands
-    stay — **NO land fan-out cap** (owner directive 2026-07-18). The token contract is unchanged. **AMENDED
-    2026-08-24 — the wrapper choice is no longer a CORRECTNESS requirement.** The qualifier above
-    stands and its journal-keyed-recovery half is UNCHANGED. A non-worker `land` now **leaves the caller's
-    session AND ancestry at entry** (: a double fork into its own session, stdio to log files, the
-    launched pid only relays them and exits with the land's code — journaled `land_process_group_escaped`
-    mechanism `session-fork`, naming the logs), so a kill of the wrapper — by pid, group, session or
-    descendant walk — costs only the relay. Surviving shape: an un-timed background land or Monitor keyed off
-    the journal (`setsid nohup … &` also survives). **What this changes for you:** a watcher that dies, times
-    out, or was **never armed** costs a **re-arm and nothing else** — re-attach by tailing the journal or the
-    log; do NOT re-run `land` on the assumption the first one died. Opt back into the old coupling with
-    `YITC_LAND_KEEP_PROCESS_GROUP=1` if you ever need the land to die with its caller.
-    **Telling them apart — and the ONE thing durable state cannot tell you** (full rationale:
-    `patterns/background-session-monitoring.md`)**:**
-    both `_LAND_QUEUE_WAIT_TYPES` heartbeats carry the land's `pid`; an external kill by a CATCHABLE
-    signal journals `land_terminated_externally` — that row names a cause because the land's own
-    handler witnessed it. **Heartbeat staleness** (3 missed beats of the published cadence) says only
-    that the land **STOPPED EMITTING, cause unknown** — it does NOT say "killed". An UNCATCHABLE kill
-    (SIGKILL) and a silent hard crash (segfault, OOM) leave IDENTICAL rows, because no process can
-    journal its own SIGKILL; separating those two needs an EXTERNAL observer (a parent's wait status,
-    the killer's own log, cgroup/OOM or auditd records), none of which is the dead land's durable
-    state. So: **do not read a stale heartbeat as evidence that something killed your land.** What you
-    DO get is the discrimination that matters operationally — a land that stopped emitting never reads
-    the same as a healthy queued one. (Absence of a `LAND:` token proves nothing on its own — that is
-    the general reading rule, homed once at SPEC-0165 item 11, not restated here.)
-    The **DISPATCHED WORKER** case below is the opposite rule and is deliberately untouched: a worker's
-    land stays in its worker's process group (SPEC-0103 / SPEC-0180).
-  - **DISPATCHED WORKER (headless one-shot):** MUST run `land` **synchronously in the FOREGROUND** with a
-    generous timeout — **NEVER background-and-await** the token. A headless worker's process EXITS when it
-    yields the turn, so a backgrounded land is killed mid-flight before `LAND: OK` (the recurring
-    worker-land-death class — /, 2026-06-27). This is the dispatch preamble rule #1
-    (SYNCHRONOUS-TO-LAND) / SPEC-0103; the interactive "prefer background" guidance above does **NOT**
-    apply to a worker. Foreground-by-construction belt : in a dispatched-worker context
-    (`YITC_EXPECTED_SESSION_REF` set) `land` streams a periodic verify-progress **heartbeat** to stderr
-    so the minutes-long foreground run stays visibly alive (no "looks hung" timeout-fear) — tune/disable
-    via `YITC_VERIFY_HEARTBEAT_SECS` (default 20s; `<=0` disables). Additive observability only — the
-    verify verdict/gate is unchanged. **Over-cap exit:** when the land (or `task test --run`) cannot fit the per-call foreground cap, see **SPEC-0180** — recipe `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`.
-  (Provider-neutral: the exact default-timeout value is harness-specific — the rule is "land is a minutes-long verb"; the foreground-vs-background treatment splits by session kind as above.)
+- **Running `land` — read its FINAL stdout line, never the shell exit.** That line is the terminal-status
+  token `LAND: OK <sha>` / `LAND: ABORT <reason>` (match `^LAND: (OK|ABORT)\b`). Capture STDERR too
+  (`2>&1`, match `^(LAND:|yitc-v2:)`): a refusal before verify prints only a `yitc-v2:` line and no
+  token. **Terminal = the token or the land process exiting** — `yitc-v2:` also prefixes
+  ordinary progress, so never gate on that line alone (SPEC-0180 rule 2c). The verify runs for
+  MINUTES, and how you wait SPLITS BY SESSION KIND:
+  - **INTERACTIVE session:** PREFER running it in the background, keyed off the token or the
+    journal; key recovery off the journal, NEVER off the wrapper's process lifetime. A non-worker land
+    leaves your session at entry (journaled `land_process_group_escaped`;
+    `YITC_LAND_KEEP_PROCESS_GROUP=1` restores the old coupling), so a watcher that dies, times out or
+    was never armed costs a **re-arm, not a re-land** — re-attach by tailing the journal or the log.
+    A land PROVEN failed keeps its governed recovery route (`worktree recover-land` / re-`land`).
+  - **DISPATCHED WORKER (headless one-shot):** run it **SYNCHRONOUSLY in the FOREGROUND**, with a
+    generous timeout — NEVER background-and-await: a headless worker's process exits when it yields the
+    turn, killing the land (SPEC-0103); when the land (or `task test --run`) cannot fit the per-call
+    cap, the held-turn exit is SPEC-0180's.
+  - The rest — timed-wrapper kill shapes, admission waits, telling a stopped land from a queued one,
+    the opt-out knob, the worker heartbeat — is `patterns/background-session-monitoring.md`
+    §Running land; `land --help` names it too.
 
 A read-only Controller session is NOT special-cased: it reads on main, but a filing it does takes a
 `work/<slug>` worktree like any write.
@@ -352,7 +268,7 @@ NEVER the provider in-process subagent tool — a Worker is a separate sub-sessi
 orchestrator. The PROCEDURE (launch / selection / monitoring / abnormal-situation recovery) is homed
 single-SoT in `patterns/background-session-operation.md` — this section is the GOVERNANCE rule only
 (CHARTER §6 carries the principle-level statement; this is its operational protocol + the boundary).
-**The monitor is armed BY THE LAUNCH :** a dispatched Worker is a separate sub-session the harness sends no completion notification for, so detection is system-driven, never an owner poke (rule home: `patterns/background-session-monitoring.md §Watcher`). `dispatch` itself continues into the §Watcher loop in the SAME process and ends on its `WATCH:` token — there is NO post-dispatch arming step to take or skip (X-1443 / X-1440); run the `dispatch` call under the harness background primitive, as a `--watch` was.
+**The monitor is armed BY THE LAUNCH :** a dispatched Worker is a separate sub-session the harness sends no completion notification for, so detection is system-driven, never an owner poke (rule home: `patterns/background-session-monitoring.md §Watcher`). `dispatch` itself continues into the §Watcher loop in the SAME process and ends on its `WATCH:` token — there is NO post-dispatch arming step to take or skip (X-1443 / X-1440). Run the `dispatch` call, and a `dispatch --watch` re-arm alike, under the harness background primitive with its stdout left attached — not redirected to a file, not piped, not filtered: a call whose stdout goes to a file is recorded `watch_armed(reachability=unreachable)` and earns no monitoring credit, under the harness background primitive too.
 `dispatch --watch` remains the route for RE-arming once a watch has ENDED (woke / timed out) and for a launch run `--no-self-arm-watch`; a `--watch` over ids with a LIVE watcher is refused as a duplicate — one live watcher per task, never two.
 When the dispatched batch ORIGINATES from the owner stating a LIST of follow-up items, follow the intake
 working-order (premise-verify → classify → decompose+batch → ONE owner checkpoint → dispatch → verify
@@ -367,8 +283,9 @@ cue, no auto-pick — §Startup phases); autonomy begins ONLY after that authori
 the authorized batch stays forbidden (retirement (b)). **Non-blocking batch:** a task that raises a genuine
 owner question does NOT freeze the batch — PARK it using its existing waiting-on-owner state (`task pause
 --reason owner-wait` — the SOLE carrier, surfaced at session start; NOT the `blocked` status, which no verb
-writes — QUEUE §Verb routes), CAPTURE its question durably+visibly via the existing followup/journal capture
-(`bin/yitc-v2 followup` — NO new question store/FSM), and CONTINUE the other independent ready tasks; the
+writes — QUEUE §Verb routes), CAPTURE its question durably+visibly via the existing followup capture
+(`bin/yitc-v2 followup add` with `OWNER-QUESTION: <T-ID>` in the text — it reads `fired` once that card
+closes, SPEC-0095; NO new question store/FSM), and CONTINUE the other independent ready tasks; the
 owner answers the accumulated questions on reconnect. (Distinct from a task blocked on an unmet `requires:`
 dependency, which waits per the QUEUE §Picker rule — this governs the OWNER-QUESTION block only.) Full
 rule: `graph query SPEC-0126`.

@@ -81,14 +81,13 @@ publish step does this automatically from the card), and the issue is closed wit
 the release version that carries it — or, if declined, with the reasons. Never close one silently:
 that is rule 4, and it is the only step here a tool does not enforce for you.
 
-### Triage default — the same three classes
+### Triage default — one home
 
 Whatever surface the proposal arrives on, the receiver's FIRST step at triage — BEFORE any
-re-authoring — is to classify it into exactly one of **DEFECT** / **PROVEN NEED** /
-**WANT-or-ONE-OFF**. Which classes are taken, which is declined, what the note must name and the
-re-file-on-recurrence clause all live in ONE home, SPEC-0086 §7 "Default disposition at triage"
-(`bin/yitc-v2 graph query SPEC-0086`); this step only fixes where the classification sits in the
-working order.
+re-authoring — is to sort it and to judge whose matter it is. How it is sorted, what the note must
+name and when a proposal may come back all live in ONE home, SPEC-1010 §3
+(`bin/yitc-v2 graph query SPEC-1010`); this step only fixes where that sorting sits in the working
+order.
 
 ### The two fallbacks, unchanged
 

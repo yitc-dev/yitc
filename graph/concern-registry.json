@@ -13,6 +13,18 @@
    "waiver_policy": "loose"
   },
   {
+   "carrier_path": "anchors",
+   "declare_key": "symbol_forms",
+   "declare_type": "list",
+   "presence_policy": "opt-in",
+   "section": "anchors",
+   "shape_hook": "anchor_symbol_forms_shape",
+   "spec": "SPEC-0006",
+   "update_policy": "init re-seed",
+   "version": "09eda816bc8f",
+   "waiver_policy": "loose"
+  },
+  {
    "born_stance": "permissive",
    "carrier_path": "audit_scrutiny",
    "declare_key": "cases",

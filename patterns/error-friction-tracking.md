@@ -118,6 +118,8 @@ SESSION»), the triage that consumes captures lives in SPEC-0056; this section a
    are standing in — so the kernel hand-off works for a consumer **without a per-item owner «razobrat»
    ("sort-out") gate**. **`land` stays the BACKSTOP**, sweeping main's journal for rows that predate
    this seam or arrived by another path; it re-files nothing already routed.
+   **Before the marking:** whose matter a kernel-touching deviation is, and what the project does
+   meanwhile, is homed in SPEC-1010 §2 — a pointer, not restated here.
 
    **Why the routing moment is the CAPTURE and not `land` (X-1073).** The land tail reads
    **main's** journal, so a capture made inside a branch reached the kernel only when that branch

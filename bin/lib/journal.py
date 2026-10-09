@@ -586,7 +586,9 @@ DISPATCH_CLASS_VOCAB = (
      "A FIFTH detail comes from a different evidence source entirely: `proc-gone` (T-12660) = the "
      "LAUNCH-AXIS reader (`dispatch._launch_axis_class`, the predicate the in-flight SKIP guard and "
      "the wave PREFIX/REMAINDER block decide on) found the newest launch row's RECORDED PID provably "
-     "absent, so a launch row recent enough to read `working` on recency ALONE is a corpse. The three "
+     "absent, so a launch row recent enough to read `working` on recency ALONE is a corpse; the "
+     "pre-anchor branch reads the same pid the same way INSIDE the bootstrap grace (T-13343), where "
+     "the grace clock alone would read that corpse `working(still-booting)`. The three "
      "details above are read off the launch LOG's text; this one is read off the PROCESS. Its remedy "
      "is the plain one — re-dispatch — and the reading is conservative BY CONSTRUCTION: an "
      "unreadable, unconfirmable or REUSED pid reads ALIVE and keeps today\'s `working`, so this "
@@ -7504,6 +7506,31 @@ def _dispatch_phase(events):
             return "audit" if stage in ("Audit-pre", "Audit-post") else "normal"
     return "normal"
 
+def _launch_pid_gone(ldata) -> bool:
+    """T-13343 — True ONLY when the launch row's recorded `pid` provably names no process: one
+    `os.kill(pid, 0)` raising ProcessLookupError. Everything else is doubt and reads NOT gone — no
+    row data, no pid (a pre-T-0558 row), a non-integer, non-finite or non-positive pid, a PermissionError, any
+    other read failure, and a pid that exists (a live worker, a zombie or a reused pid). The same
+    fail direction as `dispatch._default_pid_alive` (T-12660); kept here because dispatch imports
+    this module, never the reverse."""
+    pid = ldata.get("pid") if isinstance(ldata, dict) else None
+    if isinstance(pid, bool):
+        return False
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except Exception:   # noqa: BLE001 — undecidable ⇒ not gone (see the fail direction above)
+        return False
+    return False
+
+
 def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None, land_ok=None, land_alive=None, *, DISPATCH_NEAR_LAUNCH_GRACE_SEC, DISPATCH_STALE_NORMAL_SEC, DISPATCH_STALE_AUDIT_SEC, DISPATCH_TERMINAL_DETAIL, DISPATCH_TERMINAL_TYPES, _dispatch_log_mtime, _dispatch_task_of, _land_proc_alive, _live_claimed_task_ids, _main_task_status, _parse_iso_ts, _read_worktree_stamp, _session_proc_alive, _stamp_is_own, _worktree_path_for_branch, _dispatch_log_text=None):
     """Classify ONE dispatched task from its events (already scoped to task_id, ts-ascending).
     Returns (cls, detail, last_ts, session_ref). `identity` is the caller's _dispatch_identity
@@ -7820,6 +7847,15 @@ def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None
             age_sec = (now - dt_launch).total_seconds()
             within_grace = age_sec <= DISPATCH_NEAR_LAUNCH_GRACE_SEC
             if within_grace or (sref and proc_alive(sref)):
+                # T-13343 — the grace clock alone cannot tell a booting worker from one whose bootstrap
+                # died AFTER the T-12896 launch probe let go of it: both read still-booting until the
+                # grace runs out. So inside the grace ask the PROCESS once — the newest launch row's
+                # recorded pid, the same definite probe T-12660 runs on the launch axis. Only a
+                # ProcessLookupError reads gone; no pid, a bad pid, a PermissionError or a reused pid
+                # keep still-booting, and a positive session-proc read vetoes the stall, so a live
+                # worker is never read dead (the X-1461 double-launch direction).
+                if within_grace and _launch_pid_gone(_ldata) and not (sref and proc_alive(sref)):
+                    return ("launch-stall", _STALL_DETAIL_PROC_GONE, last_ts, sref)
                 return ("working", f"still-booting,age={int(age_sec // 60)}m", last_ts, sref)
             # T-10792 — NAME THE CAUSE when the launch log declares one. The dead bootstrap's own stdout
             # is the only witness to WHY it died, and it is already carried on the launch event
@@ -8281,6 +8317,13 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
                 "(session / weekly limit, with the reset time) — not a dead worker, not a bad task. "
                 "NOTHING to adopt. Wait for the reset the log names, or move dispatch to an account with "
                 f"quota left; only then dispatch {t} again. A plain re-dispatch re-dies until the reset")
+    if cls == "launch-stall" and detail == _STALL_DETAIL_PROC_GONE:
+        # T-13343 — the PROCESS answered, not the clock: the newest launch row's recorded pid provably
+        # names no process, which can be inside the bootstrap grace, so the generic "past the grace"
+        # route below would misstate it. Advice only, mutates nothing.
+        return ("launched but the worker PROCESS is gone — the newest launch row's recorded pid names "
+                "no process (a definite read, never a guess), so it died before it came up; NOTHING to "
+                f"adopt (no claim, no worktree). Read its dispatch log for the cause, then re-dispatch {t}")
     if cls == "no_dispatch" and str(detail or "").startswith(DISPATCH_EPOCH_REFUSED_PREFIX):
         # T-12897 — the newest dispatch attempt was REFUSED before any spawn: nothing ran, nothing to
         # adopt or wait for. The refusal names its cause; the route is to clear it, then dispatch again.
@@ -10212,6 +10255,17 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
     # chat events never reach the host journal — silently LOSING them for the real session.
     if os.environ.get("YITC_EVENTS_SINK", "").strip():
         return 0
+    # T-13732 (SPEC-0002 §Append ordering step 2): every row this batch appends goes through
+    # `_append`, which keeps the journal path the append's own witness names, so the batch can
+    # fsync exactly those files before the checkpoint moves past their rows.
+    appended_to: set = set()
+
+    def _append(*args, **kwargs):
+        witness = _append_event(*args, **kwargs)
+        if isinstance(witness, dict) and witness.get("path"):
+            appended_to.add(witness["path"])
+        return witness
+
     ref = session_ref or _resolve_session_ref()
     log = _session_log_path(ref)
     if log is None and not session_ref:
@@ -10322,10 +10376,10 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
                     sref = f"{log}#uuid:{uuid}#read:{tgt}" if uuid else None
                     if sref and sref in seen:
                         continue
-                    _append_event("instruction_injection", None,
-                                  {"injection_kind": "commanded_read", "target": tgt,
-                                   "arrival": "commanded", "form": "link_only",
-                                   "inject_source": "commanded"}, source_ref=sref, ts=ets)
+                    _append("instruction_injection", None,
+                            {"injection_kind": "commanded_read", "target": tgt,
+                             "arrival": "commanded", "form": "link_only",
+                             "inject_source": "commanded"}, source_ref=sref, ts=ets)
                     if sref:
                         seen.add(sref)
                     new_count += 1
@@ -10342,9 +10396,9 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
                         sref = f"{log}#uuid:{uuid}#cli_invoked:{nid}" if uuid else None
                         if sref and sref in seen:
                             continue
-                        _append_event("cli_invoked", None,
-                                      {"verb": "graph query", "node_id": nid},
-                                      source_ref=sref, ts=ets)
+                        _append("cli_invoked", None,
+                                {"verb": "graph query", "node_id": nid},
+                                source_ref=sref, ts=ets)
                         if sref:
                             seen.add(sref)
                         new_count += 1
@@ -10399,7 +10453,7 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
         # T-12732: these are THE parser-captured rows SPEC-0002 §Size cap names — `data` was shaped
         # through `_cap_text` above, and `text_cap=True` opts the envelope-level second defence in.
         # Every other `_append_event` caller leaves it off and is stored whole.
-        _append_event(etype, None, data, source_ref=sref, ts=ets, text_cap=True)
+        _append(etype, None, data, source_ref=sref, ts=ets, text_cap=True)
         if sref:
             seen.add(sref)
         new_count += 1
@@ -10407,6 +10461,23 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
     # Advance checkpoint to newest entry uuid (only when entries exist + changed).
     newest_uuid = next((e.get("uuid") for e in reversed(entries) if e.get("uuid")), last_uuid)
     if newest_uuid and newest_uuid != last_uuid:
+        # T-13732: the appends above were flushed, not synced. Make them durable BEFORE the
+        # checkpoint advances past them — a crash after a durable checkpoint but before the rows
+        # reach disk would otherwise skip them forever (the next sync resumes after the cursor).
+        # The directory is synced too, so a journal this batch CREATED keeps its entry. A failed
+        # fsync leaves the checkpoint where it was: the next sync re-reads those entries, so a row
+        # that did survive is appended again — a byte-identical duplicate that land's union+dedup
+        # collapses, never a loss.
+        try:
+            for path in sorted(appended_to):
+                for target in (path, os.path.dirname(path)):
+                    fd = os.open(target, os.O_RDONLY)
+                    try:
+                        os.fsync(fd)
+                    finally:
+                        os.close(fd)
+        except OSError:
+            return new_count
         SYNC_STATE_DIR.mkdir(parents=True, exist_ok=True)
         write_text_atomic(cp_path, state.dump(
             {"session_ref": ref, "last_processed_uuid": newest_uuid,

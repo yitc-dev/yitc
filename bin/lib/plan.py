@@ -821,13 +821,32 @@ def _emit_plan_stage_entered(slug: str, frm, to: str, *, extra=None, _append_eve
     return delivered
 
 
-def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool = False) -> None:
-    """SINGLE source for the plan-stage bundle delivery print (the `delivered` spec ids), shared by
+def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool = False,
+                               _deliver_stage_bundle_contracts) -> None:
+    """SINGLE source for the plan-stage bundle delivery (the `delivered` spec ids), shared by
     `cmd_plan_stage` (every transition) AND `cmd_plan_file` (draft-entry, T-0416) so the delivery
-    print FORMAT has ONE home — no mirror/copy of the print block (audit-pre F0). The slug→stage
-    header line + the per-stage work-items pointer stay caller-local (they are transition-specific)."""
+    has ONE home — no mirror/copy of the print block (audit-pre F0). The slug→stage
+    header line + the per-stage work-items pointer stay caller-local (they are transition-specific).
+
+    T-13708 — a non-empty bundle is handed to the stage deliverer (`_deliver_stage_bundle_contracts`,
+    injected by the host): each contract arrives as its contract view with the ordinary `graph query`
+    receipt the plan-stage read check credits, or as one pointer line while this context epoch
+    already holds the same content. Before this the ids were printed and each contract was fetched
+    by hand, as the full point-lookup render. The deliverer reads its first argument for ONE thing,
+    the realm map of a `-C` consumer's TASK-stage bundle; the name passed here is the plan-axis
+    binding token, which no task stage carries, so that map is empty and each id is fetched in the
+    bare form — the plan-axis bundle is own-corpus only and its read check credits by id (see
+    `_require_reads`). A delivery that fails leaves the transition as recorded and each contract one
+    `graph query` away: the plan-stage read check then refuses with its ready commands."""
     if delivered:
-        print(f"read before acting (fetch via `yitc-v2 graph query <SPEC>`): {', '.join(delivered)}")
+        print(f"read before acting — plan-stage-entry:{stage} contract(s), rendered below as contract "
+              f"views (or as a one-line pointer when this context epoch already holds the same "
+              f"content); each counts toward the read-gate (SPEC-0042/0050) only once its delivery "
+              f"completes: {', '.join(delivered)}")
+        try:
+            _deliver_stage_bundle_contracts(f"plan-stage-entry:{stage}", list(delivered))
+        except Exception:   # noqa: BLE001 — never break the verb whose transition is already recorded
+            pass
     else:
         # T-12988 — name the REAL homes, never the stale T-0317 promise. An empty bundle means THIS
         # repo's spec corpus binds nothing here (typically a -C consumer: the plan lifecycle is kernel
@@ -1753,6 +1772,9 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
               f"YES → `yitc-v2 plan stage trial {slug}` (controlled real-data soak); NO (non-eligible "
               f"prose/docs, the skip) → `yitc-v2 plan check {slug}` then `yitc-v2 plan stage accepted "
               f"{slug}`. Your judgement — no detector.")
+        _seam = _plan_seam_default_line(name, ("trial", "accepted"))
+        if _seam:
+            print(_seam)
     else:
         # T-0683 — after every OTHER (linear, non-fork) successful transition, surface the FSM
         # successor so the "what is the next gate" line is no longer omitted after accepted/
@@ -1764,6 +1786,9 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         if nxt is not None:
             print(f"next: `yitc-v2 plan stage {nxt} {slug}` — enter the {nxt} stage "
                   f"(the FSM successor of {name}; LIFECYCLE §Plan lifecycle).")
+            _seam = _plan_seam_default_line(name, (nxt,))
+            if _seam:
+                print(_seam)
 
 
 def _plan_draft_specs(slug: str, *, SPECS_DIR, _read_yaml) -> list:
@@ -3668,6 +3693,38 @@ def _plan_next_stage(cur: str, *, PLAN_STAGE_SEQUENCE) -> "str | None":
         return None
     i = PLAN_STAGE_SEQUENCE.index(cur)
     return PLAN_STAGE_SEQUENCE[i + 1] if i + 1 < len(PLAN_STAGE_SEQUENCE) else None
+
+
+def _plan_seam_default_line(cur: str, nxts, *, spec_text=None) -> "str | None":
+    """T-13752 — the SPEC-0126 §7 seam default (AUTO / STOP (owner) under an authorized plan-drive)
+    for each `cur → nxt` seam a `plan stage` next-step line names, as ONE line pointing at §7. The
+    defaults are READ from the §7 table (the one home, SPEC-0005 rule 8 — no copy in the verb): each
+    row's first bold token is rendered, with a pointer when the cell states a condition
+    (`unless` / `only` / `by default`). The kernel's
+    own SPEC-0126 is read (this file's checkout), so a `-C` consumer sees the kernel table. `spec_text`
+    is the test seam. None when no named seam has a row, or the spec is unreadable (fail-soft: the
+    next-step line above it is unaffected)."""
+    if spec_text is None:
+        try:
+            specs = Path(__file__).resolve().parents[2] / "specs"
+            spec_text = next(specs.glob("SPEC-0126-*.yaml")).read_text(encoding="utf-8")
+        except (OSError, StopIteration):
+            return None
+    i = spec_text.find("### 7. Plan-drive autonomy seam-map")
+    if i < 0:
+        return None
+    rows = {}
+    for line in spec_text[i:].splitlines():
+        m = re.match(r"\s*\| `(\w+) → (\w+)`[^|]*\| \*\*([^*]+)\*\*(.*?)\|", line)
+        if m:
+            rows[(m.group(1), m.group(2))] = m.group(3).strip() + (
+                " (conditional — see the row)"
+                if re.search(r"\b(unless|only|by default)\b", m.group(4)) else "")
+    parts = [f"`{cur} → {n}` {rows[(cur, n)]}" for n in nxts if (cur, n) in rows]
+    if not parts:
+        return None
+    return ("seam default under an authorized plan-drive (read from SPEC-0126 §7; no per-seam owner "
+            "question at an AUTO seam): " + "; ".join(parts))
 
 
 def _plan_body_title(body: str) -> str:

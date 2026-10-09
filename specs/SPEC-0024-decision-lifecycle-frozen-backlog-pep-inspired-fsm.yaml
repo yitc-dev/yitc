@@ -99,6 +99,25 @@ body: "## Scenario\n\nV2 decisions are PEP-shaped governance artifacts with an e
   \ carried a `decision_accepted` journal event** (the deterministic marker); legacy\
   \ decisions with no such event were grandfather-EXEMPT — this is how the 2026-06-08\
   \ drain finalized the remaining Accepted backlog. Full contract: `decisions/`.\n\
+  \n**Decision per-stage audit overlays — what the external auditor was asked at the\
+  \ two\ngates above.** HISTORICAL with those gates; the audit contract SPEC-0036\
+  \ names the decision target.\n\n**decision audit-pre (Draft → Accepted)** — «is\
+  \ this design sound to commit task resource to?»:\n- the 4 anti-complexity filters\
+  \ genuinely pass (a decision is a governance change);\n- it EXPLICITLY amends the\
+  \ canonical surfaces it changes (does not silently bypass them);\n- alternatives\
+  \ / prior-art considered (existing analog — Principle 1 F1); reuse over reinvention;\n\
+  - scope bounded; **retirements named** (replacement, not accretion — what is removed/forbidden?);\n\
+  - `adoption_probe` is event/state/measurable (Principle 3 + 8 for infra-class);\n\
+  - coherence: does it contradict an existing decision / handbook rule (Principle\
+  \ 7 dissonance)?\n\n**decision audit-post (Accepted → Final)** — «did reality realize\
+  \ the decision's intent, coherently, across ALL its implementing tasks?»:\n- every\
+  \ implementing task (`refs.follow_ups` `T-NNNN`) is `done`;\n- the decision's `acceptance_criteria`\
+  \ / `adoption_probe` are ACTUALLY realized — probe evidence present, not merely\
+  \ claimed (catches the shipped-but-not-adopted class);\n- coherence: shipped reality\
+  \ matches what the decision SAID — no drift, no contradiction with other artifacts\
+  \ (P7);\n- the **retirements actually happened** (what the decision said to remove\
+  \ / forbid is removed / forbidden);\n- **Review-only :** same as the task audit-post\
+  \ — do NOT run tests; VERIFY the recorded Stage-6 evidence of the implementing tasks.\n\
   \n**Template:** `decisions/_template.yaml` — the FROZEN-history template the existing\
   \ decision corpus was filed against (kept for reading legacy entries; `decision\
   \ new` is RETIRED, so no new decision is created from it). Fields marked `~` or\

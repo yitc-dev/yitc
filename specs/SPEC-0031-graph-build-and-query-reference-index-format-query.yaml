@@ -389,25 +389,117 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ freshness; NOT a real-time dashboard\n(queries run on-demand); NOT mutating —\
   \ a lens is a pure READ (over the graph artifact, or — for a\nraw-source lens like\
   \ `token-rollup` — over raw transcript files + owner config; never a writer).\n\n\
-  ### Node-volume — consolidation is a Review judgement, not a count-gate\nThere is\
-  \ **no numeric node-volume trigger** for any node type. Consolidating / retiring\
-  \ / archiving\nnodes (tasks, decisions, patterns) is a **regular Review judgement**\
-  \ made on observed cost — never an\narbitrary count threshold: counts grow with\
-  \ the work, so a fixed number signals nothing (owner\ndirective 2026-06-06). The\
-  \ arbitrary per-node-type count thresholds that once lived here\nare removed. The\
-  \ **spec count cap is likewise REPLACED** by the admission test + two-bound volume\n\
-  discipline (homed in SPEC-0005 rules 2 + 6; GRAPH.md §When-to-add points there)\
-  \ — anti-bloat is held\nby that discipline + retrieval precision + currency, not\
-  \ a count cap (SPEC-0005 rule 6).\n\n## Rationale\n\nDemoted to the retrieved tier\
-  \ (SPEC-0007 §5a query-only): the build walk + query-CLI surface are\nconsulted\
-  \ only when working ON the graph tooling — not before a gated control-point — so\
-  \ the\nalways-loaded GRAPH core stays small (node/edge schema + Spec lifecycle FSM\
-  \ + What-a-spec-is-FOR). The\nbuild↔query contract (the `index.json` format) is\
-  \ kept in ONE spec so the producer-doc and\nconsumer-doc do not drift apart (rule-1\
-  \ merge: separating them would worsen change analysis).\n\n## Verification\n\n-\
-  \ **Fidelity (RED-GREEN):** substantive phrases (e.g. `keyed by the normalized FILE\
-  \ component` /\n  `it stores the QUERY, never a materialized output`) resolve in\
-  \ THIS spec and are ABSENT from\n  GRAPH.md after the demote. RED before strip,\
+  ### Graph schema bounds — what the graph is NOT, and how each node type was admitted\n\
+  Read this before proposing a new node type, a new edge type or a new graph layer.\
+  \ The always-loaded\nGRAPH.md keeps the node and edge tables and points here; «§Schema»\
+  \ in the text of this section is\nGRAPH.md §Schema, and a request for anything on\
+  \ the fence list meets the anti-complexity filters\n(CHARTER §Principle 1) — the\
+  \ most likely answer is «defer until empirical pull».\n\n**What the graph is NOT.**\n\
+  \n- **NOT** multi-type beyond stated 8 nodes / 4 edges (no `methodology` / `runtime`\
+  \ / 25-type ontology like v1 — stays bounded per §Schema)\n- **NOT** edge classification\
+  \ beyond stated 4 edges (no `subsumes` / `replaces` / 9-type taxonomy like v1)\n\
+  - **NOT** validation layer (no «check that all RULE-* have implements» — humans\
+  \ write specs correctly OR they don't, graph just indexes). **ONE narrow named exception\
+  \ (SPEC-0076 §3):** `graph build` deterministically REJECTS a scenario frontmatter\
+  \ that STORES an illegal `status` (only `retired` or absent is legal — `draft|building`\
+  \ are a computed view, and the now-retired `live` stays illegal to store). This\
+  \ is a storage-FORMAT contract check (a malformed field, like the YAML-parse fail-closed),\
+  \ NOT semantic/legality validation — the graph still never judges transition legality,\
+  \ never gates on suspicion (scenario staleness stays a read-only WARN; a dangling\
+  \ `covers` anchor is report-only here, hardened to a write-time error by its own\
+  \ card, not by `graph build`).\n- **NOT** an unconditional rebuild — the build consults\
+  \ a result cache first; the cache contract is §Build tool step 0 of this spec. **The\
+  \ cost it addresses is measured, not assumed** — folded from each repo's own recorded\
+  \ build durations. Cost tracks CORPUS SIZE and so differs by orders of magnitude\
+  \ per repo — near-instant on the smallest consumers, seconds in the engine — so\
+  \ **re-fold the figure for YOUR repo before reasoning from it**.\n- **NOT** an async/reactive\
+  \ event-emitter service: the build runs synchronously and has no reactive observability\
+  \ layer. The one provenance row a build appends to the journal is a record of that\
+  \ build, never an event-sourced or reactive layer.\n- **NOT** soft-delete / lifecycle\
+  \ (retired specs stay in `specs/` with `status: retired`; graph indexes them too)\n\
+  - **NOT** N-wave history versioning\n\n**How each node type was admitted.**\n\n\
+  **`error` node — anti-complexity note :** the `error` node-type was added by an\
+  \ explicit decision ( §GRAPH — errors are indexed from day 1 because recurrence-matching\
+  \ is a core graph query), satisfying Principle 1 Filter 4 (real decision, not speculation).\
+  \ It REUSES the surviving `cites` edge only — and adds **no** new edge type (a promotion\
+  \ link reuses `cites`). Nothing was removed because this is a decision-backed new\
+  \ entity, not parallel storage.\n\n**`scenario` node + `covers` edge — the 4-filter\
+  \ justification (per SPEC-0076).** Re-introducing a first-class scenario reverses\
+  \ the deliberate graph-slim cut (11→6) and the B3 \"fold a scenario into a spec-section\"\
+  \ choice — so it MUST earn its way back through the CHARTER §P1 four filters (written\
+  \ here, the §When-NOT-to-add discipline):\n1. **Existing analog?** The `pattern`/`error`\
+  \ doc-that-`cites` node is the structural analog (node-reuses-`cites`) — REUSED\
+  \ for the node shape. But a scenario (the owner's PRIMARY human-facing working instrument\
+  \ — a user-path) is semantically distinct from a `pattern` (a rarely-touched methodology\
+  \ practice); folding them onto one type re-muddies the legibility that motivates\
+  \ the entity. So the NODE is new, the edge-reuse pattern is not.\n2. **New entity\
+  \ or new view?** A scenario MUST be a graph node to carry `cites`/`covers` + be\
+  \ queried for integrity; the status FSM (`draft|building`) is a derived VIEW, never\
+  \ stored (SPEC-0076 §3, which also records why the former `live` state was retired).\
+  \ The ONE new edge `covers` is justified by a relation `cites` cannot express by\
+  \ endpoint-typing alone — a scenario→code/anchor coverage link.\n3. **What gets\
+  \ removed (RETIREMENT, P1 F3 — named):** (a) \"a scenario = an ad-hoc prose doc\
+  \ INVISIBLE to the graph\" CEASES to be canonical — `scenarios/<slug>.md` indexed\
+  \ as a `scenario` node is now the **SOLE canonical scenario carrier** in the v2\
+  \ corpus; (b) the B3 representation of a cross-spec user-journey as a scenario-PARENT\
+  \ spec is **retired-in-role** (the journey is the scenario ARTIFACT/node now). The\
+  \ single-rule `## Scenario` spec SECTION (one rule's external-behaviour face) is\
+  \ **UNAFFECTED** — a different altitude.\n4. **Real incident / prior-art / analog?**\
+  \ v1 `SCN-*` first-class nodes (prior-art) + <project>'s matured `SCN↔FSM↔code`\
+  \ graph + <project>/<project> `scenarios/` dirs (≥3-project prior-art) + the asymmetric\
+  \ multi-project retrofit cost (CHARTER §P1 scale-aware refinement) — passes strongly.\n\
+  \n**Scope bound (honest +1/+1):** `covers` targets ONLY anchors the graph resolves\
+  \ TODAY (the `<file>` / `<file>#<symbol>` address space `implements` uses) — NO\
+  \ new symbol-indexer, NO `FSM-state` node-type (both deferred to their own future\
+  \ spec). So the change is EXACTLY +1 node + 1 edge.\n\n**`lesson` node — the 4-filter\
+  \ justification (per SPEC-0090).** A `lesson` is a per-repo, NON-traveling local-craft\
+  \ note (`lessons/<slug>.md`) — the LOCAL counterpart of a `pattern`. Adding an 8th\
+  \ node-type earns its way through the CHARTER §P1 four filters:\n1. **Existing analog?**\
+  \ The `pattern`/`scenario`/`error` doc-that-`cites` node is the structural analog\
+  \ (node-reuses-`cites`) — REUSED for the node shape and the edge. A lesson is semantically\
+  \ distinct from a `pattern` precisely along the axis this architecture exists to\
+  \ make queryable — **LOCAL/non-traveling vs GENERAL/traveling** (SPEC-0090 §1) —\
+  \ so folding the two onto one type would destroy that distinction. The NODE is new;\
+  \ the `cites`-reuse pattern is not.\n2. **New entity or new view?** A lesson MUST\
+  \ be a graph node to carry `cites` + be queryable. It has **NO status FSM** (unlike\
+  \ `scenario`): it is zero-normative, so the OPTIONAL `status: retired` is the only\
+  \ stored marker (SPEC-0090 §5) — simpler than the scenario.\n3. **What gets removed\
+  \ (RETIREMENT, P1 F3 — named):** the «a project-specific craft note had nowhere\
+  \ to live except the cross-project `patterns/` catalog» drift is removed — `lessons/`\
+  \ is now the honest home for local craft, so `patterns/` holds only GENERAL traveling\
+  \ methodology. (The *routing* retirements + the route-by-purpose enforcement live\
+  \ in the SIBLING behavioral plan / SPEC-0089 — this node-type leg is additive-only,\
+  \ SPEC-0090 §7.)\n4. **Real incident / prior-art / analog?** The `ideas/`-catch-all\
+  \ drift (deviation 2026-06-19) is the real incident; the `scenario` node-type (SPEC-0076)\
+  \ is the immediate +1-node-reuses-`cites` prior-art; ≥3-project local-craft accumulation\
+  \ (<project>/<project> specifics) is the scale driver.\n\n**Scope bound (honest\
+  \ +1/0):** the `lesson` node REUSES `cites` — NO new edge (the 4-edge bound is UNCHANGED).\
+  \ A lesson is indexed PER-REPO, by each repository's own build: a lesson never travels\
+  \ (project realm, SPEC-0073). So the change is EXACTLY +1 node, +0 edge.\n\n####\
+  \ Why this schema (not more, not less) — per CHARTER §1 Filter 4 refined\n\n- **Prior-art\
+  \ from v1**: the entity + edge patterns were observed across months of v1 production\
+  \ usage. Not speculation.\n- **V2 Day 2+ projection**: ~30 cite-able artifacts after\
+  \ closure; 100+ within first production-task week; 500+ within first month. Indexed\
+  \ graph beats grep at that scale.\n- **Build cost**: ~200 LOC (build script + query\
+  \ CLI). All data already structured.\n\n### Node-volume — consolidation is a Review\
+  \ judgement, not a count-gate\nThere is **no numeric node-volume trigger** for any\
+  \ node type. Consolidating / retiring / archiving\nnodes (tasks, decisions, patterns)\
+  \ is a **regular Review judgement** made on observed cost — never an\narbitrary\
+  \ count threshold: counts grow with the work, so a fixed number signals nothing\
+  \ (owner\ndirective 2026-06-06). The arbitrary per-node-type count thresholds that\
+  \ once lived here\nare removed. The **spec count cap is likewise REPLACED** by the\
+  \ admission test + two-bound volume\ndiscipline (homed in SPEC-0005 rules 2 + 6;\
+  \ GRAPH.md §When-to-add points there) — anti-bloat is held\nby that discipline +\
+  \ retrieval precision + currency, not a count cap (SPEC-0005 rule 6).\n\n## Rationale\n\
+  \nDemoted to the retrieved tier (SPEC-0007 §5a query-only): the build walk + query-CLI\
+  \ surface are\nconsulted only when working ON the graph tooling — not before a gated\
+  \ control-point — so the\nalways-loaded GRAPH core stays small (node/edge schema\
+  \ + Spec lifecycle FSM + What-a-spec-is-FOR). The\nbuild↔query contract (the `index.json`\
+  \ format) is kept in ONE spec so the producer-doc and\nconsumer-doc do not drift\
+  \ apart (rule-1 merge: separating them would worsen change analysis).\n\n## Verification\n\
+  \n- **Fidelity (RED-GREEN):** substantive phrases (e.g. `keyed by the normalized\
+  \ FILE component` /\n  `it stores the QUERY, never a materialized output`) resolve\
+  \ in THIS spec and are ABSENT from\n  GRAPH.md after the demote. RED before strip,\
   \ GREEN after.\n- **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0031`\
   \ resolves; the GRAPH.md pointer-stub\n  names `SPEC-0031` + lookup command. NO\
   \ floor-trigger.\n- **Non-dangling:** non-empty `implements:` (cmd_graph_build +\

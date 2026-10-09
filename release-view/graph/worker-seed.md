@@ -15,9 +15,6 @@
 
 # YITC v2 — Charter
 
-> **Status:** Day 1 — 2026-05-26
-> **Predecessor:** YITC v1 (`<v1-archive>/`) — frozen as reference corpus, not active development.
-
 ## What V2 is
 
 A minimal AI-assisted development methodology for **one developer (the owner)** working with a **primary AI agent** on multiple production projects (the owner's revenue-generating products).
@@ -77,48 +74,16 @@ Read-only actions require `from:` only if substantive (e.g. analysis-time prior-
 - Required: within 72 hours, write retro-doc capturing the new protocol + file post-incident task
 - Frequency check: > 1 use per 30 days triggers a Controller review-audit
 
-**Canonical handbook = the generated `HANDBOOK_READ_ORDER` set** (the single carrier in `bin/yitc-v2`, from which every read-order surface is generated). A file is a handbook member iff it is in that read-order — canonical is the SET, not a fixed file COUNT. Current members: `CHARTER.md`, the AGENTS protocol (split across `AGENTS-STARTUP.md` + `AGENTS-SESSIONS.md` + `AGENTS-PROTOCOL.md` for single-Read safety, SPEC-0120), `LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md`. Per SPEC-0120 an over-ceiling handbook doc SPLITS into read-order-served parts (all parts served at startup), so the member list grows by splitting — the old fixed "5 files" count is RETIRED (replacement: the generated set).
-
 **Size budget:**
 - Hard cap: ≤ 2500 lines total across the FULL generated `HANDBOOK_READ_ORDER` set — every split
   part counts, so splitting a file into read-order-served parts does NOT escape the aggregate (the
   conformance/check path SUMS the generated set, not a fixed 5-file list). (Cap raised to 2500 — the original Day-1 value was an unverified empirical guess; 2500 gives headroom for
-  evolution + supersession bodies. The cap stays a hard fail-closed limit; compaction discipline
-  below is unchanged.)
+  evolution + supersession bodies. The cap stays a hard fail-closed limit; the compaction discipline
+  (SPEC-0127 §8) is unchanged.)
 - Warning threshold: 2000 lines — a Controller review pass reviews the growth trajectory; identifies compaction candidates
-- **Byte/token axis — a REPORTED OUTCOME + a trajectory warn, NEVER a second cap (owner ruling Q1,
-  2026-07-17).** The line cap is blind to DENSITY: a diff may grow the set's reading cost while
-  its line count holds or even falls. So the aggregate BYTES + a bytes/4 token estimate are REPORTED
-  beside the line cap, and the existing report-only `seed-growth` WARN (`graph conformance`) fires on
-  byte growth as well as line growth. This axis decrees **no second hard cap and no token number** —
-  deliberately: a decreed number is voluntaristic (established by the cancelled plan
-  `startup-slice-compression-re-home-handbook-bodies-`), so what decides whether content STAYS in the
-  seed is the **three-bucket placement test** (creed stays · triggered detail demotes to its spec ·
-  provenance cuts), never a threshold. Same rule already ratified for the sibling worker-seed total at
-  SPEC-0127 §5: *a total has no reader-facing threshold, only a trajectory*. Report-only means exactly
-  that — outside the conformance RED set, no exit code moves.
-  - **Origin datum (so the trajectory has a zero point) — mind the two distinct numbers.** At
-    2026-07-17 this budget's own subject, the `HANDBOOK_READ_ORDER` set, measured **1739 lines = 70% of
-    the 2500 cap and GREEN, carrying ~173kB (~100 bytes/line) ≈ ~43k tokens** — green on the only axis
-    that existed while density grew unchecked. Distinct and wider: **~177k tokens** is the TOTAL
-    per-substantive-task protocol weight (~37k seed + ~140k stage bundles), which grew **×2.7** vs
-    2026-06-06 — the trajectory this axis exists to make visible, but NOT what this budget measures
-    (stage bundles are not handbook members).
-    Do not read the two ~177 figures as one: the SET is ~173kB, the whole per-task read is ~177k **tok**.
-    Method + both derivations: `ideas/protocol-weight-compaction-review-stage-bundles-seed.md` §1/§1a.
-- Compaction trigger: any single decision adds > 100 lines OR session adds > 200 lines aggregate → mandatory file follow-up task «compact / refactor / delete equivalent content»
-- If approaching cap, split MUST involve **deletion** of equivalent content, not just addition of a new file
-- **Distinct from a SPEC-0120 per-file safety split (orthogonal, aggregate-neutral):** relocating an
-  over-ceiling doc's content VERBATIM into read-order-served sibling parts (SPLIT-never-delete) is NOT
-  the compaction-split above — it does not change the aggregate line count, so it needs no paired
-  deletion. Compaction (the deletion discipline above) stays a separate action, applied when the
-  aggregate itself approaches the cap.
-
-**Excluded from canonical handbook (not counted in the cap):**
-- `<vendor-adapter>.md` — 5-line vendor-tool adapter pointing to `AGENTS-STARTUP.md`
-- `PATTERNS.md` — reference catalog for migrated patterns + methodology lessons (rejected/withdrawn methodological options + the why-rationale — the role orphaned when the `decision new` class retired; see `patterns/methodology-lessons.md`) (not normative)
-- `README.md` — repo entry point for humans (not normative)
-- `specs/*.yaml`, `tasks/*.yaml`, `decisions/*.yaml` — operational state, not normative handbook
+- **The rest of the budget rule — retrieved (SPEC-0127 §8).** Which files are handbook members and
+  which are excluded, the reported byte/token axis, the compaction trigger and the deletion rule:
+  read it before editing a seed doc — `bin/yitc-v2 graph query SPEC-0127`.
 
 ### 3. Done = Adopted
 
@@ -248,26 +213,7 @@ which SPEC-0178 requires per case — informs the same decision without pre-empt
 
 > **Retrieved — SPEC-0024.** `bin/yitc-v2 graph query SPEC-0024`
 
-## Success criteria
-
-Two-step validation distinguishing internal-loop validity vs business-purpose validity:
-
-- **Milestone "V2 lifecycle works" (~7 days):** (patterns migration) closes cleanly through all 9 lifecycle stages with zero bypass mechanisms used. Probe evidence verified per AC1-AC5. This validates the lifecycle, not the product claim.
-- **Milestone "V2 works" (~30 days):** Owner completes ≥ 1 task on a production project (not V2 itself) via V2 lifecycle, with **measurably lower** session friction than v1 equivalent. This validates the business purpose.
-- **Milestone "V2 takes over" (~60 days):** Owner uses V2 for ≥ 2 external projects routinely. v1 access only for historical lookup.
-- **Milestone "V2 stable" (~90 days):** V1 in maintenance/archive mode. V2 handbook within the Principle 2 size budget held. No emergent v1-pattern accretion detected by the quarterly Controller review-audit.
-
 ## Failure trigger
-
-If by **day 30-45** V2 has:
-- Reproduced v1 complexity patterns (new hook systems, multiple ledgers, > 1 storage truth) OR
-- No successful production-project usage outside this repo OR
-- Handbook exceeded the Principle 2 size cap without equivalent deletion
-
-→ **cut scope further**. Drop framework ambitions. Keep only:
-- `patterns/` directory (extracted v1 patterns as reference)
-- Personal <vendor-adapter>.md guidance for owner's own use
-- One-line operating principle: «ask AI, ship what works»
 
 Don't escalate complexity in response to friction. Reduce.
 
@@ -284,7 +230,6 @@ Without all 4 — addition rejected. Owner enforces this during the Controller's
 
 ## Refs
 
-- External audit verdict 2026-05-26: `yitc-workspace/yitc-rewrite-vs-continue-audit-result-v2-2026-05-26.md`
 - V1 frozen reference: `<v1-archive>/` + `<v1-workspace>/`
 - Review-preparation docs (read before authoring V2 charters):
   - `yitc-workspace/task-lifecycle-canonical-spec-2026-05-24.md` (959 lines — distilled into `LIFECYCLE.md`)

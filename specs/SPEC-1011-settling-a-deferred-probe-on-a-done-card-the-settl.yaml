@@ -1,0 +1,109 @@
+id: SPEC-1011
+title: Settling a deferred probe on a done card — the settle procedure (reference,
+  read before task close --settle-probe)
+status: active
+created_at: 2026-10-07 18:50:00+00:00
+consumed: false
+implements: []
+body: "## Scenario\n\nA task closed with a `deferred` probe comes back later, when\
+  \ its evidence exists, and someone settles it\non the already-done card with `task\
+  \ close --settle-probe`. That is a rare act, done outside the Closure\nstage, so\
+  \ its procedure is a REFERENCE: no stage entry renders it. A session about to settle\
+  \ meets a\npointer to it in two places — the index line of SPEC-0015 §Settling and\
+  \ the first lines of the\n`--settle-probe` help — and fetches it on demand. Closing\
+  \ a card — including deferring a probe and\nnaming when it returns — stays in the\
+  \ Closure contract (SPEC-0015).\n\n## Internal\n\n### 1. Delivery — a plain reference\n\
+  - This spec is rendered at NO stage entry and is fetched before no verb: reading\
+  \ it is not checked.\n  What guards the settle WRITE is the three fail-closed refusals\
+  \ of §2, and they hold whether or not\n  this text was read.\n- Fetch it on demand\
+  \ with `graph query SPEC-1011` (under `-C`: `graph query --kernel SPEC-1011`).\n\
+  - Lookup: each rule of §2 sits under its own bold lead (The STANDING RULE · THE\
+  \ EVIDENCE IS NAMED ·\n  FAIL-CLOSED — three refusals · THE TWO HONEST NON-PASS\
+  \ TERMINALS · BOUNDS · Bound), so a search of\n  this spec for one of them lands\
+  \ on the whole rule.\n\n### 2. The settle procedure\nA probe closed `deferred` waits\
+  \ for evidence that did not exist at its closure (SPEC-0015 §Settling).\nThis section\
+  \ governs recording the result once that evidence exists; a `task close --probe\
+  \ AC:pass`\non a done card is NOT that route.\n\n**The STANDING RULE.** A DEFERRED\
+  \ probe on a done card MAY be settled by a governed late linkage\nthat RECORDS the\
+  \ now-proven result together with a NAMED, RESOLVING evidence locator, and emits\
+  \ a\nmachine-readable journal row tying the task id, the criterion and that locator.\
+  \ It is the third\nmember of the existing done-card late-linkage family (`--closes-fp`,\
+  \ `--pv-*`),\nand it is NOT a reopen: `status`, `commit` and `closed_at` are untouched,\
+  \ and `probe_passed` changes\nonly through the one shared derivation of SPEC-0015\
+  \ §`probe_passed` is THREE-STATE — `deferred` → `true`\nwhen the last deferred probe\
+  \ is settled `pass`, left as it is (with a WARN naming the probe) while a\nnon-pass\
+  \ result remains — so the LIFECYCLE §Stage 9 / QUEUE §ANTI-PATTERN «a landed done\
+  \ card has no\nreopen» rule is unaffected.\n\n**THE EVIDENCE IS NAMED, NEVER ASSERTED**\
+  \ — the same discipline as `post_ship_observation.settled_by`\nand `live_probe.settled_by`,\
+  \ REUSING their materialized-journal citation form rather than\nopening a second\
+  \ address space.\n\n**FAIL-CLOSED — three refusals, so the path cannot paint a criterion\
+  \ green after the fact:**\n(a) a probe key the closure never recorded cannot be\
+  \ introduced; (b) a probe whose recorded result\nis anything but `deferred` cannot\
+  \ be settled — which is the no-back-dating guard AND what stops an\nalready-settled\
+  \ probe (INCLUDING one settled to a terminal below) being re-settled behind\ndifferent\
+  \ evidence or a different reason; (c) a result that is neither `pass` NOR one of\
+  \ the two\nNON-PASS TERMINALS below is refused — a bare `fail` above all, because\
+  \ a done card's aggregate has no\nfailing value — it is `true` or `deferred` (QUEUE\
+  \ §Done log) — and a criterion that was tested, did not\nhold, and records nothing\
+  \ about why is new work, not a settlement. Independently, a locator that resolves\
+  \ to no\njournal row is refused as a made-up citation.\n\n**THE TWO HONEST NON-PASS\
+  \ TERMINALS (owner ruling events.jsonl#ts=).**\nRefusal (c) does not cover a criterion\
+  \ that will NEVER be proven, where saying so IS the honest\nrecord (e.g. evidence\
+  \ living in another repository, which AGENTS-SESSIONS §Scope-boundary forbids as\n\
+  an acceptance-probe target). A probe key CONTAINING colons is addressable — the\
+  \ settlement parser\nsplits on the LAST colon, so pass the full recorded key verbatim.\
+  \ A DEFERRED probe may ALSO be\ndischarged as:\n- **`unreachable`** — a proof that\
+  \ can NEVER arrive;\n- **`falsified`** — a reading that ARRIVED and came back NEGATIVE.\n\
+  \n**TWO VALUES, NOT ONE, and NOT one value plus a reason that happens to say which.**\
+  \ `unreachable`\nsays the criterion was mis-authored (the remedy is an AUTHORING\
+  \ fix for the next card /\nSPEC-0060, never work on this one); `falsified` says\
+  \ a real finding exists that someone may need to\nact on. The distinction lives\
+  \ in the STORED VALUE, in the same `probes:` mapping the settle writes —\nthe debt\
+  \ view keys the discharge on that value, never on a parallel marker or free text.\n\
+  \n**FAIL-CLOSED, because this is an escape hatch and must not become a convenience.**\
+  \ Each terminal\nREQUIRES a non-empty **FREE-TEXT reason** (`--settle-reason`) and\
+  \ takes NO evidence locator. An empty\nor whitespace-only reason is REFUSED before\
+  \ any write. The reason is deliberately NOT an enum.\n\n**NEITHER TERMINAL EVER\
+  \ SATISFIES CHARTER §Principle 8 adoption evidence** — by construction: the P8\n\
+  detector reads adoption CARRIERS, never a probe VALUE.\n\n**BOUNDS, so the widening\
+  \ stays narrow.** This widens the SETTLE, never the CLOSE: the close gate\nis still\
+  \ `all(v == \"pass\")` over the non-deferred probes (what the close WRITES is SPEC-0015's\n\
+  three-state aggregate), so a card that tried to CLOSE carrying a\nterminal is refused\
+  \ exactly as one carrying `fail` is, and nothing here changes what may be\nDEFERRED\
+  \ at closure. Refusals (a) and (b) are untouched. And the debt view REPORTS both\
+  \ sets on\ntheir OWN separate counted lines rather than dropping either or merging\
+  \ them — a silent decrement\nwould hide exactly what this is meant to make honest\
+  \ (the reporting half is homed in SPEC-0119\nrule 3, not restated here).\n\n**Bound\
+  \ — this rules on WHETHER the citation is real, never on WHAT counts as substantive\n\
+  evidence.** The resolved row's TYPE is unrestricted (variant (d)'s acceptance event\
+  \ is an arbitrary\nland-emitted type). Resolution reads the same worktree+main journal\
+  \ fold every close-seam reader uses\n(SPEC-0168 rule 7). No new verb, status or\
+  \ store; no change to the audit-post carve-out flags.\n\n\nThe settlement evidence-locator\
+  \ address space (all three kinds, and which consumer takes which) stays\nin SPEC-0015\
+  \ — the shared home of all three locator consumers.\n\n## Parameters\n\nNone consumed.\n\
+  \n## Rationale\n\nThe act this procedure governs runs on an already-done card, through\
+  \ a `task close` leg that returns\nbefore the Closure read gate. Rendered inside\
+  \ the Closure contract it reached every session closing\nsome other card and no\
+  \ session that settles; as a reference behind an index line and the help of the\n\
+  settle flag it is met by the session about to settle.\n\n## Verification\n\n- VP1\
+  \ (one home): every sentence of the procedure is present in this spec and absent\
+  \ from SPEC-0015,\n  and SPEC-0015 §Settling carries exactly one index line naming\
+  \ this spec and the heading to search.\n- VP2 (aggregate statements): the three\
+  \ statements this procedure makes about `probe_passed` agree\n  with SPEC-0015 §`probe_passed`\
+  \ is THREE-STATE and with the one shared derivation.\n- VP3 (reachable from the\
+  \ verb): the first lines of the `--settle-probe` help name this spec.\n- VP4 (no\
+  \ stage render): no stage entry delivers this spec.\n- VP5 (locator grammar unchanged):\
+  \ the differential test passes against SPEC-0015, its\n  unchanged home.\nThe executable\
+  \ form of VP1-VP4 is `tests/test_t13662_settle_reference_spec.py`.\n"
+cites:
+- SPEC-0015
+- SPEC-0119
+- SPEC-0168
+- SPEC-0013
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

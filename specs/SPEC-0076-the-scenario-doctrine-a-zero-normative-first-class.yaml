@@ -86,45 +86,46 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \n### 4. Graph integration — +1 node, +1 edge, bounded\nReverses the deliberate\
   \ v2 graph-slim cut (6 node-types) to **7 node-types (`scenario`)** and\n**4 edge-types\
   \ (`covers`)** — the only schema growth. (The 4-filter justification for reversing\
-  \ the cut\nis homed in GRAPH.md at the mint + the proposing plan §Approach.)\n \
-  \ - `scenario` node — a thin node (`scenarios/<slug>.md` frontmatter: `scenario`/`actor`/`status`/`cites`),\n\
-  \    carrying `cites` like the `pattern` node (prior-art for node-reuses-`cites`:\
-  \ the `error` node).\n  - `covers` edge — `scenario → an anchor the graph ALREADY\
-  \ resolves TODAY` (the existing\n    `<file>#<symbol>` / `defined_in`-style anchor\
-  \ address space). **Scope guard (audit F1):** `covers`\n    targets ONLY anchors\
-  \ resolvable with the CURRENT graph anchor-space — it adds NO new\n    symbol-addressing/indexing\
-  \ substrate. A richer scenario↔FSM-state coverage (an addressable\n    state/transition\
-  \ symbol like `SPEC-XXXX#state:paid` that the graph CANNOT resolve today) is\n \
-  \   therefore **OUT OF SCOPE for SPEC-0076** and requires its OWN spec to build\
-  \ the symbol-indexer — it\n    is NOT smuggled in here. A dedicated `FSM-state`\
-  \ node-type is likewise DEFERRED. So this spec's\n    schema change stays an HONEST\
-  \ EXACTLY +1 node + 1 edge (no hidden FSM-state layer).\n  - `cites` (reused, any→any)\
-  \ edge meaning is DERIVED from the typed endpoints — no new edge per relation:\n\
-  \    `cites(scenario→spec)` = BINDS (a load-bearing rule the path passes through\
-  \ — binding by construction);\n    `cites(scenario→plan)` = design-input (the scenario→plan\
-  \ seam); `cites(scenario→scenario|pattern|doc)`\n    = composition/coherence link;\
-  \ `cites(plan→scenario)` = the plan's declared scenario INPUTS\n    (the scenario→plan\
-  \ seam from the plan side — a plan declares the user-path(s) it shapes by listing\n\
-  \    scenario slug(s) in its own `cites:`, reusing the any→any edge; no new `scenarios:`\
-  \ field). The\n    coverage/coherence queries are VIEWS over the typed-cites graph.\n\
-  \n### 5. Authoring format — step-annotated cites + error branches\n**The obligation\
-  \ is per-AUTHORED-item, NOT a coverage/completeness mandate (audit F3).** It constrains\n\
-  only what IS written; the ABSENCE of a step or an error-branch is NOT itself a defect\
-  \ or a review-fail\n(a scenario is descriptive composition, never a completeness/acceptance\
-  \ carrier — that would re-import\na normative-completeness criterion the rule-2\
-  \ boundary forbids).\n  - Each AUTHORED step annotates its ONE governing anchor\
-  \ inline + a one-line role gloss\n    (`→ SPEC-XXXX — <gloss>`), OR is marked `(ungoverned)`\
-  \ for a deliberately ungoverned step (a\n    recognized non-goal). The gloss POINTS\
-  \ at the rule; it never RESTATES it (rule 2 / P5).\n  - **Error / negative branches,\
-  \ WHEN authored,** narrate the failure path descriptively and each\n    `cites`\
-  \ the spec whose `## Verification` carries the enforceable negative check (the test\
-  \ ORACLE).\n    Narration (scenario) + the enforceable check (spec `## Verification`)\
-  \ are complementary,\n    non-duplicating homes for \"how it must NOT work\" — the\
-  \ spec side stays the canonical oracle (rule 2\n    holds). Whether a given error-branch\
-  \ is worth authoring is a descriptive-completeness judgement, not\n    a rule the\
-  \ scenario must satisfy.\n  - Reusable blocks are factored out so scenarios compose\
-  \ shared sub-paths.\n  - **A step MAY name an exact TEST anchor in `covers`, ADDITIVELY\
-  \ beside its production anchor(s)\n    ( — the converged binding shape of plan scenarios-as-executable-specs-bind-scenario-steps-).**\n\
+  \ the cut\nis homed in SPEC-0031 §Graph schema bounds, where GRAPH.md points, +\
+  \ the proposing plan §Approach.)\n  - `scenario` node — a thin node (`scenarios/<slug>.md`\
+  \ frontmatter: `scenario`/`actor`/`status`/`cites`),\n    carrying `cites` like\
+  \ the `pattern` node (prior-art for node-reuses-`cites`: the `error` node).\n  -\
+  \ `covers` edge — `scenario → an anchor the graph ALREADY resolves TODAY` (the existing\n\
+  \    `<file>#<symbol>` / `defined_in`-style anchor address space). **Scope guard\
+  \ (audit F1):** `covers`\n    targets ONLY anchors resolvable with the CURRENT graph\
+  \ anchor-space — it adds NO new\n    symbol-addressing/indexing substrate. A richer\
+  \ scenario↔FSM-state coverage (an addressable\n    state/transition symbol like\
+  \ `SPEC-XXXX#state:paid` that the graph CANNOT resolve today) is\n    therefore\
+  \ **OUT OF SCOPE for SPEC-0076** and requires its OWN spec to build the symbol-indexer\
+  \ — it\n    is NOT smuggled in here. A dedicated `FSM-state` node-type is likewise\
+  \ DEFERRED. So this spec's\n    schema change stays an HONEST EXACTLY +1 node +\
+  \ 1 edge (no hidden FSM-state layer).\n  - `cites` (reused, any→any) edge meaning\
+  \ is DERIVED from the typed endpoints — no new edge per relation:\n    `cites(scenario→spec)`\
+  \ = BINDS (a load-bearing rule the path passes through — binding by construction);\n\
+  \    `cites(scenario→plan)` = design-input (the scenario→plan seam); `cites(scenario→scenario|pattern|doc)`\n\
+  \    = composition/coherence link; `cites(plan→scenario)` = the plan's declared\
+  \ scenario INPUTS\n    (the scenario→plan seam from the plan side — a plan declares\
+  \ the user-path(s) it shapes by listing\n    scenario slug(s) in its own `cites:`,\
+  \ reusing the any→any edge; no new `scenarios:` field). The\n    coverage/coherence\
+  \ queries are VIEWS over the typed-cites graph.\n\n### 5. Authoring format — step-annotated\
+  \ cites + error branches\n**The obligation is per-AUTHORED-item, NOT a coverage/completeness\
+  \ mandate (audit F3).** It constrains\nonly what IS written; the ABSENCE of a step\
+  \ or an error-branch is NOT itself a defect or a review-fail\n(a scenario is descriptive\
+  \ composition, never a completeness/acceptance carrier — that would re-import\n\
+  a normative-completeness criterion the rule-2 boundary forbids).\n  - Each AUTHORED\
+  \ step annotates its ONE governing anchor inline + a one-line role gloss\n    (`→\
+  \ SPEC-XXXX — <gloss>`), OR is marked `(ungoverned)` for a deliberately ungoverned\
+  \ step (a\n    recognized non-goal). The gloss POINTS at the rule; it never RESTATES\
+  \ it (rule 2 / P5).\n  - **Error / negative branches, WHEN authored,** narrate the\
+  \ failure path descriptively and each\n    `cites` the spec whose `## Verification`\
+  \ carries the enforceable negative check (the test ORACLE).\n    Narration (scenario)\
+  \ + the enforceable check (spec `## Verification`) are complementary,\n    non-duplicating\
+  \ homes for \"how it must NOT work\" — the spec side stays the canonical oracle\
+  \ (rule 2\n    holds). Whether a given error-branch is worth authoring is a descriptive-completeness\
+  \ judgement, not\n    a rule the scenario must satisfy.\n  - Reusable blocks are\
+  \ factored out so scenarios compose shared sub-paths.\n  - **A step MAY name an\
+  \ exact TEST anchor in `covers`, ADDITIVELY beside its production anchor(s)\n  \
+  \  ( — the converged binding shape of plan scenarios-as-executable-specs-bind-scenario-steps-).**\n\
   \    The test anchor uses the grammar the graph already resolves (rule 4): `tests/<file>.py#<fn>`\
   \ (a\n    test function) or `<file>.test.jsx#<it label>` (a describe/it/test label).\
   \ The production anchor\n    STAYS — impact discovery keys on it, execution on the\

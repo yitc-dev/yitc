@@ -210,7 +210,7 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \  to a defined test, `ledger:<LABEL>` to a rule-test-ledger row, `trial:<REF>`\
   \ to a ref carried by\n  the proposing plan, `cross:<X-NNNN>` to an item the shared\
   \ coordination log folds to a DELIVERED\n  status — `done`, or the `closed` the\
-  \ requester's own verification advances it to (SPEC-0086). The\n  predicate is the\
+  \ requester's own verification advances it to (SPEC-1020). The\n  predicate is the\
   \ delivered status SET, never one status: an item advancing `done` → `closed` is\n\
   \  its evidence getting STRONGER, and an anchor that stopped resolving there would\
   \ refuse a row for\n  being better attested. `requested` / `picked` do not anchor\

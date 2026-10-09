@@ -16,6 +16,7 @@ from lib import state  # CHARTER §P5 one parser library — the ops-carrier rea
 from lib import journal as journal_mod  # T-11444: the SPEC-0190 segment-aware journal folds
 from lib import plan  # T-10927: the run-scoped plan→task link index (read-only accessor)
 from lib import observe  # SPEC-0135 §6: read-time provider normalization (patch-version bucket collapse, T-10605)
+from lib import textutil  # T-13756: anchor_file — the file component of an implements anchor
 from lib import transcript_digest  # T-12490: token-rollup reads the SPEC-0206 digest before the raw transcript
 
 # --- module-local view-domain constants (moved from host) ---
@@ -425,6 +426,42 @@ def _view_propagation_surfaces(index: dict, target: "str | None") -> dict:
         "surface_count": len(citing_tasks) + len(implementing_code),
         "note": ("candidate propagation/application surfaces (report-not-block) — citing_tasks are the "
                  "sites already engaging the spec; the disposition decision stays owner/closer judgement"),
+    }
+
+def _view_module_map(index: dict, *, own_index: bool = True) -> dict:
+    """module-map lens (T-13756, D-0053 saved view): the project's module map DERIVED from its specs —
+    per directory holding implemented code, the ACTIVE specs whose `implements:` anchors resolve into
+    it. A consumer no longer hand-keeps this map in its context home, where it goes stale
+    (consumer issue #71). PURE f over index["specs"] (the spec node carries `status`, which the
+    file-keyed code_to_specs map does not, so a superseded spec never lists); the file component of an
+    anchor is cut by textutil.anchor_file, the same helper graph build keys code_to_specs with. Adds NO
+    store, NO edge. Under -C the query hands this lens the consumer's OWN built index, so a consumer
+    sees its own specs. A directory is the anchor file's parent (`.` for a repo-root file); a directory
+    no active spec implements into is absent — the map is read from the anchors, never from a
+    directory walk. Recomputed fresh (D-0053).
+
+    own_index=False (the host passes it for a -C consumer with no graph/index.json of its own): the
+    query then holds the ENGINE index (the T-0860 point-lookup fallback), whose map is the kernel's,
+    not the consumer's — so the lens lists nothing and says to build the consumer's index."""
+    if not own_index:
+        return {"directories": [], "directory_count": 0,
+                "note": ("this checkout has no graph index of its own — run `graph build` here first; "
+                         "the module map is never read from the engine's index")}
+    by_dir: dict = {}
+    for sid, node in (index.get("specs") or {}).items():
+        if not isinstance(node, dict) or node.get("status") != "active":
+            continue
+        for loc in node.get("implements") or []:
+            path = textutil.anchor_file(loc).strip().rstrip("/")
+            if not path:
+                continue
+            by_dir.setdefault(path.rpartition("/")[0] or ".", set()).add(sid)
+    directories = [{"directory": d, "specs": sorted(s)} for d, s in sorted(by_dir.items())]
+    return {
+        "directories": directories,
+        "directory_count": len(directories),
+        "note": ("derived from the active specs' implements anchors (directory = the anchored file's "
+                 "parent); a directory with no implementing active spec is not listed"),
     }
 
 def _view_extensions_catalog(index: dict, *, engine_index: "dict | None" = None) -> dict:
@@ -2511,6 +2548,14 @@ _CAPTURE_ROUTING_ROWS = [
     ("a standing RULE / invariant / contract / governing param",
      "a `proposed` spec (`spec new`), activated at its owner task's close",
      "SPEC-0005", "the before-rule-change floor delivers SPEC-0005/0073/0128."),
+    ("a standing RULE for THIS project's own workers or Controller (its own way of working)",
+     "a project-own spec (`spec new --travels project`) whose `binding:` is chosen by the MOMENT the "
+     "rule applies: a task stage (`stage-entry:<Stage>`), a plan stage (`plan-stage-entry:<stage>`), "
+     "every session (`seed` + `seed_cue`), or an allowed before-* trigger from the floor-trigger map "
+     "(a rule that applies before an outbound mutation outside any task -> `before-external-mutation`, "
+     "not a stage); never the context home (CHARTER.md / AGENTS.md)",
+     "SPEC-0005", "the route + what each binding delivers: patterns/onboarding-onto-yitc-runbook.md "
+                  "§Your project's own way of working; not a stage for every rule (plan-check F1)."),
     ("a general, TRAVELING reusable practice",
      "a `patterns/<name>.md` doc (cross-project methodology)",
      "SPEC-0005", "traveling = pattern; LOCAL = lesson (the SPEC-0090 boundary)."),
@@ -2526,6 +2571,9 @@ _CAPTURE_ROUTING_ROWS = [
     ("a user-path narration",
      "a `scenarios/<slug>.md` node (zero-normative, cites the specs)",
      "SPEC-0076", "the 7th graph node; authored at the plan draft->specs seam."),
+    ("a KERNEL-TOUCHING deviation met in a project — whose matter is it?",
+     "the project's own choice at the capture, made without waiting for the kernel",
+     "SPEC-1010", "§2 holds the choices and their routes — pointer only, nothing restated here."),
     ("a CROSS-PROJECT coordination item",
      "`cross request` on the kernel-owned SHARED coordination log (`to:<project>`)",
      "SPEC-0084", "protocol SPEC-0085; verbs SPEC-0086; never edit another repo."),
@@ -5606,6 +5654,22 @@ def abort_cause_breadth_land_head_lines(view) -> list:
     return out
 
 
+class _ActionableDebtLine(str):
+    """A debt echo line the session-start table SHOWS (SPEC-0119 rule 40, T-13754).
+
+    The text is unchanged, so bare `debt` and `debt --explain` print it byte-identical; the producer
+    adds only `start_label`, the plain-words row label. A line without it is not shown at session
+    start. The mark is carried by the line that is actionable, not by a class list elsewhere."""
+    start_label = ""
+
+
+def _actionable(text: str, label: str) -> str:
+    """Mark a rendered debt line actionable at session start, with its plain-words row label."""
+    line = _ActionableDebtLine(text)
+    line.start_label = label
+    return line
+
+
 def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followup_count,
                       followup_floor: int = 5, _concern_conformance=None, _review_due=None,
                       _proof_obligations=None, _armed_fired_count=None,
@@ -5953,16 +6017,17 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # an armed item suppressed below the floor could stay hidden forever after its trigger fired
     # (T-10309 audit-pre finding 1); with it, arming can DEFER a followup but never LOSE it.
     if fired and fired > 0:
-        lines.append(
+        lines.append(_actionable(
             f"debt: {fired} armed followup(s) whose TRIGGER FIRED — their named artifact closed; dispose "
             f"(promote → a task / drop --reason) (SPEC-0095). See `bin/yitc-v2 followup list --status fired`."
-            + ("" if _headline_printed else _wait_tail))   # the tail rides exactly ONE line, never both
+            + ("" if _headline_printed else _wait_tail), "follow-ups whose trigger fired, to decide"))   # the tail rides exactly ONE line, never both
     _or_view = _view_overdue_recheck() or {}
     ov = _n(_or_view.get("overdue_count"))
     if ov and ov > 0:
-        lines.append(
+        lines.append(_actionable(
             f"debt: {ov} overdue recheck(s) past recheck_by — run their live_probe at the deploy seam "
-            f"(SPEC-0094 §3). See `bin/yitc-v2 graph query overdue-recheck`.")
+            f"(SPEC-0094 §3). See `bin/yitc-v2 graph query overdue-recheck`.",
+            "rechecks past their date, to run"))
     # POST-SHIP OBSERVATIONS (T-10916 / SPEC-0036 / X-0710) — its OWN clause, off the SAME existing view
     # call (no new collaborator, no new call site). Deliberately NOT folded into the count above: that
     # count means "waivers past recheck_by" and its remedy is a live_probe at the deploy seam, while this
@@ -6019,9 +6084,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         _wd_sep = (" SEPARATELY: " + _wd_tail) if _wd_tail else ""
         if _obs_over > 0:
             _pending_tail = (f" (+{_obs_pending} more declared, not yet due)" if _obs_pending else "")
-            lines.append(
+            lines.append(_actionable(
                 f"debt: {_obs_over} post-ship observation(s) PAST due_by and NOT yet recorded"
-                f"{_pending_tail} — take the reading and record it, then {_settle_tail}{_wd_sep}")
+                f"{_pending_tail} — take the reading and record it, then {_settle_tail}{_wd_sep}",
+                "post-ship readings past due, to take"))
         else:
             lines.append(
                 f"debt: no post-ship observation is PAST due_by — {_obs_pending} declared and awaiting "
@@ -6074,10 +6140,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"settled — the card recorded the proof as owed and nothing else did; {_settle_how}")
         elif _def_due > 0:
             _pending_tail = (f" (+{_def_pend_c} deferred, not yet due)" if _def_pend_c else "")
-            lines.append(
+            lines.append(_actionable(
                 f"debt: {_def_due} card(s) carrying {_def_due_c} DUE deferred acceptance probe(s)"
                 f"{_pending_tail} — the card recorded the proof as owed and its moment has arrived; "
-                f"{_settle_how}")
+                f"{_settle_how}", "cards with acceptance checks now due, to settle"))
         else:
             lines.append(
                 f"debt: no deferred probe is due — {_def_pend_c} awaiting their moment, none "
@@ -6200,6 +6266,17 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"adapter→neutral-home chain an AI session reads does not resolve: keep CLAUDE.md THIN "
                 f"and put the operating-context in the provider-neutral home (SPEC-0125 Rule 1/2). "
                 f"Report-only (SPEC-0119).")
+        # T-13761 (SPEC-0125 Rule 1a): the SAME view's drift arm — references the declared home makes
+        # that no longer hold (a missing path, a non-active spec). Its own line: the adapter is fine.
+        _drift = _ac.get("drift") if isinstance(_ac, dict) else None
+        if isinstance(_drift, list) and _drift and _ac.get("home"):
+            from lib import init as _init   # noqa: PLC0415 — lazy, the renderer's one home
+            # Actionable at start (rule 40): the person can fix the home now. The start row is the
+            # label, so the label names the references themselves (the first three).
+            _refs = ", ".join(str(d.get("ref")) for d in _drift[:3] if isinstance(d, dict))
+            lines.append(_actionable(
+                _init.render_home_drift_line(_ac.get("home"), _drift),
+                f"{_ac.get('home')} names what no longer holds: {_refs}{' …' if len(_drift) > 3 else ''}"))
     # UNRATIFIED-ADOPTION view (SPEC-0119 rule 13, T-10508): the OPTIONAL injected collaborator returns
     # {status, count, records} for THIS repo's `adoption:` records still stamped with the BIRTH SENTINEL
     # (`owner: init`) over a section the carrier DECLARES — truthful, but nobody ratified them. The
@@ -6314,13 +6391,13 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             # owner need not hand-compute WHICH review is due and of WHAT type — still NO ages or
             # per-theme review content (token-frugality held; SPEC-0119 rule 10 amended to match).
             if _rd.get("weekly_due"):
-                lines.append(
+                lines.append(_actionable(
                     "review-due: the WEEKLY operational-hygiene review (weekly tier) is due — run the "
                     "weekly sweep, then record `bin/yitc-v2 inspect record --tier weekly`. Activity-gated, "
-                    "report-only (SPEC-0119 / SPEC-0057 §9).")
+                    "report-only (SPEC-0119 / SPEC-0057 §9).", "weekly hygiene review is due"))
             _tl = _triage_due_line(_rd)                 # T-13104 — the triage subject, one render home
             if _tl:
-                lines.append(_tl)
+                lines.append(_actionable(_tl, "triage of captured deviations is due"))
             _td = _rd.get("themes_due") or []
             _td_count = len(_td)
             if _td_count:
@@ -6336,10 +6413,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 _tier_word = _cads.pop() if len(_cads) == 1 else "mixed-cadence"
                 # The pointer stays SUBJECT-NEUTRAL (`<theme>`, not the kernel-only `T<n>` placeholder):
                 # a due subject may be a consumer-declared slug, and `inspect record --theme` takes both.
-                lines.append(
+                lines.append(_actionable(
                     f"review-due: {_td_count} {_tier_word} system-inspection theme(s) due for review"
                     f"{_named} — run per `bin/yitc-v2 inspect record --theme <theme>`. Activity-gated, "
-                    f"report-only (SPEC-0057 §9).")
+                    f"report-only (SPEC-0057 §9).", "system-inspection themes due for review"))
     # QUEUE-JUMP FIRING view (SPEC-0184 rule 9, T-11663): the OPTIONAL injected fold over the
     # journal — the marks that ACTUALLY REORDERED land admission (`debt.queue_jump_firings`). This
     # line IS safeguard (c): the mark buys a card an emergency place at the front of a SINGLE, SERIAL
@@ -6446,7 +6523,12 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _fig = (f"{_ls.get('wall_s')}s serialized = {_ls.get('share_pct')}%; "
                     f"{_ls.get('entry_window_days', 7)}d: {_n(_ls.get('entered')) or 0} entered, "
                     f"{_ls.get('entered_s', 0.0)}s" + (f"; {_und} undated" if _und else ""))
-            lines.append(
+            # T-13768: marked for the session-start table, its plain-words label carrying the figures
+            _label = (f"tests run one at a time after the parallel pool: {_ls_count} file(s), "
+                      f"+{_ls.get('wall_s')} s per run ({_ls.get('share_pct')}%); last "
+                      f"{_ls.get('entry_window_days', 7)} days +{_n(_ls.get('entered')) or 0} file(s), "
+                      f"+{_ls.get('entered_s', 0.0)} s" + (f", {_und} undated" if _und else "") + _mark)
+            lines.append(_actionable(
                 f"debt: load-sensitive lane ({_ls_count} file(s)) [{_fig}] — "
                 f"{_ls_count} file(s), {_ls.get('wall_s')}s serialized "
                 f"tail = {_ls.get('share_pct')}% of the duration table's {_ls.get('suite_wall_s')}s "
@@ -6457,7 +6539,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"DISPOSE a named global-rework question — box-admission width / stage-6-beside-land "
                 f"policy / harness isolation — with a dated line in `inspect record --tier weekly` "
                 f"that either files that card or records why not plus a re-check date; another "
-                f"per-file card is not a disposition. Report-only; nothing here acts.")
+                f"per-file card is not a disposition. Report-only; nothing here acts.", _label))
 
     # RESTORATION-PROPOSAL view (SPEC-0189 / T-11969): the OPTIONAL injected collaborator
     # `_restoration_proposals` (zero-arg, RETURNS `{count, proposals, …}` — see

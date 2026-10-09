@@ -154,6 +154,7 @@ implements:
 - bin/lib/debt.py#debt_row_count
 - bin/lib/debt.py#debt_row_verb
 - bin/lib/debt.py#_debt_echo_compact
+- bin/lib/views.py#_actionable
 - bin/lib/cli.py#_main_task_strand_state
 - bin/lib/debt.py#runtime_delivery_coherence
 - bin/lib/debt.py#source_mount_evidence
@@ -2382,7 +2383,12 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ disposition-surfacing gap (subsumed). Prior-art: the SPEC-0086 `cross-coord:`\n\
   echo (report-only, count-derived, suppressed-when-clean, no store). Full deliberation\
   \ (delta-vs-total,\ndropping batch-done, new-spec-vs-amend): the plan\n[[proactive-debt-surfacing-at-the-3-debt-change-poin]]\
-  \ + its gate-specs + external consult (2026-07-01).\n\n## Verification\n\n- **Deterministic:**\
+  \ + its gate-specs + external consult (2026-07-01).\n\nRule 40's actionable-only\
+  \ start render : on 2026-10-08 the start echo carried 20 rows\nmarked report-only,\
+  \ so the reader relayed three or four of them and the person never saw the\nrest,\
+  \ some labels read as noise and one verb was cut mid-token. The owner ruled that\
+  \ only what\ncan be taken into work prints at start, every row is relayed, and each\
+  \ row reads in plain words\n(events.jsonl#ts=).\n\n## Verification\n\n- **Deterministic:**\
   \ with synthetic non-zero debt (a repo with not_adopted>0 / an open followup / an\n\
   \  overdue recheck) session-start and the on-demand `debt` each print its line;\
   \ with a clean repo\n  NEITHER prints (suppressed-when-clean). A land prints NO\
@@ -3812,16 +3818,30 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ the count the head's own first integer, the verb\n    the FIRST `bin/yitc-v2 …`\
   \ the line names. One row per non-clean class in first-appearance\n    order, equal\
   \ classes FOLDED with counts summed (which is what collapses the per-project\n \
-  \   nightly/chronic lines to one row each), every row within `debt.DEBT_ROW_WIDTH`.\n\
-  \    **A HEAD MAY CARRY ITS FIGURES.** One square-bracketed span in the head holds\
-  \ what\n    one count does not (seconds, a share, a recent change): no part of the\
-  \ class or the count, it\n    prints after the count, shortened before the verb\
-  \ is; a line without one renders as before.\n    **A CONSUMER BUILD NAMES ITS INVOCATION\
-  \ ONCE.** Where the host invocation form is\n    not bare `bin/yitc-v2` (a consumer\
-  \ has no local copy), ONE prefix line above the rows names\n    the runnable form\
-  \ and each row drops its leading `bin/yitc-v2 `; the engine render stays\n    byte-identical.\
-  \ The form is resolved OUTSIDE the fail-open fallback, so a failed resolution\n\
-  \    never renders a bare-form table on a consumer that cannot run it.\n    **SUPPRESSED-WHEN-CLEAN\
+  \   nightly/chronic lines to one row each), every row within `debt.DEBT_ROW_WIDTH`\
+  \ (a labelled\n    start row excepted, below).\n    **A HEAD MAY CARRY ITS FIGURES.**\
+  \ One square-bracketed span in the head holds what\n    one count does not (seconds,\
+  \ a share, a recent change): no part of the class or the count, it\n    prints after\
+  \ the count, shortened before the verb is; a line without one renders as before.\n\
+  \    **A CONSUMER BUILD NAMES ITS INVOCATION ONCE.** Where the host invocation form\
+  \ is\n    not bare `bin/yitc-v2` (a consumer has no local copy), ONE prefix line\
+  \ above the rows names\n    the runnable form and each row drops its leading `bin/yitc-v2\
+  \ `; the engine render stays\n    byte-identical. The form is resolved OUTSIDE the\
+  \ fail-open fallback, so a failed resolution\n    never renders a bare-form table\
+  \ on a consumer that cannot run it.\n    **AT SESSION START ONLY ACTIONABLE CLASSES\
+  \ PRINT, EACH NAMED TO THE PERSON.** A row\n    prints there only for a line its\
+  \ PRODUCER marked actionable — work whose moment has come: an\n    armed followup\
+  \ whose trigger fired, a recheck or post-ship reading past its date, an acceptance\n\
+  \    probe now due, a due review or triage — and the load-sensitive test lane whenever\
+  \ it lists a\n    file, so the person sees how long the serialized test tail has\
+  \ grown: its label states how many\n    files run one at a time after the parallel\
+  \ pool, the seconds they add to each verify run, their share,\n    the files that\
+  \ entered in the last 7 days and any crossed bound. The mark carries a plain-words\
+  \ label that stands in for\n    the derived class in that row, and the line's text\
+  \ is unchanged, so bare `debt` and\n    `debt --explain` print every class exactly\
+  \ as before; every other class prints only there. A\n    labelled row is never cut,\
+  \ so its verb stays runnable, and session start ends each row with\n    the owner-cued\
+  \ marker: the reader names every row to the person.\n    **SUPPRESSED-WHEN-CLEAN\
   \ IS UNCHANGED (rule 5).** Clean in yields clean out and the table\n    renderer\
   \ prints NO header, ever — so the property is structural, not a second thing to\n\
   \    maintain.\n    **THE LONG TEXT IS RELOCATED, NEVER REWRITTEN — one home per\
@@ -3839,24 +3859,29 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ appended with the word it negates: dropping it inverted the label — «does not\
   \ meet» rendered «does\n    meet» — and leaving it out of the count keeps every\
   \ negation-free slug unchanged.\n    A registry would be a second home that drifts\
-  \ (CHARTER §P1 F1/F2).\n    **FAIL-OPEN AT ITS SEAM.** The fold is presentation\
-  \ riding the session-start seam (the land\n    tail was a second compacting seam\
-  \ until retired it, rule 2(b)), so a failure\n    falls back to the FULL lines —\
-  \ degrading to unreadable beats degrading to broken, and beats\n    degrading to\
-  \ silent (which returning nothing would be). The shared render helper\n    (`views._render_debt_echo`)\
-  \ and the host helpers it feeds are UNCHANGED: the compaction\n    happens at the\
-  \ session-start INJECT seam, so every suite pinning what those helpers RETURN\n\
-  \    still measures the helper rather than this presentation.\n    Unit tests (`tests/test_debt_echo_table.py`):\
+  \ (CHARTER §P1 F1/F2). The actionable mark rides\n    the line it marks, so it adds\
+  \ no list either.\n    **FAIL-OPEN AT ITS SEAM.** The fold is presentation riding\
+  \ the session-start seam (the land\n    tail was a second compacting seam until\
+  \ retired it, rule 2(b)), so a failure\n    falls back to the FULL text of the actionable\
+  \ lines — degrading to unreadable beats degrading\n    to broken, and beats degrading\
+  \ to silent (which returning nothing would be). The shared render\n    helper (`views._render_debt_echo`)\
+  \ returns the same text (it only marks the actionable lines)\n    and the host helpers\
+  \ it feeds are UNCHANGED: the compaction\n    happens at the session-start INJECT\
+  \ seam, so every suite pinning what those helpers RETURN\n    still measures the\
+  \ helper rather than this presentation.\n    Unit tests (`tests/test_debt_echo_table.py`):\
   \ the real `session start` subprocess\n    emits only rows and no surviving paragraph\
   \ (AC1), a GOLDEN byte-identity comparison per\n    class between `debt --explain`\
   \ and the pre-change paragraph (AC2), a clean fixture prints\n    nothing (AC3),\
   \ plus the drift tripwires — distinct heads stay distinct classes\n    and every\
-  \ rendered verb is a real `bin/yitc-v2` verb.\n\n41. **A DECLARED LOAD-SENSITIVE\
-  \ FILE THAT NO LIVE CARD IS HOLDING — the exit nobody is walking\n    (SPEC-0119\
-  \ rule 41).** made ENTRY into `tests/load-sensitive.txt` automatic\n    and EXIT\
-  \ never automatic, and BOTH halves are correct: a listed file no longer runs in\
-  \ the\n    concurrent pool, so nothing can ever prove it pool-robust again, and\
-  \ only a CARD can remove\n    its line — by making the file load-robust (removing\
+  \ rendered verb is a real `bin/yitc-v2` verb; and at the real `session start` an\n\
+  \    actionable class prints while an unreachable-probe class does not, each row\
+  \ with the owner-cued\n    marker and an uncut verb; a lane listing files prints\
+  \ its plain-words row there, and an empty\n    lane prints none.\n\n41. **A DECLARED\
+  \ LOAD-SENSITIVE FILE THAT NO LIVE CARD IS HOLDING — the exit nobody is walking\n\
+  \    (SPEC-0119 rule 41).** made ENTRY into `tests/load-sensitive.txt` automatic\n\
+  \    and EXIT never automatic, and BOTH halves are correct: a listed file no longer\
+  \ runs in the\n    concurrent pool, so nothing can ever prove it pool-robust again,\
+  \ and only a CARD can remove\n    its line — by making the file load-robust (removing\
   \ the line in its ship diff) or by ratifying\n    the line with a reason. The consequence\
   \ is that the set is MONOTONIC unless a human acts, and\n    until this rule the\
   \ carrier's own header was the only place that said so.\n    **THE OCCASION IS MEASURED,\
@@ -4098,8 +4123,8 @@ implements_signature:
   bin/lib/debt.py#SPEC0161_RECORD_HEADING: 6af0d344026ff1ead7139c454241ec20c0c4882329b641b4027c0f0a2c1941a5
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
-  bin/lib/debt.py#_debt_echo_compact: e11c375e30f1a5ec49e5abf080ea7f7f8d938ec277ca145318829f970b65d8c9
-  bin/lib/debt.py#_debt_echo_lines: c50309a08b776288178b34d1cd019f55e2d5d72fcd72ebecb5f722f2e15eb9a2
+  bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
+  bin/lib/debt.py#_debt_echo_lines: 80ed97c75cb4edf2efe647449912d6eae6f6e1c0cb9bdacf7518cbbb1f72afae
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4114,7 +4139,7 @@ implements_signature:
   bin/lib/debt.py#_unpickable_ready_result: 4b2ee637961891df40349ad9eaac203f50af387bbf2bd52f4736624a9ba3866a
   bin/lib/debt.py#_younger_than: 0a9c5459e7b95505db55ad2c54b9d3a387968d5e47b17ba6a74923a19ba18718
   bin/lib/debt.py#broken_outcome_invariants: e0120f1edfbeadc2f42fe3d09f767e2476b70f9a2781c5e9e39fd409ee4162f4
-  bin/lib/debt.py#debt_echo_table: cf070dd841aa0fa59e0dcce2d82a638b1dc70910ed552d847db8a6bd2052d10b
+  bin/lib/debt.py#debt_echo_table: 879260852cff41dbc635b0151f68dffbeb116981fda7977a552fb8f635f52bec
   bin/lib/debt.py#debt_explain: 462704be0d329f8f33c6c175c70c588c3193cffca792a9e4760f9a1983d758c6
   bin/lib/debt.py#debt_row_class: 523ae1660cfcc5f724ec5ed418bf4c29c4ff869422266f7cb0d9c13ae4f1270f
   bin/lib/debt.py#debt_row_count: 0a05acb80ffe2d51dcf17d4926b0cb4309e7d7b48d202e4888c8a48db8bb4721
@@ -4206,13 +4231,14 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 6c2d6c6f268f600c92431291932c807dd706ddb844c1b6271fc58447c3fdd822
   bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: 73b63d25a85915faa5a98944822c6d06f57ec33ba56897633e6ca587042cb1c7
+  bin/lib/session.py#cmd_session_start: 55b803addbb3526bfd95d2870ea129a26adae9b1c165d8649f27a8b44fd56653
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
-  bin/lib/task.py#cmd_task_update: e5719c353ef13be74a5c770f9fbe560e12a00c556de2eb0849ff4bc0d1788f6f
+  bin/lib/task.py#cmd_task_update: 7812d9b7ec3313602f8e068192f6ac45811392f565d28efaf94a4832f0992ea2
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
+  bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: b9f9e3b3d1acfe8a26bc59ba414044b60672d7d9aadb4414f91f14b9f3229e29
+  bin/lib/views.py#_render_debt_echo: f74108dcabe4d877ecec89cdfb1910c02b6c415e832e4087c71007e6618452a1
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

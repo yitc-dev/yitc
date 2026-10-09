@@ -149,7 +149,13 @@ class _HelpInventoryAction(argparse.Action):
 
 def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
     # add_help=False + a custom top-level help action (T-9786): the inventory --help emits a fetch-receipt.
-    p = argparse.ArgumentParser(prog="yitc-v2", description="V2 self-tooling CLI", add_help=False)
+    # T-13700: the root help is the verb INVENTORY every session scans at start, so it carries ONE
+    # line per verb — a fixed width, so a listing line never wraps to the terminal — and a verb's
+    # detail is the head (description) of its own `<verb> --help`.
+    p = argparse.ArgumentParser(prog="yitc-v2", add_help=False,
+                                description="V2 self-tooling CLI — one line per verb; a verb's detail "
+                                            "heads its own help: yitc-v2 <verb> --help",
+                                formatter_class=lambda prog: argparse.HelpFormatter(prog, width=128))
     p.add_argument("-h", "--help", action=_HelpInventoryAction,
                    help="show this help (the verb inventory) and record a session fetch-receipt (T-9786)")
     # T-0334: global `-C <path>` — operate on the given checkout regardless of caller cwd (git's
@@ -173,7 +179,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                         "target is refused (SPEC-0078 §5). Admits pure reads plus `session start` / "
                         "`inspect record`. Named invocation: "
                         "`bin/yitc-v2 -C <consumer> --read-only inspect record --theme T7 --task T-XXXX`.")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd", required=True, metavar="VERB")
 
     ev = sub.add_parser("event", help="Append event to events.jsonl")
     ev.add_argument("type", help="event type (snake_case)")
@@ -239,7 +245,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                                     "without -C --read-only")
 
     # T-0995 — consumer born-empty delivery. Idempotent; intended via the `-C <path>` global flag.
-    initp = sub.add_parser("init", help="Idempotently deliver a consumer its born-empty scaffolds "
+    initp = sub.add_parser("init", help="Deliver a consumer its born-empty scaffolds, idempotently — use with -C <path>",
+                           description="Idempotently deliver a consumer its born-empty scaffolds "
                                         "(MEMORY.md, yitc-ops.yaml, .no-v1-hooks, .gitignore) — use with -C <path>")
     # T-9492 / X-0083 — the conscious-waive for a pre-existing NON-EMPTY legacy CROSS-TASKS.md (the
     # retired per-repo cross surface). Without it, init REFUSES on detecting content beyond the born-empty
@@ -366,7 +373,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-9390 / SPEC-0094 §1 — the governed deploy / rollback seam. Runs the project-declared
     # deploy:/rollback: command (yitc-ops.yaml, SPEC-0093) — that command IS the executable smoke/health
     # gate — and emits deploy_completed{revision,project,kind} on exit-0 (none on a non-zero gate).
-    dep = sub.add_parser("deploy", help="Run the project-declared deploy:/rollback: command (the "
+    dep = sub.add_parser("deploy", help="Run the project-declared deploy:/rollback: command (SPEC-0094 §1) — use with -C <path>",
+                         description="Run the project-declared deploy:/rollback: command (the "
                                         "executable smoke gate) + emit deploy_completed on exit-0 "
                                         "(SPEC-0094 §1) — use with -C <path>")
     dep.add_argument("--rollback", action="store_true",
@@ -451,7 +459,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-9395 / SPEC-0094 §4 — the per-change live_probe RUNNER at the deploy seam. Runs the task-YAML
     # `live_probe` assertion (read-only HTTP GET) against prod using the carrier live_base_url; emits
     # live_probe_passed on a PASS (the per-change adoption proof), nothing + non-zero on a FAIL. GET-only.
-    lpr = sub.add_parser("liveprobe", help="Run a task's per-change live_probe GET against prod "
+    lpr = sub.add_parser("liveprobe", help="Run a task's per-change live_probe GET against prod (SPEC-0094 §4) — use with -C <path>",
+                         description="Run a task's per-change live_probe GET against prod "
                                            "(SPEC-0094 §4) + emit live_probe_passed on pass — use with -C <path>")
     lpr.add_argument("--task", required=True, help="the task whose per-change live_probe assertion to run (T-NNNN)")
     lpr.add_argument("--base-url", dest="base_url",
@@ -474,7 +483,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # server-wide health sweep + auto-rollback · repo-conf-vs-live reconciliation) and emits the three
     # task-scoped evidence events the SPEC-0094 §3 close-gate requires. The system NEVER holds autonomous
     # sudo — the owner runs/approves the helper (--confirm = the human-apply confirmation, §1).
-    hap = sub.add_parser("hostapply", help="Safety-railed host-config apply seam (SPEC-0111): backup + "
+    hap = sub.add_parser("hostapply", help="Safety-railed host-config apply seam (SPEC-0111) — use with -C <path>",
+                         description="Safety-railed host-config apply seam (SPEC-0111): backup + "
                                             "collision-refuse + nginx -t + server-wide sweep + "
                                             "auto-rollback + reconciliation; emits the 3 task-close "
                                             "evidences — use with -C <path>")
@@ -506,12 +516,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # convention — every sibling verb is alpha-only, e.g. liveprobe/hostapply; a digit/hyphen token
     # like `v1-quiesce` is not admissible), func/module keep the descriptive v1_quiesce name
     # (the hostapply/host_apply token≠module precedent).
-    v1q = sub.add_parser("quiesce", help="Governed gate-2 v1-shutdown (\"v1-quiesce\") of a consumer "
+    v1q = sub.add_parser("quiesce", help="Governed gate-2 v1-shutdown of a consumer (SPEC-0130) — use with -C <path>",
+                         description="Governed gate-2 v1-shutdown (\"v1-quiesce\") of a consumer "
                                          "(SPEC-0130): set its registry active:false + ensure "
                                          ".no-v1-hooks + emit v1_quiesced — use with -C <path>")
     v1q.set_defaults(func=cmd_v1_quiesce)
 
-    ntl = sub.add_parser("nightly", help="Bounded v2 methodology-nightly RUNNER (SPEC-0105): enumerate "
+    ntl = sub.add_parser("nightly", help="Bounded methodology-nightly runner (SPEC-0105): read-only checks, CHECK+REPORT only",
+                         description="Bounded v2 methodology-nightly RUNNER (SPEC-0105): enumerate "
                                          "registry yitc_v2 projects, run read-only governance/health "
                                          "checks, emit ONE nightly_run_completed; CHECK+REPORT only "
                                          "(no autonomous session — CHARTER §6 fence)")
@@ -528,7 +540,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     ntl.set_defaults(func=cmd_nightly, read_only_admit=("status", RO_ZERO_WRITE),
                      read_only_refuse="the bare runner runs every project's checks and emits nightly_run_completed")
 
-    dbt = sub.add_parser("debt", help="Proactive-debt echo ON DEMAND (SPEC-0119): the 3 derived debt "
+    dbt = sub.add_parser("debt", help="Proactive-debt echo on demand (SPEC-0119): the 3 derived debt views, read-only",
+                         description="Proactive-debt echo ON DEMAND (SPEC-0119): the 3 derived debt "
                                       "views (not-adopted / open-followups / overdue-rechecks) rendered "
                                       "report-only, suppressed-when-clean. Read-only; the post-/compact "
                                       "re-fold surface (analog of `cross outbox`/`cross inbox`). The "
@@ -554,7 +567,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                      help="with --seam-coverage: window end (exclusive)")
     dbt.set_defaults(func=cmd_debt, cli_invoked_receipt="debt", read_only_admit=RO_RECEIPT)  # T-12846: invocation receipt only (not a read marker)
 
-    prf = sub.add_parser("profile", help="Project growth profile ON DEMAND (SPEC-0198): the 10 "
+    prf = sub.add_parser("profile", help="Project growth profile on demand (SPEC-0198): derived, read-only",
+                         description="Project growth profile ON DEMAND (SPEC-0198): the 10 "
                                         "dimensions RESOLVED from this checkout, its yitc-ops.yaml, "
                                         "its migrations/ORM + dependency manifests and its journal, "
                                         "with the snapshot hash, the check-set hash and the lens set "
@@ -572,7 +586,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     prf.set_defaults(func=cmd_profile, cli_invoked_receipt="profile", read_only_admit=RO_RECEIPT)  # T-12846: invocation receipt only
 
     vdur = sub.add_parser("verify-durations",
-                          help="Verify-suite duration table (T-11316 / SPEC-0132 §6) — the FIXED "
+                          help="Verify-suite duration table (SPEC-0132 §6): bare = divergence report, --rebuild = re-measure",
+                          description="Verify-suite duration table (T-11316 / SPEC-0132 §6) — the FIXED "
                                "per-repo record the land-verify runner schedules against "
                                "(longest-first). BARE = the divergence REPORT (unrecorded / "
                                "no-longer-existing files), read-only, no run, no event of its own "
@@ -597,7 +612,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                       read_only_refuse=("rebuild", "--rebuild runs the whole suite and rewrites tests/verify-durations.json in the target"))  # T-12846
 
     rrs = sub.add_parser("retire-read-site",
-                         help="Retire a TRACKED root-cwd read-site (T-11779 / SPEC-0192) — the "
+                         help="Retire a tracked root-cwd read-site (SPEC-0192): for a card whose declared work is the removal",
+                         description="Retire a TRACKED root-cwd read-site (T-11779 / SPEC-0192) — the "
                               "covering verb for a card whose declared work IS the removal. It "
                               "names specific previously-tracked sites, PROVES each absent by "
                               "re-running the instrument over the current tree, regenerates the "
@@ -625,7 +641,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "dev-utilities/root-cwd-read-sets-*.json carrying a named site")
     rrs.set_defaults(func=cmd_retire_read_site)
 
-    cg = sub.add_parser("cage", help="Spike-cage checks (SPEC-0172). `cage preflight`: the READ-ONLY "
+    cg = sub.add_parser("cage", help="Spike-cage checks (SPEC-0172): `cage preflight`, the read-only host collision preflight",
+                        description="Spike-cage checks (SPEC-0172). `cage preflight`: the READ-ONLY "
                                      "host collision preflight (rule 9) — no write, no event, no "
                                      "worktree (the `debt` posture)")
     cg_sub = cg.add_subparsers(dest="cage_cmd", required=True)
@@ -645,7 +662,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     cgp.set_defaults(func=cmd_cage_preflight, cli_invoked_receipt="cage preflight")  # T-13087
 
     fe = sub.add_parser("frontend-errors",
-                        help="Frontend-error triage conveyor, ON DEMAND (SPEC-0170): fold a "
+                        help="Frontend-error triage conveyor on demand (SPEC-0170): confirmed clusters, read-only",
+                        description="Frontend-error triage conveyor, ON DEMAND (SPEC-0170): fold a "
                              "qualifying project-side error source READ-ONLY into CONFIRMED "
                              "clusters and print them. Clusters are a DERIVED view — nothing is "
                              "copied or stored, consumer-side or kernel-side; no event of its own "
@@ -701,7 +719,24 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     task = sub.add_parser("task", help="Task operations")
     task_sub = task.add_subparsers(dest="task_action", required=True)
-    tf = task_sub.add_parser("file", help="File a new task (auto-ID + schema validation)")
+    # T-13698: the prototype contract is named at its triggers (this head, `worktree new`, `worktree
+    # park`). The description is NOT re-wrapped, so the fetch command stays on one line at any width —
+    # the consumer help renderer (T-13176) rewrites a fetch only when it reads it unbroken.
+    # T-13695: the same head points at the reference the SPEC-0060 item-4 cues lead to; the prototype
+    # pointer stays last, its fetch on the last line.
+    tf = task_sub.add_parser("file", help="File a new task (auto-ID + schema validation)",
+                             formatter_class=argparse.RawDescriptionHelpFormatter,
+                             description="File a new task card.\n\n"
+                                         "READ FIRST when the acceptance criterion you are writing has the\n"
+                                         "shape a cue of SPEC-0060 item 4 names and that cue ends with a\n"
+                                         "pointer to the reference: the whole worked example (measured cases,\n"
+                                         "the failing and the passing wordings) is in the reference SPEC-1021.\n"
+                                         "Fetch it:\n"
+                                         "  `bin/yitc-v2 graph query SPEC-1021`\n\n"
+                                         "READ FIRST when the card builds on a parked prototype\n"
+                                         "(--prototype-ref spike/<slug>): the prototype contract SPEC-0205.\n"
+                                         "It is not part of the reading `task file` requires. Fetch it:\n"
+                                         "  `bin/yitc-v2 graph query SPEC-0205`")
     # T-10547: the three PROSE-bearing flags steer to --from-stdin (the shell-proof path — a stdin
     # YAML mapping never rides argv). Prose carries backticks; argv rides the shell, which substitutes
     # `...` BEFORE this verb runs, so the card stores the damage silently.
@@ -801,7 +836,17 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "--from-stdin (no worktree, no gate; the availability leg of SPEC-0059 Filing)")
     tf.set_defaults(func=cmd_task_file, cli_invoked_receipt="task file")  # T-13071: attempt receipt
 
-    tc = task_sub.add_parser("close", help="Atomic Stage 9 closure (D-0015 ordering + SPEC-0001 self-test)")
+    # T-13693: the ship-custody re-pin detail is a reference (SPEC-1022); closure re-derives that guard,
+    # so this head names it. Not re-wrapped, so the fetch command stays on one line (as `task file`).
+    tc = task_sub.add_parser("close", help="Atomic Stage 9 closure (D-0015 ordering + SPEC-0001 self-test)",
+                             formatter_class=argparse.RawDescriptionHelpFormatter,
+                             description="Atomic Stage 9 closure.\n\n"
+                                         "READ FIRST when a park, pause or wont-do self-commit recorded after the\n"
+                                         "ship shifted audit custody and the audit-post was re-pinned to the ship:\n"
+                                         "closure re-derives that guard. Its admission legs and the audited subject\n"
+                                         "are the reference SPEC-1022, heading «Ship-custody re-pin — admission legs\n"
+                                         "and the audited subject». Fetch it:\n"
+                                         "  `bin/yitc-v2 graph query SPEC-1022`")
     tc.add_argument("task", help="T-NNNN id of task being closed (positional — aligns with task pick/execute/test/plan/commit)")
     tc.add_argument("--commit", help="git ref (default HEAD); resolved and verified via git rev-parse")
     tc.add_argument("--probe", action="append",
@@ -823,12 +868,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "LINK-RULE carrier, SPEC-0069); human-asserted, NOT derived from task_id. "
                          "Repeatable. Also accepted on a done re-run (late linkage).")
     tc.add_argument("--settle-probe", dest="settle_probe", action="append",
-                    help="settle a probe a PRIOR close recorded as `deferred`, on an ALREADY-DONE card "
+                    help="READ FIRST: the settle procedure is the reference SPEC-1011 — "
+                         "`graph query SPEC-1011`: read it before you settle. "
+                         "SELF-COMMIT: from the main checkout it commits its own record (the card + "
+                         "its journal receipt only); inside a writing worktree it makes no commit — the "
+                         "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
+                         "§Writes happen in a worktree; this arm's rule: SPEC-1011). "
+                         "Settles a probe a PRIOR close recorded as `deferred`, on an ALREADY-DONE card "
                          "(T-11107) — form 'AC2:pass', repeatable; requires one --settle-evidence per "
                          "--settle-probe. For the SPEC-0036 variant-(d) family whose acceptance event "
                          "`land` emits at Stage 9, AFTER the pre-land audit-post, so --probe-deferred "
-                         "was the only honest close. NOT a reopen: status/commit/closed_at/probe_passed "
-                         "are untouched. FAIL-CLOSED — refuses a probe that was never deferred (no "
+                         "was the only honest close. NOT a reopen: status/commit/closed_at are untouched "
+                         "(probe_passed follows the three-state derivation). FAIL-CLOSED — refuses a probe that was never deferred (no "
                          "back-dating, and no re-settling behind different evidence), a result outside "
                          "the settleable vocabulary, and an evidence locator that resolves to no "
                          "journal row. TWO NON-PASS TERMINALS (T-11657): 'AC2:unreachable' (a proof "
@@ -974,7 +1025,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # settleable observation is by construction on a card already closed (all 37 in this checkout).
     tc.add_argument("--settle-observation", dest="settle_observation",
                     help="settle the `post_ship_observation` of an ALREADY-DONE card (T-11529, T-10916 "
-                         "/ SPEC-0036 variant (e)) — the locator naming WHERE the recorded reading "
+                         "/ SPEC-0036 variant (e)). "
+                         "SELF-COMMIT: from the main checkout it commits its own record (the card + "
+                         "its journal receipt only); inside a writing worktree it makes no commit — the "
+                         "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
+                         "§Writes happen in a worktree; this arm's rule: SPEC-0036 variant (e)). "
+                         "The value is the locator naming WHERE the recorded reading "
                          "landed: `events.jsonl#ts=<ISO>` or `events.jsonl#source_ref=<ref>` (the "
                          "D-0030 citation form), which must RESOLVE to a real journal row. Scoped to "
                          "the JOURNAL: the T-11297 `coordination.jsonl#cross=` form is deliberately "
@@ -1060,7 +1116,19 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     # T-0056 lifecycle transition verbs (per D-0033). Per D-0049 they auto-sync the journal
     # by default; they do NOT rebuild the graph (heavier verbs do).
-    tp = task_sub.add_parser("pick", help="Stage 1: ready→in-progress, validate requires, set stage, emit task_picked, print context")
+    # T-13685: the help head names where the eligibility rule lives (QUEUE §Picker logic keeps the
+    # selection cue; the `requires:` field rules are SPEC-0028). The one-line listing no longer
+    # describes the pre-T-0124 mutating verb.
+    tp = task_sub.add_parser(
+        "pick", help="Read-only inspector: report whether a ready task is claimable (requires check) "
+                     "and name the claiming verb; changes nothing",
+        description="READ-ONLY inspector: reports whether a ready card is claimable and names the verb "
+                    "that claims it (`worktree new` for that task) — it writes no claim and changes no "
+                    "card. It refuses, naming the reason, when the card is not `ready`, when a task id "
+                    "in its `requires:` is incomplete (only a task target blocks; a decision id there "
+                    "does not, and `cites:` is informational), or on a claim-block the claiming verb "
+                    "would also raise. Field rules: `yitc-v2 graph query SPEC-0028`; the selection "
+                    "rule: QUEUE.md §Picker logic.")
     tp.add_argument("task", help="T-NNNN id to pick")
     tp.set_defaults(func=cmd_task_pick, cli_invoked_verb="task pick", read_only_admit=RO_READ)  # T-0310: read-only inspector — observability parity with sibling read verbs
     # T-11305 (X-1002) — the NO-WORKTREE claim, admitted ONLY for a card whose deliverable is
@@ -1069,7 +1137,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tcl = task_sub.add_parser("claim-landed", help="Write ready→in-progress + task_picked WITHOUT a "
                               "worktree, for a card whose deliverable is DEMONSTRABLY already on main "
                               "(derived from main's own delivery record, fail-closed; scoped "
-                              "direct-to-main self-commit, idempotent) — T-11305/X-1002")
+                              "direct-to-main self-commit, idempotent) — T-11305/X-1002",
+                              description="Write ready→in-progress + task_picked WITHOUT a "
+                              "worktree, for a card whose deliverable is DEMONSTRABLY already on main "
+                              "(derived from main's own delivery record, fail-closed) — T-11305/X-1002. "
+                              "SELF-COMMIT: from the main checkout it commits its own record (the card + "
+                              "its journal receipt only); inside a writing worktree it REFUSES and names "
+                              "the ordinary claim — never hand-commit it (family rule: AGENTS-SESSIONS "
+                              "§Writes happen in a worktree; this verb's admission is stated here and in "
+                              "its refusals — no spec).")
     tcl.add_argument("task", help="T-NNNN id — must be `ready` on main AND carry a main-side delivery "
                                   "proof (a SUCCESSFUL land_completed for task/<id>, or a task_closed); "
                                   "anything else REFUSES")
@@ -1136,7 +1212,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-13103: no long-option ABBREVIATION — the SPEC-0209 argv seam scans exact tokens, so an accepted
     # `--mess=...` would carry the message past it. Set for EVERY guarded row at the end of this
     # function, derived from the seam registry (T-13465), not per subparser here.
-    tcm = task_sub.add_parser("commit", help="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), callable ×N")
+    # T-13694: the head of the help points at the reference holding the commit-side door.
+    tcm = task_sub.add_parser("commit", help="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), callable ×N",
+                              description="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), "
+                                          "callable ×N. RARE CASE — an absorption commit refused past "
+                                          "the exhausted audit-post ceiling: the commit-side door for "
+                                          "a late finding is the reference SPEC-1018 — `graph query "
+                                          "SPEC-1018`, heading «Rare ceiling cases».")
     tcm.add_argument("task", help="T-NNNN id")
     # T-10720 (E-0054): no longer argparse-`required` — a `--from-stdin` caller supplies the message in
     # the stdin mapping instead; presence is re-checked AFTER ingest, so an omitted message still refuses.
@@ -1223,7 +1305,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "written otherwise. A genuine behaviour change → `spec edit`, NOT --reverify.")
     tcm.set_defaults(func=cmd_task_commit, cli_invoked_receipt="task commit")  # T-13071: attempt receipt
 
-    tl = task_sub.add_parser("list", help="List tasks with status/priority filters (picker UX parity with bare grep)")
+    tl = task_sub.add_parser(
+        "list", help="List tasks with status/priority filters (picker UX parity with bare grep)",
+        # T-13685: the help head states the order the listing prints in and where the rule lives.
+        description="Lists cards sorted by priority (high, then medium, then low), then status, then "
+                    "id — so `--status ready` prints the ready cards in pick order. `ready` is the "
+                    "card's status only: whether a ready card is claimable (its task `requires:` "
+                    "targets) is what `task pick` reports. On `main` a claim shows as `in-progress` "
+                    "only once its worktree has landed; a listed card that a live task worktree "
+                    "already holds is marked in a WT column. Field rules: `yitc-v2 graph query "
+                    "SPEC-0028`; the selection rule: QUEUE.md §Picker logic.")
     tl.add_argument("--status", action="append", choices=list(TASK_LIST_STATUSES),
                     help=f"filter by status (repeatable; default = all). Choices: {list(TASK_LIST_STATUSES)}")
     tl.add_argument("--priority", action="append", choices=list(TASK_PRIORITIES),
@@ -1267,7 +1358,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "history, and the tier is inert there — dispatch never launches a terminal "
                          "card). The --old/--new text-surgery route to this field is retired.")
     tu.add_argument("--status", choices=list(TASK_FILING_STATUSES),
-                    help="transition target: parked (from ready|in-progress; needs --reason) | "
+                    help="READ FIRST when parking a task whose audit-post is RED: the park-mid-audit "
+                         "land path is the how-to `graph query rare-task-recovery-recipes`. "
+                         "Transition target: parked (from ready|in-progress; needs --reason) | "
                          "ready (unpark, from parked only) | wont-do (from any active; needs --reason). "
                          "ready→in-progress is `worktree new --task` (the claim); in-progress→done is `task close`.")
     # T-12895 (<project> X-1545): the three prose flags below are INGESTED by --from-stdin
@@ -1356,7 +1449,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # flag's own argument, so «a mark with no stated blockage» is unrepresentable in argv and the
     # blank case is refused explicitly by `state.queue_jump_write_error`.
     tu.add_argument("--queue-jump", dest="queue_jump", metavar="REASON",
-                    help="QUEUE-JUMP mode (T-11663, SPEC-0184 rule 9): give THIS card an emergency "
+                    help="QUEUE-JUMP mode (T-11663, SPEC-0184 rule 9). "
+                         "SELF-COMMIT: from the main checkout it commits its own record (the card + "
+                         "its journal receipt only); inside a writing worktree it commits that record "
+                         "on the worktree's branch, which reaches main with that batch's land — never "
+                         "hand-commit it (family rule: AGENTS-SESSIONS "
+                         "§Writes happen in a worktree; this mode's rule: SPEC-0184 rule 9). "
+                         "Gives THIS card an emergency "
                          "place at the FRONT of the land-admission order, naming the BLOCKAGE it "
                          "clears (the reason is required — it is what the firing record names). "
                          "ORDER OF SERVICE ONLY: batch membership is untouched. It EXPIRES with the "
@@ -1616,9 +1715,19 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # bg_dispatch_halted marker with a `kind: refused` discriminator, so `--fleet-verdict` reads
     # `halted` / needs-decision instead of conflating it with a dead bootstrap (launch-stall).
     trf = task_sub.add_parser("refuse", help="Record a PRE-CLAIM refusal of a ready task (a dispatched "
-                              "worker that analyzed it and cannot claim it): journal-only, no worktree; "
+                              "worker that analyzed it and cannot claim it): no worktree; writes the "
+                              "refusal onto the card (T-11679) and "
                               "emits bg_dispatch_halted(kind=refused) so --fleet-verdict reads halted / "
-                              "needs-decision, NOT launch-stall (T-10291)")
+                              "needs-decision, NOT launch-stall (T-10291)",
+                              description="Record a PRE-CLAIM refusal of a ready task (a dispatched "
+                              "worker that analyzed it and cannot claim it): no worktree; writes the "
+                              "refusal onto the card (T-11679) and "
+                              "emits bg_dispatch_halted(kind=refused) so --fleet-verdict reads halted / "
+                              "needs-decision, NOT launch-stall (T-10291). "
+                              "SELF-COMMIT: from the main checkout it commits its own record (the card + "
+                              "its journal receipt only); inside a writing worktree it makes no commit — the "
+                              "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
+                              "§Writes happen in a worktree; this verb's rule: SPEC-0133).")
     trf.add_argument("task", help="T-NNNN id to refuse (must be ready — an in-progress task uses `task pause`)")
     # T-11165 (E-0054): no longer argparse-`required` — a `--from-stdin` caller supplies the reason in
     # the stdin mapping, and cmd_task_refuse's own non-empty check enforces it from EITHER channel
@@ -1658,7 +1767,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     # T-0287 (AU-3a): the lifecycle stage-ENTRY verb — top-level (not nested under `task`). Records
     # current_stage + delivers the stage bundle + emits stage_entered. Auto-syncs the journal (D-0049).
-    st = sub.add_parser("stage", help="Enter a lifecycle stage: record current_stage + deliver the "
+    st = sub.add_parser("stage", help="Enter a lifecycle stage: record current_stage + deliver the stage bundle + emit stage_entered",
+                        description="Enter a lifecycle stage: record current_stage + deliver the "
                                       "stage bundle (specs + work-verbs) + emit stage_entered (T-0287)")
     st.add_argument("name", help=f"stage name — one of: {', '.join(STAGE_AXIS_NAMES)}")
     st.add_argument("--task", required=True, help="T-NNNN id whose stage is being entered")
@@ -1667,7 +1777,28 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     audit = sub.add_parser("audit", help="External auditor invocation (codex wrapper + V2 lens)")
     audit_sub = audit.add_subparsers(dest="audit_action", required=True)
     for stage_name in ("pre", "post"):
-        ap = audit_sub.add_parser(stage_name, help=f"Run audit-{stage_name} via external auditor")
+        # T-13711: the head names the ceiling contracts, which no stage entry renders any more. The
+        # description is NOT re-wrapped, so every fetch stays on one line at any width — the consumer
+        # help renderer (T-13176) rewrites a fetch only when it reads it unbroken (as `task file`).
+        ap = audit_sub.add_parser(
+            stage_name, help=f"Run audit-{stage_name} via external auditor",
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description=f"Run audit-{stage_name} via external auditor.\n\n"
+                        "AT THE AUDIT-LOOP CEILING — its core is SPEC-0036 §Audit-loop ceiling, which\n"
+                        "both audit stage entries render. What counts as a pass (the ledger-skip axes,\n"
+                        "the trend grant) is SPEC-0124 — `graph query SPEC-0124`; what happens once the\n"
+                        "ceiling is reached is SPEC-0204 — `graph query SPEC-0204`.\n\n"
+                        "RARE SHAPES — a returned finding marked machine-refuted, or a card-repair\n"
+                        "commit as the audit-post subject: their rules are the reference SPEC-1013 —\n"
+                        "`graph query SPEC-1013`, heading «Rare task-audit shapes».\n\n"
+                        "RARE CEILING CASES — a re-audit under the plan-freshness, plan lens-version,\n"
+                        "unchanged-fingerprint, plan task-carrier, ship-custody re-pin or post-GREEN\n"
+                        "merge-integration axis: the fail-closed clauses of those axes are the\n"
+                        "reference SPEC-1018 — `graph query SPEC-1018`, heading «Rare ceiling cases».\n\n"
+                        "PLAN TARGETS — the question templates asked at the plan gates (by `plan stage`\n"
+                        "and `plan check`) and the finalization overlays `audit post --plan` asks are\n"
+                        "homed in SPEC-0083 — `graph query SPEC-0083`, heading «Plan-stage question\n"
+                        "templates».")
         tgt = ap.add_mutually_exclusive_group(required=True)
         tgt.add_argument("--task", help="T-NNNN id of task being audited")
         tgt.add_argument("--decision", help="D-NNNN id of decision being audited (per D-0055)")
@@ -1846,7 +1977,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
             # fail-closed legs rather than by an auditor-prompt overlay. Registered on the `post`
             # subparser ONLY (structurally absent on `pre` — the --zero-ship-diff precedent).
             ap.add_argument("--repin-ship", dest="repin_ship", action="store_true",
-                            help="(--task only, requires --commit) re-pin audit custody to this task's "
+                            help="READ FIRST: the four admission legs, and what the auditor is shown "
+                                 "once a target is admitted, are the reference SPEC-1022, heading "
+                                 "«Ship-custody re-pin — admission legs and the audited subject». "
+                                 "(--task only, requires --commit) re-pin audit custody to this task's "
                                  "LANDED ship commit after a bookkeeping self-commit (park/pause/wont-do) "
                                  "displaced it — the wedge where audit-post can only audit the park diff "
                                  "(green-by-vacuity) and `task close` stays RED-blocked. Evidence-checked "
@@ -2045,7 +2179,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-0429: ceiling-convergence triage consult (SPEC-0124 §Audit-loop ceiling) — a NAMED audit
     # subcommand mechanizing the pass-3 triage. Refuses below the ceiling; saves a structured
     # survivors/recommendation verdict that `audit pre|post --owner-reset` verifies as the basis.
+    # T-13694: the head of the help points at the reference holding the on-demand pick's mechanics.
     ac = audit_sub.add_parser("consult",
+                              description="ON-DEMAND PICK — how the fork is classified, where its "
+                                          "record is kept, the event it writes and its scope are the "
+                                          "reference SPEC-1018 — `graph query SPEC-1018`, heading "
+                                          "«Rare ceiling cases».",
                               help="Adversarial consult: submit >=2 resolution options and the "
                                    "external auditor names survivors + a single recommendation. Saves "
                                    "decisions/<tid>-audit-consult-<key>.yaml. TWO live forms: the "
@@ -2054,11 +2193,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                    "verifies for its own gate continuation. The TASK --task --stage "
                                    "ceiling-adjudication form is RETIRED (SPEC-0204 rule 6) and "
                                    "REFUSES with a pointer to `audit decide`.")
-    ac.add_argument("--task", help="T-NNNN id of the task at its audit-loop ceiling (with --stage). "
-                                   "Mutually exclusive with --plan/--gate.")
+    ac.add_argument("--task", help="T-NNNN task id. LIVE only with --on-demand. With --stage and no "
+                                   "--on-demand it is the RETIRED ceiling-adjudication form "
+                                   "(SPEC-0204 rule 6), which REFUSES with a pointer to `audit "
+                                   "decide`. Mutually exclusive with --plan/--gate.")
     ac.add_argument("--stage", choices=("pre", "post"),
-                    help="the TASK audit stage this triage is for (pre = plan-quality ceiling, post = "
-                         "ship-quality ceiling). REQUIRED with --task; task-only (use --gate for a plan).")
+                    help="RETIRED with the --task --stage ceiling-adjudication form (SPEC-0204 rule "
+                         "6): an invocation carrying it without --on-demand REFUSES with a pointer to "
+                         "`audit decide`. Kept registered only so a caller meets that pointer, not an "
+                         "unknown-flag error.")
     ac.add_argument("--plan", help="T-9286 — plan slug at a plan-gate ceiling (with --gate). The "
                                    "PLAN-target consult (SPEC-0124 §Plan-target parity).")
     ac.add_argument("--gate", choices=PLAN_CONSULT_GATES,
@@ -2106,6 +2249,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # per residual, Controller-only, the authorizing owner directive RESOLVED at write. No worktree
     # (D-0049 journal append, folded at land).
     ad = audit_sub.add_parser("decide",
+                              # T-13692 (SPEC-0005 §6) — the head of this verb's help points at the
+                              # reference that holds the edge cases of the ceiling route.
+                              description="READ FIRST when the case is not the plain one — no residual "
+                                          "to decide, a second fix after a later re-audit, a directive "
+                                          "sharing its second with another, a subject that does not "
+                                          "resolve, a plan-gate fix: the edge cases of the ceiling route "
+                                          "are the reference SPEC-1014 — `graph query SPEC-1014`. The "
+                                          "rule itself is SPEC-0204 rules 2-3.",
                               help="Record ONE typed Controller decision for ONE residual of a "
                                    "ceiling row (SPEC-0204 rule 2): appends a single append-only "
                                    "`ceiling_decision` journal row — no worktree, no store, no "
@@ -2239,7 +2390,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-9640 (SPEC-0057 §6 / X-0127): the inspection (ревизия) run-recorder — emits ONE
     # inspection_completed per theme run with a REAL checklist-hash criteria_ref. Manual-first, owner-
     # invoked, NO cron (SPEC-0057 §2). Replaces the hand-`event inspection_completed` faked-ref emit.
-    insp = sub.add_parser("inspect", help="Inspection (revizia) run-recorder — emit inspection_completed with a checklist-hash criteria_ref (SPEC-0057 §6)")
+    insp = sub.add_parser("inspect", help="Inspection (revizia) run-recorder — emit inspection_completed (SPEC-0057 §6)",
+                          description="Inspection (revizia) run-recorder — emit inspection_completed with a checklist-hash criteria_ref (SPEC-0057 §6)")
     insp_sub = insp.add_subparsers(dest="inspect_action", required=True)
     inr = insp_sub.add_parser("record", help="Emit one inspection_completed for a theme run (real checklist-hash criteria_ref; manual-first, owner-invoked)")
     inr.add_argument("--theme", help="the run's theme — one of T1..T10 (the fixed SPEC-0057 §3 roster; T10 = real-work observation loop, SPEC-0135) OR a consumer-declared theme slug from this consumer's yitc-ops.yaml inspection.themes[] (SPEC-0093 rule 12; an undeclared slug is refused, T-10235). Give this XOR --tier.")
@@ -2259,7 +2411,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # §5b, prose-only distributed enforcement until now) cannot be half-done by a forgetful session.
     mem = sub.add_parser("memory", help="MEMORY.md buffer operations (the SPEC-0039 consume-once buffer)")
     mem_sub = mem.add_subparsers(dest="memory_action", required=True)
-    mc = mem_sub.add_parser("consume", help="Consume-on-encounter: a voiced onboarding station retires — delete its [onboarding:<id>] pointer + emit onboarding_station_consumed (SPEC-0147 §1/§2)")
+    mc = mem_sub.add_parser("consume", help="Consume-on-encounter: a voiced onboarding station retires — delete its [onboarding:<id>] pointer + emit onboarding_station_consumed (SPEC-0147 §1/§2)",
+                            description="Consume-on-encounter: a voiced onboarding station retires — delete "
+                            "its [onboarding:<id>] pointer + emit onboarding_station_consumed (SPEC-0147 §1/§2). "
+                            "SELF-COMMIT: from the main checkout it commits its own record (MEMORY.md + "
+                            "its journal receipt only); inside a writing worktree it makes no commit — the "
+                            "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
+                            "§Writes happen in a worktree; this verb's rule: SPEC-0039 §5(b)).")
     # T-10306 (X-0273): `--station` is the CANONICAL form — it is what every seam prints
     # (memory.seam_nudge / memory.pointer_digest), so a session obeying the printed hint verbatim
     # now succeeds. The positional survives (nargs="?") for backward compatibility. Separate dests
@@ -2277,7 +2435,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # seed-write path, shared in-process with project `init`. Host-invocable as
     # `<engine>/bin/yitc-v2 -C <project> memory seed --user <name>` — which is how the host's
     # provision-user.sh (EXTERNAL territory, never edited from here) grants a person their stations.
-    ms = mem_sub.add_parser("seed", help="Seed a person's onboarding station pointers into this project's MEMORY.md, tagged user(<name>) — idempotent; emits onboarding_seeded (SPEC-0147 §7)")
+    ms = mem_sub.add_parser("seed", help="Seed a person's onboarding station pointers into this project's MEMORY.md, tagged user(<name>) — idempotent; emits onboarding_seeded (SPEC-0147 §7)",
+                         description="Seed a person's onboarding station pointers into this project's "
+                         "MEMORY.md, tagged user(<name>) — idempotent; emits onboarding_seeded (SPEC-0147 §7). "
+                         "SELF-COMMIT: from the main checkout it commits its own record (MEMORY.md + "
+                         "its journal receipt only); inside a writing worktree it makes no commit — the "
+                         "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
+                         "§Writes happen in a worktree; this verb's rule: SPEC-0147 §7).")
     ms.add_argument("--user", help="the recipient (default: this session's provisioned user identity). Host/access-grant callers pass the provisioned name explicitly.")
     ms.set_defaults(func=cmd_memory_seed)
 
@@ -2428,7 +2592,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # (rule 1) is DEFERRED to a follow-up plan; the other 8 ship here. These verbs auto-sync like every
     # non-excluded verb (D-0049 default-on; only `journal sync` + `land` opt out) — the coordination
     # WRITE rides cross_emit→CROSS_LOG_PATH, orthogonal to the session-log→events.jsonl auto-sync.
-    cfgp = sub.add_parser("config", help="Machine-scoped settings (T-11967): get/set/list the "
+    cfgp = sub.add_parser("config", help="Machine-scoped settings (T-11967): get/set/list this machine's PERFORMANCE-class tunables",
+                          description="Machine-scoped settings (T-11967): get/set/list the "
                                         "PERFORMANCE-class tunables of THIS machine. Gate-class "
                                         "values are refused — changing one is a task.")
     cfg_sub = cfgp.add_subparsers(dest="config_action", required=True)
@@ -2447,7 +2612,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # The verify venue (SPEC-0203 rule 6, T-12197) — placed beside `config`, the analog it copies:
     # a thin argparse+journal residue over `lib/venue.py`, with NO worktree gate, because the venue
     # record lives OUTSIDE every checkout exactly as the machine settings file does.
-    vnp = sub.add_parser("venue", help="The remote verify venue (SPEC-0203): raise the box from the "
+    vnp = sub.add_parser("venue", help="The remote verify venue (SPEC-0203): raise, publish, unpublish, delete, show",
+                         description="The remote verify venue (SPEC-0203): raise the box from the "
                                        "seed snapshot, publish it as this machine's verify venue, "
                                        "unpublish (break-glass), delete, show.")
     vn_sub = vnp.add_subparsers(dest="venue_action", required=True)
@@ -2509,11 +2675,21 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     vns = vn_sub.add_parser("show", help="print the published venue record, or state its absence (read-only)")
     vns.set_defaults(func=cmd_venue_show, cli_invoked_verb="venue show", read_only_admit=RO_READ)
 
-    crossp = sub.add_parser("cross", help="Cross-project coordination log (SPEC-0085/0086): "
+    crossp = sub.add_parser("cross", help="Cross-project coordination log (SPEC-0085/0086)",
+                            description="Cross-project coordination log (SPEC-0085/0086): "
                                           "request/inbox/outbox/show/pick/done/reject/close/ack")
     cross_sub = crossp.add_subparsers(dest="cross_action", required=True)
 
-    cr = cross_sub.add_parser("request", help="File a coordination item (allocates the immutable id; "
+    # T-13696 (SPEC-0005 §6) — the three author-side verbs open their help with the home of their
+    # rule-1 bullet: SPEC-0086 keeps one pointer bullet for each, the bullet's text is in the spec
+    # named here.
+    def _author_side_rule_home(verb):
+        return (f"The rule-1 bullet of `cross {verb}` is in SPEC-1020 — `graph query SPEC-1020`, "
+                "then search for the verb name. The verb group as a whole, the receiver's verbs, the "
+                "two views and peer identity are SPEC-0086.")
+
+    cr = cross_sub.add_parser("request", description=_author_side_rule_home("request"),
+                              help="File a coordination item (allocates the immutable id; "
                                               "emits cross_requested). The AUTHOR verb.")
     # T-10719 (E-0054): the three field flags are no longer argparse-`required` — a `--from-stdin`
     # filing supplies them in the stdin mapping instead. The fail-closed check is UNCHANGED in
@@ -2615,7 +2791,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "explicit alternative to --re-entry (rides the terminal event's "
                           "re_entry_dismissed key)")
     crj.set_defaults(func=cmd_cross_reject)
-    cdp = cross_sub.add_parser("dispute", help="AUTHOR records that a peer-declared `done` fix does "
+    cdp = cross_sub.add_parser("dispute", description=_author_side_rule_home("dispute"),
+                               help="AUTHOR records that a peer-declared `done` fix does "
                                                "NOT reach the case (done -> back to picked, carrying "
                                                "the disproof; emits cross_disputed). `cross close` "
                                                "still means VERIFIED — use this instead of closing "
@@ -2661,7 +2838,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "--from-stdin`); an argv content flag alongside it is REFUSED. The X-NNNN id "
                           "stays on argv")
     cak.set_defaults(func=cmd_cross_ack)
-    ccl = cross_sub.add_parser("close", help="AUTHOR finalizes own item: cross_closed (work done+verified) "
+    ccl = cross_sub.add_parser("close", description=_author_side_rule_home("close"),
+                               help="AUTHOR finalizes own item: cross_closed (work done+verified) "
                                              "OR --out-of-band (delivered outside the peer return path) "
                                              "OR --withdraw (retract; emits cross_withdrawn)")
     ccl.add_argument("id", help="X-NNNN coordination id")
@@ -2709,7 +2887,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "explicit alternative to --re-entry (rides cross_closed.re_entry_dismissed)")
     ccl.set_defaults(func=cmd_cross_close)
 
-    fup = sub.add_parser("followup", help="Followup capture (SPEC-0095): one-command no-worktree capture "
+    fup = sub.add_parser("followup", help="Followup capture (SPEC-0095): one-command no-worktree capture of a small follow-up",
+                         description="Followup capture (SPEC-0095): one-command no-worktree capture "
                                           "of a small follow-up; 2-state open->promoted|dropped, folded from the journal. "
                                           "An OPEN followup may carry a `trigger` ATTRIBUTE (arm/unarm) — an ARMED waiter "
                                           "leaves the actionable headline and returns when its trigger fires, i.e. when "
@@ -2753,10 +2932,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     fdr = fup_sub.add_parser("drop", help="Drop an OPEN followup (emits followup_dropped)")
     fdr.add_argument("id", help="fu_XXXXXXXXXXXX followup id")
     fdr.add_argument("--reason", help=f"OPTIONAL why dropped ({_PROSE_STEER_FOR('followup drop')})")
+    fdr.add_argument("--not-adopted", dest="not_adopted", metavar="REASON",
+                     help="the explicit waive for a `P8-CARRIER: <T-ID>` followup (SPEC-0095): drop "
+                          "it WITHOUT its card's P8 adoption evidence resolving, recording REASON on "
+                          "the row as `NOT-ADOPTED: <reason>`. Without this flag such a drop is "
+                          "REFUSED while the card's evidence does not resolve. Refused on a followup "
+                          "that carries no marker, and beside --reason "
+                          f"({_PROSE_STEER_FOR('followup drop')})")
     fdr.add_argument("--from-stdin", dest="from_stdin", action="store_true",
-                     help="read the drop reason as a YAML mapping on stdin (`reason: <text>`) — the "
-                          "SHELL-PROOF path (mirrors `task update --from-stdin`); an argv --reason "
-                          "alongside it is REFUSED. The `id` positional stays on argv")
+                     help="read the drop reason as a YAML mapping on stdin (`reason: <text>` or "
+                          "`not_adopted: <text>`) — the SHELL-PROOF path (mirrors `task update "
+                          "--from-stdin`); an argv --reason / --not-adopted alongside it is REFUSED. "
+                          "The `id` positional stays on argv")
     fdr.set_defaults(func=cmd_followup_drop)
     farm = fup_sub.add_parser("arm", help="Mark an OPEN followup as ARMED — awaiting a NAMED trigger, so it "
                                           "leaves the actionable headline (emits followup_armed). NOT a status "
@@ -3001,7 +3188,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
              "plan_stage_entered. `trial` (SPEC-0035) is owner-invoked for trial-eligible plans; `accepted` "
              "also accepts the `specs→accepted` skip for non-eligible plans. The SOLE writer of the plan "
              "FSM (accept/close/reject are realized via `accepted` / `realized|partial --into` / `rejected "
-             "--reason`).")
+             "--reason`).",
+        description="Advance a plan ONE stage along its FSM: gates the prior stage, delivers the stage "
+                    "bundle, emits plan_stage_entered. QUESTION TEMPLATES — what each gated transition "
+                    "asks the external auditor (the per-gate templates) is homed in SPEC-0083 — "
+                    "`graph query SPEC-0083`, heading «Plan-stage question templates»; the same spec "
+                    "holds the gate policy (which transitions hold on a RED or ABORT verdict).")
     dst.add_argument("name", help="target stage — one of: draft, specs, trial, accepted, decomposition, executing, postcheck, realized (+ terminals partial, rejected, cancelled)")
     dst.add_argument("slug", help="plan slug")
     dst.add_argument("--into", action="append",
@@ -3131,7 +3323,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # (T-10763), the policy switch that makes a gated verb call `authorize` (T-10765), and any grant
     # WRITE (never) are deliberately NOT here.
     grants_p = sub.add_parser("grants",
-        help="Grant-state reader (SPEC-0169): READ-ONLY schema+semantic validation and reporting of "
+        help="Grant-state reader (SPEC-0169): read-only validation and reporting of collaborator grant state",
+        description="Grant-state reader (SPEC-0169): READ-ONLY schema+semantic validation and reporting of "
              "collaborator grant state. Never writes the carrier — grant writes are an owner action (rule 5)")
     grants_sub = grants_p.add_subparsers(dest="grants_action", required=True)
     gr = grants_sub.add_parser("report",
@@ -3225,7 +3418,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-0063 — auto-ID allocation for decisions + specs (symmetry with `task file`).
     # auto-syncs by default (D-0049, like every non-excluded verb); no graph rebuild (indexed next build).
     decision = sub.add_parser("decision",
-        help="Decision class — FROZEN history; authors/transitions nothing. `new` is RETIRED (author "
+        help="Decision class — FROZEN history; `new` (refuse-only) is the sole remaining subcommand",
+        description="Decision class — FROZEN history; authors/transitions nothing. `new` is RETIRED (author "
              "rules via `spec new`); the backlog ops accept/finalize/withdraw are RETIRED too (T-0564, "
              "backlog fully terminal). `new` (refuse-only) is the sole remaining subcommand. "
              "Per CHARTER §Decision lifecycle")
@@ -3246,7 +3440,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # doctrine form parses, with an equivalent --reason for callers that prefer a flag. Sibling of the
     # PRE-claim `task refuse`; emits the same existing bg_dispatch_halted marker, no new event family.
     bol = sub.add_parser("blocked-on-land",
-                         help="Escalate a POST-claim block to the controller (SPEC-0103 §3): the worker "
+                         help="Escalate a POST-claim block to the controller (SPEC-0103 §3); journal-only, worktree left intact",
+                         description="Escalate a POST-claim block to the controller (SPEC-0103 §3): the worker "
                               "stopped rather than force a land, worktree left INTACT. Journal-only, no "
                               "worktree needed; emits bg_dispatch_halted(blocked_on_land) so "
                               "--fleet-verdict reads halted / needs-decision carrying YOUR reason "
@@ -3281,7 +3476,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     bol.set_defaults(func=cmd_blocked_on_land)
     _absorb_trailing_reason_words(bol)
 
-    land = sub.add_parser("land", help="Integrate a writing worktree's branch into main (D-0037 control-point)")
+    land = sub.add_parser("land", help="Integrate a writing worktree's branch into main (D-0037 control-point)",
+                          description="Integrate a writing worktree's branch into main (D-0037 control-point). "
+                          "Run it from the main checkout and read its FINAL stdout line — `LAND: OK <sha>` / "
+                          "`LAND: ABORT <reason>` — never the shell exit. How to run and watch it (background "
+                          "or foreground, kill shapes, heartbeats): patterns/background-session-monitoring.md "
+                          "§Running land.")
     land.add_argument("--no-tests", action="store_true",
                       help="OWNER-GATED (T-9306): skip the test-suite verification step (events/markers/"
                            "graph still checked). REFUSED unless BOTH --owner-authorized AND --no-tests-reason "
@@ -3438,7 +3638,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     wt = sub.add_parser("worktree", help="Worktree creation control-point (D-0051) — inverse of land")
     wt_sub = wt.add_subparsers(dest="worktree_action", required=True)
-    wn = wt_sub.add_parser("new", help="Create a writing worktree+branch off main; prints `cd <path>`")
+    wn = wt_sub.add_parser("new", help="Create a writing worktree+branch off main; prints `cd <path>`",
+                           formatter_class=argparse.RawDescriptionHelpFormatter,   # T-13698, as `task file`
+                           description="Create a writing worktree and its branch off main.\n\n"
+                                       "READ FIRST when opening a spike (--work <slug> --spike): the\n"
+                                       "prototype contract SPEC-0205. Fetch it:\n"
+                                       "  `bin/yitc-v2 graph query SPEC-0205`")
     wn_grp = wn.add_mutually_exclusive_group(required=True)
     wn_grp.add_argument("--task", help=f"T-NNNN → branch task/T-NNNN + worktree ../{_worktree_parent_leaf()}/T-NNNN")
     wn_grp.add_argument("--work", help=f"slug → branch work/<slug> + worktree ../{_worktree_parent_leaf()}/<slug>")
@@ -3534,6 +3739,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "temp dir can never be swept while its land is still in-flight.")
     ws.set_defaults(func=cmd_worktree_sweep)
     wp = wt_sub.add_parser("park",
+                           formatter_class=argparse.RawDescriptionHelpFormatter,   # T-13698, as `task file`
+                           description="Tear down a worktree and its branch. READ FIRST when discarding a\n"
+                                       "task that was closed before its land: its two recoveries are the\n"
+                                       "how-to `graph query rare-task-recovery-recipes`.\n\n"
+                                       "READ FIRST when parking a spike: the prototype contract SPEC-0205.\n"
+                                       "Fetch it:\n"
+                                       "  `bin/yitc-v2 graph query SPEC-0205`",
                            help="Gracefully TEAR DOWN a worktree+branch instead of leaving an orphan — the "
                                 "inverse of `worktree new`, in the SAME two shapes. --task T-XXXX: by the "
                                 "card's status on main — `ready` (T-9583, an auditor-OUTAGE block; REFUSED "
@@ -3618,7 +3830,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     work = sub.add_parser("work", help="Non-task work-batch operations (D-0051)")
     work_sub = work.add_subparsers(dest="work_action", required=True)
-    wc = work_sub.add_parser("commit", help="Commit a non-task write batch (shares task commit's staging core)")
+    wc = work_sub.add_parser("commit", help="Commit a non-task write batch (shares task commit's staging core)",
+                             description="Commit a non-task write batch (shares task commit's staging core). "
+                                         "READ FIRST when reworking a task that was closed before its land: "
+                                         "the rework-in-place recipe is the how-to "
+                                         "`graph query rare-task-recovery-recipes`.")
     wc.add_argument("--from", dest="from_ref", required=True, help="durable artifact for from: (CHARTER §Principle 2)")
     # T-10720 (E-0054) — the same shell-proof escape as `task commit` (same message field, same core).
     wc.add_argument("-m", "--message",
@@ -3695,7 +3911,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     wpub.set_defaults(func=cmd_work_publish)   # run FROM main like `work tag` — no writing worktree
 
     release_p = sub.add_parser("release",
-                               help="CONSUMER-side release verbs (T-12043, SPEC-0195 rules 6+7) — "
+                               help="CONSUMER-side release verbs (SPEC-0195 rules 6+7): the verifying entrypoints",
+                               description="CONSUMER-side release verbs (T-12043, SPEC-0195 rules 6+7) — "
                                     "the ENUMERATED verifying entrypoints. Every one of them "
                                     "verifies the signed manifest against the trust root, anchored "
                                     "OUT OF BAND, BEFORE it writes anything; a tampered artifact, "
@@ -3782,7 +3999,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     rupd.set_defaults(func=cmd_release_update, no_autosync=True)
 
     dispatch = sub.add_parser("dispatch",
-                              help="THIN dispatch launcher (T-0558, list-extended T-0580) — fresh "
+                              help="Thin dispatch launcher: spawn background worker(s) for --task ids, then watch them read-only",
+                              description="THIN dispatch launcher (T-0558, list-extended T-0580) — fresh "
                                    "session id + scrub-ALL identity carriers + spawn background "
                                    "worker(s) + emit a dispatch event per task carrying the assigned "
                                    "`expected` ref. Repeat --task to launch SEVERAL sequentially in "
@@ -4063,7 +4281,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     se.set_defaults(func=cmd_spec_edit, cli_invoked_receipt="spec edit")  # T-13071: attempt receipt
 
     sr = spec_sub.add_parser("reverify", help="Record the durable content-signature freshness "
-                                              "baseline for a spec's anchors (T-0506, E-0019 kind-B)")
+                                              "baseline for a spec's anchors (T-0506, E-0019 kind-B). "
+                                              "The bare form re-signs the anchors that already carry "
+                                              "a signature and lists the never-signed ones without "
+                                              "signing them (T-13674)")
     sr.add_argument("id", help="SPEC-NNNN id to reverify (must be active or proposed)")
     sr.add_argument("--anchor", action="append",
                     help="Re-sign ONLY this declared `implements:` anchor (repeatable). Every other "
@@ -4077,6 +4298,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "that have already drifted. Without it such a re-sign is REFUSED: it silently "
                          "re-baselines pre-existing drift onto an unrelated diff (T-10300, T-10318). "
                          "Assert this only after re-reading the spec against ALL its anchored code")
+    sr.add_argument("--first-baseline", dest="first_baseline", action="store_true",
+                    help="ALSO sign every anchor that has NO signature yet (its first baseline). "
+                         "Without it the bare form leaves such an anchor unsigned and lists it: a "
+                         "signature says the code was read against the spec (T-13674). The "
+                         "untouched-anchor guard stays armed for the anchors already signed. Not "
+                         "combinable with --anchor, which gives a named anchor its first baseline")
     sr.set_defaults(func=cmd_spec_reverify)
 
     # T-13465 (SPEC-0209 bound (e)) — every GUARDED verb takes exact option spellings only. The seam's

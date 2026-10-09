@@ -255,23 +255,27 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ deletion and the file is unchanged between hash and unlink — never\nby age alone.\
   \ A missing, stale, malformed or integrity-failed digest is a NAMED refusal with\
   \ zero\ndeletion for that file and is never refolded-and-deleted in the same run.\
-  \ Prune runs only after an ok\nmirror, is skipped under `--dry-run`, and never touches\
-  \ the provider source. Each run's summary\n(`pruned_files`, `bytes_freed`, `folded`,\
-  \ `refused_count`, `refused`) rides\n`nightly_run_completed.transcript_prune`. Operational\
-  \ contract: `lessons/provider-transcript-archive.md`.\n\n### 2b. Bounded escalation\
-  \ side-effect (concern-drift → a governed cross request) — per SPEC-0143 Rule 4\n\
-  The §2 fence forbids an autonomous WORK session, NOT a bounded, dedup-idempotent\
-  \ COORDINATION write.\nThe nightly's concern-drift reconcile (SPEC-0143 Rule 3,\
-  \ seam (b)) is REPORT-ONLY by default. For the\nnarrow case of a drift on a concern\
-  \ a PRE-EXISTING governed BLOCKING gate already blocks on (SPEC-0143\nRule 4 — the\
-  \ deploy Class-S security gate today), or of a drift the nightly has already surfaced\n\
-  repeatedly with no owner decision (SPEC-0143 Rule 4's surfacing-count trigger),\
-  \ the runner\nMAY file ONE further bounded side-effect:\na governed `cross request`\
-  \ (kind=note, kernel → the drifting consumer) on the kernel-owned SHARED\ncoordination\
-  \ log (SPEC-0084 / SPEC-0086), via the SAME id-alloc-flock write path as the land-time\n\
-  auto-file (`cross.auto_file_concern_drift_escalations`). This is a local-evidence\
-  \ COORDINATION emit,\nNOT a work session and NOT a consumer-repo write: it starts\
-  \ no session, claims/fetches nothing, adds\nNO new blocking gate and NO stored review-request\
+  \ The one exception is a\ndigest that passes every check above except that it was\
+  \ folded under an OLDER `parser_version`\n: it is refolded from its still-present\
+  \ raw file and the new digest is verified as above,\nso it can be pruned in that\
+  \ run; a refold that fails is a named refusal with zero deletion. Prune\nruns only\
+  \ after an ok\nmirror, is skipped under `--dry-run`, and never touches the provider\
+  \ source. Each run's summary\n(`pruned_files`, `bytes_freed`, `folded`, `refused_count`,\
+  \ `refused`) rides\n`nightly_run_completed.transcript_prune`. Operational contract:\
+  \ `lessons/provider-transcript-archive.md`.\n\n### 2b. Bounded escalation side-effect\
+  \ (concern-drift → a governed cross request) — per SPEC-0143 Rule 4\nThe §2 fence\
+  \ forbids an autonomous WORK session, NOT a bounded, dedup-idempotent COORDINATION\
+  \ write.\nThe nightly's concern-drift reconcile (SPEC-0143 Rule 3, seam (b)) is\
+  \ REPORT-ONLY by default. For the\nnarrow case of a drift on a concern a PRE-EXISTING\
+  \ governed BLOCKING gate already blocks on (SPEC-0143\nRule 4 — the deploy Class-S\
+  \ security gate today), or of a drift the nightly has already surfaced\nrepeatedly\
+  \ with no owner decision (SPEC-0143 Rule 4's surfacing-count trigger), the runner\n\
+  MAY file ONE further bounded side-effect:\na governed `cross request` (kind=note,\
+  \ kernel → the drifting consumer) on the kernel-owned SHARED\ncoordination log (SPEC-0084\
+  \ / SPEC-0086), via the SAME id-alloc-flock write path as the land-time\nauto-file\
+  \ (`cross.auto_file_concern_drift_escalations`). This is a local-evidence COORDINATION\
+  \ emit,\nNOT a work session and NOT a consumer-repo write: it starts no session,\
+  \ claims/fetches nothing, adds\nNO new blocking gate and NO stored review-request\
   \ entity, and NEVER mutates a consumer repo (the\nSPEC-0143 Rule 5 / CHARTER §6\
   \ fence). It is DEDUP-idempotent (one item per consumer+concern+version),\nso a\
   \ re-run files nothing; SKIPPED under `--dry-run` (read-only parity with backup\
@@ -432,4 +436,4 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/nightly.py#_declared_dormancy: 37414b9ee67dd395160489503baa1f4aad79c3ee17ced3bb6d213651a7da45ae
-  bin/lib/nightly.py#cmd_nightly: 7ec6a9094b5bd3b69d0bfc9f06832524de3260d32b604d891fdd9dd1dd280388
+  bin/lib/nightly.py#cmd_nightly: cd2f08bc38e6b1aa3b419b162064f4db3f65e65d4110034a80d393c6e7641d53

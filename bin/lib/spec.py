@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shlex
 import sys
 
 from lib import state
@@ -32,7 +33,9 @@ from lib import textutil
 # stage-entry) — the SYNC_TO_LAND_RULE-in-dispatch.py precedent, so the four surfaces never diverge.
 SPEC_BODY_EDIT_CUE = (
     "amend spec bodies via `spec edit` (--from-file / --bless for multi-line); "
-    "raw Edit of an active spec body hard-blocks at land (T-9730)."
+    "raw Edit of an active spec body hard-blocks at land (T-9730). "
+    "Placement (SPEC-0005 rule 3): history / incident / ids → `## Rationale`, not the rule text; "
+    "code anchors → `implements:`; implementation notes → `## Implementation notes`."
 )
 
 # ── T-11717 — the STALE-BLESS remedy cue (single-SoT string, the SPEC_BODY_EDIT_CUE precedent) ────
@@ -140,6 +143,14 @@ def _reindent(s: str, indent: str) -> str:
     """Prefix `indent` to every non-blank line. Blank lines stay blank — YAML block scalars carry no
     trailing indent on an empty line, so indenting them would fabricate text the file does not hold."""
     return "\n".join(indent + ln if ln.strip() else ln for ln in s.split("\n"))
+
+
+def _reindent_continuation(s: str, indent: str) -> str:
+    """`_reindent` for text that starts MID-LINE (T-13676): the first line is kept as written and
+    only the lines after it gain `indent`. In the raw file the block indent sits at the START of the
+    line the text begins in, ahead of the characters before it — never between them and the text."""
+    first, sep, rest = s.partition("\n")
+    return first + sep + _reindent(rest, indent) if sep else s
 
 
 # ── T-13509 — the two READINGS of a block-body edit (GitHub issue #11) ─────────────────────
@@ -447,16 +458,69 @@ def anchor_rule_violation(rec, *, statuses: tuple = _ANCHOR_RULE_STATUSES, all_s
             f"(SPEC-0151 §Internal 1)")
 
 
-def _warn_anchor_rule(sid: str, rec, *, verb: str) -> None:
+def pending_successors(sid: str, records) -> list:
+    """[(successor id, its `activation_owner_task` or None), …] sorted — the `proposed` specs among
+    `records` whose `supersedes:` names `sid` (T-13672). Pure f(records): no I/O.
+
+    Reads exactly what the activation writer acts on (`bin/lib/task.py#_activate_task_proposed_specs`):
+    a `proposed` head, and its `supersedes:` as ONE scalar id. Any other shape of that field is one
+    the writer never flips a target from, so it is not reported as a pending supersession here."""
+    out = []
+    for rec in records or ():
+        if not isinstance(rec, dict) or rec.get("status") != "proposed":
+            continue
+        target, succ = rec.get("supersedes"), rec.get("id")
+        if not isinstance(target, str) or target.strip() != sid:
+            continue
+        if not isinstance(succ, str) or not succ.strip():
+            continue
+        owner = rec.get("activation_owner_task")
+        out.append((succ.strip(), owner.strip() if isinstance(owner, str) and owner.strip() else None))
+    return sorted(out, key=lambda pair: (pair[0], pair[1] or ""))
+
+
+def _pending_supersession_note(sid: str, successors) -> str:
+    """The sentence the anchor-rule WARN gains when `sid` has pending successors; "" when it has none."""
+    if not successors:
+        return ""
+    named = ", ".join(f"{succ} (activation_owner_task {owner})" if owner
+                      else f"{succ} (no activation_owner_task named yet)" for succ, owner in successors)
+    return (f" Pending supersession: proposed {named} names {sid} in `supersedes:`, so {sid} is due to "
+            f"flip to `superseded` when that spec is activated by the close of its "
+            f"activation_owner_task. If this edit moved the anchors to that successor, an anchor-less "
+            f"{sid} is the expected state until then.")
+
+
+def _warn_anchor_rule(sid: str, rec, *, verb: str, specs_dir=None) -> None:
     """Report-only WARN for the two authoring verbs. Never refuses, never touches the exit code — the
     authoring half of SPEC-0151 §Internal 3 (its other half is the graph-conformance sweep line).
 
     Widened to `proposed` for the reason in `anchor_rule_violation`. On `spec new` this is near-silent
     by construction (the scaffold's template body carries no mandate) — it stands as the symmetric
-    guard the spec names, and it fires the moment a template or a `--from-file` birth carries one."""
+    guard the spec names, and it fires the moment a template or a `--from-file` birth carries one.
+
+    `specs_dir` (T-13672, passed by `spec edit`): when the rule fires on an ACTIVE record, the spec
+    files beside it are read for a `proposed` spec that supersedes it, and the WARN names each one —
+    the activation-owner card of a successor empties the old spec's anchors on purpose. The read
+    happens only on that path and is fail-soft: an unreadable directory or file names no successor,
+    and the WARN then reads exactly as it does with none."""
     reason = anchor_rule_violation(rec, statuses=("active", "proposed"))
-    if reason:
-        print(f"⚠ anchor-rule (SPEC-0151) after `{verb}`: {sid} {reason}", file=sys.stderr)
+    if not reason:
+        return
+    note = ""
+    if specs_dir is not None and rec.get("status") == "active":
+        records = []
+        try:
+            paths = state.scan_specs(specs_dir)
+        except Exception:
+            paths = []
+        for p in paths:
+            try:
+                records.append(state.load_str(p.read_text(encoding="utf-8")))
+            except Exception:
+                continue
+        note = _pending_supersession_note(sid, pending_successors(sid, records))
+    print(f"⚠ anchor-rule (SPEC-0151) after `{verb}`: {sid} {reason}{note}", file=sys.stderr)
 
 
 def cmd_spec_new(args: argparse.Namespace, *, _require_writing_worktree, _die, _yaml_scalar,
@@ -688,7 +752,8 @@ def governed_content_digest(rec: dict) -> str:
 def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, _find_spec_path,
                   _read_yaml, SPEC_ABANDONED_TERMINAL, write_text_atomic, _governing_contract_for,
                   _append_event, REPO_ROOT, _run_git_cap=None,
-                  _require_before_rule_change_read=None, _manifest_path=None) -> None:
+                  _require_before_rule_change_read=None, _manifest_path=None,
+                  _deliver_before_rule_change=None) -> None:
     """In-place chokepoint for editing an EXISTING active/proposed spec (T-0273) — the before-rule-change
     gate for MODIFYING a spec, the inverse of `spec new` (which gates CREATION). Resolves the spec by id,
     refuses superseded/retired (post-active frozen history), but ALLOWS a `draft` (plan-local, SPEC-0005
@@ -701,7 +766,9 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     so this is not a normative rule change — SPEC-0005 rule 7 in-place boundary). Performs
     an exact-string in-place replacement (mirrors the Edit
     primitive: single occurrence unless --replace-all; 0 or >1 matches die cleanly BEFORE any write),
-    surfaces the before-rule-change contract (SPEC-0005) via the binding-derived forward-pointer, and
+    DELIVERS the before-rule-change contract (SPEC-0005) at the end of its output through the stage
+    deliverer (T-13706 — `_deliver_before_rule_change`, injected; a caller that injects none gets the
+    earlier binding-derived forward-pointer line), and
     emits `spec_edited` carrying the `governing_contract` DERIVED from the binding map (the delivery-
     observability projection, SPEC-0013 — so the gate's consumption is journal-visible, not transcript-
     only). V2 enforces by sanctioning + observing this path, NOT by hard-blocking raw Edit (a CHARTER
@@ -738,7 +805,7 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         if _run_git_cap is None:
             _die("--bless unavailable: git runner not injected (host-wiring error)")
         # before-rule-change gate — the bless path ENFORCES the SPEC-0005 read receipt (the normal edit
-        # path only prints an advisory pointer; bless is higher-risk — it clears a guard post-hoc).
+        # path delivers the contract and refuses nothing; bless is higher-risk — it clears a guard post-hoc).
         contract = _governing_contract_for("spec-edit")
         contract_specs = contract.get("specs") or []
         if _require_before_rule_change_read is not None:
@@ -879,6 +946,8 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # `raw_reindented` marks the one raw write that is not verbatim: the T-10920 retry also serves
     # a match OUTSIDE the body (any indented block field), where no body reading exists.
     reading, raw_reindented = "raw replacement", False
+    # T-13676 — the mid-line body form was found in the raw file but not proven to edit the body alone.
+    mid_line_unproven = False
     if n == 0:
         # T-10321 (X-0284) — the indentation trap. The exact raw match above stays PRIMARY (every
         # currently-working call is byte-identical). Only on a miss: if `old` is a substring of the
@@ -893,6 +962,39 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
             if cand_n:
                 print(f"note: `old` matched the parsed body, not the raw file — re-indented it (and "
                       f"`new`) by {len(indent)} space(s) to the `body:` block-scalar level (T-10321).")
+            else:
+                # T-13676 (GitHub issue #66) — the candidate above indents the FIRST line too, which
+                # holds only when `old` begins where a body line begins (or after at least a block
+                # indent of that line's own leading spaces). A multi-line `old` that begins MID-LINE
+                # — the tail of one bullet, then the next bullet — has other text before it on disk,
+                # so that candidate can never be there. Try once more with the first line as written
+                # and only the continuation lines at the block level. Tried second, so every call the
+                # candidate above already serves is written exactly as before.
+                #   Accepted only on proof, like the flow re-encode retry further down: a first line
+                # with no indent in front of it can also sit OUTSIDE the body (a top-level `key:`
+                # followed by its list), so the replacement is tried on a copy and taken only when
+                # the whole record reparses as before with the body alone edited as asked. `n` is
+                # then the BODY's own count, so the ambiguity refusal below judges the text the
+                # author addressed; what the write replaces is what the trial replaced.
+                mid_old = _reindent_continuation(old, indent)
+                mid_new = _reindent_continuation(new, indent)
+                if text.count(mid_old):
+                    trial = (text.replace(mid_old, mid_new) if replace_all
+                             else text.replace(mid_old, mid_new, 1))
+                    want = body.replace(old, new) if replace_all else body.replace(old, new, 1)
+                    try:
+                        trial_ok = state.load_str(trial) == {**state.load_str(text), "body": want}
+                    except Exception:                # noqa: BLE001 — an unusable trial is no proof
+                        trial_ok = False
+                    if trial_ok:
+                        cand_old, cand_new, cand_n = mid_old, mid_new, body.count(old)
+                        print(f"note: `old` matched the parsed body, not the raw file — it starts "
+                              f"mid-line, so its first line (and the first line of `new`) was kept as "
+                              f"written and the lines after it were re-indented by {len(indent)} "
+                              f"space(s) to the `body:` block-scalar level (T-13676).")
+                    else:
+                        mid_line_unproven = True
+            if cand_n:
                 old, new, n = cand_old, cand_new, cand_n
                 reading = "edited as body text"
     if n == 0:
@@ -957,6 +1059,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         # the cause. A correct fix with a misleading refusal still costs the next reader a pass.
         body = rec.get("body")
         in_body = isinstance(body, str) and orig_old in body
+        # T-13676 — the form a block-scalar refusal names when body text cannot be edited as body text.
+        raw_form_route = (f"Write the edit in the RAW form: copy `old` and every line of `new` WITH "
+                          f"the file's own indentation from `{path.name}`, the first line included, "
+                          f"then re-run `bin/yitc-v2 spec edit {sid} --from-file <payload.yaml>`. The "
+                          f"file is untouched.")
         # T-12933 (<project> X-1581) — "not an indentation problem" is true of the SPEC side only. A
         # --from-file/--from-stdin payload is itself YAML, and its block scalar (often a heredoc) can
         # drop `old`'s own nested indentation before the verb ever sees it. So for a payload, when a
@@ -977,11 +1084,18 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
             cause = (f"It is absent from BOTH the raw file and the parsed body of {sid} — so this is "
                      f"NOT an indentation or storage-style problem (text composed from the body is "
                      f"matched for you automatically). Re-check the text against `{path.name}` itself.")
+        elif mid_line_unproven:
+            cause = (f"It IS present in the parsed body and starts mid-line there, and its "
+                     f"re-indented form is found in the raw file — but replacing that form would not "
+                     f"leave `{path.name}` reading as before with the body alone edited as asked "
+                     f"(for example, the same lines also sit outside the `body:` block) (T-13676). "
+                     f"{raw_form_route}")
         elif _body_block_indent(text):
             cause = (f"It IS present in the parsed body, and the `body:` is a block scalar — but "
                      f"re-indenting it to that block's own level still did not match the raw file "
                      f"(the T-10321 INDENTATION trap): the on-disk indentation is not what stripping "
-                     f"the block indent implies. Compare the text against `{path.name}` directly.")
+                     f"the block indent implies. The body form cannot be matched for this text. "
+                     f"{raw_form_route}")
         elif _body_flow_quote(text):
             cause = (f"It IS present in the parsed body, which is stored as a QUOTED FLOW scalar — "
                      f"but no encoding of it matched the raw file's escaped form (T-11109). The "
@@ -1188,18 +1302,18 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # captured from disk: an edit may itself change it. Report-only — the edit has already succeeded.
     # A part (T-12925) carries no status/implements, so the rule has nothing of its own to judge there.
     if not is_part:
-        _warn_anchor_rule(sid, updated_rec, verb="spec edit")
+        _warn_anchor_rule(sid, updated_rec, verb="spec edit", specs_dir=base_path.parent)
     # governing_contract carries the SINGLE documented shape `{specs, status}` (SPEC-0025 / T-9254 —
     # `_governing_contract_for`), NOT a bare list, so EVERY floor-gated emitter is uniform. The printed
     # forward-pointer reads the `specs` list off that dict (the same auditable binding derivation — not
     # graph/index.json, which audit-post excludes — T-0219; the audit-post finding objected to both).
     contract = _governing_contract_for("spec-edit")
     contract_specs = contract.get("specs") or []
-    if contract_specs:
+    if contract_specs and _deliver_before_rule_change is None:
         print(f"→ before `spec edit` (before-rule-change): read the governing rule(s) "
               f"{', '.join(contract_specs)} (`yitc-v2 graph query <SPEC>`; always-loaded map: "
               f"graph/floor-trigger-map.md)")
-    else:
+    elif not contract_specs:
         print("→ before `spec edit` (before-rule-change): read the before-rule-change rule — see the "
               "always-loaded floor trigger-map (graph/floor-trigger-map.md); no active spec bound yet")
     edited = {
@@ -1239,6 +1353,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
             and _manifest_has_hand_table(_manifest_path):
         print(f"cue: {SPEC_TRAVELS_REPIN_CUE} "
               f"({(rec or {}).get('travels')!r} → {(updated_rec or {}).get('travels')!r})")
+    # T-13706 — the before-rule-change contract(s), LAST: the verb's own lines above stay together and
+    # the contract text follows them. First time in a context epoch each is rendered as its contract
+    # view and credited by an ordinary receipt; later in the same epoch it is one pointer line.
+    if contract_specs and _deliver_before_rule_change is not None:
+        _deliver_before_rule_change("spec-edit", contract_specs)
 
 
 def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _die,
@@ -1253,7 +1372,7 @@ def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _d
 
     SEPARATE from `spec edit` BY NECESSITY: re-verification frequently confirms accuracy with NO text
     change, and `spec edit` rejects a no-op (--old==--new) — so the bless cannot ride that verb. This
-    writes `implements_signature: {<anchor>: <sha256>}` (one key per live anchor; symbol anchors hash
+    writes `implements_signature: {<anchor>: <sha256>}` (one key per signed anchor; symbol anchors hash
     `_symbol_region`, file anchors hash the whole file), then emits spec_reverified. Active/proposed
     specs only (a non-normative spec governs nothing). Anchors whose file/symbol cannot be signed
     (absent/unreadable) are reported and LEFT OUT of the map (they keep the legacy last-touch path) —
@@ -1276,7 +1395,14 @@ def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _d
     task (whose diff touches no code) no non-blanket way to bless an accuracy-verified drifted anchor.
     `--include-untouched` remains the explicit opt-in that keeps the whole-spec re-sign available for the
     author who really did re-read the spec against ALL of its anchored code; it stays mutually exclusive
-    with `--anchor` (whole-spec vs scoped — pick one)."""
+    with `--anchor` (whole-spec vs scoped — pick one).
+
+    NEVER-SIGNED ANCHORS (T-13674). A signature says the code was read against the spec, so the bare
+    form signs nothing it was not asked to: it re-signs the anchors that already carry a signature
+    (under the guard above), leaves every anchor with NO signature unsigned, and LISTS those. The
+    first baseline is given on request only: `--first-baseline` signs them all in the same guarded
+    run, `--anchor <a>` signs a named one, and `--include-untouched` covers them as part of the whole
+    spec. `--first-baseline` with `--anchor` is refused (two different scopes — pick one)."""
     _require_writing_worktree()
     sid = (args.id or "").strip()
     if not sid:
@@ -1285,6 +1411,17 @@ def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _d
     if getattr(args, "include_untouched", False) and only_anchors:
         _die("`--anchor` and `--include-untouched` are contradictory: --anchor SCOPES the re-sign "
              "to what you verified, --include-untouched re-signs the whole spec. Pick one.")
+    first_baseline = bool(getattr(args, "first_baseline", False))
+    if first_baseline and only_anchors:
+        _die("`--anchor` and `--first-baseline` are contradictory: --anchor signs exactly the anchors "
+             "you name (a never-signed one included), --first-baseline signs every anchor of the spec "
+             "that has no signature yet. Pick one: "
+             f"`yitc-v2 spec reverify {shlex.quote(sid)} --anchor=<anchor>` or "
+             f"`yitc-v2 spec reverify {shlex.quote(sid)} --first-baseline`.")
+    # T-13674 — the bare form alone leaves the never-signed anchors unsigned and collects them here;
+    # every explicit form (a named scope, the whole-spec opt-in, the first-baseline request) signs them.
+    unsigned_left = None if (first_baseline or only_anchors is not None
+                             or getattr(args, "include_untouched", False)) else []
     if getattr(args, "include_untouched", False) or only_anchors is not None:
         # Guard DISARMED. --include-untouched: the explicit whole-spec opt-in. --anchor (T-10374): the
         # named scope IS the verification assertion for exactly those anchors, so the anti-silent-
@@ -1302,7 +1439,7 @@ def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _d
                  f"spec against its anchored code — re-sign explicitly: yitc-v2 spec reverify {sid} "
                  "--include-untouched")
     path, status, signed, unsignable, changed = _reverify_spec_signature(
-        sid, only_anchors=only_anchors, base_rev=base_rev)
+        sid, only_anchors=only_anchors, base_rev=base_rev, leave_unsigned=unsigned_left)
     _append_event("spec_reverified", sid, {
         "path": str(path.relative_to(REPO_ROOT)), "status": status,
         "signed": signed, "unsignable": unsignable, "changed": changed,
@@ -1326,5 +1463,14 @@ def cmd_spec_reverify(args: argparse.Namespace, *, _require_writing_worktree, _d
     if unsignable:
         print(f"  ⚠ {len(unsignable)} anchor(s) un-signable (absent/unreadable), left on the legacy "
               f"last-touch path: {', '.join(unsignable)}")
+    if unsigned_left:
+        # T-13674 — one anchor per line, so a name is never split or joined by a separator it contains.
+        print(f"  {len(unsigned_left)} anchor(s) of {sid} have no signature yet and were LEFT UNSIGNED "
+              f"(a signature says the code was read against the spec):")
+        for a in unsigned_left:
+            print(f"    {a}")
+        print(f"  After reading them against the spec, give the first baseline to one with "
+              f"`yitc-v2 spec reverify {shlex.quote(sid)} --anchor=<anchor>`, or to all of them with "
+              f"`yitc-v2 spec reverify {shlex.quote(sid)} --first-baseline`.")
     print("next: the freshness detector now fires only when a signed anchor's content DIFFERS from "
           "this baseline — re-run `yitc-v2 spec reverify` after a future legitimate re-verification.")

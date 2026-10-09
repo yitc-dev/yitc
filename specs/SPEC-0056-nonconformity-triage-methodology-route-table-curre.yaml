@@ -141,7 +141,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \ the DECLARATION FIELD and never on a case\nid, and seated BELOW the open-owner\
   \ branch so genuinely live work still dominates\n(`OWNED-IN-FLIGHT`); every undeclared\
   \ resolved/waived case keeps its REGRESSED semantics verbatim.\nThe classifier itself\
-  \ stays homed in SPEC-0061 (`bin/lib/triage.py#_currency_status`) — this section\n\
+  \ stays homed in <workshop-spec> (`bin/lib/triage.py#_currency_status`) — this section\n\
   owns the SEMANTICS it must honour, not the code anchor. WHY this is written down\
   \ rather than left to\nfollow from the paragraph above: wired the rule to the capture\
   \ path ONLY, so the lens went\non reporting the same recurrence as a regression\
@@ -217,7 +217,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \ | REGRESSED | TRULY-NEW | ALREADY-BUILT}, INTO-WORK = TRULY-NEW +\nREGRESSED only,\
   \ recurs semantics, and the remedy-existence 3-state — is HOMED in <workshop-spec>\n\
   (`_currency_status` / `_suggest_route`), carved out of this spec by (a stable-surface\
-  \ split,\nSPEC-0005 §7; no behaviour change). SPEC-0061 refines it there (temporal\
+  \ split,\nSPEC-0005 §7; no behaviour change). <workshop-spec> refines it there (temporal\
   \ recurs + fuzzy dedup).\n\n### 6. Dual-track external verification + reconciliation\
   \ (threshold-or-owner-invoked)\nAfter the session performs the §1(5)/§4 ROUTING\
   \ of a triage window, that routing MAY itself be\nreviewed by an INDEPENDENT external-auditor\

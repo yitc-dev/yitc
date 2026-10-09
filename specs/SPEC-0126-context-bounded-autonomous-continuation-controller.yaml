@@ -24,8 +24,11 @@ body: "## Scenario\n\nThe owner authorizes a PLAN (takes it into work) or a back
   \ — the TWO authorized situations it applies to (and nowhere else)\nAutonomous continuation\
   \ applies to EXACTLY two owner-authorized situations:\n  (a) an authorized **plan-drive**\
   \ — the Controller advancing a plan across its FSM stages after the\n      owner\
-  \ took that plan into work;\n  (b) an authorized **background batch** — the Controller\
-  \ running dispatched Workers over a task set\n      the owner authorized (the Orchestrate\
+  \ took that plan into work. The drive STARTS at the owner's go on taking the plan\
+  \ —\n      choosing its scope / option counts, at any stage incl. `draft` — and\
+  \ from that go every §7\n      seam applies with its default, with no per-seam question\
+  \ to the owner;\n  (b) an authorized **background batch** — the Controller running\
+  \ dispatched Workers over a task set\n      the owner authorized (the Orchestrate\
   \ posture — AGENTS §Orchestrate posture).\nIt applies NOWHERE else. In particular\
   \ it does NOT change session start: `session start` still AWAITS\nan owner cue —\
   \ no auto-start, no auto-pick (AGENTS §Startup phases, unchanged). It grants NO\n\
@@ -137,18 +140,20 @@ body: "## Scenario\n\nThe owner authorizes a PLAN (takes it into work) or a back
   \ (its `## Autonomy frame`). Driver: owner\ndirective 2026-07-02 (`events.jsonl#ts=`)\
   \ + the foreseen successor\n(`events.jsonl#ts=`). Full deliberation (alternatives,\
   \ the fence analysis, the\ntrial-autonomy fork) lives in the proposing plan, not\
-  \ here (SPEC-0005 rule 3 content-boundary).\n\n## Verification\n\nBehavioral rule\
-  \ — delivered via binding:[seed], not code-enforced. Probes (journal-observed, the\n\
-  plan's postcheck block):\n- a plan advanced across ≥3 FSM stages with NO intervening\
-  \ decision-class `owner_directive`\n  (`plan_stage_entered` sequence), ending on\
-  \ a genuine decision OR a proposed continuation-seed;\n- ≥1 autonomous stretch that\
-  \ ENDED on the `session context` threshold seam (a ≥threshold reading →\n  a proposed\
-  \ refresh), not on context exhaustion;\n- a dispatched batch where one task's owner-question\
-  \ park coincided with ≥1 sibling `land_completed`\n  and no intervening owner turn.\n\
-  - **(AC4) plan-drive seam-map present:** §7 carries a table marking each plan-FSM\
-  \ seam\n  AUTO-PROCEED vs STOP-for-owner, each STOP an instance of a rule-3 condition\
-  \ (no new stop class).\n  Probe: `grep -c 'Plan-drive autonomy seam-map\\|AUTO\\\
-  |STOP (owner)' specs/SPEC-0126-*.yaml` ≥ 2.\n"
+  \ here (SPEC-0005 rule 3 content-boundary).\nThe §1(a) start cue : the owner, after\
+  \ choosing a plan's option, called a later\nper-seam question confusion — the plan's\
+  \ order is defined («план веди дальше»,\n`events.jsonl#ts=`).\n\n## Verification\n\
+  \nBehavioral rule — delivered via binding:[seed], not code-enforced. Probes (journal-observed,\
+  \ the\nplan's postcheck block):\n- a plan advanced across ≥3 FSM stages with NO\
+  \ intervening decision-class `owner_directive`\n  (`plan_stage_entered` sequence),\
+  \ ending on a genuine decision OR a proposed continuation-seed;\n- ≥1 autonomous\
+  \ stretch that ENDED on the `session context` threshold seam (a ≥threshold reading\
+  \ →\n  a proposed refresh), not on context exhaustion;\n- a dispatched batch where\
+  \ one task's owner-question park coincided with ≥1 sibling `land_completed`\n  and\
+  \ no intervening owner turn.\n- **(AC4) plan-drive seam-map present:** §7 carries\
+  \ a table marking each plan-FSM seam\n  AUTO-PROCEED vs STOP-for-owner, each STOP\
+  \ an instance of a rule-3 condition (no new stop class).\n  Probe: `grep -c 'Plan-drive\
+  \ autonomy seam-map\\|AUTO\\|STOP (owner)' specs/SPEC-0126-*.yaml` ≥ 2.\n"
 cites:
 - CHARTER.md#principle-6
 - CHARTER.md#principle-7

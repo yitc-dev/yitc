@@ -131,36 +131,47 @@ body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in 
   \ the declaration that exists is the one that is read.\n- **What replaces it is\
   \ not a mechanism but a precedence:** where a project declares the\n  convention,\
   \ the declaration resolves it (half (c)); where none is declared, the kernel default\n\
-  \  stays, on the §2a(ii) fail-open, report-only terms and no others.\n\n### 5. The\
-  \ existing analog this rule governs — it BUILDS no carrier\n\n`yitc-ops.yaml` (SPEC-0093,\
-  \ with the verify/coverage/startup sections in SPEC-0152) ALREADY IS the\ndeclaration\
-  \ surface: `verify.layers[].command` / `covers` / `subject_globs` / the per-layer\
-  \ and\nper-section waivers, and `coverage.load_bearing` / `admitted`, and — for\
-  \ half (c) — the `tests:`\ntaxonomy's `classes[]`. This rule builds **no carrier,\
-  \ no store, no section**: it governs how\nkernel code READS the carrier that exists.\n\
-  \n**Two fields, named honestly — each admitted by §2's inverse move on its own incident.**\
-  \ Both are\nOPTIONAL and checked ONLY if present, so each enlarges what a project\
-  \ MAY say and obliges no\nproject to say it; no existing carrier becomes non-conforming.\
-  \ A THIRD field is not licensed by\nthis section — it needs its own showing that\
-  \ the contract cannot express its own surface.\n\n- The per-class `globs:` list\
-  \ on `tests.classes[]` (shape owned by SPEC-0160 rule 10), on X-1235's\n  showing\
-  \ that the surface half (c) governs could not otherwise be declared at all.\n- `verify.infra_globs:`\
-  \ (shape and refusals owned by SPEC-0152 rule 16), on X-0938's remainder —\n  a\
-  \ layer whose command names no path leaves the derived reader no key at all. WIDEN-ONLY:\
-  \ it can\n  only ADD coverage to the kernel set, never remove any of it.\n\nA concrete\
-  \ instance of the reading it requires, already shipped and available for reuse rather\
-  \ than\nreinvention: `bin/lib/land_verify_legs.py#_pinned_declared_check_paths`\
-  \ (derive the surface from the\ndeclared layers) and `#_declared_check_surface_globs`\
-  \ (take the UNION of the declarations).\n\n### 5a. How this rule reaches the author\n\
-  \nDelivered at the **Execution stage-entry** — the moment kernel code is being written,\
-  \ which is when\nan author would otherwise reach for a path literal. It is deliberately\
-  \ NOT on the\n`before-project-dimension-judgement` floor: that surface answers a\
-  \ different question (is this\nartifact kernel, v2-self or project?) and is a deliberately\
-  \ capped bundle — five named specs, an\nanti-bloat bound guarded by `tests/test_t9442_project_dimension_floor.py`.\
-  \ This rule concerns how\nkernel code RESOLVES a surface it has already decided\
-  \ to reach, so the stage axis is the honest\none and the floor stays small.\n\n\
-  ### 6. Realm\n\nThis spec is KERNEL-realm and TRAVELS to every consumer — the spec\
-  \ class default (`travels: ~`),\nstated here in words because a default carried\
+  \  stays, on the §2a(ii) fail-open, report-only terms and no others.\n\n**RETIRED\
+  \ (added): the PER-PROJECT SYMBOL-FORM GROWTH PATH** — answering \"the kernel\n\
+  does not resolve this project's anchor\" by adding one more symbol form to the kernel\
+  \ grammar. The\nbuilt-in forms stay as they are; a project-specific code shape is\
+  \ declared by the project\n(SPEC-0006).\n\n### 5. The existing analog this rule\
+  \ governs — it BUILDS no carrier\n\n`yitc-ops.yaml` (SPEC-0093, with the verify/coverage/startup\
+  \ sections in SPEC-0152) ALREADY IS the\ndeclaration surface: `verify.layers[].command`\
+  \ / `covers` / `subject_globs` / the per-layer and\nper-section waivers, and `coverage.load_bearing`\
+  \ / `admitted`, and — for half (c) — the `tests:`\ntaxonomy's `classes[]`. This\
+  \ rule builds **no carrier, no store, no section**: it governs how\nkernel code\
+  \ READS the carrier that exists.\n\n**Three declarations, named honestly — each\
+  \ admitted by §2's inverse move on its own showing.**\nEach is OPTIONAL and checked\
+  \ ONLY if present, so each enlarges what a project MAY say and obliges\nno project\
+  \ to say it; no existing carrier becomes non-conforming. A FURTHER one is not licensed\
+  \ by\nthis section — it needs its own showing that the contract cannot express its\
+  \ own surface.\n\n- The per-class `globs:` list on `tests.classes[]` (shape owned\
+  \ by SPEC-0160 rule 10), on X-1235's\n  showing that the surface half (c) governs\
+  \ could not otherwise be declared at all.\n- `verify.infra_globs:` (shape and refusals\
+  \ owned by SPEC-0152 rule 16), on X-0938's remainder —\n  a layer whose command\
+  \ names no path leaves the derived reader no key at all. WIDEN-ONLY: it can\n  only\
+  \ ADD coverage to the kernel set, never remove any of it.\n- A project's own symbol\
+  \ forms for `<file>#<symbol>` anchors (shape owned by SPEC-0160 rule 30,\n  reading\
+  \ by SPEC-0006), on the showing that the contract could not say how a project's\
+  \ code\n  declares a symbol: the kernel's symbol grammar was the only recognizer,\
+  \ and it had grown one\n  form per project request (then yitc#46). Half (c), with\
+  \ a symbol form in\n  place of a filename pattern.\n\n### 5a. How this rule reaches\
+  \ the author\n\nDelivered on the **floor trigger-map**, under a trigger of its own:\
+  \ before kernel code reads a\nconsumer surface. The row is part of the always-loaded\
+  \ seed, so every session holds the pointer,\nand the body is fetched at the moment\
+  \ an author would otherwise reach for a path literal. The row\nis a pointer the\
+  \ author acts on, not a gate; the structural backstop stays the tripwire that the\n\
+  Verification section names.\n\nIt is deliberately NOT a stage-entry contract. A\
+  \ stage entry renders the whole body for every\ntask, and only a card that writes\
+  \ kernel code resolving a consumer surface acts on this rule — a\nconsumer session\
+  \ never does (§6), and most kernel cards touch no such read.\n\nIt is also NOT part\
+  \ of the project-dimension judgement bundle on the same map: that surface\nanswers\
+  \ a different question (is this artifact kernel, v2-self or project?) and is a deliberately\n\
+  capped bundle. This rule concerns how kernel code RESOLVES a surface it has already\
+  \ decided to\nreach, so it has a row of its own and that bundle stays at its cap.\n\
+  \n### 6. Realm\n\nThis spec is KERNEL-realm and TRAVELS to every consumer — the\
+  \ spec class default (`travels: ~`),\nstated here in words because a default carried\
   \ by an absent field is not legible on the artifact.\nIt governs KERNEL code. It\
   \ places no obligation on a consumer: a consumer declares exactly what it\ndeclared\
   \ before.\n\n### 7. Anti-complexity record (CHARTER §Principle 1, four filters —\
@@ -177,8 +188,14 @@ body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in 
   \ never any one closed instance. Its narrow\ndeclaration-exists form (§2), half\
   \ (b), half (c)'s precedence and the §2a duties were each set by\nan external consult;\
   \ the deliberation is in git history and in the consult records under\n`decisions/`.\n\
-  \n## Verification\n\nTripwire (SPEC-0165: one differential tripwire for a rule that\
-  \ can break silently — and this rule\ncan, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.\n\
+  \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
+  \ word out of the rule text of the section\neach names.\n\n- From «5. The existing\
+  \ analog this rule governs»: A concrete instance of the reading it requires,\n \
+  \ already shipped and available for reuse rather than reinvention:\n  `bin/lib/land_verify_legs.py#_pinned_declared_check_paths`\
+  \ (derive the surface from the declared\n  layers) and `#_declared_check_surface_globs`\
+  \ (take the UNION of the declarations).\n\n## Verification\n\nTripwire (SPEC-0165:\
+  \ one differential tripwire for a rule that can break silently — and this rule\n\
+  can, since its violation reports green): `tests/test_spec0185_declaration_over_hardcoded_path.py`.\n\
   It is anchored to the text of §1/§2 above and NOT to current code behaviour; where\
   \ it uses a\npre-change state as a failing input it carries an INLINE copy of that\
   \ state and names the fixed\ncommit it was taken from, never a merge-base, `main`,\
@@ -214,5 +231,5 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 binding:
-- stage-entry:Execution
+- before-reading-a-consumer-surface-in-kernel-code
 init_concern: null

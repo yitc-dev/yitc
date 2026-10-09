@@ -141,22 +141,22 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ runs — which is what makes it safe beside a land and is the\npoint of routing\
   \ it at all (owner directive : the land carries the system's\nthroughput, a background\
   \ worker's Stage-6 pass can wait, and the local host stops carrying it).\n\n**The\
-  \ one per-pass cut, and it reads the RESOLVED breadth — never a CLI flag.** The\n\
-  paragraph above says no COST threshold decides per pass, and that is unchanged.\
-  \ The single cut that\ndoes exist is about SIZE OF THE PASS, not cost of the box:\
-  \ a genuinely NARROWED SPEC-0181 selection\nstays LOCAL (`venue_decision` reason\
-  \ `small-selection`), per the owner directive of\n — a small selection is cheaper\
-  \ local than it is to ship. WHAT COUNTS AS\nNARROWED is the SPEC-0181 ladder's OWN\
-  \ verdict (`governed_selection[\"governed\"]`), resolved\nONCE per pass through\
-  \ the single selector home and READ by the routing decision — never the\n`--full`\
-  \ CLI flag, and never a file-count threshold of routing's own. This is normative\
-  \ because the\ntwo differ exactly where it matters: the ladder FAILS CLOSED TO THE\
-  \ FULL SUITE (no diff, an\nunresolvable diff, an ungoverned window, an implementation-glob\
-  \ touch), so a DEFAULT `task test\n--run` about to run the whole suite carries `--full\
-  \ == False` while its breadth is FULL. Reading\nthe flag there classifies a full-suite\
-  \ pass as small and keeps it on the local host — the defect\n fixed, measured on\
-  \ this engine. An unresolvable breadth reads FULL, which routes: the\nfail-closed\
-  \ direction runs more tests AND frees the host, so the two agree. The resolved selection\n\
+  \ one per-pass cut: a SMALL resolved selection — never a CLI flag.** The\nparagraph\
+  \ above says no COST threshold decides per pass, and that is unchanged. The single\
+  \ cut that\ndoes exist is about SIZE OF THE PASS: a NARROWED SPEC-0181 selection\
+  \ of at most 100 test files\nstays LOCAL (reason `small-selection`) — the owner\
+  \ directive of, bounded by\n: only a small selection is cheaper local than; a larger\
+  \ narrowed one routes like a\nfull pass. NARROWED is the SPEC-0181 ladder's OWN\
+  \ verdict, resolved ONCE per pass through the\nsingle selector home and READ by\
+  \ the routing decision — never the `--full` CLI flag; the size is\nits own file\
+  \ count, and an unreadable size routes. This is normative because the\ntwo differ\
+  \ exactly where it matters: the ladder FAILS CLOSED TO THE FULL SUITE (no diff,\
+  \ an\nunresolvable diff, an ungoverned window, an implementation-glob touch), so\
+  \ a DEFAULT `task test\n--run` about to run the whole suite carries `--full == False`\
+  \ while its breadth is FULL. Reading\nthe flag there classifies a full-suite pass\
+  \ as small and keeps it on the local host — the defect\n fixed, measured on this\
+  \ engine. An unresolvable breadth reads FULL, which routes: the\nfail-closed direction\
+  \ runs more tests AND frees the host, so the two agree. The resolved selection\n\
   is THREADED to whichever path takes the pass (the box via `route(selection=...)`,\
   \ or the local\nrunner), so no pass selects twice (the bound).\n\n**Consumers are\
   \ OPT-IN ONLY and out of this slice.** A `-C <consumer>` pass NEVER routes to the\n\
@@ -892,13 +892,13 @@ implements_signature:
   bin/lib/remote_verify.py#route: d5193364f8fc46fa6cbd2424d1a1ea10ae694566847c7b6c3ff38aa3f61d0a9b
   bin/lib/remote_verify.py#ship_trees: 459a2c93cc9099edc3f64877224cd07eb0d3e557780f00059a4a95f0407482b0
   bin/lib/remote_verify.py#validate_envelope: a8e909c647215b15cd9c084d2b4f194c72a87ef7c85d18736d5688071dae6374
-  bin/lib/remote_verify.py#venue_decision: 7cc25cc7e7cf928cec405555d3763410de421d289f0e8b67cbca9f5c54165427
+  bin/lib/remote_verify.py#venue_decision: 4b93600d4d35f8b9c74fdca1c3dc46cc5087e76b55610bdf07fd6406e797fc5f
   bin/lib/remote_verify.py#venue_max_requests: 750fd2a701e6ee5f98f42f5e4d1e6ceef694655f18003b1166086332be48e87e
   bin/lib/remote_verify.py#venue_preship_max_concurrent: 7d6f1542ecb8f17569f3c970d94d539eddd512fbe955f3c6faf0a7779d728af2
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
   bin/lib/remote_verify.py#venue_stage6_max_concurrent: d6c56faa11bf1eab22102d9c5ea48426418bff31c1232e73f2ed24f2c3f6ce40
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
-  bin/lib/task.py#cmd_task_test: 5e61632e71ac90bbd0763166e2932e4f25e397cfaa0f3f4efad148d4bee50d57
+  bin/lib/task.py#cmd_task_test: e4fdbde3c66d84f8a1ca661f41455a354a3ecd4337239e19dca83351d86429cf
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 4bd62b68823f11da7089d91eb320d4b315b41f6da2a5d4a2499a0a1970c033f0
@@ -911,4 +911,4 @@ implements_signature:
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
   bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: 1d1fb498caad2dbda1809f06a890bdd7c7d11ba8abf85be3e6b0586d75da05e3
+  bin/lib/worktree.py#_land_integrate: 632b348ecdbb2ba5f20071fa6615d68b3279e838536b4a0bece9e9af907f4e00

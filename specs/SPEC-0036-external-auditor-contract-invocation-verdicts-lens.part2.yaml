@@ -11,17 +11,18 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ leaves implicit (`spec new` fails closed without a `--travels` decision). ALSO\
   \ inline relevant `lessons/` entries to the design-judging auditor via the EXISTING\
   \ `audit pre --from-file <lesson>` carrier — the audit lessons read-surface (SPEC-0091\
-  \ Rule 1). CONTENT-BOUNDARY BINDING (SPEC-0005 §3 / X-0134 RC1b): when a forecast\
-  \ change AUTHORS or EDITS a spec, implementation detail — DTO / payload / schema\
-  \ SHAPES, field / function signatures, data-structure layouts, runtime flags / env-var\
-  \ names / config keys / CLI spellings — is METHODOLOGY-FORBIDDEN spec content (it\
-  \ lives in the code or the plan, never the spec body); the audit-pre lens binds\
-  \ the auditor to NOT flag the ABSENCE of such impl detail as a defect and NOT DEMAND\
-  \ that a spec ADD it, because demanding it asks the author to VIOLATE SPEC-0005\
-  \ §3 — a spec that states its rule and omits the wire-level / code-level shape is\
-  \ CORRECT and complete, not 'under-specified' / 'missing detail'. This is DERIVED\
-  \ prompt wording; the canonical content-boundary rule stays single-homed in SPEC-0005\
-  \ §3 / SPEC-0046 (cue + pointer, SPEC-0005 rule 8), guarded by a drift-probe test.\n\
+  \ Rule 1). CONTENT-BOUNDARY BINDING (SPEC-0005 §3): when a forecast change AUTHORS\
+  \ or EDITS a spec, implementation detail — DTO / payload / schema SHAPES, field\
+  \ / function signatures, data-structure layouts, runtime flags / env-var names /\
+  \ config keys / CLI spellings — is METHODOLOGY-FORBIDDEN in a spec's rule text (it\
+  \ lives in the code or the plan; a note the code's maintainer needs has its own\
+  \ section of the spec, outside the rule text); the audit-pre lens binds the auditor\
+  \ to NOT flag the ABSENCE of such impl detail as a defect and NOT DEMAND that a\
+  \ spec ADD it, because demanding it asks the author to VIOLATE SPEC-0005 §3 — a\
+  \ spec that states its rule and omits the wire-level / code-level shape is CORRECT\
+  \ and complete, not 'under-specified' / 'missing detail'. This is DERIVED prompt\
+  \ wording; the canonical content-boundary rule stays single-homed in SPEC-0005 §3\
+  \ / SPEC-0046 (cue + pointer, SPEC-0005 rule 8), guarded by a drift-probe test.\n\
   - **audit-post is CONDITIONAL on exactly one thing — a project-declared exemption\
   \ case (SPEC-0178,\n  additive amendment; rule 8 makes this a PRECONDITION of that\
   \ spec's activation).** A project MAY\n  declare, in its own `yitc-ops.yaml`, named\
@@ -41,42 +42,39 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ (rule 5)** — removing it is always an\n  explicit project act — **AND that automatic\
   \ restoration is INOPERATIVE wherever the `kind`\n  judgement is not made**, since\
   \ it counts only captures judged a DEFECT at triage, a call that is\n  optional\
-  \ and, measured across three consumers' entire history, never made; where it is\
-  \ not made,\n  restoration is carried by the SPEC-0178 rule 7 periodic review. That\
-  \ qualification is not\n  optional wording: without it this contract would promise\
-  \ a stronger safeguard than SPEC-0178\n  provides. A card closed under a case records\
-  \ `task_closed.data.exempted_case` (SPEC-0025).\n- **audit-post (Stage 8) — ship\
-  \ quality:** shipped-diff drift from plan; each AC has a probe\n  result; missing\
-  \ adoption (code shipped but not invoked) — for an infra-class task confirm a\n\
-  \  Principle-8 adoption artifact exists. **The P8 artifact has THREE equally-valid\
-  \ forms per CHARTER\n  §8: a `consumer_read_evidence` event, a `live_trigger_evidence`\
-  \ event, OR — the THIRD\n  satisfier — an EXPLICITLY BLOCKING ADOPTION FOLLOW-UP\
-  \ FILED. ANY one is sufficient.\n  NEVER RED because the task used one valid form\
-  \ when you expected the other.**\n  **The third satisfier's SHAPE is three-part\
-  \ and fail-closed (SPEC-0119 rule 31):** a followup\n  whose text DECLARES `P8-CARRIER:\
-  \ <the audited task id>`, carrying BOTH (a) a named trigger\n  condition and (b)\
-  \ a machine-resolvable awaited artifact (`--awaits`, the SPEC-0095 fire key,\n \
-  \ which is also its ownership). All three parts, or it is not a carrier: a followup\
-  \ missing the\n  marker, the trigger or the awaits buys nothing and is judged exactly\
-  \ as before. Such a carrier\n  is rendered in the audit-post packet's `### Adoption\
-  \ evidence` section, labelled `blocking\n  adoption follow-up (SPEC-0015 third satisfier):\
-  \ <id> awaits <artifact>`\n  (`bin/lib/debt_adoption.py#p8_carrier_followups` folds\
-  \ it — the SAME reader the `debt` view uses — and\n  `bin/lib/audit.py#format_p8_carrier_followup_section`\
-  \ renders it).\n  **SCOPE — it satisfies THIS gate, and defers rather than discharges.**\
-  \ It satisfies the\n  audit-post adoption criterion. It\n  does NOT change closure:\
-  \ the `task close` CHARTER §P8 / E-0005 WARN logic still reads only the\n  two P8\
-  \ EVENT types, and the followup stays on the `debt` echo — un-dischargeable by time\n\
-  \  passing — until its named trigger fires. This is NOT a member of the deferred-adoption\
-  \ OVERLAY\n  family below: those exempt an ABSENCE and take a flag, while this renders\
-  \ an artifact that\n  EXISTS, takes no flag, and adds no store, event or gate.\n\
-  \  **TRIGGER-FIRED MECHANISM — adoption demand is keyed on BEHAVIOUR, not the `class:`\
-  \ label\n  (X-0089):** for ANY shipped mechanism whose SUCCESS DEPENDS ON AN EXTERNAL\
-  \ TRIGGER FIRING —\n  a scheduler/cron/celery-beat, a hook, an event-consumer, or\
-  \ any periodic/background runner —\n  demand **live-trigger OR synthetic-load**\
-  \ evidence that the mechanism ACTUALLY FIRED (the\n  `live_trigger_evidence` form),\
-  \ REGARDLESS of the task's `class:` label. A direct-call UNIT test\n  proves the\
-  \ code runs WHEN CALLED, not that the trigger invokes it in production — so a unit\
-  \ test\n  alone is NOT adoption evidence for such a mechanism. This is **NARROWLY\
+  \ and never made; where it is not made,\n  restoration is carried by the SPEC-0178\
+  \ rule 7 periodic review. That qualification is not\n  optional wording: without\
+  \ it this contract would promise a stronger safeguard than SPEC-0178\n  provides.\
+  \ A card closed under a case records `task_closed.data.exempted_case` (SPEC-0025).\n\
+  - **audit-post (Stage 8) — ship quality:** shipped-diff drift from plan; each AC\
+  \ has a probe\n  result; missing adoption (code shipped but not invoked) — for an\
+  \ infra-class task confirm a\n  Principle-8 adoption artifact exists. **The P8 artifact\
+  \ has THREE equally-valid forms per CHARTER\n  §8: a `consumer_read_evidence` event,\
+  \ a `live_trigger_evidence` event, OR — the THIRD\n  satisfier — an EXPLICITLY BLOCKING\
+  \ ADOPTION FOLLOW-UP FILED. ANY one is sufficient.\n  NEVER RED because the task\
+  \ used one valid form when you expected the other.**\n  **The third satisfier's\
+  \ SHAPE is three-part and fail-closed (SPEC-0119 rule 31):** a followup\n  whose\
+  \ text DECLARES `P8-CARRIER: <the audited task id>`, carrying BOTH (a) a named trigger\n\
+  \  condition and (b) a machine-resolvable awaited artifact (`--awaits`, the SPEC-0095\
+  \ fire key,\n  which is also its ownership). All three parts, or it is not a carrier:\
+  \ a followup missing the\n  marker, the trigger or the awaits buys nothing and is\
+  \ judged exactly as before. Such a carrier\n  is rendered in the audit-post packet's\
+  \ `### Adoption evidence` section, labelled `blocking\n  adoption follow-up (SPEC-0015\
+  \ third satisfier): <id> awaits <artifact>`\n  **SCOPE — it satisfies THIS gate,\
+  \ and defers rather than discharges.** It satisfies the\n  audit-post adoption criterion.\
+  \ It\n  does NOT change closure: the `task close` CHARTER §P8 / E-0005 WARN logic\
+  \ still reads only the\n  two P8 EVENT types, and the followup stays on the `debt`\
+  \ echo — un-dischargeable by time\n  passing — until its named trigger fires. This\
+  \ is NOT a member of the deferred-adoption OVERLAY\n  family below: those exempt\
+  \ an ABSENCE and take a flag, while this renders an artifact that\n  EXISTS, takes\
+  \ no flag, and adds no store, event or gate.\n  **TRIGGER-FIRED MECHANISM — adoption\
+  \ demand is keyed on BEHAVIOUR, not the `class:` label\n  (X-0089):** for ANY shipped\
+  \ mechanism whose SUCCESS DEPENDS ON AN EXTERNAL TRIGGER FIRING —\n  a scheduler/cron/celery-beat,\
+  \ a hook, an event-consumer, or any periodic/background runner —\n  demand **live-trigger\
+  \ OR synthetic-load** evidence that the mechanism ACTUALLY FIRED (the\n  `live_trigger_evidence`\
+  \ form), REGARDLESS of the task's `class:` label. A direct-call UNIT test\n  proves\
+  \ the code runs WHEN CALLED, not that the trigger invokes it in production — so\
+  \ a unit test\n  alone is NOT adoption evidence for such a mechanism. This is **NARROWLY\
   \ scoped to trigger-fired success-depends-on-firing mechanisms** — it is\n  NOT\
   \ a blanket live-trigger demand on all infra or all features; an intrinsic-behaviour\
   \ change whose\n  success does NOT depend on an external trigger is unaffected (judge\
@@ -88,17 +86,16 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ it is a smoke check, not a probe — the criterion is **NOT met**, and\n  that is\
   \ a **RED** no matter how exactly the shipped diff matches the plan. Diff-matches-plan\
   \ and\n  criterion-is-differential are two INDEPENDENT questions; a card can pass\
-  \ the first and fail the second,\n  and until now only the first was asked. **VACUOUS-ABSENCE\
-  \ sub-class (the named failure mode):** a\n  criterion satisfied by asserting an\
-  \ artifact is ABSENT (no event fired / no command ran / no file\n  written) is VACUOUS\
-  \ unless the shipped diff shows the mechanism that PRODUCES that artifact was\n\
-  \  actually INVOKED in the same scenario — an absence asserted over a state where\
-  \ the mechanism was never\n  called is true of the EMPTY state and proves nothing.\
-  \ Its mirror: a criterion asserting an artifact IS\n  present while the property\
-  \ under test is VIOLATED enshrines the defect as expected behaviour. This\n  is\
-  \ a lens DEMAND, not a new mechanism: the differential discipline is homed at CHARTER\
-  \ §Principle 3\n  (done = adopted) and cued at authoring by SPEC-0060 §4 — one rule,\
-  \ now ASKED at verify where filing\n  only PROMPTED it.\n  **ORDERING (E-0008 sub-cause\
+  \ the first and fail the second. **VACUOUS-ABSENCE sub-class (the named failure\
+  \ mode):** a\n  criterion satisfied by asserting an artifact is ABSENT (no event\
+  \ fired / no command ran / no file\n  written) is VACUOUS unless the shipped diff\
+  \ shows the mechanism that PRODUCES that artifact was\n  actually INVOKED in the\
+  \ same scenario — an absence asserted over a state where the mechanism was never\n\
+  \  called is true of the EMPTY state and proves nothing. Its mirror: a criterion\
+  \ asserting an artifact IS\n  present while the property under test is VIOLATED\
+  \ enshrines the defect as expected behaviour. This\n  is a lens DEMAND, not a new\
+  \ mechanism: the differential discipline is homed at CHARTER §Principle 3\n  (done\
+  \ = adopted) and cued at authoring by SPEC-0060 §4.\n  **ORDERING (E-0008 sub-cause\
   \ 2):** for an event-based P8 task the adoption event is emitted\n  DURING Execution\
   \ (Stage 5) — by the SESSION running `bin/yitc-v2 event …` (V2 has NO automated\n\
   \  emitter code path and adds none) — so it is EXPECTED already present at audit-post.\
@@ -110,87 +107,78 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ `task_closed` metadata absent now is expected (Stage 9 follows you).\n**Deferred-adoption\
   \ + waive carve-out family (ONE table; each flag is `--task audit-post only`).**\n\
   EVERY row is a `re-lens` overlay: each INVOKES the auditor on the real subject and\
-  \ only tells it\nan artifact is legitimately ABSENT/PRESENT. No row invokes NO auditor\
-  \ — the former `short-circuit`\nmember (`--zero-ship-diff`) was retired by (§Verdict\
-  \ producer below).\n\n| Flag (audit-post) | What the auditor must NOT RED | Scope\
-  \ / predicate | Recorded marker |\n|---|---|---|---|\n| `--event-emit-only` | the\
-  \ closure-event-absent category — judge ONLY diff-drift / non-adoption AC / coherence\
-  \ | a ship whose adoption probe IS a single Stage-9-recorded P8 event (the emission\
-  \ IS the closure substance, not a Stage-5 side-effect): the P8 event legitimately\
-  \ does NOT yet exist at audit-post — the NORMAL ordering for that ship class, NEVER\
-  \ a finding. Makes the \"closure-time emission would post-date you\" exemption OPERATIVE\
-  \ | `event_emit_only: true` |\n| `--serve-deploy` (SPEC-0094 §5) | the adoption-missing\
+  \ only tells it\nan artifact is legitimately ABSENT/PRESENT. No row invokes NO auditor.\n\
+  \n| Flag (audit-post) | What the auditor must NOT RED | Scope / predicate | Recorded\
+  \ marker |\n|---|---|---|---|\n| `--event-emit-only` | the closure-event-absent\
+  \ category — judge ONLY diff-drift / non-adoption AC / coherence | a ship whose\
+  \ adoption probe IS a single Stage-9-recorded P8 event (the emission IS the closure\
+  \ substance, not a Stage-5 side-effect): the P8 event legitimately does NOT yet\
+  \ exist at audit-post — the NORMAL ordering for that ship class, NEVER a finding.\
+  \ Makes the \"closure-time emission would post-date you\" exemption OPERATIVE |\
+  \ `event_emit_only: true` |\n| `--serve-deploy` (SPEC-0094 §5) | the adoption-missing\
   \ category — judge ONLY diff-drift / non-adoption AC / coherence | a serve/deploy\
   \ ship is a live deploy — an ACTION, not a code diff — so live-adoption is proven\
   \ at the DEPLOY seam and recorded at Stage-9 Closure (`live_probe`), AFTER this\
-  \ diff-only audit-post; EXPECTED absent here. Removes the X-0039 owner-reset/ceiling-burn\
-  \ | `serve_deploy: true` |\n| `--host-config` (SPEC-0094 §3 / SPEC-0111) | the adoption-missing\
-  \ category | a `host_config: true` ship: adoption proof is the THREE hostapply evidences\
-  \ (`apply_confirmed` / `host_health_sweep_passed` / `host_reconciliation_recorded`)\
-  \ recorded by the SPEC-0111 apply seam at Stage-9 Closure, AFTER audit-post. Removes\
-  \ the X-0117 false-RED | `host_config: true` |\n| `--land-emitted-event` (X-0188;\
+  \ diff-only audit-post; EXPECTED absent here | `serve_deploy: true` |\n| `--host-config`\
+  \ (SPEC-0094 §3 / SPEC-0111) | the adoption-missing category | a `host_config: true`\
+  \ ship: adoption proof is the THREE hostapply evidences (`apply_confirmed` / `host_health_sweep_passed`\
+  \ / `host_reconciliation_recorded`) recorded by the SPEC-0111 apply seam at Stage-9\
+  \ Closure, AFTER audit-post | `host_config: true` |\n| `--land-emitted-event` (X-0188;\
   \ NAMED + guarded, X-0837) | the acceptance-probe-not-satisfied / event-absent category\
   \ — judge ONLY diff-drift / non-deferred AC / coherence | the GENERALIZATION of\
   \ event-emit-only to a NON-P8 event: an acceptance probe EMITTED BY `land` AT Stage\
   \ 9 (e.g. `verify_layer_prep`) is legitimately ABSENT at this pre-land diff-only\
   \ audit-post; the P8-closure-specific event-emit-only overlay does NOT extend to\
-  \ it. **The overlay NAMES the deferred evidence :** an ABSTRACT exemption could\
-  \ not be matched to the evidence the packet renders CONCRETELY — a card deferring\
-  \ its `resolves_cross` items sees their rows printed in the CROSS-INSTANCE EVIDENCE\
-  \ section in a NOT-YET-TERMINAL state (their `cross_done` is emitted by `land` at\
-  \ the ff), so the auditor followed the visible unresolved row and kept demanding\
-  \ the closed rows be quoted (X-0837: two RED consult passes, then an owner escalation).\
-  \ The overlay therefore lists the evidence the CARD'S OWN acceptance names, and\
-  \ states that such a not-yet-closed coordination row IS that pending evidence, never\
-  \ an unmet criterion. Evidence the card does NOT name is NOT exempted. **Guard (fail-closed)\
-  \ — this is what stops a naming carve-out becoming a blanket excuse:** the overlay\
-  \ entry REFUSES (emitting the EXISTING `read_gate_refused`) unless the card's acceptance\
-  \ names at least one piece of pending-until-land evidence — an event token in a\
-  \ land-emitted-phrased criterion, or an `X-NNNN` id the card ALSO carries in `resolves_cross`\
-  \ (that link is the structural land-tie; a bare prose mention is not enough). A\
-  \ card naming NEITHER still REDs for its absent evidence on the ordinary path |\
-  \ `land_emitted_event: true` + `land_emitted_named_evidence: [<names>]` |\n| prototype\
-  \ (SPEC-0205 rules 5/6) — engine-derived, no flag | audit-pre: nothing is exempted\
-  \ — the card's `prototype_ref` diff (`merge-base main..spike/<slug>`) is inlined\
-  \ as the ТЗ with the overlay «the prototype is the specification, not the deliverable;\
-  \ a plan that reduces to copying named paths from it is RED; state your own design».\
-  \ audit-post: the `prototype_identity:` context line — a PROJECTION of the `spike_content_previewed`\
-  \ row this audit wrote (a `--reaudit-after-close` cites the land's `spike_content_checked`\
-  \ row), whole-file hits / hunk-subset verdict / verbatim share, CITED by `events.jsonl#ts=`,\
-  \ never recomputed; context for judging the derivation, never a verdict | a card\
-  \ built on a spike. **Refusal (governed, before any auditor call, no pass counted):**\
-  \ `audit post` on a card with NO `prototype_ref` whose preview reports a NON-ZERO\
-  \ share numerator refuses, naming the spike and `task update <id> --prototype-ref\
-  \ spike/<slug>`; a zero-share card (whatever its T1 hits) and a preview that errored\
-  \ proceed and are never asked to declare. Content refusals live at `land` (SPEC-0205\
-  \ rule 2), never at the auditor | the card's `prototype_ref:` (SPEC-0028) |\n| `--post-ship-observation`\
-  \ (X-0710) | the acceptance-probe-not-satisfied / no-observation-result / adoption-missing\
-  \ category — judge ONLY diff-drift / non-deferred AC / coherence / whether the declared\
-  \ observation actually corresponds to the AC it defers | an acceptance whose probe\
-  \ is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION (<project> : «the daily count\
-  \ is flat or falling over 7 days»): the reading cannot exist at this pre-land diff-only\
-  \ audit-post because the observation WINDOW OPENS ONLY AFTER THE SHIP. No sibling\
-  \ covers it (event-emit-only is P8-specific, land-emitted-event needs an event `land`\
-  \ itself emits, serve-deploy/host-config name their own evidence sets), so the base\
-  \ overlay read the missing reading as a defect and the worker had to misuse a non-matching\
-  \ flag or halt (X-0710). **Guard (fail-closed) — this is what stops it being a blanket\
-  \ «my proof is in the future» excuse:** the overlay entry AND the `task close` seam\
-  \ both REFUSE (emitting the EXISTING `read_gate_refused`) unless the CARD declares\
-  \ a well-formed, UNSETTLED `post_ship_observation: {observation, due_by}` (SPEC-0028);\
-  \ an already-settled declaration is refused too (nothing left to defer). **The deferral\
-  \ is TRACKED, not waived:** that same declaration is folded by the `overdue-recheck`\
-  \ debt lens (SPEC-0094 §3, extended) from the moment it is declared until a `settled_by`\
-  \ locator names where the recorded reading landed — time passing moves it `pending`\
-  \ → `overdue`, and NOTHING but recording it clears it | `post_ship_observation:\
-  \ true` + `post_ship_observation_due_by: <ISO date>`. **SENSITIVITY (X-1126) — the\
-  \ declaration also names the historical evidence that its predicate FIRES when the\
-  \ defect IS present** (the OPTIONAL `sensitivity:` key, rule home SPEC-0028). An\
-  \ observation settles by READING A PREDICATE, and a predicate that can never match\
-  \ anything reads EMPTY — indistinguishable from «the defect is absent» — so a vacuous\
-  \ predicate settles on having measured nothing (<project> measured two such cards\
-  \ 8 days overdue). This overlay CONSUMES the key: declared, it NAMES the evidence\
-  \ to the auditor alongside the observation and due window, to be weighed under judgement\
-  \ (4) — does the declared observation actually correspond to the AC it defers; undeclared,\
+  \ it. **The overlay NAMES the deferred evidence :** it lists the evidence the CARD'S\
+  \ OWN acceptance names, and states that such a not-yet-closed coordination row IS\
+  \ that pending evidence, never an unmet criterion. Evidence the card does NOT name\
+  \ is NOT exempted. **Guard (fail-closed) — this is what stops a naming carve-out\
+  \ becoming a blanket excuse:** the overlay entry REFUSES (emitting the EXISTING\
+  \ `read_gate_refused`) unless the card's acceptance names at least one piece of\
+  \ pending-until-land evidence — an event token in a land-emitted-phrased criterion,\
+  \ an event type that only `land` emits (e.g. `land_completed`) named in any criterion\
+  \ (the type is itself the land-tie), or an `X-NNNN` id the card ALSO carries in\
+  \ `resolves_cross` (that link is the structural land-tie; a bare prose mention is\
+  \ not enough). A card naming NONE of these still REDs for its absent evidence on\
+  \ the ordinary path | `land_emitted_event: true` + `land_emitted_named_evidence:\
+  \ [<names>]` |\n| prototype (SPEC-0205 rules 5/6) — engine-derived, no flag | audit-pre:\
+  \ nothing is exempted — the card's `prototype_ref` diff (`merge-base main..spike/<slug>`)\
+  \ is inlined as the ТЗ with the overlay «the prototype is the specification, not\
+  \ the deliverable; a plan that reduces to copying named paths from it is RED; state\
+  \ your own design». audit-post: the `prototype_identity:` context line — a PROJECTION\
+  \ of the `spike_content_previewed` row this audit wrote (a `--reaudit-after-close`\
+  \ cites the land's `spike_content_checked` row), whole-file hits / hunk-subset verdict\
+  \ / verbatim share, CITED by `events.jsonl#ts=`, never recomputed; context for judging\
+  \ the derivation, never a verdict | a card built on a spike. **Refusal (governed,\
+  \ before any auditor call, no pass counted):** `audit post` on a card with NO `prototype_ref`\
+  \ whose preview reports a NON-ZERO share numerator refuses, naming the spike and\
+  \ `task update <id> --prototype-ref spike/<slug>`; a zero-share card (whatever its\
+  \ T1 hits) and a preview that errored proceed and are never asked to declare. Content\
+  \ refusals live at `land` (SPEC-0205 rule 2), never at the auditor | the card's\
+  \ `prototype_ref:` (SPEC-0028) |\n| `--post-ship-observation` (X-0710) | the acceptance-probe-not-satisfied\
+  \ / no-observation-result / adoption-missing category — judge ONLY diff-drift /\
+  \ non-deferred AC / coherence / whether the declared observation actually corresponds\
+  \ to the AC it defers | an acceptance whose probe is a MULTI-DAY POST-SHIP PRODUCTION\
+  \ OBSERVATION (<project> : «the daily count is flat or falling over 7 days»): the\
+  \ reading cannot exist at this pre-land diff-only audit-post because the observation\
+  \ WINDOW OPENS ONLY AFTER THE SHIP. **Guard (fail-closed) — this is what stops it\
+  \ being a blanket «my proof is in the future» excuse:** the overlay entry AND the\
+  \ `task close` seam both REFUSE (emitting the EXISTING `read_gate_refused`) unless\
+  \ the CARD declares a well-formed, UNSETTLED `post_ship_observation: {observation,\
+  \ due_by}` (SPEC-0028); an already-settled declaration is refused too (nothing left\
+  \ to defer). **The deferral is TRACKED, not waived:** that same declaration is folded\
+  \ by the `overdue-recheck` debt lens (SPEC-0094 §3, extended) from the moment it\
+  \ is declared until a `settled_by` locator names where the recorded reading landed\
+  \ — time passing moves it `pending` → `overdue`, and NOTHING but recording it clears\
+  \ it | `post_ship_observation: true` + `post_ship_observation_due_by: <ISO date>`.\
+  \ **SENSITIVITY (X-1126) — the declaration also names the historical evidence that\
+  \ its predicate FIRES when the defect IS present** (the OPTIONAL `sensitivity:`\
+  \ key, rule home SPEC-0028). An observation settles by READING A PREDICATE, and\
+  \ a predicate that can never match anything reads EMPTY — indistinguishable from\
+  \ «the defect is absent» — so a vacuous predicate settles on having measured nothing.\
+  \ This overlay CONSUMES the key: declared, it NAMES the evidence to the auditor\
+  \ alongside the observation and due window, to be weighed under judgement (4) —\
+  \ does the declared observation actually correspond to the AC it defers; undeclared,\
   \ it SAYS SO and states in the same breath that the absence is an AUTHORING PROMPT,\
   \ **never a finding and never a RED on its own**. The prompt for the author is printed\
   \ report-only at the declaring seam (`_require_post_ship_observation`), which refuses\
@@ -201,24 +189,22 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ scope fidelity against the card's still-required `expected_touch`, and judge a\
   \ reconciliation entry that is plainly ordinary authored work as a FINDING | a card\
   \ whose OWN CLOSURE flips a `proposed` spec carrying a `concern:`/`init_concern:`:\
-  \ the concern registry + activation checklist are gated LIVE-ACTIVE-ONLY (`graph._active_concern_blocks`\
-  \ / `_activation_concern_rows`), so the fixtures the activation invalidates are\
-  \ structurally invisible until the flip — and the flip is performed by the very\
-  \ closure that follows this audit, so no author could have written the forecast\
-  \ (: 4 audit passes, 2 owner resets, 1 convergence consult spent arguing about it).\
-  \ **Guard (fail-closed) — the least trust-based member of the family, because what\
-  \ it defers is scope fidelity itself:** the overlay entry REFUSES unless (a) the\
-  \ card declares a well-formed `activation_gated_radius: {declaration, reconciliation}`\
-  \ (SPEC-0028), (b) an OBJECTIVE STRUCTURAL PREDICATE holds — the card really owns\
-  \ such a proposed concern-bearing spec (a self-declaration is not falsifiable: the\
-  \ external consult's finding 1), (c) `expected_touch` is still NON-EMPTY, (d) the\
-  \ reconciliation matches the REAL diff and ENUMERATES it (entries must be LITERAL\
-  \ touched paths — a glob or bare directory is refused even when it would match,\
-  \ because one `*` would cover the whole diff and collapse (e)+(f) back into the\
-  \ blanket waiver), (e) no ACTUAL touched path is claimed in both sets, and (f) no\
-  \ touched path falls outside BOTH. **It never waives scope fidelity — it moves WHEN\
-  \ the evidence exists** (SPEC-0176 rule 4); the stronger fix, a registry projection\
-  \ query, is named as its retirement trigger (rule 5) | `activation_gated_radius:\
+  \ the concern registry + activation checklist are gated LIVE-ACTIVE-ONLY, so the\
+  \ fixtures the activation invalidates are structurally invisible until the flip\
+  \ — and the flip is performed by the very closure that follows this audit, so no\
+  \ author could have written the forecast. **Guard (fail-closed) — the least trust-based\
+  \ member of the family, because what it defers is scope fidelity itself:** the overlay\
+  \ entry REFUSES unless (a) the card declares a well-formed `activation_gated_radius:\
+  \ {declaration, reconciliation}` (SPEC-0028), (b) an OBJECTIVE STRUCTURAL PREDICATE\
+  \ holds — the card really owns such a proposed concern-bearing spec (a self-declaration\
+  \ is not falsifiable: the external consult's finding 1), (c) `expected_touch` is\
+  \ still NON-EMPTY, (d) the reconciliation matches the REAL diff and ENUMERATES it\
+  \ (entries must be LITERAL touched paths — a glob or bare directory is refused even\
+  \ when it would match, because one `*` would cover the whole diff and collapse (e)+(f)\
+  \ back into the blanket waiver), (e) no ACTUAL touched path is claimed in both sets,\
+  \ and (f) no touched path falls outside BOTH. **It never waives scope fidelity —\
+  \ it moves WHEN the evidence exists** (SPEC-0176 rule 4); the stronger fix, a registry\
+  \ projection query, is named as its retirement trigger (rule 5) | `activation_gated_radius:\
   \ true` + `activation_gated_specs:` + `activation_gated_reconciliation:` + `activation_gated_forecast:`\
   \ |\n| `--reaudit-after-close` | a \"closed inside shipped diff\" finding — REVERSES\
   \ the STAGE-BOUNDARY closure-absence expectation for this re-audit only | INVERTED\
@@ -238,19 +224,17 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ both REFUSE (emitting the EXISTING `read_gate_refused`) on ANY unresolved git\
   \ delta beyond the allow-listed bookkeeping, and both REQUIRE an `evidence-locator`\
   \ naming the pre-existing immutable record/probe; the guard is a PRECONDITION on\
-  \ the delivery shape, never a review — made it the \"trust boundary\" in place of\
-  \ the auditor, which is the design error X-1488 measured (<project> : GREEN recorded,\
-  \ auditor never invoked, the supplied diff discarded). An acceptance criterion the\
-  \ evidence fails is RED exactly as usual | `zero_ship_diff: true` + `external_invoked:\
-  \ <derived — true iff the auditor judged this pass>` + `ship_diff_after_exclusions:\
-  \ zero` + `evidence_locator` + `verdict_producer` (§Verdict producer) |\n\n**`###\
-  \ DEFERRED BY DECLARATION` — the FAMILY-WIDE reading of every carve-out above.**\n\
-  A TASK `audit pre` packet, a TASK `audit post` packet AND the ceiling-convergence\
-  \ CONSULT packet all render a\n`### DEFERRED BY DECLARATION — judge the declaration,\
-  \ not the absence` section, derived from the\ncard ALONE (pure f(card); no store,\
-  \ no field, no flag, no new event type — CHARTER §P1 F1/F2). It\nenumerates each\
-  \ deferred CRITERION with the DECLARATION that defers it. FOUR kinds, each reusing\n\
-  the one existing predicate rather than restating a grammar:\n- **post-ship-observation**\
+  \ the delivery shape, never a review. An acceptance criterion the evidence fails\
+  \ is RED exactly as usual | `zero_ship_diff: true` + `external_invoked: <derived\
+  \ — true iff the auditor judged this pass>` + `ship_diff_after_exclusions: zero`\
+  \ + `evidence_locator` + `verdict_producer` (§Verdict producer) |\n\n**`### DEFERRED\
+  \ BY DECLARATION` — the FAMILY-WIDE reading of every carve-out above.**\nA TASK\
+  \ `audit pre` packet, a TASK `audit post` packet AND the ceiling-convergence CONSULT\
+  \ packet all render a\n`### DEFERRED BY DECLARATION — judge the declaration, not\
+  \ the absence` section, derived from the\ncard ALONE (pure f(card); no store, no\
+  \ field, no flag, no new event type — CHARTER §P1 F1/F2). It\nenumerates each deferred\
+  \ CRITERION with the DECLARATION that defers it. FOUR kinds, each reusing\nthe one\
+  \ existing predicate rather than restating a grammar:\n- **post-ship-observation**\
   \ — a grammar-valid, UNSETTLED `post_ship_observation:` (the same\n  predicate the\
   \ table entry and the debt lens read). A SETTLED declaration yields NO row: the\
   \ proof\n  exists, so nothing is deferred.\n- **land-emitted** — built ENTRY BY\
@@ -279,26 +263,24 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ tells the auditor that a plan whose\ncriterion is DECLARED provable only after\
   \ landing is not missing its adoption proof — the plan is\njudged, the declared\
   \ absence is not. INERT by construction\n— a card that declares nothing renders\
-  \ no section and gets an unchanged lens. RETIREMENT (§P1 F3):\nthe consult's single-kind\
-  \ post-ship-observation block is SUBSUMED and removed — it rendered\none of these\
-  \ three kinds, leaving the consult blind to the other two.\n\n**`### DEFERRED PROBES\
-  \ — settled after landing by the Controller` — the FILING-TIME declaration,\nread\
-  \ at BOTH task stage overlays.** The section above's first three kinds are all\n\
-  written at CLOSE. That leaves the shape whose proof is IMPOSSIBLE before the\nland\
-  \ by its own wording — an acceptance criterion whose probe is a FIRST REAL USE AFTER\
-  \ LANDING —\ninvisible to BOTH audits at the moment they judge it.\n\nA TASK `audit\
-  \ pre` AND `audit post` packet both render a\n`### DEFERRED PROBES — settled after\
-  \ landing by the Controller` section, derived from the card\nALONE — pure f(card);\
-  \ no store, no new field, no flag, no new event type (CHARTER §P1 F1/F2). Its\n\
-  ONE source is the card's `probe_moments:` (schema home SPEC-0028), the carrier SPEC-0060\
-  \ requires\nsuch a criterion to declare AT FILING. It enumerates each declared CRITERION\
-  \ with its AWAITED\nMOMENT, and tells the auditor that the absence of that proof\
-  \ pre-land is the DECLARED ORDERING,\nnever a defect.\n\n**TWO admission conditions,\
-  \ both required; either failing drops the entry silently.**\n- **GRAMMAR** — the\
-  \ moment parses under the ONE existing grammar home (an ISO `due_by` date, or an\n\
-  \  `awaits:` ref `` / `X-0042` / `events.jsonl#type=<t>[@after=<ISO>]`). A moment\
-  \ no reader\n  can decide declares nothing.\n- **NAMESPACE** — the key names a criterion\
-  \ THIS CARD'S OWN ACCEPTANCE declares. Without this an\n  orphan key (`probe_moments:\
+  \ no section and gets an unchanged lens.\n\n**`### DEFERRED PROBES — settled after\
+  \ landing by the Controller` — the FILING-TIME declaration,\nread at BOTH task stage\
+  \ overlays.** The section above's first three kinds are all\nwritten at CLOSE. That\
+  \ leaves the shape whose proof is IMPOSSIBLE before the\nland by its own wording\
+  \ — an acceptance criterion whose probe is a FIRST REAL USE AFTER LANDING —\ninvisible\
+  \ to BOTH audits at the moment they judge it.\n\nA TASK `audit pre` AND `audit post`\
+  \ packet both render a\n`### DEFERRED PROBES — settled after landing by the Controller`\
+  \ section, derived from the card\nALONE — pure f(card); no store, no new field,\
+  \ no flag, no new event type (CHARTER §P1 F1/F2). Its\nONE source is the card's\
+  \ `probe_moments:` (schema home SPEC-0028), the carrier SPEC-0060 requires\nsuch\
+  \ a criterion to declare AT FILING. It enumerates each declared CRITERION with its\
+  \ AWAITED\nMOMENT, and tells the auditor that the absence of that proof pre-land\
+  \ is the DECLARED ORDERING,\nnever a defect.\n\n**TWO admission conditions, both\
+  \ required; either failing drops the entry silently.**\n- **GRAMMAR** — the moment\
+  \ parses under the ONE existing grammar home (an ISO `due_by` date, or an\n  `awaits:`\
+  \ ref `` / `X-0042` / `events.jsonl#type=<t>[@after=<ISO>]`). A moment no reader\n\
+  \  can decide declares nothing.\n- **NAMESPACE** — the key names a criterion THIS\
+  \ CARD'S OWN ACCEPTANCE declares. Without this an\n  orphan key (`probe_moments:\
   \ {AC99:...}` on a card with no AC99) would let a card exempt a\n  criterion it\
   \ does not have, and the parse floor below would refuse a RED naming AC99 instead\
   \ of\n  recording it. A card whose acceptance names no parseable criterion ids yields\
@@ -319,78 +301,24 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ unchanged lens.\n\n**Why this is not a fourth kind of the section above.** That\
   \ section is audit-POST-only by its own\nscoping rule and reads three close-time\
   \ sources; this one is filing-time, reads a fourth source\nthose three do not (`probe_moments`),\
-  \ and must reach audit-PRE — where two of the six measured\nincidents happened.\
-  \ In practice they do not overlap: a filed-but-unclosed card carries\n`probe_moments`\
-  \ and no `probes:`, so the same criterion is not rendered twice.\n\n**MACHINE-REFUTED\
-  \ P8-adoption finding on a NON-infra card — the second admissible class\nof the\
-  \ machine-refutation seam.** CHARTER §8 (Adoption Verification Strength) binds\n\
-  INFRA-class work only; Principle-3 probe evidence governs a product / feature card,\
-  \ and the packet\nreadiness block already prints `P8 carrier: n/a (class <x>)` on\
-  \ every non-infra card. So a finding\nwhose class is P8-adoption / `adoption-gap`\
-  \ («no consumer_read_evidence / live_trigger_evidence /\nblocking adoption follow-up»)\
-  \ on a card whose `class` is NOT `infra` is machine-decidable, and the\nengine RECORDS\
-  \ it `machine_refuted: true` with a `machine_refutation` evidence dict\n(`kind:\
-  \ p8-adoption-on-non-infra`, the card's `task_class`, the reason «CHARTER §8 binds\
-  \ infra-class\nonly; packet readiness: P8 carrier n/a», `charter_ref`, `checked_at`,\
-  \ the policy string) — the\nfinding's own text is never edited. The class is read\
-  \ BOTH from the SPEC-0204 rule-1 structured\n`class_id` slot (`P8-adoption` or the\
-  \ auditor-spelled `adoption-gap`) AND from prose naming the P8\nevidence types /\
-  \ the principle over EVERY prose field; the prose arm reads ONLY the §8 carrier\
-  \ vocabulary — the P8 evidence types\n(consumer_read_evidence / live_trigger_evidence)\
-  \ or the principle itself (P8 / Principle 8 /\nCHARTER §8): it never admits the\
-  \ bare `adopt` token, so a correctness finding that merely says\n«adopts» is never\
-  \ touched, and it never admits a generic «no adoption evidence / probe» complaint\n\
-  against the card's OWN criterion either — that is a Principle-3 probe complaint\
-  \ about a deferred\nprobe, judged by the declared-deferred floor (declared → refused\
-  \ at the parse floor;\nundeclared / orphan → the RED stands and the pass is recorded).\n\
-  \n**How it binds, and how it does NOT.** INFRA-class cards are UNCHANGED — there\
-  \ the finding is\nexactly what §8 asks for and stands as written; a caller that\
-  \ supplies no class (a plan / decision\ntarget) refutes nothing. The pass is skipped\
-  \ ONLY when EVERY finding in it is machine-refuted — a\nreal finding beside the\
-  \ P8 one charges the pass exactly as before. The count of refuted findings\n(parse-refuted\
-  \ + P8-refuted together) is the one `machine_refuted_count`. Home of the predicate\
-  \ and\nthe seam: `bin/lib/audit.py#p8_adoption_gap_on_non_infra` / `#machine_refute_findings`.\n\
-  \n**BUNDLED FINDINGS ARE NOT REFUTED.** A finding that carries the §8 wording BESIDE\
-  \ an\nindependent defect claim — a concrete source location the kernel does not\
-  \ own the judgement of (a\n`.py` path under `bin/` or `tests/`), or an explicit\
-  \ execution-failure claim (a failing assertion or\ntest, a raised exception, a traceback)\
-  \ — is NOT refuted, on EITHER arm (the structured `class_id`\nslot as well as the\
-  \ prose sniff): the auditor bundled two claims into one finding and only one of\n\
-  them is machine-decidable, so the WHOLE finding stands and the pass is charged.\
-  \ Judgement vocabulary\n(scope / coherence / adequacy) is deliberately NOT an independent-defect\
-  \ signal — an auditor may\nlegitimately phrase the §8 claim that way, and admitting\
-  \ it would stop the refutation firing on the\nshapes it exists for. Predicate: `bin/lib/audit.py#bundles_an_independent_defect`.\n\
-  \n**THE ALL-REFUTED FOLD — what the recorded verdict is when NOTHING the auditor\
-  \ raised\nsurvives.** The contract «the VERDICT is never touched» is AMENDED here,\
-  \ and only here.\n\nSo: a TASK audit-pre/post whose auditor verdict is RED or YELLOW,\
-  \ and EVERY one of whose findings is\nmachine-refuted, RECORDS `verdict: GREEN`.\
-  \ THE FENCE, all of it conjunctive and all of it fail-closed\nto the auditor's verdict:\n\
-  (1) a CLOSED allowlist of exactly the two machine-decidable classes — `governed-artifact-parse-claim`\n\
-  and `p8-adoption-on-non-infra` — so a FUTURE refutation kind is NOT foldable until\
-  \ it is NAMED there\nby an explicit change; (2) a NON-EMPTY finding set (a clean\
-  \ pass has nothing to refute and is not a\nfold); (3) EVERY finding individually\
-  \ refuted, its count re-derived from the findings rather than\ntrusted from the\
-  \ caller; (4) every refutation block produced by THIS pass (`checked_at` and `policy`\n\
-  must match), so a block carried in from a prior record is stale and never folds;\
-  \ (5) unknown, stale,\nmalformed or unavailable refutation data fails closed. An\
-  \ ABORT is never folded — it means the\nauditor produced no usable outcome, which\
-  \ a refutation cannot disprove; a plan / decision target is\nout of scope.\n\nWHAT\
-  \ IS PRESERVED, so no reader can mistake the fold for the auditor having passed\
-  \ the change: the\nsaved record and the `audit_{pre,post}_completed` row BOTH carry\
-  \ `verdict_as_returned` (the auditor's\nown word, captured before any kernel seam\
-  \ recomputes the verdict) and `machine_refuted_all: true`,\nadditive-optional and\
-  \ ABSENT (never false) on every pass that did not fold; every finding keeps its\n\
-  verbatim `machine_refutation` block; `notes` states the fold and names the kinds.\
-  \ `passes` is\nUNCHANGED — the existing ledger-skip already leaves it at `prior_passes`,\
-  \ and this fold neither reads\nnor writes it. SEAM ORDER is load-bearing: the fold\
-  \ runs AFTER the SPEC-0204 rule-8 record seam (so\nrule 1's fingerprints and every\
-  \ verdict-driven upstream guard — the unchanged-HEAD GREEN-flip refusal\nin particular\
-  \ — judge the AUDITOR's own word) and BEFORE the rule-3 on-decisions seam (so rule\
-  \ 3's\nabsolute «a `fix` residual echoed OPEN forces RED» clause can still re-raise\
-  \ a folded verdict; a\nrecorded Controller decision outranks a category-error fold).\
-  \ Home of the fence and the seam:\n`bin/lib/audit.py#machine_refutation_folds_to_green`\
-  \ / `#FOLDABLE_REFUTATION_KINDS`, and the policy\nstring `MACHINE_REFUTATION_POLICY`\
-  \ every saved verdict carries states the same rule.\n\n**DERIVED-FROM-THE-CARD selection\
+  \ and must reach audit-PRE. In practice they do not overlap: a filed-but-unclosed\
+  \ card carries\n`probe_moments` and no `probes:`, so the same criterion is not rendered\
+  \ twice.\n\n**Two rare task-audit shapes → SPEC-1013 (index).** Two shapes are decided\
+  \ by the audit verb itself,\nfrom governed records, with no flag to pass. (1) A\
+  \ verdict comes back and the engine marks one or\nmore of its findings machine-refuted\
+  \ — a claim of a class the kernel can decide on its own. A pass\nin which every\
+  \ finding is so marked is not charged; where such a pass came back RED or YELLOW\
+  \ the\nverb records GREEN only inside the fence the reference states, keeps the\
+  \ auditor's own word beside\nit, and a recorded Controller decision can still re-raise\
+  \ the verdict. The stage follows the\nverdict as finally recorded. (2) After an\
+  \ audit-post RED whose only fix is the card's own record,\nthe repair commit made\
+  \ through the card-repair arm of `task commit` may stand as the audit-post\nsubject\
+  \ although it is record-only: the guard admits it only when every conjunct the reference\n\
+  lists holds, and every other subject with no authored content is refused. The rules\
+  \ of both —\nwhich finding classes are machine-decidable and the fence around the\
+  \ fold; the conjuncts of the\ncard-repair admission and its pass-1 form — are the\
+  \ reference SPEC-1013: read it when either shape\nappears (`graph query SPEC-1013`),\
+  \ from its heading «Rare task-audit shapes».\n\n**DERIVED-FROM-THE-CARD selection\
   \ — five of the flags above need not be passed at all.**\nEvery guard in this family\
   \ already anchors its trust in a CARD-SIDE DECLARATION (SPEC-0028), so on a\nTASK\
   \ `audit post` invoked with NO overlay flag the verb DERIVES the overlay from the\
@@ -434,85 +362,23 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ above picks off the\ncard's own declaration without any flag being passed; and\
   \ its remaining half is not an audit problem\nat all but a COMMIT one — a RED naming\
   \ the card's own RECORDED EVIDENCE is repaired through\n`task commit --fix-red --card-repair`\
-  \ (SPEC-0015 §Internal, the route home). A new row would have\nduplicated two live\
-  \ analogs (F1) and removed nothing (F3).\n**RESERVED-NAMESPACE naming constraint\
+  \ (SPEC-0015 §Internal, the route home).\n**RESERVED-NAMESPACE naming constraint\
   \ — the `decisions/<task-id>-*` prefix belongs to a\ncard's OWN records, so an authored\
   \ DELIVERABLE must not wear it.** The allow-listed bookkeeping named\nin the `--zero-ship-diff`\
-  \ row above is PATH-SHAPED (`_zero_ship_diff_bookkeeping`, `bin/lib/cli.py`):\n\
-  `decisions/<task-id>-*.yaml` reads as this card's own audit / consult record for\
-  \ ANY suffix. That\nreservation is also what the no-authored-content guard reads,\
-  \ so it has a consequence for\nAUTHORING, not just for waiving: a card whose DELIVERABLE\
-  \ is an authored record under `decisions/`\n— a saved finding, a measurement, a\
-  \ recorded verdict — and which names it `decisions/<its-own-task-id>-*.yaml`\nproduces\
-  \ a ship whose authored-path set is EMPTY. `audit post` then refuses the ship that\
-  \ carries the\nwork, and the card is structurally unauditable. **So name such a\
-  \ deliverable by SUBJECT (optionally\n+date), never by task id**. This is a NAMING\
-  \ rule, deliberately not a\nnarrowing of the guard: enumerating the audit writer's\
-  \ own filenames here would re-encode a vocabulary\nthat module owns, and its drift\
-  \ would fail PERMISSIVELY — letting a contentless subject reach the\nauditor, the\
-  \ defect the guard exists to close. The authoring-surface pointer lives at\n`patterns/doc-conventions.md`\
-  \ §Naming (LIFECYCLE §Stage 2 routes new-artifact authors there); this row\nis the\
-  \ rule home.\n\n**GOVERNED CARD-REPAIR SUBJECT (X-1233) — an admission on the MEASUREMENT,\
-  \ not a waiver.**\nThe guard asks whether the subject the auditor RECEIVES carries\
-  \ authored content, and answers\nit off the subject commit's OWN diff. For every\
-  \ shape it was written against those are the same\nthing. For ONE shape they are\
-  \ not: `get_audit_post_diff` has sent the CUMULATIVE range\n`merge-base(sha, main)..sha`\
-  \ since, so a commit that is itself record-only but sits ON TOP of\nthe card's audited\
-  \ ship hands the auditor that whole ship PLUS the record change — strictly MORE\n\
-  material than the RED pass saw, not less. So the guard ADMITS\nsuch a subject, on\
-  \ FOUR conjuncts, every one DERIVED and fail-closed — a missing injection, an\n\
-  absent marker, an unreadable record and any git failure all REFUSE:\n  (a) PROVENANCE\
-  \ — the subject IS the task's RECORDED commit, and that `commit_landed` record\n\
-  \      carries the `data.card_repair` marker the `task commit --fix-red --card-repair`\
-  \ arm writes.\n      This is what ties the admission to the GOVERNED route rather\
-  \ than to a commit shape;\n  (b) SHAPE — the subject's diff carries THIS card's\
-  \ OWN card file, read off GIT;\n  (c) the PRIOR audit-post record is RED **and its\
-  \ cause DERIVES to this card's own record** — so\n      the repair being admitted\
-  \ is the repair that verdict actually asked for. Read from the\n      governed `decisions/<tid>-audit-post.yaml`\
-  \ pinned to that custody sha, NEVER from the journal,\n      and judged by the ONE\
-  \ shared predicate `_red_cause_is_card_record` that the governed\n      `task commit\
-  \ --fix-red --card-repair` arm reads TOO. The derivation\n      that replaces it\
-  \ is homed with the arm in SPEC-0015 §Internal (the two-part read — no authored\n\
-  \      reference anywhere in the record, AND at least one reference that IS this\
-  \ card's own record by\n      path / by an acceptance-named task-tied event type\
-  \ / by an acceptance-criterion id the card\n      declares); it is not restated\
-  \ here, so the two homes cannot diverge (CHARTER §P5);\n  (d) that covered commit\
-  \ provably carries authored content, read through the SAME predicate this\n    \
-  \  guard already uses (one definition of \"authored\" — CHARTER §P5), so the cumulative\
-  \ range the\n      packet sends is not empty;\n  (e) CHAIN CONTINUITY — the subject's\
-  \ FIRST PARENT *is* that covered ship, read off git. The arm\n      builds the repair\
-  \ directly on the commit the RED graded, so parenthood is its exact shape;\n   \
-  \   mere ancestry would admit a card-only commit made anywhere later on the branch.\n\
-  **(a) IS REQUIRED BUT NEVER SUFFICIENT — every other conjunct is read from something\
-  \ the actor being\nfenced does not author.** The marker stays as the governed arm's\n\
-  provenance, and what CARRIES the admission is git (shape + parenthood) plus the\
-  \ audit verb's own\nrecorded verdict. A hand-made card-only commit with a perfect\
-  \ hand-emitted row is REFUSED unless it\nalso sits directly on the audited ship\
-  \ AND answers a RED that actually named the card record.\nThe residual — an actor\
-  \ who can rewrite the audit RECORD itself — is the trust boundary every\ngoverned\
-  \ record in this kernel sits behind, and no predicate here can narrow it. The provenance\
-  \ read\nreuses the EXISTING `_recorded_commit_landed` payload reader, so no new\
-  \ journal consumer enters the\nsystem (CHARTER §P1 F1/F2; the SPEC-0190 census is\
-  \ untouched).\n**Deliberately NOT a member of the exempt-flag family above.** Those\
-  \ rows are for ships that are not\ndiffs AT ALL, and they are operator-DECLARED;\
-  \ a card repair IS a diff, and this admission is derived\nfrom governed records\
-  \ with no flag for an operator to get wrong. Every other empty subject — a\npark/pause/wont-do\
-  \ displacement, an empty ship, an ordinary bookkeeping commit — carries no marker\n\
-  and is refused byte-identically to before.\n**PASS-1 SHIP-RIDING CARD REPAIR — the\
-  \ same admission when conjunct (c) cannot derive.**\nThe commit arm already ran\
-  \ its OWN cause check (SPEC-0015 §Internal (C)) before it wrote the\n`data.card_repair`\
-  \ marker, yet the audit door re-derived that cause from the record and could answer\n\
-  differently (measured : a decimal pair `4.00/20.00` in an evidence-gap finding lexed\
-  \ as an\nauthored path), leaving a pass-1 repair with no executable audit route.\
-  \ So the guard ALSO admits a\nsubject when, all fail-closed: (1) it IS the custody\
-  \ commit and that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only`\
-  \ (SPEC-0204 rules 2-3) proves it is record-only, that\nthe governed audit-post\
-  \ record names an authored ship, and that the subject reaches that ship along a\n\
-  TRANSPARENT first-parent chain. The pass audits AT the repair — the cumulative range\
-  \ carries the\nship — so the auditor still receives the whole shipped change, and\
-  \ the record pins `commit:` to the\nrepair. Everything else is unchanged: an unmarked\
-  \ bookkeeping subject, one riding on no recorded\nauthored ship, and any authored\
-  \ subject behave byte-identically to before.\n\n**SCENARIO-STATUS COMPUTED-VIEW\
+  \ row above is PATH-SHAPED:\n`decisions/<task-id>-*.yaml` reads as this card's own\
+  \ audit / consult record for ANY suffix. That\nreservation is also what the no-authored-content\
+  \ guard reads, so it has a consequence for\nAUTHORING, not just for waiving: a card\
+  \ whose DELIVERABLE is an authored record under `decisions/`\n— a saved finding,\
+  \ a measurement, a recorded verdict — and which names it `decisions/<its-own-task-id>-*.yaml`\n\
+  produces a ship whose authored-path set is EMPTY. `audit post` then refuses the\
+  \ ship that carries the\nwork, and the card is structurally unauditable. **So name\
+  \ such a deliverable by SUBJECT (optionally\n+date), never by task id**. This is\
+  \ a NAMING rule, deliberately not a\nnarrowing of the guard: enumerating the audit\
+  \ writer's own filenames here would re-encode a vocabulary\nthat module owns, and\
+  \ its drift would fail PERMISSIVELY — letting a contentless subject reach the\n\
+  auditor, the defect the guard exists to close. The authoring-surface pointer lives\
+  \ at\n`patterns/doc-conventions.md` §Naming (LIFECYCLE §Stage 2 routes new-artifact\
+  \ authors there); this row\nis the rule home.\n\n**SCENARIO-STATUS COMPUTED-VIEW\
   \ carve-out (SPEC-0076 §3) — unconditional, NO flag,** so it\nis not a row above:\
   \ a scenario's `status` is a COMPUTED, DERIVED read-only VIEW (`draft → building\
   \ →\nlive`). It MUST NOT be stored — only `retired` (human-set) or an ABSENT status\
@@ -540,8 +406,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ is not a\nvalidator). Pre lists the files the `implementation_plan` + `expected_touch`\
   \ FORECAST; post lists the\nfiles of the shipped diff. Per file it shows the governing\
   \ ACTIVE specs (graph `code_to_specs`,\nstatus-filtered) or a `(no governing spec)`\
-  \ marker, plus symbol-level `possibly-stale` drift flags\n(reuse `_anchor_drift_warning`\
-  \ via `_changed_anchor_spec_drift`, touched-scoped) for a touched\n`implements:`\
+  \ marker, plus symbol-level `possibly-stale` drift flags for a touched\n`implements:`\
   \ anchor whose spec was not updated. BOTH task overlays carry the two questions\
   \ this\nsection exists to let the auditor answer — closing the «code born/changed\
   \ outside the documentation»\nfear at both gates: (1) code touched with NO governing\
@@ -556,37 +421,36 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ `## Declared vs audited touch` sibling carries the same\nreading in the packet\
   \ the auditor reads.\n**Drift ORIGIN — signature staleness is attributed, not assumed.**\
   \ Each drift flag is\nclassified per anchor over the PAIR (code region, stored `implements_signature`\
-  \ entry) along the\ncard's first-parent range `HEAD ^main` (`bin/lib/cli.py#_anchor_drift_origin`):\
-  \ CARD-OWNED when an\nuncommitted edit or a non-merge branch commit changed either\
-  \ half; INDETERMINATE when a merge left\na half equal to neither parent, the pair\
-  \ is not main's at the merge-base, main carries no stored\nentry, or anything is\
-  \ unreadable; NON-CARD only on positive proof — the card touched neither half\n\
-  and both are byte-identical to main's, already stale there (`base-pre-existing`\
-  \ or `main-only`).\nCard-owned and indeterminate flags keep question (2) exactly\
-  \ as above. A proven non-card flag\nrenders as a `stale-signature DEBT` line — the\
-  \ corpus's standing set that `graph build` reports as\npossibly-stale — is NEVER\
-  \ a finding against the card, and is not a readiness `stale anchors:` row.\nThe\
-  \ exception settles ATTRIBUTION ONLY: the card's own delta is still judged against\
-  \ every\ngoverning spec's CURRENT meaning at HEAD and on the resolved tree. Land\
-  \ preflight, `spec reverify`,\nthe SPEC-0077 §3a re-audit and the SPEC-0204 ceiling\
-  \ are unchanged by it.\n**Plan activation ordering (X-1564).** When a `proposed`\
-  \ spec's activation owner — through\nits recorded `requires:` chain — comes AFTER\
-  \ the audited card, the section also names that owner,\nthe chain, and the LAGGING\
-  \ CORPUS the owner reconciles: the proposed spec, its `supersedes:` target,\nand\
-  \ the active specs the owner's own touch forecast declares it edits (never specs\
-  \ it merely\ncites). A spec-coherence residual whose ONLY cause is that lag is the\
-  \ recorded ordering — a note\nciting the owner, never a RED or YELLOW finding; a\
-  \ contradiction with any other active spec, the\ncode failing the proposed spec,\
-  \ or a code defect is judged as usual. The owner card itself keeps\nthe ACTIVATING\
-  \ marker. A view over recorded fields — NOT a deferred-adoption overlay.\n\n###\
-  \ Plan-stage overlays — the per-gate question templates (NEW in this head)\n\n**Re-homed\
-  \ (SPEC-0120 split + Audit-pre bundle cut).** This section's body — the\nplan-gate-only\
-  \ surface — now lives VERBATIM in SPEC-0083 §Plan-stage question templates\n(`bin/yitc-v2\
-  \ graph query SPEC-0083`), the plan-gate policy spec, which is NOT delivered at\
-  \ the\nAudit-pre / Audit-post stage-entries. The moved blocks, by label: Selection\
-  \ carrier · Gate policy\npointer · Plan-FINALIZATION overlay (reached-active acceptance)\
-  \ · Plan-FINALIZATION overlay\n(drain-at-realize correctness) · P1 plan-draft shaping\
-  \ template · P2 draft→specs gate template · P3\nspecs→trial gate template · P4 trial→accepted\
-  \ trial-evidence block · P5 decomposition→executing\nfidelity template · `--focus`\
-  \ composable append · Verdict recording (ONE canonical schema) ·\nRetirement. The\
-  \ template reader `_plan_gate_template_text` resolves them from SPEC-0083\n(`PLAN_GATE_TEMPLATE_SPEC`).\n"
+  \ entry) along the\ncard's first-parent range `HEAD ^main`: CARD-OWNED when an\n\
+  uncommitted edit or a non-merge branch commit changed either half; INDETERMINATE\
+  \ when a merge left\na half equal to neither parent, the pair is not main's at the\
+  \ merge-base, main carries no stored\nentry, or anything is unreadable; NON-CARD\
+  \ only on positive proof — the card touched neither half\nand both are byte-identical\
+  \ to main's, already stale there (`base-pre-existing` or `main-only`).\nCard-owned\
+  \ and indeterminate flags keep question (2) exactly as above. A proven non-card\
+  \ flag\nrenders as a `stale-signature DEBT` line — the corpus's standing set that\
+  \ `graph build` reports as\npossibly-stale — is NEVER a finding against the card,\
+  \ and is not a readiness `stale anchors:` row.\nThe exception settles ATTRIBUTION\
+  \ ONLY: the card's own delta is still judged against every\ngoverning spec's CURRENT\
+  \ meaning at HEAD and on the resolved tree. Land preflight, `spec reverify`,\nthe\
+  \ SPEC-0077 §3a re-audit and the SPEC-0204 ceiling are unchanged by it.\n**Plan\
+  \ activation ordering (X-1564).** When a `proposed` spec's activation owner — through\n\
+  its recorded `requires:` chain — comes AFTER the audited card, the section also\
+  \ names that owner,\nthe chain, and the LAGGING CORPUS the owner reconciles: the\
+  \ proposed spec, its `supersedes:` target,\nand the active specs the owner's own\
+  \ touch forecast declares it edits (never specs it merely\ncites). A spec-coherence\
+  \ residual whose ONLY cause is that lag is the recorded ordering — a note\nciting\
+  \ the owner, never a RED or YELLOW finding; a contradiction with any other active\
+  \ spec, the\ncode failing the proposed spec, or a code defect is judged as usual.\
+  \ The owner card itself keeps\nthe ACTIVATING marker. A view over recorded fields\
+  \ — NOT a deferred-adoption overlay.\n\n### Plan-stage overlays — the per-gate question\
+  \ templates (NEW in this head)\n\n**Re-homed (SPEC-0120 split + Audit-pre bundle\
+  \ cut).** This section's body — the\nplan-gate-only surface — now lives VERBATIM\
+  \ in SPEC-0083 §Plan-stage question templates\n(`bin/yitc-v2 graph query SPEC-0083`),\
+  \ the plan-gate policy spec, which is NOT delivered at the\nAudit-pre / Audit-post\
+  \ stage-entries. The moved blocks, by label: Selection carrier · Gate policy\npointer\
+  \ · Plan-FINALIZATION overlay (reached-active acceptance) · Plan-FINALIZATION overlay\n\
+  (drain-at-realize correctness) · P1 plan-draft shaping template · P2 draft→specs\
+  \ gate template · P3\nspecs→trial gate template · P4 trial→accepted trial-evidence\
+  \ block · P5 decomposition→executing\nfidelity template · `--focus` composable append\
+  \ · Verdict recording (ONE canonical schema) ·\nRetirement.\n"

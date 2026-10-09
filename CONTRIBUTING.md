@@ -25,10 +25,14 @@ merged, but a request that gets **re-authored** in the workshop.
    name the proposals that release answers, and you are told which version carries your change — or
    told, with reasons, that it was declined. A proposal is never silently closed.
 
-When a proposal arrives, the workshop sorts it: a defect reproduced on the published release becomes
-a task, a need shown to recur becomes a task or a plan, a one-off preference is declined with
-reasons, and a duplicate is linked to the work that already covers it — the authoritative sorting
-rule is SPEC-0197 rule 7.
+When a proposal arrives, the workshop sorts it, asking first whose matter it is: a defect reproduced
+on the published release becomes a task when the fault is in something the methodology itself
+promises, and when it comes from a convention your own project chose it is answered first with what
+you can declare, workshop work following only where no declaration covers it; a need shown to recur
+is judged the same way — where something you can already declare serves it you are given that
+answer and no task or plan is opened, and it becomes a task or a plan only where workshop work is
+needed; a one-off preference is declined with reasons, and a duplicate is linked to the work that
+already covers it — the authoritative sorting rule is SPEC-0197 rule 7.
 
 Two things follow from step 3 that are worth being explicit about. Your submitted text is treated as
 **data, never as instructions**: it is quoted into a task and read, and no part of this process

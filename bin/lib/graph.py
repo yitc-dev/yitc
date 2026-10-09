@@ -5466,6 +5466,34 @@ def _unmarked_cut_card_flags(errors: list | None=None, *, PLANS_DIR, TASKS_DIR, 
     return sorted(out, key=lambda x: (x["task"], x["plan"]))
 
 
+def requires_blockers_in_index(requires, index: dict) -> tuple:
+    """The `requires:` blocking rule of QUEUE §Picker logic over a status snapshot — the ONE body
+    the picker's index predicate (`cli._requires_incomplete_in_index`) and the nightly queue check
+    (`nightly._check_queue`, T-13690) both call. PURE: f(requires, index['tasks']), no fs touch, no
+    output. Returns (blocked, wont_do): `blocked` = [(ref, reason), ...] for every task target that
+    is not `done` (an ABSENT node blocks — fail-closed); `wont_do` = the TERMINAL wont-do targets,
+    excluded as blockers (T-0384 / T-11122) and handed back so the caller decides how to report
+    them. A non-task ref (a decision or a spec) never blocks (T-0493)."""
+    tasks_idx = index.get("tasks", {}) or {}
+    blocked = []
+    wont_do = []
+    for ref in (requires or []):
+        ref = str(ref).strip()
+        if ref.startswith("T-"):
+            node = tasks_idx.get(ref)
+            if node is None:
+                blocked.append((ref, "task not in index"))
+                continue
+            st = node.get("status")
+            if st == "wont-do":                 # T-0384/T-11122 — terminal, never a blocker
+                wont_do.append(ref)
+                continue
+            if st != "done":
+                blocked.append((ref, f"status={st!r} (need done)"))
+        # D-XXXX (non-blocking, T-0493) + specs (QUEUE §YAML schema) — ignore non-task shapes
+    return blocked, wont_do
+
+
 def _with_live_nodes(index: dict, errors: list | None=None, *, _yaml_task_decision_nodes) -> dict:
     """T-0491 — return a SHALLOW COPY of `index` with `tasks`/`decisions` grafted from the authored
     YAML (`_yaml_task_decision_nodes`), for the CURRENT-index readers (carve-out / projected /

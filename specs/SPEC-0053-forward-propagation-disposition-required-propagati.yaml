@@ -56,26 +56,25 @@ body: "## Scenario\n\nWhen an infra-class task closes (the class V2 treats as me
   \ <reason>` — a non-empty reason asserting the mechanism has no other\n    application\
   \ site. An owner-judged claim, not a proven one (see anti-busywork bound).\nThe\
   \ three exhaust the honest answers — «filed it», «noted it for later», «nothing\
-  \ else» — so the\nrequired field never forces a premature task or a dishonest `nowhere_else_applies`\
-  \ (gate-specs /\nad-hoc external finding, 2026-06-07).\n\n### Tooling — enumerate\
-  \ the candidate sites (the disposition sweep)\nTo answer «where ELSE must it be\
-  \ applied?» deterministically rather than by ad-hoc grep, run the saved\nlens `bin/yitc-v2\
-  \ graph query propagation-surfaces <SPEC>` — for a multi-site spec it returns\n\
-  the sites already citing it (candidate consequent-change surfaces) + the code implementing\
-  \ it, reusing\nthe existing tasks_citing / code_to_specs reverse-index (no new store).\
-  \ It surfaces CANDIDATES, never\nasserts completeness — the disposition decision\
-  \ stays owner/closer judgement. This is a navigational\nPOINTER to the tool (SPEC-0005\
-  \ rule 8); the recipe TEXT lives in that view's own description, not here.\n\n###\
-  \ Structural presence-gate, NOT a semantic correctness gate\n`task close` REFUSES\
-  \ an infra-class closure that records NONE of the three outcomes (an empty /\nabsent\
-  \ disposition) — the same structural, false-positive-free shape as the EXISTING\
-  \ empty-probe-set\nrejection (SPEC-0015 §Probe verification): the gate checks only\
-  \ that a DECISION is PRESENT, never\nwhether it is the right one. Whether the session\
-  \ truly found every other site is owner-judgement,\nNOT machine-checked — V2 adds\
-  \ no behavioral detector for it (CHARTER non-goal #7). So this\nSTRENGTHENS the\
-  \ previously soft, skippable forward-propagation prompt into a required outcome,\n\
-  without becoming a content gate. (Contrast: the P8 `adoption_evidence_seen` signal\
-  \ stays a\nnon-blocking WARN because consumer-adoption evidence CAN false-positive;\
+  \ else» — so the\nrequired field never forces a premature task or a dishonest `nowhere_else_applies`.\n\
+  \n### Tooling — enumerate the candidate sites (the disposition sweep)\nTo answer\
+  \ «where ELSE must it be applied?» deterministically rather than by ad-hoc grep,\
+  \ run the saved\nlens `bin/yitc-v2 graph query propagation-surfaces <SPEC>` — for\
+  \ a multi-site spec it returns\nthe sites already citing it (candidate consequent-change\
+  \ surfaces) + the code implementing it, reusing\nthe existing tasks_citing / code_to_specs\
+  \ reverse-index (no new store). It surfaces CANDIDATES, never\nasserts completeness\
+  \ — the disposition decision stays owner/closer judgement. This is a navigational\n\
+  POINTER to the tool (SPEC-0005 rule 8); the recipe TEXT lives in that view's own\
+  \ description, not here.\n\n### Structural presence-gate, NOT a semantic correctness\
+  \ gate\n`task close` REFUSES an infra-class closure that records NONE of the three\
+  \ outcomes (an empty /\nabsent disposition) — the same structural, false-positive-free\
+  \ shape as the EXISTING empty-probe-set\nrejection (SPEC-0015 §Probe verification):\
+  \ the gate checks only that a DECISION is PRESENT, never\nwhether it is the right\
+  \ one. Whether the session truly found every other site is owner-judgement,\nNOT\
+  \ machine-checked — V2 adds no behavioral detector for it (CHARTER non-goal #7).\
+  \ So this\nSTRENGTHENS the previously soft, skippable forward-propagation prompt\
+  \ into a required outcome,\nwithout becoming a content gate. (Contrast: the P8 `adoption_evidence_seen`\
+  \ signal stays a\nnon-blocking WARN because consumer-adoption evidence CAN false-positive;\
   \ a disposition's PRESENCE\ncannot.)\n\n### Delivery + read-contract — co-shipped\
   \ with the presence-gate (do not let policy outrun delivery)\nA required field MUST\
   \ NOT become enforceable without its rule being in the closer's declared\npre-read\
@@ -88,28 +87,27 @@ body: "## Scenario\n\nWhen an infra-class task closes (the class V2 treats as me
   \ presence-gate (policy) and the read-contract inclusion co-ship (the SPEC-0007\
   \ §5b co-design\ndiscipline: a delivery obligation and its enforcement land together,\
   \ never apart). The SPEC-0015\npointer (a separate implementing task) also NAMES\
-  \ SPEC-0053 so it is visible in the closure contract\na reader already holds. (External\
-  \ ad-hoc finding, 2026-06-07.)\n\n### Distinct from the P8 adoption-evidence WARN\
-  \ — adjacent axes, do not conflate\nThe CHARTER §P8 `adoption_evidence_seen` handling\
-  \ (SPEC-0015) is the VERTICAL axis — «was THIS\ntask's shipped mechanism adopted\
-  \ by its own consumer?». The propagation disposition is the\nHORIZONTAL axis — «where\
-  \ ELSE in the system must this now be applied?». Both fire at infra close and\n\
-  are recorded in `task_closed`, but they answer different questions; a task satisfies\
-  \ each\nindependently (P8 evidence does not satisfy the disposition, nor vice-versa).\n\
-  \n### Relationship to SPEC-0034 retrospective-routing (what this replaces — CHARTER\
-  \ §P1 F3)\nSPEC-0034's retrospective-routing guidance («an actionable rule change\
-  \ → file a task») is the\nEXISTING soft, non-guaranteed forward-propagation prompt.\
-  \ The disposition is the missing TRIGGER\nthat makes it guaranteed at closure. After\
-  \ this rule is active, retrospective-routing is a\nREFERENCED sibling (the routing\
-  \ target for the filed follow-ups), NOT the mechanism relied on to\nremember to\
-  \ file them — the reliance on an un-triggered prompt is what is removed. SPEC-0034\
-  \ carries\nonly a read-only DETECTION backstop (surfacing dispositionless infra\
-  \ closures in a plan's corpus at\npostcheck), which references THIS rule and does\
-  \ not restate it.\n\n### Anti-busywork bound\nThe disposition asks for a recorded\
-  \ DECISION, not a proof of completeness. `nowhere_else_applies`\nwith an honest\
-  \ one-line reason is a first-class, expected outcome — most infra ships legitimately\n\
-  apply in one place. If the disposition degrades into ignored boilerplate (e.g. a\
-  \ reflexive\n`nowhere_else_applies` with no thought), that is a methodology-rework\
+  \ SPEC-0053 so it is visible in the closure contract\na reader already holds.\n\n\
+  ### Distinct from the P8 adoption-evidence WARN — adjacent axes, do not conflate\n\
+  The CHARTER §P8 `adoption_evidence_seen` handling (SPEC-0015) is the VERTICAL axis\
+  \ — «was THIS\ntask's shipped mechanism adopted by its own consumer?». The propagation\
+  \ disposition is the\nHORIZONTAL axis — «where ELSE in the system must this now\
+  \ be applied?». Both fire at infra close and\nare recorded in `task_closed`, but\
+  \ they answer different questions; a task satisfies each\nindependently (P8 evidence\
+  \ does not satisfy the disposition, nor vice-versa).\n\n### Relationship to SPEC-0034\
+  \ retrospective-routing (what this replaces — CHARTER §P1 F3)\nSPEC-0034's retrospective-routing\
+  \ guidance («an actionable rule change → file a task») is the\nEXISTING soft, non-guaranteed\
+  \ forward-propagation prompt. The disposition is the missing TRIGGER\nthat makes\
+  \ it guaranteed at closure. After this rule is active, retrospective-routing is\
+  \ a\nREFERENCED sibling (the routing target for the filed follow-ups), NOT the mechanism\
+  \ relied on to\nremember to file them — the reliance on an un-triggered prompt is\
+  \ what is removed. SPEC-0034 carries\nonly a read-only DETECTION backstop (surfacing\
+  \ dispositionless infra closures in a plan's corpus at\npostcheck), which references\
+  \ THIS rule and does not restate it.\n\n### Anti-busywork bound\nThe disposition\
+  \ asks for a recorded DECISION, not a proof of completeness. `nowhere_else_applies`\n\
+  with an honest one-line reason is a first-class, expected outcome — most infra ships\
+  \ legitimately\napply in one place. If the disposition degrades into ignored boilerplate\
+  \ (e.g. a reflexive\n`nowhere_else_applies` with no thought), that is a methodology-rework\
   \ signal (a deviation capture),\nNOT a reason to add more gating.\n\n## Parameters\n\
   \nNone consumed. The infra-class scope selector reuses the EXISTING `class:` task\
   \ field + the same\ninfra-class detection SPEC-0015 §P8 already uses — no new parameter,\
@@ -118,7 +116,11 @@ body: "## Scenario\n\nWhen an infra-class task closes (the class V2 treats as me
   \ non-blocking WARN. Shape prior-art: SPEC-0038 (a self-contained `stage-entry:Closure`\n\
   sub-rule with a SPEC-0015 pointer). Presence-gate prior-art: SPEC-0015's empty-probe\
   \ rejection. The\ndeliberation lives in the plan [[forward-propagation-adoption-trigger-disposition-r]]\
-  \ (SPEC-0005 rule 3).\n\n## Verification\n\n- **VP1 (presence-gate, RED→GREEN):**\
+  \ (SPEC-0005 rule 3).\n\n### History moved from the rule body\n\nEach entry is a\
+  \ passage moved word for word out of the rule text of the section it names;\nthe\
+  \ rule it explains stays there.\n\n- From «The disposition»: (gate-specs / ad-hoc\
+  \ external finding, 2026-06-07)\n- From «Delivery + read-contract»: (External ad-hoc\
+  \ finding, 2026-06-07.)\n\n## Verification\n\n- **VP1 (presence-gate, RED→GREEN):**\
   \ an infra-class `task close` with no `propagation_disposition`\n  is REFUSED before\
   \ the change and accepted after only when a disposition is present — observe the\n\
   \  refusal flip. Evidence: the `task close` exit + `task_closed.data.propagation_disposition`.\n\

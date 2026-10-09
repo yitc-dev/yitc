@@ -771,6 +771,271 @@ def ceiling_growth_lines(findings: list) -> list:
             for w in findings or []]
 
 
+# ── Delivered-protocol weight (T7 sub-probe, T-13719) — report-only, NEVER a gate ─────────────
+# `durable_docs` above measures what a durable doc WEIGHS on disk. It says nothing about what is INSIDE
+# the text a spec DELIVERS to a reader, or how much each trigger delivers per firing. The 2026-10-08
+# hand measurement (history ~12-13% and code detail ~13% of delivered rule text; earlier one-off cuts
+# that regrew) had to be re-derived by hand, so this block makes the same measurement every T7 run.
+#
+# WHAT IS MEASURED. Per delivered spec, in the FORM its trigger hands the reader (the host renders it:
+# a task stage's contract view, the full `graph query` render a plan stage or floor trigger names, the
+# seed's one cue line): its bytes and an ESTIMATE of how much of it is HISTORY (provenance, incident
+# narrative, dates) and CODE DETAIL (file / function / test names). Per trigger: the bytes one firing
+# delivers × how often it fired in the window. Pure: every input is passed in, so a fixture repo drives
+# it exactly as the engine does.
+#
+# THE CLASSIFIER IS A HEURISTIC, CALIBRATED BY HAND. Text is cut into units (a paragraph, a bullet, a
+# YAML comment) and then into sentences; a sentence is history when it carries a date, two or more
+# narrative words or a dense run of ids with no rule word; code-reference tokens are code detail; a
+# YAML comment is code detail unless it reads as history. Six specs were classified by hand on
+# 2026-10-08 (SPEC-0204, SPEC-0124, SPEC-0060, SPEC-0036, SPEC-0046, SPEC-0005); the heuristic
+# under-counted body history by ~1.85x (SPEC-0124's retired block left out) and body code detail by
+# ~4.86x, so body counts are scaled by those factors and comment counts are not. The record names the
+# factors and says the figure is an estimate: one spec's figure can be off, the corpus total is the
+# figure the calibration supports.
+_DW_ID_RE = re.compile(r"\b(?:T|X|E|D|B|F)-\d{3,5}\b")
+_DW_DATE_RE = re.compile(r"\b20\d\d-\d\d(?:-\d\d)?(?:T[\d:]+Z?)?\b")
+_DW_NARRATIVE_RE = re.compile(
+    r"\b(measured|incident|happened|twice|thrice|three times|\d+ times|prior[- ]art|used to|previously"
+    r"|formerly|originally|re-?homed|was|were|had been|amended|absorbed (?:from|per)"
+    r"|audit-(?:pre|post) (?:finding|F\d)|finding \d|four-filter|bench|observed|lesson|motivat\w+"
+    r"|caught|recurr\w*|occurrences?|surfaced|born (?:from|of)|closes? the|this closes|the defect"
+    r"|the gap|the hole|precedent|same class|split (?:from|by)|moved (?:from|here)|replac(?:ed|es) the"
+    r"|retired by|superseded by|evidence)\b", re.I)
+_DW_CODE_RE = re.compile(r"`?(?:bin/lib/|tests/)[\w/.]+(?:#[\w.]+)?`?|`?\b\w+\.py(?:#\w+|:\d+)?\b`?"
+                         r"|`test_\w+`|\btest_\w+|`_[a-z]\w{3,}(?:\(\))?`|\b_[a-z]\w{3,}\(\)|\bcmd_\w+")
+_DW_RULE_RE = re.compile(r"\b(must|MUST|never|NEVER|refuses?|REFUSES?|only|ONLY|always|ALWAYS|do not"
+                         r"|DO NOT|required|forbidden|FORBIDDEN|should|may not|cannot|is a|are)\b")
+_DW_PAREN_RE = re.compile(r"\([^()]{3,500}\)")
+_DW_SENTENCE_RE = re.compile(r"(?<=[.;!?])\s+(?=[A-Z(*«\"`\[])")
+_DW_ITEM_RE = re.compile(r"^\s*(?:[-*+]|\d{1,2}[.)]|\([a-z0-9]{1,3}\)|\*\*\d)\s")
+
+
+def _dw_units(text: str) -> list:
+    """Cut one contract view into `(kind, text)` units: `S` a source line, `Y` YAML outside the body,
+    `C` a YAML comment, `Hd` a body heading, `B` a body paragraph or list item, `blank` a blank body
+    line. Every byte of `text` lands in exactly one unit."""
+    out: list = []
+    cur: list = []
+    kind = None
+    inbody = False
+
+    def flush():
+        nonlocal cur, kind
+        if cur:
+            out.append((kind, "".join(cur)))
+        cur, kind = [], None
+
+    for line in text.splitlines(keepends=True):
+        if line.startswith("# ── source"):
+            flush()
+            out.append(("S", line))
+            continue
+        if line.strip() and not line[0].isspace():
+            flush()
+            inbody = bool(re.match(r"body\s*:\s*\|", line))
+            if line.startswith("#"):
+                out.append(("C", line))
+                continue
+            m = re.match(r"^([^#]*?)(\s+#\s.*)$", line)
+            if m and not inbody:
+                out.extend([("Y", m.group(1) + "\n"), ("C", m.group(2))])
+            else:
+                out.append(("Y", line))
+            continue
+        if not inbody:
+            m = re.match(r"^(\s*)(#.*)$", line)
+            if m:
+                flush()
+                out.append(("C", line))
+                continue
+            m = re.match(r"^([^#]*?)(\s+#\s.*)$", line)
+            if m:
+                flush()
+                out.extend([("Y", m.group(1) + "\n"), ("C", m.group(2))])
+                continue
+            if kind != "Y":
+                flush()
+                kind = "Y"
+            cur.append(line)
+            continue
+        if not line.strip():
+            flush()
+            out.append(("blank", line))
+            continue
+        if re.match(r"^\s*#{1,4}\s", line):
+            flush()
+            out.append(("Hd", line))
+            continue
+        if _DW_ITEM_RE.match(line) and cur:
+            flush()
+        if kind is None:
+            kind = "B"
+        cur.append(line)
+    flush()
+    return out
+
+
+def _dw_fragment_class(t: str, paren: bool = False) -> str:
+    """`H` (history), `M` (code detail) or `R` (rule text) for one sentence or parenthetical."""
+    n, d = len(_DW_NARRATIVE_RE.findall(t)), len(_DW_DATE_RE.findall(t))
+    i, c, r = len(_DW_ID_RE.findall(t)), len(_DW_CODE_RE.findall(t)), len(_DW_RULE_RE.findall(t))
+    if paren:
+        if c and c >= i:
+            return "M"
+        return "H" if (d or n or i) else "R"
+    if c >= 2 and r == 0:
+        return "M"
+    if d and r <= 1:
+        return "H"
+    if n >= 2 and r == 0:
+        return "H"
+    if n >= 1 and i * 150 / max(len(t), 1) >= 1 and r == 0:
+        return "H"
+    if n + d >= 3 and n + d > r:
+        return "H"
+    return "R"
+
+
+def _dw_unit_bytes(kind: str, text: str) -> dict:
+    """`{"H": bytes, "M": bytes}` for one unit, at the unit's own byte length (unscaled)."""
+    b = len(text.encode("utf-8"))
+    if kind not in ("B", "C"):
+        return {"H": 0.0, "M": 0.0}
+    res = {"R": 0, "H": 0, "M": 0}
+    for sent in _DW_SENTENCE_RE.split(re.sub(r"\s+", " ", text).strip()):
+        rest = sent
+        for m in _DW_PAREN_RE.finditer(sent):
+            c = _dw_fragment_class(m.group(0), paren=True)
+            if c != "R":
+                res[c] += len(m.group(0).encode("utf-8"))
+                rest = rest.replace(m.group(0), "", 1)
+        c = _dw_fragment_class(rest)
+        if c == "R":
+            cb = sum(len(x.encode("utf-8")) for x in _DW_CODE_RE.findall(rest))
+            res["M"] += cb
+            res["R"] += len(rest.encode("utf-8")) - cb
+        else:
+            res[c] += len(rest.encode("utf-8"))
+    if kind == "C":                    # a YAML comment is a maintainer note unless it reads as history
+        res = {"H": res["H"], "M": res["M"] + res["R"], "R": 0}
+    tot = sum(res.values()) or 1
+    return {"H": res["H"] * b / tot, "M": res["M"] * b / tot}
+
+
+def delivered_text_shares(text: str, history_factor: float, code_factor: float,
+                          prose: bool = False) -> dict:
+    """The estimated history / code-detail bytes of one delivered text. Body counts are scaled by the
+    hand-calibration factors, YAML-comment counts are not; the two shares never sum past the text.
+    `prose=True` (a seed cue: plain text, not a spec render) measures the whole text as one body unit."""
+    total = len(text.encode("utf-8"))
+    h = m = 0.0
+    for kind, unit in ([("B", text)] if prose else _dw_units(text)):
+        got = _dw_unit_bytes(kind, unit)
+        scale_h, scale_m = (1.0, 1.0) if kind == "C" else (history_factor, code_factor)
+        h += got["H"] * scale_h
+        m += got["M"] * scale_m
+    h = min(h, total)
+    m = min(m, total - h)
+    return {"bytes": total, "history_bytes": round(h), "code_bytes": round(m),
+            "history_share": round(h / total, 4) if total else 0.0,
+            "code_share": round(m / total, 4) if total else 0.0}
+
+
+def delivered_weight_metrics(deliveries: dict, firings: dict, window: dict,
+                             threshold: float = 0.05) -> dict:
+    """The report-only `delivered_weight` block of a T7 run (T-13719). NEVER a gate.
+
+    `deliveries` = {trigger: {"form": <what one firing hands the reader>, "texts": {spec id: that
+    text, or None when it could not be produced}}} — the host resolves each trigger's OWN delivery
+    form: `stage-view` (a task stage's contract view), `full-render` (the `graph query` render a plan
+    stage or a floor trigger names for the reader to fetch), `seed-cue` (the one cue line session start
+    prints per seed spec). `firings` = {trigger: count, or None when nothing records that trigger
+    firing}; `window` = the firing window, recorded as given.
+
+    One spec row per (spec, form): bytes, estimated history / code-detail bytes and shares, the triggers
+    that deliver it in that form, and `over_threshold` = history + code share above `threshold` (5% per
+    spec, owner directive 2026-10-08). One row per trigger: its form, bytes per firing, firings, and
+    their product, and its `basis` — `delivered` (the verb prints it at every firing) or
+    `named-fetch-upper-bound` (the verb names it; the reader receives it only by fetching). The
+    product is None when the count is unknown (an unknown count is not zero) or the trigger is
+    incomplete. A (trigger, spec) whose text could not be produced is listed in `unresolved`, marks its
+    trigger `complete: false`, and is never measured as empty. The surface
+    count runs through the ONE result contract, so a run that measured nothing reads NO-DATA."""
+    hf, cf = 1.85, 4.86   # the 2026-10-08 hand calibration (see the banner above)
+    rows: dict = {}
+    trig_rows, unresolved = [], []
+    for trig in sorted(deliveries):
+        d = deliveries[trig] or {}
+        form, texts = d.get("form") or "unknown", d.get("texts") or {}
+        ids, per = [], 0
+        for sid in sorted(texts):
+            text = texts[sid]
+            if not text:
+                unresolved.append(f"{trig}:{sid}")
+                continue
+            key = (sid, form)
+            if key not in rows:
+                rows[key] = {"id": sid, "form": form, **delivered_text_shares(text, hf, cf, prose=form == "seed-cue"),
+                              "triggers": []}
+                rows[key]["over_threshold"] = (rows[key]["history_share"] + rows[key]["code_share"]
+                                               > threshold)
+            rows[key]["triggers"].append(trig)
+            ids.append(sid)
+            per += rows[key]["bytes"]
+        n = (firings or {}).get(trig)
+        complete = len(ids) == len(texts)
+        # WHAT `bytes` CLAIMS. A stage view and a seed cue line are PRINTED by the verb at every firing
+        # (`delivered`). A full render is what a plan stage, a floor trigger or the Filing read NAMES
+        # for the reader to fetch — it reaches the reader only when fetched, so per firing it is an
+        # upper bound (`named-fetch-upper-bound`). A trigger with an unresolved spec has no total:
+        # `delivered_bytes` is None (incomplete), never the partial sum.
+        trig_rows.append({"trigger": trig, "form": form, "specs": ids, "bytes": per, "complete": complete,
+                          "basis": "delivered" if form in ("stage-view", "seed-cue")
+                          else "named-fetch-upper-bound",
+                          "firings": n,
+                          "delivered_bytes": per * n if (n is not None and complete) else None})
+    specs = [rows[k] for k in sorted(rows)]
+    total = sum(r["bytes"] for r in specs)
+    out = {"window": dict(window or {}), "threshold_share": threshold,
+           "calibration": {"history_body_factor": hf, "code_body_factor": cf, "estimate": True,
+                           "basis": "6 specs hand-classified 2026-10-08 (SPEC-0204, SPEC-0124, "
+                                    "SPEC-0060, SPEC-0036, SPEC-0046, SPEC-0005); body counts scaled, "
+                                    "YAML-comment counts not; a per-spec figure is an estimate"},
+           "specs": specs, "triggers": trig_rows, "unresolved": unresolved,
+           "over_threshold": sorted({r["id"] for r in specs if r["over_threshold"]}),
+           "bytes": total,
+           "history_share": round(sum(r["history_bytes"] for r in specs) / total, 4) if total else 0.0,
+           "code_share": round(sum(r["code_bytes"] for r in specs) / total, 4) if total else 0.0}
+    out.update(result_contract(len(specs), []))
+    return out
+
+
+def delivered_weight_lines(dw: dict, indent: str = "    ") -> list:
+    """The printed face of the `delivered_weight` block: one headline, a row per spec over the
+    threshold (largest history + code bytes first), a row per trigger that delivers anything."""
+    lines = [f"  delivered-weight probe (T7 sub-probe, report-only, ESTIMATE): "
+             f"{result_contract_headline(dw)} bytes={dw['bytes']} "
+             f"history={dw['history_share']:.1%} code={dw['code_share']:.1%} "
+             f"over-threshold({dw['threshold_share']:.0%})={len(dw['over_threshold'])} "
+             f"unresolved={len(dw['unresolved'])} calibration=history x"
+             f"{dw['calibration']['history_body_factor']} / code x{dw['calibration']['code_body_factor']}"]
+    rows = sorted((r for r in dw["specs"] if r["over_threshold"]),
+                  key=lambda r: (-(r["history_bytes"] + r["code_bytes"]), r["id"]))
+    for r in rows:
+        lines.append(f"{indent}{r['id']} ({r['form']}) bytes={r['bytes']} history={r['history_share']:.1%} "
+                     f"code={r['code_share']:.1%} [{', '.join(r['triggers'])}]")
+    for t in dw["triggers"]:
+        if not t["specs"]:
+            continue
+        fired = "firings=unknown" if t["firings"] is None else f"firings={t['firings']}"
+        total = ("total=incomplete" if not t["complete"] else
+                 "" if t["delivered_bytes"] is None else f"total={t['delivered_bytes']}")
+        lines.append(f"{indent}trigger {t['trigger']} ({t['form']}, {t['basis']}) bytes={t['bytes']} "
+                     f"{fired} {total}".rstrip())
+    return lines
+
+
 # ── The SERVED roster parts (T-11179, SPEC-0120 §3) ───────────────────────────────────────────
 # The roster is ONE living home SPLIT across several files for loadability (SPEC-0120 §3
 # SPLIT-never-delete). Until now the three readers below only ever saw the PARENT file, because the
@@ -913,7 +1178,26 @@ def resolved_checklist_criteria_ref(parts, theme: str) -> str:
     whole-part hash is impossible by construction."""
     rel, text = resolve_roster_part(
         parts, lambda t: theme_checklist_text(t, theme), f"'### {theme}' lens-checklist")
-    return checklist_criteria_ref(text, theme, rel)
+    return checklist_criteria_ref(text, theme, rel, companions=theme_companion_sections(parts, theme))
+
+
+def theme_companion_sections(parts, theme: str) -> str:
+    """The `## …` sections, in served-part order, whose heading says it is SERVED FROM `§<theme>` — a
+    lens that belongs to the theme's checklist but lives in another part because the theme's own part
+    sits at the byte ceiling (T-13719: the T7 delivered-protocol-weight lens in part 2). Each runs from
+    its heading to the next `## ` heading or EOF. Folded into the theme's freshness hash, so an edit to
+    the companion makes a recorded run of that theme stale exactly as an edit to the theme's own section
+    does. `""` when no part carries one — every other theme's hash is then unchanged."""
+    head_re = re.compile(rf"^## .*\bserved from §{re.escape(theme)}\b")
+    out = []
+    for _rel, text in parts:
+        lines = text.splitlines()
+        for i, ln in enumerate(lines):
+            if not head_re.match(ln):
+                continue
+            end = next((j for j in range(i + 1, len(lines)) if lines[j].startswith("## ")), len(lines))
+            out.append("\n".join(lines[i:end]).rstrip() + "\n")
+    return "".join(out)
 
 
 def resolved_tier_criteria_ref(parts, tier: str) -> str:
@@ -972,13 +1256,14 @@ def theme_checklist_text(roster_text: str, theme: str) -> str:
     return "\n".join(lines[start:end]).rstrip() + "\n"
 
 
-def checklist_criteria_ref(roster_text: str, theme: str, roster_rel: str) -> str:
+def checklist_criteria_ref(roster_text: str, theme: str, roster_rel: str, companions: str = "") -> str:
     """The freshness-bearing `criteria_ref` for a theme run: `<roster_rel>#<theme>@<sha256[:12]>` — the
     living-criteria LOCATION plus a content hash of the theme's lens-checklist section. A later run-mode
     freshness check re-computes this and compares: a differing hash ⇒ the checklist edited since the
     recorded run ⇒ that theme run is STALE (re-run warranted). Raises ValueError via theme_checklist_text
-    when the theme section is absent."""
-    section = theme_checklist_text(roster_text, theme)
+    when the theme section is absent. `companions` (T-13719) is the theme's companion-section text
+    (`theme_companion_sections`), hashed after the section; empty leaves the hash as it always was."""
+    section = theme_checklist_text(roster_text, theme) + (companions or "")
     digest = hashlib.sha256(section.encode("utf-8")).hexdigest()[:12]
     return f"{roster_rel}#{theme}@{digest}"
 
@@ -1291,11 +1576,16 @@ def sweep_payload_advisory(sp: dict) -> str:
 def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _append_event, _die,
                        REPO_ROOT=None, ENGINE_ROOT=None, _read_yaml=None, CANONICAL_DOCS=None,
                        _case_review=None, INSPECTED_CONSUMER=None, KERNEL_THEME_OWNER=None,
-                       _review_due=None) -> None:
+                       _review_due=None, _delivered_weight=None) -> None:
     """Emit exactly ONE `inspection_completed` event for a theme run (SPEC-0057 §6 proof-of-performance,
     even on zero findings) with a REAL checklist-hash `criteria_ref`. Owner-invoked, manual-first — no
     cron. The emit is an append-only journal write (the D-0049 no-worktree exception), so this verb runs
     from any checkout.
+
+    A **T7** run ALSO carries the report-only `delivered_weight` block (T-13719) when the host injects
+    the zero-arg `_delivered_weight` fold: per delivered spec, its bytes and estimated history / code
+    share; per trigger, bytes x firings (`delivered_weight_metrics`). Same contract as `durable_docs`:
+    additive, never a gate, and a caller omitting the fold simply skips the block.
 
     For a **T7** run the event ALSO carries the report-only `durable_docs` block (SPEC-0120, T-9775) —
     per-doc size + Cyrillic-line counts over the durable-doc set — computed against the injected
@@ -1413,6 +1703,10 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     if theme == "T7" and REPO_ROOT is not None and CANONICAL_DOCS is not None:
         durable = durable_doc_metrics(REPO_ROOT, ENGINE_ROOT, CANONICAL_DOCS)
         data["durable_docs"] = durable          # report-only fields (SPEC-0120 §4) — additive, P5-safe
+    delivered = None
+    if theme == "T7" and _delivered_weight is not None:
+        delivered = _delivered_weight()
+        data["delivered_weight"] = delivered    # report-only, additive (T-13719) — the durable_docs shape
     # SPEC-0178 rules 7+9 (T-11159) — the exemption-case REVISION block on a T8 run. T8 ("Adoption —
     # done = adopted") is the theme that already asks whether a shipped mechanism is actually alive,
     # and it already hosts a report-only sub-lens of this exact shape (reverse-adoption), so the
@@ -1573,3 +1867,8 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
               "must-split (>=800); bytes over-band (>40000) / over-ceiling (>=63000 ~ the 25K-token "
               "one-bounded-read page cap). A DENSE doc can pass the line axis and still be "
               "single-read-unsafe — the byte axis catches it.)")
+    if delivered is not None:
+        for _line in delivered_weight_lines(delivered):
+            print(_line)
+        print("  (report-only CANDIDATES — never a gate; history + code share above the threshold is a "
+              "T7 finding only with no open card, roster part 2 §Delivered-protocol-weight lens)")

@@ -78,12 +78,8 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ leg (declare-or-waive)\nR2's pin proves CODE IDENTITY (the no-local-diff HEALTH\
   \ check — a consumer's pinned copy equals its\nupstream pin), but identity is NOT\
   \ SURFACE COVERAGE. A consumer can pin a library correctly and still\nadopt only\
-  \ a FRACTION of the surface it ships — invisibly. Incident **X-0543** (<project>,\
-  \ 2026-07-19):\n<project>'s adoption ran 6/15 endpoints, ZERO UI, ZERO ops checks\
-  \ for weeks; the owner discovered\nthe partial adoption by eye, after ~10 remediation\
-  \ tasks, 2 breaking pin bumps, alembic chain breaks and\nan enum mismatch. The green\
-  \ pin read as \"adopted\" the whole time. R6 closes that blind spot.\n\n- **(a)\
-  \ The consumer-integration MANIFEST (the library ships it).** A pinned dependency\
+  \ a FRACTION of the surface it ships — invisibly. R6 closes that blind spot.\n\n\
+  - **(a) The consumer-integration MANIFEST (the library ships it).** A pinned dependency\
   \ SHOULD ship —\n  or point at — a consumer-integration manifest: the DECLARED surface\
   \ a consumer is expected to wire\n  up, across five surface kinds — **endpoints,\
   \ UI, ops checks, automation, per-release upgrade-steps**.\n  The manifest is authored\
@@ -252,14 +248,20 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ This spec cites SPEC-0073 (the placement contract it extends), SPEC-0084 (the\
   \ territory\ncontract that forbids the in-place edit and provides the cross-request\
   \ routing on escalation), and\nCHARTER §Principle 1 (lightest-mechanism / name-the-retirement).\n\
-  \n## Verification\n\n- **Activation probe (AC#1):** `bin/yitc-v2 graph query SPEC-0122`\
-  \ shows `status: active` after\n   `task close`.\n- **Content probe (AC#2):** the\
-  \ shipped spec body weighs all three mechanisms (vendor-in /\n  register-as-own-project\
-  \ / pinned-dependency-contract — R2/R3/R4) and names the retirements (R5);\n  verifiable\
-  \ in the spec diff.\n- **Adoption-exercise probe (AC#3):** the apify-client case\
-  \ (three consumers → R3(a) escalation to\n  register-as-project) is recorded in\
-  \ the body; verifiable in the diff.\n- **Delivery probe:** `bin/yitc-v2 graph query\
-  \ --type view consumer-dimension-bundle` (and the\n  derived `graph/floor-trigger-map.md`)\
+  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names;\nthe rule it explains stays\
+  \ there.\n\n- From «R6»: Incident **X-0543** (<project>, 2026-07-19): <project>'s\
+  \ adoption ran 6/15\n  endpoints, ZERO UI, ZERO ops checks for weeks; the owner\
+  \ discovered the partial adoption by eye,\n  after ~10 remediation tasks, 2 breaking\
+  \ pin bumps, alembic chain breaks and an enum mismatch.\n  The green pin read as\
+  \ \"adopted\" the whole time.\n\n## Verification\n\n- **Activation probe (AC#1):**\
+  \ `bin/yitc-v2 graph query SPEC-0122` shows `status: active` after\n   `task close`.\n\
+  - **Content probe (AC#2):** the shipped spec body weighs all three mechanisms (vendor-in\
+  \ /\n  register-as-own-project / pinned-dependency-contract — R2/R3/R4) and names\
+  \ the retirements (R5);\n  verifiable in the spec diff.\n- **Adoption-exercise probe\
+  \ (AC#3):** the apify-client case (three consumers → R3(a) escalation to\n  register-as-project)\
+  \ is recorded in the body; verifiable in the diff.\n- **Delivery probe:** `bin/yitc-v2\
+  \ graph query --type view consumer-dimension-bundle` (and the\n  derived `graph/floor-trigger-map.md`)\
   \ surface SPEC-0122 at `before-project-dimension-judgement`\n  alongside SPEC-0073/0090/0093.\n\
   - **Reuse-doctrine content probe :** the shipped body carries the `## Reuse across\n\
   \  projects` section with all five doctrine parts (STEP-0 ownership filter; the\

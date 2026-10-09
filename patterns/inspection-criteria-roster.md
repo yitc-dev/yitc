@@ -121,6 +121,7 @@ runs or gates an inspection (SPEC-0057 §2 manual-first is unchanged; surfacing 
 | Reverse-adoption — runtime-vs-shipped divergence (live code with no governed-deploy provenance · proof debt · live-probe vs declared surface · host reconciliation drift) | T8 | monthly | run the 4 probes in §T8 → **reverse-adoption (runtime-vs-)** (part 5) (each read-only); report-only; a probe that could not run reports **not-run**, never "clean" | SPEC-0057; X-0366 |
 | Production-readiness — what this project's derived profile REQUIRES and its `yitc-ops.yaml` does not answer | production-readiness lens (report-only; NOT a T1..T10 slot) | monthly, 20-minute box, since-last-run watermark (`inspection_completed`) | `bin/yitc-v2 [-C <repo>] debt` — read the rule-39 gap line — then `bin/yitc-v2 [-C <repo>] profile`; file AT MOST 1 profile-mismatch + 2 top-risk items per project per run, and record "no gap" EXPLICITLY when there is none; an admission claim needs the code read (part 2 F-#2a) | SPEC-0198; SPEC-0119 rule 39; SPEC-0100; |
 | Done log size | T7 | monthly | observed grep/tooling friction ONLY — the ~500/~1500 marks are history, not triggers; KEEP-FLAT re-decided, count-branch retired | QUEUE.md §Done log;; |
+| First-pass audit RED / YELLOW shares per project — task audit-pre / audit-post and five plan gates, vs baseline | T5 | monthly | the fold in §T5 → **standing first-pass audit probe** (part 3): `graph query outcome-ratio` at two `--until` dates + `journal query` plan-gate rows; one `measurement_recorded` row per month; over baseline by >5 points 2 months running → a filed card or plan | plan `author-passes-audit-on-the-first-try-give-the-auth` §Verification plan; owner directive events.jsonl#ts=; SPEC-0057; |
 | Ready-queue age by priority/class (not only blocked) + briefs of security-class cross items (G12) | T5 | weekly | `bin/yitc-v2 task list` + `bin/yitc-v2 cross inbox` | SPEC-0057; |
 | Kernel-lifecycle residue graded: worktree claims, land residue dirs, lifecycle-integrity scope, pause residue (G13) | T6 | weekly | claims: `git worktree list` vs `bin/yitc-v2 journal query --type worktree_created`; land residue: `ls.yitc/land-logs/` + `git branch --list 'task/*' 'work/*'`; lifecycle integrity: `bin/yitc-v2 debt`; pauses: `bin/yitc-v2 journal query --type task_paused` | SPEC-0057; |
 | New owner observations → file new tasks | — | per session | `task file` | QUEUE.md §Re-review |
@@ -557,6 +558,16 @@ build`, then read §HARD PROBE — EVERY numbered probe there MUST read `PASS`.
   weight ~3x; never report it as tokens. Watched, not failed.
 - **Probe null ≠ clean (F-#2):** a clean result is "swept N seed sections, probes (1)-(3) = 0 — PASS"
   (the inventory's section-audience-map row count is the swept-surface evidence).
+
+**Delivered-protocol-weight sub-probe (report-only).** What a delivered spec carries inside
+(history + code-detail share, threshold 5% per spec) and what each trigger delivers × its firings —
+nine probes P1-P9, the `delivered_weight` block this theme's `inspect record` run attaches, severity
+and the null ≠ clean line: the lens table is in part 2 (`patterns/inspection-criteria-roster-run-and-lenses.md`
+§Delivered-protocol-weight lens). Each run also takes two steps there : **P10 RE-CHECK** — two
+specs trimmed since the last T7 run, every line of the trimming card's committed rule inventory checked
+against the current delivered body and every MOVED home (the check: SPEC-0005 §3, `bin/yitc-v2 graph
+query SPEC-0005`); a miss is a `deviation_captured` — and **P11 RANKING** — the top 5 specs by
+`stage_entered` deliveries × current contract-view bytes, the heaviest labelled by the SPEC-0005 §3 classes.
 
 **T7 sub-probe — hand-executed-procedure-should-be-a-verb (report-only candidate; per the 2026-07-04 kernel prose-vs-verb meta-analysis).**
 A large AUTHORED-PROSE procedure the AI RE-READS and HAND-EXECUTES (a multi-step checklist / runbook /

@@ -44,8 +44,8 @@ the actual rule-text (this is a sequence, not a restatement).
    `duplicate-plan-for-already-shipped-cross-request-x0140`).
    **A cross-INBOX item you are about to take in is governed — read the rule, don't re-derive it here:**
    the receiver-side premise review owed before any `cross pick` / `resolves_cross` filing (what to verify,
-   and the four outcomes incl. the requester-visible reframe duty) is homed in **SPEC-0086 rule 7**
-   (`bin/yitc-v2 graph query SPEC-0086`) — this step only CUES it (pointer, not a restatement — P5).
+   whose matter it is, and the four outcomes incl. the requester-visible reframe duty) is homed in
+   **SPEC-1010** §3 — this step only CUES it (pointer, not a restatement — P5).
 2. **Classify each item inline — the one-question test.** binding rule → a `spec` · UX / user-path →
    a `scenario` step + task · chore → a hygiene task · kernel / another project → the cross-log ·
    genuinely-later → `ideas/`. For a scenario item, sweep the FULL surface (every scenario + narration

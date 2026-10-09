@@ -140,13 +140,9 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 - **Either mode — sweep before you absorb (rule: SPEC-0036 §Absorption sweep).** Search the whole audited subject for the
   same defect class and fix or record each instance; state the sweep — where you looked, what you found — as `--sweep "<text>"`: beside `--absorb "<text>"` for mode (b), and on a TASK's `audit pre|post` re-run after the edited plan/card text for mode (a). A plan gate's mode-(a) re-audit writes no absorption row, so there the sweep is stated in the edited plan text, not through the flag. On the routes that write a row, an absorption without the statement still proceeds and its `audit_finding_absorbed` row records `sweep: not stated`, so a miss stays countable.
 
-**Ceiling interaction, and what happens AT the ceiling:** the ceiling counts **re-audit passes**, and
-mode (a) is the only thing that generates one (mode (b) closes a residual without a re-audit, so it
-neither starts nor evades a pass). It is homed in **SPEC-0124 §Audit-loop ceiling**; what happens ONCE
-IT IS REACHED, in **SPEC-0204** — the Controller records ONE typed decision per residual (`audit
-decide`), then exactly ONE pass runs on them (`--on-decisions`); a dispatched Worker never decides, it
-HALTS naming its residual fingerprints (`audit pre|post` itself emits the halt row; the Worker then runs `task pause <task> --reason audit-ceiling` in the worktree and later resumes with `task resume` + `audit pre|post --on-decisions`). Consult episodes, `--owner-reset` and `--reopen` are RETIRED
-and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
+> **At the audit-loop ceiling — the core is SPEC-0036 §Audit-loop ceiling** (this stage's bundle delivers it); it names **SPEC-0124** (§Audit-loop ceiling: what counts as a pass) **+ SPEC-0204** (what happens once the ceiling is reached), fetched at their trigger. `bin/yitc-v2 graph query SPEC-0204`
+
+**That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 
 **Done when:** audit verdict GREEN or YELLOW-absorbed. Event `audit_pre_completed` emitted with verdict + finding count.
 
@@ -198,22 +194,14 @@ and REFUSE with that pointer. Never silent-loop. **That ceiling is the TASK budg
   (`task commit --fix-red` —, admitted only on a commit carrying authored content; when the RED's ONLY fix is the card's own record, its `--card-repair` arm —, admitted instead on proof the audited ship it rides on exists), else revert or escalate (`blocked-on-land`, SPEC-0103) when the cause is out-of-scope or environmental. AT the audit-loop ceiling the route is **SPEC-0204**, not a consult or a reset (§Stage 4 ceiling).
 - **ABORT** = STOP. Auditor unavailable or output malformed. Surface to owner.
 
-**Deferred-adoption edge cases — one family, five variants named here** (SPEC-0036's overlay table is the full, authoritative set — it also carries `--external-action`, `--preshipped-deliverable` and the `--zero-ship-diff` short-circuit). For these ships the adoption proof legitimately does not exist yet at the diff-only, pre-land Stage-8 audit-post, so a base audit-post false-REDs "adoption missing"; run audit-post with the variant's overlay flag, which tells the auditor the absence is the NORMAL ordering for that ship, never a defect. The variants:
+**Deferred-adoption edge cases — one family** (event-emit-only ships, serve/deploy ships, host-config ships, land-emitted non-P8 acceptance-event ships, post-ship-observation ships). For these ships the adoption proof legitimately does not exist yet at the diff-only, pre-land Stage-8 audit-post, so a base audit-post false-REDs "adoption missing"; run audit-post with the variant's overlay flag, which tells the auditor the absence is the NORMAL ordering for that ship, never a defect.
 
-- **(a) event-emit-only ships** — ship = single `events.jsonl` event emission (adoption probe per CHARTER §Principle 8, not a code diff); base audit-post may RED-flag closure-metadata absence as a defect — category mismatch since closure work IS Stage 9 following Stage 8. Flag: `audit post --task T-XXXX --event-emit-only` (overlay: the not-yet-emitted P8 event's absence is EXPECTED). See `patterns/event-emit-only-audit-post.md` for the absorption protocol; closure proceeds via Stage 9 hand-edit fallback if AC probes verified independently.
-- **(b) serve/deploy ships** (SPEC-0094 §5) — ship = a live deploy (an ACTION, not a code diff); live-adoption is proven at the deploy seam + recorded at Stage-9 Closure (the per-change `live_probe` evidence), AFTER audit-post. Flag: `audit post --task T-XXXX --serve-deploy`.
-- **(c) host-config ships** (SPEC-0094 §3 / SPEC-0111) — the `host_config: true` marker; adoption proof is the THREE hostapply evidences (`apply_confirmed` / `host_health_sweep_passed` / `host_reconciliation_recorded`) recorded by the SPEC-0111 apply seam at Stage-9 Closure, AFTER audit-post. Flag: `audit post --task T-XXXX --host-config`. Those 3 evidences, when they exist, are ALSO surfaced to audit-post as task_id-tied adoption evidence, and a task ceilinged on a since-fixed false-RED earns ONE ceiling-exempt re-audit (the TASK lens-version axis, `bin/yitc-v2 graph query SPEC-0036`) — so a host_config task closes cleanly without the Stage-9 hand-edit.
-- **(d) land-emitted non-P8 acceptance-event ships** (SPEC-0036 / X-0188) — acceptance probe is a NON-P8 event **emitted by `land` at Stage 9** (e.g. `verify_layer_prep`), so it legitimately does not exist yet at the pre-land Stage-8 audit-post. The `--event-emit-only` overlay is P8-CLOSURE-event-specific (`consumer_read_evidence` / `live_trigger_evidence`), so it does NOT cover an arbitrary land-emitted acceptance event and the base audit-post false-REDs "acceptance probe not satisfied". Flag: `audit post --task T-XXXX --land-emitted-event` (recorded `land_emitted_event: true` in the saved verdict YAML; --task audit-post only). The GENERALIZATION of the event-emit-only carve-out to a NON-P8 event.
-- **(e) post-ship-observation ships** (SPEC-0036 / X-0710) — the acceptance proof is a **multi-day post-ship PRODUCTION OBSERVATION** (<project> : «the daily count is flat or falling over 7 days»), so the reading cannot exist at the pre-land, diff-only audit-post — its window opens only after the ship. Flag: `audit post --task T-XXXX --post-ship-observation` (recorded `post_ship_observation: true` + `post_ship_observation_due_by:`; --task audit-post only). **Not a blanket excuse — the deferral is TRACKED:** the flag is fail-closed on the card's own `post_ship_observation: {observation, due_by}` declaration (SPEC-0028), re-verified at the `task close` seam, and the pending observation stays on the `overdue-recheck` debt view (the session-start debt echo) from declaration until a `settled_by` locator names where the recorded reading landed — time passing never discharges it.
+> **Retrieved — SPEC-0036** (§Task per-stage overlays — the overlay table: each variant's flag, scope, guard and recorded marker, and which overlays the verb derives from the card's own declaration; delivered at the Audit-post stage-entry). `bin/yitc-v2 graph query SPEC-0036`
+
+**Event-emit-only ships.** See `patterns/event-emit-only-audit-post.md` for the absorption protocol; closure proceeds via Stage 9 hand-edit fallback if AC probes verified independently.
 
 **The family is CLOSED against a declaring-card variant — that shape is the card-repair ROUTE, not a
-sixth member (X-1240).** A carrier-/entry-DECLARING card (its deliverable IS a declaration —
-a live entrance, a carrier, a host config) cannot read the evidence of its own declaration before the
-land, so its RED names the evidence the CARD RECORDS as stale. Do NOT reach for an overlay of your
-own: the ORDERING half is covered by whichever member above matches the ship (`host_config` /
-`serve-deploy`), DERIVED from the card's own declaration — so a card that took that
-false-RED is a card missing its declaration — and re-recording the evidence is a bookkeeping-only fix,
-which is `task commit --fix-red --card-repair` (SPEC-0015 §Internal).
+sixth member (X-1240).** Rule: SPEC-0036, the same section.
 
 **Done when:** audit verdict GREEN or YELLOW-with-followup-filed (ids recorded by `audit post --followup`; `task close` does not gate on it).
 
@@ -292,29 +280,11 @@ stage, runs the stage side-effects, and DELIVERS SPEC-0034's matching slice at s
 Unlike the task lifecycle's single binary hygiene fast-path (§Two flow types), the plan
 lifecycle has **no single hygiene-style fast-path**: every plan transits the same FSM, but
 **one stage (`trial`) is conditionally skipped by owner judgement** and the remaining
-differences are **gate-WEIGHT variations**, not skipped stages. This view consolidates the
-per-shape routing for discoverability; the rule bodies live in the cited specs — nothing is
-restated here (P5).
+differences are **gate-WEIGHT variations**, not skipped stages.
 
-- **`trial` — one OPTIONAL owner-judged stage (SPEC-0035).** The default path is
-  `specs → accepted` directly. `trial` is entered ONLY for trial-ELIGIBLE plans
-  (mechanism/behavioral, not honestly text-audit-verifiable) and ONLY on owner invocation —
-  it is a real stage that some plans skip, NOT a generic lightening. For a trial-eligible
-  plan the `plan check` role NARROWS: it is no longer the design-convergence gate (the trial
-  soak is), only the assembled-package audit. Rule: `graph query SPEC-0035`.
-- **Big-plan checklist — a gate-WEIGHT variation, not a skipped stage (SPEC-0034).**
-  `plan check` (FULL capability) runs for EVERY plan at the `draft → accepted` accept-gate
-  (SPEC-0034); only the extra big-plan checklist + `checklist_pass` is LARGE-plan-only. This is NOT a
-  settled "~200 lines / purely automatic" threshold — the apply-when criteria are substantive
-  (`patterns/big-plan-checklist.md`); the current implementation's line-count auto-flag is an
-  aid, not the normative trigger. Rule: `graph query SPEC-0034` §Mandatory big-plan check +
-  `patterns/big-plan-checklist.md`.
-- **Spec-corpus finalization audit — present only for spec-bearing plans (SPEC-0034 / SPEC-0070).**
-  A task-only / spec-free plan skips the spec-corpus aggregate `audit post --plan` surfaces
-  (auto-skipped by the shared finalization helper). It does NOT skip the rest: `postcheck`
-  still requires its cited tasks done + the probe block, and `realized` still requires its
-  other exit gates. The decomposition cut SET is gated by the mandatory external
-  decomposition-fidelity audit (SPEC-0070) for EVERY plan. Rule: `graph query SPEC-0070`.
+> **Retrieved — SPEC-0034 §Plan TYPES** (the per-shape view: which axis of a plan changes its path
+> through the FSM or the weight of a gate, each with its rule home; delivered at `plan file` and at the
+> entry of each linear stage). `bin/yitc-v2 graph query SPEC-0034`
 
 ## Resume contract
 <!--AUDIENCE:core-->
@@ -364,10 +334,3 @@ If during any stage you discover a new task:
 - Cross-project issue → file a `bin/yitc-v2 cross request` coordination item on the shared coordination log addressed `to:<project>` (governed by SPEC-0084/85/86), don't implement
 
 Filing IS work product (CHARTER #6 + LIFECYCLE Stage 2). Don't pretend tasks don't exist by skipping filing.
-
-## Refs
-<!--AUDIENCE:core-->
-
-- Distilled from: `yitc-workspace/task-lifecycle-canonical-spec-2026-05-24.md`
-- Done = Adopted enforcement: CHARTER Principle 3
-- Anti-complexity filters: CHARTER Principle 1

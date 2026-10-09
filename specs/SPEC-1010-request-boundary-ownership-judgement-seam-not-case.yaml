@@ -1,0 +1,384 @@
+id: SPEC-1010
+title: 'Request-boundary ownership judgement — seam, not case: whose shape a project-kernel
+  request is, judged on both sides, and the project never waits'
+status: active
+created_at: 2026-10-07 11:20:00+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/cross.py#premise_review_cue
+- bin/lib/cross.py#kernel_reflex_echo
+body: "## Scenario\n\nA project meets something the kernel does not handle the way\
+  \ the project works. The project does\nnot stop and does not ask permission: it\
+  \ decides whose matter this is, keeps working its own way,\nand — only if the kernel\
+  \ itself is at fault or a seam is missing — sends the matter on by the route\nit\
+  \ has, without waiting for an answer. When such a matter reaches the kernel, the\
+  \ kernel asks the\nsame question before taking it: a fault in what the kernel promised\
+  \ is fixed in the kernel; a\nconvention the project chose is answered with a place\
+  \ for the project to declare it, never with one\nmore special case in the kernel.\
+  \ Neither side's freedom removes a required check.\n\n## Internal\n\n> **SUPERSEDES\
+  \ <workshop-spec>.** THE NORMATIVE CHANGES, in full: (1) section 3 gains the ownership\n\
+  > judgement before any take, and every triage note now names the ownership class;\
+  \ (2) section 5\n> routes a reproduced DEFECT of the public intake under that judgement\
+  \ instead of sending it to a\n> card unconditionally, and routes a PROVEN NEED of\
+  \ that intake the same way — it becomes a card or\n> a plan only where the judgement\
+  \ requires receiver work, no longer unconditionally; (3) sections 1,\n> 2 and 4\
+  \ are NEW — the shared judgement, the requester side and the bound; (4) section\
+  \ 3 states\n> which triaged items carry no ownership answer (an unclear premise,\
+  \ a false premise, a fact only\n> the requester holds) and that a fact about the\
+  \ receiver's own contracts is read by the receiver,\n> never bounced. Everything\
+  \ else in section 3, and the remaining clauses of section 5 (the want /\n> one-off\
+  \ / friction-only decline, the duplicate link, «every proposal is answered» and\
+  \ the worked\n> example), are carried from <workshop-spec> word for word.\n> Routed\
+  \ as a SUPERSEDE because (1) and (2) change what a receiver must do in an already-covered\n\
+  > case (SPEC-0005 rule 7's discriminating probe): a reproduced DEFECT is taken today,\
+  \ and after this\n> spec is first judged for ownership and may be declined with\
+  \ a project remedy.\n\nTHE GOVERNING AIM, against which every rule below is read:\
+  \ a project is free in what is its own\nspecifics, and it is not made to wait. The\
+  \ receiver side exists to serve that aim.\n\n### 1. The ownership judgement — one\
+  \ question, asked on both sides\nWhoever asks it, the question is the same: is this\
+  \ a violation of a contract the RECEIVER already\ncarries, or a convention the REQUESTER\
+  \ selected for itself? The two classes are named **receiver\ncontract** and **requester\
+  \ convention**, for every receiver — the kernel, or a project that\nreceives a request\
+  \ from another project.\n  - **A receiver contract** is the receiver's own obligation\
+  \ and is repaired by the receiver. On\n    the project-kernel boundary the kernel's\
+  \ contracts are: encoding and path correctness, the\n    faithful reading of a valid\
+  \ declaration, syntax the kernel already promises to recognize, a\n    crash, a\
+  \ refusal whose own stated reason is false.\n  - **A requester convention** is the\
+  \ requester's. It is answered with a declaration the requester\n    fills, never\
+  \ with a special case in the receiver.\n  - **Where an incident surfaced does not\
+  \ establish whose it is.** A Cyrillic path the kernel failed\n    to decode (X-1237)\
+  \ surfaced in a project and was the kernel's own defect (SPEC-0185 §2a(i)).\n**A\
+  \ third honest answer — a NEW receiver capability.** A request for something the\
+  \ receiver never\npromised and that is not specific to the requester (a general\
+  \ capability any project could use) is\nneither class: it is named **new receiver\
+  \ capability**, and the existing triage classes alone\ndecide it (section 3 — a\
+  \ PROVEN NEED is taken, a want is declined). The two-class question applies\nto\
+  \ how the receiver handles something of the REQUESTER's; it is not stretched over\
+  \ a plain\nfeature need.\n**Telling a convention from a new capability — judge the\
+  \ REQUESTED BEHAVIOUR, not the motive.** A\nrequest that asks the receiver to recognize\
+  \ or accommodate the requester's own form is a requester\nconvention, even when\
+  \ others might use the result. A request for behaviour that would be the same\n\
+  for every requester whatever its form is a new receiver capability, even when one\
+  \ requester's\npreference prompted it. Where both descriptions fit, the requester-convention\
+  \ test of section 3\napplies — the stricter of the two.\nThe judgement is the judging\
+  \ side's own: no detector, classifier, status or field carries it.\n\n### 2. Requester\
+  \ side — the project decides, and does not wait\nAt the capture of a kernel-touching\
+  \ deviation the project makes the judgement of section 1 ITSELF\nand takes ONE of\
+  \ three choices. In every one of them the project continues any lawful project work\n\
+  without awaiting the kernel's judgement.\n  - **(a) OWN** — the matter is the project's\
+  \ own specifics. The project works its own way and\n    continues: an ordinary local\
+  \ convention needs no binding rule. Its capture is marked `realm:\n    project`;\
+  \ where the capture's own wording names the kernel, the project records the EXISTING\n\
+  \    `not-kernel` disposition for it (SPEC-0085 §3), so the routing near-miss warning\
+  \ is answered\n    once instead of repeating. Where the kernel reads a declaration\
+  \ for that surface, the project\n    declares it in its ops contract (SPEC-0093);\
+  \ where the project wants a NEW binding rule of its\n    own, it authors a project-own\
+  \ spec, which binds once active. No kernel item is filed and no\n    kernel consent\
+  \ is asked. This choice is ALWAYS open to a project for its own specifics.\n  -\
+  \ **(b) KERNEL** — a kernel contract is violated. The capture is marked `realm:\
+  \ kernel` and the\n    project continues with its other work. For the blocked action\
+  \ itself the escape is the one\n    SPEC-1000 gives the installations it covers;\
+  \ this spec adds no escape of its own.\n  - **(c) BOTH** — the project works its\
+  \ local way (as in (a)) AND sends the matter on, then\n    continues. Two cases,\
+  \ and they travel differently:\n      - *whose it is cannot be settled now* — it\
+  \ is sent as a possible contract violation, exactly\n        as (b): a `realm: kernel`\
+  \ capture. The receiver's triage settles it (section 3).\n      - *the convention\
+  \ would be better served by a seam the kernel lacks, and the local\n        arrangement\
+  \ already carries the work* — that is a kernel FEATURE ask, never a bugfix: it\n\
+  \        is NOT marked `realm: kernel`. It is held on the project's side as a followup\
+  \ until the\n        owner authorizes sending it, and the project keeps working\
+  \ its local way meanwhile.\n        (A gap that BLOCKS the work — the work needs\
+  \ something the kernel does not provide, and\n        no local arrangement carries\
+  \ it — is not this case: it is the capability gap of SPEC-1000\n        rule 1 and\
+  \ is recorded and routed as that spec says.)\n    «Provisional» names the local\
+  \ arrangement's intended lifetime only: it is not a status, and it\n    gives no\
+  \ proposed spec early authority.\n**«Sends the matter on» means the route that EXISTS\
+  \ for this project** — the branches of SPEC-0085\n§3, none added, and on that section's\
+  \ FULL conditions. A capture is filed to a kernel that is a\nregistered peer on\
+  \ the host, at capture time and with no owner gate, only when it carries BOTH the\n\
+  kernel realm and the kernel target, the sending checkout's own identity is registry-confirmed,\
+  \ and\nthe append succeeds (or the router's own dedup reports this capture's item\
+  \ as already filed). A\nfingerprint is a link, not an identity — two projects may\
+  \ share one — so a sending is tied to ITS\ncapture by the item's author project\
+  \ and its `origin_ref` naming that capture, recorded with the\nitem's cross id.\
+  \ The router's dedup is by fingerprint across ALL items, so a capture it suppresses\n\
+  because ANOTHER project's item already carries that fingerprint is NOT a sending\
+  \ of this capture:\nit is treated as not confirmed, and the other project's item\
+  \ is never counted as its delivery (the\ncapture may name that item as a link).\
+  \ Where any of these fails —\nno target, an unconfirmed sender, a failed write —\
+  \ the sending is NOT CONFIRMED and is said so; the\nnext land retries it. Where\
+  \ no kernel peer is registered the capture is recorded LOCALLY and is\nnever described\
+  \ as delivered, and the public intake is used only with the person's consent. For\
+  \ a\nfeature ask: owner-gated on every host.\n**Reconcile when an answer arrives\
+  \ — the RECORD, not the rule.** The project records what the kernel\nanswered against\
+  \ its local arrangement in the reconciliation lesson (SPEC-0090). Where a filed\
+  \ item\nexists, its outcome decides the author's move, on the existing FSM of SPEC-0085\
+  \ rule 2 and nothing\nadded: a `done` whose result the author VERIFIED is closed;\
+  \ a `done` whose fix does not hold is\ndisputed; a `rejected` item, or any other\
+  \ terminal one, is already final — it is only recorded in\nthe lesson. Where the\
+  \ matter went through the public intake there is no such item: the sent proposal\
+  \ is the one the existing `submitted-upstream` disposition names by its\nlocator,\
+  \ and its answer is the link-back of SPEC-0197 rule 4. Whether to adopt an optional\
+  \ seam or a\nremedy the kernel offers is the PROJECT's choice — it may keep a floor-compliant\
+  \ local arrangement\nas it stands. A change to that arrangement is compulsory only\
+  \ where an applicable governing contract\nrequires it.\n**A workaround is not a\
+  \ convention, and they end differently.** A workaround for a kernel DEFECT\n(choice\
+  \ (b)) is temporary and ends on the retirement condition of SPEC-1000 rule 4. A\
+  \ valid project convention (choice (a), or the local half of (c)) lasts as long\n\
+  as the project wants it.\n**Each carrier is used only for what it is:** an ops-contract\
+  \ declaration or an already-authorized\nwaiver declares; an ACTIVE project-own spec\
+  \ binds; the capture and the filed item carry the request;\na lesson records observations\
+  \ and the reconciliation and never states a binding rule (SPEC-0090\nrules 1 and\
+  \ 5); an override-ledger entry (SPEC-0196) records a patch to one upstream-owned\
+  \ file.\n\n### 3. Receiver side — premise review, default disposition, ownership,\
+  \ outcomes\nThe intake hygiene of SPEC-0086 rule 1 checks a request's SHAPE (already-addressed\
+  \ staleness · wrong-address\nrelevance). Its central CLAIM is checked by nothing:\
+  \ X-0297 arrived asserting a parity gap the kernel\nhad ALREADY closed (pre-report),\
+  \ and only ad-hoc Controller discipline caught it\n(deviation `cross-intake-lacks-receiver-side-premise-review`).\
+  \ This rule closes that gap.\n\n**The trigger is the SEMANTIC transition, not a\
+  \ command list.** BEFORE any operation that creates a\ncross **pick** or a **`resolves_cross`\
+  \ association**, the RECEIVER verifies the request's central claim\nagainst its\
+  \ OWN CURRENT state. The request TEXT is the FROZEN original ask — evidence of what\
+  \ a peer\nbelieved when they filed it, never evidence of what is true now. Naming\
+  \ the transition (not the verbs)\nis deliberate: a future attachment path inherits\
+  \ the duty automatically. CURRENT named implementations:\n**`cross pick`** and the\
+  \ **`task file` `resolves_cross` filing**.\n\n**Default disposition at triage —\
+  \ DECLINE unless DEFECT or PROVEN NEED (owner directive\n`events.jsonl#ts=`, refined\
+  \ `#ts=`).** The premise review\nabove asks \"is the claim TRUE?\"; this block asks\
+  \ the question that comes FIRST at cross-log triage:\n\"should the receiver take\
+  \ this at all?\" — and its answer is NO by default. Before choosing an\noutcome\
+  \ below, the receiver CLASSIFIES every `to:me` item into exactly ONE of three classes:\n\
+  \  - **DEFECT** — a MEASURED wrong behaviour of the receiver's own system (kind\
+  \ `bugfix`: a\n    reproduced misbehaviour, not an opinion about one). → TAKE (outcome\
+  \ (a) or (b)).\n  - **PROVEN NEED** — the ask carries MEASURED evidence (a count,\
+  \ a recurrence, a reproducible\n    cost) AND passes the four CHARTER §P1 filters\
+  \ (existing analog? · view over entity? · what is\n    removed? · real incident\
+  \ or prior-art?) — the four answers are WRITTEN DOWN in the pick note\n    (`cross\
+  \ pick` / the `resolves_cross` card's analysis). → TAKE (outcome (a) or (b)).\n\
+  \  - **WANT or ONE-OFF** — everything else: a preference, a convenience, a proposal\
+  \ that would\n    change an established working order for one case, or a SINGLE\
+  \ occurrence with no measurement\n    and no recurrence. → DECLINE via `cross reject\
+  \ --reason` (outcome (c)), the reason naming the\n    CLASS, the P1 filter that\
+  \ FAILED, and the project-side remedy (the fix the requester applies\n    locally).\
+  \ **NO card and NO followup is filed for a one-off — the reject note IS the whole\n\
+  \    record**, the same single-instance rule the kernel applies to its own additions\
+  \ (CHARTER §P1\n    F4: purely imagined or single-instance necessity → defer).\n\
+  Every pick or reject note NAMES the class it assigned, so the disposition is auditable\
+  \ from the\nshared log alone. A declined item is not closed forever: it may be RE-FILED\
+  \ with measured proof,\nor is re-classified on RECURRENCE — a second item of the\
+  \ same shape from ANY project — and\nrecurrence is read from the cross log itself\
+  \ (the shared store is the counter; no new counter,\nstatus, score or detector —\
+  \ CHARTER §6 non-goal). **Worked example (pre-dated, not adoption\nevidence):**\
+  \ X-1471 (a consumer project, 2026-09-17) asked for a `land --with <peer>` argument;\
+  \ filed first as\na feature card, on review it was a decomposition defect on the\
+  \ project side (SPEC-0046 one-unit\nrule), failed all four P1 filters, and would\
+  \ have changed a working land discipline for one\nmis-cut — class WANT-or-ONE-OFF,\
+  \ rejected the same day, remedy: re-cut the project's card.\n\n**Ownership judgement\
+  \ — asked BEFORE any TAKE.** The premise review asks whether the claim is true,\n\
+  and the default disposition whether to take it at all; neither asks WHOSE the missing\
+  \ knowledge is.\nSo before an item is taken — a reproduced DEFECT included — the\
+  \ receiver makes the judgement of\nsection 1 and answers through the outcomes below:\n\
+  \  - **A receiver contract** → the receiver's own work. For the kernel such a defect\
+  \ is repaired in\n    the kernel and stays a kernel card, whatever project it surfaced\
+  \ in.\n  - **A requester convention — reuse first; a new seam only on its own showing.**\
+  \ An applicable EXISTING declaration or extension is used first: the requester is\
+  \ told\n    what to declare, and no kernel card is filed. A NEW optional declaration\
+  \ seam is admitted only on\n    a MEASURED inability of the existing contract to\
+  \ express that surface (the SPEC-0185 §2 bar) AND\n    the four CHARTER §P1 filters;\
+  \ it expresses one bounded concern, adds no mandatory backfill and\n    no parallel\
+  \ mirror of project source, and never encodes one option per incident; the kernel\
+  \ work\n    taken is then that seam, never a kernel special case for the one form.\
+  \ Where that bar fails,\n    DECLINE, naming a remedy available to the project.\
+  \ An override (SPEC-0196) records a patch to\n    one upstream-owned file: it is\
+  \ neither an executable declaration nor a gate waiver.\n  - **The answer never obliges\
+  \ the requester to change a valid arrangement of its own.** A seam or a\n    remedy\
+  \ the receiver offers is the requester's to adopt or not (section 2, reconcile).\n\
+  Every triage note NAMES the ownership answer it assigned (receiver contract / requester\
+  \ convention\n/ new receiver capability) beside the triage class, for every triaged\
+  \ item, whatever its outcome,\nwith exactly the three exceptions below — each says\
+  \ in its note which one it is.\n  - **Ownership not yet established** — an item\
+  \ bounced under outcome (d) because a fact ONLY THE\n    REQUESTER holds is missing\
+  \ (its own arrangement, its reproduction, what it actually asks for)\n    says so\
+  \ in the bounce question — «ownership not yet established», the fact that is missing,\n\
+  \    and the item it concerns — and is given its class when the answer arrives.\n\
+  \  - **Unclear premise** and **premise not reproduced** — the next paragraph.\n\
+  **The receiver reads its own contracts — that is never a bounce.** What the RECEIVER\
+  \ promises\n(whether a refusing gate is intended, what a contract guarantees, what\
+  \ a store's permissions are\nmeant to be) is a fact about the receiver: it is settled\
+  \ by the receiver reading its own corpus\nbefore it answers, and is never sent back\
+  \ to the requester as a question. A receiver that finds\nthe refusal intended and\
+  \ the gate correct answers that (outcome (c), naming the contract); one that\nfinds\
+  \ the behaviour contradicting what it does promise has a receiver contract before\
+  \ it. One that\nfinds its contract SILENT on the case has no receiver contract before\
+  \ it — and section 1's test of\nthe requested behaviour then decides between requester\
+  \ convention and new receiver capability,\nwith the requester-convention admission\
+  \ bar wherever both fit.\n**An unclear or a false premise forces no class.** While\
+  \ the central claim of an item is UNCLEAR\nthe receiver bounces it under outcome\
+  \ (d) and assigns neither a triage class nor an ownership\nanswer yet: the default\
+  \ DECLINE is for an item whose claim is understood, never for one that is\nmerely\
+  \ unverified. An item whose premise is FALSE is rejected under outcome (c) as «premise\
+  \ not\nreproduced», and no ownership answer is owed for it.\n**Worked example (pre-dated,\
+  \ not adoption evidence):** took a project's test-naming form\nas a kernel defect\
+  \ — one more project-driven form for the kernel's symbol grammar; it ended\nwont-do\
+  \ and the need was re-cut as a project declaration.\n\n**Four outcomes — each on\
+  \ an EXISTING mechanism (no new verb, event, state, or store):**\n  (a) **Accept\
+  \ as-is** — the claim holds; proceed (`cross pick` / file the linked card).\n  (b)\
+  \ **Accept REFRAMED** — the claim is partly false or the real need differs. The\
+  \ corrected premise\n      AND the divergence MUST be recorded **on the SHARED item**,\
+  \ via the receiver's own surface\n      **`cross done --note`** (SPEC-0086 rule\
+  \ 1) — NOT only in the receiver's local task, where the requester\n      cannot\
+  \ see it. (`cross close --note` is the AUTHOR's confirmation surface — role-guarded\
+  \ to\n      `from` — so it can never discharge the receiver's recording duty.) A\
+  \ reframe the requester cannot\n      see is indistinguishable from a silent drop:\
+  \ X-0227 was closed with a bare `cross_done` after the\n      kernel retired the\
+  \ requested change, and the author, unable to learn that outcome, re-filed the\n\
+  \      identical ask as X-0256. **Bound:** if the reframe no longer preserves the\
+  \ REQUESTER-VISIBLE need,\n      it is not a reframe — take outcome (c) or (d) instead,\
+  \ so the decision returns to the requester.\n  (c) **Reject** — the premise is false\
+  \ / the work is already shipped: `cross reject --reason` (terminal).\n  (d) **Bounce\
+  \ a question** — the premise is unclear: send it back as a `note`-kind `cross request`\n\
+  \      addressed to the author, and leave the item unpicked.\n**Symmetric for EVERY\
+  \ receiver** — kernel and consumer alike; nothing here is kernel-only.\n\n**Delivery\
+  \ is a REPORT-ONLY cue, never a gate.** Both named surfaces print one cue line\n\
+  (`cross.premise_review_cue`, the single emitter both share) naming the discipline\
+  \ and POINTING here;\nper SPEC-0005 §8 the cue carries no restated rule-text — this\
+  \ clause is the one home, so the cue cannot\ndrift from it. It never blocks a pick\
+  \ or a filing (non-goal #7): the judgement is the receiver's, the\ncue only guarantees\
+  \ the question is ASKED at the moment the intake happens ( extend-the-verb).\n\n\
+  ### 4. The bound — what neither side's freedom loosens\nA report-only fallback applies\
+  \ SOLELY to best-effort recognition of an UNDECLARED project convention\non an ADVISORY\
+  \ surface, on the terms of SPEC-0185 §2a(ii); an interpretation left unresolved\
+  \ is\nREPORTED explicitly and supplies NO verification evidence. Safety, secrets,\
+  \ authorization, trust and\npath-containment boundaries, governed-state and release-integrity\
+  \ requirements, and required\nverification, audit and evidence gates KEEP their\
+  \ governing contracts: only an exemption one of\nthose contracts expressly authorizes\
+  \ applies. This judgement grants none; neither does a local\narrangement, a workaround,\
+  \ a reconciliation lesson or an override-ledger entry.\nA gate that refuses on purpose\
+  \ is not a kernel defect (SPEC-1000 rule 1). Where the kernel machinery\nthat produces\
+  \ a required outcome is itself the broken part, the outcome may be reproduced by\
+  \ hand\nONLY where an applicable contract already authorizes that and its entry\
+  \ conditions are met —\nSPEC-1000 rule 3 on the installations it covers, the emergency\
+  \ mode on its own entry conditions.\nThis spec authorizes no reproduction of its\
+  \ own.\n**The waits that remain — each blocks ONE action, never the project.** (1)\
+  \ A required gate for which\nno applicable contract authorizes a substitute blocks\
+  \ the action it guards, even where a manual\nsubstitute would be technically possible;\
+  \ removing that wait would be a gate waiver. (2) An action\nblocked by a kernel\
+  \ defect on an installation SPEC-1000 does not cover waits for the kernel's fix\n\
+  ONLY where no other applicable contract authorizes a path — where the emergency\
+  \ mode applies and\nits entry conditions are met, that path is taken instead.\n\
+  All other project work continues in both.\n\n### 5. The public proposal intake —\
+  \ how the workshop sorts what arrives\nThe sorting classes, the default disposition\
+  \ and the ownership judgement are section 3's; this\nsection applies them to the\
+  \ public proposal intake of SPEC-0197.\nApplied to this intake: a DEFECT reproduced\
+  \ on the published release is routed under section 3,\nincluding its ownership and\
+  \ existing-remedy judgement — a kernel card is filed when that judgement\nrequires\
+  \ kernel work; a PROVEN NEED — the SPEC-0197 rule-5 recurrence, or a block on the\n\
+  newcomer path — is routed under section 3 in the same way, and becomes a card or\
+  \ a plan only where\nthat judgement requires receiver work; a want, a one-off or\
+  \ a friction-only report is answered with a\nreasoned decline (naming the class\
+  \ and the filter that failed) or kept as an idea; a duplicate is\nlinked to the\
+  \ existing card. Every proposal is answered (SPEC-0197 rule 4), whichever way it\
+  \ is\nsorted. Worked example: the v2.0.4 trial report (`events.jsonl#ts=`) — twelve\n\
+  DEFECT cards, two items already fixed on main, one duplicate linked to.\n\n### 6.\
+  \ Delivery — cues and pointers only, never a gate\nThis spec is reached through\
+  \ EXISTING surfaces, each carrying a cue and a pointer and none of the\nrule text\
+  \ (SPEC-0005 rule 8): the premise-review cue printed at `cross pick` and at a\n\
+  `resolves_cross` filing (the receiver side); the consumer kernel-signaling line\
+  \ at session start\nand the capture-routing view (the requester side); the plan\
+  \ front-load item that names the judgement\nfor a plan that would change the kernel\
+  \ in answer to a project (SPEC-0043). No surface refuses a\npick, a filing or a\
+  \ capture on this spec's account.\n\n### 7. Anti-complexity record (CHARTER §Principle\
+  \ 1, four filters)\n1. **Existing analog?** Extended, not paralleled: the triage\
+  \ of section 3, the declaration bar of\n   SPEC-0185, the escape of SPEC-1000, the\
+  \ routing of SPEC-0085 §3 and the ledger of SPEC-0196\n   existed and were joined\
+  \ by no decision rule.\n2. **New entity or new view?** Neither — rule text and pointers.\
+  \ No store, verb, event, status or\n   field is added on either side.\n3. **What\
+  \ is removed?** Case-by-case kernel accommodation as the default answer to a\n \
+  \  project-selected convention; the unconditional route of a reproduced DEFECT to\
+  \ a kernel card; the\n   wait on a kernel answer as a project's only move.\n4. **Real\
+  \ incident?**, after three earlier project-driven grammar forms; and the measured\
+  \ wait in ## Rationale.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nThe\
+  \ kernel cannot enumerate the cases its projects produce. Answering each with a\
+  \ kernel special\ncase grew a kernel grammar one project form at a time and ended\
+  \ in a lexer chase. On the\nother side a project that met such a matter had one\
+  \ move — report and wait: on the shared\ncoordination log, 2026-10-07, an answered\
+  \ project-to-kernel bugfix item took a median of 18.3 hours\nand 50.6 hours at the\
+  \ 90th percentile, and 314 of 827 took more than a day. Both gaps are the same\n\
+  missing question, so one rule answers both. The deliberation — the rejected carrier\
+  \ shapes, the\nconsult rounds — lives in the proposing plan, not here (SPEC-0005\
+  \ rule 3).\n\n## Verification\n\n- **VP1 (carried from <workshop-spec> — the triage\
+  \ classes):** section 3's \"Default disposition at\n  triage\" block carries the\
+  \ three classes DEFECT / PROVEN NEED / WANT-or-ONE-OFF, the default\n  DECLINE,\
+  \ the one-off clause and the note-names-the-class requirement; phrase tripwire on\
+  \ this\n  spec's body.\n- **VP2 (the bound names every gate class):** section 4\
+  \ names safety, secrets, authorization,\n  trust, path-containment, governed-state,\
+  \ release-integrity, verification, audit and evidence.\n  Failing input: the list\
+  \ without any one of them; a class named only outside that sentence.\n- **VP3 (the\
+  \ new-seam bar):** section 3 admits a new seam only on a measured inability AND\
+  \ the four\n  filters. Failing input: either condition removed.\n- **VP4 (the requester\
+  \ side):** section 2 carries the three choices, the continue-without-awaiting\n\
+  \  clause, the existing routes with the bugfix / feature-ask split, and «the RECORD,\
+  \ not the rule».\n  Failing input: any one removed; a local recording described\
+  \ as delivered; a feature ask marked\n  `realm: kernel`.\n- **VP4a (the existing\
+  \ router agrees — inputs run against the real router):** a `realm:\n  project` capture\
+  \ whose wording names the kernel, with its `not-kernel` disposition, produces no\n\
+  \  filed item and no repeated near-miss warning; a seam-needed matter held as a\
+  \ followup produces no\n  bugfix item; a `realm: kernel` capture with no target,\
+  \ and one from a sender the registry does\n  not confirm, are reported as NOT sent;\
+  \ a `realm: kernel` capture from project B whose fingerprint\n  another project's\
+  \ item already carries is filed as no item, and no item authored by B names it in\n\
+  \  its `origin_ref`, so it does not count as sent. Failing input: either of the\
+  \ first two filed as a\n  bugfix; the warning still printed after the disposition;\
+  \ an unsent capture described as\n  delivered; another project's item counted as\
+  \ this capture's sending.\n- **VP5 (one ACTIVE home):** seven distinctive phrases\
+  \ of sections 1-4 occur in this spec and in\n  no other ACTIVE spec, no pattern\
+  \ and no handbook file; the mentioning surfaces of section 6 carry\n  a pointer\
+  \ only. Superseded and retired specs are history and are excluded (<workshop-spec>\
+  \ keeps the\n  text it carried). Failing input: the rule body restated in a cue,\
+  \ a pattern or another active\n  spec — shown red on a planted duplicate in an active\
+  \ home.\n- **VP6 (lineage):** <workshop-spec> is `superseded` by this spec's activation,\
+  \ and the parent pointers\n  in SPEC-0086 and SPEC-0197 name this spec.\n- **VP7\
+  \ (walk-through, evidence of the TEXT):** recorded as a journal event at activation\
+  \ — a\n  project's own naming form routes to a declaration seam; a need an existing\
+  \ declaration serves\n  gets no kernel card; X-1237 stays a kernel card; a required\
+  \ audit locator the grammar cannot\n  resolve still refuses; a project's own convention\
+  \ takes choice (a) with no kernel item; an\n  unsettled case takes choice (c) and\
+  \ work continues before any answer; the same case on a host\n  with no kernel peer\
+  \ is recorded locally and described so; a seam-needed matter is held as a\n  followup\
+  \ and never filed as a bugfix; a request between two projects about the receiver's\
+  \ own\n  product contract is classed receiver contract; a bounce whose ownership\
+  \ is not yet established\n  says so; a measured need for a new general kernel capability\
+  \ is classed new receiver capability\n  and sorted by the triage classes alone;\
+  \ a gap that blocks the work follows SPEC-1000, not the\n  feature-ask route; a\
+  \ recurring measured need on the public intake that an existing declaration\n  already\
+  \ serves gets the declaration answer and no card.\n- **Adoption (live traffic):**\
+  \ the proposing plan's realization-exit criteria — triage notes on the\n  shared\
+  \ log naming the ownership answer (or which of the three exceptions applies), with\
+  \ the\n  receiver-contract class observed live and the requester-convention class\
+  \ observed live when one\n  arrives, otherwise read by a labelled replay that is\
+  \ never counted as live adoption; consumer\n  captures of choice (a) and of choice\
+  \ (c), each followed in the same turn by committed work.\n"
+cites:
+- SPEC-0086
+- SPEC-0197
+- SPEC-0085
+- SPEC-0185
+- SPEC-0196
+- SPEC-1000
+- SPEC-0093
+- SPEC-0090
+- SPEC-0043
+- SPEC-0005
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: seam-not-case-a-project-decides-kernel-vs-own-rule
+binding:
+- query-only
+init_concern: null
+implements_signature:
+  bin/lib/cross.py#kernel_reflex_echo: 140344927d9bb961538e375ffe82880af8baab5cf954212498743e22784a98c2
+  bin/lib/cross.py#premise_review_cue: 6aa0fe96b13f3d78a12f40cab24869c2a60e7babb5e357e797be70df3d52a515

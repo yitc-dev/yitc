@@ -108,80 +108,88 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ check: no second link store, no second event, no parallel promote path (§P1 F1\
   \ /\n§P5). The DECLARED `promotes:` filing leg is unaffected — its `into` is the\
   \ task id `task file`\nis minting, real by construction.\n- **`followup drop <id>\
-  \ [--reason <r>]`** — appends `followup_dropped`; the open→drop leg.\n- **`followup\
-  \ arm <id> --trigger <phrase> --awaits <artifact>`** — appends `followup_armed`;\
-  \ marks an\n  OPEN followup as an ARMED WAITER (§Armed). `--trigger` is REQUIRED\
-  \ and non-empty — the same discipline\n  `promote --into` learned from X-0165: an\
-  \ armed followup is BY DEFINITION awaiting a NAMED trigger, so a\n  triggerless\
-  \ `arm` would drop it out of the actionable headline with nothing able to bring\
-  \ it back.\n  `--awaits` names the AWAITED ARTIFACT whose arrival fires it (the\
-  \ SOLE fire key) and is **likewise\n  REQUIRED ** — an arm with no awaited artifact\
-  \ writes a waiter that is out of the headline\n  AND unfireable, so it REFUSES BEFORE\
-  \ any append, leaving the item open and disposable (§Armed → why\n  `awaits` is\
-  \ required). It must ALSO be a **RESOLVABLE REFERENCE in one of the three named\
-  \ grammars**\n  (§Armed → the awaits grammar); an unresolvable one — a repo path,\
-  \ a spec id, a plan slug,\n  free prose — REFUSES on the same terms, at BOTH write\
-  \ doors, naming what IS resolvable. A bare\n  future event with no machine-checkable\
-  \ artifact is therefore LEFT ACTIONABLE (visible, awaiting an\n  explicit disposition)\
-  \ or dropped — never armed. `arm` RE-STATES THE WHOLE AWAITED\n  CONDITION (both\
-  \ attributes, last write wins), so it applies to a FIRED followup too and RETURNS\
-  \ IT TO\n  `armed` — the operator saying \"that fire was wrong, here is the real\
-  \ condition\" (§Armed → re-arming).\n  NO WORKTREE.\n- **`followup unarm <id>`**\
-  \ — appends `followup_armed` with `trigger: null` AND `awaits: null`; clears\n \
-  \ both and returns the item to the actionable set. Clearing the trigger while leaving\
-  \ the awaited\n  artifact would strand an actionable item carrying a live fire key.\
-  \ The explicit re-actionable path for\n  a waiter whose trigger went MOOT (a plan\
-  \ abandoned, a gate dropped) and so will never fire. NO WORKTREE.\n- **`followup\
-  \ list [--status open|actionable|armed|fired|promoted|dropped|all]`** — folds +\
-  \ prints\n  (default `open`, which renders the three-way §Armed partition with per-group\
-  \ counts). The three OPEN\n  lenses (`actionable` / `armed` / `fired`) are DERIVED\
-  \ views over that partition, NOT stored statuses.\n  An actionable row whose provenance\
-  \ task CLOSED after that row was captured, and which was not\n  captured inside\
-  \ that card's own closure window, also renders the report-only provenance hint\n\
-  \  (§Armed → the stale-provenance marker, whose condition is membership, ordering\
-  \ AND provenance);\n  the summary reports that subset beside the headline count.\n\
-  \n### 2-state FSM (folded, never stored)\n`open → promoted | dropped`. State is\
-  \ DERIVED by folding the journal: an id is `open` once\n`followup_added`, and terminal\
-  \ once a `followup_promoted` / `followup_dropped` for that id appears —\nNO `status:`\
-  \ is stored anywhere (the cross-fold model; SPEC-0005 §single-carrier). A transition\
-  \ verb\nREFUSES (die) an unknown id OR an already-terminal id (only an `open` followup\
-  \ transitions).\n**`arm`/`unarm` do NOT extend this FSM** — they set/clear an ATTRIBUTE\
-  \ and never write `status`; an\narmed followup promotes/drops by these same unchanged\
-  \ legs (§Armed).\n\n### Armed waiters — the derived partition of the OPEN set (re-keyed)\n\
-  An OPEN followup may carry an optional **`trigger` ATTRIBUTE**: the NAMED future\
-  \ moment it waits for.\nAn ARMED WAITER is not stale and not yet actionable (a P8\
-  \ adoption confirmation awaiting the next real\nfire, an owner-held plan finalization,\
-  \ a postcheck-gated disposition), so it MUST NOT inflate the\nheadline \"awaiting\
-  \ disposition\" count the owner reads to decide what needs a decision NOW.\n\n**AWAITED\
-  \ vs PROVENANCE — two fields, never one (NORMATIVE).** A followup names TWO different\n\
-  artifacts, and conflating them is a defect:\n- **`relates_to`** — **PROVENANCE**:\
-  \ what the followup is ABOUT (the task it was noticed under).\n  Free-form, rendered\
-  \ as `[relates: …]`. It is **NEVER read by the fire check.**\n- **`awaits`** — the\
-  \ **AWAITED ARTIFACT**: the machine-resolvable artifact whose ARRIVAL *is* the\n\
-  \  arrival of the awaited moment. It is the **SOLE fire key**. DECLARED (`add --awaits`\
-  \ /\n  `arm --awaits`), never inferred from the trigger prose, **REQUIRED wherever\
-  \ a `trigger` is\n  written** ( — §Armed → why `awaits` is required), and **RESOLVABLE**\
-  \ — a reference in one of\n  the three named grammars below, never free text. It\
-  \ is absent, or present-but-unresolvable,\n  only on LEGACY records captured before\
-  \ those rules, which the readers still tolerate.\n\n**THE `awaits` GRAMMAR — three\
-  \ named shapes, and nothing else (NORMATIVE).** closed\nthe case `awaits` ABSENT.\
-  \ This closes the case `awaits` PRESENT but naming nothing whose arrival any\nreader\
-  \ can decide — the same defect wearing a costume, and it was the DOMINANT one. Measured\
-  \ on the\nkernel 2026-09-02: of 49 open armed records, 4 named a task id (all 4\
-  \ already terminal, i.e. exactly\nthe 4 `armed_fired`), 4 a coordination id, 3 a\
-  \ plan slug, 35 a REPO PATH and 3 free prose — **45 of 49\nunfireable, and the live\
-  \ resolvable population EMPTY**. A further 74 of the same shape sit on an\nunlanded\
-  \ disposal branch (39 paths, 32 spec ids). The records say WHY in their own trigger\
-  \ prose\n(\"OWNER DECISION: bin/lib/debt.py:3268 …\", \"WAITING ON FLEET DATA: …\
-  \ bin/lib/nightly.py:1187\"): the\npath is WHERE the subject lives, the awaited\
-  \ moment is an owner decision or fleet data, and the\nauthor needed a value for\
-  \ a REQUIRED flag. A required field with no grammar collects the nearest\nconcrete\
-  \ token.\n- **`T-NNNN`** — a task reaching a terminal status (`done|wont-do`). UNCHANGED:\
-  \ the shape the fire\n  check has always read.\n- **`X-NNNN`** — a SHARED-COORDINATION\
-  \ item reaching a terminal status. The honest home for an\n  obligation whose proof\
-  \ lives in ANOTHER repo, which is never an acceptance-probe target from a V2\n \
-  \ write (`lessons/a-deferral-needs-a-named-carrier-before-it-reads-as-one`).\n-\
-  \ **`events.jsonl#type=<event_type>`** — a journal row of that EVENT CLASS appearing.\
+  \ [--reason <r> | --not-adopted <r>]`** — appends `followup_dropped`; the\n  open→drop\
+  \ leg. **A P8 carrier is not dropped on a claim.** A followup whose text carries\n\
+  \  `P8-CARRIER: <T-ID>` holds that card's CHARTER §P8 adoption obligation (SPEC-0119\
+  \ rule 31).\n  Dropping it is REFUSED, before any append, while that card's P8 adoption\
+  \ verdict — the one reading\n  `task close` uses (SPEC-0015) — is not substantive;\
+  \ the refusal names the verdict's own reason. A\n  marker naming no readable card,\
+  \ or a verdict that cannot be read, refuses on the same terms. The\n  explicit waive\
+  \ `--not-adopted <reason>` admits the drop without that reading and its reason is\n\
+  \  recorded on the dropped row; it is refused on a followup that carries no marker.\
+  \ A followup\n  without the marker drops exactly as before.\n- **`followup arm <id>\
+  \ --trigger <phrase> --awaits <artifact>`** — appends `followup_armed`; marks an\n\
+  \  OPEN followup as an ARMED WAITER (§Armed). `--trigger` is REQUIRED and non-empty\
+  \ — the same discipline\n  `promote --into` learned from X-0165: an armed followup\
+  \ is BY DEFINITION awaiting a NAMED trigger, so a\n  triggerless `arm` would drop\
+  \ it out of the actionable headline with nothing able to bring it back.\n  `--awaits`\
+  \ names the AWAITED ARTIFACT whose arrival fires it (the SOLE fire key) and is **likewise\n\
+  \  REQUIRED ** — an arm with no awaited artifact writes a waiter that is out of\
+  \ the headline\n  AND unfireable, so it REFUSES BEFORE any append, leaving the item\
+  \ open and disposable (§Armed → why\n  `awaits` is required). It must ALSO be a\
+  \ **RESOLVABLE REFERENCE in one of the three named grammars**\n  (§Armed → the awaits\
+  \ grammar); an unresolvable one — a repo path, a spec id, a plan slug,\n  free prose\
+  \ — REFUSES on the same terms, at BOTH write doors, naming what IS resolvable. A\
+  \ bare\n  future event with no machine-checkable artifact is therefore LEFT ACTIONABLE\
+  \ (visible, awaiting an\n  explicit disposition) or dropped — never armed. `arm`\
+  \ RE-STATES THE WHOLE AWAITED\n  CONDITION (both attributes, last write wins), so\
+  \ it applies to a FIRED followup too and RETURNS IT TO\n  `armed` — the operator\
+  \ saying \"that fire was wrong, here is the real condition\" (§Armed → re-arming).\n\
+  \  NO WORKTREE.\n- **`followup unarm <id>`** — appends `followup_armed` with `trigger:\
+  \ null` AND `awaits: null`; clears\n  both and returns the item to the actionable\
+  \ set. Clearing the trigger while leaving the awaited\n  artifact would strand an\
+  \ actionable item carrying a live fire key. The explicit re-actionable path for\n\
+  \  a waiter whose trigger went MOOT (a plan abandoned, a gate dropped) and so will\
+  \ never fire. NO WORKTREE.\n- **`followup list [--status open|actionable|armed|fired|promoted|dropped|all]`**\
+  \ — folds + prints\n  (default `open`, which renders the three-way §Armed partition\
+  \ with per-group counts). The three OPEN\n  lenses (`actionable` / `armed` / `fired`)\
+  \ are DERIVED views over that partition, NOT stored statuses.\n  An actionable row\
+  \ whose provenance task CLOSED after that row was captured, and which was not\n\
+  \  captured inside that card's own closure window, also renders the report-only\
+  \ provenance hint\n  (§Armed → the stale-provenance marker, whose condition is membership,\
+  \ ordering AND provenance);\n  the summary reports that subset beside the headline\
+  \ count.\n\n### 2-state FSM (folded, never stored)\n`open → promoted | dropped`.\
+  \ State is DERIVED by folding the journal: an id is `open` once\n`followup_added`,\
+  \ and terminal once a `followup_promoted` / `followup_dropped` for that id appears\
+  \ —\nNO `status:` is stored anywhere (the cross-fold model; SPEC-0005 §single-carrier).\
+  \ A transition verb\nREFUSES (die) an unknown id OR an already-terminal id (only\
+  \ an `open` followup transitions).\n**`arm`/`unarm` do NOT extend this FSM** — they\
+  \ set/clear an ATTRIBUTE and never write `status`; an\narmed followup promotes/drops\
+  \ by these same unchanged legs (§Armed).\n\n### Armed waiters — the derived partition\
+  \ of the OPEN set (re-keyed)\nAn OPEN followup may carry an optional **`trigger`\
+  \ ATTRIBUTE**: the NAMED future moment it waits for.\nAn ARMED WAITER is not stale\
+  \ and not yet actionable (a P8 adoption confirmation awaiting the next real\nfire,\
+  \ an owner-held plan finalization, a postcheck-gated disposition), so it MUST NOT\
+  \ inflate the\nheadline \"awaiting disposition\" count the owner reads to decide\
+  \ what needs a decision NOW.\n\n**AWAITED vs PROVENANCE — two fields, never one\
+  \ (NORMATIVE).** A followup names TWO different\nartifacts, and conflating them\
+  \ is a defect:\n- **`relates_to`** — **PROVENANCE**: what the followup is ABOUT\
+  \ (the task it was noticed under).\n  Free-form, rendered as `[relates: …]`. It\
+  \ is **NEVER read by the fire check.**\n- **`awaits`** — the **AWAITED ARTIFACT**:\
+  \ the machine-resolvable artifact whose ARRIVAL *is* the\n  arrival of the awaited\
+  \ moment. It is the **SOLE fire key**. DECLARED (`add --awaits` /\n  `arm --awaits`),\
+  \ never inferred from the trigger prose, **REQUIRED wherever a `trigger` is\n  written**\
+  \ ( — §Armed → why `awaits` is required), and **RESOLVABLE** — a reference in one\
+  \ of\n  the three named grammars below, never free text. It is absent, or present-but-unresolvable,\n\
+  \  only on LEGACY records captured before those rules, which the readers still tolerate.\n\
+  \n**THE `awaits` GRAMMAR — three named shapes, and nothing else (NORMATIVE).** closed\n\
+  the case `awaits` ABSENT. This closes the case `awaits` PRESENT but naming nothing\
+  \ whose arrival any\nreader can decide — the same defect wearing a costume, and\
+  \ it was the DOMINANT one. Measured on the\nkernel 2026-09-02: of 49 open armed\
+  \ records, 4 named a task id (all 4 already terminal, i.e. exactly\nthe 4 `armed_fired`),\
+  \ 4 a coordination id, 3 a plan slug, 35 a REPO PATH and 3 free prose — **45 of\
+  \ 49\nunfireable, and the live resolvable population EMPTY**. A further 74 of the\
+  \ same shape sit on an\nunlanded disposal branch (39 paths, 32 spec ids). The records\
+  \ say WHY in their own trigger prose\n(\"OWNER DECISION: bin/lib/debt.py:3268 …\"\
+  , \"WAITING ON FLEET DATA: … bin/lib/nightly.py:1187\"): the\npath is WHERE the\
+  \ subject lives, the awaited moment is an owner decision or fleet data, and the\n\
+  author needed a value for a REQUIRED flag. A required field with no grammar collects\
+  \ the nearest\nconcrete token.\n- **`T-NNNN`** — a task reaching a terminal status\
+  \ (`done|wont-do`). UNCHANGED: the shape the fire\n  check has always read.\n- **`X-NNNN`**\
+  \ — a SHARED-COORDINATION item reaching a terminal status. The honest home for an\n\
+  \  obligation whose proof lives in ANOTHER repo, which is never an acceptance-probe\
+  \ target from a V2\n  write (`lessons/a-deferral-needs-a-named-carrier-before-it-reads-as-one`).\n\
+  - **`events.jsonl#type=<event_type>`** — a journal row of that EVENT CLASS appearing.\
   \ This EXTENDS the\n  existing load-bearing citation address space (`task.py#_journal_locator`,\
   \ which already\n  resolves `events.jsonl#ts=` / `#source_ref=`), it does NOT open\
   \ a second one (CHARTER §P1 F1).\n  It arrives on **MEMBERSHIP** — the mere EXISTENCE\
@@ -547,40 +555,51 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ — and since\n the guarantee is structural rather than conventional at the write\
   \ door: a NEW armed record\nalways names the artifact whose closure fires it. A\
   \ LEGACY record with no `awaits` is one an operator\nmust dispose BY HAND, exactly\
-  \ as an unresolvable plan-slug trigger already was, never one that hides.\n\n###\
-  \ The link may be DECLARED AT FILING\n\nA task card MAY declare, in an optional\
-  \ `promotes: [fu_...]` field, the OPEN followups it CARRIES.\nEach declared id is\
-  \ promoted AT FILING — one ordinary `followup_promoted {followup_id, into}` per\n\
-  id, appended by `task file` in the same command. There is no second promote mechanism,\
-  \ no second\nevent shape and no second FSM: what this adds is the MOMENT, not a\
-  \ new leg.\n\nWhy the moment matters. Before it, the only way to state the link\
-  \ was a SECOND manual act after the\ncard existed, and the journal records what\
-  \ that cost: of 221 `followup_promoted` rows, ZERO preceded\ntheir target card's\
-  \ `task_filed`, and all 219 that have one came after it — 174 of those within ten\n\
-  minutes (measured 2026-08-15 by joining the two event types on task id). Until someone\
-  \ ran that\nsecond command, work that HAD been filed kept reading as open debt in\
-  \ the actionable count the owner\nreads to size the backlog.\n\n**DECLARED, NEVER\
-  \ INFERRED — the bound, restated because this is exactly where it would erode.**\
-  \ The\nlink is what the FILER states. No overlap hit, title-keyword screen or heuristic\
-  \ ever promotes\nanything: this spec settled that axis once, when keying the fire\
-  \ on `relates_to` made all 9 live\nrows false. The filing-time overlap screen stays\
-  \ ADVISORY and gains only the\nmirror of `_cites_cross_without_resolves` — it WARNs\
-  \ when it names an open followup the card did NOT\ndeclare, and prints nothing when\
-  \ every named one was declared. A screen may raise a question; only\na declaration\
-  \ mutates state.\n\n**FAIL-CLOSED, AND ENTIRELY BEFORE THE WRITE.** Three refusal\
-  \ shapes, each naming the offending id:\na malformed token (not the `fu_` + 12-hex\
-  \ shape), an unknown id (absent from the fold), and an\nalready-terminal id (re-promoting\
-  \ it would overwrite the carrier already on record). A silent skip\nis forbidden\
-  \ — that is the X-0304 silent-drop class the stdin path already burned once. The\n\
-  SPEC-0170 source-cluster provenance gate applies unchanged, sharing ONE implementation\
-  \ and ONE\nwording with the standalone `promote` leg; at filing it reads the COMPOSED\
-  \ card text, since the\ntarget card does not exist yet. Every check therefore precedes\
-  \ the write, so a refused declaration\nleaves no card on disk, no id consumed and\
-  \ no `task_filed` emitted — the filing happens whole or not\nat all. The emit leg\
-  \ that follows validates nothing, by construction.\n\nThe field is the followup-axis\
-  \ MIRROR of `resolves_cross` (SPEC-0085) — same additive-optional\nshape (absent\
-  \ key = no declaration), same both-paths ingestion (argv flag + stdin mapping),\
-  \ same\nmember validation before the write, same journal mirror in `task_filed`.\
+  \ as an unresolvable plan-slug trigger already was, never one that hides.\n\n**The\
+  \ OWNER-QUESTION marker.** A followup that asks the owner about a card DECLARES\
+  \ it\nwith `OWNER-QUESTION: T-NNNN` in its text — the marker is spelled once and\
+  \ parsed once\n(`followup.py#OWNER_QUESTION_MARKER` / `#owner_question_ids`: the\
+  \ first token after each marker,\ntrailing punctuation stripped, a full task-id\
+  \ match only). A trigger-less OPEN followup whose marker\nnames a TERMINAL card\
+  \ (`done|wont-do`) reads **`fired`** (the `armed_fired` group, so the debt echo\n\
+  shows it unfloored) and names the closed card; it is disposed by hand and NEVER\
+  \ dropped\nautomatically, since the answer may still spawn work. Unmarked rows,\
+  \ rows marking an open card and\nARMED rows (their own `awaits` governs them) are\
+  \ unchanged; `relates_to` is never read. Arming the\nquestion at capture is NOT\
+  \ the route: an armed row leaves the actionable headline while the\nquestion still\
+  \ awaits the owner.\n\n### The link may be DECLARED AT FILING\n\nA task card MAY\
+  \ declare, in an optional `promotes: [fu_...]` field, the OPEN followups it CARRIES.\n\
+  Each declared id is promoted AT FILING — one ordinary `followup_promoted {followup_id,\
+  \ into}` per\nid, appended by `task file` in the same command. There is no second\
+  \ promote mechanism, no second\nevent shape and no second FSM: what this adds is\
+  \ the MOMENT, not a new leg.\n\nWhy the moment matters. Before it, the only way\
+  \ to state the link was a SECOND manual act after the\ncard existed, and the journal\
+  \ records what that cost: of 221 `followup_promoted` rows, ZERO preceded\ntheir\
+  \ target card's `task_filed`, and all 219 that have one came after it — 174 of those\
+  \ within ten\nminutes (measured 2026-08-15 by joining the two event types on task\
+  \ id). Until someone ran that\nsecond command, work that HAD been filed kept reading\
+  \ as open debt in the actionable count the owner\nreads to size the backlog.\n\n\
+  **DECLARED, NEVER INFERRED — the bound, restated because this is exactly where it\
+  \ would erode.** The\nlink is what the FILER states. No overlap hit, title-keyword\
+  \ screen or heuristic ever promotes\nanything: this spec settled that axis once,\
+  \ when keying the fire on `relates_to` made all 9 live\nrows false. The filing-time\
+  \ overlap screen stays ADVISORY and gains only the\nmirror of `_cites_cross_without_resolves`\
+  \ — it WARNs when it names an open followup the card did NOT\ndeclare, and prints\
+  \ nothing when every named one was declared. A screen may raise a question; only\n\
+  a declaration mutates state.\n\n**FAIL-CLOSED, AND ENTIRELY BEFORE THE WRITE.**\
+  \ Three refusal shapes, each naming the offending id:\na malformed token (not the\
+  \ `fu_` + 12-hex shape), an unknown id (absent from the fold), and an\nalready-terminal\
+  \ id (re-promoting it would overwrite the carrier already on record). A silent skip\n\
+  is forbidden — that is the X-0304 silent-drop class the stdin path already burned\
+  \ once. The\nSPEC-0170 source-cluster provenance gate applies unchanged, sharing\
+  \ ONE implementation and ONE\nwording with the standalone `promote` leg; at filing\
+  \ it reads the COMPOSED card text, since the\ntarget card does not exist yet. Every\
+  \ check therefore precedes the write, so a refused declaration\nleaves no card on\
+  \ disk, no id consumed and no `task_filed` emitted — the filing happens whole or\
+  \ not\nat all. The emit leg that follows validates nothing, by construction.\n\n\
+  The field is the followup-axis MIRROR of `resolves_cross` (SPEC-0085) — same additive-optional\n\
+  shape (absent key = no declaration), same both-paths ingestion (argv flag + stdin\
+  \ mapping), same\nmember validation before the write, same journal mirror in `task_filed`.\
   \ Reusing that shape is why\nthis adds no store, no verb and no gate that refuses\
   \ a filing over an overlap.\n\n### Read-path == write-path resolution (HARD)\nThe\
   \ fold read-path MUST resolve the SAME effective journal the append writes to: the\
@@ -668,7 +687,17 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ is\n  absent or is not a task id stay byte-identical. NO PREVALENCE NUMBER is\
   \ asserted anywhere — a\n  tripwire on today's flagged-over-eligible ratio would\
   \ go red when the corpus legitimately shifts\n  (SPEC-0165), so what is pinned is\
-  \ the rule's behaviour on constructed fixtures.\n"
+  \ the rule's behaviour on constructed fixtures.\n- OWNER-QUESTION marker (DIFFERENTIAL):\
+  \ over fixture cards, a followup marked for\n  reads `fired` in `followup list`\
+  \ once is done or wont-do and `actionable` while it is open;\n  its relates_to-only\
+  \ twin and a row marked for an open card stay `actionable`. FAILS on the\n  pre-change\
+  \ code (the marked row stays actionable).\n  Probe: tests/test_t13654_owner_question_marker_fired.py.\n\
+  - P8-carrier drop (DIFFERENTIAL): dropping a marker-carrying followup whose card's\
+  \ only P8\n  row cites its own test run is REFUSED, names the unresolved reason\
+  \ and appends nothing; the same\n  drop is admitted after a substantive P8 row,\
+  \ and with the not-adopted waive (its reason on the\n  row); an unmarked followup\
+  \ drops as before. FAILS on the pre-change code (the drop is admitted).\n  Probe:\
+  \ tests/test_t13655_p8_carrier_drop_guard.py.\n"
 cites:
 - CHARTER.md#principle-5
 - CHARTER.md#principle-1
@@ -692,7 +721,7 @@ implements_signature:
   bin/lib/followup.py#_clean_trigger: 416aa884c7741302bb8a38a2b0c601648c7fc849ebced634ddc96b3e0ee8512a
   bin/lib/followup.py#_fold: a7c82793ad02fd5a88bc01dadff21576de6d12ec97a80bc0c4eac41a4bc84e72
   bin/lib/followup.py#_fu_id: 972d551b84aec0bc47bad06226f0dc531c364c25da5b3e03c7fd4e8d5f0c0ad3
-  bin/lib/followup.py#_partition_open: 3ebdad23a2368a31494cda8608be5601621e3615afa74d3841f1b6e076006bf3
+  bin/lib/followup.py#_partition_open: 81d761216efe896141ae3b71b455547c5dca2985f74843517b10b79f28dcf3fd
   bin/lib/followup.py#_provenance_refusal: 709c47901e2aeb17902aa3a823f13660124d91a3aca90469384f2c17f886646e
   bin/lib/followup.py#_require_promote_target: 6fe6e84f84450076b29b35fe952b0a1c63eb904c8330f78693b3fac4077e2be8
   bin/lib/followup.py#advisory_candidate_refs: ac0b7baaeaf4e95a0883f5c0ead129fef92af9fd32ef9aae244d671807d2538d
@@ -701,7 +730,7 @@ implements_signature:
   bin/lib/followup.py#born_armed_advisory_line: bb759a5bc016feff9932eef282c67eff321b8aa3bb758e63a1c7db5b0e4ba514
   bin/lib/followup.py#cmd_followup_add: 4351c74ca5b24bab7428dac6f6c4c8e689771b03a1e9eaed659f3bf2167293ac
   bin/lib/followup.py#cmd_followup_arm: c2da7478d8f38bdca2829d77f803a7fe38021b7a8ee4e777868220b67024f2d6
-  bin/lib/followup.py#cmd_followup_drop: 53325fff2a241c652cfc162792891dfb61e603b4dc737f117791676bc4aa18ba
+  bin/lib/followup.py#cmd_followup_drop: fad96f42952c0958e389d00e66f04dfde208a781ec0fb1a7f8261c93fd2de516
   bin/lib/followup.py#cmd_followup_list: 5b1ce0719a69fd91bd5b0d7b15158d50b605273219914fc3133f0811a19989a8
   bin/lib/followup.py#cmd_followup_promote: 92e35fbc3c8da9b7903df704440a777d79a1f47b8aa1597d3129e87733e1492c
   bin/lib/followup.py#cmd_followup_unarm: eda53ae5a16b367b649d710c69aa6c2bef16a37ccde5c613ed7db9a2811f7ff0
@@ -712,4 +741,4 @@ implements_signature:
   bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
   bin/lib/followup.py#split_event_awaits: a4941eda4fcf12b7aa53f9ce49de38163c99767d7aac16b848591d2565ceb8ff
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
-  bin/lib/task.py#cmd_task_file: e95ef07da93d6783f833cda1747a1831d7761178687fb0dbba85c16a258dd145
+  bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6

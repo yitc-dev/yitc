@@ -139,6 +139,22 @@ REJECTED by owner ruling 2026-09-13 08:50:02Z (archive/events-2026-09-13.jsonl#t
 REJECTED on measured evidence (the report is `patterns/delta-only-recheck-observation.md`, its per-finding table in the four `patterns/delta-only-recheck-observation-findings-*.md` parts): re-checking a gate after an absorbing edit by reading ONLY the changed text and what depends on it. The analysis covered 45 plans and 155 consecutive pass pairs on the four plan gates (2026-07-08 → 2026-10-05) and classified every later-pass finding: of 143 HIGH findings, 45% sat in the changed text, 11% in unchanged text that depends on the change, and 24% (up to 36% when every unclassifiable finding is counted that way) in unchanged text INDEPENDENT of the change — defects every earlier full read had missed (MEDIUM: 31%, up to 45%). That share does not decay with the pass number (24% at pass 2, 24% at pass 3, 27% at pass 4); 30 of the 35 such highs had sat in the text since the gate's FIRST pass; 24 of the 61 high-bearing pass pairs held at least one. A delta read that also re-checks the prior findings would have seen 64% of the highs. So a full read keeps finding about a quarter of its highs in text nobody changed, and a delta-only re-check would let those through.
 DEFERRED by owner ruling 2026-10-06 (events.jsonl#ts=, option A: «да, берём A. пускай в работу») — the QUALIFIED scheme the report proposes: (1) the first pass at each gate is a full read; (2) a delta pass re-checks every prior finding and sweeps the whole subject for the same defect class; (3) any high or medium found by a delta escalates to a full read; (4) only a full read gives the closing GREEN. WHY DEFERRED: the closing GREEN must be a full read anyway, so the scheme saves time only in long absorb-and-recheck loops (the escalation rule would have fired in 54 of the 61 high-bearing pairs), and already removed the main time sink of a re-check. ADOPTED from it, as its own card : the cheap part — the same-class sweep (when a finding is absorbed, check every sibling instance of its defect class, not only the one named). STANDING: a re-check pass reads the whole subject; do not propose a delta-only re-check without new numbers. Re-open the qualified scheme only if re-check passes again become a measured time sink. This lesson is about WHAT a re-check reads; Lesson 11 (no pass ceiling on plan audits) is unchanged. [relates:;;; SPEC-0204; SPEC-0083; Lesson 11]
 
+### Lesson 13 — a stage-delivery saving is taken from the cheapest NO-RULE-MOVE cut first; a relocation pilot does not grow mechanism its saving cannot pay for — owner ruling (2026-10-07)
+
+CANCELLED by owner ruling 2026-10-07 («давай а», events.jsonl at that turn): plan
+`restructure-heavy-specs-as-core-plus-index-plus-on`, whose pilot moved ~4.4 kB of SPEC-0015 (the settle procedure)
+into a reference spec. To make that one move «provably safe» it grew a new read gate on the settle verb with
+per-checkout, per-epoch credit, a seed cue in every startup read, one wording across four surfaces, nine test
+rewrites and, in the end, a new «when is a probe due» duty — over 17 trial cycles, four convergence reads and two RED
+accept-gate passes. Measured against that: the gate never fired in the converged cycles (agents found the reference
+through the core's index line and the verb's help head), and the maintainer-only sections every stage entry renders
+(`## Verification` ≈79 kB + `## Rationale` ≈13 kB per substantive task) were ~20× the pilot's saving while moving no
+rule at all. STANDING: (1) take the no-rule-move cuts first (maintainer-only sections, retired provenance) and
+measure; (2) a relocated rare branch keeps a plain index line + a pointer at the head of the verb's help — add a gate
+only when a rule is shown to be lost without one; (3) a pre-existing gap a trial exposes (here: what to do with a
+due deferred probe) is its own card, never folded into the pilot. The trial's findings stay valid evidence for
+(2): the index line and the help head are what agents actually met. (4) before filing a card that moves or un-binds rule text, grep `tests/` for that text and for the binding, and name in the card the probe of each landed card that pins it (six cards were refused pre-claim on 2026-10-08 for missing this, deviation `events.jsonl#ts=`). [relates: plans/restructure-heavy-specs-as-core-plus-index-plus-on.md; <workshop-spec>; SPEC-0015; CHARTER §Principle 1]
+
 ## Anti-pattern
 
 - **Re-litigating a settled lesson because its «why» had no home** — e.g. re-proposing in-process

@@ -211,7 +211,7 @@ _CONCERN_SHAPE_HOOKS: frozenset = frozenset({
     "alert_routing_shape", "sandbox_entry_shape", "freshness_shape",
     "spike_data_safety_shape", "spike_sandbox_shape",
     "verify_policy_pinned_last_green", "reads_exemptions_shape",
-    "override_ledger_shape", "runbook_shape",
+    "override_ledger_shape", "runbook_shape", "anchor_symbol_forms_shape",
 })
 
 # The BORN-WAIVER SIGNATURE (T-9642) — the literal markers every born-waived section carries verbatim
@@ -553,16 +553,70 @@ def _legacy_cross_tasks_guard(REPO_ROOT, args, _cli_form: str):
     return None
 
 
+def _targets_engine_repository(REPO_ROOT, ENGINE_ROOT) -> bool:
+    """T-13650 — is init's target the ENGINE's own repository? The canonical engine identity
+    (`_is_consumer_build`, T-0952), answered here for the pre-write seam: the same path, or the same
+    git COMMON-dir — a linked worktree of the engine IS the engine, a separate repository is not.
+
+    Re-stated rather than injected, as `_engine_install_root` is and for its reason: the host seam
+    that calls the preflight hands it only the two roots. Path equality is decided without git, so
+    the bare run on the engine checkout is recognised even where git cannot answer; a failing or
+    absent git leaves two DIFFERENT paths unproven as one repository, and init proceeds as before."""
+    import subprocess
+    from pathlib import Path
+    repo, engine = Path(REPO_ROOT).resolve(), Path(ENGINE_ROOT).resolve()
+    if repo == engine:
+        return True
+
+    def _common_dir(directory):
+        from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+        try:
+            r = subprocess.run(["git", "-C", str(directory), "rev-parse", "--git-common-dir"],
+                               capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
+        except (OSError, subprocess.SubprocessError):
+            return None
+        out = r.stdout.strip()
+        if r.returncode != 0 or not out:
+            return None
+        common = Path(out)                  # rev-parse answers relative to the -C folder
+        return (common if common.is_absolute() else Path(directory) / common).resolve()
+
+    repo_common = _common_dir(repo)
+    return repo_common is not None and repo_common == _common_dir(engine)
+
+
+def refuse_engine_self_target(REPO_ROOT, ENGINE_ROOT) -> None:
+    """T-13650 — init REFUSES the engine's own checkout, by identity, before its first write.
+
+    `init` births or updates a CONSUMER's scaffolds and ops contract. The engine's root
+    `yitc-ops.yaml` is its own verify-policy declaration and nothing else (SPEC-0186 rule 6); the
+    update path would pull the born consumer sections into it. Every init mode writes consumer
+    content, so this stands above all of them — the dry run included, which reports what a real run
+    would do."""
+    from pathlib import Path
+    if _targets_engine_repository(REPO_ROOT, ENGINE_ROOT):
+        raise SystemExit(
+            f"init: REFUSED — the target {REPO_ROOT} is the engine's own checkout (the same "
+            f"repository as the running engine at {ENGINE_ROOT}); nothing was written.\n"
+            "  init delivers a CONSUMER project's scaffolds and ops contract. The engine is not a "
+            "consumer of its own ops contract: its root yitc-ops.yaml is the engine's verify-policy "
+            "declaration and nothing else (SPEC-0186 rule 6), so init neither creates nor extends it.\n"
+            "  To initialise a project, name it as the target: `bin/yitc-v2 -C <project-path> init` "
+            f"(this engine's CLI is {Path(ENGINE_ROOT) / 'bin' / 'yitc-v2'}).")
+
+
 def preflight_refusals(REPO_ROOT, ENGINE_ROOT, args, _cli_form: str) -> None:
     """T-12935 — every init refusal that can fire BEFORE init's first write, evaluated by the host ahead
     of its journal auto-sync (which writes events.jsonl + journal-sync-state/ into the project) so a
-    refused init leaves the project byte-untouched. Pure reads, each raising the SAME SystemExit as its
-    later in-body call: the version floor, then — on the bare birth path only, where cmd_init runs
+    refused init leaves the project byte-untouched. FIRST the engine-identity refusal (T-13650), which
+    has no in-body twin: it stands above every init mode. Then pure reads, each raising the SAME SystemExit
+    as its later in-body call: the version floor, then — on the bare birth path only, where cmd_init runs
     them — the legacy CROSS-TASKS guard and the born template + concern registry reads. The pure
     carrier-write modes (`--adopt-concern` & co.) act on an already-born project and keep their own
     in-mode refusals. The session-identity refusal is the host's (`_resolve_session_ref`).
     Each result is recorded in `_PREFLIGHTED` and CONSUMED by `cmd_init`, never re-decided there."""
     _PREFLIGHTED.clear()
+    refuse_engine_self_target(REPO_ROOT, ENGINE_ROOT)
     refuse_out_of_floor(REPO_ROOT, ENGINE_ROOT, seam="init")
     _PREFLIGHTED["floor"] = str(REPO_ROOT)
     if any(getattr(args, f, None) for f in ("rehome_contract_comments", "adopt_concern", "declare_theme",
@@ -760,7 +814,8 @@ def _hook_host_config(label: str, sec: dict, ops: dict) -> list:
     return errs
 
 
-def _glob_list_errors(value, where: str, purpose: str) -> list:
+def _glob_list_errors(value, where: str, purpose: str, *, what: str = "a test-class glob", rule: str = "rule 10",
+                      lives: str = "A test class lives inside the repo that declares it.") -> list:
     """T-12039 — the ONE repo-relative-glob-LIST shape check the `tests.classes[]` entry now applies at
     three places (`globs:`, `timing_lane:`, `timing_lane_waiver.globs:`). Extracted from the T-12012
     `globs:` branch VERBATIM rather than copied twice: the three fields carry the same shape for the
@@ -768,28 +823,31 @@ def _glob_list_errors(value, where: str, purpose: str) -> list:
     a second hand-rolled copy is exactly how two of them would drift apart.
 
     A non-empty list of non-empty repo-relative glob strings: NOT absolute, NO upward `..` traversal.
+    `what` / `rule` / `lives` name the declared thing, its rule and where it lives in the messages
+    (T-13647: the same shape now also judges `anchors.symbol_forms[].files`); the defaults are the
+    `tests.classes[]` wording, byte for byte.
     The CALLER decides presence — this helper is only ever reached for a key that IS present, because an
     absent one is a valid STANCE, not a defect. Pure; returns the (possibly empty) error list."""
     errs: list = []
     if not (isinstance(value, list) and len(value) > 0):
         errs.append(f"{where}: present but not a NON-EMPTY list — it must name at least one "
-                    f"repo-relative glob for {purpose}, or be omitted entirely (rule 10 — shape, not "
+                    f"repo-relative glob for {purpose}, or be omitted entirely ({rule} — shape, not "
                     "value). An absent declaration is a valid stance; an empty one declares nothing "
                     "while appearing to declare something.")
         return errs
     for j, g in enumerate(value):
         at = f"{where}[{j}]"
         if not (isinstance(g, str) and g.strip()):
-            errs.append(f"{at}: not a non-empty string (rule 10 — shape, not value)")
+            errs.append(f"{at}: not a non-empty string ({rule} — shape, not value)")
             continue
         g = g.strip()
         if g.startswith("/"):
-            errs.append(f"{at}: {g!r} is ABSOLUTE — a test-class glob is repo-relative "
-                        "(rule 10). A test class lives inside the repo that declares it.")
+            errs.append(f"{at}: {g!r} is ABSOLUTE — {what} is repo-relative "
+                        f"({rule}). {lives}")
         if g == ".." or g.startswith("../") or "/../" in g or g.endswith("/.."):
-            errs.append(f"{at}: {g!r} TRAVERSES UPWARD (`..`) — a test-class glob is "
+            errs.append(f"{at}: {g!r} TRAVERSES UPWARD (`..`) — {what} is "
                         "repo-relative and may not reach outside the declaring repo "
-                        "(rule 10).")
+                        f"({rule}).")
     return errs
 
 
@@ -2006,6 +2064,73 @@ def _hook_override_ledger(label: str, sec, ops: dict) -> list:
     return errs
 
 
+def anchor_symbol_form_errors(entry, index=None) -> list:
+    """The SINGLE entry-shape judgement for one `anchors.symbol_forms[]` entry (SPEC-0160 rule 30).
+
+    TWO readers call THIS function and nothing else — the `override_entry_errors` model: the
+    fail-closed sweep (via `_hook_anchor_symbol_forms` below) and the runtime reader that hands the
+    anchor resolver its forms (`cli._symbol_forms_of_carrier`). An entry the sweep refuses is
+    therefore exactly an entry the resolver does not use.
+
+    Returns the ordered reasons this entry is malformed; EMPTY means well-formed. An entry carries
+    `files:` — the repo-relative glob list `_glob_list_errors` already judges for `tests.classes[]`
+    — and `pattern:` — a regular expression naming the `{symbol}` placeholder, judged by
+    `textutil.symbol_form_template_error`. Shape, never VALUES (SPEC-0093 rule 3): whether the
+    expression describes the project's code well is the project's business."""
+    label = "entry" if index is None else f"symbol_forms[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{label}: not a mapping — a symbol form carries `files:` and `pattern:` "
+                "(SPEC-0160 rule 30)"]
+    errs: list = []
+    if "files" not in entry:
+        errs.append(f"{label}.files: missing — the repo-relative globs naming the files this form "
+                    "applies to (SPEC-0160 rule 30)")
+    else:
+        errs += _glob_list_errors(entry.get("files"), f"{label}.files", "the files this form applies to",
+                                  what="a symbol-form file glob", rule="SPEC-0160 rule 30",
+                                  lives="A form applies to files inside the repo that declares it.")
+    from lib import textutil
+    why = textutil.symbol_form_template_error(entry.get("pattern"))
+    if why:
+        errs.append(f"{label}.pattern: {entry.get('pattern')!r} — {why} (SPEC-0160 rule 30)")
+    return errs
+
+
+def _hook_anchor_symbol_forms(label: str, sec, ops: dict) -> list:
+    """SPEC-0160 rule 30 residual (OPT-IN — absence declares nothing): the `anchors.symbol_forms[]`
+    per-entry shape of a project's own `<file>#<symbol>` forms (reading: SPEC-0006).
+
+    A PRESENT section must be USABLE — the `_hook_live_revision` posture: it either declares a
+    non-empty `symbol_forms:` list or carries a reasoned `waiver:`, never both and never neither. A
+    malformed entry is REFUSED by name rather than skipped, because the resolver does skip it: the
+    anchors it was written for would go on being reported unresolved with nothing saying why.
+
+    NOTE `sec` is the RAW section value (opt-in bypasses the generic is-a-mapping check), so this
+    hook self-checks the type. The per-entry judgement is DELEGATED to `anchor_symbol_form_errors`,
+    which the runtime reader calls too; nothing about an entry is decided twice."""
+    errs: list = []
+    if not isinstance(sec, dict):
+        errs.append(f"{label}: present but not a mapping — declare `symbol_forms:` or "
+                    f"`waiver: {{reason: <why>}}`, or omit the section (SPEC-0160 rule 30)")
+        return errs
+    has_forms, has_waiver = "symbol_forms" in sec, "waiver" in sec
+    if has_forms and has_waiver:
+        errs.append(f"{label}: declares BOTH `symbol_forms:` and a `waiver:` — a section is EITHER "
+                    "declared OR waived (SPEC-0160 rule 30)")
+        return errs
+    if has_waiver:
+        return errs + _ops_waiver_errors(label, sec.get("waiver"), "loose")
+    entries = sec.get("symbol_forms")
+    if not (isinstance(entries, list) and entries):
+        errs.append(f"{label}.symbol_forms: a PRESENT section must declare a NON-EMPTY list of forms "
+                    f"or `waiver: {{reason: <why>}}` — omit the section to declare nothing "
+                    "(SPEC-0160 rule 30)")
+        return errs
+    for i, e in enumerate(entries):
+        errs += [f"{label}.{m}" for m in anchor_symbol_form_errors(e, i)]
+    return errs
+
+
 _SHAPE_HOOKS = {
     "security_shape": _hook_security,
     "deploy_policy_shape": _hook_deploy_policy,
@@ -2027,6 +2152,7 @@ _SHAPE_HOOKS = {
     "verify_policy_pinned_last_green": _hook_verify_policy_pinned_last_green,
     "reads_exemptions_shape": _hook_reads_exemptions,
     "override_ledger_shape": _hook_override_ledger,
+    "anchor_symbol_forms_shape": _hook_anchor_symbol_forms,
 }
 
 
@@ -7797,14 +7923,16 @@ _BORN_PROJECT_AGENTS_MD = """\
 # __PROJECT__ — project operating-context (provider-neutral home)
 
 This is this project's PROVIDER-NEUTRAL operating-context home (SPEC-0125): the durable, any-provider
-place for the product profile, module map, integration constraints, safety bans, and PII policy an AI
-must know to work this repo safely. The vendor adapter (`CLAUDE.md`) points here.
+place for the product profile, integration constraints, safety bans, and PII policy an AI must know
+to work this repo safely — the owner's decisions. The vendor adapter (`CLAUDE.md`) points here.
+It never holds state of the moment, rules for workers, history, or facts the repository already holds
+(SPEC-0125 Rule 1a). For the module map run `__YITC_CLI__ graph query module-map` (the module-map view).
 
 NOTE: this is the PROJECT's own context, NOT the yitc-v2 methodology handbook — that lives at the
 engine (the methodology handbook named by `session start`'s read-order echo, read via the `-C` engine binary).
 
 ## Product operating-context
-<fill in: safety bans / integration constraints / PII policy / module + profile notes>
+<fill in: product profile / safety bans / integration constraints / PII policy>
 """
 
 
@@ -7905,7 +8033,8 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
         neutral_home = "AGENTS.md"
         agents_path = REPO_ROOT / "AGENTS.md"
         if not agents_path.exists():
-            write_text_atomic(agents_path, _BORN_PROJECT_AGENTS_MD.replace("__PROJECT__", project_name))
+            write_text_atomic(agents_path, _BORN_PROJECT_AGENTS_MD.replace("__PROJECT__", project_name)
+                              .replace("__YITC_CLI__", cli_form))
             created.append("AGENTS.md")
         else:
             _restamp(agents_path, "AGENTS.md")   # re-stamp a pre-fix born AGENTS.md home
@@ -7990,7 +8119,97 @@ def declared_neutral_home(repo) -> tuple:
     return home, basis
 
 
-def adapter_conformance(repo_path) -> dict:
+def _spec_status_at(specs_dir, sid) -> "str | None":
+    """The top-level `status:` of spec `sid` under `specs_dir`, or None when no such spec file exists.
+    Read through the canonical YAML reader (`state.load_path`), so any legal YAML spelling of the value
+    counts; a present spec whose status cannot be read maps to "" — non-active, never `active`."""
+    from pathlib import Path
+    from lib import state
+
+    for p in sorted(Path(specs_dir).glob(f"{sid}-*.yaml")):
+        if not state.is_spec_part(p):
+            try:
+                doc = state.load_path(p, errors=[])
+            except Exception:  # noqa: BLE001 — report-only: an unreadable spec is non-active, never a crash
+                return ""
+            st = doc.get("status") if isinstance(doc, dict) else None
+            return st if isinstance(st, str) else ""
+    return None
+
+
+def home_reference_drift(repo, home_text, kernel_root) -> list:
+    """T-13761 — the references a project-context home makes that no longer hold, over the three
+    SPEC-0125 Rule 1a reference forms:
+      1. a repository path (or `path#anchor`), read relative to the repository root — taken from a
+         backticked span with no whitespace that has a `/` or a file extension; the anchor is not
+         checked, and a span whose `#` part is all digits (`owner/repo#71`, an issue reference) is not
+         a path;
+      2. a bare SPEC id, resolved own-first — the project's `specs/`, else the kernel's;
+      3. a `graph query --kernel SPEC-XXXX` form, resolved against the kernel only.
+    Drift = a named path that does not exist, or a named spec that is not `active` (absent included).
+    Returns `{"ref", "detail"}` records in first-mention order. Read-only, never raises."""
+    import re
+    from pathlib import Path
+
+    repo = Path(repo)
+    kernel_specs = Path(kernel_root) / "specs"
+    found, seen, statuses = [], set(), {}
+
+    def _add(pos, ref, detail):
+        if ref not in seen:
+            seen.add(ref)
+            found.append((pos, {"ref": ref, "detail": detail}))
+
+    def _status(specs_dir, sid):   # one read per (directory, id) for the whole home
+        key = (specs_dir, sid)
+        if key not in statuses:
+            statuses[key] = _spec_status_at(specs_dir, sid)
+        return statuses[key]
+
+    for m in re.finditer(r"`([^`\n]+)`", home_text):
+        span = m.group(1).strip()
+        path, _, anchor = span.partition("#")
+        if (not path or any(c.isspace() for c in span) or path[0] in "-<$/~"
+                or "://" in path or any(c in path for c in "*?[]{}<>|=")
+                or re.fullmatch(r"SPEC-\d{4,}", path) or (anchor and anchor.isdigit())
+                or not ("/" in path or re.search(r"\.[A-Za-z][A-Za-z0-9]{0,5}$", path))):
+            continue
+        target = (repo / path).resolve()
+        if repo.resolve() not in (target, *target.parents):
+            continue
+        if not target.exists():
+            _add(m.start(), span, "path not found in the repository")
+
+    kernel_spans = []
+    for m in re.finditer(r"graph query --kernel (SPEC-\d{4,})", home_text):
+        kernel_spans.append(m.span(1))
+        sid = m.group(1)
+        st = _status(kernel_specs, sid)
+        if st != "active":
+            _add(m.start(), f"graph query --kernel {sid}",
+                 "no such kernel spec" if st is None else f"kernel spec is {st or 'unreadable'}, not active")
+    for m in re.finditer(r"(?<![\w-])SPEC-\d{4,}(?![\w-])", home_text):
+        if m.span() in kernel_spans:
+            continue
+        sid = m.group(0)
+        own = _status(repo / "specs", sid)
+        st, where = (own, "own") if own is not None else (_status(kernel_specs, sid), "kernel")
+        if st != "active":
+            _add(m.start(), sid, "no such spec (own or kernel)" if st is None
+                 else f"{where} spec is {st or 'unreadable'}, not active")
+    return [rec for _pos, rec in sorted(found, key=lambda f: f[0])]
+
+
+def render_home_drift_line(home, drift, limit=5) -> str:
+    """The ONE report-only debt line for a non-empty `home_reference_drift` result."""
+    shown = "; ".join(f"`{d['ref']}` ({d['detail']})" for d in drift[:limit])
+    more = f"; … {len(drift) - limit} more" if len(drift) > limit else ""
+    return (f"debt: the project-context home {home} names {len(drift)} reference(s) that no longer "
+            f"hold — {shown}{more}. Fix the home, or name the command that shows the fact instead "
+            f"(SPEC-0125 Rule 1a). Report-only (SPEC-0119).")
+
+
+def adapter_conformance(repo_path, *, kernel_root=None) -> dict:
     """REPORT-ONLY consumer vendor-adapter conformance view (SPEC-0125 VP1/VP2) — the REUSABLE promotion
     of the hand-built T-10416 probe (its load-bearing AC2': the adapter→neutral-home CHAIN an AI consumer
     session actually reads must RESOLVE end-to-end). Read-only, NEVER raises, NEVER gates — the same
@@ -8018,6 +8237,9 @@ def adapter_conformance(repo_path) -> dict:
             `<project>` placeholder (or a mis-rendered `__PROJECT__`), so the delivered scaffold never
             got a real project identity. The fix is the governed `init --refresh-scaffolds` re-stamp,
             NOT a hand-edit (which would drift the adapter from the scaffold).
+      - `drift` (T-13761): with `kernel_root` given and a readable, filled declared home, that home's
+        `home_reference_drift` records (SPEC-0125 Rule 1a) — reported APART from `count`, so the
+        vendor-adapter verdict and the nightly grade are unchanged; empty otherwise.
 
     Fail-closed judgement belongs to the READER, not here (lessons/fail-closed-belongs-to-the-reader-not-
     the-parser): this view reports `unreadable` faithfully and each caller decides what that MEANS for it
@@ -8034,6 +8256,7 @@ def adapter_conformance(repo_path) -> dict:
         return {"status": "unreadable", "count": 0, "violations": []}
 
     violations: list = []
+    drift: list = []
 
     # T-10690 (X-0528) — the adapter title carries a REAL project identity, not the born placeholder.
     # Keyed on a HEADING line so a stray prose mention never trips it (mirrors the re-stamp's own gate).
@@ -8098,8 +8321,11 @@ def adapter_conformance(repo_path) -> dict:
                               f"operating-context was never filled in / was lost in the drain "
                               f"(SPEC-0125 Rule 1, VP2)",
                 })
+            elif kernel_root is not None:
+                drift = home_reference_drift(repo, body, kernel_root)
 
-    return {"status": "checked", "count": len(violations), "violations": violations}
+    return {"status": "checked", "count": len(violations), "violations": violations,
+            "home": home, "drift": drift}
 
 
 # ── ADOPTION-COMPLETENESS conformance (SPEC-0122 R6, T-10694 / X-0543) ──────────────────────────────

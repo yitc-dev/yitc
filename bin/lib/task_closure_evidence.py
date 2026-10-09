@@ -391,12 +391,35 @@ def _land_layer_rows(data: dict, stage6_index: dict):
     `consumer_verify_layers` holds only the any-author floor — and the layers it answers for are the
     ones on the `tests_passed` row it credited. That row is read where it lies, never copied onto the
     land row: a copy would feed every land-row reader and count the run twice.
+    A land that took only SOME layers' verdicts from the run (`stage6_layer_credit`, T-13675) carries
+    its own rows for the layers it ran and a credited-outcome row for each layer it did not; for
+    exactly those credited layers the run's own passed row is joined beside the land's row.
     The credited row is matched by IDENTITY, never by proximity: the credit names a task and a ts, the
     task must be the land's own branch task, and the row must be a `tests_passed` of that task at that
     ts. Any mismatch — another task's row, no such row, a red row — reads the land row alone, as before.
     `stage6_index` is `_stage6_layer_rows_index(events)`. Pure — no I/O."""
     rows = data.get("consumer_verify_layers")
     own = list(rows) if isinstance(rows, list) else None
+    part = data.get("stage6_layer_credit")
+    if own is not None and isinstance(part, dict):
+        # T-13675 (SPEC-0065 §Bound, the per-layer case): this land RAN its candidate verify and took
+        # SOME layers' verdicts from the run. For exactly those layers — named on the land's own
+        # record AND showing the credited outcome on its own row, once — the row it answers with is
+        # the run's: matched by identity (the land's own task, the row's exact ts), required to be
+        # that layer's ONLY row there and a pass. Anything else joins nothing for that layer.
+        ptid, pts, names = part.get("task"), part.get("ts"), part.get("credited")
+        run_rows = (stage6_index.get((ptid, pts))
+                    if isinstance(ptid, str) and isinstance(pts, str) and pts
+                    and data.get("branch") == f"task/{ptid}" else None)
+        if isinstance(run_rows, list) and isinstance(names, list):
+            for name in names:
+                if not isinstance(name, str) or names.count(name) != 1:
+                    continue
+                mine = [r for r in own if isinstance(r, dict) and r.get("layer") == name]
+                theirs = [r for r in run_rows if isinstance(r, dict) and r.get("layer") == name]
+                if (len(mine) == 1 and mine[0].get("outcome") == "credited-stage6-run"
+                        and len(theirs) == 1 and theirs[0].get("outcome") == "passed"):
+                    own.append(theirs[0])
     credit = data.get("stage6_credit")
     if not isinstance(credit, dict):
         return own
@@ -1832,7 +1855,7 @@ def _is_undifferentiated_receipt_ref(ref) -> bool:
 
 def _p8_adoption_verdict(tid: str, *, EVENTS_PATH, _p8_evidence_events_for,
                          _event_dedup_key=None, _main_events_path=None,
-                         _is_consumer_build=None, REPO_ROOT=None, _exit_status_ref_surface, _folded_journal_events, _is_undifferentiated_receipt_ref, _p8_evidence_is_substantive, _resolve_evidence_ref) -> dict:
+                         _is_consumer_build=None, REPO_ROOT=None, reasons_out: "list | None" = None, _exit_status_ref_surface, _folded_journal_events, _is_undifferentiated_receipt_ref, _p8_evidence_is_substantive, _resolve_evidence_ref) -> dict:
     """T-11015 (SPEC-0177 rules 2+3) — the P8 adoption reading, in ONE computation:
       {"substantive": bool, "exit_status_only_surface": str|None}
 
@@ -1869,10 +1892,18 @@ def _p8_adoption_verdict(tid: str, *, EVENTS_PATH, _p8_evidence_events_for,
     so no pre-existing evidence can fall into this subtraction.
 
     Rides `_p8_evidence_events_for`'s own seam with the same injected deps as its caller — one folded
-    read, no second reader (SPEC-0168 rule 7)."""
+    read, no second reader (SPEC-0168 rule 7).
+
+    T-13655 — `reasons_out` (optional out-param, absent ⇒ unchanged): when the verdict is NOT
+    substantive, WHY is appended — no P8 row at all, each candidate's own
+    `_p8_evidence_is_substantive(with_reason=True)` reason (deduplicated, in candidate order), or the
+    exit-status-only surface. The verdict is read off the SAME predicate call, never a second
+    judgement. Its reader is the `followup drop` P8-CARRIER guard (SPEC-0095)."""
     empty = {"substantive": False, "exit_status_only_surface": None, "matched": None}
     candidates = _p8_evidence_events_for(tid)
     if not candidates:
+        if reasons_out is not None:
+            reasons_out.append(f"no P8 adoption event is recorded for {tid}")
         return empty
     if _event_dedup_key is None:
         _event_dedup_key = lambda line: line          # noqa: E731 — byte identity: single instance
@@ -1890,10 +1921,23 @@ def _p8_adoption_verdict(tid: str, *, EVENTS_PATH, _p8_evidence_events_for,
               if _types else [])
     # REUSED, never re-implemented: the substantive judgement stays `_p8_evidence_is_substantive`'s, so
     # this reading and the T-10282 one can never diverge (CHARTER §P5).
-    substantive = [ev for ev in candidates
-                   if _p8_evidence_is_substantive(ev, tid, events,
-                                                  _is_consumer_build=_is_consumer_build,
-                                                  REPO_ROOT=REPO_ROOT)]
+    if reasons_out is None:
+        substantive = [ev for ev in candidates
+                       if _p8_evidence_is_substantive(ev, tid, events,
+                                                      _is_consumer_build=_is_consumer_build,
+                                                      REPO_ROOT=REPO_ROOT)]
+    else:
+        substantive, _why = [], []
+        for ev in candidates:
+            ok, reason = _p8_evidence_is_substantive(ev, tid, events,
+                                                     _is_consumer_build=_is_consumer_build,
+                                                     REPO_ROOT=REPO_ROOT, with_reason=True)
+            if ok:
+                substantive.append(ev)
+            elif reason and reason not in _why:
+                _why.append(reason)
+        if not substantive:
+            reasons_out.extend(_why)
     if not substantive:
         return empty
     exit_surfaces: list = []
@@ -1933,6 +1977,9 @@ def _p8_adoption_verdict(tid: str, *, EVENTS_PATH, _p8_evidence_events_for,
     if _is_consumer_build and _is_consumer_build():
         return {"substantive": True, "exit_status_only_surface": None,     # unreachable proof — see above
                 "matched": first_independent or substantive[0]}
+    if reasons_out is not None:
+        reasons_out.append(f"every resolving ref is an `exit:` ref (surface `{exit_surfaces[0]}`) — "
+                           "author-run exit-status evidence is not adoption on the kernel by itself")
     return {"substantive": False, "exit_status_only_surface": exit_surfaces[0], "matched": None}
 
 

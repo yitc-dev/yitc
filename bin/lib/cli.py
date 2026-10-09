@@ -819,7 +819,56 @@ def cmd_task_file(args: argparse.Namespace) -> None:
 
 
 def _cmd_task_file_body(args: argparse.Namespace, _main_ev) -> None:
-    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event, _as_list=_as_list, _auto_cross_pick_for_file=_auto_cross_pick_for_file, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_require_reads, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
+    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event, _as_list=_as_list, _auto_cross_pick_for_file=_auto_cross_pick_for_file, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_filing_read_gate, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
+
+
+def _deliver_filing_contracts(refused: bool = False) -> list:
+    """T-13707 — deliver the Filing stage-entry set (the `task file` read check's own doc-set) through
+    the stage deliverer, and return the ids whose delivery completed.
+
+    Before this, the filer was only TOLD the ids (session start, the refusal text) and fetched each
+    contract by hand as the full point-lookup render — again in the same session for every further
+    card. The id set is the gate's: `_stage_bundle_specs("Filing", include_kernel=True)`, the call
+    `_filing_reference_howto` and `_filing_read_gate_hint_lines` derive from; everything else is
+    `_deliver_stage_bundle_contracts` unchanged — the contract view, the ordinary receipt that credits
+    the read check, one pointer line while this context epoch holds the same content, the body again
+    after a `/compact` or a changed contract, no credit for output sent to the null device. The stage
+    name "Filing" is what the deliverer reads the `-C` realm map from, as the gate does.
+
+    `refused`: the read check has just refused this call; one closing line then says the delivery
+    above credits the session, so the re-run needs no hand fetch. A delivery helper never breaks its
+    verb: any failure returns [] and leaves the gate's own outcome as it was."""
+    try:
+        ids = list(_stage_bundle_specs("Filing", include_kernel=True) or [])
+        if not ids:
+            return []
+        print(f"Filing contract(s) for `task file` — rendered below as contract views (or as a one-line "
+              f"pointer when this context epoch already holds the same content); each counts toward "
+              f"the read-gate (SPEC-0042/0050) only once its delivery completes: {', '.join(ids)}")
+        done = _deliver_stage_bundle_contracts("Filing", ids)
+        if refused and done:
+            print(f"task file: the Filing contract(s) above are now delivered to this session and credit "
+                  f"its read check — read them, then re-run `task file`; no `graph query` is needed "
+                  f"({', '.join(done)})")
+        return done
+    except Exception:   # noqa: BLE001 — never break the verb; the gate decides, as before
+        return []
+
+
+def _filing_read_gate(kind: str, ctx: dict, **kw) -> None:
+    """T-13707 — the `task file` read check with the Filing contracts delivered around it. The check is
+    the ordinary `_require_reads` (looked up at call time), UNCHANGED: when it refuses, the set is
+    delivered and the SAME exit propagates, so a session's first filing still stops before any write
+    with the doctrine now in hand; when it admits, the set is delivered too — a pointer line inside the
+    epoch that already holds it, the body again after a `/compact`."""
+    try:
+        _require_reads(kind, ctx, **kw)
+    except SystemExit:
+        _deliver_filing_contracts(refused=True)
+        raise
+    _deliver_filing_contracts()
+
+
 def cmd_task_update(args: argparse.Namespace) -> None:
     # T-11834 — the QUEUE-JUMP mode's deps: the EXISTING sanctioned self-commit trio (`cmd_task_close`'s
     # T-11162 injection, reused verbatim by `cmd_task_refuse` T-11679 and now here). The mark is set on a
@@ -1086,6 +1135,15 @@ def _cross_filed_for_ids(task: dict) -> list:
     try:
         # T-13269: scoped to THIS project — the store is shared, a task id is not.
         return cross.card_filed_for_item_ids(
+            task, cross.fold(cross.read_events(_SELF.CROSS_LOG_PATH, _cross_peer_aliases())),
+            self_name=_cross_self())
+    except Exception:      # noqa: BLE001
+        return []
+def _cross_self_held_ids(task: dict) -> list:
+    # T-13739: the `resolves_cross` items THIS project holds (picked/done) — the close gate spells them
+    # as the card's evidence. FAIL-OPEN to [] like the reader above: no store, no fill, gate unchanged.
+    try:
+        return cross.card_self_held_resolves_ids(
             task, cross.fold(cross.read_events(_SELF.CROSS_LOG_PATH, _cross_peer_aliases())),
             self_name=_cross_self())
     except Exception:      # noqa: BLE001
@@ -1483,7 +1541,7 @@ def cmd_task_close(args: argparse.Namespace) -> None:
 
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
-    task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _cross_filed_for_ids=_cross_filed_for_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
+    task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1641,6 +1699,9 @@ def _view_projection_currency(index: dict) -> dict:
     return views._view_projection_currency(index, _graph_query_projected=_graph_query_projected)
 def _view_propagation_surfaces(index: dict, target: "str | None") -> dict:
     return views._view_propagation_surfaces(index, target)
+def _view_module_map(index: dict) -> dict:
+    # T-13756: a -C consumer without its own index is queried over the ENGINE index (T-0860) — not its map.
+    return views._view_module_map(index, own_index=not (_is_consumer_build() and not GRAPH_PATH.exists()))
 def _view_extensions_catalog(index: dict) -> dict:
     # T-13037: the catalog lists KERNEL extension specs, which a -C consumer's own index lacks — pass the
     # engine index on a consumer build (the T-10239 host/pure split, as _view_binding_bundle above).
@@ -2948,6 +3009,42 @@ def _try_rediscover_session_ref(*, allow_locus_stamp: bool = True) -> "tuple[str
     return ref, reason
 
 
+def _carry_anchored_stale_epoch(ref: str) -> "tuple[int, int] | None":
+    """T-13720 — is an UNBACKED carried ref the POST-COMPACTION case? Returns `(receipt_epoch,
+    current_epoch)` when the journal the backing check reads holds `ref`'s own `session_started` anchor
+    AND seed-read receipts that ALL predate the current context epoch; else None.
+
+    That is the seed gate's `seed_read_stale_epoch` condition (`gates._require_seed_read`), reached here
+    because a carry is BACKED only by a current-epoch receipt (`_ref_current_epoch_anchored`): right
+    after a `/compact` every session that carries its ref and has no live runtime record is unbacked,
+    and the keyer dies before the gate's own stale-epoch text can print. MESSAGE-ONLY: it selects which
+    diagnostic `_resolve_session_ref` prints for a carry Rule 2.1 already rejected — it never backs a
+    ref, and resolution is unchanged whichever way it answers.
+
+    The evidence is the read gate's own (`_session_started_lower_bound` + `_seed_receipt_epochs` +
+    `_session_epoch`) over ONE snapshot from the gates' own full-read primitive (`gates._gate_snapshot`,
+    the walk the backing check's refusal already took, resumed). Any failure answers None — the
+    pre-change text, which names the other two causes."""
+    if not ref:
+        return None
+    try:
+        current = _session_epoch()
+        if not isinstance(current, int) or isinstance(current, bool) or current <= 0:
+            return None
+        ev = EVENTS_APPEND_PATH if READ_ONLY_ROOT is not None else None
+        rows, _bounded = gates._gate_snapshot(ev, tail=False, _iter_events=_iter_events,
+                                              _iter_events_tail=_iter_events_tail, session_ref=ref)
+        lb = _session_started_lower_bound(ref, events=rows)
+        if lb is None:
+            return None
+        epochs = _seed_receipt_epochs(ref, lb, events=rows)
+    except Exception:   # noqa: BLE001 — a diagnostic refinement must never replace the refusal itself
+        return None
+    if not epochs or max(epochs) >= current:
+        return None
+    return max(epochs), current
+
+
 _REDISCOVERY_SELECTORS_TRIED = (
     "isolated-verify scenario ref, the carried YITC_SESSION_REF, the worktree stamp, the runtime records"
 )
@@ -3008,20 +3105,46 @@ def _resolve_session_ref(*, allow_locus_stamp: bool = True) -> str:
     # carry for the MESSAGE only — never as a selector (Rule 2.1 already rejected it above as unbacked).
     carried = os.environ.get(SELF_REF_ENV, "").strip()
     if carried:
-        _die(
-            f"session_ref undetermined — the carried {SELF_REF_ENV}={carried!r} is UNBACKED: no live v2 "
-            "session record in this locus backs it, so it cannot key a governance decision (SPEC-0137 "
-            "Rule 2.1 / Rule 5 fail-closed). TWO CAUSES — check the transient one FIRST (T-10409): "
-            "(1) TRANSIENT — a concurrent `land` may be mid-rewrite of this journal, and a truncated "
-            "read torn-misses a receipt that IS durably present. The backing check already re-read it a "
-            "bounded number of times, so this is unlikely — but if a land is running right now, RE-RUN "
-            "THIS VERB ONCE before concluding staleness. (2) STALE — the carry really is dead/foreign. "
-            "Then find where this ref IS backed (run from the checkout/worktree whose session minted "
-            f"it), or drop the carry (`unset {SELF_REF_ENV}`) and start a session there. Either way, "
-            "re-running `bin/yitc-v2 session start` will NOT re-back this ref — it MINTS A NEW id and "
-            f"deepens the split. Tried: {_REDISCOVERY_SELECTORS_TRIED}. NO provider-carrier fallback "
-            "exists (Rule 4)." + _pair
-        )
+        # T-13720: a THIRD situation, with its own advice — the carry is this journal's OWN session and
+        # only its seed-read receipt predates the current context epoch (the state right after a
+        # `/compact`). There the two-cause text is wrong twice: neither cause applies, and `session
+        # start` run WITH the carry re-backs the SAME ref (`_session_start_identity` resolves a carried
+        # ref; it mints only when none is carried). ONE `_die` for both texts: the land-path refusal
+        # table (T-11371) counts this function's refusal sites.
+        stale = _carry_anchored_stale_epoch(carried)
+        if stale is not None:
+            msg = (
+                f"session_ref undetermined — the carried {SELF_REF_ENV}={carried!r} is UNBACKED for the "
+                "CURRENT context epoch: this journal holds its own `session_started` anchor, but its "
+                f"newest seed-read receipt is from context epoch {stale[0]} and the context is now at "
+                f"epoch {stale[1]} (SPEC-0137 Rule 2.1 / Rule 5 fail-closed; SPEC-0050 §8). CAUSE — the "
+                "context was COMPACTED after this session last ran `session start`: the carry is this "
+                "session's own, only its receipt is stale. RECOVERY — one step, and KEEP the carry: "
+                "re-read your whole audience seed (AGENTS.md §After /compact), then re-run "
+                f"`bin/yitc-v2 session start` ONCE with {SELF_REF_ENV} still set, in the checkout you "
+                "run this verb from (a dispatched Worker: `bin/yitc-v2 session start --type build`). "
+                "That re-run resolves the SAME ref from the carry and stamps its receipt for the "
+                f"current epoch, so the ref is backed again — do not `unset {SELF_REF_ENV}`. If that "
+                "refresh already ran after this compaction, a concurrent `land` may be mid-rewrite of "
+                f"this journal: re-run this verb once. Tried: {_REDISCOVERY_SELECTORS_TRIED}. NO "
+                "provider-carrier fallback exists (Rule 4)."
+            )
+        else:
+            msg = (
+                f"session_ref undetermined — the carried {SELF_REF_ENV}={carried!r} is UNBACKED: no live v2 "
+                "session record in this locus backs it, so it cannot key a governance decision (SPEC-0137 "
+                "Rule 2.1 / Rule 5 fail-closed). TWO CAUSES — check the transient one FIRST (T-10409): "
+                "(1) TRANSIENT — a concurrent `land` may be mid-rewrite of this journal, and a truncated "
+                "read torn-misses a receipt that IS durably present. The backing check already re-read it a "
+                "bounded number of times, so this is unlikely — but if a land is running right now, RE-RUN "
+                "THIS VERB ONCE before concluding staleness. (2) STALE — the carry really is dead/foreign. "
+                "Then find where this ref IS backed (run from the checkout/worktree whose session minted "
+                f"it), or drop the carry (`unset {SELF_REF_ENV}`) and start a session there. Either way, "
+                "re-running `bin/yitc-v2 session start` will NOT re-back this ref — it MINTS A NEW id and "
+                f"deepens the split. Tried: {_REDISCOVERY_SELECTORS_TRIED}. NO provider-carrier fallback "
+                "exists (Rule 4)."
+            )
+        _die(msg + _pair)
     # T-13120: a `-C <consumer>` refusal LEADS with one plain line + the exact, copyable command for THIS
     # path — a post-install newcomer running `-C <path> init` first has no relative `bin/yitc-v2`. The
     # internal diagnostic follows as detail (T-12935 / T-11011 key on it); engine-local text unchanged.
@@ -4137,6 +4260,101 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         return False
 
 
+def _session_rows(events_path, ref: str, *, settled=None) -> list:
+    """This session's own rows of ONE journal, walked newest first and stopped once `settled` holds —
+    the session-scoped tail walk the T-13580 receipt read uses (`gates._gate_snapshot`)."""
+    rows, _bounded = gates._gate_snapshot(
+        Path(events_path), tail=True, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
+        session_ref=ref, settled=settled)
+    return [e for e in rows if e.get("session_ref") == ref]
+
+
+def _post_compact_journals() -> list:
+    """THIS checkout's journal, then the MAIN checkout's when it is a different file (T-13687)."""
+    paths = [Path(EVENTS_PATH)]
+    main_events = _journal_locus_main_events(REPO_ROOT)
+    if main_events and Path(main_events) != paths[0]:
+        paths.append(Path(main_events))
+    return paths
+
+
+def _post_compact_root() -> str:
+    """This project's MAIN checkout (shared by its worktrees) — what the re-fold block's head names."""
+    return str(_main_worktree(REPO_ROOT) or REPO_ROOT)
+
+
+def _post_compact_refold_due(ref: "str | None") -> "tuple[int, int] | None":
+    """Is the post-compact re-fold block due at THIS start (T-13687, SPEC-0007 §5b)? DERIVED, never
+    declared. Returns `(epoch, previous_epoch)` when due, else None. Read BEFORE this start writes its
+    own `cli:seed` receipt (the residue emits it last).
+
+    Due only when ALL hold:
+      - the current context epoch is KNOWN and > 0 (`_session_epoch_known` — a count actually taken;
+        a session that never compacted, or whose transcript cannot be read, gets no block);
+      - this ref STARTED IN AN OLDER EPOCH — a `cli:seed` receipt in THIS checkout's journal or the
+        MAIN checkout's stamped with an epoch older than the current one (a start's epoch is the stamp
+        on its receipt, `session_started` carries none; the dispatch launcher's pre-recorded worker
+        receipt counts, and an epoch-less receipt is epoch 0 — the seed gate's own reading);
+      - this conversation was NOT already shown THIS ref's re-fold block for THIS epoch since its last
+        compaction (`session.refold_block_in_context`; a block of another ref or epoch — a test
+        fixture's output read as a tool result — does not count) — so the same-epoch refresh in a second checkout (a
+        Worker's worktree start, then the main checkout before `land`) prints it once, while a start
+        whose output never reached the conversation (sent to the null device) leaves it due.
+    The previous epoch reported is the newest of those older stamps.
+    None on any exception: the start then prints exactly what it printed before this card.
+
+    reuses: `_session_epoch_known` (the counter the seed gate and the stage deliverer read), the
+    session-scoped journal tail walk T-13580 reads receipts with, and the transcript walk
+    `start_block_in_context` uses. None of it runs unless the epoch is known and > 0."""
+    try:
+        if not ref:
+            return None
+        epoch = _session_epoch_known()
+        if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
+            return None
+
+        def _seeds(rows) -> list:
+            return [e for e in rows if e.get("type") == "cli_invoked"
+                    and (e.get("data") or {}).get("node_id") == gates.SEED_READ_NODE_ID]
+
+        def _older(rows) -> list:
+            eps = [(e.get("data") or {}).get("epoch") for e in _seeds(rows)]
+            return [ep if isinstance(ep, int) and not isinstance(ep, bool) else 0 for ep in eps
+                    if not (isinstance(ep, int) and not isinstance(ep, bool) and ep >= epoch)]
+
+        older = []
+        for path in _post_compact_journals():
+            older += _older(_session_rows(path, ref, settled=lambda snap: bool(_older(snap))))
+        if not older:
+            return None
+        if session.refold_block_in_context(_provider_session_ref(), ref, _post_compact_root(), epoch,
+                                           _session_log_path=_session_log_path):
+            return None
+        return epoch, max(older)
+    except Exception:   # noqa: BLE001 — a report line never breaks a start
+        return None
+
+
+def _post_compact_refold_plans(ref: str) -> list:
+    """Slugs of plans THIS session entered `decomposition` for (its own `plan_stage_entered` rows, in
+    this checkout's journal and the main checkout's) that are still at `status: decomposition` —
+    session provenance, never a `plans/` scan (T-13687)."""
+    slugs = []
+    for path in _post_compact_journals():
+        for e in _session_rows(path, ref):
+            d = e.get("data") or {}
+            slug = d.get("slug")
+            if e.get("type") == "plan_stage_entered" and d.get("to") == "decomposition" \
+                    and isinstance(slug, str) and PLAN_SLUG_RE.match(slug) and slug not in slugs:
+                slugs.append(slug)
+    out = []
+    for slug in slugs:
+        path = _find_draft(slug)
+        if path is not None and (_split_frontmatter(path)[0] or {}).get("status") == "decomposition":
+            out.append(slug)
+    return out
+
+
 def cmd_session_start(args: argparse.Namespace) -> None:
     # T-13303 (AC5): the verb's OWN wall-clock start — its seed receipt below is emitted IN-verb, so
     # `main`'s post-run `duration_ms` never reaches it; measured from here, as `main` measures a body.
@@ -4270,6 +4488,8 @@ def cmd_session_start(args: argparse.Namespace) -> None:
             _cross_linked_ids=_cross_linked_ids() if not _receipt_only else None,
             _cross_peer_aliases=_peer_aliases, _project_name=_project,
             _receipt_only=_receipt_only,
+            # T-13757: a consumer's own floor map, computed here and injected as a VALUE (F5, as above).
+            _own_floor_map=session.consumer_own_floor_map(REPO_ROOT) if _is_consumer_build() else None,
             # T-12984: is the kernel a registered peer on THIS host? (empty set on a missing/unreadable
             # registry -> False -> the consumer reflex echo says LOCAL, never AUTO-ROUTES).
             _kernel_is_local_peer=(KERNEL_NAME in _cross_known_registry_peers()) if not _receipt_only else None,
@@ -4316,6 +4536,36 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # session-start seam — consumer-gated, suppressed-when-clean, derived (no consumer-repo mutation),
         # emits concern_drift_surfaced AFTER the session_started anchor above. Best-effort (never breaks start).
         _surface_concern_drift()
+        # T-13687 (SPEC-0007 §5b): on a start whose context epoch is newer than this session's previous
+        # start, the applicable post-compact re-fold steps — decided before the receipt emit below.
+        _refold = _post_compact_refold_due(_resolved_ref)
+        if _refold is not None:
+            try:
+                _rf_task = _own_task_worktree_card()
+            except Exception:   # noqa: BLE001 — the block still prints, without the task line
+                _rf_task = None
+            try:
+                _rf_plans = _post_compact_refold_plans(_resolved_ref)
+            except Exception:   # noqa: BLE001 — the block still prints, without the plan lines
+                _rf_plans = []
+            _rf_stage = (_rf_task or {}).get("current_stage")
+            try:   # the stage-bundle deliverer's own predicate: a valid stage with a non-empty bundle
+                _rf_bundle = bool(_rf_stage in STAGE_AXIS_NAMES
+                                  and _stage_bundle_specs(_rf_stage, include_kernel=True))
+            except Exception:   # noqa: BLE001 — then the row claims no delivery
+                _rf_bundle = False
+            _rf_cli = _cli_invocation_form()
+            _rf_root = _post_compact_root()
+            for _rf_i, _rf_ln in enumerate(session.post_compact_refold_lines(
+                    ref=_resolved_ref, root=_rf_root, epoch=_refold[0], prev_epoch=_refold[1],
+                    worker=getattr(args, "type", None) == "build",
+                    consumer=_is_consumer_build(), receipt_only=_receipt_only, cli=_rf_cli,
+                    help_cmd=f"YITC_SESSION_REF={_resolved_ref} {_rf_cli} --help",
+                    task=_rf_task, stage_bundle=_rf_bundle, plans=_rf_plans,
+                    main_cli=session.main_checkout_cli(ENGINE_ROOT, _rf_root, _is_consumer_build()),
+                    own_floor_map=(session.consumer_own_floor_map(REPO_ROOT)
+                                   if _is_consumer_build() else None))):
+                print(session.mark(_rf_ln, session.ON_DEMAND_REFOLD) if _rf_i == 0 else _rf_ln)
         # T-12000: DELIVER this checkout's current stage bundle — AFTER the `session_started` anchor
         # `session.cmd_session_start` just wrote, at the SAME post-anchor residue seam as the
         # concern-drift surface above (so `cmd_session_start` gains no injected dep and the D-0052 F5
@@ -7518,16 +7768,62 @@ def _decision_apply_field_edits(path: Path, raw: str, edits, expect: dict) -> No
 def cmd_spec_new(args: argparse.Namespace) -> None:
     # Thin residue → spec.cmd_spec_new (T-9333). Injects the host collaborators/globals (read at call
     # time so a -C rebind + any monkeypatch on these host names stay honored). Engine: bin/lib/spec.py.
-    return spec.cmd_spec_new(
+    # T-13706 — the binding derivation the engine function makes for its `spec_filed` row is kept, so
+    # the set delivered below is the set that row records, with no second corpus read.
+    derived: dict = {}
+
+    def _contract_for(surface: str) -> dict:
+        derived[surface] = _governing_contract_for(surface)
+        return derived[surface]
+
+    spec.cmd_spec_new(
         args, _require_writing_worktree=_require_writing_worktree, _die=_die, _yaml_scalar=_yaml_scalar,
         _utc_now_iso=_utc_now_iso, PLANS_DIR=PLANS_DIR, _require_reads=_require_reads,
         PLACEMENT_REALMS=PLACEMENT_REALMS, _SPEC_CLASS_DEFAULT=_SPEC_CLASS_DEFAULT,
         _kernel_content_file=_kernel_content_file, _scaffold_read_validate=_scaffold_read_validate,
         _id_alloc_lock=_id_alloc_lock, SPECS_DIR=SPECS_DIR, _slug=_slug,
         _scaffold_substitute=_scaffold_substitute, write_text_atomic=write_text_atomic,
-        _append_event=_append_event, REPO_ROOT=REPO_ROOT, _governing_contract_for=_governing_contract_for,
+        _append_event=_append_event, REPO_ROOT=REPO_ROOT, _governing_contract_for=_contract_for,
         _manifest_path=_manifest_path, _backfill_spec_placement_handrow=_backfill_spec_placement_handrow,
         _is_consumer_build=_is_consumer_build)
+    # T-13706 — the before-rule-change contract(s) for a NEW spec, after the scaffold is written and
+    # before its body is authored. Called here, not inside the engine function, whose text is a signed
+    # anchor of SPEC-0050 and SPEC-0092 and is unchanged by this delivery.
+    _deliver_before_rule_change("spec-new", (derived.get("spec-new") or {}).get("specs"))
+
+
+def _deliver_before_rule_change(surface: str, specs: "list | None" = None) -> list:
+    """T-13706 — deliver the before-rule-change contract(s) of a floor-gated spec verb (`surface` is
+    `spec-edit` or `spec-new`) through the stage deliverer, and return the ids whose delivery completed.
+
+    Before this, `spec edit` printed the ids and `spec new` printed nothing; the reader then fetched
+    each contract by hand, as the full point-lookup render, after every edit. The id set is unchanged
+    — `_governing_contract_for(surface)`, the binding-derived projection both verbs already record on
+    their journal row — and so is everything `_deliver_stage_bundle_contracts` does with it: the
+    contract view, the ordinary `graph query` receipt that credits the read gate (so the `spec edit
+    --bless` gate, `_require_before_rule_change_read`, is satisfied by a delivering `spec edit` as it
+    is by a hand fetch), one pointer line instead of the body while this context epoch already holds
+    the same content, the body again after a `/compact` or a changed contract, and no credit for
+    output sent to the null device.
+
+    `surface` is passed as the deliverer's stage name, which it reads for ONE thing: the realm map of
+    a `-C` consumer's stage bundle. No stage carries this name, so that map is empty and each id is
+    fetched in the bare form — the form the gate's own refusal names, resolving the same record
+    (own first, else the kernel's) whose binding put the id in the set.
+
+    A delivery helper never breaks its verb: the spec is already written when this runs, so any
+    failure here leaves the verb's result as it was and the contract one `graph query` away."""
+    try:
+        ids = list(specs) if specs is not None else list(_governing_contract_for(surface).get("specs") or [])
+        if not ids:
+            return []
+        print(f"before-rule-change contract(s) for `{surface.replace('-', ' ')}` — rendered below as "
+              f"contract views (or as a one-line pointer when this context epoch already holds the "
+              f"same content); each counts toward the read-gate (SPEC-0042/0050) only once its "
+              f"delivery completes: {', '.join(ids)}")
+        return _deliver_stage_bundle_contracts(surface, ids)
+    except Exception:   # noqa: BLE001 — never break the verb whose write already happened
+        return []
 
 
 _BLESS_SESSION_WINDOW_DAYS = 2   # T-13308 — the bless read-gate's SESSION horizon (an explicit window)
@@ -7538,7 +7834,8 @@ def cmd_spec_edit(args: argparse.Namespace) -> None:
     # bin/lib/spec.py.
     # T-13308 (SPEC-0190 rule 10) — THE WIRING SITE of `--bless`'s ONE-PASS ReadScope: lazy, its
     # horizon the session window, opted in to the T-13298 remainder walk. Its only journal readers are
-    # the before-rule-change gate's (`_require_before_rule_change_read`); the plain edit reads none.
+    # the before-rule-change gate's (`_require_before_rule_change_read`). The plain edit's one read is
+    # the stage deliverer's own (T-13706): the session-scoped tail snapshot it takes at every seam.
     if getattr(args, "bless", False):
         since = (_dt.datetime.now(_dt.timezone.utc)
                  - _dt.timedelta(days=_BLESS_SESSION_WINDOW_DAYS)).date().isoformat()
@@ -7555,6 +7852,7 @@ def _cmd_spec_edit(args: argparse.Namespace) -> None:
         _governing_contract_for=_governing_contract_for, _append_event=_append_event,
         REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
         _require_before_rule_change_read=_require_before_rule_change_read,
+        _deliver_before_rule_change=_deliver_before_rule_change,   # T-13706 — the contract(s), delivered
         _manifest_path=_manifest_path)   # T-12399 — the travels re-pin cue names this file; suppressed when absent
 
 
@@ -7577,7 +7875,8 @@ def cmd_spec_reverify(args: argparse.Namespace) -> None:
 
 
 def _reverify_spec_signature(sid: str, *, only_anchors: "set | None" = None,
-                             base_rev: "str | None" = None):
+                             base_rev: "str | None" = None,
+                             leave_unsigned: "list | None" = None):
     """Re-bless a spec's `implements_signature:` against the CURRENT anchor content — the durable
     freshness-baseline write that both `spec reverify` (T-0506) and `task close --reverify` (T-1177,
     SPEC-0015 §Reverify-at-close) share (ONE signer, no parallel path — CHARTER §P5). Resolves the
@@ -7605,7 +7904,16 @@ def _reverify_spec_signature(sid: str, *, only_anchors: "set | None" = None,
     An untouched anchor with NO stored signature is a first baseline: it blesses no drift, so it WARNs
     (loudly) rather than refusing — refusing would break every legitimate first signing (T-10310's
     SPEC-0066 case). Default None = guard OFF, so `cmd_task_close --reverify` (which has its own
-    T-1177 eligibility guard) is untouched."""
+    T-1177 eligibility guard) is untouched.
+
+    `leave_unsigned` (T-13674) — when a list is given and no `only_anchors` scope is, an anchor with
+    NO stored signature is NOT signed: a signature says the code was read against the spec, and the
+    plain `spec reverify <SPEC>` names no anchor it read. The signing targets are then the anchors
+    that already carry a signature; each never-signed anchor a signing run WOULD sign is appended to
+    the list for the caller to report, and one it could not sign (absent/unreadable) is returned in
+    `unsignable`, exactly as a signing run reports it. A named `only_anchors` scope wins over it —
+    naming an anchor is the assertion that it was read. Default None = the never-signed anchors are
+    signed too, which is what `cmd_task_close --reverify` and the explicit `spec reverify` forms keep."""
     path = _find_spec_path(sid)
     if path is None:
         _die(f"spec not found: {sid} (specs/{sid}-*.yaml)")
@@ -7628,6 +7936,8 @@ def _reverify_spec_signature(sid: str, *, only_anchors: "set | None" = None,
             _die(f"`--anchor` names {'an anchor' if len(unknown) == 1 else 'anchors'} "
                  f"{', '.join(unknown)} not declared by {sid}. Declared anchors: {', '.join(anchors)}")
         targets = sorted(set(only_anchors))
+    elif leave_unsigned is not None:
+        targets = [a for a in anchors if a in stored]    # T-13674: re-sign only what is already signed
     else:
         targets = anchors
 
@@ -7640,6 +7950,17 @@ def _reverify_spec_signature(sid: str, *, only_anchors: "set | None" = None,
             unsignable.append(a)
         else:
             sigs[a] = s
+    if only_anchors is None and leave_unsigned is not None:
+        # T-13674 — the never-signed anchors: none is signed. The list names only those a signing
+        # run would really sign, so the command the caller prints for them does what it says.
+        for a in anchors:
+            if a in stored:
+                continue
+            if _anchor_content_signature(a, cache) is None:
+                unsignable.append(a)
+            else:
+                leave_unsigned.append(a)
+        unsignable.sort()
 
     # The untouched-anchor guard (T-10324). `base_rev` is None-vs-set: a caller that could not resolve
     # a merge-base must NOT reach here with None (that would silently disable the guard) — it refuses
@@ -7669,6 +7990,43 @@ def _reverify_spec_signature(sid: str, *, only_anchors: "set | None" = None,
                 f"yitc-v2 spec reverify {sid} --anchor <anchor>\n"
                 f"  or, having actually re-read the spec against ALL of that code, re-sign the whole "
                 f"spec explicitly:  yitc-v2 spec reverify {sid} --include-untouched")
+        # T-13738 (X-1878) — a FIRST baseline blesses no drift only if no other spec already signed
+        # the same anchor with a different hash: after a spec split the parent may still hold a stale
+        # signature, and signing the child with the current content would launder that drift.
+        fresh = sorted(a for a in sigs if a not in stored)
+        conflicts = []
+        if fresh:
+            for other in sorted(SPECS_DIR.glob("*.yaml")):
+                if other == path:
+                    continue
+                try:                                  # parsed, never a raw-text prefilter: a YAML key
+                                                      # may be spelled with escapes (audit-pre pass 1)
+                    orec = _read_yaml(other)
+                except Exception:                     # noqa: BLE001 — an unparsable spec proves nothing
+                    continue
+                if not isinstance(orec, dict) or orec.get("status") not in ("active", "proposed"):
+                    continue
+                osig = orec.get("implements_signature")
+                if not isinstance(osig, dict):
+                    continue
+                osig = {str(k): str(v) for k, v in osig.items()}   # read as `stored` is read above
+                for a in fresh:
+                    if a in osig and osig[a] != sigs[a]:
+                        conflicts.append((a, str(orec.get("id") or other.stem), osig[a]))
+        if conflicts:
+            detail = "\n".join(
+                f"    {a}\n      {oid} signs {osig_v[:12]}… but the content now hashes {sigs[a][:12]}…"
+                for a, oid, osig_v in conflicts)
+            first = conflicts[0]
+            _die(
+                f"refusing to give {sid} a FIRST baseline on {len(conflicts)} anchor(s) another spec "
+                f"already signs with a DIFFERENT hash:\n{detail}\n"
+                f"  Signing {sid} with the current content would bless the drift that spec's "
+                f"signature records (X-1878).\n"
+                f"  Re-read the other spec against the anchor and re-sign it:  "
+                f"`bin/yitc-v2 spec reverify {first[1]} --anchor={first[0]}`\n"
+                f"  or, having read {sid} against the anchor, sign it by name:  "
+                f"`bin/yitc-v2 spec reverify {sid} --anchor={first[0]}`")
         if first_signed:
             print(f"  ⚠ {len(first_signed)} untouched anchor(s) of {sid} get a FIRST content baseline "
                   f"(no prior signature, so no drift is blessed): {', '.join(sorted(first_signed))}",
@@ -9020,12 +9378,47 @@ def cmd_followup_promote(args: argparse.Namespace) -> None:
                                       _segment_lines=journal_mod.segment_fold_lines)
 
 
+def _p8_carrier_drop_check(text, waived: bool = False):
+    """T-13655 (SPEC-0095) — the host reading `followup drop` asks before dropping a P8 carrier.
+
+    None when `text` carries no `P8-CARRIER:` marker (the ONE parse, `_p8_marker_carried_ids`).
+    Otherwise `{"task_ids": [...], "refusal": <why> | None}`: `refusal` is None when the drop is
+    waived (no verdict is read) or when EVERY carried card's P8 adoption verdict is substantive — the
+    verdict `task close` itself reads (`task._p8_adoption_verdict`), whose own reasons are returned
+    verbatim, never a second predicate. A marker naming no readable id, and a verdict that cannot be
+    read, both refuse: an obligation that cannot be checked is not shown met."""
+    carried = _p8_marker_carried_ids(text)
+    if carried is None:
+        return None
+    ids = sorted(carried)
+    if waived:
+        return {"task_ids": ids, "refusal": None}
+    if not ids:
+        return {"task_ids": ids, "refusal": "the marker names no readable task id, so no card's "
+                                            "evidence can be read"}
+    why: list = []
+    for tid in ids:
+        reasons: list = []
+        try:
+            verdict = task_mod._p8_adoption_verdict(
+                tid, EVENTS_PATH=EVENTS_PATH, _p8_evidence_events_for=_p8_evidence_events_for,
+                _event_dedup_key=_event_dedup_key, _main_events_path=_main_events_path(),
+                _is_consumer_build=_is_consumer_build, REPO_ROOT=REPO_ROOT, reasons_out=reasons)
+        except Exception as exc:                # noqa: BLE001 — unreadable verdict => refuse, named
+            why.append(f"{tid}: the P8 adoption verdict could not be read ({type(exc).__name__})")
+            continue
+        if not verdict.get("substantive"):
+            why.append(f"{tid}: " + ("; ".join(reasons) or "no substantive P8 adoption evidence"))
+    return {"task_ids": ids, "refusal": " | ".join(why) or None}
+
+
 def cmd_followup_drop(args: argparse.Namespace) -> None:
     with _followup_read_scope():   # T-13380 — one pass, not a materialised journal
         followup_mod.cmd_followup_drop(args, append_event=_append_event,
                                        events_path=_followup_events_path(), die=_die,
                                        stdin_ingest=textutil.stdin_mapping_ingest,
-                                       _segment_lines=journal_mod.segment_fold_lines)
+                                       _segment_lines=journal_mod.segment_fold_lines,
+                                       p8_drop_check=_p8_carrier_drop_check)   # T-13655
 
 
 def cmd_followup_arm(args: argparse.Namespace) -> None:
@@ -9448,9 +9841,112 @@ def cmd_inspect_record(args: argparse.Namespace) -> None:
         _case_review=lambda: task_mod._case_revision_review(REPO_ROOT),
         INSPECTED_CONSUMER=inspected_consumer,
         KERNEL_THEME_OWNER=init_mod._KERNEL_THEME_OWNER,
-        _review_due=_review_due_view)   # T-13104: `--tier weekly` voices a due triage subject   # T-13023: the kernel-owner literal's one carrier
+        _review_due=_review_due_view,   # T-13104: `--tier weekly` voices a due triage subject   # T-13023: the kernel-owner literal's one carrier
+        _delivered_weight=_delivered_weight_report)   # T-13719: the T7 delivered-protocol-weight block
     _onboarding_seam_nudge("inspect")   # SPEC-0147 §5 station J rides this existing seam
     return out
+
+
+def _delivered_weight_firings(events_path, since: str) -> dict:
+    """T-13719 — how often each delivery trigger fired at or after `since`, over every segment of the
+    journal at `events_path`: `{trigger: count}`, keys sorted. A COUNT per key, so row order cannot move
+    the answer. `stage_entered` counts per stage, `task_filed` counts as the Filing read,
+    `plan_stage_entered` per plan stage, `session_started` as the seed."""
+    counts: dict = {}
+    for e in _iter_events(events_path,
+                          types=("stage_entered", "task_filed", "plan_stage_entered", "session_started"),
+                          pred=lambda e: (e.get("ts") or "") >= since):
+        t, d = e.get("type"), (e.get("data") if isinstance(e.get("data"), dict) else {})
+        key = ({"stage_entered": f"stage:{d.get('stage')}", "task_filed": "stage:Filing",
+                "plan_stage_entered": f"plan:{d.get('to')}", "session_started": "seed"}).get(t)
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _spec_full_render(sid: str):
+    """T-13719 — the `graph query <SPEC>` render a reader receives, produced by the production renderer
+    exactly as `_deliver_stage_bundle_contracts` produces it (parser + `cmd_graph_query`, stdout captured;
+    no receipt is emitted). None when the id does not resolve."""
+    real = sys.stdout
+    buf = io.StringIO()
+    try:
+        ns = build_parser().parse_args(["graph", "query", sid])
+        sys.stdout = buf
+        cmd_graph_query(ns)
+    except BaseException:          # incl. SystemExit from a lookup that does not resolve
+        return None
+    finally:
+        sys.stdout = real
+    return buf.getvalue() or None
+
+
+def _delivered_weight_report(days: int = 30) -> dict:
+    """T-13719 — the HOST half of the T7 `delivered_weight` block: what each trigger delivers, IN THE
+    FORM it delivers it, and how often each trigger fired in the last `days`.
+
+    WHAT EACH TRIGGER DELIVERS is the binding resolver `stage <NAME>` itself delegates to
+    (`_build_binding_views`) over this checkout's spec cards. THE FORM is the trigger's own: a task
+    stage renders each spec's contract view (`_stage_contract_view` +
+    `_stage_view_without_maintainer_sections` over the `graph query` render — the cut `stage <NAME>`
+    delivers); a plan stage, a floor trigger and the Filing read (`task file` names the Filing set)
+    name the spec and the reader fetches the full `graph query` render; session start prints one cue line per seed spec (`_seed_cue_item`, the item
+    `_seed_howto` renders). A text that cannot be produced is passed as None and reported unresolved.
+    FIRINGS: `_delivered_weight_firings`; a floor trigger records no firing row, so its count is None
+    (unknown, never zero)."""
+    import datetime as _dt
+    specs = {}
+    for p in state.scan_specs(REPO_ROOT / "specs"):
+        try:
+            d = state.load_str(p.read_text(encoding="utf-8")) or {}
+        except Exception:
+            continue
+        if isinstance(d, dict) and d.get("id"):
+            specs[d["id"]] = d
+    _v2s, floor, report = _build_binding_views(specs)
+    triggers: dict = {}
+    for st, ids in (report.get("stage_to_specs") or {}).items():
+        triggers[f"stage:{st}"] = list(ids or [])
+    for st, ids in (report.get("plan_stage_to_specs") or {}).items():
+        triggers[f"plan:{st}"] = list(ids or [])
+    for trig, surfaces in (floor or {}).items():
+        ids = []
+        for surf_ids in (surfaces or {}).values():
+            ids += [s for s in surf_ids or [] if s not in ids]
+        triggers[f"floor:{trig}"] = ids
+    if report.get("seed_specs"):
+        triggers["seed"] = sorted(set(report["seed_specs"]))
+    renders: dict = {}
+
+    def _render(sid):
+        if sid not in renders:
+            renders[sid] = _spec_full_render(sid)
+        return renders[sid]
+
+    deliveries: dict = {}
+    for trig, ids in triggers.items():
+        kind = trig.split(":", 1)[0]
+        texts: dict = {}
+        for sid in ids:
+            if kind == "seed":
+                meta = specs.get(sid) or {}
+                title = str(meta.get("title") or "").strip()
+                texts[sid] = _seed_cue_item(f"{sid} — {title}" if title else sid, meta,
+                                            graph.spec_query_hint(sid, is_consumer=_is_consumer_build(), cli=""))
+            elif kind == "stage" and trig != "stage:Filing":
+                full = _render(sid)
+                texts[sid] = (_stage_view_without_maintainer_sections(
+                    _stage_contract_view(full), f"`yitc-v2 graph query {sid}`") if full else None)
+            else:
+                texts[sid] = _render(sid)
+        form = ("full-render" if trig == "stage:Filing"
+                else {"stage": "stage-view", "seed": "seed-cue"}.get(kind, "full-render"))
+        deliveries[trig] = {"form": form, "texts": texts}
+    since = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    counts = _delivered_weight_firings(REPO_ROOT / "events.jsonl", since)
+    firings = {trig: (None if trig.startswith("floor:") else counts.get(trig, 0)) for trig in triggers}
+    return inspection.delivered_weight_metrics(deliveries, firings,
+                                               {"since": since, "days": days,
+                                                "journal": "events.jsonl (all segments)"})
 
 
 def _onboarding_pointers() -> list:
@@ -10656,10 +11152,13 @@ def _error_fingerprint_index() -> dict:
 
 
 def _owner_closed_at_index() -> dict:
-    """{task-id: closed_at} for fix-task owners — the temporal boundary R-A compares a recurrence
-    against (SPEC-0061). Only a TASK carries `closed_at` (a required done-task field, QUEUE §Done-log);
-    a decision/Final owner has none, so it contributes no fix boundary and the prior count-based recurs
-    stands for it. A small derived view (mirrors _error_fingerprint_index), no new store."""
+    """{task-id: closed_at} for fix-task owners — the `closed_at` half of the temporal boundary R-A
+    compares a recurrence against. Since T-13668 `triage run` overlays it with the time the card's own
+    branch landed (`bin/lib/triage.py#_owner_landed_at`), and this value stays the boundary where no
+    such land is recorded. Only a TASK carries `closed_at` (a required done-task field, QUEUE
+    §Done-log); a decision/Final owner has none, so it contributes no fix boundary and the prior
+    count-based recurs stands for it. A small derived view (mirrors _error_fingerprint_index), no new
+    store."""
     idx: dict = {}
     if TASKS_DIR.exists():
         for p in state.scan_tasks(TASKS_DIR):
@@ -12187,24 +12686,10 @@ def _requires_incomplete_in_index(requires: list, index: dict) -> list:
     The TERMINAL wont-do carve-out + its report (T-11122 / T-0384) are mirrored here too — fixing
     only the disk helper would leave THIS selector still hiding the card, and that half would be
     SILENT, which is the exact invisible-failure class the carve-out exists to end. Reporting is
-    not a mutation, so the function stays a pure f(requires, index) — no fs touch, no state."""
-    tasks_idx = index.get("tasks", {}) or {}
-    blocked = []
-    wont_do = []
-    for ref in (requires or []):
-        ref = str(ref).strip()
-        if ref.startswith("T-"):
-            node = tasks_idx.get(ref)
-            if node is None:
-                blocked.append((ref, "task not in index"))
-                continue
-            st = node.get("status")
-            if st == "wont-do":                 # T-0384/T-11122 — terminal, never a blocker
-                wont_do.append(ref)
-                continue
-            if st != "done":
-                blocked.append((ref, f"status={st!r} (need done)"))
-        # D-XXXX (non-blocking, T-0493) + specs (QUEUE §YAML schema) — ignore non-task shapes
+    not a mutation, so the function stays a pure f(requires, index) — no fs touch, no state.
+    T-13690: the rule body is `graph.requires_blockers_in_index` — shared with the nightly queue
+    check, which counts with it and prints no report line."""
+    blocked, wont_do = graph.requires_blockers_in_index(requires, index)
     _report_terminal_wont_do_requires(wont_do)
     return blocked
 
@@ -12581,7 +13066,7 @@ def _verify_optin_cue(task: dict) -> "str | None":
 # card's own Tests stage: `tests/test_t11383_*` asserts a take-back arm is NOT handed the phrase "NOT
 # be required" — which then matched inside a delivered SPEC body.) These markers let any reader
 # separate the two channels; they are printed by the ONE deliverer below, so the two cannot drift.
-STAGE_BUNDLE_DELIVERY_BEGIN = "── stage-entry contracts, delivered in full (T-11550) ──"
+STAGE_BUNDLE_DELIVERY_BEGIN = "── stage-entry contracts, delivered as contract views (T-11550) ──"
 STAGE_BUNDLE_DELIVERY_END = "── end stage-entry contracts ──"
 # T-13028 — the DOCUMENTED exit of `stage <NAME>` when its bundle would go to the null device: the stage
 # IS recorded, nothing is rendered or credited, one stderr line names the ids. Distinct from 1 (`_die`)
@@ -12634,6 +13119,13 @@ def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> di
         return out
 
     try:
+        # T-13753 (SPEC-0190 rule 10) — inside `task file`'s one-pass ReadScope the read gate has just
+        # taken this ref's rows from the seam's scan (`_task_file_session_rows`); a `_SessionWalk` here
+        # folded the live segment a SECOND time. Take the same rows: every row naming the ref, so the
+        # held set is the one a full read finds, and a None (no scope, another ref) walks as before.
+        scoped = _task_file_session_rows(ref, None)
+        if scoped is not None:
+            return _fold(scoped)
         rows, _bounded = gates._gate_snapshot(
             None, tail=True, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
             session_ref=ref, settled=lambda snap: len(_fold(snap)) == len(delivered))
@@ -12664,54 +13156,331 @@ _CONTRACT_VIEW_DROPPED_FIELDS = frozenset({
     "created_at", "consumed", "activation_owner_task", "proposed_by"})
 _CONTRACT_VIEW_SOURCE_LINE = re.compile(r"^# ── source: ", re.M)
 _CONTRACT_VIEW_KEY = re.compile(r"([A-Za-z_][\w-]*)[ \t]*:")
+_CONTRACT_VIEW_SEQUENCE_ENTRY = re.compile(r"-(?: |$)")
+
+
+def _contract_view_part(part: list, sequence_continues: bool):
+    """T-13625 — one source part of a render (its source line first) walked as top-level YAML
+    blocks. Returns `(lines kept, did the sequence rule drop a line)`.
+
+    A column-0 key opens a block and indented lines continue it. With `sequence_continues`, a
+    column-0 line that is a block sequence entry (`-` followed by a space or the line end)
+    continues the block it stands in — YAML lets a top-level key hold its list at column 0
+    (T-13709); without it such a line opens a kept block, as any column-0 line that is not a
+    dropped key does.
+
+    An INDENTED COMMENT LINE (first non-space character `#`) under a kept ONE-LINE field — a key
+    whose line carries a value that is not `|` / `>` (a block scalar, where such a line is text)
+    and not only an inline comment — is left out (T-13714). The part keeps that cut only when the
+    YAML parser reads the same mapping with and without those lines
+    (`_contract_view_comment_cut_is_unchanged`); otherwise the lines are delivered."""
+    out: list = [part[0]]              # a source line is never dropped
+    full: list = [part[0]]             # `out` without the T-13714 comment cut
+    held: list = []
+    drop = False
+    one_line = False                   # the block's key line holds its whole value (T-13714)
+    preamble = True
+    fired = False
+    for line in part[1:]:
+        if preamble and (not line.strip() or line.startswith("#")):
+            out.append(line)           # the part's own preamble, before its first key
+            full.append(line)
+            continue
+        preamble = False
+        if not line.strip() and not held:
+            if not drop:
+                out.append(line)       # a blank line belongs to the block before it
+                full.append(line)
+            continue
+        if not line.strip() or line.startswith("#"):
+            held.append(line)          # a comment (and what follows it) belongs to the next block
+            continue
+        if not line[0].isspace():
+            if sequence_continues and _CONTRACT_VIEW_SEQUENCE_ENTRY.match(line.rstrip()):
+                fired = fired or drop
+                one_line = False
+            else:
+                k = _CONTRACT_VIEW_KEY.match(line)
+                drop = k is not None and k.group(1) in _CONTRACT_VIEW_DROPPED_FIELDS
+                value = line[k.end():].strip() if k is not None else ""
+                one_line = bool(value) and value[0] not in "#|>"
+        if not drop:
+            out.extend(held)
+            full.extend(held)
+            full.append(line)
+            if not (one_line and line[0].isspace() and line.lstrip().startswith("#")):
+                out.append(line)       # T-13714: an indented comment line under a one-line field is cut
+        held = []
+    if not drop:
+        out.extend(held)
+        full.extend(held)
+    if len(out) != len(full) and not _contract_view_comment_cut_is_unchanged(
+            "".join(full), "".join(out)):
+        out = full
+    return out, fired
+
+
+def _contract_view_comment_cut_is_unchanged(full: str, cut: str) -> bool:
+    """T-13714 — does the YAML parser agree that `cut` (a part without the indented comment lines
+    under its one-line fields) holds the same mapping as `full` — the same keys in the same order,
+    each with an equal value? Anything else is False — a text that does not load included."""
+    try:
+        a, b = state.load_str(full), state.load_str(cut)
+    except Exception:   # noqa: BLE001 — an unreadable part keeps its comment lines
+        return False
+    return isinstance(a, dict) and isinstance(b, dict) and list(a) == list(b) and a == b
+
+
+def _contract_view_drop_is_fields_only(before: str, after: str) -> bool:
+    """T-13709 — does the YAML parser agree that `after` is `before` without the fields named in
+    `_CONTRACT_VIEW_DROPPED_FIELDS`? `before` must load as a mapping and `after` as one holding
+    every other key of `before` in the same order with an equal value; an `after` with no field
+    left (it loads as nothing) stands for the empty mapping. Anything else is False — a text that
+    does not load included."""
+    try:
+        a, b = state.load_str(before), state.load_str(after)
+    except Exception:   # noqa: BLE001 — an unreadable part keeps its column-0 list lines
+        return False
+    b = {} if b is None else b
+    return (isinstance(a, dict) and isinstance(b, dict)
+            and list(b) == [k for k in a if k not in _CONTRACT_VIEW_DROPPED_FIELDS]
+            and all(a[k] == b[k] for k in b))
 
 
 def _stage_contract_view(rendered: str) -> str:
-    """T-13625 — the CONTRACT VIEW of one `graph query <SPEC>` render. Pure, string-only.
+    """T-13625 — the CONTRACT VIEW of one `graph query <SPEC>` render. A function of its argument only.
 
     The header is everything before the FIRST source line, cut whole. Each source part is then walked
-    as top-level YAML blocks: a column-0 key opens a block and indented lines continue it. A BLANK line
+    as top-level YAML blocks (`_contract_view_part`): a column-0 key opens a block and indented lines
+    continue it. A BLANK line
     stays with the block BEFORE it — so a body's blank lines, trailing ones included (content under
     `|+` keep chomping), are delivered whenever the body is, whatever field follows. A column-0
     COMMENT line is held and travels with the NEXT block, as do blank lines after it — so a dropped
     field leaves with its leading and inline comments. A SOURCE LINE is always delivered and starts a
     new part: the block state resets there, and the part's PREAMBLE (the comment and blank lines
     before its first key) is delivered too, whatever that first key is. A render carrying no source
-    line is returned UNCHANGED (fail toward delivering)."""
+    line is returned UNCHANGED (fail toward delivering).
+
+    A LIST WRITTEN AT COLUMN 0 (T-13709) belongs to the field above it: delivered with a kept field,
+    left out with a dropped one. A part where that leaves a line out is kept in that form only when
+    the YAML parser confirms the part lost nothing but dropped fields
+    (`_contract_view_drop_is_fields_only`); otherwise the part's column-0 list lines are delivered."""
     m = _CONTRACT_VIEW_SOURCE_LINE.search(rendered)
     if m is None:
         return rendered
-    out: list = []
-    held: list = []
-    drop = False
-    preamble = False
+    parts: list = []
     for line in rendered[m.start():].splitlines(keepends=True):
         if _CONTRACT_VIEW_SOURCE_LINE.match(line):
-            if not drop:
-                out.extend(held)
-            out.append(line)           # a source line is never dropped, and opens a new part
-            held, drop, preamble = [], False, True
+            parts.append([])           # a source line opens a new part
+        parts[-1].append(line)
+    out: list = []
+    for part in parts:
+        lines, fired = _contract_view_part(part, True)
+        if fired and not _contract_view_drop_is_fields_only("".join(part), "".join(lines)):
+            lines, _ = _contract_view_part(part, False)
+        out.extend(lines)
+    return "".join(out)
+
+
+# T-13660 — the body sections a stage entry leaves out of the contract view: what a spec's MAINTAINER
+# reads (why the rule exists, how its adoption is probed, T-13715: how the code carries it, and —
+# T-13707 — the record of its past amendments and re-verifications), not what an agent acting in the
+# stage applies. A section not named here is delivered. `graph query <SPEC>` prints them all.
+_CONTRACT_VIEW_OMITTED_SECTIONS = ("Rationale", "Verification", "Implementation notes", "Drift review")
+_CONTRACT_VIEW_BODY_OPEN = re.compile(r"body[ \t]*:[ \t]*\|[+-]?[ \t]*(#.*)?$")
+_CONTRACT_VIEW_FENCE = re.compile(r"(`{3,}|~{3,})(.*)$")
+_CONTRACT_VIEW_HTML_LONG = re.compile(r"<(?:[!?]|(?:script|pre|style|textarea)(?:[ \t>]|$))", re.I)
+_CONTRACT_VIEW_HTML_TAG = re.compile(r"</?[A-Za-z]")
+_CONTRACT_VIEW_HTML_HEADING = re.compile(r"</?h[12](?:[ \t>/]|$)", re.I)
+_CONTRACT_VIEW_NESTED_HEADING = re.compile(
+    r"(?:[ \t>]|[-+*][ \t]|[0-9]{1,9}[.)][ \t])+#{1,2}(?:[ \t]|$)")
+
+
+def _contract_view_body_cut(block: list):
+    """T-13660 — one `body` literal block (the lines AFTER its `body: |` line, up to the next column-0
+    line) with its omitted sections cut. Returns `(kept lines, [section names cut], index in kept
+    where the first cut began, the block's indentation)`, or None when nothing is cut OR the block
+    holds a line this reader does not decide — the caller then delivers the block unchanged.
+
+    The block indentation is that of its first non-blank line; "column 0" below means that
+    indentation. Outside a code fence:
+      - a line at column 0 that starts with one or two `#` (whatever follows: a space, a tab, text,
+        nothing) ENDS a cut in progress;
+      - such a line OPENS a cut only when it is exactly `## <name>` for a name in
+        `_CONTRACT_VIEW_OMITTED_SECTIONS`, trailing spaces or tabs allowed.
+    A code fence is read at column 0 only: three or more backticks (with no further backtick on the
+    line) or three or more tildes open it; a line holding only a run of that same character, at least
+    as long, closes it.
+
+    NOT DECIDED — None, the block goes back to the caller whole:
+      - a non-blank line indented less than the block, or whose indentation holds anything but spaces;
+      - a line that starts with a backtick or tilde run of three or more and is INDENTED (a fence
+        inside a list, a fence indented one to three columns, or indented code — this reader does
+        not tell them apart);
+      - outside a fence, a line that starts with `<!`, `<?` or an opening `script`, `pre`, `style`
+        or `textarea` tag (it may open an HTML block that runs past blank lines; a `#` line inside
+        one is not a heading);
+      - with a line that starts with `<` and a letter, or with `</`, standing above and no blank line
+        between (the lines may sit inside an HTML block): a heading that would open a cut, and a
+        line that would open a fence;
+      - inside a cut: a line that starts with an `h1` or `h2` tag; an INDENTED line that starts with
+        one or two `#`; a line where one or two `#`
+        followed by a space, a tab or the line end come after quote or list markers only; a line
+        whose first `#` run of one or two comes after non-ASCII characters only; and a line made
+        only of `=` or only of `-`, quote markers aside (it may underline the line above into a
+        heading);
+      - a fence still open at the end of the block."""
+    indent = None
+    fence = None                       # the opening run of the code fence we are inside, else None
+    cutting = False
+    tag_above = False                  # a tag-led line stands above, no blank line since
+    kept: list = []
+    names: list = []
+    first = None
+    for line in block:
+        text = line.rstrip("\r\n")
+        if not text.strip():
+            tag_above = False
+            if not cutting:
+                kept.append(line)      # a blank line inside a cut section leaves with it
             continue
-        if preamble and (not line.strip() or line.startswith("#")):
-            out.append(line)           # the part's own preamble, before its first key
-            continue
-        preamble = False
-        if not line.strip() and not held:
-            if not drop:
-                out.append(line)       # a blank line belongs to the block before it
-            continue
-        if not line.strip() or line.startswith("#"):
-            held.append(line)          # a comment (and what follows it) belongs to the next block
-            continue
-        if not line[0].isspace():
-            k = _CONTRACT_VIEW_KEY.match(line)
-            drop = k is not None and k.group(1) in _CONTRACT_VIEW_DROPPED_FIELDS
-        if not drop:
-            out.extend(held)
+        lead = len(text) - len(text.lstrip(" "))
+        if indent is None:
+            indent = lead
+        content = text[lead:]
+        if lead < indent or content[0].isspace():
+            return None
+        mark = _CONTRACT_VIEW_FENCE.match(content)
+        if mark and lead > indent:
+            return None
+        if fence is not None:
+            if mark and mark.group(1).startswith(fence) and not mark.group(2).strip():
+                fence = None           # the closing fence
+        elif mark:
+            if mark.group(1)[0] == "~" or "`" not in mark.group(2):
+                if tag_above:
+                    return None
+                fence = mark.group(1)  # an opening fence (a backtick run with a later backtick is text)
+        elif _CONTRACT_VIEW_HTML_LONG.match(content):
+            return None
+        elif _CONTRACT_VIEW_HTML_TAG.match(content):
+            if cutting and _CONTRACT_VIEW_HTML_HEADING.match(content):
+                return None
+            tag_above = True
+        else:
+            hashes = len(content) - len(content.lstrip("#"))
+            if 1 <= hashes <= 2 and lead == indent:
+                name = content[3:].rstrip(" \t") if content.startswith("## ") else None
+                cutting = name in _CONTRACT_VIEW_OMITTED_SECTIONS
+                if cutting and tag_above:
+                    return None
+                if cutting:
+                    if first is None:
+                        first = len(kept)
+                    if name not in names:
+                        names.append(name)
+                    continue
+            elif cutting:
+                folded = content.encode("ascii", "ignore").decode("ascii").lstrip()
+                if (1 <= len(folded) - len(folded.lstrip("#")) <= 2   # incl. an indented `#` / `##`
+                        or _CONTRACT_VIEW_NESTED_HEADING.match(content)
+                        or set(content.lstrip("> \t").rstrip(" \t")) in ({"="}, {"-"})):
+                    return None
+        if not cutting:
+            kept.append(line)
+    if fence is not None or first is None:
+        return None
+    return kept, names, first, " " * indent
+
+
+def _contract_view_part_cut(part: list):
+    """T-13660 — one source part of a contract view (its lines) with every plain-literal `body`
+    block passed through `_contract_view_body_cut`. Returns `(lines, [section names cut], index in
+    lines where the first cut began or None, that block's indentation)`."""
+    out: list = []
+    names: list = []
+    first = None
+    first_indent = ""
+    block = None                       # the lines of the body block being collected, else None
+
+    def _close() -> None:
+        nonlocal block, first, first_indent
+        cut = _contract_view_body_cut(block) if block else None
+        if cut is None:
+            out.extend(block or [])
+        else:
+            kept, cut_names, at, indent = cut
+            if first is None:
+                first, first_indent = len(out) + at, indent
+            names.extend(n for n in cut_names if n not in names)
+            out.extend(kept)
+        block = None
+
+    for line in part:
+        if line.strip() and not line[0].isspace():     # a column-0 line ends any block scalar
+            if block is not None:
+                _close()
             out.append(line)
-        held = []
-    if not drop:
-        out.extend(held)
+            if _CONTRACT_VIEW_BODY_OPEN.match(line.rstrip("\r\n")):
+                block = []
+        elif block is not None:
+            block.append(line)
+        else:
+            out.append(line)
+    if block is not None:
+        _close()
+    return out, names, first, first_indent
+
+
+def _contract_view_cut_is_body_only(before: str, after: str) -> bool:
+    """T-13660 — does the YAML parser agree that `after` differs from `before` in the `body` value
+    alone? Both texts must load as mappings with the same keys in the same order, a string `body`
+    in each, and an equal value under every other key. Anything else is False — a text that does
+    not load included."""
+    try:
+        a, b = state.load_str(before), state.load_str(after)
+    except Exception:   # noqa: BLE001 — an unreadable part is delivered as it was
+        return False
+    return (isinstance(a, dict) and isinstance(b, dict) and list(a) == list(b)
+            and isinstance(a.get("body"), str) and isinstance(b.get("body"), str)
+            and all(a[k] == b[k] for k in a if k != "body"))
+
+
+def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
+    """T-13660 — a contract view (`_stage_contract_view`) without the body sections named in
+    `_CONTRACT_VIEW_OMITTED_SECTIONS`. A function of its two arguments only.
+
+    The view is taken one source part at a time (a part opens at a `# ── source:` line). In a part,
+    only a `body` written as a plain literal block (`body: |`, `|-`, `|+`) at column 0 is read
+    (`_contract_view_part_cut`), and the part's cut is kept only when the YAML parser confirms that
+    nothing but the `body` value changed (`_contract_view_cut_is_body_only`) — a `body:` line that
+    is really text of another field fails that check, and the part is delivered as it was. Where
+    anything was cut, ONE line per view is put at the first cut, at the body's own indentation,
+    naming every section left out and `reread`, the command that prints the full text; a blank line
+    follows it. A view in which nothing is cut is returned as the SAME text."""
+    parts: list = []
+    for line in view.splitlines(keepends=True):
+        if not parts or _CONTRACT_VIEW_SOURCE_LINE.match(line):
+            parts.append([])
+        parts[-1].append(line)
+    out: list = []
+    names: list = []
+    notice_at = None
+    notice_indent = ""
+    for part in parts:
+        lines, cut_names, first, indent = _contract_view_part_cut(part)
+        if first is None or not _contract_view_cut_is_body_only("".join(part), "".join(lines)):
+            out.extend(part)
+            continue
+        if notice_at is None:
+            notice_at, notice_indent = len(out) + first, indent
+        names.extend(n for n in cut_names if n not in names)
+        out.extend(lines)
+    if notice_at is None:
+        return view
+    out[notice_at:notice_at] = [
+        f"{notice_indent}[left out of this stage-entry render: section(s) {', '.join(names)} — "
+        f"the full text: {reread}]\n", "\n"]
     return "".join(out)
 
 
@@ -12835,6 +13604,9 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
             sys.stdout = real_out  # RESTORE before the emit: `stdout_delivered` is computed off the
                                    # real stream.
         view = _stage_contract_view(buf.getvalue()) if ok else ""
+        if ok:                     # T-13660: the maintainer sections stay one command away
+            view = _stage_view_without_maintainer_sections(view, _consumer_render(
+                f"`yitc-v2 {' '.join(argv)}`", qualify_specs=False))
         tee = _HashingTee(io.StringIO())   # counts + fingerprints the VIEW, the bytes delivered
         tee.write(view)
         if ok:
@@ -12868,6 +13640,24 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
     except (BrokenPipeError, OSError):
         pass
     return done
+
+
+def _own_task_worktree_card() -> "dict | None":
+    """The in-progress card of THIS checkout's own `task/` worktree, or None — the lookup
+    `_deliver_current_stage_bundle_at_session_start` makes (T-12000) and the post-compact re-fold block
+    names (T-13687): a LINKED `task/` worktree (the D-0051 positive condition) whose card is
+    `in-progress`. Callers fail open on what git or the card read raises."""
+    sref = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
+    branch = sref.stdout.strip() if sref.returncode == 0 else ""
+    if not branch.startswith("task/") or not _in_writing_worktree():
+        return None
+    path = _find_task_yaml(branch[len("task/"):])
+    if path is None:
+        return None
+    task = _read_yaml(path)
+    if not isinstance(task, dict) or task.get("status") != "in-progress":
+        return None
+    return task
 
 
 def _deliver_current_stage_bundle_at_session_start() -> None:
@@ -12910,15 +13700,8 @@ def _deliver_current_stage_bundle_at_session_start() -> None:
     the consequence of not delivering is the gate refusing with its existing ready commands, i.e.
     exactly the status quo this change improves on."""
     try:
-        sref = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
-        branch = sref.stdout.strip() if sref.returncode == 0 else ""
-        if not branch.startswith("task/") or not _in_writing_worktree():
-            return
-        path = _find_task_yaml(branch[len("task/"):])
-        if path is None:
-            return
-        task = _read_yaml(path)
-        if not isinstance(task, dict) or task.get("status") != "in-progress":
+        task = _own_task_worktree_card()
+        if task is None:
             return
         stage = task.get("current_stage")
         if not stage or stage not in STAGE_AXIS_NAMES:
@@ -12926,8 +13709,8 @@ def _deliver_current_stage_bundle_at_session_start() -> None:
         delivered = _stage_bundle_specs(stage, include_kernel=True)
         if not delivered:
             return
-        print(f"stage-entry contract(s) for {task.get('id')}'s current stage ({stage}) — rendered in "
-              f"full at the end of this output (or as a one-line pointer when this context epoch "
+        print(f"stage-entry contract(s) for {task.get('id')}'s current stage ({stage}) — rendered as "
+              f"its contract view at the end of this output (or as a one-line pointer when this context epoch "
               f"already holds the same content, T-13510); each counts toward the read-gate "
               f"(SPEC-0042/0050) only once its delivery completes (T-13178): {', '.join(delivered)}")
         _deliver_stage_bundle_contracts(stage, delivered)
@@ -13104,7 +13887,7 @@ def cmd_stage(args: argparse.Namespace) -> None:
             # wording ("read before acting (fetch via `graph query <SPEC>`)") was a DIRECTIVE the verb
             # declined to carry out, and 52% of all production read-gate refusals were sessions paying a
             # refusal to learn a list this line had just printed.
-            print(f"stage-entry contract(s) for this stage — rendered in full at the end of this output "
+            print(f"stage-entry contract(s) for this stage — rendered as its contract view at the end of this output "
                   f"(or as a one-line pointer when this context epoch already holds the same content, T-13510); "
                   f"each counts toward the read-gate (SPEC-0042/0050) only once its delivery completes "
                   f"(T-13178): {', '.join(delivered)}")
@@ -15477,8 +16260,12 @@ def _adhoc_ceiling_steer(slug: str) -> str | None:
     return audit._adhoc_ceiling_steer(slug, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, _count_audit_passes=_count_audit_passes, _find_task_yaml=_find_task_yaml, _read_yaml=_read_yaml)
 
 
+def _adhoc_ceiling_steer_route(slug: str, stage: str) -> str:
+    return audit._adhoc_ceiling_steer_route(slug, stage, _find_task_yaml=_find_task_yaml, _read_yaml=_read_yaml)
+
+
 def cmd_audit_adhoc(args: argparse.Namespace) -> None:
-    return audit.cmd_audit_adhoc(args, _work_batch_next_hint=_work_batch_next_hint, _capacity_retry_hint=_capacity_retry_hint, ADHOC_SLUG_RE=ADHOC_SLUG_RE, REPO_ROOT=REPO_ROOT, _adhoc_ceiling_steer=_adhoc_ceiling_steer, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _build_audit_prompt=_build_audit_prompt, _count_audit_passes=_count_audit_passes, _die=_die, _inline_corpus_files=_inline_corpus_files, _inline_sweep_files=_inline_sweep_files, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _require_writing_worktree=_require_writing_worktree, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _resolve_prompt_file=_resolve_prompt_file, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, _verdict_exit_code=_SELF._verdict_exit_code, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)
+    return audit.cmd_audit_adhoc(args, _work_batch_next_hint=_work_batch_next_hint, _capacity_retry_hint=_capacity_retry_hint, ADHOC_SLUG_RE=ADHOC_SLUG_RE, REPO_ROOT=REPO_ROOT, _adhoc_ceiling_steer=_adhoc_ceiling_steer, _adhoc_ceiling_steer_route=_adhoc_ceiling_steer_route, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _build_audit_prompt=_build_audit_prompt, _count_audit_passes=_count_audit_passes, _die=_die, _inline_corpus_files=_inline_corpus_files, _inline_sweep_files=_inline_sweep_files, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _require_writing_worktree=_require_writing_worktree, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _resolve_prompt_file=_resolve_prompt_file, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, _verdict_exit_code=_SELF._verdict_exit_code, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)
 
 
 #: T-12919 — the request-scoped memo of `_decide_other_instance_path`, `{task_id: path-or-None}`,
@@ -16032,7 +16819,15 @@ GOVERNED_DOCS = (frozenset(CANONICAL_DOCS) | {"CLAUDE.md"}
 # (Note for the next author: lessons/delivering-a-pattern-on-the-floor-or-seed.md step 4 records this
 # activate-at-close exception — the row may co-land and render unbound only when a LATER card
 # activates the spec; never when the authoring card is itself the activating one.)
-BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency")
+# T-13699: `before-reading-a-consumer-surface-in-kernel-code` is another stage-agnostic floor surface (the same
+# T-9438/T-9708/T-10956 verb-surface-class shape, NOT tied to a single CLI verb) — the at-the-moment
+# moment when KERNEL code is about to resolve a consumer-internal surface (a path, or a naming / shape
+# convention). It carries SPEC-0185, which until this card was bound to the Execution stage entry: that
+# rendered the whole contract for every task, while only a card writing such kernel code acts on it.
+# SPEC-0185 was already ACTIVE, so its FLOOR_TRIGGERS row (below) renders bound in the same change —
+# no token-then-row split. BINDING_VERB_SURFACES membership IS the recognition door — NOT a new routing
+# axis / residency marker / parser / door. The row is a pointer, never a gate.
+BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency", "before-reading-a-consumer-surface-in-kernel-code")
 BINDING_FLOOR_TOKEN = "floor"   # reserved residency marker — mandatory-tier, always-loaded, NOT fetched
 # T-0263: the SECOND reserved residency marker (peer to `floor`) — SPEC-0007 §5a "query-only reference"
 # delivery class. Marks an active RETRIEVED spec delivered via an always-loaded handbook pointer-stub +
@@ -17747,12 +18542,13 @@ def _require_reads(kind: str, ctx: dict, *, credited_out=None) -> None:
 def _require_before_rule_change_read(verb: str, specs: "list | None") -> None:
     """Enforce the before-rule-change floor read-receipt for `spec edit --bless` (T-10135). The bless
     path CLEARS the T-9730 land guard POST-HOC without performing the edit itself, so — unlike the
-    ADVISORY forward-pointer print on the normal `spec edit` path — it REFUSES unless THIS session
-    fetched the governing before-rule-change contract spec(s) (SPEC-0005 …, from
-    `_governing_contract_for("spec-edit")`). Reuses the SPEC-0042 read-gate primitives (the
+    normal `spec edit` path, which DELIVERS the contract and refuses nothing (T-13706) — it REFUSES
+    unless THIS session holds a receipt for the governing before-rule-change contract spec(s)
+    (SPEC-0005 …, from `_governing_contract_for("spec-edit")`): the one a delivering `spec edit`
+    writes, or a hand `graph query`. Reuses the SPEC-0042 read-gate primitives (the
     session-anchored evidence window + `_fetched_spec_ids`) — the SAME machinery `_require_help_read`
     wraps — so it adds NO new store/flag/map (P1 F1). Scoped to the higher-risk bless path ONLY; the
-    normal edit path keeps its advisory print (no regression for existing callers). `kind='action'` is
+    normal edit path stays ungated (no regression for existing callers). `kind='action'` is
     still reserved in `_require_reads`, so this is a targeted floor-gate host wrapper, not that path."""
     docs = [s for s in (specs or []) if s]
     if not docs:
@@ -17879,7 +18675,7 @@ def _require_seed_read(verb: str) -> None:
     kernel session gathering consumer evidence still finds its own receipt."""
     candidate_events_paths = _gate_candidate_events_paths()
     return gates._require_seed_read(
-        verb=verb, _resolve_session_ref=_resolve_session_ref,
+        verb=verb, _resolve_session_ref=_seed_gate_keyer,   # T-13648: the keyer, its answer held for the emit
         _session_started_lower_bound=_session_started_lower_bound,
         _seed_receipt_epochs=_seed_receipt_epochs, _session_epoch=_session_epoch,
         _emit_read_gate_refused=_emit_read_gate_refused,
@@ -17966,6 +18762,7 @@ FLOOR_TRIGGERS = (
     ("before-restoring-a-production-copy", ("before-restoring-a-production-copy",)),  # T-10968 — renders SPEC-0175 (active) — the spike-sandbox DATA floor (live-system-vs-static-copy axis, actor split, the three strands + their verbs, the untreated-artifact window), read before exporting or restoring a production-derived copy
     ("before-authoring-public-boundary", ("before-authoring-public-boundary",)),  # T-12086 — renders SPEC-0100's born-secure BOUNDARY items (object-level authz / input validation / injection-safe data access / output encoding / size+rate bounds / headers+CORS / upload handling / SSRF), read before authoring an endpoint, accepting external input, rendering user text, accessing an object on a caller's behalf, accepting an upload, or calling a caller-supplied URL; delivery is SPEC-0198 profile-gated (graph.born_secure_render)
     ("before-adding-a-dependency", ("before-adding-a-dependency",)),  # T-12086 — renders SPEC-0100's born-secure dependency-hygiene item (pinned manifest + committed lockfile, frozen install, no unwaived critical/high advisory) — a CONSTANT-FLOOR item, delivered at every profile
+    ("before-reading-a-consumer-surface-in-kernel-code", ("before-reading-a-consumer-surface-in-kernel-code",)),  # T-13699 — renders SPEC-0185 (active) — kernel code reads a consumer surface from the declaration that covers it; read before writing kernel code that resolves a consumer-internal path or convention (moved off the Execution stage entry)
 )
 # T-9787 (X-0161): per-trigger governed-verb co-naming. A floor trigger whose gated action is DONE BY a
 # governed CLI verb co-names that verb invocation on its rendered row — so the always-loaded row surfaces
@@ -18060,6 +18857,57 @@ _symbol_region = textutil.symbol_region
 _anchor_symbol_patterns = textutil.anchor_symbol_patterns
 
 
+@functools.lru_cache(maxsize=4)
+def _symbol_forms_of_carrier(carrier_text: str) -> tuple:
+    """The usable `anchors.symbol_forms` entries of one ops-contract TEXT, as `(globs, template)`
+    pairs with each glob already expanded to the `fnmatch` forms this codebase matches paths with.
+    Keyed on the whole text, so an edited carrier is a different key and never a stale answer; the
+    caller still reads the file each time, and a carrier text is parsed again only after it changes
+    (the few most recent texts are kept).
+
+    Usable means the entry passes `init.anchor_symbol_form_errors` — the SAME judgement the
+    ops-contract sweep refuses on, so the two cannot disagree about what a well-formed entry is. An
+    entry that fails it contributes nothing here: the anchors it was written for stay reported as
+    unresolved, and `init` names the entry. A waived or absent section declares nothing."""
+    try:
+        ops = state.load_ops_str(carrier_text)
+    except Exception:      # noqa: BLE001 — an unparseable carrier declares nothing
+        return ()
+    sec = ops.get("anchors") if isinstance(ops, dict) else None
+    entries = sec.get("symbol_forms") if isinstance(sec, dict) and "waiver" not in sec else None
+    if not isinstance(entries, list):
+        return ()
+    out = []
+    for entry in entries:
+        if init_mod.anchor_symbol_form_errors(entry):
+            continue
+        globs = tuple(g for raw in entry["files"] for g in task_mod._expand_declared_glob(raw.strip()))
+        out.append((globs, entry["pattern"]))
+    return tuple(out)
+
+
+def _declared_symbol_forms(file_rel: str) -> tuple:
+    """Every symbol-form template THIS repository's ops contract declares for `file_rel` — the UNION
+    over all `anchors.symbol_forms` entries whose `files:` globs match it, in declaration order
+    (SPEC-0185: a declaration is read in full, never the first entry that covers the file).
+
+    The host half of `textutil.declared_symbol_line`: `REPO_ROOT` and the carrier filename live on
+    this side. Read from the SAME tree the anchors and the code are read from — the three must agree
+    in one checkout. Reached only when the built-in forms resolved nothing, so a repository that
+    declares no form pays one small read per unresolved anchor; the parse is kept per carrier text.
+    No carrier, an unreadable one, or no matching entry: `()`."""
+    try:
+        carrier_text = (REPO_ROOT / "yitc-ops.yaml").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return ()
+    rel = str(file_rel)
+    return tuple(tpl for globs, tpl in _symbol_forms_of_carrier(carrier_text)
+                 if any(fnmatch.fnmatch(rel, g) for g in globs))
+
+
+textutil.declared_symbol_forms = _declared_symbol_forms
+
+
 def _resolve_implements_anchor(anchor: str, texts: "dict | None" = None) -> str | None:
     """Resolve a spec `implements:` anchor against the CURRENT tree (D-0036 / T-0064).
     Returns None if it resolves, else a one-line warning string. This is REPORT-ONLY — callers
@@ -18111,7 +18959,16 @@ def _resolve_implements_anchor(anchor: str, texts: "dict | None" = None) -> str 
             # through to the full-text sweep below and nothing is lost. In practice the fast path
             # settles every resolving anchor, and only the rare dangling one pays the full scan.
             resolved = any(pat.search(ln) for _, ln in _symbol_bearing_lines(text, sym) for pat in pats) \
-                or any(pat.search(text) for pat in pats)
+                or any(pat.search(text) for pat in pats) \
+                or textutil.declared_symbol_line(text, sym, f) is not None   # T-13647: the project's own forms, last
+        if not resolved and sym in text:
+            # T-13647 — a form this project declared for the file passed the template check and does
+            # not compile for THIS symbol: say so with the anchor, whatever the file type — a form that
+            # cannot be used is reported, never skipped quietly.
+            broken = textutil.declared_symbol_form_failures(sym, f)
+            if broken:
+                return (f"{anchor}: symbol not found in {f} ({sym}) — a declared symbol form does not "
+                        f"compile for this symbol: {'; '.join(repr(t) for t in broken)}")
         if not resolved:
             # AUTO-EXEMPT (T-9404, REUSES T-9370's `_file_has_symbol_space` type posture — audit-pre
             # finding 1): a target whose TYPE has no `<file>#<symbol>` space the resolver can parse —
@@ -21595,11 +22452,36 @@ def _preamble_read_scope():
     value saved and restored (the `rows_memo` discipline), and a walk is resumed only while its live
     segment's (size, mtime_ns) is the one it started at — a changed journal starts a new walk."""
     prior = getattr(_SESSION_TAIL_TLS, "scope", None)
+    prior_keyed = getattr(_SESSION_TAIL_TLS, "keyed", None)
     _SESSION_TAIL_TLS.scope = {}
+    _SESSION_TAIL_TLS.keyed = None
     try:
         yield _SESSION_TAIL_TLS.scope
     finally:
         _SESSION_TAIL_TLS.scope = prior
+        _SESSION_TAIL_TLS.keyed = prior_keyed
+
+
+def _seed_gate_keyer() -> str:
+    """T-13648 — the fail-closed keyer as the seed gate calls it, its answer HELD by the request's
+    preamble scope (with the context epoch it was taken under) so the receipt emit after the verb body
+    reuses it (`_request_keyed_ref`) instead of asking the keyer again. A refusal `_die`s inside the
+    keyer, so only a resolved ref is held. Nothing is held outside a preamble scope, nor for a
+    worker's frozen ref — the twin already answers that one with no read."""
+    ref = _resolve_session_ref()
+    if getattr(_SESSION_TAIL_TLS, "scope", None) is not None and _FROZEN_SESSION_REF is None:
+        _SESSION_TAIL_TLS.keyed = (ref, _session_epoch())
+    return ref
+
+
+def _request_keyed_ref() -> "str | None":
+    """T-13648 — the ref this request's seed gate keyed on, while the context epoch is still the one
+    it was taken under; None otherwise (no preamble scope, no strict seed gate ran, epoch advanced) and
+    the caller resolves live."""
+    keyed = getattr(_SESSION_TAIL_TLS, "keyed", None)
+    if keyed is None or _session_epoch() != keyed[1]:
+        return None
+    return keyed[0]
 
 
 class _SessionWalk:
@@ -22130,6 +23012,10 @@ def _run_view(view_path: "Path", index: dict, arg: "str | None" = None, since=No
         # tasks_citing / code_to_specs reverse-index, no new store.
         print(state.dump(_view_propagation_surfaces(index, arg)).rstrip())
         return
+    if kind == "module-map":
+        # T-13756: directory -> the active specs implementing into it, from the index this query read.
+        print(state.dump(_view_module_map(index)).rstrip())
+        return
     if kind == "postcheck-plans-readiness":
         print(state.dump(_view_postcheck_plans_readiness(index)).rstrip())
         return
@@ -22564,7 +23450,8 @@ def _emit_plan_stage_entered(slug: str, frm, to: str, *, extra=None) -> list:
 
 
 def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool = False) -> None:
-    return plan_mod._print_plan_stage_delivery(stage, delivered, is_consumer=is_consumer)
+    return plan_mod._print_plan_stage_delivery(stage, delivered, is_consumer=is_consumer,
+                                               _deliver_stage_bundle_contracts=_deliver_stage_bundle_contracts)
 
 
 def _plan_accept_core(path: Path, fm: dict, body: str, slug: str):
@@ -25081,8 +25968,25 @@ def _compose_claude_argv(binary: str, session_id: str, model: "str | None", effo
         argv += ["--model", model]
     if effort:
         argv += ["--effort", effort]
-    argv += ["-p", brief]
+    # T-13733 (X-1872): `-p` WITHOUT a prompt argument — the brief reaches the worker on STDIN
+    # (`_brief_stdin`), never as one argv element: Linux refuses a single argument over 128 KB
+    # (MAX_ARG_STRLEN, OSError E2BIG), and a composed brief can exceed it. `brief` stays a parameter
+    # so the composer keeps one signature with its spawn.
+    argv += ["-p"]
     return argv
+
+
+def _brief_stdin(brief: str):
+    """T-13733 — the worker's stdin: an anonymous (already unlinked) temp file holding the brief's
+    UTF-8 bytes, rewound. A file rather than a pipe: nothing has to stay alive to feed it once the
+    launcher returns, and a large brief cannot fill a pipe buffer. The caller closes it after the
+    spawn; the child keeps its own inherited descriptor."""
+    import tempfile
+    fh = tempfile.TemporaryFile()
+    fh.write(brief.encode("utf-8"))
+    fh.flush()
+    fh.seek(0)
+    return fh
 
 
 def _spawn_claude_worker(brief: str, session_id: str, env: "dict", log_path: "Path",
@@ -25108,6 +26012,7 @@ def _spawn_claude_worker(brief: str, session_id: str, env: "dict", log_path: "Pa
     main_wt = _main_worktree(REPO_ROOT) or REPO_ROOT
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log = open(log_path, "ab")  # noqa: SIM115 — handed to the detached child; closed in this process below
+    brief_in = _brief_stdin(brief)   # T-13733: the brief goes on stdin, not in the argv
     try:
         argv = _compose_claude_argv(binary, session_id, model, effort, brief)   # the provider argv (T-9517)
         # T-11906: spawned OUT of this launcher's process TREE (not merely out of its group), so the
@@ -25116,10 +26021,11 @@ def _spawn_claude_worker(brief: str, session_id: str, env: "dict", log_path: "Pa
         spawned_pid = _spawn_detached_from_caller_tree(
             argv,
             cwd=str(main_wt), env=env,
-            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            stdin=brief_in, stdout=log, stderr=subprocess.STDOUT,
             start_new_session=True,   # detach: the worker outlives this launcher process
         )
     finally:
+        brief_in.close()
         log.close()
     return spawned_pid
 
@@ -25142,7 +26048,9 @@ def _compose_codex_argv(codex_bin: str, main_wt, model: "str | None", effort: "s
         argv += ["-m", model]
     if effort:
         argv += ["-c", f'model_reasoning_effort="{effort}"']
-    argv += [brief]   # trailing POSITIONAL prompt (codex exec [OPTIONS] [PROMPT]); stdin unused
+    # T-13733 (X-1872): PROMPT `-` = read the instructions from STDIN (`_brief_stdin`), never the brief
+    # as one argv element — Linux refuses a single argument over 128 KB (MAX_ARG_STRLEN, E2BIG).
+    argv += ["-"]
     return argv
 
 
@@ -25164,8 +26072,9 @@ def _spawn_codex_worker(brief: str, session_id: str, env: "dict", log_path: "Pat
     carrier + YITC_EXPECTED_SESSION_REF, both set by _dispatch_worker_env). The registry already lists
     CODEX_THREAD_ID; the highest-precedence carrier is set to the fresh id, so resolution is provider-neutral.
 
-    BRIEF: passed as the trailing POSITIONAL prompt arg (`codex exec [OPTIONS] [PROMPT]`), NOT stdin
-    (stdin=DEVNULL) — one contract (audit-pre finding-1, the stdin/positional ambiguity, resolved positional).
+    BRIEF: passed on STDIN, the trailing PROMPT being `-` (`codex exec [OPTIONS] [PROMPT]`) — one contract.
+    T-13733 (X-1872) reversed the earlier positional choice: a brief over 128 KB as one argument is
+    refused by the kernel (E2BIG), so it never launched.
 
     --dangerously-bypass-approvals-and-sandbox: AUTONOMOUS full-access posture (the codex analog of the
     claude worker's --dangerously-skip-permissions, T-0565; owner-approved 2026-06-24). A headless worker
@@ -25209,16 +26118,18 @@ def _spawn_codex_worker(brief: str, session_id: str, env: "dict", log_path: "Pat
     main_wt = _main_worktree(REPO_ROOT) or REPO_ROOT
     log_path.parent.mkdir(parents=True, exist_ok=True)
     log = open(log_path, "ab")  # noqa: SIM115 — handed to the detached child; closed in this process below
+    brief_in = _brief_stdin(brief)   # T-13733: the brief goes on stdin, not in the argv
     try:
         argv = _compose_codex_argv(codex_bin, main_wt, model, effort, brief)   # the provider argv (T-9517)
         # T-11906 — same tree-escape as the claude adapter; argv + kwargs unchanged (see that helper).
         spawned_pid = _spawn_detached_from_caller_tree(
             argv,
             cwd=str(main_wt), env=env,
-            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            stdin=brief_in, stdout=log, stderr=subprocess.STDOUT,
             start_new_session=True,   # detach: the worker outlives this launcher process
         )
     finally:
+        brief_in.close()
         log.close()
     return spawned_pid
 
@@ -26200,7 +27111,10 @@ def _fold_main_journal_into_branch(main_wt, reset_main: bool = True) -> bool:
 CONSUMER_VERIFY_CONTRACT = "yitc-verify.yaml"
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False) -> dict:
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None) -> dict:
+    # T-13675: `stage6_credit_layers` / `stage6_rerun_layers` (optional, the land's step 4d only) — after
+    # a tree-differs refusal, the layers that take their verdict from the task's Stage-6 run and the
+    # layers that did not pass there and so run whatever their subject (SPEC-0065 §Bound).
     # T-12589: `workers` (the admitted per-verify budget) + an injectable container-CPU reader ride through.
     # Thin residue → worktree_mod._consumer_zero_probe_guard (T-9340 inject seam; host-deps injected at call time).
     # T-10504: `base_ref` (optional) — the commit this land integrates onto; given it, a ran-a-command layer
@@ -26214,7 +27128,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree)   # T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers)   # T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":
@@ -28069,6 +28983,12 @@ def _emit_cli_invoked(*a, **kw):
     Every inject is read HERE from this module's live globals at call time, so `-C` rebinds and
     `monkeypatch.setattr(yitc, ...)` stay honoured."""
     g = globals()
+    # T-13648: the keyer's question ("does the keyer resolve a ref?") was answered by this request's
+    # seed gate before the verb body; the emit reuses that answer rather than re-reading the journal
+    # tail the body's own appends moved. Nothing held -> the live twin, as before.
+    _keyed = _request_keyed_ref()
+    if _keyed is not None:
+        kw.setdefault("_try_resolve_session_ref", lambda **_k: _keyed)
     for _k in events.EMIT_CLI_INVOKED_INJECTS:
         kw.setdefault(_k, g[_k])
     return events._emit_cli_invoked(*a, **kw)

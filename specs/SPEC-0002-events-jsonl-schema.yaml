@@ -128,40 +128,48 @@ body: "## Internal\n\n`events.jsonl` is the single append-only governance journa
   \ byte safety margin)\n  — a defence-in-depth bound that keeps a single append within\
   \ the O_APPEND atomicity\n  window; append atomicity itself no longer DEPENDS on\
   \ it (the flock above guarantees it\n  for any size). The cap is enforced only on\
-  \ `text`-bearing rows.\n- Verbatim `text` field (parser-captured rows): ≤ 3000 chars.\
-  \ Verbatim save one exception: a\n  floor-shaped credential is redacted at write,\
-  \ BEFORE this cap (SPEC-0163 §4e).\n- Overflow shape: store first 1500 + last 500\
-  \ chars + a middle elision marker, plus\n  `truncated: true`, `original_size_chars:\
-  \ <N>`, and `sha256: <hash of full text>`\n  for future re-verification.\n\n###\
-  \ Append ordering (per sync batch — atomic recovery path)\n\n1. Append new journal\
-  \ rows to events.jsonl (one O_APPEND syscall per row, < PIPE_BUF).\n2. fsync the\
-  \ events.jsonl fd.\n3. Atomic temp+rename update of the per-session checkpoint file\
-  \ (SPEC-0003).\n\nCrash between 1–2 or 2–3 → next sync re-reads from the old checkpoint;\
-  \ `source_ref`\ndedup skips already-appended rows. No silent data loss.\n\n### Concurrent-merge\
-  \ chronology\n\nParallel writing sessions each commit in their own worktree branch,\
-  \ then\n`land` to main. `events.jsonl` carries `.gitattributes merge=union`: the\
-  \ built-in git\n`union` driver keeps BOTH sides of an overlapping append-hunk instead\
-  \ of raising a\nconflict. Consequences (binding on all consumers):\n\n- **Chronology\
-  \ is `ts`, NOT physical line order.** Union interleaves each branch's block\n  as-is;\
-  \ a later-committed row may sit physically above an earlier one. Consumers MUST\n\
-  \  order by the `ts` field. Physical adjacency (\"the line immediately after X\"\
-  ) is NOT a\n  valid probe or invariant — any such assumption is a bug (the one historical\
-  \ instance,\n   AC, was reworded to a `ts`-ordering claim).\n- **Union does not\
-  \ deduplicate.** When divergent branch histories place a byte-identical\n  line\
-  \ inside two CONFLICTING hunks at a non-alignable position (e.g. A=[X,Y], B=[Z,X]\
-  \ →\n  union yields [X,Y,Z,X], X twice — the merge cannot factor X as a common prefix/suffix),\n\
-  \  the union driver emits that line from BOTH sides → a duplicate row. (Alignable\
-  \ cases —\n  identical appends at the same spot, or a shared row at a common prefix/suffix\
-  \ like\n  A=[X,Y]/B=[X,Z] — are coalesced as one edit and do NOT duplicate.) In\
-  \ practice\n  provenance-stamped events (distinct `session_ref`/`ts`) almost never\
-  \ byte-collide, so\n  the dedup is a cheap idempotent GUARD, not a hot path; union's\
-  \ primary value is\n  conflict-free concurrent appends.\n- **Land-time dedup (defined\
-  \ here; implemented by `land`; key refined).**\n  After the union merge, `land`\
-  \ removes duplicate rows by CANONICAL-OBJECT identity — the\n  JSON object with\
-  \ sorted keys (`json.dumps(loads(line), sort_keys=True)`), order-preserving\n  (keep\
-  \ first occurrence). This is a strict superset of byte-identity: it also collapses\
-  \ two\n  serializations of the SAME event (key-order / whitespace variance a union\
-  \ or re-emit may\n  introduce), while STILL never merging two genuinely-distinct\
+  \ parser-captured rows (the transcript\n  adapter's rows). Every other row, including\
+  \ a CLI capture that carries a `text`\n  field, is stored whole.\n- Verbatim `text`\
+  \ field (parser-captured rows): ≤ 3000 chars. Verbatim save one exception: a\n \
+  \ floor-shaped credential is redacted at write, BEFORE this cap (SPEC-0163 §4e).\n\
+  - Overflow shape: a text over 3000 chars or 2800 bytes is stored as at most its\
+  \ first 1500\n  bytes + a middle elision marker + at most its last 500 bytes, plus\
+  \ `truncated: true`,\n  `original_size_chars: <N>`, and `sha256: <hash of full text>`\
+  \ for future re-verification.\n  When the whole line would still exceed the 3500-byte\
+  \ cap, the head and tail are shortened\n  further, the head kept longer than the\
+  \ tail, until the line fits or only a minimal head\n  and tail remain.\n\n### Append\
+  \ ordering (per sync batch — atomic recovery path)\n\n1. Append new journal rows\
+  \ to events.jsonl (one O_APPEND syscall per row, < PIPE_BUF).\n2. fsync each journal\
+  \ file the batch appended to, and its directory — once per batch,\n   after the\
+  \ last append (the append itself only flushes).\n3. Atomic temp+rename update of\
+  \ the per-session checkpoint file (SPEC-0003).\n\nCrash between 1–2 or 2–3 → next\
+  \ sync re-reads from the old checkpoint; a row that had\nalready reached the journal\
+  \ is appended again as a byte-identical duplicate, which\nland's events union+dedup\
+  \ collapses. A failed fsync in step 2 skips step 3, with the\nsame effect. No silent\
+  \ data loss.\n\n### Concurrent-merge chronology\n\nParallel writing sessions each\
+  \ commit in their own worktree branch, then\n`land` to main. `events.jsonl` carries\
+  \ `.gitattributes merge=union`: the built-in git\n`union` driver keeps BOTH sides\
+  \ of an overlapping append-hunk instead of raising a\nconflict. Consequences (binding\
+  \ on all consumers):\n\n- **Chronology is `ts`, NOT physical line order.** Union\
+  \ interleaves each branch's block\n  as-is; a later-committed row may sit physically\
+  \ above an earlier one. Consumers MUST\n  order by the `ts` field. Physical adjacency\
+  \ (\"the line immediately after X\") is NOT a\n  valid probe or invariant — any\
+  \ such assumption is a bug (the one historical instance,\n   AC, was reworded to\
+  \ a `ts`-ordering claim).\n- **Union does not deduplicate.** When divergent branch\
+  \ histories place a byte-identical\n  line inside two CONFLICTING hunks at a non-alignable\
+  \ position (e.g. A=[X,Y], B=[Z,X] →\n  union yields [X,Y,Z,X], X twice — the merge\
+  \ cannot factor X as a common prefix/suffix),\n  the union driver emits that line\
+  \ from BOTH sides → a duplicate row. (Alignable cases —\n  identical appends at\
+  \ the same spot, or a shared row at a common prefix/suffix like\n  A=[X,Y]/B=[X,Z]\
+  \ — are coalesced as one edit and do NOT duplicate.) In practice\n  provenance-stamped\
+  \ events (distinct `session_ref`/`ts`) almost never byte-collide, so\n  the dedup\
+  \ is a cheap idempotent GUARD, not a hot path; union's primary value is\n  conflict-free\
+  \ concurrent appends.\n- **Land-time dedup (defined here; implemented by `land`;\
+  \ key refined).**\n  After the union merge, `land` removes duplicate rows by CANONICAL-OBJECT\
+  \ identity — the\n  JSON object with sorted keys (`json.dumps(loads(line), sort_keys=True)`),\
+  \ order-preserving\n  (keep first occurrence). This is a strict superset of byte-identity:\
+  \ it also collapses two\n  serializations of the SAME event (key-order / whitespace\
+  \ variance a union or re-emit may\n  introduce), while STILL never merging two genuinely-distinct\
   \ events — any distinct field\n  (`ts` / `type` / `task_id` / payload) yields a\
   \ distinct key, so it is a full-OBJECT match,\n  NOT a field subset, and cannot\
   \ drop a real event. A non-JSON row falls back to its raw line\n  (deduped byte-wise,\
@@ -235,5 +243,5 @@ cites:
 implements_signature:
   bin/lib/cli.py#MAX_EVENT_BYTES: c5a4738563da50a1f8909155e6979cf521660c6a46f6c1f30f47986c9eda0998
   bin/lib/cli.py#SESSION_REF_ENV_VARS: cdc61f80a7f5d4a56f6abe0963af2ddf497b2a64eae6c4a55067e51fb9c681eb
-  bin/lib/cli.py#_append_event: b0a994ba1276786f04ddc0d83afdad69392278b9b70ba3d49dc8ed191ce4db40
-  bin/lib/cli.py#_resolve_session_ref: 864a3b9f4b7bb65484f52947f01a3112f9fb75b6313ff9524eaae3ebafd9e29d
+  bin/lib/cli.py#_append_event: dfd4fbf92cd58d252d526be9023ae5b16c606d6ad0ddeefcde792ef019c87d5a
+  bin/lib/cli.py#_resolve_session_ref: f296cd97463619878dcc72b5c49a72bfbc7292a366c6135c1f7012c915a4d0b7

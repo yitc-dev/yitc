@@ -10,9 +10,10 @@ implements:
 - bin/lib/init.py#_ensure_consumer_vendor_adapter
 - bin/lib/session.py#visible_start_line
 - bin/lib/cli.py#cmd_session_start
+- bin/lib/init.py#home_reference_drift
 body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER, the\
-  \ owner/AI keeps the project's own\noperating-context (product profile, module map,\
-  \ integration constraints, safety bans, PII policy)\nin a **provider-neutral home**\
+  \ owner/AI keeps the project's own\noperating-context (product profile, integration\
+  \ constraints, safety bans, PII policy — Rule 1a)\nin a **provider-neutral home**\
   \ that ANY AI provider reads — not in the vendor-specific\n`<vendor-adapter>.md`.\
   \ `<vendor-adapter>.md` exists only because some AI tools auto-read that exact filename;\
   \ in a\nconsumer it is a THIN adapter that (a) names the engine + the `-C` verb-invocation\
@@ -25,30 +26,45 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ exact filename (`<vendor-adapter>.md` is the concrete instance today). Three rules:\n\
   \n### Rule 1 — Substantive project-context lives in a provider-neutral home, never\
   \ in the vendor adapter\nA consumer's substantive operating-context (product profile\
-  \ / modules / integrations / safety bans /\nPII policy / work-area + product-file\
-  \ warnings — anything an editor must know to work the project\nsafely) MUST live\
-  \ in a provider-neutral home the vendor adapter merely POINTS at. **Neutral-home\n\
-  selection (binding default order — ONE declared home):**\n1. the consumer's product\
-  \ **`CHARTER.md`** if it has one (the `-C` echo already names it as the\n   project's\
-  \ separate project-context);\n2. else a dedicated project **`AGENTS.md`** — the\
-  \ exact mirror of the kernel shape.\n**`README.md` is NOT a v2 consumer artifact**\
-  \ — it is public/product-facing (a different\naudience), NOT an AI operating-context\
-  \ home. The consumer's human/context entry home is the product\n`CHARTER.md` (the\
-  \ ONE declared neutral home above); README is never a fallback and is not\ndesignated\
-  \ as a context home. Prefer reuse of an existing product doc over creating a new\
-  \ file\n(CHARTER §P1 F1/F2); whichever of the order above is chosen, there is exactly\
-  \ ONE declared home.\n\n### Rule 2 — The vendor adapter file carries ONLY the thin\
-  \ adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`) carries ONLY:\
-  \ (a) the engine location + the\n`-C` verb-invocation form `<engine>/bin/yitc-v2\
+  \ / integrations / safety bans /\nPII policy / work-area + product-file warnings\
+  \ — anything an editor must know to work the project\nsafely) MUST live in a provider-neutral\
+  \ home the vendor adapter merely POINTS at. **Neutral-home\nselection (binding default\
+  \ order — ONE declared home):**\n1. the consumer's product **`CHARTER.md`** if it\
+  \ has one (the `-C` echo already names it as the\n   project's separate project-context);\n\
+  2. else a dedicated project **`AGENTS.md`** — the exact mirror of the kernel shape.\n\
+  **`README.md` is NOT a v2 consumer artifact** — it is public/product-facing (a different\n\
+  audience), NOT an AI operating-context home. The consumer's human/context entry\
+  \ home is the product\n`CHARTER.md` (the ONE declared neutral home above); README\
+  \ is never a fallback and is not\ndesignated as a context home. Prefer reuse of\
+  \ an existing product doc over creating a new file\n(CHARTER §P1 F1/F2); whichever\
+  \ of the order above is chosen, there is exactly ONE declared home.\n\n### Rule\
+  \ 1a — What the home holds, what it never holds, and how it refers\nThe home holds\
+  \ the owner's DECISIONS about the project, which no command derives: the product\n\
+  profile, integration constraints, safety bans, the data (PII) policy, and the owner's\
+  \ grouping\npreference for cutting work into cards (SPEC-0046). It never holds:\n\
+  - state of the moment — worktrees, branches, queue order, who works on what: the\
+  \ journal, the\n  session hand-offs and `MEMORY.md` carry it;\n- rules for the project's\
+  \ workers — those go into a project-own spec;\n- history — the journal carries it;\n\
+  - facts the repository already holds — the home names the command that shows them\
+  \ instead. The\n  module map is one: the `module-map` view (`graph query module-map`,\
+  \ run with the engine `-C`\n  form) derives it from the specs, so the home does\
+  \ not keep a hand-made list.\n**Reference forms.** The home refers to the repository\
+  \ in three forms, each resolved one way:\n1. a repository path, or a path with an\
+  \ `#anchor`, read relative to the repository root;\n2. a bare SPEC id, resolved\
+  \ own-first — the project's own spec at that id, else the kernel's;\n3. a `graph\
+  \ query --kernel SPEC-XXXX` form, resolved against the kernel.\nThese are the forms\
+  \ a drift check of the home reads: a named path that does not exist, or a named\n\
+  spec that is not active, is drift.\n\n### Rule 2 — The vendor adapter file carries\
+  \ ONLY the thin adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`)\
+  \ carries ONLY: (a) the engine location + the\n`-C` verb-invocation form `<engine>/bin/yitc-v2\
   \ -C <this-repo-abs-path> <verb>` (a consumer has no\nlocal `bin/yitc-v2` — the\
   \ X-0144 class), (b) the session-start pointer, and (c) a pointer to the\nneutral\
   \ home (Rule 1). It carries NO product rules, NO methodology rule-sections, NO deploy\
   \ section.\nA rule-section authored into a consumer `<vendor-adapter>.md` is a doctrine\
-  \ violation (origin incident:\nthe <project> `## Deploy` over-scope, reverted).\n\
-  \n### Rule 2b — Start on entry, and the one fallback phrase\nThe session-start pointer\
-  \ (Rule 2 (b)) is the START-ON-ENTRY rule: the born adapter tells the AI to\nrun\
-  \ the start routine FIRST when it opens the project — `session start` (note the\
-  \ session ref it\nprints), then the `--help` verb scan carrying that ref (`YITC_SESSION_REF=<ref>`),\
+  \ violation.\n\n### Rule 2b — Start on entry, and the one fallback phrase\nThe session-start\
+  \ pointer (Rule 2 (b)) is the START-ON-ENTRY rule: the born adapter tells the AI\
+  \ to\nrun the start routine FIRST when it opens the project — `session start` (note\
+  \ the session ref it\nprints), then the `--help` verb scan carrying that ref (`YITC_SESSION_REF=<ref>`),\
   \ then the kernel\nhandbook in `session start`'s read-order — every verb in the\
   \ engine `-C` form. It also names the ONE\nfallback phrase a person uses when the\
   \ session did not start by itself: **\"start the project\"**; on\nhearing it the\
@@ -112,9 +128,12 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ Real\ntrigger: the `over-scoped-deploy-rule-into-consumer-the AI provider-md`\
   \ incident (<project>).\nDeliberation, the rejected shapes, and the ratification\
   \ act live in the proposing plan\n`consumer-the AI provider-md-provider-divergence-doctrine-ne`\
-  \ (SPEC-0005 rule 3 content-boundary).\n\n## Verification\n\n- VP1 (Rule 2 — thin\
-  \ adapter): a consumer `<vendor-adapter>.md` contains ONLY adapter content (engine\
-  \ path +\n  `-C` verb form + neutral-home pointer) — grep shows NO product-rule\
+  \ (SPEC-0005 rule 3 content-boundary).\n\n### History moved from the rule body\n\
+  \nEach entry is a passage moved word for word out of the rule text of the section\
+  \ it names;\nthe rule it explains stays there.\n\n- From «Rule 2»: (origin incident:\
+  \ the <project> `## Deploy` over-scope, reverted)\n\n## Verification\n\n- VP1 (Rule\
+  \ 2 — thin adapter): a consumer `<vendor-adapter>.md` contains ONLY adapter content\
+  \ (engine path +\n  `-C` verb form + neutral-home pointer) — grep shows NO product-rule\
   \ / methodology / deploy section.\n- VP2 (Rule 1 — neutral home): the consumer's\
   \ substantive operating-context is present in the ONE\n  declared neutral home (product\
   \ `CHARTER.md`, else project `AGENTS.md`; `README.md` is NOT a home).\n- VP3 (Rule\
@@ -137,11 +156,11 @@ binding:
 - before-project-dimension-judgement
 init_concern:
   init_question: Is this project's substantive operating-context (product profile,
-    module map, integration constraints, safety bans, PII policy) FILLED into the
-    ONE declared provider-neutral home the thin vendor adapter points at — product
-    `CHARTER.md` if present, else the born project `AGENTS.md` (Rule 1) — rather than
-    left as the born `<fill in …>` stub or accreted into the vendor `<vendor-adapter>.md`?
-    Fill the neutral home, or waive with a named explicit waiver (never a silent empty
+    integration constraints, safety bans, PII policy — Rule 1a) FILLED into the ONE
+    declared provider-neutral home the thin vendor adapter points at — product `CHARTER.md`
+    if present, else the born project `AGENTS.md` (Rule 1) — rather than left as the
+    born `<fill in …>` stub or accreted into the vendor `<vendor-adapter>.md`? Fill
+    the neutral home, or waive with a named explicit waiver (never a silent empty
     stub).
   waiver: A project with genuinely no substantive operating-context to record (a trivial
     repo with no safety bans / integrations / PII surface) may bare-waive — but as
@@ -156,12 +175,14 @@ init_concern:
     never carries it.
   recommended: 'Fill the `## Product operating-context` section of the born project
     `AGENTS.md` (or your product `CHARTER.md` if you have one) with a few plain lines:
-    what the product is, its main modules, integrations, safety bans and PII policy.
-    Keep the vendor `<vendor-adapter>.md` a thin pointer.'
+    what the product is, its integrations, safety bans and PII policy. Do not list
+    the modules — the `module-map` view shows them. Keep the vendor `<vendor-adapter>.md`
+    a thin pointer.'
   record_at: The `## Product operating-context` section of the project `AGENTS.md`
     (or your product `CHARTER.md`) — the filled text, or a named waiver line there.
   tier: universal
 implements_signature:
-  bin/lib/cli.py#cmd_session_start: c70f2c3ecb7ebfa1e7dfec76176f4e8cda8c78b7795f771ebaf4d3d603c74ec1
-  bin/lib/init.py#_ensure_consumer_vendor_adapter: e644b58570ecf0352d86cf5af7a9e346f18b2abf7b41322517264f77811f0cf2
+  bin/lib/cli.py#cmd_session_start: f369044416df3575c97dd3dbbcebc0fe18c43eb14fff64ef8c1f66ce02086575
+  bin/lib/init.py#_ensure_consumer_vendor_adapter: 6a5949d7c49e54d50bfca80079c137594a92131e89eeaffb39f2ed6d210ffbaa
+  bin/lib/init.py#home_reference_drift: 48146a636c9cc7e8e3c8f849d5601ebab3c29322d5a986508ea6d51136015d49
   bin/lib/session.py#visible_start_line: 5cee49e215d4a6c942927b0d54d58719f725d90c59cb56a3f2fc12e4b0111d10

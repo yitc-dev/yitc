@@ -1,0 +1,172 @@
+id: SPEC-1022
+title: Ship-custody re-pin — admission legs and the audited subject (reference, read
+  when a custody-mismatch refusal names the re-pin)
+status: active
+created_at: 2026-10-08 11:34:09+00:00
+consumed: false
+implements: []
+body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded after\
+  \ a task's ship, so the recorded custody\ncommit is no longer the ship: the audit-post\
+  \ of the ship is refused as a custody mismatch, and\nclosure stays blocked. That\
+  \ refusal names the governed exit, the ship-custody re-pin of\n`audit post`. The\
+  \ case is rare, and the verb decides admission itself: it derives every condition\n\
+  from the journal and git and refuses when one does not hold, naming it. So the detail\
+  \ of those\nconditions, and of what the auditor is shown once a target is admitted,\
+  \ is a REFERENCE: no stage\nentry renders it. A session meets a pointer to it in\
+  \ the index paragraph of SPEC-0015 §Ship-custody\nRE-PIN, at the head of the `task\
+  \ close` help and in the help of the re-pin option of `audit post`,\nand fetches\
+  \ it on demand. When custody counts as shifted, what the governed exit is, and how\n\
+  closure re-derives the guard at the close seam stay in SPEC-0015.\n\n## Internal\n\
+  \n### Delivery and lookup\n\n- This spec is rendered at NO stage entry and is fetched\
+  \ before no verb: reading it is not checked.\n  What guards the re-pin is the verb's\
+  \ own fail-closed admission, described below, and that holds\n  whether or not this\
+  \ text was read.\n- Fetch it on demand with `graph query SPEC-1022` (under `-C`:\
+  \ `graph query --kernel SPEC-1022`).\n- Lookup: every leg and every item of the\
+  \ audited subject opens with its own lead in bold, so a\n  search of this spec for\
+  \ a leg name, a marker or a card id lands on the whole block.\n- Reading: every\
+  \ block is text of SPEC-0015 §Ship-custody RE-PIN, moved here sentence for sentence.\n\
+  \  «This section», «the section» and «this whole exception» mean that section together\
+  \ with this\n  reference. The four legs are lettered (a) to (d) in the order they\
+  \ are listed; the first and the\n  last each have two arms, (i) and (ii). «This\
+  \ bullet» is the audited-subject block the words stand\n  in, and «above» in that\
+  \ block reads against the list of the four legs.\n- A new edge case of the re-pin\
+  \ is authored here (SPEC-0005 §6).\n\n### Ship-custody re-pin — admission legs and\
+  \ the audited subject\n\n#### The four admission legs\n\n- **Custody must be genuinely\
+  \ BOOKKEEPING-SHIFTED** — a displaced ship exists AND every `commit_landed`\n  after\
+  \ it DISPLACED custody rather than SHIPPED (the anti-custody-game fence: the path\
+  \ can NEVER\n  re-pin off a genuine ship commit). A record DISPLACED when either\
+  \ arm holds:\n  (i) it carries a kind in the CLOSED admissible set (`_BOOKKEEPING_COMMIT_KINDS`\
+  \ — park/pause/\n  wont-do); the close-tail kinds (`closure`/`closes_fp_link`/`pv_late_link`)\
+  \ are not admitted — nor is\n  any unknown kind; or\n  (ii) — it carries NO kind\
+  \ at all AND its own diff is PROVABLY record-only (the existing\n  `_zero_ship_diff_bookkeeping`\
+  \ allow-list, via `_bookkeeping_commit_authored_paths`); an UNPROVABLE\n  diff refuses.\
+  \ This is NOT a general custody-repointing flag: the target stays DERIVED from the\n\
+  \  ordered chain, `--commit` stays a confirmation token, and a kind-less record\
+  \ carrying AUTHORED paths\n  still refuses here.\n  **The SELECTION half of the\
+  \ same question.** When NO kind-absent record carries authored\n  content AND the\
+  \ chain as a WHOLE is record-only (`_chain_is_record_only` — the SAME predicate\
+  \ the\n  mode selector applies), the card records NO PRODUCT SHIP, and MODE B applies:\
+  \ a pre-card ship is\n  admissible only on ITS own fences (governed-landing evidence,\
+  \ ancestor-of-`main`, and the\n  diff-limited leg scanning the FULL chain). **This\
+  \ NARROWS what may be called a ship; it removes no\n  refusal.** ANY authored content\
+  \ anywhere on the chain leaves the branch inert; an unprovable diff\n  answers False\
+  \ (fail-closed). The demotion stays OPT-IN, so the pre-shipped-deliverable anchor\
+  \ is\n  unmoved.\n- **`--commit` must EQUAL the displaced ship** — a CONFIRMATION\
+  \ token, never a selector: exactly ONE\n  admissible sha is derived from the ORDERED\
+  \ `commit_landed` chain, and an untied sha, or an OLDER ship\n  of a multi-ship\
+  \ (mode-a) task, is REFUSED.\n- **Every displacing self-commit must be DIFF-LIMITED\
+  \ to bookkeeping** (the existing\n  `_zero_ship_diff_bookkeeping` allow-list). A\
+  \ park/pause commit that swept AUTHORED source in (X-0359)\n  is REFUSED: re-pinning\
+  \ to the ship would leave that content shipped-but-unaudited.\n- **The ship must\
+  \ be INTEGRATED-OR-REACHABLE** — TWO admissible shapes, and only two. Any git failure\n\
+  \  refuses either way.\n  (i) **LANDED** — the named commit is an ancestor of `main`.\n\
+  \  (ii) **DISPLACED ON AN UNLANDED BRANCH** — when the commit is NOT an ancestor\
+  \ of `main`, it\n  is admitted on the CONJUNCTION of: it is **reachable from HEAD**\
+  \ (the tree the audit will run\n  against); AND it **carries this card's AUTHORED\
+  \ content**, judged by the SAME\n  `_bookkeeping_commit_authored_paths` predicate\
+  \ legs (a)/(c) apply (fail-closed).\n  **Why (ii) is not a weakening.** It audits\
+  \ a diff `main` does not carry YET, which is what EVERY\n  pre-land audit does;\
+  \ the authored-content half refuses the green-by-vacuity target; and this leg runs\n\
+  \  LAST, after the anti-custody-game fence has already decided.\n  **Guidance follows\
+  \ the rule.** The custody-mismatch refusal's recovery sentence\n  (`_custody_mismatch_recovery_route`)\
+  \ asks the ENFORCING predicate in the not-an-ancestor state too;\n  LAND FIRST survives\
+  \ only for the inputs where the re-pin is genuinely refused.\n\n#### The audited\
+  \ subject\n\n**THE AUDITED SUBJECT — the SPAN, not the target alone (<project> X-1435).**\
+  \ The four legs\nabove answer the ADMISSION question («may this target be re-pinned\
+  \ to at all»). They are UNCHANGED.\nThis bullet answers the question the section\
+  \ never addressed: once a target IS admitted, WHAT\nMATERIAL the auditor is shown.\n\
+  - **The subject is the SPAN** of the card's own non-bookkeeping `commit_landed`\
+  \ members up to AND\n  INCLUDING the target — asked through the SAME `_bookkeeping_commit_authored_paths`\
+  \ predicate legs\n  (a)/(c)/(ii) already use, so there is no second notion of what\
+  \ counts as authored content. It is\n  assembled as the UNION of the members' OWN\
+  \ commits, NEVER a `<first>^..<last>` range on `main`:\n  concurrent lands from\
+  \ OTHER cards interleave between one card's ships, so a range would hand the\n \
+  \ auditor foreign content.\n  **Why this was needed.** A re-pin target is admitted\
+  \ by the LANDED leg precisely BECAUSE it is an\n  ancestor of `main`, so `merge-base(target,\
+  \ main) == target`, `get_audit_post_diff`'s range branch\n  is skipped and its single-commit\
+  \ fallback fires. On a single-ship card that is correct; on a\n  MULTI-ship card\
+  \ every EARLIER ship fell silently outside the subject. Measured on <project> :\n\
+  \  custody re-pinned onto the CHORE ship rather than the PRODUCT ship, the packet\
+  \ printed `audited in\n  the diff (2)` vs `declared but NOT audited (5)`, and it\
+  \ ADMITTED — all 8 of that card's acceptance\n  criteria concerned content the auditor\
+  \ would never, so a GREEN would have been\n  green-by-vacuity, the exact wedge this\
+  \ whole exception exists to prevent.\n- **THREE NEW FAIL-CLOSED REFUSAL LEGS** (this\
+  \ is why the enumeration above became incomplete):\n  (1) a span member whose authored-paths\
+  \ are UNPROVABLE, or which is not provably REACHABLE FROM\n  THE TREE BEING AUDITED\
+  \ (ancestor-of-`HEAD`, NOT ancestor-of-`main`: the subject question is whether\n\
+  \  the material is PRESENT, and binding it to `main` would refuse the LEG-(ii) unlanded-branch\
+  \ shape\n  this section explicitly ADMITS), REFUSES naming that record; (2) a failed\
+  \ `git show` for ANY member REFUSES naming that member; (3) a target that\n  matches\
+  \ MORE THAN ONE recorded commit of the card REFUSES naming the candidates — the\
+  \ chain holds\n  whatever the emitting verb wrote (in practice a SHORT sha) while\
+  \ the settled target is FULL, so\n  position is decided by the SAME bidirectional\
+  \ prefix compare used elsewhere for this pair, and an\n  ambiguous prefix names\
+  \ no single position (the / ambiguity family). NONE ever\n  falls back to the last-ship\
+  \ subject — falling back IS the vacuous audit this closes, so «today's\n  behaviour»\
+  \ is not the safe direction here: a guard that cannot CONSTRUCT its subject must\
+  \ not\n  pass. All three fire before any auditor invocation, so a refusal costs\
+  \ no auditor call and burns\n  no ceiling pass.\n- **THE SINGLE-SHIP INVARIANT.**\
+  \ A chain with <= 1 non-bookkeeping member derives exactly the commit\n  it derives\
+  \ today and DELEGATES to the same single-commit call, so every existing single-ship\n\
+  \  re-pin is byte-identical. A target recorded by no card-tied row (the MODE-B shape)\
+  \ has no chain to\n  span and likewise spans to itself, without refusing.\n- **THE\
+  \ TRAIL:** `custody_repin_span` (the ordered member shas) on the verdict YAML and\
+  \ in\n  `audit_post_completed`, beside `custody_repin_bound_by` — additive-optional,\
+  \ and ABSENT on every\n  single-ship re-pin. **Custody itself is UNCHANGED:** `commit:`\
+  \ still pins to the ONE displaced\n  ship, and `--commit` stays a confirmation token,\
+  \ so the «`--commit` must EQUAL the displaced ship\n... an OLDER ship of a multi-ship\
+  \ task is REFUSED» leg above stays literally true and literally\n  enforced. This\
+  \ bullet changes WHAT THE AUDITOR SEES, never WHO SIGNS.\n- **THE ORDINARY ROUTE\
+  \ SHARES THE SPAN (<project> X-1481).** The span was gated on\n  DISPLACEMENT (`--repin-ship`)\
+  \ where the defect is a matter of MULTIPLICITY: a two-ship card whose\n  custody\
+  \ no record ever displaced had NO governed route to its earlier ship (`--commit\
+  \ <earlier>`\n  refuses by equality, `--repin-ship` refuses at leg (a)), and once\
+  \ its last ship was an\n  ancestor of `main` the bare `git show` handed the auditor\
+  \ none of the deliverable (:\n  declared 14 · audited 7 · NOT audited 8). So the\
+  \ ORDINARY custody leg derives its subject through\n  the SAME reader with the SAME\
+  \ predicates (`bin/lib/audit.py#ship_span_commits`), with three bounds\n  that keep\
+  \ every existing contract literally true: (1) a chain of ONE recorded ship is not\
+  \ spanned\n  at all — the single-ship subject, INCLUDING its refusal surface, is\
+  \ byte-identical to before;\n  (2) a `--commit <full sha>` that EXTENDS an ambiguous\
+  \ recorded prefix resolves that row,\n  so the ambiguity refusal cannot fire on\
+  \ a row the operator just resolved; (3) **the span starts\n  AFTER the card's last\
+  \ RENDERED audit-post verdict** (GREEN/YELLOW/RED — an ABORT rendered none and\n\
+  \  bounds nothing): a further ship past a GREEN (`task commit --reship`, the landed-pause\
+  \ further\n  ship) is audited alone, as SPEC-0036 (a) no-relitigation requires.\
+  \ The bound never narrows on\n  doubt — a prior custody sha that names no chain\
+  \ row, or more than one, bounds nothing. **THE FORM\n  IS DECIDED ONCE, in `get_audit_post_span_diff`:**\
+  \ an UNLANDED last member keeps the RANGE form\n  (`merge-base..custody`), which\
+  \ is a SUPERSET of the span — it also carries a `work commit`\n  collateral fix\
+  \ and a `worktree sync --resolved` hand-resolution that no `commit_landed` row\n\
+  \  names, so the union would NARROW an unlanded subject; a LANDED last member (every\
+  \ re-pin target,\n  and the landed-then-re-audited ordinary card) takes the per-member\
+  \ union. Custody and admission\n  are untouched: `commit:` still pins to the custody\
+  \ sha and `--commit` must still EQUAL it.\n  **THE TRAIL:** `audited_span` (the\
+  \ ordered member shas) beside `audited_base` on the\n  verdict YAML and in `audit_post_completed`\
+  \ — additive-optional, ABSENT on every single-ship\n  subject and on the re-pin\
+  \ route, which keeps `custody_repin_span`.\nThis is likewise an ADDITIVE extension\
+  \ (SPEC-0005 §additive-extension): it adds an answer for a\nquestion the rule was\
+  \ silent on, and alters no already-covered case's required behaviour.\n\n## Rationale\n\
+  \nA re-pin is recorded on well under one in a hundred audit-post passes. Rendered\
+  \ inside SPEC-0015\nthis detail reached every session entering Closure; as a reference\
+  \ behind one index paragraph and\nthe help of the two verbs involved it is met by\
+  \ the session that has the case at hand (SPEC-0005\n§6, the rare-case option).\n\
+  \n## Verification\n\n- VP1 (one home): every block of §Ship-custody re-pin — admission\
+  \ legs and the audited subject is\n  present in this spec and absent from SPEC-0015,\
+  \ and SPEC-0015 carries exactly one index paragraph\n  naming this spec and the\
+  \ heading to search.\n- VP2 (reachable from the verb): the head of the `task close`\
+  \ help and the help of the re-pin\n  option of `audit post` name this spec.\n- VP3\
+  \ (no stage render): no stage entry delivers this spec.\nThe executable form of\
+  \ VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
+cites:
+- SPEC-0015
+- SPEC-0036
+- SPEC-0005
+- SPEC-0013
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

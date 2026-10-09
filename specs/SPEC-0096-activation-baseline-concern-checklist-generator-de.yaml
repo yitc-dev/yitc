@@ -241,4 +241,4 @@ implements_signature:
   bin/lib/graph.py#_activation_concern_rows: d9cfabdcdfa502c6800750a02535d97041f155b39ee324b6bc709bb3dbb884ca
   bin/lib/graph.py#_render_activation_checklist: 6f75aa3a3ef5183e73a61e9b0428dd13c86c3418c08fe40b96b35ec738480bbe
   bin/lib/init.py#_render_init_concern_sweep: 6ec5625a8026ae3e35578aa6cb0a46dee9394ce2d27dc6fd4661367c21f82fab
-  graph/activation-checklist.md#Activation: 6b033bafe0312c51eb90f93be1059b93f1f74d5091f2c380207419c7fafbe202
+  graph/activation-checklist.md#Activation: 43dd216c2c6fa93570a397bda8373232b4ba91f66c3994f1939977242630d766

@@ -55,7 +55,7 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \                  # ONLY when a listed card carries a real person — suppressed-when-clean).\n\
   \                             # Sibling stamps on the other two authoring verbs:\
   \ the `followup_added`\n                             # (SPEC-0095) + `cross_requested`\
-  \ (SPEC-0086) payload `actor` key.\nscope: # bulleted list, ≤ 5 items typically\n\
+  \ (SPEC-1020) payload `actor` key.\nscope: # bulleted list, ≤ 5 items typically\n\
   \  - Add counter event_type to events.jsonl writer\n  - Wire counter to dashboard\
   \ view\nacceptance: # MUST include probe evidence per Principle 3\n  - AC1: events.jsonl\
   \ contains 'metric_x_emitted' event when X happens (probe: synthetic trigger fires\

@@ -1,6 +1,6 @@
-# Release v2.5.0
+# Release v2.6.0
 
-Source commit: `f5a03ae5eee85da4533c50df65465e42acdf03c4`
+Source commit: `d710762c9b2e05b23bda2b25617c52dbb6879404`
 
 ## Proposals this release answers
 
@@ -46,6 +46,7 @@ answers:
   - 'yitc-dev/yitc#42'
   - 'yitc-dev/yitc#43'
   - 'yitc-dev/yitc#44'
+  - 'yitc-dev/yitc#46'
   - 'yitc-dev/yitc#47'
   - 'yitc-dev/yitc#48'
   - 'yitc-dev/yitc#49'
@@ -60,7 +61,19 @@ answers:
   - 'yitc-dev/yitc#58'
   - 'yitc-dev/yitc#59'
   - 'yitc-dev/yitc#6'
+  - 'yitc-dev/yitc#60'
+  - 'yitc-dev/yitc#61'
+  - 'yitc-dev/yitc#62'
+  - 'yitc-dev/yitc#63'
+  - 'yitc-dev/yitc#64'
+  - 'yitc-dev/yitc#65'
+  - 'yitc-dev/yitc#66'
+  - 'yitc-dev/yitc#67'
+  - 'yitc-dev/yitc#68'
+  - 'yitc-dev/yitc#69'
   - 'yitc-dev/yitc#7'
+  - 'yitc-dev/yitc#70'
+  - 'yitc-dev/yitc#71'
   - 'yitc-dev/yitc#8'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
@@ -116,62 +129,148 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+10 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
 
-- SPEC-0091 — Lessons read-surfaces + route-by-purpose lane discipline
+- SPEC-1010 — Request-boundary ownership judgement — seam, not case: whose shape a project-kernel request is, judged on both sides, and the project never waits
   turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-0091`
-- SPEC-1006 — Adapter-backed consumer verify layers — per-test report, fail-closed selection, per-test re-run and accounting
-  turn on: yitc-ops.yaml `verify.layers[].adapter` — an `adapter:` block on the declared verify layer whose tests it lists, selects and re-runs
-  read: `yitc-v2 graph query --kernel SPEC-1006`
+  read: `yitc-v2 graph query --kernel SPEC-1010`
+- SPEC-1011 — Settling a deferred probe on a done card — the settle procedure (reference, read before task close --settle-probe)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1011`
+- SPEC-1012 — Triage currency — temporal recurs on the fix's land time (capture-after-land) + remedy verdict carriers + fuzzy Section-A dedup
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1012`
+- SPEC-1013 — Rare task-audit shapes — machine-refuted findings and the card-repair audit-post subject (reference, fetched on demand from the audit contract and the audit help)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1013`
+- SPEC-1014 — Ceiling decisions — edge cases of the at-ceiling route (reference, read at a ceiling before audit decide or the one further pass)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1014`
+- SPEC-1018 — Audit-loop ceiling — rare ledger-skip axis clauses, on-demand consult mechanics and the commit-side door (reference, read when one of those cases is at hand)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1018`
+- SPEC-1019 — Change hand-in self-check — re-read the diff against the plan and the acceptance criteria before Tests
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1019`
+- SPEC-1020 — cross author-side verbs — request, dispute and close (what the author of a coordination item runs)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1020`
+- SPEC-1021 — Acceptance worked examples — measured cases behind the cues of SPEC-0060 item 4 (reference, read when a criterion answers yes to a cue)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1021`
+- SPEC-1022 — Ship-custody re-pin — admission legs and the audited subject (reference, read when a custody-mismatch refusal names the re-pin)
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1022`
 
 ## What changed
 
-43 task(s) closed since the previous release tag, in close order:
+105 task(s) closed since the previous release tag, in close order:
 
-- T-13594 — Tell sessions and dispatched workers to make a scratch clone cheap — git worktree add, or git clone --shared / --reference to the main repository — never a full copy (fix) — events.jsonl#ts=2026-10-05T19:14:49Z
-- T-13595 — List in the release notes every kernel card whose work first enters the tagged history, keyed on git ancestry rather than on when the card closed (fix) — events.jsonl#ts=2026-10-05T20:13:16Z
-- T-13597 — Make plan evidence invalidation semantic, not byte-level — trial floor (SPEC-0035 rule 5), plan-stage gates (SPEC-0083) and plan-gate dispositions (SPEC-0204) (feature) — events.jsonl#ts=2026-10-05T20:50:11Z
-- T-13601 — Make the hang_suspect recovery hint name the plain re-dispatch route beside adopt, and name a provider usage limit with its reset time when the dead worker's log states it (fix) — events.jsonl#ts=2026-10-05T21:32:59Z
-- T-13603 — Grow SPEC-0165 with the selection-friendly test-writing policy and the heavy-test layer split (per-test plan C9) (docs) — events.jsonl#ts=2026-10-05T22:22:09Z
-- T-13598 — Keep pass-by-pass and run-by-run history out of plan bodies — a plan carries its baked protocol and a current exit-facing summary with references (SPEC-0035 rule 6) (docs) — events.jsonl#ts=2026-10-05T22:35:17Z
-- T-13600 — Make spec edit say which reading it took for a one-line old with a multi-line new, and refuse a result whose new lines land deeper than the block indent (fix) — events.jsonl#ts=2026-10-05T22:59:16Z
-- T-13602 — Tell the worker to re-sign anchored specs BEFORE its final full run, at Tests entry and in the commit-time stale-anchor advice, because a re-sign after the run ends the land's Stage-6 credit (fix) — events.jsonl#ts=2026-10-05T23:03:26Z
-- T-13599 — Say at the audit_scrutiny declaration and at close that re-signing an anchored spec takes a case's audit-post exemption back, and count re-sign-only takebacks in the per-case coverage line (fix) — events.jsonl#ts=2026-10-05T23:34:02Z
-- T-13606 — Parse the verify-layer adapter declaration and record per-unit report rows report-only on land and Tests-stage runs (per-test plan C1; SPEC-1006 rules 1-4, 12, 13) (infra) — events.jsonl#ts=2026-10-06T02:51:58Z
-- T-13607 — Re-run a failed test unit alone with rescue on|off, record it per unit, and keep the SPEC-0152 layer re-run unchanged on every fallback (per-test plan C3; SPEC-1006 rules 4, 5, 10) (infra) — events.jsonl#ts=2026-10-06T06:18:53Z
-- T-13610 — Record the shadow selection decision on adapter-backed layers: related, the fail-closed ladder, derived unknown, triggers, identity and disagreements (per-test plan C5; SPEC-1006 rules 3, 6-9) (infra) — events.jsonl#ts=2026-10-06T06:21:55Z
-- T-13608 — Derive the per-unit flaky rate and the per-case rescued-failure count from the recorded rows (per-test plan C4a; SPEC-1006 rule 13) (infra) — events.jsonl#ts=2026-10-06T08:24:25Z
-- T-13476 — Memoize the published-spec strip per spec text and the emitter AST scan per code tree within one process (refactor) — events.jsonl#ts=2026-10-06T09:38:48Z
-- T-13612 — Record the would-be credit of a fix attempt beside its full re-run (per-test plan C8; SPEC-1006 rule 14, credit: shadow) (infra) — events.jsonl#ts=2026-10-06T09:49:01Z
-- T-13611 — Report the test-layout hotspots as a derived view over the shadow selection rows (per-test plan C6; SPEC-1006 rule 13, H) (infra) — events.jsonl#ts=2026-10-06T10:24:33Z
-- T-13615 — Derive the per-case rescued-failure count from the recorded rows (per-test plan C4c; SPEC-1006 rule 13) (infra) — events.jsonl#ts=2026-10-06T11:05:21Z
-- T-13617 — Record the delta-only re-check evidence as methodology Lesson 12 and save the analysis report in the repo (docs) — events.jsonl#ts=2026-10-06T11:18:24Z
-- T-13618 — When absorbing an audit finding, sweep the whole audited subject for the same defect class (feature) — events.jsonl#ts=2026-10-06T11:52:02Z
-- T-13619 — Record the auditor prompt size, by part, on every plan-gate audit row (infra) — events.jsonl#ts=2026-10-06T11:55:53Z
-- T-13620 — Keep the Stage-6 credit when main advanced since the run only by inert paths that no test names, instead of ending it on any advance (feature) — events.jsonl#ts=2026-10-06T12:13:28Z
-- T-13621 — Show the load-sensitive lane's size, serialized seconds and 7-day change, and the slow-tail growth in seconds, on the session-start debt rows (fix) — events.jsonl#ts=2026-10-06T12:41:11Z
-- T-13609 — Enter a repeatedly rescued test unit into the layer's load-sensitive lane automatically (per-test plan C4b; SPEC-1006 rule 11) (infra) — events.jsonl#ts=2026-10-06T12:51:15Z
-- T-13623 — State the write-territory rule as the repository the session works in, true for engine and consumer readers (docs) — events.jsonl#ts=2026-10-06T14:27:16Z
-- T-13622 — Re-pin SPEC-0091 to the kernel realm — its rules govern every repo that keeps lessons (fix) — events.jsonl#ts=2026-10-06T14:28:23Z
-- T-13624 — Add a monthly test-suite-shape lens (Lens C) to the inspection roster that reads layer split, slowest-file growth and the load-sensitive lane per repo and turns each accepted finding into a card (docs) — events.jsonl#ts=2026-10-06T14:50:40Z
-- T-13613 — Activate SPEC-1006: fill its implements anchors, re-pin it to the kernel and point SPEC-0152 / SPEC-0181 / SPEC-0132 at it (per-test plan C12, the activation owner) (infra) — events.jsonl#ts=2026-10-06T14:56:48Z
-- T-13625 — Render stage-entry contracts without their machine-only fields (infra) — events.jsonl#ts=2026-10-06T15:47:54Z
-- T-13628 — Reproduce the read gate's filtered-delivery gap and state SPEC-0050's honest bound for stage delivery (fix) — events.jsonl#ts=2026-10-06T16:07:06Z
-- T-13629 — List the kernel capabilities that became active since the previous release as «capabilities to consider» in the release notes and at the end of release update (feature) — events.jsonl#ts=2026-10-06T17:52:56Z
-- T-13638 — Read the engine CHARTER from the release view when an installed engine has no root CHARTER.md (fix) — events.jsonl#ts=2026-10-06T19:31:20Z
-- T-13641 — Make a decomposition-fidelity split recommendation advisory and let the project's declared grouping rules decide (fix) — events.jsonl#ts=2026-10-06T20:03:02Z
-- T-13636 — Make the post-compact receipt refresh keep a dispatched worker's session type and count for the checkout it lands from (fix) — events.jsonl#ts=2026-10-06T20:09:52Z
-- T-13631 — Make the dispatch preamble's detached-run recipe (SPEC-0180) pass the harness rm-safety check, so a worker can launch an over-cap land or suite without a hand-written workaround (fix) — events.jsonl#ts=2026-10-06T20:20:50Z
-- T-13632 — Make the absorption routes ask for the same-class sweep statement and record it, so the rule is followed by construction rather than by memory (feature) — events.jsonl#ts=2026-10-06T20:31:39Z
-- T-13635 — Name the failing test in a non-adapter layer's flaky-retry record: build the excerpt from each stream's tail, recognise Playwright failures, keep the first attempt's output on Stage-6 runs (fix) — events.jsonl#ts=2026-10-06T21:16:39Z
-- T-13637 — Read a P8-CARRIER task id followed by punctuation, and warn at followup add when the marker names no readable id (fix) — events.jsonl#ts=2026-10-06T21:39:06Z
-- T-13640 — State two Tests-stage habits in the stage-delivered Tests guidance: iterate on one test by name and run the full suite once, and walk each criterion at its edges before the final run (docs) — events.jsonl#ts=2026-10-06T21:57:24Z
-- T-13639 — Tell a dispatched worker never to redirect a land's output into its scratch root, which a successful land removes (fix) — events.jsonl#ts=2026-10-06T22:23:59Z
-- T-13643 — Resolve a verify-layer P8 carrier through the Stage-6 run its land credited (fix) — events.jsonl#ts=2026-10-06T22:56:16Z
-- T-13644 — Grow SPEC-0165 item 12 with a wall clause: a card that writes a test file reads its time and cuts the file that sets its layer's wall (docs) — events.jsonl#ts=2026-10-06T23:07:30Z
-- T-13642 — Carry uncommitted worktree changes across worktree sync's merge instead of reporting them as non-union conflicts (fix) — events.jsonl#ts=2026-10-06T23:52:49Z
-- T-13645 — Report a consumer layer's duration step at the Stage-6 run and land that caused it, beside the Rule 7 layer creep line (feature) — events.jsonl#ts=2026-10-07T00:15:18Z
+- T-13273 — Refold transcript digests carrying an older parser_version before nightly prune verifies them (fix) — events.jsonl#ts=2026-10-07T07:13:03Z
+- T-13287 — Keep a Stage-6 selection local only when it is genuinely small; route a large narrowed selection to the published venue (fix) — events.jsonl#ts=2026-10-07T07:34:26Z
+- T-13343 — Probe the newest launch pid inside the pre-anchor grace branch of _classify_dispatch (fix) — events.jsonl#ts=2026-10-07T07:41:31Z
+- T-13650 — Refuse a bare init run on the engine's own checkout (fix) — events.jsonl#ts=2026-10-07T09:22:03Z
+- T-13648 — Stop the cli_invoked envelope re-reading the journal tail after a writing verb's body (fix) — events.jsonl#ts=2026-10-07T11:17:29Z
+- T-13647 — Let a project declare its own file#symbol anchor forms in yitc-ops.yaml, read by the kernel anchor resolver beside its built-in forms (feature) — events.jsonl#ts=2026-10-07T11:27:53Z
+- T-13653 — Make `task test --run` show progress while it runs when its output is redirected — flush each layer line as it happens and write the verify heartbeat (fix) — events.jsonl#ts=2026-10-07T11:37:38Z
+- T-13652 — Publish the verify-layer adapter protocol as a pattern with one sample adapter per report profile, and point SPEC-1006 and the release notes at it (docs) — events.jsonl#ts=2026-10-07T12:26:28Z
+- T-13494 — Replace the retired DANGLING binding comment with the SPEC-0013 pointer in every spec the spec edit verb admits (docs) — events.jsonl#ts=2026-10-07T15:01:25Z
+- T-13654 — Show an owner-question followup as fired once the card it names is closed, keyed on a declared OWNER-QUESTION marker (feature) — events.jsonl#ts=2026-10-07T15:58:59Z
+- T-13655 — Refuse dropping a P8-CARRIER followup while its card's adoption evidence does not resolve, unless the drop records an explicit not-adopted waive (feature) — events.jsonl#ts=2026-10-07T17:13:06Z
+- T-13656 — Extract the receiver-side intake triage into SPEC-1009 unchanged and point both parents and every delivery reference at it (refactor) — events.jsonl#ts=2026-10-07T18:07:59Z
+- T-13661 — Cut SPEC-0124's retired post-ceiling continuations section down to its one-line pointer (docs) — events.jsonl#ts=2026-10-07T18:39:42Z
+- T-13662 — Move SPEC-0015's settle procedure into a plain reference spec behind an index line and the settle help head (docs) — events.jsonl#ts=2026-10-07T19:44:26Z
+- T-13673 — Print the --anchor form for each anchor the Stage-6 stale-anchor report names (fix) — events.jsonl#ts=2026-10-07T19:58:30Z
+- T-13666 — Render the packet-readiness block on audit pre --preview by binding its inputs on the pre path (fix) — events.jsonl#ts=2026-10-07T20:10:23Z
+- T-13664 — Cut the history and provenance text out of the startup handbook (docs) — events.jsonl#ts=2026-10-07T20:19:19Z
+- T-13663 — Add one short authoring recommendation for rare-case procedure to SPEC-0005 (docs) — events.jsonl#ts=2026-10-07T20:54:20Z
+- T-13660 — Leave the maintainer-only sections out of every stage-entry render (feature) — events.jsonl#ts=2026-10-07T21:02:20Z
+- T-13676 — Take a two-line body-form old in spec edit --from-file when its second line starts at body indent zero (fix) — events.jsonl#ts=2026-10-07T21:46:58Z
+- T-13659 — Activate SPEC-1010 as the one home of the request-boundary ownership judgement and move every pointer and delivery surface to it (feature) — events.jsonl#ts=2026-10-07T21:50:55Z
+- T-13678 — Remove LIFECYCLE's per-stage duplicates that the stage bundles already deliver on time (refactor) — events.jsonl#ts=2026-10-07T22:31:50Z
+- T-13680 — Thin the /yitc entry command to pointers and condense the duplicate Startup-phases narration (refactor) — events.jsonl#ts=2026-10-07T22:32:26Z
+- T-13677 — Correct QUEUE.md's retired audit-consult step for a prematurely-closed unlanded task (fix) — events.jsonl#ts=2026-10-07T22:49:18Z
+- T-13668 — Compare triage recurrences against the fix card's successful land time, not its in-worktree closed_at (fix) — events.jsonl#ts=2026-10-07T23:31:35Z
+- T-13670 — Classify the recurring full-path selection-tripwire pairs since as read or mention (fix) — events.jsonl#ts=2026-10-07T23:32:06Z
+- T-13679 — Remove the plan-lifecycle duplicates from the seed while keeping the before-check cue (refactor) — events.jsonl#ts=2026-10-08T02:09:55Z
+- T-13667 — Say in the audit-pre pre-authored warning that the deviation is already journaled (fix) — events.jsonl#ts=2026-10-08T02:11:28Z
+- T-13671 — State that a dispatch launch keeps its stdout attached and exempt it from the redirect-to-a-log advice (docs) — events.jsonl#ts=2026-10-08T02:12:37Z
+- T-13691 — Move SPEC-0036's rare-case audit procedures into a reference spec behind one index line (refactor) — events.jsonl#ts=2026-10-08T02:23:13Z
+- T-13672 — Make the SPEC-0151 no-anchor warning of spec edit name a pending supersession (fix) — events.jsonl#ts=2026-10-08T02:37:35Z
+- T-13692 — Move SPEC-0204's at-ceiling decision procedure detail into a reference spec behind one index line (refactor) — events.jsonl#ts=2026-10-08T02:40:02Z
+- T-13682 — Condense the scoped self-commit exception catalogue in §Writes happen in a worktree (refactor) — events.jsonl#ts=2026-10-08T03:53:17Z
+- T-13675 — Re-run only the verify layers the post-run delta touches when the Stage-6 credit is refused for a tree difference (fix) — events.jsonl#ts=2026-10-08T06:28:45Z
+- T-13694 — Move SPEC-0124's rare plan-gate and ceiling-edge procedures into a reference spec behind one index line (refactor) — events.jsonl#ts=2026-10-08T06:49:15Z
+- T-13684 — Move QUEUE's exceptional recovery recipes to their closure and status homes (refactor) — events.jsonl#ts=2026-10-08T07:22:10Z
+- T-13674 — Make plain spec reverify sign only stale anchors and leave never-signed anchors for an explicit flag (fix) — events.jsonl#ts=2026-10-08T07:37:36Z
+- T-13683 — Condense the land-running detail in §Writes happen in a worktree into its monitoring pattern (refactor) — events.jsonl#ts=2026-10-08T07:38:58Z
+- T-13686 — Condense the MEMORY and pre-claim refusal cues while keeping their audience delivery (refactor) — events.jsonl#ts=2026-10-08T08:44:23Z
+- T-13699 — Move the kernel consumer-surface read contract (SPEC-0185) from the Execution entry to a floor trigger (refactor) — events.jsonl#ts=2026-10-08T09:27:20Z
+- T-13696 — Split SPEC-0086 (the cross verbs) by stable surface below the 63000-byte ceiling (refactor) — events.jsonl#ts=2026-10-08T09:33:00Z
+- T-13690 — Count only due cards against the active-queue size cap (fix) — events.jsonl#ts=2026-10-08T09:37:50Z
+- T-13685 — Move the Controller's picker algorithm out of QUEUE.md to its selection surface (refactor) — events.jsonl#ts=2026-10-08T09:38:28Z
+- T-13697 — Deliver the block-classification and exemption contracts (SPEC-0191, SPEC-0178) at their trigger instead of every audit and closure stage entry (refactor) — events.jsonl#ts=2026-10-08T10:36:29Z
+- T-13698 — Deliver the prototype contract (SPEC-0205) at its trigger instead of the filing entry (refactor) — events.jsonl#ts=2026-10-08T10:42:40Z
+- T-13706 — Deliver the before-rule-change contracts through the stage deliverer at spec edit and spec new, once per context (refactor) — events.jsonl#ts=2026-10-08T10:52:07Z
+- T-13709 — Keep a column-0 list under a dropped field out of the stage contract view (fix) — events.jsonl#ts=2026-10-08T10:57:41Z
+- T-13695 — Move SPEC-0060's worked-example authoring cues into a reference spec behind one index line (refactor) — events.jsonl#ts=2026-10-08T11:08:13Z
+- T-13665 — Move the engine-maintenance rules out of the startup handbook into engine-only specs delivered at their action (docs) — events.jsonl#ts=2026-10-08T11:18:09Z
+- T-13700 — Make the root --help a one-line-per-verb inventory and keep each verb's detail in its own help (refactor) — events.jsonl#ts=2026-10-08T11:26:32Z
+- T-13715 — Route incident history to Rationale and code detail to implements / Implementation notes at the moment of writing a spec (refactor) — events.jsonl#ts=2026-10-08T12:01:02Z
+- T-13704 — Correct five stale statements in SPEC-0027 that contradict the rules their own homes state (docs) — events.jsonl#ts=2026-10-08T12:09:42Z
+- T-13720 — Name the post-compaction cause and its one-step recovery in the unbacked-carry refusal (fix) — events.jsonl#ts=2026-10-08T12:22:28Z
+- T-13708 — Deliver the plan-stage bundle through the stage deliverer at plan file and plan stage instead of naming its ids (refactor) — events.jsonl#ts=2026-10-08T12:27:02Z
+- T-13701 — Cut the narrative from the dispatched-worker preamble's land and run-scope rules, keeping every recipe command (refactor) — events.jsonl#ts=2026-10-08T13:23:04Z
+- T-13693 — Move SPEC-0015's remaining rare closure branches into a reference spec behind one index line (refactor) — events.jsonl#ts=2026-10-08T13:23:52Z
+- T-13681 — Delete the duplicate journal, floor-trigger and non-blocking-batch explanations from the seed (refactor) — events.jsonl#ts=2026-10-08T13:34:09Z
+- T-13702 — Leave Controller-only guidance out of the Worker seed and cut MEMORY.md's header to a pointer (refactor) — events.jsonl#ts=2026-10-08T13:48:44Z
+- T-13703 — Drop SPEC-0168 from the audit-post entry behind a cue and name SPEC-0083 at the plan-gate help heads (refactor) — events.jsonl#ts=2026-10-08T14:01:27Z
+- T-13728 — Fold a refusal-only task-card commit as land bookkeeping so a pre-claim refusal cannot restart an in-flight verify (infra) — events.jsonl#ts=2026-10-08T14:02:40Z
+- T-13707 — Deliver the Filing contracts through the stage deliverer at task file, once per context, and drop the maintainer-only Drift review section (refactor) — events.jsonl#ts=2026-10-08T14:16:31Z
+- T-13713 — Align SPEC-0060's test-not-applicable waiver prompt with SPEC-0165 item 4 (fix) — events.jsonl#ts=2026-10-08T14:29:05Z
+- T-13705 — Bring the passages of SPEC-0124 and SPEC-0036 part3 that still describe SPEC-0200's retired routes in line with SPEC-0204 (docs) — events.jsonl#ts=2026-10-08T14:35:47Z
+- T-13714 — Keep indented template-comment lines under kept one-line fields out of the stage contract view (fix) — events.jsonl#ts=2026-10-08T14:43:42Z
+- T-13725 — Activate SPEC-1019, the change hand-in self-check, and point SPEC-0027 Stage 5 at it (feature) — events.jsonl#ts=2026-10-08T14:59:58Z
+- T-13710 — Collapse repeated uncited same-type rows in the audit-post adoption-evidence section (refactor) — events.jsonl#ts=2026-10-08T15:18:27Z
+- T-13730 — Make a Python symbol's signed region run to the end of the function, not to the first column-0 line inside it (fix) — events.jsonl#ts=2026-10-08T15:36:26Z
+- T-13719 — Add a T7 delivered-protocol-weight sub-probe to the inspection roster and the T7 record (infra) — events.jsonl#ts=2026-10-08T15:38:07Z
+- T-13711 — Deliver the audit-loop ceiling contracts (SPEC-0124, SPEC-0204) at the ceiling and keep the first-pass ceiling core in SPEC-0036 (refactor) — events.jsonl#ts=2026-10-08T15:45:24Z
+- T-13717 — Move incident history from the filing, analysis and closure specs' rule bodies to their Rationale sections (refactor) — events.jsonl#ts=2026-10-08T15:59:38Z
+- T-13726 — Make `task file` name the created card when a step after creation fails, so a retry does not file a duplicate (fix) — events.jsonl#ts=2026-10-08T16:24:52Z
+- T-13732 — Make SPEC-0002's journal size-cap and append-ordering text match the write path it signs, then re-sign its anchor (fix) — events.jsonl#ts=2026-10-08T16:45:51Z
+- T-13687 — Print the applicable post-compact re-fold steps from session start on a new context epoch (feature) — events.jsonl#ts=2026-10-08T16:50:28Z
+- T-13712 — Remove retired-route text from SPEC-0124 and move SPEC-0204 rule 9 (plan gates) to SPEC-1014 (refactor) — events.jsonl#ts=2026-10-08T16:53:19Z
+- T-13727 — Re-point the two stale SPEC-0200 pointers in SPEC-0036 part3 and SPEC-0124 to SPEC-0204 (docs) — events.jsonl#ts=2026-10-08T16:58:48Z
+- T-13734 — Read the live task worktree's plan for audit decide pre-stage fix evidence when the main card also carries a plan (fix) — events.jsonl#ts=2026-10-08T17:29:47Z
+- T-13735 — Let a SPEC-0178 case match only when every shipped path is within its globs, so a documentation-only case can be declared safely (feature) — events.jsonl#ts=2026-10-08T17:30:26Z
+- T-13733 — Pass the dispatched worker's brief without putting it in one command-line argument, so a large brief launches (fix) — events.jsonl#ts=2026-10-08T17:38:41Z
+- T-13738 — Refuse a first baseline in spec reverify when another spec already signed the same anchor with a different hash (fix) — events.jsonl#ts=2026-10-08T17:40:54Z
+- T-13737 — Recognise an acceptance criterion that names a land-emitted event type as land-emitted scope for audit post --land-emitted-event (fix) — events.jsonl#ts=2026-10-08T17:56:27Z
+- T-13688 — Move the --help scan from startup-done to the first guarded work verb (refactor) — events.jsonl#ts=2026-10-08T18:11:55Z
+- T-13740 — Make audit decide refuse once with every missing requirement of a pre-stage fix, and print the current plan fingerprint (fix) — events.jsonl#ts=2026-10-08T18:24:58Z
+- T-13736 — Unwrap a YAML-quoted value read by task update --replace-acceptance --from-file before its ACn label check (fix) — events.jsonl#ts=2026-10-08T18:25:25Z
+- T-13739 — Make task close's shared-store evidence refusal name what triggered it, and accept the card's own resolves_cross item as its evidence (fix) — events.jsonl#ts=2026-10-08T18:33:45Z
+- T-13742 — Match a probe that names a test directory, and task-tied state_checked rows, in the audit packet readiness block (fix) — events.jsonl#ts=2026-10-08T18:34:46Z
+- T-13748 — Add the standing first-pass audit probe to inspection theme T5: a monthly fold of first-pass RED and YELLOW shares per project and stage, two baselines, a two-month trigger (docs) — events.jsonl#ts=2026-10-08T18:56:57Z
+- T-13747 — Say in SPEC-0043 item 5 which "do later" items become tracked tasks and at which plan stage, and keep an ask the plan does not take out of that rule (docs) — events.jsonl#ts=2026-10-08T19:11:45Z
+- T-13753 — Stop the second fold of the live journal segment that turns test_t13294_task_file_one_pass red on main (fix) — events.jsonl#ts=2026-10-08T19:11:50Z
+- T-13752 — Name the SPEC-0126 seam default (auto-proceed or stop for the owner) in each plan stage verb's next-step line, and say what owner cue starts a plan-drive (fix) — events.jsonl#ts=2026-10-08T20:01:05Z
+- T-13741 — Name the floor trigger-map in the dispatch preamble's startup read-set beside the worker-seed chain (fix) — events.jsonl#ts=2026-10-08T20:04:51Z
+- T-13754 — Show the person every actionable debt class at session start, in plain words, and only actionable ones (feature) — events.jsonl#ts=2026-10-08T20:05:20Z
+- T-13757 — Show a consumer session its own floor-trigger map beside the kernel's, at session start and in the after-compact re-read, for Controller and Worker (fix) — events.jsonl#ts=2026-10-08T20:19:42Z
+- T-13716 — Move incident history from the audit-stage specs' rule bodies to their Rationale sections (refactor) — events.jsonl#ts=2026-10-08T20:34:45Z
+- T-13756 — Add a saved view that lists a project's module map — each directory with the specs whose implements anchors point into it — runnable under -C (feature) — events.jsonl#ts=2026-10-08T21:05:28Z
+- T-13755 — Build the tracked plan-gate and trial-run fold and record the three baselines of plan author-self-check before its rule can reach any author (docs) — events.jsonl#ts=2026-10-08T21:10:10Z
+- T-13758 — Teach a consumer the route for its own way of working — process specs, the bindings a consumer spec can use and what each delivers, one worked example (docs) — events.jsonl#ts=2026-10-08T22:34:50Z
+- T-13760 — State in SPEC-0125 what the project-context home holds and never holds, and stop the born stub from asking for a module map (docs) — events.jsonl#ts=2026-10-08T23:14:58Z
+- T-13721 — Remove the retired ceiling routes still stated as live in SPEC-0124 and SPEC-0204 after the trim chain (fix) — events.jsonl#ts=2026-10-08T23:36:50Z
+- T-13769 — Fix the delivered-body content rule and the rule-preservation check in SPEC-0005 (docs) — events.jsonl#ts=2026-10-08T23:44:16Z
+- T-13759 — Route a standing rule for a project's own workers or Controller to a project-own spec in the capture-routing view, choosing the binding by the moment it applies (docs) — events.jsonl#ts=2026-10-09T00:00:58Z
+- T-13768 — Show the serialized test lane's tail at session start in plain words (feature) — events.jsonl#ts=2026-10-09T00:19:09Z
+- T-13722 — Name the route for the six audit-ceiling requirements that state a requirement or a ban but no route (fix) — events.jsonl#ts=2026-10-09T00:31:12Z
+- T-13718 — Move history and code detail out of the rule bodies of the remaining 33 delivered specs (refactor) — events.jsonl#ts=2026-10-09T00:35:07Z
+- T-13770 — Add the rule-preservation re-check and the delivered-weight ranking to the T7 inspection lens (docs) — events.jsonl#ts=2026-10-09T00:59:44Z
+- T-13761 — Print a report-only drift line at consumer session start when the context home names a missing path or a non-active spec (feature) — events.jsonl#ts=2026-10-09T02:03:47Z
 
 ## Trust surfaces
 

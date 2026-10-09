@@ -358,7 +358,7 @@ cites:
 requires: []
 supersedes: null
 implements_signature:
-  bin/lib/memory.py#audience_matches: b95615b9d908a2659114dc82b0b76787543d89b7eb7d35f1bbc16a115c8adc05
+  bin/lib/memory.py#audience_matches: f198ddb0dcc1de8d6b44e7671c4beca8eee466a3eedf16a4b904aae4f551397c
   bin/lib/memory.py#delete_pointer: 03c3b8c0d7a81d452cd0d3fbaf0ad933acb8b09aa16a4672944b23f4e5d65c98
   bin/lib/memory.py#parse_pointer: d8e6281ac25655c66f3c50325e6f398c806ef6be3d6d3967f86567b580954bd8
   bin/lib/memory.py#write_pointer: aa683adf52bc1d6128e025047b1222e7760173d8e6d7bf165b157e0896129d18

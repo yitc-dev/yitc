@@ -93,40 +93,43 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ proven culprits\")\n\n   The assertion greps the guard's SOURCE TEXT; the message\
   \ states a behavioural guarantee it\n   does not check. The sibling assertion immediately\
   \ below it says where the bound really lives —\n   \"the acted-on set must exclude\
-  \ index 0 structurally, not only by the guard above\". Read as the\n   content,\
-  \ that message cost one full controller/worker cycle in which every step was right;\
-  \ the\n   cycle existed because a message overstated its assertion.\n   **How this\
-  \ differs from the question above — the two are violated INDEPENDENTLY.** The\n\
-  \   mistake-or-change question decides whether such an assertion should EXIST; this\
-  \ clause decides\n   whether its message DESCRIBES it. Neither answer implies the\
-  \ other, and the example above\n   violates both. (That question is stated in its\
-  \ own paragraph above and is not restated here —\n   one home per rule, SPEC-0005\
-  \ rule 8.)\n   Repo-local prior art, kept where it lives — whose rule 3 observed\
-  \ the same thing from one\n   land: `lessons/a-source-form-probe-is-not-a-behaviour-test.md`.\
-  \ Like the rest of this item,\n   this is AUTHORING doctrine: no classifier of assertion\
+  \ index 0 structurally, not only by the guard above\".\n   **How this differs from\
+  \ the question above — the two are violated INDEPENDENTLY.** The\n   mistake-or-change\
+  \ question decides whether such an assertion should EXIST; this clause decides\n\
+  \   whether its message DESCRIBES it. Neither answer implies the other, and the\
+  \ example above\n   violates both. (That question is stated in its own paragraph\
+  \ above and is not restated here —\n   one home per rule, SPEC-0005 rule 8.)\n \
+  \  Repo-local prior art, kept where it lives — whose rule 3 observed the same thing\
+  \ from one\n   land: `lessons/a-source-form-probe-is-not-a-behaviour-test.md`. Like\
+  \ the rest of this item,\n   this is AUTHORING doctrine: no classifier of assertion\
   \ messages is admitted, here or later.\n4. **Waive contract** — a waive names the\
   \ mechanism, its pre-harm fail point, the covered path,\n   and a representative\
   \ violating input — otherwise build the tripwire. Every waive carries\n   class,\
   \ rationale, approver, and a recheck trigger (spec edited / frozen→active / area\
-  \ touched).\n5. **Extend-before-create** — one post per rule: before writing a new\
-  \ test file, extend the\n   rule's existing suite. A new standalone file is justified\
-  \ only by a genuinely NEW rule.\n   (Kernel corollary: task probes fold into per-rule\
-  \ suites — never one-file-per-task-forever.)\n   **Does this new test inspect THIS\
-  \ HOST? Then classify it in the SAME card.** A file that reads a\n   `/home/<user>`\
-  \ path, the locally-installed auditor binary, the real cross-project store, the\
-  \ host\n   sandbox, or this box's own debt-echo state means something HERE and nowhere\
-  \ else — it is not\n   venue-agnostic, and a kernel verify pass no longer runs only\
-  \ here. Ask the question at the keyboard,\n   while the file is being written and\
-  \ the card that ships it is still open: the classification belongs\n   in the same\
-  \ card as the test, never in a later sweep by someone who did not write it. What\
-  \ the\n   classes ARE, and what an unclassified file counts as, is **SPEC-0203 rule\
-  \ 8** — read it before you\n   answer: `yitc-v2 graph query SPEC-0203`. The class\
-  \ is RECORDED, never guessed: the local-probe class\n   is carried by `tests/local-probe-files.json`,\
-  \ whose per-file reasons live in\n   `dev-utilities/remote-verify-local-probe-classification.md`.\
-  \ A CUE plus a POINTER, per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and\
-  \ this is not it.\n6. **Walk order** — rules are mapped/closed in order of the COST\
-  \ of silent breakage\n   (money → outbound mutations → isolation/access → data mutations\
-  \ → background jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
+  \ touched).\n   A waive written on a task card's acceptance criterion is this same\
+  \ contract, not a lighter one:\n   its rationale and a value for every key of item\
+  \ 8's waive schema. A measurement criterion takes\n   the same keys; there is no\
+  \ shorter form. The filing advisory lists a waive that omits a key\n   (report-only,\
+  \ SPEC-0060 registry row 9).\n5. **Extend-before-create** — one post per rule: before\
+  \ writing a new test file, extend the\n   rule's existing suite. A new standalone\
+  \ file is justified only by a genuinely NEW rule.\n   (Kernel corollary: task probes\
+  \ fold into per-rule suites — never one-file-per-task-forever.)\n   **Does this\
+  \ new test inspect THIS HOST? Then classify it in the SAME card.** A file that reads\
+  \ a\n   `/home/<user>` path, the locally-installed auditor binary, the real cross-project\
+  \ store, the host\n   sandbox, or this box's own debt-echo state means something\
+  \ HERE and nowhere else — it is not\n   venue-agnostic, and a kernel verify pass\
+  \ no longer runs only here. Ask the question at the keyboard,\n   while the file\
+  \ is being written and the card that ships it is still open: the classification\
+  \ belongs\n   in the same card as the test, never in a later sweep by someone who\
+  \ did not write it. What the\n   classes ARE, and what an unclassified file counts\
+  \ as, is **SPEC-0203 rule 8** — read it before you\n   answer: `yitc-v2 graph query\
+  \ SPEC-0203`. The class is RECORDED, never guessed: the local-probe class\n   is\
+  \ carried by `tests/local-probe-files.json`, whose per-file reasons live in\n  \
+  \ `dev-utilities/remote-verify-local-probe-classification.md`. A CUE plus a POINTER,\
+  \ per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and this is not it.\n6.\
+  \ **Walk order** — rules are mapped/closed in order of the COST of silent breakage\n\
+  \   (money → outbound mutations → isolation/access → data mutations → background\
+  \ jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
   \ specs are not rules and\n   need no tripwire.\n8. **Ledger role** — the per-project\
   \ ledger stores ONLY rule→tripwire/waive links and waive\n   contracts: derived\
   \ bookkeeping, re-derivable, never a parallel truth (the spec stays the\n   rule's\
@@ -345,21 +348,26 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   verdicts this spec was absorbed from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n\
   `decisions/absence-is-not-evidence-audit-adhoc.yaml`). Prior art extended, not re-invented:\n\
   SPEC-0015 differential probes, SPEC-0060 AC discipline, the module→spec coverage-admission\n\
-  ledger shape.\n\n## Verification\n\nDelivered at Tests stage-entry (binding). Probes:\
-  \ (a) a task adding a standalone test file whose\nrule already has a suite draws\
-  \ the review question \"which existing rule suite did you extend?\";\n(b) ledger\
-  \ rows answer rule→tripwire/waive for 100% of tier-1 normative rules; (c) kernel\n\
-  new-test-file rate < 20/week within 2 weeks of adoption (baseline ≈124), REPORTED\
-  \ PAIRED with the\nnew-test-FUNCTION delta so growth cannot hide inside fat files;\
-  \ (d) a waive lacking the\n§4 contract fields is rejected at review; (e) for item\
-  \ 10, the machine-attributable-failure\nrule resolves in THIS spec's body and in\
-  \ no other spec (one doctrine, one home), NAMES BOTH\naccepted bindings independently,\
-  \ and is wired to NO code — `implements:` stays empty,\n`consumed:` stays false,\
-  \ and no code path reads or enforces the clause, so nothing refuses on\naccount\
-  \ of it; (f) for item 3's message-matches-assertion clause, the clause NAMES the\
-  \ violating\nshape concretely (a proxy-checking assertion under a behavioural message)\
-  \ and carries its worked\nexample with BOTH the assertion and the message, so a\
-  \ reader can fail a real tripwire against it\n— a reduction to a bare exhortation\
+  ledger shape.\n\n### History moved from the rule body\n\nEach entry is a passage\
+  \ moved word for word out of the rule text of the section it names;\nthe rule it\
+  \ explains stays there.\n\n- From «Internal item 3 (failure message / Worked example)»:\
+  \ Read as the content, that message cost\n  one full controller/worker cycle in\
+  \ which every step was right; the cycle existed because a\n  message overstated\
+  \ its assertion.\n\n## Verification\n\nDelivered at Tests stage-entry (binding).\
+  \ Probes: (a) a task adding a standalone test file whose\nrule already has a suite\
+  \ draws the review question \"which existing rule suite did you extend?\";\n(b)\
+  \ ledger rows answer rule→tripwire/waive for 100% of tier-1 normative rules; (c)\
+  \ kernel\nnew-test-file rate < 20/week within 2 weeks of adoption (baseline ≈124),\
+  \ REPORTED PAIRED with the\nnew-test-FUNCTION delta so growth cannot hide inside\
+  \ fat files; (d) a waive lacking the\n§4 contract fields is rejected at review;\
+  \ (e) for item 10, the machine-attributable-failure\nrule resolves in THIS spec's\
+  \ body and in no other spec (one doctrine, one home), NAMES BOTH\naccepted bindings\
+  \ independently, and is wired to NO code — `implements:` stays empty,\n`consumed:`\
+  \ stays false, and no code path reads or enforces the clause, so nothing refuses\
+  \ on\naccount of it; (f) for item 3's message-matches-assertion clause, the clause\
+  \ NAMES the violating\nshape concretely (a proxy-checking assertion under a behavioural\
+  \ message) and carries its worked\nexample with BOTH the assertion and the message,\
+  \ so a reader can fail a real tripwire against it\n— a reduction to a bare exhortation\
   \ is a regression, and the clause is likewise wired to NO code.\n(h) for item 11,\
   \ the rule resolves in THIS body and in no\nother spec, and its five prior homes\
   \ carry a POINTER plus their own surface mechanics and NOT the\ngeneral rule — a\

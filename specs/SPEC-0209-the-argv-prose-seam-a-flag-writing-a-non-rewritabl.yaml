@@ -173,9 +173,9 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/cli.py#main: 9d094ff57034b68dc6c7bb5835a9d336baed0d9e56933f5acfa00cd4486c0f72
-  bin/lib/cli_parser.py#build_parser: 3e087187882305f34ceb526c224a98e2923d9df18f858c1bfd0cc75a3a03779f
+  bin/lib/cli_parser.py#build_parser: b08cb19563f605941a3c3742cc27adc95b873777ad7eb82519218f149ae6d82f
   bin/lib/textutil.py#ARGV_PROSE_RESIDUE_VERBS: a14357dce8243c42484f7ceb2fcfa9f9cc57ca3d19b446ea91ce501c75ff1de3
-  bin/lib/textutil.py#ARGV_PROSE_SEAMS: 4b5e7099a6d1f87fb3ae82d7be6ca49092966b7485373ca299277036ab68c757
+  bin/lib/textutil.py#ARGV_PROSE_SEAMS: e1fbfe1b9162cf6ecc70af27538ea66661e3655b88b9d2d1a36e5af6ada3ca92
   bin/lib/textutil.py#ARGV_PROSE_WAIVED: 315b572b5864e608df514228107852dbfcfc30e05e9030bfea31f00e1d43d979
   bin/lib/textutil.py#_argv_flag_values: 8d42abd089157a129b42bdb764c2885ca21fca8bba1b1631700855d302e3f410
   bin/lib/textutil.py#argv_prose_seam_refusal: 12599acbc942dc207a0d103eb0e4ec3b748c6bfa8c9489b9294b710cf442fbe3

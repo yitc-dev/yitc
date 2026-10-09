@@ -725,6 +725,76 @@ Walk one column per human collaborator of the migrated project (`registry.yaml` 
   time, not at the deploy seam.
 
 
+## Your project's own way of working — process specs and the bindings that deliver them
+
+> For a project already on YITC. It answers one question: where does a standing rule about HOW
+> this project works go (how tests are written and run, what a worker checks before commit,
+> how a plan is drafted), so it reaches the right session at the right moment? The answer is a
+> **process spec** of the project's own, not its context home (`CHARTER.md` / `AGENTS.md`).
+> A rule there is shown only as a pointer at session start. It is in no stage bundle and no
+> dispatch brief, so it reaches a worker only through a hand-written brief.
+
+**(a) A project may write a spec about its own way of working.** SPEC-0005 §1 admits a process rule
+as a spec when it is cross-task, durable, analysis-shaping and behaviour-relevant. One-off guidance
+or a temporary choice stays on the card or the plan. Author it like any spec, in a `work/<slug>`
+worktree: `<engine>/bin/yitc-v2 -C <path> spec new --title "…" --travels project`. It is born
+`proposed`, and the task named in its `activation_owner_task` makes it `active` when that task
+closes. Only an `active` spec is delivered.
+
+**(b) The bindings a project spec can use, and what each delivers to whom.** A spec's `binding:`
+list chooses the moment: pick it by when the rule applies. The set is closed, and `graph conformance`
+reports a token outside it as an invalid binding token.
+
+| `binding:` token | Delivered to | When, and how |
+|---|---|---|
+| `stage-entry:<Stage>` — one of the 9 task stages, e.g. `stage-entry:Tests` | the session running the card: a dispatched worker, or a Controller running it | at `stage <Stage> --task T-XXXX`, in the stage bundle, marked `own`; a `session start` in the task worktree delivers the current stage's bundle too. At Analysis, Filing, Audit-pre, Commit, Audit-post and Closure that stage's verb refuses until the spec has been read (the read-gate); at Plan, Execution and Tests it is delivered, not gated. |
+| `plan-stage-entry:<plan stage>`, e.g. `plan-stage-entry:draft` | the Controller drafting or advancing a plan | at `plan stage <plan stage>`, in that plan stage's bundle |
+| `seed` — needs a one-sentence `seed_cue:` field | every session, Controller and worker | on the general-verb seed line of every `session start`, and again after a `/compact`: the cue, then where to read the body. Fetch an own spec's body with plain `graph query SPEC-NNNN`. |
+| a `before-*` trigger, e.g. `before-deploy`, or the verb tokens `spec-new` / `spec-edit` (the before-rule-change row) — the closed list is the engine `graph/floor-trigger-map.md` | every session, Controller and worker | as a row of this project's own `graph/floor-trigger-map.md`, which `session start` names beside the engine map. Read it before that action. It is a cue, not a refusal; a project cannot invent a new `before-*` name. |
+
+The rest of the closed set delivers nothing at a moment, so a process rule does not use it:
+
+- `commit`, `close`, `audit-pre`, `audit-post` and `before-analysis` are older verb tokens whose moments
+  moved onto the stages: bind `stage-entry:Commit`, `Closure`, `Audit-pre`, `Audit-post` or `Analysis`.
+- `plan-close` passes `graph conformance` but no verb shows or reads a spec bound to it: bind the plan
+  stage the rule applies at instead (`plan-stage-entry:<plan stage>`).
+- `query-only` (read on demand with `graph query`), `code-enforced` (the code its `implements:` names
+  enforces it) and `floor` (the kernel's always-loaded handbook) say how a spec is held, not when it
+  reaches a session.
+
+**(c) Worked example — how tests are written and run here.** A Tests-stage spec reaches the worker
+exactly when it starts testing:
+
+```yaml
+id: SPEC-NNNN # allocated by `spec new` (a project's spec ids run from 5000 to 9999)
+title: How tests are written and run in this project
+status: proposed # `active` once its activation_owner_task closes
+travels: project
+activation_owner_task: T-NNNN
+binding:
+  - stage-entry:Tests
+body: |
+  ## Scenario
+  A worker reaching Tests writes and runs this project's tests one way.
+  ## Internal
+  1. A test reaches no network; a fixture stands in for every outside service.
+  2. Iterate on one test by name; run the full suite once, at the end.
+```
+
+The body states the rule only. Where the tests live and the command that runs them are facts the
+repository already holds: the spec names neither (SPEC-0005 §3, the content boundary).
+
+Once it is `active`, `stage Tests --task T-XXXX` lists it as `own` beside the kernel's Tests contracts.
+
+**(d) Local craft goes to `lessons/`, not a spec.** A how-to-do-the-work note true of this project
+only, such as a tool quirk or a fixture trick, is a lesson (SPEC-0091 Rule 4). Relevant lessons are
+already surfaced at plan drafting, at Analysis and at audit-pre (SPEC-0091 Rule 1), so a worker
+receives them without a binding.
+
+**(e) No lighter path for a process rule.** Adding or changing a spec is substantive at any size: it
+takes the full nine stages with both audits (LIFECYCLE §Doctrine — blast-radius, not diff-size). A
+one-line process rule pays the same gates as a large one.
+
 ---
 
 > **Split note (per SPEC-0120 §3 per-doc size band).** The accumulated **Frictions log**

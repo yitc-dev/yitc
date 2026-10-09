@@ -33,17 +33,21 @@ body: "## Scenario\n\nThe owner/AI keeps `lessons/` (repo-local craft) and `patt
   \ craft → `lessons/` (repo-local) or `patterns/` (general, travels) — the local-vs-general\n\
   \  boundary is the structural plan's test, and the local-vs-general lane is RE-EVALUATED\
   \ on a cadence\n  — see SPEC-0090 §2b (the generalization sweep);\n- to-do-LATER\
-  \ → a `plan` (or `ideas/` = a plan-seed awaiting a trigger);\n- short to-do-NOW\
-  \ → a `MEMORY.md` line (consume-once, deleted after use);\n- went-wrong → a `deviation`\
-  \ / `errors/` entry;\n- durable standing rule → a `spec`; a user-path → a `scenario`;\n\
-  - history (what happened, when) → the journal.\n\n### Rule 3 — Ambiguous-class:\
-  \ a factual note has NO durable home of its own\nA repo-local FACTUAL note that\
-  \ is not yet reusable craft, not a plan-seed, not a rule, not an error,\nnot a scenario\
-  \ does NOT get a durable «limbo» class. While it is only a CANDIDATE its governed\n\
-  carrier is the **transient `MEMORY.md` line** (consume-once, deleted after use —\
-  \ SPEC-0039). It\nearns a durable `lessons/` home ONLY by passing the qualification\
-  \ test (Rule 4) — the governed\nPROMOTION `transient MEMORY → lessons/`. If it never\
-  \ qualifies it is deleted after use. So nothing\nis simultaneously durable and home-less.\n\
+  \ with no plan carrying it → a `plan` (or `ideas/` = a plan-seed awaiting a trigger);\n\
+  \  a postponed part of a plan's own deliverable that the plan's `decomposition`\
+  \ cut covers is a\n  tracked task filed at that cut instead (<workshop-spec> §B;\
+  \ SPEC-0043 item 5), while a remainder left\n  undecomposed when the plan ends `partial`\
+  \ goes to a new plan (SPEC-0034 §Terminals);\n- short to-do-NOW → a `MEMORY.md`\
+  \ line (consume-once, deleted after use);\n- went-wrong → a `deviation` / `errors/`\
+  \ entry;\n- durable standing rule → a `spec`; a user-path → a `scenario`;\n- history\
+  \ (what happened, when) → the journal.\n\n### Rule 3 — Ambiguous-class: a factual\
+  \ note has NO durable home of its own\nA repo-local FACTUAL note that is not yet\
+  \ reusable craft, not a plan-seed, not a rule, not an error,\nnot a scenario does\
+  \ NOT get a durable «limbo» class. While it is only a CANDIDATE its governed\ncarrier\
+  \ is the **transient `MEMORY.md` line** (consume-once, deleted after use — SPEC-0039).\
+  \ It\nearns a durable `lessons/` home ONLY by passing the qualification test (Rule\
+  \ 4) — the governed\nPROMOTION `transient MEMORY → lessons/`. If it never qualifies\
+  \ it is deleted after use. So nothing\nis simultaneously durable and home-less.\n\
   \n### Rule 4 — Lesson qualification test\nA factual note QUALIFIES as a `lessons/`\
   \ entry when ALL THREE hold:\n(a) **reusable** — it will inform ≥1 FUTURE work item,\
   \ not a one-shot;\n(b) **about HOW to do the work** — craft/method, not a historical\

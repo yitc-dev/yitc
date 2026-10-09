@@ -92,17 +92,15 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ the `worktree new --task` claim IS Analysis-entry, so it surfaces this\nprocedure,\
   \ and `stage Analysis` re-delivers it — as a pointer line while the session's context\
   \ epoch\nalready holds it unchanged, in full after a `/compact`; rule home SPEC-0050\
-  \ §4). The claim path\n(`cmd_worktree_new` → `_claim_task`) SURFACES the checklist\
-  \ (`_analysis_procedure_reminder`) AND runs\nthe decomposition step's mechanical\
-  \ half — the EXISTING structural pre-pass (`_plan_structural_findings`\nover scope+acceptance,\
-  \ reused — not a parallel validator). Both are **report-not-block** (CHARTER\nnon-goal\
-  \ #7 + <workshop-spec> §C). The `task_picked` event carries `trigger: \"stage-entry:Analysis\"\
-  ` (the\nalways-present, activation-independent claim-time delivery marker) + `governing_contract`\
-  \ (the standard\nactive-only delivery-observability projection, SPEC-0013; resolves\
-  \ to this spec once active).\n\nCROSS-TERRITORY ROUTING HINT (additive —, SPEC-0005\
-  \ §7). Alongside the structural pre-pass, the\nclaim path ALSO surfaces a **report-only\
-  \ cross-territory routing hint** (`_print_cross_territory_routing_hint`):\nwhen\
-  \ the claimed task's forecast paths (`expected_touch`) resolve OUTSIDE own territory\
+  \ §4). The claim path\nSURFACES the checklist AND runs\nthe decomposition step's\
+  \ mechanical half — the EXISTING structural pre-pass. Both are **report-not-block**\
+  \ (CHARTER\nnon-goal #7 + <workshop-spec> §C). The `task_picked` event carries `trigger:\
+  \ \"stage-entry:Analysis\"` (the\nalways-present, activation-independent claim-time\
+  \ delivery marker) + `governing_contract` (the standard\nactive-only delivery-observability\
+  \ projection, SPEC-0013; resolves to this spec once active).\n\nCROSS-TERRITORY\
+  \ ROUTING HINT (additive —, SPEC-0005 §7). Alongside the structural pre-pass, the\n\
+  claim path ALSO surfaces a **report-only cross-territory routing hint**:\nwhen the\
+  \ claimed task's forecast paths (`expected_touch`) resolve OUTSIDE own territory\
   \ (a path-based\nsignal — AGENTS §Scope boundary), the work looks like ANOTHER project's,\
   \ so the hint names the\nterritory-safe route — file a coordination item via `yitc-v2\
   \ cross request --to <project>` (the shared\ncoordination log) instead of `task\
@@ -112,61 +110,67 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ governing routing CONTRACT lives\nsingle-SoT in **SPEC-0084** (the cross system)\
   \ — this spec does not restate it, it only wires the\nwrite-side surfacing of it\
   \ at the Analysis claim + filing moments.\n\nPER-STAGE COMMAND SEQUENCE (additive).\
-  \ The claim moment ALSO surfaces the canonical\nper-stage command sequence (`_stage_sequence_skeleton`,\
-  \ appended to `_analysis_procedure_reminder`):\nfor every substantive stage IN ORDER\
-  \ it prints ENTER (`stage <NAME> --task`) -> WORK -> FINALIZE\n(the STAGE_WORK_VERBS\
-  \ work-verb), then `land`, and names per stage the contracts ENTER DELIVERS\n(DERIVED\
-  \ from `_stage_bundle_specs` — the SAME carrier `_require_reads` enforces, P5).\
-  \ This is a\ndelivery/discoverability fix, NOT a new gate: a fresh executor learns\
-  \ the whole ENTER->WORK->\nFINALIZE shape ONCE at claim instead of via the cascading\
-  \ stage-correspondence / read-gate refusals\n(the gates are UNCHANGED + correct).\
-  \ Report-not-block (CHARTER non-goal #7).\nNO FETCH STEP : ENTER delivers each contract\
-  \ in full and writes the receipt the read-gate\ncredits, so the sequence does not\
-  \ tell the executor to fetch a delivered contract before working;\n`graph query\
-  \ <SPEC>` is named once, as the RE-READ after a `/compact` (delivery rule: SPEC-0050\
-  \ §4).\n\nThis spec HOMES the ordered SEQUENCE + the delivery contract — NOT a copy\
-  \ of each step's discipline\n(those are CHARTER §1 / / SPEC-0005 / <workshop-spec>).\
-  \ LIFECYCLE §Stage 1 prose is demoted INTO this\nspec, and the standalone before-file\
-  \ decomposition surfacing is retired — the decomposition step now\nreaches the session\
-  \ at CLAIM, before filing.\n\n## Rationale\n\nProvenance (the founding incidents,\
-  \ the refinement history and the rejected alternatives) lives in\ngit history and\
-  \ the authoring plan — not here.\n\n## Verification\n\n- **VP1 (delivery — the paramount\
-  \ probe, CHARTER §P3/§P8 infra-class):** a LIVE claim of a real task\n  (`worktree\
-  \ new --task T-XXXX`) surfaces the ordered checklist (INCLUDING the decomposition\
-  \ step) and\n  emits a `task_picked` carrying `trigger: \"stage-entry:Analysis\"\
-  `; a dedicated `live_trigger_evidence` event\n  names this spec. PROBE = the event\
-  \ present in events.jsonl + the surfaced output captured from a real\n  claim (NOT\
-  \ a unit test asserting the binding string).\n- **VP2 (stage delivery):** `stage_to_specs[\"\
-  Analysis\"]` (graph/index.yaml binding_report) contains\n  SPEC-0032, so `stage\
-  \ Analysis` delivers it. PROBE: inspect the index / run `stage Analysis`.\n- **VP3\
-  \ (references, not duplication):** the §Internal steps reference <workshop-spec>\
-  \ + SPEC-0005 + CHARTER §1 without restating their rules. PROBE: grep this body.\n\
-  - **VP4 (control-point, not pointer-only):** the binding-completeness report shows\
-  \ SPEC-0032 delivered\n  (non-empty binding) with 0 unexplained dangling, and the\
-  \ `implements:` anchors resolve. PROBE: graph\n  build / binding report.\n- **VP5\
-  \ (dup-check sub-step present + executed):** step 1 carries the explicit Already-SHIPPED\n\
-  \  dup-check sub-bullet (grep the core implementation SYMBOL + check the cited plan's\
-  \ done tasks +\n  `closed_into` BEFORE claiming/implementing). STATE-CHECK probe:\
-  \ grep this body for the dup-check\n  sub-bullet. CONSUMER-READ probe: a Build/dispatched\
-  \ session's Stage-1 record cites a live grep-proof of\n  the dup-check applied to\
-  \ its OWN task (\"symbol resolves to nothing / cited plan has no done task for\n\
-  \  this\") — a `consumer_read_evidence` event naming this spec counts.\n- **VP6\
-  \ (reverse-lookup sub-step present + applied):** §Internal step 5 carries the\n\
-  \  spec-coverage reverse-lookup (`graph query <file>` per touched file → read governing\
-  \ active specs →\n  declare a per-direction `spec update:` line in `implementation_plan`).\
-  \ STATE-CHECK probe: grep this\n  body for the reverse-lookup sub-step (both directions\
-  \ present). CONSUMER-READ probe: a real task's\n  `implementation_plan` carries\
-  \ the declared `spec update: yes/no + why` line produced by applying it —\n  a `consumer_read_evidence`\
-  \ event naming this spec counts.\n- **VP7 (per-stage command sequence surfaced at\
-  \ claim):** the claim-moment surface\n  (`_analysis_procedure_reminder`) embeds\
-  \ `_stage_sequence_skeleton`, which prints — for every\n  substantive stage in lifecycle\
-  \ order — the ENTER (`stage <NAME>`) command, the contracts it\n  DELIVERS (from\
-  \ `_stage_bundle_specs`), and the FINALIZE (STAGE_WORK_VERBS) commands + trailing\
-  \ `land`.\n  STATE-CHECK probe: tests/test_t9741_stage_sequence_skeleton.py asserts\
-  \ the full\n  ENTER->WORK->FINALIZE sequence is present in ONE place AND that it\
-  \ prescribes no per-contract\n  fetch before working. CONSUMER-READ probe: a real\
-  \ claim\n  surfaces the sequence in its captured output (the per-stage refusal cascade\
-  \ is no longer the only\n  discovery path).\n"
+  \ The claim moment ALSO surfaces the canonical\nper-stage command sequence:\nfor\
+  \ every substantive stage IN ORDER it prints ENTER (`stage <NAME> --task`) -> WORK\
+  \ -> FINALIZE\n(the STAGE_WORK_VERBS work-verb), then `land`, and names per stage\
+  \ the contracts ENTER DELIVERS\n(DERIVED from `_stage_bundle_specs` — the SAME carrier\
+  \ `_require_reads` enforces, P5). This is a\ndelivery/discoverability fix, NOT a\
+  \ new gate: a fresh executor learns the whole ENTER->WORK->\nFINALIZE shape ONCE\
+  \ at claim instead of via the cascading stage-correspondence / read-gate refusals\n\
+  (the gates are UNCHANGED + correct). Report-not-block (CHARTER non-goal #7).\nNO\
+  \ FETCH STEP : ENTER delivers each contract in full and writes the receipt the read-gate\n\
+  credits, so the sequence does not tell the executor to fetch a delivered contract\
+  \ before working;\n`graph query <SPEC>` is named once, as the RE-READ after a `/compact`\
+  \ (delivery rule: SPEC-0050 §4).\n\nThis spec HOMES the ordered SEQUENCE + the delivery\
+  \ contract — NOT a copy of each step's discipline\n(those are CHARTER §1 / / SPEC-0005\
+  \ / <workshop-spec>). LIFECYCLE §Stage 1 prose is demoted INTO this\nspec, and the\
+  \ standalone before-file decomposition surfacing is retired — the decomposition\
+  \ step now\nreaches the session at CLAIM, before filing.\n\n## Rationale\n\nProvenance\
+  \ (the founding incidents, the refinement history and the rejected alternatives)\
+  \ lives in\ngit history and the authoring plan — not here.\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «Internal»: (`cmd_worktree_new`\
+  \ → `_claim_task`)\n- From «Internal»: (`_analysis_procedure_reminder`)\n- From\
+  \ «Internal»: (`_plan_structural_findings` over scope+acceptance, reused — not a\
+  \ parallel\n  validator)\n- From «Internal»: (`_print_cross_territory_routing_hint`)\n\
+  - From «Internal»: (`_stage_sequence_skeleton`, appended to `_analysis_procedure_reminder`)\n\
+  \n## Verification\n\n- **VP1 (delivery — the paramount probe, CHARTER §P3/§P8 infra-class):**\
+  \ a LIVE claim of a real task\n  (`worktree new --task T-XXXX`) surfaces the ordered\
+  \ checklist (INCLUDING the decomposition step) and\n  emits a `task_picked` carrying\
+  \ `trigger: \"stage-entry:Analysis\"`; a dedicated `live_trigger_evidence` event\n\
+  \  names this spec. PROBE = the event present in events.jsonl + the surfaced output\
+  \ captured from a real\n  claim (NOT a unit test asserting the binding string).\n\
+  - **VP2 (stage delivery):** `stage_to_specs[\"Analysis\"]` (graph/index.yaml binding_report)\
+  \ contains\n  SPEC-0032, so `stage Analysis` delivers it. PROBE: inspect the index\
+  \ / run `stage Analysis`.\n- **VP3 (references, not duplication):** the §Internal\
+  \ steps reference <workshop-spec> + SPEC-0005 + CHARTER §1 without restating their\
+  \ rules. PROBE: grep this body.\n- **VP4 (control-point, not pointer-only):** the\
+  \ binding-completeness report shows SPEC-0032 delivered\n  (non-empty binding) with\
+  \ 0 unexplained dangling, and the `implements:` anchors resolve. PROBE: graph\n\
+  \  build / binding report.\n- **VP5 (dup-check sub-step present + executed):** step\
+  \ 1 carries the explicit Already-SHIPPED\n  dup-check sub-bullet (grep the core\
+  \ implementation SYMBOL + check the cited plan's done tasks +\n  `closed_into` BEFORE\
+  \ claiming/implementing). STATE-CHECK probe: grep this body for the dup-check\n\
+  \  sub-bullet. CONSUMER-READ probe: a Build/dispatched session's Stage-1 record\
+  \ cites a live grep-proof of\n  the dup-check applied to its OWN task (\"symbol\
+  \ resolves to nothing / cited plan has no done task for\n  this\") — a `consumer_read_evidence`\
+  \ event naming this spec counts.\n- **VP6 (reverse-lookup sub-step present + applied):**\
+  \ §Internal step 5 carries the\n  spec-coverage reverse-lookup (`graph query <file>`\
+  \ per touched file → read governing active specs →\n  declare a per-direction `spec\
+  \ update:` line in `implementation_plan`). STATE-CHECK probe: grep this\n  body\
+  \ for the reverse-lookup sub-step (both directions present). CONSUMER-READ probe:\
+  \ a real task's\n  `implementation_plan` carries the declared `spec update: yes/no\
+  \ + why` line produced by applying it —\n  a `consumer_read_evidence` event naming\
+  \ this spec counts.\n- **VP7 (per-stage command sequence surfaced at claim):** the\
+  \ claim-moment surface\n  (`_analysis_procedure_reminder`) embeds `_stage_sequence_skeleton`,\
+  \ which prints — for every\n  substantive stage in lifecycle order — the ENTER (`stage\
+  \ <NAME>`) command, the contracts it\n  DELIVERS (from `_stage_bundle_specs`), and\
+  \ the FINALIZE (STAGE_WORK_VERBS) commands + trailing `land`.\n  STATE-CHECK probe:\
+  \ tests/test_t9741_stage_sequence_skeleton.py asserts the full\n  ENTER->WORK->FINALIZE\
+  \ sequence is present in ONE place AND that it prescribes no per-contract\n  fetch\
+  \ before working. CONSUMER-READ probe: a real claim\n  surfaces the sequence in\
+  \ its captured output (the per-stage refusal cascade is no longer the only\n  discovery\
+  \ path).\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0005

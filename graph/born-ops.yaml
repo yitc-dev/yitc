@@ -435,6 +435,14 @@ product_source:
   # one. `globs:` and `waiver:` together is a contradiction; a glob is repo-relative (no leading `/`,
   # no `../`).
   globs: []
+# anchors:
+# # SPEC-0006 (shape: SPEC-0160 rule 30) — this project's OWN `<file>#<symbol>` forms, for a code
+# # shape the kernel grammar does not resolve. OPT-IN and born COMMENTED: absence declares nothing.
+# # A form is tried only after the built-in forms, within ONE line that carries the symbol.
+# # see SPEC-0006 §Internal; SPEC-0160 §30
+# symbol_forms: # the list; a file matched by several entries takes all of their forms
+# - files: ["test/**/*.test.js"] # repo-relative globs naming the files the form applies to
+# pattern: 'function\s+{symbol}\s*\(' # a regular expression; `{symbol}` stands for the anchored symbol
 migrations:
   # SPEC-0093 rule 21. DECLARE how this project evolves its persistent SCHEMA: replace this
   # waiver with a non-empty `command:` — the upgrade command that brings a database to the current

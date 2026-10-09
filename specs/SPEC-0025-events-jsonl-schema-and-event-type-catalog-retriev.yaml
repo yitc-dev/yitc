@@ -348,7 +348,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ — WHO captured it (extending to this last emit site).** DERIVED host-side\nat\
   \ the emit from the launch context (`bin/lib/memory.py#resolve_actor` over the host\
   \ registry `users:`\nblock) — the SAME seam behind `task file`'s `created_by` (SPEC-0028),\
-  \ `followup add` (SPEC-0095) and\n`cross request` (SPEC-0086). Attribution costs\
+  \ `followup add` (SPEC-0095) and\n`cross request` (SPEC-1020). Attribution costs\
   \ the human ZERO added input, so it is never asked for;\nand it is never CALLER-supplied\
   \ — `actor` is a RESERVED `--data` key (`bin/yitc-v2#RESERVED_DATA_KEYS`),\nso a\
   \ forged identity is REFUSED, not silently overwritten (fail-CLOSED on vocabulary:\
@@ -1101,58 +1101,66 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   classified by the one SPEC-0064 authority as inert, observable or unknown, with\
   \ its path count —\nunknown (no count) whenever that delta cannot be read, never\
   \ inert — and, when an inert advance was\nrefused because a test names it, the first\
-  \ such test. Reading the bool as \"an inert\nretry\" is therefore\nwrong; key off\
-  \ the reason. An extinguished (lever-C) land additionally carries\n`superseded_extinguished:\
-  \ true` + `verify_slot_taken: false` + `land_reservation_taken` (bool) —\nthree\
-  \ keys rather than one because the boundaries saved are separate, and a land that\
-  \ skipped its\nverify but had already taken the land reservation saved one of them,\
-  \ not both. All ADDITIVE, present\nonly on that path, REPORT-ONLY. The OPPOSITE\
-  \ case has its own key (SPEC-0184 rule 9):\n`rung0_paid: <reason>` rides the terminal\
-  \ row — `ok` or `abort` — of a land that RAN its test\nverify although the land-admission\
-  \ rank answered it as free: a kernel-suite land whose own delta\nwas all-inert.\
-  \ The value says why it paid — the inert first-attempt proof's own refusal (e.g.\n\
-  `observable-since-anchor:tests`), or `first-attempt-proof-not-open` where that proof\
-  \ was not open\nto the attempt (a declared rebaseline). It is a fact about the LAND,\
-  \ recorded once a candidate\nverify of it has run and kept across attempts, so it\
-  \ can sit beside a skip reason on a row whose\nlanding attempt skipped, and it rides\
-  \ an abort row only when the suite ran before the abort.\nWithout it such a row\
-  \ is indistinguishable from an ordinary paying land. ADDITIVE, present only\non\
-  \ that land, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN both-must-pass\
-  \ verify signal (SPEC-0077 §Verification,\nthe SOLE authoritative adoption signal):\
-  \ `\"pinned+candidate\"` iff this land touched the verifier surface\n(the verify-implementation-touch\
-  \ predicate fired) so the pinned last-green verifier re-ran IN ADDITION to\nthe\
-  \ candidate; `\"candidate\"` otherwise (the negative/scope probe — no blanket-gate\
-  \ creep);\n`\"candidate_policy_off\"` (SPEC-0186 rule 7) iff the land DID touch\
-  \ the verifier surface but the\nproject declares `verify_policy.pinned_last_green:\
-  \ never` in its `yitc-ops.yaml`, so the leg was SKIPPED\nBY POLICY rather than run.\
-  \ A THIRD value in this one set, never a reuse of `\"candidate\"`: \"did not run\"\
-  \nand \"ran and passed\" are different facts, and conflating them already misread\
-  \ 15 of 30 decisive cases in\nthe 2026-08-18 analysis of this very layer, so a shared\
-  \ value would poison every future measurement at\nsource. Scoped to the SKIP: a\
-  \ land with no verifier-surface touch is plain `\"candidate\"` under either\npolicy,\
-  \ because nothing was skipped by policy there. (`\"rebaselined+candidate\"` remains\
-  \ the fourth.) ALWAYS present\non an ok land; a `land: verify_mode=<m>` stdout marker\
-  \ is operator convenience only (Single-SoT).\n`pinned_layout_excused` (list[str])\
-  \ = the SPEC-0077 §3 additive engine-LAYOUT carve-out signal —\nPRESENT ONLY when\
-  \ the pinned re-run's failures were ALL excused as `No module named '<X>'` for\n\
-  candidate-added `bin/` module(s) (a purely-additive layout change the stale last-green\
-  \ fixture could not\nprovision); ABSENT on every normal land (additive / P5-safe).\
-  \ It is the durable never-silent record (§P8)\n+ an operator stdout note; it is\
-  \ NOT mirrored as a `deviation_captured` (an excusal is expected, not a\nfriction).\
-  \ `pinned_cache_hit` (bool, SPEC-0077 §3-watch / SPEC-0132 §3) = PRESENT ONLY when\
-  \ the\npinned LAST-GREEN verdict was REUSED from the content-addressed cache (unchanged\
-  \ verifier×tree×engine key)\nand the ~full pinned re-run was SKIPPED — ABSENT on\
-  \ every fresh-run land (additive / P5-safe). The\nSPEC-0132 §3 cache-hit-rate watch-point\
-  \ signal (`grep pinned_cache_hit events.jsonl`).\nBOTH KEYS NOW ALSO RIDE THE `status:\
-  \ \"abort\"` ROW. Until the pinned leg ran FIRST they could\narise only on an ok\
-  \ land, because a failing candidate leg meant the pinned leg never ran and there\
-  \ was\nno pinned result to carry. Pinned-first makes that state reachable — the\
-  \ pinned leg has already spoken\n(warm hit, or an EXCUSED additive-layout mismatch)\
-  \ by the time the candidate leg fails — and omitting\nits answer from the abort\
-  \ row would record a land that DID take the hit as having none, and one whose\n\
-  mismatch WAS excused as having no excusal: the same \"did not run\" vs \"ran and\
-  \ passed\" conflation\n`verify_mode` is scoped against above, one surface over.\
-  \ Same present-only shape on both rows; an\nabort with no pinned result carries\
+  \ such test. Beside a `tree-differs:` refusal it\nis joined by `stage6_layer_credit`\
+  \ wherever the land took the SPEC-0065 §Bound per-layer\ncase (at least one declared\
+  \ layer took the run's verdict): which Stage-6 row the layers were\njudged against\
+  \ (identified as the credited-land record above identifies its row, an accepted\
+  \ inert\nadvance stated on the same terms), the names of the layers that took that\
+  \ row's verdict and the\nnames of the layers this land executed itself, both read\
+  \ off the per-layer outcome trail the\nverify wrote. Such a land RAN its candidate\
+  \ verify — it is not a credited land — records no tested\ntree, and each layer that\
+  \ took the run's verdict reads `credited-stage6-run` on that trail.\nReading the\
+  \ bool as \"an inert\nretry\" is therefore\nwrong; key off the reason. An extinguished\
+  \ (lever-C) land additionally carries\n`superseded_extinguished: true` + `verify_slot_taken:\
+  \ false` + `land_reservation_taken` (bool) —\nthree keys rather than one because\
+  \ the boundaries saved are separate, and a land that skipped its\nverify but had\
+  \ already taken the land reservation saved one of them, not both. All ADDITIVE,\
+  \ present\nonly on that path, REPORT-ONLY. The OPPOSITE case has its own key (SPEC-0184\
+  \ rule 9):\n`rung0_paid: <reason>` rides the terminal row — `ok` or `abort` — of\
+  \ a land that RAN its test\nverify although the land-admission rank answered it\
+  \ as free: a kernel-suite land whose own delta\nwas all-inert. The value says why\
+  \ it paid — the inert first-attempt proof's own refusal (e.g.\n`observable-since-anchor:tests`),\
+  \ or `first-attempt-proof-not-open` where that proof was not open\nto the attempt\
+  \ (a declared rebaseline). It is a fact about the LAND, recorded once a candidate\n\
+  verify of it has run and kept across attempts, so it can sit beside a skip reason\
+  \ on a row whose\nlanding attempt skipped, and it rides an abort row only when the\
+  \ suite ran before the abort.\nWithout it such a row is indistinguishable from an\
+  \ ordinary paying land. ADDITIVE, present only\non that land, REPORT-ONLY.\n`verify_mode`\
+  \ (str) = the pinned LAST-GREEN both-must-pass verify signal (SPEC-0077 §Verification,\n\
+  the SOLE authoritative adoption signal): `\"pinned+candidate\"` iff this land touched\
+  \ the verifier surface\n(the verify-implementation-touch predicate fired) so the\
+  \ pinned last-green verifier re-ran IN ADDITION to\nthe candidate; `\"candidate\"\
+  ` otherwise (the negative/scope probe — no blanket-gate creep);\n`\"candidate_policy_off\"\
+  ` (SPEC-0186 rule 7) iff the land DID touch the verifier surface but the\nproject\
+  \ declares `verify_policy.pinned_last_green: never` in its `yitc-ops.yaml`, so the\
+  \ leg was SKIPPED\nBY POLICY rather than run. A THIRD value in this one set, never\
+  \ a reuse of `\"candidate\"`: \"did not run\"\nand \"ran and passed\" are different\
+  \ facts, and conflating them already misread 15 of 30 decisive cases in\nthe 2026-08-18\
+  \ analysis of this very layer, so a shared value would poison every future measurement\
+  \ at\nsource. Scoped to the SKIP: a land with no verifier-surface touch is plain\
+  \ `\"candidate\"` under either\npolicy, because nothing was skipped by policy there.\
+  \ (`\"rebaselined+candidate\"` remains the fourth.) ALWAYS present\non an ok land;\
+  \ a `land: verify_mode=<m>` stdout marker is operator convenience only (Single-SoT).\n\
+  `pinned_layout_excused` (list[str]) = the SPEC-0077 §3 additive engine-LAYOUT carve-out\
+  \ signal —\nPRESENT ONLY when the pinned re-run's failures were ALL excused as `No\
+  \ module named '<X>'` for\ncandidate-added `bin/` module(s) (a purely-additive layout\
+  \ change the stale last-green fixture could not\nprovision); ABSENT on every normal\
+  \ land (additive / P5-safe). It is the durable never-silent record (§P8)\n+ an operator\
+  \ stdout note; it is NOT mirrored as a `deviation_captured` (an excusal is expected,\
+  \ not a\nfriction). `pinned_cache_hit` (bool, SPEC-0077 §3-watch / SPEC-0132 §3)\
+  \ = PRESENT ONLY when the\npinned LAST-GREEN verdict was REUSED from the content-addressed\
+  \ cache (unchanged verifier×tree×engine key)\nand the ~full pinned re-run was SKIPPED\
+  \ — ABSENT on every fresh-run land (additive / P5-safe). The\nSPEC-0132 §3 cache-hit-rate\
+  \ watch-point signal (`grep pinned_cache_hit events.jsonl`).\nBOTH KEYS NOW ALSO\
+  \ RIDE THE `status: \"abort\"` ROW. Until the pinned leg ran FIRST they could\n\
+  arise only on an ok land, because a failing candidate leg meant the pinned leg never\
+  \ ran and there was\nno pinned result to carry. Pinned-first makes that state reachable\
+  \ — the pinned leg has already spoken\n(warm hit, or an EXCUSED additive-layout\
+  \ mismatch) by the time the candidate leg fails — and omitting\nits answer from\
+  \ the abort row would record a land that DID take the hit as having none, and one\
+  \ whose\nmismatch WAS excused as having no excusal: the same \"did not run\" vs\
+  \ \"ran and passed\" conflation\n`verify_mode` is scoped against above, one surface\
+  \ over. Same present-only shape on both rows; an\nabort with no pinned result carries\
   \ neither key. `candidate_leg_run` (bool) = PRESENT ONLY on\na `status: \"abort\"\
   ` row, and only as `false` — the pinned/last-green leg refused this land BEFORE\
   \ the\ncandidate suite was started, so the candidate leg's result for that branch\
@@ -1604,9 +1612,9 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ / probes / section-waiver consumer, or the engine's own build), so those\npayloads\
   \ are byte-unchanged (additive / P5-safe). The peer row on `consumer_verify_layers`\
   \ carries\nthe same `duration_ms` per layer; a row for a layer that executed NOTHING\
-  \ (waived / malformed /\nskipped-disjoint-subject) carries no such field at all.\
-  \ That SAME executed-layer row also carries\nTWO BOUND fields — the per-layer peers\
-  \ of the kernel tests leg's\n`verify_test_timeout_s` / `verify_test_timeout_source`\
+  \ (waived / malformed /\nskipped-disjoint-subject / credited-stage6-run) carries\
+  \ no such field at all. That SAME executed-layer row also carries\nTWO BOUND fields\
+  \ — the per-layer peers of the kernel tests leg's\n`verify_test_timeout_s` / `verify_test_timeout_source`\
   \ above: `timeout_s` (float) = the wall bound\nthe layer's prep and command ran\
   \ under, and `timeout_source` (str, one of `env` | `layer` |\n`section` | `default`)\
   \ = which rung of the SPEC-0152 rule-16 chain supplied it — the\nYITC_VERIFY_TEST_TIMEOUT\

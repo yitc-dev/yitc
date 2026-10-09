@@ -338,58 +338,29 @@ def _build_over_cap_test_rule(test_log: str, test_pid: str) -> str:
     never receives. That is not hypothetical: this card's OWN dispatch is controller-lands, and its
     Controller had to hand-spell this recipe into the brief delta because the head carried none."""
     return (
-    "OVER-CAP EXIT FOR THE STAGE-6 SUITE (SPEC-0180) — the SAME held-turn rule, applied to "
-    "`task test --run`. The full suite runs 10-15 minutes on this host, LONGER than the harness's "
-    "hard per-call FOREGROUND cap, and three workers died in one hour on 2026-09-12 backgrounding it "
-    "through the provider's background tool and yielding (killed at the headless 600 s "
-    "background-wait ceiling, Execution work and a paid audit-pre stranded uncommitted). What "
-    "SYNCHRONOUS protects is the HELD TURN, not the foreground PROCESS — so when the suite cannot fit "
-    "one call, run it DETACHED while you HOLD YOUR TURN. Launch "
-    f"`: > {test_pid}; setsid bash -c 'echo $$ > {test_pid}; exec "
+    "OVER-CAP EXIT FOR THE STAGE-6 SUITE (SPEC-0180) — the SAME held-turn rule for `task test --run`, "
+    "which runs longer than the per-call FOREGROUND cap: run it DETACHED while you HOLD YOUR TURN. "
+    f"Launch `: > {test_pid}; setsid bash -c 'echo $$ > {test_pid}; exec "
     "<the SAME `task test --run --evidence \"<summary>\"` invocation you would have run in the "
-    f"foreground> > {test_log} 2>&1' </dev/null &` — `>` (TRUNCATE), never `>>`, so the log carries "
-    "THIS attempt's bytes only and a previous attempt's token can never be re-read as this one's "
-    "(T-11900/T-11925); the leading `: >` EMPTIES a stale pidfile the same way, by truncation and "
-    "with no `rm` (X-1857), "
-    "and the resolve below waits for a NON-EMPTY file, so a previous attempt's pid can never be read "
-    "back as this one's. RESOLVE the handle by READING the pidfile that detached shell just wrote — "
-    f"`TEST_PID=$(timeout 30 bash -c 'until [ -s {test_pid} ]; do sleep 1; done; cat {test_pid}')` — "
-    "and NEVER as `$!`: `setsid` forks only when the caller is already a process-group leader, so "
-    "that handle is valid with job control OFF and dead within a second with it ON (X-1011), failing "
-    "in the direction that reads a RUNNING suite as TERMINAL. POLL in BOUNDED FOREGROUND windows, "
+    f"foreground> > {test_log} 2>&1' </dev/null &` (`>` TRUNCATE, so the log holds THIS attempt "
+    f"only), RESOLVE the handle from the pidfile — `TEST_PID=$(timeout 30 bash -c 'until [ -s {test_pid} ]; "
+    f"do sleep 1; done; cat {test_pid}')` — NEVER as `$!` (X-1011), and POLL in BOUNDED FOREGROUND windows, "
     "each re-invoked INLINE in the SAME turn — "
     "`timeout 300 bash -c 'until grep -qE \"^TEST: (PASS|FAIL)\" "
     f"{test_log} || {{ [ -s {test_pid} ] && ! kill -0 \"$(cat {test_pid})\" 2>&-; }}; "
-    "do sleep 10; done'` — RUN EVERY `bash -c` SCRIPT OF THIS RECIPE EXACTLY AS PRINTED: "
-    "single-quoted, every path written out, NOTHING taken from your own shell. The window reads the "
-    "pid from the pidfile ITSELF (the pid `$TEST_PID` holds), so it needs no variable — and a shell "
-    "variable does not survive into your next tool call anyway. Do NOT respell a script in double "
-    "quotes around your own `$VAR`, and do NOT hand it values as positional parameters: the harness "
-    "REFUSES a `-c` script it cannot read as a literal, with a message that blames `rm` even when the "
-    "call runs none (X-1857 — measured: every one of 326 such refusals carried a non-literal script, "
-    "none a literal one). A single-quoted script that NAMES `$TEST_PID` is the opposite failure: the "
-    "nested bash does not inherit an unexported shell variable, `kill -0` would run against an EMPTY "
-    "pid and fail, `! kill -0` would be TRUE on the first iteration, and the window would return "
-    "INSTANTLY reporting a still-running suite as "
-    "terminal — the false-GREEN this whole recipe exists to prevent; the `[ -s … ]` guard keeps an "
-    "EMPTY pidfile polling for the same reason. Until TERMINALITY, which "
-    "is the `^TEST: (PASS|FAIL)` token on stdout OR the test PROCESS EXITING (`kill -0 $TEST_PID` "
-    "failing), polled BESIDE each other in the same window since a suite that dies without printing "
-    "its token is terminal too. `task test --run` emits that token as its FINAL stdout line on BOTH "
-    "outcomes; read the log for the verdict once either fires, and CONFIRM it against the journal "
-    "`tests_passed` / `tests_failed` row for YOUR task (`yitc-v2 journal query --type tests_passed "
-    "--task T-XXXX`) — the recorded row, not the console, is the Stage-6 evidence audit-post reads. "
-    "THE BOUND: the provider's background tool and a yielded turn STAY FORBIDDEN — what may be "
-    "detached is the OS PROCESS, never the TURN. Unlike the land this takes NO admission claim and "
-    "NO liveness watchdog, because the suite MUTATES and INTEGRATES nothing: a worker that yields "
-    "mid-suite loses only its own run. And this covers ONLY the ARITHMETIC block (the suite is fine, "
-    "the CALL is too short) — it is NOT an exit from a FAILING suite and weakens no gate. "
-    "The SAME detached held-turn recipe covers `audit pre|post` (SPEC-0180 rule 9, T-13151): a primary "
-    "plus reserve auditor pair can outrun the cap too. Substitute the SAME `audit pre|post --task "
-    "T-XXXX` invocation, name its log and pidfile with `audit` in place of `test`, and poll "
-    "`^AUDIT: (GREEN|YELLOW|RED|ABORT)` in place of the TEST token — `audit pre|post` prints it as its "
-    "FINAL stdout line on EVERY exit (stderr under `--preview`; ABORT = no verdict this call) — beside `kill -0` on its pid; "
-    "confirm the verdict in the saved `decisions/T-XXXX-audit-<stage>.yaml`. "
+    "do sleep 10; done'` — until the `^TEST: (PASS|FAIL)` token OR the test PROCESS EXITING "
+    "(`kill -0 $TEST_PID` failing). RUN EVERY `bash -c` SCRIPT EXACTLY AS PRINTED — single-quoted, "
+    "every path written out, no `$VAR` of your own shell and no positional parameters: the harness "
+    "REFUSES a non-literal `-c` script (X-1857). The "
+    "window reads the pid from the pidfile itself: a script naming `$TEST_PID` would poll an empty "
+    "pid and read a running suite as finished. Confirm the verdict against the journal row "
+    "(`yitc-v2 journal query --type tests_passed --task T-XXXX`). Unlike the land this takes NO "
+    "admission claim and NO liveness watchdog (the suite integrates nothing), and it is never an exit "
+    "from a FAILING suite; what may be detached is the OS PROCESS, never the TURN. "
+    "The SAME recipe covers `audit pre|post` (SPEC-0180 rule 9): substitute the SAME `audit pre|post "
+    "--task T-XXXX` invocation, name its log and pidfile with `audit` in place of `test`, and poll "
+    "`^AUDIT: (GREEN|YELLOW|RED|ABORT)` (its FINAL stdout line on EVERY exit; stderr under `--preview`) "
+    "beside `kill -0` on its pid; confirm the verdict in the saved `decisions/T-XXXX-audit-<stage>.yaml`. "
     )
 
 
@@ -416,100 +387,61 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     test_pid = _test_pid_path(test_log)
     head = (
     "Run long commands (tests, audits) synchronously/blocking; NEVER background-and-await an async "
-    "notification. You succeed ONLY if YOU yourself reach `LAND: OK` in THIS turn — a yield is treated "
-    "as ABANDONMENT: the controller force-recovers the task and your build is wasted (T-0622). "
-    "A long SILENT `land` is EXPECTED foreground work, NOT a hang: it may be BLOCKED waiting for a "
-    "SPEC-0132 verify-admission slot (land emits a `waiting_for_verify_admission_slot` heartbeat while "
-    "queued) — HOLD your turn and re-invoke `land` inline until `LAND: OK`, NEVER background-and-yield "
-    "(the F2 worker-death class). "
-    "OVER-CAP EXIT (SPEC-0180) — when your `land` genuinely CANNOT FIT the harness's hard per-call "
-    "FOREGROUND cap (a `bin/**` / `tests/**` / `yitc-ops.yaml` diff fires the SPEC-0077 DOUBLED verify, "
-    "and a SPEC-0132 admission wait sits inside the SAME call), re-invoking it in the foreground just "
-    "dies at the cap again and `blocked-on-land` is NOT your only exit: what SYNCHRONOUS-TO-LAND "
-    "protects is the HELD TURN, not the foreground PROCESS, so you MAY run the land as a DETACHED "
-    "process while you HOLD YOUR TURN. Present a held-turn CLAIM naming YOUR OWN dispatched-worker pid "
-    "— the pid your `bg_dispatch_launched` record carries, resolvable as `WPID=$(grep "
+    "notification. You succeed ONLY if YOU yourself reach `LAND: OK` in THIS turn — a yield is "
+    "ABANDONMENT: the controller force-recovers the task and your build is wasted (T-0622). A long "
+    "SILENT `land` is EXPECTED, NOT a hang: it may be waiting for a SPEC-0132 verify-admission slot "
+    "(`waiting_for_verify_admission_slot` heartbeat) — HOLD your turn and re-invoke `land` inline "
+    "until `LAND: OK`. "
+    "OVER-CAP EXIT (SPEC-0180) — when your `land` CANNOT FIT the per-call FOREGROUND cap (a `bin/**` / "
+    "`tests/**` / `yitc-ops.yaml` diff doubles the verify), run it DETACHED while you HOLD YOUR TURN. "
+    "Present a held-turn CLAIM naming YOUR OWN dispatched-worker pid: `WPID=$(grep "
     "bg_dispatch_launched events.jsonl | grep \"$YITC_EXPECTED_SESSION_REF\" | tail -1 | python3 -c "
-    "'import sys,json;print(json.load(sys.stdin)[\"data\"][\"pid\"])')` — then launch "
+    "'import sys,json;print(json.load(sys.stdin)[\"data\"][\"pid\"])')`, then launch "
     f"`: > {land_pid}; YITC_LAND_HELD_TURN_PID=$WPID setsid bash -c 'echo $$ > {land_pid}; exec "
     "<the SAME `land --task T-XXXX` invocation you would have run in the foreground — the engine-CLI "
-    f"form this preamble gives you> > {land_log} 2>&1' </dev/null &` (the leading `: >` empties a "
-    "stale pidfile without an `rm`, X-1857), then RESOLVE the handle by "
-    "READING the pidfile that detached shell just wrote — "
-    f"`LAND_PID=$(timeout 30 bash -c 'until [ -s {land_pid} ]; do sleep 1; done; cat {land_pid}')` "
-    "(the `exec` makes that pid the LAND process itself, so the handle is the real one). "
-    "Do NOT capture the handle as `& LAND_PID=$!` here: `setsid` forks only when the caller is "
-    "ALREADY a process-group leader, so that handle is VALID with job control OFF and DEAD WITHIN A "
-    "SECOND with it ON (bash prints `[1]+ Done` while the land runs on for minutes — measured both "
-    "branches, X-1011). It is a handle whose validity depends on a shell setting you neither control "
-    "nor check, and it fails in the direction that reads a RUNNING land as TERMINAL. "
-    "POLL that log in BOUNDED "
-    "FOREGROUND windows, each re-invoked "
-    "INLINE in the SAME turn — `timeout 300 bash -c 'until grep -qE \"^LAND: (OK|ABORT)\" "
+    f"form this preamble gives you> > {land_log} 2>&1' </dev/null &`, RESOLVE the handle from the "
+    f"pidfile — `LAND_PID=$(timeout 30 bash -c 'until [ -s {land_pid} ]; do sleep 1; done; cat {land_pid}')` "
+    "— never as `& LAND_PID=$!` (with job control ON that handle dies within a second while the land "
+    "runs on, X-1011), and POLL in BOUNDED FOREGROUND windows, each re-invoked INLINE in the SAME turn — "
+    "`timeout 300 bash -c 'until grep -qE \"^LAND: (OK|ABORT)\" "
     f"{land_log} || {{ [ -s {land_pid} ] && ! kill -0 \"$(cat {land_pid})\" 2>&-; }}; "
-    "do sleep 10; done'` — until TERMINALITY, which is `^LAND: (OK|ABORT)` on "
-    "stdout OR the land PROCESS EXITING (`kill -0 $LAND_PID` failing — poll it BESIDE the token grep, "
-    "in the same window, as the window above does by reading the pid from the pidfile itself, since "
-    "a land that dies without printing its token is terminal too, and read "
-    "the log for the verdict once either fires), and NOTHING else: a bare `yitc-v2:` line is "
-    "ordinary progress, never a token (capture the diagnostic channel, gate on token-or-exit). RUN "
-    "EVERY `bash -c` SCRIPT OF THIS RECIPE EXACTLY AS PRINTED — single-quoted, every path written "
-    "out, nothing interpolated from your own shell and no positional parameters: the harness REFUSES "
-    "a `-c` script it cannot read as a literal, with a message that blames `rm` even when the call "
-    "runs none (X-1857). The "
-    "claim is verified SERVER-SIDE against your dispatch record and FAILS CLOSED — a wrong, "
-    "unverifiable or unresolvable pid is simply REFUSED with `main` untouched — and an ADMITTED "
-    "detached land is BOUND TO YOUR PROCESS LIVENESS: it KILLS ITSELF, journaling "
-    "`land_worker_liveness_lost`, if you yield and die (recover with the idempotent `worktree "
-    "recover-land`). So BACKGROUND-AND-YIELD STAYS FORBIDDEN, unchanged — what may be detached is the "
-    "OS PROCESS, never the TURN. Recipe home: `patterns/background-session-dispatch.md "
-    "§Long-command-exceeds-tool-timeout`; rule home SPEC-0180. This covers ONLY the ARITHMETIC block "
-    "(the work is fine, the CALL is too short); it is NOT a licence to force a BLOCKED land through, "
-    "and the EXCEPTION below is unchanged. "
+    "do sleep 10; done'` — until TERMINALITY: `^LAND: (OK|ABORT)` on stdout OR the land PROCESS "
+    "EXITING (`kill -0 $LAND_PID` failing — poll it BESIDE the token grep, as this window does); a bare `yitc-v2:` line is "
+    "progress, never a token. RUN EVERY `bash -c` SCRIPT OF THIS RECIPE EXACTLY AS PRINTED — "
+    "single-quoted, every path written out, nothing from your own shell, no positional parameters: "
+    "the harness REFUSES a non-literal `-c` script (X-1857). The claim FAILS CLOSED on a wrong pid "
+    "(`main` untouched); an admitted detached land KILLS ITSELF, journaling `land_worker_liveness_lost`, "
+    "if you yield and die (recover with `worktree recover-land`). So BACKGROUND-AND-YIELD STAYS "
+    "FORBIDDEN — what may be detached is the OS PROCESS, never the TURN. Rule home SPEC-0180; recipe "
+    "home `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`. This covers "
+    "ONLY the ARITHMETIC block (the CALL is too short); it is NOT a licence to force a BLOCKED land "
+    "through, and the EXCEPTION below is unchanged. "
 ) if not controller_lands else _CONTROLLER_LANDS_HEAD
     tail = (
-    "EXCEPTION (SPEC-0103) — this is NOT a licence to force a land at any cost: when BLOCKED by a cause "
-    "OUTSIDE your task's declared scope (an out-of-scope file, an environmental fault, or a repeated "
-    "land/audit ABORT on the SAME cause), STOP and ESCALATE to the controller "
-    "(`blocked-on-land <task> <reason>`, worktree intact) — NEVER edit an out-of-scope file or "
-    "weaken/skip/delete a gate, test, or guard to force the land. That contracted escalation is the "
-    "CORRECT outcome there, NOT the abandonment above. SUBCLASS (T-9583, SPEC-0103 §3a): when the block "
-    "is specifically an AUDITOR-OUTAGE ABORT (the external auditor could not RUN — env/config fault or a "
-    "quota wall, NOT a findings-bearing RED), `audit pre|post` AUTO-PARKS this worker gracefully "
-    "(`worktree park` — worktree+branch torn down, the task stays `ready` on main → cleanly "
-    "re-dispatchable, no orphan) — but ONLY when your worktree is EMPTY OF WORK, which is the "
-    "audit-PRE case the subclass was written for. That park is BOUNDED (T-11330): when your worktree "
-    "holds un-landed work — any commit above main, or any uncommitted path beyond the re-derivable "
-    "claim footprint (`events.jsonl` + your own task card) — it does NOT fire, your worktree and "
-    "branch stay INTACT, and you take the §3 worktree-intact ESCALATION above "
-    "(`blocked-on-land <task> <reason>`) instead. So the auto-park REPLACES the worktree-intact "
-    "escalation only where there is genuinely nothing in-scope to preserve; do NOT hand-park a "
-    "worktree holding a build (`worktree park` will refuse it), and never assume a re-dispatch can "
-    "re-derive work you have not landed. "
-    "PAUSE-SHAPE FORK (SPEC-0103 §5): the worktree-intact preservation above is the WORK-CARRYING "
-    "shape — it never contradicts a `task pause`, because a BOOKKEEPING-ONLY pause (no uncommitted "
-    "work) instead commits+lands its pause record (worktree removed, re-enter via `worktree new "
-    "--task`) while a WORK-CARRYING pause keeps the worktree INTACT (re-enter via `task resume`); "
-    "the two pause shapes never both apply. "
-    "AUDIT-LOOP CEILING (SPEC-0204 rule 6 / T-12679) — the ONE block with a DIFFERENT named verb: at "
-    "the ceiling `audit pre|post` ITSELF emits the bg_dispatch_halted(blocked_on_land) row carrying "
-    "residual_fingerprints (you owe no second row); you then halt with `task pause <task> --reason "
-    "audit-ceiling` INSIDE the worktree (work-carrying shape — worktree INTACT, resume contract "
-    "recorded; the Controller records `audit decide` per fingerprint and you resume with `task "
-    "resume` + `audit pre|post --on-decisions`). At audit-POST, for a residual you fix in scope: "
-    "`task commit --fix-red` FIRST and name its sha in the pause next_action (the Controller's "
-    "`audit decide --disposition fix --evidence` must be a strict descendant of the audited commit). "
-    "TERMINAL RED (SPEC-0204 rules 3-4 / T-13537) — the route above is for REACHING the ceiling. When "
-    "the `--on-decisions` pass ITSELF (or its one absorption re-audit) comes back RED, the stage is "
-    "OVER: the verb emits a bg_dispatch_halted(blocked_on_land) row naming the terminal exits "
-    "(`task update --status parked|wont-do`, `worktree park`, or a new card) and NO "
-    "residual_fingerprints — there is NO `audit decide` and NO further pass to ask for. You still "
-    "halt with `task pause <task> --reason audit-ceiling`; its recorded next_action then names those "
-    "exits, which are the owner's to take. "
-    "Do NOT run `blocked-on-land` for a ceiling reached "
-    "before your first commit: the claim `worktree new --task` wrote is still UNCOMMITTED there, so "
-    "the branch carries none and the verb REFUSES by design (T-10894) — its refusal names the pause "
-    "verb; and NEVER `task refuse` a claimed card (that is the UNCLAIMED pre-claim exit, SPEC-0133)."
+    "EXCEPTION (SPEC-0103) — when BLOCKED by a cause OUTSIDE your task's declared scope (an "
+    "out-of-scope file, an environmental fault, or a repeated land/audit ABORT on the SAME cause), "
+    "STOP and ESCALATE to the controller (`blocked-on-land <task> <reason>`, worktree intact) — NEVER "
+    "edit an out-of-scope file or weaken/skip/delete a gate, test, or guard to force the land; that "
+    "escalation is the CORRECT outcome, NOT abandonment. SUBCLASS (T-9583, SPEC-0103 §3a): on an "
+    "AUDITOR-OUTAGE ABORT (the auditor could not RUN — not a findings-bearing RED) `audit pre|post` "
+    "AUTO-PARKS this worker (`worktree park`, task stays `ready`, re-dispatchable) ONLY when your worktree is EMPTY OF "
+    "WORK; with any commit above main or uncommitted path beyond `events.jsonl` + your card it does "
+    "NOT fire and you take the worktree-intact escalation above instead (never hand-park a build). "
+    "PAUSE-SHAPE FORK (SPEC-0103 §5): a BOOKKEEPING-ONLY pause commits+lands its record (re-enter via "
+    "`worktree new --task`); a WORK-CARRYING pause keeps the worktree INTACT (re-enter via `task "
+    "resume`). "
+    "AUDIT-LOOP CEILING (SPEC-0204 rule 6 / T-12679): at the ceiling `audit pre|post` ITSELF emits "
+    "the bg_dispatch_halted(blocked_on_land) row carrying residual_fingerprints; you halt with "
+    "`task pause <task> --reason audit-ceiling` INSIDE the worktree; the Controller records `audit "
+    "decide` per fingerprint and you resume with `task resume` + `audit pre|post --on-decisions`. At "
+    "audit-POST, for a residual you fix in scope: `task commit --fix-red` FIRST and name its sha in "
+    "the pause next_action. TERMINAL RED (SPEC-0204 rules 3-4 / T-13537): when the `--on-decisions` "
+    "pass (or its one absorption re-audit) is RED, the stage is OVER — the verb's halt row names the "
+    "terminal exits (`task update --status parked|wont-do`, `worktree park`, or a new card) and NO "
+    "residual_fingerprints: NO `audit decide`, NO further pass. You still halt with `task pause <task> --reason audit-ceiling`, and those "
+    "exits are the owner's. Do NOT run `blocked-on-land` for a ceiling reached before your first "
+    "commit (the claim is uncommitted, so the verb REFUSES — T-10894); and NEVER `task refuse` a "
+    "claimed card (that is the UNCLAIMED pre-claim exit, SPEC-0133)."
 )
     # T-12431 — the SUITE's over-cap paragraph sits between the two, so BOTH regimes carry it: the
     # worker-lands head after its OVER-CAP EXIT land clause, the controller-lands head after its
@@ -692,12 +624,14 @@ your life: when you yield the turn, your process EXITS. Therefore:
    (`graph/worker-seed-2.md`, `-3.md`, … — part 1 lists the whole chain, and each part names its next hop;
    they are size-bounded so each loads in ONE bounded read, SPEC-0007 §5c + SPEC-0120 §3 + SPEC-0127). Read
    THE WHOLE CHAIN, NOT the full CHARTER..GRAPH files, and NOT part 1 alone — stopping at part 1 silently
-   starves you of most of the protocol. The `controller`-only sections (orchestrate/dispatch, the queue
+   starves you of most of the protocol. THEN read `graph/floor-trigger-map.md` — also part of your
+   startup read, always-loaded beside every audience's seed (AGENTS §Bootstrap-floor): it names the spec
+   to fetch BEFORE a gated action (e.g. before-authoring-interaction → SPEC-0100). The `controller`-only sections (orchestrate/dispatch, the queue
    picker, the plan-lifecycle FSM, controller startup echoes, owner-register) are not in a Worker's bootstrap.
    The vendor auto-inject floors ONLY a MINIMAL inline anti-Forgetting floor on your `worktree new`+`cd`
    (NOT the whole seed anymore — T-10069 / SPEC-0127 §4a), so READING the worker-seed chain yourself is your
    real startup seed; the launcher already pre-recorded your `seed_read` receipt (T-10083), and the
-   `_require_seed_read` gate holds the floor. Re-read the WHOLE chain after any `/compact`.
+   `_require_seed_read` gate holds the floor. Re-read the WHOLE chain + the trigger-map after any `/compact`.
 
 {_build_point1(sync_rule, controller_lands=controller_lands)}
 
@@ -805,46 +739,25 @@ names who may occupy it — being re-dispatched is not being granted the right).
    Rule home: the `worktree sync` contract, `bin/lib/worktree.py#cmd_worktree_sync` (T-11313) — this
    point carries the ORDERING only, never a second copy of the verb's contract.
 
-8. EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO **THIS** RUN (T-12010). A log you wrote, a
-   token you poll, a process you watch — if the thing you read is not provably YOUR run's, you are
-   reading a FOREIGN or a PAST run and calling it your own. That misread is cheapest when it is a
-   false GREEN, which is why this is a rule and not advice: eight captures over four days, 2026-08-30..09-02.
-   Three instances, all measured:
-   - **SCRATCH LOGS carry a discriminator — NEVER a bare `/tmp/<name>.log`.** A short name
-     (`ap.log`, `tt2.log`, `suite2.log`) is a HOST-GLOBAL path on a box that runs many sessions and
-     more than one user. Four times the path already existed owned by someone else: the redirect was
-     denied, THE VERB NEVER RAN, and the `tail` printed a FOREIGN task's audit verdict or suite
-     failures as if they were this run's (T-11991, T-11981, T-11978, T-11647). Put the file under
-     YOUR SESSION SCRATCH ROOT `$YITC_SCRATCH_DIR` (engine-named, per session, ALREADY CREATED for
-     you by dispatch — T-13203) — e.g. `$YITC_SCRATCH_DIR/T-XXXX-<job>.log`. The other route is YOUR
-     WORKTREE's `.yitc/` (gitignored, so it can never show as land-blocking dirt) — but a fresh
-     worktree does NOT carry that directory: run `mkdir -p .yitc` BEFORE the first redirect there,
-     or the redirect fails and THE VERB NEVER RUNS (T-13536). A name outside both still carries
-     `<sessionref>-<task>` (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go under the scratch
-     root too, never a bare /tmp name, and {SCRATCH_CLONE_RULE}. Your land/park REMOVES that root,
+8. EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO **THIS** RUN (T-12010) — a log, token or
+   process that is not provably YOUR run's is a FOREIGN or PAST run, read as a false GREEN:
+   - **SCRATCH LOGS — NEVER a bare `/tmp/<name>.log`** (host-global: the redirect is denied, the verb
+     never runs, a foreign verdict is read — T-11991, T-11981, T-11978, T-11647). Use YOUR SESSION SCRATCH ROOT `$YITC_SCRATCH_DIR`
+     (created by dispatch, T-13203) — e.g. `$YITC_SCRATCH_DIR/T-XXXX-<job>.log` — or your worktree's
+     `.yitc/` after `mkdir -p .yitc` (T-13536); a name outside both carries `<sessionref>-<task>`
+     (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go under the scratch root too, and
+     {SCRATCH_CLONE_RULE}. Your land/park REMOVES that root,
      and `worktree sweep` reclaims a dead session's. So NEVER redirect a `land`'s output into the
-     scratch root: a successful land removes it BEFORE printing `LAND: OK`, so the token is lost with
-     it — use the engine-named land log below (T-13639). The engine's
-     own detached land/test log+pid (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`, T-11294 off
-     the same false-GREEN class) stay OUTSIDE it by design — a poller reads them past land's teardown.
-   - **A RE-LAND POLL IS ANCHORED TO THIS ATTEMPT'S BYTES.** The start-detach land log
-     (`.yitc/land-logs/<branch>.log`) is APPEND-ONLY across attempts, so after an ABORT the previous
-     attempt's `^LAND: (OK|ABORT)` token is STILL IN THE FILE — a whole-file `grep` matches it and
-     reports terminal while the new land is still verifying (T-11900, T-11925). The engine now prints
-     the poll ALREADY ANCHORED (`tail -c +N <log> | grep -qE ...`) — USE THE FORM IT PRINTS, do not
-     re-type a bare `grep` of the file. When you spell your own redirect, `>` (truncate) rather than
-     `>>` gives you the same property by construction; the OVER-CAP EXIT recipe in point 1 already does.
-     This does NOT relax SPEC-0180 rule 2c: terminality is still token-or-exit, capture-wide/gate-narrow
-     — what changes is only WHICH BYTES the token may be read from.
-   - **A LIVENESS POLL USES THE CHILD PID, never `pgrep -f` carrying your own argv's text.**
-     `pgrep -f "task test T-XXXX"` run from a shell whose own command line contains that string
-     MATCHES ITSELF, so it never reports the work finished: measured reading finished work as RUNNING
-     for ~50 minutes (T-11925, T-10557). Hold the pid you launched and poll `kill -0 <pid>`. The
-     governed reader `_session_proc_alive` (`bin/lib/journal.py`) has excluded its own pid and matched
-     argv ELEMENTS since the sibling controller-side incident — this is that same rule, stated for the
-     polls YOU write. If you have no pid, ground-truth off the journal, never off a self-matching pattern.
-   Rule home: `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout` — this
-   point is the operational brief that POINTS at it, never a competing policy home.
+     scratch root: a successful land removes it BEFORE printing `LAND: OK` —
+     use the engine-named land log below (T-13639). The engine's detached land/test log+pid
+     (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`, T-11294) stay OUTSIDE it by design.
+   - **A RE-LAND POLL READS THIS ATTEMPT'S BYTES ONLY.** The start-detach land log
+     (`.yitc/land-logs/<branch>.log`) is APPEND-ONLY, so a whole-file `grep` re-reads a previous
+     attempt's token — USE THE ANCHORED poll the engine prints (`tail -c +N <log> | grep -qE ...`);
+     your own redirects use `>`, never `>>`.
+   - **A LIVENESS POLL USES THE CHILD PID** (`kill -0 <pid>`), never `pgrep -f` with your own argv's
+     text — it matches itself and reads finished work as RUNNING (T-11925, T-10557); with no pid, ground-truth off the journal.
+   Rule home: `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`.
 
 9. STAGE AND CONTRACT OUTPUT IS A DELIVERY — IT MUST REACH YOU WHOLE (T-13392). What `{invoke} stage
    <NAME>` and `{invoke} graph query {kernel_flag}SPEC-XXXX` print IS the read the gated verbs check for, so:
@@ -870,6 +783,19 @@ self-read rule (point 8) in patterns/background-session-dispatch.md §Long-comma
 the delivery rule (point 9) in SPEC-0050 (T-11411 / T-13028).
 === END PREAMBLE ===
 """
+
+
+def _with_own_floor_map(preamble: str, own_map) -> str:
+    """T-13757 (PURE) — append to point 0 of a CONSUMER worker preamble the consumer's OWN floor
+    trigger-map (`session.consumer_own_floor_map`), so a dispatched Worker reads its project's own
+    before-* rows beside the engine map at start and after a /compact. None → unchanged."""
+    cut = preamble.find("\n\n1. ")
+    if own_map is None or cut == -1:
+        return preamble
+    return (preamble[:cut]
+            + f"\n   CONSUMER: this project's OWN floor-trigger map `{own_map}` carries its own specs'"
+            "\n   before-* rows — read it beside the engine's at start and again after any `/compact`."
+            + preamble[cut:])
 
 
 # The ENGINE-self preamble (the builder at its bare default). Kept as a module-level constant because
@@ -5093,6 +5019,13 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 engine_root=_engine_root, repo_root=REPO_ROOT)
         except Exception:   # noqa: BLE001 — advisory text must never break a dispatch
             pass
+        # T-13757: point 0 also names the consumer's OWN floor map (its own specs' before-* rows).
+        try:
+            from lib import session as _session
+            _worker_preamble = _with_own_floor_map(_worker_preamble,
+                                                   _session.consumer_own_floor_map(REPO_ROOT))
+        except Exception:   # noqa: BLE001 — advisory text must never break a dispatch
+            pass
     # T-10354 (SPEC-0133 §6 / consult verdict A-with-bounds): SELF-SERVE the dispatch-readiness advisory
     # IN THE PRE-LAUNCH DECISION FRAME — fold → visible advisory → launch. The launcher RUNS the
     # fleet-width fold ITSELF and PRINTS it BEFORE the first launch line, so wave sizing is decided
@@ -5244,6 +5177,11 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
     # it names WHICH id took which existing arm, where `launched`/`skipped` above count only how
     # many. Every `continue`ing arm and the launch path append exactly one tuple here.
     outcomes: list = []
+    class _SpawnRefused(Exception):
+        """T-13733 — the OS refused THIS id's provider spawn (OSError at the `spawn` call itself:
+        E2BIG, ENOENT, EACCES …). Raised ONLY there, so an OSError after a worker exists (a probe,
+        a log read, a journal append) keeps its old propagation and is never read as «not started»."""
+
     for task, brief, route in zip(tasks, briefs, routing):
         # T-12332 — the per-iteration dispatch MODE. `None` on every ordinary launch (so the
         # `bg_dispatch_launched` row stays byte-identical); `"resume"` only on the paused-card
@@ -5708,7 +5646,10 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             # `bg_dispatch_launched` carries (`expected` + `pid`), and this record is part of the
             # spawn TRANSACTION — it reaps and refuses rather than leaving a worker unrecorded
             # (`_record_spawn_or_reap`, audit-pre fp1:5f22e2403fe460a9).
-            _pid = spawn(_prompt, session_id, env, log_path, model=_m, effort=_e, **_spawn_kw)
+            try:
+                _pid = spawn(_prompt, session_id, env, log_path, model=_m, effort=_e, **_spawn_kw)
+            except OSError as _exc:   # T-13733: no process exists for this attempt
+                raise _SpawnRefused(_exc) from _exc
             _record_spawn_or_reap(
                 _pid, _task,
                 {"dispatch": _task, "expected": session_id, "provider": provider, "pid": _pid,
@@ -5736,16 +5677,27 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 _reserve = _resolve_effort_reserve(route["source_tier"], args)
             except Exception:   # noqa: BLE001 — an unreadable reserve is «none declared», never a crash
                 _reserve = None
-        _launch = launch_worker_with_pair(
-            _attempt, task, route["source_tier"], (route["model"], route["effort"]), _reserve,
-            _append_event=lambda _t, _tid, _d: _append_event(
-                _t, _tid, _d, events_path=main_wt / "events.jsonl"),
-            _proc_alive=_launch_pid_alive, _read_log=_read_launch_log,
-            _launch_failure_signature=journal._launch_failure_signature, _die=_die,
-            _sleep=_launch_probe_sleep, _monotonic=_launch_probe_monotonic,
-            probe_seconds=_launch_probe_seconds_override,
-            wait_seconds=_launch_wait_seconds_override,
-            _reap=_reap_worker)   # T-12645: the auth arm reaps when its terminal cannot be recorded
+        # T-13733 (X-1872) — a spawn the OS refuses (E2BIG, ENOENT, EACCES …) is THIS id's outcome,
+        # never the wave's: report it per id and go on to the next id, which used to be lost with it.
+        # Only `_SpawnRefused` is caught — raised at the spawn call alone, so nothing that happens
+        # after a worker exists can be reported as «not started».
+        try:
+            _launch = launch_worker_with_pair(
+                _attempt, task, route["source_tier"], (route["model"], route["effort"]), _reserve,
+                _append_event=lambda _t, _tid, _d: _append_event(
+                    _t, _tid, _d, events_path=main_wt / "events.jsonl"),
+                _proc_alive=_launch_pid_alive, _read_log=_read_launch_log,
+                _launch_failure_signature=journal._launch_failure_signature, _die=_die,
+                _sleep=_launch_probe_sleep, _monotonic=_launch_probe_monotonic,
+                probe_seconds=_launch_probe_seconds_override,
+                wait_seconds=_launch_wait_seconds_override,
+                _reap=_reap_worker)   # T-12645: the auth arm reaps when its terminal cannot be recorded
+        except _SpawnRefused as exc:
+            print(f"dispatch: REFUSED {task} (launch-error: {exc.__cause__!r}) — the provider spawn was "
+                  f"refused, so this attempt started no worker; the card stays ready.",
+                  file=sys.stderr, flush=True)
+            outcomes.append((task, "refused", "launch-error"))
+            continue
         session_id = _launch["session_id"]
         pid = _launch["pid"]
         log_path = _launch["log_path"]

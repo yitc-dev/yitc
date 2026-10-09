@@ -17,12 +17,6 @@
 
 Minimal graph. 8 node types, 4 edge types, one query CLI. Bounded by the schema below — additions require anti-complexity check (CHARTER Principle 1).
 
-## Why a graph
-
-Owner-decision 2026-05-26 (after V1 retrospective): «without graph from Day 1 we'll end up tangled again».
-
-V1 accumulated 508 spec artifacts + scattered code. Without explicit linking, every "which RULE implements this code?" question was a grep hunt that drifted as names changed. V2 starts with links explicit from the first spec.
-
 **The graph is small by intent.** As the spec corpus grows, the SPEC-0005 admission discipline + the anti-complexity check govern — there is no numeric count-gate (see §When to add specs vs just code).
 
 ## Schema
@@ -40,18 +34,6 @@ V1 accumulated 508 spec artifacts + scattered code. Without explicit linking, ev
 | `scenario` | `scenarios/<slug>.md` frontmatter (`scenario`/`actor`/`status`/`cites`/`covers`, per SPEC-0076) | `<slug>` (the frontmatter `scenario:` key) | `SCN-*` (first-class in v1) |
 | `lesson` | `lessons/<slug>.md` frontmatter (`lesson`/optional `status`/`cites`, per SPEC-0090) — per-repo local-craft note | `<slug>` (the frontmatter `lesson:` key) | v1 knowledge notes (no first-class store) |
 
-**Graph-slim cut:** the `task` /
-`decision` / `commit` / `audit_verdict` / `event` node-types were DROPPED from the graph (11→6). Those
-artifacts keep their own durable stores (`tasks/` · `decisions/` · git history · `decisions/<id>-audit-*.yaml`
-· `events.jsonl`) — they are simply no longer mirrored into `graph/index.json`. A `graph query T-XXXX` /
-`D-XXXX` point-lookup still resolves, re-sourced on demand from the authored `tasks/` / `decisions/` YAML
-(NOT an index section); `cites` to/from surviving nodes still works (the `tasks_citing` reverse-index is
-kept). The graph is now the design medium it is FOR (§What a spec is FOR) — the surviving
-spec/rule/pattern/plan/error node-types, later joined by `scenario` (SPEC-0076) + `lesson` (SPEC-0090)
-for the current 8-node schema (§Schema) — not a mirror of the task/journal state those stores already
-own (Single SoT — CHARTER §P5). (The 11→6 above is the historical graph-slim cut; the two subsequent
-re-additions are the honest +1/+1 justified per §`scenario` node + §`lesson` node below.)
-
 ### Edge types (4)
 
 | Edge | Direction | Source field |
@@ -63,29 +45,10 @@ re-additions are the honest +1/+1 justified per §`scenario` node + §`lesson` n
 
 All edges derivable from existing structured data. No edge classification beyond these 4; no soft-delete, no versions, no validity layers.
 
-**`error` node — anti-complexity note :** the `error` node-type was added by an explicit decision ( §GRAPH — errors are indexed from day 1 because recurrence-matching is a core graph query), satisfying Principle 1 Filter 4 (real decision, not speculation). It REUSES the surviving `cites` edge only — and adds **no** new edge type (a promotion link reuses `cites`). Nothing was removed because this is a decision-backed new entity, not parallel storage.
-
-**`scenario` node + `covers` edge — the 4-filter justification (per SPEC-0076).** Re-introducing a first-class scenario reverses the deliberate graph-slim cut (11→6) and the B3 "fold a scenario into a spec-section" choice — so it MUST earn its way back through the CHARTER §P1 four filters (written here, the §When-NOT-to-add discipline):
-1. **Existing analog?** The `pattern`/`error` doc-that-`cites` node is the structural analog (node-reuses-`cites`) — REUSED for the node shape. But a scenario (the owner's PRIMARY human-facing working instrument — a user-path) is semantically distinct from a `pattern` (a rarely-touched methodology practice); folding them onto one type re-muddies the legibility that motivates the entity. So the NODE is new, the edge-reuse pattern is not.
-2. **New entity or new view?** A scenario MUST be a graph node to carry `cites`/`covers` + be queried for integrity; the status FSM (`draft|building`) is a derived VIEW, never stored (SPEC-0076 §3, which also records why the former `live` state was retired). The ONE new edge `covers` is justified by a relation `cites` cannot express by endpoint-typing alone — a scenario→code/anchor coverage link.
-3. **What gets removed (RETIREMENT, P1 F3 — named):** (a) "a scenario = an ad-hoc prose doc INVISIBLE to the graph" CEASES to be canonical — `scenarios/<slug>.md` indexed as a `scenario` node is now the **SOLE canonical scenario carrier** in the v2 corpus; (b) the B3 representation of a cross-spec user-journey as a scenario-PARENT spec is **retired-in-role** (the journey is the scenario ARTIFACT/node now). The single-rule `## Scenario` spec SECTION (one rule's external-behaviour face) is **UNAFFECTED** — a different altitude.
-4. **Real incident / prior-art / analog?** v1 `SCN-*` first-class nodes (prior-art) + <project>'s matured `SCN↔FSM↔code` graph + <project>/<project> `scenarios/` dirs (≥3-project prior-art) + the asymmetric multi-project retrofit cost (CHARTER §P1 scale-aware refinement) — passes strongly.
-
-**Scope bound (honest +1/+1):** `covers` targets ONLY anchors the graph resolves TODAY (the `<file>` / `<file>#<symbol>` address space `implements` uses) — NO new symbol-indexer, NO `FSM-state` node-type (both deferred to their own future spec). So the change is EXACTLY +1 node + 1 edge.
-
-**`lesson` node — the 4-filter justification (per SPEC-0090).** A `lesson` is a per-repo, NON-traveling local-craft note (`lessons/<slug>.md`) — the LOCAL counterpart of a `pattern`. Adding an 8th node-type earns its way through the CHARTER §P1 four filters:
-1. **Existing analog?** The `pattern`/`scenario`/`error` doc-that-`cites` node is the structural analog (node-reuses-`cites`) — REUSED for the node shape and the edge. A lesson is semantically distinct from a `pattern` precisely along the axis this architecture exists to make queryable — **LOCAL/non-traveling vs GENERAL/traveling** (SPEC-0090 §1) — so folding the two onto one type would destroy that distinction. The NODE is new; the `cites`-reuse pattern is not.
-2. **New entity or new view?** A lesson MUST be a graph node to carry `cites` + be queryable. It has **NO status FSM** (unlike `scenario`): it is zero-normative, so the OPTIONAL `status: retired` is the only stored marker (SPEC-0090 §5) — simpler than the scenario.
-3. **What gets removed (RETIREMENT, P1 F3 — named):** the «a project-specific craft note had nowhere to live except the cross-project `patterns/` catalog» drift is removed — `lessons/` is now the honest home for local craft, so `patterns/` holds only GENERAL traveling methodology. (The *routing* retirements + the route-by-purpose enforcement live in the SIBLING behavioral plan / SPEC-0089 — this node-type leg is additive-only, SPEC-0090 §7.)
-4. **Real incident / prior-art / analog?** The `ideas/`-catch-all drift (deviation 2026-06-19) is the real incident; the `scenario` node-type (SPEC-0076) is the immediate +1-node-reuses-`cites` prior-art; ≥3-project local-craft accumulation (<project>/<project> specifics) is the scale driver.
-
-**Scope bound (honest +1/0):** the `lesson` node REUSES `cites` — NO new edge (the 4-edge bound is UNCHANGED). A lesson is indexed PER-REPO (`graph build` runs under `-C`): a lesson never travels (project realm, SPEC-0073). So the change is EXACTLY +1 node, +0 edge.
-
-### Why this schema (not more, not less) — per CHARTER §1 Filter 4 refined
-
-- **Prior-art from v1**: the entity + edge patterns were observed across months of v1 production usage. Not speculation.
-- **V2 Day 2+ projection**: ~30 cite-able artifacts after closure; 100+ within first production-task week; 500+ within first month. Indexed graph beats grep at that scale.
-- **Build cost**: ~200 LOC (build script + query CLI). All data already structured.
+**How each node type earned its place — retrieved (SPEC-0031).** The CHARTER §Principle 1 four-filter
+record for the `error`, `scenario` (the `covers` edge) and `lesson` node types, their scope bounds,
+and why the schema is this size: SPEC-0031 §Graph schema bounds. Read it before proposing a new node
+or edge type — `bin/yitc-v2 graph query SPEC-0031`.
 
 ## Schema for specs/<id>.yaml
 
@@ -101,30 +64,10 @@ Tasks reference specs via `cites:` field. Build tool indexes these too — thoug
 
 ## What graph is NOT
 
-- **NOT** multi-type beyond stated 8 nodes / 4 edges (no `methodology` / `runtime` / 25-type ontology like v1 — stays bounded per §Schema)
-- **NOT** edge classification beyond stated 4 edges (no `subsumes` / `replaces` / 9-type taxonomy like v1)
-- **NOT** validation layer (no «check that all RULE-* have implements» — humans write specs correctly OR they don't, graph just indexes). **ONE narrow named exception (SPEC-0076 §3):** `graph build` deterministically REJECTS (exit 2) a scenario frontmatter that STORES an illegal `status` (only `retired` or absent is legal — `draft|building` are a computed view, and the now-retired `live` stays illegal to store). This is a storage-FORMAT contract check (a malformed field, like the YAML-parse fail-closed), NOT semantic/legality validation — the graph still never judges transition legality, never gates on suspicion (scenario staleness stays a read-only WARN; a dangling `covers` anchor is report-only here, hardened to a write-time error by its own card, not by `graph build`).
-- **NOT** an unconditional rebuild — since the build consults a **result cache** first. The
-  build is a PURE function of the checkout (three consecutive builds on an unchanged tree produce a
-  byte-identical `index.json`), so an unchanged checkout is SERVED from a machine-local cache under
-  the checkout's GIT DIR (never the working tree, so it can never show as dirt) rather than
-  recomputed. The properties that shape how a cached result reads (the contract itself lives at the rule home named below): the key is **content-exact** (HEAD +
-  `git ls-files -s` + the hashed CONTENT of every dirty/untracked path — never mtime/size), so a
-  **stale hit is impossible**; a **miss is always fail-safe** — every failure inside the cache, and
-  `YITC_GRAPH_CACHE=0`, fall through to a full build; ONE kernel code path serves every repo and goes
-  **inert by measurement** where a build costs less than 3x its own key, with no per-project
-  mechanism; and it **REPORTS ITS OWN HIT RATE** on `graph_built` and at the land tail, printing even
-  at 0% — because a silent dead cache and a working one are otherwise indistinguishable. Rule home:
-  SPEC-0031 §Build tool. **The cost it addresses is measured, not assumed** — folded from each repo's
-  own `graph_built.duration_ms` rows. Cost tracks CORPUS SIZE and so differs by orders of magnitude
-  per repo — near-instant on the smallest consumers, seconds in the engine — so **re-fold the figure
-  for YOUR repo before reasoning from it**. That spread is why the cache is gated on MEASUREMENT
-  rather than configured per project: where a build is cheaper than any key could be, the cache is
-  never consulted. (`graph build` > 5 s remains a named consider-it trigger,
-  SPEC-0002 §Rotation policy.)
-- **NOT** an async/reactive event-emitter service (`graph build` runs synchronous, exits 0/1, no reactive observability layer). It DOES append ONE synchronous `graph_built` provenance event per build (`bin/lib/graph.py` `_build_graph_built_payload`, carrying node counts + `duration_ms` + the cache state) — a build-provenance record, NOT an event-sourced/reactive layer.
-- **NOT** soft-delete / lifecycle (retired specs stay in `specs/` with `status: retired`; graph indexes them too)
-- **NOT** N-wave history versioning
+The design fence, in one line: no wider node or edge taxonomy, no validation layer (one narrow
+storage-format exception), no unconditional rebuild (the build's result cache), no reactive event
+service, no soft-delete or lifecycle store, no history versioning. The full fence is homed in SPEC-0031
+§Graph schema bounds — read it before proposing any such addition: `bin/yitc-v2 graph query SPEC-0031`.
 
 If any of above gets requested — anti-complexity filter applies. Most likely answer: «defer until empirical pull».
 
@@ -170,14 +113,6 @@ before code, then reconciled, then activated. Modeled on PEP/ADR proposal-shape 
 
 **Specs may exist before code ( B5):** a `proposed` (or `active`) spec may carry
 `implements: []` + a human-visible note. The activation probe still applies.
-
-**Scenario-parent ( B3):** a small concern = `## Scenario` + `## Internal` sections in ONE
-spec. A big multi-spec feature = a **scenario-parent spec** that links DOWN to child specs via
-`cites` (any→any, B2). Node only when multi-spec — else a section. **(Historical, pre-SPEC-0076 —
-"no scenario-specific edge/status/parser" described the graph BEFORE the first-class `scenario` node:
-SPEC-0076 later added the `scenario` node + the `covers` edge + a status-FORMAT check, and the B3
-scenario-parent-SPEC representation of a cross-spec user-journey is now retired-in-role — the journey is
-the scenario ARTIFACT/node; see §`scenario` node + `covers` edge F3.)**
 
 **Concurrent-change HARD invariant ( B6):** **one active lineage per spec.** Concurrent
 `proposed` children of the same spec MUST be either `requires`-ordered (spec-level `requires:`) OR

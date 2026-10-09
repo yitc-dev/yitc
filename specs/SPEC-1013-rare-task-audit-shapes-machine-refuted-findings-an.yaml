@@ -1,0 +1,183 @@
+id: SPEC-1013
+title: Rare task-audit shapes — machine-refuted findings and the card-repair audit-post
+  subject (reference, fetched on demand from the audit contract and the audit help)
+status: active
+created_at: 2026-10-08 00:07:12+00:00
+consumed: false
+implements: []
+body: "## Scenario\n\nA task audit sometimes takes a shape the session did not choose.\
+  \ The engine marks a finding of the\nreturned verdict as machine-refuted; or the\
+  \ audit-post subject is a record-only card-repair commit.\nBoth are rare, and both\
+  \ are decided by the audit verb from governed records, so their rules are a\nREFERENCE:\
+  \ no stage entry renders this spec. A session that meets either shape finds a pointer\
+  \ to\nit in two places — the index paragraph of SPEC-0036 §Task per-stage overlays\
+  \ and the first lines of\nthe `audit pre` and `audit post` help — and fetches it\
+  \ on demand. What every audit needs stays in\nthe audit contract (SPEC-0036).\n\n\
+  ## Internal\n\n### 1. Delivery — a plain reference\n- This spec is rendered at NO\
+  \ stage entry and is fetched before no verb: reading it is not checked.\n  What\
+  \ holds its rules is the audit verb's own code — the refutation seam and the subject\
+  \ guard —\n  and they hold whether or not this text was read.\n- Fetch it on demand\
+  \ with `graph query SPEC-1013` (under `-C`: `graph query --kernel SPEC-1013`).\n\
+  - Lookup: both families sit under the one heading «Rare task-audit shapes», each\
+  \ rule under its own\n  bold lead (MACHINE-REFUTED P8-adoption finding · BUNDLED\
+  \ FINDINGS ARE NOT REFUTED · THE ALL-REFUTED\n  FOLD · GOVERNED CARD-REPAIR SUBJECT\
+  \ · PASS-1 SHIP-RIDING CARD REPAIR), so a search of this spec for\n  one of them\
+  \ lands on the whole rule.\n- A new edge case of either shape is authored here,\
+  \ not in SPEC-0036 (SPEC-0005 rule 6).\n\n### 2. Rare task-audit shapes\n\n####\
+  \ 2a. Machine-refuted findings (task audit-pre and audit-post)\n\n**MACHINE-REFUTED\
+  \ P8-adoption finding on a NON-infra card — the second admissible class\nof the\
+  \ machine-refutation seam.** CHARTER §8 (Adoption Verification Strength) binds\n\
+  INFRA-class work only; Principle-3 probe evidence governs a product / feature card,\
+  \ and the packet\nreadiness block already prints `P8 carrier: n/a (class <x>)` on\
+  \ every non-infra card. So a finding\nwhose class is P8-adoption / `adoption-gap`\
+  \ («no consumer_read_evidence / live_trigger_evidence /\nblocking adoption follow-up»)\
+  \ on a card whose `class` is NOT `infra` is machine-decidable, and the\nengine RECORDS\
+  \ it `machine_refuted: true` with a `machine_refutation` evidence dict\n(`kind:\
+  \ p8-adoption-on-non-infra`, the card's `task_class`, the reason «CHARTER §8 binds\
+  \ infra-class\nonly; packet readiness: P8 carrier n/a», `charter_ref`, `checked_at`,\
+  \ the policy string) — the\nfinding's own text is never edited. The class is read\
+  \ BOTH from the SPEC-0204 rule-1 structured\n`class_id` slot (`P8-adoption` or the\
+  \ auditor-spelled `adoption-gap`) AND from prose naming the P8\nevidence types /\
+  \ the principle over EVERY prose field; the prose arm reads ONLY the §8 carrier\
+  \ vocabulary — the P8 evidence types\n(consumer_read_evidence / live_trigger_evidence)\
+  \ or the principle itself (P8 / Principle 8 /\nCHARTER §8): it never admits the\
+  \ bare `adopt` token, so a correctness finding that merely says\n«adopts» is never\
+  \ touched, and it never admits a generic «no adoption evidence / probe» complaint\n\
+  against the card's OWN criterion either — that is a Principle-3 probe complaint\
+  \ about a deferred\nprobe, judged by the declared-deferred floor (declared → refused\
+  \ at the parse floor;\nundeclared / orphan → the RED stands and the pass is recorded).\n\
+  \n**How it binds, and how it does NOT.** INFRA-class cards are UNCHANGED — there\
+  \ the finding is\nexactly what §8 asks for and stands as written; a caller that\
+  \ supplies no class (a plan / decision\ntarget) refutes nothing. The pass is skipped\
+  \ ONLY when EVERY finding in it is machine-refuted — a\nreal finding beside the\
+  \ P8 one charges the pass exactly as before. The count of refuted findings\n(parse-refuted\
+  \ + P8-refuted together) is the one `machine_refuted_count`. Home of the predicate\
+  \ and\nthe seam: `bin/lib/audit.py#p8_adoption_gap_on_non_infra` / `#machine_refute_findings`.\n\
+  \n**BUNDLED FINDINGS ARE NOT REFUTED.** A finding that carries the §8 wording BESIDE\
+  \ an\nindependent defect claim — a concrete source location the kernel does not\
+  \ own the judgement of (a\n`.py` path under `bin/` or `tests/`), or an explicit\
+  \ execution-failure claim (a failing assertion or\ntest, a raised exception, a traceback)\
+  \ — is NOT refuted, on EITHER arm (the structured `class_id`\nslot as well as the\
+  \ prose sniff): the auditor bundled two claims into one finding and only one of\n\
+  them is machine-decidable, so the WHOLE finding stands and the pass is charged.\
+  \ Judgement vocabulary\n(scope / coherence / adequacy) is deliberately NOT an independent-defect\
+  \ signal — an auditor may\nlegitimately phrase the §8 claim that way, and admitting\
+  \ it would stop the refutation firing on the\nshapes it exists for. Predicate: `bin/lib/audit.py#bundles_an_independent_defect`.\n\
+  \n**THE ALL-REFUTED FOLD — what the recorded verdict is when NOTHING the auditor\
+  \ raised\nsurvives.** The contract «the VERDICT is never touched» is AMENDED here,\
+  \ and only here.\n\nSo: a TASK audit-pre/post whose auditor verdict is RED or YELLOW,\
+  \ and EVERY one of whose findings is\nmachine-refuted, RECORDS `verdict: GREEN`.\
+  \ THE FENCE, all of it conjunctive and all of it fail-closed\nto the auditor's verdict:\n\
+  (1) a CLOSED allowlist of exactly the two machine-decidable classes — `governed-artifact-parse-claim`\n\
+  and `p8-adoption-on-non-infra` — so a FUTURE refutation kind is NOT foldable until\
+  \ it is NAMED there\nby an explicit change; (2) a NON-EMPTY finding set (a clean\
+  \ pass has nothing to refute and is not a\nfold); (3) EVERY finding individually\
+  \ refuted, its count re-derived from the findings rather than\ntrusted from the\
+  \ caller; (4) every refutation block produced by THIS pass (`checked_at` and `policy`\n\
+  must match), so a block carried in from a prior record is stale and never folds;\
+  \ (5) unknown, stale,\nmalformed or unavailable refutation data fails closed. An\
+  \ ABORT is never folded — it means the\nauditor produced no usable outcome, which\
+  \ a refutation cannot disprove; a plan / decision target is\nout of scope.\n\nWHAT\
+  \ IS PRESERVED, so no reader can mistake the fold for the auditor having passed\
+  \ the change: the\nsaved record and the `audit_{pre,post}_completed` row BOTH carry\
+  \ `verdict_as_returned` (the auditor's\nown word, captured before any kernel seam\
+  \ recomputes the verdict) and `machine_refuted_all: true`,\nadditive-optional and\
+  \ ABSENT (never false) on every pass that did not fold; every finding keeps its\n\
+  verbatim `machine_refutation` block; `notes` states the fold and names the kinds.\
+  \ `passes` is\nUNCHANGED — the existing ledger-skip already leaves it at `prior_passes`,\
+  \ and this fold neither reads\nnor writes it. SEAM ORDER is load-bearing: the fold\
+  \ runs AFTER the SPEC-0204 rule-8 record seam (so\nrule 1's fingerprints and every\
+  \ verdict-driven upstream guard — the unchanged-HEAD GREEN-flip refusal\nin particular\
+  \ — judge the AUDITOR's own word) and BEFORE the rule-3 on-decisions seam (so rule\
+  \ 3's\nabsolute «a `fix` residual echoed OPEN forces RED» clause can still re-raise\
+  \ a folded verdict; a\nrecorded Controller decision outranks a category-error fold).\
+  \ Home of the fence and the seam:\n`bin/lib/audit.py#machine_refutation_folds_to_green`\
+  \ / `#FOLDABLE_REFUTATION_KINDS`, and the policy\nstring `MACHINE_REFUTATION_POLICY`\
+  \ every saved verdict carries states the same rule.\n\n#### 2b. Card-repair subject\
+  \ (audit-post)\n\n**GOVERNED CARD-REPAIR SUBJECT (X-1233) — an admission on the\
+  \ MEASUREMENT, not a waiver.**\nThe guard asks whether the subject the auditor RECEIVES\
+  \ carries authored content, and answers\nit off the subject commit's OWN diff. For\
+  \ every shape it was written against those are the same\nthing. For ONE shape they\
+  \ are not: `get_audit_post_diff` has sent the CUMULATIVE range\n`merge-base(sha,\
+  \ main)..sha` since, so a commit that is itself record-only but sits ON TOP of\n\
+  the card's audited ship hands the auditor that whole ship PLUS the record change\
+  \ — strictly MORE\nmaterial than the RED pass saw, not less. So the guard ADMITS\n\
+  such a subject, on FOUR conjuncts, every one DERIVED and fail-closed — a missing\
+  \ injection, an\nabsent marker, an unreadable record and any git failure all REFUSE:\n\
+  \  (a) PROVENANCE — the subject IS the task's RECORDED commit, and that `commit_landed`\
+  \ record\n      carries the `data.card_repair` marker the `task commit --fix-red\
+  \ --card-repair` arm writes.\n      This is what ties the admission to the GOVERNED\
+  \ route rather than to a commit shape;\n  (b) SHAPE — the subject's diff carries\
+  \ THIS card's OWN card file, read off GIT;\n  (c) the PRIOR audit-post record is\
+  \ RED **and its cause DERIVES to this card's own record** — so\n      the repair\
+  \ being admitted is the repair that verdict actually asked for. Read from the\n\
+  \      governed `decisions/<tid>-audit-post.yaml` pinned to that custody sha, NEVER\
+  \ from the journal,\n      and judged by the ONE shared predicate `_red_cause_is_card_record`\
+  \ that the governed\n      `task commit --fix-red --card-repair` arm reads TOO.\
+  \ The derivation\n      that replaces it is homed with the arm in SPEC-0015 §Internal\
+  \ (the two-part read — no authored\n      reference anywhere in the record, AND\
+  \ at least one reference that IS this card's own record by\n      path / by an acceptance-named\
+  \ task-tied event type / by an acceptance-criterion id the card\n      declares);\
+  \ it is not restated here, so the two homes cannot diverge (CHARTER §P5);\n  (d)\
+  \ that covered commit provably carries authored content, read through the SAME predicate\
+  \ this\n      guard already uses (one definition of \"authored\" — CHARTER §P5),\
+  \ so the cumulative range the\n      packet sends is not empty;\n  (e) CHAIN CONTINUITY\
+  \ — the subject's FIRST PARENT *is* that covered ship, read off git. The arm\n \
+  \     builds the repair directly on the commit the RED graded, so parenthood is\
+  \ its exact shape;\n      mere ancestry would admit a card-only commit made anywhere\
+  \ later on the branch.\n**(a) IS REQUIRED BUT NEVER SUFFICIENT — every other conjunct\
+  \ is read from something the actor being\nfenced does not author.** The marker stays\
+  \ as the governed arm's\nprovenance, and what CARRIES the admission is git (shape\
+  \ + parenthood) plus the audit verb's own\nrecorded verdict. A hand-made card-only\
+  \ commit with a perfect hand-emitted row is REFUSED unless it\nalso sits directly\
+  \ on the audited ship AND answers a RED that actually named the card record.\nThe\
+  \ residual — an actor who can rewrite the audit RECORD itself — is the trust boundary\
+  \ every\ngoverned record in this kernel sits behind, and no predicate here can narrow\
+  \ it. The provenance read\nreuses the EXISTING `_recorded_commit_landed` payload\
+  \ reader, so no new journal consumer enters the\nsystem (CHARTER §P1 F1/F2; the\
+  \ SPEC-0190 census is untouched).\n**Deliberately NOT a member of the exempt-flag\
+  \ family of SPEC-0036 (§Task per-stage overlays).** Those rows are for ships that\
+  \ are not\ndiffs AT ALL, and they are operator-DECLARED; a card repair IS a diff,\
+  \ and this admission is derived\nfrom governed records with no flag for an operator\
+  \ to get wrong. Every other empty subject — a\npark/pause/wont-do displacement,\
+  \ an empty ship, an ordinary bookkeeping commit — carries no marker\nand is refused\
+  \ byte-identically to before.\n**PASS-1 SHIP-RIDING CARD REPAIR — the same admission\
+  \ when conjunct (c) cannot derive.**\nThe commit arm already ran its OWN cause check\
+  \ (SPEC-0015 §Internal (C)) before it wrote the\n`data.card_repair` marker, yet\
+  \ the audit door re-derived that cause from the record and could answer\ndifferently\
+  \ (measured : a decimal pair `4.00/20.00` in an evidence-gap finding lexed as an\n\
+  authored path), leaving a pass-1 repair with no executable audit route. So the guard\
+  \ ALSO admits a\nsubject when, all fail-closed: (1) it IS the custody commit and\
+  \ that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only` (SPEC-0204\
+  \ rules 2-3) proves it is record-only, that\nthe governed audit-post record names\
+  \ an authored ship, and that the subject reaches that ship along a\nTRANSPARENT\
+  \ first-parent chain. The pass audits AT the repair — the cumulative range carries\
+  \ the\nship — so the auditor still receives the whole shipped change, and the record\
+  \ pins `commit:` to the\nrepair. Everything else is unchanged: an unmarked bookkeeping\
+  \ subject, one riding on no recorded\nauthored ship, and any authored subject behave\
+  \ byte-identically to before.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\
+  \nBoth shapes are met by a small share of audits, and in both the verb decides from\
+  \ governed records\nwith nothing for the session to choose. Rendered inside the\
+  \ audit contract, their rules reached\nevery session entering Audit-pre or Audit-post;\
+  \ as a reference behind an index paragraph and the\nhead of the audit help they\
+  \ are met by the session that has the shape in front of it.\n\n## Verification\n\
+  \n- VP1 (one home): every sentence of the two families is present in this spec and\
+  \ absent from\n  SPEC-0036, and SPEC-0036 carries exactly one index paragraph naming\
+  \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\
+  \ first lines of the `audit pre` and `audit post` help name this\n  spec.\n- VP3\
+  \ (no stage render): no stage entry delivers this spec, and the Audit-pre and Audit-post\
+  \ stage\n  views of SPEC-0036 carry none of the moved sentences.\nThe executable\
+  \ form of VP1-VP3 is `tests/test_t13691_audit_reference_spec.py`.\n"
+cites:
+- SPEC-0036
+- SPEC-0015
+- SPEC-0204
+- SPEC-0005
+- SPEC-0013
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

@@ -14,7 +14,7 @@ body: "## Scenario\n\nWhen a fix-task that remediated a captured deviation close
   \ what it\nfixes — and triage sees that\", without anyone hand-editing YAML or the\
   \ triage guessing. (The triage-run\nWINDOW, batch-run journal isolation, discovery\
   \ stem-clustering, and the v1 queue lineage are the\nOTHER surfaces — SPEC-0055.\
-  \ The into-work currency classifier is <workshop-spec>/SPEC-0061; the routing\n\
+  \ The into-work currency classifier is <workshop-spec>/<workshop-spec>; the routing\n\
   analysis order + reopen-FSM is SPEC-0056.)\n\n## Internal\n\nTHE LINK RULE ( §9)\
   \ + its closure-time CREATION path. Supersedes <workshop-spec> (the\ncarve-out)\
   \ — carries its rule forward verbatim and ADDS the creation path. The reader\n`_fingerprint_cites_index`\
@@ -130,4 +130,4 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_fingerprint_cites_index: 3f30981c3d380305279328bd5ad08a21303ad341cf88c773b5d6c668eb55b4d4
-  bin/lib/task.py#cmd_task_close: 59824887a1b86ae08b2ea29b10b4ff9217e0efec44586b41273da3008aba988e
+  bin/lib/task.py#cmd_task_close: 2661e1333919943615819f7cb295fd84b760b8d0d55d2182fcf3bd5fbaa053be

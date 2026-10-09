@@ -303,4 +303,4 @@ proposed_by: finalize-decisions-to-specs-migration-inventory-cl
 binding:
 - query-only
 implements_signature:
-  bin/lib/inspection.py#cmd_inspect_record: c967863812d2d9433dfda0396b30ac2707bbcfde85c7eef50b5f080011753806
+  bin/lib/inspection.py#cmd_inspect_record: 9b2bfc85a880af9f178cc1df1a54d0629c2a6318110df16a8cc10cb4115fb532

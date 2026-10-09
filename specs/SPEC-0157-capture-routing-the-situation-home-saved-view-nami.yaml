@@ -22,30 +22,23 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   names the SITUATION, its HOME (the artifact/node/store), and the OWNING SPEC where\
   \ the rule actually\nlives. The AI reads the row, then routes to the named home.\
   \ A terse pointer to this view rides the\nsession-start seed line (this spec's title),\
-  \ so the routing surface is discoverable from token 0.\n\nThis closes X-0402 G3\
-  \ (the routing map lived ONLY scattered across SPEC-0056/0090/0005/0076/0095/\n\
-  0140/0084-86/0039 — nobody could read it at the moment of writing, which is how\
-  \ <project> invented an\nunsanctioned `docs/incidents/` class and an ad-hoc baseline\
-  \ file, X-0403 sub-class 1).\n\n## Internal\n\n### 1. The view is a DERIVED discovery\
-  \ surface, not a new store (no-new-entity)\n`capture-routing` is a saved query-lens\
-  \ (`views/capture-routing.yaml` → the `capture-routing`\n`_run_view` dispatch branch\
-  \ → `views._view_capture_routing`). It renders the situation→home table\nROWS, each\
-  \ ANCHORED to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055,\
-  \ SPEC-0095,\nSPEC-0090, SPEC-0005, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039,\
-  \ SPEC-0093) — so the rule text\nis NEVER duplicated (SPEC-0005 rule 8, one home);\
-  \ the view ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER\
-  \ §P1 F2), adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2.\
-  \ The E-case incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the\
-  \ multi-error incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
-  \ BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a. This is the\n\
-  row the sibling card blessed; the view sources it from the amended spec.\n\n###\
-  \ 3. Worker escalation-doc convention (R3) — the de-facto home, NOW named\nA dispatched\
-  \ worker that halts on a blocked land/audit (SPEC-0103 `blocked-on-land`) records\
-  \ its\nrationale in a **`decisions/<task>-escalation.md`** doc. This convention\
-  \ was DE-FACTO (used in\npractice, homed nowhere). This spec NAMES it as the sanctioned\
-  \ home and the `capture-routing` view\nsurfaces it as a row, so a worker no longer\
-  \ invents an ad-hoc escalation surface. It is a NAMING\nconvention over the EXISTING\
-  \ `decisions/` store — no new store/node (CHARTER §P1).\n\n### 4. Environment-facts\
+  \ so the routing surface is discoverable from token 0.\n\n## Internal\n\n### 1.\
+  \ The view is a DERIVED discovery surface, not a new store (no-new-entity)\n`capture-routing`\
+  \ is a saved query-lens. It renders the situation→home table\nROWS, each ANCHORED\
+  \ to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055, SPEC-0095,\n\
+  SPEC-0090, SPEC-0005, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039, SPEC-0093)\
+  \ — so the rule text\nis NEVER duplicated (SPEC-0005 rule 8, one home); the view\
+  \ ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER §P1 F2),\
+  \ adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2. The E-case\
+  \ incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the multi-error\
+  \ incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
+  \ BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a.\n\n### 3. Worker\
+  \ escalation-doc convention (R3) — the de-facto home, NOW named\nA dispatched worker\
+  \ that halts on a blocked land/audit (SPEC-0103 `blocked-on-land`) records its\n\
+  rationale in a **`decisions/<task>-escalation.md`** doc. This spec NAMES it as the\
+  \ sanctioned home and the `capture-routing` view\nsurfaces it as a row, so a worker\
+  \ no longer invents an ad-hoc escalation surface. It is a NAMING\nconvention over\
+  \ the EXISTING `decisions/` store — no new store/node (CHARTER §P1).\n\n### 4. Environment-facts\
   \ flavors (X-0403) — route to EXISTING homes, named explicitly\nA \"fact about the\
   \ environment\" is NOT a methodology practice and NOT a standing rule; the view\
   \ names\nits flavors and their existing homes so they stop landing in an ad-hoc\
@@ -74,7 +67,20 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ on demand (prior-art: consumer-dimension-bundle,\nextensions-catalog, journal-hygiene).\
   \ CHARTER §P1: a view over existing homes, no new store/node/edge;\nthe escalation-doc\
   \ + env-facts flavors route to existing stores (`decisions/`, `lessons/`,\n`yitc-ops.yaml`),\
-  \ naming conventions that already exist de-facto.\n\n## Verification\n\n- **VP1\
+  \ naming conventions that already exist de-facto.\n\n### History moved from the\
+  \ rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names;\nthe rule it explains stays there.\n\n- From «Scenario»:\
+  \ This closes X-0402 G3 (the routing map lived ONLY scattered across\n  SPEC-0056/0090/0005/0076/0095/\
+  \ 0140/0084-86/0039 — nobody could read it at the moment of\n  writing, which is\
+  \ how <project> invented an unsanctioned `docs/incidents/` class and an ad-hoc\n\
+  \  baseline file, X-0403 sub-class 1).\n- From «2. The E-case incident-narrative\
+  \ row»: This is the row the sibling card blessed;\n  the view sources it from the\
+  \ amended spec.\n- From «3. Worker escalation-doc convention (R3)»: This convention\
+  \ was DE-FACTO (used in practice,\n  homed nowhere).\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code, moved word for word out of the rule text\
+  \ of the section\neach names.\n\n- From «1. The view is a DERIVED discovery surface,\
+  \ not a new store»:\n  (`views/capture-routing.yaml` → the `capture-routing` `_run_view`\
+  \ dispatch branch →\n  `views._view_capture_routing`)\n\n## Verification\n\n- **VP1\
   \ (view renders):** `bin/yitc-v2 graph query capture-routing` renders the situation→home\
   \ table\n  INCLUDING the E-case incident-narrative row (SPEC-0056 §4a), the escalation-doc\
   \ convention row\n  (`decisions/<task>-escalation.md`), and the environment-facts\
@@ -108,5 +114,5 @@ cites:
 requires: []
 supersedes: null
 implements_signature:
-  bin/lib/cli.py#_run_view: b2417fbaac3b9dc71f5af7c4be1f712934626ec3f98de2ac33987c5ea65b5044
+  bin/lib/cli.py#_run_view: 11893691c852ab3879e4c5a857f66917a834716f39938f801a2497bf92eb6331
   bin/lib/views.py#_view_capture_routing: 1819c3eb999fc8845ff07322a2671f931d8da47ac4561c6c96b56621ee3ac35b

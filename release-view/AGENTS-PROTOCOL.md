@@ -49,16 +49,9 @@ option (B) lets a dispatched Worker self-clear the very `--rebaseline` that `--h
 ceremony dressed in evidence (a recommendation, a costed alternative, real citations) is harder to spot
 than a bare menu: proceed instead, and capture the deviation if the artifact turns out to say otherwise.
 
-**Non-blocking batch — an owner question never freezes the batch (per SPEC-0126).** In an owner-authorized
-background batch, when ONE task hits an "ask owner" trigger above, do NOT halt the whole batch waiting for
-the answer. PARK that task in its existing waiting-on-owner state (`bin/yitc-v2 task pause --reason
-owner-wait` — the SOLE carrier; it surfaces at session start. NOT the `blocked` status: no verb writes
-it, so prescribing it would name an unreachable state — QUEUE §Verb routes), CAPTURE its
-question durably+visibly via the existing followup/journal capture (`bin/yitc-v2
-followup` — reuse the existing primitive, NO new question store/FSM), and CONTINUE the other independent
-ready tasks. The owner answers the accumulated questions on reconnect. (This is the OWNER-QUESTION block;
-a task blocked on an unmet `requires:` dependency waits per QUEUE §Picker instead.) The doctrine home is
-CHARTER §6 + AGENTS-SESSIONS §Orchestrate posture; full rule: `graph query SPEC-0126`.
+**Non-blocking batch (per SPEC-0126).** In an owner-authorized batch, one task's owner question parks
+that task and the batch goes on — the route is stated in AGENTS-SESSIONS §Orchestrate posture; full rule:
+`graph query SPEC-0126`.
 
 ## When NOT to add a mechanism
 <!--AUDIENCE:core-->
@@ -115,16 +108,10 @@ encode `status:` — P5).
 GREEN/YELLOW `plan check` verdict exists (freshness = a content hash recorded by the check; the
 mirror of `decision accept`), so `accepted` honestly means «a verified plan».
 
-**The plan is the standing successor of `decision finalize` for AGGREGATE finalization (Part B).**
-`plan stage accepted` does more than flip status — it **births the change-corpus** (the plan's `draft` specs →
-`proposed`); and `plan stage realized` (for a spec-bearing plan) is **gated by an aggregate
-`audit post --plan`** over the plan + its **realized-spec corpus** — every spec the plan realized: born
-by it (`proposed_by==slug`) OR activated by one of its implementing tasks (`activation_owner_task` ∈ the
-tasks that `cite` the plan; broadened, so a reorg/task-only plan's corpus is not silently empty) —
-the inherited role of the retired `decision finalize`, at a whole-corpus altitude. A NEW
-governance lifecycle finalizes through the plan, **never** `decision finalize` (backlog-only; `decision
-new` is retired). A plan that realized no specs (none born by it, none activated by its tasks) stays
-decompose-only (backward-compat). Full workflow: SPEC-0034 (`bin/yitc-v2 graph query SPEC-0034`).
+**Aggregate finalization goes through the plan — the standing successor of the retired `decision finalize`.**
+`plan stage accepted` births the plan's `draft` specs as `proposed`; `plan stage realized` of a
+spec-bearing plan is gated by an aggregate `audit post --plan` over its realized-spec corpus. Rule:
+SPEC-0034, the plan↔spec linkage chain (`bin/yitc-v2 graph query SPEC-0034`).
 
 **Sessions do NOT scan or analyze plans/ or ideas/ at startup** — the picker reads `tasks/` ONLY. A `plan` is taken into work **only on owner cue**, and Build **always re-checks currency** (Stage-1) before decomposing it into tasks/decisions — **and, for a spec-bearing plan, its realized-spec corpus (specs born by it OR activated by an implementing task)** — then marks the plan `realized`/`partial` (a spec-bearing plan only after the aggregate `audit post --plan` close-gate). Verification is a manual action (`bin/yitc-v2 plan check` — big-plan-checklist if large + external audit), **not** a persisted status. Full workflow: SPEC-0034 (`bin/yitc-v2 graph query SPEC-0034`).
 
@@ -195,26 +182,13 @@ If any of these gets requested mid-V2 — anti-complexity filter #4 («real inci
 
 > **Retrieved — SPEC-0036** (the universal V2 evaluation lens + the TASK per-stage overlays for audit-pre/audit-post; delivered at the Audit-pre + Audit-post stage-entries). `bin/yitc-v2 graph query SPEC-0036`
 
-The DECISION-audit overlays + the ad-hoc form below are NOT hosted by SPEC-0036 — they
-remain always-loaded:
+The DECISION-audit overlays are homed with the decision audit gates they belong to —
+**SPEC-0024** (a frozen class; `bin/yitc-v2 graph query SPEC-0024`). The ad-hoc form below is NOT
+hosted by SPEC-0036 — it remains always-loaded:
 
-### Per-stage overlays (decision-audit + ad-hoc — retained)
+### Per-stage overlays (ad-hoc — retained)
 <!--AUDIENCE:controller-->
 
-**decision audit-pre (Draft → Accepted)** — «is this design sound to commit task resource to?»:
-- the 4 anti-complexity filters genuinely pass (a decision is a governance change);
-- it EXPLICITLY amends the canonical surfaces it changes (does not silently bypass them);
-- alternatives / prior-art considered (existing analog — Principle 1 F1); reuse over reinvention;
-- scope bounded; **retirements named** (replacement, not accretion — what is removed/forbidden?);
-- `adoption_probe` is event/state/measurable (Principle 3 + 8 for infra-class);
-- coherence: does it contradict an existing decision / handbook rule (Principle 7 dissonance)?
-
-**decision audit-post (Accepted → Final)** — «did reality realize the decision's intent, coherently, across ALL its implementing tasks?»:
-- every implementing task (`refs.follow_ups` `T-NNNN`) is `done`;
-- the decision's `acceptance_criteria` / `adoption_probe` are ACTUALLY realized — probe evidence present, not merely claimed (catches the shipped-but-not-adopted class);
-- coherence: shipped reality matches what the decision SAID — no drift, no contradiction with other artifacts (P7);
-- the **retirements actually happened** (what the decision said to remove / forbid is removed / forbidden);
-- **Review-only :** same as the task audit-post — do NOT run tests; VERIFY the recorded Stage-6 evidence of the implementing tasks.
 
 **ad-hoc Review** — open-form. Owner specifies focus in the prompt itself. No fixed schema. Recommended path : `bin/yitc-v2 audit adhoc --slug <slug> [--prompt …|-f file|stdin] [--routine]` — wraps the external-auditor invocation + V2 lens, saves `decisions/<slug>-audit-adhoc.yaml`, emits the audit events; FULL model by default. **Run it from a `work/<slug>` writing worktree** (`bin/yitc-v2 worktree new --work <slug>`) — it SAVES that verdict YAML, so it is a write and the write-isolation guard refuses it on the main checkout. The rule's ONE home is §Writes happen in a worktree (AGENTS-SESSIONS.md).
 

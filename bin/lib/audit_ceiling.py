@@ -436,16 +436,17 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             except (OSError, ValueError, TypeError):
                 card = {}
         # T-13148 (X-1699): a pre-stage `fix` names the plan fingerprint the WORKER wrote — in its own
-        # live `task/<id>` worktree card, not yet landed. From main the local card carries no plan, so
-        # the plan is read from the SAME other checkout the T-12919/T-12836 fold reads. ONLY the plan
-        # field is taken: the local card stays authoritative for everything else (`decomposed_from`
-        # and `cites` feed directive admission — a worker-owned card must not widen it, audit-pre
-        # fp1:3ab10ea1891fa2b1). Any failure keeps the local card, so the refusal is today's.
+        # live `task/<id>` worktree card, not yet landed, so the plan is read from the SAME other
+        # checkout the T-12919/T-12836 fold reads. T-13734 (X-1871): that worktree plan wins EVEN when
+        # main's card carries one — a card planned on main, paused and re-planned in its worktree has
+        # its CURRENT plan only there (<project> T-0768). ONLY the plan field is taken: the local card
+        # stays authoritative for everything else (`decomposed_from` and `cites` feed directive
+        # admission — a worker-owned card must not widen it, audit-pre fp1:3ab10ea1891fa2b1). No live
+        # worktree, or any failure, keeps the local card, so the check is today's.
         # TASK TARGETS ONLY by construction: this sits inside the `if not is_plan:` arm above, so a
         # plan-gate decision (whose `stage` slot is empty and whose `fix` evidence is the gate's own
         # signature) never reaches it — audit-post fp1:7480db32b9418474.
-        if (stage == "pre" and disposition == "fix" and _cross_instance_path is not None
-                and not str(card.get("implementation_plan") or "").strip()):
+        if stage == "pre" and disposition == "fix" and _cross_instance_path is not None:
             try:
                 _other = _cross_instance_path()
                 _matches = (sorted((Path(_other).parent / "tasks").glob(f"{tid}-*.yaml"))
@@ -464,6 +465,37 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
     # stays None there rather than widening the coverage test.
     plan_slug = (None if is_plan
                  else (str(card.get("decomposed_from") or "").strip() or None))
+
+    def _pre_fix_gaps(rows, directive_gap=None, with_help=True) -> str:
+        """T-13740 (X-1880) — for a TASK pre-stage `fix`, EVERY requirement still missing, so the
+        refusal names them all at once instead of one per call (<project> measured four refusals in a
+        row). The three independent ones: the directive (`directive_gap`, from the caller), a covering
+        `owner_directive` row in the journal, and the evidence; plus the card's CURRENT plan
+        fingerprint, the value `--evidence` must carry. Read-only over the rows already folded —
+        nothing new is read. Empty for every other target, stage or disposition."""
+        if is_plan or stage != "pre" or disposition != "fix":
+            return ""
+        plan_text = str(card.get("implementation_plan") or "")
+        current_fp = _plan_content_hash(plan_text) if plan_text.strip() else None
+        covering = [r for r in rows if r.get("type") == "owner_directive"
+                    and _directive_covers_task(r, tid, plan_slug=plan_slug,
+                                               _directive_row_text=_directive_row_text,
+                                               _prose_names_token=_prose_names_token)]
+        gaps = [directive_gap] if directive_gap else []
+        if not covering:
+            gaps.append(f"a covering `owner_directive` row — none in the journal names {tid} "
+                        f"(record one; the route is below)")
+        if not evidence:
+            gaps.append("`--evidence <the current plan fingerprint>` — absent")
+        elif current_fp and evidence != current_fp:
+            gaps.append(f"`--evidence {evidence}` — not the card's current plan fingerprint")
+        lines = "".join(f"\n  - {g}" for g in gaps)
+        hint = (f"\n  (a covering row exists: events.jsonl#ts={covering[-1].get('ts')})"
+                if covering and directive_gap else "")
+        return (f"\n\nFOR THIS PRE-STAGE `fix`, MISSING ({len(gaps)}):{lines}{hint}"
+                f"\n  current plan fingerprint: "
+                f"{current_fp or 'unresolvable — the card carries no implementation_plan'}"
+                + (DIRECTIVE_COVERAGE_HELP if with_help and not covering else ""))
 
     # THE CRITICAL SECTION (audit-post pass-3 RED, fp1:f571ec95fe26b8e1). The duplicate check (ix)
     # reads the `ceiling_decision` rows recorded SO FAR and the append writes one; between them sits
@@ -683,7 +715,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
         if not locator.strip():
             _refuse("directive-missing", "directive_absent",
                     f"{target_id} — `--directive events.jsonl#ts=<ISO>` is REQUIRED: every ceiling "
-                    f"decision cites the owner directive that authorizes it (SPEC-0204 rule 2).")
+                    f"decision cites the owner directive that authorizes it (SPEC-0204 rule 2)."
+                    + _pre_fix_gaps(rows, "`--directive events.jsonl#ts=<ISO>` — absent"))
         # `target_id` is the token the coverage test matches — the task id for a task, the PLAN SLUG for
         # a plan gate. `_directive_covers_task`'s prose arm is `_prose_names_token`, which is token-exact
         # over the `[A-Za-z0-9_-]` alphabet both id shapes are drawn from, so a directive naming the plan
@@ -763,7 +796,12 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     # concrete route; every other axis's message is byte-identical to before.
                     + (DIRECTIVE_COVERAGE_HELP
                        if axis in ("directive-not-covering", "delegation-chain-broken",
-                                   "directive-ambiguous") else ""),
+                                   "directive-ambiguous") else "")
+                    # T-13740 — a pre-stage `fix` names every other gap in the same refusal.
+                    + _pre_fix_gaps(rows, f"`--directive {locator}` — did not resolve ({axis})",
+                                    with_help=axis not in ("directive-not-covering",
+                                                           "delegation-chain-broken",
+                                                           "directive-ambiguous")),
                     {"directive": locator, **({"plan": plan_slug} if plan_slug else {}),
                      **chain_extra})
         directive_text = _directive_row_text(directive_row)
@@ -885,7 +923,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                 _refuse("evidence-missing", "evidence_revision_absent",
                         f"{target_id} — `--evidence <revision>` is REQUIRED for a `fix`: the revision "
                         f"that carries the change (SPEC-0204 rule 2). «Already in the audited commit» "
-                        f"is an `accept` with that reason, never a `fix`.")
+                        f"is an `accept` with that reason, never a `fix`."
+                        + _pre_fix_gaps(rows))
             if is_plan:
                 # A plan-gate `fix` is a PLAN-BODY edit, so the evidence is the plan's CURRENT
                 # signature computed THE WAY THAT GATE RECORDS IT (`_PLAN_CONSULT_GATE_AUDIT`'s

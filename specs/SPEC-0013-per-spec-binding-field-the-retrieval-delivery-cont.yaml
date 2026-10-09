@@ -411,7 +411,7 @@ proposed_by: null
 implements_signature:
   bin/lib/cli.py#BINDING_QUERY_ONLY_TOKEN: 5f6b5370d89143db7c0bc900a10521ffeee721eef3ed504e46e143fb45e18783
   bin/lib/cli.py#BINDING_SEED_TOKEN: 7aada1e1acf49631333820170f41b09f999089d731efcecef3e1fa09dbb47f47
-  bin/lib/cli.py#BINDING_VERB_SURFACES: f5c50abf9839a7b4cdcc3e19eafd5f60ff009332a68110b2878045ad0126f526
+  bin/lib/cli.py#BINDING_VERB_SURFACES: 988ac2837365b45b3f56b754acf5b77cb22bfe0550691b0dba37255df527fb4d
   bin/lib/cli.py#STAGE_AXIS_NAMES: 3d4fd0eb5f7aef35c3dded92047f55346b57c14f3aed26be3b1bc4cf2c42617f
   bin/lib/cli.py#SURFACE_TO_STAGE: a29540cd76e9a3ab5c292e2b09ce7cf3007bcfd367130e9ad7107b03886ad07f
   bin/lib/cli.py#_seed_howto: 5df617dba9e2095eed4abb94a003ccffb31d58f825b3e3f9cdd48d5f565cdaeb

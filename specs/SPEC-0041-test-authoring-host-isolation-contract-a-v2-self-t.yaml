@@ -97,13 +97,10 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \    launched it, unique by construction across the runs in flight.\n  NOT A GUARANTEE\
   \ — DERIVED. A name COMPUTED from inputs the runs SHARE — a content hash, a\n  \
   \  repository-plus-task key — is NOT a uniqueness guarantee, and saying so by name\
-  \ is the point:\n    two concurrent runs over the same inputs compute the SAME name.\
-  \ Evidence from this engine's own\n    history — its detached-land log is keyed\
-  \ by repository and task, which is exactly why that log\n    is append-only ACROSS\
-  \ ATTEMPTS and why a poll of it had to be anchored to the current attempt's\n  \
-  \  bytes.\n\nADMISSIBLE BY INTERCHANGEABLE WRITERS — a second, independent safety\
-  \ argument. It is NOT clause\n(ii) and must be made explicitly rather than smuggled\
-  \ in as a discriminated name: a FIXED name is\nadmissible when its concurrent writers\
+  \ is the point:\n    two concurrent runs over the same inputs compute the SAME name.\n\
+  \nADMISSIBLE BY INTERCHANGEABLE WRITERS — a second, independent safety argument.\
+  \ It is NOT clause\n(ii) and must be made explicitly rather than smuggled in as\
+  \ a discriminated name: a FIXED name is\nadmissible when its concurrent writers\
   \ are INTERCHANGEABLE — every concurrent writer produces the\nsame bytes, each write\
   \ is atomic, and no reader depends on which one won.\n\nEXCLUSION (a) — NOT OWNED,\
   \ NOT IN SCOPE. A path another process writes and this test only READS is\n  §1b's\
@@ -146,8 +143,7 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ (pick one; both already)\n- **(a) In-process monkeypatch of the path globals.**\
   \ For an in-process test, reassign the CLI module\n  globals to tmp paths BEFORE\
   \ the code under test reads them — e.g. `yitc.TASKS_DIR`,\n  `yitc.DECISIONS_DIR`,\
-  \ `yitc.GRAPH_PATH`, `yitc.EVENTS_PATH` (prior-art:\n  `tests/test_graph_freshness.py`,\
-  \ `tests/test_audit_degeneration.py`). Restore them in a `finally`\n  if the same\
+  \ `yitc.GRAPH_PATH`, `yitc.EVENTS_PATH`. Restore them in a `finally`\n  if the same\
   \ process runs other tests.\n- **(b) Build / run in a tmp repo (subprocess via `YITC_REPO_ROOT`).**\
   \ For anything that shells out\n  to the real CLI (`graph build`, `audit`, `task`\
   \ verbs) use the **`YITC_REPO_ROOT`** opt-in env\n  override : it redirects ALL\
@@ -199,12 +195,21 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ behaviour, and is\ncarried by the sandbox-leak incident family — repeated one-test-at-a-time\
   \ fixes sharing one root:\nan engine self-tooling test touched the host checkout,\
   \ with no governing spec on how to write a test\nand nothing test-discipline delivered\
-  \ when a worker writes one.\n\n## Verification\n\nProbe CONTRACTS (the rule's `##\
-  \ Verification` per SPEC-0005 §8 — contracts, not one-time results):\n- **VP1 (body\
-  \ carries the contract):** this `## Internal` names ALL seven host-mutable surfaces\n\
-  \  (REPO_ROOT / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH / FLOOR_MAP_PATH\
-  \ / git), BOTH\n  isolation techniques (monkeypatch the path globals OR a tmp repo),\
-  \ the canonical helper\n  (`tests/_graph_build_sandbox.build_index_in_temp_copy`\
+  \ when a worker writes one.\n\n### History moved from the rule body\n\nEach entry\
+  \ is a passage moved word for word out of the rule text of the section it names;\n\
+  the rule it explains stays there.\n\n- From «1c. A mutable resource a test OWNS\
+  \ takes a run-unique name»: Evidence from this engine's\n  own history — its detached-land\
+  \ log is keyed by repository and task, which is exactly why that\n  log is append-only\
+  \ ACROSS ATTEMPTS and why a poll of it had to be anchored to the current\n  attempt's\
+  \ bytes.\n\n## Implementation notes\n\nNotes for the maintainer of the code, moved\
+  \ word for word out of the rule text of the section\neach names.\n\n- From «2. The\
+  \ two sanctioned isolation techniques»: (prior-art: `tests/test_graph_freshness.py`,\n\
+  \  `tests/test_audit_degeneration.py`)\n\n## Verification\n\nProbe CONTRACTS (the\
+  \ rule's `## Verification` per SPEC-0005 §8 — contracts, not one-time results):\n\
+  - **VP1 (body carries the contract):** this `## Internal` names ALL seven host-mutable\
+  \ surfaces\n  (REPO_ROOT / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH\
+  \ / FLOOR_MAP_PATH / git), BOTH\n  isolation techniques (monkeypatch the path globals\
+  \ OR a tmp repo), the canonical helper\n  (`tests/_graph_build_sandbox.build_index_in_temp_copy`\
   \ + `YITC_REPO_ROOT` + `YITC_EVENTS_SINK`),\n  and the leak canary as the enforcement\
   \ probe — `bin/yitc-v2 graph query SPEC-0041` returns them.\n  It ALSO carries the\
   \ **§1b shared-mutable-state-under-concurrency rule** : a test MUST NOT\n  assert\

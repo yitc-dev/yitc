@@ -92,7 +92,7 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ the order- and reader-independence this rule exists to guarantee. The WRITE side\
   \ is where the\nregistry is read, and it fails CLOSED there (an empty/unreadable\
   \ registry cannot prove a sender\nphantom, so the widening does not fire). Verb\
-  \ + fences: SPEC-0086 §`cross close`. **Terminal states:** `closed | acked | rejected\
+  \ + fences: SPEC-1020 §`cross close`. **Terminal states:** `closed | acked | rejected\
   \ |\nwithdrawn` (an `archived` item was already terminal). **Duplicate handling:**\
   \ the fold is\nidempotent — a duplicated append folds to the same state (union-merge\
   \ dedup, rule 4); ordering does\nnot matter (the fold reads the SET of an id's events,\
@@ -157,10 +157,10 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ for real. And it\ndoes not widen `cross_closed` by a millimetre: that event's\
   \ role, kinds and from-state are UNCHANGED,\nso close still means «I verified»,\
   \ and on a disputed item a close is refused wrong-state. The VERB\nhalf — the `--reason`\
-  \ requirement, the citation ordering, the guard — is the verb sibling SPEC-0086\n\
-  §`cross dispute`; this spec owns the data model only.\n\n**The NOTE-ATTACH edge\
-  \ — a repeat `cross_done` on a `done` item (X-0618).** A second\n`cross_done` emitted\
-  \ by the RECEIVER on an item already at `done` is a NOTE-ATTACH, not a new\ntransition\
+  \ requirement, the citation ordering, the guard — is the verb spec SPEC-1020\n§`cross\
+  \ dispute`; this spec owns the data model only.\n\n**The NOTE-ATTACH edge — a repeat\
+  \ `cross_done` on a `done` item (X-0618).** A second\n`cross_done` emitted by the\
+  \ RECEIVER on an item already at `done` is a NOTE-ATTACH, not a new\ntransition\
   \ and NOT the terminal reanimation forbidden just above: `done` is not a terminal\
   \ state\n(the terminals are `closed | acked | rejected | withdrawn`), the repeat\
   \ folds to the SAME `done`,\nand it introduces no state and no event type. It is\
@@ -192,7 +192,7 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ just at the verb: a\n`cross_closed` on a note is DROPPED unless it positively\
   \ carries `out_of_band` exactly `true` + a\n`reason` that is a non-empty STRING.\
   \ A note NEVER reaches `picked`/`done`, so the plain `done`-gated close never applies\
-  \ to it.\nMode + fences: SPEC-0086 §`cross close` (the verb's home; not restated\
+  \ to it.\nMode + fences: SPEC-1020 §`cross close` (the verb's home; not restated\
   \ here).\n**The RECEIVER's terminal carries the receiver's SUBSTANTIVE RETURN (X-0889):**\n\
   `cross_acked.data.note` is the note kind's return slot — the sibling of `cross_done.data.note`\n\
   \ on the one terminal a note actually has. Without it a `note` that ASKED for work\
@@ -296,72 +296,73 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ — a wrong \"delivered\" is the harm). The land/capture tail\nprints the same LOCAL\
   \ notice for the filed and the refused branch, and never claims a filing reached\n\
   the kernel. Routing mechanics are unchanged; only the promise is scoped to what\
-  \ the host can deliver\n(`bin/lib/cross.py#kernel_reflex_echo` / `#kernel_local_recording_notice`).\n\
-  \n**THIS SEAM'S SHAPE IS NOW USED TWICE, and the second use is NOT in this store\
-  \ (SPEC-0119 rule 41).** When a test file ENTERS the declared load-sensitive set\
-  \ at the land tail,\n`land` also auto-files ONE `ready` TASK CARD for it — deterministic,\
-  \ idempotent by the fingerprint\n`load-sensitive:<file>`, best-effort, no owner\
-  \ reminder, and never claimed/dispatched/picked by\nthe engine (CHARTER §6: filing\
-  \ is automatic, taking a card into work stays an owner cue). That is\nthe SECOND\
-  \ automatic filing seam in the system and it was built to THIS one's pattern; it\
-  \ writes a\ncard in the repo's own `tasks/`, NOT a coordination item here, so nothing\
-  \ in this spec's FSM,\nkinds, identity rules or store governs it. Named here only\
-  \ so a reader looking for «what else\nfiles something by itself» finds both, and\
-  \ finds the boundary between them stated rather than\ninferred.\n\nThis is the SAME\
-  \ asymmetry SPEC-0086 §Peer identity already states — WRITE-side fail-CLOSED on\
-  \ an\nunresolvable identity, READ-side fail-SOFT — extended to the one write path\
-  \ it had not reached\n( had bounded it to the unreadable-registry case on the interactive\
-  \ `cross request`). The\nREAD side is UNCHANGED and deliberately so: identity resolution\
-  \ still fail-softs an unregistered\nbasename to itself, so `cross inbox` / `cross\
-  \ outbox` and the session-start surface keep working in\nan unregistered checkout\
-  \ instead of refusing. That classification is carried by TWO fields with strictly\n\
-  separate jobs: **`realm`** — the ENUMERATED routable half (the SPEC-0073 placement\
-  \ realms\n`kernel | v2-self | project`, validated at capture; only `kernel` routes)\
-  \ — and **`relates_to`** —\nthe FREE-TEXT aspect (a CHARTER failure-class id and/or\
-  \ prose), which **never routes on its own**.\nOriginally the routable half lived\
-  \ INSIDE `relates_to` as an exact string match, so a kernel-shaped\ndeviation worded\
-  \ as prose matched nothing and was dropped SILENTLY while the consumer session-start\n\
-  echo advertised the hand-off as automatic. The legacy exact value `relates_to: kernel`\
-  \ still resolves\nto the kernel realm, so every already-routing capture keeps routing.\
-  \ Nothing infers a realm FROM\nprose: the marker semantics are reused, not re-derived\
-  \ (no new classifier). A **near-miss** — a\ndeclared kernel realm without the kernel\
-  \ `target`, a kernel `target` without the kernel realm, or an\naspect that NAMES\
-  \ the kernel with no `realm: kernel` — is surfaced as a **REPORT-ONLY WARN at `land`\n\
-  and is NEVER routed** (`#kernel_near_miss_deviations`), on the same ground this\
-  \ section's\ndangling-resolved advisory states: prose is overloaded, and auto-mutating\
-  \ the shared log off an\nambiguous prose match would violate the CHARTER §6 surface-don't-auto-mutate\
-  \ fence. **Stale-dismiss (X-0317):** a verified-stale near-miss (its kernel problem\
-  \ since FIXED or no longer relevant) is silenced by a fingerprint-keyed `deviation_resolved`\
-  \ journal event (append-only, via the generic `event` verb; gathered by `resolved_deviation_fps`,\
-  \ honored by `#kernel_near_miss_deviations` ALONGSIDE the cross-filed origin_fp\
-  \ dedup) — FAIL-CLOSED: only an EXPLICIT resolving event silences a row, there is\
-  \ NO age window over an unresolved one.\n**Its DISPOSITION completes that audit\
-  \ trail (X-0599).** The silencer permanently mutes a SAFETY warning, so it carries\
-  \ THREE governed legs, all fail-closed at the write: `resolved_by` (who), `evidence`\
-  \ (the proof the row is stale), and `disposition` — WHICH of the three legitimate\
-  \ ways the signal already travelled, from the CLOSED vocabulary `routed-by-hand\
-  \ | not-kernel | already-fixed | submitted-upstream` (`#DEVIATION_DISPOSITIONS`;\
-  \ `submitted-upstream` — — is the SENT state of a kernel-bound capture on a host\
-  \ with no kernel peer: the person sent it to the public intake, and the row MUST\
-  \ carry a non-empty `locator` naming where, refused at the write otherwise; it silences\
-  \ the intake draft and the land notice, which counts distinct pending fingerprints;\
-  \ free text is refused, since an un-named dismissal cannot later be separated into\
-  \ \"we filed it elsewhere\" vs \"we judged it not ours\"). The disposition is a\
-  \ WRITE-side contract only: `resolved_deviation_fps` still joins on `fingerprint`\
-  \ alone, so every already-landed resolving event keeps silencing — no reader migration.\
-  \ The near-miss WARN itself PRINTS the ready-to-paste disposition command with the\
-  \ fingerprint prefilled for every fingerprinted row: X-0599 measured 5 near-misses\
-  \ dispositioned by hand with nowhere to record the conclusion, re-firing land after\
-  \ land, because the tail said \"or ignore\" and named no way to record that ignore.\
-  \ A row with NO fingerprint has no dismiss key by construction and is excluded —\
-  \ its only exit is fixing its marker. This EXTENDS the append-only capture discipline,\
-  \ never weakens it: a disposition is a SEPARATE append and the `deviation_captured`\
-  \ line is never mutated. An explicitly\nnon-kernel realm is NOT exempt from the\
-  \ warn — a realm/aspect contradiction is a CHARTER §P7\ndissonance, surfaced rather\
-  \ than swallowed. Cadence home: patterns/error-friction-tracking.md\n§CADENCE step-3.\
-  \ A kernel FEATURE ask (`--kind task`) stays owner-gated — unchanged.\n**Receiver-side\
-  \ close-the-loop.** The `requested → picked → done` legs are the RECEIVER's;\nthe\
-  \ `done` leg may be driven AUTOMATICALLY when the resolving task carries a structured\n\
+  \ the host can deliver\n(`bin/lib/cross.py#kernel_reflex_echo` / `#kernel_local_recording_notice`).\
+  \ What the project itself\ndoes at such a capture, and meanwhile, is homed in SPEC-1010\
+  \ §2 and is not restated here.\n\n**THIS SEAM'S SHAPE IS NOW USED TWICE, and the\
+  \ second use is NOT in this store (SPEC-0119 rule 41).** When a test file ENTERS\
+  \ the declared load-sensitive set at the land tail,\n`land` also auto-files ONE\
+  \ `ready` TASK CARD for it — deterministic, idempotent by the fingerprint\n`load-sensitive:<file>`,\
+  \ best-effort, no owner reminder, and never claimed/dispatched/picked by\nthe engine\
+  \ (CHARTER §6: filing is automatic, taking a card into work stays an owner cue).\
+  \ That is\nthe SECOND automatic filing seam in the system and it was built to THIS\
+  \ one's pattern; it writes a\ncard in the repo's own `tasks/`, NOT a coordination\
+  \ item here, so nothing in this spec's FSM,\nkinds, identity rules or store governs\
+  \ it. Named here only so a reader looking for «what else\nfiles something by itself»\
+  \ finds both, and finds the boundary between them stated rather than\ninferred.\n\
+  \nThis is the SAME asymmetry SPEC-0086 §Peer identity already states — WRITE-side\
+  \ fail-CLOSED on an\nunresolvable identity, READ-side fail-SOFT — extended to the\
+  \ one write path it had not reached\n( had bounded it to the unreadable-registry\
+  \ case on the interactive `cross request`). The\nREAD side is UNCHANGED and deliberately\
+  \ so: identity resolution still fail-softs an unregistered\nbasename to itself,\
+  \ so `cross inbox` / `cross outbox` and the session-start surface keep working in\n\
+  an unregistered checkout instead of refusing. That classification is carried by\
+  \ TWO fields with strictly\nseparate jobs: **`realm`** — the ENUMERATED routable\
+  \ half (the SPEC-0073 placement realms\n`kernel | v2-self | project`, validated\
+  \ at capture; only `kernel` routes) — and **`relates_to`** —\nthe FREE-TEXT aspect\
+  \ (a CHARTER failure-class id and/or prose), which **never routes on its own**.\n\
+  Originally the routable half lived INSIDE `relates_to` as an exact string match,\
+  \ so a kernel-shaped\ndeviation worded as prose matched nothing and was dropped\
+  \ SILENTLY while the consumer session-start\necho advertised the hand-off as automatic.\
+  \ The legacy exact value `relates_to: kernel` still resolves\nto the kernel realm,\
+  \ so every already-routing capture keeps routing. Nothing infers a realm FROM\n\
+  prose: the marker semantics are reused, not re-derived (no new classifier). A **near-miss**\
+  \ — a\ndeclared kernel realm without the kernel `target`, a kernel `target` without\
+  \ the kernel realm, or an\naspect that NAMES the kernel with no `realm: kernel`\
+  \ — is surfaced as a **REPORT-ONLY WARN at `land`\nand is NEVER routed** (`#kernel_near_miss_deviations`),\
+  \ on the same ground this section's\ndangling-resolved advisory states: prose is\
+  \ overloaded, and auto-mutating the shared log off an\nambiguous prose match would\
+  \ violate the CHARTER §6 surface-don't-auto-mutate fence. **Stale-dismiss (X-0317):**\
+  \ a verified-stale near-miss (its kernel problem since FIXED or no longer relevant)\
+  \ is silenced by a fingerprint-keyed `deviation_resolved` journal event (append-only,\
+  \ via the generic `event` verb; gathered by `resolved_deviation_fps`, honored by\
+  \ `#kernel_near_miss_deviations` ALONGSIDE the cross-filed origin_fp dedup) — FAIL-CLOSED:\
+  \ only an EXPLICIT resolving event silences a row, there is NO age window over an\
+  \ unresolved one.\n**Its DISPOSITION completes that audit trail (X-0599).** The\
+  \ silencer permanently mutes a SAFETY warning, so it carries THREE governed legs,\
+  \ all fail-closed at the write: `resolved_by` (who), `evidence` (the proof the row\
+  \ is stale), and `disposition` — WHICH of the three legitimate ways the signal already\
+  \ travelled, from the CLOSED vocabulary `routed-by-hand | not-kernel | already-fixed\
+  \ | submitted-upstream` (`#DEVIATION_DISPOSITIONS`; `submitted-upstream` — — is\
+  \ the SENT state of a kernel-bound capture on a host with no kernel peer: the person\
+  \ sent it to the public intake, and the row MUST carry a non-empty `locator` naming\
+  \ where, refused at the write otherwise; it silences the intake draft and the land\
+  \ notice, which counts distinct pending fingerprints; free text is refused, since\
+  \ an un-named dismissal cannot later be separated into \"we filed it elsewhere\"\
+  \ vs \"we judged it not ours\"). The disposition is a WRITE-side contract only:\
+  \ `resolved_deviation_fps` still joins on `fingerprint` alone, so every already-landed\
+  \ resolving event keeps silencing — no reader migration. The near-miss WARN itself\
+  \ PRINTS the ready-to-paste disposition command with the fingerprint prefilled for\
+  \ every fingerprinted row: X-0599 measured 5 near-misses dispositioned by hand with\
+  \ nowhere to record the conclusion, re-firing land after land, because the tail\
+  \ said \"or ignore\" and named no way to record that ignore. A row with NO fingerprint\
+  \ has no dismiss key by construction and is excluded — its only exit is fixing its\
+  \ marker. This EXTENDS the append-only capture discipline, never weakens it: a disposition\
+  \ is a SEPARATE append and the `deviation_captured` line is never mutated. An explicitly\n\
+  non-kernel realm is NOT exempt from the warn — a realm/aspect contradiction is a\
+  \ CHARTER §P7\ndissonance, surfaced rather than swallowed. Cadence home: patterns/error-friction-tracking.md\n\
+  §CADENCE step-3. A kernel FEATURE ask (`--kind task`) stays owner-gated — unchanged.\n\
+  **Receiver-side close-the-loop.** The `requested → picked → done` legs are the RECEIVER's;\n\
+  the `done` leg may be driven AUTOMATICALLY when the resolving task carries a structured\n\
   `resolves_cross: X-NNNN` link (SPEC-0028): closing it auto-emits `cross_done` for\
   \ each linked item the\ncloser RECEIVES (`self == item.to`) that is currently `picked`\
   \ — exactly the FSM-legal `cross_done`\nstate, so a shipped fix never leaves its\

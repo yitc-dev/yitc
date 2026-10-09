@@ -54,8 +54,8 @@ land under the harness **Monitor** primitive (persistent watch-until-condition w
 turn/cap — survived 2/2 incl. hour-long waits) and keys ALL recovery off the JOURNAL (`LAND:` token +
 admission heartbeats + the IDEMPOTENT `worktree recover-land` / re-`land` verbs, §Abnormal), NEVER off the
 wrapper's process lifetime. Parallel lands stay — NO fan-out cap (owner directive 2026-07-18); harden the
-machinery, do not serialize. This is the seed §land qualifier (AGENTS-SESSIONS) in operator form — one
-home, not a divergent second.
+machinery, do not serialize. The seed's land bullet (AGENTS-SESSIONS) keeps the cue; this pattern is
+the home of the detail (§Running land below).
 **AMENDED 2026-08-24 — the wrapper CHOICE no longer decides whether the land survives.** A
 non-worker `land` leaves the caller's process group at entry (journaled `land_process_group_escaped`), so a
 group-directed kill aimed at your wrapper does not reach the land: a watcher that dies, times out or was
@@ -75,10 +75,64 @@ re-exec parent that witnesses its queued child's SIGKILL journals `land_terminat
 now KEPT whenever the land ended without its `LAND:` token — deleted only after a relayed token — so a land
 killed while queued leaves its output behind. Absence of a `LAND:` token still proves nothing, being
 equally true of a healthy queued land. The DISPATCHED-WORKER rule is the opposite case and is untouched.
-Rule home stays the seed §land qualifier (AGENTS-SESSIONS). ENFORCED
+Detail home: this pattern; the seed's land bullet (AGENTS-SESSIONS) keeps the cue. ENFORCED
 at the source: the `dispatch` verb INJECTS it as the standing worker preamble (`DISPATCH_WORKER_PREAMBLE`) and `stage <NAME>` re-prints it at the long-command / land stage-entries, both consuming the
 ONE shared `SYNC_TO_LAND_RULE` constant. The scope boundary bounding this pressure homes single-SoT in
 **SPEC-0103** — never weaken/skip a gate to force a blocked land; STOP and escalate instead.
+
+## §Running land — the detail behind the seed's land bullet (reference)
+
+The seed's land bullet (AGENTS-SESSIONS §Writes happen in a worktree) keeps what every caller needs
+before the call: read the final `LAND:` line, capture stderr, terminal = the token or the exit, an
+interactive caller prefers the background and re-arms rather than re-lands, a worker stays in the
+foreground.
+This section is the detail behind that bullet; `land --help` points here. The interactive-wrapper
+and stopped-land rules it builds on are in §Synchronous-to-LAND above.
+
+- **The token.** The match is case-sensitive: the lowercase human `land:` line + the
+  `cd <main>` cue never collide. Run-from-main keeps your cwd alive, but the token matters either way:
+  the legacy in-worktree `cd <worktree> && bin/yitc-v2 land` has its cwd removed by the *successful*
+  land so the wrapper's `getcwd` fails and the shell exit reads nonzero though land exited 0 (E-0010
+  manifestation D — the false-fail); the token survives it. `land_completed` stays INTERNAL
+  provenance — the STDOUT token is the single caller-facing contract.
+- **Stderr.** A pre-verify REFUSAL (a missing `-C` target, a fail-closed session identity,
+  any guard upstream of `cmd_land`'s terminal-signal seam) never reaches the token: it prints as a
+  plain `yitc-v2: …` line on **stderr** and exits nonzero, so a `^LAND:`-only watcher captures an
+  EMPTY file (X-0843 — an instance of SPEC-0165 item 11).
+- **Terminality (SPEC-0180 rule 2c).** `yitc-v2:` is the tool's GENERIC message prefix — `land`
+  prints ordinary progress under it (the graph auto-rebuild notice, the verify heartbeat) — so a bare
+  `yitc-v2:` line is terminal only WITH an exit. Collapsing the two is a measured false green.
+  Capture wide; gate narrow.
+- **Why the wait splits by session kind.** The verify step update-from-main → graph rebuild
+  → pinned hermetic test suite routinely runs minutes, longer than a tool's short default command
+  timeout, and the two audiences must not be conflated: for an interactive caller backgrounding frees
+  the conversation instead of blocking on a minutes-long verb. (Provider-neutral: the exact default-timeout
+  value is harness-specific — the rule is "land is a minutes-long verb".)
+- **Kill shapes.** A timed wrapper is a KILL shape, not a watcher: a `timeout N` wrapper,
+  or a Monitor whose expiry is shorter than a plausible reservation wait, SIGTERMs the land at expiry
+  (`land-wrapped-in-timeout-killed-without-process-group-escape-row`,
+  `land-killed-at-monitor-expiry-despite-already-leader-escape-row`) — that is what the session
+  escape below removed, and what `YITC_LAND_KEEP_PROCESS_GROUP=1` brings back. A land queued on a
+  SPEC-0132 admission slot emits `waiting_for_verify_admission_slot` heartbeats and no output, so a
+  reservation wait is the long silent stretch such a wrapper expires in.
+- **The session escape.** A non-worker `land` now leaves the caller's session AND ancestry
+  at entry: a double fork into its own session, stdio to log files, the launched pid only relays them
+  and exits with the land's code — journaled `land_process_group_escaped` mechanism `session-fork`,
+  naming the logs — so a kill of the wrapper, by pid, group, session or descendant walk, costs only
+  the relay. Surviving shape: an un-timed background land or Monitor keyed off the journal
+  (`setsid nohup … &` also survives). The DISPATCHED WORKER case is the opposite rule and is
+  deliberately untouched: a worker's land stays in its worker's process group (SPEC-0103 / SPEC-0180).
+- **Reading a stopped land.** Do not read a stale heartbeat as evidence that something killed your
+  land. What you DO get is the discrimination that matters operationally — a land that stopped
+  emitting never reads the same as a healthy queued one. Separating an uncatchable kill from a silent
+  hard crash needs an EXTERNAL observer (a parent's wait status, the killer's own log, cgroup/OOM or
+  auditd records), none of which is the dead land's durable state.
+- **The worker heartbeat.** A backgrounded worker land is killed mid-flight before `LAND: OK`
+  (the recurring worker-land-death class — /, 2026-06-27). Foreground-by-construction belt: in a dispatched-worker context
+  (`YITC_EXPECTED_SESSION_REF` set) `land` streams a periodic verify-progress **heartbeat** to stderr
+  so the minutes-long foreground run stays visibly alive (no "looks hung" timeout-fear) — tune/disable
+  via `YITC_VERIFY_HEARTBEAT_SECS` (default 20s; `<=0` disables). Additive observability only — the
+  verify verdict/gate is unchanged.
 
 ## §Monitoring — READ the fleet through `journal query --fleet-verdict` (verb, SPEC-0133)
 
@@ -157,7 +211,14 @@ bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monito
   rule-12 monitoring credit, so the dispatch stays on the unmonitored-dispatch debt line echoed at
   session-start and the land-tail. **Only the NEGATIVE is provable.** Everything else records `unproven` —
   never a delivery attestation: `dispatch --watch … &` with no redirect inherits your stdout and is still
-  orphaned. There is **no refusal**: refusing would destroy the only observability an orphaned arming still
+  orphaned. **The harness background primitive does not exempt a redirect.** The classifier
+  compares stream identity — the watcher's stdout against its caller's — and never reads how the call
+  was launched. So a `dispatch` launch or a `dispatch --watch` re-arm run UNDER the harness background
+  primitive with `> log 2>&1` is recorded `watch_armed(reachability=unreachable)`, detail `redirected`,
+  as the orphaned form is: the same withheld credit, and the `WATCH:` token in the log. That row states
+  how the call was armed; it does not state whether the call's exit reached the Controller. Run the
+  launch with its stdout attached — no redirect to a file, no pipe, no filter (a pipe is recorded
+  `unproven`, detail `piped`). There is **no refusal**: refusing would destroy the only observability an orphaned arming still
   has. Prose is the pointer here; the arm-time signal is the fix.
 - **Token contract — the `LAND:` analog.** The FINAL stdout line is a machine-readable terminal
   status: match **`^WATCH: (WAKE|ALL_TERMINAL|ANY_TERMINAL|TIMEOUT)\b`** (case-sensitive) and parse THAT —

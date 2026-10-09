@@ -1,0 +1,284 @@
+id: SPEC-1021
+title: Acceptance worked examples — measured cases behind the cues of SPEC-0060 item
+  4 (reference, read when a criterion answers yes to a cue)
+status: active
+created_at: 2026-10-08 10:26:13+00:00
+consumed: false
+implements: []
+body: "## Scenario\n\nAn author writing an acceptance criterion asks the one question\
+  \ of SPEC-0060 item 4 and meets, in\nthat item, a cue the criterion in front of\
+  \ them fits, or may fit. The measured cases behind that\ncue — what was written,\
+  \ what it cost, the wording that would have passed — are a REFERENCE: no\nstage\
+  \ entry renders them. The author meets a pointer to them in two places — the index\
+  \ paragraph\nof SPEC-0060 item 4 and the first lines of the `task file` help — and\
+  \ fetches them on demand.\nEverything else of item 4 stays in SPEC-0060: the one\
+  \ question, the lead of each block below, and\nevery cue and rule this spec does\
+  \ not list.\n\n## Internal\n\n### Delivery and lookup\n\n- This spec is rendered\
+  \ at NO stage entry and is fetched before no verb: reading it is not checked.\n\
+  \  Every block below is an authoring PROMPT, as in SPEC-0060 item 4: no card is\
+  \ refused for omitting\n  it.\n- Fetch it on demand with `graph query SPEC-1021`\
+  \ (under `-C`: `graph query --kernel SPEC-1021`).\n- Lookup: every block opens with\
+  \ the lead its cue carries in SPEC-0060 item 4, so a search of this\n  spec for\
+  \ a cue name, or for a card id a block cites, lands in that block.\n- Reading: each\
+  \ block is text of SPEC-0060 item 4, moved here line for line. Words of each block\n\
+  \  also stay in item 4, as its cue — the same words in both places. Inside a block\
+  \ «this item» is\n  SPEC-0060 item 4, «item 5» is item 5 of the same checklist,\
+  \ and «above» reads against the order\n  of the cues in item 4.\n- A new block of\
+  \ this kind is authored here, with its lead added to SPEC-0060 item 4\n  (SPEC-0005\
+  \ §6).\n\n### Worked examples of the one question\n\n**Conforming-run satisfiability\
+  \ cue (X-1054) —** does a criterion constrain the SHAPE OF THE\nDIFF (\"the diff\
+  \ touches only `<file>`\" / \"any file outside `<path>` fails this\")? Then ask\n\
+  whether a CONFORMING 9-stage run could satisfy it AS WRITTEN. As a bare shape it\
+  \ cannot: the\nshipped commit NECESSARILY also carries this card's own lifecycle\
+  \ fields (written by the\nstage verbs), `events.jsonl` rows, and the audit YAML\
+  \ LIFECYCLE §Stage 8 explicitly instructs\nbe left dirty for `task close` — and\
+  \ `task commit` owns staging and exposes no path filter\n(→ SPEC-0014), so the only\
+  \ literally-satisfying path is hand-rolled git around the governed\nverbs, which\
+  \ AGENTS §Verb-execution discipline forbids. So scope the criterion to the PRODUCT\n\
+  hunks and SAY SO, with the exclusion written as a CLOSED LIST that is PROVENANCE-BOUND,\
+  \ never\npath-shaped: admit this task's card lifecycle fields, its `events.jsonl`\
+  \ entries, and its own\ngoverned audit/decision artifacts — in each case ONLY where\
+  \ a REQUIRED STAGE VERB produced\nthem FOR THIS SAME TASK. An exclusion that admits\
+  \ a PATH regardless of WHO WROTE IT is the\nsoft edge to avoid: it lets a real product\
+  \ file ride in as bookkeeping. Keep the criterion\nDIFFERENTIAL by naming what still\
+  \ FAILS it — any application / source / config / docs /\nschema / test file, a hand-edited\
+  \ lifecycle artifact carrying product semantics, another\ntask's metadata, and any\
+  \ path that changes runtime behaviour, verification behaviour,\nownership declarations\
+  \ or review scope. Worked instance to reuse: <project>'s landed\nAC4. The generalisation\
+  \ of the paragraph above — same failure mode (an AC that is\nunsatisfiable BY CONSTRUCTION\
+  \ reads at audit-post as an unmet AC, not as the authoring defect\nit is), now on\
+  \ the diff-shape axis; measured cost: the same wording twice in one day by one\n\
+  author, the second time with the fix in view, burning the audit-loop ceiling, two\
+  \ consults\nreaching OPPOSITE conclusions, a halted worker and an owner reset. An\
+  \ authoring PROMPT only:\nno card is refused for omitting it, and nothing validates\
+  \ it (rule home → this item).\n\nThe next two blocks belong to the Evidence-availability\
+  \ cue of SPEC-0060 item 4.\nThat item keeps the cue's question, limb (a) with its\
+  \ example land-tie phrasings, and the obligation to\nname the event token.\n\n**Worked\
+  \ NEGATIVE example, beside the wording that would have passed** — AC4. The\nFAILING\
+  \ wording:\n\n    AC4: the land that ships this clears the pinned last-green failure\
+  \ by the SANCTIONED\n    route. Probe: the land records a narrow per-assertion re-baseline\
+  \ naming this exact\n    assertion, authorized under SPEC-0077 A-prime — either\
+  \ an owner ack or the\n    dispatched-Worker self-clear with all five conditions\
+  \ met and the mechanical tie recorded\n    in the >=30-char reason. FAILS on --no-tests,\
+  \ on a forced land, or on a reason that does\n    not name the assertion and the\
+  \ change that obsoletes it.\n\nIt names the land, the sanctioned route, the authorization\
+  \ and two failure modes — and no\nevent token. The overlay refused fail-closed,\
+  \ the Stage-8 audit RED-ed on exactly one finding\n(\"AC4 not evidenced\"), and\
+  \ clearing it cost a rung-2 adversarial consult plus a recorded\nacceptance amendment\
+  \ (`events.jsonl#ts=`). The wording that PASSES carries\nthe tie AND the token in\
+  \ the same entry:\n\n    AC4: the land that ships this clears the pinned last-green\
+  \ failure by the SANCTIONED\n    route. THIS PROBE IS LAND-EMITTED and is therefore\
+  \ read AFTER the land, never at the\n    pre-land diff-only Stage 8 — run audit-post\
+  \ with --land-emitted-event [...]. Probe: the\n    `land_completed` event for this\
+  \ task carries `rebaselined` true with `rebaseline_kind`\n    broken and a `rebaseline_reason`\
+  \ that NAMES BOTH the exact assertion [...] AND the reader\n    change that obsoletes\
+  \ it [...]. FAILS on --no-tests, on a forced land, on an absent or\n    non-rebaseline\
+  \ `land_completed` payload after the land, or on a reason that does not name\n \
+  \   both the assertion and the change.\n\nRead the pair for what did NOT change:\
+  \ every prior demand survives verbatim, and the criterion\nGAINED two (`rebaselined`\
+  \ true, `rebaseline_kind` broken) plus a new failure mode. Naming the\ncarrier made\
+  \ it STRICTER. That is the general property worth carrying away — the fix for an\n\
+  unsatisfiable-by-construction criterion is a NAMING fix, and a naming fix cannot\
+  \ loosen what\nthe criterion demands, which is why there is never a reason to reach\
+  \ for a waiver instead.\n\nLimb (b), the record STOPS naming it ON SUCCESS — two\
+  \ questions to ask at the keyboard: does this\nrecord DROP my subject once it improves?\
+  \ is this number DOMINATED by something my change cannot\nmove? Both shapes were\
+  \ measured on the same day. A TOP-N record loses the subject exactly when\nthe work\
+  \ works: AC1 named the per-file durations in the `land_completed` row, which\nkeeps\
+  \ only the SLOWEST TEN files plus percentiles, so the four files the card made fast\
+  \ dropped\nout of it and the criterion became unsettleable PRECISELY BECAUSE the\
+  \ change succeeded (carried\nunsettled at fu_09ac1c981060; the land itself was clean).\
+  \ An AGGREGATE measures terms the work\nnever touched: AC3 named `verify_wall_ms`,\
+  \ of which 210.7s of a 452.7s wall was\nverify-admission QUEUE WAIT under a doubled\
+  \ verify — it settled FALSIFIED on a change that had in\nfact succeeded on every\
+  \ other measure. Name instead a record that still HOLDS the subject at its\nimproved\
+  \ value — a per-subject reading, or the aggregate's own decomposed term — and where\
+  \ no\nsuch record exists, say so and pick a different probe rather than a number\
+  \ that will read as a\nverdict on work it does not measure (rule home → this item\
+  \ + CHARTER §P3 done=adopted; the\nsettle-honestly discharges stay SPEC-0036's,\
+  \ not restated here).\nAn authoring PROMPT only: no card is refused for omitting\
+  \ it, and nothing validates it.\n\n**Durable-field cue —** NAME THE FIELD that will\
+  \ carry\nthis criterion's proof, and check it EXISTS on the side you need it. Not\
+  \ the artifact, not the\nrecord — the FIELD, written out, at the keyboard, before\
+  \ the card is filed. This is the sibling\nquestion to the two cues above, one level\
+  \ lower: they ask WHEN the proof arrives (ordering) and\nwhether the record will\
+  \ still NAME ITS SUBJECT once the work succeeds (eviction/dominance); this\none\
+  \ asks whether the named surface DURABLY EXISTS AT ALL. Measured across one drain\
+  \ session\n(2026-08-27): eight criteria unreadable not because the work failed but\
+  \ because the surface named\nwas never there to read. Three arms, one question.\n\
+  Arm 1, the BEFORE side is empty BY CONSTRUCTION — a before/after comparison against\
+  \ a metric key\nTHIS CHANGE INTRODUCES has zero rows on its before side the moment\
+  \ it is written. AC2\ncompared a firing rate against a pre-change baseline read\
+  \ via a glob key the same ship created\n(`selection_full_suite_globs` 0 rows before\
+  \ / 197 after; sibling `selection_governed` 0 / 391); it\nsettled pass ONLY because\
+  \ the card's own post_verification restated it as a two-arm within-window\ndiscrimination\
+  \ — a post-hoc rescue that belonged at authoring. AC2 used the same instrument\n\
+  and fixed a NUMERIC THRESHOLD (\">= 15 points over the pre-card level\") against\
+  \ the absent side, so\nit could not be rescued by re-reading at all. AC2 shows the\
+  \ archetype at its most deceptive:\nit named `land_completed` deltas before/after\
+  \ — a durable, long-lived event, about as safe as a\nfield looks — and still settled\
+  \ UNREACHABLE (events.jsonl#ts=), because no run\nunder the pre-change tree ever\
+  \ took the before reading. So checking the field EXISTS is not enough;\ncheck the\
+  \ BEFORE SIDE HAS ROWS TODAY, while taking the baseline is still free.\nArm 2, NO\
+  \ TRACE — the proof is a production observation whose surface is never journaled.\n\
+  AC4 asks for an attempt record showing a fold that THE SUCCESS PATH DOES NOT WRITE\n\
+  (`bin/lib/worktree.py`); the row it names is durable and its trigger genuinely self-firing,\
+  \ and the\nsub-record it joins on is absent precisely on the runs that succeed.\
+  \ AC4 joins against a\npre-flight blocker set that `worktree_synced` does not carry\
+  \ and no sibling event records — on a\ncard whose criterion is otherwise exemplary,\
+  \ declaring itself pending and banking the half that IS\nrecorded. AC2 is the limit\
+  \ case: it asked for a token figure measured against a named\nbaseline session,\
+  \ and ZERO rows in the whole journal carry any token or context number, on any\n\
+  event type, in any session — the reading is computed live and stored nowhere, so\
+  \ it was\nunrecordable after the fact, not merely unrecorded (ts=). Note what fails\n\
+  first here: naming the field fails IMMEDIATELY, because there is none to name —\
+  \ which is the whole\nvalue of writing it out. Beware also a field that exists today\
+  \ and stops being emitted with no\nsignal (the `verify_cache` telemetry key several\
+  \ criteria are written against —\nevents.jsonl#ts=).\nArm 3, the PREMISE EXPIRES\
+  \ when someone touches the thing it names. A criterion asserting a report\nis UNCHANGED\
+  \ — \"exactly as today\" — silently pins a moving artifact to an unstated moment.\n\
+  \ AC2 asserted the `land_member_verdict` rows carry no attribution as today; four\
+  \ commits\nhave since touched the mechanism and DELIBERATELY SHIPPED the behaviour\
+  \ AC2 said would not\nhappen, so a reading now blames this card for three later\
+  \ cards' intended work. Settled\nUNREACHABLE. Pin such a premise to a stated sha\
+  \ or window, or write the property so it survives\nintended change — never as an\
+  \ unchanged-since assertion.\nThe remedy is always the same one sentence: name the\
+  \ field, and say what is on the before side.\nWhere no such field exists, that is\
+  \ the finding — pick a different probe, or make the one-line\nchange that creates\
+  \ the field, and say which. THE COST OF NOT ASKING IS PAID TWICE AND NEVER BY THE\n\
+  AUTHOR: once by the drain session that must fold the whole journal to discover an\
+  \ ABSENCE, and once\nby the corpus, which carries an obligation that can only ever\
+  \ go unreachable — and an unreachable\nprobe cannot satisfy CHARTER Principle 8,\
+  \ so an infra card writing this shape has guaranteed itself\nno adoption proof at\
+  \ the moment of filing. Rule homes, none restated here: the ORDERING question\n\
+  and its SPEC-0028 declaration family → the deferred-proof ordering cue above; the\
+  \ land-tie wording\nand the on-success eviction → the evidence-availability cue\
+  \ above; done=adopted → CHARTER §P3/§P8.\nAn authoring PROMPT only: no card is refused\
+  \ for omitting it, and nothing validates it.\n\n**Sibling-forbidden absolute cue\
+  \ —** does a criterion demand an ABSOLUTE (a\ncount \"drops to zero\", \"no more\
+  \ X\", \"never again\") that a SIBLING criterion on the SAME card\nREQUIRES to keep\
+  \ happening? Read the card's own criteria against each other before filing: an\n\
+  absolute is settleable only over the population its siblings leave free. AC1 demanded\n\
+  merge-non-union-conflict aborts naming two ledger paths drop to zero while its own\
+  \ AC2 REQUIRES a\nsame-key collision to keep aborting; measured 19 pre / 15 post,\
+  \ it cannot reach zero without\nfalsifying AC2, so the card carries an unmeetable\
+  \ AC on work that. Write instead the\nabsolute SCOPED AWAY from the sibling's required\
+  \ residual — name the residual the sibling owns and\nassert zero over the COMPLEMENT\
+  \ (\"zero aborts other than the same-key collisions AC2 requires\"),\nwhich is also\
+  \ what makes the criterion differential (rule home → this item's differential-probe\
+  \ cue\n+ item 5 one-provable-claim, where a pair of criteria that cannot both hold\
+  \ is the split signal).\nAn authoring PROMPT only: no card is refused for omitting\
+  \ it.\n\n**Subject-mismatched metric cue —** does the number a criterion names measure\n\
+  the SUBJECT this change acts on, or a wider transaction that contains it? Ask it\
+  \ of every duration,\nrate or aggregate. AC4 demanded the p50 duration of rebaseline-unauthorized\
+  \ aborts be\nsingle-digit seconds; measured on the authorization arm alone it went\
+  \ UP (200.6s pre → 434.7s\npost), while the shipped mechanism plainly WORKS — 20\
+  \ of 21 post-land rows carry the\n`abort_preflight` marker. `duration_ms` is dominated\
+  \ by the admission-queue wait UPSTREAM of the\nrefusal, so no preflight can move\
+  \ it: the criterion measured the queue, not the gate, and settled\nagainst work\
+  \ that had succeeded. Write instead the metric NAMED AGAINST THE SUBJECT it measures\
+  \ —\nthe decomposed term the change actually moves, or the marker/state reading\
+  \ that shows the mechanism\nfiring — and where the record offers no such term, say\
+  \ so and pick a different probe. The\ndominated-aggregate half of this is limb (b)\
+  \ of the evidence-availability cue above and is not\nrestated here; what THIS cue\
+  \ adds is the ARM-SELECTION question (measured on which population?)\nthat limb\
+  \ (b) does not ask. An authoring PROMPT only: no card is refused for omitting it.\n\
+  \n**Observable-matches-mechanism cue (X-1277) —** is the OBSERVABLE this criterion\n\
+  names one the shipped mechanism PRODUCES? Name the OUTPUT the mechanism WRITES —\
+  \ a\nclassification, a marker, a row, a field value — never a DOWNSTREAM EFFECT\
+  \ the mechanism does\nnot perform (a line VANISHING, a count DROPPING, a debt CLEARING)\
+  \ unless the card ALSO ships\nwhat performs it. The sibling cues above ask whether\
+  \ the number measures the subject and whether\nthe record will still name it; this\
+  \ one asks, one step earlier, whether the thing the criterion\nsays will be SEEN\
+  \ is a thing this ship DOES. A criterion naming an effect the mechanism never\n\
+  produces contradicts a WORKING ship: the consumer reading arrives as a contradiction\
+  \ («the line\nis still there») instead of a confirmation, and the report-back cannot\
+  \ settle it. Measured: the\nmechanism shipped CLASSIFIES a superseded identity (rewire\
+  \ vs mis-authored) and never\nremoves a real debt, while its AC3 named a vanishing\
+  \ (X-1277; the <project> re-run showed the line\nPRESENT and correctly classified).\n\
+  **Worked NEGATIVE example, beside the wording that would have passed** — AC3. The\n\
+  FAILING wording:\n\n    AC3: <project> re-runs the fold and its frontend-unit admission-debt\
+  \ line is absent\n    (probe: consumer_read_evidence event carrying the consumer's\
+  \ run ref and the absent line).\n\nThe wording that PASSES names what the mechanism\
+  \ produces:\n\n    AC3: <project> re-runs the fold and its frontend-unit admission-debt\
+  \ line is PRESENT and\n    classified `rewire`, with the recorded prior identity\
+  \ named (probe: consumer_read_evidence\n    event carrying the consumer's run ref,\
+  \ the classified line and the prior identity it names).\n\nRead the pair for what\
+  \ changed: the OBSERVABLE moved from an effect the ship does not perform to\nthe\
+  \ OUTPUT it writes, and the criterion became STRICTER (it now demands the classification\
+  \ AND\nthe prior identity) — the fix is a naming fix, never a loosening (rule home\
+  \ → CHARTER §P3\ndone=adopted: what is adopted is the mechanism's OUTPUT; the failing-input\
+  \ half is this item's\ndifferential-probe cue above). An authoring PROMPT only:\
+  \ no card is refused for omitting it,\nand nothing validates it.\n\n**Reachable-population\
+  \ quantifier cue —** does a criterion conjoin an outcome\nwith a UNIVERSAL over\
+  \ a population (\"… AND EVERY remaining one carries X\")? Then ask which members\n\
+  of that population THIS change actually reaches. A conjunction settles FALSE on\
+  \ its weakest limb,\nso a universal over a partly-reached population converts a\
+  \ plainly-adopted mechanism into an unmet\nAC. AC3 conjoined a fall in verify-timeout\
+  \ aborts (met with room: 20/day → 1.72/day) with\n\"AND EVERY remaining one carries\
+  \ evidence naming which case it was\"; measured 22 of 27 — the\nmechanism is adopted,\
+  \ the conjunction fails on a coverage gap. Write instead the quantifier BOUNDED\n\
+  to the reachable population (\"every abort emitted by the new path\", \"every row\
+  \ after <ts>\"), with\nthe unreached remainder named and its coverage carried as\
+  \ its OWN criterion or its own card — so a\ncoverage gap reads as the separate claim\
+  \ it is (rule home → this item + item 5 one-provable-claim;\nthe cohort-complement\
+  \ cue above is the sibling question about what the selector EXCLUDES). An\nauthoring\
+  \ PROMPT only: no card is refused for omitting it.\n\n**External-territory probe\
+  \ cue —** is the evidence a criterion names produced in a\nrepository this card\
+  \ may not write to (a consumer checkout — <project> / <project> / <project>)?\n\
+  Then it cannot be a probe from here, and saying \"out-of-scope\" in the criterion\
+  \ text does not\nrescue it: 26 of the 207 deferred acceptance probes measured on\
+  \ 2026-08-26 name a consumer-side\noutcome, several of them while declaring that\
+  \ outcome out of scope, and most carry no cross item.\nMeasured instances: AC3 makes\
+  \ <project>'s own cards the probe target while its OWN waive\nsays \"the cards are\
+  \ that consumer's own\"; AC7 probes the close of a <project> coordination\nrow while\
+  \ its OWN waive states those rows are \"unreachable to --settle-evidence\". In both,\
+  \ the\nauthor SAW the boundary and wrote the probe anyway — so nothing can ever\
+  \ report back and the settle-evidence address space (this repo's journal, or a\n\
+  coordination row NAMING this card) can never reach them. The prohibition is already\
+  \ decided:\nAGENTS-SESSIONS §Scope-boundary holds that external territory is \"\
+  NEVER edited or made an\nacceptance probe target from any V2 write\" — this cue\
+  \ only makes that visible at the authoring\nmoment and is not a second copy of it.\
+  \ Write instead the consumer-side outcome ROUTED TO A CROSS\nITEM that names this\
+  \ card, and keep THIS card's criterion on what this repo can observe (the cross\n\
+  item's own completion row); where no cross exists yet, file it — a probe whose evidence\
+  \ has no\naddress is deferred forever. An authoring PROMPT only: no card is refused\
+  \ for omitting it.\n\n**File-count criterion cue —** does a criterion COUNT FILES\
+  \ in the diff (\"the\ndiff touches exactly N file(s)\")? It is unsatisfiable for\
+  \ any task-flow card, whatever N: the\n9-stage lifecycle itself writes this card's\
+  \ own fields, its `events.jsonl` rows and its audit YAML\ninto the same commit,\
+  \ so the shipped diff is always wider than the product edit by an amount the\nauthor\
+  \ cannot predict at filing time. (Checked when this was filed: SPEC-0060 carries\
+  \ zero\noccurrences of the word \"exactly\", and no card in `tasks/` currently uses\
+  \ the phrasing — this is a\ncue against a shape, not a cleanup of live text.) Write\
+  \ instead a count of what the card CHANGED,\nor — better — NAME THE PATHS that must\
+  \ appear, with the lifecycle bookkeeping excluded the way the\nconforming-run satisfiability\
+  \ cue above requires: as a CLOSED, PROVENANCE-BOUND list, never a bare\npath pattern.\
+  \ That cue owns the general diff-shape rule and is not restated here; what THIS\
+  \ one\nadds is the COUNT form and its replacement, because a prohibition with no\
+  \ alternative is what lets\nthe shape recur. An authoring PROMPT only: no card is\
+  \ refused for omitting it.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\n\
+  Each block above is asked for by a minority of cards — those whose criterion has\
+  \ the shape its cue\nnames. Rendered inside SPEC-0060 this text reached every session\
+  \ that files a card; as a\nreference behind one index paragraph and the head of\
+  \ the filing verb's help it is met by the author\nwhose criterion answers a cue\
+  \ (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home):\
+  \ every block of §Worked examples of the one question is present in this spec, and\n\
+  \  of each block SPEC-0060 item 4 carries only the words that form its cue; SPEC-0060\
+  \ carries\n  exactly one index paragraph naming this spec and the heading to search.\n\
+  - VP2 (reachable from the verb): the first lines of the `task file` help name this\
+  \ spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n- VP4 (nothing\
+  \ lost): every line item 4 carried before the blocks moved is in item 4 or in this\n\
+  \  spec's section, in order within its home.\nThe executable form of VP1-VP3 is\
+  \ `tests/test_t13695_acceptance_worked_examples_reference.py`; of\nVP4, `tests/test_t12593_spec0060_item4_one_question.py`.\n"
+cites:
+- SPEC-0060
+- SPEC-0005
+- SPEC-0013
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

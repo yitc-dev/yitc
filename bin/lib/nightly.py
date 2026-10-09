@@ -16,7 +16,8 @@ against a consumer (those WRITE the consumer's index + journal = a cross-territo
 write the runner makes is the ONE `nightly_run_completed` append to the ENGINE's own journal.
 
 ANTI-COMPLEXITY (CHARTER §P1 — reuse, do not invent parallel checks):
-  * queue freshness  — REUSES lib.state.scan_tasks (read-only) + the QUEUE.md ready-queue cap (≤50).
+  * queue freshness  — REUSES lib.state.scan_tasks (read-only) + the QUEUE.md active-queue cap (≤50 due
+    cards, split by the picker's own requires rule — T-13690).
   * corpus integrity — READS the EXISTING graph/index.json artifact (no parallel index) and compares
     its CONTENT with what the ONE index builder (`lib.graph.graph_build_index`) derives, in memory,
     from the project's corpus roots (T-13464). Nothing is written and no `graph build` is run.
@@ -56,8 +57,9 @@ from pathlib import Path
 from lib import state
 
 
-# The active-queue cap (QUEUE.md §Active queue) — a ready-queue larger than this is an
-# anti-complexity signal, surfaced as a `warn` by the queue-freshness check. NOT a gate.
+# The active-queue cap (QUEUE.md §Active queue) — more DUE cards than this (in-progress, plus ready
+# with no unmet task `requires:`) is an anti-complexity signal, surfaced as a `warn` by the
+# queue-freshness check. A ready card still waiting on a `requires:` target is not counted. NOT a gate.
 _READY_CAP = 50
 
 # A ready task older than this (days) flags the queue as stale (work piling up un-touched). A
@@ -349,8 +351,35 @@ def register_project(registry_path: Path, name: str, path: Path, *, _replace=os.
     return {"action": action, "name": name, "path": str(proj)}
 
 
+def _picker_target_statuses(file_statuses: list) -> dict:
+    """{target id: {status}} over the (file name, status) pairs of one tasks/ walk, keyed the way
+    the claim-time picker FINDS a `requires:` target: the card is the ONE file named
+    `<target>-*.yaml` (the host's task-file finder — its `id:` field is not consulted), so a card
+    with no `id:` is still found, and a target that two files answer to is not found at all (the
+    picker reads that as missing, which blocks). A file the walk could not count carries status
+    None: it is found, and blocks. A file name is registered under every prefix of it that ends
+    just before a `-`, which is exactly the set of targets that pattern matches."""
+    hits: dict = {}
+    for name, st in file_statuses:
+        stem = name[:-len(".yaml")] if name.endswith(".yaml") else name
+        cut = stem.find("-", 2)                      # past the leading `T-`
+        while cut != -1:
+            hits.setdefault(stem[:cut], []).append(st)
+            cut = stem.find("-", cut + 1)
+    return {tid: {"status": sts[0]} for tid, sts in hits.items() if len(sts) == 1}
+
+
 def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
-    """Read-only queue-freshness check: status counts + ready-cap + oldest-ready age.
+    """Read-only queue-freshness check: status counts + the due-card cap + oldest-ready age.
+
+    T-13690: the cap counts DUE cards — `in-progress` plus `ready` cards the picker's requires rule
+    leaves unblocked (`graph.requires_blockers_in_index`, the body the picker's index predicate
+    calls; statuses come from this same walk, and a target is resolved the way the claim-time
+    picker resolves it — by FILE NAME, `_picker_target_statuses`). A ready card that
+    rule blocks is WAITING: named in `waiting_cards`, counted in `waiting`, outside `due`. A target
+    with no counted card here blocks, as it does for the picker. Status counts and the oldest-ready
+    age read every ready card exactly as before; a ready card whose `requires:` is not iterable is
+    counted and aged too, waits, and is also named in `malformed`.
 
     T-13267: never raises on a card. A card is counted only when it loads as a non-empty mapping whose
     `status` is a non-empty string; every other card is NAMED in `malformed` as {path, reason} (closed
@@ -359,11 +388,16 @@ def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
     tasks_dir = proj_path / "tasks"
     if not tasks_dir.is_dir():
         return {"verdict": "skip", "reason": "no tasks/ dir"}
+    from lib import graph  # noqa: PLC0415 — lazy leaf (stdlib + lib.state), as in `_corpus_index`
     counts: dict = {}
     malformed: list = []
     oldest_ready_days = 0
+    file_statuses: dict = {}  # file name -> status (None while the card is not counted): what a
+                              # `requires:` target resolves to — every scanned file, as the picker globs them
+    ready_cards: list = []    # (name, requires) per counted ready card
     for tp in state.scan_tasks(tasks_dir):
         rel = str(tp.relative_to(proj_path))
+        file_statuses[tp.name] = None
         errs: list = []
         try:
             t = state.load_path(tp, errors=errs)
@@ -389,7 +423,19 @@ def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
             malformed.append({"path": rel, "reason": "status not a string"})
             continue
         counts[st] = counts.get(st, 0) + 1
+        file_statuses[tp.name] = st
         if st == "ready":
+            tid = t.get("id")
+            tid = tid if isinstance(tid, str) and tid else None
+            requires = t.get("requires") or []
+            try:
+                iter(requires)
+            except TypeError:
+                # counted and aged like any ready card; its requires cannot be read, so it is
+                # never shown as due — it waits, and is named
+                malformed.append({"path": rel, "reason": "requires not a sequence"})
+                requires = None
+            ready_cards.append((tid or rel, requires))
             created = t.get("created_at")
             if created:
                 try:
@@ -400,11 +446,16 @@ def _check_queue(proj_path: Path, *, now: _dt.datetime) -> dict:
                 except (ValueError, TypeError):
                     pass
     ready = counts.get("ready", 0)
-    over_cap = ready > _READY_CAP
+    index = {"tasks": _picker_target_statuses(list(file_statuses.items()))}
+    waiting_cards = sorted(name for name, requires in ready_cards
+                           if requires is None or graph.requires_blockers_in_index(requires, index)[0])
+    due = counts.get("in-progress", 0) + ready - len(waiting_cards)
+    over_cap = due > _READY_CAP
     stale = oldest_ready_days > _STALE_READY_DAYS
     verdict = "warn" if (over_cap or stale or malformed) else "ok"
-    return {"verdict": verdict, "counts": counts, "ready": ready,
-            "ready_over_cap": over_cap, "oldest_ready_age_days": oldest_ready_days,
+    return {"verdict": verdict, "counts": counts, "ready": ready, "due": due,
+            "waiting": len(waiting_cards), "waiting_cards": waiting_cards,
+            "over_cap": over_cap, "oldest_ready_age_days": oldest_ready_days,
             "malformed": malformed}
 
 
@@ -656,11 +707,13 @@ def transcript_tmp_retention_days() -> int:
         return TRANSCRIPT_TMP_RETENTION_DAYS
 
 
-def _verify_digest_for_prune(path: Path, archive_dir: Path, digest_root: Path) -> tuple:
+def _verify_digest_for_prune(path: Path, archive_dir: Path, digest_root: Path, *,
+                             older_parser: bool = False) -> tuple:
     """T-12491: may THIS raw file be deleted? (ok, reason). ok only when its digest parses, carries this
     parser's schema+version, names this file, passes its canonical hash, AND its source_bytes +
     source_sha256 match the file RE-HASHED from disk now. Every other state is a named refusal — a corrupt
-    digest is never a reason to delete (SPEC-0165)."""
+    digest is never a reason to delete (SPEC-0165). `older_parser` (T-13273) asks the refold question
+    instead: the same checks, but the version must be OLDER than this parser's — never used to delete."""
     import hashlib
     from lib import transcript_digest as td
     dpath = td.digest_path(path, archive_dir, digest_root)
@@ -672,8 +725,9 @@ def _verify_digest_for_prune(path: Path, archive_dir: Path, digest_root: Path) -
         return False, f"malformed digest ({type(exc).__name__})"
     if not isinstance(doc, dict) or doc.get("schema") != td.SCHEMA:
         return False, "malformed digest (schema)"
-    if doc.get("parser_version") != td.PARSER_VERSION:
-        return False, f"malformed digest (parser_version {doc.get('parser_version')!r} != {td.PARSER_VERSION!r})"
+    version = doc.get("parser_version")
+    if (not _parser_version_is_older(version)) if older_parser else version != td.PARSER_VERSION:
+        return False, f"malformed digest (parser_version {version!r} != {td.PARSER_VERSION!r})"
     if doc.get("digest_sha256") != td.canonical_hash(doc):
         return False, "digest integrity check failed"
     if doc.get("archive_relpath") != path.resolve().relative_to(archive_dir.resolve()).as_posix():
@@ -688,14 +742,34 @@ def _verify_digest_for_prune(path: Path, archive_dir: Path, digest_root: Path) -
     return True, "ok"
 
 
+def _parser_version_is_older(version) -> bool:
+    """T-13273: an ASCII-decimal parser_version string numerically LOWER than this parser's."""
+    from lib import transcript_digest as td
+    return (isinstance(version, str) and version.isascii() and version.isdigit()
+            and int(version) < int(td.PARSER_VERSION))
+
+
+def _digest_refoldable(path: Path, archive_dir: Path, digest_root: Path) -> bool:
+    """T-13273: True only for a digest whose ONE defect is an older parser_version (SPEC-0206 rule 5):
+    it passes every other `_verify_digest_for_prune` check — schema, canonical hash, this file's path,
+    and the source bytes + hash of the raw file as it is now. Anything else stays a named refusal."""
+    try:
+        return _verify_digest_for_prune(path, archive_dir, digest_root, older_parser=True)[0]
+    except (OSError, ValueError):
+        return False
+
+
 def _prune_transcripts(archive_dir: Path, digest_root: Path, *, now: _dt.datetime, raw_days: int,
                        tmp_days: int, fold: bool = True, _unlink=os.unlink, refused_cap: int = 50) -> dict:
     """T-12491: fold, then prune, expired raw transcripts. Caller holds the archive-maintenance lock.
 
     Per file: younger than its window → kept, silently. Expired with NO digest → folded first (when
-    `fold`); a stale / malformed / integrity-failed digest is NOT refolded here — it is refused by name
-    and stays for a human to look at. Then stat → `_verify_digest_for_prune` (full re-hash) → re-stat;
-    only an unchanged, verified file is unlinked. Any fault is a refusal for THAT file, never a deletion,
+    `fold`); so is one whose digest passes every check but was folded by an OLDER parser_version
+    (T-13273 — `_digest_refoldable`, refolded from the still-present raw file and counted in `folded`).
+    A stale / malformed / integrity-failed / newer-parser digest is NOT refolded here, whatever its
+    version — it is refused by name and stays for a human to look at. A failed fold or refold is a
+    named refusal, never a deletion, and a failed refold leaves the old digest in place (the write is
+    atomic). Then stat → `_verify_digest_for_prune` (full re-hash) → re-stat; only an unchanged, verified file is unlinked. Any fault is a refusal for THAT file, never a deletion,
     so an interruption between digest write and unlink leaves the raw file and the next run finishes it.
     Returns {verdict, pruned_files, bytes_freed, folded, refused_count, refused (first `refused_cap`)}."""
     from lib import transcript_digest as td
@@ -709,12 +783,15 @@ def _prune_transcripts(archive_dir: Path, digest_root: Path, *, now: _dt.datetim
             window = tmp_days if rel.startswith("-tmp") else raw_days
             if now_ts - path.stat().st_mtime < window * 86400:
                 continue
-            if fold and not td.digest_path(path, archive_dir, digest_root).exists():
+            dpath = td.digest_path(path, archive_dir, digest_root)
+            refold = fold and dpath.exists() and _digest_refoldable(path, archive_dir, digest_root)
+            if fold and (refold or not dpath.exists()):
                 try:
                     td.write_digest(path, archive_dir, digest_root)
                     folded += 1
                 except td.DigestError as exc:
-                    refused.append({"path": rel, "reason": f"fold failed at line {exc.line}: {exc.reason}"})
+                    verb = "refold" if refold else "fold"
+                    refused.append({"path": rel, "reason": f"{verb} failed at line {exc.line}: {exc.reason}"})
                     continue
             before = path.stat()
             ok, reason = _verify_digest_for_prune(path, archive_dir, digest_root)
@@ -4269,8 +4346,9 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
             if r.get("dormant_ignored"):      # T-13498 — named for an absent project too
                 print(f"      ! dormancy NOT honoured — {r.get('dormant_ignored')}")
             continue
-        qline = (f"queue={q['verdict']} ready={q.get('ready', '?')}"
-                 + (" OVER-CAP" if q.get("ready_over_cap") else "")
+        qline = (f"queue={q['verdict']} due={q.get('due', '?')}"
+                 + (" OVER-CAP" if q.get("over_cap") else "")
+                 + f" waiting={q.get('waiting', '?')}"
                  + (f" oldest-ready={q['oldest_ready_age_days']}d" if q.get("oldest_ready_age_days") else "")) \
             if q.get("verdict") != "skip" else f"queue=skip ({q.get('reason')})"
         _cd = (c.get("differences") or [None])[0]

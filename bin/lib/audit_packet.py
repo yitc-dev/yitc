@@ -38,6 +38,7 @@ import fnmatch
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -218,10 +219,10 @@ INJECTS = {
     "class_id_vocabulary": ("CONSULT_BLOCKING_CLASS_IDS", "_FINDING_CLASS_SNIFFS"),
     "_declares_owed_settlement": (),
     "_pso_declared_criteria": (),
-    "deferred_by_declaration_rows": ("_CROSS_ID_RE", "_EVENT_TOKEN_RE", "_EVENT_TOKEN_STOPWORDS",
-                                     "_LAND_EMITTED_PHRASE_RE", "_PSO_CARD_LEVEL",
+    "deferred_by_declaration_rows": ("_PSO_CARD_LEVEL",
                                      "_declares_owed_settlement", "_pso_declared_criteria",
-                                     "declared_deferred_probe_rows", "land_emitted_named_evidence"),
+                                     "declared_deferred_probe_rows", "land_emitted_entry_names",
+                                     "land_emitted_named_evidence"),
     "deferred_by_declaration_block": ("deferred_by_declaration_rows",),
     "declared_deferred_probes_block": ("declared_deferred_probe_rows",),
     "packet_touch_section": (),
@@ -306,7 +307,7 @@ def charter_p8_reaches_class(task_class) -> bool:
     return not cls or cls == "infra"
 
 
-def _format_adoption_evidence_lines(evidence_events) -> str:
+def _format_adoption_evidence_lines(evidence_events, keep_types=None) -> str:
     """Render a list of diff-invisible AC-probe / adoption journal events as auditor-facing bullet
     lines (T-9626 — extracted from the audit-post branch so the CONSULT branch reuses the SAME
     rendering, no parallel copy; CHARTER §P1 F1). Each line names the event type + ts + subject +
@@ -327,14 +328,72 @@ def _format_adoption_evidence_lines(evidence_events) -> str:
     correctly REDed the probe as incomplete against evidence that WAS recorded — a burned pass plus
     a fix-red cycle. Zero is the most common value a verification card proves, so this dropped
     precisely the strongest evidence. The rule is now ONE: omit only an ABSENT value (`None`);
-    render every other value literally."""
-    lines = []
-    for ev in evidence_events:
+    render every other value literally.
+
+    T-13710 — `keep_types` (the types never summarized: those the audited card's acceptance NAMES,
+    T-10708, plus the two P8 adoption types — the audit-post caller passes both) turns on
+    RUN COLLAPSING: a run of consecutive rows of ONE type the acceptance does not name is rendered as
+    ONE summary line (type, count, first/last ts, subjects, and every distinct value per key) when
+    that line is shorter than the rows it replaces. Measured before the change: in 9 of the 10 largest
+    post sections since 2026-09-11, uncited `spec_reverified` + `spec_edited` rows were 80-100% of
+    the bytes; collapsing their runs cut the ten sections from 1071123 to 714196 bytes (-33%).
+    What a summary never swallows: a row whose type is in `keep_types`, a row carrying the
+    cross-instance provenance mark (SPEC-0168 rule 4 — the mark is per row), and a row with no
+    type. A falsy value stays in the distinct values literally (the T-12016 rule above). `None`
+    (the default, the consult branch) renders every row, byte-identical to before."""
+    from lib.task import _CROSS_INSTANCE_DATA_KEY   # lazy: task.py imports THIS module
+    def _row(ev):
         d = ev.get("data") or {}
         detail = ", ".join(f"{k}: {v}" for k, v in d.items()
                            if k not in _EVIDENCE_NOISE_KEYS and v is not None)
-        lines.append(f"- `{ev.get('type')}` @ {ev.get('ts')} (subject: {ev.get('task_id')}) — "
-                     f"{detail or '(no data fields)'}")
+        return (f"- `{ev.get('type')}` @ {ev.get('ts')} (subject: {ev.get('task_id')}) — "
+                f"{detail or '(no data fields)'}")
+
+    def _collapsible(ev):
+        et = ev.get("type")
+        return (keep_types is not None and bool(et) and et not in keep_types
+                and _CROSS_INSTANCE_DATA_KEY not in (ev.get("data") or {}))
+
+    def _summary(run):
+        values: dict = {}
+        for ev in run:
+            for k, v in (ev.get("data") or {}).items():
+                if k in _EVIDENCE_NOISE_KEYS or v is None:
+                    continue
+                seen = values.setdefault(k, [])
+                # a list contributes its ELEMENTS (an empty one stays `[]`, T-12016): the run's
+                # rows repeat long anchor lists that differ by one or two entries
+                for item in ([str(x) for x in v] if isinstance(v, list) and v else [str(v)]):
+                    if item not in seen:
+                        seen.append(item)
+        subjects = list(dict.fromkeys(str(ev.get("task_id")) for ev in run))
+        detail = "; ".join(f"{k}: {' | '.join(vs)}" for k, vs in values.items())
+        return (f"- `{run[0].get('type')}` ×{len(run)} @ {run[0].get('ts')} … {run[-1].get('ts')} "
+                f"(subjects: {', '.join(subjects)}) — {len(run)} consecutive rows of a type no "
+                f"acceptance criterion names, collapsed (T-13710); distinct values: "
+                f"{detail or '(no data fields)'}")
+
+    lines = []
+    run: list = []
+
+    def _flush():
+        rows = [_row(ev) for ev in run]
+        if len(run) > 1:
+            summary = _summary(run)
+            if len(summary) < len("\n".join(rows)):
+                rows = [summary]
+        lines.extend(rows)
+        run.clear()
+
+    for ev in evidence_events:
+        if run and not (_collapsible(ev) and ev.get("type") == run[0].get("type")):
+            _flush()
+        if _collapsible(ev):
+            run.append(ev)
+        else:
+            lines.append(_row(ev))
+    if run:
+        _flush()
     return "\n".join(lines)
 
 
@@ -1373,6 +1432,12 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     # readiness row so the two cannot disagree. Initialised here so every other target/stage — which
     # renders no carrier body at all — reaches the readiness block with an honest empty value.
     _p8_carrier_block = ""
+    # T-13666 — the same honest empty value for the two OTHER names the readiness block reads and
+    # only the audit-post branch assigns: the counted adoption evidence and the Stage-6 row. Audit-pre
+    # counts no evidence and has no Stage-6 row yet, so the block reports exactly that. Unbound, they
+    # raised UnboundLocalError on every `audit pre --preview` and the block never printed.
+    evidence_events = []
+    tp = None
     if target_kind == "decision":
         overlay, body = decision_audit_prompt_parts(task, stage, diff)
     elif target_kind == "plan":   # T-0193 — plan-finalization aggregate (post-only, accepted→realized)
@@ -1616,8 +1681,10 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             "X-0134 RC1b, SPEC-0005 §3 content boundary): when the audited change AUTHORS or EDITS a\n"
             "spec (a `specs/SPEC-*.yaml` body), that spec carries ONLY (a) the standing RULE-TEXT and\n"
             "(b) rationale strictly in service of interpreting/applying that rule. Implementation\n"
-            "detail is METHODOLOGY-FORBIDDEN inside a spec — it belongs in the CODE or the PLAN, never\n"
-            "the spec. Specifically forbidden as spec content: DTO / payload / request / response /\n"
+            "detail is METHODOLOGY-FORBIDDEN in a spec's rule text — it belongs in the CODE or the PLAN\n"
+            "(a note the code's maintainer needs has its own `## Implementation notes` section,\n"
+            "outside the rule text). Specifically forbidden as rule text: DTO / payload / request /\n"
+            "response /\n"
             "schema SHAPES; field or function or method SIGNATURES; class / data-structure layouts;\n"
             "runtime FLAGS, env-var names, config keys, CLI option spellings; concrete file paths or\n"
             "line numbers as the rule itself. THEREFORE the auditor MUST NOT flag the ABSENCE of any\n"
@@ -2226,7 +2293,11 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             # carries its task-SPECIFIC proof in those fields (e.g. the routing detail of a live
             # trigger). T-9626: extracted to _format_adoption_evidence_lines so the consult branch
             # reuses the SAME rendering. Render them so the proof is visible.
-            adoption = _format_adoption_evidence_lines(evidence_events)
+            # T-13710 — rows of a type the acceptance names, and the two P8 adoption types (each
+            # row is a proof judged on its own payload), are never folded into a run summary.
+            from lib.cli import P8_EVIDENCE_TYPES, _card_named_event_types   # lazy: cli.py imports THIS module
+            adoption = _format_adoption_evidence_lines(
+                evidence_events, keep_types=_card_named_event_types(task) | set(P8_EVIDENCE_TYPES))
         else:
             adoption = ("(no P8 adoption event — consumer_read_evidence / live_trigger_evidence — and no\n"
                         "other AC-probe event — e.g. spec_edited tied via cites: or via a spec file in the\n"
@@ -2569,9 +2640,26 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                     ) or bool(_p8_carrier_block),
                     deferred_field=_deferred, stale_anchors=_stale_anchors,
                     touch_recon=_touch_recon, prior_findings_unanswered=_unanswered,
-                    p8_carrier_ids=_p8_carrier_ids, declared_test_globs=_test_globs))
-            except Exception:      # noqa: BLE001 — report-only; an audit never fails on a derived fact
-                pass
+                    p8_carrier_ids=_p8_carrier_ids, declared_test_globs=_test_globs,
+                    test_dir_tokens=(packet_test_dir_tokens(task.get("acceptance"), repo_root, _test_globs)
+                                     if repo_root is not None else ()),
+                    state_checked_rows=[(ev or {}).get("data") for ev in (evidence_events or [])
+                                        if str((ev or {}).get("type") or "") == "state_checked"
+                                        and str((ev or {}).get("task_id") or "") == str(task.get("id") or "")]))
+            except Exception as exc:      # noqa: BLE001 — report-only; an audit never fails on a derived fact
+                # T-13666 — NAMED, not swallowed: a silent `pass` here hid an UnboundLocalError on
+                # every `audit pre --preview` for weeks, and an absent block reads exactly like "no
+                # block for this stage". ONE stderr line (the message is whitespace-collapsed and
+                # bounded), nothing into `parts` or the sink, so the packet and the receipt are
+                # unchanged. `print(file=None)` writes to STDOUT — where the preview prints the
+                # packet — so an absent stderr prints nothing at all.
+                if sys.stderr is not None:
+                    try:
+                        print("# packet readiness UNAVAILABLE (T-13666; REPORT-ONLY, gates nothing): "
+                              f"{type(exc).__name__}: {' '.join(str(exc).split())[:300]}",
+                              file=sys.stderr)
+                    except Exception:      # noqa: BLE001 — a closed stderr must not fail an audit run
+                        pass
     # T-0350 (SPEC-0036 --focus): the composable owner/session append — AFTER the overlay+body,
     # never replacing them; deterministically BEFORE ## Extra context (--prompt-extra).
     if focus:
@@ -2690,7 +2778,7 @@ def _pso_declared_criteria(pso, acceptance) -> list:
     return [f"{p}{n}" for (p, n) in legal if (p, n) in named]
 
 
-def deferred_by_declaration_rows(task: dict, *, _CROSS_ID_RE, _EVENT_TOKEN_RE, _EVENT_TOKEN_STOPWORDS, _LAND_EMITTED_PHRASE_RE, _PSO_CARD_LEVEL, _declares_owed_settlement, _pso_declared_criteria, declared_deferred_probe_rows, land_emitted_named_evidence) -> list:
+def deferred_by_declaration_rows(task: dict, *, _PSO_CARD_LEVEL, _declares_owed_settlement, _pso_declared_criteria, declared_deferred_probe_rows, land_emitted_entry_names, land_emitted_named_evidence) -> list:
     """T-12237 — the criteria THIS card DECLARES are proven after the ship, each with the declaration
     that defers it. Pure f(card): no I/O, no args, no journal. Ordered; never raises on a malformed
     card (a card that cannot be read declares nothing, which fails closed).
@@ -2703,8 +2791,8 @@ def deferred_by_declaration_rows(task: dict, *, _CROSS_ID_RE, _EVENT_TOKEN_RE, _
           nothing there: the proof EXISTS, so nothing is deferred and the ordinary audit applies.
 
       (b) `land-emitted` — built ENTRY BY ENTRY, so every name maps DETERMINISTICALLY back to the
-          criterion that defers it. For each acceptance entry we extract candidates with the SAME two
-          shapes `land_emitted_named_evidence` uses, then admit a candidate ONLY if that flat namer
+          criterion that defers it. For each acceptance entry we extract candidates with the SAME
+          per-entry reader `land_emitted_named_evidence` uses (`land_emitted_entry_names`), then admit a candidate ONLY if that flat namer
           also returns it. The flat namer stays the TRUST-BOUNDARY oracle, so this derivation and the
           `_require_land_emitted_event` guard can NEVER disagree about what the card named; what the
           per-entry walk adds is only the CRITERION the name was found in. Edges, each tested: a name
@@ -2761,12 +2849,7 @@ def deferred_by_declaration_rows(task: dict, *, _CROSS_ID_RE, _EVENT_TOKEN_RE, _
         by_name: dict = {}
         for entry in acceptance:
             text = str(entry or "")
-            cands: list = []
-            if _LAND_EMITTED_PHRASE_RE.search(text):
-                cands += [t for t in _EVENT_TOKEN_RE.findall(text)
-                          if t not in _EVENT_TOKEN_STOPWORDS]
-            cands += [x.upper() for x in _CROSS_ID_RE.findall(text) if x.upper() in linked]
-            for name in cands:
+            for name in land_emitted_entry_names(text, linked):
                 if name not in oracle:
                     continue                      # no-widening bound: the oracle is the whole namespace
                 by_name.setdefault(name, [])
@@ -2921,6 +3004,61 @@ def packet_touch_section(recon: dict) -> str:
     return "\n".join(lines)
 
 
+def _criterion_dir_tokens(text) -> set:
+    """T-13742 — the slash-bearing path tokens of ONE criterion, normalized (trailing `/` and `.`
+    stripped). The ONE extraction both `packet_test_dir_tokens` (which directories exist) and
+    `packet_readiness_section` (which criterion names one) read, so a criterion matches a directory
+    only on its WHOLE token: `tests/unit/missing/` never matches the directory `tests/unit`."""
+    out = set()
+    for m in re.finditer(r"(?<![\w./-])((?:[\w.-]+/)+[\w.-]*)", str(text or "")):
+        tok = m.group(1).rstrip("/.")
+        if tok:
+            out.add(tok)
+    return out
+
+
+def packet_test_dir_tokens(acceptance, repo_root, declared_test_globs=()) -> list:
+    """T-13742 — the slash-bearing tokens the acceptance criteria name that are DIRECTORIES under
+    `repo_root` holding at least one test file — a file the ONE recognizer
+    `task.criterion_names_test` reads as a test (the project's declared globs, else the kernel
+    regex). The readiness block then reads a criterion naming such a directory as naming the tests
+    under it. Report-only input: a token resolving outside the root is skipped, the walk stops at the
+    first test file and after 5000 visited entries (files and directories) per directory, and any error yields nothing."""
+    import os
+    from lib.task import criterion_names_test   # lazy: task.py imports THIS module
+    walk_cap = 5000
+    out = []
+    try:
+        root = Path(repo_root).resolve()
+        cands = set()
+        for crit in (acceptance or []):
+            cands |= _criterion_dir_tokens(crit)
+        for tok in sorted(cands):
+            d = (root / tok).resolve()
+            if d == root or root not in d.parents or not d.is_dir():
+                continue
+            seen = 0
+            hit = False
+            for cur, subdirs, files in os.walk(d):
+                seen += 1 + len(subdirs)        # directories count toward the cap too
+                if seen > walk_cap:
+                    break
+                subdirs.sort()
+                for name in sorted(files):
+                    seen += 1
+                    rel = (Path(cur) / name).relative_to(root).as_posix()
+                    if seen > walk_cap or criterion_names_test(rel, declared_test_globs):
+                        hit = seen <= walk_cap
+                        break
+                if hit or seen > walk_cap:
+                    break
+            if hit:
+                out.append(tok)
+    except Exception:      # noqa: BLE001 — report-only; an unreadable tree names no directory
+        return []
+    return out
+
+
 def _ac_canonical_id(criterion: str, position: int, *, _AC_CANONICAL_ID_RE) -> str:
     """T-11977 — the canonical row label for ONE acceptance criterion: its own leading `ACn` token
     when it carries one, else the positional `AC<position>` (1-based). Pure f(str, int).
@@ -2934,7 +3072,8 @@ def _ac_canonical_id(criterion: str, position: int, *, _AC_CANONICAL_ID_RE) -> s
 def packet_readiness_section(acceptance, task_class, evidence_types, stage6_present,
                              p8_present, deferred_field, stale_anchors, touch_recon,
                              prior_findings_unanswered, p8_carrier_ids=(),
-                             declared_test_globs=(), *, _ac_canonical_id) -> str:
+                             declared_test_globs=(), test_dir_tokens=(), state_checked_rows=(),
+                             *, _ac_canonical_id) -> str:
     """T-11977 (SPEC-0036 §Packet preview) — the REPORT-ONLY packet-readiness block the `--preview`
     path prints, built from parts `build_audit_prompt` has ALREADY computed in the same pass.
 
@@ -2981,11 +3120,24 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
     INDENTED detail line beneath it, which the row contract above already reserves for detail. This
     row and that body block therefore report ONE derived value: before T-12009 the row counted only
     the two event types and printed ABSENT four screens under a body declaring the criterion
-    SATISFIED by a named open carrier (measured on T-12001 / T-12004 / T-12005)."""
+    SATISFIED by a named open carrier (measured on T-12001 / T-12004 / T-12005).
+
+    T-13742 (cryptochart, yitc-dev/yitc#68: T-0114 / T-0104 read ABSENT on every criterion under a
+    GREEN audit) — two more limbs, both still pure:
+      • `test_dir_tokens` — the directory tokens the criteria name that the CALLER found to hold a
+        declared test file on disk. A criterion naming one reads verifier PRESENT: a probe naming a
+        directory of tests names the tests under it.
+      • `state_checked_rows` — the `data` of the task-tied `state_checked` rows the packet counted.
+        A row whose payload names a criterion's own `ACn` id is that criterion's evidence.
+    A criterion that matches nothing keeps its machine-stable row and gets an INDENTED detail line
+    reading «not matched» with the probe text quoted — what was read, so the worker sees why."""
     from lib.task import _AC_WAIVE_RE, criterion_names_test   # lazy: task.py imports THIS module
 
     crits = list(acceptance or [])
     types = {str(t) for t in (evidence_types or []) if str(t)}
+    dirs = sorted({str(d).strip().rstrip("/") for d in (test_dir_tokens or ()) if str(d).strip().rstrip("/")})
+    rows = [json.dumps(r, ensure_ascii=False, sort_keys=True, default=str)
+            for r in (state_checked_rows or ()) if r]
     lines = [
         "# ---- packet readiness (T-11977; REPORT-ONLY — ADVISORY, gates nothing) ----",
         "# Every row below is DATA about the packet printed above: no verdict, no ceiling pass, no",
@@ -3011,8 +3163,19 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
         # criterion read evidence PRESENT — a row that says the packet answers a criterion it does
         # not (audit-post finding 2, absorbed).
         named_type = any(re.search(r"(?<![\w-])" + re.escape(t) + r"(?![\w-])", text) for t in types)
-        evidence = "PRESENT" if (named_type or (stage6_present and verifier == "PRESENT")) else "ABSENT"
-        lines.append(f"{_ac_canonical_id(text, i)}: verifier {verifier}; evidence {evidence}")
+        ac_id = _ac_canonical_id(text, i)
+        if verifier == "ABSENT" and (_criterion_dir_tokens(text) & set(dirs)):
+            verifier = "PRESENT"
+        id_re = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(ac_id) + r"(?![A-Za-z0-9_])")
+        named_row = any(id_re.search(r) for r in rows)
+        evidence = "PRESENT" if (named_type or named_row
+                                 or (stage6_present and verifier == "PRESENT")) else "ABSENT"
+        lines.append(f"{ac_id}: verifier {verifier}; evidence {evidence}")
+        if verifier == "ABSENT" and evidence == "ABSENT":
+            quoted = " ".join(text.split())
+            if len(quoted) > 240:
+                quoted = quoted[:239] + "…"
+            lines.append(f'    (not matched — probe text read: "{quoted}")')
 
     cls = str(task_class or "").strip() or "(unset)"
     # T-12725 — the class question is answered by THE ONE predicate (`charter_p8_reaches_class`), the

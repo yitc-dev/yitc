@@ -106,8 +106,13 @@ PROSE_BEARING_ADD_FIELDS = ("text", "relates_to", "trigger", "awaits")
 
 DROP_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("reason", "--reason", "reason", None),
+    ("not_adopted", "--not-adopted", "not_adopted", None),   # T-13655 — the P8-CARRIER waive reason
 )
-PROSE_BEARING_DROP_FIELDS = ("reason",)
+PROSE_BEARING_DROP_FIELDS = ("reason", "not_adopted")
+
+# T-13655: a P8-CARRIER drop admitted by the explicit `--not-adopted <reason>` waive records that
+# reason under the row's existing `reason` key behind this prefix — no new payload key.
+NOT_ADOPTED_PREFIX = "NOT-ADOPTED: "
 
 ARM_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("trigger", "--trigger", "trigger", None),
@@ -160,6 +165,29 @@ FOLLOWUP_ID_RE = re.compile(r"^fu_[0-9a-f]{12}$")
 # is kebab-case, `PLAN_SLUG_RE`), so the leg is decided by the target itself and never by a flag the
 # caller could get wrong.
 TASK_TARGET_RE = re.compile(r"^T-\d{4,}$")
+
+# T-13654: the DECLARED owner-question marker — spelled once here and parsed once by
+# `owner_question_ids`. A followup whose text carries `OWNER-QUESTION: T-NNNN` is the question an owner
+# is asked about card T-NNNN; once that card is terminal the row reads `fired` (`_partition_open`).
+# Precedent: `debt_adoption.P8_CARRIER_MARKER`, whose parse shape this reuses.
+OWNER_QUESTION_MARKER = "OWNER-QUESTION:"
+
+
+def owner_question_ids(text) -> frozenset:
+    """The task ids the `OWNER-QUESTION:` markers in `text` name (T-13654) — the ONE parser of the marker.
+
+    Each marker names the first whitespace token after it; trailing sentence punctuation is not part of
+    an id (the T-13637 carrier lesson), and only a full `TASK_TARGET_RE` match counts, so a marker naming
+    no id names nothing. Non-string text, or text with no marker, yields the empty set."""
+    if not isinstance(text, str) or OWNER_QUESTION_MARKER not in text:
+        return frozenset()
+    ids = set()
+    for chunk in text.split(OWNER_QUESTION_MARKER)[1:]:
+        toks = chunk.split()
+        tok = toks[0].rstrip(".,;:!?)]}>'\"`") if toks else ""
+        if TASK_TARGET_RE.match(tok):
+            ids.add(tok)
+    return frozenset(ids)
 
 # T-11610: the AUTHORED REFERENCE NOTE shape of a promote TARGET — the THIRD carrier. SPEC-0140 names
 # a lessons/ or patterns/ note as the LIGHTEST carrier for a captured followup and prescribes draining
@@ -1687,6 +1715,16 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
     before `awaits` existed folds to `awaits: None` and so reads `armed_waiting` — open, visible, and
     disposable by hand, never silently fired and never silently dropped.
 
+    THE OWNER-QUESTION READING (T-13654) — a DECLARED marker, not provenance. A trigger-less row whose
+    text carries `OWNER-QUESTION: T-NNNN` (`owner_question_ids`) for a card in `terminal_ids` goes to
+    `armed_fired` with a derived `owner_question_closed` list: the card the question was asked about is
+    done or wont-do, so the question is due — shown unfloored and disposed by hand, never dropped
+    automatically (the answer may still spawn work). This is not the T-10335 key returning: that key
+    read `relates_to`, free provenance every capture carries; this reads only a marker the author
+    wrote to say "this asks the owner about that card". Unmarked rows, rows marking an open card and
+    armed rows are untouched. `fire_ids` is not consulted — a coordination id or an event class
+    arriving is not a card closing.
+
     Every group is sorted by `added_at` (oldest first), the order `list` has always printed in.
     """
     if fire_ids is None:
@@ -1696,6 +1734,14 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
         if it.get("status") != "open":
             continue
         if not it.get("trigger"):
+            # T-13654 — a DECLARED owner question whose card is terminal has had its moment: it reads
+            # `fired` (visible, unfloored, disposed by hand). Keyed on the marker in the text and the
+            # terminal-TASK set only — never `relates_to`, never `fire_ids`.
+            closed_q = [q for q in owner_question_ids(it.get("text")) if q in terminal_ids]
+            if closed_q:
+                it["owner_question_closed"] = sorted(closed_q)
+                groups["armed_fired"].append(it)
+                continue
             # Derived at READ time, exactly like the partition itself — nothing is stored, and the row's
             # group is UNCHANGED by the flag (report, not route).
             rel = it.get("relates_to")
@@ -1932,8 +1978,12 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
 
 
 def _transition(args, *, append_event, events_path, die, event_type: str, extra_key: str,
-                extra_attr: str, label: str, _segment_lines=None) -> None:
-    """Shared open->terminal leg: fold-validate the id is OPEN, then append the terminal event."""
+                extra_attr: str, label: str, _segment_lines=None, guard=None) -> None:
+    """Shared open->terminal leg: fold-validate the id is OPEN, then append the terminal event.
+
+    `guard` (T-13655, optional): called with the folded OPEN record AFTER the id checks and BEFORE
+    the append, so a leg-specific refusal reuses this one fold and a refused transition appends
+    nothing."""
     fid = (getattr(args, "id", None) or "").strip()
     if not fid:
         die("followup id required")
@@ -1943,6 +1993,8 @@ def _transition(args, *, append_event, events_path, die, event_type: str, extra_
         die(f"unknown followup id: {fid}")
     if it["status"] != "open":
         die(f"followup {fid} is already {it['status']} — only an OPEN followup transitions")
+    if guard is not None:
+        guard(it)
     data: dict = {"followup_id": fid}
     val = (getattr(args, extra_attr, None) or "").strip()
     if val:
@@ -2217,18 +2269,59 @@ def promote_at_filing(fids, into: str, *, append_event) -> list:
 
 
 def cmd_followup_drop(args, *, append_event, events_path, die, stdin_ingest=None,
-                      _segment_lines=None) -> None:
-    """`followup drop <id> [--reason ...]` — the open->dropped leg.
+                      _segment_lines=None, p8_drop_check=None) -> None:
+    """`followup drop <id> [--reason ... | --not-adopted ...]` — the open->dropped leg.
 
     `--from-stdin` (T-11244, E-0054) reads the reason as a YAML mapping (`reason: <text>`) — the
     shell-proof path. This reason is the recorded WHY a governance item was discarded and the journal
     row is immutable once appended, so a shell-eaten fragment here is permanent (<project> X-0984).
-    The `id` positional stays on argv: it carries no prose."""
+    The `id` positional stays on argv: it carries no prose.
+
+    THE P8-CARRIER GUARD (T-13655, SPEC-0095). A followup whose text carries `P8-CARRIER: <T-ID>`
+    holds that card's adoption obligation, so dropping it on a prose claim that the obligation was
+    met left the card with no holder (fu_c23c75bbf671 / T-13048; 25 of 50 such drops measured
+    2026-10-07). `p8_drop_check(text, waived)` is the host's reading — None when the text carries no
+    marker, else `{"task_ids": [...], "refusal": <why>|None}` — computed from the ONE marker parse
+    and the ONE P8 verdict `task close` shares; this leaf stays stdlib-only. A carrier whose
+    evidence does not resolve is REFUSED before any append. The explicit waive `--not-adopted
+    <reason>` admits the drop without that reading and is recorded as the row's reason behind
+    `NOT_ADOPTED_PREFIX`. A followup without the marker drops exactly as before, and the waive is
+    refused on it (there is nothing to waive). Absent injection the guard is off."""
     _stdin_ingest(args, DROP_STDIN_CONFLICTING_ARGV_FLAGS, PROSE_BEARING_DROP_FIELDS, die=die,
                   carries="the drop reason", ingest=stdin_ingest)
+    waive = (getattr(args, "not_adopted", None) or "").strip()
+    if getattr(args, "not_adopted", None) is not None and not waive:
+        die("--not-adopted needs a non-empty reason (why the adoption obligation is given up)")
+    if waive and (getattr(args, "reason", None) or "").strip():
+        die("give the drop reason once: --not-adopted <reason> already is the recorded reason — "
+            "omit --reason")
+
+    if waive and p8_drop_check is None:
+        die("--not-adopted is not available in this embedding (no P8-carrier check was injected)")
+
+    def _guard(it):
+        fid = it["id"]
+        check = p8_drop_check(it.get("text"), bool(waive)) if p8_drop_check is not None else None
+        if check is None:
+            if waive:
+                die(f"followup {fid} carries no `P8-CARRIER:` marker — --not-adopted applies only "
+                    f"to a P8 carrier; drop it with --reason")
+            return
+        if waive:
+            return
+        if check.get("refusal"):
+            cards = ", ".join(check.get("task_ids") or []) or "(no readable task id)"
+            die(f"followup {fid} is the P8-CARRIER for {cards} and its adoption evidence does not "
+                f"resolve: {check['refusal']}. Nothing was dropped. Record substantive P8 evidence "
+                f"for the card first, or give the obligation up explicitly with "
+                f"`yitc-v2 followup drop {fid} --not-adopted <reason>` (the reason is recorded on "
+                f"the row).")
+
+    if waive:
+        args.reason = NOT_ADOPTED_PREFIX + waive
     _transition(args, append_event=append_event, events_path=events_path, die=die,
                 event_type="followup_dropped", extra_key="reason", extra_attr="reason", label="dropped",
-                _segment_lines=_segment_lines)
+                _segment_lines=_segment_lines, guard=_guard)
 
 
 def _arm_target(args, *, events_path, die, _segment_lines=None) -> str:
@@ -2413,6 +2506,8 @@ def _fmt_row(it: dict, label: str, is_named_actor=None) -> str:
         tail = f"  -> {it['into']}"
     elif it["status"] == "dropped" and it.get("reason"):
         tail = f"  ({it['reason']})"
+    elif label == "fired" and it.get("owner_question_closed"):
+        tail = f"  [OWNER-QUESTION card closed: {', '.join(it['owner_question_closed'])}]"   # T-13654
     elif label == "fired":
         tail = f"  [trigger FIRED: awaited {it['awaits']} closed — {it['trigger']}]"
     elif label == "armed":

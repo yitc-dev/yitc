@@ -819,7 +819,8 @@ def _print_followup_overlap(*args, **kw):
 #                                  infix, so a plain `<name>.js` is still UNNAMED
 #   - a pytest NODE id           — `::<name>`
 #   - an explicit marker         — `(test: <ref>)`
-# The waive form is `test-not-applicable: <reason>` — a marker with a NON-EMPTY reason. A bare
+# The waive's full form and keys are SPEC-0165 item 4's (T-13713, checked by `_ac_waive_missing_keys`);
+# THIS recognizer only asks for `test-not-applicable: <reason>` — a marker with a NON-EMPTY reason. A bare
 # `test-not-applicable:` with no reason still counts as UNNAMED (fail-closed) — the waive is a
 # contract, not a silence (mirrors _post_verification_gap's non-empty-reason discipline, SPEC-0038).
 _AC_TEST_REF_RE = re.compile(
@@ -1351,6 +1352,7 @@ def _print_ac_test_waive_status(*args, **kw):
     return card_io._print_ac_test_waive_status(*args, **kw)
 
 
+_ac_waive_missing_keys = card_io._ac_waive_missing_keys  # T-13713: the SPEC-0165 item 4 waive-key check
 _split_anchor = card_io._split_anchor  # re-export alias (T-12702): moved to task_card_io.py
 
 
@@ -1634,20 +1636,44 @@ def prototype_ref_error(repo_root, ref, events_path=None) -> "str | None":
     landed L2a/L4a resolver folds as a PARKED spike; else the reason, naming which shape failed."""
     from lib import spike_identity as si   # noqa: PLC0415
     ref = str(ref or "").strip()
+    # T-13698: every reason names the contract, which no stage entry delivers any more.
+    contract = " — the prototype contract is the kernel spec SPEC-0205 (rule 5)"
     if not _PROTOTYPE_REF_RE.match(ref):
-        return f"`{ref}` is not a `spike/<slug>` ref (a branch name or any other ref is refused)"
+        return f"`{ref}` is not a `spike/<slug>` ref (a branch name or any other ref is refused)" + contract
     kind = si._git(repo_root, "cat-file", "-t", f"refs/tags/{ref}", check=False).strip()
     if not kind:
-        return f"`{ref}` does not resolve — refs/tags/{ref} is missing"
+        return f"`{ref}` does not resolve — refs/tags/{ref} is missing" + contract
     if kind != "tag":
-        return f"`{ref}` is a lightweight tag — only an ANNOTATED spike tag (worktree park) names its declaring row"
+        return f"`{ref}` is a lightweight tag — only an ANNOTATED spike tag (worktree park) names its declaring row" + contract
     fold = si.fold_spike_set(repo_root, si.read_journal_rows(events_path or prototype_main_journal(repo_root)), None)
     if not any(s["ref"] == ref and s["state"] == "parked" for s in fold["spikes"]):
-        return f"`{ref}` is an annotated tag whose annotation names no declaring spike row"
+        return f"`{ref}` is an annotated tag whose annotation names no declaring spike row" + contract
     return None
 
 
-def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, _append_event, _as_list, _auto_cross_pick_for_file, _cross_overlap_inputs, _declared_surface_preview, _die, _dump_state_yaml, _emit_task_skeleton, _format_task_verdict_line, _id_alloc_lock, _print_cross_territory_routing_hint, _report_graft_parse_errors, _require_reads, _require_writing_worktree, _slug, _utc_now_iso, _with_live_nodes, _work_batch_next_hint, graph_build_index, write_text_atomic, _actor=None, _actor_vocabulary=None, _inflight_intent_scan=None, _print_spike_mode_hint=lambda: None, _kernel_content_file=None, _main_events_path=None, _run_git_cap=None, _is_consumer_build=None, _advisory_read_scope=None, _observed_event_types=None) -> None:
+def _name_created_card_on_failure(fn):
+    """T-13726: a `task file` that fails AFTER its card file was written exits non-zero like any
+    failure, and the caller reads «failed» as «not filed» and files the card again (<project> T-0238 /
+    T-0239). So once the card exists, every failure exit — a raise or a `_die` — ends by naming the
+    created id and its path. A refusal before the write leaves `created` empty and prints nothing extra.
+    The exit itself is unchanged: the exception is re-raised."""
+    @functools.wraps(fn)
+    def wrapper(args, **kw):
+        created: dict = {}
+        try:
+            return fn(args, _created=created, **kw)
+        except BaseException as exc:
+            if created and not (isinstance(exc, SystemExit) and exc.code in (None, 0)):
+                tid, rel = created["card"]
+                sys.stderr.write(
+                    f"yitc-v2: task file: {tid} WAS FILED -> {rel} — the card exists; the failure above "
+                    f"came after it was written. Do not file it again: continue with {tid}.\n")
+            raise
+    return wrapper
+
+
+@_name_created_card_on_failure
+def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, _append_event, _as_list, _auto_cross_pick_for_file, _cross_overlap_inputs, _declared_surface_preview, _die, _dump_state_yaml, _emit_task_skeleton, _format_task_verdict_line, _id_alloc_lock, _print_cross_territory_routing_hint, _report_graft_parse_errors, _require_reads, _require_writing_worktree, _slug, _utc_now_iso, _with_live_nodes, _work_batch_next_hint, graph_build_index, write_text_atomic, _actor=None, _actor_vocabulary=None, _inflight_intent_scan=None, _print_spike_mode_hint=lambda: None, _kernel_content_file=None, _main_events_path=None, _run_git_cap=None, _is_consumer_build=None, _advisory_read_scope=None, _observed_event_types=None, _created=None) -> None:
     # T-0602 (SPEC-0060 §The fillable skeleton): `--skeleton` emits the fillable task-authoring
     # skeleton and exits — the AVAILABILITY/delivery leg (no gate, no worktree). It MUST short-circuit
     # at the ABSOLUTE TOP, before _require_writing_worktree AND before the handler-level required-field
@@ -2276,6 +2302,8 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
                 die=_die, card_text=content,
                 _segment_lines=journal_mod.segment_fold_lines)
         write_text_atomic(path, content)
+        if _created is not None:   # T-13726: from here on a failure must name this card
+            _created["card"] = (tid, str(path.relative_to(REPO_ROOT)))
         # Universal filing signal (existing consumers don't fork on status — additive). T-0281: the
         # governing_contract=before-file field is removed with the before-file retire (task-file is no longer
         # a binding surface); decomposition delivery-observability now lives on the before-analysis claim.
@@ -2325,6 +2353,13 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
             _append_event("task_wont_do", tid, {})
     # flock released on context-exit
     print(f"{tid} -> {path.relative_to(REPO_ROOT)}")
+    if prototype_ref:
+        # T-13698: the filing-time pointer to the contract a prototype card is read under.
+        _s205 = graph_lib.spec_query_hint(   # kernel-explicit under -C (SPEC-0092)
+            "SPEC-0205", is_consumer=bool(_is_consumer_build and _is_consumer_build()), cli="yitc-v2")
+        print(f"  prototype_ref: {str(prototype_ref).strip()} — audit pre reads the prototype diff as the "
+              f"specification, audit post its identity share (the prototype contract SPEC-0205 rules 5-6: "
+              f"`{_s205}`)")
 
     # T-11056 — ACT ON THE DECLARATION: promote each followup this card declared it carries, in the
     # SAME command as the filing. This is the whole point of the field — before it, the link could only
@@ -4367,6 +4402,15 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 _die(f"task update: --replace-acceptance takes a label like AC2, got {_rep_ac!r}. "
                      f"Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
             _txt = _raw.strip()
+            if not re.match(rf"{_lab}:\s", _txt):
+                # T-13736: a YAML-quoted scalar ("AC2: ...") is the value too — unwrap it, but only
+                # here on the refusal path, so every text accepted before is written unchanged.
+                try:
+                    _parsed = state.load_str(_raw)
+                except Exception:                      # noqa: BLE001 — not YAML: keep the raw text
+                    _parsed = None
+                if isinstance(_parsed, str):
+                    _txt = _parsed.strip()
             if not re.match(rf"{_lab}:\s", _txt):
                 _die(f"task update: the --from-file text must START with the same label ({_lab}:) — "
                      f"`task close --probe {_lab}` keys on it. Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
@@ -8332,17 +8376,22 @@ def _shared_store_evidence_missing(task: dict, filed_for_ids=()) -> list:
     return []
 
 
-def _shared_store_evidence_refusal(tid: str, cited: list, missing: list) -> str:
+def _shared_store_evidence_refusal(tid: str, cited, missing: list) -> str:
     """The closure-refusal message for a card owing shared-store row refs. PURE — built from
     (tid, cited, missing) so it is unit-testable, mirroring `_host_config_refusal`.
 
     It MUST name the cited ids and route the author to SPELLING the rows — never toward dropping the
     citation from `acceptance` to escape the gate, which would re-hide the very state-check the rule
-    exists to make legible."""
+    exists to make legible. `cited` is the `cross.card_store_check_triggers` map, so each id is named
+    with WHAT tied it to the store (T-13739); a bare id list still renders, without triggers."""
+    if isinstance(cited, dict):
+        named = "; ".join(f"{cid} via {' + '.join(trig) or 'the card'}" for cid, trig in cited.items())
+    else:
+        named = ", ".join(cited)
     why = ("`evidence:` is EMPTY/absent" if SHARED_STORE_EVIDENCE_EMPTY in missing
            else "`evidence:` names no shared-store row (`X-NNNN`) — evidence-shaped prose is not an ADDRESS")
-    return (f"{tid}: this card's acceptance is a STATE-CHECK over the OUT-OF-REPO shared coordination "
-            f"store (it names {', '.join(cited)}) but {why} — closure REFUSED (SPEC-0015 §Shared-store "
+    return (f"{tid}: this card is a STATE-CHECK over the OUT-OF-REPO shared coordination "
+            f"store ({named}) but {why} — closure REFUSED (SPEC-0015 §Shared-store "
             f"evidence spelling, fail-closed). That store lives outside every repo (SPEC-0084 rule 5), so "
             f"without the row refs a reader of THIS repo cannot verify a single probe: a genuine pass "
             f"reads as false-green, which is how T-10841's disposition was reported ABSENT while it sat "
@@ -9354,7 +9403,7 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     return None
 
 
-def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _unconfirmed_travels_specs=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
+def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _unconfirmed_travels_specs=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
@@ -10836,10 +10885,24 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     # T-12985: plus the store items filed FOR this card (`card_tied_items` route b) — resolved by the
     # host through a FAIL-OPEN store read, so an unreadable store never blocks nor hangs a close.
     _ss_filed = list((_cross_filed_for_ids or (lambda _t: []))(task) or [])
-    _ss_cited = list(dict.fromkeys(cross.card_store_checked_item_ids(task) + _ss_filed))
+    _ss_triggers = cross.card_store_check_triggers(task, _ss_filed)
     _ss_missing = _shared_store_evidence_missing(task, _ss_filed)
     if _ss_missing:
-        _die(_shared_store_evidence_refusal(tid, _ss_cited, _ss_missing))
+        # T-13739 (X-1879): when EVERY triggering id is the card's own `resolves_cross` link and this
+        # project already holds that item, the row the gate wants spelled is that id — close spells it
+        # into `evidence:` itself (named, not asserted) instead of refusing for a separate update.
+        _ss_held = set((_cross_self_held_ids or (lambda _t: []))(task) or [])
+        if _ss_triggers and all(trig == ["resolves_cross"] and cid in _ss_held
+                                for cid, trig in _ss_triggers.items()):
+            # APPEND, never replace: rows the card already carries are kept (audit-pre fp1:2474d34f).
+            _ev = task.get("evidence")
+            _ev = [] if _ev is None else (list(_ev) if isinstance(_ev, list) else [_ev])
+            task["evidence"] = _ev + [cid for cid in _ss_triggers if cid not in _ev]
+            _ss_missing = _shared_store_evidence_missing(task, _ss_filed)
+            print(f"evidence spelled from the held resolves_cross item(s): "
+                  f"{', '.join(_ss_triggers)} (T-13739)")
+    if _ss_missing:
+        _die(_shared_store_evidence_refusal(tid, _ss_triggers, _ss_missing))
 
     # T-0409 — author the SPEC-0038 post_verification field IN the close command (the moment of best
     # understanding) via --pv-criterion/--pv-signal or --pv-waive. Refuses misuse LOUDLY before any
@@ -13220,9 +13283,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             # the whole point of the card (the local host stops carrying worker Stage-6 load; the
             # 10-worker load test measured local load1 30-48 from these runs while the box idled).
             # The seam and the ONE call site are unchanged (AC5) — only the DECISION differs.
-            # A narrowed Stage-6 selection stays LOCAL by the run-size threshold (the owner directive
-            # of 2026-09-06T13:39:24Z); a FULL-breadth one routes (the owner directive of
-            # 2026-09-07T08:11:42Z). The decision therefore reads the RESOLVED breadth, never the
+            # A narrowed Stage-6 selection stays LOCAL only while it is SMALL (the owner directive
+            # of 2026-09-06T13:39:24Z, bounded by the owner decision of 2026-09-30 — T-13287:
+            # `remote_verify.VENUE_STAGE6_SMALL_SELECTION_MAX_FILES`); a larger narrowed one and a
+            # FULL-breadth one route (the owner directive of 2026-09-07T08:11:42Z). The decision therefore reads the RESOLVED breadth, never the
             # `--full` CLI flag — see the two-step block below.
             # LOWER PRIORITY (`priority="low"`) is the box-concurrency directive's Stage-6 arm: a
             # halved derived width AND a box-side `nice` the leg records — so a land sharing the box
@@ -13239,13 +13303,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             # nobody types (audit-post RED pass 1, and the SPEC-0191 rung-2 consult converged on the
             # same answer with one survivor).
             #
-            # THE THRESHOLD IS THE LADDER'S OWN VERDICT, not a number of files. `governed` is TRUE
-            # only when the ladder earned an omission and the governing window admitted it; anything
-            # else IS the full suite. So `full_suite = not governed` — no new constant, no invented
-            # size cut-off, and the two live owner directives are honoured exactly as each is
-            # written: 2026-09-06T13:39:24Z («a small SPEC-0181 selection is cheaper local than it
-            # is to ship») keeps a genuinely NARROWED run local, and 2026-09-07T08:11:42Z (this
-            # card's own grounds) routes the FULL-breadth default the pre-fix read misclassified.
+            # NARROWED IS THE LADDER'S OWN VERDICT. `governed` is TRUE only when the ladder earned an
+            # omission and the governing window admitted it; anything else IS the full suite, so
+            # `full_suite = not governed`. T-13287 adds the SIZE half on the narrowed arm: such a
+            # run stays local only at or below the small-selection bound (a 922-file selection ran
+            # on a host at load 57-70 under the unbounded rule), and 2026-09-07T08:11:42Z routes
+            # the FULL-breadth default the pre-fix read misclassified.
             #
             # TWO STEPS, and the ORDER is what keeps the no-venue path byte-identical (SPEC-0203
             # rule 8). Step 1 asks the PURE, box-free decision at full breadth — it answers
@@ -13275,6 +13338,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             # ~15 host-sensitive files, not the pass; this is the answer the venue decision was
             # actually taken on. `None` = never resolved, which the summary renders `unrecorded`.
             _stage6_full_reason = None
+            # T-13287 — the resolved names a LARGE narrowed selection ships with; None = full suite.
+            _stage6_route_selection = None
             if _is_consumer_build is not None:
                 _vrec, _vnote = venue.routing_record()   # T-13000: unbound ⇒ record ignored
                 # T-12272 — SPEC-0203 rule 7's sandbox carve-out, resolved ONCE into a local before
@@ -13312,10 +13377,25 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         _stage6_full_reason = _gsel_up.get("reason")
                     if _gsel_up is not None and _gsel_up["governed"]:
                         _stage6_presel = _gsel_up
+                        # T-13287 — the narrowed pass stays local only when it is SMALL: its size
+                        # is the resolved selection's own file count, read here, never re-derived.
+                        # An unreadable file list is an UNKNOWN size (None), which routes — and
+                        # ships the full suite, the fail-closed breadth.
+                        _gsel_files = _gsel_up.get("test_files")
+                        _gsel_files = _gsel_files if isinstance(_gsel_files, list) else None
                         _vdec = remote_verify.venue_decision(
                             kernel=not _is_consumer_build(), kind=remote_verify.STAGE6_KIND,
                             record=_vrec, record_note=_vnote, full_suite=False,
-                            sandbox=_vsandbox)
+                            sandbox=_vsandbox,
+                            selection_size=(len(_gsel_files) if _gsel_files is not None else None))
+                        if _vdec["remote"]:
+                            # A LARGE narrowed selection routes WITH its resolved names — the same
+                            # shape `land` threads — so the box runs the selection, not the suite.
+                            # `presel` is then not the local runner's: `route` calls it only for
+                            # the rule-8 probe leg (`only=`), which a selection never narrows.
+                            _stage6_route_selection = (sorted(f.name for f in _gsel_files)
+                                                       if _gsel_files else None)
+                            _stage6_presel = None
                 if _vdec.get("note"):
                     print(f"task test --run: {_vdec['note']}", file=sys.stderr)
                 if _vdec["remote"]:
@@ -13323,7 +13403,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                           f"(candidate leg, lower priority) — SPEC-0203")
                     _venue_result = remote_verify.route(
                         root, kind=remote_verify.STAGE6_KIND, decision=_vdec, local=_local_verify,
-                        test_dir=root / "tests", priority="low", legs=("cand",),
+                        test_dir=root / "tests", selection=_stage6_route_selection,
+                        priority="low", legs=("cand",),
                         on_wait=_stage6_venue_wait_relay(_append_event, tid, _vrec.get("box")))
                     if _venue_result["outcome"] == remote_verify.OUTCOME_INDETERMINATE:
                         # Rule 7 — never a pass, never a local re-run. The run FAILS naming the class.
@@ -15367,12 +15448,30 @@ def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
 
     REPORT-ONLY, and the text says so itself: nothing is gated, the exit code is untouched and the
     `tests_passed`/`tests_failed` emits are unchanged (GRAPH §"NOT a validation layer" / CHARTER
-    non-goal #7 / the E-0005 + T-0298 WARN precedent)."""
+    non-goal #7 / the E-0005 + T-0298 WARN precedent).
+
+    ONE `--anchor` COMMAND PER NAMED ANCHOR (T-13673). The before-the-run recipe prints, for every
+    (spec, anchor) pair the report names, the command that re-signs THAT anchor and no other. Until
+    this card it printed one whole-spec command per spec, and the whole-spec form also writes a
+    first signature for every anchor of the spec that has none yet — anchors the card never read
+    (measured on a consumer card: 17 and 4 such anchors signed). A pair is printed once, in the
+    order the report lists it. The anchor is shell-quoted and joined to its option with `=`, so the
+    line can be pasted as it stands: the `=` form is what keeps an anchor that BEGINS WITH A DASH
+    the option's value (written as a separate word, the CLI parser reads such a value as another
+    option and refuses the line). A hit whose anchor the signer's named scope CANNOT CARRY EXACTLY
+    gets its detail line and NO command. The signer strips each named value and drops a blank one,
+    so a BLANK anchor would be read as no scope at all — the whole-spec re-sign this report must
+    not hand out — and an anchor with surrounding whitespace would be looked up under another
+    name."""
     if not drift_hits:
         return ""
+    import shlex as _shlex   # noqa: PLC0415
     drifted = sorted({h["spec"] for h in drift_hits})
     detail = "\n".join(f"  - {h['spec']}: {h['anchor']}" for h in drift_hits)
-    reverify_cmds = "\n".join(f"  yitc-v2 spec reverify {sid}" for sid in drifted)
+    pairs = list(dict.fromkeys((str(h["spec"]), str(h["anchor"])) for h in drift_hits))
+    reverify_cmds = "\n".join(
+        f"  yitc-v2 spec reverify {_shlex.quote(sid)} --anchor={_shlex.quote(anchor)}"
+        for sid, anchor in pairs if anchor and anchor == anchor.strip())
     one_step = " ".join(f"--reverify {sid}" for sid in drifted)
     return (
         f"stale-anchor report (Stage 6, report-only): {tid}'s working tree changes code anchored by "
@@ -15385,6 +15484,8 @@ def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         f"  - body still accurate (the move was cosmetic/orthogonal)? re-sign NOW, BEFORE your final "
         f"full run (`yitc-v2 task test {tid} --run --evidence ...`):\n"
         f"{reverify_cmds}\n"
+        f"    Each command re-signs the ONE anchor it names and leaves the signature of every other "
+        f"declared anchor of that spec unchanged; run the ones whose anchor you re-read.\n"
         f"    The re-stamp is then part of the tree that run tests and your commit ships it with the "
         f"code, so the land can credit that run instead of repeating it.\n"
         f"    A re-sign AFTER the run changes `specs/`, which is not an inert path: the tree the land "
@@ -15443,7 +15544,10 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             f"after a supersession/activation)? Use the sanctioned route (T-0367): `yitc-v2 work "
             f"commit --from <durable ref> --message \"<type>(scope): ...\"` — from the current "
             f"task worktree (pre-land) or a fresh `worktree new --work <slug>` (post-land), "
-            f"then `land`. No raw-git recovery needed."
+            f"then `land`. No raw-git recovery needed. Closed BEFORE its land (the closure is "
+            f"still on this branch, the card `ready` on main)? Both recoveries — rework in place, "
+            f"or discard + re-claim — are in `bin/yitc-v2 graph query rare-task-recovery-recipes` (lead "
+            f"«Prematurely-closed UNLANDED task»)."
         )
     # T-10720 (E-0054): the shell-proof INGEST fork. `--from-stdin` carries the message as a YAML
     # mapping, so a backticked identifier in the BODY reaches the commit object intact; argv stays the
@@ -16237,7 +16341,9 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             f"Audit-post came back GREEN and you STILL have a further IN-SCOPE ship to make (a "
             f"verify layer reddened on the shipped code, say)? That is the THIRD cycle: `yitc-v2 "
             f"task commit {tid} --reship --message ...` → `yitc-v2 audit post --task {tid} "
-            f"--commit <new>` (T-12410). A RED cause to fix in scope? `--fix-red` (T-11600)."
+            f"--commit <new>` (T-12410). A RED cause to fix in scope? `--fix-red` (T-11600). "
+            f"The owner PARKS this card on its RED audit-post instead? Read "
+            f"`bin/yitc-v2 graph query rare-task-recovery-recipes` (lead «Park-mid-audit land path») before parking."
             # T-11765 — same appended signpost, same emptiness for a non-parked card: this arm's
             # `task close` prose is foreclosed for a park just as the T-11509 arm's is.
             + _foreclosed_park_route(tid, task)
@@ -17282,6 +17388,12 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
     reviewer. AC4's two path fixtures (wholly inside / wholly outside) read identically under either
     reading, so the choice is documented HERE rather than left implicit in a probe that cannot see it.
 
+    `paths_mode: all` (T-13735, X-1873) IS CONTAINMENT, BY OPT-IN: the leg holds only when EVERY
+    non-empty shipped path matches a glob, so a docs-only case is not ridden by a docs+code card. An
+    empty ship never matches under it (vacuous containment exempts nothing). `any`, the default when
+    the key is absent, is the intersection above — kept as the default so rule 6 keeps its referent
+    for every case that does not opt in; under `all` rule 6 has nothing to report for a matched card.
+
     `ship_paths` is the card's SHIP diff — rule 6's boundary, NOT rule 3's wider ship-∪-pending-writes
     set. Matching describes the scope the AUTHOR chose, exactly as rule 6 does; rule 3's guard reads the
     wider set separately and takes the card back regardless of what matched here (trial cycle 18)."""
@@ -17309,6 +17421,12 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
     if has_class and not classes:
         return False                           # declared but unreadable ⇒ the case does not apply
 
+    # T-13735 — `paths_mode` (`any` default = the intersection below; `all` = containment). Present but
+    # not exactly one of the two, or present over no `paths:` leg ⇒ the case does not apply.
+    paths_mode = match.get("paths_mode", "any")
+    if paths_mode not in ("any", "all") or ("paths_mode" in match and not has_paths):
+        return False
+
     globs = match.get("paths")
     if has_paths:
         if not (isinstance(globs, list) and globs
@@ -17320,7 +17438,7 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
     if classes and str(task_class or "").strip() not in classes:
         return False                           # the class leg (a LIST is a plain OR)
     if globs:
-        touched = False
+        touched, outside = False, False
         for raw in (ship_paths or []):
             p = str(raw).strip()
             if not p:
@@ -17329,8 +17447,13 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
                 p = p[2:]
             if any(fnmatch.fnmatch(p, g) for g in globs):
                 touched = True
-                break
-        if not touched:
+                if paths_mode == "any":
+                    break
+            else:
+                outside = True
+                if paths_mode == "all":
+                    break
+        if not touched or (paths_mode == "all" and outside):
             return False                       # the paths leg — read under this case at all?
     return True                                # both declared legs held (a CONJUNCTION when both)
 

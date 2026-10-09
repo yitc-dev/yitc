@@ -3269,41 +3269,33 @@ def build_plan_consult_prompt(slug, gate, options, plan_fm, plan_body, *,
 def consult_status_refusal(tid: str, status, on_demand: bool = False) -> str:
     """T-10507 — the `audit consult` status-gate refusal, ROUTED (never a dead end).
 
-    The gate itself is UNCHANGED (a consult still requires status: in-progress, or status: done
-    with --reaudit-after-close). Only the TEXT routes: a status:done target is told the sanctioned
-    exit it is standing on — `--reaudit-after-close` (T-10094), the HEAD-pinned post-close consult
-    that re-opens ONE pass past a SPENT --owner-reset.
+    The gate itself is UNCHANGED (a consult requires status: in-progress). Only the TEXT routes: a
+    status:done target is told the exit it is standing on. Since SPEC-0204 rule 6 retired the
+    task-form consult that exit is NOT a consult (T-13677): a done-but-UNLANDED card re-audits its
+    current tree with `audit post --reaudit-after-close`, and past the audit-loop ceiling it takes
+    the ONE `--on-decisions` pass on the Controller's recorded decisions (SPEC-0204 rules 2-4).
 
     WHY (the T-10481 incident, 2026-07-12/13, fp
-    consult-refuses-done-unlanded-task-circular-ceiling-deadend): the reopen MECHANISM already
-    shipped with T-10094, but this refusal named no exit — so a done-but-UNLANDED task past the
-    ceiling read a flat "in-progress only" as an absolute wall, captured a deviation, and
-    park+transplanted a converged build (T-10493). The capability was there; the discoverability
-    was the deadlock. Park+transplant is NOT the canonical exit (SPEC-0124 §Post-close reaudit
-    exit). A task whose `done` already LANDED has no reopen at all — that is a NEW task
-    (QUEUE §Prematurely-closed / LIFECYCLE §Stage 9), and the message says so rather than
-    letting a session hunt for a flag that cannot help it."""
+    consult-refuses-done-unlanded-task-circular-ceiling-deadend): this refusal once named no exit —
+    so a done-but-UNLANDED task past the ceiling read a flat "in-progress only" as an absolute
+    wall, captured a deviation, and park+transplanted a converged build (T-10493). Park+transplant
+    is NOT the canonical exit (SPEC-0124 §Post-close reaudit exit). A task whose `done` already
+    LANDED has no reopen at all — that is a NEW task (QUEUE §Prematurely-closed / LIFECYCLE
+    §Stage 9), and the message says so rather than letting a session hunt for a flag that cannot
+    help it."""
     base = f"{tid} status={status!r} — consult only valid for status: in-progress"
     if status != "done":
         return base
-    if on_demand:
-        return (f"{base}. A status: done task has NO --on-demand consult (that fork is a "
-                f"below-ceiling design pick on live work). If this is a done-but-UNLANDED task "
-                f"re-baselining post-close, the sanctioned path is the ceiling-convergence "
-                f"consult: `yitc-v2 audit consult --task {tid} --stage post --reaudit-after-close` "
-                f"(T-10094 / SPEC-0124 §Post-close reaudit exit). If {tid}'s `done` already LANDED "
-                f"there is no reopen at all: file a NEW task (QUEUE §Prematurely-closed / "
-                f"LIFECYCLE §Stage 9).")
-    return (f"{base}, UNLESS this is the post-close rebaseline path. If {tid} is done-but-UNLANDED "
-            f"on the `--reaudit-after-close` flow (past the ceiling, --owner-reset spent), the "
-            f"consult DOES admit it — re-run with the flag:\n"
-            f"  yitc-v2 audit consult --task {tid} --stage post --reaudit-after-close --option … --option …\n"
-            f"That consult pins its basis to HEAD (the same fp `audit post --reaudit-after-close` "
-            f"audits), so a fresh single-survivor verdict RE-OPENS one more `audit post "
-            f"--owner-reset --reaudit-after-close` past the exhausted budget (T-10094 / T-0515). "
-            f"Do NOT park+redo the build — that is not the canonical exit (SPEC-0124 §Post-close "
-            f"reaudit exit; the T-10481 circle). If {tid}'s `done` already LANDED there is no "
-            f"reopen at all: file a NEW task (QUEUE §Prematurely-closed / LIFECYCLE §Stage 9).")
+    lead = (" A status: done task has NO --on-demand consult (that fork is a below-ceiling design "
+            "pick on live work).") if on_demand else ""
+    return (f"{base}.{lead} If {tid} is done-but-UNLANDED (its closure is still on the branch), "
+            f"re-audit its current tree with `yitc-v2 audit post --task {tid} "
+            f"--reaudit-after-close`. Past the audit-loop ceiling the Controller records one "
+            f"decision per residual (`yitc-v2 audit decide --help`), then ONE pass runs on them: "
+            f"`yitc-v2 audit post --task {tid} --reaudit-after-close --on-decisions` (SPEC-0204 "
+            f"rules 2-4 / SPEC-0124 §Post-close reaudit exit). Do NOT park+redo the build — that "
+            f"is not the canonical exit. If {tid}'s `done` already LANDED there is no reopen at "
+            f"all: file a NEW task (QUEUE §Prematurely-closed / LIFECYCLE §Stage 9).")
 
 
 def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AUDIT_PASS_CEILING, DECISIONS_DIR, PLANS_DIR, PLAN_CONSULT_GATES, REPO_ROOT, TASK_ID_RE, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _file_followup=None, _plan_gate_lens=None, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _build_audit_prompt, _count_audit_passes, _die, _find_task_yaml, _get_audit_post_diff, _git_resolve_sha, _invoke_auditor, _load_draft, _parse_consult_result, _plan_content_hash, _plan_fsm_line, _plan_gate_prior_passes, _plan_gate_recorded_signature, _recorded_commit_sha, _reject_id_shaped_plan_slug, _require_plan_finalized, _require_writing_worktree, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _resolve_prompt_file, _strip_degenerate_tail, _utc_now_iso, _verdict_exit_code, write_text_atomic, RETIRED_AUDIT_SURFACES, RETIRED_CEILING_POINTER, _consult_adjudicate, _consult_post_subject, build_plan_consult_prompt, consult_hold_is_nonconverged, consult_status_refusal, consult_sticky_hold_open_ids, consult_task_lens, observe, parse_audit_verdict, resolve_model_for_provider, state) -> None:

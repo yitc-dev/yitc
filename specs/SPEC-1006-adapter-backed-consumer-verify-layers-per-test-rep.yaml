@@ -6,8 +6,9 @@ created_at: 2026-10-04 20:52:21+00:00
 travels: kernel
 consumed: false
 extension: null
-turn_on: yitc-ops.yaml `verify.layers[].adapter` — an `adapter:` block on the declared
-  verify layer whose tests it lists, selects and re-runs
+turn_on: 'yitc-ops.yaml `verify.layers[].adapter` — an `adapter:` block on the declared
+  verify layer whose tests it lists, selects and re-runs; the protocol the project
+  script speaks, with a sample adapter per runner: `patterns/verify-layer-adapter-protocol.md`'
 implements:
 - bin/lib/land_verify_legs.py#_declared_layer_adapters
 - bin/lib/land_verify_legs.py#_layer_adapter_report_pass
@@ -124,37 +125,40 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ LAYER'S `rescue:` SETTING HOLDS ON EVERY WHOLE-LAYER PATH: the layer-level re-run\
   \ of SPEC-0152 rule 16\nruns there as on any layer — only where that rule admits\
   \ it (rule 4) — and under `rescue: off` its pass is\ndiagnostic — the first failure\
-  \ still blocks.\nSelection never rests on an absent or executing command.\n\n###\
-  \ 4. Report profile — consistency, not authenticity\nOUTER FAILURES DECIDE FIRST.\
-  \ Before any report is read, the SPEC-0152 rule-16 classes decide exactly as they\
-  \ do\non a layer without an adapter: a layer whose `run` or full `command:` hit\
-  \ the layer's outer `timeout:` bound, or\nwhose `prep:` failed, FAILS — no report\
-  \ fallback, no whole-layer re-run, no per-unit re-run, no rescue (the\nDECLINED\
-  \ classes of SPEC-0152 rule 16; SPEC-0071 makes a verify timeout non-retriable).\
-  \ A test's OWN timeout\ninside the runner — a per-test or per-action timeout the\
-  \ runner records on the test case — is not an outer\ntimeout: it is that unit's\
-  \ failure under the rules below.\nThe report is a versioned profile (a JUnit XML\
-  \ subset) bound to the kernel's manifest (run id, requested\nunits, output path).\
-  \ The kernel writes it to a FRESH path per invocation and checks each suite's timestamp\n\
-  against the invocation's start (a runner that cannot start leaves an older report\
-  \ in place). The evidence is\nVOID when a requested unit has no record or only skipped\
-  \ records; an unrequested or duplicate unit appears;\nthe report is missing, malformed\
-  \ or stale; a failure is recorded that is not a test case's own (a collection,\n\
-  setup or teardown failure that the runner marks APART from a test's own failure\
-  \ — the profile names how each\nrunner marks one); an error is recorded outside\
-  \ every\nunit (an unhandled error); a native retry shows (rule 3); or the command\
-  \ exits nonzero while every requested\nunit reads passed. RUN-LEVEL ERRORS BESIDE\
-  \ A TEST FAILURE: an error outside every test case (an unhandled error,\na global\
-  \ setup or teardown failure, a worker crash) must stay visible when a test ALSO\
-  \ failed in the same\ninvocation, or a per-unit re-run that passes would clear the\
-  \ test and leave the error unchecked. The profile\nnames, per runner, the channel\
-  \ that reports such an error in that combination: Vitest's JUnit report carries\
-  \ it\nas a `vitest unhandled errors` suite; Playwright's JUnit report does NOT (the\
-  \ error's own test reads passed, trial\nrun 19), so its profile reads the top-level\
-  \ `errors` list of the JSON report written beside it. A runner whose profile names\
-  \ no such channel has that combination as\nan UNREVEALABLE void condition — the\
-  \ LIMIT clause below then holds for the layer: no rescue and no selection\nrests\
-  \ on its rows. A skipped\nCASE never voids and decides nothing: the report cannot\
+  \ still blocks.\nSelection never rests on an absent or executing command.\nTHE PROTOCOL\
+  \ HOME. What the kernel hands each of the three commands and what each answers back\
+  \ is stated in\n`patterns/verify-layer-adapter-protocol.md`, beside one sample adapter\
+  \ per report profile. That pattern is the\nhome of the protocol; this contract does\
+  \ not restate it.\n\n### 4. Report profile — consistency, not authenticity\nOUTER\
+  \ FAILURES DECIDE FIRST. Before any report is read, the SPEC-0152 rule-16 classes\
+  \ decide exactly as they do\non a layer without an adapter: a layer whose `run`\
+  \ or full `command:` hit the layer's outer `timeout:` bound, or\nwhose `prep:` failed,\
+  \ FAILS — no report fallback, no whole-layer re-run, no per-unit re-run, no rescue\
+  \ (the\nDECLINED classes of SPEC-0152 rule 16; SPEC-0071 makes a verify timeout\
+  \ non-retriable). A test's OWN timeout\ninside the runner — a per-test or per-action\
+  \ timeout the runner records on the test case — is not an outer\ntimeout: it is\
+  \ that unit's failure under the rules below.\nThe report is a versioned profile\
+  \ (a JUnit XML subset) bound to the kernel's manifest (run id, requested\nunits,\
+  \ output path). The kernel writes it to a FRESH path per invocation and checks each\
+  \ suite's timestamp\nagainst the invocation's start (a runner that cannot start\
+  \ leaves an older report in place). The evidence is\nVOID when a requested unit\
+  \ has no record or only skipped records; an unrequested or duplicate unit appears;\n\
+  the report is missing, malformed or stale; a failure is recorded that is not a test\
+  \ case's own (a collection,\nsetup or teardown failure that the runner marks APART\
+  \ from a test's own failure — the profile names how each\nrunner marks one); an\
+  \ error is recorded outside every\nunit (an unhandled error); a native retry shows\
+  \ (rule 3); or the command exits nonzero while every requested\nunit reads passed.\
+  \ RUN-LEVEL ERRORS BESIDE A TEST FAILURE: an error outside every test case (an unhandled\
+  \ error,\na global setup or teardown failure, a worker crash) must stay visible\
+  \ when a test ALSO failed in the same\ninvocation, or a per-unit re-run that passes\
+  \ would clear the test and leave the error unchecked. The profile\nnames, per runner,\
+  \ the channel that reports such an error in that combination: Vitest's JUnit report\
+  \ carries it\nas a `vitest unhandled errors` suite; Playwright's JUnit report does\
+  \ NOT (the error's own test reads passed, trial\nrun 19), so its profile reads the\
+  \ top-level `errors` list of the JSON report written beside it. A runner whose profile\
+  \ names no such channel has that combination as\nan UNREVEALABLE void condition\
+  \ — the LIMIT clause below then holds for the layer: no rescue and no selection\n\
+  rests on its rows. A skipped\nCASE never voids and decides nothing: the report cannot\
   \ tell who caused it — an author's `.skip`, a runtime\ncondition and a filter the\
   \ adapter's `run` applied read the same — so the kernel records each unit's\nskipped-case\
   \ count on every run and uses a skip for nothing else (not as a pass, not for selection,\

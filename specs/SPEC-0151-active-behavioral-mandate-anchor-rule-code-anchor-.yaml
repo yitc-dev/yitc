@@ -61,5 +61,5 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#_anchor_rule_warnings: a5461ecd23b90abaff2c0b903334e66057ff46380a6ae0b5c1f9c369c91408b5
   bin/lib/plan.py#_birth_plan_draft_specs: 66cfd74ced72e6278232fd8af0aa71ea363332de73c9123972803db23db8f3df
-  bin/lib/spec.py#_warn_anchor_rule: a6ed93c5fffea5d633b9735e3df8ae2afdd09643a224e060b98a24da7689e940
+  bin/lib/spec.py#_warn_anchor_rule: fc24faf3a714432bedf10f52aaa97eb3589b5a44d013cd2b1ce346f987877e5f
   bin/lib/spec.py#anchor_rule_violation: 796a8322b83b917679b3328ccdc076b3385cacce14863ef2619b44c786738782

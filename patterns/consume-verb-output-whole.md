@@ -50,6 +50,11 @@ ordinary sloppy read.
 - **Backgrounded / logged runs: same rule.** Redirect the FULL stream to a log
   (`… > <log> 2>&1`) and read the log whole. A `tail -N` on a live log is a progress peek, never the
   basis for a decision.
+  **Exception — a `dispatch` launch or a `dispatch --watch` re-arm.** Leave that call's stdout
+  attached: no redirect to a log, no pipe, no `tee`. The watcher it runs ends on the `WATCH:` token,
+  and with its stdout sent to a file the arming is recorded `watch_armed(reachability=unreachable)`
+  — see [[background-session-monitoring]] §Watcher. Run it under the harness background primitive
+  and read whole what the harness hands back.
 
 **The one sanctioned exception — a CONTRACTED machine-keyed line.** Where a verb *promises* a
 terminal-status token as its final stdout line, a caller MAY key on that token. The standing instance

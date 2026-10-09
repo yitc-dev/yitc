@@ -364,6 +364,30 @@ def _ac_names_test_or_waive(criterion: str, declared_globs=(), *, _AC_WAIVE_RE, 
                 or criterion_names_test(criterion, declared_globs))
 
 
+def _ac_waive_missing_keys(acceptance) -> list:
+    """T-13713 — `(criterion, missing_keys)` in order, for each acceptance criterion that carries a
+    `test-not-applicable:` waive but omits one of the waive keys SPEC-0165 item 4 names (item 8's
+    `waive{}` schema). Pure text check after the marker: a key counts when `<key>:` stands as its own
+    word with a value that is neither another key nor a bare delimiter (`;` `,` `|`); the value's
+    content is not otherwise judged. A criterion
+    with no marker is never listed — the test/waive block owns it."""
+    keys = ("class", "mechanism", "fail-point", "path", "violating-input", "approver", "recheck-trigger")
+    any_key = "|".join(re.escape(k) for k in keys)
+    out = []
+    for crit in (acceptance or []):
+        text = str(crit)
+        marker = re.search(r"test-not-applicable:", text, re.IGNORECASE)
+        if not marker:
+            continue
+        tail = text[marker.end():]
+        missing = [k for k in keys
+                   if not re.search(rf"(?<![\w-]){re.escape(k)}:[ \t]*(?!(?:{any_key}):)[^\s;,|]",
+                                    tail, re.IGNORECASE)]
+        if missing:
+            out.append((text, missing))
+    return out
+
+
 def _ac_unmeasured_bounds(acceptance, *, _AC_MEASUREMENT_REF_RE, _AC_NUMERIC_BOUND_RE) -> list:
     """T-12251 — the acceptance criteria (in order) that compare to a BARE number with no measurement
     named. Empty list ⇒ every numeric bound is measured or directional. Pure; the advisory printer
@@ -483,7 +507,8 @@ def _print_ac_measured_bound_status(acceptance, *, _ac_unmeasured_bounds, _trunc
 
 def _print_ac_test_waive_status(tid: str, acceptance, repo_root=None, *, _ac_test_waive_status, _print_ac_measured_bound_status, _truncate_advisory_text, declared_test_globs) -> None:
     """T-10678 (SPEC-0060 item 4, registry line 9): print the per-AC test/waive advisory for a
-    just-filed card, or NOTHING when every AC names a test or an explicit waive. ADVISORY ONLY — same
+    just-filed card, or NOTHING when every AC names a test or an explicit waive carrying every
+    SPEC-0165 item 4 key (T-13713). ADVISORY ONLY — same
     posture as the sibling `_print_followup_overlap` line: the id is allocated and the YAML is written
     by now, so this never blocks a filing, never emits an event, never changes the exit code. Fail-open:
     any compute error suppresses the advisory rather than breaking a completed filing.
@@ -496,14 +521,25 @@ def _print_ac_test_waive_status(tid: str, acceptance, repo_root=None, *, _ac_tes
     project declaring none) reads exactly as before, through the kernel regex."""
     unnamed = _ac_test_waive_status(
         acceptance, declared_test_globs(repo_root) if repo_root is not None else ())
+    waive_form = ("waive it per SPEC-0165 item 4: `test-not-applicable:` + the rationale + `class:`, "
+                  "`mechanism:`, `fail-point:`, `path:`, `violating-input:`, `approver:`, `recheck-trigger:` "
+                  "(SPEC-0060 item 4 — authoring prompt, not a gate)")
     if unnamed:
         print(f"AC test/waive status (advisory — filing not blocked): {len(unnamed)} of "
               f"{len(list(acceptance or []))} acceptance criteria name neither an executable test nor an "
               f"explicit waive")
         for crit in unnamed:
             print(f"  [unnamed] {_truncate_advisory_text(crit)}")
-        print(f"  disposition: name the verifying test (a path / pinned-suite id) in the AC, or waive it "
-              f"explicitly `test-not-applicable: <reason>` (SPEC-0060 item 4 — authoring prompt, not a gate)")
+        print(f"  disposition: name the verifying test (a path / pinned-suite id) in the AC, or {waive_form}")
+    # T-13713: a waive is a contract only when it carries SPEC-0165 item 4's keys — list the waives
+    # that omit one. Same posture as the block above: report-only, never blocks, never emits.
+    incomplete = _ac_waive_missing_keys(acceptance)
+    if incomplete:
+        print(f"AC waive fields (advisory — filing not blocked): {len(incomplete)} waive(s) omit a "
+              f"SPEC-0165 item 4 key")
+        for crit, missing in incomplete:
+            print(f"  [incomplete] {_truncate_advisory_text(crit)} — missing: {', '.join(missing)}")
+        print(f"  disposition: {waive_form}")
     # T-12251 (SPEC-0060 item 4, the Measured-bound cue): the second block, INDEPENDENT of the first —
     # a criterion can name its test and still carry a hypothesis threshold. Same posture: report-only.
     # CALLER 1 of 2 (T-12283): the printer moved to its own function so the SECOND authoring seam —

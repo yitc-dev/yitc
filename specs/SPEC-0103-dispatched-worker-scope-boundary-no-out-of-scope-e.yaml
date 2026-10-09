@@ -332,4 +332,4 @@ implements_signature:
   bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
   bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
   bin/lib/worktree.py#cmd_blocked_on_land: fbd30050ae5590d2674dd9573e92d906428f37951d8ce033fef197261e2756f5
-  bin/lib/worktree_lifecycle.py#cmd_worktree_park: 206656daadb5557b4283db9aa130d9a9b6e5fc6181a8f04f9e1a22961c12ce31
+  bin/lib/worktree_lifecycle.py#cmd_worktree_park: 2d831c2367619fbb5baa73844b8a3f879202658feb70ebb0a06c78a7db595b25

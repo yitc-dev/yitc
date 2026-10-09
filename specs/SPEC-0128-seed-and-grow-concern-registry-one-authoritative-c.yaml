@@ -104,15 +104,13 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ 3). **The ORPHAN row is addressed to the repo that can ACT on it\n(answering X-1184).**\
   \ The validators are kernel-owned code and the concern blocks that name\nthem live\
   \ in the KERNEL's corpus, so in a CONSUMER build every implemented hook is unreferenced\
-  \ BY\nCONSTRUCTION — a permanent row per hook that nobody there can act on (measured:\
-  \ 17 in <project>, 0 in\nthe kernel's own build), degrading a surface a scheduled\
-  \ inspection reads as an INPUT. So a\nkernel-owned hook's orphan row is NOT reported\
-  \ in a consumer build; the kernel's own build is\nunchanged, and so is every other\
-  \ WARN family. The exemption is keyed on the HOOK's ownership, never on\nthe build\
-  \ being a consumer: a consumer concern block that DOES name a kernel hook references\
-  \ it (so it\nwas never an orphan) and still earns its missing / duplicate verdict\
-  \ — a genuine consumer-owned orphan\nis still reported. Carrier: the host composition\
-  \ root injects the exempt set; the pure core stays\nidentity-agnostic. A concern\
+  \ BY\nCONSTRUCTION — a permanent row per hook that nobody there can act on, degrading\
+  \ a surface a scheduled inspection reads as an INPUT. So a\nkernel-owned hook's\
+  \ orphan row is NOT reported in a consumer build; the kernel's own build is\nunchanged,\
+  \ and so is every other WARN family. The exemption is keyed on the HOOK's ownership,\
+  \ never on\nthe build being a consumer: a consumer concern block that DOES name\
+  \ a kernel hook references it (so it\nwas never an orphan) and still earns its missing\
+  \ / duplicate verdict — a genuine consumer-owned orphan\nis still reported. A concern\
   \ present in the registry but absent from a generated\nsurface — or the reverse\
   \ — is likewise a build-time inconsistency (report-only WARN), not an invisible\n\
   drift.\n**Per-concern `version` (the SPEC-0143 propagation extension):** each derived\
@@ -137,8 +135,7 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   stanza from it into that concern's born section, carries it on the registry entry,\
   \ and WARNs\n(report-only, `concern-gated-capability-undisclosed`) when a concern\
   \ declares one but renders no born\nblock to disclose it into. Delivery to an ALREADY-INIT'd\
-  \ project rides the rule-11 update path\n(`bin/lib/init.py#_ops_born_disclosures`\
-  \ + `_inject_section_disclosure`), which needs its OWN arm\nbecause the existing\
+  \ project rides the rule-11 update path, which needs its OWN arm\nbecause the existing\
   \ one keys on section PRESENCE — a disclosure inside a born section reaches every\n\
   FUTURE project and NO existing one, i.e. exactly the projects that have been running\
   \ the capability\noff by ignorance. Three properties are load-bearing and none is\
@@ -166,17 +163,15 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ `authoring_floor` / `gated_capabilities`: kept only when well-formed, so a typo'd\
   \ stance\nis SKIPPED rather than half-registered. That skip is fail-closed on the\
   \ ADMITTING side — an\nunreadable stance reads as NO stance, never as a permissive\
-  \ default that excused itself.\nENFORCEMENT is a REFUSAL, not a WARN (`bin/lib/init.py#born_permissive_detector_violations`,\n\
-  composed at the `graph conformance` host seam and folded into its RED exit — the\
-  \ Rule-6\n`mandatory_migration_violations` precedent): a concern declaring `born_stance:\
-  \ permissive` with no\nnon-empty `detector:` is a conformance RED naming the concern.\
-  \ Rule 1 binds at AUTHORING time and\nmakes the pair the unit of admission, so a\
-  \ warning would leave precisely the unenforced convention\nit forbids — and the\
-  \ failure it permits is silent by construction, since a born-permissive default\n\
-  surfaces nothing on its own and the missing detector disables the very review that\
-  \ would catch it\nlater. The name resolves through the kernel detector registry\
-  \ (`bin/lib/debt.py`, SPEC-0189 rule\n5: a detector is named CODE, never a rule\
-  \ expressed in metadata). BOTH KEYS ARE EXCLUDED FROM THE\nPER-CONCERN `version`\
+  \ default that excused itself.\nENFORCEMENT is a REFUSAL, not a WARN: a concern\
+  \ declaring `born_stance: permissive` with no\nnon-empty `detector:` is a conformance\
+  \ RED naming the concern. Rule 1 binds at AUTHORING time and\nmakes the pair the\
+  \ unit of admission, so a warning would leave precisely the unenforced convention\n\
+  it forbids — and the failure it permits is silent by construction, since a born-permissive\
+  \ default\nsurfaces nothing on its own and the missing detector disables the very\
+  \ review that would catch it\nlater. The name resolves through the kernel detector\
+  \ registry (`bin/lib/debt.py`, SPEC-0189 rule\n5: a detector is named CODE, never\
+  \ a rule expressed in metadata). BOTH KEYS ARE EXCLUDED FROM THE\nPER-CONCERN `version`\
   \ HASH, for the reason `born` and `gated_capabilities` are: which detector\nwatches\
   \ a concern is kernel-side review machinery and moves no key, type or stance in\
   \ any\nconsumer's carrier, so hashing it would bump every consumer's adopted version\
@@ -213,9 +208,6 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ NAMES it (SPEC-0093 rule 3 fail-closed). The obligation is\nhomed HERE, at the\
   \ registry, because that is where the one-word flip is authored: a future author\n\
   meets it while editing the `concern:` block, not months later via a stranded consumer.\
-  \ Realized by\n`bin/lib/init.py#mandatory_migration_violations`, wired into the\
-  \ `graph conformance` RED set at the\nhost seam (the SPEC-0150 `_key_ownership_violations`\
-  \ precedent); registry-derived, so it covers the\nNEXT concern with no code edit.\
   \ Three refusal families: no migration ROUTE (a nested/dotted mandatory\nconcern\
   \ — the backfill delivers top-level sections only), no SCAFFOLD (no `born:` block\
   \ or no\n`declare_key` to leave empty), and an UNPROVEN migration (a scaffold that\
@@ -234,26 +226,39 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   ), **X-0058** (a UI concern that was an \"undelivered/unenforced system contract\"\
   ). Prior-art\n(CHARTER §P1 F1 — extend, don't create): SPEC-0096 ALREADY generates\
   \ the activation checklist from\n`init_concern`; this spec generalizes that proven\
-  \ derive-from-declaration model to EVERY surface.\n\n## Verification\n\n- **state-check:**\
-  \ a concern declared ONLY via a `concern:` block appears on every generated surface\n\
-  \  (born `yitc-ops.yaml` template, carrier fail-closed sweep, activation checklist,\
-  \ floor-trigger-map\n  row) after `graph build`, with NO edit to `_OPS_CARRIER_SECTIONS`\
-  \ / `_BORN_OPS_YAML` /\n  `_sweep_ops_carrier`.\n- **state-check:** `graph build`\
-  \ reports a registry↔surface inconsistency (a concern present on one\n  but not\
-  \ the other) as a report-only WARN.\n- **adoption (at activation, CHARTER §P8):**\
-  \ the retired hand-maintained lists are gone from\n  `bin/lib/init.py`; ≥1 real\
-  \ concern round-trips through the registry to all surfaces.\n- **state-check (active-only):**\
-  \ a `draft`/`proposed` concern spec registers NOTHING (absent\n  from `concern-registry.json`\
-  \ + `born-ops.yaml`); an `active` one DOES; the real corpus yields only its\n  ACTIVE\
-  \ carrier concerns (`tests/test_t10175_concern_active_only.py`).\n- **differential\
-  \ state-check (Rule 6):** a registry entry flipping a concern to\n  `presence_policy:\
-  \ mandatory` with NO migration scaffold is REFUSED by\n  `mandatory_migration_violations`,\
-  \ and the refusal NAMES that concern — while the identical entry is\n  accepted\
-  \ silently by every other check in the corpus (the input that passes without the\
-  \ guard).\n- **state-check (Rule 6 complement, non-vacuous):** the real corpus is\
-  \ clean AND names what it\n  exercised — every live `mandatory` concern is `proven`\
-  \ migratable, so a green verdict cannot mean\n  \"nothing was probed\"; the guard\
-  \ is wired into `graph conformance`'s RED exit\n  (`tests/test_t10984_mandatory_migration_guard.py`).\n\
+  \ derive-from-declaration model to EVERY surface.\n\n### History moved from the\
+  \ rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names;\nthe rule it explains stays there.\n\n- From «Rule 2»:\
+  \ (measured: 17 in <project>, 0 in the kernel's own build)\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «Rule 2»: Carrier: the host composition\
+  \ root injects the exempt set; the pure core stays\n  identity-agnostic.\n- From\
+  \ «Rule 2»: (`bin/lib/init.py#_ops_born_disclosures` + `_inject_section_disclosure`)\n\
+  - From «Rule 2»: (`bin/lib/init.py#born_permissive_detector_violations`, composed\
+  \ at the `graph\n  conformance` host seam and folded into its RED exit — the Rule-6\n\
+  \  `mandatory_migration_violations` precedent)\n- From «Rule 6»: Realized by `bin/lib/init.py#mandatory_migration_violations`,\
+  \ wired into the\n  `graph conformance` RED set at the host seam (the SPEC-0150\
+  \ `_key_ownership_violations`\n  precedent); registry-derived, so it covers the\
+  \ NEXT concern with no code edit.\n\n## Verification\n\n- **state-check:** a concern\
+  \ declared ONLY via a `concern:` block appears on every generated surface\n  (born\
+  \ `yitc-ops.yaml` template, carrier fail-closed sweep, activation checklist, floor-trigger-map\n\
+  \  row) after `graph build`, with NO edit to `_OPS_CARRIER_SECTIONS` / `_BORN_OPS_YAML`\
+  \ /\n  `_sweep_ops_carrier`.\n- **state-check:** `graph build` reports a registry↔surface\
+  \ inconsistency (a concern present on one\n  but not the other) as a report-only\
+  \ WARN.\n- **adoption (at activation, CHARTER §P8):** the retired hand-maintained\
+  \ lists are gone from\n  `bin/lib/init.py`; ≥1 real concern round-trips through\
+  \ the registry to all surfaces.\n- **state-check (active-only):** a `draft`/`proposed`\
+  \ concern spec registers NOTHING (absent\n  from `concern-registry.json` + `born-ops.yaml`);\
+  \ an `active` one DOES; the real corpus yields only its\n  ACTIVE carrier concerns\
+  \ (`tests/test_t10175_concern_active_only.py`).\n- **differential state-check (Rule\
+  \ 6):** a registry entry flipping a concern to\n  `presence_policy: mandatory` with\
+  \ NO migration scaffold is REFUSED by\n  `mandatory_migration_violations`, and the\
+  \ refusal NAMES that concern — while the identical entry is\n  accepted silently\
+  \ by every other check in the corpus (the input that passes without the guard).\n\
+  - **state-check (Rule 6 complement, non-vacuous):** the real corpus is clean AND\
+  \ names what it\n  exercised — every live `mandatory` concern is `proven` migratable,\
+  \ so a green verdict cannot mean\n  \"nothing was probed\"; the guard is wired into\
+  \ `graph conformance`'s RED exit\n  (`tests/test_t10984_mandatory_migration_guard.py`).\n\
   - **state-check (disclosure genericity):** a concern declaring ONLY `gated_capabilities:`\n\
   \  renders its commented stanza onto the born surface with NO edit to the generator\
   \ or to init, and\n  the disclosed key set equals the registry-derived set (no surface\

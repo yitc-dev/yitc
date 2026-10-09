@@ -21,6 +21,7 @@ import functools
 import hashlib
 import re
 import sys
+import tokenize
 import unicodedata
 from pathlib import Path  # T-12435 — the re-homed `symbol_region` binds a file suffix to its grammar
 
@@ -710,6 +711,107 @@ def anchor_symbol_patterns(sym: str, is_md: bool, is_js: bool = False) -> tuple:
     ) if is_js else ())
 
 
+# T-13647 — PROJECT-DECLARED SYMBOL FORMS. The tuple above is the kernel's own grammar; a project's own
+# code shape (a callback named inside a call, a framework macro) is answered by a form the project
+# declares in its ops contract, never by one more kernel form (rule home: SPEC-0006). This module stays
+# a text primitive: the host installs the reader that knows where the declaration is.
+declared_symbol_forms = None    # host-installed: file_rel -> tuple of declared templates for that file
+
+
+def _fill_symbol_form(template: str, sym: str) -> str:
+    """`template` with every `{symbol}` placeholder filled by `sym` as ONE literal unit — the escaped
+    symbol inside a non-capturing group. Whatever stands around the placeholder (a quantifier, a
+    backslash, a character class) meets the same `(?:` … `)` for every symbol, and a quantifier
+    after the placeholder applies to the whole symbol. What still differs between symbols is their
+    LENGTH — a look-behind needs alternatives of one width — so the template check below fills
+    symbols of two lengths, and a form that fails for an actual symbol is REPORTED where it is used
+    (`declared_symbol_form_failures`), never dropped quietly."""
+    return template.replace("{symbol}", "(?:" + re.escape(sym) + ")")
+
+
+def symbol_form_template_error(template) -> "str | None":
+    """Why `template` is not a usable declared symbol form, or None when it is. The ONE judgement the
+    ops-contract sweep and the runtime reader both apply: a non-empty string that names the symbol
+    placeholder `{symbol}` and compiles as a regular expression once the placeholder is filled —
+    tried with two symbols of DIFFERENT lengths, so a template that compiles only for symbols of one
+    length (a look-behind whose alternatives match in width for that length alone) is refused here.
+    Shape only — what the expression matches is the declaring project's statement about its own code."""
+    if not (isinstance(template, str) and template.strip()):
+        return "it is not a non-empty string"
+    if "{symbol}" not in template:
+        return "it carries no `{symbol}` placeholder, and a form that does not name the symbol would resolve any anchor"
+    for probe in ("Symbol_0", "s"):
+        try:
+            re.compile(_fill_symbol_form(template, probe))
+        except (re.error, RecursionError, OverflowError) as exc:
+            return f"it is not a valid regular expression for a symbol of {len(probe)} character(s) ({exc})"
+    return None
+
+
+@functools.lru_cache(maxsize=1024)
+def declared_symbol_patterns(sym: str, templates: tuple) -> tuple:
+    """`templates` compiled for `sym` — each `{symbol}` filled with the symbol as one literal unit
+    (`_fill_symbol_form`). A template that is not usable (see `symbol_form_template_error`) yields no
+    pattern: a malformed form resolves nothing. One that IS usable and still does not compile for
+    this symbol yields none either, and `declared_symbol_form_failures` names it for the report.
+    Cached like the built-in tuple, on its inputs."""
+    out = []
+    for t in templates:
+        if symbol_form_template_error(t) is not None:
+            continue
+        try:
+            out.append(re.compile(_fill_symbol_form(t, sym)))
+        except (re.error, RecursionError, OverflowError):
+            continue
+    return tuple(out)
+
+
+def declared_symbol_form_failures(sym: str, file_rel: str) -> tuple:
+    """The forms declared for `file_rel` that pass the template check and still do NOT compile for
+    `sym`, as written in the declaration. The anchor resolver appends them to its «symbol not found»
+    report, so such a form is never skipped without a word. Nothing declared, a reader that fails,
+    or every form compiling: `()`."""
+    reader = declared_symbol_forms
+    if reader is None or not sym:
+        return ()
+    out = []
+    try:
+        for t in tuple(reader(file_rel) or ()):
+            if symbol_form_template_error(t) is not None:
+                continue
+            try:
+                re.compile(_fill_symbol_form(t, sym))
+            except (re.error, RecursionError, OverflowError):
+                out.append(t)
+    except Exception:      # noqa: BLE001 — an unreadable declaration declares nothing
+        return ()
+    return tuple(out)
+
+
+def declared_symbol_line(text: str, sym: str, file_rel: str) -> "tuple | None":
+    """The first `(line_index, line_text)` of `text` on which a form the project DECLARED for
+    `file_rel` matches `sym`, or None. The one matcher both grammar readers consult — the anchor
+    resolver and `symbol_region` — and only after the built-in forms found nothing, so a symbol the
+    kernel grammar already resolves is never moved by a declaration.
+
+    LINE-SCOPED, by contract: each pattern is searched on ONE symbol-bearing line, never across lines,
+    so `^` and `$` are that line's ends (a trailing carriage return is not part of the line searched).
+    What else on a line the expression accepts — a mention in a comment or a string — is the
+    declaring project's choice; the kernel does not lex project code.
+    No reader installed, a reader that fails, or nothing declared for this file: None."""
+    reader = declared_symbol_forms
+    if reader is None or not sym:
+        return None
+    try:
+        pats = declared_symbol_patterns(sym, tuple(reader(file_rel) or ()))
+    except Exception:      # noqa: BLE001 — an unreadable declaration declares nothing
+        return None
+    for idx, ln in symbol_bearing_lines(text, sym):
+        if any(pat.search(ln.rstrip("\r")) for pat in pats):
+            return idx, ln
+    return None
+
+
 def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
     """Return the SOURCE SUBSTRING of `sym`'s region within `text`, or None if absent (T-0214).
     Reuses the SAME def/const/heading shapes as `_resolve_implements_anchor` — no parallel parser.
@@ -731,7 +833,10 @@ def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
         line at indent <= the def's. Multi-line signatures are covered: their continuation lines
         indent past the def, so they fall inside the region.
       - module const / annotation (`<sym> [:=]` at col 0): its line until the next non-blank col-0 line.
-      - markdown heading (`#..# ... <sym>`): until the next heading of level <= its own."""
+      - markdown heading (`#..# ... <sym>`): until the next heading of level <= its own.
+      - a PROJECT-DECLARED form (T-13647, `declared_symbol_line`) — consulted only when none of the
+        forms above found the symbol: from its matching line (never a line above it) until the next
+        non-blank line at indent <= that line's."""
     # LITERAL PREFILTER (T-10797) — all three patterns below are matched LINE-BOUND (`.match` on one
     # line, never across the text) and embed `re.escape(sym)`, so `symbol_bearing_lines` yields
     # EXACTLY the lines the scan-every-line loop could have matched, in the same ascending order.
@@ -761,7 +866,13 @@ def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
             start, indent, kind = idx, len(ln) - len(ln.lstrip()), "def"
         break
     if start is None:
-        return None
+        # T-13647 — no built-in form matched: a form the project declared for this file, if any.
+        # Its own kind: the indent bound of a code form (in a markdown file too), and NO look-back
+        # over `@` lines — the region starts at the matching line, whatever precedes it.
+        hit = declared_symbol_line(text, sym, file_rel)
+        if hit is None:
+            return None
+        start, indent, kind = hit[0], len(hit[1]) - len(hit[1].lstrip()), "declared"
     lines = text.split("\n")                  # split only once a region exists to bound
     body_from = start                         # the matched def/const/head line; end-scan starts AFTER it
     if kind == "def":
@@ -783,14 +894,71 @@ def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
                 end = j
                 break
     else:
-        for j in range(body_from + 1, len(lines)):
-            ln = lines[j]
-            if not ln.strip():
-                continue
-            if (len(ln) - len(ln.lstrip())) <= indent:
-                end = j
-                break
+        py_end = (_py_def_region_end(lines, body_from, indent)
+                  if kind == "def" and suffix not in JS_SUFFIXES else None)
+        if py_end is not None:
+            end = py_end
+        else:
+            for j in range(body_from + 1, len(lines)):
+                ln = lines[j]
+                if not ln.strip():
+                    continue
+                if (len(ln) - len(ln.lstrip())) <= indent:
+                    end = j
+                    break
     return "\n".join(lines[start:end])
+
+
+def _py_def_region_end(lines: list, body_from: int, indent: int) -> "int | None":
+    """The end index (exclusive) of the Python def/class whose line is `lines[body_from]` at `indent`,
+    or None when the text does not tokenize (the caller keeps the plain indent scan then) — T-13730.
+
+    The plain scan ended a region at the first non-blank line at indent <= the def's, and a line can
+    be that while still inside the def: a column-0 comment, the `) -> T:` closing a multi-line
+    signature, the content of a triple-quoted string. Only the START of a logical line can end a
+    block, so this reads the def's lines through the stdlib tokenizer (no parser of our own) and ends
+    the region at the first logical line, after the def line, that starts at indent <= the def's.
+    Lines after the def's last statement keep the plain scan's bound: the region runs to the first
+    non-blank line at indent <= the def's or that next statement, whichever comes first — so a
+    region the plain scan already ended correctly is unchanged, byte for byte."""
+    pos = [body_from]
+
+    def readline():
+        if pos[0] >= len(lines):
+            return ""
+        pos[0] += 1
+        return lines[pos[0] - 1] + "\n"
+
+    trigger, last_code = len(lines), body_from + 1     # last_code: index after the def's last statement
+    at_start = True
+    try:
+        for tok in tokenize.generate_tokens(readline):
+            if tok.type == tokenize.NEWLINE:
+                at_start, last_code = True, body_from + tok.end[0]
+                continue
+            if tok.type in (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT,
+                            tokenize.ENDMARKER):
+                continue
+            if at_start:
+                if tok.start[0] > 1 and tok.start[1] <= indent:
+                    trigger = body_from + tok.start[0] - 1
+                    break
+                at_start = False
+    except IndentationError as exc:
+        # Read in isolation, the def's lines carry none of the enclosing indent levels, so a valid
+        # dedent to one of them (a nested def's sibling) is refused here. The tokenizer checks indent
+        # only at the start of a logical line, so the refused line is one, at an indent below the def's.
+        j = body_from + (exc.lineno or 0) - 1
+        if not (body_from < j < len(lines)) or (len(lines[j]) - len(lines[j].lstrip())) > indent:
+            return None
+        trigger = j
+    except (tokenize.TokenError, SyntaxError):
+        return None
+    for j in range(last_code, trigger):
+        ln = lines[j]
+        if ln.strip() and (len(ln) - len(ln.lstrip())) <= indent:
+            return j
+    return trigger
 
 
 # Path-shaped token: a token carrying a `/` and a file extension (bin/lib/x.py, specs/SPEC-0036.yaml,
@@ -1596,7 +1764,7 @@ ARGV_PROSE_SEAMS = (
     # `followup drop` dies on a non-open item, so the drop reason is TERMINAL. `followup add`/`arm`
     # stay waived: the item is still open there, and drop + re-add corrects it.
     (("followup", "drop"),
-     (("--reason", "reason"),),
+     (("--reason", "reason"), ("--not-adopted", "not_adopted")),
      "a dropped followup's reason — TERMINAL: `followup drop` refuses a non-open item, so no verb "
      "rewrites it once recorded",
      ("followup:DROP_STDIN_CONFLICTING_ARGV_FLAGS", "followup:PROSE_BEARING_DROP_FIELDS"),
